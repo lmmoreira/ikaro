@@ -30,6 +30,7 @@ import {
 } from './bookings.types';
 import { LoyaltyBalanceResponse } from '../loyalty/loyalty.types';
 import {
+  ALLOWED_IMAGE_CONTENT_TYPES,
   ApproveBookingRequest,
   BffErrorCode,
   CustomerBookingDetailResponse,
@@ -178,7 +179,7 @@ export const AttachmentSignedUrlBodySchema = z.object({
       error: 'fileName must not contain path separators or ".."',
       params: { code: GenericErrorCode.FORMAT_INVALID },
     }),
-  contentType: z.enum(['image/jpeg', 'image/png']),
+  contentType: z.enum(ALLOWED_IMAGE_CONTENT_TYPES),
   tenantSlug: z.string().optional(),
   guestToken: z.string().optional(),
 });

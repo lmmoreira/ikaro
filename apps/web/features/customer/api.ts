@@ -4,6 +4,7 @@ import type {
   AttachmentSignedUrlResponse,
   CustomerProfileResponse,
   CustomerSearchListResponse,
+  ImageContentType,
 } from '@ikaro/types';
 
 export type CustomerAddressResponse = Address;
@@ -65,7 +66,7 @@ export async function submitInfo(
 // authenticated customer's request is scoped to their own tenant automatically.
 export async function createCustomerAttachmentSignedUrl(
   fileName: string,
-  contentType: 'image/jpeg' | 'image/png',
+  contentType: ImageContentType,
   bookingId: string,
 ): Promise<AttachmentSignedUrlResponse> {
   const res = await fetch('/api/bookings/attachments/signed-url', {

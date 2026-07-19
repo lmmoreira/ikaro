@@ -3,6 +3,8 @@
 import { useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { createCustomerAttachmentSignedUrl } from '../../api';
+import { uploadFileToSignedUrl } from '@/shared/lib/upload/upload-to-signed-url';
+import { compressImage } from '@/shared/utils/compress-image';
 
 interface CustomerPhotoUploadProps {
   readonly bookingId: string;
@@ -20,8 +22,6 @@ interface UploadItem {
   readonly filePath?: string;
 }
 
-const ALLOWED_CONTENT_TYPES = new Set(['image/jpeg', 'image/png']);
-
 export function CustomerPhotoUpload({
   bookingId,
   value,
@@ -32,25 +32,10 @@ export function CustomerPhotoUpload({
   const inputId = useId();
 
   async function uploadFile(file: File): Promise<string> {
-    if (!ALLOWED_CONTENT_TYPES.has(file.type)) {
-      throw new Error(t('photoUnsupportedFormat'));
-    }
-
-    const contentType = file.type as 'image/jpeg' | 'image/png';
-    const { signedUrl, filePath } = await createCustomerAttachmentSignedUrl(
-      file.name,
-      contentType,
-      bookingId,
+    const compressed = await compressImage(file);
+    return uploadFileToSignedUrl(compressed, (fileName, contentType) =>
+      createCustomerAttachmentSignedUrl(fileName, contentType, bookingId),
     );
-
-    const res = await fetch(signedUrl, {
-      method: 'PUT',
-      headers: { 'Content-Type': contentType },
-      body: file,
-    });
-    if (!res.ok) throw new Error(t('photoUploadFailed'));
-
-    return filePath;
   }
 
   function statusLabel(status: UploadStatus): string {

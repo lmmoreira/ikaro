@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { createAttachmentSignedUrl } from '@/features/booking/api/public';
 import { uploadFileToSignedUrl } from '@/shared/lib/upload/upload-to-signed-url';
+import { compressImage } from '@/shared/utils/compress-image';
 
 interface AfterServicePhotoUploadProps {
   readonly slug: string;
@@ -36,7 +37,8 @@ export function AfterServicePhotoUpload({
   const [items, setItems] = useState<UploadItem[]>([]);
 
   async function uploadFile(file: File): Promise<string> {
-    return uploadFileToSignedUrl(file, (fileName, contentType) =>
+    const compressed = await compressImage(file);
+    return uploadFileToSignedUrl(compressed, (fileName, contentType) =>
       createAttachmentSignedUrl(slug, fileName, contentType, bookingId),
     );
   }

@@ -9,12 +9,17 @@ import {
   generateHotsiteImageSignedUrl,
 } from '@/features/platform/api/tenant-settings';
 import { ApiError } from '@/shared/lib/api/errors';
+import { compressImage } from '@/shared/utils/compress-image';
 import { SingleImageUploadField } from './SingleImageUploadField';
 
 vi.mock('@/features/platform/api/tenant-settings', () => ({
   generateHotsiteImageSignedUrl: vi.fn(),
   generateHotsiteImageReadSignedUrl: vi.fn(),
   deleteHotsiteImage: vi.fn(),
+}));
+
+vi.mock('@/shared/utils/compress-image', () => ({
+  compressImage: vi.fn((file: File) => Promise.resolve(file)),
 }));
 
 const LABELS = {
@@ -55,6 +60,8 @@ describe('SingleImageUploadField', () => {
     vi.mocked(generateHotsiteImageSignedUrl).mockReset();
     vi.mocked(generateHotsiteImageReadSignedUrl).mockReset();
     vi.mocked(deleteHotsiteImage).mockReset();
+    vi.mocked(compressImage).mockReset();
+    vi.mocked(compressImage).mockImplementation((file: File) => Promise.resolve(file));
     // The "resolves a raw storage path" case below sets this env var directly — restore it so
     // later tests in this file (or this worker) don't inherit a leftover value.
     process.env.NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL = originalImageBaseUrl;
@@ -95,6 +102,39 @@ describe('SingleImageUploadField', () => {
       'src',
       expect.stringContaining('blob:'),
     );
+  });
+
+  it('uploads the compressed file returned by compressImage, not the original selection', async () => {
+    const user = userEvent.setup();
+    const compressedFile = makeFile('banner.webp', 'image/webp');
+    vi.mocked(compressImage).mockResolvedValue(compressedFile);
+    vi.mocked(generateHotsiteImageSignedUrl).mockResolvedValue({
+      signedUrl: 'https://storage.example.com/upload?sig=abc',
+      filePath: 'tenants/tenant-1/hotsite/hero/banner.webp',
+      expiresAt: '2026-06-15T12:00:00.000Z',
+    });
+    fetchSpy.mockResolvedValue(new Response(null, { status: 200 }));
+
+    renderWithIntl(
+      <SingleImageUploadField
+        id="hero-bg"
+        value=""
+        onChange={vi.fn()}
+        purpose="hero"
+        {...LABELS}
+      />,
+    );
+
+    await user.upload(
+      getByFieldId('single-image-upload-input', 'hero-bg'),
+      makeFile('banner.png', 'image/png'),
+    );
+
+    expect(generateHotsiteImageSignedUrl).toHaveBeenCalledWith({
+      fileName: 'banner.webp',
+      contentType: 'image/webp',
+      purpose: 'hero',
+    });
   });
 
   it('applies the large preview class by default and the small one when previewSize="small"', () => {

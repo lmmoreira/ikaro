@@ -4,10 +4,15 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createCustomerAttachmentSignedUrl } from '../../api';
+import { compressImage } from '@/shared/utils/compress-image';
 import { CustomerPhotoUpload } from './CustomerPhotoUpload';
 
 vi.mock('../../api', () => ({
   createCustomerAttachmentSignedUrl: vi.fn(),
+}));
+
+vi.mock('@/shared/utils/compress-image', () => ({
+  compressImage: vi.fn((file: File) => Promise.resolve(file)),
 }));
 
 function makeFile(name: string, type: string): File {
@@ -24,6 +29,8 @@ describe('CustomerPhotoUpload', () => {
   afterEach(() => {
     fetchSpy.mockRestore();
     vi.mocked(createCustomerAttachmentSignedUrl).mockReset();
+    vi.mocked(compressImage).mockReset();
+    vi.mocked(compressImage).mockImplementation((file: File) => Promise.resolve(file));
   });
 
   it('renders the file input and helper text with pt-BR copy', () => {
@@ -62,7 +69,34 @@ describe('CustomerPhotoUpload', () => {
       method: 'PUT',
       headers: { 'Content-Type': 'image/jpeg' },
       body: expect.any(File),
+      signal: expect.any(AbortSignal),
     });
+  });
+
+  it('uploads the compressed file returned by compressImage, not the original selection', async () => {
+    const user = userEvent.setup();
+    const compressedFile = makeFile('photo.webp', 'image/webp');
+    vi.mocked(compressImage).mockResolvedValue(compressedFile);
+    vi.mocked(createCustomerAttachmentSignedUrl).mockResolvedValue({
+      signedUrl: 'https://storage.example.com/upload?sig=abc',
+      filePath: 'tenants/tenant-1/bookings/b1/photo.webp',
+      expiresAt: '2026-06-15T12:00:00.000Z',
+    });
+    fetchSpy.mockResolvedValue(new Response(null, { status: 200 }));
+
+    renderWithIntl(<CustomerPhotoUpload bookingId="b1" value={[]} onChange={vi.fn()} />);
+
+    await user.upload(
+      screen.getByLabelText('Fotos (opcional)'),
+      makeFile('photo.jpg', 'image/jpeg'),
+    );
+
+    expect(await screen.findByText('Enviada')).toBeInTheDocument();
+    expect(createCustomerAttachmentSignedUrl).toHaveBeenCalledWith(
+      'photo.webp',
+      'image/webp',
+      'b1',
+    );
   });
 
   it('removes the thumbnail and calls onChange without the removed filePath', async () => {

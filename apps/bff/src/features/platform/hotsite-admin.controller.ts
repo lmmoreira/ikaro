@@ -10,6 +10,7 @@ import {
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import {
+  ALLOWED_IMAGE_CONTENT_TYPES,
   FeatureBookingPhotoResponse,
   GenerateHotsiteImageReadSignedUrlResponse,
   GenerateHotsiteImageSignedUrlResponse,
@@ -46,7 +47,7 @@ export const GenerateHotsiteImageSignedUrlBodySchema = z.object({
       error: 'fileName must not contain path separators or ".."',
       params: { code: GenericErrorCode.FORMAT_INVALID },
     }),
-  contentType: z.enum(['image/jpeg', 'image/png']),
+  contentType: z.enum(ALLOWED_IMAGE_CONTENT_TYPES),
   purpose: z.enum(['branding', 'hero', 'gallery', 'about', 'booking-cta', 'testimonials']),
 });
 

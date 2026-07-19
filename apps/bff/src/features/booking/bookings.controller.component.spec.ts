@@ -1367,6 +1367,22 @@ describe('BookingsController (component)', () => {
       expect(res.status).toBe(400);
     });
 
+    it('accepts contentType image/webp (client-side compressed upload)', async () => {
+      backendHttpService.get.mockResolvedValueOnce(tenantInfo);
+      backendHttpService.postForPublic = jest.fn().mockResolvedValueOnce(mockSignedUrlResponse);
+
+      const res = await request(app.getHttpServer())
+        .post('/v1/bookings/attachments/signed-url')
+        .send({ fileName: 'car.webp', contentType: 'image/webp', tenantSlug: TENANT_SLUG });
+
+      expect(res.status).toBe(201);
+      expect(backendHttpService.postForPublic).toHaveBeenCalledWith(
+        '/bookings/attachments/signed-url',
+        expect.objectContaining({ fileName: 'car.webp', contentType: 'image/webp' }),
+        TENANT_ID,
+      );
+    });
+
     it('returns 400 when fileName contains path separator', async () => {
       const res = await request(app.getHttpServer())
         .post('/v1/bookings/attachments/signed-url')

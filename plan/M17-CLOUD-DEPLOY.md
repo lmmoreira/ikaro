@@ -1487,16 +1487,25 @@ Uploads currently go browser → V4 signed URL → GCS **raw** — a phone photo
 
 **What to implement:**
 1. Shared helper `apps/web/shared/utils/compress-image.ts` (+ `.spec.ts` same commit, repo rule): input `File` → output `File`/`Blob`. Pipeline: `createImageBitmap(file, { imageOrientation: 'from-image' })` (EXIF rotation baked in — critical for phone photos) → draw to canvas capped at `MAX_DIMENSION=1600` preserving aspect ratio → `canvas.toBlob('image/webp', 0.8)`. Config (dimension/quality/format) as exported constants so tuning is one place.
+   **Test-infra note (discovery finding, 2026-07-19):** jsdom has no real canvas implementation and `canvas` isn't a project dependency — the spec must fully mock `global.createImageBitmap` and the canvas 2D context/`toBlob`; no existing precedent in `apps/web` for this, build the mocks from scratch.
 2. **Fallbacks (fail-open):** if `createImageBitmap`/WebP encoding is unavailable or throws, or if the compressed result is *larger* than the original (already-optimized images), upload the original — never block a booking flow on compression. `GCS_MAX_UPLOAD_BYTES` remains the server-side hard cap either way.
-3. Integrate at every upload call site: booking before/after photo pickers and the hotsite `GalleryImageManager` (grep the upload helper tree for all consumers of the signed-URL flow — do not fork per-component logic; one shared helper).
-4. **Contract check:** the signed URL is generated for a declared content type — verify the M115-S01 contract (does the backend sign for a specific `Content-Type`?). If yes, request the signed URL *after* compression with `image/webp`; if the backend restricts allowed types, add `image/webp` to the allowlist (backend change in the same story, with spec).
-5. Any new user-visible copy (e.g. a "processing photo…" state) localized pt-BR + en (repo rule).
+3. **Integrate at every consumer of the shared upload flow (discovery finding, 2026-07-19 — wider than "booking pickers + gallery manager"):**
+   - `PhotoUpload.tsx`, `AfterServicePhotoUpload.tsx`, `GalleryImageManager.tsx`, `SingleImageUploadField.tsx` already call `uploadFileToSignedUrl` — add compression as a step before it's invoked.
+   - `CustomerPhotoUpload.tsx` (customer submit-info photo flow) does **not** use the shared helper — it forks its own upload logic with its own inline `ALLOWED_CONTENT_TYPES` and a direct `fetch()` PUT. Refactor it onto `uploadFileToSignedUrl` as part of this story.
+4. **Content-type contract — consolidate, don't patch in place (discovery finding, 2026-07-19):** the signed URL is V4-signed with `contentType` bound into the signature (`storage.service.port.ts`), and the `'image/jpeg' | 'image/png'` allowlist is independently duplicated in **9 places** today: backend `generate-attachment-signed-url.dto.ts` + `generate-hotsite-image-signed-url.dto.ts` (`z.enum`), BFF `bookings.controller.ts` + `hotsite-admin.controller.ts` (`z.enum`), and web `upload-to-signed-url.ts`, `customer/api.ts`, `booking/api/public.ts`, `tenant-settings.ts` (hardcoded TS unions) — plus a 10th, dead/unused declaration on `AttachmentSignedUrlRequest.contentType` in `@ikaro/types` that nothing imports. Rather than adding `'image/webp'` nine times, establish one canonical definition and have every layer derive from it:
+   ```ts
+   // packages/types/src/booking.dto.ts
+   export const ALLOWED_IMAGE_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+   export type ImageContentType = (typeof ALLOWED_IMAGE_CONTENT_TYPES)[number];
+   ```
+   Backend/BFF Zod schemas become `z.enum(ALLOWED_IMAGE_CONTENT_TYPES)`; the four web files import `ImageContentType` instead of hand-rolling the union, and `upload-to-signed-url.ts`'s `DEFAULT_ALLOWED_IMAGE_TYPES` becomes `new Set(ALLOWED_IMAGE_CONTENT_TYPES)`. Delete the dead `AttachmentSignedUrlRequest` interface rather than updating it in place.
+5. **No separate "compressing" state (implementation finding, 2026-07-19):** compression is a fast, synchronous in-memory step chained immediately before the existing "uploading" status in all 5 upload components — introducing a distinct visible sub-state would mean plumbing a new prop/i18n key across `SingleImageUploadField`'s 5 callers plus 3 more components for a barely-perceptible UX distinction. The existing "uploading" label already spans compress+upload as one continuous busy period; no new copy was introduced.
 
 **Acceptance criteria:**
 - [ ] A 5MB portrait JPEG from a phone uploads as WebP ≤ ~500KB, correctly oriented, and renders in the booking detail and hotsite gallery
 - [ ] Compression failure or larger-result path falls back to the original file (specs for both)
-- [ ] All upload entry points go through the shared helper (grep proves no raw-`File` PUT remains)
-- [ ] Signed-URL content-type contract verified/adjusted with backend spec if touched
+- [ ] All 5 upload entry points (`PhotoUpload`, `AfterServicePhotoUpload`, `GalleryImageManager`, `SingleImageUploadField`, `CustomerPhotoUpload`) go through the shared `uploadFileToSignedUrl` helper — grep proves no raw-`File` PUT remains anywhere in `apps/web`
+- [ ] `ImageContentType`/`ALLOWED_IMAGE_CONTENT_TYPES` defined once in `@ikaro/types` and imported by both backend DTOs, both BFF controllers, and all four web call sites — no duplicated literal union remains; dead `AttachmentSignedUrlRequest` interface removed
 - [ ] Helper unit tests cover: resize math, orientation, fallback, size-comparison branch
 
 **Dependencies:** none (post-launch; independently shippable)

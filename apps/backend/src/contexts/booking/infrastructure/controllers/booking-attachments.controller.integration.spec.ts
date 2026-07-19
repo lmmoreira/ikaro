@@ -121,6 +121,25 @@ describe('BookingAttachmentsController (integration)', () => {
       expect(body.status).toBe(400);
     });
 
+    it('accepts contentType image/webp (client-side compressed upload)', async () => {
+      const { body } = await request(app.getHttpServer())
+        .post('/bookings/attachments/signed-url')
+        .set(actorHeaders(tenantId, STAFF_ID, 'MANAGER'))
+        .send({ fileName: 'after.webp', contentType: 'image/webp' })
+        .expect(201);
+
+      expect(body.filePath).toMatch(new RegExp(`^tmp/${tenantId}/[^/]+/after\\.webp$`));
+    });
+
+    it('returns 400 for an unsupported contentType', async () => {
+      const { body } = await request(app.getHttpServer())
+        .post('/bookings/attachments/signed-url')
+        .set(actorHeaders(tenantId, STAFF_ID, 'MANAGER'))
+        .send({ fileName: 'after.gif', contentType: 'image/gif' })
+        .expect(400);
+      expect(body.status).toBe(400);
+    });
+
     it('ignores a stray bookingId from another tenant — filePath is still scoped to the caller tenant', async () => {
       const { body } = await request(app.getHttpServer())
         .post('/bookings/attachments/signed-url')
