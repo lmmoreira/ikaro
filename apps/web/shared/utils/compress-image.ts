@@ -25,7 +25,7 @@ function toBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
 }
 
 // Resizes to MAX_DIMENSION max-dimension WebP before upload — cuts storage/egress ~10x for phone
-// photos with no visible quality loss. Fail-open: any unsupported API, thrown error, or a
+// photos with no visible quality loss. Fail-open: an unsupported API, a thrown error, or a
 // "compressed" result that isn't actually smaller (or isn't actually WebP — canvas.toBlob silently
 // falls back to PNG when the browser lacks WebP encoding) returns the original file untouched
 // rather than blocking the upload.
