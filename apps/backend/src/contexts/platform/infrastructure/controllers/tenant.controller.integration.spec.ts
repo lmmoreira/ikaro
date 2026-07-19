@@ -19,7 +19,7 @@ describe('TenantController (integration)', () => {
 
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${TEST_KEY}`)
+      .set('X-Platform-Admin-Key', TEST_KEY)
       .send({
         name: 'Lavacar Rename Test',
         slug: 'lavacar-rename-integ-01',
@@ -86,7 +86,7 @@ describe('TenantController (integration)', () => {
   it('only renames the requesting tenant, not another tenant', async () => {
     const { body: otherBody } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${TEST_KEY}`)
+      .set('X-Platform-Admin-Key', TEST_KEY)
       .send({
         name: 'Other Tenant Rename Test',
         slug: 'other-tenant-rename-integ-01',

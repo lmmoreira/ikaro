@@ -59,7 +59,7 @@ describe('Outbox full topology: booking approval → real outbox → relay → n
     const slug = `outbox-topology-${Date.now()}`;
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${PLATFORM_KEY}`)
+      .set('X-Platform-Admin-Key', PLATFORM_KEY)
       .send({
         name: 'Outbox Full Topology',
         slug,

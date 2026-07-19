@@ -78,7 +78,7 @@ describe('Story: booking completion with a loyalty points discount (integration)
 
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${PLATFORM_KEY}`)
+      .set('X-Platform-Admin-Key', PLATFORM_KEY)
       .send({ name: 'Discount Tenant', slug, adminEmail, country_code: 'BR' })
       .expect(201);
     const tenantId = body.tenantId as string;

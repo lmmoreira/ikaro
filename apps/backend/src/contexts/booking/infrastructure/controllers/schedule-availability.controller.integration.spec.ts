@@ -39,7 +39,7 @@ describe('ScheduleAvailabilityController (integration)', () => {
     // Seed base tenants via the canonical API — no direct DB access to the platform context.
     const { body: a } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${TEST_KEY}`)
+      .set('X-Platform-Admin-Key', TEST_KEY)
       .send({
         name: 'Avail Tenant A',
         slug: 'avail-tenant-a',
@@ -51,7 +51,7 @@ describe('ScheduleAvailabilityController (integration)', () => {
 
     const { body: b } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${TEST_KEY}`)
+      .set('X-Platform-Admin-Key', TEST_KEY)
       .send({
         name: 'Avail Tenant B',
         slug: 'avail-tenant-b',
@@ -107,7 +107,7 @@ describe('ScheduleAvailabilityController (integration)', () => {
     it('returns empty slots when a full-day closure exists', async () => {
       const { body: tenantBody } = await request(app.getHttpServer())
         .post('/internal/tenants')
-        .set('Authorization', `Bearer ${TEST_KEY}`)
+        .set('X-Platform-Admin-Key', TEST_KEY)
         .send({
           name: 'Avail Closure Tenant',
           slug: 'avail-closure',
@@ -140,7 +140,7 @@ describe('ScheduleAvailabilityController (integration)', () => {
     it('blocks only the closure window for a partial closure', async () => {
       const { body: tenantBody } = await request(app.getHttpServer())
         .post('/internal/tenants')
-        .set('Authorization', `Bearer ${TEST_KEY}`)
+        .set('X-Platform-Admin-Key', TEST_KEY)
         .send({
           name: 'Avail Partial Tenant',
           slug: 'avail-partial',
@@ -188,7 +188,7 @@ describe('ScheduleAvailabilityController (integration)', () => {
     it('respects multiple partial closures on the same day', async () => {
       const { body: tenantBody } = await request(app.getHttpServer())
         .post('/internal/tenants')
-        .set('Authorization', `Bearer ${TEST_KEY}`)
+        .set('X-Platform-Admin-Key', TEST_KEY)
         .send({
           name: 'Avail Multi Tenant',
           slug: 'avail-multi',
@@ -247,7 +247,7 @@ describe('ScheduleAvailabilityController (integration)', () => {
     it('returns slots for a normally-closed day that has a ScheduleOpening', async () => {
       const { body: tenantBody } = await request(app.getHttpServer())
         .post('/internal/tenants')
-        .set('Authorization', `Bearer ${TEST_KEY}`)
+        .set('X-Platform-Admin-Key', TEST_KEY)
         .send({
           name: 'Avail Opening Tenant',
           slug: 'avail-opening',
@@ -285,7 +285,7 @@ describe('ScheduleAvailabilityController (integration)', () => {
     it('opening overrides a full-day closure on the same date', async () => {
       const { body: tenantBody } = await request(app.getHttpServer())
         .post('/internal/tenants')
-        .set('Authorization', `Bearer ${TEST_KEY}`)
+        .set('X-Platform-Admin-Key', TEST_KEY)
         .send({
           name: 'Avail Override Tenant',
           slug: 'avail-override',

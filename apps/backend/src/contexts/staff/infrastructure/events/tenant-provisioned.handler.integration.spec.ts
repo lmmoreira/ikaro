@@ -74,7 +74,7 @@ describe('Story: POST /internal/tenants → event bus → staff MANAGER created 
 
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${PLATFORM_KEY}`)
+      .set('X-Platform-Admin-Key', PLATFORM_KEY)
       .send({
         name: 'Lava Car Story',
         slug,
@@ -110,7 +110,7 @@ describe('Story: POST /internal/tenants → event bus → staff MANAGER created 
     const [resA, resB] = await Promise.all([
       request(app.getHttpServer())
         .post('/internal/tenants')
-        .set('Authorization', `Bearer ${PLATFORM_KEY}`)
+        .set('X-Platform-Admin-Key', PLATFORM_KEY)
         .send({
           name: 'Iso A',
           slug: slugA,
@@ -120,7 +120,7 @@ describe('Story: POST /internal/tenants → event bus → staff MANAGER created 
         }),
       request(app.getHttpServer())
         .post('/internal/tenants')
-        .set('Authorization', `Bearer ${PLATFORM_KEY}`)
+        .set('X-Platform-Admin-Key', PLATFORM_KEY)
         .send({
           name: 'Iso B',
           slug: slugB,

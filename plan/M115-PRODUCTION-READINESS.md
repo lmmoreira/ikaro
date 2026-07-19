@@ -219,7 +219,7 @@ Content-Type: application/json
 **Description:**  
 All backend controllers — `/internal/*` and `/v1/*` alike — rely solely on network topology (backend not publicly exposed). This story adds a shared `InternalApiGuard` registered **globally** via `APP_GUARD` in `AppModule`, so every request to the backend must carry an `X-Internal-Key` header matching `INTERNAL_API_KEY`. The BFF propagates this key automatically on all backend calls. Network isolation + shared secret gives us two independent layers of protection, and future controllers are automatically covered without any per-file decoration.
 
-`PlatformAdminGuard` on `internal-tenant.controller.ts` (the developer CLI) is **unaffected** — it guards `POST /internal/tenants` via `Authorization: Bearer <PLATFORM_ADMIN_KEY>` and serves a different trust boundary (human operator, not BFF machine call). After this story, requests to that endpoint must carry **both** `X-Internal-Key` (global guard first) and `Authorization: Bearer` (controller guard second).
+`PlatformAdminGuard` on `internal-tenant.controller.ts` (the developer CLI) is **unaffected** — it guards `POST /internal/tenants` via `X-Platform-Admin-Key: <PLATFORM_ADMIN_KEY>` and serves a different trust boundary (human operator, not BFF machine call). After this story, requests to that endpoint must carry **both** `X-Internal-Key` (global guard first) and `X-Platform-Admin-Key` (controller guard second).
 
 ---
 
@@ -318,7 +318,7 @@ All three backend internal HTTP files currently omit the header (the guard didn'
 `apps/backend/http/platform/internal-tenants.http`:
 - Add `@internalKey = {{$dotenv INTERNAL_API_KEY}}` to the variables block
 - Add `X-Internal-Key: {{internalKey}}` to both `GET /internal/tenants/...` requests
-- Note: the `POST /internal/tenants` requests already have `Authorization: {{authHeader}}` — add `X-Internal-Key` there too (global guard runs before `PlatformAdminGuard`)
+- Note: the `POST /internal/tenants` requests already have `X-Platform-Admin-Key: {{adminKey}}` — add `X-Internal-Key` there too (global guard runs before `PlatformAdminGuard`)
 - Add a new error-case block: `GET /internal/tenants/by-slug/lavacar-bh` without `X-Internal-Key` → 401
 
 `apps/backend/http/customer/internal-customers.http`:
@@ -388,7 +388,7 @@ All three backend internal HTTP files currently omit the header (the guard didn'
 - [ ] `GET /internal/customers/tenants` without `X-Internal-Key` returns `401`
 - [ ] `GET /internal/staff/by-oauth` without `X-Internal-Key` returns `401`
 - [ ] `POST /internal/tenants` without `X-Internal-Key` returns `401` (global guard runs before `PlatformAdminGuard`)
-- [ ] `POST /internal/tenants` with valid `X-Internal-Key` but wrong `Authorization` still returns `401` (both guards must pass)
+- [ ] `POST /internal/tenants` with valid `X-Internal-Key` but wrong `X-Platform-Admin-Key` still returns `401` (both guards must pass)
 - [ ] BFF OAuth callback still resolves tenant + staff/customer correctly (all `BackendHttpService` methods now propagate the key)
 - [ ] `getForPublic`, `postForPublic`, `patchForPublic` all include `X-Internal-Key` in their headers
 - [ ] `INTERNAL_API_KEY` shorter than 32 chars causes both backend and BFF to refuse to boot

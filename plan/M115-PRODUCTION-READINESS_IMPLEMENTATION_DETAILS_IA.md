@@ -130,7 +130,7 @@ afterAll(async () => {
 `INTERNAL_API_KEY` must be listed in the `env:` block of the `bff-component` CI job — no `.env` file exists in the runner.
 
 ### `PlatformAdminGuard` layering
-`POST /internal/tenants` requires **both**: global `InternalApiGuard` (X-Internal-Key) then `PlatformAdminGuard` (Authorization Bearer). Both must pass.
+`POST /internal/tenants` requires **both**: global `InternalApiGuard` (X-Internal-Key) then `PlatformAdminGuard` (X-Platform-Admin-Key). Both must pass.
 
 ### Env vars (both apps)
 ```

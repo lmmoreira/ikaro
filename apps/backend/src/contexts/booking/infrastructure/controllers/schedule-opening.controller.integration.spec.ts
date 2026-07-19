@@ -31,7 +31,7 @@ describe('ScheduleOpeningController (integration)', () => {
     // Seed tenants via the canonical API — no direct DB access to the platform context.
     const { body: a } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${TEST_KEY}`)
+      .set('X-Platform-Admin-Key', TEST_KEY)
       .send({
         name: 'Opening Tenant A',
         slug: 'opening-tenant-a',
@@ -43,7 +43,7 @@ describe('ScheduleOpeningController (integration)', () => {
 
     const { body: b } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${TEST_KEY}`)
+      .set('X-Platform-Admin-Key', TEST_KEY)
       .send({
         name: 'Opening Tenant B',
         slug: 'opening-tenant-b',
@@ -177,7 +177,7 @@ describe('ScheduleOpeningController (integration)', () => {
     beforeAll(async () => {
       const { body } = await request(app.getHttpServer())
         .post('/internal/tenants')
-        .set('Authorization', `Bearer ${TEST_KEY}`)
+        .set('X-Platform-Admin-Key', TEST_KEY)
         .send({
           name: 'Opening List Tenant',
           slug: 'opening-tenant-list',

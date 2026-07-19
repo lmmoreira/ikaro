@@ -38,7 +38,7 @@ describe('ScheduleAvailabilitySummaryController (integration)', () => {
 
     const { body: a } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${TEST_KEY}`)
+      .set('X-Platform-Admin-Key', TEST_KEY)
       .send({
         name: 'Summary Tenant A',
         slug: 'summary-tenant-a',
@@ -50,7 +50,7 @@ describe('ScheduleAvailabilitySummaryController (integration)', () => {
 
     const { body: b } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${TEST_KEY}`)
+      .set('X-Platform-Admin-Key', TEST_KEY)
       .send({
         name: 'Summary Tenant B',
         slug: 'summary-tenant-b',
@@ -117,7 +117,7 @@ describe('ScheduleAvailabilitySummaryController (integration)', () => {
     it('day with a full-day closure returns available:false and slotCount:0', async () => {
       const { body: tenantBody } = await request(app.getHttpServer())
         .post('/internal/tenants')
-        .set('Authorization', `Bearer ${TEST_KEY}`)
+        .set('X-Platform-Admin-Key', TEST_KEY)
         .send({
           name: 'Summary Closure Tenant',
           slug: 'summary-closure',
@@ -161,7 +161,7 @@ describe('ScheduleAvailabilitySummaryController (integration)', () => {
     it('Sunday with a ScheduleOpening returns available:true', async () => {
       const { body: tenantBody } = await request(app.getHttpServer())
         .post('/internal/tenants')
-        .set('Authorization', `Bearer ${TEST_KEY}`)
+        .set('X-Platform-Admin-Key', TEST_KEY)
         .send({
           name: 'Summary Opening Tenant',
           slug: 'summary-opening',

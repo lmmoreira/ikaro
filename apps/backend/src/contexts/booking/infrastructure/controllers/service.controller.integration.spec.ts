@@ -31,7 +31,7 @@ describe('ServiceController (integration)', () => {
     tenantCounter += 1;
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${TEST_KEY}`)
+      .set('X-Platform-Admin-Key', TEST_KEY)
       .send({
         name: `Service Tenant ${tenantCounter}`,
         slug: `service-tenant-${tenantCounter}`,

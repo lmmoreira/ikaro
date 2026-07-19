@@ -11,8 +11,7 @@ export class PlatformAdminGuard implements CanActivate {
     const req = context
       .switchToHttp()
       .getRequest<{ headers: Record<string, string | undefined> }>();
-    const authHeader = req.headers['authorization'];
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const platformAdminKey = req.headers['x-platform-admin-key'];
 
     const storedKey = this.config.getOrThrow<string>('PLATFORM_ADMIN_KEY');
 
@@ -20,10 +19,10 @@ export class PlatformAdminGuard implements CanActivate {
     const storedHash = crypto.createHash('sha256').update(storedKey).digest();
     const incomingHash = crypto
       .createHash('sha256')
-      .update(token ?? '')
+      .update(platformAdminKey ?? '')
       .digest();
 
-    if (!token || !crypto.timingSafeEqual(storedHash, incomingHash)) {
+    if (!platformAdminKey || !crypto.timingSafeEqual(storedHash, incomingHash)) {
       throw throwProblemDetail(
         HttpStatus.UNAUTHORIZED,
         undefined,

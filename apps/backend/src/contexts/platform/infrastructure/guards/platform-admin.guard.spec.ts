@@ -11,10 +11,10 @@ const configService = {
   },
 } as unknown as ConfigService;
 
-const makeContext = (authHeader?: string): ExecutionContext =>
+const createExecutionContext = (headers: Record<string, string> = {}): ExecutionContext =>
   ({
     switchToHttp: () => ({
-      getRequest: () => ({ headers: authHeader ? { authorization: authHeader } : {} }),
+      getRequest: () => ({ headers }),
     }),
   }) as unknown as ExecutionContext;
 
@@ -25,28 +25,38 @@ describe('PlatformAdminGuard', () => {
     guard = new PlatformAdminGuard(configService);
   });
 
-  it('returns true for a valid Bearer token', () => {
-    expect(guard.canActivate(makeContext(`Bearer ${TEST_KEY}`))).toBe(true);
-  });
-
-  it('throws 401 when Authorization header is absent', () => {
-    expect(() => guard.canActivate(makeContext())).toThrow(HttpException);
-  });
-
-  it('throws 401 for a wrong key', () => {
-    expect(() => guard.canActivate(makeContext('Bearer wrong-key-wrong-key-wrong-key'))).toThrow(
-      HttpException,
+  it('returns true for a valid X-Platform-Admin-Key header', () => {
+    expect(guard.canActivate(createExecutionContext({ 'x-platform-admin-key': TEST_KEY }))).toBe(
+      true,
     );
   });
 
-  it('throws 401 for non-Bearer scheme', () => {
-    expect(() => guard.canActivate(makeContext(`Basic ${TEST_KEY}`))).toThrow(HttpException);
+  it('throws 401 when X-Platform-Admin-Key header is absent', () => {
+    expect(() => guard.canActivate(createExecutionContext())).toThrow(HttpException);
+  });
+
+  it('throws 401 for a wrong key', () => {
+    expect(() =>
+      guard.canActivate(
+        createExecutionContext({ 'x-platform-admin-key': 'wrong-key-wrong-key-wrong-key' }),
+      ),
+    ).toThrow(HttpException);
+  });
+
+  it('throws 401 when the key is sent through Authorization', () => {
+    expect(() =>
+      guard.canActivate(createExecutionContext({ authorization: `Bearer ${TEST_KEY}` })),
+    ).toThrow(HttpException);
   });
 
   it('accepts a key of different length without throwing — hash normalisation prevents length errors', () => {
     // timingSafeEqual requires equal-length buffers; hashing both sides guarantees this.
     // A short or long incoming token must not crash — it should just fail auth.
-    expect(() => guard.canActivate(makeContext('Bearer short'))).toThrow(HttpException);
-    expect(() => guard.canActivate(makeContext(`Bearer ${'x'.repeat(64)}`))).toThrow(HttpException);
+    expect(() =>
+      guard.canActivate(createExecutionContext({ 'x-platform-admin-key': 'short' })),
+    ).toThrow(HttpException);
+    expect(() =>
+      guard.canActivate(createExecutionContext({ 'x-platform-admin-key': 'x'.repeat(64) })),
+    ).toThrow(HttpException);
   });
 });
