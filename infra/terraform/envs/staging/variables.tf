@@ -1,3 +1,21 @@
+variable "backend_max_instances" {
+  description = "Backend Cloud Run max_instance_count. Capped at 6 on db-f1-micro by the connection-math invariant (6 * DB_POOL_SIZE=3 = 18 <= 80% of 25) — raise only alongside a db_tier upgrade (M17 plan §S18)."
+  type        = number
+  default     = 6
+}
+
+variable "bootstrap_mode" {
+  description = "S18 launch state: services run a placeholder public image with relaxed (\"/\") probes until S27's first real pipeline deploy flips this to false."
+  type        = bool
+  default     = true
+}
+
+variable "brevo_smtp_login" {
+  description = "Brevo SMTP account login (non-secret per the S16 catalog — only BREVO_SMTP_KEY is a Secret Manager secret). Value never committed: gitignored local.auto.tfvars locally, a GitHub environment variable in the pipeline (S24, same treatment as iam_admin_user)."
+  type        = string
+  default     = ""
+}
+
 variable "cors_origins" {
   description = "Origins allowed to PUT/GET against the private uploads bucket via signed URLs — this env's web app origin(s)"
   type        = list(string)
@@ -38,6 +56,11 @@ variable "labels" {
 
 variable "project_id" {
   description = "GCP project ID the resources are created in"
+  type        = string
+}
+
+variable "project_number" {
+  description = "GCP project number — non-secret, plain value (same treatment as project_id/db_tier). Used to construct each Cloud Run service's own deterministic *.run.app URL (service-projectnumber.region.run.app) for the handful of env vars a service needs pointing at itself (PUBSUB_PUSH_AUDIENCE, GOOGLE_CALLBACK_URL) — Terraform cannot reference a resource's own computed uri from within its own config. Discover via: gcloud projects describe ikaro-staging --format='value(projectNumber)'"
   type        = string
 }
 

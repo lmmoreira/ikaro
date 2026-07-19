@@ -1,7 +1,10 @@
 import { z } from 'zod';
 import { validateEnvWithSchema } from '@ikaro/env-validation';
 
-const schema = z.object({
+// Exported (not just validatedSchema below) so packages/infra-scripts'
+// env-contract check can introspect the real key set via schema.shape,
+// without a superRefine-wrapped ZodEffects in the way (M17-S18).
+export const schema = z.object({
   NODE_ENV: z.enum(['development', 'staging', 'production']).default('development'),
   APP_ENV: z.enum(['local', 'staging', 'production']).default('local'),
   PORT: z.coerce.number().default(3001),
