@@ -435,7 +435,7 @@ Old M16-S11 redesigned: `state` today carries functional routing data (`''`, `<s
 
 ---
 
-### M17-S52 — `PlatformAdminGuard` header migration (`X-Platform-Admin-Key`)
+### M17-S52 — `PlatformAdminGuard` header migration (`X-Platform-Admin-Key`) ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** S
