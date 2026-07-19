@@ -7,6 +7,7 @@ import { BackendHttpModule } from '../../shared/http/backend-http.module';
 import { AuthController } from './auth.controller';
 import { AuthControllerFlowService } from './auth-controller-flow.service';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
+import { GoogleCallbackGuard } from './guards/google-callback.guard';
 import { JwtIssuerService } from './jwt-issuer.service';
 import { OAuthStateService } from './oauth-state.service';
 import { GoogleStrategy } from './strategies/google.strategy';
@@ -32,6 +33,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     JwtIssuerService,
     OAuthStateService,
     GoogleAuthGuard,
+    GoogleCallbackGuard,
     AuthControllerFlowService,
   ],
   exports: [JwtIssuerService],

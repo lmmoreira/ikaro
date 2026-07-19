@@ -24,7 +24,7 @@ export interface EncodedOAuthState {
 }
 
 // Thrown by OAuthStateService.decodeOAuthState() for every rejection reason — missing state,
-// tampered/expired JWT, or a missing/mismatched nonce cookie. GoogleAuthGuard.handleRequest()
+// tampered/expired JWT, or a missing/mismatched nonce cookie. GoogleCallbackGuard.handleRequest()
 // checks `instanceof` so only this failure maps to 400 BFF_OAUTH_STATE_INVALID; unrelated
 // Passport failures (e.g. Google returning no email) keep their normal handling.
 export class OAuthStateInvalidError extends Error {

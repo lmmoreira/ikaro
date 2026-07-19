@@ -18,7 +18,7 @@ export interface GoogleProfile {
 // (strategies/jwt.strategy.ts), which reads req.headers.cookie the same way.
 function extractCookie(req: Request, name: string): string | undefined {
   const raw = req?.headers?.cookie ?? '';
-  const match = new RegExp(`(?:^|;\\s*)${name}=([^;]+)`).exec(raw);
+  const match = new RegExp(String.raw`(?:^|;\s*)${name}=([^;]+)`).exec(raw);
   return match ? decodeURIComponent(match[1]) : undefined;
 }
 
