@@ -1476,7 +1476,7 @@ Run `/docs-audit` across the **entire `docs/` folder** (widened from the origina
 
 ---
 
-### M17-S43 — Client-side photo compression before upload
+### M17-S43 — Client-side photo compression before upload ✅ Done
 
 **Agent:** `frontend-ts`
 **Complexity:** M
