@@ -18,36 +18,18 @@ describe('AppThrottlerGuard', () => {
   }
 
   describe('shouldSkip()', () => {
-    it('does not skip in production', async () => {
-      guard = makeGuard('production');
+    it.each<[string | undefined, boolean]>([
+      ['production', false],
+      ['staging', false],
+      // Local's default when APP_ENV is unset — covers CI/E2E too, since nothing sets it there.
+      [undefined, true],
+      ['local', true],
+    ])('APP_ENV=%s -> skip=%s', async (appEnv, expectedSkip) => {
+      guard = makeGuard(appEnv);
       const skip = await (
         guard as unknown as { shouldSkip: (context: unknown) => Promise<boolean> }
       ).shouldSkip({});
-      expect(skip).toBe(false);
-    });
-
-    it('does not skip in staging', async () => {
-      guard = makeGuard('staging');
-      const skip = await (
-        guard as unknown as { shouldSkip: (context: unknown) => Promise<boolean> }
-      ).shouldSkip({});
-      expect(skip).toBe(false);
-    });
-
-    it('skips in local — the default when APP_ENV is unset, which covers CI/E2E too', async () => {
-      guard = makeGuard(undefined);
-      const skip = await (
-        guard as unknown as { shouldSkip: (context: unknown) => Promise<boolean> }
-      ).shouldSkip({});
-      expect(skip).toBe(true);
-    });
-
-    it('skips for any explicit non-staging/production value', async () => {
-      guard = makeGuard('local');
-      const skip = await (
-        guard as unknown as { shouldSkip: (context: unknown) => Promise<boolean> }
-      ).shouldSkip({});
-      expect(skip).toBe(true);
+      expect(skip).toBe(expectedSkip);
     });
   });
 

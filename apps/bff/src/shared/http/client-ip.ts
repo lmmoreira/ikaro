@@ -37,7 +37,7 @@ function rightmostForwardedFor(req: ClientIpRequest): string | undefined {
   const xff = firstHeaderValue(req.headers['x-forwarded-for']);
   if (!xff) return undefined;
   const hops = xff.split(',').map((hop) => hop.trim());
-  return hops[hops.length - 1] || undefined;
+  return hops.at(-1) || undefined;
 }
 
 export function getClientIp(req: ClientIpRequest, appEnv: string): string {
