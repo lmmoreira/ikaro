@@ -62,11 +62,8 @@ export interface SlotConflictError {
   suggestions: SlotConflictSuggestion[];
 }
 
-export interface AttachmentSignedUrlRequest {
-  fileName: string;
-  contentType: 'image/jpeg' | 'image/png';
-  tenantSlug: string;
-}
+export const ALLOWED_IMAGE_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+export type ImageContentType = (typeof ALLOWED_IMAGE_CONTENT_TYPES)[number];
 
 export interface AttachmentSignedUrlResponse {
   signedUrl: string;

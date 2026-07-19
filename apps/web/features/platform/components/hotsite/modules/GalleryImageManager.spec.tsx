@@ -13,6 +13,7 @@ import {
 } from '@/features/platform/api/tenant-settings';
 import { getBooking, listBookings } from '@/features/booking/api/staff';
 import { ApiError } from '@/shared/lib/api/errors';
+import { compressImage } from '@/shared/utils/compress-image';
 import { GalleryImageManager } from './GalleryImageManager';
 
 vi.mock('@/features/platform/api/tenant-settings', () => ({
@@ -20,6 +21,10 @@ vi.mock('@/features/platform/api/tenant-settings', () => ({
   generateHotsiteImageReadSignedUrl: vi.fn(),
   deleteHotsiteImage: vi.fn(),
   featureBookingPhoto: vi.fn(),
+}));
+
+vi.mock('@/shared/utils/compress-image', () => ({
+  compressImage: vi.fn((file: File) => Promise.resolve(file)),
 }));
 
 vi.mock('@/features/booking/api/staff', () => ({
@@ -45,6 +50,8 @@ describe('GalleryImageManager', () => {
     vi.mocked(generateHotsiteImageReadSignedUrl).mockReset();
     vi.mocked(deleteHotsiteImage).mockReset();
     vi.mocked(listBookings).mockReset();
+    vi.mocked(compressImage).mockReset();
+    vi.mocked(compressImage).mockImplementation((file: File) => Promise.resolve(file));
   });
 
   it('shows an empty state when there are no images', () => {
@@ -123,6 +130,30 @@ describe('GalleryImageManager', () => {
     expect(onChange).toHaveBeenCalledWith([
       { url: 'tenants/tenant-1/hotsite/gallery/g2.png', source: 'upload' },
     ]);
+  });
+
+  it('uploads the compressed file returned by compressImage, not the original selection', async () => {
+    const user = userEvent.setup();
+    const compressedFile = makeFile('g2.webp', 'image/webp');
+    vi.mocked(compressImage).mockResolvedValue(compressedFile);
+    vi.mocked(generateHotsiteImageSignedUrl).mockResolvedValue({
+      signedUrl: 'https://storage.example.com/upload?sig=abc',
+      filePath: 'tenants/tenant-1/hotsite/gallery/g2.webp',
+      expiresAt: '2026-06-15T12:00:00.000Z',
+    });
+    fetchSpy.mockResolvedValue(new Response(null, { status: 200 }));
+
+    renderWithIntl(<GalleryImageManager images={[]} onChange={vi.fn()} />);
+
+    await user.upload(screen.getByTestId('gallery-upload-input'), makeFile('g2.png', 'image/png'));
+
+    await waitFor(() => {
+      expect(generateHotsiteImageSignedUrl).toHaveBeenCalledWith({
+        fileName: 'g2.webp',
+        contentType: 'image/webp',
+        purpose: 'gallery',
+      });
+    });
   });
 
   it('shows the fallback upload-error label for a failure with no recognizable code', async () => {

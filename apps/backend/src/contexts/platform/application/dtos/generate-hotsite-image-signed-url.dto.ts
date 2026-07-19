@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { GenericErrorCode } from '@ikaro/types';
+import { ALLOWED_IMAGE_CONTENT_TYPES, GenericErrorCode } from '@ikaro/types';
 
 export const GenerateHotsiteImageSignedUrlSchema = z.object({
   fileName: z
@@ -10,7 +10,7 @@ export const GenerateHotsiteImageSignedUrlSchema = z.object({
       error: 'fileName must not contain path separators or ".."',
       params: { code: GenericErrorCode.FORMAT_INVALID },
     }),
-  contentType: z.enum(['image/jpeg', 'image/png']),
+  contentType: z.enum(ALLOWED_IMAGE_CONTENT_TYPES),
   purpose: z.enum(['branding', 'hero', 'gallery', 'about', 'booking-cta', 'testimonials']),
 });
 

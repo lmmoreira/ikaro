@@ -7,6 +7,7 @@ import {
   generateHotsiteImageSignedUrl,
 } from '@/features/platform/api/tenant-settings';
 import { uploadFileToSignedUrl } from '@/shared/lib/upload/upload-to-signed-url';
+import { compressImage } from '@/shared/utils/compress-image';
 import {
   isTmpImagePath,
   resolveHotsiteImageDisplayUrl,
@@ -96,7 +97,8 @@ export function SingleImageUploadField({
     setPreviewUrl(localPreviewUrl);
     setStatus('uploading');
     try {
-      const filePath = await uploadFileToSignedUrl(file, (fileName, contentType) =>
+      const compressed = await compressImage(file);
+      const filePath = await uploadFileToSignedUrl(compressed, (fileName, contentType) =>
         generateHotsiteImageSignedUrl({ fileName, contentType, purpose }),
       );
       onChange(filePath);
@@ -176,7 +178,7 @@ export function SingleImageUploadField({
           data-testid="single-image-upload-input"
           data-field-id={id}
           type="file"
-          accept="image/jpeg,image/png"
+          accept="image/jpeg,image/png,image/webp"
           onChange={(event) => {
             void handleFileSelected(event);
           }}

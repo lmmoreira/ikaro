@@ -5,6 +5,7 @@ import type {
   GenerateHotsiteImageSignedUrlResponse,
   GenerateHotsiteImageReadSignedUrlResponse,
   FeatureBookingPhotoResponse,
+  ImageContentType,
   TenantSettingsResponse,
   UpdateTenantSettingsRequest,
   RenameTenantRequest,
@@ -55,7 +56,7 @@ export interface UpdateHotsiteRequest {
 
 export interface HotsiteImageSignedUrlRequest {
   readonly fileName: string;
-  readonly contentType: 'image/jpeg' | 'image/png';
+  readonly contentType: ImageContentType;
   readonly purpose: 'branding' | 'hero' | 'gallery' | 'about' | 'booking-cta' | 'testimonials';
 }
 

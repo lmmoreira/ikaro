@@ -1,9 +1,8 @@
-export type ImageContentType = 'image/jpeg' | 'image/png';
+import { ALLOWED_IMAGE_CONTENT_TYPES, type ImageContentType } from '@ikaro/types';
 
-export const DEFAULT_ALLOWED_IMAGE_TYPES: ReadonlySet<string> = new Set<ImageContentType>([
-  'image/jpeg',
-  'image/png',
-]);
+export const DEFAULT_ALLOWED_IMAGE_TYPES: ReadonlySet<string> = new Set<ImageContentType>(
+  ALLOWED_IMAGE_CONTENT_TYPES,
+);
 
 export class UnsupportedFileTypeError extends Error {
   constructor(contentType: string) {

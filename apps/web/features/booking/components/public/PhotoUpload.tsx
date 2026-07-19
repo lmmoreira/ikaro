@@ -8,6 +8,7 @@ import {
   createGuestAttachmentSignedUrl,
 } from '@/features/booking/api/public';
 import { uploadFileToSignedUrl } from '@/shared/lib/upload/upload-to-signed-url';
+import { compressImage } from '@/shared/utils/compress-image';
 
 interface PhotoUploadCommonProps {
   readonly value: readonly string[];
@@ -54,7 +55,8 @@ export function PhotoUpload(props: PhotoUploadProps): React.JSX.Element {
   const [items, setItems] = useState<UploadItem[]>([]);
 
   async function uploadFile(file: File): Promise<string> {
-    return uploadFileToSignedUrl(file, (fileName, contentType) =>
+    const compressed = await compressImage(file);
+    return uploadFileToSignedUrl(compressed, (fileName, contentType) =>
       props.guestToken === undefined
         ? createAttachmentSignedUrl(props.slug, fileName, contentType)
         : createGuestAttachmentSignedUrl(props.guestToken, props.bookingId, fileName, contentType),

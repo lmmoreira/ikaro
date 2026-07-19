@@ -3,6 +3,7 @@ import type {
   BookingResponse,
   CreateBookingRequest,
   Address,
+  ImageContentType,
   ValidationViolation,
 } from '@ikaro/types';
 import { bffClient } from '@/shared/lib/api/bff-client';
@@ -111,7 +112,7 @@ export async function submitGuestBookingInfo(
 export async function createAttachmentSignedUrl(
   slug: string,
   fileName: string,
-  contentType: 'image/jpeg' | 'image/png',
+  contentType: ImageContentType,
   bookingId?: string,
 ): Promise<AttachmentSignedUrlResponse> {
   const res = await fetch('/api/bookings/attachments/signed-url', {
@@ -141,7 +142,7 @@ export async function createGuestAttachmentSignedUrl(
   guestToken: string,
   bookingId: string,
   fileName: string,
-  contentType: 'image/jpeg' | 'image/png',
+  contentType: ImageContentType,
 ): Promise<AttachmentSignedUrlResponse> {
   const res = await fetch('/api/bookings/attachments/signed-url', {
     method: 'POST',

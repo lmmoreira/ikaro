@@ -42,6 +42,22 @@ describe('uploadFileToSignedUrl', () => {
     expect(filePath).toBe('tenants/t-1/hotsite/logo.png');
   });
 
+  it('accepts image/webp (client-side compressed upload) via the default allowed set', async () => {
+    const requestSignedUrl = vi.fn().mockResolvedValue({
+      signedUrl: 'https://storage.example.com/upload?sig=abc',
+      filePath: 'tenants/t-1/hotsite/logo.webp',
+    });
+    fetchSpy.mockResolvedValue(new Response(null, { status: 200 }));
+
+    const filePath = await uploadFileToSignedUrl(
+      makeFile('logo.webp', 'image/webp'),
+      requestSignedUrl,
+    );
+
+    expect(requestSignedUrl).toHaveBeenCalledWith('logo.webp', 'image/webp');
+    expect(filePath).toBe('tenants/t-1/hotsite/logo.webp');
+  });
+
   it('throws UnsupportedFileTypeError for a content type outside the allowed set, without calling requestSignedUrl', async () => {
     const requestSignedUrl = vi.fn();
 

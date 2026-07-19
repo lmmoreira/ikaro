@@ -7,11 +7,16 @@ import {
   createAttachmentSignedUrl,
   createGuestAttachmentSignedUrl,
 } from '@/features/booking/api/public';
+import { compressImage } from '@/shared/utils/compress-image';
 import { PhotoUpload } from './PhotoUpload';
 
 vi.mock('@/features/booking/api/public', () => ({
   createAttachmentSignedUrl: vi.fn(),
   createGuestAttachmentSignedUrl: vi.fn(),
+}));
+
+vi.mock('@/shared/utils/compress-image', () => ({
+  compressImage: vi.fn((file: File) => Promise.resolve(file)),
 }));
 
 function makeFile(name: string, type: string): File {
@@ -29,6 +34,8 @@ describe('PhotoUpload', () => {
     fetchSpy.mockRestore();
     vi.mocked(createAttachmentSignedUrl).mockReset();
     vi.mocked(createGuestAttachmentSignedUrl).mockReset();
+    vi.mocked(compressImage).mockReset();
+    vi.mocked(compressImage).mockImplementation((file: File) => Promise.resolve(file));
   });
 
   it('renders the file input with a pt-BR label', () => {
@@ -70,6 +77,38 @@ describe('PhotoUpload', () => {
     expect(fetchSpy).toHaveBeenCalledWith('https://storage.example.com/upload?sig=abc', {
       method: 'PUT',
       headers: { 'Content-Type': 'image/jpeg' },
+      body: expect.any(File),
+      signal: expect.any(AbortSignal),
+    });
+  });
+
+  it('uploads the compressed file returned by compressImage, not the original selection', async () => {
+    const user = userEvent.setup();
+    const compressedFile = makeFile('photo.webp', 'image/webp');
+    vi.mocked(compressImage).mockResolvedValue(compressedFile);
+    vi.mocked(createAttachmentSignedUrl).mockResolvedValue({
+      signedUrl: 'https://storage.example.com/upload?sig=abc',
+      filePath: 'tenants/tenant-1/uploads/photo.webp',
+      expiresAt: '2026-06-15T12:00:00.000Z',
+    });
+    fetchSpy.mockResolvedValue(new Response(null, { status: 200 }));
+
+    renderWithIntl(<PhotoUpload slug="lavacar-beloauto" value={[]} onChange={vi.fn()} />);
+
+    await user.upload(
+      screen.getByLabelText('Fotos do veículo (opcional)'),
+      makeFile('photo.jpg', 'image/jpeg'),
+    );
+
+    expect(await screen.findByText('Enviada')).toBeInTheDocument();
+    expect(createAttachmentSignedUrl).toHaveBeenCalledWith(
+      'lavacar-beloauto',
+      'photo.webp',
+      'image/webp',
+    );
+    expect(fetchSpy).toHaveBeenCalledWith('https://storage.example.com/upload?sig=abc', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'image/webp' },
       body: expect.any(File),
       signal: expect.any(AbortSignal),
     });

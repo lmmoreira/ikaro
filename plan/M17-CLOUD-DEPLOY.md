@@ -1499,7 +1499,7 @@ Uploads currently go browser → V4 signed URL → GCS **raw** — a phone photo
    export type ImageContentType = (typeof ALLOWED_IMAGE_CONTENT_TYPES)[number];
    ```
    Backend/BFF Zod schemas become `z.enum(ALLOWED_IMAGE_CONTENT_TYPES)`; the four web files import `ImageContentType` instead of hand-rolling the union, and `upload-to-signed-url.ts`'s `DEFAULT_ALLOWED_IMAGE_TYPES` becomes `new Set(ALLOWED_IMAGE_CONTENT_TYPES)`. Delete the dead `AttachmentSignedUrlRequest` interface rather than updating it in place.
-5. New user-visible copy for the in-progress state — key name `photoCompressing` — localized pt-BR + en in `packages/i18n/locales/{pt-BR,en}/web.json` (repo rule).
+5. **No separate "compressing" state (implementation finding, 2026-07-19):** compression is a fast, synchronous in-memory step chained immediately before the existing "uploading" status in all 5 upload components — introducing a distinct visible sub-state would mean plumbing a new prop/i18n key across `SingleImageUploadField`'s 5 callers plus 3 more components for a barely-perceptible UX distinction. The existing "uploading" label already spans compress+upload as one continuous busy period; no new copy was introduced.
 
 **Acceptance criteria:**
 - [ ] A 5MB portrait JPEG from a phone uploads as WebP ≤ ~500KB, correctly oriented, and renders in the booking detail and hotsite gallery
