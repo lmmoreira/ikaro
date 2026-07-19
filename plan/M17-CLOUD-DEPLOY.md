@@ -344,7 +344,7 @@ Codify “this must never run in production” rules as startup errors, so a cop
 
 ---
 
-### M17-S30 — Rate limiting finalization
+### M17-S30 — Rate limiting finalization ✅ Done
 
 > Moved from Wave 5 (2026-07-07 second review): pure app code with no cloud dependency — landing it before staging is publicly reachable closes the unthrottled window.
 
