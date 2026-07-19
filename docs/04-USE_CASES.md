@@ -875,7 +875,7 @@ Returns:
    1. Operator calls:
       ```http
       POST /internal/tenants
-      Authorization: Bearer <PLATFORM_ADMIN_KEY>
+      X-Platform-Admin-Key: <PLATFORM_ADMIN_KEY>
       Content-Type: application/json
 
       {
@@ -885,7 +885,7 @@ Returns:
         "timezone": "America/Sao_Paulo"
       }
       ```
-   2. `PlatformAdminGuard` validates the Bearer token using `crypto.timingSafeEqual` → rejects with `401` if invalid.
+   2. `PlatformAdminGuard` validates `X-Platform-Admin-Key` using `crypto.timingSafeEqual` → rejects with `401` if invalid.
    3. System validates inputs: slug format (`/^[a-z0-9-]+$/`), slug uniqueness, email format, IANA timezone.
    4. System creates `platform.tenants` row with default settings.
    5. System creates `platform.hotsite_configs` row (`is_published = false`).
@@ -898,7 +898,7 @@ Returns:
    9. **Asynchronously** — Notification context (M11) handles `StaffInvited` → sends invitation email to `adminEmail` in pt-BR.
 
 - **Alternative Flows:**
-   - **A1: Missing or invalid `Authorization` header** → `401` Problem Detail
+   - **A1: Missing or invalid `X-Platform-Admin-Key` header** → `401` Problem Detail
    - **A2: Slug already taken** → `409` Problem Detail: `"Slug 'autowash-pro' is already in use"`
    - **A3: Invalid slug format** → `400` Problem Detail
    - **A4: Invalid email** → `400` Problem Detail
@@ -1157,4 +1157,3 @@ Returns:
 | UC-029 | Admin deactivates staff member | MANAGER staff | `staff.is_active = false`; `StaffDeactivated` event |
 | UC-030 | Admin edits staff member profile | MANAGER staff | `staff.name`/`staff.role` updated; no event |
 | UC-031 | Admin reactivates staff member | MANAGER staff | `staff.is_active = true`; `deactivated_by` cleared; `StaffActivated` event |
-

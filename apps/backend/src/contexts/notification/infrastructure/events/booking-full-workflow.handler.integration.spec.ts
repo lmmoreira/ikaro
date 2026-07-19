@@ -73,7 +73,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
 
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${PLATFORM_KEY}`)
+      .set('X-Platform-Admin-Key', PLATFORM_KEY)
       .send({
         name: 'Full Workflow Notif',
         slug,

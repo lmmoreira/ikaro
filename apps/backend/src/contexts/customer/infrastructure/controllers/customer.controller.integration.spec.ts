@@ -21,7 +21,7 @@ describe('CustomerController (integration)', () => {
 
     const { body: a } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${TEST_KEY}`)
+      .set('X-Platform-Admin-Key', TEST_KEY)
       .send({
         name: 'Customer Tenant A',
         slug: 'cust-tenant-a',
@@ -33,7 +33,7 @@ describe('CustomerController (integration)', () => {
 
     const { body: b } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${TEST_KEY}`)
+      .set('X-Platform-Admin-Key', TEST_KEY)
       .send({
         name: 'Customer Tenant B',
         slug: 'cust-tenant-b',

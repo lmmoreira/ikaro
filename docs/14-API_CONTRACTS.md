@@ -883,7 +883,7 @@ Errors:
 > These endpoints are **not reachable from the public internet** in production. Three security layers protect them (decided 2026-05-15):
 > 1. **Cloud Armor** (M15-S12) — blocks `/internal/*` at the network level from all IPs except the operator's allowlist
 > 2. **Cloud IAP** (M15-S12) — Google identity gate; only allowlisted Google Workspace accounts can pass
-> 3. **`PLATFORM_ADMIN_KEY`** — static API key in the `Authorization` header, validated application-side with `crypto.timingSafeEqual`
+> 3. **`PLATFORM_ADMIN_KEY`** — static API key in the `X-Platform-Admin-Key` header, validated application-side with `crypto.timingSafeEqual`
 >
 > All three layers must pass. The `RequestInterceptor` skips `/internal/*` — no `X-Tenant-ID` header is expected.
 
@@ -895,7 +895,7 @@ Provisions a new car-wash company on the platform. Creates `Tenant` + default `H
 
 **Request headers:**
 ```
-Authorization: Bearer <PLATFORM_ADMIN_KEY>
+X-Platform-Admin-Key: <PLATFORM_ADMIN_KEY>
 Content-Type: application/json
 ```
 

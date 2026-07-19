@@ -12,7 +12,6 @@
 @baseUrl     = {{backendUrl}}
 @adminKey    = {{$dotenv PLATFORM_ADMIN_KEY}}
 @internalKey = {{$dotenv INTERNAL_API_KEY}}
-@authHeader  = Bearer {{adminKey}}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH
@@ -21,7 +20,7 @@
 ### Provision a new tenant (minimal — timezone defaults to America/Sao_Paulo)
 # @name provisionTenant
 POST {{baseUrl}}/internal/tenants
-Authorization: {{authHeader}}
+X-Platform-Admin-Key: {{adminKey}}
 X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 
@@ -35,7 +34,7 @@ Content-Type: application/json
 
 ### Provision a new tenant (explicit timezone)
 POST {{baseUrl}}/internal/tenants
-Authorization: {{authHeader}}
+X-Platform-Admin-Key: {{adminKey}}
 X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 
@@ -55,7 +54,7 @@ GET {{baseUrl}}/internal/tenants/by-slug/lavacar-bh
 
 ###
 
-### 401 — Missing Authorization header (PlatformAdminGuard — X-Internal-Key present)
+### 401 — Missing X-Platform-Admin-Key header (PlatformAdminGuard — X-Internal-Key present)
 POST {{baseUrl}}/internal/tenants
 X-Internal-Key: {{internalKey}}
 Content-Type: application/json
@@ -70,7 +69,7 @@ Content-Type: application/json
 
 ### 401 — Wrong API key (PlatformAdminGuard — X-Internal-Key present)
 POST {{baseUrl}}/internal/tenants
-Authorization: Bearer wrong-key
+X-Platform-Admin-Key: wrong-key
 X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 
@@ -84,7 +83,7 @@ Content-Type: application/json
 
 ### 400 — Invalid slug format (uppercase + space)
 POST {{baseUrl}}/internal/tenants
-Authorization: {{authHeader}}
+X-Platform-Admin-Key: {{adminKey}}
 X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 
@@ -98,7 +97,7 @@ Content-Type: application/json
 
 ### 400 — Invalid email
 POST {{baseUrl}}/internal/tenants
-Authorization: {{authHeader}}
+X-Platform-Admin-Key: {{adminKey}}
 X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 
@@ -112,7 +111,7 @@ Content-Type: application/json
 
 ### 400 — Invalid IANA timezone
 POST {{baseUrl}}/internal/tenants
-Authorization: {{authHeader}}
+X-Platform-Admin-Key: {{adminKey}}
 X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 
@@ -127,7 +126,7 @@ Content-Type: application/json
 
 ### 409 — Duplicate slug (run the happy-path request first, then this one)
 POST {{baseUrl}}/internal/tenants
-Authorization: {{authHeader}}
+X-Platform-Admin-Key: {{adminKey}}
 X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 

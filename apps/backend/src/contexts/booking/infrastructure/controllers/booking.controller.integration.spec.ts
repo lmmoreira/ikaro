@@ -46,7 +46,7 @@ describe('BookingController (integration)', () => {
     // Seed tenants via the canonical API — no direct DB access to the platform context.
     const { body: a } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${TEST_KEY}`)
+      .set('X-Platform-Admin-Key', TEST_KEY)
       .send({
         name: 'Booking Tenant A',
         slug: 'booking-tenant-a',
@@ -58,7 +58,7 @@ describe('BookingController (integration)', () => {
 
     const { body: b } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${TEST_KEY}`)
+      .set('X-Platform-Admin-Key', TEST_KEY)
       .send({
         name: 'Booking Tenant B',
         slug: 'booking-tenant-b',
@@ -1083,7 +1083,7 @@ describe('BookingController (integration)', () => {
     beforeAll(async () => {
       const { body: lt } = await request(app.getHttpServer())
         .post('/internal/tenants')
-        .set('Authorization', `Bearer ${TEST_KEY}`)
+        .set('X-Platform-Admin-Key', TEST_KEY)
         .send({
           name: 'List Tenant',
           slug: 'list-tenant-bookings',
@@ -1206,7 +1206,7 @@ describe('BookingController (integration)', () => {
     beforeAll(async () => {
       const { body: dt } = await request(app.getHttpServer())
         .post('/internal/tenants')
-        .set('Authorization', `Bearer ${TEST_KEY}`)
+        .set('X-Platform-Admin-Key', TEST_KEY)
         .send({
           name: 'Detail Tenant',
           slug: 'detail-tenant-bookings',
@@ -1542,7 +1542,7 @@ describe('BookingController (integration)', () => {
     it('tenant isolation: cannot reschedule a booking from another tenant', async () => {
       const { body: tenantBody } = await request(app.getHttpServer())
         .post('/internal/tenants')
-        .set('Authorization', `Bearer ${TEST_KEY}`)
+        .set('X-Platform-Admin-Key', TEST_KEY)
         .send({
           name: 'Reschedule Isolation Tenant',
           slug: 'reschedule-isolation',
@@ -1727,7 +1727,7 @@ describe('BookingController (integration)', () => {
     it('tenant isolation: cannot complete a booking from another tenant → 404', async () => {
       const { body: tenantBody } = await request(app.getHttpServer())
         .post('/internal/tenants')
-        .set('Authorization', `Bearer ${TEST_KEY}`)
+        .set('X-Platform-Admin-Key', TEST_KEY)
         .send({
           name: 'Complete Isolation Tenant',
           slug: 'complete-isolation',

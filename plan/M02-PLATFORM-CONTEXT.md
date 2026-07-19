@@ -206,9 +206,9 @@ The original plan specified a CLI command. Replaced with a REST endpoint for pro
 **2. `PlatformAdminGuard`**
 - Location: `apps/backend/src/shared/guards/platform-admin.guard.ts`
 - `@Injectable()` — applied per-endpoint with `@UseGuards(PlatformAdminGuard)`, no module-level registration
-- Reads `Authorization: Bearer <token>` from request header
+- Reads `X-Platform-Admin-Key` from the request header
 - Compares against `PLATFORM_ADMIN_KEY` using `crypto.timingSafeEqual` from `node:crypto` — **NEVER use `===` for secret comparison** (vulnerable to timing attacks that leak key length/content)
-- Returns `401` Problem Detail if header is absent, not `Bearer` format, or token does not match:
+- Returns `401` Problem Detail if the header is absent or the key does not match:
   ```json
   { "type": "about:blank", "title": "Unauthorized", "status": 401, "detail": "Invalid or missing platform API key" }
   ```

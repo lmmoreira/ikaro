@@ -297,9 +297,9 @@ The `process.env` assignment must happen **before** `createXxxIntegrationApp()` 
 
 `POST /internal/tenants` (the developer CLI endpoint) runs **both** guards:
 1. `InternalApiGuard` (global, runs first) — checks `X-Internal-Key`
-2. `PlatformAdminGuard` (controller-level) — checks `Authorization: Bearer <PLATFORM_ADMIN_KEY>`
+2. `PlatformAdminGuard` (controller-level) — checks `X-Platform-Admin-Key: <PLATFORM_ADMIN_KEY>`
 
-Both must pass. A valid `X-Internal-Key` with a wrong `Authorization` header still returns `401`.
+Both must pass. A valid `X-Internal-Key` with a wrong `X-Platform-Admin-Key` header still returns `401`.
 
 ---
 

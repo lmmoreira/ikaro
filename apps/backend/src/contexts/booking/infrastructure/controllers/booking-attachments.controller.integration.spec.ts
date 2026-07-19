@@ -39,7 +39,7 @@ describe('BookingAttachmentsController (integration)', () => {
 
     const { body: a } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${TEST_KEY}`)
+      .set('X-Platform-Admin-Key', TEST_KEY)
       .send({
         name: 'Attach Tenant A',
         slug: 'attach-tenant-a',
@@ -51,7 +51,7 @@ describe('BookingAttachmentsController (integration)', () => {
 
     const { body: b } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${TEST_KEY}`)
+      .set('X-Platform-Admin-Key', TEST_KEY)
       .send({
         name: 'Attach Tenant B',
         slug: 'attach-tenant-b',

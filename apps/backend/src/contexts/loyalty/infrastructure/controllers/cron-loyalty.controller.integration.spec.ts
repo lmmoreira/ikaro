@@ -26,7 +26,7 @@ describe('CronLoyaltyController (integration)', () => {
 
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${TEST_KEY}`)
+      .set('X-Platform-Admin-Key', TEST_KEY)
       .send({
         name: 'Expiry Test Tenant',
         slug: 'expiry-test-tenant',

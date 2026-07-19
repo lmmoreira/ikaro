@@ -37,7 +37,7 @@ describe('PointsExpiringSoonHandler (event bus → handler → use case → real
 
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${PLATFORM_KEY}`)
+      .set('X-Platform-Admin-Key', PLATFORM_KEY)
       .send({
         name: 'Points Expiring Integration',
         slug,
@@ -151,7 +151,7 @@ describe('PointsExpiringSoonHandler (event bus → handler → use case → real
     const tenantBAdminEmail = `admin-pts-b-${Date.now()}@lavacar.com.br`;
     const { body: bodyB } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${PLATFORM_KEY}`)
+      .set('X-Platform-Admin-Key', PLATFORM_KEY)
       .send({
         name: 'Points Expiring B',
         slug: tenantBSlug,

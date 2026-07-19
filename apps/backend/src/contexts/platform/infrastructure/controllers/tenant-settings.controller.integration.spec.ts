@@ -18,7 +18,7 @@ describe('TenantSettingsController (integration)', () => {
 
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${TEST_KEY}`)
+      .set('X-Platform-Admin-Key', TEST_KEY)
       .send({
         name: 'Lavacar Settings Test',
         slug: 'lavacar-settings-integ-01',
@@ -80,7 +80,7 @@ describe('TenantSettingsController (integration)', () => {
   it('GET only returns the requesting tenant settings, not another tenant', async () => {
     const { body: otherBody } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${TEST_KEY}`)
+      .set('X-Platform-Admin-Key', TEST_KEY)
       .send({
         name: 'Other Tenant Settings Test',
         slug: 'other-tenant-settings-integ-01',

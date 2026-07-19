@@ -9,7 +9,6 @@ import { createPlatformIntegrationApp } from '../../../../test/utils/platform-in
 
 const PLATFORM_KEY = 'integ-test-key-integ-test-key-xx'; // exactly 32 chars
 const INTERNAL_KEY = 'integ-tenant-key-integ-tenant-key'; // 33 chars (≥32)
-const AUTH = `Bearer ${PLATFORM_KEY}`;
 
 describe('InternalTenantController (integration)', () => {
   let app: INestApplication;
@@ -39,7 +38,7 @@ describe('InternalTenantController (integration)', () => {
     expect(body.status).toBe(401);
   });
 
-  it('returns 401 when Authorization header is absent (PlatformAdminGuard — X-Internal-Key present)', async () => {
+  it('returns 401 when X-Platform-Admin-Key header is absent (PlatformAdminGuard — X-Internal-Key present)', async () => {
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('X-Internal-Key', INTERNAL_KEY)
@@ -50,11 +49,22 @@ describe('InternalTenantController (integration)', () => {
     expect(body.status).toBe(401);
   });
 
-  it('returns 401 for a wrong API key (PlatformAdminGuard — X-Internal-Key present)', async () => {
+  it('returns 401 for a wrong X-Platform-Admin-Key (PlatformAdminGuard — X-Internal-Key present)', async () => {
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('X-Internal-Key', INTERNAL_KEY)
-      .set('Authorization', 'Bearer wrong-key-wrong-key-wrong-key')
+      .set('X-Platform-Admin-Key', 'wrong-key-wrong-key-wrong-key')
+      .send({ name: 'Test', slug: 'test', adminEmail: 'test@test.com', country_code: 'BR' })
+      .expect(401);
+
+    expect(body.status).toBe(401);
+  });
+
+  it('returns 401 when the correct platform key is sent through Authorization', async () => {
+    const { body } = await request(app.getHttpServer())
+      .post('/internal/tenants')
+      .set('X-Internal-Key', INTERNAL_KEY)
+      .set('Authorization', `Bearer ${PLATFORM_KEY}`)
       .send({ name: 'Test', slug: 'test', adminEmail: 'test@test.com', country_code: 'BR' })
       .expect(401);
 
@@ -65,7 +75,7 @@ describe('InternalTenantController (integration)', () => {
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('X-Internal-Key', INTERNAL_KEY)
-      .set('Authorization', AUTH)
+      .set('X-Platform-Admin-Key', PLATFORM_KEY)
       .send({ name: 'Test', slug: 'valid-slug-01', adminEmail: 'not-an-email', country_code: 'BR' })
       .expect(400);
 
@@ -76,7 +86,7 @@ describe('InternalTenantController (integration)', () => {
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('X-Internal-Key', INTERNAL_KEY)
-      .set('Authorization', AUTH)
+      .set('X-Platform-Admin-Key', PLATFORM_KEY)
       .send({
         name: 'Test',
         slug: 'Invalid Slug!',
@@ -92,7 +102,7 @@ describe('InternalTenantController (integration)', () => {
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('X-Internal-Key', INTERNAL_KEY)
-      .set('Authorization', AUTH)
+      .set('X-Platform-Admin-Key', PLATFORM_KEY)
       .send({
         name: 'Test',
         slug: 'valid-slug-02',
@@ -111,7 +121,7 @@ describe('InternalTenantController (integration)', () => {
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('X-Internal-Key', INTERNAL_KEY)
-      .set('Authorization', AUTH)
+      .set('X-Platform-Admin-Key', PLATFORM_KEY)
       .send({
         name: 'Lavacar Integração',
         slug,
@@ -141,14 +151,14 @@ describe('InternalTenantController (integration)', () => {
     await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('X-Internal-Key', INTERNAL_KEY)
-      .set('Authorization', AUTH)
+      .set('X-Platform-Admin-Key', PLATFORM_KEY)
       .send(payload)
       .expect(201);
 
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('X-Internal-Key', INTERNAL_KEY)
-      .set('Authorization', AUTH)
+      .set('X-Platform-Admin-Key', PLATFORM_KEY)
       .send(payload)
       .expect(409);
 

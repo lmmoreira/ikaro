@@ -32,7 +32,7 @@ describe('LoyaltyController (integration)', () => {
 
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${TEST_KEY}`)
+      .set('X-Platform-Admin-Key', TEST_KEY)
       .send({
         name: 'Loyalty Test Tenant',
         slug: 'loyalty-test-tenant',
@@ -131,7 +131,7 @@ describe('LoyaltyController (integration)', () => {
     it('tenant isolation: CUSTOMER_ID from Tenant A cannot see Tenant B data', async () => {
       const { body: b } = await request(app.getHttpServer())
         .post('/internal/tenants')
-        .set('Authorization', `Bearer ${TEST_KEY}`)
+        .set('X-Platform-Admin-Key', TEST_KEY)
         .send({
           name: 'Loyalty Tenant B',
           slug: 'loyalty-tenant-b',
@@ -168,7 +168,7 @@ describe('LoyaltyController (integration)', () => {
     it("resolves the caller's own record in another tenant via the linked Google OAuth ID", async () => {
       const { body: t2 } = await request(app.getHttpServer())
         .post('/internal/tenants')
-        .set('Authorization', `Bearer ${TEST_KEY}`)
+        .set('X-Platform-Admin-Key', TEST_KEY)
         .send({
           name: 'Loyalty Switch Tenant',
           slug: 'loyalty-switch-tenant',
@@ -223,7 +223,7 @@ describe('LoyaltyController (integration)', () => {
     it("security regression: returns 404 when the caller has no linked record in the target tenant (cannot read another customer's balance by guessing a tenantId)", async () => {
       const { body: t3 } = await request(app.getHttpServer())
         .post('/internal/tenants')
-        .set('Authorization', `Bearer ${TEST_KEY}`)
+        .set('X-Platform-Admin-Key', TEST_KEY)
         .send({
           name: 'Loyalty Unlinked Tenant',
           slug: 'loyalty-unlinked-tenant',
@@ -409,7 +409,7 @@ describe('LoyaltyController (integration)', () => {
     it('tenant isolation: STAFF from Tenant B cannot access Tenant A customer data', async () => {
       const { body: b } = await request(app.getHttpServer())
         .post('/internal/tenants')
-        .set('Authorization', `Bearer ${TEST_KEY}`)
+        .set('X-Platform-Admin-Key', TEST_KEY)
         .send({
           name: 'Loyalty Tenant C',
           slug: 'loyalty-tenant-c',
@@ -486,7 +486,7 @@ describe('LoyaltyController (integration)', () => {
     it('decrements balance and inserts redemption record atomically', async () => {
       const { body: tb } = await request(app.getHttpServer())
         .post('/internal/tenants')
-        .set('Authorization', `Bearer ${TEST_KEY}`)
+        .set('X-Platform-Admin-Key', TEST_KEY)
         .send({
           name: 'Redeem Test Tenant',
           slug: 'redeem-test-tenant',
@@ -548,7 +548,7 @@ describe('LoyaltyController (integration)', () => {
     it('returns 422 when redeeming more points than balance', async () => {
       const { body: tb2 } = await request(app.getHttpServer())
         .post('/internal/tenants')
-        .set('Authorization', `Bearer ${TEST_KEY}`)
+        .set('X-Platform-Admin-Key', TEST_KEY)
         .send({
           name: 'Low Balance Tenant',
           slug: 'low-balance-tenant',
@@ -588,7 +588,7 @@ describe('LoyaltyController (integration)', () => {
     it('tenant isolation: STAFF from Tenant B cannot redeem Tenant A customer points', async () => {
       const { body: iso } = await request(app.getHttpServer())
         .post('/internal/tenants')
-        .set('Authorization', `Bearer ${TEST_KEY}`)
+        .set('X-Platform-Admin-Key', TEST_KEY)
         .send({
           name: 'Isolation Tenant D',
           slug: 'isolation-tenant-d',

@@ -50,7 +50,7 @@ describe('Reminder handlers (event bus → handler → use case) integration', (
 
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${PLATFORM_KEY}`)
+      .set('X-Platform-Admin-Key', PLATFORM_KEY)
       .send({
         name: 'Reminder Integration',
         slug,
@@ -192,7 +192,7 @@ describe('Reminder handlers (event bus → handler → use case) integration', (
     const tenantBAdminEmail = `admin-reminder-b-${Date.now()}@lavacar.com.br`;
     const { body: bodyB } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${PLATFORM_KEY}`)
+      .set('X-Platform-Admin-Key', PLATFORM_KEY)
       .send({
         name: 'Reminder B',
         slug: tenantBSlug,

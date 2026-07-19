@@ -726,14 +726,14 @@ describe('XxxController (integration)', () => {
     // Always provision tenants via API — never insert into DB directly
     const { body: a } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${TEST_KEY}`)
+      .set('X-Platform-Admin-Key', TEST_KEY)
       .send({ name: 'Xxx Tenant A', slug: `xxx-a-${uuidv7()}`, adminEmail: 'a@xxx.test' })
       .expect(201);
     tenantAId = a.tenantId as string;
 
     const { body: b } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .set('Authorization', `Bearer ${TEST_KEY}`)
+      .set('X-Platform-Admin-Key', TEST_KEY)
       .send({ name: 'Xxx Tenant B', slug: `xxx-b-${uuidv7()}`, adminEmail: 'b@xxx.test' })
       .expect(201);
     tenantBId = b.tenantId as string;
