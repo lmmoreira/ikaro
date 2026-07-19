@@ -4,7 +4,7 @@ import { Response } from 'express';
 import { BffErrorCode, GenericErrorCode } from '@ikaro/types';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { throwProblemDetail } from '../../shared/http/problem-detail';
-import { JWT_COOKIE_OPTIONS } from './cookie-options';
+import { JWT_COOKIE_OPTIONS, OAUTH_NONCE_COOKIE_NAME } from './cookie-options';
 import {
   CustomerTenantSummaryResponse,
   FindOrCreateCustomerResponse,
@@ -34,6 +34,9 @@ export class AuthControllerFlowService {
   ) {}
 
   async handleGoogleCallback(profile: GoogleProfile, res: Response): Promise<void> {
+    // Single-use hygiene for the CSRF-binding nonce (M17-S32) — already verified by
+    // GoogleStrategy.validate() by this point; clear it so it can't be replayed.
+    res.clearCookie(OAUTH_NONCE_COOKIE_NAME, { path: '/' });
     const frontendUrl = this.config.getOrThrow<string>('FRONTEND_URL');
 
     if (profile.loginType === 'staff') {

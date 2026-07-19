@@ -1,5 +1,4 @@
 import { Body, Controller, Get, HttpCode, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { CurrentUser, CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
@@ -10,6 +9,7 @@ import { DevLoginDto, DevLoginResponse, DevLoginSchema } from './dtos/dev-login.
 import { SwitchStaffTenantDto, SwitchStaffTenantSchema } from './dtos/switch-staff-tenant.dto';
 import { SwitchTenantDto, SwitchTenantSchema } from './dtos/switch-tenant.dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
+import { GoogleCallbackGuard } from './guards/google-callback.guard';
 import { AuthControllerFlowService } from './auth-controller-flow.service';
 import { GoogleProfile } from './strategies/google.strategy';
 import { StaffTenantOption } from './auth.types';
@@ -29,7 +29,7 @@ export class AuthController {
   }
 
   @Public()
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(GoogleCallbackGuard)
   @Get('google/callback')
   async handleGoogleCallback(@Req() req: Request, @Res() res: Response): Promise<void> {
     await this.authFlow.handleGoogleCallback(req.user as GoogleProfile, res);

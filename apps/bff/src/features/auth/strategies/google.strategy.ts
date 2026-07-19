@@ -3,7 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { Request } from 'express';
 import { Profile, Strategy } from 'passport-google-oauth20';
-import { decodeOAuthState } from '../oauth-state';
+import { OAUTH_NONCE_COOKIE_NAME } from '../cookie-options';
+import { OAuthStateService } from '../oauth-state.service';
 
 export interface GoogleProfile {
   googleOAuthId: string;
@@ -13,9 +14,20 @@ export interface GoogleProfile {
   loginType?: 'staff';
 }
 
+// No cookie-parser middleware is installed — mirrors JwtStrategy's extractFromCookie
+// (strategies/jwt.strategy.ts), which reads req.headers.cookie the same way.
+function extractCookie(req: Request, name: string): string | undefined {
+  const raw = req?.headers?.cookie ?? '';
+  const match = new RegExp(String.raw`(?:^|;\s*)${name}=([^;]+)`).exec(raw);
+  return match ? decodeURIComponent(match[1]) : undefined;
+}
+
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
-  constructor(config: ConfigService) {
+  constructor(
+    config: ConfigService,
+    private readonly oauthState: OAuthStateService,
+  ) {
     super({
       clientID: config.getOrThrow<string>('GOOGLE_CLIENT_ID'),
       clientSecret: config.getOrThrow<string>('GOOGLE_CLIENT_SECRET'),
@@ -39,7 +51,15 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     }
     const raw = req.query['state'];
     const state = typeof raw === 'string' ? raw : '';
-    const { loginType, tenantSlug } = decodeOAuthState(state);
+    const cookieNonce = extractCookie(req, OAUTH_NONCE_COOKIE_NAME);
+    let loginType: 'staff' | undefined;
+    let tenantSlug: string | undefined;
+    try {
+      ({ loginType, tenantSlug } = this.oauthState.decodeOAuthState(state, cookieNonce));
+    } catch (err) {
+      done(err as Error);
+      return;
+    }
     done(null, {
       googleOAuthId: profile.id,
       email,

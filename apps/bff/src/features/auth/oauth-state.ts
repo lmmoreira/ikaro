@@ -9,21 +9,28 @@ export interface OAuthState {
   tenantSlug?: string;
 }
 
-export function encodeOAuthState(type: 'staff' | 'customer', tenantSlug?: string): string {
-  const slug = tenantSlug && isValidSlug(tenantSlug) ? tenantSlug : undefined;
-  if (type === 'staff') {
-    return slug ? `__staff__:${slug}` : '__staff__';
-  }
-  return slug ?? '';
+// Signed via OAuthStateService (M17-S32) — the JWT payload carrying the routing data plus a
+// nonce. The same nonce is mirrored into a short-lived httpOnly cookie (double-submit pattern,
+// see OAUTH_NONCE_COOKIE_OPTIONS in cookie-options.ts) so decodeOAuthState() can bind the
+// callback to the browser that started the flow — signature/TTL alone only prove integrity,
+// not browser origin (RFC 6749 §10.12).
+export interface OAuthStatePayload extends OAuthState {
+  nonce: string;
 }
 
-export function decodeOAuthState(state: string): OAuthState {
-  if (state === '__staff__') {
-    return { loginType: 'staff', tenantSlug: undefined };
+export interface EncodedOAuthState {
+  state: string;
+  nonce: string;
+}
+
+// Thrown by OAuthStateService.decodeOAuthState() for every rejection reason — missing state,
+// tampered/expired JWT, or a missing/mismatched nonce cookie. GoogleCallbackGuard.handleRequest()
+// checks `instanceof` so only this failure maps to 400 BFF_OAUTH_STATE_INVALID; unrelated
+// Passport failures (e.g. Google returning no email) keep their normal handling.
+export class OAuthStateInvalidError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'OAuthStateInvalidError';
+    Object.setPrototypeOf(this, new.target.prototype);
   }
-  if (state.startsWith('__staff__:')) {
-    const extracted = state.slice('__staff__:'.length);
-    return { loginType: 'staff', tenantSlug: isValidSlug(extracted) ? extracted : undefined };
-  }
-  return { tenantSlug: isValidSlug(state) ? state : undefined };
 }

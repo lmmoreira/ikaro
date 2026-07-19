@@ -138,6 +138,7 @@
   "BFF_CUSTOMER_NOT_REGISTERED_IN_TENANT": "You're not registered with this business.",
   "BFF_DEV_AUTH_UNAVAILABLE": "Developer login is not available.",
   "BFF_UPSTREAM_UNAVAILABLE": "We couldn't verify your session right now. Please try again.",
+  "BFF_OAUTH_STATE_INVALID": "Something went wrong. Please try again.",
   "AUTH_UNAUTHORIZED": "Your session has expired. Please sign in again.",
   "AUTH_FORBIDDEN": "You don't have permission to perform this action.",
   "AUTH_TENANT_MISMATCH": "This request doesn't match your session's business.",
