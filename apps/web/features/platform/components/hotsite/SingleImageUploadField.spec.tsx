@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
@@ -130,10 +130,12 @@ describe('SingleImageUploadField', () => {
       makeFile('banner.png', 'image/png'),
     );
 
-    expect(generateHotsiteImageSignedUrl).toHaveBeenCalledWith({
-      fileName: 'banner.webp',
-      contentType: 'image/webp',
-      purpose: 'hero',
+    await waitFor(() => {
+      expect(generateHotsiteImageSignedUrl).toHaveBeenCalledWith({
+        fileName: 'banner.webp',
+        contentType: 'image/webp',
+        purpose: 'hero',
+      });
     });
   });
 

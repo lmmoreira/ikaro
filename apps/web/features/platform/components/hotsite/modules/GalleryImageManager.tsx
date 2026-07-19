@@ -184,7 +184,7 @@ export function GalleryImageManager({
           id={INPUT_ID}
           data-testid="gallery-upload-input"
           type="file"
-          accept="image/jpeg,image/png"
+          accept="image/jpeg,image/png,image/webp"
           onChange={(event) => {
             void handleUpload(event);
           }}

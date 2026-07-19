@@ -92,6 +92,19 @@ describe('compressImage', () => {
     expect(heightSet.at(-1)).toBe(600);
   });
 
+  it('clamps the scaled-down dimension to a minimum of 1px for an extreme aspect ratio', async () => {
+    const bitmap = makeBitmap(100_000, 1);
+    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));
+    const smallerBlob = new Blob([new Uint8Array(1000)], { type: 'image/webp' });
+    const { widthSet, heightSet } = stubCanvas({ blob: smallerBlob });
+    const file = makeFile('panorama.jpg', 'image/jpeg', 5_000_000);
+
+    await compressImage(file);
+
+    expect(widthSet.at(-1)).toBe(MAX_DIMENSION);
+    expect(heightSet.at(-1)).toBe(1);
+  });
+
   it('returns a new WebP File smaller than the original on success', async () => {
     const bitmap = makeBitmap(2000, 1500);
     vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));

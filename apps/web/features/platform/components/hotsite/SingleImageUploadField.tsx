@@ -178,7 +178,7 @@ export function SingleImageUploadField({
           data-testid="single-image-upload-input"
           data-field-id={id}
           type="file"
-          accept="image/jpeg,image/png"
+          accept="image/jpeg,image/png,image/webp"
           onChange={(event) => {
             void handleFileSelected(event);
           }}
