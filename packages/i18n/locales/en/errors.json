@@ -141,5 +141,6 @@
   "AUTH_UNAUTHORIZED": "Your session has expired. Please sign in again.",
   "AUTH_FORBIDDEN": "You don't have permission to perform this action.",
   "AUTH_TENANT_MISMATCH": "This request doesn't match your session's business.",
-  "AUTH_INTERNAL_ERROR": "Something went wrong. Please try again."
+  "AUTH_INTERNAL_ERROR": "Something went wrong. Please try again.",
+  "AUTH_RATE_LIMITED": "Too many requests. Please try again shortly."
 }
