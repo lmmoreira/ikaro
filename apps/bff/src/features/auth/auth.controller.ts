@@ -1,5 +1,6 @@
 import { Body, Controller, Get, HttpCode, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { CurrentUser, CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
 import { Public } from '../../shared/decorators/public.decorator';
@@ -13,6 +14,9 @@ import { AuthControllerFlowService } from './auth-controller-flow.service';
 import { GoogleProfile } from './strategies/google.strategy';
 import { StaffTenantOption } from './auth.types';
 
+// M17-S30: tighter tier for the whole /auth/* surface — token issuance/tenant-switching are
+// brute-force targets; 10/min per IP is stricter than the app-wide 60/min default.
+@Throttle({ default: { limit: 10, ttl: 60_000 } })
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authFlow: AuthControllerFlowService) {}
@@ -65,7 +69,12 @@ export class AuthController {
     return this.authFlow.switchTenant(dto, currentUser, res);
   }
 
+  // Exempt from the class-level /auth/* tier: dev-login is already hard-gated by
+  // ENABLE_DEV_AUTH=true and blocked outright when APP_ENV=production (see
+  // AuthControllerFlowService.devLogin) — it's never reachable by real users, only by
+  // local/staging dev tooling and E2E test harnesses that call it repeatedly per run.
   @Public()
+  @SkipThrottle()
   @Post('dev-login')
   @HttpCode(200)
   devLogin(

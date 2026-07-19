@@ -1,12 +1,14 @@
 import { Controller, Get, HttpStatus } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
+import { SkipThrottle } from '@nestjs/throttler';
 import { firstValueFrom } from 'rxjs';
 import { BffErrorCode } from '@ikaro/types';
 import { Public } from '../shared/decorators/public.decorator';
 import { throwProblemDetail } from '../shared/http/problem-detail';
 
 @Public()
+@SkipThrottle()
 @Controller('health')
 export class HealthController {
   private readonly backendUrl: string;

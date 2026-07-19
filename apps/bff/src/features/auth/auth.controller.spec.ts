@@ -1,6 +1,12 @@
 import { Request, Response } from 'express';
+import { Reflector } from '@nestjs/core';
 import { AuthController } from './auth.controller';
 import { AuthControllerFlowService } from './auth-controller-flow.service';
+
+// AppThrottlerGuard.shouldSkip reads this same key via Reflector.getAllAndOverride — see
+// @nestjs/throttler's throttler.guard.js. Not part of the package's public exports
+// (throttler.constants.ts isn't re-exported from index.ts), so the literal is reproduced here.
+const THROTTLER_SKIP_DEFAULT = 'THROTTLER:SKIPdefault';
 
 type FlowServiceMock = {
   handleGoogleCallback: jest.Mock;
@@ -120,5 +126,17 @@ describe('AuthController', () => {
       },
     });
     expect(flow.devLogin).toHaveBeenCalledWith(dto, res);
+  });
+
+  it('exempts dev-login from the class-level /auth/* throttle tier (M17-S30)', () => {
+    // Regression guard: without @SkipThrottle() here, E2E/CI test harnesses that call
+    // dev-login repeatedly from one IP hit the 10/min tier and every subsequent test fails
+    // at its setup step (observed on PR #167's first CI run).
+    const reflector = new Reflector();
+    const skipped = reflector.getAllAndOverride<boolean | undefined>(THROTTLER_SKIP_DEFAULT, [
+      AuthController.prototype.devLogin,
+      AuthController,
+    ]);
+    expect(skipped).toBe(true);
   });
 });

@@ -402,6 +402,8 @@ Full pattern (code catalog, naming convention, frontend resolver, "adding a new 
 
 ## Rate Limiting
 
+**Only active in staging/production.** `AppThrottlerGuard.shouldSkip()` (`apps/bff/src/shared/guards/app-throttler.guard.ts`) no-ops the entire guard unless `APP_ENV` is `staging` or `production` — rate limiting only ever protects a real deployed environment, and `local` (the default when `APP_ENV` is unset, which covers both a developer's machine and CI — nothing sets `APP_ENV` in the Playwright/E2E jobs) was never a target. Without this gate, the blanket default tier applies to every BFF call from every parallel E2E worker sharing one CI runner IP — genuinely exceeded by ordinary test traffic, not abuse (this broke CI twice during M17-S30's own PR before the gate was added).
+
 Single default per-IP tier (2026-07-18 simplification, M17-S30) — no separate authenticated/JWT-`sub` tier; identity-keyed limiting was dropped as unneeded complexity at this project's MVP scale:
 
 ```typescript
@@ -414,7 +416,21 @@ ThrottlerModule.forRoot([
 ]),
 ```
 
-`ThrottlerGuard` must be bound globally (`APP_GUARD`) — registering the module alone does not enforce anything. Tighter per-endpoint overrides use `@Throttle({ default: { limit, ttl } })` (`/auth/*` 10/min, `/attachments/signed-url` 10/min); `/health/*` is exempted via `@SkipThrottle()`. The throttle key is the client IP, resolved via an env-selected helper — `CF-Connecting-IP` in prod (trustworthy only because Cloud Armor origin lockdown guarantees traffic entered via Cloudflare), the rightmost `X-Forwarded-For` hop in staging (no Cloudflare/ALB there) — never the raw socket peer or the leftmost XFF value, both spoofable behind a proxy chain.
+`ThrottlerGuard` (as `AppThrottlerGuard`) must be bound globally (`APP_GUARD`) — registering the module alone does not enforce anything.
+
+| Scope | Limit | Notes |
+|---|---|---|
+| Default (every route not listed below) | 60/min per IP | |
+| `/auth/*` (whole controller) | 10/min per IP | Brute-force insurance on OAuth/tenant-switching |
+| `/auth/dev-login` | unlimited (`@SkipThrottle()`) | Already hard-gated by `ENABLE_DEV_AUTH=true` + blocked outright when `APP_ENV=production` — never reachable by real traffic, so exempting it from the `/auth/*` tier doesn't weaken brute-force protection. Without this, CI's own dev-login test-helper (called once per E2E test, all from one runner IP) exhausts the bucket and every subsequent test fails at setup |
+| `/bookings/attachments/signed-url` | 10/min per IP | `@Public()` — no auth at all, so IP-based limiting is the only throttle available |
+| `/health/*` | unlimited (`@SkipThrottle()`) | Health checks must never be throttled |
+
+**Public vs. authenticated endpoints that mint something costly (signed URLs, tokens):** only `@Public()` routes need a tighter override. `POST /tenants/hotsite/images/signed-url` (and `read-signed-url`) also mint GCS signed URLs but sit behind `@Roles('MANAGER')` — a full JWT + tenant-scoped role check is already a stronger gate than any IP-based count (abuse requires a real, accountable manager account, not "anyone on the internet"), so it correctly stays on the 60/min default rather than getting its own tier.
+
+The throttle key is the client IP, resolved via an env-selected helper (`apps/bff/src/shared/http/client-ip.ts`) — `CF-Connecting-IP` in prod (trustworthy only because Cloud Armor origin lockdown, M17-S36, guarantees traffic entered via Cloudflare), the rightmost `X-Forwarded-For` hop in staging (no Cloudflare/ALB there, D5) — never the raw socket peer or the leftmost XFF value, both spoofable behind a proxy chain. **The staging XFF position is not verified against live infra** (nothing was deployed to test against when M17-S30 shipped) — see M17-S27's acceptance criteria for the pending verification.
+
+On limit exceeded: `429` with the standard RFC 9457 Problem Detail envelope, `code: AuthErrorCode.RATE_LIMITED`, pt-BR message. Known accepted limitation: counters are in-memory per Cloud Run instance, not shared across instances — acceptable at MVP scale (`max_instances` capped low); Redis (`td/TD08-AUDIT-REMEDIATION-BACKLOG.md` AUD-032) is the documented scale-up path, not built now.
 
 ---
 

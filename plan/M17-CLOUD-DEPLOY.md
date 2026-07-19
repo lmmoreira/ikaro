@@ -357,10 +357,12 @@ Codify “this must never run in production” rules as startup errors, so a cop
 **Description (simplified 2026-07-18 — see rationale below):**
 Bind `ThrottlerGuard` globally (`APP_GUARD`) and finalize:
 - **One default per-IP tier: 60/min.** The JWT-`sub`-keyed `authenticated` (300/min) tier from the original spec is **dropped** — identity-keyed limiting adds real implementation complexity (a custom tracker reading `req.user`) for a threat this project doesn't face at MVP scale (a handful of staff/customers per tenant). If per-`sub`/per-tenant limiting is ever needed, that's a new story, not this one.
-- Tightened per-endpoint overrides: `/auth/*` token issuance **10/min per IP**; `/attachments/signed-url` **10/min** (decorator already present, now actually enforced).
+- **Environment-gated entirely (discovery finding, added 2026-07-19 — S30's own PR broke CI twice before this was added):** override `shouldSkip()` to no-op the whole guard unless `APP_ENV` is `staging` or `production`. Rate limiting only ever protects a real deployed environment; `local` (the default when `APP_ENV` is unset, which covers both a developer's machine and CI — nothing sets `APP_ENV` in the Playwright/E2E jobs) was never a target. Without this, the blanket default tier applies to every BFF call from every parallel E2E worker sharing one CI runner IP — genuinely exceeded by ordinary test traffic across unrelated routes, not abuse.
+- Tightened per-endpoint overrides: `/auth/*` token issuance **10/min per IP**; `/attachments/signed-url` **10/min** (decorator already present, now actually enforced). `/auth/dev-login` is exempted from the `/auth/*` tier via `@SkipThrottle()` — it's already hard-gated by `ENABLE_DEV_AUTH=true` + blocked outright in production, so it's never reachable by real traffic; without this exemption, CI's own dev-login test-helper (called once per E2E test, all from one runner IP) exhausts the bucket and every subsequent test fails at setup.
 - `/health/*` bypassed via `@SkipThrottle()`.
-- `429` responses as RFC 9457 with pt-BR detail; standard `X-RateLimit-*` headers.
+- `429` responses as RFC 9457 with pt-BR detail (`AuthErrorCode.RATE_LIMITED`); standard `X-RateLimit-*` headers.
 - **Cloud Run caveat (document in code):** per-instance in-memory throttling is per-instance — with `max_instances` small this is acceptable at MVP; a shared store (Memorystore) is the documented scale-up path, not built now (FinOps).
+- **Signed-URL endpoints outside `/attachments/*` don't need their own tier:** `POST /tenants/hotsite/images/signed-url` (+ `read-signed-url`) also mint GCS signed URLs but sit behind `@Roles('MANAGER')` — a full JWT + tenant-scoped role check is already a stronger gate than IP-based counting (abuse requires a real, accountable manager account), so the 60/min default is adequate there. Only `@Public()` routes that mint something costly need a tighter override.
 
 **Scope trim — backend items dropped entirely (2026-07-18 discovery):** the original spec also listed backend's `POST /internal/tenants` **3/hour** and a `/pubsub|cron` bypass. Both are out of reach for this `bff-ts`-tagged story and out of scope for this story full stop: `POST /internal/tenants` is **never routed through the BFF at all** — it's reached only via an operator's IAM-authenticated `gcloud run services proxy` tunnel (see M17-S18's new discovery note on the missing `run.invoker` grant for `admin@ikaro.online`), and the backend has zero `@nestjs/throttler` infrastructure today. The endpoint already sits behind two independent gates (the operator's own `run.invoker` IAM grant, plus `PlatformAdminGuard`'s `PLATFORM_ADMIN_KEY` check) before a request ever reaches app code — an app-level rate limit on top is genuinely redundant, not a gap. Same reasoning for pubsub/cron: BFF has no such routes at all (backend-only, invoked by GCP infra, never public). If backend-side throttling is ever wanted, it's a new `backend-ts` story, not this one.
 
@@ -370,8 +372,9 @@ Bind `ThrottlerGuard` globally (`APP_GUARD`) and finalize:
 
 **Acceptance criteria:**
 - [ ] `ThrottlerGuard` bound globally; confirm via a spec that an unthrottled route 61st request in a minute → 429 (proves the guard is actually active, not just configured)
-- [ ] 61st anonymous request in a minute → 429 Problem Detail (pt-BR)
-- [ ] `/auth/*` and `/attachments/signed-url` enforce their tighter tiers (specs)
+- [ ] `shouldSkip()` specs: does not skip in `staging`/`production`; skips when `APP_ENV` is unset or any other value (covers CI/local)
+- [ ] 61st anonymous request in a minute → 429 Problem Detail (pt-BR) — when `APP_ENV` is `staging`/`production`
+- [ ] `/auth/*` and `/attachments/signed-url` enforce their tighter tiers (specs); `/auth/dev-login` specifically stays exempt (spec asserting the `@SkipThrottle()` metadata is present, not just that the decorator line exists in source)
 - [ ] Health path never throttled (specs)
 - [ ] Headers decrement correctly; specs for each tier
 - [ ] IP-extraction helper specs: prod `CF-Connecting-IP`, staging rightmost-XFF, spoofed leftmost-XFF ignored
@@ -1097,6 +1100,7 @@ Turn staging from placeholder to a working environment. This is a runbook + chec
    - [ ] `gcloud scheduler jobs run` → cron push hits backend (S21 check)
    - [ ] Signed-URL photo upload works from the browser (S14 CORS check)
    - [ ] Tenant provisioning via `gcloud run services proxy` + `PLATFORM_ADMIN_KEY` documented and exercised (creates the staging demo tenant used by E2E)
+   - [ ] **Client-IP position in staging's X-Forwarded-For header verified (M17-S30 PR #167 review, 2026-07-19):** the BFF's `getClientIp()` (`apps/bff/src/shared/http/client-ip.ts`) assumes the rightmost XFF hop is the real client IP for staging's no-LB, direct-`*.run.app` path — unverified at the time S30 shipped (nothing was deployed to test against; GCP's docs describe GFE-fronted paths appending more than one hop in some configurations, so "rightmost" was not a confirmed fact). Make a real request from a known IP, log/inspect the actual `X-Forwarded-For` header Cloud Run delivers, and fix the code + its comment with a citation to the verified behavior if the assumption is wrong.
 5. Document every gap found as a follow-up issue — do not hotfix silently.
 
 **Acceptance criteria:** the checklist above, fully checked, committed to this story’s section (edit this file via doc-gate).

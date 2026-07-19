@@ -231,6 +231,7 @@ Full list (~115 entries) in `docs/ANTI_PATTERNS.md` (loaded automatically by `/p
 | A route is added to an existing hide-list/allow-list by pattern-matching neighbors | Name the invariant every current member satisfies before adding a new one — surface similarity isn't the same as satisfying the same rule |
 | A non-repository class (service, publisher, handler) contains raw SQL, `@InjectRepository`, or TypeORM `Repository<T>` directly | Extract `IXxxRepository` (`shared/ports/` for cross-cutting, `<ctx>/application/ports/` for a bounded context) + `TypeOrmXxxRepository` adapter; the class depends on the port only — see `docs/AGENT_PATTERNS.md` Pattern #1 |
 | A module is marked `@Global()` (or re-marked when a token gains new consumers) without adding that token to `exports:` | `@Global()` only waives the *importing* module's need for an `imports:` entry — it never substitutes for `exports:`. A provider left out of `exports:` stays unresolvable everywhere, and the DI error points at the consumer, not the missing `exports:` line |
+| New error code added to `@ikaro/types` without a translation entry in both locale files | Add the entry to both `packages/i18n/locales/pt-BR/errors.json` and `.../en/errors.json` in the same commit — `apps/web`'s exhaustiveness test (TD23 Story 17) fails CI on a missing one, not just a lint warning (M17-S30 precedent, 2026-07-18: `AUTH_RATE_LIMITED` shipped without either translation, caught only by the Web Unit Tests CI job) |
 
 ---
 
@@ -318,6 +319,7 @@ If all stories are `✅ Done`: create `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA
 | Event handler | `docs/03-DOMAIN_EVENTS.md` + `docs/05-BOUNDED_CONTEXTS.md` + `docs/ENGINEERING_RULES.md` |
 | Staff OAuth login / invite link | `docs/ENGINEERING_RULES.md` § Staff OAuth login URL format + `td/TD13-STAFF-INVITE-EMAIL-LINK.md` |
 | New notification type | `docs/ENGINEERING_RULES.md` § Adding a new notification type |
+| New error code (`@ikaro/types`) | `docs/ENGINEERING_RULES.md` § Adding a new error — checklist (step 2: translation entry in **both** locale files, or CI's exhaustiveness test fails) |
 | New UI copy / locale key | `docs/ENGINEERING_RULES.md` § Authoring new i18n UI copy keys + `docs/CODE_STANDARDS.md` |
 | Hotsite / public frontend | `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` + `docs/14-API_CONTRACTS.md` + `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` |
 | Dashboard / admin frontend | `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` + `docs/14-API_CONTRACTS.md` |
