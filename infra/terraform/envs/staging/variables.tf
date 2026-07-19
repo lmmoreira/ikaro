@@ -1,13 +1,19 @@
 variable "backend_max_instances" {
-  description = "Backend Cloud Run max_instance_count. Capped at 6 on db-f1-micro by the connection-math invariant (6 * DB_POOL_SIZE=3 = 18 <= 80% of 25) — raise only alongside a db_tier upgrade (M17 plan §S18)."
+  description = "Backend Cloud Run max_instance_count. Capped at 3 on db-f1-micro by the connection-math invariant: 3 * DB_POOL_SIZE=3 * 2 (rollout-overlap factor — Cloud Run enforces this per-revision even at the service level, so two revisions can each independently reach it during a deploy, real apply finding 2026-07-19) = 18 <= 80% of 25 — raise only alongside a db_tier upgrade (M17 plan §S18)."
   type        = number
-  default     = 6
+  default     = 3
 }
 
 variable "bff_max_instances" {
   description = "BFF Cloud Run max_instance_count. Explicit rather than the module's default (100): both backend and bff use Direct VPC egress and share the single /24 subnet (~251 usable IPs, modules/network); Google documents ~2 IPs/instance for Direct VPC, and a rolling deploy can run old+new revisions concurrently. 20 * 2 IPs * 2 (rollout overlap) = 80, plus backend's 6 * 2 * 2 = 24 — 104 total, comfortably under 251. Raise only alongside a larger/separate subnet (review finding, 2026-07-19)."
   type        = number
   default     = 20
+}
+
+variable "bff_real_uri" {
+  description = "BFF's real *.run.app URI, used to build GOOGLE_CALLBACK_URL. Cannot be derived from module.cloudrun_bff.service_uri (a module cannot take its own output as one of its own inputs) — this is the standard Terraform bootstrap pattern instead: apply once with the placeholder default, read the real value from this root's bff_service_uri output, paste it here (local.auto.tfvars or terraform.tfvars), then apply again. Real apply finding, 2026-07-19: the *.run.app URL is a per-project hash (e.g. \"ikaro-bff-crle4i3nrq-rj.a.run.app\"), not the deterministic project-number format an earlier assumption relied on, so it cannot be precomputed either."
+  type        = string
+  default     = "https://ikaro-bff-placeholder.invalid"
 }
 
 variable "bootstrap_mode" {

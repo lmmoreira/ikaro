@@ -36,5 +36,11 @@ bootstrap_mode = true
 # Connection-math invariant (backend) and Direct VPC subnet-capacity
 # reasoning (bff) — see the variable descriptions in variables.tf. Raise
 # only alongside the matching db_tier upgrade / subnet resize.
-backend_max_instances = 6
+backend_max_instances = 3
 bff_max_instances     = 20
+
+# Real *.run.app URL discovered from the bff_service_uri output after the
+# first apply (see bff_real_uri's description in variables.tf) — used to
+# build GOOGLE_CALLBACK_URL. Also registered as an Authorized redirect URI
+# on the Google OAuth client in the GCP Console (M17-S18 post-apply step).
+bff_real_uri = "https://ikaro-bff-crle4i3nrq-rj.a.run.app"

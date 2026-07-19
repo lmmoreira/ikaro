@@ -21,11 +21,12 @@ locals {
 }
 
 resource "google_cloud_run_v2_service" "this" {
-  name     = var.service_name
-  location = var.region
-  project  = var.project_id
-  ingress  = var.ingress
-  labels   = merge(var.labels, { service = var.service_name })
+  name             = var.service_name
+  location         = var.region
+  project          = var.project_id
+  ingress          = var.ingress
+  labels           = merge(var.labels, { service = var.service_name })
+  custom_audiences = var.custom_audiences
 
   deletion_protection = var.deletion_protection
 

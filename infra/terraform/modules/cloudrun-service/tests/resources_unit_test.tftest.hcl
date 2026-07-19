@@ -6,14 +6,14 @@
 mock_provider "google" {}
 
 variables {
-  project_id             = "ikaro-staging"
-  environment            = "staging"
-  service_name           = "ikaro-backend"
-  service_account_email  = "ikaro-backend@ikaro-staging.iam.gserviceaccount.com"
-  port                   = 3001
-  image                  = "gcr.io/cloudrun/hello"
-  max_instance_count     = 6
-  min_instance_count     = 0
+  project_id            = "ikaro-staging"
+  environment           = "staging"
+  service_name          = "ikaro-backend"
+  service_account_email = "ikaro-backend@ikaro-staging.iam.gserviceaccount.com"
+  port                  = 3001
+  image                 = "gcr.io/cloudrun/hello"
+  max_instance_count    = 6
+  min_instance_count    = 0
 }
 
 run "scaling_lives_at_service_level_not_per_revision" {

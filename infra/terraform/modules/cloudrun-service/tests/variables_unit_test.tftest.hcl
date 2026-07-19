@@ -6,12 +6,12 @@
 mock_provider "google" {}
 
 variables {
-  project_id             = "ikaro-staging"
-  environment            = "staging"
-  service_name           = "ikaro-bff"
-  service_account_email  = "ikaro-bff@ikaro-staging.iam.gserviceaccount.com"
-  port                   = 3002
-  image                  = "gcr.io/cloudrun/hello"
+  project_id            = "ikaro-staging"
+  environment           = "staging"
+  service_name          = "ikaro-bff"
+  service_account_email = "ikaro-bff@ikaro-staging.iam.gserviceaccount.com"
+  port                  = 3002
+  image                 = "gcr.io/cloudrun/hello"
 }
 
 run "vpc_egress_set_without_network_id_and_subnet_id_fails" {
