@@ -17,6 +17,40 @@ describe('AppThrottlerGuard', () => {
     return new AppThrottlerGuard(options, storageService, reflector, config);
   }
 
+  describe('shouldSkip()', () => {
+    it('does not skip in production', async () => {
+      guard = makeGuard('production');
+      const skip = await (
+        guard as unknown as { shouldSkip: (context: unknown) => Promise<boolean> }
+      ).shouldSkip({});
+      expect(skip).toBe(false);
+    });
+
+    it('does not skip in staging', async () => {
+      guard = makeGuard('staging');
+      const skip = await (
+        guard as unknown as { shouldSkip: (context: unknown) => Promise<boolean> }
+      ).shouldSkip({});
+      expect(skip).toBe(false);
+    });
+
+    it('skips in local — the default when APP_ENV is unset, which covers CI/E2E too', async () => {
+      guard = makeGuard(undefined);
+      const skip = await (
+        guard as unknown as { shouldSkip: (context: unknown) => Promise<boolean> }
+      ).shouldSkip({});
+      expect(skip).toBe(true);
+    });
+
+    it('skips for any explicit non-staging/production value', async () => {
+      guard = makeGuard('local');
+      const skip = await (
+        guard as unknown as { shouldSkip: (context: unknown) => Promise<boolean> }
+      ).shouldSkip({});
+      expect(skip).toBe(true);
+    });
+  });
+
   describe('getTracker()', () => {
     it('resolves the client IP via CF-Connecting-IP in production', async () => {
       guard = makeGuard('production');
