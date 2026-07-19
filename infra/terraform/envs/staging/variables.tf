@@ -33,6 +33,12 @@ variable "db_tier" {
   default     = "db-f1-micro"
 }
 
+variable "db_user" {
+  description = "Postgres user the backend connects as (DB_USER). Not Terraform-managed (S13 discovery — the user + password are created out-of-band by the S27/S37 activation runbook to keep secret values out of state), but the username itself isn't a secret, so it's an explicit variable rather than a bare literal repeated across env roots."
+  type        = string
+  default     = "ikaro"
+}
+
 variable "enable_database" {
   description = "Instantiate the Cloud SQL module (S13 discovery: staging stays false — no instance, no charge — until the S27 activation flips it)"
   type        = bool

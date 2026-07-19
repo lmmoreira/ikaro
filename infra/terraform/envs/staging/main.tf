@@ -152,11 +152,14 @@ module "cloudrun_backend" {
       GCP_PROJECT = var.project_id
 
       # S13 discovery: staging's database module is deferred (count=0) until
-      # the S27 activation — try() falls back to "" until then; harmless while
-      # bootstrap_mode's placeholder image never actually reads it.
+      # the S27 activation — try() falls back to a placeholder until then;
+      # harmless while bootstrap_mode's placeholder image never actually
+      # reads either. DB_NAME derives from modules/database's own output
+      # (single source of truth for the google_sql_database.ikaro name)
+      # rather than a second hardcoded "ikaro" literal.
       DB_HOST      = try(module.database[0].private_ip, "")
-      DB_USER      = "ikaro"
-      DB_NAME      = "ikaro"
+      DB_USER      = var.db_user
+      DB_NAME      = try(module.database[0].database_name, "ikaro")
       DB_POOL_SIZE = "3"
 
       PUBSUB_PROJECT_ID           = var.project_id
