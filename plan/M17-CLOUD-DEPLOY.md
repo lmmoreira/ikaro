@@ -1096,6 +1096,7 @@ Turn staging from placeholder to a working environment. This is a runbook + chec
    - [ ] `gcloud scheduler jobs run` → cron push hits backend (S21 check)
    - [ ] Signed-URL photo upload works from the browser (S14 CORS check)
    - [ ] Tenant provisioning via `gcloud run services proxy` + `PLATFORM_ADMIN_KEY` documented and exercised (creates the staging demo tenant used by E2E)
+   - [ ] **Client-IP position in staging's X-Forwarded-For header verified (M17-S30 PR #167 review, 2026-07-19):** the BFF's `getClientIp()` (`apps/bff/src/shared/http/client-ip.ts`) assumes the rightmost XFF hop is the real client IP for staging's no-LB, direct-`*.run.app` path — unverified at the time S30 shipped (nothing was deployed to test against; GCP's docs describe GFE-fronted paths appending more than one hop in some configurations, so "rightmost" was not a confirmed fact). Make a real request from a known IP, log/inspect the actual `X-Forwarded-For` header Cloud Run delivers, and fix the code + its comment with a citation to the verified behavior if the assumption is wrong.
 5. Document every gap found as a follow-up issue — do not hotfix silently.
 
 **Acceptance criteria:** the checklist above, fully checked, committed to this story’s section (edit this file via doc-gate).
