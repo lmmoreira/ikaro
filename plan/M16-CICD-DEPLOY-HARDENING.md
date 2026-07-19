@@ -414,10 +414,15 @@ Execute the final go-live checklist: configure production secrets, deploy to pro
 
 3. **First production deploy** (via M16-S03 workflow with staging-validated SHA)
 
-4. **Provision first tenant** (via `POST /internal/tenants` — M02-S05):
+4. **Provision first tenant** (via `POST /internal/tenants` — M02-S05): in one terminal, start the IAM-authenticated proxy:
    ```bash
-   curl -X POST https://backend.<ikaro-domain>/internal/tenants \
-     -H "Authorization: Bearer $(gcloud secrets versions access latest --secret=platform-admin-key)" \
+   gcloud run services proxy ikaro-backend --project=ikaro-prod --region=southamerica-east1 --port=8080
+   ```
+   In another terminal, call the local proxy:
+   ```bash
+   curl -X POST http://localhost:8080/internal/tenants \
+     -H "X-Platform-Admin-Key: $(gcloud secrets versions access latest --secret=platform-admin-key --project=ikaro-prod)" \
+     -H "X-Internal-Key: $(gcloud secrets versions access latest --secret=internal-api-key --project=ikaro-prod)" \
      -H "Content-Type: application/json" \
      -d '{
        "name": "Lavacar BeloAuto",
@@ -426,7 +431,7 @@ Execute the final go-live checklist: configure production secrets, deploy to pro
        "timezone": "America/Sao_Paulo"
      }'
    ```
-   Prerequisite: Cloud IAP token must be included (M15-S12). The operator must be in the IAP allowlist.
+   Prerequisite: the operator has `roles/run.invoker` on the backend Cloud Run service. The proxy owns the `Authorization` header for its IAM ID token; do not send the platform key through that header.
    Verify: `TenantProvisioned` event published, first MANAGER staff row created (M04-S06), invitation email in SendGrid logs.
 
 5. **Validate SLOs:**

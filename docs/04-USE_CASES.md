@@ -864,18 +864,20 @@ Returns:
 ### **UC-024: Platform Operator Provisions New Tenant (REST API)**
 
 - **Actor:** Ikaro platform operator (developer / internal ops)
-- **Preconditions:** Operator holds `PLATFORM_ADMIN_KEY`. No self-service signup UI exists in MVP.
+- **Preconditions:** Operator has `roles/run.invoker` on the backend Cloud Run service and holds `PLATFORM_ADMIN_KEY` plus `INTERNAL_API_KEY`. No self-service signup UI exists in MVP.
 - **Trigger:** A new car-wash company is signed up and needs a tenant provisioned on the platform.
-- **Security:** Three-layer defence-in-depth (decided 2026-05-15):
-  1. **Cloud Armor** (M15-S12) — blocks `/internal/*` from the public internet at the infrastructure level
-  2. **Cloud IAP** (M15-S12) — Google identity gate; only allowlisted Google accounts can reach the endpoint
-  3. **`PLATFORM_ADMIN_KEY`** (M02-S05) — static API key validated by `PlatformAdminGuard` at the application level
+- **Security:** Four independent layers (M17):
+  1. **Cloud Run internal ingress** — the backend is not publicly reachable.
+  2. **IAM-authenticated `gcloud run services proxy`** — only an operator with `roles/run.invoker` can reach the service.
+  3. **`INTERNAL_API_KEY`** — global `InternalApiGuard` validates `X-Internal-Key`.
+  4. **`PLATFORM_ADMIN_KEY`** — `PlatformAdminGuard` validates `X-Platform-Admin-Key`.
 
 - **Main Flow:**
    1. Operator calls:
       ```http
       POST /internal/tenants
       X-Platform-Admin-Key: <PLATFORM_ADMIN_KEY>
+      X-Internal-Key: <INTERNAL_API_KEY>
       Content-Type: application/json
 
       {
@@ -885,7 +887,7 @@ Returns:
         "timezone": "America/Sao_Paulo"
       }
       ```
-   2. `PlatformAdminGuard` validates `X-Platform-Admin-Key` using `crypto.timingSafeEqual` → rejects with `401` if invalid.
+   2. `InternalApiGuard` validates `X-Internal-Key`; then `PlatformAdminGuard` validates `X-Platform-Admin-Key` using `crypto.timingSafeEqual` → rejects with `401` if either key is invalid.
    3. System validates inputs: slug format (`/^[a-z0-9-]+$/`), slug uniqueness, email format, IANA timezone.
    4. System creates `platform.tenants` row with default settings.
    5. System creates `platform.hotsite_configs` row (`is_published = false`).
@@ -898,7 +900,7 @@ Returns:
    9. **Asynchronously** — Notification context (M11) handles `StaffInvited` → sends invitation email to `adminEmail` in pt-BR.
 
 - **Alternative Flows:**
-   - **A1: Missing or invalid `X-Platform-Admin-Key` header** → `401` Problem Detail
+   - **A1: Missing or invalid `X-Internal-Key` or `X-Platform-Admin-Key` header** → `401` Problem Detail
    - **A2: Slug already taken** → `409` Problem Detail: `"Slug 'autowash-pro' is already in use"`
    - **A3: Invalid slug format** → `400` Problem Detail
    - **A4: Invalid email** → `400` Problem Detail

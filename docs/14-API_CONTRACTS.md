@@ -880,10 +880,11 @@ Errors:
 
 ## Internal Platform API (Operator Only)
 
-> These endpoints are **not reachable from the public internet** in production. Three security layers protect them (decided 2026-05-15):
-> 1. **Cloud Armor** (M15-S12) — blocks `/internal/*` at the network level from all IPs except the operator's allowlist
-> 2. **Cloud IAP** (M15-S12) — Google identity gate; only allowlisted Google Workspace accounts can pass
-> 3. **`PLATFORM_ADMIN_KEY`** — static API key in the `X-Platform-Admin-Key` header, validated application-side with `crypto.timingSafeEqual`
+> These endpoints are **not reachable from the public internet** in production. Four independent layers protect them (M17):
+> 1. **Cloud Run internal ingress** — the backend is not publicly reachable.
+> 2. **IAM-authenticated `gcloud run services proxy`** — only an operator with `roles/run.invoker` can reach the service.
+> 3. **`INTERNAL_API_KEY`** — global `InternalApiGuard` validates `X-Internal-Key`.
+> 4. **`PLATFORM_ADMIN_KEY`** — `PlatformAdminGuard` validates `X-Platform-Admin-Key` with `crypto.timingSafeEqual`.
 >
 > All three layers must pass. The `RequestInterceptor` skips `/internal/*` — no `X-Tenant-ID` header is expected.
 
@@ -896,6 +897,7 @@ Provisions a new car-wash company on the platform. Creates `Tenant` + default `H
 **Request headers:**
 ```
 X-Platform-Admin-Key: <PLATFORM_ADMIN_KEY>
+X-Internal-Key: <INTERNAL_API_KEY>
 Content-Type: application/json
 ```
 

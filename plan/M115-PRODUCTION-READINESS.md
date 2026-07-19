@@ -388,7 +388,7 @@ All three backend internal HTTP files currently omit the header (the guard didn'
 - [ ] `GET /internal/customers/tenants` without `X-Internal-Key` returns `401`
 - [ ] `GET /internal/staff/by-oauth` without `X-Internal-Key` returns `401`
 - [ ] `POST /internal/tenants` without `X-Internal-Key` returns `401` (global guard runs before `PlatformAdminGuard`)
-- [ ] `POST /internal/tenants` with valid `X-Internal-Key` but wrong `Authorization` still returns `401` (both guards must pass)
+- [ ] `POST /internal/tenants` with valid `X-Internal-Key` but wrong `X-Platform-Admin-Key` still returns `401` (both guards must pass)
 - [ ] BFF OAuth callback still resolves tenant + staff/customer correctly (all `BackendHttpService` methods now propagate the key)
 - [ ] `getForPublic`, `postForPublic`, `patchForPublic` all include `X-Internal-Key` in their headers
 - [ ] `INTERNAL_API_KEY` shorter than 32 chars causes both backend and BFF to refuse to boot
