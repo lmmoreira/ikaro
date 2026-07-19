@@ -36,5 +36,5 @@ bootstrap_mode = true
 # Connection-math invariant (backend) and Direct VPC subnet-capacity
 # reasoning (bff) — see the variable descriptions in variables.tf. Raise
 # only alongside the matching db_tier upgrade / subnet resize.
-backend_max_instances = 6
+backend_max_instances = 3
 bff_max_instances     = 20

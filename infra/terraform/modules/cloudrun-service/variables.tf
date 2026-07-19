@@ -16,6 +16,12 @@ variable "cpu" {
   default     = "1"
 }
 
+variable "custom_audiences" {
+  description = "Fixed, self-chosen OIDC audience string(s) this service also accepts, independent of its own dynamically-assigned *.run.app URL (real apply finding, 2026-07-19: that URL is a per-project hash, e.g. \"crle4i3nrq-rj\", not the deterministic project-number format a prior assumption relied on — a service cannot reference its own future URL as an input to itself anyway). Needed for env vars like the backend's PUBSUB_PUSH_AUDIENCE, where the caller (a future Pub/Sub push subscription, S19) and this service must agree on a stable value neither has to derive from the real URL. Per Google's own docs, a custom audience need not be URL-shaped at all — a plain identifier is valid."
+  type        = list(string)
+  default     = []
+}
+
 variable "db_pool_size" {
   description = "TypeORM pool size this service opens per instance (DB_POOL_SIZE). Only set for the backend service — leave null for bff/web. Combined with db_tier, enforces the connection-math invariant on max_instance_count."
   type        = number
@@ -106,7 +112,7 @@ variable "labels" {
 }
 
 variable "max_instance_count" {
-  description = "Combined maximum instance count across revisions. When db_pool_size is set (backend only), validated against the connection-math invariant: max_instance_count * db_pool_size must be <= 80% of db_tier's max_connections (M17 plan §S18 \"Connection-math invariant\")."
+  description = "Combined (service-level) maximum instance count across revisions — see the scaling block in main.tf, not template.scaling (per-revision). When db_pool_size is set (backend only), validated against the connection-math invariant: max_instance_count * db_pool_size * 2 must be <= 80% of db_tier's max_connections (M17 plan §S18 \"Connection-math invariant\"). The *2 accounts for Cloud Run's documented rollout-overlap behavior: even with service-level scaling configured, Google's own docs confirm the effective cap is still enforced per-revision, and two revisions (old + new) can each independently reach it during a deploy transition — real staging apply finding, 2026-07-19 (google_cloud_run_v2_service.this.template.scaling.max_instance_count auto-defaulted to 10, uncontrolled, confirming the per-revision mechanism is real and independent of the service-level value)."
   type        = number
   default     = 100
 
@@ -120,14 +126,14 @@ variable "max_instance_count" {
   validation {
     condition = var.db_pool_size == null ? true : (
       contains(keys(local.tier_max_connections), var.db_tier) &&
-      var.max_instance_count * var.db_pool_size <= floor(0.8 * local.tier_max_connections[var.db_tier])
+      var.max_instance_count * var.db_pool_size * 2 <= floor(0.8 * local.tier_max_connections[var.db_tier])
     )
-    error_message = "backend max_instance_count * db_pool_size must be <= 80% of db_tier's max_connections, and db_tier must be a recognized tier in this module's connection-math map (add it here if you're upgrading to a new tier)."
+    error_message = "backend max_instance_count * db_pool_size * 2 (rollout-overlap factor — two revisions can each independently reach max_instance_count during a deploy, per Google's own documented Cloud Run behavior) must be <= 80% of db_tier's max_connections, and db_tier must be a recognized tier in this module's connection-math map (add it here if you're upgrading to a new tier)."
   }
 }
 
 variable "memory" {
-  description = "Memory limit (string form of the k8s quantity, e.g. \"512Mi\")"
+  description = "Memory limit (string form of the k8s quantity, e.g. \"512Mi\"). GCP rejects any value below 512Mi when execution_environment is EXECUTION_ENVIRONMENT_GEN2 (\"Total memory < 512 Mi is not supported with gen2 execution environment\") — confirmed via a real apply, 2026-07-19, not caught by terraform validate/plan or Checkov. Every current caller uses gen2, so treat 512Mi as this module's practical floor."
   type        = string
   default     = "512Mi"
 }
