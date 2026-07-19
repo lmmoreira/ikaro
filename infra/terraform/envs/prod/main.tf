@@ -12,18 +12,16 @@
 # S37 go-live (M17-S12 discovery decision).
 
 locals {
-  # A Cloud Run v2 service's default *.run.app URL is deterministic
-  # (service-projectnumber.region.run.app — same format already relied on by
-  # envs/staging's cors_origins value, S08). Needed because Terraform cannot
-  # reference a resource's own computed `uri` output from within its own
-  # config: the backend's PUBSUB_PUSH_AUDIENCE and the BFF's
-  # GOOGLE_CALLBACK_URL both need each service's *own* URL (M17-S18
-  # discovery, 2026-07-19) — and both stay pointed at the raw run.app URL
-  # here (not the eventual ikaro.online/bff.ikaro.online custom domains)
-  # because neither exists until S22's edge module + DNS land; S22's own
-  # story text already owns flipping GOOGLE_CALLBACK_URL over at that point.
-  backend_self_uri = "https://ikaro-backend-${var.project_number}.${var.region}.run.app"
-  bff_self_uri     = "https://ikaro-bff-${var.project_number}.${var.region}.run.app"
+  # Fixed, self-chosen OIDC audience for Pub/Sub push -> backend (S19).
+  # NOT derived from the service's own URL: a real staging apply (2026-07-19)
+  # proved the *.run.app URL is a per-project hash, not the deterministic
+  # project-number format an earlier assumption relied on -- and even if it
+  # were deterministic, a module cannot take its own output as one of its
+  # own inputs anyway. custom_audiences (modules/cloudrun-service) lets the
+  # backend accept this fixed string as a valid audience regardless of its
+  # real URL; S19's push subscription mints its OIDC token with the same
+  # value. Per Google's own docs a custom audience need not be URL-shaped.
+  backend_pubsub_audience = "ikaro-backend-${var.environment}-pubsub-push"
 
   # Digest-pinned (not a mutable tag): each service's runtime SA keeps its
   # Secret Manager / storage / Pub/Sub grants regardless of what env vars are
@@ -131,6 +129,7 @@ module "cloudrun_backend" {
   service_account_email = module.iam.backend_sa_email
   execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
   deletion_protection   = true
+  custom_audiences      = [local.backend_pubsub_audience]
 
   ingress    = "INGRESS_TRAFFIC_INTERNAL_ONLY"
   vpc_egress = "PRIVATE_RANGES_ONLY"
@@ -173,7 +172,7 @@ module "cloudrun_backend" {
       PUBSUB_PROJECT_ID           = var.project_id
       PUBSUB_CONSUMER_MODE        = "push"
       PUBSUB_AUTO_CREATE          = "false"
-      PUBSUB_PUSH_AUDIENCE        = "${local.backend_self_uri}/pubsub/push"
+      PUBSUB_PUSH_AUDIENCE        = local.backend_pubsub_audience
       PUBSUB_PUSH_SERVICE_ACCOUNT = module.iam.pubsub_invoker_sa_email
 
       GCS_BUCKET_NAME        = module.storage.uploads_bucket_name
@@ -251,7 +250,9 @@ module "cloudrun_bff" {
     BACKEND_INTERNAL_URL = module.cloudrun_backend.service_uri
     # Not yet bff.ikaro.online — that hostname doesn't resolve until S22's
     # DNS + cert land; S22 flips this to the custom domain at that point.
-    GOOGLE_CALLBACK_URL = "${local.bff_self_uri}/v1/auth/google/callback"
+    # var.bff_real_uri starts as a placeholder -- see its description for the
+    # apply-once/paste-real-value/apply-again bootstrap sequence.
+    GOOGLE_CALLBACK_URL = "${var.bff_real_uri}/v1/auth/google/callback"
     ALLOWED_ORIGINS     = "https://ikaro.online,https://www.ikaro.online"
     FRONTEND_URL        = "https://ikaro.online"
 
@@ -285,8 +286,11 @@ module "cloudrun_web" {
   bootstrap_mode        = var.bootstrap_mode
   port                  = 3000
   service_account_email = module.iam.web_sa_email
-  memory                = "256Mi"
-  deletion_protection   = true
+  # memory left at the module default (512Mi) -- GCP rejects <512Mi with
+  # EXECUTION_ENVIRONMENT_GEN2 (confirmed by a real staging apply, 2026-07-19:
+  # the story's original "256Mi" spec silently conflicted with "second-gen
+  # execution environment", a combination no static check catches).
+  deletion_protection = true
 
   ingress               = "INGRESS_TRAFFIC_ALL"
   allow_unauthenticated = true

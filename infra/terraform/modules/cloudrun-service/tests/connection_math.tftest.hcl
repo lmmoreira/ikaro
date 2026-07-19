@@ -2,6 +2,11 @@
 # ceiling from being silently exceeded by the backend's per-instance TypeORM pool
 # (M17 plan §S18 "Connection-math invariant"). command = plan + mock_provider only —
 # no credentials, no real resources, runs in the S24 PR job.
+#
+# The formula includes a *2 rollout-overlap factor (added 2026-07-19, after a real
+# staging apply): Google's own docs confirm Cloud Run enforces max_instance_count
+# per revision even when the service-level "combined" value is set, so two
+# revisions (old + new) can each independently reach it during a deploy.
 
 mock_provider "google" {}
 
@@ -20,13 +25,31 @@ run "valid_combination_on_f1_micro_plans_clean" {
 
   variables {
     db_tier            = "db-f1-micro"
-    max_instance_count = 6
+    max_instance_count = 3
   }
 
   assert {
     condition     = google_cloud_run_v2_service.this.name == "ikaro-backend"
-    error_message = "Service should plan cleanly when max_instance_count * db_pool_size stays within 80% of the tier's max_connections (6 * 3 = 18 <= 20)."
+    error_message = "Service should plan cleanly when max_instance_count * db_pool_size * 2 (rollout overlap) stays within 80% of the tier's max_connections (3 * 3 * 2 = 18 <= 20)."
   }
+}
+
+run "max_instances_6_on_f1_micro_now_fails_due_to_rollout_overlap" {
+  command = plan
+
+  # Regression guard: 6 used to be this module's own launch value before the
+  # *2 rollout-overlap factor was added (real staging apply finding,
+  # 2026-07-19) — 6 * 3 * 2 = 36 > 20, so it must fail now. Without this test,
+  # a future edit could silently drop the *2 factor and 6 would look valid
+  # again.
+  variables {
+    db_tier            = "db-f1-micro"
+    max_instance_count = 6
+  }
+
+  expect_failures = [
+    var.max_instance_count,
+  ]
 }
 
 run "max_instances_20_on_f1_micro_fails" {
