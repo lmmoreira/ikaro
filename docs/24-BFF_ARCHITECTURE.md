@@ -605,15 +605,17 @@ CMD ["node", "dist/main.js"]
 
 The `state` param passed to Google carries functional routing data — `''`, `<tenantSlug>`, `__staff__`, or `__staff__:<tenantSlug>` — used to route the callback to the correct login flow. On its own that payload has no integrity protection: an attacker could hand-craft a `state` value and have it trusted as-is, which is both a CSRF gap and a routing-tampering gap.
 
-**Fix (M17-S32):** the routing payload is wrapped in a short-lived signed JWT rather than replaced by a bare nonce (a bare nonce would break staff/tenant login routing). `state` is `{ loginType?: 'staff', tenantSlug?: string, nonce: uuidv7() }`, signed via the app's `JwtService` (`JWT_SECRET`, HS256), 5-minute TTL:
+**Fix (M17-S32):** the routing payload is wrapped in a short-lived signed JWT rather than replaced by a bare nonce (a bare nonce would break staff/tenant login routing). `state` is `{ loginType?: 'staff', tenantSlug?: string, nonce: randomUUID() }`, signed via the app's `JwtService` (`JWT_SECRET`, HS256), 5-minute TTL:
 
 ```typescript
 // oauth-state.service.ts
-encodeOAuthState(type, tenantSlug) // → signs { loginType?, tenantSlug?, nonce } as a JWT
-decodeOAuthState(state)            // → verifies signature + TTL; throws on tampered/expired/missing
+encodeOAuthState(type, tenantSlug)        // → signs { loginType?, tenantSlug?, nonce } as a JWT, returns { state, nonce }
+decodeOAuthState(state, cookieNonce)      // → verifies signature + TTL + nonce-cookie match; throws OAuthStateInvalidError otherwise
 ```
 
-`decodeOAuthState()` fails closed — no silent fallback to the customer flow. The throw happens inside `GoogleStrategy.validate()` (Passport); `GoogleAuthGuard`'s `handleRequest()` override (mirroring `JwtAuthGuard`'s pattern in `shared/guards/jwt-auth.guard.ts`) turns that into an RFC 9457 `400 BFF_OAUTH_STATE_INVALID` — one generic code/message shared by all three failure modes (tampered, expired, missing), matching the existing "collapse security-sensitive errors" convention (`docs/ENGINEERING_RULES.md` § Security-sensitive errors).
+**A signed JWT alone is not CSRF protection** (review finding, 2026-07-19) — signature + TTL prove the payload wasn't tampered with and hasn't expired, but prove nothing about which browser it was issued to. Without a browser-binding check, an attacker can start their own OAuth flow, capture the still-unused `callback?code=...&state=<validly-signed-JWT>` URL before exchanging it, and hand that URL to a victim; the victim's browser would complete a perfectly valid signature/TTL check and get logged into the attacker's account (login CSRF / authorization-code injection, RFC 6749 §10.12). The fix is a double-submit cookie: `GoogleAuthGuard.getAuthenticateOptions()` mirrors the state's `nonce` into a short-lived httpOnly cookie (`OAUTH_NONCE_COOKIE_NAME`, `cookie-options.ts`) when redirecting to Google; `decodeOAuthState()` requires the callback's cookie nonce to match the state's nonce (timing-safe comparison) or throws. The cookie is cleared after use in `AuthControllerFlowService.handleGoogleCallback()`.
+
+`decodeOAuthState()` fails closed — no silent fallback to the customer flow. The throw (a typed `OAuthStateInvalidError`) happens inside `GoogleStrategy.validate()` (Passport); `GoogleAuthGuard`'s `handleRequest()` override (mirroring `JwtAuthGuard`'s pattern in `shared/guards/jwt-auth.guard.ts`) maps only that error type to an RFC 9457 `400 BFF_OAUTH_STATE_INVALID` — one generic code/message shared by every state-related failure mode (tampered, expired, missing state, nonce mismatch), matching the existing "collapse security-sensitive errors" convention (`docs/ENGINEERING_RULES.md` § Security-sensitive errors). Any other Passport failure (e.g. Google returning no email) is not an `OAuthStateInvalidError` and keeps the framework's default handling instead of being mislabeled as a state problem.
 
 See `plan/M17-CLOUD-DEPLOY.md` § M17-S32.
 

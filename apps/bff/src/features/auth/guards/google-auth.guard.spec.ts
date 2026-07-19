@@ -1,12 +1,17 @@
-import { HttpException, HttpStatus } from '@nestjs/common';
+import { HttpException, HttpStatus, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { BffErrorCode } from '@ikaro/types';
 import { makeExecutionContext } from '../../../test/execution-context.factory';
-import { OAuthStatePayload } from '../oauth-state';
+import { OAUTH_NONCE_COOKIE_NAME, OAUTH_NONCE_COOKIE_OPTIONS } from '../cookie-options';
+import { OAuthStateInvalidError, OAuthStatePayload } from '../oauth-state';
 import { OAuthStateService } from '../oauth-state.service';
 import { GoogleAuthGuard } from './google-auth.guard';
 
 const TEST_SECRET = 'test-secret-that-is-at-least-64-characters-long-for-jwt-signing!!';
+
+function makeRes(): { cookie: jest.Mock; clearCookie: jest.Mock } {
+  return { cookie: jest.fn(), clearCookie: jest.fn() };
+}
 
 describe('GoogleAuthGuard', () => {
   let guard: GoogleAuthGuard;
@@ -18,11 +23,17 @@ describe('GoogleAuthGuard', () => {
   });
 
   describe('getAuthenticateOptions() — customer login', () => {
-    it('signs a state with neither loginType nor tenantSlug when none is provided', () => {
-      const opts = guard.getAuthenticateOptions(makeExecutionContext()) as { state: string };
+    it('signs a state with neither loginType nor tenantSlug when none is provided, and sets the nonce cookie', () => {
+      const res = makeRes();
+      const opts = guard.getAuthenticateOptions(makeExecutionContext({ res })) as { state: string };
       const payload = jwtService.verify<OAuthStatePayload>(opts.state);
       expect(payload.loginType).toBeUndefined();
       expect(payload.tenantSlug).toBeUndefined();
+      expect(res.cookie).toHaveBeenCalledWith(
+        OAUTH_NONCE_COOKIE_NAME,
+        payload.nonce,
+        OAUTH_NONCE_COOKIE_OPTIONS,
+      );
     });
 
     it('signs a state carrying tenantSlug when provided', () => {
@@ -86,10 +97,11 @@ describe('GoogleAuthGuard', () => {
       expect(guard.handleRequest(null, user)).toBe(user);
     });
 
-    it('throws 400 BFF_OAUTH_STATE_INVALID when user is missing', () => {
-      expect(() => guard.handleRequest(null, null)).toThrow(HttpException);
+    it('throws 400 BFF_OAUTH_STATE_INVALID when the strategy rejected with OAuthStateInvalidError (tampered/expired/missing state, or nonce/cookie mismatch)', () => {
+      const err = new OAuthStateInvalidError('OAuth state is invalid or expired');
+      expect(() => guard.handleRequest(err, null)).toThrow(HttpException);
       try {
-        guard.handleRequest(null, null);
+        guard.handleRequest(err, null);
       } catch (e) {
         expect((e as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
         const body = (e as HttpException).getResponse() as Record<string, unknown>;
@@ -98,17 +110,14 @@ describe('GoogleAuthGuard', () => {
       }
     });
 
-    it('throws 400 BFF_OAUTH_STATE_INVALID when the strategy rejected with an error (tampered/expired/missing state)', () => {
-      expect(() =>
-        guard.handleRequest(new Error('OAuth state is invalid or expired'), null),
-      ).toThrow(HttpException);
-      try {
-        guard.handleRequest(new Error('OAuth state is invalid or expired'), null);
-      } catch (e) {
-        expect((e as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
-        const body = (e as HttpException).getResponse() as Record<string, unknown>;
-        expect(body['code']).toBe(BffErrorCode.OAUTH_STATE_INVALID);
-      }
+    it('rethrows the original error unchanged for unrelated Passport failures (e.g. Google returning no email) — never mislabeled as a state problem', () => {
+      const err = new Error('Google account did not provide an email address');
+      expect(() => guard.handleRequest(err, null)).toThrow(err);
+      expect(() => guard.handleRequest(err, null)).not.toThrow(HttpException);
+    });
+
+    it('throws a generic 401 UnauthorizedException when there is no error but no user either', () => {
+      expect(() => guard.handleRequest(null, null)).toThrow(UnauthorizedException);
     });
   });
 });

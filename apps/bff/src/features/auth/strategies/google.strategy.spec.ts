@@ -1,13 +1,17 @@
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
+import { OAUTH_NONCE_COOKIE_NAME } from '../cookie-options';
 import { OAuthStateService } from '../oauth-state.service';
 import { GoogleProfile, GoogleStrategy } from './google.strategy';
 
 const TEST_SECRET = 'test-secret-that-is-at-least-64-characters-long-for-jwt-signing!!';
 
-function makeReq(state?: string): Request {
-  return { query: { state } } as unknown as Request;
+function makeReq(state?: string, cookieNonce?: string): Request {
+  return {
+    query: { state },
+    headers: cookieNonce ? { cookie: `${OAUTH_NONCE_COOKIE_NAME}=${cookieNonce}` } : {},
+  } as unknown as Request;
 }
 
 function makeConfigService(): ConfigService {
@@ -38,10 +42,10 @@ describe('GoogleStrategy', () => {
       displayName: 'João Silva',
       emails: [{ value: 'joao@lavacar.com.br' }],
     };
-    const state = oauthState.encodeOAuthState('customer');
+    const { state, nonce } = oauthState.encodeOAuthState('customer');
 
     strategy.validate(
-      makeReq(state),
+      makeReq(state, nonce),
       'access-token',
       'refresh-token',
       profile as never,
@@ -65,10 +69,10 @@ describe('GoogleStrategy', () => {
       displayName: 'João Silva',
       emails: [{ value: 'joao@lavacar.com.br' }],
     };
-    const state = oauthState.encodeOAuthState('customer', 'lavacar-bh');
+    const { state, nonce } = oauthState.encodeOAuthState('customer', 'lavacar-bh');
 
     strategy.validate(
-      makeReq(state),
+      makeReq(state, nonce),
       'access-token',
       'refresh-token',
       profile as never,
@@ -87,10 +91,10 @@ describe('GoogleStrategy', () => {
       displayName: 'Carlos Gerente',
       emails: [{ value: 'gerente@lavacar.com.br' }],
     };
-    const state = oauthState.encodeOAuthState('staff', 'lavacar-bh');
+    const { state, nonce } = oauthState.encodeOAuthState('staff', 'lavacar-bh');
 
     strategy.validate(
-      makeReq(state),
+      makeReq(state, nonce),
       'access-token',
       'refresh-token',
       profile as never,
@@ -109,10 +113,10 @@ describe('GoogleStrategy', () => {
       displayName: 'Carlos Gerente',
       emails: [{ value: 'gerente@lavacar.com.br' }],
     };
-    const state = oauthState.encodeOAuthState('staff');
+    const { state, nonce } = oauthState.encodeOAuthState('staff');
 
     strategy.validate(
-      makeReq(state),
+      makeReq(state, nonce),
       'access-token',
       'refresh-token',
       profile as never,
@@ -126,9 +130,9 @@ describe('GoogleStrategy', () => {
   });
 
   it('validate() calls done with error when profile has no emails', (done) => {
-    const state = oauthState.encodeOAuthState('customer');
+    const { state, nonce } = oauthState.encodeOAuthState('customer');
     strategy.validate(
-      makeReq(state),
+      makeReq(state, nonce),
       'access-token',
       'refresh-token',
       { id: 'x', displayName: 'Y', emails: [] } as never,
@@ -163,12 +167,12 @@ describe('GoogleStrategy', () => {
     });
 
     it('calls done with error when state is tampered', (done) => {
-      const state = oauthState.encodeOAuthState('customer');
+      const { state, nonce } = oauthState.encodeOAuthState('customer');
       const [header, payload] = state.split('.');
       const tampered = `${header}.${payload}.invalidsignature`;
 
       strategy.validate(
-        makeReq(tampered),
+        makeReq(tampered, nonce),
         'access-token',
         'refresh-token',
         profile as never,
@@ -181,10 +185,47 @@ describe('GoogleStrategy', () => {
     });
 
     it('calls done with error when state is expired', (done) => {
-      const expiredState = jwtService.sign({ nonce: 'x' }, { expiresIn: -10 });
+      const nonce = 'x';
+      const expiredState = jwtService.sign({ nonce }, { expiresIn: -10 });
 
       strategy.validate(
-        makeReq(expiredState),
+        makeReq(expiredState, nonce),
+        'access-token',
+        'refresh-token',
+        profile as never,
+        (err, user) => {
+          expect(err).toBeInstanceOf(Error);
+          expect(user).toBeUndefined();
+          done();
+        },
+      );
+    });
+
+    // Review finding (M17-S32): a signed-but-unbound state doesn't prevent login CSRF /
+    // authorization-code injection — a captured callback URL from an attacker-initiated
+    // flow, replayed against a victim's browser, must be rejected because the victim's
+    // browser never received the matching nonce cookie.
+    it('calls done with error when the nonce cookie is missing (state replayed against a browser that never started this flow)', (done) => {
+      const { state } = oauthState.encodeOAuthState('customer');
+
+      strategy.validate(
+        makeReq(state),
+        'access-token',
+        'refresh-token',
+        profile as never,
+        (err, user) => {
+          expect(err).toBeInstanceOf(Error);
+          expect(user).toBeUndefined();
+          done();
+        },
+      );
+    });
+
+    it('calls done with error when the nonce cookie does not match the state (cross-browser replay / login CSRF)', (done) => {
+      const { state } = oauthState.encodeOAuthState('customer');
+
+      strategy.validate(
+        makeReq(state, 'a-different-nonce-from-another-browser'),
         'access-token',
         'refresh-token',
         profile as never,

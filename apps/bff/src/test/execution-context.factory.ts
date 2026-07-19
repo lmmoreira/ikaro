@@ -7,15 +7,24 @@ interface ExecutionContextOptions {
   query?: Record<string, string | undefined>;
   path?: string;
   method?: string;
+  res?: unknown;
 }
 
 export function makeExecutionContext(options: ExecutionContextOptions = {}): ExecutionContext {
-  const { user, headers = {}, query = {}, path = '/', method = 'GET' } = options;
+  const {
+    user,
+    headers = {},
+    query = {},
+    path = '/',
+    method = 'GET',
+    res = { cookie: jest.fn(), clearCookie: jest.fn() },
+  } = options;
   return {
     getHandler: () => ({}),
     getClass: () => ({}),
     switchToHttp: () => ({
       getRequest: () => ({ user, headers, query, path, method }),
+      getResponse: () => res,
     }),
   } as unknown as ExecutionContext;
 }
