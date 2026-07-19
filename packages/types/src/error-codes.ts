@@ -204,6 +204,11 @@ export const BffErrorCode = {
   CUSTOMER_NOT_REGISTERED_IN_TENANT: 'BFF_CUSTOMER_NOT_REGISTERED_IN_TENANT',
   DEV_AUTH_UNAVAILABLE: 'BFF_DEV_AUTH_UNAVAILABLE',
   UPSTREAM_UNAVAILABLE: 'BFF_UPSTREAM_UNAVAILABLE',
+  // Signed OAuth `state` (M17-S32) failed to verify — tampered, expired, or missing. One
+  // generic code for all three trigger conditions (docs/ENGINEERING_RULES.md § Security-sensitive
+  // errors) — distinguishing them in the response would tell a forger which part of their
+  // attempt failed.
+  OAUTH_STATE_INVALID: 'BFF_OAUTH_STATE_INVALID',
 } as const;
 export type BffErrorCode = (typeof BffErrorCode)[keyof typeof BffErrorCode];
 

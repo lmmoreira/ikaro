@@ -1,5 +1,4 @@
 import { Body, Controller, Get, HttpCode, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { CurrentUser, CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
@@ -29,7 +28,7 @@ export class AuthController {
   }
 
   @Public()
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(GoogleAuthGuard)
   @Get('google/callback')
   async handleGoogleCallback(@Req() req: Request, @Res() res: Response): Promise<void> {
     await this.authFlow.handleGoogleCallback(req.user as GoogleProfile, res);

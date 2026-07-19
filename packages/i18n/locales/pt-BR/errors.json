@@ -138,6 +138,7 @@
   "BFF_CUSTOMER_NOT_REGISTERED_IN_TENANT": "Você não está registrado neste estabelecimento.",
   "BFF_DEV_AUTH_UNAVAILABLE": "Login de desenvolvimento não está disponível.",
   "BFF_UPSTREAM_UNAVAILABLE": "Não foi possível confirmar sua sessão no momento. Tente novamente.",
+  "BFF_OAUTH_STATE_INVALID": "Ocorreu um erro inesperado. Tente novamente.",
   "AUTH_UNAUTHORIZED": "Sua sessão expirou. Faça login novamente.",
   "AUTH_FORBIDDEN": "Você não tem permissão para realizar esta ação.",
   "AUTH_TENANT_MISMATCH": "Este acesso não corresponde ao estabelecimento da sua sessão.",

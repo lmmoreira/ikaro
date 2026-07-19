@@ -601,29 +601,21 @@ CMD ["node", "dist/main.js"]
 
 ## Security Considerations / Known Limitations
 
-### OAuth state parameter (CSRF protection) — deferred to M16-S11
+### OAuth state parameter (CSRF protection) — M17-S32
 
-The current `GoogleStrategy` does not validate an OAuth `state` parameter. The state parameter is the standard mechanism for preventing login CSRF attacks (an attacker forges a callback URL that logs the victim into the attacker's account).
+The `state` param passed to Google carries functional routing data — `''`, `<tenantSlug>`, `__staff__`, or `__staff__:<tenantSlug>` — used to route the callback to the correct login flow. On its own that payload has no integrity protection: an attacker could hand-craft a `state` value and have it trusted as-is, which is both a CSRF gap and a routing-tampering gap.
 
-**Risk:** Without state validation, a malicious link can trick a user into completing an OAuth flow that was initiated by the attacker.
+**Fix (M17-S32):** the routing payload is wrapped in a short-lived signed JWT rather than replaced by a bare nonce (a bare nonce would break staff/tenant login routing). `state` is `{ loginType?: 'staff', tenantSlug?: string, nonce: uuidv7() }`, signed via the app's `JwtService` (`JWT_SECRET`, HS256), 5-minute TTL:
 
-**Deferred because:** Implementing a stateless state parameter correctly requires either:
-- Session support (`express-session`) — incompatible with the stateless JWT design, or
-- A stateless signed nonce: generate a short-lived signed JWT as `state` on `/auth/google`, pass it to Google, validate signature + expiry on `/auth/google/callback`. No server-side storage required.
-
-**Planned fix (M16-S11):** Implement stateless signed `state` nonce in `GoogleStrategy`:
 ```typescript
-// In GoogleStrategy constructor:
-super({ ..., state: false });  // handle state manually
-
-// Generate state on initiation:
-const state = this.jwtService.sign({ nonce: randomUUID() }, { expiresIn: '5m' });
-
-// Validate on callback:
-this.jwtService.verify(state);  // throws if tampered or expired
+// oauth-state.service.ts
+encodeOAuthState(type, tenantSlug) // → signs { loginType?, tenantSlug?, nonce } as a JWT
+decodeOAuthState(state)            // → verifies signature + TTL; throws on tampered/expired/missing
 ```
 
-**Must be resolved before production.** See `plan/M16-CICD-DEPLOY-HARDENING.md` § M16-S11.
+`decodeOAuthState()` fails closed — no silent fallback to the customer flow. The throw happens inside `GoogleStrategy.validate()` (Passport); `GoogleAuthGuard`'s `handleRequest()` override (mirroring `JwtAuthGuard`'s pattern in `shared/guards/jwt-auth.guard.ts`) turns that into an RFC 9457 `400 BFF_OAUTH_STATE_INVALID` — one generic code/message shared by all three failure modes (tampered, expired, missing), matching the existing "collapse security-sensitive errors" convention (`docs/ENGINEERING_RULES.md` § Security-sensitive errors).
+
+See `plan/M17-CLOUD-DEPLOY.md` § M17-S32.
 
 ---
 
