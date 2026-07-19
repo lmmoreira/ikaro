@@ -4,6 +4,12 @@ variable "backend_max_instances" {
   default     = 6
 }
 
+variable "bff_max_instances" {
+  description = "BFF Cloud Run max_instance_count. Explicit rather than the module's default (100): both backend and bff use Direct VPC egress and share the single /24 subnet (~251 usable IPs, modules/network); Google documents ~2 IPs/instance for Direct VPC, and a rolling deploy can run old+new revisions concurrently. 20 * 2 IPs * 2 (rollout overlap) = 80, plus backend's 6 * 2 * 2 = 24 — 104 total, comfortably under 251. Raise only alongside a larger/separate subnet (review finding, 2026-07-19)."
+  type        = number
+  default     = 20
+}
+
 variable "bootstrap_mode" {
   description = "S18 launch state: services run a placeholder public image with relaxed (\"/\") probes until S27's first real pipeline deploy flips this to false."
   type        = bool

@@ -24,6 +24,17 @@ locals {
   # story text already owns flipping GOOGLE_CALLBACK_URL over at that point.
   backend_self_uri = "https://ikaro-backend-${var.project_number}.${var.region}.run.app"
   bff_self_uri     = "https://ikaro-bff-${var.project_number}.${var.region}.run.app"
+
+  # Digest-pinned (not a mutable tag): each service's runtime SA keeps its
+  # Secret Manager / storage / Pub/Sub grants regardless of what env vars are
+  # mounted, so a repointed tag would still run with those permissions — a
+  # digest can't be silently repointed. Re-pin by re-running `gcloud
+  # container images describe gcr.io/cloudrun/hello --format
+  # 'value(image_summary.digest)'` if this ever needs to move (review
+  # finding, 2026-07-19). Replaced entirely once S27's real pipeline image
+  # lands — ignore_changes in modules/cloudrun-service keeps this from
+  # fighting that transition.
+  bootstrap_image = "gcr.io/cloudrun/hello@sha256:3beb8d6dd8bac1c597d10f3ddf59f5f684d6054ab589c4334c0486dad07a3f97"
 }
 
 module "network" {
@@ -114,11 +125,12 @@ module "cloudrun_backend" {
   labels      = var.labels
 
   service_name          = "ikaro-backend"
-  image                 = "gcr.io/cloudrun/hello"
+  image                 = local.bootstrap_image
   bootstrap_mode        = var.bootstrap_mode
   port                  = 3001
   service_account_email = module.iam.backend_sa_email
   execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
+  deletion_protection   = true
 
   ingress    = "INGRESS_TRAFFIC_INTERNAL_ONLY"
   vpc_egress = "PRIVATE_RANGES_ONLY"
@@ -144,34 +156,41 @@ module "cloudrun_backend" {
     var.iam_admin_user != "" ? ["user:${var.iam_admin_user}"] : []
   )
 
-  env_vars = {
-    NODE_ENV    = "production"
-    APP_ENV     = "production"
-    GCP_PROJECT = var.project_id
+  env_vars = merge(
+    {
+      NODE_ENV    = "production"
+      APP_ENV     = "production"
+      GCP_PROJECT = var.project_id
 
-    DB_HOST      = try(module.database[0].private_ip, "")
-    DB_USER      = "ikaro"
-    DB_NAME      = "ikaro"
-    DB_POOL_SIZE = "3"
+      DB_HOST      = try(module.database[0].private_ip, "")
+      DB_USER      = "ikaro"
+      DB_NAME      = "ikaro"
+      DB_POOL_SIZE = "3"
 
-    PUBSUB_PROJECT_ID           = var.project_id
-    PUBSUB_CONSUMER_MODE        = "push"
-    PUBSUB_AUTO_CREATE          = "false"
-    PUBSUB_PUSH_AUDIENCE        = "${local.backend_self_uri}/pubsub/push"
-    PUBSUB_PUSH_SERVICE_ACCOUNT = module.iam.pubsub_invoker_sa_email
+      PUBSUB_PROJECT_ID           = var.project_id
+      PUBSUB_CONSUMER_MODE        = "push"
+      PUBSUB_AUTO_CREATE          = "false"
+      PUBSUB_PUSH_AUDIENCE        = "${local.backend_self_uri}/pubsub/push"
+      PUBSUB_PUSH_SERVICE_ACCOUNT = module.iam.pubsub_invoker_sa_email
 
-    GCS_BUCKET_NAME        = module.storage.uploads_bucket_name
-    GCS_PUBLIC_BUCKET_NAME = module.storage.public_bucket_name
+      GCS_BUCKET_NAME        = module.storage.uploads_bucket_name
+      GCS_PUBLIC_BUCKET_NAME = module.storage.public_bucket_name
 
-    EMAIL_ADAPTER    = "brevo"
-    EMAIL_FROM       = "noreply@ikaro.online"
-    BREVO_SMTP_LOGIN = var.brevo_smtp_login
+      EMAIL_ADAPTER = "brevo"
+      EMAIL_FROM    = "noreply@ikaro.online"
 
-    # Final branded domain (D11) — used for links in emails etc. regardless
-    # of ingress mode; unlike GOOGLE_CALLBACK_URL below, nothing needs this
-    # host to actually resolve yet.
-    FRONTEND_URL = "https://ikaro.online"
-  }
+      # Final branded domain (D11) — used for links in emails etc. regardless
+      # of ingress mode; unlike GOOGLE_CALLBACK_URL below, nothing needs this
+      # host to actually resolve yet.
+      FRONTEND_URL = "https://ikaro.online"
+    },
+    # BREVO_SMTP_LOGIN is optional-with-min-length in the backend schema — a
+    # present "" satisfies "not absent" but fails min(1), crashing app boot
+    # the moment bootstrap_mode flips off and a real image reads it. Omit
+    # the key entirely rather than pass an empty string (CodeRabbit finding,
+    # 2026-07-19).
+    var.brevo_smtp_login != "" ? { BREVO_SMTP_LOGIN = var.brevo_smtp_login } : {}
+  )
 
   secret_env_vars = {
     DB_PASSWORD               = module.secrets.secret_ids["db-password"]
@@ -201,10 +220,12 @@ module "cloudrun_bff" {
   labels      = var.labels
 
   service_name          = "ikaro-bff"
-  image                 = "gcr.io/cloudrun/hello"
+  image                 = local.bootstrap_image
   bootstrap_mode        = var.bootstrap_mode
   port                  = 3002
   service_account_email = module.iam.bff_sa_email
+  deletion_protection   = true
+  max_instance_count    = var.bff_max_instances
 
   ingress    = "INGRESS_TRAFFIC_ALL"
   vpc_egress = "ALL_TRAFFIC"
@@ -257,11 +278,12 @@ module "cloudrun_web" {
   labels      = var.labels
 
   service_name          = "ikaro-web"
-  image                 = "gcr.io/cloudrun/hello"
+  image                 = local.bootstrap_image
   bootstrap_mode        = var.bootstrap_mode
   port                  = 3000
   service_account_email = module.iam.web_sa_email
   memory                = "256Mi"
+  deletion_protection   = true
 
   ingress               = "INGRESS_TRAFFIC_ALL"
   allow_unauthenticated = true

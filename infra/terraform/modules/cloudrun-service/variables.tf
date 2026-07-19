@@ -28,6 +28,12 @@ variable "db_tier" {
   default     = null
 }
 
+variable "deletion_protection" {
+  description = "Protect the service from deletion at the Terraform level — same convention as modules/database (false while iterating pre-launch, true once an env is live). Defaults false since no env has launched yet (M17-S18)."
+  type        = bool
+  default     = false
+}
+
 variable "env_vars" {
   description = "Plain (non-secret) environment variables for the app container"
   type        = map(string)
@@ -104,16 +110,17 @@ variable "max_instance_count" {
   type        = number
   default     = 100
 
+  # References local.tier_max_connections (main.tf) alongside
+  # var.max_instance_count — a variable validation condition CAN reference a
+  # local as long as it also references the variable being validated itself
+  # (confirmed 2026-07-19; a local-only condition is rejected by Terraform
+  # with "must refer to var.max_instance_count in order to test incoming
+  # values", but combining both works). Deduplicates the map that used to be
+  # written out twice in this same condition (CodeRabbit finding).
   validation {
     condition = var.db_pool_size == null ? true : (
-      contains(keys({
-        "db-f1-micro" = 25
-        "db-g1-small" = 50
-      }), var.db_tier) &&
-      var.max_instance_count * var.db_pool_size <= floor(0.8 * {
-        "db-f1-micro" = 25
-        "db-g1-small" = 50
-      }[var.db_tier])
+      contains(keys(local.tier_max_connections), var.db_tier) &&
+      var.max_instance_count * var.db_pool_size <= floor(0.8 * local.tier_max_connections[var.db_tier])
     )
     error_message = "backend max_instance_count * db_pool_size must be <= 80% of db_tier's max_connections, and db_tier must be a recognized tier in this module's connection-math map (add it here if you're upgrading to a new tier)."
   }
@@ -194,5 +201,13 @@ variable "vpc_egress" {
   validation {
     condition     = var.vpc_egress == null || contains(["ALL_TRAFFIC", "PRIVATE_RANGES_ONLY"], var.vpc_egress)
     error_message = "vpc_egress must be null, ALL_TRAFFIC, or PRIVATE_RANGES_ONLY."
+  }
+
+  # Without this, a caller setting vpc_egress but forgetting network_id/subnet_id
+  # would only find out at apply time via an opaque GCP API error inside
+  # network_interfaces — CodeRabbit finding, 2026-07-19.
+  validation {
+    condition     = var.vpc_egress == null || (var.network_id != null && var.subnet_id != null)
+    error_message = "network_id and subnet_id are required when vpc_egress is set."
   }
 }

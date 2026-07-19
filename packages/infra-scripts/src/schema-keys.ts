@@ -30,6 +30,15 @@ export function extractSchemaKeysFromSource(sourceText: string, fileName = 'sche
     throw new Error(`No "schema = z.object({ ... })" declaration found in ${fileName}`);
   }
 
+  const spreadEntry = objectLiteral.properties.find(ts.isSpreadAssignment);
+  if (spreadEntry) {
+    throw new Error(
+      `${fileName}: schema object contains a spread entry (...${spreadEntry.expression.getText(sourceFile)}) — ` +
+        'extractSchemaKeysFromSource cannot resolve spread-merged keys today; inline the merged keys directly, ' +
+        'or extend this function to resolve the spread source.',
+    );
+  }
+
   return objectLiteral.properties
     .filter(
       (prop): prop is ts.PropertyAssignment =>
@@ -43,9 +52,24 @@ export function extractSchemaKeys(filePath: string): string[] {
   return extractSchemaKeysFromSource(content, filePath);
 }
 
+/**
+ * Finds the `z.object({ ... })` object literal, unwrapping chained modifier
+ * calls like `z.object({...}).strict()` by walking into the callee
+ * (CodeRabbit finding, 2026-07-19).
+ */
 function findObjectLiteralArgument(node: ts.Expression): ts.ObjectLiteralExpression | undefined {
-  if (ts.isCallExpression(node)) {
-    return node.arguments.find(ts.isObjectLiteralExpression);
+  if (!ts.isCallExpression(node)) {
+    return undefined;
   }
+
+  const direct = node.arguments.find(ts.isObjectLiteralExpression);
+  if (direct) {
+    return direct;
+  }
+
+  if (ts.isPropertyAccessExpression(node.expression)) {
+    return findObjectLiteralArgument(node.expression.expression);
+  }
+
   return undefined;
 }

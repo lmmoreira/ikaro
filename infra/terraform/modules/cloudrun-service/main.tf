@@ -10,6 +10,14 @@ locals {
   # doesn't implement /health/*, so probes target "/" until S27 deploys a real image.
   effective_ready_path = var.bootstrap_mode ? "/" : var.health_check_ready_path
   effective_live_path  = var.bootstrap_mode ? "/" : var.health_check_live_path
+
+  # Shared with variables.tf's max_instance_count validation (a variable's own
+  # validation condition can reference a local as long as it also references
+  # the variable being validated — see the comment there).
+  tier_max_connections = {
+    "db-f1-micro" = 25
+    "db-g1-small" = 50
+  }
 }
 
 resource "google_cloud_run_v2_service" "this" {
@@ -19,19 +27,24 @@ resource "google_cloud_run_v2_service" "this" {
   ingress  = var.ingress
   labels   = merge(var.labels, { service = var.service_name })
 
-  # Stateless, cheap to recreate — unlike the database, accidental deletion here isn't
-  # a data-loss event, and this module is still being iterated on ahead of S27's real
-  # first deploy.
-  deletion_protection = false
+  deletion_protection = var.deletion_protection
+
+  # Service-level (combined across all revisions), not template-level: the
+  # provider schema is explicit that template.scaling is per-revision, while
+  # this one is "combined maximum number of instances for all revisions
+  # receiving traffic." During a rolling deploy the old and new revisions
+  # both serve traffic simultaneously — a per-revision cap lets each one
+  # independently reach max_instance_count, doubling the real ceiling (and
+  # doubling backend's DB connection count against db_tier's limit). Review
+  # finding, 2026-07-19.
+  scaling {
+    min_instance_count = var.min_instance_count
+    max_instance_count = var.max_instance_count
+  }
 
   template {
     service_account       = var.service_account_email
     execution_environment = var.execution_environment
-
-    scaling {
-      min_instance_count = var.min_instance_count
-      max_instance_count = var.max_instance_count
-    }
 
     dynamic "vpc_access" {
       for_each = var.vpc_egress == null ? [] : [var.vpc_egress]
@@ -101,13 +114,19 @@ resource "google_cloud_run_v2_service" "this" {
 
       # Cloud Run has startup + liveness probes only — no readiness probe (a running
       # instance that loses a dependency is never pulled from rotation; M17 §S18).
+      # failure_threshold=18 * period_seconds=10 = 180s budget. Google's own
+      # Direct VPC docs: "You might experience connection establishment
+      # delays of a minute or more on instance startup" — the previous
+      # 3*10=30s budget could kill a legitimate revision still establishing
+      # its VPC connection, well before the app ever gets a chance to serve
+      # traffic. Review finding, 2026-07-19.
       startup_probe {
         http_get {
           path = local.effective_ready_path
         }
         period_seconds    = 10
         timeout_seconds   = 3
-        failure_threshold = 3
+        failure_threshold = 18
       }
 
       liveness_probe {

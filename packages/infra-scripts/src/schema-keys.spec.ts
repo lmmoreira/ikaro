@@ -33,4 +33,21 @@ describe('extractSchemaKeysFromSource', () => {
 
     expect(extractSchemaKeysFromSource(source)).toEqual(['ONLY']);
   });
+
+  it('unwraps a chained modifier call like z.object({...}).strict()', () => {
+    const source = `const schema = z.object({ FOO: z.string(), BAR: z.string() }).strict();`;
+
+    expect(extractSchemaKeysFromSource(source)).toEqual(['FOO', 'BAR']);
+  });
+
+  it('throws on a spread entry instead of silently dropping its keys', () => {
+    const source = `
+      const schema = z.object({
+        FOO: z.string(),
+        ...commonSchema,
+      });
+    `;
+
+    expect(() => extractSchemaKeysFromSource(source)).toThrow(/spread entry/);
+  });
 });
