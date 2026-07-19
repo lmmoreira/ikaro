@@ -57,7 +57,8 @@ export async function compressImage(file: File): Promise<File> {
     ctx.drawImage(bitmap, 0, 0, width, height);
 
     const blob = await toBlob(canvas);
-    if (!blob || blob.type !== OUTPUT_CONTENT_TYPE || blob.size >= file.size) return file;
+    if (!blob) return file;
+    if (blob.type !== OUTPUT_CONTENT_TYPE || blob.size >= file.size) return file;
 
     return new File([blob], withExtension(file.name, 'webp'), { type: OUTPUT_CONTENT_TYPE });
   } catch {
