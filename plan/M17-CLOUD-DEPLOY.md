@@ -822,7 +822,7 @@ No SA gets `roles/editor`/`roles/owner`. No keys (org policy enforces).
 
 ---
 
-### M17-S18 — Cloud Run services module (backend internal, sidecar-ready)
+### M17-S18 — Cloud Run services module (backend internal, sidecar-ready) ✅ Done
 
 **Agent:** `devops`
 **Complexity:** L
