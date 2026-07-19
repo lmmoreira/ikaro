@@ -16,7 +16,9 @@ describe('buildPubSubCatalog', () => {
       ],
     ]);
 
-    expect(buildPubSubCatalog(sources)).toEqual([{ event: 'SomeEvent', consumers: ['notification'] }]);
+    expect(buildPubSubCatalog(sources)).toEqual([
+      { event: 'SomeEvent', consumers: ['notification'] },
+    ]);
   });
 
   it('groups multiple consumers of the same topic across different files, sorted deterministically', () => {

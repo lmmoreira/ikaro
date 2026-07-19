@@ -79,7 +79,12 @@ function collectStringConstants(sources: ReadonlyMap<string, string>): StringCon
             member.initializer &&
             ts.isStringLiteralLike(member.initializer)
           ) {
-            setUnique(staticProps, `${className}.${member.name.text}`, member.initializer.text, fileName);
+            setUnique(
+              staticProps,
+              `${className}.${member.name.text}`,
+              member.initializer.text,
+              fileName,
+            );
           }
         }
       }
@@ -195,7 +200,9 @@ function collectBackendSources(rootDir: string): Map<string, string> {
   const sources = new Map<string, string>();
 
   const walk = (dir: string): void => {
-    const entries = fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+    const entries = fs
+      .readdirSync(dir, { withFileTypes: true })
+      .sort((a, b) => a.name.localeCompare(b.name));
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
@@ -213,7 +220,11 @@ function collectBackendSources(rootDir: string): Map<string, string> {
 export function generateCatalogFile(repoRoot: string): PubSubCatalogEntry[] {
   const sources = collectBackendSources(path.join(repoRoot, BACKEND_SRC_DIR));
   const catalog = buildPubSubCatalog(sources);
-  fs.writeFileSync(path.join(repoRoot, CATALOG_OUTPUT_PATH), `${JSON.stringify(catalog, null, 2)}\n`, 'utf8');
+  fs.writeFileSync(
+    path.join(repoRoot, CATALOG_OUTPUT_PATH),
+    `${JSON.stringify(catalog, null, 2)}\n`,
+    'utf8',
+  );
   return catalog;
 }
 
