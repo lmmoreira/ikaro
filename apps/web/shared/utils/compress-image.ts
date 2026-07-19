@@ -1,8 +1,10 @@
-import type { ImageContentType } from '@ikaro/types';
+import { ALLOWED_IMAGE_CONTENT_TYPES, type ImageContentType } from '@ikaro/types';
 
 export const MAX_DIMENSION = 1600;
 export const WEBP_QUALITY = 0.8;
 export const OUTPUT_CONTENT_TYPE: ImageContentType = 'image/webp';
+
+const ALLOWED_SOURCE_TYPES: ReadonlySet<string> = new Set(ALLOWED_IMAGE_CONTENT_TYPES);
 
 function scaledDimensions(
   width: number,
@@ -32,24 +34,27 @@ function toBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
 // "compressed" result that isn't actually smaller (or isn't actually WebP — canvas.toBlob silently
 // falls back to PNG when the browser lacks WebP encoding) returns the original file untouched
 // rather than blocking the upload.
+//
+// Only ever attempts a source file already in the upload allowlist — createImageBitmap happily
+// decodes formats outside it (GIF, AVIF, SVG, ...), and re-encoding one to WebP would launder an
+// otherwise-rejected format past uploadFileToSignedUrl's content-type check. The allowlist
+// decision belongs to the original file's type, never to whatever this function produces.
 export async function compressImage(file: File): Promise<File> {
+  if (!ALLOWED_SOURCE_TYPES.has(file.type)) return file;
   if (typeof createImageBitmap !== 'function') return file;
 
+  let bitmap: ImageBitmap | undefined;
   try {
-    const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
     const { width, height } = scaledDimensions(bitmap.width, bitmap.height, MAX_DIMENSION);
 
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      bitmap.close();
-      return file;
-    }
+    if (!ctx) return file;
 
     ctx.drawImage(bitmap, 0, 0, width, height);
-    bitmap.close();
 
     const blob = await toBlob(canvas);
     if (!blob || blob.type !== OUTPUT_CONTENT_TYPE || blob.size >= file.size) return file;
@@ -57,5 +62,7 @@ export async function compressImage(file: File): Promise<File> {
     return new File([blob], withExtension(file.name, 'webp'), { type: OUTPUT_CONTENT_TYPE });
   } catch {
     return file;
+  } finally {
+    bitmap?.close();
   }
 }

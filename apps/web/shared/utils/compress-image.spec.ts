@@ -44,6 +44,17 @@ afterEach(() => {
 });
 
 describe('compressImage', () => {
+  it('returns the original file immediately for a source type outside the allowed set, without calling createImageBitmap', async () => {
+    const createImageBitmap = vi.fn();
+    vi.stubGlobal('createImageBitmap', createImageBitmap);
+    const file = makeFile('animation.gif', 'image/gif', 500_000);
+
+    const result = await compressImage(file);
+
+    expect(result).toBe(file);
+    expect(createImageBitmap).not.toHaveBeenCalled();
+  });
+
   it('returns the original file when createImageBitmap is unavailable', async () => {
     const file = makeFile('photo.jpg', 'image/jpeg', 5_000_000);
 
@@ -137,6 +148,21 @@ describe('compressImage', () => {
     const bitmap = makeBitmap(2000, 1500);
     vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));
     stubCanvas({ ctx: null });
+    const file = makeFile('photo.jpg', 'image/jpeg', 5_000_000);
+
+    const result = await compressImage(file);
+
+    expect(result).toBe(file);
+    expect(bitmap.close).toHaveBeenCalled();
+  });
+
+  it('closes the bitmap even when a step after decode throws', async () => {
+    const bitmap = makeBitmap(2000, 1500);
+    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));
+    const drawImage = vi.fn(() => {
+      throw new Error('draw failed');
+    });
+    stubCanvas({ ctx: { drawImage } });
     const file = makeFile('photo.jpg', 'image/jpeg', 5_000_000);
 
     const result = await compressImage(file);
