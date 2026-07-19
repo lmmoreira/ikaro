@@ -383,7 +383,7 @@ Bind `ThrottlerGuard` globally (`APP_GUARD`) and finalize:
 
 ---
 
-### M17-S32 — Signed OAuth `state` (CSRF) wrapping the existing payload
+### M17-S32 — Signed OAuth `state` (CSRF) wrapping the existing payload ✅ Done
 
 > Moved from Wave 5 (2026-07-07 second review): pure app code with no cloud dependency — closes a known CSRF hole before staging exposes the OAuth flow publicly.
 
