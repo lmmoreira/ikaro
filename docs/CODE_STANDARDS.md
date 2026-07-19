@@ -100,6 +100,12 @@ Use `z.uuid()` and `z.email()` — **never** `z.string().uuid()` / `z.string().e
 
 ---
 
+## Random IDs / nonces
+
+Use `node:crypto`'s built-in `randomUUID()` for a bare random-ID need (nonces, one-off tokens) — no new dependency required. Reach for the `uuid` package's `v7()` only when time-ordering/sortability actually matters (event IDs, correlation IDs propagated through `DomainEvent`s). Don't add `uuid`/`@types/uuid` to a package that only needs the former (M17-S32 review, 2026-07-19).
+
+---
+
 ## Default parameters
 
 Default parameters must come **after** required parameters (SonarCloud S1788 MAJOR).

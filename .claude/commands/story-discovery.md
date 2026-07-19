@@ -274,6 +274,8 @@ For EACH doc change, apply §0 permission protocol:
 
 If the user says no to a change, note it and proceed with the current docs.
 
+**Worktree note:** any doc edit written in this step lands in the main checkout, uncommitted. If Step 9 below results in `EnterWorktree` being called, the new worktree branches fresh from `origin/main` — it does **not** carry forward uncommitted changes sitting in the main checkout. A Step-7 doc edit made before entering a worktree is silently orphaned unless reapplied inside the worktree (confirmed in M17-S32, 2026-07-19: `docs/24-BFF_ARCHITECTURE.md` had to be rewritten a second time after `EnterWorktree`). If the user picks worktree in Step 9, redo any Step-7 doc edits inside the worktree before writing story code — or defer them to Step 9 entirely and make them from inside the worktree in the first place.
+
 ---
 
 ## Step 8 — Readiness verdict
