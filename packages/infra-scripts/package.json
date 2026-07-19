@@ -1,0 +1,23 @@
+{
+  "name": "@ikaro/infra-scripts",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Standalone CI tooling scripts for infra/terraform (env/secret contract check) — not consumed by any app at runtime",
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "test": "jest",
+    "test:cov": "jest --coverage",
+    "env-contract": "tsc -p tsconfig.json && node dist/env-contract.js"
+  },
+  "dependencies": {
+    "typescript": "^6.0.3"
+  },
+  "devDependencies": {
+    "@ikaro/config": "workspace:*",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.9.4",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.11"
+  }
+}
