@@ -64,14 +64,17 @@ describe('RequestInterceptor (integration)', () => {
 
   it('populates RequestContext from request headers, including settings', async () => {
     const tenantId = '01234567-0000-7000-8000-000000000001';
+    // CorrelationMiddleware (M17-S31 review, 2026-07-20) only trusts a well-formed UUIDv7 —
+    // anything else is replaced with a freshly generated one.
+    const correlationId = '01888888-0000-7000-8000-000000000001';
     const res = await request(app.getHttpServer())
       .get('/test-tenant')
       .set('X-Tenant-ID', tenantId)
-      .set('X-Correlation-ID', 'corr-abc');
+      .set('X-Correlation-ID', correlationId);
 
     expect(res.status).toBe(200);
     expect(res.body.tenantId).toBe(tenantId);
-    expect(res.body.correlationId).toBe('corr-abc');
+    expect(res.body.correlationId).toBe(correlationId);
     expect(res.body.currency).toBe('BRL');
   });
 

@@ -1,16 +1,5 @@
-import { randomBytes } from 'node:crypto';
-
-export function uuidv7(): string {
-  const bytes = randomBytes(16);
-  const now = BigInt(Date.now());
-  bytes[0] = Number((now >> 40n) & 0xffn);
-  bytes[1] = Number((now >> 32n) & 0xffn);
-  bytes[2] = Number((now >> 24n) & 0xffn);
-  bytes[3] = Number((now >> 16n) & 0xffn);
-  bytes[4] = Number((now >> 8n) & 0xffn);
-  bytes[5] = Number(now & 0xffn);
-  bytes[6] = (bytes[6] & 0x0f) | 0x70;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const h = bytes.toString('hex');
-  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
-}
+// Real implementation moved to @ikaro/validation (M17-S31 review, 2026-07-20) — this file
+// used to duplicate it byte-for-byte with apps/bff/src/shared/domain/uuid-v7.ts, which
+// tripped SonarCloud's new-code duplication gate. Re-exporting here keeps every existing
+// import site in this app (~40 files) unchanged.
+export { isUuidV7, uuidv7 } from '@ikaro/validation';

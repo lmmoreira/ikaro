@@ -543,7 +543,9 @@ describe('StaffController (component)', () => {
     });
 
     it('forwards an incoming X-Correlation-ID to the guard backend call', async () => {
-      const correlationId = 'test-trace-abc-123';
+      // Must be a well-formed UUIDv7 — CorrelationMiddleware (M17-S31 review, 2026-07-20)
+      // replaces anything else with a freshly generated id rather than trusting it.
+      const correlationId = '01888888-0000-7000-8000-000000000001';
       setupActiveGuardMock(httpService);
       backendHttpService.get.mockResolvedValueOnce(EMPTY_LIST);
 
@@ -580,6 +582,21 @@ describe('StaffController (component)', () => {
 
       expect(res.status).toBe(401);
       expect(res.headers['content-type']).toContain('application/problem+json');
+    });
+
+    it("normalizes Nest's own framework-thrown 404 (unmatched route) into a real ProblemDetail", async () => {
+      // No controller/handler matches this path at all — Nest's router throws its own
+      // { statusCode, message, error } shaped 404 before any Guard or our code runs.
+      // Confirmed via M17-S31 review (2026-07-20): the filter must normalize this, not just
+      // stamp Content-Type: application/problem+json on a body that was never RFC
+      // 9457-shaped.
+      const res = await request(app.getHttpServer()).get('/v1/this-route-does-not-exist');
+
+      expect(res.status).toBe(404);
+      expect(res.headers['content-type']).toContain('application/problem+json');
+      expect(res.body).toMatchObject({ type: 'about:blank', title: 'Not Found', status: 404 });
+      expect(res.body).toHaveProperty('detail');
+      expect(res.body.correlationId).toMatch(/^[0-9a-f-]{36}$/);
     });
 
     // M17-S31 root-cause regression: JwtAuthGuard runs before any Interceptor in NestJS's

@@ -1,5 +1,5 @@
 import { ArgumentsHost, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common';
-import { AuthErrorCode, ProblemDetail } from '@ikaro/types';
+import { AuthErrorCode, buildProblemDetail, ProblemDetail } from '@ikaro/types';
 import type { BaseAppLogger } from '@ikaro/observability';
 
 type MinimalRequest = {
@@ -43,7 +43,8 @@ export abstract class BaseErrorFilter implements ExceptionFilter {
 
     if (exception instanceof HttpException) {
       this.logErrorCode(exception, req);
-      const body = this.attachCorrelationId(exception.getResponse(), correlationId);
+      const problemBody = this.toProblemDetail(exception);
+      const body = this.attachCorrelationId(problemBody, correlationId);
       res.status(exception.getStatus()).json(body);
       return;
     }
@@ -82,6 +83,33 @@ export abstract class BaseErrorFilter implements ExceptionFilter {
   private attachCorrelationId(body: unknown, correlationId: string | undefined): unknown {
     if (!correlationId || typeof body !== 'object' || body === null) return body;
     return { ...body, correlationId };
+  }
+
+  // Not every HttpException in the app was constructed via throwProblemDetail()/
+  // buildProblemDetail() — Nest's own framework-level exceptions (e.g. the router's default
+  // 404 for a route with no matching controller) carry a body shaped
+  // { statusCode, message, error }, not the RFC 9457 { type, title, status, ... } envelope.
+  // Passing that through unchanged while also stamping Content-Type: application/problem+json
+  // on it would mislabel a non-compliant body as compliant — normalize it into a real
+  // ProblemDetail here instead, so every response leaving this filter actually matches its
+  // own declared Content-Type.
+  private toProblemDetail(exception: HttpException): ProblemDetail {
+    const rawBody = exception.getResponse();
+    if (this.isProblemDetail(rawBody)) return rawBody;
+
+    const rawMessage = (rawBody as { message?: unknown } | null)?.message;
+    const detail = typeof rawMessage === 'string' ? rawMessage : exception.message;
+    return buildProblemDetail(exception.getStatus(), undefined, detail);
+  }
+
+  private isProblemDetail(body: unknown): body is ProblemDetail {
+    return (
+      typeof body === 'object' &&
+      body !== null &&
+      typeof (body as ProblemDetail).type === 'string' &&
+      typeof (body as ProblemDetail).title === 'string' &&
+      typeof (body as ProblemDetail).status === 'number'
+    );
   }
 
   private logErrorCode(exception: HttpException, req: MinimalRequest): void {

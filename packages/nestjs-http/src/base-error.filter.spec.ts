@@ -40,7 +40,7 @@ describe('BaseErrorFilter', () => {
   });
 
   it('sets Content-Type: application/problem+json on every response (RFC 9457)', () => {
-    const httpErr = new HttpException({ title: 'Not Found', status: 404 }, 404);
+    const httpErr = new HttpException({ type: 'about:blank', title: 'Not Found', status: 404 }, 404);
     const { host, set } = makeHost('/v1/bookings/unknown');
 
     filter.catch(httpErr, host);
@@ -48,20 +48,26 @@ describe('BaseErrorFilter', () => {
     expect(set).toHaveBeenCalledWith('Content-Type', 'application/problem+json');
   });
 
-  it('writes an HttpException with no code as-is, without logging', () => {
-    const httpErr = new HttpException({ title: 'Not Found', status: 404 }, 404);
+  it('writes an already-canonical HttpException body as-is, without logging', () => {
+    const body = { type: 'about:blank', title: 'Not Found', status: 404 };
+    const httpErr = new HttpException(body, 404);
     const { host, status, json } = makeHost('/v1/bookings/unknown');
 
     filter.catch(httpErr, host);
 
     expect(status).toHaveBeenCalledWith(404);
-    expect(json).toHaveBeenCalledWith({ title: 'Not Found', status: 404 });
+    expect(json).toHaveBeenCalledWith(body);
     expect(logger.error).not.toHaveBeenCalled();
     expect(logger.warn).not.toHaveBeenCalled();
   });
 
   it('logs a warning with the code for a 4xx HttpException carrying a code, and writes it unchanged', () => {
-    const body = { title: 'Bad Request', status: 400, code: 'BOOKING_PICKUP_ADDRESS_REQUIRED' };
+    const body = {
+      type: 'about:blank',
+      title: 'Bad Request',
+      status: 400,
+      code: 'BOOKING_PICKUP_ADDRESS_REQUIRED',
+    };
     const httpErr = new HttpException(body, 400);
     const { host, status, json } = makeHost('/v1/bookings', 'POST');
 
@@ -78,7 +84,12 @@ describe('BaseErrorFilter', () => {
   });
 
   it('logs an error with the code for a 5xx HttpException carrying a code, and writes it unchanged', () => {
-    const body = { title: 'Bad Gateway', status: 502, code: 'BFF_UPSTREAM_UNAVAILABLE' };
+    const body = {
+      type: 'about:blank',
+      title: 'Bad Gateway',
+      status: 502,
+      code: 'BFF_UPSTREAM_UNAVAILABLE',
+    };
     const httpErr = new HttpException(body, 502);
     const { host, status, json } = makeHost('/v1/staff');
 
@@ -99,7 +110,7 @@ describe('BaseErrorFilter', () => {
     // Interceptors in NestJS's pipeline, so an interceptor-based catchError never saw a
     // guard's HttpException. A filter (@Catch()) has no such ordering gap — this test just
     // asserts the filter handles a guard-shaped 403 identically to any other HttpException.
-    const body = { title: 'Forbidden', status: 403, code: AuthErrorCode.FORBIDDEN };
+    const body = { type: 'about:blank', title: 'Forbidden', status: 403, code: AuthErrorCode.FORBIDDEN };
     const httpErr = new HttpException(body, 403);
     const { host, status, json } = makeHost('/v1/staff', 'PATCH');
 
@@ -118,7 +129,7 @@ describe('BaseErrorFilter', () => {
     // The request header is only present here because it was generated in middleware,
     // which runs before Guards — the same guard-rejection scenario as the test above,
     // now proving the id that middleware set actually reaches the response.
-    const body = { title: 'Unauthorized', status: 401, code: AuthErrorCode.UNAUTHORIZED };
+    const body = { type: 'about:blank', title: 'Unauthorized', status: 401, code: AuthErrorCode.UNAUTHORIZED };
     const httpErr = new HttpException(body, 401);
     const { host, json, set } = makeHost('/v1/staff', 'GET', {
       'x-correlation-id': 'corr-guard-rejected-123',
@@ -131,7 +142,7 @@ describe('BaseErrorFilter', () => {
   });
 
   it('omits correlationId from the body and skips the header when the request carries none', () => {
-    const body = { title: 'Not Found', status: 404 };
+    const body = { type: 'about:blank', title: 'Not Found', status: 404 };
     const httpErr = new HttpException(body, 404);
     const { host, json, set } = makeHost('/v1/bookings/unknown');
 
@@ -139,6 +150,58 @@ describe('BaseErrorFilter', () => {
 
     expect(json).toHaveBeenCalledWith(body);
     expect(set).not.toHaveBeenCalledWith('X-Correlation-ID', expect.anything());
+  });
+
+  describe('non-canonical HttpException bodies (framework-thrown, not throwProblemDetail())', () => {
+    it('normalizes Nest\'s default { statusCode, message, error } shape into a real ProblemDetail', () => {
+      // This is exactly the shape of Nest's own router-level 404 for an unmatched route —
+      // never constructed via throwProblemDetail()/buildProblemDetail(), so it never had
+      // { type, title, status } to begin with. Passing it through unchanged while also
+      // stamping Content-Type: application/problem+json on it would mislabel a
+      // non-compliant body as compliant.
+      const httpErr = new HttpException(
+        { statusCode: 404, message: 'Cannot GET /v1/unknown-route', error: 'Not Found' },
+        404,
+      );
+      const { host, status, json } = makeHost('/v1/unknown-route');
+
+      filter.catch(httpErr, host);
+
+      expect(status).toHaveBeenCalledWith(404);
+      expect(json).toHaveBeenCalledWith({
+        type: 'about:blank',
+        title: 'Not Found',
+        status: 404,
+        detail: 'Cannot GET /v1/unknown-route',
+      });
+    });
+
+    it('still attaches correlationId to a normalized body', () => {
+      const httpErr = new HttpException(
+        { statusCode: 404, message: 'Cannot GET /v1/unknown-route', error: 'Not Found' },
+        404,
+      );
+      const { host, json } = makeHost('/v1/unknown-route', 'GET', {
+        'x-correlation-id': 'corr-unmatched-route',
+      });
+
+      filter.catch(httpErr, host);
+
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({ correlationId: 'corr-unmatched-route' }),
+      );
+    });
+
+    it('falls back to exception.message when the raw body has no string message field', () => {
+      const httpErr = new HttpException('Forbidden resource', 403);
+      const { host, json } = makeHost('/v1/staff');
+
+      filter.catch(httpErr, host);
+
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'about:blank', status: 403, detail: 'Forbidden resource' }),
+      );
+    });
   });
 
   it('converts an unhandled error to a 500 RFC 9457 ProblemDetail', () => {
