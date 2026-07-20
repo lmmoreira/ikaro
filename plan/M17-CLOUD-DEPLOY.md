@@ -890,7 +890,7 @@ Terraform must mirror the adapter’s naming **exactly**: topic `ikaro-{EventNam
 
 ---
 
-### M17-S20 — Migration Cloud Run Job
+### M17-S20 — Migration Cloud Run Job ✅ Done
 
 **Agent:** `devops` + `backend-ts`
 **Complexity:** M
@@ -909,6 +909,7 @@ Migrations run as Cloud Run Job `ikaro-migrate` (backend image, command override
 **Acceptance criteria:**
 - [ ] `docker run <backend-image> node node_modules/typeorm/cli.js migration:run -d dist/...` succeeds against local Postgres (all migrations apply; idempotent on re-run: “No migrations are pending”)
 - [ ] Staging job executes successfully via `gcloud run jobs execute ikaro-migrate --wait` (checklist item in S27 once the real image exists)
+  - ⚠️ Not verified as of 2026-07-20 — cannot execute yet: staging Cloud SQL doesn't exist (`enable_database=false`) and no real backend image exists in Artifact Registry (only the bootstrap placeholder). The Job resource, its dedicated `ikaro-migrate@` SA, and `db-migrator-password` secret container are already live in `ikaro-staging` as of this story's apply (2026-07-20, `terraform apply`: 6 added/0 changed/0 destroyed) — S27 only needs to populate the secret's real value and execute the job against the newly created DB, not re-create any of these resources.
 - [ ] Failure exit code ≠ 0 propagates (test with a temporarily broken migration in a scratch DB)
 - [ ] `max_retries=0` confirmed in the job spec
 - [ ] `db-migrator-password` secret container exists (S16 catalog); `ikaro-migrate@` SA exists with exactly `cloudsql.client` + `db-migrator-password` accessor — spot-check it can NOT read `db-password` or any other secret
@@ -1102,6 +1103,7 @@ Turn staging from placeholder to a working environment. This is a runbook + chec
    - [ ] 3 services READY with real images; probes green
    - [ ] Backend unreachable from internet; reachable from BFF (S18 check)
    - [ ] Migrations applied (S20 check); tables present via `cloud-sql-proxy` + psql
+     - S20 already applied `ikaro-migrate@` SA + `db-migrator-password` secret container + the Job definition to staging (2026-07-20) — this step is populating the secret's real value (Step 1) and running `gcloud run jobs execute ikaro-migrate --wait` against the now-real database, not provisioning anything new.
    - [ ] Google login works on the staging web URL (test user from S10)
    - [ ] Guest booking flow end-to-end on the staging hotsite (creates booking, email lands via Brevo)
    - [ ] Pub/Sub push observed: `BookingRequested` handled, notification sent, no DLQ messages (S19 check)
