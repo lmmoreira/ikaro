@@ -40,7 +40,10 @@ describe('BaseErrorFilter', () => {
   });
 
   it('sets Content-Type: application/problem+json on every response (RFC 9457)', () => {
-    const httpErr = new HttpException({ type: 'about:blank', title: 'Not Found', status: 404 }, 404);
+    const httpErr = new HttpException(
+      { type: 'about:blank', title: 'Not Found', status: 404 },
+      404,
+    );
     const { host, set } = makeHost('/v1/bookings/unknown');
 
     filter.catch(httpErr, host);
@@ -110,7 +113,12 @@ describe('BaseErrorFilter', () => {
     // Interceptors in NestJS's pipeline, so an interceptor-based catchError never saw a
     // guard's HttpException. A filter (@Catch()) has no such ordering gap — this test just
     // asserts the filter handles a guard-shaped 403 identically to any other HttpException.
-    const body = { type: 'about:blank', title: 'Forbidden', status: 403, code: AuthErrorCode.FORBIDDEN };
+    const body = {
+      type: 'about:blank',
+      title: 'Forbidden',
+      status: 403,
+      code: AuthErrorCode.FORBIDDEN,
+    };
     const httpErr = new HttpException(body, 403);
     const { host, status, json } = makeHost('/v1/staff', 'PATCH');
 
@@ -129,7 +137,12 @@ describe('BaseErrorFilter', () => {
     // The request header is only present here because it was generated in middleware,
     // which runs before Guards — the same guard-rejection scenario as the test above,
     // now proving the id that middleware set actually reaches the response.
-    const body = { type: 'about:blank', title: 'Unauthorized', status: 401, code: AuthErrorCode.UNAUTHORIZED };
+    const body = {
+      type: 'about:blank',
+      title: 'Unauthorized',
+      status: 401,
+      code: AuthErrorCode.UNAUTHORIZED,
+    };
     const httpErr = new HttpException(body, 401);
     const { host, json, set } = makeHost('/v1/staff', 'GET', {
       'x-correlation-id': 'corr-guard-rejected-123',
@@ -153,7 +166,7 @@ describe('BaseErrorFilter', () => {
   });
 
   describe('non-canonical HttpException bodies (framework-thrown, not throwProblemDetail())', () => {
-    it('normalizes Nest\'s default { statusCode, message, error } shape into a real ProblemDetail', () => {
+    it("normalizes Nest's default { statusCode, message, error } shape into a real ProblemDetail", () => {
       // This is exactly the shape of Nest's own router-level 404 for an unmatched route —
       // never constructed via throwProblemDetail()/buildProblemDetail(), so it never had
       // { type, title, status } to begin with. Passing it through unchanged while also
