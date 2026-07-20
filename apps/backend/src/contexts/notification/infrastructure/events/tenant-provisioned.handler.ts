@@ -6,6 +6,8 @@ import { SeedDefaultTemplatesUseCase } from '../../application/use-cases/seed-de
 
 @Injectable()
 export class TenantProvisionedNotificationHandler implements OnModuleInit {
+  static readonly CONSUMER_NAME = 'notification-template-seed';
+
   private readonly logger = new AppLogger(TenantProvisionedNotificationHandler.name);
 
   constructor(
@@ -17,7 +19,7 @@ export class TenantProvisionedNotificationHandler implements OnModuleInit {
     this.eventBus.subscribe<TenantProvisioned>(
       TenantProvisioned.name,
       (event) => this.handle(event),
-      'notification-template-seed',
+      TenantProvisionedNotificationHandler.CONSUMER_NAME,
     );
   }
 

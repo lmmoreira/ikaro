@@ -105,8 +105,8 @@ Pub/Sub consumer idempotency now lives in the shared `shared.inbox` table instea
 ### Expiry trigger idempotency via `balance_expiry_log`
 `ExpirePointsUseCase` calls `findExpiringBefore(new Date())` then filters out already-processed entry IDs via `IBalanceExpiryLogRepository.hasBeenProcessed()`. Entries marked in the same `txManager.run()` as the balance upsert. If balance is already 0 or null, entries are still marked — no infinite retry.
 
-### Pub/Sub consumer idempotency via the shared inbox (updated by TD24-S04 — `loyalty.processed_events` no longer exists, replaced by `shared.inbox`)
-`CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME = 'COMPLETE_BOOKING_LOYALTY_EFFECTS'`. Each event checked via `inboxRepo.hasBeenProcessed(eventId, CONSUMER_NAME)` (`IInboxRepository`) before processing. Marked in the same transaction as entry saves + balance upsert.
+### Pub/Sub consumer idempotency via the shared inbox (updated by TD24-S04 — `loyalty.processed_events` no longer exists, replaced by `shared.inbox`; value updated by `fix/consistency-naming-consumer`, 2026-07-20 — repo-wide consumer-name casing convention)
+`CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME = 'complete-booking-loyalty-effects'`. Each event checked via `inboxRepo.hasBeenProcessed(eventId, CONSUMER_NAME)` (`IInboxRepository`) before processing. Marked in the same transaction as entry saves + balance upsert.
 
 ### TenantContext NOT available in Pub/Sub handlers
 `BookingCompletedHandler` runs outside the HTTP request lifecycle — AsyncLocalStorage TenantContext is not set. Loyalty settings are loaded via `ILoyaltyTenantSettingsPort.getLoyaltySettings(tenantId)` (injects `GetTenantByIdUseCase`). Fallback: `expiryDays = 180` if tenant settings absent.
@@ -147,7 +147,7 @@ If `expiredPoints > balance.currentPoints` (e.g. balance was reduced by redempti
 
 | Event | Consumer name | Subscription |
 |---|---|---|
-| `BookingCompleted` | `COMPLETE_BOOKING_LOYALTY_EFFECTS` | `ikaro-BookingCompleted-COMPLETE_BOOKING_LOYALTY_EFFECTS` |
+| `BookingCompleted` | `complete-booking-loyalty-effects` | `ikaro-BookingCompleted-complete-booking-loyalty-effects` |
 | `ServicePointsEarned` | `notification` | `ikaro-ServicePointsEarned-notification` |
 
 ---

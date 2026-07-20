@@ -858,7 +858,7 @@ Key settings:
 
 ---
 
-### M17-S19 — Pub/Sub module (topics/subs generated from the code’s event catalog)
+### M17-S19 — Pub/Sub module (topics/subs generated from the code’s event catalog) ✅ Done
 
 **Agent:** `devops` + `backend-ts`
 **Complexity:** M

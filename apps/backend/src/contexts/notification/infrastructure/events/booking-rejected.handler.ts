@@ -6,6 +6,8 @@ import { SendBookingRejectedNotificationUseCase } from '../../application/use-ca
 
 @Injectable()
 export class BookingRejectedHandler implements OnModuleInit {
+  static readonly CONSUMER_NAME = 'notification';
+
   private readonly logger = new AppLogger(BookingRejectedHandler.name);
 
   constructor(
@@ -17,7 +19,7 @@ export class BookingRejectedHandler implements OnModuleInit {
     this.eventBus.subscribe<BookingRejected>(
       BookingRejected.name,
       (event) => this.handle(event),
-      'notification',
+      BookingRejectedHandler.CONSUMER_NAME,
     );
   }
 

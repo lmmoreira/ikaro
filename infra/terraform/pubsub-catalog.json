@@ -20,7 +20,7 @@
   {
     "event": "BookingCompleted",
     "consumers": [
-      "COMPLETE_BOOKING_LOYALTY_EFFECTS"
+      "complete-booking-loyalty-effects"
     ]
   },
   {

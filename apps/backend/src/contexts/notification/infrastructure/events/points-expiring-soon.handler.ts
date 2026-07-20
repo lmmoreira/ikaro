@@ -6,6 +6,8 @@ import { SendPointsExpiringSoonNotificationUseCase } from '../../application/use
 
 @Injectable()
 export class PointsExpiringSoonHandler implements OnModuleInit {
+  static readonly CONSUMER_NAME = 'notification';
+
   private readonly logger = new AppLogger(PointsExpiringSoonHandler.name);
 
   constructor(
@@ -17,7 +19,7 @@ export class PointsExpiringSoonHandler implements OnModuleInit {
     this.eventBus.subscribe<PointsExpiringSoon>(
       PointsExpiringSoon.name,
       (event) => this.handle(event),
-      'notification',
+      PointsExpiringSoonHandler.CONSUMER_NAME,
     );
   }
 

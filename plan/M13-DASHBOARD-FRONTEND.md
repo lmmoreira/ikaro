@@ -1056,6 +1056,8 @@ Add `pointsPerCurrencyUnit: number` to `LoyaltyTenantSettings`, mapped from `res
 
 The single, self-contained reaction to `BookingCompleted`. No calls to other use cases — earning logic is inlined directly (the old `RecordLoyaltyEntriesUseCase` is deleted; it had no other caller), and the optional redemption is inlined too rather than calling `RedeemPointsUseCase`. One idempotency check against the event's `eventId`, one `txManager.run()` covering every write:
 
+> **Superseded — this snippet is the original planning draft, not current code.** The real implementation (`complete-booking-loyalty-effects.use-case.ts`) has since diverged in three ways: `PROCESSED_EVENT_REPOSITORY`/`IProcessedEventRepository` → `INBOX_REPOSITORY`/`IInboxRepository` (TD24-S04 — `shared.inbox` replaced the old per-context tables); `EVENT_BUS.publish()` called after the transaction → `OUTBOX_PUBLISHER.publish()` called *inside* the same `txManager.run()` block (TD24-S03 — closes a lost-event window on crash between commit and publish); `CONSUMER_NAME` value `'COMPLETE_BOOKING_LOYALTY_EFFECTS'` → `'complete-booking-loyalty-effects'` (`fix/consistency-naming-consumer`, 2026-07-20 — repo-wide consumer-name casing convention). Treat the real file as the source of truth for current behavior — the block below is left as historical planning context only, not maintained in sync.
+
 ```typescript
 @Injectable()
 export class CompleteBookingLoyaltyEffectsUseCase {
