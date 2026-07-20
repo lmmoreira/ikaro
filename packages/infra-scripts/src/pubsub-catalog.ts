@@ -14,7 +14,17 @@ export interface PubSubCatalogEntry {
   readonly consumers: readonly string[];
 }
 
-const BUS_METHODS = new Set(['subscribe', 'registerTrigger']);
+// Method name -> the exact receiver property every real call site uses
+// (`this.eventBus.subscribe(...)`, `this.triggerBus.registerTrigger(...)`).
+// Matching on method name alone would accept any unrelated 3-argument
+// `.subscribe()`/`.registerTrigger()` call anywhere in the tree — this
+// receiver check is a cheap way to stay a "known, controlled source shape"
+// scanner without needing a full ts.Program/checker (security review
+// finding, 2026-07-20).
+const BUS_METHOD_RECEIVERS: Readonly<Record<string, string>> = {
+  subscribe: 'eventBus',
+  registerTrigger: 'triggerBus',
+};
 
 interface Registration {
   readonly topic: string;
@@ -113,6 +123,17 @@ function setUnique(map: Map<string, string>, key: string, value: string, fileNam
   map.set(key, value);
 }
 
+/** The bare property name a call is made through: `this.eventBus` -> `'eventBus'`, `eventBus` -> `'eventBus'`. */
+function receiverPropertyName(expr: ts.Expression): string | undefined {
+  if (ts.isIdentifier(expr)) {
+    return expr.text;
+  }
+  if (ts.isPropertyAccessExpression(expr)) {
+    return expr.name.text;
+  }
+  return undefined;
+}
+
 function collectRegistrations(
   sourceFile: ts.SourceFile,
   constants: StringConstants,
@@ -122,7 +143,9 @@ function collectRegistrations(
     if (
       ts.isCallExpression(node) &&
       ts.isPropertyAccessExpression(node.expression) &&
-      BUS_METHODS.has(node.expression.name.text) &&
+      node.expression.name.text in BUS_METHOD_RECEIVERS &&
+      receiverPropertyName(node.expression.expression) ===
+        BUS_METHOD_RECEIVERS[node.expression.name.text] &&
       node.arguments.length >= 3
     ) {
       out.push({

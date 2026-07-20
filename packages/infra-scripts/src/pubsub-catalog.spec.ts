@@ -143,6 +143,23 @@ describe('buildPubSubCatalog', () => {
     expect(buildPubSubCatalog(sources)).toEqual([]);
   });
 
+  it('ignores an unrelated .subscribe() call on a receiver other than eventBus, even with 3 arguments', () => {
+    const sources = new Map([
+      [
+        '/virtual/webhook-registry.ts',
+        `
+          class WebhookRegistry {
+            init() {
+              this.webhooks.subscribe(SomeTopic.name, (e) => this.handle(e), 'some-consumer');
+            }
+          }
+        `,
+      ],
+    ]);
+
+    expect(buildPubSubCatalog(sources)).toEqual([]);
+  });
+
   it('throws when a call-site argument cannot be resolved to a literal string', () => {
     const sources = new Map([
       [
