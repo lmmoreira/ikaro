@@ -1005,6 +1005,8 @@ BFF `test:cov` must exclude component specs from coverage collection for the sam
 
 In `afterEach`, use `resetAllMocks()` not `clearAllMocks()` — `clearAllMocks` leaves `mockReturnValueOnce` queues intact, causing cross-test leakage.
 
+**Backend's narrow per-context integration harnesses don't get `AppModule`-level middleware for free.** Unlike BFF's `component-test.helpers.ts` above (which imports the full `AppModule`), backend's `*-integration-app.ts` helpers (`platform-integration-app.ts`, `booking-integration-app.ts`, etc.) each assemble their own narrow `Test.createTestingModule({ imports: [...] })` with only the modules that specific context needs — never the full `AppModule`. Any middleware registered via `AppModule.configure()` (e.g. `CorrelationMiddleware`, M17-S31) silently does not run in these tests, the same way a provider left out of a narrow test module's `providers:` array silently isn't there. If a test in one of these harnesses needs to exercise `AppModule`-level middleware, register it directly on the test app (`app.use((req, res, next) => new CorrelationMiddleware().use(req, res, next))`, called after `createNestApplication()` and before `app.init()`) — see `request.interceptor.integration.spec.ts` and `error.filter.integration.spec.ts` for the pattern.
+
 ### Shared date helpers (mandatory — never inline)
 
 `src/test/utils/date-helpers.ts` exports:

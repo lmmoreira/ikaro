@@ -189,7 +189,7 @@ await drainDomainEvents(aggregate, this.outboxPublisher);
 
 ## RequestContext (per-request shared state)
 
-`RequestContext` (`src/shared/request/request-context.ts`) is populated once per HTTP request by `RequestInterceptor` — `tenantId`, `correlationId`, optional `actorId`/`actorType`/`actorRole`, and `settings: TenantSettingsProps` (the tenant's full `tenants.settings` JSONB, eager-loaded via `ITenantSettingsPort` before the request reaches any handler).
+`RequestContext` (`src/shared/request/request-context.ts`) is populated once per HTTP request by `RequestInterceptor` — `tenantId`, optional `actorId`/`actorType`/`actorRole`, and `settings: TenantSettingsProps` (the tenant's full `tenants.settings` JSONB, eager-loaded via `ITenantSettingsPort` before the request reaches any handler). `correlationId` itself is generated earlier, in `CorrelationMiddleware` (`src/shared/request/correlation.middleware.ts`) — an Interceptor runs *after* Guards, so a Guard-rejected request would otherwise carry no correlationId at all (M17-S31, 2026-07-20); `RequestInterceptor` only reads the value middleware already placed on `req.headers['x-correlation-id']`, it no longer generates a fallback itself.
 
 **Prefer eager-loading into `RequestContext` over a new Port + Adapter when** the data is read by *many* contexts within the same request — tenant settings/localization/business hours are the textbook case — and is already fetched once, cheaply, at request start. Before the TD02-S04 cleanup, four separate contexts (`booking`, `customer`, `loyalty`, `notification`) each maintained their own Port + Adapter to re-fetch a different slice of the same `tenants.settings` row, duplicating the DB round-trip per use case that needed it within a single request.
 
@@ -207,7 +207,8 @@ A repository or adapter that reads `this.requestContext.settings` works fine whe
 | Artifact | Location |
 |---|---|
 | `RequestContext` | `src/shared/request/request-context.ts` |
-| `RequestInterceptor` (populates it) | `src/shared/request/request.interceptor.ts` |
+| `RequestInterceptor` (populates tenantId/actor/settings) | `src/shared/request/request.interceptor.ts` |
+| `CorrelationMiddleware` (generates/validates `correlationId`, runs before Guards) | `src/shared/request/correlation.middleware.ts` |
 | `ITenantSettingsPort` (tenantId-parameterized, for shared infra) | `src/shared/ports/tenant-settings.port.ts` |
 | Real adapter | `src/contexts/platform/infrastructure/cross-context/platform-tenant-settings.adapter.ts` |
 | Test builder | `src/test/factories/request-context.factory.ts` (`RequestContextBuilder`) |
