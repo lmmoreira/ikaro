@@ -10,6 +10,8 @@ import { SendBookingReminderDueTodayNotificationUseCase } from '../../applicatio
 
 @Injectable()
 export class BookingReminderHandler implements OnModuleInit {
+  static readonly CONSUMER_NAME = 'notification';
+
   private readonly logger = new AppLogger(BookingReminderHandler.name);
 
   constructor(
@@ -22,12 +24,12 @@ export class BookingReminderHandler implements OnModuleInit {
     this.eventBus.subscribe<BookingReminderDue>(
       BookingReminderDue.name,
       (event) => this.handleDue(event),
-      'notification',
+      BookingReminderHandler.CONSUMER_NAME,
     );
     this.eventBus.subscribe<BookingReminderDueToday>(
       BookingReminderDueToday.name,
       (event) => this.handleDueToday(event),
-      'notification',
+      BookingReminderHandler.CONSUMER_NAME,
     );
   }
 

@@ -6,6 +6,8 @@ import { SendBookingApprovedNotificationUseCase } from '../../application/use-ca
 
 @Injectable()
 export class BookingApprovedHandler implements OnModuleInit {
+  static readonly CONSUMER_NAME = 'notification';
+
   private readonly logger = new AppLogger(BookingApprovedHandler.name);
 
   constructor(
@@ -17,7 +19,7 @@ export class BookingApprovedHandler implements OnModuleInit {
     this.eventBus.subscribe<BookingApproved>(
       BookingApproved.name,
       (event) => this.handle(event),
-      'notification',
+      BookingApprovedHandler.CONSUMER_NAME,
     );
   }
 

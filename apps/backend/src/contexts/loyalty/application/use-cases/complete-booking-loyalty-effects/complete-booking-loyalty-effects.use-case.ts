@@ -64,7 +64,7 @@ const SKIPPED_RESULT: CompleteBookingLoyaltyEffectsUseCaseResult = {
  */
 @Injectable()
 export class CompleteBookingLoyaltyEffectsUseCase {
-  static readonly CONSUMER_NAME = 'COMPLETE_BOOKING_LOYALTY_EFFECTS';
+  static readonly CONSUMER_NAME = 'complete-booking-loyalty-effects';
 
   constructor(
     @Inject(LOYALTY_ENTRY_REPOSITORY) private readonly entryRepo: ILoyaltyEntryRepository,

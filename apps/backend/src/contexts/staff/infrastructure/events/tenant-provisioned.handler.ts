@@ -6,6 +6,8 @@ import { CreateInitialManagerUseCase } from '../../application/use-cases/create-
 
 @Injectable()
 export class TenantProvisionedHandler implements OnModuleInit {
+  static readonly CONSUMER_NAME = 'staff';
+
   private readonly logger = new AppLogger(TenantProvisionedHandler.name);
 
   constructor(
@@ -17,7 +19,7 @@ export class TenantProvisionedHandler implements OnModuleInit {
     this.eventBus.subscribe<TenantProvisioned>(
       TenantProvisioned.name,
       (event) => this.handle(event),
-      'staff',
+      TenantProvisionedHandler.CONSUMER_NAME,
     );
   }
 

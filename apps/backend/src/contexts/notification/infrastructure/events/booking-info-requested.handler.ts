@@ -6,6 +6,8 @@ import { SendBookingInfoRequestedNotificationUseCase } from '../../application/u
 
 @Injectable()
 export class BookingInfoRequestedHandler implements OnModuleInit {
+  static readonly CONSUMER_NAME = 'notification';
+
   private readonly logger = new AppLogger(BookingInfoRequestedHandler.name);
 
   constructor(
@@ -17,7 +19,7 @@ export class BookingInfoRequestedHandler implements OnModuleInit {
     this.eventBus.subscribe<BookingInfoRequested>(
       BookingInfoRequested.name,
       (event) => this.handle(event),
-      'notification',
+      BookingInfoRequestedHandler.CONSUMER_NAME,
     );
   }
 

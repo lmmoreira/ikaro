@@ -271,7 +271,7 @@ CREATE INDEX "IDX_shared_inbox_processed_at" ON "shared"."inbox" ("processed_at"
 ```
 
 - Shared port (`shared/ports/inbox.port.ts`): `hasBeenProcessed(eventId, consumerName)` / `markProcessed(eventId, consumerName)` — `markProcessed` must run **inside the consumer's business transaction** (the pattern loyalty already implements).
-- Consumer names: loyalty `'COMPLETE_BOOKING_LOYALTY_EFFECTS'` (unchanged value, new table); notification `'<TRIGGER_EVENT>:<CHANNEL>'` (preserves today's `(event_id, notification_type, channel)` granularity in one string); staff `'CREATE_INITIAL_MANAGER'` (new coverage).
+- Consumer names: loyalty `'COMPLETE_BOOKING_LOYALTY_EFFECTS'` (unchanged value, new table); notification `'<TRIGGER_EVENT>:<CHANNEL>'` (preserves today's `(event_id, notification_type, channel)` granularity in one string); staff `'CREATE_INITIAL_MANAGER'` (new coverage). **Superseded 2026-07-20** (`fix/consistency-naming-consumer`): loyalty's and staff's values were later renamed to lowercase-kebab-case (`'complete-booking-loyalty-effects'`, `'create-initial-manager'`) to match the naming convention established repo-wide for consumer names — safe at that point because no real dedup records existed yet under the old values (still pre-production). The granularity/design decisions recorded here are otherwise unchanged.
 - Pre-production migration: `INSERT INTO shared.inbox SELECT …` from both old tables (composing notification's key), then `DROP` both. No dual-write/backfill choreography.
 
 ### Cost model (D3)

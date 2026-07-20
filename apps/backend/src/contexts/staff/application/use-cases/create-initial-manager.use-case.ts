@@ -20,7 +20,7 @@ export interface CreateInitialManagerUseCaseResult {
 
 @Injectable()
 export class CreateInitialManagerUseCase {
-  static readonly CONSUMER_NAME = 'CREATE_INITIAL_MANAGER';
+  static readonly CONSUMER_NAME = 'create-initial-manager';
 
   constructor(
     @Inject(STAFF_REPOSITORY) private readonly staffRepo: IStaffRepository,

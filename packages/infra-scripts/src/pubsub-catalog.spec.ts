@@ -98,14 +98,14 @@ describe('buildPubSubCatalog', () => {
         '/virtual/complete-booking-loyalty-effects.use-case.ts',
         `
           class CompleteBookingLoyaltyEffectsUseCase {
-            static readonly CONSUMER_NAME = 'COMPLETE_BOOKING_LOYALTY_EFFECTS';
+            static readonly CONSUMER_NAME = 'complete-booking-loyalty-effects';
           }
         `,
       ],
     ]);
 
     expect(buildPubSubCatalog(sources)).toEqual([
-      { event: 'BookingCompleted', consumers: ['COMPLETE_BOOKING_LOYALTY_EFFECTS'] },
+      { event: 'BookingCompleted', consumers: ['complete-booking-loyalty-effects'] },
     ]);
   });
 

@@ -6,6 +6,8 @@ import { SendStaffInvitationUseCase } from '../../application/use-cases/send-sta
 
 @Injectable()
 export class StaffInvitedHandler implements OnModuleInit {
+  static readonly CONSUMER_NAME = 'notification';
+
   private readonly logger = new AppLogger(StaffInvitedHandler.name);
 
   constructor(
@@ -17,7 +19,7 @@ export class StaffInvitedHandler implements OnModuleInit {
     this.eventBus.subscribe<StaffInvited>(
       StaffInvited.name,
       (event) => this.handle(event),
-      'notification',
+      StaffInvitedHandler.CONSUMER_NAME,
     );
   }
 

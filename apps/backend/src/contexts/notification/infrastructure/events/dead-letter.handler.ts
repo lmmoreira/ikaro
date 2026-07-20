@@ -12,12 +12,18 @@ type DeadLetterEvent = Envelope & {
 
 @Injectable()
 export class DeadLetterHandler implements OnModuleInit {
+  static readonly CONSUMER_NAME = 'monitor';
+
   private readonly logger = new AppLogger(DeadLetterHandler.name);
 
   constructor(@Inject(EVENT_BUS) private readonly eventBus: IEventBus) {}
 
   onModuleInit(): void {
-    this.eventBus.subscribe<Envelope>('dead-letter', (event) => this.handle(event), 'monitor');
+    this.eventBus.subscribe<Envelope>(
+      'dead-letter',
+      (event) => this.handle(event),
+      DeadLetterHandler.CONSUMER_NAME,
+    );
   }
 
   async handle(event: Envelope): Promise<void> {

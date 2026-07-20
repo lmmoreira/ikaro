@@ -6,6 +6,8 @@ import { SendServicePointsEarnedNotificationUseCase } from '../../application/us
 
 @Injectable()
 export class ServicePointsEarnedHandler implements OnModuleInit {
+  static readonly CONSUMER_NAME = 'notification';
+
   private readonly logger = new AppLogger(ServicePointsEarnedHandler.name);
 
   constructor(
@@ -17,7 +19,7 @@ export class ServicePointsEarnedHandler implements OnModuleInit {
     this.eventBus.subscribe<ServicePointsEarned>(
       ServicePointsEarned.name,
       (event) => this.handle(event),
-      'notification',
+      ServicePointsEarnedHandler.CONSUMER_NAME,
     );
   }
 

@@ -6,6 +6,8 @@ import { SendAdminDailyScheduleReminderNotificationUseCase } from '../../applica
 
 @Injectable()
 export class AdminDailyScheduleReminderHandler implements OnModuleInit {
+  static readonly CONSUMER_NAME = 'notification';
+
   private readonly logger = new AppLogger(AdminDailyScheduleReminderHandler.name);
 
   constructor(
@@ -17,7 +19,7 @@ export class AdminDailyScheduleReminderHandler implements OnModuleInit {
     this.eventBus.subscribe<AdminDailyScheduleReminder>(
       AdminDailyScheduleReminder.name,
       (event) => this.handle(event),
-      'notification',
+      AdminDailyScheduleReminderHandler.CONSUMER_NAME,
     );
   }
 
