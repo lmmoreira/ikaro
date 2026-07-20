@@ -127,7 +127,7 @@
 | 2 | S11–S22 | Terraform: modules + staging/prod envs | Yes |
 | 3 | S23–S26 | Pipelines: infra, staging deploy, prod promote | Yes |
 | 4 | S27–S28 | Staging live + E2E against staging | Yes |
-| 5 | S29, S31, S33–S36, S49–S50 | Hardening + observability + DR & governance | Yes |
+| 5 | S31, S33–S36, S49–S50 | Hardening + observability + DR & governance | Yes |
 | 6 | S37 | Production go-live | Yes |
 | 7 | S38–S46, S51 | Post-launch product: custom domains, edge caching, photo cost/LGPD controls, docs refresh, managed connection pooling, LGPD lifecycle | Yes |
 
@@ -1149,23 +1149,16 @@ Absorbs the remainder of old M16-S06. The CI-per-PR E2E infra already exists (AU
 
 ---
 
-### M17-S29 — Tenant isolation integration suite (all contexts)
+### M17-S29 — Tenant isolation integration suite (all contexts) ❌ Cut
 
-**Agent:** `test-ts`
-**Complexity:** M
-**Docs to load:** `docs/06-TENANT_ISOLATION_STRATEGY.md`, `docs/08-TESTING_STRATEGY.md` § tenant isolation
+**Story-discovery closure (2026-07-20):** cut before implementation — a coverage audit found the story's entire premise already satisfied by the existing test suite, with nothing left to build.
 
-**Description:**
-Preserved from old M16-S04 — still fully valid and the highest-value hardening story. Dedicated suite `pnpm test:isolation` (Testcontainers Postgres + Pub/Sub emulator, no mocks): create Tenant A + Tenant B, create A’s data, access it with B’s identity, assert `404` (existence not revealed) or list-scoping.
+- **The 7 target scenarios are already covered**, per context, by existing `.integration.spec.ts` files with explicit `"tenant isolation: ..."`-named cases — in most contexts far exceeding the story's one-test-per-area ask (e.g. `booking.controller.integration.spec.ts` alone has ~10 such cases across get/cancel/approve/reschedule/complete/submit-info/list). Service PATCH/activate/DELETE, staff GET (single + list), loyalty list-scoping, schedule-closure DELETE, and the storage-path check (both upload-path scoping and read-signed-URL cross-tenant rejection, plus a real-GCS-backed variant) all have direct existing coverage. Platform settings PATCH has no target-tenant param at all — it always writes to the caller's own `RequestContext.tenantId`, so cross-tenant contamination isn't a reachable code path to begin with.
+- **"Any failure = critical security bug" adds nothing on top of existing CI.** Per CLAUDE.md §7, "all tests" is already an unconditional blocking CI gate with no severity tiers — a failing isolation test already blocks merge exactly like any other failing test today. There is no lower tier to elevate a dedicated suite's failures into.
+- **A broader integration/flow-coverage audit (not just isolation) found no gap worth filling either.** Named `"Story: ..."` cross-context flow tests already validate real business scenarios end-to-end through `RoutingInMemoryEventBus` — `booking-full-workflow.handler.integration.spec.ts` (the full booking state machine as one continuous story, all 11 notification types), `booking-completed.handler.integration.spec.ts` (completion + loyalty discount, idempotent replay), `tenant-provisioned.handler.integration.spec.ts` (provisioning → first staff row), `outbox-full-topology.integration.spec.ts` (real outbox table + relay, not just the in-memory double). Every domain event with a real consumer has a corresponding integration/flow test.
+- Original scope (for reference — preserved from old M16-S04): a dedicated `pnpm test:isolation` suite (Testcontainers Postgres + Pub/Sub emulator) asserting Tenant A data is invisible to a Tenant B caller across booking, service, staff, loyalty, schedule closures, platform settings, and storage.
 
-**Contexts:** Booking (`GET /bookings/:idA` as B → 404), Service (PATCH), Staff (GET), Loyalty (list returns only B’s entries), Schedule closures (DELETE → 404), Platform settings (PATCH affects only B). Add the storage path check: A’s booking photo path is not derivable/servable under B’s tenant prefix.
-
-**Acceptance criteria:**
-- [ ] ≥7 tests, one per context + storage; names `should not expose TenantA <entity> to TenantB request`
-- [ ] No `.skip()`; suite wired into CI (extend `pr-tests.yml` or a dedicated job) and into `/pre-pr`
-- [ ] Any failure documented as a critical security bug process (README of the suite)
-
-**Dependencies:** none within M17 (cloud-independent — Testcontainers only; parallelizable inside Wave 5 or pulled earlier at will; must land before S37)
+No code changes result from this closure — the suite was never started (verified via `git branch -a` and clean working tree before this decision).
 
 ---
 
@@ -1679,7 +1672,7 @@ When the trigger above is met, move the instance to Enterprise Plus and enable *
 | S26 | M16-S03 | same-SHA promote, one approval |
 | S27 | M15-S11 | staging activation |
 | S28 | M16-S06 | E2E vs staging; test-login superseded by M115 Dev Login |
-| S29 | M16-S04 | unchanged + storage check |
+| S29 | M16-S04 | ❌ cut (2026-07-20) — coverage audit found the target scenarios already tested; see story block |
 | S30 | M16-S07 | minus Armor pairing; moved to Wave 0 + client-IP extraction spec (2026-07-07) |
 | S31 | M16-S08 | build → audit (already implemented) |
 | S32 | M16-S11 | redesigned to wrap routing payload; moved to Wave 0 (2026-07-07) |
