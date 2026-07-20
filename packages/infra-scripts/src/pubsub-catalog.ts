@@ -189,7 +189,7 @@ function groupByTopic(registrations: readonly Registration[]): PubSubCatalogEntr
   }
 
   return [...byTopic.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([event, consumers]) => ({ event, consumers: [...consumers].sort() }));
 }
 
@@ -202,7 +202,7 @@ function collectBackendSources(rootDir: string): Map<string, string> {
   const walk = (dir: string): void => {
     const entries = fs
       .readdirSync(dir, { withFileTypes: true })
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {

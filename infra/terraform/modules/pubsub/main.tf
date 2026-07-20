@@ -15,10 +15,15 @@ locals {
 
   # One entry per (topic, consumer) pair — this is the subscription/DLQ
   # granularity (DLQ topic name is "ikaro-{event}-{consumer}-dlq", per
-  # consumer, not per topic).
+  # consumer, not per topic). Keyed by jsonencode([event, consumer]), not a
+  # hyphen-joined string — both event and consumer names already contain
+  # hyphens in the real catalog (e.g. "cron-loyalty-expiry-warning"), so a
+  # plain "${event}-${consumer}" join is collision-prone: two distinct pairs
+  # could flatten to the same string and merge() would silently drop one
+  # subscription, DLQ, and IAM grant (CodeRabbit finding, 2026-07-20).
   subscriptions = merge([
     for entry in local.catalog : {
-      for consumer in entry.consumers : "${entry.event}-${consumer}" => {
+      for consumer in entry.consumers : jsonencode([entry.event, consumer]) => {
         topic    = entry.event
         consumer = consumer
       }
@@ -60,6 +65,15 @@ resource "google_pubsub_subscription" "push" {
   ack_deadline_seconds       = 60
   message_retention_duration = "604800s" # 7 days
 
+  # Never expire from inactivity (GCP default: auto-delete after 31 idle
+  # days). A genuinely low-traffic topic (e.g. StaffInvited) can plausibly
+  # see no messages for a month — losing the subscription would silently
+  # drop everything published in the gap before the next apply recreates it
+  # (CodeRabbit finding, 2026-07-20).
+  expiration_policy {
+    ttl = ""
+  }
+
   push_config {
     push_endpoint = var.backend_push_endpoint
 
@@ -97,6 +111,15 @@ resource "google_pubsub_subscription" "dlq_inspect" {
   labels  = var.labels
 
   message_retention_duration = "604800s" # 7 days
+
+  # Operator-only — can plausibly go months between pulls (only used when a
+  # delivery actually fails). Without this, GCP's default 31-day inactivity
+  # expiration deletes exactly the subscription the DLQ handling contract
+  # depends on to keep the DLQ topic from silently dropping messages
+  # (CodeRabbit finding, 2026-07-20).
+  expiration_policy {
+    ttl = ""
+  }
 }
 
 # --- Pub/Sub service-agent IAM (required for the dead_letter_policy above
