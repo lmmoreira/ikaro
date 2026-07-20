@@ -123,7 +123,9 @@ Snyk scans the **whole** dependency tree on every PR — a freshly-disclosed CVE
 The scanner CLI only ever prints `QUALITY GATE STATUS: FAILED` with a dashboard link — no condition breakdown. Query the API directly instead of guessing:
 
 ```bash
-# Gate conditions (need SONAR_TOKEN — ask the user for one if you don't have it; never write it to a file or commit)
+# Gate conditions (need SONAR_TOKEN — ask the user for one if you don't have it; never write it to a file or commit).
+# Try without -u first: this project's read API answered every call below unauthenticated
+# during M17-S31's review response (2026-07-20) — only add -u "$SONAR_TOKEN:" if you get a 401/403.
 curl -s -u "$SONAR_TOKEN:" "https://sonarcloud.io/api/qualitygates/project_status?projectKey=lmmoreira_ikaro&pullRequest=<PR#>" | python3 -m json.tool
 
 # Per-file new-code coverage/duplication breakdown
@@ -301,6 +303,16 @@ SonarCloud gates on ≤ 3% duplicated lines on **new code**. A private method du
 **Rule:** Any block of ~10 identical lines that appears in ≥ 2 new files will breach the CPD gate. Extract before it ships — retrofitting after CI fails requires an extra commit cycle.
 
 **Cross-app exception:** removing a translation/mapping layer between two systems that previously used different naming conventions (e.g. a BFF dropping its snake_case↔camelCase translation once the backend itself switched to camelCase — M13-S10) can make their validation schemas become textually near-identical, even though nothing is functionally duplicated — each app independently re-validates the same business rules for a legitimate reason (the BFF gives fast feedback before round-tripping to the backend; the backend stays authoritative). This is the same pattern already accepted for `HotsiteAdminController` vs. `update-hotsite-content.dto.ts` — it just stays under the threshold there. Don't restructure the apps to share Zod schemas mid-PR just to satisfy the metric (that's a real architecture change — build chain, Dockerfiles, see `td/TD11-BFF-BACKEND-VALIDATION-SCHEMA-DUPLICATION.md`); add the newly-duplicate file to `sonar.cpd.exclusions` in `sonar-project.properties` with a comment naming the precedent, and file/extend the TD note instead.
+
+**Concrete precedent — genuinely identical code, not the cross-app exception above:** M17-S31 (2026-07-20) needed the exact same tiny `uuidv7()`/`isUuidV7()` pair in both `apps/backend` and `apps/bff`. Duplicating it deliberately (to keep the two apps decoupled) worked fine as a single function, but the gate failed (4.4% vs. the 3% threshold) the moment a second identical function was added to both copies. This is real duplication, not independently-justified re-validation — the fix was to extract it, not exclude it via `sonar.cpd.exclusions`. It landed in `@ikaro/validation`, whose own `package.json` description already declares "never consumed by apps/web" (the exact constraint this `node:crypto`-using code needed) and which both apps already depend on via a plain main-barrel import — see the next section for why a new package.json `exports` subpath was tried first and didn't work.
+
+---
+
+## `moduleResolution: "Node"` doesn't see package.json `exports` subpaths
+
+`apps/backend/tsconfig.json` and `apps/bff/tsconfig.json` both set `"moduleResolution": "Node"` (classic Node resolution) — a deliberate override of the base config's `NodeNext` (`packages/config/tsconfig.base.json`). Classic resolution only understands a package's `main`/`types` fields; it does not read the `exports` field at all, so a package.json `exports` subpath (e.g. `"./uuid-v7": { "types": "./dist/uuid-v7.d.ts", ... }`) type-checks fine in isolation but fails `tsc --noEmit` with `TS2307: Cannot find module` the moment backend or BFF tries to import it (confirmed the hard way during M17-S31's review response, 2026-07-20, before landing on the real fix below).
+
+**If you need to scope a shared utility to backend+BFF only (never apps/web):** don't reach for a subpath export on `@ikaro/types` (its main barrel is what apps/web imports, so a subpath doesn't even solve the actual isolation problem — it only adds an unresolvable import). Instead, put the file in a package whose own `package.json` description already declares it's backend+BFF-only — `@ikaro/validation` is exactly that (*"Shared Zod business-rule validation schemas for backend and bff — never consumed by apps/web"*) — and export it from that package's plain main barrel. Both apps already depend on it, so no subpath is needed at all.
 
 ---
 

@@ -7,6 +7,10 @@ export interface ProblemDetail {
   params?: Record<string, string | number>;
   detail?: string;
   instance?: string;
+  // Attached centrally by BaseErrorFilter (the one place with access to both the
+  // exception and the request) — never set at a throwProblemDetail()/buildProblemDetail()
+  // call site, so every non-2xx response gets it uniformly regardless of where it's thrown.
+  correlationId?: string;
   [key: string]: unknown;
 }
 

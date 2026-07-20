@@ -85,8 +85,11 @@ describe('RequestInterceptor', () => {
     expect(capturedCurrency).toBe('BRL');
   });
 
-  it('generates correlationId when X-Correlation-ID is absent', async () => {
-    const ctx = makeContext({ 'x-tenant-id': 'tid-1' });
+  // Generation itself now lives in CorrelationMiddleware (correlation.middleware.spec.ts),
+  // which runs before this interceptor — the interceptor's only job is to trust whatever
+  // is already on the request by the time it runs.
+  it('trusts whatever x-correlation-id CorrelationMiddleware already placed on the request', async () => {
+    const ctx = makeContext({ 'x-tenant-id': 'tid-1', 'x-correlation-id': 'from-middleware' });
     const requestContext = new RequestContext();
 
     let capturedCorrelationId: string | undefined;
@@ -99,7 +102,7 @@ describe('RequestInterceptor', () => {
 
     await lastValueFrom(await interceptor.intercept(ctx, handler));
 
-    expect(capturedCorrelationId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(capturedCorrelationId).toBe('from-middleware');
   });
 
   it.each([

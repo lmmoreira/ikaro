@@ -161,6 +161,7 @@ When the user gives explicit references (a library, a URL, a named example, a pa
 - **Controllers and route files are composition layers only.** Branching policy and response shaping belong in the owning slice, not in the controller/page body.
 - **Feature-owned transport helpers stay with the feature.** Generic buckets are for cross-cutting code only.
 - **Protected-area layouts** read `resolveSupportedLocale(payload.locale ?? 'pt-BR')` from the decoded JWT — never hardcode `'pt-BR'`.
+- **Anything that must exist even for a Guard-rejected request (a trace ID, a request-scoped flag) must be Express middleware, not a NestJS Interceptor.** Nest's pipeline runs `Middleware -> Guards -> Interceptors -> Pipes -> Controller` — an Interceptor never runs for a request a Guard rejected, so it silently misses every 401/403/429 (M17-S31 precedent, 2026-07-20: correlationId generation lived in an Interceptor in both apps, and every guard-rejected response shipped with none).
 
 ### BFF naming & transport
 

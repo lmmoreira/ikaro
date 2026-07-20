@@ -1,6 +1,6 @@
 import { HttpModule } from '@nestjs/axios';
-import { Module } from '@nestjs/common';
-import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { validateEnv } from './config/env.validation';
@@ -18,7 +18,7 @@ import { AppThrottlerGuard } from './shared/guards/app-throttler.guard';
 import { JwtAuthGuard } from './shared/guards/jwt-auth.guard';
 import { TenantGuard } from './shared/guards/tenant.guard';
 import { RolesGuard } from './shared/guards/roles.guard';
-import { CorrelationInterceptor } from './shared/interceptors/correlation.interceptor';
+import { CorrelationMiddleware } from './shared/middleware/correlation.middleware';
 import { ErrorFilter } from './shared/filters/error.filter';
 
 @Module({
@@ -46,7 +46,6 @@ import { ErrorFilter } from './shared/filters/error.filter';
   ],
   controllers: [HealthController],
   providers: [
-    { provide: APP_INTERCEPTOR, useClass: CorrelationInterceptor },
     { provide: APP_FILTER, useClass: ErrorFilter },
     // Runs first (registration order) — rejects over-limit requests before JWT
     // verification/tenant/role checks do any work.
@@ -57,4 +56,12 @@ import { ErrorFilter } from './shared/filters/error.filter';
     { provide: APP_GUARD, useClass: ActiveStaffGuard },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  // CorrelationMiddleware must run before Guards (see its own comment) — registering it
+  // here via MiddlewareConsumer, not app.use() in main.ts, is what makes it apply
+  // automatically to every test app built via Test.createTestingModule({ imports: [AppModule] })
+  // too, the same way APP_GUARD/APP_INTERCEPTOR/APP_FILTER providers already do.
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(CorrelationMiddleware).forRoutes('*');
+  }
+}

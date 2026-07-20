@@ -531,7 +531,7 @@ describe('StaffController (component)', () => {
   // ─────────────────────────────────────────────────────────────────────────────
 
   describe('infrastructure', () => {
-    it('CorrelationInterceptor adds X-Correlation-ID to the response', async () => {
+    it('CorrelationMiddleware adds X-Correlation-ID to the response', async () => {
       setupActiveGuardMock(httpService);
       backendHttpService.get.mockResolvedValueOnce(EMPTY_LIST);
 
@@ -543,7 +543,9 @@ describe('StaffController (component)', () => {
     });
 
     it('forwards an incoming X-Correlation-ID to the guard backend call', async () => {
-      const correlationId = 'test-trace-abc-123';
+      // Must be a well-formed UUIDv7 — CorrelationMiddleware (M17-S31 review, 2026-07-20)
+      // replaces anything else with a freshly generated id rather than trusting it.
+      const correlationId = '01888888-0000-7000-8000-000000000001';
       setupActiveGuardMock(httpService);
       backendHttpService.get.mockResolvedValueOnce(EMPTY_LIST);
 
@@ -573,6 +575,61 @@ describe('StaffController (component)', () => {
         title: 'Internal Server Error',
         status: 500,
       });
+    });
+
+    it('every non-2xx response is Content-Type: application/problem+json (RFC 9457)', async () => {
+      const res = await request(app.getHttpServer()).get('/v1/staff');
+
+      expect(res.status).toBe(401);
+      expect(res.headers['content-type']).toContain('application/problem+json');
+    });
+
+    it("normalizes Nest's own framework-thrown 404 (unmatched route) into a real ProblemDetail", async () => {
+      // No controller/handler matches this path at all — Nest's router throws its own
+      // { statusCode, message, error } shaped 404 before any Guard or our code runs.
+      // Confirmed via M17-S31 review (2026-07-20): the filter must normalize this, not just
+      // stamp Content-Type: application/problem+json on a body that was never RFC
+      // 9457-shaped.
+      const res = await request(app.getHttpServer()).get('/v1/this-route-does-not-exist');
+
+      expect(res.status).toBe(404);
+      expect(res.headers['content-type']).toContain('application/problem+json');
+      expect(res.body).toMatchObject({ type: 'about:blank', title: 'Not Found', status: 404 });
+      expect(res.body).toHaveProperty('detail');
+      expect(res.body.correlationId).toMatch(/^[0-9a-f-]{36}$/);
+    });
+
+    // M17-S31 root-cause regression: JwtAuthGuard runs before any Interceptor in NestJS's
+    // pipeline. The former CorrelationInterceptor never ran for a request it rejected, so a
+    // 401 shipped with no correlation id at all, in header or body — this proves the
+    // CorrelationMiddleware fix closes that gap on the actual production AppModule wiring.
+    it('a request JwtAuthGuard rejects still carries a correlationId, in both the header and the body', async () => {
+      const res = await request(app.getHttpServer()).get('/v1/staff');
+
+      expect(res.status).toBe(401);
+      expect(res.headers['x-correlation-id']).toMatch(/^[0-9a-f-]{36}$/);
+      expect(res.body.correlationId).toBe(res.headers['x-correlation-id']);
+    });
+
+    it('an unhandled error in production mode returns a generic 500 with no stack trace', async () => {
+      const previousEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+      try {
+        setupActiveGuardMock(httpService);
+        backendHttpService.get.mockRejectedValueOnce(
+          new Error('unexpected\n    at someInternalFn (/app/dist/x.js:42:1)'),
+        );
+
+        const res = await request(app.getHttpServer())
+          .get('/v1/staff')
+          .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+        expect(res.status).toBe(500);
+        expect(res.body.detail).toBe('An unexpected error occurred');
+        expect(JSON.stringify(res.body)).not.toContain('someInternalFn');
+      } finally {
+        process.env.NODE_ENV = previousEnv;
+      }
     });
   });
 });
