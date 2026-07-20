@@ -1,6 +1,6 @@
-# Guards the live secret catalog (M17-S16): the 8 always-on containers,
-# the prod-only cloudflare-api-token, automatic replication, and labels
-# wiring — no values, no IAM (that's S17).
+# Guards the live secret catalog (M17-S16, extended by M17-S20): the 9
+# always-on containers, the prod-only cloudflare-api-token, automatic
+# replication, and labels wiring — no values, no IAM (that's S17).
 
 mock_provider "google" {}
 
@@ -10,12 +10,13 @@ variables {
   labels      = { env = "staging", managed-by = "terraform" }
 }
 
-run "staging_provisions_the_eight_base_secrets_only" {
+run "staging_provisions_the_nine_base_secrets_only" {
   command = plan
 
   assert {
     condition = sort(keys(google_secret_manager_secret.this)) == sort([
       "db-password",
+      "db-migrator-password",
       "jwt-secret",
       "internal-api-key",
       "platform-admin-key",
@@ -24,7 +25,7 @@ run "staging_provisions_the_eight_base_secrets_only" {
       "google-oauth-client-secret",
       "brevo-smtp-key",
     ])
-    error_message = "Staging must provision exactly the 8 base secrets — no cloudflare-api-token."
+    error_message = "Staging must provision exactly the 9 base secrets — no cloudflare-api-token."
   }
 }
 
@@ -41,8 +42,8 @@ run "prod_also_provisions_cloudflare_api_token" {
   }
 
   assert {
-    condition     = length(google_secret_manager_secret.this) == 9
-    error_message = "Prod must provision exactly 9 secrets (8 base + cloudflare-api-token)."
+    condition     = length(google_secret_manager_secret.this) == 10
+    error_message = "Prod must provision exactly 10 secrets (9 base + cloudflare-api-token)."
   }
 }
 

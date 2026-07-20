@@ -300,3 +300,40 @@ module "pubsub" {
   backend_sa_email        = module.iam.backend_sa_email
   pubsub_invoker_sa_email = module.iam.pubsub_invoker_sa_email
 }
+
+# Migration Cloud Run Job (M17-S20) — CI-triggered pipeline stage
+# (`gcloud run jobs execute ikaro-migrate --wait`), a hard prerequisite
+# before every backend/bff/web deploy (D1). Dedicated ikaro-migrate@ SA, not
+# a reuse of the backend runtime SA (least privilege — story-discovery,
+# 2026-07-20). bootstrap_mode gates db-migrator-password the same way
+# cloudrun-service gates its own secrets — the container has zero versions
+# until the S27 activation runbook populates it.
+module "migrate_job" {
+  source = "../../modules/migrate-job"
+
+  project_id  = var.project_id
+  environment = var.environment
+  region      = var.region
+  labels      = var.labels
+
+  image                 = local.bootstrap_image
+  bootstrap_mode        = var.bootstrap_mode
+  service_account_email = module.iam.migrate_sa_email
+
+  network_id = module.network.network_id
+  subnet_id  = module.network.subnet_id
+
+  env_vars = {
+    NODE_ENV = "production"
+
+    # Same try()-fallback pattern as cloudrun_backend above — staging's
+    # database module is deferred (count=0) until the S27 activation.
+    DB_HOST          = try(module.database[0].private_ip, "")
+    DB_MIGRATOR_USER = var.db_migrator_user
+    DB_NAME          = try(module.database[0].database_name, "ikaro")
+  }
+
+  secret_env_vars = {
+    DB_MIGRATOR_PASSWORD = module.secrets.secret_ids["db-migrator-password"]
+  }
+}

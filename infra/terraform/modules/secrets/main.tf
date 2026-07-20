@@ -10,6 +10,10 @@ locals {
   # M15-S06 list.
   base_secret_ids = [
     "db-password",
+    # Distinct DDL-capable credential for the ikaro_migrator Postgres role
+    # (docker/init-db.sh's local/CI role split, carried into cloud by
+    # M17-S20) — db-password stays the app runtime's DML-only credential.
+    "db-migrator-password",
     "jwt-secret",
     "internal-api-key",
     "platform-admin-key",

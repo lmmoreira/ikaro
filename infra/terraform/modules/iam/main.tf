@@ -1,11 +1,11 @@
 # modules/iam — runtime service accounts (least privilege, per service).
-# Scope split (M17-S17 discovery, 2026-07-18): this module creates the 4
-# SAs and every binding resolvable against resources that already exist
-# (S14 buckets, S16 secrets, project-level roles, self-grants). Bindings
+# Scope split (M17-S17 discovery, 2026-07-18): this module creates the SAs
+# and every binding resolvable against resources that already exist (S14
+# buckets, S16 secrets, project-level roles, self-grants). Bindings
 # targeting resources created by later stories — run.invoker on a Cloud
 # Run service (S18), pubsub.publisher on a topic (S19) — are NOT created
 # here; those modules own them, referencing the SA emails this module
-# outputs.
+# outputs. 5 SAs as of M17-S20 (added the dedicated migrate-job identity).
 
 resource "google_service_account" "backend" {
   account_id   = "ikaro-backend"
@@ -35,12 +35,30 @@ resource "google_service_account" "pubsub_invoker" {
   project      = var.project_id
 }
 
+# Dedicated Cloud Run Job identity (M17-S20) — not a reuse of the backend
+# runtime SA (story-discovery, 2026-07-20): the migrate Job only needs
+# cloudsql.client + the db-migrator-password accessor, never backend's
+# pubsub.publisher/storage.objectAdmin/self-signing grants.
+resource "google_service_account" "migrate" {
+  account_id   = "ikaro-migrate"
+  display_name = "Ikaro migration Cloud Run Job SA (${var.environment})"
+  project      = var.project_id
+}
+
 # --- Project-level roles (backend) ---
 
 resource "google_project_iam_member" "backend_cloudsql_client" {
   project = var.project_id
   role    = "roles/cloudsql.client"
   member  = "serviceAccount:${google_service_account.backend.email}"
+}
+
+# --- Project-level roles (migrate job) ---
+
+resource "google_project_iam_member" "migrate_cloudsql_client" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.migrate.email}"
 }
 
 resource "google_project_iam_member" "backend_cloudtrace_agent" {
@@ -105,12 +123,18 @@ locals {
     backend = google_service_account.backend.email
     bff     = google_service_account.bff.email
     web     = google_service_account.web.email
+    migrate = google_service_account.migrate.email
   }
 
   secret_accessors_base = {
     backend = ["db-password", "jwt-secret", "internal-api-key", "platform-admin-key", "hotsite-revalidate-secret", "brevo-smtp-key"]
     bff     = ["jwt-secret", "internal-api-key", "google-oauth-client-id", "google-oauth-client-secret"]
     web     = ["jwt-secret", "hotsite-revalidate-secret"]
+    # Dedicated migrator credential (M17-S20) — never db-password, which is
+    # the app runtime's DML-only role; db-migrator-password is the DDL-capable
+    # ikaro_migrator role (docker/init-db.sh's local/CI split, carried into
+    # cloud by S20).
+    migrate = ["db-migrator-password"]
   }
 
   # cloudflare-api-token only exists in prod (S16) and only the backend

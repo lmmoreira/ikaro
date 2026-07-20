@@ -788,6 +788,8 @@ Non-secret config (`EMAIL_ADAPTER`, `EMAIL_FROM`, `FRONTEND_URL`, `ALLOWED_ORIGI
 
 **Dependencies:** M17-S11
 
+**Extended by S20 (story-discovery, 2026-07-20):** the `db-password` row's "migrate job" consumer was aspirational when this story closed — the actual `db-migrator-password` secret container (a distinct DDL-capable credential, matching `docker/init-db.sh`'s `ikaro_migrator`/`ikaro_app` role split) is added to `base_secret_ids` by S20, not here.
+
 ---
 
 ### M17-S17 — IAM module (runtime service accounts, least privilege) ✅ Done
@@ -819,6 +821,8 @@ No SA gets `roles/editor`/`roles/owner`. No keys (org policy enforces).
 - [ ] Checkov clean
 
 **Dependencies:** M17-S11, M17-S16
+
+**Extended by S20 (story-discovery, 2026-07-20):** this module's 4 SAs do not include a migrate-job identity. A 5th SA, `ikaro-migrate@`, is added by S20 — dedicated rather than reusing `ikaro-backend@`, so the migration Job gets only `roles/cloudsql.client` + `db-migrator-password` accessor, not backend's unrelated Pub/Sub/GCS/self-signing grants.
 
 ---
 
@@ -890,21 +894,25 @@ Terraform must mirror the adapter’s naming **exactly**: topic `ikaro-{EventNam
 
 **Agent:** `devops` + `backend-ts`
 **Complexity:** M
-**Docs to load:** `apps/backend/package.json`, `apps/backend/Dockerfile`, `docs/09-CI_CD_PIPELINE.md` § Stage 4.5 (reference only — M17 §0 wins)
+**Docs to load:** `apps/backend/package.json`, `apps/backend/Dockerfile`, `docker/init-db.sh`
 
 **Description:**
 Migrations run as Cloud Run Job `ikaro-migrate` (backend image, command override) — inside the VPC, so private Cloud SQL is reachable. **Known blocker to fix first:** `migration:run` currently uses `typeorm-ts-node-commonjs -d src/shared/database/data-source.ts` — dev-only (needs ts-node + `src/`, neither in the prod image).
 
 **What to implement:**
-1. **App side:** add `migration:run:prod` running the plain `typeorm` CLI against **compiled** output: `typeorm migration:run -d dist/shared/database/data-source.js`. Verify the Dockerfile’s build keeps migration files + data-source in `dist/` and that `typeorm` is a production dependency reachable in the runtime image (`pnpm deploy` output) — fix the Dockerfile if pruned. Verify `data-source.ts` reads connection config from env only.
-2. **Terraform (`modules/migrate-job`):** Cloud Run Job, backend image (placeholder until first deploy; same `ignore_changes` on image), command `["node","node_modules/typeorm/cli.js","migration:run","-d","dist/shared/database/data-source.js"]` (or via the pnpm script if the runtime image has pnpm — pick ONE and document), backend runtime SA, VPC direct egress, DB env vars + `db-password` secret ref, `max_retries=0` (a failed migration must fail loudly, not retry into a half-applied state), timeout 10m.
-3. **Local verification:** run the job image against the local Postgres (`docker run --network` with compose) proving compiled-mode migrations work before any cloud execution.
+1. **App side:** add `migration:run:prod` running the plain `typeorm` CLI against **compiled** output: `typeorm migration:run -d dist/shared/database/data-source.js`. Confirmed in story-discovery (2026-07-20) — no further verification needed: `typeorm` is already a `dependencies` entry in `apps/backend/package.json` (survives `pnpm deploy --prod`); the Dockerfile's runner stage already copies `dist/` as an explicit step separate from the pnpm-deploy output; `data-source.ts`'s entity/migration globs already use `__dirname`-relative, dual-extension (`{.ts,.js}`) patterns, so no code change is needed there. The runtime image has no `pnpm`/`corepack` (builder-stage only) — the command MUST invoke `node node_modules/typeorm/cli.js` directly, never a pnpm script.
+2. **Secret Manager (extends S16's `modules/secrets`):** add `db-migrator-password` to `base_secret_ids` — a distinct DDL-capable credential for the `ikaro_migrator` Postgres role (mirrors `docker/init-db.sh`'s existing `ikaro_migrator`/`ikaro_app` split; `data-source.ts` already requires `DB_MIGRATOR_USER`/`DB_MIGRATOR_PASSWORD`, not the app's `DB_USER`/`DB_PASSWORD`). Value populated out-of-band by the S27/S37 runbooks like every other secret (§2); those runbooks also gain a step to create the `ikaro_migrator` role itself.
+3. **IAM (extends S17's `modules/iam`):** new dedicated `ikaro-migrate@` service account — not a reuse of `ikaro-backend@` (decided in story-discovery, 2026-07-20: reusing backend's SA would hand the migration Job unrelated `pubsub.publisher`/`storage.objectAdmin`/self-signing grants it has no use for). Grants: `roles/cloudsql.client` + `roles/secretmanager.secretAccessor` on `db-migrator-password` only (add a `migrate` key to `secret_accessors_base`, mirroring the existing per-SA map).
+4. **Terraform (`modules/migrate-job`):** Cloud Run Job, backend image (placeholder until first deploy; same `ignore_changes` on image), command `["node","node_modules/typeorm/cli.js","migration:run","-d","dist/shared/database/data-source.js"]`, `ikaro-migrate@` SA (step 3), VPC direct egress, `DB_MIGRATOR_USER=ikaro_migrator` env var + `db-migrator-password` secret ref, `max_retries=0` (a failed migration must fail loudly, not retry into a half-applied state), timeout 10m. **Mirror S18's `bootstrap_mode` gating** (decided in story-discovery, 2026-07-20): skip secret-backed env vars until `bootstrap_mode=false` (S27/S37) — same reasoning as `cloudrun-service`: the secret container exists with zero versions until the activation runbooks run, and Cloud Run resolves `secret_key_ref` at revision-creation time, not lazily.
+5. **Local verification:** run the job image against the local Postgres (`docker run --network` with compose) proving compiled-mode migrations work before any cloud execution.
 
 **Acceptance criteria:**
 - [ ] `docker run <backend-image> node node_modules/typeorm/cli.js migration:run -d dist/...` succeeds against local Postgres (all migrations apply; idempotent on re-run: “No migrations are pending”)
 - [ ] Staging job executes successfully via `gcloud run jobs execute ikaro-migrate --wait` (checklist item in S27 once the real image exists)
 - [ ] Failure exit code ≠ 0 propagates (test with a temporarily broken migration in a scratch DB)
 - [ ] `max_retries=0` confirmed in the job spec
+- [ ] `db-migrator-password` secret container exists (S16 catalog); `ikaro-migrate@` SA exists with exactly `cloudsql.client` + `db-migrator-password` accessor — spot-check it can NOT read `db-password` or any other secret
+- [ ] `modules/migrate-job` gates secret-backed env vars behind `bootstrap_mode`, matching `modules/cloudrun-service`
 
 **Dependencies:** M17-S13, M17-S18
 
