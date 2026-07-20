@@ -45,7 +45,7 @@ resource "google_cloud_scheduler_job" "cron" {
   project     = var.project_id
   region      = var.region
   name        = each.key
-  description = "Ikaro cron tick — publishes to Pub/Sub topic ${each.value.topic_key} (M17-S21)."
+  description = "Ikaro cron tick — publishes to Pub/Sub topic ${each.value.topic_key}."
   schedule    = each.value.schedule
   time_zone   = "UTC"
 
