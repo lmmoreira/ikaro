@@ -1162,14 +1162,19 @@ Preserved from old M16-S04 — still fully valid and the highest-value hardening
 ### M17-S31 — Error catalog audit (RFC 9457)
 
 **Agent:** `backend-ts` + `bff-ts`
-**Complexity:** S
+**Complexity:** M
 **Docs to load:** `docs/25-ERROR_CATALOG.md`
 
 **Description:**
-Old M16-S08 is **largely already implemented** (`shared/http/problem-detail.ts`, per-context mappers, zod pipe). This story is an audit, not a build: sweep every non-2xx path in backend + BFF and close gaps.
+Old M16-S08 is **largely already implemented** (`packages/nestjs-http/src/problem-detail.ts` + `packages/types/src/errors.dto.ts` on the backend side, `apps/bff/src/shared/http/problem-detail.ts` on the BFF side, per-context mappers, zod pipe). This story is an audit, not a build: sweep every non-2xx path in backend + BFF and close gaps.
+
+**Story-discovery correction (2026-07-20):** the original checklist below cited two design points TD23 already superseded — `type` as a URI scheme and pt-BR `detail`. Both are corrected here rather than implemented, since implementing them as originally written would revert a deliberate, already-shipped decision (`docs/ENGINEERING_RULES.md` § Exception handling & i18n pattern).
 
 **Audit checklist:**
-- Every 4xx/5xx: `Content-Type: application/problem+json`, `type` URI `https://ikaro.online/errors/<kebab>`, `correlationId` present, pt-BR `detail`
+- Every 4xx/5xx: `Content-Type: application/problem+json` — **currently missing everywhere** (`BaseErrorFilter` uses `res.json()`, which sends plain `application/json`); real gap, fix it
+- `type` stays `'about:blank'` on every response (TD23-shipped design, not a URI scheme) — **not a gap**, no change needed
+- `detail` stays backend-internal/debug text only, in whatever language it's written in, **never localized and never rendered to a user** — code-driven i18n via `resolveErrorMessage()`/`code` already covers user-facing messages; the original "pt-BR `detail`" requirement is dropped
+- `correlationId` present in **both** the `X-Correlation-ID` header and the JSON body's `correlationId` field, generated in **Express middleware** (not an Interceptor) in both apps — root-cause fix: `CorrelationInterceptor` (BFF) and `RequestInterceptor` (backend) currently generate/attach it inside a global `Interceptor`, which NestJS's pipeline runs *after* all global Guards. The BFF registers five global guards ahead of it (`AppThrottlerGuard`, `JwtAuthGuard`, `TenantGuard`, `RolesGuard`, `ActiveStaffGuard`) — every 401/403/429 a guard rejects today ships with **no correlation ID at all**, in header or body. Move generation to middleware (runs before Guards) so it's populated unconditionally; `BaseErrorFilter` reads it off the request and attaches it to both the header and the body.
 - Validation 400s include `violations[]` per catalog
 - Unhandled exceptions → generic 500, **no stack traces when `NODE_ENV=production`** (spec proves it)
 - BFF error passthrough: backend Problem Details survive the BFF unmangled; BFF-originated errors (auth, throttle) use the same shape
@@ -1180,6 +1185,7 @@ Old M16-S08 is **largely already implemented** (`shared/http/problem-detail.ts`,
 - [ ] Audit table (route group → verdict) attached to the PR description
 - [ ] All gaps fixed with specs in the same PR
 - [ ] Production-mode 500 spec exists in both apps
+- [ ] `correlationId` present on responses from a guard-rejected request (401/403/429), not just controller/use-case-thrown errors — regression-tested with at least one guard-rejection spec per app
 
 **Dependencies:** none
 

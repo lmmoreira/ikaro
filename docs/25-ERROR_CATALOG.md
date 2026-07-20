@@ -3,7 +3,7 @@
 **Status:** Live — reflects the shipped `code`-driven pattern (TD23)
 **Audience:** Frontend developers, API consumers, AI agents
 **Standard:** RFC 9457 Problem Details for HTTP APIs
-**Last Updated:** 2026-07-14
+**Last Updated:** 2026-07-20
 
 ---
 
@@ -62,6 +62,8 @@ This document is the error-response *reference*. The canonical code catalog is `
 | `violations` | array (optional) | Batch validation failures — `{ field, code, params? }[]`. Mutually exclusive with top-level `code`/`field` |
 | `detail` | string | Backend-internal/debug text — never rendered to a user |
 | `correlationId` | UUID | Trace ID for debugging |
+
+`correlationId` is also echoed as the `X-Correlation-ID` response header, and every non-2xx response is served with `Content-Type: application/problem+json` (not `application/json`) — both closed by M17-S31 (2026-07-20); previously the header was `application/json` and `correlationId` only reached the header on a lucky subset of requests (see that story for the guard-vs-middleware root cause).
 
 ---
 

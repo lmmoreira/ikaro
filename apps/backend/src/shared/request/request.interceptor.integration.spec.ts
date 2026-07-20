@@ -1,12 +1,14 @@
 import { Controller, Get, INestApplication } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
+import { NextFunction, Request, Response } from 'express';
 import request from 'supertest';
 import { InMemoryTenantSettingsPort } from '../../test/infrastructure/in-memory-tenant-settings.port';
 import { TENANT_SETTINGS_PORT } from '../ports/tenant-settings.port';
 import { RequestContext } from './request-context';
 import { RequestInterceptor } from './request.interceptor';
 import { RequestModule } from './request.module';
+import { CorrelationMiddleware } from './correlation.middleware';
 
 @Controller('test-tenant')
 class TenantEchoController {
@@ -38,6 +40,14 @@ describe('RequestInterceptor (integration)', () => {
     }).compile();
 
     app = module.createNestApplication();
+    // This test module imports only RequestModule (not AppModule), so AppModule's
+    // configure()-registered CorrelationMiddleware never runs — register it directly here
+    // to reproduce the real Middleware-before-Guards/Interceptors ordering RequestInterceptor
+    // now depends on (it no longer generates its own correlationId fallback).
+    const correlationMiddleware = new CorrelationMiddleware();
+    app.use((req: Request, res: Response, next: NextFunction) =>
+      correlationMiddleware.use(req, res, next),
+    );
     await app.init();
   });
 

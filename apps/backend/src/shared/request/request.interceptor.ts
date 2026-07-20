@@ -8,7 +8,6 @@ import {
   NestInterceptor,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
-import { uuidv7 } from '../domain/uuid-v7';
 import { ProblemDetail } from '@ikaro/types';
 import { ITenantSettingsPort, TENANT_SETTINGS_PORT } from '../ports/tenant-settings.port';
 import type { TenantSettingsData } from '../value-objects/tenant-settings-data';
@@ -57,10 +56,9 @@ export class RequestInterceptor implements NestInterceptor {
       throw new HttpException(body, HttpStatus.NOT_FOUND);
     }
 
-    const correlationId =
-      (typeof req.headers['x-correlation-id'] === 'string'
-        ? req.headers['x-correlation-id']
-        : undefined) ?? uuidv7();
+    // CorrelationMiddleware (runs before Guards, M17-S31) always sets this by the time any
+    // Interceptor runs — no fallback generation needed here anymore.
+    const correlationId = req.headers['x-correlation-id'] as string;
 
     const actorId =
       typeof req.headers['x-actor-id'] === 'string' ? req.headers['x-actor-id'] : undefined;

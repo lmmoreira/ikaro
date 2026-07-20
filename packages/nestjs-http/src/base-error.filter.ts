@@ -2,8 +2,13 @@ import { ArgumentsHost, ExceptionFilter, HttpException, HttpStatus } from '@nest
 import { AuthErrorCode, ProblemDetail } from '@ikaro/types';
 import type { BaseAppLogger } from '@ikaro/observability';
 
-type MinimalRequest = { path: string; method: string };
+type MinimalRequest = {
+  path: string;
+  method: string;
+  headers: Record<string, string | string[] | undefined>;
+};
 interface MinimalResponse {
+  set(field: string, value: string): unknown;
   status(code: number): { json(body: unknown): void };
 }
 
@@ -27,10 +32,19 @@ export abstract class BaseErrorFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const req = ctx.getRequest<MinimalRequest>();
     const res = ctx.getResponse<MinimalResponse>();
+    const correlationId = this.getCorrelationId(req);
+
+    // RFC 9457 — every non-2xx response is application/problem+json, not the framework's
+    // default application/json. This is the single terminal point for every error response
+    // in the app (see the class comment on why this must be a filter, not an interceptor),
+    // so it's also the only place that needs to set this.
+    res.set('Content-Type', 'application/problem+json');
+    if (correlationId) res.set('X-Correlation-ID', correlationId);
 
     if (exception instanceof HttpException) {
       this.logErrorCode(exception, req);
-      res.status(exception.getStatus()).json(exception.getResponse());
+      const body = this.attachCorrelationId(exception.getResponse(), correlationId);
+      res.status(exception.getStatus()).json(body);
       return;
     }
 
@@ -52,8 +66,22 @@ export abstract class BaseErrorFilter implements ExceptionFilter {
       code: AuthErrorCode.INTERNAL_ERROR,
       detail: 'An unexpected error occurred',
       instance: req.path,
+      ...(correlationId ? { correlationId } : {}),
     };
     res.status(status).json(problem);
+  }
+
+  // correlationId is generated in middleware (before Guards run — see CorrelationMiddleware
+  // in each app) precisely so it's present here even when a Guard rejected the request before
+  // any Interceptor got a chance to run.
+  private getCorrelationId(req: MinimalRequest): string | undefined {
+    const value = req.headers['x-correlation-id'];
+    return typeof value === 'string' ? value : undefined;
+  }
+
+  private attachCorrelationId(body: unknown, correlationId: string | undefined): unknown {
+    if (!correlationId || typeof body !== 'object' || body === null) return body;
+    return { ...body, correlationId };
   }
 
   private logErrorCode(exception: HttpException, req: MinimalRequest): void {

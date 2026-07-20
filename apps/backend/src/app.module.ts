@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -19,6 +19,7 @@ import { InternalApiGuard } from './shared/guards/internal-api.guard';
 import { PubSubPushGuard } from './shared/guards/pubsub-push.guard';
 import { RequestInterceptor } from './shared/request/request.interceptor';
 import { RequestModule } from './shared/request/request.module';
+import { CorrelationMiddleware } from './shared/request/correlation.middleware';
 import { ErrorFilter } from './shared/filters/error.filter';
 import { validateEnv } from './config/env.validation';
 import { PubSubPushController } from './shared/infrastructure/event-bus/pubsub-push.controller';
@@ -74,4 +75,12 @@ import { OIDC_TOKEN_VERIFIER } from './shared/ports/oidc-token-verifier.port';
     PubSubPushGuard,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  // CorrelationMiddleware must run before Guards (see its own comment) — registering it
+  // here via MiddlewareConsumer, not app.use() in main.ts, is what makes it apply
+  // automatically to every test app built via Test.createTestingModule({ imports: [AppModule] })
+  // too, the same way APP_GUARD/APP_INTERCEPTOR/APP_FILTER providers already do.
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(CorrelationMiddleware).forRoutes('*');
+  }
+}

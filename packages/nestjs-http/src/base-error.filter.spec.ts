@@ -13,16 +13,21 @@ function makeLogger(): { warn: jest.Mock; error: jest.Mock } {
   return { warn: jest.fn(), error: jest.fn() };
 }
 
-function makeHost(path: string, method = 'GET') {
+function makeHost(
+  path: string,
+  method = 'GET',
+  headers: Record<string, string | string[] | undefined> = {},
+) {
   const json = jest.fn();
+  const set = jest.fn();
   const status = jest.fn(() => ({ json }));
   const host = {
     switchToHttp: () => ({
-      getRequest: () => ({ path, method }),
-      getResponse: () => ({ status }),
+      getRequest: () => ({ path, method, headers }),
+      getResponse: () => ({ status, set }),
     }),
   } as unknown as ArgumentsHost;
-  return { host, status, json };
+  return { host, status, json, set };
 }
 
 describe('BaseErrorFilter', () => {
@@ -32,6 +37,15 @@ describe('BaseErrorFilter', () => {
   beforeEach(() => {
     logger = makeLogger();
     filter = new TestErrorFilter(logger as unknown as BaseAppLogger);
+  });
+
+  it('sets Content-Type: application/problem+json on every response (RFC 9457)', () => {
+    const httpErr = new HttpException({ title: 'Not Found', status: 404 }, 404);
+    const { host, set } = makeHost('/v1/bookings/unknown');
+
+    filter.catch(httpErr, host);
+
+    expect(set).toHaveBeenCalledWith('Content-Type', 'application/problem+json');
   });
 
   it('writes an HttpException with no code as-is, without logging', () => {
@@ -100,6 +114,33 @@ describe('BaseErrorFilter', () => {
     });
   });
 
+  it('attaches correlationId (header + body) to a guard-thrown HttpException when present on the request', () => {
+    // The request header is only present here because it was generated in middleware,
+    // which runs before Guards — the same guard-rejection scenario as the test above,
+    // now proving the id that middleware set actually reaches the response.
+    const body = { title: 'Unauthorized', status: 401, code: AuthErrorCode.UNAUTHORIZED };
+    const httpErr = new HttpException(body, 401);
+    const { host, json, set } = makeHost('/v1/staff', 'GET', {
+      'x-correlation-id': 'corr-guard-rejected-123',
+    });
+
+    filter.catch(httpErr, host);
+
+    expect(set).toHaveBeenCalledWith('X-Correlation-ID', 'corr-guard-rejected-123');
+    expect(json).toHaveBeenCalledWith({ ...body, correlationId: 'corr-guard-rejected-123' });
+  });
+
+  it('omits correlationId from the body and skips the header when the request carries none', () => {
+    const body = { title: 'Not Found', status: 404 };
+    const httpErr = new HttpException(body, 404);
+    const { host, json, set } = makeHost('/v1/bookings/unknown');
+
+    filter.catch(httpErr, host);
+
+    expect(json).toHaveBeenCalledWith(body);
+    expect(set).not.toHaveBeenCalledWith('X-Correlation-ID', expect.anything());
+  });
+
   it('converts an unhandled error to a 500 RFC 9457 ProblemDetail', () => {
     const { host, status, json } = makeHost('/v1/bookings');
 
@@ -115,6 +156,40 @@ describe('BaseErrorFilter', () => {
         instance: '/v1/bookings',
       }),
     );
+  });
+
+  it('attaches correlationId to an unhandled 500 ProblemDetail when present on the request', () => {
+    const { host, json } = makeHost('/v1/bookings', 'GET', {
+      'x-correlation-id': 'corr-unhandled-500',
+    });
+
+    filter.catch(new Error('database down'), host);
+
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ correlationId: 'corr-unhandled-500' }),
+    );
+  });
+
+  it('never includes a stack trace in the response body for an unhandled error, in any NODE_ENV', () => {
+    // Stack goes to the logger only (asserted below) — the response body is built as a
+    // literal object with a fixed set of keys, so there is no code path that could leak
+    // exception.stack into it. This holds unconditionally, not just when
+    // NODE_ENV=production, which is the point: no env-conditional branch to get wrong.
+    const previousEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      const { host, json } = makeHost('/v1/bookings');
+
+      filter.catch(new Error('database down\n    at someInternalFn (/app/dist/x.js:42:1)'), host);
+
+      const [body] = json.mock.calls[0] as [Record<string, unknown>];
+      expect(Object.keys(body).sort()).toEqual(
+        ['code', 'detail', 'instance', 'status', 'title', 'type'].sort(),
+      );
+      expect(JSON.stringify(body)).not.toContain('someInternalFn');
+    } finally {
+      process.env.NODE_ENV = previousEnv;
+    }
   });
 
   it('logs the error message, stack, and code for an unhandled error', () => {
