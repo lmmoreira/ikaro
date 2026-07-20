@@ -1,4 +1,5 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
+import { trace } from '@opentelemetry/api';
 import { NextFunction, Request, Response } from 'express';
 import { isUuidV7, uuidv7 } from '../domain/uuid-v7';
 
@@ -20,6 +21,10 @@ export class CorrelationMiddleware implements NestMiddleware {
     const correlationId = typeof incoming === 'string' && isUuidV7(incoming) ? incoming : uuidv7();
     req.headers['x-correlation-id'] = correlationId;
     res.setHeader('X-Correlation-ID', correlationId);
+    // M17-S33: set directly here, same reasoning as the header above — this is the one place
+    // guaranteed to run for every request regardless of Guard outcome, so correlation.id is
+    // never missing from a span the way it would be if only RequestInterceptor set it.
+    trace.getActiveSpan()?.setAttribute('correlation.id', correlationId);
     next();
   }
 }

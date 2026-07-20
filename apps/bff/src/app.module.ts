@@ -1,6 +1,6 @@
 import { HttpModule } from '@nestjs/axios';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
-import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { validateEnv } from './config/env.validation';
@@ -20,11 +20,14 @@ import { TenantGuard } from './shared/guards/tenant.guard';
 import { RolesGuard } from './shared/guards/roles.guard';
 import { CorrelationMiddleware } from './shared/middleware/correlation.middleware';
 import { ErrorFilter } from './shared/filters/error.filter';
+import { RequestModule } from './shared/request/request.module';
+import { RequestInterceptor } from './shared/request/request.interceptor';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
     HttpModule,
+    RequestModule,
     // Single per-IP default tier (M17-S30, simplified 2026-07-18) — no separate
     // authenticated/JWT-sub tier; identity-keyed limiting was dropped as unneeded
     // complexity at this project's MVP scale. Tighter per-route tiers are set via
@@ -54,6 +57,10 @@ import { ErrorFilter } from './shared/filters/error.filter';
     { provide: APP_GUARD, useClass: TenantGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_GUARD, useClass: ActiveStaffGuard },
+    // Runs after all Guards above (Interceptors are the next pipeline stage) — req.user is
+    // populated by then, so tenantId/actor fields are available for OTel span attributes and
+    // AppLogger enrichment. See RequestInterceptor's own comment for the guard-rejection caveat.
+    { provide: APP_INTERCEPTOR, useClass: RequestInterceptor },
   ],
 })
 export class AppModule implements NestModule {

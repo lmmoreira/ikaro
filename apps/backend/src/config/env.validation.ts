@@ -11,6 +11,13 @@ export const schema = z.object({
   LOG_LEVEL: z.enum(['DEBUG', 'INFO', 'WARN', 'ERROR', 'VERBOSE']).default('INFO'),
   LOG_VENDOR: z.enum(['gcp', 'none']).default('gcp'),
   GCP_PROJECT: z.string().optional(),
+  // M17-S33 — OTel SDK bootstrap (tracing.ts). Read directly from process.env there (tracing.ts
+  // is required before Nest/ConfigModule even initialises), so these entries exist for
+  // documentation/schema-introspection purposes rather than runtime consumption via ConfigService.
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().default('http://localhost:4318'),
+  OTEL_TRACES_SAMPLER_ARG: z.coerce.number().min(0).max(1).default(1.0),
+  OTEL_SDK_DISABLED: z.stringbool().default(false),
+  SERVICE_NAME: z.string().default('ikaro-backend'),
   DB_HOST: z.string().min(1, { message: 'DB_HOST is required' }),
   DB_PORT: z.coerce.number().default(5432),
   DB_USER: z.string().min(1, { message: 'DB_USER is required' }),

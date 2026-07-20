@@ -7,6 +7,7 @@ import {
   Injectable,
   NestInterceptor,
 } from '@nestjs/common';
+import { trace } from '@opentelemetry/api';
 import { Observable } from 'rxjs';
 import { ProblemDetail } from '@ikaro/types';
 import { ITenantSettingsPort, TENANT_SETTINGS_PORT } from '../ports/tenant-settings.port';
@@ -69,6 +70,15 @@ export class RequestInterceptor implements NestInterceptor {
     const actorRole =
       typeof req.headers['x-actor-role'] === 'string' ? req.headers['x-actor-role'] : undefined;
     const actor = actorId && actorType && actorRole ? { actorId, actorType, actorRole } : undefined;
+
+    // M17-S33: tenant.id (+ user.id when known) on the request span. correlation.id is set
+    // unconditionally in CorrelationMiddleware instead (runs pre-Guards); this interceptor
+    // never runs for a guard-rejected request, so tenant.id genuinely can't be known there —
+    // same asymmetry CorrelationMiddleware's own comment already documents for the header.
+    trace.getActiveSpan()?.setAttributes({
+      'tenant.id': tenantId,
+      ...(actorId ? { 'user.id': actorId } : {}),
+    });
 
     // Wrap the entire request observable in AsyncLocalStorage context so that
     // RequestContext fields are available anywhere in the call chain.

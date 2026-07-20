@@ -153,76 +153,98 @@ scrape_configs:
 
 ## NestJS OTel Implementation
 
+**Scope (M17-S33): traces only, OTLP-HTTP only.** No metrics pipeline in code — Cloud Run's built-in metrics cover that per D9 (`plan/M17-CLOUD-DEPLOY.md`); the only vendor coupling anywhere in this pipeline is the collector's exporter config (M17-S34), never app code.
+
 ### Package Installation
 
 ```bash
-# Install in apps/backend and apps/bff
+# Install in apps/backend and apps/bff (identical set, both apps)
 pnpm --filter backend add \
+  @opentelemetry/api \
   @opentelemetry/sdk-node \
   @opentelemetry/auto-instrumentations-node \
-  @opentelemetry/exporter-trace-otlp-grpc \
-  @opentelemetry/exporter-metrics-otlp-grpc \
+  @opentelemetry/exporter-trace-otlp-http \
   @opentelemetry/resources \
   @opentelemetry/semantic-conventions \
-  @opentelemetry/sdk-trace-base \
-  @opentelemetry/sdk-metrics \
-  prom-client
+  @opentelemetry/sdk-trace-base
+
+pnpm --filter bff add \
+  @opentelemetry/api \
+  @opentelemetry/sdk-node \
+  @opentelemetry/auto-instrumentations-node \
+  @opentelemetry/exporter-trace-otlp-http \
+  @opentelemetry/resources \
+  @opentelemetry/semantic-conventions \
+  @opentelemetry/sdk-trace-base
 ```
+
+`@opentelemetry/api` was already a *transitive* dependency of both apps via `@ikaro/observability` (`BaseAppLogger` stamps `traceId`/`spanId` on every log line via `trace.getActiveSpan()`) — but pnpm's strict module resolution requires it declared as a *direct* dependency for any app code (`correlation.middleware.ts`, `request.interceptor.ts`) to import it, so `pnpm --filter backend/bff add @opentelemetry/api` is still needed alongside the packages above.
 
 ### Tracing Bootstrap File
 
-This file **must be loaded before anything else** — before NestJS initialises, before any module is imported.
+This file **must be loaded before anything else** — before NestJS initialises, before any module is imported. Identical shape in both apps; only `SERVICE_NAME`'s default differs (`ikaro-backend` / `ikaro-bff`).
 
 ```typescript
 // apps/backend/src/tracing.ts
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
-import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-grpc';
-import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
-import { Resource } from '@opentelemetry/resources';
-import { SEMRESATTRS_SERVICE_NAME, SEMRESATTRS_DEPLOYMENT_ENVIRONMENT } from '@opentelemetry/semantic-conventions';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import { resourceFromAttributes } from '@opentelemetry/resources';
+import { ATTR_SERVICE_NAME, ATTR_DEPLOYMENT_ENVIRONMENT_NAME } from '@opentelemetry/semantic-conventions';
 import { ParentBasedSampler, TraceIdRatioBasedSampler } from '@opentelemetry/sdk-trace-base';
 
-const samplingRate = process.env.NODE_ENV === 'production' ? 0.1 : 1.0;
-// Production: 10% sampling · Staging/Local: 100%
+// OTEL_TRACES_SAMPLER_ARG is read directly, set per-environment by Cloud Run (staging 1.0,
+// prod 0.1) — never branch on NODE_ENV (both cloud envs build with NODE_ENV=production, so
+// it can't distinguish staging from prod — see CLAUDE.md §2 Security Model) or APP_ENV
+// (would add a second source of truth for a value Cloud Run already sets directly).
+const samplingRate = Number(process.env.OTEL_TRACES_SAMPLER_ARG ?? 1.0);
 
 const sdk = new NodeSDK({
-  resource: new Resource({
-    [SEMRESATTRS_SERVICE_NAME]: process.env.SERVICE_NAME ?? 'ikaro-backend',
-    [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: process.env.NODE_ENV ?? 'development',
+  // @opentelemetry/resources v2.x replaced the `Resource` class with this factory function —
+  // `new Resource(...)` no longer exists.
+  resource: resourceFromAttributes({
+    [ATTR_SERVICE_NAME]: process.env.SERVICE_NAME ?? 'ikaro-backend',
+    [ATTR_DEPLOYMENT_ENVIRONMENT_NAME]: process.env.APP_ENV ?? 'local',
   }),
   sampler: new ParentBasedSampler({
     root: new TraceIdRatioBasedSampler(samplingRate),
   }),
   traceExporter: new OTLPTraceExporter({
-    url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? 'http://localhost:4317',
-  }),
-  metricReader: new PeriodicExportingMetricReader({
-    exporter: new OTLPMetricExporter({
-      url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? 'http://localhost:4317',
-    }),
-    exportIntervalMillis: 15_000,
+    url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? 'http://localhost:4318',
   }),
   instrumentations: [
     getNodeAutoInstrumentations({
       '@opentelemetry/instrumentation-fs': { enabled: false },   // too noisy
-      '@opentelemetry/instrumentation-typeorm': { enabled: true },
-      '@opentelemetry/instrumentation-http': { enabled: true },
+      // TypeORM runs on the `pg` driver — there is no standalone OTel TypeORM instrumentation;
+      // instrumenting `pg` is what actually produces DB client spans. BFF has no DB, so its
+      // tracing.ts omits this entry entirely.
+      '@opentelemetry/instrumentation-pg': { enabled: true },
+      '@opentelemetry/instrumentation-http': {
+        enabled: true,
+        ignoreIncomingRequestHook: (req) =>
+          Boolean(req.url?.startsWith('/health/') || req.url?.startsWith('/pubsub/push')),
+      },
       '@opentelemetry/instrumentation-express': { enabled: true },
+      '@opentelemetry/instrumentation-nestjs-core': { enabled: true },
     }),
   ],
 });
 
-sdk.start();
+if (process.env.OTEL_SDK_DISABLED !== 'true') {
+  sdk.start();
+}
 
-process.on('SIGTERM', () => sdk.shutdown());
+process.on('SIGTERM', () => {
+  void sdk.shutdown();
+});
 ```
+
+`OTEL_SDK_DISABLED=true` fully disables the SDK (used in unit tests/CI) rather than crashing or emitting noise when no collector is reachable. Startup without a reachable collector otherwise degrades gracefully — the exporter retries in the background, the app doesn't block or crash on it.
 
 ### Loading the Bootstrap File
 
 ```json
-// apps/backend/package.json
+// apps/backend/package.json (apps/bff/package.json mirrors this)
 {
   "scripts": {
     "start": "node -r ./dist/tracing.js dist/main.js",
@@ -231,46 +253,19 @@ process.on('SIGTERM', () => sdk.shutdown());
 }
 ```
 
-Environment variables (set in Cloud Run via `--set-env-vars` / `.env.local` locally):
+Environment variables (Cloud Run `--set-env-vars`, injected per environment by Terraform; `.env.local` locally):
 
 ```bash
-OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317   # local
-OTEL_EXPORTER_OTLP_ENDPOINT=http://<obs-vm-ip>:4317  # staging/prod
-SERVICE_NAME=ikaro-backend
-NODE_ENV=development
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318   # the collector sidecar (M17-S34) — unset/disabled locally unless the `pnpm obs` profile is used
+OTEL_TRACES_SAMPLER_ARG=1.0                          # staging
+OTEL_TRACES_SAMPLER_ARG=0.1                          # production
+SERVICE_NAME=ikaro-backend                           # or ikaro-bff
+OTEL_SDK_DISABLED=true                               # unit tests / CI only
 ```
 
-### Manual Span Creation
+### Manual Span Creation — deferred
 
-For use cases, wrap the main logic in a span:
-
-```typescript
-// src/shared/observability/tracer.ts
-import { trace } from '@opentelemetry/api';
-export const tracer = trace.getTracer('ikaro');
-
-// Usage in a use case
-import { tracer } from '../../../shared/observability/tracer';
-
-async execute(command: ApproveBookingCommand): Promise<void> {
-  return tracer.startActiveSpan('booking.approveBooking', async (span) => {
-    span.setAttributes({
-      'tenant.id': command.tenantId,
-      'booking.id': command.bookingId,
-      'staff.id': command.staffId,
-    });
-    try {
-      // ... use case logic
-    } catch (err) {
-      span.recordException(err);
-      span.setStatus({ code: SpanStatusCode.ERROR });
-      throw err;
-    } finally {
-      span.end();
-    }
-  });
-}
-```
+Auto-instrumentation (HTTP + `pg` + outbound calls) covers the request lifecycle without any hand-written spans. Manual business spans (wrapping individual use-case logic in a named span) are **explicitly deferred** until debugging actually demands that level of granularity — not built speculatively alongside the SDK bootstrap. Revisit this section, and the `<context>.<operation>` naming convention below, only when a concrete need arises.
 
 ---
 

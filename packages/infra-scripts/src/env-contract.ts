@@ -45,6 +45,16 @@ const BACKEND_EXEMPT_KEYS: readonly string[] = [
   'OUTBOX_SWEEP_GRACE_SECONDS',
   'OUTBOX_RETENTION_DAYS',
   'INBOX_RETENTION_DAYS',
+  // M17-S33 — SERVICE_NAME's default already matches this app in every environment;
+  // OTEL_EXPORTER_OTLP_ENDPOINT's default (localhost:4318) is correct even in cloud, since the
+  // collector runs as a same-pod sidecar (M17-S34) sharing the network namespace; OTEL_SDK_DISABLED
+  // correctly defaults to false in cloud. OTEL_TRACES_SAMPLER_ARG is the one real TODO: M17-S34
+  // must remove it from this list once Terraform sets a prod override (0.1) — until then, prod
+  // silently runs at the 1.0 default (over-sampling cost risk per D12, not a startup crash).
+  'OTEL_EXPORTER_OTLP_ENDPOINT',
+  'OTEL_TRACES_SAMPLER_ARG',
+  'OTEL_SDK_DISABLED',
+  'SERVICE_NAME',
 ];
 
 const BFF_EXEMPT_KEYS: readonly string[] = [
@@ -59,6 +69,11 @@ const BFF_EXEMPT_KEYS: readonly string[] = [
   'FRONTEND_URL',
   'ENABLE_DEV_AUTH',
   'BACKEND_AUDIENCE',
+  // M17-S33 — see the matching comment on BACKEND_EXEMPT_KEYS above; same reasoning applies here.
+  'OTEL_EXPORTER_OTLP_ENDPOINT',
+  'OTEL_TRACES_SAMPLER_ARG',
+  'OTEL_SDK_DISABLED',
+  'SERVICE_NAME',
 ];
 
 const APP_SPECS: readonly AppEnvSpec[] = [
