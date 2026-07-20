@@ -78,6 +78,20 @@ terraform apply
 
 One state per env, never shared, no workspaces. Secret **values** never appear in state, tfvars, or git — Terraform creates secret *containers* only (M17 §2); values are populated out-of-band by the S27/S37 activation runbooks.
 
+## Public-repository security
+
+This directory is intentionally safe to publish, but it still describes the production topology. Treat project IDs/numbers, Cloud Run URLs, bucket names, service-account emails, secret **names**, and resource identifiers as non-secret operational metadata: they may be committed, but must never be relied on as an access control boundary.
+
+- **Never commit a secret value**, a service-account key, an OAuth credential, a Terraform state/plan file, or an ADC credential. Terraform provisions Secret Manager containers only; populate and rotate values out of band as described in [`SECRETS.md`](SECRETS.md).
+- Keep operator-only inputs in `local.auto.tfvars` or `TF_VAR_*`; `local.auto.tfvars` is gitignored. Do not force-add it. Tracked `terraform.tfvars` files may contain only reviewed, non-sensitive environment identifiers.
+- Public access is exceptional and explicit: the hotsite assets bucket and the BFF/web Cloud Run services are intentionally public. Any other `allUsers` or `allAuthenticatedUsers` IAM grant must fail the custom Checkov rule unless it carries a documented, reviewed exception.
+- The private uploads bucket must retain uniform bucket-level access and `public_access_prevention = "enforced"`. Do not put customer uploads, exports, logs, backups, or secret material in the public hotsite-assets bucket.
+- Outputs are operational metadata, not secrets. Do not add secret-derived values to outputs; marking an output `sensitive` only masks terminal display and does not remove the value from Terraform state.
+
+### Remote-state verification
+
+The `gs://ikaro-tfstate` bucket is a manual bootstrap prerequisite, so this repository cannot enforce its live configuration. Before the first apply and at least periodically thereafter, an authorized operator must verify that it is versioned, uses uniform bucket-level access, has public-access prevention enabled, grants no public principals, and limits read/write access to the intended Terraform CI/deployer identities. State can reveal the full infrastructure inventory even when this code deliberately keeps secret values out of it.
+
 ## IAM binding review discipline (read before adding any `google_*_iam_*` resource)
 
 Every `google_*_iam_member` / `google_*_iam_binding` / `google_*_iam_policy` resource in this repo must specify an explicit, deliberately-reviewed `member`/`members` value. Never add `allUsers`, `allAuthenticatedUsers`, or a principal outside `ikaro.online`'s own domain without that being the specific, intentional point of the resource (e.g. `modules/storage`'s public hotsite bucket) — and call it out in review. **Do not assume an org-level policy will catch a mistake here** — current org-policy state (and the reasoning behind any project-level exception) lives in the gitignored, operator-local `docs/BOOTSTRAP_LOG.md`, not in this repo's public history.
