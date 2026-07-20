@@ -18,6 +18,10 @@ db_tier = "db-f1-micro"
 # conventions, not per-env choices.
 db_user = "ikaro"
 
+# Distinct DDL-capable role for the migrate Cloud Run Job (M17-S20) — not a
+# secret either, same reasoning as db_user.
+db_migrator_user = "ikaro_migrator"
+
 # S13 discovery: instance creation deferred — flip to true at the S27
 # activation (starts the ~$9/mo Cloud SQL charge). iam_admin_user comes from
 # the gitignored local.auto.tfvars, never from this file.

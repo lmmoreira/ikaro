@@ -11,6 +11,7 @@ variables {
   public_bucket_name  = "ikaro-public-staging"
   secret_ids = {
     db-password                = "projects/ikaro-test/secrets/db-password"
+    db-migrator-password       = "projects/ikaro-test/secrets/db-migrator-password"
     jwt-secret                 = "projects/ikaro-test/secrets/jwt-secret"
     internal-api-key           = "projects/ikaro-test/secrets/internal-api-key"
     platform-admin-key         = "projects/ikaro-test/secrets/platform-admin-key"

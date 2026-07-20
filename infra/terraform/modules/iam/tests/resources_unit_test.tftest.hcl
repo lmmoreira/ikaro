@@ -12,6 +12,7 @@ variables {
   public_bucket_name  = "ikaro-public-staging"
   secret_ids = {
     db-password                = "projects/ikaro-test/secrets/db-password"
+    db-migrator-password       = "projects/ikaro-test/secrets/db-migrator-password"
     jwt-secret                 = "projects/ikaro-test/secrets/jwt-secret"
     internal-api-key           = "projects/ikaro-test/secrets/internal-api-key"
     platform-admin-key         = "projects/ikaro-test/secrets/platform-admin-key"
@@ -22,7 +23,7 @@ variables {
   }
 }
 
-run "creates_exactly_four_runtime_service_accounts" {
+run "creates_exactly_five_runtime_service_accounts" {
   command = plan
 
   assert {
@@ -40,6 +41,37 @@ run "creates_exactly_four_runtime_service_accounts" {
   assert {
     condition     = google_service_account.pubsub_invoker.account_id == "ikaro-pubsub-invoker"
     error_message = "Pub/Sub invoker SA must be named ikaro-pubsub-invoker."
+  }
+  assert {
+    condition     = google_service_account.migrate.account_id == "ikaro-migrate"
+    error_message = "Migrate-job SA must be named ikaro-migrate."
+  }
+}
+
+run "migrate_consumes_only_its_own_secret_and_cloudsql_client" {
+  command = plan
+
+  assert {
+    condition     = contains(keys(google_secret_manager_secret_iam_member.accessor), "migrate-db-migrator-password")
+    error_message = "Migrate SA must get an accessor binding for db-migrator-password."
+  }
+
+  assert {
+    condition     = !contains(keys(google_secret_manager_secret_iam_member.accessor), "migrate-db-password")
+    error_message = "Migrate SA must NOT get db-password — that's the app runtime's DML-only role, not the migrator's DDL-capable one."
+  }
+
+  assert {
+    condition = alltrue([
+      for secret in ["jwt-secret", "internal-api-key", "platform-admin-key", "hotsite-revalidate-secret", "brevo-smtp-key", "google-oauth-client-id", "google-oauth-client-secret"] :
+      !contains(keys(google_secret_manager_secret_iam_member.accessor), "migrate-${secret}")
+    ])
+    error_message = "Migrate SA must NOT get any secret it doesn't consume — least privilege (M17-S20 acceptance criterion)."
+  }
+
+  assert {
+    condition     = google_project_iam_member.migrate_cloudsql_client.role == "roles/cloudsql.client"
+    error_message = "Migrate SA must get cloudsql.client at the project level."
   }
 }
 
@@ -139,6 +171,7 @@ run "backend_gets_cloudflare_token_in_prod_only" {
     environment = "prod"
     secret_ids = {
       db-password                = "projects/ikaro-prod/secrets/db-password"
+      db-migrator-password       = "projects/ikaro-prod/secrets/db-migrator-password"
       jwt-secret                 = "projects/ikaro-prod/secrets/jwt-secret"
       internal-api-key           = "projects/ikaro-prod/secrets/internal-api-key"
       platform-admin-key         = "projects/ikaro-prod/secrets/platform-admin-key"

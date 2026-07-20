@@ -39,6 +39,12 @@ variable "db_tier" {
   default     = "db-f1-micro"
 }
 
+variable "db_migrator_user" {
+  description = "Postgres user the migrate Cloud Run Job connects as (DB_MIGRATOR_USER) — a distinct DDL-capable role from db_user's DML-only app runtime role, mirroring docker/init-db.sh's local/CI ikaro_migrator/ikaro_app split (carried into cloud by M17-S20; db_user's cloud role keeps its existing \"ikaro\" name from S13, not renamed to ikaro_app here — out of this story's scope). Not Terraform-managed, same reasoning as db_user — created out-of-band by the S27/S37 activation runbook."
+  type        = string
+  default     = "ikaro_migrator"
+}
+
 variable "db_user" {
   description = "Postgres user the backend connects as (DB_USER). Not Terraform-managed (S13 discovery — the user + password are created out-of-band by the S27/S37 activation runbook to keep secret values out of state), but the username itself isn't a secret, so it's an explicit variable rather than a bare literal repeated across env roots."
   type        = string

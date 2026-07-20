@@ -18,6 +18,10 @@ db_tier = "db-f1-micro"
 # conventions, not per-env choices.
 db_user = "ikaro"
 
+# Distinct DDL-capable role for the migrate Cloud Run Job (M17-S20) — not a
+# secret either, same reasoning as db_user.
+db_migrator_user = "ikaro_migrator"
+
 # Prod is plan-only until S24/S37 — the pipeline performs the first apply
 # (PITR + deletion protection are set in main.tf). iam_admin_user comes from
 # the gitignored local.auto.tfvars / TF_VAR_iam_admin_user (S24), never here.

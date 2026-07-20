@@ -17,6 +17,7 @@
     "migration:run": "typeorm-ts-node-commonjs migration:run -d src/shared/database/data-source.ts",
     "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/shared/database/data-source.ts",
     "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/shared/database/data-source.ts",
+    "migration:run:prod": "node node_modules/typeorm/cli.js migration:run -d dist/shared/database/data-source.js",
     "seed": "ts-node --swc -r tsconfig-paths/register src/shared/database/seed.ts"
   },
   "devDependencies": {

@@ -8,6 +8,11 @@ output "bff_sa_email" {
   value       = google_service_account.bff.email
 }
 
+output "migrate_sa_email" {
+  description = "Migration Cloud Run Job runtime SA email — consumed by S20 (modules/migrate-job, service_account_email)"
+  value       = google_service_account.migrate.email
+}
+
 output "pubsub_invoker_sa_email" {
   description = "Pub/Sub push OIDC identity email — consumed by S18 (run.invoker on backend) and S19 (push subscription oidc_token.service_account_email)"
   value       = google_service_account.pubsub_invoker.email
