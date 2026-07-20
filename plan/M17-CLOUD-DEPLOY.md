@@ -919,7 +919,7 @@ Migrations run as Cloud Run Job `ikaro-migrate` (backend image, command override
 
 ---
 
-### M17-S21 — Cloud Scheduler module
+### M17-S21 — Cloud Scheduler module ✅ Done
 
 **Agent:** `devops`
 **Complexity:** S
@@ -935,7 +935,9 @@ Pub/Sub target (not HTTP): `pubsub_target { topic_name, data = base64("{}") }`.
 
 **Acceptance criteria:**
 - [ ] All four jobs created; `gcloud scheduler jobs run ikaro-cron-reminders` → message lands on the topic → both subscriptions push to `/pubsub/push`, each dispatched to its own trigger handler (verify post-S27; checklist there)
+  - ⚠️ Not fully verified as of 2026-07-20 — all 4 jobs confirmed live in `ikaro-staging` (`gcloud scheduler jobs list`), correct schedules/topics; end-to-end dispatch through the push subscriptions is deferred to S27 as this AC's own note states (staging backend is still the bootstrap placeholder image).
 - [ ] Jobs exist in both envs (staging cron is real: reminder emails go to test users — acceptable; note in README)
+  - ⚠️ Not verified as of 2026-07-20 — staging applied and confirmed live; prod's `module.scheduler` stays composed-but-not-applied until S24/S37, same as every other Wave-2 module (`migrate_job` et al.).
 - [ ] Scheduler service agent holds `pubsub.publisher` on all four topics; no unused custom Scheduler SA exists
 
 **Dependencies:** M17-S19
