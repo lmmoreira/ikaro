@@ -1169,7 +1169,7 @@ Preserved from old M16-S04 — still fully valid and the highest-value hardening
 
 ---
 
-### M17-S31 — Error catalog audit (RFC 9457)
+### M17-S31 — Error catalog audit (RFC 9457) ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** M
