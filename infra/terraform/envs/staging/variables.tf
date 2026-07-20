@@ -78,7 +78,7 @@ variable "project_id" {
 }
 
 variable "project_number" {
-  description = "GCP project number — non-secret, plain value (same treatment as project_id/db_tier). Used to construct each Cloud Run service's own deterministic *.run.app URL (service-projectnumber.region.run.app) for the handful of env vars a service needs pointing at itself (PUBSUB_PUSH_AUDIENCE, GOOGLE_CALLBACK_URL) — Terraform cannot reference a resource's own computed uri from within its own config. Discover via: gcloud projects describe ikaro-staging --format='value(projectNumber)'"
+  description = "GCP project number — non-secret, plain value (same treatment as project_id/db_tier). Used to construct GCP-managed service agent principals, which genuinely are deterministic from the project number — unlike a Cloud Run service's own *.run.app URL, which M17-S18's real staging apply proved is a per-project random hash, not derivable this way (see bff_real_uri and envs/staging/main.tf's backend_pubsub_audience for that correction). Current consumer: modules/pubsub's Pub/Sub service agent (service-<number>@gcp-sa-pubsub.iam.gserviceaccount.com), passed as project_number. Discover via: gcloud projects describe ikaro-staging --format='value(projectNumber)'"
   type        = string
 }
 

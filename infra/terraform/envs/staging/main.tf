@@ -285,3 +285,18 @@ module "cloudrun_web" {
     APP_ENV  = "staging"
   }
 }
+
+module "pubsub" {
+  source = "../../modules/pubsub"
+
+  project_id     = var.project_id
+  project_number = var.project_number
+  environment    = var.environment
+  region         = var.region
+  labels         = var.labels
+
+  backend_push_endpoint   = "${module.cloudrun_backend.service_uri}/pubsub/push"
+  backend_pubsub_audience = local.backend_pubsub_audience
+  backend_sa_email        = module.iam.backend_sa_email
+  pubsub_invoker_sa_email = module.iam.pubsub_invoker_sa_email
+}

@@ -304,6 +304,21 @@ module "cloudrun_web" {
   }
 }
 
+module "pubsub" {
+  source = "../../modules/pubsub"
+
+  project_id     = var.project_id
+  project_number = var.project_number
+  environment    = var.environment
+  region         = var.region
+  labels         = var.labels
+
+  backend_push_endpoint   = "${module.cloudrun_backend.service_uri}/pubsub/push"
+  backend_pubsub_audience = local.backend_pubsub_audience
+  backend_sa_email        = module.iam.backend_sa_email
+  pubsub_invoker_sa_email = module.iam.pubsub_invoker_sa_email
+}
+
 # Prod-only (D8): single Artifact Registry backing both envs. The one
 # Terraform-external prerequisite is documented in modules/registry's
 # variables and the story's Dependencies note — ikaro-tf-deployer@ikaro-prod

@@ -1,0 +1,124 @@
+[
+  {
+    "event": "AdminDailyScheduleReminder",
+    "consumers": [
+      "notification"
+    ]
+  },
+  {
+    "event": "BookingApproved",
+    "consumers": [
+      "notification"
+    ]
+  },
+  {
+    "event": "BookingCancelled",
+    "consumers": [
+      "notification"
+    ]
+  },
+  {
+    "event": "BookingCompleted",
+    "consumers": [
+      "COMPLETE_BOOKING_LOYALTY_EFFECTS"
+    ]
+  },
+  {
+    "event": "BookingInfoRequested",
+    "consumers": [
+      "notification"
+    ]
+  },
+  {
+    "event": "BookingInfoSubmitted",
+    "consumers": [
+      "notification"
+    ]
+  },
+  {
+    "event": "BookingRejected",
+    "consumers": [
+      "notification"
+    ]
+  },
+  {
+    "event": "BookingReminderDue",
+    "consumers": [
+      "notification"
+    ]
+  },
+  {
+    "event": "BookingReminderDueToday",
+    "consumers": [
+      "notification"
+    ]
+  },
+  {
+    "event": "BookingRequested",
+    "consumers": [
+      "notification"
+    ]
+  },
+  {
+    "event": "BookingRescheduled",
+    "consumers": [
+      "notification"
+    ]
+  },
+  {
+    "event": "PointsExpiringSoon",
+    "consumers": [
+      "notification"
+    ]
+  },
+  {
+    "event": "ServicePointsEarned",
+    "consumers": [
+      "notification"
+    ]
+  },
+  {
+    "event": "StaffInvited",
+    "consumers": [
+      "notification"
+    ]
+  },
+  {
+    "event": "TenantProvisioned",
+    "consumers": [
+      "notification-template-seed",
+      "staff"
+    ]
+  },
+  {
+    "event": "cron-loyalty-expiry",
+    "consumers": [
+      "loyalty-expire-points"
+    ]
+  },
+  {
+    "event": "cron-loyalty-expiry-warning",
+    "consumers": [
+      "loyalty-notify-expiring-points"
+    ]
+  },
+  {
+    "event": "cron-outbox-relay",
+    "consumers": [
+      "outbox-relay"
+    ]
+  },
+  {
+    "event": "cron-reminders",
+    "consumers": [
+      "booking-admin-schedule-reminder",
+      "booking-reminder"
+    ]
+  },
+  {
+    "event": "dead-letter",
+    "consumers": [
+      "monitor"
+    ]
+  }
+]
