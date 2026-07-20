@@ -103,11 +103,36 @@ module "iam" {
   secret_ids          = module.secrets.secret_ids
 }
 
+# Review finding (PR #176, 2026-07-20): none of the cloudrun-service/migrate-job
+# module calls below reference module.iam's per-SA secret_manager_secret_iam_member
+# bindings — their only implicit edges are to the SA resource itself
+# (module.iam.<x>_sa_email) and to the secret container (module.secrets), never to
+# the accessor grant that actually lets that SA read it. Without an explicit
+# dependency, Terraform could create/update a Cloud Run service or Job in parallel
+# with (or before) the IAM grant that lets its runtime identity mount the secret —
+# Cloud Run validates secret access at revision/execution creation time and fails
+# with a permission error if the grant isn't visible yet.
+#
+# depends_on = [module.iam] alone fixes the ordering (Terraform won't issue the
+# Cloud Run API call until every resource in module.iam, including the accessor
+# bindings, has returned success) but GCP IAM grants have their own propagation
+# delay on top of that — up to ~60s per Google's own docs — even after the
+# Terraform-level API call succeeds. time_sleep adds that buffer explicitly rather
+# than relying on undocumented luck (bootstrap_mode deferring the real secret
+# mount to a much later apply, by which point the binding has long since
+# propagated in practice).
+resource "time_sleep" "iam_propagation" {
+  depends_on      = [module.iam]
+  create_duration = "30s"
+}
+
 # Internal-ingress only (D4/D1) — no public URL. Direct VPC egress for Cloud
 # SQL's private IP. db_pool_size + db_tier feed the module's own
 # connection-math invariant on backend_max_instances (M17 plan §S18).
 module "cloudrun_backend" {
   source = "../../modules/cloudrun-service"
+
+  depends_on = [time_sleep.iam_propagation]
 
   project_id  = var.project_id
   environment = var.environment
@@ -203,6 +228,8 @@ module "cloudrun_backend" {
 module "cloudrun_bff" {
   source = "../../modules/cloudrun-service"
 
+  depends_on = [time_sleep.iam_propagation]
+
   project_id  = var.project_id
   environment = var.environment
   region      = var.region
@@ -259,6 +286,8 @@ module "cloudrun_bff" {
 module "cloudrun_web" {
   source = "../../modules/cloudrun-service"
 
+  depends_on = [time_sleep.iam_propagation]
+
   project_id  = var.project_id
   environment = var.environment
   region      = var.region
@@ -310,6 +339,8 @@ module "pubsub" {
 # until the S27 activation runbook populates it.
 module "migrate_job" {
   source = "../../modules/migrate-job"
+
+  depends_on = [time_sleep.iam_propagation]
 
   project_id  = var.project_id
   environment = var.environment
