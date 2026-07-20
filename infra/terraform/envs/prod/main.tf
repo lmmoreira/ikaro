@@ -385,6 +385,23 @@ module "migrate_job" {
   }
 }
 
+# Cloud Scheduler cron jobs (M17-S21) — publish ticks to the 4 cron topics
+# S19 provisions. No custom Scheduler SA: pubsub_target jobs have no
+# service-account field, so the built-in Cloud Scheduler service agent
+# publishes directly (module grants it pubsub.publisher on each topic).
+module "scheduler" {
+  source = "../../modules/scheduler"
+
+  project_id     = var.project_id
+  project_number = var.project_number
+  environment    = var.environment
+  region         = var.region
+  labels         = var.labels
+
+  cron_topic_ids        = module.pubsub.topic_ids
+  outbox_relay_schedule = var.outbox_relay_schedule
+}
+
 # Prod-only (D8): single Artifact Registry backing both envs. The one
 # Terraform-external prerequisite is documented in modules/registry's
 # variables and the story's Dependencies note — ikaro-tf-deployer@ikaro-prod
