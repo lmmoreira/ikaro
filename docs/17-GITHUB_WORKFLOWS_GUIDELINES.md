@@ -100,19 +100,25 @@ All GitHub Actions — including GitHub-owned ones (`actions/checkout`, `actions
 - uses: actions/checkout@v4
 
 # ✅ Correct — immutable SHA with tag comment for readability
-- uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+- uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 ```
 
-**Current SHAs** (update the table when bumping action versions):
+**Current SHAs** (update the table when bumping action versions — corrected 2026-07-21, M17-S24: the previous rows for `checkout`/`setup-node`/`download-artifact`/`sonarqube-scan-action` had drifted from what every workflow actually pins, evidently bumped by Dependabot without this table following along):
 
 | Action | SHA | Tag |
 |--------|-----|-----|
-| `actions/checkout` | `34e114876b0b11c390a56381ad16ebd13914f8d5` | v4 |
-| `actions/setup-node` | `49933ea5288caeca8642d1e84afbd3f7d6820020` | v4 |
-| `actions/download-artifact` | `d3f86a106a0bac45b974a628896c90dbdf5c8093` | v4 |
-| `pnpm/action-setup` | `a3252b78c470c02df07e9d59298aecedc3ccdd6d` | v3.0.0 |
-| `SonarSource/sonarqube-scan-action` | `59db25f34e16620e48ab4bb9e4a5dce155cb5432` | v8.0.0 |
+| `actions/checkout` | `9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0` | v7.0.0 |
+| `actions/setup-node` | `820762786026740c76f36085b0efc47a31fe5020` | v7.0.0 |
+| `actions/download-artifact` | `3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c` | v8.0.1 |
+| `pnpm/action-setup` | `0ebf47130e4866e96fce0953f49152a61190b271` | v6.0.9 |
+| `SonarSource/sonarqube-scan-action` | `713881670b6b3676cda39549040e2d88c70d582e` | v8.2.0 |
 | `aquasecurity/trivy-action` | `ed142fd0673e97e23eac54620cfb913e5ce36c25` | v0.36.0 |
+| `dorny/paths-filter` | `7b450fff21473bca461d4b92ce414b9d0420d706` | v4.0.2 |
+| `google-github-actions/auth` | `7c6bc770dae815cd3e89ee6cdf493a5fab2cc093` | v3 |
+| `hashicorp/setup-terraform` | `dfe3c3f87815947d99a8997f908cb6525fc44e9e` | v4.0.1 |
+| `reviewdog/action-actionlint` | `01d2dd67e3525e5a0ce72e8fa38e5a3ab65e2ded` | v1.72.1 |
+| `zizmorcore/zizmor-action` | `6599ee8b7a49aef6a770f63d261d214911a7ce02` | v0.6.0 |
+| `marocchino/sticky-pull-request-comment` | `5770ad5eb8f42dd2c4f34da00c94c5381e49af88` | v3.0.5 |
 
 To look up the SHA for any action: `gh api repos/<owner>/<repo>/git/ref/tags/<tag> --jq '.object.sha'`
 
