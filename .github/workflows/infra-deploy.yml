@@ -24,12 +24,18 @@ name: Infra — Terraform Deploy Pipeline
 # the same `github.ref` — a workflow-level `cancel-in-progress: true` would
 # risk cancelling an in-flight prod apply on the next merge.
 #
-# `IAM_ADMIN_USER`/`BREVO_SMTP_LOGIN` are repo-level GitHub Variables, not
-# environment-scoped: environment-scoped values are only visible to jobs
-# that declare that exact `environment:`, and `plan-*`/`drift-*` jobs
-# deliberately declare none (same reasoning as the tf-planner WIF binding —
-# PR plans and drift checks must run without an approval gate). Repo-level
-# is the only scope every job here can see (review finding, 2026-07-21).
+# `IAM_ADMIN_USER` is a repo-level GitHub Variable, not environment-scoped:
+# environment-scoped values are only visible to jobs that declare that
+# exact `environment:`, and `plan-*`/`drift-*` jobs deliberately declare
+# none (same reasoning as the tf-planner WIF binding — PR plans and drift
+# checks must run without an approval gate). Repo-level is the only scope
+# every job here can see (review finding, 2026-07-21). `BREVO_SMTP_LOGIN`
+# is a repo-level Secret instead of a Variable, even though it's non-secret
+# per the S16 catalog: GitHub does not mask Variables in logs the way it
+# masks Secrets, and this value (unlike `IAM_ADMIN_USER`, already public
+# throughout docs/BOOTSTRAP_LOG.md) had never appeared anywhere else in
+# this repo before — a live run confirmed it printing in plaintext in the
+# job's `env:` log block (review finding, 2026-07-21).
 
 on:
   pull_request:
@@ -66,9 +72,17 @@ jobs:
         id: filter
         uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
         with:
+          # Includes this workflow file itself, not just infra/terraform/**
+          # — a future PR touching only the pipeline's own YAML (no .tf
+          # changes) still needs a real fmt/validate/test/plan run before
+          # merge, same as any other change to this pipeline. Without this,
+          # such a PR would silently skip every Terraform job again, the
+          # same verification gap this story's own review already found
+          # once (review finding, 2026-07-21).
           filters: |
             infra:
               - 'infra/terraform/**'
+              - '.github/workflows/infra-deploy.yml'
 
       - name: List modules with tests
         id: modules
@@ -199,7 +213,7 @@ jobs:
         working-directory: infra/terraform/envs/staging
         env:
           TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
-          TF_VAR_brevo_smtp_login: ${{ vars.BREVO_SMTP_LOGIN }}
+          TF_VAR_brevo_smtp_login: ${{ secrets.BREVO_SMTP_LOGIN }}
         run: |
           terraform init -input=false -lockfile=readonly
           terraform plan -input=false -no-color -lock-timeout=60s -out=tfplan
@@ -307,7 +321,7 @@ jobs:
         working-directory: infra/terraform/envs/prod
         env:
           TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
-          TF_VAR_brevo_smtp_login: ${{ vars.BREVO_SMTP_LOGIN }}
+          TF_VAR_brevo_smtp_login: ${{ secrets.BREVO_SMTP_LOGIN }}
           # Genuine credential (Cloudflare API token) — Terraform's own
           # `sensitive = true` on this variable redacts it from *rendered*
           # plan output (terraform show, CLI text) and GitHub also masks
@@ -502,7 +516,7 @@ jobs:
         working-directory: infra/terraform/envs/staging
         env:
           TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
-          TF_VAR_brevo_smtp_login: ${{ vars.BREVO_SMTP_LOGIN }}
+          TF_VAR_brevo_smtp_login: ${{ secrets.BREVO_SMTP_LOGIN }}
         run: |
           terraform init -input=false -lockfile=readonly
           terraform apply -input=false -lock-timeout=60s -auto-approve
@@ -556,7 +570,7 @@ jobs:
         working-directory: infra/terraform/envs/prod
         env:
           TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
-          TF_VAR_brevo_smtp_login: ${{ vars.BREVO_SMTP_LOGIN }}
+          TF_VAR_brevo_smtp_login: ${{ secrets.BREVO_SMTP_LOGIN }}
           TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           terraform init -input=false -lockfile=readonly
@@ -597,7 +611,7 @@ jobs:
         working-directory: infra/terraform/envs/staging
         env:
           TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
-          TF_VAR_brevo_smtp_login: ${{ vars.BREVO_SMTP_LOGIN }}
+          TF_VAR_brevo_smtp_login: ${{ secrets.BREVO_SMTP_LOGIN }}
         run: |
           terraform init -input=false -lockfile=readonly
           terraform plan -input=false -no-color -lock-timeout=60s -detailed-exitcode
@@ -630,7 +644,7 @@ jobs:
         working-directory: infra/terraform/envs/prod
         env:
           TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
-          TF_VAR_brevo_smtp_login: ${{ vars.BREVO_SMTP_LOGIN }}
+          TF_VAR_brevo_smtp_login: ${{ secrets.BREVO_SMTP_LOGIN }}
           TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           terraform init -input=false -lockfile=readonly

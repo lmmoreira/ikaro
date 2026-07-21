@@ -13,8 +13,46 @@ permissions:
   contents: read
 
 jobs:
+  # Gate for the whole app test suite (unit/integration/component/e2e,
+  # Sonar, Dependency Review, Trivy) — a PR touching only infra/terraform/**
+  # or workflow files unrelated to this pipeline skips all of it, same
+  # principle as infra-deploy.yml's own detect-changes job. Deliberately
+  # coarse (any app/shared-package change re-runs the whole suite, same as
+  # today) rather than split per-app: that would need each app-specific job
+  # to also fire on every shared packages/** path, and would break sonar's
+  # unconditional download of all three coverage artifacts unless it also
+  # tracked exactly which subset ran — not worth the complexity for a CI
+  # cost optimization (M17-S24 discussion, 2026-07-21).
+  detect-changes:
+    name: Detect app changes
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Detect app-relevant changes
+        id: filter
+        uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
+        with:
+          filters: |
+            app:
+              - 'apps/**'
+              - 'packages/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - '.nvmrc'
+              - 'docker/**'
+              - '.github/workflows/pr-tests.yml'
+              - '.github/workflows/pr-quality.yml'
+
   backend-unit:
     name: Backend Unit Tests
+    needs: detect-changes
+    if: needs.detect-changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -44,6 +82,8 @@ jobs:
 
   backend-integration:
     name: Backend Integration Tests
+    needs: detect-changes
+    if: needs.detect-changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -68,6 +108,8 @@ jobs:
 
   bff-unit:
     name: BFF Unit Tests
+    needs: detect-changes
+    if: needs.detect-changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -97,6 +139,8 @@ jobs:
 
   web-unit:
     name: Web Unit Tests
+    needs: detect-changes
+    if: needs.detect-changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -126,6 +170,8 @@ jobs:
 
   bff-component:
     name: BFF Component Tests
+    needs: detect-changes
+    if: needs.detect-changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -165,6 +211,8 @@ jobs:
 
   e2e:
     name: Playwright E2E
+    needs: detect-changes
+    if: needs.detect-changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -352,14 +400,51 @@ jobs:
 
   test-suite-passed:
     name: Test Suite Passed
-    needs: [backend-unit, backend-integration, bff-unit, web-unit, bff-component, e2e]
+    needs:
+      [detect-changes, backend-unit, backend-integration, bff-unit, web-unit, bff-component, e2e]
+    if: always()
     runs-on: ubuntu-latest
     steps:
-      - run: echo "All PR test jobs passed."
+      # Allow-list, not deny-list: only "success" or "skipped" (the correct
+      # no-op for a PR that touches nothing under apps/**/packages/**/etc.)
+      # satisfy the gate. Checking only for "failure" would let a
+      # "cancelled" result slip through as a false pass. This job itself
+      # always runs (no if: condition) so it stays a reliable required
+      # check regardless of what detect-changes found. Same pattern as
+      # infra-deploy.yml's Infra PR Checks Passed (M17-S24, 2026-07-21).
+      - name: Check results
+        env:
+          BACKEND_UNIT_RESULT: ${{ needs.backend-unit.result }}
+          BACKEND_INTEGRATION_RESULT: ${{ needs.backend-integration.result }}
+          BFF_UNIT_RESULT: ${{ needs.bff-unit.result }}
+          WEB_UNIT_RESULT: ${{ needs.web-unit.result }}
+          BFF_COMPONENT_RESULT: ${{ needs.bff-component.result }}
+          E2E_RESULT: ${{ needs.e2e.result }}
+        run: |
+          failed=false
+          for result in "$BACKEND_UNIT_RESULT" "$BACKEND_INTEGRATION_RESULT" "$BFF_UNIT_RESULT" \
+                        "$WEB_UNIT_RESULT" "$BFF_COMPONENT_RESULT" "$E2E_RESULT"; do
+            if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
+              echo "Found a non-passing result: $result"
+              failed=true
+            fi
+          done
+          if [ "$failed" = "true" ]; then
+            echo "One or more PR test jobs did not pass."
+            exit 1
+          fi
+          echo "All PR test jobs passed (or were correctly skipped for a non-app change)."
 
   sonar:
     name: SonarCloud Analysis
-    needs: [test-suite-passed, backend-unit, bff-unit, web-unit]
+    needs: [detect-changes, test-suite-passed, backend-unit, bff-unit, web-unit]
+    # test-suite-passed's own allow-list already resolves "backend/bff/web
+    # unit tests either succeeded or were correctly skipped" into one
+    # success/failure verdict — checking it alone here is sufficient and
+    # avoids re-deriving that logic. Skips entirely when no app code
+    # changed: nothing new for Sonar to analyze, and its own coverage
+    # artifacts wouldn't exist to download otherwise (M17-S24, 2026-07-21).
+    if: needs.test-suite-passed.result == 'success' && needs.detect-changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -428,7 +513,8 @@ jobs:
 
   dependency-review:
     name: Dependency Review
-    needs: [test-suite-passed]
+    needs: [detect-changes, test-suite-passed]
+    if: needs.test-suite-passed.result == 'success' && needs.detect-changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -501,7 +587,8 @@ jobs:
 
   trivy-scan:
     name: Trivy Image Scan (${{ matrix.service }})
-    needs: [test-suite-passed]
+    needs: [detect-changes, test-suite-passed]
+    if: needs.test-suite-passed.result == 'success' && needs.detect-changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
