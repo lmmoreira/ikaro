@@ -23,6 +23,13 @@ name: Infra — Terraform Deploy Pipeline
 # can't express both behaviors, and `push` events to `main` always share
 # the same `github.ref` — a workflow-level `cancel-in-progress: true` would
 # risk cancelling an in-flight prod apply on the next merge.
+#
+# `IAM_ADMIN_USER`/`BREVO_SMTP_LOGIN` are repo-level GitHub Variables, not
+# environment-scoped: environment-scoped values are only visible to jobs
+# that declare that exact `environment:`, and `plan-*`/`drift-*` jobs
+# deliberately declare none (same reasoning as the tf-planner WIF binding —
+# PR plans and drift checks must run without an approval gate). Repo-level
+# is the only scope every job here can see (review finding, 2026-07-21).
 
 on:
   pull_request:
@@ -46,6 +53,7 @@ jobs:
     name: Detect infra changes
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       infra: ${{ steps.filter.outputs.infra }}
       modules: ${{ steps.modules.outputs.modules }}
@@ -76,6 +84,7 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.infra == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -93,6 +102,7 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.infra == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -110,7 +120,7 @@ jobs:
       - name: terraform validate — ${{ matrix.env }}
         working-directory: infra/terraform/envs/${{ matrix.env }}
         run: |
-          terraform init -backend=false -input=false
+          terraform init -backend=false -input=false -lockfile=readonly
           terraform validate
 
   terraform-test:
@@ -118,6 +128,7 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.infra == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -131,6 +142,10 @@ jobs:
         with:
           terraform_version: '1.15.8'
           terraform_wrapper: false
+
+      - name: terraform init — ${{ matrix.module }}
+        working-directory: infra/terraform/modules/${{ matrix.module }}
+        run: terraform init -input=false -lockfile=readonly
 
       # Mocked providers (mock_provider "google" etc.) — needs no GCP
       # credentials, so this runs before any WIF auth step (Wave 2 preamble
@@ -154,12 +169,15 @@ jobs:
       needs.validate.result == 'success' &&
       needs.terraform-test.result == 'success'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     concurrency:
       group: infra-plan-staging-${{ github.ref }}
       cancel-in-progress: true
     permissions:
       contents: read
       id-token: write # mints the short-lived WIF token for google-github-actions/auth
+    outputs:
+      plan_summary: ${{ steps.plan.outputs.summary }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -177,20 +195,60 @@ jobs:
           terraform_wrapper: false
 
       - name: terraform plan — staging
+        id: plan
         working-directory: infra/terraform/envs/staging
         env:
           TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
           TF_VAR_brevo_smtp_login: ${{ vars.BREVO_SMTP_LOGIN }}
         run: |
-          terraform init -input=false
-          terraform plan -input=false -no-color -out=tfplan
+          terraform init -input=false -lockfile=readonly
+          terraform plan -input=false -no-color -lock-timeout=60s -out=tfplan
           terraform show -no-color tfplan > plan-output.txt
+          terraform show -json tfplan > plan.json
+
+          # Sanitized summary for the PR comment: resource addresses + action
+          # verbs only, extracted from the structured JSON plan — never the
+          # "before"/"after" attribute data. Verified empirically (isolated
+          # test, 2026-07-21): terraform show -json's top-level `.variables`
+          # key holds every input variable's RAW value, including sensitive
+          # ones, even when that variable is only ever used in a provider
+          # block and never becomes a resource attribute — `sensitive = true`
+          # does not redact this section. The jq query below only ever reads
+          # `.resource_changes[].address`/`.change.actions`, never `.variables`,
+          # and plan.json/tfplan are deleted immediately below as defense in
+          # depth (neither is uploaded or printed anywhere either way).
+          total=$(jq '[.resource_changes[] | select(.change.actions != ["no-op"])] | length' plan.json)
+          {
+            echo "summary<<PLAN_SUMMARY_EOF"
+            grep -E '^(Plan:|No changes)' plan-output.txt || echo "Plan: unable to summarize"
+            echo ""
+            jq -r '.resource_changes[] | select(.change.actions != ["no-op"]) | "- \(.change.actions | join(",")): \(.address)"' plan.json | head -50
+            if [ "$total" -gt 50 ]; then
+              echo "... and $((total - 50)) more (see job summary)"
+            fi
+            echo "PLAN_SUMMARY_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      # Separate step with if: always(), not the tail of the plan step above
+      # — GitHub Actions bash steps run with `-e` by default, so if the jq
+      # extraction had failed partway, a same-step `rm -f` at the very end
+      # would never execute, leaving tfplan/plan.json (containing the raw
+      # secret in `.variables`, see the plan step's comments) sitting on
+      # the runner's disk until the job's teardown. This guarantees cleanup
+      # regardless of the plan step's outcome.
+      - name: Delete plan files
+        if: always()
+        working-directory: infra/terraform/envs/staging
+        run: rm -f tfplan plan.json
 
       # Full plan output (resource names, CIDRs, SA emails — infra topology)
       # goes to the job summary only, never a PR comment — the repo is
       # public, and a job summary is meaningfully less discoverable than an
       # inline PR comment even though both are technically public (2026-07-08
-      # decision, restated in story-discovery 2026-07-21).
+      # decision, restated in story-discovery 2026-07-21). The PR comment
+      # (pr-comment job) does get a sanitized address+action summary via
+      # steps.plan.outputs.summary above — resource addresses only, never
+      # attribute values (review finding, 2026-07-21).
       - name: Write plan to job summary
         if: always()
         run: |
@@ -201,16 +259,14 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # Uploaded only on push (merge to main) — apply-staging reuses this
-      # exact plan instead of re-planning, per the story's "using the plan
-      # artifact from the merged commit where practical."
-      - name: Upload plan artifact
-        if: github.event_name == 'push'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: tfplan-staging
-          path: infra/terraform/envs/staging/tfplan
-          retention-days: 1
+      # Deliberately no "Upload plan artifact" step here — apply-staging
+      # replans and applies fresh instead of reusing a saved plan, same as
+      # apply-prod, even though none of staging's current variables are
+      # `sensitive`. Kept symmetric with prod on purpose: if staging ever
+      # gains its own sensitive variable later, the safe pattern is already
+      # in place instead of depending on someone remembering to reconsider
+      # this decision at that point — the exact trap that caused the
+      # original finding (M17-S24 review, 2026-07-21).
 
   plan-prod:
     name: Terraform plan (prod)
@@ -221,12 +277,15 @@ jobs:
       needs.validate.result == 'success' &&
       needs.terraform-test.result == 'success'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     concurrency:
       group: infra-plan-prod-${{ github.ref }}
       cancel-in-progress: true
     permissions:
       contents: read
       id-token: write # mints the short-lived WIF token for google-github-actions/auth
+    outputs:
+      plan_summary: ${{ steps.plan.outputs.summary }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -244,18 +303,57 @@ jobs:
           terraform_wrapper: false
 
       - name: terraform plan — prod
+        id: plan
         working-directory: infra/terraform/envs/prod
         env:
           TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
           TF_VAR_brevo_smtp_login: ${{ vars.BREVO_SMTP_LOGIN }}
           # Genuine credential (Cloudflare API token) — Terraform's own
-          # `sensitive = true` on this variable redacts it from plan output
-          # automatically; GitHub also masks the raw secret value in logs.
+          # `sensitive = true` on this variable redacts it from *rendered*
+          # plan output (terraform show, CLI text) and GitHub also masks
+          # the raw secret value in logs. It does NOT redact the saved
+          # binary plan file's contents. Even worse than a redacted-in-text
+          # value: terraform show -json's top-level `.variables` key holds
+          # this variable's RAW value in cleartext, verified empirically
+          # (isolated test, 2026-07-21) — despite cloudflare_api_token only
+          # ever being used in the provider block (providers.tf), never a
+          # resource attribute. Neither tfplan nor plan.json ever gets
+          # uploaded, printed, or included in the PR comment (see
+          # infra/terraform/README.md § Public-repository security, and the
+          # jq extraction + rm -f below).
           TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
-          terraform init -input=false
-          terraform plan -input=false -no-color -out=tfplan
+          terraform init -input=false -lockfile=readonly
+          terraform plan -input=false -no-color -lock-timeout=60s -out=tfplan
           terraform show -no-color tfplan > plan-output.txt
+          terraform show -json tfplan > plan.json
+
+          # Sanitized summary for the PR comment: resource addresses + action
+          # verbs only, extracted from the structured JSON plan — never the
+          # "before"/"after" attribute data or the `.variables` key (see the
+          # env: block comment above for why `.variables` matters here).
+          # The jq query below only ever reads `.resource_changes[].address`/
+          # `.change.actions`; plan.json/tfplan are deleted immediately below
+          # as defense in depth regardless.
+          total=$(jq '[.resource_changes[] | select(.change.actions != ["no-op"])] | length' plan.json)
+          {
+            echo "summary<<PLAN_SUMMARY_EOF"
+            grep -E '^(Plan:|No changes)' plan-output.txt || echo "Plan: unable to summarize"
+            echo ""
+            jq -r '.resource_changes[] | select(.change.actions != ["no-op"]) | "- \(.change.actions | join(",")): \(.address)"' plan.json | head -50
+            if [ "$total" -gt 50 ]; then
+              echo "... and $((total - 50)) more (see job summary)"
+            fi
+            echo "PLAN_SUMMARY_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      # Separate step with if: always(), same reasoning as plan-staging's
+      # "Delete plan files" step — guarantees cleanup even if the jq
+      # extraction above failed partway (bash steps run with -e by default).
+      - name: Delete plan files
+        if: always()
+        working-directory: infra/terraform/envs/prod
+        run: rm -f tfplan plan.json
 
       - name: Write plan to job summary
         if: always()
@@ -267,13 +365,15 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload plan artifact
-        if: github.event_name == 'push'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: tfplan-prod
-          path: infra/terraform/envs/prod/tfplan
-          retention-days: 1
+      # Deliberately no "Upload plan artifact" step here (same as
+      # plan-staging): this plan's TF_VAR_cloudflare_api_token is a genuine
+      # credential, and Terraform's saved plan files store every variable's
+      # real value in cleartext regardless of `sensitive` — `sensitive` only
+      # redacts rendered CLI/summary output. A workflow artifact on this
+      # public repo would make the token downloadable by anyone with read
+      # access. apply-prod re-plans and applies fresh instead of reusing a
+      # saved plan (see apply-prod's own comment for why that's still safe
+      # from a review standpoint). Real finding, M17-S24 review, 2026-07-21.
 
   # Single required-check gate, matching the existing test-suite-passed
   # pattern (pr-tests.yml) — avoids naming every matrix leg (terraform-test,
@@ -284,12 +384,18 @@ jobs:
     needs: [detect-changes, fmt, validate, terraform-test, plan-staging, plan-prod]
     if: always() && (github.event_name == 'pull_request' || github.event_name == 'push')
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      # Results are passed via env rather than expanded directly into the
-      # run: script — GitHub-controlled values (job results can only ever be
-      # success/failure/cancelled/skipped), but routing through env keeps
-      # this immune to the whole class of template-injection risk regardless
-      # (zizmor's template-injection audit; also easier to read).
+      # Allow-list, not deny-list: only "success" or "skipped" (the correct
+      # no-op for a non-infra PR) satisfy the gate. Checking only for
+      # "failure" would let a "cancelled" result — a real possibility, since
+      # plan-staging/plan-prod use cancel-in-progress: true — slip through
+      # as a false pass. Results are passed via env rather than expanded
+      # directly into the run: script — GitHub-controlled values (job
+      # results can only ever be success/failure/cancelled/skipped), but
+      # routing through env keeps this immune to the whole class of
+      # template-injection risk regardless (zizmor's template-injection
+      # audit; also easier to read). Real finding, M17-S24 review, 2026-07-21.
       - name: Check results
         env:
           DETECT_CHANGES_RESULT: ${{ needs.detect-changes.result }}
@@ -299,13 +405,16 @@ jobs:
           PLAN_STAGING_RESULT: ${{ needs.plan-staging.result }}
           PLAN_PROD_RESULT: ${{ needs.plan-prod.result }}
         run: |
-          if [ "$DETECT_CHANGES_RESULT" = "failure" ] || \
-             [ "$FMT_RESULT" = "failure" ] || \
-             [ "$VALIDATE_RESULT" = "failure" ] || \
-             [ "$TERRAFORM_TEST_RESULT" = "failure" ] || \
-             [ "$PLAN_STAGING_RESULT" = "failure" ] || \
-             [ "$PLAN_PROD_RESULT" = "failure" ]; then
-            echo "One or more infra PR checks failed."
+          failed=false
+          for result in "$DETECT_CHANGES_RESULT" "$FMT_RESULT" "$VALIDATE_RESULT" \
+                        "$TERRAFORM_TEST_RESULT" "$PLAN_STAGING_RESULT" "$PLAN_PROD_RESULT"; do
+            if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
+              echo "Found a non-passing result: $result"
+              failed=true
+            fi
+          done
+          if [ "$failed" = "true" ]; then
+            echo "One or more infra PR checks did not pass."
             exit 1
           fi
           echo "All infra PR checks passed (or were correctly skipped for a non-infra change)."
@@ -315,22 +424,40 @@ jobs:
     needs: [detect-changes, plan-staging, plan-prod]
     if: always() && needs.detect-changes.outputs.infra == 'true' && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
       pull-requests: write # marocchino/sticky-pull-request-comment needs this to create/update the PR comment
     steps:
+      # PLAN_STAGING_SUMMARY/PLAN_PROD_SUMMARY are resource addresses + action
+      # verbs + the top-line add/change/destroy counts only — generated by
+      # plan-staging/plan-prod from the structured JSON plan, never from the
+      # "before"/"after" attribute data (see those jobs' own comments). Full
+      # attribute-level detail stays in the job summary only, not this
+      # comment (2026-07-08 decision, partially revised 2026-07-21 to add
+      # this bounded, values-free extract).
       - name: Build comment body
         env:
           PLAN_STAGING_RESULT: ${{ needs.plan-staging.result }}
           PLAN_PROD_RESULT: ${{ needs.plan-prod.result }}
+          PLAN_STAGING_SUMMARY: ${{ needs.plan-staging.outputs.plan_summary }}
+          PLAN_PROD_SUMMARY: ${{ needs.plan-prod.outputs.plan_summary }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           {
             echo "### Terraform Plan"
-            echo "- staging: \`$PLAN_STAGING_RESULT\`"
-            echo "- prod: \`$PLAN_PROD_RESULT\`"
             echo ""
-            echo "Full plan output (resource names, CIDRs, SA emails — infra topology) is in this run's [job summary]($RUN_URL), not this comment (public repo)."
+            echo "**Staging** (\`$PLAN_STAGING_RESULT\`)"
+            echo '```'
+            echo "$PLAN_STAGING_SUMMARY"
+            echo '```'
+            echo ""
+            echo "**Prod** (\`$PLAN_PROD_RESULT\`)"
+            echo '```'
+            echo "$PLAN_PROD_SUMMARY"
+            echo '```'
+            echo ""
+            echo "Resource addresses and actions only — no attribute values (CIDRs, SA emails, etc.), no plan artifact. Full plan output is in this run's [job summary]($RUN_URL) (public repo)."
           } > comment-body.md
 
       - uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
@@ -347,6 +474,7 @@ jobs:
     needs: [detect-changes, plan-staging]
     if: needs.detect-changes.outputs.infra == 'true' && github.event_name == 'push' && needs.plan-staging.result == 'success'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     environment: staging-infrastructure
     concurrency:
       group: staging-mutations
@@ -358,12 +486,6 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-
-      - name: Download plan artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: tfplan-staging
-          path: infra/terraform/envs/staging/
 
       - name: Authenticate as tf-deployer (staging)
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
@@ -378,24 +500,35 @@ jobs:
 
       - name: terraform apply — staging
         working-directory: infra/terraform/envs/staging
+        env:
+          TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
+          TF_VAR_brevo_smtp_login: ${{ vars.BREVO_SMTP_LOGIN }}
         run: |
-          terraform init -input=false
-          terraform apply -input=false tfplan
+          terraform init -input=false -lockfile=readonly
+          terraform apply -input=false -lock-timeout=60s -auto-approve
 
   apply-prod:
     name: Terraform apply (prod)
-    # apply-prod's own steps (including this re-checkout/download/apply) only
-    # execute after the `production-infrastructure` environment's required
-    # reviewer approves — the reviewer's review step is the already-completed
-    # plan-prod job's output (job summary), not a re-plan inside this job:
-    # GitHub does not start a protected-environment job's steps until after
-    # approval, so there is no way for this job's own log to show a plan
-    # *before* that approval happens. plan-prod already ran (and posted its
-    # output) earlier in this same push, before this job even entered the
-    # "waiting for review" state.
+    # Both apply jobs re-plan and apply fresh rather than reusing a saved
+    # plan artifact — plan-staging/plan-prod deliberately never upload
+    # their plans (see plan-prod's own comment: kept symmetric with staging
+    # even though only prod's TF_VAR_cloudflare_api_token is currently a
+    # genuine credential, since saved plan files store every variable's
+    # real value in cleartext regardless of `sensitive`, and this way a
+    # future sensitive variable added to either env is already safe by
+    # default). The reviewer's review material is still plan-prod's job
+    # summary output, already posted
+    # earlier in this same push, before this job even entered the "waiting
+    # for review" state — GitHub does not start a protected-environment
+    # job's steps until after approval, so there is no way for this job's
+    # own log to show a plan *before* that approval happens. A small
+    # TOCTOU gap (state could theoretically drift between plan-prod and
+    # this apply) is an acceptable, low-probability trade for never
+    # persisting a credential-bearing artifact on a public repo.
     needs: [detect-changes, plan-prod, apply-staging]
     if: needs.detect-changes.outputs.infra == 'true' && github.event_name == 'push' && needs.plan-prod.result == 'success' && needs.apply-staging.result == 'success'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     environment: production-infrastructure
     concurrency:
       group: production-mutations
@@ -407,12 +540,6 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-
-      - name: Download plan artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: tfplan-prod
-          path: infra/terraform/envs/prod/
 
       - name: Authenticate as tf-deployer (prod)
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
@@ -427,9 +554,13 @@ jobs:
 
       - name: terraform apply — prod
         working-directory: infra/terraform/envs/prod
+        env:
+          TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
+          TF_VAR_brevo_smtp_login: ${{ vars.BREVO_SMTP_LOGIN }}
+          TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
-          terraform init -input=false
-          terraform apply -input=false tfplan
+          terraform init -input=false -lockfile=readonly
+          terraform apply -input=false -lock-timeout=60s -auto-approve
 
   # ---------------------------------------------------------------------
   # Weekly drift detection (read-only, tf-planner) + on-demand re-run
@@ -439,6 +570,7 @@ jobs:
     name: Drift check (staging)
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       id-token: write # mints the short-lived WIF token for google-github-actions/auth
@@ -467,13 +599,14 @@ jobs:
           TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
           TF_VAR_brevo_smtp_login: ${{ vars.BREVO_SMTP_LOGIN }}
         run: |
-          terraform init -input=false
-          terraform plan -input=false -no-color -detailed-exitcode
+          terraform init -input=false -lockfile=readonly
+          terraform plan -input=false -no-color -lock-timeout=60s -detailed-exitcode
 
   drift-prod:
     name: Drift check (prod)
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       id-token: write # mints the short-lived WIF token for google-github-actions/auth
@@ -500,5 +633,5 @@ jobs:
           TF_VAR_brevo_smtp_login: ${{ vars.BREVO_SMTP_LOGIN }}
           TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
-          terraform init -input=false
-          terraform plan -input=false -no-color -detailed-exitcode
+          terraform init -input=false -lockfile=readonly
+          terraform plan -input=false -no-color -lock-timeout=60s -detailed-exitcode
