@@ -77,19 +77,22 @@ export class RequestInterceptor implements NestInterceptor {
     // same asymmetry CorrelationMiddleware's own comment already documents for the header.
     trace.getActiveSpan()?.setAttributes({
       'tenant.id': tenantId,
-      ...(actorId ? { 'user.id': actorId } : {}),
+      // actor?.actorId (not the raw actorId var) so the span attribute stays consistent with
+      // what's actually propagated into RequestContext — actorId alone can be truthy even when
+      // actorType/actorRole failed validation and actor itself is undefined.
+      ...(actor?.actorId ? { 'user.id': actor.actorId } : {}),
     });
 
     // Wrap the entire request observable in AsyncLocalStorage context so that
-    // RequestContext fields are available anywhere in the call chain.
+    // RequestContext fields are available anywhere in the call chain. Returning the inner
+    // Subscription as this executor's teardown logic wires outer unsubscription (e.g. a client
+    // aborting the request) through to it — otherwise it would keep running after teardown.
     return new Observable((subscriber) => {
-      runWithRequestContext(
+      return runWithRequestContext(
         tenantId,
         correlationId,
         settings,
-        () => {
-          next.handle().subscribe(subscriber);
-        },
+        () => next.handle().subscribe(subscriber),
         actor,
       );
     });

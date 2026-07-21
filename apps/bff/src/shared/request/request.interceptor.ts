@@ -20,27 +20,30 @@ export class RequestInterceptor implements NestInterceptor {
     const correlationId = req.headers['x-correlation-id'] as string;
     const tenantId = req.user?.tenantId;
     const actorId = req.user?.sub;
-    const actorType: 'STAFF' | 'CUSTOMER' | undefined = req.user
-      ? req.user.role === 'CUSTOMER'
-        ? 'CUSTOMER'
-        : 'STAFF'
-      : undefined;
+    let actorType: 'STAFF' | 'CUSTOMER' | undefined;
+    if (req.user) {
+      actorType = req.user.role === 'CUSTOMER' ? 'CUSTOMER' : 'STAFF';
+    }
     const actorRole = req.user?.role;
     const actor = actorId && actorType && actorRole ? { actorId, actorType, actorRole } : undefined;
 
     if (tenantId) {
       trace.getActiveSpan()?.setAttributes({
         'tenant.id': tenantId,
-        ...(actorId ? { 'user.id': actorId } : {}),
+        // actor?.actorId (not the raw actorId var) for consistency with the backend's
+        // interceptor — here they're always equivalent (actor and actorId both derive from the
+        // same req.user presence check), but this keeps both interceptors on the same pattern.
+        ...(actor?.actorId ? { 'user.id': actor.actorId } : {}),
       });
     }
 
+    // Returning the inner Subscription as this executor's teardown logic wires outer
+    // unsubscription (e.g. a client aborting the request) through to it — otherwise it would
+    // keep running after teardown.
     return new Observable((subscriber) => {
-      runWithRequestContext(
+      return runWithRequestContext(
         correlationId,
-        () => {
-          next.handle().subscribe(subscriber);
-        },
+        () => next.handle().subscribe(subscriber),
         tenantId,
         actor,
       );

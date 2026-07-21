@@ -209,8 +209,11 @@ const sdk = new NodeSDK({
   sampler: new ParentBasedSampler({
     root: new TraceIdRatioBasedSampler(samplingRate),
   }),
+  // Passing `url` explicitly makes the exporter use it exactly as-is — an explicit `url` does
+  // NOT get `/v1/traces` auto-appended the way the OTEL_EXPORTER_OTLP_ENDPOINT env var does
+  // when read internally by the exporter. Append it ourselves.
   traceExporter: new OTLPTraceExporter({
-    url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? 'http://localhost:4318',
+    url: `${process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? 'http://localhost:4318'}/v1/traces`,
   }),
   instrumentations: [
     getNodeAutoInstrumentations({
