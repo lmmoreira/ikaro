@@ -133,3 +133,32 @@ jobs:
       - run: pnpm --filter @ikaro/infra-scripts run test
       - run: pnpm --filter @ikaro/infra-scripts run pubsub-catalog
       - run: git diff --exit-code infra/terraform/pubsub-catalog.json
+
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write # reviewdog's github-pr-check reporter posts a Check run via this
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: reviewdog/action-actionlint@01d2dd67e3525e5a0ce72e8fa38e5a3ab65e2ded # v1.72.1
+        with:
+          fail_level: error
+          reporter: github-pr-check
+
+  zizmor:
+    name: zizmor
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # zizmor-action's advanced-security mode uploads SARIF to the Security tab via this
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: zizmorcore/zizmor-action@6599ee8b7a49aef6a770f63d261d214911a7ce02 # v0.6.0
