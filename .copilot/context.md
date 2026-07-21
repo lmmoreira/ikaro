@@ -267,9 +267,24 @@ Run type-check, lint, jest — zero errors.
 ```
 feat(<context>): <description> (M0X-SYY)
 
+Co-Authored-By: <your-name> <your-noreply-email>
+```
+
+**If you are Claude:**
+```
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 ```
+(Claude Code adds this automatically as part of its own commit workflow — this line is a reference, not something you need to remember to type.)
+
 `ci:fast` (lint + type-check + unit tests) runs automatically on push and blocks if it fails.
+
+**If you are Codex:** this repo requires the equivalent trailer on every commit you author — it does not happen by default, so add it explicitly:
+```
+feat(<context>): <description> (M0X-SYY)
+
+Co-Authored-By: Codex <noreply@openai.com>
+```
+This is not optional — it's the record of who actually wrote the code, same as Claude's trailer, and matters for attribution/history independent of any tooling. (`/pre-pr` (§17), which dispatches `/pr-review` to the other tool once a PR is open, does *not* need this trailer for that decision — it already knows its own identity without detecting it.)
 
 ### Step 6 — `ci:local` (optional)
 `pnpm ci:local` (~5 min, Docker). Only when touching Dockerfiles, infra, or integration-test paths.
@@ -425,4 +440,5 @@ Pinned Terraform skills live in `.claude/skills/`; refresh them by re-vendoring 
 | `/docs-audit [UC-XXX\|M0X\|actor/slug\|doc-path]` | `.claude/commands/docs-audit.md` |
 | `/mark-done M0X-SYY` | `.claude/commands/mark-done.md` |
 | `/pre-pr` | `.claude/commands/pre-pr.md` |
+| `/pr-review [PR#]` | `.claude/commands/pr-review.md` |
 | `/story-discovery M0X-SYY` | `.claude/commands/story-discovery.md` |

@@ -1,6 +1,6 @@
 ---
 name: pre-pr
-description: Run the pre-PR checklist against the current branch. This is the mandatory gate - run it once when the story implementation is complete. If a PR is already open for this branch, this skill exits immediately.
+description: Run the pre-PR checklist against the current branch. This is the mandatory gate - run it once when the story implementation is complete. If a PR is already open for this branch, this skill exits immediately. Once it opens the PR, dispatches /pr-review to the other tool (Claude <-> Codex) in the background for an independent cross-tool review.
 metadata:
   short-description: Run the mandatory pre-PR checklist
 ---
@@ -202,3 +202,22 @@ Total issues: 0
 Wait for explicit yes before running `gh pr create` (per CLAUDE.md §9 Step 8).
 
 **If any step failed**, list the blocking issues and stop. Do not open the PR.
+
+---
+
+## Step 5 — Dispatch cross-tool review (mandatory, once the PR exists)
+
+Once `gh pr create` succeeds and you have the PR number: self-identify — you already know whether you are Claude or Codex, this is not something to detect — and dispatch `/pr-review` to the *other* tool. A tool should never be the sole reviewer of its own PR.
+
+Run this in the background — don't block on it; pre-pr's own job is done once the PR is open, and `/pr-review` handles everything else itself (review, verification, report, and posting the comment, per its own mandatory Step 4):
+
+- If you are Claude:
+  ```bash
+  codex exec -C "$(pwd)" "Run the pr-review skill (.agents/skills/pr-review/SKILL.md) against GitHub PR #<N> on lmmoreira/ikaro."
+  ```
+- If you are Codex:
+  ```bash
+  claude -p "Run the pr-review skill (.claude/commands/pr-review.md) against GitHub PR #<N> on lmmoreira/ikaro."
+  ```
+
+Tell the user the PR is open and that cross-tool review has been dispatched in the background — don't wait for it to finish before considering pre-pr complete.

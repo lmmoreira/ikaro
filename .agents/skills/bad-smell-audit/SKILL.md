@@ -34,7 +34,7 @@ git diff origin/main...HEAD --name-only | grep "^apps/web/"
 
 2. Pass this file list to the Explore agent as its explicit scope — the agent greps and reads **only those files**, not the full directory tree.
 
-3. **BE-4 is skipped in `--pr` mode** — checking for missing entity builders requires scanning the full `src/test/builders/` tree against all entity files; this is a full-codebase check that the pre-PR script (Step 1, check 28) already covers for new entities added in the PR.
+3. **BE-4 is skipped in `--pr` mode** — checking for missing entity/event/command builders requires scanning the full `src/test/builders/` tree against all entity/event/command files; this is a full-codebase check that the pre-PR script (Step 1, check 28) already covers for new entities, events, and commands added in the PR.
 
 4. All other checks (BE-1, BE-2, BE-3, BE-5, BE-6, BE-7, BFF-1–4, WEB-1–7) run normally but scoped to the changed file list.
 
@@ -78,18 +78,21 @@ Grep for:
 - Inline regex patterns like `/^[a-z0-9-]+$/`, `/^#[0-9A-Fa-f]{6}$/`, `/@.*\./` in domain or application layer files (not in value-objects)
 - `Intl.supportedValuesOf` calls outside `src/shared/value-objects/`
 
-### BE-3. `makeXxx()` helpers or inline TypeORM entity construction in tests
+### BE-3. `makeXxx()` helpers or inline TypeORM entity/event/command construction in tests
 
 Grep for:
-- `function make` in `*.spec.ts` or `*.integration.spec.ts` files
+- `function make` in `*.spec.ts` or `*.integration.spec.ts` files — **then read each match's body before flagging it**: only a real finding if it constructs a TypeORM entity (`new XxxEntity(...)` or an entity-typed object literal) or a `DomainEvent`/`Command` subclass. A helper that builds a mock (`ConfigService`, `ExecutionContext`, `Reflector`, a fake port/adapter) or a plain application-layer DTO is **not** the smell this check targets — it's about bypassing `src/test/builders/`, not "any function named `make*`." (Confirmed via TD23-S17: without the read-the-body step, this bullet produced 25/25 false positives — every match was a mock/DTO factory.)
 - `new XxxEntity()` called directly inside a test `it()` or `describe()` block (not inside a builder class)
 - Object literals assigned to a variable of a TypeORM entity type inside test files
+- `new XxxEvent(...)` or `new XxxCommand(...)` (classes extending `DomainEvent`/`Command`) constructed inline with all constructor args spelled out, in **two or more** spec files (a single one-off construction in one file is fine; repetition across files is the smell)
 
-The fix pattern: create a `XxxEntityBuilder` in `src/test/builders/<context>/`.
+The fix pattern: create a `XxxEntityBuilder` (for entities) or `XxxEventBuilder`/`XxxCommandBuilder` (for `DomainEvent`/`Command` classes) in `src/test/builders/<context>/`.
 
-### BE-4. Missing `XxxEntityBuilder` for existing TypeORM entities
+### BE-4. Missing `XxxEntityBuilder`/`XxxEventBuilder`/`XxxCommandBuilder` for existing classes
 
 For each TypeORM entity class found in `*/infrastructure/entities/*.entity.ts`, check whether a corresponding `XxxEntityBuilder` exists in `src/test/builders/<context>/`. Report entities that have no builder file.
+
+Same check for domain events and commands: for each class found in `*/domain/events/*.event.ts` or `*/domain/commands/*.command.ts` that is constructed inline (via `new XxxEvent(...)`/`new XxxCommand(...)`) in **two or more** test files, check whether a corresponding `XxxEventBuilder`/`XxxCommandBuilder` exists in `src/test/builders/<context>/`. Report any that don't.
 
 ### BE-5. Seed file containing DDL
 
@@ -170,7 +173,7 @@ Grep `apps/web/` for import statements using bare built-in names: `from 'path'`,
 
 ### WEB-7. Fetcher files not mirroring bounded-context names
 
-List filenames in `apps/web/lib/api/`. Flag any file whose name corresponds to an aggregate name rather than a bounded-context name. Valid base names mirror CLAUDE.md §3: `booking`, `customer`, `staff`, `loyalty`, `notification`, `platform`. For example, `tenants.ts` is wrong (`Tenant` is an aggregate in `platform`); `platform.ts` is correct.
+Check the actual current fetcher/API layout first — `apps/web/features/<domain>/api/**` (post-TD-21 domain-slice migration; there is no flat `apps/web/lib/api/` anymore) and `apps/web/shared/lib/api/**` for cross-cutting transport helpers (`bff-client.ts`, `bff-server.ts`, `errors.ts`, etc.). Within a domain's own `api/` folder, a file is correctly named after the *resource* it fetches, not the domain — the domain is already encoded by the directory path, so `features/booking/api/services.ts` and `features/booking/api/schedule.ts` are both correct as-is. Two different domains can legitimately have same-named files for different purposes (e.g. `features/booking/api/services.ts` for staff CRUD vs. `features/platform/hotsite/api/services.ts` for public hotsite reads of the same underlying aggregate) — that is not the smell. The actual smell is a file named after an aggregate from a *different* bounded context than the directory it lives in (e.g. a `tenants.ts` file — `Tenant` is a `platform` aggregate — sitting inside a non-`platform` domain's `api/` folder), or a cross-cutting `shared/lib/api/**` helper misnamed after an aggregate instead of its actual transport purpose. (Confirmed via TD23-S17: the old "list `apps/web/lib/api/`, flag non-context names" version of this check produced 9/9 false positives — that directory doesn't exist in the current architecture, and every flagged file was correctly resource-named within its own domain.)
 
 ---
 
@@ -188,10 +191,10 @@ List filenames in `apps/web/lib/api/`. Flag any file whose name corresponds to a
 #### BE-2. Duplicated isValidXxx / inline validation
 (none found)
 
-#### BE-3. makeXxx() helpers / inline entity construction in tests
+#### BE-3. makeXxx() helpers / inline entity/event/command construction in tests
 ...
 
-#### BE-4. Missing XxxEntityBuilder
+#### BE-4. Missing XxxEntityBuilder / XxxEventBuilder / XxxCommandBuilder
 ...
 
 #### BE-5. Seed DDL
