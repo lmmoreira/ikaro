@@ -971,7 +971,7 @@ Pub/Sub target (not HTTP): `pubsub_target { topic_name, data = base64("{}") }`.
 
 ---
 
-### M17-S23 — GitHub environments + repository variables
+### M17-S23 — GitHub environments + repository variables ✅ Done
 
 **Agent:** `devops`
 **Complexity:** S
