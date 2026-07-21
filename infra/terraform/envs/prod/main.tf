@@ -33,6 +33,13 @@ locals {
   # lands — ignore_changes in modules/cloudrun-service keeps this from
   # fighting that transition.
   bootstrap_image = "gcr.io/cloudrun/hello@sha256:3beb8d6dd8bac1c597d10f3ddf59f5f684d6054ab589c4334c0486dad07a3f97"
+
+  # Single source of truth for the branded domain (D11) — was hardcoded as
+  # the literal "ikaro.online" in 5 places across this file (backend/bff env
+  # vars, the edge module's own root_domain input); interpolating one local
+  # everywhere prevents the domain drifting between call sites if it's ever
+  # changed (CodeRabbit finding, 2026-07-20).
+  root_domain = "ikaro.online"
 }
 
 module "network" {
@@ -204,12 +211,12 @@ module "cloudrun_backend" {
       GCS_PUBLIC_BUCKET_NAME = module.storage.public_bucket_name
 
       EMAIL_ADAPTER = "brevo"
-      EMAIL_FROM    = "noreply@ikaro.online"
+      EMAIL_FROM    = "noreply@${local.root_domain}"
 
       # Final branded domain (D11) — used for links in emails etc. regardless
       # of ingress mode; unlike GOOGLE_CALLBACK_URL below, nothing needs this
       # host to actually resolve yet.
-      FRONTEND_URL = "https://ikaro.online"
+      FRONTEND_URL = "https://${local.root_domain}"
     },
     # BREVO_SMTP_LOGIN is optional-with-min-length in the backend schema — a
     # present "" satisfies "not absent" but fails min(1), crashing app boot
@@ -233,11 +240,15 @@ module "cloudrun_backend" {
   }
 }
 
-# Public for now (D5: prod's edge/Cloud Armor lockdown lands in S22/S36) —
-# ingress flips to INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER once S22's ALB
-# exists (S18 variable, per S22's own story text). ALL_TRAFFIC egress:
-# *.run.app resolves to public IPs, so PRIVATE_RANGES_ONLY would route the
-# backend call outside the VPC and internal ingress would reject it (M17 §0).
+# Internal-load-balancer ingress (S22): the raw *.run.app URL no longer
+# accepts direct internet traffic — only the Global external ALB's
+# serverless NEG can reach it. allow_unauthenticated stays true: the app's
+# public-auth model doesn't rely on Cloud Run IAM invoker checks (that's
+# S47/future scope, M17 §2) — narrowing ingress changes the network path,
+# not who's allowed to call once traffic arrives via the LB. ALL_TRAFFIC
+# egress unchanged: *.run.app resolves to public IPs, so PRIVATE_RANGES_ONLY
+# would route the backend call outside the VPC and internal ingress would
+# reject it (M17 §0).
 module "cloudrun_bff" {
   source = "../../modules/cloudrun-service"
 
@@ -256,7 +267,7 @@ module "cloudrun_bff" {
   deletion_protection   = true
   max_instance_count    = var.bff_max_instances
 
-  ingress    = "INGRESS_TRAFFIC_ALL"
+  ingress    = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
   vpc_egress = "ALL_TRAFFIC"
   network_id = module.network.network_id
   subnet_id  = module.network.subnet_id
@@ -275,13 +286,12 @@ module "cloudrun_bff" {
     GCP_PROJECT = var.project_id
 
     BACKEND_INTERNAL_URL = module.cloudrun_backend.service_uri
-    # Not yet bff.ikaro.online — that hostname doesn't resolve until S22's
-    # DNS + cert land; S22 flips this to the custom domain at that point.
-    # var.bff_real_uri starts as a placeholder -- see its description for the
-    # apply-once/paste-real-value/apply-again bootstrap sequence.
-    GOOGLE_CALLBACK_URL = "${var.bff_real_uri}/v1/auth/google/callback"
-    ALLOWED_ORIGINS     = "https://ikaro.online,https://www.ikaro.online"
-    FRONTEND_URL        = "https://ikaro.online"
+    # Fixed custom domain (S22's edge module + Cloudflare DNS make this
+    # hostname real) — no placeholder/two-apply bootstrap dance needed here
+    # anymore, unlike staging's bff_real_uri (no edge module there, D5).
+    GOOGLE_CALLBACK_URL = "https://bff.${local.root_domain}/v1/auth/google/callback"
+    ALLOWED_ORIGINS     = "https://${local.root_domain}"
+    FRONTEND_URL        = "https://${local.root_domain}"
 
     # M17 §2: ENABLE_DEV_AUTH=true only in staging — omitted here, and the
     # schema itself rejects true when APP_ENV=production regardless.
@@ -296,10 +306,10 @@ module "cloudrun_bff" {
   }
 }
 
-# Public for now, same ingress split as bff above. No VPC egress — web never
-# calls the backend directly, only the public BFF URL. NEXT_PUBLIC_*
-# build-time vars and the per-env image consequence are S26's scope, not
-# this module's.
+# Same internal-load-balancer ingress split as bff above (S22). No VPC
+# egress — web never calls the backend directly, only the public BFF URL.
+# NEXT_PUBLIC_* build-time vars and the per-env image consequence are S26's
+# scope, not this module's.
 module "cloudrun_web" {
   source = "../../modules/cloudrun-service"
 
@@ -321,7 +331,7 @@ module "cloudrun_web" {
   # execution environment", a combination no static check catches).
   deletion_protection = true
 
-  ingress               = "INGRESS_TRAFFIC_ALL"
+  ingress               = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
   allow_unauthenticated = true
 
   health_check_ready_path = "/api/health/ready"
@@ -331,6 +341,28 @@ module "cloudrun_web" {
     NODE_ENV = "production"
     APP_ENV  = "production"
   }
+}
+
+# Global external ALB + serverless NEGs + Cloudflare DNS (M17-S22, D5/D11) —
+# prod only. Depends on the bff/web Cloud Run services' *names* (for the
+# NEGs), not their *.run.app URIs — ingress on both flipped to
+# INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER above so this ALB becomes their
+# only public entry point. Composed but not applied yet — same plan-only
+# status as the rest of this env root until S24/S37 (cert issuance,
+# Cloudflare record creation, and the ingress flip all need to land in one
+# apply so the services don't go temporarily unreachable mid-cutover).
+module "edge" {
+  source = "../../modules/edge"
+
+  project_id  = var.project_id
+  environment = var.environment
+  region      = var.region
+  labels      = var.labels
+
+  root_domain        = local.root_domain
+  web_service_name   = module.cloudrun_web.service_name
+  bff_service_name   = module.cloudrun_bff.service_name
+  cloudflare_zone_id = var.cloudflare_zone_id
 }
 
 module "pubsub" {

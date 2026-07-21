@@ -50,3 +50,7 @@ bff_max_instances     = 20
 # envs/staging/terraform.tfvars).
 staging_project_id     = "ikaro-staging"
 staging_project_number = "729809528251"
+
+# Cloudflare zone ID for ikaro.online (S09 zone, non-secret resource
+# identifier — same treatment as project_number/staging_project_number).
+cloudflare_zone_id = "7410cf58ba867f364e641cf9ea873078"

@@ -10,12 +10,6 @@ variable "bff_max_instances" {
   default     = 20
 }
 
-variable "bff_real_uri" {
-  description = "BFF's real *.run.app URI, used to build GOOGLE_CALLBACK_URL. Cannot be derived from module.cloudrun_bff.service_uri (a module cannot take its own output as one of its own inputs) — this is the standard Terraform bootstrap pattern instead: apply once with the placeholder default, read the real value from this root's bff_service_uri output, paste it here (local.auto.tfvars or terraform.tfvars), then apply again. Real apply finding, 2026-07-19: the *.run.app URL is a per-project hash, not the deterministic project-number format an earlier assumption relied on, so it cannot be precomputed either. Superseded once S22's edge module + bff.ikaro.online land."
-  type        = string
-  default     = "https://ikaro-bff-placeholder.invalid"
-}
-
 variable "bootstrap_mode" {
   description = "S18 launch state: services run a placeholder public image with relaxed (\"/\") probes until S27's first real pipeline deploy flips this to false."
   type        = bool
@@ -26,6 +20,22 @@ variable "brevo_smtp_login" {
   description = "Brevo SMTP account login (non-secret per the S16 catalog — only BREVO_SMTP_KEY is a Secret Manager secret). Value never committed: gitignored local.auto.tfvars locally, a GitHub environment variable in the pipeline (S24, same treatment as iam_admin_user)."
   type        = string
   default     = ""
+}
+
+variable "cloudflare_api_token" {
+  description = "Cloudflare API token (S09 — scoped Zone:DNS:Edit + Zone:Cache Purge for ikaro.online only, never a Global API Key). A genuine secret — never committed: gitignored local.auto.tfvars / TF_VAR_cloudflare_api_token locally, the CLOUDFLARE_API_TOKEN GitHub Secret in the pipeline (S23/S24)."
+  type        = string
+  sensitive   = true
+}
+
+variable "cloudflare_zone_id" {
+  description = "Cloudflare zone ID for ikaro.online (S09 — the zone already exists, created out-of-band via the Cloudflare dashboard runbook, not Terraform-managed). Plain, non-secret identifier (same treatment as project_number). Discover via: cloudflare zone list, or the zone's Overview page in the Cloudflare dashboard."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[0-9a-f]{32}$", var.cloudflare_zone_id))
+    error_message = "cloudflare_zone_id must be a 32-character lowercase hex zone ID, not a zone name."
+  }
 }
 
 variable "cors_origins" {
