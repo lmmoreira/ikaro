@@ -33,6 +33,13 @@ locals {
   # lands — ignore_changes in modules/cloudrun-service keeps this from
   # fighting that transition.
   bootstrap_image = "gcr.io/cloudrun/hello@sha256:3beb8d6dd8bac1c597d10f3ddf59f5f684d6054ab589c4334c0486dad07a3f97"
+
+  # Single source of truth for the branded domain (D11) — was hardcoded as
+  # the literal "ikaro.online" in 5 places across this file (backend/bff env
+  # vars, the edge module's own root_domain input); interpolating one local
+  # everywhere prevents the domain drifting between call sites if it's ever
+  # changed (CodeRabbit finding, 2026-07-20).
+  root_domain = "ikaro.online"
 }
 
 module "network" {
@@ -204,12 +211,12 @@ module "cloudrun_backend" {
       GCS_PUBLIC_BUCKET_NAME = module.storage.public_bucket_name
 
       EMAIL_ADAPTER = "brevo"
-      EMAIL_FROM    = "noreply@ikaro.online"
+      EMAIL_FROM    = "noreply@${local.root_domain}"
 
       # Final branded domain (D11) — used for links in emails etc. regardless
       # of ingress mode; unlike GOOGLE_CALLBACK_URL below, nothing needs this
       # host to actually resolve yet.
-      FRONTEND_URL = "https://ikaro.online"
+      FRONTEND_URL = "https://${local.root_domain}"
     },
     # BREVO_SMTP_LOGIN is optional-with-min-length in the backend schema — a
     # present "" satisfies "not absent" but fails min(1), crashing app boot
@@ -282,9 +289,9 @@ module "cloudrun_bff" {
     # Fixed custom domain (S22's edge module + Cloudflare DNS make this
     # hostname real) — no placeholder/two-apply bootstrap dance needed here
     # anymore, unlike staging's bff_real_uri (no edge module there, D5).
-    GOOGLE_CALLBACK_URL = "https://bff.ikaro.online/v1/auth/google/callback"
-    ALLOWED_ORIGINS     = "https://ikaro.online"
-    FRONTEND_URL        = "https://ikaro.online"
+    GOOGLE_CALLBACK_URL = "https://bff.${local.root_domain}/v1/auth/google/callback"
+    ALLOWED_ORIGINS     = "https://${local.root_domain}"
+    FRONTEND_URL        = "https://${local.root_domain}"
 
     # M17 §2: ENABLE_DEV_AUTH=true only in staging — omitted here, and the
     # schema itself rejects true when APP_ENV=production regardless.
@@ -352,7 +359,7 @@ module "edge" {
   region      = var.region
   labels      = var.labels
 
-  root_domain        = "ikaro.online"
+  root_domain        = local.root_domain
   web_service_name   = module.cloudrun_web.service_name
   bff_service_name   = module.cloudrun_bff.service_name
   cloudflare_zone_id = var.cloudflare_zone_id

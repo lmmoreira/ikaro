@@ -337,3 +337,17 @@ resource "cloudflare_ruleset" "www_redirect" {
     }
   ]
 }
+
+# Full (strict): Cloudflare validates the origin's certificate, not just that
+# TLS is present — required since the origin (Certificate Manager's
+# DNS-authorization cert above) is a real, publicly-trusted certificate, not
+# a self-signed one. Left unmanaged, the zone defaults to Flexible (edge
+# review finding, 2026-07-20) — Cloudflare would then connect to the LB over
+# plain HTTP, which the LB's own HTTP->HTTPS redirect above turns into a
+# redirect loop. "strict" is this setting's API value for the dashboard's
+# "Full (strict)" option.
+resource "cloudflare_zone_setting" "ssl_mode" {
+  zone_id    = var.cloudflare_zone_id
+  setting_id = "ssl"
+  value      = "strict"
+}

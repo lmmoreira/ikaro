@@ -187,3 +187,17 @@ run "www_redirect_rule_targets_the_right_host_and_destination" {
     error_message = "The www redirect must be a permanent (301) redirect."
   }
 }
+
+run "zone_ssl_mode_is_full_strict" {
+  command = plan
+
+  assert {
+    condition     = cloudflare_zone_setting.ssl_mode.setting_id == "ssl"
+    error_message = "The zone_setting resource must target the \"ssl\" setting."
+  }
+
+  assert {
+    condition     = cloudflare_zone_setting.ssl_mode.value == "strict"
+    error_message = "The zone's SSL/TLS mode must be Full (strict) — left unmanaged, the zone defaults to Flexible, which causes a redirect loop against an origin that only serves HTTPS (edge review finding, 2026-07-20)."
+  }
+}
