@@ -281,8 +281,7 @@ jobs:
   # break every time a module gains/loses a tests/ dir.
   infra-pr-checks-passed:
     name: Infra PR Checks Passed
-    needs:
-      [detect-changes, fmt, validate, terraform-test, plan-staging, plan-prod]
+    needs: [detect-changes, fmt, validate, terraform-test, plan-staging, plan-prod]
     if: always() && (github.event_name == 'pull_request' || github.event_name == 'push')
     runs-on: ubuntu-latest
     steps:
