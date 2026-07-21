@@ -1,6 +1,8 @@
 name: Verify Environments + Variables (throwaway - M17-S23)
 
 on:
+  push:
+    branches: [feat/m17-s23-github-environments-repo-vars]
   workflow_dispatch:
 
 permissions:
