@@ -1,5 +1,6 @@
-import { context, trace } from '@opentelemetry/api';
+import { context, propagation, trace } from '@opentelemetry/api';
 import { AsyncHooksContextManager } from '@opentelemetry/context-async-hooks';
+import { W3CTraceContextPropagator } from '@opentelemetry/core';
 import {
   BasicTracerProvider,
   InMemorySpanExporter,
@@ -13,6 +14,13 @@ import { OtelTracingAdapter } from './otel-tracing-adapter';
 // the first place. NodeSDK registers this same AsyncHooksContextManager in production.
 const contextManager = new AsyncHooksContextManager();
 
+// injectContext()/runWithExtractedContext() (TD28) delegate to propagation.inject()/extract(),
+// which are no-ops under the default NoopTextMapPropagator — exactly like context.with() before
+// a real ContextManager was registered above. NodeSDK registers this same W3C propagator (plus
+// baggage) in production via its default OTEL_PROPAGATORS handling; nothing here is adapter- or
+// test-specific.
+const propagator = new W3CTraceContextPropagator();
+
 describe('OtelTracingAdapter', () => {
   let exporter: InMemorySpanExporter;
   let provider: BasicTracerProvider;
@@ -21,11 +29,13 @@ describe('OtelTracingAdapter', () => {
   beforeAll(() => {
     contextManager.enable();
     context.setGlobalContextManager(contextManager);
+    propagation.setGlobalPropagator(propagator);
   });
 
   afterAll(() => {
     contextManager.disable();
     context.disable();
+    propagation.disable();
   });
 
   beforeEach(() => {
@@ -77,5 +87,76 @@ describe('OtelTracingAdapter', () => {
 
   it('getActiveTraceContext returns undefined when there is no active span', () => {
     expect(adapter.getActiveTraceContext()).toBeUndefined();
+  });
+
+  describe('injectContext() + runWithExtractedContext()', () => {
+    it('links a span started inside runWithExtractedContext as a child of the span active at injectContext() time', () => {
+      const tracer = provider.getTracer('test');
+      const originalSpan = tracer.startSpan('original-request');
+      const carrier: Record<string, string> = {};
+
+      context.with(trace.setSpan(context.active(), originalSpan), () => {
+        adapter.injectContext(carrier);
+      });
+      originalSpan.end();
+
+      let childSpanId: string | undefined;
+      adapter.runWithExtractedContext(carrier, () => {
+        const childSpan = tracer.startSpan('consumer-handler');
+        childSpanId = childSpan.spanContext().spanId;
+        childSpan.end();
+      });
+
+      const exported = exporter.getFinishedSpans();
+      const original = exported.find((s) => s.name === 'original-request');
+      const child = exported.find((s) => s.name === 'consumer-handler');
+
+      expect(original).toBeDefined();
+      expect(child).toBeDefined();
+      expect(child?.spanContext().traceId).toBe(original?.spanContext().traceId);
+      expect(child?.parentSpanContext?.spanId).toBe(original?.spanContext().spanId);
+      expect(childSpanId).toBe(child?.spanContext().spanId);
+    });
+
+    it('carries the serialized carrier as plain string values, ready for Pub/Sub message attributes', () => {
+      const tracer = provider.getTracer('test');
+      const span = tracer.startSpan('test-span');
+      const carrier: Record<string, string> = {};
+
+      context.with(trace.setSpan(context.active(), span), () => {
+        adapter.injectContext(carrier);
+      });
+      span.end();
+
+      expect(carrier['traceparent']).toEqual(expect.any(String));
+      expect(Object.values(carrier).every((v) => typeof v === 'string')).toBe(true);
+    });
+
+    it('injectContext is a no-op (empty carrier) when there is no active span', () => {
+      const carrier: Record<string, string> = {};
+      adapter.injectContext(carrier);
+      expect(carrier).toEqual({});
+    });
+
+    it('runWithExtractedContext runs fn with no linkage when the carrier has nothing extractable', () => {
+      const tracer = provider.getTracer('test');
+      let result: string | undefined;
+
+      adapter.runWithExtractedContext({}, () => {
+        const span = tracer.startSpan('unlinked-handler');
+        result = span.spanContext().traceId;
+        span.end();
+      });
+
+      const [exported] = exporter.getFinishedSpans();
+      expect(exported.name).toBe('unlinked-handler');
+      expect(exported.parentSpanContext).toBeUndefined();
+      expect(result).toBe(exported.spanContext().traceId);
+    });
+
+    it('returns whatever fn returns', () => {
+      const returned = adapter.runWithExtractedContext({}, () => 'handler-result');
+      expect(returned).toBe('handler-result');
+    });
   });
 });

@@ -41,7 +41,15 @@ export class GcpPubSubEventBusAdapter
     await this.ensureTopicOnce(topicName);
     await this.pubsub.topic(topicName).publishMessage({
       data: Buffer.from(JSON.stringify(event)),
-      attributes: { eventName: event.eventName, tenantId: event.tenantId },
+      // event.traceContext (TD28) was captured once by OutboxPublisher.publish() at the moment
+      // this event entered the outbox — never re-derived from whatever's active right now, since
+      // for a swept-dispatch row "right now" is the sweep's own trace, not the original request.
+      // No OTel API call needed here: the carrier was already serialized, just forwarded verbatim.
+      attributes: {
+        eventName: event.eventName,
+        tenantId: event.tenantId,
+        ...event.traceContext,
+      },
     });
     this.logger.debug(`[pubsub] published ${event.eventName}`, {
       tenantId: event.tenantId,

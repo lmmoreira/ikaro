@@ -1,4 +1,4 @@
-import { trace } from '@opentelemetry/api';
+import { context, propagation, ROOT_CONTEXT, trace } from '@opentelemetry/api';
 import { ActiveTraceContext, ITracingPort, SpanAttributeValue } from './tracing-port';
 
 export class OtelTracingAdapter implements ITracingPort {
@@ -12,6 +12,15 @@ export class OtelTracingAdapter implements ITracingPort {
       return undefined;
     }
     return { traceId: spanContext.traceId, spanId: spanContext.spanId };
+  }
+
+  injectContext(carrier: Record<string, string>): void {
+    propagation.inject(context.active(), carrier);
+  }
+
+  runWithExtractedContext<T>(carrier: Record<string, string>, fn: () => T): T {
+    const extracted = propagation.extract(ROOT_CONTEXT, carrier);
+    return context.with(extracted, fn);
   }
 }
 

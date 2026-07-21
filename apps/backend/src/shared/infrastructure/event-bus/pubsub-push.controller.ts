@@ -5,9 +5,11 @@ import {
   HttpException,
   HttpStatus,
   Inject,
+  Optional,
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { defaultTracingPort, ITracingPort } from '@ikaro/observability';
 import { PUSHABLE_EVENT_BUS, IPushableEventBus } from '../../ports/pushable-event-bus.port';
 import { Public } from '../../decorators/public.decorator';
 import { PubSubPushGuard } from '../../guards/pubsub-push.guard';
@@ -35,7 +37,13 @@ interface PubSubPushBody {
 export class PubSubPushController {
   private readonly logger = new AppLogger(PubSubPushController.name);
 
-  constructor(@Inject(PUSHABLE_EVENT_BUS) private readonly eventBus: IPushableEventBus) {}
+  constructor(
+    @Inject(PUSHABLE_EVENT_BUS) private readonly eventBus: IPushableEventBus,
+    // @Optional() so Nest's DI container doesn't throw trying to resolve an interface token when
+    // no provider is bound for it — falls through to the default, same pattern as
+    // CorrelationMiddleware (apps/backend/src/shared/request/correlation.middleware.ts).
+    @Optional() private readonly tracingPort: ITracingPort = defaultTracingPort,
+  ) {}
 
   @Post('push')
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -51,7 +59,13 @@ export class PubSubPushController {
     }
 
     try {
-      await this.eventBus.dispatchPushMessage(body.subscription, body.message.data);
+      // TD28: reconstructs the trace context injected by OutboxPublisher.publish() (carried here
+      // via message.attributes, since W3C trace context only travels as an HTTP header on its
+      // own, not inside a Pub/Sub push body) — so whatever span the dispatched handler starts
+      // becomes a genuine child of the original request's trace.
+      await this.tracingPort.runWithExtractedContext(body.message.attributes ?? {}, () =>
+        this.eventBus.dispatchPushMessage(body.subscription, body.message.data),
+      );
     } catch (err) {
       const problem: ProblemDetail = {
         type: 'about:blank',

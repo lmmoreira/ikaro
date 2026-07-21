@@ -1,5 +1,6 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { defaultTracingPort, ITracingPort } from '@ikaro/observability';
 import { Command } from '../../domain/command';
 import { Envelope } from '../../domain/envelope';
 import { AppLogger } from '../../observability/app-logger';
@@ -22,9 +23,23 @@ export class OutboxPublisher implements IOutboxPublisher {
     @Inject(OUTBOX_REPOSITORY) private readonly outboxRepo: IOutboxRepository,
     private readonly relay: OutboxRelayService,
     private readonly config: ConfigService,
+    // @Optional() so Nest's DI container doesn't throw trying to resolve an interface token when
+    // no provider is bound for it — falls through to the default, same pattern as
+    // CorrelationMiddleware (apps/backend/src/shared/request/correlation.middleware.ts).
+    @Optional() private readonly tracingPort: ITracingPort = defaultTracingPort,
   ) {}
 
   async publish(event: Envelope): Promise<void> {
+    // Captured once, here — the single entry point every event passes through before reaching
+    // shared.outbox, whether drained from an aggregate (drainDomainEvents()) or published
+    // directly by a cron job/consumer re-emit. Whatever trace is active *now* (the original
+    // business request, for the common case) is what a consumer's span should link to — not
+    // whatever's active later, at actual-publish time, which for a swept row would be the
+    // sweep's own trace instead (TD28). Rides into the outbox's jsonb payload column for free.
+    const carrier: Record<string, string> = {};
+    this.tracingPort.injectContext(carrier);
+    event.traceContext = carrier;
+
     // Command carries its own deterministic dedupKey (required on that type); every other
     // Envelope (a DomainEvent, a real fact) is only ever constructed once per business action,
     // so its own eventId already identifies that fact uniquely.

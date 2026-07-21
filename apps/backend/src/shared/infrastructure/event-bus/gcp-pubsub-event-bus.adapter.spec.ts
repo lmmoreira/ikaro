@@ -103,6 +103,27 @@ describe('GcpPubSubEventBusAdapter', () => {
       await adapter.publish(new StubEvent({ value: 'x' }));
       expect(mockCreateTopic).toHaveBeenCalledWith('ikaro-StubEvent');
     });
+
+    it('forwards event.traceContext into the published message attributes (TD28)', async () => {
+      const event = new StubEvent({ value: 'x' });
+      event.traceContext = { traceparent: '00-abc-def-01' };
+
+      await adapter.publish(event);
+
+      const call = mockPublishMessage.mock.calls[0][0] as { attributes: Record<string, string> };
+      expect(call.attributes['traceparent']).toBe('00-abc-def-01');
+      expect(call.attributes.eventName).toBe(StubEvent.name);
+      expect(call.attributes.tenantId).toBe('tenant-1');
+    });
+
+    it('publishes with no extra attributes when the event has no traceContext', async () => {
+      const event = new StubEvent({ value: 'x' });
+
+      await adapter.publish(event);
+
+      const call = mockPublishMessage.mock.calls[0][0] as { attributes: Record<string, string> };
+      expect(Object.keys(call.attributes)).toEqual(['eventName', 'tenantId']);
+    });
   });
 
   describe('subscribe() + onApplicationBootstrap()', () => {

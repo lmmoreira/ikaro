@@ -27,6 +27,7 @@
     "@ikaro/config": "workspace:*",
     "@nestjs/common": "^11.1.27",
     "@opentelemetry/context-async-hooks": "^2.9.0",
+    "@opentelemetry/core": "^2.8.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^25.9.4",
     "jest": "^30.4.2",

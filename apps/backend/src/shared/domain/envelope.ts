@@ -18,6 +18,12 @@ export abstract class Envelope<TData extends Record<string, unknown> = Record<st
   readonly eventName: string;
   abstract readonly eventVersion: number;
   abstract readonly data: TData;
+  // Not readonly, unlike the rest of this envelope: set by OutboxPublisher.publish() right
+  // before the outbox insert (TD28), after this instance already exists — capturing it here
+  // instead of in this constructor keeps aggregate methods (domain layer, zero framework deps)
+  // from ever depending on ITracingPort. Rides into shared.outbox's jsonb payload column for
+  // free (no migration) since insert() JSON.stringify()s the whole envelope verbatim.
+  traceContext?: Record<string, string>;
 
   protected constructor(tenantId: string, correlationId: string) {
     this.eventId = uuidv7();
