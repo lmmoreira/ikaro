@@ -21,6 +21,9 @@ class FakeTracingPort implements ITracingPort {
     this.extractedCarriers.push(carrier);
     return fn();
   }
+  startActiveSpan<T>(_name: string, fn: () => T): T {
+    return fn();
+  }
 }
 
 describe('PubSubPushController', () => {

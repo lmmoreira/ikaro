@@ -32,4 +32,14 @@ export interface ITracingPort {
    * extractable.
    */
   runWithExtractedContext<T>(carrier: Record<string, string>, fn: () => T): T;
+
+  /**
+   * Starts a new span named `name`, makes it the active span for the duration of `fn`, and ends
+   * it when `fn` (sync or async) settles — recording the exception and marking the span as an
+   * error if `fn` throws/rejects, then rethrowing. This is a transport-layer span for a dispatch
+   * boundary that has no auto-instrumentation of its own (e.g. "this is where a Pub/Sub-delivered
+   * event's processing began", TD28) — not a manual business span inside a use case, which stays
+   * deferred per M17-S33/TD28's own Non-Goals.
+   */
+  startActiveSpan<T>(name: string, fn: () => T): T;
 }

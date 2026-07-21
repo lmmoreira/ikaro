@@ -13,36 +13,37 @@ import { OtelTracingAdapter } from './otel-tracing-adapter';
 // the first place. NodeSDK registers this same AsyncHooksContextManager in production.
 const contextManager = new AsyncHooksContextManager();
 
-// No global propagator registration needed here (post-review fix, TD28 PR #184):
-// injectContext()/runWithExtractedContext() use their own dedicated W3CTraceContextPropagator
-// instance, not the ambient global `propagation` API — see otel-tracing-adapter.ts for why
-// (excluding baggage regardless of what NodeSDK registers globally in production).
+// Module-level, registered globally exactly once in beforeAll below — not recreated per test.
+// @opentelemetry/api's setGlobalTracerProvider() only takes effect on its first call per process
+// (confirmed: even calling trace.disable() first doesn't allow a later call to take effect), so a
+// fresh per-test provider/registration (the pattern every other test here doesn't need) silently
+// no-ops from the second test onward. startActiveSpan() (TD28) is the one method that goes through
+// the module-level tracer obtained via the global trace.getTracer(...) API, unlike every other
+// method here which only reads context/active-span state directly — a single provider registered
+// once, reset via exporter.reset() between tests, covers it.
+const exporter = new InMemorySpanExporter();
+const provider = new BasicTracerProvider({
+  spanProcessors: [new SimpleSpanProcessor(exporter)],
+});
 
 describe('OtelTracingAdapter', () => {
-  let exporter: InMemorySpanExporter;
-  let provider: BasicTracerProvider;
   let adapter: OtelTracingAdapter;
 
   beforeAll(() => {
     contextManager.enable();
     context.setGlobalContextManager(contextManager);
+    trace.setGlobalTracerProvider(provider);
   });
 
-  afterAll(() => {
+  afterAll(async () => {
     contextManager.disable();
     context.disable();
+    await provider.shutdown();
   });
 
   beforeEach(() => {
-    exporter = new InMemorySpanExporter();
-    provider = new BasicTracerProvider({
-      spanProcessors: [new SimpleSpanProcessor(exporter)],
-    });
+    exporter.reset();
     adapter = new OtelTracingAdapter();
-  });
-
-  afterEach(async () => {
-    await provider.shutdown();
   });
 
   it('sets attributes on the currently active span', () => {
@@ -194,6 +195,67 @@ describe('OtelTracingAdapter', () => {
       expect(child).toBeDefined();
       expect(childSpanId).toBe(child?.spanContext().spanId);
       expect(child?.parentSpanContext?.spanId).toBe(parent?.spanContext().spanId);
+    });
+  });
+
+  describe('startActiveSpan()', () => {
+    it('starts a named span, ends it, and returns the sync result', () => {
+      const returned = adapter.startActiveSpan('pubsub.event.Test', () => 'result');
+
+      expect(returned).toBe('result');
+      const [exported] = exporter.getFinishedSpans();
+      expect(exported.name).toBe('pubsub.event.Test');
+      expect(exported.status.code).toBe(0); // SpanStatusCode.UNSET — no error occurred
+    });
+
+    it('starts a named span, ends it, and resolves the async result', async () => {
+      const returned = await adapter.startActiveSpan('pubsub.event.Test', () =>
+        Promise.resolve('async-result'),
+      );
+
+      expect(returned).toBe('async-result');
+      const [exported] = exporter.getFinishedSpans();
+      expect(exported.name).toBe('pubsub.event.Test');
+    });
+
+    it('makes the started span active for the duration of fn, so a child span links to it', () => {
+      adapter.startActiveSpan('pubsub.event.Test', () => {
+        const tracer = provider.getTracer('test');
+        const child = tracer.startSpan('nested-handler-work');
+        child.end();
+      });
+
+      const exported = exporter.getFinishedSpans();
+      const parentSpan = exported.find((s) => s.name === 'pubsub.event.Test');
+      const childSpan = exported.find((s) => s.name === 'nested-handler-work');
+      expect(childSpan).toBeDefined();
+      expect(childSpan?.parentSpanContext?.spanId).toBe(parentSpan?.spanContext().spanId);
+    });
+
+    it('records the exception, marks the span as an error, ends it, and rethrows when fn throws synchronously', () => {
+      const err = new Error('sync boom');
+
+      expect(() =>
+        adapter.startActiveSpan('pubsub.event.Test', () => {
+          throw err;
+        }),
+      ).toThrow(err);
+
+      const [exported] = exporter.getFinishedSpans();
+      expect(exported.status.code).toBe(2); // SpanStatusCode.ERROR
+      expect(exported.events.some((e) => e.name === 'exception')).toBe(true);
+    });
+
+    it('records the exception, marks the span as an error, ends it, and rejects when fn returns a rejected promise', async () => {
+      const err = new Error('async boom');
+
+      await expect(
+        adapter.startActiveSpan('pubsub.event.Test', () => Promise.reject(err)),
+      ).rejects.toThrow(err);
+
+      const [exported] = exporter.getFinishedSpans();
+      expect(exported.status.code).toBe(2); // SpanStatusCode.ERROR
+      expect(exported.events.some((e) => e.name === 'exception')).toBe(true);
     });
   });
 });

@@ -1,4 +1,10 @@
-import { context, defaultTextMapGetter, defaultTextMapSetter, trace } from '@opentelemetry/api';
+import {
+  context,
+  defaultTextMapGetter,
+  defaultTextMapSetter,
+  SpanStatusCode,
+  trace,
+} from '@opentelemetry/api';
 import { W3CTraceContextPropagator } from '@opentelemetry/core';
 import { ActiveTraceContext, ITracingPort, SpanAttributeValue } from './tracing-port';
 
@@ -10,6 +16,11 @@ import { ActiveTraceContext, ITracingPort, SpanAttributeValue } from './tracing-
 // traceparent/tracestate, so it deliberately excludes baggage regardless of what's globally
 // registered.
 const traceContextPropagator = new W3CTraceContextPropagator();
+
+// A ProxyTracer that resolves to whatever TracerProvider NodeSDK ends up registering — safe to
+// grab once here even before bootstrapTracing()'s sdk.start() runs, same as trace.getActiveSpan()
+// being safe to call anywhere regardless of SDK registration order.
+const tracer = trace.getTracer('@ikaro/observability');
 
 export class OtelTracingAdapter implements ITracingPort {
   setActiveSpanAttributes(attributes: Record<string, SpanAttributeValue>): void {
@@ -42,6 +53,34 @@ export class OtelTracingAdapter implements ITracingPort {
       defaultTextMapGetter,
     );
     return context.with(extracted, fn);
+  }
+
+  startActiveSpan<T>(name: string, fn: () => T): T {
+    return tracer.startActiveSpan(name, (span) => {
+      const fail = (err: unknown): never => {
+        span.recordException(err instanceof Error ? err : String(err));
+        span.setStatus({ code: SpanStatusCode.ERROR });
+        span.end();
+        throw err;
+      };
+
+      try {
+        const result = fn();
+        if (result instanceof Promise) {
+          return result.then(
+            (value) => {
+              span.end();
+              return value;
+            },
+            (err: unknown) => fail(err),
+          ) as T;
+        }
+        span.end();
+        return result;
+      } catch (err) {
+        return fail(err);
+      }
+    });
   }
 }
 

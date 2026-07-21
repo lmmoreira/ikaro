@@ -23,6 +23,9 @@ class FakeTracingPort implements ITracingPort {
   runWithExtractedContext<T>(_carrier: Record<string, string>, fn: () => T): T {
     return fn();
   }
+  startActiveSpan<T>(_name: string, fn: () => T): T {
+    return fn();
+  }
 }
 
 function makeLogger(): { warn: jest.Mock; error: jest.Mock } {

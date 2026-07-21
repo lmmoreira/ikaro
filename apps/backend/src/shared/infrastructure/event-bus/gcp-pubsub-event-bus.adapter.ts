@@ -1,6 +1,7 @@
-import { Injectable, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnApplicationBootstrap, OnModuleDestroy, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Message, PubSub, Subscription } from '@google-cloud/pubsub';
+import { defaultTracingPort, ITracingPort } from '@ikaro/observability';
 import { Envelope } from '../../domain/envelope';
 import { AppLogger } from '../../observability/app-logger';
 import { IEventBus } from '../../ports/event-bus.port';
@@ -32,7 +33,13 @@ export class GcpPubSubEventBusAdapter
   private readonly active: Subscription[] = [];
   private readonly ensuredTopics = new Set<string>();
 
-  constructor(private readonly config: ConfigService) {
+  constructor(
+    private readonly config: ConfigService,
+    // @Optional() so Nest's DI container doesn't throw trying to resolve an interface token when
+    // no provider is bound for it — falls through to the default, same pattern as
+    // CorrelationMiddleware (apps/backend/src/shared/request/correlation.middleware.ts).
+    @Optional() private readonly tracingPort: ITracingPort = defaultTracingPort,
+  ) {
     this.pubsub = new PubSub({ projectId: config.getOrThrow<string>('PUBSUB_PROJECT_ID') });
   }
 
@@ -244,7 +251,15 @@ export class GcpPubSubEventBusAdapter
       return;
     }
 
-    await config.handler(event);
+    // TD28: an explicit span for the dispatch boundary itself — nothing auto-instrumented marks
+    // "this is where a Pub/Sub-delivered event's processing began", so without this, the extracted
+    // context (PubSubPushController) would only ever surface as a parent for whatever incidental
+    // auto-instrumented I/O the handler happens to trigger, with no span identifying the hop
+    // itself. Not a manual business span inside a use case (that stays deferred, M17-S33/TD28
+    // Non-Goals) — this wraps the transport-level dispatch call only.
+    await this.tracingPort.startActiveSpan(`pubsub.event.${config.eventName}`, () =>
+      config.handler(event),
+    );
   }
 
   private async publishToDlq(

@@ -104,6 +104,14 @@ Compounding this: `otel-tracing.ts`'s `ignoreIncomingRequestHook` currently excl
 
 7. **`ignoreIncomingRequestHook`** (`packages/observability/src/otel-tracing.ts`) drops the `/pubsub/push` branch entirely — only the `/health/` exclusion remains.
 
+8. **`RequestInterceptor`'s global tenant-header check** (`apps/backend/src/shared/request/request.interceptor.ts`) needs `/pubsub` added to its `/health`/`/internal`/`/cron` bypass list (found in PR review, 2026-07-21) — Pub/Sub push delivery never sends `X-Tenant-ID`, so without this, every request to `/pubsub/push` 400s before `PubSubPushController` is ever reached, making all of this TD's code unreachable in the real deployed pipeline. Pre-existing gap (unrelated to this TD's own design), but blocking for it to run end-to-end.
+
+9. **An explicit consumer span** — `GcpPubSubEventBusAdapter.dispatchPushMessage()` wraps the domain-event handler call in `this.tracingPort.startActiveSpan(`pubsub.event.${eventName}`, () => config.handler(event))` (found in PR review, 2026-07-21). Without this, `runWithExtractedContext` correctly makes the extracted context active but nothing marks "this is where the Pub/Sub consumer's processing began" — only whatever auto-instrumented I/O the handler happens to trigger would show up, with no span identifying the hop itself, missing this TD's own stated "per-hop timing" goal. `ITracingPort` gains a third method for this:
+   ```ts
+   startActiveSpan<T>(name: string, fn: () => T): T;
+   ```
+   This is a transport-layer span at the dispatch boundary, not a manual business span inside a use case — it doesn't reopen the M17-S33/Non-Goals deferral below. Scoped to the domain-event path only, not the trigger path (§Non-Goals: cron triggers).
+
 ---
 
 ## Non-Goals
@@ -122,6 +130,8 @@ Compounding this: `otel-tracing.ts`'s `ignoreIncomingRequestHook` currently excl
 - [ ] `/pubsub/push` is no longer blanket-excluded from tracing — `ignoreIncomingRequestHook` only excludes `/health/`.
 - [ ] Query-string/attribute redaction (`otel-query-redaction.ts`'s `SENSITIVE_QUERY_PARAMS`) is reconsidered for Pub/Sub message attributes too — checked at story time: no published event payload currently carries anything secret as a message attribute (only `traceContext`, `correlationId`, `tenantId`), so no redaction gap exists today; re-verify if a future event adds one.
 - [ ] Tests prove inject→extract actually links contexts correctly, using a real span/context-manager setup (same pattern as `packages/observability/src/otel-tracing-adapter.spec.ts` — `AsyncHooksContextManager` + `InMemorySpanExporter` from `@opentelemetry/sdk-trace-base`, not a trust-it-works assertion).
+- [ ] `RequestInterceptor` bypasses `/pubsub` — a request to `/pubsub/push` with no `X-Tenant-ID` header reaches `PubSubPushController`, not a 400.
+- [ ] `dispatchPushMessage()` starts an explicit `pubsub.event.<eventName>` span (via `ITracingPort.startActiveSpan`) as a child of the extracted context, for the domain-event path only — not the trigger path.
 - [ ] `docs/10-OBSERVABILITY_STRATEGY.md` updated to document the propagation mechanism (full inline + swept correctness) and to correct its "Full Telemetry Flow" diagram, which currently describes this as already working.
 
 ---

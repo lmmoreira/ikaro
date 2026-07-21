@@ -1,4 +1,5 @@
 import { ConfigService } from '@nestjs/config';
+import { ITracingPort } from '@ikaro/observability';
 import { DomainEvent } from '../../domain/domain-event';
 import { StubEvent as SharedStubEvent } from '../../../test/infrastructure/stub-envelope-classes';
 
@@ -45,6 +46,30 @@ class StubEvent extends SharedStubEvent {
 const noopHandler = async (_e: DomainEvent): Promise<void> => {
   /* test stub */
 };
+
+// Records the span name it was asked to start instead of talking to real OTel primitives — this
+// suite only needs to prove dispatchPushMessage() wraps the handler call in a named span (TD28);
+// the span's own success/error/end behavior is covered by
+// packages/observability/src/otel-tracing-adapter.spec.ts.
+class FakeTracingPort implements ITracingPort {
+  readonly startedSpans: string[] = [];
+  setActiveSpanAttributes(): void {
+    /* unused by this suite */
+  }
+  getActiveTraceContext(): undefined {
+    return undefined;
+  }
+  injectContext(): void {
+    /* unused by this suite */
+  }
+  runWithExtractedContext<T>(_carrier: Record<string, string>, fn: () => T): T {
+    return fn();
+  }
+  startActiveSpan<T>(name: string, fn: () => T): T {
+    this.startedSpans.push(name);
+    return fn();
+  }
+}
 
 const noopTriggerHandler = async (): Promise<void> => {
   /* test stub */
@@ -335,6 +360,47 @@ describe('GcpPubSubEventBusAdapter', () => {
         const received = handlerSpy.mock.calls[0][0] as StubEvent;
         expect(received.eventName).toBe(StubEvent.name);
         expect(received.data.value).toBe('x');
+      });
+
+      it('wraps the domain-event handler call in a named span (TD28)', async () => {
+        const tracingPort = new FakeTracingPort();
+        adapter = new GcpPubSubEventBusAdapter(
+          makeConfigService({ PUBSUB_CONSUMER_MODE: 'push', PUBSUB_AUTO_CREATE: false }),
+          tracingPort,
+        );
+        const handlerSpy = jest.fn().mockResolvedValue(undefined);
+        adapter.subscribe(StubEvent.name, handlerSpy, 'test-consumer');
+        await adapter.onApplicationBootstrap();
+
+        const base64Data = Buffer.from(JSON.stringify(new StubEvent({ value: 'x' }))).toString(
+          'base64',
+        );
+        await adapter.dispatchPushMessage(
+          'projects/ikaro-local/subscriptions/ikaro-StubEvent-test-consumer',
+          base64Data,
+        );
+
+        expect(tracingPort.startedSpans).toEqual([`pubsub.event.${StubEvent.name}`]);
+        expect(handlerSpy).toHaveBeenCalledTimes(1);
+      });
+
+      it('does not wrap the trigger handler call in a span — cron triggers are out of TD28 scope', async () => {
+        const tracingPort = new FakeTracingPort();
+        adapter = new GcpPubSubEventBusAdapter(
+          makeConfigService({ PUBSUB_CONSUMER_MODE: 'push', PUBSUB_AUTO_CREATE: false }),
+          tracingPort,
+        );
+        const triggerSpy = jest.fn().mockResolvedValue(undefined);
+        adapter.registerTrigger('cron-reminders', triggerSpy, 'booking-reminder');
+        await adapter.onApplicationBootstrap();
+
+        await adapter.dispatchPushMessage(
+          'projects/ikaro-local/subscriptions/ikaro-cron-reminders-booking-reminder',
+          Buffer.from('{}').toString('base64'),
+        );
+
+        expect(tracingPort.startedSpans).toEqual([]);
+        expect(triggerSpy).toHaveBeenCalledTimes(1);
       });
 
       it('rethrows when the handler fails, so the controller can respond 5xx', async () => {
