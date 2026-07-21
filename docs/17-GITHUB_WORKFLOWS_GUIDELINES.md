@@ -182,5 +182,30 @@ The weekly scan uploads findings via `github/codeql-action/upload-sarif` to the 
 
 ---
 
+### Manual/throwaway workflow triggers — `workflow_dispatch` only works from the default branch
+
+`workflow_dispatch` can only be dispatched (via UI, API, or `gh workflow run`) once the workflow file exists on the repository's **default branch** (`main`). A workflow file that only exists on a feature branch cannot be manually triggered yet, even though GitHub still runs it via other event triggers on that branch.
+
+For a throwaway/smoke-test workflow that needs to run and be verified **before** merging (e.g. testing new GitHub Environments, secrets, or WIF bindings on a feature branch), trigger on `push` scoped to that exact branch instead:
+
+```yaml
+on:
+  push:
+    branches: [feat/my-throwaway-test-branch]
+  workflow_dispatch: # free re-runs later, if the branch ever merges
+```
+
+Established in M17-S08's WIF smoke-test workflow (`pull_request` + `push: branches: ['**']`) and confirmed again in M17-S23 (`push: branches: [<branch>]`) — both needed to verify GitHub-side configuration from a branch before it was safe or appropriate to merge to `main`.
+
+### Repository Secrets vs. Variables — GCP/WIF identifiers default to Secrets
+
+For GCP identifiers used in CI (WIF provider resource paths, service-account emails, project IDs/numbers, region/registry host strings), the project's convention is:
+
+- **Secrets:** WIF provider resource names (`WIF_PROVIDER_*`) and CI service-account emails (`TF_DEPLOYER_SA_*`, `APP_DEPLOYER_SA_*`, `TF_PLANNER_SA_*`). None of these are bearer credentials by themselves — WIF trust is scoped to `repository == lmmoreira/ikaro` plus branch/environment claims regardless of who can read the value — but Secrets auto-redact in every log line, which is free hygiene against a future workflow accidentally echoing one during debugging. Matches Google's own `google-github-actions/auth@v2` reference examples, and this repo's own M17-S08 smoke test (which used temporary repo secrets for the same values, citing public-repo log redaction).
+- **Variables:** everything else non-identity-shaped — project IDs (`GCP_PROJECT_*`), region (`GCP_REGION`), registry host (`GAR_HOST`). These are already committed in plaintext elsewhere in this repo (`terraform.tfvars`, `plan/M17-CLOUD-DEPLOY.md`), so there's no hygiene benefit to hiding them, and being readable in logs helps debugging.
+- **Scope: repo-level, not environment-scoped**, for any value a PR-triggered `terraform plan`/`tf-planner` job needs — that job intentionally declares no `environment:` (so plans can run on every PR without an approval gate), and an environment-scoped secret/variable is invisible to a job that doesn't declare that environment. Established in M17-S23.
+
+---
+
 **Status:** Phase 2 - Technical Architecture  
 **Validated:** Aligned with CI/CD and Testing Strategies.
