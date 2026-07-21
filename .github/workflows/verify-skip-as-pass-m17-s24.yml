@@ -1,0 +1,34 @@
+name: Verify Skip As Pass (M17-S24 throwaway)
+
+# Throwaway verification, same pattern as M17-S08's WIF smoke test and
+# M17-S23's environment verification (docs/BOOTSTRAP_LOG.md): proves a live
+# GitHub behavior before trusting it in a real workflow, then gets deleted.
+# Purpose: confirm that a job skipped via `needs.<job>.outputs.x == 'true'`
+# (the exact pattern being considered for path-filtered app CI jobs) still
+# satisfies a required branch-protection status check, matching GitHub's
+# documented "successful, skipped, or neutral" rule. Never intended to merge.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: Gate
+    runs-on: ubuntu-latest
+    outputs:
+      matched: ${{ steps.check.outputs.matched }}
+    steps:
+      - id: check
+        run: echo "matched=false" >> "$GITHUB_OUTPUT"
+
+  always-skipped-check:
+    name: Always Skipped Check
+    needs: gate
+    if: needs.gate.outputs.matched == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "this should never run"
