@@ -17,6 +17,7 @@
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/auto-instrumentations-node": "^0.78.0",
+    "@opentelemetry/core": "^2.8.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.220.0",
     "@opentelemetry/resources": "^2.9.0",
     "@opentelemetry/sdk-node": "^0.220.0",
@@ -27,7 +28,6 @@
     "@ikaro/config": "workspace:*",
     "@nestjs/common": "^11.1.27",
     "@opentelemetry/context-async-hooks": "^2.9.0",
-    "@opentelemetry/core": "^2.8.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^25.9.4",
     "jest": "^30.4.2",

@@ -1,5 +1,15 @@
-import { context, propagation, ROOT_CONTEXT, trace } from '@opentelemetry/api';
+import { context, defaultTextMapGetter, defaultTextMapSetter, trace } from '@opentelemetry/api';
+import { W3CTraceContextPropagator } from '@opentelemetry/core';
 import { ActiveTraceContext, ITracingPort, SpanAttributeValue } from './tracing-port';
+
+// A dedicated instance, not the ambient global `propagation` API (post-review fix, TD28 PR #184):
+// NodeSDK's default global propagator is a composite of tracecontext *and* baggage
+// (OTEL_PROPAGATORS default "tracecontext,baggage") — going through the global API would let
+// arbitrary baggage entries ride along into the carrier and get forwarded verbatim into Pub/Sub
+// message attributes and the outbox's stored payload. This adapter only ever needs to carry
+// traceparent/tracestate, so it deliberately excludes baggage regardless of what's globally
+// registered.
+const traceContextPropagator = new W3CTraceContextPropagator();
 
 export class OtelTracingAdapter implements ITracingPort {
   setActiveSpanAttributes(attributes: Record<string, SpanAttributeValue>): void {
@@ -15,11 +25,22 @@ export class OtelTracingAdapter implements ITracingPort {
   }
 
   injectContext(carrier: Record<string, string>): void {
-    propagation.inject(context.active(), carrier);
+    traceContextPropagator.inject(context.active(), carrier, defaultTextMapSetter);
   }
 
   runWithExtractedContext<T>(carrier: Record<string, string>, fn: () => T): T {
-    const extracted = propagation.extract(ROOT_CONTEXT, carrier);
+    // Seeded from context.active(), not ROOT_CONTEXT (post-review fix, TD28 PR #184): when
+    // `carrier` has nothing extractable (e.g. a message published before this feature shipped,
+    // or a directly-triggered test message), extract() returns its base context unchanged — so
+    // seeding from ROOT_CONTEXT would silently wipe whatever span is already active on the
+    // caller (e.g. the /pubsub/push request's own span, now that it's no longer excluded from
+    // tracing). Seeding from context.active() preserves it instead in that fallback case, while
+    // a carrier with a valid traceparent still fully overrides it as intended.
+    const extracted = traceContextPropagator.extract(
+      context.active(),
+      carrier,
+      defaultTextMapGetter,
+    );
     return context.with(extracted, fn);
   }
 }

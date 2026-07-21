@@ -117,7 +117,7 @@ Compounding this: `otel-tracing.ts`'s `ignoreIncomingRequestHook` currently excl
 
 ## Acceptance Criteria
 
-- [ ] A domain event published via **inline dispatch** produces a consumer-side span that is a genuine child of the original HTTP request's trace, visible as one connected trace in Cloud Trace.
+- [ ] A domain event published via **inline dispatch** produces a consumer-side span that is a genuine child of the original HTTP request's trace, visible as one connected trace in Cloud Trace **when that trace is sampled** — production keeps its existing 10% head-based sampling (§Open Decision #4), so an unsampled request's downstream event never gets a Cloud Trace entry to link to regardless of this TD; linkage tests use an always-on setup (`BasicTracerProvider` + `SimpleSpanProcessor`, no sampler in the loop) so the assertion is deterministic rather than sampling-dependent.
 - [ ] A domain event published via the **swept/scheduled dispatch** path (`OutboxRelayService.sweep()`) produces a consumer-side span that is a genuine child of the *original* HTTP request's trace, not the sweep's own trace — proving the stored `traceContext` on the outbox row, not `context.active()` at actual-publish time, is what gets used.
 - [ ] `/pubsub/push` is no longer blanket-excluded from tracing — `ignoreIncomingRequestHook` only excludes `/health/`.
 - [ ] Query-string/attribute redaction (`otel-query-redaction.ts`'s `SENSITIVE_QUERY_PARAMS`) is reconsidered for Pub/Sub message attributes too — checked at story time: no published event payload currently carries anything secret as a message attribute (only `traceContext`, `correlationId`, `tenantId`), so no redaction gap exists today; re-verify if a future event adds one.

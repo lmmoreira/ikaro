@@ -1,6 +1,5 @@
 import { context, propagation, trace } from '@opentelemetry/api';
 import { AsyncHooksContextManager } from '@opentelemetry/context-async-hooks';
-import { W3CTraceContextPropagator } from '@opentelemetry/core';
 import {
   BasicTracerProvider,
   InMemorySpanExporter,
@@ -14,12 +13,10 @@ import { OtelTracingAdapter } from './otel-tracing-adapter';
 // the first place. NodeSDK registers this same AsyncHooksContextManager in production.
 const contextManager = new AsyncHooksContextManager();
 
-// injectContext()/runWithExtractedContext() (TD28) delegate to propagation.inject()/extract(),
-// which are no-ops under the default NoopTextMapPropagator — exactly like context.with() before
-// a real ContextManager was registered above. NodeSDK registers this same W3C propagator (plus
-// baggage) in production via its default OTEL_PROPAGATORS handling; nothing here is adapter- or
-// test-specific.
-const propagator = new W3CTraceContextPropagator();
+// No global propagator registration needed here (post-review fix, TD28 PR #184):
+// injectContext()/runWithExtractedContext() use their own dedicated W3CTraceContextPropagator
+// instance, not the ambient global `propagation` API — see otel-tracing-adapter.ts for why
+// (excluding baggage regardless of what NodeSDK registers globally in production).
 
 describe('OtelTracingAdapter', () => {
   let exporter: InMemorySpanExporter;
@@ -29,13 +26,11 @@ describe('OtelTracingAdapter', () => {
   beforeAll(() => {
     contextManager.enable();
     context.setGlobalContextManager(contextManager);
-    propagation.setGlobalPropagator(propagator);
   });
 
   afterAll(() => {
     contextManager.disable();
     context.disable();
-    propagation.disable();
   });
 
   beforeEach(() => {
@@ -157,6 +152,48 @@ describe('OtelTracingAdapter', () => {
     it('returns whatever fn returns', () => {
       const returned = adapter.runWithExtractedContext({}, () => 'handler-result');
       expect(returned).toBe('handler-result');
+    });
+
+    it('never injects baggage into the carrier, even when baggage is present on the active context', () => {
+      const tracer = provider.getTracer('test');
+      const span = tracer.startSpan('test-span');
+      const carrier: Record<string, string> = {};
+      const baggage = propagation.createBaggage({ 'user.id': { value: 'user-1' } });
+
+      let ctx = trace.setSpan(context.active(), span);
+      ctx = propagation.setBaggage(ctx, baggage);
+
+      context.with(ctx, () => {
+        adapter.injectContext(carrier);
+      });
+      span.end();
+
+      expect(carrier['traceparent']).toEqual(expect.any(String));
+      expect(carrier['baggage']).toBeUndefined();
+    });
+
+    it('preserves the currently active span when the carrier has nothing extractable', () => {
+      const tracer = provider.getTracer('test');
+      const activeSpan = tracer.startSpan('already-active-span');
+
+      let childSpanId: string | undefined;
+      context.with(trace.setSpan(context.active(), activeSpan), () => {
+        adapter.runWithExtractedContext({}, () => {
+          const childSpan = tracer.startSpan('handler-with-no-carrier-data');
+          childSpanId = childSpan.spanContext().spanId;
+          childSpan.end();
+        });
+      });
+      activeSpan.end();
+
+      const exported = exporter.getFinishedSpans();
+      const parent = exported.find((s) => s.name === 'already-active-span');
+      const child = exported.find((s) => s.name === 'handler-with-no-carrier-data');
+
+      expect(parent).toBeDefined();
+      expect(child).toBeDefined();
+      expect(childSpanId).toBe(child?.spanContext().spanId);
+      expect(child?.parentSpanContext?.spanId).toBe(parent?.spanContext().spanId);
     });
   });
 });
