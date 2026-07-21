@@ -542,22 +542,41 @@ whole envelope verbatim, so `traceContext` rides along with zero schema change.
 `message.attributes` — no OTel API call needed here at all, since the carrier was already
 serialized at capture time.
 
-**Push-receive side — `PubSubPushController`:** after OIDC validation, calls
-`ITracingPort.runWithExtractedContext(message.attributes, () => dispatchPushMessage(...))`,
-reconstructing the original trace context so any span the dispatched handler starts becomes a
-genuine child of it.
+**Receive side — both consumer modes, symmetrically:**
+- **Push (`PubSubPushController`):** after OIDC validation, calls
+  `ITracingPort.runWithExtractedContext(message.attributes, () => dispatchPushMessage(...))`.
+- **Pull (`GcpPubSubEventBusAdapter.dispatch()`, the streaming-pull message handler):** the same
+  `runWithExtractedContext(message.attributes, ...)` call, since the pull-mode `Message` object
+  carries `.attributes` in the identical shape.
 
-`ITracingPort` (`packages/observability`) carries this via two methods, keeping OTel-specific
-calls (`propagation.inject`/`propagation.extract`/`context.with`) confined to
-`OtelTracingAdapter`, same as every other tracing-port method:
+Both reconstruct the original trace context, then wrap the domain-event handler call in an
+explicit `pubsub.event.<eventName>` span via `ITracingPort.startActiveSpan(...)` — without this,
+nothing marks "this is where the Pub/Sub consumer's processing began"; only whatever
+auto-instrumented I/O the handler happens to trigger would otherwise show up, with no span
+identifying the hop itself. Scoped to the domain-event path only, never the trigger/cron path
+(`dispatchTrigger()`) — cron triggers carry no real per-tenant business context (D3) and stay out
+of this TD's scope.
+
+**A pre-existing, unrelated gap blocked all of this in the deployed pipeline until fixed
+alongside this TD:** `RequestInterceptor`'s global tenant-header check (`apps/backend/src/shared/
+request/request.interceptor.ts`) 400s any request without `X-Tenant-ID`, and its bypass list
+(mirroring `/health`, `/internal`, `/cron`) didn't include `/pubsub` — so a real Pub/Sub push
+request, which never sends that header, never reached `PubSubPushController` at all. Fixed by
+adding `/pubsub` to the bypass list.
+
+`ITracingPort` (`packages/observability`) carries all of this via three methods, keeping
+OTel-specific calls (`propagation.inject`/`propagation.extract`/`context.with`/`tracer.
+startActiveSpan`) confined to `OtelTracingAdapter`, same as every other tracing-port method:
 
 ```typescript
 injectContext(carrier: Record<string, string>): void;
 runWithExtractedContext<T>(carrier: Record<string, string>, fn: () => T): T;
+startActiveSpan<T>(name: string, fn: () => T): T;
 ```
 
-**Scope:** both dispatch paths are covered (see capture point above) — this is not limited to the
-inline/fast path.
+**Scope:** both dispatch paths (inline + swept) on the publish side, and both consumer modes
+(push + pull) on the receive side, are fully covered — this is not limited to the inline/fast
+path or to push-only delivery.
 
 ---
 

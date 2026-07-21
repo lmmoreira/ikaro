@@ -173,7 +173,14 @@ export class GcpPubSubEventBusAdapter
     }
 
     try {
-      await handler(event);
+      // TD28: same trace-context extraction + explicit consumer span as the push-mode path
+      // (dispatchPushMessage() below) — the pull-mode Message carries attributes in the identical
+      // shape, so this is symmetric, not push-specific. Non-Goals originally scoped pull mode out
+      // on the grounds that cloud deployment only uses push (D2); this closes that gap for local
+      // dev/testing, where pull mode is the default consumer mode.
+      await this.tracingPort.runWithExtractedContext(message.attributes ?? {}, () =>
+        this.tracingPort.startActiveSpan(`pubsub.event.${eventName}`, () => handler(event)),
+      );
       message.ack();
     } catch (err) {
       const attempt = message.deliveryAttempt ?? 1;

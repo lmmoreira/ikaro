@@ -53,6 +53,7 @@ const noopHandler = async (_e: DomainEvent): Promise<void> => {
 // packages/observability/src/otel-tracing-adapter.spec.ts.
 class FakeTracingPort implements ITracingPort {
   readonly startedSpans: string[] = [];
+  readonly extractedCarriers: Array<Record<string, string>> = [];
   setActiveSpanAttributes(): void {
     /* unused by this suite */
   }
@@ -62,7 +63,8 @@ class FakeTracingPort implements ITracingPort {
   injectContext(): void {
     /* unused by this suite */
   }
-  runWithExtractedContext<T>(_carrier: Record<string, string>, fn: () => T): T {
+  runWithExtractedContext<T>(carrier: Record<string, string>, fn: () => T): T {
+    this.extractedCarriers.push(carrier);
     return fn();
   }
   startActiveSpan<T>(name: string, fn: () => T): T {
@@ -213,6 +215,32 @@ describe('GcpPubSubEventBusAdapter', () => {
 
       expect(mockAck).toHaveBeenCalledTimes(1);
       expect(mockNack).not.toHaveBeenCalled();
+    });
+
+    it('wraps the handler call in a named span extracted from message.attributes (TD28, pull mode)', async () => {
+      const tracingPort = new FakeTracingPort();
+      adapter = new GcpPubSubEventBusAdapter(makeConfigService(), tracingPort);
+      const handlerSpy = jest.fn().mockResolvedValue(undefined);
+      adapter.subscribe(StubEvent.name, handlerSpy, 'test-consumer');
+      await adapter.onApplicationBootstrap();
+
+      const messageHandler = mockSubOn.mock.calls.find(
+        (c: unknown[]) => c[0] === 'message',
+      )?.[1] as (msg: unknown) => void;
+
+      const fakeMessage = {
+        data: Buffer.from(JSON.stringify(new StubEvent({ value: 'x' }))),
+        ack: mockAck,
+        nack: mockNack,
+        deliveryAttempt: 1,
+        attributes: { traceparent: '00-abc-def-01' },
+      };
+      messageHandler(fakeMessage);
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(tracingPort.extractedCarriers).toEqual([{ traceparent: '00-abc-def-01' }]);
+      expect(tracingPort.startedSpans).toEqual([`pubsub.event.${StubEvent.name}`]);
+      expect(handlerSpy).toHaveBeenCalledTimes(1);
     });
 
     it('nacks message when handler throws and attempt is below threshold', async () => {

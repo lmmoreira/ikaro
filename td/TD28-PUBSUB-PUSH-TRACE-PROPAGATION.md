@@ -112,12 +112,20 @@ Compounding this: `otel-tracing.ts`'s `ignoreIncomingRequestHook` currently excl
    ```
    This is a transport-layer span at the dispatch boundary, not a manual business span inside a use case — it doesn't reopen the M17-S33/Non-Goals deferral below. Scoped to the domain-event path only, not the trigger path (§Non-Goals: cron triggers).
 
+10. **Pull-mode symmetry** (full-solution follow-up, 2026-07-21) — `dispatch()` (`GcpPubSubEventBusAdapter`, the streaming-pull message handler used when `PUBSUB_CONSUMER_MODE=pull`) gets the identical treatment as `dispatchPushMessage()`:
+    ```ts
+    await this.tracingPort.runWithExtractedContext(message.attributes ?? {}, () =>
+      this.tracingPort.startActiveSpan(`pubsub.event.${eventName}`, () => handler(event)),
+    );
+    ```
+    The pull-mode `Message` object already carries `.attributes` in the identical shape to the push body's `message.attributes` (both originate from the same Pub/Sub message envelope) — no new plumbing needed, just the same wrapping. Scoped to `dispatch()` only, not `dispatchTrigger()` (§Non-Goals: cron triggers) or `publishToDlq()` (a republish, not a consumer dispatch — out of scope for this TD).
+
 ---
 
 ## Non-Goals
 
 - **Manual business spans inside use cases** — explicitly deferred by M17-S33 itself ("Manual business spans... explicitly deferred until debugging actually demands that level of granularity"); this TD doesn't reopen that.
-- **Pull-mode Pub/Sub tracing** — this codebase uses push delivery exclusively in cloud environments (D2, `plan/M17-CLOUD-DEPLOY.md`); pull-mode-specific instrumentation packages (`@opentelemetry/instrumentation-google-cloud-pubsub` or similar) are not relevant here.
+- ~~Pull-mode Pub/Sub tracing~~ — **no longer a Non-Goal** (added, 2026-07-21, full-solution follow-up): `dispatch()` (the streaming-pull path, `GcpPubSubEventBusAdapter`) now extracts/wraps identically to `dispatchPushMessage()` — see Design item 10. Kept as a documented decision only for what's still genuinely out of scope: instrumenting the `@google-cloud/pubsub` client library's own streaming-pull internals (e.g. via `@opentelemetry/instrumentation-google-cloud-pubsub`) — this TD only wraps *this codebase's* message-handling call, not the vendor SDK's subscription machinery. Pull mode itself is still not used in cloud deployment (D2) — this closes the gap for local dev/testing, where it's the default consumer mode.
 - **Web/frontend trace propagation** — D9 already explicitly excludes `apps/web` from OTel at launch ("web ships no OTel at launch — its observability is Cloud Run built-in metrics + structured logs"). A trace can only start where instrumentation exists; today that's the BFF. Extending tracing into the browser is a separate, larger decision this TD does not revisit.
 - **Cron trigger channel tracing** (`ITriggerBus`/`/cron/*`) — triggers are not domain events (D3) and carry no real per-tenant business context; not addressed here unless a future need surfaces.
 
@@ -132,6 +140,7 @@ Compounding this: `otel-tracing.ts`'s `ignoreIncomingRequestHook` currently excl
 - [ ] Tests prove inject→extract actually links contexts correctly, using a real span/context-manager setup (same pattern as `packages/observability/src/otel-tracing-adapter.spec.ts` — `AsyncHooksContextManager` + `InMemorySpanExporter` from `@opentelemetry/sdk-trace-base`, not a trust-it-works assertion).
 - [ ] `RequestInterceptor` bypasses `/pubsub` — a request to `/pubsub/push` with no `X-Tenant-ID` header reaches `PubSubPushController`, not a 400.
 - [ ] `dispatchPushMessage()` starts an explicit `pubsub.event.<eventName>` span (via `ITracingPort.startActiveSpan`) as a child of the extracted context, for the domain-event path only — not the trigger path.
+- [ ] `dispatch()` (pull mode) extracts trace context from `message.attributes` and starts the identical `pubsub.event.<eventName>` span, so a pull-mode consumer's processing links to the original request's trace exactly like push mode does.
 - [ ] `docs/10-OBSERVABILITY_STRATEGY.md` updated to document the propagation mechanism (full inline + swept correctness) and to correct its "Full Telemetry Flow" diagram, which currently describes this as already working.
 
 ---
