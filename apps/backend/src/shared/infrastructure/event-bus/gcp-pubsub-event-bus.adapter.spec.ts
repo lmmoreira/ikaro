@@ -1,5 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import { DomainEvent } from '../../domain/domain-event';
+import { StubEvent as SharedStubEvent } from '../../../test/infrastructure/stub-envelope-classes';
 
 const mockAck = jest.fn();
 const mockNack = jest.fn();
@@ -32,12 +33,12 @@ jest.mock('@google-cloud/pubsub', () => ({
 
 import { GcpPubSubEventBusAdapter } from './gcp-pubsub-event-bus.adapter';
 
-class StubEvent extends DomainEvent<{ value: string }> {
-  readonly eventVersion = 1;
-  readonly data: { value: string };
+// Fixed tenantId/correlationId convenience wrapper over the shared stub (bad-smell-audit BE-3) —
+// this file's ~11 call sites only ever need to vary `data`, so this keeps them single-arg
+// (new StubEvent({ value })) instead of repeating 'tenant-1'/'corr-1' at every call site.
+class StubEvent extends SharedStubEvent {
   constructor(data: { value: string }) {
-    super('tenant-1', 'corr-1');
-    this.data = data;
+    super('tenant-1', 'corr-1', data);
   }
 }
 

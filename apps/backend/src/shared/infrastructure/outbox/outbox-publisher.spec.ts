@@ -1,7 +1,6 @@
 import { ITracingPort } from '@ikaro/observability';
 import { makeConfigService } from '../../../test/infrastructure/fake-config-service';
-import { Command } from '../../domain/command';
-import { DomainEvent } from '../../domain/domain-event';
+import { StubCommand, StubEvent } from '../../../test/infrastructure/stub-envelope-classes';
 import { IOutboxRepository } from '../../ports/outbox-repository.port';
 import { OutboxPublisher } from './outbox-publisher';
 import { OutboxRelayService } from './outbox-relay.service';
@@ -22,24 +21,6 @@ class FakeTracingPort implements ITracingPort {
   }
   runWithExtractedContext<T>(_carrier: Record<string, string>, fn: () => T): T {
     return fn();
-  }
-}
-
-class StubEvent extends DomainEvent<{ value: string }> {
-  readonly eventVersion = 1;
-  readonly data: { value: string };
-  constructor(tenantId: string, correlationId: string, data: { value: string }) {
-    super(tenantId, correlationId);
-    this.data = data;
-  }
-}
-
-class StubCommand extends Command<{ value: string }> {
-  readonly eventVersion = 1;
-  readonly data: { value: string };
-  constructor(tenantId: string, correlationId: string, data: { value: string }, dedupKey: string) {
-    super(tenantId, correlationId, dedupKey);
-    this.data = data;
   }
 }
 
