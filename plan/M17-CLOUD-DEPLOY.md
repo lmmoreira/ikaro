@@ -944,7 +944,7 @@ Pub/Sub target (not HTTP): `pubsub_target { topic_name, data = base64("{}") }`.
 
 ---
 
-### M17-S22 — Edge module (prod): Global ALB + serverless NEGs + Cloudflare DNS
+### M17-S22 — Edge module (prod): Global ALB + serverless NEGs + Cloudflare DNS ✅ Done
 
 **Agent:** `devops`
 **Complexity:** L
