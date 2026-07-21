@@ -1027,21 +1027,23 @@ NestJS BFF
     │  AppLogger logs with tenantId + correlationId + traceId
     ▼
 NestJS Backend
-    │  OTel auto-instruments incoming HTTP → child span
-    │  Use case: tracer.startActiveSpan('booking.approveBooking')
+    │  OTel auto-instruments incoming HTTP → child span (no manual use-case span — manual
+    │  business spans stay deferred, see "Manual Span Creation — deferred" above)
     │  AppLogger logs use case start + completion
     │  Metrics: bookingStatusTransitions.inc({ tenant_id, from, to })
     │  Event enters outbox: OutboxPublisher captures the active trace context onto
     │  Envelope.traceContext (TD28) — captured once, here, regardless of inline vs. swept dispatch
     │  Event published: { ...envelope, correlationId }; message.attributes carries traceContext
     ▼
-Pub/Sub → Event Consumer (Loyalty / Notification)
+Pub/Sub → Event Consumer (push or pull, TD28 covers both symmetrically)
     │  correlationId extracted from the deserialized envelope itself (part of the JSON body, not
     │  a message attribute); traceContext extracted from message.attributes and reconstructed via
     │  ITracingPort.runWithExtractedContext (TD28) — the consumer's span is a genuine child of the
     │  original HTTP request's trace, for both inline and swept dispatch
     │  AppLogger.withContext({ correlationId, tenantId })
-    │  Consumer span: tracer.startActiveSpan('loyalty.recordCompletion')
+    │  Consumer span: ITracingPort.startActiveSpan('pubsub.event.<eventName>') — a transport-layer
+    │  span at the dispatch boundary (TD28), not the manual per-use-case business span this
+    │  diagram used to (wrongly) imply; those stay deferred same as the backend hop above
     │  Metrics: loyaltyEntriesCreated.inc({ tenant_id })
     ▼
 stdout (JSON logs)
