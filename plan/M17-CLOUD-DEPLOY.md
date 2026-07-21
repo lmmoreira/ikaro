@@ -1196,7 +1196,7 @@ Old M16-S08 is **largely already implemented** (`packages/nestjs-http/src/proble
 
 ---
 
-### M17-S33 — OpenTelemetry SDK bootstrap (traces, OTLP-only)
+### M17-S33 — OpenTelemetry SDK bootstrap (traces, OTLP-only) ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** M
