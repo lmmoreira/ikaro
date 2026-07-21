@@ -1,6 +1,7 @@
 import { LoggerService, LogLevel } from '@nestjs/common';
-import { trace } from '@opentelemetry/api';
 import { LogVendorFormatter, NoopLogVendorFormatter } from './log-vendor-formatter';
+import { defaultTracingPort } from './otel-tracing-adapter';
+import { ITracingPort } from './tracing-port';
 
 export interface LogContext {
   tenantId?: string;
@@ -26,14 +27,17 @@ const LOG_LEVEL_ORDER: Record<LoggerLevel, number> = {
 export abstract class BaseAppLogger implements LoggerService {
   private readonly context?: string;
   private readonly vendorFormatter: LogVendorFormatter;
+  private readonly tracingPort: ITracingPort;
 
   protected constructor(
     private readonly service: string,
     vendorFormatter: LogVendorFormatter = new NoopLogVendorFormatter(),
     context?: string,
+    tracingPort: ITracingPort = defaultTracingPort,
   ) {
     this.vendorFormatter = vendorFormatter;
     this.context = context;
+    this.tracingPort = tracingPort;
   }
 
   log(message: string, context?: LogContext | string): void {
@@ -83,9 +87,9 @@ export abstract class BaseAppLogger implements LoggerService {
     }
 
     const ctx = typeof context === 'string' ? { context } : context;
-    const spanContext = trace.getActiveSpan()?.spanContext();
-    const activeTraceId = spanContext?.traceId ?? null;
-    const activeSpanId = spanContext?.spanId ?? null;
+    const activeTraceContext = this.tracingPort.getActiveTraceContext();
+    const activeTraceId = activeTraceContext?.traceId ?? null;
+    const activeSpanId = activeTraceContext?.spanId ?? null;
     const entry = {
       // Caller/enrichment fields spread first so they can supply extras (tenantId,
       // correlationId, ...) — but never override the core fields declared below them,

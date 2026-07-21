@@ -17,6 +17,9 @@ const config: Config = {
     '!**/*.integration.spec.ts',
     '!**/migrations/**',
     '!**/main.ts',
+    // Same category as main.ts — a side-effecting bootstrap file required before Nest/anything
+    // else initialises (M17-S33), not a unit of testable logic.
+    '!**/tracing.ts',
   ],
   coverageDirectory: '../coverage',
   coverageReporters: ['lcov', 'text-summary'],

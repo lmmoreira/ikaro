@@ -216,6 +216,29 @@ A repository or adapter that reads `this.requestContext.settings` works fine whe
 
 ---
 
+## Observability ports (logging + tracing)
+
+Both are shared, cross-app code in `packages/observability` (used by backend and BFF alike) — they follow the same port/adapter shape, and it's the shape to reuse for any future observability integration:
+
+| Concern | Port | Default (real) adapter | Alternate adapter |
+|---|---|---|---|
+| Log line formatting | `LogVendorFormatter` (`log-vendor-formatter.ts`) | `GoogleCloudLogVendorFormatter` (`gcp-log-vendor-formatter.ts`) | `NoopLogVendorFormatter` |
+| Trace enrichment | `ITracingPort` (`tracing-port.ts`) | `OtelTracingAdapter` (`otel-tracing-adapter.ts`) | — |
+
+**Why a port at all, for `@opentelemetry/api`:** `trace.getActiveSpan()` itself is already vendor-neutral (OTLP is the standard; the collector, not app code, is where a vendor is ever selected — see D9 in `plan/M17-CLOUD-DEPLOY.md`). The port exists for the scenario D9 doesn't cover: a vendor requiring their own proprietary tracer SDK instead of OTLP ingestion. In that case every call site that imported `@opentelemetry/api` directly would need editing; behind a port, only one new adapter class does. It also closes a real testability gap — `trace.getActiveSpan()` returns `undefined` with no SDK running, so a raw import was untestable (a call either happened against nothing, or was trusted blindly); a fake `ITracingPort` lets a spec assert exactly what was set.
+
+**Wiring differs by how the consumer itself is constructed — mirror whichever your class already does, don't introduce DI where there wasn't any:**
+- **Never NestJS-DI-managed** (`BaseAppLogger`/`AppLogger` — always `new AppLogger(Context.name)`, never `@Inject`-ed): the port is a plain constructor parameter with a real-adapter default (`vendorFormatter: LogVendorFormatter = new NoopLogVendorFormatter()`, `tracingPort: ITracingPort = defaultTracingPort`). No `@Optional()` needed — nothing is asking Nest's container to resolve it.
+- **Already NestJS-DI-managed** (`CorrelationMiddleware`, `RequestInterceptor` — real `@Injectable()`s Nest's container constructs): same constructor-parameter-with-default shape, but the parameter needs `@Optional()`. Without it, Nest reflects the parameter's design-time type for DI resolution; since `ITracingPort` is an interface (erased at runtime), Nest can't find a bound provider for it and throws `UnknownDependenciesException` instead of falling through to the default. `@Optional()` tells Nest to pass `undefined` when nothing is bound — which is what lets the JS default value apply. No token, no module registration needed for the default case.
+
+**One exported default instance per port, not `new Adapter()` at every call site.** `otel-tracing-adapter.ts` exports `export const defaultTracingPort: ITracingPort = new OtelTracingAdapter();` and all 5 consumers (`BaseAppLogger`, both apps' `CorrelationMiddleware`/`RequestInterceptor`) default to that same constant, not their own `new OtelTracingAdapter()`. `OtelTracingAdapter` has no state — its methods only delegate to `@opentelemetry/api`'s own global `trace` singleton — so this isn't a caching/perf concern, it's centralising *which* concrete adapter is the default: swapping it is one line in `otel-tracing-adapter.ts`, not five call sites across two apps. Still no NestJS DI/token — this is a plain shared constant, consistent with the "never DI-managed" callers above; a future port should follow this shape too rather than repeating `new X()` at each default-parameter site.
+
+**Dependency direction:** shared code in `packages/*` depends on the port only, never on either app's concrete class — a shared package importing from `apps/backend` or `apps/bff` inverts the dependency direction. `BaseErrorFilter` (`packages/nestjs-http`) is the existing example: typed against `BaseAppLogger`, but each app's own `ErrorFilter` passes its real, enriching `AppLogger` into `super()` — the shared filter code gets full app-specific enrichment through polymorphism, without ever importing either app's concrete logger class.
+
+**The tracing SDK bootstrap itself (`otel-tracing.ts`'s `bootstrapTracing()`, called once from each app's `src/tracing.ts`) is deliberately *not* behind `ITracingPort`.** It's the composition root, not a port consumer — its whole job is selecting and starting a concrete implementation, the same way `main.ts` calls `NestFactory.create()` directly. What it *does* get is a vendor-neutral name and argument shape: `bootstrapTracing(serviceName, options: TracingOptions)` — `TracingOptions` (`{ postgres?: boolean }`) is translated into OTel-specific instrumentation config *inside* `otel-tracing.ts`, so neither `tracing.ts` file ever references an OTel package name or config shape. A full tracer-SDK swap (e.g. a vendor contract requiring their own proprietary SDK instead of OTLP ingestion) is then confined entirely to `packages/observability` — both apps' `tracing.ts` files need zero changes, since they never named the vendor to begin with.
+
+---
+
 ## Controller, Route, and Shared-UI Boundaries
 
 - Controllers and route files are composition layers only. They may parse input and choose the use case/helper, but branching policy and response shaping belong in the owning slice.

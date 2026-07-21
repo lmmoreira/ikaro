@@ -102,16 +102,25 @@ describe('OutboxRelayService (integration)', () => {
         .build();
       const oldRow = new OutboxEventEntityBuilder()
         .withDedupKey(`old-${dedup}`)
-        .withCreatedAt(new Date(Date.now() - 60_000))
+        .withCreatedAt(new Date(Date.now() - 10 * 60_000))
         .withPayload({ eventName: 'StubEvent' })
         .build();
       await outboxRepo.save([freshRow, oldRow]);
 
+      // Grace window is 5 minutes here (not the 30s a production-realistic value would use) —
+      // the WHERE clause compares against Postgres's own now() at query time (see
+      // SWEEP_SELECT_SQL), and the sweep loops over the *whole* shared.outbox table with no
+      // per-test scoping until a batch comes back short. Under CI parallelism, other spec files
+      // sharing this Testcontainers instance can leave enough backlog that the loop takes longer
+      // than a tight margin to reach freshRow, ageing it past a 30s threshold before the query
+      // ever evaluates it (observed flake, 2026-07-21) — a wide margin removes the race without
+      // weakening what's actually under test (the grace-window comparison itself, not its
+      // specific production value).
       const service = new OutboxRelayService(
         typeOrmOutboxRepo,
         eventBus,
         typeOrmInboxRepo,
-        makeConfigService({ OUTBOX_SWEEP_GRACE_SECONDS: 30 }),
+        makeConfigService({ OUTBOX_SWEEP_GRACE_SECONDS: 300 }),
       );
       await service.relay();
 

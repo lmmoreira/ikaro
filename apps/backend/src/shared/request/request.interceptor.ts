@@ -6,7 +6,9 @@ import {
   Inject,
   Injectable,
   NestInterceptor,
+  Optional,
 } from '@nestjs/common';
+import { defaultTracingPort, ITracingPort } from '@ikaro/observability';
 import { Observable } from 'rxjs';
 import { ProblemDetail } from '@ikaro/types';
 import { ITenantSettingsPort, TENANT_SETTINGS_PORT } from '../ports/tenant-settings.port';
@@ -15,7 +17,13 @@ import { runWithRequestContext } from './request-context';
 
 @Injectable()
 export class RequestInterceptor implements NestInterceptor {
-  constructor(@Inject(TENANT_SETTINGS_PORT) private readonly settingsPort: ITenantSettingsPort) {}
+  // @Optional() so Nest's DI container doesn't throw trying to resolve an interface token when
+  // no provider is bound for it — falls through to the default, same pattern as AppLogger's
+  // vendorFormatter param (packages/observability/src/app-logger.ts).
+  constructor(
+    @Inject(TENANT_SETTINGS_PORT) private readonly settingsPort: ITenantSettingsPort,
+    @Optional() private readonly tracingPort: ITracingPort = defaultTracingPort,
+  ) {}
 
   async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<unknown>> {
     const req = context.switchToHttp().getRequest<{
@@ -70,16 +78,28 @@ export class RequestInterceptor implements NestInterceptor {
       typeof req.headers['x-actor-role'] === 'string' ? req.headers['x-actor-role'] : undefined;
     const actor = actorId && actorType && actorRole ? { actorId, actorType, actorRole } : undefined;
 
+    // M17-S33: tenant.id (+ user.id when known) on the request span. correlation.id is set
+    // unconditionally in CorrelationMiddleware instead (runs pre-Guards); this interceptor
+    // never runs for a guard-rejected request, so tenant.id genuinely can't be known there —
+    // same asymmetry CorrelationMiddleware's own comment already documents for the header.
+    this.tracingPort.setActiveSpanAttributes({
+      'tenant.id': tenantId,
+      // actor?.actorId (not the raw actorId var) so the span attribute stays consistent with
+      // what's actually propagated into RequestContext — actorId alone can be truthy even when
+      // actorType/actorRole failed validation and actor itself is undefined.
+      ...(actor?.actorId ? { 'user.id': actor.actorId } : {}),
+    });
+
     // Wrap the entire request observable in AsyncLocalStorage context so that
-    // RequestContext fields are available anywhere in the call chain.
+    // RequestContext fields are available anywhere in the call chain. Returning the inner
+    // Subscription as this executor's teardown logic wires outer unsubscription (e.g. a client
+    // aborting the request) through to it — otherwise it would keep running after teardown.
     return new Observable((subscriber) => {
-      runWithRequestContext(
+      return runWithRequestContext(
         tenantId,
         correlationId,
         settings,
-        () => {
-          next.handle().subscribe(subscriber);
-        },
+        () => next.handle().subscribe(subscriber),
         actor,
       );
     });

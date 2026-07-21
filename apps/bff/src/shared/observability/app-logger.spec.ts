@@ -1,3 +1,4 @@
+import { enrichRequestContext, runWithRequestContext } from '../request/request-context';
 import { AppLogger } from './app-logger';
 
 class TestableAppLogger extends AppLogger {
@@ -33,8 +34,31 @@ describe('AppLogger', () => {
     expect(lastOutput).toMatchObject({ service: 'bff', context: 'TestContext' });
   });
 
-  it('does not auto-enrich with tenant fields (no tenant context in bff)', () => {
+  it('does not enrich when called outside a request (no active RequestContext store)', () => {
     new AppLogger().log('plain');
+    expect(lastOutput['tenantId']).toBeUndefined();
+    expect(lastOutput['correlationId']).toBeUndefined();
+  });
+
+  // M17-S33: BFF gained its own RequestContext (mirrors the backend's) — AppLogger.enrich()
+  // reads from it, closing the gap where BFF logs used to carry no tenantId/correlationId at
+  // all (unlike the backend, which has always had this via its own RequestContext).
+  it('enriches with correlationId + tenantId when inside an active, enriched RequestContext', () => {
+    runWithRequestContext('corr-1', () => {
+      enrichRequestContext('tenant-1');
+      new AppLogger().log('inside request');
+    });
+
+    expect(lastOutput['correlationId']).toBe('corr-1');
+    expect(lastOutput['tenantId']).toBe('tenant-1');
+  });
+
+  it('enriches with correlationId only when tenantId is not yet known (guest/unauthenticated request)', () => {
+    runWithRequestContext('corr-2', () => {
+      new AppLogger().log('guest request');
+    });
+
+    expect(lastOutput['correlationId']).toBe('corr-2');
     expect(lastOutput['tenantId']).toBeUndefined();
   });
 

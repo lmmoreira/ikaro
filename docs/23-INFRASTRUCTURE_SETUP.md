@@ -867,7 +867,10 @@ resource "google_cloud_run_v2_service" "backend" {
         for_each = var.observability_vm_ip != "" ? [1] : []
         content {
           name  = "OTEL_EXPORTER_OTLP_ENDPOINT"
-          value = "http://${var.observability_vm_ip}:4317"
+          # :4318 (OTLP-HTTP), not :4317 (OTLP-gRPC) — M17-S33's bootstrapTracing() uses
+          # @opentelemetry/exporter-trace-otlp-http exclusively (see docs/10 § NestJS OTel
+          # Implementation); the collector's gRPC receiver is never used in this stack.
+          value = "http://${var.observability_vm_ip}:4318"
         }
       }
 
@@ -927,7 +930,10 @@ resource "google_cloud_run_v2_service" "bff" {
         for_each = var.observability_vm_ip != "" ? [1] : []
         content {
           name  = "OTEL_EXPORTER_OTLP_ENDPOINT"
-          value = "http://${var.observability_vm_ip}:4317"
+          # :4318 (OTLP-HTTP), not :4317 (OTLP-gRPC) — M17-S33's bootstrapTracing() uses
+          # @opentelemetry/exporter-trace-otlp-http exclusively (see docs/10 § NestJS OTel
+          # Implementation); the collector's gRPC receiver is never used in this stack.
+          value = "http://${var.observability_vm_ip}:4318"
         }
       }
     }

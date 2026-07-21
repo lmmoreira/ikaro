@@ -1,5 +1,20 @@
+import { ITracingPort, SpanAttributeValue } from '@ikaro/observability';
 import { NextFunction, Request, Response } from 'express';
+import { getRequestStore } from '../request/request-context';
 import { CorrelationMiddleware } from './correlation.middleware';
+
+// Records calls instead of talking to a real span — this is exactly the testability gap the
+// ITracingPort refactor closes: previously trace.getActiveSpan()?.setAttribute(...) had no
+// active span in a unit test, so the call silently no-op'd and nothing here could assert on it.
+class FakeTracingPort implements ITracingPort {
+  readonly calls: Array<Record<string, SpanAttributeValue>> = [];
+  setActiveSpanAttributes(attributes: Record<string, SpanAttributeValue>): void {
+    this.calls.push(attributes);
+  }
+  getActiveTraceContext(): undefined {
+    return undefined;
+  }
+}
 
 function makeReqRes(headers: Record<string, string> = {}): {
   req: Request;
@@ -49,5 +64,36 @@ describe('CorrelationMiddleware', () => {
     expect(req.headers['x-correlation-id']).toMatch(/^[0-9a-f-]{36}$/);
     expect(req.headers['x-correlation-id']).not.toBe('<script>alert(1)</script>');
     expect(next).toHaveBeenCalled();
+  });
+
+  // Security review follow-up (2026-07-21): a guard-rejected request's error log previously
+  // carried no correlationId at all, since RequestContext was only ever established by
+  // RequestInterceptor (post-Guards) — this proves the middleware itself now establishes it,
+  // pre-Guards, so any code running inside next() (including a Guard that rejects the request)
+  // can already see correlationId.
+  it('establishes RequestContext with correlationId before next() runs, so a guard-rejected request still has it', () => {
+    const middleware = new CorrelationMiddleware();
+    const { req, res, next: mockNext } = makeReqRes();
+
+    let capturedCorrelationId: string | undefined;
+    const next: NextFunction = () => {
+      capturedCorrelationId = getRequestStore()?.correlationId;
+      (mockNext as jest.Mock)();
+    };
+
+    middleware.use(req, res, next);
+
+    expect(capturedCorrelationId).toBe(req.headers['x-correlation-id']);
+    expect(mockNext).toHaveBeenCalled();
+  });
+
+  it('sets correlation.id on the active span via the tracing port', () => {
+    const tracingPort = new FakeTracingPort();
+    const middleware = new CorrelationMiddleware(tracingPort);
+    const { req, res, next } = makeReqRes();
+
+    middleware.use(req, res, next);
+
+    expect(tracingPort.calls).toEqual([{ 'correlation.id': req.headers['x-correlation-id'] }]);
   });
 });
