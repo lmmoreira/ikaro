@@ -3,7 +3,7 @@
 # Web Vitest runs in CI via ci:integration.
 # Skipped when every changed file relative to the remote tip is docs/tooling-only
 # (*.md anywhere, or any file under td/, plan/, scripts/, infra/terraform/,
-# .agents/, .claude/, .copilot/, .github/) — no app code changed.
+# .agents/, .claude/, .copilot/, .github/, .githooks/) — no app code changed.
 # Activate: git config core.hooksPath .githooks
 # When testing skip_pattern changes interactively: use `command grep`, not a
 # plain `grep` call — some interactive shells (e.g. Claude Code's own dev
@@ -12,7 +12,7 @@
 set -e
 
 zero=$(git hash-object --stdin </dev/null | tr '[0-9a-f]' '0')
-skip_pattern='(\.md$)|(^td/)|(^plan/)|(^scripts/)|(^infra/terraform/)|(^\.agents/)|(^\.claude/)|(^\.copilot/)|(^\.github/)'
+skip_pattern='(\.md$)|(^td/)|(^plan/)|(^scripts/)|(^infra/terraform/)|(^\.agents/)|(^\.claude/)|(^\.copilot/)|(^\.github/)|(^\.githooks/)'
 run_ci_fast=false
 
 while read -r local_ref local_oid remote_ref remote_oid
@@ -32,7 +32,7 @@ do
 done
 
 if [ "$run_ci_fast" = false ]; then
-  echo "pre-push: only docs/tooling changed (*.md, td/**, plan/**, scripts/**, infra/terraform/**, .agents/**, .claude/**, .copilot/**, .github/**) — skipping ci:fast"
+  echo "pre-push: only docs/tooling changed (*.md, td/**, plan/**, scripts/**, infra/terraform/**, .agents/**, .claude/**, .copilot/**, .github/**, .githooks/**) — skipping ci:fast"
   exit 0
 fi
 
