@@ -18,13 +18,16 @@ module.exports = [
               message: 'Import directly from the domain file, e.g. ../shared/domain/domain-event',
             },
             {
-              // M17-S33 (D9 anti-lock-in): app code exports traces as plain OTLP only — the
-              // collector (M17-S34) is the one and only place GCP appears in the whole pipeline.
-              // A vendor exporter/detector package imported here would leak that boundary back
-              // into app code.
-              regex: '^@google-cloud\\/opentelemetry',
+              // M17-S33: raw @opentelemetry/* imports are confined to packages/observability
+              // (the port/adapter live there — ITracingPort/OtelTracingAdapter — mirroring
+              // LogVendorFormatter for logging). App code depends on the port only, never the
+              // SDK directly, so a future tracer swap touches one adapter, not every call site.
+              // This also covers D9 anti-lock-in for the vendor-specific case: the collector
+              // (M17-S34) is the one and only place GCP appears in the whole pipeline, so a GCP
+              // OTel exporter/detector package has no legitimate reason to appear here either.
+              regex: '^@opentelemetry\\/',
               message:
-                'GCP-specific OTel packages are forbidden in app code (D9 anti-lock-in) — the collector config (M17-S34) is the only place a vendor exporter belongs.',
+                'Raw @opentelemetry/* imports belong only in packages/observability (M17-S33) — depend on ITracingPort/OtelTracingAdapter (or bootstrapOtelTracing for a tracing.ts entrypoint) instead.',
             },
           ],
         },
@@ -66,6 +69,11 @@ module.exports = [
               regex: '\\/event-bus\\.port$',
               message:
                 'Publish sites depend on OUTBOX_PUBLISHER/IOutboxPublisher (shared/ports/outbox-publisher.port), not EVENT_BUS — see td/TD24-OUTBOX-INBOX-PATTERN.md D14.',
+            },
+            {
+              regex: '^@opentelemetry\\/',
+              message:
+                'Raw @opentelemetry/* imports belong only in packages/observability (M17-S33) — depend on ITracingPort/OtelTracingAdapter instead.',
             },
           ],
         },

@@ -21,22 +21,40 @@ export function getRequestStore(): RequestStore | undefined {
   return requestStorage.getStore();
 }
 
-export function runWithRequestContext<T>(
-  correlationId: string,
-  fn: () => T,
-  tenantId?: string,
-  actor?: ActorInfo,
-): T {
-  return requestStorage.run({ correlationId, tenantId, ...actor }, fn);
+// Establishes the store for the whole request — called from CorrelationMiddleware, which runs
+// pre-Guards, so correlationId is available unconditionally (including on a guard-rejected
+// request's error logs — see enrichRequestContext below for why that matters).
+export function runWithRequestContext<T>(correlationId: string, fn: () => T): T {
+  return requestStorage.run({ correlationId }, fn);
+}
+
+// Mutates the already-established store in place — called from RequestInterceptor once
+// JwtAuthGuard/TenantGuard have resolved req.user, i.e. after runWithRequestContext already
+// ran for this request. Mutating (not re-running requestStorage.run()) means every log line
+// written before this point already had correlationId, and everything from here on also gets
+// tenantId/actor — same object reference throughout, so there's no second AsyncLocalStorage
+// boundary to wrap intercept()'s return value in (a prior version wrapped next.handle() in a
+// manual `new Observable(...)` for this exact reason, which dropped the inner RxJS subscription
+// on early client disconnect — this design has no such executor to get wrong).
+export function enrichRequestContext(tenantId: string, actor?: ActorInfo): void {
+  const store = requestStorage.getStore();
+  if (!store) {
+    return; // defensive only — CorrelationMiddleware always runs first in practice
+  }
+  store.tenantId = tenantId;
+  if (actor) {
+    store.actorId = actor.actorId;
+    store.actorType = actor.actorType;
+    store.actorRole = actor.actorRole;
+  }
 }
 
 // BFF's counterpart to the backend's RequestContext (apps/backend/src/shared/request/request-context.ts)
 // — same AsyncLocalStorage shape, minus `settings`: the BFF never reads tenant settings
-// directly, only proxies to the backend, so there is nothing to carry here. Populated by
-// RequestInterceptor from `req.user` (JWT) and the X-Correlation-ID header, so — unlike
-// correlationId, which CorrelationMiddleware guarantees unconditionally pre-Guards —
-// tenantId/actor fields are only ever present once JwtAuthGuard/TenantGuard have already
-// resolved the caller; a guard-rejected request never reaches this store at all.
+// directly, only proxies to the backend, so there is nothing to carry here. correlationId is
+// always present once CorrelationMiddleware has run (i.e. for every request, including
+// guard-rejected ones); tenantId/actor are only present once RequestInterceptor has also run,
+// which — unlike the middleware — never happens for a guard-rejected request.
 @Injectable()
 export class RequestContext {
   get correlationId(): string {

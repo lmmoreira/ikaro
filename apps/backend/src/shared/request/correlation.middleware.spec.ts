@@ -1,5 +1,19 @@
+import { ITracingPort, SpanAttributeValue } from '@ikaro/observability';
 import { NextFunction, Request, Response } from 'express';
 import { CorrelationMiddleware } from './correlation.middleware';
+
+// Records calls instead of talking to a real span — this is exactly the testability gap the
+// ITracingPort refactor closes: previously trace.getActiveSpan()?.setAttribute(...) had no
+// active span in a unit test, so the call silently no-op'd and nothing here could assert on it.
+class FakeTracingPort implements ITracingPort {
+  readonly calls: Array<Record<string, SpanAttributeValue>> = [];
+  setActiveSpanAttributes(attributes: Record<string, SpanAttributeValue>): void {
+    this.calls.push(attributes);
+  }
+  getActiveTraceContext(): undefined {
+    return undefined;
+  }
+}
 
 function makeReqRes(headers: Record<string, string> = {}): {
   req: Request;
@@ -52,5 +66,15 @@ describe('CorrelationMiddleware', () => {
     expect(req.headers['x-correlation-id']).not.toBe('<script>alert(1)</script>');
     expect(setHeader).toHaveBeenCalledWith('X-Correlation-ID', req.headers['x-correlation-id']);
     expect(next).toHaveBeenCalled();
+  });
+
+  it('sets correlation.id on the active span via the tracing port', () => {
+    const tracingPort = new FakeTracingPort();
+    const middleware = new CorrelationMiddleware(tracingPort);
+    const { req, res, next } = makeReqRes();
+
+    middleware.use(req, res, next);
+
+    expect(tracingPort.calls).toEqual([{ 'correlation.id': req.headers['x-correlation-id'] }]);
   });
 });

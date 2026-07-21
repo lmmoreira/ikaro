@@ -1,4 +1,4 @@
-import { runWithRequestContext } from '../request/request-context';
+import { enrichRequestContext, runWithRequestContext } from '../request/request-context';
 import { AppLogger } from './app-logger';
 
 class TestableAppLogger extends AppLogger {
@@ -43,14 +43,11 @@ describe('AppLogger', () => {
   // M17-S33: BFF gained its own RequestContext (mirrors the backend's) — AppLogger.enrich()
   // reads from it, closing the gap where BFF logs used to carry no tenantId/correlationId at
   // all (unlike the backend, which has always had this via its own RequestContext).
-  it('enriches with correlationId + tenantId when inside an active RequestContext', () => {
-    runWithRequestContext(
-      'corr-1',
-      () => {
-        new AppLogger().log('inside request');
-      },
-      'tenant-1',
-    );
+  it('enriches with correlationId + tenantId when inside an active, enriched RequestContext', () => {
+    runWithRequestContext('corr-1', () => {
+      enrichRequestContext('tenant-1');
+      new AppLogger().log('inside request');
+    });
 
     expect(lastOutput['correlationId']).toBe('corr-1');
     expect(lastOutput['tenantId']).toBe('tenant-1');

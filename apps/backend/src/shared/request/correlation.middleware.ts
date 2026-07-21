@@ -1,5 +1,5 @@
-import { Injectable, NestMiddleware } from '@nestjs/common';
-import { trace } from '@opentelemetry/api';
+import { Injectable, NestMiddleware, Optional } from '@nestjs/common';
+import { defaultTracingPort, ITracingPort } from '@ikaro/observability';
 import { NextFunction, Request, Response } from 'express';
 import { isUuidV7, uuidv7 } from '../domain/uuid-v7';
 
@@ -10,6 +10,11 @@ import { isUuidV7, uuidv7 } from '../domain/uuid-v7';
 // at all. Middleware runs before Guards, so it's populated unconditionally.
 @Injectable()
 export class CorrelationMiddleware implements NestMiddleware {
+  // @Optional() so Nest's DI container doesn't throw trying to resolve an interface token when
+  // no provider is bound for it — falls through to the default, same pattern as AppLogger's
+  // vendorFormatter param (packages/observability/src/app-logger.ts).
+  constructor(@Optional() private readonly tracingPort: ITracingPort = defaultTracingPort) {}
+
   use(req: Request, res: Response, next: NextFunction): void {
     const incoming = req.headers['x-correlation-id'];
     // Never trust an incoming value verbatim (M17-S31 review, 2026-07-20) — an unvalidated
@@ -25,7 +30,7 @@ export class CorrelationMiddleware implements NestMiddleware {
     // M17-S33: set directly here, same reasoning as the header above — this is the one place
     // guaranteed to run for every request regardless of Guard outcome, so correlation.id is
     // never missing from a span the way it would be if only RequestInterceptor set it.
-    trace.getActiveSpan()?.setAttribute('correlation.id', correlationId);
+    this.tracingPort.setActiveSpanAttributes({ 'correlation.id': correlationId });
     next();
   }
 }

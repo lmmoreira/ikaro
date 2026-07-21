@@ -81,9 +81,6 @@ importers:
       '@nestjs/typeorm':
         specifier: ^11.0.3
         version: 11.0.3(@nestjs/common@11.1.28(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.28)(reflect-metadata@0.2.2)(rxjs@7.8.2)(typeorm@1.1.0(pg@8.22.0)(ts-node@10.9.2(@swc/core@1.15.46)(@types/node@25.9.5)(typescript@6.0.3)))
-      '@opentelemetry/api':
-        specifier: ^1.9.1
-        version: 1.9.1
       cache-manager:
         specifier: ^7.2.9
         version: 7.2.9
@@ -235,9 +232,6 @@ importers:
       '@nestjs/throttler':
         specifier: ^6.5.0
         version: 6.5.0(@nestjs/common@11.1.28(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.28)(reflect-metadata@0.2.2)
-      '@opentelemetry/api':
-        specifier: ^1.9.1
-        version: 1.9.1
       axios:
         specifier: ^1.18.1
         version: 1.18.1
@@ -651,6 +645,9 @@ importers:
       '@nestjs/common':
         specifier: ^11.1.27
         version: 11.1.28(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@opentelemetry/context-async-hooks':
+        specifier: ^2.9.0
+        version: 2.9.0(@opentelemetry/api@1.9.1)
       '@types/jest':
         specifier: ^30.0.0
         version: 30.0.0

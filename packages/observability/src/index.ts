@@ -1,5 +1,8 @@
 export { BaseAppLogger, LogContext } from './app-logger';
-export { bootstrapOtelTracing } from './otel-tracing';
+export { bootstrapTracing } from './otel-tracing';
+export type { TracingOptions } from './otel-tracing';
+export { defaultTracingPort, OtelTracingAdapter } from './otel-tracing-adapter';
+export type { ActiveTraceContext, ITracingPort, SpanAttributeValue } from './tracing-port';
 export { createLogVendorFormatter } from './log-vendor-formatter.factory';
 export { formatGoogleCloudLoggingFields } from './gcp-log-vendor-formatter';
 export { NoopLogVendorFormatter } from './log-vendor-formatter';

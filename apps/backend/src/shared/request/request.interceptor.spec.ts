@@ -1,4 +1,5 @@
 import { CallHandler, ExecutionContext, HttpException, HttpStatus } from '@nestjs/common';
+import { ITracingPort, SpanAttributeValue } from '@ikaro/observability';
 import { lastValueFrom, Observable, of, Subscriber } from 'rxjs';
 import { InMemoryTenantSettingsPort } from '../../test/infrastructure/in-memory-tenant-settings.port';
 import { ITenantSettingsPort } from '../ports/tenant-settings.port';
@@ -14,13 +15,28 @@ function makeContext(
   } as unknown as ExecutionContext;
 }
 
+// Records calls instead of talking to a real span — this is exactly the testability gap the
+// ITracingPort refactor closes: previously trace.getActiveSpan()?.setAttributes(...) had no
+// active span in a unit test, so the call silently no-op'd and nothing here could assert on it.
+class FakeTracingPort implements ITracingPort {
+  readonly calls: Array<Record<string, SpanAttributeValue>> = [];
+  setActiveSpanAttributes(attributes: Record<string, SpanAttributeValue>): void {
+    this.calls.push(attributes);
+  }
+  getActiveTraceContext(): undefined {
+    return undefined;
+  }
+}
+
 const mockCallHandler: CallHandler = { handle: () => of('result') };
 let settingsPort: InMemoryTenantSettingsPort;
+let tracingPort: FakeTracingPort;
 let interceptor: RequestInterceptor;
 
 beforeEach(() => {
   settingsPort = new InMemoryTenantSettingsPort();
-  interceptor = new RequestInterceptor(settingsPort);
+  tracingPort = new FakeTracingPort();
+  interceptor = new RequestInterceptor(settingsPort, tracingPort);
 });
 
 describe('RequestInterceptor', () => {
@@ -164,6 +180,33 @@ describe('RequestInterceptor', () => {
 
     await lastValueFrom(await interceptor.intercept(ctx, handler));
     expect(capturedActorType).toBeUndefined();
+  });
+
+  it('sets tenant.id and user.id span attributes via the tracing port', async () => {
+    const ctx = makeContext({
+      'x-tenant-id': 'tid-1',
+      'x-correlation-id': 'corr-1',
+      'x-actor-id': 'staff-uuid-1',
+      'x-actor-type': 'STAFF',
+      'x-actor-role': 'MANAGER',
+    });
+
+    await lastValueFrom(await interceptor.intercept(ctx, mockCallHandler));
+
+    expect(tracingPort.calls).toEqual([{ 'tenant.id': 'tid-1', 'user.id': 'staff-uuid-1' }]);
+  });
+
+  it('does not set user.id on the span when actorType fails validation, even though the actorId header is present', async () => {
+    const ctx = makeContext({
+      'x-tenant-id': 'tid-1',
+      'x-actor-id': 'user-1',
+      'x-actor-type': 'ADMIN', // invalid — not STAFF/CUSTOMER
+      'x-actor-role': 'MANAGER',
+    });
+
+    await lastValueFrom(await interceptor.intercept(ctx, mockCallHandler));
+
+    expect(tracingPort.calls).toEqual([{ 'tenant.id': 'tid-1' }]);
   });
 
   it('leaves actor fields undefined when X-Actor-* headers are absent (guest request)', async () => {

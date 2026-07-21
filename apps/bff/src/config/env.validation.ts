@@ -17,7 +17,10 @@ export const schema = z.object({
   // documentation/schema-introspection purposes rather than runtime consumption via ConfigService.
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().default('http://localhost:4318'),
   OTEL_TRACES_SAMPLER_ARG: z.coerce.number().min(0).max(1).default(1.0),
-  OTEL_SDK_DISABLED: z.stringbool().default(false),
+  // No static default here — the real default is APP_ENV-dependent (disabled on 'local',
+  // enabled on 'staging'/'production'; see packages/observability/src/otel-sdk-disabled.ts),
+  // which a fixed schema default can't express. Optional and unset means "use that default."
+  OTEL_SDK_DISABLED: z.stringbool().optional(),
   SERVICE_NAME: z.string().default('ikaro-bff'),
   BACKEND_INTERNAL_URL: z.url(),
   JWT_SECRET: z.string().min(64, 'JWT_SECRET must be at least 64 characters'),
