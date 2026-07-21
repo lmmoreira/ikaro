@@ -65,6 +65,8 @@ describe('NotifyExpiringPointsJob (integration, TD24-S03 cron double-send fix)',
       .find({ where: { eventName: 'PointsExpiringSoon', tenantId } });
     expect(rows).toHaveLength(1);
 
+    // Explicit row id (bypasses the sweep's grace window, which a freshly-inserted row wouldn't
+    // clear yet) — this is the same call shape OutboxPublisher's own inline dispatch uses.
     const relay = new OutboxRelayService(
       outboxRepo,
       eventBus,
@@ -73,6 +75,16 @@ describe('NotifyExpiringPointsJob (integration, TD24-S03 cron double-send fix)',
     );
     await relay.relay([rows[0].id]);
 
-    expect(eventBus.published).toHaveLength(1);
+    // Row's own DB state, not this call's local eventBus mock — see
+    // booking-reminder.job.integration.spec.ts for why: the sweep scans the whole shared.outbox
+    // table with no per-test scoping, and other spec files in this suite deliberately configure
+    // OUTBOX_SWEEP_GRACE_SECONDS: 0 — if one of those sweeps claims and publishes this exact row
+    // between insertion and this relay.relay() call, findUnpublishedById() correctly finds
+    // nothing left to do and this test's own eventBus.published would be a false-negative 0,
+    // even though the row genuinely got published.
+    const publishedRow = await ds.getRepository(OutboxEventEntity).findOne({
+      where: { id: rows[0].id },
+    });
+    expect(publishedRow!.publishedAt).not.toBeNull();
   });
 });

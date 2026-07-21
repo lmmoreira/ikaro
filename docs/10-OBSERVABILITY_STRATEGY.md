@@ -245,12 +245,17 @@ export function bootstrapTracing(
     sampler: new ParentBasedSampler({
       root: new TraceIdRatioBasedSampler(samplingRate),
     }),
-    // Passing `url` explicitly makes the exporter use it exactly as-is — an explicit `url` does
-    // NOT get `/v1/traces` auto-appended the way the OTEL_EXPORTER_OTLP_ENDPOINT env var does
-    // when read internally by the exporter. Append it ourselves.
-    traceExporter: new OTLPTraceExporter({
-      url: `${process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? 'http://localhost:4318'}/v1/traces`,
-    }),
+    // A user-provided `url` always wins over the exporter's own environment-derived config
+    // (verified against @opentelemetry/otlp-exporter-base's merge precedence, security review
+    // follow-up 2026-07-21) — so only pass `url` as a last-resort default when neither
+    // OTEL_EXPORTER_OTLP_ENDPOINT nor the signal-specific OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is
+    // set. Otherwise the exporter's own env resolution handles both vars correctly, including
+    // trailing-slash normalization.
+    traceExporter: new OTLPTraceExporter(
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT || process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+        ? {}
+        : { url: 'http://localhost:4318/v1/traces' },
+    ),
     instrumentations: [
       getNodeAutoInstrumentations({
         '@opentelemetry/instrumentation-fs': { enabled: false },   // too noisy
@@ -318,7 +323,9 @@ export function bootstrapTracing(
 }
 ```
 
-Environment variables (Cloud Run `--set-env-vars`, injected per environment by Terraform; `.env.local` locally):
+Because `-r` preloads `tracing.ts` *before* `main.ts` runs, it also runs before NestJS's `ConfigModule` has loaded `.env` — so each app's `tracing.ts` calls `dotenv`'s `config()` itself first (same pattern as `data-source.ts`/`seed.ts`), otherwise `OTEL_EXPORTER_OTLP_ENDPOINT`/`SERVICE_NAME`/`OTEL_SDK_DISABLED` from `.env` are invisible to it in local dev (security review follow-up, 2026-07-21). Cloud Run sets these directly as container env vars, so staging/production are unaffected either way.
+
+Environment variables (Cloud Run `--set-env-vars`, injected per environment by Terraform; `.env` locally):
 
 ```bash
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318   # the collector sidecar (M17-S34) — unset/disabled locally unless the `pnpm obs` profile is used

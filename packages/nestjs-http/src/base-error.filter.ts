@@ -1,6 +1,6 @@
 import { ArgumentsHost, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common';
 import { AuthErrorCode, buildProblemDetail, ProblemDetail } from '@ikaro/types';
-import type { BaseAppLogger } from '@ikaro/observability';
+import { defaultTracingPort, type BaseAppLogger, type ITracingPort } from '@ikaro/observability';
 
 type MinimalRequest = {
   path: string;
@@ -26,7 +26,17 @@ interface MinimalResponse {
 // duplication is what SonarCloud's new-code-duplication gate caught the first time this
 // was written twice as an interceptor.
 export abstract class BaseErrorFilter implements ExceptionFilter {
-  protected constructor(private readonly logger: BaseAppLogger) {}
+  // tracingPort defaults to defaultTracingPort (packages/observability's centralized singleton,
+  // same convention as AppLogger) rather than going through NestJS DI — this class is never
+  // resolved directly by Nest's container (each app's concrete ErrorFilter has its own
+  // no-args constructor and calls super() itself), so a plain default parameter is the correct
+  // wiring, not @Optional(). TD23-S18 / M17-S33 security-review follow-up (2026-07-21):
+  // error.code was already attached to every non-2xx structured log line; this attaches the
+  // same code as a span attribute so it shows up in Cloud Trace too.
+  protected constructor(
+    private readonly logger: BaseAppLogger,
+    private readonly tracingPort: ITracingPort = defaultTracingPort,
+  ) {}
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
@@ -58,6 +68,7 @@ export abstract class BaseErrorFilter implements ExceptionFilter {
         method: req.method,
       },
     );
+    this.tracingPort.setActiveSpanAttributes({ 'error.code': AuthErrorCode.INTERNAL_ERROR });
 
     const status = HttpStatus.INTERNAL_SERVER_ERROR;
     const problem: ProblemDetail = {
@@ -124,5 +135,6 @@ export abstract class BaseErrorFilter implements ExceptionFilter {
     } else {
       this.logger.warn('Error response', logContext);
     }
+    this.tracingPort.setActiveSpanAttributes({ 'error.code': code });
   }
 }

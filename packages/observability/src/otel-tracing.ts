@@ -35,7 +35,10 @@ export interface TracingOptions {
  * any module that might make an HTTP/DB call is imported, so auto-instrumentation can patch
  * those modules first.
  */
-export function bootstrapTracing(defaultServiceName: string, options: TracingOptions = {}): NodeSDK {
+export function bootstrapTracing(
+  defaultServiceName: string,
+  options: TracingOptions = {},
+): NodeSDK {
   // Security review follow-up (2026-07-21): the OTel API's diag channel is silent by default —
   // an unreachable collector or an export failure would previously produce no signal
   // whatsoever, undermining the story's own "warn once" acceptance criterion and leaving an
@@ -60,13 +63,20 @@ export function bootstrapTracing(defaultServiceName: string, options: TracingOpt
     sampler: new ParentBasedSampler({
       root: new TraceIdRatioBasedSampler(samplingRate),
     }),
-    // Passing `url` explicitly makes the exporter use it exactly as-is — unlike the
-    // OTEL_EXPORTER_OTLP_ENDPOINT env var read internally by the exporter, an explicit `url`
-    // does NOT get `/v1/traces` auto-appended. Append it ourselves so the exporter still hits
-    // the collector's traces receiver rather than its bare base path.
-    traceExporter: new OTLPTraceExporter({
-      url: `${process.env['OTEL_EXPORTER_OTLP_ENDPOINT'] ?? 'http://localhost:4318'}/v1/traces`,
-    }),
+    // Security review follow-up (2026-07-21): a user-provided `url` always wins over the
+    // exporter's own environment-derived config (verified against
+    // @opentelemetry/otlp-exporter-base's merge precedence) — so explicitly passing `url` here
+    // unconditionally would silently ignore OTEL_EXPORTER_OTLP_TRACES_ENDPOINT (the
+    // signal-specific var, used as-is) and bypass the exporter's own trailing-slash-safe
+    // handling of OTEL_EXPORTER_OTLP_ENDPOINT (auto-appends `v1/traces`). Only fall back to our
+    // own hardcoded default when neither var is set, so both standard vars work exactly per
+    // OTel's spec in every other case.
+    traceExporter: new OTLPTraceExporter(
+      process.env['OTEL_EXPORTER_OTLP_ENDPOINT'] ||
+        process.env['OTEL_EXPORTER_OTLP_TRACES_ENDPOINT']
+        ? {}
+        : { url: 'http://localhost:4318/v1/traces' },
+    ),
     instrumentations: [
       getNodeAutoInstrumentations({
         '@opentelemetry/instrumentation-fs': { enabled: false }, // too noisy

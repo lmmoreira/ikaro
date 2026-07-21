@@ -7,10 +7,7 @@
  * off — attempting to start there just produces failed-export WARN noise (once diag logging was
  * added, security review follow-up 2026-07-21) for a connection nothing is listening on.
  */
-export function isOtelSdkDisabled(env: {
-  OTEL_SDK_DISABLED?: string;
-  APP_ENV?: string;
-}): boolean {
+export function isOtelSdkDisabled(env: { OTEL_SDK_DISABLED?: string; APP_ENV?: string }): boolean {
   if (env.OTEL_SDK_DISABLED !== undefined) {
     return env.OTEL_SDK_DISABLED === 'true';
   }

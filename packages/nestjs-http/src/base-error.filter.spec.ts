@@ -1,11 +1,21 @@
 import { ArgumentsHost, HttpException } from '@nestjs/common';
 import { AuthErrorCode } from '@ikaro/types';
-import type { BaseAppLogger } from '@ikaro/observability';
+import type { BaseAppLogger, ITracingPort, SpanAttributeValue } from '@ikaro/observability';
 import { BaseErrorFilter } from './base-error.filter';
 
 class TestErrorFilter extends BaseErrorFilter {
-  constructor(logger: BaseAppLogger) {
-    super(logger);
+  constructor(logger: BaseAppLogger, tracingPort?: ITracingPort) {
+    super(logger, tracingPort);
+  }
+}
+
+class FakeTracingPort implements ITracingPort {
+  readonly calls: Array<Record<string, SpanAttributeValue>> = [];
+  setActiveSpanAttributes(attributes: Record<string, SpanAttributeValue>): void {
+    this.calls.push(attributes);
+  }
+  getActiveTraceContext(): undefined {
+    return undefined;
   }
 }
 
@@ -32,11 +42,13 @@ function makeHost(
 
 describe('BaseErrorFilter', () => {
   let logger: ReturnType<typeof makeLogger>;
+  let tracingPort: FakeTracingPort;
   let filter: TestErrorFilter;
 
   beforeEach(() => {
     logger = makeLogger();
-    filter = new TestErrorFilter(logger as unknown as BaseAppLogger);
+    tracingPort = new FakeTracingPort();
+    filter = new TestErrorFilter(logger as unknown as BaseAppLogger, tracingPort);
   });
 
   it('sets Content-Type: application/problem+json on every response (RFC 9457)', () => {
@@ -84,6 +96,7 @@ describe('BaseErrorFilter', () => {
       method: 'POST',
     });
     expect(logger.error).not.toHaveBeenCalled();
+    expect(tracingPort.calls).toEqual([{ 'error.code': 'BOOKING_PICKUP_ADDRESS_REQUIRED' }]);
   });
 
   it('logs an error with the code for a 5xx HttpException carrying a code, and writes it unchanged', () => {
@@ -106,6 +119,17 @@ describe('BaseErrorFilter', () => {
       method: 'GET',
     });
     expect(logger.warn).not.toHaveBeenCalled();
+    expect(tracingPort.calls).toEqual([{ 'error.code': 'BFF_UPSTREAM_UNAVAILABLE' }]);
+  });
+
+  it('does not touch the tracing port when the HttpException body carries no code', () => {
+    const body = { type: 'about:blank', title: 'Not Found', status: 404 };
+    const httpErr = new HttpException(body, 404);
+    const { host } = makeHost('/v1/bookings/unknown');
+
+    filter.catch(httpErr, host);
+
+    expect(tracingPort.calls).toEqual([]);
   });
 
   it('catches an exception thrown by a guard the same way as one thrown by a controller', () => {
@@ -279,6 +303,7 @@ describe('BaseErrorFilter', () => {
       path: '/v1/staff',
       method: 'POST',
     });
+    expect(tracingPort.calls).toEqual([{ 'error.code': AuthErrorCode.INTERNAL_ERROR }]);
   });
 
   it('logs stringified non-Error throws', () => {
