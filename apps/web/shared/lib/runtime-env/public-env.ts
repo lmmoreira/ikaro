@@ -1,11 +1,12 @@
-export type PublicEnvKey =
-  'NEXT_PUBLIC_BFF_URL' | 'NEXT_PUBLIC_SITE_URL' | 'NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL';
-
-const PUBLIC_ENV_KEYS: readonly PublicEnvKey[] = [
+// Single source of truth for the key list — PublicEnvKey is derived from it, not declared
+// independently, so adding a key here can never silently diverge from the injected payload.
+const PUBLIC_ENV_KEYS = [
   'NEXT_PUBLIC_BFF_URL',
   'NEXT_PUBLIC_SITE_URL',
   'NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL',
-];
+] as const;
+
+export type PublicEnvKey = (typeof PUBLIC_ENV_KEYS)[number];
 
 declare global {
   interface Window {

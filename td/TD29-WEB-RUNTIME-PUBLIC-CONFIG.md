@@ -1,6 +1,7 @@
 # TD29 — Runtime-injected public config for `apps/web` (restore build-once-promote-everywhere)
 
 ## Status
+
 - **Type**: Technical Debt / Architecture
 - **State**: Open
 - **Priority**: High-ish, but **not a blocker for any M17 story today** — see Sequencing below
@@ -105,9 +106,8 @@ The other two vars already have a single chokepoint and need no further consolid
 - New unit spec for the runtime-env accessor: server path resolves from `process.env`; client path resolves from the injected global; missing-value behavior defined and tested.
 - Update all affected spec files (29 as of 2026-07-22) to the new mechanism.
 - New regression test proving at least one migrated client component (e.g. `CustomerTopbar`) renders the correct URL from the injected global and does **not** read `process.env` directly — guards against silently reintroducing the old pattern.
-- E2E: run the existing Playwright suite (guest booking, customer login — real cross-origin BFF calls) against a real build to confirm the client bundle resolves the correct BFF origin in an actual browser, not just via unit mocks.
-- Extend the existing CSP/console-violation Playwright check (`docs/CI_TRAPS.md`) to cover the new injected script.
-- Confirmation signal that the fix worked: M17-S26's build-arg assertion step becomes provably unnecessary (or gets repurposed to assert the *same* image SHA is used, not a rebuilt one).
+- **Deferred to M17-S25/S27, not this PR (revised 2026-07-22, cross-tool review finding):** an E2E run against a genuine **production build** (`next build && next start`, not `next dev`) confirming real cross-origin BFF resolution in an actual browser, plus extending the CSP/console-violation Playwright check (`docs/CI_TRAPS.md`) to cover the new injected script. Reasoning: M17-S25 is the first story that builds a real production Docker image at all — building a standalone production-build CI job just for this PR would duplicate work S25 already needs to do (build the image, smoke-test it) and would be thrown away/superseded almost immediately once S25 resumes. This PR's actual coverage in the meantime: 233 unit/component test files (jsdom, real DOM assertions on rendered output) plus the existing, unmodified `next dev`-based Playwright E2E suite in `pr-tests.yml`, which does exercise every migrated component in a real browser — just not against a production bundle specifically. Track the production-build verification as an explicit checklist item in M17-S25/S27 (whichever actually builds the first real web image), not as unfinished business here.
+- Confirmation signal that the fix worked: M17-S26's build-arg assertion step becomes unnecessary entirely, not just repurposed — once M17-S25 is written against this fix, `apps/web/Dockerfile` needs no `NEXT_PUBLIC_*` build `ARG`/`ENV` at all (see "Sequencing" below), so there's no per-env web image left for that step to assert about.
 
 ---
 
@@ -124,19 +124,24 @@ The other two vars already have a single chokepoint and need no further consolid
 
 - **Technically independent of M17-S25** (S25 could ship using D8's currently-accepted exception regardless of this TD's timing) — but the user has chosen to resolve this TD **before** resuming M17-S25, so S25 is paused pending this TD's completion.
 - Recommended to land before **M17-S37** (production go-live), so prod never actually runs on a rebuilt, independently-tested web artifact once real traffic exists.
-- Triggers a required follow-up once done: simplify D8/S26 to drop the web-specific rebuild exception.
+- **Clarified 2026-07-22 (mid-review):** after this fix, `apps/web/Dockerfile` needs **zero** `ARG`/`ENV` for `NEXT_PUBLIC_*` — every consumer either reads the runtime-injected client global or reads live `process.env` server-side (`next.config.ts` included — it's evaluated at Next.js **process startup**, not uniquely at `next build`, so its `images.remotePatterns` config only needs a Cloud Run *runtime* env var, same as everything else). This isn't a separate simplification task to schedule later — since M17-S25/S26 haven't been implemented yet, there's nothing to undo; when work on them resumes, they should simply be written to build web **once**, like backend/BFF, with no per-env rebuild and no build-arg step at all. D8's exception language and M17-S26's build-arg assertion step should be dropped from the plan file when S25/S26 are actually (re)written, not patched in as an afterthought.
 
 ---
 
 ## Acceptance Criteria (TD-level)
 
-- [ ] Every client-bundle-affecting `NEXT_PUBLIC_*` read goes through the new runtime accessor; none read `process.env` directly in client code
-- [ ] A single `ikaro-web:<sha>` image (no `-staging`/`-prod` suffix) builds once and deploys unmodified to both environments, with the client bundle resolving the correct per-environment URLs at runtime
-- [ ] All affected spec files updated and green
-- [ ] New E2E run against a real build confirms correct cross-origin BFF resolution in the browser
-- [ ] CSP verification passes with the injected script
-- [ ] `.github/workflows/pr-tests.yml`'s Playwright E2E job needs no change (verified: it runs `next dev`, and `PublicEnvScript` reads live `process.env` regardless of dev/prod) — confirmed by this PR's own CI `e2e` job passing, not by a separate edit
-- [ ] `apps/web/.env.example` (and each developer's own `.env.local`) reviewed against any naming change from the accessor design
-- [ ] All 4 raw-`fetch(NEXT_PUBLIC_BFF_URL...)` call sites (2 isomorphic, 2 client-only) migrated to the new accessor in place, transport unchanged (see "Not in scope" for the separate, undone `bffClient` migration of the 2 client-only ones)
-- [ ] `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`'s stale env-var/CI-CD section carries a supersession banner (matching `docs/23`'s pattern)
-- [ ] `plan/M17-CLOUD-DEPLOY.md` D8 and M17-S26 updated to reflect the removed exception (tracked as a separate follow-up story once this TD's core work lands)
+**Reorganized 2026-07-22 (cross-tool review finding)** — the original flat list read as if every item belonged to this PR. Split explicitly to prevent that misread: this PR delivers the app-level fix only; the deploy-pipeline items are unreachable until M17-S25/S26 exist to deliver them.
+
+**This PR:**
+- [x] Every client-bundle-affecting `NEXT_PUBLIC_*` read goes through the new runtime accessor; none read `process.env` directly in client code
+- [x] All affected spec files updated and green
+- [x] All 4 raw-`fetch(NEXT_PUBLIC_BFF_URL...)` call sites (2 isomorphic, 2 client-only) migrated to the new accessor in place, transport unchanged (see "Not in scope" for the separate, undone `bffClient` migration of the 2 client-only ones)
+- [x] `apps/web/.env.example` (and each developer's own `.env.local`) reviewed against any naming change from the accessor design — no rename needed
+- [x] `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`'s stale env-var/CI-CD section carries a supersession banner (matching `docs/23`'s pattern)
+- [x] `.github/workflows/pr-tests.yml`'s Playwright E2E job needs no change (verified: it runs `next dev`, and `PublicEnvScript` reads live `process.env` regardless of dev/prod) — confirmed by this PR's own CI `e2e` job
+
+**Deferred to M17-S25/S27 (not achievable in an app-only PR — no deploy pipeline exists yet):**
+- [ ] E2E run against a genuine **production build** (`next build && next start`) confirms correct cross-origin BFF resolution in a real browser
+- [ ] CSP verification against that production build passes with the injected script
+- [ ] A single `ikaro-web:<sha>` image (no `-staging`/`-prod` suffix, no build `ARG`/`ENV` for `NEXT_PUBLIC_*`) builds once and deploys unmodified to both environments — the natural way to write M17-S25/S26 now, not a separate simplification task (see "Sequencing")
+- [ ] `plan/M17-CLOUD-DEPLOY.md` D8 and M17-S26's build-arg-assertion step removed when S25/S26 are actually (re)written
