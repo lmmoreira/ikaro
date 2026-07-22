@@ -60,6 +60,16 @@ name: App — Staging Deploy Pipeline
 # running, so a fresh cold start is a real possibility here, not just at
 # first deploy (review finding, 2026-07-22).
 #
+# Bounded Cloud Run revision retention (review finding, 2026-07-22): every
+# successful deploy creates 3 new revisions and nothing anywhere in this
+# Terraform setup ever prunes old ones — idle revisions cost nothing
+# (min_instance_count=0) but Cloud Run caps revisions per service, so a
+# long-lived, high-frequency trunk-based project could accumulate toward
+# that ceiling over months/years. migrate-and-deploy's last step keeps the
+# 5 most recent per service (mirrors the registry's own retention policy,
+# M17-S15) — non-fatal per service on failure, since a GC hiccup shouldn't
+# fail an otherwise-successful deploy.
+#
 # Rollback (staging): re-run this workflow for a previous commit's SHA
 # (Actions -> "Re-run jobs"), or push a revert commit to main — both are
 # "fix forward" in spirit, since staging has no approval gate to pause on.
@@ -356,6 +366,37 @@ jobs:
             --project "$GCP_PROJECT_STAGING" \
             --format='value(status.url)')
           echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      # Bounded revision retention (review finding, 2026-07-22): Cloud Run
+      # never auto-deletes old revisions, and idle ones cost nothing
+      # (min_instance_count=0 everywhere), but a long-lived, high-frequency
+      # trunk-based project can accumulate toward Cloud Run's per-service
+      # revision cap over time with no cleanup mechanism anywhere in this
+      # Terraform setup. Mirrors the registry's own "keep 5 most recent"
+      # policy (modules/registry, M17-S15) for consistency. Sorting
+      # descending by creation time and skipping the first 5 always keeps
+      # the currently-serving revision (always the newest) — Cloud Run
+      # refuses to delete a revision with live traffic anyway, so this
+      # can never touch what's actually serving. Failures here are
+      # visible (::warning::) but non-fatal per service — a GC hiccup on
+      # one service shouldn't fail an otherwise-successful deploy, and
+      # the next run's cleanup will catch up regardless.
+      - name: Clean up old revisions
+        run: |
+          for SVC in ikaro-backend ikaro-bff ikaro-web; do
+            gcloud run revisions list \
+              --service="$SVC" \
+              --region="$GCP_REGION" \
+              --project="$GCP_PROJECT_STAGING" \
+              --format='value(metadata.name)' \
+              --sort-by='~metadata.creationTimestamp' \
+            | tail -n +6 \
+            | xargs -r -I{} gcloud run revisions delete {} \
+                --region="$GCP_REGION" \
+                --project="$GCP_PROJECT_STAGING" \
+                --quiet \
+            || echo "::warning::Revision cleanup failed for ${SVC} — old revisions may have accumulated; harmless, next deploy retries"
+          done
 
   # ---------------------------------------------------------------------
   # Smoke — read-only, no GCP auth or mutation lock needed.
