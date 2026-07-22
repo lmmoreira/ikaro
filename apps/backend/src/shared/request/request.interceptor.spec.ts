@@ -26,6 +26,15 @@ class FakeTracingPort implements ITracingPort {
   getActiveTraceContext(): undefined {
     return undefined;
   }
+  injectContext(): void {
+    /* unused by this suite */
+  }
+  runWithExtractedContext<T>(_carrier: Record<string, string>, fn: () => T): T {
+    return fn();
+  }
+  startActiveSpan<T>(_name: string, fn: () => T): T {
+    return fn();
+  }
 }
 
 const mockCallHandler: CallHandler = { handle: () => of('result') };
@@ -125,6 +134,7 @@ describe('RequestInterceptor', () => {
     ['health routes', '/health/live'],
     ['internal routes', '/internal/tenants'],
     ['cron routes', '/cron/reminders'],
+    ['pubsub push routes', '/pubsub/push'],
   ])('skips tenant check for %s', async (_label, path) => {
     const ctx = makeContext({}, path);
     const result = await interceptor.intercept(ctx, mockCallHandler);

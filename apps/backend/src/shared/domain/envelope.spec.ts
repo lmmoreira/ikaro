@@ -48,4 +48,17 @@ describe('Envelope', () => {
       data: { value: 'x' },
     });
   });
+
+  it('has no traceContext until one is set (TD28)', () => {
+    const event = new StubEnvelope('tenant-1', 'corr-1', { value: 'x' });
+    expect(event.traceContext).toBeUndefined();
+  });
+
+  it('carries an assigned traceContext through JSON serialization (TD28)', () => {
+    const event = new StubEnvelope('tenant-1', 'corr-1', { value: 'x' });
+    event.traceContext = { traceparent: '00-abc-def-01' };
+
+    const json = JSON.parse(JSON.stringify(event)) as Record<string, unknown>;
+    expect(json['traceContext']).toEqual({ traceparent: '00-abc-def-01' });
+  });
 });

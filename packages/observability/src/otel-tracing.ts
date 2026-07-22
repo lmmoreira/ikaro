@@ -82,8 +82,11 @@ export function bootstrapTracing(
         '@opentelemetry/instrumentation-fs': { enabled: false }, // too noisy
         '@opentelemetry/instrumentation-http': {
           enabled: true,
-          ignoreIncomingRequestHook: (req) =>
-            Boolean(req.url?.startsWith('/health/') || req.url?.startsWith('/pubsub/push')),
+          // TD28: /pubsub/push used to be excluded here alongside /health/* as noise — but that
+          // threw away exactly the span this TD wants a genuine trace-linked child of. Every
+          // push delivery now gets a real span like any other HTTP endpoint; prod sampling stays
+          // at the existing 10% (D12), bounding volume growth.
+          ignoreIncomingRequestHook: (req) => Boolean(req.url?.startsWith('/health/')),
           // Covers OUTGOING (client) request spans — the instrumentation redacts these query
           // params itself for url.full/http.url. NOTE: this option *replaces* the
           // instrumentation's own defaults rather than extending them, so

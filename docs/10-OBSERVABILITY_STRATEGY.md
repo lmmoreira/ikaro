@@ -261,8 +261,11 @@ export function bootstrapTracing(
         '@opentelemetry/instrumentation-fs': { enabled: false },   // too noisy
         '@opentelemetry/instrumentation-http': {
           enabled: true,
-          ignoreIncomingRequestHook: (req) =>
-            Boolean(req.url?.startsWith('/health/') || req.url?.startsWith('/pubsub/push')),
+          // TD28: /pubsub/push used to be excluded here too, alongside /health/* — that threw
+          // away exactly the span needed to link a Pub/Sub-delivered event's consumer-side
+          // processing back to the original request's trace. Every push delivery now gets a
+          // real span like any other HTTP endpoint.
+          ignoreIncomingRequestHook: (req) => Boolean(req.url?.startsWith('/health/')),
           // SECURITY (added post-review, 2026-07-21): covers OUTGOING (client) spans — the
           // instrumentation redacts these query params itself for url.full/http.url. This
           // option *replaces* the instrumentation's own defaults rather than extending them,
@@ -513,6 +516,67 @@ export class CorrelationInterceptor implements NestInterceptor {
   }
 }
 ```
+
+---
+
+## Trace Propagation Through Pub/Sub (TD28)
+
+BFF↔backend HTTP calls link into one continuous trace automatically — both ends are OTel
+auto-instrumented, and W3C trace context (`traceparent`) travels as a standard HTTP header. That
+continuity does **not** extend through Pub/Sub on its own: push delivery POSTs a JSON body, and
+`traceparent` has nowhere to travel except inside `message.attributes` — generic HTTP
+instrumentation only auto-extracts context from incoming *headers*, so it can't see anything
+placed in a Pub/Sub message attribute. This is wired up manually, covering **both** dispatch
+paths (inline, right after commit, and the scheduled outbox sweep) with the *same* originating
+request's trace — not the sweep's own trace.
+
+**Capture point — `OutboxPublisher.publish()`** (`shared/infrastructure/outbox/outbox-publisher.ts`):
+every event passes through this one method before entering `shared.outbox`, whether drained from
+an aggregate (`drainDomainEvents()`) or published directly by a cron job/consumer re-emit. It
+calls `ITracingPort.injectContext(carrier)` and sets the result on `Envelope.traceContext` —
+captured once, at the moment the event enters the outbox (i.e. still inside the original request),
+never re-derived later at actual-publish time. `shared.outbox.payload` is `jsonb` storing the
+whole envelope verbatim, so `traceContext` rides along with zero schema change.
+
+**Publish side — `GcpPubSubEventBusAdapter.publish()`:** copies `event.traceContext` straight into
+`message.attributes` — no OTel API call needed here at all, since the carrier was already
+serialized at capture time.
+
+**Receive side — both consumer modes, symmetrically:**
+- **Push (`PubSubPushController`):** after OIDC validation, calls
+  `ITracingPort.runWithExtractedContext(message.attributes, () => dispatchPushMessage(...))`.
+- **Pull (`GcpPubSubEventBusAdapter.dispatch()`, the streaming-pull message handler):** the same
+  `runWithExtractedContext(message.attributes, ...)` call, since the pull-mode `Message` object
+  carries `.attributes` in the identical shape.
+
+Both reconstruct the original trace context, then wrap the domain-event handler call in an
+explicit `pubsub.event.<eventName>` span via `ITracingPort.startActiveSpan(...)` — without this,
+nothing marks "this is where the Pub/Sub consumer's processing began"; only whatever
+auto-instrumented I/O the handler happens to trigger would otherwise show up, with no span
+identifying the hop itself. Scoped to the domain-event path only, never the trigger/cron path
+(`dispatchTrigger()`) — cron triggers carry no real per-tenant business context (D3) and stay out
+of this TD's scope.
+
+**A pre-existing, unrelated gap blocked all of this in the deployed pipeline until fixed
+alongside this TD:** `RequestInterceptor`'s global tenant-header check (`apps/backend/src/shared/
+request/request.interceptor.ts`) 400s any request without `X-Tenant-ID`, and its bypass list
+(mirroring `/health`, `/internal`, `/cron`) didn't include `/pubsub` — so a real Pub/Sub push
+request, which never sends that header, never reached `PubSubPushController` at all. Fixed by
+adding `/pubsub` to the bypass list.
+
+`ITracingPort` (`packages/observability`) carries all of this via three methods, keeping
+OTel-specific calls (`propagation.inject`/`propagation.extract`/`context.with`/`tracer.
+startActiveSpan`) confined to `OtelTracingAdapter`, same as every other tracing-port method:
+
+```typescript
+injectContext(carrier: Record<string, string>): void;
+runWithExtractedContext<T>(carrier: Record<string, string>, fn: () => T): T;
+startActiveSpan<T>(name: string, fn: () => T): T;
+```
+
+**Scope:** both dispatch paths (inline + swept) on the publish side, and both consumer modes
+(push + pull) on the receive side, are fully covered — this is not limited to the inline/fast
+path or to push-only delivery.
 
 ---
 
@@ -963,16 +1027,23 @@ NestJS BFF
     │  AppLogger logs with tenantId + correlationId + traceId
     ▼
 NestJS Backend
-    │  OTel auto-instruments incoming HTTP → child span
-    │  Use case: tracer.startActiveSpan('booking.approveBooking')
+    │  OTel auto-instruments incoming HTTP → child span (no manual use-case span — manual
+    │  business spans stay deferred, see "Manual Span Creation — deferred" above)
     │  AppLogger logs use case start + completion
     │  Metrics: bookingStatusTransitions.inc({ tenant_id, from, to })
-    │  Event published: { ...envelope, correlationId, traceId in attributes }
+    │  Event enters outbox: OutboxPublisher captures the active trace context onto
+    │  Envelope.traceContext (TD28) — captured once, here, regardless of inline vs. swept dispatch
+    │  Event published: { ...envelope, correlationId }; message.attributes carries traceContext
     ▼
-Pub/Sub → Event Consumer (Loyalty / Notification)
-    │  correlationId extracted from message.attributes
+Pub/Sub → Event Consumer (push or pull, TD28 covers both symmetrically)
+    │  correlationId extracted from the deserialized envelope itself (part of the JSON body, not
+    │  a message attribute); traceContext extracted from message.attributes and reconstructed via
+    │  ITracingPort.runWithExtractedContext (TD28) — the consumer's span is a genuine child of the
+    │  original HTTP request's trace, for both inline and swept dispatch
     │  AppLogger.withContext({ correlationId, tenantId })
-    │  Consumer span: tracer.startActiveSpan('loyalty.recordCompletion')
+    │  Consumer span: ITracingPort.startActiveSpan('pubsub.event.<eventName>') — a transport-layer
+    │  span at the dispatch boundary (TD28), not the manual per-use-case business span this
+    │  diagram used to (wrongly) imply; those stay deferred same as the backend hop above
     │  Metrics: loyaltyEntriesCreated.inc({ tenant_id })
     ▼
 stdout (JSON logs)

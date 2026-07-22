@@ -1,25 +1,29 @@
+import { ITracingPort } from '@ikaro/observability';
 import { makeConfigService } from '../../../test/infrastructure/fake-config-service';
-import { Command } from '../../domain/command';
-import { DomainEvent } from '../../domain/domain-event';
+import { StubCommand, StubEvent } from '../../../test/infrastructure/stub-envelope-classes';
 import { IOutboxRepository } from '../../ports/outbox-repository.port';
 import { OutboxPublisher } from './outbox-publisher';
 import { OutboxRelayService } from './outbox-relay.service';
 
-class StubEvent extends DomainEvent<{ value: string }> {
-  readonly eventVersion = 1;
-  readonly data: { value: string };
-  constructor(tenantId: string, correlationId: string, data: { value: string }) {
-    super(tenantId, correlationId);
-    this.data = data;
+// Injects a fixed, recognisable carrier instead of talking to real OTel primitives — this suite
+// only needs to prove OutboxPublisher captures whatever ITracingPort.injectContext() produces
+// onto the event before insert (TD28); the inject/extract linkage itself is covered by
+// packages/observability/src/otel-tracing-adapter.spec.ts.
+class FakeTracingPort implements ITracingPort {
+  setActiveSpanAttributes(): void {
+    /* unused by this suite */
   }
-}
-
-class StubCommand extends Command<{ value: string }> {
-  readonly eventVersion = 1;
-  readonly data: { value: string };
-  constructor(tenantId: string, correlationId: string, data: { value: string }, dedupKey: string) {
-    super(tenantId, correlationId, dedupKey);
-    this.data = data;
+  getActiveTraceContext(): undefined {
+    return undefined;
+  }
+  injectContext(carrier: Record<string, string>): void {
+    carrier['traceparent'] = '00-fake-trace-01';
+  }
+  runWithExtractedContext<T>(_carrier: Record<string, string>, fn: () => T): T {
+    return fn();
+  }
+  startActiveSpan<T>(_name: string, fn: () => T): T {
+    return fn();
   }
 }
 
@@ -121,6 +125,25 @@ describe('OutboxPublisher', () => {
       await expect(
         publisher.publish(new StubEvent('tenant-1', 'corr-1', { value: 'x' })),
       ).resolves.toBeUndefined();
+    });
+
+    it('captures the active trace context onto the event before inserting it (TD28)', async () => {
+      outboxRepo.insert.mockResolvedValue('row-1');
+      const publisher = new OutboxPublisher(
+        outboxRepo,
+        relay,
+        makeConfigService(),
+        new FakeTracingPort(),
+      );
+      const event = new StubEvent('tenant-1', 'corr-1', { value: 'x' });
+
+      await publisher.publish(event);
+
+      expect(event.traceContext).toEqual({ traceparent: '00-fake-trace-01' });
+      expect(outboxRepo.insert).toHaveBeenCalledWith(
+        expect.objectContaining({ traceContext: { traceparent: '00-fake-trace-01' } }),
+        event.eventId,
+      );
     });
   });
 });

@@ -1,4 +1,5 @@
 import { DataSource, Repository } from 'typeorm';
+import { ITracingPort } from '@ikaro/observability';
 import { TenantEntity } from '../../../contexts/platform/infrastructure/entities/tenant.entity';
 import { TenantEntityBuilder } from '../../../test/builders/platform/tenant-entity.builder';
 import { makeConfigService } from '../../../test/infrastructure/fake-config-service';
@@ -6,6 +7,7 @@ import { InMemoryInboxRepository } from '../../../test/infrastructure/in-memory-
 import { StubCommand, StubEvent } from '../../../test/infrastructure/stub-envelope-classes';
 import { createTestDataSource } from '../../../test/test-datasource';
 import { uuidv7 } from '../../domain/uuid-v7';
+import { Envelope } from '../../domain/envelope';
 import { IEventBus } from '../../ports/event-bus.port';
 import { getActiveEntityManager } from '../transaction-context';
 import { TypeOrmTransactionManager } from '../typeorm-transaction-manager';
@@ -14,6 +16,51 @@ import { OutboxPublishedOutsideTransactionError } from './outbox-published-outsi
 import { OutboxPublisher } from './outbox-publisher';
 import { OutboxRelayService } from './outbox-relay.service';
 import { TypeOrmOutboxRepository } from './typeorm-outbox.repository';
+
+// Models "which trace is active" as a plain mutable id instead of talking to real OTel
+// primitives — apps/backend's own ESLint rule keeps raw @opentelemetry/* imports out of every
+// file except packages/observability (that's where the real SDK-level inject/extract/span
+// linkage is proven, packages/observability/src/otel-tracing-adapter.spec.ts). This fake's job
+// is narrower and specific to this backend-integration test (PR review, 2026-07-21): prove that
+// OutboxPublisher/OutboxRelayService thread the trace captured at *insert* time through to the
+// consumer span, not whatever trace happens to be active when the sweep later relays the row.
+class FakeTracingPort implements ITracingPort {
+  private activeTraceId: string | undefined;
+  readonly startedSpans: Array<{ name: string; parentTraceId: string | undefined }> = [];
+
+  setActiveTraceId(id: string | undefined): void {
+    this.activeTraceId = id;
+  }
+
+  setActiveSpanAttributes(): void {
+    /* unused by this suite */
+  }
+  getActiveTraceContext(): undefined {
+    return undefined;
+  }
+
+  injectContext(carrier: Record<string, string>): void {
+    if (this.activeTraceId) {
+      carrier['x-fake-trace-id'] = this.activeTraceId;
+    }
+  }
+
+  runWithExtractedContext<T>(carrier: Record<string, string>, fn: () => T): T {
+    const extracted = carrier['x-fake-trace-id'];
+    const previous = this.activeTraceId;
+    this.activeTraceId = extracted ?? previous;
+    try {
+      return fn();
+    } finally {
+      this.activeTraceId = previous;
+    }
+  }
+
+  startActiveSpan<T>(name: string, fn: () => T): T {
+    this.startedSpans.push({ name, parentTraceId: this.activeTraceId });
+    return fn();
+  }
+}
 
 describe('OutboxPublisher (integration)', () => {
   let ds: DataSource;
@@ -150,5 +197,55 @@ describe('OutboxPublisher (integration)', () => {
     const row2 = await outboxRepo.findOne({ where: { id: event2.eventId } });
     expect(row1!.publishedAt).toBeNull();
     expect(row2!.publishedAt).not.toBeNull();
+  });
+
+  it('swept dispatch (TD28, PR review 2026-07-21): the consumer span links to the trace active when the event was inserted, not the trace active when the sweep later relays it', async () => {
+    const tracingPort = new FakeTracingPort();
+    const config = makeConfigService({
+      OUTBOX_INLINE_DISPATCH_ENABLED: false, // stays unpublished, so relaying it below is what a later sweep would do
+    });
+
+    // Simulates exactly what GcpPubSubEventBusAdapter.publish() + PubSubPushController do in
+    // production: forward the relayed envelope's traceContext into the "message attributes" and
+    // extract + start the consumer span from it — using the same tracingPort instance the
+    // publish side used, so a regression that captures the wrong trace (e.g. context.active() at
+    // actual-publish time instead of the stored traceContext) would be caught here.
+    eventBus.publish.mockImplementation(async (relayedEvent: Envelope) => {
+      await tracingPort.runWithExtractedContext(relayedEvent.traceContext ?? {}, () =>
+        tracingPort.startActiveSpan(`pubsub.event.${relayedEvent.eventName}`, () => undefined),
+      );
+    });
+
+    const relay = new OutboxRelayService(
+      typeOrmOutboxRepo,
+      eventBus,
+      new InMemoryInboxRepository(),
+      config,
+    );
+    const publisher = new OutboxPublisher(typeOrmOutboxRepo, relay, config, tracingPort);
+    const tenantId = uuidv7();
+    const event = new StubEvent(tenantId, uuidv7(), { value: 'x' });
+
+    // Original request: "origin-trace" is the active trace when the event is captured/persisted.
+    tracingPort.setActiveTraceId('origin-trace');
+    await txManager.run(() => publisher.publish(event));
+    tracingPort.setActiveTraceId(undefined);
+
+    // Time passes; a later, unrelated sweep tick runs under its own, different trace. Relayed by
+    // this row's own id (not the table-wide sweep() batch) — this is a real Postgres test DB
+    // shared with every other integration spec file, so a batch sweep with no filter would also
+    // claim whatever other files' concurrently-running tests happen to leave unpublished. Targeting
+    // this row specifically still exercises the identical eventBus.publish(asStoredEvent(row.payload))
+    // call sweep() itself makes — same round-trip through real persistence, same mechanism.
+    tracingPort.setActiveTraceId('sweep-trace');
+    await relay.relay([event.eventId]);
+    tracingPort.setActiveTraceId(undefined);
+
+    expect(tracingPort.startedSpans).toEqual([
+      { name: `pubsub.event.${StubEvent.name}`, parentTraceId: 'origin-trace' },
+    ]);
+
+    const row = await outboxRepo.findOne({ where: { id: event.eventId } });
+    expect(row!.publishedAt).not.toBeNull();
   });
 });

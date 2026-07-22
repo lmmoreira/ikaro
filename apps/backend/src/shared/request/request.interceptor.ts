@@ -34,7 +34,8 @@ export class RequestInterceptor implements NestInterceptor {
     if (
       req.path?.startsWith('/health') ||
       req.path?.startsWith('/internal') ||
-      req.path?.startsWith('/cron')
+      req.path?.startsWith('/cron') ||
+      req.path?.startsWith('/pubsub')
     ) {
       return next.handle();
     }

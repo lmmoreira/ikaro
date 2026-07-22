@@ -13,6 +13,15 @@ class FakeTracingPort implements ITracingPort {
   getActiveTraceContext(): undefined {
     return undefined;
   }
+  injectContext(): void {
+    /* unused by this suite */
+  }
+  runWithExtractedContext<T>(_carrier: Record<string, string>, fn: () => T): T {
+    return fn();
+  }
+  startActiveSpan<T>(_name: string, fn: () => T): T {
+    return fn();
+  }
 }
 
 function makeReqRes(headers: Record<string, string> = {}): {

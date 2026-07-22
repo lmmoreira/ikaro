@@ -1,7 +1,7 @@
 # TD28 — Distributed Trace Propagation Through Pub/Sub Push Delivery
 
 ## Status
-- **State**: Open — not yet scoped into stories, design sketch only
+- **State**: Ready for implementation — scope and design finalized via `/story-discovery` (2026-07-21), see resolved Open Decisions and Design sections below
 - **Type**: Observability / Architecture
 - **Priority**: Low-Medium — no incident, nothing broken; a completeness gap in distributed tracing, not a correctness bug. Backend/BFF logs are already correlated across this same boundary via `correlationId` (a separate, already-working mechanism) — this TD is about getting a genuine linked trace *tree* (span timing, per-hop latency) in Cloud Trace, not restoring lost debuggability.
 - **Context**: `shared` (event-bus infrastructure) — `apps/backend/src/shared/infrastructure/event-bus/gcp-pubsub-event-bus.adapter.ts`, `apps/backend/src/shared/infrastructure/event-bus/pubsub-push.controller.ts`, `apps/backend/src/shared/guards/pubsub-push.guard.ts`, `packages/observability` (`ITracingPort`/`otel-tracing.ts`), `shared/domain/envelope.ts`
@@ -48,56 +48,103 @@ Compounding this: `otel-tracing.ts`'s `ignoreIncomingRequestHook` currently excl
 
 ---
 
-## Open Decisions (resolve at story-discovery time — none of these are settled yet)
+## Open Decisions — resolved at story-discovery (2026-07-21)
 
-| # | Question | Cheaper option | Fuller option |
-|---|---|---|---|
-| 1 | **Scope** | Inline-dispatch only — correct linkage for the common/fast path, explicitly document "swept/async-dispatched events link to the sweep's trace, not the original request" as a known limitation. No `Envelope`/schema change. | Full correctness — persist trace context on the outbox row/`Envelope` at event-creation time, re-inject at actual-publish time regardless of dispatch path. Requires an `Envelope` field + outbox column + `OutboxRelayService` changes. |
-| 2 | **Where inject/extract calls live** | ESLint exception for `gcp-pubsub-event-bus.adapter.ts` and `pubsub-push.controller.ts` to import `@opentelemetry/api` directly (matches the existing `@google-cloud/pubsub` adapter-exception precedent). | Extend `ITracingPort` with `injectContext(carrier)`/`extractContext(carrier)`, keep the "no raw OTel imports outside `packages/observability`" rule with zero exceptions. |
-| 3 | **`/pubsub/push` span exclusion** | Remove the exclusion entirely — every push delivery gets a real span, same as any other HTTP endpoint. | Keep the exclusion (avoid a span for the guard/parsing layer itself) but wrap just the actual message-dispatch logic in a manually-created span using the extracted context. |
-| 4 | **Trace volume/cost** | N/A — needs a number. Prod sampling is 10% (D12 budget target); estimate added span volume from un-excluding `/pubsub/push` before deciding whether sampling needs adjusting for this path specifically. | |
+| # | Question | Decision |
+|---|---|---|
+| 1 | **Scope** | **Full correctness.** Persist trace context on the outbox row at event-creation time, re-inject at actual-publish time regardless of dispatch path (inline or swept). Correction from the original framing: this does **not** require a migration or a new outbox column — `shared.outbox.payload` is already `jsonb`, storing `JSON.stringify(event)` verbatim (`typeorm-outbox.repository.ts:95`), so a new field on `Envelope` is captured automatically. |
+| 2 | **Where inject/extract calls live** | **Extend `ITracingPort`** with `injectContext(carrier)` / `runWithExtractedContext(carrier, fn)`. The ESLint-exception alternative was based on a precedent that doesn't actually exist — checked `apps/backend/eslint.config.js`, `apps/bff/eslint.config.js`, `packages/config/eslint-base.js`, `docs/ENGINEERING_RULES.md`, `docs/AGENT_PATTERNS.md`: there is no existing file-specific carve-out for any adapter to import a raw vendor SDK, and no ban on `@google-cloud/*` imports to begin with (only `@opentelemetry/*` is restricted). With the chosen design (see below), neither `gcp-pubsub-event-bus.adapter.ts` nor `pubsub-push.controller.ts` ends up needing a raw `@opentelemetry/api` import at all — both call `ITracingPort` methods only. |
+| 3 | **`/pubsub/push` span exclusion** | **Remove entirely.** Every push delivery gets a real span like any other HTTP endpoint. Production sampling stays at the existing 10% (D12), bounding volume growth. |
+| 4 | **Trace volume/cost** | **Accept default sampling, monitor post-deploy.** No pre-emptive sampling change; revisit only if Cloud Trace volume proves to be a problem after this ships. |
 
 ---
 
-## Design (sketch — to be finalized once Open Decisions are resolved)
+## Design (finalized at story-discovery, 2026-07-21)
 
-**Publish side** (`GcpPubSubEventBusAdapter.publish()`):
-```ts
-const carrier: Record<string, string> = {};
-propagation.inject(context.active(), carrier); // or context reconstructed from a stored Envelope field, if scope #1 goes with the fuller option
-await topic.publishMessage({ data: ..., attributes: { ...existingAttributes, ...carrier } });
-```
+**Why capture at `OutboxPublisher.publish()`, not at `Envelope` construction or at actual-publish time:** aggregate methods construct these events and are domain layer (`domain/` — zero framework deps per CLAUDE.md §7), so they can't call `ITracingPort` themselves. `OutboxPublisher.publish()` (`outbox-publisher.ts`, infrastructure layer) is the one method every event passes through before entering `shared.outbox` — whether drained from an aggregate via `drainDomainEvents()` or published directly by a cron job/consumer re-emit — so capturing there, once, covers every path with a single change site and needs no change to `drain-domain-events.ts` itself.
 
-**Push-receive side** (`PubSubPushController`, after OIDC validation):
-```ts
-const extractedContext = propagation.extract(ROOT_CONTEXT, req.body.message.attributes);
-await context.with(extractedContext, () => dispatchMessage(req.body.message));
-```
+1. **`ITracingPort`** (`packages/observability/src/tracing-port.ts`) gains two methods:
+   ```ts
+   injectContext(carrier: Record<string, string>): void;
+   runWithExtractedContext<T>(carrier: Record<string, string>, fn: () => T): T;
+   ```
+   `OtelTracingAdapter` implements them with `propagation.inject(context.active(), carrier)` and `context.with(propagation.extract(ROOT_CONTEXT, carrier), fn)` respectively — both OTel-specific calls stay inside `packages/observability`, same as every other `ITracingPort` method.
 
-**If scope decision #1 goes with the fuller option** — `Envelope` gains a field (e.g. `traceContext?: Record<string, string>`) populated at event-creation time (wherever `Envelope`'s constructor runs, before the aggregate's `save()` drains it to the outbox), stored on the outbox row, and read back by `OutboxRelayService` to re-inject at actual-publish time instead of using `context.active()`.
+2. **`Envelope`** (`shared/domain/envelope.ts`) gains one new field, not `readonly` (the rest of the class's fields are — this one is set after construction):
+   ```ts
+   traceContext?: Record<string, string>;
+   ```
+   Plain data, no framework dependency — domain-layer purity is preserved.
+
+3. **`OutboxPublisher.publish()`** (`outbox-publisher.ts`) — immediately before `outboxRepo.insert(event, dedupKey)`:
+   ```ts
+   const carrier: Record<string, string> = {};
+   this.tracingPort.injectContext(carrier);
+   event.traceContext = carrier;
+   ```
+   `tracingPort: ITracingPort = defaultTracingPort` as a constructor parameter with `@Optional()` — same NestJS-DI-managed-with-default pattern as `CorrelationMiddleware`/`RequestInterceptor` (`docs/ENGINEERING_RULES.md`'s port-wiring rule).
+
+4. **No outbox column, no migration.** `TypeOrmOutboxRepository.insert()` already does `JSON.stringify(event)` into the `jsonb payload` column (`typeorm-outbox.repository.ts:95`) — `traceContext` rides along automatically, for both the inline-dispatch row (`OutboxPublisher`'s own `scheduleAfterCommit` → `OutboxRelayService.publishAndMarkOne()`) and the swept row (`OutboxRelayService.sweep()`). Both already deserialize via `asStoredEvent(row.payload)` before calling `eventBus.publish(event)`.
+
+5. **Publish side** (`GcpPubSubEventBusAdapter.publish()`) — no OTel API call needed at all, just forwards the already-captured carrier:
+   ```ts
+   await topic.publishMessage({
+     data: ...,
+     attributes: { ...existingAttributes, ...(event.traceContext ?? {}) },
+   });
+   ```
+
+6. **Push-receive side** (`PubSubPushController`, after OIDC validation):
+   ```ts
+   await this.tracingPort.runWithExtractedContext(
+     req.body.message.attributes,
+     () => dispatchMessage(req.body.message),
+   );
+   ```
+
+7. **`ignoreIncomingRequestHook`** (`packages/observability/src/otel-tracing.ts`) drops the `/pubsub/push` branch entirely — only the `/health/` exclusion remains.
+
+8. **`RequestInterceptor`'s global tenant-header check** (`apps/backend/src/shared/request/request.interceptor.ts`) needs `/pubsub` added to its `/health`/`/internal`/`/cron` bypass list (found in PR review, 2026-07-21) — Pub/Sub push delivery never sends `X-Tenant-ID`, so without this, every request to `/pubsub/push` 400s before `PubSubPushController` is ever reached, making all of this TD's code unreachable in the real deployed pipeline. Pre-existing gap (unrelated to this TD's own design), but blocking for it to run end-to-end.
+
+9. **An explicit consumer span** — `GcpPubSubEventBusAdapter.dispatchPushMessage()` wraps the domain-event handler call in `this.tracingPort.startActiveSpan(`pubsub.event.${eventName}`, () => config.handler(event))` (found in PR review, 2026-07-21). Without this, `runWithExtractedContext` correctly makes the extracted context active but nothing marks "this is where the Pub/Sub consumer's processing began" — only whatever auto-instrumented I/O the handler happens to trigger would show up, with no span identifying the hop itself, missing this TD's own stated "per-hop timing" goal. `ITracingPort` gains a third method for this:
+   ```ts
+   startActiveSpan<T>(name: string, fn: () => T): T;
+   ```
+   This is a transport-layer span at the dispatch boundary, not a manual business span inside a use case — it doesn't reopen the M17-S33/Non-Goals deferral below. Scoped to the domain-event path only, not the trigger path (§Non-Goals: cron triggers).
+
+10. **Pull-mode symmetry** (full-solution follow-up, 2026-07-21) — `dispatch()` (`GcpPubSubEventBusAdapter`, the streaming-pull message handler used when `PUBSUB_CONSUMER_MODE=pull`) gets the identical treatment as `dispatchPushMessage()`:
+    ```ts
+    await this.tracingPort.runWithExtractedContext(message.attributes ?? {}, () =>
+      this.tracingPort.startActiveSpan(`pubsub.event.${eventName}`, () => handler(event)),
+    );
+    ```
+    The pull-mode `Message` object already carries `.attributes` in the identical shape to the push body's `message.attributes` (both originate from the same Pub/Sub message envelope) — no new plumbing needed, just the same wrapping. Scoped to `dispatch()` only, not `dispatchTrigger()` (§Non-Goals: cron triggers) or `publishToDlq()` (a republish, not a consumer dispatch — out of scope for this TD).
 
 ---
 
 ## Non-Goals
 
 - **Manual business spans inside use cases** — explicitly deferred by M17-S33 itself ("Manual business spans... explicitly deferred until debugging actually demands that level of granularity"); this TD doesn't reopen that.
-- **Pull-mode Pub/Sub tracing** — this codebase uses push delivery exclusively in cloud environments (D2, `plan/M17-CLOUD-DEPLOY.md`); pull-mode-specific instrumentation packages (`@opentelemetry/instrumentation-google-cloud-pubsub` or similar) are not relevant here.
+- ~~Pull-mode Pub/Sub tracing~~ — **no longer a Non-Goal** (added, 2026-07-21, full-solution follow-up): `dispatch()` (the streaming-pull path, `GcpPubSubEventBusAdapter`) now extracts/wraps identically to `dispatchPushMessage()` — see Design item 10. Kept as a documented decision only for what's still genuinely out of scope: instrumenting the `@google-cloud/pubsub` client library's own streaming-pull internals (e.g. via `@opentelemetry/instrumentation-google-cloud-pubsub`) — this TD only wraps *this codebase's* message-handling call, not the vendor SDK's subscription machinery. Pull mode itself is still not used in cloud deployment (D2) — this closes the gap for local dev/testing, where it's the default consumer mode.
 - **Web/frontend trace propagation** — D9 already explicitly excludes `apps/web` from OTel at launch ("web ships no OTel at launch — its observability is Cloud Run built-in metrics + structured logs"). A trace can only start where instrumentation exists; today that's the BFF. Extending tracing into the browser is a separate, larger decision this TD does not revisit.
 - **Cron trigger channel tracing** (`ITriggerBus`/`/cron/*`) — triggers are not domain events (D3) and carry no real per-tenant business context; not addressed here unless a future need surfaces.
 
 ---
 
-## Draft Acceptance Criteria (refine during story-discovery)
+## Acceptance Criteria
 
-- [ ] A domain event published via **inline dispatch** produces a consumer-side span that is a genuine child of the original HTTP request's trace, visible as one connected trace in Cloud Trace.
-- [ ] `/pubsub/push` is no longer blanket-excluded from tracing (per whichever Open Decision #3 option is chosen).
-- [ ] Query-string/attribute redaction (`otel-query-redaction.ts`'s `SENSITIVE_QUERY_PARAMS`) is reconsidered for Pub/Sub message attributes too, if any published event payload could ever carry something sensitive as an attribute (not currently the case, but worth an explicit check before shipping).
-- [ ] Tests prove inject→extract actually links contexts correctly, using a real span/context-manager setup (same pattern as `packages/observability/src/otel-tracing-adapter.spec.ts` — `AsyncHooksContextManager` + `InMemorySpanExporter`, not a trust-it-works assertion).
-- [ ] If the fuller (Open Decision #1) scope is chosen: `Envelope` change registered in `integration-global-setup.ts`/wherever else new fields on shared entities need registration, per the repo's standard migration/entity checklist.
-- [ ] `docs/10-OBSERVABILITY_STRATEGY.md` updated to document the propagation mechanism and its scope (inline-only vs. full) once built.
+- [ ] A domain event published via **inline dispatch** produces a consumer-side span that is a genuine child of the original HTTP request's trace, visible as one connected trace in Cloud Trace **when that trace is sampled** — production keeps its existing 10% head-based sampling (§Open Decision #4), so an unsampled request's downstream event never gets a Cloud Trace entry to link to regardless of this TD; linkage tests use an always-on setup (`BasicTracerProvider` + `SimpleSpanProcessor`, no sampler in the loop) so the assertion is deterministic rather than sampling-dependent.
+- [x] A domain event published via the **swept/scheduled dispatch** path produces a consumer-side span that is a genuine child of the *original* HTTP request's trace, not the sweep's own trace — proving the stored `traceContext` on the outbox row, not `context.active()` at actual-publish time, is what gets used. Proven end-to-end (real DB round-trip, real `OutboxPublisher` → `OutboxRelayService`) in `outbox-publisher.integration.spec.ts`'s `'swept dispatch (TD28...)'` test (added in response to PR review, 2026-07-21) — a distinct "sweep trace" is active when the relay actually publishes, and the consumer span still links to the "origin trace" active when the row was inserted, not the sweep's.
+- [ ] `/pubsub/push` is no longer blanket-excluded from tracing — `ignoreIncomingRequestHook` only excludes `/health/`.
+- [ ] Query-string/attribute redaction (`otel-query-redaction.ts`'s `SENSITIVE_QUERY_PARAMS`) is reconsidered for Pub/Sub message attributes too — checked at story time: no published event payload currently carries anything secret as a message attribute (only `traceContext`, `correlationId`, `tenantId`), so no redaction gap exists today; re-verify if a future event adds one.
+- [ ] Tests prove inject→extract actually links contexts correctly, using a real span/context-manager setup (same pattern as `packages/observability/src/otel-tracing-adapter.spec.ts` — `AsyncHooksContextManager` + `InMemorySpanExporter` from `@opentelemetry/sdk-trace-base`, not a trust-it-works assertion).
+- [ ] `RequestInterceptor` bypasses `/pubsub` — a request to `/pubsub/push` with no `X-Tenant-ID` header reaches `PubSubPushController`, not a 400.
+- [ ] `dispatchPushMessage()` starts an explicit `pubsub.event.<eventName>` span (via `ITracingPort.startActiveSpan`) as a child of the extracted context, for the domain-event path only — not the trigger path.
+- [ ] `dispatch()` (pull mode) extracts trace context from `message.attributes` and starts the identical `pubsub.event.<eventName>` span, so a pull-mode consumer's processing links to the original request's trace exactly like push mode does.
+- [ ] `docs/10-OBSERVABILITY_STRATEGY.md` updated to document the propagation mechanism (full inline + swept correctness) and to correct its "Full Telemetry Flow" diagram, which currently describes this as already working.
 
 ---
 
 ## Estimate
 
-Sized as **M complexity**, not a quick add — comparable to a small-to-medium M17 story. The inline-only (cheaper) scope is roughly half a day of focused work including proper tests; the fuller scope (correct linkage across swept/async dispatch too) is more, given the `Envelope`/outbox schema change and `OutboxRelayService` changes it requires. Run `/story-discovery` against whichever scope is chosen before implementation, per this repo's standard workflow.
+Sized as **S-M complexity** — smaller than originally estimated. Story-discovery (2026-07-21) found the full-correctness scope does **not** require an `Envelope`/outbox schema change or migration (§Open Decision #1) — `shared.outbox.payload` is already `jsonb`, so a new `Envelope.traceContext` field is captured automatically. The actual work is: 2 new `ITracingPort` methods + adapter implementation, one field on `Envelope`, one call site in `OutboxPublisher.publish()`, the publish-side attribute copy in `GcpPubSubEventBusAdapter`, the extract-and-wrap in `PubSubPushController`, removing the `/pubsub/push` tracing exclusion, and tests per the `otel-tracing-adapter.spec.ts` pattern covering both inline and swept dispatch linkage.
