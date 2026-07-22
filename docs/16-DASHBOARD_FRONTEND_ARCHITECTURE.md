@@ -167,6 +167,8 @@ apps/web/
 
 ## 7. Deployment
 
+> ⚠️ **Superseded** by `plan/M17-CLOUD-DEPLOY.md` (2026-07-07) and `td/TD29-WEB-RUNTIME-PUBLIC-CONFIG.md` — this section predates both. Concretely stale: the Dockerfile (`docker/web/Dockerfile` doesn't exist; the real one is `apps/web/Dockerfile`, `node:22-alpine`, no `next.config.js`-style `env: {}` block), the `NEXT_PUBLIC_BFF_URL` "Injected at build time via Cloud Run `--set-env-vars`" claim (TD29 replaced this with a runtime-injected accessor — see that doc), and the named CI/CD workflows (`ci-frontend.yml`/`deploy-frontend.yml` don't exist; the real ones are `deploy-staging.yml`/`.github/workflows/pr-tests.yml`). On any conflict, M17-CLOUD-DEPLOY and TD29 win. Only this section is stale — the rest of this document (RBR, folder structure, communication patterns) is current.
+
 **Runtime:** GCP Cloud Run — Next.js runs as an SSR Node.js server, not a static export. SSR is required for dynamic `[slug]` routing and server-side session handling.
 
 **Container:** Multi-stage Docker build in `docker/web/Dockerfile`.

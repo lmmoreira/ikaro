@@ -8,6 +8,7 @@ import type {
 } from '@ikaro/types';
 import { bffClient } from '@/shared/lib/api/bff-client';
 import { FetchError, parseErrorBody } from '@/shared/lib/api/errors';
+import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 
 export class CreateBookingError extends FetchError {
   constructor(
@@ -26,7 +27,7 @@ export async function createBooking(
   slug: string,
   payload: CreateBookingRequest,
 ): Promise<BookingResponse> {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BFF_URL}/bookings`, {
+  const res = await fetch(`${getPublicEnv('NEXT_PUBLIC_BFF_URL')}/bookings`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Tenant-Slug': slug },
     body: JSON.stringify(payload),
@@ -87,7 +88,7 @@ export async function submitGuestBookingInfo(
   body: SubmitGuestBookingInfoRequest,
 ): Promise<SubmitGuestBookingInfoResponse> {
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_BFF_URL}/bookings/${bookingId}/submit-info/guest?token=${encodeURIComponent(token)}`,
+    `${getPublicEnv('NEXT_PUBLIC_BFF_URL')}/bookings/${bookingId}/submit-info/guest?token=${encodeURIComponent(token)}`,
     {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

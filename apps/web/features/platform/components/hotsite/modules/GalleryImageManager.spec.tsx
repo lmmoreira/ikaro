@@ -4,7 +4,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GalleryImage, StaffBookingDetailResponse } from '@ikaro/types';
-import { renderWithIntl } from '@/test-utils';
+import { clearPublicEnv, renderWithIntl, stubPublicEnv } from '@/test-utils';
 import {
   deleteHotsiteImage,
   featureBookingPhoto,
@@ -52,6 +52,7 @@ describe('GalleryImageManager', () => {
     vi.mocked(listBookings).mockReset();
     vi.mocked(compressImage).mockReset();
     vi.mocked(compressImage).mockImplementation((file: File) => Promise.resolve(file));
+    clearPublicEnv();
   });
 
   it('shows an empty state when there are no images', () => {
@@ -75,7 +76,9 @@ describe('GalleryImageManager', () => {
   });
 
   it('resolves a raw storage path (re-opened after a save, no fresh local preview) into a displayable absolute URL', () => {
-    process.env.NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL = 'http://localhost:4443/ikaro-local-public';
+    stubPublicEnv({
+      NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL: 'http://localhost:4443/ikaro-local-public',
+    });
     const images: GalleryImage[] = [
       { url: 'tenants/tenant-1/hotsite/gallery/g1.jpg', source: 'upload' },
     ];

@@ -1,4 +1,5 @@
 import type { AvailabilityResponse, AvailabilitySummaryResponse } from '@ikaro/types';
+import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 
 export async function fetchAvailabilitySummary(
   slug: string,
@@ -8,7 +9,7 @@ export async function fetchAvailabilitySummary(
 ): Promise<AvailabilitySummaryResponse> {
   const params = new URLSearchParams({ from, to, serviceIds: serviceIds.join(',') });
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_BFF_URL}/schedule/availability/summary?${params}`,
+    `${getPublicEnv('NEXT_PUBLIC_BFF_URL')}/schedule/availability/summary?${params}`,
     {
       headers: { 'X-Tenant-Slug': slug },
     },
@@ -25,9 +26,12 @@ export async function fetchAvailability(
   serviceIds: readonly string[],
 ): Promise<AvailabilityResponse> {
   const params = new URLSearchParams({ date, serviceIds: serviceIds.join(',') });
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BFF_URL}/schedule/availability?${params}`, {
-    headers: { 'X-Tenant-Slug': slug },
-  });
+  const res = await fetch(
+    `${getPublicEnv('NEXT_PUBLIC_BFF_URL')}/schedule/availability?${params}`,
+    {
+      headers: { 'X-Tenant-Slug': slug },
+    },
+  );
 
   if (!res.ok) throw new Error(`Failed to fetch availability for slug "${slug}"`);
 

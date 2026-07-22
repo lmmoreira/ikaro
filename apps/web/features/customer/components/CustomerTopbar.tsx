@@ -12,6 +12,7 @@ import {
   buildBookingStatusLabels,
   BOOKING_STATUS_CLASSES,
 } from '@/features/booking/model/booking-status';
+import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 import { cn } from '@/shared/utils/cn';
 import { useCustomerTopbarStatus } from './customer-topbar-status-context';
 
@@ -29,7 +30,7 @@ export function CustomerTopbar({
   const t = useTranslations('customer');
   const statusLabelsT = useTranslations('customer.bookingItem');
   const initials = getInitials(userName);
-  const logoutUrl = `${process.env.NEXT_PUBLIC_BFF_URL}/auth/logout?tenantSlug=${tenantSlug}`;
+  const logoutUrl = `${getPublicEnv('NEXT_PUBLIC_BFF_URL')}/auth/logout?tenantSlug=${tenantSlug}`;
   const [hasMultipleTenants, setHasMultipleTenants] = useState(false);
   const topbarStatus = useCustomerTopbarStatus();
   const statusLabels = buildBookingStatusLabels(statusLabelsT);

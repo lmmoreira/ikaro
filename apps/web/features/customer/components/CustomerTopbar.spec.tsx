@@ -1,12 +1,17 @@
 // @vitest-environment jsdom
 import { useEffect } from 'react';
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { clearPublicEnv, stubPublicEnv } from '@/test-utils';
 import { CustomerTopbar } from './CustomerTopbar';
 import {
   CustomerTopbarStatusProvider,
   useCustomerTopbarStatus,
 } from './customer-topbar-status-context';
+
+afterEach(() => {
+  clearPublicEnv();
+});
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, string>) => {
@@ -67,7 +72,7 @@ describe('CustomerTopbar', () => {
   });
 
   it('renders the sign-out link with the full BFF logout URL', () => {
-    process.env.NEXT_PUBLIC_BFF_URL = 'https://bff.example.com';
+    stubPublicEnv({ NEXT_PUBLIC_BFF_URL: 'https://bff.example.com' });
     render(<CustomerTopbar {...DEFAULT_PROPS} />);
 
     const logoutLink = screen

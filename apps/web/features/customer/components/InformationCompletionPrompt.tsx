@@ -25,6 +25,7 @@ import { AddressFields } from '@/features/booking/components/public/AddressField
 import { ErrorAlert } from '@/features/booking/components/public/ErrorAlert';
 import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
+import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 
 interface InformationCompletionPromptProps {
   readonly slug: string;
@@ -209,7 +210,7 @@ export function InformationCompletionPrompt({
           </button>
 
           <a
-            href={`${process.env.NEXT_PUBLIC_BFF_URL}/auth/logout?tenantSlug=${slug}`}
+            href={`${getPublicEnv('NEXT_PUBLIC_BFF_URL')}/auth/logout?tenantSlug=${slug}`}
             data-testid="information-completion-logout"
             className="mt-3 block text-center text-sm underline opacity-70"
             style={{ color: 'var(--ba-text)' }}

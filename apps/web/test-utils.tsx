@@ -6,6 +6,24 @@ import ptBRMessages from '@ikaro/i18n/locales/pt-BR/web.json';
 import enMessages from '@ikaro/i18n/locales/en/web.json';
 import { FormattingProvider } from '@/providers/formatting-provider';
 import type { DateFormat } from '@ikaro/i18n';
+import type { PublicEnvKey } from '@/shared/lib/runtime-env/public-env';
+
+// getPublicEnv() reads window.__PUBLIC_ENV__ in any jsdom (client-simulated) spec, never
+// process.env — mirrors what the root layout's PublicEnvScript injects into real pages (TD29).
+// Component specs that render a client-bundle-affecting NEXT_PUBLIC_* consumer must call this
+// instead of setting process.env directly; pair with clearPublicEnv() in afterEach.
+export function stubPublicEnv(values: Partial<Record<PublicEnvKey, string>>): void {
+  window.__PUBLIC_ENV__ = {
+    NEXT_PUBLIC_BFF_URL: '',
+    NEXT_PUBLIC_SITE_URL: '',
+    NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL: '',
+    ...values,
+  };
+}
+
+export function clearPublicEnv(): void {
+  delete window.__PUBLIC_ENV__;
+}
 
 const FORMATTING_DEFAULTS: Record<
   string,

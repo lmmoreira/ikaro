@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { getTranslations } from 'next-intl/server';
 import { decodeJwtPayload } from '@/features/auth/decode-jwt';
+import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 import { unixNow } from '@/shells/hotsite/utils/unix-now';
 import { HotsiteAuthBarDropdown } from './HotsiteAuthBarDropdown';
 
@@ -59,7 +60,7 @@ export async function HotsiteAuthBar({ slug }: HotsiteAuthBarProps): Promise<Rea
             {displayName || t('staffArea')}
           </a>
           <a
-            href={`${process.env.NEXT_PUBLIC_BFF_URL}/auth/logout?tenantSlug=${slug}`}
+            href={`${getPublicEnv('NEXT_PUBLIC_BFF_URL')}/auth/logout?tenantSlug=${slug}`}
             data-testid="hotsite-staff-logout-link"
             className="text-[0.8125rem] font-medium no-underline opacity-60"
             style={{ color: 'var(--ba-text)' }}

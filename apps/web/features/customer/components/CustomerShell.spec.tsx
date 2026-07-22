@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { clearPublicEnv, stubPublicEnv } from '@/test-utils';
 import { CustomerShell } from './CustomerShell';
 
 vi.mock('next/navigation', () => ({
@@ -28,6 +29,10 @@ const DEFAULT_PROPS = {
 } as const;
 
 describe('CustomerShell', () => {
+  afterEach(() => {
+    clearPublicEnv();
+  });
+
   it('renders children inside the main content area', () => {
     render(
       <CustomerShell {...DEFAULT_PROPS}>
@@ -100,7 +105,7 @@ describe('CustomerShell', () => {
   });
 
   it('renders the sign-out link pointing to BFF logout', () => {
-    process.env.NEXT_PUBLIC_BFF_URL = 'https://bff.example.com';
+    stubPublicEnv({ NEXT_PUBLIC_BFF_URL: 'https://bff.example.com' });
     render(<CustomerShell {...DEFAULT_PROPS}>x</CustomerShell>);
 
     const logoutLink = screen

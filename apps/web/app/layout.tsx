@@ -3,6 +3,7 @@ import './globals.css';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
 import { QueryProvider } from '@/providers/query-provider';
+import { PublicEnvScript } from '@/shared/lib/runtime-env/PublicEnvScript';
 
 export const metadata: Metadata = {
   title: 'Ikaro',
@@ -20,6 +21,7 @@ export default async function RootLayout({
   return (
     <html lang={locale}>
       <body className="font-sans antialiased">
+        <PublicEnvScript />
         <NextIntlClientProvider locale={locale} messages={messages}>
           <QueryProvider>{children}</QueryProvider>
         </NextIntlClientProvider>

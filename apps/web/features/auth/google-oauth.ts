@@ -1,3 +1,5 @@
+import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
+
 export interface BuildGoogleOAuthUrlParams {
   readonly tenantSlug: string;
   readonly type?: 'staff';
@@ -5,7 +7,7 @@ export interface BuildGoogleOAuthUrlParams {
 }
 
 export function buildGoogleOAuthUrl({
-  bffUrl = process.env.NEXT_PUBLIC_BFF_URL,
+  bffUrl = getPublicEnv('NEXT_PUBLIC_BFF_URL'),
   tenantSlug,
   type,
 }: BuildGoogleOAuthUrlParams): string {

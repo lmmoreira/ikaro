@@ -4,6 +4,7 @@ import { ChevronDown } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { fetchCustomerTenants } from '@/features/auth/api';
+import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 import { getInitials } from '@/shared/utils/initials';
 
 interface HotsiteAuthBarDropdownProps {
@@ -76,7 +77,7 @@ export function HotsiteAuthBarDropdown({
         )}
         <hr style={{ borderColor: 'var(--ba-background)' }} />
         <a
-          href={`${process.env.NEXT_PUBLIC_BFF_URL}/auth/logout?tenantSlug=${slug}`}
+          href={`${getPublicEnv('NEXT_PUBLIC_BFF_URL')}/auth/logout?tenantSlug=${slug}`}
           data-testid="hotsite-customer-logout-link"
           className="block px-4 py-2.5 text-sm opacity-60"
           style={{ color: 'var(--ba-text)' }}

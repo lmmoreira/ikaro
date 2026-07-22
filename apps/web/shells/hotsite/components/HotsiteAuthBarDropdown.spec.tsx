@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { clearPublicEnv, stubPublicEnv } from '@/test-utils';
 import { HotsiteAuthBarDropdown } from './HotsiteAuthBarDropdown';
 
 vi.mock('next-intl', () => ({
@@ -24,7 +25,7 @@ const TENANT_OPTION = { id: 't-1', name: 'Lavacar BH', slug: 'lavacar-bh', loyal
 
 afterEach(() => {
   vi.mocked(fetchCustomerTenants).mockReset();
-  delete process.env.NEXT_PUBLIC_BFF_URL;
+  clearPublicEnv();
 });
 
 describe('HotsiteAuthBarDropdown', () => {
@@ -76,7 +77,7 @@ describe('HotsiteAuthBarDropdown', () => {
   });
 
   it('logout link points to the BFF logout route', () => {
-    process.env.NEXT_PUBLIC_BFF_URL = 'http://bff:3002/v1';
+    stubPublicEnv({ NEXT_PUBLIC_BFF_URL: 'http://bff:3002/v1' });
     vi.mocked(fetchCustomerTenants).mockResolvedValue([TENANT_OPTION]);
 
     render(<HotsiteAuthBarDropdown name="Ana" slug="lavacar-bh" />);

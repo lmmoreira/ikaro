@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { createTranslator } from 'next-intl';
 import type { HotsiteManifestResponse } from '@ikaro/types';
 import { getMessages, resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
+import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 
 function stripTrailingSlashes(value: string): string {
   let result = value;
@@ -11,8 +12,11 @@ function stripTrailingSlashes(value: string): string {
   return result;
 }
 
+// This module is server-only (only imported by not-found.tsx/sitemap.ts/robots.ts), so a
+// module-level constant computed at import time is safe here — unlike client-bundled code,
+// this always runs in the real container process, never frozen at `next build` time.
 export const SITE_URL = stripTrailingSlashes(
-  process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000',
+  getPublicEnv('NEXT_PUBLIC_SITE_URL') || 'http://localhost:3000',
 );
 
 export interface BuildHotsiteMetadataParams {

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Calendar, Clock, Wrench, Star, Users, Settings, Globe, LogOut } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/shared/components/ui/avatar';
+import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 import { cn } from '@/shared/utils/cn';
 import { getInitials } from '@/shared/utils/initials';
 
@@ -44,7 +45,7 @@ export function Sidebar({
   const t = useTranslations('dashboard');
   const pathname = usePathname();
   const initials = getInitials(userName);
-  const logoutUrl = `${process.env.NEXT_PUBLIC_BFF_URL}/auth/logout?tenantSlug=${tenantSlug}`;
+  const logoutUrl = `${getPublicEnv('NEXT_PUBLIC_BFF_URL')}/auth/logout?tenantSlug=${tenantSlug}`;
 
   return (
     <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col overflow-y-auto bg-[#111827] lg:flex">

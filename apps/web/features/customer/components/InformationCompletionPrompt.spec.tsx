@@ -8,7 +8,7 @@ import {
   updateHotsiteCustomerProfile,
   UpdateHotsiteCustomerProfileError,
 } from '@/features/platform/hotsite/api/customers';
-import { renderWithIntl } from '@/test-utils';
+import { clearPublicEnv, renderWithIntl, stubPublicEnv } from '@/test-utils';
 import { InformationCompletionPrompt } from './InformationCompletionPrompt';
 
 vi.mock('@/features/platform/hotsite/api/customers', () => ({
@@ -73,16 +73,10 @@ async function fillAddress(): Promise<void> {
 }
 
 describe('InformationCompletionPrompt', () => {
-  const originalBffUrl = process.env.NEXT_PUBLIC_BFF_URL;
-
   afterEach(() => {
     vi.mocked(getHotsiteCustomerProfile).mockReset();
     vi.mocked(updateHotsiteCustomerProfile).mockReset();
-    if (originalBffUrl === undefined) {
-      delete process.env.NEXT_PUBLIC_BFF_URL;
-    } else {
-      process.env.NEXT_PUBLIC_BFF_URL = originalBffUrl;
-    }
+    clearPublicEnv();
   });
 
   it('renders nothing while the profile request is pending', () => {
@@ -146,7 +140,7 @@ describe('InformationCompletionPrompt', () => {
   });
 
   it('offers a sign-out link as the escape hatch for a customer who does not want to fill it in', async () => {
-    process.env.NEXT_PUBLIC_BFF_URL = 'http://bff-test:3002/v1';
+    stubPublicEnv({ NEXT_PUBLIC_BFF_URL: 'http://bff-test:3002/v1' });
     vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(profileEmpty);
 
     renderWithIntl(
