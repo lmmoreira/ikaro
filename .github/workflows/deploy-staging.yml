@@ -40,6 +40,21 @@ name: App — Staging Deploy Pipeline
 # against the rebuild before it's allowed to push — see push's own
 # comments for why that check exists).
 #
+# build-scan and push both carry a per-service concurrency group with
+# cancel-in-progress: true (review finding, 2026-07-22): if a newer run's
+# build-scan for a given service starts while an older run's build-scan
+# or push for that same service is still going, the older one is killed
+# outright instead of running to completion only to self-abort later at
+# check-current — same correctness outcome, less wasted compute. Safe
+# here specifically because nothing in these two jobs has an external
+# side effect that survives a cancelled step (an interrupted docker push
+# doesn't leave a usable half-tagged image). check-current stays in
+# place regardless as the correctness backstop — it doesn't depend on
+# this cancellation having fired, it just re-checks fresh right before
+# the one operation that genuinely can't be safely interrupted this way:
+# migrate-and-deploy, which deliberately carries no cancel-in-progress
+# concurrency at all (see its own comments for why).
+#
 # `check-current` gates migrate-and-deploy on this run's commit still
 # being main's actual tip (review finding, 2026-07-22): two pushes close
 # together start two independent runs, and if an older run's build-scan/
@@ -113,6 +128,22 @@ jobs:
     name: Build & scan (${{ matrix.service }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Scoped per service (review finding, 2026-07-22), not per job — the
+    # group name deliberately includes matrix.service so backend/bff/web
+    # keep running in parallel within one run (they'd serialize against
+    # each other if this used one shared group name for the whole matrix).
+    # Shared with push's identically-scoped group below: if a newer run's
+    # build-scan for this same service starts while an older run's
+    # build-scan OR push for it is still active, the older one is
+    # cancelled outright instead of running to completion only to
+    # self-abort later at check-current. Safe to cancel unconditionally
+    # here — nothing in build-scan/push has an external side effect that
+    # survives a cancelled step (unlike migrate-and-deploy, which
+    # deliberately has no concurrency-based cancellation at all — see its
+    # own comments).
+    concurrency:
+      group: deploy-staging-build-${{ matrix.service }}-${{ github.ref }}
+      cancel-in-progress: true
     strategy:
       fail-fast: false
       matrix:
@@ -202,6 +233,15 @@ jobs:
     needs: build-scan
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Same group as build-scan's identically-scoped block above, per
+    # service — an interrupted docker push doesn't leave a usable
+    # half-tagged image (the manifest that makes a tag resolvable is
+    # written last, after every layer), and a cancelled push job never
+    # reports success, so check-current (which needs: push) correctly
+    # never runs for it either.
+    concurrency:
+      group: deploy-staging-build-${{ matrix.service }}-${{ github.ref }}
+      cancel-in-progress: true
     strategy:
       fail-fast: false
       matrix:
