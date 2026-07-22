@@ -1,7 +1,7 @@
 # TD27 — Terraform state bucket security is documented, not codified or auditable
 
 ## Status
-- **State**: Open — approach decided via `/story-discovery TD27` (2026-07-22), not yet implemented
+- **State**: ✅ Done — implemented and merged via PR #185 (2026-07-22)
 - **Type**: Technical Debt / Infrastructure Security
 - **Priority**: Medium (no active exploit — the actual GCP-level controls are applied and correct today; the gap is auditability/drift-protection, not a live hole)
 - **Context**: `infra/terraform/README.md` § Bootstrap prerequisites, `gs://ikaro-tfstate` (M17-S08); `.github/workflows/infra-deploy.yml`'s existing `drift-prod` job (M17-S24)
