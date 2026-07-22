@@ -649,3 +649,129 @@ jobs:
         run: |
           terraform init -input=false -lockfile=readonly
           terraform plan -input=false -no-color -lock-timeout=60s -detailed-exitcode
+
+      # TD27: gs://ikaro-tfstate's own security posture (versioning, uniform
+      # access, public access prevention, the env-scoped IAM conditions) was
+      # bootstrapped out-of-band (M17-S08) and is not a Terraform resource —
+      # the plan step above can never detect drift on the bucket itself. This
+      # reuses the same read-only tf-planner-prod credentials (already has
+      # storage.buckets.get + storage.buckets.getIamPolicy — no new IAM grant)
+      # instead of bringing the bucket under normal envs/prod management,
+      # which would need tf-deployer-prod write access to the bucket —
+      # exactly what M17-S08's negative-condition fix deliberately removed.
+      # `if: always()` so this still runs even when the plan step above
+      # already found Terraform-managed drift and exited non-zero.
+      #
+      # Public-repo discipline (this workflow's logs are public): every
+      # assertion below prints only PASS/FAIL by name, never a raw bucket
+      # config value or IAM policy — see state-bucket-expected-config.json's
+      # header comment for the review discipline expected of future edits.
+      - name: Verify state bucket security (TD27)
+        if: always()
+        working-directory: infra/terraform
+        run: |
+          set -uo pipefail
+          EXPECTED="state-bucket-expected-config.json"
+          BUCKET="$(jq -r '.bucket' "$EXPECTED")"
+          PROJECT="$(jq -r '.project' "$EXPECTED")"
+          FAIL=0
+
+          BUCKET_JSON="$(gcloud storage buckets describe "gs://${BUCKET}" --format=json)"
+          for field in versioning_enabled uniform_bucket_level_access public_access_prevention; do
+            expected="$(jq -r ".expected.${field}" "$EXPECTED")"
+            actual="$(jq -r ".${field}" <<<"$BUCKET_JSON")"
+            if [ "$expected" != "$actual" ]; then
+              echo "FAIL: bucket.${field} does not match the expected value"
+              FAIL=1
+            else
+              echo "PASS: bucket.${field}"
+            fi
+          done
+
+          BUCKET_IAM_JSON="$(gcloud storage buckets get-iam-policy "gs://${BUCKET}" --format=json)"
+
+          for forbidden in $(jq -r '.forbiddenBucketIamMembers[]' "$EXPECTED"); do
+            if jq -e --arg m "$forbidden" '.bindings[]?.members[]? | select(. == $m)' <<<"$BUCKET_IAM_JSON" >/dev/null; then
+              echo "FAIL: bucket IAM policy grants a forbidden public member (${forbidden})"
+              FAIL=1
+            else
+              echo "PASS: no forbidden public member (${forbidden}) on bucket IAM policy"
+            fi
+          done
+
+          # Bidirectional allow-list check: every allow-listed binding must be
+          # present (catches removal/weakening) AND every live binding must
+          # be allow-listed (catches an unexpected addition — e.g. a new
+          # grant to an unrelated principal, which a presence-only check can
+          # never see).
+          allowed_count="$(jq '.allowedBucketIamBindings | length' "$EXPECTED")"
+          for i in $(seq 0 $((allowed_count - 1))); do
+            role="$(jq -r ".allowedBucketIamBindings[$i].role" "$EXPECTED")"
+            member="$(jq -r ".allowedBucketIamBindings[$i].member" "$EXPECTED")"
+            cond="$(jq -r ".allowedBucketIamBindings[$i].conditionExpression // \"\"" "$EXPECTED")"
+            if ! jq -e --arg role "$role" --arg member "$member" --arg cond "$cond" \
+              '.bindings[]? | select(.role == $role and (.members[]? == $member) and (.condition.expression // "") == $cond)' \
+              <<<"$BUCKET_IAM_JSON" >/dev/null; then
+              echo "FAIL: expected bucket IAM binding missing (role=${role} member=${member})"
+              FAIL=1
+            fi
+          done
+          echo "PASS/FAIL summarized above for each of the ${allowed_count} allow-listed bucket IAM bindings"
+
+          ALLOWED_JSON="$(jq -c '.allowedBucketIamBindings' "$EXPECTED")"
+          unexpected_count="$(jq --argjson allow "$ALLOWED_JSON" '
+            [ .bindings[]? as $b
+              | $b.members[]? as $m
+              | select(
+                  ([$allow[] | select(.role == $b.role and .member == $m and ((.conditionExpression // "") == ($b.condition.expression // "")))] | length) == 0
+                )
+            ] | length' <<<"$BUCKET_IAM_JSON")"
+          if [ "$unexpected_count" -gt 0 ]; then
+            echo "FAIL: bucket IAM policy grants ${unexpected_count} binding(s) not in the allow-list"
+            FAIL=1
+          else
+            echo "PASS: no unexpected (non-allow-listed) bucket IAM bindings"
+          fi
+
+          PROJECT_IAM_JSON="$(gcloud projects get-iam-policy "${PROJECT}" --format=json)"
+
+          # Checked for exact uniqueness, not just presence: GCP IAM
+          # evaluates bindings additively (OR), so an extra permissive
+          # binding for the same role+member would defeat this one even
+          # while it remains present — count must be exactly 1.
+          project_binding_count="$(jq '.requiredProjectIamBindings | length' "$EXPECTED")"
+          for i in $(seq 0 $((project_binding_count - 1))); do
+            name="$(jq -r ".requiredProjectIamBindings[$i].name" "$EXPECTED")"
+            role="$(jq -r ".requiredProjectIamBindings[$i].role" "$EXPECTED")"
+            member="$(jq -r ".requiredProjectIamBindings[$i].member" "$EXPECTED")"
+            cond="$(jq -r ".requiredProjectIamBindings[$i].conditionExpression" "$EXPECTED")"
+
+            matching_count="$(jq --arg role "$role" --arg member "$member" \
+              '[.bindings[]? | select(.role == $role and (.members[]? == $member))] | length' \
+              <<<"$PROJECT_IAM_JSON")"
+            exact_match="no"
+            if jq -e --arg role "$role" --arg member "$member" --arg cond "$cond" \
+              '.bindings[]? | select(.role == $role and (.members[]? == $member) and (.condition.expression // "") == $cond)' \
+              <<<"$PROJECT_IAM_JSON" >/dev/null; then
+              exact_match="yes"
+            fi
+
+            if [ "$matching_count" -eq 0 ]; then
+              echo "FAIL: required project IAM binding missing (${name})"
+              FAIL=1
+            elif [ "$matching_count" -eq 1 ] && [ "$exact_match" = "yes" ]; then
+              echo "PASS: required project IAM binding present and unique (${name})"
+            elif [ "$matching_count" -eq 1 ] && [ "$exact_match" = "no" ]; then
+              echo "FAIL: required project IAM binding present but with an unexpected condition (${name})"
+              FAIL=1
+            else
+              echo "FAIL: unexpected additional binding(s) for the same role+member as (${name}) — found ${matching_count}, expected exactly 1"
+              FAIL=1
+            fi
+          done
+
+          if [ "$FAIL" -eq 1 ]; then
+            echo "State bucket security check FAILED — see the named PASS/FAIL lines above."
+            exit 1
+          fi
+          echo "State bucket security check: all assertions passed."

@@ -588,7 +588,21 @@ jobs:
   trivy-scan:
     name: Trivy Image Scan (${{ matrix.service }})
     needs: [detect-changes, test-suite-passed]
-    if: needs.test-suite-passed.result == 'success' && needs.detect-changes.outputs.app == 'true'
+    # Deliberately no job-level `if:` here (unlike most other skippable jobs
+    # in this file) — a job-level `if:` combined with a matrix collapses the
+    # whole strategy into ONE synthetic skipped check reported under the
+    # raw, un-templated name "Trivy Image Scan (${{ matrix.service }})"
+    # instead of three separately-named "(backend)"/"(bff)"/"(web)" checks
+    # (a job-level `if:` is evaluated before matrix expansion, so GitHub
+    # never gets far enough to substitute the matrix value into `name:`).
+    # Since Trivy is a required status check under those three expanded
+    # names, that collapse makes it impossible to ever satisfy branch
+    # protection on a PR that doesn't touch app code — discovered via
+    # TD27's PR #185 being permanently unmergeable despite passing every
+    # check that actually ran, 2026-07-22. Fixed the same way `checkov`
+    # below already does it: the job always runs (so the matrix always
+    # expands into three correctly-named checks), and the skip condition
+    # moves to each work step instead.
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -606,9 +620,11 @@ jobs:
           persist-credentials: false
 
       - name: Set up Docker Buildx
+        if: needs.test-suite-passed.result == 'success' && needs.detect-changes.outputs.app == 'true'
         run: docker buildx create --use --driver docker-container
 
       - name: Build ${{ matrix.service }} image
+        if: needs.test-suite-passed.result == 'success' && needs.detect-changes.outputs.app == 'true'
         run: |
           docker buildx build \
             --cache-from type=gha,scope=trivy-${{ matrix.service }} \
@@ -619,6 +635,7 @@ jobs:
             .
 
       - name: Trivy scan — ${{ matrix.service }}
+        if: needs.test-suite-passed.result == 'success' && needs.detect-changes.outputs.app == 'true'
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ikaro-${{ matrix.service }}:scan
@@ -628,6 +645,7 @@ jobs:
           ignore-unfixed: true
 
       - name: Env-leak check — ${{ matrix.service }}
+        if: needs.test-suite-passed.result == 'success' && needs.detect-changes.outputs.app == 'true'
         run: |
           LEAKED=$(docker run --rm --entrypoint sh "ikaro-${{ matrix.service }}:scan" \
             -c 'find /app -name ".env*" -not -name ".env.example" 2>/dev/null || true')
@@ -639,6 +657,7 @@ jobs:
           echo "✅ No .env* files found inside the ${{ matrix.service }} image"
 
       - name: Boot smoke test — ${{ matrix.service }}
+        if: needs.test-suite-passed.result == 'success' && needs.detect-changes.outputs.app == 'true'
         run: |
           ARGS=(--name "smoke-${{ matrix.service }}" -d)
           case "${{ matrix.service }}" in

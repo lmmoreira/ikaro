@@ -1,12 +1,13 @@
 # TD27 — Terraform state bucket security is documented, not codified or auditable
 
 ## Status
-- **State**: Open
+- **State**: Open — approach decided via `/story-discovery TD27` (2026-07-22), not yet implemented
 - **Type**: Technical Debt / Infrastructure Security
 - **Priority**: Medium (no active exploit — the actual GCP-level controls are applied and correct today; the gap is auditability/drift-protection, not a live hole)
-- **Context**: `infra/terraform/README.md` § Bootstrap prerequisites, `gs://ikaro-tfstate` (M17-S08)
+- **Context**: `infra/terraform/README.md` § Bootstrap prerequisites, `gs://ikaro-tfstate` (M17-S08); `.github/workflows/infra-deploy.yml`'s existing `drift-prod` job (M17-S24)
 - **Created**: 2026-07-20
 - **Discovered**: during a security review of PR #173 (M17-S19, Pub/Sub module)
+- **Scoped**: 2026-07-22, via `/story-discovery TD27`
 
 ---
 
@@ -27,27 +28,60 @@ Terraform state can reveal infrastructure topology (network CIDRs, service accou
 
 This is not an active vulnerability today — the controls were correctly applied at bootstrap time, and no incident has occurred. This is a **process/auditability gap**: the security posture that state confidentiality depends on isn't self-verifying.
 
-## Proposed fix (not yet scoped as a story — needs its own discovery)
+## Live verification (2026-07-22)
 
-Two candidate approaches, not yet decided between:
+Per this TD's own "not yet investigated" callout, the bucket's actual live configuration was checked before choosing an approach:
 
-1. **A separately-bootstrapped Terraform root for the state bucket itself**, using local (not GCS) state for that one root — avoiding the chicken-and-egg problem of the bucket managing its own backend config — reviewed/applied manually and rarely. This makes the bucket's IAM/versioning/PAP settings reviewable in a PR diff and gives `terraform plan` a way to detect drift against the last-applied config, at the cost of a second, differently-managed Terraform root that needs its own discipline (who applies it, how often, whether CI touches it at all).
-2. **A repeatable, audited bootstrap script** (not Terraform) that can be re-run idempotently to assert the bucket's settings, checked into the repo (unlike the current gitignored log, with placeholders instead of anything sensitive) and run periodically — manually, or via a scheduled CI job with read-only credentials — to detect drift and alert.
+- `gcloud storage buckets describe gs://ikaro-tfstate`: `versioning_enabled: true`, `uniform_bucket_level_access: true`, `public_access_prevention: enforced`, `location: SOUTHAMERICA-EAST1` — matches `docs/BOOTSTRAP_LOG.md` exactly.
+- `gcloud storage buckets get-iam-policy gs://ikaro-tfstate`: bucket-level bindings match the documented set (conditional `objectAdmin` for both env tf-deployers, `.tflock`-scoped `objectAdmin` for both tf-planners added by M17-S24, unconditional `objectViewer` for both tf-planners) — no `allUsers`/`allAuthenticatedUsers`.
+- `gcloud projects get-iam-policy ikaro-prod`: the negative-condition binding excluding `gs://ikaro-tfstate` from prod tf-deployer's project-level `storage.admin` (the original M17-S08 security-bug fix) is still intact.
 
-Whichever direction is chosen should also address:
-- Moving the *durable record* of the bucket's intended configuration out of the gitignored `docs/BOOTSTRAP_LOG.md` and into something reviewable (the log can stay for operator-specific bootstrap narration, but the target-state values shouldn't only exist there).
-- Whether a periodic drift-check (scheduled Action or manual runbook item) is warranted given the low likelihood of unauthorized change relative to the blast radius if it happened.
+**No drift found.** The gap this TD addresses is real but has not yet manifested — this is about closing a detection gap, not remediating a current misconfiguration.
 
-**Not yet investigated**: the actual current live settings of `gs://ikaro-tfstate` — this TD was written without access to `docs/BOOTSTRAP_LOG.md`, which is gitignored/operator-local. Whoever picks this up should verify the bucket's current real configuration via `gcloud storage buckets describe gs://ikaro-tfstate` before choosing an approach, per the same "verify live infra state, don't assume" discipline `/story-discovery` already applies to devops stories.
+## Chosen approach (decided via story-discovery, 2026-07-22)
 
-## Acceptance Criteria (when this is picked up)
+Neither of the two originally-proposed candidates below, as literally written. Instead:
 
-- [ ] The state bucket's intended security configuration (versioning, uniform access, public access prevention, env-scoped IAM condition) is expressed somewhere reviewable in this repo — either as a Terraform root or an audited script — not only in the gitignored operator log
-- [ ] A way exists to detect drift between the bucket's live settings and its intended configuration (a `terraform plan`-style diff, or a script's assertion output) without requiring a human to manually run `gcloud` commands and compare by eye
-- [ ] `infra/terraform/README.md` § Bootstrap prerequisites is updated to reflect the new mechanism, replacing the "recorded in the operator-local `docs/BOOTSTRAP_LOG.md`" framing
-- [ ] Whichever approach is chosen does not create a circular dependency (the state bucket's own management must not require the state bucket to already exist and be correctly configured)
+**Append read-only steps to the existing `drift-prod` job** in `.github/workflows/infra-deploy.yml`, after its current `terraform plan -detailed-exitcode` step, with `if: always()` so they still run even when that step already found Terraform-managed drift:
+
+1. `gcloud storage buckets describe gs://ikaro-tfstate` → assert versioning / uniform bucket-level access / public access prevention match checked-in expected values.
+2. `gcloud storage buckets get-iam-policy gs://ikaro-tfstate` → assert the bucket-level binding set is an **exact, exclusive allow-list match** — every allow-listed binding must be present (catches removal/weakening) and every live binding must be allow-listed (catches an unexpected addition, e.g. a new grant to an unrelated principal). A presence-only check (an earlier draft of this step, caught in cross-tool review — Codex + CodeRabbit both flagged it) can assert the known-good bindings are still there while missing an entirely new one added alongside them.
+3. `gcloud projects get-iam-policy ikaro-prod` → assert the negative-condition binding excluding the bucket from prod tf-deployer's broad `storage.admin` is present **and unique** for that exact (role, member) pair — the specific defense needed to catch a regression of the actual M17-S08 bug, which lives at the *project* IAM level, not the bucket's own IAM policy. Uniqueness matters because GCP IAM evaluates bindings additively (OR): a second, broader binding for the same role+member would defeat the negative condition even while it remains present.
+
+Reuses the job's existing `ikaro-tf-planner@ikaro-prod` WIF auth — already has every permission needed (`roles/viewer` covers `storage.buckets.get`; the custom `tfPlannerIamPolicyReader` role, added by M17-S24 for a different reason, already includes `storage.buckets.getIamPolicy`) — **zero new IAM grants, zero new secrets, same weekly cron.**
+
+The checked-in expected values (bucket config + the specific IAM bindings/conditions under test) become the durable, reviewable record this TD's AC requires, replacing the gitignored `docs/BOOTSTRAP_LOG.md` as the source of truth for intended state.
+
+### Why not a dedicated Terraform root, and why not a normal `envs/prod` resource
+
+Both rejected for the same underlying reason: whichever identity *applies* Terraform changes to the bucket needs write permission on it — and `ikaro-tf-deployer@ikaro-prod` (the identity `apply-prod` uses on every approved merge) was **deliberately** stripped of write access to `gs://ikaro-tfstate` itself as the direct fix for the M17-S08 security bug (project-level `storage.admin` now excludes the bucket via a negative IAM condition). Folding the bucket into `envs/prod`'s regularly-applied config forces a choice between two bad outcomes:
+
+- Re-grant tf-deployer-prod write access to the bucket → undoes the exact boundary that fix was built to enforce, widening a routine automated app deploy's blast radius to include the state bucket's own security config.
+- Don't re-grant it → the config plans/applies fine today (zero diff needs no write calls) but silently hard-fails mid-pipeline the first time anyone changes the bucket's IAM/settings for real — a permission error surfacing live in an unrelated prod deploy, not caught by design.
+
+A separate Terraform root has the identical problem one level removed (whatever identity applies it needs the same write access) unless applied by a human via their own ADC rather than by CI — more moving parts for the same drift-detection outcome the read-only script gets for free, using an identity (tf-planner) that was already read-only by design.
+
+*(Original two candidates, kept for history: (1) a separately-bootstrapped Terraform root with local state, applied manually and rarely; (2) a repeatable audited bootstrap script run periodically. Both are superseded by the approach above, which reuses the existing `drift-prod` job instead of introducing either a new root or a new schedule.)*
+
+### Security discipline (required, not optional)
+
+Because `infra-deploy.yml`'s logs are public (this repo is public) and every `drift-prod` run is publicly visible:
+
+- **On failure, print only the name of the failed assertion — never the actual live value.** E.g. `FAIL: prod-storage-admin-exclusion condition missing`, not the real IAM policy JSON. This keeps public disclosure bounded to "which named check failed," never the live misconfigured value itself.
+- **Never dump a full IAM policy** (bucket-level or project-level) to job output — filter/`jq` for only the specific binding(s) under test.
+- Accepted residual, consistent with this repo's existing public-repo posture (`infra/terraform/README.md`'s treatment of bucket names/SA emails/project IDs as non-secret operational metadata): a red run is itself a visible pass/fail signal — unavoidable for any automated public check, and the intended tradeoff (fast detection vs. silence) rather than a new information leak.
+
+## Acceptance Criteria
+
+- [ ] `drift-prod` in `.github/workflows/infra-deploy.yml` gains steps (after the existing `terraform plan` step, `if: always()`) that assert `gs://ikaro-tfstate`'s versioning, uniform bucket-level access, and public access prevention against checked-in expected values, and that the bucket-level IAM binding set is an **exact, exclusive allow-list match** — not a presence-only check
+- [ ] `drift-prod` also asserts the project-level negative-condition binding excluding the bucket from prod tf-deployer's `storage.admin` is present **and unique** for that (role, member) pair — the specific defense against a regression of the M17-S08 bug class, including an additional broader binding added alongside the expected one
+- [ ] Expected values live in a checked-in, reviewable file (not only in the gitignored `docs/BOOTSTRAP_LOG.md`)
+- [ ] Failure output names only the failed assertion — never echoes a live IAM policy or bucket-config value
+- [ ] No new IAM grants, no new secrets, no new Terraform resource — the job continues using only `ikaro-tf-planner@ikaro-prod`'s existing permissions
+- [ ] `infra/terraform/README.md` § Bootstrap prerequisites / Remote-state verification is updated to point at this automated check, replacing the "an authorized operator must verify... periodically" manual framing
 
 ## Open Questions
 
-1. Should this drift-check run on a schedule (e.g. a weekly GitHub Action with read-only credentials), or stay a manual runbook item exercised occasionally by the operator? Given the low-traffic, pre-production nature of the project today, a manual runbook item may be sufficient until real production traffic exists.
-2. Is a from-scratch Terraform root worth the ongoing dual-management overhead (state bucket managed outside the bucket it creates), or is a simpler idempotent assertion script the better fit for a solo-operator project at this scale?
+~~1. Should this drift-check run on a schedule, or stay a manual runbook item?~~ **Resolved 2026-07-22:** piggybacks on `drift-prod`'s existing weekly Monday 09:30 UTC cron — no separate schedule.
+
+~~2. Is a from-scratch Terraform root worth the ongoing dual-management overhead, or is a simpler idempotent assertion script the better fit?~~ **Resolved 2026-07-22:** assertion script (`gcloud` + `jq`), appended to the existing `drift-prod` job — see "Chosen approach" above. A Terraform root was rejected due to the tf-deployer write-permission conflict with the M17-S08 fix.
