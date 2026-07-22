@@ -45,8 +45,8 @@ Neither of the two originally-proposed candidates below, as literally written. I
 **Append read-only steps to the existing `drift-prod` job** in `.github/workflows/infra-deploy.yml`, after its current `terraform plan -detailed-exitcode` step, with `if: always()` so they still run even when that step already found Terraform-managed drift:
 
 1. `gcloud storage buckets describe gs://ikaro-tfstate` → assert versioning / uniform bucket-level access / public access prevention match checked-in expected values.
-2. `gcloud storage buckets get-iam-policy gs://ikaro-tfstate` → assert the bucket-level binding set matches checked-in expected values (no public principals).
-3. `gcloud projects get-iam-policy ikaro-prod` → assert the negative-condition binding excluding the bucket from prod tf-deployer's broad `storage.admin` is still present — the specific defense needed to catch a regression of the actual M17-S08 bug, which lives at the *project* IAM level, not the bucket's own IAM policy.
+2. `gcloud storage buckets get-iam-policy gs://ikaro-tfstate` → assert the bucket-level binding set is an **exact, exclusive allow-list match** — every allow-listed binding must be present (catches removal/weakening) and every live binding must be allow-listed (catches an unexpected addition, e.g. a new grant to an unrelated principal). A presence-only check (an earlier draft of this step, caught in cross-tool review — Codex + CodeRabbit both flagged it) can assert the known-good bindings are still there while missing an entirely new one added alongside them.
+3. `gcloud projects get-iam-policy ikaro-prod` → assert the negative-condition binding excluding the bucket from prod tf-deployer's broad `storage.admin` is present **and unique** for that exact (role, member) pair — the specific defense needed to catch a regression of the actual M17-S08 bug, which lives at the *project* IAM level, not the bucket's own IAM policy. Uniqueness matters because GCP IAM evaluates bindings additively (OR): a second, broader binding for the same role+member would defeat the negative condition even while it remains present.
 
 Reuses the job's existing `ikaro-tf-planner@ikaro-prod` WIF auth — already has every permission needed (`roles/viewer` covers `storage.buckets.get`; the custom `tfPlannerIamPolicyReader` role, added by M17-S24 for a different reason, already includes `storage.buckets.getIamPolicy`) — **zero new IAM grants, zero new secrets, same weekly cron.**
 
@@ -73,8 +73,8 @@ Because `infra-deploy.yml`'s logs are public (this repo is public) and every `dr
 
 ## Acceptance Criteria
 
-- [ ] `drift-prod` in `.github/workflows/infra-deploy.yml` gains steps (after the existing `terraform plan` step, `if: always()`) that assert `gs://ikaro-tfstate`'s versioning, uniform bucket-level access, public access prevention, and bucket-level IAM bindings against checked-in expected values
-- [ ] `drift-prod` also asserts the project-level negative-condition binding excluding the bucket from prod tf-deployer's `storage.admin` — the specific defense against a regression of the M17-S08 bug class
+- [ ] `drift-prod` in `.github/workflows/infra-deploy.yml` gains steps (after the existing `terraform plan` step, `if: always()`) that assert `gs://ikaro-tfstate`'s versioning, uniform bucket-level access, and public access prevention against checked-in expected values, and that the bucket-level IAM binding set is an **exact, exclusive allow-list match** — not a presence-only check
+- [ ] `drift-prod` also asserts the project-level negative-condition binding excluding the bucket from prod tf-deployer's `storage.admin` is present **and unique** for that (role, member) pair — the specific defense against a regression of the M17-S08 bug class, including an additional broader binding added alongside the expected one
 - [ ] Expected values live in a checked-in, reviewable file (not only in the gitignored `docs/BOOTSTRAP_LOG.md`)
 - [ ] Failure output names only the failed assertion — never echoes a live IAM policy or bucket-config value
 - [ ] No new IAM grants, no new secrets, no new Terraform resource — the job continues using only `ikaro-tf-planner@ikaro-prod`'s existing permissions
