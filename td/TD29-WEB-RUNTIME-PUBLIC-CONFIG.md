@@ -3,7 +3,7 @@
 ## Status
 
 - **Type**: Technical Debt / Architecture
-- **State**: Open
+- **State**: ✅ Done — implemented and merged via PR #186 (2026-07-22). Deferred items (real-build E2E/CSP verification, D8/S26 Terraform/plan follow-through) tracked against M17-S25/S27/S28, not this TD.
 - **Priority**: High-ish, but **not a blocker for any M17 story today** — see Sequencing below
 - **Context**: `apps/web`'s `NEXT_PUBLIC_*` handling; `plan/M17-CLOUD-DEPLOY.md` D8; M17-S26's build-arg assertion
 - **Created**: 2026-07-22 (surfaced during M17-S25 story-discovery/implementation — no live incident, purely an architecture review finding)
