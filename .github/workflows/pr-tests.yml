@@ -619,6 +619,18 @@ jobs:
         with:
           persist-credentials: false
 
+      # Required for `docker buildx build`'s type=gha cache backend when
+      # invoked directly in a run: step (not via docker/build-push-action):
+      # ACTIONS_RUNTIME_TOKEN/cache endpoint vars exist on the runner but
+      # are not exposed to plain run: steps by default — without this,
+      # --cache-from/--cache-to type=gha fails silently and every build is
+      # a full rebuild (Docker's own docs; review finding, 2026-07-22,
+      # M17-S25 — this job had the same gap deploy-staging.yml's build
+      # jobs were caught with).
+      - name: Expose GitHub Actions runtime for GHA cache backend
+        if: needs.test-suite-passed.result == 'success' && needs.detect-changes.outputs.app == 'true'
+        uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
+
       - name: Set up Docker Buildx
         if: needs.test-suite-passed.result == 'success' && needs.detect-changes.outputs.app == 'true'
         run: docker buildx create --use --driver docker-container

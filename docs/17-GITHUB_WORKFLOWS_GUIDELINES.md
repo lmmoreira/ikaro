@@ -113,6 +113,7 @@ All GitHub Actions — including GitHub-owned ones (`actions/checkout`, `actions
 | `pnpm/action-setup` | `0ebf47130e4866e96fce0953f49152a61190b271` | v6.0.9 |
 | `SonarSource/sonarqube-scan-action` | `713881670b6b3676cda39549040e2d88c70d582e` | v8.2.0 |
 | `aquasecurity/trivy-action` | `ed142fd0673e97e23eac54620cfb913e5ce36c25` | v0.36.0 |
+| `crazy-max/ghaction-github-runtime` | `04d248b84655b509d8c44dc1d6f990c879747487` | v4.0.0 |
 | `dorny/paths-filter` | `7b450fff21473bca461d4b92ce414b9d0420d706` | v4.0.2 |
 | `google-github-actions/auth` | `7c6bc770dae815cd3e89ee6cdf493a5fab2cc093` | v3 |
 | `hashicorp/setup-terraform` | `dfe3c3f87815947d99a8997f908cb6525fc44e9e` | v4.0.1 |
@@ -141,6 +142,9 @@ All CI workflows use `node-version-file: '.nvmrc'` — never `node-version: '22'
 All `docker build` calls in CI use Docker Buildx with GitHub Actions cache to avoid rebuilding from scratch on every run:
 
 ```yaml
+- name: Expose GitHub Actions runtime for GHA cache backend
+  uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
+
 - name: Set up Docker Buildx
   run: docker buildx create --use --driver docker-container
 
@@ -154,6 +158,8 @@ All `docker build` calls in CI use Docker Buildx with GitHub Actions cache to av
       -t ikaro-<service>:tag \
       .
 ```
+
+The `ghaction-github-runtime` step is **required** whenever `docker buildx build` runs directly in a `run:` step rather than through `docker/build-push-action` (corrected 2026-07-22, M17-S25 review — this table previously omitted it in both `pr-tests.yml`'s Trivy scan and the first draft of `deploy-staging.yml`): `ACTIONS_RUNTIME_TOKEN` and the cache endpoint URL exist on the runner, but per Docker's own docs are **not** exposed to plain `run:` steps by default. Without this step, `--cache-from`/`--cache-to type=gha` fails silently — no error, just a full rebuild every time, silently defeating the whole point of caching.
 
 The `scope` parameter is **mandatory** in matrix jobs. Without it, the three Trivy matrix runners (backend/bff/web) compete for the same cache key and evict each other every run.
 
