@@ -13,8 +13,14 @@
     { "role": "roles/storage.legacyBucketOwner", "member": "projectEditor:ikaro-prod" },
     { "role": "roles/storage.legacyBucketOwner", "member": "projectOwner:ikaro-prod" },
     { "role": "roles/storage.legacyBucketReader", "member": "projectViewer:ikaro-prod" },
-    { "role": "roles/storage.legacyBucketReader", "member": "serviceAccount:ikaro-tf-deployer@ikaro-prod.iam.gserviceaccount.com" },
-    { "role": "roles/storage.legacyBucketReader", "member": "serviceAccount:ikaro-tf-deployer@ikaro-staging.iam.gserviceaccount.com" },
+    {
+      "role": "roles/storage.legacyBucketReader",
+      "member": "serviceAccount:ikaro-tf-deployer@ikaro-prod.iam.gserviceaccount.com"
+    },
+    {
+      "role": "roles/storage.legacyBucketReader",
+      "member": "serviceAccount:ikaro-tf-deployer@ikaro-staging.iam.gserviceaccount.com"
+    },
     { "role": "roles/storage.legacyObjectOwner", "member": "projectEditor:ikaro-prod" },
     { "role": "roles/storage.legacyObjectOwner", "member": "projectOwner:ikaro-prod" },
     { "role": "roles/storage.legacyObjectReader", "member": "projectViewer:ikaro-prod" },
@@ -38,8 +44,14 @@
       "member": "serviceAccount:ikaro-tf-planner@ikaro-staging.iam.gserviceaccount.com",
       "conditionExpression": "resource.name == \"projects/_/buckets/ikaro-tfstate/objects/envs/staging/default.tflock\""
     },
-    { "role": "roles/storage.objectViewer", "member": "serviceAccount:ikaro-tf-planner@ikaro-prod.iam.gserviceaccount.com" },
-    { "role": "roles/storage.objectViewer", "member": "serviceAccount:ikaro-tf-planner@ikaro-staging.iam.gserviceaccount.com" }
+    {
+      "role": "roles/storage.objectViewer",
+      "member": "serviceAccount:ikaro-tf-planner@ikaro-prod.iam.gserviceaccount.com"
+    },
+    {
+      "role": "roles/storage.objectViewer",
+      "member": "serviceAccount:ikaro-tf-planner@ikaro-staging.iam.gserviceaccount.com"
+    }
   ],
   "_requiredProjectIamBindings_comment": "Checked for exact uniqueness, not just presence: GCP IAM evaluates bindings additively (OR), so an extra permissive binding for the same role+member would defeat this one even while it remains present. Each entry must match exactly one live binding for its (role, member) pair.",
   "requiredProjectIamBindings": [
