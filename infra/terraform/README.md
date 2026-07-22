@@ -93,7 +93,11 @@ This directory is intentionally safe to publish, but it still describes the prod
 
 ### Remote-state verification
 
-The `gs://ikaro-tfstate` bucket is a manual bootstrap prerequisite, so this repository cannot enforce its live configuration. Before the first apply and at least periodically thereafter, an authorized operator must verify that it is versioned, uses uniform bucket-level access, has public-access prevention enabled, grants no public principals, and limits read/write access to the intended Terraform CI/deployer identities. State can reveal the full infrastructure inventory even when this code deliberately keeps secret values out of it.
+The `gs://ikaro-tfstate` bucket is a manual bootstrap prerequisite, so it is not a Terraform resource anywhere in this repo — the `terraform plan` drift checks below can never see a change to the bucket's own security posture. State can reveal the full infrastructure inventory even when this code deliberately keeps secret values out of it, so that posture matters (TD27).
+
+Instead, `.github/workflows/infra-deploy.yml`'s `drift-prod` job runs a **"Verify state bucket security (TD27)"** step every week (same schedule as the Terraform drift checks, plus on-demand via `workflow_dispatch`): read-only `gcloud` calls, using the same `ikaro-tf-planner@ikaro-prod` credentials as the `terraform plan` step, assert the bucket's versioning/uniform-access/public-access-prevention settings and the specific IAM bindings/conditions in [`state-bucket-expected-config.json`](state-bucket-expected-config.json) — including the project-level negative-condition binding that excludes the bucket from prod tf-deployer's broad `storage.admin` (the fix for the security bug found during M17-S08's bootstrap). That file is this repo's reviewable record of the bucket's intended configuration, replacing the gitignored `docs/BOOTSTRAP_LOG.md` as the source of truth for it — update it in the same PR as any deliberate, reviewed change to the bucket's security posture.
+
+The check never prints a raw bucket-config value or IAM policy to the (public) job log — only `PASS`/`FAIL` per named assertion, since a failure is itself informative on a public repo and the underlying live values aren't needed to know something needs attention.
 
 ## IAM binding review discipline (read before adding any `google_*_iam_*` resource)
 

@@ -1,0 +1,33 @@
+{
+  "_comment": "Durable, reviewable record of gs://ikaro-tfstate's intended security configuration (TD27). Verified against live GCP state on 2026-07-22 (docs/BOOTSTRAP_LOG.md, M17-S08 + M17-S24). Checked by the 'Verify state bucket security (TD27)' step in .github/workflows/infra-deploy.yml's drift-prod job. Update this file (in the same PR) whenever a deliberate, reviewed change to the bucket's security posture is made out-of-band.",
+  "bucket": "ikaro-tfstate",
+  "project": "ikaro-prod",
+  "expected": {
+    "versioning_enabled": true,
+    "uniform_bucket_level_access": true,
+    "public_access_prevention": "enforced"
+  },
+  "forbiddenBucketIamMembers": ["allUsers", "allAuthenticatedUsers"],
+  "requiredBucketIamBindings": [
+    {
+      "name": "prod-deployer-state-prefix-only",
+      "role": "roles/storage.objectAdmin",
+      "member": "serviceAccount:ikaro-tf-deployer@ikaro-prod.iam.gserviceaccount.com",
+      "conditionExpression": "resource.name.startsWith('projects/_/buckets/ikaro-tfstate/objects/envs/prod')"
+    },
+    {
+      "name": "staging-deployer-state-prefix-only",
+      "role": "roles/storage.objectAdmin",
+      "member": "serviceAccount:ikaro-tf-deployer@ikaro-staging.iam.gserviceaccount.com",
+      "conditionExpression": "resource.name.startsWith('projects/_/buckets/ikaro-tfstate/objects/envs/staging')"
+    }
+  ],
+  "requiredProjectIamBindings": [
+    {
+      "name": "prod-deployer-storage-admin-excludes-state-bucket",
+      "role": "roles/storage.admin",
+      "member": "serviceAccount:ikaro-tf-deployer@ikaro-prod.iam.gserviceaccount.com",
+      "conditionExpression": "!resource.name.startsWith('projects/_/buckets/ikaro-tfstate')"
+    }
+  ]
+}
