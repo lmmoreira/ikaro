@@ -1,6 +1,6 @@
 ---
 name: pr-review
-description: Deep multi-perspective PR review - acceptance-criteria verification, correctness, security/tenant-isolation/ops risk, performance/scalability, and architecture/design-pattern/test-quality - cross-checked against docs/ANTI_PATTERNS.md and this codebase's documented rules. Findings ordered Critical/Important/Minor. Always posts the report as a PR comment when a PR exists (mandatory, not gated on asking - required for headless runs dispatched by /pre-pr to complete). Standalone: does not invoke /pre-pr or /bad-smell-audit, and has no opinion about who wrote the code it's reviewing.
+description: Deep multi-perspective PR review - acceptance-criteria verification, correctness, security/tenant-isolation/ops risk, performance/scalability, and architecture/design-pattern/test-quality - plus infrastructure/cloud/DevOps-SRE review (IAM, secrets, blast radius, cost) when Terraform or CI/CD workflow files are touched - cross-checked against docs/ANTI_PATTERNS.md and this codebase's documented rules. Findings ordered Critical/Important/Minor. Always posts the report as a PR comment when a PR exists (mandatory, not gated on asking - required for headless runs dispatched by /pre-pr to complete). Standalone: does not invoke /pre-pr or /bad-smell-audit, and has no opinion about who wrote the code it's reviewing.
 metadata:
   short-description: Deep multi-perspective PR review
 ---
@@ -45,11 +45,21 @@ In local-branch mode, the working directory already matches the diff being revie
 
 If the story cites a UC that CLAUDE.md §6 lists as a trap (superseded / future / out-of-MVP / renumbered), flag this immediately as a **Critical** finding before anything else — the story itself may be built against a stale spec, which invalidates the rest of the review's premise until that's resolved.
 
+**Detect infra scope (for Step 1's conditional Agent E):**
+```bash
+# local branch (blank argument)
+git diff origin/main...HEAD --name-only | grep -E '^(infra/terraform/|\.github/workflows/|Dockerfile|docker-compose)'
+
+# PR number argument
+gh pr diff <N> --repo lmmoreira/ikaro --name-only | grep -E '^(infra/terraform/|\.github/workflows/|Dockerfile|docker-compose)'
+```
+Non-empty output → this PR touches infra/pipeline files, spawn Agent E in Step 1. Empty → four agents only, same as today.
+
 ---
 
-## Step 1 — Four parallel review agents
+## Step 1 — Four (or five) parallel review agents
 
-Spawn four agents in parallel (one message, four `Agent` calls, `subagent_type: general-purpose`). Give each one: the full diff, the changed-file list, the pinned head commit (PR-number mode) or working-directory state (local-branch mode) to read full file content from, plus the story/TD text, the AC checklist, the cited UC flows, and the docs listed under its section below. Instruct each to **read each changed file's current full content** (not just the diff hunk — a hunk alone hides whether a flagged loop/caller pattern already existed before this PR), from the source pinned in Step 0, never from an assumption about what the working directory contains.
+Spawn four agents in parallel (one message, four `Agent` calls, `subagent_type: general-purpose`) — five if Step 0's infra-scope check was non-empty, adding Agent E below. Give each one: the full diff, the changed-file list, the pinned head commit (PR-number mode) or working-directory state (local-branch mode) to read full file content from, plus the story/TD text, the AC checklist, the cited UC flows, and the docs listed under its section below. Instruct each to **read each changed file's current full content** (not just the diff hunk — a hunk alone hides whether a flagged loop/caller pattern already existed before this PR), from the source pinned in Step 0, never from an assumption about what the working directory contains.
 
 **Every agent applies this discipline to every finding, no exceptions:**
 1. Read the full surrounding context before reporting — never flag from pattern-matching a single line in isolation.
@@ -98,6 +108,19 @@ Perspectives converging on the same artifact: security engineer, attacker, SRE, 
 - Error handling: RFC 9457 Problem Details shape, `mapXxxError` pattern followed (never `throw new HttpException` from a use case), messages meaningful enough to debug from, no silently swallowed exceptions.
 - Docs: `docs/CODE_STANDARDS.md`, `docs/AGENT_PATTERNS.md`, `docs/ENGINEERING_RULES.md`, `docs/08-TESTING_STRATEGY.md`, `docs/ANTI_PATTERNS.md`, plus `docs/24-BFF_ARCHITECTURE.md` / `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` if BFF/web files are touched.
 
+### Agent E — Infrastructure, Cloud & DevOps/SRE (spawned only when Step 0's infra-scope check is non-empty)
+Perspectives converging on the same artifact: security engineer, SRE, cost owner, on-call.
+- IAM least-privilege: any new/changed `google_*_iam_*` binding follows `infra/terraform/README.md`'s "IAM binding review discipline" — role scoped to the resource it needs, not `roles/editor`/`roles/owner`; flag a broad predefined role where the workflow only uses a subset of its grants (M17 CI SA permission gaps precedent — tf-planner/tf-deployer roles went untested until S24).
+- Secrets & sensitive data: no plaintext secret in a `.tfvars` file, module default, or committed state; `sensitive = true` on any output/variable that should be masked in plan/apply logs; secrets sourced from Secret Manager, never baked into an image or env var literal.
+- Blast radius & apply safety: does a prod-affecting resource change go through plan-then-approve, or can it apply unattended; is the `envs/staging` vs `envs/prod` boundary respected, or does a shared module change silently drift the two environments out of parity.
+- State & backend: no local backend, no hardcoded state bucket/path duplicated elsewhere ("Public-repository security" / "Remote-state verification" sections of `infra/terraform/README.md`); no manual `terraform import`/`-target` workflow implied that bypasses the pipeline.
+- Network/ingress posture: public exposure of a resource that should be internal-only (Cloud Run ingress, firewall/network rule, public GCS bucket/object); default-deny posture not weakened.
+- Cost & right-sizing: Cloud Run min/max instances and DB tier changes justified by an actual load reason (not copy-pasted from another module); orphaned/unused resources left behind by a refactor.
+- CI/CD pipeline changes (`.github/workflows/**`): required-status-check ordering — never adding a check to branch protection before its workflow is merged and has run on `main` at least once; `zizmor`/`actionlint` concerns (script injection via untrusted `${{ }}` interpolation, missing `permissions:` scoping).
+- Module design & reuse: a new resource defined ad hoc when an existing module in `infra/terraform/modules/` already covers the same concern (check the "Module dependency graph" section); Checkov custom checks (`.checkov/custom_checks`) updated if a new resource type needs one.
+- Test coverage: new/changed resource or module has `.tftest.hcl` coverage per the "Unit-test convention" section of `infra/terraform/README.md`.
+- Docs: `infra/terraform/README.md`, `plan/M17-CLOUD-DEPLOY.md` §0–§2, `docs/12-DEPLOYMENT_STRATEGY.md`, `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md`, `docs/22-TECH_STACK_DECISIONS.md`; vendored `.claude/skills/terraform-style-guide/` for style/convention questions.
+
 ---
 
 ## Step 2 — Synthesis
@@ -106,8 +129,8 @@ Collect all four agents' raw findings in the main thread:
 
 1. **Dedupe** — findings from different agents landing on the same `file:line` are merged into one entry combining both rationales; keep the higher severity.
 2. **Apply the severity rubric** (agents suggest; the orchestrator enforces consistently):
-   - **Critical (must fix):** unmet or partially-met acceptance criterion; any confirmed security vulnerability (SQLi, tenant-isolation bypass, auth/token bypass, secret exposure, PII leak); data loss/corruption risk; silently wrong business logic contradicting the cited UC; a direct violation of a CLAUDE.md NON-NEGOTIABLE rule or a named `docs/ANTI_PATTERNS.md` entry.
-   - **Important (should be addressed):** real performance/scalability risk under realistic load; architecture/SOLID/design-pattern violation with genuine maintainability cost; meaningless or tautological tests; missing/unclear error handling for a real failure mode; a documented best-practice violation that isn't NON-NEGOTIABLE.
+   - **Critical (must fix):** unmet or partially-met acceptance criterion; any confirmed security vulnerability (SQLi, tenant-isolation bypass, auth/token bypass, secret exposure, PII leak); data loss/corruption risk; silently wrong business logic contradicting the cited UC; a direct violation of a CLAUDE.md NON-NEGOTIABLE rule or a named `docs/ANTI_PATTERNS.md` entry; an infra change that grants overly broad IAM (`roles/editor`/`roles/owner` where a scoped role suffices), exposes a secret in plaintext (tfvars, state, logs), or lets a prod-affecting resource apply unreviewed.
+   - **Important (should be addressed):** real performance/scalability risk under realistic load; architecture/SOLID/design-pattern violation with genuine maintainability cost; meaningless or tautological tests; missing/unclear error handling for a real failure mode; a documented best-practice violation that isn't NON-NEGOTIABLE; infra module duplication where an existing module already covers the resource, missing `.tftest.hcl` coverage for a new/changed module, or an unjustified cost/right-sizing change.
    - **Minor (nice to have):** naming, small duplication, style, non-blocking readability suggestions, or a finding the agent flagged as uncertain/speculative.
 3. Order findings within each severity bucket by agent/category for readability.
 
@@ -118,7 +141,7 @@ Collect all four agents' raw findings in the main thread:
 ```
 ## PR Review — <branch or PR#> — <story/TD ID>
 
-**Reviewed by:** <Claude | Codex>, 4-agent review
+**Reviewed by:** <Claude | Codex>, <N>-agent review (N = 5 when Agent E ran, else 4)
 
 ### Acceptance Criteria
 - [x] <AC bullet text> — Met (evidence: file:line)
