@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 import type { HotsiteAdminContentResponse, HotsiteManifestResponse } from '@ikaro/types';
-import { renderWithIntl } from '@/test-utils';
+import { clearPublicEnv, renderWithIntl, stubPublicEnv } from '@/test-utils';
 import { fetchManifest } from '@/features/platform/api';
 import { fetchServices } from '@/features/platform/hotsite/api/services';
 import { generateHotsiteImageReadSignedUrl } from '@/features/platform/api/tenant-settings';
@@ -98,7 +98,11 @@ describe('HotsitePreview', () => {
     mockFetchManifest.mockReset();
     mockFetchServices.mockReset();
     mockGenerateReadSignedUrl.mockReset();
-    process.env.NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL = IMAGE_BASE_URL;
+    stubPublicEnv({ NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL: IMAGE_BASE_URL });
+  });
+
+  afterEach(() => {
+    clearPublicEnv();
   });
 
   it('shows a loading state before supplementary data resolves', () => {

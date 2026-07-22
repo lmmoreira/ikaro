@@ -1,4 +1,5 @@
 import { fetchManifestResponse } from '@/features/platform/api';
+import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 
 const FALLBACK_LOCALE = 'pt-BR';
 
@@ -27,7 +28,7 @@ export async function resolveLocale(pathname: string): Promise<string> {
   const slug = extractSlug(pathname);
   if (!slug) return FALLBACK_LOCALE;
 
-  if (!process.env.NEXT_PUBLIC_BFF_URL) return FALLBACK_LOCALE;
+  if (!getPublicEnv('NEXT_PUBLIC_BFF_URL')) return FALLBACK_LOCALE;
 
   try {
     const res = await fetchManifestResponse(slug);

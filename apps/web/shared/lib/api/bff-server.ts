@@ -1,3 +1,5 @@
+import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
+
 interface BffServerFetchNextInit {
   readonly revalidate?: number | false;
   readonly tags?: string[];
@@ -11,7 +13,7 @@ interface BffServerFetchInit extends Omit<RequestInit, 'headers' | 'next'> {
 const DEFAULT_BFF_TIMEOUT_MS = 8_000;
 
 function buildBffUrl(path: string): string {
-  return `${process.env.NEXT_PUBLIC_BFF_URL}${path}`;
+  return `${getPublicEnv('NEXT_PUBLIC_BFF_URL')}${path}`;
 }
 
 function buildBffRequestInit(

@@ -1,9 +1,10 @@
 import 'client-only';
 import axios from 'axios';
+import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 import { ApiError, AuthError, ForbiddenError } from './errors';
 
 export const bffClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_BFF_URL,
+  baseURL: getPublicEnv('NEXT_PUBLIC_BFF_URL'),
   withCredentials: true,
 });
 

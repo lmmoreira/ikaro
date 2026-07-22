@@ -2,6 +2,7 @@
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { axe } from '@/axe-helper';
+import { clearPublicEnv, stubPublicEnv } from '@/test-utils';
 import { HotsiteAuthBar } from './HotsiteAuthBar';
 
 // ── module mocks ──────────────────────────────────────────────────────────────
@@ -86,7 +87,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.clearAllMocks();
-  delete process.env.NEXT_PUBLIC_BFF_URL;
+  clearPublicEnv();
 });
 
 // ── tests ─────────────────────────────────────────────────────────────────────
@@ -130,7 +131,7 @@ describe('HotsiteAuthBar', () => {
     });
 
     it('shows a logout link pointing to the BFF logout route', async () => {
-      process.env.NEXT_PUBLIC_BFF_URL = 'http://bff-test:3002/v1';
+      stubPublicEnv({ NEXT_PUBLIC_BFF_URL: 'http://bff-test:3002/v1' });
       await renderBar();
 
       const link = screen.getByTestId('hotsite-staff-logout-link');

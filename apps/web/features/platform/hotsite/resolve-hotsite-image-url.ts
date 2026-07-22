@@ -1,3 +1,5 @@
+import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
+
 const ABSOLUTE_URL_PATTERN = /^https?:\/\//;
 const TMP_PATH_PREFIX = 'tmp/';
 
@@ -29,7 +31,7 @@ export function resolveHotsiteImageUrl(value: string, baseUrl: string): string {
 // resolveDraftImageUrls keeps taking baseUrl as an explicit, testable parameter rather than
 // reading env itself — HotsitePreview (its only caller) passes hotsiteImageBaseUrl() in.
 export function hotsiteImageBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL ?? '';
+  return getPublicEnv('NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL');
 }
 
 export function resolveHotsiteImageDisplayUrl(value: string): string {

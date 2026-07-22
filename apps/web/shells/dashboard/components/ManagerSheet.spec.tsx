@@ -2,6 +2,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { clearPublicEnv, stubPublicEnv } from '@/test-utils';
 import { ManagerSheet } from './ManagerSheet';
 
 vi.mock('next-intl', () => ({
@@ -27,7 +28,7 @@ describe('ManagerSheet', () => {
   });
 
   it('renders logout link pointing to the BFF logout route', () => {
-    process.env.NEXT_PUBLIC_BFF_URL = 'http://bff:3002/v1';
+    stubPublicEnv({ NEXT_PUBLIC_BFF_URL: 'http://bff:3002/v1' });
     render(<ManagerSheet open={true} onClose={vi.fn()} tenantSlug="lavacar-bh" />);
 
     const logoutLink = screen.getByText('Sair').closest('a');
@@ -36,7 +37,7 @@ describe('ManagerSheet', () => {
       'http://bff:3002/v1/auth/logout?tenantSlug=lavacar-bh',
     );
 
-    delete process.env.NEXT_PUBLIC_BFF_URL;
+    clearPublicEnv();
   });
 
   it('calls onClose when the backdrop is clicked', async () => {

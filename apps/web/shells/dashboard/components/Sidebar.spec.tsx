@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { clearPublicEnv, stubPublicEnv } from '@/test-utils';
 import { Sidebar } from './Sidebar';
 
 vi.mock('next-intl', () => ({
@@ -30,11 +31,11 @@ const MANAGER = 'MANAGER' as const;
 
 beforeEach(() => {
   vi.mocked(usePathname).mockReturnValue('/dashboard/bookings');
-  process.env.NEXT_PUBLIC_BFF_URL = 'http://bff:3002/v1';
+  stubPublicEnv({ NEXT_PUBLIC_BFF_URL: 'http://bff:3002/v1' });
 });
 
 afterEach(() => {
-  delete process.env.NEXT_PUBLIC_BFF_URL;
+  clearPublicEnv();
 });
 
 describe('Sidebar', () => {

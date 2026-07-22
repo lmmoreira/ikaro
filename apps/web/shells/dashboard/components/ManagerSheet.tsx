@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { Users, Settings, Globe, LogOut } from 'lucide-react';
+import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 import { cn } from '@/shared/utils/cn';
 
 interface ManagerSheetProps {
@@ -19,7 +20,7 @@ const SHEET_ITEM_KEYS = [
 
 export function ManagerSheet({ open, onClose, tenantSlug }: ManagerSheetProps): React.JSX.Element {
   const t = useTranslations('dashboard');
-  const logoutUrl = `${process.env.NEXT_PUBLIC_BFF_URL}/auth/logout?tenantSlug=${tenantSlug}`;
+  const logoutUrl = `${getPublicEnv('NEXT_PUBLIC_BFF_URL')}/auth/logout?tenantSlug=${tenantSlug}`;
 
   return (
     <>

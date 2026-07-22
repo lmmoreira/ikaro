@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
+import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const body = (await request.json()) as Record<string, unknown>;
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           },
           body: JSON.stringify(body),
         })
-      : await fetch(`${process.env.NEXT_PUBLIC_BFF_URL}/bookings/attachments/signed-url`, {
+      : await fetch(`${getPublicEnv('NEXT_PUBLIC_BFF_URL')}/bookings/attachments/signed-url`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifyCustomerToken, verifyStaffToken } from '@/features/auth/verify-edge-jwt';
+import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 
 // Shared manager-only route list for /dashboard — M13-S31/S32 own this single edit;
 // M13-S35 (hotsite editor) reuses it. STAFF hitting these is sent back to the dashboard home.
@@ -51,10 +52,10 @@ function originOf(rawUrl: string | undefined): string | null {
 function buildContentSecurityPolicy(pathname: string): string {
   const isDev = process.env.NODE_ENV !== 'production';
   const isHotsite = isHotsiteRoute(pathname);
-  const bffOrigin = originOf(process.env.NEXT_PUBLIC_BFF_URL);
+  const bffOrigin = originOf(getPublicEnv('NEXT_PUBLIC_BFF_URL'));
   // Public hotsite images and private signed booking-photo URLs are served from the same
   // GCS/S3-compatible backend, so one origin (no path) covers both.
-  const storageOrigin = originOf(process.env.NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL);
+  const storageOrigin = originOf(getPublicEnv('NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL'));
 
   const scriptSrc = ["'self'", "'unsafe-inline'", isDev && "'unsafe-eval'"].filter(
     (v): v is string => Boolean(v),
