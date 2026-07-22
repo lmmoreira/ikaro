@@ -32,6 +32,17 @@ overrides:
   # Remove once a routine broader dependency refresh naturally re-resolves
   # this within the existing range.
   'fast-xml-parser': '5.10.1'
+  # Next 16.2.10/16.2.11 still pin sharp@^0.34.5 (GHSA-f88m-g3jw-g9cj, HIGH,
+  # libvips CVEs, fixed in 0.35.0) — Next's own 16.3.0 pre-release already
+  # bumps to sharp@^0.35.3, but 16.3.0 is still canary/preview only as of
+  # 2026-07-22, with no stable-release timeline in sight. Verified before
+  # overriding: 0.35.0's breaking changes (removed failOnError/
+  # paletteBitDepth/sharpen properties, install-script removal) don't touch
+  # anything Next's own image-optimizer.js actually calls (only
+  # resize/rotate/jpeg/png/webp/avif/toBuffer) — grepped Next's entire dist/
+  # for the removed property names, zero matches. Remove once Next ships a
+  # stable 16.3.0+ that declares sharp>=0.35 on its own.
+  'next>sharp': '0.35.0'
 allowBuilds:
   '@nestjs/core': true
   '@parcel/watcher': true
