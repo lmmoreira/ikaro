@@ -42,10 +42,20 @@ jobs:
       # tests finish — not a true blocking-first gate (that would mean
       # adding needs: to every other job here, a much bigger change for a
       # problem this doesn't require it to solve).
-      - name: Fail if both infra and app changed
-        if: steps.filter.outputs.infra == 'true' && steps.filter.outputs.app == 'true'
+      #
+      # The documented convention explicitly allows an "unavoidable" mix if
+      # it's noted in the PR — an unconditional fail here would make that
+      # exception impossible to actually use (review finding, 2026-07-22).
+      # The `infra-app-mix-ok` label is the auditable, deliberate override:
+      # a human has to add it explicitly (it won't exist by default), same
+      # spirit as any other manual acknowledgment gate in this repo.
+      - name: Fail if both infra and app changed (unless explicitly acknowledged)
+        if: |
+          steps.filter.outputs.infra == 'true' &&
+          steps.filter.outputs.app == 'true' &&
+          !contains(github.event.pull_request.labels.*.name, 'infra-app-mix-ok')
         run: |
-          echo "::error::This PR touches both infra/terraform/** and apps/**/packages/** — split them into separate PRs. If truly unavoidable, note in the PR description that infra applies first, and re-run the app deploy if it loses the race against the Terraform apply."
+          echo "::error::This PR touches both infra/terraform/** and apps/** or packages/** — split them into separate PRs. If truly unavoidable, note in the PR description that infra applies first and re-run the app deploy if it loses the race against the Terraform apply, then add the 'infra-app-mix-ok' label to acknowledge and bypass this check."
           exit 1
 
   lint:

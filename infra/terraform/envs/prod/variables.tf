@@ -69,6 +69,19 @@ variable "enable_database" {
 variable "enable_edge" {
   description = "Instantiate the edge module (ALB, Certificate Manager, Cloudflare DNS records). Deferred (TD30, 2026-07-22): stays false until S37 — cert issuance + DNS + the ingress flip need to land in one deliberate apply, not as a side effect of an unrelated one."
   type        = bool
+
+  # Blocking, not a `check` block (infra/terraform/README.md's own documented
+  # lesson from M17-S18: a `check` only warns and still exits 0). enable_database
+  # and enable_edge are two independent switches with nothing else stopping
+  # someone from flipping only one — which would either bill for a real Cloud
+  # SQL instance with no edge/DNS cutover, or expose the still-bootstrap-mode
+  # placeholder bff/web through a real public ALB. S37's whole premise (TD30
+  # review finding, 2026-07-22) is that these two land together, deliberately,
+  # in one apply — so enforce it here instead of trusting the runbook alone.
+  validation {
+    condition     = var.enable_edge == var.enable_database
+    error_message = "enable_edge and enable_database must be flipped together — they're meant to land in the same atomic S37 go-live apply, not independently."
+  }
 }
 
 variable "environment" {

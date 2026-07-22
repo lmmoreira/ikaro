@@ -8,6 +8,10 @@
 - **Created**: 2026-07-22
 - **Discovered**: while verifying M17-S25's first live run — `deploy-staging.yml`'s push to Artifact Registry failed with a live IAM permission error; tracing it down found `ikaro-prod`'s Terraform state has zero resources (confirmed via `gcloud storage cat gs://ikaro-tfstate/envs/prod/default.tfstate`), because every `apply-prod` run in this workflow's history has been `cancelled` or is stuck `pending` — nobody has ever approved one
 - **Scoped**: 2026-07-22, via `/story-discovery TD30`
+- **Reviewed**: 2026-07-22, cross-tool review (Codex, PR #188) found 3 important gaps, all fixed same-day:
+  1. `enable_database`/`enable_edge` were independent switches with nothing enforcing they change together — added a blocking cross-variable `validation` on `enable_edge` (not a `check` block — `infra/terraform/README.md` already documents `check` only warns, doesn't fail; empirically re-confirmed here too before trusting it).
+  2. Story 2's CI check had no way to actually use the "unavoidable, noted in the PR" exception the underlying convention describes — added an `infra-app-mix-ok` label override.
+  3. M17-S37's own text still described the pre-TD30 state (`enable_database=true`, 251 resources) as current, and its Step 3 didn't mention flipping the new flags — rewrote both to reflect the actual post-TD30 state.
 
 ---
 
@@ -55,7 +59,7 @@ The second option is the actual fix; the first is not a fix, it's forcing an unr
 Scoped narrowly (confirmed via story-discovery, 2026-07-22): gate only `database` and `edge` — not a wholesale mirror of staging's bootstrap pattern. Everything else in prod's config (registry, IAM, secrets containers, placeholder Cloud Run services, migrate job) is already safe to apply as-is.
 
 - `enable_database`: flip `terraform.tfvars` to `false` for now (module's own `count` gate already exists — this is a one-line value fix, not a structural change). S37 flips it back to `true` when it's actually ready to go live, exactly as it already documents doing for staging via S27.
-- `edge`: add a new `enable_edge` variable (default `false`, described as deferred to S37 — mirroring `enable_database`'s own description), add `count = var.enable_edge ? 1 : 0` to `module "edge"`, set `enable_edge = false` in `terraform.tfvars`. Check for any other resource that references `module.edge[0].*` output and adjust for the new indexed-module shape (same pattern `enable_database`'s consumers already had to handle).
+- `edge`: add a new `enable_edge` variable (no Terraform-level default, same as `enable_database` — an explicit value is required in `terraform.tfvars`, not silently assumed), add `count = var.enable_edge ? 1 : 0` to `module "edge"`, set `enable_edge = false` in `terraform.tfvars`. Check for any other resource that references `module.edge[0].*` output and adjust for the new indexed-module shape (same pattern `enable_database`'s consumers already had to handle).
 - Re-verify via `terraform plan` against real `ikaro-prod` (read-only, tf-planner credentials) that the resulting plan creates only registry, IAM, secrets containers, 3 placeholder Cloud Run services, and the migrate job — zero `google_sql_database_instance`, zero edge/ALB/Cloudflare resources.
 - Update M17-S27's `Dependencies:` line and M17-S37's own text in `plan/M17-CLOUD-DEPLOY.md` (separate doc-gate edit, done alongside this TD — see below) so the next reader doesn't hit the same surprise this discovery session did.
 
