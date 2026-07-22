@@ -1,7 +1,7 @@
 #!/bin/bash
 # pre-push hook: lint + prettier + type-check + backend/BFF unit tests.
 # Web Vitest runs in CI via ci:integration.
-# Skipped when every changed file relative to the remote tip is docs/tooling-only
+# Skipped when every changed file relative to the diff base is docs/tooling-only
 # (*.md anywhere, or any file under td/, plan/, scripts/, infra/terraform/,
 # .agents/, .claude/, .copilot/, .github/, .githooks/) — no app code changed.
 # Activate: git config core.hooksPath .githooks
@@ -9,6 +9,14 @@
 # plain `grep` call — some interactive shells (e.g. Claude Code's own dev
 # environment) alias grep to a wrapper with different -qvE behavior, which
 # will silently give you the wrong answer for this exact pattern.
+#
+# Diff base: normally the branch's own remote tip. A brand-new branch has no
+# remote tip yet (git passes an all-zero remote_oid) — that's a missing tip
+# for *this ref*, not a missing base to diff against, so fall back to the
+# merge-base with origin/main instead of skipping the diff outright. Worst
+# case with a locally-stale origin/main is an over-broad diff that still
+# runs ci:fast unnecessarily — same "safe default" direction as before,
+# never the reverse (silently skipping when it shouldn't).
 set -e
 
 zero=$(git hash-object --stdin </dev/null | tr '[0-9a-f]' '0')
@@ -20,12 +28,18 @@ do
   if [ "$local_oid" = "$zero" ]; then
     continue # branch deletion, nothing to check
   fi
+
   if [ "$remote_oid" = "$zero" ]; then
-    run_ci_fast=true # new ref, no remote tip to diff against — safe default
-    continue
+    base=$(git merge-base "$local_oid" origin/main 2>/dev/null || echo "")
+    if [ -z "$base" ]; then
+      run_ci_fast=true # couldn't resolve a base — safe default, unchanged
+      continue
+    fi
+  else
+    base="$remote_oid"
   fi
 
-  changed_files=$(git diff --name-only "$remote_oid" "$local_oid")
+  changed_files=$(git diff --name-only "$base" "$local_oid")
   if [ -n "$changed_files" ] && echo "$changed_files" | grep -qvE "$skip_pattern"; then
     run_ci_fast=true
   fi
