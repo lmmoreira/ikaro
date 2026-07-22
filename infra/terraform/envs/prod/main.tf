@@ -51,8 +51,12 @@ module "network" {
   labels      = var.labels
 }
 
-# Enabled in config, but prod remains plan-only until S24/S37 — the pipeline
-# performs the first prod apply. PITR + deletion protection are prod law.
+# Deferred (TD30, 2026-07-22): count=0 until S37's deliberate go-live apply
+# flips enable_database=true in terraform.tfvars — decoupled from
+# registry/IAM/secrets so those can apply independently (M17-S27 needs the
+# registry; a real instance shouldn't exist just because someone approved
+# an unrelated apply). PITR + deletion protection are prod law once it
+# does land.
 module "database" {
   count  = var.enable_database ? 1 : 0
   source = "../../modules/database"
@@ -347,11 +351,16 @@ module "cloudrun_web" {
 # prod only. Depends on the bff/web Cloud Run services' *names* (for the
 # NEGs), not their *.run.app URIs — ingress on both flipped to
 # INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER above so this ALB becomes their
-# only public entry point. Composed but not applied yet — same plan-only
-# status as the rest of this env root until S24/S37 (cert issuance,
+# only public entry point. Deferred (TD30, 2026-07-22): count=0 until S37's
+# deliberate go-live apply flips enable_edge=true — cert issuance,
 # Cloudflare record creation, and the ingress flip all need to land in one
-# apply so the services don't go temporarily unreachable mid-cutover).
+# apply so the services don't go temporarily unreachable mid-cutover.
+# Decoupled from registry/IAM/secrets specifically so those don't have to
+# wait for this too (M17-S27's dependency). bff/web are simply unreachable
+# from anywhere while this is count=0 — expected, since prod isn't meant to
+# serve real traffic before S37 regardless.
 module "edge" {
+  count  = var.enable_edge ? 1 : 0
   source = "../../modules/edge"
 
   project_id  = var.project_id

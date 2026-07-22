@@ -62,7 +62,12 @@ variable "db_user" {
 }
 
 variable "enable_database" {
-  description = "Instantiate the Cloud SQL module (prod: true — but prod stays plan-only until S24/S37)"
+  description = "Instantiate the Cloud SQL module. Deferred (TD30, 2026-07-22): stays false until S37's deliberate go-live apply flips it — decoupled from registry/IAM/secrets so those can apply independently (M17-S27 needs the registry; the database and edge module are meant to land together at S37, not before)."
+  type        = bool
+}
+
+variable "enable_edge" {
+  description = "Instantiate the edge module (ALB, Certificate Manager, Cloudflare DNS records). Deferred (TD30, 2026-07-22): stays false until S37 — cert issuance + DNS + the ingress flip need to land in one deliberate apply, not as a side effect of an unrelated one."
   type        = bool
 }
 
