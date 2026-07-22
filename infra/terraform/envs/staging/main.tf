@@ -281,8 +281,10 @@ module "cloudrun_bff" {
 }
 
 # Public (same ingress split as bff, D5). No VPC egress — web never calls the
-# backend directly, only the public BFF URL. NEXT_PUBLIC_* build-time vars
-# and the per-env image consequence are S26's scope, not this module's.
+# backend directly, only the public BFF URL. NEXT_PUBLIC_* are Cloud Run
+# runtime env vars (not build args) as of TD29 — wired here for staging
+# (M17-S25); M17-S26 adds prod's equivalents with prod-specific values
+# (the fixed ikaro.online domain, no bootstrap-uri dance needed there).
 module "cloudrun_web" {
   source = "../../modules/cloudrun-service"
 
@@ -312,6 +314,13 @@ module "cloudrun_web" {
   env_vars = {
     NODE_ENV = "production"
     APP_ENV  = "staging"
+
+    # Runtime env vars (TD29) — read at request time by
+    # apps/web/shared/lib/runtime-env/public-env.ts, not baked into the
+    # image at build time.
+    NEXT_PUBLIC_BFF_URL                = var.bff_real_uri
+    NEXT_PUBLIC_SITE_URL               = var.web_real_uri
+    NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL = module.storage.public_base_url
   }
 }
 

@@ -28,9 +28,16 @@ db_migrator_user = "ikaro_migrator"
 enable_database = false
 
 # Staging has no LB (D5) — the web app's raw Cloud Run URL is the browser
-# origin for signed-URL uploads. Deterministic format (project number, not a
-# revision hash — S08 already created this project).
-cors_origins = ["https://ikaro-web-729809528251.southamerica-east1.run.app"]
+# origin for signed-URL uploads. Corrected 2026-07-22 (M17-S25 discovery
+# finding): this previously held a guessed project-number-format URL
+# (https://ikaro-web-729809528251.southamerica-east1.run.app), which is NOT
+# the format Cloud Run actually assigns — verified live via `gcloud run
+# services describe ikaro-web`, same per-project random hash as
+# bff_real_uri, not the deterministic project-number format an earlier
+# assumption relied on (see bff_real_uri's description). The wrong value
+# meant the uploads bucket's CORS policy never actually matched the real
+# staging web origin.
+cors_origins = ["https://ikaro-web-crle4i3nrq-rj.a.run.app"]
 
 # S18 launch state — placeholder image (gcr.io/cloudrun/hello) with relaxed
 # probes and no secret mounting; flip to false at the S27 activation once a
@@ -48,3 +55,7 @@ bff_max_instances     = 20
 # build GOOGLE_CALLBACK_URL. Also registered as an Authorized redirect URI
 # on the Google OAuth client in the GCP Console (M17-S18 post-apply step).
 bff_real_uri = "https://ikaro-bff-crle4i3nrq-rj.a.run.app"
+
+# Real *.run.app URL discovered the same way as bff_real_uri (see its
+# comment above) — used for NEXT_PUBLIC_SITE_URL and cors_origins (M17-S25).
+web_real_uri = "https://ikaro-web-crle4i3nrq-rj.a.run.app"

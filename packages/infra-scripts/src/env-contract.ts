@@ -1,23 +1,40 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { extractPublicEnvKeys } from './public-env-keys';
 import { extractSchemaKeys } from './schema-keys';
 import { extractModuleEnvKeys } from './terraform-env-keys';
 
 interface AppEnvSpec {
   readonly appName: string;
-  readonly schemaFile: string;
   readonly cloudRunModule: string;
   /**
-   * Schema keys that are never expected in Terraform's env/secret map,
+   * Required keys that are never expected in Terraform's env/secret map,
    * either because they're local-only / platform-reserved (PORT,
-   * *_EMULATOR_HOST, GCS_KEY_FILE, SMTP_*), or because the Zod default is
+   * *_EMULATOR_HOST, GCS_KEY_FILE, SMTP_*), or because the default is
    * already correct for cloud / their absence is a quality issue rather
    * than a startup crash (LOG_LEVEL, FRONTEND_URL, ...). Hand-maintained,
    * same discipline as modules/iam's secret_accessors comment — keep in
-   * sync with env.validation.ts.
+   * sync with the app's own env source (env.validation.ts, or
+   * public-env.ts for web).
    */
   readonly exemptKeys: readonly string[];
+  /**
+   * Which env roots (staging/prod main.tf files) this app's keys are checked against. Backend
+   * and bff are wired in both staging and prod from day one, so they check
+   * both (`ALL_ENV_ROOTS`). Web's NEXT_PUBLIC_* runtime vars land in
+   * staging first (M17-S25) and prod later (M17-S26, with prod-specific
+   * values) — checking prod here before S26 lands would fail permanently
+   * for no actionable reason, so web is scoped to staging only until S26
+   * widens this to match.
+   */
+  readonly envRoots: readonly string[];
+  readonly extractKeys: (repoRoot: string) => string[];
 }
+
+const ALL_ENV_ROOTS: readonly string[] = [
+  'infra/terraform/envs/staging/main.tf',
+  'infra/terraform/envs/prod/main.tf',
+];
 
 const BACKEND_EXEMPT_KEYS: readonly string[] = [
   'PORT',
@@ -76,24 +93,37 @@ const BFF_EXEMPT_KEYS: readonly string[] = [
   'SERVICE_NAME',
 ];
 
+// Empty today — every key in apps/web's PUBLIC_ENV_KEYS is expected to be a
+// real Cloud Run runtime env var. Add a key here only if a future
+// NEXT_PUBLIC_* var is genuinely local-only (e.g. a next-dev-only debug
+// flag never needed in a deployed environment).
+const WEB_EXEMPT_KEYS: readonly string[] = [];
+
 const APP_SPECS: readonly AppEnvSpec[] = [
   {
     appName: 'backend',
-    schemaFile: 'apps/backend/src/config/env.validation.ts',
     cloudRunModule: 'cloudrun_backend',
     exemptKeys: BACKEND_EXEMPT_KEYS,
+    envRoots: ALL_ENV_ROOTS,
+    extractKeys: (repoRoot) =>
+      extractSchemaKeys(path.join(repoRoot, 'apps/backend/src/config/env.validation.ts')),
   },
   {
     appName: 'bff',
-    schemaFile: 'apps/bff/src/config/env.validation.ts',
     cloudRunModule: 'cloudrun_bff',
     exemptKeys: BFF_EXEMPT_KEYS,
+    envRoots: ALL_ENV_ROOTS,
+    extractKeys: (repoRoot) =>
+      extractSchemaKeys(path.join(repoRoot, 'apps/bff/src/config/env.validation.ts')),
   },
-];
-
-const ENV_ROOTS: readonly string[] = [
-  'infra/terraform/envs/staging/main.tf',
-  'infra/terraform/envs/prod/main.tf',
+  {
+    appName: 'web',
+    cloudRunModule: 'cloudrun_web',
+    exemptKeys: WEB_EXEMPT_KEYS,
+    envRoots: ['infra/terraform/envs/staging/main.tf'],
+    extractKeys: (repoRoot) =>
+      extractPublicEnvKeys(path.join(repoRoot, 'apps/web/shared/lib/runtime-env/public-env.ts')),
+  },
 ];
 
 export interface EnvContractViolation {
@@ -107,10 +137,10 @@ export function checkEnvContract(repoRoot: string): EnvContractViolation[] {
   const violations: EnvContractViolation[] = [];
 
   for (const spec of APP_SPECS) {
-    const schemaKeys = extractSchemaKeys(path.join(repoRoot, spec.schemaFile));
+    const schemaKeys = spec.extractKeys(repoRoot);
     const requiredKeys = schemaKeys.filter((key) => !spec.exemptKeys.includes(key));
 
-    for (const envRoot of ENV_ROOTS) {
+    for (const envRoot of spec.envRoots) {
       const content = fs.readFileSync(path.join(repoRoot, envRoot), 'utf8');
       const terraformKeys = new Set(extractModuleEnvKeys(content, spec.cloudRunModule));
 
@@ -135,7 +165,8 @@ function main(): void {
 
   if (violations.length === 0) {
     console.log(
-      'env-contract: OK — every cloud-required env.validation.ts key is wired in Terraform.',
+      'env-contract: OK — every cloud-required env key (backend/bff env.validation.ts, ' +
+        'web PUBLIC_ENV_KEYS) is wired in Terraform.',
     );
     return;
   }

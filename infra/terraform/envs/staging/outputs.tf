@@ -9,6 +9,6 @@ output "bff_service_uri" {
 }
 
 output "web_service_uri" {
-  description = "Web's real *.run.app URI."
+  description = "Web's real *.run.app URI. After the first apply, paste this into web_real_uri (local.auto.tfvars or terraform.tfvars) and re-apply so NEXT_PUBLIC_SITE_URL and cors_origins use the real, reachable URL."
   value       = module.cloudrun_web.service_uri
 }

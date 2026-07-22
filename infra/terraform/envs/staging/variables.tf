@@ -99,3 +99,9 @@ variable "region" {
   type        = string
   default     = "southamerica-east1"
 }
+
+variable "web_real_uri" {
+  description = "Web's real *.run.app URI, used for NEXT_PUBLIC_SITE_URL (SEO canonical/OG URLs, sitemap.ts/robots.ts — apps/web/features/platform/hotsite/seo.ts) and cors_origins (M17-S25 discovery finding: cors_origins previously held a guessed project-number-format URL, corrected to the real value here). Cannot be derived from module.cloudrun_web.service_uri (a module cannot take its own output as one of its own inputs) — same standard Terraform bootstrap pattern as bff_real_uri: apply once with the placeholder default, read the real value from this root's web_service_uri output, paste it here (local.auto.tfvars or terraform.tfvars), then apply again. *.run.app URLs are a per-project random hash (see bff_real_uri), not derivable in advance."
+  type        = string
+  default     = "https://ikaro-web-placeholder.invalid"
+}
