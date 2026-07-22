@@ -1,7 +1,7 @@
 # TD28 — Distributed Trace Propagation Through Pub/Sub Push Delivery
 
 ## Status
-- **State**: Ready for implementation — scope and design finalized via `/story-discovery` (2026-07-21), see resolved Open Decisions and Design sections below
+- **State**: ✅ Done — merged to main via [PR #184](https://github.com/lmmoreira/ikaro/pull/184) (2026-07-22)
 - **Type**: Observability / Architecture
 - **Priority**: Low-Medium — no incident, nothing broken; a completeness gap in distributed tracing, not a correctness bug. Backend/BFF logs are already correlated across this same boundary via `correlationId` (a separate, already-working mechanism) — this TD is about getting a genuine linked trace *tree* (span timing, per-hop latency) in Cloud Trace, not restoring lost debuggability.
 - **Context**: `shared` (event-bus infrastructure) — `apps/backend/src/shared/infrastructure/event-bus/gcp-pubsub-event-bus.adapter.ts`, `apps/backend/src/shared/infrastructure/event-bus/pubsub-push.controller.ts`, `apps/backend/src/shared/guards/pubsub-push.guard.ts`, `packages/observability` (`ITracingPort`/`otel-tracing.ts`), `shared/domain/envelope.ts`
