@@ -3,7 +3,10 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { checkEnvContract } from './env-contract';
 
-function writeFixtureRepo(options: { backendTfHasDbHost: boolean }): string {
+function writeFixtureRepo(options: {
+  backendTfHasDbHost: boolean;
+  webTfHasBffUrl: boolean;
+}): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'env-contract-fixture-'));
 
   const backendSchemaDir = path.join(root, 'apps/backend/src/config');
@@ -29,7 +32,17 @@ function writeFixtureRepo(options: { backendTfHasDbHost: boolean }): string {
     `,
   );
 
+  const webRuntimeEnvDir = path.join(root, 'apps/web/shared/lib/runtime-env');
+  fs.mkdirSync(webRuntimeEnvDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(webRuntimeEnvDir, 'public-env.ts'),
+    `
+      const PUBLIC_ENV_KEYS = ['NEXT_PUBLIC_BFF_URL'] as const;
+    `,
+  );
+
   const backendEnvVars = options.backendTfHasDbHost ? 'DB_HOST = "x"' : '';
+  const webEnvVars = options.webTfHasBffUrl ? 'NEXT_PUBLIC_BFF_URL = "x"' : '';
 
   for (const env of ['staging', 'prod']) {
     const envDir = path.join(root, `infra/terraform/envs/${env}`);
@@ -46,6 +59,12 @@ function writeFixtureRepo(options: { backendTfHasDbHost: boolean }): string {
         module "cloudrun_bff" {
           env_vars = {
             BACKEND_INTERNAL_URL = "x"
+          }
+        }
+
+        module "cloudrun_web" {
+          env_vars = {
+            ${webEnvVars}
           }
         }
       `,
@@ -65,14 +84,14 @@ describe('checkEnvContract', () => {
   });
 
   it('reports no violations when every required key is wired in both env roots', () => {
-    const root = writeFixtureRepo({ backendTfHasDbHost: true });
+    const root = writeFixtureRepo({ backendTfHasDbHost: true, webTfHasBffUrl: true });
     fixtureRoots.push(root);
 
     expect(checkEnvContract(root)).toEqual([]);
   });
 
   it('does not flag PORT even though it is never wired in Terraform (exempt: platform-reserved)', () => {
-    const root = writeFixtureRepo({ backendTfHasDbHost: true });
+    const root = writeFixtureRepo({ backendTfHasDbHost: true, webTfHasBffUrl: true });
     fixtureRoots.push(root);
 
     const violations = checkEnvContract(root);
@@ -80,7 +99,7 @@ describe('checkEnvContract', () => {
   });
 
   it('reports a violation per env root missing a required key', () => {
-    const root = writeFixtureRepo({ backendTfHasDbHost: false });
+    const root = writeFixtureRepo({ backendTfHasDbHost: false, webTfHasBffUrl: true });
     fixtureRoots.push(root);
 
     const violations = checkEnvContract(root);
@@ -95,6 +114,30 @@ describe('checkEnvContract', () => {
       'infra/terraform/envs/prod/main.tf',
       'infra/terraform/envs/staging/main.tf',
     ]);
+  });
+
+  it('reports a violation when web is missing a required key in staging', () => {
+    const root = writeFixtureRepo({ backendTfHasDbHost: true, webTfHasBffUrl: false });
+    fixtureRoots.push(root);
+
+    const violations = checkEnvContract(root);
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatchObject({
+      envRoot: 'infra/terraform/envs/staging/main.tf',
+      appName: 'web',
+      cloudRunModule: 'cloudrun_web',
+      missingKeys: ['NEXT_PUBLIC_BFF_URL'],
+    });
+  });
+
+  it('never checks web against prod (scoped to staging only until M17-S26 widens it)', () => {
+    const root = writeFixtureRepo({ backendTfHasDbHost: true, webTfHasBffUrl: false });
+    fixtureRoots.push(root);
+
+    const violations = checkEnvContract(root);
+
+    expect(violations.some((v) => v.appName === 'web' && v.envRoot.includes('prod'))).toBe(false);
   });
 
   it("has zero violations against this repo's real env.validation.ts + Terraform files (regression guard)", () => {

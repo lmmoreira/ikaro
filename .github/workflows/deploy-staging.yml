@@ -1,0 +1,510 @@
+name: App — Staging Deploy Pipeline
+
+# Build -> scan -> push -> migrate -> deploy -> smoke, on every push to main
+# touching apps/**, packages/**, or the lockfile (M17-S25). Trunk-based, no
+# approval gate (D10) — staging auto-deploys on every merge. Authenticates
+# as the narrow `app-deployer` WIF identity (S08, staging project — it
+# already has cross-project artifactregistry.writer on the prod registry,
+# M17-S15, D8); the migrate-and-deploy job shares
+# `concurrency: { group: staging-mutations }` with the infra pipeline
+# (M17-S24) so a Terraform apply and an app deploy can never mutate the
+# same staging resources concurrently.
+#
+# Images build ONCE, generically, for all three services (TD29 removed
+# every NEXT_PUBLIC_* build-time dependency from web's client bundle — see
+# td/TD29-WEB-RUNTIME-PUBLIC-CONFIG.md). ikaro-web:<sha> here is
+# byte-identical to what M17-S26 later promotes to prod; no build step in
+# this workflow injects NEXT_PUBLIC_* anywhere.
+#
+# This workflow is not a required branch-protection check (it runs after
+# merge, not as a PR gate), so a plain `paths:` trigger filter is enough —
+# unlike infra-deploy.yml, there's no need for the job-level
+# dorny/paths-filter pattern that exists there purely to keep a *required*
+# check reporting on every PR.
+#
+# Every `${{ }}` value a `run:` step needs is passed through `env:` and
+# read back as a plain shell variable ($FOO), never inlined directly into
+# the script text — same discipline as infra-deploy.yml's "Check results"
+# step (zizmor's template-injection audit; also easier to read).
+#
+# Build/scan and push are deliberately SEPARATE jobs (review finding,
+# 2026-07-22): a single matrix job with fail-fast:false lets one service's
+# passing scan+push complete independently of a sibling's failing scan, so
+# "failed Trivy scan -> nothing pushed" wasn't actually true for the whole
+# run. `push` needs: build-scan (all three matrix legs), so nothing pushes
+# unless every scan passed. The rebuild inside `push` is a near-instant
+# GHA cache hit (same --cache-from scope as build-scan), not a real
+# re-compile — cheaper than shipping full image tarballs between jobs (the
+# only thing that actually crosses the job boundary via upload/
+# download-artifact is a tiny recorded image ID, verified byte-for-byte
+# against the rebuild before it's allowed to push — see push's own
+# comments for why that check exists).
+#
+# build-scan and push both carry a per-service concurrency group with
+# cancel-in-progress: true (review finding, 2026-07-22): if a newer run's
+# build-scan for a given service starts while an older run's build-scan
+# or push for that same service is still going, the older one is killed
+# outright instead of running to completion only to self-abort later at
+# check-current — same correctness outcome, less wasted compute. Safe
+# here specifically because nothing in these two jobs has an external
+# side effect that survives a cancelled step (an interrupted docker push
+# doesn't leave a usable half-tagged image). check-current stays in
+# place regardless as the correctness backstop — it doesn't depend on
+# this cancellation having fired, it just re-checks fresh right before
+# the one operation that genuinely can't be safely interrupted this way:
+# migrate-and-deploy, which deliberately carries no cancel-in-progress
+# concurrency at all (see its own comments for why).
+#
+# `check-current` gates migrate-and-deploy on this run's commit still
+# being main's actual tip (review finding, 2026-07-22): two pushes close
+# together start two independent runs, and if an older run's build-scan/
+# push happens to finish slower than a newer run's, it could otherwise
+# reach staging-mutations *after* the newer run already deployed and
+# clobber it with stale code. This is a different race than the one below
+# — it's across runs, not within one.
+#
+# Migrate and deploy are deliberately ONE job, not two (review finding,
+# 2026-07-22): two separate jobs would each acquire and then release
+# `staging-mutations` independently, leaving a window between them where a
+# concurrently-queued Terraform apply could slot in — defeating the
+# "atomic against infra applies" guarantee the concurrency group exists
+# for. One job holds the group continuously across both steps.
+#
+# Smoke's retry budget is sized to the Cloud Run startup probe's own
+# 180s budget (failure_threshold=18 * period_seconds=10,
+# modules/cloudrun-service/main.tf), not an arbitrary short timeout —
+# min_instance_count=0 everywhere means bff/web can have scaled back to
+# zero between `gcloud run deploy`'s own readiness wait and smoke actually
+# running, so a fresh cold start is a real possibility here, not just at
+# first deploy (review finding, 2026-07-22).
+#
+# Bounded Cloud Run revision retention (review finding, 2026-07-22): every
+# successful deploy creates 3 new revisions and nothing anywhere in this
+# Terraform setup ever prunes old ones — idle revisions cost nothing
+# (min_instance_count=0) but Cloud Run caps revisions per service, so a
+# long-lived, high-frequency trunk-based project could accumulate toward
+# that ceiling over months/years. migrate-and-deploy's last step keeps the
+# 5 most recent per service (mirrors the registry's own retention policy,
+# M17-S15) — non-fatal per service on failure, since a GC hiccup shouldn't
+# fail an otherwise-successful deploy.
+#
+# Rollback (staging): re-run this workflow for a previous commit's SHA
+# (Actions -> "Re-run jobs"), or push a revert commit to main — both are
+# "fix forward" in spirit, since staging has no approval gate to pause on.
+# Cloud Run also keeps prior revisions, so `gcloud run services
+# update-traffic ikaro-<service> --to-revisions=<prev>=100` is an instant
+# manual fallback if a re-run isn't fast enough.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/deploy-staging.yml'
+
+permissions:
+  contents: read
+
+env:
+  GAR_HOST: ${{ vars.GAR_HOST }}
+  GCP_REGION: ${{ vars.GCP_REGION }}
+  GCP_PROJECT_STAGING: ${{ vars.GCP_PROJECT_STAGING }}
+  # Single Artifact Registry, prod project only (D8) — staging's
+  # app-deployer has cross-project write access (M17-S15). NOT
+  # GCP_PROJECT_STAGING; the registry itself always lives in prod.
+  IMAGE_BACKEND: ${{ vars.GAR_HOST }}/${{ vars.GCP_PROJECT_PROD }}/ikaro-registry/ikaro-backend:${{ github.sha }}
+  IMAGE_BFF: ${{ vars.GAR_HOST }}/${{ vars.GCP_PROJECT_PROD }}/ikaro-registry/ikaro-bff:${{ github.sha }}
+  IMAGE_WEB: ${{ vars.GAR_HOST }}/${{ vars.GCP_PROJECT_PROD }}/ikaro-registry/ikaro-web:${{ github.sha }}
+
+jobs:
+  # ---------------------------------------------------------------------
+  # Build + scan (matrix, parallel) — no GCP credentials needed (nothing
+  # pushed yet), no staging resources touched.
+  # ---------------------------------------------------------------------
+
+  build-scan:
+    name: Build & scan (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Scoped per service (review finding, 2026-07-22), not per job — the
+    # group name deliberately includes matrix.service so backend/bff/web
+    # keep running in parallel within one run (they'd serialize against
+    # each other if this used one shared group name for the whole matrix).
+    # Shared with push's identically-scoped group below: if a newer run's
+    # build-scan for this same service starts while an older run's
+    # build-scan OR push for it is still active, the older one is
+    # cancelled outright instead of running to completion only to
+    # self-abort later at check-current. Safe to cancel unconditionally
+    # here — nothing in build-scan/push has an external side effect that
+    # survives a cancelled step (unlike migrate-and-deploy, which
+    # deliberately has no concurrency-based cancellation at all — see its
+    # own comments).
+    concurrency:
+      group: deploy-staging-build-${{ matrix.service }}-${{ github.ref }}
+      cancel-in-progress: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: backend
+            dockerfile: apps/backend/Dockerfile
+            image: ${{ vars.GAR_HOST }}/${{ vars.GCP_PROJECT_PROD }}/ikaro-registry/ikaro-backend:${{ github.sha }}
+          - service: bff
+            dockerfile: apps/bff/Dockerfile
+            image: ${{ vars.GAR_HOST }}/${{ vars.GCP_PROJECT_PROD }}/ikaro-registry/ikaro-bff:${{ github.sha }}
+          - service: web
+            dockerfile: apps/web/Dockerfile
+            image: ${{ vars.GAR_HOST }}/${{ vars.GCP_PROJECT_PROD }}/ikaro-registry/ikaro-web:${{ github.sha }}
+    env:
+      SERVICE: ${{ matrix.service }}
+      DOCKERFILE: ${{ matrix.dockerfile }}
+      IMAGE: ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      # Required for `docker buildx build`'s type=gha cache backend when
+      # invoked directly in a run: step (not via docker/build-push-action):
+      # ACTIONS_RUNTIME_TOKEN/cache endpoint vars exist on the runner but
+      # are not exposed to plain run: steps by default — without this,
+      # --cache-from/--cache-to type=gha fails silently and every build is
+      # a full rebuild (Docker's own docs; review finding, 2026-07-22 —
+      # pr-tests.yml's trivy-scan job had the identical gap, fixed
+      # alongside this one).
+      - name: Expose GitHub Actions runtime for GHA cache backend
+        uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
+
+      - name: Set up Docker Buildx
+        run: docker buildx create --use --driver docker-container
+
+      - name: Build ${{ matrix.service }} image
+        run: |
+          docker buildx build \
+            --cache-from "type=gha,scope=deploy-staging-${SERVICE}" \
+            --cache-to "type=gha,scope=deploy-staging-${SERVICE},mode=max" \
+            --load \
+            -f "$DOCKERFILE" \
+            -t "$IMAGE" \
+            .
+
+      # Recorded so `push`'s cache-hit rebuild can verify it reconstructed
+      # this exact image, not something subtly different (review finding,
+      # 2026-07-22) — see push's "Verify rebuilt image" step for why this
+      # matters: a partial cache miss there would otherwise silently push
+      # an image that was never actually scanned.
+      - name: Capture scanned image ID
+        run: docker inspect --format='{{.Id}}' "$IMAGE" > image-id.txt
+
+      - name: Upload image ID
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: image-id-${{ matrix.service }}
+          path: image-id.txt
+          retention-days: 1
+
+      # ignore-unfixed: true, matching the PR gate (pr-tests.yml), not
+      # stricter — deliberate (story-discovery, 2026-07-22): blocking on an
+      # unfixed CVE has no available remediation, so it would leave this
+      # pipeline red indefinitely and, via M17-S26's staging-must-be-current
+      # precondition, transitively block prod promotion too — including
+      # during an incident where the fix being shipped has nothing to do
+      # with the CVE. Unfixed-CVE visibility stays the weekly SARIF
+      # report's job (docs/17-GITHUB_WORKFLOWS_GUIDELINES.md § Trivy), not
+      # a deploy gate's.
+      - name: Trivy scan — ${{ matrix.service }}
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ matrix.image }}
+          format: table
+          exit-code: '1'
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+
+  # ---------------------------------------------------------------------
+  # Push (matrix, parallel) — needs ALL of build-scan's matrix legs, so a
+  # single failed scan blocks every push, not just its own service's.
+  # ---------------------------------------------------------------------
+
+  push:
+    name: Push (${{ matrix.service }})
+    needs: build-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Same group as build-scan's identically-scoped block above, per
+    # service — an interrupted docker push doesn't leave a usable
+    # half-tagged image (the manifest that makes a tag resolvable is
+    # written last, after every layer), and a cancelled push job never
+    # reports success, so check-current (which needs: push) correctly
+    # never runs for it either.
+    concurrency:
+      group: deploy-staging-build-${{ matrix.service }}-${{ github.ref }}
+      cancel-in-progress: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: backend
+            dockerfile: apps/backend/Dockerfile
+            image: ${{ vars.GAR_HOST }}/${{ vars.GCP_PROJECT_PROD }}/ikaro-registry/ikaro-backend:${{ github.sha }}
+          - service: bff
+            dockerfile: apps/bff/Dockerfile
+            image: ${{ vars.GAR_HOST }}/${{ vars.GCP_PROJECT_PROD }}/ikaro-registry/ikaro-bff:${{ github.sha }}
+          - service: web
+            dockerfile: apps/web/Dockerfile
+            image: ${{ vars.GAR_HOST }}/${{ vars.GCP_PROJECT_PROD }}/ikaro-registry/ikaro-web:${{ github.sha }}
+    permissions:
+      contents: read
+      id-token: write # mints the short-lived WIF token for google-github-actions/auth
+    env:
+      SERVICE: ${{ matrix.service }}
+      DOCKERFILE: ${{ matrix.dockerfile }}
+      IMAGE: ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Download expected image ID
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: image-id-${{ matrix.service }}
+
+      - name: Authenticate as app-deployer (staging)
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER_STAGING }}
+          service_account: ${{ secrets.APP_DEPLOYER_SA_STAGING }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "$GAR_HOST" --quiet
+
+      # See build-scan's identically-commented step — same requirement
+      # applies to this job's own cache-from call.
+      - name: Expose GitHub Actions runtime for GHA cache backend
+        uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
+
+      - name: Set up Docker Buildx
+        run: docker buildx create --use --driver docker-container
+
+      # Cache hit from build-scan's --cache-to above — this reconstructs
+      # the already-scanned image (not a real re-compile) since a Docker
+      # image can't otherwise cross a job boundary without a registry
+      # round-trip or a tarball upload/download.
+      - name: Rebuild ${{ matrix.service }} image (cache hit)
+        run: |
+          docker buildx build \
+            --cache-from "type=gha,scope=deploy-staging-${SERVICE}" \
+            --load \
+            -f "$DOCKERFILE" \
+            -t "$IMAGE" \
+            .
+
+      # A full cache hit reconstructs byte-identical layers — verified
+      # true for these Dockerfiles (digest-pinned base images,
+      # `pnpm install --frozen-lockfile`, no timestamp/random content), so
+      # this should always pass. But nothing else here would ever notice
+      # if the cache had partially missed and this rebuild produced
+      # something Trivy never actually saw — this is the one check that
+      # would catch that instead of silently pushing it (review finding,
+      # 2026-07-22).
+      - name: Verify rebuilt image matches what was scanned
+        run: |
+          EXPECTED=$(cat image-id.txt)
+          ACTUAL=$(docker inspect --format='{{.Id}}' "$IMAGE")
+          if [ "$EXPECTED" != "$ACTUAL" ]; then
+            echo "::error::Rebuilt image (${ACTUAL}) does not match what build-scan actually scanned (${EXPECTED}) — refusing to push an unverified image."
+            exit 1
+          fi
+          echo "Verified: rebuilt image is byte-identical to the one Trivy scanned (${ACTUAL})"
+
+      - name: Push ${{ matrix.service }} image
+        run: docker push "$IMAGE"
+
+  # ---------------------------------------------------------------------
+  # Guard against a stale, out-of-order deploy (review finding,
+  # 2026-07-22): two pushes close together start two independent runs. If
+  # an older run's build-scan/push happens to finish slower than a newer
+  # run's (cache miss vs. hit), it could reach staging-mutations *after*
+  # the newer run already deployed and clobber it with stale code. Merging
+  # migrate+deploy into one job (below) only closes the gap *within* a
+  # single run — this closes the gap *across* runs, regardless of timing,
+  # by checking this run's commit is still main's actual tip before it's
+  # allowed to mutate anything.
+  # ---------------------------------------------------------------------
+
+  check-current:
+    name: Check still current
+    needs: push
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      is_current: ${{ steps.check.outputs.is_current }}
+    steps:
+      - name: Verify this commit is still main's tip
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          LATEST_SHA=$(gh api "repos/${REPO}/commits/main" --jq .sha)
+          if [ "$LATEST_SHA" = "$GITHUB_SHA" ]; then
+            echo "is_current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_current=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::A newer commit ($LATEST_SHA) has landed on main since this run started ($GITHUB_SHA) — a newer run will handle deploying it; stopping here to avoid an out-of-order stale deploy."
+          fi
+
+  # ---------------------------------------------------------------------
+  # Migrate + deploy — one job, so `staging-mutations` is held
+  # continuously across both; a failed migration stops deploy before
+  # anything runs against a half-migrated schema.
+  # ---------------------------------------------------------------------
+
+  migrate-and-deploy:
+    name: Migrate & deploy
+    needs: check-current
+    if: needs.check-current.outputs.is_current == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: staging
+    concurrency:
+      group: staging-mutations
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write # mints the short-lived WIF token for google-github-actions/auth
+    outputs:
+      bff_url: ${{ steps.bff-url.outputs.url }}
+      web_url: ${{ steps.web-url.outputs.url }}
+    steps:
+      - name: Authenticate as app-deployer (staging)
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER_STAGING }}
+          service_account: ${{ secrets.APP_DEPLOYER_SA_STAGING }}
+
+      - name: Run ikaro-migrate
+        run: |
+          gcloud run jobs update ikaro-migrate \
+            --image "$IMAGE_BACKEND" \
+            --region "$GCP_REGION" \
+            --project "$GCP_PROJECT_STAGING"
+
+          # max_retries=0 (M17-S20) — a failed migration must fail loudly,
+          # not retry into a half-applied state. --wait propagates the
+          # execution's exit code, so a non-zero migration stops the
+          # pipeline here; nothing downstream deploys against a
+          # half-migrated schema.
+          gcloud run jobs execute ikaro-migrate \
+            --region "$GCP_REGION" \
+            --project "$GCP_PROJECT_STAGING" \
+            --wait
+
+      # `gcloud run deploy` blocks until the new revision is Ready and
+      # serving traffic by default (no --async) — a failed rollout fails
+      # this step, no extra "wait for READY" logic needed.
+      - name: Deploy backend
+        run: |
+          gcloud run deploy ikaro-backend \
+            --image "$IMAGE_BACKEND" \
+            --region "$GCP_REGION" \
+            --project "$GCP_PROJECT_STAGING"
+
+      - name: Deploy bff
+        run: |
+          gcloud run deploy ikaro-bff \
+            --image "$IMAGE_BFF" \
+            --region "$GCP_REGION" \
+            --project "$GCP_PROJECT_STAGING"
+
+      - name: Deploy web
+        run: |
+          gcloud run deploy ikaro-web \
+            --image "$IMAGE_WEB" \
+            --region "$GCP_REGION" \
+            --project "$GCP_PROJECT_STAGING"
+
+      # *.run.app URLs are a per-project random hash (M17-S18/S25 findings)
+      # — read back live rather than hardcoded, so smoke always targets
+      # the real current URL.
+      - name: Resolve bff URL
+        id: bff-url
+        run: |
+          URL=$(gcloud run services describe ikaro-bff \
+            --region "$GCP_REGION" \
+            --project "$GCP_PROJECT_STAGING" \
+            --format='value(status.url)')
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve web URL
+        id: web-url
+        run: |
+          URL=$(gcloud run services describe ikaro-web \
+            --region "$GCP_REGION" \
+            --project "$GCP_PROJECT_STAGING" \
+            --format='value(status.url)')
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      # Bounded revision retention (review finding, 2026-07-22): Cloud Run
+      # never auto-deletes old revisions, and idle ones cost nothing
+      # (min_instance_count=0 everywhere), but a long-lived, high-frequency
+      # trunk-based project can accumulate toward Cloud Run's per-service
+      # revision cap over time with no cleanup mechanism anywhere in this
+      # Terraform setup. Mirrors the registry's own "keep 5 most recent"
+      # policy (modules/registry, M17-S15) for consistency. Sorting
+      # descending by creation time and skipping the first 5 always keeps
+      # the currently-serving revision (always the newest) — Cloud Run
+      # refuses to delete a revision with live traffic anyway, so this
+      # can never touch what's actually serving. Failures here are
+      # visible (::warning::) but non-fatal per service — a GC hiccup on
+      # one service shouldn't fail an otherwise-successful deploy, and
+      # the next run's cleanup will catch up regardless.
+      - name: Clean up old revisions
+        run: |
+          for SVC in ikaro-backend ikaro-bff ikaro-web; do
+            gcloud run revisions list \
+              --service="$SVC" \
+              --region="$GCP_REGION" \
+              --project="$GCP_PROJECT_STAGING" \
+              --format='value(metadata.name)' \
+              --sort-by='~metadata.creationTimestamp' \
+            | tail -n +6 \
+            | xargs -r -I{} gcloud run revisions delete {} \
+                --region="$GCP_REGION" \
+                --project="$GCP_PROJECT_STAGING" \
+                --quiet \
+            || echo "::warning::Revision cleanup failed for ${SVC} — old revisions may have accumulated; harmless, next deploy retries"
+          done
+
+  # ---------------------------------------------------------------------
+  # Smoke — read-only, no GCP auth or mutation lock needed.
+  # ---------------------------------------------------------------------
+
+  smoke:
+    name: Smoke test
+    needs: migrate-and-deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BFF_URL: ${{ needs.migrate-and-deploy.outputs.bff_url }}
+      WEB_URL: ${{ needs.migrate-and-deploy.outputs.web_url }}
+    steps:
+      # Retry budget sized to the startup probe's own 180s window
+      # (failure_threshold=18 * period_seconds=10,
+      # modules/cloudrun-service/main.tf) — min_instance_count=0 means the
+      # instance can have scaled back to zero since `gcloud run deploy`'s
+      # own readiness wait, so a genuine cold start is realistic here too,
+      # not just at first deploy. --max-time caps a single hung attempt
+      # from silently consuming the whole retry budget.
+      - name: Smoke test bff
+        run: |
+          curl -f --retry 20 --retry-delay 10 --retry-connrefused --max-time 15 \
+            "${BFF_URL}/v1/health/ready"
+
+      - name: Smoke test web
+        run: |
+          curl -f --retry 20 --retry-delay 10 --retry-connrefused --max-time 15 \
+            "${WEB_URL}/api/health/ready"
