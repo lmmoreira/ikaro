@@ -34,8 +34,11 @@ name: App — Staging Deploy Pipeline
 # run. `push` needs: build-scan (all three matrix legs), so nothing pushes
 # unless every scan passed. The rebuild inside `push` is a near-instant
 # GHA cache hit (same --cache-from scope as build-scan), not a real
-# re-compile — cheaper than shipping full image tarballs between jobs via
-# upload/download-artifact.
+# re-compile — cheaper than shipping full image tarballs between jobs (the
+# only thing that actually crosses the job boundary via upload/
+# download-artifact is a tiny recorded image ID, verified byte-for-byte
+# against the rebuild before it's allowed to push — see push's own
+# comments for why that check exists).
 #
 # `check-current` gates migrate-and-deploy on this run's commit still
 # being main's actual tip (review finding, 2026-07-22): two pushes close
@@ -156,6 +159,21 @@ jobs:
             -t "$IMAGE" \
             .
 
+      # Recorded so `push`'s cache-hit rebuild can verify it reconstructed
+      # this exact image, not something subtly different (review finding,
+      # 2026-07-22) — see push's "Verify rebuilt image" step for why this
+      # matters: a partial cache miss there would otherwise silently push
+      # an image that was never actually scanned.
+      - name: Capture scanned image ID
+        run: docker inspect --format='{{.Id}}' "$IMAGE" > image-id.txt
+
+      - name: Upload image ID
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: image-id-${{ matrix.service }}
+          path: image-id.txt
+          retention-days: 1
+
       # ignore-unfixed: true, matching the PR gate (pr-tests.yml), not
       # stricter — deliberate (story-discovery, 2026-07-22): blocking on an
       # unfixed CVE has no available remediation, so it would leave this
@@ -209,6 +227,11 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Download expected image ID
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: image-id-${{ matrix.service }}
+
       - name: Authenticate as app-deployer (staging)
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
         with:
@@ -238,6 +261,24 @@ jobs:
             -f "$DOCKERFILE" \
             -t "$IMAGE" \
             .
+
+      # A full cache hit reconstructs byte-identical layers — verified
+      # true for these Dockerfiles (digest-pinned base images,
+      # `pnpm install --frozen-lockfile`, no timestamp/random content), so
+      # this should always pass. But nothing else here would ever notice
+      # if the cache had partially missed and this rebuild produced
+      # something Trivy never actually saw — this is the one check that
+      # would catch that instead of silently pushing it (review finding,
+      # 2026-07-22).
+      - name: Verify rebuilt image matches what was scanned
+        run: |
+          EXPECTED=$(cat image-id.txt)
+          ACTUAL=$(docker inspect --format='{{.Id}}' "$IMAGE")
+          if [ "$EXPECTED" != "$ACTUAL" ]; then
+            echo "::error::Rebuilt image (${ACTUAL}) does not match what build-scan actually scanned (${EXPECTED}) — refusing to push an unverified image."
+            exit 1
+          fi
+          echo "Verified: rebuilt image is byte-identical to the one Trivy scanned (${ACTUAL})"
 
       - name: Push ${{ matrix.service }} image
         run: docker push "$IMAGE"
