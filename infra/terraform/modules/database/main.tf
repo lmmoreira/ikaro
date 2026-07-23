@@ -118,10 +118,36 @@ resource "google_sql_database" "ikaro" {
   instance = google_sql_database_instance.main.name
 }
 
+# The instance reporting ready doesn't mean the internal `cloudsqliamuser`
+# Postgres role (auto-created when cloudsql.iam_authentication is enabled)
+# has propagated yet -- a real staging apply (M17-S27, 2026-07-23) hit
+# "role \"cloudsqliamuser\" does not exist" ~30s after instance creation
+# completed. Same pattern as envs/*/main.tf's iam_propagation sleep: bridge
+# the gap between the GCP API call succeeding and the underlying resource
+# actually being usable.
+#
+# This is a heuristic buffer, not a readiness check -- GCP documents no
+# guaranteed bound on this propagation, and Terraform has no visibility
+# into the underlying Postgres role from here (a real poll would need the
+# CI runner to reach the private instance directly, which no tooling here
+# does today). If 120s ever proves insufficient, the safe recovery is the
+# same one used to diagnose this in the first place: retry the pipeline --
+# the instance and every already-created resource are unaffected, so a
+# retry only needs to create what's still missing.
+#
+# Create-only: once recorded in state (this apply), a no-op on every
+# subsequent apply -- the wait never repeats.
+resource "time_sleep" "cloudsql_iam_role_propagation" {
+  depends_on      = [google_sql_database_instance.main]
+  create_duration = "120s"
+}
+
 # Passwordless human access: the admin identity as an IAM DB user, plus the
 # project roles needed to open the proxy tunnel (client) and log in
 # (instanceUser). No password exists for this user anywhere.
 resource "google_sql_user" "iam_admin" {
+  depends_on = [time_sleep.cloudsql_iam_role_propagation]
+
   name     = var.iam_admin_user
   project  = var.project_id
   instance = google_sql_database_instance.main.name

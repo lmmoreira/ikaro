@@ -488,7 +488,10 @@ jobs:
     needs: [detect-changes, plan-staging]
     if: needs.detect-changes.outputs.infra == 'true' && github.event_name == 'push' && needs.plan-staging.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 45m, not 20m (M17-S27, 2026-07-23): a real first-time Cloud SQL
+    # instance creation took 17m32s alone -- 20m left only ~2.5min of
+    # margin on the very apply this timeout exists to protect.
+    timeout-minutes: 45
     environment: staging-infrastructure
     concurrency:
       group: staging-mutations
@@ -542,7 +545,11 @@ jobs:
     needs: [detect-changes, plan-prod, apply-staging]
     if: needs.detect-changes.outputs.infra == 'true' && github.event_name == 'push' && needs.plan-prod.result == 'success' && needs.apply-staging.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 60m, not 20m (M17-S27, 2026-07-23): S37's atomic apply creates both
+    # the Cloud SQL instance (staging's own first-time creation alone took
+    # 17m32s) and the edge module in the same run -- Certificate Manager's
+    # DNS-authorized cert issuance can itself run 15-30+min on top of that.
+    timeout-minutes: 60
     environment: production-infrastructure
     concurrency:
       group: production-mutations
