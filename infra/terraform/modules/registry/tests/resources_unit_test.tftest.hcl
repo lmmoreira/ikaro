@@ -104,6 +104,21 @@ run "staging_tf_deployer_reader_grant_targets_staging_tf_deployer" {
     condition     = google_artifact_registry_repository_iam_member.staging_tf_deployer_reader.member == "serviceAccount:ikaro-tf-deployer@ikaro-staging.iam.gserviceaccount.com"
     error_message = "Reader grant must target staging's tf-deployer SA."
   }
+
+  # Cross-tool review finding, 2026-07-23: role/member alone don't pin
+  # WHICH repository/location this grant applies to — a future edit that
+  # accidentally moved it to a different prod repo or region would still
+  # pass those two assertions while silently reintroducing the original
+  # failure this grant exists to fix.
+  assert {
+    condition     = google_artifact_registry_repository_iam_member.staging_tf_deployer_reader.repository == "ikaro-registry"
+    error_message = "Reader grant must target the ikaro-registry repository specifically."
+  }
+
+  assert {
+    condition     = google_artifact_registry_repository_iam_member.staging_tf_deployer_reader.location == "southamerica-east1"
+    error_message = "Reader grant must target the southamerica-east1 location specifically."
+  }
 }
 
 run "iam_grants_are_cross_project_on_the_prod_repository" {

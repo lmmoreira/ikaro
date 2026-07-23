@@ -112,6 +112,23 @@ resource "google_artifact_registry_repository_iam_member" "staging_service_agent
 # own gcloud calls), it failed with a 403 on
 # artifactregistry.repositories.downloadArtifacts. tf-deployer had never
 # been granted any access to this cross-project repo before now.
+#
+# BOOTSTRAP ORDERING TRAP (cross-tool review finding, 2026-07-23): this
+# resource only exists in Terraform's desired state via this module, which
+# is instantiated only in envs/prod — so it only gets APPLIED by
+# apply-prod. But infra-deploy.yml's apply-prod has `needs: apply-staging`
+# (won't run unless staging's apply succeeds first), and apply-staging is
+# EXACTLY the job failing without this permission — a deadlock Terraform
+# can't apply its own way out of. Same class of problem as every other
+# bootstrap entry in docs/BOOTSTRAP_LOG.md ("Terraform can't grant a
+# permission to the identity that needs it before it has that permission"):
+# this binding must be granted manually via gcloud ONE TIME to break the
+# cycle (`gcloud artifacts repositories add-iam-policy-binding ikaro-registry
+# --project=ikaro-prod --location=southamerica-east1 --member=serviceAccount:ikaro-tf-deployer@ikaro-staging.iam.gserviceaccount.com
+# --role=roles/artifactregistry.reader`) before this PR merges — IAM member
+# grants are additive/idempotent, so Terraform adopting the already-existing
+# binding into state afterward (via either apply-staging's own retry or
+# apply-prod once unblocked) is a clean no-op, not a conflict.
 resource "google_artifact_registry_repository_iam_member" "staging_tf_deployer_reader" {
   project    = google_artifact_registry_repository.ikaro.project
   location   = google_artifact_registry_repository.ikaro.location
