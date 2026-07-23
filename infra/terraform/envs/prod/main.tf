@@ -312,8 +312,10 @@ module "cloudrun_bff" {
 
 # Same internal-load-balancer ingress split as bff above (S22). No VPC
 # egress — web never calls the backend directly, only the public BFF URL.
-# NEXT_PUBLIC_* build-time vars and the per-env image consequence are S26's
-# scope, not this module's.
+# NEXT_PUBLIC_* are Cloud Run runtime env vars (not build args) as of TD29 —
+# staging wires its own values in M17-S25; this is M17-S26's prod equivalent.
+# Fixed domain values (D11) — unlike staging's bff_real_uri/web_real_uri,
+# there's no bootstrap-uri two-apply dance needed here.
 module "cloudrun_web" {
   source = "../../modules/cloudrun-service"
 
@@ -344,6 +346,13 @@ module "cloudrun_web" {
   env_vars = {
     NODE_ENV = "production"
     APP_ENV  = "production"
+
+    # Runtime env vars (TD29) — read at request time by
+    # apps/web/shared/lib/runtime-env/public-env.ts, not baked into the
+    # image at build time.
+    NEXT_PUBLIC_BFF_URL                = "https://bff.${local.root_domain}"
+    NEXT_PUBLIC_SITE_URL               = "https://${local.root_domain}"
+    NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL = module.storage.public_base_url
   }
 }
 

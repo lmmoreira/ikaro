@@ -19,13 +19,9 @@ interface AppEnvSpec {
    */
   readonly exemptKeys: readonly string[];
   /**
-   * Which env roots (staging/prod main.tf files) this app's keys are checked against. Backend
-   * and bff are wired in both staging and prod from day one, so they check
-   * both (`ALL_ENV_ROOTS`). Web's NEXT_PUBLIC_* runtime vars land in
-   * staging first (M17-S25) and prod later (M17-S26, with prod-specific
-   * values) — checking prod here before S26 lands would fail permanently
-   * for no actionable reason, so web is scoped to staging only until S26
-   * widens this to match.
+   * Which env roots (staging/prod main.tf files) this app's keys are checked against. All three
+   * apps are wired in both staging and prod (`ALL_ENV_ROOTS`) — web's NEXT_PUBLIC_* runtime vars
+   * landed in staging first (M17-S25) and prod second (M17-S26), matching the rest.
    */
   readonly envRoots: readonly string[];
   readonly extractKeys: (repoRoot: string) => string[];
@@ -120,7 +116,7 @@ const APP_SPECS: readonly AppEnvSpec[] = [
     appName: 'web',
     cloudRunModule: 'cloudrun_web',
     exemptKeys: WEB_EXEMPT_KEYS,
-    envRoots: ['infra/terraform/envs/staging/main.tf'],
+    envRoots: ALL_ENV_ROOTS,
     extractKeys: (repoRoot) =>
       extractPublicEnvKeys(path.join(repoRoot, 'apps/web/shared/lib/runtime-env/public-env.ts')),
   },

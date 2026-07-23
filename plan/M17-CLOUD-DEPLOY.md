@@ -1087,8 +1087,12 @@ On every push to `main` touching `apps/**`, `packages/**`, or lockfile: build �
 - [ ] Smoke failure marks the run failed and prints the rollback one-liner
 - [ ] Runtime-env smoke: served prod HTML references `bff.ikaro.online`, zero `run.app`/staging origins (prove once with a deliberately wrong Cloud Run env var on a scratch deploy or dry run — this replaces the old build-arg smoke, same risk, different mechanism)
 - [ ] Total promote time (post-approval) < 15 min
+- [ ] `envs/prod/main.tf`'s `cloudrun_web` module sets `NEXT_PUBLIC_BFF_URL`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL` as real Cloud Run runtime env vars (prod-specific values: `https://bff.ikaro.online`, `https://ikaro.online`, the storage module's public base URL) — the TD29 follow-through for prod, made an explicit AC after story-discovery (2026-07-23) found it stated only in prose (staging's own module comment already named this story as the trigger)
+- [ ] `packages/infra-scripts/src/env-contract.ts`'s `web` spec widened from staging-only to `ALL_ENV_ROOTS` in the same commit as the Terraform change above — the `Terraform env-var contract` CI job (already required) now also validates prod
 
 **Dependencies:** M17-S25; prod infra applied (S37)
+
+**Note (story-discovery, 2026-07-23):** "prod infra applied (S37)" does not mean story S37 itself must be Done first — that would be circular, since S37's own step 5 runs this pipeline. It means full live verification of this story's ACs (digest comparison, runtime-env smoke, <15 min timing) needs prod's `cloudrun_web` service, Cloud SQL database, and `edge` module (ALB/Cloudflare) to exist — none of which are live yet (2026-07-23: only `network`/`registry`/`iam`/`secrets`/`storage`/`pubsub`/`scheduler`/`migrate_job`/`cloudrun_backend`/`cloudrun_bff` are live in prod, per S37's own incident note). This story authors and structurally validates the workflow now — same precedent as M17-S25, which shipped `deploy-staging.yml` ahead of staging's live DB with ACs partially verified. End-to-end proof is deferred to S37.
 
 ---
 

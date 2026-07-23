@@ -116,28 +116,31 @@ describe('checkEnvContract', () => {
     ]);
   });
 
-  it('reports a violation when web is missing a required key in staging', () => {
+  it('reports a violation for web missing a required key in each env root', () => {
     const root = writeFixtureRepo({ backendTfHasDbHost: true, webTfHasBffUrl: false });
     fixtureRoots.push(root);
 
     const violations = checkEnvContract(root);
+    const webViolations = violations.filter((v) => v.appName === 'web');
 
-    expect(violations).toHaveLength(1);
-    expect(violations[0]).toMatchObject({
-      envRoot: 'infra/terraform/envs/staging/main.tf',
-      appName: 'web',
-      cloudRunModule: 'cloudrun_web',
-      missingKeys: ['NEXT_PUBLIC_BFF_URL'],
-    });
+    expect(webViolations).toHaveLength(2);
+    for (const violation of webViolations) {
+      expect(violation.cloudRunModule).toBe('cloudrun_web');
+      expect(violation.missingKeys).toEqual(['NEXT_PUBLIC_BFF_URL']);
+    }
+    expect(webViolations.map((v) => v.envRoot).sort()).toEqual([
+      'infra/terraform/envs/prod/main.tf',
+      'infra/terraform/envs/staging/main.tf',
+    ]);
   });
 
-  it('never checks web against prod (scoped to staging only until M17-S26 widens it)', () => {
+  it('checks web against prod too, now that M17-S26 has widened it to ALL_ENV_ROOTS', () => {
     const root = writeFixtureRepo({ backendTfHasDbHost: true, webTfHasBffUrl: false });
     fixtureRoots.push(root);
 
     const violations = checkEnvContract(root);
 
-    expect(violations.some((v) => v.appName === 'web' && v.envRoot.includes('prod'))).toBe(false);
+    expect(violations.some((v) => v.appName === 'web' && v.envRoot.includes('prod'))).toBe(true);
   });
 
   it("has zero violations against this repo's real env.validation.ts + Terraform files (regression guard)", () => {
