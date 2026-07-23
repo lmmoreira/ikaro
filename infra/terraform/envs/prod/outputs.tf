@@ -14,6 +14,6 @@ output "web_service_uri" {
 }
 
 output "edge_lb_ip_address" {
-  description = "Static external IPv4 address of the Global external ALB (S22) — the IP Cloudflare's proxied A records point at. Operator-facing: direct-to-LB-IP testing (S22/S36 acceptance criteria) and SSL Labs / cert-issuance troubleshooting."
-  value       = module.edge.lb_ip_address
+  description = "Static external IPv4 address of the Global external ALB (S22) — the IP Cloudflare's proxied A records point at. Operator-facing: direct-to-LB-IP testing (S22/S36 acceptance criteria) and SSL Labs / cert-issuance troubleshooting. Empty until S37 flips enable_edge=true (TD30, 2026-07-22) — same try()-fallback pattern as staging's deferred database output."
+  value       = try(module.edge[0].lb_ip_address, "")
 }

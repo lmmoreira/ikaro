@@ -22,10 +22,16 @@ db_user = "ikaro"
 # secret either, same reasoning as db_user.
 db_migrator_user = "ikaro_migrator"
 
-# Prod is plan-only until S24/S37 — the pipeline performs the first apply
-# (PITR + deletion protection are set in main.tf). iam_admin_user comes from
-# the gitignored local.auto.tfvars / TF_VAR_iam_admin_user (S24), never here.
-enable_database = true
+# Deferred (TD30, 2026-07-22): stays false until S37's deliberate go-live
+# apply (PITR + deletion protection are set in main.tf, ready for when it
+# does land). iam_admin_user comes from the gitignored local.auto.tfvars /
+# TF_VAR_iam_admin_user (S24), never here.
+enable_database = false
+
+# Deferred (TD30, 2026-07-22): stays false until S37 — see main.tf's
+# module "edge" comment for why this can't land alongside registry/IAM/
+# secrets the way this TD lets those apply early.
+enable_edge = false
 
 # Path-based hotsites (D11) — one prod origin, not per-tenant subdomains.
 # www redirects to apex at the edge (S22) but the browser can still load the

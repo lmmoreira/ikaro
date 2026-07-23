@@ -13,6 +13,51 @@ permissions:
   contents: read
 
 jobs:
+  no-infra-app-mix:
+    name: No infra + app mix
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Detect infra vs app changes
+        id: filter
+        uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
+        with:
+          filters: |
+            infra:
+              - 'infra/terraform/**'
+            app:
+              - 'apps/**'
+              - 'packages/**'
+
+      # TD30 (2026-07-22): plan/M17-CLOUD-DEPLOY.md's Wave 3 preamble (M17-S24)
+      # already documents this as a convention ("do not mix infra/terraform/**
+      # and apps/** changes in one PR; when unavoidable, note in the PR that
+      # infra applies first and re-run the app deploy if it won the race")
+      # — this job is the first automated enforcement of it. Just a path
+      # diff, so it reports back in seconds, well before lint/type-check/
+      # tests finish — not a true blocking-first gate (that would mean
+      # adding needs: to every other job here, a much bigger change for a
+      # problem this doesn't require it to solve).
+      #
+      # The documented convention explicitly allows an "unavoidable" mix if
+      # it's noted in the PR — an unconditional fail here would make that
+      # exception impossible to actually use (review finding, 2026-07-22).
+      # The `infra-app-mix-ok` label is the auditable, deliberate override:
+      # a human has to add it explicitly (it won't exist by default), same
+      # spirit as any other manual acknowledgment gate in this repo.
+      - name: Fail if both infra and app changed (unless explicitly acknowledged)
+        if: |
+          steps.filter.outputs.infra == 'true' &&
+          steps.filter.outputs.app == 'true' &&
+          !contains(github.event.pull_request.labels.*.name, 'infra-app-mix-ok')
+        run: |
+          echo "::error::This PR touches both infra/terraform/** and apps/** or packages/** — split them into separate PRs. If truly unavoidable, note in the PR description that infra applies first and re-run the app deploy if it loses the race against the Terraform apply, then add the 'infra-app-mix-ok' label to acknowledge and bypass this check."
+          exit 1
+
   lint:
     name: ESLint
     runs-on: ubuntu-latest
