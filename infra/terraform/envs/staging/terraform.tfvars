@@ -22,11 +22,6 @@ db_user = "ikaro"
 # secret either, same reasoning as db_user.
 db_migrator_user = "ikaro_migrator"
 
-# S13 discovery: instance creation deferred — flip to true at the S27
-# activation (starts the ~$9/mo Cloud SQL charge). iam_admin_user comes from
-# the gitignored local.auto.tfvars, never from this file.
-enable_database = false
-
 # Staging has no LB (D5) — the web app's raw Cloud Run URL is the browser
 # origin for signed-URL uploads. Corrected 2026-07-22 (M17-S25 discovery
 # finding): this previously held a guessed project-number-format URL

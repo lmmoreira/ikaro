@@ -42,10 +42,7 @@ module "network" {
   labels      = var.labels
 }
 
-# Deferred creation (S13 discovery): no instance — and no charge — until the
-# S27 activation flips enable_database = true in terraform.tfvars.
 module "database" {
-  count  = var.enable_database ? 1 : 0
   source = "../../modules/database"
 
   project_id  = var.project_id
@@ -177,15 +174,12 @@ module "cloudrun_backend" {
       APP_ENV     = "staging"
       GCP_PROJECT = var.project_id
 
-      # S13 discovery: staging's database module is deferred (count=0) until
-      # the S27 activation — try() falls back to a placeholder until then;
-      # harmless while bootstrap_mode's placeholder image never actually
-      # reads either. DB_NAME derives from modules/database's own output
-      # (single source of truth for the google_sql_database.ikaro name)
-      # rather than a second hardcoded "ikaro" literal.
-      DB_HOST      = try(module.database[0].private_ip, "")
+      # DB_NAME derives from modules/database's own output (single source of
+      # truth for the google_sql_database.ikaro name) rather than a second
+      # hardcoded "ikaro" literal.
+      DB_HOST      = module.database.private_ip
       DB_USER      = var.db_user
-      DB_NAME      = try(module.database[0].database_name, "ikaro")
+      DB_NAME      = module.database.database_name
       DB_POOL_SIZE = "3"
 
       PUBSUB_PROJECT_ID           = var.project_id
@@ -366,11 +360,9 @@ module "migrate_job" {
   env_vars = {
     NODE_ENV = "production"
 
-    # Same try()-fallback pattern as cloudrun_backend above — staging's
-    # database module is deferred (count=0) until the S27 activation.
-    DB_HOST          = try(module.database[0].private_ip, "")
+    DB_HOST          = module.database.private_ip
     DB_MIGRATOR_USER = var.db_migrator_user
-    DB_NAME          = try(module.database[0].database_name, "ikaro")
+    DB_NAME          = module.database.database_name
   }
 
   secret_env_vars = {

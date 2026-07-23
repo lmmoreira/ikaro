@@ -51,11 +51,6 @@ variable "db_user" {
   default     = "ikaro"
 }
 
-variable "enable_database" {
-  description = "Instantiate the Cloud SQL module (S13 discovery: staging stays false — no instance, no charge — until the S27 activation flips it)"
-  type        = bool
-}
-
 variable "environment" {
   description = "Deployment environment (staging or prod)"
   type        = string
