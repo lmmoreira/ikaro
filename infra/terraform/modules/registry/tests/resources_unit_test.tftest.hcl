@@ -92,6 +92,35 @@ run "staging_reader_grant_targets_cloud_run_service_agent_not_a_runtime_sa" {
   }
 }
 
+run "staging_tf_deployer_reader_grant_targets_staging_tf_deployer" {
+  command = plan
+
+  assert {
+    condition     = google_artifact_registry_repository_iam_member.staging_tf_deployer_reader.role == "roles/artifactregistry.reader"
+    error_message = "Staging tf-deployer's cross-project grant must be reader — it manages modules/migrate-job's Cloud Run Job resource, whose current image (set out-of-band by deploy-staging.yml) lives in this prod-hosted repo, and jobs.patch validates pull access on every update regardless of which fields actually change (live discovery, 2026-07-23)."
+  }
+
+  assert {
+    condition     = google_artifact_registry_repository_iam_member.staging_tf_deployer_reader.member == "serviceAccount:ikaro-tf-deployer@ikaro-staging.iam.gserviceaccount.com"
+    error_message = "Reader grant must target staging's tf-deployer SA."
+  }
+
+  # Cross-tool review finding, 2026-07-23: role/member alone don't pin
+  # WHICH repository/location this grant applies to — a future edit that
+  # accidentally moved it to a different prod repo or region would still
+  # pass those two assertions while silently reintroducing the original
+  # failure this grant exists to fix.
+  assert {
+    condition     = google_artifact_registry_repository_iam_member.staging_tf_deployer_reader.repository == "ikaro-registry"
+    error_message = "Reader grant must target the ikaro-registry repository specifically."
+  }
+
+  assert {
+    condition     = google_artifact_registry_repository_iam_member.staging_tf_deployer_reader.location == "southamerica-east1"
+    error_message = "Reader grant must target the southamerica-east1 location specifically."
+  }
+}
+
 run "iam_grants_are_cross_project_on_the_prod_repository" {
   command = plan
 
@@ -102,6 +131,11 @@ run "iam_grants_are_cross_project_on_the_prod_repository" {
 
   assert {
     condition     = google_artifact_registry_repository_iam_member.staging_service_agent_reader.project == "ikaro-prod"
+    error_message = "IAM member resources must be bound to the prod-hosted repository, not the staging project."
+  }
+
+  assert {
+    condition     = google_artifact_registry_repository_iam_member.staging_tf_deployer_reader.project == "ikaro-prod"
     error_message = "IAM member resources must be bound to the prod-hosted repository, not the staging project."
   }
 }

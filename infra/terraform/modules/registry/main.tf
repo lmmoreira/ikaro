@@ -99,3 +99,40 @@ resource "google_artifact_registry_repository_iam_member" "staging_service_agent
   role       = "roles/artifactregistry.reader"
   member     = "serviceAccount:service-${var.staging_project_number}@serverless-robot-prod.iam.gserviceaccount.com"
 }
+
+# Staging's tf-deployer manages modules/migrate-job's google_cloud_run_v2_job
+# resource, whose container image is set out-of-band by deploy-staging.yml
+# (gcloud run jobs update, not Terraform — see that module's own
+# lifecycle.ignore_changes on the image field) to the prod-hosted registry.
+# Discovered live (2026-07-23): even though Terraform never tries to change
+# the image field itself, Cloud Run's jobs.patch API re-validates pull
+# access on the job's CURRENT actual image for every update call — so the
+# very first time apply-staging had to update that resource for any reason
+# (here, correcting client/client_version drift left by deploy-staging.yml's
+# own gcloud calls), it failed with a 403 on
+# artifactregistry.repositories.downloadArtifacts. tf-deployer had never
+# been granted any access to this cross-project repo before now.
+#
+# BOOTSTRAP ORDERING TRAP (cross-tool review finding, 2026-07-23): this
+# resource only exists in Terraform's desired state via this module, which
+# is instantiated only in envs/prod — so it only gets APPLIED by
+# apply-prod. But infra-deploy.yml's apply-prod has `needs: apply-staging`
+# (won't run unless staging's apply succeeds first), and apply-staging is
+# EXACTLY the job failing without this permission — a deadlock Terraform
+# can't apply its own way out of. Same class of problem as every other
+# bootstrap entry in docs/BOOTSTRAP_LOG.md ("Terraform can't grant a
+# permission to the identity that needs it before it has that permission"):
+# this binding must be granted manually via gcloud ONE TIME to break the
+# cycle (`gcloud artifacts repositories add-iam-policy-binding ikaro-registry
+# --project=ikaro-prod --location=southamerica-east1 --member=serviceAccount:ikaro-tf-deployer@ikaro-staging.iam.gserviceaccount.com
+# --role=roles/artifactregistry.reader`) before this PR merges — IAM member
+# grants are additive/idempotent, so Terraform adopting the already-existing
+# binding into state afterward (via either apply-staging's own retry or
+# apply-prod once unblocked) is a clean no-op, not a conflict.
+resource "google_artifact_registry_repository_iam_member" "staging_tf_deployer_reader" {
+  project    = google_artifact_registry_repository.ikaro.project
+  location   = google_artifact_registry_repository.ikaro.location
+  repository = google_artifact_registry_repository.ikaro.repository_id
+  role       = "roles/artifactregistry.reader"
+  member     = "serviceAccount:ikaro-tf-deployer@${var.staging_project_id}.iam.gserviceaccount.com"
+}
