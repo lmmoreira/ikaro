@@ -431,6 +431,7 @@ Pinned Terraform skills live in `.claude/skills/`; refresh them by re-vendoring 
 | `terraform-search-import` | `.claude/skills/terraform-search-import/` |
 | `refactor-module` | `.claude/skills/refactor-module/` |
 | `terraform-stacks` | `.claude/skills/terraform-stacks/` |
+| `skill-creator` | `.claude/skills/skill-creator/` |
 
 ### Command files
 
