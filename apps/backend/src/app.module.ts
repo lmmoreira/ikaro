@@ -25,6 +25,7 @@ import { validateEnv } from './config/env.validation';
 import { PubSubPushController } from './shared/infrastructure/event-bus/pubsub-push.controller';
 import { GoogleOidcTokenVerifier } from './shared/infrastructure/google-oidc-token-verifier.adapter';
 import { OIDC_TOKEN_VERIFIER } from './shared/ports/oidc-token-verifier.port';
+import { resolveDatabaseSsl } from './shared/database/resolve-database-ssl';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { OIDC_TOKEN_VERIFIER } from './shared/ports/oidc-token-verifier.port';
         password: config.get<string>('DB_PASSWORD'),
         database: config.get<string>('DB_NAME'),
         poolSize: config.get<number>('DB_POOL_SIZE', 10),
+        ssl: resolveDatabaseSsl(config.get<string>('APP_ENV', 'local')),
         synchronize: false,
         migrationsRun: false,
         entities: [

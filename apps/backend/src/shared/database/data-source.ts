@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { config } from 'dotenv';
 import { DataSource } from 'typeorm';
+import { resolveDatabaseSsl } from './resolve-database-ssl';
 
 config(); // load .env when invoked directly by TypeORM CLI
 
@@ -17,6 +18,7 @@ export const AppDataSource = new DataSource({
   username: process.env['DB_MIGRATOR_USER'],
   password: process.env['DB_MIGRATOR_PASSWORD'],
   database: process.env['DB_NAME'],
+  ssl: resolveDatabaseSsl(process.env['APP_ENV'] ?? 'local'),
   synchronize: false,
   migrationsRun: false,
   logging: process.env['NODE_ENV'] === 'development' ? ['query', 'error'] : ['error'],
