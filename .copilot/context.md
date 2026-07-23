@@ -172,6 +172,7 @@ When the user gives explicit references (a library, a URL, a named example, a pa
 - `bffPublicFetch(path, init?)` — unauthenticated server-only BFF calls (public/guest flows from Server Components or Route Handlers). Import from `@/shared/lib/api/bff-server`. Never in `'use client'` files.
 - `bffClient` (axios, `withCredentials: true`) — client-only (React Query hooks). Import from `@/shared/lib/api/bff-client`. Never in Server Components.
 - `useTenant()` (`apps/web/providers/tenant-provider.tsx`) — only source of `tenantId` in hooks. Server layouts decode JWT and pass to `<TenantProvider>`.
+- **`NEXT_PUBLIC_BFF_URL`'s value must itself include the `/v1` prefix** (e.g. `https://bff.example.com/v1`, not the bare origin) — BFF sets a global `v1` route prefix (`app.setGlobalPrefix('v1')`, `apps/bff/src/main.ts`) and no call-site path in `bff-server.ts`/`bff-client.ts` adds it. Every deployed environment's base URL must carry it, or every web→BFF call 404s (M17-S27 precedent, 2026-07-23: both staging and prod Terraform set it to the bare origin, breaking every server-side BFF call including web's own `/api/health/ready`).
 
 ### Web styling boundary
 

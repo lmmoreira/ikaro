@@ -77,6 +77,8 @@ A separate read endpoint is acceptable only when:
 
 Two transport helpers in `apps/web/shared/lib/api/` cover **all** `apps/web` → BFF calls. Never write a raw `fetch()` URL inside a hook, component, or page outside these two — the anti-pattern of a duplicate URL going stale silently (M13-S05) is caught here.
 
+**`NEXT_PUBLIC_BFF_URL`'s value must itself include the `/v1` prefix.** BFF sets a global route prefix on every endpoint (`app.setGlobalPrefix('v1')`, `apps/bff/src/main.ts`) — none of `bffServerFetch`/`bffPublicFetch`/`bffClient`'s call sites add it themselves, matching `apps/web/.env.example`'s own local-dev convention (`NEXT_PUBLIC_BFF_URL=http://localhost:3002/v1`). The prefix belongs in the base URL, not each call site. Miss it in any environment's config and **every** web→BFF call 404s — not just one endpoint (M17-S27, 2026-07-23: both staging and prod Terraform set this env var to the bare `*.run.app`/custom-domain origin, breaking every server-side BFF call including web's own `/api/health/ready`, which checks BFF reachability).
+
 ### `bffServerFetch(token, path, init?)` — server-only
 
 **File:** `apps/web/shared/lib/api/bff-server.ts`
