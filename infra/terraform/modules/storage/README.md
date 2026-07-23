@@ -41,4 +41,4 @@ CORS correctness against real browser preflights is verified against staging dur
 
 ## Unconditional creation (no `enable_storage` gate)
 
-Unlike `modules/database` (deferred behind `enable_database` — a Cloud SQL instance is a real 24/7 cost from creation), GCS buckets cost effectively nothing empty. Both env roots instantiate this module unconditionally.
+Unlike `modules/database` (prod still deferred behind `enable_database` — a Cloud SQL instance is a real 24/7 cost from creation; staging's gate was removed at M17-S27 once flipped on for good), GCS buckets cost effectively nothing empty. Both env roots instantiate this module unconditionally.
