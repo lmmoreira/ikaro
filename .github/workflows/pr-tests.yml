@@ -803,20 +803,30 @@ jobs:
   # ---------------------------------------------------------------------
   # Single consolidating gate (2026-07-23) replacing 9 individually-listed
   # branch-protection required checks (Backend/Backend Integration Unit
-  # Tests, Gitleaks, Snyk SCA, Trivy x3, Checkov, SonarCloud) — all nine
-  # were independently skippable (correctly, by design) on a PR that
-  # doesn't touch app code, and GitHub's branch protection does not treat
-  # a required check reporting "skipped" as satisfying the requirement,
-  # permanently blocking every infra-only PR from merging (confirmed live
-  # on PR #192 and, earlier, TD27's PR #185). test-suite-passed already
-  # solved this for the 6 functional test jobs; this job extends the same
-  # allow-list pattern to the 5 security/quality scan jobs, none of which
-  # had a gate at all. Depends on each SCAN job directly (not
-  # test-suite-passed a second time) so a matrix job like trivy-scan rolls
-  # up correctly via needs.trivy-scan.result regardless of what name any
-  # individual matrix leg gets reported under — this doesn't care whether
-  # Trivy's own matrix-collapse-prone naming is exercised correctly, only
-  # whether the job's overall result was success-or-skipped.
+  # Tests, Gitleaks, Snyk SCA, Trivy x3, Checkov, SonarCloud). CORRECTED
+  # framing (2026-07-23, cross-tool review + direct verification against
+  # GitHub's documented behavior): a required check reporting "skipped"
+  # DOES satisfy branch protection — same as "success" — so those 6
+  # individually-required-but-skippable jobs (excluding Trivy) were never
+  # actually the thing blocking merge on an infra-only PR. This job's real
+  # value is different: gitleaks/snyk-sca/checkov/sonar were silently
+  # skipping their JOB entirely (not just their real-work steps) due to
+  # transitive skip-propagation through needs: test-suite-passed, so they
+  # never ran their actual scans at all on a non-app PR — a genuine
+  # security/quality gap independent of branch-protection semantics (see
+  # each job's own if: comment). Consolidating them here, mirroring
+  # test-suite-passed's existing allow-list pattern, is a maintainability
+  # improvement (one gate instead of nine scattered entries), not a
+  # required fix for the merge-blocking bug itself — that bug was Trivy's
+  # alone (its matrix collapsing into a single, differently-named check
+  # that never reports under any of the 3 required names at all — a
+  # check that never reports stays "Expected — waiting for status"
+  # forever, which DOES block merge, unlike a genuinely-reported
+  # "skipped"). Confirmed live on PR #192 and, earlier, TD27's PR #185.
+  # Depends on each SCAN job directly (not test-suite-passed a second
+  # time) so a matrix job like trivy-scan rolls up correctly via
+  # needs.trivy-scan.result regardless of what name any individual matrix
+  # leg gets reported under.
   all-checks-passed:
     name: All Checks Passed
     needs: [test-suite-passed, gitleaks, snyk-sca, trivy-scan, checkov, sonar]
