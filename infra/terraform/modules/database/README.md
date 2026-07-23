@@ -6,9 +6,9 @@ Cloud SQL instance `ikaro-db-{env}`: PostgreSQL 17, **no public IP ever** (priva
 
 The app's `ikaro` user and its password are **not** Terraform-managed — the S27/S37 activation runbooks create them out-of-band (`gcloud sql users create` + a `db-password` secret version). Rationale: `tf-planner` credentials are PR-mintable and read state, so any secret in state is readable from a tampered PR workflow. Nothing in this module ever puts a secret value in state, tfvars, or git.
 
-## Deferred creation (`enable_database`)
+## Deferred creation (`enable_database`) — staging only, until it's flipped for good
 
-Cost decision (S13 discovery, 2026-07-17): each env root instantiates this module behind `enable_database`. Staging ships `false` — no instance, no charge — until the S27 activation flips it (~$9/mo from then). Prod ships `true` but is plan-only until S24/S37. Later modules must reference outputs as `module.database[0].…`.
+Cost decision (S13 discovery, 2026-07-17): each env root instantiated this module behind `enable_database`, so an instance wasn't created — and billing didn't start — until each env was actually ready. **Staging's `enable_database` flag was removed entirely at M17-S27** (2026-07-23): once flipped `true` for real, the flag could never meaningfully go back to `false` again (that would mean tearing down the live database the app depends on), so the gate no longer served a purpose — `envs/staging/main.tf` instantiates this module unconditionally now, and consumers reference outputs as `module.database.…` (no `[0]` index). **Prod still has the gate** — `enable_database = false` in `envs/prod/terraform.tfvars`, plan-only until S37 flips it. S37 should do the same removal for prod once that flip is permanent.
 
 ## Human access — passwordless (IAM database authentication)
 
