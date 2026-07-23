@@ -132,19 +132,25 @@ jobs:
 
       # Stage 1 of the story spec: "cannot promote a SHA that never reached
       # staging." Read-only describe — tf-planner's roles/viewer covers it.
-      - name: Verify staging currently runs this SHA
+      # All three services, not just backend (cross-tool review finding,
+      # 2026-07-23): checking only backend let a drifted bff/web staging
+      # revision promote as "staging-validated" — D8 promotes all three as
+      # one same-SHA unit, so the check has to prove all three, not one.
+      - name: Verify staging currently runs this SHA (all three services)
         run: |
-          STAGING_IMAGE=$(gcloud run services describe ikaro-backend \
-            --project="$GCP_PROJECT_STAGING" \
-            --region="$GCP_REGION" \
-            --format='value(spec.template.spec.containers[0].image)')
-          STAGING_SHA="${STAGING_IMAGE##*:}"
+          for SERVICE in backend bff web; do
+            STAGING_IMAGE=$(gcloud run services describe "ikaro-${SERVICE}" \
+              --project="$GCP_PROJECT_STAGING" \
+              --region="$GCP_REGION" \
+              --format='value(spec.template.spec.containers[0].image)')
+            STAGING_SHA="${STAGING_IMAGE##*:}"
 
-          if [ "$STAGING_SHA" != "$IMAGE_SHA" ]; then
-            echo "::error::Staging is running ${STAGING_SHA}, not ${IMAGE_SHA} — this SHA never reached staging (or staging has since moved on). Refusing to promote."
-            exit 1
-          fi
-          echo "✅ Staging currently runs ${IMAGE_SHA}" >> "$GITHUB_STEP_SUMMARY"
+            if [ "$STAGING_SHA" != "$IMAGE_SHA" ]; then
+              echo "::error::Staging's ikaro-${SERVICE} is running ${STAGING_SHA}, not ${IMAGE_SHA} — this SHA never fully reached staging (or staging has since moved on). Refusing to promote."
+              exit 1
+            fi
+          done
+          echo "✅ Staging currently runs ${IMAGE_SHA} on all three services" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Authenticate as tf-planner (prod)
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
@@ -311,6 +317,26 @@ jobs:
             || echo "::warning::Revision cleanup failed for ${SVC} — old revisions may have accumulated; harmless, next deploy retries"
           done
 
+      # CodeRabbit finding, 2026-07-23: smoke's own rollback-guidance step
+      # only runs inside the smoke job — if this job fails (migration
+      # error, or e.g. "Deploy web" failing after "Deploy backend" already
+      # succeeded), smoke is skipped entirely (needs: migrate-and-deploy
+      # defaults to requiring success), so that guidance never fires. A
+      # failure here is also the more dangerous case: it can mean a real
+      # partial deployment across the three services, not just a
+      # post-deploy health-check failure.
+      - name: Rollback guidance (on failure)
+        if: failure()
+        env:
+          PROD_CURRENT_SHA: ${{ needs.validate-and-summarize.outputs.prod_current_sha }}
+        run: |
+          echo "::error::migrate-and-deploy failed — check which step failed above: a migration failure means nothing was deployed (safe), but a deploy-step failure after an earlier one succeeded means backend/bff/web may now be on DIFFERENT SHAs. Verify each service's current image with 'gcloud run services describe ikaro-<service> --project=${GCP_PROJECT_PROD} --region=${GCP_REGION} --format=value(spec.template.spec.containers[0].image)' before deciding next steps."
+          if [ -z "$PROD_CURRENT_SHA" ]; then
+            echo "::error::This was the first-ever real promote — no previous ikaro-backend SHA to roll back to. Investigate and fix forward."
+          else
+            echo "::error::Rollback: re-run this workflow with image_sha=${PROD_CURRENT_SHA} to bring every service back to the same known-good SHA, or run 'gcloud run services update-traffic ikaro-<service> --to-revisions=<prev>=100 --project=${GCP_PROJECT_PROD} --region=${GCP_REGION}' per service for an instant fallback. Full procedure: docs/RUNBOOKS.md § Rollback."
+          fi
+
   # ---------------------------------------------------------------------
   # Smoke — through the fixed custom domains (edge module, S22), not the
   # *.run.app URLs (unreachable directly — internal-load-balancer ingress).
@@ -325,19 +351,24 @@ jobs:
       SMOKE_TENANT_SLUG: ${{ inputs.smoke_tenant_slug }}
       PROD_CURRENT_SHA: ${{ needs.validate-and-summarize.outputs.prod_current_sha }}
     steps:
-      # Retry budget sized to the Cloud Run startup probe's own 180s
-      # budget (failure_threshold=18 * period_seconds=10,
-      # modules/cloudrun-service/main.tf) — same reasoning as
-      # deploy-staging.yml's identical step: min_instance_count=0 means a
+      # Retry budget capped with --retry-max-time at the Cloud Run startup
+      # probe's own 180s budget (failure_threshold=18 * period_seconds=10,
+      # modules/cloudrun-service/main.tf) — min_instance_count=0 means a
       # fresh cold start behind the LB is a real possibility here too.
+      # --retry-max-time (not deploy-staging.yml's plain --retry count,
+      # cross-tool review finding, 2026-07-23): this job runs 4 sequential
+      # checks, not staging's 2 — an uncapped N*(max-time+delay) retry
+      # budget per step (~500s) wouldn't leave room for all of them inside
+      # this job's 15-minute timeout. Capping total retry time at the
+      # probe's actual 180s budget keeps 4 steps comfortably inside it.
       - name: Smoke test bff (through the edge)
         run: |
-          curl -f --retry 20 --retry-delay 10 --retry-connrefused --max-time 15 \
+          curl -f --retry 30 --retry-delay 5 --retry-max-time 180 --retry-connrefused --max-time 15 \
             "https://bff.ikaro.online/v1/health/ready"
 
       - name: Smoke test web (through the edge)
         run: |
-          curl -f --retry 20 --retry-delay 10 --retry-connrefused --max-time 15 \
+          curl -f --retry 30 --retry-delay 5 --retry-max-time 180 --retry-connrefused --max-time 15 \
             "https://ikaro.online/api/health/ready"
 
       # Real public read (Stage 5 of the story spec). Skipped when no
@@ -358,12 +389,16 @@ jobs:
       # into the initial server-rendered HTML (apps/web/shared/lib/runtime-env/
       # PublicEnvScript.tsx, TD29) — a plain curl on the root page is enough
       # to prove the *served* HTML carries the correct prod BFF origin and
-      # none of staging's, without needing a real browser.
+      # none of staging's, without needing a real browser. Regex tolerates
+      # optional whitespace around the JSON colon (CodeRabbit finding,
+      # 2026-07-23) — today's JSON.stringify() output has none, but an
+      # exact-substring match would false-fail and block an otherwise-valid
+      # promote if that serialization ever adds any.
       - name: Smoke test — runtime env vars in served HTML
         run: |
           HTML=$(curl -f --max-time 15 "https://ikaro.online/")
 
-          if ! echo "$HTML" | grep -q '"NEXT_PUBLIC_BFF_URL":"https://bff.ikaro.online"'; then
+          if ! echo "$HTML" | grep -qE '"NEXT_PUBLIC_BFF_URL"[[:space:]]*:[[:space:]]*"https://bff\.ikaro\.online"'; then
             echo "::error::Served HTML does not reference https://bff.ikaro.online in window.__PUBLIC_ENV__ — prod's cloudrun_web runtime env vars may be misconfigured."
             exit 1
           fi
