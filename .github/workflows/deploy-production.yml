@@ -1,0 +1,546 @@
+name: App — Production Promote Pipeline
+
+# workflow_dispatch(image_sha) -> validate -> approve -> migrate -> deploy ->
+# smoke (M17-S26). Manual only, never triggered by a push. Promotes the
+# staging-validated image SHA (built once by deploy-staging.yml, D8's single
+# shared GAR) to prod — backend, bff, AND web, byte-identical to what
+# staging is currently running. No build/scan/push steps exist in this
+# workflow at all: there is nothing left to build, only to redeploy the
+# exact images deploy-staging.yml already scanned and pushed.
+#
+# `image_sha` is optional — leave it blank to promote whatever SHA staging
+# is currently running (resolved in `validate-and-summarize`'s first real
+# step, before anything else runs). Deliberately NOT auto-triggered off
+# every staging deploy the way infra-deploy.yml chains apply-staging into
+# apply-prod: deploy-staging.yml fires on every merge to main (trunk-based,
+# high frequency), so auto-creating a pending production approval on each
+# one would flood the `production` environment with requests nobody intends
+# to act on — and GitHub environment protection has no auto-deny-on-timeout,
+# so those would just accumulate until manually dismissed. Staying
+# workflow_dispatch-only keeps promotion a deliberate, operator-chosen act;
+# the blank-default just removes the "go look up the SHA" busywork from
+# that act, it doesn't change when or how often the workflow runs.
+#
+# One manual approval covers the whole run (D10): `migrate-and-deploy` is
+# the only gated job (`environment: production`, required reviewer set in
+# M17-S23). Authenticates there as the narrow `app-deployer` prod identity,
+# whose WIF binding (M17-S08) only mints inside a job actually running
+# inside the approved `production` environment on `main` — so there is no
+# way to acquire prod deploy credentials without passing the gate.
+#
+# `validate-and-summarize` deliberately runs BEFORE the approval gate and
+# is NOT environment-gated — GitHub does not run a single step of a
+# protected-environment job until after approval, so there would be no way
+# for the gated job's own log to show the reviewer anything before they
+# approve (same problem, same fix as M17-S24's `plan-prod` / `apply-prod`
+# split). This job authenticates read-only as **`tf-planner`** in both
+# projects (`roles/viewer`, WIF bound to `attribute.repository` with no
+# ref/environment restriction — safe to mint pre-approval) purely to read
+# state: confirm staging is running the requested SHA, confirm the images
+# exist in the shared GAR, and read prod's currently-deployed SHA to build
+# the approval material (SHA, `git log` diff, migration-file diff) into the
+# job summary. It mutates nothing.
+#
+# Prod's bff/web Cloud Run services use `INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER`
+# (M17-S22 edge module) — unlike staging, their raw `*.run.app` URLs do not
+# accept direct internet traffic at all, only the Global ALB's serverless
+# NEG does. Smoke therefore always targets the fixed custom domains
+# (`bff.ikaro.online`, `ikaro.online`) directly; there is no per-deploy URL
+# resolution step here the way staging's pipeline needs one.
+#
+# First-promote / bootstrap-image edge case: prod's `cloudrun_backend`
+# currently serves the Terraform bootstrap placeholder
+# (`gcr.io/cloudrun/hello@sha256:...`, `infra/terraform/envs/prod/main.tf`)
+# until the very first real run of this workflow (M17-S37 step 5).
+# `validate-and-summarize` detects this (the running image doesn't match
+# `ikaro-registry/ikaro-backend:<sha>`) and skips the git-log/migration-diff
+# material with an explicit notice instead of failing — there is nothing to
+# diff against yet.
+#
+# Every `${{ }}` value a `run:` step needs is passed through `env:` and read
+# back as a plain shell variable ($FOO), never inlined directly into the
+# script text — same zizmor template-injection discipline as
+# deploy-staging.yml and infra-deploy.yml.
+#
+# Rollback: re-run this workflow with the previous SHA (printed by
+# `validate-and-summarize` into its job summary, and again by `smoke` on
+# failure) for the thorough path, or run the companion
+# `rollback-production.yml` (per-service instant traffic-shift to the
+# previous Cloud Run revision, same WIF auth, no local gcloud needed) if a
+# full re-run isn't fast enough. Migrations follow expand/contract (repo
+# rule), so rolling back code without reverting schema is safe by
+# construction; `migration:revert` is the documented last resort.
+# Full procedure: `docs/RUNBOOKS.md` § Rollback.
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_sha:
+        description: 'Full 40-character git SHA to promote. Leave empty to use whatever SHA staging is currently running.'
+        required: false
+        type: string
+        default: ''
+      smoke_tenant_slug:
+        description: 'Optional: a real tenant slug already seeded in prod, to smoke-test one real public read. Leave empty until the first tenant exists (M17-S37) — the smoke step skips this check when empty rather than failing.'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+env:
+  GAR_HOST: ${{ vars.GAR_HOST }}
+  GCP_REGION: ${{ vars.GCP_REGION }}
+  GCP_PROJECT_STAGING: ${{ vars.GCP_PROJECT_STAGING }}
+  GCP_PROJECT_PROD: ${{ vars.GCP_PROJECT_PROD }}
+  # No IMAGE_SHA / IMAGE_BACKEND / IMAGE_BFF / IMAGE_WEB here (unlike
+  # deploy-staging.yml) — inputs.image_sha can be blank, and resolving it
+  # to a real SHA needs a live gcloud read, which a static workflow-level
+  # env: block can't do. validate-and-summarize resolves it in its first
+  # step and publishes it as a job output; migrate-and-deploy builds these
+  # same image references from that output instead (see its own env:).
+
+jobs:
+  # ---------------------------------------------------------------------
+  # Read-only validation + approval material. Not environment-gated —
+  # see header comment for why this has to run before the approval gate.
+  # ---------------------------------------------------------------------
+
+  validate-and-summarize:
+    name: Validate & summarize
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write # mints the short-lived WIF token for google-github-actions/auth
+    outputs:
+      image_sha: ${{ steps.resolve.outputs.sha }}
+      prod_current_sha: ${{ steps.prod-current.outputs.sha }}
+      backend_digest: ${{ steps.gar-digests.outputs.backend_digest }}
+      bff_digest: ${{ steps.gar-digests.outputs.bff_digest }}
+      web_digest: ${{ steps.gar-digests.outputs.web_digest }}
+    steps:
+      # fetch-depth: 0 — both the ancestor check and the git-log/migration
+      # diff need full history, not just the triggering commit.
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      # Moved ahead of the resolve step below (was originally right before
+      # the staging-currency check) — resolving a blank image_sha needs
+      # this same read-only staging identity.
+      - name: Authenticate as tf-planner (staging)
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER_STAGING }}
+          service_account: ${{ secrets.TF_PLANNER_SA_STAGING }}
+
+      # One read per service, used for both jobs — resolving from just
+      # backend and then re-reading all three in a separate step (an
+      # earlier version of this workflow) double-reads backend for no
+      # reason; reading each service exactly once and using the cached
+      # values for both resolution and verification is strictly cheaper
+      # and just as correct, since resolution IS "backend's value," not a
+      # separate read of it.
+      #
+      # A blank input means "promote whatever staging is running right
+      # now," backend's tag specifically (consistent with prod's own
+      # currently-deployed-SHA read further down, which also uses
+      # backend as the reference service) — then every service's tag is
+      # checked against that resolved value. Stage 1 of the story spec:
+      # "cannot promote a SHA that never reached staging." All three
+      # services, not just backend (cross-tool review finding,
+      # 2026-07-23): checking only backend let a drifted bff/web staging
+      # revision promote as "staging-validated" — D8 promotes all three
+      # as one same-SHA unit, so the check has to prove all three, not
+      # one. Published as this job's `image_sha` output for every
+      # downstream job to use (workflow-level env: can't do this — it's
+      # evaluated before any step runs, so it can't call gcloud).
+      - name: Resolve & verify staging currently runs this SHA (all three services)
+        id: resolve
+        env:
+          RAW_IMAGE_SHA: ${{ inputs.image_sha }}
+        run: |
+          declare -A STAGING_SHAS
+          for SERVICE in backend bff web; do
+            STAGING_IMAGE=$(gcloud run services describe "ikaro-${SERVICE}" \
+              --project="$GCP_PROJECT_STAGING" \
+              --region="$GCP_REGION" \
+              --format='value(spec.template.spec.containers[0].image)')
+            STAGING_SHAS[$SERVICE]="${STAGING_IMAGE##*:}"
+          done
+
+          if [ -z "$RAW_IMAGE_SHA" ]; then
+            RESOLVED_SHA="${STAGING_SHAS[backend]}"
+            echo "::notice::No image_sha provided — resolved to staging's current SHA: ${RESOLVED_SHA}"
+          else
+            RESOLVED_SHA="$RAW_IMAGE_SHA"
+          fi
+
+          for SERVICE in backend bff web; do
+            if [ "${STAGING_SHAS[$SERVICE]}" != "$RESOLVED_SHA" ]; then
+              echo "::error::Staging's ikaro-${SERVICE} is running ${STAGING_SHAS[$SERVICE]}, not ${RESOLVED_SHA} — this SHA never fully reached staging (or staging has since moved on). Refusing to promote."
+              exit 1
+            fi
+          done
+
+          echo "sha=${RESOLVED_SHA}" >> "$GITHUB_OUTPUT"
+          echo "IMAGE_SHA=${RESOLVED_SHA}" >> "$GITHUB_ENV"
+          echo "✅ Staging currently runs ${RESOLVED_SHA} on all three services" >> "$GITHUB_STEP_SUMMARY"
+
+      # Runs on the now-resolved value — catches the case where every
+      # service coincidentally "matches" but none of them is a real
+      # promoted SHA (e.g. staging itself still on the Terraform
+      # bootstrap placeholder, so all three report the same non-SHA
+      # digest and the check above passes for the wrong reason).
+      - name: Validate image_sha format
+        run: |
+          if ! [[ "$IMAGE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Resolved image_sha must be a full 40-character git SHA, got: ${IMAGE_SHA} — if this came from auto-resolution, staging may not be running a real promoted image yet (e.g. still on the bootstrap placeholder)."
+            exit 1
+          fi
+
+      - name: Verify image_sha is an ancestor of main
+        run: |
+          if ! git merge-base --is-ancestor "$IMAGE_SHA" origin/main; then
+            echo "::error::${IMAGE_SHA} is not an ancestor of main — refusing to promote a commit that isn't on the trunk history."
+            exit 1
+          fi
+          echo "✅ ${IMAGE_SHA} is an ancestor of main" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Authenticate as tf-planner (prod)
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER_PROD }}
+          service_account: ${{ secrets.TF_PLANNER_SA_PROD }}
+
+      # Proves "byte-identical to staging's" (AC) by construction — the
+      # same shared-registry tag staging already validated — and records
+      # the exact digest in the job log/summary rather than just asserting
+      # it. Also published as this job's output, because migrate-and-deploy
+      # deploys BY these digests, not by the tag (see its own env: comment
+      # for why: cross-tool review finding, 2026-07-23 — GAR tags aren't
+      # configured immutable here, and staging's app-deployer has
+      # artifactregistry.writer on this shared repo, so a tag could in
+      # principle be repointed during the approval wait between this step
+      # and migrate-and-deploy actually running; pinning to the digest
+      # resolved right here closes that gap).
+      - name: Verify images exist in GAR and record digests
+        id: gar-digests
+        run: |
+          {
+            echo "### Images to promote"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          for SERVICE in backend bff web; do
+            IMAGE="${GAR_HOST}/${GCP_PROJECT_PROD}/ikaro-registry/ikaro-${SERVICE}:${IMAGE_SHA}"
+            DIGEST=$(gcloud artifacts docker images describe "$IMAGE" \
+              --project="$GCP_PROJECT_PROD" \
+              --format='value(image_summary.digest)') || {
+              echo "::error::Image not found in GAR: ${IMAGE} — this SHA was never built/pushed by deploy-staging.yml."
+              exit 1
+            }
+            echo "${SERVICE}_digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+            echo "- \`ikaro-${SERVICE}:${IMAGE_SHA}\` → \`${DIGEST}\`" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      # All three services, not just backend (same reasoning as the
+      # staging check above): a previous run's partial failure —
+      # migrate-and-deploy's own "Rollback guidance" step warns about
+      # exactly this — can leave backend/bff/web on different SHAs. This
+      # step can't fail/exit on that the way the staging check does
+      # (prod being inconsistent is exactly the state re-running this
+      # pipeline needs to be able to fix, so gating on prod-consistency
+      # would deadlock); instead, an inconsistency is treated the same
+      # as the "first real promote" case below — sha comes back empty,
+      # the neat single-SHA diff is skipped, and the summary shows each
+      # service's real state so the approver isn't given a misleadingly
+      # precise diff or rollback target built from only one of them.
+      - name: Read prod's currently-deployed SHA
+        id: prod-current
+        run: |
+          declare -A PROD_SHAS
+          for SERVICE in backend bff web; do
+            PROD_IMAGE=$(gcloud run services describe "ikaro-${SERVICE}" \
+              --project="$GCP_PROJECT_PROD" \
+              --region="$GCP_REGION" \
+              --format='value(spec.template.spec.containers[0].image)')
+
+            # First-ever real promote: prod still serves the Terraform
+            # bootstrap placeholder (gcr.io/cloudrun/hello@sha256:...),
+            # not a real ikaro-<service>:<sha> tag — see header comment.
+            if [[ "$PROD_IMAGE" =~ ikaro-registry/ikaro-${SERVICE}:([0-9a-f]{40})$ ]]; then
+              PROD_SHAS[$SERVICE]="${BASH_REMATCH[1]}"
+            else
+              PROD_SHAS[$SERVICE]="(not a real promoted image: ${PROD_IMAGE})"
+            fi
+          done
+
+          if [ "${PROD_SHAS[backend]}" = "${PROD_SHAS[bff]}" ] && [ "${PROD_SHAS[backend]}" = "${PROD_SHAS[web]}" ] \
+             && [[ "${PROD_SHAS[backend]}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "sha=${PROD_SHAS[backend]}" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=" >> "$GITHUB_OUTPUT"
+            {
+              echo
+              echo "### No single current prod SHA"
+              echo "Prod's three services aren't all on the same real promoted SHA — no reliable single SHA to diff against or roll back to:"
+              echo "- \`ikaro-backend\`: \`${PROD_SHAS[backend]}\`"
+              echo "- \`ikaro-bff\`: \`${PROD_SHAS[bff]}\`"
+              echo "- \`ikaro-web\`: \`${PROD_SHAS[web]}\`"
+              echo
+              echo "If this isn't the first-ever promote, this likely means a previous run partially failed. Review each service individually before approving."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Approval material — commit log + pending migrations
+        if: steps.prod-current.outputs.sha != ''
+        env:
+          PROD_CURRENT_SHA: ${{ steps.prod-current.outputs.sha }}
+        run: |
+          {
+            echo
+            COMMIT_COUNT=$(git rev-list --count "${PROD_CURRENT_SHA}..${IMAGE_SHA}")
+            echo "### Promoting ${PROD_CURRENT_SHA} → ${IMAGE_SHA} (${COMMIT_COUNT} commits)"
+            echo
+            echo '```'
+            # Capped at 50 — an unbounded log can exceed the summary's
+            # usable size after a long gap between promotes (minor
+            # cross-tool review finding, 2026-07-23). The compare link
+            # below covers the full range regardless of the cap.
+            git log --oneline -50 "${PROD_CURRENT_SHA}..${IMAGE_SHA}"
+            echo '```'
+            if [ "$COMMIT_COUNT" -gt 50 ]; then
+              echo
+              echo "_(showing the 50 most recent of ${COMMIT_COUNT} — full range: https://github.com/lmmoreira/ikaro/compare/${PROD_CURRENT_SHA}...${IMAGE_SHA})_"
+            fi
+            echo
+            echo "### Pending migration files"
+            echo
+            MIGRATIONS=$(git diff --name-only "${PROD_CURRENT_SHA}..${IMAGE_SHA}" -- apps/backend/src/shared/infrastructure/migrations)
+            if [ -z "$MIGRATIONS" ]; then
+              echo "_None._"
+            else
+              echo '```'
+              echo "$MIGRATIONS"
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------
+  # The one gated job (D10) — GitHub pauses here for the `production`
+  # environment's required-reviewer approval before running any step
+  # below, including the migrate call. Reviewer's material is the summary
+  # `validate-and-summarize` already posted above.
+  # ---------------------------------------------------------------------
+
+  migrate-and-deploy:
+    name: Migrate & deploy
+    needs: validate-and-summarize
+    if: needs.validate-and-summarize.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: production
+    concurrency:
+      group: production-mutations
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write # mints the short-lived WIF token for google-github-actions/auth
+    env:
+      # Digest-pinned (@sha256:...), not the mutable :<sha> tag (cross-tool
+      # review finding, 2026-07-23): GAR tags aren't configured immutable
+      # here, and staging's app-deployer has artifactregistry.writer on
+      # this shared repo, so a tag could in principle be repointed during
+      # the approval wait between validate-and-summarize resolving it and
+      # this job actually deploying. Digests from that same earlier step
+      # close the gap — Cloud Run then pulls exactly the bytes verified,
+      # not whatever the tag currently happens to resolve to.
+      IMAGE_BACKEND: ${{ vars.GAR_HOST }}/${{ vars.GCP_PROJECT_PROD }}/ikaro-registry/ikaro-backend@${{ needs.validate-and-summarize.outputs.backend_digest }}
+      IMAGE_BFF: ${{ vars.GAR_HOST }}/${{ vars.GCP_PROJECT_PROD }}/ikaro-registry/ikaro-bff@${{ needs.validate-and-summarize.outputs.bff_digest }}
+      IMAGE_WEB: ${{ vars.GAR_HOST }}/${{ vars.GCP_PROJECT_PROD }}/ikaro-registry/ikaro-web@${{ needs.validate-and-summarize.outputs.web_digest }}
+    steps:
+      - name: Authenticate as app-deployer (prod)
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER_PROD }}
+          service_account: ${{ secrets.APP_DEPLOYER_SA_PROD }}
+
+      - name: Run ikaro-migrate
+        run: |
+          gcloud run jobs update ikaro-migrate \
+            --image "$IMAGE_BACKEND" \
+            --region "$GCP_REGION" \
+            --project "$GCP_PROJECT_PROD"
+
+          # max_retries=0 (M17-S20) — a failed migration must fail loudly,
+          # not retry into a half-applied state. --wait propagates the
+          # execution's exit code, so a non-zero migration stops the
+          # pipeline here; nothing downstream deploys against a
+          # half-migrated schema.
+          gcloud run jobs execute ikaro-migrate \
+            --region "$GCP_REGION" \
+            --project "$GCP_PROJECT_PROD" \
+            --wait
+
+      # `gcloud run deploy` blocks until the new revision is Ready and
+      # serving traffic by default (no --async) — a failed rollout fails
+      # this step, no extra "wait for READY" logic needed.
+      - name: Deploy backend
+        run: |
+          gcloud run deploy ikaro-backend \
+            --image "$IMAGE_BACKEND" \
+            --region "$GCP_REGION" \
+            --project "$GCP_PROJECT_PROD"
+
+      - name: Deploy bff
+        run: |
+          gcloud run deploy ikaro-bff \
+            --image "$IMAGE_BFF" \
+            --region "$GCP_REGION" \
+            --project "$GCP_PROJECT_PROD"
+
+      - name: Deploy web
+        run: |
+          gcloud run deploy ikaro-web \
+            --image "$IMAGE_WEB" \
+            --region "$GCP_REGION" \
+            --project "$GCP_PROJECT_PROD"
+
+      # Bounded revision retention — mirrors deploy-staging.yml's identical
+      # step (M17-S25 review finding, 2026-07-22): idle revisions cost
+      # nothing (min_instance_count=0) but Cloud Run caps revisions per
+      # service. Non-fatal per service — a GC hiccup shouldn't fail an
+      # otherwise-successful prod deploy.
+      - name: Clean up old revisions
+        run: |
+          for SVC in ikaro-backend ikaro-bff ikaro-web; do
+            gcloud run revisions list \
+              --service="$SVC" \
+              --region="$GCP_REGION" \
+              --project="$GCP_PROJECT_PROD" \
+              --format='value(metadata.name)' \
+              --sort-by='~metadata.creationTimestamp' \
+            | tail -n +6 \
+            | xargs -r -I{} gcloud run revisions delete {} \
+                --region="$GCP_REGION" \
+                --project="$GCP_PROJECT_PROD" \
+                --quiet \
+            || echo "::warning::Revision cleanup failed for ${SVC} — old revisions may have accumulated; harmless, next deploy retries"
+          done
+
+      # CodeRabbit finding, 2026-07-23: smoke's own rollback-guidance step
+      # only runs inside the smoke job — if this job fails (migration
+      # error, or e.g. "Deploy web" failing after "Deploy backend" already
+      # succeeded), smoke is skipped entirely (needs: migrate-and-deploy
+      # defaults to requiring success), so that guidance never fires. A
+      # failure here is also the more dangerous case: it can mean a real
+      # partial deployment across the three services, not just a
+      # post-deploy health-check failure.
+      - name: Rollback guidance (on failure)
+        if: failure()
+        env:
+          PROD_CURRENT_SHA: ${{ needs.validate-and-summarize.outputs.prod_current_sha }}
+        run: |
+          echo "::error::migrate-and-deploy failed — check which step failed above: a migration failure means nothing was deployed (safe), but a deploy-step failure after an earlier one succeeded means backend/bff/web may now be on DIFFERENT SHAs. Verify each service's current image with 'gcloud run services describe ikaro-<service> --project=${GCP_PROJECT_PROD} --region=${GCP_REGION} --format=value(spec.template.spec.containers[0].image)' before deciding next steps."
+          if [ -z "$PROD_CURRENT_SHA" ]; then
+            echo "::error::No single previous SHA to roll back to — either this was the first-ever real promote, or prod's three services were already inconsistent before this run started (check validate-and-summarize's job summary for which one). Either way, verify each service's actual current image individually before deciding next steps; don't assume a clean rollback target exists."
+          else
+            echo "::error::Rollback: re-run this workflow with image_sha=${PROD_CURRENT_SHA} to bring every service back to the same known-good SHA, or run rollback-production.yml per service for an instant traffic-shift fallback. Full procedure: docs/RUNBOOKS.md § Rollback."
+          fi
+
+  # ---------------------------------------------------------------------
+  # Smoke — through the fixed custom domains (edge module, S22), not the
+  # *.run.app URLs (unreachable directly — internal-load-balancer ingress).
+  # ---------------------------------------------------------------------
+
+  smoke:
+    name: Smoke test
+    needs: [validate-and-summarize, migrate-and-deploy]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SMOKE_TENANT_SLUG: ${{ inputs.smoke_tenant_slug }}
+      PROD_CURRENT_SHA: ${{ needs.validate-and-summarize.outputs.prod_current_sha }}
+    steps:
+      # Retry budget capped with --retry-max-time at the Cloud Run startup
+      # probe's own 180s budget (failure_threshold=18 * period_seconds=10,
+      # modules/cloudrun-service/main.tf) — min_instance_count=0 means a
+      # fresh cold start behind the LB is a real possibility here too.
+      # --retry-max-time (not deploy-staging.yml's plain --retry count,
+      # cross-tool review finding, 2026-07-23): this job runs 4 sequential
+      # checks, not staging's 2 — an uncapped N*(max-time+delay) retry
+      # budget per step (~500s) wouldn't leave room for all of them inside
+      # this job's 15-minute timeout. Capping total retry time at the
+      # probe's actual 180s budget keeps 4 steps comfortably inside it.
+      - name: Smoke test bff (through the edge)
+        run: |
+          curl -f --retry 30 --retry-delay 5 --retry-max-time 180 --retry-connrefused --max-time 15 \
+            "https://bff.ikaro.online/v1/health/ready"
+
+      - name: Smoke test web (through the edge)
+        run: |
+          curl -f --retry 30 --retry-delay 5 --retry-max-time 180 --retry-connrefused --max-time 15 \
+            "https://ikaro.online/api/health/ready"
+
+      # Real public read (Stage 5 of the story spec). Skipped when no
+      # tenant has been seeded in prod yet (M17-S37 creates the first one)
+      # — there is nothing real to read against before that. Format
+      # validated against this repo's own Slug VO pattern
+      # (apps/backend/src/shared/value-objects/slug.vo.ts) before it goes
+      # into a URL path — this input is workflow_dispatch-triggered
+      # (requires repo write access already) and it's a read-only GET, so
+      # exploitability is low regardless, but there's no reason to let an
+      # unvalidated value reach a URL path at all (security review finding,
+      # 2026-07-23).
+      - name: Smoke test — real public read
+        if: env.SMOKE_TENANT_SLUG != ''
+        run: |
+          if ! [[ "$SMOKE_TENANT_SLUG" =~ ^[a-z0-9-]+$ ]]; then
+            echo "::error::smoke_tenant_slug must match ^[a-z0-9-]+$ (this repo's Slug VO pattern), got: ${SMOKE_TENANT_SLUG}"
+            exit 1
+          fi
+
+          curl -f --max-time 15 \
+            "https://bff.ikaro.online/v1/public/platform/manifest/${SMOKE_TENANT_SLUG}" \
+            > /dev/null
+
+      - name: Smoke test — real public read (skipped)
+        if: env.SMOKE_TENANT_SLUG == ''
+        run: echo "::notice::smoke_tenant_slug not provided — skipping the real public-read check. Provide a seeded prod tenant slug once one exists (M17-S37)."
+
+      # Runtime-env smoke (AC): the root layout injects window.__PUBLIC_ENV__
+      # into the initial server-rendered HTML (apps/web/shared/lib/runtime-env/
+      # PublicEnvScript.tsx, TD29) — a plain curl on the root page is enough
+      # to prove the *served* HTML carries the correct prod BFF origin and
+      # none of staging's, without needing a real browser. Regex tolerates
+      # optional whitespace around the JSON colon (CodeRabbit finding,
+      # 2026-07-23) — today's JSON.stringify() output has none, but an
+      # exact-substring match would false-fail and block an otherwise-valid
+      # promote if that serialization ever adds any.
+      - name: Smoke test — runtime env vars in served HTML
+        run: |
+          HTML=$(curl -f --max-time 15 "https://ikaro.online/")
+
+          if ! echo "$HTML" | grep -qE '"NEXT_PUBLIC_BFF_URL"[[:space:]]*:[[:space:]]*"https://bff\.ikaro\.online"'; then
+            echo "::error::Served HTML does not reference https://bff.ikaro.online in window.__PUBLIC_ENV__ — prod's cloudrun_web runtime env vars may be misconfigured."
+            exit 1
+          fi
+
+          if echo "$HTML" | grep -q 'run\.app'; then
+            echo "::error::Served HTML references a run.app origin — a staging/bootstrap value leaked into prod's runtime env."
+            exit 1
+          fi
+
+      - name: Rollback guidance (on failure)
+        if: failure()
+        run: |
+          if [ -z "$PROD_CURRENT_SHA" ]; then
+            echo "::error::Smoke failed with no single previous SHA to roll back to — either this was the first-ever real promote (fix forward, or manually redeploy the bootstrap placeholder), or prod's three services were already inconsistent before this run started (check validate-and-summarize's job summary for which one, and verify each service's actual current image before deciding next steps)."
+          else
+            echo "::error::Smoke failed. Rollback: re-run this workflow with image_sha=${PROD_CURRENT_SHA}, or run rollback-production.yml per service for an instant traffic-shift fallback. Full procedure: docs/RUNBOOKS.md § Rollback."
+          fi

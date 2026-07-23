@@ -26,3 +26,10 @@ infra/terraform/pubsub-catalog.json
 
 # Worktrees (git-ignored; exclude from prettier check)
 .claude/worktrees/
+
+# Vendored skills — upstream content (each has its own VENDORED_FROM.md),
+# not authored in this repo. *.md above already covered every vendored
+# skill until skill-creator added non-.md assets (HTML eval-review tooling)
+# — reformatting those on pull makes every future re-vendor diff noisy
+# against upstream for no benefit, same reasoning as *.md above.
+.claude/skills/
