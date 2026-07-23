@@ -276,7 +276,10 @@ def generate_html(
     if benchmark:
         embedded["benchmark"] = benchmark
 
-    data_json = json.dumps(embedded)
+    # Escape "</" so embedded content (e.g. an eval output that itself discusses a
+    # "</script>" tag) can't prematurely close this <script> element in the HTML
+    # parser — valid JSON allows \/ as an escape for /, so this is a no-op for parsing.
+    data_json = json.dumps(embedded).replace("</", "<\\/")
 
     return template.replace("/*__EMBEDDED_DATA__*/", f"const EMBEDDED_DATA = {data_json};")
 

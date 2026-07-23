@@ -35,8 +35,11 @@ ts_use_cases=$(echo "$ts_prod" | grep -E '\.use-case\.ts$' || true)
 
 web_tsx_prod=$(echo "$ts_prod" | grep '^apps/web/' | grep -E '\.tsx$' || true)
 web_tsx_all=$(echo "$ts_all" | grep '^apps/web/' | grep -E '\.tsx$' || true)
-web_spec_tsx_added=$(echo "$added" | grep '^apps/web/components/' | grep -E '\.spec\.tsx$' || true)
-web_dashboard_tsx=$(echo "$ts_prod" | grep -E '^apps/web/components/(dashboard|account)/' | grep -E '\.tsx$' || true)
+# Domain-slice component locations (post-TD-21 migration) — there is no flat apps/web/components/.
+web_component_re='^apps/web/(features/[^/]+/components/|shells/[^/]+/components/|shared/components/)'
+web_spec_tsx_added=$(echo "$added" | grep -E "$web_component_re" | grep -E '\.spec\.tsx$' || true)
+# Dashboard shell chrome + dashboard-scoped feature components + CustomerShell/account components.
+web_dashboard_tsx=$(echo "$ts_prod" | grep -E '^apps/web/(shells/dashboard/components/|features/[^/]+/components/dashboard/|features/customer/components/)' | grep -E '\.tsx$' || true)
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -192,8 +195,8 @@ while IFS= read -r f; do
   [ -z "$f" ] && continue
   spec="${f%.tsx}.spec.tsx"
   [ ! -f "$spec" ] && printf "%s — missing %s\n" "$f" "$spec" >> "$TMP"
-done <<< "$(echo "$added" | grep '^apps/web/components/' | grep -E '\.tsx$' | grep -v '\.spec\.tsx$' || true)"
-run_check "23. All new apps/web/components .tsx files have a .spec.tsx"
+done <<< "$(echo "$added" | grep -E "$web_component_re" | grep -E '\.tsx$' | grep -v '\.spec\.tsx$' || true)"
+run_check "23. All new component files (features/*/components, shells/*/components, shared/components) have a .spec.tsx"
 
 # WEB-5. No unit spec files sibling to page.tsx / layout.tsx (E2E only)
 > "$TMP"
