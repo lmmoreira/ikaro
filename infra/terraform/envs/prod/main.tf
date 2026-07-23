@@ -424,6 +424,7 @@ module "migrate_job" {
 
   env_vars = {
     NODE_ENV = "production"
+    APP_ENV  = "production"
 
     DB_HOST          = try(module.database[0].private_ip, "")
     DB_MIGRATOR_USER = var.db_migrator_user

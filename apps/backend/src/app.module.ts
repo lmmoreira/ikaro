@@ -42,6 +42,14 @@ import { OIDC_TOKEN_VERIFIER } from './shared/ports/oidc-token-verifier.port';
         password: config.get<string>('DB_PASSWORD'),
         database: config.get<string>('DB_NAME'),
         poolSize: config.get<number>('DB_POOL_SIZE', 10),
+        // Cloud SQL enforces ssl_mode=ENCRYPTED_ONLY (not the stricter mTLS
+        // mode -- modules/database's own Checkov-skip comment documents that
+        // choice), so rejectUnauthorized: false matches the declared posture
+        // rather than relaxing it. Local/CI Postgres has no SSL at all.
+        ssl:
+          config.get<string>('APP_ENV', 'local') !== 'local'
+            ? { rejectUnauthorized: false }
+            : undefined,
         synchronize: false,
         migrationsRun: false,
         entities: [
