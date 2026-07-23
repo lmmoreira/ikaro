@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 import { AppLogger } from './shared/observability/app-logger';
 
+// M17-S25 staging deploy pipeline validation marker — safe to remove anytime.
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   const logger = new AppLogger('Bootstrap');
