@@ -129,6 +129,25 @@ jobs:
                 exit 1
               fi
               REVISION=$(echo "$REVISIONS" | tail -n 1)
+
+              # "Second-most-recently-created" only equals "what was
+              # serving before now" when creation order matches traffic
+              # history — true for a normal deploy, but NOT after a prior
+              # traffic split or an earlier rollback (cross-tool review
+              # finding, 2026-07-23): running this a second time could
+              # silently auto-select whatever's already serving 100%,
+              # making the "rollback" a no-op instead of failing loudly.
+              # Reject that case explicitly rather than trust creation
+              # order alone.
+              CURRENT_SERVING=$(gcloud run services describe "$SVC" \
+                --project="$GCP_PROJECT_PROD" \
+                --region="$GCP_REGION" \
+                --format='value(status.traffic[0].revisionName)')
+
+              if [ "$REVISION" = "$CURRENT_SERVING" ]; then
+                echo "::error::Auto-selected revision for ${SVC} (${REVISION}) is already serving 100% traffic — creation order doesn't match traffic history here (likely a prior rollback or manual traffic split). Specify an exact 'revision' input instead."
+                exit 1
+              fi
               echo "::notice::No revision provided for ${SVC} — using second-most-recent: ${REVISION}"
             fi
 

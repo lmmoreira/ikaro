@@ -117,6 +117,9 @@ jobs:
     outputs:
       image_sha: ${{ steps.resolve.outputs.sha }}
       prod_current_sha: ${{ steps.prod-current.outputs.sha }}
+      backend_digest: ${{ steps.gar-digests.outputs.backend_digest }}
+      bff_digest: ${{ steps.gar-digests.outputs.bff_digest }}
+      web_digest: ${{ steps.gar-digests.outputs.web_digest }}
     steps:
       # fetch-depth: 0 — both the ancestor check and the git-log/migration
       # diff need full history, not just the triggering commit.
@@ -216,8 +219,17 @@ jobs:
 
       # Proves "byte-identical to staging's" (AC) by construction — the
       # same shared-registry tag staging already validated — and records
-      # the exact digest in the job log/summary rather than just asserting it.
+      # the exact digest in the job log/summary rather than just asserting
+      # it. Also published as this job's output, because migrate-and-deploy
+      # deploys BY these digests, not by the tag (see its own env: comment
+      # for why: cross-tool review finding, 2026-07-23 — GAR tags aren't
+      # configured immutable here, and staging's app-deployer has
+      # artifactregistry.writer on this shared repo, so a tag could in
+      # principle be repointed during the approval wait between this step
+      # and migrate-and-deploy actually running; pinning to the digest
+      # resolved right here closes that gap).
       - name: Verify images exist in GAR and record digests
+        id: gar-digests
         run: |
           {
             echo "### Images to promote"
@@ -232,6 +244,7 @@ jobs:
               echo "::error::Image not found in GAR: ${IMAGE} — this SHA was never built/pushed by deploy-staging.yml."
               exit 1
             }
+            echo "${SERVICE}_digest=${DIGEST}" >> "$GITHUB_OUTPUT"
             echo "- \`ikaro-${SERVICE}:${IMAGE_SHA}\` → \`${DIGEST}\`" >> "$GITHUB_STEP_SUMMARY"
           done
 
@@ -291,11 +304,20 @@ jobs:
         run: |
           {
             echo
-            echo "### Promoting ${PROD_CURRENT_SHA} → ${IMAGE_SHA}"
+            COMMIT_COUNT=$(git rev-list --count "${PROD_CURRENT_SHA}..${IMAGE_SHA}")
+            echo "### Promoting ${PROD_CURRENT_SHA} → ${IMAGE_SHA} (${COMMIT_COUNT} commits)"
             echo
             echo '```'
-            git log --oneline "${PROD_CURRENT_SHA}..${IMAGE_SHA}"
+            # Capped at 50 — an unbounded log can exceed the summary's
+            # usable size after a long gap between promotes (minor
+            # cross-tool review finding, 2026-07-23). The compare link
+            # below covers the full range regardless of the cap.
+            git log --oneline -50 "${PROD_CURRENT_SHA}..${IMAGE_SHA}"
             echo '```'
+            if [ "$COMMIT_COUNT" -gt 50 ]; then
+              echo
+              echo "_(showing the 50 most recent of ${COMMIT_COUNT} — full range: https://github.com/lmmoreira/ikaro/compare/${PROD_CURRENT_SHA}...${IMAGE_SHA})_"
+            fi
             echo
             echo "### Pending migration files"
             echo
@@ -330,12 +352,17 @@ jobs:
       contents: read
       id-token: write # mints the short-lived WIF token for google-github-actions/auth
     env:
-      # Built from validate-and-summarize's resolved output, not
-      # inputs.image_sha directly — the raw input can be blank (see
-      # workflow-level env: comment above).
-      IMAGE_BACKEND: ${{ vars.GAR_HOST }}/${{ vars.GCP_PROJECT_PROD }}/ikaro-registry/ikaro-backend:${{ needs.validate-and-summarize.outputs.image_sha }}
-      IMAGE_BFF: ${{ vars.GAR_HOST }}/${{ vars.GCP_PROJECT_PROD }}/ikaro-registry/ikaro-bff:${{ needs.validate-and-summarize.outputs.image_sha }}
-      IMAGE_WEB: ${{ vars.GAR_HOST }}/${{ vars.GCP_PROJECT_PROD }}/ikaro-registry/ikaro-web:${{ needs.validate-and-summarize.outputs.image_sha }}
+      # Digest-pinned (@sha256:...), not the mutable :<sha> tag (cross-tool
+      # review finding, 2026-07-23): GAR tags aren't configured immutable
+      # here, and staging's app-deployer has artifactregistry.writer on
+      # this shared repo, so a tag could in principle be repointed during
+      # the approval wait between validate-and-summarize resolving it and
+      # this job actually deploying. Digests from that same earlier step
+      # close the gap — Cloud Run then pulls exactly the bytes verified,
+      # not whatever the tag currently happens to resolve to.
+      IMAGE_BACKEND: ${{ vars.GAR_HOST }}/${{ vars.GCP_PROJECT_PROD }}/ikaro-registry/ikaro-backend@${{ needs.validate-and-summarize.outputs.backend_digest }}
+      IMAGE_BFF: ${{ vars.GAR_HOST }}/${{ vars.GCP_PROJECT_PROD }}/ikaro-registry/ikaro-bff@${{ needs.validate-and-summarize.outputs.bff_digest }}
+      IMAGE_WEB: ${{ vars.GAR_HOST }}/${{ vars.GCP_PROJECT_PROD }}/ikaro-registry/ikaro-web@${{ needs.validate-and-summarize.outputs.web_digest }}
     steps:
       - name: Authenticate as app-deployer (prod)
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3

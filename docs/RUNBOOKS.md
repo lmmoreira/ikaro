@@ -29,6 +29,8 @@ gcloud run revisions list \
 
 Re-run `deploy-production.yml` (`workflow_dispatch`) with `image_sha` set to the previous SHA (or leave it blank once staging itself has already been rolled back/fixed forward, since a blank input resolves to whatever staging is currently running). The pipeline's own `validate-and-summarize` job prints the previous prod SHA into its job summary on every run (`prod_current_sha`); the `smoke` job also prints it in its rollback-guidance step if a run fails. This is "fix forward" in spirit — full migrate + redeploy + smoke, all three services brought back to the exact same known-good SHA together, through the same approval gate and safety checks as any other promote. Slower than the traffic-shift above, but the one that guarantees cross-service consistency.
 
+**If this fails with "Image not found in GAR":** the registry keeps the 30 most recent versions per image (`infra/terraform/modules/registry/main.tf`), so a long gap since the last promote combined with heavy staging activity can in principle evict the SHA you need. Fall back to the traffic-shift path above instead — it works off already-deployed Cloud Run revisions, not the registry, so it's unaffected by this.
+
 ### Migrations
 
 Migrations follow expand/contract (repo rule): the previous code version already tolerates the new (additive) schema shape, so rolling back code without reverting schema is safe by construction — no schema action needed for a typical rollback. `migration:revert` is the documented last resort, and only when a migration itself is the root cause of the incident — never a first step.

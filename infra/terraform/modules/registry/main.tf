@@ -42,19 +42,34 @@ resource "google_artifact_registry_repository" "ikaro" {
   }
 
   # Per image (backend/bff/web/otel-collector are separate packages within
-  # this one repo), always keep the 5 most recent versions regardless of
-  # age — the production digest plus a handful of rollback candidates.
+  # this one repo), always keep the most recent versions regardless of
+  # age — the production digest plus rollback candidates.
   # most_recent_versions has no tag_state filter (provider/API limitation),
   # so this floor counts ANY version, tagged or untagged; a very recent
   # untagged version can therefore outlive the 7-day untagged rule above
-  # until it ages out of this top-5-by-recency window — accepted, bounded
+  # until it ages out of this top-N-by-recency window — accepted, bounded
   # edge case, not indefinite retention.
+  #
+  # keep_count = 30, not 5 (cross-tool review finding, 2026-07-23): staging
+  # pushes a new tagged version on every merge touching apps/**,
+  # packages/**, or the lockfile (deploy-staging.yml's trigger — broad,
+  # frequent for a trunk-based repo), independent of how often prod is
+  # actually promoted. At keep_count=5, as few as 5 staging merges after a
+  # promote could evict the exact image M17-S26's "thorough" rollback path
+  # (re-run deploy-production.yml with the previous SHA) needs — the
+  # workflow's own GAR-existence check would then fail with "image not
+  # found." 30 gives real headroom for that gap without meaningful cost
+  # (small container images, GAR storage is fractions of a cent per
+  # version). Not a hard guarantee — docs/RUNBOOKS.md's rollback section
+  # documents falling back to rollback-production.yml's traffic-shift path
+  # if this is ever exhausted, since that path works off already-deployed
+  # Cloud Run revisions and doesn't depend on registry retention at all.
   cleanup_policies {
     id     = "keep-recent-versions"
     action = "KEEP"
 
     most_recent_versions {
-      keep_count = 5
+      keep_count = 30
     }
   }
 }
