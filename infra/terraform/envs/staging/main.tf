@@ -138,7 +138,7 @@ module "cloudrun_backend" {
 
   service_name          = "ikaro-backend"
   image                 = local.bootstrap_image
-  bootstrap_mode        = var.bootstrap_mode
+  bootstrap_mode        = false
   port                  = 3001
   service_account_email = module.iam.backend_sa_email
   execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
@@ -232,7 +232,7 @@ module "cloudrun_bff" {
 
   service_name          = "ikaro-bff"
   image                 = local.bootstrap_image
-  bootstrap_mode        = var.bootstrap_mode
+  bootstrap_mode        = false
   port                  = 3002
   service_account_email = module.iam.bff_sa_email
   max_instance_count    = var.bff_max_instances
@@ -293,7 +293,7 @@ module "cloudrun_web" {
 
   service_name          = "ikaro-web"
   image                 = local.bootstrap_image
-  bootstrap_mode        = var.bootstrap_mode
+  bootstrap_mode        = false
   port                  = 3000
   service_account_email = module.iam.web_sa_email
   # memory left at the module default (512Mi) -- GCP rejects <512Mi with
@@ -353,7 +353,7 @@ module "migrate_job" {
   labels      = var.labels
 
   image                 = local.bootstrap_image
-  bootstrap_mode        = var.bootstrap_mode
+  bootstrap_mode        = false
   service_account_email = module.iam.migrate_sa_email
 
   network_id = module.network.network_id
