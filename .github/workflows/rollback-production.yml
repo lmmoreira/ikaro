@@ -1,0 +1,141 @@
+name: App — Production Emergency Rollback
+
+# workflow_dispatch only. Instant traffic-split rollback to a previous
+# Cloud Run revision — companion to deploy-production.yml's "re-run with
+# the previous SHA" rollback path (M17-S26). That path is thorough (fresh
+# migrate + redeploy + smoke, full pipeline time); this one is the "prod
+# is down right now" emergency lever — Cloud Run already keeps prior
+# revisions around (deploy-production.yml's own cleanup step retains the
+# 5 most recent per service), so shifting traffic back is just a pointer
+# change, typically seconds.
+#
+# Deliberately scoped to traffic only — no migration involvement. Rolling
+# back application code is safe without touching the schema because every
+# migration in this repo is required to be expand/contract (backward-
+# compatible) — see docs/RUNBOOKS.md § Rollback. `migration:revert` stays
+# a manual, deliberately-reviewed last resort (it can lose data written
+# after the migration ran), never something a rollback button runs on
+# someone's behalf.
+#
+# Per-service, not a guaranteed cross-service consistent state: rolling
+# back backend and bff independently to "each one's own previous
+# revision" does not guarantee they land on the same original SHA
+# pairing — if cross-service consistency matters, use
+# deploy-production.yml's re-run-with-image_sha path instead, which
+# redeploys all three from one known SHA together. This workflow is the
+# fast, single-or-all-service emergency lever, not the
+# bring-everything-back-in-sync one (the `all-three` option warns about
+# this at runtime too, see below).
+#
+# Same WIF-based auth as every other prod mutation in this repo (S08) —
+# the operator never needs local gcloud install/auth to use this. Still
+# gated by the `production` environment (M17-S23): app-deployer's WIF
+# trust binding in prod only mints inside that approved environment, so
+# there's no way to skip the gate even for an emergency tool — the speed
+# win here is "no local gcloud setup," not "no approval click." Reuses
+# the exact same app-deployer identity and roles/run.developer permission
+# deploy-production.yml's migrate-and-deploy already has — traffic
+# management is part of that same role, so no new IAM.
+#
+# Every ${{ }} value a run: step needs is passed through env: and read
+# back as a plain shell variable ($FOO), never inlined directly into the
+# script text — same zizmor template-injection discipline as
+# deploy-production.yml and deploy-staging.yml.
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Which service to roll back'
+        required: true
+        type: choice
+        options:
+          - ikaro-backend
+          - ikaro-bff
+          - ikaro-web
+          - all-three
+      revision:
+        description: 'Exact revision name to roll back to (e.g. ikaro-backend-00042-abc). Leave empty to use the second-most-recent revision (the one serving right before the current one). Only valid for a single service — leave empty when rolling back all-three.'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+env:
+  GCP_REGION: ${{ vars.GCP_REGION }}
+  GCP_PROJECT_PROD: ${{ vars.GCP_PROJECT_PROD }}
+
+jobs:
+  rollback:
+    name: Roll back traffic
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: production
+    concurrency:
+      group: production-mutations
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write # mints the short-lived WIF token for google-github-actions/auth
+    steps:
+      - name: Authenticate as app-deployer (prod)
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER_PROD }}
+          service_account: ${{ secrets.APP_DEPLOYER_SA_PROD }}
+
+      - name: Roll back traffic
+        env:
+          SERVICE_INPUT: ${{ inputs.service }}
+          REVISION_INPUT: ${{ inputs.revision }}
+        run: |
+          if [ "$SERVICE_INPUT" = "all-three" ]; then
+            SERVICES="ikaro-backend ikaro-bff ikaro-web"
+            if [ -n "$REVISION_INPUT" ]; then
+              echo "::error::An explicit revision only makes sense for a single service — leave it empty when rolling back all-three (each service resolves its own previous revision independently)."
+              exit 1
+            fi
+            echo "::warning::Rolling back all three services independently to each one's own previous revision — this does NOT guarantee they land on the same original SHA. If cross-service consistency matters, use deploy-production.yml's re-run-with-image_sha path instead."
+          else
+            SERVICES="$SERVICE_INPUT"
+          fi
+
+          for SVC in $SERVICES; do
+            if [ -n "$REVISION_INPUT" ]; then
+              REVISION="$REVISION_INPUT"
+            else
+              # value() format prints one bare name per line, no header.
+              # Must explicitly count results before trusting `tail -n 1`
+              # here — with fewer than 2 revisions total (e.g. the
+              # first-ever real deploy), --limit=2 only returns 1 line,
+              # and `tail -n 1` on a single line returns that SAME
+              # (current) revision rather than nothing — silently
+              # "rolling back" to what's already serving instead of
+              # failing (caught testing this locally before relying on
+              # it against real prod state).
+              REVISIONS=$(gcloud run revisions list \
+                --service="$SVC" \
+                --region="$GCP_REGION" \
+                --project="$GCP_PROJECT_PROD" \
+                --format='value(metadata.name)' \
+                --sort-by='~metadata.creationTimestamp' \
+                --limit=2)
+              REVISION_COUNT=$(echo "$REVISIONS" | grep -c .)
+
+              if [ "$REVISION_COUNT" -lt 2 ]; then
+                echo "::error::No previous revision found for ${SVC} — only ${REVISION_COUNT} revision(s) exist, nothing to roll back to."
+                exit 1
+              fi
+              REVISION=$(echo "$REVISIONS" | tail -n 1)
+              echo "::notice::No revision provided for ${SVC} — using second-most-recent: ${REVISION}"
+            fi
+
+            gcloud run services update-traffic "$SVC" \
+              --to-revisions="${REVISION}=100" \
+              --project="$GCP_PROJECT_PROD" \
+              --region="$GCP_REGION"
+
+            echo "✅ ${SVC} now serving 100% traffic from \`${REVISION}\`" >> "$GITHUB_STEP_SUMMARY"
+          done
