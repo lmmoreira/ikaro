@@ -314,7 +314,18 @@ module "cloudrun_web" {
     # Runtime env vars (TD29) — read at request time by
     # apps/web/shared/lib/runtime-env/public-env.ts, not baked into the
     # image at build time.
-    NEXT_PUBLIC_BFF_URL                = var.bff_real_uri
+    #
+    # NEXT_PUBLIC_BFF_URL must include the /v1 prefix (M17-S27 discovery,
+    # 2026-07-23): web's bffServerFetch/bffPublicFetch/isBffReady all call
+    # BFF paths with no /v1 of their own (e.g. '/customers/tenants',
+    # '/health/ready') -- matching apps/web/.env.example's own
+    # NEXT_PUBLIC_BFF_URL=http://localhost:3002/v1 convention, where the
+    # prefix lives in the base URL value itself, not each call site. Without
+    # it here, every web->BFF call 404s (BFF sets a global 'v1' prefix on
+    # all routes, apps/bff/src/main.ts) -- first caught when this story's
+    # first real deploy made web's own /api/health/ready (which checks BFF
+    # reachability) fail its startup probe.
+    NEXT_PUBLIC_BFF_URL                = "${var.bff_real_uri}/v1"
     NEXT_PUBLIC_SITE_URL               = var.web_real_uri
     NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL = module.storage.public_base_url
   }
