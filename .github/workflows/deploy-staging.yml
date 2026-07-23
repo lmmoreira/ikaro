@@ -103,6 +103,15 @@ on:
       - 'packages/**'
       - 'pnpm-lock.yaml'
       - '.github/workflows/deploy-staging.yml'
+  # Manual redeploy of main's current tip with no code change needed (M17-S27,
+  # 2026-07-23 discovery): a path-filtered push trigger has no equivalent to
+  # deploy-production.yml's workflow_dispatch, and an empty commit doesn't
+  # help either -- GitHub's paths: filter matches on changed files, so a
+  # truly empty commit changes none and never triggers this workflow at all.
+  # `gh run rerun` on a past run doesn't substitute for this: it's pinned to
+  # that run's original triggering commit, so once main moves past it,
+  # check-current's staleness guard blocks the rerun forever, not just once.
+  workflow_dispatch: {}
 
 permissions:
   contents: read
