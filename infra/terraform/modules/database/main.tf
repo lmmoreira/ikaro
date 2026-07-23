@@ -118,10 +118,25 @@ resource "google_sql_database" "ikaro" {
   instance = google_sql_database_instance.main.name
 }
 
+# The instance reporting ready doesn't mean the internal `cloudsqliamuser`
+# Postgres role (auto-created when cloudsql.iam_authentication is enabled)
+# has propagated yet -- a real staging apply (M17-S27, 2026-07-23) hit
+# "role \"cloudsqliamuser\" does not exist" immediately after instance
+# creation completed. Same pattern as envs/*/main.tf's iam_propagation
+# sleep: bridge the gap between the GCP API call succeeding and the
+# underlying resource actually being usable. Create-only -- a no-op on
+# every apply after the instance already exists.
+resource "time_sleep" "cloudsql_iam_role_propagation" {
+  depends_on      = [google_sql_database_instance.main]
+  create_duration = "60s"
+}
+
 # Passwordless human access: the admin identity as an IAM DB user, plus the
 # project roles needed to open the proxy tunnel (client) and log in
 # (instanceUser). No password exists for this user anywhere.
 resource "google_sql_user" "iam_admin" {
+  depends_on = [time_sleep.cloudsql_iam_role_propagation]
+
   name     = var.iam_admin_user
   project  = var.project_id
   instance = google_sql_database_instance.main.name
