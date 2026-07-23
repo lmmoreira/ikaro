@@ -173,6 +173,7 @@ module "cloudrun_backend" {
       NODE_ENV    = "production"
       APP_ENV     = "staging"
       GCP_PROJECT = var.project_id
+      LOG_LEVEL   = "DEBUG"
 
       # DB_NAME derives from modules/database's own output (single source of
       # truth for the google_sql_database.ikaro name) rather than a second
@@ -253,6 +254,7 @@ module "cloudrun_bff" {
     NODE_ENV    = "production"
     APP_ENV     = "staging"
     GCP_PROJECT = var.project_id
+    LOG_LEVEL   = "DEBUG"
 
     BACKEND_INTERNAL_URL = module.cloudrun_backend.service_uri
     # var.bff_real_uri starts as a placeholder -- see its description for the

@@ -35,9 +35,9 @@ db_migrator_user = "ikaro_migrator"
 cors_origins = ["https://ikaro-web-crle4i3nrq-rj.a.run.app"]
 
 # S18 launch state — placeholder image (gcr.io/cloudrun/hello) with relaxed
-# probes and no secret mounting; flip to false at the S27 activation once a
-# real pipeline image exists.
-bootstrap_mode = true
+# probes and no secret mounting; flipped to false at the S27 activation
+# (2026-07-23) now that a real pipeline image + populated secrets exist.
+bootstrap_mode = false
 
 # Connection-math invariant (backend) and Direct VPC subnet-capacity
 # reasoning (bff) — see the variable descriptions in variables.tf. Raise
