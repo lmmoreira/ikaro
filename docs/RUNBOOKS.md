@@ -34,3 +34,15 @@ Re-run `deploy-production.yml` (`workflow_dispatch`) with `image_sha` set to the
 ### Migrations
 
 Migrations follow expand/contract (repo rule): the previous code version already tolerates the new (additive) schema shape, so rolling back code without reverting schema is safe by construction — no schema action needed for a typical rollback. `migration:revert` is the documented last resort, and only when a migration itself is the root cause of the incident — never a first step.
+
+---
+
+## Staging
+
+### Dev Login data rule (compensating control)
+
+`ENABLE_DEV_AUTH=true` is enabled on staging's public `*.run.app` URL (`APP_ENV=staging` is what makes it legal — M17-S06; the BFF refuses to start with it under `APP_ENV=production`). Since staging has no edge/Cloudflare/LB in front of it (D5), this is a real authentication bypass for anyone who discovers the URL — accepted **only** under one rule:
+
+**Staging holds synthetic/test data exclusively. Never real customer data, never a copy of prod.**
+
+No exceptions. If a test ever needs staging data to more closely resemble production, populate it with fabricated data matching that shape — never restore or copy a real customer/tenant dataset into staging.

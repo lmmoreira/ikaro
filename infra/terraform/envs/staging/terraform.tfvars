@@ -34,11 +34,6 @@ db_migrator_user = "ikaro_migrator"
 # staging web origin.
 cors_origins = ["https://ikaro-web-crle4i3nrq-rj.a.run.app"]
 
-# S18 launch state — placeholder image (gcr.io/cloudrun/hello) with relaxed
-# probes and no secret mounting; flip to false at the S27 activation once a
-# real pipeline image exists.
-bootstrap_mode = true
-
 # Connection-math invariant (backend) and Direct VPC subnet-capacity
 # reasoning (bff) — see the variable descriptions in variables.tf. Raise
 # only alongside the matching db_tier upgrade / subnet resize.

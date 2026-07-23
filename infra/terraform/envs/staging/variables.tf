@@ -16,12 +16,6 @@ variable "bff_real_uri" {
   default     = "https://ikaro-bff-placeholder.invalid"
 }
 
-variable "bootstrap_mode" {
-  description = "S18 launch state: services run a placeholder public image with relaxed (\"/\") probes until S27's first real pipeline deploy flips this to false."
-  type        = bool
-  default     = true
-}
-
 variable "brevo_smtp_login" {
   description = "Brevo SMTP account login (non-secret per the S16 catalog — only BREVO_SMTP_KEY is a Secret Manager secret). Value never committed: gitignored local.auto.tfvars locally, a GitHub environment variable in the pipeline (S24, same treatment as iam_admin_user)."
   type        = string

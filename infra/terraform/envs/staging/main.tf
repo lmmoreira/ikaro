@@ -138,7 +138,7 @@ module "cloudrun_backend" {
 
   service_name          = "ikaro-backend"
   image                 = local.bootstrap_image
-  bootstrap_mode        = var.bootstrap_mode
+  bootstrap_mode        = false
   port                  = 3001
   service_account_email = module.iam.backend_sa_email
   execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
@@ -173,6 +173,7 @@ module "cloudrun_backend" {
       NODE_ENV    = "production"
       APP_ENV     = "staging"
       GCP_PROJECT = var.project_id
+      LOG_LEVEL   = "DEBUG"
 
       # DB_NAME derives from modules/database's own output (single source of
       # truth for the google_sql_database.ikaro name) rather than a second
@@ -231,7 +232,7 @@ module "cloudrun_bff" {
 
   service_name          = "ikaro-bff"
   image                 = local.bootstrap_image
-  bootstrap_mode        = var.bootstrap_mode
+  bootstrap_mode        = false
   port                  = 3002
   service_account_email = module.iam.bff_sa_email
   max_instance_count    = var.bff_max_instances
@@ -253,6 +254,7 @@ module "cloudrun_bff" {
     NODE_ENV    = "production"
     APP_ENV     = "staging"
     GCP_PROJECT = var.project_id
+    LOG_LEVEL   = "DEBUG"
 
     BACKEND_INTERNAL_URL = module.cloudrun_backend.service_uri
     # var.bff_real_uri starts as a placeholder -- see its description for the
@@ -291,7 +293,7 @@ module "cloudrun_web" {
 
   service_name          = "ikaro-web"
   image                 = local.bootstrap_image
-  bootstrap_mode        = var.bootstrap_mode
+  bootstrap_mode        = false
   port                  = 3000
   service_account_email = module.iam.web_sa_email
   # memory left at the module default (512Mi) -- GCP rejects <512Mi with
@@ -351,7 +353,7 @@ module "migrate_job" {
   labels      = var.labels
 
   image                 = local.bootstrap_image
-  bootstrap_mode        = var.bootstrap_mode
+  bootstrap_mode        = false
   service_account_email = module.iam.migrate_sa_email
 
   network_id = module.network.network_id
