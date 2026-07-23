@@ -1064,7 +1064,7 @@ On every push to `main` touching `apps/**`, `packages/**`, or lockfile: build �
 
 ---
 
-### M17-S26 — Production promote pipeline (`deploy-production.yml`)
+### M17-S26 — Production promote pipeline (`deploy-production.yml`) ✅ Done
 
 **Agent:** `devops`
 **Complexity:** M
@@ -1086,8 +1086,10 @@ On every push to `main` touching `apps/**`, `packages/**`, or lockfile: build �
 **Acceptance criteria:**
 - [ ] Cannot run without approval; cannot promote a SHA that never reached staging
 - [ ] Backend, BFF, **and web** images are byte-identical to staging's — deployed by digest (`@sha256:...`), not the mutable `:<sha>` tag (revised 2026-07-23, cross-tool review: GAR tags aren't configured immutable and staging's app-deployer can write to the shared repo, so a tag-based deploy left a TOCTOU gap across the approval wait; digest resolved in `validate-and-summarize` and pinned through to the actual `gcloud run deploy` calls closes it)
+  - ⚠️ Not verified as of 2026-07-23 — digest-pinning mechanism implemented and reviewed (actionlint/zizmor clean, local logic-tested), but never proven against a real staging→prod promote. Pending S37.
 - [ ] Smoke failure marks the run failed and prints the rollback one-liner
 - [ ] Runtime-env smoke: served prod HTML references `bff.ikaro.online`, zero `run.app`/staging origins (prove once with a deliberately wrong Cloud Run env var on a scratch deploy or dry run — this replaces the old build-arg smoke, same risk, different mechanism)
+  - ⚠️ Not verified as of 2026-07-23 — "prove once" never done; prod's `cloudrun_web` service and `edge` module don't exist yet to smoke-test against. Pending S37.
 - [ ] Total promote time (post-approval) < 15 min
 - [ ] `envs/prod/main.tf`'s `cloudrun_web` module sets `NEXT_PUBLIC_BFF_URL`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL` as real Cloud Run runtime env vars (prod-specific values: `https://bff.ikaro.online`, `https://ikaro.online`, the storage module's public base URL) — the TD29 follow-through for prod, made an explicit AC after story-discovery (2026-07-23) found it stated only in prose (staging's own module comment already named this story as the trigger)
 - [ ] `packages/infra-scripts/src/env-contract.ts`'s `web` spec widened from staging-only to `ALL_ENV_ROOTS` in the same commit as the Terraform change above — the `Terraform env-var contract` CI job (already required) now also validates prod
@@ -1378,7 +1380,7 @@ Runbook story mirroring S27 for prod, plus DNS cutover and the first real tenant
 2. **Prod secrets:** populate all values — **freshly generated, never staging’s** (`jwt-secret`, `internal-api-key`, `platform-admin-key`, `hotsite-revalidate-secret` via `openssl rand -hex 64`; prod OAuth pair; prod Brevo SMTP key; DB user + `db-password` per the S13 out-of-band snippet). Record in `SECRETS.md`.
 3. **Flip `enable_database=true` and `enable_edge=true` in `envs/prod/terraform.tfvars` (TD30 — Terraform rejects a plan where only one is flipped), then Prod Terraform apply** via the infra pipeline (`production-infrastructure` approval) — creates the real Cloud SQL instance and the edge module (S22): ALB, certs, Cloudflare records. Verify cert ACTIVE before cutover.
 4. **Prod env vars:** `ENABLE_DEV_AUTH` **unset**, `LOG_LEVEL=INFO`, `OTEL_TRACES_SAMPLER_ARG=0.1`, `ALLOWED_ORIGINS=https://ikaro.online`.
-5. **First promote:** run `deploy-production.yml` with the current staging-validated SHA. Approve after reviewing the diff summary.
+5. **First promote:** run `deploy-production.yml` with the current staging-validated SHA. Approve after reviewing the diff summary. **This is also where S26's own deferred live-verification ACs get closed out** (marked `✅ Done` 2026-07-23 with two `⚠️ Not verified` annotations, since prod's `cloudrun_web`/`edge` didn't exist yet to test against): confirm the digest-pinned deploy actually promotes byte-identical images, and run the runtime-env smoke's "prove once" check (deliberately wrong Cloud Run env var on a scratch deploy or dry run) before/around this first real promote.
 6. **Smoke through the edge:** `https://bff.ikaro.online/v1/health/ready` → 200 via Cloudflare (orange-cloud); login page loads on `https://ikaro.online`; auth cookie flows web↔BFF (D11 cookie note — verify in Chrome AND Safari, since prod is same-site). Verify origin lockdown active (S36): direct LB-IP access → 403.
 7. **First tenant (UC-024):** in one terminal `gcloud run services proxy ikaro-backend --project=ikaro-prod --region=southamerica-east1 --port=8080`; in another:
    ```bash
