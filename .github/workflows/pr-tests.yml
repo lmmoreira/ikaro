@@ -444,7 +444,13 @@ jobs:
     # avoids re-deriving that logic. Skips entirely when no app code
     # changed: nothing new for Sonar to analyze, and its own coverage
     # artifacts wouldn't exist to download otherwise (M17-S24, 2026-07-21).
-    if: needs.test-suite-passed.result == 'success' && needs.detect-changes.outputs.app == 'true'
+    # `always()` added 2026-07-23 as a defensive measure, matching the
+    # gitleaks/checkov/snyk-sca/trivy-scan fix above — this job's `needs:`
+    # also lists backend-unit/bff-unit/web-unit directly (both skippable),
+    # not just test-suite-passed, so belt-and-suspenders against the same
+    # transitive-skip class of bug even though this job's own explicit
+    # condition (not a bare default) was likely already immune to it.
+    if: always() && needs.test-suite-passed.result == 'success' && needs.detect-changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -514,7 +520,9 @@ jobs:
   dependency-review:
     name: Dependency Review
     needs: [detect-changes, test-suite-passed]
-    if: needs.test-suite-passed.result == 'success' && needs.detect-changes.outputs.app == 'true'
+    # `always()` — same defensive reasoning as sonar's identical comment
+    # above (2026-07-23).
+    if: always() && needs.test-suite-passed.result == 'success' && needs.detect-changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -528,6 +536,18 @@ jobs:
   gitleaks:
     name: Gitleaks Secret Scan
     needs: [test-suite-passed]
+    # Explicit `always()` (2026-07-23 discovery, verified against real PR
+    # #192): the implicit default `if: success()` does NOT reliably
+    # resolve to true here even when test-suite-passed's own conclusion
+    # IS success — GitHub Actions propagates a "skipped" status through
+    # the graph from test-suite-passed's own (legitimately skipped)
+    # upstream jobs (backend-unit etc. on an infra-only PR), and a bare
+    # default condition inherits that, silently skipping this job even
+    # though its direct need succeeded. `always()` breaks that inheritance;
+    # the explicit result check after it still correctly refuses to run if
+    # test-suite-passed genuinely failed. Secret scanning has no app/infra
+    # distinction — every PR gets scanned regardless of what changed.
+    if: always() && needs.test-suite-passed.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -547,6 +567,11 @@ jobs:
   snyk-sca:
     name: Snyk SCA
     needs: [test-suite-passed]
+    # Same transitive-skip fix as gitleaks above — see its comment. This
+    # job always starts (whenever tests passed); its own internal
+    # steps.filter.outputs.deps check (below) decides whether the real
+    # scan runs, same pattern as checkov's terraform filter.
+    if: always() && needs.test-suite-passed.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -588,21 +613,32 @@ jobs:
   trivy-scan:
     name: Trivy Image Scan (${{ matrix.service }})
     needs: [detect-changes, test-suite-passed]
-    # Deliberately no job-level `if:` here (unlike most other skippable jobs
-    # in this file) — a job-level `if:` combined with a matrix collapses the
-    # whole strategy into ONE synthetic skipped check reported under the
-    # raw, un-templated name "Trivy Image Scan (${{ matrix.service }})"
-    # instead of three separately-named "(backend)"/"(bff)"/"(web)" checks
-    # (a job-level `if:` is evaluated before matrix expansion, so GitHub
-    # never gets far enough to substitute the matrix value into `name:`).
-    # Since Trivy is a required status check under those three expanded
-    # names, that collapse makes it impossible to ever satisfy branch
-    # protection on a PR that doesn't touch app code — discovered via
-    # TD27's PR #185 being permanently unmergeable despite passing every
-    # check that actually ran, 2026-07-22. Fixed the same way `checkov`
-    # below already does it: the job always runs (so the matrix always
-    # expands into three correctly-named checks), and the skip condition
-    # moves to each work step instead.
+    # CORRECTED 2026-07-23 (superseding the 2026-07-22 fix comment this
+    # replaces): the original theory — "a job-level if: combined with a
+    # matrix collapses the whole strategy into one synthetic skipped check,
+    # because if: is evaluated before matrix expansion" — was a
+    # misdiagnosis. Proof: this job has had NO job-level `if:` at all since
+    # that 2026-07-22 fix, yet the exact same collapse into
+    # "Trivy Image Scan (${{ matrix.service }})" was reconfirmed live on PR
+    # #192 (2026-07-23), with no job-level if present. The real mechanism:
+    # the implicit default `if: success()` (what a job gets when no if: is
+    # specified) doesn't just check this job's DIRECT needs — a "skipped"
+    # status from further back in the graph (backend-unit etc., skipped on
+    # an infra-only PR) propagates through test-suite-passed to this job
+    # too, DESPITE test-suite-passed's own if: always() resolving its own
+    # conclusion to genuine "success". The job never starts at all, so the
+    # matrix never gets a chance to expand — same root cause as
+    # gitleaks/checkov/snyk-sca above, just with a worse symptom (a
+    # collapsed matrix name instead of a single missing check) because a
+    # matrix job's identity IS the substituted name. The actual fix: an
+    # EXPLICIT `always() && needs.test-suite-passed.result == 'success'`
+    # breaks the propagation (mirrors the other jobs above) — this runs the
+    # job (and expands the matrix into three correctly-named checks)
+    # whenever test-suite-passed genuinely succeeded, regardless of what
+    # its own ancestors did. Each step's existing
+    # `detect-changes.outputs.app` check still correctly no-ops the real
+    # work on an infra-only PR.
+    if: always() && needs.test-suite-passed.result == 'success'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -708,6 +744,15 @@ jobs:
   checkov:
     name: Checkov IaC Scan
     needs: [test-suite-passed]
+    # Same transitive-skip fix as gitleaks above — see its comment.
+    # CRITICAL for this job specifically: without this, Checkov never
+    # actually scans Terraform on an infra-only PR at all — its own
+    # internal steps.filter.outputs.terraform check (below) never got a
+    # chance to run, because the whole job was silently skipped first.
+    # Confirmed live on PR #192 (infra/terraform-only, no app changes):
+    # this job showed 0s/no steps executed, despite touching
+    # infra/terraform/** and test-suite-passed having genuinely succeeded.
+    if: always() && needs.test-suite-passed.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -754,3 +799,59 @@ jobs:
         uses: github/codeql-action/upload-sarif@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
         with:
           sarif_file: checkov-results.sarif
+
+  # ---------------------------------------------------------------------
+  # Single consolidating gate (2026-07-23) replacing 9 individually-listed
+  # branch-protection required checks (Backend/Backend Integration Unit
+  # Tests, Gitleaks, Snyk SCA, Trivy x3, Checkov, SonarCloud). CORRECTED
+  # framing (2026-07-23, cross-tool review + direct verification against
+  # GitHub's documented behavior): a required check reporting "skipped"
+  # DOES satisfy branch protection — same as "success" — so those 6
+  # individually-required-but-skippable jobs (excluding Trivy) were never
+  # actually the thing blocking merge on an infra-only PR. This job's real
+  # value is different: gitleaks/snyk-sca/checkov/sonar were silently
+  # skipping their JOB entirely (not just their real-work steps) due to
+  # transitive skip-propagation through needs: test-suite-passed, so they
+  # never ran their actual scans at all on a non-app PR — a genuine
+  # security/quality gap independent of branch-protection semantics (see
+  # each job's own if: comment). Consolidating them here, mirroring
+  # test-suite-passed's existing allow-list pattern, is a maintainability
+  # improvement (one gate instead of nine scattered entries), not a
+  # required fix for the merge-blocking bug itself — that bug was Trivy's
+  # alone (its matrix collapsing into a single, differently-named check
+  # that never reports under any of the 3 required names at all — a
+  # check that never reports stays "Expected — waiting for status"
+  # forever, which DOES block merge, unlike a genuinely-reported
+  # "skipped"). Confirmed live on PR #192 and, earlier, TD27's PR #185.
+  # Depends on each SCAN job directly (not test-suite-passed a second
+  # time) so a matrix job like trivy-scan rolls up correctly via
+  # needs.trivy-scan.result regardless of what name any individual matrix
+  # leg gets reported under.
+  all-checks-passed:
+    name: All Checks Passed
+    needs: [test-suite-passed, gitleaks, snyk-sca, trivy-scan, checkov, sonar]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check results
+        env:
+          TEST_SUITE_RESULT: ${{ needs.test-suite-passed.result }}
+          GITLEAKS_RESULT: ${{ needs.gitleaks.result }}
+          SNYK_SCA_RESULT: ${{ needs.snyk-sca.result }}
+          TRIVY_SCAN_RESULT: ${{ needs.trivy-scan.result }}
+          CHECKOV_RESULT: ${{ needs.checkov.result }}
+          SONAR_RESULT: ${{ needs.sonar.result }}
+        run: |
+          failed=false
+          for result in "$TEST_SUITE_RESULT" "$GITLEAKS_RESULT" "$SNYK_SCA_RESULT" \
+                        "$TRIVY_SCAN_RESULT" "$CHECKOV_RESULT" "$SONAR_RESULT"; do
+            if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
+              echo "Found a non-passing result: $result"
+              failed=true
+            fi
+          done
+          if [ "$failed" = "true" ]; then
+            echo "One or more required checks did not pass."
+            exit 1
+          fi
+          echo "All required checks passed (or were correctly skipped for a non-app change)."
