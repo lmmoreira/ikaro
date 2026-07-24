@@ -336,5 +336,22 @@ describe('GetBookingByIdUseCase', () => {
         }),
       ).rejects.toBeInstanceOf(BookingNotFoundError);
     });
+
+    it('throws BookingNotFoundError when requestingCustomerId is an empty string mismatch', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withCustomerId(CUSTOMER_ID)
+        .build();
+      await repo.save(booking);
+
+      await expect(
+        useCase.execute({
+          bookingId: booking.id,
+          tenantId: TENANT_A,
+          cancellationWindowHours: 48,
+          requestingCustomerId: '',
+        }),
+      ).rejects.toBeInstanceOf(BookingNotFoundError);
+    });
   });
 });
