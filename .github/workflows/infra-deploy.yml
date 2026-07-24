@@ -46,10 +46,12 @@ on:
     types: [opened, synchronize, reopened]
   push:
     branches: [main]
+    # Only a normal Terraform configuration change may start an automatic
+    # environment apply. This workflow file remains in the PR-side detector
+    # below, where a workflow-only change is validated without an apply.
     paths:
       - 'infra/terraform/**'
       - '!infra/terraform/foundation/**'
-      - '.github/workflows/infra-deploy.yml'
   schedule:
     - cron: '30 9 * * 1' # weekly drift check, Monday 09:30 UTC
   workflow_dispatch: {} # manual re-run of the drift check only
