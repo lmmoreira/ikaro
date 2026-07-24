@@ -82,8 +82,8 @@ run "plain_env_vars_are_mounted_regardless_of_bootstrap_mode" {
   variables {
     bootstrap_mode = true
     env_vars = {
-      DB_HOST          = "10.0.0.5"
-      DB_MIGRATOR_USER = "ikaro_migrator"
+      DB_INSTANCE_CONNECTION_NAME = "proj:region:instance"
+      DB_MIGRATOR_USER            = "ikaro_migrator"
     }
   }
 

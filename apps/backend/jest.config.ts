@@ -21,8 +21,9 @@ const config: Config = {
     // else initialises (M17-S33), not a unit of testable logic.
     '!**/tracing.ts',
     // Same category: a standalone TypeORM CLI entry point that throws at import time if
-    // required env vars are missing (M17-S27) — the one branch worth testing is extracted
-    // into resolve-database-ssl.ts, which is covered on its own.
+    // required env vars are missing (M17-S27) — the testable logic it delegates to
+    // (Cloud SQL Connector wiring, TD33) lives in cloud-sql-connector.adapter.ts and
+    // env.validation.ts, both covered on their own.
     '!**/shared/database/data-source.ts',
   ],
   coverageDirectory: '../coverage',

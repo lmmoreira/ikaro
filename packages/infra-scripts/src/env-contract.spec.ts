@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { checkEnvContract } from './env-contract';
 
 function writeFixtureRepo(options: {
-  backendTfHasDbHost: boolean;
+  backendTfHasRequiredVar: boolean;
   webTfHasBffUrl: boolean;
 }): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'env-contract-fixture-'));
@@ -15,7 +15,7 @@ function writeFixtureRepo(options: {
     path.join(backendSchemaDir, 'env.validation.ts'),
     `
       const schema = z.object({
-        DB_HOST: z.string(),
+        REQUIRED_VAR: z.string(),
         PORT: z.coerce.number().default(3001),
       });
     `,
@@ -41,7 +41,7 @@ function writeFixtureRepo(options: {
     `,
   );
 
-  const backendEnvVars = options.backendTfHasDbHost ? 'DB_HOST = "x"' : '';
+  const backendEnvVars = options.backendTfHasRequiredVar ? 'REQUIRED_VAR = "x"' : '';
   const webEnvVars = options.webTfHasBffUrl ? 'NEXT_PUBLIC_BFF_URL = "x"' : '';
 
   for (const env of ['staging', 'prod']) {
@@ -84,14 +84,14 @@ describe('checkEnvContract', () => {
   });
 
   it('reports no violations when every required key is wired in both env roots', () => {
-    const root = writeFixtureRepo({ backendTfHasDbHost: true, webTfHasBffUrl: true });
+    const root = writeFixtureRepo({ backendTfHasRequiredVar: true, webTfHasBffUrl: true });
     fixtureRoots.push(root);
 
     expect(checkEnvContract(root)).toEqual([]);
   });
 
   it('does not flag PORT even though it is never wired in Terraform (exempt: platform-reserved)', () => {
-    const root = writeFixtureRepo({ backendTfHasDbHost: true, webTfHasBffUrl: true });
+    const root = writeFixtureRepo({ backendTfHasRequiredVar: true, webTfHasBffUrl: true });
     fixtureRoots.push(root);
 
     const violations = checkEnvContract(root);
@@ -99,7 +99,7 @@ describe('checkEnvContract', () => {
   });
 
   it('reports a violation per env root missing a required key', () => {
-    const root = writeFixtureRepo({ backendTfHasDbHost: false, webTfHasBffUrl: true });
+    const root = writeFixtureRepo({ backendTfHasRequiredVar: false, webTfHasBffUrl: true });
     fixtureRoots.push(root);
 
     const violations = checkEnvContract(root);
@@ -108,7 +108,7 @@ describe('checkEnvContract', () => {
     for (const violation of violations) {
       expect(violation.appName).toBe('backend');
       expect(violation.cloudRunModule).toBe('cloudrun_backend');
-      expect(violation.missingKeys).toEqual(['DB_HOST']);
+      expect(violation.missingKeys).toEqual(['REQUIRED_VAR']);
     }
     expect(violations.map((v) => v.envRoot).sort()).toEqual([
       'infra/terraform/envs/prod/main.tf',
@@ -117,7 +117,7 @@ describe('checkEnvContract', () => {
   });
 
   it('reports a violation for web missing a required key in each env root', () => {
-    const root = writeFixtureRepo({ backendTfHasDbHost: true, webTfHasBffUrl: false });
+    const root = writeFixtureRepo({ backendTfHasRequiredVar: true, webTfHasBffUrl: false });
     fixtureRoots.push(root);
 
     const violations = checkEnvContract(root);
@@ -135,7 +135,7 @@ describe('checkEnvContract', () => {
   });
 
   it('checks web against prod too, now that M17-S26 has widened it to ALL_ENV_ROOTS', () => {
-    const root = writeFixtureRepo({ backendTfHasDbHost: true, webTfHasBffUrl: false });
+    const root = writeFixtureRepo({ backendTfHasRequiredVar: true, webTfHasBffUrl: false });
     fixtureRoots.push(root);
 
     const violations = checkEnvContract(root);

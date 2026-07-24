@@ -178,10 +178,12 @@ module "cloudrun_backend" {
       # DB_NAME derives from modules/database's own output (single source of
       # truth for the google_sql_database.ikaro name) rather than a second
       # hardcoded "ikaro" literal.
-      DB_HOST      = module.database.private_ip
-      DB_USER      = var.db_user
-      DB_NAME      = module.database.database_name
-      DB_POOL_SIZE = "3"
+      # TD33 — DB_INSTANCE_CONNECTION_NAME (not a raw private-IP DB_HOST) routes the backend
+      # through the Cloud SQL Connector for a verified, auto-rotating TLS connection.
+      DB_INSTANCE_CONNECTION_NAME = module.database.instance_connection_name
+      DB_USER                     = var.db_user
+      DB_NAME                     = module.database.database_name
+      DB_POOL_SIZE                = "3"
 
       PUBSUB_PROJECT_ID           = var.project_id
       PUBSUB_CONSUMER_MODE        = "push"
@@ -374,9 +376,10 @@ module "migrate_job" {
     NODE_ENV = "production"
     APP_ENV  = "staging"
 
-    DB_HOST          = module.database.private_ip
-    DB_MIGRATOR_USER = var.db_migrator_user
-    DB_NAME          = module.database.database_name
+    # TD33 — Cloud SQL Connector, not raw private-IP DB_HOST (see backend service block above).
+    DB_INSTANCE_CONNECTION_NAME = module.database.instance_connection_name
+    DB_MIGRATOR_USER            = var.db_migrator_user
+    DB_NAME                     = module.database.database_name
   }
 
   secret_env_vars = {

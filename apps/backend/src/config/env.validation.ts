@@ -21,7 +21,11 @@ export const schema = z.object({
   // which a fixed schema default can't express. Optional and unset means "use that default."
   OTEL_SDK_DISABLED: z.stringbool().optional(),
   SERVICE_NAME: z.string().default('ikaro-backend'),
-  DB_HOST: z.string().min(1, { message: 'DB_HOST is required' }),
+  // TD33 — DB_HOST is only used on APP_ENV=local (raw TCP to Testcontainers/docker-compose
+  // Postgres). staging/production connect via Cloud SQL Connector using
+  // DB_INSTANCE_CONNECTION_NAME instead — see validateDatabaseConfig below for which is required.
+  DB_HOST: z.string().optional(),
+  DB_INSTANCE_CONNECTION_NAME: z.string().optional(),
   DB_PORT: z.coerce.number().default(5432),
   DB_USER: z.string().min(1, { message: 'DB_USER is required' }),
   DB_PASSWORD: z.string().min(1, { message: 'DB_PASSWORD is required' }),
@@ -148,9 +152,27 @@ function validatePubSubConfig(data: Env, ctx: z.RefinementCtx): void {
   }
 }
 
+function validateDatabaseConfig(data: Env, ctx: z.RefinementCtx): void {
+  if (data.APP_ENV === 'local' && !data.DB_HOST) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['DB_HOST'],
+      message: 'DB_HOST is required when APP_ENV=local',
+    });
+  }
+  if (data.APP_ENV !== 'local' && !data.DB_INSTANCE_CONNECTION_NAME) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['DB_INSTANCE_CONNECTION_NAME'],
+      message: 'DB_INSTANCE_CONNECTION_NAME is required when APP_ENV is not "local"',
+    });
+  }
+}
+
 const validatedSchema = schema.superRefine((data, ctx) => {
   validateEmailConfig(data, ctx);
   validatePubSubConfig(data, ctx);
+  validateDatabaseConfig(data, ctx);
 });
 
 export function validateEnv(config: Record<string, unknown>): Env {

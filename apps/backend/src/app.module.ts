@@ -25,7 +25,10 @@ import { validateEnv } from './config/env.validation';
 import { PubSubPushController } from './shared/infrastructure/event-bus/pubsub-push.controller';
 import { GoogleOidcTokenVerifier } from './shared/infrastructure/google-oidc-token-verifier.adapter';
 import { OIDC_TOKEN_VERIFIER } from './shared/ports/oidc-token-verifier.port';
-import { resolveDatabaseSsl } from './shared/database/resolve-database-ssl';
+import {
+  CloudSqlConnectorShutdownHook,
+  getCloudSqlConnectorExtra,
+} from './shared/infrastructure/database/cloud-sql-connector.adapter';
 
 @Module({
   imports: [
@@ -35,24 +38,41 @@ import { resolveDatabaseSsl } from './shared/database/resolve-database-ssl';
       ttl: 60_000,
     }),
     TypeOrmModule.forRootAsync({
-      useFactory: (config: ConfigService) => ({
-        type: 'postgres',
-        host: config.get<string>('DB_HOST'),
-        port: config.get<number>('DB_PORT', 5432),
-        username: config.get<string>('DB_USER'),
-        password: config.get<string>('DB_PASSWORD'),
-        database: config.get<string>('DB_NAME'),
-        poolSize: config.get<number>('DB_POOL_SIZE', 10),
-        ssl: resolveDatabaseSsl(config.get<string>('APP_ENV', 'local')),
-        synchronize: false,
-        migrationsRun: false,
-        entities: [
-          __dirname + '/contexts/**/infrastructure/entities/*.entity{.ts,.js}',
-          // shared/infrastructure/ entities (e.g. outbox/outbox-event.entity.ts, TD24-S01) live
-          // outside contexts/** — a separate glob is required or they silently fail to load.
-          __dirname + '/shared/infrastructure/**/*.entity{.ts,.js}',
-        ],
-      }),
+      useFactory: async (config: ConfigService) => {
+        const baseOptions = {
+          type: 'postgres' as const,
+          username: config.get<string>('DB_USER'),
+          password: config.get<string>('DB_PASSWORD'),
+          database: config.get<string>('DB_NAME'),
+          poolSize: config.get<number>('DB_POOL_SIZE', 10),
+          synchronize: false,
+          migrationsRun: false,
+          entities: [
+            __dirname + '/contexts/**/infrastructure/entities/*.entity{.ts,.js}',
+            // shared/infrastructure/ entities (e.g. outbox/outbox-event.entity.ts, TD24-S01) live
+            // outside contexts/** — a separate glob is required or they silently fail to load.
+            __dirname + '/shared/infrastructure/**/*.entity{.ts,.js}',
+          ],
+        };
+
+        // TD33 — local/CI Testcontainers Postgres has no Cloud SQL instance and no TLS at all;
+        // staging/production route through the Cloud SQL Connector (verified server cert,
+        // auto-rotating ephemeral client cert) instead of a raw TCP host/port.
+        if (config.get<string>('APP_ENV', 'local') === 'local') {
+          return {
+            ...baseOptions,
+            host: config.get<string>('DB_HOST'),
+            port: config.get<number>('DB_PORT', 5432),
+          };
+        }
+
+        return {
+          ...baseOptions,
+          extra: await getCloudSqlConnectorExtra(
+            config.getOrThrow<string>('DB_INSTANCE_CONNECTION_NAME'),
+          ),
+        };
+      },
       inject: [ConfigService],
     }),
     TerminusModule,
@@ -75,6 +95,7 @@ import { resolveDatabaseSsl } from './shared/database/resolve-database-ssl';
     { provide: APP_GUARD, useClass: InternalApiGuard },
     { provide: OIDC_TOKEN_VERIFIER, useClass: GoogleOidcTokenVerifier },
     PubSubPushGuard,
+    CloudSqlConnectorShutdownHook,
   ],
 })
 export class AppModule implements NestModule {
