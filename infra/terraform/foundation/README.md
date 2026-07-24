@@ -27,8 +27,9 @@ protected foundation deployer only project-IAM, service-account-IAM, and
 Service Usage administration. It deliberately excludes `roles/owner` and
 resource-specific administrator roles; those are added only with the reviewed
 ownership-transfer slice that needs them. The foundation planner receives only
-the existing IAM-policy reader custom role and service-account viewer access,
-which is sufficient to refresh and plan this control plane without mutation.
+the existing IAM-policy reader custom role, service-account viewer, and Service
+Usage viewer access. Those roles are sufficient to refresh IAM bindings,
+foundation identities, and enabled APIs without mutation.
 
 ## One-time bootstrap
 
