@@ -36,7 +36,7 @@ cors_origins = ["https://ikaro-web-crle4i3nrq-rj.a.run.app"]
 
 # On-demand IAP relay VM (TD32) — flip true + merge for a session, false +
 # merge to tear down. See infra/terraform/modules/relay-vm/README.md.
-create_relay_vm = true
+create_relay_vm = false
 
 # Connection-math invariant (backend) and Direct VPC subnet-capacity
 # reasoning (bff) — see the variable descriptions in variables.tf. Raise
