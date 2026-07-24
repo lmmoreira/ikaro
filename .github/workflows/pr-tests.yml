@@ -253,8 +253,8 @@ jobs:
         env:
           DB_HOST: localhost
           DB_PORT: 5432
-          DB_USER: ikaro_app
-          DB_PASSWORD: ikaro_app
+          DB_USER: ikaro
+          DB_PASSWORD: ikaro
           DB_NAME: ikaro
           DB_MIGRATOR_USER: ikaro_migrator
           DB_MIGRATOR_PASSWORD: ikaro_migrator
@@ -266,8 +266,8 @@ jobs:
         env:
           DB_HOST: localhost
           DB_PORT: 5432
-          DB_USER: ikaro_app
-          DB_PASSWORD: ikaro_app
+          DB_USER: ikaro
+          DB_PASSWORD: ikaro
           DB_NAME: ikaro
           DB_MIGRATOR_USER: ikaro_migrator
           DB_MIGRATOR_PASSWORD: ikaro_migrator
@@ -300,8 +300,8 @@ jobs:
           PORT: '3001'
           DB_HOST: localhost
           DB_PORT: '5432'
-          DB_USER: ikaro_app
-          DB_PASSWORD: ikaro_app
+          DB_USER: ikaro
+          DB_PASSWORD: ikaro
           DB_NAME: ikaro
           DB_MIGRATOR_USER: ikaro_migrator
           DB_MIGRATOR_PASSWORD: ikaro_migrator
@@ -715,7 +715,7 @@ jobs:
                 -e PLATFORM_ADMIN_KEY="$(openssl rand -hex 32)"
                 -e INTERNAL_API_KEY="$(openssl rand -hex 32)"
                 -e HOTSITE_REVALIDATE_SECRET="$(openssl rand -hex 32)"
-                -e DB_HOST=localhost -e DB_USER=ikaro_app -e DB_PASSWORD=ikaro_app -e DB_NAME=ikaro
+                -e DB_HOST=localhost -e DB_USER=ikaro -e DB_PASSWORD=ikaro -e DB_NAME=ikaro
               )
               ;;
             bff)

@@ -35,7 +35,7 @@ pnpm dev
 | MailHog | http://localhost:8025 | Email preview UI |
 | Pub/Sub emulator | http://localhost:8085 | GCP Pub/Sub (local) |
 | GCS emulator | http://localhost:4443 | GCS storage (local) |
-| PostgreSQL | localhost:5432 | Database `ikaro`, user `ikaro_app` |
+| PostgreSQL | localhost:5432 | Database `ikaro`, user `ikaro` |
 
 ## VS Code Setup
 
@@ -76,7 +76,7 @@ Each `.http` file covers the full scenario set for a resource: happy path, 4xx e
 2. `F1` → **"SonarLint: Connect to SonarCloud"** → sign in with GitHub
 3. VS Code will automatically bind to the `lmmoreira_ikaro` project
 
-**Database explorer** (`vscode-database-client2`): add a connection to `localhost:5432` with user/pass `ikaro_app` / `ikaro_app` (database `ikaro`) after running `pnpm infra:up`.
+**Database explorer** (`vscode-database-client2`): add a connection to `localhost:5432` with user/pass `ikaro` / `ikaro` (database `ikaro`) after running `pnpm infra:up`.
 
 ## Local CI (run before opening a PR)
 

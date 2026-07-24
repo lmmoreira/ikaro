@@ -1255,10 +1255,10 @@ cp apps/bff/.env.example apps/bff/.env
 # All other values work as-is for local dev
 
 # 5. Start infrastructure services (DB + Pub/Sub + storage + email)
-# On first start, docker creates ikaro_migrator + ikaro_app via init-db.sh
+# On first start, docker creates ikaro_migrator + ikaro via init-db.sh
 pnpm infra:up
 
-# 6. Run all migrations (creates schemas + tables, grants DML to ikaro_app)
+# 6. Run all migrations (creates schemas + tables, grants DML to ikaro)
 pnpm db:migrate
 
 # 7. Start all services in development mode
@@ -1305,10 +1305,10 @@ services:
       POSTGRES_USER: postgres       # superuser used only to run initdb.d scripts
       POSTGRES_PASSWORD: postgres
       DB_MIGRATOR_PASSWORD: ${DB_MIGRATOR_PASSWORD:-ikaro_migrator}
-      DB_APP_PASSWORD: ${DB_APP_PASSWORD:-ikaro_app}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:-ikaro}
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro  # creates ikaro_migrator + ikaro_app
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro  # creates ikaro_migrator + ikaro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d ikaro"]
       interval: 5s
@@ -1353,7 +1353,7 @@ Ikaro uses two PostgreSQL roles with different privilege levels:
 | Role | Privileges | Used by |
 |---|---|---|
 | `ikaro_migrator` | `CREATE`/`ALTER`/`DROP` (DDL) | `pnpm db:migrate` · CI pipeline · `docker/init-db.sh` |
-| `ikaro_app` | `SELECT`/`INSERT`/`UPDATE`/`DELETE` (DML) | Running backend service |
+| `ikaro` | `SELECT`/`INSERT`/`UPDATE`/`DELETE` (DML) | Running backend service |
 
 This separation ensures a compromised app process cannot alter or drop the schema.
 
@@ -1365,11 +1365,11 @@ This separation ensures a compromised app process cannot alter or drop the schem
 
 ```bash
 # docker/init-db.sh — reads DB_MIGRATOR_PASSWORD / DB_APP_PASSWORD from the environment.
-# Falls back to 'ikaro_migrator' / 'ikaro_app' when not set (always the case locally).
+# Falls back to 'ikaro_migrator' / 'ikaro' when not set (always the case locally).
 # Production CI passes real secrets as env vars before running the script.
 ```
 
-**Schema creation and DML grants** are handled by the first TypeORM migration (`BootstrapSchemas1700000000000`), which runs as `ikaro_migrator`. It creates all 6 schemas and sets up `ALTER DEFAULT PRIVILEGES` so every future table automatically grants DML to `ikaro_app`.
+**Schema creation and DML grants** are handled by the first TypeORM migration (`BootstrapSchemas1700000000000`), which runs as `ikaro_migrator`. It creates all 6 schemas and sets up `ALTER DEFAULT PRIVILEGES` so every future table automatically grants DML to `ikaro`.
 
 ---
 
@@ -1455,8 +1455,8 @@ PORT=3001
 # PostgreSQL — app runtime user (DML only: SELECT/INSERT/UPDATE/DELETE)
 DB_HOST=localhost
 DB_PORT=5432
-DB_USER=ikaro_app
-DB_PASSWORD=ikaro_app
+DB_USER=ikaro
+DB_PASSWORD=ikaro
 DB_NAME=ikaro
 
 # PostgreSQL — migration user (DDL; used only by pnpm db:migrate, not app startup)
@@ -1534,7 +1534,7 @@ Cloud Run deploys reference this GAR path. No GHCR authentication needed at runt
 [ ] Get Google OAuth credentials (see Day 0 §9 — reuse staging client for local dev)
 [ ] Fill in apps/bff/.env: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET (from Google Console), JWT_SECRET (any 64-char random string locally)
 [ ] Start infra: pnpm infra:up   (starts PostgreSQL, Pub/Sub emulator, GCS emulator, MailHog)
-      → On first start, postgres auto-runs docker/init-db.sh which creates ikaro_migrator + ikaro_app roles
+      → On first start, postgres auto-runs docker/init-db.sh which creates ikaro_migrator + ikaro roles
 [ ] Run migrations: pnpm db:migrate   (creates all schemas, tables, and DML grants)
 [ ] Start apps: pnpm dev
 [ ] Open browser: http://localhost:3000 (hotsite / dashboard)
