@@ -3,7 +3,7 @@
 ## Status
 
 - **State**: 🟡 Open
-- **Phase**: phase 3 ownership transfer underway
+- **Phase**: phase 3 ownership transfer underway — runtime-identity handoff implemented, awaiting protected applies
 - **Type**: Technical Debt / Infrastructure Security
 - **Priority**: High — a compromise of the trusted infrastructure deployment path can become project-wide privilege escalation
 - **Context**: `infra/terraform/envs/staging/main.tf`, `infra/terraform/envs/prod/main.tf`, `.github/workflows/infra-deploy.yml`, M17-S08 / M17-S24 deployer-role design
@@ -106,16 +106,46 @@ production bindings. The two temporary production state-bridge bindings are
 deliberately excluded because they remain managed by
 `modules/foundation-state-bootstrap` until phase 5.
 
+### Completed custom-role control-plane prerequisite
+
+The protected Foundation deployer now owns custom-role administration, and the
+Foundation planner has read-only custom-role visibility. Foundation state owns
+the existing `tfPlannerIamPolicyReader` role without mutation and the new
+`tfFoundationResourceIamWriter` role. The latter contains exactly four
+permissions: get/set IAM policy for application Storage buckets and Secret
+Manager secrets. It has no object-read, secret-value-access, project-IAM, or
+service-account-IAM permission, and is granted only to the protected
+Foundation deployer.
+
+### Runtime-identity transfer — implemented, pending protected applies
+
+The next ownership-transfer configuration is implemented but has not yet been
+applied. It adopts the five existing runtime service accounts and every
+binding currently owned by `modules/iam`:
+
+- staging: 27 objects;
+- production: 28 objects, including the production-only Cloudflare token
+  accessor.
+
+Foundation imports the live objects first. The normal roots then use a single
+`removed { lifecycle { destroy = false } }` handoff for `module.iam`, while
+continuing to use the same deterministic service-account emails. Structural
+normal-root plans show zero creates, updates, and destroys; they only remove
+the old state ownership. The protected Foundation apply must run first, and
+the normal-root handoff apply second. Only after both complete may this batch
+be recorded as live.
+
 ### Remaining ownership-transfer scope
 
-The normal Terraform states still contain 109 IAM-related objects in staging
-and 115 in production. This includes runtime service-account creation,
-project-level bindings, service-account IAM, and resource IAM for Cloud Run,
-Pub/Sub, Storage, Secret Manager, Artifact Registry, Cloud SQL, Compute/IAP,
-and Scheduler. These must move in reviewed batches: Foundation adopts each
-live binding first, then the normal state relinquishes it without destroying
-the binding. Cross-state moves must continue to use explicit imports/state
-removal, never Terraform `moved` blocks.
+Before the runtime batch, the normal Terraform states contained 109
+IAM-related objects in staging and 115 in production. After its two protected
+applies, 82 staging and 87 production objects will remain to transfer. Those
+remaining objects include resource IAM for Cloud Run, Pub/Sub, Storage, Secret
+Manager, Artifact Registry, Cloud SQL, Compute/IAP, Scheduler, cross-project
+bindings, and the remaining enabled APIs. These must move in reviewed batches:
+Foundation adopts each live binding first, then the normal state relinquishes
+it without destroying the binding. Cross-state moves must continue to use
+explicit imports/state removal, never Terraform `moved` blocks.
 
 ## Proposed approach
 

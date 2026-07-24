@@ -56,11 +56,11 @@ variable "backend_pubsub_audience" {
 }
 
 variable "backend_sa_email" {
-  description = "Backend runtime SA email (module.iam.backend_sa_email) — granted pubsub.publisher on every topic in the catalog, since the backend is the only publisher for both domain events (OUTBOX_PUBLISHER) and its own local/manual cron re-triggers (D3's /cron/* controllers) and dead-letter writes (pull-mode publishToDlq)."
+  description = "Foundation-owned backend runtime SA email — granted pubsub.publisher on every topic in the catalog, since the backend is the only publisher for both domain events (OUTBOX_PUBLISHER) and its own local/manual cron re-triggers (D3's /cron/* controllers) and dead-letter writes (pull-mode publishToDlq)."
   type        = string
 }
 
 variable "pubsub_invoker_sa_email" {
-  description = "Pub/Sub push OIDC identity email (module.iam.pubsub_invoker_sa_email) — set as every push subscription's oidc_token.service_account_email. run.invoker on the backend service is granted elsewhere (M17-S18, envs/<env>/main.tf); this module only references the email."
+  description = "Foundation-owned Pub/Sub push OIDC identity email — set as every push subscription's oidc_token.service_account_email. run.invoker on the backend service is granted elsewhere (M17-S18, envs/<env>/main.tf); this module only references the email."
   type        = string
 }
