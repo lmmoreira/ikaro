@@ -1,6 +1,7 @@
 name: Infra — Terraform Deploy Pipeline
 
-# The Terraform lifecycle for infra/terraform/**: PR plan + tests, merge-to-main
+# The Terraform lifecycle for normal infra/terraform/** (excluding the
+# separately protected foundation/** boundary): PR plan + tests, merge-to-main
 # auto-applies staging then (after approval) prod, weekly drift detection.
 # After this workflow exists, manual `terraform apply` is forbidden — see
 # infra/terraform/README.md's warning banner.
@@ -38,11 +39,19 @@ name: Infra — Terraform Deploy Pipeline
 # job's `env:` log block (review finding, 2026-07-21).
 
 on:
+  # PR checks must always report for branch protection; only post-merge
+  # deployment pushes use paths to avoid starting for app/Foundation changes.
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
   push:
     branches: [main]
+    # Only a normal Terraform configuration change may start an automatic
+    # environment apply. This workflow file remains in the PR-side detector
+    # below, where a workflow-only change is validated without an apply.
+    paths:
+      - 'infra/terraform/**'
+      - '!infra/terraform/foundation/**'
   schedule:
     - cron: '30 9 * * 1' # weekly drift check, Monday 09:30 UTC
   workflow_dispatch: {} # manual re-run of the drift check only
@@ -72,7 +81,10 @@ jobs:
         id: filter
         uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
         with:
-          # Includes this workflow file itself, not just infra/terraform/**
+          # Excludes foundation/**: Foundation changes run only through the
+          # separately protected foundation workflow and must never trigger a
+          # normal environment apply on merge. Includes this workflow file
+          # itself, not just normal infra/terraform/**
           # — a future PR touching only the pipeline's own YAML (no .tf
           # changes) still needs a real fmt/validate/test/plan run before
           # merge, same as any other change to this pipeline. Without this,
@@ -82,6 +94,7 @@ jobs:
           filters: |
             infra:
               - 'infra/terraform/**'
+              - '!infra/terraform/foundation/**'
               - '.github/workflows/infra-deploy.yml'
 
       - name: List modules with tests
