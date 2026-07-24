@@ -20,6 +20,16 @@ Environment claim. The planner is repository-scoped and read-only so a PR can
 plan after its read permissions are introduced in TD34's ownership-transfer
 phase.
 
+### Phase-3 enablement
+
+Before moving any existing IAM/API resource, the control plane grants the
+protected foundation deployer only project-IAM, service-account-IAM, and
+Service Usage administration. It deliberately excludes `roles/owner` and
+resource-specific administrator roles; those are added only with the reviewed
+ownership-transfer slice that needs them. The foundation planner receives only
+the existing IAM-policy reader custom role and service-account viewer access,
+which is sufficient to refresh and plan this control plane without mutation.
+
 ## One-time bootstrap
 
 `foundation-deploy.yml` has a manual `bootstrap=true` dispatch that runs only
