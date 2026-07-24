@@ -412,13 +412,35 @@ module "scheduler" {
   outbox_relay_schedule = var.outbox_relay_schedule
 }
 
+# The tf-deployer already has projectIamAdmin, so Terraform can grant the
+# Compute Engine administration needed to create the relay VM itself.
+# Count-gating keeps that otherwise-broad role absent between sessions.
+resource "google_project_iam_member" "relay_vm_deployer_compute_instance_admin" {
+  #checkov:skip=CKV_GCP_42:roles/compute.instanceAdmin.v1 is the GCP predefined role required to create and destroy this VM and its boot disk; a custom role would be an unverified, brittle permission list. The binding exists only while the on-demand relay VM is enabled.
+  count = var.create_relay_vm ? 1 : 0
+
+  project = var.project_id
+  role    = "roles/compute.instanceAdmin.v1"
+  member  = "serviceAccount:ikaro-tf-deployer@${var.project_id}.iam.gserviceaccount.com"
+}
+
+# GCP IAM bindings can take up to 60 seconds to propagate after Terraform's
+# API call succeeds. Do not race VM creation against that propagation.
+resource "time_sleep" "relay_vm_deployer_iam_propagation" {
+  count = var.create_relay_vm ? 1 : 0
+
+  depends_on      = [google_project_iam_member.relay_vm_deployer_compute_instance_admin]
+  create_duration = "30s"
+}
+
 # On-demand IAP relay VM (TD32) — the fix for "no network path from a dev
-# machine into ikaro-vpc-staging". Inert by default (create_relay_vm =
-# false): the firewall rule + IAM grants below are permanent, always-applied
-# config; only the VM resource itself toggles. See
-# modules/relay-vm/README.md for the PR-per-toggle usage flow.
+# machine into ikaro-vpc-staging". The VM and access grants exist only while
+# create_relay_vm is true. See modules/relay-vm/README.md for the
+# PR-per-toggle usage flow.
 module "relay_vm" {
   source = "../../modules/relay-vm"
+
+  depends_on = [time_sleep.relay_vm_deployer_iam_propagation]
 
   project_id  = var.project_id
   environment = var.environment

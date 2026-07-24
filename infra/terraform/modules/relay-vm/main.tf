@@ -117,6 +117,7 @@ resource "google_service_account" "relay" {
 }
 
 resource "google_compute_instance" "relay" {
+  #checkov:skip=CKV_GCP_38:This ephemeral, on-demand relay VM stores no tenant data; Google-managed encryption at rest is the project's accepted posture. CSEK would require an operator-managed raw key for each create/recovery and cannot be safely kept in Terraform state.
   count = var.create ? 1 : 0
 
   name         = "ikaro-relay-vm-${var.environment}"
