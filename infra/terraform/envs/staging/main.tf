@@ -94,42 +94,30 @@ module "secrets" {
   labels      = var.labels
 }
 
-# 4 runtime SAs + every IAM binding resolvable now (S14 buckets, S16
-# secrets, project-level roles, self-grant). Cross-resource bindings on
-# Cloud Run services / Pub/Sub topics are S18's/S19's, once those exist.
-module "iam" {
-  source = "../../modules/iam"
-
-  project_id  = var.project_id
-  environment = var.environment
-  region      = var.region
-  labels      = var.labels
-
-  uploads_bucket_name = module.storage.uploads_bucket_name
-  public_bucket_name  = module.storage.public_bucket_name
-  secret_ids          = module.secrets.secret_ids
+locals {
+  runtime_sa_emails = {
+    backend        = "ikaro-backend@${var.project_id}.iam.gserviceaccount.com"
+    bff            = "ikaro-bff@${var.project_id}.iam.gserviceaccount.com"
+    web            = "ikaro-web@${var.project_id}.iam.gserviceaccount.com"
+    pubsub_invoker = "ikaro-pubsub-invoker@${var.project_id}.iam.gserviceaccount.com"
+    migrate        = "ikaro-migrate@${var.project_id}.iam.gserviceaccount.com"
+  }
 }
 
-# Review finding (PR #176, 2026-07-20): none of the cloudrun-service/migrate-job
-# module calls below reference module.iam's per-SA secret_manager_secret_iam_member
-# bindings — their only implicit edges are to the SA resource itself
-# (module.iam.<x>_sa_email) and to the secret container (module.secrets), never to
-# the accessor grant that actually lets that SA read it. Without an explicit
-# dependency, Terraform could create/update a Cloud Run service or Job in parallel
-# with (or before) the IAM grant that lets its runtime identity mount the secret —
-# Cloud Run validates secret access at revision/execution creation time and fails
-# with a permission error if the grant isn't visible yet.
-#
-# depends_on = [module.iam] alone fixes the ordering (Terraform won't issue the
-# Cloud Run API call until every resource in module.iam, including the accessor
-# bindings, has returned success) but GCP IAM grants have their own propagation
-# delay on top of that — up to ~60s per Google's own docs — even after the
-# Terraform-level API call succeeds. time_sleep adds that buffer explicitly rather
-# than relying on undocumented luck (bootstrap_mode deferring the real secret
-# mount to a much later apply, by which point the binding has long since
-# propagated in practice).
+# TD34 transfers this complete IAM module to Foundation state. Keep every live
+# identity and binding; only this normal state's ownership is relinquished.
+removed {
+  from = module.iam
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+# Runtime identities and their secret-accessor grants are Foundation-owned
+# (TD34). The protected Foundation apply must complete before a normal
+# environment apply that creates or updates a secret-mounting workload.
 resource "time_sleep" "iam_propagation" {
-  depends_on      = [module.iam]
   create_duration = "30s"
 }
 
@@ -150,7 +138,7 @@ module "cloudrun_backend" {
   image                 = local.bootstrap_image
   bootstrap_mode        = false
   port                  = 3001
-  service_account_email = module.iam.backend_sa_email
+  service_account_email = local.runtime_sa_emails.backend
   execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
   custom_audiences      = [local.backend_pubsub_audience]
 
@@ -179,8 +167,8 @@ module "cloudrun_backend" {
   # run.invoker while the on-demand VM is absent.
   invoker_members = concat(
     [
-      "serviceAccount:${module.iam.bff_sa_email}",
-      "serviceAccount:${module.iam.pubsub_invoker_sa_email}",
+      "serviceAccount:${local.runtime_sa_emails.bff}",
+      "serviceAccount:${local.runtime_sa_emails.pubsub_invoker}",
     ],
     var.create_relay_vm ? ["serviceAccount:${module.relay_vm.service_account_email}"] : [],
     var.iam_admin_user != "" ? ["user:${var.iam_admin_user}"] : []
@@ -207,7 +195,7 @@ module "cloudrun_backend" {
       PUBSUB_CONSUMER_MODE        = "push"
       PUBSUB_AUTO_CREATE          = "false"
       PUBSUB_PUSH_AUDIENCE        = local.backend_pubsub_audience
-      PUBSUB_PUSH_SERVICE_ACCOUNT = module.iam.pubsub_invoker_sa_email
+      PUBSUB_PUSH_SERVICE_ACCOUNT = local.runtime_sa_emails.pubsub_invoker
 
       GCS_BUCKET_NAME        = module.storage.uploads_bucket_name
       GCS_PUBLIC_BUCKET_NAME = module.storage.public_bucket_name
@@ -254,7 +242,7 @@ module "cloudrun_bff" {
   image                 = local.bootstrap_image
   bootstrap_mode        = false
   port                  = 3002
-  service_account_email = module.iam.bff_sa_email
+  service_account_email = local.runtime_sa_emails.bff
   max_instance_count    = var.bff_max_instances
 
   ingress    = "INGRESS_TRAFFIC_ALL"
@@ -265,7 +253,7 @@ module "cloudrun_bff" {
   allow_unauthenticated = true
   # Completes the run.invoker set alongside the backend's grants above — not
   # strictly needed while the BFF is public, but harmless (S17 discovery).
-  invoker_members = ["serviceAccount:${module.iam.web_sa_email}"]
+  invoker_members = ["serviceAccount:${local.runtime_sa_emails.web}"]
 
   health_check_ready_path = "/v1/health/ready"
   health_check_live_path  = "/v1/health/live"
@@ -315,7 +303,7 @@ module "cloudrun_web" {
   image                 = local.bootstrap_image
   bootstrap_mode        = false
   port                  = 3000
-  service_account_email = module.iam.web_sa_email
+  service_account_email = local.runtime_sa_emails.web
   # memory left at the module default (512Mi) -- GCP rejects <512Mi with
   # EXECUTION_ENVIRONMENT_GEN2 (confirmed by a real staging apply, 2026-07-19:
   # the story's original "256Mi" spec silently conflicted with "second-gen
@@ -362,8 +350,8 @@ module "pubsub" {
 
   backend_push_endpoint   = "${module.cloudrun_backend.service_uri}/pubsub/push"
   backend_pubsub_audience = local.backend_pubsub_audience
-  backend_sa_email        = module.iam.backend_sa_email
-  pubsub_invoker_sa_email = module.iam.pubsub_invoker_sa_email
+  backend_sa_email        = local.runtime_sa_emails.backend
+  pubsub_invoker_sa_email = local.runtime_sa_emails.pubsub_invoker
 }
 
 # Migration Cloud Run Job (M17-S20) — CI-triggered pipeline stage
@@ -385,7 +373,7 @@ module "migrate_job" {
 
   image                 = local.bootstrap_image
   bootstrap_mode        = false
-  service_account_email = module.iam.migrate_sa_email
+  service_account_email = local.runtime_sa_emails.migrate
 
   network_id = module.network.network_id
   subnet_id  = module.network.subnet_id

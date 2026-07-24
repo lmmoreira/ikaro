@@ -15,6 +15,71 @@ module "project_services" {
   services   = ["iap.googleapis.com"]
 }
 
+# TD34: Foundation, not the routine environment deployer, owns runtime
+# identities and their IAM bindings. The explicit imports below will adopt the
+# existing objects without changing their live access.
+module "runtime_identities" {
+  source = "../../modules/runtime-identities"
+
+  project_id  = var.project_id
+  environment = var.environment
+
+  uploads_bucket_name = "ikaro-uploads-${var.environment}"
+  public_bucket_name  = "ikaro-public-${var.environment}"
+  secret_ids = {
+    for name in ["db-password", "db-migrator-password", "jwt-secret", "internal-api-key", "platform-admin-key", "hotsite-revalidate-secret", "google-oauth-client-id", "google-oauth-client-secret", "brevo-smtp-key"] : name => "projects/${var.project_id}/secrets/${name}"
+  }
+}
+
+locals {
+  runtime_project_roles = {
+    backend_cloudsql_client          = { role = "roles/cloudsql.client", principal = "backend" }
+    migrate_cloudsql_client          = { role = "roles/cloudsql.client", principal = "migrate" }
+    backend_cloudtrace_agent         = { role = "roles/cloudtrace.agent", principal = "backend" }
+    backend_monitoring_metric_writer = { role = "roles/monitoring.metricWriter", principal = "backend" }
+    bff_cloudtrace_agent             = { role = "roles/cloudtrace.agent", principal = "bff" }
+    bff_monitoring_metric_writer     = { role = "roles/monitoring.metricWriter", principal = "bff" }
+  }
+
+  runtime_secret_accessors = {
+    backend = ["db-password", "jwt-secret", "internal-api-key", "platform-admin-key", "hotsite-revalidate-secret", "brevo-smtp-key"]
+    bff     = ["jwt-secret", "internal-api-key", "google-oauth-client-id", "google-oauth-client-secret"]
+    web     = ["jwt-secret", "hotsite-revalidate-secret"]
+    migrate = ["db-migrator-password"]
+  }
+
+  runtime_secret_bindings = merge([for principal, secrets in local.runtime_secret_accessors : { for secret in secrets : "${principal}-${secret}" => { principal = principal, secret = secret } }]...)
+}
+
+import {
+  for_each = toset(["backend", "bff", "web", "pubsub_invoker", "migrate"])
+  to       = module.runtime_identities.google_service_account.runtime[each.key]
+  id       = "projects/${var.project_id}/serviceAccounts/ikaro-${replace(each.key, "_", "-")}@${var.project_id}.iam.gserviceaccount.com"
+}
+
+import {
+  for_each = local.runtime_project_roles
+  to       = module.runtime_identities.google_project_iam_member.runtime[each.key]
+  id       = "${var.project_id} ${each.value.role} serviceAccount:ikaro-${replace(each.value.principal, "_", "-")}@${var.project_id}.iam.gserviceaccount.com"
+}
+
+import {
+  to = module.runtime_identities.google_service_account_iam_member.backend_token_creator_self
+  id = "projects/${var.project_id}/serviceAccounts/ikaro-backend@${var.project_id}.iam.gserviceaccount.com roles/iam.serviceAccountTokenCreator serviceAccount:ikaro-backend@${var.project_id}.iam.gserviceaccount.com"
+}
+
+import {
+  for_each = { uploads = "ikaro-uploads-${var.environment}", public = "ikaro-public-${var.environment}" }
+  to       = module.runtime_identities.google_storage_bucket_iam_member.backend_object_admin[each.key]
+  id       = "b/${each.value} roles/storage.objectAdmin serviceAccount:ikaro-backend@${var.project_id}.iam.gserviceaccount.com"
+}
+
+import {
+  for_each = local.runtime_secret_bindings
+  to       = module.runtime_identities.google_secret_manager_secret_iam_member.accessor[each.key]
+  id       = "projects/${var.project_id}/secrets/${each.value.secret} roles/secretmanager.secretAccessor serviceAccount:ikaro-${replace(each.value.principal, "_", "-")}@${var.project_id}.iam.gserviceaccount.com"
+}
+
 module "custom_roles" {
   source = "../../modules/custom-roles"
 
