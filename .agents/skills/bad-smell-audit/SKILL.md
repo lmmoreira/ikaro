@@ -36,7 +36,7 @@ git diff origin/main...HEAD --name-only | grep "^apps/web/"
 
 3. **BE-4 is skipped in `--pr` mode** — checking for missing entity/event/command builders requires scanning the full `src/test/builders/` tree against all entity/event/command files; this is a full-codebase check that the pre-PR script (Step 1, check 28) already covers for new entities, events, and commands added in the PR.
 
-4. All other checks (BE-1, BE-2, BE-3, BE-5, BE-6, BE-7, BFF-1–4, WEB-1–7) run normally but scoped to the changed file list.
+4. All other checks (BE-1, BE-2, BE-3, BE-5, BE-6, BE-7, BFF-1–4, WEB-1–9) run normally but scoped to the changed file list.
 
 If the `git diff` for a layer returns zero files, skip that layer entirely and report `(no changed files in this layer)`.
 
@@ -50,7 +50,7 @@ Spawn three Explore agents in parallel, one per layer. Give each agent the full 
 |---|---|---|
 | Backend | `apps/backend/src/` (full) or changed files list (--pr) | Backend checks section (BE-1 through BE-7; skip BE-4 in --pr mode) |
 | BFF | `apps/bff/src/` (full) or changed files list (--pr) | BFF checks section (BFF-1 through BFF-4) |
-| Web | `apps/web/` (full) or changed files list (--pr) | Web checks section (WEB-1 through WEB-7) |
+| Web | `apps/web/` (full) or changed files list (--pr) | Web checks section (WEB-1 through WEB-9) |
 
 If `$ARGUMENTS` restricts to a single layer or a specific context path, spawn only the relevant agent.
 
@@ -83,7 +83,7 @@ Grep for:
 Grep for:
 - `function make` in `*.spec.ts` or `*.integration.spec.ts` files — **then read each match's body before flagging it**: only a real finding if it constructs a TypeORM entity (`new XxxEntity(...)` or an entity-typed object literal) or a `DomainEvent`/`Command` subclass. A helper that builds a mock (`ConfigService`, `ExecutionContext`, `Reflector`, a fake port/adapter) or a plain application-layer DTO is **not** the smell this check targets — it's about bypassing `src/test/builders/`, not "any function named `make*`." (Confirmed via TD23-S17: without the read-the-body step, this bullet produced 25/25 false positives — every match was a mock/DTO factory.)
 - `new XxxEntity()` called directly inside a test `it()` or `describe()` block (not inside a builder class)
-- Object literals assigned to a variable of a TypeORM entity type inside test files
+- Object literals typed as (or targeting) a TypeORM entity inside test files — whether **assigned to a variable first** or **passed directly as an inline argument** to a repository call (`.save({...})`, `.insert({...})`, `.update({...}, ...)`) when a builder for that entity already exists. (Confirmed via the skill-creator eval on 2026-07-23: a version of this check scoped to "assigned to a variable" only missed `ds.getRepository(LoyaltyBalanceEntity).save({ tenantId, customerId, currentPoints: 500 })` in `booking-completed.handler.integration.spec.ts` — a real, repeated bypass of the existing `LoyaltyBalanceEntityBuilder` that a freeform audit with no such restriction caught. The assignment step was never the smell; bypassing the builder is.)
 - `new XxxEvent(...)` or `new XxxCommand(...)` (classes extending `DomainEvent`/`Command`) constructed inline with all constructor args spelled out, in **two or more** spec files (a single one-off construction in one file is fine; repetition across files is the smell)
 
 The fix pattern: create a `XxxEntityBuilder` (for entities) or `XxxEventBuilder`/`XxxCommandBuilder` (for `DomainEvent`/`Command` classes) in `src/test/builders/<context>/`.
@@ -124,6 +124,10 @@ BFF controllers must only call service methods and forward results — no domain
 - Multi-branch `if/else` chains with more than one business condition inside controller method bodies
 - Mathematical calculations or date arithmetic inside controller method bodies
 - Domain error classes instantiated and thrown directly from controller method bodies (not via an exception filter)
+- A controller method (or a private helper called only from one) reaching directly into a **different** bounded context's service/repo/adapter — e.g. a booking controller privately fetching loyalty data itself instead of the BFF orchestrating two calls at the composition layer or the backend exposing a combined read
+- Multi-call orchestration assembled directly in the controller body: a per-item fan-out (`Promise.all(items.map(...))` making one call per item) or 3+ calls (sequential or `Promise.all`) whose results are manually spread/shaped into the response inline, instead of delegating the orchestration to a mapper or service
+
+(Added 2026-07-23 after the skill-creator eval found 4 real instances of these two patterns — cross-context reach and multi-call fan-out — in `apps/bff/src/features/{booking,customer,loyalty}` that the original three bullets didn't cover.)
 
 ### BFF-2. Module/controller naming — bounded-context vs. aggregate
 
@@ -149,7 +153,9 @@ Grep `apps/web/` for `dangerouslySetInnerHTML`. For each match, check whether th
 
 ### WEB-2. Non-`readonly` fields in React component prop interfaces (SonarCloud S6759)
 
-For `*.tsx` files in `apps/web/components/`, find `interface` or `type` declarations used as component props (the function parameter type or `React.FC` first type argument). Report any field not marked `readonly`. Every field in a component props interface must be `readonly`.
+For `*.tsx` files under `apps/web/features/*/components/`, `apps/web/shells/*/components/`, and `apps/web/shared/components/` (the current domain-slice component locations — there is no flat `apps/web/components/`), find `interface` or `type` declarations used as component props (the function parameter type or `React.FC` first type argument). Report any field not marked `readonly`. Every field in a component props interface must be `readonly`.
+
+(Stale path found 2026-07-23 while building the skill-creator eval for this command: `apps/web/components/` doesn't exist under the post-TD-21 domain-slice layout — same class of bug as WEB-7's old `apps/web/lib/api/` path.)
 
 ### WEB-3. CSS custom property type assertions
 
@@ -157,7 +163,7 @@ Grep `apps/web/` for `as React.CSSProperties` in function return positions. Flag
 
 ### WEB-4. Component spec files missing `// @vitest-environment jsdom`
 
-For each `*.spec.tsx` file under `apps/web/components/`, check that the very first line is exactly:
+For each `*.spec.tsx` file under `apps/web/features/*/components/`, `apps/web/shells/*/components/`, and `apps/web/shared/components/` (the current domain-slice component locations — there is no flat `apps/web/components/`), check that the very first line is exactly:
 ```
 // @vitest-environment jsdom
 ```
@@ -174,6 +180,18 @@ Grep `apps/web/` for import statements using bare built-in names: `from 'path'`,
 ### WEB-7. Fetcher files not mirroring bounded-context names
 
 Check the actual current fetcher/API layout first — `apps/web/features/<domain>/api/**` (post-TD-21 domain-slice migration; there is no flat `apps/web/lib/api/` anymore) and `apps/web/shared/lib/api/**` for cross-cutting transport helpers (`bff-client.ts`, `bff-server.ts`, `errors.ts`, etc.). Within a domain's own `api/` folder, a file is correctly named after the *resource* it fetches, not the domain — the domain is already encoded by the directory path, so `features/booking/api/services.ts` and `features/booking/api/schedule.ts` are both correct as-is. Two different domains can legitimately have same-named files for different purposes (e.g. `features/booking/api/services.ts` for staff CRUD vs. `features/platform/hotsite/api/services.ts` for public hotsite reads of the same underlying aggregate) — that is not the smell. The actual smell is a file named after an aggregate from a *different* bounded context than the directory it lives in (e.g. a `tenants.ts` file — `Tenant` is a `platform` aggregate — sitting inside a non-`platform` domain's `api/` folder), or a cross-cutting `shared/lib/api/**` helper misnamed after an aggregate instead of its actual transport purpose. (Confirmed via TD23-S17: the old "list `apps/web/lib/api/`, flag non-context names" version of this check produced 9/9 false positives — that directory doesn't exist in the current architecture, and every flagged file was correctly resource-named within its own domain.)
+
+### WEB-8. Raw `fetch()` bypassing the sanctioned transport helpers
+
+Grep `apps/web/` for `fetch(` calls. Every BFF/backend call must go through one of the three sanctioned helpers documented in CLAUDE.md §7 "Web → BFF transport": `bffServerFetch`, `bffPublicFetch`, or `bffClient`. Flag any raw `fetch(...)` call to a BFF/backend URL that bypasses all three — **unless** the call site has an inline comment documenting why (the existing exempted call sites in `features/platform/api.ts` and `features/platform/hotsite/api/*.ts` cite an isomorphic/`next.revalidate` constraint and a TD number; a new raw `fetch()` needs the same kind of documented rationale, not just a bare call).
+
+### WEB-9. Local type/interface drifted or duplicated vs. `@ikaro/types`
+
+For interfaces/types declared in `apps/web/features/**/api/**` or `apps/web/shared/lib/api/**`, grep `@ikaro/types` (`packages/types/src/*.dto.ts`) for an export of the same name. If one exists, compare fields:
+- **Identical shape** → flag as an avoidable duplicate that should import from `@ikaro/types` instead.
+- **Different shape under the same name** → flag as drift, not just duplication — this is a real correctness risk (the local type silently shadows the canonical one at compile time). Report the exact field-level mismatch (e.g. `id` vs `entryId`, a field present on one side and missing on the other).
+
+This is CLAUDE.md's own documented anti-pattern ("New interface in `apps/web/features/**/api/**`... without checking `@ikaro/types` first"), but `bad-smell-audit` had no check for it until 2026-07-23. See `td/TD09-WEB-TYPES-DRIFT-VS-IKARO-TYPES.md` for prior resolved instances (`services`, `customers`, `staff`, `LoyaltyBalanceResponse`) and `td/TD31-BAD-SMELL-AUDIT-COVERAGE-SNAPSHOT.md` for the newly-found drift on `LoyaltyEntryItem`/`LoyaltyRedemptionItem` that prompted adding this check.
 
 ---
 
@@ -243,6 +261,12 @@ Check the actual current fetcher/API layout first — `apps/web/features/<domain
 (none found)
 
 #### WEB-7. Fetcher naming
+(none found)
+
+#### WEB-8. Raw fetch() bypassing transport helpers
+(none found)
+
+#### WEB-9. Local type drift/duplication vs @ikaro/types
 (none found)
 
 ---

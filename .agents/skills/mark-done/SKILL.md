@@ -11,6 +11,8 @@ Argument: `$ARGUMENTS` — the story ID to mark done (e.g. `M03-S06`).
 
 **TD stories** (`TDxx Story N`) are not covered by this command — `$ARGUMENTS` only parses `M0X-SYY` milestone syntax, and Step 6 requires being on `main`. Mark a TD story done by appending ` ✅ Done` directly to its `#### Story N —` heading in the `td/TDxx-*.md` file, bundled into the same feature-branch commit as the story's implementation — not as a separate post-merge `main` commit. See TD23 Stories 4-7 for precedent.
 
+**Single-scope TDs** (no `#### Story N —` subdivision, just one `## Status` block for the whole TD — e.g. TD27) don't have a heading to append `✅ Done` to. Update the `- **State**:` line in that `## Status` block instead (e.g. `**State**: ✅ Done — implemented and merged via PR #<N> (<date>)`). Same bundling preference applies (into the feature-branch commit, not a separate post-merge commit) — only fall back to a standalone `main` commit if the branch is already merged and gone, as happened with TD27 (PR #185, 2026-07-22).
+
 ---
 
 ## Steps

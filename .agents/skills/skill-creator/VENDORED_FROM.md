@@ -1,0 +1,7 @@
+Upstream repository: https://github.com/anthropics/skills.git
+Upstream path: skills/skill-creator
+Pinned commit: 1f630fdf9259cec4a14913127dfd7c3b69ef72eb
+Vendored on: 2026-07-23
+Local modifications:
+- `eval-viewer/generate_review.py` (2026-07-23): escaped literal `</` sequences in the embedded JSON payload (`data_json = json.dumps(embedded).replace("</", "<\\/")`) before injecting it into the page's own `<script>` block. Without this, an eval output that itself contains the text `</script>` (e.g. discussing XSS-escaping code) prematurely closes the HTML parser's script element, silently truncating the rest of the page — found while running the eval for `bad-smell-audit` in this repo. Valid JSON allows `\/` as an escape for `/`, so this is a no-op for parsing; verified round-trip in Python before applying.
+- Known gotcha, not patched: `eval-viewer/viewer.html` and `assets/eval_review.html` load Google Fonts + a SheetJS CDN script over the network. In a sandboxed/CSP-restricted HTML preview (e.g. this session's file-delivery mechanism) those requests get blocked and the page can render broken/unstyled. Not changed here since stripping them would remove real functionality (XLSX-output rendering) for use in a normal browser with internet access — if delivering a generated review page through a similarly sandboxed viewer, post-process the output HTML to inline/strip those tags first, the way this session did.
