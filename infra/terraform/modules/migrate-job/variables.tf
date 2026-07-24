@@ -23,7 +23,7 @@ variable "deletion_protection" {
 }
 
 variable "env_vars" {
-  description = "Plain (non-secret) environment variables for the migrate container (DB_HOST, DB_MIGRATOR_USER, DB_NAME, etc.)"
+  description = "Plain (non-secret) environment variables for the migrate container (DB_INSTANCE_CONNECTION_NAME, DB_MIGRATOR_USER, DB_NAME, etc.)"
   type        = map(string)
   default     = {}
 }

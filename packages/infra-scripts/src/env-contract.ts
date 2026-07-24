@@ -44,6 +44,10 @@ const BACKEND_EXEMPT_KEYS: readonly string[] = [
   'LOG_LEVEL',
   'LOG_VENDOR',
   'GCP_PROJECT',
+  // TD33 — DB_HOST is APP_ENV=local-only now (raw TCP to Testcontainers/docker-compose Postgres);
+  // staging/prod wire DB_INSTANCE_CONNECTION_NAME instead (Cloud SQL Connector), which is not
+  // exempted here, so its presence in both env roots' cloudrun_backend module is still enforced.
+  'DB_HOST',
   'DB_PORT',
   'PUBSUB_MAX_DELIVERY_ATTEMPTS',
   'GCS_PUBLIC_BASE_URL',

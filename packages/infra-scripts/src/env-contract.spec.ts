@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { checkEnvContract } from './env-contract';
 
 function writeFixtureRepo(options: {
-  backendTfHasDbHost: boolean;
+  backendTfHasRequiredVar: boolean;
   webTfHasBffUrl: boolean;
 }): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'env-contract-fixture-'));
@@ -15,7 +15,7 @@ function writeFixtureRepo(options: {
     path.join(backendSchemaDir, 'env.validation.ts'),
     `
       const schema = z.object({
-        DB_HOST: z.string(),
+        REQUIRED_VAR: z.string(),
         PORT: z.coerce.number().default(3001),
       });
     `,
@@ -41,7 +41,7 @@ function writeFixtureRepo(options: {
     `,
   );
 
-  const backendEnvVars = options.backendTfHasDbHost ? 'DB_HOST = "x"' : '';
+  const backendEnvVars = options.backendTfHasRequiredVar ? 'REQUIRED_VAR = "x"' : '';
   const webEnvVars = options.webTfHasBffUrl ? 'NEXT_PUBLIC_BFF_URL = "x"' : '';
 
   for (const env of ['staging', 'prod']) {
@@ -74,6 +74,81 @@ function writeFixtureRepo(options: {
   return root;
 }
 
+function writeDbKeyFixtureRepo(options: {
+  backendTfHasDbHost: boolean;
+  backendTfHasInstanceConnectionName: boolean;
+}): string {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'env-contract-db-fixture-'));
+
+  const backendSchemaDir = path.join(root, 'apps/backend/src/config');
+  fs.mkdirSync(backendSchemaDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(backendSchemaDir, 'env.validation.ts'),
+    `
+      const schema = z.object({
+        DB_HOST: z.string().optional(),
+        DB_INSTANCE_CONNECTION_NAME: z.string().optional(),
+      });
+    `,
+  );
+
+  const bffSchemaDir = path.join(root, 'apps/bff/src/config');
+  fs.mkdirSync(bffSchemaDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(bffSchemaDir, 'env.validation.ts'),
+    `
+      const schema = z.object({
+        BACKEND_INTERNAL_URL: z.url(),
+      });
+    `,
+  );
+
+  const webRuntimeEnvDir = path.join(root, 'apps/web/shared/lib/runtime-env');
+  fs.mkdirSync(webRuntimeEnvDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(webRuntimeEnvDir, 'public-env.ts'),
+    `
+      const PUBLIC_ENV_KEYS = ['NEXT_PUBLIC_BFF_URL'] as const;
+    `,
+  );
+
+  const backendEnvVars = [
+    options.backendTfHasDbHost ? 'DB_HOST = "10.0.0.5"' : '',
+    options.backendTfHasInstanceConnectionName
+      ? 'DB_INSTANCE_CONNECTION_NAME = "proj:region:instance"'
+      : '',
+  ].join('\n');
+
+  for (const env of ['staging', 'prod']) {
+    const envDir = path.join(root, `infra/terraform/envs/${env}`);
+    fs.mkdirSync(envDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(envDir, 'main.tf'),
+      `
+        module "cloudrun_backend" {
+          env_vars = {
+            ${backendEnvVars}
+          }
+        }
+
+        module "cloudrun_bff" {
+          env_vars = {
+            BACKEND_INTERNAL_URL = "x"
+          }
+        }
+
+        module "cloudrun_web" {
+          env_vars = {
+            NEXT_PUBLIC_BFF_URL = "x"
+          }
+        }
+      `,
+    );
+  }
+
+  return root;
+}
+
 describe('checkEnvContract', () => {
   const fixtureRoots: string[] = [];
 
@@ -84,14 +159,14 @@ describe('checkEnvContract', () => {
   });
 
   it('reports no violations when every required key is wired in both env roots', () => {
-    const root = writeFixtureRepo({ backendTfHasDbHost: true, webTfHasBffUrl: true });
+    const root = writeFixtureRepo({ backendTfHasRequiredVar: true, webTfHasBffUrl: true });
     fixtureRoots.push(root);
 
     expect(checkEnvContract(root)).toEqual([]);
   });
 
   it('does not flag PORT even though it is never wired in Terraform (exempt: platform-reserved)', () => {
-    const root = writeFixtureRepo({ backendTfHasDbHost: true, webTfHasBffUrl: true });
+    const root = writeFixtureRepo({ backendTfHasRequiredVar: true, webTfHasBffUrl: true });
     fixtureRoots.push(root);
 
     const violations = checkEnvContract(root);
@@ -99,7 +174,7 @@ describe('checkEnvContract', () => {
   });
 
   it('reports a violation per env root missing a required key', () => {
-    const root = writeFixtureRepo({ backendTfHasDbHost: false, webTfHasBffUrl: true });
+    const root = writeFixtureRepo({ backendTfHasRequiredVar: false, webTfHasBffUrl: true });
     fixtureRoots.push(root);
 
     const violations = checkEnvContract(root);
@@ -108,7 +183,7 @@ describe('checkEnvContract', () => {
     for (const violation of violations) {
       expect(violation.appName).toBe('backend');
       expect(violation.cloudRunModule).toBe('cloudrun_backend');
-      expect(violation.missingKeys).toEqual(['DB_HOST']);
+      expect(violation.missingKeys).toEqual(['REQUIRED_VAR']);
     }
     expect(violations.map((v) => v.envRoot).sort()).toEqual([
       'infra/terraform/envs/prod/main.tf',
@@ -117,7 +192,7 @@ describe('checkEnvContract', () => {
   });
 
   it('reports a violation for web missing a required key in each env root', () => {
-    const root = writeFixtureRepo({ backendTfHasDbHost: true, webTfHasBffUrl: false });
+    const root = writeFixtureRepo({ backendTfHasRequiredVar: true, webTfHasBffUrl: false });
     fixtureRoots.push(root);
 
     const violations = checkEnvContract(root);
@@ -135,7 +210,7 @@ describe('checkEnvContract', () => {
   });
 
   it('checks web against prod too, now that M17-S26 has widened it to ALL_ENV_ROOTS', () => {
-    const root = writeFixtureRepo({ backendTfHasDbHost: true, webTfHasBffUrl: false });
+    const root = writeFixtureRepo({ backendTfHasRequiredVar: true, webTfHasBffUrl: false });
     fixtureRoots.push(root);
 
     const violations = checkEnvContract(root);
@@ -147,5 +222,31 @@ describe('checkEnvContract', () => {
     const realRepoRoot = path.resolve(__dirname, '../../..');
 
     expect(checkEnvContract(realRepoRoot)).toEqual([]);
+  });
+
+  it('exempts DB_HOST (local-only) while still requiring DB_INSTANCE_CONNECTION_NAME in both env roots', () => {
+    const root = writeDbKeyFixtureRepo({
+      backendTfHasDbHost: false,
+      backendTfHasInstanceConnectionName: true,
+    });
+    fixtureRoots.push(root);
+
+    expect(checkEnvContract(root)).toEqual([]);
+  });
+
+  it('flags DB_INSTANCE_CONNECTION_NAME as missing when Terraform only wires DB_HOST', () => {
+    const root = writeDbKeyFixtureRepo({
+      backendTfHasDbHost: true,
+      backendTfHasInstanceConnectionName: false,
+    });
+    fixtureRoots.push(root);
+
+    const violations = checkEnvContract(root);
+
+    expect(violations).toHaveLength(2);
+    for (const violation of violations) {
+      expect(violation.appName).toBe('backend');
+      expect(violation.missingKeys).toEqual(['DB_INSTANCE_CONNECTION_NAME']);
+    }
   });
 });

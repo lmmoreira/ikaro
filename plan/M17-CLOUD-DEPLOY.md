@@ -45,6 +45,7 @@
 | Cloudflare (core: DNS/CDN/WAF) | none (cloud-neutral) | — | zero | fronts any origin |
 | Cloudflare for SaaS (S40) | custom-hostname + cert issuance API | tenant `custom_domain` data + verification port live in the app | ~days (Fastly/edge equivalent, or ALB certs per domain) | custom-hostname SSL is inherently edge-provider-specific; accepted |
 | Brevo (was SendGrid — switched 2026-07-15, S10: SendGrid rejected the account during compliance vetting, and had separately retired its free plan) | delivery API (SMTP relay) | M11 email port — provider-specific types confined to its adapter (`EMAIL_ADAPTER` switches, tracked as `td/TD26-BREVO-EMAIL-ADAPTER.md`) | ~hours (SES/Resend/Mailgun/SMTP adapter) | port already exists; cheapest swap in the stack |
+| Cloud SQL Connector (TD33 — verified TLS, replaces `rejectUnauthorized: false`) | `@google-cloud/cloud-sql-connector` (ephemeral cert fetch/rotation via Cloud SQL Admin API) | confined to `shared/infrastructure/database/cloud-sql-connector.adapter.ts` — one adapter, mirrors the event-bus/GCS adapter pattern (guardrail #1) | ~hours (swap for the target provider's equivalent — e.g. RDS IAM auth's connector — or fall back to manual TLS + pinned CA cert) | closes a real MITM gap (server-cert verification) using a thin, swappable dependency; `pg`'s own `stream` config option is the generic seam, not a Cloud SQL-specific driver fork |
 
 ---
 

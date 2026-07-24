@@ -123,6 +123,7 @@ describe('validateEnv()', () => {
       EMAIL_ADAPTER: 'brevo',
       BREVO_SMTP_LOGIN: 'account@example.com',
       BREVO_SMTP_KEY: 'fake-smtp-key',
+      DB_INSTANCE_CONNECTION_NAME: 'ikaro-staging:southamerica-east1:ikaro-db-staging',
       DB_POOL_SIZE: '3',
     });
     expect(result.DB_POOL_SIZE).toBe(3);
@@ -178,10 +179,56 @@ describe('validateEnv()', () => {
       EMAIL_ADAPTER: 'brevo',
       BREVO_SMTP_LOGIN: 'account@example.com',
       BREVO_SMTP_KEY: 'fake-smtp-key',
+      DB_INSTANCE_CONNECTION_NAME: 'ikaro-staging:southamerica-east1:ikaro-db-staging',
     });
     expect(result.APP_ENV).toBe('staging');
     expect(result.PUBSUB_AUTO_CREATE).toBe(false);
     expect(result.PUBSUB_CONSUMER_MODE).toBe('push');
+  });
+
+  it('throws when APP_ENV=local and DB_HOST is missing', () => {
+    const withoutDbHost = Object.fromEntries(
+      Object.entries(valid).filter(([k]) => k !== 'DB_HOST'),
+    );
+    expect(() => validateEnv(withoutDbHost)).toThrow('DB_HOST is required when APP_ENV=local');
+  });
+
+  it('throws when APP_ENV is not local and DB_INSTANCE_CONNECTION_NAME is missing', () => {
+    expect(() =>
+      validateEnv({
+        ...valid,
+        APP_ENV: 'staging',
+        PUBSUB_AUTO_CREATE: 'false',
+        PUBSUB_CONSUMER_MODE: 'push',
+        PUBSUB_PUSH_AUDIENCE: 'https://backend.internal/pubsub/push',
+        PUBSUB_PUSH_SERVICE_ACCOUNT: 'ikaro-pubsub-invoker@project.iam.gserviceaccount.com',
+        EMAIL_ADAPTER: 'brevo',
+        BREVO_SMTP_LOGIN: 'account@example.com',
+        BREVO_SMTP_KEY: 'fake-smtp-key',
+      }),
+    ).toThrow('DB_INSTANCE_CONNECTION_NAME is required when APP_ENV is not "local"');
+  });
+
+  it('accepts APP_ENV=staging with DB_INSTANCE_CONNECTION_NAME and without DB_HOST', () => {
+    const withoutDbHost = Object.fromEntries(
+      Object.entries(valid).filter(([k]) => k !== 'DB_HOST'),
+    );
+    const result = validateEnv({
+      ...withoutDbHost,
+      APP_ENV: 'staging',
+      PUBSUB_AUTO_CREATE: 'false',
+      PUBSUB_CONSUMER_MODE: 'push',
+      PUBSUB_PUSH_AUDIENCE: 'https://backend.internal/pubsub/push',
+      PUBSUB_PUSH_SERVICE_ACCOUNT: 'ikaro-pubsub-invoker@project.iam.gserviceaccount.com',
+      EMAIL_ADAPTER: 'brevo',
+      BREVO_SMTP_LOGIN: 'account@example.com',
+      BREVO_SMTP_KEY: 'fake-smtp-key',
+      DB_INSTANCE_CONNECTION_NAME: 'ikaro-staging:southamerica-east1:ikaro-db-staging',
+    });
+    expect(result.DB_HOST).toBeUndefined();
+    expect(result.DB_INSTANCE_CONNECTION_NAME).toBe(
+      'ikaro-staging:southamerica-east1:ikaro-db-staging',
+    );
   });
 
   it('accepts optional GCP_PROJECT for Cloud Logging trace correlation', () => {

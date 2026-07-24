@@ -1,27 +1,20 @@
 import 'reflect-metadata';
 import { config } from 'dotenv';
 import { DataSource } from 'typeorm';
-import { resolveDatabaseSsl } from './resolve-database-ssl';
+import { buildDataSourceOptions, type BaseDataSourceOptions } from './build-data-source-options';
 
 config({ quiet: true }); // load .env when invoked directly by TypeORM CLI
 
-const required = ['DB_HOST', 'DB_MIGRATOR_USER', 'DB_MIGRATOR_PASSWORD', 'DB_NAME'];
-const missing = required.filter((k) => !process.env[k]);
-if (missing.length > 0) {
-  throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
-}
-
-export const AppDataSource = new DataSource({
+const baseOptions: BaseDataSourceOptions = {
   type: 'postgres',
-  host: process.env['DB_HOST'],
-  port: Number(process.env['DB_PORT'] ?? 5432),
   username: process.env['DB_MIGRATOR_USER'],
   password: process.env['DB_MIGRATOR_PASSWORD'],
   database: process.env['DB_NAME'],
-  ssl: resolveDatabaseSsl(process.env['APP_ENV'] ?? 'local'),
   synchronize: false,
   migrationsRun: false,
-  logging: process.env['NODE_ENV'] === 'development' ? ['query', 'error'] : ['error'],
+  logging: (process.env['NODE_ENV'] === 'development' ? ['query', 'error'] : ['error']) as (
+    'query' | 'error'
+  )[],
   entities: [
     __dirname + '/../../contexts/**/infrastructure/entities/*.entity{.ts,.js}',
     // shared/infrastructure/ entities (e.g. outbox/outbox-event.entity.ts, TD24-S01) live outside
@@ -35,4 +28,11 @@ export const AppDataSource = new DataSource({
     __dirname + '/../infrastructure/migrations/*{.ts,.js}',
   ],
   subscribers: [],
-});
+};
+
+// TypeORM's CLI (CommandUtils.loadDataSource) awaits an exported Promise<DataSource> — verified
+// against the installed typeorm@1.1.0 source, not assumed. buildDataSourceOptions (TD33) picks
+// between a local raw-TCP DataSource and a Cloud SQL Connector-backed one for staging/production.
+export const AppDataSource = buildDataSourceOptions(process.env, baseOptions).then(
+  (options) => new DataSource(options),
+);
