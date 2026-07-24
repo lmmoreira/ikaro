@@ -82,10 +82,65 @@ environment requires stronger, independent approval than normal staging/prod
 application or infrastructure delivery. It remains keyless; no JSON service
 account key is introduced.
 
-Move every `google_project_iam_member` and `google_project_service` resource
-that needs project-policy mutation out of the normal environment roots into
-that foundation layer. Migrate state deliberately (Terraform `moved` blocks
-or import/state migration under the protected workflow) so existing bindings
+### Approved target boundary
+
+The selected design is a **complete migration**, not a relay-only exception:
+
+- `ikaro-tf-foundation@ikaro-staging` and
+  `ikaro-tf-foundation@ikaro-prod` are the only Terraform identities allowed
+  to manage project IAM, service-account IAM, project services, and custom
+  roles.
+- Each environment has a distinct Terraform state prefix and a distinct
+  workflow. Normal environment applies and foundation applies must never
+  share a state file or own the same IAM/API resource.
+- The workflows use distinct, protected GitHub Environments:
+  `staging-foundation` and `production-foundation`. Their WIF principal
+  conditions bind the repository, `main`, and the corresponding environment
+  claim. They must not accept the normal infrastructure environments, pull
+  requests, tags, or arbitrary branches.
+- Normal `ikaro-tf-deployer` identities retain only the narrowly scoped
+  permissions required to create and update ordinary non-IAM resources. They
+  cannot manage project policy, service-account policy, service-account keys,
+  service activation, custom roles, or the foundation identities.
+- The relay VM is recreated only after its project API, IAP policy, instance
+  policy, and runtime permissions are already owned and applied by the
+  foundation layer. This removes permission-propagation ordering from the
+  normal relay flip path.
+
+### Controlled migration sequence
+
+1. **Teardown and baseline:** destroy the partially created staging relay VM;
+   capture the managed IAM/API inventory and verify no unrelated state drift.
+2. **Bootstrap:** a reviewed, Terraform-only foundation bootstrap creates the
+   foundation state, service accounts, WIF bindings, and minimum custom roles.
+   The current privileged deployer may perform this one bootstrap because it
+   is the existing root of trust; that capability is removed in the final
+   phase. No operator `gcloud` command or service-account key is used.
+3. **Ownership transfer:** move every project-, service-account-, and
+   resource-level IAM/API object from the environment state into the matching
+   foundation state using an explicit, reviewed `terraform state mv`/import
+   runbook. Cross-state ownership cannot use Terraform `moved` blocks. The
+   transfer is ordered so each live binding is adopted before its former owner
+   is removed.
+4. **De-privilege:** remove the normal deployer's IAM, Service Usage, custom
+   role, and service-account-administration capabilities. Replace only proven
+   routine requirements with resource-specific permissions that do not permit
+   IAM-policy mutation or impersonation.
+5. **Enforce and prove:** apply the foundation layer first, then normal
+   infrastructure; run positive and negative live permission checks; and add
+   CI policy checks that prevent the broad roles from returning.
+
+This is intentionally phased into reviewable pull requests. A single apply
+cannot safely transfer state ownership and revoke the identity that is still
+executing it. The temporary bootstrap privilege is a bounded migration
+precondition, never a recurring permission in the normal deployment path.
+
+Move every project-, service-account-, and resource-level IAM resource, plus
+every `google_project_service`, out of the normal environment roots into that
+foundation layer. This includes Secret Manager, Storage, Pub/Sub, Cloud Run,
+Artifact Registry, Cloud SQL, Compute/IAP, and cross-project bindings: a
+resource-level IAM administrator can otherwise remain an escalation path.
+Migrate state deliberately under the protected workflow so existing bindings
 are adopted rather than removed and recreated.
 
 Then remove `roles/resourcemanager.projectIamAdmin` and
@@ -107,12 +162,16 @@ version-controlled Terraform applies.
 
 ## Acceptance criteria
 
-- [ ] A dedicated, keyless foundation Terraform layer and WIF service account
+- [ ] Dedicated, keyless foundation Terraform layers and WIF service accounts
   exist for staging and production, with separate state from normal
   environment applies.
-- [ ] Project-level IAM bindings and `google_project_service` resources are
-  owned by the foundation layer; routine environment roots no longer mutate
-  the project IAM policy or enable/disable project services.
+- [ ] `staging-foundation` and `production-foundation` are independently
+  protected GitHub Environments; their WIF conditions accept only the
+  matching foundation workflow's `main` deployment.
+- [ ] Project-level, service-account-level, and resource-level IAM bindings,
+  custom roles, and `google_project_service` resources are owned by the
+  foundation layers; routine environment roots no longer mutate IAM policy
+  or enable/disable project services.
 - [ ] `ikaro-tf-deployer@ikaro-staging` and `ikaro-tf-deployer@ikaro-prod`
   no longer have `roles/resourcemanager.projectIamAdmin`,
   `roles/serviceusage.serviceUsageAdmin`, or any equivalent permission that
@@ -144,19 +203,13 @@ version-controlled Terraform applies.
 - Treating the TD32 relay VM itself as the escalation vector; it is not. This
   TD fixes the broader deployment-identity boundary that TD32 exposed.
 
-## Open questions for story discovery
+## Story-discovery decisions
 
-1. Which currently managed IAM bindings can safely move together in the first
-   foundation migration without creating circular dependencies?
-2. What minimal resource-specific permissions remain on the normal deployer
-   after project-level IAM/API ownership moves out?
-3. Which GitHub environment approval and WIF attribute conditions provide a
-   materially independent foundation boundary, rather than another path
-   controlled by the same routine `main` merge?
-4. Which existing `iam.serviceAccountAdmin` operations are actually required
-   by ordinary environment applies, and can each be moved or replaced without
-   introducing an impersonation path?
-5. Can organization-level IAM Deny or Principal Access Boundary policies add
-   a defense-in-depth guarantee that the normal deployer cannot regain
-   project- or service-account-IAM mutation, and are they available under the
-   current organization administration model?
+- The partially created staging relay VM must be destroyed before the
+  migration begins.
+- The scope is the complete foundation migration. A relay-only control
+  identity would leave the normal deployer able to escalate through the other
+  IAM resources it still owns and is therefore rejected.
+- A separately protected foundation GitHub Environment per project is
+  required for a material WIF trust boundary; reusing the normal
+  infrastructure environment is insufficient.
