@@ -90,8 +90,8 @@ run "foundation_control_plane_has_only_the_initial_reviewed_roles" {
   }
 
   assert {
-    condition     = length(google_project_iam_member.foundation_planner_read) == 2 && alltrue([for role in ["projects/ikaro-staging/roles/tfPlannerIamPolicyReader", "roles/iam.serviceAccountViewer"] : contains(keys(google_project_iam_member.foundation_planner_read), role)])
-    error_message = "The foundation planner must have only IAM-policy and service-account read access."
+    condition     = length(google_project_iam_member.foundation_planner_read) == 3 && alltrue([for role in ["projects/ikaro-staging/roles/tfPlannerIamPolicyReader", "roles/iam.serviceAccountViewer", "roles/serviceusage.serviceUsageViewer"] : contains(keys(google_project_iam_member.foundation_planner_read), role)])
+    error_message = "The foundation planner must have only IAM-policy, service-account, and Service Usage read access."
   }
 }
 

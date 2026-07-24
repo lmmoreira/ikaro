@@ -17,10 +17,12 @@ locals {
 
   # The planner needs no mutation capability. The existing custom role reads
   # Terraform-managed IAM policies; serviceAccountViewer refreshes the two
-  # foundation identities themselves during a plan.
+  # foundation identities; Service Usage Viewer discovers enabled APIs during
+  # a plan.
   foundation_planner_project_roles = toset([
     "projects/${var.project_id}/roles/tfPlannerIamPolicyReader",
     "roles/iam.serviceAccountViewer",
+    "roles/serviceusage.serviceUsageViewer",
   ])
 }
 
