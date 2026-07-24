@@ -20,8 +20,49 @@ permissions:
   contents: read
 
 jobs:
+  # Do not use a workflow-level paths filter here: required checks must still
+  # report on ordinary infrastructure PRs. Route at job level instead, so
+  # only Foundation changes can plan with Foundation identities.
+  detect_changes:
+    name: Detect foundation changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      foundation: ${{ steps.manual.outputs.foundation || steps.filter.outputs.foundation }}
+      modules: ${{ steps.modules.outputs.modules }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Mark manual Foundation dispatch
+        id: manual
+        if: github.event_name == 'workflow_dispatch'
+        run: echo 'foundation=true' >> "$GITHUB_OUTPUT"
+
+      - name: Detect Foundation changes
+        id: filter
+        if: github.event_name != 'workflow_dispatch'
+        uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
+        with:
+          filters: |
+            foundation:
+              - 'infra/terraform/foundation/**'
+              - '.github/workflows/foundation-deploy.yml'
+
+      - name: List Foundation modules with tests
+        id: modules
+        run: |
+          modules=$(for d in infra/terraform/foundation/modules/*/; do
+            name=$(basename "$d")
+            if [ -d "${d}tests" ]; then echo "$name"; fi
+          done | jq -R -s -c 'split("\n")[:-1]')
+          echo "modules=$modules" >> "$GITHUB_OUTPUT"
+
   validate:
     name: Terraform validate (${{ matrix.environment }})
+    needs: detect_changes
+    if: github.event_name == 'workflow_dispatch' || needs.detect_changes.outputs.foundation == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
@@ -45,9 +86,15 @@ jobs:
           terraform validate
 
   test:
-    name: Terraform test (foundation control plane)
+    name: Terraform test (foundation ${{ matrix.module }})
+    needs: detect_changes
+    if: github.event_name == 'workflow_dispatch' || needs.detect_changes.outputs.foundation == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJson(needs.detect_changes.outputs.modules) }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -58,18 +105,18 @@ jobs:
           terraform_version: '1.15.8'
           terraform_wrapper: false
 
-      - name: terraform init — foundation control plane
-        working-directory: infra/terraform/foundation/modules/control-plane
+      - name: terraform init — foundation ${{ matrix.module }}
+        working-directory: infra/terraform/foundation/modules/${{ matrix.module }}
         run: terraform init -input=false -lockfile=readonly
 
-      - name: terraform test — foundation control plane
-        working-directory: infra/terraform/foundation/modules/control-plane
+      - name: terraform test — foundation ${{ matrix.module }}
+        working-directory: infra/terraform/foundation/modules/${{ matrix.module }}
         run: terraform test
 
   plan_staging:
     name: Terraform plan — foundation (staging)
-    needs: [validate, test]
-    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'workflow_dispatch' && inputs.apply && github.ref == 'refs/heads/main')
+    needs: [detect_changes, validate, test]
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && needs.detect_changes.outputs.foundation == 'true') || (github.event_name == 'workflow_dispatch' && inputs.apply && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -98,8 +145,8 @@ jobs:
 
   plan_prod:
     name: Terraform plan — foundation (prod)
-    needs: [validate, test]
-    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'workflow_dispatch' && inputs.apply && github.ref == 'refs/heads/main')
+    needs: [detect_changes, validate, test]
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && needs.detect_changes.outputs.foundation == 'true') || (github.event_name == 'workflow_dispatch' && inputs.apply && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -194,7 +241,7 @@ jobs:
 
   bootstrap_plan_staging:
     name: Terraform plan — foundation bootstrap (staging)
-    needs: [validate, test]
+    needs: [detect_changes, validate, test]
     if: github.event_name == 'workflow_dispatch' && inputs.bootstrap && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
