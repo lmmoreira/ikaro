@@ -42,24 +42,14 @@ locals {
   root_domain = "ikaro.online"
 }
 
-# Keep the IAP API enabled independently of the on-demand relay VM. The
-# deployer can establish this once from Terraform itself because it already
-# manages project IAM; future relay toggle PRs therefore do not wait for API
-# activation or require an operator-side gcloud command.
-resource "google_project_iam_member" "tf_deployer_service_usage_admin" {
-  #checkov:skip=CKV_GCP_42:Terraform must enable iap.googleapis.com without an operator command; this CI-only deployer already has project-IAM administration and the role is restricted to Service Usage operations.
-  project = var.project_id
-  role    = "roles/serviceusage.serviceUsageAdmin"
-  member  = "serviceAccount:ikaro-tf-deployer@${var.project_id}.iam.gserviceaccount.com"
-}
+# TD34: IAP is now managed by the separately protected foundation root. Forget
+# this former normal-root state entry without disabling the already-enabled API.
+removed {
+  from = google_project_service.iap
 
-resource "google_project_service" "iap" {
-  project = var.project_id
-  service = "iap.googleapis.com"
-
-  disable_on_destroy = false
-
-  depends_on = [google_project_iam_member.tf_deployer_service_usage_admin]
+  lifecycle {
+    destroy = false
+  }
 }
 
 # TD34 bootstrap only: the shared state bucket belongs to ikaro-prod, while
@@ -550,7 +540,6 @@ module "relay_vm" {
   source = "../../modules/relay-vm"
 
   depends_on = [
-    google_project_service.iap,
     time_sleep.relay_vm_deployer_iam_propagation,
   ]
 
