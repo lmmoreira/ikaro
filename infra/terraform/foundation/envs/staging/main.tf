@@ -15,6 +15,18 @@ module "project_services" {
   services   = ["iap.googleapis.com"]
 }
 
+module "custom_roles" {
+  source = "../../modules/custom-roles"
+
+  project_id = var.project_id
+}
+
+resource "google_project_iam_member" "foundation_deployer_resource_iam_writer" {
+  project = var.project_id
+  role    = module.custom_roles.resource_iam_writer_role_id
+  member  = "serviceAccount:${module.control_plane.foundation_deployer_email}"
+}
+
 # TD34 migration only: foundation adopts the pre-existing normal deployer's
 # broad project roles before later batches can safely replace or revoke them.
 # Importing these bindings changes state ownership only; it does not alter IAM.
@@ -47,6 +59,11 @@ module "legacy_deployer_roles" {
 import {
   to = module.project_services.google_project_service.managed["iap.googleapis.com"]
   id = "${var.project_id}/iap.googleapis.com"
+}
+
+import {
+  to = module.custom_roles.google_project_iam_custom_role.planner_iam_policy_reader
+  id = "${var.project_id}/tfPlannerIamPolicyReader"
 }
 
 import {
