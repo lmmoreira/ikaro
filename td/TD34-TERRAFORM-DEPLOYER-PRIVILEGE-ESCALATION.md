@@ -115,7 +115,10 @@ The selected design is a **complete migration**, not a relay-only exception:
    foundation state, service accounts, WIF bindings, and minimum custom roles.
    The current privileged deployer may perform this one bootstrap because it
    is the existing root of trust; that capability is removed in the final
-   phase. No operator `gcloud` command or service-account key is used.
+   phase. A temporary, condition-scoped state-prefix bridge is permitted only
+   for `foundation/staging/*` and `foundation/prod/*`; it is removed with the
+   normal deployer's broad permissions. No operator `gcloud` command or
+   service-account key is used.
 3. **Ownership transfer:** move every project-, service-account-, and
    resource-level IAM/API object from the environment state into the matching
    foundation state using an explicit, reviewed `terraform state mv`/import

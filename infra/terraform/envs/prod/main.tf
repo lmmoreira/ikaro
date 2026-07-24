@@ -62,6 +62,18 @@ resource "google_project_service" "iap" {
   depends_on = [google_project_iam_member.tf_deployer_service_usage_admin]
 }
 
+# TD34 bootstrap only: the shared state bucket belongs to ikaro-prod, while
+# its bucket-level policy intentionally blocks both normal deployers outside
+# envs/<env>. This project-IAM condition grants only the two new foundation
+# prefixes so the existing deployers can create the first backend lock. Remove
+# this module in TD34's de-privilege phase once foundation state is live.
+module "foundation_state_bootstrap" {
+  source = "../../modules/foundation-state-bootstrap"
+
+  project_id        = var.project_id
+  state_bucket_name = "ikaro-tfstate"
+}
+
 module "network" {
   source = "../../modules/network"
 
