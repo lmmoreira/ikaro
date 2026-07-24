@@ -11,6 +11,7 @@ export type GetBookingByIdInput = {
   bookingId: string;
   tenantId: string;
   cancellationWindowHours: number;
+  requestingCustomerId?: string;
 };
 
 export interface BookingLineDetail {
@@ -78,10 +79,17 @@ export class GetBookingByIdUseCase {
   ) {}
 
   async execute(input: GetBookingByIdInput): Promise<GetBookingByIdUseCaseResult> {
-    const { tenantId, cancellationWindowHours } = input;
+    const { tenantId, cancellationWindowHours, requestingCustomerId } = input;
 
     const booking = await this.bookingRepo.findById(input.bookingId, tenantId);
     if (!booking) throw new BookingNotFoundError(input.bookingId);
+
+    // 404, not 403: a customer probing IDs must not learn a booking exists but isn't theirs.
+    // Compare against undefined, not truthiness — an empty-string requestingCustomerId must
+    // still be treated as a real (mismatched) requester, not as "no requester supplied".
+    if (requestingCustomerId !== undefined && booking.customerId !== requestingCustomerId) {
+      throw new BookingNotFoundError(input.bookingId);
+    }
 
     return this.toResult(booking, cancellationWindowHours);
   }

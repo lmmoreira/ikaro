@@ -103,7 +103,6 @@ import {
   CompleteBookingUseCaseResult,
 } from '../../application/use-cases/complete-booking.use-case';
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
-import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
 import { mapBookingError } from '../http/booking-error.mapper';
 
 @Controller('bookings')
@@ -148,12 +147,7 @@ export class BookingController {
         bookingId: id,
         tenantId,
         cancellationWindowHours: settings.booking.cancellationWindowHours,
-      })
-      .then((result) => {
-        if (actorType === 'CUSTOMER' && result.customerId !== actorId) {
-          throw new BookingNotFoundError(id);
-        }
-        return result;
+        requestingCustomerId: actorType === 'CUSTOMER' ? actorId : undefined,
       })
       .catch(mapBookingError);
   }
