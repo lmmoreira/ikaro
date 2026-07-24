@@ -35,7 +35,7 @@ Add a smoke-test step after each service's Trivy scan (or as its own job) in `pr
   run: |
     docker run --name smoke-${{ matrix.service }} -d \
       -e JWT_SECRET="$(openssl rand -hex 32)" \
-      -e DB_HOST=localhost -e DB_PORT=5432 -e DB_USER=ikaro_app -e DB_PASSWORD=ikaro_app -e DB_NAME=ikaro \
+      -e DB_HOST=localhost -e DB_PORT=5432 -e DB_USER=ikaro -e DB_PASSWORD=ikaro -e DB_NAME=ikaro \
       ikaro-${{ matrix.service }}:scan
     sleep 5
     docker logs smoke-${{ matrix.service }}

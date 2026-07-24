@@ -3,7 +3,8 @@
 # Run once before the first migration — on a blank database.
 #
 #   docker-compose : mounted in initdb.d — runs automatically on first container start.
-#   Tests          : integration-global-setup.ts issues equivalent SQL via process.env.
+#   Tests          : integration-global-setup.ts reads and executes this exact script inside the
+#                    Testcontainers Postgres container.
 #   Production/CI  : execute this script (or the equivalent SQL) as step 1 before pnpm db:migrate.
 #
 # Required env vars (falls back to safe local-dev defaults if not set):
@@ -23,25 +24,26 @@ set -e
 MIGRATOR_PASSWORD="${DB_MIGRATOR_PASSWORD:-ikaro_migrator}"
 APP_PASSWORD="${DB_APP_PASSWORD:-ikaro}"
 
-psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-SQL
+psql -v ON_ERROR_STOP=1 \
+  -v migrator_pw="$MIGRATOR_PASSWORD" \
+  -v app_pw="$APP_PASSWORD" \
+  --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-'SQL'
   -- Migration role: CREATE/ALTER/DROP tables and schemas
-  DO \$\$ BEGIN
-    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'ikaro_migrator') THEN
-      CREATE USER ikaro_migrator WITH PASSWORD '${MIGRATOR_PASSWORD}';
-    END IF;
-  END \$\$;
+  -- (psql doesn't interpolate :'vars' inside a DO $$ $$ block, so the conditional
+  -- CREATE is built as text via \gexec instead, at the plain-statement level.)
+  SELECT format('CREATE USER ikaro_migrator WITH PASSWORD %L', :'migrator_pw')
+  WHERE NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'ikaro_migrator')
+  \gexec
 
   -- App runtime role: SELECT/INSERT/UPDATE/DELETE only
-  DO \$\$ BEGIN
-    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'ikaro') THEN
-      CREATE USER ikaro WITH PASSWORD '${APP_PASSWORD}';
-    END IF;
-  END \$\$;
+  SELECT format('CREATE USER ikaro WITH PASSWORD %L', :'app_pw')
+  WHERE NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'ikaro')
+  \gexec
 
   -- Allow the migrator to create schemas in this database
-  DO \$\$ BEGIN
+  DO $$ BEGIN
     EXECUTE format('GRANT CREATE ON DATABASE %I TO ikaro_migrator', current_database());
-  END \$\$;
+  END $$;
 
   -- PostgreSQL 15+ revokes CREATE on public schema by default — restore it for our roles
   GRANT CREATE ON SCHEMA public TO ikaro_migrator;

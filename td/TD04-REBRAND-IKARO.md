@@ -45,7 +45,7 @@ Apply in this order to any "beloauto"/"BeloAuto" occurrence found in the repo:
 | `lmmoreira/beloauto` (GitHub repo) | `lmmoreira/ikaro` |
 | `lmmoreira_beloauto` (SonarCloud project key) | `lmmoreira_ikaro` (or whatever SonarCloud auto-assigns on import — confirm at execution time) |
 | `beloauto-*` (Docker container/image/GCP resource prefix) | `ikaro-*` |
-| `beloauto` / `beloauto_app` / `beloauto_migrator` (DB name/roles) | `ikaro` / `ikaro_app` / `ikaro_migrator` |
+| `beloauto` / `beloauto_app` / `beloauto_migrator` (DB name/roles) | `ikaro` / `ikaro` / `ikaro_migrator` (app role renamed from `ikaro_app` to `ikaro` in M17-S27 to match cloud convention) |
 | `beloauto-local` (local GCS/Pub-Sub project id) | `ikaro-local` |
 | `beloauto.com` / `beloauto.com.br` (domain) | `<ikaro-domain>` — **real domain not decided yet; use this literal placeholder everywhere and grep for it later** |
 
