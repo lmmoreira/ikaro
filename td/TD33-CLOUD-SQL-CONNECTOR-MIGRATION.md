@@ -1,7 +1,7 @@
 # TD33 — Migrate to `@google-cloud/cloud-sql-connector` for verified, auto-rotating TLS
 
 ## Status
-- **State**: 🟡 Open
+- **State**: ✅ Done — implemented and merged via [PR #202](https://github.com/lmmoreira/ikaro/pull/202) (2026-07-24), live-verified in staging
 - **Type**: Technical Debt / Security Hardening
 - **Priority**: Medium — real but narrow exposure (VPC-internal only, not reachable from the public internet); not a launch blocker, but should land before scaling trust in the platform
 - **Context**: `apps/backend/src/shared/database/data-source.ts`, `apps/backend/src/app.module.ts`, `apps/backend/src/shared/database/resolve-database-ssl.ts`, `infra/terraform/modules/iam/`, `infra/terraform/envs/{staging,prod}/main.tf`
@@ -70,7 +70,7 @@ With `rejectUnauthorized: false`, the Node `pg` client accepts *any* certificate
 - [x] `ipType: 'PRIVATE'` explicitly set; no public-IP path introduced anywhere
 - [x] `DB_INSTANCE_CONNECTION_NAME` threaded through both env roots' Terraform (backend + migrate job, both envs) — wired to the pre-existing `module.database.instance_connection_name` output; `DB_HOST` removed from staging/prod entirely (kept only for `APP_ENV=local`), `packages/infra-scripts/src/env-contract.ts`'s exempt list updated accordingly
 - [x] `roles/cloudsql.client` verified/granted to `ikaro-backend@` and `ikaro-migrate@` in both envs — **already granted** (`modules/iam/main.tf:52,60`), confirmed via story-discovery 2026-07-24; no Terraform change needed for this criterion
-- [ ] Live verification: staging migrate job + backend actually connect successfully via the new path (not just unit/integration tests passing) — pending the actual staging deploy
+- [x] Live verification: staging migrate job + backend actually connect successfully via the new path (not just unit/integration tests passing) — confirmed 2026-07-24. First deploy attempt surfaced a real deployment-ordering race (not a code bug): `infra-deploy.yml`'s Terraform apply removed `DB_HOST` before `deploy-staging.yml` had finished pushing the new image, so the still-running pre-TD33 image briefly failed its startup probe against the new env vars (`DB_HOST: Invalid input: expected string, received undefined`) — exactly the risk flagged in the PR's deployment-ordering note. Self-healed once `deploy-staging.yml` finished and deployed the new image; revision `ikaro-backend-00009-mbw` came up healthy with `TypeOrmCoreModule` initializing ~10s after boot (well inside the connector's 15s timeout), and the `ikaro-migrate` job execution succeeded independently via the same connector-backed `data-source.ts` CLI path. Re-ran the failed `Terraform apply (staging)` job afterward — succeeded cleanly (only cosmetic `client`/`client_version` metadata drift remained, `env_vars` had already persisted correctly on the first attempt).
 - [x] Portability Ledger updated in `plan/M17-CLOUD-DEPLOY.md`
 - [x] `resolve-database-ssl.ts` either removed or reduced to the local-only fallback, with no dangling reference to the old `rejectUnauthorized: false` path for staging/prod — removed entirely (file + spec); local's DB config is now an unconditional no-SSL branch inline in both `app.module.ts` and `data-source.ts`
 
