@@ -27,6 +27,12 @@ variable "cors_origins" {
   type        = list(string)
 }
 
+variable "create_relay_vm" {
+  description = "Instantiate the on-demand IAP relay VM (TD32). Defaults false — inert until a session needs it. Toggle only via a merged PR (infra/terraform/README.md's pipeline-only-apply rule), never a local terraform apply."
+  type        = bool
+  default     = false
+}
+
 variable "db_tier" {
   description = "Cloud SQL machine tier (D12: db-f1-micro at launch; upgrade via terraform.tfvars when the first paying tenant lands)"
   type        = string

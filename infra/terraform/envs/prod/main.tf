@@ -474,3 +474,29 @@ module "registry" {
   staging_project_id     = var.staging_project_id
   staging_project_number = var.staging_project_number
 }
+
+# On-demand IAP relay VM (TD32) — wired in ahead of need, same as
+# envs/staging/main.tf, so S37 doesn't have to duplicate this module later.
+# Inert by default (create_relay_vm = false): the firewall rule + IAM
+# grants below are permanent, always-applied config; only the VM resource
+# itself toggles. Note (TD32 discovery): prod's database module is still
+# count-gated behind enable_database (false until S37) — creating this VM
+# in prod today would have nothing to reach on the Cloud SQL half until
+# that flips. See modules/relay-vm/README.md for the PR-per-toggle usage
+# flow.
+module "relay_vm" {
+  source = "../../modules/relay-vm"
+
+  project_id  = var.project_id
+  environment = var.environment
+  region      = var.region
+  labels      = var.labels
+
+  create = var.create_relay_vm
+  zone   = "${var.region}-a"
+
+  subnet_id                    = module.network.subnet_id
+  network_id                   = module.network.network_id
+  iam_admin_user               = var.iam_admin_user
+  platform_admin_key_secret_id = module.secrets.secret_ids["platform-admin-key"]
+}

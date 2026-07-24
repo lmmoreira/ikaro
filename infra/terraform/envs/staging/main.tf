@@ -400,3 +400,25 @@ module "scheduler" {
   cron_topic_ids        = module.pubsub.topic_ids
   outbox_relay_schedule = var.outbox_relay_schedule
 }
+
+# On-demand IAP relay VM (TD32) — the fix for "no network path from a dev
+# machine into ikaro-vpc-staging". Inert by default (create_relay_vm =
+# false): the firewall rule + IAM grants below are permanent, always-applied
+# config; only the VM resource itself toggles. See
+# modules/relay-vm/README.md for the PR-per-toggle usage flow.
+module "relay_vm" {
+  source = "../../modules/relay-vm"
+
+  project_id  = var.project_id
+  environment = var.environment
+  region      = var.region
+  labels      = var.labels
+
+  create = var.create_relay_vm
+  zone   = "${var.region}-a"
+
+  subnet_id                    = module.network.subnet_id
+  network_id                   = module.network.network_id
+  iam_admin_user               = var.iam_admin_user
+  platform_admin_key_secret_id = module.secrets.secret_ids["platform-admin-key"]
+}

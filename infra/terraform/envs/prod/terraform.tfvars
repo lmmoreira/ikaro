@@ -38,6 +38,11 @@ enable_edge = false
 # app from either host before that redirect fires.
 cors_origins = ["https://ikaro.online", "https://www.ikaro.online"]
 
+# On-demand IAP relay VM (TD32) — flip true + merge for a session, false +
+# merge to tear down. See infra/terraform/modules/relay-vm/README.md. The
+# Cloud SQL half has nothing to reach until enable_database flips at S37.
+create_relay_vm = false
+
 # S18 launch state — placeholder image (gcr.io/cloudrun/hello) with relaxed
 # probes and no secret mounting; flip to false at the S27 activation once a
 # real pipeline image exists.

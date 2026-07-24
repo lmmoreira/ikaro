@@ -104,9 +104,9 @@
 
 | Surface | Control |
 |---|---|
-| Human access (dev/operator) | Google account + **2FA enforced**; `gcloud auth login`; per-resource IAM. **No VPN, no SSH, no bastion** — there is nothing to SSH into. All access lands in Cloud Audit Logs. |
-| Developer → Cloud SQL | Cloud SQL Auth Proxy (IAM-authenticated, TLS). DB has no public IP. |
-| Developer → internal backend | `gcloud run services proxy ikaro-backend --region=southamerica-east1` (IAM-authenticated tunnel). Used for tenant provisioning (UC-024). |
+| Human access (dev/operator) | Google account + **2FA enforced**; `gcloud auth login`; per-resource IAM. **No permanent bastion** — VPC-internal access (Cloud SQL, ingress-internal Cloud Run) goes through an on-demand IAP relay VM (`modules/relay-vm`, TD32), created via a PR-per-toggle flip of `create_relay_vm` and destroyed the same way after each session, never an always-on host to maintain. All access lands in Cloud Audit Logs. |
+| Developer → Cloud SQL | Cloud SQL Auth Proxy (IAM-authenticated, TLS) run from inside the on-demand IAP relay VM (TD32): `gcloud compute ssh --tunnel-through-iap`, then `cloud-sql-proxy --private-ip --auto-iam-authn`. DB has no public IP — a dev laptop alone has no network-layer path to the private IP without the relay VM (confirmed by a real connection attempt, TD32). |
+| Developer → internal backend | From inside the on-demand IAP relay VM (TD32): a correctly-audienced identity token (`gcloud auth print-identity-token`) + a direct call to the backend's `*.a.run.app` URL — reachable because the relay VM is inside the VPC and Private Google Access classifies its traffic as internal-origin. `gcloud run services proxy` does **not** work for this (confirmed by a real attempt, TD32): it still sends the request over the same public path a browser or `curl` would, so `ingress: internal` blocks it regardless of IAM validity. Used for tenant provisioning (UC-024). |
 | CI → GCP | Workload Identity Federation scoped to `repository == lmmoreira/ikaro` + branch conditions. Zero long-lived keys; org policy blocks SA key creation. |
 | BFF → backend | VPC direct egress (**`ALL_TRAFFIC`** — `*.run.app` resolves to public IPs; private-ranges-only egress would bypass the VPC and internal ingress would reject the call) → internal ingress + Cloud Run IAM ID token (S47) + `InternalApiGuard` (`INTERNAL_API_KEY`, M115-S03). |
 | Pub/Sub → backend | Push with Google-signed **OIDC token**; backend guard verifies issuer, audience, and the invoker SA email. |
