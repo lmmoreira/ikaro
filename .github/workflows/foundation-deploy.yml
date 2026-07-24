@@ -239,10 +239,11 @@ jobs:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER_STAGING }}
           service_account: ${{ secrets.TF_FOUNDATION_SA_STAGING }}
 
-      - name: Verify active foundation identity
+      - name: Verify foundation credential target
         run: |
-          active_account=$(gcloud auth list --filter=status:ACTIVE --format='value(account)')
-          test "$active_account" = "$TF_FOUNDATION_SA"
+          expected_url="https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${TF_FOUNDATION_SA}:generateAccessToken"
+          actual_url=$(jq -er '.service_account_impersonation_url' "$GOOGLE_GHA_CREDS_PATH")
+          test "$actual_url" = "$expected_url"
         env:
           TF_FOUNDATION_SA: ${{ secrets.TF_FOUNDATION_SA_STAGING }}
 
@@ -263,9 +264,10 @@ jobs:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER_PROD }}
           service_account: ${{ secrets.TF_FOUNDATION_SA_PROD }}
 
-      - name: Verify active foundation identity
+      - name: Verify foundation credential target
         run: |
-          active_account=$(gcloud auth list --filter=status:ACTIVE --format='value(account)')
-          test "$active_account" = "$TF_FOUNDATION_SA"
+          expected_url="https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${TF_FOUNDATION_SA}:generateAccessToken"
+          actual_url=$(jq -er '.service_account_impersonation_url' "$GOOGLE_GHA_CREDS_PATH")
+          test "$actual_url" = "$expected_url"
         env:
           TF_FOUNDATION_SA: ${{ secrets.TF_FOUNDATION_SA_PROD }}
