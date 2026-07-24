@@ -15,7 +15,43 @@ module "project_services" {
   services   = ["iap.googleapis.com"]
 }
 
+# TD34 migration only: foundation adopts the pre-existing normal deployer's
+# broad project roles before later batches can safely replace or revoke them.
+# Importing these bindings changes state ownership only; it does not alter IAM.
+locals {
+  legacy_deployer_project_role_bindings = {
+    for role in toset([
+      "roles/cloudscheduler.admin",
+      "roles/cloudsql.admin",
+      "roles/compute.networkAdmin",
+      "roles/compute.securityAdmin",
+      "roles/iam.serviceAccountAdmin",
+      "roles/iam.serviceAccountUser",
+      "roles/monitoring.editor",
+      "roles/pubsub.admin",
+      "roles/resourcemanager.projectIamAdmin",
+      "roles/run.admin",
+      "roles/secretmanager.admin",
+      "roles/storage.admin",
+    ]) : role => { role = role }
+  }
+}
+
+module "legacy_deployer_roles" {
+  source = "../../modules/legacy-deployer-roles"
+
+  project_id            = var.project_id
+  project_role_bindings = local.legacy_deployer_project_role_bindings
+}
+
 import {
   to = module.project_services.google_project_service.managed["iap.googleapis.com"]
   id = "${var.project_id}/iap.googleapis.com"
+}
+
+import {
+  for_each = local.legacy_deployer_project_role_bindings
+
+  to = module.legacy_deployer_roles.google_project_iam_member.normal_deployer_role[each.key]
+  id = "${var.project_id} ${each.value.role} serviceAccount:ikaro-tf-deployer@${var.project_id}.iam.gserviceaccount.com"
 }
