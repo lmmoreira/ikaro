@@ -61,13 +61,53 @@ jobs:
         working-directory: infra/terraform/foundation/modules/control-plane
         run: terraform test
 
-  bootstrap_staging:
-    name: Bootstrap foundation (staging)
+  bootstrap_plan_staging:
+    name: Terraform plan — foundation bootstrap (staging)
     needs: [validate, test]
     if: github.event_name == 'workflow_dispatch' && inputs.bootstrap && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    environment: staging-infrastructure
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Authenticate as existing bootstrap deployer (staging)
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER_STAGING }}
+          service_account: ${{ secrets.TF_DEPLOYER_SA_STAGING }}
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: '1.15.8'
+          terraform_wrapper: false
+
+      - name: terraform plan — foundation bootstrap staging
+        working-directory: infra/terraform/foundation/envs/staging
+        run: |
+          terraform init -input=false -lockfile=readonly
+          terraform plan -input=false -no-color -lock-timeout=60s -out=tfplan >/dev/null
+          terraform show -json tfplan | jq -r '.resource_changes[] | "\(.address): \(.change.actions | join(","))"' > plan-summary.txt
+          {
+            echo "### Foundation bootstrap plan — staging"
+            echo '```'
+            cat plan-summary.txt
+            echo '```'
+            echo "Resource addresses and actions only; no attribute values or plan artifact are retained."
+          } >> "$GITHUB_STEP_SUMMARY"
+          rm -f tfplan plan-summary.txt
+
+  bootstrap_staging:
+    name: Bootstrap foundation (staging)
+    needs: bootstrap_plan_staging
+    if: github.event_name == 'workflow_dispatch' && inputs.bootstrap && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging-foundation
     concurrency:
       # Share the normal infrastructure mutation lock during the one-time
       # bootstrap. The foundation state is separate, but this job temporarily
@@ -99,9 +139,55 @@ jobs:
           terraform init -input=false -lockfile=readonly
           terraform apply -input=false -lock-timeout=60s -auto-approve
 
+  bootstrap_plan_prod:
+    name: Terraform plan — foundation bootstrap (prod)
+    needs: [validate, test, bootstrap_staging, verify_staging_foundation_wif]
+    if: github.event_name == 'workflow_dispatch' && inputs.bootstrap && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production-infrastructure
+    concurrency:
+      # See bootstrap_staging: serialize the temporary bootstrap identity with
+      # all normal production mutations; never cancel an in-flight apply.
+      group: production-mutations
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Authenticate as existing bootstrap deployer (prod)
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER_PROD }}
+          service_account: ${{ secrets.TF_DEPLOYER_SA_PROD }}
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: '1.15.8'
+          terraform_wrapper: false
+
+      - name: terraform plan — foundation bootstrap prod
+        working-directory: infra/terraform/foundation/envs/prod
+        run: |
+          terraform init -input=false -lockfile=readonly
+          terraform plan -input=false -no-color -lock-timeout=60s -out=tfplan >/dev/null
+          terraform show -json tfplan | jq -r '.resource_changes[] | "\(.address): \(.change.actions | join(","))"' > plan-summary.txt
+          {
+            echo "### Foundation bootstrap plan — production"
+            echo '```'
+            cat plan-summary.txt
+            echo '```'
+            echo "Resource addresses and actions only; no attribute values or plan artifact are retained."
+          } >> "$GITHUB_STEP_SUMMARY"
+          rm -f tfplan plan-summary.txt
+
   bootstrap_prod:
     name: Bootstrap foundation (prod)
-    needs: [validate, test, bootstrap_staging]
+    needs: bootstrap_plan_prod
     if: github.event_name == 'workflow_dispatch' && inputs.bootstrap && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15

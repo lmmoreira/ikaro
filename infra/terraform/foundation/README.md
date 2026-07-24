@@ -23,10 +23,17 @@ phase.
 ## One-time bootstrap
 
 `foundation-deploy.yml` has a manual `bootstrap=true` dispatch that runs only
-from `main`. It uses the existing protected normal deployer exactly once to
-create the foundation identities, their WIF bindings, and state-prefix access.
-It then proves that the new foundation identity can be impersonated through
-the independently protected foundation GitHub Environment.
+from `main`. It first produces a sanitized staging plan, then waits at the
+protected `staging-foundation` Environment before re-planning and applying.
+Production follows the same plan-then-apply sequence using the existing
+`production-infrastructure` Environment, because its current deployer WIF
+binding is deliberately restricted to that bootstrap identity. The workflow
+uses the existing protected normal deployer exactly once to create the
+foundation identities, their WIF bindings, and state-prefix access. It then
+proves that the new foundation identity can be impersonated through the
+independently protected foundation GitHub Environment. Plan summaries contain
+only resource addresses and actions; saved plan artifacts are deleted and
+never uploaded.
 
 Before dispatching bootstrap, configure `staging-foundation` and
 `production-foundation` with `main`-only branch policy, required review, and
