@@ -302,6 +302,7 @@ describe('GetBookingByIdUseCase', () => {
         bookingId: booking.id,
         tenantId: TENANT_A,
         cancellationWindowHours: 48,
+        requestingCustomerId: CUSTOMER_ID,
       });
 
       expect(result.id).toBe(booking.id);
@@ -313,6 +314,25 @@ describe('GetBookingByIdUseCase', () => {
           bookingId: '00000000-0000-4000-8000-000000009998',
           tenantId: TENANT_A,
           cancellationWindowHours: 48,
+          requestingCustomerId: CUSTOMER_ID,
+        }),
+      ).rejects.toBeInstanceOf(BookingNotFoundError);
+    });
+
+    it("throws BookingNotFoundError for another customer's booking", async () => {
+      const otherCustomerId = '20000000-0000-4000-8000-000000000199';
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withCustomerId(otherCustomerId)
+        .build();
+      await repo.save(booking);
+
+      await expect(
+        useCase.execute({
+          bookingId: booking.id,
+          tenantId: TENANT_A,
+          cancellationWindowHours: 48,
+          requestingCustomerId: CUSTOMER_ID,
         }),
       ).rejects.toBeInstanceOf(BookingNotFoundError);
     });
