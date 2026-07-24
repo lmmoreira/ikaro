@@ -20,6 +20,9 @@ infra/terraform/
 │   ├── edge/              Global ALB + NEGs + Cloudflare — prod only (M17-S22)
 │   ├── monitoring/        dashboards, alerts, uptime checks          (M17-S35)
 │   └── relay-vm/          on-demand IAP relay VM, count-gated        (TD32)
+├── foundation/       # separately protected IAM/API control plane    (TD34)
+│   ├── modules/control-plane/  foundation identities, WIF, state IAM
+│   └── envs/         # isolated roots: foundation/staging and /prod
 └── envs/             # root modules — one state per env, never shared
     ├── staging/      # backend prefix envs/staging → project ikaro-staging
     └── prod/         # backend prefix envs/prod    → project ikaro-prod
@@ -30,6 +33,7 @@ infra/terraform/
 - Each env is a separate root module with its own GCS state prefix. **No `terraform workspace` usage — ever.**
 - Shared variable contract on every module and env: `project_id`, `environment` (validated `staging|prod`), `region` (default `southamerica-east1`), `labels`.
 - Version constraints follow HashiCorp's module convention: **modules declare minimums only** (`>= 7.0` google, `>= 5.0` cloudflare in `modules/edge`, `required_version >= 1.15`); **the env roots own the real pins** (`~> 7.0`, `~> 1.15`) backed by their committed `.terraform.lock.hcl` files. Dependabot's `terraform` ecosystem watches both env roots and PRs pin updates (`.github/dependabot.yml`).
+- `foundation/` is the security control plane, not another normal environment root. It owns Terraform identities, WIF, state access, then all IAM/API resources as TD34 migrates them. Normal `envs/` roots must not regain IAM or service-account-policy ownership. See [`foundation/README.md`](foundation/README.md).
 
 ## Module dependency graph
 

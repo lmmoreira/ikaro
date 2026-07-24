@@ -26,8 +26,18 @@ run "foundation_planner_is_repo_scoped_and_state_is_prefix_scoped" {
   command = plan
 
   assert {
+    condition     = google_service_account.foundation_planner.account_id == "ikaro-tf-foundation-planner"
+    error_message = "The foundation planner must use a distinct, dedicated service account."
+  }
+
+  assert {
     condition     = google_service_account_iam_member.foundation_planner_wif.member == "principalSet://iam.googleapis.com/projects/729809528251/locations/global/workloadIdentityPools/github-pool/attribute.repository/lmmoreira/ikaro"
     error_message = "The read-only foundation planner must be repository-scoped for PR plans."
+  }
+
+  assert {
+    condition     = google_storage_bucket_iam_member.foundation_deployer_state.role == "roles/storage.objectAdmin"
+    error_message = "The foundation deployer needs object administration only within its state prefix."
   }
 
   assert {
@@ -36,7 +46,44 @@ run "foundation_planner_is_repo_scoped_and_state_is_prefix_scoped" {
   }
 
   assert {
+    condition     = google_storage_bucket_iam_member.foundation_deployer_state_list.role == "roles/storage.legacyBucketReader"
+    error_message = "The foundation deployer needs only bucket metadata and object listing outside its prefix condition."
+  }
+
+  assert {
+    condition     = google_storage_bucket_iam_member.foundation_planner_state.role == "roles/storage.objectViewer"
+    error_message = "The foundation planner must remain read-only for state content."
+  }
+
+  assert {
+    condition     = google_storage_bucket_iam_member.foundation_planner_state.condition[0].expression == "resource.name.startsWith('projects/_/buckets/ikaro-tfstate/objects/foundation/staging/')"
+    error_message = "The foundation planner must be restricted to its own state prefix."
+  }
+
+  assert {
+    condition     = google_storage_bucket_iam_member.foundation_planner_lock.role == "roles/storage.objectAdmin"
+    error_message = "The foundation planner may administer only its Terraform state lock."
+  }
+
+  assert {
     condition     = google_storage_bucket_iam_member.foundation_planner_lock.condition[0].expression == "resource.name == 'projects/_/buckets/ikaro-tfstate/objects/foundation/staging/default.tflock'"
     error_message = "The foundation planner must be able to mutate only its state lock."
   }
+
+  assert {
+    condition     = google_storage_bucket_iam_member.foundation_planner_state_list.role == "roles/storage.legacyBucketReader"
+    error_message = "The foundation planner needs only bucket metadata and object listing outside its prefix condition."
+  }
+}
+
+run "rejects_unknown_environment" {
+  command = plan
+
+  variables {
+    environment = "development"
+  }
+
+  expect_failures = [
+    var.environment,
+  ]
 }

@@ -3,9 +3,6 @@ name: Foundation — Terraform Bootstrap Pipeline
 on:
   pull_request:
     branches: [main]
-    paths:
-      - 'infra/terraform/foundation/**'
-      - '.github/workflows/foundation-deploy.yml'
   workflow_dispatch:
     inputs:
       bootstrap:
@@ -138,3 +135,51 @@ jobs:
         run: |
           terraform init -input=false -lockfile=readonly
           terraform apply -input=false -lock-timeout=60s -auto-approve
+
+  verify_staging_foundation_wif:
+    name: Verify foundation WIF (staging)
+    needs: bootstrap_staging
+    if: github.event_name == 'workflow_dispatch' && inputs.bootstrap && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: staging-foundation
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Authenticate as foundation deployer (staging)
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER_STAGING }}
+          service_account: ${{ secrets.TF_FOUNDATION_SA_STAGING }}
+
+      - name: Verify active foundation identity
+        run: |
+          active_account=$(gcloud auth list --filter=status:ACTIVE --format='value(account)')
+          test "$active_account" = "$TF_FOUNDATION_SA"
+        env:
+          TF_FOUNDATION_SA: ${{ secrets.TF_FOUNDATION_SA_STAGING }}
+
+  verify_prod_foundation_wif:
+    name: Verify foundation WIF (prod)
+    needs: bootstrap_prod
+    if: github.event_name == 'workflow_dispatch' && inputs.bootstrap && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: production-foundation
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Authenticate as foundation deployer (prod)
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER_PROD }}
+          service_account: ${{ secrets.TF_FOUNDATION_SA_PROD }}
+
+      - name: Verify active foundation identity
+        run: |
+          active_account=$(gcloud auth list --filter=status:ACTIVE --format='value(account)')
+          test "$active_account" = "$TF_FOUNDATION_SA"
+        env:
+          TF_FOUNDATION_SA: ${{ secrets.TF_FOUNDATION_SA_PROD }}

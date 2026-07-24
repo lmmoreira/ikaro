@@ -128,7 +128,9 @@ The selected design is a **complete migration**, not a relay-only exception:
    IAM-policy mutation or impersonation.
 5. **Enforce and prove:** apply the foundation layer first, then normal
    infrastructure; run positive and negative live permission checks; and add
-   CI policy checks that prevent the broad roles from returning.
+   CI policy checks that prevent the broad roles from returning. Remove the
+   one-time bootstrap workflow and its normal-deployer path in this phase, so
+   it cannot remain a second route to foundation identity creation.
 
 This is intentionally phased into reviewable pull requests. A single apply
 cannot safely transfer state ownership and revoke the identity that is still
