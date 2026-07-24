@@ -163,15 +163,16 @@ module "cloudrun_backend" {
   # actually worked (ingress:internal blocks it regardless of IAM
   # validity, confirmed by a real attempt); kept as-is since removing an
   # existing human grant is a separate, not-yet-requested change. The
-  # relay VM's own SA (TD32) is the mechanism that actually works — it
-  # calls the backend from inside the VPC, where the ingress check
-  # classifies it as internal-origin traffic.
+  # The relay VM's own SA (TD32) is the mechanism that actually works when
+  # the VM is enabled — it calls the backend from inside the VPC, where the
+  # ingress check classifies it as internal-origin traffic. Do not retain
+  # run.invoker while the on-demand VM is absent.
   invoker_members = concat(
     [
       "serviceAccount:${module.iam.bff_sa_email}",
       "serviceAccount:${module.iam.pubsub_invoker_sa_email}",
-      "serviceAccount:${module.relay_vm.service_account_email}",
     ],
+    var.create_relay_vm ? ["serviceAccount:${module.relay_vm.service_account_email}"] : [],
     var.iam_admin_user != "" ? ["user:${var.iam_admin_user}"] : []
   )
 

@@ -64,6 +64,10 @@ locals {
       chmod +x /usr/local/bin/cloud-sql-proxy
     fi
 
+    if ! getent passwd cloud-sql-proxy >/dev/null; then
+      useradd --system --home-dir /nonexistent --shell /usr/sbin/nologin cloud-sql-proxy
+    fi
+
     cat > /etc/systemd/system/cloud-sql-proxy.service <<'UNIT'
     [Unit]
     Description=Cloud SQL Auth Proxy (TD32 relay VM)
@@ -74,7 +78,13 @@ locals {
     ExecStart=/usr/local/bin/cloud-sql-proxy --private-ip --auto-iam-authn --port 5433 ${var.db_instance_connection_name}
     Restart=on-failure
     RestartSec=5
-    User=root
+    User=cloud-sql-proxy
+    NoNewPrivileges=true
+    PrivateTmp=true
+    ProtectHome=true
+    ProtectSystem=full
+    CapabilityBoundingSet=
+    RestrictSUIDSGID=true
 
     [Install]
     WantedBy=multi-user.target
@@ -93,6 +103,9 @@ locals {
 # Does real work now (redesigned 2026-07-24) — Cloud SQL IAM auth,
 # Cloud Run invocation, and platform-admin-key reads, all via GCE's
 # metadata-server credential chain (no gcloud CLI, no interactive login).
+# The long-running Cloud SQL Auth Proxy process runs as an unprivileged
+# system user with systemd sandboxing; only the one-time startup setup runs
+# as root.
 # Every grant below is scoped to exactly what this identity needs and
 # nothing else — see the file header comment for why this is the more
 # secure choice, not just the only one that works around the internet-

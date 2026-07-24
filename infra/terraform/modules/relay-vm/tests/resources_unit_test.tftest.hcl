@@ -63,6 +63,11 @@ run "create_true_plans_exactly_one_instance_with_no_external_ip" {
     condition     = one(google_compute_instance.relay[0].shielded_instance_config).enable_secure_boot == true
     error_message = "Relay VM must have Shielded VM enabled."
   }
+
+  assert {
+    condition     = strcontains(local.startup_script, "User=cloud-sql-proxy") && strcontains(local.startup_script, "NoNewPrivileges=true") && strcontains(local.startup_script, "ProtectSystem=full")
+    error_message = "Cloud SQL Auth Proxy must run as an unprivileged system user with systemd hardening."
+  }
 }
 
 run "firewall_allows_only_iap_range_on_ssh" {
