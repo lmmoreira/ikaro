@@ -4,6 +4,24 @@ locals {
 
   github_pool_resource = "projects/${var.workload_identity_pool_project_number}/locations/global/workloadIdentityPools/${var.workload_identity_pool_id}"
   state_prefix         = "foundation/${var.environment}"
+
+  # Phase 3 enablement only. These roles let the separately protected
+  # foundation deployer take ownership of project IAM, service-account IAM,
+  # and enabled APIs. Resource-specific IAM administration is added only with
+  # its corresponding ownership-transfer slice.
+  foundation_deployer_project_roles = toset([
+    "roles/iam.serviceAccountAdmin",
+    "roles/resourcemanager.projectIamAdmin",
+    "roles/serviceusage.serviceUsageAdmin",
+  ])
+
+  # The planner needs no mutation capability. The existing custom role reads
+  # Terraform-managed IAM policies; serviceAccountViewer refreshes the two
+  # foundation identities themselves during a plan.
+  foundation_planner_project_roles = toset([
+    "projects/${var.project_id}/roles/tfPlannerIamPolicyReader",
+    "roles/iam.serviceAccountViewer",
+  ])
 }
 
 resource "google_service_account" "foundation_deployer" {
@@ -30,6 +48,24 @@ resource "google_service_account_iam_member" "foundation_planner_wif" {
   service_account_id = google_service_account.foundation_planner.name
   role               = "roles/iam.workloadIdentityUser"
   member             = "principalSet://iam.googleapis.com/${local.github_pool_resource}/attribute.repository/${var.github_repository}"
+}
+
+resource "google_project_iam_member" "foundation_deployer_control_plane" {
+  #checkov:skip=CKV_GCP_42:TD34's separately protected foundation identity—not the normal deployer—must manage project IAM, service-account IAM, and service activation. The role set is intentionally limited, excludes Owner, and is verified by module tests.
+  #checkov:skip=CKV_GCP_49:TD34 moves service-account administration to the separately protected foundation identity so it can remove that escalation path from normal deployers; no key or token-creator grant is introduced.
+  for_each = local.foundation_deployer_project_roles
+
+  project = var.project_id
+  role    = each.value
+  member  = "serviceAccount:${google_service_account.foundation_deployer.email}"
+}
+
+resource "google_project_iam_member" "foundation_planner_read" {
+  for_each = local.foundation_planner_project_roles
+
+  project = var.project_id
+  role    = each.value
+  member  = "serviceAccount:${google_service_account.foundation_planner.email}"
 }
 
 resource "google_storage_bucket_iam_member" "foundation_deployer_state" {
