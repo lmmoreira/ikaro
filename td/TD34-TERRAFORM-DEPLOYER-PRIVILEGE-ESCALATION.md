@@ -19,6 +19,14 @@
 Terraform applies can modify the project's allow policy. In practice, it can
 grant itself (or another principal) additional project-level roles.
 
+The same review must cover service-account IAM. The normal deployer also has
+service-account administration capabilities, including the ability to modify
+a service account's IAM policy. If it can add itself as a
+`roles/iam.serviceAccountTokenCreator` or `roles/iam.serviceAccountUser` on a
+more-privileged runtime or foundation service account, it can impersonate that
+identity and inherit its permissions. Project-policy mutation is therefore not
+the only escalation path this TD must remove.
+
 This predates TD32. TD32 made the consequence explicit: Terraform needs to
 manage `iap.googleapis.com`, which requires Service Usage permissions. The
 deployer can grant itself `roles/serviceusage.serviceUsageAdmin` because it
@@ -51,8 +59,9 @@ blast radius once `ikaro-tf-deployer` is obtained.
 ## Required security outcome
 
 The normal environment deployer must be unable to grant itself, another
-principal, or another service account any new project-level permission. IAM
-policy and project-service activation must be managed by a separate,
+principal, or another service account any new project-level permission or
+service-account impersonation capability. Project IAM policy, service-account
+IAM policy, and project-service activation must be managed by a separate,
 more-protected foundation deployment boundary.
 
 ## Proposed approach
@@ -60,6 +69,8 @@ more-protected foundation deployment boundary.
 Create a dedicated Terraform foundation layer for each project. It owns:
 
 - project-level IAM bindings, including runtime service-account project roles;
+- service-account IAM bindings, especially impersonation and token-creation
+  grants;
 - enabled Google APIs (`google_project_service`), including IAP;
 - custom roles and IAM guardrails, if any are genuinely required;
 - the dedicated foundation service account's WIF binding.
@@ -78,12 +89,14 @@ or import/state migration under the protected workflow) so existing bindings
 are adopted rather than removed and recreated.
 
 Then remove `roles/resourcemanager.projectIamAdmin` and
-`roles/serviceusage.serviceUsageAdmin` from `ikaro-tf-deployer`. Give the
+`roles/serviceusage.serviceUsageAdmin` from `ikaro-tf-deployer`, and remove
+or narrowly replace any service-account-administration permission that can
+change a service account's IAM policy or create/obtain credentials. Give the
 normal deployer only resource-specific permissions needed for routine
 resources. Any remaining instance-, service-, or secret-scoped IAM update
 must be evaluated individually; move it to the foundation layer when the
-provider operation ultimately changes project policy or otherwise enables
-self-escalation.
+provider operation can change project or service-account policy, create keys,
+or otherwise enable self-escalation.
 
 An initial root-of-trust bootstrap is unavoidable in any cloud architecture:
 an existing organization/project administrator must establish the foundation
@@ -104,8 +117,13 @@ version-controlled Terraform applies.
   no longer have `roles/resourcemanager.projectIamAdmin`,
   `roles/serviceusage.serviceUsageAdmin`, or any equivalent permission that
   can modify project allow policies.
+- [ ] The normal deployers also cannot modify any service account's IAM
+  policy, create a service-account key, or grant themselves
+  `roles/iam.serviceAccountTokenCreator` / `roles/iam.serviceAccountUser` on
+  a runtime or foundation service account.
 - [ ] A live negative verification proves the normal deployer is denied when
-  attempting to add a project IAM binding or enable an API, while the
+  attempting to add a project IAM binding, enable an API, change a service
+  account's policy, or acquire a privileged service-account token, while the
   foundation identity can perform the intended reviewed change.
 - [ ] The foundation workflow's WIF binding cannot be impersonated by pull
   requests, arbitrary branches, or the normal environment-deployer workflow;
@@ -135,7 +153,10 @@ version-controlled Terraform applies.
 3. Which GitHub environment approval and WIF attribute conditions provide a
    materially independent foundation boundary, rather than another path
    controlled by the same routine `main` merge?
-4. Can organization-level IAM Deny or Principal Access Boundary policies add
+4. Which existing `iam.serviceAccountAdmin` operations are actually required
+   by ordinary environment applies, and can each be moved or replaced without
+   introducing an impersonation path?
+5. Can organization-level IAM Deny or Principal Access Boundary policies add
    a defense-in-depth guarantee that the normal deployer cannot regain
-   project-IAM mutation, and are they available under the current organization
-   administration model?
+   project- or service-account-IAM mutation, and are they available under the
+   current organization administration model?
