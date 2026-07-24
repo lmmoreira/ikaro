@@ -151,7 +151,9 @@ If this snapshot gets acted on:
 
 All 17 🔴-tagged findings, re-verified directly against current source on 2026-07-23 (no stale claims — every file:line below was read, not taken on the audit's word), grouped into 10 small stories and ordered by criticality. The 🟡/⚪ tiers are **not** included here — they stay as open rows in the Part 2 tables above pending a team decision on duplication tolerance. Each story is independently reviewable/landable, same convention as `td/TD-18-19-20-BAD-SMELL-VIOLAVIONS.md`'s Implementation Stories — mark a story `✅ Done` in place once merged (no separate `/mark-done` command for TD stories).
 
-### Story 1 — Customer booking-ownership check is controller-only, not use-case-enforced 🔴 Critical
+### Story 1 — Customer booking-ownership check is controller-only, not use-case-enforced 🔴 Critical ✅ Done
+
+**Landed**: PR #204 (2026-07-24), `fix/td31-s01-booking-ownership-check`. Implemented as specced, plus one fix from Codex's cross-tool review: the ownership comparison originally used a truthy check (`if (requestingCustomerId && ...)`), which silently treated an empty-string `requestingCustomerId` as "no requester supplied" instead of a mismatch — changed to `requestingCustomerId !== undefined`, with a regression test added.
 
 **Source**: Backend 3.1
 
@@ -704,7 +706,7 @@ Grouping rule: two stories collapse into **one PR** only when they genuinely sha
 
 | PR | Stories | Target files | Notes |
 |---|---|---|---|
-| **PR 1** | Story 1 | `booking.controller.ts`, `get-booking-by-id.use-case.ts` (+ spec) | Standalone. Highest priority — security-adjacent. |
+| **PR 1** ✅ | Story 1 | `booking.controller.ts`, `get-booking-by-id.use-case.ts` (+ spec) | Standalone. Highest priority — security-adjacent. **Merged as [#204](https://github.com/lmmoreira/ikaro/pull/204), 2026-07-24.** |
 | **PR 2** | Story 2 + Story 20 (loyalty part only) | `apps/web/features/loyalty/api.ts` | Same file, same reason (both are `@ikaro/types` drift/duplication on this exact file) — always were meant to land together. |
 
 ### Wave 2 — BFF `bookings.controller.ts` cleanup (1 PR — collapsed from 3 due to file overlap)
