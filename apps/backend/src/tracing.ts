@@ -13,6 +13,6 @@ import { bootstrapTracing } from '@ikaro/observability';
 // OTEL_EXPORTER_OTLP_ENDPOINT/SERVICE_NAME/OTEL_SDK_DISABLED from .env are invisible here in
 // local dev (Cloud Run sets these directly as container env vars, so staging/production are
 // unaffected either way). Same pattern as data-source.ts/seed.ts.
-config();
+config({ quiet: true });
 
 bootstrapTracing('ikaro-backend', { postgres: true });

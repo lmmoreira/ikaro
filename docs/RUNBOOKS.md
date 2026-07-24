@@ -46,3 +46,30 @@ Migrations follow expand/contract (repo rule): the previous code version already
 **Staging holds synthetic/test data exclusively. Never real customer data, never a copy of prod.**
 
 No exceptions. If a test ever needs staging data to more closely resemble production, populate it with fabricated data matching that shape — never restore or copy a real customer/tenant dataset into staging.
+
+### Debugging a permission-denied-shaped 500 (DB grants)
+
+Recipe from a real incident (M17-S27, 2026-07-24): a tenant hotsite manifest lookup 500'd in staging; root cause was `apps/backend`'s app-runtime role (`ikaro`) silently having zero schema privileges, because the bootstrap migrations' role-name check (`rolname = 'ikaro_app'`) didn't match the role that actually exists in that environment (`ikaro`).
+
+1. **Triage where the failure actually is.** If web shows a generic/opaque error page instead of the app's own expected error (e.g. a "tenant not found" page), the failure happened upstream — in the BFF or backend — not in web's own render logic. Go straight to backend/BFF logs; don't debug it as a frontend bug.
+2. **`permission denied for schema X` / `permission denied for relation X`** in this codebase almost always means the two-role DDL/DML split (`ikaro_migrator` vs `ikaro`, see `docker/init-db.sh` and `docs/23-INFRASTRUCTURE_SETUP.md`) is broken for that environment — not a query/logic bug. Check whether the app's actual DB role name matches what `BootstrapSchemas1700000000000`/`AddSharedSchema1748400000005` check for, and whether that matches the environment's Terraform `db_user` value.
+3. **`ALTER DEFAULT PRIVILEGES` (what those two migrations use to grant DML) is prospective-only** — it never retroactively grants on tables that already exist at the time it runs. Fixing a role-name mismatch and simply re-running those two migrations against an already-migrated environment does nothing for tables created by migrations that ran in between; the app will just fail on the next schema/relation instead.
+4. **Remediation, pre-production only:** a full schema reset + full migration replay makes the fix retroactive without a special repair migration, since every table gets created after its schema's (now-correct) default-privilege rule is set:
+   ```sql
+   DROP SCHEMA IF EXISTS "shared" CASCADE;
+   DROP SCHEMA IF EXISTS "notification" CASCADE;
+   DROP SCHEMA IF EXISTS "loyalty" CASCADE;
+   DROP SCHEMA IF EXISTS "booking" CASCADE;
+   DROP SCHEMA IF EXISTS "staff" CASCADE;
+   DROP SCHEMA IF EXISTS "customer" CASCADE;
+   DROP SCHEMA IF EXISTS "platform" CASCADE;
+   DELETE FROM public.migrations;
+   ```
+   then `gcloud run jobs execute ikaro-migrate --project=<project> --region=<region> --wait`. This is safe only pre-production and only for the one environment that ran the broken version — see the DoD's migration-editing exception (§7) for why this specific combination doesn't violate "never edit an applied migration."
+5. **Staging DB access is Cloud SQL Studio only** (no direct network path, TD32) — authenticate as `ikaro_migrator` via built-in auth (Secret Manager: `db-migrator-password`), not your personal IAM login, which has no object-level grants (TD32).
+6. **Verify a reset actually took effect — don't trust "it's done."** The first attempt in the real incident silently failed to apply. Query directly:
+   ```sql
+   SELECT count(*) FROM public.migrations;
+   SELECT nspname FROM pg_namespace WHERE nspname IN ('platform','customer','staff','booking','loyalty','notification','shared');
+   ```
+7. **Verify a migrate-job replay actually ran fresh**, not a no-op, by reading its own execution logs: `"N migrations are new migrations must be executed"` means it replayed; `"No migrations are pending"` means nothing happened and the reset didn't take.

@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { config } from 'dotenv';
 import { DataSource } from 'typeorm';
 
-config();
+config({ quiet: true });
 
 // ── Fixed UUIDs ensure idempotency across multiple runs ──────────────────────
 // tenantA/tenantB keep their original ids/meaning (Lavacar BeloAuto / AutoSpa Premium).

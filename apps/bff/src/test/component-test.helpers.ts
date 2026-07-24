@@ -82,7 +82,7 @@ export async function createTestApp(): Promise<{
   await app.init();
 
   const restoreEnv = (): void => {
-    dotenv.config({ path: path.join(process.cwd(), '.env'), override: true });
+    dotenv.config({ path: path.join(process.cwd(), '.env'), override: true, quiet: true });
   };
 
   return {

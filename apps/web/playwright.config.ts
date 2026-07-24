@@ -4,7 +4,7 @@ import { config as loadDotenv } from 'dotenv';
 
 const playwrightEnvPath = path.resolve(__dirname, '.env.playwright.local');
 
-loadDotenv({ path: playwrightEnvPath });
+loadDotenv({ path: playwrightEnvPath, quiet: true });
 
 export default defineConfig({
   testDir: './e2e',
