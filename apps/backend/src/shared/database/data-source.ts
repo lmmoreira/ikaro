@@ -1,21 +1,12 @@
 import 'reflect-metadata';
 import { config } from 'dotenv';
-import { DataSource, type DataSourceOptions } from 'typeorm';
-import { getCloudSqlConnectorExtra } from '../infrastructure/database/cloud-sql-connector.adapter';
+import { DataSource } from 'typeorm';
+import { buildDataSourceOptions, type BaseDataSourceOptions } from './build-data-source-options';
 
 config(); // load .env when invoked directly by TypeORM CLI
 
-const appEnv = process.env['APP_ENV'] ?? 'local';
-
-function requireEnv(keys: string[]): void {
-  const missing = keys.filter((k) => !process.env[k]);
-  if (missing.length > 0) {
-    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
-  }
-}
-
-const baseOptions = {
-  type: 'postgres' as const,
+const baseOptions: BaseDataSourceOptions = {
+  type: 'postgres',
   username: process.env['DB_MIGRATOR_USER'],
   password: process.env['DB_MIGRATOR_PASSWORD'],
   database: process.env['DB_NAME'],
@@ -39,33 +30,9 @@ const baseOptions = {
   subscribers: [],
 };
 
-// TD33 — local/CI Testcontainers Postgres has no Cloud SQL instance and no TLS at all;
-// staging/production route via the Cloud SQL Connector instead of a raw TCP host/port. The
-// TypeORM CLI (CommandUtils.loadDataSource) awaits an exported Promise<DataSource>, so an async
-// factory here is the supported mechanism for building it — verified against the installed
-// typeorm@1.1.0 source, not assumed.
-async function buildDataSource(): Promise<DataSource> {
-  if (appEnv === 'local') {
-    requireEnv(['DB_HOST', 'DB_MIGRATOR_USER', 'DB_MIGRATOR_PASSWORD', 'DB_NAME']);
-    const options: DataSourceOptions = {
-      ...baseOptions,
-      host: process.env['DB_HOST'],
-      port: Number(process.env['DB_PORT'] ?? 5432),
-    };
-    return new DataSource(options);
-  }
-
-  requireEnv([
-    'DB_INSTANCE_CONNECTION_NAME',
-    'DB_MIGRATOR_USER',
-    'DB_MIGRATOR_PASSWORD',
-    'DB_NAME',
-  ]);
-  const options: DataSourceOptions = {
-    ...baseOptions,
-    extra: await getCloudSqlConnectorExtra(process.env['DB_INSTANCE_CONNECTION_NAME'] as string),
-  };
-  return new DataSource(options);
-}
-
-export const AppDataSource = buildDataSource();
+// TypeORM's CLI (CommandUtils.loadDataSource) awaits an exported Promise<DataSource> — verified
+// against the installed typeorm@1.1.0 source, not assumed. buildDataSourceOptions (TD33) picks
+// between a local raw-TCP DataSource and a Cloud SQL Connector-backed one for staging/production.
+export const AppDataSource = buildDataSourceOptions(process.env, baseOptions).then(
+  (options) => new DataSource(options),
+);

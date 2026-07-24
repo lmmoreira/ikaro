@@ -91,4 +91,9 @@ run "plain_env_vars_are_mounted_regardless_of_bootstrap_mode" {
     condition     = length([for e in google_cloud_run_v2_job.this.template[0].template[0].containers[0].env : e if e.name == "DB_MIGRATOR_USER" && e.value == "ikaro_migrator"]) == 1
     error_message = "Plain env_vars must always be mounted, independent of bootstrap_mode."
   }
+
+  assert {
+    condition     = length([for e in google_cloud_run_v2_job.this.template[0].template[0].containers[0].env : e if e.name == "DB_INSTANCE_CONNECTION_NAME" && e.value == "proj:region:instance"]) == 1
+    error_message = "DB_INSTANCE_CONNECTION_NAME must be mounted in the migrate job."
+  }
 }

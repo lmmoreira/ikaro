@@ -22,8 +22,8 @@ const config: Config = {
     '!**/tracing.ts',
     // Same category: a standalone TypeORM CLI entry point that throws at import time if
     // required env vars are missing (M17-S27) — the testable logic it delegates to
-    // (Cloud SQL Connector wiring, TD33) lives in cloud-sql-connector.adapter.ts and
-    // env.validation.ts, both covered on their own.
+    // (Cloud SQL Connector wiring, TD33) lives in build-data-source-options.ts,
+    // cloud-sql-connector.adapter.ts, and env.validation.ts, all covered on their own.
     '!**/shared/database/data-source.ts',
   ],
   coverageDirectory: '../coverage',

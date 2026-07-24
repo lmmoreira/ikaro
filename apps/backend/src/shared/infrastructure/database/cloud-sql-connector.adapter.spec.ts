@@ -50,6 +50,21 @@ describe('getCloudSqlConnectorExtra', () => {
 
     expect(mockConnectorCtor).toHaveBeenCalledTimes(2);
   });
+
+  it('rejects with a diagnosable error when getOptions() hangs past the timeout', async () => {
+    jest.useFakeTimers();
+    // Never resolves — simulates a hung Cloud SQL Admin API / metadata server call.
+    mockGetOptions.mockReturnValue(new Promise(() => undefined));
+
+    const result = getCloudSqlConnectorExtra('proj:region:instance');
+    const assertion = expect(result).rejects.toThrow(
+      'Cloud SQL Connector getOptions() timed out after 15000ms for instance "proj:region:instance"',
+    );
+    await jest.advanceTimersByTimeAsync(15_000);
+    await assertion;
+
+    jest.useRealTimers();
+  });
 });
 
 describe('closeCloudSqlConnector', () => {

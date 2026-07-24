@@ -13,6 +13,11 @@ function getConnector(): Connector {
   return connector;
 }
 
+// Bounds the Cloud SQL Admin API round-trip so a hung/unreachable admin API or metadata server
+// fails app/CLI startup fast with a diagnosable error instead of hanging indefinitely (CodeRabbit
+// finding, PR #202).
+const GET_OPTIONS_TIMEOUT_MS = 15_000;
+
 /**
  * Returns the `DataSourceOptions.extra` fragment that routes a TypeORM postgres connection
  * through the Cloud SQL Connector instead of a plain TCP host/port. ipType is always PRIVATE —
@@ -21,10 +26,20 @@ function getConnector(): Connector {
 export async function getCloudSqlConnectorExtra(
   instanceConnectionName: string,
 ): Promise<DataSourceOptions['extra']> {
-  const { stream } = await getConnector().getOptions({
-    instanceConnectionName,
-    ipType: IpAddressTypes.PRIVATE,
-  });
+  const { stream } = await Promise.race([
+    getConnector().getOptions({ instanceConnectionName, ipType: IpAddressTypes.PRIVATE }),
+    new Promise<never>((_, reject) =>
+      setTimeout(
+        () =>
+          reject(
+            new Error(
+              `Cloud SQL Connector getOptions() timed out after ${GET_OPTIONS_TIMEOUT_MS}ms for instance "${instanceConnectionName}"`,
+            ),
+          ),
+        GET_OPTIONS_TIMEOUT_MS,
+      ),
+    ),
+  ]);
   return { stream };
 }
 
