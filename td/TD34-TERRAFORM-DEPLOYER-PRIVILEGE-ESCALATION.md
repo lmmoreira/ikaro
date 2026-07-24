@@ -90,18 +90,19 @@ remain intentionally in the production normal root. They are migration
 capabilities and must be removed only after Foundation owns the remaining IAM
 surface and the normal deployer no longer needs them.
 
-### Current legacy-role adoption batch
+### Completed legacy-role adoption batch
 
-The next Foundation batch is implemented and awaiting PR creation/merge/apply
-on `feat/td34-adopt-legacy-deployer-roles`. It adopts, without mutation, the
-pre-existing broad project-role bindings of the normal deployers:
+The Foundation layer now owns, without mutation, the pre-existing broad
+project-role bindings of the normal deployers:
 
 - staging: 12 imports;
 - production: 13 imports, including its existing conditional
   `roles/storage.admin` binding that excludes the shared state bucket.
 
-Live read-only Foundation plans verified these are imports only: zero creates,
-updates, or destroys. The two temporary production state-bridge bindings are
+Live read-only Foundation plans verified these were imports only: zero creates,
+updates, or destroys. The protected Foundation apply completed successfully in
+both environments, and Foundation state now contains all 12 staging and 13
+production bindings. The two temporary production state-bridge bindings are
 deliberately excluded because they remain managed by
 `modules/foundation-state-bootstrap` until phase 5.
 
