@@ -16,3 +16,17 @@ resource "google_project_iam_member" "staging_foundation_planner_state_policy_re
   role    = "projects/${var.project_id}/roles/tfPlannerIamPolicyReader"
   member  = "serviceAccount:ikaro-tf-foundation-planner@ikaro-staging.iam.gserviceaccount.com"
 }
+
+# Both foundation deployers refresh bucket-IAM resources in their own state.
+# This existing custom role is read-only and is sufficient for refresh; any
+# future bucket-IAM mutation is transferred deliberately in TD34 phase 3.
+resource "google_project_iam_member" "foundation_deployer_state_policy_reader" {
+  for_each = toset([
+    "ikaro-tf-foundation@ikaro-staging.iam.gserviceaccount.com",
+    "ikaro-tf-foundation@ikaro-prod.iam.gserviceaccount.com",
+  ])
+
+  project = var.project_id
+  role    = "projects/${var.project_id}/roles/tfPlannerIamPolicyReader"
+  member  = "serviceAccount:${each.value}"
+}
