@@ -10,6 +10,7 @@ locals {
   # and enabled APIs. Resource-specific IAM administration is added only with
   # its corresponding ownership-transfer slice.
   foundation_deployer_project_roles = toset([
+    "roles/iam.roleAdmin",
     "roles/iam.serviceAccountAdmin",
     "roles/resourcemanager.projectIamAdmin",
     "roles/serviceusage.serviceUsageAdmin",
@@ -20,6 +21,7 @@ locals {
   # foundation identities; Service Usage Viewer discovers enabled APIs during
   # a plan.
   foundation_planner_project_roles = toset([
+    "roles/iam.roleViewer",
     "projects/${var.project_id}/roles/tfPlannerIamPolicyReader",
     "roles/iam.serviceAccountViewer",
     "roles/serviceusage.serviceUsageViewer",

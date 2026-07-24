@@ -76,12 +76,12 @@ run "foundation_planner_is_repo_scoped_and_state_is_prefix_scoped" {
   }
 }
 
-run "foundation_control_plane_has_only_the_initial_reviewed_roles" {
+run "foundation_control_plane_has_only_the_reviewed_roles" {
   command = plan
 
   assert {
-    condition     = length(google_project_iam_member.foundation_deployer_control_plane) == 3 && alltrue([for role in ["roles/iam.serviceAccountAdmin", "roles/resourcemanager.projectIamAdmin", "roles/serviceusage.serviceUsageAdmin"] : contains(keys(google_project_iam_member.foundation_deployer_control_plane), role)])
-    error_message = "The foundation deployer must receive only the initial TD34 IAM, service-account, and Service Usage management roles."
+    condition     = length(google_project_iam_member.foundation_deployer_control_plane) == 4 && alltrue([for role in ["roles/iam.roleAdmin", "roles/iam.serviceAccountAdmin", "roles/resourcemanager.projectIamAdmin", "roles/serviceusage.serviceUsageAdmin"] : contains(keys(google_project_iam_member.foundation_deployer_control_plane), role)])
+    error_message = "The foundation deployer must receive only the reviewed TD34 custom-role, IAM, service-account, and Service Usage management roles."
   }
 
   assert {
@@ -90,8 +90,8 @@ run "foundation_control_plane_has_only_the_initial_reviewed_roles" {
   }
 
   assert {
-    condition     = length(google_project_iam_member.foundation_planner_read) == 3 && alltrue([for role in ["projects/ikaro-staging/roles/tfPlannerIamPolicyReader", "roles/iam.serviceAccountViewer", "roles/serviceusage.serviceUsageViewer"] : contains(keys(google_project_iam_member.foundation_planner_read), role)])
-    error_message = "The foundation planner must have only IAM-policy, service-account, and Service Usage read access."
+    condition     = length(google_project_iam_member.foundation_planner_read) == 4 && alltrue([for role in ["roles/iam.roleViewer", "projects/ikaro-staging/roles/tfPlannerIamPolicyReader", "roles/iam.serviceAccountViewer", "roles/serviceusage.serviceUsageViewer"] : contains(keys(google_project_iam_member.foundation_planner_read), role)])
+    error_message = "The foundation planner must have only custom-role, IAM-policy, service-account, and Service Usage read access."
   }
 }
 
