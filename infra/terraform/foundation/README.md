@@ -58,6 +58,16 @@ deployer has lost the permissions needed to create or configure foundation
 identities. Do not use `gcloud` or local `terraform apply` for bootstrap or
 ongoing foundation changes.
 
+## Permanent foundation workflow
+
+After phase-3 enablement, internal pull requests produce separate, sanitized
+staging and production plans using the repository-scoped read-only foundation
+planner. A manual `apply=true` dispatch from `main` produces those plans first,
+then applies staging and production serially through their matching protected
+foundation Environments using only the foundation deployer. Planner account
+emails are public identifiers, not credentials; no protected environment is
+requested by a pull-request plan.
+
 ### State-prefix bridge
 
 The initially empty foundation prefixes cannot be opened by the new foundation
