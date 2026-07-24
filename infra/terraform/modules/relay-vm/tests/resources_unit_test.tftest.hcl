@@ -32,8 +32,8 @@ run "create_false_plans_zero_instances" {
   }
 
   assert {
-    condition     = length(google_iap_tunnel_instance_iam_member.admin_iap_tunnel) == 0 && length(google_compute_instance_iam_member.admin_os_login) == 0
-    error_message = "Instance-scoped IAM bindings must also be zero when the instance doesn't exist — they reference google_compute_instance.relay[0]."
+    condition     = length(google_iap_tunnel_instance_iam_member.admin_iap_tunnel) == 0 && length(google_compute_instance_iam_member.admin_os_login) == 0 && length(google_secret_manager_secret_iam_member.relay_platform_admin_key) == 0
+    error_message = "Instance-scoped and Secret Manager access bindings must be zero when the relay VM is not created."
   }
 }
 
@@ -128,7 +128,7 @@ run "relay_service_account_gets_cloud_sql_and_secret_access_not_the_human" {
   }
 
   assert {
-    condition     = google_secret_manager_secret_iam_member.relay_platform_admin_key.role == "roles/secretmanager.secretAccessor" && google_secret_manager_secret_iam_member.relay_platform_admin_key.member == "serviceAccount:${google_service_account.relay.email}"
+    condition     = google_secret_manager_secret_iam_member.relay_platform_admin_key[0].role == "roles/secretmanager.secretAccessor" && google_secret_manager_secret_iam_member.relay_platform_admin_key[0].member == "serviceAccount:${google_service_account.relay.email}"
     error_message = "platform-admin-key accessor must be granted to the relay VM's own service account (2026-07-24 redesign), not the human — closes the TD32 discovery gap via metadata-server auth, no gcloud CLI needed."
   }
 
@@ -157,7 +157,7 @@ run "cloud_sql_resources_skipped_when_db_instance_name_empty" {
   }
 }
 
-run "audit_logging_covers_iap_and_secret_manager" {
+run "audit_logging_covers_iap_secret_manager_and_cloud_sql" {
   command = plan
 
   assert {
@@ -181,5 +181,15 @@ run "audit_logging_covers_iap_and_secret_manager" {
   assert {
     condition     = contains([for c in google_project_iam_audit_config.secretmanager_access.audit_log_config : c.log_type], "DATA_READ")
     error_message = "Secret Manager audit config must cover DATA_READ — that's the log type AccessSecretVersion falls under."
+  }
+
+  assert {
+    condition     = google_project_iam_audit_config.cloudsql_login.service == "cloudsql.googleapis.com"
+    error_message = "Cloud SQL IAM logins (cloudsql.instances.login) are also Data Access-classified and opt-in — must be covered too, not just IAP and Secret Manager (cross-tool review finding, round 3, TD32)."
+  }
+
+  assert {
+    condition     = contains([for c in google_project_iam_audit_config.cloudsql_login.audit_log_config : c.log_type], "DATA_WRITE")
+    error_message = "Cloud SQL audit config must cover DATA_WRITE — confirmed against Google's own Cloud SQL audit logging docs that cloudsql.instances.login falls under this log type."
   }
 }

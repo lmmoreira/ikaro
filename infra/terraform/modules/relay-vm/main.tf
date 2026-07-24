@@ -7,10 +7,9 @@
 # the backend's public *.a.run.app hostname are correctly classified as
 # internal-origin traffic (Private Google Access on the subnet).
 #
-# Inert by default: the firewall rule, IAM grants, and audit config below
-# are permanent, always-applied config (cheap, not billable); only the VM
-# resource (and the resources that only make sense once it exists) are
-# count-gated on var.create.
+# Inert by default: the firewall rule and audit config below are permanent,
+# always-applied config (cheap, not billable); the VM and access grants that
+# only make sense while it exists are count-gated on var.create.
 #
 # Identity model (redesigned 2026-07-24, cross-tool PR review on #203):
 # the relay VM's OWN service account does the actual Cloud SQL / Cloud Run
@@ -19,8 +18,8 @@
 # a real constraint (no external IP + no Cloud NAT means gcloud CLI has no
 # reachable install path — its releases live on dl.google.com, not a
 # Private-Google-Access-covered *.googleapis.com domain), but it's also
-# strictly better on its own terms: short-lived, non-exportable,
-# auto-rotated tokens confined to code running on this one instance,
+# strictly better on its own terms: keyless, short-lived, auto-rotated
+# credentials minted through the instance metadata server,
 # versus a human's own long-lived Google identity gaining run.invoker +
 # Cloud SQL IAM access usable from anywhere. See modules/relay-vm/README.md
 # "Identity model" for the full reasoning.
@@ -36,7 +35,17 @@ locals {
   # (2026-07-24): v2.23.0 exists at this exact URL and matches the
   # GoogleCloudPlatform/cloud-sql-proxy GitHub release published the same
   # day as the binary's own last-modified date. Bump the version string
-  # here when it goes stale; this is the only place it's hardcoded.
+  # (and the checksum below) here when it goes stale; this is the only
+  # place either is hardcoded.
+  #
+  # SHA-256 verified before chmod/execution (cross-tool PR review finding,
+  # round 3, 2026-07-24): downloading and running a binary as root with
+  # only a URL/version pin, no integrity check, means a mutable object
+  # replacement or corrupted download becomes root code execution with
+  # this VM's own service account's privileges. Verified two independent
+  # ways before pinning: downloaded the real file and ran sha256sum
+  # locally, and cross-checked against the GitHub release page's own
+  # published per-asset hash — both matched exactly.
   #
   # Runs as a systemd service so it's immediately listening on 127.0.0.1:5433
   # the moment the VM finishes booting — no manual start step, no gcloud
@@ -51,6 +60,7 @@ locals {
     if [ ! -x /usr/local/bin/cloud-sql-proxy ]; then
       curl -fsSL -o /usr/local/bin/cloud-sql-proxy \
         "https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.23.0/cloud-sql-proxy.linux.amd64"
+      echo "cd689d582b826fa5bc82c01ccc14e45a58200c3cefbf923ce96c422825e4e6f6  /usr/local/bin/cloud-sql-proxy" | sha256sum -c -
       chmod +x /usr/local/bin/cloud-sql-proxy
     fi
 
@@ -195,6 +205,8 @@ resource "google_compute_instance_iam_member" "admin_os_login" {
 # a metadata-server-minted access token from inside the VM, no gcloud
 # needed.
 resource "google_secret_manager_secret_iam_member" "relay_platform_admin_key" {
+  count = var.create ? 1 : 0
+
   secret_id = var.platform_admin_key_secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.relay.email}"
@@ -270,5 +282,21 @@ resource "google_project_iam_audit_config" "secretmanager_access" {
 
   audit_log_config {
     log_type = "DATA_READ"
+  }
+}
+
+# Cloud SQL's cloudsql.instances.login (what the relay SA's --auto-iam-authn
+# login triggers) is also Data Access-classified — DATA_WRITE specifically,
+# confirmed against Google's own Cloud SQL audit logging docs — and also
+# opt-in by default. Third audit-config gap the review process found one
+# service at a time (IAP round 2, Secret Manager round 2, Cloud SQL round
+# 3) — without this, the Cloud SQL half of the "appears in Cloud Audit
+# Logs" claim was unenforced even though every other half now is.
+resource "google_project_iam_audit_config" "cloudsql_login" {
+  project = var.project_id
+  service = "cloudsql.googleapis.com"
+
+  audit_log_config {
+    log_type = "DATA_WRITE"
   }
 }

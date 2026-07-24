@@ -9,6 +9,6 @@ output "relay_vm_zone" {
 }
 
 output "service_account_email" {
-  description = "Email of the relay VM's attached service account (identity-only — carries no IAM role bindings, see main.tf)"
+  description = "Email of the relay VM's attached service account. When var.create is true, it performs Cloud SQL IAM login and reads platform-admin-key through the metadata server."
   value       = google_service_account.relay.email
 }

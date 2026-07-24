@@ -34,8 +34,8 @@ infra/terraform/
 ## Module dependency graph
 
 ```
+network + database + secrets ──► relay-vm ──► cloudrun-service
 network ──► database ─────────────┐
-network ──► relay-vm (+ secrets)  │
 storage ──────────────────────────┤
 secrets ──► iam ──────────────────┼──► cloudrun-service ──► pubsub ──► scheduler
 registry (prod only) ─────────────┘          │

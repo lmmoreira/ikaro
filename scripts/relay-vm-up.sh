@@ -39,19 +39,22 @@ OTHER_BRANCH="chore/relay-vm-down-${ENV}"
 git fetch origin main >/dev/null
 git checkout --detach origin/main >/dev/null
 
-if grep -q '^create_relay_vm = true' "$TFVARS"; then
-  echo "✅ create_relay_vm is already true for ${ENV} — nothing to do."
+existing_pr=$(gh pr list --repo "$REPO" --head "$BRANCH" --state open --json url --jq '.[0].url // empty' 2>/dev/null || true)
+if [ -n "$existing_pr" ]; then
+  echo "⏳ A PR is already open for ${ENV}: ${existing_pr}"
+  echo "   Merge or close it before running this again."
   exit 0
 fi
 
-# Don't clobber a PR that's already in flight (cross-tool PR review finding
-# on #203) — force-pushing over an open, unmerged PR is confusing even
-# though it wouldn't lose the underlying tfvars change (same 1-line diff
-# either way).
-existing_pr=$(gh pr list --repo "$REPO" --head "$BRANCH" --state open --json number,url --jq '.[0]' 2>/dev/null || true)
-if [ -n "$existing_pr" ]; then
-  echo "⏳ A PR is already open for ${ENV}: $(echo "$existing_pr" | grep -o '"url":"[^"]*' | cut -d'"' -f4)"
-  echo "   Merge or close it before running this again."
+opposite_pr=$(gh pr list --repo "$REPO" --head "$OTHER_BRANCH" --state open --json url --jq '.[0].url // empty' 2>/dev/null || true)
+if [ -n "$opposite_pr" ]; then
+  echo "❌ An opposite-direction PR is still open for ${ENV}: ${opposite_pr}" >&2
+  echo "   Merge or close it before opening an up PR; merging it later would undo this toggle." >&2
+  exit 1
+fi
+
+if grep -q '^create_relay_vm = true' "$TFVARS"; then
+  echo "✅ create_relay_vm is already true for ${ENV} — nothing to do."
   exit 0
 fi
 
@@ -59,7 +62,7 @@ fi
 # actually merged, so this doesn't need a separate manual cleanup step.
 for old_branch in "$BRANCH" "$OTHER_BRANCH"; do
   if git show-ref --verify --quiet "refs/heads/${old_branch}"; then
-    merged_pr=$(gh pr list --repo "$REPO" --head "$old_branch" --state merged --json number --jq '.[0].number' 2>/dev/null || true)
+    merged_pr=$(gh pr list --repo "$REPO" --head "$old_branch" --state merged --json number --jq '.[0].number // empty' 2>/dev/null || true)
     if [ -n "$merged_pr" ]; then
       git branch -D "$old_branch" >/dev/null 2>&1 || true
       git push origin --delete "$old_branch" >/dev/null 2>&1 || true
