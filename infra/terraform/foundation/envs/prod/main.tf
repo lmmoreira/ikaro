@@ -8,6 +8,18 @@ module "control_plane" {
   workload_identity_pool_project_number = var.project_number
 }
 
+module "project_services" {
+  source = "../../modules/project-services"
+
+  project_id = var.project_id
+  services   = ["iap.googleapis.com"]
+}
+
+import {
+  to = module.project_services.google_project_service.managed["iap.googleapis.com"]
+  id = "${var.project_id}/iap.googleapis.com"
+}
+
 # The shared Terraform state bucket belongs to ikaro-prod. Staging's
 # repository-scoped planner needs only the existing policy-reader custom role
 # here to refresh the bucket IAM bindings held in staging foundation state.
