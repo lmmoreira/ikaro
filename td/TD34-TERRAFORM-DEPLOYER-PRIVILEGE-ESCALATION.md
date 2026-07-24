@@ -3,7 +3,7 @@
 ## Status
 
 - **State**: 🟡 Open
-- **Phase**: ownership-transfer preparation
+- **Phase**: phase 3 ownership transfer underway
 - **Type**: Technical Debt / Infrastructure Security
 - **Priority**: High — a compromise of the trusted infrastructure deployment path can become project-wide privilege escalation
 - **Context**: `infra/terraform/envs/staging/main.tf`, `infra/terraform/envs/prod/main.tf`, `.github/workflows/infra-deploy.yml`, M17-S08 / M17-S24 deployer-role design
@@ -64,6 +64,57 @@ principal, or another service account any new project-level permission or
 service-account impersonation capability. Project IAM policy, service-account
 IAM policy, and project-service activation must be managed by a separate,
 more-protected foundation deployment boundary.
+
+## Progress record
+
+### Completed foundation boundary and IAP transfer
+
+The reviewed Terraform-only bootstrap and permanent Foundation workflow are
+live for staging and production. Each environment has a keyless Foundation
+deployer and planner, an isolated state prefix, and a separately protected
+GitHub Environment. The Foundation deployer holds the reviewed control-plane
+roles needed for this TD: project IAM administration, service-account
+administration, and Service Usage administration. The Foundation planner has
+only the narrow IAM-policy reader, service-account viewer, and Service Usage
+viewer roles needed to produce read-only plans.
+
+`iap.googleapis.com` has been adopted into Foundation state in both projects.
+The normal environment roots relinquished their duplicate IAP state entries
+with `removed { lifecycle { destroy = false } }`, so the API stayed enabled
+throughout. The normal deployers' `roles/serviceusage.serviceUsageAdmin`
+bindings were then revoked in both live projects. The relay VM now relies on
+the Foundation-owned IAP prerequisite rather than a normal-root dependency.
+
+The temporary Foundation state-prefix and exact shared-state-bucket bridge
+remain intentionally in the production normal root. They are migration
+capabilities and must be removed only after Foundation owns the remaining IAM
+surface and the normal deployer no longer needs them.
+
+### Current legacy-role adoption batch
+
+The next Foundation batch is implemented and awaiting PR creation/merge/apply
+on `feat/td34-adopt-legacy-deployer-roles`. It adopts, without mutation, the
+pre-existing broad project-role bindings of the normal deployers:
+
+- staging: 12 imports;
+- production: 13 imports, including its existing conditional
+  `roles/storage.admin` binding that excludes the shared state bucket.
+
+Live read-only Foundation plans verified these are imports only: zero creates,
+updates, or destroys. The two temporary production state-bridge bindings are
+deliberately excluded because they remain managed by
+`modules/foundation-state-bootstrap` until phase 5.
+
+### Remaining ownership-transfer scope
+
+The normal Terraform states still contain 109 IAM-related objects in staging
+and 115 in production. This includes runtime service-account creation,
+project-level bindings, service-account IAM, and resource IAM for Cloud Run,
+Pub/Sub, Storage, Secret Manager, Artifact Registry, Cloud SQL, Compute/IAP,
+and Scheduler. These must move in reviewed batches: Foundation adopts each
+live binding first, then the normal state relinquishes it without destroying
+the binding. Cross-state moves must continue to use explicit imports/state
+removal, never Terraform `moved` blocks.
 
 ## Proposed approach
 
@@ -145,14 +196,12 @@ deployer/planner identities, their WIF bindings, and their permanent
 foundation-state bindings. The protected foundation environments authenticated
 as the expected foundation identities without printing credential content.
 
-The bootstrap deliberately granted the foundation deployers no project roles:
-they currently have only WIF trust and access to their own Terraform state.
-That is correct for an identity-creation bootstrap, but it means phase 3
-cannot yet apply IAM/API ownership changes. Before any resource is transferred,
-the reviewed bootstrap must grant the foundation deployer the exact management
-capability set required by the inventory below, and the foundation workflow
-must gain its permanent protected plan/apply path. This is an explicit
-foundation enablement step, not a normal-deployer permission workaround.
+The initial identity-creation bootstrap deliberately granted the Foundation
+deployers no project roles. That bootstrap is complete. The reviewed phase-3
+enablement then granted the Foundation deployers the exact control-plane roles
+listed in the progress record above, and the permanent protected Foundation
+plan/apply path is live. This is a completed enablement step, not a
+normal-deployer permission workaround.
 
 ### Phase-3 ownership-transfer design
 
@@ -251,6 +300,9 @@ version-controlled Terraform applies.
 - [x] `staging-foundation` and `production-foundation` are independently
   protected GitHub Environments; their WIF conditions accept only the
   matching foundation workflow's `main` deployment.
+- [x] `iap.googleapis.com` is owned by Foundation state in staging and
+  production, and normal deployers no longer have
+  `roles/serviceusage.serviceUsageAdmin`.
 - [ ] Project-level, service-account-level, and resource-level IAM bindings,
   custom roles, and `google_project_service` resources are owned by the
   foundation layers; routine environment roots no longer mutate IAM policy
