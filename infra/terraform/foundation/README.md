@@ -48,6 +48,17 @@ deployer has lost the permissions needed to create or configure foundation
 identities. Do not use `gcloud` or local `terraform apply` for bootstrap or
 ongoing foundation changes.
 
+### State-prefix bridge
+
+The initially empty foundation prefixes cannot be opened by the new foundation
+identities before their first Terraform apply. Until that apply succeeds,
+`modules/foundation-state-bootstrap`, instantiated only by `envs/prod`, grants
+the existing staging and production deployers `storage.objectAdmin` only on
+their matching `foundation/<env>/` prefix. It is deliberately project-level
+because the state bucket's bucket-level policy correctly denies either normal
+deployer from editing that policy. The bridge is a temporary TD34 migration
+resource and must be removed during de-privileging.
+
 ## Migration order
 
 1. Bootstrap this control plane and verify foundation WIF.
