@@ -57,3 +57,13 @@ Whichever approach is chosen, `plan/M17-CLOUD-DEPLOY.md` §2's "Developer → Cl
 ## Impact on M17-S27
 
 This AC item is tracked here instead of being hotfixed inside S27's runbook (per S27's own Step 5: "document every gap found as a follow-up issue — do not hotfix silently"). The rest of S13's deferred AC is otherwise confirmed independently of this gap: instance is `RUNNABLE`, private-IP only, `ssl_mode=ENCRYPTED_ONLY`, and backup configuration (daily 02:00 UTC, retention 7) is live per `gcloud sql instances describe` — only the actual proxy-login exercise and the first scheduled backup snapshot (not yet due) remain unverified.
+
+## Interim workaround in active use: Cloud SQL Studio
+
+Cloud SQL Studio (the GCP Console's browser-based query editor, `https://console.cloud.google.com/sql/instances/<instance>/studio?project=<project>`) sidesteps this TD entirely — the query actually executes server-side inside GCP, so the dev machine's missing network path to the private IP never matters. Used live during M17-S27 (2026-07-24) to reset staging's schemas after the `ikaro_app`/`ikaro` role-name fix.
+
+**Gotcha: your personal IAM login has no object-level grants.** `google_sql_user.iam_admin` (`modules/database/main.tf`) provisions the human operator as a passwordless `CLOUD_IAM_USER` with `roles/cloudsql.client` + `roles/cloudsql.instanceUser` — enough to authenticate, but Cloud SQL's IAM database auth only maps you into the `cloudsqliamuser` group role, which carries no `GRANT`/`DROP`/`DELETE` rights on anything. Logging into Cloud SQL Studio as yourself and trying to modify data or schema will fail with a permission error.
+
+**Fix: authenticate as `ikaro_migrator` instead**, using **built-in database authentication** (not IAM) — its password is in Secret Manager (`db-migrator-password`, fetch with `gcloud secrets versions access latest --secret=db-migrator-password --project=<project>`). `ikaro_migrator` owns every schema/table it created (it's the role that runs all migrations), so it has full rights to inspect, alter, or drop anything the app needs — no extra grants required.
+
+This doesn't reduce the need for the real fix above (Cloud SQL Studio has no CLI/scripting story, no audit trail beyond Cloud SQL's own query log, and doesn't help anything outside a browser session), but it's a fully viable interim path for the occasional inspect-or-repair need this TD anticipated.

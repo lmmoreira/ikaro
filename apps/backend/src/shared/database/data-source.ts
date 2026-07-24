@@ -3,7 +3,7 @@ import { config } from 'dotenv';
 import { DataSource } from 'typeorm';
 import { resolveDatabaseSsl } from './resolve-database-ssl';
 
-config(); // load .env when invoked directly by TypeORM CLI
+config({ quiet: true }); // load .env when invoked directly by TypeORM CLI
 
 const required = ['DB_HOST', 'DB_MIGRATOR_USER', 'DB_MIGRATOR_PASSWORD', 'DB_NAME'];
 const missing = required.filter((k) => !process.env[k]);
