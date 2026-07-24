@@ -68,6 +68,18 @@ foundation Environments using only the foundation deployer. Planner account
 emails are public identifiers, not credentials; no protected environment is
 requested by a pull-request plan.
 
+### Shared-state bucket policy reads
+
+`ikaro-tfstate` belongs to the production project, while both foundation states
+manage condition-scoped IAM bindings on that bucket. Terraform refreshes every
+`google_storage_bucket_iam_member` through `storage.buckets.getIamPolicy`,
+which is distinct from object access to a state prefix. The production
+foundation state therefore grants the existing read-only IAM-policy-reader
+custom role to both foundation deployers and the staging foundation planner.
+Apply that cross-project read binding through the legacy bootstrap before
+enabling the permanent planner workflow; otherwise the first staging plan
+fails before it can create the binding itself.
+
 ### State-prefix bridge
 
 The initially empty foundation prefixes cannot be opened by the new foundation

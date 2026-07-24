@@ -351,6 +351,7 @@ If all stories are `✅ Done`: create `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA
 | CI / pipelines | `docs/09-CI_CD_PIPELINE.md` + `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` |
 | Deployment / infra | `docs/12-DEPLOYMENT_STRATEGY.md` + `docs/22-TECH_STACK_DECISIONS.md` |
 | Writing Terraform / infra code | vendored HashiCorp Terraform skills from `.claude/skills/` + `plan/M17-CLOUD-DEPLOY.md` §0–§2 + `infra/terraform/README.md` (layout, state, version-constraint + unit-test conventions) |
+| TD34 foundation / IAM transfer | `td/TD34-TERRAFORM-DEPLOYER-PRIVILEGE-ESCALATION.md` + `infra/terraform/foundation/README.md` before editing Terraform or workflows |
 | Observability | `docs/10-OBSERVABILITY_STRATEGY.md` |
 | Implementing a milestone story | Load `plan/<M0X>-<NAME>_IMPLEMENTATION_DETAILS_IA.md` for that milestone (`ls plan/*_IMPLEMENTATION_DETAILS_IA.md` to list). Special cases: `plan/M115-PRODUCTION-READINESS_IMPLEMENTATION_DETAILS_IA.md`, `td/TD02-LOCALIZATION.md` |
 | New journey or prototype | `plan/journey/README.md` |
