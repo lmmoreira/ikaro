@@ -23,3 +23,22 @@ resource "google_project_iam_member" "deployer_foundation_state_bootstrap" {
     expression  = "resource.name.startsWith('projects/_/buckets/${var.state_bucket_name}/objects/foundation/${each.key}/')"
   }
 }
+
+# Terraform must read and update the bucket policy once to install the
+# foundation identities' permanent state bindings. Cloud Storage exposes that
+# policy as a bucket-wide resource, so it cannot be limited to individual IAM
+# members. Restrict this temporary authority to the one shared state bucket.
+resource "google_project_iam_member" "deployer_foundation_bucket_iam_bootstrap" {
+  #checkov:skip=CKV_GCP_42:Temporary TD34 bootstrap grant is condition-scoped to the single shared state bucket and is required only to install the foundation identities' permanent, prefix-scoped state bindings. It is removed during de-privileging.
+  for_each = local.bootstrap_deployers
+
+  project = var.project_id
+  role    = "roles/storage.admin"
+  member  = "serviceAccount:${each.value}"
+
+  condition {
+    title       = "td34_${each.key}_foundation_bucket_iam_bootstrap"
+    description = "Temporary TD34 bootstrap access to manage IAM on the shared Terraform state bucket only."
+    expression  = "resource.name == 'projects/_/buckets/${var.state_bucket_name}'"
+  }
+}
