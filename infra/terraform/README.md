@@ -18,7 +18,8 @@ infra/terraform/
 │   ├── migrate-job/       TypeORM migration Cloud Run Job            (M17-S20)
 │   ├── scheduler/         Cloud Scheduler cron → Pub/Sub             (M17-S21)
 │   ├── edge/              Global ALB + NEGs + Cloudflare — prod only (M17-S22)
-│   └── monitoring/        dashboards, alerts, uptime checks          (M17-S35)
+│   ├── monitoring/        dashboards, alerts, uptime checks          (M17-S35)
+│   └── relay-vm/          on-demand IAP relay VM, count-gated        (TD32)
 └── envs/             # root modules — one state per env, never shared
     ├── staging/      # backend prefix envs/staging → project ikaro-staging
     └── prod/         # backend prefix envs/prod    → project ikaro-prod
@@ -33,6 +34,7 @@ infra/terraform/
 ## Module dependency graph
 
 ```
+network + database + secrets ──► relay-vm ──► cloudrun-service
 network ──► database ─────────────┐
 storage ──────────────────────────┤
 secrets ──► iam ──────────────────┼──► cloudrun-service ──► pubsub ──► scheduler
@@ -42,7 +44,7 @@ registry (prod only) ─────────────┘          │
                                              └──► monitoring
 ```
 
-Instantiation order for a fresh env follows the arrows left to right. `registry` and `edge` exist only in `envs/prod` (D8: single registry serving both envs; D5: staging has no LB).
+Instantiation order for a fresh env follows the arrows left to right. `registry` and `edge` exist only in `envs/prod` (D8: single registry serving both envs; D5: staging has no LB). `relay-vm` (TD32) is wired into both envs but count-gated (`create_relay_vm`, default `false`) — inert until deliberately toggled on for a session.
 
 **`modules/scheduler`'s 4 cron jobs are real in both envs (M17-S21) — staging is not a dry run.** Once staging's Cloud Scheduler jobs are active, `ikaro-cron-reminders` genuinely emails whichever test users have bookings in staging's database, on the same `*/30 * * * *` cadence as prod. This is accepted, not a bug to fix — there is no lower-cost way to exercise the full Scheduler → Pub/Sub → push → trigger-handler path pre-production. Keep staging's booking data limited to real test accounts you're fine receiving reminder/expiry emails.
 

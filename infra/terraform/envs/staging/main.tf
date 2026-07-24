@@ -157,14 +157,22 @@ module "cloudrun_backend" {
   health_check_ready_path = "/health/ready"
   health_check_live_path  = "/health/live"
 
-  # bff + the Pub/Sub push identity call the backend; the operator reaches it
-  # via `gcloud run services proxy` (S18 discovery finding — no story before
-  # this one granted a human identity run.invoker on the backend).
+  # bff + the Pub/Sub push identity call the backend. iam_admin_user's own
+  # grant here predates TD32 and was for `gcloud run services proxy` (S18
+  # discovery finding) — TD32's live verification proved that path never
+  # actually worked (ingress:internal blocks it regardless of IAM
+  # validity, confirmed by a real attempt); kept as-is since removing an
+  # existing human grant is a separate, not-yet-requested change. The
+  # The relay VM's own SA (TD32) is the mechanism that actually works when
+  # the VM is enabled — it calls the backend from inside the VPC, where the
+  # ingress check classifies it as internal-origin traffic. Do not retain
+  # run.invoker while the on-demand VM is absent.
   invoker_members = concat(
     [
       "serviceAccount:${module.iam.bff_sa_email}",
       "serviceAccount:${module.iam.pubsub_invoker_sa_email}",
     ],
+    var.create_relay_vm ? ["serviceAccount:${module.relay_vm.service_account_email}"] : [],
     var.iam_admin_user != "" ? ["user:${var.iam_admin_user}"] : []
   )
 
@@ -402,4 +410,30 @@ module "scheduler" {
 
   cron_topic_ids        = module.pubsub.topic_ids
   outbox_relay_schedule = var.outbox_relay_schedule
+}
+
+# On-demand IAP relay VM (TD32) — the fix for "no network path from a dev
+# machine into ikaro-vpc-staging". Inert by default (create_relay_vm =
+# false): the firewall rule + IAM grants below are permanent, always-applied
+# config; only the VM resource itself toggles. See
+# modules/relay-vm/README.md for the PR-per-toggle usage flow.
+module "relay_vm" {
+  source = "../../modules/relay-vm"
+
+  project_id  = var.project_id
+  environment = var.environment
+  region      = var.region
+  labels      = var.labels
+
+  create = var.create_relay_vm
+  zone   = "${var.region}-a"
+
+  subnet_id                    = module.network.subnet_id
+  network_id                   = module.network.network_id
+  iam_admin_user               = var.iam_admin_user
+  platform_admin_key_secret_id = module.secrets.secret_ids["platform-admin-key"]
+
+  # Staging's database module is unconditional (unlike prod) — always real.
+  db_instance_connection_name = module.database.instance_connection_name
+  db_instance_name            = module.database.instance_name
 }

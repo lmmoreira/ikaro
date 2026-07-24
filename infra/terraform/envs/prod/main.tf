@@ -180,14 +180,22 @@ module "cloudrun_backend" {
   health_check_ready_path = "/health/ready"
   health_check_live_path  = "/health/live"
 
-  # bff + the Pub/Sub push identity call the backend; the operator reaches it
-  # via `gcloud run services proxy` (S18 discovery finding — no story before
-  # this one granted a human identity run.invoker on the backend).
+  # bff + the Pub/Sub push identity call the backend. iam_admin_user's own
+  # grant here predates TD32 and was for `gcloud run services proxy` (S18
+  # discovery finding) — TD32's live verification proved that path never
+  # actually worked (ingress:internal blocks it regardless of IAM
+  # validity, confirmed by a real attempt); kept as-is since removing an
+  # existing human grant is a separate, not-yet-requested change. The
+  # The relay VM's own SA (TD32) is the mechanism that actually works when
+  # the VM is enabled — it calls the backend from inside the VPC, where the
+  # ingress check classifies it as internal-origin traffic. Do not retain
+  # run.invoker while the on-demand VM is absent.
   invoker_members = concat(
     [
       "serviceAccount:${module.iam.bff_sa_email}",
       "serviceAccount:${module.iam.pubsub_invoker_sa_email}",
     ],
+    var.create_relay_vm ? ["serviceAccount:${module.relay_vm.service_account_email}"] : [],
     var.iam_admin_user != "" ? ["user:${var.iam_admin_user}"] : []
   )
 
@@ -476,4 +484,37 @@ module "registry" {
 
   staging_project_id     = var.staging_project_id
   staging_project_number = var.staging_project_number
+}
+
+# On-demand IAP relay VM (TD32) — wired in ahead of need, same as
+# envs/staging/main.tf, so S37 doesn't have to duplicate this module later.
+# Inert by default (create_relay_vm = false): the firewall rule + IAM
+# grants below are permanent, always-applied config; only the VM resource
+# itself toggles. Note (TD32 discovery): prod's database module is still
+# count-gated behind enable_database (false until S37) — creating this VM
+# in prod today would have nothing to reach on the Cloud SQL half until
+# that flips. See modules/relay-vm/README.md for the PR-per-toggle usage
+# flow.
+module "relay_vm" {
+  source = "../../modules/relay-vm"
+
+  project_id  = var.project_id
+  environment = var.environment
+  region      = var.region
+  labels      = var.labels
+
+  create = var.create_relay_vm
+  zone   = "${var.region}-a"
+
+  subnet_id                    = module.network.subnet_id
+  network_id                   = module.network.network_id
+  iam_admin_user               = var.iam_admin_user
+  platform_admin_key_secret_id = module.secrets.secret_ids["platform-admin-key"]
+
+  # Prod's database module is count-gated (enable_database, false until
+  # S37) — try() yields "" when it doesn't exist yet, which the module
+  # treats as "skip the Cloud SQL grants and google_sql_user, nothing to
+  # register a DB user against."
+  db_instance_connection_name = try(module.database[0].instance_connection_name, "")
+  db_instance_name            = try(module.database[0].instance_name, "")
 }
