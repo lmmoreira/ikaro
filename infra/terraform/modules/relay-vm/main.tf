@@ -16,22 +16,23 @@ locals {
 
   # Idempotent on every boot (this VM is destroyed/recreated per session,
   # TD32 design, so "idempotent" mostly matters for the rare mid-session
-  # reboot): installs the two CLIs the acceptance criteria actually need
-  # — gcloud (for `gcloud auth application-default login`, `gcloud secrets
-  # versions access`, `gcloud auth print-identity-token`) and cloud-sql-proxy
-  # — via Google's own documented apt repo, rather than hardcoding a
-  # binary download URL/version that would go stale.
+  # reboot): installs the three tools the acceptance criteria actually need
+  # — gcloud (for `gcloud auth login --update-adc`, `gcloud secrets versions
+  # access`, `gcloud auth print-identity-token`), cloud-sql-proxy, and psql
+  # (the Cloud SQL AC's own verification step) — via Google's/Debian's
+  # official package repos, rather than hardcoding a binary download URL/
+  # version that would go stale.
   startup_script = <<-EOT
     #!/usr/bin/env bash
     set -euo pipefail
 
-    if ! command -v gcloud >/dev/null 2>&1 || ! command -v cloud-sql-proxy >/dev/null 2>&1; then
+    if ! command -v gcloud >/dev/null 2>&1 || ! command -v cloud-sql-proxy >/dev/null 2>&1 || ! command -v psql >/dev/null 2>&1; then
       echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" \
         > /etc/apt/sources.list.d/google-cloud-sdk.list
       curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg \
         | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
       apt-get update -y
-      apt-get install -y google-cloud-cli google-cloud-cli-cloud-sql-proxy
+      apt-get install -y google-cloud-cli google-cloud-cli-cloud-sql-proxy postgresql-client
     fi
   EOT
 }
@@ -139,4 +140,26 @@ resource "google_secret_manager_secret_iam_member" "admin_platform_admin_key" {
   secret_id = var.platform_admin_key_secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "user:${var.iam_admin_user}"
+}
+
+# IAP's own docs (cloud.google.com/iap/docs/using-tcp-forwarding) are
+# explicit that tunnel access logging is opt-in, not on by default —
+# without this, the "every access lands in Cloud Audit Logs" claim
+# (README.md, TD32 AC) would be unenforced. Covers all three Data Access
+# log types; Admin Activity logs for iap.googleapis.com stay on
+# regardless (every GCP service's Admin Activity logging is always-on and
+# not configurable), so this only adds what was actually missing.
+resource "google_project_iam_audit_config" "iap_tunnel_access" {
+  project = var.project_id
+  service = "iap.googleapis.com"
+
+  audit_log_config {
+    log_type = "ADMIN_READ"
+  }
+  audit_log_config {
+    log_type = "DATA_READ"
+  }
+  audit_log_config {
+    log_type = "DATA_WRITE"
+  }
 }

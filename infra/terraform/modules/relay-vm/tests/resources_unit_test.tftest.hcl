@@ -87,3 +87,20 @@ run "admin_identity_gets_exactly_the_three_grants" {
     error_message = "iam_admin_user must get secretAccessor on platform-admin-key — the TD32 discovery gap this module closes."
   }
 }
+
+run "iap_tunnel_access_gets_full_data_access_audit_logging" {
+  command = plan
+
+  assert {
+    condition     = google_project_iam_audit_config.iap_tunnel_access.service == "iap.googleapis.com"
+    error_message = "Audit config must target iap.googleapis.com — IAP's own docs say tunnel-access logging is opt-in, not on by default (cross-tool review finding, TD32)."
+  }
+
+  assert {
+    condition = alltrue([
+      for log_type in ["ADMIN_READ", "DATA_READ", "DATA_WRITE"] :
+      contains([for c in google_project_iam_audit_config.iap_tunnel_access.audit_log_config : c.log_type], log_type)
+    ])
+    error_message = "Audit config must cover all three log types (ADMIN_READ, DATA_READ, DATA_WRITE)."
+  }
+}
