@@ -3,6 +3,7 @@
 ## Status
 
 - **State**: 🟡 Open
+- **Phase**: ownership-transfer preparation
 - **Type**: Technical Debt / Infrastructure Security
 - **Priority**: High — a compromise of the trusted infrastructure deployment path can become project-wide privilege escalation
 - **Context**: `infra/terraform/envs/staging/main.tf`, `infra/terraform/envs/prod/main.tf`, `.github/workflows/infra-deploy.yml`, M17-S08 / M17-S24 deployer-role design
@@ -136,6 +137,82 @@ The selected design is a **complete migration**, not a relay-only exception:
    one-time bootstrap workflow and its normal-deployer path in this phase, so
    it cannot remain a second route to foundation identity creation.
 
+### Bootstrap evidence and phase-3 prerequisite
+
+The controlled bootstrap completed successfully for staging and production on
+2026-07-24. It created separate foundation state, the keyless foundation
+deployer/planner identities, their WIF bindings, and their permanent
+foundation-state bindings. The protected foundation environments authenticated
+as the expected foundation identities without printing credential content.
+
+The bootstrap deliberately granted the foundation deployers no project roles:
+they currently have only WIF trust and access to their own Terraform state.
+That is correct for an identity-creation bootstrap, but it means phase 3
+cannot yet apply IAM/API ownership changes. Before any resource is transferred,
+the reviewed bootstrap must grant the foundation deployer the exact management
+capability set required by the inventory below, and the foundation workflow
+must gain its permanent protected plan/apply path. This is an explicit
+foundation enablement step, not a normal-deployer permission workaround.
+
+### Phase-3 ownership-transfer design
+
+1. **Enable the protected foundation control plane.** The existing bootstrap
+   path grants the foundation deployer the reviewed project-, service-account-,
+   service-usage-, and resource-IAM management roles needed for this TD. It
+   must not grant `roles/owner`, create a key, or weaken the WIF condition.
+2. **Establish the permanent foundation workflow.** A separately protected
+   foundation plan/apply path uses only the foundation deployer after the
+   enablement apply. The old normal-deployer bootstrap workflow remains only
+   until phase 5 removes it.
+3. **Split IAM from ordinary-resource modules.** Existing modules continue to
+   own networks, buckets, services, databases, topics, and other ordinary
+   resources. Foundation modules own only their IAM/API resources and receive
+   the needed resource names/IDs as inputs. This prevents a state move from
+   accidentally moving ordinary infrastructure ownership.
+4. **Adopt before removing.** For every binding and enabled API, use an
+   explicit cross-backend state-transfer/import runbook under the protected
+   workflow. Verify the foundation plan is a no-op adoption before removing
+   the former normal-state address. Never use a `moved` block across states.
+5. **De-privilege only after transfer.** Replace the normal deployer's broad
+   roles with proven, resource-specific non-IAM-mutation permissions, remove
+   the temporary state/bucket bridge, and remove the one-time bootstrap path.
+
+The initial inventory covers project IAM and services, service-account IAM,
+and resource IAM for Cloud Run, Pub/Sub, Storage, Secret Manager, Artifact
+Registry, Cloud SQL, Compute/IAP, Scheduler, and the relay VM. The transfer
+must also move service-account creation into foundation ownership; a normal
+deployer that can create or administer service accounts remains an escalation
+path.
+
+### Mandatory final cleanup and proof
+
+Phase 5 is incomplete until every temporary bootstrap capability is removed
+from live IAM and Terraform configuration:
+
+- Remove `module.foundation_state_bootstrap` from the production environment
+  root, including its temporary `storage.objectAdmin` grants on
+  `foundation/staging/*` and `foundation/prod/*` and its temporary exact-bucket
+  `storage.admin` grants on `ikaro-tfstate`.
+- Remove the legacy normal-deployer bootstrap jobs from
+  `.github/workflows/foundation-deploy.yml`. The permanent protected
+  foundation workflow is the only remaining route to foundation applies.
+- Revoke normal deployers' project-wide project-IAM, Service Usage,
+  service-account-administration, and broad resource-administration roles
+  after each corresponding resource is owned by foundation state. Replace a
+  proven ordinary-resource need only with a non-IAM-mutation permission.
+- Remove project-wide `roles/iam.serviceAccountUser` from normal deployers.
+  Recreate it only as resource-level access to the specific runtime service
+  accounts needed to attach workloads, never to a foundation identity.
+- Run live negative checks showing that normal deployers cannot change project
+  IAM, enable APIs, change a service account policy, mint a privileged service
+  account token, or access foundation state. The protected foundation identity
+  must succeed at the intended reviewed operation.
+
+The foundation deployer's reviewed IAM/API-management capability set is the
+new protected control-plane boundary, not a temporary workaround. It may be
+reduced further only through a tested custom-role replacement that preserves
+foundation ownership; it must never be replaced with `roles/owner`.
+
 This is intentionally phased into reviewable pull requests. A single apply
 cannot safely transfer state ownership and revoke the identity that is still
 executing it. The temporary bootstrap privilege is a bounded migration
@@ -168,10 +245,10 @@ version-controlled Terraform applies.
 
 ## Acceptance criteria
 
-- [ ] Dedicated, keyless foundation Terraform layers and WIF service accounts
+- [x] Dedicated, keyless foundation Terraform layers and WIF service accounts
   exist for staging and production, with separate state from normal
   environment applies.
-- [ ] `staging-foundation` and `production-foundation` are independently
+- [x] `staging-foundation` and `production-foundation` are independently
   protected GitHub Environments; their WIF conditions accept only the
   matching foundation workflow's `main` deployment.
 - [ ] Project-level, service-account-level, and resource-level IAM bindings,
@@ -190,14 +267,14 @@ version-controlled Terraform applies.
   attempting to add a project IAM binding, enable an API, change a service
   account's policy, or acquire a privileged service-account token, while the
   foundation identity can perform the intended reviewed change.
-- [ ] The foundation workflow's WIF binding cannot be impersonated by pull
+- [x] The foundation workflow's WIF binding cannot be impersonated by pull
   requests, arbitrary branches, or the normal environment-deployer workflow;
   it uses a separately protected GitHub environment and pinned actions.
 - [ ] Migration preserves existing IAM bindings and enabled APIs without a
   window in which runtime service accounts lose required access.
 - [ ] CI/drift verification detects an unexpected return of project-IAM
   administration or Service Usage administration to either normal deployer.
-- [ ] Documentation distinguishes the foundation deployment boundary from
+- [x] Documentation distinguishes the foundation deployment boundary from
   normal infrastructure applies and records the one-time root-of-trust
   bootstrap procedure without exposing credentials or live policy dumps.
 
