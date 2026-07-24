@@ -7,42 +7,86 @@
 # the backend's public *.a.run.app hostname are correctly classified as
 # internal-origin traffic (Private Google Access on the subnet).
 #
-# Inert by default: the firewall rule and both IAM grants below are
-# permanent, always-applied config (cheap, not billable); only the VM
-# resource itself is count-gated on var.create.
+# Inert by default: the firewall rule, IAM grants, and audit config below
+# are permanent, always-applied config (cheap, not billable); only the VM
+# resource (and the resources that only make sense once it exists) are
+# count-gated on var.create.
+#
+# Identity model (redesigned 2026-07-24, cross-tool PR review on #203):
+# the relay VM's OWN service account does the actual Cloud SQL / Cloud Run
+# / Secret Manager work, authenticating via GCE's metadata server — not a
+# human re-authenticating interactively inside the VM. This was forced by
+# a real constraint (no external IP + no Cloud NAT means gcloud CLI has no
+# reachable install path — its releases live on dl.google.com, not a
+# Private-Google-Access-covered *.googleapis.com domain), but it's also
+# strictly better on its own terms: short-lived, non-exportable,
+# auto-rotated tokens confined to code running on this one instance,
+# versus a human's own long-lived Google identity gaining run.invoker +
+# Cloud SQL IAM access usable from anywhere. See modules/relay-vm/README.md
+# "Identity model" for the full reasoning.
 
 locals {
   network_tag = "ikaro-relay-vm-${var.environment}"
 
-  # Idempotent on every boot (this VM is destroyed/recreated per session,
-  # TD32 design, so "idempotent" mostly matters for the rare mid-session
-  # reboot): installs the three tools the acceptance criteria actually need
-  # — gcloud (for `gcloud auth login --update-adc`, `gcloud secrets versions
-  # access`, `gcloud auth print-identity-token`), cloud-sql-proxy, and psql
-  # (the Cloud SQL AC's own verification step) — via Google's/Debian's
-  # official package repos, rather than hardcoding a binary download URL/
-  # version that would go stale.
+  # Only cloud-sql-proxy is needed on the VM now (gcloud CLI has no
+  # reachable install path here — see the file header comment). Its
+  # binary is hosted on storage.googleapis.com, a genuine *.googleapis.com
+  # domain, so Private Google Access covers it even with no external IP
+  # and no Cloud NAT. Pinned version, not "latest" — verified live
+  # (2026-07-24): v2.23.0 exists at this exact URL and matches the
+  # GoogleCloudPlatform/cloud-sql-proxy GitHub release published the same
+  # day as the binary's own last-modified date. Bump the version string
+  # here when it goes stale; this is the only place it's hardcoded.
+  #
+  # Runs as a systemd service so it's immediately listening on 127.0.0.1:5433
+  # the moment the VM finishes booting — no manual start step, no gcloud
+  # auth step. --auto-iam-authn's Application Default Credentials
+  # automatically fall back to this instance's own attached service
+  # account via the metadata server when nothing else is configured —
+  # that's the whole redesign in one sentence.
   startup_script = <<-EOT
     #!/usr/bin/env bash
     set -euo pipefail
 
-    if ! command -v gcloud >/dev/null 2>&1 || ! command -v cloud-sql-proxy >/dev/null 2>&1 || ! command -v psql >/dev/null 2>&1; then
-      echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" \
-        > /etc/apt/sources.list.d/google-cloud-sdk.list
-      curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg \
-        | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
-      apt-get update -y
-      apt-get install -y google-cloud-cli google-cloud-cli-cloud-sql-proxy postgresql-client
+    if [ ! -x /usr/local/bin/cloud-sql-proxy ]; then
+      curl -fsSL -o /usr/local/bin/cloud-sql-proxy \
+        "https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.23.0/cloud-sql-proxy.linux.amd64"
+      chmod +x /usr/local/bin/cloud-sql-proxy
     fi
+
+    cat > /etc/systemd/system/cloud-sql-proxy.service <<'UNIT'
+    [Unit]
+    Description=Cloud SQL Auth Proxy (TD32 relay VM)
+    After=network-online.target
+    Wants=network-online.target
+
+    [Service]
+    ExecStart=/usr/local/bin/cloud-sql-proxy --private-ip --auto-iam-authn --port 5433 ${var.db_instance_connection_name}
+    Restart=on-failure
+    RestartSec=5
+    User=root
+
+    [Install]
+    WantedBy=multi-user.target
+    UNIT
+
+    systemctl daemon-reload
+
+    %{if var.db_instance_connection_name != ""~}
+    systemctl enable --now cloud-sql-proxy.service
+    %{else~}
+    echo "cloud-sql-proxy.service installed but not started: no db_instance_connection_name (prod pre-S37 state)." >&2
+    %{endif~}
   EOT
 }
 
-# Identity-only: the VM needs some attached service account to boot, but
-# every real operation inside it runs under the human operator's own
-# re-authenticated credentials (TD32 discovery — reuses iam_admin_user's
-# existing Cloud SQL IAM user + run.invoker grants with zero new IAM
-# surface). This SA carries no IAM role bindings, so its OAuth scope
-# ceiling below is inert in practice.
+# Does real work now (redesigned 2026-07-24) — Cloud SQL IAM auth,
+# Cloud Run invocation, and platform-admin-key reads, all via GCE's
+# metadata-server credential chain (no gcloud CLI, no interactive login).
+# Every grant below is scoped to exactly what this identity needs and
+# nothing else — see the file header comment for why this is the more
+# secure choice, not just the only one that works around the internet-
+# egress constraint.
 resource "google_service_account" "relay" {
   account_id   = "ikaro-relay-vm"
   display_name = "Ikaro IAP relay VM identity (${var.environment}, TD32)"
@@ -116,39 +160,90 @@ resource "google_compute_firewall" "allow_iap_ssh" {
   }
 }
 
-# Lets iam_admin_user open the IAP tunnel at all.
-resource "google_project_iam_member" "admin_iap_tunnel" {
-  project = var.project_id
-  role    = "roles/iap.tunnelResourceAccessor"
-  member  = "user:${var.iam_admin_user}"
+# Instance-scoped (not project-wide, cross-tool review finding on #203) —
+# iam_admin_user can only tunnel/SSH into THIS relay instance, not any
+# other current or future VM in the project. Both are count-gated with
+# the instance itself: a binding referencing google_compute_instance.relay[0]
+# can't exist when that index doesn't (var.create = false).
+resource "google_iap_tunnel_instance_iam_member" "admin_iap_tunnel" {
+  count = var.create ? 1 : 0
+
+  project  = var.project_id
+  zone     = google_compute_instance.relay[0].zone
+  instance = google_compute_instance.relay[0].name
+  role     = "roles/iap.tunnelResourceAccessor"
+  member   = "user:${var.iam_admin_user}"
 }
 
 # OS Login (enabled on the instance above) authorizes SSH via IAM rather
 # than metadata-managed keys — the narrower, Google-recommended pairing
-# with IAP for exactly this bastion/relay pattern.
-resource "google_project_iam_member" "admin_os_login" {
-  project = var.project_id
-  role    = "roles/compute.osLogin"
-  member  = "user:${var.iam_admin_user}"
+# with IAP for exactly this bastion/relay pattern. Instance-scoped for the
+# same reason as the tunnel grant above.
+resource "google_compute_instance_iam_member" "admin_os_login" {
+  count = var.create ? 1 : 0
+
+  project       = var.project_id
+  zone          = google_compute_instance.relay[0].zone
+  instance_name = google_compute_instance.relay[0].name
+  role          = "roles/compute.osLogin"
+  member        = "user:${var.iam_admin_user}"
 }
 
 # Closes the TD32 discovery gap: only the backend runtime SA could read
-# platform-admin-key (modules/iam) before this. Without it, the
-# tenant-provisioning acceptance criterion has no way to read the value it
-# needs to send as X-Platform-Admin-Key.
-resource "google_secret_manager_secret_iam_member" "admin_platform_admin_key" {
+# platform-admin-key (modules/iam) before this. Grants the relay VM's own
+# service account (not the human, per the 2026-07-24 redesign) — read via
+# a metadata-server-minted access token from inside the VM, no gcloud
+# needed.
+resource "google_secret_manager_secret_iam_member" "relay_platform_admin_key" {
   secret_id = var.platform_admin_key_secret_id
   role      = "roles/secretmanager.secretAccessor"
-  member    = "user:${var.iam_admin_user}"
+  member    = "serviceAccount:${google_service_account.relay.email}"
+}
+
+# Cloud SQL access for the relay VM's own service account — only created
+# once both the VM and a real database instance exist (prod's database
+# module stays count = var.enable_database ? 1 : 0 until S37; the env
+# root passes empty strings for db_instance_name/db_instance_connection_name
+# when it isn't created yet, and this whole block of resources is skipped).
+resource "google_project_iam_member" "relay_cloudsql_client" {
+  count = var.create && var.db_instance_name != "" ? 1 : 0
+
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.relay.email}"
+}
+
+resource "google_project_iam_member" "relay_cloudsql_instance_user" {
+  count = var.create && var.db_instance_name != "" ? 1 : 0
+
+  project = var.project_id
+  role    = "roles/cloudsql.instanceUser"
+  member  = "serviceAccount:${google_service_account.relay.email}"
+}
+
+# Passwordless Cloud SQL IAM database user for the relay SA — same
+# mechanism as modules/database's google_sql_user.iam_admin, but for a
+# service account instead of a human. The .gserviceaccount.com suffix
+# must be stripped from the email (Postgres username length limits,
+# confirmed against Google's own IAM database authentication docs) —
+# Cloud SQL's IAM auth maps the trimmed name back to this exact SA at
+# connection time.
+resource "google_sql_user" "relay" {
+  count = var.create && var.db_instance_name != "" ? 1 : 0
+
+  name     = trimsuffix(google_service_account.relay.email, ".gserviceaccount.com")
+  project  = var.project_id
+  instance = var.db_instance_name
+  type     = "CLOUD_IAM_SERVICE_ACCOUNT"
 }
 
 # IAP's own docs (cloud.google.com/iap/docs/using-tcp-forwarding) are
 # explicit that tunnel access logging is opt-in, not on by default —
-# without this, the "every access lands in Cloud Audit Logs" claim
-# (README.md, TD32 AC) would be unenforced. Covers all three Data Access
-# log types; Admin Activity logs for iap.googleapis.com stay on
-# regardless (every GCP service's Admin Activity logging is always-on and
-# not configurable), so this only adds what was actually missing.
+# without this, the "IAP tunnel connections land in Cloud Audit Logs"
+# claim (README.md, TD32 AC) would be unenforced. Admin Activity logs for
+# iap.googleapis.com stay on regardless (every GCP service's Admin
+# Activity logging is always-on and not configurable), so this only adds
+# what was actually missing.
 resource "google_project_iam_audit_config" "iap_tunnel_access" {
   project = var.project_id
   service = "iap.googleapis.com"
@@ -161,5 +256,19 @@ resource "google_project_iam_audit_config" "iap_tunnel_access" {
   }
   audit_log_config {
     log_type = "DATA_WRITE"
+  }
+}
+
+# Secret Manager's AccessSecretVersion (what reads platform-admin-key) is
+# also Data Access-classified, also opt-in by default — cross-tool review
+# finding on #203: the original audit config covered only IAP, leaving
+# this specific claim unenforced even though it's explicitly promised in
+# both README.md and the TD32 acceptance criteria.
+resource "google_project_iam_audit_config" "secretmanager_access" {
+  project = var.project_id
+  service = "secretmanager.googleapis.com"
+
+  audit_log_config {
+    log_type = "DATA_READ"
   }
 }

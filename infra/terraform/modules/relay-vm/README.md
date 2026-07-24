@@ -2,7 +2,7 @@
 
 Closes the gap documented in `td/TD32-CLOUD-SQL-DEVELOPER-ACCESS-NO-NETWORK-PATH.md`: a dev machine has no network-layer path into `ikaro-vpc-{env}`, so neither Cloud SQL's private IP nor `ikaro-backend`'s `ingress: internal` Cloud Run service is reachable. A single minimal `e2-micro` Compute Engine instance, reachable only via Google's Identity-Aware Proxy, closes both gaps at once — once inside the VPC, it can dial Cloud SQL's private IP directly, and its calls to the backend's public `*.a.run.app` hostname are correctly classified as internal-origin traffic (Private Google Access on the subnet).
 
-**No public IP, no firewall rule open to the internet.** The only ingress allowed is TCP/22 from IAP's fixed source range (`35.235.240.0/20`), gated by `roles/iap.tunnelResourceAccessor` + `roles/compute.osLogin` IAM on the admin identity — never metadata-managed SSH keys.
+**No public IP, no firewall rule open to the internet.** The only ingress allowed is TCP/22 from IAP's fixed source range (`35.235.240.0/20`), gated by `roles/iap.tunnelResourceAccessor` + `roles/compute.osLogin` IAM on the admin identity — scoped to this specific instance, not project-wide — never metadata-managed SSH keys.
 
 ## On-demand, not always-on
 
@@ -15,62 +15,73 @@ This module is inert by default (`create = false`). Toggling it on or off happen
 
 `e2-micro` in `southamerica-east1` isn't covered by GCP's Always-Free tier (US-region-only) — running it continuously would cost roughly $8–15/month, which is why this stays a deliberate on/off toggle rather than an always-on host.
 
+## Identity model — the relay VM's own service account does the work (redesigned 2026-07-24)
+
+**Constraint that forced this:** the VM has no external IP and no Cloud NAT (deliberate, `modules/network`). Private Google Access only covers `*.googleapis.com` traffic — it does **not** cover `packages.cloud.google.com` (apt) or `deb.debian.org`, so `gcloud` CLI (whose current releases live on `dl.google.com`, not a Private-Google-Access-covered domain) has no reachable install path here at all. `cloud-sql-proxy` is the one exception — its binary is hosted on `storage.googleapis.com`, a genuine `*.googleapis.com` domain — so it's the *only* tool this module installs (verified live, 2026-07-24: a direct `curl -I` against the pinned release URL returns a real `200`, cross-checked against the GitHub release's own publish date).
+
+Rather than have a human interactively `gcloud auth login` inside the VM (which needs the gcloud CLI — the actual blocker), the relay VM's own attached service account does the real work automatically via GCE's metadata server — no gcloud CLI, no login step, no ADC file to manage, ever:
+
+- `cloud-sql-proxy --auto-iam-authn` auto-starts via systemd the moment the VM finishes booting. Application Default Credentials automatically fall back to the instance's own attached service account when nothing else is configured — standard GCE behavior, nothing this module has to wire up beyond granting the SA the right roles.
+- Cloud Run identity tokens and Secret Manager access tokens come directly from the metadata server (see Usage below) — plain `curl`, no gcloud CLI needed for either.
+
+This is also the more secure choice on its own terms, not just a workaround for the internet-egress constraint: it confines the actually-sensitive grants (Cloud SQL IAM auth, `run.invoker`, `platform-admin-key` read) to a narrowly-scoped, non-exportable, short-lived-credential-only service account — usable only by code already running on this one instance — rather than the human's own long-lived Google identity, which if ever compromised would otherwise carry all of that usable from anywhere. `iam_admin_user` keeps only `iap.tunnelResourceAccessor` + `compute.osLogin`, both scoped to this one instance — i.e., "can SSH into this VM to set up a port-forward or run ad-hoc commands," nothing more.
+
 ## Usage
 
-The startup script installs `gcloud`, `cloud-sql-proxy`, and `psql` via Google's/Debian's official package repos on every boot, so the VM is immediately usable each ephemeral session without a manual setup step.
+### Option A — DBeaver (or any local GUI client) via SSH port forwarding
 
-### Option A — psql from inside the VM (quick CLI check)
-
-```bash
-gcloud compute ssh ikaro-relay-vm-<env> \
-  --tunnel-through-iap \
-  --zone=<zone> \
-  --project=ikaro-<env>
-
-# Inside the VM: re-authenticate as yourself. --update-adc sets BOTH the
-# gcloud CLI's active account (needed by `gcloud auth print-identity-token`
-# and `gcloud secrets versions access` below) AND Application Default
-# Credentials (needed by cloud-sql-proxy --auto-iam-authn) in one step —
-# `gcloud auth application-default login` alone only does the latter and
-# leaves the CLI itself with no active account. This reuses the same Cloud
-# SQL IAM user + Cloud Run invoker grants iam_admin_user already has
-# (modules/database, envs/*/main.tf's cloudrun_backend invoker_members) —
-# no new IAM surface needed for this step.
-gcloud auth login --update-adc
-
-cloud-sql-proxy --private-ip --auto-iam-authn \
-  ikaro-<env>:southamerica-east1:ikaro-db-<env> --port 5433
-psql "host=127.0.0.1 port=5433 dbname=ikaro user=<your-google-email>"
-```
-
-### Option B — DBeaver (or any local GUI client) via SSH port forwarding
-
-The relay VM has no desktop — DBeaver can't run *on* it. Instead, run `cloud-sql-proxy` on the VM and forward its port back to your own machine, so DBeaver stays local and just points at `localhost`, same as `modules/database/README.md`'s existing DBeaver instructions with one extra hop:
+`cloud-sql-proxy` is already running on the VM by the time it finishes booting (systemd, auto-started) — you only need to forward its port back to your own machine:
 
 ```bash
-# Terminal 1 — SSH in, authenticate, start cloud-sql-proxy on the VM
-gcloud compute ssh ikaro-relay-vm-<env> --tunnel-through-iap --zone=<zone> --project=ikaro-<env>
-gcloud auth login --update-adc
-cloud-sql-proxy --private-ip --auto-iam-authn \
-  ikaro-<env>:southamerica-east1:ikaro-db-<env> --port 5433
-
-# Terminal 2 (your local machine) — forward local 5433 to the VM's own 5433
 gcloud compute ssh ikaro-relay-vm-<env> --tunnel-through-iap --zone=<zone> --project=ikaro-<env> \
   -- -N -L 5433:localhost:5433
 ```
 
-Then in DBeaver: host `127.0.0.1`, port `5433`, database `ikaro`, username = your Google e-mail, empty password (the proxy injects the IAM credential, same as `modules/database/README.md`).
+Then in DBeaver: host `127.0.0.1`, port `5433`, database `ikaro`, **username = `ikaro-relay-vm@ikaro-<env>.iam`** (the relay service account's Cloud SQL IAM username — `.gserviceaccount.com` trimmed, per `google_sql_user.relay` — **not** your own Google email; the authenticated identity is now the relay SA, not you), empty password (the proxy injects the credential).
 
-### Cloud Run half — reach the ingress:internal backend directly
+### Option B — reach the ingress:internal backend directly (e.g. tenant provisioning)
 
-E.g. tenant provisioning (`POST /internal/tenants`, gated by `PlatformAdminGuard`). Body shape is `ProvisionTenantSchema` (`apps/backend/.../provision-tenant.dto.ts`) — `country_code` is **required** (2-letter ISO, not optional like `timezone`); values below are placeholders, not real data:
+This has to run *from inside* the relay VM via SSH — that's the whole reason it exists; Cloud Run's ingress check cares about network origin, not just auth, so it can't be done from your laptop even with a valid token.
+
+```bash
+gcloud compute ssh ikaro-relay-vm-<env> --tunnel-through-iap --zone=<zone> --project=ikaro-<env>
+```
+
+Inside the VM — everything below authenticates via the metadata server automatically, as the relay VM's own service account. No gcloud CLI, no login step:
 
 ```bash
 BACKEND_URL="<backend-url>"  # e.g. https://ikaro-backend-<hash>-rj.a.run.app
+PROJECT_ID="ikaro-<env>"
 
+# Identity token scoped to this backend URL as audience — the metadata
+# server returns the raw JWT as plain text for this endpoint (no JSON to
+# parse, unlike the /token endpoint below).
+ID_TOKEN=$(curl -s -H "Metadata-Flavor: Google" \
+  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity?audience=$BACKEND_URL")
+
+# Quick connectivity check (no body, no side effects) — returns this
+# app's own JSON response, not Google's generic ingress-block 404:
+curl -H "Authorization: Bearer $ID_TOKEN" "$BACKEND_URL/health/ready"
+```
+
+Tenant provisioning (`POST /internal/tenants`, gated by `PlatformAdminGuard`) additionally needs `platform-admin-key`, read via Secret Manager's REST API using an OAuth access token (also metadata-server-minted — this endpoint *does* return JSON, so a dependency-free `grep`/`cut` extracts the one field needed rather than assuming `jq` is installed, since `jq` has the same apt-unreachable problem as `gcloud`):
+
+```bash
+ACCESS_TOKEN=$(curl -s -H "Metadata-Flavor: Google" \
+  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" \
+  | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
+
+PLATFORM_ADMIN_KEY=$(curl -s -H "Authorization: Bearer $ACCESS_TOKEN" \
+  "https://secretmanager.googleapis.com/v1/projects/$PROJECT_ID/secrets/platform-admin-key/versions/latest:access" \
+  | grep -o '"data":"[^"]*' | cut -d'"' -f4 | base64 -d)
+```
+
+Body shape is `ProvisionTenantSchema` (`apps/backend/.../provision-tenant.dto.ts`) — `country_code` is **required** (2-letter ISO, not optional like `timezone`); values below are placeholders, not real data:
+
+```bash
 curl -X POST "$BACKEND_URL/internal/tenants" \
-  -H "Authorization: Bearer $(gcloud auth print-identity-token --audiences="$BACKEND_URL")" \
-  -H "X-Platform-Admin-Key: $(gcloud secrets versions access latest --secret=platform-admin-key --project=ikaro-<env>)" \
+  -H "Authorization: Bearer $ID_TOKEN" \
+  -H "X-Platform-Admin-Key: $PLATFORM_ADMIN_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "<tenant-name>",
@@ -80,14 +91,8 @@ curl -X POST "$BACKEND_URL/internal/tenants" \
   }'
 ```
 
-For a simpler connectivity-only check (no body, no side effects), the same auth headers against `$BACKEND_URL/health/ready` return this app's own JSON response instead of Google's generic ingress-block 404.
-
-## Identity model
-
-The VM's own attached service account (`ikaro-relay-vm@...`) is identity-only — it carries zero IAM role bindings. Every real operation inside the VM runs under the human operator's own re-authenticated credentials instead (see Usage above). This was a deliberate choice (TD32 discovery): `iam_admin_user` already has the Cloud SQL IAM user registration and `roles/run.invoker` a VM-specific service account would otherwise need duplicated from scratch for no benefit.
-
 ## What lands in Cloud Audit Logs (and what doesn't)
 
-IAP tunnel access (the SSH connection itself) is logged against `iap.googleapis.com` — this module explicitly enables Data Access audit logging for it (`google_project_iam_audit_config.iap_tunnel_access`), since IAP's own docs are explicit that this is opt-in, not on by default. Every Google Cloud API call made from inside the VM under the human's re-authenticated identity (`gcloud secrets versions access`, `gcloud auth print-identity-token`, etc.) is attributed to that identity in Cloud Audit Logs too — the guarantee `plan/M17-CLOUD-DEPLOY.md` §2 already claims for backend access, actually delivered this time (TD32).
+IAP tunnel access (the SSH connection itself) is logged against `iap.googleapis.com`, attributed to `iam_admin_user` — this module explicitly enables Data Access audit logging for it (`google_project_iam_audit_config.iap_tunnel_access`), since IAP's own docs are explicit that this is opt-in, not on by default. Secret Manager reads (`AccessSecretVersion`, used above) are also Data Access-classified and also opt-in — separately enabled (`google_project_iam_audit_config.secretmanager_access`). Both log entries are attributed to the **relay VM's own service account** as the caller (not directly to the human) — fully traceable by correlating with the IAP tunnel's own log entry for which human SSH'd in and when.
 
-**This does not cover arbitrary commands run inside the VM** (raw shell, `psql` queries) — Cloud Audit Logs only records Google Cloud API calls, not in-VM shell activity. Query-level Postgres activity is visible in Cloud SQL's own `pgAudit` logging instead (already enabled by `modules/database`'s `cloudsql.enable_pgaudit`/`pgaudit.log` flags) — a separate log, not Cloud Audit Logs.
+**This does not cover arbitrary commands run inside the VM** (raw shell, `psql`/DBeaver queries) — Cloud Audit Logs only records Google Cloud API calls, not in-VM shell activity. Query-level Postgres activity is visible in Cloud SQL's own `pgAudit` logging instead (already enabled by `modules/database`'s `cloudsql.enable_pgaudit`/`pgaudit.log` flags) — a separate log, not Cloud Audit Logs.

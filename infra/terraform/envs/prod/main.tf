@@ -180,13 +180,20 @@ module "cloudrun_backend" {
   health_check_ready_path = "/health/ready"
   health_check_live_path  = "/health/live"
 
-  # bff + the Pub/Sub push identity call the backend; the operator reaches it
-  # via `gcloud run services proxy` (S18 discovery finding — no story before
-  # this one granted a human identity run.invoker on the backend).
+  # bff + the Pub/Sub push identity call the backend. iam_admin_user's own
+  # grant here predates TD32 and was for `gcloud run services proxy` (S18
+  # discovery finding) — TD32's live verification proved that path never
+  # actually worked (ingress:internal blocks it regardless of IAM
+  # validity, confirmed by a real attempt); kept as-is since removing an
+  # existing human grant is a separate, not-yet-requested change. The
+  # relay VM's own SA (TD32) is the mechanism that actually works — it
+  # calls the backend from inside the VPC, where the ingress check
+  # classifies it as internal-origin traffic.
   invoker_members = concat(
     [
       "serviceAccount:${module.iam.bff_sa_email}",
       "serviceAccount:${module.iam.pubsub_invoker_sa_email}",
+      "serviceAccount:${module.relay_vm.service_account_email}",
     ],
     var.iam_admin_user != "" ? ["user:${var.iam_admin_user}"] : []
   )
@@ -499,4 +506,11 @@ module "relay_vm" {
   network_id                   = module.network.network_id
   iam_admin_user               = var.iam_admin_user
   platform_admin_key_secret_id = module.secrets.secret_ids["platform-admin-key"]
+
+  # Prod's database module is count-gated (enable_database, false until
+  # S37) — try() yields "" when it doesn't exist yet, which the module
+  # treats as "skip the Cloud SQL grants and google_sql_user, nothing to
+  # register a DB user against."
+  db_instance_connection_name = try(module.database[0].instance_connection_name, "")
+  db_instance_name            = try(module.database[0].instance_name, "")
 }

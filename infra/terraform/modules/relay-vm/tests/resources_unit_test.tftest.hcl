@@ -1,5 +1,8 @@
 # Guards the count-gate (the whole point of this module being "on-demand,
-# not always-on", TD32) and the firewall's IAP-only ingress posture.
+# not always-on", TD32), the firewall's IAP-only ingress posture, and the
+# relay SA's identity-model redesign (2026-07-24, cross-tool PR review):
+# the relay VM's own service account does the Cloud SQL / Cloud Run /
+# Secret Manager work now, not a human re-authenticating inside the VM.
 
 mock_provider "google" {}
 
@@ -12,6 +15,8 @@ variables {
   network_id                   = "projects/ikaro-test/global/networks/ikaro-vpc-staging"
   iam_admin_user               = "admin@ikaro.online"
   platform_admin_key_secret_id = "projects/ikaro-test/secrets/platform-admin-key"
+  db_instance_connection_name  = "ikaro-test:southamerica-east1:ikaro-db-staging"
+  db_instance_name             = "ikaro-db-staging"
 }
 
 run "create_false_plans_zero_instances" {
@@ -24,6 +29,11 @@ run "create_false_plans_zero_instances" {
   assert {
     condition     = length(google_compute_instance.relay) == 0
     error_message = "create = false must plan zero relay VM instances — inert by default."
+  }
+
+  assert {
+    condition     = length(google_iap_tunnel_instance_iam_member.admin_iap_tunnel) == 0 && length(google_compute_instance_iam_member.admin_os_login) == 0
+    error_message = "Instance-scoped IAM bindings must also be zero when the instance doesn't exist — they reference google_compute_instance.relay[0]."
   }
 }
 
@@ -69,26 +79,85 @@ run "firewall_allows_only_iap_range_on_ssh" {
   }
 }
 
-run "admin_identity_gets_exactly_the_three_grants" {
+run "admin_identity_gets_instance_scoped_ssh_access_only" {
   command = plan
 
-  assert {
-    condition     = google_project_iam_member.admin_iap_tunnel.role == "roles/iap.tunnelResourceAccessor" && google_project_iam_member.admin_iap_tunnel.member == "user:admin@ikaro.online"
-    error_message = "iam_admin_user must get roles/iap.tunnelResourceAccessor."
+  variables {
+    create = true
   }
 
   assert {
-    condition     = google_project_iam_member.admin_os_login.role == "roles/compute.osLogin" && google_project_iam_member.admin_os_login.member == "user:admin@ikaro.online"
-    error_message = "iam_admin_user must get roles/compute.osLogin."
+    condition     = google_iap_tunnel_instance_iam_member.admin_iap_tunnel[0].role == "roles/iap.tunnelResourceAccessor" && google_iap_tunnel_instance_iam_member.admin_iap_tunnel[0].member == "user:admin@ikaro.online"
+    error_message = "iam_admin_user must get roles/iap.tunnelResourceAccessor, scoped to this instance (not project-wide — cross-tool review finding, TD32)."
   }
 
   assert {
-    condition     = google_secret_manager_secret_iam_member.admin_platform_admin_key.role == "roles/secretmanager.secretAccessor" && google_secret_manager_secret_iam_member.admin_platform_admin_key.secret_id == var.platform_admin_key_secret_id
-    error_message = "iam_admin_user must get secretAccessor on platform-admin-key — the TD32 discovery gap this module closes."
+    condition     = google_iap_tunnel_instance_iam_member.admin_iap_tunnel[0].instance == google_compute_instance.relay[0].name
+    error_message = "IAP tunnel grant must target this specific instance, not the whole project."
+  }
+
+  assert {
+    condition     = google_compute_instance_iam_member.admin_os_login[0].role == "roles/compute.osLogin" && google_compute_instance_iam_member.admin_os_login[0].member == "user:admin@ikaro.online"
+    error_message = "iam_admin_user must get roles/compute.osLogin, scoped to this instance."
+  }
+
+  assert {
+    condition     = google_compute_instance_iam_member.admin_os_login[0].instance_name == google_compute_instance.relay[0].name
+    error_message = "OS Login grant must target this specific instance, not the whole project."
   }
 }
 
-run "iap_tunnel_access_gets_full_data_access_audit_logging" {
+run "relay_service_account_gets_cloud_sql_and_secret_access_not_the_human" {
+  command = plan
+
+  variables {
+    create = true
+  }
+
+  # google_service_account.relay.email is a computed attribute — unknown
+  # at plan time under mock_provider unless overridden. This module's
+  # every other resource references it, so a concrete plan-time value is
+  # needed to assert against (matches account_id's own deterministic
+  # naming convention: <account_id>@<project>.iam.gserviceaccount.com).
+  override_resource {
+    target          = google_service_account.relay
+    override_during = plan
+    values = {
+      email = "ikaro-relay-vm@ikaro-test.iam.gserviceaccount.com"
+    }
+  }
+
+  assert {
+    condition     = google_secret_manager_secret_iam_member.relay_platform_admin_key.role == "roles/secretmanager.secretAccessor" && google_secret_manager_secret_iam_member.relay_platform_admin_key.member == "serviceAccount:${google_service_account.relay.email}"
+    error_message = "platform-admin-key accessor must be granted to the relay VM's own service account (2026-07-24 redesign), not the human — closes the TD32 discovery gap via metadata-server auth, no gcloud CLI needed."
+  }
+
+  assert {
+    condition     = google_project_iam_member.relay_cloudsql_client[0].member == "serviceAccount:${google_service_account.relay.email}" && google_project_iam_member.relay_cloudsql_instance_user[0].member == "serviceAccount:${google_service_account.relay.email}"
+    error_message = "Cloud SQL client/instanceUser roles must be granted to the relay VM's own service account."
+  }
+
+  assert {
+    condition     = google_sql_user.relay[0].type == "CLOUD_IAM_SERVICE_ACCOUNT" && google_sql_user.relay[0].name == "ikaro-relay-vm@ikaro-test.iam"
+    error_message = "google_sql_user must register the relay SA as a CLOUD_IAM_SERVICE_ACCOUNT with the .gserviceaccount.com suffix trimmed (Postgres username length limit, per Google's IAM database authentication docs)."
+  }
+}
+
+run "cloud_sql_resources_skipped_when_db_instance_name_empty" {
+  command = plan
+
+  variables {
+    create           = true
+    db_instance_name = "" # prod's pre-S37 state: database module not created yet
+  }
+
+  assert {
+    condition     = length(google_sql_user.relay) == 0 && length(google_project_iam_member.relay_cloudsql_client) == 0 && length(google_project_iam_member.relay_cloudsql_instance_user) == 0
+    error_message = "With no db_instance_name, there's nothing to grant Cloud SQL access to yet — these resources must be skipped, not fail or dangle."
+  }
+}
+
+run "audit_logging_covers_iap_and_secret_manager" {
   command = plan
 
   assert {
@@ -101,6 +170,16 @@ run "iap_tunnel_access_gets_full_data_access_audit_logging" {
       for log_type in ["ADMIN_READ", "DATA_READ", "DATA_WRITE"] :
       contains([for c in google_project_iam_audit_config.iap_tunnel_access.audit_log_config : c.log_type], log_type)
     ])
-    error_message = "Audit config must cover all three log types (ADMIN_READ, DATA_READ, DATA_WRITE)."
+    error_message = "IAP audit config must cover all three log types (ADMIN_READ, DATA_READ, DATA_WRITE)."
+  }
+
+  assert {
+    condition     = google_project_iam_audit_config.secretmanager_access.service == "secretmanager.googleapis.com"
+    error_message = "Secret Manager reads (AccessSecretVersion) are also Data Access-classified and opt-in — must be covered too, not just IAP (cross-tool review finding, TD32)."
+  }
+
+  assert {
+    condition     = contains([for c in google_project_iam_audit_config.secretmanager_access.audit_log_config : c.log_type], "DATA_READ")
+    error_message = "Secret Manager audit config must cover DATA_READ — that's the log type AccessSecretVersion falls under."
   }
 }

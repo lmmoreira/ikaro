@@ -25,6 +25,13 @@ if [ -n "$(git status --short)" ]; then
   exit 1
 fi
 
+# Restore whatever branch/ref the caller was on when this script exits, for
+# any reason (success, early exit, error) — this script detaches HEAD to do
+# its work and shouldn't leave the caller stranded there (cross-tool PR
+# review finding on #203).
+original_ref="$(git symbolic-ref --short -q HEAD || git rev-parse HEAD)"
+trap 'git checkout "$original_ref" >/dev/null 2>&1 || true' EXIT
+
 TFVARS="infra/terraform/envs/${ENV}/terraform.tfvars"
 BRANCH="chore/relay-vm-down-${ENV}"
 OTHER_BRANCH="chore/relay-vm-up-${ENV}"
@@ -34,6 +41,17 @@ git checkout --detach origin/main >/dev/null
 
 if grep -q '^create_relay_vm = false' "$TFVARS"; then
   echo "✅ create_relay_vm is already false for ${ENV} — nothing to do."
+  exit 0
+fi
+
+# Don't clobber a PR that's already in flight (cross-tool PR review finding
+# on #203) — force-pushing over an open, unmerged PR is confusing even
+# though it wouldn't lose the underlying tfvars change (same 1-line diff
+# either way).
+existing_pr=$(gh pr list --repo "$REPO" --head "$BRANCH" --state open --json number,url --jq '.[0]' 2>/dev/null || true)
+if [ -n "$existing_pr" ]; then
+  echo "⏳ A PR is already open for ${ENV}: $(echo "$existing_pr" | grep -o '"url":"[^"]*' | cut -d'"' -f4)"
+  echo "   Merge or close it before running this again."
   exit 0
 fi
 
@@ -49,6 +67,12 @@ for old_branch in "$BRANCH" "$OTHER_BRANCH"; do
     fi
   fi
 done
+
+read -r -p "Flip create_relay_vm=false for ${ENV} and open a PR? [y/N] " confirm
+if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+  echo "Aborted — no changes made."
+  exit 0
+fi
 
 git checkout -B "$BRANCH" origin/main
 
