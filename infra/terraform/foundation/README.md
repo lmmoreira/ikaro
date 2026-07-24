@@ -59,6 +59,14 @@ because the state bucket's bucket-level policy correctly denies either normal
 deployer from editing that policy. The bridge is a temporary TD34 migration
 resource and must be removed during de-privileging.
 
+The module also grants those two deployers temporary `storage.admin` only when
+the resource is the shared `ikaro-tfstate` bucket. This is the smallest
+available predefined-role boundary that lets Terraform read and update the
+bucket IAM policy once, installing the foundation identities' permanent
+prefix-scoped bindings. Cloud Storage cannot limit IAM-policy changes to
+particular members, so this exact-bucket capability is also removed during
+TD34's de-privilege phase.
+
 ## Migration order
 
 1. Bootstrap this control plane and verify foundation WIF.
