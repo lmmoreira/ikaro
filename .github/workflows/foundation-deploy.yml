@@ -10,6 +10,11 @@ on:
         required: true
         type: boolean
         default: false
+      bootstrap_planner:
+        description: 'One-time bootstrap: grant the Foundation planner relay read access without refreshing existing relay resources.'
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -212,6 +217,77 @@ jobs:
           terraform plan -input=false -lock-timeout=60s -out=tfplan
           terraform apply -input=false tfplan
           rm -f tfplan
+
+  bootstrap_planner_staging:
+    name: Bootstrap planner relay read access (staging)
+    if: github.event_name == 'workflow_dispatch' && inputs.bootstrap_planner && !inputs.apply && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging-foundation
+    concurrency:
+      group: staging-mutations
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER_STAGING }}
+          service_account: ${{ secrets.TF_FOUNDATION_SA_STAGING }}
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: '1.15.8'
+          terraform_wrapper: false
+      - name: Mask IAM admin email
+        run: echo "::add-mask::${{ vars.IAM_ADMIN_USER }}"
+      - name: Bootstrap planner relay reader — staging
+        working-directory: infra/terraform/foundation/envs/staging
+        env:
+          TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
+        run: |
+          terraform init -input=false -lockfile=readonly
+          terraform apply -refresh=false -auto-approve -input=false -lock-timeout=60s \
+            -target=google_project_iam_member.foundation_planner_relay_vm_reader
+
+  bootstrap_planner_prod:
+    name: Bootstrap planner relay read access (prod)
+    needs: bootstrap_planner_staging
+    if: github.event_name == 'workflow_dispatch' && inputs.bootstrap_planner && !inputs.apply && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production-foundation
+    concurrency:
+      group: production-mutations
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER_PROD }}
+          service_account: ${{ secrets.TF_FOUNDATION_SA_PROD }}
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: '1.15.8'
+          terraform_wrapper: false
+      - name: Mask IAM admin email
+        run: echo "::add-mask::${{ vars.IAM_ADMIN_USER }}"
+      - name: Bootstrap planner relay reader — prod
+        working-directory: infra/terraform/foundation/envs/prod
+        env:
+          TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
+        run: |
+          terraform init -input=false -lockfile=readonly
+          terraform apply -refresh=false -auto-approve -input=false -lock-timeout=60s \
+            -target=google_project_iam_member.foundation_planner_relay_vm_reader
 
   apply_prod:
     name: Apply foundation (prod)
