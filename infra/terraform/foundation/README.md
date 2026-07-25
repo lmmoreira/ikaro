@@ -77,28 +77,16 @@ manage condition-scoped IAM bindings on that bucket. Terraform refreshes every
 which is distinct from object access to a state prefix. The production
 foundation state therefore grants the existing read-only IAM-policy-reader
 custom role to both foundation deployers and the staging foundation planner.
-Apply that cross-project read binding through the legacy bootstrap before
-enabling the permanent planner workflow; otherwise the first staging plan
-fails before it can create the binding itself.
+That cross-project read binding was installed during the TD34 migration and is
+now managed by the foundation layers.
 
-### State-prefix bridge
+### Historical state-prefix bridge
 
-The initially empty foundation prefixes cannot be opened by the new foundation
-identities before their first Terraform apply. Until that apply succeeds,
-`modules/foundation-state-bootstrap`, instantiated only by `envs/prod`, grants
-the existing staging and production deployers `storage.objectAdmin` only on
-their matching `foundation/<env>/` prefix. It is deliberately project-level
-because the state bucket's bucket-level policy correctly denies either normal
-deployer from editing that policy. The bridge is a temporary TD34 migration
-resource and must be removed during de-privileging.
-
-The module also grants those two deployers temporary `storage.admin` only when
-the resource is the shared `ikaro-tfstate` bucket. This is the smallest
-available predefined-role boundary that lets Terraform read and update the
-bucket IAM policy once, installing the foundation identities' permanent
-prefix-scoped bindings. Cloud Storage cannot limit IAM-policy changes to
-particular members, so this exact-bucket capability is also removed during
-TD34's de-privilege phase.
+During the TD34 migration, a temporary state-prefix bridge granted the legacy
+deployers access to initialize the empty `foundation/<env>/` prefixes and
+install the permanent foundation bindings. The bridge and its migration-only
+Terraform module have now been removed; the foundation identities own these
+prefixes directly.
 
 ## Migration order
 

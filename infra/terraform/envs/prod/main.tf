@@ -52,17 +52,6 @@ removed {
   }
 }
 
-# TD34 final cleanup, step 2: Foundation has adopted the temporary bootstrap
-# grants. Forget the normal-state addresses without touching their live IAM
-# policy; the following Foundation-only cleanup removes those grants.
-removed {
-  from = module.foundation_state_bootstrap
-
-  lifecycle {
-    destroy = false
-  }
-}
-
 module "network" {
   source = "../../modules/network"
 
