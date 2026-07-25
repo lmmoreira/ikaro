@@ -142,6 +142,10 @@ If the proper fix genuinely cannot be done in the current branch (e.g. no upstre
 
 When the user gives explicit references (a library, a URL, a named example, a pattern), use them — don't invent a bespoke alternative and present it as equivalent. If tempted to improvise past what's given, stop and ask a clarifying question instead. Always prefer simple, solid solutions over workarounds or approximations.
 
+### Mounting complexity is a signal to reconsider the approach, not a cost to accept (NON-NEGOTIABLE)
+
+If a design keeps needing new safeguards or caveats as it's developed (e.g. "this needs a short TTL... and single-use enforcement... and encryption... and a way to derive that key..."), stop and ask whether a structurally different approach would need none of that machinery — rather than continuing to patch the one already chosen. Generate more than one candidate approach before committing to refining any single one, and prefer whichever fully satisfies the actual requirement with the least accumulated machinery, not the first plausible idea.
+
 ### Architecture
 - **Layers per context:** `domain/` (zero framework deps) → `application/` (use cases, ports, DTOs) → `infrastructure/` (adapters, controllers, persistence). Shared cross-cutting → `src/shared/`.
 - **Value objects:** Domain-validated fields in `src/shared/value-objects/`. `create()` validates from raw strings; `reconstitute()` skips validation. Never plain primitives for domain fields.
