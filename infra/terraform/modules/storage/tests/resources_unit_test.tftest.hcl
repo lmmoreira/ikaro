@@ -39,25 +39,6 @@ run "public_access_prevention_is_asymmetric" {
   }
 }
 
-run "public_bucket_grants_anonymous_read_only_on_itself" {
-  command = plan
-
-  assert {
-    condition     = google_storage_bucket_iam_member.public_viewer.member == "allUsers"
-    error_message = "Public bucket must grant allUsers access."
-  }
-
-  assert {
-    condition     = google_storage_bucket_iam_member.public_viewer.role == "roles/storage.objectViewer"
-    error_message = "Public bucket's allUsers grant must be objectViewer, not a write role."
-  }
-
-  assert {
-    condition     = google_storage_bucket_iam_member.public_viewer.bucket == google_storage_bucket.public.name
-    error_message = "allUsers binding must target the public bucket, not the uploads bucket."
-  }
-}
-
 run "cors_configured_per_bucket" {
   command = plan
 

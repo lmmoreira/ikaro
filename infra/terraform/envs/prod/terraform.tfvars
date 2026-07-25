@@ -54,14 +54,6 @@ bootstrap_mode = true
 backend_max_instances = 3
 bff_max_instances     = 20
 
-# Single shared Artifact Registry lives in ikaro-prod (D8) but grants
-# cross-project access to staging — these identify staging for that grant.
-# Plain values, not secrets (project IDs/numbers aren't confidential; both
-# are already discoverable and project_id is committed the same way in
-# envs/staging/terraform.tfvars).
-staging_project_id     = "ikaro-staging"
-staging_project_number = "729809528251"
-
 # Cloudflare zone ID for ikaro.online (S09 zone, non-secret resource
-# identifier — same treatment as project_number/staging_project_number).
+# identifier — same treatment as project_number).
 cloudflare_zone_id = "7410cf58ba867f364e641cf9ea873078"

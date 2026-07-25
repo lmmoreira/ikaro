@@ -153,15 +153,3 @@ resource "google_sql_user" "iam_admin" {
   instance = google_sql_database_instance.main.name
   type     = "CLOUD_IAM_USER"
 }
-
-resource "google_project_iam_member" "admin_cloudsql_client" {
-  project = var.project_id
-  role    = "roles/cloudsql.client"
-  member  = "user:${var.iam_admin_user}"
-}
-
-resource "google_project_iam_member" "admin_cloudsql_instance_user" {
-  project = var.project_id
-  role    = "roles/cloudsql.instanceUser"
-  member  = "user:${var.iam_admin_user}"
-}

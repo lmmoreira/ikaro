@@ -85,11 +85,3 @@ resource "google_storage_bucket" "public" {
   # permanent by design (M17-S45 decision, 2026-07-07) — tenant-owned
   # content, not a cost-trim candidate.
 }
-
-resource "google_storage_bucket_iam_member" "public_viewer" {
-  #checkov:skip=CKV_GCP_28:intentional — this is the hotsite public-assets bucket; M17-S14 AC1 requires it to serve objects anonymously
-  #checkov:skip=CKV_IKARO_1:same rationale — the one deliberate public grant in this repo, reviewed here
-  bucket = google_storage_bucket.public.name
-  role   = "roles/storage.objectViewer"
-  member = "allUsers"
-}

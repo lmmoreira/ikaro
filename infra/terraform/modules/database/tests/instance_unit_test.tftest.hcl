@@ -52,15 +52,6 @@ run "iam_database_auth_is_on_with_iam_user" {
     error_message = "The admin DB user must be a CLOUD_IAM_USER (no password exists)."
   }
 
-  assert {
-    condition     = google_project_iam_member.admin_cloudsql_client.role == "roles/cloudsql.client" && google_project_iam_member.admin_cloudsql_client.member == "user:admin@example.com"
-    error_message = "The admin identity must hold roles/cloudsql.client to open the proxy tunnel."
-  }
-
-  assert {
-    condition     = google_project_iam_member.admin_cloudsql_instance_user.role == "roles/cloudsql.instanceUser" && google_project_iam_member.admin_cloudsql_instance_user.member == "user:admin@example.com"
-    error_message = "The admin identity must hold roles/cloudsql.instanceUser to log in as the IAM DB user."
-  }
 }
 
 run "all_database_flags_match_the_checkov_compliant_set" {
