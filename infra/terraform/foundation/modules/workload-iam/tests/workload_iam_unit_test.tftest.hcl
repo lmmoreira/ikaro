@@ -47,8 +47,8 @@ run "workload_iam_preserves_exact_resource_scoped_bindings" {
   }
 
   assert {
-    condition     = google_pubsub_subscription_iam_member.member["subscriber"].role == "roles/pubsub.subscriber" && google_pubsub_topic_iam_member.member["backend_publisher"].role == "roles/pubsub.publisher"
-    error_message = "Foundation must preserve the exact Pub/Sub resource roles."
+    condition     = google_pubsub_subscription_iam_member.member["subscriber"].subscription == "projects/ikaro-staging/subscriptions/ikaro-booking-created-notifier" && google_pubsub_subscription_iam_member.member["subscriber"].role == "roles/pubsub.subscriber" && google_pubsub_topic_iam_member.member["backend_publisher"].role == "roles/pubsub.publisher"
+    error_message = "Foundation must preserve canonical subscription IDs and exact Pub/Sub resource roles."
   }
 
   assert {
