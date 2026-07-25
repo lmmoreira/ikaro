@@ -251,6 +251,7 @@ jobs:
         run: |
           terraform init -input=false -lockfile=readonly
           terraform apply -refresh=false -auto-approve -input=false -lock-timeout=60s \
+            -target=module.custom_roles.google_project_iam_custom_role.relay_vm_operator \
             -target=google_project_iam_member.foundation_planner_relay_vm_reader
 
   bootstrap_planner_prod:
@@ -287,6 +288,7 @@ jobs:
         run: |
           terraform init -input=false -lockfile=readonly
           terraform apply -refresh=false -auto-approve -input=false -lock-timeout=60s \
+            -target=module.custom_roles.google_project_iam_custom_role.relay_vm_operator \
             -target=google_project_iam_member.foundation_planner_relay_vm_reader
 
   apply_prod:
