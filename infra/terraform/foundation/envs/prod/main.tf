@@ -323,6 +323,14 @@ resource "google_project_iam_member" "foundation_deployer_relay_vm_operator" {
   member  = "serviceAccount:${module.control_plane.foundation_deployer_email}"
 }
 
+# Stage 1 of TD34 phase 4: install the non-IAM ordinary-infrastructure role
+# before a later protected apply revokes the inherited broad roles.
+resource "google_project_iam_member" "normal_deployer_infrastructure_operator" {
+  project = var.project_id
+  role    = module.custom_roles.normal_infrastructure_deployer_role_id
+  member  = "serviceAccount:ikaro-tf-deployer@${var.project_id}.iam.gserviceaccount.com"
+}
+
 # TD34 migration only: foundation adopts the pre-existing normal deployer's
 # broad project roles before later batches can safely replace or revoke them.
 # Importing these bindings changes state ownership only; it does not alter IAM.

@@ -49,6 +49,17 @@ resource "google_service_account_iam_member" "backend_token_creator_self" {
   member             = "serviceAccount:${google_service_account.runtime["backend"].email}"
 }
 
+# Normal Terraform still attaches these identities to the Cloud Run services,
+# migration Job, and Pub/Sub push subscriptions it owns. Keep actAs scoped to
+# these runtime identities; it must never apply to a Foundation identity.
+resource "google_service_account_iam_member" "normal_deployer_runtime_service_account_user" {
+  for_each = google_service_account.runtime
+
+  service_account_id = each.value.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:ikaro-tf-deployer@${var.project_id}.iam.gserviceaccount.com"
+}
+
 resource "google_storage_bucket_iam_member" "backend_object_admin" {
   for_each = { uploads = var.uploads_bucket_name, public = var.public_bucket_name }
 

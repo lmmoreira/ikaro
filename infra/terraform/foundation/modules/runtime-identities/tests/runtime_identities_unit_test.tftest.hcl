@@ -35,4 +35,9 @@ run "runtime_identities_are_least_privilege_and_complete" {
     condition     = google_service_account_iam_member.backend_token_creator_self.role == "roles/iam.serviceAccountTokenCreator"
     error_message = "The backend self-grant must retain only its keyless signing role."
   }
+
+  assert {
+    condition     = length(google_service_account_iam_member.normal_deployer_runtime_service_account_user) == 5 && alltrue([for binding in values(google_service_account_iam_member.normal_deployer_runtime_service_account_user) : binding.role == "roles/iam.serviceAccountUser" && binding.member == "serviceAccount:ikaro-tf-deployer@ikaro-staging.iam.gserviceaccount.com"])
+    error_message = "The normal deployer may act as only the five application runtime service accounts."
+  }
 }
