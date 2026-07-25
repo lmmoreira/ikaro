@@ -31,6 +31,7 @@ locals {
   # secret-value access, public-IP assignment, and service-account actAs; the
   # latter will be granted only on the relay service account itself.
   relay_vm_operator_permissions = toset([
+    "cloudsql.instances.get",
     "cloudsql.users.create",
     "cloudsql.users.delete",
     "cloudsql.users.get",
