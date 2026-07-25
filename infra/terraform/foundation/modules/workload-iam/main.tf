@@ -22,7 +22,7 @@ resource "google_pubsub_subscription_iam_member" "member" {
   for_each = var.pubsub_subscription_members
 
   project      = var.project_id
-  subscription = "projects/${var.project_id}/subscriptions/${each.value.subscription}"
+  subscription = each.value.subscription
   role         = each.value.role
   member       = each.value.member
 }

@@ -163,14 +163,16 @@ and can invoke only the internal backend. The Foundation custom role receives
 only the six additional Cloud Run/Pub/Sub `getIamPolicy`/`setIamPolicy`
 permissions needed for this resource-IAM batch.
 
-The initial adoption exposed a configuration-normalization defect: the
-subscription IAM imports used canonical `projects/<project>/subscriptions/<name>`
-IDs while the module configured short names. Google treats that difference as a
-replacement, so the 22 Pub/Sub subscriber grants in each environment were
-briefly removed and recreated during the successful apply. All grants were
-restored by that same run. The module now configures canonical subscription IDs
-and has a regression assertion; the next protected Foundation apply must verify
-that this batch plans no replacement.
+The initial adoption exposed an import-normalization defect: the provider
+requires fully qualified subscription IDs in the import identifier but persists
+the resource's `subscription` argument as the short name. Terraform therefore
+replaced the 22 Pub/Sub subscriber grants in each environment during the first
+adoption; all grants were restored by that same run. A subsequent attempt to
+configure the fully qualified name repeated the replacement, confirming the
+provider's normalized state form. The module now deliberately uses the short
+name and has a regression assertion for that state representation. The next
+protected Foundation apply must verify a zero-replacement plan before this
+batch is considered stable.
 
 The one-time custom-role upgrade required to break the Terraform permission
 bootstrap cycle was performed only by the protected Foundation identity, first
