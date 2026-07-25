@@ -169,7 +169,7 @@ BFF → redirects to Google OAuth consent screen
 ```
 
 ### Step 2 — Google callback
-```
+```text
 Google → GET /v1/auth/google/callback?code=... (web origin; gateway forwards to BFF)
 BFF (GoogleStrategy.validate()):
   1. Exchange code for profile (googleOAuthId, email, name)
@@ -200,7 +200,7 @@ issueToken(payload: JwtPayload): string {
 }
 ```
 
-**JWT TTL:** 7 days (configured via `JWT_EXPIRES_IN` env var). No refresh tokens in MVP — user re-authenticates after expiry. Issued as an **httpOnly cookie**, named `__Host-access_token` in production and `access_token` locally, not returned in the response body.
+**JWT TTL:** 7 days (configured via `JWT_EXPIRES_IN` env var). No refresh tokens in MVP — user re-authenticates after expiry. The BFF issues it only as an **httpOnly cookie**, named `__Host-access_token` in production and `access_token` locally, never in the response body. The browser receives that cookie on the web origin through the same-origin `/v1` gateway, rather than from the BFF deployment hostname.
 
 ### Step 5 — Tenant switch (UC-023, customer; and the equivalent staff flow)
 ```

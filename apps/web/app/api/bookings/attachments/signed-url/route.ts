@@ -1,8 +1,7 @@
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
-import { bffServerFetch } from '@/shared/lib/api/bff-server';
+import { bffPublicFetch, bffServerFetch } from '@/shared/lib/api/bff-server';
 import { SESSION_COOKIE_NAME } from '@/features/auth/session-cookie';
-import { buildBffUrl } from '@/shared/lib/api/bff-url';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const body = (await request.json()) as Record<string, unknown>;
@@ -10,7 +9,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // even if the browser also carries a leftover access_token cookie from an unrelated session
   // in the same tab (e.g. a staff/admin session). The cookie must never hijack a request that
   // names its own token — that would misattribute the upload to the wrong actor/tenant.
-  const token = body.guestToken ? undefined : (await cookies()).get(SESSION_COOKIE_NAME)?.value;
+  const hasGuestToken = Object.hasOwn(body, 'guestToken');
+  const token = hasGuestToken ? undefined : (await cookies()).get(SESSION_COOKIE_NAME)?.value;
 
   try {
     const upstream = token
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           },
           body: JSON.stringify(body),
         })
-      : await fetch(buildBffUrl('/bookings/attachments/signed-url'), {
+      : await bffPublicFetch('/bookings/attachments/signed-url', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
