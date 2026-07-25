@@ -42,3 +42,17 @@ run "roles_have_exactly_the_reviewed_permissions" {
     error_message = "The normal deployer role must not mutate or read IAM policies, administer service accounts, activate APIs, or read secret values or bucket objects."
   }
 }
+
+run "relay_planner_is_read_only" {
+  command = plan
+
+  assert {
+    condition     = google_project_iam_custom_role.relay_vm_planner.role_id == "tfFoundationRelayVmPlanner" && length(google_project_iam_custom_role.relay_vm_planner.permissions) == 6 && alltrue([for permission in ["cloudsql.instances.get", "cloudsql.users.get", "cloudsql.users.list", "compute.instances.get", "compute.instances.getIamPolicy", "iap.tunnelInstances.getIamPolicy"] : contains(tolist(google_project_iam_custom_role.relay_vm_planner.permissions), permission)])
+    error_message = "Relay planner role must contain only the six reviewed read permissions."
+  }
+
+  assert {
+    condition     = !contains(tolist(google_project_iam_custom_role.relay_vm_planner.permissions), "cloudsql.users.create") && !contains(tolist(google_project_iam_custom_role.relay_vm_planner.permissions), "compute.instances.create") && !contains(tolist(google_project_iam_custom_role.relay_vm_planner.permissions), "compute.instances.setIamPolicy")
+    error_message = "Relay planner role must not grant mutation permissions."
+  }
+}

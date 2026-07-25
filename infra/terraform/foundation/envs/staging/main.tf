@@ -315,6 +315,12 @@ resource "google_project_iam_member" "foundation_deployer_relay_vm_operator" {
   member  = "serviceAccount:${module.control_plane.foundation_deployer_email}"
 }
 
+resource "google_project_iam_member" "foundation_planner_relay_vm_reader" {
+  project = var.project_id
+  role    = module.custom_roles.relay_vm_planner_role_id
+  member  = "serviceAccount:${module.control_plane.foundation_planner_email}"
+}
+
 resource "time_sleep" "relay_operator_iam_propagation" {
   create_duration = "60s"
 

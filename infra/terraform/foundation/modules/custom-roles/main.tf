@@ -65,6 +65,15 @@ locals {
     "iap.tunnelInstances.setIamPolicy",
   ])
 
+  relay_vm_planner_permissions = toset([
+    "cloudsql.instances.get",
+    "cloudsql.users.get",
+    "cloudsql.users.list",
+    "compute.instances.get",
+    "compute.instances.getIamPolicy",
+    "iap.tunnelInstances.getIamPolicy",
+  ])
+
   # This is the ordinary environment Terraform surface, derived from the
   # resources that remain in envs/{staging,prod}: networks, Cloud SQL,
   # buckets, secrets, Cloud Run services/jobs, Pub/Sub, Scheduler, Artifact
@@ -274,6 +283,15 @@ resource "google_project_iam_custom_role" "relay_vm_operator" {
   title       = "Terraform Foundation Relay VM Operator"
   description = "Operate the Foundation-owned private relay VM, its firewall, instance IAM, and Cloud SQL IAM database user without project IAM or secret-value access."
   permissions = local.relay_vm_operator_permissions
+  stage       = "GA"
+}
+
+resource "google_project_iam_custom_role" "relay_vm_planner" {
+  project     = var.project_id
+  role_id     = "tfFoundationRelayVmPlanner"
+  title       = "Terraform Foundation Relay VM Planner"
+  description = "Read-only relay VM and Cloud SQL permissions required by Foundation Terraform plans."
+  permissions = local.relay_vm_planner_permissions
   stage       = "GA"
 }
 
