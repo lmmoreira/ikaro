@@ -1,5 +1,5 @@
-# Guards the count-gate (the whole point of this module being "on-demand,
-# not always-on", TD32), the firewall's IAP-only ingress posture, and the
+# Guards the VM count-gate (the identity remains persistent while the VM is
+# on-demand), the firewall's IAP-only ingress posture, and the
 # relay SA's identity-model redesign (2026-07-24, cross-tool PR review):
 # the relay VM's own service account does the Cloud SQL / Cloud Run /
 # Secret Manager work now, not a human re-authenticating inside the VM.
@@ -183,5 +183,23 @@ run "cloud_sql_resources_skipped_when_db_instance_name_empty" {
   assert {
     condition     = length(google_sql_user.relay) == 0 && length(google_project_iam_member.relay_cloudsql_client) == 0 && length(google_project_iam_member.relay_cloudsql_instance_user) == 0
     error_message = "With no db_instance_name, there's nothing to grant Cloud SQL access to yet — these resources must be skipped, not fail or dangle."
+  }
+}
+
+run "cloud_sql_identity_persists_when_vm_is_off" {
+  command = plan
+
+  variables {
+    create = false
+  }
+
+  assert {
+    condition     = length(google_sql_user.relay) == 1 && length(google_project_iam_member.relay_cloudsql_client) == 1 && length(google_project_iam_member.relay_cloudsql_instance_user) == 1
+    error_message = "The relay Cloud SQL IAM identity and its project grants must persist while the on-demand VM is disabled."
+  }
+
+  assert {
+    condition     = length(google_iap_tunnel_instance_iam_member.admin_iap_tunnel) == 0 && length(google_compute_instance_iam_member.admin_os_login) == 0 && length(google_secret_manager_secret_iam_member.relay_platform_admin_key) == 0
+    error_message = "VM-only access grants must remain disabled while the VM is off."
   }
 }

@@ -239,13 +239,12 @@ resource "google_secret_manager_secret_iam_member" "relay_platform_admin_key" {
   member    = "serviceAccount:${google_service_account.relay.email}"
 }
 
-# Cloud SQL access for the relay VM's own service account — only created
-# once both the VM and a real database instance exist (prod's database
-# module stays count = var.enable_database ? 1 : 0 until S37; the env
-# root passes empty strings for db_instance_name/db_instance_connection_name
-# when it isn't created yet, and this whole block of resources is skipped).
+# Cloud SQL access for the relay identity is persistent whenever a real
+# database instance exists. The VM is on-demand, but keeping this identity
+# and its database role stable lets the application migration retain its
+# read-only PostgreSQL grants across VM sessions.
 resource "google_project_iam_member" "relay_cloudsql_client" {
-  count = var.create && var.db_instance_name != "" ? 1 : 0
+  count = var.db_instance_name != "" ? 1 : 0
 
   project = var.project_id
   role    = "roles/cloudsql.client"
@@ -253,7 +252,7 @@ resource "google_project_iam_member" "relay_cloudsql_client" {
 }
 
 resource "google_project_iam_member" "relay_cloudsql_instance_user" {
-  count = var.create && var.db_instance_name != "" ? 1 : 0
+  count = var.db_instance_name != "" ? 1 : 0
 
   project = var.project_id
   role    = "roles/cloudsql.instanceUser"
@@ -268,7 +267,7 @@ resource "google_project_iam_member" "relay_cloudsql_instance_user" {
 # Cloud SQL's IAM auth maps the trimmed name back to this exact SA at
 # connection time.
 resource "google_sql_user" "relay" {
-  count = var.create && var.db_instance_name != "" ? 1 : 0
+  count = var.db_instance_name != "" ? 1 : 0
 
   name     = trimsuffix(google_service_account.relay.email, ".gserviceaccount.com")
   project  = var.project_id
