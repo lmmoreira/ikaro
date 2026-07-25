@@ -80,6 +80,137 @@ import {
   id       = "projects/${var.project_id}/secrets/${each.value.secret} roles/secretmanager.secretAccessor serviceAccount:ikaro-${replace(each.value.principal, "_", "-")}@${var.project_id}.iam.gserviceaccount.com"
 }
 
+# TD34: ordinary resource modules continue to own services, topics,
+# subscriptions, and jobs. Foundation owns only their IAM policies.
+locals {
+  workload_catalog = jsondecode(file("${path.module}/../../../pubsub-catalog.json"))
+  workload_topics  = { for entry in local.workload_catalog : entry.event => entry }
+  workload_subscriptions = merge([
+    for entry in local.workload_catalog : {
+      for consumer in entry.consumers : jsonencode([entry.event, consumer]) => {
+        topic    = entry.event
+        consumer = consumer
+      }
+    }
+  ]...)
+
+  workload_pubsub_service_agent    = "service-${var.project_number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+  workload_scheduler_service_agent = "service-${var.project_number}@gcp-sa-cloudscheduler.iam.gserviceaccount.com"
+
+  workload_cloud_run_invokers = merge({
+    backend_bff = {
+      service_name = "ikaro-backend"
+      member       = "serviceAccount:ikaro-bff@${var.project_id}.iam.gserviceaccount.com"
+    }
+    backend_pubsub_invoker = {
+      service_name = "ikaro-backend"
+      member       = "serviceAccount:ikaro-pubsub-invoker@${var.project_id}.iam.gserviceaccount.com"
+    }
+    bff_web = {
+      service_name = "ikaro-bff"
+      member       = "serviceAccount:ikaro-web@${var.project_id}.iam.gserviceaccount.com"
+    }
+    }, var.iam_admin_user != "" ? {
+    backend_iam_admin_user = {
+      service_name = "ikaro-backend"
+      member       = "user:${var.iam_admin_user}"
+    }
+  } : {})
+
+  workload_cloud_run_public_invokers = toset(["ikaro-bff", "ikaro-web"])
+  workload_relay_cloud_run_services  = toset(["ikaro-backend"])
+
+  workload_pubsub_subscription_members = {
+    for key, subscription in local.workload_subscriptions : "service_agent_subscriber_${key}" => {
+      subscription = "ikaro-${subscription.topic}-${subscription.consumer}"
+      role         = "roles/pubsub.subscriber"
+      member       = "serviceAccount:${local.workload_pubsub_service_agent}"
+    }
+  }
+
+  workload_pubsub_topic_members = merge({
+    for key, subscription in local.workload_subscriptions : "service_agent_dlq_publisher_${key}" => {
+      topic  = "ikaro-${subscription.topic}-${subscription.consumer}-dlq"
+      role   = "roles/pubsub.publisher"
+      member = "serviceAccount:${local.workload_pubsub_service_agent}"
+    }
+    }, {
+    for event in keys(local.workload_topics) : "backend_publisher_${event}" => {
+      topic  = "ikaro-${event}"
+      role   = "roles/pubsub.publisher"
+      member = "serviceAccount:ikaro-backend@${var.project_id}.iam.gserviceaccount.com"
+    }
+    }, {
+    for event in ["cron-reminders", "cron-loyalty-expiry", "cron-loyalty-expiry-warning", "cron-outbox-relay"] : "scheduler_publisher_${event}" => {
+      topic  = "ikaro-${event}"
+      role   = "roles/pubsub.publisher"
+      member = "serviceAccount:${local.workload_scheduler_service_agent}"
+    }
+  })
+
+  workload_service_account_members = {
+    pubsub_token_creator = {
+      service_account_id = "projects/${var.project_id}/serviceAccounts/ikaro-pubsub-invoker@${var.project_id}.iam.gserviceaccount.com"
+      role               = "roles/iam.serviceAccountTokenCreator"
+      member             = "serviceAccount:${local.workload_pubsub_service_agent}"
+    }
+  }
+}
+
+module "workload_iam" {
+  source = "../../modules/workload-iam"
+
+  project_id = var.project_id
+  region     = var.region
+
+  cloud_run_invokers          = local.workload_cloud_run_invokers
+  relay_cloud_run_services    = local.workload_relay_cloud_run_services
+  pubsub_subscription_members = local.workload_pubsub_subscription_members
+  pubsub_topic_members        = local.workload_pubsub_topic_members
+  service_account_members     = local.workload_service_account_members
+}
+
+import {
+  for_each = local.workload_cloud_run_invokers
+  to       = module.workload_iam.google_cloud_run_v2_service_iam_member.invoker[each.key]
+  id       = "projects/${var.project_id}/locations/${var.region}/services/${each.value.service_name} roles/run.invoker ${each.value.member}"
+}
+
+import {
+  for_each = local.workload_cloud_run_public_invokers
+  to       = google_cloud_run_v2_service_iam_member.public_invoker[each.value]
+  id       = "projects/${var.project_id}/locations/${var.region}/services/${each.value} roles/run.invoker allUsers"
+}
+
+resource "google_cloud_run_v2_service_iam_member" "public_invoker" {
+  #checkov:skip=CKV_IKARO_1:reviewed intentional public BFF/web invoker grants
+  for_each = local.workload_cloud_run_public_invokers
+
+  project  = var.project_id
+  location = var.region
+  name     = each.value
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+
+import {
+  for_each = local.workload_pubsub_subscription_members
+  to       = module.workload_iam.google_pubsub_subscription_iam_member.member[each.key]
+  id       = "projects/${var.project_id}/subscriptions/${each.value.subscription} ${each.value.role} ${each.value.member}"
+}
+
+import {
+  for_each = local.workload_pubsub_topic_members
+  to       = module.workload_iam.google_pubsub_topic_iam_member.member[each.key]
+  id       = "projects/${var.project_id}/topics/${each.value.topic} ${each.value.role} ${each.value.member}"
+}
+
+import {
+  for_each = local.workload_service_account_members
+  to       = module.workload_iam.google_service_account_iam_member.member[each.key]
+  id       = "${each.value.service_account_id} ${each.value.role} ${each.value.member}"
+}
+
 module "custom_roles" {
   source = "../../modules/custom-roles"
 

@@ -11,6 +11,12 @@ locals {
   ])
 
   resource_iam_writer_permissions = toset([
+    "pubsub.subscriptions.getIamPolicy",
+    "pubsub.subscriptions.setIamPolicy",
+    "pubsub.topics.getIamPolicy",
+    "pubsub.topics.setIamPolicy",
+    "run.services.getIamPolicy",
+    "run.services.setIamPolicy",
     "secretmanager.secrets.getIamPolicy",
     "secretmanager.secrets.setIamPolicy",
     "storage.buckets.getIamPolicy",
@@ -30,14 +36,14 @@ resource "google_project_iam_custom_role" "planner_iam_policy_reader" {
 }
 
 # Foundation needs IAM-policy mutation only for application buckets and secrets
-# during the runtime-identity transfer. This role deliberately excludes object
-# and secret-value read/write permissions and every project/service-account IAM
-# permission.
+# during the runtime-identity and workload-IAM transfers. This role deliberately
+# excludes object and secret-value read/write permissions and every
+# project/service-account IAM permission.
 resource "google_project_iam_custom_role" "resource_iam_writer" {
   project     = var.project_id
   role_id     = "tfFoundationResourceIamWriter"
   title       = "Terraform Foundation Resource IAM Writer"
-  description = "Manage IAM policies for Terraform-managed application buckets and secrets only."
+  description = "Manage IAM policies for Terraform-managed application Cloud Run, Pub/Sub, bucket, and secret resources only."
   permissions = local.resource_iam_writer_permissions
   stage       = "GA"
 }

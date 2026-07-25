@@ -19,16 +19,6 @@ variable "project_id" {
   type        = string
 }
 
-variable "project_number" {
-  description = "GCP project number — used to construct the Pub/Sub service agent's principal (service-<number>@gcp-sa-pubsub.iam.gserviceaccount.com), the identity Pub/Sub itself acts as when moving messages to a dead-letter topic. Discover via: gcloud projects describe <project-id> --format='value(projectNumber)'"
-  type        = string
-
-  validation {
-    condition     = can(regex("^[0-9]+$", var.project_number))
-    error_message = "project_number must be a numeric GCP project number (e.g. \"729809528251\"), not a project ID."
-  }
-}
-
 variable "region" {
   description = "GCP region for regional resources"
   type        = string
@@ -53,11 +43,6 @@ variable "backend_pubsub_audience" {
     condition     = length(var.backend_pubsub_audience) > 0
     error_message = "backend_pubsub_audience must not be empty."
   }
-}
-
-variable "backend_sa_email" {
-  description = "Foundation-owned backend runtime SA email — granted pubsub.publisher on every topic in the catalog, since the backend is the only publisher for both domain events (OUTBOX_PUBLISHER) and its own local/manual cron re-triggers (D3's /cron/* controllers) and dead-letter writes (pull-mode publishToDlq)."
-  type        = string
 }
 
 variable "pubsub_invoker_sa_email" {

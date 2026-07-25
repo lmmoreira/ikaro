@@ -8,9 +8,8 @@
 mock_provider "google" {}
 
 variables {
-  project_id     = "ikaro-test"
-  project_number = "729809528251"
-  environment    = "staging"
+  project_id  = "ikaro-test"
+  environment = "staging"
   cron_topic_ids = {
     cron-reminders              = "projects/ikaro-test/topics/ikaro-cron-reminders"
     cron-loyalty-expiry         = "projects/ikaro-test/topics/ikaro-cron-loyalty-expiry"
@@ -75,23 +74,5 @@ run "jobs_carry_empty_json_payload_not_a_service_account" {
       for job in google_cloud_scheduler_job.cron : job.pubsub_target[0].data == base64encode("{}")
     ])
     error_message = "Every job's pubsub_target must carry an empty JSON payload — a cron tick is 'run now', not a domain event with a real tenantId."
-  }
-}
-
-run "scheduler_service_agent_holds_publisher_on_every_cron_topic" {
-  command = plan
-
-  assert {
-    condition = alltrue([
-      for iam in google_pubsub_topic_iam_member.scheduler_publisher :
-      iam.role == "roles/pubsub.publisher" &&
-      iam.member == "serviceAccount:service-${var.project_number}@gcp-sa-cloudscheduler.iam.gserviceaccount.com"
-    ])
-    error_message = "The Cloud Scheduler service agent must hold publisher on every cron topic — Pub/Sub-target jobs have no service-account field of their own, so this grant is the only path to a working publish."
-  }
-
-  assert {
-    condition     = length(google_pubsub_topic_iam_member.scheduler_publisher) == 4
-    error_message = "Exactly one publisher grant must exist per cron topic (4 total) — no unused custom Scheduler SA, no missing grant."
   }
 }

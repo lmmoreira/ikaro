@@ -35,8 +35,6 @@ locals {
       schedule  = var.outbox_relay_schedule
     }
   }
-
-  scheduler_service_agent = "service-${var.project_number}@gcp-sa-cloudscheduler.iam.gserviceaccount.com"
 }
 
 resource "google_cloud_scheduler_job" "cron" {
@@ -61,16 +59,4 @@ resource "google_cloud_scheduler_job" "cron" {
   retry_config {
     retry_count = 3
   }
-}
-
-# Pub/Sub-target Scheduler jobs have no service-account field — publish is
-# performed by the Cloud Scheduler service agent itself, which needs
-# pubsub.publisher on every topic a job targets.
-resource "google_pubsub_topic_iam_member" "scheduler_publisher" {
-  for_each = local.jobs
-
-  project = var.project_id
-  topic   = var.cron_topic_ids[each.value.topic_key]
-  role    = "roles/pubsub.publisher"
-  member  = "serviceAccount:${local.scheduler_service_agent}"
 }

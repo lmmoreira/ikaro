@@ -4,6 +4,12 @@ variable "environment" {
   default     = "prod"
 }
 
+variable "iam_admin_user" {
+  description = "Optional Google account email retaining the legacy backend Cloud Run invoker grant. Supplied as TF_VAR_iam_admin_user from the protected GitHub Environment; never committed."
+  type        = string
+  default     = ""
+}
+
 variable "project_id" {
   description = "GCP project ID for the production foundation layer."
   type        = string

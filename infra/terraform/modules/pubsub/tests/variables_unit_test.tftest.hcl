@@ -12,11 +12,9 @@ mock_provider "google" {}
 
 variables {
   project_id              = "ikaro-test"
-  project_number          = "729809528251"
   environment             = "staging"
   backend_push_endpoint   = "https://ikaro-backend-crle4i3nrq-rj.a.run.app"
   backend_pubsub_audience = "ikaro-backend-staging-pubsub-push"
-  backend_sa_email        = "ikaro-backend@ikaro-test.iam.gserviceaccount.com"
   pubsub_invoker_sa_email = "ikaro-pubsub-invoker@ikaro-test.iam.gserviceaccount.com"
 }
 
@@ -38,18 +36,6 @@ run "rejects_invalid_environment" {
 
   expect_failures = [
     var.environment,
-  ]
-}
-
-run "rejects_non_numeric_project_number" {
-  command = plan
-
-  variables {
-    project_number = "ikaro-test" # a project ID, not a number — the exact mistake this validation guards against
-  }
-
-  expect_failures = [
-    var.project_number,
   ]
 }
 

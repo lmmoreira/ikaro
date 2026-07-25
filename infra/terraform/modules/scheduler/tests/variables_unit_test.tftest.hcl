@@ -5,9 +5,8 @@
 mock_provider "google" {}
 
 variables {
-  project_id     = "ikaro-test"
-  project_number = "729809528251"
-  environment    = "staging"
+  project_id  = "ikaro-test"
+  environment = "staging"
   cron_topic_ids = {
     cron-reminders              = "projects/ikaro-test/topics/ikaro-cron-reminders"
     cron-loyalty-expiry         = "projects/ikaro-test/topics/ikaro-cron-loyalty-expiry"
@@ -39,18 +38,6 @@ run "rejects_invalid_environment" {
 
   expect_failures = [
     var.environment,
-  ]
-}
-
-run "rejects_non_numeric_project_number" {
-  command = plan
-
-  variables {
-    project_number = "ikaro-test" # a project ID, not a number — the exact mistake this validation guards against
-  }
-
-  expect_failures = [
-    var.project_number,
   ]
 }
 
