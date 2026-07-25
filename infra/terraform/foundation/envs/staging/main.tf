@@ -32,6 +32,55 @@ module "runtime_identities" {
 }
 
 locals {
+  static_resource_project_members = {
+    admin_cloudsql_client = {
+      role   = "roles/cloudsql.client"
+      member = "user:${var.iam_admin_user}"
+    }
+    admin_cloudsql_instance_user = {
+      role   = "roles/cloudsql.instanceUser"
+      member = "user:${var.iam_admin_user}"
+    }
+  }
+
+  static_resource_audit_log_types_by_service = {
+    "cloudsql.googleapis.com"      = ["DATA_WRITE"]
+    "iap.googleapis.com"           = ["ADMIN_READ", "DATA_READ", "DATA_WRITE"]
+    "secretmanager.googleapis.com" = ["DATA_READ"]
+  }
+}
+
+# TD34: Foundation adopts these static, resource-scoped policies before a later
+# normal-root handoff relinquishes the former addresses with destroy = false.
+# The bucket, database, and relay resources remain in their ordinary modules.
+module "static_resource_iam" {
+  source = "../../modules/static-resource-iam"
+
+  project_id         = var.project_id
+  public_bucket_name = "ikaro-public-${var.environment}"
+
+  project_members            = local.static_resource_project_members
+  audit_log_types_by_service = local.static_resource_audit_log_types_by_service
+}
+
+import {
+  to = module.static_resource_iam.google_storage_bucket_iam_member.public_viewer
+  id = "b/ikaro-public-${var.environment} roles/storage.objectViewer allUsers"
+}
+
+import {
+  for_each = local.static_resource_project_members
+  to       = module.static_resource_iam.google_project_iam_member.project_member[each.key]
+  id       = "${var.project_id} ${each.value.role} ${each.value.member}"
+}
+
+import {
+  for_each = local.static_resource_audit_log_types_by_service
+  to       = module.static_resource_iam.google_project_iam_audit_config.service[each.key]
+  id       = "${var.project_id} ${each.key}"
+}
+
+locals {
   runtime_project_roles = {
     backend_cloudsql_client          = { role = "roles/cloudsql.client", principal = "backend" }
     migrate_cloudsql_client          = { role = "roles/cloudsql.client", principal = "migrate" }
