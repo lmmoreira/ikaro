@@ -36,6 +36,7 @@ locals {
     "cloudsql.users.delete",
     "cloudsql.users.get",
     "cloudsql.users.list",
+    "cloudsql.users.update",
     "compute.disks.create",
     "compute.disks.delete",
     "compute.disks.get",
