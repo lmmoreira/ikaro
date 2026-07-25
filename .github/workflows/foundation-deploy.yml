@@ -15,6 +15,11 @@ on:
         required: true
         type: boolean
         default: false
+      upgrade_resource_iam_writer:
+        description: 'One-time TD34 migration: upgrade the Foundation resource-IAM custom role before workload IAM adoption.'
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -254,6 +259,74 @@ jobs:
           terraform plan -input=false -lock-timeout=60s -out=tfplan
           terraform apply -input=false tfplan
           rm -f tfplan
+
+  # TD34 migration only: the Foundation deployer already has roleAdmin, but
+  # needs this custom-role update before it can read or adopt Cloud Run and
+  # Pub/Sub IAM policies. Keep the target deliberately limited to that role;
+  # remove this path once the workload-IAM handoff is complete in both projects.
+  upgrade_resource_iam_writer_staging:
+    name: Upgrade Foundation resource-IAM role (staging)
+    needs: [validate, test]
+    if: github.event_name == 'workflow_dispatch' && inputs.upgrade_resource_iam_writer && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging-foundation
+    concurrency:
+      group: staging-mutations
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER_STAGING }}
+          service_account: ${{ secrets.TF_FOUNDATION_SA_STAGING }}
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: '1.15.8'
+          terraform_wrapper: false
+      - name: Upgrade Foundation resource-IAM custom role
+        working-directory: infra/terraform/foundation/envs/staging
+        run: |
+          terraform init -input=false -lockfile=readonly
+          terraform apply -input=false -lock-timeout=60s -auto-approve \
+            -target=module.custom_roles.google_project_iam_custom_role.resource_iam_writer
+
+  upgrade_resource_iam_writer_prod:
+    name: Upgrade Foundation resource-IAM role (prod)
+    needs: [validate, test, upgrade_resource_iam_writer_staging]
+    if: github.event_name == 'workflow_dispatch' && inputs.upgrade_resource_iam_writer && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production-foundation
+    concurrency:
+      group: production-mutations
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER_PROD }}
+          service_account: ${{ secrets.TF_FOUNDATION_SA_PROD }}
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: '1.15.8'
+          terraform_wrapper: false
+      - name: Upgrade Foundation resource-IAM custom role
+        working-directory: infra/terraform/foundation/envs/prod
+        run: |
+          terraform init -input=false -lockfile=readonly
+          terraform apply -input=false -lock-timeout=60s -auto-approve \
+            -target=module.custom_roles.google_project_iam_custom_role.resource_iam_writer
 
   bootstrap_plan_staging:
     name: Terraform plan — foundation bootstrap (staging)
