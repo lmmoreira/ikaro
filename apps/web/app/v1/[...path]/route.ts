@@ -44,6 +44,9 @@ async function proxy(
   const body = hasBody ? await request.arrayBuffer() : undefined;
   let upstream: Response;
   try {
+    // This Route Handler is the centralized same-origin gateway. It deliberately
+    // uses fetch directly to forward arbitrary requests, cookies, redirects, and
+    // response headers; feature code must use the shared BFF transport helpers.
     upstream = await fetch(upstreamUrl(path, request.nextUrl.search), {
       method: request.method,
       headers,
