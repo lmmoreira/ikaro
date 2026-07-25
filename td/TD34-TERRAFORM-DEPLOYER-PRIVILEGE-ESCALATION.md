@@ -3,7 +3,7 @@
 ## Status
 
 - **State**: 🟡 Open
-- **Phase**: phase 3 ownership transfer underway — runtime identities are Foundation-owned; the Cloud Run/Pub/Sub/Scheduler IAM handoff awaits protected applies
+- **Phase**: phase 3 ownership transfer underway — runtime and workload IAM are Foundation-owned; remaining resource-IAM/API transfers and de-privileging are pending
 - **Type**: Technical Debt / Infrastructure Security
 - **Priority**: High — a compromise of the trusted infrastructure deployment path can become project-wide privilege escalation
 - **Context**: `infra/terraform/envs/staging/main.tf`, `infra/terraform/envs/prod/main.tf`, `.github/workflows/infra-deploy.yml`, M17-S08 / M17-S24 deployer-role design
@@ -134,12 +134,11 @@ verified live state now contains all 27 staging and 28 production objects in
 Foundation state, and zero `module.iam` objects in the normal environment
 states. No service account or IAM binding was destroyed during the transfer.
 
-### Cloud Run, Pub/Sub, and Scheduler IAM transfer — implemented, pending protected applies
+### Completed Cloud Run, Pub/Sub, and Scheduler IAM transfer
 
-The next Foundation-only IAM configuration is implemented but has not yet been
-applied. Ordinary environment modules continue to own Cloud Run services,
-Pub/Sub topics and subscriptions, and Scheduler jobs. The new Foundation
-module owns only their IAM bindings:
+Ordinary environment modules continue to own Cloud Run services, Pub/Sub
+topics and subscriptions, and Scheduler jobs. Foundation now owns only their
+IAM bindings:
 
 - Cloud Run `roles/run.invoker` bindings for the backend, BFF, and web
   services, including the explicitly reviewed public BFF/web grants;
@@ -148,20 +147,37 @@ module owns only their IAM bindings:
   binding on `ikaro-pubsub-invoker`;
 - Cloud Scheduler's service-agent publisher bindings for the four cron topics.
 
-The protected Foundation applies must import 74 existing bindings in each
-environment before the normal environment applies remove their former state
-addresses with `destroy = false`. Foundation also creates one deliberate,
-permanent `roles/run.invoker` binding for the relay VM's deterministic service
-account. That removes routine relay toggles from Cloud Run IAM mutation; the
-service account itself already exists permanently and can invoke only the
-internal backend. The Foundation custom role receives only the six additional
-Cloud Run/Pub/Sub `getIamPolicy`/`setIamPolicy` permissions needed for this
-resource-IAM batch.
+The normal-root state handoff completed first with `destroy = false` in
+[run #30156561081](https://github.com/lmmoreira/ikaro/actions/runs/30156561081),
+which left every live binding intact while removing only the former Terraform
+addresses. The protected Foundation apply then completed in staging and
+production in
+[run #30157003979](https://github.com/lmmoreira/ikaro/actions/runs/30157003979).
 
-The protected Foundation apply must run first, followed by the normal-root
-state handoff. The plan must show the 74 imports, only the one reviewed relay
-binding create, and no IAM-policy deletion before this batch is recorded as
-live.
+Both environments imported 75 existing bindings: the 74 workload bindings plus
+the configured legacy `IAM_ADMIN_USER` backend invoker binding. Foundation also
+created the one deliberate, permanent `roles/run.invoker` binding for the relay
+VM's deterministic service account. That removes routine relay toggles from
+Cloud Run IAM mutation; the service account itself already exists permanently
+and can invoke only the internal backend. The Foundation custom role receives
+only the six additional Cloud Run/Pub/Sub `getIamPolicy`/`setIamPolicy`
+permissions needed for this resource-IAM batch.
+
+The initial adoption exposed a configuration-normalization defect: the
+subscription IAM imports used canonical `projects/<project>/subscriptions/<name>`
+IDs while the module configured short names. Google treats that difference as a
+replacement, so the 22 Pub/Sub subscriber grants in each environment were
+briefly removed and recreated during the successful apply. All grants were
+restored by that same run. The module now configures canonical subscription IDs
+and has a regression assertion; the next protected Foundation apply must verify
+that this batch plans no replacement.
+
+The one-time custom-role upgrade required to break the Terraform permission
+bootstrap cycle was performed only by the protected Foundation identity, first
+in staging and then in production, in
+[run #30156922806](https://github.com/lmmoreira/ikaro/actions/runs/30156922806).
+That migration-only workflow path has been removed; the legacy deployer was not
+re-granted any privilege.
 
 ### Remaining ownership-transfer scope
 
@@ -176,6 +192,14 @@ reviewed batches:
 Foundation adopts each live binding first, then the normal state relinquishes
 it without destroying the binding. Cross-state moves must continue to use
 explicit imports/state removal, never Terraform `moved` blocks.
+
+### Post-development follow-up
+
+- Reassess the legacy `IAM_ADMIN_USER` backend `roles/run.invoker` binding and
+  remove it unless a tested, supported internal-origin operator flow requires
+  it. The TD32 relay uses its VM service account, not this human binding.
+- Add Foundation environment-root regression coverage asserting that the only
+  public Cloud Run invoker grants are `allUsers` on `ikaro-bff` and `ikaro-web`.
 
 ## Proposed approach
 
