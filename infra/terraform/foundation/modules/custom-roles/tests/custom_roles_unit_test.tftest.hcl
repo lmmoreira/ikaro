@@ -13,8 +13,8 @@ run "roles_have_exactly_the_reviewed_permissions" {
   }
 
   assert {
-    condition     = google_project_iam_custom_role.resource_iam_writer.role_id == "tfFoundationResourceIamWriter" && length(google_project_iam_custom_role.resource_iam_writer.permissions) == 10 && alltrue([for permission in ["pubsub.subscriptions.getIamPolicy", "pubsub.subscriptions.setIamPolicy", "pubsub.topics.getIamPolicy", "pubsub.topics.setIamPolicy", "run.services.getIamPolicy", "run.services.setIamPolicy", "secretmanager.secrets.getIamPolicy", "secretmanager.secrets.setIamPolicy", "storage.buckets.getIamPolicy", "storage.buckets.setIamPolicy"] : contains(tolist(google_project_iam_custom_role.resource_iam_writer.permissions), permission)])
-    error_message = "The Foundation resource writer must contain only the reviewed Cloud Run, Pub/Sub, bucket, and secret IAM-policy permissions."
+    condition     = google_project_iam_custom_role.resource_iam_writer.role_id == "tfFoundationResourceIamWriter" && length(google_project_iam_custom_role.resource_iam_writer.permissions) == 12 && alltrue([for permission in ["artifactregistry.repositories.getIamPolicy", "artifactregistry.repositories.setIamPolicy", "pubsub.subscriptions.getIamPolicy", "pubsub.subscriptions.setIamPolicy", "pubsub.topics.getIamPolicy", "pubsub.topics.setIamPolicy", "run.services.getIamPolicy", "run.services.setIamPolicy", "secretmanager.secrets.getIamPolicy", "secretmanager.secrets.setIamPolicy", "storage.buckets.getIamPolicy", "storage.buckets.setIamPolicy"] : contains(tolist(google_project_iam_custom_role.resource_iam_writer.permissions), permission)])
+    error_message = "The Foundation resource writer must contain only the reviewed Artifact Registry, Cloud Run, Pub/Sub, bucket, and secret IAM-policy permissions."
   }
 
   assert {
