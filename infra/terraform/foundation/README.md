@@ -14,6 +14,23 @@ Each foundation root has a separate state prefix in `gs://ikaro-tfstate`:
 | staging | `foundation/staging` | `ikaro-tf-foundation@ikaro-staging` | `staging-foundation` |
 | prod | `foundation/prod` | `ikaro-tf-foundation@ikaro-prod` | `production-foundation` |
 
+## Relay database provisioning order (TD32)
+
+The relay VM is on-demand, but its Cloud SQL identity is persistent whenever a
+database instance is configured. In `envs/prod/terraform.tfvars`, keep
+`create_relay_vm = false` unless an operator session is explicitly required.
+After the production Cloud SQL instance is created, add its non-secret
+`relay_db_instance_name` and `relay_db_instance_connection_name` values to the
+same file and apply Foundation first. The application migration that grants
+the relay read-only schema privileges must run only after that Foundation apply
+has created `google_sql_user.relay`; otherwise the migration intentionally has
+no relay role to grant and its recorded run cannot be replayed automatically.
+
+Staging has known instance values in its Foundation variable defaults. Production
+does not have an instance until the database is provisioned, so its empty
+defaults are deliberate and must be replaced through a reviewed change when
+the database becomes available.
+
 The foundation deployer is keyless. Google permits WIF impersonation only for
 `lmmoreira/ikaro` on `refs/heads/main` with the matching protected GitHub
 Environment claim. The planner is repository-scoped and read-only so a PR can
