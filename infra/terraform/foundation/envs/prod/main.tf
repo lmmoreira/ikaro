@@ -15,31 +15,6 @@ module "project_services" {
   services   = ["iap.googleapis.com"]
 }
 
-# TD34 final cleanup, step 1: Foundation adopts the temporary shared-state
-# bootstrap grants before the normal production root forgets its former state
-# addresses. This preserves the live bindings during the cross-backend handoff;
-# the following Foundation-only step removes the adopted grants permanently.
-module "foundation_state_bootstrap_handoff" {
-  source = "../../../modules/foundation-state-bootstrap"
-
-  project_id        = var.project_id
-  state_bucket_name = var.state_bucket_name
-}
-
-import {
-  for_each = toset(["staging", "prod"])
-
-  to = module.foundation_state_bootstrap_handoff.google_project_iam_member.deployer_foundation_state_bootstrap[each.key]
-  id = "${var.project_id} roles/storage.objectAdmin serviceAccount:ikaro-tf-deployer@ikaro-${each.key}.iam.gserviceaccount.com td34_${each.key}_foundation_state_bootstrap"
-}
-
-import {
-  for_each = toset(["staging", "prod"])
-
-  to = module.foundation_state_bootstrap_handoff.google_project_iam_member.deployer_foundation_bucket_iam_bootstrap[each.key]
-  id = "${var.project_id} roles/storage.admin serviceAccount:ikaro-tf-deployer@ikaro-${each.key}.iam.gserviceaccount.com td34_${each.key}_foundation_bucket_iam_bootstrap"
-}
-
 # TD34: Foundation, not the routine environment deployer, owns runtime
 # identities and their IAM bindings. The explicit imports below will adopt the
 # existing objects without changing their live access.
