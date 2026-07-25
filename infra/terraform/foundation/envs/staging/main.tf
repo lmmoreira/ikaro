@@ -272,6 +272,12 @@ resource "google_project_iam_member" "foundation_deployer_resource_iam_writer" {
   member  = "serviceAccount:${module.control_plane.foundation_deployer_email}"
 }
 
+resource "google_project_iam_member" "foundation_deployer_relay_vm_operator" {
+  project = var.project_id
+  role    = module.custom_roles.relay_vm_operator_role_id
+  member  = "serviceAccount:${module.control_plane.foundation_deployer_email}"
+}
+
 # TD34 migration only: foundation adopts the pre-existing normal deployer's
 # broad project roles before later batches can safely replace or revoke them.
 # Importing these bindings changes state ownership only; it does not alter IAM.
