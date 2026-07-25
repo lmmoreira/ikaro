@@ -33,16 +33,6 @@ locals {
   bootstrap_image = "gcr.io/cloudrun/hello@sha256:3beb8d6dd8bac1c597d10f3ddf59f5f684d6054ab589c4334c0486dad07a3f97"
 }
 
-# TD34: IAP is now managed by the separately protected foundation root. Forget
-# this former normal-root state entry without disabling the already-enabled API.
-removed {
-  from = google_project_service.iap
-
-  lifecycle {
-    destroy = false
-  }
-}
-
 module "network" {
   source = "../../modules/network"
 
@@ -101,16 +91,6 @@ locals {
     web            = "ikaro-web@${var.project_id}.iam.gserviceaccount.com"
     pubsub_invoker = "ikaro-pubsub-invoker@${var.project_id}.iam.gserviceaccount.com"
     migrate        = "ikaro-migrate@${var.project_id}.iam.gserviceaccount.com"
-  }
-}
-
-# TD34 transfers this complete IAM module to Foundation state. Keep every live
-# identity and binding; only this normal state's ownership is relinquished.
-removed {
-  from = module.iam
-
-  lifecycle {
-    destroy = false
   }
 }
 
@@ -379,148 +359,4 @@ module "scheduler" {
 
   cron_topic_ids        = module.pubsub.topic_ids
   outbox_relay_schedule = var.outbox_relay_schedule
-}
-
-# TD34: Foundation imports these existing IAM bindings before this normal
-# state relinquishes them. The ordinary modules retain their services, topics,
-# subscriptions, and jobs; Terraform must never destroy their live policies.
-removed {
-  from = module.cloudrun_backend.google_cloud_run_v2_service_iam_member.invoker
-
-  lifecycle {
-    destroy = false
-  }
-}
-
-removed {
-  from = module.cloudrun_bff.google_cloud_run_v2_service_iam_member.invoker
-
-  lifecycle {
-    destroy = false
-  }
-}
-
-removed {
-  from = module.cloudrun_bff.google_cloud_run_v2_service_iam_member.public_invoker
-
-  lifecycle {
-    destroy = false
-  }
-}
-
-removed {
-  from = module.cloudrun_web.google_cloud_run_v2_service_iam_member.public_invoker
-
-  lifecycle {
-    destroy = false
-  }
-}
-
-removed {
-  from = module.pubsub.google_pubsub_subscription_iam_member.service_agent_subscriber
-
-  lifecycle {
-    destroy = false
-  }
-}
-
-removed {
-  from = module.pubsub.google_pubsub_topic_iam_member.service_agent_dlq_publisher
-
-  lifecycle {
-    destroy = false
-  }
-}
-
-removed {
-  from = module.pubsub.google_service_account_iam_member.pubsub_sa_token_creator
-
-  lifecycle {
-    destroy = false
-  }
-}
-
-removed {
-  from = module.pubsub.google_pubsub_topic_iam_member.backend_publisher
-
-  lifecycle {
-    destroy = false
-  }
-}
-
-removed {
-  from = module.scheduler.google_pubsub_topic_iam_member.scheduler_publisher
-
-  lifecycle {
-    destroy = false
-  }
-}
-
-# TD34: Foundation has already adopted these live policies. Relinquish only
-# this normal state's former addresses; destroy = false preserves every grant
-# and audit configuration while Foundation becomes the sole Terraform owner.
-removed {
-  from = module.database.google_project_iam_member.admin_cloudsql_client
-
-  lifecycle {
-    destroy = false
-  }
-}
-
-removed {
-  from = module.database.google_project_iam_member.admin_cloudsql_instance_user
-
-  lifecycle {
-    destroy = false
-  }
-}
-
-removed {
-  from = module.storage.google_storage_bucket_iam_member.public_viewer
-
-  lifecycle {
-    destroy = false
-  }
-}
-
-removed {
-  from = module.relay_vm.google_project_iam_audit_config.cloudsql_login
-
-  lifecycle {
-    destroy = false
-  }
-}
-
-removed {
-  from = module.relay_vm.google_project_iam_audit_config.iap_tunnel_access
-
-  lifecycle {
-    destroy = false
-  }
-}
-
-removed {
-  from = module.relay_vm.google_project_iam_audit_config.secretmanager_access
-
-  lifecycle {
-    destroy = false
-  }
-}
-
-# TD34: Foundation now owns the relay control plane. Relinquish this normal
-# state's two live, always-on resources without changing either cloud object.
-removed {
-  from = module.relay_vm.google_service_account.relay
-
-  lifecycle {
-    destroy = false
-  }
-}
-
-removed {
-  from = module.relay_vm.google_compute_firewall.allow_iap_ssh
-
-  lifecycle {
-    destroy = false
-  }
 }
