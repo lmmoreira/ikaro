@@ -52,16 +52,15 @@ removed {
   }
 }
 
-# TD34 bootstrap only: the shared state bucket belongs to ikaro-prod, while
-# its bucket-level policy intentionally blocks both normal deployers outside
-# envs/<env>. This project-IAM condition grants only the two new foundation
-# prefixes so the existing deployers can create the first backend lock. Remove
-# this module in TD34's de-privilege phase once foundation state is live.
-module "foundation_state_bootstrap" {
-  source = "../../modules/foundation-state-bootstrap"
+# TD34 final cleanup, step 2: Foundation has adopted the temporary bootstrap
+# grants. Forget the normal-state addresses without touching their live IAM
+# policy; the following Foundation-only cleanup removes those grants.
+removed {
+  from = module.foundation_state_bootstrap
 
-  project_id        = var.project_id
-  state_bucket_name = "ikaro-tfstate"
+  lifecycle {
+    destroy = false
+  }
 }
 
 module "network" {
