@@ -1,5 +1,8 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
+// Foundation creates the IAM database role before application migrations run.
+// Environments without a configured relay database intentionally no-op here;
+// production must apply Foundation before enabling its first database migration.
 const RELAY_READ_GRANTS_SQL = `
   DO $$
   DECLARE
