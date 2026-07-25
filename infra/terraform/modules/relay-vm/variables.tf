@@ -48,6 +48,11 @@ variable "network_id" {
   type        = string
 }
 
+variable "operator_service_account_email" {
+  description = "Email of the protected control-plane service account that may attach this relay identity to its VM. The module grants roles/iam.serviceAccountUser only on this relay service account, never project-wide."
+  type        = string
+}
+
 variable "platform_admin_key_secret_id" {
   description = "Secret Manager resource ID of the platform-admin-key secret (module.secrets.secret_ids[\"platform-admin-key\"]) — grants the relay VM's own service account read access so the tenant-provisioning acceptance criterion (POST /internal/tenants with X-Platform-Admin-Key) is exercisable from inside the relay VM via the metadata-server-minted access token, no gcloud CLI needed. Previously only the backend runtime SA had this grant (TD32 discovery gap)."
   type        = string

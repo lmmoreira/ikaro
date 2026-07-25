@@ -201,25 +201,30 @@ staging human Cloud SQL project bindings, the production cross-project
 Artifact Registry bindings, and the three relay audit configurations in each
 environment.
 
-### Remaining ownership-transfer scope
+### Relay control-plane transfer (pending protected applies)
 
-The normal environment states now retain only the permanent relay service
-account from this IAM migration surface, one in each environment. The relay
-identity moves with the relay-control-plane redesign rather than through a
-standalone state handoff, because VM creation must receive its deterministic
-email without letting the normal deployer create or administer service
-accounts.
+This pending PR transfers the relay control plane while keeping the VM
+disabled. The relay VM remains an environment-local VPC resource: staging runs in
+`ikaro-staging` and production runs in `ikaro-prod`. Its Terraform ownership,
+however, will become exclusively Foundation-owned. The protected Foundation
+roots import the existing relay service account and IAP-only firewall as no-op
+adoptions and own the default-off `create_relay_vm` toggle, VM, instance IAP
+and OS Login policy, Secret Manager accessor grant, Cloud SQL IAM roles, and
+IAM database user when the database exists.
+
+The normal environment roots will relinquish the existing service-account and
+firewall addresses with `removed { lifecycle { destroy = false } }`; no cloud
+resource is replaced or deleted. They no longer contain the temporary
+`roles/compute.instanceAdmin.v1` grant, IAM-propagation sleep, relay module,
+or relay toggle. Foundation receives `roles/iam.serviceAccountUser` only on
+the relay service account, not project-wide, so it can attach the identity to
+the VM without a broad impersonation grant.
+
+### Remaining ownership-transfer scope
 
 Production also retains four deliberately temporary
 `module.foundation_state_bootstrap` bindings. They are migration bridge
 capabilities, not ordinary resource IAM, and remain until phase 5.
-
-The disabled relay path is not represented in current state, but it remains
-in normal-root configuration: enabling the VM would make the normal deployer
-create project-level Compute, Cloud SQL, Secret Manager, IAP-tunnel, and
-OS Login IAM bindings. That path must be redesigned so Foundation owns every
-policy grant and the normal root receives only the resulting non-IAM resource
-inputs before the normal deployer's broad roles can be revoked.
 
 Future batches use this invariant: introduce the Foundation resource and its
 explicit import identifier, then require a protected Foundation plan that
