@@ -15,20 +15,6 @@ module "project_services" {
   services   = ["iap.googleapis.com"]
 }
 
-# TD34 cleanup stage 1: adopt the API that was temporarily enabled by the
-# rejected Policy Troubleshooter proof. The next cleanup stage removes this
-# resource; disable_on_destroy then disables the API through Terraform.
-resource "google_project_service" "policytroubleshooter_retirement" {
-  project            = var.project_id
-  service            = "policytroubleshooter.googleapis.com"
-  disable_on_destroy = true
-}
-
-import {
-  to = google_project_service.policytroubleshooter_retirement
-  id = "${var.project_id}/policytroubleshooter.googleapis.com"
-}
-
 # TD34: Foundation, not the routine environment deployer, owns runtime
 # identities and their IAM bindings. The explicit imports below will adopt the
 # existing objects without changing their live access.
