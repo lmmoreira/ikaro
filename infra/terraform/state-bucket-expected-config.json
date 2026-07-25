@@ -99,13 +99,6 @@
       "conditionExpression": "resource.name.startsWith('projects/_/buckets/ikaro-tfstate/objects/foundation/staging/')"
     }
   ],
-  "_requiredProjectIamBindings_comment": "Checked for exact uniqueness, not just presence: GCP IAM evaluates bindings additively (OR), so an extra permissive binding for the same role+member would defeat this one even while it remains present. Each entry must match exactly one live binding for its (role, member) pair.",
-  "requiredProjectIamBindings": [
-    {
-      "name": "prod-deployer-storage-admin-excludes-state-bucket",
-      "role": "roles/storage.admin",
-      "member": "serviceAccount:ikaro-tf-deployer@ikaro-prod.iam.gserviceaccount.com",
-      "conditionExpression": "!resource.name.startsWith('projects/_/buckets/ikaro-tfstate')"
-    }
-  ]
+  "_requiredProjectIamBindings_comment": "TD34 removed the normal deployer's former broad roles/storage.admin project grant entirely, so no negative-condition exception is needed. Keep this empty list for the generic verifier: future required project bindings must be exact and unique because IAM grants are additive.",
+  "requiredProjectIamBindings": []
 }
