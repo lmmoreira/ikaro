@@ -289,6 +289,8 @@ module "relay_control_plane" {
   platform_admin_key_secret_id   = var.relay_platform_admin_key_secret_id
   db_instance_connection_name    = var.relay_db_instance_connection_name
   db_instance_name               = var.relay_db_instance_name
+
+  depends_on = [google_project_iam_member.foundation_deployer_relay_vm_operator]
 }
 
 import {
