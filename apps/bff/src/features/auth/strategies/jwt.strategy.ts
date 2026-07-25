@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { SESSION_COOKIE_NAME } from '../session-cookie';
 import { PassportStrategy } from '@nestjs/passport';
 import { Request } from 'express';
 import { ExtractJwt, Strategy } from 'passport-jwt';
@@ -7,7 +8,7 @@ import { CurrentUserPayload } from '../../../shared/decorators/current-user.deco
 
 function extractFromCookie(req: Request): string | null {
   const raw = req?.headers?.cookie ?? '';
-  const match = /(?:^|;\s*)access_token=([^;]+)/.exec(raw);
+  const match = new RegExp(String.raw`(?:^|;\s*)${SESSION_COOKIE_NAME}=([^;]+)`).exec(raw);
   return match ? decodeURIComponent(match[1]) : null;
 }
 

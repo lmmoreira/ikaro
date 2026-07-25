@@ -11,7 +11,7 @@ variable "bff_max_instances" {
 }
 
 variable "bff_real_uri" {
-  description = "BFF's real *.run.app URI, used to build GOOGLE_CALLBACK_URL. Cannot be derived from module.cloudrun_bff.service_uri (a module cannot take its own output as one of its own inputs) — this is the standard Terraform bootstrap pattern instead: apply once with the placeholder default, read the real value from this root's bff_service_uri output, paste it here (local.auto.tfvars or terraform.tfvars), then apply again. Real apply finding, 2026-07-19: the *.run.app URL is a per-project hash (e.g. \"ikaro-bff-crle4i3nrq-rj.a.run.app\"), not the deterministic project-number format an earlier assumption relied on, so it cannot be precomputed either."
+  description = "BFF's real *.run.app URI, used for the web service's server-only BFF_UPSTREAM_URL. Cannot be derived from module.cloudrun_bff.service_uri (a module cannot take its own output as one of its own inputs) — this is the standard Terraform bootstrap pattern instead: apply once with the placeholder default, read the real value from this root's bff_service_uri output, paste it here (local.auto.tfvars or terraform.tfvars), then apply again. Real apply finding, 2026-07-19: the *.run.app URL is a per-project hash (e.g. \"ikaro-bff-crle4i3nrq-rj.a.run.app\"), not the deterministic project-number format an earlier assumption relied on, so it cannot be precomputed either."
   type        = string
   default     = "https://ikaro-bff-placeholder.invalid"
 }

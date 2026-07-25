@@ -85,13 +85,11 @@ Since we are following **Trunk-Based Development**, the frontend must have a "Bu
   - Handles caching, background syncing, and loading states.
   - **Multi-Tenancy:** Every query key is prefixed with `tenantId` (from `useTenant()`) to prevent cross-tenant data leaks in the local cache and to give tenant-scoped invalidation a single shared prefix to target.
   - **Booking queries specifically** share the `['bookings', tenantId, ...]` prefix so one invalidation (`useInvalidateBookings()` in `apps/web/features/booking/hooks/useBookingMutations.ts`) reaches the queue, detail, and any filtered booking view at once. If a booking query key's shape ever changes, update this shared invalidation contract in the same change. Booking detail mutations should go through the shared mutation hooks, not ad-hoc `useMutation()` calls in page components, to keep this invalidation contract centralized.
-- **API Client (`apps/web/shared/lib/api/bff-client.ts`):** Axios wrapper with `withCredentials: true` — the browser attaches the `access_token` httpOnly cookie automatically. **Updated (`M13-S17`):** no `Authorization`/`X-Tenant-Slug` headers are attached manually — the original client-side singleton (`configureBffClient()`) that did this was replaced; see the transport patterns below.
+- **API Client (`apps/web/shared/lib/api/bff-client.ts`):** Axios wrapper targeting same-origin `/v1`. The browser attaches the httpOnly session cookie automatically (`__Host-access_token` in production, `access_token` locally); no `Authorization`/`X-Tenant-Slug` headers are attached manually.
 
-**Two auth-transport patterns exist — pick by context, not by habit (clarified in M13-S42):**
-- **Inside an authenticated shell** (dashboard or `/{slug}/my-account`): use the Bearer-token `bffClient` (`apps/web/shared/lib/api/bff-client.ts`) through feature-owned API helpers and hooks. The old `configureBffClient({ token, tenantSlug, tenantId })` singleton is gone; `tenantId` now comes from `useTenant()` in client hooks.
-- **On the public hotsite, or any client component mounted outside a shell** (e.g. `HotsiteAuthBar`): there is no in-memory token to configure, and the JWT lives in an `httpOnly` cookie that client JS can never read — and even if it could, `SameSite: 'lax'` (`apps/bff/src/features/auth/cookie-options.ts`) blocks the browser from attaching it to a cross-origin `fetch()`/XHR anyway (only top-level navigations are allowed). The only way to use the session here is a **same-origin Next.js route handler** that reads the cookie server-side and forwards it manually as a `Cookie` header to the BFF (see `apps/web/app/api/customers/me/route.ts`). Client components then call that same-origin route (`fetch('/api/customers/me')`), never the BFF directly.
+**One browser transport pattern applies everywhere:** dashboard, account, and hotsite components call the same-origin `/v1/*` gateway through `bffClient` or a feature API helper. The web server forwards to the absolute `BFF_UPSTREAM_URL`; browser code must never target that host directly. Route Handlers remain appropriate when they add web-owned composition or response behavior, not merely to bridge a cookie.
 
-Don't reach for `bffClient` outside a shell context, and don't try to add `credentials: 'include'` to a direct BFF call from the public hotsite expecting it to carry the cookie — it won't.
+Do not add a direct cross-origin BFF fetch or try to expose `BFF_UPSTREAM_URL` to browser code.
 Likewise, do not fan out across multiple BFF calls inside a page or route file and merge the responses in `apps/web`; if the screen needs composite data, add or extend the BFF contract so the web layer consumes one response and stays composition-only.
 
 **Dashboard section routes must be shell-wrapped.** Any authenticated dashboard area under `app/dashboard/<section>/` needs a sibling `layout.tsx` that loads `DashboardShell` plus the locale/formatting/tenant providers. A bare `page.tsx` under `app/dashboard/<section>/` is a bug: it renders outside the staff shell and breaks the sidebar/topbar/bottom-nav contract.
@@ -200,22 +198,12 @@ CMD ["node_modules/.bin/next", "start"]
 
 | Variable | Value (prod) | Notes |
 |---|---|---|
-| `NEXT_PUBLIC_BFF_URL` | `https://bff.<ikaro-domain>` | Injected at build time via Cloud Run `--set-env-vars` |
+| `NEXT_PUBLIC_BFF_URL` | `/v1` | Runtime-injected browser base for the same-origin gateway |
+| `BFF_UPSTREAM_URL` | `https://bff.<ikaro-domain>/v1` | Server-only absolute BFF base; never exposed to browser code |
 | `NODE_ENV` | `production` | |
 | `PORT` | `3000` | Cloud Run sets this automatically |
 
-**`next.config.js`** — rewrites local `/api` prefix to BFF (local dev only):
-```javascript
-/** @type {import('next').NextConfig} */
-module.exports = {
-  env: {
-    NEXT_PUBLIC_BFF_URL: process.env.NEXT_PUBLIC_BFF_URL ?? 'http://localhost:3002',
-  },
-  images: {
-    domains: ['storage.googleapis.com'],  // for tenant photo URLs
-  },
-};
-```
+**Gateway:** `app/v1/[...path]/route.ts` forwards `/v1/*` to `BFF_UPSTREAM_URL`; no Next.js rewrite or browser-visible BFF host is used.
 
 **CI/CD:** Full pipeline in `docs/09-CI_CD_PIPELINE.md` (`ci-frontend.yml` + `deploy-frontend.yml`). Summary:
 - PR gate: ESLint, `tsc --noEmit`, Vitest, Playwright, Gitleaks
@@ -238,7 +226,7 @@ pnpm dev
 - Hot Module Replacement (HMR) out of the box
 - Server-side rendering on every request (no build step needed locally)
 
-**API calls in local dev:** The Next.js app calls `NEXT_PUBLIC_BFF_URL` which defaults to `http://localhost:3002`. No proxy configuration needed — direct HTTP call to the local BFF process.
+**API calls in local dev:** Browser code calls `/v1`; the Next.js gateway forwards to `BFF_UPSTREAM_URL=http://localhost:3002/v1`.
 
 **MSW (Mock Service Worker):** Optional. Use to develop UI before BFF endpoints exist:
 ```typescript

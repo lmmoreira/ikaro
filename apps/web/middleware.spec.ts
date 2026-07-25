@@ -114,6 +114,14 @@ describe('middleware', () => {
     expect(response.headers.get('location')).toBeNull();
   });
 
+  it('preserves tenantSlug when redirecting an unauthenticated dashboard request', async () => {
+    const response = await middleware(makeRequest('/dashboard/bookings?tenantSlug=lavacar-bh'));
+
+    expect(response.headers.get('location')).toBe(
+      'http://localhost:3000/dashboard/login?tenantSlug=lavacar-bh',
+    );
+  });
+
   it('passes through a protected dashboard route with a valid STAFF token', async () => {
     const response = await middleware(makeRequest('/dashboard/bookings', validStaffToken));
 

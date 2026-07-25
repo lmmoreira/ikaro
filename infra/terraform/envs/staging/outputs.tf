@@ -4,7 +4,7 @@ output "backend_service_uri" {
 }
 
 output "bff_service_uri" {
-  description = "BFF's real *.run.app URI. After the first apply, paste this into bff_real_uri (local.auto.tfvars or terraform.tfvars) and re-apply so GOOGLE_CALLBACK_URL uses the real, reachable URL — then register that same callback URL in the Google Cloud OAuth client configuration."
+  description = "BFF's real *.run.app URI. After the first apply, paste this into bff_real_uri (local.auto.tfvars or terraform.tfvars) and re-apply so web's BFF_UPSTREAM_URL reaches the real BFF service."
   value       = module.cloudrun_bff.service_uri
 }
 

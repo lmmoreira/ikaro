@@ -99,6 +99,12 @@ const BFF_EXEMPT_KEYS: readonly string[] = [
 // flag never needed in a deployed environment).
 const WEB_EXEMPT_KEYS: readonly string[] = [];
 
+// Server-only web configuration cannot be discovered from PUBLIC_ENV_KEYS,
+// but is still required by a deployed web instance. Keep this short explicit
+// list alongside the public contract so Terraform validation covers both
+// sides of the web application's environment boundary.
+const WEB_REQUIRED_SERVER_ENV_KEYS: readonly string[] = ['BFF_UPSTREAM_URL'];
+
 const APP_SPECS: readonly AppEnvSpec[] = [
   {
     appName: 'backend',
@@ -121,8 +127,10 @@ const APP_SPECS: readonly AppEnvSpec[] = [
     cloudRunModule: 'cloudrun_web',
     exemptKeys: WEB_EXEMPT_KEYS,
     envRoots: ALL_ENV_ROOTS,
-    extractKeys: (repoRoot) =>
-      extractPublicEnvKeys(path.join(repoRoot, 'apps/web/shared/lib/runtime-env/public-env.ts')),
+    extractKeys: (repoRoot) => [
+      ...extractPublicEnvKeys(path.join(repoRoot, 'apps/web/shared/lib/runtime-env/public-env.ts')),
+      ...WEB_REQUIRED_SERVER_ENV_KEYS,
+    ],
   },
 ];
 
@@ -166,7 +174,7 @@ function main(): void {
   if (violations.length === 0) {
     console.log(
       'env-contract: OK — every cloud-required env key (backend/bff env.validation.ts, ' +
-        'web PUBLIC_ENV_KEYS) is wired in Terraform.',
+        'web public/server env contract) is wired in Terraform.',
     );
     return;
   }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifyCustomerToken, verifyStaffToken } from '@/features/auth/verify-edge-jwt';
 import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
+import { SESSION_COOKIE_NAME } from '@/features/auth/session-cookie';
 
 // Shared manager-only route list for /dashboard — M13-S31/S32 own this single edit;
 // M13-S35 (hotsite editor) reuses it. STAFF hitting these is sent back to the dashboard home.
@@ -100,25 +101,36 @@ function applySecurityHeaders(response: NextResponse, pathname: string): NextRes
   return response;
 }
 
+function dashboardLoginUrl(request: NextRequest): URL {
+  const loginUrl = new URL('/dashboard/login', request.url);
+  const tenantSlug = request.nextUrl.searchParams.get('tenantSlug');
+  if (tenantSlug) loginUrl.searchParams.set('tenantSlug', tenantSlug);
+  return loginUrl;
+}
+
+async function resolveDashboardRedirect(
+  request: NextRequest,
+  pathname: string,
+  token: string | undefined,
+): Promise<NextResponse | null> {
+  if (!pathname.startsWith('/dashboard') || pathname === '/dashboard/login') return null;
+
+  const staffClaims = token ? await verifyStaffToken(token) : null;
+  if (!staffClaims) return NextResponse.redirect(dashboardLoginUrl(request));
+
+  if (isManagerOnlyRoute(pathname) && staffClaims.role !== 'MANAGER') {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
+  return null;
+}
+
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
-  const token = request.cookies.get('access_token')?.value;
+  const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
 
-  if (pathname.startsWith('/dashboard') && pathname !== '/dashboard/login') {
-    const staffClaims = token ? await verifyStaffToken(token) : null;
-    if (!staffClaims) {
-      return applySecurityHeaders(
-        NextResponse.redirect(new URL('/dashboard/login', request.url)),
-        pathname,
-      );
-    }
-    if (isManagerOnlyRoute(pathname) && staffClaims.role !== 'MANAGER') {
-      return applySecurityHeaders(
-        NextResponse.redirect(new URL('/dashboard', request.url)),
-        pathname,
-      );
-    }
-  }
+  const dashboardRedirect = await resolveDashboardRedirect(request, pathname, token);
+  if (dashboardRedirect) return applySecurityHeaders(dashboardRedirect, pathname);
 
   const myAccountMatch = MY_ACCOUNT_PATTERN.exec(pathname);
   if (myAccountMatch) {

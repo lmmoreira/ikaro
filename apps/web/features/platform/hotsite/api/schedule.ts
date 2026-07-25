@@ -1,5 +1,5 @@
 import type { AvailabilityResponse, AvailabilitySummaryResponse } from '@ikaro/types';
-import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
+import { buildBffUrl } from '@/shared/lib/api/bff-url';
 
 export async function fetchAvailabilitySummary(
   slug: string,
@@ -8,12 +8,9 @@ export async function fetchAvailabilitySummary(
   serviceIds: readonly string[],
 ): Promise<AvailabilitySummaryResponse> {
   const params = new URLSearchParams({ from, to, serviceIds: serviceIds.join(',') });
-  const res = await fetch(
-    `${getPublicEnv('NEXT_PUBLIC_BFF_URL')}/schedule/availability/summary?${params}`,
-    {
-      headers: { 'X-Tenant-Slug': slug },
-    },
-  );
+  const res = await fetch(`${buildBffUrl('/schedule/availability/summary')}?${params}`, {
+    headers: { 'X-Tenant-Slug': slug },
+  });
 
   if (!res.ok) throw new Error(`Failed to fetch availability summary for slug "${slug}"`);
 
@@ -26,12 +23,9 @@ export async function fetchAvailability(
   serviceIds: readonly string[],
 ): Promise<AvailabilityResponse> {
   const params = new URLSearchParams({ date, serviceIds: serviceIds.join(',') });
-  const res = await fetch(
-    `${getPublicEnv('NEXT_PUBLIC_BFF_URL')}/schedule/availability?${params}`,
-    {
-      headers: { 'X-Tenant-Slug': slug },
-    },
-  );
+  const res = await fetch(`${buildBffUrl('/schedule/availability')}?${params}`, {
+    headers: { 'X-Tenant-Slug': slug },
+  });
 
   if (!res.ok) throw new Error(`Failed to fetch availability for slug "${slug}"`);
 

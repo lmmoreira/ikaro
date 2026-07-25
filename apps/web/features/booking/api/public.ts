@@ -8,7 +8,7 @@ import type {
 } from '@ikaro/types';
 import { bffClient } from '@/shared/lib/api/bff-client';
 import { FetchError, parseErrorBody } from '@/shared/lib/api/errors';
-import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
+import { buildBffUrl } from '@/shared/lib/api/bff-url';
 
 export class CreateBookingError extends FetchError {
   constructor(
@@ -27,7 +27,7 @@ export async function createBooking(
   slug: string,
   payload: CreateBookingRequest,
 ): Promise<BookingResponse> {
-  const res = await fetch(`${getPublicEnv('NEXT_PUBLIC_BFF_URL')}/bookings`, {
+  const res = await fetch(buildBffUrl('/bookings'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Tenant-Slug': slug },
     body: JSON.stringify(payload),
@@ -87,14 +87,13 @@ export async function submitGuestBookingInfo(
   token: string,
   body: SubmitGuestBookingInfoRequest,
 ): Promise<SubmitGuestBookingInfoResponse> {
-  const res = await fetch(
-    `${getPublicEnv('NEXT_PUBLIC_BFF_URL')}/bookings/${bookingId}/submit-info/guest?token=${encodeURIComponent(token)}`,
-    {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    },
-  );
+  const guestSubmissionPath = `/bookings/${bookingId}/submit-info/guest`;
+  const guestSubmissionUrl = buildBffUrl(guestSubmissionPath);
+  const res = await fetch(`${guestSubmissionUrl}?token=${encodeURIComponent(token)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
 
   if (!res.ok) {
     const errorBody = await parseErrorBody(res);

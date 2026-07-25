@@ -75,9 +75,9 @@ A separate read endpoint is acceptable only when:
 
 ## Web → BFF Transport Layer (apps/web)
 
-Two transport helpers in `apps/web/shared/lib/api/` cover **all** `apps/web` → BFF calls. Never write a raw `fetch()` URL inside a hook, component, or page outside these two — the anti-pattern of a duplicate URL going stale silently (M13-S05) is caught here.
+The browser-facing BFF base is always `NEXT_PUBLIC_BFF_URL=/v1`. `apps/web/app/v1/[...path]/route.ts` is the same-origin gateway: it forwards the request to the absolute, server-only `BFF_UPSTREAM_URL` (which also includes `/v1`). This is required because staging's web and BFF Cloud Run hosts do not share a parent domain; it is also the production contract. Never expose `BFF_UPSTREAM_URL` to browser code or write a raw BFF URL outside the shared helpers.
 
-**`NEXT_PUBLIC_BFF_URL`'s value must itself include the `/v1` prefix.** BFF sets a global route prefix on every endpoint (`app.setGlobalPrefix('v1')`, `apps/bff/src/main.ts`) — none of `bffServerFetch`/`bffPublicFetch`/`bffClient`'s call sites add it themselves, matching `apps/web/.env.example`'s own local-dev convention (`NEXT_PUBLIC_BFF_URL=http://localhost:3002/v1`). The prefix belongs in the base URL, not each call site. Miss it in any environment's config and **every** web→BFF call 404s — not just one endpoint (M17-S27, 2026-07-23: both staging and prod Terraform set this env var to the bare `*.run.app`/custom-domain origin, breaking every server-side BFF call including web's own `/api/health/ready`, which checks BFF reachability).
+`buildBffUrl()` centralizes this split: it resolves to `/v1` in browser code and to `BFF_UPSTREAM_URL` on the web server. BFF itself still sets the global `v1` prefix, so both configured bases include it.
 
 ### `bffServerFetch(token, path, init?)` — server-only
 
@@ -89,7 +89,7 @@ bffServerFetch(token: string, path: string, init?: BffServerFetchInit): Promise<
 
 **Use in:** Server Components, Route Handlers (`app/api/**/route.ts`), `page.tsx`, `layout.tsx`
 
-- Passes the JWT as `Cookie: access_token=<token>` — token comes from `(await cookies()).get('access_token')?.value ?? ''`
+- Passes the JWT as the session-cookie value — `__Host-access_token` in production and `access_token` locally — read by the server from the request cookies
 - Default `cache: 'no-store'` — always fetches fresh data
 - Reuses the shared base transport (`bffPublicFetch`) for URL construction, timeout, and default request policy
 - **Never import in `'use client'` files** — server transport only
@@ -109,7 +109,7 @@ bffPublicFetch(path: string, init?: BffServerFetchInit): Promise<Response>
 
 **Use in:** public or guest Server Components and Route Handlers that need the BFF base URL and centralized timeout/cache policy but do **not** authenticate with the dashboard cookie
 
-- Builds `NEXT_PUBLIC_BFF_URL + path`
+- Builds `BFF_UPSTREAM_URL + path` on the web server
 - Default `cache: 'no-store'`
 - Default timeout via `AbortSignal.timeout(8000)` when no signal is provided
 - Use this instead of a raw `fetch(NEXT_PUBLIC_BFF_URL + ...)` whenever the call is server-side but not cookie-authenticated
@@ -124,7 +124,7 @@ Canonical callers:
 
 **Use in:** React Query hooks (`features/**/hooks/use*.ts`), client-side mutations
 
-- Browser sends the `access_token` cookie automatically via `withCredentials: true` — no token parameter needed
+- Browser sends the first-party session cookie automatically to same-origin `/v1` — no token parameter needed
 - **Never import in Server Components or Route Handlers** — axios with `withCredentials` sends no cookies server-side
 
 Canonical callers: feature-owned client hooks and mutations under `features/<domain>/hooks/` or shell-owned hooks under `shells/<surface>/hooks/`
@@ -162,7 +162,7 @@ In these cases: **the Route Handler owns the `bffServerFetch` call; the hook cal
 
 ### Step 1 — Login initiation
 ```
-Browser → GET /auth/google
+BROWSER → GET /v1/auth/google
 BFF → redirects to Google OAuth consent screen
       (scope: openid, email, profile)
       (callback: GOOGLE_CALLBACK_URL)
@@ -170,7 +170,7 @@ BFF → redirects to Google OAuth consent screen
 
 ### Step 2 — Google callback
 ```
-Google → GET /auth/google/callback?code=...
+Google → GET /v1/auth/google/callback?code=... (web origin; gateway forwards to BFF)
 BFF (GoogleStrategy.validate()):
   1. Exchange code for profile (googleOAuthId, email, name)
   2. Query backend: does this email exist as Staff in any tenant?
@@ -200,7 +200,7 @@ issueToken(payload: JwtPayload): string {
 }
 ```
 
-**JWT TTL:** 7 days (configured via `JWT_EXPIRES_IN` env var). No refresh tokens in MVP — user re-authenticates after expiry. Issued as an **httpOnly cookie** (`access_token`), not returned in the response body — see "Request Lifecycle" below for why this replaced the original Bearer-token design.
+**JWT TTL:** 7 days (configured via `JWT_EXPIRES_IN` env var). No refresh tokens in MVP — user re-authenticates after expiry. Issued as an **httpOnly cookie**, named `__Host-access_token` in production and `access_token` locally, not returned in the response body.
 
 ### Step 5 — Tenant switch (UC-023, customer; and the equivalent staff flow)
 ```
@@ -217,11 +217,12 @@ Staff have the analogous `POST /auth/switch-staff-tenant`, driven by `GET /staff
 
 Every request to a protected BFF endpoint passes through this chain:
 
-> **Updated (`M13-S17`, "centralize BFF transport"):** the browser no longer sends `Authorization`/`X-Tenant-Slug` headers at all. The original S01 client design (a `configureBffClient()` singleton injecting those headers manually) had a first-render race — `tenantId` was read during render but populated by a `useEffect` that runs after mount, so it was `''` on first paint. The fix moved tenant identity out of client JS entirely: the BFF issues an httpOnly `access_token` **cookie**, the browser sends it automatically (`withCredentials: true`), and `TenantProvider` is populated **server-side** (each layout decodes the JWT already present in the request's cookies and passes `tenantId`/`tenantSlug` down as props before the client renders). See "Web → BFF Transport Layer" below for the full picture — this diagram reflects that current design, not S01's original one.
+> **Updated (`TD35`, same-origin gateway):** the browser no longer sends `Authorization`/`X-Tenant-Slug` headers. It calls `/v1/*` on the web origin; the gateway forwards the host-only session cookie to BFF. This keeps the JWT out of client JavaScript and works when web and BFF use unrelated hosts. `TenantProvider` is populated server-side from the session JWT.
 
 ```
 Browser
-  │  Cookie: access_token=<JWT>  (httpOnly, sent automatically — no manual header injection)
+  │  Cookie: __Host-access_token=<JWT> (production; httpOnly, sent automatically)
+  │  GET /v1/* on the web origin → gateway → BFF
   │  X-Correlation-ID: <uuid-v7>  (optional — generated by BFF if absent)
   ▼
 CorrelationInterceptor
@@ -447,7 +448,7 @@ On limit exceeded: `429` with the standard RFC 9457 Problem Detail envelope, `co
 | `JWT_EXPIRES_IN` | Cloud Run env | `7d` |
 | `GOOGLE_CLIENT_ID` | Secret Manager | OAuth client ID from Google Console |
 | `GOOGLE_CLIENT_SECRET` | Secret Manager | OAuth client secret from Google Console |
-| `GOOGLE_CALLBACK_URL` | Cloud Run env | `https://bff.<ikaro-domain>/auth/google/callback` (prod) |
+| `GOOGLE_CALLBACK_URL` | Cloud Run env | `https://ikaro.online/v1/auth/google/callback` (prod; web-origin gateway) |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | Cloud Run env | OTel Collector URL (from `observability_vm_ip`) |
 | `SERVICE_NAME` | Cloud Run env | `ikaro-bff` |
 
@@ -460,7 +461,7 @@ JWT_SECRET=local-dev-jwt-secret-replace-with-at-least-64-chars-padding-here
 JWT_EXPIRES_IN=7d
 GOOGLE_CLIENT_ID=<from-google-console>
 GOOGLE_CLIENT_SECRET=<from-google-console>
-GOOGLE_CALLBACK_URL=http://localhost:3002/auth/google/callback
+GOOGLE_CALLBACK_URL=http://localhost:3000/v1/auth/google/callback
 ```
 
 ---
@@ -538,12 +539,12 @@ pnpm --filter bff type-check   # tsc --noEmit
 **Testing the auth flow locally:**
 1. Start all services (`pnpm dev`)
 2. Visit `http://localhost:3000` (Next.js)
-3. Click "Login with Google" → redirects to `http://localhost:3002/auth/google`
-4. BFF redirects to Google → Google calls back to `http://localhost:3002/auth/google/callback`
-5. BFF issues JWT → Next.js stores it (httpOnly cookie or localStorage, per auth lib choice)
-6. All subsequent API calls from Next.js go to `http://localhost:3002` with `Authorization: Bearer <jwt>`
+3. Click "Login with Google" → browser requests `http://localhost:3000/v1/auth/google`
+4. Gateway forwards to BFF; Google calls back to `http://localhost:3000/v1/auth/google/callback`
+5. Gateway forwards the callback; BFF issues the httpOnly cookie on the web origin
+6. All subsequent browser API calls use same-origin `/v1/*`; server-side calls use `BFF_UPSTREAM_URL`
 
-> **Google OAuth locally:** The Google Console must have `http://localhost:3002/auth/google/callback` in the authorised redirect URIs. See Day 0 §9 in `docs/23-INFRASTRUCTURE_SETUP.md`.
+> **Google OAuth locally:** The Google Console must have `http://localhost:3000/v1/auth/google/callback` in the authorised redirect URIs. See Day 0 §9 in `docs/23-INFRASTRUCTURE_SETUP.md`.
 
 ---
 

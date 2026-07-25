@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { getTranslations } from 'next-intl/server';
 import { decodeJwtPayload } from '@/features/auth/decode-jwt';
 import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
+import { SESSION_COOKIE_NAME } from '@/features/auth/session-cookie';
 import { unixNow } from '@/shells/hotsite/utils/unix-now';
 import { HotsiteAuthBarDropdown } from './HotsiteAuthBarDropdown';
 
@@ -13,7 +14,7 @@ export async function HotsiteAuthBar({ slug }: HotsiteAuthBarProps): Promise<Rea
   const t = await getTranslations('auth');
 
   const cookieStore = await cookies();
-  const token = cookieStore.get('access_token')?.value;
+  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
   const payload = token ? decodeJwtPayload(token) : {};
 
   const nowSeconds = unixNow();
