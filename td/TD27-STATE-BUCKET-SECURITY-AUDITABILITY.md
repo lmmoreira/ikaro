@@ -34,7 +34,7 @@ Per this TD's own "not yet investigated" callout, the bucket's actual live confi
 
 - `gcloud storage buckets describe gs://ikaro-tfstate`: `versioning_enabled: true`, `uniform_bucket_level_access: true`, `public_access_prevention: enforced`, `location: SOUTHAMERICA-EAST1` — matches `docs/BOOTSTRAP_LOG.md` exactly.
 - `gcloud storage buckets get-iam-policy gs://ikaro-tfstate`: bucket-level bindings match the documented set (conditional `objectAdmin` for both env tf-deployers, `.tflock`-scoped `objectAdmin` for both tf-planners added by M17-S24, unconditional `objectViewer` for both tf-planners) — no `allUsers`/`allAuthenticatedUsers`.
-- `gcloud projects get-iam-policy ikaro-prod`: the negative-condition binding excluding `gs://ikaro-tfstate` from prod tf-deployer's project-level `storage.admin` (the original M17-S08 security-bug fix) is still intact.
+- `gcloud projects get-iam-policy ikaro-prod`: at that time, the original M17-S08 negative-condition binding excluded `gs://ikaro-tfstate` from the production normal deployer's broad project-level `storage.admin` grant. TD34 subsequently removed that broad grant entirely, which is stronger than retaining a bucket exception.
 
 **No drift found.** The gap this TD addresses is real but has not yet manifested — this is about closing a detection gap, not remediating a current misconfiguration.
 
@@ -46,7 +46,7 @@ Neither of the two originally-proposed candidates below, as literally written. I
 
 1. `gcloud storage buckets describe gs://ikaro-tfstate` → assert versioning / uniform bucket-level access / public access prevention match checked-in expected values.
 2. `gcloud storage buckets get-iam-policy gs://ikaro-tfstate` → assert the bucket-level binding set is an **exact, exclusive allow-list match** — every allow-listed binding must be present (catches removal/weakening) and every live binding must be allow-listed (catches an unexpected addition, e.g. a new grant to an unrelated principal). A presence-only check (an earlier draft of this step, caught in cross-tool review — Codex + CodeRabbit both flagged it) can assert the known-good bindings are still there while missing an entirely new one added alongside them.
-3. `gcloud projects get-iam-policy ikaro-prod` → assert the negative-condition binding excluding the bucket from prod tf-deployer's broad `storage.admin` is present **and unique** for that exact (role, member) pair — the specific defense needed to catch a regression of the actual M17-S08 bug, which lives at the *project* IAM level, not the bucket's own IAM policy. Uniqueness matters because GCP IAM evaluates bindings additively (OR): a second, broader binding for the same role+member would defeat the negative condition even while it remains present.
+3. The expected-config schema retains an exact project-IAM allow-list for any future state-bucket-related project bindings. It is intentionally empty after TD34 removed the normal deployer's broad `storage.admin` project grant entirely; TD34's separate normal-deployer boundary check now detects a return of that or any other unexpected project role.
 
 Reuses the job's existing `ikaro-tf-planner@ikaro-prod` WIF auth — already has every permission needed (`roles/viewer` covers `storage.buckets.get`; the custom `tfPlannerIamPolicyReader` role, added by M17-S24 for a different reason, already includes `storage.buckets.getIamPolicy`) — **zero new IAM grants, zero new secrets, same weekly cron.**
 
@@ -54,7 +54,7 @@ The checked-in expected values (bucket config + the specific IAM bindings/condit
 
 ### Why not a dedicated Terraform root, and why not a normal `envs/prod` resource
 
-Both rejected for the same underlying reason: whichever identity *applies* Terraform changes to the bucket needs write permission on it — and `ikaro-tf-deployer@ikaro-prod` (the identity `apply-prod` uses on every approved merge) was **deliberately** stripped of write access to `gs://ikaro-tfstate` itself as the direct fix for the M17-S08 security bug (project-level `storage.admin` now excludes the bucket via a negative IAM condition). Folding the bucket into `envs/prod`'s regularly-applied config forces a choice between two bad outcomes:
+Both rejected for the same underlying reason: whichever identity *applies* Terraform changes to the bucket needs write permission on it — and `ikaro-tf-deployer@ikaro-prod` (the identity `apply-prod` uses on every approved merge) was deliberately stripped of broad storage administration as the direct fix for the M17-S08 security bug. TD34 later removed that project-level `storage.admin` grant entirely. Folding the bucket into `envs/prod`'s regularly-applied config forces a choice between two bad outcomes:
 
 - Re-grant tf-deployer-prod write access to the bucket → undoes the exact boundary that fix was built to enforce, widening a routine automated app deploy's blast radius to include the state bucket's own security config.
 - Don't re-grant it → the config plans/applies fine today (zero diff needs no write calls) but silently hard-fails mid-pipeline the first time anyone changes the bucket's IAM/settings for real — a permission error surfacing live in an unrelated prod deploy, not caught by design.
@@ -73,12 +73,12 @@ Because `infra-deploy.yml`'s logs are public (this repo is public) and every `dr
 
 ## Acceptance Criteria
 
-- [ ] `drift-prod` in `.github/workflows/infra-deploy.yml` gains steps (after the existing `terraform plan` step, `if: always()`) that assert `gs://ikaro-tfstate`'s versioning, uniform bucket-level access, and public access prevention against checked-in expected values, and that the bucket-level IAM binding set is an **exact, exclusive allow-list match** — not a presence-only check
-- [ ] `drift-prod` also asserts the project-level negative-condition binding excluding the bucket from prod tf-deployer's `storage.admin` is present **and unique** for that (role, member) pair — the specific defense against a regression of the M17-S08 bug class, including an additional broader binding added alongside the expected one
-- [ ] Expected values live in a checked-in, reviewable file (not only in the gitignored `docs/BOOTSTRAP_LOG.md`)
-- [ ] Failure output names only the failed assertion — never echoes a live IAM policy or bucket-config value
-- [ ] No new IAM grants, no new secrets, no new Terraform resource — the job continues using only `ikaro-tf-planner@ikaro-prod`'s existing permissions
-- [ ] `infra/terraform/README.md` § Bootstrap prerequisites / Remote-state verification is updated to point at this automated check, replacing the "an authorized operator must verify... periodically" manual framing
+- [x] `drift-prod` in `.github/workflows/infra-deploy.yml` asserts `gs://ikaro-tfstate`'s versioning, uniform bucket-level access, and public access prevention against checked-in expected values, and that the bucket-level IAM binding set is an **exact, exclusive allow-list match** — not a presence-only check
+- [x] The expected project-IAM allow-list is exact and currently empty: TD34 removed the normal deployer's former broad `storage.admin` grant entirely, and TD34's normal-deployer boundary check detects its return
+- [x] Expected values live in a checked-in, reviewable file (not only in the gitignored `docs/BOOTSTRAP_LOG.md`)
+- [x] Failure output names only the failed assertion — never echoes a live IAM policy or bucket-config value
+- [x] No new IAM grants, no new secrets, no new Terraform resource — the job continues using only `ikaro-tf-planner@ikaro-prod`'s existing permissions
+- [x] `infra/terraform/README.md` § Bootstrap prerequisites / Remote-state verification points at this automated check, replacing the "an authorized operator must verify... periodically" manual framing
 
 ## Open Questions
 
