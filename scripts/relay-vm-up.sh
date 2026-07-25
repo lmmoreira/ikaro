@@ -32,7 +32,7 @@ fi
 original_ref="$(git symbolic-ref --short -q HEAD || git rev-parse HEAD)"
 trap 'git checkout "$original_ref" >/dev/null 2>&1 || true' EXIT
 
-TFVARS="infra/terraform/envs/${ENV}/terraform.tfvars"
+TFVARS="infra/terraform/foundation/envs/${ENV}/terraform.tfvars"
 BRANCH="chore/relay-vm-up-${ENV}"
 OTHER_BRANCH="chore/relay-vm-down-${ENV}"
 
