@@ -456,6 +456,57 @@ removed {
   }
 }
 
+# TD34: Foundation has already adopted these live policies. Relinquish only
+# this normal state's former addresses; destroy = false preserves every grant
+# and audit configuration while Foundation becomes the sole Terraform owner.
+removed {
+  from = module.database.google_project_iam_member.admin_cloudsql_client
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = module.database.google_project_iam_member.admin_cloudsql_instance_user
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = module.storage.google_storage_bucket_iam_member.public_viewer
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = module.relay_vm.google_project_iam_audit_config.cloudsql_login
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = module.relay_vm.google_project_iam_audit_config.iap_tunnel_access
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = module.relay_vm.google_project_iam_audit_config.secretmanager_access
+
+  lifecycle {
+    destroy = false
+  }
+}
+
 # The tf-deployer already has projectIamAdmin, so Terraform can grant the
 # Compute Engine administration needed to create the relay VM itself.
 # Count-gating keeps that otherwise-broad role absent between sessions.

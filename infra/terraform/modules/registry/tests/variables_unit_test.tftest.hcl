@@ -5,10 +5,8 @@
 mock_provider "google" {}
 
 variables {
-  project_id             = "ikaro-test"
-  environment            = "prod"
-  staging_project_id     = "ikaro-staging"
-  staging_project_number = "729809528251"
+  project_id  = "ikaro-test"
+  environment = "prod"
 }
 
 run "accepts_valid_environment_and_defaults_region" {
@@ -29,26 +27,5 @@ run "rejects_invalid_environment" {
 
   expect_failures = [
     var.environment,
-  ]
-}
-
-run "accepts_numeric_staging_project_number" {
-  command = plan
-
-  assert {
-    condition     = var.staging_project_number == "729809528251"
-    error_message = "staging_project_number must accept a numeric GCP project number."
-  }
-}
-
-run "rejects_non_numeric_staging_project_number" {
-  command = plan
-
-  variables {
-    staging_project_number = "ikaro-staging" # a project ID, not a number — the exact mistake this validation guards against
-  }
-
-  expect_failures = [
-    var.staging_project_number,
   ]
 }

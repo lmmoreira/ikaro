@@ -521,6 +521,65 @@ removed {
   }
 }
 
+# TD34: Foundation has already adopted these live policies. Relinquish only
+# this normal state's former addresses; destroy = false preserves every grant
+# and audit configuration while Foundation becomes the sole Terraform owner.
+removed {
+  from = module.storage.google_storage_bucket_iam_member.public_viewer
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = module.registry.google_artifact_registry_repository_iam_member.staging_deployer_writer
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = module.registry.google_artifact_registry_repository_iam_member.staging_service_agent_reader
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = module.registry.google_artifact_registry_repository_iam_member.staging_tf_deployer_reader
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = module.relay_vm.google_project_iam_audit_config.cloudsql_login
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = module.relay_vm.google_project_iam_audit_config.iap_tunnel_access
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = module.relay_vm.google_project_iam_audit_config.secretmanager_access
+
+  lifecycle {
+    destroy = false
+  }
+}
+
 # Prod-only (D8): single Artifact Registry backing both envs. The one
 # Terraform-external prerequisite is documented in modules/registry's
 # variables and the story's Dependencies note — ikaro-tf-deployer@ikaro-prod
@@ -534,9 +593,6 @@ module "registry" {
   environment = var.environment
   region      = var.region
   labels      = var.labels
-
-  staging_project_id     = var.staging_project_id
-  staging_project_number = var.staging_project_number
 }
 
 # The tf-deployer already has projectIamAdmin, so Terraform can grant the
