@@ -331,47 +331,6 @@ resource "google_project_iam_member" "normal_deployer_infrastructure_operator" {
   member  = "serviceAccount:ikaro-tf-deployer@${var.project_id}.iam.gserviceaccount.com"
 }
 
-# TD34 migration only: foundation adopts the pre-existing normal deployer's
-# broad project roles before later batches can safely replace or revoke them.
-# Importing these bindings changes state ownership only; it does not alter IAM.
-locals {
-  legacy_deployer_project_role_bindings = merge({
-    for role in toset([
-      "roles/artifactregistry.admin",
-      "roles/cloudscheduler.admin",
-      "roles/cloudsql.admin",
-      "roles/compute.networkAdmin",
-      "roles/compute.securityAdmin",
-      "roles/iam.serviceAccountAdmin",
-      "roles/iam.serviceAccountUser",
-      "roles/monitoring.editor",
-      "roles/pubsub.admin",
-      "roles/resourcemanager.projectIamAdmin",
-      "roles/run.admin",
-      "roles/secretmanager.admin",
-      ]) : role => {
-      role      = role
-      condition = null
-    }
-    }, {
-    storage_admin_except_shared_state = {
-      role = "roles/storage.admin"
-      condition = {
-        title       = "exclude-shared-state-bucket"
-        description = "Prod tf-deployer gets storage.admin on all prod buckets except the shared Terraform state bucket - that one is governed solely by its own prefix-scoped conditional binding"
-        expression  = "!resource.name.startsWith('projects/_/buckets/ikaro-tfstate')"
-      }
-    }
-  })
-}
-
-module "legacy_deployer_roles" {
-  source = "../../modules/legacy-deployer-roles"
-
-  project_id            = var.project_id
-  project_role_bindings = local.legacy_deployer_project_role_bindings
-}
-
 import {
   to = module.project_services.google_project_service.managed["iap.googleapis.com"]
   id = "${var.project_id}/iap.googleapis.com"
@@ -380,13 +339,6 @@ import {
 import {
   to = module.custom_roles.google_project_iam_custom_role.planner_iam_policy_reader
   id = "${var.project_id}/tfPlannerIamPolicyReader"
-}
-
-import {
-  for_each = local.legacy_deployer_project_role_bindings
-
-  to = module.legacy_deployer_roles.google_project_iam_member.normal_deployer_role[each.key]
-  id = each.value.condition == null ? "${var.project_id} ${each.value.role} serviceAccount:ikaro-tf-deployer@${var.project_id}.iam.gserviceaccount.com" : "${var.project_id} ${each.value.role} serviceAccount:ikaro-tf-deployer@${var.project_id}.iam.gserviceaccount.com ${each.value.condition.title}"
 }
 
 # The shared Terraform state bucket belongs to ikaro-prod. Staging's
