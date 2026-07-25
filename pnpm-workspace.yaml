@@ -19,9 +19,9 @@ overrides:
   # rimraf@6 chains to brace-expansion@5 via glob@13>minimatch@10; keep the
   # current patched release until the upstream dependency chain is refreshed.
   'brace-expansion': '5.0.8'
-  # Next 16.2.10 still resolves postcss@8.4.31, which is below the patched line.
-  # Remove once Next ships a release that pulls postcss>=8.5.10 on its own.
-  'next>postcss': '8.5.16'
+  # Next 16.2.11 still resolves an older PostCSS release; pin the patched
+  # release until Next ships a version that pulls it transitively on its own.
+  'next>postcss': '8.5.23'
   # @google-cloud/storage 7.21.0 still resolves teeny-request/retry-request with
   # uuid<11.1.1. Keep these overrides until the storage package family updates.
   '@google-cloud/storage>teeny-request': '10.1.3'
