@@ -286,6 +286,15 @@ module "cloudrun_web" {
     NEXT_PUBLIC_SITE_URL               = var.web_real_uri
     NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL = module.storage.public_base_url
   }
+
+  # apps/web/middleware.ts verifies the access_token cookie's HS256 signature
+  # (TD15, verify-edge-jwt.ts) before trusting any claim — needs the same
+  # JWT_SECRET the BFF signs with, or every request past the gateway 500s
+  # the moment a real cookie reaches this origin (TD35 same-origin gateway
+  # made that finally happen — this gap was latent and untriggered before).
+  secret_env_vars = {
+    JWT_SECRET = module.secrets.secret_ids["jwt-secret"]
+  }
 }
 
 module "pubsub" {
