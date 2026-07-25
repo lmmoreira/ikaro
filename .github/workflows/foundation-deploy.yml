@@ -134,6 +134,8 @@ jobs:
         with:
           terraform_version: '1.15.8'
           terraform_wrapper: false
+      - name: Mask IAM admin email
+        run: echo "::add-mask::${{ vars.IAM_ADMIN_USER }}"
       - name: terraform plan — foundation staging
         working-directory: infra/terraform/foundation/envs/staging
         env:
@@ -166,6 +168,8 @@ jobs:
         with:
           terraform_version: '1.15.8'
           terraform_wrapper: false
+      - name: Mask IAM admin email
+        run: echo "::add-mask::${{ vars.IAM_ADMIN_USER }}"
       - name: terraform plan — foundation prod
         working-directory: infra/terraform/foundation/envs/prod
         env:
@@ -202,6 +206,8 @@ jobs:
         with:
           terraform_version: '1.15.8'
           terraform_wrapper: false
+      - name: Mask IAM admin email
+        run: echo "::add-mask::${{ vars.IAM_ADMIN_USER }}"
       - name: terraform apply — foundation staging
         working-directory: infra/terraform/foundation/envs/staging
         env:
@@ -237,6 +243,8 @@ jobs:
         with:
           terraform_version: '1.15.8'
           terraform_wrapper: false
+      - name: Mask IAM admin email
+        run: echo "::add-mask::${{ vars.IAM_ADMIN_USER }}"
       - name: terraform apply — foundation prod
         working-directory: infra/terraform/foundation/envs/prod
         env:
@@ -272,6 +280,8 @@ jobs:
           terraform_version: '1.15.8'
           terraform_wrapper: false
 
+      - name: Mask IAM admin email
+        run: echo "::add-mask::${{ vars.IAM_ADMIN_USER }}"
       - name: terraform plan — foundation bootstrap staging
         working-directory: infra/terraform/foundation/envs/staging
         env:
@@ -321,6 +331,8 @@ jobs:
           terraform_version: '1.15.8'
           terraform_wrapper: false
 
+      - name: Mask IAM admin email
+        run: echo "::add-mask::${{ vars.IAM_ADMIN_USER }}"
       - name: terraform apply — foundation bootstrap staging
         working-directory: infra/terraform/foundation/envs/staging
         env:
@@ -360,6 +372,8 @@ jobs:
           terraform_version: '1.15.8'
           terraform_wrapper: false
 
+      - name: Mask IAM admin email
+        run: echo "::add-mask::${{ vars.IAM_ADMIN_USER }}"
       - name: terraform plan — foundation bootstrap prod
         working-directory: infra/terraform/foundation/envs/prod
         env:
@@ -408,6 +422,8 @@ jobs:
           terraform_version: '1.15.8'
           terraform_wrapper: false
 
+      - name: Mask IAM admin email
+        run: echo "::add-mask::${{ vars.IAM_ADMIN_USER }}"
       - name: terraform apply — foundation bootstrap prod
         working-directory: infra/terraform/foundation/envs/prod
         env:

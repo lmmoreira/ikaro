@@ -11,7 +11,7 @@ variables {
     }
   }
 
-  cloud_run_public_invokers = ["ikaro-bff"]
+  relay_cloud_run_services = ["ikaro-backend"]
 
   pubsub_subscription_members = {
     subscriber = {
@@ -42,7 +42,7 @@ run "workload_iam_preserves_exact_resource_scoped_bindings" {
   command = plan
 
   assert {
-    condition     = length(google_cloud_run_v2_service_iam_member.invoker) == 1 && length(google_cloud_run_v2_service_iam_member.public_invoker) == 1 && alltrue([for binding in values(google_cloud_run_v2_service_iam_member.invoker) : binding.role == "roles/run.invoker"])
+    condition     = length(google_cloud_run_v2_service_iam_member.invoker) == 1 && google_cloud_run_v2_service_iam_member.relay_invoker["ikaro-backend"].member == "serviceAccount:ikaro-relay-vm@ikaro-staging.iam.gserviceaccount.com" && alltrue([for binding in values(google_cloud_run_v2_service_iam_member.invoker) : binding.role == "roles/run.invoker"])
     error_message = "Foundation must manage only explicit Cloud Run invoker bindings."
   }
 

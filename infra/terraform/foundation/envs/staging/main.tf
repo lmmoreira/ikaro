@@ -106,10 +106,6 @@ locals {
       service_name = "ikaro-backend"
       member       = "serviceAccount:ikaro-pubsub-invoker@${var.project_id}.iam.gserviceaccount.com"
     }
-    backend_relay_vm = {
-      service_name = "ikaro-backend"
-      member       = "serviceAccount:ikaro-relay-vm@${var.project_id}.iam.gserviceaccount.com"
-    }
     bff_web = {
       service_name = "ikaro-bff"
       member       = "serviceAccount:ikaro-web@${var.project_id}.iam.gserviceaccount.com"
@@ -122,6 +118,7 @@ locals {
   } : {})
 
   workload_cloud_run_public_invokers = toset(["ikaro-bff", "ikaro-web"])
+  workload_relay_cloud_run_services  = toset(["ikaro-backend"])
 
   workload_pubsub_subscription_members = {
     for key, subscription in local.workload_subscriptions : "service_agent_subscriber_${key}" => {
@@ -167,7 +164,7 @@ module "workload_iam" {
   region     = var.region
 
   cloud_run_invokers          = local.workload_cloud_run_invokers
-  cloud_run_public_invokers   = local.workload_cloud_run_public_invokers
+  relay_cloud_run_services    = local.workload_relay_cloud_run_services
   pubsub_subscription_members = local.workload_pubsub_subscription_members
   pubsub_topic_members        = local.workload_pubsub_topic_members
   service_account_members     = local.workload_service_account_members
@@ -181,8 +178,19 @@ import {
 
 import {
   for_each = local.workload_cloud_run_public_invokers
-  to       = module.workload_iam.google_cloud_run_v2_service_iam_member.public_invoker[each.value]
+  to       = google_cloud_run_v2_service_iam_member.public_invoker[each.value]
   id       = "projects/${var.project_id}/locations/${var.region}/services/${each.value} roles/run.invoker allUsers"
+}
+
+resource "google_cloud_run_v2_service_iam_member" "public_invoker" {
+  #checkov:skip=CKV_IKARO_1:reviewed intentional public BFF/web invoker grants
+  for_each = local.workload_cloud_run_public_invokers
+
+  project  = var.project_id
+  location = var.region
+  name     = each.value
+  role     = "roles/run.invoker"
+  member   = "allUsers"
 }
 
 import {

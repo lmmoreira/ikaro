@@ -6,8 +6,8 @@ variable "cloud_run_invokers" {
   }))
 }
 
-variable "cloud_run_public_invokers" {
-  description = "Cloud Run services receiving the deliberately public allUsers invoker grant."
+variable "relay_cloud_run_services" {
+  description = "Cloud Run services the relay VM may invoke through its deterministic service account."
   type        = set(string)
 }
 

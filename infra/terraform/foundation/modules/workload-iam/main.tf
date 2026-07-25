@@ -8,18 +8,14 @@ resource "google_cloud_run_v2_service_iam_member" "invoker" {
   member   = each.value.member
 }
 
-#checkov:skip=CKV_IKARO_1: intentional public invoker grants for the BFF and
-# web services. Application authentication remains enforced by the BFF/session
-# layer; the public-entry exception is reviewed explicitly here rather than
-# hidden inside the generic resource-IAM map.
-resource "google_cloud_run_v2_service_iam_member" "public_invoker" {
-  for_each = var.cloud_run_public_invokers
+resource "google_cloud_run_v2_service_iam_member" "relay_invoker" {
+  for_each = var.relay_cloud_run_services
 
   project  = var.project_id
   location = var.region
   name     = each.value
   role     = "roles/run.invoker"
-  member   = "allUsers"
+  member   = "serviceAccount:ikaro-relay-vm@${var.project_id}.iam.gserviceaccount.com"
 }
 
 resource "google_pubsub_subscription_iam_member" "member" {
