@@ -723,6 +723,52 @@ jobs:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER_STAGING }}
           service_account: ${{ secrets.TF_PLANNER_SA_STAGING }}
 
+      # TD34: Exact allow-list check. IAM grants are additive, so accepting
+      # the approved binding alongside a returned broad role is unsafe.
+      # Keep public logs to named PASS/FAIL assertions only.
+      - name: Verify normal deployer boundary (TD34, staging)
+        env:
+          PROJECT_ID: ikaro-staging
+        run: |
+          set -euo pipefail
+          DEPLOYER_MEMBER="serviceAccount:ikaro-tf-deployer@${PROJECT_ID}.iam.gserviceaccount.com"
+          EXPECTED_PROJECT_ROLE="projects/${PROJECT_ID}/roles/tfNormalInfrastructureDeployer"
+          PROJECT_IAM_JSON="$(gcloud projects get-iam-policy "${PROJECT_ID}" --format=json)"
+          FAIL=0
+
+          project_binding_count="$(jq --arg member "$DEPLOYER_MEMBER" '[.bindings[]? | select(any(.members[]?; . == $member))] | length' <<<"$PROJECT_IAM_JSON")"
+          expected_project_binding_count="$(jq --arg member "$DEPLOYER_MEMBER" --arg role "$EXPECTED_PROJECT_ROLE" '[.bindings[]? | select(.role == $role and any(.members[]?; . == $member) and (.condition == null))] | length' <<<"$PROJECT_IAM_JSON")"
+          if [ "$project_binding_count" -eq 1 ] && [ "$expected_project_binding_count" -eq 1 ]; then
+            echo "PASS: normal deployer has only its approved project role"
+          else
+            echo "FAIL: normal deployer project-role allow-list mismatch"
+            FAIL=1
+          fi
+
+          for account in backend bff web pubsub-invoker migrate; do
+            service_account="ikaro-${account}@${PROJECT_ID}.iam.gserviceaccount.com"
+            service_account_iam_json="$(gcloud iam service-accounts get-iam-policy "$service_account" --project="$PROJECT_ID" --format=json)"
+            binding_count="$(jq --arg member "$DEPLOYER_MEMBER" '[.bindings[]? | select(any(.members[]?; . == $member))] | length' <<<"$service_account_iam_json")"
+            expected_binding_count="$(jq --arg member "$DEPLOYER_MEMBER" '[.bindings[]? | select(.role == "roles/iam.serviceAccountUser" and any(.members[]?; . == $member) and (.condition == null))] | length' <<<"$service_account_iam_json")"
+            if [ "$binding_count" -eq 1 ] && [ "$expected_binding_count" -eq 1 ]; then
+              echo "PASS: normal deployer has only approved actAs on ${account}"
+            else
+              echo "FAIL: normal deployer service-account allow-list mismatch (${account})"
+              FAIL=1
+            fi
+          done
+
+          foundation_iam_json="$(gcloud iam service-accounts get-iam-policy "ikaro-tf-foundation@${PROJECT_ID}.iam.gserviceaccount.com" --project="$PROJECT_ID" --format=json)"
+          foundation_binding_count="$(jq --arg member "$DEPLOYER_MEMBER" '[.bindings[]? | select(any(.members[]?; . == $member))] | length' <<<"$foundation_iam_json")"
+          if [ "$foundation_binding_count" -eq 0 ]; then
+            echo "PASS: normal deployer has no Foundation service-account access"
+          else
+            echo "FAIL: normal deployer has unexpected Foundation service-account access"
+            FAIL=1
+          fi
+
+          [ "$FAIL" -eq 0 ]
+
       - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_version: '1.15.8'
@@ -758,6 +804,51 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER_PROD }}
           service_account: ${{ secrets.TF_PLANNER_SA_PROD }}
+
+      # See staging: each production assertion is explicit so both control
+      # planes remain independently reviewable and executable.
+      - name: Verify normal deployer boundary (TD34, prod)
+        env:
+          PROJECT_ID: ikaro-prod
+        run: |
+          set -euo pipefail
+          DEPLOYER_MEMBER="serviceAccount:ikaro-tf-deployer@${PROJECT_ID}.iam.gserviceaccount.com"
+          EXPECTED_PROJECT_ROLE="projects/${PROJECT_ID}/roles/tfNormalInfrastructureDeployer"
+          PROJECT_IAM_JSON="$(gcloud projects get-iam-policy "${PROJECT_ID}" --format=json)"
+          FAIL=0
+
+          project_binding_count="$(jq --arg member "$DEPLOYER_MEMBER" '[.bindings[]? | select(any(.members[]?; . == $member))] | length' <<<"$PROJECT_IAM_JSON")"
+          expected_project_binding_count="$(jq --arg member "$DEPLOYER_MEMBER" --arg role "$EXPECTED_PROJECT_ROLE" '[.bindings[]? | select(.role == $role and any(.members[]?; . == $member) and (.condition == null))] | length' <<<"$PROJECT_IAM_JSON")"
+          if [ "$project_binding_count" -eq 1 ] && [ "$expected_project_binding_count" -eq 1 ]; then
+            echo "PASS: normal deployer has only its approved project role"
+          else
+            echo "FAIL: normal deployer project-role allow-list mismatch"
+            FAIL=1
+          fi
+
+          for account in backend bff web pubsub-invoker migrate; do
+            service_account="ikaro-${account}@${PROJECT_ID}.iam.gserviceaccount.com"
+            service_account_iam_json="$(gcloud iam service-accounts get-iam-policy "$service_account" --project="$PROJECT_ID" --format=json)"
+            binding_count="$(jq --arg member "$DEPLOYER_MEMBER" '[.bindings[]? | select(any(.members[]?; . == $member))] | length' <<<"$service_account_iam_json")"
+            expected_binding_count="$(jq --arg member "$DEPLOYER_MEMBER" '[.bindings[]? | select(.role == "roles/iam.serviceAccountUser" and any(.members[]?; . == $member) and (.condition == null))] | length' <<<"$service_account_iam_json")"
+            if [ "$binding_count" -eq 1 ] && [ "$expected_binding_count" -eq 1 ]; then
+              echo "PASS: normal deployer has only approved actAs on ${account}"
+            else
+              echo "FAIL: normal deployer service-account allow-list mismatch (${account})"
+              FAIL=1
+            fi
+          done
+
+          foundation_iam_json="$(gcloud iam service-accounts get-iam-policy "ikaro-tf-foundation@${PROJECT_ID}.iam.gserviceaccount.com" --project="$PROJECT_ID" --format=json)"
+          foundation_binding_count="$(jq --arg member "$DEPLOYER_MEMBER" '[.bindings[]? | select(any(.members[]?; . == $member))] | length' <<<"$foundation_iam_json")"
+          if [ "$foundation_binding_count" -eq 0 ]; then
+            echo "PASS: normal deployer has no Foundation service-account access"
+          else
+            echo "FAIL: normal deployer has unexpected Foundation service-account access"
+            FAIL=1
+          fi
+
+          [ "$FAIL" -eq 0 ]
 
       - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
