@@ -32,6 +32,65 @@ module "runtime_identities" {
 }
 
 locals {
+  static_resource_artifact_registry_members = {
+    staging_deployer_writer = {
+      location   = var.region
+      repository = "ikaro-registry"
+      role       = "roles/artifactregistry.writer"
+      member     = "serviceAccount:ikaro-app-deployer@ikaro-staging.iam.gserviceaccount.com"
+    }
+    staging_service_agent_reader = {
+      location   = var.region
+      repository = "ikaro-registry"
+      role       = "roles/artifactregistry.reader"
+      member     = "serviceAccount:service-729809528251@serverless-robot-prod.iam.gserviceaccount.com"
+    }
+    staging_tf_deployer_reader = {
+      location   = var.region
+      repository = "ikaro-registry"
+      role       = "roles/artifactregistry.reader"
+      member     = "serviceAccount:ikaro-tf-deployer@ikaro-staging.iam.gserviceaccount.com"
+    }
+  }
+
+  static_resource_audit_log_types_by_service = {
+    "cloudsql.googleapis.com"      = ["DATA_WRITE"]
+    "iap.googleapis.com"           = ["ADMIN_READ", "DATA_READ", "DATA_WRITE"]
+    "secretmanager.googleapis.com" = ["DATA_READ"]
+  }
+}
+
+# TD34: Foundation adopts these static, resource-scoped policies before a later
+# normal-root handoff relinquishes the former addresses with destroy = false.
+# The bucket, registry, and relay resources remain in their ordinary modules.
+module "static_resource_iam" {
+  source = "../../modules/static-resource-iam"
+
+  project_id         = var.project_id
+  public_bucket_name = "ikaro-public-${var.environment}"
+
+  artifact_registry_members  = local.static_resource_artifact_registry_members
+  audit_log_types_by_service = local.static_resource_audit_log_types_by_service
+}
+
+import {
+  to = module.static_resource_iam.google_storage_bucket_iam_member.public_viewer
+  id = "b/ikaro-public-${var.environment} roles/storage.objectViewer allUsers"
+}
+
+import {
+  for_each = local.static_resource_artifact_registry_members
+  to       = module.static_resource_iam.google_artifact_registry_repository_iam_member.member[each.key]
+  id       = "projects/${var.project_id}/locations/${each.value.location}/repositories/${each.value.repository} ${each.value.role} ${each.value.member}"
+}
+
+import {
+  for_each = local.static_resource_audit_log_types_by_service
+  to       = module.static_resource_iam.google_project_iam_audit_config.service[each.key]
+  id       = "${var.project_id} ${each.key}"
+}
+
+locals {
   runtime_project_roles = {
     backend_cloudsql_client          = { role = "roles/cloudsql.client", principal = "backend" }
     migrate_cloudsql_client          = { role = "roles/cloudsql.client", principal = "migrate" }
