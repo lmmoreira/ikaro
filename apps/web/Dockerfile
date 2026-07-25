@@ -26,9 +26,8 @@ FROM node@sha256:b74031e546d7f4faf561d797ac1b76beccac856a042815ca77db4fd04758160
 
 WORKDIR /app
 
-RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
-
-RUN addgroup --system --gid 1001 nodejs \
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx \
+    && addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 --ingroup nodejs nodeapp
 
 # --chown so nodeapp can write .next/cache/* at runtime (ISR/fetch-cache) —
