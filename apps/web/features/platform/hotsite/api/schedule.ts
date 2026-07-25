@@ -1,5 +1,5 @@
 import type { AvailabilityResponse, AvailabilitySummaryResponse } from '@ikaro/types';
-import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
+import { buildBffUrl } from '@/shared/lib/api/bff-url';
 
 export async function fetchAvailabilitySummary(
   slug: string,
@@ -9,7 +9,7 @@ export async function fetchAvailabilitySummary(
 ): Promise<AvailabilitySummaryResponse> {
   const params = new URLSearchParams({ from, to, serviceIds: serviceIds.join(',') });
   const res = await fetch(
-    `${getPublicEnv('NEXT_PUBLIC_BFF_URL')}/schedule/availability/summary?${params}`,
+    `${buildBffUrl('/schedule/availability/summary')}?${params}`,
     {
       headers: { 'X-Tenant-Slug': slug },
     },
@@ -27,7 +27,7 @@ export async function fetchAvailability(
 ): Promise<AvailabilityResponse> {
   const params = new URLSearchParams({ date, serviceIds: serviceIds.join(',') });
   const res = await fetch(
-    `${getPublicEnv('NEXT_PUBLIC_BFF_URL')}/schedule/availability?${params}`,
+    `${buildBffUrl('/schedule/availability')}?${params}`,
     {
       headers: { 'X-Tenant-Slug': slug },
     },

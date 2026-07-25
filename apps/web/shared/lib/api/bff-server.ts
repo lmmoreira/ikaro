@@ -1,4 +1,5 @@
-import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
+import { buildBffUrl } from './bff-url';
+import { SESSION_COOKIE_NAME } from '@/features/auth/session-cookie';
 
 interface BffServerFetchNextInit {
   readonly revalidate?: number | false;
@@ -11,10 +12,6 @@ interface BffServerFetchInit extends Omit<RequestInit, 'headers' | 'next'> {
 }
 
 const DEFAULT_BFF_TIMEOUT_MS = 8_000;
-
-function buildBffUrl(path: string): string {
-  return `${getPublicEnv('NEXT_PUBLIC_BFF_URL')}${path}`;
-}
 
 function buildBffRequestInit(
   init: BffServerFetchInit,
@@ -46,7 +43,7 @@ export async function bffServerFetch(token: string, path: string, init: BffServe
   return bffPublicFetch(path, {
     ...rest,
     headers: {
-      Cookie: `access_token=${token}`,
+      Cookie: `${SESSION_COOKIE_NAME}=${token}`,
       ...extraHeaders,
     },
   });

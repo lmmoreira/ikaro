@@ -255,7 +255,7 @@ module "cloudrun_bff" {
     # Fixed custom domain (S22's edge module + Cloudflare DNS make this
     # hostname real) — no placeholder/two-apply bootstrap dance needed here
     # anymore, unlike staging's bff_real_uri (no edge module there, D5).
-    GOOGLE_CALLBACK_URL = "https://bff.${local.root_domain}/v1/auth/google/callback"
+    GOOGLE_CALLBACK_URL = "https://${local.root_domain}/v1/auth/google/callback"
     ALLOWED_ORIGINS     = "https://${local.root_domain}"
     FRONTEND_URL        = "https://${local.root_domain}"
 
@@ -312,10 +312,10 @@ module "cloudrun_web" {
     # apps/web/shared/lib/runtime-env/public-env.ts, not baked into the
     # image at build time.
     #
-    # NEXT_PUBLIC_BFF_URL must include the /v1 prefix -- same fix as
-    # envs/staging/main.tf, found there via M17-S27's first real deploy
-    # (2026-07-23). See that file's comment for the full explanation.
-    NEXT_PUBLIC_BFF_URL                = "https://bff.${local.root_domain}/v1"
+    # Browser calls stay on the web origin through the /v1 gateway. The web
+    # server alone uses BFF_UPSTREAM_URL to reach the BFF's separate host.
+    NEXT_PUBLIC_BFF_URL                = "/v1"
+    BFF_UPSTREAM_URL                   = "https://bff.${local.root_domain}/v1"
     NEXT_PUBLIC_SITE_URL               = "https://${local.root_domain}"
     NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL = module.storage.public_base_url
   }

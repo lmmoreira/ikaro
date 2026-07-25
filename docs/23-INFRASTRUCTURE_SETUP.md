@@ -279,13 +279,13 @@ Go to [console.cloud.google.com](https://console.cloud.google.com) → select an
 - **Authorised redirect URIs** — add all of the following:
   ```
   # Local development
-  http://localhost:3002/auth/google/callback
+  http://localhost:3000/v1/auth/google/callback
 
-  # Staging (BFF Cloud Run URL — from terraform output bff_url)
-  https://ikaro-bff-staging-<hash>-uc.a.run.app/auth/google/callback
+  # Staging (web Cloud Run URL — from terraform output web_url)
+  https://ikaro-web-staging-<hash>-uc.a.run.app/v1/auth/google/callback
 
   # Production
-  https://bff.<ikaro-domain>/auth/google/callback
+  https://<ikaro-domain>/v1/auth/google/callback
   ```
 - Click **Create**.
 
@@ -315,10 +315,10 @@ gcloud secrets versions add google-oauth-client-secret \
 ```bash
 GOOGLE_CLIENT_ID=<your-staging-or-local-client-id>
 GOOGLE_CLIENT_SECRET=<your-staging-or-local-client-secret>
-GOOGLE_CALLBACK_URL=http://localhost:3002/auth/google/callback
+GOOGLE_CALLBACK_URL=http://localhost:3000/v1/auth/google/callback
 ```
 
-> **Tip for local dev:** You can reuse the staging OAuth client for local development — just make sure `http://localhost:3002/auth/google/callback` is in the authorised redirect URIs list. No need to create a third client.
+> **Tip for local dev:** You can reuse the staging OAuth client for local development — just make sure `http://localhost:3000/v1/auth/google/callback` is in the authorised redirect URIs list. No need to create a third client.
 
 ---
 

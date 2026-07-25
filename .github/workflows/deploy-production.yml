@@ -516,8 +516,8 @@ jobs:
       # Runtime-env smoke (AC): the root layout injects window.__PUBLIC_ENV__
       # into the initial server-rendered HTML (apps/web/shared/lib/runtime-env/
       # PublicEnvScript.tsx, TD29) — a plain curl on the root page is enough
-      # to prove the *served* HTML carries the correct prod BFF origin and
-      # none of staging's, without needing a real browser. Regex tolerates
+      # to prove the *served* HTML carries the same-origin BFF path and none
+      # of staging's, without needing a real browser. Regex tolerates
       # optional whitespace around the JSON colon (CodeRabbit finding,
       # 2026-07-23) — today's JSON.stringify() output has none, but an
       # exact-substring match would false-fail and block an otherwise-valid
@@ -526,8 +526,8 @@ jobs:
         run: |
           HTML=$(curl -f --max-time 15 "https://ikaro.online/")
 
-          if ! echo "$HTML" | grep -qE '"NEXT_PUBLIC_BFF_URL"[[:space:]]*:[[:space:]]*"https://bff\.ikaro\.online"'; then
-            echo "::error::Served HTML does not reference https://bff.ikaro.online in window.__PUBLIC_ENV__ — prod's cloudrun_web runtime env vars may be misconfigured."
+          if ! echo "$HTML" | grep -qE '"NEXT_PUBLIC_BFF_URL"[[:space:]]*:[[:space:]]*"/v1"'; then
+            echo "::error::Served HTML does not reference /v1 in window.__PUBLIC_ENV__ — prod's cloudrun_web runtime env vars may be misconfigured."
             exit 1
           fi
 

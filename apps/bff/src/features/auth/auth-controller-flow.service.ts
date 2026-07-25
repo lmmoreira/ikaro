@@ -5,6 +5,7 @@ import { BffErrorCode, GenericErrorCode } from '@ikaro/types';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { throwProblemDetail } from '../../shared/http/problem-detail';
 import { JWT_COOKIE_OPTIONS, OAUTH_NONCE_COOKIE_NAME } from './cookie-options';
+import { SESSION_COOKIE_NAME } from './session-cookie';
 import {
   CustomerTenantSummaryResponse,
   FindOrCreateCustomerResponse,
@@ -115,7 +116,7 @@ function logoutWithTenantSlug(
   tenantSlug: string | undefined,
   res: Response,
 ): void {
-  res.clearCookie('access_token', JWT_COOKIE_OPTIONS);
+  res.clearCookie(SESSION_COOKIE_NAME, JWT_COOKIE_OPTIONS);
   const frontendUrl = config.getOrThrow<string>('FRONTEND_URL');
   const path = tenantSlug && isValidSlug(tenantSlug) ? `/${tenantSlug}` : '';
   res.redirect(`${frontendUrl}${path}`);
@@ -177,7 +178,7 @@ async function switchStaffTenant(
   );
   const accessToken = issueStaffToken(jwtIssuer, match, tenantInfo, currentUser.userName);
 
-  res.cookie('access_token', accessToken, JWT_COOKIE_OPTIONS);
+  res.cookie(SESSION_COOKIE_NAME, accessToken, JWT_COOKIE_OPTIONS);
   return {
     tenantSlug: tenantInfo.slug,
     expiresIn: config.getOrThrow<string>('JWT_EXPIRES_IN'),
@@ -215,7 +216,7 @@ async function switchTenant(
     currentUser.userName,
   );
 
-  res.cookie('access_token', accessToken, JWT_COOKIE_OPTIONS);
+  res.cookie(SESSION_COOKIE_NAME, accessToken, JWT_COOKIE_OPTIONS);
   return {
     tenantSlug: tenantInfo.slug,
     expiresIn: config.getOrThrow<string>('JWT_EXPIRES_IN'),
@@ -309,7 +310,7 @@ async function devLogin(
     accessToken = issueCustomerToken(jwtIssuer, customer.customerId, tenantInfo, 'Dev User');
   }
 
-  res.cookie('access_token', accessToken, JWT_COOKIE_OPTIONS);
+  res.cookie(SESSION_COOKIE_NAME, accessToken, JWT_COOKIE_OPTIONS);
 
   return {
     accessToken,
@@ -354,7 +355,7 @@ async function handleStaffLogin(
   }
 
   const token = issueStaffToken(jwtIssuer, staffByEmail, tenantInfo, profile.name);
-  res.cookie('access_token', token, JWT_COOKIE_OPTIONS);
+  res.cookie(SESSION_COOKIE_NAME, token, JWT_COOKIE_OPTIONS);
   res.redirect(`${frontendUrl}/dashboard`);
 }
 
@@ -456,6 +457,6 @@ async function handleTenantLogin(
   );
 
   const token = issueCustomerToken(jwtIssuer, customerId, tenantInfo, profile.name);
-  res.cookie('access_token', token, JWT_COOKIE_OPTIONS);
+  res.cookie(SESSION_COOKIE_NAME, token, JWT_COOKIE_OPTIONS);
   res.redirect(`${frontendUrl}/${tenantInfo.slug}`);
 }

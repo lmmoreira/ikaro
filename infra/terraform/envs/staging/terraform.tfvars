@@ -41,9 +41,8 @@ backend_max_instances = 3
 bff_max_instances     = 20
 
 # Real *.run.app URL discovered from the bff_service_uri output after the
-# first apply (see bff_real_uri's description in variables.tf) — used to
-# build GOOGLE_CALLBACK_URL. Also registered as an Authorized redirect URI
-# on the Google OAuth client in the GCP Console (M17-S18 post-apply step).
+# first apply (see bff_real_uri's description in variables.tf) — used for
+# web's server-only BFF_UPSTREAM_URL.
 bff_real_uri = "https://ikaro-bff-crle4i3nrq-rj.a.run.app"
 
 # Real *.run.app URL discovered the same way as bff_real_uri (see its

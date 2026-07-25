@@ -1,9 +1,10 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
+import { SESSION_COOKIE_NAME } from '@/features/auth/session-cookie';
 
 export async function GET(): Promise<NextResponse> {
-  const token = (await cookies()).get('access_token')?.value;
+  const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
 
   if (!token) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });

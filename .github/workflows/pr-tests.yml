@@ -203,7 +203,7 @@ jobs:
           JWT_EXPIRES_IN: '7d'
           GOOGLE_CLIENT_ID: 'test-client-id'
           GOOGLE_CLIENT_SECRET: 'test-client-secret'
-          GOOGLE_CALLBACK_URL: 'http://localhost:3002/v1/auth/google/callback'
+          GOOGLE_CALLBACK_URL: 'http://localhost:3000/v1/auth/google/callback'
           ALLOWED_ORIGINS: 'http://localhost:3000'
           CRON_SECRET: 'test-cron-secret-must-be-at-least-32-chars!!'
           INTERNAL_API_KEY: 'test-internal-key-test-internal-key'
@@ -329,10 +329,11 @@ jobs:
           JWT_EXPIRES_IN: 7d
           GOOGLE_CLIENT_ID: e2e-test-client-id
           GOOGLE_CLIENT_SECRET: e2e-test-client-secret
-          GOOGLE_CALLBACK_URL: 'http://localhost:3002/v1/auth/google/callback'
+          GOOGLE_CALLBACK_URL: 'http://localhost:3000/v1/auth/google/callback'
           ALLOWED_ORIGINS: 'http://localhost:3000'
           CRON_SECRET: 'e2e-ci-cron-secret-must-be-at-least-32-chars!!'
-          NEXT_PUBLIC_BFF_URL: 'http://localhost:3002/v1'
+          NEXT_PUBLIC_BFF_URL: '/v1'
+          BFF_UPSTREAM_URL: 'http://localhost:3002/v1'
           NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL: 'http://localhost:4443/ikaro-local-public'
           NEXT_PUBLIC_SITE_URL: 'http://localhost:3000'
         run: |
@@ -726,7 +727,7 @@ jobs:
                 -e BACKEND_INTERNAL_URL=http://localhost:3001
                 -e GOOGLE_CLIENT_ID=smoke-test
                 -e GOOGLE_CLIENT_SECRET=smoke-test
-                -e GOOGLE_CALLBACK_URL=http://localhost:3002/v1/auth/google/callback
+                -e GOOGLE_CALLBACK_URL=http://localhost:3000/v1/auth/google/callback
               )
               ;;
           esac

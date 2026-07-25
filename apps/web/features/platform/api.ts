@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import type { HotsiteManifestResponse, HotsiteSitemapEntryListResponse } from '@ikaro/types';
 import { HOTSITE_REVALIDATE_SECONDS } from '@/features/platform/hotsite/revalidate';
-import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
+import { buildBffUrl } from '@/shared/lib/api/bff-url';
 
 // Single source of truth for the manifest URL — fetchManifest() (below) and
 // resolveLocale() (shared/lib/i18n/resolve-locale.ts) both need it but apply different
@@ -13,7 +13,7 @@ import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 // TD29) can serve it.
 export async function fetchManifestResponse(slug: string): Promise<Response> {
   const isDev = process.env.NODE_ENV === 'development';
-  return fetch(`${getPublicEnv('NEXT_PUBLIC_BFF_URL')}/public/platform/manifest/${slug}`, {
+  return fetch(buildBffUrl(`/public/platform/manifest/${slug}`), {
     next: { revalidate: isDev ? 0 : HOTSITE_REVALIDATE_SECONDS },
   });
 }
@@ -30,7 +30,7 @@ export async function fetchManifest(slug: string): Promise<HotsiteManifestRespon
 export async function fetchPublishedHotsiteSlugs(): Promise<HotsiteSitemapEntryListResponse> {
   const isDev = process.env.NODE_ENV === 'development';
   const res = await fetch(
-    `${getPublicEnv('NEXT_PUBLIC_BFF_URL')}/public/platform/published-hotsites`,
+    buildBffUrl('/public/platform/published-hotsites'),
     {
       next: { revalidate: isDev ? 0 : HOTSITE_REVALIDATE_SECONDS },
     },
