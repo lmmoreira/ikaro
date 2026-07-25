@@ -8,7 +8,7 @@ run "roles_have_exactly_the_reviewed_permissions" {
   command = plan
 
   assert {
-    condition     = google_project_iam_custom_role.planner_iam_policy_reader.role_id == "tfPlannerIamPolicyReader" && length(google_project_iam_custom_role.planner_iam_policy_reader.permissions) == 8 && alltrue([for permission in ["artifactregistry.repositories.getIamPolicy", "iam.serviceAccounts.getIamPolicy", "pubsub.subscriptions.getIamPolicy", "pubsub.topics.getIamPolicy", "resourcemanager.projects.getIamPolicy", "run.services.getIamPolicy", "secretmanager.secrets.getIamPolicy", "storage.buckets.getIamPolicy"] : contains(tolist(google_project_iam_custom_role.planner_iam_policy_reader.permissions), permission)])
+    condition     = google_project_iam_custom_role.planner_iam_policy_reader.role_id == "tfPlannerIamPolicyReader" && length(google_project_iam_custom_role.planner_iam_policy_reader.permissions) == 9 && alltrue([for permission in ["artifactregistry.repositories.getIamPolicy", "compute.firewalls.get", "iam.serviceAccounts.getIamPolicy", "pubsub.subscriptions.getIamPolicy", "pubsub.topics.getIamPolicy", "resourcemanager.projects.getIamPolicy", "run.services.getIamPolicy", "secretmanager.secrets.getIamPolicy", "storage.buckets.getIamPolicy"] : contains(tolist(google_project_iam_custom_role.planner_iam_policy_reader.permissions), permission)])
     error_message = "The planner role must retain exactly its reviewed read-only IAM-policy permissions."
   }
 
