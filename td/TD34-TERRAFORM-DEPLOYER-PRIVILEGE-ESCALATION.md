@@ -2,8 +2,8 @@
 
 ## Status
 
-- **State**: 🟡 Open
-- **Phase**: phase 3 ownership transfer complete — Foundation owns the IAM/API control plane, including the relay toggle; phase 4 de-privileging and phase 5 enforcement/proof remain
+- **State**: ✅ Done
+- **Phase**: phase 5 enforcement/proof complete — Foundation owns the IAM/API control plane, normal deployers are de-privileged, and both environments pass live self-permission and drift checks
 - **Type**: Technical Debt / Infrastructure Security
 - **Priority**: High — a compromise of the trusted infrastructure deployment path can become project-wide privilege escalation
 - **Context**: `infra/terraform/envs/staging/main.tf`, `infra/terraform/envs/prod/main.tf`, `.github/workflows/infra-deploy.yml`, M17-S08 / M17-S24 deployer-role design
@@ -85,10 +85,9 @@ throughout. The normal deployers' `roles/serviceusage.serviceUsageAdmin`
 bindings were then revoked in both live projects. The relay VM now relies on
 the Foundation-owned IAP prerequisite rather than a normal-root dependency.
 
-The temporary Foundation state-prefix and exact shared-state-bucket bridge
-remain intentionally in the production normal root. They are migration
-capabilities and must be removed only after Foundation owns the remaining IAM
-surface and the normal deployer no longer needs them.
+The temporary Foundation state-prefix and exact shared-state-bucket bridge were
+removed from the production normal root in phase 5. The permanent Foundation
+workflow is now the only route to Foundation state and IAM changes.
 
 ### Completed legacy-role adoption batch
 
@@ -96,15 +95,15 @@ The Foundation layer now owns, without mutation, the pre-existing broad
 project-role bindings of the normal deployers:
 
 - staging: 12 imports;
-- production: 13 imports, including its existing conditional
+- production: 13 imports, including the then-existing conditional
   `roles/storage.admin` binding that excludes the shared state bucket.
 
 Live read-only Foundation plans verified these were imports only: zero creates,
 updates, or destroys. The protected Foundation apply completed successfully in
 both environments, and Foundation state now contains all 12 staging and 13
-production bindings. The two temporary production state-bridge bindings are
-deliberately excluded because they remain managed by
-`modules/foundation-state-bootstrap` until phase 5.
+production bindings. The two temporary production state-bridge bindings were
+deliberately excluded at that migration stage and were removed in phase 5
+after Foundation ownership was verified.
 
 ### Completed custom-role control-plane prerequisite
 
@@ -223,11 +222,12 @@ adopting those resources and applying the narrowly scoped
 VM, firewall, or service account was deleted or replaced; Foundation does not
 receive a project-wide impersonation grant.
 
-### Remaining ownership-transfer scope
+### Completed ownership-transfer scope
 
-Production also retains four deliberately temporary
-`module.foundation_state_bootstrap` bindings. They are migration bridge
-capabilities, not ordinary resource IAM, and remain until phase 5.
+The four deliberately temporary
+`module.foundation_state_bootstrap` bindings were migration bridge capabilities,
+not ordinary resource IAM. They were removed after Foundation ownership was
+verified; no bridge capability remains in live Terraform configuration.
 
 Future batches use this invariant: introduce the Foundation resource and its
 explicit import identifier, then require a protected Foundation plan that
@@ -343,8 +343,8 @@ normal-deployer permission workaround.
    must not grant `roles/owner`, create a key, or weaken the WIF condition.
 2. **Establish the permanent foundation workflow.** A separately protected
    foundation plan/apply path uses only the foundation deployer after the
-   enablement apply. The old normal-deployer bootstrap workflow remains only
-   until phase 5 removes it.
+   enablement apply. The old normal-deployer bootstrap workflow was removed in
+   phase 5.
 3. **Split IAM from ordinary-resource modules.** Existing modules continue to
    own networks, buckets, services, databases, topics, and other ordinary
    resources. Foundation modules own only their IAM/API resources and receive
@@ -365,26 +365,26 @@ must also move service-account creation into foundation ownership; a normal
 deployer that can create or administer service accounts remains an escalation
 path.
 
-### Mandatory final cleanup and proof
+### Completed final cleanup and proof
 
-Phase 5 is incomplete until every temporary bootstrap capability is removed
-from live IAM and Terraform configuration:
+Phase 5 removed every temporary bootstrap capability from live IAM and
+Terraform configuration:
 
-- Remove `module.foundation_state_bootstrap` from the production environment
+- [x] Remove `module.foundation_state_bootstrap` from the production environment
   root, including its temporary `storage.objectAdmin` grants on
   `foundation/staging/*` and `foundation/prod/*` and its temporary exact-bucket
   `storage.admin` grants on `ikaro-tfstate`.
-- Remove the legacy normal-deployer bootstrap jobs from
+- [x] Remove the legacy normal-deployer bootstrap jobs from
   `.github/workflows/foundation-deploy.yml`. The permanent protected
   foundation workflow is the only remaining route to foundation applies.
-- Revoke normal deployers' project-wide project-IAM, Service Usage,
+- [x] Revoke normal deployers' project-wide project-IAM, Service Usage,
   service-account-administration, and broad resource-administration roles
   after each corresponding resource is owned by foundation state. Replace a
   proven ordinary-resource need only with a non-IAM-mutation permission.
-- Remove project-wide `roles/iam.serviceAccountUser` from normal deployers.
+- [x] Remove project-wide `roles/iam.serviceAccountUser` from normal deployers.
   Recreate it only as resource-level access to the specific runtime service
   accounts needed to attach workloads, never to a foundation identity.
-- Run live negative checks showing that normal deployers cannot change project
+- [x] Run live negative checks showing that normal deployers cannot change project
   IAM, enable APIs, change a service account policy, mint a privileged service
   account token, or access foundation state. The protected foundation identity
   must succeed at the intended reviewed operation.
@@ -393,6 +393,62 @@ The foundation deployer's reviewed IAM/API-management capability set is the
 new protected control-plane boundary, not a temporary workaround. It may be
 reduced further only through a tested custom-role replacement that preserves
 foundation ownership; it must never be replaced with `roles/owner`.
+
+### Phase-5 live proof evidence
+
+The final protected Foundation apply completed successfully in
+[run #30164964356](https://github.com/lmmoreira/ikaro/actions/runs/30164964356),
+including cleanup of the temporary Policy Troubleshooter experiment. The
+normal deployer self-permission checks then completed successfully in both
+environments:
+
+- staging: [run #30168478954](https://github.com/lmmoreira/ikaro/actions/runs/30168478954);
+- production: [run #30168478966](https://github.com/lmmoreira/ikaro/actions/runs/30168478966).
+
+Those checks use the authenticated normal deployer's read-only
+`testIamPermissions` responses and assert that project IAM mutation, API
+enablement, Foundation service-account IAM changes, key creation, token
+minting, and Foundation service-account `actAs` are absent. The recurring
+drift run [#30163974420](https://github.com/lmmoreira/ikaro/actions/runs/30163974420)
+also passed the exact project-role and service-account binding allow-list for
+both environments. No policy or credential contents are printed.
+
+### Topology before and after TD34
+
+```mermaid
+flowchart LR
+  subgraph Before[Before TD34]
+    GH1[GitHub normal workflow] --> D1[ikaro-tf-deployer]
+    D1 --> P1[Project IAM and API activation]
+    D1 --> S1[Service-account IAM, keys, and token creation]
+    D1 --> R1[Application resources and relay VM]
+    D1 --> B1[Shared Terraform state bucket]
+    P1 -. self-escalation path .-> D1
+  end
+
+  subgraph After[After TD34]
+    GH2[GitHub Foundation workflow<br/>protected environment] --> F2[ikaro-tf-foundation]
+    F2 --> P2[Project IAM, APIs, custom roles]
+    F2 --> S2[Service-account ownership and IAM]
+    F2 --> C2[Relay control plane<br/>IAP, VM policy, Cloud SQL IAM]
+    F2 --> B2[Foundation state prefix]
+
+    GH3[GitHub normal workflow<br/>protected environment] --> D2[ikaro-tf-deployer]
+    D2 --> R2[Ordinary application resources]
+    D2 --> U2[Scoped actAs on five runtime SAs]
+    D2 --> E2[Environment state prefix]
+    D2 -. denied .-> P2
+    D2 -. denied .-> S2
+    D2 -. denied .-> B2
+  end
+```
+
+Before TD34, the routine deployer was simultaneously the application
+operator and the project control plane, so a compromised deployment could
+rewrite its own IAM boundary. After TD34, the protected Foundation workflow
+owns the control plane and relay prerequisites, while the routine deployer is
+limited to ordinary resources and explicitly scoped runtime-service-account
+attachment.
 
 This is intentionally phased into reviewable pull requests. A single apply
 cannot safely transfer state ownership and revoke the identity that is still
@@ -439,15 +495,15 @@ version-controlled Terraform applies.
   custom roles, and `google_project_service` resources are owned by the
   foundation layers; routine environment roots no longer mutate IAM policy
   or enable/disable project services.
-- [ ] `ikaro-tf-deployer@ikaro-staging` and `ikaro-tf-deployer@ikaro-prod`
+- [x] `ikaro-tf-deployer@ikaro-staging` and `ikaro-tf-deployer@ikaro-prod`
   no longer have `roles/resourcemanager.projectIamAdmin`,
   `roles/serviceusage.serviceUsageAdmin`, or any equivalent permission that
   can modify project allow policies.
-- [ ] The normal deployers also cannot modify any service account's IAM
+- [x] The normal deployers also cannot modify any service account's IAM
   policy, create a service-account key, or grant themselves
   `roles/iam.serviceAccountTokenCreator` / `roles/iam.serviceAccountUser` on
   a runtime or foundation service account.
-- [ ] A live negative verification proves the normal deployer is denied when
+- [x] A live negative verification proves the normal deployer is denied when
   attempting to add a project IAM binding, enable an API, change a service
   account's policy, or acquire a privileged service-account token, while the
   foundation identity can perform the intended reviewed change.
@@ -456,7 +512,7 @@ version-controlled Terraform applies.
   it uses a separately protected GitHub environment and pinned actions.
 - [x] Migration preserves existing IAM bindings and enabled APIs without a
   window in which runtime service accounts lose required access.
-- [ ] CI/drift verification detects an unexpected return of project-IAM
+- [x] CI/drift verification detects an unexpected return of project-IAM
   administration or Service Usage administration to either normal deployer.
 - [x] Documentation distinguishes the foundation deployment boundary from
   normal infrastructure applies and records the one-time root-of-trust
