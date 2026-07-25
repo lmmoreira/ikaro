@@ -533,6 +533,44 @@ jobs:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER_STAGING }}
           service_account: ${{ secrets.TF_DEPLOYER_SA_STAGING }}
 
+      - name: Verify effective IAM permissions (TD34, staging)
+        env:
+          PROJECT_ID: ikaro-staging
+          FOUNDATION_SERVICE_ACCOUNT: ikaro-tf-foundation@ikaro-staging.iam.gserviceaccount.com
+        run: |
+          set -euo pipefail
+          access_token="$(gcloud auth print-access-token)"
+          auth_header="Authorization: Bearer ${access_token}"
+
+          project_permissions="$(curl --fail --silent --show-error \
+            -H "$auth_header" \
+            -H 'Content-Type: application/json' \
+            --data '{"permissions":["resourcemanager.projects.setIamPolicy","serviceusage.services.enable"]}' \
+            "https://cloudresourcemanager.googleapis.com/v1/projects/${PROJECT_ID}:testIamPermissions")"
+          service_account_permissions="$(curl --fail --silent --show-error \
+            -H "$auth_header" \
+            -H 'Content-Type: application/json' \
+            --data '{"permissions":["iam.serviceAccounts.setIamPolicy","iam.serviceAccountKeys.create","iam.serviceAccounts.getAccessToken","iam.serviceAccounts.actAs"]}' \
+            "https://iam.googleapis.com/v1/projects/${PROJECT_ID}/serviceAccounts/${FOUNDATION_SERVICE_ACCOUNT}:testIamPermissions")"
+
+          assert_absent() {
+            local permissions_json="$1"
+            local permission="$2"
+            local label="$3"
+            if jq -e --arg permission "$permission" '.permissions[]? | select(. == $permission)' <<<"$permissions_json" >/dev/null; then
+              echo "FAIL: ${label}"
+              exit 1
+            fi
+            echo "PASS: ${label}"
+          }
+
+          assert_absent "$project_permissions" resourcemanager.projects.setIamPolicy 'normal deployer denied project IAM mutation'
+          assert_absent "$project_permissions" serviceusage.services.enable 'normal deployer denied API enablement'
+          assert_absent "$service_account_permissions" iam.serviceAccounts.setIamPolicy 'normal deployer denied Foundation service-account IAM mutation'
+          assert_absent "$service_account_permissions" iam.serviceAccountKeys.create 'normal deployer denied Foundation service-account key creation'
+          assert_absent "$service_account_permissions" iam.serviceAccounts.getAccessToken 'normal deployer denied Foundation service-account token minting'
+          assert_absent "$service_account_permissions" iam.serviceAccounts.actAs 'normal deployer denied Foundation service-account actAs'
+
       - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_version: '1.15.8'
@@ -590,6 +628,44 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER_PROD }}
           service_account: ${{ secrets.TF_DEPLOYER_SA_PROD }}
+
+      - name: Verify effective IAM permissions (TD34, prod)
+        env:
+          PROJECT_ID: ikaro-prod
+          FOUNDATION_SERVICE_ACCOUNT: ikaro-tf-foundation@ikaro-prod.iam.gserviceaccount.com
+        run: |
+          set -euo pipefail
+          access_token="$(gcloud auth print-access-token)"
+          auth_header="Authorization: Bearer ${access_token}"
+
+          project_permissions="$(curl --fail --silent --show-error \
+            -H "$auth_header" \
+            -H 'Content-Type: application/json' \
+            --data '{"permissions":["resourcemanager.projects.setIamPolicy","serviceusage.services.enable"]}' \
+            "https://cloudresourcemanager.googleapis.com/v1/projects/${PROJECT_ID}:testIamPermissions")"
+          service_account_permissions="$(curl --fail --silent --show-error \
+            -H "$auth_header" \
+            -H 'Content-Type: application/json' \
+            --data '{"permissions":["iam.serviceAccounts.setIamPolicy","iam.serviceAccountKeys.create","iam.serviceAccounts.getAccessToken","iam.serviceAccounts.actAs"]}' \
+            "https://iam.googleapis.com/v1/projects/${PROJECT_ID}/serviceAccounts/${FOUNDATION_SERVICE_ACCOUNT}:testIamPermissions")"
+
+          assert_absent() {
+            local permissions_json="$1"
+            local permission="$2"
+            local label="$3"
+            if jq -e --arg permission "$permission" '.permissions[]? | select(. == $permission)' <<<"$permissions_json" >/dev/null; then
+              echo "FAIL: ${label}"
+              exit 1
+            fi
+            echo "PASS: ${label}"
+          }
+
+          assert_absent "$project_permissions" resourcemanager.projects.setIamPolicy 'normal deployer denied project IAM mutation'
+          assert_absent "$project_permissions" serviceusage.services.enable 'normal deployer denied API enablement'
+          assert_absent "$service_account_permissions" iam.serviceAccounts.setIamPolicy 'normal deployer denied Foundation service-account IAM mutation'
+          assert_absent "$service_account_permissions" iam.serviceAccountKeys.create 'normal deployer denied Foundation service-account key creation'
+          assert_absent "$service_account_permissions" iam.serviceAccounts.getAccessToken 'normal deployer denied Foundation service-account token minting'
+          assert_absent "$service_account_permissions" iam.serviceAccounts.actAs 'normal deployer denied Foundation service-account actAs'
 
       - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
