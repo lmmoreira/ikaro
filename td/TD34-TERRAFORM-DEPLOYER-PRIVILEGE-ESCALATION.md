@@ -3,7 +3,7 @@
 ## Status
 
 - **State**: 🟡 Open
-- **Phase**: phase 3 ownership transfer underway — runtime, workload, and static resource IAM are Foundation-owned; the relay-toggle control-plane redesign and de-privileging are pending
+- **Phase**: phase 3 ownership transfer complete — Foundation owns the IAM/API control plane, including the relay toggle; phase 4 de-privileging and phase 5 enforcement/proof remain
 - **Type**: Technical Debt / Infrastructure Security
 - **Priority**: High — a compromise of the trusted infrastructure deployment path can become project-wide privilege escalation
 - **Context**: `infra/terraform/envs/staging/main.tf`, `infra/terraform/envs/prod/main.tf`, `.github/workflows/infra-deploy.yml`, M17-S08 / M17-S24 deployer-role design
@@ -201,24 +201,27 @@ staging human Cloud SQL project bindings, the production cross-project
 Artifact Registry bindings, and the three relay audit configurations in each
 environment.
 
-### Relay control-plane transfer (pending protected applies)
+### Completed relay control-plane transfer
 
-This pending PR transfers the relay control plane while keeping the VM
-disabled. The relay VM remains an environment-local VPC resource: staging runs in
-`ikaro-staging` and production runs in `ikaro-prod`. Its Terraform ownership,
-however, will become exclusively Foundation-owned. The protected Foundation
-roots import the existing relay service account and IAP-only firewall as no-op
-adoptions and own the default-off `create_relay_vm` toggle, VM, instance IAP
-and OS Login policy, Secret Manager accessor grant, Cloud SQL IAM roles, and
-IAM database user when the database exists.
+The relay VM remains an environment-local VPC resource: staging runs in
+`ikaro-staging` and production runs in `ikaro-prod`. Its Terraform control
+plane is now exclusively Foundation-owned, while the VM remains disabled by
+default. The protected Foundation roots adopted the existing relay service
+account and IAP-only firewall without replacement and now own the
+`create_relay_vm` toggle, VM, instance IAP and OS Login policy, Secret Manager
+accessor grant, Cloud SQL IAM roles, and IAM database user when the database
+exists.
 
-The normal environment roots will relinquish the existing service-account and
-firewall addresses with `removed { lifecycle { destroy = false } }`; no cloud
-resource is replaced or deleted. They no longer contain the temporary
-`roles/compute.instanceAdmin.v1` grant, IAM-propagation sleep, relay module,
-or relay toggle. Foundation receives `roles/iam.serviceAccountUser` only on
-the relay service account, not project-wide, so it can attach the identity to
-the VM without a broad impersonation grant.
+The normal Infrastructure apply completed successfully in both environments in
+[run #30161101617](https://github.com/lmmoreira/ikaro/actions/runs/30161101617),
+relinquishing its former service-account and firewall state addresses through
+Terraform `forget` actions only. The protected Foundation apply then completed
+successfully in both environments in
+[run #30161186138](https://github.com/lmmoreira/ikaro/actions/runs/30161186138),
+adopting those resources and applying the narrowly scoped
+`roles/iam.serviceAccountUser` binding only on the relay service account. No
+VM, firewall, or service account was deleted or replaced; Foundation does not
+receive a project-wide impersonation grant.
 
 ### Remaining ownership-transfer scope
 
@@ -432,7 +435,7 @@ version-controlled Terraform applies.
 - [x] `iap.googleapis.com` is owned by Foundation state in staging and
   production, and normal deployers no longer have
   `roles/serviceusage.serviceUsageAdmin`.
-- [ ] Project-level, service-account-level, and resource-level IAM bindings,
+- [x] Project-level, service-account-level, and resource-level IAM bindings,
   custom roles, and `google_project_service` resources are owned by the
   foundation layers; routine environment roots no longer mutate IAM policy
   or enable/disable project services.
@@ -451,7 +454,7 @@ version-controlled Terraform applies.
 - [x] The foundation workflow's WIF binding cannot be impersonated by pull
   requests, arbitrary branches, or the normal environment-deployer workflow;
   it uses a separately protected GitHub environment and pinned actions.
-- [ ] Migration preserves existing IAM bindings and enabled APIs without a
+- [x] Migration preserves existing IAM bindings and enabled APIs without a
   window in which runtime service accounts lose required access.
 - [ ] CI/drift verification detects an unexpected return of project-IAM
   administration or Service Usage administration to either normal deployer.
