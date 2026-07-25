@@ -3,7 +3,7 @@
 ## Status
 
 - **State**: 🟡 Open
-- **Phase**: phase 3 ownership transfer underway — runtime and workload IAM are Foundation-owned; the verified remaining static resource-IAM inventory, the relay-toggle control-plane redesign, and de-privileging are pending
+- **Phase**: phase 3 ownership transfer underway — runtime, workload, and static resource IAM are Foundation-owned; the relay-toggle control-plane redesign and de-privileging are pending
 - **Type**: Technical Debt / Infrastructure Security
 - **Priority**: High — a compromise of the trusted infrastructure deployment path can become project-wide privilege escalation
 - **Context**: `infra/terraform/envs/staging/main.tf`, `infra/terraform/envs/prod/main.tf`, `.github/workflows/infra-deploy.yml`, M17-S08 / M17-S24 deployer-role design
@@ -183,18 +183,32 @@ in staging and then in production, in
 That migration-only workflow path has been removed; the legacy deployer was not
 re-granted any privilege.
 
+### Completed static resource-IAM transfer
+
+Foundation adopted the six existing staging and seven existing production
+static policies with verified no-op imports. The protected Foundation apply
+completed in staging and production in
+[run #30158573521](https://github.com/lmmoreira/ikaro/actions/runs/30158573521).
+The subsequent normal Infrastructure apply completed in both environments in
+[run #30159253509](https://github.com/lmmoreira/ikaro/actions/runs/30159253509),
+relinquishing only the former normal-state addresses with Terraform `forget`
+actions. No policy was deleted or changed.
+
+The final remote-state audit confirms Foundation owns all six staging and all
+seven production policies, while neither normal state contains any of their
+former addresses. This batch comprises the public-assets bucket viewer, the
+staging human Cloud SQL project bindings, the production cross-project
+Artifact Registry bindings, and the three relay audit configurations in each
+environment.
+
 ### Remaining ownership-transfer scope
 
-The post-workload-handoff remote-state audit on 2026-07-25 establishes the
-current baseline. The normal environment states retain seven static IAM/API
-objects in staging and eight in production:
-
-- staging: the public-assets bucket viewer, the human Cloud SQL client and
-  instance-user project bindings, the permanent relay service account, and
-  the three relay audit configurations;
-- production: the public-assets bucket viewer, the permanent relay service
-  account, the three relay audit configurations, and the three cross-project
-  Artifact Registry bindings.
+The normal environment states now retain only the permanent relay service
+account from this IAM migration surface, one in each environment. The relay
+identity moves with the relay-control-plane redesign rather than through a
+standalone state handoff, because VM creation must receive its deterministic
+email without letting the normal deployer create or administer service
+accounts.
 
 Production also retains four deliberately temporary
 `module.foundation_state_bootstrap` bindings. They are migration bridge
@@ -223,8 +237,8 @@ provider state can use different canonical forms.
   it. The TD32 relay uses its VM service account, not this human binding.
 - Add Foundation environment-root regression coverage asserting that the only
   public Cloud Run invoker grants are `allUsers` on `ikaro-bff` and `ikaro-web`.
-- Add regression coverage for each remaining resource-IAM type before its
-  handoff, including its provider-normalized identifier form where applicable.
+- Keep the exact-policy coverage in `static-resource-iam` when adding any
+  future Foundation resource-IAM type.
 
 ## Proposed approach
 
