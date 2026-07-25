@@ -61,17 +61,82 @@ tenant context entirely instead of preserving it, which produces the
 confusing "please access via your company's site" fallback rather than a
 tenant-scoped retry.
 
-## Suggested direction (not yet implemented/approved)
+## Approved solution — same-origin BFF gateway
 
-- Set an explicit `domain` on `JWT_COOKIE_OPTIONS` scoped to the shared apex
-  in environments that have one (prod: `.ikaro.online`).
-- For environments with no shared apex at all (staging's raw `*.run.app`
-  hostnames), a `Domain` attribute cannot help — the redirect-based
-  cookie handoff needs a different mechanism entirely (e.g. a one-time
-  token in the redirect URL that the web app exchanges for its own
-  same-origin cookie, or fronting both services behind one shared host via
-  `modules/edge`-style routing, as prod's D11 design already intends but
-  staging currently lacks).
-- Preserve `tenantSlug` on the `middleware.ts:111` unauthenticated redirect.
-- Needs `/story-discovery` before any code is written, per this repo's
-  non-negotiable Story/TD gate.
+Do not try to transfer a session cookie, JWT, or encrypted handoff token
+between browser origins. Instead, expose the BFF to the browser through the
+web application's own origin under a stable path prefix:
+
+```text
+Browser -> https://<web-origin>/v1/* -> same-origin gateway -> BFF
+Browser -> https://<web-origin>/*    -> web application
+```
+
+The BFF and web remain separate services and may keep unrelated deployment
+hostnames in staging. The gateway forwards requests server-to-server; from the
+browser's perspective, both the OAuth endpoints and all authenticated BFF API
+calls are on the web origin.
+
+The BFF's Google callback must therefore be configured as
+`https://<web-origin>/v1/auth/google/callback`. The gateway must forward the
+OAuth start, callback, and all `/v1/*` requests transparently, including
+`Cookie`, `Set-Cookie`, redirect, query-string, and response-header handling.
+
+The BFF continues to issue the session cookie, but the browser receives it on
+the web origin through the gateway. Make it host-only and use the strongest
+compatible cookie shape:
+
+```text
+__Host-access_token; Secure; HttpOnly; SameSite=Lax; Path=/
+```
+
+It must have no `Domain` attribute. This works for both unrelated staging
+hosts and production, keeps the cookie scoped to exactly one host, and allows
+the `__Host-` prefix. Browser-side BFF transport must use the relative `/v1`
+base path, never the BFF's deployment URL, so every dashboard request follows
+the same-origin route and carries the cookie.
+
+### Deployment evolution
+
+The intended long-term gateway is edge/load-balancer path routing: `/v1/*` to
+the BFF backend and every other path to web. The current production
+`modules/edge` implementation is host-routed and staging deliberately has no
+edge module, so TD35 may first provide the same route through one centralized
+web-side reverse proxy. That is an application-level gateway, not a per-feature
+proxy collection. When edge routing becomes available, move the identical
+public `/v1` contract there without changing browser clients or cookie scope.
+
+### Explicitly rejected alternatives
+
+- `Domain=.ikaro.online` fixes neither staging nor the general architecture;
+  it also broadens session-cookie exposure to every subdomain under that apex.
+- A stateless JWE handoff is a short-lived replayable bearer credential, not a
+  one-time code, and only fixes the login redirect while direct browser-to-BFF
+  requests remain cross-origin.
+- A database-backed opaque code plus PKCE is a sound fallback only if a
+  same-origin gateway is impossible. It adds durable redemption state and
+  front-channel complexity that the gateway avoids.
+
+## Implementation scope and acceptance criteria
+
+- [ ] Add one centralized same-origin `/v1/*` gateway; do not create a
+      feature-specific proxy per BFF endpoint.
+- [ ] Route Google OAuth start and callback through the gateway; update every
+      environment's callback URL and browser-facing BFF base-path configuration.
+- [ ] Preserve cookies, redirects, query strings, and relevant response headers
+      without exposing the session token to client JavaScript or a URL.
+- [ ] Issue only a host-only `__Host-access_token` cookie with `Secure`,
+      `HttpOnly`, `SameSite=Lax`, and `Path=/`; no `Domain` attribute.
+- [ ] Make browser-side authenticated BFF calls use same-origin `/v1`; retain a
+      separate server-to-server BFF URL for Server Components and Route Handlers
+      where needed.
+- [ ] Verify login and an authenticated browser API request with genuinely
+      distinct BFF and web origins, so local `localhost` port-sharing cannot
+      mask a regression.
+- [ ] Preserve `tenantSlug` when `apps/web/middleware.ts` redirects an
+      unauthenticated `/dashboard/**` request to `/dashboard/login`.
+- [ ] Update `plan/M17-CLOUD-DEPLOY.md` and any deployment/runbook references
+      that still describe cross-subdomain cookie sharing as the authentication
+      design.
+- [ ] Run `/story-discovery TD35` before code is written, per the
+      non-negotiable Story/TD gate.
