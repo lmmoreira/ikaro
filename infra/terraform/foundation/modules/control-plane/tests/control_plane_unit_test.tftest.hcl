@@ -80,8 +80,8 @@ run "foundation_control_plane_has_only_the_reviewed_roles" {
   command = plan
 
   assert {
-    condition     = length(google_project_iam_member.foundation_deployer_control_plane) == 5 && alltrue([for role in ["roles/iam.roleAdmin", "roles/iam.securityReviewer", "roles/iam.serviceAccountAdmin", "roles/resourcemanager.projectIamAdmin", "roles/serviceusage.serviceUsageAdmin"] : contains(keys(google_project_iam_member.foundation_deployer_control_plane), role)])
-    error_message = "The foundation deployer must receive only the reviewed TD34 IAM, service-account, Service Usage management, and read-only security-review roles."
+    condition     = length(google_project_iam_member.foundation_deployer_control_plane) == 4 && alltrue([for role in ["roles/iam.roleAdmin", "roles/iam.serviceAccountAdmin", "roles/resourcemanager.projectIamAdmin", "roles/serviceusage.serviceUsageAdmin"] : contains(keys(google_project_iam_member.foundation_deployer_control_plane), role)])
+    error_message = "The foundation deployer must receive only the reviewed TD34 custom-role, IAM, service-account, and Service Usage management roles."
   }
 
   assert {
