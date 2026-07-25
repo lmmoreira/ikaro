@@ -174,6 +174,12 @@ When the user gives explicit references (a library, a URL, a named example, a pa
 - `useTenant()` (`apps/web/providers/tenant-provider.tsx`) — only source of `tenantId` in hooks. Server layouts decode JWT and pass to `<TenantProvider>`.
 - **`NEXT_PUBLIC_BFF_URL`'s value must itself include the `/v1` prefix** (e.g. `https://bff.example.com/v1`, not the bare origin) — BFF sets a global `v1` route prefix (`app.setGlobalPrefix('v1')`, `apps/bff/src/main.ts`) and no call-site path in `bff-server.ts`/`bff-client.ts` adds it. Every deployed environment's base URL must carry it, or every web→BFF call 404s (M17-S27 precedent, 2026-07-23: both staging and prod Terraform set it to the bare origin, breaking every server-side BFF call including web's own `/api/health/ready`).
 
+### Cross-layer deployment invariants
+
+- **Separate Terraform roots and states do not exchange outputs automatically.** When a Foundation resource depends on an environment resource (for example, a Cloud SQL instance), pass the non-secret identifier explicitly through the Foundation environment configuration and apply Foundation after the resource exists; do not assume a later environment apply will populate Foundation variables.
+- **Migrations that grant privileges to infrastructure-created database roles must enforce provisioning order or provide convergent reconciliation.** A migration that silently skips a missing role is safe only when the deployment process guarantees Foundation creates the role first; otherwise it records a one-time no-op and leaves the role permanently under-privileged.
+- **Security dependency overrides are temporary compatibility boundaries, not permanent pins.** When a fixed upstream release becomes available, update the override and lockfile together, then verify the resolved dependency graph with the repository scanners; never leave a stale vulnerable version pinned merely because the override once addressed an older advisory.
+
 ### Web styling boundary
 
 - `DashboardShell` and `CustomerShell` are the **shared SaaS UI layer** (tenant-agnostic colors/spacing/typography/dialogs). The **only** tenant-dynamic branding surface is the hotsite tree (`app/[slug]/`) — see `docs/ANTI_PATTERNS.md` for the `--ba-*` boundary and the failure mode of leaking it into dashboard/customer shells.
