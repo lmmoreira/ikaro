@@ -31,4 +31,14 @@ run "roles_have_exactly_the_reviewed_permissions" {
     condition     = !contains(tolist(google_project_iam_custom_role.relay_vm_operator.permissions), "iam.serviceAccounts.actAs") && !contains(tolist(google_project_iam_custom_role.relay_vm_operator.permissions), "resourcemanager.projects.setIamPolicy") && !contains(tolist(google_project_iam_custom_role.relay_vm_operator.permissions), "secretmanager.versions.access") && !contains(tolist(google_project_iam_custom_role.relay_vm_operator.permissions), "compute.instances.addAccessConfig")
     error_message = "The relay VM operator must not gain service-account actAs, project IAM, secret-value, or public-IP permissions."
   }
+
+  assert {
+    condition     = google_project_iam_custom_role.normal_infrastructure_deployer.role_id == "tfNormalInfrastructureDeployer" && length(google_project_iam_custom_role.normal_infrastructure_deployer.permissions) == 162 && alltrue([for permission in ["artifactregistry.repositories.create", "certificatemanager.certs.create", "cloudsql.instances.update", "compute.networks.create", "pubsub.topics.create", "run.services.update", "secretmanager.secrets.create", "servicenetworking.services.addPeering", "storage.buckets.update"] : contains(tolist(google_project_iam_custom_role.normal_infrastructure_deployer.permissions), permission)])
+    error_message = "The normal deployer role must cover every reviewed ordinary infrastructure API family."
+  }
+
+  assert {
+    condition     = alltrue([for permission in google_project_iam_custom_role.normal_infrastructure_deployer.permissions : !strcontains(permission, "setIamPolicy") && !strcontains(permission, "getIamPolicy") && !strcontains(permission, "serviceusage.") && !strcontains(permission, "iam.serviceAccounts") && permission != "secretmanager.versions.access" && !strcontains(permission, "storage.objects")])
+    error_message = "The normal deployer role must not mutate or read IAM policies, administer service accounts, activate APIs, or read secret values or bucket objects."
+  }
 }
