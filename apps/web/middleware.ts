@@ -111,10 +111,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
       const loginUrl = new URL('/dashboard/login', request.url);
       const tenantSlug = request.nextUrl.searchParams.get('tenantSlug');
       if (tenantSlug) loginUrl.searchParams.set('tenantSlug', tenantSlug);
-      return applySecurityHeaders(
-        NextResponse.redirect(loginUrl),
-        pathname,
-      );
+      return applySecurityHeaders(NextResponse.redirect(loginUrl), pathname);
     }
     if (isManagerOnlyRoute(pathname) && staffClaims.role !== 'MANAGER') {
       return applySecurityHeaders(

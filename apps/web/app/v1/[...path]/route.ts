@@ -18,7 +18,10 @@ function upstreamUrl(path: readonly string[], search: string): string {
   return `${baseUrl.replace(/\/$/, '')}/${path.map(encodeURIComponent).join('/')}${search}`;
 }
 
-async function proxy(request: NextRequest, context: { params: Promise<{ path: string[] }> }): Promise<Response> {
+async function proxy(
+  request: NextRequest,
+  context: { params: Promise<{ path: string[] }> },
+): Promise<Response> {
   const { path } = await context.params;
   const headers = new Headers(request.headers);
   for (const header of HOP_BY_HOP_HEADERS) headers.delete(header);

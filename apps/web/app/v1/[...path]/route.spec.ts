@@ -45,9 +45,12 @@ describe('same-origin BFF gateway', () => {
       }),
     );
 
-    const response = await GET(new NextRequest('https://web.example.test/v1/auth/google/callback'), {
-      params: Promise.resolve({ path: ['auth', 'google', 'callback'] }),
-    });
+    const response = await GET(
+      new NextRequest('https://web.example.test/v1/auth/google/callback'),
+      {
+        params: Promise.resolve({ path: ['auth', 'google', 'callback'] }),
+      },
+    );
 
     expect(response.status).toBe(302);
     expect(response.headers.get('set-cookie')).toContain('__Host-access_token=signed-token');

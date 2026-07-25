@@ -29,12 +29,9 @@ export async function fetchManifest(slug: string): Promise<HotsiteManifestRespon
 
 export async function fetchPublishedHotsiteSlugs(): Promise<HotsiteSitemapEntryListResponse> {
   const isDev = process.env.NODE_ENV === 'development';
-  const res = await fetch(
-    buildBffUrl('/public/platform/published-hotsites'),
-    {
-      next: { revalidate: isDev ? 0 : HOTSITE_REVALIDATE_SECONDS },
-    },
-  );
+  const res = await fetch(buildBffUrl('/public/platform/published-hotsites'), {
+    next: { revalidate: isDev ? 0 : HOTSITE_REVALIDATE_SECONDS },
+  });
 
   if (!res.ok) throw new Error('Failed to fetch published hotsites');
 
