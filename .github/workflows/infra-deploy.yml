@@ -56,11 +56,15 @@ on:
     - cron: '30 9 * * 1' # weekly drift check, Monday 09:30 UTC
   workflow_dispatch:
     inputs:
-      verify_normal_deployer_staging:
-        description: 'Run a protected, no-change staging apply to verify the normal Terraform deployer.'
+      verify_normal_deployer_environment:
+        description: 'Run a protected, no-change apply to verify one normal Terraform deployer.'
         required: true
-        type: boolean
-        default: false
+        type: choice
+        options:
+          - none
+          - staging
+          - prod
+        default: none
 
 permissions:
   contents: read
@@ -607,7 +611,7 @@ jobs:
   # general apply route or make an unreviewed infrastructure change.
   verify-normal-deployer-staging:
     name: Verify normal deployer (staging)
-    if: github.event_name == 'workflow_dispatch' && inputs.verify_normal_deployer_staging && github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && inputs.verify_normal_deployer_environment == 'staging' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: staging-infrastructure
@@ -649,13 +653,60 @@ jobs:
           fi
           terraform apply -input=false tfplan
 
+  # Production uses the same no-change proof but a distinct protected
+  # environment and the production-only Cloudflare provider credential.
+  verify-normal-deployer-prod:
+    name: Verify normal deployer (prod)
+    if: github.event_name == 'workflow_dispatch' && inputs.verify_normal_deployer_environment == 'prod' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production-infrastructure
+    concurrency:
+      group: production-mutations
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Authenticate as tf-deployer (prod)
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER_PROD }}
+          service_account: ${{ secrets.TF_DEPLOYER_SA_PROD }}
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: '1.15.8'
+          terraform_wrapper: false
+
+      - name: Verify no-change apply — prod
+        working-directory: infra/terraform/envs/prod
+        env:
+          TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
+          TF_VAR_brevo_smtp_login: ${{ secrets.BREVO_SMTP_LOGIN }}
+          TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          trap 'rm -f tfplan' EXIT
+          terraform init -input=false -lockfile=readonly
+          terraform plan -input=false -lock-timeout=60s -out=tfplan >/dev/null
+          changes=$(terraform show -json tfplan | jq '[.resource_changes[] | select(.change.actions != ["no-op"])] | length')
+          if [ "$changes" -ne 0 ]; then
+            echo "Refusing verification: normal production Terraform plan is not a no-op."
+            exit 1
+          fi
+          terraform apply -input=false tfplan
+
   # ---------------------------------------------------------------------
   # Weekly drift detection (read-only, tf-planner) + on-demand re-run
   # ---------------------------------------------------------------------
 
   drift-staging:
     name: Drift check (staging)
-    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && !inputs.verify_normal_deployer_staging)
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.verify_normal_deployer_environment == 'none')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -691,7 +742,7 @@ jobs:
 
   drift-prod:
     name: Drift check (prod)
-    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && !inputs.verify_normal_deployer_staging)
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.verify_normal_deployer_environment == 'none')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
