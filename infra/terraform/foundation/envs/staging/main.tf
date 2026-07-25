@@ -12,7 +12,7 @@ module "project_services" {
   source = "../../modules/project-services"
 
   project_id = var.project_id
-  services   = ["iap.googleapis.com"]
+  services   = ["iap.googleapis.com", "policytroubleshooter.googleapis.com"]
 }
 
 # TD34: Foundation, not the routine environment deployer, owns runtime
