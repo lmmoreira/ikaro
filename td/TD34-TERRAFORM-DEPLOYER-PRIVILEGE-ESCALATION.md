@@ -3,7 +3,7 @@
 ## Status
 
 - **State**: 🟡 Open
-- **Phase**: phase 3 ownership transfer underway — runtime and workload IAM are Foundation-owned; remaining resource-IAM/API transfers and de-privileging are pending
+- **Phase**: phase 3 ownership transfer underway — runtime and workload IAM are Foundation-owned; the verified remaining static resource-IAM inventory, the relay-toggle control-plane redesign, and de-privileging are pending
 - **Type**: Technical Debt / Infrastructure Security
 - **Priority**: High — a compromise of the trusted infrastructure deployment path can become project-wide privilege escalation
 - **Context**: `infra/terraform/envs/staging/main.tf`, `infra/terraform/envs/prod/main.tf`, `.github/workflows/infra-deploy.yml`, M17-S08 / M17-S24 deployer-role design
@@ -185,17 +185,36 @@ re-granted any privilege.
 
 ### Remaining ownership-transfer scope
 
-Before the runtime batch, the normal Terraform states contained 109
-IAM-related objects in staging and 115 in production. The completed runtime
-transfer leaves 82 staging and 87 production objects to transfer. Once the
-implemented Cloud Run/Pub/Sub/Scheduler handoff completes, 8 staging and 13
-production objects are expected to remain. They include resource IAM for
-Storage, Secret Manager, Artifact Registry, Cloud SQL, Compute/IAP,
-cross-project bindings, and the remaining enabled APIs. These must move in
-reviewed batches:
-Foundation adopts each live binding first, then the normal state relinquishes
-it without destroying the binding. Cross-state moves must continue to use
-explicit imports/state removal, never Terraform `moved` blocks.
+The post-workload-handoff remote-state audit on 2026-07-25 establishes the
+current baseline. The normal environment states retain seven static IAM/API
+objects in staging and eight in production:
+
+- staging: the public-assets bucket viewer, the human Cloud SQL client and
+  instance-user project bindings, the permanent relay service account, and
+  the three relay audit configurations;
+- production: the public-assets bucket viewer, the permanent relay service
+  account, the three relay audit configurations, and the three cross-project
+  Artifact Registry bindings.
+
+Production also retains four deliberately temporary
+`module.foundation_state_bootstrap` bindings. They are migration bridge
+capabilities, not ordinary resource IAM, and remain until phase 5.
+
+The disabled relay path is not represented in current state, but it remains
+in normal-root configuration: enabling the VM would make the normal deployer
+create project-level Compute, Cloud SQL, Secret Manager, IAP-tunnel, and
+OS Login IAM bindings. That path must be redesigned so Foundation owns every
+policy grant and the normal root receives only the resulting non-IAM resource
+inputs before the normal deployer's broad roles can be revoked.
+
+Future batches use this invariant: introduce the Foundation resource and its
+explicit import identifier, then require a protected Foundation plan that
+shows adoption with **zero IAM-policy replacements or destroys**. Only after
+that verified Foundation adoption may the normal root relinquish its former
+address with `removed { lifecycle { destroy = false } }`. Never use Terraform
+`moved` blocks across state backends. This order avoids an access-loss window;
+the no-replacement check is mandatory because import identifiers and persisted
+provider state can use different canonical forms.
 
 ### Post-development follow-up
 
@@ -204,6 +223,8 @@ explicit imports/state removal, never Terraform `moved` blocks.
   it. The TD32 relay uses its VM service account, not this human binding.
 - Add Foundation environment-root regression coverage asserting that the only
   public Cloud Run invoker grants are `allUsers` on `ikaro-bff` and `ikaro-web`.
+- Add regression coverage for each remaining resource-IAM type before its
+  handoff, including its provider-normalized identifier form where applicable.
 
 ## Proposed approach
 
