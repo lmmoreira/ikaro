@@ -1,6 +1,7 @@
 locals {
   planner_iam_policy_reader_permissions = toset([
     "artifactregistry.repositories.getIamPolicy",
+    "compute.firewalls.get",
     "iam.serviceAccounts.getIamPolicy",
     "pubsub.subscriptions.getIamPolicy",
     "pubsub.topics.getIamPolicy",
