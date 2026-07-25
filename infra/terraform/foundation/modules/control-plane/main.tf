@@ -5,12 +5,14 @@ locals {
   github_pool_resource = "projects/${var.workload_identity_pool_project_number}/locations/global/workloadIdentityPools/${var.workload_identity_pool_id}"
   state_prefix         = "foundation/${var.environment}"
 
-  # Phase 3 enablement only. These roles let the separately protected
-  # foundation deployer take ownership of project IAM, service-account IAM,
-  # and enabled APIs. Resource-specific IAM administration is added only with
-  # its corresponding ownership-transfer slice.
+  # These roles let the separately protected foundation deployer take
+  # ownership of project IAM, service-account IAM, and enabled APIs.
+  # Security Reviewer is read-only and lets the protected TD34 proof query
+  # complete effective policies through Policy Troubleshooter; it grants no
+  # mutation, token, key, or impersonation capability.
   foundation_deployer_project_roles = toset([
     "roles/iam.roleAdmin",
+    "roles/iam.securityReviewer",
     "roles/iam.serviceAccountAdmin",
     "roles/resourcemanager.projectIamAdmin",
     "roles/serviceusage.serviceUsageAdmin",
