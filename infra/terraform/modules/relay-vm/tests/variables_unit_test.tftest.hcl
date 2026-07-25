@@ -7,14 +7,15 @@
 mock_provider "google" {}
 
 variables {
-  project_id                   = "ikaro-test"
-  environment                  = "staging"
-  region                       = "southamerica-east1"
-  zone                         = "southamerica-east1-a"
-  subnet_id                    = "projects/ikaro-test/regions/southamerica-east1/subnetworks/ikaro-subnet-staging"
-  network_id                   = "projects/ikaro-test/global/networks/ikaro-vpc-staging"
-  iam_admin_user               = "admin@ikaro.online"
-  platform_admin_key_secret_id = "projects/ikaro-test/secrets/platform-admin-key"
+  project_id                     = "ikaro-test"
+  environment                    = "staging"
+  region                         = "southamerica-east1"
+  zone                           = "southamerica-east1-a"
+  subnet_id                      = "projects/ikaro-test/regions/southamerica-east1/subnetworks/ikaro-subnet-staging"
+  network_id                     = "projects/ikaro-test/global/networks/ikaro-vpc-staging"
+  operator_service_account_email = "ikaro-tf-foundation@ikaro-test.iam.gserviceaccount.com"
+  iam_admin_user                 = "admin@ikaro.online"
+  platform_admin_key_secret_id   = "projects/ikaro-test/secrets/platform-admin-key"
 }
 
 run "accepts_valid_environment_and_defaults" {

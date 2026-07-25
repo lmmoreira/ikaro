@@ -7,16 +7,17 @@
 mock_provider "google" {}
 
 variables {
-  project_id                   = "ikaro-test"
-  environment                  = "staging"
-  region                       = "southamerica-east1"
-  zone                         = "southamerica-east1-a"
-  subnet_id                    = "projects/ikaro-test/regions/southamerica-east1/subnetworks/ikaro-subnet-staging"
-  network_id                   = "projects/ikaro-test/global/networks/ikaro-vpc-staging"
-  iam_admin_user               = "admin@ikaro.online"
-  platform_admin_key_secret_id = "projects/ikaro-test/secrets/platform-admin-key"
-  db_instance_connection_name  = "ikaro-test:southamerica-east1:ikaro-db-staging"
-  db_instance_name             = "ikaro-db-staging"
+  project_id                     = "ikaro-test"
+  environment                    = "staging"
+  region                         = "southamerica-east1"
+  zone                           = "southamerica-east1-a"
+  subnet_id                      = "projects/ikaro-test/regions/southamerica-east1/subnetworks/ikaro-subnet-staging"
+  network_id                     = "projects/ikaro-test/global/networks/ikaro-vpc-staging"
+  operator_service_account_email = "ikaro-tf-foundation@ikaro-test.iam.gserviceaccount.com"
+  iam_admin_user                 = "admin@ikaro.online"
+  platform_admin_key_secret_id   = "projects/ikaro-test/secrets/platform-admin-key"
+  db_instance_connection_name    = "ikaro-test:southamerica-east1:ikaro-db-staging"
+  db_instance_name               = "ikaro-db-staging"
 }
 
 run "create_false_plans_zero_instances" {
@@ -84,6 +85,28 @@ run "firewall_allows_only_iap_range_on_ssh" {
   }
 }
 
+run "operator_can_attach_only_the_relay_service_account" {
+  command = plan
+
+  override_resource {
+    target          = google_service_account.relay
+    override_during = plan
+    values = {
+      name = "projects/ikaro-test/serviceAccounts/ikaro-relay-vm@ikaro-test.iam.gserviceaccount.com"
+    }
+  }
+
+  assert {
+    condition     = google_service_account_iam_member.operator_relay_service_account_user.role == "roles/iam.serviceAccountUser" && google_service_account_iam_member.operator_relay_service_account_user.member == "serviceAccount:ikaro-tf-foundation@ikaro-test.iam.gserviceaccount.com"
+    error_message = "The control-plane identity must receive only roles/iam.serviceAccountUser for the relay service account."
+  }
+
+  assert {
+    condition     = google_service_account_iam_member.operator_relay_service_account_user.service_account_id == google_service_account.relay.name
+    error_message = "The control-plane serviceAccountUser grant must be scoped to the relay service account, not the project."
+  }
+}
+
 run "admin_identity_gets_instance_scoped_ssh_access_only" {
   command = plan
 
@@ -129,6 +152,7 @@ run "relay_service_account_gets_cloud_sql_and_secret_access_not_the_human" {
     override_during = plan
     values = {
       email = "ikaro-relay-vm@ikaro-test.iam.gserviceaccount.com"
+      name  = "projects/ikaro-test/serviceAccounts/ikaro-relay-vm@ikaro-test.iam.gserviceaccount.com"
     }
   }
 

@@ -48,7 +48,7 @@ registry (prod only) ─────────────┘          │
                                              └──► monitoring
 ```
 
-Instantiation order for a fresh env follows the arrows left to right. `registry` and `edge` exist only in `envs/prod` (D8: single registry serving both envs; D5: staging has no LB). `relay-vm` (TD32) is wired into both envs but count-gated (`create_relay_vm`, default `false`) — inert until deliberately toggled on for a session.
+Instantiation order for a fresh env follows the arrows left to right. `registry` and `edge` exist only in `envs/prod` (D8: single registry serving both envs; D5: staging has no LB). `relay-vm` (TD32) runs inside each environment's VPC but is composed and state-owned exclusively by the matching Foundation root. Its `create_relay_vm` toggle defaults to `false` and is changed only through a reviewed Foundation PR plus protected Foundation apply.
 
 **`modules/scheduler`'s 4 cron jobs are real in both envs (M17-S21) — staging is not a dry run.** Once staging's Cloud Scheduler jobs are active, `ikaro-cron-reminders` genuinely emails whichever test users have bookings in staging's database, on the same `*/30 * * * *` cadence as prod. This is accepted, not a bug to fix — there is no lower-cost way to exercise the full Scheduler → Pub/Sub → push → trigger-handler path pre-production. Keep staging's booking data limited to real test accounts you're fine receiving reminder/expiry emails.
 

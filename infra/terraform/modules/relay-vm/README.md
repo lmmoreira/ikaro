@@ -6,12 +6,15 @@ Closes the gap documented in `td/TD32-CLOUD-SQL-DEVELOPER-ACCESS-NO-NETWORK-PATH
 
 ## On-demand, not always-on
 
-This module is inert by default (`create = false`). Toggling it on or off happens exclusively through a merged PR, never a local `terraform apply` — see `infra/terraform/README.md`'s pipeline-only-apply rule:
+This module is inert by default (`create = false`). Foundation owns its
+control plane and its on/off toggle; the normal environment Terraform roots
+cannot create the relay VM or modify its service account. Toggling it happens
+exclusively through a merged Foundation PR, never a local `terraform apply`:
 
-1. Flip `create_relay_vm = true` in the target env's `terraform.tfvars`.
-2. Open a PR, merge to `main` — the pipeline's `apply-staging`/`apply-prod` job creates the VM.
+1. Flip `create_relay_vm = true` in the target Foundation root's reviewed configuration.
+2. Open a PR, merge to `main`, then dispatch the protected Foundation apply — its staging/production environment gate creates the VM.
 3. Use it (see below).
-4. Flip `create_relay_vm` back to `false`, open a PR, merge — the pipeline destroys it. A real destroy, not a stop, so cost drops to zero between sessions.
+4. Flip `create_relay_vm` back to `false`, open a PR, merge, and dispatch the protected Foundation apply — it destroys the VM. A real destroy, not a stop, so cost drops to zero between sessions.
 
 `e2-micro` in `southamerica-east1` isn't covered by GCP's Always-Free tier (US-region-only) — running it continuously would cost roughly $8–15/month, which is why this stays a deliberate on/off toggle rather than an always-on host.
 

@@ -266,6 +266,41 @@ module "custom_roles" {
   project_id = var.project_id
 }
 
+# Foundation owns the entire relay control plane. The normal environment root
+# cannot create a VM or alter its identity/access path.
+module "relay_control_plane" {
+  source = "../../../modules/relay-vm"
+
+  project_id  = var.project_id
+  environment = var.environment
+  region      = var.region
+  labels = {
+    app         = "ikaro"
+    environment = var.environment
+    managed_by  = "terraform"
+  }
+
+  create                         = var.create_relay_vm
+  zone                           = "${var.region}-a"
+  subnet_id                      = var.relay_subnet_id
+  network_id                     = var.relay_network_id
+  iam_admin_user                 = var.iam_admin_user
+  operator_service_account_email = module.control_plane.foundation_deployer_email
+  platform_admin_key_secret_id   = var.relay_platform_admin_key_secret_id
+  db_instance_connection_name    = var.relay_db_instance_connection_name
+  db_instance_name               = var.relay_db_instance_name
+}
+
+import {
+  to = module.relay_control_plane.google_service_account.relay
+  id = "projects/${var.project_id}/serviceAccounts/ikaro-relay-vm@${var.project_id}.iam.gserviceaccount.com"
+}
+
+import {
+  to = module.relay_control_plane.google_compute_firewall.allow_iap_ssh
+  id = "projects/${var.project_id}/global/firewalls/ikaro-relay-vm-allow-iap-ssh-${var.environment}"
+}
+
 resource "google_project_iam_member" "foundation_deployer_resource_iam_writer" {
   project = var.project_id
   role    = module.custom_roles.resource_iam_writer_role_id

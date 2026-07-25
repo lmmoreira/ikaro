@@ -595,58 +595,20 @@ module "registry" {
   labels      = var.labels
 }
 
-# The tf-deployer already has projectIamAdmin, so Terraform can grant the
-# Compute Engine administration needed to create the relay VM itself.
-# Count-gating keeps that otherwise-broad role absent between sessions.
-resource "google_project_iam_member" "relay_vm_deployer_compute_instance_admin" {
-  #checkov:skip=CKV_GCP_42:roles/compute.instanceAdmin.v1 is the GCP predefined role required to create and destroy this VM and its boot disk; a custom role would be an unverified, brittle permission list. The binding exists only while the on-demand relay VM is enabled.
-  count = var.create_relay_vm ? 1 : 0
+# TD34: Foundation now owns the relay control plane. Relinquish this normal
+# state's two live, always-on resources without changing either cloud object.
+removed {
+  from = module.relay_vm.google_service_account.relay
 
-  project = var.project_id
-  role    = "roles/compute.instanceAdmin.v1"
-  member  = "serviceAccount:ikaro-tf-deployer@${var.project_id}.iam.gserviceaccount.com"
+  lifecycle {
+    destroy = false
+  }
 }
 
-# GCP IAM bindings can take up to 60 seconds to propagate after Terraform's
-# API call succeeds. Do not race VM creation against that propagation.
-resource "time_sleep" "relay_vm_deployer_iam_propagation" {
-  count = var.create_relay_vm ? 1 : 0
+removed {
+  from = module.relay_vm.google_compute_firewall.allow_iap_ssh
 
-  depends_on      = [google_project_iam_member.relay_vm_deployer_compute_instance_admin]
-  create_duration = "30s"
-}
-
-# On-demand IAP relay VM (TD32) — wired in ahead of need, same as
-# envs/staging/main.tf, so S37 doesn't have to duplicate this module later.
-# The VM and access grants exist only while create_relay_vm is true. Note
-# (TD32 discovery): prod's database module is still count-gated behind
-# enable_database (false until S37) — creating this VM in prod today would
-# have nothing to reach on the Cloud SQL half until that flips. See
-# modules/relay-vm/README.md for the PR-per-toggle usage flow.
-module "relay_vm" {
-  source = "../../modules/relay-vm"
-
-  depends_on = [
-    time_sleep.relay_vm_deployer_iam_propagation,
-  ]
-
-  project_id  = var.project_id
-  environment = var.environment
-  region      = var.region
-  labels      = var.labels
-
-  create = var.create_relay_vm
-  zone   = "${var.region}-a"
-
-  subnet_id                    = module.network.subnet_id
-  network_id                   = module.network.network_id
-  iam_admin_user               = var.iam_admin_user
-  platform_admin_key_secret_id = module.secrets.secret_ids["platform-admin-key"]
-
-  # Prod's database module is count-gated (enable_database, false until
-  # S37) — try() yields "" when it doesn't exist yet, which the module
-  # treats as "skip the Cloud SQL grants and google_sql_user, nothing to
-  # register a DB user against."
-  db_instance_connection_name = try(module.database[0].instance_connection_name, "")
-  db_instance_name            = try(module.database[0].instance_name, "")
+  lifecycle {
+    destroy = false
+  }
 }

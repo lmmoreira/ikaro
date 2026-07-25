@@ -120,6 +120,10 @@ resource "google_compute_instance" "relay" {
   #checkov:skip=CKV_GCP_38:This ephemeral, on-demand relay VM stores no tenant data; Google-managed encryption at rest is the project's accepted posture. CSEK would require an operator-managed raw key for each create/recovery and cannot be safely kept in Terraform state.
   count = var.create ? 1 : 0
 
+  depends_on = [
+    google_service_account_iam_member.operator_relay_service_account_user,
+  ]
+
   name         = "ikaro-relay-vm-${var.environment}"
   project      = var.project_id
   zone         = var.zone
@@ -182,6 +186,15 @@ resource "google_compute_firewall" "allow_iap_ssh" {
   log_config {
     metadata = "INCLUDE_ALL_METADATA"
   }
+}
+
+# The control-plane identity may attach only this relay service account to the
+# relay VM. This is deliberately resource-scoped, not a project-wide
+# roles/iam.serviceAccountUser grant.
+resource "google_service_account_iam_member" "operator_relay_service_account_user" {
+  service_account_id = google_service_account.relay.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${var.operator_service_account_email}"
 }
 
 # Instance-scoped (not project-wide, cross-tool review finding on #203) —
