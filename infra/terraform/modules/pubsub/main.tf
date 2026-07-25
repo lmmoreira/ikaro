@@ -30,10 +30,6 @@ locals {
     }
   ]...)
 
-  # The identity Pub/Sub itself acts as when moving a failed delivery to a
-  # dead-letter topic — distinct from ikaro-pubsub-invoker (the identity
-  # Pub/Sub mints OIDC push tokens *as*, for delivering to the backend).
-  pubsub_service_agent = "service-${var.project_number}@gcp-sa-pubsub.iam.gserviceaccount.com"
 }
 
 resource "google_pubsub_topic" "source" {
@@ -120,51 +116,4 @@ resource "google_pubsub_subscription" "dlq_inspect" {
   expiration_policy {
     ttl = ""
   }
-}
-
-# --- Pub/Sub service-agent IAM (required for the dead_letter_policy above
-# to actually work — GCP's own documented requirement: the service agent
-# needs subscriber on the subscription carrying the policy AND publisher on
-# the dead-letter topic it redirects to). ---
-
-resource "google_pubsub_subscription_iam_member" "service_agent_subscriber" {
-  for_each = local.subscriptions
-
-  project      = var.project_id
-  subscription = google_pubsub_subscription.push[each.key].name
-  role         = "roles/pubsub.subscriber"
-  member       = "serviceAccount:${local.pubsub_service_agent}"
-}
-
-resource "google_pubsub_topic_iam_member" "service_agent_dlq_publisher" {
-  for_each = local.subscriptions
-
-  project = var.project_id
-  topic   = google_pubsub_topic.dlq[each.key].name
-  role    = "roles/pubsub.publisher"
-  member  = "serviceAccount:${local.pubsub_service_agent}"
-}
-
-# Pub/Sub (not ikaro-pubsub-invoker itself) mints the OIDC push tokens — the
-# service agent needs tokenCreator on the identity it's minting tokens as,
-# or every push delivery fails auth (M17-S02 known gotcha).
-resource "google_service_account_iam_member" "pubsub_sa_token_creator" {
-  service_account_id = "projects/${var.project_id}/serviceAccounts/${var.pubsub_invoker_sa_email}"
-  role               = "roles/iam.serviceAccountTokenCreator"
-  member             = "serviceAccount:${local.pubsub_service_agent}"
-}
-
-# --- Backend publisher grants ---
-# The backend is the only publisher in this system: OUTBOX_PUBLISHER for
-# domain events, D3's /cron/* controllers for local/manual trigger
-# re-publishing, and pull-mode publishToDlq() for the local dead-letter
-# topic — granted uniformly across every topic rather than special-casing
-# which subset "really" publishes where.
-resource "google_pubsub_topic_iam_member" "backend_publisher" {
-  for_each = local.topics
-
-  project = var.project_id
-  topic   = google_pubsub_topic.source[each.key].id
-  role    = "roles/pubsub.publisher"
-  member  = "serviceAccount:${var.backend_sa_email}"
 }

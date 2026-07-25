@@ -19,16 +19,6 @@ variable "project_id" {
   type        = string
 }
 
-variable "project_number" {
-  description = "GCP project number — used to construct the Cloud Scheduler service agent's principal (service-<number>@gcp-sa-cloudscheduler.iam.gserviceaccount.com), the identity Scheduler itself acts as when publishing a pubsub_target tick (Pub/Sub-target jobs have no service-account field of their own — that only exists for HTTP targets). Discover via: gcloud projects describe <project-id> --format='value(projectNumber)'"
-  type        = string
-
-  validation {
-    condition     = can(regex("^[0-9]+$", var.project_number))
-    error_message = "project_number must be a numeric GCP project number (e.g. \"729809528251\"), not a project ID."
-  }
-}
-
 variable "region" {
   description = "GCP region for regional resources"
   type        = string

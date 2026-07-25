@@ -136,6 +136,8 @@ jobs:
           terraform_wrapper: false
       - name: terraform plan — foundation staging
         working-directory: infra/terraform/foundation/envs/staging
+        env:
+          TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
         run: |
           terraform init -input=false -lockfile=readonly
           terraform plan -input=false -no-color -lock-timeout=60s -out=tfplan >/dev/null
@@ -166,6 +168,8 @@ jobs:
           terraform_wrapper: false
       - name: terraform plan — foundation prod
         working-directory: infra/terraform/foundation/envs/prod
+        env:
+          TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
         run: |
           terraform init -input=false -lockfile=readonly
           terraform plan -input=false -no-color -lock-timeout=60s -out=tfplan >/dev/null
@@ -200,6 +204,8 @@ jobs:
           terraform_wrapper: false
       - name: terraform apply — foundation staging
         working-directory: infra/terraform/foundation/envs/staging
+        env:
+          TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
         run: |
           terraform init -input=false -lockfile=readonly
           terraform plan -input=false -lock-timeout=60s -out=tfplan
@@ -233,6 +239,8 @@ jobs:
           terraform_wrapper: false
       - name: terraform apply — foundation prod
         working-directory: infra/terraform/foundation/envs/prod
+        env:
+          TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
         run: |
           terraform init -input=false -lockfile=readonly
           terraform plan -input=false -lock-timeout=60s -out=tfplan
@@ -266,6 +274,8 @@ jobs:
 
       - name: terraform plan — foundation bootstrap staging
         working-directory: infra/terraform/foundation/envs/staging
+        env:
+          TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
         run: |
           terraform init -input=false -lockfile=readonly
           terraform plan -input=false -no-color -lock-timeout=60s -out=tfplan >/dev/null
@@ -313,6 +323,8 @@ jobs:
 
       - name: terraform apply — foundation bootstrap staging
         working-directory: infra/terraform/foundation/envs/staging
+        env:
+          TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
         run: |
           terraform init -input=false -lockfile=readonly
           terraform apply -input=false -lock-timeout=60s -auto-approve
@@ -350,6 +362,8 @@ jobs:
 
       - name: terraform plan — foundation bootstrap prod
         working-directory: infra/terraform/foundation/envs/prod
+        env:
+          TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
         run: |
           terraform init -input=false -lockfile=readonly
           terraform plan -input=false -no-color -lock-timeout=60s -out=tfplan >/dev/null
@@ -396,6 +410,8 @@ jobs:
 
       - name: terraform apply — foundation bootstrap prod
         working-directory: infra/terraform/foundation/envs/prod
+        env:
+          TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
         run: |
           terraform init -input=false -lockfile=readonly
           terraform apply -input=false -lock-timeout=60s -auto-approve

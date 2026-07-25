@@ -186,25 +186,6 @@ module "cloudrun_backend" {
   health_check_ready_path = "/health/ready"
   health_check_live_path  = "/health/live"
 
-  # bff + the Pub/Sub push identity call the backend. iam_admin_user's own
-  # grant here predates TD32 and was for `gcloud run services proxy` (S18
-  # discovery finding) — TD32's live verification proved that path never
-  # actually worked (ingress:internal blocks it regardless of IAM
-  # validity, confirmed by a real attempt); kept as-is since removing an
-  # existing human grant is a separate, not-yet-requested change. The
-  # The relay VM's own SA (TD32) is the mechanism that actually works when
-  # the VM is enabled — it calls the backend from inside the VPC, where the
-  # ingress check classifies it as internal-origin traffic. Do not retain
-  # run.invoker while the on-demand VM is absent.
-  invoker_members = concat(
-    [
-      "serviceAccount:${local.runtime_sa_emails.bff}",
-      "serviceAccount:${local.runtime_sa_emails.pubsub_invoker}",
-    ],
-    var.create_relay_vm ? ["serviceAccount:${module.relay_vm.service_account_email}"] : [],
-    var.iam_admin_user != "" ? ["user:${var.iam_admin_user}"] : []
-  )
-
   env_vars = merge(
     {
       NODE_ENV    = "production"
@@ -262,8 +243,8 @@ module "cloudrun_backend" {
 
 # Internal-load-balancer ingress (S22): the raw *.run.app URL no longer
 # accepts direct internet traffic — only the Global external ALB's
-# serverless NEG can reach it. allow_unauthenticated stays true: the app's
-# public-auth model doesn't rely on Cloud Run IAM invoker checks (that's
+# serverless NEG can reach it. Its Foundation-owned public invoker grant stays
+# in place: the app's public-auth model doesn't rely on Cloud Run IAM checks (that's
 # S47/future scope, M17 §2) — narrowing ingress changes the network path,
 # not who's allowed to call once traffic arrives via the LB. ALL_TRAFFIC
 # egress unchanged: *.run.app resolves to public IPs, so PRIVATE_RANGES_ONLY
@@ -291,11 +272,6 @@ module "cloudrun_bff" {
   vpc_egress = "ALL_TRAFFIC"
   network_id = module.network.network_id
   subnet_id  = module.network.subnet_id
-
-  allow_unauthenticated = true
-  # Completes the run.invoker set alongside the backend's grants above — not
-  # strictly needed while the BFF is public, but harmless (S17 discovery).
-  invoker_members = ["serviceAccount:${local.runtime_sa_emails.web}"]
 
   health_check_ready_path = "/v1/health/ready"
   health_check_live_path  = "/v1/health/live"
@@ -353,8 +329,7 @@ module "cloudrun_web" {
   # execution environment", a combination no static check catches).
   deletion_protection = true
 
-  ingress               = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
-  allow_unauthenticated = true
+  ingress = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
 
   health_check_ready_path = "/api/health/ready"
   health_check_live_path  = "/api/health/live"
@@ -406,15 +381,13 @@ module "edge" {
 module "pubsub" {
   source = "../../modules/pubsub"
 
-  project_id     = var.project_id
-  project_number = var.project_number
-  environment    = var.environment
-  region         = var.region
-  labels         = var.labels
+  project_id  = var.project_id
+  environment = var.environment
+  region      = var.region
+  labels      = var.labels
 
   backend_push_endpoint   = "${module.cloudrun_backend.service_uri}/pubsub/push"
   backend_pubsub_audience = local.backend_pubsub_audience
-  backend_sa_email        = local.runtime_sa_emails.backend
   pubsub_invoker_sa_email = local.runtime_sa_emails.pubsub_invoker
 }
 
@@ -464,14 +437,88 @@ module "migrate_job" {
 module "scheduler" {
   source = "../../modules/scheduler"
 
-  project_id     = var.project_id
-  project_number = var.project_number
-  environment    = var.environment
-  region         = var.region
-  labels         = var.labels
+  project_id  = var.project_id
+  environment = var.environment
+  region      = var.region
+  labels      = var.labels
 
   cron_topic_ids        = module.pubsub.topic_ids
   outbox_relay_schedule = var.outbox_relay_schedule
+}
+
+# TD34: Foundation imports these existing IAM bindings before this normal
+# state relinquishes them. The ordinary modules retain their services, topics,
+# subscriptions, and jobs; Terraform must never destroy their live policies.
+removed {
+  from = module.cloudrun_backend.google_cloud_run_v2_service_iam_member.invoker
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = module.cloudrun_bff.google_cloud_run_v2_service_iam_member.invoker
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = module.cloudrun_bff.google_cloud_run_v2_service_iam_member.public_invoker
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = module.cloudrun_web.google_cloud_run_v2_service_iam_member.public_invoker
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = module.pubsub.google_pubsub_subscription_iam_member.service_agent_subscriber
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = module.pubsub.google_pubsub_topic_iam_member.service_agent_dlq_publisher
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = module.pubsub.google_service_account_iam_member.pubsub_sa_token_creator
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = module.pubsub.google_pubsub_topic_iam_member.backend_publisher
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = module.scheduler.google_pubsub_topic_iam_member.scheduler_publisher
+
+  lifecycle {
+    destroy = false
+  }
 }
 
 # Prod-only (D8): single Artifact Registry backing both envs. The one

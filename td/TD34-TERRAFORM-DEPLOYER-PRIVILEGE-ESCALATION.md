@@ -3,7 +3,7 @@
 ## Status
 
 - **State**: 🟡 Open
-- **Phase**: phase 3 ownership transfer underway — runtime-identity handoff implemented, awaiting protected applies
+- **Phase**: phase 3 ownership transfer underway — runtime identities are Foundation-owned; the Cloud Run/Pub/Sub/Scheduler IAM handoff awaits protected applies
 - **Type**: Technical Debt / Infrastructure Security
 - **Priority**: High — a compromise of the trusted infrastructure deployment path can become project-wide privilege escalation
 - **Context**: `infra/terraform/envs/staging/main.tf`, `infra/terraform/envs/prod/main.tf`, `.github/workflows/infra-deploy.yml`, M17-S08 / M17-S24 deployer-role design
@@ -111,38 +111,68 @@ deliberately excluded because they remain managed by
 The protected Foundation deployer now owns custom-role administration, and the
 Foundation planner has read-only custom-role visibility. Foundation state owns
 the existing `tfPlannerIamPolicyReader` role without mutation and the new
-`tfFoundationResourceIamWriter` role. The latter contains exactly four
-permissions: get/set IAM policy for application Storage buckets and Secret
-Manager secrets. It has no object-read, secret-value-access, project-IAM, or
-service-account-IAM permission, and is granted only to the protected
-Foundation deployer.
+`tfFoundationResourceIamWriter` role. The latter contains exactly ten
+permissions: get/set IAM policy for Cloud Run services, Pub/Sub topics and
+subscriptions, application Storage buckets, and Secret Manager secrets. It has
+no object-read, secret-value-access, project-IAM, or service-account-IAM
+permission, and is granted only to the protected Foundation deployer.
 
-### Runtime-identity transfer — implemented, pending protected applies
+### Completed runtime-identity transfer
 
-The next ownership-transfer configuration is implemented but has not yet been
-applied. It adopts the five existing runtime service accounts and every
-binding currently owned by `modules/iam`:
+The protected Foundation and normal-infrastructure applies completed
+successfully in staging and production. Foundation now owns the five existing
+runtime service accounts and every binding formerly owned by `modules/iam`:
 
 - staging: 27 objects;
 - production: 28 objects, including the production-only Cloudflare token
   accessor.
 
-Foundation imports the live objects first. The normal roots then use a single
-`removed { lifecycle { destroy = false } }` handoff for `module.iam`, while
-continuing to use the same deterministic service-account emails. Structural
-normal-root plans show zero creates, updates, and destroys; they only remove
-the old state ownership. The protected Foundation apply must run first, and
-the normal-root handoff apply second. Only after both complete may this batch
-be recorded as live.
+Foundation imported the live objects first. The normal roots then completed a
+single `removed { lifecycle { destroy = false } }` handoff for `module.iam`,
+while continuing to use the same deterministic service-account emails. The
+verified live state now contains all 27 staging and 28 production objects in
+Foundation state, and zero `module.iam` objects in the normal environment
+states. No service account or IAM binding was destroyed during the transfer.
+
+### Cloud Run, Pub/Sub, and Scheduler IAM transfer — implemented, pending protected applies
+
+The next Foundation-only IAM configuration is implemented but has not yet been
+applied. Ordinary environment modules continue to own Cloud Run services,
+Pub/Sub topics and subscriptions, and Scheduler jobs. The new Foundation
+module owns only their IAM bindings:
+
+- Cloud Run `roles/run.invoker` bindings for the backend, BFF, and web
+  services, including the explicitly reviewed public BFF/web grants;
+- Pub/Sub's service-agent subscriber and dead-letter publisher bindings, the
+  backend publisher bindings, and the Pub/Sub service-agent token-creator
+  binding on `ikaro-pubsub-invoker`;
+- Cloud Scheduler's service-agent publisher bindings for the four cron topics.
+
+The protected Foundation applies must import 74 existing bindings in each
+environment before the normal environment applies remove their former state
+addresses with `destroy = false`. Foundation also creates one deliberate,
+permanent `roles/run.invoker` binding for the relay VM's deterministic service
+account. That removes routine relay toggles from Cloud Run IAM mutation; the
+service account itself already exists permanently and can invoke only the
+internal backend. The Foundation custom role receives only the six additional
+Cloud Run/Pub/Sub `getIamPolicy`/`setIamPolicy` permissions needed for this
+resource-IAM batch.
+
+The protected Foundation apply must run first, followed by the normal-root
+state handoff. The plan must show the 74 imports, only the one reviewed relay
+binding create, and no IAM-policy deletion before this batch is recorded as
+live.
 
 ### Remaining ownership-transfer scope
 
 Before the runtime batch, the normal Terraform states contained 109
-IAM-related objects in staging and 115 in production. After its two protected
-applies, 82 staging and 87 production objects will remain to transfer. Those
-remaining objects include resource IAM for Cloud Run, Pub/Sub, Storage, Secret
-Manager, Artifact Registry, Cloud SQL, Compute/IAP, Scheduler, cross-project
-bindings, and the remaining enabled APIs. These must move in reviewed batches:
+IAM-related objects in staging and 115 in production. The completed runtime
+transfer leaves 82 staging and 87 production objects to transfer. Once the
+implemented Cloud Run/Pub/Sub/Scheduler handoff completes, 8 staging and 13
+production objects are expected to remain. They include resource IAM for
+Storage, Secret Manager, Artifact Registry, Cloud SQL, Compute/IAP,
+cross-project bindings, and the remaining enabled APIs. These must move in
+reviewed batches:
 Foundation adopts each live binding first, then the normal state relinquishes
 it without destroying the binding. Cross-state moves must continue to use
 explicit imports/state removal, never Terraform `moved` blocks.

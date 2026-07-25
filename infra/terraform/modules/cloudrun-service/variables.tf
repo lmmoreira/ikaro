@@ -1,9 +1,3 @@
-variable "allow_unauthenticated" {
-  description = "Grant run.invoker to allUsers (bff/web — the app does its own auth). Requires the S07 org-policy exception; triggers CKV_IKARO_1, suppressed at the resource with a documented rationale."
-  type        = bool
-  default     = false
-}
-
 variable "bootstrap_mode" {
   description = "Until the first pipeline deploy (S27), the service runs a placeholder public image (e.g. gcr.io/cloudrun/hello) that does not implement the app's real health endpoints. While true, probes target \"/\" (which the placeholder image does serve) instead of the configured health-check paths, so the service can still reach READY. Flipped to false in S27 once a real image is deployed."
   type        = bool
@@ -97,12 +91,6 @@ variable "ingress" {
     ], var.ingress)
     error_message = "ingress must be one of INGRESS_TRAFFIC_ALL, INGRESS_TRAFFIC_INTERNAL_ONLY, INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER."
   }
-}
-
-variable "invoker_members" {
-  description = "IAM members (\"serviceAccount:...\", \"user:...\") granted run.invoker on this service — e.g. the BFF's runtime SA on the backend, or an operator's user: principal. Does not include allUsers; use allow_unauthenticated for that."
-  type        = list(string)
-  default     = []
 }
 
 variable "labels" {

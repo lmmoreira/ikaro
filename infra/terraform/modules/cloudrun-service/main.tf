@@ -165,30 +165,3 @@ resource "google_cloud_run_v2_service" "this" {
     ignore_changes = [template[0].containers[0].image]
   }
 }
-
-resource "google_cloud_run_v2_service_iam_member" "invoker" {
-  for_each = toset(var.invoker_members)
-
-  project  = var.project_id
-  location = var.region
-  name     = google_cloud_run_v2_service.this.name
-  role     = "roles/run.invoker"
-  member   = each.value
-}
-
-# Public invoker grant (bff/web only — the app does its own auth on top; internal
-# ingress + InternalApiGuard/PLATFORM_ADMIN_KEY protect the backend regardless). This
-# is the one deliberate allUsers grant CKV_IKARO_1 exists to catch everywhere else.
-resource "google_cloud_run_v2_service_iam_member" "public_invoker" {
-  count = var.allow_unauthenticated ? 1 : 0
-
-  #checkov:skip=CKV_IKARO_1: intentional public invoker grant — bff/web perform their
-  # own application-level auth (JWT/session cookie), matching the S07 org-policy
-  # exception granted specifically for allow-unauthenticated Cloud Run services
-  # (M17 §2). See CLAUDE.md §8's IAM binding review discipline.
-  project  = var.project_id
-  location = var.region
-  name     = google_cloud_run_v2_service.this.name
-  role     = "roles/run.invoker"
-  member   = "allUsers"
-}

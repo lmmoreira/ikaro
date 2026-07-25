@@ -11,11 +11,9 @@ mock_provider "google" {}
 
 variables {
   project_id              = "ikaro-test"
-  project_number          = "729809528251"
   environment             = "staging"
   backend_push_endpoint   = "https://ikaro-backend-crle4i3nrq-rj.a.run.app"
   backend_pubsub_audience = "ikaro-backend-staging-pubsub-push"
-  backend_sa_email        = "ikaro-backend@ikaro-test.iam.gserviceaccount.com"
   pubsub_invoker_sa_email = "ikaro-pubsub-invoker@ikaro-test.iam.gserviceaccount.com"
 }
 
@@ -63,49 +61,5 @@ run "push_and_dlq_inspect_subscriptions_never_expire" {
   assert {
     condition     = alltrue([for sub in google_pubsub_subscription.dlq_inspect : sub.expiration_policy[0].ttl == ""])
     error_message = "The DLQ inspect subscription must never auto-expire — losing it silently breaks the DLQ handling contract."
-  }
-}
-
-run "pubsub_service_agent_holds_dlq_and_subscriber_grants" {
-  command = plan
-
-  assert {
-    condition = alltrue([
-      for iam in google_pubsub_subscription_iam_member.service_agent_subscriber :
-      iam.role == "roles/pubsub.subscriber" &&
-      iam.member == "serviceAccount:service-${var.project_number}@gcp-sa-pubsub.iam.gserviceaccount.com"
-    ])
-    error_message = "The Pub/Sub service agent must hold subscriber on every push subscription (required for dead-letter redelivery)."
-  }
-
-  assert {
-    condition = alltrue([
-      for iam in google_pubsub_topic_iam_member.service_agent_dlq_publisher :
-      iam.role == "roles/pubsub.publisher" &&
-      iam.member == "serviceAccount:service-${var.project_number}@gcp-sa-pubsub.iam.gserviceaccount.com"
-    ])
-    error_message = "The Pub/Sub service agent must hold publisher on every DLQ topic (required for dead-letter redelivery)."
-  }
-
-  assert {
-    condition     = google_service_account_iam_member.pubsub_sa_token_creator.role == "roles/iam.serviceAccountTokenCreator"
-    error_message = "The Pub/Sub service agent must hold tokenCreator on ikaro-pubsub-invoker, or every push delivery fails auth."
-  }
-
-  assert {
-    condition     = google_service_account_iam_member.pubsub_sa_token_creator.member == "serviceAccount:service-${var.project_number}@gcp-sa-pubsub.iam.gserviceaccount.com"
-    error_message = "tokenCreator grant must be held by the Pub/Sub service agent, not an unrelated principal."
-  }
-}
-
-run "backend_holds_publisher_on_every_source_topic" {
-  command = plan
-
-  assert {
-    condition = alltrue([
-      for iam in google_pubsub_topic_iam_member.backend_publisher :
-      iam.role == "roles/pubsub.publisher" && iam.member == "serviceAccount:${var.backend_sa_email}"
-    ])
-    error_message = "The backend runtime SA must hold publisher on every topic it publishes domain events/dead-letter entries/cron re-triggers to."
   }
 }
