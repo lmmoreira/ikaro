@@ -299,6 +299,8 @@ module "relay_control_plane" {
   platform_admin_key_secret_id   = var.relay_platform_admin_key_secret_id
   db_instance_connection_name    = var.relay_db_instance_connection_name
   db_instance_name               = var.relay_db_instance_name
+
+  depends_on = [time_sleep.relay_operator_iam_propagation]
 }
 
 import {
@@ -321,6 +323,18 @@ resource "google_project_iam_member" "foundation_deployer_relay_vm_operator" {
   project = var.project_id
   role    = module.custom_roles.relay_vm_operator_role_id
   member  = "serviceAccount:${module.control_plane.foundation_deployer_email}"
+}
+
+resource "google_project_iam_member" "foundation_planner_relay_vm_reader" {
+  project = var.project_id
+  role    = module.custom_roles.relay_vm_planner_role_id
+  member  = "serviceAccount:${module.control_plane.foundation_planner_email}"
+}
+
+resource "time_sleep" "relay_operator_iam_propagation" {
+  create_duration = "60s"
+
+  depends_on = [google_project_iam_member.foundation_deployer_relay_vm_operator]
 }
 
 # Stage 1 of TD34 phase 4: install the non-IAM ordinary-infrastructure role

@@ -23,7 +23,7 @@ run "roles_have_exactly_the_reviewed_permissions" {
   }
 
   assert {
-    condition     = google_project_iam_custom_role.relay_vm_operator.role_id == "tfFoundationRelayVmOperator" && length(google_project_iam_custom_role.relay_vm_operator.permissions) == 31 && alltrue([for permission in ["cloudsql.users.create", "cloudsql.users.delete", "cloudsql.users.get", "cloudsql.users.list", "compute.disks.create", "compute.disks.delete", "compute.disks.get", "compute.disks.use", "compute.firewalls.create", "compute.firewalls.delete", "compute.firewalls.get", "compute.firewalls.list", "compute.firewalls.update", "compute.instances.create", "compute.instances.delete", "compute.instances.get", "compute.instances.getIamPolicy", "compute.instances.list", "compute.instances.setIamPolicy", "compute.instances.setLabels", "compute.instances.setMetadata", "compute.instances.setServiceAccount", "compute.instances.setTags", "compute.machineTypes.get", "compute.networks.get", "compute.networks.use", "compute.subnetworks.get", "compute.subnetworks.use", "compute.zones.get", "iap.tunnelInstances.getIamPolicy", "iap.tunnelInstances.setIamPolicy"] : contains(tolist(google_project_iam_custom_role.relay_vm_operator.permissions), permission)])
+    condition     = google_project_iam_custom_role.relay_vm_operator.role_id == "tfFoundationRelayVmOperator" && length(google_project_iam_custom_role.relay_vm_operator.permissions) == 32 && alltrue([for permission in ["cloudsql.instances.get", "cloudsql.users.create", "cloudsql.users.delete", "cloudsql.users.get", "cloudsql.users.list", "compute.disks.create", "compute.disks.delete", "compute.disks.get", "compute.disks.use", "compute.firewalls.create", "compute.firewalls.delete", "compute.firewalls.get", "compute.firewalls.list", "compute.firewalls.update", "compute.instances.create", "compute.instances.delete", "compute.instances.get", "compute.instances.getIamPolicy", "compute.instances.list", "compute.instances.setIamPolicy", "compute.instances.setLabels", "compute.instances.setMetadata", "compute.instances.setServiceAccount", "compute.instances.setTags", "compute.machineTypes.get", "compute.networks.get", "compute.networks.use", "compute.subnetworks.get", "compute.subnetworks.use", "compute.zones.get", "iap.tunnelInstances.getIamPolicy", "iap.tunnelInstances.setIamPolicy"] : contains(tolist(google_project_iam_custom_role.relay_vm_operator.permissions), permission)])
     error_message = "The relay VM operator must retain exactly its reviewed Cloud SQL, Compute, and IAP control-plane permissions."
   }
 
@@ -40,5 +40,19 @@ run "roles_have_exactly_the_reviewed_permissions" {
   assert {
     condition     = alltrue([for permission in google_project_iam_custom_role.normal_infrastructure_deployer.permissions : !strcontains(permission, "setIamPolicy") && !strcontains(permission, "getIamPolicy") && !strcontains(permission, "serviceusage.") && !strcontains(permission, "iam.serviceAccounts") && permission != "secretmanager.versions.access" && !strcontains(permission, "storage.objects")])
     error_message = "The normal deployer role must not mutate or read IAM policies, administer service accounts, activate APIs, or read secret values or bucket objects."
+  }
+}
+
+run "relay_planner_is_read_only" {
+  command = plan
+
+  assert {
+    condition     = google_project_iam_custom_role.relay_vm_planner.role_id == "tfFoundationRelayVmPlanner" && length(google_project_iam_custom_role.relay_vm_planner.permissions) == 6 && alltrue([for permission in ["cloudsql.instances.get", "cloudsql.users.get", "cloudsql.users.list", "compute.instances.get", "compute.instances.getIamPolicy", "iap.tunnelInstances.getIamPolicy"] : contains(tolist(google_project_iam_custom_role.relay_vm_planner.permissions), permission)])
+    error_message = "Relay planner role must contain only the six reviewed read permissions."
+  }
+
+  assert {
+    condition     = !contains(tolist(google_project_iam_custom_role.relay_vm_planner.permissions), "cloudsql.users.create") && !contains(tolist(google_project_iam_custom_role.relay_vm_planner.permissions), "compute.instances.create") && !contains(tolist(google_project_iam_custom_role.relay_vm_planner.permissions), "compute.instances.setIamPolicy")
+    error_message = "Relay planner role must not grant mutation permissions."
   }
 }
