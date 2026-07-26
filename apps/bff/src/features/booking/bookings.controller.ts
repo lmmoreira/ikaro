@@ -181,7 +181,7 @@ export const AttachmentSignedUrlBodySchema = z.object({
     }),
   contentType: z.enum(ALLOWED_IMAGE_CONTENT_TYPES),
   tenantSlug: z.string().optional(),
-  guestToken: z.string().optional(),
+  guestToken: z.string().min(1).optional(),
 });
 
 type AttachmentSignedUrlBody = z.infer<typeof AttachmentSignedUrlBodySchema>;

@@ -2,9 +2,10 @@
 
 ## Status
 
-Open. Found via live staging debugging (2026-07-25) while provisioning a new
-tenant end-to-end through the relay VM's `POST /internal/tenants` and then
-attempting the resulting staff invite login.
+Done. Implemented and merged in PR #262 (`fix(auth): route BFF traffic through
+same-origin gateway (TD35)`) on 2026-07-25. The web-side `/v1/*` gateway is
+the public browser contract in staging and production; browser traffic no
+longer targets the BFF deployment hostname directly.
 
 ## Symptom
 
@@ -119,24 +120,24 @@ public `/v1` contract there without changing browser clients or cookie scope.
 
 ## Implementation scope and acceptance criteria
 
-- [ ] Add one centralized same-origin `/v1/*` gateway; do not create a
+- [x] Add one centralized same-origin `/v1/*` gateway; do not create a
       feature-specific proxy per BFF endpoint.
-- [ ] Route Google OAuth start and callback through the gateway; update every
+- [x] Route Google OAuth start and callback through the gateway; update every
       environment's callback URL and browser-facing BFF base-path configuration.
-- [ ] Preserve cookies, redirects, query strings, and relevant response headers
+- [x] Preserve cookies, redirects, query strings, and relevant response headers
       without exposing the session token to client JavaScript or a URL.
-- [ ] Issue only a host-only `__Host-access_token` cookie with `Secure`,
+- [x] Issue only a host-only `__Host-access_token` cookie with `Secure`,
       `HttpOnly`, `SameSite=Lax`, and `Path=/`; no `Domain` attribute.
-- [ ] Make browser-side authenticated BFF calls use same-origin `/v1`; retain a
+- [x] Make browser-side authenticated BFF calls use same-origin `/v1`; retain a
       separate server-to-server BFF URL for Server Components and Route Handlers
       where needed.
-- [ ] Verify login and an authenticated browser API request with genuinely
+- [x] Verify login and an authenticated browser API request with genuinely
       distinct BFF and web origins, so local `localhost` port-sharing cannot
       mask a regression.
-- [ ] Preserve `tenantSlug` when `apps/web/middleware.ts` redirects an
+- [x] Preserve `tenantSlug` when `apps/web/middleware.ts` redirects an
       unauthenticated `/dashboard/**` request to `/dashboard/login`.
-- [ ] Update `plan/M17-CLOUD-DEPLOY.md` and any deployment/runbook references
+- [x] Update `plan/M17-CLOUD-DEPLOY.md` and any deployment/runbook references
       that still describe cross-subdomain cookie sharing as the authentication
       design.
-- [ ] Run `/story-discovery TD35` before code is written, per the
+- [x] Run `/story-discovery TD35` before code is written, per the
       non-negotiable Story/TD gate.

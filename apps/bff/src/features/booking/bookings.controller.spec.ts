@@ -4,7 +4,7 @@ import * as jwt from 'jsonwebtoken';
 import { BffErrorCode } from '@ikaro/types';
 import { CurrentUserPayloadBuilder } from '../../test/builders/current-user-payload.builder';
 import { makeBackendHttp } from '../../test/backend-http.mock';
-import { BookingsController } from './bookings.controller';
+import { AttachmentSignedUrlBodySchema, BookingsController } from './bookings.controller';
 import { AttachmentSignedUrlResponse, BookingResponse } from './bookings.types';
 
 const JWT_SECRET = 'test-secret-64-chars-for-bff-spec-xxxxxxxxxxxxxxxxxxxxxxxxxxxx';
@@ -1174,6 +1174,16 @@ describe('BookingsController', () => {
       filePath: `tenants/${TENANT_ID}/uploads/uuid/car.jpg`,
       expiresAt: '2026-06-15T10:15:00.000Z',
     };
+
+    it('rejects an empty guestToken at the request-validation boundary', () => {
+      expect(
+        AttachmentSignedUrlBodySchema.safeParse({
+          fileName: 'info.jpg',
+          contentType: 'image/jpeg',
+          guestToken: '',
+        }).success,
+      ).toBe(false);
+    });
 
     it('scenario 1 — valid CUSTOMER JWT: calls postForPublic with tenantId', async () => {
       const backendHttp = makeBackendHttp({

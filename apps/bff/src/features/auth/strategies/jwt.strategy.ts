@@ -6,9 +6,11 @@ import { Request } from 'express';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { CurrentUserPayload } from '../../../shared/decorators/current-user.decorator';
 
+const SESSION_COOKIE_REGEX = new RegExp(String.raw`(?:^|;\s*)${SESSION_COOKIE_NAME}=([^;]+)`);
+
 function extractFromCookie(req: Request): string | null {
   const raw = req?.headers?.cookie ?? '';
-  const match = new RegExp(String.raw`(?:^|;\s*)${SESSION_COOKIE_NAME}=([^;]+)`).exec(raw);
+  const match = SESSION_COOKIE_REGEX.exec(raw);
   return match ? decodeURIComponent(match[1]) : null;
 }
 

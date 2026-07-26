@@ -92,15 +92,20 @@ describe('POST /api/bookings/attachments/signed-url', () => {
       }),
     );
 
-    expect(fetchSpy).toHaveBeenCalledWith(`${BFF_URL}/bookings/attachments/signed-url`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        fileName: 'photo.jpg',
-        contentType: 'image/jpeg',
-        tenantSlug: 'lavacar-beloauto',
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `${BFF_URL}/bookings/attachments/signed-url`,
+      expect.objectContaining({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: 'photo.jpg',
+          contentType: 'image/jpeg',
+          tenantSlug: 'lavacar-beloauto',
+        }),
+        cache: 'no-store',
+        signal: expect.any(AbortSignal),
       }),
-    });
+    );
     expect(response.status).toBe(201);
   });
 
@@ -127,17 +132,48 @@ describe('POST /api/bookings/attachments/signed-url', () => {
       }),
     );
 
-    expect(fetchSpy).toHaveBeenCalledWith(`${BFF_URL}/bookings/attachments/signed-url`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `${BFF_URL}/bookings/attachments/signed-url`,
+      expect.objectContaining({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: 'photo.jpg',
+          contentType: 'image/jpeg',
+          bookingId: 'b-1',
+          guestToken: 'guest-jwt',
+        }),
+        cache: 'no-store',
+        signal: expect.any(AbortSignal),
+      }),
+    );
+    expect(response.status).toBe(201);
+  });
+
+  it('does not fall back to the session cookie when guestToken is empty', async () => {
+    mockCookieGet.mockReturnValue({ value: 'staff-jwt' });
+    fetchSpy.mockResolvedValue(
+      new Response(JSON.stringify({ detail: 'guestToken must contain at least 1 character(s)' }), {
+        status: 400,
+        headers: { 'content-type': 'application/problem+json' },
+      }),
+    );
+
+    const response = await POST(
+      makeRequest({
         fileName: 'photo.jpg',
         contentType: 'image/jpeg',
         bookingId: 'b-1',
-        guestToken: 'guest-jwt',
+        guestToken: '',
       }),
-    });
-    expect(response.status).toBe(201);
+    );
+
+    expect(mockCookieGet).not.toHaveBeenCalled();
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `${BFF_URL}/bookings/attachments/signed-url`,
+      expect.objectContaining({ headers: { 'Content-Type': 'application/json' } }),
+    );
+    expect(response.status).toBe(400);
   });
 
   it('returns 502 when the upstream fetch throws', async () => {
