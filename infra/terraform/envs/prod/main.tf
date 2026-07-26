@@ -325,8 +325,15 @@ module "cloudrun_web" {
   # JWT_SECRET the BFF signs with, or every request past the gateway 500s
   # the moment a real cookie reaches this origin (TD35 same-origin gateway
   # made that finally happen — this gap was latent and untriggered before).
+  #
+  # apps/web/app/api/revalidate/route.ts compares the incoming secret against
+  # this same value — without it here, process.env.HOTSITE_REVALIDATE_SECRET
+  # is undefined on web, so the backend's real secret (already wired below on
+  # cloudrun_backend) can never match and every hotsite publish revalidation
+  # silently 401s.
   secret_env_vars = {
-    JWT_SECRET = module.secrets.secret_ids["jwt-secret"]
+    JWT_SECRET                = module.secrets.secret_ids["jwt-secret"]
+    HOTSITE_REVALIDATE_SECRET = module.secrets.secret_ids["hotsite-revalidate-secret"]
   }
 }
 
