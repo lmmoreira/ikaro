@@ -90,7 +90,9 @@ describe('fetchManifest', () => {
     expect(result.tenant.id).toBe(manifest.tenant.id);
     expect(fetchSpy).toHaveBeenCalledWith(
       `${BFF_URL}/public/platform/manifest/tenant-a`,
-      expect.objectContaining({ next: { revalidate: 300 } }),
+      expect.objectContaining({
+        next: { revalidate: 300, tags: ['hotsite-manifest-tenant-a'] },
+      }),
     );
   });
 

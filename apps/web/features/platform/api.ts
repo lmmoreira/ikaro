@@ -1,6 +1,9 @@
 import { notFound } from 'next/navigation';
 import type { HotsiteManifestResponse, HotsiteSitemapEntryListResponse } from '@ikaro/types';
-import { HOTSITE_REVALIDATE_SECONDS } from '@/features/platform/hotsite/revalidate';
+import {
+  HOTSITE_REVALIDATE_SECONDS,
+  hotsiteManifestCacheTag,
+} from '@/features/platform/hotsite/revalidate';
 import { buildBffUrl } from '@/shared/lib/api/bff-url';
 
 // Single source of truth for the manifest URL — fetchManifest() (below) and
@@ -8,13 +11,16 @@ import { buildBffUrl } from '@/shared/lib/api/bff-url';
 // error-handling semantics (notFound()/throw vs. a soft locale fallback), so
 // each wraps this raw fetch rather than duplicating the URL independently.
 // This function is isomorphic (also called client-side by HotsitePreview.tsx), and its
-// `next.revalidate` option is meaningless outside a server-rendered fetch, so it must stay a
-// plain fetch() — neither bffClient (no next.revalidate support) nor bffServerFetch (server-only,
-// TD29) can serve it.
+// `next.revalidate`/`next.tags` options are meaningless outside a server-rendered fetch, so it
+// must stay a plain fetch() — neither bffClient (no next.revalidate support) nor bffServerFetch
+// (server-only, TD29) can serve it.
 export async function fetchManifestResponse(slug: string): Promise<Response> {
   const isDev = process.env.NODE_ENV === 'development';
   return fetch(buildBffUrl(`/public/platform/manifest/${slug}`), {
-    next: { revalidate: isDev ? 0 : HOTSITE_REVALIDATE_SECONDS },
+    next: {
+      revalidate: isDev ? 0 : HOTSITE_REVALIDATE_SECONDS,
+      tags: [hotsiteManifestCacheTag(slug)],
+    },
   });
 }
 
