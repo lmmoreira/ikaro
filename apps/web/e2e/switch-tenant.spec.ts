@@ -2,6 +2,12 @@ import { test, expect } from '@playwright/test';
 import { loginAsCustomer, uniqueTestEmail } from './helpers/auth';
 import { completeCustomerProfile } from './helpers/customer';
 
+// HotsiteAuthBar resolves auth state client-side, after hydration, via
+// /api/customers/me (not synchronously in server-rendered HTML — see
+// docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md §6). The default 5s Playwright
+// timeout can be too tight for that extra network round trip under CI load.
+const AUTH_RESOLVE_TIMEOUT = 15_000;
+
 test.describe('Switch tenant', () => {
   test('shows both tenants with the current one marked "Atual"', async ({ page }) => {
     const email = uniqueTestEmail('switch-list');
@@ -11,7 +17,9 @@ test.describe('Switch tenant', () => {
     await completeCustomerProfile(page, 'autospa-premium');
 
     await page.goto('/autospa-premium');
-    await page.locator('[data-testid="hotsite-auth-bar"] summary').click();
+    await page
+      .locator('[data-testid="hotsite-auth-bar"] summary')
+      .click({ timeout: AUTH_RESOLVE_TIMEOUT });
     await page.locator('[data-testid="hotsite-switch-tenant-link"]').click();
 
     await expect(page).toHaveURL('/switch-tenant');
@@ -68,7 +76,9 @@ test.describe('Switch tenant', () => {
     await page.locator('[data-testid="switch-tenant-option"]').click();
 
     await expect(page).toHaveURL('/lavacar-beloauto');
-    await expect(page.locator('[data-testid="hotsite-auth-bar"] summary')).toBeVisible();
+    await expect(page.locator('[data-testid="hotsite-auth-bar"] summary')).toBeVisible({
+      timeout: AUTH_RESOLVE_TIMEOUT,
+    });
     await expect(page.locator('[data-testid="hotsite-auth-tenant-slug"]')).toHaveText(
       'lavacar-beloauto',
     );
@@ -84,14 +94,18 @@ test.describe('Switch tenant', () => {
     await completeCustomerProfile(page, 'autospa-premium');
 
     await page.goto('/autospa-premium');
-    await page.locator('[data-testid="hotsite-auth-bar"] summary').click();
+    await page
+      .locator('[data-testid="hotsite-auth-bar"] summary')
+      .click({ timeout: AUTH_RESOLVE_TIMEOUT });
     await page.locator('[data-testid="hotsite-switch-tenant-link"]').click();
     await expect(page).toHaveURL('/switch-tenant');
 
     await page.locator('[data-testid="switch-tenant-cancel"]').click();
 
     await expect(page).toHaveURL('/autospa-premium');
-    await expect(page.locator('[data-testid="hotsite-auth-bar"] summary')).toBeVisible();
+    await expect(page.locator('[data-testid="hotsite-auth-bar"] summary')).toBeVisible({
+      timeout: AUTH_RESOLVE_TIMEOUT,
+    });
     await expect(page.locator('[data-testid="hotsite-auth-tenant-slug"]')).toHaveText(
       'autospa-premium',
     );
