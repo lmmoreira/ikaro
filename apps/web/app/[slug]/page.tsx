@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
-import { fetchManifest } from '@/features/platform/api';
+import { fetchManifest } from '@/features/platform/api.server';
 import { AboutModule } from '@/shells/hotsite/components/AboutModule';
 import { BookingCtaModule } from '@/shells/hotsite/components/BookingCtaModule';
 import { ContactModule } from '@/shells/hotsite/components/ContactModule';
@@ -17,7 +17,7 @@ import {
   resolveHotsiteDisplayName,
 } from '@/features/platform/hotsite/page-model';
 import { buildHotsiteMetadata, buildLocalBusinessJsonLd } from '@/features/platform/hotsite/seo';
-import { fetchServices } from '@/features/platform/hotsite/api/services';
+import { fetchServices } from '@/features/platform/hotsite/api/services.server';
 
 // Next.js statically analyses segment config exports — imported variables are not resolved.
 // Must be a literal. Keep in sync with HOTSITE_REVALIDATE_SECONDS in lib/hotsite/revalidate.ts.

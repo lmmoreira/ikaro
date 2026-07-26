@@ -10,8 +10,8 @@ import type {
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
 import { useTenant } from '@/providers/tenant-provider';
-import { fetchManifest } from '@/features/platform/api';
-import { fetchServices } from '@/features/platform/hotsite/api/services';
+import { fetchManifestClient } from '@/features/platform/api';
+import { fetchServicesClient } from '@/features/platform/hotsite/api/services';
 import { applyBranding } from '@/features/platform/hotsite/apply-branding';
 import { getActiveFontVariables } from '@/features/platform/hotsite/font-config';
 import { collectHotsiteImagePaths } from '@/features/platform/hotsite/map-hotsite-image-fields';
@@ -61,8 +61,8 @@ function usePreviewSupplementaryData(
 
     async function load(): Promise<void> {
       try {
-        const manifest = await fetchManifest(tenantSlug);
-        const services = hasServiceList ? await fetchServices(tenantSlug) : [];
+        const manifest = await fetchManifestClient(tenantSlug);
+        const services = hasServiceList ? await fetchServicesClient(tenantSlug) : [];
         if (cancelled) return;
         setData({
           business: manifest.business,

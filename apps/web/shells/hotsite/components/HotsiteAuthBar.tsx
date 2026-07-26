@@ -10,67 +10,53 @@ interface HotsiteAuthBarProps {
 }
 
 interface StaffSession {
-  readonly name: string;
+  readonly name: string | null;
 }
 
 interface CustomerSession {
   readonly name: string;
 }
 
-// Client-side, after hydration — not SSR. Reading cookies() during the
-// [slug] page's server render forces Next.js to treat the whole route as
-// dynamic per-request, silently disabling the ISR/CDN cache the hotsite
-// depends on (docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md §6). /api/staff/me and
-// /api/customers/me already exist as same-origin proxy routes that forward
-// the httpOnly cookie server-side to the BFF; a 401 here just means "not
-// logged in as this role" — not an error — since staff/customer roles are
-// mutually exclusive by construction (BFF's @Roles guard rejects the other).
-async function fetchStaffSession(slug: string): Promise<StaffSession | null> {
-  const res = await fetch(`/api/staff/me?slug=${encodeURIComponent(slug)}`);
-  if (!res.ok) return null;
-  const data = (await res.json()) as { name: string | null };
-  return { name: data.name ?? '' };
+interface SessionResponse {
+  readonly staff: StaffSession | null;
+  readonly customer: CustomerSession | null;
 }
 
-async function fetchCustomerSession(slug: string): Promise<CustomerSession | null> {
-  const res = await fetch(`/api/customers/me?slug=${encodeURIComponent(slug)}`);
-  if (!res.ok) return null;
-  const data = (await res.json()) as { name: string };
-  return { name: data.name };
+// Client-side, after hydration — not SSR. Reading cookies() during the [slug] page's server
+// render forces Next.js to treat the whole route as dynamic per-request, silently disabling the
+// ISR/CDN cache the hotsite depends on (docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md §6).
+// /api/session is a same-origin proxy route that forwards the httpOnly cookie server-side to the
+// BFF and combines the staff/customer lookups into one round trip — staff/customer roles are
+// mutually exclusive by construction (BFF's @Roles guard rejects the other), so at most one of
+// the two is ever non-null for a real session.
+async function fetchSession(slug: string): Promise<SessionResponse> {
+  const res = await fetch(`/api/session?slug=${encodeURIComponent(slug)}`);
+  if (!res.ok) return { staff: null, customer: null };
+  return (await res.json()) as SessionResponse;
 }
 
 export function HotsiteAuthBar({ slug }: HotsiteAuthBarProps): React.JSX.Element {
   const t = useTranslations('auth');
-  const [staff, setStaff] = useState<StaffSession | null>(null);
-  const [customer, setCustomer] = useState<CustomerSession | null>(null);
+  // null (distinct from { staff: null, customer: null }) means "the fetch hasn't resolved yet" —
+  // rendering a skeleton for that state instead of the unauthenticated markup avoids a flash of
+  // "logged out" content for authenticated visitors while /api/session is in flight.
+  const [session, setSession] = useState<SessionResponse | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    fetchStaffSession(slug)
-      .then((session) => {
-        if (!cancelled) setStaff(session);
+    fetchSession(slug)
+      .then((result) => {
+        if (!cancelled) setSession(result);
       })
       .catch(() => {
-        if (!cancelled) setStaff(null);
-      });
-
-    fetchCustomerSession(slug)
-      .then((session) => {
-        if (!cancelled) setCustomer(session);
-      })
-      .catch(() => {
-        if (!cancelled) setCustomer(null);
+        if (!cancelled) setSession({ staff: null, customer: null });
       });
 
     return () => {
       cancelled = true;
     };
   }, [slug]);
-
-  const isStaff = staff !== null;
-  const isCustomer = !isStaff && customer !== null;
-  const displayName = staff?.name || customer?.name || '';
 
   const BriefcaseIcon = (
     <svg
@@ -88,6 +74,30 @@ export function HotsiteAuthBar({ slug }: HotsiteAuthBarProps): React.JSX.Element
       <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
     </svg>
   );
+
+  if (session === null) {
+    return (
+      <header
+        className="flex h-12 items-center justify-between px-6"
+        style={{ backgroundColor: 'var(--ba-secondary)' }}
+        data-testid="hotsite-auth-bar"
+      >
+        <div
+          data-testid="hotsite-auth-bar-skeleton"
+          className="h-3.5 w-24 animate-pulse rounded"
+          style={{ backgroundColor: 'var(--ba-text)', opacity: 0.15 }}
+        />
+        <div
+          className="h-3.5 w-16 animate-pulse rounded"
+          style={{ backgroundColor: 'var(--ba-text)', opacity: 0.15 }}
+        />
+      </header>
+    );
+  }
+
+  const isStaff = session.staff !== null;
+  const isCustomer = !isStaff && session.customer !== null;
+  const displayName = session.staff?.name || session.customer?.name || '';
 
   return (
     <header

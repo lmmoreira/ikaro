@@ -1,4 +1,4 @@
-import { fetchManifest } from '@/features/platform/api';
+import { fetchManifest } from '@/features/platform/api.server';
 import { applyBranding } from '@/features/platform/hotsite/apply-branding';
 import { getActiveFontVariables } from '@/features/platform/hotsite/font-config';
 import { getMessages, resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';

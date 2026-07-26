@@ -1,5 +1,5 @@
 import { getAccessToken } from '@/features/auth/get-access-token';
-import { fetchManifest } from '@/features/platform/api';
+import { fetchManifest } from '@/features/platform/api.server';
 import { fetchCustomerBookingDetailOrRedirect } from '@/features/customer/api.server';
 import { CancelErrorPage } from '@/features/customer/components/my-account/CancelErrorPage';
 

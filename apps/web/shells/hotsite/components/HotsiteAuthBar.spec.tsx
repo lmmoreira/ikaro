@@ -24,19 +24,14 @@ vi.mock('./HotsiteAuthBarDropdown', () => ({
 
 const SLUG = 'lavacar-beloauto';
 
-function mockFetch(handlers: {
-  staff?: { ok: boolean; body?: unknown };
-  customer?: { ok: boolean; body?: unknown };
-}): void {
+function mockSession(session: { staff?: unknown; customer?: unknown }): void {
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     const url = String(input);
-    if (url.includes('/api/staff/me')) {
-      const { ok = false, body = {} } = handlers.staff ?? {};
-      return new Response(JSON.stringify(body), { status: ok ? 200 : 401 });
-    }
-    if (url.includes('/api/customers/me')) {
-      const { ok = false, body = {} } = handlers.customer ?? {};
-      return new Response(JSON.stringify(body), { status: ok ? 200 : 401 });
+    if (url.includes('/api/session')) {
+      return new Response(
+        JSON.stringify({ staff: session.staff ?? null, customer: session.customer ?? null }),
+        { status: 200 },
+      );
     }
     throw new Error(`Unexpected fetch: ${url}`);
   });
@@ -48,13 +43,36 @@ afterEach(() => {
 });
 
 describe('HotsiteAuthBar', () => {
-  describe('unauthenticated (both checks 401)', () => {
-    beforeEach(() => mockFetch({}));
+  describe('while /api/session is in flight', () => {
+    it('renders a loading skeleton instead of the unauthenticated markup', async () => {
+      let resolveFetch: (value: Response) => void = () => {};
+      vi.spyOn(globalThis, 'fetch').mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveFetch = resolve;
+          }),
+      );
+
+      render(<HotsiteAuthBar slug={SLUG} />);
+
+      expect(screen.getByTestId('hotsite-auth-bar-skeleton')).toBeInTheDocument();
+      expect(screen.queryByTestId('hotsite-login-link')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('hotsite-staff-link')).not.toBeInTheDocument();
+
+      resolveFetch(new Response(JSON.stringify({ staff: null, customer: null }), { status: 200 }));
+
+      await screen.findByTestId('hotsite-login-link');
+      expect(screen.queryByTestId('hotsite-auth-bar-skeleton')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('unauthenticated (both staff and customer null)', () => {
+    beforeEach(() => mockSession({}));
 
     it('renders the staff area link pointing to dashboard login', async () => {
       render(<HotsiteAuthBar slug={SLUG} />);
 
-      const link = screen.getByTestId('hotsite-staff-link');
+      const link = await screen.findByTestId('hotsite-staff-link');
       expect(link).toHaveAttribute('href', `/dashboard/login?tenantSlug=${SLUG}`);
       expect(link).toHaveTextContent('Área da Equipe');
     });
@@ -62,7 +80,7 @@ describe('HotsiteAuthBar', () => {
     it('renders the customer sign-in link pointing to the tenant login page', async () => {
       render(<HotsiteAuthBar slug={SLUG} />);
 
-      const link = screen.getByTestId('hotsite-login-link');
+      const link = await screen.findByTestId('hotsite-login-link');
       expect(link).toHaveAttribute('href', `/${SLUG}/login`);
       expect(link).toHaveTextContent('Entrar');
     });
@@ -70,12 +88,13 @@ describe('HotsiteAuthBar', () => {
     it('has no axe violations', async () => {
       const { container } = render(<HotsiteAuthBar slug={SLUG} />);
 
+      await screen.findByTestId('hotsite-login-link');
       expect(await axe(container)).toHaveNoViolations();
     });
   });
 
   describe('authenticated as staff (STAFF or MANAGER)', () => {
-    beforeEach(() => mockFetch({ staff: { ok: true, body: { name: 'Ana Pereira' } } }));
+    beforeEach(() => mockSession({ staff: { name: 'Ana Pereira' } }));
 
     it('shows a link to /dashboard with the staff member name', async () => {
       render(<HotsiteAuthBar slug={SLUG} />);
@@ -99,7 +118,7 @@ describe('HotsiteAuthBar', () => {
   });
 
   describe('staff session with no name', () => {
-    beforeEach(() => mockFetch({ staff: { ok: true, body: { name: null } } }));
+    beforeEach(() => mockSession({ staff: { name: null } }));
 
     it('falls back to the staff-area label', async () => {
       render(<HotsiteAuthBar slug={SLUG} />);
@@ -110,7 +129,7 @@ describe('HotsiteAuthBar', () => {
   });
 
   describe('authenticated as customer', () => {
-    beforeEach(() => mockFetch({ customer: { ok: true, body: { name: 'João Silva' } } }));
+    beforeEach(() => mockSession({ customer: { name: 'João Silva' } }));
 
     it('renders HotsiteAuthBarDropdown with the customer name and slug', async () => {
       render(<HotsiteAuthBar slug={SLUG} />);

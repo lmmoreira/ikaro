@@ -1,4 +1,4 @@
-import { fetchManifestResponse } from '@/features/platform/api';
+import { fetchManifestResponse } from '@/features/platform/api.server';
 import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 
 const FALLBACK_LOCALE = 'pt-BR';

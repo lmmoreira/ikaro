@@ -1,25 +1,12 @@
 import type { HotsiteServiceListResponse, HotsiteServiceResponse } from '@ikaro/types';
-import {
-  HOTSITE_REVALIDATE_SECONDS,
-  hotsiteServicesCacheTag,
-} from '@/features/platform/hotsite/revalidate';
-import { buildBffUrl } from '@/shared/lib/api/bff-url';
+import { bffClient } from '@/shared/lib/api/bff-client';
 
-// Isomorphic (also called client-side by HotsitePreview.tsx) — next.revalidate/next.tags only
-// mean anything server-side, so this must stay a plain fetch(), same reasoning as
-// features/platform/api.ts's fetchManifestResponse (TD29).
-export async function fetchServices(slug: string): Promise<HotsiteServiceResponse[]> {
-  const isDev = process.env.NODE_ENV === 'development';
-  const res = await fetch(buildBffUrl('/public/services'), {
+// Client-only — HotsitePreview.tsx's live-preview fetch. No Next Data Cache options: browser
+// requests don't participate in Next's Data Cache anyway, and this goes through the same-origin
+// /v1 gateway (bffClient). Server call sites use fetchServices() in services.server.ts instead.
+export async function fetchServicesClient(slug: string): Promise<HotsiteServiceResponse[]> {
+  const res = await bffClient.get<HotsiteServiceListResponse>('/public/services', {
     headers: { 'X-Tenant-Slug': slug },
-    next: {
-      revalidate: isDev ? 0 : HOTSITE_REVALIDATE_SECONDS,
-      tags: [hotsiteServicesCacheTag(slug)],
-    },
   });
-
-  if (!res.ok) throw new Error(`Failed to fetch services for slug "${slug}"`);
-
-  const data = (await res.json()) as HotsiteServiceListResponse;
-  return data.items;
+  return res.data.items;
 }

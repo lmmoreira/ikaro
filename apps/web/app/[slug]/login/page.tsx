@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import { getTranslations } from 'next-intl/server';
-import { fetchManifest } from '@/features/platform/api';
+import { fetchManifest } from '@/features/platform/api.server';
 import { buildGoogleOAuthUrl } from '@/features/auth/google-oauth';
 import { resolveHotsiteDisplayName } from '@/features/platform/hotsite/page-model';
 import { buildHotsiteMetadata } from '@/features/platform/hotsite/seo';
