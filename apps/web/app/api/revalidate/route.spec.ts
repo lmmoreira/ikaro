@@ -57,7 +57,7 @@ describe('GET /api/revalidate', () => {
     expect(body.revalidated).toBe(true);
     expect(body.slug).toBe('tenant-a');
     expect(mockRevalidatePath).toHaveBeenCalledWith('/tenant-a', 'page');
-    expect(mockRevalidateTag).toHaveBeenCalledWith('hotsite-manifest-tenant-a', 'max');
+    expect(mockRevalidateTag).toHaveBeenCalledWith('hotsite-manifest-tenant-a', { expire: 0 });
   });
 
   it('does not call revalidatePath or revalidateTag when authentication fails', async () => {

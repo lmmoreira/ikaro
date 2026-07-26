@@ -1,30 +1,76 @@
-import { cookies } from 'next/headers';
-import { getTranslations } from 'next-intl/server';
-import { decodeJwtPayload } from '@/features/auth/decode-jwt';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
-import { SESSION_COOKIE_NAME } from '@/features/auth/session-cookie';
-import { unixNow } from '@/shells/hotsite/utils/unix-now';
 import { HotsiteAuthBarDropdown } from './HotsiteAuthBarDropdown';
 
 interface HotsiteAuthBarProps {
   readonly slug: string;
 }
 
-export async function HotsiteAuthBar({ slug }: HotsiteAuthBarProps): Promise<React.JSX.Element> {
-  const t = await getTranslations('auth');
+interface StaffSession {
+  readonly name: string;
+}
 
-  const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-  const payload = token ? decodeJwtPayload(token) : {};
+interface CustomerSession {
+  readonly name: string;
+}
 
-  const nowSeconds = unixNow();
-  const isExpired = payload.exp !== undefined && nowSeconds > payload.exp;
-  const isTenantMatch = payload.tenantSlug === slug;
-  const isValidSession = !isExpired && isTenantMatch && !!payload.role && !!payload.sub;
+// Client-side, after hydration — not SSR. Reading cookies() during the
+// [slug] page's server render forces Next.js to treat the whole route as
+// dynamic per-request, silently disabling the ISR/CDN cache the hotsite
+// depends on (docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md §6). /api/staff/me and
+// /api/customers/me already exist as same-origin proxy routes that forward
+// the httpOnly cookie server-side to the BFF; a 401 here just means "not
+// logged in as this role" — not an error — since staff/customer roles are
+// mutually exclusive by construction (BFF's @Roles guard rejects the other).
+async function fetchStaffSession(slug: string): Promise<StaffSession | null> {
+  const res = await fetch(`/api/staff/me?slug=${encodeURIComponent(slug)}`);
+  if (!res.ok) return null;
+  const data = (await res.json()) as { name: string | null };
+  return { name: data.name ?? '' };
+}
 
-  const isStaff = isValidSession && (payload.role === 'STAFF' || payload.role === 'MANAGER');
-  const isCustomer = isValidSession && payload.role === 'CUSTOMER';
-  const displayName = payload.userName ?? '';
+async function fetchCustomerSession(slug: string): Promise<CustomerSession | null> {
+  const res = await fetch(`/api/customers/me?slug=${encodeURIComponent(slug)}`);
+  if (!res.ok) return null;
+  const data = (await res.json()) as { name: string };
+  return { name: data.name };
+}
+
+export function HotsiteAuthBar({ slug }: HotsiteAuthBarProps): React.JSX.Element {
+  const t = useTranslations('auth');
+  const [staff, setStaff] = useState<StaffSession | null>(null);
+  const [customer, setCustomer] = useState<CustomerSession | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchStaffSession(slug)
+      .then((session) => {
+        if (!cancelled) setStaff(session);
+      })
+      .catch(() => {
+        if (!cancelled) setStaff(null);
+      });
+
+    fetchCustomerSession(slug)
+      .then((session) => {
+        if (!cancelled) setCustomer(session);
+      })
+      .catch(() => {
+        if (!cancelled) setCustomer(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+
+  const isStaff = staff !== null;
+  const isCustomer = !isStaff && customer !== null;
+  const displayName = staff?.name || customer?.name || '';
 
   const BriefcaseIcon = (
     <svg

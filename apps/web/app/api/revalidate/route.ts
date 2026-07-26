@@ -20,15 +20,16 @@ export async function GET(request: NextRequest) {
   // cascade the invalidation from. revalidateTag targets the Data Cache
   // directly and doesn't depend on that bookkeeping.
   //
-  // Next 16 requires a second cache-life "profile" argument on revalidateTag,
-  // part of the newer Cache Components ("use cache") system. This fetch still
-  // uses classic next:{revalidate,tags} caching, not cacheLife()/"use cache",
-  // so the profile choice doesn't come from an actual annotated cache life —
-  // 'max' (the built-in profile with the widest expire bound) is passed to
-  // ensure the tag is invalidated unconditionally rather than bounded by a
-  // shorter assumed cache life.
+  // Next 16 requires a second argument on revalidateTag. A named profile like
+  // 'max' only marks the entry stale and serves the previous cached content on
+  // the next request while refreshing in the background (stale-while-revalidate)
+  // — NOT what we want for a publish action. { expire: 0 } instead forces a
+  // blocking cache-miss on the next request, so the freshly published content
+  // is what the very next visitor actually gets. updateTag() would be the more
+  // idiomatic immediate-invalidation call, but it's restricted to Server
+  // Actions and this is a GET Route Handler.
   revalidatePath(`/${slug}`, 'page');
-  revalidateTag(hotsiteManifestCacheTag(slug), 'max');
+  revalidateTag(hotsiteManifestCacheTag(slug), { expire: 0 });
 
   return NextResponse.json({ revalidated: true, slug });
 }

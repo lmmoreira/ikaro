@@ -485,6 +485,12 @@ The `isDev ? 0` guard disables caching in `NODE_ENV=development` so local edits 
 
 **`headers()` is the same trap as `cookies()`.** Both are Next.js "Dynamic APIs" — calling either one anywhere in the `[slug]` page/layout server-render tree forces the whole route dynamic, silently disabling ISR (and any future CDN cache) the same way. This surfaced concretely in AUD-007 (`td/TD08-AUDIT-REMEDIATION-BACKLOG.md`): a per-request CSP nonce for the JSON-LD script (`shells/hotsite/components/JsonLdScript.tsx`) would require reading the nonce via `headers()` in `app/[slug]/page.tsx` — which would have quietly killed this page's ISR cache. The nonce was dropped in favor of a scoped `script-src 'unsafe-inline'` CSP exception instead; see that story for the full rationale. Treat any future need to read `headers()` (or `cookies()`) in this route tree as a caching regression to solve around, not a one-line addition.
 
+**Status: compliant.** `HotsiteAuthBar` (`apps/web/shells/hotsite/components/HotsiteAuthBar.tsx`) is a `'use client'` component that resolves its auth state after hydration via `/api/staff/me` and `/api/customers/me` — it does not call `cookies()`/`headers()` in the `[slug]` server-render tree. (Previously violated this exact constraint until fixed alongside the `revalidateTag` fix below — found via a live staging debugging session, TD35 follow-up.)
+
+**On-demand revalidation uses `revalidateTag`, not just `revalidatePath`.** `revalidatePath('/${slug}', 'page')` alone doesn't reliably clear `fetchManifestResponse`'s Data Cache entry for a route that's forced fully dynamic — see the note above. `app/api/revalidate/route.ts` also tags the manifest fetch (`hotsiteManifestCacheTag(slug)`) and calls `revalidateTag(tag, { expire: 0 })`. Next 16 requires a second argument here; a named profile like `'max'` means stale-while-revalidate (serves old content once more, refreshes in the background) — **not** immediate invalidation. `{ expire: 0 }` forces a blocking cache-miss on the next request instead.
+
+**Debugging the Data Cache directly:** set `NEXT_PRIVATE_DEBUG_CACHE=1` when running `pnpm start` to see Next's actual cache hit/miss/expire/set decisions logged to the server's own terminal — far more reliable than inferring from upstream (BFF) request logs, which get lost in unrelated noise (e.g. browser `favicon.ico` auto-requests hitting the `[slug]` catch-all).
+
 ---
 
 ## 7. Adding a New Module (Developer Checklist)
