@@ -26,16 +26,19 @@ FROM node@sha256:b74031e546d7f4faf561d797ac1b76beccac856a042815ca77db4fd04758160
 
 WORKDIR /app
 
-RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx \
+    && addgroup --system --gid 1001 nodejs \
+    && adduser --system --uid 1001 --ingroup nodejs nodeapp
+
+# --chown so nodeapp can write .next/cache/* at runtime (ISR/fetch-cache) —
+# without it these are root-owned (default COPY owner) and every prerender
+# cache write fails with EACCES once the process drops to nodeapp below.
 
 # Copy prod node_modules + config files from pnpm deploy
-COPY --from=builder /standalone .
+COPY --from=builder --chown=nodeapp:nodejs /standalone .
 
 # Copy Next.js build output (.next/ is gitignored so pnpm deploy excludes it)
-COPY --from=builder /app/apps/web/.next ./.next
-
-RUN addgroup --system --gid 1001 nodejs \
-    && adduser --system --uid 1001 --ingroup nodejs nodeapp
+COPY --from=builder --chown=nodeapp:nodejs /app/apps/web/.next ./.next
 
 USER nodeapp
 
