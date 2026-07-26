@@ -74,9 +74,13 @@ describe('GcsSignedUrlAdapter', () => {
       );
     });
 
-    it('uses empty storage options when neither emulator nor key file is configured', () => {
+    it('pins the standard Google universe when neither emulator nor key file is configured', () => {
       makeService({});
-      expect(MockStorage).toHaveBeenCalledWith({});
+      expect(MockStorage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          universeDomain: 'googleapis.com',
+        }),
+      );
     });
   });
 
