@@ -194,6 +194,49 @@ describe('StaffController', () => {
     });
   });
 
+  describe('getMyProfile()', () => {
+    it('returns a plain STAFF actor their own profile via RequestContext actorId (not the manager-only :id route)', async () => {
+      const staff = new StaffBuilder()
+        .withTenantId(TENANT_A)
+        .withEmail('funcionario@lavacar.com.br')
+        .withRole('STAFF')
+        .withName('Ana Pereira')
+        .build();
+      await repo.save(staff);
+
+      const ctrl = makeController(repo, TENANT_A, staff.id);
+      const result = await ctrl.getMyProfile();
+
+      expect(result.id).toBe(staff.id);
+      expect(result.name).toBe('Ana Pereira');
+      expect(result.role).toBe('STAFF');
+    });
+
+    it('maps StaffNotFoundError to 404 when actorId does not resolve (stale/mismatched JWT)', async () => {
+      const ctrl = makeController(repo, TENANT_A, '00000000-0000-4000-8000-000000009999');
+      const err = await ctrl.getMyProfile().catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+
+    it('maps StaffNotFoundError to 404 when actorId belongs to a different tenant (isolation)', async () => {
+      const staff = new StaffBuilder().withTenantId(TENANT_B).withEmail('outro@b.com').build();
+      await repo.save(staff);
+
+      const ctrl = makeController(repo, TENANT_A, staff.id);
+      const err = await ctrl.getMyProfile().catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+
+    it('returns 400 via requireActorId() when X-Actor-ID is absent, instead of a raw runtime error', async () => {
+      const ctrl = makeController(repo, TENANT_A, '');
+      const err = await ctrl.getMyProfile().catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    });
+  });
+
   describe('invite()', () => {
     it('creates staff using tenantId and actorId from RequestContext', async () => {
       const result = await controller.invite({

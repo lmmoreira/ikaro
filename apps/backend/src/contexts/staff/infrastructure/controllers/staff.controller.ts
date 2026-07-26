@@ -106,6 +106,18 @@ export class StaffController {
     return { isActive };
   }
 
+  // Self-service profile lookup — derives the target from RequestContext.actorId only, never a
+  // URL param, so a plain STAFF actor can fetch their own record. GET /staff/:id (below) is
+  // manager-only by design (staff-list lookups) and would always 403 a plain STAFF actor calling
+  // it for themselves (same class of bug as me/status above, TD23 Story 11).
+  @Get('me')
+  @UseGuards(StaffOrManagerRoleGuard)
+  async getMyProfile(): Promise<GetStaffByIdUseCaseResult> {
+    return this.getStaffById
+      .execute({ staffId: this.requireActorId(), tenantId: this.tenantContext.tenantId })
+      .catch(mapStaffError);
+  }
+
   @Get(':id')
   @UseGuards(ManagerRoleGuard)
   getById(@Param('id', CanonicalParseUUIDPipe) id: string): Promise<GetStaffByIdUseCaseResult> {

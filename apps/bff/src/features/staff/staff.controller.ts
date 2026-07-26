@@ -24,7 +24,6 @@ import {
   CanonicalParseUUIDPipe,
   ZodValidationPipe,
 } from '@ikaro/nestjs-http';
-import { CurrentUser, CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { toStaffListResponse } from './staff.mapper';
@@ -76,10 +75,14 @@ export class StaffController {
 
   // Declared before ':id' — NestJS resolves routes in declaration order, and a dynamic
   // segment declared first would swallow this literal path as id='me' (see ANTI_PATTERNS.md).
+  //
+  // Calls backend's own self-service GET /staff/me (StaffOrManagerRoleGuard), not
+  // GET /staff/:id — that route is ManagerRoleGuard-gated and always 403s a plain STAFF actor
+  // (same class of bug ActiveStaffGuard's comment documents for /staff/me/status, TD23 Story 11).
   @Get('me')
   @Roles('STAFF', 'MANAGER')
-  getMe(@CurrentUser() user: CurrentUserPayload): Promise<StaffResponse> {
-    return this.backendHttp.get<StaffResponse>(`/staff/${user.sub}`);
+  getMe(): Promise<StaffResponse> {
+    return this.backendHttp.get<StaffResponse>('/staff/me');
   }
 
   @Get(':id')

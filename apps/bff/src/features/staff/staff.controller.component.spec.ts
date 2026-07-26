@@ -353,7 +353,7 @@ describe('StaffController (component)', () => {
       expect(backendHttpService.get).toHaveBeenCalledWith('/staff', { limit: 10, offset: 5 });
     });
 
-    it('GET /v1/staff/me calls GET /staff/:id with the id from the JWT sub (not a route param)', async () => {
+    it('GET /v1/staff/me calls GET /staff/me (self-service, not the manager-only GET /staff/:id)', async () => {
       const staffMember = {
         id: STAFF_ID,
         email: 'gerente@lavacar.com.br',
@@ -371,7 +371,7 @@ describe('StaffController (component)', () => {
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual(staffMember);
-      expect(backendHttpService.get).toHaveBeenCalledWith(`/staff/${STAFF_ID}`);
+      expect(backendHttpService.get).toHaveBeenCalledWith('/staff/me');
     });
 
     it('GET /v1/staff/:id calls GET /staff/:id on backend', async () => {
