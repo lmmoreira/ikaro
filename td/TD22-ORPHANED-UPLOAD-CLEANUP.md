@@ -366,8 +366,8 @@ No lifecycle rule will be needed on the public bucket — nothing is ever writte
 | File | Change |
 |---|---|
 | `apps/backend/src/shared/ports/storage.service.port.ts` | `copy()` gains `destinationBucket?: 'private' \| 'public'` param |
-| `apps/backend/src/shared/infrastructure/gcs-signed-url.adapter.ts` | `copy()` implementation honors the new param |
-| `apps/backend/src/shared/infrastructure/gcs-signed-url.adapter.spec.ts` | New tests: private→private copy, private→public copy (default) |
+| `apps/backend/src/shared/infrastructure/gcs/gcs-signed-url.adapter.ts` | `copy()` implementation honors the new param |
+| `apps/backend/src/shared/infrastructure/gcs/gcs-signed-url.adapter.spec.ts` | New tests: private→private copy, private→public copy (default) |
 | `apps/backend/src/test/infrastructure/in-memory-storage.service.ts` | `copy()` accepts (and can ignore) the new param |
 | `apps/backend/src/contexts/platform/application/use-cases/generate-hotsite-image-signed-url.use-case.ts` | Target `tmp/<tenantId>/<purpose>/<uuid>/<fileName>` in `'private'`, not final path in `'public'` |
 | `apps/backend/src/contexts/platform/application/use-cases/update-hotsite-content.use-case.ts` | Replace `verifyImagesExist` with `prepareImagePromotion` (pre-commit, pure) + `executeImagePromotion` (post-commit, via `scheduleAfterCommit`) |
