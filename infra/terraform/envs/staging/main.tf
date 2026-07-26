@@ -142,6 +142,11 @@ module "cloudrun_backend" {
       GCP_PROJECT = var.project_id
       LOG_LEVEL   = "DEBUG"
 
+      # Force gcp-metadata to use Cloud Run's working DNS metadata endpoint.
+      # The older google-auth-library nested under @google-cloud/storage races
+      # the metadata IP and can accept a response without Metadata-Flavor.
+      GCE_METADATA_HOST = "metadata.google.internal"
+
       # DB_NAME derives from modules/database's own output (single source of
       # truth for the google_sql_database.ikaro name) rather than a second
       # hardcoded "ikaro" literal.
