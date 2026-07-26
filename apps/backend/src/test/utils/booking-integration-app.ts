@@ -21,9 +21,11 @@ import { ScheduleOpeningEntity } from '../../contexts/booking/infrastructure/ent
 import { ServiceEntity } from '../../contexts/booking/infrastructure/entities/service.entity';
 import { BookingModule } from '../../contexts/booking/booking.module';
 import { CustomerEntity } from '../../contexts/customer/infrastructure/entities/customer.entity';
+import { FRONTEND_REVALIDATION_PORT } from '../../contexts/platform/application/ports/frontend-revalidation.port';
 import { HotsiteConfigEntity } from '../../contexts/platform/infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from '../../contexts/platform/infrastructure/entities/tenant.entity';
 import { RoutingInMemoryEventBus } from '../infrastructure/routing-in-memory-event-bus';
+import { InMemoryFrontendRevalidationPort } from '../infrastructure/in-memory-frontend-revalidation.port';
 import { InMemoryStorageService } from '../infrastructure/in-memory-storage.service';
 import { InMemoryTenantSettingsPort } from '../infrastructure/in-memory-tenant-settings.port';
 import { STORAGE_SERVICE } from '../../shared/ports/storage.service.port';
@@ -80,7 +82,9 @@ export async function createBookingIntegrationApp(
     .overrideProvider(OUTBOX_PUBLISHER)
     .useValue(routingBus)
     .overrideProvider(STORAGE_SERVICE)
-    .useValue(new InMemoryStorageService());
+    .useValue(new InMemoryStorageService())
+    .overrideProvider(FRONTEND_REVALIDATION_PORT)
+    .useValue(new InMemoryFrontendRevalidationPort());
 
   for (const { provide, useValue } of overrideProviders) {
     builder = builder.overrideProvider(provide).useValue(useValue);

@@ -49,7 +49,7 @@ describe('GET /api/revalidate', () => {
     expect(body.message).toMatch(/slug/i);
   });
 
-  it('calls revalidatePath and revalidateTag and returns revalidated:true for a valid request', async () => {
+  it('calls revalidatePath and revalidateTag (manifest + services) and returns revalidated:true for a valid request', async () => {
     const response = await GET(makeRequest('tenant-a', VALID_SECRET));
 
     expect(response.status).toBe(200);
@@ -58,6 +58,7 @@ describe('GET /api/revalidate', () => {
     expect(body.slug).toBe('tenant-a');
     expect(mockRevalidatePath).toHaveBeenCalledWith('/tenant-a', 'page');
     expect(mockRevalidateTag).toHaveBeenCalledWith('hotsite-manifest-tenant-a', { expire: 0 });
+    expect(mockRevalidateTag).toHaveBeenCalledWith('hotsite-services-tenant-a', { expire: 0 });
   });
 
   it('does not call revalidatePath or revalidateTag when authentication fails', async () => {

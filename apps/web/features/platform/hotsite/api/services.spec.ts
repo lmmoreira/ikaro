@@ -42,7 +42,7 @@ describe('fetchServices', () => {
       `${BFF_URL}/public/services`,
       expect.objectContaining({
         headers: { 'X-Tenant-Slug': 'lavacar-beloauto' },
-        next: { revalidate: 300 },
+        next: { revalidate: 300, tags: ['hotsite-services-lavacar-beloauto'] },
       }),
     );
   });

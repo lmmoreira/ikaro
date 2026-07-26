@@ -1,3 +1,4 @@
+import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { BookingDomainError } from '../../domain/errors/booking-domain.error';
@@ -19,11 +20,19 @@ const baseDto = {
 
 describe('CreateServiceUseCase', () => {
   let repo: InMemoryServiceRepository;
+  let bookingPlatform: InMemoryBookingPlatformPort;
   let useCase: CreateServiceUseCase;
 
   beforeEach(() => {
     repo = new InMemoryServiceRepository();
-    useCase = new CreateServiceUseCase(repo, new InMemoryTransactionManager());
+    bookingPlatform = new InMemoryBookingPlatformPort();
+    useCase = new CreateServiceUseCase(repo, bookingPlatform, new InMemoryTransactionManager());
+  });
+
+  it('revalidates the public pages for the service tenant', async () => {
+    await useCase.execute({ ...baseDto, ...ctx });
+
+    expect(bookingPlatform.revalidatedTenantIds).toEqual([TENANT_A]);
   });
 
   it('creates a service and returns the full result DTO', async () => {
