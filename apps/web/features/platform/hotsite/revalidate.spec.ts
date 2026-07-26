@@ -10,7 +10,7 @@ describe('hotsiteManifestCacheTag', () => {
     expect(hotsiteManifestCacheTag('tenant-a')).not.toBe(hotsiteManifestCacheTag('tenant-b'));
   });
 
-  it('truncates an oversized slug so the tag stays within Next.js\'s 256-char cache tag limit', () => {
+  it("truncates an oversized slug so the tag stays within Next.js's 256-char cache tag limit", () => {
     const oversizedSlug = 'a'.repeat(300);
 
     const tag = hotsiteManifestCacheTag(oversizedSlug);
@@ -33,7 +33,7 @@ describe('hotsiteServicesCacheTag', () => {
     expect(hotsiteServicesCacheTag('tenant-a')).not.toBe(hotsiteManifestCacheTag('tenant-a'));
   });
 
-  it('truncates an oversized slug so the tag stays within Next.js\'s 256-char cache tag limit', () => {
+  it("truncates an oversized slug so the tag stays within Next.js's 256-char cache tag limit", () => {
     const oversizedSlug = 'a'.repeat(300);
 
     const tag = hotsiteServicesCacheTag(oversizedSlug);

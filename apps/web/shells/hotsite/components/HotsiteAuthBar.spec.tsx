@@ -96,7 +96,6 @@ describe('HotsiteAuthBar', () => {
       );
       expect(link).toHaveTextContent('Sair');
     });
-
   });
 
   describe('staff session with no name', () => {
