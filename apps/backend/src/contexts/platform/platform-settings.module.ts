@@ -23,6 +23,11 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     GetTenantByIdUseCase,
     GetTenantsUseCase,
   ],
-  exports: [GetTenantByIdUseCase, GetTenantsUseCase, TENANT_SETTINGS_PORT, FRONTEND_REVALIDATION_PORT],
+  exports: [
+    GetTenantByIdUseCase,
+    GetTenantsUseCase,
+    TENANT_SETTINGS_PORT,
+    FRONTEND_REVALIDATION_PORT,
+  ],
 })
 export class PlatformSettingsModule {}

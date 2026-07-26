@@ -16,11 +16,7 @@ describe('DeactivateServiceUseCase', () => {
   beforeEach(() => {
     repo = new InMemoryServiceRepository();
     bookingPlatform = new InMemoryBookingPlatformPort();
-    useCase = new DeactivateServiceUseCase(
-      repo,
-      bookingPlatform,
-      new InMemoryTransactionManager(),
-    );
+    useCase = new DeactivateServiceUseCase(repo, bookingPlatform, new InMemoryTransactionManager());
   });
 
   it('revalidates the public pages for the service tenant', async () => {
