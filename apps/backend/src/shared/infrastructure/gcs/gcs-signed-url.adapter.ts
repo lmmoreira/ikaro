@@ -1,9 +1,10 @@
 import { Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Storage } from '@google-cloud/storage';
-import { IStorageService, GenerateSignedUrlResult } from '../ports/storage.service.port';
+import { IStorageService, GenerateSignedUrlResult } from '../../ports/storage.service.port';
 
 const SIGNED_URL_TTL_MS = 15 * 60 * 1000;
+const GOOGLE_UNIVERSE_DOMAIN = 'googleapis.com';
 
 @Injectable()
 export class GcsSignedUrlAdapter implements IStorageService, OnApplicationBootstrap {
@@ -30,7 +31,10 @@ export class GcsSignedUrlAdapter implements IStorageService, OnApplicationBootst
       storageOptions['keyFilename'] = keyFile;
     }
 
-    this.storage = new Storage(storageOptions);
+    this.storage = new Storage({
+      ...storageOptions,
+      universeDomain: GOOGLE_UNIVERSE_DOMAIN,
+    });
   }
 
   async onApplicationBootstrap(): Promise<void> {
