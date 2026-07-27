@@ -9,7 +9,7 @@
 
 ## Purpose
 
-This is a **triage snapshot, not a committed remediation plan**. No story/wave breakdown, no acceptance-criteria checkboxes — just the full inventory of what the eval found, organized so a later session can decide what (if anything) becomes real work. Contrast with `td/TD-18-19-20-BAD-SMELL-VIOLAVIONS.md`, which *is* a committed, now-resolved remediation plan; this file deliberately stops one step short of that.
+This file started as a **triage snapshot, not a committed remediation plan** — the full inventory of what the eval found, organized so a later session could decide what (if anything) becomes real work. That framing described the file only until the 2026-07-23 triage session below: it now has a full story breakdown (22 stories) and a 14-PR execution plan with acceptance criteria, the same rigor as `td/TD-18-19-20-BAD-SMELL-VIOLAVIONS.md`. Kept as one file rather than split out, since the raw audit findings (Part 1/Part 2 below) remain useful context for why each story exists.
 
 Two things were compared:
 1. **The checklist** (`/bad-smell-audit`'s 18 checks, BE-1–7 / BFF-1–4 / WEB-1–7) — found **3** issues total.
@@ -189,17 +189,23 @@ All 17 🔴-tagged findings, re-verified directly against current source on 2026
 
 **Problem**: The web-local interfaces declare `entryId`/`serviceId` (entry) and `redemptionId` (redemption), with no `bookingId` field at all. The real BFF response shape (`packages/types/src/loyalty.dto.ts`) uses `id`/`bookingId`/`serviceName` (entry) and `id`/`bookingId`/`amountDeducted` (redemption) — no `entryId`, `serviceId`, or bare `redemptionId`. TypeScript cannot catch this because the web file declares its own parallel interfaces instead of importing the canonical ones — any field access on the wrong name compiles fine and returns `undefined` at runtime. This is the same category of bug `TD09-WEB-TYPES-DRIFT-VS-IKARO-TYPES.md` fixed for `LoyaltyBalanceResponse`, `services`, `customers`, `staff` — but TD09 never looked at these two, and they've drifted since (confirmed live, not historical).
 
-**Work required**:
-1. Delete the local `LoyaltyEntryItem`/`LoyaltyRedemptionItem`/`LoyaltyEntriesResponse`/`LoyaltyRedemptionsResponse` interfaces from `apps/web/features/loyalty/api.ts`.
-2. Import the canonical `LoyaltyEntryItem`, `LoyaltyRedemptionItem`, `PaginatedLoyaltyEntriesResponse`, `PaginatedLoyaltyRedemptionsResponse` from `@ikaro/types` instead (check the exact export names in `packages/types/src/loyalty.dto.ts` — the canonical pagination wrapper is `{ items, total, page, limit }`, not `{ entries, pagination: {...} }`/`{ redemptions, pagination: {...} }` like the current local shape, so the wrapper shape changes too).
-3. Update `getLoyaltyEntries()`, `getLoyaltyRedemptions()`, `getCustomerLoyaltyEntries()`, `getCustomerLoyaltyRedemptions()` return types accordingly.
-4. Fix every consumer that reads `.entryId`, `.serviceId`, `.redemptionId`, `.entries`, or `.redemptions` off these responses to use `.id`, `.bookingId`, `.items` instead — `tsc --noEmit` will surface every call site once the interfaces are swapped, so this is mechanically discoverable, but confirm no runtime-only (untyped) access slipped through.
+**Discovery update (2026-07-27, story-discovery for PR 2)**: The prescribed fix below is superseded. Two things the original triage missed:
+1. **The "canonical types" named here are the wrong family for 2 of the 4 functions.** `getLoyaltyEntries()`/`getLoyaltyRedemptions()` call the *customer-facing* BFF routes (`/loyalty/entries`, `/loyalty/redemptions`), which actually return `CustomerLoyaltyEntriesResponse`/`CustomerLoyaltyRedemptionsResponse` (items shaped `entryId`/`pointsEarned`/`expired` and `redemptionId`/`pointsUsed`/`amountSaved`-as-formatted-string/`bookingReference`) — not the `LoyaltyEntryItem`/`LoyaltyRedemptionItem` family this story names, which only matches the *staff/admin* routes (`getCustomerLoyaltyEntries(customerId)`/`getCustomerLoyaltyRedemptions(customerId)`).
+2. **All 4 functions (plus `getLoyaltyBalance`/`getCustomerLoyaltyBalance` in the same file) are dead code**, fully duplicated by already-correct, already-live implementations: `features/customer/api.server.ts`'s `fetchLoyaltyBalance`/`fetchLoyaltyEntries`/`fetchLoyaltyRedemptions` (feeds the real customer `LoyaltyPage.tsx`) and `features/loyalty/dashboard-api.ts`'s functions of the *same names* (feeds the real staff `CustomerLoyaltyPage.tsx`). Confirmed via grep: zero real (non-spec) consumers of `api.ts`'s loyalty-read functions or `useLoyalty.ts`'s corresponding hooks anywhere in `apps/web`. Git-blamed to `M13-S01` (generic TanStack Query foundation scaffolded ahead of the real pages); the pages that later got built (M13-S25 onward) used Server Components/`bffServerFetch` and a separate `dashboard-api.ts` instead, and this file was never wired up.
 
-**Why this order/priority**: Silent type-safety hole on a customer-facing loyalty feature — second only to the authz gap in correctness risk.
+Retyping dead duplicate code doesn't fix anything real — per CLAUDE.md's own anti-pattern ("duplicate read endpoints/use cases for projections of the same aggregate → keep one canonical read endpoint/use case") and the "no workarounds" rule, the correct fix is **deletion**, not a type fix.
 
-**Verification**: `pnpm --filter web type-check` (this alone will surface every broken call site), `pnpm --filter web test -- loyalty`, manual check of any `.spec.tsx` mocking these functions (mocks will need the corrected shape too).
+**Work required (revised)**:
+1. Delete `getLoyaltyBalance`, `getLoyaltyEntries`, `getLoyaltyRedemptions`, `getCustomerLoyaltyBalance`, `getCustomerLoyaltyEntries`, `getCustomerLoyaltyRedemptions` and their now-orphaned local interfaces (`LoyaltyBalanceResponse`, `LoyaltyEntryItem`, `LoyaltyEntriesResponse`, `LoyaltyRedemptionItem`, `LoyaltyRedemptionsResponse`, `LoyaltyPaginationQuery`) from `apps/web/features/loyalty/api.ts`.
+2. Delete the corresponding hooks (`useLoyaltyBalance`, `useLoyaltyEntries`, `useLoyaltyRedemptions`, `useCustomerLoyaltyBalance`, `useCustomerLoyaltyEntries`, `useCustomerLoyaltyRedemptions`) from `apps/web/features/loyalty/hooks/useLoyalty.ts`.
+3. Remove the matching `describe` blocks from `api.spec.ts` and `useLoyalty.spec.tsx`.
+4. Keep `redeemPoints`/`useRedeemPoints`/`RedeemPointsRequest`/`RedeemPointsResponse` untouched in both files — no duplicate exists, no drift (these types aren't in `@ikaro/types` at all), just an unbuilt feature.
 
-**Definition of done**: `apps/web/features/loyalty/api.ts` has zero locally-declared response interfaces for entries/redemptions — everything imported from `@ikaro/types`. Add a note in `td/TD09-WEB-TYPES-DRIFT-VS-IKARO-TYPES.md` linking this fix, since TD09 explicitly didn't cover these two types.
+**Why this order/priority**: Silent type-safety hole on a customer-facing loyalty feature — second only to the authz gap in correctness risk. (The risk was theoretical, not live, since the code path was dead — but the duplication itself was real and worth removing.)
+
+**Verification**: `pnpm --filter web type-check`, `pnpm --filter web test -- loyalty`. No consumer fix-up needed — confirmed zero real callers exist.
+
+**Definition of done**: `apps/web/features/loyalty/api.ts` and `hooks/useLoyalty.ts` contain only `redeemPoints`/`useRedeemPoints` and their types — the 6 duplicate read functions/hooks and their local interfaces are gone. Add a note in `td/TD09-WEB-TYPES-DRIFT-VS-IKARO-TYPES.md` linking this fix, since TD09 explicitly didn't cover these two types.
 
 ---
 
@@ -610,12 +616,14 @@ Decisions made during triage:
 **Source**: Web 2.3, 2.4, 4.5
 
 **Target files**:
-- `apps/web/features/loyalty/api.ts:3-7` (`LoyaltyBalanceResponse` — confirmed shape matches `@ikaro/types` exactly; fold into Story 2's edit of this same file rather than a separate PR if Story 2 hasn't landed yet)
+- `apps/web/features/loyalty/api.ts:3-7` (`LoyaltyBalanceResponse` — fold into Story 2's edit of this same file rather than a separate PR if Story 2 hasn't landed yet)
 - `apps/web/features/auth/session.ts:4-6` (confirmed: `SwitchTenantRequest` hand-redeclared even though the canonical type already exists at `packages/types/src/auth.dto.ts:1` and the sibling `SwitchTenantResponse` in the same file already imports from `@ikaro/types`)
 - `apps/web/features/booking/components/public/AddressFields.tsx:188` (confirmed: `label={addressSpec.neighborhoodLabel ?? 'Neighborhood'}` — hardcoded English fallback in a file that otherwise consistently uses `useTranslations`; fold into Story 8's i18n sweep if Story 8 hasn't landed yet)
 
+**Discovery update (2026-07-27, story-discovery for PR 2)**: The original claim that `LoyaltyBalanceResponse` "matches `@ikaro/types` exactly" checked against the wrong type — the BFF's live `/loyalty/balance` and `/customers/:id/loyalty/balance` responses are actually `CustomerLoyaltyBalanceResponse`/`EnrichedLoyaltyBalanceResponse` (both add `conversionRate`), not the raw backend-internal `LoyaltyBalanceResponse`. This function is also dead code, superseded by other files — see Story 2's discovery update for the full trace. Folded into Story 2's item 1 (deletion, not a type fix).
+
 **Work required**:
-1. Delete the local `LoyaltyBalanceResponse` interface from `apps/web/features/loyalty/api.ts`, import from `@ikaro/types` instead.
+1. ~~Delete the local `LoyaltyBalanceResponse` interface from `apps/web/features/loyalty/api.ts`, import from `@ikaro/types` instead.~~ Superseded — see Story 2's revised Work required item 1 (this function is deleted outright, not retyped).
 2. Delete the local `SwitchTenantRequest` interface from `session.ts`, import from `@ikaro/types` instead (matching how `SwitchTenantResponse` already does in the same file).
 3. Replace the hardcoded `'Neighborhood'` fallback with a translated key, consistent with the rest of `AddressFields.tsx`'s `useTranslations` usage.
 
