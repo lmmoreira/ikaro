@@ -1112,7 +1112,7 @@ On every push to `main` touching `apps/**`, `packages/**`, or lockfile: build �
 
 ---
 
-### M17-S27 — Staging activation: secrets, first real deploy, full validation
+### M17-S27 — Staging activation: secrets, first real deploy, full validation ✅ Done
 
 **Agent:** `devops`
 **Complexity:** M
