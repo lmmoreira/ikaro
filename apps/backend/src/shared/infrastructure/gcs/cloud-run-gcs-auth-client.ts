@@ -10,7 +10,6 @@ type MetadataTokenResponse = {
 
 /** Auth client that avoids the broken nested gcp-metadata dependency in Storage. */
 export class CloudRunGcsAuthClient {
-  private serviceAccountEmail: string | undefined;
   private accessToken: { token: string; expiryDate: number } | undefined;
 
   async getAccessToken(): Promise<{ token: string }> {
@@ -43,16 +42,5 @@ export class CloudRunGcsAuthClient {
       'metadata project request',
     );
     return readResponseText(response, 'metadata project');
-  }
-
-  async getServiceAccountEmail(): Promise<string> {
-    if (this.serviceAccountEmail) return this.serviceAccountEmail;
-    const response = await fetchWithTimeout(
-      `${METADATA_BASE_URL}/instance/service-accounts/default/email`,
-      { headers: METADATA_HEADERS },
-      'metadata service account request',
-    );
-    this.serviceAccountEmail = await readResponseText(response, 'metadata service account');
-    return this.serviceAccountEmail;
   }
 }
