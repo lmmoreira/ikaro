@@ -9,7 +9,7 @@ export function useRedeemPoints() {
     mutationFn: (body: RedeemPointsRequest) => redeemPoints(body),
     onSuccess: () =>
       queryClient.invalidateQueries({
-        predicate: (query) => query.queryKey[0] === 'loyalty' && query.queryKey[2] === tenantId,
+        predicate: (query) => query.queryKey[0] === 'loyalty' && query.queryKey[1] === tenantId,
       }),
   });
 }

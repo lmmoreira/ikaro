@@ -84,7 +84,7 @@ Set up TanStack Query (React Query) as the global data-fetching layer and create
   - `useBookings(filters)`, `useBooking(id)`, `useCreateBooking()`, `useUpdateBookingStatus()`
   - `useServices()`, `useCreateService()`, `useUpdateService()`
   - `useAvailability(date, serviceIds)`, `useScheduleClosures()`
-  - `useLoyaltyBalance()`, `useLoyaltyEntries()`
+  - `useLoyaltyBalance()`, `useLoyaltyEntries()` — **removed 2026-07-27**: never wired to a real page, fully duplicated by `features/customer/api.server.ts` and `features/loyalty/dashboard-api.ts`. Do not recreate — see `td/TD31-BAD-SMELL-AUDIT-COVERAGE-SNAPSHOT.md` Story 2 / PR #280.
   - `useStaff()`, `useInviteStaff()`, `useDeactivateStaff()`
   - `useTenantSettings()`, `useUpdateTenantSettings()`
   - `useHotsiteConfig()`, `useUpdateHotsiteConfig()`

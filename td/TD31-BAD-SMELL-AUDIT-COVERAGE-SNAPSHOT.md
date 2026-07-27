@@ -9,7 +9,7 @@
 
 ## Purpose
 
-This is a **triage snapshot, not a committed remediation plan**. No story/wave breakdown, no acceptance-criteria checkboxes — just the full inventory of what the eval found, organized so a later session can decide what (if anything) becomes real work. Contrast with `td/TD-18-19-20-BAD-SMELL-VIOLAVIONS.md`, which *is* a committed, now-resolved remediation plan; this file deliberately stops one step short of that.
+This file started as a **triage snapshot, not a committed remediation plan** — the full inventory of what the eval found, organized so a later session could decide what (if anything) becomes real work. That framing described the file only until the 2026-07-23 triage session below: it now has a full story breakdown (22 stories) and a 14-PR execution plan with acceptance criteria, the same rigor as `td/TD-18-19-20-BAD-SMELL-VIOLAVIONS.md`. Kept as one file rather than split out, since the raw audit findings (Part 1/Part 2 below) remain useful context for why each story exists.
 
 Two things were compared:
 1. **The checklist** (`/bad-smell-audit`'s 18 checks, BE-1–7 / BFF-1–4 / WEB-1–7) — found **3** issues total.
