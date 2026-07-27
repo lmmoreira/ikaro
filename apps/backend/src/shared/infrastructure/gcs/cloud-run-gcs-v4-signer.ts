@@ -5,6 +5,7 @@ const IAM_CREDENTIALS_BASE_URL =
   'https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts';
 const STORAGE_HOST = 'storage.googleapis.com';
 const METADATA_HEADERS = { 'Metadata-Flavor': 'Google' };
+const SIGNING_REQUEST_TIMEOUT_MS = 5000;
 
 type MetadataTokenResponse = {
   access_token: string;
@@ -67,22 +68,26 @@ export class CloudRunGcsV4Signer {
   }
 
   private async getAccessToken(): Promise<string> {
-    const response = await fetch(`${METADATA_BASE_URL}/instance/service-accounts/default/token`, {
-      headers: METADATA_HEADERS,
-    });
+    const response = await fetchWithTimeout(
+      `${METADATA_BASE_URL}/instance/service-accounts/default/token`,
+      { headers: METADATA_HEADERS },
+      'metadata token request',
+    );
     const body = await readResponse<MetadataTokenResponse>(response, 'metadata token');
     return body.access_token;
   }
 
   private async getMetadataText(path: string): Promise<string> {
-    const response = await fetch(`${METADATA_BASE_URL}/${path}`, {
-      headers: METADATA_HEADERS,
-    });
+    const response = await fetchWithTimeout(
+      `${METADATA_BASE_URL}/${path}`,
+      { headers: METADATA_HEADERS },
+      'metadata request',
+    );
     return readResponseText(response, 'metadata value');
   }
 
   private async signBlob(email: string, accessToken: string, payload: string): Promise<string> {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${IAM_CREDENTIALS_BASE_URL}/${encodePathSegment(email)}:signBlob`,
       {
         method: 'POST',
@@ -92,10 +97,34 @@ export class CloudRunGcsV4Signer {
         },
         body: JSON.stringify({ payload: Buffer.from(payload).toString('base64') }),
       },
+      'IAM signBlob request',
     );
     const body = await readResponse<SignBlobResponse>(response, 'IAM signBlob');
     return body.signedBlob;
   }
+}
+
+async function fetchWithTimeout(
+  input: string,
+  init: RequestInit,
+  operation: string,
+): Promise<Response> {
+  try {
+    return await fetch(input, { ...init, signal: AbortSignal.timeout(SIGNING_REQUEST_TIMEOUT_MS) });
+  } catch (error: unknown) {
+    if (isAbortError(error)) throw new Error(`${operation} timed out`);
+    throw error;
+  }
+}
+
+function isAbortError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'name' in error &&
+    ((error as { name?: unknown }).name === 'AbortError' ||
+      (error as { name?: unknown }).name === 'TimeoutError')
+  );
 }
 
 function formatIsoDate(date: Date): string {
@@ -116,7 +145,7 @@ function encodePathSegment(value: string): string {
 function encodeQueryValue(value: string): string {
   return encodeURIComponent(value).replace(
     /[!'()*]/g,
-    (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+    (character) => `%${character.codePointAt(0)?.toString(16).toUpperCase()}`,
   );
 }
 
