@@ -1,6 +1,19 @@
 // Resolves the real client IP for rate-limiting keys (M17-S30). The raw socket peer is never
 // the client in prod (Cloudflare -> ALB -> Cloud Run) or staging (Cloud Run's own front end).
 //
+// VERIFIED BROKEN (M17-S27, 2026-07-27): a real staging request from a known IP showed the
+// resolved value was a Google Cloud-owned address, not the requester's IP. Root cause isn't
+// hop-selection -- every real caller reaches the BFF through the same-origin web gateway
+// (apps/web/app/v1/[...path]/route.ts), which opens a *new* connection from ikaro-web itself,
+// so this file's CF-Connecting-IP/rightmost-XFF logic never sees the real browser IP in either
+// environment. See td/TD38-BFF-CLIENT-IP-RESOLUTION-BROKEN-BY-SAME-ORIGIN-GATEWAY.md for the
+// full root cause and the proposed fix (BFF ingress lockdown + IAM auth from web, at which
+// point web forwards the real IP via a trusted header and this file's guessing logic goes
+// away entirely). Rate-limiting still runs today; it just doesn't key on distinct real
+// clients until TD38 lands -- kept as-is here rather than reworked as a stopgap, per the "no
+// workarounds" rule (a partial header-trust fix without the ingress lockdown would let an
+// attacker directly forge the client IP, which is worse than today's uninformative baseline).
+//
 // prod: CF-Connecting-IP — trustworthy *only* because M17-S36's Cloud Armor origin lockdown
 // guarantees traffic entered via Cloudflare (no other path reaches the ALB). Without that
 // lockdown this header would be spoofable by anyone hitting the ALB IP directly.
