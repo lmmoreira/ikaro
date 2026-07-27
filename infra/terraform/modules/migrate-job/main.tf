@@ -81,6 +81,10 @@ resource "google_cloud_run_v2_job" "this" {
   # The pipeline owns the image (post-S27/S37); Terraform owns everything
   # else — same convention as modules/cloudrun-service.
   lifecycle {
-    ignore_changes = [template[0].template[0].containers[0].image]
+    ignore_changes = [
+      client,
+      client_version,
+      template[0].template[0].containers[0].image,
+    ]
   }
 }
