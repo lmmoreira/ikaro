@@ -1,4 +1,4 @@
-import { ExecutionContext, Injectable } from '@nestjs/common';
+import { ExecutionContext, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import {
@@ -27,6 +27,8 @@ import { throwProblemDetail } from '../http/problem-detail';
 //   app's standard Problem Detail envelope.
 @Injectable()
 export class AppThrottlerGuard extends ThrottlerGuard {
+  private readonly logger = new Logger(AppThrottlerGuard.name);
+
   constructor(
     @InjectThrottlerOptions() options: ThrottlerModuleOptions,
     @InjectThrottlerStorage() storageService: ThrottlerStorage,
@@ -43,7 +45,19 @@ export class AppThrottlerGuard extends ThrottlerGuard {
 
   protected override async getTracker(req: ClientIpRequest): Promise<string> {
     const appEnv = this.config.get<string>('APP_ENV') ?? 'local';
-    return getClientIp(req, appEnv);
+    const clientIp = getClientIp(req, appEnv);
+    // M17-S27 verification (PR #167 review, 2026-07-19): staging has no Cloudflare/ALB in
+    // front, so getClientIp() parses the raw X-Forwarded-For header itself (rightmost hop) —
+    // unlike production, which trusts CF-Connecting-IP. Which hop is actually the client was
+    // never confirmed against real Cloud Run traffic (see client-ip.ts). Left in permanently,
+    // debug-level, unconditional: AppLogger (packages/observability) already filters DEBUG out
+    // in production (LOG_LEVEL=INFO there vs. DEBUG in staging), so no env check is needed here
+    // — cheap enough to keep for any future re-verification if staging's front-end topology
+    // ever changes again.
+    this.logger.debug(
+      `xff-verify: x-forwarded-for="${req.headers['x-forwarded-for']}" resolved="${clientIp}"`,
+    );
+    return clientIp;
   }
 
   protected override async throwThrottlingException(): Promise<void> {
