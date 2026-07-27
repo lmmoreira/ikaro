@@ -60,6 +60,32 @@ describe('AppThrottlerGuard', () => {
       ).getTracker({ headers: {}, ip: '127.0.0.1' });
       expect(tracker).toBe('127.0.0.1');
     });
+
+    it('debug-logs the raw X-Forwarded-For header and resolved IP in staging (M17-S27 verification)', async () => {
+      guard = makeGuard('staging');
+      const logger = (guard as unknown as { logger: { debug: jest.Mock } }).logger;
+      const debugSpy = jest.spyOn(logger, 'debug');
+      await (guard as unknown as { getTracker: (req: unknown) => Promise<string> }).getTracker({
+        headers: { 'x-forwarded-for': '198.51.100.1, 203.0.113.99' },
+        ip: '10.0.0.1',
+      });
+      expect(debugSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'x-forwarded-for="198.51.100.1, 203.0.113.99" resolved="203.0.113.99"',
+        ),
+      );
+    });
+
+    it('does not debug-log in production', async () => {
+      guard = makeGuard('production');
+      const logger = (guard as unknown as { logger: { debug: jest.Mock } }).logger;
+      const debugSpy = jest.spyOn(logger, 'debug');
+      await (guard as unknown as { getTracker: (req: unknown) => Promise<string> }).getTracker({
+        headers: { 'cf-connecting-ip': '203.0.113.10' },
+        ip: '10.0.0.1',
+      });
+      expect(debugSpy).not.toHaveBeenCalled();
+    });
   });
 
   describe('throwThrottlingException()', () => {
