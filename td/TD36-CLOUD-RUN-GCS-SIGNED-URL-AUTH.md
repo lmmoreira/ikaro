@@ -1,6 +1,6 @@
 # TD36 — Cloud Run GCS Signed-URL Authentication Failure
 
-**Status:** Completed — implemented in PR #271, merged 2026-07-27  
+**Status:** Completed — signed-URL fix implemented in PR #271; attachment API auth follow-up implemented on `fix/gcs_all_operations`
 **Affected environments:** Cloud Run staging and production  
 **Affected capability:** GCS V4 signed URLs for booking attachments and hotsite assets
 
@@ -111,7 +111,25 @@ nested metadata path.
 Therefore, simply passing `new GoogleAuth()` is not a valid fix for this
 repository.
 
-### 5. IAM signing test
+### 5. Booking attachment API-path reproduction
+
+After the signed-URL endpoint started working, the authenticated booking POST
+still failed when processing attachments. The booking flow calls the Storage
+client for normal JSON API operations:
+
+- `exists()` checks the temporary object;
+- `copy()` promotes it to its final location;
+- `delete()` removes the temporary object.
+
+Those operations do not use `file.getSignedUrl()`. They use Storage's normal
+request authorization path, which still reached the nested
+`google-auth-library@9.15.1` `Compute` client and reproduced the same metadata
+header error.
+
+This showed that the initial statement that only signed-URL generation was
+affected was incomplete.
+
+### 6. IAM signing test
 
 A temporary Cloud Run job manually performed the lower-level keyless flow:
 
@@ -123,7 +141,7 @@ A temporary Cloud Run job manually performed the lower-level keyless flow:
 The IAM call returned HTTP 200, proving that the service account and
 `roles/iam.serviceAccountTokenCreator` permission were correct.
 
-### 6. Complete signed-URL test
+### 7. Complete signed-URL test
 
 The same temporary-job approach then built a GCS V4 canonical request, signed
 it with IAM `signBlob`, and used the resulting URLs against real GCS:
@@ -179,9 +197,21 @@ continue to preserve their response-status handling.
 - `GCS_EMULATOR_HOST` is not configured;
 - `GCS_KEY_FILE` is not configured.
 
-All other GCS operations (`exists`, `copy`, and application-level `delete`)
-continue using the existing Storage client. Only signed URL generation uses the
-Cloud Run-specific signer.
+The follow-up fix also adds:
+
+```text
+apps/backend/src/shared/infrastructure/gcs/cloud-run-gcs-auth-client.ts
+```
+
+`CloudRunGcsAuthClient` is passed into the Storage client for Cloud Run. It
+fetches and caches the OAuth access token directly from the metadata server
+with `Metadata-Flavor: Google`, and supplies the bearer header to Storage's
+normal API requests. This covers `exists`, `copy`, `delete`, and other
+authenticated Storage operations without invoking the nested Compute client.
+
+The signed-URL signer and the Storage auth client remain separate because they
+solve different protocol problems: signed URLs require IAM `signBlob`, while
+normal API calls require an OAuth bearer token.
 
 ## Local and non-Cloud-Run behavior
 
@@ -223,12 +253,28 @@ PR #271 passed:
 The SonarCloud finding for `charCodeAt` was fixed by using `codePointAt`, and
 the follow-up commit passed the repository pre-push checks.
 
+The follow-up auth mechanism was also tested in a temporary real Cloud Run job
+using the deployed backend image, the same service account, VPC, subnet, and
+`PRIVATE_RANGES_ONLY` egress configuration. The job successfully performed:
+
+```text
+SAVE_OK true
+COPY_OK true
+DELETE_OK false false
+```
+
+The temporary job and objects were removed. This validates the Storage API
+authentication mechanism against the real Cloud Run runtime; the final
+application revision still requires deployment before validating the complete
+booking HTTP flow.
+
 ## Operational follow-up
 
-After deployment, verify the real staging service with the booking attachment
-signed-URL endpoint and confirm a PUT upload succeeds. Then verify the hotsite
-signed upload/read path. Production should receive the same application image
-and Terraform cleanup after staging validation.
+After deploying the follow-up application revision, verify the real staging
+booking flow end to end: generate the temporary signed URL, upload the object,
+submit the booking POST, and confirm the `exists`, `copy`, and cleanup steps.
+Then verify the hotsite signed upload/read path. Production should receive the
+same application image after staging validation.
 
 The IAM permission required for the keyless path is:
 
