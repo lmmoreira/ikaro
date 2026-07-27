@@ -1,7 +1,6 @@
 import { Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Storage } from '@google-cloud/storage';
-import type { AuthClient } from 'google-auth-library';
 import { IStorageService, GenerateSignedUrlResult } from '../../ports/storage.service.port';
 import { CloudRunGcsV4Signer } from './cloud-run-gcs-v4-signer';
 import { CloudRunGcsAuthClient } from './cloud-run-gcs-auth-client';
@@ -39,7 +38,7 @@ export class GcsSignedUrlAdapter implements IStorageService, OnApplicationBootst
         ? new CloudRunGcsAuthClient()
         : undefined;
     if (cloudRunAuthClient) {
-      storageOptions['authClient'] = cloudRunAuthClient as unknown as AuthClient;
+      storageOptions['authClient'] = cloudRunAuthClient;
       storageOptions['projectId'] = config.get<string>('GCP_PROJECT');
     }
 
