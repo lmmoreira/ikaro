@@ -284,3 +284,28 @@ roles/iam.serviceAccountTokenCreator
 
 It must remain granted to the runtime service account on itself, alongside the
 existing bucket-level Storage permissions.
+
+## Future dependency watch
+
+The custom signer/auth-client is a permanent fix, not a stopgap waiting on a
+library patch — but it can potentially be retired if upstream changes.
+`@google-cloud/storage@7.21.0` (the latest published release as of this
+writing) still declares `"google-auth-library": "^9.6.3"`, and `9.15.1` is
+already the newest published `9.x` release, so there is currently no
+dependency-version bump available that resolves the underlying `instanceof
+GoogleAuth` mismatch (`nodejs-common/util.js`'s check against Storage's own
+nested `GoogleAuth` class, which an app-level `GoogleAuth` instance never
+satisfies under pnpm's non-hoisted layout — see
+`googleapis/google-auth-library-nodejs#1946` for an independently-reported
+instance of the same underlying `Metadata-Flavor` symptom).
+
+When `@google-cloud/storage` ships a major version that adopts
+`google-auth-library@10.x` (or otherwise fixes the `instanceof` check to
+accept an injected client built from a different `google-auth-library`
+instance), re-test whether a plain `Storage` client with an injected
+`GoogleAuth` (built from the app's own direct `google-auth-library`
+dependency) now works correctly against a real Cloud Run environment before
+removing `CloudRunGcsV4Signer`/`CloudRunGcsAuthClient`. Do not assume a
+changelog entry alone means it's fixed — this failure mode is specific to
+pnpm's isolated dependency resolution and is unlikely to appear in the
+library maintainers' own test matrix.
