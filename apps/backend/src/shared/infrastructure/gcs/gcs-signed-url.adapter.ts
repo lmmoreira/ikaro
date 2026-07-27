@@ -1,7 +1,9 @@
 import { Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Storage } from '@google-cloud/storage';
-import { IStorageService, GenerateSignedUrlResult } from '../ports/storage.service.port';
+import { IStorageService, GenerateSignedUrlResult } from '../../ports/storage.service.port';
+import { CloudRunGcsV4Signer } from './cloud-run-gcs-v4-signer';
+import { CloudRunGcsAuthClient } from './cloud-run-gcs-auth-client';
 
 const SIGNED_URL_TTL_MS = 15 * 60 * 1000;
 
@@ -12,6 +14,7 @@ export class GcsSignedUrlAdapter implements IStorageService, OnApplicationBootst
   private readonly publicBucketName: string;
   private readonly publicBaseUrl: string;
   private readonly emulatorHost: string | undefined;
+  private readonly cloudRunSigner: CloudRunGcsV4Signer | undefined;
 
   constructor(config: ConfigService) {
     this.emulatorHost = config.get<string>('GCS_EMULATOR_HOST');
@@ -30,7 +33,20 @@ export class GcsSignedUrlAdapter implements IStorageService, OnApplicationBootst
       storageOptions['keyFilename'] = keyFile;
     }
 
+    const cloudRunAuthClient =
+      !this.emulatorHost && !keyFile && process.env['K_SERVICE']
+        ? new CloudRunGcsAuthClient()
+        : undefined;
+    if (cloudRunAuthClient) {
+      storageOptions['authClient'] = cloudRunAuthClient;
+      storageOptions['projectId'] = config.get<string>('GCP_PROJECT');
+    }
+
     this.storage = new Storage(storageOptions);
+    this.cloudRunSigner =
+      !this.emulatorHost && !keyFile && process.env['K_SERVICE']
+        ? new CloudRunGcsV4Signer()
+        : undefined;
   }
 
   async onApplicationBootstrap(): Promise<void> {
@@ -69,6 +85,19 @@ export class GcsSignedUrlAdapter implements IStorageService, OnApplicationBootst
   ): Promise<GenerateSignedUrlResult> {
     const expiresAt = new Date(Date.now() + SIGNED_URL_TTL_MS);
     const bucketName = bucket === 'public' ? this.publicBucketName : this.bucketName;
+
+    if (this.cloudRunSigner) {
+      const method = config.action === 'write' ? 'PUT' : 'GET';
+      const signedUrl = await this.cloudRunSigner.getSignedUrl(
+        bucketName,
+        storagePath,
+        method,
+        expiresAt,
+        config.contentType,
+      );
+      return { signedUrl, expiresAt };
+    }
+
     const file = this.storage.bucket(bucketName).file(storagePath);
 
     const [signedUrl] = await file.getSignedUrl({ ...config, expires: expiresAt });

@@ -162,6 +162,10 @@ resource "google_cloud_run_v2_service" "this" {
   # this, every `terraform apply` after a real deploy would roll the image back to
   # whatever's in this file.
   lifecycle {
-    ignore_changes = [template[0].containers[0].image]
+    ignore_changes = [
+      client,
+      client_version,
+      template[0].containers[0].image,
+    ]
   }
 }

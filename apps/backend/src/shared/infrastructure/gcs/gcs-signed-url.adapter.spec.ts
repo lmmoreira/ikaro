@@ -3,10 +3,17 @@ import { Storage } from '@google-cloud/storage';
 import { GcsSignedUrlAdapter } from './gcs-signed-url.adapter';
 
 jest.mock('@google-cloud/storage');
+const mockCloudRunGetSignedUrl = jest.fn();
+jest.mock('./cloud-run-gcs-v4-signer', () => ({
+  CloudRunGcsV4Signer: jest.fn().mockImplementation(() => ({
+    getSignedUrl: mockCloudRunGetSignedUrl,
+  })),
+}));
 
 const MockStorage = Storage as jest.MockedClass<typeof Storage>;
 
 describe('GcsSignedUrlAdapter', () => {
+  const originalKService = process.env['K_SERVICE'];
   let mockGetSignedUrl: jest.Mock;
   let mockFileExists: jest.Mock;
   let mockBucketExists: jest.Mock;
@@ -27,6 +34,8 @@ describe('GcsSignedUrlAdapter', () => {
   }
 
   beforeEach(() => {
+    delete process.env['K_SERVICE'];
+    mockCloudRunGetSignedUrl.mockReset();
     mockGetSignedUrl = jest
       .fn()
       .mockResolvedValue(['https://storage.googleapis.com/bucket/path?X-Goog-Signature=abc']);
@@ -53,10 +62,24 @@ describe('GcsSignedUrlAdapter', () => {
   });
 
   afterEach(() => {
+    if (originalKService === undefined) delete process.env['K_SERVICE'];
+    else process.env['K_SERVICE'] = originalKService;
     jest.clearAllMocks();
   });
 
   describe('constructor', () => {
+    it('configures the direct Cloud Run auth client for Storage API operations', () => {
+      process.env['K_SERVICE'] = 'ikaro-backend';
+      makeService({ GCP_PROJECT: 'ikaro-staging' });
+
+      expect(MockStorage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectId: 'ikaro-staging',
+          authClient: expect.any(Object),
+        }),
+      );
+    });
+
     it('configures emulator endpoint and projectId when GCS_EMULATOR_HOST is set', () => {
       makeService({ GCS_EMULATOR_HOST: 'http://localhost:4443' });
       expect(MockStorage).toHaveBeenCalledWith(
@@ -74,7 +97,7 @@ describe('GcsSignedUrlAdapter', () => {
       );
     });
 
-    it('uses empty storage options when neither emulator nor key file is configured', () => {
+    it('uses default Storage configuration when neither emulator nor key file is configured', () => {
       makeService({});
       expect(MockStorage).toHaveBeenCalledWith({});
     });
@@ -185,6 +208,37 @@ describe('GcsSignedUrlAdapter', () => {
       const service = makeService({});
       await service.generateReadSignedUrl('hotsite/banner.jpg', 'public');
       expect(mockBucket).toHaveBeenCalledWith('ikaro-local-public');
+    });
+  });
+
+  describe('Cloud Run signing', () => {
+    it('uses the Cloud Run signer for write and read URLs', async () => {
+      process.env['K_SERVICE'] = 'ikaro-backend';
+      mockCloudRunGetSignedUrl.mockResolvedValue('https://storage.googleapis.com/signed');
+      const service = makeService({ GCS_BUCKET_NAME: 'ikaro-uploads-staging' });
+
+      const writeResult = await service.generateWriteSignedUrl('path/file.jpg', 'image/jpeg');
+      const readResult = await service.generateReadSignedUrl('path/file.jpg');
+
+      expect(writeResult.signedUrl).toBe('https://storage.googleapis.com/signed');
+      expect(readResult.signedUrl).toBe('https://storage.googleapis.com/signed');
+      expect(mockCloudRunGetSignedUrl).toHaveBeenNthCalledWith(
+        1,
+        'ikaro-uploads-staging',
+        'path/file.jpg',
+        'PUT',
+        expect.any(Date),
+        'image/jpeg',
+      );
+      expect(mockCloudRunGetSignedUrl).toHaveBeenNthCalledWith(
+        2,
+        'ikaro-uploads-staging',
+        'path/file.jpg',
+        'GET',
+        expect.any(Date),
+        undefined,
+      );
+      expect(mockGetSignedUrl).not.toHaveBeenCalled();
     });
   });
 

@@ -1,7 +1,7 @@
 # TD32 — Developer access to VPC-internal resources (Cloud SQL, ingress-internal Cloud Run) has no viable network path
 
 ## Status
-- **State**: 🟡 Open
+- **State**: ✅ Done — implemented and validated via PRs #259–#261 (2026-07-25)
 - **Type**: Technical Debt / Infrastructure Gap
 - **Priority**: Medium — blocks two M17-S27 AC items today (Cloud SQL proxy-login verification, tenant provisioning); blocks any future need for direct human access to a VPC-internal resource (DB debugging, spot-checks, restore-drill verification, hitting an ingress-internal Cloud Run endpoint) until resolved
 - **Context**: `infra/terraform/modules/database/README.md`'s documented connection snippet, `plan/M17-CLOUD-DEPLOY.md` §2 Security Model row "Developer → Cloud SQL"
