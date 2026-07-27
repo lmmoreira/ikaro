@@ -1,9 +1,11 @@
 import { Body, Controller, Get, HttpCode, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
+import { CustomerProfileResponse, SessionResponse, StaffResponse } from '@ikaro/types';
 import { CurrentUser, CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
 import { Public } from '../../shared/decorators/public.decorator';
 import { Roles } from '../../shared/decorators/roles.decorator';
+import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { ZodValidationPipe } from '@ikaro/nestjs-http';
 import { DevLoginDto, DevLoginResponse, DevLoginSchema } from './dtos/dev-login.dto';
 import { SwitchStaffTenantDto, SwitchStaffTenantSchema } from './dtos/switch-staff-tenant.dto';
@@ -19,7 +21,10 @@ import { StaffTenantOption } from './auth.types';
 @Throttle({ default: { limit: 10, ttl: 60_000 } })
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authFlow: AuthControllerFlowService) {}
+  constructor(
+    private readonly authFlow: AuthControllerFlowService,
+    private readonly backendHttp: BackendHttpService,
+  ) {}
 
   @Public()
   @UseGuards(GoogleAuthGuard)
@@ -39,6 +44,21 @@ export class AuthController {
   @Get('logout')
   logout(@Query('tenantSlug') tenantSlug: string | undefined, @Res() res: Response): void {
     this.authFlow.logout(tenantSlug, res);
+  }
+
+  // Any authenticated role (no @Roles() restriction) — branches on the JWT's own role instead of
+  // guessing, so it makes exactly one backend call, not one per possible role. Used by the public
+  // hotsite's HotsiteAuthBar via the web app's same-origin GET /api/session proxy — orchestration
+  // (which single lookup to make, how to shape the combined result) belongs here in the BFF, not
+  // in web, per the "BFF orchestration" preference for cross-context reads.
+  @Get('session')
+  async getSession(@CurrentUser() user: CurrentUserPayload): Promise<SessionResponse> {
+    if (user.role === 'STAFF' || user.role === 'MANAGER') {
+      const staff = await this.backendHttp.get<StaffResponse>('/staff/me');
+      return { staff: { id: staff.id, name: staff.name }, customer: null };
+    }
+    const customer = await this.backendHttp.get<CustomerProfileResponse>('/customers/me');
+    return { staff: null, customer: { customerId: customer.customerId, name: customer.name } };
   }
 
   @Get('staff-tenants')

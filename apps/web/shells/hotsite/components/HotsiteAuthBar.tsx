@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import type { SessionResponse } from '@ikaro/types';
 import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 import { HotsiteAuthBarDropdown } from './HotsiteAuthBarDropdown';
 
@@ -9,26 +10,12 @@ interface HotsiteAuthBarProps {
   readonly slug: string;
 }
 
-interface StaffSession {
-  readonly name: string | null;
-}
-
-interface CustomerSession {
-  readonly name: string;
-}
-
-interface SessionResponse {
-  readonly staff: StaffSession | null;
-  readonly customer: CustomerSession | null;
-}
-
 // Client-side, after hydration — not SSR. Reading cookies() during the [slug] page's server
 // render forces Next.js to treat the whole route as dynamic per-request, silently disabling the
 // ISR/CDN cache the hotsite depends on (docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md §6).
-// /api/session is a same-origin proxy route that forwards the httpOnly cookie server-side to the
-// BFF and combines the staff/customer lookups into one round trip — staff/customer roles are
-// mutually exclusive by construction (BFF's @Roles guard rejects the other), so at most one of
-// the two is ever non-null for a real session.
+// /api/session is a thin same-origin proxy to the BFF's GET /auth/session, which does the actual
+// staff-vs-customer branching (BFF orchestration, not web) — staff/customer roles are mutually
+// exclusive by construction, so at most one of the two is ever non-null for a real session.
 async function fetchSession(slug: string): Promise<SessionResponse> {
   const res = await fetch(`/api/session?slug=${encodeURIComponent(slug)}`);
   if (!res.ok) return { staff: null, customer: null };
