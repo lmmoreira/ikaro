@@ -1,30 +1,12 @@
 import MockAdapter from 'axios-mock-adapter';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { bffClient } from '@/shared/lib/api/bff-client';
-import {
-  getCustomerLoyaltyBalance,
-  getCustomerLoyaltyEntries,
-  getCustomerLoyaltyRedemptions,
-} from './dashboard-api';
+import { getCustomerLoyaltyEntries, getCustomerLoyaltyRedemptions } from './dashboard-api';
 
 const mock = new MockAdapter(bffClient);
 
 beforeEach(() => mock.reset());
 afterEach(() => mock.reset());
-
-describe('getCustomerLoyaltyBalance', () => {
-  it('calls GET /customers/:id/loyalty/balance', async () => {
-    mock.onGet('/customers/c-1/loyalty/balance').reply(200, {
-      currentPoints: 100,
-      nextExpiryDate: null,
-      nextExpiryPoints: null,
-    });
-
-    const res = await getCustomerLoyaltyBalance('c-1');
-
-    expect(res.currentPoints).toBe(100);
-  });
-});
 
 describe('getCustomerLoyaltyEntries', () => {
   it('calls GET /customers/:id/loyalty/entries with params', async () => {

@@ -1,6 +1,5 @@
 import { bffClient } from '@/shared/lib/api/bff-client';
 import type {
-  EnrichedLoyaltyBalanceResponse,
   PaginatedLoyaltyEntriesResponse,
   PaginatedLoyaltyRedemptionsResponse,
 } from '@ikaro/types';
@@ -8,15 +7,6 @@ import type {
 export interface LoyaltyPaginationQuery {
   readonly page?: number;
   readonly limit?: number;
-}
-
-export async function getCustomerLoyaltyBalance(
-  customerId: string,
-): Promise<EnrichedLoyaltyBalanceResponse> {
-  const res = await bffClient.get<EnrichedLoyaltyBalanceResponse>(
-    `/customers/${customerId}/loyalty/balance`,
-  );
-  return res.data;
 }
 
 export async function getCustomerLoyaltyEntries(
