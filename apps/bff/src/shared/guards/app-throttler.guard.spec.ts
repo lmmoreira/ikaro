@@ -61,7 +61,7 @@ describe('AppThrottlerGuard', () => {
       expect(tracker).toBe('127.0.0.1');
     });
 
-    it('debug-logs the raw X-Forwarded-For header and resolved IP in staging (M17-S27 verification)', async () => {
+    it('debug-logs the raw X-Forwarded-For header and resolved IP (M17-S27 verification)', async () => {
       guard = makeGuard('staging');
       const logger = (guard as unknown as { logger: { debug: jest.Mock } }).logger;
       const debugSpy = jest.spyOn(logger, 'debug');
@@ -76,7 +76,7 @@ describe('AppThrottlerGuard', () => {
       );
     });
 
-    it('does not debug-log in production', async () => {
+    it('still calls debug() unconditionally in production (AppLogger/LOG_LEVEL filters it, not this guard)', async () => {
       guard = makeGuard('production');
       const logger = (guard as unknown as { logger: { debug: jest.Mock } }).logger;
       const debugSpy = jest.spyOn(logger, 'debug');
@@ -84,7 +84,7 @@ describe('AppThrottlerGuard', () => {
         headers: { 'cf-connecting-ip': '203.0.113.10' },
         ip: '10.0.0.1',
       });
-      expect(debugSpy).not.toHaveBeenCalled();
+      expect(debugSpy).toHaveBeenCalledWith(expect.stringContaining('resolved="203.0.113.10"'));
     });
   });
 

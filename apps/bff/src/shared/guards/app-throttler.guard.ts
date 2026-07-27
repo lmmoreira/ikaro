@@ -50,13 +50,13 @@ export class AppThrottlerGuard extends ThrottlerGuard {
     // front, so getClientIp() parses the raw X-Forwarded-For header itself (rightmost hop) —
     // unlike production, which trusts CF-Connecting-IP. Which hop is actually the client was
     // never confirmed against real Cloud Run traffic (see client-ip.ts). Left in permanently,
-    // staging-only, debug-level: cheap enough to keep for any future re-verification if
-    // staging's front-end topology ever changes again.
-    if (appEnv === 'staging') {
-      this.logger.debug(
-        `xff-verify: x-forwarded-for="${req.headers['x-forwarded-for']}" resolved="${clientIp}"`,
-      );
-    }
+    // debug-level, unconditional: AppLogger (packages/observability) already filters DEBUG out
+    // in production (LOG_LEVEL=INFO there vs. DEBUG in staging), so no env check is needed here
+    // — cheap enough to keep for any future re-verification if staging's front-end topology
+    // ever changes again.
+    this.logger.debug(
+      `xff-verify: x-forwarded-for="${req.headers['x-forwarded-for']}" resolved="${clientIp}"`,
+    );
     return clientIp;
   }
 
