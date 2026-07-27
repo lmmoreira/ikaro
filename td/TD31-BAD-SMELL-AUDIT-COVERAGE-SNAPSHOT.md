@@ -178,7 +178,9 @@ All 17 🔴-tagged findings, re-verified directly against current source on 2026
 
 ---
 
-### Story 2 — `LoyaltyEntryItem`/`LoyaltyRedemptionItem` shapes have drifted from `@ikaro/types` 🔴 Critical
+### Story 2 — `LoyaltyEntryItem`/`LoyaltyRedemptionItem` shapes have drifted from `@ikaro/types` 🔴 Critical ✅ Done
+
+**Landed**: PR #280 (2026-07-27), `fix/td31-s02-loyalty-dead-code` (branch deleted post-merge). Scope diverged significantly from the plan below during story-discovery: all 4 target functions (plus `getLoyaltyBalance`/`getCustomerLoyaltyBalance` in the same file) turned out to be fully dead, duplicated by `features/customer/api.server.ts` and `features/loyalty/dashboard-api.ts` — deleted instead of retyped (see the Discovery update below). Also folded into the same PR, beyond the original scope: Story 20's loyalty item (see its own note), a follow-up deletion of `dashboard-api.ts`'s own unused `getCustomerLoyaltyBalance` (found post-review via a user follow-up question), and two fixes from Codex's cross-tool review — `useRedeemPoints`'s cache-invalidation predicate corrected from `queryKey[2]` to `queryKey[1]` (matching `docs/ANTI_PATTERNS.md`'s documented `[namespace, tenantId, ...params]` convention), plus a stale-reference note added to `plan/M13-DASHBOARD-FRONTEND.md`.
 
 **Source**: Web 2.1, 2.2
 
@@ -613,6 +615,8 @@ Decisions made during triage:
 
 ### Story 20 — Web: last two `@ikaro/types` duplicates + one hardcoded fallback 🟡
 
+**Partially landed**: item 1 (loyalty) shipped 2026-07-27 in PR #280, as part of Story 2 — see Story 2's Landed note. Items 2 (`SwitchTenantRequest`) and 3 (`AddressFields.tsx`) remain open, scoped to PR 14 per the execution plan below. Not marking this story `✅ Done` until those land.
+
 **Source**: Web 2.3, 2.4, 4.5
 
 **Target files**:
@@ -715,7 +719,7 @@ Grouping rule: two stories collapse into **one PR** only when they genuinely sha
 | PR | Stories | Target files | Notes |
 |---|---|---|---|
 | **PR 1** ✅ | Story 1 | `booking.controller.ts`, `get-booking-by-id.use-case.ts` (+ spec) | Standalone. Highest priority — security-adjacent. **Merged as [#204](https://github.com/lmmoreira/ikaro/pull/204), 2026-07-24.** |
-| **PR 2** | Story 2 + Story 20 (loyalty part only) | `apps/web/features/loyalty/api.ts` | Same file, same reason (both are `@ikaro/types` drift/duplication on this exact file) — always were meant to land together. |
+| **PR 2** ✅ | Story 2 + Story 20 (loyalty part only) | `apps/web/features/loyalty/api.ts` | Same file, same reason (both are `@ikaro/types` drift/duplication on this exact file) — always were meant to land together. **Merged as [#280](https://github.com/lmmoreira/ikaro/pull/280), 2026-07-27.** |
 
 ### Wave 2 — BFF `bookings.controller.ts` cleanup (1 PR — collapsed from 3 due to file overlap)
 
