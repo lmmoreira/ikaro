@@ -2,6 +2,14 @@ import { test, expect } from '@playwright/test';
 import { loginAsCustomer, loginAsStaff, uniqueTestEmail } from './helpers/auth';
 import { completeCustomerProfile } from './helpers/customer';
 
+// HotsiteAuthBar resolves auth state client-side, after hydration, via /api/session (not
+// synchronously in server-rendered HTML — see docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md §6),
+// rendering a loading skeleton until it resolves — so *every* final state (including
+// "unauthenticated") requires that round trip, not just the authenticated ones. The default 5s
+// Playwright timeout can be too tight for that extra network round trip (browser -> web -> BFF ->
+// backend) under CI load; use this for assertions that wait for the resolved state to appear.
+const AUTH_RESOLVE_TIMEOUT = 15_000;
+
 test.describe('M13-S42 — Hotsite auth bar', () => {
   test('anonymous visitor sees the localized login CTA on the hotsite and reaches the tenant-branded login page', async ({
     page,
@@ -9,7 +17,7 @@ test.describe('M13-S42 — Hotsite auth bar', () => {
     await page.goto('/ikaro');
 
     const loginLink = page.locator('[data-testid="hotsite-login-link"]');
-    await expect(loginLink).toBeVisible();
+    await expect(loginLink).toBeVisible({ timeout: AUTH_RESOLVE_TIMEOUT });
     await expect(loginLink).toHaveAttribute('href', '/ikaro/login');
 
     await loginLink.click();
@@ -27,7 +35,7 @@ test.describe('M13-S42 — Hotsite auth bar', () => {
     await page.goto('/lavacar-beloauto');
 
     const staffLink = page.locator('[data-testid="hotsite-staff-link"]');
-    await expect(staffLink).toBeVisible();
+    await expect(staffLink).toBeVisible({ timeout: AUTH_RESOLVE_TIMEOUT });
     await expect(staffLink).toHaveAttribute('href', '/dashboard/login?tenantSlug=lavacar-beloauto');
   });
 
@@ -46,7 +54,7 @@ test.describe('Hotsite auth bar — authenticated states', () => {
     await page.goto('/lavacar-beloauto');
 
     const summary = page.locator('[data-testid="hotsite-auth-bar"] summary');
-    await expect(summary).toBeVisible();
+    await expect(summary).toBeVisible({ timeout: AUTH_RESOLVE_TIMEOUT });
     await expect(page.locator('[data-testid="hotsite-auth-tenant-slug"]')).toHaveText(
       'lavacar-beloauto',
     );
@@ -92,7 +100,9 @@ test.describe('Hotsite auth bar — authenticated states', () => {
     await page.locator('[data-testid="hotsite-customer-logout-link"]').click();
 
     await expect(page).toHaveURL('/lavacar-beloauto');
-    await expect(page.locator('[data-testid="hotsite-login-link"]')).toBeVisible();
+    await expect(page.locator('[data-testid="hotsite-login-link"]')).toBeVisible({
+      timeout: AUTH_RESOLVE_TIMEOUT,
+    });
   });
 
   test('authenticated staff sees their name and a link to the dashboard', async ({ page }) => {
@@ -101,7 +111,7 @@ test.describe('Hotsite auth bar — authenticated states', () => {
     await page.goto('/lavacar-beloauto');
 
     const staffLink = page.locator('[data-testid="hotsite-staff-authenticated-link"]');
-    await expect(staffLink).toBeVisible();
+    await expect(staffLink).toBeVisible({ timeout: AUTH_RESOLVE_TIMEOUT });
     await expect(staffLink).toHaveAttribute('href', '/dashboard');
   });
 
@@ -109,11 +119,15 @@ test.describe('Hotsite auth bar — authenticated states', () => {
     await loginAsStaff(page, 'funcionario@lavacar.com.br', 'lavacar-beloauto');
 
     await page.goto('/lavacar-beloauto');
-    await expect(page.locator('[data-testid="hotsite-staff-authenticated-link"]')).toBeVisible();
+    await expect(page.locator('[data-testid="hotsite-staff-authenticated-link"]')).toBeVisible({
+      timeout: AUTH_RESOLVE_TIMEOUT,
+    });
 
     await page.locator('[data-testid="hotsite-staff-logout-link"]').click();
 
-    await expect(page.locator('[data-testid="hotsite-staff-link"]')).toBeVisible();
+    await expect(page.locator('[data-testid="hotsite-staff-link"]')).toBeVisible({
+      timeout: AUTH_RESOLVE_TIMEOUT,
+    });
     await expect(
       page.locator('[data-testid="hotsite-staff-authenticated-link"]'),
     ).not.toBeVisible();
@@ -126,14 +140,18 @@ test.describe('Hotsite auth bar — authenticated states', () => {
 
     await page.goto('/autospa-premium');
 
-    await expect(page.locator('[data-testid="hotsite-staff-link"]')).toBeVisible();
+    await expect(page.locator('[data-testid="hotsite-staff-link"]')).toBeVisible({
+      timeout: AUTH_RESOLVE_TIMEOUT,
+    });
     await expect(
       page.locator('[data-testid="hotsite-staff-authenticated-link"]'),
     ).not.toBeVisible();
 
     // Back on their own tenant they are still authenticated.
     await page.goto('/lavacar-beloauto');
-    await expect(page.locator('[data-testid="hotsite-staff-authenticated-link"]')).toBeVisible();
+    await expect(page.locator('[data-testid="hotsite-staff-authenticated-link"]')).toBeVisible({
+      timeout: AUTH_RESOLVE_TIMEOUT,
+    });
   });
 
   test("a customer authenticated at one tenant sees the unauthenticated state on a different tenant's hotsite (cross-tenant identity bug regression)", async ({
@@ -146,12 +164,16 @@ test.describe('Hotsite auth bar — authenticated states', () => {
     // email at autospa-premium, so the auth bar must show "Entrar", not the BeloAuto identity.
     await page.goto('/autospa-premium');
 
-    await expect(page.locator('[data-testid="hotsite-login-link"]')).toBeVisible();
+    await expect(page.locator('[data-testid="hotsite-login-link"]')).toBeVisible({
+      timeout: AUTH_RESOLVE_TIMEOUT,
+    });
     await expect(page.locator('[data-testid="hotsite-auth-bar"] summary')).not.toBeVisible();
 
     // The original tenant's session is untouched — navigating back shows the customer as
     // logged in there, same as before.
     await page.goto('/lavacar-beloauto');
-    await expect(page.locator('[data-testid="hotsite-auth-bar"] summary')).toBeVisible();
+    await expect(page.locator('[data-testid="hotsite-auth-bar"] summary')).toBeVisible({
+      timeout: AUTH_RESOLVE_TIMEOUT,
+    });
   });
 });

@@ -4,6 +4,7 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
 import { Money } from '../../../../shared/value-objects/money';
+import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { CreateServiceDto } from '../dtos/create-service.dto';
 import { Service } from '../../domain/service.aggregate';
@@ -30,6 +31,7 @@ export interface CreateServiceUseCaseResult {
 export class CreateServiceUseCase {
   constructor(
     @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
+    @Inject(BOOKING_PLATFORM_PORT) private readonly bookingPlatform: IBookingPlatformPort,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
@@ -51,6 +53,8 @@ export class CreateServiceUseCase {
     await this.txManager.run(async () => {
       await this.serviceRepo.save(service);
     });
+
+    await this.bookingPlatform.revalidatePublicPages(tenantId);
 
     return this.toResult(service, locale);
   }

@@ -11,7 +11,7 @@ import {
 import { SubmitInfoForm } from '@/features/booking/components/public/SubmitInfoForm';
 import { InvalidLinkView } from '@/features/booking/components/public/InvalidLinkView';
 import { verifyGuestToken, decodeUnverifiedTenantSlug } from '@/features/booking/model/guest-token';
-import { fetchManifestResponse } from '@/features/platform/api';
+import { fetchManifestResponse } from '@/features/platform/api.server';
 import { applyBranding } from '@/features/platform/hotsite/apply-branding';
 import { DEFAULT_HOTSITE_BRANDING } from '@/features/platform/hotsite/default-branding';
 import { resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';

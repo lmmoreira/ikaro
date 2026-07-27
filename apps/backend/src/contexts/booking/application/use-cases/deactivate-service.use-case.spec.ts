@@ -1,3 +1,4 @@
+import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
@@ -9,11 +10,22 @@ const TENANT_B = '10000000-0000-4000-8000-000000000002';
 
 describe('DeactivateServiceUseCase', () => {
   let repo: InMemoryServiceRepository;
+  let bookingPlatform: InMemoryBookingPlatformPort;
   let useCase: DeactivateServiceUseCase;
 
   beforeEach(() => {
     repo = new InMemoryServiceRepository();
-    useCase = new DeactivateServiceUseCase(repo, new InMemoryTransactionManager());
+    bookingPlatform = new InMemoryBookingPlatformPort();
+    useCase = new DeactivateServiceUseCase(repo, bookingPlatform, new InMemoryTransactionManager());
+  });
+
+  it('revalidates the public pages for the service tenant', async () => {
+    const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+    await repo.save(service);
+
+    await useCase.execute({ id: service.id, tenantId: TENANT_A });
+
+    expect(bookingPlatform.revalidatedTenantIds).toEqual([TENANT_A]);
   });
 
   it('sets isActive=false and returns { id, isActive: false }', async () => {

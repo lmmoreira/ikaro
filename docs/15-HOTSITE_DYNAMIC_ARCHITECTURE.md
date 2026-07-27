@@ -453,15 +453,20 @@ export const revalidate = 300;
 ```
 
 ```typescript
-// apps/web/features/platform/api.ts
-import { HOTSITE_REVALIDATE_SECONDS } from '@/features/platform/hotsite/revalidate';
+// apps/web/features/platform/api.server.ts — server-only ('server-only' import), used by every
+// [slug] page/layout. next.revalidate/next.tags only mean anything for a server-rendered fetch,
+// so this lives in its own server-only module rather than the isomorphic api.ts (below).
+import { HOTSITE_REVALIDATE_SECONDS, hotsiteManifestCacheTag } from '@/features/platform/hotsite/revalidate';
+import { bffPublicFetch } from '@/shared/lib/api/bff-server';
 
 export async function fetchManifest(slug: string): Promise<HotsiteManifestResponse> {
   const isDev = process.env.NODE_ENV === 'development';
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_BFF_URL}/platform/manifest/${slug}`,
-    { next: { revalidate: isDev ? 0 : HOTSITE_REVALIDATE_SECONDS } },
-  );
+  const res = await bffPublicFetch(`/public/platform/manifest/${slug}`, {
+    next: {
+      revalidate: isDev ? 0 : HOTSITE_REVALIDATE_SECONDS,
+      tags: [hotsiteManifestCacheTag(slug)],
+    },
+  });
 
   if (res.status === 404) notFound();
   if (!res.ok) throw new Error('Failed to fetch manifest');
@@ -469,6 +474,8 @@ export async function fetchManifest(slug: string): Promise<HotsiteManifestRespon
   return res.json();
 }
 ```
+
+`apps/web/features/platform/api.ts` (no `server-only`/`client-only` suffix distinction in the filename, but client-only in practice — imports `bffClient`, which asserts `'client-only'`) exports a separate `fetchManifestClient()` for the one caller that needs the manifest from the browser: `HotsitePreview.tsx`, the dashboard's live-preview-while-editing component. It carries no `next.revalidate`/`next.tags` — Next's Data Cache doesn't exist in the browser, so those options would be silently ignored there anyway; the preview is deliberately always-fresh, not cached. `features/platform/hotsite/api/services.ts`/`services.server.ts` follow the identical split for the services list.
 
 The `isDev ? 0` guard disables caching in `NODE_ENV=development` so local edits are reflected immediately without cache busting.
 
@@ -484,6 +491,12 @@ The `isDev ? 0` guard disables caching in `NODE_ENV=development` so local edits 
 **Session-aware widgets must not break this cache (M13-S42).** Any UI that needs to know whether the current visitor is logged in (e.g. `HotsiteAuthBar`) must be a `'use client'` component that fetches its own auth state *after* hydration — via a same-origin proxy route, see `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` §4 — and must **never** call `cookies()` from `next/headers` anywhere in the `[slug]` page/layout server-render tree. Calling `cookies()` there forces Next.js to treat the whole route as dynamic per-request, silently disabling the ISR cache above for every visitor, not just logged-in ones.
 
 **`headers()` is the same trap as `cookies()`.** Both are Next.js "Dynamic APIs" — calling either one anywhere in the `[slug]` page/layout server-render tree forces the whole route dynamic, silently disabling ISR (and any future CDN cache) the same way. This surfaced concretely in AUD-007 (`td/TD08-AUDIT-REMEDIATION-BACKLOG.md`): a per-request CSP nonce for the JSON-LD script (`shells/hotsite/components/JsonLdScript.tsx`) would require reading the nonce via `headers()` in `app/[slug]/page.tsx` — which would have quietly killed this page's ISR cache. The nonce was dropped in favor of a scoped `script-src 'unsafe-inline'` CSP exception instead; see that story for the full rationale. Treat any future need to read `headers()` (or `cookies()`) in this route tree as a caching regression to solve around, not a one-line addition.
+
+**Status: compliant.** `HotsiteAuthBar` (`apps/web/shells/hotsite/components/HotsiteAuthBar.tsx`) is a `'use client'` component that resolves its auth state after hydration via `GET /api/session` — a thin same-origin proxy route that reads the httpOnly cookie server-side and forwards it to the BFF's `GET /auth/session` — it does not call `cookies()`/`headers()` in the `[slug]` server-render tree. The BFF endpoint owns the actual orchestration: it reads the JWT's role from `@CurrentUser()` (populated by its own guard chain) and calls exactly the one relevant backend lookup (`/staff/me` for STAFF/MANAGER, `/customers/me` for CUSTOMER) rather than guessing both — combining is a BFF-orchestration concern, not web's, per the project's cross-context-read priority order. While the fetch is in flight the component renders a loading skeleton rather than the unauthenticated markup, so an authenticated visitor never sees a flash of "logged out" content. (Previously violated the `cookies()`/`headers()` constraint until fixed alongside the `revalidateTag` fix below — found via a live staging debugging session, TD35 follow-up; the two separate `/api/staff/me`/`/api/customers/me` client fetches were first consolidated into web's own `/api/session`, then that combining logic was moved into the BFF once review flagged it as orchestration that didn't belong in web — same PR.)
+
+**On-demand revalidation uses `revalidateTag`, not just `revalidatePath`.** `revalidatePath('/${slug}', 'page')` alone doesn't reliably clear `fetchManifestResponse`'s Data Cache entry for a route that's forced fully dynamic — see the note above. `app/api/revalidate/route.ts` also tags the manifest fetch (`hotsiteManifestCacheTag(slug)`) and calls `revalidateTag(tag, { expire: 0 })`. Next 16 requires a second argument here; a named profile like `'max'` means stale-while-revalidate (serves old content once more, refreshes in the background) — **not** immediate invalidation. `{ expire: 0 }` forces a blocking cache-miss on the next request instead.
+
+**Debugging the Data Cache directly:** set `NEXT_PRIVATE_DEBUG_CACHE=1` when running `pnpm start` to see Next's actual cache hit/miss/expire/set decisions logged to the server's own terminal — far more reliable than inferring from upstream (BFF) request logs, which get lost in unrelated noise (e.g. browser `favicon.ico` auto-requests hitting the `[slug]` catch-all).
 
 ---
 

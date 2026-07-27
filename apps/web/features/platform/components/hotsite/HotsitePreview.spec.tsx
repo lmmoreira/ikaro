@@ -4,22 +4,22 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 import type { HotsiteAdminContentResponse, HotsiteManifestResponse } from '@ikaro/types';
 import { clearPublicEnv, renderWithIntl, stubPublicEnv } from '@/test-utils';
-import { fetchManifest } from '@/features/platform/api';
-import { fetchServices } from '@/features/platform/hotsite/api/services';
+import { fetchManifestClient } from '@/features/platform/api';
+import { fetchServicesClient } from '@/features/platform/hotsite/api/services';
 import { generateHotsiteImageReadSignedUrl } from '@/features/platform/api/tenant-settings';
 import { HotsitePreview } from './HotsitePreview';
 
 vi.mock('@/providers/tenant-provider', () => ({
   useTenant: () => ({ tenantId: 'tenant-a-id', tenantSlug: 'tenant-a' }),
 }));
-vi.mock('@/features/platform/api', () => ({ fetchManifest: vi.fn() }));
-vi.mock('@/features/platform/hotsite/api/services', () => ({ fetchServices: vi.fn() }));
+vi.mock('@/features/platform/api', () => ({ fetchManifestClient: vi.fn() }));
+vi.mock('@/features/platform/hotsite/api/services', () => ({ fetchServicesClient: vi.fn() }));
 vi.mock('@/features/platform/api/tenant-settings', () => ({
   generateHotsiteImageReadSignedUrl: vi.fn(),
 }));
 
-const mockFetchManifest = vi.mocked(fetchManifest);
-const mockFetchServices = vi.mocked(fetchServices);
+const mockFetchManifest = vi.mocked(fetchManifestClient);
+const mockFetchServices = vi.mocked(fetchServicesClient);
 const mockGenerateReadSignedUrl = vi.mocked(generateHotsiteImageReadSignedUrl);
 
 function makeManifest(): HotsiteManifestResponse {

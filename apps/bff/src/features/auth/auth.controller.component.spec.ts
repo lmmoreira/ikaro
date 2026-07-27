@@ -7,21 +7,24 @@ import {
   TENANT_ID,
   TENANT_ID_2,
   MockBackendHttpService,
+  MockHttpService,
   createTestApp,
   makeCustomerJwt,
   makeManagerJwt,
   makeStaffJwt,
   request,
+  setupActiveGuardMock,
 } from '../../test/component-test.helpers';
 
 describe('AuthController (component) — non-OAuth routes', () => {
   let app: INestApplication;
   let jwtService: JwtService;
+  let httpService: MockHttpService;
   let backendHttpService: MockBackendHttpService;
   let restoreEnv: () => void;
 
   beforeAll(async () => {
-    ({ app, jwtService, backendHttpService, restoreEnv } = await createTestApp());
+    ({ app, jwtService, httpService, backendHttpService, restoreEnv } = await createTestApp());
   });
 
   afterAll(async () => {
@@ -195,6 +198,94 @@ describe('AuthController (component) — non-OAuth routes', () => {
         '/internal/customers',
         expect.objectContaining({ googleOAuthId: 'dev::joao@gmail.com' }),
       );
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // GET /auth/session  (authenticated — any role, branches on it internally)
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  describe('GET /v1/auth/session', () => {
+    it('401 without a token', async () => {
+      const res = await request(app.getHttpServer()).get('/v1/auth/session');
+      expect(res.status).toBe(401);
+    });
+
+    it('calls GET /staff/me (not /customers/me) for STAFF and returns { staff, customer: null }', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce({
+        id: STAFF_ID,
+        name: 'Ana Pereira',
+        role: 'STAFF',
+      });
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/auth/session')
+        .set('Authorization', `Bearer ${makeStaffJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ staff: { id: STAFF_ID, name: 'Ana Pereira' }, customer: null });
+      expect(backendHttpService.get).toHaveBeenCalledWith('/staff/me');
+      expect(backendHttpService.get).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls GET /staff/me for MANAGER too (same branch as STAFF)', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce({
+        id: STAFF_ID,
+        name: 'Gerente Silva',
+        role: 'MANAGER',
+      });
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/auth/session')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({
+        staff: { id: STAFF_ID, name: 'Gerente Silva' },
+        customer: null,
+      });
+    });
+
+    it('calls GET /customers/me (not /staff/me) for CUSTOMER and returns { staff: null, customer }', async () => {
+      backendHttpService.get.mockResolvedValueOnce({
+        customerId: CUSTOMER_ID,
+        name: 'João Silva',
+      });
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/auth/session')
+        .set('Authorization', `Bearer ${makeCustomerJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({
+        staff: null,
+        customer: { customerId: CUSTOMER_ID, name: 'João Silva' },
+      });
+      expect(backendHttpService.get).toHaveBeenCalledWith('/customers/me');
+      expect(backendHttpService.get).toHaveBeenCalledTimes(1);
+    });
+
+    it('403 when X-Tenant-Slug does not match the JWT tenant (TenantGuard)', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/v1/auth/session')
+        .set('Authorization', `Bearer ${makeCustomerJwt(jwtService)}`)
+        .set('X-Tenant-Slug', 'a-different-tenant');
+
+      expect(res.status).toBe(403);
+      expect(backendHttpService.get).not.toHaveBeenCalled();
+    });
+
+    it('403 for STAFF/MANAGER when ActiveStaffGuard reports isActive=false', async () => {
+      setupActiveGuardMock(httpService, false);
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/auth/session')
+        .set('Authorization', `Bearer ${makeStaffJwt(jwtService)}`);
+
+      expect(res.status).toBe(403);
+      expect(backendHttpService.get).not.toHaveBeenCalled();
     });
   });
 });

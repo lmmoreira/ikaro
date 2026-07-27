@@ -2,6 +2,13 @@ export interface SwitchTenantRequest {
   readonly targetTenantId: string;
 }
 
+// GET /auth/session — the actor's own staff-or-customer identity, whichever matches the JWT's
+// role (the two are mutually exclusive by construction, so exactly one is ever non-null).
+export interface SessionResponse {
+  readonly staff: { readonly id: string; readonly name: string | null } | null;
+  readonly customer: { readonly customerId: string; readonly name: string } | null;
+}
+
 export interface SwitchTenantResponse {
   readonly tenantSlug: string;
   readonly expiresIn: string;

@@ -2,6 +2,11 @@ import { test, expect } from '@playwright/test';
 import { loginAsCustomer, uniqueTestEmail } from './helpers/auth';
 import { fillValidAddress } from './helpers/customer';
 
+// HotsiteAuthBar resolves auth state client-side, after hydration, via /api/session (not
+// synchronously in server-rendered HTML — see docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md §6). The
+// default 5s Playwright timeout can be too tight for that extra network round trip under CI load.
+const AUTH_RESOLVE_TIMEOUT = 15_000;
+
 test.describe('Information completion prompt (mandatory phone + address)', () => {
   test('a customer with no phone/address sees the mandatory, non-dismissible prompt', async ({
     page,
@@ -88,6 +93,8 @@ test.describe('Information completion prompt (mandatory phone + address)', () =>
     await page.locator('[data-testid="information-completion-logout"]').click();
 
     await expect(page).toHaveURL('/lavacar-beloauto');
-    await expect(page.locator('[data-testid="hotsite-login-link"]')).toBeVisible();
+    await expect(page.locator('[data-testid="hotsite-login-link"]')).toBeVisible({
+      timeout: AUTH_RESOLVE_TIMEOUT,
+    });
   });
 });

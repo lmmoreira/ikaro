@@ -1,30 +1,49 @@
-import { cookies } from 'next/headers';
-import { getTranslations } from 'next-intl/server';
-import { decodeJwtPayload } from '@/features/auth/decode-jwt';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
+import type { SessionResponse } from '@ikaro/types';
 import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
-import { SESSION_COOKIE_NAME } from '@/features/auth/session-cookie';
-import { unixNow } from '@/shells/hotsite/utils/unix-now';
 import { HotsiteAuthBarDropdown } from './HotsiteAuthBarDropdown';
 
 interface HotsiteAuthBarProps {
   readonly slug: string;
 }
 
-export async function HotsiteAuthBar({ slug }: HotsiteAuthBarProps): Promise<React.JSX.Element> {
-  const t = await getTranslations('auth');
+// Client-side, after hydration — not SSR. Reading cookies() during the [slug] page's server
+// render forces Next.js to treat the whole route as dynamic per-request, silently disabling the
+// ISR/CDN cache the hotsite depends on (docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md §6).
+// /api/session is a thin same-origin proxy to the BFF's GET /auth/session, which does the actual
+// staff-vs-customer branching (BFF orchestration, not web) — staff/customer roles are mutually
+// exclusive by construction, so at most one of the two is ever non-null for a real session.
+async function fetchSession(slug: string): Promise<SessionResponse> {
+  const res = await fetch(`/api/session?slug=${encodeURIComponent(slug)}`);
+  if (!res.ok) return { staff: null, customer: null };
+  return (await res.json()) as SessionResponse;
+}
 
-  const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-  const payload = token ? decodeJwtPayload(token) : {};
+export function HotsiteAuthBar({ slug }: HotsiteAuthBarProps): React.JSX.Element {
+  const t = useTranslations('auth');
+  // null (distinct from { staff: null, customer: null }) means "the fetch hasn't resolved yet" —
+  // rendering a skeleton for that state instead of the unauthenticated markup avoids a flash of
+  // "logged out" content for authenticated visitors while /api/session is in flight.
+  const [session, setSession] = useState<SessionResponse | null>(null);
 
-  const nowSeconds = unixNow();
-  const isExpired = payload.exp !== undefined && nowSeconds > payload.exp;
-  const isTenantMatch = payload.tenantSlug === slug;
-  const isValidSession = !isExpired && isTenantMatch && !!payload.role && !!payload.sub;
+  useEffect(() => {
+    let cancelled = false;
 
-  const isStaff = isValidSession && (payload.role === 'STAFF' || payload.role === 'MANAGER');
-  const isCustomer = isValidSession && payload.role === 'CUSTOMER';
-  const displayName = payload.userName ?? '';
+    fetchSession(slug)
+      .then((result) => {
+        if (!cancelled) setSession(result);
+      })
+      .catch(() => {
+        if (!cancelled) setSession({ staff: null, customer: null });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
 
   const BriefcaseIcon = (
     <svg
@@ -42,6 +61,30 @@ export async function HotsiteAuthBar({ slug }: HotsiteAuthBarProps): Promise<Rea
       <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
     </svg>
   );
+
+  if (session === null) {
+    return (
+      <header
+        className="flex h-12 items-center justify-between px-6"
+        style={{ backgroundColor: 'var(--ba-secondary)' }}
+        data-testid="hotsite-auth-bar"
+      >
+        <div
+          data-testid="hotsite-auth-bar-skeleton"
+          className="h-3.5 w-24 animate-pulse rounded"
+          style={{ backgroundColor: 'var(--ba-text)', opacity: 0.15 }}
+        />
+        <div
+          className="h-3.5 w-16 animate-pulse rounded"
+          style={{ backgroundColor: 'var(--ba-text)', opacity: 0.15 }}
+        />
+      </header>
+    );
+  }
+
+  const isStaff = session.staff !== null;
+  const isCustomer = !isStaff && session.customer !== null;
+  const displayName = session.staff?.name || session.customer?.name || '';
 
   return (
     <header

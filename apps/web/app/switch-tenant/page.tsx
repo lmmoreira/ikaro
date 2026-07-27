@@ -1,7 +1,7 @@
 import { NextIntlClientProvider } from 'next-intl';
 import { decodeJwtPayload } from '@/features/auth/decode-jwt';
 import { getAccessToken } from '@/features/auth/get-access-token';
-import { fetchManifest } from '@/features/platform/api';
+import { fetchManifest } from '@/features/platform/api.server';
 import { applyBranding } from '@/features/platform/hotsite/apply-branding';
 import { getMessages, resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
 import { SwitchTenantClient } from '@/features/customer/components/SwitchTenantClient';

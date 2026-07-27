@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { HotsiteSitemapEntryListResponse } from '@ikaro/types';
 
-vi.mock('@/features/platform/api', () => ({
+vi.mock('@/features/platform/api.server', () => ({
   fetchPublishedHotsiteSlugs: vi.fn(),
 }));
 
-import { fetchPublishedHotsiteSlugs } from '@/features/platform/api';
+import { fetchPublishedHotsiteSlugs } from '@/features/platform/api.server';
 import { SITE_URL } from '@/features/platform/hotsite/seo';
 import sitemap from './sitemap';
 

@@ -359,6 +359,7 @@ Full pattern (code catalog, naming convention, frontend resolver, "adding a new 
 | `POST /auth/switch-tenant` | JWT | No | CUSTOMER |
 | `GET /auth/staff-tenants` | JWT | No | STAFF \| MANAGER |
 | `POST /auth/switch-staff-tenant` | JWT | No | STAFF \| MANAGER |
+| `GET /auth/session` | JWT | No (X-Tenant-Slug forwarded if given, `TenantGuard`-checked) | any (branches on JWT role internally) |
 | `GET /platform/manifest/:slug` | No | No (slug is the path param) | — |
 | `GET /services` (public) | No | X-Tenant-Slug | — |
 | `GET /services` (authenticated, includes inactive) | JWT | No | STAFF \| MANAGER |

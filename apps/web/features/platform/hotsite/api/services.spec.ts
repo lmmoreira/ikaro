@@ -1,8 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import MockAdapter from 'axios-mock-adapter';
+import { afterEach, describe, expect, it } from 'vitest';
 import type { HotsiteServiceResponse } from '@ikaro/types';
-import { fetchServices } from './services';
-
-const BFF_URL = 'http://bff-test:3002';
+import { bffClient } from '@/shared/lib/api/bff-client';
+import { fetchServicesClient } from './services';
 
 function makeService(overrides?: Partial<HotsiteServiceResponse>): HotsiteServiceResponse {
   return {
@@ -19,37 +19,24 @@ function makeService(overrides?: Partial<HotsiteServiceResponse>): HotsiteServic
   };
 }
 
-describe('fetchServices', () => {
-  let fetchSpy: ReturnType<typeof vi.spyOn>;
+describe('fetchServicesClient', () => {
+  const mock = new MockAdapter(bffClient);
 
-  beforeEach(() => {
-    process.env.NEXT_PUBLIC_BFF_URL = BFF_URL;
-    fetchSpy = vi.spyOn(globalThis, 'fetch');
-  });
+  afterEach(() => mock.reset());
 
-  afterEach(() => {
-    fetchSpy.mockRestore();
-  });
-
-  it('returns the services list on a successful BFF response', async () => {
+  it('returns the services list via bffClient (same-origin /v1 gateway, no Next cache options)', async () => {
     const service = makeService();
-    fetchSpy.mockResolvedValue(new Response(JSON.stringify({ items: [service] }), { status: 200 }));
+    mock.onGet('/public/services').reply(200, { items: [service] });
 
-    const result = await fetchServices('lavacar-beloauto');
+    const result = await fetchServicesClient('lavacar-beloauto');
 
     expect(result).toEqual([service]);
-    expect(fetchSpy).toHaveBeenCalledWith(
-      `${BFF_URL}/public/services`,
-      expect.objectContaining({
-        headers: { 'X-Tenant-Slug': 'lavacar-beloauto' },
-        next: { revalidate: 300 },
-      }),
-    );
+    expect(mock.history.get?.[0]?.headers?.['X-Tenant-Slug']).toBe('lavacar-beloauto');
   });
 
-  it('throws when the BFF returns an error', async () => {
-    fetchSpy.mockResolvedValue(new Response(null, { status: 500 }));
+  it('rejects when the BFF returns an error', async () => {
+    mock.onGet('/public/services').reply(500);
 
-    await expect(fetchServices('lavacar-beloauto')).rejects.toThrow(/Failed to fetch services/);
+    await expect(fetchServicesClient('lavacar-beloauto')).rejects.toThrow();
   });
 });

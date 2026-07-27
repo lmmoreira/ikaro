@@ -5,6 +5,7 @@ import {
 
 export class InMemoryBookingPlatformPort implements IBookingPlatformPort {
   private readonly tenants: ActiveTenantInfo[] = [];
+  readonly revalidatedTenantIds: string[] = [];
 
   seed(tenants: ActiveTenantInfo[]): void {
     this.tenants.push(...tenants);
@@ -16,5 +17,9 @@ export class InMemoryBookingPlatformPort implements IBookingPlatformPort {
 
   async findAllActive(): Promise<ActiveTenantInfo[]> {
     return [...this.tenants];
+  }
+
+  async revalidatePublicPages(tenantId: string): Promise<void> {
+    this.revalidatedTenantIds.push(tenantId);
   }
 }

@@ -1,4 +1,5 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
+import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
@@ -35,14 +36,15 @@ describe('ServiceController', () => {
       .withActorRole('MANAGER')
       .build();
     const txManager = new InMemoryTransactionManager();
+    const bookingPlatform = new InMemoryBookingPlatformPort();
     controller = new ServiceController(
       ctx,
-      new CreateServiceUseCase(repo, txManager),
+      new CreateServiceUseCase(repo, bookingPlatform, txManager),
       new GetServicesUseCase(repo),
       new GetServiceByIdUseCase(repo),
-      new ActivateServiceUseCase(repo, txManager),
-      new UpdateServiceUseCase(repo, txManager),
-      new DeactivateServiceUseCase(repo, txManager),
+      new ActivateServiceUseCase(repo, bookingPlatform, txManager),
+      new UpdateServiceUseCase(repo, bookingPlatform, txManager),
+      new DeactivateServiceUseCase(repo, bookingPlatform, txManager),
     );
   });
 

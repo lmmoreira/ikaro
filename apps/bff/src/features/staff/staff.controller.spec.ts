@@ -1,4 +1,3 @@
-import { CurrentUserPayloadBuilder } from '../../test/builders/current-user-payload.builder';
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import { StaffController } from './staff.controller';
 
@@ -53,30 +52,22 @@ describe('StaffController', () => {
   });
 
   describe('getMe()', () => {
-    it('calls GET /staff/:id with the id from the JWT sub, not a route param', async () => {
+    it('calls GET /staff/me (self-service, not the manager-only GET /staff/:id)', async () => {
       const expectedResult = { id: STAFF_ID, email: 'gerente@lavacar.com.br', role: 'MANAGER' };
       const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(expectedResult) });
       const controller = new StaffController(backendHttp);
-      const user = CurrentUserPayloadBuilder.asManager()
-        .withSub(STAFF_ID)
-        .withTenantId('t-1')
-        .build();
 
-      const result = await controller.getMe(user);
+      const result = await controller.getMe();
 
-      expect(backendHttp.get).toHaveBeenCalledWith(`/staff/${STAFF_ID}`);
+      expect(backendHttp.get).toHaveBeenCalledWith('/staff/me');
       expect(result).toBe(expectedResult);
     });
 
     it('propagates errors from the backend', async () => {
       const backendHttp = makeBackendHttp({ get: jest.fn().mockRejectedValue(new Error('404')) });
       const controller = new StaffController(backendHttp);
-      const user = CurrentUserPayloadBuilder.asStaff()
-        .withSub(STAFF_ID)
-        .withTenantId('t-1')
-        .build();
 
-      await expect(controller.getMe(user)).rejects.toThrow('404');
+      await expect(controller.getMe()).rejects.toThrow('404');
     });
   });
 

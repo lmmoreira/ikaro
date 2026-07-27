@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { Reflector } from '@nestjs/core';
+import { makeBackendHttp } from '../../test/backend-http.mock';
 import { AuthController } from './auth.controller';
 import { AuthControllerFlowService } from './auth-controller-flow.service';
 
@@ -39,7 +40,10 @@ describe('AuthController', () => {
     const flow = makeFlowService({
       handleGoogleCallback: jest.fn().mockResolvedValue(undefined),
     });
-    const controller = new AuthController(flow as unknown as AuthControllerFlowService);
+    const controller = new AuthController(
+      flow as unknown as AuthControllerFlowService,
+      makeBackendHttp(),
+    );
     const req = { user: { googleOAuthId: 'google-sub-123' } } as unknown as Request;
     const res = makeRes();
 
@@ -50,7 +54,10 @@ describe('AuthController', () => {
 
   it('delegates logout to the flow service', () => {
     const flow = makeFlowService();
-    const controller = new AuthController(flow as unknown as AuthControllerFlowService);
+    const controller = new AuthController(
+      flow as unknown as AuthControllerFlowService,
+      makeBackendHttp(),
+    );
     const res = makeRes();
 
     controller.logout('lavacar-bh', res);
@@ -62,7 +69,10 @@ describe('AuthController', () => {
     const flow = makeFlowService({
       getStaffTenants: jest.fn().mockResolvedValue([{ tenantId: 'tenant-uuid' }]),
     });
-    const controller = new AuthController(flow as unknown as AuthControllerFlowService);
+    const controller = new AuthController(
+      flow as unknown as AuthControllerFlowService,
+      makeBackendHttp(),
+    );
 
     await expect(controller.getStaffTenants()).resolves.toEqual([{ tenantId: 'tenant-uuid' }]);
     expect(flow.getStaffTenants).toHaveBeenCalledTimes(1);
@@ -72,7 +82,10 @@ describe('AuthController', () => {
     const flow = makeFlowService({
       switchStaffTenant: jest.fn().mockResolvedValue({ tenantSlug: 'lavacar-bh', expiresIn: '7d' }),
     });
-    const controller = new AuthController(flow as unknown as AuthControllerFlowService);
+    const controller = new AuthController(
+      flow as unknown as AuthControllerFlowService,
+      makeBackendHttp(),
+    );
     const dto = { staffId: 'staff-uuid' };
     const currentUser = { userName: 'João Silva' };
     const res = makeRes();
@@ -88,7 +101,10 @@ describe('AuthController', () => {
     const flow = makeFlowService({
       switchTenant: jest.fn().mockResolvedValue({ tenantSlug: 'lavacar-bh', expiresIn: '7d' }),
     });
-    const controller = new AuthController(flow as unknown as AuthControllerFlowService);
+    const controller = new AuthController(
+      flow as unknown as AuthControllerFlowService,
+      makeBackendHttp(),
+    );
     const dto = { targetTenantId: 'tenant-uuid' };
     const currentUser = { userName: 'João Silva' };
     const res = makeRes();
@@ -112,7 +128,10 @@ describe('AuthController', () => {
         },
       }),
     });
-    const controller = new AuthController(flow as unknown as AuthControllerFlowService);
+    const controller = new AuthController(
+      flow as unknown as AuthControllerFlowService,
+      makeBackendHttp(),
+    );
     const res = makeRes();
     const dto = { email: 'joao@gmail.com', tenantSlug: 'lavacar-bh', type: 'customer' };
 
@@ -126,6 +145,46 @@ describe('AuthController', () => {
       },
     });
     expect(flow.devLogin).toHaveBeenCalledWith(dto, res);
+  });
+
+  describe('getSession()', () => {
+    it('calls GET /staff/me (not /customers/me) for a STAFF/MANAGER actor and shapes the result', async () => {
+      const flow = makeFlowService();
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockResolvedValue({ id: 'staff-1', name: 'Ana Pereira', role: 'STAFF' }),
+      });
+      const controller = new AuthController(
+        flow as unknown as AuthControllerFlowService,
+        backendHttp,
+      );
+      const user = { role: 'STAFF' } as never;
+
+      await expect(controller.getSession(user)).resolves.toEqual({
+        staff: { id: 'staff-1', name: 'Ana Pereira' },
+        customer: null,
+      });
+      expect(backendHttp.get).toHaveBeenCalledWith('/staff/me');
+      expect(backendHttp.get).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls GET /customers/me (not /staff/me) for a CUSTOMER actor and shapes the result', async () => {
+      const flow = makeFlowService();
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockResolvedValue({ customerId: 'customer-1', name: 'João Silva' }),
+      });
+      const controller = new AuthController(
+        flow as unknown as AuthControllerFlowService,
+        backendHttp,
+      );
+      const user = { role: 'CUSTOMER' } as never;
+
+      await expect(controller.getSession(user)).resolves.toEqual({
+        staff: null,
+        customer: { customerId: 'customer-1', name: 'João Silva' },
+      });
+      expect(backendHttp.get).toHaveBeenCalledWith('/customers/me');
+      expect(backendHttp.get).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('exempts dev-login from the class-level /auth/* throttle tier (M17-S30)', () => {
