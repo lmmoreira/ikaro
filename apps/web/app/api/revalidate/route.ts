@@ -1,6 +1,7 @@
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { NextRequest, NextResponse } from 'next/server';
 import {
+  HOTSITE_PUBLISHED_SLUGS_CACHE_TAG,
   hotsiteManifestCacheTag,
   hotsiteServicesCacheTag,
 } from '@/features/platform/hotsite/revalidate';
@@ -36,6 +37,11 @@ export async function GET(request: NextRequest) {
   revalidatePath(`/${slug}`, 'page');
   revalidateTag(hotsiteManifestCacheTag(slug), { expire: 0 });
   revalidateTag(hotsiteServicesCacheTag(slug), { expire: 0 });
+  // Unconditional, even though only publish/unpublish actually changes the published-hotsites
+  // list (service CRUD doesn't) — this route has no signal to distinguish why it was called, and
+  // re-fetching the list on a service-CRUD call is cheap and idempotent. Without this, publishing
+  // or unpublishing a tenant could leave /sitemap.xml stale for up to HOTSITE_REVALIDATE_SECONDS.
+  revalidateTag(HOTSITE_PUBLISHED_SLUGS_CACHE_TAG, { expire: 0 });
 
   return NextResponse.json({ revalidated: true, slug });
 }

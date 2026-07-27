@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { AppLogger } from '../../../../shared/observability/app-logger';
 import {
   FRONTEND_REVALIDATION_PORT,
   IFrontendRevalidationPort,
@@ -12,6 +13,8 @@ import {
 
 @Injectable()
 export class BookingPlatformAdapter implements IBookingPlatformPort {
+  private readonly logger = new AppLogger(BookingPlatformAdapter.name);
+
   constructor(
     private readonly getTenants: GetTenantsUseCase,
     private readonly getTenantById: GetTenantByIdUseCase,
@@ -27,8 +30,17 @@ export class BookingPlatformAdapter implements IBookingPlatformPort {
     }));
   }
 
+  // Best-effort per the port contract — the tenant lookup runs after the caller's write
+  // transaction has already committed, so a failure here must never surface as an error for an
+  // operation that already succeeded (frontendRevalidation.revalidate() is itself best-effort;
+  // this try/catch covers the tenant lookup, the only other thing that can throw in this method).
   async revalidatePublicPages(tenantId: string): Promise<void> {
-    const tenant = await this.getTenantById.execute({ tenantId });
-    await this.frontendRevalidation.revalidate(tenant.slug);
+    try {
+      const tenant = await this.getTenantById.execute({ tenantId });
+      await this.frontendRevalidation.revalidate(tenant.slug);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'unknown error';
+      this.logger.warn(`Hotsite revalidation skipped for tenant '${tenantId}': ${message}`);
+    }
   }
 }

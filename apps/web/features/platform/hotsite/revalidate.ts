@@ -33,3 +33,10 @@ export function hotsiteManifestCacheTag(slug: string): string {
 export function hotsiteServicesCacheTag(slug: string): string {
   return boundedCacheTag('hotsite-services-', slug);
 }
+
+// Single tag for the published-hotsites list (app/sitemap.ts's fetchPublishedHotsiteSlugs) —
+// not slug-scoped, since one fetch returns every published tenant's slug. Without this,
+// publish/unpublish only invalidated the hotsite page + manifest/services tags for the tenant
+// that changed, leaving /sitemap.xml stale (missing a newly published slug, or still listing an
+// unpublished one) for up to HOTSITE_REVALIDATE_SECONDS.
+export const HOTSITE_PUBLISHED_SLUGS_CACHE_TAG = 'hotsite-published-slugs';

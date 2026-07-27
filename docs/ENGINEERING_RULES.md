@@ -96,6 +96,8 @@ Every `save()` in every use case must be wrapped in `ITransactionManager.run()` 
 
 **Scope rule:** wrap only the `save()` call(s) — reads, validations, and domain mutations happen *before* `txManager.run()` opens.
 
+**No cross-service network I/O inside the block, on either side.** The scope rule above is about *reads* happening before — the same discipline applies to *post-commit side effects* after: an HTTP call to another app/service (cache invalidation, a webhook, a cross-context adapter that leaves the process) must never run inside `txManager.run()`. Doing so holds the DB connection/transaction open for that call's full latency, risking connection-pool exhaustion and lock contention under load, and couples write durability to an unrelated system's availability. Call cross-context side effects that involve network I/O (e.g. `BookingPlatformAdapter.revalidatePublicPages()`, invoked after service create/update/activate/deactivate) *after* `txManager.run()` returns, and if the port documents that call as best-effort/never-throw, verify the *entire* adapter method actually enforces that — wrap the whole body in try/catch, not just the one call that looks obviously network-bound (a DB read earlier in the same method can throw too; Codex review finding, PR #267, 2026-07-27).
+
 **Multi-aggregate writes:** wrap all saves together in a single `txManager.run()`.
 
 **Test wiring:** inject `new InMemoryTransactionManager()` in every unit/controller spec: `{ provide: TRANSACTION_MANAGER, useValue: new InMemoryTransactionManager() }`. For integration: import `TransactionManagerModule`.

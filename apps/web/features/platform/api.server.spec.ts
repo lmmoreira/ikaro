@@ -133,7 +133,9 @@ describe('fetchPublishedHotsiteSlugs', () => {
     expect(result).toEqual(response);
     expect(fetchSpy).toHaveBeenCalledWith(
       `${BFF_URL}/public/platform/published-hotsites`,
-      expect.objectContaining({ next: { revalidate: 300 } }),
+      expect.objectContaining({
+        next: { revalidate: 300, tags: ['hotsite-published-slugs'] },
+      }),
     );
   });
 

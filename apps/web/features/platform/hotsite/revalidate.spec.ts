@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { hotsiteManifestCacheTag, hotsiteServicesCacheTag } from './revalidate';
+import {
+  HOTSITE_PUBLISHED_SLUGS_CACHE_TAG,
+  hotsiteManifestCacheTag,
+  hotsiteServicesCacheTag,
+} from './revalidate';
 
 describe('hotsiteManifestCacheTag', () => {
   it('builds a stable, slug-scoped tag', () => {
@@ -40,5 +44,13 @@ describe('hotsiteServicesCacheTag', () => {
 
     expect(tag.length).toBeLessThanOrEqual(256);
     expect(tag.startsWith('hotsite-services-')).toBe(true);
+  });
+});
+
+describe('HOTSITE_PUBLISHED_SLUGS_CACHE_TAG', () => {
+  it('is a stable, non-slug-scoped tag distinct from the manifest/services tags', () => {
+    expect(HOTSITE_PUBLISHED_SLUGS_CACHE_TAG).toBe('hotsite-published-slugs');
+    expect(HOTSITE_PUBLISHED_SLUGS_CACHE_TAG).not.toBe(hotsiteManifestCacheTag('tenant-a'));
+    expect(HOTSITE_PUBLISHED_SLUGS_CACHE_TAG).not.toBe(hotsiteServicesCacheTag('tenant-a'));
   });
 });

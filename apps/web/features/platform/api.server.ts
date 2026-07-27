@@ -2,6 +2,7 @@ import 'server-only';
 import { notFound } from 'next/navigation';
 import type { HotsiteManifestResponse, HotsiteSitemapEntryListResponse } from '@ikaro/types';
 import {
+  HOTSITE_PUBLISHED_SLUGS_CACHE_TAG,
   HOTSITE_REVALIDATE_SECONDS,
   hotsiteManifestCacheTag,
 } from '@/features/platform/hotsite/revalidate';
@@ -37,7 +38,10 @@ export async function fetchManifest(slug: string): Promise<HotsiteManifestRespon
 export async function fetchPublishedHotsiteSlugs(): Promise<HotsiteSitemapEntryListResponse> {
   const isDev = process.env.NODE_ENV === 'development';
   const res = await bffPublicFetch('/public/platform/published-hotsites', {
-    next: { revalidate: isDev ? 0 : HOTSITE_REVALIDATE_SECONDS },
+    next: {
+      revalidate: isDev ? 0 : HOTSITE_REVALIDATE_SECONDS,
+      tags: [HOTSITE_PUBLISHED_SLUGS_CACHE_TAG],
+    },
   });
 
   if (!res.ok) throw new Error('Failed to fetch published hotsites');
