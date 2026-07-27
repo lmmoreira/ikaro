@@ -68,6 +68,18 @@ describe('GcsSignedUrlAdapter', () => {
   });
 
   describe('constructor', () => {
+    it('configures the direct Cloud Run auth client for Storage API operations', () => {
+      process.env['K_SERVICE'] = 'ikaro-backend';
+      makeService({ GCP_PROJECT: 'ikaro-staging' });
+
+      expect(MockStorage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectId: 'ikaro-staging',
+          authClient: expect.any(Object),
+        }),
+      );
+    });
+
     it('configures emulator endpoint and projectId when GCS_EMULATOR_HOST is set', () => {
       makeService({ GCS_EMULATOR_HOST: 'http://localhost:4443' });
       expect(MockStorage).toHaveBeenCalledWith(
