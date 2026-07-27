@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
+import { fetchWithTimeout, readResponse, readResponseText } from './cloud-run-gcs-http';
 
 const METADATA_BASE_URL = 'http://metadata.google.internal/computeMetadata/v1';
 const IAM_CREDENTIALS_BASE_URL =
   'https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts';
 const STORAGE_HOST = 'storage.googleapis.com';
 const METADATA_HEADERS = { 'Metadata-Flavor': 'Google' };
-const SIGNING_REQUEST_TIMEOUT_MS = 5000;
 
 type MetadataTokenResponse = {
   access_token: string;
@@ -104,29 +104,6 @@ export class CloudRunGcsV4Signer {
   }
 }
 
-async function fetchWithTimeout(
-  input: string,
-  init: RequestInit,
-  operation: string,
-): Promise<Response> {
-  try {
-    return await fetch(input, { ...init, signal: AbortSignal.timeout(SIGNING_REQUEST_TIMEOUT_MS) });
-  } catch (error: unknown) {
-    if (isAbortError(error)) throw new Error(`${operation} timed out`);
-    throw error;
-  }
-}
-
-function isAbortError(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'name' in error &&
-    ((error as { name?: unknown }).name === 'AbortError' ||
-      (error as { name?: unknown }).name === 'TimeoutError')
-  );
-}
-
 function formatIsoDate(date: Date): string {
   return date
     .toISOString()
@@ -151,16 +128,4 @@ function encodeQueryValue(value: string): string {
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');
-}
-
-async function readResponse<T>(response: Response, operation: string): Promise<T> {
-  const body = await response.text();
-  if (!response.ok) throw new Error(`${operation} failed with status ${response.status}: ${body}`);
-  return JSON.parse(body) as T;
-}
-
-async function readResponseText(response: Response, operation: string): Promise<string> {
-  const body = await response.text();
-  if (!response.ok) throw new Error(`${operation} failed with status ${response.status}: ${body}`);
-  return body.trim();
 }
