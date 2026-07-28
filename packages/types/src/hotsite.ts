@@ -11,7 +11,12 @@ export interface HeroModuleData {
   title: string;
   subtitle?: string;
   eyebrow?: string;
-  backgroundImageUrl?: string;
+  // Nullable, not just optional: HotsiteImageUrlResolver (backend) and
+  // stripResolvedImageUrls/mapHotsiteImageFields (web) all pass an explicit `null` through
+  // unchanged rather than normalizing it — a module saved via a direct API write (not the
+  // config panel, which only ever writes '' or a real path) can legitimately have this as
+  // literal `null` on read.
+  backgroundImageUrl?: string | null;
   ctaLabel: string;
   ctaTarget: 'booking-form' | 'service-list' | 'gallery' | 'testimonials' | 'about' | 'contact';
   secondaryCtaLabel?: string;
@@ -48,7 +53,8 @@ export interface Testimonial {
   authorName: string;
   text: string;
   rating?: 1 | 2 | 3 | 4 | 5;
-  avatarUrl?: string;
+  // Nullable — see HeroModuleData.backgroundImageUrl's comment above for why.
+  avatarUrl?: string | null;
 }
 
 export interface TestimonialsModuleData {
@@ -64,7 +70,8 @@ export interface BookingCtaModuleData {
   subtitle?: string;
   eyebrow?: string;
   ctaLabel: string;
-  backgroundImageUrl?: string;
+  // Nullable — see HeroModuleData.backgroundImageUrl's comment above for why.
+  backgroundImageUrl?: string | null;
   carouselDays?: number;
   datePickerType?: 'carousel' | 'calendar';
   bgStyle?: 'primary' | 'background';
@@ -75,7 +82,8 @@ export interface AboutModuleData {
   title: string;
   body: string;
   eyebrow?: string;
-  imageUrl?: string;
+  // Nullable — see HeroModuleData.backgroundImageUrl's comment above for why.
+  imageUrl?: string | null;
   imagePosition: 'left' | 'right';
 }
 

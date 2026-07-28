@@ -149,4 +149,44 @@ describe('parseManifestJson', () => {
     if (!result.success) return;
     expect(result.value.branding).not.toHaveProperty('notARealField');
   });
+
+  // Regression: HotsiteImageUrlResolver (backend) and mapHotsiteImageFields (web) both pass an
+  // explicit `null` through unchanged for these 3 fields rather than normalizing it — a module
+  // configured via a direct API write (not the config panel, which only ever writes '' or a real
+  // path) can have this as literal `null` on read. A real tenant's manifest with an ABOUT
+  // module's imageUrl: null failed Aplicar on the very first, unedited click before this fix.
+  it('accepts an explicit null for backgroundImageUrl/imageUrl/avatarUrl, not just a missing key', () => {
+    const result = parseManifestJson(
+      manifestJson({
+        layout: [
+          {
+            type: 'HERO',
+            enabled: true,
+            data: {
+              variant: 'centered',
+              title: 'x',
+              ctaLabel: 'y',
+              ctaTarget: 'booking-form',
+              backgroundImageUrl: null,
+            },
+          },
+          {
+            type: 'ABOUT',
+            enabled: true,
+            data: { title: 'Sobre', body: 'Texto', imagePosition: 'right', imageUrl: null },
+          },
+          {
+            type: 'TESTIMONIALS',
+            enabled: true,
+            data: {
+              layout: 'grid',
+              items: [{ authorName: 'Maria', text: 'Ótimo', avatarUrl: null }],
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(result.success).toBe(true);
+  });
 });

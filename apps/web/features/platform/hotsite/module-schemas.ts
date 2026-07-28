@@ -28,7 +28,7 @@ export const HeroModuleDataSchema = z.object({
   title: z.string(),
   subtitle: z.string().optional(),
   eyebrow: z.string().optional(),
-  backgroundImageUrl: z.string().optional(),
+  backgroundImageUrl: z.string().nullable().optional(),
   ctaLabel: z.string(),
   ctaTarget: CTA_TARGET,
   secondaryCtaLabel: z.string().optional(),
@@ -70,7 +70,7 @@ const TestimonialSchema = z.object({
   rating: z
     .union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)])
     .optional(),
-  avatarUrl: z.string().optional(),
+  avatarUrl: z.string().nullable().optional(),
 }) satisfies z.ZodType<Testimonial>;
 
 // Mirrors TestimonialsModuleData (packages/types/src/hotsite.ts) — keep in sync when that type changes.
@@ -88,7 +88,7 @@ export const BookingCtaModuleDataSchema = z.object({
   subtitle: z.string().optional(),
   eyebrow: z.string().optional(),
   ctaLabel: z.string(),
-  backgroundImageUrl: z.string().optional(),
+  backgroundImageUrl: z.string().nullable().optional(),
   carouselDays: z.number().int().min(1).max(90).optional(),
   datePickerType: z.enum(['carousel', 'calendar']).optional(),
   bgStyle: z.enum(['primary', 'background']).optional(),
@@ -100,7 +100,7 @@ export const AboutModuleDataSchema = z.object({
   title: z.string(),
   body: z.string(),
   eyebrow: z.string().optional(),
-  imageUrl: z.string().optional(),
+  imageUrl: z.string().nullable().optional(),
   imagePosition: z.enum(['left', 'right']),
 }) satisfies z.ZodType<AboutModuleData>;
 
