@@ -889,7 +889,7 @@ Returns:
       }
       ```
    2. `InternalApiGuard` validates `X-Internal-Key`; then `PlatformAdminGuard` validates `X-Platform-Admin-Key` using `crypto.timingSafeEqual` → rejects with `401` if either key is invalid.
-   3. System validates inputs: slug format (`/^[a-z0-9-]+$/`), slug uniqueness, email format, IANA timezone.
+   3. System validates inputs: slug format (`/^[a-z0-9-]+$/`), slug uniqueness, email format, supported two-letter ISO `country_code`, and IANA timezone.
    4. System creates `platform.tenants` row with default settings.
    5. System creates `platform.hotsite_configs` row (`is_published = false`).
    6. System publishes `TenantProvisioned` event.
@@ -905,7 +905,9 @@ Returns:
    - **A2: Slug already taken** → `409` Problem Detail: `"Slug 'autowash-pro' is already in use"`
    - **A3: Invalid slug format** → `400` Problem Detail
    - **A4: Invalid email** → `400` Problem Detail
-   - **A5: Invalid IANA timezone** → `400` Problem Detail
+   - **A5: Invalid `country_code` format** → `400` Problem Detail: country code must be exactly two letters
+   - **A6: Unsupported `country_code`** → `400` Problem Detail: country is not supported by the platform
+   - **A7: Invalid IANA timezone** → `400` Problem Detail
 
 - **Postconditions:** `platform.tenants` + `platform.hotsite_configs` rows created. `TenantProvisioned` event published. First MANAGER staff and invitation email handled asynchronously by M04-S06 and M11.
 - **Events Triggered:** `TenantProvisioned` (synchronous) → triggers `StaffInvited` (asynchronous, via M04-S06)

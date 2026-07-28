@@ -99,6 +99,9 @@ locals {
     %{endif~}
 
     install -d -m 0755 /usr/local/bin
+    # This file() content is embedded in Compute Engine instance metadata.
+    # Keep the script free of secrets; it only contains runtime discovery and
+    # metadata-server/Secret Manager lookups.
     cat > /usr/local/bin/provision-tenant.sh <<'SCRIPT'
 ${var.tenant_provision_script}
 SCRIPT
@@ -254,6 +257,18 @@ resource "google_secret_manager_secret_iam_member" "relay_internal_api_key" {
   secret_id = var.internal_api_key_secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.relay.email}"
+}
+
+# The provisioning script discovers the environment's randomly-generated
+# Cloud Run service URI at runtime instead of embedding staging's URI in the
+# production VM. The read-only viewer grant is needed for services.get; it
+# cannot invoke, mutate, or administer the service.
+resource "google_project_iam_member" "relay_cloud_run_viewer" {
+  count = var.create ? 1 : 0
+
+  project = var.project_id
+  role    = "roles/run.viewer"
+  member  = "serviceAccount:${google_service_account.relay.email}"
 }
 
 # Cloud SQL access for the relay identity is persistent whenever a real

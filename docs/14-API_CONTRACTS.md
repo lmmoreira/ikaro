@@ -917,7 +917,7 @@ Content-Type: application/json
 | `name` | string | ✓ | Non-empty |
 | `slug` | string | ✓ | `/^[a-z0-9-]+$/`, globally unique |
 | `adminEmail` | string | ✓ | Valid email format |
-| `country_code` | string | ✓ | ISO country code; `BR` for the current Brazil deployment |
+| `country_code` | string | ✓ | Exactly two letters in ISO format and supported by the platform; `BR` for the current Brazil deployment |
 | `timezone` | string | — | Valid IANA timezone (default: `America/Sao_Paulo`) |
 
 **Response `201 Created`:**

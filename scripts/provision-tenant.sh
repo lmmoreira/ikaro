@@ -3,12 +3,11 @@ set -euo pipefail
 
 # Usage: ./provision-tenant.sh <name> <slug> <adminEmail> <country_code> [timezone]
 # Must run from inside the relay VM's own SSH shell (metadata server + ingress:internal).
-# The relay VM service account reads both required secrets automatically. INTERNAL_KEY may
-# still be exported explicitly for emergency/manual use or local acceptance testing.
+# The relay VM service account discovers its project/backend and reads both required secrets
+# automatically. INTERNAL_KEY may still be exported explicitly for emergency/manual use or
+# local acceptance testing.
 
-PROJECT_ID="${PROJECT_ID:-ikaro-staging}"
 REGION="${REGION:-southamerica-east1}"
-BACKEND_URL="${BACKEND_URL:-https://ikaro-backend-729809528251.southamerica-east1.run.app}"
 
 if [ "$#" -lt 4 ]; then
   echo "Usage: $0 <name> <slug> <adminEmail> <country_code> [timezone]" >&2
@@ -22,13 +21,23 @@ COUNTRY_CODE="$4"
 TIMEZONE="${5:-}"
 
 meta() {
-  curl -sS -H "Metadata-Flavor: Google" \
+  curl -sS --fail-with-body -H "Metadata-Flavor: Google" \
     "http://metadata.google.internal/computeMetadata/v1/$1"
 }
+
+PROJECT_ID="${PROJECT_ID:-$(meta project/project-id)}"
 
 echo "Fetching access token..." >&2
 ACCESS_TOKEN=$(meta "instance/service-accounts/default/token" \
   | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
+
+if [ -z "${BACKEND_URL:-}" ]; then
+  echo "Discovering backend URL..." >&2
+  BACKEND_URL=$(curl -sS --fail-with-body \
+    -H "Authorization: Bearer $ACCESS_TOKEN" \
+    "https://run.googleapis.com/apis/serving.knative.dev/v1/projects/$PROJECT_ID/locations/$REGION/services/ikaro-backend" \
+    | grep -o '"uri": *"[^"]*"' | cut -d'"' -f4)
+fi
 
 echo "Fetching identity token for $BACKEND_URL..." >&2
 ID_TOKEN=$(meta "instance/service-accounts/default/identity?audience=$BACKEND_URL")

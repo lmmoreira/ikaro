@@ -129,7 +129,7 @@ run "bff_gets_oauth_and_shared_secrets_only" {
 
   assert {
     condition     = !contains(keys(google_secret_manager_secret_iam_member.accessor), "bff-db-password") && !contains(keys(google_secret_manager_secret_iam_member.accessor), "bff-platform-admin-key")
-    error_message = "BFF must NOT get db-password or platform-admin-key (backend/relay-only secrets)."
+    error_message = "BFF must NOT get db-password or platform-admin-key."
   }
 }
 
