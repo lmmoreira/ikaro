@@ -12,6 +12,7 @@
 | Story | Theme |
 |---|---|
 | M18-S01 | Configurable hotsite date picker (carousel/calendar) honoring `maxBookingAdvanceDays` |
+| M18-S02 | Hotsite editor "Manifesto" tab: direct JSON editing of branding + layout + seo |
 
 *(more stories will be appended here as they're scoped)*
 
@@ -179,3 +180,112 @@ private validateLayout(layout: HotsiteModule[], ctx: LayoutValidationContext): v
 ### Dependencies
 
 None outstanding — `BookingCtaConfigPanel`, `AvailabilityCarousel`, and `tenant.settings.booking.maxBookingAdvanceDays` all already exist and ship today.
+
+---
+
+## M18-S02 — Hotsite editor "Manifesto" tab: direct JSON editing of branding + layout + seo
+
+**Agent:** `frontend-ts`
+**Complexity:** M
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-027
+**UC reference:** UC-027 (Tenant Admin Manages Hotsite Content & Branding)
+
+### Background
+
+`HotsiteEditor.tsx` holds a single `draft: HotsiteAdminContentResponse` state (`branding`/`layout`/`seo`); the Branding, Layout, and SEO tabs are all controlled views over slices of it, and `handlePublish` sends all three together in one `PATCH /tenants/hotsite` call. There's no surface today for editing the underlying JSON directly — useful for support/debugging a tenant's config or copying a working layout between environments.
+
+`@ikaro/validation` has Zod schemas (`HotsiteBrandingSchema`, `HotsiteModuleSchema`, `HotsiteSeoSchema`) that structurally match this exact shape, but its `package.json` explicitly documents it as **"never consumed by apps/web"**. This story does not cross that boundary — it builds a lightweight, purely structural, web-local schema instead, reusing the per-module `isValidModuleData()` already in `module-schemas.ts` for each layout item's `data`. Deep business-rule enforcement (hex color format, string length caps, enum membership, the M18-S01 `carouselDays` vs. `maxBookingAdvanceDays` check) stays backend-only, exactly as it is today for the other 3 tabs — Publish already surfaces those errors via the existing `actionBanner`.
+
+### Description
+
+Add a 4th tab, "Manifesto", always last (after SEO). It shows one JSON blob — `{ branding, layout, seo }`, the exact 3 keys `handlePublish` already sends — as an editable monospace `Textarea`. It follows the local-buffer-then-explicit-apply pattern this screen already established for per-module config panels (`ModuleConfigShell`'s "Aplicar"/"Cancelar"): typing never touches `draft` directly (unlike Branding/Layout/SEO's keystroke-level `onChange` — arbitrary JSON text is transiently invalid mid-edit); clicking "Aplicar" parses + structurally validates and, only if valid, merges into `draft` via `materializeLayout()`, exactly like the initial draft is built, so a JSON edit that drops a module block doesn't leave `LayoutTab`/Preview missing a row. Once applied, Preview and Publish behave exactly like edits from any other tab — no separate save path.
+
+### Part 1 — Manifest structural schema
+
+New `apps/web/features/platform/hotsite/manifest-schema.ts`, sibling to `module-schemas.ts`:
+
+```ts
+export interface ManifestDraft {
+  branding: HotsiteBrandingResponse;
+  layout: HotsiteModuleResponse[];
+  seo: HotsiteSeoResponse;
+}
+
+export type ManifestParseResult =
+  | { success: true; value: ManifestDraft }
+  | { success: false; error: string };
+
+export function parseManifestJson(raw: string): ManifestParseResult { ... }
+```
+
+- Structural only — mirrors the TS primitive shapes of `HotsiteBrandingResponse`/`HotsiteSeoResponse` (string/boolean/nullable), not `@ikaro/validation`'s deeper business rules.
+- `layout`: 0–8 items, each `{ type: HotsiteModuleType, enabled: boolean, data: object }`; `type` values must be unique (duplicate ⇒ error — `LayoutTab`'s keys/dnd-kit ids assume uniqueness); each `data` validated via the existing `isValidModuleData(type, data)`.
+- Extra/unknown top-level keys (e.g. a pasted full manifest GET response with `tenant`/`business`/`localization`/`isPublished`/`updatedAt`) are silently ignored, not rejected — only `branding`/`layout`/`seo` are read back out.
+- Success result's `layout` is already run through `materializeLayout()`.
+- One human-readable error message on failure (first failure only — a pre-flight sanity check, not per-field form validation).
+
+### Part 2 — Textarea primitive
+
+New `apps/web/shared/components/ui/textarea.tsx` (+ `.spec.tsx`) — standard shadcn wrapper, doesn't exist in this repo yet. Tenant-agnostic dashboard styling only (this screen is outside the `--ba-*` boundary already).
+
+### Part 3 — ManifestTab component
+
+New `apps/web/features/platform/components/hotsite/ManifestTab.tsx` (+ `.spec.tsx`), sibling to `BrandingTab`/`LayoutTab`/`SeoTab` but with a deliberately different prop shape (documented so it isn't forced into their per-keystroke `onChange` contract):
+
+```ts
+interface ManifestTabProps {
+  readonly value: ManifestDraft;                    // seeds the textarea on (re)mount
+  readonly onApply: (next: ManifestDraft) => void;   // called only when Aplicar succeeds
+}
+```
+
+No live sync, no auto-apply on blur/tab-switch — switching away from Manifesto without clicking Aplicar discards the pending edit (mirrors `ModuleConfigShell`'s existing Cancelar-without-apply behavior elsewhere on this screen: leaving the tab is an implicit cancel, and re-entering Manifesto always reseeds the textarea from the current `draft`, never from whatever was last typed).
+
+### Part 4 — Wire into HotsiteEditor
+
+- `EditorTab` gains `'manifest'`; `TABS` gains it last; new tabpanel renders `<ManifestTab value={{branding: draft.branding, layout: draft.layout, seo: draft.seo}} onApply={handleManifestApply} />`.
+- `handleManifestApply(next)`: `setDraft(current => ({...current, ...next}))`; `setActionBanner(null)` — same "any edit clears a stale publish banner" rule the other three setters already follow.
+
+### Part 5 — i18n
+
+New keys: `dashboard.hotsitePage.tabs.manifest` (tab label) + a new `dashboard.hotsitePage.manifest.*` block (title/description, Aplicar button, invalid-JSON error) in both `packages/i18n/locales/pt-BR/web.json` and `.../en/web.json`.
+
+### Part 6 — Docs
+
+`docs/04-USE_CASES.md` UC-027: add "Section D: Manifesto (raw JSON edit)" to the Main Flow (mirrors how "Section C: SEO (M12-S09)" was appended when SEO shipped) + a new alt flow "A3: Malformed/invalid JSON in Manifesto tab → inline error, Aplicar blocked, draft unchanged."
+
+### Acceptance Criteria
+
+- [ ] "Manifesto" tab renders last, after SEO
+- [ ] Textarea seeds from the current draft, pretty-printed
+- [ ] Valid edits, after Aplicar, flow through Preview/Publish exactly like the other 3 tabs — no separate save path, no backend/BFF changes
+- [ ] Invalid JSON syntax or structurally invalid JSON (wrong types, unknown/duplicate module type, a module's `data` failing `isValidModuleData`) shows an inline error and leaves `draft` untouched
+- [ ] A layout missing module types after Aplicar is backfilled via `materializeLayout()`
+- [ ] Extra/unrecognized top-level keys are silently ignored
+- [ ] Leaving the tab without Aplicar discards the pending edit; re-entering reseeds from the current draft
+- [ ] A backend-rejected save (e.g. non-hex color that passed structural validation) surfaces via the existing `actionBanner`
+- [ ] New locale keys in both `pt-BR` and `en` in the same commit
+- [ ] Coverage ≥80% on changed code; `tsc --noEmit`, lint, full test suite green
+
+### Testing
+
+**Unit — Vitest (`apps/web`):**
+- NEW `apps/web/features/platform/hotsite/manifest-schema.spec.ts` — valid full manifest parses; missing/extra branding fields; wrong primitive types; `seo` null vs. string vs. wrong type; layout with unknown type, duplicate type, >8 items, a module's `data` failing `isValidModuleData`; extra top-level keys ignored; success result's `layout` is materialized.
+- NEW `apps/web/shared/components/ui/textarea.spec.tsx` — mirrors the other new `ui/*` primitives' spec shape (renders, forwards value/onChange/disabled).
+- NEW `apps/web/features/platform/components/hotsite/ManifestTab.spec.tsx` — seeds from `value` on mount; Aplicar with valid JSON calls `onApply` once with the parsed value; Aplicar with invalid JSON shows the error and does not call `onApply`; editing the textarea without clicking Aplicar never calls `onApply`.
+- UPDATE `apps/web/features/platform/components/hotsite/HotsiteEditor.spec.tsx` — loads with 4 tabs now (Manifesto last); Manifesto's Aplicar commits into the draft (`setDraft`) and clears a stale action banner, mirroring the existing Branding/Layout assertions; switching away from Manifesto without Aplicar leaves the draft unchanged.
+
+**Playwright E2E (`apps/web/e2e`):**
+- UPDATE `apps/web/e2e/hotsite-editor.spec.ts` — first E2E coverage of the Manifesto tab: open it, edit a branding color + a layout module's `enabled` flag directly in the JSON, Aplicar, Publish, reload, verify the change persisted (round-trips through the real backend); a deliberately malformed JSON (syntax error) shows the inline error and Publish is not reachable from that state; an invalid business-rule value that passes structural validation (e.g. a non-hex `primaryColor`) round-trips through the real backend rejection and shows the existing `actionBanner` error — reusing the pattern from the existing "an invalid branding color round-trips through the real backend validation" test.
+
+### Resolved during story-discussion (2026-07-28, to confirm at `/story-discovery`)
+
+1. **Scope:** branding + layout + seo — full parity with what Publish actually sends (not just branding+layout, which is what a raw example PATCH body happened to show).
+2. **Validation depth:** lightweight structural check only, reusing `isValidModuleData` from `module-schemas.ts` for per-module `data`; `@ikaro/validation` stays off-limits to `apps/web` — its `package.json` explicitly documents it as backend/BFF-only, and crossing that boundary is a bigger architectural decision than this story's scope.
+3. **Editor component:** plain shadcn `Textarea` (new primitive, doesn't exist yet), monospace, no new runtime dependency — not a CodeMirror/Monaco integration.
+4. **Apply pattern:** local buffer + explicit "Aplicar", mirroring `ModuleConfigShell`'s existing pattern on this same screen. Switching tabs away from Manifesto without clicking Aplicar silently discards the pending edit (implicit cancel) — no state lifted to survive the tab unmounting.
+5. **Extra/unknown top-level JSON keys** (e.g. pasting a full manifest GET response) are silently ignored rather than rejected — only `branding`/`layout`/`seo` are read back out.
+
+### Dependencies
+
+None — `PATCH /tenants/hotsite` already accepts partial `branding`/`layout`/`seo`; this story is `apps/web`-only.
