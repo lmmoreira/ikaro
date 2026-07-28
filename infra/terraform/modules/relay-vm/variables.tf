@@ -66,6 +66,11 @@ variable "internal_api_key_secret_id" {
 variable "tenant_provision_script" {
   description = "Contents of the tenant-provisioning script installed on the relay VM at boot."
   type        = string
+
+  validation {
+    condition     = trimspace(var.tenant_provision_script) != ""
+    error_message = "tenant_provision_script must contain the script installed on the relay VM."
+  }
 }
 
 variable "project_id" {

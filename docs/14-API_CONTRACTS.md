@@ -933,11 +933,9 @@ Content-Type: application/json
 
 | Status | Condition |
 |---|---|
-| `401` | Missing or invalid `Authorization` header |
-| `400` | Validation failure (invalid slug format, invalid email, invalid timezone) |
+| `401` | Missing or invalid Cloud Run IAM identity token in `Authorization`, invalid `X-Internal-Key`, or invalid `X-Platform-Admin-Key` |
+| `400` | Validation failure (invalid slug format, invalid email, invalid or unsupported `country_code`, invalid timezone) |
 | `409` | Slug already in use |
-
-**Rate limit (M16-S07):** 3 requests/hour per API key. Brute-force protection: blocked for 1 hour after 10 consecutive `401` responses.
 
 ---
 

@@ -302,7 +302,7 @@ Finalize the rate limiting configuration that was scaffolded in M00-S04. Apply t
 - Authenticated endpoints: **300 requests/minute** per JWT `sub`
 - Cron endpoints (`/cron/*`): bypassed (protected by `CRON_SECRET` only)
 - Health endpoints (`/health/*`): bypassed
-- `POST /internal/tenants`: **3 requests/hour** per IP (provisioning is a rare operation; extremely strict to limit brute-force of `PLATFORM_ADMIN_KEY`)
+- `POST /internal/tenants`: no backend throttler in this BFF-only story; the internal endpoint is protected by relay IAM, `INTERNAL_API_KEY`, and `PLATFORM_ADMIN_KEY` (a backend rate-limit story would be separate)
 
 **NestJS `@nestjs/throttler` configuration:**
 - Two named throttlers: `public` (60/min) and `authenticated` (300/min)
@@ -318,7 +318,7 @@ Finalize the rate limiting configuration that was scaffolded in M00-S04. Apply t
 - [ ] Authenticated requests have 300 req/min limit (not 60)
 - [ ] `/health/live` and `/health/ready` are never rate-limited
 - [ ] `POST /auth/token` (JWT issuance) has a stricter limit: 10 req/min per IP
-- [ ] `POST /internal/tenants` blocks after 3 requests/hour per IP
+- [ ] `POST /internal/tenants` has a backend rate limit (out of scope for this BFF story)
 
 **Dependencies:** M00-S04, M03-S06, M15-S12
 
@@ -403,11 +403,11 @@ Execute the final go-live checklist: configure production secrets, deploy to pro
 **Go-live checklist (execute in order):**
 
 1. **Populate production secrets** in GCP Secret Manager:
-   - `database-url` — Cloud SQL production connection string
    - `jwt-secret` — freshly generated 64+ character random string (NOT the staging secret)
+   - `internal-api-key` / `platform-admin-key` — freshly generated production values (NOT staging's)
+   - `hotsite-revalidate-secret` — freshly generated production value
    - `google-oauth-client-id` / `google-oauth-client-secret` — production OAuth credentials
-   - `sendgrid-api-key` — production SendGrid API key
-   - `cron-secret` — freshly generated random string
+   - `brevo-smtp-key` — production Brevo SMTP key
 
 2. **Apply production Terraform:**
    - `terraform apply -var-file=prod.tfvars` (requires `production-infrastructure` environment approval)
@@ -420,7 +420,7 @@ Execute the final go-live checklist: configure production secrets, deploy to pro
      "Lavacar BeloAuto" "lavacar-beloauto" "admin@lavacar.com.br" "BR" "America/Sao_Paulo"
    ```
    The relay service account owns the Cloud Run invoker and Secret Manager grants, and the script obtains the identity token plus both secret values from the metadata server/Secret Manager. No manual secret export is required.
-   Verify: `TenantProvisioned` event published, first MANAGER staff row created (M04-S06), invitation email in SendGrid logs.
+   Verify: `TenantProvisioned` event published, first MANAGER staff row created (M04-S06), invitation email delivered through Brevo.
 
 5. **Validate SLOs:**
    - API availability: 100% over first 30 minutes

@@ -35,7 +35,7 @@ run "create_false_plans_zero_instances" {
   }
 
   assert {
-    condition     = length(google_iap_tunnel_instance_iam_member.admin_iap_tunnel) == 0 && length(google_compute_instance_iam_member.admin_os_login) == 0 && length(google_secret_manager_secret_iam_member.relay_platform_admin_key) == 0 && length(google_secret_manager_secret_iam_member.relay_internal_api_key) == 0 && length(google_project_iam_member.relay_cloud_run_viewer) == 0
+    condition     = length(google_iap_tunnel_instance_iam_member.admin_iap_tunnel) == 0 && length(google_compute_instance_iam_member.admin_os_login) == 0 && length(google_secret_manager_secret_iam_member.relay_platform_admin_key) == 0 && length(google_secret_manager_secret_iam_member.relay_internal_api_key) == 0 && length(google_cloud_run_v2_service_iam_member.relay_cloud_run_viewer) == 0
     error_message = "Instance-scoped and Secret Manager access bindings must be zero when the relay VM is not created."
   }
 }
@@ -68,7 +68,7 @@ run "create_true_plans_exactly_one_instance_with_no_external_ip" {
   }
 
   assert {
-    condition     = strcontains(local.startup_script, "User=cloud-sql-proxy") && strcontains(local.startup_script, "NoNewPrivileges=true") && strcontains(local.startup_script, "ProtectSystem=full") && strcontains(local.startup_script, "/usr/local/bin/provision-tenant.sh") && strcontains(local.startup_script, "echo provision")
+    condition     = strcontains(google_compute_instance.relay[0].metadata_startup_script, "echo provision") && strcontains(local.startup_script, "User=cloud-sql-proxy") && strcontains(local.startup_script, "NoNewPrivileges=true") && strcontains(local.startup_script, "ProtectSystem=full") && strcontains(local.startup_script, "/usr/local/bin/provision-tenant.sh") && strcontains(local.startup_script, "echo provision")
     error_message = "Cloud SQL Auth Proxy must run as an unprivileged system user with systemd hardening."
   }
 }
@@ -169,8 +169,8 @@ run "relay_service_account_gets_cloud_sql_and_secret_access_not_the_human" {
   }
 
   assert {
-    condition     = google_project_iam_member.relay_cloud_run_viewer[0].role == "roles/run.viewer" && google_project_iam_member.relay_cloud_run_viewer[0].member == "serviceAccount:${google_service_account.relay.email}"
-    error_message = "The relay SA needs read-only Cloud Run service discovery to find the environment-specific backend URI."
+    condition     = google_cloud_run_v2_service_iam_member.relay_cloud_run_viewer[0].name == "ikaro-backend" && google_cloud_run_v2_service_iam_member.relay_cloud_run_viewer[0].role == "roles/run.viewer" && google_cloud_run_v2_service_iam_member.relay_cloud_run_viewer[0].member == "serviceAccount:${google_service_account.relay.email}"
+    error_message = "The relay SA needs service-scoped read-only Cloud Run access to discover the backend URI."
   }
 
   assert {
@@ -211,7 +211,7 @@ run "cloud_sql_identity_persists_when_vm_is_off" {
   }
 
   assert {
-    condition     = length(google_iap_tunnel_instance_iam_member.admin_iap_tunnel) == 0 && length(google_compute_instance_iam_member.admin_os_login) == 0 && length(google_secret_manager_secret_iam_member.relay_platform_admin_key) == 0 && length(google_secret_manager_secret_iam_member.relay_internal_api_key) == 0 && length(google_project_iam_member.relay_cloud_run_viewer) == 0
+    condition     = length(google_iap_tunnel_instance_iam_member.admin_iap_tunnel) == 0 && length(google_compute_instance_iam_member.admin_os_login) == 0 && length(google_secret_manager_secret_iam_member.relay_platform_admin_key) == 0 && length(google_secret_manager_secret_iam_member.relay_internal_api_key) == 0 && length(google_cloud_run_v2_service_iam_member.relay_cloud_run_viewer) == 0
     error_message = "VM-only access grants must remain disabled while the VM is off."
   }
 }

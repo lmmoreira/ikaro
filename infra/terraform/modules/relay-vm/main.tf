@@ -263,12 +263,14 @@ resource "google_secret_manager_secret_iam_member" "relay_internal_api_key" {
 # Cloud Run service URI at runtime instead of embedding staging's URI in the
 # production VM. The read-only viewer grant is needed for services.get; it
 # cannot invoke, mutate, or administer the service.
-resource "google_project_iam_member" "relay_cloud_run_viewer" {
+resource "google_cloud_run_v2_service_iam_member" "relay_cloud_run_viewer" {
   count = var.create ? 1 : 0
 
-  project = var.project_id
-  role    = "roles/run.viewer"
-  member  = "serviceAccount:${google_service_account.relay.email}"
+  project  = var.project_id
+  location = var.region
+  name     = "ikaro-backend"
+  role     = "roles/run.viewer"
+  member   = "serviceAccount:${google_service_account.relay.email}"
 }
 
 # Cloud SQL access for the relay identity is persistent whenever a real

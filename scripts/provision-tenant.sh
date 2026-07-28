@@ -35,7 +35,7 @@ if [ -z "${BACKEND_URL:-}" ]; then
   echo "Discovering backend URL..." >&2
   BACKEND_URL=$(curl -sS --fail-with-body \
     -H "Authorization: Bearer $ACCESS_TOKEN" \
-    "https://run.googleapis.com/apis/serving.knative.dev/v1/projects/$PROJECT_ID/locations/$REGION/services/ikaro-backend" \
+    "https://run.googleapis.com/v2/projects/$PROJECT_ID/locations/$REGION/services/ikaro-backend" \
     | grep -o '"uri": *"[^"]*"' | cut -d'"' -f4)
 fi
 

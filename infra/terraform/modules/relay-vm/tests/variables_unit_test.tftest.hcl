@@ -45,3 +45,15 @@ run "rejects_invalid_environment" {
     var.environment,
   ]
 }
+
+run "rejects_empty_tenant_provision_script" {
+  command = plan
+
+  variables {
+    tenant_provision_script = "   "
+  }
+
+  expect_failures = [
+    var.tenant_provision_script,
+  ]
+}
