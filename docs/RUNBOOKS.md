@@ -1,6 +1,6 @@
 # Runbooks — Ikaro
 
-Operational procedures for production incidents — what an operator actually runs, not why the system is built the way it is (that's `plan/M17-CLOUD-DEPLOY.md`). Sections land as their owning story completes: this file starts with Rollback (M17-S26); staging's dev-auth data rule, full secret-rotation/proxy-access/DLQ-replay runbooks, and Disaster Recovery arrive with M17-S27, M17-S37, and M17-S49 respectively.
+Operational procedures for production incidents and controlled platform operations — what an operator actually runs, not why the system is built the way it is (that's `plan/M17-CLOUD-DEPLOY.md`).
 
 ---
 
@@ -38,6 +38,39 @@ Migrations follow expand/contract (repo rule): the previous code version already
 ---
 
 ## Staging
+
+### Provision a tenant
+
+Tenant provisioning is an operator-only operation and must run from the IAP-connected relay VM. The backend uses internal ingress, so a laptop, raw public `curl`, and `gcloud run services proxy` are not valid access paths.
+
+Staging must contain synthetic/test data only. Never provision real customer data there or copy a production tenant into staging.
+
+1. From the repository root, enable the relay for the target environment with `bash scripts/relay-vm-up.sh staging`.
+2. Merge the generated infrastructure PR and dispatch the protected Foundation workflow with `apply=true`. Wait for the Foundation apply to finish.
+3. Find the VM and its zone:
+   ```bash
+   gcloud compute instances list \
+     --project=ikaro-staging \
+     --filter="name=ikaro-relay-vm-staging" \
+     --format="table(name,zone,status)"
+   ```
+4. Connect through IAP using the returned zone:
+   ```bash
+   gcloud compute ssh ikaro-relay-vm-staging \
+     --tunnel-through-iap \
+     --zone=<zone-from-the-previous-command> \
+     --project=ikaro-staging
+   ```
+5. Inside the VM, run the bundled script:
+   ```bash
+   /usr/local/bin/provision-tenant.sh \
+     "<tenant-name>" "<slug>" "<admin-email>" "BR" "America/Sao_Paulo"
+   ```
+   The script is designed to obtain the Cloud Run identity token and read both `platform-admin-key` and `internal-api-key` from Secret Manager. Until the TD32 live self-fetch check is completed, treat successful reads as a preflight requirement and stop if either lookup fails; no manual secret export should be needed for the supported flow.
+6. Confirm the command returns HTTP `201` with a `tenantId`. The initial manager staff row, default templates, and invitation email are asynchronous; verify them from the application and logs after the request succeeds.
+7. When the operation is complete, run `bash scripts/relay-vm-down.sh staging`, merge the generated PR, and apply Foundation again. Verify that the relay instance is absent.
+
+The production version follows the same flow with `prod` and `ikaro-prod`; the script discovers the production project and `ikaro-backend` URL from the relay VM's metadata/API access, so it must not be run with staging overrides. Keep the relay VM on-demand; it is not intended to run continuously.
 
 ### Dev Login data rule (compensating control)
 

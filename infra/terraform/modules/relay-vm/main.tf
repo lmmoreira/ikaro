@@ -97,6 +97,15 @@ locals {
     %{else~}
     echo "cloud-sql-proxy.service installed but not started: no db_instance_connection_name (prod pre-S37 state)." >&2
     %{endif~}
+
+    install -d -m 0755 /usr/local/bin
+    # This file() content is embedded in Compute Engine instance metadata.
+    # Keep the script free of secrets; it only contains runtime discovery and
+    # metadata-server/Secret Manager lookups.
+    cat > /usr/local/bin/provision-tenant.sh <<'SCRIPT'
+${var.tenant_provision_script}
+SCRIPT
+    chmod 0755 /usr/local/bin/provision-tenant.sh
   EOT
 }
 
@@ -237,6 +246,31 @@ resource "google_secret_manager_secret_iam_member" "relay_platform_admin_key" {
   secret_id = var.platform_admin_key_secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.relay.email}"
+}
+
+# The bundled provisioning script also needs the global internal API guard
+# key. This access is limited to the ephemeral relay identity by the chosen
+# administrative access model.
+resource "google_secret_manager_secret_iam_member" "relay_internal_api_key" {
+  count = var.create ? 1 : 0
+
+  secret_id = var.internal_api_key_secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.relay.email}"
+}
+
+# The provisioning script discovers the environment's randomly-generated
+# Cloud Run service URI at runtime instead of embedding staging's URI in the
+# production VM. The read-only viewer grant is needed for services.get; it
+# cannot invoke, mutate, or administer the service.
+resource "google_cloud_run_v2_service_iam_member" "relay_cloud_run_viewer" {
+  count = var.create ? 1 : 0
+
+  project  = var.project_id
+  location = var.region
+  name     = "ikaro-backend"
+  role     = "roles/run.viewer"
+  member   = "serviceAccount:${google_service_account.relay.email}"
 }
 
 # Cloud SQL access for the relay identity is persistent whenever a real

@@ -58,6 +58,21 @@ variable "platform_admin_key_secret_id" {
   type        = string
 }
 
+variable "internal_api_key_secret_id" {
+  description = "Secret Manager resource ID of internal-api-key — grants the relay VM identity access for automatic tenant provisioning."
+  type        = string
+}
+
+variable "tenant_provision_script" {
+  description = "Contents of the tenant-provisioning script installed on the relay VM at boot."
+  type        = string
+
+  validation {
+    condition     = trimspace(var.tenant_provision_script) != ""
+    error_message = "tenant_provision_script must contain the script installed on the relay VM."
+  }
+}
+
 variable "project_id" {
   description = "GCP project ID the resources are created in"
   type        = string

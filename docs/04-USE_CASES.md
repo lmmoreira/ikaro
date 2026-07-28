@@ -864,11 +864,11 @@ Returns:
 ### **UC-024: Platform Operator Provisions New Tenant (REST API)**
 
 - **Actor:** Ikaro platform operator (developer / internal ops)
-- **Preconditions:** Operator has `roles/run.invoker` on the backend Cloud Run service and holds `PLATFORM_ADMIN_KEY` plus `INTERNAL_API_KEY`. No self-service signup UI exists in MVP.
+- **Preconditions:** Operator can open an IAP SSH session to the on-demand relay VM; the relay service account has backend `roles/run.invoker` and Secret Manager access to `PLATFORM_ADMIN_KEY` plus `INTERNAL_API_KEY`. No self-service signup UI exists in MVP.
 - **Trigger:** A new car-wash company is signed up and needs a tenant provisioned on the platform.
 - **Security:** Four independent layers (M17):
   1. **Cloud Run internal ingress** — the backend is not publicly reachable.
-  2. **IAM-authenticated `gcloud run services proxy`** — only an operator with `roles/run.invoker` can reach the service.
+  2. **IAP relay VM + IAM identity** — the operator reaches the VM through IAP; its service account reaches the internal backend with `roles/run.invoker`.
   3. **`INTERNAL_API_KEY`** — global `InternalApiGuard` validates `X-Internal-Key`.
   4. **`PLATFORM_ADMIN_KEY`** — `PlatformAdminGuard` validates `X-Platform-Admin-Key`.
 
@@ -884,11 +884,12 @@ Returns:
         "name": "AutoWash Pro",
         "slug": "autowash-pro",
         "adminEmail": "owner@autowashpro.com.br",
+        "country_code": "BR",
         "timezone": "America/Sao_Paulo"
       }
       ```
    2. `InternalApiGuard` validates `X-Internal-Key`; then `PlatformAdminGuard` validates `X-Platform-Admin-Key` using `crypto.timingSafeEqual` → rejects with `401` if either key is invalid.
-   3. System validates inputs: slug format (`/^[a-z0-9-]+$/`), slug uniqueness, email format, IANA timezone.
+   3. System validates inputs: slug format (`/^[a-z0-9-]+$/`), slug uniqueness, email format, supported two-letter ISO `country_code`, and IANA timezone.
    4. System creates `platform.tenants` row with default settings.
    5. System creates `platform.hotsite_configs` row (`is_published = false`).
    6. System publishes `TenantProvisioned` event.
@@ -904,7 +905,9 @@ Returns:
    - **A2: Slug already taken** → `409` Problem Detail: `"Slug 'autowash-pro' is already in use"`
    - **A3: Invalid slug format** → `400` Problem Detail
    - **A4: Invalid email** → `400` Problem Detail
-   - **A5: Invalid IANA timezone** → `400` Problem Detail
+   - **A5: Invalid `country_code` format** → `400` Problem Detail: country code must be exactly two letters
+   - **A6: Unsupported `country_code`** → `400` Problem Detail: country is not supported by the platform
+   - **A7: Invalid IANA timezone** → `400` Problem Detail
 
 - **Postconditions:** `platform.tenants` + `platform.hotsite_configs` rows created. `TenantProvisioned` event published. First MANAGER staff and invitation email handled asynchronously by M04-S06 and M11.
 - **Events Triggered:** `TenantProvisioned` (synchronous) → triggers `StaffInvited` (asynchronous, via M04-S06)

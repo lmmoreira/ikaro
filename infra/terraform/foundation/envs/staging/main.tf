@@ -287,6 +287,8 @@ module "relay_control_plane" {
   iam_admin_user                 = var.iam_admin_user
   operator_service_account_email = module.control_plane.foundation_deployer_email
   platform_admin_key_secret_id   = var.relay_platform_admin_key_secret_id
+  internal_api_key_secret_id     = var.relay_internal_api_key_secret_id
+  tenant_provision_script        = file("${path.root}/../../../../../scripts/provision-tenant.sh")
   db_instance_connection_name    = var.relay_db_instance_connection_name
   db_instance_name               = var.relay_db_instance_name
 
