@@ -165,7 +165,7 @@ describe('AvailabilityCalendar', () => {
     renderCalendar({ maxBookingAdvanceDays: 3 });
 
     await screen.findAllByTestId('calendar-day');
-    expect(getCalendarDay('2026-06-20')).toHaveStyle({ opacity: '0.5' });
+    expect(getCalendarDay('2026-06-20')).toHaveStyle({ opacity: '0.6', color: '#9ca3af' });
   });
 
   it('navigating to the next month triggers a refetch for the new range', async () => {

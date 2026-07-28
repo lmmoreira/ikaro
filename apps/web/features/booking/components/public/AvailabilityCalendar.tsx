@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { DayPicker, type DayButtonProps } from 'react-day-picker';
+import { DayPicker, type ChevronProps, type DayButtonProps } from 'react-day-picker';
 import { enUS, ptBR } from 'date-fns/locale';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { DaySummary } from '@ikaro/types';
 import { fetchAvailabilitySummary } from '@/features/platform/hotsite/api/schedule';
 import { resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
+import { cn } from '@/shared/utils/cn';
 import { ErrorAlert } from './ErrorAlert';
 
 interface AvailabilityCalendarProps {
@@ -59,9 +61,15 @@ function getDayButtonStyle(modifiers: DayButtonProps['modifiers']): React.CSSPro
     };
   }
   if (modifiers.disabled || modifiers.outOfRange) {
+    // Deliberately not a --ba-* token: --ba-secondary is a light *background* tint by design
+    // (used as backgroundColor everywhere else below), and using it as *text* color here made
+    // disabled days unreadable for tenants with a pale secondary color. A disabled/muted day is
+    // an inherently de-emphasized, non-branded state — same reasoning the shared dashboard
+    // Calendar already follows for its own disabled modifier (plain gray, no brand token).
     return {
-      color: 'var(--ba-secondary, rgb(191 219 254))',
-      opacity: 0.5,
+      backgroundColor: 'transparent',
+      color: '#9ca3af',
+      opacity: 0.6,
       cursor: 'not-allowed',
     };
   }
@@ -84,7 +92,7 @@ function CalendarDayButton({ day, modifiers, style, ...rest }: DayButtonProps): 
       {...rest}
       data-testid="calendar-day"
       data-date={day.isoDate}
-      className="flex h-9 w-9 items-center justify-center text-sm font-medium transition-opacity hover:opacity-80"
+      className="flex h-9 w-9 items-center justify-center text-base font-semibold transition-opacity hover:opacity-80"
       style={{ ...style, borderRadius: 'var(--ba-radius)', ...getDayButtonStyle(modifiers) }}
     >
       {day.date.getDate()}
@@ -92,7 +100,18 @@ function CalendarDayButton({ day, modifiers, style, ...rest }: DayButtonProps): 
   );
 }
 
-const DAY_PICKER_COMPONENTS = { DayButton: CalendarDayButton };
+function CalendarChevron({
+  className,
+  orientation,
+  disabled: _disabled,
+  size: _size,
+  ...rest
+}: ChevronProps): React.JSX.Element {
+  const Icon = orientation === 'right' ? ChevronRight : ChevronLeft;
+  return <Icon className={cn('h-4 w-4', className)} {...rest} />;
+}
+
+const DAY_PICKER_COMPONENTS = { DayButton: CalendarDayButton, Chevron: CalendarChevron };
 
 interface FetchResult {
   // Identifies the from/to range this result was fetched for — compared against the currently
@@ -241,11 +260,40 @@ export function AvailabilityCalendar({
           labelNext: () => t('availability.nextMonth'),
         }}
         components={DAY_PICKER_COMPONENTS}
-        className="p-0"
+        className="w-full p-0"
         classNames={{
-          month_caption: 'flex h-10 items-center justify-center text-sm font-semibold',
-          weekday: 'text-xs font-normal opacity-60',
-          nav: 'flex items-center justify-between',
+          months: 'relative w-full',
+          month: 'w-full space-y-2',
+          // nav is absolutely positioned across the top of `months`, overlapping the caption
+          // row — month_caption's horizontal padding (px-9, matching the 36px button size)
+          // reserves the room the two buttons sit in. Mirrors shadcn's calendar registry
+          // component's own nav/caption layout (ui.shadcn.com/docs/components/calendar).
+          nav: 'absolute inset-x-0 top-0 flex w-full items-center justify-between',
+          button_previous: cn(
+            'flex h-9 w-9 items-center justify-center rounded-[var(--ba-radius)]',
+            'text-[var(--ba-primary,#2563eb)] hover:opacity-70',
+            'aria-disabled:opacity-30 aria-disabled:cursor-not-allowed',
+          ),
+          button_next: cn(
+            'flex h-9 w-9 items-center justify-center rounded-[var(--ba-radius)]',
+            'text-[var(--ba-primary,#2563eb)] hover:opacity-70',
+            'aria-disabled:opacity-30 aria-disabled:cursor-not-allowed',
+          ),
+          // No `position` here (deliberately) — nav (rendered earlier in the DOM) is the only
+          // positioned element in this row. Giving month_caption `relative` too made it a
+          // later-DOM-order positioned sibling, which paints on top per CSS stacking rules and
+          // silently swallows clicks meant for the nav buttons underneath (confirmed by testing
+          // in the browser: "next month" became unclickable).
+          // border-b on both rows below gives three visually distinct sections — month header,
+          // weekday labels, day grid — instead of one undifferentiated block.
+          month_caption:
+            'flex h-9 w-full items-center justify-center border-b border-gray-100 px-9 text-sm font-semibold',
+          month_grid: 'w-full border-collapse',
+          weekdays: 'flex w-full border-b border-gray-100 pb-2',
+          weekday: 'flex-1 text-center text-xs font-normal opacity-60',
+          weeks: 'flex flex-col gap-1 pt-2',
+          week: 'flex w-full',
+          day: 'flex flex-1 items-center justify-center p-0',
         }}
       />
 

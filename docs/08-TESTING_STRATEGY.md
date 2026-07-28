@@ -852,7 +852,8 @@ describe('RescheduleBookingUseCase', () => {
 
 - **Domain and application tests** are stateless — run fully in parallel (`--runInBand false`, default Jest behaviour).
 - **Integration tests** each spin up their own Testcontainers instance. They run in parallel using Jest's `--maxWorkers` setting. Because each context owns its own schema and each test generates a unique `tenantId` (UUID), there are no port or data conflicts.
-- **E2E tests** run sequentially against staging (Playwright default). Parallel E2E requires separate worker slots and isolated staging data — post-MVP.
+- **E2E tests run in parallel, not sequentially** — `playwright.config.ts` sets `fullyParallel: true`, with `workers: process.env.CI ? 1 : undefined` (CI is effectively sequential; local runs default to multiple workers). This applies **within a single spec file** too — Playwright does not serialize tests inside one `test.describe()` block by default, only inside `test.describe.serial()`.
+- **A spec file whose tests mutate a shared, tenant-wide resource (hotsite config, tenant settings — one row per tenant, not a fixture created per test) must wrap that whole `test.describe()` in `.serial()`.** Without it, `fullyParallel` can run two of that file's own tests against the same tenant row concurrently, and one overwrites the other's setup mid-test. Confirmed in M18-S01: adding more `autospa-premium`-mutating tests to `hotsite-editor.spec.ts` broke an unrelated, previously-passing test in the same file via exactly this race, and separately raced `settings.spec.ts` (which shares the same tenant for its own settings mutations) until both files' mutating blocks were serialized. Restoration must live in `afterEach`, not an in-test `try/finally` — a test aborted by Playwright's own per-test timeout can skip straight past a `finally` block, but `afterEach` always runs.
 
 ---
 
