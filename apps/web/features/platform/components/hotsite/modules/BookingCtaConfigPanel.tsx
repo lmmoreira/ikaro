@@ -165,8 +165,16 @@ export function BookingCtaConfigPanel({
               type="number"
               min={1}
               max={90}
+              step={1}
               value={bookingCta.carouselDays ?? 14}
-              onChange={(event) => update({ carouselDays: Number(event.target.value) || 1 })}
+              onChange={(event) => {
+                // min/max/step are cosmetic on a controlled input — a typed 91, -2, or 1.5 still
+                // reaches onChange, so clamp and round here rather than deferring to save-time
+                // Zod validation.
+                const parsed = Math.round(Number(event.target.value));
+                const clamped = Number.isFinite(parsed) ? Math.min(90, Math.max(1, parsed)) : 1;
+                update({ carouselDays: clamped });
+              }}
               className="w-32 rounded-md border border-gray-300 px-3 py-2 text-sm"
             />
           </div>

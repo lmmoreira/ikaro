@@ -1,5 +1,5 @@
 import type { TenantBusinessHours, TenantDayHours } from '@ikaro/types';
-import { addDays, toDateKey } from '@/shared/utils/date-utils';
+import { addDays, toISODate } from '@/shared/lib/formatting/date-utils';
 
 export type WeekDayKey = keyof Omit<TenantBusinessHours, 'timezone'>;
 
@@ -35,16 +35,16 @@ export function isValidDateKey(dateKey: string): boolean {
 export function getWeekStartKey(dateKey: string): string {
   const date = parseDateKey(dateKey);
   const offset = (date.getUTCDay() + 6) % 7;
-  return toDateKey(addDays(date, -offset));
+  return toISODate(addDays(date, -offset));
 }
 
 export function getWeekEndKey(dateKey: string): string {
-  return toDateKey(addDays(parseDateKey(dateKey), 6));
+  return toISODate(addDays(parseDateKey(dateKey), 6));
 }
 
 export function getWeekDates(weekStartKey: string): string[] {
   const weekStart = parseDateKey(weekStartKey);
-  return Array.from({ length: 7 }, (_, index) => toDateKey(addDays(weekStart, index)));
+  return Array.from({ length: 7 }, (_, index) => toISODate(addDays(weekStart, index)));
 }
 
 export function getWeekdayKey(dateKey: string): WeekDayKey {

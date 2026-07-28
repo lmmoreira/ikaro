@@ -32,6 +32,18 @@ export class TypeOrmTenantRepository implements ITenantRepository {
     return this.toDomain(entity);
   }
 
+  async findByIdForUpdate(id: string): Promise<Tenant | null> {
+    const manager = getActiveEntityManager();
+    if (!manager) {
+      throw new Error('findByIdForUpdate must be called inside an active transaction');
+    }
+    const entity = await manager.findOne(TenantEntity, {
+      where: { id },
+      lock: { mode: 'pessimistic_write' },
+    });
+    return entity ? this.toDomain(entity) : null;
+  }
+
   async save(tenant: Tenant): Promise<void> {
     const entity = this.toEntity(tenant);
     const manager = getActiveEntityManager();

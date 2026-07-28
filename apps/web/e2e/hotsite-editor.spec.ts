@@ -252,6 +252,12 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
       'true',
     );
     await expect(page.locator('#booking-cta-carousel-days')).toHaveCount(0);
+
+    // Switching back to carousel must reveal the *previously saved* carouselDays (21), not the
+    // default (14) — proves the value actually persisted across the save/reload above, rather
+    // than the mode toggle alone happening to look like it did.
+    await page.getByTestId('booking-cta-date-picker-type-carousel').click();
+    await expect(page.locator('#booking-cta-carousel-days')).toHaveValue('21');
   });
 
   // The next 3 tests exercise the *public* booking page's date-picker widgets, configured via the
@@ -286,10 +292,11 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
 
     await expect(page.locator('[data-testid="calendar-day"]').first()).toBeVisible();
 
-    // Month navigation re-fetches without erroring, forward then back
-    await page.getByRole('button', { name: 'Próximo mês' }).click();
+    // Month navigation re-fetches without erroring, forward then back. Located by data-testid,
+    // not translated button copy, so this doesn't break if the tenant locale or copy changes.
+    await page.getByTestId('calendar-next-month').click();
     await expect(page.locator('[data-testid="calendar-day"]').first()).toBeVisible();
-    await page.getByRole('button', { name: 'Mês anterior' }).click();
+    await page.getByTestId('calendar-previous-month').click();
     await expect(page.locator('[data-testid="calendar-day"]').first()).toBeVisible();
 
     await page.locator('[data-testid="calendar-day"]:not([disabled])').first().click();
@@ -303,7 +310,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     page,
   }) => {
     await updateTenantSettings(page, {
-      settings: { booking: { ...originalSettings.settings.booking, maxBookingAdvanceDays: 5 } },
+      settings: { booking: { ...originalSettings.settings.booking, maxBookingAdvanceDays: 1 } },
     });
 
     await updateHotsiteConfig(page, {
@@ -329,15 +336,15 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
       .click();
     await page.locator('[data-testid="step-next"]').click();
 
-    // 3 months forward guarantees every visible day is past a 5-day advance window, regardless
-    // of which day of the month "today" happens to be when this test runs.
-    const nextMonthButton = page.getByRole('button', { name: 'Próximo mês' });
-    await nextMonthButton.click();
-    await nextMonthButton.click();
-    await nextMonthButton.click();
+    // maxBookingAdvanceDays=1 means only "today" is in range — endMonth now caps forward
+    // navigation at the boundary month (usually the current one), so the last visible day cell
+    // of the initial month view is out of range regardless of which day of the month "today"
+    // happens to be when this test runs (the sole exception — today being the last day of the
+    // month, putting the boundary exactly there too — is the same rare edge case the original
+    // "3 months forward" heuristic never fully covered either).
     await expect(page.locator('[data-testid="calendar-day"]').first()).toBeVisible();
 
-    await page.locator('[data-testid="calendar-day"]').first().click();
+    await page.locator('[data-testid="calendar-day"]').last().click();
 
     await expect(page.locator('[data-testid="calendar-out-of-range-message"]')).toBeVisible();
     await expect(page.locator('[data-testid="input-name"]')).not.toBeVisible();

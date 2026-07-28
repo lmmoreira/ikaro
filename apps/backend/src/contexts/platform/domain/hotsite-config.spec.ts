@@ -314,6 +314,48 @@ describe('HotsiteConfig', () => {
         ).not.toThrow();
       });
 
+      it('does not throw when carouselDays exceeds the limit but datePickerType is calendar (stale, inert value)', () => {
+        const config = new HotsiteConfigBuilder().build();
+        const layout: HotsiteModule[] = [
+          {
+            type: 'BOOKING_CTA',
+            enabled: true,
+            data: {
+              title: 'Agende já',
+              ctaLabel: 'Agendar',
+              carouselDays: 91,
+              datePickerType: 'calendar',
+            },
+          },
+        ];
+        expect(() =>
+          config.updateContent(DEFAULT_HOTSITE_BRANDING, layout, DEFAULT_HOTSITE_SEO, {
+            maxBookingAdvanceDays: 90,
+          }),
+        ).not.toThrow();
+      });
+
+      it('still throws when carouselDays exceeds the limit and datePickerType is explicitly carousel', () => {
+        const config = new HotsiteConfigBuilder().build();
+        const layout: HotsiteModule[] = [
+          {
+            type: 'BOOKING_CTA',
+            enabled: true,
+            data: {
+              title: 'Agende já',
+              ctaLabel: 'Agendar',
+              carouselDays: 91,
+              datePickerType: 'carousel',
+            },
+          },
+        ];
+        expect(() =>
+          config.updateContent(DEFAULT_HOTSITE_BRANDING, layout, DEFAULT_HOTSITE_SEO, {
+            maxBookingAdvanceDays: 90,
+          }),
+        ).toThrow(HotsiteCarouselDaysExceedsMaxAdvanceError);
+      });
+
       it('does not throw for a non-BOOKING_CTA module even with an oversized carouselDays-shaped field', () => {
         const config = new HotsiteConfigBuilder().build();
         const layout: HotsiteModule[] = [

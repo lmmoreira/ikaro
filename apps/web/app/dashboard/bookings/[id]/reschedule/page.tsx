@@ -16,9 +16,11 @@ export default async function BookingRescheduleRoute({
   const { id } = await params;
   const { returnTo } = await searchParams;
   const token = await getAccessToken();
+  // fetchTenantSettings failing must not take down an otherwise-working reschedule flow — same
+  // fallback-on-error pattern as dashboard/bookings/page.tsx's own settings fetch.
   const [{ booking, tenantSlug }, settings] = await Promise.all([
     loadBookingDetailRouteData(token, id),
-    fetchTenantSettings(token),
+    fetchTenantSettings(token).catch(() => null),
   ]);
   const returnHref = resolveReturnTo(returnTo);
   const agendaHref = returnHref ?? '/dashboard/bookings';
@@ -27,7 +29,7 @@ export default async function BookingRescheduleRoute({
     <RescheduleBookingPage
       booking={booking}
       tenantSlug={tenantSlug}
-      maxBookingAdvanceDays={settings.settings.booking.maxBookingAdvanceDays}
+      maxBookingAdvanceDays={settings?.settings.booking.maxBookingAdvanceDays ?? 90}
       backHref={appendReturnTo(`/dashboard/bookings/${id}`, returnHref)}
       agendaHref={agendaHref}
     />

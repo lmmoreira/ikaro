@@ -3,7 +3,7 @@ import { getAccessToken } from '@/features/auth/get-access-token';
 import { listBookings } from '@/features/booking/api/staff.server';
 import { fetchTenantSettings } from '@/features/platform/api/tenant-settings.server';
 import { resolveWelcomeStaffScreenDays } from '@/features/platform/model/tenant-settings';
-import { addDays, toDateKey } from '@/shared/utils/date-utils';
+import { addDays, toISODate } from '@/shared/lib/formatting/date-utils';
 
 export default async function BookingsPage(): Promise<React.JSX.Element> {
   const token = await getAccessToken();
@@ -14,9 +14,9 @@ export default async function BookingsPage(): Promise<React.JSX.Element> {
     : 14;
 
   const now = new Date();
-  const today = toDateKey(now);
-  const tomorrow = toDateKey(addDays(now, 1));
-  const windowEnd = toDateKey(addDays(now, welcomeStaffScreenDays - 1));
+  const today = toISODate(now);
+  const tomorrow = toISODate(addDays(now, 1));
+  const windowEnd = toISODate(addDays(now, welcomeStaffScreenDays - 1));
 
   const [actionNeeded, todayBookings, upcoming] = await Promise.all([
     listBookings(token, { status: 'PENDING,INFO_REQUESTED', from: today, to: windowEnd }),

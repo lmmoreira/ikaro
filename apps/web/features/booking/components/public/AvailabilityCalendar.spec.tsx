@@ -122,6 +122,21 @@ describe('AvailabilityCalendar', () => {
     expect(from).toBe('2026-06-15');
   });
 
+  it('computes the "today" boundary from the UTC calendar day, not the viewer\'s local one', async () => {
+    // 2026-06-16T01:00:00Z is still 2026-06-15 in this test runner's local timezone (UTC-3) —
+    // this proves the "today" boundary tracks GetAvailabilitySummaryUseCase's own todayUTC()
+    // contract (backend calendar-date.ts), not the viewer's local calendar date, which would
+    // incorrectly still read June 15 here and drift a day behind the backend's actual cutoff.
+    vi.setSystemTime(new Date('2026-06-16T01:00:00.000Z'));
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue([]);
+
+    renderCalendar();
+
+    await screen.findAllByTestId('calendar-day');
+    const [, from] = vi.mocked(fetchAvailabilitySummary).mock.calls[0];
+    expect(from).toBe('2026-06-16');
+  });
+
   it('calls onSelectDate when an in-range available day is clicked', async () => {
     const user = userEvent.setup();
     const onSelectDate = vi.fn();
@@ -157,6 +172,63 @@ describe('AvailabilityCalendar', () => {
     );
   });
 
+  it('uses singular "dia" (not "1 dias") when maxBookingAdvanceDays is 1', async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue([]);
+
+    renderCalendar({ maxBookingAdvanceDays: 1 });
+
+    await screen.findAllByTestId('calendar-day');
+    await user.click(getCalendarDay('2026-06-20'));
+
+    expect(await screen.findByTestId('calendar-out-of-range-message')).toHaveTextContent(
+      'além do limite de 1 dia para agendamento.',
+    );
+  });
+
+  it('clears the out-of-range message once a valid day is selected afterwards', async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue([
+      { date: '2026-06-16', available: true, slotCount: 5 },
+    ]);
+
+    renderCalendar({ maxBookingAdvanceDays: 3 });
+
+    await screen.findAllByTestId('calendar-day');
+    await user.click(getCalendarDay('2026-06-20'));
+    expect(await screen.findByTestId('calendar-out-of-range-message')).toBeInTheDocument();
+
+    await user.click(getCalendarDay('2026-06-16'));
+
+    expect(screen.queryByTestId('calendar-out-of-range-message')).not.toBeInTheDocument();
+  });
+
+  it('does not resurrect a stale out-of-range message after navigating away and back to the same month', async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue([]);
+
+    // maxBookingAdvanceDays=26 puts maxDateIso at 2026-07-10 — July is reachable (not entirely
+    // out of range) and itself contains both in-range (1-10) and out-of-range (11-31) days, so
+    // it can be navigated to, away from, and back to.
+    renderCalendar({ maxBookingAdvanceDays: 26 });
+
+    await screen.findAllByTestId('calendar-day');
+    await user.click(screen.getByTestId('calendar-next-month'));
+    await screen.findByText('julho 2026');
+
+    await user.click(getCalendarDay('2026-07-15'));
+    expect(await screen.findByTestId('calendar-out-of-range-message')).toBeInTheDocument();
+
+    await user.click(screen.getByTestId('calendar-previous-month'));
+    await screen.findByText('junho 2026');
+    expect(screen.queryByTestId('calendar-out-of-range-message')).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId('calendar-next-month'));
+    await screen.findByText('julho 2026');
+
+    expect(screen.queryByTestId('calendar-out-of-range-message')).not.toBeInTheDocument();
+  });
+
   it('renders an out-of-range day muted before it is ever clicked', async () => {
     vi.mocked(fetchAvailabilitySummary).mockResolvedValue([
       { date: '2026-06-20', available: true, slotCount: 5 },
@@ -185,7 +257,7 @@ describe('AvailabilityCalendar', () => {
       ['svc-1'],
     );
 
-    await user.click(screen.getByRole('button', { name: 'Próximo mês' }));
+    await user.click(screen.getByTestId('calendar-next-month'));
 
     await vi.waitFor(() => {
       expect(fetchAvailabilitySummary).toHaveBeenCalledWith(
@@ -194,6 +266,25 @@ describe('AvailabilityCalendar', () => {
         '2026-07-31',
         ['svc-1'],
       );
+    });
+  });
+
+  it('stops forward navigation at the month containing the maxBookingAdvanceDays boundary', async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue([]);
+
+    // System time pinned to 2026-06-15; a 20-day advance window puts the boundary on 2026-07-04
+    // (today + 19 days) — endMonth should still allow navigating from June into July, but disable
+    // "next" once July (the boundary month) is reached.
+    renderCalendar({ maxBookingAdvanceDays: 20 });
+
+    await screen.findAllByTestId('calendar-day');
+    expect(screen.getByTestId('calendar-next-month')).not.toHaveAttribute('aria-disabled', 'true');
+
+    await user.click(screen.getByTestId('calendar-next-month'));
+
+    await vi.waitFor(() => {
+      expect(screen.getByTestId('calendar-next-month')).toHaveAttribute('aria-disabled', 'true');
     });
   });
 

@@ -2,12 +2,21 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { DayPicker, type ChevronProps, type DayButtonProps } from 'react-day-picker';
-import { enUS, ptBR } from 'date-fns/locale';
+import {
+  DayPicker,
+  type ChevronProps,
+  type DayButtonProps,
+  type NextMonthButtonProps,
+  type PreviousMonthButtonProps,
+} from 'react-day-picker';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { DaySummary } from '@ikaro/types';
 import { fetchAvailabilitySummary } from '@/features/platform/hotsite/api/schedule';
-import { resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
+import {
+  addDays as addUTCDays,
+  toISODate as toUTCISODate,
+} from '@/shared/lib/formatting/date-utils';
+import { resolveDayPickerLocale } from '@/shared/lib/i18n/day-picker-locale';
 import { cn } from '@/shared/utils/cn';
 import { ErrorAlert } from './ErrorAlert';
 
@@ -19,21 +28,17 @@ interface AvailabilityCalendarProps {
   readonly maxBookingAdvanceDays: number;
 }
 
-// DayPicker's CalendarDay represents local calendar days, not UTC instants — these helpers
-// mirror that. shared/lib/formatting/date-utils.ts's addDays/toISODate are UTC-based and stay
-// that way for the carousel's own from/to range math; mixing the two conventions here would
-// reintroduce the exact off-by-one risk this local-only approach avoids.
+// DayPicker's CalendarDay wraps a *local* Date instance for each rendered cell — reading it back
+// with UTC getters would shift the cell's own calendar day for any viewer not at UTC+0 (e.g. a
+// local midnight in a positive-offset timezone is still "yesterday" in UTC). These two helpers
+// stay local-only and are only ever used to read the date a specific rendered/clicked cell
+// represents — never to compute "today" or the advance-window boundary (see toUTCISODate/
+// addUTCDays below, imported from date-utils.ts, for those).
 function toLocalISODate(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
-}
-
-function addLocalDays(date: Date, days: number): Date {
-  const result = new Date(date);
-  result.setDate(result.getDate() + days);
-  return result;
 }
 
 function startOfMonth(date: Date): Date {
@@ -42,10 +47,6 @@ function startOfMonth(date: Date): Date {
 
 function endOfMonth(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth() + 1, 0);
-}
-
-function resolveDayPickerLocale(locale: string) {
-  return resolveSupportedLocale(locale) === 'en' ? enUS : ptBR;
 }
 
 // Inline styles (not Tailwind arbitrary-value classes) — same technique AvailabilityCarousel
@@ -112,7 +113,20 @@ function CalendarChevron({
   return <Icon className={cn('h-4 w-4', className)} {...rest} />;
 }
 
-const DAY_PICKER_COMPONENTS = { DayButton: CalendarDayButton, Chevron: CalendarChevron };
+function CalendarPreviousMonthButton(props: PreviousMonthButtonProps): React.JSX.Element {
+  return <button {...props} data-testid="calendar-previous-month" />;
+}
+
+function CalendarNextMonthButton(props: NextMonthButtonProps): React.JSX.Element {
+  return <button {...props} data-testid="calendar-next-month" />;
+}
+
+const DAY_PICKER_COMPONENTS = {
+  DayButton: CalendarDayButton,
+  Chevron: CalendarChevron,
+  PreviousMonthButton: CalendarPreviousMonthButton,
+  NextMonthButton: CalendarNextMonthButton,
+};
 
 interface FetchResult {
   // Identifies the from/to range this result was fetched for — compared against the currently
@@ -139,9 +153,15 @@ export function AvailabilityCalendar({
   // without an effect-driven reset — mirrors the `result`/rangeKey staleness check above.
   const [outOfRangeMessageKey, setOutOfRangeMessageKey] = useState<string | null>(null);
 
-  const todayIso = useMemo(() => toLocalISODate(new Date()), []);
+  // GetAvailabilitySummaryUseCase's own "today" is todayUTC() (backend/calendar-date.ts) — the
+  // UTC calendar date of "now", same convention AvailabilityCarousel already uses. Deriving these
+  // two boundaries from the viewer's *local* calendar date instead would drift from the backend's
+  // actual cutoff for any viewer not at UTC+0 (for Brazil's own UTC-3 offset, local calendar date
+  // is behind UTC's for roughly the last 3 hours of every local day), letting the client disable
+  // or allow a boundary day the backend disagrees with.
+  const todayIso = useMemo(() => toUTCISODate(new Date()), []);
   const maxDateIso = useMemo(
-    () => toLocalISODate(addLocalDays(new Date(), maxBookingAdvanceDays - 1)),
+    () => toUTCISODate(addUTCDays(new Date(), maxBookingAdvanceDays - 1)),
     [maxBookingAdvanceDays],
   );
 
@@ -229,7 +249,15 @@ export function AvailabilityCalendar({
       setOutOfRangeMessageKey(currentRangeKey);
       return;
     }
+    setOutOfRangeMessageKey(null);
     onSelectDate(toLocalISODate(date));
+  }
+
+  function handleMonthChange(newMonth: Date): void {
+    setMonth(newMonth);
+    // Otherwise a stale out-of-range message from a previous visit to this same month
+    // reappears immediately on navigating back to it, with no new click causing it.
+    setOutOfRangeMessageKey(null);
   }
 
   if (error) {
@@ -250,8 +278,9 @@ export function AvailabilityCalendar({
         mode="single"
         locale={resolveDayPickerLocale(locale)}
         month={month}
-        onMonthChange={setMonth}
+        onMonthChange={handleMonthChange}
         startMonth={startOfMonth(new Date())}
+        endMonth={new Date(`${maxDateIso}T00:00:00`)}
         showOutsideDays={false}
         selected={selectedDate ? new Date(`${selectedDate}T00:00:00`) : undefined}
         onSelect={handleSelect}

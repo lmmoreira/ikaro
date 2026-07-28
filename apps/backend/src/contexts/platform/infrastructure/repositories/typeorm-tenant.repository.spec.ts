@@ -68,6 +68,42 @@ describe('TypeOrmTenantRepository', () => {
     });
   });
 
+  describe('findByIdForUpdate', () => {
+    it('throws when called outside an active transaction', async () => {
+      await expect(repo.findByIdForUpdate('tenant-id-1')).rejects.toThrow(
+        'findByIdForUpdate must be called inside an active transaction',
+      );
+    });
+
+    it('locks the row with pessimistic_write via the active EntityManager', async () => {
+      const mockManager = {
+        findOne: jest.fn().mockResolvedValue(new TenantEntityBuilder().build()),
+      } as unknown as EntityManager;
+
+      const result = await runWithEntityManager(mockManager, () =>
+        repo.findByIdForUpdate('tenant-id-1'),
+      );
+
+      expect(result).toBeInstanceOf(Tenant);
+      expect(mockManager.findOne).toHaveBeenCalledWith(TenantEntity, {
+        where: { id: 'tenant-id-1' },
+        lock: { mode: 'pessimistic_write' },
+      });
+    });
+
+    it('returns null when not found', async () => {
+      const mockManager = {
+        findOne: jest.fn().mockResolvedValue(null),
+      } as unknown as EntityManager;
+
+      const result = await runWithEntityManager(mockManager, () =>
+        repo.findByIdForUpdate('unknown'),
+      );
+
+      expect(result).toBeNull();
+    });
+  });
+
   describe('save', () => {
     it('maps domain aggregate to entity and persists via repo when no transaction is active', async () => {
       const tenant = new TenantBuilder().withSlug('novo-lavacar').withName('Novo Lavacar').build();

@@ -6,6 +6,7 @@ import { TypeOrmHotsiteConfigRepository } from './typeorm-hotsite-config.reposit
 import { TypeOrmTenantRepository } from './typeorm-tenant.repository';
 import { CachingTenantRepository } from './caching-tenant.repository';
 import { createTestDataSource } from '../../../../test/test-datasource';
+import { runInNewTransaction } from '../../../../shared/infrastructure/run-in-new-transaction';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { TenantBuilder, HotsiteConfigBuilder } from '../../../../test/builders/platform';
 import { DEFAULT_HOTSITE_BRANDING } from '../../domain/hotsite-config.aggregate';
@@ -176,5 +177,29 @@ describe('Platform repositories (integration)', () => {
     // Tenant A still sees its own config
     const resultForA = await hotsiteRepo.findByTenantId(tenantA.id);
     expect(resultForA!.id).toBe(configA.id);
+  });
+
+  it('findByIdForUpdate locks and returns the current row from within a real transaction', async () => {
+    const tenant = new TenantBuilder()
+      .withName('Lavacar For Update')
+      .withSlug('lavacar-for-update')
+      .build();
+    await tenantRepo.save(tenant);
+
+    const result = await runInNewTransaction(dataSource, () =>
+      typeOrmTenantRepo.findByIdForUpdate(tenant.id),
+    );
+
+    expect(result).toBeInstanceOf(Tenant);
+    expect(result!.id).toBe(tenant.id);
+    expect(result!.settings.booking.maxBookingAdvanceDays).toBe(
+      tenant.settings.booking.maxBookingAdvanceDays,
+    );
+  });
+
+  it('findByIdForUpdate throws when called outside an active transaction', async () => {
+    await expect(typeOrmTenantRepo.findByIdForUpdate('any-id')).rejects.toThrow(
+      'findByIdForUpdate must be called inside an active transaction',
+    );
   });
 });

@@ -8,7 +8,7 @@ import { Badge } from '@/shared/components/ui/badge';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
-import { addDays, toDateKeyInTimezone } from '@/shared/utils/date-utils';
+import { addDays, toISODateInTimezone } from '@/shared/lib/formatting/date-utils';
 import {
   BOOKING_STATUS_CLASSES,
   buildBookingStatusLabels,
@@ -54,9 +54,9 @@ function BookingCardInner(props: BookingCardProps): React.JSX.Element {
     if (variant === 'today') return formatTime(scheduledAt);
 
     const now = new Date();
-    const todayKey = toDateKeyInTimezone(now, timezone);
-    const tomorrowKey = toDateKeyInTimezone(addDays(now, 1), timezone);
-    const scheduledKey = toDateKeyInTimezone(scheduledAt, timezone);
+    const todayKey = toISODateInTimezone(now, timezone);
+    const tomorrowKey = toISODateInTimezone(addDays(now, 1), timezone);
+    const scheduledKey = toISODateInTimezone(scheduledAt, timezone);
 
     let prefix = formatDateLong(scheduledAt);
     if (scheduledKey === todayKey) prefix = t('today');

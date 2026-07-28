@@ -93,6 +93,64 @@ describe('BookingCtaConfigPanel', () => {
     );
   });
 
+  it('clamps a typed carouselDays value above 90 down to 90', () => {
+    const onChange = vi.fn();
+
+    renderWithIntl(
+      <BookingCtaConfigPanel data={writeModuleData(BOOKING_CTA)} onChange={onChange} />,
+    );
+
+    fireEvent.change(screen.getByLabelText('Número de dias exibidos'), {
+      target: { value: '91' },
+    });
+
+    expect(onChange).toHaveBeenLastCalledWith(
+      writeModuleData({ ...BOOKING_CTA, carouselDays: 90 }),
+    );
+  });
+
+  it('clamps a typed carouselDays value below 1 up to 1', () => {
+    const onChange = vi.fn();
+
+    renderWithIntl(
+      <BookingCtaConfigPanel data={writeModuleData(BOOKING_CTA)} onChange={onChange} />,
+    );
+
+    fireEvent.change(screen.getByLabelText('Número de dias exibidos'), {
+      target: { value: '-2' },
+    });
+
+    expect(onChange).toHaveBeenLastCalledWith(writeModuleData({ ...BOOKING_CTA, carouselDays: 1 }));
+  });
+
+  it('rounds a typed decimal carouselDays value to the nearest integer', () => {
+    const onChange = vi.fn();
+
+    renderWithIntl(
+      <BookingCtaConfigPanel data={writeModuleData(BOOKING_CTA)} onChange={onChange} />,
+    );
+
+    fireEvent.change(screen.getByLabelText('Número de dias exibidos'), {
+      target: { value: '1.5' },
+    });
+
+    expect(onChange).toHaveBeenLastCalledWith(writeModuleData({ ...BOOKING_CTA, carouselDays: 2 }));
+  });
+
+  it('falls back to 1 for a non-numeric carouselDays value', () => {
+    const onChange = vi.fn();
+
+    renderWithIntl(
+      <BookingCtaConfigPanel data={writeModuleData(BOOKING_CTA)} onChange={onChange} />,
+    );
+
+    fireEvent.change(screen.getByLabelText('Número de dias exibidos'), {
+      target: { value: '' },
+    });
+
+    expect(onChange).toHaveBeenLastCalledWith(writeModuleData({ ...BOOKING_CTA, carouselDays: 1 }));
+  });
+
   it('editing subtitle, eyebrow, and ctaLabel each update only their own field', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

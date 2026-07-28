@@ -198,7 +198,10 @@ export interface HotsiteManifestResponse extends HotsiteResponse {
   tenant: TenantInfoResponse;
   business: HotsiteBusinessInfoResponse;
   localization: HotsiteLocalizationResponse;
-  booking: HotsiteBookingSettingsResponse;
+  // Optional, not required: this is a shared @ikaro/types response contract — a required field
+  // added here would be a breaking change for any producer/consumer/cached response still on the
+  // prior shape (see .coderabbit.yaml's packages/** path instructions).
+  booking?: HotsiteBookingSettingsResponse;
 }
 
 export interface HotsiteAdminContentResponse extends HotsiteResponse {

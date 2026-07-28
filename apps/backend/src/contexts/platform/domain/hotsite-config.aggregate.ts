@@ -309,8 +309,12 @@ type ModuleDataValidator = (data: HotsiteModuleData, ctx: LayoutValidationContex
  */
 const MODULE_DATA_VALIDATORS: Partial<Record<HotsiteModuleType, ModuleDataValidator>> = {
   BOOKING_CTA: (data, ctx) => {
-    const { carouselDays } = data as BookingCtaModuleData;
-    if (carouselDays !== undefined && carouselDays > ctx.maxBookingAdvanceDays) {
+    const { carouselDays, datePickerType } = data as BookingCtaModuleData;
+    // A stale carouselDays value retained from a prior carousel configuration must not block
+    // saving an unrelated field once the picker has been switched to calendar — carouselDays is
+    // inert in that mode, on both this validator's own terms and the web page's rendering logic.
+    const isCarouselMode = (datePickerType ?? 'carousel') === 'carousel';
+    if (isCarouselMode && carouselDays !== undefined && carouselDays > ctx.maxBookingAdvanceDays) {
       throw new HotsiteCarouselDaysExceedsMaxAdvanceError(carouselDays, ctx.maxBookingAdvanceDays);
     }
   },

@@ -29,7 +29,7 @@ import {
 } from '@/shared/components/ui/select';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { cn } from '@/shared/utils/cn';
-import { toDateKeyInTimezone } from '@/shared/utils/date-utils';
+import { toISODateInTimezone } from '@/shared/lib/formatting/date-utils';
 import { WeekNav } from '@/shells/dashboard/components/WeekNav';
 import {
   buildBookingStatusLabels,
@@ -183,7 +183,7 @@ function getBookingTimeKey(
 }
 
 function getBookingDateKey(booking: StaffBookingCardResponse, timezone: string): string {
-  return toDateKeyInTimezone(new Date(booking.scheduledAt), timezone);
+  return toISODateInTimezone(new Date(booking.scheduledAt), timezone);
 }
 
 function buildBookingTimelineEvent(

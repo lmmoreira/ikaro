@@ -3,17 +3,12 @@
 import type * as React from 'react';
 import { useContext } from 'react';
 import { DayPicker } from 'react-day-picker';
-import { enUS, ptBR } from 'date-fns/locale';
 import { buttonVariants } from '@/shared/components/ui/button';
 import { FormattingContext } from '@/shared/lib/formatting/formatting-context';
-import { resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
+import { resolveDayPickerLocale } from '@/shared/lib/i18n/day-picker-locale';
 import { cn } from '@/shared/utils/cn';
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>;
-
-function resolveDayPickerLocale(locale: string) {
-  return resolveSupportedLocale(locale) === 'en' ? enUS : ptBR;
-}
 
 function getModifiersClassName(): Record<string, string> {
   return {

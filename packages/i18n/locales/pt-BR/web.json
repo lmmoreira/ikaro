@@ -91,7 +91,7 @@
       "today": "Hoje",
       "previousMonth": "Mês anterior",
       "nextMonth": "Próximo mês",
-      "outOfRangeMessage": "Esta data está além do limite de {days} dias para agendamento."
+      "outOfRangeMessage": "Esta data está além do limite de {days, plural, one {# dia} other {# dias}} para agendamento."
     },
     "personalInfo": {
       "heading": "Seus dados",

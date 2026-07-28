@@ -87,6 +87,18 @@ describe('UpdateHotsiteContentUseCase', () => {
     expect(result.layout).toEqual(layout);
   });
 
+  it('reads the tenant via findByIdForUpdate (not findById) so the carouselDays check locks against a concurrent settings change', async () => {
+    const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
+    await repo.save(config);
+    const findByIdForUpdateSpy = jest.spyOn(tenantRepo, 'findByIdForUpdate');
+    const findByIdSpy = jest.spyOn(tenantRepo, 'findById');
+
+    await useCase.execute({ tenantId: TENANT_A, branding: { primaryColor: '#FF5733' } });
+
+    expect(findByIdForUpdateSpy).toHaveBeenCalledWith(TENANT_A);
+    expect(findByIdSpy).not.toHaveBeenCalled();
+  });
+
   it('merges partial branding into the existing branding without wiping other fields', async () => {
     const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
     await repo.save(config);

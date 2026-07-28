@@ -48,9 +48,6 @@ export class UpdateHotsiteContentUseCase {
     const config = await this.hotsiteConfigRepo.findByTenantId(tenantId);
     if (!config) throw new HotsiteNotFoundError(tenantId);
 
-    const tenant = await this.tenantRepo.findById(tenantId);
-    if (!tenant) throw new TenantNotFoundError(tenantId);
-
     // Captured before the merge — needed to detect "was this field pointing at a permanent
     // object that the merged value no longer references" (delete-previous-on-replace).
     const oldPaths = this.imagePathsService.collect(config.branding, config.layout);
@@ -75,11 +72,19 @@ export class UpdateHotsiteContentUseCase {
       (path) => !newPaths.includes(path) && path.startsWith(tenantPrefix),
     );
 
-    config.updateContent(branding, layout, seo, {
-      maxBookingAdvanceDays: tenant.settings.booking.maxBookingAdvanceDays,
-    });
-
     await this.txManager.run(async () => {
+      // Locked and re-read here, not before the transaction — carouselDays vs.
+      // maxBookingAdvanceDays is a cross-aggregate invariant (Tenant vs. HotsiteConfig). Reading
+      // the tenant's settings before opening the transaction would validate against a value that
+      // a concurrent settings update could change before this save actually commits.
+      // findByIdForUpdate's row lock serializes against that update instead of racing it.
+      const tenant = await this.tenantRepo.findByIdForUpdate(tenantId);
+      if (!tenant) throw new TenantNotFoundError(tenantId);
+
+      config.updateContent(branding, layout, seo, {
+        maxBookingAdvanceDays: tenant.settings.booking.maxBookingAdvanceDays,
+      });
+
       await this.hotsiteConfigRepo.save(config);
       await scheduleAfterCommit(() =>
         this.imagePromotionService.executeImagePromotion(promotions, deletions),
