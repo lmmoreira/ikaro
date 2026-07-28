@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { CACHE_PORT, CachePort } from '../../../../shared/ports/cache.port';
 import { scheduleAfterCommit } from '../../../../shared/infrastructure/transaction-context';
 import { toDate } from '../../../../shared/utils/date';
@@ -7,6 +7,7 @@ import { ITenantRepository, TenantFilters } from '../../application/ports/tenant
 import { Tenant } from '../../domain/tenant.aggregate';
 import { TenantSettings } from '../../domain/value-objects/tenant-settings.vo';
 import { TypeOrmTenantRepository } from './typeorm-tenant.repository';
+import { AppLogger } from '../../../../shared/observability/app-logger';
 
 type TenantCacheRecord = {
   id: string;
@@ -22,7 +23,7 @@ type TenantCacheRecord = {
 export class CachingTenantRepository implements ITenantRepository {
   private static readonly CACHE_TTL_MS = 60_000;
   private static readonly CACHE_KEY_PREFIX = 'platform:tenant:';
-  private readonly logger = new Logger(CachingTenantRepository.name);
+  private readonly logger = new AppLogger(CachingTenantRepository.name);
 
   constructor(
     private readonly repo: TypeOrmTenantRepository,

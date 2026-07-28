@@ -1,7 +1,7 @@
-import { Logger } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { TenantBuilder } from '../../../../test/builders/platform';
 import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typeorm-transaction-manager';
+import { AppLogger } from '../../../../shared/observability/app-logger';
 import { TypeOrmTenantRepository } from './typeorm-tenant.repository';
 import { CachingTenantRepository } from './caching-tenant.repository';
 
@@ -82,7 +82,7 @@ describe('CachingTenantRepository', () => {
 
   it('falls through to the repository when the cache backend fails', async () => {
     const tenant = new TenantBuilder().withId('tenant-id-4').withSlug('cache-error').build();
-    const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    const warnSpy = jest.spyOn(AppLogger.prototype, 'warn').mockImplementation();
 
     cachePort.get.mockRejectedValue(new Error('cache unavailable'));
     typeOrmRepo.findById.mockResolvedValue(tenant);

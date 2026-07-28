@@ -1,9 +1,11 @@
+import { ClosureReason } from '@ikaro/types';
+
 export interface ScheduleClosureResponse {
   id: string;
   date: string;
   startTime: string | null;
   endTime: string | null;
-  reason: string;
+  reason: ClosureReason;
   notes: string | null;
   createdBy: string;
   createdAt: string;

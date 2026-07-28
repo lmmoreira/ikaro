@@ -1,10 +1,11 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import { extractTenantIdFromTmpPath } from '../../../../shared/utils/extract-tenant-id-from-tmp-path';
 import { HOTSITE_TMP_PATH_REGEX } from '../../../../shared/utils/tmp-path-regex';
 import { HotsiteImageNotUploadedError } from '../../domain/errors/platform-domain.error';
 import { HotsiteBranding, HotsiteModule } from '../../domain/hotsite-config.aggregate';
 import { HotsiteImagePathsService } from '../../domain/services/hotsite-image-paths.service';
+import { AppLogger } from '../../../../shared/observability/app-logger';
 
 export interface ImagePromotionOperation {
   from: string;
@@ -19,7 +20,7 @@ export interface PreparedImagePromotion {
 
 @Injectable()
 export class HotsiteImagePromotionService {
-  private readonly logger = new Logger(HotsiteImagePromotionService.name);
+  private readonly logger = new AppLogger(HotsiteImagePromotionService.name);
 
   constructor(
     @Inject(STORAGE_SERVICE) private readonly storageService: IStorageService,

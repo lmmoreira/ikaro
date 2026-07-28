@@ -19,6 +19,7 @@ import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { withPublicTenant } from '../../shared/http/public-tenant';
 import { throwProblemDetail } from '../../shared/http/problem-detail';
+import { AppLogger } from '../../shared/observability/app-logger';
 import {
   AttachmentSignedUrlResponse,
   BookingResponse,
@@ -44,14 +45,14 @@ import {
 import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { AddressShapeSchema, isValidPhoneNumber } from '@ikaro/validation';
 import {
+  toBookingListResponse,
   toCustomerBookingDetail,
-  toCustomerBookingListItem,
   toGuestBookingRead,
-  toStaffBookingCard,
   toStaffBookingDetail,
 } from './bookings.mapper';
-import { GuestTokenPayload, tryDecodeRawJwt, verifyGuestToken } from './guest-token.util';
+import { GuestTokenPayload, verifyGuestToken } from './guest-token.util';
 import { buildBookingListParams, isStaffOrManagerRole } from './bookings-list-query.util';
+import { resolveTenantIdForAttachmentUpload } from './attachment-tenant-resolver';
 
 // Required-field checks are deliberately NOT duplicated here (TD23-S13) — the backend's
 // Uploads always target tmp/ staging (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md) — promotion to
@@ -195,29 +196,14 @@ type SubmitGuestBookingInfoBody = z.infer<typeof SubmitGuestBookingInfoBodySchem
 
 @Controller('bookings')
 export class BookingsController {
+  private readonly logger = new AppLogger(BookingsController.name);
+  private readonly jwtSecret: string;
+
   constructor(
     private readonly backendHttp: BackendHttpService,
     private readonly config: ConfigService,
-  ) {}
-
-  private tryDecodeUserJwt(authHeader: string | undefined): CurrentUserPayload | null {
-    if (!authHeader?.startsWith('Bearer ')) return null;
-    const token = authHeader.slice(7);
-    const secret = this.config.getOrThrow<string>('JWT_SECRET');
-    const raw = tryDecodeRawJwt(token, secret);
-    if (!raw) return null;
-    const parsed = z
-      .object({
-        sub: z.string(),
-        tenantId: z.string(),
-        tenantSlug: z.string(),
-        tenantName: z.string().default(''),
-        userName: z.string().nullable().default(null),
-        role: z.string(),
-        locale: z.string().default('pt-BR'),
-      })
-      .safeParse(raw);
-    return parsed.success ? parsed.data : null;
+  ) {
+    this.jwtSecret = this.config.getOrThrow<string>('JWT_SECRET');
   }
 
   @Post('attachments/signed-url')
@@ -228,46 +214,21 @@ export class BookingsController {
     @Headers('authorization') authHeader: string | undefined,
     @Body(new ZodValidationPipe(AttachmentSignedUrlBodySchema)) body: AttachmentSignedUrlBody,
   ): Promise<AttachmentSignedUrlResponse> {
-    const user = this.tryDecodeUserJwt(authHeader);
-
-    // Scenario 1 (CUSTOMER) or Scenario 4 (STAFF/MANAGER) — JWT identifies the tenant.
     // Must use postForPublic because this route is @Public() — JwtAuthGuard does not run,
     // so req.user is unset and post() would send an empty X-Tenant-ID header.
     // Uploads always target tmp/ staging now (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md) — a
     // bookingId is no longer needed at upload time, only tenant resolution is.
-    if (user) {
-      return this.backendHttp.postForPublic<AttachmentSignedUrlResponse>(
-        '/bookings/attachments/signed-url',
-        { fileName: body.fileName, contentType: body.contentType },
-        user.tenantId,
-      );
-    }
+    const tenantId = await resolveTenantIdForAttachmentUpload(this.backendHttp, {
+      authHeader,
+      guestToken: body.guestToken,
+      tenantSlug: body.tenantSlug,
+      jwtSecret: this.jwtSecret,
+    });
 
-    // Scenario 3 — guest with guestToken, tenant resolved from the token
-    if (body.guestToken) {
-      const secret = this.config.getOrThrow<string>('JWT_SECRET');
-      const tokenPayload = verifyGuestToken(body.guestToken, secret);
-      if (!tokenPayload) {
-        throw throwProblemDetail(
-          HttpStatus.UNAUTHORIZED,
-          BffErrorCode.GUEST_TOKEN_INVALID,
-          'Invalid or expired guest token',
-        );
-      }
-      return this.backendHttp.postForPublic<AttachmentSignedUrlResponse>(
-        '/bookings/attachments/signed-url',
-        { fileName: body.fileName, contentType: body.contentType },
-        tokenPayload.tenantId,
-      );
-    }
-
-    // Scenario 2 — anonymous guest, tenantSlug in body
-    return withPublicTenant(this.backendHttp, body.tenantSlug, (tenantId) =>
-      this.backendHttp.postForPublic<AttachmentSignedUrlResponse>(
-        '/bookings/attachments/signed-url',
-        { fileName: body.fileName, contentType: body.contentType },
-        tenantId,
-      ),
+    return this.backendHttp.postForPublic<AttachmentSignedUrlResponse>(
+      '/bookings/attachments/signed-url',
+      { fileName: body.fileName, contentType: body.contentType },
+      tenantId,
     );
   }
 
@@ -281,21 +242,7 @@ export class BookingsController {
 
     const backend = await this.backendHttp.get<BookingListResponse>('/bookings', params);
 
-    if (!isStaffOrManagerRole(user.role)) {
-      return {
-        items: backend.items.map(toCustomerBookingListItem),
-        total: backend.pagination.total,
-        page: query.page,
-        limit: query.limit,
-      };
-    }
-
-    return {
-      items: backend.items.map(toStaffBookingCard),
-      total: backend.pagination.total,
-      page: query.page,
-      limit: query.limit,
-    };
+    return toBookingListResponse(backend, query, isStaffOrManagerRole(user.role));
   }
 
   @Get(':id')
@@ -322,7 +269,11 @@ export class BookingsController {
         `/customers/${customerId}/loyalty/balance`,
       );
       return balance.currentPoints;
-    } catch {
+    } catch (err) {
+      this.logger.error('Failed to fetch loyalty balance for staff booking detail', undefined, {
+        customerId,
+        error: err instanceof Error ? err.message : String(err),
+      });
       return null;
     }
   }
@@ -475,8 +426,7 @@ export class BookingsController {
       );
     }
 
-    const secret = this.config.getOrThrow<string>('JWT_SECRET');
-    const payload = verifyGuestToken(token, secret);
+    const payload = verifyGuestToken(token, this.jwtSecret);
     if (!payload) {
       throw throwProblemDetail(
         HttpStatus.UNAUTHORIZED,
