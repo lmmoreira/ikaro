@@ -77,7 +77,13 @@ describe('BookingCtaConfigPanel', () => {
     );
   });
 
-  it('editing carouselDays calls onChange with the parsed number', () => {
+  it.each([
+    ['passes through a valid value', '30', 30],
+    ['clamps a value above 90 down to 90', '91', 90],
+    ['clamps a value below 1 up to 1', '-2', 1],
+    ['rounds a decimal value to the nearest integer', '1.5', 2],
+    ['falls back to 1 for a non-numeric value', '', 1],
+  ])('editing carouselDays: %s', (_description, typedValue, expectedCarouselDays) => {
     const onChange = vi.fn();
 
     renderWithIntl(
@@ -85,70 +91,12 @@ describe('BookingCtaConfigPanel', () => {
     );
 
     fireEvent.change(screen.getByLabelText('Número de dias exibidos'), {
-      target: { value: '30' },
+      target: { value: typedValue },
     });
 
     expect(onChange).toHaveBeenLastCalledWith(
-      writeModuleData({ ...BOOKING_CTA, carouselDays: 30 }),
+      writeModuleData({ ...BOOKING_CTA, carouselDays: expectedCarouselDays }),
     );
-  });
-
-  it('clamps a typed carouselDays value above 90 down to 90', () => {
-    const onChange = vi.fn();
-
-    renderWithIntl(
-      <BookingCtaConfigPanel data={writeModuleData(BOOKING_CTA)} onChange={onChange} />,
-    );
-
-    fireEvent.change(screen.getByLabelText('Número de dias exibidos'), {
-      target: { value: '91' },
-    });
-
-    expect(onChange).toHaveBeenLastCalledWith(
-      writeModuleData({ ...BOOKING_CTA, carouselDays: 90 }),
-    );
-  });
-
-  it('clamps a typed carouselDays value below 1 up to 1', () => {
-    const onChange = vi.fn();
-
-    renderWithIntl(
-      <BookingCtaConfigPanel data={writeModuleData(BOOKING_CTA)} onChange={onChange} />,
-    );
-
-    fireEvent.change(screen.getByLabelText('Número de dias exibidos'), {
-      target: { value: '-2' },
-    });
-
-    expect(onChange).toHaveBeenLastCalledWith(writeModuleData({ ...BOOKING_CTA, carouselDays: 1 }));
-  });
-
-  it('rounds a typed decimal carouselDays value to the nearest integer', () => {
-    const onChange = vi.fn();
-
-    renderWithIntl(
-      <BookingCtaConfigPanel data={writeModuleData(BOOKING_CTA)} onChange={onChange} />,
-    );
-
-    fireEvent.change(screen.getByLabelText('Número de dias exibidos'), {
-      target: { value: '1.5' },
-    });
-
-    expect(onChange).toHaveBeenLastCalledWith(writeModuleData({ ...BOOKING_CTA, carouselDays: 2 }));
-  });
-
-  it('falls back to 1 for a non-numeric carouselDays value', () => {
-    const onChange = vi.fn();
-
-    renderWithIntl(
-      <BookingCtaConfigPanel data={writeModuleData(BOOKING_CTA)} onChange={onChange} />,
-    );
-
-    fireEvent.change(screen.getByLabelText('Número de dias exibidos'), {
-      target: { value: '' },
-    });
-
-    expect(onChange).toHaveBeenLastCalledWith(writeModuleData({ ...BOOKING_CTA, carouselDays: 1 }));
   });
 
   it('editing subtitle, eyebrow, and ctaLabel each update only their own field', async () => {

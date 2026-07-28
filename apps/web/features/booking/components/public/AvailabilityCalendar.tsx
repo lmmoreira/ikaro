@@ -113,12 +113,12 @@ function CalendarChevron({
   return <Icon className={cn('h-4 w-4', className)} {...rest} />;
 }
 
-function CalendarPreviousMonthButton(props: PreviousMonthButtonProps): React.JSX.Element {
-  return <button {...props} data-testid="calendar-previous-month" />;
+function CalendarPreviousMonthButton(props: Readonly<PreviousMonthButtonProps>): React.JSX.Element {
+  return <button {...props} type="button" data-testid="calendar-previous-month" />;
 }
 
-function CalendarNextMonthButton(props: NextMonthButtonProps): React.JSX.Element {
-  return <button {...props} data-testid="calendar-next-month" />;
+function CalendarNextMonthButton(props: Readonly<NextMonthButtonProps>): React.JSX.Element {
+  return <button {...props} type="button" data-testid="calendar-next-month" />;
 }
 
 const DAY_PICKER_COMPONENTS = {
