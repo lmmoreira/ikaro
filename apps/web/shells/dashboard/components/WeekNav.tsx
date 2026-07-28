@@ -2,7 +2,7 @@
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
-import { addDays, isSameDay, toDateKey } from '@/shared/utils/date-utils';
+import { addDays, isSameDay, toISODate } from '@/shared/lib/formatting/date-utils';
 
 export interface WeekNavProps {
   readonly windowStart: Date;
@@ -86,7 +86,7 @@ export function WeekNav({
       {/* Day strip */}
       <div className="flex justify-evenly overflow-x-auto px-1 py-2">
         {days.map((day) => {
-          const dateKey = toDateKey(day);
+          const dateKey = toISODate(day);
           const isToday = isSameDay(day, today);
           const isSelected = selectedDate === dateKey;
           const hasActivity = activeDates?.has(dateKey) ?? false;

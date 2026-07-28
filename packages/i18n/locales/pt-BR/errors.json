@@ -83,6 +83,7 @@
   "PLATFORM_HOTSITE_BRANDING_COLOR_INVALID": "A cor informada é inválida.",
   "PLATFORM_HOTSITE_BRANDING_OPTION_INVALID": "A opção selecionada é inválida.",
   "PLATFORM_HOTSITE_MODULE_TYPE_INVALID": "Ocorreu um erro inesperado. Tente novamente.",
+  "PLATFORM_HOTSITE_CAROUSEL_DAYS_EXCEEDS_MAX_ADVANCE": "O número de dias do carrossel não pode ser maior que o limite de antecedência para agendamento.",
   "PLATFORM_HOTSITE_SEO_TITLE_TOO_LONG": "O título de SEO é muito longo.",
   "PLATFORM_HOTSITE_SEO_DESCRIPTION_TOO_LONG": "A descrição de SEO é muito longa.",
   "PLATFORM_SETTINGS_CURRENCY_REQUIRED": "A moeda é obrigatória.",

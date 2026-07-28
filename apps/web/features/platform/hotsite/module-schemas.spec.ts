@@ -293,6 +293,29 @@ describe('BookingCtaModuleDataSchema', () => {
 
     expect(result.success).toBe(false);
   });
+
+  it('accepts datePickerType being absent', () => {
+    expect(BookingCtaModuleDataSchema.safeParse(validBookingCtaData).success).toBe(true);
+  });
+
+  it.each(['carousel', 'calendar'] as const)('accepts datePickerType %s', (datePickerType) => {
+    const result = BookingCtaModuleDataSchema.safeParse({
+      ...validBookingCtaData,
+      datePickerType,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.datePickerType).toBe(datePickerType);
+  });
+
+  it('rejects an invalid datePickerType value', () => {
+    const result = BookingCtaModuleDataSchema.safeParse({
+      ...validBookingCtaData,
+      datePickerType: 'month-grid',
+    });
+
+    expect(result.success).toBe(false);
+  });
 });
 
 const validContactData = {

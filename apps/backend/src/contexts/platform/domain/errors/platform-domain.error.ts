@@ -118,6 +118,17 @@ export class HotsiteModuleTypeInvalidError extends PlatformDomainError {
   }
 }
 
+export class HotsiteCarouselDaysExceedsMaxAdvanceError extends PlatformDomainError {
+  constructor(carouselDays: number, maxBookingAdvanceDays: number) {
+    super(
+      `carouselDays (${carouselDays}) cannot exceed maxBookingAdvanceDays (${maxBookingAdvanceDays})`,
+      PlatformErrorCode.HOTSITE_CAROUSEL_DAYS_EXCEEDS_MAX_ADVANCE,
+      'carouselDays',
+    );
+    this.name = 'HotsiteCarouselDaysExceedsMaxAdvanceError';
+  }
+}
+
 export class HotsiteSeoTitleTooLongError extends PlatformDomainError {
   constructor(maxLength: number) {
     super(

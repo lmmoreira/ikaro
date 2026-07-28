@@ -3,17 +3,12 @@
 import type * as React from 'react';
 import { useContext } from 'react';
 import { DayPicker } from 'react-day-picker';
-import { enUS, ptBR } from 'date-fns/locale';
 import { buttonVariants } from '@/shared/components/ui/button';
 import { FormattingContext } from '@/shared/lib/formatting/formatting-context';
-import { resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
+import { resolveDayPickerLocale } from '@/shared/lib/i18n/day-picker-locale';
 import { cn } from '@/shared/utils/cn';
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>;
-
-function resolveDayPickerLocale(locale: string) {
-  return resolveSupportedLocale(locale) === 'en' ? enUS : ptBR;
-}
 
 function getModifiersClassName(): Record<string, string> {
   return {
@@ -33,8 +28,11 @@ function getModifiersClassName(): Record<string, string> {
     chevron: 'h-4 w-4',
     weekday: 'text-gray-500 rounded-md w-9 font-normal text-[0.8rem]',
     month_grid: 'w-full border-collapse space-y-1',
-    row: 'flex w-full mt-2',
-    cell: 'relative p-0 text-center text-sm focus-within:relative focus-within:z-20',
+    // react-day-picker v10 renamed these from v8/v9's `row`/`cell` to `week`/`day` — the old
+    // keys aren't recognized `classNames` keys anymore, so this styling was silently dead code
+    // (found while chasing an identical layout bug in AvailabilityCalendar.tsx, M18-S01).
+    week: 'flex w-full mt-2',
+    day: 'relative p-0 text-center text-sm focus-within:relative focus-within:z-20',
     day_button: cn(
       buttonVariants({ variant: 'ghost' }),
       'h-9 w-9 p-0 font-normal aria-selected:opacity-100',

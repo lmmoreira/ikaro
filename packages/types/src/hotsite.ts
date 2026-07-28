@@ -66,6 +66,7 @@ export interface BookingCtaModuleData {
   ctaLabel: string;
   backgroundImageUrl?: string;
   carouselDays?: number;
+  datePickerType?: 'carousel' | 'calendar';
   bgStyle?: 'primary' | 'background';
   rightPanel?: 'none' | 'brand-card';
 }
@@ -189,10 +190,18 @@ export interface HotsiteLocalizationResponse {
   address: HotsiteAddressSpec;
 }
 
+export interface HotsiteBookingSettingsResponse {
+  maxBookingAdvanceDays: number;
+}
+
 export interface HotsiteManifestResponse extends HotsiteResponse {
   tenant: TenantInfoResponse;
   business: HotsiteBusinessInfoResponse;
   localization: HotsiteLocalizationResponse;
+  // Optional, not required: this is a shared @ikaro/types response contract — a required field
+  // added here would be a breaking change for any producer/consumer/cached response still on the
+  // prior shape (see .coderabbit.yaml's packages/** path instructions).
+  booking?: HotsiteBookingSettingsResponse;
 }
 
 export interface HotsiteAdminContentResponse extends HotsiteResponse {

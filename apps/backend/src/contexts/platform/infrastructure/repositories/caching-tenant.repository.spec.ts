@@ -18,6 +18,7 @@ describe('CachingTenantRepository', () => {
     typeOrmRepo = {
       findBySlug: jest.fn(),
       findById: jest.fn(),
+      findByIdForUpdate: jest.fn(),
       findByIds: jest.fn(),
       findMany: jest.fn(),
       findAllActive: jest.fn(),
@@ -103,6 +104,17 @@ describe('CachingTenantRepository', () => {
     );
 
     warnSpy.mockRestore();
+  });
+
+  it('findByIdForUpdate always delegates straight through, bypassing the cache in both directions', async () => {
+    const tenant = new TenantBuilder().withId('tenant-id-5').withSlug('locked-read').build();
+    typeOrmRepo.findByIdForUpdate.mockResolvedValue(tenant);
+
+    await expect(repo.findByIdForUpdate(tenant.id)).resolves.toBe(tenant);
+
+    expect(typeOrmRepo.findByIdForUpdate).toHaveBeenCalledWith(tenant.id);
+    expect(cachePort.get).not.toHaveBeenCalled();
+    expect(cachePort.set).not.toHaveBeenCalled();
   });
 
   it('invalidates cached tenants after the transaction commits', async () => {

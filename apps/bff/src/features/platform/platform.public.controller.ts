@@ -3,6 +3,7 @@ import { Public } from '../../shared/decorators/public.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { TenantInfoResponse } from '../../shared/types/backend-responses';
 import {
+  HotsiteBookingSettingsResponse,
   HotsiteBusinessInfoResponse,
   HotsiteLocalizationResponse,
   HotsiteManifestResponse,
@@ -25,6 +26,7 @@ export class PlatformPublicController {
       HotsiteResponse & {
         business: HotsiteBusinessInfoResponse;
         localization: HotsiteLocalizationResponse;
+        booking: HotsiteBookingSettingsResponse;
       }
     >('/hotsite', tenant.id);
     return { tenant, ...hotsite };

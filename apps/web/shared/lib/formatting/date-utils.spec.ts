@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, dayCarouselLabel, dayNumber, toISODate } from './date-utils';
+import {
+  addDays,
+  dayCarouselLabel,
+  dayNumber,
+  inWindow,
+  isSameDay,
+  toISODate,
+  toISODateInTimezone,
+} from './date-utils';
 
 describe('toISODate', () => {
   it('formats a date as YYYY-MM-DD', () => {
@@ -8,6 +16,21 @@ describe('toISODate', () => {
 
   it('pads single-digit months and days', () => {
     expect(toISODate(new Date(Date.UTC(2026, 0, 5)))).toBe('2026-01-05');
+  });
+});
+
+describe('toISODateInTimezone', () => {
+  it('returns the date in the given timezone', () => {
+    // 2026-06-27T01:00:00Z = 2026-06-26T22:00:00 in America/Sao_Paulo (UTC-3)
+    expect(toISODateInTimezone(new Date('2026-06-27T01:00:00.000Z'), 'America/Sao_Paulo')).toBe(
+      '2026-06-26',
+    );
+  });
+
+  it('returns the same date when time is mid-day UTC', () => {
+    expect(toISODateInTimezone(new Date('2026-06-26T14:00:00.000Z'), 'America/Sao_Paulo')).toBe(
+      '2026-06-26',
+    );
   });
 });
 
@@ -22,6 +45,45 @@ describe('addDays', () => {
 
   it('rolls over into the next month', () => {
     expect(toISODate(addDays(new Date(Date.UTC(2026, 5, 25)), 10))).toBe('2026-07-05');
+  });
+});
+
+describe('isSameDay', () => {
+  it('returns true for same UTC date at different times', () => {
+    const a = new Date('2026-06-26T08:00:00.000Z');
+    const b = new Date('2026-06-26T23:59:59.000Z');
+    expect(isSameDay(a, b)).toBe(true);
+  });
+
+  it('returns false for adjacent UTC days', () => {
+    const a = new Date('2026-06-26T00:00:00.000Z');
+    const b = new Date('2026-06-27T00:00:00.000Z');
+    expect(isSameDay(a, b)).toBe(false);
+  });
+});
+
+describe('inWindow', () => {
+  const start = new Date('2026-06-26T00:00:00.000Z');
+  const end = new Date('2026-07-09T00:00:00.000Z');
+
+  it('returns true for a date strictly within the window', () => {
+    expect(inWindow(new Date('2026-07-01T00:00:00.000Z'), start, end)).toBe(true);
+  });
+
+  it('returns true on the start boundary', () => {
+    expect(inWindow(start, start, end)).toBe(true);
+  });
+
+  it('returns true on the end boundary', () => {
+    expect(inWindow(end, start, end)).toBe(true);
+  });
+
+  it('returns false before the window', () => {
+    expect(inWindow(new Date('2026-06-25T23:59:59.000Z'), start, end)).toBe(false);
+  });
+
+  it('returns false after the window', () => {
+    expect(inWindow(new Date('2026-07-10T00:00:00.000Z'), start, end)).toBe(false);
   });
 });
 

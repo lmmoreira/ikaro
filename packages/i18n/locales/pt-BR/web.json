@@ -88,7 +88,10 @@
       "previousDays": "Dias anteriores",
       "nextDays": "Próximos dias",
       "noSlots": "Nenhum horário disponível nos próximos dias",
-      "today": "Hoje"
+      "today": "Hoje",
+      "previousMonth": "Mês anterior",
+      "nextMonth": "Próximo mês",
+      "outOfRangeMessage": "Esta data está além do limite de {days, plural, one {# dia} other {# dias}} para agendamento."
     },
     "personalInfo": {
       "heading": "Seus dados",
@@ -616,7 +619,12 @@
             "backgroundImageFormatHint": "Sem imagem → fundo sólido",
             "backgroundImageUploading": "Enviando...",
             "backgroundImageUploadError": "Não foi possível enviar a imagem. Tente novamente.",
-            "backgroundImageRemove": "Remover imagem"
+            "backgroundImageRemove": "Remover imagem",
+            "calendarSectionTitle": "Calendário",
+            "datePickerTypeLabel": "Seletor de data",
+            "datePickerTypeCarousel": "Carrossel",
+            "datePickerTypeCalendar": "Calendário",
+            "carouselDaysLabel": "Número de dias exibidos"
           },
           "testimonials": {
             "titleLabel": "Título (opcional)",

@@ -12,7 +12,7 @@ import {
   getWeekStartKey,
   isValidDateKey,
 } from '@/features/booking/schedule/date-utils';
-import { toDateKeyInTimezone } from '@/shared/utils/date-utils';
+import { toISODateInTimezone } from '@/shared/lib/formatting/date-utils';
 
 interface ScheduleRouteProps {
   readonly searchParams: Promise<{ weekStart?: string; date?: string }>;
@@ -24,7 +24,7 @@ export default async function ScheduleRoute({
   const token = await getAccessToken();
   const tenantSettings = await fetchTenantSettings(token);
   const timezone = tenantSettings.settings.businessHours.timezone;
-  const todayKey = toDateKeyInTimezone(new Date(), timezone);
+  const todayKey = toISODateInTimezone(new Date(), timezone);
   const { weekStart, date } = await searchParams;
   const selectedDateKey = date && isValidDateKey(date) ? date : todayKey;
   const weekStartKey =

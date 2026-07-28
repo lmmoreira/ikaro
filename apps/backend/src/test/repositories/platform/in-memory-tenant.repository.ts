@@ -22,6 +22,10 @@ export class InMemoryTenantRepository implements ITenantRepository {
     return this.store.get(id) ?? null;
   }
 
+  async findByIdForUpdate(id: string): Promise<Tenant | null> {
+    return this.store.get(id) ?? null;
+  }
+
   async findByIds(ids: string[]): Promise<Tenant[]> {
     return ids.flatMap((id) => {
       const tenant = this.store.get(id);

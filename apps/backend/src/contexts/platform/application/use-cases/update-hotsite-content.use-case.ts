@@ -4,7 +4,10 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
 import { scheduleAfterCommit } from '../../../../shared/infrastructure/transaction-context';
-import { HotsiteNotFoundError } from '../../domain/errors/platform-domain.error';
+import {
+  HotsiteNotFoundError,
+  TenantNotFoundError,
+} from '../../domain/errors/platform-domain.error';
 import {
   HotsiteBranding,
   HotsiteModule,
@@ -17,6 +20,7 @@ import {
   HOTSITE_CONFIG_REPOSITORY,
   IHotsiteConfigRepository,
 } from '../ports/hotsite-config-repository.port';
+import { ITenantRepository, TENANT_REPOSITORY } from '../ports/tenant-repository.port';
 import { UpdateHotsiteContentDto } from '../dtos/update-hotsite-content.dto';
 
 export type UpdateHotsiteContentUseCaseInput = UpdateHotsiteContentDto & { tenantId: string };
@@ -33,6 +37,7 @@ export class UpdateHotsiteContentUseCase {
   constructor(
     @Inject(HOTSITE_CONFIG_REPOSITORY)
     private readonly hotsiteConfigRepo: IHotsiteConfigRepository,
+    @Inject(TENANT_REPOSITORY) private readonly tenantRepo: ITenantRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     private readonly imagePathsService: HotsiteImagePathsService,
     private readonly imagePromotionService: HotsiteImagePromotionService,
@@ -67,9 +72,19 @@ export class UpdateHotsiteContentUseCase {
       (path) => !newPaths.includes(path) && path.startsWith(tenantPrefix),
     );
 
-    config.updateContent(branding, layout, seo);
-
     await this.txManager.run(async () => {
+      // Locked and re-read here, not before the transaction — carouselDays vs.
+      // maxBookingAdvanceDays is a cross-aggregate invariant (Tenant vs. HotsiteConfig). Reading
+      // the tenant's settings before opening the transaction would validate against a value that
+      // a concurrent settings update could change before this save actually commits.
+      // findByIdForUpdate's row lock serializes against that update instead of racing it.
+      const tenant = await this.tenantRepo.findByIdForUpdate(tenantId);
+      if (!tenant) throw new TenantNotFoundError(tenantId);
+
+      config.updateContent(branding, layout, seo, {
+        maxBookingAdvanceDays: tenant.settings.booking.maxBookingAdvanceDays,
+      });
+
       await this.hotsiteConfigRepo.save(config);
       await scheduleAfterCommit(() =>
         this.imagePromotionService.executeImagePromotion(promotions, deletions),

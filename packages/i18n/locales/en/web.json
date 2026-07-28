@@ -88,7 +88,10 @@
       "previousDays": "Previous days",
       "nextDays": "Next days",
       "noSlots": "No time slots available in the coming days",
-      "today": "Today"
+      "today": "Today",
+      "previousMonth": "Previous month",
+      "nextMonth": "Next month",
+      "outOfRangeMessage": "This date is beyond the {days}-day booking limit."
     },
     "personalInfo": {
       "heading": "Your details",
@@ -616,7 +619,12 @@
             "backgroundImageFormatHint": "No image → solid background",
             "backgroundImageUploading": "Uploading...",
             "backgroundImageUploadError": "Could not upload the image. Try again.",
-            "backgroundImageRemove": "Remove image"
+            "backgroundImageRemove": "Remove image",
+            "calendarSectionTitle": "Calendar",
+            "datePickerTypeLabel": "Date picker",
+            "datePickerTypeCarousel": "Carousel",
+            "datePickerTypeCalendar": "Calendar",
+            "carouselDaysLabel": "Number of days shown"
           },
           "testimonials": {
             "titleLabel": "Title (optional)",

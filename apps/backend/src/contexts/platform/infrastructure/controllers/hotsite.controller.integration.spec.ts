@@ -163,6 +163,7 @@ describe('HotsiteController (integration)', () => {
     expect(body.isPublished).toBe(false);
     expect(body.layout).toEqual([]);
     expect(body.business).toEqual({ phone: null, email: null, address: null, socialLinks: null });
+    expect(body.booking).toEqual({ maxBookingAdvanceDays: 90 });
   });
 
   it('returns the manifest for a published hotsite', async () => {
@@ -176,6 +177,7 @@ describe('HotsiteController (integration)', () => {
     expect(body.branding.primaryColor).toBe('#2563EB');
     expect(body.layout).toHaveLength(1);
     expect(body.layout[0].type).toBe('HERO');
+    expect(body.booking).toEqual({ maxBookingAdvanceDays: 90 });
   });
 
   it('returns null business fields when tenant.settings.businessInfo is unset', async () => {

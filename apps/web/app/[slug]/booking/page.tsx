@@ -40,6 +40,7 @@ export default async function BookingPage({ params }: BookingPageProps) {
   const bookingCtaModule = manifest.layout.find((m) => m.type === 'BOOKING_CTA');
   const parsed = BookingCtaModuleDataSchema.safeParse(bookingCtaModule?.data);
   const carouselDays = parsed.success ? (parsed.data.carouselDays ?? 14) : 14;
+  const datePickerType = parsed.success ? (parsed.data.datePickerType ?? 'carousel') : 'carousel';
 
   return (
     <>
@@ -48,6 +49,10 @@ export default async function BookingPage({ params }: BookingPageProps) {
         slug={slug}
         services={services}
         carouselDays={carouselDays}
+        datePickerType={datePickerType}
+        // manifest.booking is optional (see @ikaro/types) — falls back to the documented tenant
+        // settings default (docs/21-TENANTS_SETTINGS_SCHEMA.md) rather than dereferencing unconditionally.
+        maxBookingAdvanceDays={manifest.booking?.maxBookingAdvanceDays ?? 90}
         phonePrefix={manifest.localization.phonePrefix}
         addressSpec={manifest.localization.address}
       />

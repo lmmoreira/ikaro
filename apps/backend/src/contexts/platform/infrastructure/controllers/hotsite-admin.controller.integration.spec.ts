@@ -116,6 +116,26 @@ describe('HotsiteAdminController (integration)', () => {
       expect(body.status).toBe(400);
     });
 
+    it('returns 400 when a BOOKING_CTA module carouselDays exceeds tenant.settings.booking.maxBookingAdvanceDays', async () => {
+      const { body } = await request(app.getHttpServer())
+        .patch('/tenants/hotsite')
+        .set('X-Tenant-ID', TENANT_A)
+        .set('X-Actor-Role', 'MANAGER')
+        .send({
+          layout: [
+            {
+              type: 'BOOKING_CTA',
+              enabled: true,
+              data: { title: 'Agende já', ctaLabel: 'Agendar', carouselDays: 91 },
+            },
+          ],
+        })
+        .expect(400);
+
+      expect(body.status).toBe(400);
+      expect(body.code).toBe('PLATFORM_HOTSITE_CAROUSEL_DAYS_EXCEEDS_MAX_ADVANCE');
+    });
+
     it('returns 400 when the branding logoUrl has not been uploaded, then 200 after upload', async () => {
       const logoPath = `tenants/${TENANT_A}/hotsite/branding/u1/logo.png`;
 

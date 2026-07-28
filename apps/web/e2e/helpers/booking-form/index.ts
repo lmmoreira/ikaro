@@ -16,6 +16,22 @@ export async function navigateToStep3(page: Page, tenantSlug = 'ikaro'): Promise
   await expect(page.locator('[data-testid="input-name"]')).toBeVisible();
 }
 
+// For a tenant whose BOOKING_CTA module has datePickerType: 'calendar' — same step 1/3 flow as
+// navigateToStep3, just clicking a calendar-day cell instead of a day-option carousel button.
+export async function navigateToCalendarStep3(page: Page, tenantSlug = 'ikaro'): Promise<void> {
+  await page.goto(`/${tenantSlug}/booking`);
+  await page.locator('[data-testid="step-service-selection"]').waitFor();
+
+  await page.locator('[data-testid="service-card"][data-requires-pickup="false"]').first().click();
+  await page.locator('[data-testid="step-next"]').click();
+
+  await page.locator('[data-testid="calendar-day"]:not([disabled])').first().click();
+  await page.locator('[data-testid="time-slot"]').first().click();
+  await page.locator('[data-testid="step-next"]').click();
+
+  await expect(page.locator('[data-testid="input-name"]')).toBeVisible();
+}
+
 export async function navigateToAuthenticatedStep3(
   page: Page,
   tenantSlug = 'ikaro',

@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from '@/shared/components/ui/select';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
-import { toDateKeyInTimezone } from '@/shared/utils/date-utils';
+import { toISODateInTimezone } from '@/shared/lib/formatting/date-utils';
 import { useModalDialog } from '@/features/booking/hooks/use-modal-dialog';
 import { buildTimeOptions } from './time-options';
 
@@ -161,7 +161,7 @@ export function ScheduleDateTimeRangeSheet<TBody, TResponse>({
                 classNames={{ root: 'p-0' }}
                 onSelect={(selected) => {
                   if (!selected) return;
-                  setDate(toDateKeyInTimezone(selected, timezone));
+                  setDate(toISODateInTimezone(selected, timezone));
                   setCalendarMonth(selected);
                   setDateOpen(false);
                 }}

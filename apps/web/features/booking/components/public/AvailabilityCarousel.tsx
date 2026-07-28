@@ -19,6 +19,7 @@ interface AvailabilityCarouselProps {
   readonly selectedDate: string | null;
   readonly onSelectDate: (date: string) => void;
   readonly carouselDays: number;
+  readonly maxBookingAdvanceDays: number;
   readonly variant?: 'hotsite' | 'dashboard';
 }
 
@@ -31,6 +32,7 @@ export function AvailabilityCarousel({
   selectedDate,
   onSelectDate,
   carouselDays,
+  maxBookingAdvanceDays,
   variant = 'hotsite',
 }: AvailabilityCarouselProps): React.JSX.Element {
   const t = useTranslations('booking');
@@ -45,7 +47,7 @@ export function AvailabilityCarousel({
 
     const today = new Date();
     const from = toISODate(today);
-    const to = toISODate(addDays(today, carouselDays - 1));
+    const to = toISODate(addDays(today, Math.min(carouselDays, maxBookingAdvanceDays) - 1));
 
     fetchAvailabilitySummary(slug, from, to, serviceIds)
       .then((result) => {
@@ -58,7 +60,7 @@ export function AvailabilityCarousel({
     return () => {
       cancelled = true;
     };
-  }, [slug, serviceIds, carouselDays, retryCount]);
+  }, [slug, serviceIds, carouselDays, maxBookingAdvanceDays, retryCount]);
 
   const handleRetry = useCallback(() => {
     setError(false);

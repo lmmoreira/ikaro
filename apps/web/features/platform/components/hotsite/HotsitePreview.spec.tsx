@@ -64,6 +64,9 @@ function makeManifest(): HotsiteManifestResponse {
         lookupService: 'viacep',
       },
     },
+    booking: {
+      maxBookingAdvanceDays: 90,
+    },
   };
 }
 

@@ -46,6 +46,13 @@ export class CachingTenantRepository implements ITenantRepository {
     return tenant;
   }
 
+  // Deliberately bypasses the cache in both directions — a locking read backing a write-time
+  // invariant check must see the current committed row, never a stale cached copy, and the lock
+  // itself is only meaningful for the caller's own transaction, not something to memoize.
+  async findByIdForUpdate(id: string): Promise<Tenant | null> {
+    return this.repo.findByIdForUpdate(id);
+  }
+
   async findByIds(ids: string[]): Promise<Tenant[]> {
     return this.repo.findByIds(ids);
   }

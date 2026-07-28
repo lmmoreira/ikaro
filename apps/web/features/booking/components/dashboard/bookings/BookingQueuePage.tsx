@@ -13,7 +13,7 @@ import {
   useUpcomingBookings,
 } from '@/features/booking/hooks/useBookings';
 import { useApproveBooking } from '@/features/booking/hooks/useBookingMutations';
-import { addDays, inWindow, isSameDay, toDateKey } from '@/shared/utils/date-utils';
+import { addDays, inWindow, isSameDay, toISODate } from '@/shared/lib/formatting/date-utils';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { BookingCard } from './BookingCard';
@@ -48,8 +48,8 @@ export function BookingQueuePage({
   const [approveError, setApproveError] = useState<string | null>(null);
   const windowEnd = useMemo(() => addDays(windowStart, windowDays - 1), [windowStart, windowDays]);
 
-  const windowStartStr = toDateKey(windowStart);
-  const windowEndStr = toDateKey(windowEnd);
+  const windowStartStr = toISODate(windowStart);
+  const windowEndStr = toISODate(windowEnd);
 
   const todayInWindow = inWindow(todayDate, windowStart, windowEnd);
   const upcomingFrom = todayInWindow ? tomorrow : windowStartStr;

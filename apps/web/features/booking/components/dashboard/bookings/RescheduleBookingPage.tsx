@@ -29,6 +29,7 @@ import { BookingClientCard } from './BookingClientCard';
 interface RescheduleBookingPageProps {
   readonly booking: StaffBookingDetailResponse;
   readonly tenantSlug: string;
+  readonly maxBookingAdvanceDays: number;
   readonly backHref: string;
   readonly agendaHref: string;
 }
@@ -45,6 +46,7 @@ function formatRangeLine(
 export function RescheduleBookingPage({
   booking,
   tenantSlug,
+  maxBookingAdvanceDays,
   backHref,
   agendaHref,
 }: RescheduleBookingPageProps): React.JSX.Element {
@@ -231,6 +233,7 @@ export function RescheduleBookingPage({
                 setSelectedSlot(null);
               }}
               carouselDays={14}
+              maxBookingAdvanceDays={maxBookingAdvanceDays}
               variant="dashboard"
             />
           </section>

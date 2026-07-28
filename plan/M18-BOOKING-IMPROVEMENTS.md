@@ -74,7 +74,7 @@ Both widgets must respect `tenant.settings.booking.maxBookingAdvanceDays`, which
 
 - **Carousel:** clamp the fetched/rendered window to `min(carouselDays, maxBookingAdvanceDays)` when computing the `from`/`to` range (`AvailabilityCarousel.tsx`'s current `addDays(today, carouselDays - 1)` becomes `addDays(today, Math.min(carouselDays, maxBookingAdvanceDays) - 1)`). The carousel has no forward-navigation past its fetched window, so this clamp *is* the enforcement — there's no separate interaction to block.
   - `maxBookingAdvanceDays` becomes a **required** prop on `AvailabilityCarouselProps` (not optional) — per Part 7 below, both existing call sites (`BookingForm.tsx`, `RescheduleBookingPage.tsx`) are updated to always supply a real value, so the clamp applies unconditionally with no undefined-handling branch.
-- **Calendar:** month navigation (prev/next) stays unrestricted — a tenant can browse arbitrarily far forward. Selecting (clicking) a date after `today + maxBookingAdvanceDays` must **not** call `onSelectDate`; instead it renders visually muted/disabled (mirrors the carousel's existing `day.available === false` styling) and surfaces a message via the existing `ErrorAlert` component pattern, inline near the calendar (resolved — see "Resolved during story-discovery" below).
+- **Calendar:** month navigation (prev/next) is capped at the month containing the `maxBookingAdvanceDays` boundary via DayPicker's `endMonth` prop — a tenant cannot page forward into a month that's entirely out of range. Selecting (clicking) a date after `today + maxBookingAdvanceDays - 1` (the last bookable day, inclusive) must **not** call `onSelectDate`; instead it renders visually muted/disabled (mirrors the carousel's existing `day.available === false` styling) and surfaces a message via the existing `ErrorAlert` component pattern, inline near the calendar (resolved — see "Resolved during story-discovery" below).
 
 ### Part 6 — Backend enforcement: `carouselDays` must not exceed `maxBookingAdvanceDays`
 
@@ -89,8 +89,11 @@ type ModuleDataValidator = (data: HotsiteModuleData, ctx: LayoutValidationContex
 
 const MODULE_DATA_VALIDATORS: Partial<Record<HotsiteModuleType, ModuleDataValidator>> = {
   BOOKING_CTA: (data, ctx) => {
-    const { carouselDays } = data as BookingCtaModuleData;
-    if (carouselDays !== undefined && carouselDays > ctx.maxBookingAdvanceDays) {
+    const { carouselDays, datePickerType } = data as BookingCtaModuleData;
+    // A stale carouselDays value retained from a prior carousel configuration must not block
+    // saving an unrelated field once the picker has been switched to calendar.
+    const isCarouselMode = (datePickerType ?? 'carousel') === 'carousel';
+    if (isCarouselMode && carouselDays !== undefined && carouselDays > ctx.maxBookingAdvanceDays) {
       throw new HotsiteCarouselDaysExceedsMaxAdvanceError(carouselDays, ctx.maxBookingAdvanceDays);
     }
   },
@@ -110,7 +113,7 @@ private validateLayout(layout: HotsiteModule[], ctx: LayoutValidationContext): v
 - New domain error `HotsiteCarouselDaysExceedsMaxAdvanceError extends PlatformDomainError` in `platform-domain.error.ts`, field `'carouselDays'`.
 - New `PlatformErrorCode.HOTSITE_CAROUSEL_DAYS_EXCEEDS_MAX_ADVANCE` = `'PLATFORM_HOTSITE_CAROUSEL_DAYS_EXCEEDS_MAX_ADVANCE'` (`packages/types/src/error-codes.ts`, next to the other `HOTSITE_*` entries) — falls through `platform-error.mapper.ts`'s existing generic `PlatformDomainError → 400 BAD_REQUEST` branch (line 22); **no mapper change needed**.
 - New translation entries in both `packages/i18n/locales/pt-BR/errors.json` and `.../en/errors.json`, keyed `PLATFORM_HOTSITE_CAROUSEL_DAYS_EXCEEDS_MAX_ADVANCE`.
-- `update-hotsite-content.use-case.ts`: currently only loads `HotsiteConfig` — inject `TENANT_REPOSITORY`/`ITenantRepository` (already used the same way by `GetHotsiteManifestUseCase` in this same context — not a new port), load the tenant alongside the config, throw `TenantNotFoundError` if missing (mirrors the existing `HotsiteNotFoundError` check), and call `config.updateContent(branding, layout, seo, { maxBookingAdvanceDays: tenant.settings.booking.maxBookingAdvanceDays })`.
+- `update-hotsite-content.use-case.ts`: currently only loads `HotsiteConfig` — inject `TENANT_REPOSITORY`/`ITenantRepository` (already used the same way by `GetHotsiteManifestUseCase` in this same context — not a new port). `carouselDays` vs. `maxBookingAdvanceDays` is a cross-aggregate invariant (Tenant vs. HotsiteConfig), so the tenant is read *inside* `txManager.run()` via a new locking `findByIdForUpdate(tenantId)` port method (`SELECT ... FOR UPDATE`, following the same pattern as `IStaffRepository.countActiveManagersByTenant()`) — not before the transaction opens, which would validate against a value a concurrent settings update could change before this save actually commits. Throws `TenantNotFoundError` if missing (mirrors the existing `HotsiteNotFoundError` check), then calls `config.updateContent(branding, layout, seo, { maxBookingAdvanceDays: tenant.settings.booking.maxBookingAdvanceDays })`.
 - The hotsite editor's existing save-error handling surfaces this error's message inline — no new client-side pre-check is added (the backend is the single enforcement point; adding a duplicate client-side cross-field check would be redundant machinery for no additional correctness).
 
 ### Part 7 — Thread `maxBookingAdvanceDays` into the dashboard reschedule flow
