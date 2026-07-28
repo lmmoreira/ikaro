@@ -90,6 +90,7 @@ function CalendarDayButton({ day, modifiers, style, ...rest }: DayButtonProps): 
   return (
     <button
       {...rest}
+      type="button"
       data-testid="calendar-day"
       data-date={day.isoDate}
       className="flex h-9 w-9 items-center justify-center text-base font-semibold transition-opacity hover:opacity-80"
@@ -106,7 +107,7 @@ function CalendarChevron({
   disabled: _disabled,
   size: _size,
   ...rest
-}: ChevronProps): React.JSX.Element {
+}: Readonly<ChevronProps>): React.JSX.Element {
   const Icon = orientation === 'right' ? ChevronRight : ChevronLeft;
   return <Icon className={cn('h-4 w-4', className)} {...rest} />;
 }
@@ -164,10 +165,11 @@ export function AvailabilityCalendar({
   const currentRangeKey = `${fetchFromIso}_${fetchToIso}`;
 
   const isCurrent = result?.rangeKey === currentRangeKey;
-  const days = useMemo(
-    () => (monthEntirelyOutOfRange ? [] : isCurrent ? result?.days : undefined),
-    [monthEntirelyOutOfRange, isCurrent, result],
-  );
+  const days = useMemo(() => {
+    if (monthEntirelyOutOfRange) return [];
+    if (isCurrent) return result?.days;
+    return undefined;
+  }, [monthEntirelyOutOfRange, isCurrent, result]);
   const error = !monthEntirelyOutOfRange && isCurrent && result?.days === null;
 
   useEffect(() => {
