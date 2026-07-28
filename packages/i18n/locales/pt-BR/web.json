@@ -426,7 +426,8 @@
       "tabs": {
         "branding": "Branding",
         "layout": "Layout",
-        "seo": "SEO"
+        "seo": "SEO",
+        "manifest": "Manifesto"
       },
       "publish": "Publicar alterações",
       "preview": "Preview",
@@ -702,6 +703,10 @@
         "titleHint": "Deixe em branco para usar o título gerado automaticamente",
         "descriptionLabel": "Descrição (máx. {max} caracteres)",
         "descriptionHint": "Deixe em branco para usar a descrição gerada automaticamente"
+      },
+      "manifest": {
+        "sectionTitle": "Manifesto",
+        "invalidJsonError": "JSON inválido. Verifique a sintaxe e a estrutura (branding, layout, seo) antes de aplicar."
       }
     },
     "settingsPage": {

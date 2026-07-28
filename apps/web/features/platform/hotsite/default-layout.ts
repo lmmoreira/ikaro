@@ -1,7 +1,9 @@
 import type { HotsiteModuleResponse, HotsiteModuleType } from '@ikaro/types';
 
 // Canonical order for module types absent from a tenant's saved layout (packages/types/src/enums.ts).
-const MODULE_ORDER: readonly HotsiteModuleType[] = [
+// Exported so manifest-schema.ts can validate a pasted layout's `type` values against this same
+// list, rather than re-declaring the 8 literals a second time.
+export const MODULE_ORDER: readonly HotsiteModuleType[] = [
   'HERO',
   'SERVICE_LIST',
   'GALLERY',

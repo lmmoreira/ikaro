@@ -215,6 +215,79 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await expect(page.getByTestId('hotsite-seo-title')).toHaveValue('a'.repeat(60));
   });
 
+  // First E2E coverage of the Manifesto tab (M18-S02). Reads the textarea's actual rendered
+  // value (already materialized to all 8 module types by HotsiteEditor's draft construction)
+  // rather than assuming the raw seed's shape, so this doesn't depend on which module types
+  // autospa-premium's seed happens to include.
+  test('Manifesto tab: editing branding + a module toggle directly in JSON persists after Aplicar, Publish, and reload (M18-S02)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'Manifesto' }).click();
+
+    const textarea = page.getByTestId('hotsite-manifest-textarea');
+    const current = JSON.parse(await textarea.inputValue()) as Pick<
+      HotsiteAdminContentResponse,
+      'branding' | 'layout' | 'seo'
+    >;
+    current.branding.primaryColor = '#123456';
+    const contactModule = current.layout.find((module) => module.type === 'CONTACT')!;
+    const contactWasEnabled = contactModule.enabled;
+    contactModule.enabled = !contactWasEnabled;
+    await textarea.fill(JSON.stringify(current));
+    await page.getByTestId('hotsite-manifest-apply').click();
+
+    await page.getByTestId('hotsite-publish-desktop').click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByTestId('hotsite-primary-color')).toHaveValue('#123456');
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await expect(page.locator(layoutToggle('CONTACT'))).toHaveAttribute(
+      'aria-checked',
+      String(!contactWasEnabled),
+    );
+  });
+
+  test('Manifesto tab: malformed JSON shows an inline error and leaves the draft unchanged (M18-S02)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'Manifesto' }).click();
+
+    await page.getByTestId('hotsite-manifest-textarea').fill('{ not valid json');
+    await page.getByTestId('hotsite-manifest-apply').click();
+
+    await expect(page.getByTestId('hotsite-manifest-error')).toBeVisible();
+    await page.getByRole('tab', { name: 'Branding' }).click();
+    await expect(page.getByTestId('hotsite-primary-color')).toHaveValue(
+      original.branding.primaryColor,
+    );
+  });
+
+  test('Manifesto tab: a structurally valid but business-rule-invalid value round-trips through the real backend rejection (M18-S02)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'Manifesto' }).click();
+
+    const textarea = page.getByTestId('hotsite-manifest-textarea');
+    const current = JSON.parse(await textarea.inputValue()) as Pick<
+      HotsiteAdminContentResponse,
+      'branding' | 'layout' | 'seo'
+    >;
+    current.branding.primaryColor = 'not-a-color';
+    await textarea.fill(JSON.stringify(current));
+    // Structural validation only checks the primitive TYPE (string), so "not-a-color" passes
+    // Aplicar — it's rejected only by the real backend's hex-format rule, on Publish.
+    await page.getByTestId('hotsite-manifest-apply').click();
+    await expect(page.getByTestId('hotsite-manifest-error')).not.toBeVisible();
+
+    await page.getByTestId('hotsite-publish-desktop').click();
+
+    await expect(page.getByTestId('hotsite-action-error-banner')).toBeVisible();
+  });
+
   test('Booking CTA Calendar section: toggling datePickerType and editing carouselDays persist after reload (M18-S01)', async ({
     page,
   }) => {

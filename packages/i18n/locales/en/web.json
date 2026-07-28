@@ -426,7 +426,8 @@
       "tabs": {
         "branding": "Branding",
         "layout": "Layout",
-        "seo": "SEO"
+        "seo": "SEO",
+        "manifest": "Manifest"
       },
       "publish": "Publish changes",
       "preview": "Preview",
@@ -702,6 +703,10 @@
         "titleHint": "Leave blank to use the automatically generated title",
         "descriptionLabel": "Description (max. {max} characters)",
         "descriptionHint": "Leave blank to use the automatically generated description"
+      },
+      "manifest": {
+        "sectionTitle": "Manifest",
+        "invalidJsonError": "Invalid JSON. Check the syntax and structure (branding, layout, seo) before applying."
       }
     },
     "settingsPage": {

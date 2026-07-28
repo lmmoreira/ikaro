@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { HotsiteAdminContentResponse } from '@ikaro/types';
@@ -99,12 +99,18 @@ describe('HotsiteEditor', () => {
     fetchSpy.mockRestore();
   });
 
-  it('loads with 3 tabs, Branding active by default', () => {
+  it('loads with 4 tabs, Branding active by default and Manifesto last', () => {
     renderEditor();
 
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Branding', 'Layout', 'SEO', 'Manifesto']);
     expect(screen.getByRole('tab', { name: 'Branding' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Layout' })).toHaveAttribute('aria-selected', 'false');
     expect(screen.getByRole('tab', { name: 'SEO' })).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByRole('tab', { name: 'Manifesto' })).toHaveAttribute(
+      'aria-selected',
+      'false',
+    );
     expect(screen.getByTestId('hotsite-primary-color')).toBeInTheDocument();
   });
 
@@ -349,6 +355,76 @@ describe('HotsiteEditor', () => {
           'Estabelecimento não encontrado.',
         );
       });
+    });
+  });
+
+  describe('Manifesto tab', () => {
+    it('switches to Manifesto without a network request, seeded with the current draft as JSON', async () => {
+      const user = userEvent.setup();
+      renderEditor();
+
+      await user.click(screen.getByRole('tab', { name: 'Manifesto' }));
+
+      expect(screen.getByRole('tab', { name: 'Manifesto' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+      const textarea = screen.getByTestId('hotsite-manifest-textarea') as HTMLTextAreaElement;
+      expect(textarea.value).toContain('"primaryColor": "#2563eb"');
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('Aplicar commits a valid JSON edit into the draft and clears a stale action banner', async () => {
+      mockUpdateHotsiteConfig.mockResolvedValue({ ...INITIAL });
+      mockPublishHotsite.mockResolvedValue({ isPublished: true });
+      const user = userEvent.setup();
+      renderEditor();
+
+      await user.click(screen.getByTestId('hotsite-publish-desktop'));
+      await waitFor(() => {
+        expect(screen.getByTestId('hotsite-action-success-banner')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('tab', { name: 'Manifesto' }));
+      const textarea = screen.getByTestId('hotsite-manifest-textarea') as HTMLTextAreaElement;
+      const edited = JSON.parse(textarea.value) as { branding: { primaryColor: string } };
+      edited.branding.primaryColor = '#00ff00';
+      fireEvent.change(textarea, { target: { value: JSON.stringify(edited) } });
+      await user.click(screen.getByTestId('hotsite-manifest-apply'));
+
+      expect(screen.queryByTestId('hotsite-action-success-banner')).not.toBeInTheDocument();
+      await user.click(screen.getByRole('tab', { name: 'Branding' }));
+      expect(screen.getByTestId('hotsite-primary-color')).toHaveValue('#00ff00');
+    });
+
+    it('shows an inline error and leaves the draft unchanged when the JSON is invalid', async () => {
+      const user = userEvent.setup();
+      renderEditor();
+
+      await user.click(screen.getByRole('tab', { name: 'Manifesto' }));
+      const textarea = screen.getByTestId('hotsite-manifest-textarea');
+      fireEvent.change(textarea, { target: { value: '{ not valid json' } });
+      await user.click(screen.getByTestId('hotsite-manifest-apply'));
+
+      expect(screen.getByTestId('hotsite-manifest-error')).toBeInTheDocument();
+      await user.click(screen.getByRole('tab', { name: 'Branding' }));
+      expect(screen.getByTestId('hotsite-primary-color')).toHaveValue('#2563eb');
+    });
+
+    it('leaving the tab without Aplicar discards the pending edit; re-entering reseeds from the draft', async () => {
+      const user = userEvent.setup();
+      renderEditor();
+
+      await user.click(screen.getByRole('tab', { name: 'Manifesto' }));
+      const textarea = screen.getByTestId('hotsite-manifest-textarea');
+      fireEvent.change(textarea, { target: { value: '{ not valid json' } });
+
+      await user.click(screen.getByRole('tab', { name: 'Branding' }));
+      expect(screen.getByTestId('hotsite-primary-color')).toHaveValue('#2563eb');
+
+      await user.click(screen.getByRole('tab', { name: 'Manifesto' }));
+      const reseeded = screen.getByTestId('hotsite-manifest-textarea') as HTMLTextAreaElement;
+      expect(reseeded.value).toContain('"primaryColor": "#2563eb"');
     });
   });
 
