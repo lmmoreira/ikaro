@@ -1,11 +1,14 @@
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
-import { HotsiteConfigBuilder } from '../../../../test/builders/platform';
+import { HotsiteConfigBuilder, TenantBuilder } from '../../../../test/builders/platform';
 import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/platform/in-memory-hotsite-config.repository';
+import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
 import {
+  HotsiteCarouselDaysExceedsMaxAdvanceError,
   HotsiteImageNotUploadedError,
   HotsiteNotFoundError,
   PlatformDomainError,
+  TenantNotFoundError,
 } from '../../domain/errors/platform-domain.error';
 import { DEFAULT_HOTSITE_BRANDING } from '../../domain/hotsite-config.aggregate';
 import { HotsiteImagePathsService } from '../../domain/services/hotsite-image-paths.service';
@@ -17,25 +20,71 @@ const TENANT_B = '10000000-0000-4000-8000-000000000002';
 
 describe('UpdateHotsiteContentUseCase', () => {
   let repo: InMemoryHotsiteConfigRepository;
+  let tenantRepo: InMemoryTenantRepository;
   let storageService: InMemoryStorageService;
   let useCase: UpdateHotsiteContentUseCase;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     repo = new InMemoryHotsiteConfigRepository();
+    tenantRepo = new InMemoryTenantRepository();
     storageService = new InMemoryStorageService();
     const imagePathsService = new HotsiteImagePathsService();
     useCase = new UpdateHotsiteContentUseCase(
       repo,
+      tenantRepo,
       new InMemoryTransactionManager(),
       imagePathsService,
       new HotsiteImagePromotionService(storageService, imagePathsService),
     );
+    await tenantRepo.save(new TenantBuilder().withId(TENANT_A).build());
   });
 
   it('throws HotsiteNotFoundError when no config exists for the tenant', async () => {
     await expect(
       useCase.execute({ tenantId: TENANT_A, branding: { primaryColor: '#FF5733' } }),
     ).rejects.toBeInstanceOf(HotsiteNotFoundError);
+  });
+
+  it('throws TenantNotFoundError when the tenant aggregate does not exist', async () => {
+    const config = new HotsiteConfigBuilder().withTenantId(TENANT_B).buildWithContent();
+    await repo.save(config);
+
+    await expect(
+      useCase.execute({ tenantId: TENANT_B, branding: { primaryColor: '#FF5733' } }),
+    ).rejects.toBeInstanceOf(TenantNotFoundError);
+  });
+
+  it('reads maxBookingAdvanceDays from tenant.settings.booking and rejects an oversized carouselDays', async () => {
+    const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
+    await repo.save(config);
+
+    const layout = [
+      {
+        type: 'BOOKING_CTA' as const,
+        enabled: true,
+        data: { title: 'Agende já', ctaLabel: 'Agendar', carouselDays: 91 },
+      },
+    ];
+
+    await expect(useCase.execute({ tenantId: TENANT_A, layout })).rejects.toBeInstanceOf(
+      HotsiteCarouselDaysExceedsMaxAdvanceError,
+    );
+  });
+
+  it('accepts carouselDays within tenant.settings.booking.maxBookingAdvanceDays', async () => {
+    const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
+    await repo.save(config);
+
+    const layout = [
+      {
+        type: 'BOOKING_CTA' as const,
+        enabled: true,
+        data: { title: 'Agende já', ctaLabel: 'Agendar', carouselDays: 90 },
+      },
+    ];
+
+    const result = await useCase.execute({ tenantId: TENANT_A, layout });
+    expect(result.layout).toEqual(layout);
   });
 
   it('merges partial branding into the existing branding without wiping other fields', async () => {

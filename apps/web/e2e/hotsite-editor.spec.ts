@@ -9,10 +9,26 @@ import {
   unpublishHotsite,
   updateHotsiteConfig,
 } from './helpers/hotsite';
+import {
+  getTenantSettings,
+  toUpdateRequest as toSettingsUpdateRequest,
+  updateTenantSettings,
+} from './helpers/platform';
 
 // autospa-premium is the same MANAGER tenant settings.spec.ts uses specifically because no
 // booking/schedule/service e2e spec touches it — hotsite config doesn't overlap with that state
 // either, so it's the safest tenant for a suite that repeatedly mutates tenant-wide config.
+//
+// The 2 maxBookingAdvanceDays-dependent tests below mutate real tenant *settings* on this same
+// tenant, which settings.spec.ts also mutates — page.route()-mocking the manifest response was
+// tried instead (to avoid touching real settings at all) and doesn't work: app/[slug]/booking/
+// page.tsx is a Server Component, so fetchManifest() runs on the Next.js server and never
+// reaches the browser's network stack that page.route() intercepts (confirmed 2026-07-28). A
+// real settings mutation is therefore the only thing that actually works here. Under
+// fullyParallel this can theoretically race settings.spec.ts's own concurrent write locally —
+// CI's workers: 1 makes that impossible in the gate that actually matters; treat a local full-
+// suite run hitting it as a false alarm, not evidence of a real bug, and re-run serially
+// (--workers=1) to confirm before treating it as one.
 const MANAGER_EMAIL = 'admin@autospa.com.br';
 const MANAGER_TENANT_SLUG = 'autospa-premium';
 
@@ -24,23 +40,35 @@ function configureButton(type: string) {
   return `[data-testid="layout-row-configure"][data-module-type="${type}"]`;
 }
 
-test.describe('hotsite editor (MANAGER)', () => {
+// .serial: every test here mutates autospa-premium's shared hotsite-config/settings rows and
+// restores them in afterEach — fullyParallel doesn't stop Playwright from running same-describe
+// tests in different workers, so without .serial these race each other for real (confirmed:
+// adding more mutating tests here broke an unrelated pre-existing test in this same block via a
+// mid-test overwrite, 2026-07-28).
+test.describe.serial('hotsite editor (MANAGER)', () => {
   let original: HotsiteAdminContentResponse;
+  let originalSettings: Awaited<ReturnType<typeof getTenantSettings>>;
 
   test.beforeEach(async ({ page }) => {
     await loginAsStaff(page, MANAGER_EMAIL, MANAGER_TENANT_SLUG);
     original = await getHotsiteConfig(page);
+    originalSettings = await getTenantSettings(page);
   });
 
   test.afterEach(async ({ page }) => {
-    // Hotsite config is one shared row per tenant, not a fixture a test creates for itself —
-    // put it back exactly as found, publish state included.
+    // Hotsite config and tenant settings are each one shared row per tenant, not a fixture a
+    // test creates for itself — put both back exactly as found, publish state included.
+    // afterEach (not a per-test try/finally) is what makes this survive a test-level timeout:
+    // Playwright always runs afterEach hooks, but a test aborted by its own timeout can skip
+    // straight past an in-body finally block (confirmed 2026-07-28 — a timed-out settings
+    // mutation left maxBookingAdvanceDays stuck at 5 in the shared dev DB until fixed by hand).
     await updateHotsiteConfig(page, toUpdateRequest(original));
     if (original.isPublished) {
       await publishHotsite(page);
     } else {
       await unpublishHotsite(page);
     }
+    await updateTenantSettings(page, toSettingsUpdateRequest(originalSettings.settings));
   });
 
   test('loads with the Branding tab active by default, pre-filled with the tenant current values', async ({
@@ -185,6 +213,212 @@ test.describe('hotsite editor (MANAGER)', () => {
     await page.getByTestId('hotsite-seo-title').fill('a'.repeat(65));
 
     await expect(page.getByTestId('hotsite-seo-title')).toHaveValue('a'.repeat(60));
+  });
+
+  test('Booking CTA Calendar section: toggling datePickerType and editing carouselDays persist after reload (M18-S01)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'Layout' }).click();
+
+    // BOOKING_CTA is absent from the autospa-premium seed layout — materializeLayout() gives it
+    // a disabled row with default data, same as ABOUT/TESTIMONIALS above.
+    await page.locator(layoutToggle('BOOKING_CTA')).click();
+    await page.locator(configureButton('BOOKING_CTA')).click();
+    await page.locator('#booking-cta-title').fill('Agende seu horário');
+    await page.locator('#booking-cta-cta-label').fill('Agendar agora');
+
+    // Default datePickerType is carousel — carouselDays is visible
+    await expect(page.getByTestId('booking-cta-date-picker-type-carousel')).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    await page.locator('#booking-cta-carousel-days').fill('21');
+
+    // Switching to calendar hides carouselDays
+    await page.getByTestId('booking-cta-date-picker-type-calendar').click();
+    await expect(page.locator('#booking-cta-carousel-days')).toHaveCount(0);
+
+    await page.getByTestId('module-config-apply-desktop').click();
+    await page.getByTestId('hotsite-publish-desktop').click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+
+    await page.reload();
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await page.locator(configureButton('BOOKING_CTA')).click();
+
+    await expect(page.getByTestId('booking-cta-date-picker-type-calendar')).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    await expect(page.locator('#booking-cta-carousel-days')).toHaveCount(0);
+  });
+
+  // The next 3 tests exercise the *public* booking page's date-picker widgets, configured via the
+  // admin API rather than the editor UI — reusing this describe's existing beforeEach/afterEach
+  // snapshot-and-restore lifecycle for autospa-premium's shared hotsite-config row keeps them
+  // serialized against the config-mutating tests above instead of racing a second tenant.
+  test('Calendar widget on the public booking page: month grid renders, month navigation works, and an in-range day advances to step 3 (M18-S01)', async ({
+    page,
+  }) => {
+    await updateHotsiteConfig(page, {
+      ...toUpdateRequest(original),
+      layout: [
+        ...original.layout,
+        {
+          type: 'BOOKING_CTA',
+          enabled: true,
+          data: {
+            title: 'Agende seu horário',
+            ctaLabel: 'Agendar agora',
+            datePickerType: 'calendar',
+          },
+        },
+      ],
+    });
+
+    await page.goto(`/${MANAGER_TENANT_SLUG}/booking`);
+    await page
+      .locator('[data-testid="service-card"][data-requires-pickup="false"]')
+      .first()
+      .click();
+    await page.locator('[data-testid="step-next"]').click();
+
+    await expect(page.locator('[data-testid="calendar-day"]').first()).toBeVisible();
+
+    // Month navigation re-fetches without erroring, forward then back
+    await page.getByRole('button', { name: 'Próximo mês' }).click();
+    await expect(page.locator('[data-testid="calendar-day"]').first()).toBeVisible();
+    await page.getByRole('button', { name: 'Mês anterior' }).click();
+    await expect(page.locator('[data-testid="calendar-day"]').first()).toBeVisible();
+
+    await page.locator('[data-testid="calendar-day"]:not([disabled])').first().click();
+    await page.locator('[data-testid="time-slot"]').first().click();
+    await page.locator('[data-testid="step-next"]').click();
+
+    await expect(page.locator('[data-testid="input-name"]')).toBeVisible();
+  });
+
+  test('Calendar widget on the public booking page: blocks selection past maxBookingAdvanceDays with a message (M18-S01)', async ({
+    page,
+  }) => {
+    await updateTenantSettings(page, {
+      settings: { booking: { ...originalSettings.settings.booking, maxBookingAdvanceDays: 5 } },
+    });
+
+    await updateHotsiteConfig(page, {
+      ...toUpdateRequest(original),
+      layout: [
+        ...original.layout,
+        {
+          type: 'BOOKING_CTA',
+          enabled: true,
+          data: {
+            title: 'Agende seu horário',
+            ctaLabel: 'Agendar agora',
+            datePickerType: 'calendar',
+          },
+        },
+      ],
+    });
+
+    await page.goto(`/${MANAGER_TENANT_SLUG}/booking`);
+    await page
+      .locator('[data-testid="service-card"][data-requires-pickup="false"]')
+      .first()
+      .click();
+    await page.locator('[data-testid="step-next"]').click();
+
+    // 3 months forward guarantees every visible day is past a 5-day advance window, regardless
+    // of which day of the month "today" happens to be when this test runs.
+    const nextMonthButton = page.getByRole('button', { name: 'Próximo mês' });
+    await nextMonthButton.click();
+    await nextMonthButton.click();
+    await nextMonthButton.click();
+    await expect(page.locator('[data-testid="calendar-day"]').first()).toBeVisible();
+
+    await page.locator('[data-testid="calendar-day"]').first().click();
+
+    await expect(page.locator('[data-testid="calendar-out-of-range-message"]')).toBeVisible();
+    await expect(page.locator('[data-testid="input-name"]')).not.toBeVisible();
+  });
+
+  test('Carousel widget on the public booking page clamps its window to maxBookingAdvanceDays even when carouselDays is configured larger (M18-S01)', async ({
+    page,
+  }) => {
+    // Save carouselDays: 30 *before* lowering maxBookingAdvanceDays — Part 6's own backend
+    // validation now rejects saving carouselDays above the *current* limit, so the only way this
+    // stale-relative-to-settings state can legitimately exist is a later, independent settings
+    // change (exactly what Part 5's client-side clamp exists to guard against).
+    await updateHotsiteConfig(page, {
+      ...toUpdateRequest(original),
+      layout: [
+        ...original.layout,
+        {
+          type: 'BOOKING_CTA',
+          enabled: true,
+          data: {
+            title: 'Agende seu horário',
+            ctaLabel: 'Agendar agora',
+            datePickerType: 'carousel',
+            carouselDays: 30,
+          },
+        },
+      ],
+    });
+    await updateTenantSettings(page, {
+      settings: { booking: { ...originalSettings.settings.booking, maxBookingAdvanceDays: 5 } },
+    });
+
+    await page.goto(`/${MANAGER_TENANT_SLUG}/booking`);
+    await page
+      .locator('[data-testid="service-card"][data-requires-pickup="false"]')
+      .first()
+      .click();
+    await page.locator('[data-testid="step-next"]').click();
+
+    await expect(page.locator('[data-testid="day-option"]').first()).toBeVisible();
+    expect(await page.locator('[data-testid="day-option"]').count()).toBeLessThanOrEqual(5);
+  });
+
+  // Closes a known gap, not a copy of an established test: no existing E2E spec asserts actual
+  // --ba-* computed values (only unit-level apply-branding.spec.ts and axe scans with
+  // color-contrast disabled) — this is the first real-browser check that a --ba-* token renders
+  // as the tenant's actual configured color, not just the component's hardcoded fallback.
+  test("Calendar widget's selected day reflects the tenant's configured primaryColor, not the fallback (M18-S01)", async ({
+    page,
+  }) => {
+    const customPrimary = '#7c3aed'; // distinct from both the seed default (#2563EB) and every widget's own inline-style fallback (#2563eb)
+
+    await updateHotsiteConfig(page, {
+      ...toUpdateRequest(original),
+      branding: { ...original.branding, primaryColor: customPrimary },
+      layout: [
+        ...original.layout,
+        {
+          type: 'BOOKING_CTA',
+          enabled: true,
+          data: {
+            title: 'Agende seu horário',
+            ctaLabel: 'Agendar agora',
+            datePickerType: 'calendar',
+          },
+        },
+      ],
+    });
+
+    await page.goto(`/${MANAGER_TENANT_SLUG}/booking`);
+    await page
+      .locator('[data-testid="service-card"][data-requires-pickup="false"]')
+      .first()
+      .click();
+    await page.locator('[data-testid="step-next"]').click();
+
+    const availableDay = page.locator('[data-testid="calendar-day"]:not([disabled])').first();
+    await availableDay.waitFor();
+    await availableDay.click();
+
+    await expect(availableDay).toHaveCSS('background-color', 'rgb(124, 58, 237)');
   });
 });
 

@@ -20,6 +20,7 @@ function renderCarousel(overrides?: Partial<Parameters<typeof AvailabilityCarous
       selectedDate={null}
       onSelectDate={vi.fn()}
       carouselDays={14}
+      maxBookingAdvanceDays={90}
       {...overrides}
     />,
   );
@@ -171,5 +172,33 @@ describe('AvailabilityCarousel', () => {
     expect(await screen.findByTestId('fully-booked-message')).toHaveTextContent(
       'Nenhum horário disponível nos próximos dias',
     );
+  });
+
+  it('clamps the fetched window to maxBookingAdvanceDays when carouselDays is larger', async () => {
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue([]);
+
+    renderCarousel({ carouselDays: 90, maxBookingAdvanceDays: 14 });
+
+    await vi.waitFor(() => {
+      expect(fetchAvailabilitySummary).toHaveBeenCalled();
+    });
+    const [, from, to] = vi.mocked(fetchAvailabilitySummary).mock.calls[0];
+    const dayCount =
+      (new Date(to).getTime() - new Date(from).getTime()) / (24 * 60 * 60 * 1000) + 1;
+    expect(dayCount).toBe(14);
+  });
+
+  it('uses carouselDays as the window when it is smaller than maxBookingAdvanceDays', async () => {
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue([]);
+
+    renderCarousel({ carouselDays: 7, maxBookingAdvanceDays: 90 });
+
+    await vi.waitFor(() => {
+      expect(fetchAvailabilitySummary).toHaveBeenCalled();
+    });
+    const [, from, to] = vi.mocked(fetchAvailabilitySummary).mock.calls[0];
+    const dayCount =
+      (new Date(to).getTime() - new Date(from).getTime()) / (24 * 60 * 60 * 1000) + 1;
+    expect(dayCount).toBe(7);
   });
 });

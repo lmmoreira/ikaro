@@ -53,6 +53,9 @@ function makeManifest(overrides: Partial<HotsiteManifestResponse> = {}): Hotsite
         lookupService: 'viacep',
       },
     },
+    booking: {
+      maxBookingAdvanceDays: 90,
+    },
     ...overrides,
   };
 }

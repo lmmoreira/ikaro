@@ -6,6 +6,7 @@ import { SeoDescription } from '../../../shared/value-objects/seo-description.vo
 import {
   HotsiteBrandingColorInvalidError,
   HotsiteBrandingOptionInvalidError,
+  HotsiteCarouselDaysExceedsMaxAdvanceError,
   HotsiteModuleTypeInvalidError,
   HotsiteNoEnabledModulesError,
   HotsiteSeoDescriptionTooLongError,
@@ -83,6 +84,7 @@ export interface BookingCtaModuleData {
   ctaLabel: string;
   backgroundImageUrl?: string;
   carouselDays?: number;
+  datePickerType?: 'carousel' | 'calendar';
   bgStyle?: 'primary' | 'background';
   rightPanel?: 'none' | 'brand-card';
 }
@@ -294,6 +296,26 @@ const MODULE_TYPES: ReadonlySet<HotsiteModuleType> = new Set([
   'FOOTER',
 ]);
 
+export interface LayoutValidationContext {
+  maxBookingAdvanceDays: number;
+}
+
+type ModuleDataValidator = (data: HotsiteModuleData, ctx: LayoutValidationContext) => void;
+
+/**
+ * Per-module-type data validators, dispatched by `validateLayout()`. Only module types with an
+ * actual business rule get an entry — most module `data` shapes are intentionally unvalidated
+ * here (enforced only by the web zod schema), so this stays sparse rather than exhaustive.
+ */
+const MODULE_DATA_VALIDATORS: Partial<Record<HotsiteModuleType, ModuleDataValidator>> = {
+  BOOKING_CTA: (data, ctx) => {
+    const { carouselDays } = data as BookingCtaModuleData;
+    if (carouselDays !== undefined && carouselDays > ctx.maxBookingAdvanceDays) {
+      throw new HotsiteCarouselDaysExceedsMaxAdvanceError(carouselDays, ctx.maxBookingAdvanceDays);
+    }
+  },
+};
+
 export const DEFAULT_HOTSITE_BRANDING: HotsiteBranding = {
   primaryColor: '#2563EB',
   secondaryColor: '#EFF6FF',
@@ -372,10 +394,11 @@ export class HotsiteConfig extends AggregateRoot {
   updateContent(
     branding: HotsiteBranding,
     layout: HotsiteModule[],
-    seo: HotsiteSeo = DEFAULT_HOTSITE_SEO,
+    seo: HotsiteSeo,
+    ctx: LayoutValidationContext,
   ): void {
     this.validateBranding(branding);
-    this.validateLayout(layout);
+    this.validateLayout(layout, ctx);
     this.props.branding = brandingToDomain(branding);
     this.props.layout = layout;
     // Only re-validate seo when it's actually changing. UpdateHotsiteContentUseCase passes
@@ -433,11 +456,12 @@ export class HotsiteConfig extends AggregateRoot {
     }
   }
 
-  private validateLayout(layout: HotsiteModule[]): void {
+  private validateLayout(layout: HotsiteModule[], ctx: LayoutValidationContext): void {
     for (const module of layout) {
       if (!MODULE_TYPES.has(module.type)) {
         throw new HotsiteModuleTypeInvalidError(module.type);
       }
+      MODULE_DATA_VALIDATORS[module.type]?.(module.data, ctx);
     }
   }
 

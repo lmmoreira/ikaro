@@ -101,6 +101,8 @@ async function advanceToStep3(
       slug="lavacar-beloauto"
       services={services}
       carouselDays={14}
+      datePickerType="carousel"
+      maxBookingAdvanceDays={90}
       phonePrefix="+55"
       addressSpec={BR_ADDRESS_SPEC}
     />,
@@ -149,6 +151,8 @@ describe('BookingForm', () => {
         slug="lavacar-beloauto"
         services={[makeService()]}
         carouselDays={14}
+        datePickerType="carousel"
+        maxBookingAdvanceDays={90}
         phonePrefix="+55"
         addressSpec={BR_ADDRESS_SPEC}
       />,
@@ -167,6 +171,8 @@ describe('BookingForm', () => {
         slug="lavacar-beloauto"
         services={[makeService()]}
         carouselDays={14}
+        datePickerType="carousel"
+        maxBookingAdvanceDays={90}
         phonePrefix="+55"
         addressSpec={BR_ADDRESS_SPEC}
       />,
@@ -177,6 +183,52 @@ describe('BookingForm', () => {
 
     expect(screen.getByText('Escolha data e horário')).toBeInTheDocument();
     expect(screen.getByText('Passo 2 de 4')).toBeInTheDocument();
+  });
+
+  it('renders the carousel widget by default on Step 2', async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue([day]);
+
+    renderWithIntl(
+      <BookingForm
+        slug="lavacar-beloauto"
+        services={[makeService()]}
+        carouselDays={14}
+        datePickerType="carousel"
+        maxBookingAdvanceDays={90}
+        phonePrefix="+55"
+        addressSpec={BR_ADDRESS_SPEC}
+      />,
+    );
+
+    await user.click(screen.getByRole('checkbox'));
+    await user.click(screen.getByRole('button', { name: 'Próximo' }));
+
+    expect(await screen.findAllByTestId('day-option')).not.toHaveLength(0);
+    expect(screen.queryByTestId('calendar-day')).not.toBeInTheDocument();
+  });
+
+  it('renders the calendar widget when datePickerType is calendar', async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue([day]);
+
+    renderWithIntl(
+      <BookingForm
+        slug="lavacar-beloauto"
+        services={[makeService()]}
+        carouselDays={14}
+        datePickerType="calendar"
+        maxBookingAdvanceDays={90}
+        phonePrefix="+55"
+        addressSpec={BR_ADDRESS_SPEC}
+      />,
+    );
+
+    await user.click(screen.getByRole('checkbox'));
+    await user.click(screen.getByRole('button', { name: 'Próximo' }));
+
+    expect(await screen.findAllByTestId('calendar-day')).not.toHaveLength(0);
+    expect(screen.queryByTestId('day-option')).not.toBeInTheDocument();
   });
 
   it('moves to Step 3 after selecting a date and slot', async () => {
@@ -218,6 +270,8 @@ describe('BookingForm', () => {
         slug="lavacar-beloauto"
         services={[service]}
         carouselDays={14}
+        datePickerType="carousel"
+        maxBookingAdvanceDays={90}
         phonePrefix="+55"
         addressSpec={BR_ADDRESS_SPEC}
       />,
@@ -262,6 +316,8 @@ describe('BookingForm', () => {
         slug="lavacar-beloauto"
         services={[service]}
         carouselDays={14}
+        datePickerType="carousel"
+        maxBookingAdvanceDays={90}
         phonePrefix="+55"
         addressSpec={BR_ADDRESS_SPEC}
       />,

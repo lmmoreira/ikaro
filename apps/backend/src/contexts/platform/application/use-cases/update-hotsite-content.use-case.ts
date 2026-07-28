@@ -4,7 +4,10 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
 import { scheduleAfterCommit } from '../../../../shared/infrastructure/transaction-context';
-import { HotsiteNotFoundError } from '../../domain/errors/platform-domain.error';
+import {
+  HotsiteNotFoundError,
+  TenantNotFoundError,
+} from '../../domain/errors/platform-domain.error';
 import {
   HotsiteBranding,
   HotsiteModule,
@@ -17,6 +20,7 @@ import {
   HOTSITE_CONFIG_REPOSITORY,
   IHotsiteConfigRepository,
 } from '../ports/hotsite-config-repository.port';
+import { ITenantRepository, TENANT_REPOSITORY } from '../ports/tenant-repository.port';
 import { UpdateHotsiteContentDto } from '../dtos/update-hotsite-content.dto';
 
 export type UpdateHotsiteContentUseCaseInput = UpdateHotsiteContentDto & { tenantId: string };
@@ -33,6 +37,7 @@ export class UpdateHotsiteContentUseCase {
   constructor(
     @Inject(HOTSITE_CONFIG_REPOSITORY)
     private readonly hotsiteConfigRepo: IHotsiteConfigRepository,
+    @Inject(TENANT_REPOSITORY) private readonly tenantRepo: ITenantRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     private readonly imagePathsService: HotsiteImagePathsService,
     private readonly imagePromotionService: HotsiteImagePromotionService,
@@ -42,6 +47,9 @@ export class UpdateHotsiteContentUseCase {
     const { tenantId } = dto;
     const config = await this.hotsiteConfigRepo.findByTenantId(tenantId);
     if (!config) throw new HotsiteNotFoundError(tenantId);
+
+    const tenant = await this.tenantRepo.findById(tenantId);
+    if (!tenant) throw new TenantNotFoundError(tenantId);
 
     // Captured before the merge — needed to detect "was this field pointing at a permanent
     // object that the merged value no longer references" (delete-previous-on-replace).
@@ -67,7 +75,9 @@ export class UpdateHotsiteContentUseCase {
       (path) => !newPaths.includes(path) && path.startsWith(tenantPrefix),
     );
 
-    config.updateContent(branding, layout, seo);
+    config.updateContent(branding, layout, seo, {
+      maxBookingAdvanceDays: tenant.settings.booking.maxBookingAdvanceDays,
+    });
 
     await this.txManager.run(async () => {
       await this.hotsiteConfigRepo.save(config);

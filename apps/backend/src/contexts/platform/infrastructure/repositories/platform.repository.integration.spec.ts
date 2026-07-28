@@ -144,6 +144,7 @@ describe('Platform repositories (integration)', () => {
         title: 'Lavacar Brilho — Agendamento Online',
         description: 'Agende sua lavagem rápido e fácil.',
       },
+      { maxBookingAdvanceDays: 90 },
     );
     await hotsiteRepo.save(config);
 

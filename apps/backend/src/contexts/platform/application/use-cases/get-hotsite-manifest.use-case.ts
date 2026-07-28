@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { TenantNotFoundError } from '../../domain/errors/platform-domain.error';
 import { HotsiteBranding, HotsiteModule, HotsiteSeo } from '../../domain/hotsite-config.aggregate';
-import { BusinessInfo } from '../../domain/value-objects/tenant-settings.vo';
+import { BookingSettings, BusinessInfo } from '../../domain/value-objects/tenant-settings.vo';
 import { ITenantRepository, TENANT_REPOSITORY } from '../ports/tenant-repository.port';
 import { HotsiteContentReader } from '../services/hotsite-content-reader.service';
 
@@ -53,6 +53,10 @@ export interface HotsiteLocalization {
   address: HotsiteAddressSpec;
 }
 
+export interface HotsiteBookingSettings {
+  maxBookingAdvanceDays: number;
+}
+
 export interface GetHotsiteManifestUseCaseInput {
   tenantId: string;
 }
@@ -64,6 +68,7 @@ export interface GetHotsiteManifestUseCaseResult {
   isPublished: boolean;
   business: HotsiteBusinessInfo;
   localization: HotsiteLocalization;
+  booking: HotsiteBookingSettings;
 }
 
 function emptyBusinessInfo(): HotsiteBusinessInfo {
@@ -101,6 +106,7 @@ export class GetHotsiteManifestUseCase {
           tenant.settings.resolveLocalization(),
           tenant.settings.businessHours.timezone,
         ),
+        booking: this.mapBookingSettings(tenant.settings.booking),
       };
     }
 
@@ -114,6 +120,7 @@ export class GetHotsiteManifestUseCase {
         tenant.settings.resolveLocalization(),
         tenant.settings.businessHours.timezone,
       ),
+      booking: this.mapBookingSettings(tenant.settings.booking),
     };
   }
 
@@ -142,6 +149,12 @@ export class GetHotsiteManifestUseCase {
         cityLabel: resolved.address.cityLabel,
         lookupService: resolved.address.lookupService,
       },
+    };
+  }
+
+  private mapBookingSettings(booking: BookingSettings): HotsiteBookingSettings {
+    return {
+      maxBookingAdvanceDays: booking.maxBookingAdvanceDays,
     };
   }
 

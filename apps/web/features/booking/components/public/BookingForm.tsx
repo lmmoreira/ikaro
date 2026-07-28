@@ -31,6 +31,7 @@ import {
   sanitizeAddress,
   type PersonalInfoValue,
 } from '@/features/booking/model/personal-info';
+import { AvailabilityCalendar } from './AvailabilityCalendar';
 import { AvailabilityCarousel } from './AvailabilityCarousel';
 import { ErrorAlert } from './ErrorAlert';
 import { ConfirmationStep, type BookingSubmissionStatus } from './ConfirmationStep';
@@ -42,6 +43,8 @@ interface BookingFormProps {
   readonly slug: string;
   readonly services: readonly HotsiteServiceResponse[];
   readonly carouselDays: number;
+  readonly datePickerType: 'carousel' | 'calendar';
+  readonly maxBookingAdvanceDays: number;
   readonly phonePrefix: string;
   readonly addressSpec: HotsiteAddressSpec;
 }
@@ -138,6 +141,8 @@ export function BookingForm({
   slug,
   services,
   carouselDays,
+  datePickerType,
+  maxBookingAdvanceDays,
   phonePrefix,
   addressSpec,
 }: BookingFormProps): React.JSX.Element {
@@ -302,13 +307,24 @@ export function BookingForm({
               {t('availability.heading')}
             </h2>
 
-            <AvailabilityCarousel
-              slug={slug}
-              serviceIds={selectedServiceIds}
-              selectedDate={selectedDate}
-              onSelectDate={handleSelectDate}
-              carouselDays={carouselDays}
-            />
+            {datePickerType === 'calendar' ? (
+              <AvailabilityCalendar
+                slug={slug}
+                serviceIds={selectedServiceIds}
+                selectedDate={selectedDate}
+                onSelectDate={handleSelectDate}
+                maxBookingAdvanceDays={maxBookingAdvanceDays}
+              />
+            ) : (
+              <AvailabilityCarousel
+                slug={slug}
+                serviceIds={selectedServiceIds}
+                selectedDate={selectedDate}
+                onSelectDate={handleSelectDate}
+                carouselDays={carouselDays}
+                maxBookingAdvanceDays={maxBookingAdvanceDays}
+              />
+            )}
 
             {selectedDate && (
               <div className="mt-4">

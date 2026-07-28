@@ -90,6 +90,7 @@ export const BookingCtaModuleDataSchema = z.object({
   ctaLabel: z.string(),
   backgroundImageUrl: z.string().optional(),
   carouselDays: z.number().int().min(1).max(90).optional(),
+  datePickerType: z.enum(['carousel', 'calendar']).optional(),
   bgStyle: z.enum(['primary', 'background']).optional(),
   rightPanel: z.enum(['none', 'brand-card']).optional(),
 }) satisfies z.ZodType<BookingCtaModuleData>;

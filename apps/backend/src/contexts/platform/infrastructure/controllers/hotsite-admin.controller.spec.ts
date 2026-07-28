@@ -66,6 +66,7 @@ describe('HotsiteAdminController', () => {
       new GetHotsiteContentUseCase(hotsiteContentReader),
       new UpdateHotsiteContentUseCase(
         repo,
+        tenantRepo,
         txManager,
         imagePathsService,
         new HotsiteImagePromotionService(storageService, imagePathsService),

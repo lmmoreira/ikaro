@@ -22,9 +22,12 @@ const DEFAULT_LAYOUT: HotsiteModule[] = [
   },
 ];
 
+const DEFAULT_MAX_BOOKING_ADVANCE_DAYS = 90;
+
 export class HotsiteConfigBuilder {
   private tenantId = DEFAULT_TENANT_ID;
   private seo: HotsiteSeo = DEFAULT_HOTSITE_SEO;
+  private maxBookingAdvanceDays = DEFAULT_MAX_BOOKING_ADVANCE_DAYS;
 
   withTenantId(tenantId: string): this {
     this.tenantId = tenantId;
@@ -33,6 +36,11 @@ export class HotsiteConfigBuilder {
 
   withSeo(seo: HotsiteSeo): this {
     this.seo = seo;
+    return this;
+  }
+
+  withMaxBookingAdvanceDays(maxBookingAdvanceDays: number): this {
+    this.maxBookingAdvanceDays = maxBookingAdvanceDays;
     return this;
   }
 
@@ -45,7 +53,9 @@ export class HotsiteConfigBuilder {
     layout: HotsiteModule[] = DEFAULT_LAYOUT,
   ): HotsiteConfig {
     const config = HotsiteConfig.create(this.tenantId);
-    config.updateContent(branding, layout, this.seo);
+    config.updateContent(branding, layout, this.seo, {
+      maxBookingAdvanceDays: this.maxBookingAdvanceDays,
+    });
     return config;
   }
 

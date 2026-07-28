@@ -1,5 +1,8 @@
 import { HotsiteConfigBuilder } from '../../../test/builders/platform';
-import { PlatformDomainError } from './errors/platform-domain.error';
+import {
+  HotsiteCarouselDaysExceedsMaxAdvanceError,
+  PlatformDomainError,
+} from './errors/platform-domain.error';
 import {
   DEFAULT_HOTSITE_BRANDING,
   DEFAULT_HOTSITE_SEO,
@@ -25,6 +28,8 @@ const VALID_LAYOUT: HotsiteModule[] = [
     data: { title: 'Agende já', ctaLabel: 'Agendar' },
   },
 ];
+
+const CTX = { maxBookingAdvanceDays: 90 };
 
 describe('HotsiteConfig', () => {
   describe('create()', () => {
@@ -71,7 +76,7 @@ describe('HotsiteConfig', () => {
   describe('updateContent()', () => {
     it('updates branding and layout', () => {
       const config = new HotsiteConfigBuilder().build();
-      config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT);
+      config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT, DEFAULT_HOTSITE_SEO, CTX);
       expect(config.branding.primaryColor).toBe(DEFAULT_HOTSITE_BRANDING.primaryColor);
       expect(config.layout).toHaveLength(2);
     });
@@ -81,7 +86,9 @@ describe('HotsiteConfig', () => {
       (field) => {
         const config = new HotsiteConfigBuilder().build();
         const branding: HotsiteBranding = { ...DEFAULT_HOTSITE_BRANDING, [field]: 'red' };
-        expect(() => config.updateContent(branding, VALID_LAYOUT)).toThrow(PlatformDomainError);
+        expect(() =>
+          config.updateContent(branding, VALID_LAYOUT, DEFAULT_HOTSITE_SEO, CTX),
+        ).toThrow(PlatformDomainError);
       },
     );
 
@@ -93,7 +100,9 @@ describe('HotsiteConfig', () => {
           ...DEFAULT_HOTSITE_BRANDING,
           [field]: 'not-a-real-value',
         } as unknown as HotsiteBranding;
-        expect(() => config.updateContent(branding, VALID_LAYOUT)).toThrow(PlatformDomainError);
+        expect(() =>
+          config.updateContent(branding, VALID_LAYOUT, DEFAULT_HOTSITE_SEO, CTX),
+        ).toThrow(PlatformDomainError);
       },
     );
 
@@ -102,7 +111,9 @@ describe('HotsiteConfig', () => {
       (field) => {
         const config = new HotsiteConfigBuilder().build();
         const branding: HotsiteBranding = { ...DEFAULT_HOTSITE_BRANDING, [field]: 'red' };
-        expect(() => config.updateContent(branding, VALID_LAYOUT)).toThrow(PlatformDomainError);
+        expect(() =>
+          config.updateContent(branding, VALID_LAYOUT, DEFAULT_HOTSITE_SEO, CTX),
+        ).toThrow(PlatformDomainError);
       },
     );
 
@@ -111,36 +122,43 @@ describe('HotsiteConfig', () => {
       (field) => {
         const config = new HotsiteConfigBuilder().build();
         const branding: HotsiteBranding = { ...DEFAULT_HOTSITE_BRANDING, [field]: '#FBBF24' };
-        config.updateContent(branding, VALID_LAYOUT);
+        config.updateContent(branding, VALID_LAYOUT, DEFAULT_HOTSITE_SEO, CTX);
         expect(config.branding[field]).toBe('#FBBF24');
       },
     );
 
     it('does not require buttonBackgroundColor/buttonTextColor to be present', () => {
       const config = new HotsiteConfigBuilder().build();
-      expect(() => config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT)).not.toThrow();
+      expect(() =>
+        config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT, DEFAULT_HOTSITE_SEO, CTX),
+      ).not.toThrow();
     });
 
     it('throws for an unknown module type', () => {
       const config = new HotsiteConfigBuilder().build();
       const layout = [{ ...VALID_LAYOUT[0], type: 'UNKNOWN' }] as unknown as HotsiteModule[];
-      expect(() => config.updateContent(DEFAULT_HOTSITE_BRANDING, layout)).toThrow(
-        PlatformDomainError,
-      );
+      expect(() =>
+        config.updateContent(DEFAULT_HOTSITE_BRANDING, layout, DEFAULT_HOTSITE_SEO, CTX),
+      ).toThrow(PlatformDomainError);
     });
 
     it('defaults seo to null title and description when not provided', () => {
       const config = new HotsiteConfigBuilder().build();
-      config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT);
+      config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT, DEFAULT_HOTSITE_SEO, CTX);
       expect(config.seo).toEqual(DEFAULT_HOTSITE_SEO);
     });
 
     it('sets seo title and description', () => {
       const config = new HotsiteConfigBuilder().build();
-      config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT, {
-        title: 'Lavacar Estrela — Agendamento Online',
-        description: 'Agende sua lavagem rápido e fácil.',
-      });
+      config.updateContent(
+        DEFAULT_HOTSITE_BRANDING,
+        VALID_LAYOUT,
+        {
+          title: 'Lavacar Estrela — Agendamento Online',
+          description: 'Agende sua lavagem rápido e fácil.',
+        },
+        CTX,
+      );
       expect(config.seo).toEqual({
         title: 'Lavacar Estrela — Agendamento Online',
         description: 'Agende sua lavagem rápido e fácil.',
@@ -151,7 +169,12 @@ describe('HotsiteConfig', () => {
       const config = new HotsiteConfigBuilder().build();
       const title = 'a'.repeat(61);
       expect(() =>
-        config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT, { title, description: null }),
+        config.updateContent(
+          DEFAULT_HOTSITE_BRANDING,
+          VALID_LAYOUT,
+          { title, description: null },
+          CTX,
+        ),
       ).toThrow(PlatformDomainError);
     });
 
@@ -159,24 +182,39 @@ describe('HotsiteConfig', () => {
       const config = new HotsiteConfigBuilder().build();
       const description = 'a'.repeat(159);
       expect(() =>
-        config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT, {
-          title: null,
-          description,
-        }),
+        config.updateContent(
+          DEFAULT_HOTSITE_BRANDING,
+          VALID_LAYOUT,
+          {
+            title: null,
+            description,
+          },
+          CTX,
+        ),
       ).toThrow(PlatformDomainError);
     });
 
     it('accepts seo.title at exactly 60 characters', () => {
       const config = new HotsiteConfigBuilder().build();
       const title = 'a'.repeat(60);
-      config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT, { title, description: null });
+      config.updateContent(
+        DEFAULT_HOTSITE_BRANDING,
+        VALID_LAYOUT,
+        { title, description: null },
+        CTX,
+      );
       expect(config.seo.title).toBe(title);
     });
 
     it('accepts seo.description at exactly 158 characters', () => {
       const config = new HotsiteConfigBuilder().build();
       const description = 'a'.repeat(158);
-      config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT, { title: null, description });
+      config.updateContent(
+        DEFAULT_HOTSITE_BRANDING,
+        VALID_LAYOUT,
+        { title: null, description },
+        CTX,
+      );
       expect(config.seo.description).toBe(description);
     });
 
@@ -198,10 +236,15 @@ describe('HotsiteConfig', () => {
       });
 
       expect(() =>
-        config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT, {
-          title: legacyTitle,
-          description: null,
-        }),
+        config.updateContent(
+          DEFAULT_HOTSITE_BRANDING,
+          VALID_LAYOUT,
+          {
+            title: legacyTitle,
+            description: null,
+          },
+          CTX,
+        ),
       ).not.toThrow();
       expect(config.seo.title).toBe(legacyTitle);
     });
@@ -218,11 +261,80 @@ describe('HotsiteConfig', () => {
       });
 
       expect(() =>
-        config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT, {
-          title: 'a'.repeat(61),
-          description: null,
-        }),
+        config.updateContent(
+          DEFAULT_HOTSITE_BRANDING,
+          VALID_LAYOUT,
+          {
+            title: 'a'.repeat(61),
+            description: null,
+          },
+          CTX,
+        ),
       ).toThrow(PlatformDomainError);
+    });
+
+    describe('BOOKING_CTA carouselDays vs. maxBookingAdvanceDays', () => {
+      function layoutWithCarouselDays(carouselDays: number | undefined): HotsiteModule[] {
+        return [
+          {
+            type: 'BOOKING_CTA',
+            enabled: true,
+            data: { title: 'Agende já', ctaLabel: 'Agendar', carouselDays },
+          },
+        ];
+      }
+
+      it('throws HotsiteCarouselDaysExceedsMaxAdvanceError when carouselDays exceeds maxBookingAdvanceDays', () => {
+        const config = new HotsiteConfigBuilder().build();
+        const layout = layoutWithCarouselDays(91);
+        expect(() =>
+          config.updateContent(DEFAULT_HOTSITE_BRANDING, layout, DEFAULT_HOTSITE_SEO, {
+            maxBookingAdvanceDays: 90,
+          }),
+        ).toThrow(HotsiteCarouselDaysExceedsMaxAdvanceError);
+      });
+
+      it('does not throw when carouselDays is within maxBookingAdvanceDays', () => {
+        const config = new HotsiteConfigBuilder().build();
+        const layout = layoutWithCarouselDays(90);
+        expect(() =>
+          config.updateContent(DEFAULT_HOTSITE_BRANDING, layout, DEFAULT_HOTSITE_SEO, {
+            maxBookingAdvanceDays: 90,
+          }),
+        ).not.toThrow();
+      });
+
+      it('does not throw when carouselDays is undefined', () => {
+        const config = new HotsiteConfigBuilder().build();
+        const layout = layoutWithCarouselDays(undefined);
+        expect(() =>
+          config.updateContent(DEFAULT_HOTSITE_BRANDING, layout, DEFAULT_HOTSITE_SEO, {
+            maxBookingAdvanceDays: 90,
+          }),
+        ).not.toThrow();
+      });
+
+      it('does not throw for a non-BOOKING_CTA module even with an oversized carouselDays-shaped field', () => {
+        const config = new HotsiteConfigBuilder().build();
+        const layout: HotsiteModule[] = [
+          {
+            type: 'HERO',
+            enabled: true,
+            data: {
+              variant: 'centered',
+              title: 'Bem-vindo',
+              ctaLabel: 'Agendar agora',
+              ctaTarget: 'booking-form',
+              carouselDays: 9999,
+            } as never,
+          },
+        ];
+        expect(() =>
+          config.updateContent(DEFAULT_HOTSITE_BRANDING, layout, DEFAULT_HOTSITE_SEO, {
+            maxBookingAdvanceDays: 90,
+          }),
+        ).not.toThrow();
+      });
     });
   });
 });

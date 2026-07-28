@@ -69,6 +69,7 @@ describe('GetHotsiteManifestUseCase', () => {
       expect.objectContaining({ language: 'pt-BR', currency: 'BRL', phonePrefix: '+55' }),
     );
     expect(result.seo).toEqual({ title: null, description: null });
+    expect(result.booking).toEqual({ maxBookingAdvanceDays: 90 });
   });
 
   it('returns branding, layout, and isPublished for a published hotsite', async () => {
@@ -80,6 +81,20 @@ describe('GetHotsiteManifestUseCase', () => {
     expect(result.isPublished).toBe(true);
     expect(result.branding).toEqual(config.branding);
     expect(result.layout).toEqual(config.layout);
+    expect(result.booking).toEqual({ maxBookingAdvanceDays: 90 });
+  });
+
+  it('returns booking.maxBookingAdvanceDays from tenant.settings.booking for a published hotsite', async () => {
+    const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildPublished();
+    await repo.save(config);
+    const settings = TenantSettings.create(
+      new TenantSettingsPropsBuilder().withBooking({ maxBookingAdvanceDays: 45 }).build(),
+    );
+    await tenantRepo.save(new TenantBuilder().withId(TENANT_A).withSettings(settings).build());
+
+    const result = await useCase.execute({ tenantId: TENANT_A });
+
+    expect(result.booking).toEqual({ maxBookingAdvanceDays: 45 });
   });
 
   it('returns the tenant-configured seo title and description for a published hotsite', async () => {

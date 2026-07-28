@@ -1,6 +1,7 @@
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import { PlatformPublicController } from './platform.public.controller';
 import {
+  HotsiteBookingSettingsResponse,
   HotsiteBusinessInfoResponse,
   HotsiteLocalizationResponse,
   HotsiteResponse,
@@ -46,9 +47,14 @@ const localization: HotsiteLocalizationResponse = {
   },
 };
 
+const booking: HotsiteBookingSettingsResponse = {
+  maxBookingAdvanceDays: 90,
+};
+
 const hotsiteResponse: HotsiteResponse & {
   business: HotsiteBusinessInfoResponse;
   localization: HotsiteLocalizationResponse;
+  booking: HotsiteBookingSettingsResponse;
 } = {
   branding: {
     primaryColor: '#2563eb',
@@ -79,11 +85,13 @@ const hotsiteResponse: HotsiteResponse & {
   isPublished: true,
   business: businessInfo,
   localization,
+  booking,
 };
 
 const unpublishedHotsiteResponse: HotsiteResponse & {
   business: HotsiteBusinessInfoResponse;
   localization: HotsiteLocalizationResponse;
+  booking: HotsiteBookingSettingsResponse;
 } = {
   branding: hotsiteResponse.branding,
   layout: [],
@@ -91,6 +99,7 @@ const unpublishedHotsiteResponse: HotsiteResponse & {
   isPublished: false,
   business: { phone: null, email: null, address: null, socialLinks: null },
   localization,
+  booking,
 };
 
 describe('PlatformPublicController', () => {

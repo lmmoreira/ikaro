@@ -10,8 +10,6 @@ import {
   type ModuleConfigPanelProps,
 } from './module-config-panel.types';
 
-// carouselDays is deliberately not exposed here — typed but unread by BookingCtaModule.tsx, and
-// absent from both real production JSON examples reviewed during M13-S36 discovery.
 export function BookingCtaConfigPanel({
   data,
   onChange,
@@ -139,6 +137,41 @@ export function BookingCtaConfigPanel({
         uploadErrorLabel={t('backgroundImageUploadError')}
         removeLabel={t('backgroundImageRemove')}
       />
+
+      <div className="space-y-5 border-t border-gray-200 pt-5">
+        <h3 className="text-sm font-bold text-gray-900">{t('calendarSectionTitle')}</h3>
+
+        <PillSelect
+          label={t('datePickerTypeLabel')}
+          value={bookingCta.datePickerType ?? 'carousel'}
+          onChange={(datePickerType) => update({ datePickerType })}
+          testId="booking-cta-date-picker-type"
+          options={[
+            { value: 'carousel', label: t('datePickerTypeCarousel') },
+            { value: 'calendar', label: t('datePickerTypeCalendar') },
+          ]}
+        />
+
+        {(bookingCta.datePickerType ?? 'carousel') === 'carousel' && (
+          <div>
+            <label
+              htmlFor="booking-cta-carousel-days"
+              className="mb-1.5 block text-sm font-semibold text-gray-900"
+            >
+              {t('carouselDaysLabel')}
+            </label>
+            <input
+              id="booking-cta-carousel-days"
+              type="number"
+              min={1}
+              max={90}
+              value={bookingCta.carouselDays ?? 14}
+              onChange={(event) => update({ carouselDays: Number(event.target.value) || 1 })}
+              className="w-32 rounded-md border border-gray-300 px-3 py-2 text-sm"
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
