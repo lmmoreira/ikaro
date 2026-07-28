@@ -101,10 +101,24 @@ jobs:
           # such a PR would silently skip every Terraform job again, the
           # same verification gap this story's own review already found
           # once (review finding, 2026-07-21).
+          #
+          # The foundation exclusion MUST be a single extglob pattern, not a
+          # separate '!infra/terraform/foundation/**' array item: dorny/
+          # paths-filter compiles every array item into its own independent
+          # picomatch matcher and OR's them (predicate-quantifier: some,
+          # the default) — it is not .gitignore-style sequential exclusion.
+          # A standalone negated item matches "true" for any file NOT under
+          # foundation/**, i.e. almost everything, which silently ran the
+          # full Terraform pipeline (and its GCP WIF auth step) on unrelated
+          # PRs, e.g. a Dependabot bump touching only pr-quality.yml (PR
+          # #275, 2026-07-28). Verified against picomatch 2.3.1 (the version
+          # this action pins) that this single-pattern form still matches
+          # infra/terraform/** files (including ones directly under
+          # infra/terraform/, e.g. pubsub-catalog.json), excludes
+          # foundation/**, and does not match unrelated files.
           filters: |
             infra:
-              - 'infra/terraform/**'
-              - '!infra/terraform/foundation/**'
+              - 'infra/terraform/!(foundation)/**'
               - '.github/workflows/infra-deploy.yml'
 
       - name: List modules with tests
