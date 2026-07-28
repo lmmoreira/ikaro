@@ -97,6 +97,12 @@ locals {
     %{else~}
     echo "cloud-sql-proxy.service installed but not started: no db_instance_connection_name (prod pre-S37 state)." >&2
     %{endif~}
+
+    install -d -m 0755 /usr/local/bin
+    cat > /usr/local/bin/provision-tenant.sh <<'SCRIPT'
+${var.tenant_provision_script}
+SCRIPT
+    chmod 0755 /usr/local/bin/provision-tenant.sh
   EOT
 }
 
@@ -235,6 +241,17 @@ resource "google_secret_manager_secret_iam_member" "relay_platform_admin_key" {
   count = var.create ? 1 : 0
 
   secret_id = var.platform_admin_key_secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.relay.email}"
+}
+
+# The bundled provisioning script also needs the global internal API guard
+# key. This access is limited to the ephemeral relay identity by the chosen
+# administrative access model.
+resource "google_secret_manager_secret_iam_member" "relay_internal_api_key" {
+  count = var.create ? 1 : 0
+
+  secret_id = var.internal_api_key_secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.relay.email}"
 }

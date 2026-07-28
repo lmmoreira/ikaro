@@ -26,6 +26,7 @@ Rather than have a human interactively `gcloud auth login` inside the VM (which 
 
 - `cloud-sql-proxy --auto-iam-authn` auto-starts via systemd the moment the VM finishes booting. It runs as a dedicated unprivileged system user with a restricted systemd sandbox. Application Default Credentials automatically fall back to the instance's own attached service account when nothing else is configured — standard GCE behavior, nothing this module has to wire up beyond granting the SA the right roles.
 - Cloud Run identity tokens and Secret Manager access tokens come directly from the metadata server (see Usage below) — plain `curl`, no gcloud CLI needed for either.
+- The VM's startup script installs `/usr/local/bin/provision-tenant.sh` and grants the relay service account access to both `platform-admin-key` and `internal-api-key`, so tenant provisioning needs no manual secret export.
 
 This is also the more secure choice on its own terms, not just a workaround for the internet-egress constraint: it confines the actually-sensitive grants (Cloud SQL IAM auth, `run.invoker`, `platform-admin-key` read) to a narrowly-scoped service account with keyless, short-lived credentials minted through the instance metadata server, rather than the human's own long-lived Google identity, which if ever compromised would otherwise carry all of that usable from anywhere. A user with shell access can retrieve and copy a short-lived metadata token, so the boundary is not non-exportability; it is the absence of a long-lived key and the relay VM's narrowly scoped grants. `iam_admin_user` keeps only `iap.tunnelResourceAccessor` + `compute.osLogin`, both scoped to this one instance — i.e., "can SSH into this VM to set up a port-forward or run ad-hoc commands," nothing more.
 
@@ -42,57 +43,26 @@ gcloud compute ssh ikaro-relay-vm-<env> --tunnel-through-iap --zone=<zone> --pro
 
 Then in DBeaver: host `127.0.0.1`, port `5433`, database `ikaro`, **username = `ikaro-relay-vm@ikaro-<env>.iam`** (the relay service account's Cloud SQL IAM username — `.gserviceaccount.com` trimmed, per `google_sql_user.relay` — **not** your own Google email; the authenticated identity is now the relay SA, not you), empty password (the proxy injects the credential).
 
-### Option B — reach the ingress:internal backend directly (e.g. tenant provisioning)
+### Option B — provision a tenant
 
-This has to run *from inside* the relay VM via SSH — that's the whole reason it exists; Cloud Run's ingress check cares about network origin, not just auth, so it can't be done from your laptop even with a valid token.
+This has to run *from inside* the relay VM via SSH — that's the whole reason it exists; Cloud Run's ingress check cares about network origin, not just auth, so it can't be done from your laptop even with valid credentials.
 
 ```bash
 gcloud compute ssh ikaro-relay-vm-<env> --tunnel-through-iap --zone=<zone> --project=ikaro-<env>
 ```
 
-Inside the VM — everything below authenticates via the metadata server automatically, as the relay VM's own service account. No gcloud CLI, no login step:
+Inside the VM, the bundled script authenticates through the metadata server as the relay VM's own service account. No gcloud CLI, login step, or manual secret export is needed:
 
 ```bash
-BACKEND_URL="<backend-url>"  # e.g. https://ikaro-backend-<hash>-rj.a.run.app
-PROJECT_ID="ikaro-<env>"
-
-# Identity token scoped to this backend URL as audience — the metadata
-# server returns the raw JWT as plain text for this endpoint (no JSON to
-# parse, unlike the /token endpoint below).
-ID_TOKEN=$(curl -s -H "Metadata-Flavor: Google" \
-  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity?audience=$BACKEND_URL")
-
-# Quick connectivity check (no body, no side effects) — returns this
-# app's own JSON response, not Google's generic ingress-block 404:
-curl -H "Authorization: Bearer $ID_TOKEN" "$BACKEND_URL/health/ready"
+/usr/local/bin/provision-tenant.sh \
+  "<tenant-name>" \
+  "<tenant-slug>" \
+  "<admin-email>" \
+  "BR" \
+  "America/Sao_Paulo"
 ```
 
-Tenant provisioning (`POST /internal/tenants`, gated by `PlatformAdminGuard`) additionally needs `platform-admin-key`, read via Secret Manager's REST API using an OAuth access token (also metadata-server-minted — this endpoint *does* return JSON, so a dependency-free `grep`/`cut` extracts the one field needed rather than assuming `jq` is installed, since `jq` has the same apt-unreachable problem as `gcloud`):
-
-```bash
-ACCESS_TOKEN=$(curl -s -H "Metadata-Flavor: Google" \
-  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" \
-  | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
-
-PLATFORM_ADMIN_KEY=$(curl -s -H "Authorization: Bearer $ACCESS_TOKEN" \
-  "https://secretmanager.googleapis.com/v1/projects/$PROJECT_ID/secrets/platform-admin-key/versions/latest:access" \
-  | grep -o '"data":"[^"]*' | cut -d'"' -f4 | base64 -d)
-```
-
-Body shape is `ProvisionTenantSchema` (`apps/backend/.../provision-tenant.dto.ts`) — `country_code` is **required** (2-letter ISO, not optional like `timezone`); values below are placeholders, not real data:
-
-```bash
-curl -X POST "$BACKEND_URL/internal/tenants" \
-  -H "Authorization: Bearer $ID_TOKEN" \
-  -H "X-Platform-Admin-Key: $PLATFORM_ADMIN_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "<tenant-name>",
-    "slug": "<tenant-slug>",
-    "adminEmail": "<admin-email>",
-    "country_code": "BR"
-  }'
-```
+The script posts to `POST /internal/tenants` with the required `country_code` and optional IANA `timezone`. A successful response is HTTP `201` and contains the new `tenantId`; the initial manager is created asynchronously from the `TenantProvisioned` event.
 
 ## What lands in Cloud Audit Logs (and what doesn't)
 

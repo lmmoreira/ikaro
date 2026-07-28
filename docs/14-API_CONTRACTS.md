@@ -882,11 +882,11 @@ Errors:
 
 > These endpoints are **not reachable from the public internet** in production. Four independent layers protect them (M17):
 > 1. **Cloud Run internal ingress** — the backend is not publicly reachable.
-> 2. **IAM-authenticated `gcloud run services proxy`** — only an operator with `roles/run.invoker` can reach the service.
+> 2. **IAP relay VM + IAM identity** — the operator reaches the VM through IAP; the relay service account reaches the internal backend with a metadata-server identity token and `roles/run.invoker`.
 > 3. **`INTERNAL_API_KEY`** — global `InternalApiGuard` validates `X-Internal-Key`.
 > 4. **`PLATFORM_ADMIN_KEY`** — `PlatformAdminGuard` validates `X-Platform-Admin-Key` with `crypto.timingSafeEqual`.
 >
-> All three layers must pass. The `RequestInterceptor` skips `/internal/*` — no `X-Tenant-ID` header is expected.
+> All four layers must pass. The `RequestInterceptor` skips `/internal/*` — no `X-Tenant-ID` header is expected.
 
 ---
 
@@ -907,6 +907,7 @@ Content-Type: application/json
   "name":        "AutoWash Pro",
   "slug":        "autowash-pro",
   "adminEmail":  "owner@autowashpro.com.br",
+  "country_code": "BR",
   "timezone":    "America/Sao_Paulo"
 }
 ```
@@ -916,6 +917,7 @@ Content-Type: application/json
 | `name` | string | ✓ | Non-empty |
 | `slug` | string | ✓ | `/^[a-z0-9-]+$/`, globally unique |
 | `adminEmail` | string | ✓ | Valid email format |
+| `country_code` | string | ✓ | ISO country code; `BR` for the current Brazil deployment |
 | `timezone` | string | — | Valid IANA timezone (default: `America/Sao_Paulo`) |
 
 **Response `201 Created`:**

@@ -864,11 +864,11 @@ Returns:
 ### **UC-024: Platform Operator Provisions New Tenant (REST API)**
 
 - **Actor:** Ikaro platform operator (developer / internal ops)
-- **Preconditions:** Operator has `roles/run.invoker` on the backend Cloud Run service and holds `PLATFORM_ADMIN_KEY` plus `INTERNAL_API_KEY`. No self-service signup UI exists in MVP.
+- **Preconditions:** Operator can open an IAP SSH session to the on-demand relay VM; the relay service account has backend `roles/run.invoker` and Secret Manager access to `PLATFORM_ADMIN_KEY` plus `INTERNAL_API_KEY`. No self-service signup UI exists in MVP.
 - **Trigger:** A new car-wash company is signed up and needs a tenant provisioned on the platform.
 - **Security:** Four independent layers (M17):
   1. **Cloud Run internal ingress** — the backend is not publicly reachable.
-  2. **IAM-authenticated `gcloud run services proxy`** — only an operator with `roles/run.invoker` can reach the service.
+  2. **IAP relay VM + IAM identity** — the operator reaches the VM through IAP; its service account reaches the internal backend with `roles/run.invoker`.
   3. **`INTERNAL_API_KEY`** — global `InternalApiGuard` validates `X-Internal-Key`.
   4. **`PLATFORM_ADMIN_KEY`** — `PlatformAdminGuard` validates `X-Platform-Admin-Key`.
 
@@ -884,6 +884,7 @@ Returns:
         "name": "AutoWash Pro",
         "slug": "autowash-pro",
         "adminEmail": "owner@autowashpro.com.br",
+        "country_code": "BR",
         "timezone": "America/Sao_Paulo"
       }
       ```

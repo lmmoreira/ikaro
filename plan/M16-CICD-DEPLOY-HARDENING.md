@@ -414,24 +414,12 @@ Execute the final go-live checklist: configure production secrets, deploy to pro
 
 3. **First production deploy** (via M16-S03 workflow with staging-validated SHA)
 
-4. **Provision first tenant** (via `POST /internal/tenants` — M02-S05): in one terminal, start the IAM-authenticated proxy:
+4. **Provision first tenant** (via `POST /internal/tenants` — M02-S05): enable the on-demand IAP relay VM through the protected infrastructure workflow, connect to it with IAP, and run the bundled script:
    ```bash
-   gcloud run services proxy ikaro-backend --project=ikaro-prod --region=southamerica-east1 --port=8080
+   /usr/local/bin/provision-tenant.sh \
+     "Lavacar BeloAuto" "lavacar-beloauto" "admin@lavacar.com.br" "BR" "America/Sao_Paulo"
    ```
-   In another terminal, call the local proxy:
-   ```bash
-   curl -X POST http://localhost:8080/internal/tenants \
-     -H "X-Platform-Admin-Key: $(gcloud secrets versions access latest --secret=platform-admin-key --project=ikaro-prod)" \
-     -H "X-Internal-Key: $(gcloud secrets versions access latest --secret=internal-api-key --project=ikaro-prod)" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "name": "Lavacar BeloAuto",
-       "slug": "lavacar-beloauto",
-       "adminEmail": "admin@lavacar.com.br",
-       "timezone": "America/Sao_Paulo"
-     }'
-   ```
-   Prerequisite: the operator has `roles/run.invoker` on the backend Cloud Run service. The proxy owns the `Authorization` header for its IAM ID token; do not send the platform key through that header.
+   The relay service account owns the Cloud Run invoker and Secret Manager grants, and the script obtains the identity token plus both secret values from the metadata server/Secret Manager. No manual secret export is required.
    Verify: `TenantProvisioned` event published, first MANAGER staff row created (M04-S06), invitation email in SendGrid logs.
 
 5. **Validate SLOs:**
