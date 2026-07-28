@@ -81,6 +81,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       infra: ${{ steps.filter.outputs.infra }}
+      terraform: ${{ steps.filter.outputs.terraform }}
       modules: ${{ steps.modules.outputs.modules }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -94,13 +95,9 @@ jobs:
           # Excludes foundation/**: Foundation changes run only through the
           # separately protected foundation workflow and must never trigger a
           # normal environment apply on merge. Includes this workflow file
-          # itself, not just normal infra/terraform/**
-          # — a future PR touching only the pipeline's own YAML (no .tf
-          # changes) still needs a real fmt/validate/test/plan run before
-          # merge, same as any other change to this pipeline. Without this,
-          # such a PR would silently skip every Terraform job again, the
-          # same verification gap this story's own review already found
-          # once (review finding, 2026-07-21).
+          # itself, not just normal infra/terraform/**. A workflow-only PR
+          # still runs the unprivileged Terraform checks below, while the
+          # credentialed plans remain limited to actual Terraform changes.
           #
           # The foundation exclusion MUST be a single extglob pattern, not a
           # separate '!infra/terraform/foundation/**' array item: dorny/
@@ -120,6 +117,8 @@ jobs:
             infra:
               - 'infra/terraform/!(foundation)/**'
               - '.github/workflows/infra-deploy.yml'
+            terraform:
+              - 'infra/terraform/!(foundation)/**'
 
       - name: List modules with tests
         id: modules
@@ -215,7 +214,7 @@ jobs:
     name: Terraform plan (staging)
     needs: [detect-changes, fmt, validate, terraform-test]
     if: |
-      needs.detect-changes.outputs.infra == 'true' &&
+      needs.detect-changes.outputs.terraform == 'true' &&
       needs.fmt.result == 'success' &&
       needs.validate.result == 'success' &&
       needs.terraform-test.result == 'success'
@@ -323,7 +322,7 @@ jobs:
     name: Terraform plan (prod)
     needs: [detect-changes, fmt, validate, terraform-test]
     if: |
-      needs.detect-changes.outputs.infra == 'true' &&
+      needs.detect-changes.outputs.terraform == 'true' &&
       needs.fmt.result == 'success' &&
       needs.validate.result == 'success' &&
       needs.terraform-test.result == 'success'
@@ -473,7 +472,7 @@ jobs:
   pr-comment:
     name: PR plan status comment
     needs: [detect-changes, plan-staging, plan-prod]
-    if: always() && needs.detect-changes.outputs.infra == 'true' && github.event_name == 'pull_request'
+    if: always() && needs.detect-changes.outputs.terraform == 'true' && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
