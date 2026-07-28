@@ -1,3 +1,5 @@
+import { BookingStatus, BookingType } from '@ikaro/types';
+
 export interface BookingLineResponse {
   lineId: string;
   serviceId: string;
@@ -19,7 +21,7 @@ export interface AddressResponse {
 
 export interface BookingResponse {
   bookingId: string;
-  status: string;
+  status: BookingStatus;
   scheduledAt: string;
   totalPrice: { amount: number; currency: string };
   totalDurationMins: number;
@@ -38,8 +40,8 @@ export interface BookingLineSummary {
 
 export interface BookingListItem {
   id: string;
-  status: string;
-  type: string;
+  status: BookingStatus;
+  type: BookingType;
   customerId: string | null;
   contactName: string;
   contactEmail: string;
@@ -94,8 +96,8 @@ export interface AttachmentSignedUrlResponse {
 
 export interface BookingDetailResponse {
   id: string;
-  status: string;
-  type: string;
+  status: BookingStatus;
+  type: BookingType;
   customerId: string | null;
   contactName: string;
   contactEmail: string;

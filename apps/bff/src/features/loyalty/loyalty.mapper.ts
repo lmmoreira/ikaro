@@ -1,8 +1,13 @@
 import {
   CustomerLoyaltyEntryResponse,
   CustomerLoyaltyRedemptionResponse,
+  CustomerProfileResponse,
+  EnrichedLoyaltyBalanceResponse,
   LoyaltyEntryItem as StaffLoyaltyEntryItem,
   LoyaltyRedemptionItem as StaffLoyaltyRedemptionItem,
+  PaginatedLoyaltyEntriesResponse,
+  PaginatedLoyaltyRedemptionsResponse,
+  StaffCustomerLoyaltyDetailResponse,
 } from '@ikaro/types';
 import { BackendLoyaltyEntryItem, BackendLoyaltyRedemptionItem } from './loyalty.types';
 
@@ -75,4 +80,13 @@ export function toStaffLoyaltyRedemption(
     bookingId: item.bookingId,
     notes: item.notes,
   };
+}
+
+export function toStaffCustomerLoyaltyDetail(
+  customer: CustomerProfileResponse,
+  balance: EnrichedLoyaltyBalanceResponse,
+  entries: PaginatedLoyaltyEntriesResponse,
+  redemptions: PaginatedLoyaltyRedemptionsResponse,
+): StaffCustomerLoyaltyDetailResponse {
+  return { customer, balance, entries, redemptions };
 }

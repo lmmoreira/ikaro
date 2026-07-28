@@ -1,11 +1,13 @@
 import {
   CustomerBookingDetailResponse,
   CustomerBookingListItem,
+  CustomerBookingListResponse,
   GuestBookingReadResponse,
   StaffBookingCardResponse,
   StaffBookingDetailResponse,
+  StaffBookingListResponse,
 } from '@ikaro/types';
-import { BookingDetailResponse, BookingListItem } from './bookings.types';
+import { BookingDetailResponse, BookingListItem, BookingListResponse } from './bookings.types';
 
 function toMoneyOrNull(
   money: { amount: number; currency: string } | null,
@@ -16,7 +18,7 @@ function toMoneyOrNull(
 export function toCustomerBookingListItem(item: BookingListItem): CustomerBookingListItem {
   return {
     bookingId: item.id,
-    status: item.status as CustomerBookingListItem['status'],
+    status: item.status,
     scheduledAt: item.scheduledAt,
     lines: item.lineSummary.map((l) => ({
       lineId: l.lineId,
@@ -35,7 +37,7 @@ export function toCustomerBookingListItem(item: BookingListItem): CustomerBookin
 export function toStaffBookingCard(item: BookingListItem): StaffBookingCardResponse {
   return {
     bookingId: item.id,
-    status: item.status as StaffBookingCardResponse['status'],
+    status: item.status,
     scheduledAt: item.scheduledAt,
     contactName: item.contactName,
     serviceNames: item.lineSummary.map((l) => l.serviceNameAtBooking),
@@ -45,12 +47,34 @@ export function toStaffBookingCard(item: BookingListItem): StaffBookingCardRespo
   };
 }
 
+export function toBookingListResponse(
+  backend: BookingListResponse,
+  query: { page: number; limit: number },
+  isStaffOrManager: boolean,
+): StaffBookingListResponse | CustomerBookingListResponse {
+  if (!isStaffOrManager) {
+    return {
+      items: backend.items.map(toCustomerBookingListItem),
+      total: backend.pagination.total,
+      page: query.page,
+      limit: query.limit,
+    };
+  }
+
+  return {
+    items: backend.items.map(toStaffBookingCard),
+    total: backend.pagination.total,
+    page: query.page,
+    limit: query.limit,
+  };
+}
+
 export function toCustomerBookingDetail(
   detail: BookingDetailResponse,
 ): CustomerBookingDetailResponse {
   return {
     bookingId: detail.id,
-    status: detail.status as CustomerBookingDetailResponse['status'],
+    status: detail.status,
     scheduledAt: detail.scheduledAt,
     lines: detail.lines.map((l) => ({
       lineId: l.lineId,
@@ -91,9 +115,9 @@ export function toStaffBookingDetail(
 ): StaffBookingDetailResponse {
   return {
     bookingId: detail.id,
-    status: detail.status as StaffBookingDetailResponse['status'],
+    status: detail.status,
     scheduledAt: detail.scheduledAt,
-    type: detail.type as StaffBookingDetailResponse['type'],
+    type: detail.type,
     contactName: detail.contactName,
     contactEmail: detail.contactEmail,
     contactPhone: detail.contactPhone,

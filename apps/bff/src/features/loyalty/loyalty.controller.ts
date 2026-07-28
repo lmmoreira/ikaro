@@ -22,6 +22,7 @@ import {
 import {
   toCustomerLoyaltyEntry,
   toCustomerLoyaltyRedemption,
+  toStaffCustomerLoyaltyDetail,
   toStaffLoyaltyEntry,
   toStaffLoyaltyRedemption,
 } from './loyalty.mapper';
@@ -183,15 +184,11 @@ export class LoyaltyController {
       ),
     ]);
 
-    return {
+    return toStaffCustomerLoyaltyDetail(
       customer,
       balance,
-      entries: toPaginatedResponse(entries, entries.entries, toStaffLoyaltyEntry),
-      redemptions: toPaginatedResponse(
-        redemptions,
-        redemptions.redemptions,
-        toStaffLoyaltyRedemption,
-      ),
-    };
+      toPaginatedResponse(entries, entries.entries, toStaffLoyaltyEntry),
+      toPaginatedResponse(redemptions, redemptions.redemptions, toStaffLoyaltyRedemption),
+    );
   }
 }

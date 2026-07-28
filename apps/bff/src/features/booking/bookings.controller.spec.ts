@@ -4,6 +4,7 @@ import * as jwt from 'jsonwebtoken';
 import { BffErrorCode } from '@ikaro/types';
 import { CurrentUserPayloadBuilder } from '../../test/builders/current-user-payload.builder';
 import { makeBackendHttp } from '../../test/backend-http.mock';
+import { AppLogger } from '../../shared/observability/app-logger';
 import { AttachmentSignedUrlBodySchema, BookingsController } from './bookings.controller';
 import { AttachmentSignedUrlResponse, BookingResponse } from './bookings.types';
 
@@ -1020,6 +1021,7 @@ describe('BookingsController', () => {
           .mockResolvedValueOnce(customerDetail)
           .mockRejectedValueOnce(new HttpException({ status: 500 }, 500)),
       });
+      const errorSpy = jest.spyOn(AppLogger.prototype, 'error').mockImplementation();
       const controller = new BookingsController(backendHttp, makeConfigService());
 
       const result = await controller.getOne(BOOKING_ID, managerUser);
@@ -1029,6 +1031,13 @@ describe('BookingsController', () => {
         customerId: CUSTOMER_ID,
         loyaltyBalance: null,
       });
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Failed to fetch loyalty balance for staff booking detail',
+        undefined,
+        expect.objectContaining({ customerId: CUSTOMER_ID }),
+      );
+
+      errorSpy.mockRestore();
     });
   });
 
