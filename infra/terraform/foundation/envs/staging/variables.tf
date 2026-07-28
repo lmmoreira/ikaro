@@ -58,6 +58,12 @@ variable "relay_platform_admin_key_secret_id" {
   default     = "projects/ikaro-staging/secrets/platform-admin-key"
 }
 
+variable "relay_internal_api_key_secret_id" {
+  description = "Resource ID of internal-api-key, granted to the relay VM identity only while the VM exists."
+  type        = string
+  default     = "projects/ikaro-staging/secrets/internal-api-key"
+}
+
 variable "relay_subnet_id" {
   description = "Fully-qualified private subnet ID attached to the Foundation-owned relay VM."
   type        = string

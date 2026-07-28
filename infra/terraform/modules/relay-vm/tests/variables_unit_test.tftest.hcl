@@ -16,6 +16,8 @@ variables {
   operator_service_account_email = "ikaro-tf-foundation@ikaro-test.iam.gserviceaccount.com"
   iam_admin_user                 = "admin@ikaro.online"
   platform_admin_key_secret_id   = "projects/ikaro-test/secrets/platform-admin-key"
+  internal_api_key_secret_id     = "projects/ikaro-test/secrets/internal-api-key"
+  tenant_provision_script        = "#!/usr/bin/env bash\necho provision"
 }
 
 run "accepts_valid_environment_and_defaults" {
@@ -41,5 +43,17 @@ run "rejects_invalid_environment" {
 
   expect_failures = [
     var.environment,
+  ]
+}
+
+run "rejects_empty_tenant_provision_script" {
+  command = plan
+
+  variables {
+    tenant_provision_script = "   "
+  }
+
+  expect_failures = [
+    var.tenant_provision_script,
   ]
 }
