@@ -17,7 +17,7 @@
 
 ---
 
-## M18-S01 — Configurable hotsite date picker (carousel/calendar) honoring `maxBookingAdvanceDays`
+## M18-S01 — Configurable hotsite date picker (carousel/calendar) honoring `maxBookingAdvanceDays` ✅ Done
 
 **Agent:** `fullstack-ts`
 **Complexity:** L
