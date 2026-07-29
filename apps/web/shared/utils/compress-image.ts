@@ -38,6 +38,12 @@ function centerCropRect(width: number, height: number, targetAspectRatio: number
   return { sx: 0, sy: Math.round((height - sHeight) / 2), sWidth: width, sHeight };
 }
 
+function extensionForBlobType(blobType: string): string {
+  if (blobType === 'image/png') return 'png';
+  if (blobType === 'image/webp') return 'webp';
+  return 'jpg';
+}
+
 function withExtension(fileName: string, extension: string): string {
   const dot = fileName.lastIndexOf('.');
   const base = dot === -1 ? fileName : fileName.slice(0, dot);
@@ -89,8 +95,7 @@ export async function compressImage(file: File, targetAspectRatio?: number): Pro
       return file;
     }
 
-    const extension =
-      blob.type === 'image/png' ? 'png' : blob.type === 'image/webp' ? 'webp' : 'jpg';
+    const extension = extensionForBlobType(blob.type);
     return new File([blob], withExtension(file.name, extension), { type: blob.type });
   } catch {
     return file;

@@ -77,6 +77,7 @@
   "PLATFORM_TENANT_INACTIVE": "This business is inactive and cannot be modified.",
   "PLATFORM_HOTSITE_NOT_FOUND": "Hotsite configuration not found.",
   "PLATFORM_HOTSITE_IMAGE_NOT_UPLOADED": "The provided image could not be found.",
+  "PLATFORM_HOTSITE_CONCURRENT_MODIFICATION": "This hotsite configuration was changed by another request. Reload it and try again.",
   "PLATFORM_TENANT_NAME_REQUIRED": "The business name is required.",
   "PLATFORM_TENANT_SLUG_INVALID": "The slug must contain only lowercase letters, numbers, and hyphens.",
   "PLATFORM_HOTSITE_NO_ENABLED_MODULES": "You need to enable at least one module to publish the hotsite.",

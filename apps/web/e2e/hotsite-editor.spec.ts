@@ -215,6 +215,72 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await expect(page.getByTestId('hotsite-seo-title')).toHaveValue('a'.repeat(60));
   });
 
+  // M18-S03 — seo.ogImageUrl is a dedicated share-image field, decoupled from branding.logoUrl.
+  test('SEO tab: uploading a share image, publishing, and reloading persists it, and the public hotsite resolves it as og:image (M18-S03)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'SEO' }).click();
+
+    await page.getByTestId('single-image-upload-input').setInputFiles({
+      name: 'share.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('fake-image-content-for-e2e'),
+    });
+    await expect(page.getByTestId('single-image-upload-preview')).toBeVisible();
+
+    await page.getByTestId('hotsite-publish-desktop').click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+
+    await page.reload();
+    await page.getByRole('tab', { name: 'SEO' }).click();
+    await expect(page.getByTestId('single-image-upload-preview')).toBeVisible();
+
+    await page.goto(`/${MANAGER_TENANT_SLUG}`);
+    await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+      'content',
+      /^https?:\/\//,
+    );
+  });
+
+  // M18-S03 — branding.logoUrl now renders in the topbar, footer, and browser tab favicon (in
+  // addition to the pre-existing login-page badge), with an initial-letter fallback when unset.
+  test('Branding tab: uploading a logo, publishing, and reloading renders it in the public hotsite topbar, footer, and favicon (M18-S03)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+
+    await page.getByTestId('single-image-upload-input').setInputFiles({
+      name: 'logo.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('fake-image-content-for-e2e'),
+    });
+    await expect(page.getByTestId('single-image-upload-preview')).toBeVisible();
+
+    await page.getByTestId('hotsite-publish-desktop').click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+
+    await page.goto(`/${MANAGER_TENANT_SLUG}`);
+    await expect(page.locator('[data-testid="hotsite-auth-bar"] img')).toBeVisible();
+    await expect(page.locator('footer img')).toBeVisible();
+    await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', /.+/);
+  });
+
+  // Default seed state has no logo uploaded (autospa-premium's branding.logoUrl is '') — this
+  // test relies on that default rather than explicitly clearing it, since afterEach always
+  // restores `original` between tests in this serial block.
+  test('Public hotsite: with no logo uploaded, the topbar and footer show the initial-letter fallback and no favicon is set (M18-S03)', async ({
+    page,
+  }) => {
+    expect(original.branding.logoUrl).toBe('');
+
+    await page.goto(`/${MANAGER_TENANT_SLUG}`);
+
+    await expect(page.locator('[data-testid="hotsite-auth-bar"] img')).toHaveCount(0);
+    await expect(page.locator('footer img')).toHaveCount(0);
+    await expect(page.locator('link[rel="icon"]')).toHaveCount(0);
+  });
+
   // First E2E coverage of the Manifesto tab (M18-S02). Reads the textarea's actual rendered
   // value (already materialized to all 8 module types by HotsiteEditor's draft construction)
   // rather than assuming the raw seed's shape, so this doesn't depend on which module types

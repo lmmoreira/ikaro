@@ -202,6 +202,8 @@ interface HotsiteConfigProps {
   seo: HotsiteSeoProps;
   isPublished: boolean;
   updatedAt: Date;
+  /** Undefined for a not-yet-persisted aggregate (mirrors Booking.version) — set on load, bumped via markPersisted() after a successful save. */
+  version?: number;
 }
 
 type ReconstituteInput = Omit<HotsiteConfigProps, 'branding' | 'seo'> & {
@@ -385,6 +387,10 @@ export class HotsiteConfig extends AggregateRoot {
     return this.props.updatedAt;
   }
 
+  get version(): number | undefined {
+    return this.props.version;
+  }
+
   static create(tenantId: string): HotsiteConfig {
     return new HotsiteConfig({
       id: uuidv7(),
@@ -403,6 +409,11 @@ export class HotsiteConfig extends AggregateRoot {
       branding: brandingReconstitute(props.branding),
       seo: seoReconstitute(props.seo),
     });
+  }
+
+  /** Called by the repository right after a successful save — never call directly. */
+  markPersisted(version: number): void {
+    this.props.version = version;
   }
 
   updateContent(

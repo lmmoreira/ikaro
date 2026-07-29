@@ -77,6 +77,7 @@
   "PLATFORM_TENANT_INACTIVE": "Este estabelecimento está inativo e não pode ser modificado.",
   "PLATFORM_HOTSITE_NOT_FOUND": "Configuração do site não encontrada.",
   "PLATFORM_HOTSITE_IMAGE_NOT_UPLOADED": "A imagem informada não foi encontrada.",
+  "PLATFORM_HOTSITE_CONCURRENT_MODIFICATION": "Esta configuração do site foi alterada por outra solicitação. Recarregue e tente novamente.",
   "PLATFORM_TENANT_NAME_REQUIRED": "O nome do estabelecimento é obrigatório.",
   "PLATFORM_TENANT_SLUG_INVALID": "O identificador (slug) deve conter apenas letras minúsculas, números e hifens.",
   "PLATFORM_HOTSITE_NO_ENABLED_MODULES": "É necessário ativar ao menos um módulo para publicar o site.",
