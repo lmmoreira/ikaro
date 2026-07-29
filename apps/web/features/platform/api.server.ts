@@ -1,4 +1,5 @@
 import 'server-only';
+import { cache } from 'react';
 import { notFound } from 'next/navigation';
 import type { HotsiteManifestResponse, HotsiteSitemapEntryListResponse } from '@ikaro/types';
 import {
@@ -26,14 +27,21 @@ export async function fetchManifestResponse(slug: string): Promise<Response> {
   });
 }
 
-export async function fetchManifest(slug: string): Promise<HotsiteManifestResponse> {
+// Memoized per request (React cache()) — app/[slug]/layout.tsx and app/[slug]/page.tsx (plus
+// their own generateMetadata()) each call this independently for the same slug within a single
+// request. fetchManifestResponse() disables the Next.js Data Cache in dev (revalidate: 0), so
+// without this, every one of those call sites fired its own real, un-deduplicated network
+// round-trip — occasionally racing each other and intermittently returning 404 under CI's next dev
+// (confirmed via a Playwright trace: the customer /my-account routes, which share this same
+// [slug] layout, intermittently rendered the global tenant-not-found page mid-flow — M18-S03 fix).
+export const fetchManifest = cache(async (slug: string): Promise<HotsiteManifestResponse> => {
   const res = await fetchManifestResponse(slug);
 
   if (res.status === 404) notFound();
   if (!res.ok) throw new Error(`Failed to fetch manifest for slug "${slug}"`);
 
   return res.json() as Promise<HotsiteManifestResponse>;
-}
+});
 
 export async function fetchPublishedHotsiteSlugs(): Promise<HotsiteSitemapEntryListResponse> {
   const isDev = process.env.NODE_ENV === 'development';
