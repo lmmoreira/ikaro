@@ -3,7 +3,7 @@ import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/stora
 import { extractTenantIdFromTmpPath } from '../../../../shared/utils/extract-tenant-id-from-tmp-path';
 import { HOTSITE_TMP_PATH_REGEX } from '../../../../shared/utils/tmp-path-regex';
 import { HotsiteImageNotUploadedError } from '../../domain/errors/platform-domain.error';
-import { HotsiteBranding, HotsiteModule } from '../../domain/hotsite-config.aggregate';
+import { HotsiteBranding, HotsiteModule, HotsiteSeo } from '../../domain/hotsite-config.aggregate';
 import { HotsiteImagePathsService } from '../../domain/services/hotsite-image-paths.service';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 
@@ -15,6 +15,7 @@ export interface ImagePromotionOperation {
 export interface PreparedImagePromotion {
   branding: HotsiteBranding;
   layout: HotsiteModule[];
+  seo: HotsiteSeo;
   promotions: ImagePromotionOperation[];
 }
 
@@ -37,6 +38,7 @@ export class HotsiteImagePromotionService {
   async prepareImagePromotion(
     branding: HotsiteBranding,
     layout: HotsiteModule[],
+    seo: HotsiteSeo,
     tenantId: string,
   ): Promise<PreparedImagePromotion> {
     const tenantPrefix = `tenants/${tenantId}/`;
@@ -44,7 +46,7 @@ export class HotsiteImagePromotionService {
     const rewriteMap = new Map<string, string>();
     const promotions: ImagePromotionOperation[] = [];
 
-    for (const path of this.imagePathsService.collect(branding, layout)) {
+    for (const path of this.imagePathsService.collect(branding, layout, seo)) {
       if (path.startsWith(tmpPrefix)) {
         // Requires the hotsite-specific tmp/<tenantId>/<purpose>/<uuid>/<fileName> shape — layout
         // module image fields (data: Record<string, unknown> in the DTO) carry no shape
@@ -70,10 +72,20 @@ export class HotsiteImagePromotionService {
 
     const rewritten =
       rewriteMap.size > 0
-        ? this.imagePathsService.mapPaths(branding, layout, (path) => rewriteMap.get(path) ?? path)
-        : { branding, layout };
+        ? this.imagePathsService.mapPaths(
+            branding,
+            layout,
+            seo,
+            (path) => rewriteMap.get(path) ?? path,
+          )
+        : { branding, layout, seo };
 
-    return { branding: rewritten.branding, layout: rewritten.layout, promotions };
+    return {
+      branding: rewritten.branding,
+      layout: rewritten.layout,
+      seo: rewritten.seo,
+      promotions,
+    };
   }
 
   /** Actual copy+delete — call via scheduleAfterCommit(), only after the config row is saved. Best-effort per file. */

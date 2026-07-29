@@ -92,6 +92,7 @@ function usePreviewSupplementaryData(
 function useTmpSignedUrls(
   branding: HotsiteAdminContentResponse['branding'],
   layout: HotsiteAdminContentResponse['layout'],
+  seo: HotsiteAdminContentResponse['seo'],
 ): ReadonlyMap<string, string> {
   const [signedUrls, setSignedUrls] = useState<ReadonlyMap<string, string>>(new Map());
 
@@ -99,7 +100,7 @@ function useTmpSignedUrls(
     // Deduped — the same tmp/ path can appear in more than one field (e.g. a reused image), and
     // fetching a signed URL for it once is enough.
     const tmpPaths = [
-      ...new Set(collectHotsiteImagePaths(branding, layout).filter(isTmpImagePath)),
+      ...new Set(collectHotsiteImagePaths(branding, layout, seo).filter(isTmpImagePath)),
     ];
     if (tmpPaths.length === 0) return;
 
@@ -121,7 +122,7 @@ function useTmpSignedUrls(
     return () => {
       cancelled = true;
     };
-  }, [branding, layout]);
+  }, [branding, layout, seo]);
 
   return signedUrls;
 }
@@ -137,10 +138,11 @@ export function HotsitePreview({
   // returned, not yet resolved to a public URL (resolution only happens server-side on the next
   // GET) — next/image's `src` requires an absolute URL, so resolve every image field before
   // rendering. Untouched fields already hold a resolved URL and pass through unchanged.
-  const tmpSignedUrls = useTmpSignedUrls(draft.branding, draft.layout);
+  const tmpSignedUrls = useTmpSignedUrls(draft.branding, draft.layout, draft.seo);
   const { branding, layout } = resolveDraftImageUrls(
     draft.branding,
     draft.layout,
+    draft.seo,
     hotsiteImageBaseUrl(),
     tmpSignedUrls,
   );
@@ -265,6 +267,7 @@ export function HotsitePreview({
                       slug={tenantSlug}
                       tenantName={data.tenantName}
                       business={data.business}
+                      logoUrl={branding.logoUrl}
                     />
                   );
                 }

@@ -195,11 +195,11 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
 
   async function handlePublish(): Promise<void> {
     try {
-      const stripped = stripResolvedImageUrls(draft.branding, draft.layout, tenantId);
+      const stripped = stripResolvedImageUrls(draft.branding, draft.layout, draft.seo, tenantId);
       const updated = await updateConfig.mutateAsync({
         branding: stripped.branding,
         layout: stripped.layout,
-        seo: draft.seo,
+        seo: stripped.seo,
       });
       // The PATCH response reflects any tmp/ -> permanent path promotion that just happened
       // server-side (UpdateHotsiteContentUseCase rewrites the stored reference and returns it).

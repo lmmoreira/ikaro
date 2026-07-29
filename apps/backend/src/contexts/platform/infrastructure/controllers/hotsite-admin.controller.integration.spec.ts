@@ -100,7 +100,7 @@ describe('HotsiteAdminController (integration)', () => {
       expect(body.branding.primaryColor).toBe('#2563EB');
       expect(body.layout).toHaveLength(1);
       expect(body.layout[0].type).toBe('HERO');
-      expect(body.seo).toEqual({ title: null, description: null });
+      expect(body.seo).toEqual({ title: null, description: null, ogImageUrl: '' });
     });
   });
 
@@ -253,6 +253,7 @@ describe('HotsiteAdminController (integration)', () => {
       expect(body.seo).toEqual({
         title: 'Lavacar Estrela — Agendamento Online',
         description: 'Agende já.',
+        ogImageUrl: '',
       });
 
       const { body: getBody } = await request(app.getHttpServer())
@@ -264,6 +265,7 @@ describe('HotsiteAdminController (integration)', () => {
       expect(getBody.seo).toEqual({
         title: 'Lavacar Estrela — Agendamento Online',
         description: 'Agende já.',
+        ogImageUrl: '',
       });
     });
 

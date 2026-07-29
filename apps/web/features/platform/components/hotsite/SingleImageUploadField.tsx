@@ -16,7 +16,15 @@ import { extractProblemCode, resolveErrorMessage } from '@/shared/lib/i18n/resol
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 
 export type HotsiteImagePurpose =
-  'branding' | 'hero' | 'gallery' | 'about' | 'booking-cta' | 'testimonials';
+  'branding' | 'hero' | 'gallery' | 'about' | 'booking-cta' | 'testimonials' | 'seo-og-image';
+
+// Auto center-crop targets (M18-S03) — only purposes with a fixed display shape get one. Hero/
+// gallery/about/booking-cta/testimonials are photographic content images with no fixed aspect
+// requirement, so they keep the pre-existing behavior (proportional downscale only, no crop).
+const TARGET_ASPECT_RATIO: Partial<Record<HotsiteImagePurpose, number>> = {
+  branding: 1,
+  'seo-og-image': 1200 / 630,
+};
 
 interface SingleImageUploadFieldProps {
   readonly id: string;
@@ -97,7 +105,7 @@ export function SingleImageUploadField({
     setPreviewUrl(localPreviewUrl);
     setStatus('uploading');
     try {
-      const compressed = await compressImage(file);
+      const compressed = await compressImage(file, TARGET_ASPECT_RATIO[purpose]);
       const filePath = await uploadFileToSignedUrl(compressed, (fileName, contentType) =>
         generateHotsiteImageSignedUrl({ fileName, contentType, purpose }),
       );

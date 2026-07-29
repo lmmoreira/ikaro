@@ -3,6 +3,7 @@ import {
   HotsiteBranding,
   HotsiteModule,
   HotsiteModuleData,
+  HotsiteSeo,
   Testimonial,
 } from '../hotsite-config.aggregate';
 
@@ -11,23 +12,26 @@ export type ResolveImageUrl = (storagePath: string) => string;
 export interface ResolvedHotsiteContent {
   branding: HotsiteBranding;
   layout: HotsiteModule[];
+  seo: HotsiteSeo;
 }
 
 /**
- * Resolves every stored `filePath` (branding.logoUrl, module image fields, GalleryImage.url)
- * to a permanent public URL. Pure — receives the resolution strategy as a callback so the
- * domain layer stays free of storage/infrastructure dependencies. Mirrors the field list
- * traversed by HotsiteImagePathsService.collect().
+ * Resolves every stored `filePath` (branding.logoUrl, seo.ogImageUrl, module image fields,
+ * GalleryImage.url) to a permanent public URL. Pure — receives the resolution strategy as a
+ * callback so the domain layer stays free of storage/infrastructure dependencies. Mirrors the
+ * field list traversed by HotsiteImagePathsService.collect().
  */
 export class HotsiteImageUrlResolver {
   resolve(
     branding: HotsiteBranding,
     layout: HotsiteModule[],
+    seo: HotsiteSeo,
     resolveUrl: ResolveImageUrl,
   ): ResolvedHotsiteContent {
     return {
       branding: { ...branding, logoUrl: this.resolveIfPath(branding.logoUrl, resolveUrl) },
       layout: layout.map((module) => this.resolveModule(module, resolveUrl)),
+      seo: { ...seo, ogImageUrl: this.resolveIfPath(seo.ogImageUrl, resolveUrl) },
     };
   }
 

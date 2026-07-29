@@ -183,12 +183,15 @@ interface HotsiteBrandingProps {
 export interface HotsiteSeo {
   title: string | null;
   description: string | null;
+  /** Storage path (tenants/<id>/hotsite/... or tmp/<id>/...) or '' — same shape/treatment as HotsiteBranding.logoUrl, not wrapped in a VO. */
+  ogImageUrl: string;
 }
 
-/** Internal aggregate representation — title/description held as typed VOs when set. */
+/** Internal aggregate representation — title/description held as typed VOs when set; ogImageUrl is a raw path like HotsiteBrandingProps.logoUrl. */
 interface HotsiteSeoProps {
   title: SeoTitle | null;
   description: SeoDescription | null;
+  ogImageUrl: string;
 }
 
 interface HotsiteConfigProps {
@@ -250,6 +253,7 @@ function seoToDomain(seo: HotsiteSeo): HotsiteSeoProps {
   return {
     title: seo.title !== null ? SeoTitle.create(seo.title) : null,
     description: seo.description !== null ? SeoDescription.create(seo.description) : null,
+    ogImageUrl: seo.ogImageUrl,
   };
 }
 
@@ -257,6 +261,10 @@ function seoReconstitute(seo: HotsiteSeo): HotsiteSeoProps {
   return {
     title: seo.title !== null ? SeoTitle.reconstitute(seo.title) : null,
     description: seo.description !== null ? SeoDescription.reconstitute(seo.description) : null,
+    // Defaulted, not trusted as always-present: existing rows persisted before this field existed
+    // store a `seo` JSONB blob with no `ogImageUrl` key at all — reading one back gives `undefined`
+    // at runtime despite the type saying `string` (no migration backfilled old rows; see M18-S03).
+    ogImageUrl: seo.ogImageUrl ?? '',
   };
 }
 
@@ -264,11 +272,12 @@ function seoFromDomain(seo: HotsiteSeoProps): HotsiteSeo {
   return {
     title: seo.title?.value ?? null,
     description: seo.description?.value ?? null,
+    ogImageUrl: seo.ogImageUrl,
   };
 }
 
 function seoEquals(a: HotsiteSeo, b: HotsiteSeo): boolean {
-  return a.title === b.title && a.description === b.description;
+  return a.title === b.title && a.description === b.description && a.ogImageUrl === b.ogImageUrl;
 }
 
 const HEX_COLOR_FIELDS = [
@@ -337,6 +346,7 @@ export const DEFAULT_HOTSITE_BRANDING: HotsiteBranding = {
 export const DEFAULT_HOTSITE_SEO: HotsiteSeo = {
   title: null,
   description: null,
+  ogImageUrl: '',
 };
 
 export class HotsiteConfig extends AggregateRoot {

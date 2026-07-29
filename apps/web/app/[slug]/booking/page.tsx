@@ -7,6 +7,7 @@ import { HotsiteAuthBar } from '@/shells/hotsite/components/HotsiteAuthBar';
 import { Unavailable } from '@/shells/hotsite/components/Unavailable';
 import { buildHotsiteMetadata } from '@/features/platform/hotsite/seo';
 import { BookingCtaModuleDataSchema } from '@/features/platform/hotsite/module-schemas';
+import { resolveHotsiteDisplayName } from '@/features/platform/hotsite/page-model';
 
 export const revalidate = 300;
 
@@ -42,9 +43,11 @@ export default async function BookingPage({ params }: BookingPageProps) {
   const carouselDays = parsed.success ? (parsed.data.carouselDays ?? 14) : 14;
   const datePickerType = parsed.success ? (parsed.data.datePickerType ?? 'carousel') : 'carousel';
 
+  const displayName = resolveHotsiteDisplayName(manifest);
+
   return (
     <>
-      <HotsiteAuthBar slug={slug} />
+      <HotsiteAuthBar slug={slug} logoUrl={manifest.branding.logoUrl} tenantName={displayName} />
       <BookingForm
         slug={slug}
         services={services}

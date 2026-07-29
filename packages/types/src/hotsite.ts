@@ -141,6 +141,7 @@ export interface HotsiteBrandingResponse {
 export interface HotsiteSeoResponse {
   title: string | null;
   description: string | null;
+  ogImageUrl: string;
 }
 
 export interface HotsiteResponse {

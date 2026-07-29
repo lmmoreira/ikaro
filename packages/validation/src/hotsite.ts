@@ -36,6 +36,12 @@ export const HOTSITE_LOGO_URL_MESSAGE = {
     'logoUrl must be empty (to clear), a tenants/<id>/hotsite/... storage path, or a tmp/<id>/... staging path',
 };
 
+// Same path shape as logoUrl (HOTSITE_LOGO_URL_REGEX) — only the message differs per field.
+export const HOTSITE_OG_IMAGE_URL_MESSAGE = {
+  message:
+    'ogImageUrl must be empty (to clear), a tenants/<id>/hotsite/... storage path, or a tmp/<id>/... staging path',
+};
+
 const hexColorField = (): z.ZodString =>
   z.string().refine((v) => isValidHexColor(v), {
     error: 'must be a valid hex color (e.g. #FF5733)',
@@ -96,5 +102,6 @@ export const HotsiteSeoSchema = z
         params: { code: SeoErrorCode.DESCRIPTION_TOO_LONG },
       })
       .nullable(),
+    ogImageUrl: z.string().regex(HOTSITE_LOGO_URL_REGEX, HOTSITE_OG_IMAGE_URL_MESSAGE),
   })
   .partial();

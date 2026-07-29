@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import type { HotsiteSeoResponse } from '@ikaro/types';
 import { SectionCard } from '@/shared/components/ui/section-card';
+import { OgImageUpload } from './OgImageUpload';
 
 const INPUT_CLASS =
   'w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
@@ -64,6 +65,10 @@ export function SeoTab({ value, onChange }: SeoTabProps): React.JSX.Element {
           className={`${INPUT_CLASS} min-h-[6rem] resize-y`}
         />
       </div>
+      <OgImageUpload
+        value={value.ogImageUrl}
+        onChange={(ogImageUrl) => setField('ogImageUrl', ogImageUrl)}
+      />
     </SectionCard>
   );
 }

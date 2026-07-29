@@ -59,12 +59,29 @@ export async function buildHotsiteMetadata({
       siteName: 'Ikaro',
       locale: openGraphLocale,
       type: 'website',
-      images: manifest.branding.logoUrl
-        ? [{ url: manifest.branding.logoUrl, width: 1200, height: 630 }]
+      // 1200x630 is nominal, not a measured pixel size — no per-upload dimensions are stored —
+      // but it's now honest about the *ratio*: seo.ogImageUrl is auto center-cropped to exactly
+      // 1200/630 on upload (see compressImage's targetAspectRatio, M18-S03), unlike the old
+      // branding.logoUrl reuse this replaced, which declared this size for an arbitrary-shaped
+      // small/square logo. No fallback to branding.logoUrl when unset — a square logo rendered as
+      // a landscape card is exactly the bad outcome this field exists to avoid.
+      images: manifest.seo.ogImageUrl
+        ? [{ url: manifest.seo.ogImageUrl, width: 1200, height: 630 }]
         : [],
     },
     robots: manifest.isPublished ? { index: true, follow: true } : { index: false, follow: false },
   };
+}
+
+// Favicon (M18-S03) — extracted so it's unit-testable (CLAUDE.md: layout.tsx/page.tsx stay thin,
+// Playwright E2E only; reusable logic lives here). branding.logoUrl is guaranteed square after
+// compressImage's auto-crop, so it's reused directly — no separate favicon asset. No fallback when
+// unset: a <link rel="icon"> can't render a DOM fallback the way HotsiteAuthBar/Footer do, so
+// omitting `icons` (browser/framework default) is the only option. Single icon size only — no
+// Apple touch icon (180x180): that needs more source resolution than this target, and upscaling a
+// small tenant logo would look soft.
+export function buildHotsiteIconsMetadata(manifest: HotsiteManifestResponse): Metadata {
+  return manifest.branding.logoUrl ? { icons: { icon: [{ url: manifest.branding.logoUrl }] } } : {};
 }
 
 export interface LocalBusinessJsonLd {

@@ -48,7 +48,15 @@ export const GenerateHotsiteImageSignedUrlBodySchema = z.object({
       params: { code: GenericErrorCode.FORMAT_INVALID },
     }),
   contentType: z.enum(ALLOWED_IMAGE_CONTENT_TYPES),
-  purpose: z.enum(['branding', 'hero', 'gallery', 'about', 'booking-cta', 'testimonials']),
+  purpose: z.enum([
+    'branding',
+    'hero',
+    'gallery',
+    'about',
+    'booking-cta',
+    'testimonials',
+    'seo-og-image',
+  ]),
 });
 
 type GenerateHotsiteImageSignedUrlBody = z.infer<typeof GenerateHotsiteImageSignedUrlBodySchema>;

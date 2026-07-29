@@ -15,7 +15,7 @@ const VALID_BRANDING = {
   shadowStyle: 'subtle',
 };
 
-const VALID_SEO = { title: null, description: null };
+const VALID_SEO = { title: null, description: null, ogImageUrl: '' };
 
 const VALID_HERO_MODULE = {
   type: 'HERO',
@@ -73,15 +73,26 @@ describe('parseManifestJson', () => {
   });
 
   it('rejects seo.title with the wrong primitive type', () => {
-    const result = parseManifestJson(manifestJson({ seo: { title: 42, description: null } }));
+    const result = parseManifestJson(
+      manifestJson({ seo: { title: 42, description: null, ogImageUrl: '' } }),
+    );
 
     expect(result.success).toBe(false);
   });
 
   it('accepts seo with null title and description', () => {
-    const result = parseManifestJson(manifestJson({ seo: { title: null, description: null } }));
+    const result = parseManifestJson(
+      manifestJson({ seo: { title: null, description: null, ogImageUrl: '' } }),
+    );
 
     expect(result.success).toBe(true);
+  });
+
+  it('rejects a manifest missing seo.ogImageUrl', () => {
+    const seoWithoutOgImageUrl = { title: null, description: null };
+    const result = parseManifestJson(manifestJson({ seo: seoWithoutOgImageUrl }));
+
+    expect(result.success).toBe(false);
   });
 
   it('rejects a layout module with an unknown type', () => {

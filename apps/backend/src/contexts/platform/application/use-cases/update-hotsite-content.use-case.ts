@@ -50,7 +50,7 @@ export class UpdateHotsiteContentUseCase {
 
     // Captured before the merge — needed to detect "was this field pointing at a permanent
     // object that the merged value no longer references" (delete-previous-on-replace).
-    const oldPaths = this.imagePathsService.collect(config.branding, config.layout);
+    const oldPaths = this.imagePathsService.collect(config.branding, config.layout, config.seo);
 
     const mergedBranding: HotsiteBranding = dto.branding
       ? { ...config.branding, ...dto.branding }
@@ -58,15 +58,17 @@ export class UpdateHotsiteContentUseCase {
     const mergedLayout: HotsiteModule[] = dto.layout
       ? this.toDomainLayout(dto.layout)
       : config.layout;
-    const seo: HotsiteSeo = dto.seo ? { ...config.seo, ...dto.seo } : config.seo;
+    const mergedSeo: HotsiteSeo = dto.seo ? { ...config.seo, ...dto.seo } : config.seo;
 
-    const { branding, layout, promotions } = await this.imagePromotionService.prepareImagePromotion(
-      mergedBranding,
-      mergedLayout,
-      tenantId,
-    );
+    const { branding, layout, seo, promotions } =
+      await this.imagePromotionService.prepareImagePromotion(
+        mergedBranding,
+        mergedLayout,
+        mergedSeo,
+        tenantId,
+      );
 
-    const newPaths = this.imagePathsService.collect(branding, layout);
+    const newPaths = this.imagePathsService.collect(branding, layout, seo);
     const tenantPrefix = `tenants/${tenantId}/`;
     const deletions = oldPaths.filter(
       (path) => !newPaths.includes(path) && path.startsWith(tenantPrefix),

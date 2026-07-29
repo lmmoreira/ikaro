@@ -156,6 +156,7 @@ describe('HotsiteAdminController', () => {
       expect(result.seo).toEqual({
         title: 'Lavacar Estrela — Agendamento Online',
         description: 'Agende já.',
+        ogImageUrl: '',
       });
     });
 

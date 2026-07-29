@@ -1,6 +1,10 @@
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { HotsiteImageNotUploadedError } from '../../domain/errors/platform-domain.error';
-import { DEFAULT_HOTSITE_BRANDING, HotsiteModule } from '../../domain/hotsite-config.aggregate';
+import {
+  DEFAULT_HOTSITE_BRANDING,
+  DEFAULT_HOTSITE_SEO,
+  HotsiteModule,
+} from '../../domain/hotsite-config.aggregate';
 import { HotsiteImagePathsService } from '../../domain/services/hotsite-image-paths.service';
 import { HotsiteImagePromotionService } from './hotsite-image-promotion.service';
 
@@ -22,7 +26,12 @@ describe('HotsiteImagePromotionService', () => {
       storageService.markAsUploaded(tmpPath);
       const branding = { ...DEFAULT_HOTSITE_BRANDING, logoUrl: tmpPath };
 
-      const result = await service.prepareImagePromotion(branding, [], TENANT_A);
+      const result = await service.prepareImagePromotion(
+        branding,
+        [],
+        DEFAULT_HOTSITE_SEO,
+        TENANT_A,
+      );
 
       const expectedPermanentPath = `tenants/${TENANT_A}/hotsite/branding/u1/logo.png`;
       expect(result.branding.logoUrl).toBe(expectedPermanentPath);
@@ -34,7 +43,12 @@ describe('HotsiteImagePromotionService', () => {
       storageService.markAsUploaded(permanentPath);
       const branding = { ...DEFAULT_HOTSITE_BRANDING, logoUrl: permanentPath };
 
-      const result = await service.prepareImagePromotion(branding, [], TENANT_A);
+      const result = await service.prepareImagePromotion(
+        branding,
+        [],
+        DEFAULT_HOTSITE_SEO,
+        TENANT_A,
+      );
 
       expect(result.branding.logoUrl).toBe(permanentPath);
       expect(result.promotions).toEqual([]);
@@ -45,9 +59,9 @@ describe('HotsiteImagePromotionService', () => {
       storageService.markAsUploaded(otherTenantTmpPath);
       const branding = { ...DEFAULT_HOTSITE_BRANDING, logoUrl: otherTenantTmpPath };
 
-      await expect(service.prepareImagePromotion(branding, [], TENANT_A)).rejects.toBeInstanceOf(
-        HotsiteImageNotUploadedError,
-      );
+      await expect(
+        service.prepareImagePromotion(branding, [], DEFAULT_HOTSITE_SEO, TENANT_A),
+      ).rejects.toBeInstanceOf(HotsiteImageNotUploadedError);
     });
 
     it('rejects a tmp/ path for an object that was never actually uploaded', async () => {
@@ -56,9 +70,9 @@ describe('HotsiteImagePromotionService', () => {
         logoUrl: `tmp/${TENANT_A}/branding/u1/missing.png`,
       };
 
-      await expect(service.prepareImagePromotion(branding, [], TENANT_A)).rejects.toBeInstanceOf(
-        HotsiteImageNotUploadedError,
-      );
+      await expect(
+        service.prepareImagePromotion(branding, [], DEFAULT_HOTSITE_SEO, TENANT_A),
+      ).rejects.toBeInstanceOf(HotsiteImageNotUploadedError);
     });
 
     it('rejects a permanent path that does not exist in the public bucket', async () => {
@@ -67,9 +81,9 @@ describe('HotsiteImagePromotionService', () => {
         logoUrl: `tenants/${TENANT_A}/hotsite/branding/u1/missing.png`,
       };
 
-      await expect(service.prepareImagePromotion(branding, [], TENANT_A)).rejects.toBeInstanceOf(
-        HotsiteImageNotUploadedError,
-      );
+      await expect(
+        service.prepareImagePromotion(branding, [], DEFAULT_HOTSITE_SEO, TENANT_A),
+      ).rejects.toBeInstanceOf(HotsiteImageNotUploadedError);
     });
 
     it('tenant isolation: rejects an already-permanent path belonging to another tenant, even if it exists', async () => {
@@ -77,9 +91,9 @@ describe('HotsiteImagePromotionService', () => {
       storageService.markAsUploaded(otherTenantPath);
       const branding = { ...DEFAULT_HOTSITE_BRANDING, logoUrl: otherTenantPath };
 
-      await expect(service.prepareImagePromotion(branding, [], TENANT_A)).rejects.toBeInstanceOf(
-        HotsiteImageNotUploadedError,
-      );
+      await expect(
+        service.prepareImagePromotion(branding, [], DEFAULT_HOTSITE_SEO, TENANT_A),
+      ).rejects.toBeInstanceOf(HotsiteImageNotUploadedError);
     });
 
     it('promotes a HERO backgroundImageUrl the same way as branding.logoUrl', async () => {
@@ -102,11 +116,29 @@ describe('HotsiteImagePromotionService', () => {
       const result = await service.prepareImagePromotion(
         DEFAULT_HOTSITE_BRANDING,
         layout,
+        DEFAULT_HOTSITE_SEO,
         TENANT_A,
       );
 
       const data = result.layout[0]!.data as unknown as { backgroundImageUrl: string };
       expect(data.backgroundImageUrl).toBe(`tenants/${TENANT_A}/hotsite/hero/u1/bg.jpg`);
+    });
+
+    it('promotes a tmp/ seo.ogImageUrl to its permanent path, same as branding.logoUrl', async () => {
+      const tmpPath = `tmp/${TENANT_A}/seo-og-image/u1/og-image.png`;
+      storageService.markAsUploaded(tmpPath);
+      const seo = { ...DEFAULT_HOTSITE_SEO, ogImageUrl: tmpPath };
+
+      const result = await service.prepareImagePromotion(
+        DEFAULT_HOTSITE_BRANDING,
+        [],
+        seo,
+        TENANT_A,
+      );
+
+      const expectedPermanentPath = `tenants/${TENANT_A}/hotsite/seo-og-image/u1/og-image.png`;
+      expect(result.seo.ogImageUrl).toBe(expectedPermanentPath);
+      expect(result.promotions).toEqual([{ from: tmpPath, to: expectedPermanentPath }]);
     });
   });
 

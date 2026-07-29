@@ -1,4 +1,8 @@
-import type { HotsiteBrandingResponse, HotsiteModuleResponse } from '@ikaro/types';
+import type {
+  HotsiteBrandingResponse,
+  HotsiteModuleResponse,
+  HotsiteSeoResponse,
+} from '@ikaro/types';
 import { mapHotsiteImageFields } from './map-hotsite-image-fields';
 import { isTmpImagePath, resolveHotsiteImageUrl } from './resolve-hotsite-image-url';
 
@@ -15,10 +19,11 @@ import { isTmpImagePath, resolveHotsiteImageUrl } from './resolve-hotsite-image-
 export function resolveDraftImageUrls(
   branding: HotsiteBrandingResponse,
   layout: readonly HotsiteModuleResponse[],
+  seo: HotsiteSeoResponse,
   baseUrl: string,
   tmpSignedUrls?: ReadonlyMap<string, string>,
-): { branding: HotsiteBrandingResponse; layout: HotsiteModuleResponse[] } {
-  return mapHotsiteImageFields(branding, layout, (value) => {
+): { branding: HotsiteBrandingResponse; layout: HotsiteModuleResponse[]; seo: HotsiteSeoResponse } {
+  return mapHotsiteImageFields(branding, layout, seo, (value) => {
     if (isTmpImagePath(value)) return tmpSignedUrls?.get(value) ?? '';
     return resolveHotsiteImageUrl(value, baseUrl);
   });

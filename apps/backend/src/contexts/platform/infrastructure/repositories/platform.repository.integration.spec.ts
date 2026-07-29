@@ -110,7 +110,7 @@ describe('Platform repositories (integration)', () => {
     expect(initial!.id).toBe(config.id);
     expect(initial!.isPublished).toBe(false);
     expect(initial!.layout).toHaveLength(0);
-    expect(initial!.seo).toEqual({ title: null, description: null });
+    expect(initial!.seo).toEqual({ title: null, description: null, ogImageUrl: '' });
 
     // Admin sets branding, layout modules, and seo title/description
     config.updateContent(
@@ -144,6 +144,7 @@ describe('Platform repositories (integration)', () => {
       {
         title: 'Lavacar Brilho — Agendamento Online',
         description: 'Agende sua lavagem rápido e fácil.',
+        ogImageUrl: '',
       },
       { maxBookingAdvanceDays: 90 },
     );
@@ -157,6 +158,7 @@ describe('Platform repositories (integration)', () => {
     expect(branded!.seo).toEqual({
       title: 'Lavacar Brilho — Agendamento Online',
       description: 'Agende sua lavagem rápido e fácil.',
+      ogImageUrl: '',
     });
   });
 

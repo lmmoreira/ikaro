@@ -87,7 +87,18 @@ describe('compressImage', () => {
 
     expect(widthSet.at(-1)).toBe(MAX_DIMENSION / 2);
     expect(heightSet.at(-1)).toBe(MAX_DIMENSION);
-    expect(drawImage).toHaveBeenCalledWith(bitmap, 0, 0, MAX_DIMENSION / 2, MAX_DIMENSION);
+    // No targetAspectRatio requested — source rect is the full bitmap (no crop).
+    expect(drawImage).toHaveBeenCalledWith(
+      bitmap,
+      0,
+      0,
+      2000,
+      4000,
+      0,
+      0,
+      MAX_DIMENSION / 2,
+      MAX_DIMENSION,
+    );
   });
 
   it('leaves dimensions unchanged when the image is already within MAX_DIMENSION', async () => {
@@ -203,6 +214,104 @@ describe('compressImage', () => {
     const file = makeFile('tiny-optimized.jpg', 'image/jpeg', 10_000);
 
     const result = await compressImage(file);
+
+    expect(result).toBe(file);
+  });
+});
+
+// M18-S03 — auto center-crop to a target aspect ratio, applied on the 'branding' (1:1) and
+// 'seo-og-image' (1200/630) upload purposes. See SingleImageUploadField.tsx's TARGET_ASPECT_RATIO.
+describe('compressImage — targetAspectRatio (auto center-crop)', () => {
+  it('crops left/right (keeping full height) for a landscape source cropped to a square (1:1) ratio', async () => {
+    const bitmap = makeBitmap(2000, 1000);
+    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));
+    const blob = new Blob([new Uint8Array(1000)], { type: 'image/webp' });
+    const { drawImage, widthSet, heightSet } = stubCanvas({ blob });
+    const file = makeFile('banner.jpg', 'image/jpeg', 5_000_000);
+
+    await compressImage(file, 1);
+
+    // Centered 1000x1000 square cut out of the 2000x1000 source.
+    expect(drawImage).toHaveBeenCalledWith(bitmap, 500, 0, 1000, 1000, 0, 0, 1000, 1000);
+    expect(widthSet.at(-1)).toBe(1000);
+    expect(heightSet.at(-1)).toBe(1000);
+  });
+
+  it('crops top/bottom (keeping full width) for a portrait source cropped to a square (1:1) ratio', async () => {
+    const bitmap = makeBitmap(1000, 2000);
+    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));
+    const blob = new Blob([new Uint8Array(1000)], { type: 'image/webp' });
+    const { drawImage } = stubCanvas({ blob });
+    const file = makeFile('portrait.jpg', 'image/jpeg', 5_000_000);
+
+    await compressImage(file, 1);
+
+    // Centered 1000x1000 square cut out of the 1000x2000 source.
+    expect(drawImage).toHaveBeenCalledWith(bitmap, 0, 500, 1000, 1000, 0, 0, 1000, 1000);
+  });
+
+  it('crops a square source down to the landscape 1200/630 ratio', async () => {
+    const bitmap = makeBitmap(1200, 1200);
+    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));
+    const blob = new Blob([new Uint8Array(1000)], { type: 'image/webp' });
+    const { drawImage, widthSet, heightSet } = stubCanvas({ blob });
+    const file = makeFile('square-logo.jpg', 'image/jpeg', 5_000_000);
+
+    await compressImage(file, 1200 / 630);
+
+    // 1200-wide, 630-tall band centered vertically inside the 1200x1200 source.
+    expect(drawImage).toHaveBeenCalledWith(bitmap, 0, 285, 1200, 630, 0, 0, 1200, 630);
+    expect(widthSet.at(-1)).toBe(1200);
+    expect(heightSet.at(-1)).toBe(630);
+  });
+
+  it('does not crop (full source rect) when the source already matches the target ratio', async () => {
+    const bitmap = makeBitmap(1000, 1000);
+    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));
+    const blob = new Blob([new Uint8Array(1000)], { type: 'image/webp' });
+    const { drawImage } = stubCanvas({ blob });
+    const file = makeFile('square.jpg', 'image/jpeg', 5_000_000);
+
+    await compressImage(file, 1);
+
+    expect(drawImage).toHaveBeenCalledWith(bitmap, 0, 0, 1000, 1000, 0, 0, 1000, 1000);
+  });
+
+  it('uses the cropped result even when it is not smaller than the original (unlike the no-ratio fail-open path)', async () => {
+    const bitmap = makeBitmap(2000, 1000);
+    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));
+    // Deliberately "worse": bigger than the tiny original file, to prove size is not the gate here.
+    const largerBlob = new Blob([new Uint8Array(9_000_000)], { type: 'image/webp' });
+    stubCanvas({ blob: largerBlob });
+    const file = makeFile('logo.jpg', 'image/jpeg', 10_000);
+
+    const result = await compressImage(file, 1);
+
+    expect(result).not.toBe(file);
+    expect(result.size).toBe(9_000_000);
+  });
+
+  it('uses the cropped result even when the browser falls back to PNG instead of WebP', async () => {
+    const bitmap = makeBitmap(2000, 1000);
+    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));
+    const pngBlob = new Blob([new Uint8Array(500_000)], { type: 'image/png' });
+    stubCanvas({ blob: pngBlob });
+    const file = makeFile('logo.jpg', 'image/jpeg', 5_000_000);
+
+    const result = await compressImage(file, 1);
+
+    expect(result).not.toBe(file);
+    expect(result.type).toBe('image/png');
+    expect(result.name).toBe('logo.png');
+  });
+
+  it('still falls back to the original file when the canvas 2D context is unavailable, even with a target ratio', async () => {
+    const bitmap = makeBitmap(2000, 1000);
+    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));
+    stubCanvas({ ctx: null });
+    const file = makeFile('logo.jpg', 'image/jpeg', 5_000_000);
+
+    const result = await compressImage(file, 1);
 
     expect(result).toBe(file);
   });

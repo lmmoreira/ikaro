@@ -1,4 +1,8 @@
-import type { HotsiteBrandingResponse, HotsiteModuleResponse } from '@ikaro/types';
+import type {
+  HotsiteBrandingResponse,
+  HotsiteModuleResponse,
+  HotsiteSeoResponse,
+} from '@ikaro/types';
 
 type ImageUrlTransform = (value: string) => string;
 
@@ -41,11 +45,13 @@ function transformModule(
 export function mapHotsiteImageFields(
   branding: HotsiteBrandingResponse,
   layout: readonly HotsiteModuleResponse[],
+  seo: HotsiteSeoResponse,
   transform: ImageUrlTransform,
-): { branding: HotsiteBrandingResponse; layout: HotsiteModuleResponse[] } {
+): { branding: HotsiteBrandingResponse; layout: HotsiteModuleResponse[]; seo: HotsiteSeoResponse } {
   return {
     branding: { ...branding, logoUrl: transform(branding.logoUrl) },
     layout: layout.map((module) => transformModule(module, transform)),
+    seo: { ...seo, ogImageUrl: transform(seo.ogImageUrl) },
   };
 }
 
@@ -55,9 +61,10 @@ export function mapHotsiteImageFields(
 export function collectHotsiteImagePaths(
   branding: HotsiteBrandingResponse,
   layout: readonly HotsiteModuleResponse[],
+  seo: HotsiteSeoResponse,
 ): string[] {
   const paths: string[] = [];
-  mapHotsiteImageFields(branding, layout, (value) => {
+  mapHotsiteImageFields(branding, layout, seo, (value) => {
     if (value) paths.push(value);
     return value;
   });

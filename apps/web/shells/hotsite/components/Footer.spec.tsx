@@ -38,6 +38,7 @@ describe('Footer', () => {
         data={makeData()}
         tenantName="Lavacar BeloAuto"
         business={makeBusiness()}
+        logoUrl="tenants/tenant-1/hotsite/branding/logo.webp"
       />,
     );
 
@@ -59,9 +60,43 @@ describe('Footer', () => {
         data={makeData({ showWhatsapp: false })}
         tenantName="Lavacar BeloAuto"
         business={makeBusiness()}
+        logoUrl="tenants/tenant-1/hotsite/branding/logo.webp"
       />,
     );
 
     expect(screen.queryByTestId('footer-whatsapp')).not.toBeInTheDocument();
+  });
+
+  // M18-S03 — brand mark (logo or initial-letter fallback), above the brand name.
+  describe('brand mark', () => {
+    it('renders the logo image when logoUrl is set', () => {
+      render(
+        <Footer
+          slug="lavacar-beloauto"
+          data={makeData()}
+          tenantName="Lavacar BeloAuto"
+          business={makeBusiness()}
+          logoUrl="tenants/tenant-1/hotsite/branding/logo.webp"
+        />,
+      );
+
+      const img = screen.getByAltText('Lavacar BeloAuto');
+      expect(img.tagName).toBe('IMG');
+    });
+
+    it('falls back to an initial-letter badge when logoUrl is empty', () => {
+      render(
+        <Footer
+          slug="lavacar-beloauto"
+          data={makeData()}
+          tenantName="Lavacar BeloAuto"
+          business={makeBusiness()}
+          logoUrl=""
+        />,
+      );
+
+      expect(screen.queryByAltText('Lavacar BeloAuto')).not.toBeInTheDocument();
+      expect(screen.getByText('L')).toBeInTheDocument();
+    });
   });
 });

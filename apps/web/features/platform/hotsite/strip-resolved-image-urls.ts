@@ -1,4 +1,8 @@
-import type { HotsiteBrandingResponse, HotsiteModuleResponse } from '@ikaro/types';
+import type {
+  HotsiteBrandingResponse,
+  HotsiteModuleResponse,
+  HotsiteSeoResponse,
+} from '@ikaro/types';
 import { mapHotsiteImageFields } from './map-hotsite-image-fields';
 
 // GET resolves every stored image field to a full public URL (HotsiteImageUrlResolver,
@@ -20,7 +24,10 @@ function extractRawStoragePath(value: string, tenantId: string): string {
 export function stripResolvedImageUrls(
   branding: HotsiteBrandingResponse,
   layout: readonly HotsiteModuleResponse[],
+  seo: HotsiteSeoResponse,
   tenantId: string,
-): { branding: HotsiteBrandingResponse; layout: HotsiteModuleResponse[] } {
-  return mapHotsiteImageFields(branding, layout, (value) => extractRawStoragePath(value, tenantId));
+): { branding: HotsiteBrandingResponse; layout: HotsiteModuleResponse[]; seo: HotsiteSeoResponse } {
+  return mapHotsiteImageFields(branding, layout, seo, (value) =>
+    extractRawStoragePath(value, tenantId),
+  );
 }

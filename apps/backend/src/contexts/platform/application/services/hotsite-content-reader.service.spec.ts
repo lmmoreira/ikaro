@@ -43,6 +43,25 @@ describe('HotsiteContentReader', () => {
     expect(result.updatedAt).toEqual(config.updatedAt);
   });
 
+  it('resolves seo.ogImageUrl to a public URL, same as branding.logoUrl (M18-S03)', async () => {
+    const branding: HotsiteBranding = { ...DEFAULT_HOTSITE_BRANDING };
+    const config = new HotsiteConfigBuilder()
+      .withTenantId(TENANT_A)
+      .withSeo({
+        title: null,
+        description: null,
+        ogImageUrl: 'tenants/tenant-a/hotsite/seo-og-image/share.png',
+      })
+      .buildWithContent(branding);
+    await repo.save(config);
+
+    const result = await reader.readResolved(TENANT_A);
+
+    expect(result.seo.ogImageUrl).toBe(
+      storageService.getPublicUrl('tenants/tenant-a/hotsite/seo-og-image/share.png'),
+    );
+  });
+
   it('tenant isolation: does not return another tenant hotsite config', async () => {
     const configB = new HotsiteConfigBuilder().withTenantId(TENANT_B).buildPublished();
     await repo.save(configB);

@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { HotsiteManifestResponse } from '@ikaro/types';
-import { SITE_URL, buildHotsiteMetadata, buildLocalBusinessJsonLd, toJsonLdScript } from './seo';
+import {
+  SITE_URL,
+  buildHotsiteIconsMetadata,
+  buildHotsiteMetadata,
+  buildLocalBusinessJsonLd,
+  toJsonLdScript,
+} from './seo';
 
 function makeManifest(overrides: Partial<HotsiteManifestResponse> = {}): HotsiteManifestResponse {
   return {
@@ -23,7 +29,7 @@ function makeManifest(overrides: Partial<HotsiteManifestResponse> = {}): Hotsite
       buttonStyle: 'filled',
     },
     layout: [],
-    seo: { title: null, description: null },
+    seo: { title: null, description: null, ogImageUrl: '' },
     isPublished: true,
     business: {
       phone: null,
@@ -141,20 +147,33 @@ describe('buildHotsiteMetadata', () => {
     expect(metadata.robots).toEqual({ index: false, follow: false });
   });
 
-  it('includes the branding logo as a sized Open Graph image when present', async () => {
+  it('includes seo.ogImageUrl as a sized Open Graph image when present', async () => {
     const manifest = makeManifest({
-      branding: { ...makeManifest().branding, logoUrl: 'https://cdn.example.com/logo.png' },
+      seo: { ...makeManifest().seo, ogImageUrl: 'https://cdn.example.com/og-image.png' },
     });
 
     const metadata = await buildHotsiteMetadata({ manifest, slug: 'lavacar-bh' });
 
     expect(metadata.openGraph?.images).toEqual([
-      { url: 'https://cdn.example.com/logo.png', width: 1200, height: 630 },
+      { url: 'https://cdn.example.com/og-image.png', width: 1200, height: 630 },
     ]);
   });
 
-  it('returns an empty Open Graph images array when there is no logo', async () => {
+  it('returns an empty Open Graph images array when seo.ogImageUrl is unset', async () => {
     const manifest = makeManifest();
+
+    const metadata = await buildHotsiteMetadata({ manifest, slug: 'lavacar-bh' });
+
+    expect(metadata.openGraph?.images).toEqual([]);
+  });
+
+  it('never falls back to branding.logoUrl when seo.ogImageUrl is unset', async () => {
+    // M18-S03: a square/small branding logo rendered as a landscape share-image card is exactly
+    // the bad outcome this field exists to avoid — no silent fallback, even if a logo is set.
+    const manifest = makeManifest({
+      branding: { ...makeManifest().branding, logoUrl: 'https://cdn.example.com/logo.png' },
+      seo: { ...makeManifest().seo, ogImageUrl: '' },
+    });
 
     const metadata = await buildHotsiteMetadata({ manifest, slug: 'lavacar-bh' });
 
@@ -222,6 +241,7 @@ describe('buildHotsiteMetadata', () => {
       seo: {
         title: 'Lavacar Estrela — Agendamento Online em São Paulo',
         description: 'Agende sua lavagem na Lavacar Estrela. Rápido, fácil e online.',
+        ogImageUrl: '',
       },
     });
 
@@ -238,12 +258,30 @@ describe('buildHotsiteMetadata', () => {
   });
 
   it('falls back to the generated title/description when seo fields are null', async () => {
-    const manifest = makeManifest({ seo: { title: null, description: null } });
+    const manifest = makeManifest({ seo: { title: null, description: null, ogImageUrl: '' } });
 
     const metadata = await buildHotsiteMetadata({ manifest, slug: 'lavacar-bh' });
 
     expect(metadata.title).toBe('Lavacar BH — Agendamento Online');
     expect(metadata.description).toBe('Agende seu serviço na Lavacar BH. Rápido, fácil e online.');
+  });
+});
+
+describe('buildHotsiteIconsMetadata', () => {
+  it('returns a single icon entry from branding.logoUrl when set', () => {
+    const manifest = makeManifest({
+      branding: { ...makeManifest().branding, logoUrl: 'https://cdn.example.com/logo.png' },
+    });
+
+    expect(buildHotsiteIconsMetadata(manifest)).toEqual({
+      icons: { icon: [{ url: 'https://cdn.example.com/logo.png' }] },
+    });
+  });
+
+  it('omits icons entirely (browser/framework default) when branding.logoUrl is unset', () => {
+    const manifest = makeManifest();
+
+    expect(buildHotsiteIconsMetadata(manifest)).toEqual({});
   });
 });
 

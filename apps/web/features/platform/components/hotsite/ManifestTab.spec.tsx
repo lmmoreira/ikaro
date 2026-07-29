@@ -27,7 +27,7 @@ const VALID_MANIFEST: ManifestDraft = {
       data: { variant: 'centered', title: 'Bem-vindo', ctaLabel: 'Ver', ctaTarget: 'service-list' },
     },
   ],
-  seo: { title: null, description: null },
+  seo: { title: null, description: null, ogImageUrl: '' },
 };
 
 describe('ManifestTab', () => {

@@ -80,7 +80,7 @@ const hotsiteResponse: HotsiteResponse & {
       },
     },
   ],
-  seo: { title: 'Lavacar BH — Agendamento Online', description: 'Agende já.' },
+  seo: { title: 'Lavacar BH — Agendamento Online', description: 'Agende já.', ogImageUrl: '' },
   isPublished: true,
   business: businessInfo,
   localization,
@@ -94,7 +94,7 @@ const unpublishedHotsiteResponse: HotsiteResponse & {
 } = {
   branding: hotsiteResponse.branding,
   layout: [],
-  seo: { title: null, description: null },
+  seo: { title: null, description: null, ogImageUrl: '' },
   isPublished: false,
   business: { phone: null, email: null, address: null, socialLinks: null },
   localization,

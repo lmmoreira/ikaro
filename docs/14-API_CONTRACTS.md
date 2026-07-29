@@ -192,14 +192,14 @@ Used by the Next.js hotsite renderer to fetch full branding and layout for a ten
       }
     },
     "localization": { "language": "pt-BR" },
-    "seo": { "title": null, "description": null }
+    "seo": { "title": null, "description": null, "ogImageUrl": "" }
   }
   ```
 - **Module types:** `HERO | SERVICE_LIST | GALLERY | TESTIMONIALS | BOOKING_CTA | ABOUT | CONTACT`
 - **`enabled: false`** modules are included in the response; the frontend decides to skip them
 - **`business`** (M12-S06) — resolved from `tenants.settings.businessInfo` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §6), camelCased. Always present; any of `phone`/`email`/`address` may be `null` if the admin hasn't filled them in. Consumed by the `CONTACT` module — see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §4 CONTACT.
 - **`localization`** (M12-S09) — `language` resolved from `tenants.settings.localization.language` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §5), e.g. `"pt-BR"`. Always present, falling back to `"pt-BR"` when `isPublished: false`. Drives the hotsite's `og:locale` (converted to `pt_BR` format).
-- **`seo`** (M12-S09) — tenant-configured `title`/`description` overrides, edited via `PATCH /v1/tenants/hotsite` (see "Hotsite Admin Management" below). Both fields are `string | null`; `null` means the admin hasn't set an override. When `null`, the frontend (`buildHotsiteMetadata()`) falls back to a generated `<title>`/meta description derived from `tenant.name` and `business.address` (city/state).
+- **`seo`** (M12-S09; `ogImageUrl` added M18-S03) — tenant-configured overrides, edited via `PATCH /v1/tenants/hotsite` (see "Hotsite Admin Management" below). `title`/`description` are `string | null`; `null` means the admin hasn't set an override, and the frontend (`buildHotsiteMetadata()`) falls back to a generated `<title>`/meta description derived from `tenant.name` and `business.address` (city/state). `ogImageUrl` is `string` (never `null` — empty string means unset), a **permanent public address** like `branding.logoUrl`, resolved the same way; it's the source for the Open Graph share-image card and is intentionally separate from `branding.logoUrl` (small/square brand mark) — see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §11.
 - **`isPublished: false`** — still a `200`, not a `404`. Minimal payload: `branding` reflects the admin's configured (but unpublished) branding — needed so the "Em breve" placeholder (M12-S08) can render with the tenant's `var(--ba-*)` tokens. `layout: []` and `business` (all fields `null`) are stubbed — this public, unauthenticated endpoint never exposes a tenant's draft layout/services/gallery/contact info before they publish. (The admin's full draft state remains available via the authenticated `GET /v1/tenants/hotsite` below.)
 - `404` — tenant slug not found (no `HotsiteConfig` reachable for this slug at all)
 
@@ -226,8 +226,9 @@ Lets a `MANAGER` configure branding, layout modules, and publish status. Mirrors
 - `PATCH /v1/tenants/hotsite` → body `{ branding?, layout?, seo? }` (partial update — unspecified fields unchanged); `200` returns updated state
   - Validation: hex colors must be `#rrggbb` · `borderRadius/buttonStyle/spacing/shadowStyle` must be known enum values · layout module `type` must be a known `HotsiteModuleType` — any violation → `400`
   - `branding.buttonBackgroundColor`/`branding.buttonTextColor` (M12-S11) are optional hex overrides for CTA button colors — see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §2 "Button Color Tokens" for `filled`/`outline`/`ghost` semantics
-  - Image promotion (TD22): every non-empty image path submitted (`branding.logoUrl`, module `backgroundImageUrl`/`imageUrl`/`avatarUrl`, `GALLERY` images with `source: 'upload'`) is either a `tmp/<tenantId>/...` staging path — validated (tenant-owned, exists in the private bucket), promoted to a permanent `tenants/<tenantId>/hotsite/<purpose>/<uuid>/<fileName>` object in the public bucket, then rewritten and the tmp original deleted — or an already-permanent `tenants/<tenantId>/hotsite/...` path, validated as still existing and left untouched. A path matching neither shape, a cross-tenant `tmp/` path, or a nonexistent object → `400 hotsite-image-not-uploaded`. A field that changed from one permanent object to another also deletes the superseded object from the public bucket (delete-previous-on-replace); an untouched field is never re-promoted or deleted. See "Hotsite Image Upload" below for the full contract.
+  - Image promotion (TD22): every non-empty image path submitted (`branding.logoUrl`, `seo.ogImageUrl` (M18-S03), module `backgroundImageUrl`/`imageUrl`/`avatarUrl`, `GALLERY` images with `source: 'upload'`) is either a `tmp/<tenantId>/...` staging path — validated (tenant-owned, exists in the private bucket), promoted to a permanent `tenants/<tenantId>/hotsite/<purpose>/<uuid>/<fileName>` object in the public bucket, then rewritten and the tmp original deleted — or an already-permanent `tenants/<tenantId>/hotsite/...` path, validated as still existing and left untouched. A path matching neither shape, a cross-tenant `tmp/` path, or a nonexistent object → `400 hotsite-image-not-uploaded`. A field that changed from one permanent object to another also deletes the superseded object from the public bucket (delete-previous-on-replace); an untouched field is never re-promoted or deleted. See "Hotsite Image Upload" below for the full contract.
   - `seo.title`/`seo.description` (M12-S09) are optional `string | null` overrides for the public hotsite's `<title>`/meta description — `title` max 70 chars, `description` max 160 chars; exceeding either → `400`
+  - `seo.ogImageUrl` (M18-S03) is an optional `string` — same path-shape validation as `branding.logoUrl` (empty, a permanent `tenants/<id>/hotsite/...` path, or a `tmp/<id>/...` staging path); goes through the same promotion/existence-check flow above. Uploaded via the `'seo-og-image'` purpose (see "Hotsite Image Upload" below), auto center-cropped client-side to 1200×630 before upload — unlike `branding.logoUrl` (auto-cropped to 1:1), since it's a landscape share-image card, not a small brand mark.
 - `POST /v1/tenants/hotsite/publish` → `200 { isPublished: true }`; `400 publish-requires-enabled-module` if the layout has no `enabled: true` modules
 - `POST /v1/tenants/hotsite/unpublish` → `200 { isPublished: false }`
 - All four require JWT + `MANAGER` role — `STAFF` gets `403`
@@ -248,7 +249,7 @@ Generates a GCS signed **upload** URL for hotsite images (logo, hero/CTA backgro
     "purpose":     "branding"
   }
   ```
-  `purpose`: one of `branding | hero | gallery | about | booking-cta | testimonials` — groups uploaded assets by what they're for; also encoded into the staging path so promotion can rebuild the permanent path without a second lookup.
+  `purpose`: one of `branding | hero | gallery | about | booking-cta | testimonials | seo-og-image` (M18-S03) — groups uploaded assets by what they're for; also encoded into the staging path so promotion can rebuild the permanent path without a second lookup.
 
 - **Response (201 Created):**
   ```json

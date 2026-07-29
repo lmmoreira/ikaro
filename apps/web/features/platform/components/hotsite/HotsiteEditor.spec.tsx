@@ -55,7 +55,7 @@ const INITIAL: HotsiteAdminContentResponse = {
     shadowStyle: 'subtle',
   },
   layout: [],
-  seo: { title: null, description: null },
+  seo: { title: null, description: null, ogImageUrl: '' },
   isPublished: true,
   updatedAt: '2026-07-01T00:00:00.000Z',
 };
