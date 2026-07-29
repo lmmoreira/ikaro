@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import type { HotsiteImagePurpose } from '@ikaro/types';
 import {
   deleteHotsiteImage,
   generateHotsiteImageReadSignedUrl,
@@ -15,8 +16,7 @@ import {
 import { extractProblemCode, resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 
-export type HotsiteImagePurpose =
-  'branding' | 'hero' | 'gallery' | 'about' | 'booking-cta' | 'testimonials' | 'seo-og-image';
+export type { HotsiteImagePurpose };
 
 // Auto center-crop targets (M18-S03) — only purposes with a fixed display shape get one. Hero/
 // gallery/about/booking-cta/testimonials are photographic content images with no fixed aspect

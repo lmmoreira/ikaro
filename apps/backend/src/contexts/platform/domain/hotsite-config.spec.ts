@@ -9,6 +9,7 @@ import {
   HotsiteBranding,
   HotsiteConfig,
   HotsiteModule,
+  HotsiteSeo,
 } from './hotsite-config.aggregate';
 
 const VALID_LAYOUT: HotsiteModule[] = [
@@ -49,11 +50,11 @@ describe('HotsiteConfig', () => {
     // ogImageUrl key at all — reading one back must not surface `undefined` where the type says
     // `string` (that would crash apps/web's extractRawStoragePath, which calls .indexOf() on it).
     it('defaults ogImageUrl to an empty string when reading a pre-existing row missing the key', () => {
-      const legacySeo = { title: null, description: null } as unknown as {
-        title: string | null;
-        description: string | null;
-        ogImageUrl: string;
-      };
+      // Deliberately violates the HotsiteSeo type — this simulates a jsonb blob persisted before
+      // ogImageUrl existed, which genuinely lacks the key at the JS runtime level despite the type
+      // saying it's always a string. No builder can construct this without the same escape hatch:
+      // a real `withSeo(seo: HotsiteSeo)` setter would itself require the field to be present.
+      const legacySeo = { title: null, description: null } as unknown as HotsiteSeo;
       const config = HotsiteConfig.reconstitute({
         id: '01234567-0000-7000-8000-000000000099',
         tenantId: '01234567-0000-7000-8000-000000000001',

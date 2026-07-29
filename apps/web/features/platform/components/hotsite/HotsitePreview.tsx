@@ -105,20 +105,28 @@ function useTmpSignedUrls(
     if (tmpPaths.length === 0) return;
 
     let cancelled = false;
+    // Each path's signed-URL request is isolated (catch -> null) so one failing path doesn't
+    // discard every other path's already-successful result — Promise.all otherwise rejects the
+    // whole batch on a single failure, silently dropping resolved URLs the "best-effort" comment
+    // below implies should still apply (CodeRabbit review, PR #291).
     Promise.all(
-      tmpPaths.map(async (path) => [path, await generateHotsiteImageReadSignedUrl(path)] as const),
-    )
-      .then((resolved) => {
-        if (cancelled) return;
-        setSignedUrls((prev) => {
-          const next = new Map(prev);
-          for (const [path, res] of resolved) next.set(path, res.signedUrl);
-          return next;
-        });
-      })
-      .catch(() => {
-        // best-effort — an unresolved tmp/ image just shows a broken preview until reconciled
+      tmpPaths.map(async (path) => {
+        try {
+          return [path, await generateHotsiteImageReadSignedUrl(path)] as const;
+        } catch {
+          return null;
+        }
+      }),
+    ).then((resolved) => {
+      if (cancelled) return;
+      setSignedUrls((prev) => {
+        const next = new Map(prev);
+        for (const result of resolved) {
+          if (result) next.set(result[0], result[1].signedUrl);
+        }
+        return next;
       });
+    });
     return () => {
       cancelled = true;
     };

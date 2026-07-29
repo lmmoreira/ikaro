@@ -159,12 +159,12 @@ describe('buildHotsiteMetadata', () => {
     ]);
   });
 
-  it('returns an empty Open Graph images array when seo.ogImageUrl is unset', async () => {
+  it('omits openGraph.images entirely when seo.ogImageUrl is unset', async () => {
     const manifest = makeManifest();
 
     const metadata = await buildHotsiteMetadata({ manifest, slug: 'lavacar-bh' });
 
-    expect(metadata.openGraph?.images).toEqual([]);
+    expect(metadata.openGraph).not.toHaveProperty('images');
   });
 
   it('never falls back to branding.logoUrl when seo.ogImageUrl is unset', async () => {
@@ -177,7 +177,7 @@ describe('buildHotsiteMetadata', () => {
 
     const metadata = await buildHotsiteMetadata({ manifest, slug: 'lavacar-bh' });
 
-    expect(metadata.openGraph?.images).toEqual([]);
+    expect(metadata.openGraph).not.toHaveProperty('images');
   });
 
   it('includes the city and state from business_info.address in title and description when present', async () => {

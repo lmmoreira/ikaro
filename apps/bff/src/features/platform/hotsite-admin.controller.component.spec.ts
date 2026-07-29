@@ -159,7 +159,7 @@ describe('HotsiteAdminController (component)', () => {
       // BFF's Zod pipe.
       setupActiveGuardMock(httpService);
       backendHttpService.patch.mockRejectedValueOnce(
-        new HttpException({ status: 422, detail: 'concurrent modification' }, 422),
+        new HttpException({ status: 409, detail: 'concurrent modification' }, 409),
       );
 
       const res = await request(app.getHttpServer())
@@ -167,7 +167,7 @@ describe('HotsiteAdminController (component)', () => {
         .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
         .send({ seo: { title: 'Novo título' } });
 
-      expect(res.status).toBe(422);
+      expect(res.status).toBe(409);
     });
   });
 

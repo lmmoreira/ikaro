@@ -65,9 +65,12 @@ export async function buildHotsiteMetadata({
       // branding.logoUrl reuse this replaced, which declared this size for an arbitrary-shaped
       // small/square logo. No fallback to branding.logoUrl when unset — a square logo rendered as
       // a landscape card is exactly the bad outcome this field exists to avoid.
-      images: manifest.seo.ogImageUrl
-        ? [{ url: manifest.seo.ogImageUrl, width: 1200, height: 630 }]
-        : [],
+      //
+      // `images` is omitted entirely (not an empty array) when unset — conditionally spread so
+      // the key itself is absent from the object, not just empty.
+      ...(manifest.seo.ogImageUrl
+        ? { images: [{ url: manifest.seo.ogImageUrl, width: 1200, height: 630 }] }
+        : {}),
     },
     robots: manifest.isPublished ? { index: true, follow: true } : { index: false, follow: false },
   };

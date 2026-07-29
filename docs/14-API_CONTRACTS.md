@@ -195,6 +195,7 @@ Used by the Next.js hotsite renderer to fetch full branding and layout for a ten
     "seo": { "title": null, "description": null, "ogImageUrl": "" }
   }
   ```
+
 - **Module types:** `HERO | SERVICE_LIST | GALLERY | TESTIMONIALS | BOOKING_CTA | ABOUT | CONTACT`
 - **`enabled: false`** modules are included in the response; the frontend decides to skip them
 - **`business`** (M12-S06) — resolved from `tenants.settings.businessInfo` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §6), camelCased. Always present; any of `phone`/`email`/`address` may be `null` if the admin hasn't filled them in. Consumed by the `CONTACT` module — see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §4 CONTACT.

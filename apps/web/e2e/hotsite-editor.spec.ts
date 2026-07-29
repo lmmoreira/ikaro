@@ -40,6 +40,15 @@ function configureButton(type: string) {
   return `[data-testid="layout-row-configure"][data-module-type="${type}"]`;
 }
 
+// A real, minimal (1x1 transparent) decodable PNG — unlike a plain-text fake buffer, the browser
+// can actually render this as an <img>, which the M18-S03 upload tests below require (they assert
+// the preview element is *visible*, not just present — a browser-undecodable blob renders at
+// zero dimensions, which Playwright reports as "hidden" even though the element/attributes exist).
+const TINY_PNG_BUFFER = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+  'base64',
+);
+
 // .serial: every test here mutates autospa-premium's shared hotsite-config/settings rows and
 // restores them in afterEach — fullyParallel doesn't stop Playwright from running same-describe
 // tests in different workers, so without .serial these race each other for real (confirmed:
@@ -225,7 +234,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.getByTestId('single-image-upload-input').setInputFiles({
       name: 'share.png',
       mimeType: 'image/png',
-      buffer: Buffer.from('fake-image-content-for-e2e'),
+      buffer: TINY_PNG_BUFFER,
     });
     await expect(page.getByTestId('single-image-upload-preview')).toBeVisible();
 
@@ -253,7 +262,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.getByTestId('single-image-upload-input').setInputFiles({
       name: 'logo.png',
       mimeType: 'image/png',
-      buffer: Buffer.from('fake-image-content-for-e2e'),
+      buffer: TINY_PNG_BUFFER,
     });
     await expect(page.getByTestId('single-image-upload-preview')).toBeVisible();
 
