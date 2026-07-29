@@ -49,6 +49,30 @@ function matchesAspectRatio(width: number, height: number, targetAspectRatio: nu
   return Math.abs(width / height - targetAspectRatio) / targetAspectRatio <= ASPECT_RATIO_TOLERANCE;
 }
 
+// Full-source rect when no crop was requested; otherwise the centered crop toward
+// targetAspectRatio — throwing if the source is too small to represent it (see
+// matchesAspectRatio's comment).
+function resolveCropRect(width: number, height: number, targetAspectRatio?: number): CropRect {
+  if (!targetAspectRatio) return { sx: 0, sy: 0, sWidth: width, sHeight: height };
+  const crop = centerCropRect(width, height, targetAspectRatio);
+  if (!matchesAspectRatio(crop.sWidth, crop.sHeight, targetAspectRatio)) {
+    throw new Error('Image is too small to crop to the required shape');
+  }
+  return crop;
+}
+
+// A required crop (targetAspectRatio set) treats every failure as fatal instead of silently
+// falling back to the original file — see compressImage's doc comment for why.
+function failOpenOrThrow(file: File, targetAspectRatio: number | undefined, message: string): File {
+  if (targetAspectRatio) throw new Error(message);
+  return file;
+}
+
+function rethrowOrFailOpen(file: File, targetAspectRatio: number | undefined, err: unknown): File {
+  if (targetAspectRatio) throw err instanceof Error ? err : new Error('Failed to process image');
+  return file;
+}
+
 function extensionForBlobType(blobType: string): string {
   if (blobType === 'image/png') return 'png';
   if (blobType === 'image/webp') return 'webp';
@@ -86,21 +110,17 @@ function toBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
 export async function compressImage(file: File, targetAspectRatio?: number): Promise<File> {
   if (!ALLOWED_SOURCE_TYPES.has(file.type)) return file;
   if (typeof createImageBitmap !== 'function') {
-    if (targetAspectRatio) throw new Error('Image cropping is not supported in this browser');
-    return file;
+    return failOpenOrThrow(
+      file,
+      targetAspectRatio,
+      'Image cropping is not supported in this browser',
+    );
   }
 
   let bitmap: ImageBitmap | undefined;
   try {
     bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
-    const crop = targetAspectRatio
-      ? centerCropRect(bitmap.width, bitmap.height, targetAspectRatio)
-      : { sx: 0, sy: 0, sWidth: bitmap.width, sHeight: bitmap.height };
-
-    if (targetAspectRatio && !matchesAspectRatio(crop.sWidth, crop.sHeight, targetAspectRatio)) {
-      throw new Error('Image is too small to crop to the required shape');
-    }
-
+    const crop = resolveCropRect(bitmap.width, bitmap.height, targetAspectRatio);
     const { width, height } = scaledDimensions(crop.sWidth, crop.sHeight, MAX_DIMENSION);
 
     const canvas = document.createElement('canvas');
@@ -108,17 +128,18 @@ export async function compressImage(file: File, targetAspectRatio?: number): Pro
     canvas.height = height;
     const ctx = canvas.getContext('2d');
     if (!ctx) {
-      if (targetAspectRatio) throw new Error('Canvas rendering is not supported in this browser');
-      return file;
+      return failOpenOrThrow(
+        file,
+        targetAspectRatio,
+        'Canvas rendering is not supported in this browser',
+      );
     }
 
     ctx.drawImage(bitmap, crop.sx, crop.sy, crop.sWidth, crop.sHeight, 0, 0, width, height);
 
     const blob = await toBlob(canvas);
-    if (!blob) {
-      if (targetAspectRatio) throw new Error('Failed to encode the cropped image');
-      return file;
-    }
+    if (!blob)
+      return failOpenOrThrow(file, targetAspectRatio, 'Failed to encode the cropped image');
     if (!targetAspectRatio && (blob.type !== OUTPUT_CONTENT_TYPE || blob.size >= file.size)) {
       return file;
     }
@@ -126,8 +147,7 @@ export async function compressImage(file: File, targetAspectRatio?: number): Pro
     const extension = extensionForBlobType(blob.type);
     return new File([blob], withExtension(file.name, extension), { type: blob.type });
   } catch (err) {
-    if (targetAspectRatio) throw err instanceof Error ? err : new Error('Failed to process image');
-    return file;
+    return rethrowOrFailOpen(file, targetAspectRatio, err);
   } finally {
     bitmap?.close();
   }
