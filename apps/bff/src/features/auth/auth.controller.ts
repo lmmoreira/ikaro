@@ -13,7 +13,7 @@ import { SwitchTenantDto, SwitchTenantSchema } from './dtos/switch-tenant.dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { GoogleCallbackGuard } from './guards/google-callback.guard';
 import { AuthControllerFlowService } from './auth-controller-flow.service';
-import { GoogleProfile } from './strategies/google.strategy';
+import { GoogleProfile } from '../../shared/auth/google-profile';
 import { StaffTenantOption } from './auth.types';
 
 // M17-S30: tighter tier for the whole /auth/* surface — token issuance/tenant-switching are

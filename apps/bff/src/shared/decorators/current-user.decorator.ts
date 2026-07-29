@@ -1,7 +1,7 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { Request } from 'express';
-import { JwtRole } from '../../features/auth/jwt-issuer.service';
-import { GoogleProfile } from '../../features/auth/strategies/google.strategy';
+import { ActorRole } from '@ikaro/types';
+import { GoogleProfile } from '../auth/google-profile';
 
 export interface CurrentUserPayload {
   sub: string;
@@ -9,7 +9,7 @@ export interface CurrentUserPayload {
   tenantSlug: string;
   tenantName: string;
   userName: string | null;
-  role: JwtRole;
+  role: ActorRole;
   locale: string;
 }
 

@@ -1,5 +1,6 @@
 import { CanActivate, ExecutionContext, HttpStatus, Injectable } from '@nestjs/common';
 import { throwProblemDetail } from '@ikaro/nestjs-http';
+import { ActorRole } from '@ikaro/types';
 
 // Guards execute before interceptors in NestJS, so RequestContext (AsyncLocalStorage)
 // is not populated yet. Read X-Actor-Role directly from the request header.
@@ -14,7 +15,7 @@ export class ManagerRoleGuard implements CanActivate {
     const req = context
       .switchToHttp()
       .getRequest<{ headers: Record<string, string | undefined> }>();
-    const actorRole = req.headers['x-actor-role'];
+    const actorRole = req.headers['x-actor-role'] as ActorRole | undefined;
 
     if (actorRole !== 'MANAGER') {
       throw throwProblemDetail(HttpStatus.FORBIDDEN, undefined, 'MANAGER role required');

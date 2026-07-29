@@ -1,6 +1,7 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { JwtStrategy } from './jwt.strategy';
+import { Request } from 'express';
+import { extractFromCookie, JwtStrategy } from './jwt.strategy';
 import { CurrentUserPayload } from '../../../shared/decorators/current-user.decorator';
 
 const TEST_SECRET = 'test-secret-64-chars-longggggggggggggggggggggggggggggggggg!!';
@@ -94,6 +95,28 @@ describe('JwtStrategy', () => {
     it('returns null when the cookie header is absent', () => {
       const match = /(?:^|;\s*)access_token=([^;]+)/.exec('');
       expect(match).toBeNull();
+    });
+  });
+
+  describe('extractFromCookie()', () => {
+    function makeReq(cookieHeader?: string): Request {
+      return { headers: { cookie: cookieHeader } } as unknown as Request;
+    }
+
+    it('decodes a well-formed access_token cookie value', () => {
+      expect(extractFromCookie(makeReq('access_token=eyJ.eyJ.sig'))).toBe('eyJ.eyJ.sig');
+    });
+
+    it('returns null when no access_token cookie is present', () => {
+      expect(extractFromCookie(makeReq('other=abc'))).toBeNull();
+      expect(extractFromCookie(makeReq(undefined))).toBeNull();
+    });
+
+    it('returns null instead of throwing on a malformed percent-encoded cookie value', () => {
+      // '%zz' is not a valid percent-escape — decodeURIComponent throws URIError on it. The
+      // cookie is client-controlled, so this must fail auth cleanly, not crash the request.
+      expect(() => extractFromCookie(makeReq('access_token=%zz'))).not.toThrow();
+      expect(extractFromCookie(makeReq('access_token=%zz'))).toBeNull();
     });
   });
 });

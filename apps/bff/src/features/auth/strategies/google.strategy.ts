@@ -5,14 +5,7 @@ import { Request } from 'express';
 import { Profile, Strategy } from 'passport-google-oauth20';
 import { OAUTH_NONCE_COOKIE_NAME } from '../cookie-options';
 import { OAuthStateService } from '../oauth-state.service';
-
-export interface GoogleProfile {
-  googleOAuthId: string;
-  email: string;
-  name: string;
-  tenantSlug?: string;
-  loginType?: 'staff';
-}
+import { GoogleProfile } from '../../../shared/auth/google-profile';
 
 // No cookie-parser middleware is installed — mirrors JwtStrategy's extractFromCookie
 // (strategies/jwt.strategy.ts), which reads req.headers.cookie the same way.

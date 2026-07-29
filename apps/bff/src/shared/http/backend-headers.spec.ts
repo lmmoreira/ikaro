@@ -1,6 +1,6 @@
 import { makeRequest } from '../../test/execution-context.factory';
 import { buildBackendHeaders } from './backend-headers';
-import { GoogleProfile } from '../../features/auth/strategies/google.strategy';
+import { GoogleProfile } from '../auth/google-profile';
 
 describe('buildBackendHeaders()', () => {
   describe('base headers', () => {

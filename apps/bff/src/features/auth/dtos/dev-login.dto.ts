@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { JwtRole } from '../jwt-issuer.service';
+import { ActorRole } from '@ikaro/types';
 
 export const DevLoginSchema = z.object({
   email: z.email(),
@@ -17,6 +17,6 @@ export interface DevLoginResponse {
     sub: string;
     tenantId: string;
     tenantSlug: string;
-    role: JwtRole;
+    role: ActorRole;
   };
 }

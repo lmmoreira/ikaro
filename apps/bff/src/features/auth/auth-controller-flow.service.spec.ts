@@ -13,7 +13,7 @@ import { CurrentUserPayloadBuilder } from '../../test/builders/current-user-payl
 import { AuthControllerFlowService } from './auth-controller-flow.service';
 import { DevLoginDto } from './dtos/dev-login.dto';
 import { JwtIssuerService } from './jwt-issuer.service';
-import { GoogleProfile } from './strategies/google.strategy';
+import { GoogleProfile } from '../../shared/auth/google-profile';
 import { SwitchStaffTenantDto } from './dtos/switch-staff-tenant.dto';
 import { SwitchTenantDto } from './dtos/switch-tenant.dto';
 

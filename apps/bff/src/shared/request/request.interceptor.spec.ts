@@ -2,7 +2,7 @@ import { CallHandler, ExecutionContext } from '@nestjs/common';
 import { ITracingPort, SpanAttributeValue } from '@ikaro/observability';
 import { lastValueFrom, Observable, of, Subscriber } from 'rxjs';
 import { CurrentUserPayload } from '../decorators/current-user.decorator';
-import { GoogleProfile } from '../../features/auth/strategies/google.strategy';
+import { GoogleProfile } from '../auth/google-profile';
 import { RequestContext, runWithRequestContext } from './request-context';
 import { RequestInterceptor } from './request.interceptor';
 

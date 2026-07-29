@@ -9,10 +9,18 @@ import { CurrentUserPayloadSchema } from '../../../shared/auth/decode-user-jwt';
 
 const SESSION_COOKIE_REGEX = new RegExp(String.raw`(?:^|;\s*)${SESSION_COOKIE_NAME}=([^;]+)`);
 
-function extractFromCookie(req: Request): string | null {
+export function extractFromCookie(req: Request): string | null {
   const raw = req?.headers?.cookie ?? '';
   const match = SESSION_COOKIE_REGEX.exec(raw);
-  return match ? decodeURIComponent(match[1]) : null;
+  if (!match) return null;
+  // decodeURIComponent throws URIError on a malformed percent-escape — the cookie value is
+  // client-controlled, so a malformed one must fail auth cleanly, not propagate an uncaught
+  // exception (passport-jwt's Strategy.authenticate() calls this extractor with no try/catch).
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return null;
+  }
 }
 
 @Injectable()

@@ -1,7 +1,7 @@
 import * as jwt from 'jsonwebtoken';
 import { z } from 'zod';
+import { ACTOR_ROLES } from '@ikaro/types';
 import { CurrentUserPayload } from '../decorators/current-user.decorator';
-import { JWT_ROLES } from '../../features/auth/jwt-issuer.service';
 
 // Exported so JwtStrategy.validate() (features/auth/strategies/jwt.strategy.ts) can reuse the
 // same schema instead of re-declaring CurrentUserPayload's shape a second time.
@@ -11,7 +11,7 @@ export const CurrentUserPayloadSchema = z.object({
   tenantSlug: z.string(),
   tenantName: z.string().default(''),
   userName: z.string().nullable().default(null),
-  role: z.enum(JWT_ROLES),
+  role: z.enum(ACTOR_ROLES),
   locale: z.string().default('pt-BR'),
 });
 

@@ -1,8 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-
-export const JWT_ROLES = ['CUSTOMER', 'STAFF', 'MANAGER'] as const;
-export type JwtRole = (typeof JWT_ROLES)[number];
+import { ActorRole } from '@ikaro/types';
 
 export interface JwtPayload {
   sub: string;
@@ -10,7 +8,7 @@ export interface JwtPayload {
   tenantSlug: string;
   tenantName: string;
   userName: string | null;
-  role: JwtRole;
+  role: ActorRole;
   locale: string;
 }
 
