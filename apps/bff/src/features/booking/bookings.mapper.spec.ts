@@ -1,5 +1,6 @@
-import { BookingDetailResponse, BookingListItem } from './bookings.types';
+import { BookingDetailResponse, BookingListItem, BookingListResponse } from './bookings.types';
 import {
+  toBookingListResponse,
   toCustomerBookingDetail,
   toCustomerBookingListItem,
   toGuestBookingRead,
@@ -339,6 +340,67 @@ describe('toStaffBookingDetail()', () => {
     const result = toStaffBookingDetail(detail, null);
 
     expect(result.lines[0].actualPriceCharged).toEqual({ amount: 90, currency: 'BRL' });
+  });
+});
+
+describe('toBookingListResponse()', () => {
+  const backendResponse: BookingListResponse = {
+    items: [
+      {
+        id: BOOKING_ID,
+        status: 'PENDING',
+        type: 'CUSTOMER',
+        customerId: '20000000-0000-4000-8000-000000000001',
+        contactName: 'João',
+        contactEmail: 'joao@example.com',
+        scheduledAt: '2026-06-15T10:00:00.000Z',
+        totalDurationMins: 30,
+        totalPrice: { amount: 100, currency: 'BRL' },
+        lineSummary: [
+          {
+            lineId: LINE_ID,
+            serviceId: SERVICE_ID,
+            serviceNameAtBooking: 'Lavagem Simples',
+            durationMinsAtBooking: 30,
+            priceAtBooking: { amount: 100, currency: 'BRL' },
+          },
+        ],
+        createdAt: '2026-01-01T00:00:00.000Z',
+        cancellableUntil: null,
+      },
+    ],
+    pagination: { limit: 20, offset: 0, total: 1, hasMore: false },
+  };
+
+  it('maps to CustomerBookingListResponse via toCustomerBookingListItem when isStaffOrManager is false', () => {
+    const result = toBookingListResponse(backendResponse, { page: 1, limit: 20 }, false);
+
+    expect(result).toEqual({
+      items: backendResponse.items.map(toCustomerBookingListItem),
+      total: 1,
+      page: 1,
+      limit: 20,
+    });
+    expect(result.items[0]).not.toHaveProperty('contactName');
+  });
+
+  it('maps to StaffBookingListResponse via toStaffBookingCard when isStaffOrManager is true', () => {
+    const result = toBookingListResponse(backendResponse, { page: 2, limit: 10 }, true);
+
+    expect(result).toEqual({
+      items: backendResponse.items.map(toStaffBookingCard),
+      total: 1,
+      page: 2,
+      limit: 10,
+    });
+    expect(result.items[0]).toHaveProperty('contactName', 'João');
+  });
+
+  it('takes page/limit from the query, not from backend.pagination', () => {
+    const result = toBookingListResponse(backendResponse, { page: 3, limit: 5 }, false);
+    expect(result.page).toBe(3);
+    expect(result.limit).toBe(5);
+    expect(result.total).toBe(backendResponse.pagination.total);
   });
 });
 

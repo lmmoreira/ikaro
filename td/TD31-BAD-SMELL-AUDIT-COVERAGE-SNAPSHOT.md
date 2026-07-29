@@ -211,7 +211,9 @@ Retyping dead duplicate code doesn't fix anything real — per CLAUDE.md's own a
 
 ---
 
-### Story 3 — BFF re-implements JWT decoding instead of reusing `CurrentUserPayload` 🔴 High
+### Story 3 — BFF re-implements JWT decoding instead of reusing `CurrentUserPayload` 🔴 High ✅ Done
+
+**Landed**: PR #288 (2026-07-28), `fix/td31-pr3-bookings-controller-cleanup` (branch deleted post-merge), as part of the collapsed PR 3.
 
 **Source**: BFF E1
 
@@ -235,7 +237,9 @@ Retyping dead duplicate code doesn't fix anything real — per CLAUDE.md's own a
 
 ---
 
-### Story 4 — `fetchLoyaltyBalance()` silently swallows all errors 🔴 High
+### Story 4 — `fetchLoyaltyBalance()` silently swallows all errors 🔴 High ✅ Done
+
+**Landed**: PR #288 (2026-07-28), `fix/td31-pr3-bookings-controller-cleanup` (branch deleted post-merge), as part of the collapsed PR 3. Uses `AppLogger` (never NestJS's raw `Logger` — see the PR 3 discovery-update note below for why that distinction mattered here).
 
 **Source**: BFF A2
 
@@ -287,7 +291,9 @@ Retyping dead duplicate code doesn't fix anything real — per CLAUDE.md's own a
 
 ---
 
-### Story 6 — Booking/Loyalty controllers assemble composite responses inline instead of via mappers 🔴 Medium
+### Story 6 — Booking/Loyalty controllers assemble composite responses inline instead of via mappers 🔴 Medium ✅ Done
+
+**Landed**: PR #288 (2026-07-28), `fix/td31-pr3-bookings-controller-cleanup` (branch deleted post-merge), as part of the collapsed PR 3.
 
 **Source**: BFF A1, A6
 
@@ -507,6 +513,8 @@ Decisions made during triage:
 
 ### Story 15 — BFF: tighten loose `string` types to existing unions 🟡
 
+**Partially landed**: the booking-types slice (C1, C2, C3 — `bookings.types.ts`/`bookings.mapper.ts`/`schedule.types.ts`) shipped 2026-07-28 in PR #288 (`fix/td31-pr3-bookings-controller-cleanup`, branch deleted post-merge), as part of PR 3. The auth-types slice (C4, C5 — `CurrentUserPayload.role`, `Roles` decorator) remains open, scoped to PR 4 per the execution plan. Not marking this story `✅ Done` until that lands.
+
 **Source**: BFF C1, C2, C3, C4, C5
 
 **Target files**:
@@ -555,6 +563,8 @@ Decisions made during triage:
 ---
 
 ### Story 17 — Backend + BFF: controller response-shaping / config-lookup duplication 🟡
+
+**Partially landed**: the `E2` slice (JWT_SECRET cached once in `bookings.controller.ts`'s constructor instead of 3 separate `getOrThrow()` calls) shipped 2026-07-28 in PR #288 (`fix/td31-pr3-bookings-controller-cleanup`, branch deleted post-merge), as part of PR 3. Backend 3.2/3.3, BFF A5, and F2/F3 remain open, scoped to PR 8 per the execution plan. Not marking this story `✅ Done` until those land.
 
 **Source**: Backend 3.2, 3.3 · BFF A5, E2, F2, F3
 
@@ -680,7 +690,9 @@ The 6 ⚪ rows were re-verified directly against source (not just re-read from t
 
 ---
 
-### Story 22 — Extract `generateAttachmentSignedUrl()`'s 3-way tenant-resolution branching out of the controller
+### Story 22 — Extract `generateAttachmentSignedUrl()`'s 3-way tenant-resolution branching out of the controller ✅ Done
+
+**Landed**: PR #288 (2026-07-28), `fix/td31-pr3-bookings-controller-cleanup` (branch deleted post-merge), as part of the collapsed PR 3.
 
 **Source**: Part 1 `BFF-1` (missed in the initial 2026-07-23 triage pass, caught on a completeness re-check the same day — see the note under Part 1's BFF section)
 
@@ -725,7 +737,7 @@ Grouping rule: two stories collapse into **one PR** only when they genuinely sha
 
 | PR | Stories | Target files | Notes |
 |---|---|---|---|
-| **PR 3** | Story 3 + Story 22 + Story 4 + Story 6 + Story 15 (booking-types slice: `bookings.types.ts`/`.mapper.ts`/`schedule.types.ts`) + Story 17's `E2` slice (JWT_SECRET caching) | `apps/bff/src/features/booking/{bookings.controller.ts,bookings.mapper.ts,bookings.types.ts,schedule.types.ts}` | 6 stories worth of edits converge on 1-2 files. Collapsing avoids 5 sequential rebases on the same controller. Internal order: extract the shared JWT-decode helper (3) and the tenant-resolution branching (22) first, then the mapper extraction (6) and type-tightening (15) build on the now-cleaner controller, then fold in `fetchLoyaltyBalance` logging (4) and the JWT_SECRET dedup (17 slice) last since they're small and independent of the rest. |
+| **PR 3** ✅ | Story 3 + Story 22 + Story 4 + Story 6 + Story 15 (booking-types slice: `bookings.types.ts`/`.mapper.ts`/`schedule.types.ts`) + Story 17's `E2` slice (JWT_SECRET caching) | `apps/bff/src/features/booking/{bookings.controller.ts,bookings.mapper.ts,bookings.types.ts,schedule.types.ts}` | 6 stories worth of edits converge on 1-2 files. Collapsing avoids 5 sequential rebases on the same controller. Internal order: extract the shared JWT-decode helper (3) and the tenant-resolution branching (22) first, then the mapper extraction (6) and type-tightening (15) build on the now-cleaner controller, then fold in `fetchLoyaltyBalance` logging (4) and the JWT_SECRET dedup (17 slice) last since they're small and independent of the rest. Also folded in during story-discovery: fixing the raw `@nestjs/common` `Logger` anti-pattern (should always be `AppLogger`) at 4 sites — 1 BFF guard + 3 backend services/repositories. **Merged as [#288](https://github.com/lmmoreira/ikaro/pull/288), 2026-07-28.** |
 
 **Discovery update (2026-07-28, story-discovery for PR 3):** Story 4's fix (log the error in `fetchLoyaltyBalance()`'s `catch` block) surfaced that the BFF has no established controller-logging convention to copy — the only `Logger` usage anywhere in the BFF was a raw `new Logger(AppThrottlerGuard.name)` from `@nestjs/common` in `apps/bff/src/shared/guards/app-throttler.guard.ts`, which itself violates the documented rule at `docs/10-OBSERVABILITY_STRATEGY.md:961`/`docs/ENGINEERING_RULES.md:233` ("`AppLogger` is never DI-injected — always `new AppLogger(ClassName.name)` as a field initializer... don't add a new logger-like utility for the same reason"). The same raw-`Logger` anti-pattern was found in 3 backend files: `contexts/platform/application/services/hotsite-image-promotion.service.ts`, `contexts/platform/infrastructure/repositories/caching-tenant.repository.ts`, `contexts/booking/application/services/photo-existence.service.ts`. Decision: fix all 4 sites in this same PR rather than deferring to a separate TD, even though 3 are backend files outside PR 3's original BFF-only scope — each is a mechanical one-line swap (`new Logger(X.name)` → `new AppLogger(X.name)`, matching the exact pattern already used at `apps/backend/src/contexts/notification/application/use-cases/base-notification.use-case.ts:1` and `apps/bff/src/main.ts`'s own `HealthController` example in `docs/10-OBSERVABILITY_STRATEGY.md:923,929`), no test/behavior changes beyond the logger class.
 

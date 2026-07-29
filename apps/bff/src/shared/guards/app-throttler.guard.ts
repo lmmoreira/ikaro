@@ -1,4 +1,4 @@
-import { ExecutionContext, Injectable, Logger } from '@nestjs/common';
+import { ExecutionContext, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import {
@@ -11,6 +11,7 @@ import {
 import { AuthErrorCode } from '@ikaro/types';
 import { ClientIpRequest, getClientIp } from '../http/client-ip';
 import { throwProblemDetail } from '../http/problem-detail';
+import { AppLogger } from '../observability/app-logger';
 
 // Overrides three extension points on ThrottlerGuard (M17-S30):
 // - shouldSkip: rate limiting only ever protects a real deployed environment (staging/prod);
@@ -27,7 +28,7 @@ import { throwProblemDetail } from '../http/problem-detail';
 //   app's standard Problem Detail envelope.
 @Injectable()
 export class AppThrottlerGuard extends ThrottlerGuard {
-  private readonly logger = new Logger(AppThrottlerGuard.name);
+  private readonly logger = new AppLogger(AppThrottlerGuard.name);
 
   constructor(
     @InjectThrottlerOptions() options: ThrottlerModuleOptions,

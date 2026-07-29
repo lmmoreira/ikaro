@@ -241,6 +241,8 @@ interface ManifestTabProps {
 
 No live sync, no auto-apply on blur/tab-switch — switching away from Manifesto without clicking Aplicar discards the pending edit (mirrors `ModuleConfigShell`'s existing Cancelar-without-apply behavior elsewhere on this screen: leaving the tab is an implicit cancel, and re-entering Manifesto always reseeds the textarea from the current `draft`, never from whatever was last typed).
 
+Reuses existing copy rather than inventing new UI text: the Aplicar button and the "changes apply to the draft, not yet public" hint both read from the already-shipped `dashboard.hotsitePage.layout.configShell.applyLabel`/`.description` keys (`useTranslations('dashboard.hotsitePage.layout.configShell')`) — same wording `ModuleConfigShell` already shows today, both literally true here too. Only the parse/validation error message needs a tab-specific key (Part 5).
+
 ### Part 4 — Wire into HotsiteEditor
 
 - `EditorTab` gains `'manifest'`; `TABS` gains it last; new tabpanel renders `<ManifestTab value={{branding: draft.branding, layout: draft.layout, seo: draft.seo}} onApply={handleManifestApply} />`.
@@ -248,7 +250,12 @@ No live sync, no auto-apply on blur/tab-switch — switching away from Manifesto
 
 ### Part 5 — i18n
 
-New keys: `dashboard.hotsitePage.tabs.manifest` (tab label) + a new `dashboard.hotsitePage.manifest.*` block (title/description, Aplicar button, invalid-JSON error) in both `packages/i18n/locales/pt-BR/web.json` and `.../en/web.json`.
+Reuses `dashboard.hotsitePage.layout.configShell.applyLabel` ("Aplicar"/"Apply") and `.description` ("As alterações são aplicadas ao rascunho — ainda não são visíveis no hotsite público." / "Changes are applied to the draft — they aren't visible on the public hotsite yet.") — no new keys needed for those. Exactly 2 new keys, in both `packages/i18n/locales/pt-BR/web.json` and `.../en/web.json`:
+
+| Key | pt-BR | en |
+|---|---|---|
+| `dashboard.hotsitePage.tabs.manifest` | `Manifesto` | `Manifest` |
+| `dashboard.hotsitePage.manifest.invalidJsonError` | `JSON inválido. Verifique a sintaxe e a estrutura (branding, layout, seo) antes de aplicar.` | `Invalid JSON. Check the syntax and structure (branding, layout, seo) before applying.` |
 
 ### Part 6 — Docs
 
@@ -264,7 +271,7 @@ New keys: `dashboard.hotsitePage.tabs.manifest` (tab label) + a new `dashboard.h
 - [ ] Extra/unrecognized top-level keys are silently ignored
 - [ ] Leaving the tab without Aplicar discards the pending edit; re-entering reseeds from the current draft
 - [ ] A backend-rejected save (e.g. non-hex color that passed structural validation) surfaces via the existing `actionBanner`
-- [ ] New locale keys in both `pt-BR` and `en` in the same commit
+- [ ] The 2 new locale keys (`tabs.manifest`, `manifest.invalidJsonError`) exist in both `pt-BR` and `en` in the same commit; the Aplicar button and hint text reuse the existing `layout.configShell.applyLabel`/`.description` keys rather than duplicating them
 - [ ] Coverage ≥80% on changed code; `tsc --noEmit`, lint, full test suite green
 
 ### Testing
@@ -285,6 +292,11 @@ New keys: `dashboard.hotsitePage.tabs.manifest` (tab label) + a new `dashboard.h
 3. **Editor component:** plain shadcn `Textarea` (new primitive, doesn't exist yet), monospace, no new runtime dependency — not a CodeMirror/Monaco integration.
 4. **Apply pattern:** local buffer + explicit "Aplicar", mirroring `ModuleConfigShell`'s existing pattern on this same screen. Switching tabs away from Manifesto without clicking Aplicar silently discards the pending edit (implicit cancel) — no state lifted to survive the tab unmounting.
 5. **Extra/unknown top-level JSON keys** (e.g. pasting a full manifest GET response) are silently ignored rather than rejected — only `branding`/`layout`/`seo` are read back out.
+
+### Resolved during `/story-discovery M18-S02` (2026-07-28)
+
+1. **No `plan/journey/` prototype required.** This is a minor, self-contained addition (a textarea) to an already-shipped, already-validated screen — not a new journey. Consistent with M18-S01, which also shipped in this same milestone without a cited prototype.
+2. **i18n footprint minimized by reuse, not by skipping it.** i18n itself is non-negotiable here — every other string on this screen already goes through `useTranslations()`/locale-file keys (this is how the codebase's dual pt-BR/en support works, enforced by a CI exhaustiveness check), so a hardcoded "Manifesto" label would be the one inconsistent, untranslated string on the page. What *was* trimmed: the Aplicar button and the "applies to draft, not yet public" hint reuse the already-shipped `layout.configShell.applyLabel`/`.description` keys instead of duplicating them under a new `manifest.*` block — only the tab label and the invalid-JSON error message are genuinely new copy (Part 5).
 
 ### Dependencies
 

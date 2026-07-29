@@ -1,7 +1,8 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import { extractTenantIdFromTmpPath } from '../../../../shared/utils/extract-tenant-id-from-tmp-path';
 import { BookingPhotoNotUploadedError } from '../../domain/errors/booking-domain.error';
+import { AppLogger } from '../../../../shared/observability/app-logger';
 
 export interface PhotoPromotionOperation {
   from: string;
@@ -15,7 +16,7 @@ export interface PreparedPhotoPromotion {
 
 @Injectable()
 export class PhotoExistenceService {
-  private readonly logger = new Logger(PhotoExistenceService.name);
+  private readonly logger = new AppLogger(PhotoExistenceService.name);
 
   constructor(@Inject(STORAGE_SERVICE) private readonly storageService: IStorageService) {}
 

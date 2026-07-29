@@ -1,7 +1,14 @@
+import {
+  CustomerProfileResponse,
+  EnrichedLoyaltyBalanceResponse,
+  PaginatedLoyaltyEntriesResponse,
+  PaginatedLoyaltyRedemptionsResponse,
+} from '@ikaro/types';
 import { BackendLoyaltyEntryItem, BackendLoyaltyRedemptionItem } from './loyalty.types';
 import {
   toCustomerLoyaltyEntry,
   toCustomerLoyaltyRedemption,
+  toStaffCustomerLoyaltyDetail,
   toStaffLoyaltyEntry,
   toStaffLoyaltyRedemption,
 } from './loyalty.mapper';
@@ -147,5 +154,51 @@ describe('toStaffLoyaltyRedemption()', () => {
       bookingServices: [],
     });
     expect(result.amountDeducted).toBe(0);
+  });
+});
+
+describe('toStaffCustomerLoyaltyDetail()', () => {
+  const customer: CustomerProfileResponse = {
+    customerId: '20000000-0000-4000-8000-000000000001',
+    email: 'joao@example.com',
+    name: 'João',
+    phone: '+5531999999999',
+    defaultAddress: null,
+  };
+
+  const balance: EnrichedLoyaltyBalanceResponse = {
+    currentPoints: 120,
+    nextExpiryDate: '2026-11-24T14:00:00.000Z',
+    nextExpiryPoints: 10,
+    conversionRate: 10,
+  };
+
+  const entries: PaginatedLoyaltyEntriesResponse = {
+    items: [],
+    total: 0,
+    page: 1,
+    limit: 20,
+  };
+
+  const redemptions: PaginatedLoyaltyRedemptionsResponse = {
+    items: [],
+    total: 0,
+    page: 1,
+    limit: 20,
+  };
+
+  it('assembles the 4 already-fetched pieces into StaffCustomerLoyaltyDetailResponse unchanged', () => {
+    const result = toStaffCustomerLoyaltyDetail(customer, balance, entries, redemptions);
+
+    expect(result).toEqual({ customer, balance, entries, redemptions });
+  });
+
+  it('passes through each argument by reference without remapping fields', () => {
+    const result = toStaffCustomerLoyaltyDetail(customer, balance, entries, redemptions);
+
+    expect(result.customer).toBe(customer);
+    expect(result.balance).toBe(balance);
+    expect(result.entries).toBe(entries);
+    expect(result.redemptions).toBe(redemptions);
   });
 });
