@@ -17,9 +17,11 @@ import { useTenant } from '@/providers/tenant-provider';
 import { BrandingTab } from '@/features/platform/components/hotsite/BrandingTab';
 import { LayoutTab } from '@/features/platform/components/hotsite/LayoutTab';
 import { SeoTab } from '@/features/platform/components/hotsite/SeoTab';
+import { ManifestTab } from '@/features/platform/components/hotsite/ManifestTab';
 import { ModuleConfigShell } from '@/features/platform/components/hotsite/modules/ModuleConfigShell';
 import { materializeLayout } from '@/features/platform/hotsite/default-layout';
 import { stripResolvedImageUrls } from '@/features/platform/hotsite/strip-resolved-image-urls';
+import type { ManifestDraft } from '@/features/platform/hotsite/manifest-schema';
 import {
   useUpdateHotsiteConfig,
   usePublishHotsite,
@@ -29,7 +31,7 @@ import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import type { ModuleConfigPanelProps } from './modules/module-config-panel.types';
 
-type EditorTab = 'branding' | 'layout' | 'seo';
+type EditorTab = 'branding' | 'layout' | 'seo' | 'manifest';
 
 interface HotsiteEditorProps {
   readonly initial: HotsiteAdminContentResponse;
@@ -50,7 +52,9 @@ type ActionBanner = {
   readonly message?: string;
 };
 
-const TABS: readonly EditorTab[] = ['branding', 'layout', 'seo'];
+// 'manifest' stays last — it's the raw-JSON escape hatch for the other 3 tabs combined, not a
+// peer content section.
+const TABS: readonly EditorTab[] = ['branding', 'layout', 'seo', 'manifest'];
 
 // Each panel is lazy-loaded so a manager who never opens "Configurar" on a given module never
 // downloads that panel's JS — the same code-splitting benefit a real route would give, without
@@ -181,6 +185,11 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
 
   function setSeo(seo: HotsiteSeoResponse): void {
     setDraft((current) => ({ ...current, seo }));
+    setActionBanner(null);
+  }
+
+  function handleManifestApply(next: ManifestDraft): void {
+    setDraft((current) => ({ ...current, ...next }));
     setActionBanner(null);
   }
 
@@ -351,6 +360,18 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
           {activeTab === 'seo' && (
             <div role="tabpanel" id="hotsite-tabpanel-seo" aria-labelledby="hotsite-tab-seo">
               <SeoTab value={draft.seo} onChange={setSeo} />
+            </div>
+          )}
+          {activeTab === 'manifest' && (
+            <div
+              role="tabpanel"
+              id="hotsite-tabpanel-manifest"
+              aria-labelledby="hotsite-tab-manifest"
+            >
+              <ManifestTab
+                value={{ branding: draft.branding, layout: draft.layout, seo: draft.seo }}
+                onApply={handleManifestApply}
+              />
             </div>
           )}
 

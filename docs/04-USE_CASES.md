@@ -1014,12 +1014,18 @@ Returns:
       - Title (text input, max 60 chars) — overrides the generated `<title>` for search results and social sharing
       - Description (textarea, max 158 chars) — overrides the generated meta description
       - Both optional; left blank (`null`) → hotsite falls back to a generated title/description based on the tenant's name and city/state
+
+      **Section D: Manifesto** (M18-S02) — always the last tab
+      - A single JSON textarea showing the exact `{ branding, layout, seo }` object Sections A–C together produce and Publish sends — a direct-edit escape hatch for admins who find raw JSON faster than the structured UI, not a separate config surface
+      - "Aplicar" parses and structurally validates the edited JSON (valid syntax; `branding`/`seo` fields have the right primitive types; `layout` items have a known, unique module `type` and data matching that type's own schema) before merging it into the same draft Sections A–C edit — an invalid edit is rejected inline and the draft is left unchanged
+      - Deep business rules (hex color format, SEO length caps, exact enum values) are not re-validated client-side here — a structurally-valid-but-business-invalid edit (e.g. a non-hex color) still surfaces the normal Publish-time error, exactly as if it had been typed into Section A directly
    
    3. Admin updates:
       - Colors, logo, fonts in branding section
       - Enables/disables modules
       - Reorders modules (drag-drop) — order preserved in JSONB array
       - SEO title/description overrides
+      - Or edits the equivalent raw JSON directly in the Manifesto tab (Section D)
    
    4. Admin clicks "Preview" to see hotsite live (optional)
    5. Admin clicks "Publish Changes"
@@ -1031,6 +1037,7 @@ Returns:
 - **Alternative Flows:**
    - **A1: Invalid color (not hex)** → System shows error and prevents save
    - **A2: Image upload fails** → System falls back to URL input
+   - **A3: Malformed/invalid JSON in the Manifesto tab** → "Aplicar" shows an inline error and does not merge the edit into the draft; leaving the tab without clicking "Aplicar" discards the pending edit
 
 - **Postconditions:** `hotsite_configs` updated. Hotsite public page reflects new branding and layout immediately (cached at edge if needed).
 - **Events Triggered:** None
