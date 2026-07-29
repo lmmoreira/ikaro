@@ -13,6 +13,7 @@
 |---|---|
 | M18-S01 | Configurable hotsite date picker (carousel/calendar) honoring `maxBookingAdvanceDays` |
 | M18-S02 | Hotsite editor "Manifesto" tab: direct JSON editing of branding + layout + seo |
+| M18-S03 | Dedicated SEO share image (`seo.ogImageUrl`), auto-cropped uploads, and rendering `branding.logoUrl` (topbar, footer, favicon) |
 
 *(more stories will be appended here as they're scoped)*
 
@@ -301,3 +302,103 @@ Reuses `dashboard.hotsitePage.layout.configShell.applyLabel` ("Aplicar"/"Apply")
 ### Dependencies
 
 None — `PATCH /tenants/hotsite` already accepts partial `branding`/`layout`/`seo`; this story is `apps/web`-only.
+
+---
+
+## M18-S03 — Dedicated SEO share image (`seo.ogImageUrl`), auto-cropped uploads, and rendering `branding.logoUrl` on the public hotsite
+
+**Agent:** `fullstack-ts`
+**Complexity:** L
+**Docs to load:** `docs/24-BFF_ARCHITECTURE.md`, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-027, `docs/VALUE_OBJECTS_REFERENCE.md`
+**Prototype reference:** `plan/journey/shared/hotsite.html` (topbar + footer logo placement, validated 2026-07-29) — read this file before writing `HotsiteAuthBar`/`Footer` changes; it is the UX spec for size/placement, not just an illustration.
+
+### Background
+
+`buildHotsiteMetadata()` (`apps/web/features/platform/hotsite/seo.ts:62-64`) currently builds the `og:image` Open Graph tag directly from `manifest.branding.logoUrl`, hardcoding `width: 1200, height: 630` regardless of the uploaded asset's real dimensions:
+
+```ts
+images: manifest.branding.logoUrl
+  ? [{ url: manifest.branding.logoUrl, width: 1200, height: 630 }]
+  : [],
+```
+
+`branding.logoUrl` is used today only as a small, avatar-like brand mark — the login page's 64×64 circular badge (`apps/web/app/[slug]/login/page.tsx:43-58`) and the dashboard's Branding-tab upload/preview thumbnail (`LogoUpload.tsx`). Nothing about it is, or should be, a 1200×630 landscape image. Reusing it for `og:image` means the declared metadata is always a lie about the actual file.
+
+`HotsiteSeo` (`apps/backend/src/contexts/platform/domain/hotsite-config.aggregate.ts:183-270`) is already its own domain slice, structurally separate from `HotsiteBranding`. Adding `ogImageUrl` there follows the existing pattern rather than continuing to borrow a field from the wrong domain.
+
+Separately: today the branding logo, despite existing in the domain model since M12, renders **nowhere on the live public hotsite page** — only on the login page. `HotsiteAuthBar` (topbar, every page) and `Footer` show only text (`tenantName`); neither has a `logoUrl` prop. A 2026-07-29 design exploration (now the validated prototype above) mocked up adding it to both.
+
+Investigation also found **zero existing crop/aspect-ratio enforcement anywhere** in the upload pipeline: `compressImage()` (`apps/web/shared/utils/compress-image.ts:9-69`) only does a uniform proportional downscale (cap 1600px), preserving whatever aspect ratio the source file has — no cropping, client or server. This means today's `branding.logoUrl` uploads can be any shape, which the fixed square/circular slots (login badge, and now topbar/footer) will render inconsistently without a crop step.
+
+### Description
+
+**Part 1 — `seo.ogImageUrl` field, end-to-end:**
+- New `SeoOgImageUrl`-style validation in `packages/validation/src/hotsite.ts` (or a dedicated VO in `shared/value-objects/`, per discovery) enforcing the same `tenants/<id>/hotsite/...` / `tmp/<id>/...` path shape already used for `logoUrl`.
+- New signed-upload purpose **`'seo-og-image'`** (final name, confirmed at `/story-discovery`) added to **both** independent copies of the purpose enum — `apps/backend/src/contexts/platform/application/dtos/generate-hotsite-image-signed-url.dto.ts:14` and `apps/bff/src/features/platform/hotsite-admin.controller.ts:51` (currently identical: `z.enum(['branding', 'hero', 'gallery', 'about', 'booking-cta', 'testimonials'])`) — same-commit update, not automatically in sync.
+- **`HotsiteImagePathsService.collect()`/`mapPaths()`** (`apps/backend/.../domain/services/hotsite-image-paths.service.ts`) currently only walk `branding.logoUrl` + `layout` module image fields — **`seo` is not in their signature at all today.** Both methods need a `seo: HotsiteSeo` parameter added (and `collect`/`mapPaths` extended to read/rewrite `seo.ogImageUrl`), and the one call site in `hotsite-image-promotion.service.ts:47,73` updated to pass it — otherwise a `tmp/...` `seo.ogImageUrl` silently never gets promoted to its permanent path on save.
+- **`HotsiteImageUrlResolver.resolve()`** (`apps/backend/.../domain/services/hotsite-image-url-resolver.service.ts`) has the identical gap — its `ResolvedHotsiteContent` return type only has `branding`/`layout`. Needs a `seo` parameter/return field too. `GetHotsiteManifestUseCase`/`GetHotsiteContentUseCase` currently do `seo: content.seo` with **zero** resolution (never needed it — `seo` never held a storage path before `ogImageUrl`); both use cases need to route `seo` through the resolver, or `GET /hotsite` returns a raw, unresolved storage path instead of a public URL.
+- **No migration needed:** `HotsiteConfigEntity.seo` (`apps/backend/.../entities/hotsite-config.entity.ts:19`) is a single `jsonb` column — `ogImageUrl` is just a new key on the `HotsiteSeo` interface/VO, same as `branding`/`layout` already are. Purely an application-code change (TS type, Zod schema, VO validation); no DDL.
+- `HotsiteAdminContentResponse`/`HotsiteManifestResponse` (`@ikaro/types`) gain `seo.ogImageUrl`; `UpdateHotsiteContentDto`'s `HotsiteSeoSchema` gains the same field.
+- **New `OgImageUpload.tsx`** (`apps/web/features/platform/components/hotsite/`), mirroring `LogoUpload.tsx`'s thin-wrapper pattern around `SingleImageUploadField` — fixed `purpose="seo-og-image"`, landscape-appropriate preview treatment (not the `previewSize="small"` square treatment `LogoUpload` uses). Wired into `SeoTab.tsx`, which today renders only `title`+`description` (confirmed — no image field exists there yet). No new `plan/journey/` prototype for this addition — same "minor, self-contained addition to an already-shipped, already-validated screen" reasoning as M18-S02's Manifesto tab.
+- **New i18n keys** (both `packages/i18n/locales/pt-BR/web.json` and `.../en/web.json`, same namespace as the existing `dashboard.hotsitePage.seo.*` keys): `dashboard.hotsitePage.seo.ogImageLabel` and `dashboard.hotsitePage.seo.ogImageHint`, mirroring the existing `titleLabel`/`titleHint` pair's phrasing style.
+- `buildHotsiteMetadata()` updated to read `manifest.seo.ogImageUrl` with real `width`/`height` reflecting the enforced crop ratio (Part 2). **Null/empty `seo.ogImageUrl`:** omit `images` from the `openGraph` object entirely (matches today's existing `manifest.branding.logoUrl ? [...] : []` empty-array pattern) — no fallback to `branding.logoUrl`, since a square logo in a landscape slot is exactly the bad outcome this story fixes.
+
+**Part 2 — Auto center-crop on upload (no crop-UI library, no user interaction):**
+- Extend `compressImage()` with an optional `targetAspectRatio` parameter: before the existing proportional downscale, center-crop the source image (via the same canvas it already draws onto) to that ratio.
+- Apply **ratio 1:1** to the existing `'branding'` upload purpose (`SingleImageUploadField.tsx` call site used by `LogoUpload.tsx`) — changes behavior for new `branding.logoUrl` uploads going forward only; no backfill of already-stored logos.
+- Apply **ratio ~1.91:1** (1200×630) to the new `'seo-og-image'` purpose.
+- Explicitly not: an interactive drag/zoom cropper (no new dependency — `react-easy-crop`/`cropperjs` etc. are not being introduced) and not a reject-on-mismatch validator. Automatic, deterministic, zero extra user steps.
+
+**Part 3 — Render `branding.logoUrl` on the public hotsite, per the validated prototype:**
+
+Per `plan/journey/shared/hotsite.html`'s topbar section: a small circular image (`1.75rem` / 28px, `object-fit: cover`, `border-radius: 9999px`) to the left of the brand name, ahead of the "Área da Equipe" link (separated by the existing divider). Per the footer section: same treatment at `1.25rem` / 20px, above the address/phone line.
+
+- **`HotsiteAuthBar`** (`apps/web/shells/hotsite/components/HotsiteAuthBar.tsx`): add `logoUrl: string` and `tenantName: string` props (currently only takes `slug`). Wire at both call sites — `apps/web/app/[slug]/page.tsx:74` (already destructures `branding` at line 52 — pass `branding.logoUrl`) and `apps/web/app/[slug]/booking/page.tsx:47` (fetches `manifest` at line 32 but doesn't destructure `branding` yet — add it).
+- **`Footer`** (`apps/web/shells/hotsite/components/Footer.tsx`): add `logoUrl: string` prop to `FooterProps`. Wire at `apps/web/app/[slug]/page.tsx:120-127` (same `branding` already in scope) **and** the admin live-preview call site `apps/web/features/platform/components/hotsite/HotsitePreview.tsx:262-269` (`branding.logoUrl` already in scope via `resolveDraftImageUrls` at lines 140-141) — this second call site must be updated in the same commit or the build breaks on the now-required prop.
+- **Null/empty `branding.logoUrl` fallback (mandatory — do not skip):** reuse the exact pattern already established in `apps/web/app/[slug]/login/page.tsx:43-58` — `logoUrl ? <Image ... /> : <div>{firstLetter}</div>` — a circular badge using `--ba-primary` background / `--ba-btn-text` text color, showing `displayName.charAt(0).toUpperCase()` (via the already-existing `resolveHotsiteDisplayName(manifest)` helper), sized to match each slot (28px in the auth bar, 20px in the footer). Both `HotsiteAuthBar` and `Footer` must implement this ternary — a tenant with no logo uploaded yet must never render a broken/empty `<img>`.
+
+**Part 4 — Browser tab favicon:**
+
+`apps/web/app/[slug]/layout.tsx` has no `generateMetadata()` today — no tenant hotsite page sets a favicon, so every tenant shows the browser's blank/default tab icon (confirmed: no `icon`/`apple-icon` metadata anywhere under `app/[slug]/`, no favicon file in `public/`).
+
+- Add `generateMetadata()` to `apps/web/app/[slug]/layout.tsx`, returning `icons: { icon: [{ url: manifest.branding.logoUrl }] } }` when `branding.logoUrl` is set. This layout already calls `fetchManifest(slug)` (line 20) for `applyBranding`/locale — Next.js's `fetch()` request memoization should dedupe the identical call `generateMetadata()` needs, so this isn't a second network round-trip in practice.
+- **Null/empty `branding.logoUrl`:** omit `icons` entirely (browser/framework default favicon). Unlike the topbar/footer, a `<link rel="icon">` cannot render a DOM fallback (no letter-avatar badge is possible for a favicon) — there is no meaningful fallback beyond "don't set one."
+- Since `branding.logoUrl` is guaranteed square after Part 2's crop, the same stored file is reused directly across the topbar, footer, and favicon — no separate favicon-specific asset, no additional crop. (Reusing one file across all three is the intended behavior, not a shortcut — same reasoning as any site's single `favicon.ico` referenced everywhere; the browser caches the one fetch.)
+- **Scope resolved at `/story-discovery`: single `icon` size only — no Apple touch icon (180×180).** An Apple touch icon needs meaningfully more source resolution than the 28–32px targets here; upscaling a small tenant-uploaded logo to 180px would look soft. Adding that support later is a narrow follow-up (a minimum-source-resolution check on the `'branding'` purpose), not part of this story.
+- Layout-level metadata applies to every page nested under `app/[slug]/` (main hotsite, `/booking`, `/login`) in one place.
+
+### Acceptance Criteria
+
+- [ ] `seo.ogImageUrl` persists through the same admin PATCH flow as `branding`/`layout`/`seo.title`/`seo.description`
+- [ ] `OgImageUpload.tsx` renders in `SeoTab.tsx`; uploading sets `seo.ogImageUrl` on the draft, same interaction pattern as `LogoUpload.tsx` in `BrandingTab.tsx`
+- [ ] The 2 new i18n keys (`dashboard.hotsitePage.seo.ogImageLabel`, `.ogImageHint`) exist in both `pt-BR` and `en` in the same commit
+- [ ] Both upload-purpose enums (`generate-hotsite-image-signed-url.dto.ts` and `hotsite-admin.controller.ts`) include `'seo-og-image'` — updated together, not just one
+- [ ] New `'branding'` and `'seo-og-image'` uploads are auto center-cropped (1:1 / 1.91:1 respectively) before storage — verified by checking the uploaded file's actual dimensions, not just that upload succeeds
+- [ ] `HotsiteImagePathsService.collect()`/`mapPaths()` include `seo.ogImageUrl` in their field walk — a `tmp/...` `seo.ogImageUrl` is actually promoted on save, not silently skipped
+- [ ] `HotsiteImageUrlResolver.resolve()` (and both `GetHotsiteManifestUseCase`/`GetHotsiteContentUseCase` call sites) resolve `seo.ogImageUrl` to a full public URL — `GET /hotsite` never returns a raw storage path for this field
+- [ ] `tmp/...` staging path is promoted to a permanent `tenants/<id>/hotsite/...` path on save, same as `logoUrl`
+- [ ] `GET /hotsite` manifest resolves `seo.ogImageUrl` to a full public URL, same as `branding.logoUrl`
+- [ ] `buildHotsiteMetadata()` builds `og:image` from `manifest.seo.ogImageUrl` with accurate `width`/`height`; omits `images` entirely when `seo.ogImageUrl` is null/empty (no fallback to `branding.logoUrl`)
+- [ ] `HotsiteAuthBar` renders `branding.logoUrl` (28px circle) on both the main hotsite page and the booking page; falls back to the initial-letter badge (matching `login/page.tsx`'s exact pattern) when empty
+- [ ] `Footer` renders `branding.logoUrl` (20px circle) on the main hotsite page and the admin preview; same initial-letter fallback when empty
+- [ ] All 4 render call sites (`app/[slug]/page.tsx` ×2, `app/[slug]/booking/page.tsx`, `HotsitePreview.tsx`) updated in the same commit — no broken build from an unaddressed required prop
+- [ ] Browser tab favicon reflects `branding.logoUrl` on every page under `app/[slug]/` (main, booking, login) when set; falls back to the browser/framework default when empty — no letter-avatar fallback attempted (not possible for a `<link rel="icon">`)
+- [ ] `seo.ogImageUrl` validated on both BFF and backend layers, scoped by the existing `tenant_id`-keyed `hotsite_configs` row (no new migration/DDL — it's a new key on the existing `seo` jsonb column)
+- [ ] Coverage ≥80% on changed code; `tsc --noEmit`, lint, full test suite green
+
+### Testing
+
+**Backend:** unit + integration coverage for the new VO/validation; `HotsiteImagePathsService.spec.ts` and `HotsiteImageUrlResolver.spec.ts` updated to cover `seo.ogImageUrl` alongside their existing `branding`/`layout` cases (collect, mapPaths, resolve); `GetHotsiteManifestUseCase`/`GetHotsiteContentUseCase` specs updated to assert `seo.ogImageUrl` comes back resolved, not raw. No new migration to register.
+**BFF:** schema validation for the new upload purpose (both enum locations) and the new `seo.ogImageUrl` field on the admin PATCH DTO.
+**Web (Vitest):**
+- `compress-image.spec.ts` updated — center-crop-to-ratio produces the expected output dimensions for both 1:1 and 1.91:1 targets, for both landscape- and portrait-sourced inputs.
+- NEW `OgImageUpload.spec.tsx` — mirrors `LogoUpload.spec.tsx`'s existing test shape (renders, forwards purpose, upload triggers `onChange`).
+- UPDATE `SeoTab.spec.tsx` — renders the new upload field alongside title/description; upload sets `seo.ogImageUrl` on the emitted value.
+- `seo.spec.ts` updated — `og:image` reads from `manifest.seo.ogImageUrl` with correct `width`/`height`; empty `images` array when unset.
+- `HotsiteAuthBar.spec.tsx` and `Footer.spec.tsx` updated — renders the logo image when `logoUrl` is set; renders the initial-letter fallback badge when empty/null.
+- NEW/updated spec for `app/[slug]/layout.tsx`'s `generateMetadata()` — returns the `icon` entry when `branding.logoUrl` is set; omits `icons` when empty.
+**Playwright E2E:** upload + auto-crop + publish an SEO share image, reload, verify the resolved `og:image` meta tag; upload a branding logo and verify it now appears in the topbar, footer, and `<head>`'s `<link rel="icon">` on the live hotsite page; a tenant with no logo uploaded shows the letter-fallback badge in the topbar/footer and the default favicon in the tab.
+
+### Dependencies
+
+None — no migration (see Part 1); existing `branding.logoUrl` upload/promotion/resolver services and `compressImage()` are extended, not replaced.

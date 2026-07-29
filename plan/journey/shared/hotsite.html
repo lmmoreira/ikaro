@@ -63,15 +63,29 @@
   -->
   <div class="auth-bar" style="justify-content: space-between;">
 
-    <!-- PROTOTYPE ONLY — not rendered in production -->
-    <a href="./staff-login.html" style="display: flex; align-items: center; gap: 0.375rem;
-       font-size: 0.8125rem; font-weight: 500; color: rgba(17,24,39,0.4); text-decoration: none;">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
-        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
-      </svg>
-      Área da Equipe
-    </a>
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
+      <!--
+        DESIGN EXPLORATION (2026-07-29) — branding.logoUrl in HotsiteAuthBar
+        Not yet an approved story/AC — apps/web/shells/hotsite/components/HotsiteAuthBar.tsx
+        renders no brand mark at all today (grep confirmed). This mocks up the proposed small,
+        avatar-cropped logo (~28px) that would render here once that story is scoped, using a
+        placeholder image (not the letter-initial fallback) to represent an actual uploaded file.
+      -->
+      <img alt="" style="width: 1.75rem; height: 1.75rem; border-radius: 9999px; object-fit: cover; flex-shrink: 0;"
+        src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%232563eb'/%3E%3Cpath d='M7 19l1.5-5a2 2 0 0 1 1.9-1.4h11.2a2 2 0 0 1 1.9 1.4L25 19' fill='none' stroke='white' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='6.5' y='18.5' width='19' height='3.5' rx='1.5' fill='white'/%3E%3Ccircle cx='11' cy='23' r='2' fill='%232563eb' stroke='white' stroke-width='1.2'/%3E%3Ccircle cx='21' cy='23' r='2' fill='%232563eb' stroke='white' stroke-width='1.2'/%3E%3Cpath d='M11 9c.8-1 1.6-1 2 0M16 8c.8-1.2 1.6-1.2 2 0M21 9c.8-1 1.6-1 2 0' stroke='white' stroke-width='1.3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+      <span style="font-weight: 700; font-size: 0.875rem; color: var(--ba-text);">BeloAuto</span>
+
+      <!-- PROTOTYPE ONLY — not rendered in production -->
+      <a href="./staff-login.html" style="display: flex; align-items: center; gap: 0.375rem;
+         font-size: 0.8125rem; font-weight: 500; color: rgba(17,24,39,0.4); text-decoration: none;
+         margin-left: 0.375rem; padding-left: 0.75rem; border-left: 1px solid rgba(17,24,39,0.12);">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+        </svg>
+        Área da Equipe
+      </a>
+    </div>
 
     <a href="./login.html" style="display: flex; align-items: center; gap: 0.375rem;
        font-size: 0.875rem; font-weight: 500; color: var(--ba-primary); text-decoration: none;">
@@ -146,7 +160,13 @@
   </section>
 
   <footer>
-    BeloAuto · (11) 99999-0000 · São Paulo, SP
+    <!-- DESIGN EXPLORATION (2026-07-29) — same branding.logoUrl placeholder as the auth bar above -->
+    <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+      <img alt="" style="width: 1.25rem; height: 1.25rem; border-radius: 9999px; object-fit: cover; flex-shrink: 0;"
+        src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%232563eb'/%3E%3Cpath d='M7 19l1.5-5a2 2 0 0 1 1.9-1.4h11.2a2 2 0 0 1 1.9 1.4L25 19' fill='none' stroke='white' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='6.5' y='18.5' width='19' height='3.5' rx='1.5' fill='white'/%3E%3Ccircle cx='11' cy='23' r='2' fill='%232563eb' stroke='white' stroke-width='1.2'/%3E%3Ccircle cx='21' cy='23' r='2' fill='%232563eb' stroke='white' stroke-width='1.2'/%3E%3Cpath d='M11 9c.8-1 1.6-1 2 0M16 8c.8-1.2 1.6-1.2 2 0M21 9c.8-1 1.6-1 2 0' stroke='white' stroke-width='1.3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+      <span style="font-weight: 700;">BeloAuto</span>
+    </div>
+    (11) 99999-0000 · São Paulo, SP
   </footer>
 
 </body>
