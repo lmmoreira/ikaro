@@ -266,6 +266,13 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     });
     await expect(page.getByTestId('single-image-upload-preview')).toBeVisible();
 
+    // FOOTER isn't in any of the seed layouts (HERO/SERVICE_LIST/BOOKING_CTA only) — enable it
+    // so <footer> actually renders on the public page for the assertion below. HotsiteEditor
+    // keeps one shared `draft` across tabs, so the logo just uploaded on Branding survives the
+    // switch to Layout and back.
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await page.locator(layoutToggle('FOOTER')).click();
+
     await page.getByTestId('hotsite-publish-desktop').click();
     await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
 
