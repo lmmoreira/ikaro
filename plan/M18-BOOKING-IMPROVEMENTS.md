@@ -183,7 +183,7 @@ None outstanding — `BookingCtaConfigPanel`, `AvailabilityCarousel`, and `tenan
 
 ---
 
-## M18-S02 — Hotsite editor "Manifesto" tab: direct JSON editing of branding + layout + seo
+## M18-S02 — Hotsite editor "Manifesto" tab: direct JSON editing of branding + layout + seo ✅ Done
 
 **Agent:** `frontend-ts`
 **Complexity:** M
