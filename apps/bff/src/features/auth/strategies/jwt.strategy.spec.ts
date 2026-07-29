@@ -1,3 +1,4 @@
+import { UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './jwt.strategy';
 import { CurrentUserPayload } from '../../../shared/decorators/current-user.decorator';
@@ -57,6 +58,24 @@ describe('JwtStrategy', () => {
     };
 
     expect(strategy.validate(payload)).toEqual(payload);
+  });
+
+  it('throws UnauthorizedException when required fields are missing', () => {
+    expect(() => strategy.validate({ sub: 'customer-uuid-1' })).toThrow(UnauthorizedException);
+  });
+
+  it('throws UnauthorizedException when role is not a recognized JwtRole', () => {
+    const payload = {
+      sub: 'customer-uuid-1',
+      tenantId: 'tenant-uuid-1',
+      tenantSlug: 'lavacar-belo',
+      tenantName: 'Lavacar Belo',
+      userName: 'Test User',
+      role: 'SUPERADMIN',
+      locale: 'pt-BR',
+    };
+
+    expect(() => strategy.validate(payload)).toThrow(UnauthorizedException);
   });
 
   describe('cookie extraction', () => {

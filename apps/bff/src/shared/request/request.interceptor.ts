@@ -8,7 +8,7 @@ import {
 import { defaultTracingPort, ITracingPort } from '@ikaro/observability';
 import { Observable } from 'rxjs';
 import { Request } from 'express';
-import { CurrentUserPayload } from '../decorators/current-user.decorator';
+import { getCurrentUser } from '../decorators/current-user.decorator';
 import { enrichRequestContext } from './request-context';
 
 // Runs after Guards (NestJS pipeline: Middleware -> Guards -> Interceptors -> Pipes ->
@@ -28,15 +28,16 @@ export class RequestInterceptor implements NestInterceptor {
   constructor(@Optional() private readonly tracingPort: ITracingPort = defaultTracingPort) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
-    const req = context.switchToHttp().getRequest<Request & { user?: CurrentUserPayload }>();
+    const req = context.switchToHttp().getRequest<Request>();
+    const user = getCurrentUser(req);
 
-    const tenantId = req.user?.tenantId;
-    const actorId = req.user?.sub;
+    const tenantId = user?.tenantId;
+    const actorId = user?.sub;
     let actorType: 'STAFF' | 'CUSTOMER' | undefined;
-    if (req.user) {
-      actorType = req.user.role === 'CUSTOMER' ? 'CUSTOMER' : 'STAFF';
+    if (user) {
+      actorType = user.role === 'CUSTOMER' ? 'CUSTOMER' : 'STAFF';
     }
-    const actorRole = req.user?.role;
+    const actorRole = user?.role;
     const actor = actorId && actorType && actorRole ? { actorId, actorType, actorRole } : undefined;
 
     if (tenantId) {

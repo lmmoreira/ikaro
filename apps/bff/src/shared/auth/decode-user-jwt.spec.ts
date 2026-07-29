@@ -81,6 +81,14 @@ describe('decodeUserJwt()', () => {
     ).toBeNull();
   });
 
+  it('returns null when role is not one of CUSTOMER/STAFF/MANAGER', () => {
+    const token = jwt.sign(
+      { sub: 'cust-id', tenantId: TENANT_ID, tenantSlug: TENANT_SLUG, role: 'SUPERADMIN' },
+      SECRET,
+    );
+    expect(decodeUserJwt(`Bearer ${token}`, SECRET)).toBeNull();
+  });
+
   it('returns null when the payload does not match CurrentUserPayload shape (e.g. a guest token)', () => {
     const guestShapedToken = jwt.sign(
       {

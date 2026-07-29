@@ -2,10 +2,11 @@ import { CallHandler, ExecutionContext } from '@nestjs/common';
 import { ITracingPort, SpanAttributeValue } from '@ikaro/observability';
 import { lastValueFrom, Observable, of, Subscriber } from 'rxjs';
 import { CurrentUserPayload } from '../decorators/current-user.decorator';
+import { GoogleProfile } from '../../features/auth/strategies/google.strategy';
 import { RequestContext, runWithRequestContext } from './request-context';
 import { RequestInterceptor } from './request.interceptor';
 
-function makeContext(user?: CurrentUserPayload): ExecutionContext {
+function makeContext(user?: CurrentUserPayload | GoogleProfile): ExecutionContext {
   return {
     switchToHttp: () => ({ getRequest: () => ({ user }) }),
   } as unknown as ExecutionContext;
@@ -97,6 +98,33 @@ describe('RequestInterceptor (BFF)', () => {
 
     await withRequestContext('corr-2', () =>
       lastValueFrom(interceptor.intercept(makeContext(undefined), handler)),
+    );
+
+    expect(capturedTenantId).toBeUndefined();
+    expect(capturedActorId).toBeUndefined();
+  });
+
+  it('leaves tenantId/actor fields undefined when req.user is a GoogleProfile (mid OAuth callback, before a JWT exists)', async () => {
+    const requestContext = new RequestContext();
+    let capturedTenantId: string | undefined = 'not-set';
+    let capturedActorId: string | undefined;
+
+    const googleProfile: GoogleProfile = {
+      googleOAuthId: 'g-sub',
+      email: 'a@b.com',
+      name: 'A B',
+    };
+
+    const handler: CallHandler = {
+      handle: () => {
+        capturedTenantId = requestContext.tenantId;
+        capturedActorId = requestContext.actorId;
+        return of(null);
+      },
+    };
+
+    await withRequestContext('corr-2b', () =>
+      lastValueFrom(interceptor.intercept(makeContext(googleProfile), handler)),
     );
 
     expect(capturedTenantId).toBeUndefined();

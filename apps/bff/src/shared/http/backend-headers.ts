@@ -1,8 +1,8 @@
 import { Request } from 'express';
-import { CurrentUserPayload } from '../decorators/current-user.decorator';
+import { getCurrentUser } from '../decorators/current-user.decorator';
 
 export function buildBackendHeaders(req: Request): Record<string, string> {
-  const user = req.user as CurrentUserPayload | undefined;
+  const user = getCurrentUser(req);
   const correlationId = req.headers['x-correlation-id'] as string | undefined;
 
   // CorrelationMiddleware (runs before Guards, M17-S31) guarantees this is always set by

@@ -1,14 +1,17 @@
 import * as jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { CurrentUserPayload } from '../decorators/current-user.decorator';
+import { JWT_ROLES } from '../../features/auth/jwt-issuer.service';
 
-const CurrentUserPayloadSchema = z.object({
+// Exported so JwtStrategy.validate() (features/auth/strategies/jwt.strategy.ts) can reuse the
+// same schema instead of re-declaring CurrentUserPayload's shape a second time.
+export const CurrentUserPayloadSchema = z.object({
   sub: z.string(),
   tenantId: z.string(),
   tenantSlug: z.string(),
   tenantName: z.string().default(''),
   userName: z.string().nullable().default(null),
-  role: z.string(),
+  role: z.enum(JWT_ROLES),
   locale: z.string().default('pt-BR'),
 });
 

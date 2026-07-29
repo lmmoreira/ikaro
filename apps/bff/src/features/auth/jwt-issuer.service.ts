@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 
-export type JwtRole = 'CUSTOMER' | 'STAFF' | 'MANAGER';
+export const JWT_ROLES = ['CUSTOMER', 'STAFF', 'MANAGER'] as const;
+export type JwtRole = (typeof JWT_ROLES)[number];
 
 export interface JwtPayload {
   sub: string;
