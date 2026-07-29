@@ -5,7 +5,7 @@
 **Symlinked as:** `CLAUDE.md`, `gemini.md`, `AGENTS.md`
 **Audience:** Any AI coding agent
 **Rule:** Read this file first. Then use §10 to load only the docs you need.
-**Last updated:** 2026-07-08
+**Last updated:** 2026-07-28
 
 ---
 
@@ -319,6 +319,7 @@ gh pr create --title "feat(<context>): <description> (M0X-SYY)" \
 - Bots often flag "inconsistencies" that are deliberate (e.g. different timezone conventions in two functions)
 - Severity labels (`Critical`) are not evidence — verify against framework source (`node_modules/.pnpm/...`)
 - **Check which commit range the review actually covers first** (stated in the review body, e.g. "between `<sha1>` and `<sha2>`") — local commits since then may have already fixed some findings. Cross-check each finding against the *current* file content, not the diff shown in the review, before triaging it as valid/stale/not-applicable.
+- **CodeRabbit's own pre-merge "Description check" and "Docstring Coverage" checks are calibrated to CodeRabbit's generic defaults, not this repo's conventions** — expect both to show as ⚠️ on every PR (this repo's own PR template omits CodeRabbit's expected UC-link/verification-checklist sections, and CLAUDE.md §7 explicitly says "default to writing no comments"). Not actionable; don't chase them.
 
 **If the branch conflicts with `main` after it's already been pushed and reviewed:** `git merge origin/main` into the feature branch, never rebase — rebasing rewrites the already-pushed commits and forces a `--force` push, which invalidates existing review/CI history on those commits. A regular merge commit + normal push keeps everything intact.
 
