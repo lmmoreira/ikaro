@@ -38,6 +38,17 @@ function centerCropRect(width: number, height: number, targetAspectRatio: number
   return { sx: 0, sy: Math.round((height - sHeight) / 2), sWidth: width, sHeight };
 }
 
+// centerCropRect() rounds its crop rectangle to whole pixels, which only diverges meaningfully
+// from targetAspectRatio for a source too small to represent that ratio in integer pixels (e.g. a
+// 1x1 source cropped toward 1200/630 stays 1x1 — still a 1:1 result, not 1.9:1). Real photos (the
+// expected input) clear this by orders of magnitude. Guards the crop *shape* guarantee itself,
+// which is the whole reason targetAspectRatio exists — see compressImage's doc comment.
+const ASPECT_RATIO_TOLERANCE = 0.02;
+
+function matchesAspectRatio(width: number, height: number, targetAspectRatio: number): boolean {
+  return Math.abs(width / height - targetAspectRatio) / targetAspectRatio <= ASPECT_RATIO_TOLERANCE;
+}
+
 function extensionForBlobType(blobType: string): string {
   if (blobType === 'image/png') return 'png';
   if (blobType === 'image/webp') return 'webp';
@@ -61,9 +72,12 @@ function toBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
 //
 // `targetAspectRatio` (e.g. 1 for a square logo, 1200/630 for a landscape share image) center-crops
 // the source to that ratio before scaling — deterministic, no user interaction (see M18-S03: an
-// interactive drag/zoom cropper was deliberately not introduced). When set, the cropped result is
-// always used regardless of size/encoded-type, since the whole point is guaranteeing the shape —
-// falling back to the original, wrong-shaped file would defeat the crop entirely.
+// interactive drag/zoom cropper was deliberately not introduced). When set, the crop is a hard
+// requirement, not a best-effort one: any failure that would otherwise fall back to the original,
+// unprocessed file (unsupported API, a decode/canvas error, a source too small to represent the
+// ratio in whole pixels) throws instead. The backend only signs the upload and never re-validates
+// pixel dimensions, so silently storing a wrong-shaped file here would mean the page's declared
+// og:image/favicon dimensions no longer match what's actually stored (PR #291 review finding).
 //
 // Only ever attempts a source file already in the upload allowlist — createImageBitmap happily
 // decodes formats outside it (GIF, AVIF, SVG, ...), and re-encoding one to WebP would launder an
@@ -71,7 +85,10 @@ function toBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
 // decision belongs to the original file's type, never to whatever this function produces.
 export async function compressImage(file: File, targetAspectRatio?: number): Promise<File> {
   if (!ALLOWED_SOURCE_TYPES.has(file.type)) return file;
-  if (typeof createImageBitmap !== 'function') return file;
+  if (typeof createImageBitmap !== 'function') {
+    if (targetAspectRatio) throw new Error('Image cropping is not supported in this browser');
+    return file;
+  }
 
   let bitmap: ImageBitmap | undefined;
   try {
@@ -79,25 +96,37 @@ export async function compressImage(file: File, targetAspectRatio?: number): Pro
     const crop = targetAspectRatio
       ? centerCropRect(bitmap.width, bitmap.height, targetAspectRatio)
       : { sx: 0, sy: 0, sWidth: bitmap.width, sHeight: bitmap.height };
+
+    if (targetAspectRatio && !matchesAspectRatio(crop.sWidth, crop.sHeight, targetAspectRatio)) {
+      throw new Error('Image is too small to crop to the required shape');
+    }
+
     const { width, height } = scaledDimensions(crop.sWidth, crop.sHeight, MAX_DIMENSION);
 
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext('2d');
-    if (!ctx) return file;
+    if (!ctx) {
+      if (targetAspectRatio) throw new Error('Canvas rendering is not supported in this browser');
+      return file;
+    }
 
     ctx.drawImage(bitmap, crop.sx, crop.sy, crop.sWidth, crop.sHeight, 0, 0, width, height);
 
     const blob = await toBlob(canvas);
-    if (!blob) return file;
+    if (!blob) {
+      if (targetAspectRatio) throw new Error('Failed to encode the cropped image');
+      return file;
+    }
     if (!targetAspectRatio && (blob.type !== OUTPUT_CONTENT_TYPE || blob.size >= file.size)) {
       return file;
     }
 
     const extension = extensionForBlobType(blob.type);
     return new File([blob], withExtension(file.name, extension), { type: blob.type });
-  } catch {
+  } catch (err) {
+    if (targetAspectRatio) throw err instanceof Error ? err : new Error('Failed to process image');
     return file;
   } finally {
     bitmap?.close();

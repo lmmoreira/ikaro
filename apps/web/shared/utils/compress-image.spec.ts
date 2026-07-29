@@ -305,14 +305,47 @@ describe('compressImage — targetAspectRatio (auto center-crop)', () => {
     expect(result.name).toBe('logo.png');
   });
 
-  it('still falls back to the original file when the canvas 2D context is unavailable, even with a target ratio', async () => {
+  it('throws instead of falling back to the original file when the canvas 2D context is unavailable and a target ratio was requested', async () => {
     const bitmap = makeBitmap(2000, 1000);
     vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));
     stubCanvas({ ctx: null });
     const file = makeFile('logo.jpg', 'image/jpeg', 5_000_000);
 
-    const result = await compressImage(file, 1);
+    await expect(compressImage(file, 1)).rejects.toThrow();
+  });
 
-    expect(result).toBe(file);
+  it('throws instead of falling back when createImageBitmap throws and a target ratio was requested', async () => {
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn().mockRejectedValue(new Error('unsupported image format')),
+    );
+    const file = makeFile('logo.jpg', 'image/jpeg', 5_000_000);
+
+    await expect(compressImage(file, 1)).rejects.toThrow();
+  });
+
+  it('throws instead of falling back when toBlob resolves null and a target ratio was requested', async () => {
+    const bitmap = makeBitmap(2000, 1000);
+    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));
+    stubCanvas({ blob: null });
+    const file = makeFile('logo.jpg', 'image/jpeg', 5_000_000);
+
+    await expect(compressImage(file, 1)).rejects.toThrow();
+  });
+
+  it('throws when the source is too small to represent the target ratio in whole pixels', async () => {
+    const bitmap = makeBitmap(1, 1);
+    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));
+    const blob = new Blob([new Uint8Array(100)], { type: 'image/webp' });
+    stubCanvas({ blob });
+    const file = makeFile('tiny.jpg', 'image/jpeg', 1_000);
+
+    await expect(compressImage(file, 1200 / 630)).rejects.toThrow();
+  });
+
+  it('throws when createImageBitmap is unavailable and a target ratio was requested', async () => {
+    const file = makeFile('logo.jpg', 'image/jpeg', 5_000_000);
+
+    await expect(compressImage(file, 1)).rejects.toThrow();
   });
 });

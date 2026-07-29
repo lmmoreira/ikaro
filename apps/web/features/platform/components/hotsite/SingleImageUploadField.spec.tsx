@@ -308,6 +308,30 @@ describe('SingleImageUploadField', () => {
     );
   });
 
+  it('shows the upload-error state when compressImage rejects (e.g. a source too small to crop to the required ratio)', async () => {
+    const user = userEvent.setup();
+    vi.mocked(compressImage).mockRejectedValue(new Error('Image is too small to crop'));
+
+    renderWithIntl(
+      <SingleImageUploadField
+        id="logo"
+        value=""
+        onChange={vi.fn()}
+        purpose="branding"
+        {...LABELS}
+      />,
+    );
+
+    await user.upload(
+      getByFieldId('single-image-upload-input', 'logo'),
+      makeFile('tiny.png', 'image/png'),
+    );
+
+    expect(await screen.findByTestId('single-image-upload-error')).toHaveTextContent(
+      LABELS.uploadErrorLabel,
+    );
+  });
+
   it('removing a freshly-uploaded (raw storage path) image calls deleteHotsiteImage and clears the value', async () => {
     const user = userEvent.setup();
     vi.mocked(deleteHotsiteImage).mockResolvedValue(undefined);

@@ -14,6 +14,15 @@ vi.mock('@/features/platform/api/tenant-settings', () => ({
   deleteHotsiteImage: vi.fn(),
 }));
 
+// jsdom has no createImageBitmap/canvas — compressImage() now throws when a required crop can't
+// be produced (M18-S03 review fix), which would otherwise turn every upload here into an error
+// state. This wrapper's tests only cover purpose/preview-size/label wiring, not compression
+// itself (that's compress-image.spec.ts's job) — mocked as a passthrough like
+// SingleImageUploadField.spec.tsx already does.
+vi.mock('@/shared/utils/compress-image', () => ({
+  compressImage: vi.fn((file: File) => Promise.resolve(file)),
+}));
+
 function makeFile(name: string, type: string): File {
   return new File(['fake-image-content'], name, { type });
 }
