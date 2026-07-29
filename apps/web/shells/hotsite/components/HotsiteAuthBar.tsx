@@ -20,8 +20,8 @@ function BrandMark({
   logoUrl,
   tenantName,
 }: {
-  logoUrl: string;
-  tenantName: string;
+  readonly logoUrl: string;
+  readonly tenantName: string;
 }): React.JSX.Element {
   return logoUrl ? (
     <Image
