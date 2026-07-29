@@ -1,6 +1,6 @@
 import { makeRequest } from '../../test/execution-context.factory';
 import { buildBackendHeaders } from './backend-headers';
-import { CurrentUserPayload } from '../decorators/current-user.decorator';
+import { GoogleProfile } from '../auth/google-profile';
 
 describe('buildBackendHeaders()', () => {
   describe('base headers', () => {
@@ -38,14 +38,12 @@ describe('buildBackendHeaders()', () => {
     });
 
     it('does not include X-Actor-* when user has no sub (GoogleProfile during OAuth callback)', () => {
-      const headers = buildBackendHeaders(
-        makeRequest({
-          user: {
-            googleOAuthId: 'g-sub',
-            email: 'a@b.com',
-          } as unknown as Partial<CurrentUserPayload>,
-        }),
-      );
+      const googleProfile: GoogleProfile = {
+        googleOAuthId: 'g-sub',
+        email: 'a@b.com',
+        name: 'A B',
+      };
+      const headers = buildBackendHeaders(makeRequest({ user: googleProfile }));
       expect(headers['X-Actor-ID']).toBeUndefined();
       expect(headers['X-Actor-Type']).toBeUndefined();
       expect(headers['X-Actor-Role']).toBeUndefined();

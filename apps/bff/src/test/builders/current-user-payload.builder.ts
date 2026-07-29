@@ -1,4 +1,5 @@
 import { CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
+import { ActorRole } from '@ikaro/types';
 
 export class CurrentUserPayloadBuilder {
   private sub = '20000000-0000-4000-8000-000000000001';
@@ -6,7 +7,7 @@ export class CurrentUserPayloadBuilder {
   private tenantSlug = 'lavacar-bh';
   private tenantName = 'Lavacar BH';
   private userName: string | null = 'Test User';
-  private role = 'CUSTOMER';
+  private role: ActorRole = 'CUSTOMER';
   private locale = 'pt-BR';
 
   withSub(sub: string): this {
@@ -34,7 +35,7 @@ export class CurrentUserPayloadBuilder {
     return this;
   }
 
-  withRole(role: string): this {
+  withRole(role: ActorRole): this {
     this.role = role;
     return this;
   }

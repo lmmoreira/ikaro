@@ -511,9 +511,9 @@ Decisions made during triage:
 
 ---
 
-### Story 15 — BFF: tighten loose `string` types to existing unions 🟡
+### Story 15 — BFF: tighten loose `string` types to existing unions 🟡 ✅ Done
 
-**Partially landed**: the booking-types slice (C1, C2, C3 — `bookings.types.ts`/`bookings.mapper.ts`/`schedule.types.ts`) shipped 2026-07-28 in PR #288 (`fix/td31-pr3-bookings-controller-cleanup`, branch deleted post-merge), as part of PR 3. The auth-types slice (C4, C5 — `CurrentUserPayload.role`, `Roles` decorator) remains open, scoped to PR 4 per the execution plan. Not marking this story `✅ Done` until that lands.
+**Landed**: booking-types slice (C1, C2, C3) shipped 2026-07-28 in PR #288, as part of PR 3. Auth-types slice (C4, C5) shipped 2026-07-29 in PR #290 (`fix/td31-pr4-auth-request-typing`), as part of PR 4 — see Story 16's Landed note for the full account, including the scope expansion beyond this story's original file list (`CurrentUserPayload.role`/`Roles(...)` ended up typed against a new `@ikaro/types` export, `ActorRole`, rather than a BFF-local `JwtRole`).
 
 **Source**: BFF C1, C2, C3, C4, C5
 
@@ -537,7 +537,19 @@ Decisions made during triage:
 
 ---
 
-### Story 16 — BFF: global `req.user` type augmentation + JWT runtime shape validation 🟡
+### Story 16 — BFF: global `req.user` type augmentation + JWT runtime shape validation 🟡 ✅ Done
+
+**Landed**: PR #290 (2026-07-29), `fix/td31-pr4-auth-request-typing`.
+
+**Deviation from the plan below (discovered during implementation, not a shortcut)**: item 1 — a literal `declare global { namespace Express { interface Request { user?: CurrentUserPayload } } }` — does not work in this repo. `@types/passport` already declares `Express.Request.user` itself (via its own empty, extensible `Express.User` interface), and this repo's `skipLibCheck: true` means a second, conflicting `Request.user` declaration is silently dropped rather than erroring or being merged — confirmed by writing the augmentation and observing `tsc --noEmit` still resolve `req.user` to Passport's `User` type at every consumer site, not the intended union. Forcing the augmentation back in would reintroduce that exact false-confidence bug.
+
+**What shipped instead**: one shared accessor, `getCurrentUser(req: Request): CurrentUserPayload | undefined`, exported from `current-user.decorator.ts`. It does the single necessary cast (`req.user as CurrentUserPayload | GoogleProfile | undefined`) and narrows on the presence of `sub` (the field `GoogleProfile` never has). All 6 confirmed consumer sites (`active-staff.guard.ts`, `tenant.guard.ts`, `roles.guard.ts`, `backend-headers.ts`, `request.interceptor.ts`, and the `CurrentUser` param decorator itself) call this instead of independently casting `req.user` — achieving the DoD's real goal (one canonical source of truth, not 7 independent guesses) without the non-functional global augmentation. `auth.controller.ts`'s `req.user as GoogleProfile` cast is intentionally left as the one remaining direct cast — that route needs the *other* union branch specifically and was never meant to go through `getCurrentUser()`; this was investigated per item 3 below and confirmed correct, not overlooked.
+
+Item 4 (JWT runtime shape validation) landed as specced: `jwt.strategy.ts`'s `validate()` now parses the payload through the same zod schema `decode-user-jwt.ts` already used for `@Public()` routes (`CurrentUserPayloadSchema`, exported for this reuse), throwing `UnauthorizedException` on a shape mismatch.
+
+**Scope grew beyond this story during implementation**, after a Codex cross-tool review of PR #290 flagged that the new `getCurrentUser()`/`Roles`/`CurrentUserPayload` code made `shared/` modules import feature-owned symbols (`JwtRole`, `JWT_ROLES`, `GoogleProfile`) from `features/auth/*` — a real `shared/` → `features/` dependency-direction violation the review was right to catch. Fixed in the same PR:
+- `JwtRole`/`JWT_ROLES` promoted out of `features/auth/jwt-issuer.service.ts` into `@ikaro/types` as `ActorRole`/`ACTOR_ROLES` (`packages/types/src/enums.ts`) — this is the same 3-value role concept the backend's `request-context.ts`/`request.interceptor.ts` and 4 role guards (`manager-role.guard.ts`, `customer-role.guard.ts`, `staff-or-manager-role.guard.ts`, `any-authenticated-role.guard.ts`) already had as an untyped, independently-duplicated `string` (Backend 2.3's own duplication, previously untriaged into a story) — so promoting to `@ikaro/types` fixed both apps in one move rather than creating a second BFF-only type. Backend's `request.interceptor.ts` now validates `X-Actor-Role` against `ActorRole` the same way it already validated `X-Actor-Type` (a real, if low-severity, pre-existing gap: `actorRole` was the only one of the two headers with zero runtime narrowing before this). This is a type-safety fix only — the 4 guards remain 4 separate files; Backend 2.3's other half (consolidating them into one `createRoleGuard(allowedRoles, message)` factory) is untouched and still open.
+- `GoogleProfile` relocated from `features/auth/strategies/google.strategy.ts` to `apps/bff/src/shared/auth/google-profile.ts` (new file) — `google.strategy.ts` now imports it instead of defining it, so `shared/decorators/current-user.decorator.ts` no longer reaches into `features/`.
 
 **Source**: BFF D1-D7, C6
 
@@ -745,7 +757,7 @@ Grouping rule: two stories collapse into **one PR** only when they genuinely sha
 
 | PR | Stories | Target files | Notes |
 |---|---|---|---|
-| **PR 4** | Story 16 + Story 15 (auth-types slice: `CurrentUserPayload.role`, `Roles` decorator) | `apps/bff/src/shared/decorators/current-user.decorator.ts`, `roles.decorator.ts`, `shared/guards/*`, `shared/http/backend-headers.ts`, `shared/request/request.interceptor.ts`, `features/auth/{auth.controller.ts,strategies/jwt.strategy.ts}`, new `shared/types/express.d.ts` | Both edit `current-user.decorator.ts` — combine rather than two diffs on one small file. |
+| **PR 4** ✅ | Story 16 + Story 15 (auth-types slice: `CurrentUserPayload.role`, `Roles` decorator) | `apps/bff/src/shared/decorators/current-user.decorator.ts`, `roles.decorator.ts`, `shared/guards/*`, `shared/http/backend-headers.ts`, `shared/request/request.interceptor.ts`, `features/auth/{auth.controller.ts,strategies/jwt.strategy.ts}`, new `shared/auth/google-profile.ts`, `packages/types/src/enums.ts`, 4 backend role guards + `request-context.ts`/`request.interceptor.ts` | Both edit `current-user.decorator.ts` — combine rather than two diffs on one small file. **Merged as [#290](https://github.com/lmmoreira/ikaro/pull/290), 2026-07-29.** No `shared/types/express.d.ts` — see Story 16's Landed note for why, and for the backend-touching scope growth found via cross-tool review. |
 
 ### Wave 4 — New batch loyalty-balance endpoint (1 PR — collapsed from 2 due to hard dependency)
 

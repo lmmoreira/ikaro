@@ -1,7 +1,9 @@
+import { ActorRole } from '@ikaro/types';
+
 export function actorHeaders(
   tenantId: string,
   actorId: string,
-  role: 'MANAGER' | 'STAFF' | 'CUSTOMER' = 'MANAGER',
+  role: ActorRole = 'MANAGER',
   correlationId = 'test-correlation-id',
 ): Record<string, string> {
   return {

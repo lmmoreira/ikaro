@@ -13,7 +13,7 @@ import { firstValueFrom } from 'rxjs';
 import { Request } from 'express';
 import { AuthErrorCode, BffErrorCode, StaffErrorCode } from '@ikaro/types';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
-import { CurrentUserPayload } from '../decorators/current-user.decorator';
+import { getCurrentUser } from '../decorators/current-user.decorator';
 import { buildBackendHeaders } from '../http/backend-headers';
 import { throwProblemDetail } from '../http/problem-detail';
 import { StaffActiveResponse } from '../types/backend-responses';
@@ -41,7 +41,7 @@ export class ActiveStaffGuard implements CanActivate {
     if (isPublic) return true;
 
     const req = context.switchToHttp().getRequest<Request>();
-    const user = req.user as CurrentUserPayload | undefined;
+    const user = getCurrentUser(req);
 
     if (!user?.sub || user.role === 'CUSTOMER') return true;
 

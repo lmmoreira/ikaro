@@ -1,3 +1,4 @@
+import { ActorRole } from '@ikaro/types';
 import { RequestContext } from '../../shared/request/request-context';
 import { TenantSettings } from '../../contexts/platform/domain/value-objects/tenant-settings.vo';
 import type { TenantSettingsProps } from '../../contexts/platform/domain/value-objects/tenant-settings.vo';
@@ -8,7 +9,7 @@ export class RequestContextBuilder {
   private settings: TenantSettingsProps = TenantSettings.default().toJSON();
   private actorId: string | undefined = undefined;
   private actorType: 'STAFF' | 'CUSTOMER' | undefined = undefined;
-  private actorRole: string | undefined = undefined;
+  private actorRole: ActorRole | undefined = undefined;
 
   withTenantId(tenantId: string): this {
     this.tenantId = tenantId;
@@ -35,7 +36,7 @@ export class RequestContextBuilder {
     return this;
   }
 
-  withActorRole(actorRole: string): this {
+  withActorRole(actorRole: ActorRole): this {
     this.actorRole = actorRole;
     return this;
   }

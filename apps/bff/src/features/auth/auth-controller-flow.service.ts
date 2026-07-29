@@ -1,7 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
-import { BffErrorCode, GenericErrorCode } from '@ikaro/types';
+import { ActorRole, BffErrorCode, GenericErrorCode } from '@ikaro/types';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { throwProblemDetail } from '../../shared/http/problem-detail';
 import { JWT_COOKIE_OPTIONS, OAUTH_NONCE_COOKIE_NAME } from './cookie-options';
@@ -14,8 +14,8 @@ import {
   StaffInfoResponse,
   StaffTenantOption,
 } from './auth.types';
-import { GoogleProfile } from './strategies/google.strategy';
-import { JwtIssuerService, JwtRole } from './jwt-issuer.service';
+import { GoogleProfile } from '../../shared/auth/google-profile';
+import { JwtIssuerService } from './jwt-issuer.service';
 import { issueCustomerToken, issueStaffToken } from './token-assembly';
 import { isValidSlug } from './oauth-state';
 import { TenantInfoResponse } from '../../shared/types/backend-responses';
@@ -104,7 +104,7 @@ export class AuthControllerFlowService {
       sub: string;
       tenantId: string;
       tenantSlug: string;
-      role: JwtRole;
+      role: ActorRole;
     };
   }> {
     return devLogin(this.backendHttp, this.jwtIssuer, this.config, dto, res);
@@ -258,7 +258,7 @@ async function devLogin(
   );
 
   let actorId: string;
-  let role: JwtRole;
+  let role: ActorRole;
   let accessToken: string;
 
   if (dto.type === 'staff') {

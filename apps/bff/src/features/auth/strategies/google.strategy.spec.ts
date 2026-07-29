@@ -3,7 +3,8 @@ import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
 import { OAUTH_NONCE_COOKIE_NAME } from '../cookie-options';
 import { OAuthStateService } from '../oauth-state.service';
-import { GoogleProfile, GoogleStrategy } from './google.strategy';
+import { GoogleProfile } from '../../../shared/auth/google-profile';
+import { GoogleStrategy } from './google.strategy';
 
 const TEST_SECRET = 'test-secret-that-is-at-least-64-characters-long-for-jwt-signing!!';
 

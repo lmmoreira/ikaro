@@ -2,7 +2,7 @@ import { CanActivate, ExecutionContext, HttpStatus, Injectable } from '@nestjs/c
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { AuthErrorCode } from '@ikaro/types';
-import { CurrentUserPayload } from '../decorators/current-user.decorator';
+import { getCurrentUser } from '../decorators/current-user.decorator';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { throwProblemDetail } from '../http/problem-detail';
 
@@ -18,7 +18,7 @@ export class TenantGuard implements CanActivate {
     if (isPublic) return true;
 
     const req = context.switchToHttp().getRequest<Request>();
-    const user = req.user as CurrentUserPayload | undefined;
+    const user = getCurrentUser(req);
     if (!user) return true;
 
     const tenantSlug = req.headers['x-tenant-slug'] as string | undefined;

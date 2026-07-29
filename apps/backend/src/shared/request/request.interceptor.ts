@@ -13,7 +13,7 @@ import { Observable } from 'rxjs';
 import { ProblemDetail } from '@ikaro/types';
 import { ITenantSettingsPort, TENANT_SETTINGS_PORT } from '../ports/tenant-settings.port';
 import type { TenantSettingsData } from '../value-objects/tenant-settings-data';
-import { runWithRequestContext } from './request-context';
+import { isActorRole, runWithRequestContext } from './request-context';
 
 @Injectable()
 export class RequestInterceptor implements NestInterceptor {
@@ -75,8 +75,10 @@ export class RequestInterceptor implements NestInterceptor {
       typeof req.headers['x-actor-type'] === 'string' ? req.headers['x-actor-type'] : undefined;
     const actorType: 'STAFF' | 'CUSTOMER' | undefined =
       rawActorType === 'STAFF' || rawActorType === 'CUSTOMER' ? rawActorType : undefined;
-    const actorRole =
+    const rawActorRole =
       typeof req.headers['x-actor-role'] === 'string' ? req.headers['x-actor-role'] : undefined;
+    const actorRole =
+      rawActorRole !== undefined && isActorRole(rawActorRole) ? rawActorRole : undefined;
     const actor = actorId && actorType && actorRole ? { actorId, actorType, actorRole } : undefined;
 
     // M17-S33: tenant.id (+ user.id when known) on the request span. correlation.id is set

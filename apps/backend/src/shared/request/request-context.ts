@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { Injectable } from '@nestjs/common';
+import { ACTOR_ROLES, ActorRole } from '@ikaro/types';
 import type { TenantSettingsData } from '../value-objects/tenant-settings-data';
 
 interface RequestStore {
@@ -8,13 +9,17 @@ interface RequestStore {
   settings: TenantSettingsData;
   actorId?: string;
   actorType?: 'STAFF' | 'CUSTOMER';
-  actorRole?: string;
+  actorRole?: ActorRole;
 }
 
 interface ActorInfo {
   actorId: string;
   actorType: 'STAFF' | 'CUSTOMER';
-  actorRole: string;
+  actorRole: ActorRole;
+}
+
+export function isActorRole(value: string): value is ActorRole {
+  return (ACTOR_ROLES as readonly string[]).includes(value);
 }
 
 const requestStorage = new AsyncLocalStorage<RequestStore>();
@@ -55,7 +60,7 @@ export class RequestContext {
     return requestStorage.getStore()?.actorType;
   }
 
-  get actorRole(): string | undefined {
+  get actorRole(): ActorRole | undefined {
     return requestStorage.getStore()?.actorRole;
   }
 }

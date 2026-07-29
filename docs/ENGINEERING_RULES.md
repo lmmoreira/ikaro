@@ -218,6 +218,18 @@ A repository or adapter that reads `this.requestContext.settings` works fine whe
 
 ---
 
+## Express `Request.user` typing (BFF) — the `skipLibCheck` trap
+
+**A `declare global { namespace Express { interface Request { user?: X } } }` augmentation silently does nothing if a dependency already declares that same member, under this repo's `skipLibCheck: true`.** `@types/passport` already declares `Request.user?: User` (its own deliberately-empty, extensible `Express.User` interface) — a second, conflicting `Request.user` declaration in app code does not error and does not merge with it. Normally TypeScript's declaration merging would flag two interface bodies disagreeing on a member's type ("Subsequent property declarations must have the same type"), but `skipLibCheck` skips checking of *all* `.d.ts` files (including your own new one, not just `node_modules`), so the conflict is silently swallowed and the pre-existing declaration wins everywhere `Request.user` is read — `tsc --noEmit` still passes cleanly, giving false confidence the augmentation "worked."
+
+**Confirmed empirically (TD31 PR4, 2026-07-29):** an `express.d.ts` typing `Request.user?: CurrentUserPayload | GoogleProfile` was added, `tsc --noEmit` passed, but every consumer's inferred type for `req.user` still resolved to Passport's own `User`, not the intended union — proven by reading the actual compiler error at each usage site before the file existed vs. after.
+
+**Fix:** don't fight an interface another dependency already extends this way. Use a shared accessor function instead — one function that does the single necessary cast/narrow (e.g. `getCurrentUser(req: Request): CurrentUserPayload | undefined` in `shared/decorators/current-user.decorator.ts`), which every consumer calls instead of reading `req.user` directly. This achieves the same goal (one canonical, type-safe source of truth instead of N independent ad hoc casts) without needing the global augmentation to actually take effect.
+
+**Before trusting any `declare global` augmentation of a third-party-owned interface compiles correctly:** don't stop at "`tsc --noEmit` passed" — verify the augmented property's *inferred type* at a real usage site (e.g., a deliberately wrong assignment should fail to compile; if it doesn't, the augmentation isn't taking effect).
+
+---
+
 ## Observability ports (logging + tracing)
 
 Both are shared, cross-app code in `packages/observability` (used by backend and BFF alike) — they follow the same port/adapter shape, and it's the shape to reuse for any future observability integration:
