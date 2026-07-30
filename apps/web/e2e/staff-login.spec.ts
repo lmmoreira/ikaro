@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Staff login (middleware regression)', () => {
+test.describe('Staff login (proxy regression)', () => {
   test('visiting /dashboard/login unauthenticated loads the page instead of redirect-looping', async ({
     page,
   }) => {
-    // Regression: middleware.ts's auth guard matched /dashboard/login itself (it starts with
+    // Regression: proxy.ts's auth guard matched /dashboard/login itself (it starts with
     // /dashboard), so an unauthenticated visit redirected to /dashboard/login, which re-triggered
     // the same guard — an infinite loop (ERR_TOO_MANY_REDIRECTS), for any visitor, regardless of
     // whether they have a staff record anywhere.

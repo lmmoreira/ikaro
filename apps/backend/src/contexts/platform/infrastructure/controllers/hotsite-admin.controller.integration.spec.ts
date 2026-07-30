@@ -156,7 +156,7 @@ describe('HotsiteAdminController (integration)', () => {
         .send({ branding: { logoUrl: logoPath } })
         .expect(200);
 
-      expect(body.branding.logoUrl).toBe(logoPath);
+      expect(body.branding.logoUrl).toBe(storageService.getPublicUrl(logoPath));
     });
 
     it('promotes a tmp/-referenced logoUrl to a permanent path and deletes the superseded logo', async () => {
@@ -172,7 +172,7 @@ describe('HotsiteAdminController (integration)', () => {
         .expect(200);
 
       const promotedPath = `tenants/${TENANT_A}/hotsite/branding/u2/new-logo.png`;
-      expect(body.branding.logoUrl).toBe(promotedPath);
+      expect(body.branding.logoUrl).toBe(storageService.getPublicUrl(promotedPath));
 
       const saved = await ds
         .getRepository(HotsiteConfigEntity)
