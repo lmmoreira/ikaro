@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Discovery Prototype — Multi-Vertical Scheduling</title>
+  <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
+  <style>
+    body { padding: 2rem; max-width: 48rem; margin: 0 auto; }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+    h2 { font-size: 1.0625rem; font-weight: 700; margin: 1.75rem 0 0.5rem; }
+    p { margin-bottom: 1rem; font-size: 0.9375rem; line-height: 1.6; }
+    ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.625rem; margin: 1rem 0; }
+    li { display: flex; align-items: center; gap: 0.75rem; }
+    li a { color: var(--ba-primary); font-weight: 500; }
+    .tag { font-size: 0.75rem; font-weight: 600; padding: 0.125rem 0.5rem; border-radius: 4px; white-space: nowrap; }
+    .tag-actor { background: var(--ba-secondary); color: var(--ba-text); }
+    hr { border: none; border-top: 1px solid var(--ba-secondary); margin: 1.25rem 0; }
+    .note { background: var(--ba-secondary); border-radius: var(--ba-radius); padding: 1rem 1.25rem; font-size: 0.875rem; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <h1>Discovery Prototype — Multi-Vertical Scheduling</h1>
+  <p>
+    Directional mockups for the scheduling model explored in
+    <a href="../MULTI_VERTICAL_SCHEDULING.md">MULTI_VERTICAL_SCHEDULING.md</a> and
+    <a href="../MULTI_VERTICAL_SCHEDULING_USECASES.md">MULTI_VERTICAL_SCHEDULING_USECASES.md</a>.
+    One fictional tenant, <strong>Vitta Studio</strong>, runs all three example verticals at
+    once — Hair Styling (per-staff, customer-chosen appointment), Pilates (class, capacity 4),
+    and CrossFit (class, capacity 20) — so a single resource (Camila Duarte) can show up as
+    both a 1:1 hair stylist and a group Pilates instructor, the concrete instance of the
+    "capacity as Service × Resource" finding (discovery §2, model #13).
+  </p>
+
+  <div class="note">
+    <strong>Illustrative only.</strong> This is <em>not</em> a <code>plan/journey/</code>
+    prototype — no <code>/docs-audit</code>, no mandatory unhappy-path variants, no
+    dev-notes handoff spec at that depth. One representative screen per concept, reusing
+    the real <code>--ba-*</code> tokens and dashboard shell so it reads authentically, but
+    built to answer "what direction are we heading," not to be implementation-ready.
+  </div>
+
+  <div class="note" style="background:#fef3c7;color:#92400e;">
+    <strong>Reviewed 2026-07-29</strong> against the 31 candidate use cases: found and
+    fixed a systemic actor mislabel (CAND-06–15 wrongly said MANAGER-only), two mislabeled
+    CAND citations, and one missing use case (CAND-17b). Four screens below were added to
+    close coverage gaps that had zero prior representation: bundles, multi-leg/spa,
+    recurring enrollment, and session capacity-override.
+  </div>
+
+  <h2>Public (guest/customer)</h2>
+  <ul>
+    <li>
+      <a href="public-01-staff-picker.html">Escolha o profissional</a>
+      <span class="tag tag-actor">Hair Styling — model #2/#3</span>
+    </li>
+    <li>
+      <a href="public-02-class-session-picker.html">Escolha a turma de Pilates</a>
+      <span class="tag tag-actor">Pilates — model #5/#12</span>
+    </li>
+    <li>
+      <a href="public-03-service-type-selector.html">O que você gostaria de agendar?</a>
+      <span class="tag tag-actor">Gym entry point — model #6</span>
+    </li>
+    <li>
+      <a href="public-04-bundle-booking.html">Escolha o horário — Massagem Relaxante</a>
+      <span class="tag tag-actor">Bundle — model #7 (added on review)</span>
+    </li>
+    <li>
+      <a href="public-05-multi-leg-itinerary.html">Revisar sua jornada — Jornada Spa</a>
+      <span class="tag tag-actor">Multi-leg — model #8 (added on review)</span>
+    </li>
+  </ul>
+
+  <h2>Recurring enrollment — a navigable before/after sequence (Customer, authenticated)</h2>
+  <p style="font-size:0.875rem;">
+    Book → opt in → activated → surfaces in Agendamentos → manage (before) → skip one
+    occurrence (after) → cancel the series (final state). Reuses the real Minha Conta
+    shell from <code>plan/journey/customer/prototypes/minha-conta/</code>, not an invented one.
+  </p>
+  <ul>
+    <li><a href="customer-01-session-confirmed-optin.html">1. Reserva confirmada + opt-in</a> <span class="tag tag-actor">CAND-26</span></li>
+    <li><a href="customer-02-recorrencia-ativada.html">2. Recorrência ativada</a> <span class="tag tag-actor">CAND-26</span></li>
+    <li><a href="customer-03-minha-conta-agendamentos.html">3. Surfaces in Meus Agendamentos</a> <span class="tag tag-actor">real shell reused</span></li>
+    <li><a href="customer-04-gerenciar-recorrencia.html">4. Gerenciar — antes</a> <span class="tag tag-actor">CAND-27, before</span></li>
+    <li><a href="customer-05-ocorrencia-pulada.html">5. Ocorrência pulada — depois</a> <span class="tag tag-actor">CAND-27, after</span></li>
+    <li><a href="customer-06-recorrencia-cancelada.html">6. Recorrência cancelada — final</a> <span class="tag tag-actor">CAND-28</span></li>
+  </ul>
+
+  <h2>Staff console</h2>
+  <ul>
+    <li>
+      <a href="staff-01-my-agenda.html">Minha Agenda (resource-scoped)</a>
+      <span class="tag tag-actor">STAFF — Camila, hair stylist view</span>
+    </li>
+    <li>
+      <a href="staff-02-session-roster.html">Turma — roster + fila de espera</a>
+      <span class="tag tag-actor">STAFF — Camila, Pilates instructor view</span>
+    </li>
+    <li>
+      <a href="staff-03-session-capacity-override.html">Editar turma — capacidade/sala</a>
+      <span class="tag tag-actor">STAFF — capacity override (added on review)</span>
+    </li>
+    <li>
+      <a href="staff-04-turmas-proximas.html">Turmas — próximos dias (lista)</a>
+      <span class="tag tag-actor">CAND-13b, added on review — real "Turmas" landing</span>
+    </li>
+    <li>
+      <a href="staff-05-horarios-recurso.html">Horários — Camila Duarte</a>
+      <span class="tag tag-actor">CAND-04, extends the REAL horarios/00-schedule-next.html</span>
+    </li>
+  </ul>
+
+  <h2>Manager console — oversight (added on request)</h2>
+  <ul>
+    <li>
+      <a href="manager-05-visao-geral.html">Visão Geral — todos os recursos</a>
+      <span class="tag tag-actor">CAND-13c, new — combined multi-resource day grid</span>
+    </li>
+  </ul>
+  <p style="font-size:0.875rem;">
+    "Horários" is now role-adaptive: a STAFF viewer lands on their own resource's timeline
+    (<code>staff-05</code>); a MANAGER viewer lands on this combined grid instead. Agenda
+    (<code>staff-01</code>) also gained the same "mine vs. all" toggle already proven on
+    Turmas (CAND-13b), so a manager sees every staff member's bookings, not just their own.
+  </p>
+
+  <h2>Manager console</h2>
+  <ul>
+    <li>
+      <a href="manager-01-resources-list.html">Recursos</a>
+      <span class="tag tag-actor">NEW nav section</span>
+    </li>
+    <li>
+      <a href="manager-04-criar-recurso.html">Novo recurso</a>
+      <span class="tag tag-actor">CAND-01, added on request</span>
+    </li>
+    <li>
+      <a href="manager-02-service-resource-config.html">Editar Serviço — configuração de agendamento</a>
+      <span class="tag tag-actor">Extends today's service edit form</span>
+    </li>
+    <li>
+      <a href="manager-03-class-templates.html">Turmas — lista + criar</a>
+      <span class="tag tag-actor">NEW nav section</span>
+    </li>
+  </ul>
+
+  <hr>
+  <p style="font-size: 0.875rem;">
+    Handoff notes: <a href="dev-notes.md">dev-notes.md</a>.
+  </p>
+</body>
+</html>

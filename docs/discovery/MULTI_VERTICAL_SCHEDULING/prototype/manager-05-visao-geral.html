@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visão Geral — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
+  <style>
+    .filter-tabs { display: flex; gap: 0.25rem; padding-bottom: 0.875rem; }
+    .filter-tab { padding: 0.375rem 0.875rem; border-radius: 9999px; font-size: 0.8125rem; font-weight: 600; border: 1.5px solid var(--ba-secondary); background: white; color: var(--ba-text); text-decoration: none; cursor: pointer; white-space: nowrap; }
+    .filter-tab.active { background: var(--ba-primary); color: white; border-color: var(--ba-primary); }
+
+    .overview-scroll { overflow-x: auto; background: white; border: 1px solid var(--ba-secondary); border-radius: var(--ba-radius); }
+    .overview-table { border-collapse: collapse; width: 100%; min-width: 52rem; }
+    .overview-table th, .overview-table td { border-bottom: 1px solid var(--ba-secondary); border-right: 1px solid var(--ba-secondary); padding: 0.375rem 0.625rem; font-size: 0.8125rem; vertical-align: top; }
+    .overview-table th:last-child, .overview-table td:last-child { border-right: none; }
+    .overview-table th {
+      position: sticky; top: 0; background: white; z-index: 2;
+      font-weight: 700; color: var(--ba-text); text-align: left; padding-top: 0.625rem; padding-bottom: 0.625rem;
+    }
+    .overview-table th.time-col, .overview-table td.time-col {
+      position: sticky; left: 0; background: white; z-index: 1;
+      font-size: 0.6875rem; color: rgba(17,24,39,0.4); font-variant-numeric: tabular-nums; white-space: nowrap;
+      border-right: 2px solid var(--ba-secondary);
+    }
+    .overview-table th.time-col { z-index: 3; }
+    .ov-booking { background: var(--ba-secondary); border-left: 3px solid var(--ba-primary); }
+    .ov-booking p.name { font-weight: 600; color: var(--ba-primary); margin: 0; line-height: 1.2; }
+    .ov-booking p.meta { opacity: 0.65; margin: 0; line-height: 1.2; }
+    .ov-cont { background: var(--ba-secondary); border-left: 3px solid var(--ba-primary); }
+    .ov-empty-col { text-align: center; opacity: 0.35; font-style: italic; padding-top: 2rem; }
+  </style>
+</head>
+<body>
+
+  <!--
+    DISCOVERY PROTOTYPE — illustrative only, NOT a plan/journey/ prototype. Added on
+    request (2026-07-29) — answers "as a manager, can I see all staff + salas +
+    equipamentos at once, or is everything fragmented per-resource?" Until this screen,
+    the answer was genuinely "fragmented": manager-01 is a flat resource LIST (no
+    calendar), staff-05 is ONE resource's own timeline, staff-04/manager-03 cover
+    session-style capacity only. Nothing showed every resource's day side by side.
+
+    New candidate use case (CAND-13c, added alongside this) — see
+    ../../MULTI_VERTICAL_SCHEDULING_USECASES.md. Deliberately MANAGER-only (like
+    Equipe/Configurações/Hotsite), since it's a broader oversight surface than the
+    Agenda "mine vs all" toggle (staff-01) — that shows every BOOKING, not every
+    resource's raw schedule shape side by side.
+
+    Deliberately spans BOTH families in one grid — Camila/Bruno/Renata's columns are
+    APPOINTMENT-style individual bookings; Estúdio 1's column is a SESSION-style class
+    occupancy (Pilates). Same underlying IBookingAvailabilityPort query per resource
+    (§8), just run across several resources and rendered as columns instead of one
+    column at a time — no new domain concept, purely a read-side aggregation.
+
+    Showing 5 of 15 resources as a representative subset (not all — same scope
+    discipline as the rest of this prototype). Real build would need a resource-type
+    filter for tenants with many more staff/rooms than fit on screen at once (CAND-13c's
+    alt flow) — filter tabs below are illustrative only, not wired.
+
+    COMPONENT (GAP): MultiResourceOverviewGrid
+    BFF CALL (GAP): GET /bookings?resourceIds=res_a,res_b,...&date=2026-08-04
+      (same shape as today's per-resource query, just resourceIds plural)
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — redimensione para ver mobile (&lt;1024px) e desktop (≥1024px)
+  </div>
+
+  <div class="dashboard-topbar">
+    <div class="topbar-brand"><div class="topbar-logo-mark">V</div><span class="topbar-tenant-name">Vitta Studio</span></div>
+    <h1 class="topbar-page-title">Visão Geral</h1>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
+      <a href="../../../../plan/journey/shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+      <span class="topbar-date">Hoje, 04 de agosto de 2026</span>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">V</div>
+        <div><p class="sidebar-tenant-name">Vitta Studio</p><p class="sidebar-tenant-slug">@vittastudio</p></div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top:0.5rem;">
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Agenda
+        </a>
+        <a class="sidebar-nav-item active" href="manager-05-visao-geral.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Horários
+        </a>
+        <a class="sidebar-nav-item" href="manager-02-service-resource-config.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          Serviços
+        </a>
+        <a class="sidebar-nav-item" href="staff-04-turmas-proximas.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
+          Turmas
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          Fidelidade
+        </a>
+      </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item" href="manager-01-resources-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Recursos
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Equipe
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Configurações
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          Hotsite
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="auth-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
+        <a class="sidebar-logout" href="../../../../plan/journey/shared/staff-login.html" title="Sair">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </a>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="dashboard-body">
+
+        <div class="filter-tabs">
+          <a href="#" class="filter-tab active">Todos os recursos</a>
+          <a href="#" class="filter-tab">Profissionais</a>
+          <a href="#" class="filter-tab">Salas</a>
+          <a href="#" class="filter-tab">Equipamentos</a>
+        </div>
+
+        <p style="font-size:0.8125rem;opacity:0.55;margin-bottom:0.75rem;">
+          Mostrando 5 de 15 recursos (representativo — ver todos em <a href="manager-01-resources-list.html" style="color:var(--ba-primary);">Recursos</a>).
+          Role para o lado para ver mais colunas.
+        </p>
+
+        <div class="overview-scroll">
+          <table class="overview-table">
+            <thead>
+              <tr>
+                <th class="time-col">Hora</th>
+                <th>Camila Duarte</th>
+                <th>Bruno Alves</th>
+                <th>Renata Souza</th>
+                <th>Estúdio 1</th>
+                <th>Área CrossFit</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="time-col">08:00</td>
+                <td></td><td></td><td></td>
+                <td class="ov-booking"><p class="name">Pilates</p><p class="meta">3/4 vagas</p></td>
+                <td></td>
+              </tr>
+              <tr><td class="time-col">08:30</td><td></td><td></td><td></td><td class="ov-cont"></td><td></td></tr>
+              <tr><td class="time-col">09:00</td><td></td><td></td><td></td><td></td><td></td></tr>
+              <tr><td class="time-col">09:30</td><td></td><td></td><td></td><td></td><td></td></tr>
+
+              <!-- Fernanda Lima — Corte + Escova, same booking as staff-01/staff-05 -->
+              <tr>
+                <td class="time-col">10:00</td>
+                <td class="ov-booking"><p class="name">Fernanda Lima</p><p class="meta">Corte + Escova</p></td>
+                <td></td><td></td><td></td><td></td>
+              </tr>
+              <tr><td class="time-col">10:30</td><td class="ov-cont"></td><td></td><td></td><td></td><td></td></tr>
+
+              <!-- Bruno + Renata — same "all-only" bookings as staff-01's Agenda de todos -->
+              <tr>
+                <td class="time-col">11:00</td>
+                <td></td>
+                <td class="ov-booking"><p class="name">Marcos Vieira</p><p class="meta">Corte</p></td>
+                <td class="ov-booking"><p class="name">Ana Costa</p><p class="meta">Massagem Relaxante</p></td>
+                <td></td><td></td>
+              </tr>
+              <tr><td class="time-col">11:30</td><td></td><td class="ov-cont"></td><td class="ov-cont"></td><td></td><td></td></tr>
+
+              <tr><td class="time-col">12:00</td><td></td><td></td><td></td><td></td><td></td></tr>
+              <tr><td class="time-col">12:30</td><td></td><td></td><td></td><td></td><td></td></tr>
+              <tr><td class="time-col">13:00</td><td></td><td></td><td></td><td></td><td></td></tr>
+              <tr><td class="time-col">13:30</td><td></td><td></td><td></td><td></td><td></td></tr>
+
+              <!-- Roberta Dias — Coloração (90 min), same booking as staff-01/staff-05 -->
+              <tr>
+                <td class="time-col">14:00</td>
+                <td class="ov-booking"><p class="name">Roberta Dias</p><p class="meta">Coloração</p></td>
+                <td></td><td></td><td></td><td></td>
+              </tr>
+              <tr><td class="time-col">14:30</td><td class="ov-cont"></td><td></td><td></td><td></td><td></td></tr>
+              <tr><td class="time-col">15:00</td><td class="ov-cont"></td><td></td><td></td><td></td><td></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p style="font-size:0.8125rem;opacity:0.55;margin-top:0.75rem;">
+          Área CrossFit está vazia hoje (segunda) de propósito — as turmas de CrossFit
+          acontecem terça e quarta (ver <a href="staff-04-turmas-proximas.html" style="color:var(--ba-primary);">Turmas</a>).
+          Nem todo recurso está ocupado todo dia.
+        </p>
+
+      </div>
+    </main>
+  </div>
+
+  <nav class="bottom-nav">
+    <a class="bottom-nav-item" href="#">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Agenda
+    </a>
+    <a class="bottom-nav-item active" href="manager-05-visao-geral.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Horários
+    </a>
+    <a class="bottom-nav-item" href="manager-02-service-resource-config.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      Serviços
+    </a>
+    <a class="bottom-nav-item" href="staff-04-turmas-proximas.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
+      Turmas
+    </a>
+    <a class="bottom-nav-item" href="#">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      Fidelidade
+    </a>
+  </nav>
+
+</body>
+</html>

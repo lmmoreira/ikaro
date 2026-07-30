@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Editar Serviço — Massagem Relaxante — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
+  <style>
+    .form-group { margin-bottom: 1.25rem; }
+    .form-label { display: block; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(17,24,39,0.45); margin-bottom: 0.375rem; }
+    .form-input { width: 100%; box-sizing: border-box; border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); padding: 0.6875rem 0.875rem; font-size: 0.9375rem; font-family: inherit; color: var(--ba-text); background: white; }
+    .form-hint { font-size: 0.8125rem; opacity: 0.5; color: var(--ba-text); margin-top: 0.375rem; }
+    .section-divider { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(17,24,39,0.35); margin: 1.75rem 0 0.75rem; }
+    .model-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .model-card { padding: 1rem; cursor: pointer; }
+    .model-card p.title { font-weight: 700; color: var(--ba-text); margin-bottom: 0.25rem; }
+    .model-card p.sub { font-size: 0.8125rem; opacity: 0.6; }
+    .radio-row { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); margin-bottom: 0.625rem; cursor: pointer; }
+    .radio-row.selected { border-color: var(--ba-primary); border-width: 2px; }
+    .radio-row-title { font-weight: 600; font-size: 0.9375rem; color: var(--ba-text); }
+    .radio-row-sub { font-size: 0.8125rem; opacity: 0.55; margin-top: 0.125rem; }
+    .resource-check-row { border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); padding: 0.75rem; margin-bottom: 0.625rem; }
+    .resource-check-row.checked { border-color: var(--ba-primary); border-width: 2px; }
+    .nested-selmode { margin: 0.625rem 0 0.125rem 1.875rem; padding-top: 0.625rem; border-top: 1px solid var(--ba-secondary); display: flex; flex-direction: column; gap: 0.5rem; }
+    .nested-selmode label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: var(--ba-text); cursor: pointer; }
+    .input-suffix-group { position: relative; }
+    .input-suffix { position: absolute; right: 0.875rem; top: 50%; transform: translateY(-50%); font-size: 0.8125rem; color: rgba(17,24,39,0.45); pointer-events: none; }
+    .input-with-suffix { padding-right: 3.5rem !important; }
+    .form-actions { display: flex; gap: 0.75rem; margin-top: 2rem; }
+    .form-actions .btn-primary { flex: 1; text-align: center; padding: 0.875rem; }
+    .form-actions .btn-secondary { flex: 0 0 auto; padding: 0.875rem 1.25rem; }
+  </style>
+</head>
+<body>
+
+  <!--
+    DISCOVERY PROTOTYPE — illustrative only, NOT a plan/journey/ prototype.
+    See ../../MULTI_VERTICAL_SCHEDULING.md (§5 Service.resourceRequirements/legs,
+    §7 buffer model) and ../../MULTI_VERTICAL_SCHEDULING_USECASES.md
+    (CAND-06, CAND-07, CAND-09, CAND-10).
+
+    Extends TODAY'S existing "Editar Serviço" form (staff/prototypes/servicos/03-service-edit.html)
+    with a new "Configuração de agendamento" section below the existing price/duration
+    fields. Everything above the divider is unchanged from today.
+
+    Fixed on review (2026-07-29): the resource-type control below was originally
+    `type="radio"` (mutually exclusive) — that made it structurally impossible to
+    configure a bundle (CAND-07), even though the customer-facing bundle experience
+    already existed in public-04-bundle-booking.html with no config screen behind it.
+    Switched to checkboxes (multi-select) with a per-type nested selection-mode control,
+    and changed the edited service from "Corte + Escova" to "Massagem Relaxante" so this
+    screen is now literally the config that produces public-04's booking flow.
+
+    COMPONENT (GAP): ServiceResourceConfigSection, appended to ServiceForm
+    BFF CALL (GAP): PATCH /services/{id}
+      body: { bookingModel, resourceRequirements: [{ type, selectionMode }], bufferAfterMinutes }
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — redimensione para ver mobile (&lt;1024px) e desktop (≥1024px)
+  </div>
+
+  <div class="dashboard-topbar">
+    <a href="#" style="display:flex;align-items:center;gap:0.375rem;color:var(--ba-text);text-decoration:none;font-size:0.9375rem;font-weight:500;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      <span class="topbar-brand" style="font-weight:600;">Serviços</span>
+    </a>
+    <h1 class="topbar-page-title">Editar serviço — Massagem Relaxante</h1>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
+      <a href="../../../../plan/journey/shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+      <span class="topbar-date">Hoje, 04 de agosto de 2026</span>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">V</div>
+        <div><p class="sidebar-tenant-name">Vitta Studio</p><p class="sidebar-tenant-slug">@vittastudio</p></div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top:0.5rem;">
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Agenda
+        </a>
+        <a class="sidebar-nav-item" href="manager-05-visao-geral.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Horários
+        </a>
+        <a class="sidebar-nav-item active" href="manager-02-service-resource-config.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          Serviços
+        </a>
+        <a class="sidebar-nav-item" href="staff-04-turmas-proximas.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
+          Turmas
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          Fidelidade
+        </a>
+      </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item" href="manager-01-resources-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Recursos
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Equipe
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Configurações
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          Hotsite
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="auth-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
+        <a class="sidebar-logout" href="../../../../plan/journey/shared/staff-login.html" title="Sair">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </a>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="dashboard-body" style="max-width:38rem;">
+
+        <!-- Existing fields, unchanged — collapsed for brevity, same as today's service-edit form -->
+        <div class="form-group">
+          <label class="form-label">Nome do serviço</label>
+          <input class="form-input" value="Massagem Relaxante" readonly style="opacity:0.7;">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+          <div class="form-group">
+            <label class="form-label">Preço</label>
+            <input class="form-input" value="R$ 120,00" readonly style="opacity:0.7;">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Duração</label>
+            <input class="form-input" value="60 min" readonly style="opacity:0.7;">
+          </div>
+        </div>
+
+        <p class="section-divider">Configuração de agendamento (novo)</p>
+
+        <div class="form-group">
+          <label class="form-label">Modelo de agendamento</label>
+          <div class="model-picker">
+            <div class="card model-card selected">
+              <p class="title">Agendamento</p>
+              <p class="sub">Um cliente por vez, atendimento privado (corte, consulta, coleta)</p>
+            </div>
+            <div class="card model-card">
+              <p class="title">Turma com capacidade</p>
+              <p class="sub">Vários clientes na mesma turma (Pilates, CrossFit)</p>
+            </div>
+          </div>
+          <p class="form-hint">"Agendamento" selecionado — os campos abaixo aparecem. "Turma com capacidade" leva para a tela de Turmas em vez disso.</p>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Quais recursos este serviço precisa? (marque todos que se aplicam)</label>
+
+          <!-- Checkbox, not radio — a service can require MORE THAN ONE resource type
+               at once (CAND-07). Both boxes below are checked: Profissional AND Sala
+               must BOTH be free for the same window — not "one or the other". -->
+          <div class="resource-check-row checked">
+            <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
+              <input type="checkbox" checked style="margin-top:0.1875rem;">
+              <div style="flex:1;">
+                <div class="radio-row-title">Profissional</div>
+                <div class="radio-row-sub">Um membro da equipe realiza o atendimento</div>
+              </div>
+            </label>
+
+            <!--
+              Fixed on review (2026-07-29): resourcePoolIds (discovery doc §5) had no UI at
+              all — checking "Profissional" implied "anyone on staff is eligible," which is
+              wrong. Camila/Bruno are hairdressers/instructors, not massage therapists; they
+              shouldn't be selectable here at all. This checklist IS the pool restriction.
+            -->
+            <div class="nested-selmode">
+              <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quem é elegível?</label>
+              <label><input type="checkbox" disabled> Camila Duarte <span style="opacity:0.5;">— cabeleireira, não elegível</span></label>
+              <label><input type="checkbox" disabled> Bruno Alves <span style="opacity:0.5;">— cabeleireiro, não elegível</span></label>
+              <label><input type="checkbox" checked> Renata Souza</label>
+              <label><input type="checkbox" checked> Maria Santos</label>
+              <label><input type="checkbox" disabled> João Mendes <span style="opacity:0.5;">— instrutor de CrossFit, não elegível</span></label>
+              <label><input type="checkbox" disabled> Fábio Ramos <span style="opacity:0.5;">— instrutor de CrossFit, não elegível</span></label>
+            </div>
+            <div class="nested-selmode" style="margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
+              <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Como é escolhido dentro do grupo elegível?</label>
+              <label><input type="radio" name="selmode-staff" checked> Cliente escolhe entre Renata e Maria (CAND-16)</label>
+              <label><input type="radio" name="selmode-staff"> Sistema atribui automaticamente entre as duas (CAND-17b)</label>
+            </div>
+          </div>
+
+          <div class="resource-check-row checked">
+            <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
+              <input type="checkbox" checked style="margin-top:0.1875rem;">
+              <div style="flex:1;">
+                <div class="radio-row-title">Sala</div>
+                <div class="radio-row-sub">Uma sala específica é reservada</div>
+              </div>
+            </label>
+
+            <!-- Same fix — "massagem só pode acontecer na Sala 1 e 2" is exactly this list -->
+            <div class="nested-selmode">
+              <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quais salas são elegíveis?</label>
+              <label><input type="checkbox" disabled> Estúdio 1 <span style="opacity:0.5;">— usada por Pilates, não elegível</span></label>
+              <label><input type="checkbox" disabled> Área CrossFit <span style="opacity:0.5;">— não elegível</span></label>
+              <label><input type="checkbox" checked> Sala de Terapia</label>
+              <label><input type="checkbox" disabled> Sala de Sauna <span style="opacity:0.5;">— não elegível</span></label>
+              <label><input type="checkbox" checked> Sala de Relaxamento</label>
+            </div>
+            <div class="nested-selmode" style="margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
+              <label><input type="radio" name="selmode-room" checked> Sistema atribui automaticamente entre as duas elegíveis (CAND-17)</label>
+            </div>
+          </div>
+
+          <div class="resource-check-row">
+            <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
+              <input type="checkbox" style="margin-top:0.1875rem;">
+              <div style="flex:1;">
+                <div class="radio-row-title">Equipamento</div>
+                <div class="radio-row-sub">Um equipamento específico é reservado</div>
+              </div>
+            </label>
+          </div>
+
+          <p class="form-hint" style="margin-top:0.5rem;">
+            Nenhuma caixa marcada = modelo de hoje (o negócio inteiro é o recurso, ex.
+            car wash). Uma caixa marcada = recurso único (ex. Corte + Escova, só
+            Profissional). Duas ou mais marcadas = bundle — todas precisam estar livres
+            na mesma janela ao mesmo tempo (CAND-07, CAND-31); ver a experiência do
+            cliente em public-04-bundle-booking.html. Dentro de cada tipo marcado, a
+            checklist "elegível" restringe o pool a um subconjunto — <code>resourcePoolIds</code>
+            no domínio (discovery §5) — em vez de qualquer recurso daquele tipo no tenant inteiro.
+          </p>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Tempo de preparo após o serviço (buffer)</label>
+          <div class="input-suffix-group">
+            <input class="form-input input-with-suffix" type="number" min="0" value="10">
+            <span class="input-suffix">min</span>
+          </div>
+          <p class="form-hint">
+            Combina com o tempo mínimo de virada do próprio recurso — vale o maior dos
+            dois (ver §7 do discovery: <code>max(service.bufferAfterMinutes, resource.turnoverMinutes)</code>).
+          </p>
+        </div>
+
+        <div class="form-actions">
+          <a href="#" class="btn-secondary">Cancelar</a>
+          <a href="#" class="btn-primary">Salvar</a>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <nav class="bottom-nav">
+    <a class="bottom-nav-item" href="#">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Agenda
+    </a>
+    <a class="bottom-nav-item" href="manager-05-visao-geral.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Horários
+    </a>
+    <a class="bottom-nav-item active" href="manager-02-service-resource-config.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      Serviços
+    </a>
+    <a class="bottom-nav-item" href="#">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      Fidelidade
+    </a>
+    <button class="bottom-nav-item" onclick="openSheet()">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+      Mais
+    </button>
+  </nav>
+
+  <div class="sheet-backdrop" id="sheet-backdrop" onclick="closeSheet()"></div>
+  <div class="bottom-sheet" id="manager-sheet">
+    <div class="bottom-sheet-handle"></div>
+    <p class="bottom-sheet-label">Somente Gerente</p>
+    <a class="bottom-sheet-item" href="manager-01-resources-list.html">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Recursos
+    </a>
+    <a class="bottom-sheet-item" href="#">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Equipe
+    </a>
+    <a class="bottom-sheet-item" href="#">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+      Hotsite
+    </a>
+    <div style="padding:0.75rem 1.25rem;border-top:1px solid var(--ba-secondary);margin-top:0.25rem;">
+      <a href="../../../../plan/journey/shared/staff-login.html" style="display:flex;align-items:center;gap:0.875rem;color:#dc2626;font-size:0.9375rem;font-weight:500;text-decoration:none;">
+        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sair
+      </a>
+    </div>
+  </div>
+
+  <script>
+    function openSheet() { document.getElementById('manager-sheet').classList.add('open'); document.getElementById('sheet-backdrop').classList.add('open'); }
+    function closeSheet() { document.getElementById('manager-sheet').classList.remove('open'); document.getElementById('sheet-backdrop').classList.remove('open'); }
+  </script>
+
+</body>
+</html>
