@@ -212,13 +212,17 @@ describe('HeroModule', () => {
   });
 
   describe('responsive crop (M18-S04)', () => {
-    it('centered variant uses aspect-driven min-height on mobile, min-h-[60vh] on sm: and up, and never min-h-screen', () => {
+    it('centered variant uses a vw-relative min-height at every breakpoint, never a vh-relative one', () => {
       const { container } = render(<HeroModule data={makeData()} slug="tenant" />);
 
       const section = container.querySelector('[data-variant="centered"]');
       expect(section?.className).toContain('min-h-[42.86vw]');
-      expect(section?.className).toContain('sm:min-h-[60vh]');
+      expect(section?.className).toContain('sm:min-h-[31.25vw]');
       expect(section?.className).not.toContain('min-h-screen');
+      // A vh-based floor stays fixed as the window narrows (only the container's width
+      // shrinks), so cropping gets progressively worse at every width in between — not just
+      // full desktop and true-mobile. Guards against reintroducing that class of bug.
+      expect(section?.className).not.toMatch(/\bmin-h-\[\d+vh\]/);
     });
 
     it('left-aligned right-panel image uses aspect-[21/9] on mobile and the existing sm: height classes, never h-64', () => {
@@ -237,8 +241,9 @@ describe('HeroModule', () => {
       expect(imgWrapper?.className).toContain('aspect-[21/9]');
       expect(imgWrapper?.className).toContain('sm:aspect-auto');
       expect(imgWrapper?.className).toContain('sm:h-full');
-      expect(imgWrapper?.className).toContain('sm:min-h-[40vh]');
+      expect(imgWrapper?.className).toContain('sm:min-h-[15.6vw]');
       expect(imgWrapper?.className).not.toContain('h-64');
+      expect(imgWrapper?.className).not.toMatch(/\bmin-h-\[\d+vh\]/);
     });
 
     it.each([

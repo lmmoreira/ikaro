@@ -128,9 +128,18 @@ export function HeroModule({ data, slug: _, tenantBrand }: HeroModuleProps): Rea
 
   if (data.variant === 'centered') {
     return (
+      // Both breakpoints use a vw-relative (container-width-relative) min-height floor, never a
+      // vh (viewport-height-relative) one — vh is pinned to screen height, so as the browser
+      // window is narrowed (without the screen itself changing height), a vh-based floor stays
+      // fixed while the container's width shrinks, making the box progressively more portrait
+      // and cropping progressively worse at every width in between, not just at the mobile
+      // breakpoint. Both values approximate a landscape ratio close to a typical wide banner
+      // (mobile: 21:9 via 42.86vw; sm:+: ~16:5 via 31.25vw, close to the desktop shape this
+      // already had via the old 60vh at a typical monitor's proportions) — but because they're
+      // width-relative, the ratio stays roughly constant at every window width, not just one.
       <section
         data-variant="centered"
-        className="relative flex min-h-[42.86vw] items-center justify-center px-6 sm:min-h-[60vh]"
+        className="relative flex min-h-[42.86vw] items-center justify-center px-6 sm:min-h-[31.25vw]"
         style={sectionStyle}
       >
         {bgUrl && (
@@ -174,7 +183,11 @@ export function HeroModule({ data, slug: _, tenantBrand }: HeroModuleProps): Rea
             <BrandCard name={tenantBrand.name} tagline={tenantBrand.tagline} />
           )}
           {rightPanel === 'image' && bgUrl && (
-            <div className="relative aspect-[21/9] sm:aspect-auto sm:h-full sm:min-h-[40vh]">
+            // sm:min-h-[15.6vw], not vh — same reasoning as the centered variant above. This
+            // panel renders at roughly half the section's width at sm:+ (grid-cols-2), so 15.6vw
+            // approximates the same ~16:5 landscape ratio as the centered variant's 31.25vw does
+            // at full width (31.25 / 2 ≈ 15.6).
+            <div className="relative aspect-[21/9] sm:aspect-auto sm:h-full sm:min-h-[15.6vw]">
               <Image
                 src={bgUrl}
                 alt=""
