@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { HotsiteBrandingResponse, HotsiteModuleResponse } from '@ikaro/types';
+import type {
+  HotsiteBrandingResponse,
+  HotsiteModuleResponse,
+  HotsiteSeoResponse,
+} from '@ikaro/types';
 import { stripResolvedImageUrls } from './strip-resolved-image-urls';
 
 const TENANT_ID = '01234567-0000-7000-8000-000000000001';
@@ -23,11 +27,16 @@ function makeBranding(overrides: Partial<HotsiteBrandingResponse> = {}): Hotsite
   };
 }
 
+function makeSeo(overrides: Partial<HotsiteSeoResponse> = {}): HotsiteSeoResponse {
+  return { title: null, description: null, ogImageUrl: '', ...overrides };
+}
+
 describe('stripResolvedImageUrls', () => {
   it('strips a resolved logoUrl back to its raw storage path', () => {
     const result = stripResolvedImageUrls(
       makeBranding({ logoUrl: RESOLVED_LOGO_URL }),
       [],
+      makeSeo(),
       TENANT_ID,
     );
 
@@ -35,22 +44,46 @@ describe('stripResolvedImageUrls', () => {
   });
 
   it('leaves an empty logoUrl unchanged', () => {
-    const result = stripResolvedImageUrls(makeBranding({ logoUrl: '' }), [], TENANT_ID);
+    const result = stripResolvedImageUrls(makeBranding({ logoUrl: '' }), [], makeSeo(), TENANT_ID);
 
     expect(result.branding.logoUrl).toBe('');
   });
 
   it('leaves an already-raw logoUrl unchanged (idempotent)', () => {
-    const result = stripResolvedImageUrls(makeBranding({ logoUrl: RAW_LOGO_PATH }), [], TENANT_ID);
+    const result = stripResolvedImageUrls(
+      makeBranding({ logoUrl: RAW_LOGO_PATH }),
+      [],
+      makeSeo(),
+      TENANT_ID,
+    );
 
     expect(result.branding.logoUrl).toBe(RAW_LOGO_PATH);
   });
 
   it('leaves a tmp/ staging path unchanged (no tenant marker to strip, forward-compatible with TD22)', () => {
     const tmpPath = `tmp/${TENANT_ID}/branding/xyz/logo.png`;
-    const result = stripResolvedImageUrls(makeBranding({ logoUrl: tmpPath }), [], TENANT_ID);
+    const result = stripResolvedImageUrls(
+      makeBranding({ logoUrl: tmpPath }),
+      [],
+      makeSeo(),
+      TENANT_ID,
+    );
 
     expect(result.branding.logoUrl).toBe(tmpPath);
+  });
+
+  it('strips a resolved seo.ogImageUrl back to its raw storage path, same as branding.logoUrl', () => {
+    const rawPath = `tenants/${TENANT_ID}/hotsite/seo-og-image/abc/og-image.png`;
+    const resolvedUrl = `https://storage.googleapis.com/ikaro-public/${rawPath}`;
+
+    const result = stripResolvedImageUrls(
+      makeBranding(),
+      [],
+      makeSeo({ ogImageUrl: resolvedUrl }),
+      TENANT_ID,
+    );
+
+    expect(result.seo.ogImageUrl).toBe(rawPath);
   });
 
   it('strips a resolved backgroundImageUrl on a HERO module', () => {
@@ -63,7 +96,7 @@ describe('stripResolvedImageUrls', () => {
       },
     ];
 
-    const result = stripResolvedImageUrls(makeBranding(), modules, TENANT_ID);
+    const result = stripResolvedImageUrls(makeBranding(), modules, makeSeo(), TENANT_ID);
 
     expect(result.layout[0].data.backgroundImageUrl).toBe(rawPath);
   });
@@ -82,7 +115,7 @@ describe('stripResolvedImageUrls', () => {
       },
     ];
 
-    const result = stripResolvedImageUrls(makeBranding(), modules, TENANT_ID);
+    const result = stripResolvedImageUrls(makeBranding(), modules, makeSeo(), TENANT_ID);
 
     expect((result.layout[0].data.images as Array<{ url: string }>)[0].url).toBe(rawPath);
   });
@@ -105,7 +138,7 @@ describe('stripResolvedImageUrls', () => {
       },
     ];
 
-    const result = stripResolvedImageUrls(makeBranding(), modules, TENANT_ID);
+    const result = stripResolvedImageUrls(makeBranding(), modules, makeSeo(), TENANT_ID);
 
     expect((result.layout[0].data.items as Array<{ avatarUrl: string }>)[0].avatarUrl).toBe(
       rawPath,
@@ -121,7 +154,7 @@ describe('stripResolvedImageUrls', () => {
       },
     ];
 
-    const result = stripResolvedImageUrls(makeBranding(), modules, TENANT_ID);
+    const result = stripResolvedImageUrls(makeBranding(), modules, makeSeo(), TENANT_ID);
 
     expect(result.layout[0].data).toEqual(modules[0].data);
   });

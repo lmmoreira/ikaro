@@ -1,4 +1,8 @@
-import { DEFAULT_HOTSITE_BRANDING, HotsiteModule } from '../hotsite-config.aggregate';
+import {
+  DEFAULT_HOTSITE_BRANDING,
+  DEFAULT_HOTSITE_SEO,
+  HotsiteModule,
+} from '../hotsite-config.aggregate';
 import { HotsiteImagePathsService } from './hotsite-image-paths.service';
 
 describe('HotsiteImagePathsService', () => {
@@ -17,7 +21,7 @@ describe('HotsiteImagePathsService', () => {
       },
     ];
 
-    expect(svc.collect(DEFAULT_HOTSITE_BRANDING, layout)).toEqual([]);
+    expect(svc.collect(DEFAULT_HOTSITE_BRANDING, layout, DEFAULT_HOTSITE_SEO)).toEqual([]);
   });
 
   it('collects the branding logoUrl when present', () => {
@@ -26,7 +30,17 @@ describe('HotsiteImagePathsService', () => {
       logoUrl: 'tenants/t1/hotsite/branding/u1/logo.png',
     };
 
-    expect(svc.collect(branding, [])).toEqual(['tenants/t1/hotsite/branding/u1/logo.png']);
+    expect(svc.collect(branding, [], DEFAULT_HOTSITE_SEO)).toEqual([
+      'tenants/t1/hotsite/branding/u1/logo.png',
+    ]);
+  });
+
+  it('collects the seo ogImageUrl when present', () => {
+    const seo = { ...DEFAULT_HOTSITE_SEO, ogImageUrl: 'tenants/t1/hotsite/seo/u1/og-image.png' };
+
+    expect(svc.collect(DEFAULT_HOTSITE_BRANDING, [], seo)).toEqual([
+      'tenants/t1/hotsite/seo/u1/og-image.png',
+    ]);
   });
 
   it('collects backgroundImageUrl, imageUrl and avatarUrl from generic module data fields', () => {
@@ -54,7 +68,7 @@ describe('HotsiteImagePathsService', () => {
       },
     ];
 
-    expect(svc.collect(DEFAULT_HOTSITE_BRANDING, layout)).toEqual([
+    expect(svc.collect(DEFAULT_HOTSITE_BRANDING, layout, DEFAULT_HOTSITE_SEO)).toEqual([
       'tenants/t1/hotsite/hero/u1/bg.jpg',
       'tenants/t1/hotsite/about/u1/photo.jpg',
     ]);
@@ -79,7 +93,7 @@ describe('HotsiteImagePathsService', () => {
       },
     ];
 
-    expect(svc.collect(DEFAULT_HOTSITE_BRANDING, layout)).toEqual([
+    expect(svc.collect(DEFAULT_HOTSITE_BRANDING, layout, DEFAULT_HOTSITE_SEO)).toEqual([
       'tenants/t1/hotsite/gallery/u1/maria.jpg',
     ]);
   });
@@ -105,7 +119,7 @@ describe('HotsiteImagePathsService', () => {
       },
     ];
 
-    expect(svc.collect(DEFAULT_HOTSITE_BRANDING, layout)).toEqual([
+    expect(svc.collect(DEFAULT_HOTSITE_BRANDING, layout, DEFAULT_HOTSITE_SEO)).toEqual([
       'tenants/t1/hotsite/gallery/u1/photo.jpg',
       'tenants/t1/hotsite/gallery/u2/featured.jpg',
     ]);
@@ -117,9 +131,17 @@ describe('HotsiteImagePathsService', () => {
     it('rewrites the branding logoUrl', () => {
       const branding = { ...DEFAULT_HOTSITE_BRANDING, logoUrl: 'tmp/t1/branding/u1/logo.png' };
 
-      const result = svc.mapPaths(branding, [], upper);
+      const result = svc.mapPaths(branding, [], DEFAULT_HOTSITE_SEO, upper);
 
       expect(result.branding.logoUrl).toBe('TMP/T1/BRANDING/U1/LOGO.PNG');
+    });
+
+    it('rewrites the seo ogImageUrl', () => {
+      const seo = { ...DEFAULT_HOTSITE_SEO, ogImageUrl: 'tmp/t1/seo/u1/og-image.png' };
+
+      const result = svc.mapPaths(DEFAULT_HOTSITE_BRANDING, [], seo, upper);
+
+      expect(result.seo.ogImageUrl).toBe('TMP/T1/SEO/U1/OG-IMAGE.PNG');
     });
 
     it('rewrites backgroundImageUrl and imageUrl on module data', () => {
@@ -137,7 +159,7 @@ describe('HotsiteImagePathsService', () => {
         },
       ];
 
-      const result = svc.mapPaths(DEFAULT_HOTSITE_BRANDING, layout, upper);
+      const result = svc.mapPaths(DEFAULT_HOTSITE_BRANDING, layout, DEFAULT_HOTSITE_SEO, upper);
 
       expect((result.layout[0].data as { backgroundImageUrl?: string }).backgroundImageUrl).toBe(
         'TMP/T1/HERO/U1/BG.JPG',
@@ -159,7 +181,7 @@ describe('HotsiteImagePathsService', () => {
         },
       ];
 
-      const result = svc.mapPaths(DEFAULT_HOTSITE_BRANDING, layout, upper);
+      const result = svc.mapPaths(DEFAULT_HOTSITE_BRANDING, layout, DEFAULT_HOTSITE_SEO, upper);
 
       const items = (result.layout[0].data as { items: { avatarUrl?: string }[] }).items;
       expect(items[0].avatarUrl).toBe('TMP/T1/TESTIMONIALS/U1/M.JPG');
@@ -186,7 +208,7 @@ describe('HotsiteImagePathsService', () => {
         },
       ];
 
-      const result = svc.mapPaths(DEFAULT_HOTSITE_BRANDING, layout, upper);
+      const result = svc.mapPaths(DEFAULT_HOTSITE_BRANDING, layout, DEFAULT_HOTSITE_SEO, upper);
 
       const images = (result.layout[0].data as { images: { url: string; bookingId?: string }[] })
         .images;
@@ -210,7 +232,7 @@ describe('HotsiteImagePathsService', () => {
         },
       ];
 
-      svc.mapPaths(branding, layout, upper);
+      svc.mapPaths(branding, layout, DEFAULT_HOTSITE_SEO, upper);
 
       expect(branding.logoUrl).toBe('tmp/t1/branding/u1/logo.png');
       expect((layout[0].data as { imageUrl?: string }).imageUrl).toBe('tmp/t1/about/u1/p.jpg');

@@ -71,7 +71,7 @@ export default async function HotsitePage({ params }: HotsitePageProps) {
 
   return (
     <main>
-      <HotsiteAuthBar slug={slug} />
+      <HotsiteAuthBar slug={slug} logoUrl={branding.logoUrl} tenantName={displayName} />
       <JsonLdScript data={localBusinessJsonLd} />
       {modulesWithVariant.map(({ parsed, bgVariant }, index) => {
         const key = `${parsed.type}-${index}`;
@@ -123,6 +123,7 @@ export default async function HotsitePage({ params }: HotsitePageProps) {
               slug={slug}
               tenantName={displayName}
               business={business}
+              logoUrl={branding.logoUrl}
             />
           );
         }

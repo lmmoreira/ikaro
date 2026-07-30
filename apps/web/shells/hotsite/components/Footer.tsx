@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import type { FooterModuleData, HotsiteBusinessInfoResponse } from '@ikaro/types';
 import { digitsOnly } from '@/shared/utils/digits-only';
 
@@ -6,9 +7,43 @@ interface FooterProps {
   readonly data: FooterModuleData;
   readonly tenantName: string;
   readonly business: HotsiteBusinessInfoResponse;
+  readonly logoUrl: string;
 }
 
-export function Footer({ slug: _, data, tenantName, business }: FooterProps): React.JSX.Element {
+// Same brand-mark treatment as HotsiteAuthBar's BrandMark, sized for the footer (see
+// plan/journey/shared/hotsite.html's footer section) — falls back to an initial-letter badge.
+function FooterBrandMark({
+  logoUrl,
+  tenantName,
+}: {
+  readonly logoUrl: string;
+  readonly tenantName: string;
+}): React.JSX.Element {
+  return logoUrl ? (
+    <Image
+      src={logoUrl}
+      alt={tenantName}
+      width={20}
+      height={20}
+      className="h-5 w-5 rounded-full object-cover"
+    />
+  ) : (
+    <div
+      className="flex h-5 w-5 items-center justify-center rounded-full text-[0.625rem] font-bold"
+      style={{ backgroundColor: 'var(--ba-primary)', color: 'var(--ba-btn-text)' }}
+    >
+      {tenantName.charAt(0).toUpperCase()}
+    </div>
+  );
+}
+
+export function Footer({
+  slug: _,
+  data,
+  tenantName,
+  business,
+  logoUrl,
+}: FooterProps): React.JSX.Element {
   const whatsapp = business.socialLinks?.whatsapp;
   const showWhatsapp = data.showWhatsapp !== false;
   const year = new Date().getFullYear();
@@ -23,12 +58,15 @@ export function Footer({ slug: _, data, tenantName, business }: FooterProps): Re
         textAlign: 'center',
       }}
     >
-      <div
-        className="text-lg font-black uppercase tracking-widest"
-        style={{ color: 'var(--ba-primary)' }}
-        data-testid="footer-brand-name"
-      >
-        {tenantName}
+      <div className="mb-2 flex items-center justify-center gap-2">
+        <FooterBrandMark logoUrl={logoUrl} tenantName={tenantName} />
+        <div
+          className="text-lg font-black uppercase tracking-widest"
+          style={{ color: 'var(--ba-primary)' }}
+          data-testid="footer-brand-name"
+        >
+          {tenantName}
+        </div>
       </div>
       {data.tagline && (
         <p className="mt-1 text-xs opacity-60" data-testid="footer-tagline">

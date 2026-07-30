@@ -7,7 +7,7 @@ import {
   deleteHotsiteImage,
   generateHotsiteImageSignedUrl,
 } from '@/features/platform/api/tenant-settings';
-import { LogoUpload } from './LogoUpload';
+import { OgImageUpload } from './OgImageUpload';
 
 vi.mock('@/features/platform/api/tenant-settings', () => ({
   generateHotsiteImageSignedUrl: vi.fn(),
@@ -27,10 +27,11 @@ function makeFile(name: string, type: string): File {
   return new File(['fake-image-content'], name, { type });
 }
 
-// LogoUpload is a thin wrapper over SingleImageUploadField — the upload/preview/error mechanics
-// themselves are covered there. These tests only verify the branding-specific wiring: purpose,
-// small preview size, translated labels, and that a fresh upload + remove round-trip works.
-describe('LogoUpload', () => {
+// OgImageUpload is a thin wrapper over SingleImageUploadField, mirroring LogoUpload.tsx's shape —
+// the upload/preview/error mechanics themselves are covered there. These tests only verify the
+// seo-og-image-specific wiring: purpose, large (landscape) preview size, translated labels, and
+// that a fresh upload + remove round-trip works.
+describe('OgImageUpload', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
@@ -43,55 +44,60 @@ describe('LogoUpload', () => {
     vi.mocked(deleteHotsiteImage).mockReset();
   });
 
-  it('uploads a selected logo with purpose "branding" and calls onChange with the resulting filePath', async () => {
+  it('uploads a selected image with purpose "seo-og-image" and calls onChange with the resulting filePath', async () => {
     const user = userEvent.setup();
     vi.mocked(generateHotsiteImageSignedUrl).mockResolvedValue({
       signedUrl: 'https://storage.example.com/upload?sig=abc',
-      filePath: 'tenants/tenant-1/hotsite/logo.png',
+      filePath: 'tenants/tenant-1/hotsite/og-image.png',
       expiresAt: '2026-06-15T12:00:00.000Z',
     });
     fetchSpy.mockResolvedValue(new Response(null, { status: 200 }));
     const onChange = vi.fn();
 
-    renderWithIntl(<LogoUpload value="" onChange={onChange} />);
+    renderWithIntl(<OgImageUpload value="" onChange={onChange} />);
 
     await user.upload(
       screen.getByTestId('single-image-upload-input'),
-      makeFile('logo.png', 'image/png'),
+      makeFile('share.png', 'image/png'),
     );
 
     expect(generateHotsiteImageSignedUrl).toHaveBeenCalledWith({
-      fileName: 'logo.png',
+      fileName: 'share.png',
       contentType: 'image/png',
-      purpose: 'branding',
+      purpose: 'seo-og-image',
     });
-    expect(onChange).toHaveBeenCalledWith('tenants/tenant-1/hotsite/logo.png');
-    // Small preview size — logoUrl is only ever displayed as a 64px icon (login page), not a banner.
-    expect(screen.getByTestId('single-image-upload-preview').className).toContain('h-16');
+    expect(onChange).toHaveBeenCalledWith('tenants/tenant-1/hotsite/og-image.png');
+    // Large preview size — a share image is a landscape banner, not a small icon like the logo.
+    expect(screen.getByTestId('single-image-upload-preview').className).toContain('max-h-48');
   });
 
-  it('renders the current logo as a preview when a value is present', () => {
-    renderWithIntl(<LogoUpload value="https://cdn.example.com/logo.png" onChange={vi.fn()} />);
+  it('renders the current image as a preview when a value is present', () => {
+    renderWithIntl(
+      <OgImageUpload value="https://cdn.example.com/og-image.png" onChange={vi.fn()} />,
+    );
 
     expect(screen.getByTestId('single-image-upload-preview')).toHaveAttribute(
       'src',
-      'https://cdn.example.com/logo.png',
+      'https://cdn.example.com/og-image.png',
     );
   });
 
-  it('removing a freshly-uploaded logo calls deleteHotsiteImage and clears onChange', async () => {
+  it('removing a freshly-uploaded image calls deleteHotsiteImage and clears onChange', async () => {
     const user = userEvent.setup();
     vi.mocked(deleteHotsiteImage).mockResolvedValue(undefined);
     const onChange = vi.fn();
 
     renderWithIntl(
-      <LogoUpload value="tenants/tenant-1/hotsite/branding/u1/logo.png" onChange={onChange} />,
+      <OgImageUpload
+        value="tenants/tenant-1/hotsite/seo-og-image/u1/share.png"
+        onChange={onChange}
+      />,
     );
 
     await user.click(screen.getByTestId('single-image-upload-remove'));
 
     expect(deleteHotsiteImage).toHaveBeenCalledWith(
-      'tenants/tenant-1/hotsite/branding/u1/logo.png',
+      'tenants/tenant-1/hotsite/seo-og-image/u1/share.png',
     );
     expect(onChange).toHaveBeenCalledWith('');
   });

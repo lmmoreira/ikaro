@@ -68,7 +68,7 @@ describe('GetHotsiteManifestUseCase', () => {
     expect(result.localization).toEqual(
       expect.objectContaining({ language: 'pt-BR', currency: 'BRL', phonePrefix: '+55' }),
     );
-    expect(result.seo).toEqual({ title: null, description: null });
+    expect(result.seo).toEqual({ title: null, description: null, ogImageUrl: '' });
     expect(result.booking).toEqual({ maxBookingAdvanceDays: 90 });
   });
 
@@ -100,7 +100,11 @@ describe('GetHotsiteManifestUseCase', () => {
   it('returns the tenant-configured seo title and description for a published hotsite', async () => {
     const config = new HotsiteConfigBuilder()
       .withTenantId(TENANT_A)
-      .withSeo({ title: 'Lavacar Estrela — Agendamento Online', description: 'Agende já.' })
+      .withSeo({
+        title: 'Lavacar Estrela — Agendamento Online',
+        description: 'Agende já.',
+        ogImageUrl: '',
+      })
       .buildPublished();
     await repo.save(config);
 
@@ -109,7 +113,26 @@ describe('GetHotsiteManifestUseCase', () => {
     expect(result.seo).toEqual({
       title: 'Lavacar Estrela — Agendamento Online',
       description: 'Agende já.',
+      ogImageUrl: '',
     });
+  });
+
+  it('resolves seo.ogImageUrl to a full public URL, same as branding.logoUrl', async () => {
+    const config = new HotsiteConfigBuilder()
+      .withTenantId(TENANT_A)
+      .withSeo({
+        title: null,
+        description: null,
+        ogImageUrl: 'tenants/tenant-a/hotsite/seo-og-image/og-image.png',
+      })
+      .buildPublished();
+    await repo.save(config);
+
+    const result = await useCase.execute({ tenantId: TENANT_A });
+
+    expect(result.seo.ogImageUrl).toBe(
+      storageService.getPublicUrl('tenants/tenant-a/hotsite/seo-og-image/og-image.png'),
+    );
   });
 
   it('throws TenantNotFoundError when the tenant aggregate does not exist', async () => {

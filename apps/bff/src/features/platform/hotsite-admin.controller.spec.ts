@@ -41,7 +41,7 @@ const hotsiteContentResponse: HotsiteAdminContentResponse = {
       },
     },
   ],
-  seo: { title: null, description: null },
+  seo: { title: null, description: null, ogImageUrl: '' },
   isPublished: false,
   updatedAt: '2026-06-01T10:00:00.000Z',
 };

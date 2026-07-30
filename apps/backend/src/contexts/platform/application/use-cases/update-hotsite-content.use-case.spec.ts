@@ -185,13 +185,14 @@ describe('UpdateHotsiteContentUseCase', () => {
     expect(result.seo).toEqual({
       title: 'Lavacar Estrela — Agendamento Online',
       description: 'Agende sua lavagem.',
+      ogImageUrl: '',
     });
   });
 
   it('merges a partial seo update without wiping the other field', async () => {
     const config = new HotsiteConfigBuilder()
       .withTenantId(TENANT_A)
-      .withSeo({ title: 'Título Original', description: 'Descrição original' })
+      .withSeo({ title: 'Título Original', description: 'Descrição original', ogImageUrl: '' })
       .buildWithContent();
     await repo.save(config);
 
@@ -251,6 +252,24 @@ describe('UpdateHotsiteContentUseCase', () => {
         },
       ]);
       expect(storageService.deletedPaths).toEqual([tmpPath]);
+    });
+
+    it('promotes a tmp/-referenced seo.ogImageUrl to a permanent public path, same as branding.logoUrl', async () => {
+      const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
+      await repo.save(config);
+      const tmpPath = `tmp/${TENANT_A}/seo-og-image/u1/og-image.png`;
+      storageService.markAsUploaded(tmpPath);
+
+      const result = await useCase.execute({
+        tenantId: TENANT_A,
+        seo: { ogImageUrl: tmpPath },
+      });
+
+      const expectedPermanentPath = `tenants/${TENANT_A}/hotsite/seo-og-image/u1/og-image.png`;
+      expect(result.seo.ogImageUrl).toBe(expectedPermanentPath);
+
+      const saved = await repo.findByTenantId(TENANT_A);
+      expect(saved!.seo.ogImageUrl).toBe(expectedPermanentPath);
     });
 
     it('deletes the previous permanent object when a field changes from one permanent image to another', async () => {

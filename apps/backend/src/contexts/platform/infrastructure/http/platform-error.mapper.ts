@@ -3,6 +3,7 @@ import { throwProblemDetail } from '@ikaro/nestjs-http';
 import { mapSharedAddressError } from '../../../../shared/http/address-validation-error.mapper';
 import { mapSharedVoError } from '../../../../shared/http/vo-validation-error.mapper';
 import {
+  HotsiteConfigConcurrentModificationError,
   HotsiteNotFoundError,
   PlatformDomainError,
   SlugAlreadyTakenError,
@@ -13,7 +14,11 @@ import {
 export function mapPlatformError(err: unknown): never {
   mapSharedAddressError(err);
   mapSharedVoError(err);
-  if (err instanceof SlugAlreadyTakenError || err instanceof TenantInactiveError) {
+  if (
+    err instanceof SlugAlreadyTakenError ||
+    err instanceof TenantInactiveError ||
+    err instanceof HotsiteConfigConcurrentModificationError
+  ) {
     throw throwProblemDetail(HttpStatus.CONFLICT, err.code, err.message, err.field);
   }
   if (err instanceof TenantNotFoundError || err instanceof HotsiteNotFoundError) {

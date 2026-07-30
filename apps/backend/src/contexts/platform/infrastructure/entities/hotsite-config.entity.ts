@@ -1,4 +1,4 @@
-import { Column, Entity, PrimaryColumn } from 'typeorm';
+import { Column, Entity, PrimaryColumn, VersionColumn } from 'typeorm';
 import { HotsiteBranding, HotsiteModule, HotsiteSeo } from '../../domain/hotsite-config.aggregate';
 
 @Entity('hotsite_configs', { schema: 'platform' })
@@ -26,4 +26,7 @@ export class HotsiteConfigEntity {
 
   @Column({ name: 'updated_at', type: 'timestamptz' })
   updatedAt!: Date;
+
+  @VersionColumn({ name: 'version', default: 1 })
+  version!: number;
 }

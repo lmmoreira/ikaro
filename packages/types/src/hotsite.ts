@@ -141,6 +141,7 @@ export interface HotsiteBrandingResponse {
 export interface HotsiteSeoResponse {
   title: string | null;
   description: string | null;
+  ogImageUrl: string;
 }
 
 export interface HotsiteResponse {
@@ -223,6 +224,14 @@ export interface PublishHotsiteResponse {
 export interface UnpublishHotsiteResponse {
   isPublished: boolean;
 }
+
+// Groups an uploaded hotsite asset by what it's for; also encoded into the staging path so
+// promotion can rebuild the permanent path without a second lookup. Single source of truth for
+// apps/web (SingleImageUploadField.tsx, tenant-settings.ts) — the backend and BFF each keep their
+// own Zod enum in sync separately (packages/validation doesn't re-export this, since those are
+// runtime validators, not just a type).
+export type HotsiteImagePurpose =
+  'branding' | 'hero' | 'gallery' | 'about' | 'booking-cta' | 'testimonials' | 'seo-og-image';
 
 export interface GenerateHotsiteImageSignedUrlResponse {
   signedUrl: string;

@@ -702,7 +702,10 @@
         "titleLabel": "Title (max. {max} characters)",
         "titleHint": "Leave blank to use the automatically generated title",
         "descriptionLabel": "Description (max. {max} characters)",
-        "descriptionHint": "Leave blank to use the automatically generated description"
+        "descriptionHint": "Leave blank to use the automatically generated description",
+        "ogImageLabel": "Share image",
+        "ogImageFormatHint": "PNG or JPG. The image will be automatically cropped to a landscape shape (1200x630) for use on social media and WhatsApp.",
+        "ogImageRemove": "Remove image"
       },
       "manifest": {
         "sectionTitle": "Manifest",

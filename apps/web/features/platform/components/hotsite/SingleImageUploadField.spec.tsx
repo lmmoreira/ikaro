@@ -308,6 +308,30 @@ describe('SingleImageUploadField', () => {
     );
   });
 
+  it('shows the upload-error state when compressImage rejects (e.g. a source too small to crop to the required ratio)', async () => {
+    const user = userEvent.setup();
+    vi.mocked(compressImage).mockRejectedValue(new Error('Image is too small to crop'));
+
+    renderWithIntl(
+      <SingleImageUploadField
+        id="logo"
+        value=""
+        onChange={vi.fn()}
+        purpose="branding"
+        {...LABELS}
+      />,
+    );
+
+    await user.upload(
+      getByFieldId('single-image-upload-input', 'logo'),
+      makeFile('tiny.png', 'image/png'),
+    );
+
+    expect(await screen.findByTestId('single-image-upload-error')).toHaveTextContent(
+      LABELS.uploadErrorLabel,
+    );
+  });
+
   it('removing a freshly-uploaded (raw storage path) image calls deleteHotsiteImage and clears the value', async () => {
     const user = userEvent.setup();
     vi.mocked(deleteHotsiteImage).mockResolvedValue(undefined);
@@ -372,6 +396,90 @@ describe('SingleImageUploadField', () => {
 
     expect(deleteHotsiteImage).not.toHaveBeenCalled();
     expect(onChange).toHaveBeenCalledWith('');
+  });
+
+  // M18-S03 — auto center-crop target ratio is derived from `purpose`, not passed explicitly by
+  // the caller. Only 'branding' (square, avatar-like) and 'seo-og-image' (landscape share image)
+  // have a fixed display shape; every other purpose keeps the pre-existing behavior (no crop).
+  it('passes a 1:1 targetAspectRatio to compressImage for purpose="branding"', async () => {
+    const user = userEvent.setup();
+    vi.mocked(generateHotsiteImageSignedUrl).mockResolvedValue({
+      signedUrl: 'https://storage.example.com/upload?sig=abc',
+      filePath: 'tenants/tenant-1/hotsite/branding/logo.png',
+      expiresAt: '2026-06-15T12:00:00.000Z',
+    });
+    fetchSpy.mockResolvedValue(new Response(null, { status: 200 }));
+
+    renderWithIntl(
+      <SingleImageUploadField
+        id="logo"
+        value=""
+        onChange={vi.fn()}
+        purpose="branding"
+        {...LABELS}
+      />,
+    );
+
+    await user.upload(
+      getByFieldId('single-image-upload-input', 'logo'),
+      makeFile('logo.png', 'image/png'),
+    );
+
+    expect(compressImage).toHaveBeenCalledWith(expect.any(File), 1);
+  });
+
+  it('passes the 1200/630 targetAspectRatio to compressImage for purpose="seo-og-image"', async () => {
+    const user = userEvent.setup();
+    vi.mocked(generateHotsiteImageSignedUrl).mockResolvedValue({
+      signedUrl: 'https://storage.example.com/upload?sig=abc',
+      filePath: 'tenants/tenant-1/hotsite/seo-og-image/share.png',
+      expiresAt: '2026-06-15T12:00:00.000Z',
+    });
+    fetchSpy.mockResolvedValue(new Response(null, { status: 200 }));
+
+    renderWithIntl(
+      <SingleImageUploadField
+        id="og-image"
+        value=""
+        onChange={vi.fn()}
+        purpose="seo-og-image"
+        {...LABELS}
+      />,
+    );
+
+    await user.upload(
+      getByFieldId('single-image-upload-input', 'og-image'),
+      makeFile('share.png', 'image/png'),
+    );
+
+    expect(compressImage).toHaveBeenCalledWith(expect.any(File), 1200 / 630);
+  });
+
+  it('passes no targetAspectRatio to compressImage for a photographic-content purpose (e.g. "hero")', async () => {
+    const user = userEvent.setup();
+    vi.mocked(generateHotsiteImageSignedUrl).mockResolvedValue({
+      signedUrl: 'https://storage.example.com/upload?sig=abc',
+      filePath: 'tenants/tenant-1/hotsite/hero/banner.png',
+      expiresAt: '2026-06-15T12:00:00.000Z',
+    });
+    fetchSpy.mockResolvedValue(new Response(null, { status: 200 }));
+
+    renderWithIntl(
+      <SingleImageUploadField
+        id="hero-bg"
+        value=""
+        onChange={vi.fn()}
+        purpose="hero"
+        {...LABELS}
+      />,
+    );
+
+    await user.upload(
+      getByFieldId('single-image-upload-input', 'hero-bg'),
+      makeFile('banner.png', 'image/png'),
+    );
+
+    expect(compressImage).toHaveBeenCalledWith(expect.any(File), undefined);
   });
 
   it('does not render a remove button when there is no current value', () => {

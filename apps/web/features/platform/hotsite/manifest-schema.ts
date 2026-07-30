@@ -48,6 +48,7 @@ const BrandingStructuralSchema = z.object({
 const SeoStructuralSchema = z.object({
   title: z.string().nullable(),
   description: z.string().nullable(),
+  ogImageUrl: z.string(),
 }) satisfies z.ZodType<HotsiteSeoResponse>;
 
 const LayoutModuleEnvelopeSchema = z.object({

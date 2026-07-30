@@ -15,6 +15,7 @@ import { SlugValidationError } from '../../../../shared/value-objects/slug.vo';
 import { HexColorValidationError } from '../../../../shared/value-objects/hex-color.vo';
 import {
   HotsiteBrandingColorInvalidError,
+  HotsiteConfigConcurrentModificationError,
   HotsiteNotFoundError,
   SlugAlreadyTakenError,
   TenantInactiveError,
@@ -79,6 +80,14 @@ describe('mapPlatformError', () => {
     const err = call(new HotsiteNotFoundError('tenant-1'));
     expect(err.getStatus()).toBe(HttpStatus.NOT_FOUND);
     expect(err.getResponse()).toMatchObject({ code: PlatformErrorCode.HOTSITE_NOT_FOUND });
+  });
+
+  it('maps HotsiteConfigConcurrentModificationError to 409 with code', () => {
+    const err = call(new HotsiteConfigConcurrentModificationError());
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+    expect(err.getResponse()).toMatchObject({
+      code: PlatformErrorCode.HOTSITE_CONCURRENT_MODIFICATION,
+    });
   });
 
   it('maps generic PlatformDomainError to 400, preserving the code and field carried on the instance', () => {

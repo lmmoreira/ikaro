@@ -92,6 +92,7 @@ function usePreviewSupplementaryData(
 function useTmpSignedUrls(
   branding: HotsiteAdminContentResponse['branding'],
   layout: HotsiteAdminContentResponse['layout'],
+  seo: HotsiteAdminContentResponse['seo'],
 ): ReadonlyMap<string, string> {
   const [signedUrls, setSignedUrls] = useState<ReadonlyMap<string, string>>(new Map());
 
@@ -99,29 +100,37 @@ function useTmpSignedUrls(
     // Deduped — the same tmp/ path can appear in more than one field (e.g. a reused image), and
     // fetching a signed URL for it once is enough.
     const tmpPaths = [
-      ...new Set(collectHotsiteImagePaths(branding, layout).filter(isTmpImagePath)),
+      ...new Set(collectHotsiteImagePaths(branding, layout, seo).filter(isTmpImagePath)),
     ];
     if (tmpPaths.length === 0) return;
 
     let cancelled = false;
+    // Each path's signed-URL request is isolated (catch -> null) so one failing path doesn't
+    // discard every other path's already-successful result — Promise.all otherwise rejects the
+    // whole batch on a single failure, silently dropping resolved URLs the "best-effort" comment
+    // below implies should still apply (CodeRabbit review, PR #291).
     Promise.all(
-      tmpPaths.map(async (path) => [path, await generateHotsiteImageReadSignedUrl(path)] as const),
-    )
-      .then((resolved) => {
-        if (cancelled) return;
-        setSignedUrls((prev) => {
-          const next = new Map(prev);
-          for (const [path, res] of resolved) next.set(path, res.signedUrl);
-          return next;
-        });
-      })
-      .catch(() => {
-        // best-effort — an unresolved tmp/ image just shows a broken preview until reconciled
+      tmpPaths.map(async (path) => {
+        try {
+          return [path, await generateHotsiteImageReadSignedUrl(path)] as const;
+        } catch {
+          return null;
+        }
+      }),
+    ).then((resolved) => {
+      if (cancelled) return;
+      setSignedUrls((prev) => {
+        const next = new Map(prev);
+        for (const result of resolved) {
+          if (result) next.set(result[0], result[1].signedUrl);
+        }
+        return next;
       });
+    });
     return () => {
       cancelled = true;
     };
-  }, [branding, layout]);
+  }, [branding, layout, seo]);
 
   return signedUrls;
 }
@@ -137,10 +146,11 @@ export function HotsitePreview({
   // returned, not yet resolved to a public URL (resolution only happens server-side on the next
   // GET) — next/image's `src` requires an absolute URL, so resolve every image field before
   // rendering. Untouched fields already hold a resolved URL and pass through unchanged.
-  const tmpSignedUrls = useTmpSignedUrls(draft.branding, draft.layout);
+  const tmpSignedUrls = useTmpSignedUrls(draft.branding, draft.layout, draft.seo);
   const { branding, layout } = resolveDraftImageUrls(
     draft.branding,
     draft.layout,
+    draft.seo,
     hotsiteImageBaseUrl(),
     tmpSignedUrls,
   );
@@ -265,6 +275,7 @@ export function HotsitePreview({
                       slug={tenantSlug}
                       tenantName={data.tenantName}
                       business={data.business}
+                      logoUrl={branding.logoUrl}
                     />
                   );
                 }

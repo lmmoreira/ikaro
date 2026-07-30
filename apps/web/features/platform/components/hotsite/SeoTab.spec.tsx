@@ -18,7 +18,7 @@ function ControlledSeoTab({
   return <SeoTab value={value} onChange={setValue} />;
 }
 
-const SEO: HotsiteSeoResponse = { title: null, description: null };
+const SEO: HotsiteSeoResponse = { title: null, description: null, ogImageUrl: '' };
 
 describe('SeoTab', () => {
   it('renders both fields', () => {
@@ -64,11 +64,36 @@ describe('SeoTab', () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     renderWithIntl(
-      <SeoTab value={{ title: 'Título existente', description: null }} onChange={onChange} />,
+      <SeoTab
+        value={{ title: 'Título existente', description: null, ogImageUrl: '' }}
+        onChange={onChange}
+      />,
     );
 
     await user.clear(screen.getByTestId('hotsite-seo-title'));
 
-    expect(onChange).toHaveBeenLastCalledWith({ title: null, description: null });
+    expect(onChange).toHaveBeenLastCalledWith({ title: null, description: null, ogImageUrl: '' });
+  });
+
+  it('renders the OG image upload field', () => {
+    renderWithIntl(<SeoTab value={SEO} onChange={vi.fn()} />);
+
+    expect(screen.getByTestId('single-image-upload-input')).toBeInTheDocument();
+  });
+
+  it('threads value.ogImageUrl through to the upload field preview', () => {
+    // Already-absolute (as a resolved GET response would have it) so resolveHotsiteImageDisplayUrl
+    // passes it through unchanged — see LogoUpload.spec.tsx's equivalent test for the same pattern.
+    renderWithIntl(
+      <SeoTab
+        value={{ ...SEO, ogImageUrl: 'https://cdn.example.com/og-image.png' }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('single-image-upload-preview')).toHaveAttribute(
+      'src',
+      'https://cdn.example.com/og-image.png',
+    );
   });
 });

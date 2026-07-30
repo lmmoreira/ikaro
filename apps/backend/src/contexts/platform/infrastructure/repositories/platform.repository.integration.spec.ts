@@ -10,6 +10,7 @@ import { runInNewTransaction } from '../../../../shared/infrastructure/run-in-ne
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { TenantBuilder, HotsiteConfigBuilder } from '../../../../test/builders/platform';
 import { DEFAULT_HOTSITE_BRANDING } from '../../domain/hotsite-config.aggregate';
+import { HotsiteConfigConcurrentModificationError } from '../../domain/errors/platform-domain.error';
 import { Tenant } from '../../domain/tenant.aggregate';
 
 describe('Platform repositories (integration)', () => {
@@ -110,7 +111,7 @@ describe('Platform repositories (integration)', () => {
     expect(initial!.id).toBe(config.id);
     expect(initial!.isPublished).toBe(false);
     expect(initial!.layout).toHaveLength(0);
-    expect(initial!.seo).toEqual({ title: null, description: null });
+    expect(initial!.seo).toEqual({ title: null, description: null, ogImageUrl: '' });
 
     // Admin sets branding, layout modules, and seo title/description
     config.updateContent(
@@ -144,6 +145,7 @@ describe('Platform repositories (integration)', () => {
       {
         title: 'Lavacar Brilho — Agendamento Online',
         description: 'Agende sua lavagem rápido e fácil.',
+        ogImageUrl: '',
       },
       { maxBookingAdvanceDays: 90 },
     );
@@ -157,6 +159,7 @@ describe('Platform repositories (integration)', () => {
     expect(branded!.seo).toEqual({
       title: 'Lavacar Brilho — Agendamento Online',
       description: 'Agende sua lavagem rápido e fácil.',
+      ogImageUrl: '',
     });
   });
 
@@ -201,5 +204,48 @@ describe('Platform repositories (integration)', () => {
     await expect(typeOrmTenantRepo.findByIdForUpdate('any-id')).rejects.toThrow(
       'findByIdForUpdate must be called inside an active transaction',
     );
+  });
+
+  // M18-S03 follow-up (Codex review, PR #291): hotsite_configs had no version guard at all —
+  // two concurrent PATCHes would silently last-write-wins, including deleting a superseded
+  // image that a concurrent request had just started referencing. Mirrors
+  // booking.repository.integration.spec.ts's "throws ...ConcurrentModificationError" test.
+  it('throws HotsiteConfigConcurrentModificationError when saving a stale loaded config', async () => {
+    const tenant = new TenantBuilder()
+      .withName('Lavacar Concorrente')
+      .withSlug('lavacar-concorrente')
+      .build();
+    await tenantRepo.save(tenant);
+
+    const config = new HotsiteConfigBuilder().withTenantId(tenant.id).build();
+    await hotsiteRepo.save(config);
+
+    const copyA = await hotsiteRepo.findByTenantId(tenant.id);
+    const copyB = await hotsiteRepo.findByTenantId(tenant.id);
+    expect(copyA).not.toBeNull();
+    expect(copyB).not.toBeNull();
+
+    copyA!.updateContent(
+      { ...DEFAULT_HOTSITE_BRANDING, primaryColor: '#111111' },
+      [],
+      { title: null, description: null, ogImageUrl: '' },
+      { maxBookingAdvanceDays: 90 },
+    );
+    copyB!.updateContent(
+      { ...DEFAULT_HOTSITE_BRANDING, primaryColor: '#222222' },
+      [],
+      { title: null, description: null, ogImageUrl: '' },
+      { maxBookingAdvanceDays: 90 },
+    );
+
+    await hotsiteRepo.save(copyA!);
+
+    await expect(hotsiteRepo.save(copyB!)).rejects.toBeInstanceOf(
+      HotsiteConfigConcurrentModificationError,
+    );
+
+    // The winning write (A) is the one actually persisted — B's stale write never landed.
+    const current = await hotsiteRepo.findByTenantId(tenant.id);
+    expect(current!.branding.primaryColor).toBe('#111111');
   });
 });

@@ -39,7 +39,7 @@ function makeManifest(): HotsiteManifestResponse {
       buttonStyle: 'filled',
     },
     layout: [],
-    seo: { title: null, description: null },
+    seo: { title: null, description: null, ogImageUrl: '' },
     isPublished: true,
     business: { phone: null, email: null, address: null, socialLinks: null },
     localization: {
@@ -87,7 +87,7 @@ function makeDraft(
         },
       },
     ],
-    seo: { title: null, description: null },
+    seo: { title: null, description: null, ogImageUrl: '' },
     isPublished: false,
     updatedAt: '2026-07-08T00:00:00.000Z',
     ...overrides,
@@ -230,6 +230,52 @@ describe('HotsitePreview', () => {
       expect(mockGenerateReadSignedUrl).toHaveBeenCalledTimes(1);
     });
     expect(mockGenerateReadSignedUrl).toHaveBeenCalledWith(tmpPath);
+  });
+
+  // CodeRabbit review (PR #291): the batch previously used a single Promise.all with no
+  // per-path isolation — one failing signed-URL request discarded every other path's already-
+  // successful result, silently dropping resolved previews that should have kept working.
+  it('still applies a successfully-resolved signed URL when a different tmp/ path in the same batch fails', async () => {
+    mockFetchManifest.mockResolvedValue(makeManifest());
+    const okPath = 'tmp/tenant-a-id/hero/019f420c-e46d-7f42-8524-4621e4642832/ok.png';
+    const failingPath = 'tmp/tenant-a-id/branding/019f420c-e46d-7f42-8524-4621e4642833/fail.png';
+    mockGenerateReadSignedUrl.mockImplementation((path: string) => {
+      if (path === failingPath) return Promise.reject(new Error('signed-url request failed'));
+      return Promise.resolve({
+        signedUrl: 'https://storage.example.com/signed-read?sig=ok',
+        expiresAt: '2026-06-15T12:00:00.000Z',
+      });
+    });
+    const draft = makeDraft({
+      branding: { ...makeManifest().branding, logoUrl: failingPath },
+      layout: [
+        {
+          type: 'HERO',
+          enabled: true,
+          data: {
+            variant: 'centered',
+            title: 'Seu carro impecável',
+            ctaLabel: 'Agendar agora',
+            ctaTarget: 'booking-form',
+            backgroundImageUrl: okPath,
+          },
+        },
+      ],
+    });
+
+    const { container } = renderWithIntl(
+      <HotsitePreview draft={draft} onPublish={vi.fn()} isPublishing={false} />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('hotsite-preview-content')).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(container.querySelector('img')).toHaveAttribute(
+        'src',
+        'https://storage.example.com/signed-read?sig=ok',
+      );
+    });
   });
 
   it('fetches services only when a SERVICE_LIST module is enabled', async () => {

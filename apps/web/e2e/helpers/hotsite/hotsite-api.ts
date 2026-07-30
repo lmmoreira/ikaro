@@ -4,6 +4,7 @@ import type {
   HotsiteBrandingResponse,
   HotsiteManifestResponse,
   HotsiteModuleResponse,
+  HotsiteSeoResponse,
   PublishHotsiteResponse,
   UnpublishHotsiteResponse,
 } from '@ikaro/types';
@@ -70,6 +71,14 @@ function stripBrandingImageUrls(branding: HotsiteBrandingResponse): HotsiteBrand
   return { ...branding, logoUrl: toRawPath(branding.logoUrl) };
 }
 
+// seo.ogImageUrl (M18-S03) joined the same resolved-URL-on-GET/raw-path-on-PATCH contract as
+// branding.logoUrl — must go through the same strip step or a restore whose captured `original`
+// had a resolved ogImageUrl would PATCH back a full URL instead of a raw storage path, and the
+// backend's path-shape validation would reject it.
+function stripSeoImageUrls(seo: HotsiteSeoResponse): HotsiteSeoResponse {
+  return { ...seo, ogImageUrl: toRawPath(seo.ogImageUrl) };
+}
+
 // Full-content snapshot -> PATCH body, used to restore a tenant's hotsite to its pre-test state
 // in afterEach. Hotsite config is shared, tenant-wide state (one row per tenant, not creatable
 // per test the way a service/booking is), so any test that mutates it must put it back —
@@ -80,7 +89,7 @@ export function toUpdateRequest(
   return {
     branding: stripBrandingImageUrls(content.branding),
     layout: content.layout.map(stripModuleImageUrls),
-    seo: content.seo,
+    seo: stripSeoImageUrls(content.seo),
   };
 }
 

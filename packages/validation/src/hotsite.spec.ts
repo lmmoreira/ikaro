@@ -116,4 +116,26 @@ describe('HotsiteSeoSchema', () => {
       expect(issue.params?.code).toBe(SeoErrorCode.DESCRIPTION_TOO_LONG);
     }
   });
+
+  // M18-S03 — ogImageUrl reuses the same path-shape regex as HotsiteBrandingSchema.logoUrl.
+  it('accepts an empty ogImageUrl (clears the share image)', () => {
+    expect(HotsiteSeoSchema.safeParse({ ogImageUrl: '' }).success).toBe(true);
+  });
+
+  it('accepts a permanent hotsite storage path for ogImageUrl', () => {
+    expect(
+      HotsiteSeoSchema.safeParse({ ogImageUrl: 'tenants/t1/hotsite/og-image.png' }).success,
+    ).toBe(true);
+  });
+
+  it('accepts a tmp/ staging path with the hotsite 5-segment shape for ogImageUrl', () => {
+    expect(
+      HotsiteSeoSchema.safeParse({ ogImageUrl: 'tmp/t1/seo-og-image/uuid/file.png' }).success,
+    ).toBe(true);
+  });
+
+  it("rejects a booking-shaped tmp/ path (missing the hotsite 'purpose' segment) for ogImageUrl", () => {
+    const result = HotsiteSeoSchema.safeParse({ ogImageUrl: 'tmp/t1/uuid/file.png' });
+    expect(result.success).toBe(false);
+  });
 });

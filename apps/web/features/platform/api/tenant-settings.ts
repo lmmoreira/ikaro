@@ -1,5 +1,6 @@
 import type {
   HotsiteAdminContentResponse,
+  HotsiteImagePurpose,
   PublishHotsiteResponse,
   UnpublishHotsiteResponse,
   GenerateHotsiteImageSignedUrlResponse,
@@ -51,13 +52,14 @@ export interface UpdateHotsiteRequest {
   readonly seo?: {
     readonly title?: string | null;
     readonly description?: string | null;
+    readonly ogImageUrl?: string;
   };
 }
 
 export interface HotsiteImageSignedUrlRequest {
   readonly fileName: string;
   readonly contentType: ImageContentType;
-  readonly purpose: 'branding' | 'hero' | 'gallery' | 'about' | 'booking-cta' | 'testimonials';
+  readonly purpose: HotsiteImagePurpose;
 }
 
 export interface FeatureBookingPhotoRequest {

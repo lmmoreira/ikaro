@@ -1,6 +1,8 @@
+import type { Metadata } from 'next';
 import { fetchManifest } from '@/features/platform/api.server';
 import { applyBranding } from '@/features/platform/hotsite/apply-branding';
 import { getActiveFontVariables } from '@/features/platform/hotsite/font-config';
+import { buildHotsiteIconsMetadata } from '@/features/platform/hotsite/seo';
 import { getMessages, resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
 import { isValidTimezone, resolveDateFormat } from '@/shared/lib/formatting/locale-validators';
 import { FormattingProvider } from '@/providers/formatting-provider';
@@ -10,6 +12,20 @@ import { InformationCompletionPrompt } from '@/features/customer/components/Info
 interface HotsiteLayoutProps {
   readonly children: React.ReactNode;
   readonly params: Promise<{ readonly slug: string }>;
+}
+
+interface HotsiteLayoutMetadataProps {
+  readonly params: Promise<{ readonly slug: string }>;
+}
+
+// Favicon (M18-S03) — applies to every page nested under app/[slug]/ (main hotsite, /booking,
+// /login). Kept thin per CLAUDE.md (layout.tsx/page.tsx are Playwright E2E only) — the actual
+// logic is buildHotsiteIconsMetadata(), unit-tested in features/platform/hotsite/seo.spec.ts.
+export async function generateMetadata({ params }: HotsiteLayoutMetadataProps): Promise<Metadata> {
+  const { slug } = await params;
+  const manifest = await fetchManifest(slug);
+
+  return buildHotsiteIconsMetadata(manifest);
 }
 
 export default async function HotsiteLayout({

@@ -29,16 +29,17 @@ export class HotsiteContentReader {
     const config = await this.hotsiteConfigRepo.findByTenantId(tenantId);
     if (!config) throw new HotsiteNotFoundError(tenantId);
 
-    const { branding, layout } = this.imageUrlResolver.resolve(
+    const { branding, layout, seo } = this.imageUrlResolver.resolve(
       config.branding,
       config.layout,
+      config.seo,
       (storagePath) => this.storageService.getPublicUrl(storagePath),
     );
 
     return {
       branding,
       layout,
-      seo: config.seo,
+      seo,
       isPublished: config.isPublished,
       updatedAt: config.updatedAt,
     };

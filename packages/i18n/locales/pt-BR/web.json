@@ -702,7 +702,10 @@
         "titleLabel": "Título (máx. {max} caracteres)",
         "titleHint": "Deixe em branco para usar o título gerado automaticamente",
         "descriptionLabel": "Descrição (máx. {max} caracteres)",
-        "descriptionHint": "Deixe em branco para usar a descrição gerada automaticamente"
+        "descriptionHint": "Deixe em branco para usar a descrição gerada automaticamente",
+        "ogImageLabel": "Imagem de compartilhamento",
+        "ogImageFormatHint": "PNG ou JPG. A imagem será recortada automaticamente no formato paisagem (1200x630) para uso em redes sociais e WhatsApp.",
+        "ogImageRemove": "Remover imagem"
       },
       "manifest": {
         "sectionTitle": "Manifesto",

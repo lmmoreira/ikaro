@@ -26,6 +26,7 @@ export class HotsiteConfigEntityBuilder {
   private isPublished = false;
   private branding: HotsiteBranding = { ...DEFAULT_HOTSITE_BRANDING };
   private seo: HotsiteSeo = { ...DEFAULT_HOTSITE_SEO };
+  private version = 1;
   private readonly updatedAt = new Date('2026-01-01T00:00:00Z');
 
   withId(id: string): this {
@@ -53,6 +54,11 @@ export class HotsiteConfigEntityBuilder {
     return this;
   }
 
+  withVersion(version: number): this {
+    this.version = version;
+    return this;
+  }
+
   build(): HotsiteConfigEntity {
     const e = new HotsiteConfigEntity();
     e.id = this.id;
@@ -62,6 +68,7 @@ export class HotsiteConfigEntityBuilder {
     e.seo = this.seo;
     e.isPublished = this.isPublished;
     e.updatedAt = this.updatedAt;
+    e.version = this.version;
     return e;
   }
 }

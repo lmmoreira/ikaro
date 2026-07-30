@@ -1,3 +1,4 @@
+import { deflateSync } from 'node:zlib';
 import { expect, test } from '@playwright/test';
 import type { HotsiteAdminContentResponse } from '@ikaro/types';
 import { loginAsStaff } from './helpers/auth';
@@ -39,6 +40,54 @@ function layoutToggle(type: string) {
 function configureButton(type: string) {
   return `[data-testid="layout-row-configure"][data-module-type="${type}"]`;
 }
+
+function crc32(buf: Buffer): number {
+  let crc = ~0;
+  for (const byte of buf) {
+    crc ^= byte;
+    for (let i = 0; i < 8; i++) {
+      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
+  }
+  return ~crc >>> 0;
+}
+
+function pngChunk(type: string, data: Buffer): Buffer {
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(data.length, 0);
+  const typeAndData = Buffer.concat([Buffer.from(type, 'ascii'), data]);
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(crc32(typeAndData), 0);
+  return Buffer.concat([length, typeAndData, crc]);
+}
+
+// A real, decodable, solid-color PNG at the given size — unlike a plain-text fake buffer, the
+// browser can actually render this as an <img> (a browser-undecodable blob renders at zero
+// dimensions, which Playwright reports as "hidden" even though the element/attributes exist).
+// Needs real dimensions, not just a 1x1 pixel: compressImage()'s crop-to-ratio guarantee
+// (branding 1:1, seo-og-image 1200/630 — M18-S03) now rejects sources too small to represent the
+// required ratio, and a 1x1 source can't represent 1200/630 in whole pixels.
+function makeSolidPng(width: number, height: number): Buffer {
+  const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  const ihdrData = Buffer.alloc(13);
+  ihdrData.writeUInt32BE(width, 0);
+  ihdrData.writeUInt32BE(height, 4);
+  ihdrData[8] = 8; // bit depth
+  ihdrData[9] = 2; // color type: truecolor
+  const ihdr = pngChunk('IHDR', ihdrData);
+
+  const row = Buffer.alloc(1 + width * 3); // leading filter-type byte (0) + RGB triplets
+  for (let x = 0; x < width; x++) row.fill(200, 1 + x * 3, 1 + x * 3 + 3);
+  const raw = Buffer.concat(Array.from({ length: height }, () => row));
+  const idat = pngChunk('IDAT', deflateSync(raw));
+
+  const iend = pngChunk('IEND', Buffer.alloc(0));
+  return Buffer.concat([signature, ihdr, idat, iend]);
+}
+
+// 120x63 — exactly the 1200/630 (seo-og-image) ratio scaled down by 10x, and large enough to also
+// crop cleanly to 1:1 (branding) with no rounding-tolerance concerns either way.
+const CROPPABLE_PNG_BUFFER = makeSolidPng(120, 63);
 
 // .serial: every test here mutates autospa-premium's shared hotsite-config/settings rows and
 // restores them in afterEach — fullyParallel doesn't stop Playwright from running same-describe
@@ -213,6 +262,79 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.getByTestId('hotsite-seo-title').fill('a'.repeat(65));
 
     await expect(page.getByTestId('hotsite-seo-title')).toHaveValue('a'.repeat(60));
+  });
+
+  // M18-S03 — seo.ogImageUrl is a dedicated share-image field, decoupled from branding.logoUrl.
+  test('SEO tab: uploading a share image, publishing, and reloading persists it, and the public hotsite resolves it as og:image (M18-S03)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'SEO' }).click();
+
+    await page.getByTestId('single-image-upload-input').setInputFiles({
+      name: 'share.png',
+      mimeType: 'image/png',
+      buffer: CROPPABLE_PNG_BUFFER,
+    });
+    await expect(page.getByTestId('single-image-upload-preview')).toBeVisible();
+
+    await page.getByTestId('hotsite-publish-desktop').click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+
+    await page.reload();
+    await page.getByRole('tab', { name: 'SEO' }).click();
+    await expect(page.getByTestId('single-image-upload-preview')).toBeVisible();
+
+    await page.goto(`/${MANAGER_TENANT_SLUG}`);
+    await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+      'content',
+      /^https?:\/\//,
+    );
+  });
+
+  // M18-S03 — branding.logoUrl now renders in the topbar, footer, and browser tab favicon (in
+  // addition to the pre-existing login-page badge), with an initial-letter fallback when unset.
+  test('Branding tab: uploading a logo, publishing, and reloading renders it in the public hotsite topbar, footer, and favicon (M18-S03)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+
+    await page.getByTestId('single-image-upload-input').setInputFiles({
+      name: 'logo.png',
+      mimeType: 'image/png',
+      buffer: CROPPABLE_PNG_BUFFER,
+    });
+    await expect(page.getByTestId('single-image-upload-preview')).toBeVisible();
+
+    // FOOTER isn't in any of the seed layouts (HERO/SERVICE_LIST/BOOKING_CTA only) — enable it
+    // so <footer> actually renders on the public page for the assertion below. HotsiteEditor
+    // keeps one shared `draft` across tabs, so the logo just uploaded on Branding survives the
+    // switch to Layout and back.
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await page.locator(layoutToggle('FOOTER')).click();
+
+    await page.getByTestId('hotsite-publish-desktop').click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+
+    await page.goto(`/${MANAGER_TENANT_SLUG}`);
+    await expect(page.locator('[data-testid="hotsite-auth-bar"] img')).toBeVisible();
+    await expect(page.locator('footer img')).toBeVisible();
+    await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', /.+/);
+  });
+
+  // Default seed state has no logo uploaded (autospa-premium's branding.logoUrl is '') — this
+  // test relies on that default rather than explicitly clearing it, since afterEach always
+  // restores `original` between tests in this serial block.
+  test('Public hotsite: with no logo uploaded, the topbar and footer show the initial-letter fallback and no favicon is set (M18-S03)', async ({
+    page,
+  }) => {
+    expect(original.branding.logoUrl).toBe('');
+
+    await page.goto(`/${MANAGER_TENANT_SLUG}`);
+
+    await expect(page.locator('[data-testid="hotsite-auth-bar"] img')).toHaveCount(0);
+    await expect(page.locator('footer img')).toHaveCount(0);
+    await expect(page.locator('link[rel="icon"]')).toHaveCount(0);
   });
 
   // First E2E coverage of the Manifesto tab (M18-S02). Reads the textarea's actual rendered

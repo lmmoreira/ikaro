@@ -1010,10 +1010,11 @@ Returns:
       - [x] ABOUT (markdown body + optional image, configurable position) — toggle on/off
       - [x] CONTACT (address/phone/email/WhatsApp/map, each independently toggleable) — toggle on/off
 
-      **Section C: SEO** (M12-S09)
+      **Section C: SEO** (M12-S09; share image added M18-S03)
       - Title (text input, max 60 chars) — overrides the generated `<title>` for search results and social sharing
       - Description (textarea, max 158 chars) — overrides the generated meta description
       - Both optional; left blank (`null`) → hotsite falls back to a generated title/description based on the tenant's name and city/state
+      - Share image (upload) — a dedicated landscape image for the Open Graph card shown when the hotsite link is shared on social media/WhatsApp; auto-cropped to 1200×630 on upload. Separate from the Branding tab's Logo — the logo is a small/square brand mark (login page, topbar, footer), not sized for a share card. Optional; left blank → no share image is included (no fallback to the logo)
 
       **Section D: Manifesto** (M18-S02) — always the last tab
       - A single JSON textarea showing the exact `{ branding, layout, seo }` object Sections A–C together produce and Publish sends — a direct-edit escape hatch for admins who find raw JSON faster than the structured UI, not a separate config surface

@@ -9,6 +9,7 @@ import {
   HotsiteBranding,
   HotsiteConfig,
   HotsiteModule,
+  HotsiteSeo,
 } from './hotsite-config.aggregate';
 
 const VALID_LAYOUT: HotsiteModule[] = [
@@ -41,6 +42,30 @@ describe('HotsiteConfig', () => {
       expect(config.id).toMatch(/^[0-9a-f-]{36}$/);
       expect(config.branding).toEqual(DEFAULT_HOTSITE_BRANDING);
       expect(config.seo).toEqual(DEFAULT_HOTSITE_SEO);
+    });
+  });
+
+  describe('reconstitute()', () => {
+    // M18-S03: existing rows persisted before ogImageUrl existed store a `seo` jsonb blob with no
+    // ogImageUrl key at all — reading one back must not surface `undefined` where the type says
+    // `string` (that would crash apps/web's extractRawStoragePath, which calls .indexOf() on it).
+    it('defaults ogImageUrl to an empty string when reading a pre-existing row missing the key', () => {
+      // Deliberately violates the HotsiteSeo type — this simulates a jsonb blob persisted before
+      // ogImageUrl existed, which genuinely lacks the key at the JS runtime level despite the type
+      // saying it's always a string. No builder can construct this without the same escape hatch:
+      // a real `withSeo(seo: HotsiteSeo)` setter would itself require the field to be present.
+      const legacySeo = { title: null, description: null } as unknown as HotsiteSeo;
+      const config = HotsiteConfig.reconstitute({
+        id: '01234567-0000-7000-8000-000000000099',
+        tenantId: '01234567-0000-7000-8000-000000000001',
+        branding: DEFAULT_HOTSITE_BRANDING,
+        layout: VALID_LAYOUT,
+        seo: legacySeo,
+        isPublished: false,
+        updatedAt: new Date(),
+      });
+
+      expect(config.seo.ogImageUrl).toBe('');
     });
   });
 
@@ -156,12 +181,14 @@ describe('HotsiteConfig', () => {
         {
           title: 'Lavacar Estrela — Agendamento Online',
           description: 'Agende sua lavagem rápido e fácil.',
+          ogImageUrl: '',
         },
         CTX,
       );
       expect(config.seo).toEqual({
         title: 'Lavacar Estrela — Agendamento Online',
         description: 'Agende sua lavagem rápido e fácil.',
+        ogImageUrl: '',
       });
     });
 
@@ -172,7 +199,7 @@ describe('HotsiteConfig', () => {
         config.updateContent(
           DEFAULT_HOTSITE_BRANDING,
           VALID_LAYOUT,
-          { title, description: null },
+          { title, description: null, ogImageUrl: '' },
           CTX,
         ),
       ).toThrow(PlatformDomainError);
@@ -188,6 +215,7 @@ describe('HotsiteConfig', () => {
           {
             title: null,
             description,
+            ogImageUrl: '',
           },
           CTX,
         ),
@@ -200,7 +228,7 @@ describe('HotsiteConfig', () => {
       config.updateContent(
         DEFAULT_HOTSITE_BRANDING,
         VALID_LAYOUT,
-        { title, description: null },
+        { title, description: null, ogImageUrl: '' },
         CTX,
       );
       expect(config.seo.title).toBe(title);
@@ -212,7 +240,7 @@ describe('HotsiteConfig', () => {
       config.updateContent(
         DEFAULT_HOTSITE_BRANDING,
         VALID_LAYOUT,
-        { title: null, description },
+        { title: null, description, ogImageUrl: '' },
         CTX,
       );
       expect(config.seo.description).toBe(description);
@@ -230,7 +258,7 @@ describe('HotsiteConfig', () => {
         tenantId: '01234567-0000-7000-8000-000000000001',
         branding: DEFAULT_HOTSITE_BRANDING,
         layout: VALID_LAYOUT,
-        seo: { title: legacyTitle, description: null },
+        seo: { title: legacyTitle, description: null, ogImageUrl: '' },
         isPublished: false,
         updatedAt: new Date(),
       });
@@ -242,6 +270,7 @@ describe('HotsiteConfig', () => {
           {
             title: legacyTitle,
             description: null,
+            ogImageUrl: '',
           },
           CTX,
         ),
@@ -255,7 +284,7 @@ describe('HotsiteConfig', () => {
         tenantId: '01234567-0000-7000-8000-000000000001',
         branding: DEFAULT_HOTSITE_BRANDING,
         layout: VALID_LAYOUT,
-        seo: { title: 'a'.repeat(65), description: null },
+        seo: { title: 'a'.repeat(65), description: null, ogImageUrl: '' },
         isPublished: false,
         updatedAt: new Date(),
       });
@@ -267,10 +296,40 @@ describe('HotsiteConfig', () => {
           {
             title: 'a'.repeat(61),
             description: null,
+            ogImageUrl: '',
           },
           CTX,
         ),
       ).toThrow(PlatformDomainError);
+    });
+
+    // Regression (M18-S03): seoEquals() must compare ogImageUrl too, or updateContent()'s
+    // "skip re-validating/storing seo when unchanged" optimization would also skip *storing* a
+    // seo update where only ogImageUrl actually changed (title/description identical) — silently
+    // dropping the new value.
+    it('updates seo.ogImageUrl even when title and description are unchanged', () => {
+      const config = HotsiteConfig.reconstitute({
+        id: '01234567-0000-7000-8000-000000000099',
+        tenantId: '01234567-0000-7000-8000-000000000001',
+        branding: DEFAULT_HOTSITE_BRANDING,
+        layout: VALID_LAYOUT,
+        seo: { title: 'Título', description: null, ogImageUrl: '' },
+        isPublished: false,
+        updatedAt: new Date(),
+      });
+
+      config.updateContent(
+        DEFAULT_HOTSITE_BRANDING,
+        VALID_LAYOUT,
+        {
+          title: 'Título',
+          description: null,
+          ogImageUrl: 'tenants/tenant-1/hotsite/seo-og-image/share.png',
+        },
+        CTX,
+      );
+
+      expect(config.seo.ogImageUrl).toBe('tenants/tenant-1/hotsite/seo-og-image/share.png');
     });
 
     describe('BOOKING_CTA carouselDays vs. maxBookingAdvanceDays', () => {

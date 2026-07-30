@@ -55,6 +55,16 @@ export class HotsiteImageNotUploadedError extends PlatformDomainError {
   }
 }
 
+export class HotsiteConfigConcurrentModificationError extends PlatformDomainError {
+  constructor() {
+    super(
+      'This hotsite configuration was changed by another request. Reload it and try again.',
+      PlatformErrorCode.HOTSITE_CONCURRENT_MODIFICATION,
+    );
+    this.name = 'HotsiteConfigConcurrentModificationError';
+  }
+}
+
 /** Thrown from both Tenant.create() and Tenant.updateName() — reused across 2 call sites. */
 export class TenantNameRequiredError extends PlatformDomainError {
   constructor() {

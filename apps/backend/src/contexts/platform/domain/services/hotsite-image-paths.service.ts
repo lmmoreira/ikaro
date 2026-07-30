@@ -3,14 +3,16 @@ import {
   HotsiteBranding,
   HotsiteModule,
   HotsiteModuleData,
+  HotsiteSeo,
 } from '../hotsite-config.aggregate';
 
 type ImagePathTransform = (path: string) => string;
 
 export class HotsiteImagePathsService {
-  collect(branding: HotsiteBranding, layout: HotsiteModule[]): string[] {
+  collect(branding: HotsiteBranding, layout: HotsiteModule[], seo: HotsiteSeo): string[] {
     const paths: string[] = [];
     this.pushIfPath(paths, branding.logoUrl);
+    this.pushIfPath(paths, seo.ogImageUrl);
 
     for (const module of layout) {
       this.collectFromModule(paths, module);
@@ -29,11 +31,13 @@ export class HotsiteImagePathsService {
   mapPaths(
     branding: HotsiteBranding,
     layout: HotsiteModule[],
+    seo: HotsiteSeo,
     transform: ImagePathTransform,
-  ): { branding: HotsiteBranding; layout: HotsiteModule[] } {
+  ): { branding: HotsiteBranding; layout: HotsiteModule[]; seo: HotsiteSeo } {
     return {
       branding: { ...branding, logoUrl: transform(branding.logoUrl) },
       layout: layout.map((module) => this.mapModule(module, transform)),
+      seo: { ...seo, ogImageUrl: transform(seo.ogImageUrl) },
     };
   }
 
