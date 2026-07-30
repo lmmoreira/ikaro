@@ -24,6 +24,7 @@ describe('TypeOrmLoyaltyBalanceRepository', () => {
           provide: getRepositoryToken(LoyaltyBalanceEntity),
           useValue: {
             findOne: jest.fn(),
+            find: jest.fn(),
             upsert: jest.fn(),
           },
         },
@@ -54,6 +55,37 @@ describe('TypeOrmLoyaltyBalanceRepository', () => {
 
       expect(result).toBeInstanceOf(LoyaltyBalance);
       expect(result!.currentPoints).toBe(50);
+    });
+  });
+
+  describe('findManyByCustomers()', () => {
+    it('returns an empty array without querying when customerIds is empty', async () => {
+      const result = await repo.findManyByCustomers(TENANT_ID, []);
+
+      expect(result).toEqual([]);
+      expect(ormRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('maps each found entity to a LoyaltyBalance domain object', async () => {
+      const customerId2 = '00000000-0000-7000-8000-000000000003';
+      ormRepo.find.mockResolvedValue([
+        new LoyaltyBalanceEntityBuilder()
+          .withTenantId(TENANT_ID)
+          .withCustomerId(CUSTOMER_ID)
+          .withCurrentPoints(50)
+          .build(),
+        new LoyaltyBalanceEntityBuilder()
+          .withTenantId(TENANT_ID)
+          .withCustomerId(customerId2)
+          .withCurrentPoints(10)
+          .build(),
+      ]);
+
+      const result = await repo.findManyByCustomers(TENANT_ID, [CUSTOMER_ID, customerId2]);
+
+      expect(result).toHaveLength(2);
+      expect(result.every((b) => b instanceof LoyaltyBalance)).toBe(true);
+      expect(result.map((b) => b.currentPoints)).toEqual([50, 10]);
     });
   });
 

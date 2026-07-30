@@ -216,11 +216,15 @@ describe('CustomersController (component)', () => {
       ],
       total: 1,
     };
-    const mockBalance = { currentPoints: 50, nextExpiryDate: null, nextExpiryPoints: null };
+    const mockBalances = [
+      { customerId: '20000000-0000-4000-8000-000000000001', currentPoints: 50 },
+    ];
 
-    it('returns 200 with search results for STAFF JWT', async () => {
+    it('returns 200 with search results for STAFF JWT, resolving balances in one batch call', async () => {
       setupActiveGuardMock(httpService);
-      backendHttpService.get.mockResolvedValueOnce(backendItems).mockResolvedValueOnce(mockBalance);
+      backendHttpService.get
+        .mockResolvedValueOnce(backendItems)
+        .mockResolvedValueOnce(mockBalances);
       const token = makeStaffJwt(jwtService);
 
       const res = await request(app.getHttpServer())
@@ -231,11 +235,17 @@ describe('CustomersController (component)', () => {
       expect(res.status).toBe(200);
       expect(res.body.total).toBe(1);
       expect(res.body.items[0].currentPoints).toBe(50);
+      expect(backendHttpService.get).toHaveBeenCalledTimes(2);
+      expect(backendHttpService.get).toHaveBeenCalledWith('/loyalty/balances', {
+        customerIds: '20000000-0000-4000-8000-000000000001',
+      });
     });
 
     it('returns 200 with a short non-empty search for STAFF JWT', async () => {
       setupActiveGuardMock(httpService);
-      backendHttpService.get.mockResolvedValueOnce(backendItems).mockResolvedValueOnce(mockBalance);
+      backendHttpService.get
+        .mockResolvedValueOnce(backendItems)
+        .mockResolvedValueOnce(mockBalances);
       const token = makeStaffJwt(jwtService);
 
       const res = await request(app.getHttpServer())

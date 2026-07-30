@@ -53,6 +53,27 @@ X-Correlation-ID: {{correlationId}}
 
 ###
 
+### GET /loyalty/balances — admin batch-views balances for many customers in one call
+# Used by the BFF's customer-search screen to avoid an N+1 fan-out (TD31 PR5).
+GET {{baseUrl}}/loyalty/balances?customerIds={{customerId}},00000000-0000-4000-8000-000000000099
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: {{correlationId}}
+
+###
+
+### 400 — GET /loyalty/balances missing customerIds query param
+GET {{baseUrl}}/loyalty/balances
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: {{correlationId}}
+
+###
+
 ### GET /customers/:customerId/loyalty/entries — admin views customer earning history
 GET {{baseUrl}}/customers/{{customerId}}/loyalty/entries?page=1&limit=20
 X-Tenant-ID: {{tenantId}}

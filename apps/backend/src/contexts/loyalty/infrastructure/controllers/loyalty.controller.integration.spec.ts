@@ -438,6 +438,86 @@ describe('LoyaltyController (integration)', () => {
     });
   });
 
+  describe('GET /loyalty/balances (admin batch)', () => {
+    const CUSTOMER_2 = 'aaaaaaaa-0000-7000-8000-000000000002';
+
+    it('returns 403 without actor headers (StaffOrManagerRoleGuard has no separate unauthenticated case)', async () => {
+      const res = await request(app.getHttpServer()).get(
+        `/loyalty/balances?customerIds=${CUSTOMER_ID}`,
+      );
+      expect(res.status).toBe(403);
+    });
+
+    it('returns 403 when called with CUSTOMER role', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/loyalty/balances?customerIds=${CUSTOMER_ID}`)
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'));
+      expect(res.status).toBe(403);
+    });
+
+    it('returns 400 when customerIds query param is missing', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/loyalty/balances')
+        .set(actorHeaders(tenantId, STAFF_ID, 'MANAGER'));
+      expect(res.status).toBe(400);
+    });
+
+    it('returns currentPoints for each requested customer, defaulting an unknown customer to 0', async () => {
+      await ds
+        .getRepository(LoyaltyBalanceEntity)
+        .save(
+          new LoyaltyBalanceEntityBuilder()
+            .withTenantId(tenantId)
+            .withCustomerId(CUSTOMER_ID)
+            .withCurrentPoints(65)
+            .build(),
+        );
+
+      const { body } = await request(app.getHttpServer())
+        .get(`/loyalty/balances?customerIds=${CUSTOMER_ID},${CUSTOMER_2}`)
+        .set(actorHeaders(tenantId, STAFF_ID, 'MANAGER'))
+        .expect(200);
+
+      expect(body).toEqual(
+        expect.arrayContaining([
+          { customerId: CUSTOMER_ID, currentPoints: 65 },
+          { customerId: CUSTOMER_2, currentPoints: 0 },
+        ]),
+      );
+    });
+
+    it('tenant isolation: STAFF from Tenant B cannot see Tenant A balances', async () => {
+      const { body: b } = await request(app.getHttpServer())
+        .post('/internal/tenants')
+        .set('X-Platform-Admin-Key', TEST_KEY)
+        .send({
+          name: 'Loyalty Tenant D',
+          slug: 'loyalty-tenant-d',
+          adminEmail: 'd@loyalty.test',
+          country_code: 'BR',
+        })
+        .expect(201);
+      const tenantDId = b.tenantId as string;
+
+      await ds
+        .getRepository(LoyaltyBalanceEntity)
+        .save(
+          new LoyaltyBalanceEntityBuilder()
+            .withTenantId(tenantId)
+            .withCustomerId(CUSTOMER_ID)
+            .withCurrentPoints(999)
+            .build(),
+        );
+
+      const { body } = await request(app.getHttpServer())
+        .get(`/loyalty/balances?customerIds=${CUSTOMER_ID}`)
+        .set(actorHeaders(tenantDId, STAFF_ID, 'MANAGER'))
+        .expect(200);
+
+      expect(body).toEqual([{ customerId: CUSTOMER_ID, currentPoints: 0 }]);
+    });
+  });
+
   describe('GET /customers/:customerId/loyalty/entries (admin)', () => {
     it('returns entries for specified customer', async () => {
       await ds

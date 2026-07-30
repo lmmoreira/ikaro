@@ -9,9 +9,11 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
+import { CanonicalParseUUIDPipe, throwProblemDetail, ZodValidationPipe } from '@ikaro/nestjs-http';
+import { GenericErrorCode } from '@ikaro/types';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
+import { parseCommaSeparatedIds } from '../../../../shared/utils/parse-comma-separated-ids';
 import {
   CrossTenantQueryDto,
   CrossTenantQuerySchema,
@@ -22,6 +24,10 @@ import {
   GetLoyaltyBalanceUseCase,
   GetLoyaltyBalanceUseCaseResult,
 } from '../../application/use-cases/get-loyalty-balance/get-loyalty-balance.use-case';
+import {
+  GetLoyaltyBalancesUseCase,
+  LoyaltyBalanceItemResult,
+} from '../../application/use-cases/get-loyalty-balances/get-loyalty-balances.use-case';
 import { GetOwnLoyaltyBalanceUseCase } from '../../application/use-cases/get-own-loyalty-balance/get-own-loyalty-balance.use-case';
 import {
   GetLoyaltyEntriesUseCase,
@@ -49,6 +55,7 @@ export type EnrichedLoyaltyBalanceResult = GetLoyaltyBalanceUseCaseResult & {
 export class LoyaltyController {
   constructor(
     private readonly getLoyaltyBalance: GetLoyaltyBalanceUseCase,
+    private readonly getLoyaltyBalances: GetLoyaltyBalancesUseCase,
     private readonly getOwnLoyaltyBalance: GetOwnLoyaltyBalanceUseCase,
     private readonly getLoyaltyEntries: GetLoyaltyEntriesUseCase,
     private readonly getLoyaltyRedemptions: GetLoyaltyRedemptionsUseCase,
@@ -132,6 +139,39 @@ export class LoyaltyController {
       .execute({ tenantId, customerId })
       .catch(mapLoyaltyError);
     return { ...balance, conversionRate: settings.loyalty.pointsPerCurrencyUnit };
+  }
+
+  // Batch lookup — used by the BFF to resolve loyalty balances for many customers in one
+  // call (avoids an N+1 fan-out one-call-per-customer would otherwise require). Same
+  // tenant-scoping and role guard as getBalanceAdmin() above — this is not a cross-tenant
+  // or pre-auth read, just the same query batched, so it stays a normal guarded route
+  // rather than an /internal/* one.
+  @Get('loyalty/balances')
+  @UseGuards(StaffOrManagerRoleGuard)
+  async getBalancesAdmin(
+    @Query('customerIds') customerIds: string | string[] | undefined,
+  ): Promise<LoyaltyBalanceItemResult[]> {
+    if (typeof customerIds !== 'string' || !customerIds.trim()) {
+      throw throwProblemDetail(
+        HttpStatus.BAD_REQUEST,
+        GenericErrorCode.FIELD_REQUIRED,
+        'customerIds query parameter is required',
+        'customerIds',
+      );
+    }
+    const ids = parseCommaSeparatedIds(customerIds);
+    if (ids.length === 0) {
+      throw throwProblemDetail(
+        HttpStatus.BAD_REQUEST,
+        GenericErrorCode.FIELD_REQUIRED,
+        'customerIds query parameter is required',
+        'customerIds',
+      );
+    }
+    return this.getLoyaltyBalances
+      .execute({ tenantId: this.tenantContext.tenantId, customerIds: ids })
+      .then((result) => result.items)
+      .catch(mapLoyaltyError);
   }
 
   @Get('customers/:customerId/loyalty/entries')

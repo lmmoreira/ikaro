@@ -81,6 +81,37 @@ describe('TypeOrmLoyaltyBalanceRepository (integration)', () => {
     });
   });
 
+  describe('findManyByCustomers()', () => {
+    it('returns balances only for the requested customerIds within one tenant', async () => {
+      const b1 = LoyaltyBalance.create(TENANT_A, CUSTOMER_1);
+      b1.increment(10);
+      const b2 = LoyaltyBalance.create(TENANT_A, CUSTOMER_2);
+      b2.increment(40);
+      await repo.upsert(b1);
+      await repo.upsert(b2);
+
+      const result = await repo.findManyByCustomers(TENANT_A, [CUSTOMER_1, CUSTOMER_2]);
+
+      expect(result).toHaveLength(2);
+      expect(result.map((b) => b.currentPoints).sort()).toEqual([10, 40]);
+    });
+
+    it('returns an empty array when customerIds is empty', async () => {
+      const result = await repo.findManyByCustomers(TENANT_A, []);
+      expect(result).toEqual([]);
+    });
+
+    it('tenant isolation: does not return a balance belonging to another tenant', async () => {
+      const balance = LoyaltyBalance.create(TENANT_B, CUSTOMER_1);
+      balance.increment(999);
+      await repo.upsert(balance);
+
+      const result = await repo.findManyByCustomers(TENANT_A, [CUSTOMER_1]);
+
+      expect(result).toEqual([]);
+    });
+  });
+
   describe('tenant isolation', () => {
     it('findByCustomer with Tenant B id returns null for Tenant A customer', async () => {
       const balance = LoyaltyBalance.create(TENANT_A, CUSTOMER_1);
