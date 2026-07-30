@@ -89,10 +89,12 @@ function makeSolidPng(width: number, height: number): Buffer {
 // crop cleanly to 1:1 (branding) with no rounding-tolerance concerns either way.
 const CROPPABLE_PNG_BUFFER = makeSolidPng(120, 63);
 
-// 900x460 — the 'hero' purpose applies no crop ratio, but M18-S04's minimum-stored-height guard
-// (450px, checked post-compression) still applies; a source under 1600px in both dimensions
-// passes through compressImage unscaled, so 460 clears the 450 floor with margin.
-const HERO_PNG_BUFFER = makeSolidPng(900, 460);
+// 1604x494 (≈3.25:1) — the actual reference banner dimensions from /story-discovery, not an
+// arbitrary ratio. The 'hero' purpose applies no crop ratio, but M18-S04's minimum-stored-height
+// guard (450px, checked post-compression) still applies — this exact ratio is the one the 450px
+// threshold was derived against (compresses to ≈493px, clearing the floor with only a small
+// margin), so using it here actually exercises that coupling instead of a ratio far from it.
+const HERO_PNG_BUFFER = makeSolidPng(1604, 494);
 
 // .serial: every test here mutates autospa-premium's shared hotsite-config/settings rows and
 // restores them in afterEach — fullyParallel doesn't stop Playwright from running same-describe

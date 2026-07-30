@@ -246,6 +246,21 @@ describe('HeroModule', () => {
       expect(imgWrapper?.className).not.toMatch(/\bmin-h-\[\d+vh\]/);
     });
 
+    // Cross-tool review finding (Codex, PR #294): the earlier vh-guard assertions above only
+    // checked the image wrapper, missing the *outer* left-aligned section — which still had
+    // min-h-screen sm:min-h-[60vh] at the time. Asserted separately so this specific element is
+    // never missed again.
+    it("left-aligned variant's outer section uses a vw-relative min-height, never min-h-screen or any vh unit", () => {
+      const { container } = render(
+        <HeroModule data={makeData({ variant: 'left-aligned' })} slug="tenant" />,
+      );
+
+      const section = container.querySelector('[data-variant="left-aligned"]');
+      expect(section?.className).toContain('min-h-[31.25vw]');
+      expect(section?.className).not.toContain('min-h-screen');
+      expect(section?.className).not.toMatch(/\bmin-h-\[\d+vh\]/);
+    });
+
     it.each([
       ['left', 'left center'],
       ['center', 'center center'],

@@ -129,7 +129,7 @@ export function HeroModule({ data, slug: _, tenantBrand }: HeroModuleProps): Rea
   if (data.variant === 'centered') {
     return (
       // Both breakpoints use a vw-relative (container-width-relative) min-height floor, never a
-      // vh (viewport-height-relative) one — vh is pinned to screen height, so as the browser
+      // vh (viewport-height-relative) one — vh is pinned to the browser's viewport height, so as the
       // window is narrowed (without the screen itself changing height), a vh-based floor stays
       // fixed while the container's width shrinks, making the box progressively more portrait
       // and cropping progressively worse at every width in between, not just at the mobile
@@ -167,9 +167,15 @@ export function HeroModule({ data, slug: _, tenantBrand }: HeroModuleProps): Rea
     (rightPanel !== 'brand-card' || !!tenantBrand);
 
   return (
+    // A single vw-relative floor at every breakpoint, not min-h-screen/sm:min-h-[60vh] (both
+    // vh-relative — same category of bug as the image-sizing ones above, flagged in cross-tool
+    // review: this wrapper's height stays pinned to the browser's viewport height as its window is
+    // narrowed, rather than scaling with its own width). This wrapper only contains normal-flow
+    // content (the text column + image panel grid), not a cropped image directly, so a single
+    // modest floor is enough — real content still determines the actual height above it.
     <section
       data-variant="left-aligned"
-      className="relative flex min-h-screen items-center sm:min-h-[60vh]"
+      className="relative flex min-h-[31.25vw] items-center"
       style={{ backgroundColor: 'var(--ba-hero-bg)' }}
     >
       <div className="w-full max-w-7xl px-6 py-16 mx-auto">
