@@ -1,6 +1,7 @@
 import { Controller, Get, HttpStatus, Param, Query } from '@nestjs/common';
 import { CanonicalParseUUIDPipe, throwProblemDetail } from '@ikaro/nestjs-http';
 import { GenericErrorCode } from '@ikaro/types';
+import { parseCommaSeparatedIds } from '../../../../shared/utils/parse-comma-separated-ids';
 import {
   GetTenantByIdUseCase,
   GetTenantByIdUseCaseResult,
@@ -51,10 +52,7 @@ export class InternalTenantReadController {
         'ids',
       );
     }
-    const tenantIds = ids
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const tenantIds = parseCommaSeparatedIds(ids);
     if (tenantIds.length === 0) {
       throw throwProblemDetail(
         HttpStatus.BAD_REQUEST,

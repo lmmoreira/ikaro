@@ -1,10 +1,12 @@
 import { Controller, Get, HttpStatus, Query } from '@nestjs/common';
 import { throwProblemDetail } from '@ikaro/nestjs-http';
 import { GenericErrorCode } from '@ikaro/types';
+import { parseCommaSeparatedIds } from '../../../../shared/utils/parse-comma-separated-ids';
 import {
   GetLoyaltyBalancesBatchUseCase,
   LoyaltyBalanceBatchItemResult,
 } from '../../application/use-cases/get-loyalty-balances-batch/get-loyalty-balances-batch.use-case';
+import { mapLoyaltyError } from '../http/loyalty-error.mapper';
 
 @Controller('internal/loyalty')
 export class InternalLoyaltyReadController {
@@ -35,10 +37,7 @@ export class InternalLoyaltyReadController {
         'customerIds',
       );
     }
-    const ids = customerIds
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const ids = parseCommaSeparatedIds(customerIds);
     if (ids.length === 0) {
       throw throwProblemDetail(
         HttpStatus.BAD_REQUEST,
@@ -50,6 +49,7 @@ export class InternalLoyaltyReadController {
 
     return this.getLoyaltyBalancesBatch
       .execute({ tenantId, customerIds: ids })
-      .then((result) => result.items);
+      .then((result) => result.items)
+      .catch(mapLoyaltyError);
   }
 }
