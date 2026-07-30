@@ -1,7 +1,6 @@
 import { HttpException } from '@nestjs/common';
 import { BffErrorCode, CustomerProfileResponse } from '@ikaro/types';
 import { makeBackendHttp } from '../../test/backend-http.mock';
-import { CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
 import { CustomersController } from './customers.controller';
 
 const mockProfile: CustomerProfileResponse = {
@@ -30,16 +29,6 @@ const TENANT_ID_B = '10000000-0000-4000-8000-000000000002';
 const CUSTOMER_ID = '20000000-0000-4000-8000-000000000001';
 const CUSTOMER_ID_B = '20000000-0000-4000-8000-000000000002';
 
-const mockUser: CurrentUserPayload = {
-  sub: 'staff-1',
-  tenantId: TENANT_ID,
-  tenantSlug: 'lavacar-bh',
-  tenantName: 'Lavacar BH',
-  userName: 'Staff One',
-  role: 'STAFF',
-  locale: 'pt-BR',
-};
-
 describe('CustomersController', () => {
   afterEach(() => jest.resetAllMocks());
 
@@ -52,11 +41,10 @@ describe('CustomersController', () => {
       const backendHttp = makeBackendHttp({ get: getMock });
       const controller = new CustomersController(backendHttp);
 
-      const result = await controller.searchCustomers({ search: 'joao1', limit: 20 }, mockUser);
+      const result = await controller.searchCustomers({ search: 'joao1', limit: 20 });
 
       expect(getMock).toHaveBeenCalledWith('/customers?limit=20&search=joao1');
-      expect(getMock).toHaveBeenCalledWith('/internal/loyalty/balances', {
-        tenantId: TENANT_ID,
+      expect(getMock).toHaveBeenCalledWith('/loyalty/balances', {
         customerIds: CUSTOMER_ID,
       });
       expect(getMock).toHaveBeenCalledTimes(2);
@@ -69,7 +57,7 @@ describe('CustomersController', () => {
       const backendHttp = makeBackendHttp({ get: getMock });
       const controller = new CustomersController(backendHttp);
 
-      await controller.searchCustomers({ limit: 10 }, mockUser);
+      await controller.searchCustomers({ limit: 10 });
 
       expect(getMock).toHaveBeenCalledWith('/customers?limit=10');
     });
@@ -79,7 +67,7 @@ describe('CustomersController', () => {
       const backendHttp = makeBackendHttp({ get: getMock });
       const controller = new CustomersController(backendHttp);
 
-      const result = await controller.searchCustomers({ limit: 10 }, mockUser);
+      const result = await controller.searchCustomers({ limit: 10 });
 
       expect(getMock).toHaveBeenCalledTimes(1);
       expect(result).toEqual({ items: [], total: 0 });
@@ -90,7 +78,7 @@ describe('CustomersController', () => {
       const backendHttp = makeBackendHttp({ get: getMock });
       const controller = new CustomersController(backendHttp);
 
-      const result = await controller.searchCustomers({ limit: 20 }, mockUser);
+      const result = await controller.searchCustomers({ limit: 20 });
 
       expect(result.items[0]?.currentPoints).toBe(0);
     });

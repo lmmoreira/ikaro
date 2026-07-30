@@ -236,8 +236,7 @@ describe('CustomersController (component)', () => {
       expect(res.body.total).toBe(1);
       expect(res.body.items[0].currentPoints).toBe(50);
       expect(backendHttpService.get).toHaveBeenCalledTimes(2);
-      expect(backendHttpService.get).toHaveBeenCalledWith('/internal/loyalty/balances', {
-        tenantId: TENANT_ID,
+      expect(backendHttpService.get).toHaveBeenCalledWith('/loyalty/balances', {
         customerIds: '20000000-0000-4000-8000-000000000001',
       });
     });

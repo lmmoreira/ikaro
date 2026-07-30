@@ -30,7 +30,6 @@ import { LoyaltyBookingAdapter } from './infrastructure/cross-context/loyalty-bo
 import { LoyaltyCustomerAdapter } from './infrastructure/cross-context/loyalty-customer.adapter';
 import { LoyaltyController } from './infrastructure/controllers/loyalty.controller';
 import { CronLoyaltyController } from './infrastructure/controllers/cron-loyalty.controller';
-import { InternalLoyaltyReadController } from './infrastructure/controllers/internal-loyalty-read.controller';
 import { CustomerRoleGuard } from '../../shared/guards/customer-role.guard';
 import { BookingCompletedHandler } from './infrastructure/events/booking-completed.handler';
 import { ExpirePointsTriggerHandler } from './infrastructure/events/expire-points-trigger.handler';
@@ -54,7 +53,7 @@ import { TypeOrmLoyaltyRedemptionRepository } from './infrastructure/repositorie
     CustomerModule,
     PlatformModule,
   ],
-  controllers: [LoyaltyController, CronLoyaltyController, InternalLoyaltyReadController],
+  controllers: [LoyaltyController, CronLoyaltyController],
   providers: [
     { provide: LOYALTY_ENTRY_REPOSITORY, useClass: TypeOrmLoyaltyEntryRepository },
     { provide: LOYALTY_BALANCE_REPOSITORY, useClass: TypeOrmLoyaltyBalanceRepository },

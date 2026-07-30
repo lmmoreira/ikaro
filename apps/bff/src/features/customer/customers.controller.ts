@@ -11,7 +11,6 @@ import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { AddressSchema, isValidPhoneNumber } from '@ikaro/validation';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
-import { CurrentUser, CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
 import { CustomerTenantSummaryResponse } from '../auth/auth.types';
 import { TenantInfoResponse } from '../../shared/types/backend-responses';
 import { toTenantOption } from './customers.mapper';
@@ -48,7 +47,6 @@ export class CustomersController {
   @Roles('STAFF', 'MANAGER')
   async searchCustomers(
     @Query(new ZodValidationPipe(CustomerSearchQuerySchema)) query: CustomerSearchQuery,
-    @CurrentUser() user: CurrentUserPayload,
   ): Promise<CustomerSearchListResponse> {
     const params = new URLSearchParams({ limit: String(query.limit) });
     if (query.search) params.set('search', query.search);
@@ -58,10 +56,9 @@ export class CustomersController {
     );
     if (items.length === 0) return { items: [], total };
 
-    const balances = await this.backendHttp.get<LoyaltyBalanceItem[]>(
-      '/internal/loyalty/balances',
-      { tenantId: user.tenantId, customerIds: items.map((c) => c.customerId).join(',') },
-    );
+    const balances = await this.backendHttp.get<LoyaltyBalanceItem[]>('/loyalty/balances', {
+      customerIds: items.map((c) => c.customerId).join(','),
+    });
     const pointsByCustomer = new Map(balances.map((b) => [b.customerId, b.currentPoints]));
     const enriched = items.map((customer) => ({
       ...customer,
