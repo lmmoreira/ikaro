@@ -18,10 +18,10 @@ export class InternalLoyaltyReadController {
   // query param here, not read from RequestContext.
   @Get('balances')
   async getBalancesRoute(
-    @Query('tenantId') tenantId: string | undefined,
-    @Query('customerIds') customerIds: string | undefined,
+    @Query('tenantId') tenantId: string | string[] | undefined,
+    @Query('customerIds') customerIds: string | string[] | undefined,
   ): Promise<LoyaltyBalanceBatchItemResult[]> {
-    if (!tenantId?.trim()) {
+    if (typeof tenantId !== 'string' || !tenantId.trim()) {
       throw throwProblemDetail(
         HttpStatus.BAD_REQUEST,
         GenericErrorCode.FIELD_REQUIRED,
@@ -29,7 +29,7 @@ export class InternalLoyaltyReadController {
         'tenantId',
       );
     }
-    if (!customerIds?.trim()) {
+    if (typeof customerIds !== 'string' || !customerIds.trim()) {
       throw throwProblemDetail(
         HttpStatus.BAD_REQUEST,
         GenericErrorCode.FIELD_REQUIRED,

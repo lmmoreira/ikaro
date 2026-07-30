@@ -60,6 +60,28 @@ describe('InternalLoyaltyReadController (integration)', () => {
     expect(body.status).toBe(400);
   });
 
+  it('returns 400 when tenantId is repeated (binds as an array, not a string)', async () => {
+    const { body } = await request(app.getHttpServer())
+      .get(
+        `/internal/loyalty/balances?tenantId=${TENANT_A}&tenantId=${TENANT_B}&customerIds=${CUSTOMER_1}`,
+      )
+      .set('X-Internal-Key', INTERNAL_KEY)
+      .expect(400);
+
+    expect(body.status).toBe(400);
+  });
+
+  it('returns 400 when customerIds is repeated (binds as an array, not a string)', async () => {
+    const { body } = await request(app.getHttpServer())
+      .get(
+        `/internal/loyalty/balances?tenantId=${TENANT_A}&customerIds=${CUSTOMER_1}&customerIds=${CUSTOMER_2}`,
+      )
+      .set('X-Internal-Key', INTERNAL_KEY)
+      .expect(400);
+
+    expect(body.status).toBe(400);
+  });
+
   it('returns currentPoints for each requested customer, defaulting an unknown customer to 0', async () => {
     await ds
       .getRepository(LoyaltyBalanceEntity)

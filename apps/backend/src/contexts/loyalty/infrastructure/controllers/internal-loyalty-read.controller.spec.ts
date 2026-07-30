@@ -42,6 +42,24 @@ describe('InternalLoyaltyReadController', () => {
       expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
     });
 
+    it('returns 400 when tenantId is bound as an array (repeated query param)', async () => {
+      const err = await controller
+        .getBalancesRoute([TENANT_ID, OTHER_TENANT_ID], CUSTOMER_1)
+        .catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    });
+
+    it('returns 400 when customerIds is bound as an array (repeated query param)', async () => {
+      const err = await controller
+        .getBalancesRoute(TENANT_ID, [CUSTOMER_1, CUSTOMER_2])
+        .catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    });
+
     it('returns currentPoints for each requested customer, defaulting missing ones to 0', async () => {
       await balanceRepo.upsert(
         new LoyaltyBalanceBuilder()
