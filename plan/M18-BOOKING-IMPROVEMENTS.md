@@ -14,6 +14,7 @@
 | M18-S01 | Configurable hotsite date picker (carousel/calendar) honoring `maxBookingAdvanceDays` |
 | M18-S02 | Hotsite editor "Manifesto" tab: direct JSON editing of branding + layout + seo |
 | M18-S03 | Dedicated SEO share image (`seo.ogImageUrl`), auto-cropped uploads, and rendering `branding.logoUrl` (topbar, footer, favicon) |
+| M18-S04 | Hero banner responsive crop: breakpoint aspect-ratio, focal point, and a minimum upload resolution guard |
 
 *(more stories will be appended here as they're scoped)*
 
@@ -434,3 +435,74 @@ Cross-tool review surfaced several findings; verified each against the actual di
 3. **Reviewed, not changed:** `seo.ogImageUrl`'s purpose-lock — same finding as item 8 in the CodeRabbit section above, re-raised independently by Codex; reasoning stands unchanged.
 4. **Reviewed, not changed:** `HotsiteImagePromotionService`'s `Promise.all` being unbounded and still awaited before the use case (and therefore the HTTP response) returns — mechanically true (`runInNewTransaction` awaits `flushAfterCommitCallbacks`, which awaits the promotion `Promise.all`, before returning), so this isn't purely fire-and-forget background work. This is the explicit MVP tradeoff already made in the Codex-first-pass item above ("simple fix, appropriate for MVP scale... a full outbox-based redesign is a larger follow-up if image counts grow") — standing as-is unless gallery sizes in practice warrant revisiting.
 5. **Reviewed, not changed:** `HotsiteImagePurpose` still duplicated as a separate runtime Zod enum in the backend and BFF — already documented as an accepted pattern (CodeRabbit section, item 4 above; also called out in `packages/types/src/hotsite.ts`'s own comment on the type).
+
+---
+
+## M18-S04 — Hero banner responsive crop: breakpoint aspect-ratio, focal point, and a minimum upload resolution guard
+
+**Agent:** `frontend-ts`
+**Complexity:** M
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-027
+
+### Background
+
+`HeroModule.tsx` (`apps/web/shells/hotsite/components/HeroModule.tsx`) renders the tenant's uploaded `backgroundImageUrl` (`HeroModuleData.backgroundImageUrl`, `packages/types/src/hotsite.ts:19`) with `next/image`'s `fill` + `object-cover`, inside a container whose height is **viewport-relative**, not tied to the image's own aspect ratio:
+- Centered variant: `className="relative flex min-h-screen items-center justify-center px-6 sm:min-h-[60vh]"` (line 132) — full device viewport height on mobile, `60vh` on `sm:` and up.
+- Left-aligned variant's right-panel image: `className="relative h-64 sm:h-full sm:min-h-[40vh]"` (line 166), itself nested inside the section's own `min-h-screen sm:min-h-[60vh]` (line 152).
+
+A typical hero banner is a wide, short landscape image (the example discussed was ~1900×600, ≈3:1). On mobile, `min-h-screen` forces the centered variant's container to the full device viewport height — far taller, proportionally, than the image itself. `object-fit: cover` then scales the image up until it covers that height, cropping most of the width in the process — this is the "gets really cut on mobile" behavior reported. The left-aligned variant's `h-64` (fixed 256px) container is comparatively less extreme today since it isn't viewport-height-driven, but still has no aspect-ratio relationship to the source image.
+
+There is currently no crop-shape enforcement for the `'hero'` upload purpose — `SingleImageUploadField.tsx`'s `TARGET_ASPECT_RATIO` map (line 24) only covers `branding` (1:1) and `seo-og-image` (1200:630); hero images pass through `compressImage(file, undefined)` (line 108), which only proportionally downscales, capped at `MAX_DIMENSION = 1600` (`compress-image.ts:3`) on the longer axis — the shorter axis (height, for a landscape banner) ends up considerably smaller (e.g. a 1900×600 source becomes ~1600×505 after compression).
+
+Two options were discussed for fixing the mobile crop:
+1. **Art direction** — a second, tenant-curated image crop specifically for mobile, served via a breakpoint-toggled `<Image>` pair. Rejected: this product's tenants (SMB owners, not designers) upload one photo through a single-field UI; requiring a second well-composed crop adds real friction for a benefit most tenants won't realize (they'd likely re-upload the same photo).
+2. **Single image + CSS-driven responsive crop** (chosen) — the approach mainstream SMB site builders (Wix/Squarespace/Webflow) use: one uploaded image, a per-breakpoint `aspect-ratio` container (replacing the viewport-relative height), and a tenant-adjustable focal point (`object-position`) so the important part of the photo (a logo, a storefront) can be kept in frame as the crop shape changes across breakpoints.
+
+**Important coupling, to resolve at `/story-discovery`:** the mobile aspect ratio chosen in Part 1 and the minimum-resolution guard in Part 3 are not independent. `object-fit: cover` scales the image uniformly until it satisfies whichever axis needs more coverage; for a wide/short source image being fit into a *taller* mobile container, that's almost always the image's **height** (its naturally shorter axis) that becomes the bottleneck — the tighter (more portrait-like) the chosen mobile ratio, the more the source's height gets upscaled, and the more visible blur results. A conservative, less-portrait mobile ratio (e.g. closer to 2:1) needs much less source resolution than an aggressive one (e.g. 4:3); the exact minimum-height threshold in Part 3 should be picked to comfortably cover the mobile ratio decided in Part 1, not chosen in isolation.
+
+### Description
+
+**Part 1 — Breakpoint-scoped aspect-ratio containers (replacing viewport-relative height):**
+- `HeroModule.tsx`'s centered variant: replace the image's height source (`min-h-screen`/`sm:min-h-[60vh]` on the `<section>`) with a fixed `aspect-*` (Tailwind arbitrary value, e.g. `aspect-[W/H]`) scoped per breakpoint on the image's own wrapper, distinct from the text content's vertical padding/centering — exact ratio values (mobile vs. `sm:`/`md:` and up) TBD at `/story-discovery`, informed by the reference banner image's real aspect ratio.
+- Left-aligned variant's right-panel image container (line 166): same treatment — replace `h-64 sm:h-full sm:min-h-[40vh]` with breakpoint `aspect-*` classes. The section's own overall `min-h-screen sm:min-h-[60vh]` (line 152, governs the whole hero section's height, including the text column) is a separate whitespace/layout concern, not an image-crop concern — out of scope here unless discovery decides otherwise.
+- Both variants keep `fill` + `object-cover`; only the container's height-determination mechanism changes.
+
+**Part 2 — Tenant-adjustable focal point:**
+- New field on `HeroModuleData` (`packages/types/src/hotsite.ts`), e.g. `backgroundImagePosition?: 'left' | 'center' | 'right'` (default `'center'`) — a horizontal focus preset, since the crop axis that actually loses content when going from a wide desktop shape to a taller mobile shape is horizontal (left/right), not vertical.
+- Mirror the field in the web zod schema (`apps/web/features/platform/hotsite/module-schemas.ts`) and the backend aggregate (`HeroModuleData` in `hotsite-config.aggregate.ts`) — same 3-layer field addition pattern as M18-S01's `datePickerType`.
+- `HeroConfigPanel.tsx`: new `PillSelect` (same pattern as the existing `variant`/`rightPanel` selects, lines 83–92/176–186) with `left`/`center`/`right` options, shown only when `backgroundImageUrl` is set.
+- `HeroModule.tsx`: apply as `style={{ objectPosition: ... }}` on both variants' `<Image>` alongside the existing `className="object-cover"`.
+- New i18n keys under `dashboard.hotsitePage.layout.panels.hero` in both `pt-BR` and `en` locale files — the new PillSelect's label + 3 option labels.
+
+**Part 3 — Minimum upload resolution guard for the `'hero'` purpose:**
+- New `MINIMUM_HEIGHT` (or similarly named) map in `SingleImageUploadField.tsx`, parallel to the existing `TARGET_ASPECT_RATIO` map (line 24) — only `hero` gets an entry (mirrors that map's own "only purposes with a real requirement get one" precedent). Exact threshold resolved at `/story-discovery`, sized to comfortably cover Part 1's chosen mobile aspect ratio without upscaling past native resolution (see the coupling note above).
+- `compressImage()` (`apps/web/shared/utils/compress-image.ts`) gains an optional minimum-height parameter, checked against `bitmap.height` (the natural, pre-crop, pre-scale source dimensions already available at line 122–123) — reject (throw) before any cropping/scaling work happens if the source is too small, rather than silently uploading a file that will need to be upscaled on mobile.
+- The thrown error needs a tenant-facing, translated message distinct from the generic upload-error fallback (`SingleImageUploadField.tsx`'s catch block currently only distinguishes a backend Problem-Details `code` from `uploadErrorLabel`, a generic client-side fallback — a new resolution-specific label, or a typed error class the field can `instanceof`-check, is needed; resolve the exact mechanism at `/story-discovery`).
+- New i18n key for this specific error message, in both locale files.
+
+### Acceptance Criteria
+
+- [ ] Both `HeroModule` variants' image containers use breakpoint-scoped `aspect-ratio` instead of viewport-relative height (`min-h-screen`/`vh` units removed from the image-sizing path)
+- [ ] A wide/short source image's important content (verified against a real reference image) stays visibly in frame on a mobile viewport, not reduced to a thin vertical sliver
+- [ ] `HeroModuleData.backgroundImagePosition` exists in backend aggregate, `@ikaro/types`, and web zod schema; defaults to `'center'`; absent/undefined behaves identically to today (no visual change for existing tenants who don't touch the new field)
+- [ ] `HeroConfigPanel.tsx` exposes the focal-point picker only when a background image is set; changing it visibly shifts the crop in the live preview (`HotsitePreview.tsx`)
+- [ ] `SingleImageUploadField` rejects a `'hero'` upload below the minimum-height threshold with a clear, translated, purpose-specific error message (not the generic upload-error fallback)
+- [ ] New locale keys (focal-point label/options, low-resolution error message) exist in both `pt-BR` and `en` in the same commit
+- [ ] Coverage ≥80% on changed code; `tsc --noEmit`, lint, full test suite green
+
+### Testing
+
+**Unit — Vitest (`apps/web`):**
+- UPDATE `HeroModule.spec.tsx` — asserts the new aspect-ratio classes per breakpoint (both variants); `objectPosition` style reflects `backgroundImagePosition` (`left`/`center`/`right`/default).
+- UPDATE `HeroConfigPanel.spec.tsx` — new focal-point `PillSelect` renders only when an image is set; `onChange` wiring.
+- UPDATE `compress-image.spec.ts` — a source below the minimum height throws with the expected message; a source at/above it proceeds normally; the existing `branding`/`seo-og-image` crop-ratio behavior is unaffected (no minimum-height check applied to those purposes).
+- UPDATE `SingleImageUploadField.spec.tsx` — a rejected (too-low-resolution) `'hero'` upload surfaces the new specific error copy, not the generic fallback.
+- UPDATE `module-schemas.spec.ts` — `backgroundImagePosition` enum accepts `'left'`/`'center'`/`'right'`/`undefined`, rejects other values.
+
+**Backend (Jest):** UPDATE `hotsite-config.spec.ts` — `backgroundImagePosition` remains unvalidated by the aggregate (matches the existing precedent for other non-business-rule module-data fields, e.g. `datePickerType`).
+
+**Playwright E2E:** UPDATE `hotsite-editor.spec.ts` — set a hero background image + focal point, publish, reload, verify both persist; a structural check (e.g. computed `object-position` on the live hotsite page) confirms the setting actually applies.
+
+### Dependencies
+
+None — extends existing components (`HeroModule`, `HeroConfigPanel`, `SingleImageUploadField`, `compressImage`); no migration (module `data` is a `jsonb` field, same pattern as M18-S01's `datePickerType`).
