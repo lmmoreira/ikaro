@@ -12,6 +12,7 @@ import {
 } from '../../domain/errors/platform-domain.error';
 import { DEFAULT_HOTSITE_BRANDING } from '../../domain/hotsite-config.aggregate';
 import { HotsiteImagePathsService } from '../../domain/services/hotsite-image-paths.service';
+import { HotsiteImageUrlResolver } from '../../domain/services/hotsite-image-url-resolver.service';
 import { HotsiteImagePromotionService } from '../services/hotsite-image-promotion.service';
 import { UpdateHotsiteContentUseCase } from './update-hotsite-content.use-case';
 
@@ -35,6 +36,8 @@ describe('UpdateHotsiteContentUseCase', () => {
       new InMemoryTransactionManager(),
       imagePathsService,
       new HotsiteImagePromotionService(storageService, imagePathsService),
+      new HotsiteImageUrlResolver(),
+      storageService,
     );
     await tenantRepo.save(new TenantBuilder().withId(TENANT_A).build());
   });
@@ -239,7 +242,9 @@ describe('UpdateHotsiteContentUseCase', () => {
       });
 
       const expectedPermanentPath = `tenants/${TENANT_A}/hotsite/branding/u1/logo.png`;
-      expect(result.branding.logoUrl).toBe(expectedPermanentPath);
+      // The use case's own response is resolved to a displayable public URL, symmetric with
+      // GetHotsiteContentUseCase — only the persisted/repo state stays a raw storage path.
+      expect(result.branding.logoUrl).toBe(storageService.getPublicUrl(expectedPermanentPath));
 
       const saved = await repo.findByTenantId(TENANT_A);
       expect(saved!.branding.logoUrl).toBe(expectedPermanentPath);
@@ -266,7 +271,7 @@ describe('UpdateHotsiteContentUseCase', () => {
       });
 
       const expectedPermanentPath = `tenants/${TENANT_A}/hotsite/seo-og-image/u1/og-image.png`;
-      expect(result.seo.ogImageUrl).toBe(expectedPermanentPath);
+      expect(result.seo.ogImageUrl).toBe(storageService.getPublicUrl(expectedPermanentPath));
 
       const saved = await repo.findByTenantId(TENANT_A);
       expect(saved!.seo.ogImageUrl).toBe(expectedPermanentPath);
@@ -300,7 +305,7 @@ describe('UpdateHotsiteContentUseCase', () => {
         seo: { title: 'Novo título' },
       });
 
-      expect(result.branding.logoUrl).toBe(permanentPath);
+      expect(result.branding.logoUrl).toBe(storageService.getPublicUrl(permanentPath));
       expect(storageService.copiedPaths).toEqual([]);
       expect(storageService.deletedPaths).toEqual([]);
     });

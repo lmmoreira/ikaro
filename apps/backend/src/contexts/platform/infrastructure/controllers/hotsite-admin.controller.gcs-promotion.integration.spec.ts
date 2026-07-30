@@ -92,8 +92,12 @@ describe('HotsiteAdminController (integration — real GCS promotion)', () => {
       .send({ branding: { logoUrl: tmpFilePath } })
       .expect(200);
 
-    const promotedPath: string = patchBody.branding.logoUrl;
-    expect(promotedPath.startsWith(`tenants/${TENANT_A}/hotsite/branding/`)).toBe(true);
+    // The PATCH response is a resolved public URL (symmetric with GET), not the raw storage
+    // path — the promoted path itself is only observable by reconstructing it from tmpFilePath
+    // (promotion just swaps the tmp/<tenantId>/ prefix for tenants/<tenantId>/hotsite/) or by
+    // reading the persisted (unresolved) repo state below.
+    const promotedPath = tmpFilePath.replace(`tmp/${TENANT_A}/`, `tenants/${TENANT_A}/hotsite/`);
+    expect(patchBody.branding.logoUrl).toBe(storageService.getPublicUrl(promotedPath));
     expect(promotedPath).not.toBe(oldPermanentLogoPath);
 
     // Step 4 — verify against the REAL bucket: promoted object exists (public), tmp original is

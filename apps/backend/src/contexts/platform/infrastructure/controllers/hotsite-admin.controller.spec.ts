@@ -70,6 +70,8 @@ describe('HotsiteAdminController', () => {
         txManager,
         imagePathsService,
         new HotsiteImagePromotionService(storageService, imagePathsService),
+        new HotsiteImageUrlResolver(),
+        storageService,
       ),
       new PublishHotsiteUseCase(repo, tenantRepo, frontendRevalidation, txManager),
       new UnpublishHotsiteUseCase(repo, tenantRepo, frontendRevalidation, txManager),
