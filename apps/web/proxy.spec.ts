@@ -1,14 +1,14 @@
 import { NextRequest } from 'next/server';
 import { SignJWT } from 'jose';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { middleware } from './middleware';
+import { proxy } from './proxy';
 
 // Matches the backend/BFF's real minimum length (env.validation.ts requires >=64 chars) so this
 // suite exercises the same HS256 key-length shape as production, not a toy secret.
 const TEST_SECRET = 'test-jwt-secret-64-chars-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
 const FORGED_SECRET = 'a-different-attacker-controlled-secret-that-does-not-match-64c';
 
-// Mints a real HS256-signed token against TEST_SECRET (which middleware.ts's JWT_SECRET is set
+// Mints a real HS256-signed token against TEST_SECRET (which proxy.ts's JWT_SECRET is set
 // to below) — this suite must verify actual signature checking, not just claim decoding (TD15).
 async function makeToken(claims: Record<string, unknown> & { exp?: number }): Promise<string> {
   const builder = new SignJWT(claims).setProtectedHeader({ alg: 'HS256' });
@@ -84,7 +84,7 @@ beforeAll(async () => {
   });
 });
 
-describe('middleware', () => {
+describe('proxy', () => {
   it.each([
     ['the dashboard area', '/dashboard/bookings', 'http://localhost:3000/dashboard/login'],
     [
@@ -100,7 +100,7 @@ describe('middleware', () => {
   ])(
     'redirects to the login page when visiting %s without a token',
     async (_label, path, expectedLocation) => {
-      const response = await middleware(makeRequest(path));
+      const response = await proxy(makeRequest(path));
 
       expect(response.status).toBe(307);
       expect(response.headers.get('location')).toBe(expectedLocation);
@@ -108,14 +108,14 @@ describe('middleware', () => {
   );
 
   it('does NOT redirect when visiting /dashboard/login itself without a token (regression: infinite redirect loop)', async () => {
-    const response = await middleware(makeRequest('/dashboard/login'));
+    const response = await proxy(makeRequest('/dashboard/login'));
 
     expect(response.status).not.toBe(307);
     expect(response.headers.get('location')).toBeNull();
   });
 
   it('preserves tenantSlug when redirecting an unauthenticated dashboard request', async () => {
-    const response = await middleware(makeRequest('/dashboard/bookings?tenantSlug=lavacar-bh'));
+    const response = await proxy(makeRequest('/dashboard/bookings?tenantSlug=lavacar-bh'));
 
     expect(response.headers.get('location')).toBe(
       'http://localhost:3000/dashboard/login?tenantSlug=lavacar-bh',
@@ -123,35 +123,35 @@ describe('middleware', () => {
   });
 
   it('passes through a protected dashboard route with a valid STAFF token', async () => {
-    const response = await middleware(makeRequest('/dashboard/bookings', validStaffToken));
+    const response = await proxy(makeRequest('/dashboard/bookings', validStaffToken));
 
     expect(response.status).not.toBe(307);
     expect(response.headers.get('location')).toBeNull();
   });
 
   it('passes through a protected dashboard route with a valid MANAGER token', async () => {
-    const response = await middleware(makeRequest('/dashboard/bookings', validManagerToken));
+    const response = await proxy(makeRequest('/dashboard/bookings', validManagerToken));
 
     expect(response.status).not.toBe(307);
     expect(response.headers.get('location')).toBeNull();
   });
 
   it('redirects when the token has CUSTOMER role (customers cannot access dashboard)', async () => {
-    const response = await middleware(makeRequest('/dashboard/bookings', customerToken));
+    const response = await proxy(makeRequest('/dashboard/bookings', customerToken));
 
     expect(response.status).toBe(307);
     expect(response.headers.get('location')).toBe('http://localhost:3000/dashboard/login');
   });
 
   it('redirects when the token is expired', async () => {
-    const response = await middleware(makeRequest('/dashboard/bookings', expiredStaffToken));
+    const response = await proxy(makeRequest('/dashboard/bookings', expiredStaffToken));
 
     expect(response.status).toBe(307);
     expect(response.headers.get('location')).toBe('http://localhost:3000/dashboard/login');
   });
 
   it('redirects when the token is a malformed string (not a JWT)', async () => {
-    const response = await middleware(makeRequest('/dashboard/bookings', 'not-a-jwt'));
+    const response = await proxy(makeRequest('/dashboard/bookings', 'not-a-jwt'));
 
     expect(response.status).toBe(307);
     expect(response.headers.get('location')).toBe('http://localhost:3000/dashboard/login');
@@ -159,7 +159,7 @@ describe('middleware', () => {
 
   it('redirects when the STAFF token has no exp claim', async () => {
     const noExpStaffToken = await makeToken({ sub: 'staff-id', role: 'STAFF' });
-    const response = await middleware(makeRequest('/dashboard/bookings', noExpStaffToken));
+    const response = await proxy(makeRequest('/dashboard/bookings', noExpStaffToken));
 
     expect(response.status).toBe(307);
     expect(response.headers.get('location')).toBe('http://localhost:3000/dashboard/login');
@@ -173,21 +173,21 @@ describe('middleware', () => {
       role: 'MANAGER',
       exp: Math.floor(Date.now() / 1000) + 3600,
     });
-    const response = await middleware(makeRequest('/dashboard/bookings', forgedManagerToken));
+    const response = await proxy(makeRequest('/dashboard/bookings', forgedManagerToken));
 
     expect(response.status).toBe(307);
     expect(response.headers.get('location')).toBe('http://localhost:3000/dashboard/login');
   });
 
   it('passes through a non-dashboard route without a token', async () => {
-    const response = await middleware(makeRequest('/lavacar-beloauto'));
+    const response = await proxy(makeRequest('/lavacar-beloauto'));
 
     expect(response.status).not.toBe(307);
     expect(response.headers.get('location')).toBeNull();
   });
 
   it('propagates the pathname as a request header for RSC locale resolution', async () => {
-    const response = await middleware(makeRequest('/lavacar-beloauto/booking'));
+    const response = await proxy(makeRequest('/lavacar-beloauto/booking'));
 
     expect(response.headers.get('x-middleware-request-x-pathname')).toBe(
       '/lavacar-beloauto/booking',
@@ -199,7 +199,7 @@ describe('middleware', () => {
   // test above, alongside the dashboard guard's equivalent case)
 
   it('passes through my-account with a valid CUSTOMER token matching the slug', async () => {
-    const response = await middleware(makeRequest('/lavacar-bh/my-account', customerToken));
+    const response = await proxy(makeRequest('/lavacar-bh/my-account', customerToken));
 
     expect(response.status).not.toBe(307);
     expect(response.headers.get('location')).toBeNull();
@@ -213,21 +213,21 @@ describe('middleware', () => {
       role: 'CUSTOMER',
       exp: Math.floor(Date.now() / 1000) + 3600,
     });
-    const response = await middleware(makeRequest('/lavacar-bh/my-account', otherSlugToken));
+    const response = await proxy(makeRequest('/lavacar-bh/my-account', otherSlugToken));
 
     expect(response.status).toBe(307);
     expect(response.headers.get('location')).toBe('http://localhost:3000/lavacar-bh/login');
   });
 
   it('redirects when a STAFF token is used on my-account (staff must not reach customer area)', async () => {
-    const response = await middleware(makeRequest('/lavacar-bh/my-account', validStaffToken));
+    const response = await proxy(makeRequest('/lavacar-bh/my-account', validStaffToken));
 
     expect(response.status).toBe(307);
     expect(response.headers.get('location')).toBe('http://localhost:3000/lavacar-bh/login');
   });
 
   it('redirects when a MANAGER token is used on my-account', async () => {
-    const response = await middleware(makeRequest('/lavacar-bh/my-account', validManagerToken));
+    const response = await proxy(makeRequest('/lavacar-bh/my-account', validManagerToken));
 
     expect(response.status).toBe(307);
     expect(response.headers.get('location')).toBe('http://localhost:3000/lavacar-bh/login');
@@ -241,7 +241,7 @@ describe('middleware', () => {
       role: 'CUSTOMER',
       exp: Math.floor(Date.now() / 1000) - 60,
     });
-    const response = await middleware(makeRequest('/lavacar-bh/my-account', expiredCustomerToken));
+    const response = await proxy(makeRequest('/lavacar-bh/my-account', expiredCustomerToken));
 
     expect(response.status).toBe(307);
     expect(response.headers.get('location')).toBe('http://localhost:3000/lavacar-bh/login');
@@ -253,7 +253,7 @@ describe('middleware', () => {
       tenantSlug: 'lavacar-bh',
       role: 'CUSTOMER',
     });
-    const response = await middleware(makeRequest('/lavacar-bh/my-account', noExpCustomerToken));
+    const response = await proxy(makeRequest('/lavacar-bh/my-account', noExpCustomerToken));
 
     expect(response.status).toBe(307);
     expect(response.headers.get('location')).toBe('http://localhost:3000/lavacar-bh/login');
@@ -266,7 +266,7 @@ describe('middleware', () => {
       tenantSlug: 'lavacar-bh',
       exp: Math.floor(Date.now() / 1000) + 3600,
     });
-    const response = await middleware(makeRequest('/lavacar-bh/my-account', forgedCustomerToken));
+    const response = await proxy(makeRequest('/lavacar-bh/my-account', forgedCustomerToken));
 
     expect(response.status).toBe(307);
     expect(response.headers.get('location')).toBe('http://localhost:3000/lavacar-bh/login');
@@ -280,7 +280,7 @@ describe('middleware', () => {
     });
 
     it('sets baseline security headers on every response, including redirects', async () => {
-      const response = await middleware(makeRequest('/dashboard/bookings'));
+      const response = await proxy(makeRequest('/dashboard/bookings'));
 
       expect(response.headers.get('Strict-Transport-Security')).toBe(
         'max-age=63072000; includeSubDomains; preload',
@@ -293,7 +293,7 @@ describe('middleware', () => {
 
     it('allows inline scripts (Next.js hydration payload) on every route, but does not relax frame-src for dashboard', async () => {
       vi.stubEnv('NODE_ENV', 'production');
-      const response = await middleware(makeRequest('/dashboard/bookings', validStaffToken));
+      const response = await proxy(makeRequest('/dashboard/bookings', validStaffToken));
       const csp = response.headers.get('Content-Security-Policy') ?? '';
 
       expect(csp).toContain("script-src 'self' 'unsafe-inline'");
@@ -302,7 +302,7 @@ describe('middleware', () => {
 
     it('does not relax frame-src for the root path', async () => {
       vi.stubEnv('NODE_ENV', 'production');
-      const response = await middleware(makeRequest('/'));
+      const response = await proxy(makeRequest('/'));
       const csp = response.headers.get('Content-Security-Policy') ?? '';
 
       expect(csp).toContain("script-src 'self' 'unsafe-inline'");
@@ -311,7 +311,7 @@ describe('middleware', () => {
 
     it('allows the inline JSON-LD script and the Google Maps embed on hotsite routes', async () => {
       vi.stubEnv('NODE_ENV', 'production');
-      const response = await middleware(makeRequest('/lavacar-beloauto'));
+      const response = await proxy(makeRequest('/lavacar-beloauto'));
       const csp = response.headers.get('Content-Security-Policy') ?? '';
 
       expect(csp).toContain("script-src 'self' 'unsafe-inline'");
@@ -326,7 +326,7 @@ describe('middleware', () => {
         '/lavacar-beloauto/login',
         '/lavacar-beloauto/my-account',
       ]) {
-        const response = await middleware(makeRequest(path));
+        const response = await proxy(makeRequest(path));
         const csp = response.headers.get('Content-Security-Policy') ?? '';
         expect(csp).toContain('frame-src https://maps.google.com');
       }
@@ -340,7 +340,7 @@ describe('middleware', () => {
         'https://storage.googleapis.com/ikaro-bucket',
       );
 
-      const response = await middleware(makeRequest('/lavacar-beloauto'));
+      const response = await proxy(makeRequest('/lavacar-beloauto'));
       const csp = response.headers.get('Content-Security-Policy') ?? '';
 
       expect(csp).toContain(
@@ -355,7 +355,7 @@ describe('middleware', () => {
         'https://storage.googleapis.com/ikaro-bucket',
       );
 
-      const response = await middleware(makeRequest('/dashboard/bookings', validStaffToken));
+      const response = await proxy(makeRequest('/dashboard/bookings', validStaffToken));
       const csp = response.headers.get('Content-Security-Policy') ?? '';
 
       expect(csp).toContain("img-src 'self' blob: https://storage.googleapis.com");
@@ -366,7 +366,7 @@ describe('middleware', () => {
       vi.stubEnv('NEXT_PUBLIC_BFF_URL', '');
       vi.stubEnv('NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL', '');
 
-      const response = await middleware(makeRequest('/lavacar-beloauto'));
+      const response = await proxy(makeRequest('/lavacar-beloauto'));
       const csp = response.headers.get('Content-Security-Policy') ?? '';
 
       // viacep.com.br is a fixed third-party origin (not env-configurable) — always present.
@@ -378,7 +378,7 @@ describe('middleware', () => {
     it('adds the dev-only unsafe-eval and HMR websocket allowance outside production', async () => {
       vi.stubEnv('NODE_ENV', 'development');
 
-      const response = await middleware(makeRequest('/lavacar-beloauto'));
+      const response = await proxy(makeRequest('/lavacar-beloauto'));
       const csp = response.headers.get('Content-Security-Policy') ?? '';
 
       expect(csp).toContain("script-src 'self' 'unsafe-inline' 'unsafe-eval'");
@@ -388,7 +388,7 @@ describe('middleware', () => {
     it('omits the dev-only allowances in production', async () => {
       vi.stubEnv('NODE_ENV', 'production');
 
-      const response = await middleware(makeRequest('/lavacar-beloauto'));
+      const response = await proxy(makeRequest('/lavacar-beloauto'));
       const csp = response.headers.get('Content-Security-Policy') ?? '';
 
       expect(csp).not.toContain('unsafe-eval');

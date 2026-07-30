@@ -2480,7 +2480,7 @@ This is the most important thing to understand. There is **no URL prefix** (`/en
 ```
 1. Browser request: GET /belo-auto/booking
          │
-2. Middleware (middleware.ts)
+2. Proxy (proxy.ts)
          │  Sets x-pathname: /belo-auto/booking header on every non-static request
          ▼
 3. i18n/request.ts — getRequestConfig()

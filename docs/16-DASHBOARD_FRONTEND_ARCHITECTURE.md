@@ -14,7 +14,7 @@ The Dashboard is the authenticated area of Ikaro where **Customers** manage thei
 
 ### **Staff/Manager Shell — `/dashboard/**` (UC-003, UC-004, UC-005, UC-008, UC-009, UC-010, UC-012, UC-013, UC-025 through UC-031)**
 - **Focus:** Efficiency and task management for STAFF and MANAGER roles. The "Somente Gerente" section (Equipe, Configurações, Hotsite) covers UC-025 through UC-031 (staff/settings/hotsite management) — not listed in earlier revisions of this doc, added here for completeness.
-- **Route protection:** `apps/web/middleware.ts` reads the JWT from the `httpOnly` cookie; redirects to `/dashboard/login` if missing or if role is not `STAFF`/`MANAGER`. A separate check further restricts `/dashboard/{settings,team,hotsite}` to `MANAGER` only (STAFF hitting these is redirected to `/dashboard`, not to login — a soft redirect, not an auth failure).
+- **Route protection:** `apps/web/proxy.ts` reads the JWT from the `httpOnly` cookie; redirects to `/dashboard/login` if missing or if role is not `STAFF`/`MANAGER`. A separate check further restricts `/dashboard/{settings,team,hotsite}` to `MANAGER` only (STAFF hitting these is redirected to `/dashboard`, not to login — a soft redirect, not an auth failure).
 - **Layout:** `apps/web/app/dashboard/layout.tsx` (server component) reads `{ tenantId, tenantSlug, tenantName, userName, role, locale }` from the JWT via `cookies()`, and renders `<DashboardShell>`. **Updated (`M13-S15`):** the JWT payload was enriched to carry `tenantName`/`userName`/`locale` directly (see `JwtIssuerService`) specifically so shells never need a separate profile/tenant-info fetch — `apps/web/shells/dashboard/model/dashboard-shell-context.ts`'s `buildDashboardShellContext`/`loadDashboardShellContext` read these fields straight off the decoded token, with no extra API call.
 - **Key components (`apps/web/shells/dashboard/components/`):**
   - `DashboardShell.tsx` — `'use client'` shell wrapper: sidebar (desktop, `≥1024px`) + topbar + bottom nav (mobile, `<1024px`); conditionally renders manager-only nav based on `role`.
@@ -27,7 +27,7 @@ The Dashboard is the authenticated area of Ikaro where **Customers** manage thei
 
 ### **Customer Shell — `/{slug}/my-account/**` (UC-006, UC-007, UC-016, UC-023)**
 - **Focus:** Personal booking history and loyalty for the `CUSTOMER` role.
-- **Route protection:** `apps/web/middleware.ts` extends the same file with a check for `/{slug}/my-account/**` — redirects to `/{slug}/login` if the JWT is missing/expired, if the role is not `CUSTOMER` (staff must not reach the customer area), or if the JWT's `tenantSlug` does not match the `[slug]` path segment.
+- **Route protection:** `apps/web/proxy.ts` extends the same file with a check for `/{slug}/my-account/**` — redirects to `/{slug}/login` if the JWT is missing/expired, if the role is not `CUSTOMER` (staff must not reach the customer area), or if the JWT's `tenantSlug` does not match the `[slug]` path segment.
 - **Layout:** `apps/web/app/[slug]/my-account/layout.tsx` (server component) reads `{ tenantId, tenantSlug, tenantName, userName, role, locale }` from the JWT via `cookies()`, and renders `<CustomerShell>`. **Updated (`M13-S15`/`M13-S16`):** as with the staff shell, the JWT carries `tenantName`/`userName` directly — no separate fetch needed for the shell itself. `GET /api/customers/me` (the proxy route added in `M13-S42`) is real and still used directly by `BookingForm.tsx`/`InformationCompletionPrompt.tsx` (public hotsite components that need the full customer profile, e.g. for the information-completion prompt) — not by this layout. The **public hotsite's** `HotsiteAuthBar` itself no longer calls `/api/customers/me` directly; it calls `GET /api/session` (see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §6), a thin same-origin proxy to the BFF's `GET /auth/session` — the BFF endpoint owns the staff-vs-customer branching, not web.
 - **Key component (`apps/web/features/customer/components/`):**
   - `CustomerShell.tsx` — `'use client'`: topbar (tenant brand + "+ Novo agendamento" desktop shortcut + avatar dropdown with "Sair"/"Site Ikaro"), a desktop-only horizontal tab nav (Início | Agendamentos | Fidelidade, `≥1024px`), a `main-content` slot, and a mobile-only bottom nav with the same three tabs (`<1024px`).
@@ -155,7 +155,7 @@ apps/web/
 ├── providers/
 ├── i18n/
 │   └── request.ts
-├── middleware.ts
+├── proxy.ts
 ├── next.config.js
 └── public/
     └── fonts/
