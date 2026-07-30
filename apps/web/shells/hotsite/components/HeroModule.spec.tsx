@@ -211,6 +211,105 @@ describe('HeroModule', () => {
     });
   });
 
+  describe('responsive crop (M18-S04)', () => {
+    it('centered variant uses a vw-relative min-height at every breakpoint, never a vh-relative one', () => {
+      const { container } = render(<HeroModule data={makeData()} slug="tenant" />);
+
+      const section = container.querySelector('[data-variant="centered"]');
+      expect(section?.className).toContain('min-h-[42.86vw]');
+      expect(section?.className).toContain('sm:min-h-[31.25vw]');
+      expect(section?.className).not.toContain('min-h-screen');
+      // A vh-based floor stays fixed as the window narrows (only the container's width
+      // shrinks), so cropping gets progressively worse at every width in between — not just
+      // full desktop and true-mobile. Guards against reintroducing that class of bug.
+      expect(section?.className).not.toMatch(/\bmin-h-\[\d+vh\]/);
+    });
+
+    it('left-aligned right-panel image uses aspect-[21/9] on mobile and the existing sm: height classes, never h-64', () => {
+      const { container } = render(
+        <HeroModule
+          data={makeData({
+            variant: 'left-aligned',
+            backgroundImageUrl: 'https://storage.example.com/hero.jpg',
+            rightPanel: 'image',
+          })}
+          slug="tenant"
+        />,
+      );
+
+      const imgWrapper = container.querySelector('img')?.parentElement;
+      expect(imgWrapper?.className).toContain('aspect-[21/9]');
+      expect(imgWrapper?.className).toContain('sm:aspect-auto');
+      expect(imgWrapper?.className).toContain('sm:h-full');
+      expect(imgWrapper?.className).toContain('sm:min-h-[15.6vw]');
+      expect(imgWrapper?.className).not.toContain('h-64');
+      expect(imgWrapper?.className).not.toMatch(/\bmin-h-\[\d+vh\]/);
+    });
+
+    // Cross-tool review finding (Codex, PR #294): the earlier vh-guard assertions above only
+    // checked the image wrapper, missing the *outer* left-aligned section — which still had
+    // min-h-screen sm:min-h-[60vh] at the time. Asserted separately so this specific element is
+    // never missed again.
+    it("left-aligned variant's outer section uses a vw-relative min-height, never min-h-screen or any vh unit", () => {
+      const { container } = render(
+        <HeroModule data={makeData({ variant: 'left-aligned' })} slug="tenant" />,
+      );
+
+      const section = container.querySelector('[data-variant="left-aligned"]');
+      expect(section?.className).toContain('min-h-[31.25vw]');
+      expect(section?.className).not.toContain('min-h-screen');
+      expect(section?.className).not.toMatch(/\bmin-h-\[\d+vh\]/);
+    });
+
+    it.each([
+      ['left', 'left center'],
+      ['center', 'center center'],
+      ['right', 'right center'],
+    ] as const)(
+      'centered variant applies objectPosition %s as "%s"',
+      (backgroundImagePosition, expected) => {
+        const { container } = render(
+          <HeroModule
+            data={makeData({
+              backgroundImageUrl: 'https://storage.example.com/hero.jpg',
+              backgroundImagePosition,
+            })}
+            slug="tenant"
+          />,
+        );
+
+        expect(container.querySelector('img')?.style.objectPosition).toBe(expected);
+      },
+    );
+
+    it('centered variant defaults objectPosition to "center center" when backgroundImagePosition is absent', () => {
+      const { container } = render(
+        <HeroModule
+          data={makeData({ backgroundImageUrl: 'https://storage.example.com/hero.jpg' })}
+          slug="tenant"
+        />,
+      );
+
+      expect(container.querySelector('img')?.style.objectPosition).toBe('center center');
+    });
+
+    it('left-aligned right-panel image applies objectPosition from backgroundImagePosition', () => {
+      const { container } = render(
+        <HeroModule
+          data={makeData({
+            variant: 'left-aligned',
+            backgroundImageUrl: 'https://storage.example.com/hero.jpg',
+            rightPanel: 'image',
+            backgroundImagePosition: 'right',
+          })}
+          slug="tenant"
+        />,
+      );
+
+      expect(container.querySelector('img')?.style.objectPosition).toBe('right center');
+    });
+  });
+
   it('has no axe violations', async () => {
     const { container } = render(<HeroModule data={makeData()} slug="tenant" />);
 

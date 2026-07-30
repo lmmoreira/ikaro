@@ -29,6 +29,7 @@ export const HeroModuleDataSchema = z.object({
   subtitle: z.string().optional(),
   eyebrow: z.string().optional(),
   backgroundImageUrl: z.string().nullable().optional(),
+  backgroundImagePosition: z.enum(['left', 'center', 'right']).optional(),
   ctaLabel: z.string(),
   ctaTarget: CTA_TARGET,
   secondaryCtaLabel: z.string().optional(),

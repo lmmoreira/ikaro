@@ -4,6 +4,12 @@ export const MAX_DIMENSION = 1600;
 export const WEBP_QUALITY = 0.8;
 export const OUTPUT_CONTENT_TYPE: ImageContentType = 'image/webp';
 
+// A distinct, matchable message rather than a typed error class (M18-S04) — callers that need to
+// show purpose-specific copy (e.g. SingleImageUploadField's lowResolutionErrorLabel) compare
+// against this constant instead of a generic catch-all.
+export const LOW_RESOLUTION_ERROR_MESSAGE =
+  'Image resolution is too low for this purpose after downscaling';
+
 const ALLOWED_SOURCE_TYPES: ReadonlySet<string> = new Set(ALLOWED_IMAGE_CONTENT_TYPES);
 
 function scaledDimensions(
@@ -61,15 +67,38 @@ function resolveCropRect(width: number, height: number, targetAspectRatio?: numb
   return crop;
 }
 
-// A required crop (targetAspectRatio set) treats every failure as fatal instead of silently
-// falling back to the original file — see compressImage's doc comment for why.
-function failOpenOrThrow(file: File, targetAspectRatio: number | undefined, message: string): File {
-  if (targetAspectRatio) throw new Error(message);
+// A required crop (targetAspectRatio set) or a minimum-resolution floor (minHeight set) treats
+// every failure as fatal instead of silently falling back to the original file — see
+// compressImage's doc comment for why. Either one alone is enough to make a failure fatal: a
+// failure here means the guarantee the caller asked for can no longer be verified at all, not
+// just that the crop/downscale step itself didn't happen.
+function hasHardRequirement(
+  targetAspectRatio: number | undefined,
+  minHeight: number | undefined,
+): boolean {
+  return targetAspectRatio !== undefined || minHeight !== undefined;
+}
+
+function failOpenOrThrow(
+  file: File,
+  targetAspectRatio: number | undefined,
+  minHeight: number | undefined,
+  message: string,
+): File {
+  if (hasHardRequirement(targetAspectRatio, minHeight)) throw new Error(message);
   return file;
 }
 
-function rethrowOrFailOpen(file: File, targetAspectRatio: number | undefined, err: unknown): File {
-  if (targetAspectRatio) throw err instanceof Error ? err : new Error('Failed to process image');
+function rethrowOrFailOpen(
+  file: File,
+  targetAspectRatio: number | undefined,
+  minHeight: number | undefined,
+  err: unknown,
+): File {
+  if (err instanceof Error && err.message === LOW_RESOLUTION_ERROR_MESSAGE) throw err;
+  if (hasHardRequirement(targetAspectRatio, minHeight)) {
+    throw err instanceof Error ? err : new Error('Failed to process image');
+  }
   return file;
 }
 
@@ -107,12 +136,25 @@ function toBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
 // decodes formats outside it (GIF, AVIF, SVG, ...), and re-encoding one to WebP would launder an
 // otherwise-rejected format past uploadFileToSignedUrl's content-type check. The allowlist
 // decision belongs to the original file's type, never to whatever this function produces.
-export async function compressImage(file: File, targetAspectRatio?: number): Promise<File> {
+//
+// `minHeight` (M18-S04, e.g. 450 for the 'hero' purpose) rejects a source whose *post-scaling*
+// stored height would fall below it — checked against scaledDimensions' output, not the raw
+// natural bitmap height. MAX_DIMENSION's cap applies to whichever axis is larger, so for a wide
+// banner (width > height) the stored height always converges to roughly MAX_DIMENSION /
+// sourceAspectRatio regardless of the original upload's resolution — checking the raw natural
+// height would not actually guard anything. Always a hard requirement when set, independent of
+// targetAspectRatio's own fail-open behavior (see rethrowOrFailOpen).
+export async function compressImage(
+  file: File,
+  targetAspectRatio?: number,
+  minHeight?: number,
+): Promise<File> {
   if (!ALLOWED_SOURCE_TYPES.has(file.type)) return file;
   if (typeof createImageBitmap !== 'function') {
     return failOpenOrThrow(
       file,
       targetAspectRatio,
+      minHeight,
       'Image cropping is not supported in this browser',
     );
   }
@@ -122,6 +164,9 @@ export async function compressImage(file: File, targetAspectRatio?: number): Pro
     bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
     const crop = resolveCropRect(bitmap.width, bitmap.height, targetAspectRatio);
     const { width, height } = scaledDimensions(crop.sWidth, crop.sHeight, MAX_DIMENSION);
+    if (minHeight !== undefined && height < minHeight) {
+      throw new Error(LOW_RESOLUTION_ERROR_MESSAGE);
+    }
 
     const canvas = document.createElement('canvas');
     canvas.width = width;
@@ -131,6 +176,7 @@ export async function compressImage(file: File, targetAspectRatio?: number): Pro
       return failOpenOrThrow(
         file,
         targetAspectRatio,
+        minHeight,
         'Canvas rendering is not supported in this browser',
       );
     }
@@ -138,16 +184,24 @@ export async function compressImage(file: File, targetAspectRatio?: number): Pro
     ctx.drawImage(bitmap, crop.sx, crop.sy, crop.sWidth, crop.sHeight, 0, 0, width, height);
 
     const blob = await toBlob(canvas);
-    if (!blob)
-      return failOpenOrThrow(file, targetAspectRatio, 'Failed to encode the cropped image');
+    if (!blob) {
+      return failOpenOrThrow(
+        file,
+        targetAspectRatio,
+        minHeight,
+        'Failed to encode the cropped image',
+      );
+    }
     if (!targetAspectRatio && (blob.type !== OUTPUT_CONTENT_TYPE || blob.size >= file.size)) {
+      // Safe even when minHeight was requested: scaledDimensions only ever downscales, so the
+      // original file's natural height is always >= the already-passed minHeight check above.
       return file;
     }
 
     const extension = extensionForBlobType(blob.type);
     return new File([blob], withExtension(file.name, extension), { type: blob.type });
   } catch (err) {
-    return rethrowOrFailOpen(file, targetAspectRatio, err);
+    return rethrowOrFailOpen(file, targetAspectRatio, minHeight, err);
   } finally {
     bitmap?.close();
   }

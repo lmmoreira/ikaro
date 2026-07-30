@@ -91,4 +91,40 @@ describe('HeroConfigPanel', () => {
       writeModuleData({ ...HERO, rightPanel: 'brand-card' }),
     );
   });
+
+  describe('background image focal point (M18-S04)', () => {
+    it('does not render the focal-point picker when no background image is set', () => {
+      renderWithIntl(<HeroConfigPanel data={writeModuleData(HERO)} onChange={vi.fn()} />);
+
+      expect(screen.queryByTestId('hero-background-image-position-center')).not.toBeInTheDocument();
+    });
+
+    it('renders the focal-point picker when a background image is set', () => {
+      renderWithIntl(
+        <HeroConfigPanel
+          data={writeModuleData({ ...HERO, backgroundImageUrl: 'tenants/t/hotsite/hero/x/y.webp' })}
+          onChange={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByTestId('hero-background-image-position-center')).toBeInTheDocument();
+    });
+
+    it('changing the focal-point pill calls onChange with only that field updated', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      const withImage: HeroModuleData = {
+        ...HERO,
+        backgroundImageUrl: 'tenants/t/hotsite/hero/x/y.webp',
+      };
+
+      renderWithIntl(<HeroConfigPanel data={writeModuleData(withImage)} onChange={onChange} />);
+
+      await user.click(screen.getByTestId('hero-background-image-position-right'));
+
+      expect(onChange).toHaveBeenCalledWith(
+        writeModuleData({ ...withImage, backgroundImagePosition: 'right' }),
+      );
+    });
+  });
 });

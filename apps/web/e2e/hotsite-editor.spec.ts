@@ -89,6 +89,13 @@ function makeSolidPng(width: number, height: number): Buffer {
 // crop cleanly to 1:1 (branding) with no rounding-tolerance concerns either way.
 const CROPPABLE_PNG_BUFFER = makeSolidPng(120, 63);
 
+// 1604x494 (≈3.25:1) — the actual reference banner dimensions from /story-discovery, not an
+// arbitrary ratio. The 'hero' purpose applies no crop ratio, but M18-S04's minimum-stored-height
+// guard (450px, checked post-compression) still applies — this exact ratio is the one the 450px
+// threshold was derived against (compresses to ≈493px, clearing the floor with only a small
+// margin), so using it here actually exercises that coupling instead of a ratio far from it.
+const HERO_PNG_BUFFER = makeSolidPng(1604, 494);
+
 // .serial: every test here mutates autospa-premium's shared hotsite-config/settings rows and
 // restores them in afterEach — fullyParallel doesn't stop Playwright from running same-describe
 // tests in different workers, so without .serial these race each other for real (confirmed:
@@ -320,6 +327,56 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await expect(page.locator('[data-testid="hotsite-auth-bar"] img')).toBeVisible();
     await expect(page.locator('footer img')).toBeVisible();
     await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', /.+/);
+  });
+
+  // M18-S04 — hero background image gets a tenant-adjustable focal point (object-position) and
+  // an aspect-ratio-driven mobile crop, replacing the old viewport-relative min-h-screen height.
+  test('Hero panel: uploading a background image and setting the focal point persist after Publish and reload, and the live page applies the object-position (M18-S04)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await page.locator(configureButton('HERO')).click();
+
+    await page.getByTestId('single-image-upload-input').setInputFiles({
+      name: 'hero-banner.png',
+      mimeType: 'image/png',
+      buffer: HERO_PNG_BUFFER,
+    });
+    await expect(page.getByTestId('single-image-upload-preview')).toBeVisible();
+
+    await page.locator('[data-testid="hero-background-image-position-right"]').click();
+    await page.getByTestId('module-config-apply-desktop').click();
+
+    await page.getByTestId('hotsite-publish-desktop').click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+
+    await page.reload();
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await page.locator(configureButton('HERO')).click();
+    await expect(page.getByTestId('single-image-upload-preview')).toBeVisible();
+    await expect(
+      page.locator('[data-testid="hero-background-image-position-right"]'),
+    ).toHaveAttribute('aria-checked', 'true');
+
+    await page.goto(`/${MANAGER_TENANT_SLUG}`);
+    const heroImage = page.locator('[data-variant="centered"] img').first();
+    await expect(heroImage).toBeVisible();
+    // 'right' -> CSS object-position: right center, which the browser resolves to percentages.
+    await expect(heroImage).toHaveCSS('object-position', '100% 50%');
+
+    // Regression check for the actual crop bug this story fixes: before M18-S04, the centered
+    // variant's section used min-h-screen, forcing its height to the full device viewport height
+    // on mobile regardless of content — the root cause of the reported "gets really cut" crop.
+    // The replacement (min-h-[42.86vw], a floor) must keep the section well short of that on a
+    // real mobile viewport.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload();
+    const heroSection = page.locator('[data-variant="centered"]');
+    await expect(heroSection.locator('img')).toBeVisible();
+    const box = await heroSection.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.height).toBeLessThan(700);
   });
 
   // Default seed state has no logo uploaded (autospa-premium's branding.logoUrl is '') — this

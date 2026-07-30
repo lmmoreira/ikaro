@@ -73,6 +73,24 @@ describe('HeroModuleDataSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  it.each(['left', 'center', 'right', undefined] as const)(
+    'accepts backgroundImagePosition %s',
+    (backgroundImagePosition) => {
+      const result = HeroModuleDataSchema.safeParse({ ...validHeroData, backgroundImagePosition });
+
+      expect(result.success).toBe(true);
+    },
+  );
+
+  it('rejects an invalid backgroundImagePosition value', () => {
+    const result = HeroModuleDataSchema.safeParse({
+      ...validHeroData,
+      backgroundImagePosition: 'top',
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it('rejects an invalid variant', () => {
     const result = HeroModuleDataSchema.safeParse({ ...validHeroData, variant: 'invalid' });
 

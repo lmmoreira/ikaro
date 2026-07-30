@@ -436,6 +436,31 @@ describe('HotsiteConfig', () => {
           }),
         ).not.toThrow();
       });
+
+      // M18-S04 — backgroundImagePosition follows the same precedent as datePickerType above: a
+      // HERO module-data field with no business rule to enforce, so MODULE_DATA_VALIDATORS has no
+      // entry for HERO and this field is never validated by the aggregate.
+      it('does not throw for a HERO module with any backgroundImagePosition value, including one outside the enum', () => {
+        const config = new HotsiteConfigBuilder().build();
+        const layout: HotsiteModule[] = [
+          {
+            type: 'HERO',
+            enabled: true,
+            data: {
+              variant: 'centered',
+              title: 'Bem-vindo',
+              ctaLabel: 'Agendar agora',
+              ctaTarget: 'booking-form',
+              backgroundImagePosition: 'top',
+            } as never,
+          },
+        ];
+        expect(() =>
+          config.updateContent(DEFAULT_HOTSITE_BRANDING, layout, DEFAULT_HOTSITE_SEO, {
+            maxBookingAdvanceDays: 90,
+          }),
+        ).not.toThrow();
+      });
     });
   });
 });

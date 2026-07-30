@@ -29,6 +29,7 @@ export interface HeroModuleData {
   subtitle?: string;
   eyebrow?: string;
   backgroundImageUrl?: string;
+  backgroundImagePosition?: 'left' | 'center' | 'right';
   ctaLabel: string;
   ctaTarget: 'booking-form' | 'service-list' | 'gallery' | 'testimonials' | 'about' | 'contact';
   secondaryCtaLabel?: string;
