@@ -8,7 +8,7 @@ The Dashboard is the authenticated area of Ikaro where **Customers** manage thei
 
 ## 1. Role-Based Rendering (RBR)
 
-> **Two separate shells, not one `AppShell` with a mode switch.** M13 (`plan/M13-DASHBOARD-FRONTEND.md`, stories `S15`/`S16`) builds a **staff/manager dashboard shell** at `/dashboard/**` and a **separate customer "Minha Conta" shell** at `/{slug}/my-account/**`. They live under different route trees, are protected by different middleware checks, and share no top-level shell component. There is no unified `AppShell`/"mode" concept and no `CommandCenter`/`BookingTimeline`/`LoyaltyCard`/`ServiceEditor`/`TenantSwitcher` components — those names predate the M13 plan and were never built.
+> **Two separate shells, not one `AppShell` with a mode switch.** M13 (`plan/M13-DASHBOARD-FRONTEND.md`, stories `S15`/`S16`) builds a **staff/manager dashboard shell** at `/dashboard/**` and a **separate customer "Minha Conta" shell** at `/{slug}/my-account/**`. They live under different route trees, are protected by different proxy checks, and share no top-level shell component. There is no unified `AppShell`/"mode" concept and no `CommandCenter`/`BookingTimeline`/`LoyaltyCard`/`ServiceEditor`/`TenantSwitcher` components — those names predate the M13 plan and were never built.
 
 > **Naming note:** the customer area's pt-BR *concept* "Minha Conta" keeps that name in UI copy and in the prototype folder (`plan/journey/customer/prototypes/minha-conta/` — prototypes are conceptual mockups, kept pt-BR on purpose). The production route/file/component names are English (`my-account`, not `minha-conta`) per the code-standards English-only rule (`CLAUDE.md` §7) — established in `M13-S42`.
 

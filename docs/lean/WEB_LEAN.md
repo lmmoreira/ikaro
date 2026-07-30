@@ -2508,7 +2508,7 @@ This is the most important thing to understand. There is **no URL prefix** (`/en
 
 **Backend analogy:** Step 3 (`getRequestConfig`) is like a NestJS `InterceptorFn` that runs before every request, reads context from a header, and populates a per-request "locale store" — equivalent to how `RequestContext` stores `tenantId` and settings for the HTTP request lifecycle.
 
-**The `x-pathname` header trick:** `i18n/request.ts` runs server-side but Next.js doesn't directly expose "which route is being rendered" to it. The middleware sets a custom `x-pathname` header on every request, which `i18n/request.ts` reads via `headers()` from `next/headers`. This is the standard pattern for passing request metadata to deeply nested server-side code.
+**The `x-pathname` header trick:** `i18n/request.ts` runs server-side but Next.js doesn't directly expose "which route is being rendered" to it. The proxy sets a custom `x-pathname` header on every request, which `i18n/request.ts` reads via `headers()` from `next/headers`. This is the standard pattern for passing request metadata to deeply nested server-side code.
 
 ---
 

@@ -96,7 +96,9 @@ describe('HotsiteAdminController (integration — real GCS promotion)', () => {
     // path — the promoted path itself is only observable by reconstructing it from tmpFilePath
     // (promotion just swaps the tmp/<tenantId>/ prefix for tenants/<tenantId>/hotsite/) or by
     // reading the persisted (unresolved) repo state below.
+    expect(tmpFilePath).toMatch(new RegExp(`^tmp/${TENANT_A}/`));
     const promotedPath = tmpFilePath.replace(`tmp/${TENANT_A}/`, `tenants/${TENANT_A}/hotsite/`);
+    expect(promotedPath).toMatch(new RegExp(`^tenants/${TENANT_A}/hotsite/`));
     expect(patchBody.branding.logoUrl).toBe(storageService.getPublicUrl(promotedPath));
     expect(promotedPath).not.toBe(oldPermanentLogoPath);
 
