@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { ILoyaltyBalanceRepository } from '../../application/ports/loyalty-balance-repository.port';
 import { LoyaltyBalance } from '../../domain/loyalty-balance.aggregate';
@@ -16,6 +16,14 @@ export class TypeOrmLoyaltyBalanceRepository implements ILoyaltyBalanceRepositor
   async findByCustomer(tenantId: string, customerId: string): Promise<LoyaltyBalance | null> {
     const entity = await this.repo.findOne({ where: { tenantId, customerId } });
     return entity ? this.toDomain(entity) : null;
+  }
+
+  async findManyByCustomers(tenantId: string, customerIds: string[]): Promise<LoyaltyBalance[]> {
+    if (customerIds.length === 0) return [];
+    const entities = await this.repo.find({
+      where: { tenantId, customerId: In(customerIds) },
+    });
+    return entities.map((entity) => this.toDomain(entity));
   }
 
   async upsert(balance: LoyaltyBalance): Promise<void> {

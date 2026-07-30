@@ -13,6 +13,7 @@ import { LOYALTY_PLATFORM_PORT } from './application/ports/loyalty-platform.port
 import { LOYALTY_BOOKING_PORT } from './application/ports/loyalty-booking.port';
 import { LOYALTY_CUSTOMER_PORT } from './application/ports/loyalty-customer.port';
 import { GetLoyaltyBalanceUseCase } from './application/use-cases/get-loyalty-balance/get-loyalty-balance.use-case';
+import { GetLoyaltyBalancesBatchUseCase } from './application/use-cases/get-loyalty-balances-batch/get-loyalty-balances-batch.use-case';
 import { GetOwnLoyaltyBalanceUseCase } from './application/use-cases/get-own-loyalty-balance/get-own-loyalty-balance.use-case';
 import { GetLoyaltyEntriesUseCase } from './application/use-cases/get-loyalty-entries/get-loyalty-entries.use-case';
 import { GetLoyaltyRedemptionsUseCase } from './application/use-cases/get-loyalty-redemptions/get-loyalty-redemptions.use-case';
@@ -29,6 +30,7 @@ import { LoyaltyBookingAdapter } from './infrastructure/cross-context/loyalty-bo
 import { LoyaltyCustomerAdapter } from './infrastructure/cross-context/loyalty-customer.adapter';
 import { LoyaltyController } from './infrastructure/controllers/loyalty.controller';
 import { CronLoyaltyController } from './infrastructure/controllers/cron-loyalty.controller';
+import { InternalLoyaltyReadController } from './infrastructure/controllers/internal-loyalty-read.controller';
 import { CustomerRoleGuard } from '../../shared/guards/customer-role.guard';
 import { BookingCompletedHandler } from './infrastructure/events/booking-completed.handler';
 import { ExpirePointsTriggerHandler } from './infrastructure/events/expire-points-trigger.handler';
@@ -52,7 +54,7 @@ import { TypeOrmLoyaltyRedemptionRepository } from './infrastructure/repositorie
     CustomerModule,
     PlatformModule,
   ],
-  controllers: [LoyaltyController, CronLoyaltyController],
+  controllers: [LoyaltyController, CronLoyaltyController, InternalLoyaltyReadController],
   providers: [
     { provide: LOYALTY_ENTRY_REPOSITORY, useClass: TypeOrmLoyaltyEntryRepository },
     { provide: LOYALTY_BALANCE_REPOSITORY, useClass: TypeOrmLoyaltyBalanceRepository },
@@ -63,6 +65,7 @@ import { TypeOrmLoyaltyRedemptionRepository } from './infrastructure/repositorie
     { provide: LOYALTY_CUSTOMER_PORT, useClass: LoyaltyCustomerAdapter },
     CustomerRoleGuard,
     GetLoyaltyBalanceUseCase,
+    GetLoyaltyBalancesBatchUseCase,
     GetOwnLoyaltyBalanceUseCase,
     GetLoyaltyEntriesUseCase,
     GetLoyaltyRedemptionsUseCase,

@@ -11,11 +11,11 @@ import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { AddressSchema, isValidPhoneNumber } from '@ikaro/validation';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
+import { CurrentUser, CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
 import { CustomerTenantSummaryResponse } from '../auth/auth.types';
 import { TenantInfoResponse } from '../../shared/types/backend-responses';
 import { toTenantOption } from './customers.mapper';
-import { LoyaltyBalanceResponse } from '../loyalty/loyalty.types';
-import { CustomerSearchResponse } from './customers.types';
+import { CustomerSearchResponse, LoyaltyBalanceBatchItem } from './customers.types';
 import { throwProblemDetail } from '../../shared/http/problem-detail';
 
 export const UpdateCustomerProfileBodySchema = z.object({
@@ -48,6 +48,7 @@ export class CustomersController {
   @Roles('STAFF', 'MANAGER')
   async searchCustomers(
     @Query(new ZodValidationPipe(CustomerSearchQuerySchema)) query: CustomerSearchQuery,
+    @CurrentUser() user: CurrentUserPayload,
   ): Promise<CustomerSearchListResponse> {
     const params = new URLSearchParams({ limit: String(query.limit) });
     if (query.search) params.set('search', query.search);
@@ -55,14 +56,17 @@ export class CustomersController {
     const { items, total } = await this.backendHttp.get<CustomerSearchResponse>(
       `/customers?${params}`,
     );
-    const enriched = await Promise.all(
-      items.map(async (customer) => {
-        const balance = await this.backendHttp.get<LoyaltyBalanceResponse>(
-          `/customers/${customer.customerId}/loyalty/balance`,
-        );
-        return { ...customer, currentPoints: balance.currentPoints };
-      }),
+    if (items.length === 0) return { items: [], total };
+
+    const balances = await this.backendHttp.get<LoyaltyBalanceBatchItem[]>(
+      '/internal/loyalty/balances',
+      { tenantId: user.tenantId, customerIds: items.map((c) => c.customerId).join(',') },
     );
+    const pointsByCustomer = new Map(balances.map((b) => [b.customerId, b.currentPoints]));
+    const enriched = items.map((customer) => ({
+      ...customer,
+      currentPoints: pointsByCustomer.get(customer.customerId) ?? 0,
+    }));
 
     return { items: enriched, total };
   }
