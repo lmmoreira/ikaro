@@ -1,7 +1,7 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { InMemoryLoyaltyBalanceRepository } from '../../../../test/infrastructure/in-memory-loyalty-balance.repository';
 import { LoyaltyBalanceBuilder } from '../../../../test/builders/loyalty/index';
-import { GetLoyaltyBalancesBatchUseCase } from '../../application/use-cases/get-loyalty-balances-batch/get-loyalty-balances-batch.use-case';
+import { GetLoyaltyBalancesUseCase } from '../../application/use-cases/get-loyalty-balances/get-loyalty-balances.use-case';
 import { InternalLoyaltyReadController } from './internal-loyalty-read.controller';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
@@ -15,7 +15,7 @@ describe('InternalLoyaltyReadController', () => {
 
   beforeEach(() => {
     balanceRepo = new InMemoryLoyaltyBalanceRepository();
-    controller = new InternalLoyaltyReadController(new GetLoyaltyBalancesBatchUseCase(balanceRepo));
+    controller = new InternalLoyaltyReadController(new GetLoyaltyBalancesUseCase(balanceRepo));
   });
 
   describe('getBalancesRoute() — batch by customerIds', () => {

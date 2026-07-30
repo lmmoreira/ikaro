@@ -15,7 +15,7 @@ import { CurrentUser, CurrentUserPayload } from '../../shared/decorators/current
 import { CustomerTenantSummaryResponse } from '../auth/auth.types';
 import { TenantInfoResponse } from '../../shared/types/backend-responses';
 import { toTenantOption } from './customers.mapper';
-import { CustomerSearchResponse, LoyaltyBalanceBatchItem } from './customers.types';
+import { CustomerSearchResponse, LoyaltyBalanceItem } from './customers.types';
 import { throwProblemDetail } from '../../shared/http/problem-detail';
 
 export const UpdateCustomerProfileBodySchema = z.object({
@@ -58,7 +58,7 @@ export class CustomersController {
     );
     if (items.length === 0) return { items: [], total };
 
-    const balances = await this.backendHttp.get<LoyaltyBalanceBatchItem[]>(
+    const balances = await this.backendHttp.get<LoyaltyBalanceItem[]>(
       '/internal/loyalty/balances',
       { tenantId: user.tenantId, customerIds: items.map((c) => c.customerId).join(',') },
     );

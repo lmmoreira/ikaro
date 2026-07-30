@@ -4,29 +4,27 @@ import {
   LOYALTY_BALANCE_REPOSITORY,
 } from '../../ports/loyalty-balance-repository.port';
 
-export interface GetLoyaltyBalancesBatchUseCaseInput {
+export interface GetLoyaltyBalancesUseCaseInput {
   tenantId: string;
   customerIds: string[];
 }
 
-export interface LoyaltyBalanceBatchItemResult {
+export interface LoyaltyBalanceItemResult {
   customerId: string;
   currentPoints: number;
 }
 
-export interface GetLoyaltyBalancesBatchUseCaseResult {
-  items: LoyaltyBalanceBatchItemResult[];
+export interface GetLoyaltyBalancesUseCaseResult {
+  items: LoyaltyBalanceItemResult[];
 }
 
 @Injectable()
-export class GetLoyaltyBalancesBatchUseCase {
+export class GetLoyaltyBalancesUseCase {
   constructor(
     @Inject(LOYALTY_BALANCE_REPOSITORY) private readonly balanceRepo: ILoyaltyBalanceRepository,
   ) {}
 
-  async execute(
-    dto: GetLoyaltyBalancesBatchUseCaseInput,
-  ): Promise<GetLoyaltyBalancesBatchUseCaseResult> {
+  async execute(dto: GetLoyaltyBalancesUseCaseInput): Promise<GetLoyaltyBalancesUseCaseResult> {
     const balances = await this.balanceRepo.findManyByCustomers(dto.tenantId, dto.customerIds);
     const pointsByCustomer = new Map(balances.map((b) => [b.customerId, b.currentPoints]));
 

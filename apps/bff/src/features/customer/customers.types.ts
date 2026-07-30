@@ -3,7 +3,7 @@ export interface CustomerSearchResponse {
   total: number;
 }
 
-export interface LoyaltyBalanceBatchItem {
+export interface LoyaltyBalanceItem {
   customerId: string;
   currentPoints: number;
 }

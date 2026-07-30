@@ -3,14 +3,14 @@ import { throwProblemDetail } from '@ikaro/nestjs-http';
 import { GenericErrorCode } from '@ikaro/types';
 import { parseCommaSeparatedIds } from '../../../../shared/utils/parse-comma-separated-ids';
 import {
-  GetLoyaltyBalancesBatchUseCase,
-  LoyaltyBalanceBatchItemResult,
-} from '../../application/use-cases/get-loyalty-balances-batch/get-loyalty-balances-batch.use-case';
+  GetLoyaltyBalancesUseCase,
+  LoyaltyBalanceItemResult,
+} from '../../application/use-cases/get-loyalty-balances/get-loyalty-balances.use-case';
 import { mapLoyaltyError } from '../http/loyalty-error.mapper';
 
 @Controller('internal/loyalty')
 export class InternalLoyaltyReadController {
-  constructor(private readonly getLoyaltyBalancesBatch: GetLoyaltyBalancesBatchUseCase) {}
+  constructor(private readonly getLoyaltyBalances: GetLoyaltyBalancesUseCase) {}
 
   // Batch lookup — used by the BFF to resolve loyalty balances for many customers in one
   // call (avoids the N+1 fan-out one-call-per-customer would otherwise require). Internal
@@ -20,7 +20,7 @@ export class InternalLoyaltyReadController {
   async getBalancesRoute(
     @Query('tenantId') tenantId: string | string[] | undefined,
     @Query('customerIds') customerIds: string | string[] | undefined,
-  ): Promise<LoyaltyBalanceBatchItemResult[]> {
+  ): Promise<LoyaltyBalanceItemResult[]> {
     if (typeof tenantId !== 'string' || !tenantId.trim()) {
       throw throwProblemDetail(
         HttpStatus.BAD_REQUEST,
@@ -47,7 +47,7 @@ export class InternalLoyaltyReadController {
       );
     }
 
-    return this.getLoyaltyBalancesBatch
+    return this.getLoyaltyBalances
       .execute({ tenantId, customerIds: ids })
       .then((result) => result.items)
       .catch(mapLoyaltyError);

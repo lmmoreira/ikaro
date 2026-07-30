@@ -1,6 +1,6 @@
 import { InMemoryLoyaltyBalanceRepository } from '../../../../../test/infrastructure/in-memory-loyalty-balance.repository';
 import { LoyaltyBalanceBuilder } from '../../../../../test/builders/loyalty/index';
-import { GetLoyaltyBalancesBatchUseCase } from './get-loyalty-balances-batch.use-case';
+import { GetLoyaltyBalancesUseCase } from './get-loyalty-balances.use-case';
 
 const TENANT_A = '00000000-0000-7000-8000-000000000001';
 const TENANT_B = '00000000-0000-7000-8000-000000000002';
@@ -8,13 +8,13 @@ const CUSTOMER_1 = 'aaaaaaaa-0000-7000-8000-000000000001';
 const CUSTOMER_2 = 'aaaaaaaa-0000-7000-8000-000000000002';
 const CUSTOMER_3 = 'aaaaaaaa-0000-7000-8000-000000000003';
 
-describe('GetLoyaltyBalancesBatchUseCase', () => {
+describe('GetLoyaltyBalancesUseCase', () => {
   let balanceRepo: InMemoryLoyaltyBalanceRepository;
-  let useCase: GetLoyaltyBalancesBatchUseCase;
+  let useCase: GetLoyaltyBalancesUseCase;
 
   beforeEach(() => {
     balanceRepo = new InMemoryLoyaltyBalanceRepository();
-    useCase = new GetLoyaltyBalancesBatchUseCase(balanceRepo);
+    useCase = new GetLoyaltyBalancesUseCase(balanceRepo);
   });
 
   it('returns currentPoints for each requested customer', async () => {
