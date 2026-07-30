@@ -371,6 +371,23 @@ Found in TD23-S11: `main` merged a concurrent story (TD24-S02) that changed a sh
 
 ---
 
+## Playwright E2E flakiness that reproduces in CI but not locally — pull the actual trace/log artifacts, don't guess
+
+A CI-only Playwright failure is tempting to diagnose from the error message alone (a timeout, a stuck `.click()`) — but a fixed 30s action timeout can mean anything from "the button never existed" to "a network race put the page in a completely different state." Guessing from the error text, or trying to force-reproduce locally via repeated/stress runs, can burn a lot of time chasing the wrong mechanism — local hardware and timing rarely match CI's actual conditions closely enough for that to be reliable.
+
+**Do this instead:** the `pr-tests.yml` Playwright job uploads `playwright-traces` and `server-logs` as workflow artifacts on every run, not just on failure. Download and inspect them directly rather than theorizing:
+```bash
+gh api repos/<owner>/<repo>/actions/runs/<run-id>/artifacts --jq '.artifacts[] | {name, id}'
+gh api repos/<owner>/<repo>/actions/artifacts/<artifact-id>/zip > artifact.zip
+# cheapest first look — a full accessibility/DOM snapshot at the moment of failure, no trace viewer needed
+unzip -p artifact.zip "<spec-name>/error-context.md"
+```
+`error-context.md`'s "Page snapshot" section shows exactly what was rendered when the action timed out — often immediately revealing the real cause (e.g. an unrelated error page rendered mid-flow) rather than the symptom the error message describes. Only unzip and open the full `trace.zip` in Playwright's trace viewer if `error-context.md` isn't enough.
+
+Real incident: M18-S03, 2026-07-29. A customer-flow E2E spec failed intermittently in CI with `locator.click: Test timeout of 30000ms exceeded` on an existing, already-rendered button. Several plausible-sounding theories (Next.js dev-mode on-demand route compilation, backend mutation latency) were pursued first, based on local reproduction attempts that were themselves inconsistent (failed once, then passed repeatedly on identical re-runs). The actual `error-context.md` page snapshot showed the same thing on every single CI failure: the global "Tenant não encontrado" not-found page — immediately pointing at a duplicated, un-deduplicated data fetch (see CLAUDE.md's `fetchManifest`/`cache()` invariant) rather than anything related to the click or the button at all.
+
+---
+
 ## CI workflow configuration traps
 
 These affect `.github/workflows/` files, not application code — but cause CI to fail or produce misleading results just as surely.
