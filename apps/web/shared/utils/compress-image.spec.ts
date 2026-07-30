@@ -406,6 +406,44 @@ describe('compressImage — minHeight (minimum stored-height guard)', () => {
     await expect(compressImage(file, undefined, 450)).rejects.toThrow();
   });
 
+  // Cross-tool PR review finding (Codex + CodeRabbit, PR #294): minHeight must be fatal on every
+  // fail-open path, not just the "computed dimensions are too small" one below — an unsupported
+  // API or a decode/canvas/encode failure must not silently upload an unverified-resolution file.
+  it('throws (does not fall back to the original file) when createImageBitmap is unavailable and minHeight was requested', async () => {
+    const file = makeFile('banner.jpg', 'image/jpeg', 5_000_000);
+
+    await expect(compressImage(file, undefined, 450)).rejects.toThrow();
+  });
+
+  it('throws (does not fall back to the original file) when createImageBitmap rejects and minHeight was requested', async () => {
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn().mockRejectedValue(new Error('unsupported image format')),
+    );
+    const file = makeFile('banner.jpg', 'image/jpeg', 5_000_000);
+
+    await expect(compressImage(file, undefined, 450)).rejects.toThrow();
+  });
+
+  it('throws (does not fall back to the original file) when the canvas 2D context is unavailable and minHeight was requested', async () => {
+    const bitmap = makeBitmap(1000, 500);
+    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));
+    stubCanvas({ ctx: null });
+    const file = makeFile('banner.jpg', 'image/jpeg', 5_000_000);
+
+    await expect(compressImage(file, undefined, 450)).rejects.toThrow();
+    expect(bitmap.close).toHaveBeenCalled();
+  });
+
+  it('throws (does not fall back to the original file) when toBlob resolves null and minHeight was requested', async () => {
+    const bitmap = makeBitmap(1000, 500);
+    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));
+    stubCanvas({ blob: null });
+    const file = makeFile('banner.jpg', 'image/jpeg', 5_000_000);
+
+    await expect(compressImage(file, undefined, 450)).rejects.toThrow();
+  });
+
   it('does not apply a minHeight check when the parameter is omitted (branding/seo-og-image call sites unaffected)', async () => {
     const bitmap = makeBitmap(3000, 800);
     vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));

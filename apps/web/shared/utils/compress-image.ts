@@ -67,18 +67,38 @@ function resolveCropRect(width: number, height: number, targetAspectRatio?: numb
   return crop;
 }
 
-// A required crop (targetAspectRatio set) treats every failure as fatal instead of silently
-// falling back to the original file — see compressImage's doc comment for why.
-function failOpenOrThrow(file: File, targetAspectRatio: number | undefined, message: string): File {
-  if (targetAspectRatio) throw new Error(message);
+// A required crop (targetAspectRatio set) or a minimum-resolution floor (minHeight set) treats
+// every failure as fatal instead of silently falling back to the original file — see
+// compressImage's doc comment for why. Either one alone is enough to make a failure fatal: a
+// failure here means the guarantee the caller asked for can no longer be verified at all, not
+// just that the crop/downscale step itself didn't happen.
+function hasHardRequirement(
+  targetAspectRatio: number | undefined,
+  minHeight: number | undefined,
+): boolean {
+  return targetAspectRatio !== undefined || minHeight !== undefined;
+}
+
+function failOpenOrThrow(
+  file: File,
+  targetAspectRatio: number | undefined,
+  minHeight: number | undefined,
+  message: string,
+): File {
+  if (hasHardRequirement(targetAspectRatio, minHeight)) throw new Error(message);
   return file;
 }
 
-function rethrowOrFailOpen(file: File, targetAspectRatio: number | undefined, err: unknown): File {
-  // A minimum-height rejection is a hard requirement regardless of whether a crop was also
-  // requested — never silently fall back to the original (too-low-resolution) file.
+function rethrowOrFailOpen(
+  file: File,
+  targetAspectRatio: number | undefined,
+  minHeight: number | undefined,
+  err: unknown,
+): File {
   if (err instanceof Error && err.message === LOW_RESOLUTION_ERROR_MESSAGE) throw err;
-  if (targetAspectRatio) throw err instanceof Error ? err : new Error('Failed to process image');
+  if (hasHardRequirement(targetAspectRatio, minHeight)) {
+    throw err instanceof Error ? err : new Error('Failed to process image');
+  }
   return file;
 }
 
@@ -134,6 +154,7 @@ export async function compressImage(
     return failOpenOrThrow(
       file,
       targetAspectRatio,
+      minHeight,
       'Image cropping is not supported in this browser',
     );
   }
@@ -155,6 +176,7 @@ export async function compressImage(
       return failOpenOrThrow(
         file,
         targetAspectRatio,
+        minHeight,
         'Canvas rendering is not supported in this browser',
       );
     }
@@ -162,16 +184,24 @@ export async function compressImage(
     ctx.drawImage(bitmap, crop.sx, crop.sy, crop.sWidth, crop.sHeight, 0, 0, width, height);
 
     const blob = await toBlob(canvas);
-    if (!blob)
-      return failOpenOrThrow(file, targetAspectRatio, 'Failed to encode the cropped image');
+    if (!blob) {
+      return failOpenOrThrow(
+        file,
+        targetAspectRatio,
+        minHeight,
+        'Failed to encode the cropped image',
+      );
+    }
     if (!targetAspectRatio && (blob.type !== OUTPUT_CONTENT_TYPE || blob.size >= file.size)) {
+      // Safe even when minHeight was requested: scaledDimensions only ever downscales, so the
+      // original file's natural height is always >= the already-passed minHeight check above.
       return file;
     }
 
     const extension = extensionForBlobType(blob.type);
     return new File([blob], withExtension(file.name, extension), { type: blob.type });
   } catch (err) {
-    return rethrowOrFailOpen(file, targetAspectRatio, err);
+    return rethrowOrFailOpen(file, targetAspectRatio, minHeight, err);
   } finally {
     bitmap?.close();
   }

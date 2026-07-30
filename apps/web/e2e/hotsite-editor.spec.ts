@@ -360,7 +360,21 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.goto(`/${MANAGER_TENANT_SLUG}`);
     const heroImage = page.locator('[data-variant="centered"] img').first();
     await expect(heroImage).toBeVisible();
-    await expect(heroImage).not.toHaveCSS('object-position', '50% 50%');
+    // 'right' -> CSS object-position: right center, which the browser resolves to percentages.
+    await expect(heroImage).toHaveCSS('object-position', '100% 50%');
+
+    // Regression check for the actual crop bug this story fixes: before M18-S04, the centered
+    // variant's section used min-h-screen, forcing its height to the full device viewport height
+    // on mobile regardless of content — the root cause of the reported "gets really cut" crop.
+    // The replacement (min-h-[42.86vw], a floor) must keep the section well short of that on a
+    // real mobile viewport.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload();
+    const heroSection = page.locator('[data-variant="centered"]');
+    await expect(heroSection.locator('img')).toBeVisible();
+    const box = await heroSection.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.height).toBeLessThan(700);
   });
 
   // Default seed state has no logo uploaded (autospa-premium's branding.logoUrl is '') — this
