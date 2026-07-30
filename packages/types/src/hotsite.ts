@@ -17,6 +17,10 @@ export interface HeroModuleData {
   // config panel, which only ever writes '' or a real path) can legitimately have this as
   // literal `null` on read.
   backgroundImageUrl?: string | null;
+  // Horizontal focal-point preset for backgroundImageUrl's object-position — the crop axis that
+  // loses content when the container goes from a wide desktop shape to a taller mobile one is
+  // horizontal, not vertical (M18-S04).
+  backgroundImagePosition?: 'left' | 'center' | 'right';
   ctaLabel: string;
   ctaTarget: 'booking-form' | 'service-list' | 'gallery' | 'testimonials' | 'about' | 'contact';
   secondaryCtaLabel?: string;

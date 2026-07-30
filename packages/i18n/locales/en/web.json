@@ -573,7 +573,12 @@
             "backgroundImageFormatHint": "No image → solid background using the primary color",
             "backgroundImageUploading": "Uploading...",
             "backgroundImageUploadError": "Could not upload the image. Try again.",
-            "backgroundImageRemove": "Remove image"
+            "backgroundImageLowResolutionError": "Image resolution is too low for a background image. Upload a less panoramic version, or one with more vertical detail.",
+            "backgroundImageRemove": "Remove image",
+            "backgroundImagePositionLabel": "Image focal point",
+            "backgroundImagePositionLeft": "Left",
+            "backgroundImagePositionCenter": "Center",
+            "backgroundImagePositionRight": "Right"
           },
           "serviceList": {
             "titleLabel": "Title (optional)",

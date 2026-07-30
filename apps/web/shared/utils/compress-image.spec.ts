@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { compressImage, MAX_DIMENSION } from './compress-image';
+import { compressImage, LOW_RESOLUTION_ERROR_MESSAGE, MAX_DIMENSION } from './compress-image';
 
 function makeFile(name: string, type: string, size: number): File {
   return new File([new Uint8Array(size)], name, { type });
@@ -347,5 +347,74 @@ describe('compressImage — targetAspectRatio (auto center-crop)', () => {
     const file = makeFile('logo.jpg', 'image/jpeg', 5_000_000);
 
     await expect(compressImage(file, 1)).rejects.toThrow();
+  });
+});
+
+// M18-S04 — minimum post-compression stored height, applied to the 'hero' purpose (450px). Checks
+// against the *scaled* dimensions (post MAX_DIMENSION downscale), not the raw natural bitmap size —
+// see SingleImageUploadField.tsx's MINIMUM_STORED_HEIGHT and compressImage's own doc comment.
+describe('compressImage — minHeight (minimum stored-height guard)', () => {
+  it('throws LOW_RESOLUTION_ERROR_MESSAGE when the post-compression stored height falls below minHeight', async () => {
+    // 3000x800 (3.75:1) scales to 1600x427 under MAX_DIMENSION — below a 450 floor.
+    const bitmap = makeBitmap(3000, 800);
+    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));
+    stubCanvas({ blob: new Blob([new Uint8Array(1000)], { type: 'image/webp' }) });
+    const file = makeFile('wide-banner.jpg', 'image/jpeg', 5_000_000);
+
+    await expect(compressImage(file, undefined, 450)).rejects.toThrow(LOW_RESOLUTION_ERROR_MESSAGE);
+  });
+
+  it('rejects a huge source sharing the same too-wide aspect ratio — the check runs on scaled dimensions, not raw pixel count', async () => {
+    // Same 3.75:1 ratio as above but 10x the raw pixels — still scales to ~427px stored height.
+    const bitmap = makeBitmap(30_000, 8_000);
+    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));
+    stubCanvas({ blob: new Blob([new Uint8Array(1000)], { type: 'image/webp' }) });
+    const file = makeFile('huge-wide-banner.jpg', 'image/jpeg', 20_000_000);
+
+    await expect(compressImage(file, undefined, 450)).rejects.toThrow(LOW_RESOLUTION_ERROR_MESSAGE);
+  });
+
+  it('passes the actual 1604x494 reference banner (M18-S04 story-discovery) against the 450px hero threshold', async () => {
+    const bitmap = makeBitmap(1604, 494);
+    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));
+    stubCanvas({ blob: new Blob([new Uint8Array(1000)], { type: 'image/webp' }) });
+    const file = makeFile('reference-banner.jpg', 'image/jpeg', 5_000_000);
+
+    await expect(compressImage(file, undefined, 450)).resolves.not.toThrow();
+  });
+
+  it('proceeds normally when the stored height is at/above minHeight', async () => {
+    const bitmap = makeBitmap(1000, 500);
+    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));
+    const blob = new Blob([new Uint8Array(1000)], { type: 'image/webp' });
+    stubCanvas({ blob });
+    const file = makeFile('photo.jpg', 'image/jpeg', 5_000_000);
+
+    const result = await compressImage(file, undefined, 450);
+
+    expect(result).not.toBe(file);
+  });
+
+  it('never fails open on a minHeight violation, unlike other no-targetAspectRatio failures', async () => {
+    const bitmap = makeBitmap(3000, 800);
+    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));
+    stubCanvas({ blob: new Blob([new Uint8Array(1000)], { type: 'image/webp' }) });
+    const file = makeFile('wide-banner.jpg', 'image/jpeg', 5_000_000);
+
+    // No targetAspectRatio requested — every other failure path in this file falls back to the
+    // original file in that case. minHeight must not follow that fail-open behavior.
+    await expect(compressImage(file, undefined, 450)).rejects.toThrow();
+  });
+
+  it('does not apply a minHeight check when the parameter is omitted (branding/seo-og-image call sites unaffected)', async () => {
+    const bitmap = makeBitmap(3000, 800);
+    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));
+    const blob = new Blob([new Uint8Array(1000)], { type: 'image/webp' });
+    stubCanvas({ blob });
+    const file = makeFile('wide-banner.jpg', 'image/jpeg', 5_000_000);
+
+    const result = await compressImage(file, 1);
+
+    expect(result).not.toBe(file);
   });
 });

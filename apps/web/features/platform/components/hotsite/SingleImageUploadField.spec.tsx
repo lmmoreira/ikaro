@@ -9,7 +9,7 @@ import {
   generateHotsiteImageSignedUrl,
 } from '@/features/platform/api/tenant-settings';
 import { ApiError } from '@/shared/lib/api/errors';
-import { compressImage } from '@/shared/utils/compress-image';
+import { compressImage, LOW_RESOLUTION_ERROR_MESSAGE } from '@/shared/utils/compress-image';
 import { SingleImageUploadField } from './SingleImageUploadField';
 
 vi.mock('@/features/platform/api/tenant-settings', () => ({
@@ -18,9 +18,17 @@ vi.mock('@/features/platform/api/tenant-settings', () => ({
   deleteHotsiteImage: vi.fn(),
 }));
 
-vi.mock('@/shared/utils/compress-image', () => ({
-  compressImage: vi.fn((file: File) => Promise.resolve(file)),
-}));
+// Keeps LOW_RESOLUTION_ERROR_MESSAGE real (not re-declared here) so the component-under-test's own
+// import of it stays in sync with what these tests throw — only compressImage itself is mocked.
+vi.mock('@/shared/utils/compress-image', async () => {
+  const actual = await vi.importActual<typeof import('@/shared/utils/compress-image')>(
+    '@/shared/utils/compress-image',
+  );
+  return {
+    ...actual,
+    compressImage: vi.fn((file: File) => Promise.resolve(file)),
+  };
+});
 
 const LABELS = {
   label: 'Imagem de fundo',
@@ -332,6 +340,55 @@ describe('SingleImageUploadField', () => {
     );
   });
 
+  it('shows lowResolutionErrorLabel when compressImage rejects with the low-resolution marker and the caller supplied that label', async () => {
+    const user = userEvent.setup();
+    vi.mocked(compressImage).mockRejectedValue(new Error(LOW_RESOLUTION_ERROR_MESSAGE));
+
+    renderWithIntl(
+      <SingleImageUploadField
+        id="hero-bg"
+        value=""
+        onChange={vi.fn()}
+        purpose="hero"
+        lowResolutionErrorLabel="Resolução muito baixa."
+        {...LABELS}
+      />,
+    );
+
+    await user.upload(
+      getByFieldId('single-image-upload-input', 'hero-bg'),
+      makeFile('wide-banner.png', 'image/png'),
+    );
+
+    expect(await screen.findByTestId('single-image-upload-error')).toHaveTextContent(
+      'Resolução muito baixa.',
+    );
+  });
+
+  it('falls back to the generic uploadErrorLabel for a low-resolution rejection when no lowResolutionErrorLabel was supplied', async () => {
+    const user = userEvent.setup();
+    vi.mocked(compressImage).mockRejectedValue(new Error(LOW_RESOLUTION_ERROR_MESSAGE));
+
+    renderWithIntl(
+      <SingleImageUploadField
+        id="hero-bg"
+        value=""
+        onChange={vi.fn()}
+        purpose="hero"
+        {...LABELS}
+      />,
+    );
+
+    await user.upload(
+      getByFieldId('single-image-upload-input', 'hero-bg'),
+      makeFile('wide-banner.png', 'image/png'),
+    );
+
+    expect(await screen.findByTestId('single-image-upload-error')).toHaveTextContent(
+      LABELS.uploadErrorLabel,
+    );
+  });
+
   it('removing a freshly-uploaded (raw storage path) image calls deleteHotsiteImage and clears the value', async () => {
     const user = userEvent.setup();
     vi.mocked(deleteHotsiteImage).mockResolvedValue(undefined);
@@ -425,7 +482,7 @@ describe('SingleImageUploadField', () => {
       makeFile('logo.png', 'image/png'),
     );
 
-    expect(compressImage).toHaveBeenCalledWith(expect.any(File), 1);
+    expect(compressImage).toHaveBeenCalledWith(expect.any(File), 1, undefined);
   });
 
   it('passes the 1200/630 targetAspectRatio to compressImage for purpose="seo-og-image"', async () => {
@@ -452,10 +509,10 @@ describe('SingleImageUploadField', () => {
       makeFile('share.png', 'image/png'),
     );
 
-    expect(compressImage).toHaveBeenCalledWith(expect.any(File), 1200 / 630);
+    expect(compressImage).toHaveBeenCalledWith(expect.any(File), 1200 / 630, undefined);
   });
 
-  it('passes no targetAspectRatio to compressImage for a photographic-content purpose (e.g. "hero")', async () => {
+  it('passes no targetAspectRatio but the 450px minHeight floor to compressImage for purpose="hero"', async () => {
     const user = userEvent.setup();
     vi.mocked(generateHotsiteImageSignedUrl).mockResolvedValue({
       signedUrl: 'https://storage.example.com/upload?sig=abc',
@@ -479,7 +536,7 @@ describe('SingleImageUploadField', () => {
       makeFile('banner.png', 'image/png'),
     );
 
-    expect(compressImage).toHaveBeenCalledWith(expect.any(File), undefined);
+    expect(compressImage).toHaveBeenCalledWith(expect.any(File), undefined, 450);
   });
 
   it('does not render a remove button when there is no current value', () => {

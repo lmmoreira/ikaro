@@ -89,6 +89,11 @@ function makeSolidPng(width: number, height: number): Buffer {
 // crop cleanly to 1:1 (branding) with no rounding-tolerance concerns either way.
 const CROPPABLE_PNG_BUFFER = makeSolidPng(120, 63);
 
+// 900x460 — the 'hero' purpose applies no crop ratio, but M18-S04's minimum-stored-height guard
+// (450px, checked post-compression) still applies; a source under 1600px in both dimensions
+// passes through compressImage unscaled, so 460 clears the 450 floor with margin.
+const HERO_PNG_BUFFER = makeSolidPng(900, 460);
+
 // .serial: every test here mutates autospa-premium's shared hotsite-config/settings rows and
 // restores them in afterEach — fullyParallel doesn't stop Playwright from running same-describe
 // tests in different workers, so without .serial these race each other for real (confirmed:
@@ -320,6 +325,42 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await expect(page.locator('[data-testid="hotsite-auth-bar"] img')).toBeVisible();
     await expect(page.locator('footer img')).toBeVisible();
     await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', /.+/);
+  });
+
+  // M18-S04 — hero background image gets a tenant-adjustable focal point (object-position) and
+  // an aspect-ratio-driven mobile crop, replacing the old viewport-relative min-h-screen height.
+  test('Hero panel: uploading a background image and setting the focal point persist after Publish and reload, and the live page applies the object-position (M18-S04)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await page.locator(configureButton('HERO')).click();
+
+    await page.getByTestId('single-image-upload-input').setInputFiles({
+      name: 'hero-banner.png',
+      mimeType: 'image/png',
+      buffer: HERO_PNG_BUFFER,
+    });
+    await expect(page.getByTestId('single-image-upload-preview')).toBeVisible();
+
+    await page.locator('[data-testid="hero-background-image-position-right"]').click();
+    await page.getByTestId('module-config-apply-desktop').click();
+
+    await page.getByTestId('hotsite-publish-desktop').click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+
+    await page.reload();
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await page.locator(configureButton('HERO')).click();
+    await expect(page.getByTestId('single-image-upload-preview')).toBeVisible();
+    await expect(
+      page.locator('[data-testid="hero-background-image-position-right"]'),
+    ).toHaveAttribute('aria-checked', 'true');
+
+    await page.goto(`/${MANAGER_TENANT_SLUG}`);
+    const heroImage = page.locator('[data-variant="centered"] img').first();
+    await expect(heroImage).toBeVisible();
+    await expect(heroImage).not.toHaveCSS('object-position', '50% 50%');
   });
 
   // Default seed state has no logo uploaded (autospa-premium's branding.logoUrl is '') — this

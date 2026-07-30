@@ -8,7 +8,7 @@ import {
   generateHotsiteImageSignedUrl,
 } from '@/features/platform/api/tenant-settings';
 import { uploadFileToSignedUrl } from '@/shared/lib/upload/upload-to-signed-url';
-import { compressImage } from '@/shared/utils/compress-image';
+import { compressImage, LOW_RESOLUTION_ERROR_MESSAGE } from '@/shared/utils/compress-image';
 import {
   isTmpImagePath,
   resolveHotsiteImageDisplayUrl,
@@ -26,6 +26,14 @@ const TARGET_ASPECT_RATIO: Partial<Record<HotsiteImagePurpose, number>> = {
   'seo-og-image': 1200 / 630,
 };
 
+// Minimum post-compression stored height (M18-S04) — only 'hero' gets an entry, mirroring
+// TARGET_ASPECT_RATIO's own "only purposes with a real requirement get one" precedent. Sized to
+// cover a 21:9 mobile crop (needs ~502px at a typical 390px/3x-DPR phone) with at most a mild
+// ~1.1x upscale — see plan/M18-BOOKING-IMPROVEMENTS.md M18-S04 for the derivation.
+const MINIMUM_STORED_HEIGHT: Partial<Record<HotsiteImagePurpose, number>> = {
+  hero: 450,
+};
+
 interface SingleImageUploadFieldProps {
   readonly id: string;
   readonly value: string;
@@ -37,6 +45,7 @@ interface SingleImageUploadFieldProps {
   readonly formatHintLabel: string;
   readonly uploadingLabel: string;
   readonly uploadErrorLabel: string;
+  readonly lowResolutionErrorLabel?: string;
   readonly removeLabel: string;
 }
 
@@ -63,6 +72,7 @@ export function SingleImageUploadField({
   formatHintLabel,
   uploadingLabel,
   uploadErrorLabel,
+  lowResolutionErrorLabel,
   removeLabel,
 }: SingleImageUploadFieldProps): React.JSX.Element {
   const locale = useResolvedLocale();
@@ -105,7 +115,11 @@ export function SingleImageUploadField({
     setPreviewUrl(localPreviewUrl);
     setStatus('uploading');
     try {
-      const compressed = await compressImage(file, TARGET_ASPECT_RATIO[purpose]);
+      const compressed = await compressImage(
+        file,
+        TARGET_ASPECT_RATIO[purpose],
+        MINIMUM_STORED_HEIGHT[purpose],
+      );
       const filePath = await uploadFileToSignedUrl(compressed, (fileName, contentType) =>
         generateHotsiteImageSignedUrl({ fileName, contentType, purpose }),
       );
@@ -113,11 +127,17 @@ export function SingleImageUploadField({
       setStatus('idle');
     } catch (err) {
       // A backend/BFF-originated code (e.g. the signed-url request being rejected) gets the
-      // specific catalog message; a cloud-storage PUT failure or client-side validation error
-      // carries no code, so the caller's own contextual label is a better fallback than the
-      // resolver's fully generic one.
+      // specific catalog message; a client-side minimum-resolution rejection gets its own
+      // purpose-specific label when the caller supplies one; a cloud-storage PUT failure or any
+      // other client-side error carries no code, so the caller's own generic contextual label is
+      // the fallback.
       const code = extractProblemCode(err);
-      setErrorMessage(code ? resolveErrorMessage(code, locale) : uploadErrorLabel);
+      const isLowResolution = err instanceof Error && err.message === LOW_RESOLUTION_ERROR_MESSAGE;
+      setErrorMessage(
+        code
+          ? resolveErrorMessage(code, locale)
+          : (isLowResolution && lowResolutionErrorLabel) || uploadErrorLabel,
+      );
       setStatus('error');
       setPreviewUrl(null);
       URL.revokeObjectURL(localPreviewUrl);

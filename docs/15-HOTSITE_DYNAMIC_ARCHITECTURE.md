@@ -203,9 +203,14 @@ interface HeroModuleData {
   variant: 'centered' | 'left-aligned';  // default: 'centered'
   title: string;
   subtitle?: string;
-  backgroundImageUrl?: string;           // GCS URL — uploaded via dashboard
+  eyebrow?: string;
+  backgroundImageUrl?: string | null;    // GCS URL — uploaded via dashboard
+  backgroundImagePosition?: 'left' | 'center' | 'right'; // object-position focal point, default 'center' (M18-S04)
   ctaLabel: string;                      // e.g. "Agendar agora"
-  ctaTarget: 'booking' | 'service-list'; // scroll target on click
+  ctaTarget: 'booking-form' | 'service-list' | 'gallery' | 'testimonials' | 'about' | 'contact';
+  secondaryCtaLabel?: string;
+  secondaryCtaTarget?: 'booking-form' | 'service-list' | 'gallery' | 'testimonials' | 'about' | 'contact';
+  rightPanel?: 'none' | 'image' | 'brand-card'; // left-aligned variant only
 }
 ```
 

@@ -196,8 +196,23 @@ export function HeroConfigPanel({ data, onChange }: ModuleConfigPanelProps): Rea
         formatHintLabel={t('backgroundImageFormatHint')}
         uploadingLabel={t('backgroundImageUploading')}
         uploadErrorLabel={t('backgroundImageUploadError')}
+        lowResolutionErrorLabel={t('backgroundImageLowResolutionError')}
         removeLabel={t('backgroundImageRemove')}
       />
+
+      {hero.backgroundImageUrl && (
+        <PillSelect
+          label={t('backgroundImagePositionLabel')}
+          value={hero.backgroundImagePosition ?? 'center'}
+          onChange={(backgroundImagePosition) => update({ backgroundImagePosition })}
+          testId="hero-background-image-position"
+          options={[
+            { value: 'left', label: t('backgroundImagePositionLeft') },
+            { value: 'center', label: t('backgroundImagePositionCenter') },
+            { value: 'right', label: t('backgroundImagePositionRight') },
+          ]}
+        />
+      )}
     </div>
   );
 }

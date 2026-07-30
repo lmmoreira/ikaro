@@ -116,6 +116,7 @@ function HeroTextContent({
 export function HeroModule({ data, slug: _, tenantBrand }: HeroModuleProps): React.JSX.Element {
   const ctaHref = `#${data.ctaTarget}`;
   const bgUrl = data.backgroundImageUrl;
+  const objectPosition = `${data.backgroundImagePosition ?? 'center'} center`;
 
   // Determine what to render in the right column (left-aligned variant only).
   // If rightPanel is not set, fall back based on whether an image URL is present.
@@ -129,10 +130,20 @@ export function HeroModule({ data, slug: _, tenantBrand }: HeroModuleProps): Rea
     return (
       <section
         data-variant="centered"
-        className="relative flex min-h-screen items-center justify-center px-6 sm:min-h-[60vh]"
+        className="relative flex min-h-[42.86vw] items-center justify-center px-6 sm:min-h-[60vh]"
         style={sectionStyle}
       >
-        {bgUrl && <Image src={bgUrl} alt="" fill priority sizes="100vw" className="object-cover" />}
+        {bgUrl && (
+          <Image
+            src={bgUrl}
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover"
+            style={{ objectPosition }}
+          />
+        )}
         <div className="relative z-10 mx-auto max-w-3xl py-16 text-center">
           <HeroTextContent data={data} ctaHref={ctaHref} />
         </div>
@@ -163,7 +174,7 @@ export function HeroModule({ data, slug: _, tenantBrand }: HeroModuleProps): Rea
             <BrandCard name={tenantBrand.name} tagline={tenantBrand.tagline} />
           )}
           {rightPanel === 'image' && bgUrl && (
-            <div className="relative h-64 sm:h-full sm:min-h-[40vh]">
+            <div className="relative aspect-[21/9] sm:aspect-auto sm:h-full sm:min-h-[40vh]">
               <Image
                 src={bgUrl}
                 alt=""
@@ -171,7 +182,7 @@ export function HeroModule({ data, slug: _, tenantBrand }: HeroModuleProps): Rea
                 priority
                 sizes="(min-width: 640px) 50vw, 100vw"
                 className="object-cover"
-                style={{ borderRadius: 'var(--ba-radius)' }}
+                style={{ borderRadius: 'var(--ba-radius)', objectPosition }}
               />
             </div>
           )}

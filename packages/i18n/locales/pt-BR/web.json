@@ -573,7 +573,12 @@
             "backgroundImageFormatHint": "Sem imagem → fundo sólido com a cor primária",
             "backgroundImageUploading": "Enviando...",
             "backgroundImageUploadError": "Não foi possível enviar a imagem. Tente novamente.",
-            "backgroundImageRemove": "Remover imagem"
+            "backgroundImageLowResolutionError": "Imagem com resolução muito baixa para uma imagem de fundo. Envie uma versão menos panorâmica ou com mais detalhe vertical.",
+            "backgroundImageRemove": "Remover imagem",
+            "backgroundImagePositionLabel": "Ponto focal da imagem",
+            "backgroundImagePositionLeft": "Esquerda",
+            "backgroundImagePositionCenter": "Centro",
+            "backgroundImagePositionRight": "Direita"
           },
           "serviceList": {
             "titleLabel": "Título (opcional)",
