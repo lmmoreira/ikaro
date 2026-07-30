@@ -261,7 +261,13 @@ Retyping dead duplicate code doesn't fix anything real — per CLAUDE.md's own a
 
 ---
 
-### Story 5 — N+1 loyalty-balance fan-out in customer search 🔴 High (largest story — needs a new backend endpoint)
+### Story 5 — N+1 loyalty-balance fan-out in customer search 🔴 High (largest story — needs a new backend endpoint) ✅ Done
+
+**Landed**: PR #293 (2026-07-30), `feat/td31-pr5-loyalty-balance-batch` (branch deleted post-merge). Two deviations from the plan below, both raised by the user after merge-readiness and fixed in follow-up commits on the same PR before it was merged:
+1. **Naming**: `GetLoyaltyBalancesBatchUseCase`/`internal-loyalty-read.controller.ts` as spec'd didn't match this codebase's established `GetXxxByIdUseCase`/`GetXxxUseCase` (plural, no suffix) convention already used by `staff`/`platform` (`GetStaffByIdUseCase`/`GetStaffUseCase`, `GetTenantByIdUseCase`/`GetTenantsUseCase`). Renamed throughout to `GetLoyaltyBalancesUseCase`/`LoyaltyBalanceItemResult`, directory `get-loyalty-balances/`.
+2. **Endpoint placement**: the `/internal/loyalty/balances` endpoint as spec'd (modeled on `/internal/tenants?ids=`) copied the wrong reference. `/internal/tenants` bypasses `RequestContext` because Tenant lookups are inherently cross-tenant (no "current tenant" to check a tenant-ID lookup against); a loyalty-balance batch read is scoped to exactly the caller's own tenant, identical in shape to the already-guarded `getBalanceAdmin()` single-customer route. Moved into `LoyaltyController` as `GET /loyalty/balances`, guarded by `StaffOrManagerRoleGuard`, deriving `tenantId` from `RequestContext` like its sibling — no `InternalApiGuard`, no explicit `tenantId` param needed from the BFF (dropped `@CurrentUser()` from `searchCustomers()` entirely).
+
+Also fixed during CodeRabbit review on the PR: a real gap where `tenantId`/`customerIds` could bind as `string[]` on a repeated query param and throw an uncaught 500 instead of the intended 400 (now validates `typeof === 'string'` first). Two other CodeRabbit findings were reviewed and skipped as false positives (a `jest.fn()` mock of the TypeORM adapter itself — no InMemory double exists for the thing under test — and a doc-approval flag for an edit already explicitly approved in conversation).
 
 **Source**: BFF A3
 
@@ -767,7 +773,7 @@ Grouping rule: two stories collapse into **one PR** only when they genuinely sha
 
 | PR | Stories | Target files | Notes |
 |---|---|---|---|
-| **PR 5** | Story 5 only (Story 18 split out) | Backend: new `get-loyalty-balances-batch.use-case.ts`, `loyalty-balance-repository.port.ts` + adapter, new `internal-loyalty-read.controller.ts` (+ specs). BFF: `customers.controller.ts` (`searchCustomers()` only) | Story 18 no longer bundled — story-discovery for this PR found its fan-out is a different, harder problem than assumed (cross-tenant identity resolution, not same-tenant batching) and split it out rather than rushing new machinery into this PR. See Story 18's discovery update. |
+| **PR 5** ✅ | Story 5 only (Story 18 split out) | Backend: new `get-loyalty-balances/get-loyalty-balances.use-case.ts`, `loyalty-balance-repository.port.ts` + adapter, `LoyaltyController` (`GET /loyalty/balances`, not a new `/internal/*` controller — see Story 5's Landed note). BFF: `customers.controller.ts` (`searchCustomers()` only) | Story 18 no longer bundled — story-discovery for this PR found its fan-out is a different, harder problem than assumed (cross-tenant identity resolution, not same-tenant batching) and split it out rather than rushing new machinery into this PR. See Story 18's discovery update. **Merged as [#293](https://github.com/lmmoreira/ikaro/pull/293), 2026-07-30.** |
 
 ### Wave 5 — Independent backend/BFF cleanups (6 PRs, deliberately NOT collapsed — unrelated concerns, no shared file forcing them together)
 
