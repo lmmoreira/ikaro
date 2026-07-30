@@ -305,7 +305,7 @@ None — `PATCH /tenants/hotsite` already accepts partial `branding`/`layout`/`s
 
 ---
 
-## M18-S03 — Dedicated SEO share image (`seo.ogImageUrl`), auto-cropped uploads, and rendering `branding.logoUrl` on the public hotsite
+## M18-S03 — Dedicated SEO share image (`seo.ogImageUrl`), auto-cropped uploads, and rendering `branding.logoUrl` on the public hotsite ✅ Done
 
 **Agent:** `fullstack-ts`
 **Complexity:** L
