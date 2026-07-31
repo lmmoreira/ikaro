@@ -367,7 +367,7 @@ Every origin is exported from `packages/types/src/error-codes.ts` as an `as cons
 
 `apps/web/shared/lib/i18n/resolve-error-message.ts`:
 - `resolveErrorMessage(code, locale, params?)` — the only thing allowed to select a message. Never `status`, `.detail`, or raw backend text (`docs/ANTI_PATTERNS.md`).
-- `extractProblemCode(err)` / `resolveErrorMessageFromApiError(err, locale)` — pulls `code` out of the two `bffClient`-backed error classes (`ApiError`, `ForbiddenError`) that carry a parsed `ProblemDetail` body.
+- `extractProblemCode(err)` / `resolveErrorMessageFromApiError(err, locale)` — pulls `code` out of the `bffClient`-backed error classes (`ApiError`, `AuthError`, `ForbiddenError`) that carry a parsed `ProblemDetail` body via `.data` (delegates to `extractProblemDetailShape()` in `shared/lib/api/errors.ts`, the single implementation for all three — TD31 Story 7).
 - An unrecognized/missing code falls back to a generic message and `console.warn`s, so a code/locale gap is observable instead of silently swallowed — never falls through to rendering `detail`.
 
 ### `status` vs `code`
