@@ -202,13 +202,23 @@ The 9 helper files listed above (`apps/web/e2e/helpers/**`, `apps/web/e2e/authen
 
 ### Phase 6 — Rollout & validation plan
 
-1. Apply Phase 1 Terraform to **staging first** (cheaper blast radius, matches this repo's staging-before-prod discipline throughout M17).
-2. Deploy Phase 2-4 app changes to staging.
-3. **Re-run the same live verification M17-S27 did**: real browser request from a known IP against staging, confirm the new `X-Real-Client-Ip`-sourced log line now shows the actual requester's IP, not `ikaro-web`'s egress address.
-4. Confirm the app-layer guard actually rejects an unauthenticated direct call to BFF's internal URL attempted from *outside* the VPC (should fail at the ingress layer before even reaching the guard) and from a VPC-internal-but-unauthenticated caller if one is easy to construct for the test (should fail at the guard).
-5. Confirm existing E2E (`pr-e2e.yml`, local/docker-compose) is unaffected.
-6. Land Phase 5 (E2E redesign) before or alongside M17-S28.
-7. Repeat 1-3 for prod once staging is verified stable, following this repo's normal `plan/M17-CLOUD-DEPLOY.md` S37-style staging-then-prod promotion discipline.
+**Staging is live traffic; prod is not (as of this writing prod has not been activated — `M17-S37` is the not-yet-run staging-activation runbook). The two environments therefore need different rollout treatment, not the same "apply then repeat" sequence.**
+
+#### Staging (live — sequencing matters)
+
+`infra-deploy.yml` (Terraform, triggered by `infra/terraform/**` paths) and `deploy-staging.yml` (app deploy, triggered by `apps/**`/`packages/**` paths) are two independent, unordered GitHub Actions workflows with no `needs:` dependency between them. Landing Phase 1's Terraform (which removes BFF's public invoker grant) and Phase 2's app code (which is what makes `ikaro-web` start presenting an ID token) in the same PR does **not** guarantee they apply in the safe order — the two workflows race, and if Terraform's apply finishes first, every BFF call from `ikaro-web` 401s until the app deploy catches up (Cloud Run image build + deploy is typically slower than a small `terraform apply`).
+
+Decision: for staging, this window (an outage of unknown-but-likely-multi-minute duration, full loss of BFF-dependent functionality, not partial degradation) is an accepted cost — it is a pre-prod environment and no external users depend on its uptime. Bundle Phases 1-4 into a single staging deploy rather than adding artificial sequencing:
+
+1. Apply Phase 1 Terraform to staging and deploy Phase 2-4 app changes together (same PR is fine).
+2. **Re-run the same live verification M17-S27 did**: real browser request from a known IP against staging, confirm the new `X-Real-Client-Ip`-sourced log line now shows the actual requester's IP, not `ikaro-web`'s egress address.
+3. Confirm the app-layer guard actually rejects an unauthenticated direct call to BFF's internal URL attempted from *outside* the VPC (should fail at the ingress layer before even reaching the guard) and from a VPC-internal-but-unauthenticated caller if one is easy to construct for the test (should fail at the guard).
+4. Confirm the per-PR merge-gating E2E job (`e2e` job in `pr-tests.yml`, part of the required `test-suite-passed` check) is unaffected — it runs against `docker compose`, with `PLAYWRIGHT_BFF_URL` defaulting to `http://localhost:3002/v1` (no Cloud Run ingress concept there at all), so nothing in Phases 1-4 touches it.
+5. Land Phase 5 (E2E redesign) before or alongside M17-S28 — that phase only affects the not-yet-built `e2e-staging.yml` workflow (Playwright against a *deployed* staging URL), never the merge-gating docker-compose job.
+
+#### Prod (not yet live — no outage to avoid, just build it correct from the start)
+
+Since prod has no live traffic yet, there is no transition to sequence and no outage window to protect against. Do not treat this as "repeat the staging rollout" — instead, ensure prod's Terraform (`infra/terraform/envs/prod/main.tf`) and the corresponding app config already reflect the corrected design (`INGRESS_TRAFFIC_INTERNAL_ONLY`, no public BFF invoker, VPC egress on `ikaro-web`, IAM auth wired, shared-secret guard) as part of however prod gets stood up and activated. This TD should land **before** `M17-S37` (the prod staging-activation runbook) runs, so S37 never has to activate prod against the broken assumption and then re-verify a fix — prod simply comes up correct on day one.
 
 ---
 
