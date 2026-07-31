@@ -30,6 +30,8 @@ export const HeroModuleDataSchema = z.object({
   eyebrow: z.string().optional(),
   backgroundImageUrl: z.string().nullable().optional(),
   backgroundImagePosition: z.enum(['left', 'center', 'right']).optional(),
+  contentPositionX: z.enum(['left', 'center', 'right']).optional(),
+  contentPositionY: z.enum(['top', 'center', 'bottom']).optional(),
   ctaLabel: z.string(),
   ctaTarget: CTA_TARGET,
   secondaryCtaLabel: z.string().optional(),
@@ -90,10 +92,13 @@ export const BookingCtaModuleDataSchema = z.object({
   eyebrow: z.string().optional(),
   ctaLabel: z.string(),
   backgroundImageUrl: z.string().nullable().optional(),
+  backgroundImagePosition: z.enum(['left', 'center', 'right']).optional(),
   carouselDays: z.number().int().min(1).max(90).optional(),
   datePickerType: z.enum(['carousel', 'calendar']).optional(),
   bgStyle: z.enum(['primary', 'background']).optional(),
   rightPanel: z.enum(['none', 'brand-card']).optional(),
+  contentPositionX: z.enum(['left', 'center', 'right']).optional(),
+  contentPositionY: z.enum(['top', 'center', 'bottom']).optional(),
 }) satisfies z.ZodType<BookingCtaModuleData>;
 
 // Mirrors AboutModuleData (packages/types/src/hotsite.ts) — keep in sync when that type changes.

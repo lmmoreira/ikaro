@@ -91,6 +91,32 @@ export function HeroConfigPanel({ data, onChange }: ModuleConfigPanelProps): Rea
         ]}
       />
 
+      <PillSelect
+        label={t('contentPositionYLabel')}
+        value={hero.contentPositionY ?? 'center'}
+        onChange={(contentPositionY) => update({ contentPositionY })}
+        testId="hero-content-position-y"
+        options={[
+          { value: 'top', label: t('contentPositionYTop') },
+          { value: 'center', label: t('contentPositionYCenter') },
+          { value: 'bottom', label: t('contentPositionYBottom') },
+        ]}
+      />
+
+      {hero.variant === 'centered' && (
+        <PillSelect
+          label={t('contentPositionXLabel')}
+          value={hero.contentPositionX ?? 'center'}
+          onChange={(contentPositionX) => update({ contentPositionX })}
+          testId="hero-content-position-x"
+          options={[
+            { value: 'left', label: t('contentPositionXLeft') },
+            { value: 'center', label: t('contentPositionXCenter') },
+            { value: 'right', label: t('contentPositionXRight') },
+          ]}
+        />
+      )}
+
       <div>
         <label
           htmlFor="hero-cta-label"

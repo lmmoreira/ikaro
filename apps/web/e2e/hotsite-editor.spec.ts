@@ -379,6 +379,135 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     expect(box!.height).toBeLessThan(700);
   });
 
+  test('Hero panel: setting contentPositionX/contentPositionY on the centered variant persists after Publish and reload, and the live page applies the expected alignment (M18-S05)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await page.locator(configureButton('HERO')).click();
+
+    // Explicit, not assumed from seed state — the X picker only renders for 'centered' (M18-S05
+    // review finding, PR #295).
+    await page.locator('[data-testid="hero-variant-centered"]').click();
+    await page.locator('[data-testid="hero-content-position-x-right"]').click();
+    await page.locator('[data-testid="hero-content-position-y-top"]').click();
+    await page.getByTestId('module-config-apply-desktop').click();
+
+    await page.getByTestId('hotsite-publish-desktop').click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+
+    await page.reload();
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await page.locator(configureButton('HERO')).click();
+    await expect(page.locator('[data-testid="hero-content-position-x-right"]')).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    await expect(page.locator('[data-testid="hero-content-position-y-top"]')).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+
+    await page.goto(`/${MANAGER_TENANT_SLUG}`);
+    const heroSection = page.locator('[data-variant="centered"]');
+    // justify-content lives on the stage div (max-w-7xl mx-auto), not the section itself — see
+    // the "Fix: left/right anchor..." follow-up in this same story.
+    const heroStage = heroSection.locator('> div').first();
+    await expect(heroStage).toHaveCSS('justify-content', 'flex-end');
+    await expect(heroStage).toHaveCSS('max-width', '1280px');
+    await expect(heroSection).toHaveCSS('align-items', 'flex-start');
+  });
+
+  test('Booking CTA panel: setting contentPositionX/contentPositionY on the centered variant persists after Publish and reload, and the live page applies the expected alignment (M18-S05)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'Layout' }).click();
+
+    // BOOKING_CTA is absent from the autospa-premium seed layout — materializeLayout() gives it
+    // a disabled row with default data, same as the M18-S01 Calendar-section test above.
+    await page.locator(layoutToggle('BOOKING_CTA')).click();
+    await page.locator(configureButton('BOOKING_CTA')).click();
+    await page.locator('#booking-cta-title').fill('Agende seu horário');
+    await page.locator('#booking-cta-cta-label').fill('Agendar agora');
+
+    await page.locator('[data-testid="booking-cta-content-position-x-right"]').click();
+    await page.locator('[data-testid="booking-cta-content-position-y-top"]').click();
+    await page.getByTestId('module-config-apply-desktop').click();
+
+    await page.getByTestId('hotsite-publish-desktop').click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+
+    await page.reload();
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await page.locator(configureButton('BOOKING_CTA')).click();
+    await expect(
+      page.locator('[data-testid="booking-cta-content-position-x-right"]'),
+    ).toHaveAttribute('aria-checked', 'true');
+    await expect(
+      page.locator('[data-testid="booking-cta-content-position-y-top"]'),
+    ).toHaveAttribute('aria-checked', 'true');
+
+    await page.goto(`/${MANAGER_TENANT_SLUG}`);
+    const bookingCtaSection = page.locator('section#booking-form');
+    // justify-content lives on the stage div (max-w-7xl mx-auto), not the section itself — same
+    // structure as HeroModule, see the "Fix: left/right anchor..." follow-up in this same story.
+    const bookingCtaStage = bookingCtaSection.locator('> div').first();
+    await expect(bookingCtaStage).toHaveCSS('justify-content', 'flex-end');
+    await expect(bookingCtaStage).toHaveCSS('max-width', '1280px');
+    await expect(bookingCtaSection).toHaveCSS('align-items', 'flex-start');
+  });
+
+  test('Booking CTA panel: uploading a background image and setting the focal point persist after Publish and reload, and the live page applies the object-position (M18-S05)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'Layout' }).click();
+
+    await page.locator(layoutToggle('BOOKING_CTA')).click();
+    await page.locator(configureButton('BOOKING_CTA')).click();
+    await page.locator('#booking-cta-title').fill('Agende seu horário');
+    await page.locator('#booking-cta-cta-label').fill('Agendar agora');
+
+    await page.getByTestId('single-image-upload-input').setInputFiles({
+      name: 'booking-cta-banner.png',
+      mimeType: 'image/png',
+      buffer: HERO_PNG_BUFFER,
+    });
+    await expect(page.getByTestId('single-image-upload-preview')).toBeVisible();
+
+    await page.locator('[data-testid="booking-cta-background-image-position-right"]').click();
+    await page.getByTestId('module-config-apply-desktop').click();
+
+    await page.getByTestId('hotsite-publish-desktop').click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+
+    await page.reload();
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await page.locator(configureButton('BOOKING_CTA')).click();
+    await expect(page.getByTestId('single-image-upload-preview')).toBeVisible();
+    await expect(
+      page.locator('[data-testid="booking-cta-background-image-position-right"]'),
+    ).toHaveAttribute('aria-checked', 'true');
+
+    await page.goto(`/${MANAGER_TENANT_SLUG}`);
+    const bookingCtaImage = page.locator('section#booking-form img').first();
+    await expect(bookingCtaImage).toBeVisible();
+    // 'right' -> CSS object-position: right center, which the browser resolves to percentages.
+    await expect(bookingCtaImage).toHaveCSS('object-position', '100% 50%');
+
+    // Regression check mirroring Hero's M18-S04 test: before this story's Part 9, this section
+    // used min-h-[40vh], the same category of viewport-height-relative crop bug Hero had before
+    // M18-S04 — the section must stay well short of a full-viewport-height mobile crop.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload();
+    const bookingCtaSectionMobile = page.locator('section#booking-form');
+    await expect(bookingCtaSectionMobile.locator('img')).toBeVisible();
+    const box = await bookingCtaSectionMobile.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.height).toBeLessThan(700);
+  });
+
   // Default seed state has no logo uploaded (autospa-premium's branding.logoUrl is '') — this
   // test relies on that default rather than explicitly clearing it, since afterEach always
   // restores `original` between tests in this serial block.

@@ -461,6 +461,75 @@ describe('HotsiteConfig', () => {
           }),
         ).not.toThrow();
       });
+
+      // M18-S05 — contentPositionX/contentPositionY follow the same precedent: no business rule
+      // to enforce, so MODULE_DATA_VALIDATORS has no entry for either field, on HERO or BOOKING_CTA.
+      it('does not throw for a HERO module with any contentPositionX/contentPositionY value, including ones outside the enum', () => {
+        const config = new HotsiteConfigBuilder().build();
+        const layout: HotsiteModule[] = [
+          {
+            type: 'HERO',
+            enabled: true,
+            data: {
+              variant: 'centered',
+              title: 'Bem-vindo',
+              ctaLabel: 'Agendar agora',
+              ctaTarget: 'booking-form',
+              contentPositionX: 'diagonal',
+              contentPositionY: 'middle',
+            } as never,
+          },
+        ];
+        expect(() =>
+          config.updateContent(DEFAULT_HOTSITE_BRANDING, layout, DEFAULT_HOTSITE_SEO, {
+            maxBookingAdvanceDays: 90,
+          }),
+        ).not.toThrow();
+      });
+
+      it('does not throw for a BOOKING_CTA module with any contentPositionX/contentPositionY value, including ones outside the enum', () => {
+        const config = new HotsiteConfigBuilder().build();
+        const layout: HotsiteModule[] = [
+          {
+            type: 'BOOKING_CTA',
+            enabled: true,
+            data: {
+              title: 'Agende seu horário',
+              ctaLabel: 'Agendar agora',
+              contentPositionX: 'diagonal',
+              contentPositionY: 'middle',
+            } as never,
+          },
+        ];
+        expect(() =>
+          config.updateContent(DEFAULT_HOTSITE_BRANDING, layout, DEFAULT_HOTSITE_SEO, {
+            maxBookingAdvanceDays: 90,
+          }),
+        ).not.toThrow();
+      });
+
+      // M18-S05 — BookingCtaModuleData.backgroundImagePosition follows the same precedent as
+      // HeroModuleData.backgroundImagePosition (M18-S04) above: no business rule to enforce, so
+      // MODULE_DATA_VALIDATORS has no entry for it either.
+      it('does not throw for a BOOKING_CTA module with any backgroundImagePosition value, including one outside the enum', () => {
+        const config = new HotsiteConfigBuilder().build();
+        const layout: HotsiteModule[] = [
+          {
+            type: 'BOOKING_CTA',
+            enabled: true,
+            data: {
+              title: 'Agende seu horário',
+              ctaLabel: 'Agendar agora',
+              backgroundImagePosition: 'top',
+            } as never,
+          },
+        ];
+        expect(() =>
+          config.updateContent(DEFAULT_HOTSITE_BRANDING, layout, DEFAULT_HOTSITE_SEO, {
+            maxBookingAdvanceDays: 90,
+          }),
+        ).not.toThrow();
+      });
     });
   });
 });

@@ -6,6 +6,12 @@ export type { HotsiteModuleType };
 
 // ─── Module data contracts (docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md §4) ──────
 
+// Shared by HeroModuleData/BookingCtaModuleData's backgroundImagePosition, contentPositionX, and
+// contentPositionY fields — a single source of truth for this repeated union shape rather than
+// spelling it out at every field (SonarCloud S4323 precedent, M18-S05).
+export type HorizontalPosition = 'left' | 'center' | 'right';
+export type VerticalPosition = 'top' | 'center' | 'bottom';
+
 export interface HeroModuleData {
   variant: 'centered' | 'left-aligned';
   title: string;
@@ -20,7 +26,13 @@ export interface HeroModuleData {
   // Horizontal focal-point preset for backgroundImageUrl's object-position — the crop axis that
   // loses content when the container goes from a wide desktop shape to a taller mobile one is
   // horizontal, not vertical (M18-S04).
-  backgroundImagePosition?: 'left' | 'center' | 'right';
+  backgroundImagePosition?: HorizontalPosition;
+  // Content-block anchor, independent of backgroundImagePosition (which only moves the image's
+  // focal point). Both default to 'center', a no-op against this module's pre-M18-S05 hardcoded
+  // centering — absent/undefined renders identically to before this field existed. contentPositionX
+  // only has a rendering effect when variant === 'centered' (M18-S05).
+  contentPositionX?: HorizontalPosition;
+  contentPositionY?: VerticalPosition;
   ctaLabel: string;
   ctaTarget: 'booking-form' | 'service-list' | 'gallery' | 'testimonials' | 'about' | 'contact';
   secondaryCtaLabel?: string;
@@ -76,10 +88,17 @@ export interface BookingCtaModuleData {
   ctaLabel: string;
   // Nullable — see HeroModuleData.backgroundImageUrl's comment above for why.
   backgroundImageUrl?: string | null;
+  // Same field/default/rendering rule as HeroModuleData.backgroundImagePosition — M18-S05
+  // follow-up, applying the M18-S04 responsive-crop treatment to this module too.
+  backgroundImagePosition?: HorizontalPosition;
   carouselDays?: number;
   datePickerType?: 'carousel' | 'calendar';
   bgStyle?: 'primary' | 'background';
   rightPanel?: 'none' | 'brand-card';
+  // See HeroModuleData.contentPositionX/Y's comment above — same field, same default, same
+  // variant-scoping rule, applied to this module (M18-S05).
+  contentPositionX?: HorizontalPosition;
+  contentPositionY?: VerticalPosition;
 }
 
 export interface AboutModuleData {

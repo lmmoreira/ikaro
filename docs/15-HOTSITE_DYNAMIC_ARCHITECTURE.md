@@ -206,6 +206,8 @@ interface HeroModuleData {
   eyebrow?: string;
   backgroundImageUrl?: string | null;    // GCS URL — uploaded via dashboard
   backgroundImagePosition?: 'left' | 'center' | 'right'; // object-position focal point, default 'center' (M18-S04)
+  contentPositionX?: 'left' | 'center' | 'right'; // default 'center'; only affects 'centered' variant (M18-S05)
+  contentPositionY?: 'top' | 'center' | 'bottom'; // default 'center'; applies to both variants (M18-S05)
   ctaLabel: string;                      // e.g. "Agendar agora"
   ctaTarget: 'booking-form' | 'service-list' | 'gallery' | 'testimonials' | 'about' | 'contact';
   secondaryCtaLabel?: string;
@@ -277,10 +279,19 @@ interface TestimonialsModuleData {
 
 ```typescript
 interface BookingCtaModuleData {
+  variant?: 'centered' | 'left-aligned';  // default: 'centered'
   title: string;                  // e.g. "Pronto para brilhar?"
   subtitle?: string;
+  eyebrow?: string;
   ctaLabel: string;               // e.g. "Agendar agora"
-  backgroundImageUrl?: string;    // GCS URL, optional overlay background
+  backgroundImageUrl?: string | null;    // GCS URL, optional overlay background / left-aligned right-panel image
+  backgroundImagePosition?: 'left' | 'center' | 'right'; // object-position focal point, default 'center' (M18-S05, same treatment as HeroModuleData)
+  carouselDays?: number;          // day-carousel window size, only relevant when datePickerType is 'carousel'
+  datePickerType?: 'carousel' | 'calendar'; // default: 'carousel'
+  bgStyle?: 'primary' | 'background';      // default: 'primary'
+  rightPanel?: 'none' | 'brand-card';      // left-aligned variant only, default: 'none'
+  contentPositionX?: 'left' | 'center' | 'right'; // default 'center'; only affects 'centered' variant (M18-S05)
+  contentPositionY?: 'top' | 'center' | 'bottom'; // default 'center'; applies to both variants (M18-S05)
 }
 ```
 
@@ -517,6 +528,7 @@ Add the TypeScript interface to `packages/types/src/hotsite.ts`. Add the new typ
 
 Create `apps/web/shells/hotsite/components/XxxModule.tsx`. Rules:
 - Use **only** `var(--ba-*)` CSS variables for colors, fonts, radius, spacing, shadows — never hardcode visual values
+- **Content-width convention:** any free-flowing content (not a full-bleed background image) must be nested in `mx-auto max-w-7xl` — the same container `ServiceListModule`/`AboutModule`/`ContactModule` already use, and `HeroModule`/`BookingCtaModule`'s "stage" div (M18-S05). The section's own padding (`px-6` or an equivalent inline `padding`) stays on the outer `<section>`; the `max-w-7xl mx-auto` layer wraps the content directly inside it. Any left/right positioning feature must anchor content *within* that container, never directly against the section's own edge — otherwise anchoring pushes content flush against the raw viewport edge on wide screens instead of respecting the site's usual content width (found only after M18-S05 shipped, via user feedback on a live wide-viewport screen — not caught by unit tests, which don't exercise real viewport widths).
 - Mobile-first responsive layout (Tailwind breakpoints: `sm`, `md`, `lg`)
 - Accessible (WCAG 2.1 AA) — semantic HTML, `aria-label` where needed, sufficient color contrast
 - Accept props: `data: XxxModuleData` and `slug: string`

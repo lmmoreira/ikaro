@@ -85,6 +85,32 @@ export function BookingCtaConfigPanel({
         ]}
       />
 
+      <PillSelect
+        label={t('contentPositionYLabel')}
+        value={bookingCta.contentPositionY ?? 'center'}
+        onChange={(contentPositionY) => update({ contentPositionY })}
+        testId="booking-cta-content-position-y"
+        options={[
+          { value: 'top', label: t('contentPositionYTop') },
+          { value: 'center', label: t('contentPositionYCenter') },
+          { value: 'bottom', label: t('contentPositionYBottom') },
+        ]}
+      />
+
+      {(bookingCta.variant ?? 'centered') === 'centered' && (
+        <PillSelect
+          label={t('contentPositionXLabel')}
+          value={bookingCta.contentPositionX ?? 'center'}
+          onChange={(contentPositionX) => update({ contentPositionX })}
+          testId="booking-cta-content-position-x"
+          options={[
+            { value: 'left', label: t('contentPositionXLeft') },
+            { value: 'center', label: t('contentPositionXCenter') },
+            { value: 'right', label: t('contentPositionXRight') },
+          ]}
+        />
+      )}
+
       <div>
         <label
           htmlFor="booking-cta-cta-label"
@@ -135,8 +161,23 @@ export function BookingCtaConfigPanel({
         formatHintLabel={t('backgroundImageFormatHint')}
         uploadingLabel={t('backgroundImageUploading')}
         uploadErrorLabel={t('backgroundImageUploadError')}
+        lowResolutionErrorLabel={t('backgroundImageLowResolutionError')}
         removeLabel={t('backgroundImageRemove')}
       />
+
+      {bookingCta.backgroundImageUrl && (
+        <PillSelect
+          label={t('backgroundImagePositionLabel')}
+          value={bookingCta.backgroundImagePosition ?? 'center'}
+          onChange={(backgroundImagePosition) => update({ backgroundImagePosition })}
+          testId="booking-cta-background-image-position"
+          options={[
+            { value: 'left', label: t('backgroundImagePositionLeft') },
+            { value: 'center', label: t('backgroundImagePositionCenter') },
+            { value: 'right', label: t('backgroundImagePositionRight') },
+          ]}
+        />
+      )}
 
       <div className="space-y-5 border-t border-gray-200 pt-5">
         <h3 className="text-sm font-bold text-gray-900">{t('calendarSectionTitle')}</h3>

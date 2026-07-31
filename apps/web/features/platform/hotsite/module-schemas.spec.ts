@@ -91,6 +91,36 @@ describe('HeroModuleDataSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  it.each(['left', 'center', 'right', undefined] as const)(
+    'accepts contentPositionX %s',
+    (contentPositionX) => {
+      const result = HeroModuleDataSchema.safeParse({ ...validHeroData, contentPositionX });
+
+      expect(result.success).toBe(true);
+    },
+  );
+
+  it('rejects an invalid contentPositionX value', () => {
+    const result = HeroModuleDataSchema.safeParse({ ...validHeroData, contentPositionX: 'top' });
+
+    expect(result.success).toBe(false);
+  });
+
+  it.each(['top', 'center', 'bottom', undefined] as const)(
+    'accepts contentPositionY %s',
+    (contentPositionY) => {
+      const result = HeroModuleDataSchema.safeParse({ ...validHeroData, contentPositionY });
+
+      expect(result.success).toBe(true);
+    },
+  );
+
+  it('rejects an invalid contentPositionY value', () => {
+    const result = HeroModuleDataSchema.safeParse({ ...validHeroData, contentPositionY: 'left' });
+
+    expect(result.success).toBe(false);
+  });
+
   it('rejects an invalid variant', () => {
     const result = HeroModuleDataSchema.safeParse({ ...validHeroData, variant: 'invalid' });
 
@@ -330,6 +360,69 @@ describe('BookingCtaModuleDataSchema', () => {
     const result = BookingCtaModuleDataSchema.safeParse({
       ...validBookingCtaData,
       datePickerType: 'month-grid',
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it.each(['left', 'center', 'right', undefined] as const)(
+    'accepts backgroundImagePosition %s',
+    (backgroundImagePosition) => {
+      const result = BookingCtaModuleDataSchema.safeParse({
+        ...validBookingCtaData,
+        backgroundImagePosition,
+      });
+
+      expect(result.success).toBe(true);
+    },
+  );
+
+  it('rejects an invalid backgroundImagePosition value', () => {
+    const result = BookingCtaModuleDataSchema.safeParse({
+      ...validBookingCtaData,
+      backgroundImagePosition: 'top',
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it.each(['left', 'center', 'right', undefined] as const)(
+    'accepts contentPositionX %s',
+    (contentPositionX) => {
+      const result = BookingCtaModuleDataSchema.safeParse({
+        ...validBookingCtaData,
+        contentPositionX,
+      });
+
+      expect(result.success).toBe(true);
+    },
+  );
+
+  it('rejects an invalid contentPositionX value', () => {
+    const result = BookingCtaModuleDataSchema.safeParse({
+      ...validBookingCtaData,
+      contentPositionX: 'top',
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it.each(['top', 'center', 'bottom', undefined] as const)(
+    'accepts contentPositionY %s',
+    (contentPositionY) => {
+      const result = BookingCtaModuleDataSchema.safeParse({
+        ...validBookingCtaData,
+        contentPositionY,
+      });
+
+      expect(result.success).toBe(true);
+    },
+  );
+
+  it('rejects an invalid contentPositionY value', () => {
+    const result = BookingCtaModuleDataSchema.safeParse({
+      ...validBookingCtaData,
+      contentPositionY: 'left',
     });
 
     expect(result.success).toBe(false);
