@@ -1,5 +1,6 @@
 import type React from 'react';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import type { Testimonial } from '@ikaro/types';
 
 interface TestimonialCardProps {
@@ -12,9 +13,10 @@ interface StarRatingProps {
 }
 
 function StarRating({ rating }: StarRatingProps): React.JSX.Element {
+  const t = useTranslations('hotsite');
   return (
     <div
-      aria-label={`${rating} de 5 estrelas`}
+      aria-label={t('testimonials.ratingAriaLabel', { rating })}
       className="flex gap-1 text-lg"
       style={{ color: 'var(--ba-primary)' }}
     >

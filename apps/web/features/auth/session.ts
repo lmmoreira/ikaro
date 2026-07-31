@@ -1,11 +1,7 @@
-import type { SwitchTenantResponse } from '@ikaro/types';
+import type { SwitchTenantRequest, SwitchTenantResponse } from '@ikaro/types';
 import { bffClient } from '@/shared/lib/api/bff-client';
 
-export interface SwitchTenantRequest {
-  readonly targetTenantId: string;
-}
-
-export type { SwitchTenantResponse };
+export type { SwitchTenantRequest, SwitchTenantResponse };
 
 export async function logout(): Promise<void> {
   await bffClient.post('/auth/logout', {});

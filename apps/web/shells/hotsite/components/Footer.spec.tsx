@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { FooterModuleData, HotsiteBusinessInfoResponse } from '@ikaro/types';
+import { renderWithIntl } from '@/test-utils';
 import { Footer } from './Footer';
 
 function makeBusiness(
@@ -32,7 +33,7 @@ function makeData(overrides: Partial<FooterModuleData> = {}): FooterModuleData {
 
 describe('Footer', () => {
   it('renders the brand, tagline, copyright, and whatsapp link', () => {
-    render(
+    renderWithIntl(
       <Footer
         slug="lavacar-beloauto"
         data={makeData()}
@@ -53,8 +54,24 @@ describe('Footer', () => {
     );
   });
 
+  it('falls back to the translated default copyright note when none is configured', () => {
+    renderWithIntl(
+      <Footer
+        slug="lavacar-beloauto"
+        data={makeData({ copyrightNote: undefined })}
+        tenantName="Lavacar BeloAuto"
+        business={makeBusiness()}
+        logoUrl="tenants/tenant-1/hotsite/branding/logo.webp"
+      />,
+    );
+
+    expect(screen.getByTestId('footer-copyright')).toHaveTextContent(
+      `© ${new Date().getFullYear()} Lavacar BeloAuto. Todos os direitos reservados.`,
+    );
+  });
+
   it('hides the whatsapp link when disabled', () => {
-    render(
+    renderWithIntl(
       <Footer
         slug="lavacar-beloauto"
         data={makeData({ showWhatsapp: false })}
@@ -70,7 +87,7 @@ describe('Footer', () => {
   // M18-S03 — brand mark (logo or initial-letter fallback), above the brand name.
   describe('brand mark', () => {
     it('renders the logo image when logoUrl is set', () => {
-      render(
+      renderWithIntl(
         <Footer
           slug="lavacar-beloauto"
           data={makeData()}
@@ -85,7 +102,7 @@ describe('Footer', () => {
     });
 
     it('falls back to an initial-letter badge when logoUrl is empty', () => {
-      render(
+      renderWithIntl(
         <Footer
           slug="lavacar-beloauto"
           data={makeData()}
