@@ -23,15 +23,21 @@ export type HotsiteModuleType =
   | 'CONTACT'
   | 'FOOTER';
 
+// Shared by HeroModuleData/BookingCtaModuleData's backgroundImagePosition, contentPositionX, and
+// contentPositionY fields — SonarCloud (S4323) flags a union type repeated verbatim across
+// fields; these two aliases are the single source of truth for that shape (M18-S05).
+export type HorizontalPosition = 'left' | 'center' | 'right';
+export type VerticalPosition = 'top' | 'center' | 'bottom';
+
 export interface HeroModuleData {
   variant: 'centered' | 'left-aligned';
   title: string;
   subtitle?: string;
   eyebrow?: string;
   backgroundImageUrl?: string;
-  backgroundImagePosition?: 'left' | 'center' | 'right';
-  contentPositionX?: 'left' | 'center' | 'right';
-  contentPositionY?: 'top' | 'center' | 'bottom';
+  backgroundImagePosition?: HorizontalPosition;
+  contentPositionX?: HorizontalPosition;
+  contentPositionY?: VerticalPosition;
   ctaLabel: string;
   ctaTarget: 'booking-form' | 'service-list' | 'gallery' | 'testimonials' | 'about' | 'contact';
   secondaryCtaLabel?: string;
@@ -86,13 +92,13 @@ export interface BookingCtaModuleData {
   eyebrow?: string;
   ctaLabel: string;
   backgroundImageUrl?: string;
-  backgroundImagePosition?: 'left' | 'center' | 'right';
+  backgroundImagePosition?: HorizontalPosition;
   carouselDays?: number;
   datePickerType?: 'carousel' | 'calendar';
   bgStyle?: 'primary' | 'background';
   rightPanel?: 'none' | 'brand-card';
-  contentPositionX?: 'left' | 'center' | 'right';
-  contentPositionY?: 'top' | 'center' | 'bottom';
+  contentPositionX?: HorizontalPosition;
+  contentPositionY?: VerticalPosition;
 }
 
 export interface AboutModuleData {
