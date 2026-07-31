@@ -1,4 +1,4 @@
-# Guards the live secret catalog (M17-S16, extended by M17-S20): the 9
+# Guards the live secret catalog (M17-S16, extended by M17-S20 and TD38): the 10
 # always-on containers, the prod-only cloudflare-api-token, automatic
 # replication, and labels wiring — no values, no IAM (that's S17).
 
@@ -40,6 +40,11 @@ run "prod_also_provisions_cloudflare_api_token" {
   assert {
     condition     = contains(keys(google_secret_manager_secret.this), "cloudflare-api-token")
     error_message = "Prod must additionally provision cloudflare-api-token (edge module consumer)."
+  }
+
+  assert {
+    condition     = contains(keys(google_secret_manager_secret.this), "web-internal-key")
+    error_message = "Prod must also provision web-internal-key (TD38, shared web<->bff secret)."
   }
 
   assert {

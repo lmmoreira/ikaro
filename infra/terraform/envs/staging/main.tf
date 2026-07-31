@@ -84,6 +84,19 @@ module "secrets" {
   labels      = var.labels
 }
 
+# TD38: web-internal-key is mounted into secret_env_vars below (staging's bootstrap_mode=false,
+# unlike prod, so it's live immediately). modules/cloudrun-service/main.tf resolves
+# secret_key_ref's version="latest" at Cloud Run *revision-creation* time, not lazily inside
+# the container -- referencing a version-less secret in the same apply that creates it would
+# fail the Cloud Run service update. The container + a first version were created out-of-band
+# (gcloud secrets create/versions add, same convention as every other secret, M17 §2) before
+# this landed; this import adopts that pre-existing container into state instead of Terraform
+# attempting to re-create it (which would fail with ALREADY_EXISTS).
+import {
+  to = module.secrets.google_secret_manager_secret.this["web-internal-key"]
+  id = "projects/${var.project_id}/secrets/web-internal-key"
+}
+
 locals {
   runtime_sa_emails = {
     backend        = "ikaro-backend@${var.project_id}.iam.gserviceaccount.com"
