@@ -269,6 +269,10 @@ module "cloudrun_bff" {
     INTERNAL_API_KEY     = module.secrets.secret_ids["internal-api-key"]
     GOOGLE_CLIENT_ID     = module.secrets.secret_ids["google-oauth-client-id"]
     GOOGLE_CLIENT_SECRET = module.secrets.secret_ids["google-oauth-client-secret"]
+    # TD38: unconditionally required by env.validation.ts (mirrors INTERNAL_API_KEY) regardless
+    # of environment — wired here so prod's Terraform stays consistent with the shared app
+    # code, even though prod's own ingress lockdown (Story B) is not part of this change.
+    WEB_INTERNAL_KEY = module.secrets.secret_ids["web-internal-key"]
   }
 }
 
@@ -334,6 +338,11 @@ module "cloudrun_web" {
   secret_env_vars = {
     JWT_SECRET                = module.secrets.secret_ids["jwt-secret"]
     HOTSITE_REVALIDATE_SECRET = module.secrets.secret_ids["hotsite-revalidate-secret"]
+    # TD38: unconditionally required by attachBffAuthHeaders() (mirrors BFF's own
+    # WEB_INTERNAL_KEY requirement) regardless of environment — wired here so prod's
+    # Terraform stays consistent with the shared app code, even though prod's own ingress
+    # lockdown / BFF_AUTH_MODE=iam (Story B) is not part of this change.
+    WEB_INTERNAL_KEY = module.secrets.secret_ids["web-internal-key"]
   }
 }
 
