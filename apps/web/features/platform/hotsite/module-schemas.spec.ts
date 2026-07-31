@@ -366,6 +366,27 @@ describe('BookingCtaModuleDataSchema', () => {
   });
 
   it.each(['left', 'center', 'right', undefined] as const)(
+    'accepts backgroundImagePosition %s',
+    (backgroundImagePosition) => {
+      const result = BookingCtaModuleDataSchema.safeParse({
+        ...validBookingCtaData,
+        backgroundImagePosition,
+      });
+
+      expect(result.success).toBe(true);
+    },
+  );
+
+  it('rejects an invalid backgroundImagePosition value', () => {
+    const result = BookingCtaModuleDataSchema.safeParse({
+      ...validBookingCtaData,
+      backgroundImagePosition: 'top',
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it.each(['left', 'center', 'right', undefined] as const)(
     'accepts contentPositionX %s',
     (contentPositionX) => {
       const result = BookingCtaModuleDataSchema.safeParse({

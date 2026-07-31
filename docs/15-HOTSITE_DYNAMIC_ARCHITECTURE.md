@@ -285,6 +285,7 @@ interface BookingCtaModuleData {
   eyebrow?: string;
   ctaLabel: string;               // e.g. "Agendar agora"
   backgroundImageUrl?: string | null;    // GCS URL, optional overlay background / left-aligned right-panel image
+  backgroundImagePosition?: 'left' | 'center' | 'right'; // object-position focal point, default 'center' (M18-S05, same treatment as HeroModuleData)
   carouselDays?: number;          // day-carousel window size, only relevant when datePickerType is 'carousel'
   datePickerType?: 'carousel' | 'calendar'; // default: 'carousel'
   bgStyle?: 'primary' | 'background';      // default: 'primary'

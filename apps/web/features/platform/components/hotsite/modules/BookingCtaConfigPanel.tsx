@@ -161,8 +161,23 @@ export function BookingCtaConfigPanel({
         formatHintLabel={t('backgroundImageFormatHint')}
         uploadingLabel={t('backgroundImageUploading')}
         uploadErrorLabel={t('backgroundImageUploadError')}
+        lowResolutionErrorLabel={t('backgroundImageLowResolutionError')}
         removeLabel={t('backgroundImageRemove')}
       />
+
+      {bookingCta.backgroundImageUrl && (
+        <PillSelect
+          label={t('backgroundImagePositionLabel')}
+          value={bookingCta.backgroundImagePosition ?? 'center'}
+          onChange={(backgroundImagePosition) => update({ backgroundImagePosition })}
+          testId="booking-cta-background-image-position"
+          options={[
+            { value: 'left', label: t('backgroundImagePositionLeft') },
+            { value: 'center', label: t('backgroundImagePositionCenter') },
+            { value: 'right', label: t('backgroundImagePositionRight') },
+          ]}
+        />
+      )}
 
       <div className="space-y-5 border-t border-gray-200 pt-5">
         <h3 className="text-sm font-bold text-gray-900">{t('calendarSectionTitle')}</h3>

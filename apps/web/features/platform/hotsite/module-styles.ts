@@ -25,12 +25,6 @@ export function contentItemsClass(y: ContentPositionY = 'center'): string {
   return 'items-center';
 }
 
-export function contentMarginClass(x: ContentPositionX = 'center'): string {
-  if (x === 'left') return '';
-  if (x === 'right') return 'ml-auto';
-  return 'mx-auto';
-}
-
 export function contentTextAlignClass(x: ContentPositionX = 'center'): string {
   if (x === 'left') return 'text-left';
   if (x === 'right') return 'text-right';

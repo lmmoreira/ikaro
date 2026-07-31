@@ -214,4 +214,51 @@ describe('BookingCtaConfigPanel', () => {
       expect(onChange).toHaveBeenCalledWith(writeModuleData({ ...withX, variant: 'left-aligned' }));
     });
   });
+
+  describe('background image focal point (M18-S04 treatment, applied here in M18-S05)', () => {
+    it('does not render the focal-point picker when no background image is set', () => {
+      renderWithIntl(
+        <BookingCtaConfigPanel data={writeModuleData(BOOKING_CTA)} onChange={vi.fn()} />,
+      );
+
+      expect(
+        screen.queryByTestId('booking-cta-background-image-position-center'),
+      ).not.toBeInTheDocument();
+    });
+
+    it('renders the focal-point picker when a background image is set', () => {
+      renderWithIntl(
+        <BookingCtaConfigPanel
+          data={writeModuleData({
+            ...BOOKING_CTA,
+            backgroundImageUrl: 'tenants/t/hotsite/booking-cta/x/y.webp',
+          })}
+          onChange={vi.fn()}
+        />,
+      );
+
+      expect(
+        screen.getByTestId('booking-cta-background-image-position-center'),
+      ).toBeInTheDocument();
+    });
+
+    it('changing the focal-point pill calls onChange with only that field updated', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      const withImage: BookingCtaModuleData = {
+        ...BOOKING_CTA,
+        backgroundImageUrl: 'tenants/t/hotsite/booking-cta/x/y.webp',
+      };
+
+      renderWithIntl(
+        <BookingCtaConfigPanel data={writeModuleData(withImage)} onChange={onChange} />,
+      );
+
+      await user.click(screen.getByTestId('booking-cta-background-image-position-right'));
+
+      expect(onChange).toHaveBeenCalledWith(
+        writeModuleData({ ...withImage, backgroundImagePosition: 'right' }),
+      );
+    });
+  });
 });

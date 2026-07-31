@@ -5,7 +5,6 @@ import type { BookingCtaModuleData } from '@ikaro/types';
 import {
   contentItemsClass,
   contentJustifyClass,
-  contentMarginClass,
   contentTextAlignClass,
   sectionHeadingFont,
 } from '@/features/platform/hotsite/module-styles';
@@ -116,6 +115,10 @@ export function BookingCtaModule({
   const variant = data.variant ?? 'centered';
   const sectionBg = resolveSectionBg(data.bgStyle);
   const showBrandCard = data.rightPanel === 'brand-card' && !!tenantBrand;
+  // Same responsive-crop treatment as HeroModule (M18-S04, extended here as a M18-S05
+  // follow-up) — this module's background image had the identical wide-banner mobile-crop bug
+  // Hero had before M18-S04, just never fixed alongside it.
+  const objectPosition = `${data.backgroundImagePosition ?? 'center'} center`;
 
   if (variant === 'left-aligned') {
     const hasRightPanel = showBrandCard || !!bgUrl;
@@ -125,7 +128,7 @@ export function BookingCtaModule({
     return (
       <section
         id="booking-form"
-        className={`relative flex min-h-[40vh] ${itemsClass}`}
+        className={`relative flex min-h-[31.25vw] ${itemsClass}`}
         style={{ backgroundColor: sectionBg }}
       >
         <div className="w-full max-w-7xl px-6 py-16 mx-auto">
@@ -139,14 +142,14 @@ export function BookingCtaModule({
               <BrandCard name={tenantBrand.name} tagline={tenantBrand.tagline} />
             )}
             {!showBrandCard && bgUrl && (
-              <div className="relative h-64 sm:h-full sm:min-h-[40vh]">
+              <div className="relative aspect-[21/9] sm:aspect-auto sm:h-full sm:min-h-[15.6vw]">
                 <Image
                   src={bgUrl}
                   alt=""
                   fill
                   sizes="(min-width: 640px) 50vw, 100vw"
                   className="object-cover"
-                  style={{ borderRadius: 'var(--ba-radius)' }}
+                  style={{ borderRadius: 'var(--ba-radius)', objectPosition }}
                 />
               </div>
             )}
@@ -159,17 +162,17 @@ export function BookingCtaModule({
   // contentPositionX only applies to the centered variant — same rule as HeroModule.
   const justifyClass = contentJustifyClass(data.contentPositionX);
   const itemsClass = contentItemsClass(data.contentPositionY);
-  const marginClass = contentMarginClass(data.contentPositionX);
   const textAlignClass = contentTextAlignClass(data.contentPositionX);
   const sectionClassName = [
-    'relative flex min-h-[40vh]',
+    'relative flex min-h-[42.86vw]',
     itemsClass,
-    justifyClass,
-    'px-6 py-20 sm:py-28',
+    'px-6 py-20 sm:min-h-[31.25vw] sm:py-28',
   ].join(' ');
-  const wrapperClassName = ['relative z-10', marginClass, 'max-w-2xl', textAlignClass]
-    .filter(Boolean)
-    .join(' ');
+  // The stage constrains left/right anchoring to the same max-w-7xl content container every
+  // other hotsite section uses — see HeroModule's identical stageClassName comment (M18-S05
+  // follow-up fix).
+  const stageClassName = ['relative z-10 flex w-full max-w-7xl mx-auto', justifyClass].join(' ');
+  const wrapperClassName = ['max-w-2xl', textAlignClass].filter(Boolean).join(' ');
 
   return (
     <section
@@ -177,9 +180,20 @@ export function BookingCtaModule({
       className={sectionClassName}
       style={{ backgroundColor: bgUrl ? undefined : sectionBg }}
     >
-      {bgUrl && <Image src={bgUrl} alt="" fill sizes="100vw" className="object-cover" />}
-      <div className={wrapperClassName}>
-        <BookingCtaContent data={data} slug={slug} />
+      {bgUrl && (
+        <Image
+          src={bgUrl}
+          alt=""
+          fill
+          sizes="100vw"
+          className="object-cover"
+          style={{ objectPosition }}
+        />
+      )}
+      <div className={stageClassName}>
+        <div className={wrapperClassName}>
+          <BookingCtaContent data={data} slug={slug} />
+        </div>
       </div>
     </section>
   );

@@ -316,10 +316,16 @@ describe('HeroModule', () => {
 
       const section = container.querySelector('[data-variant="centered"]');
       expect(section?.className).toContain('items-center');
-      expect(section?.className).toContain('justify-center');
+      // justify-content moved from the section to the stage div (see the stage tests below) —
+      // the section itself no longer carries a justify-* class at all.
+      expect(section?.className).not.toMatch(/justify-(start|center|end)/);
 
-      const wrapper = container.querySelector('[data-variant="centered"] > div');
-      expect(wrapper?.className).toContain('mx-auto');
+      const stage = container.querySelector('[data-variant="centered"] > div');
+      expect(stage?.className).toContain('max-w-7xl');
+      expect(stage?.className).toContain('mx-auto');
+      expect(stage?.className).toContain('justify-center');
+
+      const wrapper = container.querySelector('[data-variant="centered"] > div > div');
       expect(wrapper?.className).toContain('text-center');
 
       // The CTA row had no justify-content class at all before this field existed (flex
@@ -344,42 +350,27 @@ describe('HeroModule', () => {
       ['center', 'justify-center', 'text-center'],
       ['right', 'justify-end', 'text-right'],
     ] as const)(
-      'centered variant: contentPositionX %s drives section justify, wrapper alignment, and CTA row justify',
+      'centered variant: contentPositionX %s drives stage justify, wrapper alignment, and CTA row justify — stage always stays within max-w-7xl',
       (contentPositionX, expectedJustify, expectedTextAlign) => {
         const { container } = render(
           <HeroModule data={makeData({ contentPositionX })} slug="tenant" />,
         );
 
-        const section = container.querySelector('[data-variant="centered"]');
-        expect(section?.className).toContain(expectedJustify);
+        const stage = container.querySelector('[data-variant="centered"] > div');
+        expect(stage?.className).toContain(expectedJustify);
+        // Regression guard (M18-S05 follow-up fix): 'left'/'right' must never push content
+        // flush against the raw viewport edge — it must stay within the same max-w-7xl content
+        // container every other hotsite section uses.
+        expect(stage?.className).toContain('max-w-7xl');
+        expect(stage?.className).toContain('mx-auto');
 
-        const wrapper = container.querySelector('[data-variant="centered"] > div');
+        const wrapper = container.querySelector('[data-variant="centered"] > div > div');
         expect(wrapper?.className).toContain(expectedTextAlign);
 
         const ctaRow = screen.getByRole('link', { name: 'Agendar agora' }).parentElement;
         expect(ctaRow?.className).toContain(expectedJustify);
       },
     );
-
-    it('centered variant: contentPositionX "left" removes the auto-centering margin', () => {
-      const { container } = render(
-        <HeroModule data={makeData({ contentPositionX: 'left' })} slug="tenant" />,
-      );
-
-      const wrapper = container.querySelector('[data-variant="centered"] > div');
-      expect(wrapper?.className).not.toContain('mx-auto');
-      expect(wrapper?.className).not.toContain('ml-auto');
-    });
-
-    it('centered variant: contentPositionX "right" applies ml-auto instead of mx-auto', () => {
-      const { container } = render(
-        <HeroModule data={makeData({ contentPositionX: 'right' })} slug="tenant" />,
-      );
-
-      const wrapper = container.querySelector('[data-variant="centered"] > div');
-      expect(wrapper?.className).toContain('ml-auto');
-      expect(wrapper?.className).not.toContain('mx-auto');
-    });
 
     it.each([
       ['top', 'items-start'],

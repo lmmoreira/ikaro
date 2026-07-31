@@ -539,6 +539,58 @@ describe('SingleImageUploadField', () => {
     expect(compressImage).toHaveBeenCalledWith(expect.any(File), undefined, 450);
   });
 
+  it('passes no targetAspectRatio but the 450px minHeight floor to compressImage for purpose="booking-cta" (M18-S05)', async () => {
+    const user = userEvent.setup();
+    vi.mocked(generateHotsiteImageSignedUrl).mockResolvedValue({
+      signedUrl: 'https://storage.example.com/upload?sig=abc',
+      filePath: 'tenants/tenant-1/hotsite/booking-cta/banner.png',
+      expiresAt: '2026-06-15T12:00:00.000Z',
+    });
+    fetchSpy.mockResolvedValue(new Response(null, { status: 200 }));
+
+    renderWithIntl(
+      <SingleImageUploadField
+        id="booking-cta-bg"
+        value=""
+        onChange={vi.fn()}
+        purpose="booking-cta"
+        {...LABELS}
+      />,
+    );
+
+    await user.upload(
+      getByFieldId('single-image-upload-input', 'booking-cta-bg'),
+      makeFile('banner.png', 'image/png'),
+    );
+
+    expect(compressImage).toHaveBeenCalledWith(expect.any(File), undefined, 450);
+  });
+
+  it('shows lowResolutionErrorLabel for purpose="booking-cta" when compressImage rejects with the low-resolution marker (M18-S05)', async () => {
+    const user = userEvent.setup();
+    vi.mocked(compressImage).mockRejectedValue(new Error(LOW_RESOLUTION_ERROR_MESSAGE));
+
+    renderWithIntl(
+      <SingleImageUploadField
+        id="booking-cta-bg"
+        value=""
+        onChange={vi.fn()}
+        purpose="booking-cta"
+        lowResolutionErrorLabel="Resolução muito baixa."
+        {...LABELS}
+      />,
+    );
+
+    await user.upload(
+      getByFieldId('single-image-upload-input', 'booking-cta-bg'),
+      makeFile('banner.png', 'image/png'),
+    );
+
+    expect(await screen.findByTestId('single-image-upload-error')).toHaveTextContent(
+      'Resolução muito baixa.',
+    );
+  });
+
   it('does not render a remove button when there is no current value', () => {
     renderWithIntl(
       <SingleImageUploadField

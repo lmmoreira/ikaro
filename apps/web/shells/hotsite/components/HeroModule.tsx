@@ -4,7 +4,6 @@ import type { HeroModuleData } from '@ikaro/types';
 import {
   contentItemsClass,
   contentJustifyClass,
-  contentMarginClass,
   contentTextAlignClass,
   sectionHeadingFont,
 } from '@/features/platform/hotsite/module-styles';
@@ -139,23 +138,25 @@ export function HeroModule({ data, slug: _, tenantBrand }: HeroModuleProps): Rea
     // position is structural (grid order), not free-floating (M18-S05).
     const justifyClass = contentJustifyClass(data.contentPositionX);
     const itemsClass = contentItemsClass(data.contentPositionY);
-    const marginClass = contentMarginClass(data.contentPositionX);
     const textAlignClass = contentTextAlignClass(data.contentPositionX);
     // The CTA row had no justify-content class at all before this field existed (flex defaults
-    // to flex-start) — unlike the section/wrapper above, which already hardcoded items-center/
-    // justify-center/mx-auto/text-center explicitly. To keep "unset renders identically to
-    // today" literally true for the row too, only apply a justify class here when
-    // contentPositionX is explicitly set — never as a silent default.
+    // to flex-start) — unlike the section/stage below, which already hardcoded items-center/
+    // justify-center explicitly. To keep "unset renders identically to today" literally true for
+    // the row too, only apply a justify class here when contentPositionX is explicitly set —
+    // never as a silent default.
     const ctaJustifyClass = data.contentPositionX ? justifyClass : '';
     const sectionClassName = [
       'relative flex min-h-[42.86vw]',
       itemsClass,
-      justifyClass,
       'px-6 sm:min-h-[31.25vw]',
     ].join(' ');
-    const wrapperClassName = ['relative z-10', marginClass, 'max-w-3xl py-16', textAlignClass]
-      .filter(Boolean)
-      .join(' ');
+    // The stage constrains left/right anchoring to the same max-w-7xl content container every
+    // other hotsite section uses (ServiceListModule/AboutModule/ContactModule) — without it, a
+    // 'left'/'right' contentPositionX would push the block flush against the raw viewport edge
+    // (minus only the section's own px-6) rather than respecting the site's usual content width
+    // and edge breathing room (M18-S05 follow-up fix).
+    const stageClassName = ['relative z-10 flex w-full max-w-7xl mx-auto', justifyClass].join(' ');
+    const wrapperClassName = ['max-w-3xl py-16', textAlignClass].filter(Boolean).join(' ');
 
     return (
       // Both breakpoints use a vw-relative (container-width-relative) min-height floor, never a
@@ -179,8 +180,10 @@ export function HeroModule({ data, slug: _, tenantBrand }: HeroModuleProps): Rea
             style={{ objectPosition }}
           />
         )}
-        <div className={wrapperClassName}>
-          <HeroTextContent data={data} ctaHref={ctaHref} ctaJustifyClass={ctaJustifyClass} />
+        <div className={stageClassName}>
+          <div className={wrapperClassName}>
+            <HeroTextContent data={data} ctaHref={ctaHref} ctaJustifyClass={ctaJustifyClass} />
+          </div>
         </div>
       </section>
     );

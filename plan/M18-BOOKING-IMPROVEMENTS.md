@@ -595,12 +595,12 @@ Both CTA buttons on `HeroModuleData` (`ctaLabel`/`ctaTarget` and the optional `s
 - This derivation is identical for `HeroModuleData` and `BookingCtaModuleData`.
 
 **Part 3 — `HeroModule.tsx` rendering:**
-- **Centered variant:** section's `items-center justify-center` (line 142) become `justify-{start|center|end}` driven by `contentPositionX` and `items-{start|center|end}` driven by `contentPositionY`; the content wrapper's `mx-auto ... text-center` (line 156) becomes conditional per `contentPositionX` (`left` → no auto-margin + `text-left`; `center` → `mx-auto` + `text-center`; `right` → `ml-auto` + `text-right`); the CTA row (line 93, shared via `HeroTextContent`) gets a matching `justify-start`/`justify-center`/`justify-end` so the buttons align with the text above them, not independently.
+- **Centered variant:** section's `items-center justify-center` (line 142) become `items-{start|center|end}` driven by `contentPositionY` (section keeps no `justify-*` of its own — see Part 8); a new **stage** div (`max-w-7xl mx-auto`, `flex`, `justify-{start|center|end}` driven by `contentPositionX`) is inserted between the section and the content wrapper; the wrapper itself becomes `max-w-3xl py-16 text-{left|center|right}` (no margin classes — positioning is the stage's job now, alignment of the text inside it is the wrapper's); the CTA row (line 93, shared via `HeroTextContent`) gets a matching `justify-start`/`justify-center`/`justify-end` so the buttons align with the text above them, not independently.
 - **Left-aligned variant:** `contentPositionY` maps to `items-{start|center|end}` on the grid row (line 176-183), anchoring the text+CTA column to the top/center/bottom of the section. `contentPositionX` is not read in this branch at all.
 - `HeroTextContent` itself takes no new props — the alignment classes are applied by its caller (each variant branch), keeping the shared component unaware of which variant it's rendering into (matches its current design).
 
 **Part 4 — `BookingCtaModule.tsx` rendering (same technique as Part 3):**
-- **Centered variant:** section's `items-center justify-center ... text-center` (line 153) and the wrapper's `mx-auto max-w-2xl` (line 157) get the same `contentPositionX`/`contentPositionY`-driven treatment as Hero's centered branch. `BookingCtaContent` has a single CTA (`Link`, line 93-99) — no row-level `justify` needed beyond what the wrapper's `text-align` already gives a single inline-block link, but apply it anyway for consistency with Hero's pattern.
+- **Centered variant:** same stage-plus-wrapper split as Hero's centered branch — section keeps `items-{start|center|end}` from `contentPositionY` only; a `max-w-7xl mx-auto flex justify-{start|center|end}` stage positions a `max-w-2xl text-{left|center|right}` wrapper around `BookingCtaContent`'s single CTA (`Link`, line 93-99).
 - **Left-aligned variant:** `contentPositionY` maps to `items-{start|center|end}` on the grid row (line 124), same as Hero. `contentPositionX` not read.
 
 **Part 5 — Config panel UI, both `HeroConfigPanel.tsx` and `BookingCtaConfigPanel.tsx`:**
@@ -614,6 +614,21 @@ Both CTA buttons on `HeroModuleData` (`ctaLabel`/`ctaTarget` and the optional `s
 **Part 7 — Docs refresh:**
 - `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §4: both the `HeroModuleData` snippet (confirmed zero drift as of this story's start — safe base) and the `BookingCtaModuleData` snippet gain `contentPositionX`/`contentPositionY`.
 
+**Part 8 — Fix: left/right anchoring must respect the site's usual content width, not the raw viewport edge (found during manual review after the initial push):**
+- The first implementation of Part 3/4 positioned `contentPositionX` directly against the `<section>`'s own edge (only inset by its `px-6` padding) — on a wide viewport, `'left'`/`'right'` pushed the text block almost flush against the true browser edge, unlike every other hotsite section (`ServiceListModule`, `AboutModule`, `ContactModule`), which all constrain their content to a `mx-auto max-w-7xl` container with `padding: var(--ba-section-py) 1.5rem` on the section itself.
+- Fixed by inserting a **stage** div between the section and the content wrapper: `relative z-10 flex w-full max-w-7xl mx-auto`, with `justify-{start|center|end}` (from `contentPositionX`) applied to the stage, not the section. The section keeps only `items-{start|center|end}` (from `contentPositionY`) and its existing `px-6` — the background `<Image>` (a sibling of the stage, still a direct child of the section) is unaffected, staying full-bleed.
+- **Regression-safe for the default (`'center'`) case on every viewport width:** nesting the stage's own `mx-auto` centering inside the section's available width, then `justify-center`-ing the wrapper inside the (possibly narrower) stage, lands the wrapper at the exact same horizontal midpoint as the original single-layer `mx-auto` — verified algebraically (both operations are symmetric around the same center point) and by test.
+- `contentMarginClass()` (the margin-based positioning helper from the original Part 3/4 implementation) is removed from `module-styles.ts` — superseded entirely by the stage's `justify-content`, which is the only positioning mechanism now (previously a mix of margin-based wrapper positioning + a separately-computed CTA-row justify class).
+
+**Part 9 — `BookingCtaModuleData` gets the M18-S04 responsive-crop treatment too (found during manual review — a sibling gap, not new scope creep):**
+- `BookingCtaModule.tsx`'s background image had the exact pre-M18-S04 Hero bug — `min-h-[40vh]`/`h-64` (viewport-height-relative, cropping badly on narrow viewports) — never fixed alongside Hero because M18-S04 was scoped to Hero only.
+- `backgroundImagePosition?: 'left' | 'center' | 'right'` added to `BookingCtaModuleData` (3-layer mirror, same as `contentPositionX`/`Y` above) — identical field/default/semantics to `HeroModuleData.backgroundImagePosition`.
+- `BookingCtaModule.tsx`: centered variant's section `min-h-[40vh]` → `min-h-[42.86vw] sm:min-h-[31.25vw]` (identical numbers to Hero); left-aligned variant's outer section `min-h-[40vh]` → `min-h-[31.25vw]`, its image panel `h-64 sm:h-full sm:min-h-[40vh]` → `aspect-[21/9] sm:aspect-auto sm:h-full sm:min-h-[15.6vw]` (identical to Hero's left-aligned right panel). Both variants' `<Image>` gains `style={{ objectPosition }}` driven by the new field.
+- `BookingCtaConfigPanel.tsx`: new focal-point `PillSelect` (shown only when `backgroundImageUrl` is set), identical pattern to `HeroConfigPanel.tsx`'s existing one; its `SingleImageUploadField` call also gains `lowResolutionErrorLabel` (was missing entirely before this story — the low-resolution rejection existed in the shared `compressImage()`/`SingleImageUploadField` machinery, but this call site had never wired a purpose-specific message for it).
+- `SingleImageUploadField.tsx`'s `MINIMUM_STORED_HEIGHT` map gains a `'booking-cta': 450` entry (identical threshold to `'hero'` — same 21:9 mobile crop target, same derivation).
+- New i18n keys (`backgroundImagePositionLabel`/`Left`/`Center`/`Right`, `backgroundImageLowResolutionError`) under `dashboard.hotsitePage.layout.panels.bookingCta`, both locales.
+- `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`'s `BookingCtaModuleData` snippet gains `backgroundImagePosition` (this snippet also had pre-existing drift from a prior story, refreshed in full as part of this same story rather than compounding it — see the Description's opening background note).
+
 ### Acceptance Criteria
 
 - [ ] `contentPositionX`/`contentPositionY` exist on both `HeroModuleData` and `BookingCtaModuleData`, in backend aggregate, `@ikaro/types`, and web zod schema
@@ -624,17 +639,23 @@ Both CTA buttons on `HeroModuleData` (`ctaLabel`/`ctaTarget` and the optional `s
 - [ ] `HeroConfigPanel.tsx` and `BookingCtaConfigPanel.tsx` both expose the `contentPositionY` PillSelect unconditionally and the `contentPositionX` PillSelect only when `variant === 'centered'`
 - [ ] New locale keys (16 total, 8 per panel) exist in both `pt-BR` and `en` in the same commit
 - [ ] `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`'s `HeroModuleData` and `BookingCtaModuleData` snippets both include the two new fields, with no other drift from the real types
+- [ ] `contentPositionX: 'left'`/`'right'` anchors content within the same `max-w-7xl` content container every other hotsite section uses — not flush against the raw viewport edge — on both modules
+- [ ] `BookingCtaModuleData.backgroundImagePosition` exists in backend aggregate, `@ikaro/types`, and web zod schema; absent/undefined behaves identically to today (no visual change for existing tenants)
+- [ ] `BookingCtaModule.tsx` uses the same `vw`-relative sizing as `HeroModule.tsx` at every breakpoint — no `vh` unit remains in either variant's height mechanism
+- [ ] `SingleImageUploadField` rejects a `'booking-cta'` upload whose post-compression stored height is below 450px, via `lowResolutionErrorLabel` — mirroring the existing `'hero'` behavior
+- [ ] `BookingCtaConfigPanel.tsx` exposes the focal-point picker (`left`/`center`/`right`) only when a background image is set; changing it visibly shifts the crop in the live preview
 - [ ] Coverage ≥80% on changed code; `tsc --noEmit`, lint, full test suite green
 
 ### Testing
 
 **Unit — Vitest (`apps/web`):**
-- UPDATE `HeroModule.spec.tsx` — `centered`: each `contentPositionX`/`contentPositionY` combination produces the expected `justify-content`/`align-items`/`text-align` classes on the content wrapper and CTA row; `left-aligned`: `contentPositionY` repositions the column, `contentPositionX` (even if present in data) has no rendering effect; absent fields render identically to the pre-existing fixture for both variants (explicit regression case).
-- UPDATE `BookingCtaModule.spec.tsx` — same coverage shape as `HeroModule.spec.tsx`, adapted for the single-CTA content.
-- UPDATE `HeroConfigPanel.spec.tsx` and `BookingCtaConfigPanel.spec.tsx` — `contentPositionY` PillSelect always renders; `contentPositionX` PillSelect renders only when `variant === 'centered'`; `onChange` wiring for both; switching `variant` away from `centered` while `contentPositionX` is set doesn't crash (control just unmounts).
-- UPDATE `module-schemas.spec.ts` — both schemas accept the new enums (including `undefined`), reject invalid values.
+- UPDATE `HeroModule.spec.tsx` — `centered`: each `contentPositionX`/`contentPositionY` combination produces the expected `justify-content`/`align-items`/`text-align` classes on the stage/wrapper/CTA row; `left-aligned`: `contentPositionY` repositions the column, `contentPositionX` (even if present in data) has no rendering effect; absent fields render identically to the pre-existing fixture for both variants (explicit regression case); the stage carries `max-w-7xl mx-auto` regardless of `contentPositionX`.
+- UPDATE `BookingCtaModule.spec.tsx` — same coverage shape as `HeroModule.spec.tsx` for content position, adapted for the single-CTA content; plus M18-S04-style aspect-ratio/vw-relative-sizing/`objectPosition` coverage mirroring `HeroModule.spec.tsx`'s existing "responsive crop" describe block.
+- UPDATE `HeroConfigPanel.spec.tsx` and `BookingCtaConfigPanel.spec.tsx` — `contentPositionY` PillSelect always renders; `contentPositionX` PillSelect renders only when `variant === 'centered'`; `onChange` wiring for both; switching `variant` away from `centered` while `contentPositionX` is set doesn't crash (control just unmounts); `BookingCtaConfigPanel.spec.tsx` additionally covers the new focal-point picker (mirrors `HeroConfigPanel.spec.tsx`'s existing coverage).
+- UPDATE `module-schemas.spec.ts` — both schemas accept the new `contentPositionX`/`contentPositionY` enums (including `undefined`), reject invalid values; `BookingCtaModuleDataSchema` additionally accepts/rejects `backgroundImagePosition` the same way `HeroModuleDataSchema` already does.
+- UPDATE `SingleImageUploadField.spec.tsx` — a rejected (too-low-resolution) `'booking-cta'` upload surfaces `lowResolutionErrorLabel`, mirroring the existing `'hero'` case.
 
-**Backend (Jest):** UPDATE `hotsite-config.spec.ts` — `contentPositionX`/`contentPositionY` remain unvalidated by the aggregate on both module types (matches the existing precedent for other non-business-rule module-data fields).
+**Backend (Jest):** UPDATE `hotsite-config.spec.ts` — `contentPositionX`/`contentPositionY`/`backgroundImagePosition` remain unvalidated by the aggregate on both module types (matches the existing precedent for other non-business-rule module-data fields).
 
 **Playwright E2E:** UPDATE `hotsite-editor.spec.ts` — set non-default `contentPositionX`/`contentPositionY` on the `centered` variant for both Hero and Booking CTA modules, publish, reload, verify persistence and the expected computed alignment on the live hotsite page.
 
@@ -645,6 +666,13 @@ Both CTA buttons on `HeroModuleData` (`ctaLabel`/`ctaTarget` and the optional `s
 3. **`contentPositionX` is not applicable to `left-aligned` for either module** — the text column's left position is structural (grid order), not a free placement; the config panel simply doesn't render that control for this variant rather than rendering an inert one.
 4. **Default-preserves-current-behavior is the hard requirement, confirmed explicitly by the user** — both fields default to `'center'`, which is a true no-op against both modules' current hardcoded `items-center`/`justify-center`/`text-center` behavior; no variant-dependent default logic is needed (simpler than the original single-enum draft's `centered → 'center'`, `left-aligned → 'center-left'` derivation, which is no longer needed under the two-field design).
 
+### Resolved after initial push (manual review, 2026-07-30)
+
+Two additional findings surfaced after the initial commit/push, both folded into this same branch/story per explicit user direction rather than split into separate follow-up stories:
+
+1. **Edge-flush bug (Part 8):** user found that anchoring `contentPositionX` to `'left'`/`'right'` pushed content almost flush against the true browser edge on a wide viewport, unlike the rest of the hotsite's `max-w-7xl`-constrained sections. Root cause: the original Part 3/4 implementation positioned the wrapper directly against the `<section>`'s own edge rather than against a `max-w-7xl`-constrained content container. Fixed via the stage-div restructure in Part 8.
+2. **Booking CTA image never got M18-S04's treatment (Part 9):** user separately noticed the Booking CTA background image still crops badly on a narrow viewport, unlike Hero's (already fixed by M18-S04). Confirmed this is a real, pre-existing gap — M18-S04 was scoped to Hero only, and nothing since then extended the same fix to `BookingCtaModuleData`/`BookingCtaModule.tsx`. Fixed via Part 9, mirroring M18-S04's Hero treatment exactly (same ratio, same thresholds).
+
 ### Dependencies
 
-None — extends existing components (`HeroModule`, `HeroConfigPanel`, `BookingCtaModule`, `BookingCtaConfigPanel`); no migration (module `data` is a `jsonb` field, same pattern as M18-S04's `backgroundImagePosition`).
+None — extends existing components (`HeroModule`, `HeroConfigPanel`, `BookingCtaModule`, `BookingCtaConfigPanel`, `SingleImageUploadField`); no migration (module `data` is a `jsonb` field, same pattern as M18-S04's `backgroundImagePosition`).

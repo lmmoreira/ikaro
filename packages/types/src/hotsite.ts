@@ -82,6 +82,9 @@ export interface BookingCtaModuleData {
   ctaLabel: string;
   // Nullable — see HeroModuleData.backgroundImageUrl's comment above for why.
   backgroundImageUrl?: string | null;
+  // Same field/default/rendering rule as HeroModuleData.backgroundImagePosition — M18-S05
+  // follow-up, applying the M18-S04 responsive-crop treatment to this module too.
+  backgroundImagePosition?: 'left' | 'center' | 'right';
   carouselDays?: number;
   datePickerType?: 'carousel' | 'calendar';
   bgStyle?: 'primary' | 'background';

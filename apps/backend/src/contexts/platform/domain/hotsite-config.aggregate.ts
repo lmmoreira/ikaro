@@ -86,6 +86,7 @@ export interface BookingCtaModuleData {
   eyebrow?: string;
   ctaLabel: string;
   backgroundImageUrl?: string;
+  backgroundImagePosition?: 'left' | 'center' | 'right';
   carouselDays?: number;
   datePickerType?: 'carousel' | 'calendar';
   bgStyle?: 'primary' | 'background';
