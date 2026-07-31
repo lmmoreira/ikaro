@@ -30,6 +30,8 @@ export interface HeroModuleData {
   eyebrow?: string;
   backgroundImageUrl?: string;
   backgroundImagePosition?: 'left' | 'center' | 'right';
+  contentPositionX?: 'left' | 'center' | 'right';
+  contentPositionY?: 'top' | 'center' | 'bottom';
   ctaLabel: string;
   ctaTarget: 'booking-form' | 'service-list' | 'gallery' | 'testimonials' | 'about' | 'contact';
   secondaryCtaLabel?: string;
@@ -88,6 +90,8 @@ export interface BookingCtaModuleData {
   datePickerType?: 'carousel' | 'calendar';
   bgStyle?: 'primary' | 'background';
   rightPanel?: 'none' | 'brand-card';
+  contentPositionX?: 'left' | 'center' | 'right';
+  contentPositionY?: 'top' | 'center' | 'bottom';
 }
 
 export interface AboutModuleData {

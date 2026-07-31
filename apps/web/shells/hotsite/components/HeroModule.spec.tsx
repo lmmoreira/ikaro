@@ -310,6 +310,125 @@ describe('HeroModule', () => {
     });
   });
 
+  describe('content position (M18-S05)', () => {
+    it('centered variant: absent contentPositionX/Y renders identically to before this field existed', () => {
+      const { container } = render(<HeroModule data={makeData()} slug="tenant" />);
+
+      const section = container.querySelector('[data-variant="centered"]');
+      expect(section?.className).toContain('items-center');
+      expect(section?.className).toContain('justify-center');
+
+      const wrapper = container.querySelector('[data-variant="centered"] > div');
+      expect(wrapper?.className).toContain('mx-auto');
+      expect(wrapper?.className).toContain('text-center');
+
+      // The CTA row had no justify-content class at all before this field existed (flex
+      // defaults to flex-start) — must stay that way when contentPositionX is unset, since the
+      // section/wrapper's explicit 'center' defaults above pre-date this field and the CTA row's
+      // implicit default does not (see HeroModule.tsx's comment on ctaJustifyClass).
+      const ctaRow = screen.getByRole('link', { name: 'Agendar agora' }).parentElement;
+      expect(ctaRow?.className).not.toMatch(/justify-(start|center|end)/);
+    });
+
+    it('left-aligned variant: absent contentPositionY renders identically to before this field existed', () => {
+      const { container } = render(
+        <HeroModule data={makeData({ variant: 'left-aligned' })} slug="tenant" />,
+      );
+
+      const section = container.querySelector('[data-variant="left-aligned"]');
+      expect(section?.className).toContain('items-center');
+    });
+
+    it.each([
+      ['left', 'justify-start', 'text-left'],
+      ['center', 'justify-center', 'text-center'],
+      ['right', 'justify-end', 'text-right'],
+    ] as const)(
+      'centered variant: contentPositionX %s drives section justify, wrapper alignment, and CTA row justify',
+      (contentPositionX, expectedJustify, expectedTextAlign) => {
+        const { container } = render(
+          <HeroModule data={makeData({ contentPositionX })} slug="tenant" />,
+        );
+
+        const section = container.querySelector('[data-variant="centered"]');
+        expect(section?.className).toContain(expectedJustify);
+
+        const wrapper = container.querySelector('[data-variant="centered"] > div');
+        expect(wrapper?.className).toContain(expectedTextAlign);
+
+        const ctaRow = screen.getByRole('link', { name: 'Agendar agora' }).parentElement;
+        expect(ctaRow?.className).toContain(expectedJustify);
+      },
+    );
+
+    it('centered variant: contentPositionX "left" removes the auto-centering margin', () => {
+      const { container } = render(
+        <HeroModule data={makeData({ contentPositionX: 'left' })} slug="tenant" />,
+      );
+
+      const wrapper = container.querySelector('[data-variant="centered"] > div');
+      expect(wrapper?.className).not.toContain('mx-auto');
+      expect(wrapper?.className).not.toContain('ml-auto');
+    });
+
+    it('centered variant: contentPositionX "right" applies ml-auto instead of mx-auto', () => {
+      const { container } = render(
+        <HeroModule data={makeData({ contentPositionX: 'right' })} slug="tenant" />,
+      );
+
+      const wrapper = container.querySelector('[data-variant="centered"] > div');
+      expect(wrapper?.className).toContain('ml-auto');
+      expect(wrapper?.className).not.toContain('mx-auto');
+    });
+
+    it.each([
+      ['top', 'items-start'],
+      ['center', 'items-center'],
+      ['bottom', 'items-end'],
+    ] as const)(
+      'centered variant: contentPositionY %s drives section items alignment',
+      (contentPositionY, expectedItems) => {
+        const { container } = render(
+          <HeroModule data={makeData({ contentPositionY })} slug="tenant" />,
+        );
+
+        const section = container.querySelector('[data-variant="centered"]');
+        expect(section?.className).toContain(expectedItems);
+      },
+    );
+
+    it.each([
+      ['top', 'items-start'],
+      ['center', 'items-center'],
+      ['bottom', 'items-end'],
+    ] as const)(
+      'left-aligned variant: contentPositionY %s drives outer section items alignment',
+      (contentPositionY, expectedItems) => {
+        const { container } = render(
+          <HeroModule
+            data={makeData({ variant: 'left-aligned', contentPositionY })}
+            slug="tenant"
+          />,
+        );
+
+        const section = container.querySelector('[data-variant="left-aligned"]');
+        expect(section?.className).toContain(expectedItems);
+      },
+    );
+
+    it('left-aligned variant: contentPositionX has no rendering effect', () => {
+      const { container } = render(
+        <HeroModule
+          data={makeData({ variant: 'left-aligned', contentPositionX: 'right' })}
+          slug="tenant"
+        />,
+      );
+
+      const section = container.querySelector('[data-variant="left-aligned"]');
+      expect(section?.className).not.toMatch(/justify-(start|center|end)/);
+    });
+  });
+
   it('has no axe violations', async () => {
     const { container } = render(<HeroModule data={makeData()} slug="tenant" />);
 

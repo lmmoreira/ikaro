@@ -379,6 +379,74 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     expect(box!.height).toBeLessThan(700);
   });
 
+  test('Hero panel: setting contentPositionX/contentPositionY on the centered variant persists after Publish and reload, and the live page applies the expected alignment (M18-S05)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await page.locator(configureButton('HERO')).click();
+
+    await page.locator('[data-testid="hero-content-position-x-right"]').click();
+    await page.locator('[data-testid="hero-content-position-y-top"]').click();
+    await page.getByTestId('module-config-apply-desktop').click();
+
+    await page.getByTestId('hotsite-publish-desktop').click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+
+    await page.reload();
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await page.locator(configureButton('HERO')).click();
+    await expect(page.locator('[data-testid="hero-content-position-x-right"]')).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    await expect(page.locator('[data-testid="hero-content-position-y-top"]')).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+
+    await page.goto(`/${MANAGER_TENANT_SLUG}`);
+    const heroSection = page.locator('[data-variant="centered"]');
+    await expect(heroSection).toHaveCSS('justify-content', 'flex-end');
+    await expect(heroSection).toHaveCSS('align-items', 'flex-start');
+  });
+
+  test('Booking CTA panel: setting contentPositionX/contentPositionY on the centered variant persists after Publish and reload, and the live page applies the expected alignment (M18-S05)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'Layout' }).click();
+
+    // BOOKING_CTA is absent from the autospa-premium seed layout — materializeLayout() gives it
+    // a disabled row with default data, same as the M18-S01 Calendar-section test above.
+    await page.locator(layoutToggle('BOOKING_CTA')).click();
+    await page.locator(configureButton('BOOKING_CTA')).click();
+    await page.locator('#booking-cta-title').fill('Agende seu horário');
+    await page.locator('#booking-cta-cta-label').fill('Agendar agora');
+
+    await page.locator('[data-testid="booking-cta-content-position-x-right"]').click();
+    await page.locator('[data-testid="booking-cta-content-position-y-top"]').click();
+    await page.getByTestId('module-config-apply-desktop').click();
+
+    await page.getByTestId('hotsite-publish-desktop').click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+
+    await page.reload();
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await page.locator(configureButton('BOOKING_CTA')).click();
+    await expect(
+      page.locator('[data-testid="booking-cta-content-position-x-right"]'),
+    ).toHaveAttribute('aria-checked', 'true');
+    await expect(
+      page.locator('[data-testid="booking-cta-content-position-y-top"]'),
+    ).toHaveAttribute('aria-checked', 'true');
+
+    await page.goto(`/${MANAGER_TENANT_SLUG}`);
+    const bookingCtaSection = page.locator('section#booking-form');
+    await expect(bookingCtaSection).toHaveCSS('justify-content', 'flex-end');
+    await expect(bookingCtaSection).toHaveCSS('align-items', 'flex-start');
+  });
+
   // Default seed state has no logo uploaded (autospa-premium's branding.logoUrl is '') — this
   // test relies on that default rather than explicitly clearing it, since afterEach always
   // restores `original` between tests in this serial block.

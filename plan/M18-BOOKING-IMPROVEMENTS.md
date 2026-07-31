@@ -15,6 +15,7 @@
 | M18-S02 | Hotsite editor "Manifesto" tab: direct JSON editing of branding + layout + seo |
 | M18-S03 | Dedicated SEO share image (`seo.ogImageUrl`), auto-cropped uploads, and rendering `branding.logoUrl` (topbar, footer, favicon) |
 | M18-S04 | Hero banner responsive crop: breakpoint aspect-ratio, focal point, and a minimum upload resolution guard |
+| M18-S05 | Hero & Booking CTA banners: tenant-configurable content position (independent X/Y anchor, decoupled from `variant`) |
 
 *(more stories will be appended here as they're scoped)*
 
@@ -556,3 +557,94 @@ Cross-tool review surfaced 2 critical + 2 important findings (Codex) and 3 actio
 ### Dependencies
 
 None — extends existing components (`HeroModule`, `HeroConfigPanel`, `SingleImageUploadField`, `compressImage`); no migration (module `data` is a `jsonb` field, same pattern as M18-S01's `datePickerType`).
+
+---
+
+## M18-S05 — Hero & Booking CTA banners: tenant-configurable content position (independent X/Y anchor, decoupled from `variant`)
+
+**Agent:** `frontend-ts`
+**Complexity:** M
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-027
+
+### Background
+
+`HeroModuleData.variant` and `BookingCtaModuleData.variant` (both `'centered' | 'left-aligned'`) each conflate text alignment, column layout (whether there's a right-hand image/brand-card panel), and where the text+CTA block sits, all in one field. Confirmed by direct read of both components — `HeroModule.tsx` and `BookingCtaModule.tsx` share near-identical structure: a `centered` branch hardcoding `items-center justify-center` on the section and `mx-auto ... text-center` on the content wrapper (`HeroModule.tsx:142,156`; `BookingCtaModule.tsx:153,157`), and a `left-aligned` branch with a 2-col grid (`items-center` row alignment) that already puts text on the left, vertically centered, as a side effect of `variant` rather than something explicitly chosen (`HeroModule.tsx:176-187`; `BookingCtaModule.tsx:122-145`). Neither variant lets a tenant anchor the block to the top or bottom, and `centered` has no way to move it off-center horizontally either.
+
+Two real hotsite manifests were compared during discovery: one (`variant: 'centered'`) where the tenant wanted the CTA row somewhere other than dead-center, and one (`variant: 'left-aligned'`) that already looked right by accident of the variant's own layout.
+
+**Design confirmed during `/story-discovery`:** rather than a single combined 9-point enum, use **two independent optional fields** — `contentPositionX?: 'left' | 'center' | 'right'` and `contentPositionY?: 'top' | 'center' | 'bottom'` — each rendered as its own `PillSelect` (`apps/web/shared/components/ui/pill-select.tsx`, already generic over `T extends string` and already `flex flex-wrap`, confirmed by direct read — no new UI primitive needed). This also matches the codebase's existing precedent of independent variation axes as separate fields (`variant` + `rightPanel`, not one combined enum), and sidesteps a 3×3-grid-picker component that a single enum would have required.
+
+**Non-negotiable (explicit user requirement):** absent/undefined `contentPositionX`/`contentPositionY` must render **exactly as today**, for every existing manifest, on both modules. This falls out naturally once the default for each is fixed at `'center'`: both variants of both modules already vertically center via a hardcoded `items-center` today, and `centered`'s horizontal default is already `justify-center`/`text-center` — so `'center'` is a true no-op default, not a value that needs to vary per-variant.
+
+Both CTA buttons on `HeroModuleData` (`ctaLabel`/`ctaTarget` and the optional `secondaryCtaLabel`/`secondaryCtaTarget`) already render together in one row (`HeroTextContent`'s `<div className="flex flex-wrap gap-4">`, `HeroModule.tsx:93`); `BookingCtaModuleData` has only one CTA (`ctaLabel`, no secondary). This story moves the whole heading/subtitle/CTA block as one unit per module — it does not add independent positioning per button.
+
+**Scope confirmed during `/story-discovery`:** both `HERO` and `BOOKING_CTA` module types get this field in this same story (not deferred) — their component structure is close enough (both `centered`/`left-aligned`, both already using `PillSelect` for `variant`/`rightPanel`/`bgStyle`) that doing them together is barely more work than doing one, and avoids the exact inconsistency CLAUDE.md §8 flags ("a route/field added by pattern-matching neighbors" — here, the *reverse* risk: leaving an identical-shaped sibling field un-added would itself be the inconsistency).
+
+### Description
+
+**Part 1 — `contentPositionX`/`contentPositionY` fields, 3-layer mirror, on both module types (same pattern as `datePickerType`/`backgroundImagePosition`):**
+- `packages/types/src/hotsite.ts`: add `contentPositionX?: 'left' | 'center' | 'right';` and `contentPositionY?: 'top' | 'center' | 'bottom';` to `HeroModuleData` (after `backgroundImagePosition`) and to `BookingCtaModuleData` (after `rightPanel`).
+- `apps/backend/src/contexts/platform/domain/hotsite-config.aggregate.ts`: mirror both fields on both interfaces (`HeroModuleData` line 26, `BookingCtaModuleData` nearby).
+- `apps/web/features/platform/hotsite/module-schemas.ts`: add `contentPositionX: z.enum(['left', 'center', 'right']).optional()` and `contentPositionY: z.enum(['top', 'center', 'bottom']).optional()` to both `HeroModuleDataSchema` (line 26-38) and `BookingCtaModuleDataSchema`.
+- **No BFF change** — `HotsiteModuleResponse.data` (`packages/types/src/hotsite.ts:119`) is an opaque `Record<string, unknown>` at the BFF/shared-response layer; new keys on either module's data type need no DTO/controller touch, confirmed from M18-S04's identical precedent (`backgroundImagePosition` shipped with zero BFF changes).
+- **No migration** — `layout` module `data` is a `jsonb` column, same as every other module-data field added so far.
+
+**Part 2 — Default derivation (no behavior change for existing tenants):**
+- `contentPositionX` absent → `'center'`. Only read when `variant === 'centered'` (or unset, whose own default is `'centered'`) — for `'left-aligned'`, the value (default or explicit) has no rendering effect at all, since that variant's text column position is structural, not free-floating.
+- `contentPositionY` absent → `'center'`. Read in **both** variants — replaces today's hardcoded `items-center` with a dynamic value that defaults to the exact same thing.
+- This derivation is identical for `HeroModuleData` and `BookingCtaModuleData`.
+
+**Part 3 — `HeroModule.tsx` rendering:**
+- **Centered variant:** section's `items-center justify-center` (line 142) become `justify-{start|center|end}` driven by `contentPositionX` and `items-{start|center|end}` driven by `contentPositionY`; the content wrapper's `mx-auto ... text-center` (line 156) becomes conditional per `contentPositionX` (`left` → no auto-margin + `text-left`; `center` → `mx-auto` + `text-center`; `right` → `ml-auto` + `text-right`); the CTA row (line 93, shared via `HeroTextContent`) gets a matching `justify-start`/`justify-center`/`justify-end` so the buttons align with the text above them, not independently.
+- **Left-aligned variant:** `contentPositionY` maps to `items-{start|center|end}` on the grid row (line 176-183), anchoring the text+CTA column to the top/center/bottom of the section. `contentPositionX` is not read in this branch at all.
+- `HeroTextContent` itself takes no new props — the alignment classes are applied by its caller (each variant branch), keeping the shared component unaware of which variant it's rendering into (matches its current design).
+
+**Part 4 — `BookingCtaModule.tsx` rendering (same technique as Part 3):**
+- **Centered variant:** section's `items-center justify-center ... text-center` (line 153) and the wrapper's `mx-auto max-w-2xl` (line 157) get the same `contentPositionX`/`contentPositionY`-driven treatment as Hero's centered branch. `BookingCtaContent` has a single CTA (`Link`, line 93-99) — no row-level `justify` needed beyond what the wrapper's `text-align` already gives a single inline-block link, but apply it anyway for consistency with Hero's pattern.
+- **Left-aligned variant:** `contentPositionY` maps to `items-{start|center|end}` on the grid row (line 124), same as Hero. `contentPositionX` not read.
+
+**Part 5 — Config panel UI, both `HeroConfigPanel.tsx` and `BookingCtaConfigPanel.tsx`:**
+- Two new `PillSelect` controls per panel, reusing the exact existing pattern (e.g. `HeroConfigPanel.tsx:83-92`'s `variant` PillSelect, `BookingCtaConfigPanel.tsx:77-85`'s):
+  - `contentPositionY` PillSelect (`top`/`center`/`bottom`) — always rendered, regardless of `variant`.
+  - `contentPositionX` PillSelect (`left`/`center`/`right`) — rendered **only** when `variant === 'centered'` (mirrors the existing `hero.backgroundImageUrl &&` conditional-render pattern already used in `HeroConfigPanel.tsx:203-215` for `backgroundImagePosition`) — for `left-aligned`, the control simply isn't shown, rather than shown-but-inert.
+
+**Part 6 — i18n:**
+- New keys under `dashboard.hotsitePage.layout.panels.hero` **and** `dashboard.hotsitePage.layout.panels.bookingCta`, in both `packages/i18n/locales/pt-BR/*.json` and `.../en/*.json` — per panel: `contentPositionXLabel`/`Left`/`Center`/`Right` and `contentPositionYLabel`/`Top`/`Center`/`Bottom` (8 new keys × 2 panels = 16 total), following the exact naming convention already confirmed live in the locale files (`<field>Label` / `<field><OptionValue>`, e.g. `backgroundImagePositionLabel`/`backgroundImagePositionLeft`).
+
+**Part 7 — Docs refresh:**
+- `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §4: both the `HeroModuleData` snippet (confirmed zero drift as of this story's start — safe base) and the `BookingCtaModuleData` snippet gain `contentPositionX`/`contentPositionY`.
+
+### Acceptance Criteria
+
+- [ ] `contentPositionX`/`contentPositionY` exist on both `HeroModuleData` and `BookingCtaModuleData`, in backend aggregate, `@ikaro/types`, and web zod schema
+- [ ] Absent/undefined `contentPositionX`/`contentPositionY` renders **identically to today** for every existing manifest, on both modules, both variants — verified as an explicit regression test, not just an assumption
+- [ ] `centered` variant (both modules): all 9 combinations of `contentPositionX` × `contentPositionY` visibly reposition the heading/subtitle/CTA block as one unit, in the live preview (`HotsitePreview.tsx`)
+- [ ] `left-aligned` variant (both modules): only `contentPositionY` (top/center/bottom) has a visible effect; `contentPositionX`'s picker is not rendered in the config panel for this variant
+- [ ] `HeroModuleData`'s two CTA buttons move together with the heading/subtitle — no independent per-button positioning
+- [ ] `HeroConfigPanel.tsx` and `BookingCtaConfigPanel.tsx` both expose the `contentPositionY` PillSelect unconditionally and the `contentPositionX` PillSelect only when `variant === 'centered'`
+- [ ] New locale keys (16 total, 8 per panel) exist in both `pt-BR` and `en` in the same commit
+- [ ] `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`'s `HeroModuleData` and `BookingCtaModuleData` snippets both include the two new fields, with no other drift from the real types
+- [ ] Coverage ≥80% on changed code; `tsc --noEmit`, lint, full test suite green
+
+### Testing
+
+**Unit — Vitest (`apps/web`):**
+- UPDATE `HeroModule.spec.tsx` — `centered`: each `contentPositionX`/`contentPositionY` combination produces the expected `justify-content`/`align-items`/`text-align` classes on the content wrapper and CTA row; `left-aligned`: `contentPositionY` repositions the column, `contentPositionX` (even if present in data) has no rendering effect; absent fields render identically to the pre-existing fixture for both variants (explicit regression case).
+- UPDATE `BookingCtaModule.spec.tsx` — same coverage shape as `HeroModule.spec.tsx`, adapted for the single-CTA content.
+- UPDATE `HeroConfigPanel.spec.tsx` and `BookingCtaConfigPanel.spec.tsx` — `contentPositionY` PillSelect always renders; `contentPositionX` PillSelect renders only when `variant === 'centered'`; `onChange` wiring for both; switching `variant` away from `centered` while `contentPositionX` is set doesn't crash (control just unmounts).
+- UPDATE `module-schemas.spec.ts` — both schemas accept the new enums (including `undefined`), reject invalid values.
+
+**Backend (Jest):** UPDATE `hotsite-config.spec.ts` — `contentPositionX`/`contentPositionY` remain unvalidated by the aggregate on both module types (matches the existing precedent for other non-business-rule module-data fields).
+
+**Playwright E2E:** UPDATE `hotsite-editor.spec.ts` — set non-default `contentPositionX`/`contentPositionY` on the `centered` variant for both Hero and Booking CTA modules, publish, reload, verify persistence and the expected computed alignment on the live hotsite page.
+
+### Resolved during `/story-discovery M18-S05` (2026-07-30)
+
+1. **Two independent fields, not a combined 9-point enum** — `contentPositionX`/`contentPositionY`, each its own `PillSelect`. Confirmed by direct read that `PillSelect` already supports wrapping and is generic over any string union, so no new grid-picker primitive is needed; also matches the existing `variant`+`rightPanel` precedent of separate independent fields rather than one combined enum.
+2. **Scope extended to `BookingCtaModuleData`, in this same story** — not deferred. Its component (`BookingCtaModule.tsx`) has the same `centered`/`left-aligned` shape and already uses the identical `PillSelect` pattern for `variant`/`bgStyle`/`rightPanel`.
+3. **`contentPositionX` is not applicable to `left-aligned` for either module** — the text column's left position is structural (grid order), not a free placement; the config panel simply doesn't render that control for this variant rather than rendering an inert one.
+4. **Default-preserves-current-behavior is the hard requirement, confirmed explicitly by the user** — both fields default to `'center'`, which is a true no-op against both modules' current hardcoded `items-center`/`justify-center`/`text-center` behavior; no variant-dependent default logic is needed (simpler than the original single-enum draft's `centered → 'center'`, `left-aligned → 'center-left'` derivation, which is no longer needed under the two-field design).
+
+### Dependencies
+
+None — extends existing components (`HeroModule`, `HeroConfigPanel`, `BookingCtaModule`, `BookingCtaConfigPanel`); no migration (module `data` is a `jsonb` field, same pattern as M18-S04's `backgroundImagePosition`).

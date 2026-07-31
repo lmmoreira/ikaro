@@ -21,6 +21,12 @@ export interface HeroModuleData {
   // loses content when the container goes from a wide desktop shape to a taller mobile one is
   // horizontal, not vertical (M18-S04).
   backgroundImagePosition?: 'left' | 'center' | 'right';
+  // Content-block anchor, independent of backgroundImagePosition (which only moves the image's
+  // focal point). Both default to 'center', a no-op against this module's pre-M18-S05 hardcoded
+  // centering — absent/undefined renders identically to before this field existed. contentPositionX
+  // only has a rendering effect when variant === 'centered' (M18-S05).
+  contentPositionX?: 'left' | 'center' | 'right';
+  contentPositionY?: 'top' | 'center' | 'bottom';
   ctaLabel: string;
   ctaTarget: 'booking-form' | 'service-list' | 'gallery' | 'testimonials' | 'about' | 'contact';
   secondaryCtaLabel?: string;
@@ -80,6 +86,10 @@ export interface BookingCtaModuleData {
   datePickerType?: 'carousel' | 'calendar';
   bgStyle?: 'primary' | 'background';
   rightPanel?: 'none' | 'brand-card';
+  // See HeroModuleData.contentPositionX/Y's comment above — same field, same default, same
+  // variant-scoping rule, applied to this module (M18-S05).
+  contentPositionX?: 'left' | 'center' | 'right';
+  contentPositionY?: 'top' | 'center' | 'bottom';
 }
 
 export interface AboutModuleData {

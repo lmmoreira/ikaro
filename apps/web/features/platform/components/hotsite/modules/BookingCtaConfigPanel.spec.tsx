@@ -142,4 +142,76 @@ describe('BookingCtaConfigPanel', () => {
       writeModuleData({ ...BOOKING_CTA, rightPanel: 'brand-card' }),
     );
   });
+
+  describe('content position (M18-S05)', () => {
+    it('always renders the Y (vertical) picker', () => {
+      renderWithIntl(
+        <BookingCtaConfigPanel data={writeModuleData(BOOKING_CTA)} onChange={vi.fn()} />,
+      );
+
+      expect(screen.getByTestId('booking-cta-content-position-y-center')).toBeInTheDocument();
+    });
+
+    it('renders the X (horizontal) picker when variant defaults to "centered"', () => {
+      renderWithIntl(
+        <BookingCtaConfigPanel data={writeModuleData(BOOKING_CTA)} onChange={vi.fn()} />,
+      );
+
+      expect(screen.getByTestId('booking-cta-content-position-x-center')).toBeInTheDocument();
+    });
+
+    it('does not render the X (horizontal) picker when variant is "left-aligned"', () => {
+      renderWithIntl(
+        <BookingCtaConfigPanel
+          data={writeModuleData({ ...BOOKING_CTA, variant: 'left-aligned' })}
+          onChange={vi.fn()}
+        />,
+      );
+
+      expect(screen.queryByTestId('booking-cta-content-position-x-center')).not.toBeInTheDocument();
+      expect(screen.getByTestId('booking-cta-content-position-y-center')).toBeInTheDocument();
+    });
+
+    it('changing the X pill calls onChange with only contentPositionX updated', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+
+      renderWithIntl(
+        <BookingCtaConfigPanel data={writeModuleData(BOOKING_CTA)} onChange={onChange} />,
+      );
+
+      await user.click(screen.getByTestId('booking-cta-content-position-x-right'));
+
+      expect(onChange).toHaveBeenCalledWith(
+        writeModuleData({ ...BOOKING_CTA, contentPositionX: 'right' }),
+      );
+    });
+
+    it('changing the Y pill calls onChange with only contentPositionY updated', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+
+      renderWithIntl(
+        <BookingCtaConfigPanel data={writeModuleData(BOOKING_CTA)} onChange={onChange} />,
+      );
+
+      await user.click(screen.getByTestId('booking-cta-content-position-y-bottom'));
+
+      expect(onChange).toHaveBeenCalledWith(
+        writeModuleData({ ...BOOKING_CTA, contentPositionY: 'bottom' }),
+      );
+    });
+
+    it('switching variant to "left-aligned" while contentPositionX is set does not crash', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      const withX: BookingCtaModuleData = { ...BOOKING_CTA, contentPositionX: 'right' };
+
+      renderWithIntl(<BookingCtaConfigPanel data={writeModuleData(withX)} onChange={onChange} />);
+
+      await user.click(screen.getByTestId('booking-cta-variant-left-aligned'));
+
+      expect(onChange).toHaveBeenCalledWith(writeModuleData({ ...withX, variant: 'left-aligned' }));
+    });
+  });
 });

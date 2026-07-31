@@ -206,6 +206,8 @@ interface HeroModuleData {
   eyebrow?: string;
   backgroundImageUrl?: string | null;    // GCS URL — uploaded via dashboard
   backgroundImagePosition?: 'left' | 'center' | 'right'; // object-position focal point, default 'center' (M18-S04)
+  contentPositionX?: 'left' | 'center' | 'right'; // default 'center'; only affects 'centered' variant (M18-S05)
+  contentPositionY?: 'top' | 'center' | 'bottom'; // default 'center'; applies to both variants (M18-S05)
   ctaLabel: string;                      // e.g. "Agendar agora"
   ctaTarget: 'booking-form' | 'service-list' | 'gallery' | 'testimonials' | 'about' | 'contact';
   secondaryCtaLabel?: string;
@@ -277,10 +279,18 @@ interface TestimonialsModuleData {
 
 ```typescript
 interface BookingCtaModuleData {
+  variant?: 'centered' | 'left-aligned';  // default: 'centered'
   title: string;                  // e.g. "Pronto para brilhar?"
   subtitle?: string;
+  eyebrow?: string;
   ctaLabel: string;               // e.g. "Agendar agora"
-  backgroundImageUrl?: string;    // GCS URL, optional overlay background
+  backgroundImageUrl?: string | null;    // GCS URL, optional overlay background / left-aligned right-panel image
+  carouselDays?: number;          // day-carousel window size, only relevant when datePickerType is 'carousel'
+  datePickerType?: 'carousel' | 'calendar'; // default: 'carousel'
+  bgStyle?: 'primary' | 'background';      // default: 'primary'
+  rightPanel?: 'none' | 'brand-card';      // left-aligned variant only, default: 'none'
+  contentPositionX?: 'left' | 'center' | 'right'; // default 'center'; only affects 'centered' variant (M18-S05)
+  contentPositionY?: 'top' | 'center' | 'bottom'; // default 'center'; applies to both variants (M18-S05)
 }
 ```
 

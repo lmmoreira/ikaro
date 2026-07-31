@@ -85,6 +85,32 @@ export function BookingCtaConfigPanel({
         ]}
       />
 
+      <PillSelect
+        label={t('contentPositionYLabel')}
+        value={bookingCta.contentPositionY ?? 'center'}
+        onChange={(contentPositionY) => update({ contentPositionY })}
+        testId="booking-cta-content-position-y"
+        options={[
+          { value: 'top', label: t('contentPositionYTop') },
+          { value: 'center', label: t('contentPositionYCenter') },
+          { value: 'bottom', label: t('contentPositionYBottom') },
+        ]}
+      />
+
+      {(bookingCta.variant ?? 'centered') === 'centered' && (
+        <PillSelect
+          label={t('contentPositionXLabel')}
+          value={bookingCta.contentPositionX ?? 'center'}
+          onChange={(contentPositionX) => update({ contentPositionX })}
+          testId="booking-cta-content-position-x"
+          options={[
+            { value: 'left', label: t('contentPositionXLeft') },
+            { value: 'center', label: t('contentPositionXCenter') },
+            { value: 'right', label: t('contentPositionXRight') },
+          ]}
+        />
+      )}
+
       <div>
         <label
           htmlFor="booking-cta-cta-label"

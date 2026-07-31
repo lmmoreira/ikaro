@@ -1,7 +1,13 @@
 import Image from 'next/image';
 import type React from 'react';
 import type { HeroModuleData } from '@ikaro/types';
-import { sectionHeadingFont } from '@/features/platform/hotsite/module-styles';
+import {
+  contentItemsClass,
+  contentJustifyClass,
+  contentMarginClass,
+  contentTextAlignClass,
+  sectionHeadingFont,
+} from '@/features/platform/hotsite/module-styles';
 import { SectionEyebrow } from './SectionEyebrow';
 
 interface HeroModuleProps {
@@ -69,9 +75,11 @@ function BrandCard({
 function HeroTextContent({
   data,
   ctaHref,
+  ctaJustifyClass,
 }: {
   readonly data: HeroModuleData;
   readonly ctaHref: string;
+  readonly ctaJustifyClass: string;
 }): React.JSX.Element {
   const secondaryHref = data.secondaryCtaTarget ? `#${data.secondaryCtaTarget}` : undefined;
 
@@ -90,7 +98,7 @@ function HeroTextContent({
           {data.subtitle}
         </p>
       )}
-      <div className="flex flex-wrap gap-4">
+      <div className={['flex flex-wrap gap-4', ctaJustifyClass].filter(Boolean).join(' ')}>
         <a
           href={ctaHref}
           style={primaryBtnStyle}
@@ -127,6 +135,28 @@ export function HeroModule({ data, slug: _, tenantBrand }: HeroModuleProps): Rea
   };
 
   if (data.variant === 'centered') {
+    // contentPositionX only applies to this variant — the left-aligned variant's text column
+    // position is structural (grid order), not free-floating (M18-S05).
+    const justifyClass = contentJustifyClass(data.contentPositionX);
+    const itemsClass = contentItemsClass(data.contentPositionY);
+    const marginClass = contentMarginClass(data.contentPositionX);
+    const textAlignClass = contentTextAlignClass(data.contentPositionX);
+    // The CTA row had no justify-content class at all before this field existed (flex defaults
+    // to flex-start) — unlike the section/wrapper above, which already hardcoded items-center/
+    // justify-center/mx-auto/text-center explicitly. To keep "unset renders identically to
+    // today" literally true for the row too, only apply a justify class here when
+    // contentPositionX is explicitly set — never as a silent default.
+    const ctaJustifyClass = data.contentPositionX ? justifyClass : '';
+    const sectionClassName = [
+      'relative flex min-h-[42.86vw]',
+      itemsClass,
+      justifyClass,
+      'px-6 sm:min-h-[31.25vw]',
+    ].join(' ');
+    const wrapperClassName = ['relative z-10', marginClass, 'max-w-3xl py-16', textAlignClass]
+      .filter(Boolean)
+      .join(' ');
+
     return (
       // Both breakpoints use a vw-relative (container-width-relative) min-height floor, never a
       // vh (viewport-height-relative) one — vh is pinned to the browser's viewport height, so as the
@@ -137,11 +167,7 @@ export function HeroModule({ data, slug: _, tenantBrand }: HeroModuleProps): Rea
       // (mobile: 21:9 via 42.86vw; sm:+: ~16:5 via 31.25vw, close to the desktop shape this
       // already had via the old 60vh at a typical monitor's proportions) — but because they're
       // width-relative, the ratio stays roughly constant at every window width, not just one.
-      <section
-        data-variant="centered"
-        className="relative flex min-h-[42.86vw] items-center justify-center px-6 sm:min-h-[31.25vw]"
-        style={sectionStyle}
-      >
+      <section data-variant="centered" className={sectionClassName} style={sectionStyle}>
         {bgUrl && (
           <Image
             src={bgUrl}
@@ -153,8 +179,8 @@ export function HeroModule({ data, slug: _, tenantBrand }: HeroModuleProps): Rea
             style={{ objectPosition }}
           />
         )}
-        <div className="relative z-10 mx-auto max-w-3xl py-16 text-center">
-          <HeroTextContent data={data} ctaHref={ctaHref} />
+        <div className={wrapperClassName}>
+          <HeroTextContent data={data} ctaHref={ctaHref} ctaJustifyClass={ctaJustifyClass} />
         </div>
       </section>
     );
@@ -165,6 +191,8 @@ export function HeroModule({ data, slug: _, tenantBrand }: HeroModuleProps): Rea
     rightPanel !== 'none' &&
     (rightPanel !== 'image' || !!bgUrl) &&
     (rightPanel !== 'brand-card' || !!tenantBrand);
+  // contentPositionX is not read here — see the comment on the centered branch above.
+  const itemsClass = contentItemsClass(data.contentPositionY);
 
   return (
     // A single vw-relative floor at every breakpoint, not min-h-screen/sm:min-h-[60vh] (both
@@ -175,7 +203,7 @@ export function HeroModule({ data, slug: _, tenantBrand }: HeroModuleProps): Rea
     // modest floor is enough — real content still determines the actual height above it.
     <section
       data-variant="left-aligned"
-      className="relative flex min-h-[31.25vw] items-center"
+      className={`relative flex min-h-[31.25vw] ${itemsClass}`}
       style={{ backgroundColor: 'var(--ba-hero-bg)' }}
     >
       <div className="w-full max-w-7xl px-6 py-16 mx-auto">
@@ -183,7 +211,7 @@ export function HeroModule({ data, slug: _, tenantBrand }: HeroModuleProps): Rea
           className={`grid grid-cols-1 gap-12 items-center ${hasRightPanel ? 'sm:grid-cols-2' : ''}`}
         >
           <div>
-            <HeroTextContent data={data} ctaHref={ctaHref} />
+            <HeroTextContent data={data} ctaHref={ctaHref} ctaJustifyClass="" />
           </div>
           {rightPanel === 'brand-card' && tenantBrand && (
             <BrandCard name={tenantBrand.name} tagline={tenantBrand.tagline} />

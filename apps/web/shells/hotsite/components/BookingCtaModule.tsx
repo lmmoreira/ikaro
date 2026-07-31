@@ -2,7 +2,13 @@ import Image from 'next/image';
 import Link from 'next/link';
 import type React from 'react';
 import type { BookingCtaModuleData } from '@ikaro/types';
-import { sectionHeadingFont } from '@/features/platform/hotsite/module-styles';
+import {
+  contentItemsClass,
+  contentJustifyClass,
+  contentMarginClass,
+  contentTextAlignClass,
+  sectionHeadingFont,
+} from '@/features/platform/hotsite/module-styles';
 import { SectionEyebrow } from './SectionEyebrow';
 
 interface BookingCtaModuleProps {
@@ -113,10 +119,13 @@ export function BookingCtaModule({
 
   if (variant === 'left-aligned') {
     const hasRightPanel = showBrandCard || !!bgUrl;
+    // contentPositionX is not read here — the text column position is structural (grid order),
+    // not free-floating (M18-S05, same rule as HeroModule).
+    const itemsClass = contentItemsClass(data.contentPositionY);
     return (
       <section
         id="booking-form"
-        className="relative flex min-h-[40vh] items-center"
+        className={`relative flex min-h-[40vh] ${itemsClass}`}
         style={{ backgroundColor: sectionBg }}
       >
         <div className="w-full max-w-7xl px-6 py-16 mx-auto">
@@ -147,14 +156,29 @@ export function BookingCtaModule({
     );
   }
 
+  // contentPositionX only applies to the centered variant — same rule as HeroModule.
+  const justifyClass = contentJustifyClass(data.contentPositionX);
+  const itemsClass = contentItemsClass(data.contentPositionY);
+  const marginClass = contentMarginClass(data.contentPositionX);
+  const textAlignClass = contentTextAlignClass(data.contentPositionX);
+  const sectionClassName = [
+    'relative flex min-h-[40vh]',
+    itemsClass,
+    justifyClass,
+    'px-6 py-20 sm:py-28',
+  ].join(' ');
+  const wrapperClassName = ['relative z-10', marginClass, 'max-w-2xl', textAlignClass]
+    .filter(Boolean)
+    .join(' ');
+
   return (
     <section
       id="booking-form"
-      className="relative flex min-h-[40vh] items-center justify-center px-6 py-20 text-center sm:py-28"
+      className={sectionClassName}
       style={{ backgroundColor: bgUrl ? undefined : sectionBg }}
     >
       {bgUrl && <Image src={bgUrl} alt="" fill sizes="100vw" className="object-cover" />}
-      <div className="relative z-10 mx-auto max-w-2xl">
+      <div className={wrapperClassName}>
         <BookingCtaContent data={data} slug={slug} />
       </div>
     </section>

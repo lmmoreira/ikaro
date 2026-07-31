@@ -109,6 +109,105 @@ describe('BookingCtaModule', () => {
     });
   });
 
+  describe('content position (M18-S05)', () => {
+    it('centered variant (default): absent contentPositionX/Y renders identically to before this field existed', () => {
+      const { container } = render(<BookingCtaModule data={makeData()} slug="lavacar-beloauto" />);
+
+      const section = container.querySelector('section#booking-form');
+      expect(section?.className).toContain('items-center');
+      expect(section?.className).toContain('justify-center');
+
+      const wrapper = container.querySelector('section#booking-form > div');
+      expect(wrapper?.className).toContain('mx-auto');
+      expect(wrapper?.className).toContain('text-center');
+    });
+
+    it('left-aligned variant: absent contentPositionY renders identically to before this field existed', () => {
+      const { container } = render(
+        <BookingCtaModule data={makeData({ variant: 'left-aligned' })} slug="lavacar-beloauto" />,
+      );
+
+      const section = container.querySelector('section#booking-form');
+      expect(section?.className).toContain('items-center');
+    });
+
+    it.each([
+      ['left', 'justify-start', 'text-left'],
+      ['center', 'justify-center', 'text-center'],
+      ['right', 'justify-end', 'text-right'],
+    ] as const)(
+      'centered variant: contentPositionX %s drives section justify and wrapper alignment',
+      (contentPositionX, expectedJustify, expectedTextAlign) => {
+        const { container } = render(
+          <BookingCtaModule data={makeData({ contentPositionX })} slug="lavacar-beloauto" />,
+        );
+
+        const section = container.querySelector('section#booking-form');
+        expect(section?.className).toContain(expectedJustify);
+
+        const wrapper = container.querySelector('section#booking-form > div');
+        expect(wrapper?.className).toContain(expectedTextAlign);
+      },
+    );
+
+    it('centered variant: contentPositionX "left" removes the auto-centering margin', () => {
+      const { container } = render(
+        <BookingCtaModule data={makeData({ contentPositionX: 'left' })} slug="lavacar-beloauto" />,
+      );
+
+      const wrapper = container.querySelector('section#booking-form > div');
+      expect(wrapper?.className).not.toContain('mx-auto');
+      expect(wrapper?.className).not.toContain('ml-auto');
+    });
+
+    it.each([
+      ['top', 'items-start'],
+      ['center', 'items-center'],
+      ['bottom', 'items-end'],
+    ] as const)(
+      'centered variant: contentPositionY %s drives section items alignment',
+      (contentPositionY, expectedItems) => {
+        const { container } = render(
+          <BookingCtaModule data={makeData({ contentPositionY })} slug="lavacar-beloauto" />,
+        );
+
+        const section = container.querySelector('section#booking-form');
+        expect(section?.className).toContain(expectedItems);
+      },
+    );
+
+    it.each([
+      ['top', 'items-start'],
+      ['center', 'items-center'],
+      ['bottom', 'items-end'],
+    ] as const)(
+      'left-aligned variant: contentPositionY %s drives section items alignment',
+      (contentPositionY, expectedItems) => {
+        const { container } = render(
+          <BookingCtaModule
+            data={makeData({ variant: 'left-aligned', contentPositionY })}
+            slug="lavacar-beloauto"
+          />,
+        );
+
+        const section = container.querySelector('section#booking-form');
+        expect(section?.className).toContain(expectedItems);
+      },
+    );
+
+    it('left-aligned variant: contentPositionX has no rendering effect', () => {
+      const { container } = render(
+        <BookingCtaModule
+          data={makeData({ variant: 'left-aligned', contentPositionX: 'right' })}
+          slug="lavacar-beloauto"
+        />,
+      );
+
+      const section = container.querySelector('section#booking-form');
+      expect(section?.className).not.toMatch(/justify-(start|center|end)/);
+    });
+  });
+
   it('has no axe violations', async () => {
     const { container } = render(<BookingCtaModule data={makeData()} slug="lavacar-beloauto" />);
 

@@ -92,6 +92,70 @@ describe('HeroConfigPanel', () => {
     );
   });
 
+  describe('content position (M18-S05)', () => {
+    it('always renders the Y (vertical) picker', () => {
+      renderWithIntl(<HeroConfigPanel data={writeModuleData(HERO)} onChange={vi.fn()} />);
+
+      expect(screen.getByTestId('hero-content-position-y-center')).toBeInTheDocument();
+    });
+
+    it('renders the X (horizontal) picker when variant is "centered"', () => {
+      renderWithIntl(<HeroConfigPanel data={writeModuleData(HERO)} onChange={vi.fn()} />);
+
+      expect(screen.getByTestId('hero-content-position-x-center')).toBeInTheDocument();
+    });
+
+    it('does not render the X (horizontal) picker when variant is "left-aligned"', () => {
+      renderWithIntl(
+        <HeroConfigPanel
+          data={writeModuleData({ ...HERO, variant: 'left-aligned' })}
+          onChange={vi.fn()}
+        />,
+      );
+
+      expect(screen.queryByTestId('hero-content-position-x-center')).not.toBeInTheDocument();
+      expect(screen.getByTestId('hero-content-position-y-center')).toBeInTheDocument();
+    });
+
+    it('changing the X pill calls onChange with only contentPositionX updated', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+
+      renderWithIntl(<HeroConfigPanel data={writeModuleData(HERO)} onChange={onChange} />);
+
+      await user.click(screen.getByTestId('hero-content-position-x-right'));
+
+      expect(onChange).toHaveBeenCalledWith(
+        writeModuleData({ ...HERO, contentPositionX: 'right' }),
+      );
+    });
+
+    it('changing the Y pill calls onChange with only contentPositionY updated', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+
+      renderWithIntl(<HeroConfigPanel data={writeModuleData(HERO)} onChange={onChange} />);
+
+      await user.click(screen.getByTestId('hero-content-position-y-bottom'));
+
+      expect(onChange).toHaveBeenCalledWith(
+        writeModuleData({ ...HERO, contentPositionY: 'bottom' }),
+      );
+    });
+
+    it('switching variant to "left-aligned" while contentPositionX is set does not crash', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      const withX: HeroModuleData = { ...HERO, contentPositionX: 'right' };
+
+      renderWithIntl(<HeroConfigPanel data={writeModuleData(withX)} onChange={onChange} />);
+
+      await user.click(screen.getByTestId('hero-variant-left-aligned'));
+
+      expect(onChange).toHaveBeenCalledWith(writeModuleData({ ...withX, variant: 'left-aligned' }));
+    });
+  });
+
   describe('background image focal point (M18-S04)', () => {
     it('does not render the focal-point picker when no background image is set', () => {
       renderWithIntl(<HeroConfigPanel data={writeModuleData(HERO)} onChange={vi.fn()} />);
