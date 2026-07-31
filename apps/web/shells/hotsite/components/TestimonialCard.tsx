@@ -16,6 +16,7 @@ function StarRating({ rating }: StarRatingProps): React.JSX.Element {
   const t = useTranslations('hotsite');
   return (
     <div
+      role="img"
       aria-label={t('testimonials.ratingAriaLabel', { rating })}
       className="flex gap-1 text-lg"
       style={{ color: 'var(--ba-primary)' }}

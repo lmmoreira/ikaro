@@ -21,10 +21,10 @@ describe('TestimonialCard', () => {
     expect(screen.getByText('“Atendimento excelente, recomendo muito!”')).toBeInTheDocument();
   });
 
-  it('renders the translated star-rating aria-label', () => {
+  it('renders the translated star-rating aria-label on an accessible img role', () => {
     renderWithIntl(<TestimonialCard testimonial={makeTestimonial({ rating: 4 })} />);
 
-    expect(screen.getByLabelText('4 de 5 estrelas')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '4 de 5 estrelas' })).toBeInTheDocument();
     expect(screen.getAllByTestId('star-filled')).toHaveLength(4);
     expect(screen.getAllByTestId('star-empty')).toHaveLength(1);
   });

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FooterModuleData, HotsiteBusinessInfoResponse } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
 import { Footer } from './Footer';
@@ -32,6 +32,18 @@ function makeData(overrides: Partial<FooterModuleData> = {}): FooterModuleData {
 }
 
 describe('Footer', () => {
+  // Pins the clock so the copyright year read by Footer's render and by this file's own
+  // `new Date().getFullYear()` assertions can never disagree by straddling a real Dec 31 -> Jan
+  // 1 rollover between the two reads (CodeRabbit finding on PR #296).
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-15T12:00:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('renders the brand, tagline, copyright, and whatsapp link', () => {
     renderWithIntl(
       <Footer
