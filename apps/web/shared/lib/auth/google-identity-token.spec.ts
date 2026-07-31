@@ -92,4 +92,45 @@ describe('getBffAuthorizationHeader', () => {
     expect(result).toBe('Bearer token-after-retry');
     expect(getIdTokenClient).toHaveBeenCalledTimes(2);
   });
+
+  it('times out (and evicts the cache) when getIdTokenClient hangs forever', async () => {
+    vi.useFakeTimers();
+    try {
+      getIdTokenClient.mockReturnValue(new Promise(() => {}));
+
+      const pending = getBffAuthorizationHeader('https://bff-f.example.com');
+      const assertion = expect(pending).rejects.toThrow(
+        'Timed out obtaining a Google ID token client for audience https://bff-f.example.com',
+      );
+      await vi.advanceTimersByTimeAsync(5_000);
+      await assertion;
+
+      // Cache was evicted -- a subsequent call retries fresh instead of reusing the timed-out promise.
+      const client = mockClient('Bearer token-after-timeout');
+      getIdTokenClient.mockResolvedValue(client);
+      const retryPending = getBffAuthorizationHeader('https://bff-f.example.com');
+      await vi.runAllTimersAsync();
+      await expect(retryPending).resolves.toBe('Bearer token-after-timeout');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('times out when getRequestHeaders hangs forever, after a successful client fetch', async () => {
+    vi.useFakeTimers();
+    try {
+      getIdTokenClient.mockResolvedValue({
+        getRequestHeaders: vi.fn().mockReturnValue(new Promise(() => {})),
+      } satisfies MockIdTokenClient);
+
+      const pending = getBffAuthorizationHeader('https://bff-g.example.com');
+      const assertion = expect(pending).rejects.toThrow(
+        'Timed out fetching Google ID token headers for audience https://bff-g.example.com',
+      );
+      await vi.advanceTimersByTimeAsync(5_000);
+      await assertion;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

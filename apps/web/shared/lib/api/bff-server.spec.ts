@@ -1,4 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const getBffAuthorizationHeader = vi.hoisted(() => vi.fn());
+
+vi.mock('@/shared/lib/auth/google-identity-token', () => ({
+  getBffAuthorizationHeader,
+}));
+
 import { bffPublicFetch, bffServerFetch } from './bff-server';
 
 const BFF_URL = 'http://bff-test:3002';
@@ -104,6 +111,8 @@ describe('bffServerFetch', () => {
   beforeEach(() => {
     process.env.NEXT_PUBLIC_BFF_URL = BFF_URL;
     process.env.WEB_INTERNAL_KEY = 'a'.repeat(32);
+    delete process.env.BFF_AUTH_MODE;
+    delete process.env.BFF_UPSTREAM_URL;
     fetchSpy = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(
@@ -113,6 +122,9 @@ describe('bffServerFetch', () => {
 
   afterEach(() => {
     fetchSpy.mockRestore();
+    getBffAuthorizationHeader.mockReset();
+    delete process.env.BFF_AUTH_MODE;
+    delete process.env.BFF_UPSTREAM_URL;
   });
 
   it('adds the access_token cookie header', async () => {
@@ -145,5 +157,48 @@ describe('bffServerFetch', () => {
     const headers = headersFromCall(fetchSpy);
     expect(headers['Cookie']).toBe('access_token=tok');
     expect(headers['x-web-internal-key']).toBe('a'.repeat(32));
+  });
+
+  it('strips a caller-supplied title-case X-Web-Internal-Key instead of letting it ride alongside the real one (TD38)', async () => {
+    await bffServerFetch('tok', '/bookings', {
+      headers: { 'X-Web-Internal-Key': 'attacker-forged-value' },
+    });
+    const headers = headersFromCall(fetchSpy);
+    expect(headers['x-web-internal-key']).toBe('a'.repeat(32));
+    expect(headers['X-Web-Internal-Key']).toBeUndefined();
+  });
+
+  it('strips a caller-supplied title-case X-Real-Client-Ip regardless of casing (TD38)', async () => {
+    await bffServerFetch('tok', '/bookings', {
+      headers: { 'X-Real-Client-Ip': '203.0.113.99' },
+    });
+    const headers = headersFromCall(fetchSpy);
+    expect(headers['X-Real-Client-Ip']).toBeUndefined();
+  });
+
+  it('strips a caller-supplied Authorization when BFF_AUTH_MODE=iam would otherwise collide with it (TD38)', async () => {
+    process.env.BFF_AUTH_MODE = 'iam';
+    process.env.BFF_UPSTREAM_URL = BFF_URL;
+    getBffAuthorizationHeader.mockResolvedValue('Bearer real-iam-token');
+
+    await bffServerFetch('tok', '/bookings', {
+      headers: { Authorization: 'Bearer attacker-forged-token' },
+    });
+
+    const headers = headersFromCall(fetchSpy);
+    // attachBffAuthHeaders sets it via Headers.set(), which normalizes to lowercase.
+    expect(headers['authorization']).toBe('Bearer real-iam-token');
+    expect(headers['Authorization']).toBeUndefined();
+  });
+
+  it("preserves a caller-supplied Authorization when BFF_AUTH_MODE is not iam (e.g. the signed-url route forwarding the user's own bearer token)", async () => {
+    delete process.env.BFF_AUTH_MODE;
+
+    await bffServerFetch('tok', '/bookings', {
+      headers: { Authorization: 'Bearer real-user-jwt' },
+    });
+
+    const headers = headersFromCall(fetchSpy);
+    expect(headers['Authorization']).toBe('Bearer real-user-jwt');
   });
 });

@@ -15,6 +15,38 @@ interface BffServerFetchInit extends Omit<RequestInit, 'headers' | 'next'> {
 
 const DEFAULT_BFF_TIMEOUT_MS = 8_000;
 
+// TD38: strips any caller-supplied variant of a transport-controlled header, in any casing --
+// object keys are case-sensitive, but fetch/Headers normalizes names case-insensitively, so
+// e.g. a caller-supplied `X-Web-Internal-Key` would otherwise survive the merge below and get
+// sent as a second, conflicting value alongside the real one.
+//
+// X-Real-Client-Ip and X-Web-Internal-Key are unconditionally stripped: they're always
+// *meant* to be transport-controlled, even on a call where the real value ends up absent (e.g.
+// headers() throws outside a request-scoped context, so X-Real-Client-Ip is never actually set
+// on transportHeaders) -- a caller-forged value must never fill that gap.
+//
+// Authorization is different: it's transport-controlled only when BFF_AUTH_MODE=iam actually
+// sets it (attachBffAuthHeaders). When IAM mode is off, a caller legitimately owns this header
+// (e.g. the signed-url Route Handler forwards the user's own real bearer token) -- an earlier
+// version of this function stripped Authorization unconditionally and broke that (found via a
+// real test regression, TD38 PR #298 review). So Authorization is only added to the strip set
+// when transportHeaders actually contains it for this specific call.
+const ALWAYS_TRANSPORT_CONTROLLED_HEADERS = new Set(['x-real-client-ip', 'x-web-internal-key']);
+
+function stripTransportControlledHeaders(
+  extraHeaders: Record<string, string> | undefined,
+  transportHeaders: Headers,
+): Record<string, string> {
+  if (!extraHeaders) return {};
+  const controlledKeys = new Set([
+    ...ALWAYS_TRANSPORT_CONTROLLED_HEADERS,
+    ...Array.from(transportHeaders.keys()),
+  ]);
+  return Object.fromEntries(
+    Object.entries(extraHeaders).filter(([key]) => !controlledKeys.has(key.toLowerCase())),
+  );
+}
+
 async function buildBffRequestInit(
   init: BffServerFetchInit,
 ): Promise<RequestInit & { next?: BffServerFetchNextInit }> {
@@ -55,7 +87,7 @@ async function buildBffRequestInit(
   await attachBffAuthHeaders(transportHeaders);
 
   requestInit.headers = {
-    ...extraHeaders,
+    ...stripTransportControlledHeaders(extraHeaders, transportHeaders),
     ...Object.fromEntries(transportHeaders.entries()),
   };
   return requestInit;

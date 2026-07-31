@@ -103,6 +103,20 @@ describe('same-origin BFF gateway', () => {
     await expect(response.json()).resolves.toEqual({ message: 'Upstream unavailable' });
   });
 
+  it('returns a generic 502 (not an unhandled rejection) when attachBffAuthHeaders throws', async () => {
+    vi.stubEnv('BFF_UPSTREAM_URL', 'https://bff.example.test/v1');
+    vi.stubEnv('WEB_INTERNAL_KEY', '');
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    const response = await GET(new NextRequest('https://web.example.test/v1/bookings'), {
+      params: Promise.resolve({ path: ['bookings'] }),
+    });
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({ message: 'Upstream unavailable' });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   describe('TD38: trusted client-IP and BFF auth headers', () => {
     it('resolves and forwards X-Real-Client-Ip, overwriting any client-supplied value', async () => {
       vi.stubEnv('BFF_UPSTREAM_URL', 'https://bff.example.test/v1');

@@ -46,14 +46,17 @@ async function proxy(
   // trusted header. BFF no longer re-derives it from raw proxy headers on its own side, and
   // this always overwrites any client-supplied X-Real-Client-Ip rather than forwarding it.
   headers.set('x-real-client-ip', resolveClientIp(Object.fromEntries(request.headers.entries())));
-  // TD38: BFF only ever accepts calls from ikaro-web now -- attach the IAM ID token (when
-  // required) and the app-layer shared-secret header on every outbound call.
-  await attachBffAuthHeaders(headers);
 
   const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
   const body = hasBody ? await request.arrayBuffer() : undefined;
   let upstream: Response;
   try {
+    // TD38: BFF only ever accepts calls from ikaro-web now -- attach the IAM ID token (when
+    // required) and the app-layer shared-secret header on every outbound call. Inside this
+    // try block so a synchronous config error (missing WEB_INTERNAL_KEY) or an async token-
+    // fetch failure both fall through to the same generic 502 as an upstream fetch failure,
+    // instead of surfacing as an unhandled rejection.
+    await attachBffAuthHeaders(headers);
     // This Route Handler is the centralized same-origin gateway. It deliberately
     // uses fetch directly to forward arbitrary requests, cookies, redirects, and
     // response headers; feature code must use the shared BFF transport helpers.
