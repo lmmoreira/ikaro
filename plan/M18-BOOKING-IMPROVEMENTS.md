@@ -560,7 +560,7 @@ None — extends existing components (`HeroModule`, `HeroConfigPanel`, `SingleIm
 
 ---
 
-## M18-S05 — Hero & Booking CTA banners: tenant-configurable content position (independent X/Y anchor, decoupled from `variant`)
+## M18-S05 — Hero & Booking CTA banners: tenant-configurable content position (independent X/Y anchor, decoupled from `variant`) ✅ Done
 
 **Agent:** `frontend-ts`
 **Complexity:** M
