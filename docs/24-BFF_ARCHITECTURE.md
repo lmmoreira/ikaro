@@ -432,7 +432,7 @@ ThrottlerModule.forRoot([
 
 **Public vs. authenticated endpoints that mint something costly (signed URLs, tokens):** only `@Public()` routes need a tighter override. `POST /tenants/hotsite/images/signed-url` (and `read-signed-url`) also mint GCS signed URLs but sit behind `@Roles('MANAGER')` — a full JWT + tenant-scoped role check is already a stronger gate than any IP-based count (abuse requires a real, accountable manager account, not "anyone on the internet"), so it correctly stays on the 60/min default rather than getting its own tier.
 
-The throttle key is the client IP, resolved via an env-selected helper (`apps/bff/src/shared/http/client-ip.ts`) — `CF-Connecting-IP` in prod (trustworthy only because Cloud Armor origin lockdown, M17-S36, guarantees traffic entered via Cloudflare), the rightmost `X-Forwarded-For` hop in staging (no Cloudflare/ALB there, D5) — never the raw socket peer or the leftmost XFF value, both spoofable behind a proxy chain. **The staging XFF position is not verified against live infra** (nothing was deployed to test against when M17-S30 shipped) — see M17-S27's acceptance criteria for the pending verification.
+**Updated (`TD38`, staging):** the throttle key is the client IP, resolved via `apps/bff/src/shared/http/client-ip.ts`. The original CF-Connecting-IP/rightmost-XFF guessing logic described here in earlier revisions turned out to be unfixable in place — every real caller reaches BFF through `ikaro-web`'s same-origin gateway, which opens a *new* connection from `ikaro-web` itself, so neither header ever carried the real browser IP to begin with (verified live in M17-S27/PR #281: a real staging request from a known IP resolved to a Google Cloud–owned address, not the requester's). TD38 fixes this at the root instead of patching the derivation: BFF's Cloud Run ingress is locked to internal-only with its `allUsers` public invoker grant removed (staging only as of this writing — see `td/TD38-BFF-CLIENT-IP-RESOLUTION-BROKEN-BY-SAME-ORIGIN-GATEWAY.md` for prod status), so the only caller left is `ikaro-web` itself. `ikaro-web` resolves the real client IP on the genuinely trustworthy browser→web hop (via the shared `@ikaro/http-utils` package) and forwards it as a trusted `X-Real-Client-Ip` header; BFF now just reads that header directly instead of re-deriving anything from raw proxy headers.
 
 On limit exceeded: `429` with the standard RFC 9457 Problem Detail envelope, `code: AuthErrorCode.RATE_LIMITED`, pt-BR message. Known accepted limitation: counters are in-memory per Cloud Run instance, not shared across instances — acceptable at MVP scale (`max_instances` capped low); Redis (`td/TD08-AUDIT-REMEDIATION-BACKLOG.md` AUD-032) is the documented scale-up path, not built now.
 
@@ -469,11 +469,19 @@ GOOGLE_CALLBACK_URL=http://localhost:3000/v1/auth/google/callback
 
 ## Deployment
 
+> **Stale (pre-M17 Terraform infra) — flagged, not fully rewritten in this PR.** This whole
+> section predates the real Terraform-managed deployment (`infra/terraform/envs/*`,
+> `docs/12-DEPLOYMENT_STRATEGY.md`): service names, region, memory, and the
+> `gcloud run deploy --set-secrets`/`--set-env-vars` commands below no longer match how BFF is
+> actually deployed. Out of scope for TD38 to fully correct — needs a dedicated `/docs-audit`
+> pass. The **Ingress** row directly below is corrected as part of TD38, since leaving it
+> would actively contradict this PR's own change.
+
 | Property | Staging | Production |
 |---|---|---|
 | **Service name** | `ikaro-bff-staging` | `ikaro-bff` |
 | **Cloud Run project** | `ikaro-staging` | `ikaro-prod` |
-| **Ingress** | `INGRESS_TRAFFIC_ALL` (public HTTPS) | `INGRESS_TRAFFIC_ALL` (public HTTPS) |
+| **Ingress** | `INGRESS_TRAFFIC_INTERNAL_ONLY` (TD38 — `ikaro-web` only, via IAM + shared secret) | `INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER` (unchanged — Story B, not yet done) |
 | **Domain** | `ikaro-bff-staging-<hash>-uc.a.run.app` | `bff.<ikaro-domain>` (Cloud Run domain mapping) |
 | **Memory** | 256 Mi | 256 Mi |
 | **CPU** | 1 | 1 |
