@@ -30,3 +30,37 @@ export function contentTextAlignClass(x: ContentPositionX = 'center'): string {
   if (x === 'right') return 'text-right';
   return 'text-center';
 }
+
+export interface ContentStageClasses {
+  readonly sectionClassName: string;
+  readonly stageClassName: string;
+  readonly wrapperClassName: string;
+  readonly justifyClass: string;
+}
+
+// Centered-variant class composition, shared by HeroModule and BookingCtaModule (M18-S05 —
+// centralized here per CodeRabbit review, PR #295, since both modules built the same
+// section/stage/wrapper composition independently from the same primitives above). Utility class
+// order within a single className string doesn't affect Tailwind's output (each class maps to an
+// independent CSS rule), so `itemsClass` is always appended after `sectionBaseClasses` regardless
+// of where it originally sat in each module's own class string — purely cosmetic, not a behavior
+// change. `sectionBaseClasses` carries each module's own min-height/padding/breakpoint classes;
+// `wrapperMaxWidthClasses` carries each module's own wrapper max-width (plus `py-16` for Hero,
+// which BookingCta's wrapper doesn't have).
+export function buildContentStageClasses(
+  contentPositionX: ContentPositionX | undefined,
+  contentPositionY: ContentPositionY | undefined,
+  sectionBaseClasses: string,
+  wrapperMaxWidthClasses: string,
+): ContentStageClasses {
+  const justifyClass = contentJustifyClass(contentPositionX);
+  const itemsClass = contentItemsClass(contentPositionY);
+  const textAlignClass = contentTextAlignClass(contentPositionX);
+
+  return {
+    justifyClass,
+    sectionClassName: `${sectionBaseClasses} ${itemsClass}`,
+    stageClassName: `relative z-10 flex w-full max-w-7xl mx-auto ${justifyClass}`,
+    wrapperClassName: `${wrapperMaxWidthClasses} ${textAlignClass}`,
+  };
+}

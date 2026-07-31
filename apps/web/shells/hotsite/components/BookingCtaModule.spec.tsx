@@ -223,8 +223,14 @@ describe('BookingCtaModule', () => {
         <BookingCtaModule data={makeData({ variant: 'left-aligned' })} slug="lavacar-beloauto" />,
       );
 
+      // The outer section's own alignment is fixed (always items-center) — Y drives the grid's
+      // cross-axis alignment instead (cross-tool review finding, PR #295, same reasoning as
+      // HeroModule.spec.tsx).
       const section = container.querySelector('section#booking-form');
       expect(section?.className).toContain('items-center');
+
+      const grid = container.querySelector('section#booking-form .grid');
+      expect(grid?.className).toContain('items-center');
     });
 
     it.each([
@@ -249,6 +255,37 @@ describe('BookingCtaModule', () => {
       },
     );
 
+    // Combined X × Y coverage (cross-tool review, PR #295) — same reasoning as
+    // HeroModule.spec.tsx: X and Y are orthogonal properties on different elements, so this
+    // exercises all 9 pairs directly rather than leaving it as an inference from two suites.
+    it.each([
+      ['left', 'top', 'justify-start', 'items-start'],
+      ['left', 'center', 'justify-start', 'items-center'],
+      ['left', 'bottom', 'justify-start', 'items-end'],
+      ['center', 'top', 'justify-center', 'items-start'],
+      ['center', 'center', 'justify-center', 'items-center'],
+      ['center', 'bottom', 'justify-center', 'items-end'],
+      ['right', 'top', 'justify-end', 'items-start'],
+      ['right', 'center', 'justify-end', 'items-center'],
+      ['right', 'bottom', 'justify-end', 'items-end'],
+    ] as const)(
+      'centered variant: contentPositionX %s + contentPositionY %s together produce %s + %s on the stage/section',
+      (contentPositionX, contentPositionY, expectedJustify, expectedItems) => {
+        const { container } = render(
+          <BookingCtaModule
+            data={makeData({ contentPositionX, contentPositionY })}
+            slug="lavacar-beloauto"
+          />,
+        );
+
+        const section = container.querySelector('section#booking-form');
+        expect(section?.className).toContain(expectedItems);
+
+        const stage = container.querySelector('section#booking-form > div');
+        expect(stage?.className).toContain(expectedJustify);
+      },
+    );
+
     it.each([
       ['top', 'items-start'],
       ['center', 'items-center'],
@@ -270,17 +307,21 @@ describe('BookingCtaModule', () => {
       ['center', 'items-center'],
       ['bottom', 'items-end'],
     ] as const)(
-      'left-aligned variant: contentPositionY %s drives section items alignment',
+      'left-aligned variant: contentPositionY %s drives the grid row alignment (text column vs. image/brand-card column)',
       (contentPositionY, expectedItems) => {
         const { container } = render(
           <BookingCtaModule
-            data={makeData({ variant: 'left-aligned', contentPositionY })}
+            data={makeData({
+              variant: 'left-aligned',
+              contentPositionY,
+              backgroundImageUrl: 'https://storage.example.com/cta.jpg',
+            })}
             slug="lavacar-beloauto"
           />,
         );
 
-        const section = container.querySelector('section#booking-form');
-        expect(section?.className).toContain(expectedItems);
+        const grid = container.querySelector('section#booking-form .grid');
+        expect(grid?.className).toContain(expectedItems);
       },
     );
 

@@ -386,6 +386,9 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.getByRole('tab', { name: 'Layout' }).click();
     await page.locator(configureButton('HERO')).click();
 
+    // Explicit, not assumed from seed state — the X picker only renders for 'centered' (M18-S05
+    // review finding, PR #295).
+    await page.locator('[data-testid="hero-variant-centered"]').click();
     await page.locator('[data-testid="hero-content-position-x-right"]').click();
     await page.locator('[data-testid="hero-content-position-y-top"]').click();
     await page.getByTestId('module-config-apply-desktop').click();

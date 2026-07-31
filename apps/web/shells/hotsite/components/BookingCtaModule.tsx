@@ -3,9 +3,8 @@ import Link from 'next/link';
 import type React from 'react';
 import type { BookingCtaModuleData } from '@ikaro/types';
 import {
+  buildContentStageClasses,
   contentItemsClass,
-  contentJustifyClass,
-  contentTextAlignClass,
   sectionHeadingFont,
 } from '@/features/platform/hotsite/module-styles';
 import { SectionEyebrow } from './SectionEyebrow';
@@ -124,16 +123,18 @@ export function BookingCtaModule({
     const hasRightPanel = showBrandCard || !!bgUrl;
     // contentPositionX is not read here — the text column position is structural (grid order),
     // not free-floating (M18-S05, same rule as HeroModule).
+    // contentPositionY drives the grid's cross-axis alignment, not the outer section's — see
+    // HeroModule.tsx's identical comment (cross-tool review finding, PR #295).
     const itemsClass = contentItemsClass(data.contentPositionY);
     return (
       <section
         id="booking-form"
-        className={`relative flex min-h-[31.25vw] ${itemsClass}`}
+        className="relative flex min-h-[31.25vw] items-center px-6 py-16"
         style={{ backgroundColor: sectionBg }}
       >
-        <div className="w-full max-w-7xl px-6 py-16 mx-auto">
+        <div className="w-full max-w-7xl mx-auto">
           <div
-            className={`grid grid-cols-1 gap-12 items-center ${hasRightPanel ? 'sm:grid-cols-2' : ''}`}
+            className={`grid grid-cols-1 gap-12 ${itemsClass} ${hasRightPanel ? 'sm:grid-cols-2' : ''}`}
           >
             <div>
               <BookingCtaContent data={data} slug={slug} />
@@ -159,20 +160,15 @@ export function BookingCtaModule({
     );
   }
 
-  // contentPositionX only applies to the centered variant — same rule as HeroModule.
-  const justifyClass = contentJustifyClass(data.contentPositionX);
-  const itemsClass = contentItemsClass(data.contentPositionY);
-  const textAlignClass = contentTextAlignClass(data.contentPositionX);
-  const sectionClassName = [
-    'relative flex min-h-[42.86vw]',
-    itemsClass,
-    'px-6 py-20 sm:min-h-[31.25vw] sm:py-28',
-  ].join(' ');
-  // The stage constrains left/right anchoring to the same max-w-7xl content container every
-  // other hotsite section uses — see HeroModule's identical stageClassName comment (M18-S05
-  // follow-up fix).
-  const stageClassName = ['relative z-10 flex w-full max-w-7xl mx-auto', justifyClass].join(' ');
-  const wrapperClassName = ['max-w-2xl', textAlignClass].filter(Boolean).join(' ');
+  // contentPositionX only applies to the centered variant — same rule as HeroModule. The stage
+  // constrains left/right anchoring to the same max-w-7xl content container every other hotsite
+  // section uses — see HeroModule's identical comment (M18-S05 follow-up fix).
+  const { sectionClassName, stageClassName, wrapperClassName } = buildContentStageClasses(
+    data.contentPositionX,
+    data.contentPositionY,
+    'relative flex min-h-[42.86vw] px-6 py-20 sm:min-h-[31.25vw] sm:py-28',
+    'max-w-2xl',
+  );
 
   return (
     <section

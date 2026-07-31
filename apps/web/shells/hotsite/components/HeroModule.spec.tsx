@@ -341,8 +341,15 @@ describe('HeroModule', () => {
         <HeroModule data={makeData({ variant: 'left-aligned' })} slug="tenant" />,
       );
 
+      // The outer section's own alignment is fixed (always items-center) — Y drives the grid's
+      // cross-axis alignment instead, since the section's min-h is a floor that real content
+      // usually exceeds, making the section's own align-items a no-op in the common case
+      // (cross-tool review finding, PR #295).
       const section = container.querySelector('[data-variant="left-aligned"]');
       expect(section?.className).toContain('items-center');
+
+      const grid = container.querySelector('[data-variant="left-aligned"] .grid');
+      expect(grid?.className).toContain('items-center');
     });
 
     it.each([
@@ -372,6 +379,38 @@ describe('HeroModule', () => {
       },
     );
 
+    // Combined X × Y coverage (cross-tool review, PR #295) — the independent-axis tests above
+    // prove each axis's own mapping is correct, but the acceptance criterion is stated in terms
+    // of all 9 combinations "visibly repositioning" the block together. Since X drives the
+    // stage's justify-content and Y drives the section's align-items — two orthogonal CSS
+    // properties on two different elements with no shared state — an interaction bug is not
+    // structurally possible here, but this exercises all 9 pairs together directly rather than
+    // leaving that as an inference from two separate test suites.
+    it.each([
+      ['left', 'top', 'justify-start', 'items-start'],
+      ['left', 'center', 'justify-start', 'items-center'],
+      ['left', 'bottom', 'justify-start', 'items-end'],
+      ['center', 'top', 'justify-center', 'items-start'],
+      ['center', 'center', 'justify-center', 'items-center'],
+      ['center', 'bottom', 'justify-center', 'items-end'],
+      ['right', 'top', 'justify-end', 'items-start'],
+      ['right', 'center', 'justify-end', 'items-center'],
+      ['right', 'bottom', 'justify-end', 'items-end'],
+    ] as const)(
+      'centered variant: contentPositionX %s + contentPositionY %s together produce %s + %s on the stage/section',
+      (contentPositionX, contentPositionY, expectedJustify, expectedItems) => {
+        const { container } = render(
+          <HeroModule data={makeData({ contentPositionX, contentPositionY })} slug="tenant" />,
+        );
+
+        const section = container.querySelector('[data-variant="centered"]');
+        expect(section?.className).toContain(expectedItems);
+
+        const stage = container.querySelector('[data-variant="centered"] > div');
+        expect(stage?.className).toContain(expectedJustify);
+      },
+    );
+
     it.each([
       ['top', 'items-start'],
       ['center', 'items-center'],
@@ -393,17 +432,22 @@ describe('HeroModule', () => {
       ['center', 'items-center'],
       ['bottom', 'items-end'],
     ] as const)(
-      'left-aligned variant: contentPositionY %s drives outer section items alignment',
+      'left-aligned variant: contentPositionY %s drives the grid row alignment (text column vs. image/brand-card column)',
       (contentPositionY, expectedItems) => {
         const { container } = render(
           <HeroModule
-            data={makeData({ variant: 'left-aligned', contentPositionY })}
+            data={makeData({
+              variant: 'left-aligned',
+              contentPositionY,
+              backgroundImageUrl: 'https://storage.example.com/hero.jpg',
+              rightPanel: 'image',
+            })}
             slug="tenant"
           />,
         );
 
-        const section = container.querySelector('[data-variant="left-aligned"]');
-        expect(section?.className).toContain(expectedItems);
+        const grid = container.querySelector('[data-variant="left-aligned"] .grid');
+        expect(grid?.className).toContain(expectedItems);
       },
     );
 
