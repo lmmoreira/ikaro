@@ -16,6 +16,12 @@ export default defineConfig({
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000',
     trace: 'on-first-retry',
+    // TD38: WebOnlyGuard has no environment gate (unlike AppThrottlerGuard) -- it's active in
+    // every environment, including local/CI docker-compose runs. The 9 e2e/helpers/** files
+    // that call BFF directly (bypassing the /v1 gateway, for test-setup speed) need this same
+    // header every real caller now sends. Set once here (applies to page.request.* too, since
+    // it shares the browser context's request API) instead of touching every call site.
+    extraHTTPHeaders: { 'X-Web-Internal-Key': process.env.WEB_INTERNAL_KEY ?? '' },
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   // webServer intentionally omitted — tests run against the already-running dev stack.
