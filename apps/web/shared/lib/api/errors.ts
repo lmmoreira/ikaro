@@ -1,4 +1,4 @@
-import type { ValidationProblemDetail } from '@ikaro/types';
+import type { ProblemDetail, ValidationProblemDetail } from '@ikaro/types';
 
 // Shared across every fetch-based API helper that needs to stop discarding the response body on
 // error (TD23 Story 12) — extracts the canonical envelope's `code`/`field`/`violations`/`detail`
@@ -10,9 +10,9 @@ export async function parseErrorBody(res: Response): Promise<Partial<ValidationP
 // Base for every single-cause fetch error (TD23 §2 — code + optional field, not violations[]).
 // Mirrors the backend's XxxDomainError pattern (e.g. BookingDomainError): the constructor
 // boilerplate (super/setPrototypeOf/property assignment) lives here once; each named subclass
-// computes its own `message` + `name` and forwards `detail` through. Batch-validation callers
-// (CreateBookingError, SubmitGuestBookingInfoError) add their own `violations` property on top,
-// same as backend keeps `violations` out of its single-cause domain error base.
+// computes its own `message` + `name` and forwards `detail` through. A batch-validation caller
+// can still add its own `violations` property on top of a subclass if it needs one, same as
+// backend keeps `violations` out of its single-cause domain error base.
 //
 // `detail` is kept out of `message` deliberately: TD23 §1 defines `detail` as backend-internal
 // debug text that must never be rendered to a user, and folding it into `Error.message` is an
@@ -42,8 +42,8 @@ type SingleCauseErrorCtor<E extends FetchError> = new (
 ) => E;
 
 // Checks `res.ok`; on failure, parses the body and throws `ErrorClass` populated with
-// status/code/field/detail. Only for single-cause subclasses (see SingleCauseErrorCtor) —
-// CreateBookingError/SubmitGuestBookingInfoError carry `violations` too and stay manual.
+// status/code/field/detail. Only for single-cause subclasses (see SingleCauseErrorCtor) — a
+// subclass that also carries `violations` stays manual.
 export async function assertOk<E extends FetchError>(
   res: Response,
   ErrorClass: SingleCauseErrorCtor<E>,
@@ -54,7 +54,10 @@ export async function assertOk<E extends FetchError>(
 }
 
 export class AuthError extends Error {
-  constructor(detail: string) {
+  constructor(
+    detail: string,
+    public readonly data?: unknown,
+  ) {
     super(detail);
     this.name = 'AuthError';
     Object.setPrototypeOf(this, new.target.prototype);
@@ -82,4 +85,20 @@ export class ApiError extends Error {
     this.name = 'ApiError';
     Object.setPrototypeOf(this, new.target.prototype);
   }
+}
+
+export interface ProblemDetailShape {
+  readonly code?: string;
+  readonly field?: string;
+}
+
+// bffClient's response interceptor collapses every failure into ApiError/AuthError/ForbiddenError,
+// each carrying the raw ProblemDetail body under `.data` — this extracts code/field uniformly so a
+// caller only needs one check instead of a separate instanceof branch per error class.
+export function extractProblemDetailShape(err: unknown): ProblemDetailShape | null {
+  if (!(err instanceof ApiError || err instanceof AuthError || err instanceof ForbiddenError)) {
+    return null;
+  }
+  const data = err.data as Partial<ProblemDetail> | undefined;
+  return { code: data?.code, field: data?.field };
 }

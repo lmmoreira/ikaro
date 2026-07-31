@@ -5,10 +5,11 @@ import { useTranslations } from 'next-intl';
 import type React from 'react';
 import type { TimeFormat } from '@ikaro/i18n';
 import { BffErrorCode } from '@ikaro/types';
-import { submitGuestBookingInfo, SubmitGuestBookingInfoError } from '@/features/booking/api/public';
+import { submitGuestBookingInfo } from '@/features/booking/api/public';
 import { formatDateLong, formatTime } from '@/shared/lib/formatting/format-time';
 import { resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
 import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
+import { extractProblemDetailShape } from '@/shared/lib/api/errors';
 import { PhotoUpload } from './PhotoUpload';
 
 const EXPIRED_LINK_CODES: ReadonlySet<string> = new Set([
@@ -89,7 +90,7 @@ export function SubmitInfoForm({
       });
       setState({ status: 'success', infoSubmittedAt: result.infoSubmittedAt });
     } catch (err) {
-      const code = err instanceof SubmitGuestBookingInfoError ? err.code : undefined;
+      const code = extractProblemDetailShape(err)?.code;
       const expired = code !== undefined && EXPIRED_LINK_CODES.has(code);
       setState({
         status: 'error',

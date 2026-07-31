@@ -11,16 +11,14 @@ import type {
   HotsiteAddressSpec,
   HotsiteServiceResponse,
   CustomerProfileResponse,
-  ProblemDetail,
 } from '@ikaro/types';
 import {
-  CreateBookingError,
   createAuthenticatedBooking,
   createBooking,
   type AuthenticatedBookingRequest,
 } from '@/features/booking/api/public';
 import { getHotsiteCustomerProfile } from '@/features/platform/hotsite/api/customers';
-import { ApiError } from '@/shared/lib/api/errors';
+import { extractProblemDetailShape } from '@/shared/lib/api/errors';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import type { SupportedLocale } from '@/shared/lib/i18n/get-messages';
@@ -82,31 +80,11 @@ interface BookingSubmitErrorRoute {
   readonly message: string;
 }
 
-interface BookingSubmitErrorShape {
-  readonly code?: string;
-  readonly field?: string;
-}
-
-// Guest submissions (createBooking) throw CreateBookingError, a FetchError subclass exposing
-// code/field directly. Authenticated submissions (createAuthenticatedBooking) go through
-// bffClient and throw ApiError, which carries the same ProblemDetail fields nested under
-// `.data` instead — both shapes need to route the same way.
-function extractBookingSubmitErrorShape(err: unknown): BookingSubmitErrorShape | null {
-  if (err instanceof CreateBookingError) {
-    return { code: err.code, field: err.field };
-  }
-  if (err instanceof ApiError) {
-    const data = err.data as ProblemDetail | undefined;
-    return { code: data?.code, field: data?.field };
-  }
-  return null;
-}
-
 function resolveBookingSubmitErrorRoute(
   err: unknown,
   locale: SupportedLocale,
 ): BookingSubmitErrorRoute {
-  const shape = extractBookingSubmitErrorShape(err);
+  const shape = extractProblemDetailShape(err);
   if (!shape) {
     return { step: 4, message: resolveErrorMessage(undefined, locale) };
   }

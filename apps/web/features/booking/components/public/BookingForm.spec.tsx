@@ -11,11 +11,7 @@ import type {
   HotsiteServiceResponse,
   CustomerProfileResponse,
 } from '@ikaro/types';
-import {
-  CreateBookingError,
-  createAuthenticatedBooking,
-  createBooking,
-} from '@/features/booking/api/public';
+import { createAuthenticatedBooking, createBooking } from '@/features/booking/api/public';
 import { ApiError } from '@/shared/lib/api/errors';
 import { getHotsiteCustomerProfile } from '@/features/platform/hotsite/api/customers';
 import {
@@ -395,7 +391,7 @@ describe('BookingForm', () => {
   it('returns to Step 2 with an error message when the slot is no longer available (BOOKING_SLOT_UNAVAILABLE)', async () => {
     const user = userEvent.setup();
     vi.mocked(createBooking).mockRejectedValue(
-      new CreateBookingError(409, 'BOOKING_SLOT_UNAVAILABLE'),
+      new ApiError(409, 'Slot unavailable', { code: 'BOOKING_SLOT_UNAVAILABLE' }),
     );
 
     await advanceToStep3(user, [makeService()]);
@@ -412,7 +408,10 @@ describe('BookingForm', () => {
   it('returns to Step 3 with an address-specific error message when the contact address is rejected', async () => {
     const user = userEvent.setup();
     vi.mocked(createBooking).mockRejectedValue(
-      new CreateBookingError(400, 'ADDRESS_POSTAL_CODE_INVALID', 'contactAddress'),
+      new ApiError(400, 'Invalid ZIP Code', {
+        code: 'ADDRESS_POSTAL_CODE_INVALID',
+        field: 'contactAddress',
+      }),
     );
 
     await advanceToStep3(user, [makeService()]);

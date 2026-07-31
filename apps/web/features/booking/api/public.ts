@@ -4,41 +4,17 @@ import type {
   CreateBookingRequest,
   Address,
   ImageContentType,
-  ValidationViolation,
 } from '@ikaro/types';
 import { bffClient } from '@/shared/lib/api/bff-client';
-import { FetchError, parseErrorBody } from '@/shared/lib/api/errors';
-import { buildBffUrl } from '@/shared/lib/api/bff-url';
-
-export class CreateBookingError extends FetchError {
-  constructor(
-    status: number,
-    code?: string,
-    field?: string,
-    public readonly violations?: readonly ValidationViolation[],
-    detail?: string,
-  ) {
-    super(`Failed to create booking (${status})`, status, code, field, detail);
-    this.name = 'CreateBookingError';
-  }
-}
 
 export async function createBooking(
   slug: string,
   payload: CreateBookingRequest,
 ): Promise<BookingResponse> {
-  const res = await fetch(buildBffUrl('/bookings'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Tenant-Slug': slug },
-    body: JSON.stringify(payload),
+  const res = await bffClient.post<BookingResponse>('/bookings', payload, {
+    headers: { 'X-Tenant-Slug': slug },
   });
-
-  if (!res.ok) {
-    const body = await parseErrorBody(res);
-    throw new CreateBookingError(res.status, body.code, body.field, body.violations, body.detail);
-  }
-
-  return res.json() as Promise<BookingResponse>;
+  return res.data;
 }
 
 export interface AuthenticatedBookingRequest {
@@ -69,46 +45,27 @@ export interface SubmitGuestBookingInfoResponse {
   readonly infoSubmittedAt: string;
 }
 
-export class SubmitGuestBookingInfoError extends FetchError {
-  constructor(
-    status: number,
-    code?: string,
-    field?: string,
-    public readonly violations?: readonly ValidationViolation[],
-    detail?: string,
-  ) {
-    super(`Failed to submit guest booking info (${status})`, status, code, field, detail);
-    this.name = 'SubmitGuestBookingInfoError';
-  }
-}
-
 export async function submitGuestBookingInfo(
   bookingId: string,
   token: string,
   body: SubmitGuestBookingInfoRequest,
 ): Promise<SubmitGuestBookingInfoResponse> {
-  const guestSubmissionPath = `/bookings/${bookingId}/submit-info/guest`;
-  const guestSubmissionUrl = buildBffUrl(guestSubmissionPath);
-  const res = await fetch(`${guestSubmissionUrl}?token=${encodeURIComponent(token)}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok) {
-    const errorBody = await parseErrorBody(res);
-    throw new SubmitGuestBookingInfoError(
-      res.status,
-      errorBody.code,
-      errorBody.field,
-      errorBody.violations,
-      errorBody.detail,
-    );
-  }
-
-  return res.json() as Promise<SubmitGuestBookingInfoResponse>;
+  const res = await bffClient.patch<SubmitGuestBookingInfoResponse>(
+    `/bookings/${bookingId}/submit-info/guest`,
+    body,
+    { params: { token } },
+  );
+  return res.data;
 }
 
+// These two calls intentionally stay on raw fetch() rather than bffClient (TD31 Story 7
+// discovery, 2026-07-31): the target is `/api/bookings/attachments/signed-url`, this app's own
+// Route Handler, not the BFF directly — that route reads the httpOnly session cookie itself and
+// deliberately ignores any leftover cookie when a `guestToken` is present in the body (see its
+// own comment). Routing through bffClient would send the request through the generic `/v1/[...
+// path]` same-origin gateway instead, which transparently forwards whatever cookie the browser
+// has — dropping that guest-token-overrides-cookie safety check and risking an upload being
+// misattributed to the wrong actor/tenant.
 export async function createAttachmentSignedUrl(
   slug: string,
   fileName: string,

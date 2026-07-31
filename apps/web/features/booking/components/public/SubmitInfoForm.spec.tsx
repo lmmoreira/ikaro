@@ -5,9 +5,9 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
 import {
   submitGuestBookingInfo,
-  SubmitGuestBookingInfoError,
   createGuestAttachmentSignedUrl,
 } from '@/features/booking/api/public';
+import { ApiError, AuthError } from '@/shared/lib/api/errors';
 import { SubmitInfoForm } from './SubmitInfoForm';
 
 vi.mock('@/features/booking/api/public', async (importOriginal) => {
@@ -146,7 +146,7 @@ describe('SubmitInfoForm', () => {
   });
 
   it('shows a retry alert and preserves the response value on a network error', async () => {
-    vi.mocked(submitGuestBookingInfo).mockRejectedValue(new SubmitGuestBookingInfoError(500));
+    vi.mocked(submitGuestBookingInfo).mockRejectedValue(new ApiError(500, 'Internal server error'));
     const user = userEvent.setup();
     renderWithIntl(<SubmitInfoForm bookingId={BOOKING_ID} token={TOKEN} summary={null} />);
 
@@ -160,7 +160,7 @@ describe('SubmitInfoForm', () => {
 
   it('shows the token-expired variant and a link back to the invalid-link state on a 401', async () => {
     vi.mocked(submitGuestBookingInfo).mockRejectedValue(
-      new SubmitGuestBookingInfoError(401, 'BFF_GUEST_TOKEN_INVALID'),
+      new AuthError('Invalid or expired guest token', { code: 'BFF_GUEST_TOKEN_INVALID' }),
     );
     const user = userEvent.setup();
     renderWithIntl(<SubmitInfoForm bookingId={BOOKING_ID} token={TOKEN} summary={null} />);

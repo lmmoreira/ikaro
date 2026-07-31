@@ -15,7 +15,7 @@ bffClient.interceptors.response.use(
     const data = err.response?.data as { detail?: string } | undefined;
     const clientDetail =
       status >= 400 && status < 500 ? (data?.detail ?? err.message) : err.message;
-    if (status === 401) return Promise.reject(new AuthError(clientDetail));
+    if (status === 401) return Promise.reject(new AuthError(clientDetail, err.response?.data));
     if (status === 403) return Promise.reject(new ForbiddenError(clientDetail, err.response?.data));
     return Promise.reject(
       new ApiError(
