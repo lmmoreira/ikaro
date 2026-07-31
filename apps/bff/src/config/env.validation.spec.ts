@@ -14,6 +14,7 @@ describe('validateEnv()', () => {
     ALLOWED_ORIGINS: 'http://localhost:3000',
     FRONTEND_URL: 'http://localhost:3000',
     INTERNAL_API_KEY: 'c'.repeat(32),
+    WEB_INTERNAL_KEY: 'd'.repeat(32),
   };
 
   it('returns parsed env when all required vars are present and valid', () => {
@@ -109,5 +110,18 @@ describe('validateEnv()', () => {
       BACKEND_AUDIENCE: 'https://backend-run-url.a.run.app',
     });
     expect(result.BACKEND_AUDIENCE).toBe('https://backend-run-url.a.run.app');
+  });
+
+  it('throws when WEB_INTERNAL_KEY is too short', () => {
+    expect(() => validateEnv({ ...valid, WEB_INTERNAL_KEY: 'short' })).toThrow(
+      'ENV validation failed',
+    );
+  });
+
+  it('throws when WEB_INTERNAL_KEY is missing', () => {
+    const withoutKey = Object.fromEntries(
+      Object.entries(valid).filter(([k]) => k !== 'WEB_INTERNAL_KEY'),
+    );
+    expect(() => validateEnv(withoutKey)).toThrow('ENV validation failed');
   });
 });

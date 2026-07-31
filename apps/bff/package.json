@@ -39,6 +39,7 @@
   },
   "dependencies": {
     "@ikaro/env-validation": "workspace:*",
+    "@ikaro/http-utils": "workspace:*",
     "@ikaro/nestjs-http": "workspace:*",
     "@ikaro/observability": "workspace:*",
     "@ikaro/types": "workspace:*",

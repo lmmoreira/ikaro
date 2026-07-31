@@ -40,6 +40,9 @@ export const schema = z.object({
   INTERNAL_API_KEY: z.string().min(32, 'INTERNAL_API_KEY must be at least 32 characters'),
   BACKEND_AUTH_MODE: z.enum(['none', 'iam']).default('none'),
   BACKEND_AUDIENCE: z.url().optional(),
+  // TD38: app-layer defense-in-depth companion to the Cloud Run IAM lockdown — checked by
+  // WebOnlyGuard against the X-Web-Internal-Key header ikaro-web sends on every call.
+  WEB_INTERNAL_KEY: z.string().min(32, 'WEB_INTERNAL_KEY must be at least 32 characters'),
 });
 
 const validatedSchema = schema.superRefine((data, ctx) => {
