@@ -223,6 +223,28 @@ Since prod has no live traffic yet, there is no transition to sequence and no ou
 
 ---
 
+## Implementation status (2026-07-31)
+
+**Story A (staging, Phases 1-4) — code-complete on `feat/td38-staging-bff-lockdown`, not yet merged or deployed.**
+
+### Done (code + tests, this branch)
+- **New package `packages/http-utils`**: `getClientIp()` (web's browser→web hop resolution, moved verbatim from the old BFF file) + `getTrustedClientIp()` (BFF's new trust-the-header read). 18 tests.
+- **BFF**: `WebOnlyGuard` (`apps/bff/src/shared/guards/web-only.guard.ts`), registered first in `APP_GUARD` (confirmed registration order = execution order). `client-ip.ts` simplified to a thin wrapper trusting `X-Real-Client-Ip`. `AppThrottlerGuard`'s debug log updated. `WEB_INTERNAL_KEY` added to `env.validation.ts` (unconditionally required, mirrors `INTERNAL_API_KEY`).
+- **Web**: `google-identity-token.ts` (ID-token adapter, mirrors BFF's `google-identity-token.adapter.ts`), `bff-auth.ts` (`getBffAuthMode`/`getBffAudience`, no zod schema — web has none, so this follows web's existing plain-`process.env` convention), `bff-transport-headers.ts` (`attachBffAuthHeaders`/`resolveClientIp`, shared by both `route.ts` **and** `bff-server.ts` — a gap not in the TD's original Phase 2 text, found during implementation: `bffServerFetch`/`bffPublicFetch` bypass the gateway and call `BFF_UPSTREAM_URL` directly, so they needed the same IAM token/shared-secret/IP-forwarding treatment or every SSR page load would have broken once Phase 1 landed). `buildBffUrl()` slash-normalization fix.
+- **Terraform (staging only)**: BFF ingress → `INGRESS_TRAFFIC_INTERNAL_ONLY`; public invoker grant removed; `ikaro-web` gets `vpc_egress`/`network_id`/`subnet_id`; `BFF_UPSTREAM_URL` → live `module.cloudrun_bff.service_uri` reference; new `web-internal-key` secret + IAM accessor grants for both `ikaro-web@`/`ikaro-bff@`. **Found and fixed during implementation, not anticipated by the TD text**: making `BFF_UPSTREAM_URL` a live module reference exposed a genuine 3-node module cycle (`web → bff → backend → web`, via `cloudrun_backend`'s own `FRONTEND_URL` reference to `cloudrun_web`) that only `terraform validate` caught — resolved by routing `cloudrun_bff`'s `ALLOWED_ORIGINS`/`FRONTEND_URL` and `cloudrun_backend`'s `FRONTEND_URL` through the existing `var.web_real_uri` bootstrap-placeholder pattern instead of a live reference, leaving only one live edge in the graph. The now-fully-live-referenceable `bff_real_uri` variable was removed as dead code.
+- **CI**: `WEB_INTERNAL_KEY` wired into every `pr-tests.yml` job that boots BFF for real (`bff-component`, the `e2e` job's service-startup step, the Docker boot smoke test).
+- **Verification**: BFF 855/855 tests pass, web 1937/1937 tests pass, both type-check clean, ESLint/Prettier clean on every touched file. `terraform fmt` clean; `terraform validate` clean on all 4 touched roots (staging env + staging foundation + prod env + prod foundation); `terraform test` passes on all 3 touched modules (20 checks total); `checkov` shows zero new findings.
+
+### Pending
+- PR not yet opened (per `/pre-pr` gate — not run yet).
+- `web-internal-key`'s real value: out-of-band `gcloud secrets versions add`, same activation-runbook convention as every other secret — not something this branch does.
+- Live redeploy + the M17-S27-style verification steps above (real browser request from a known IP, confirm the resolved-IP log line, confirm the guard rejects an unauthenticated direct call) — all require an actual staging deploy, not yet done.
+- **Story B (prod)** — not started.
+- **Story C (Phase 5, E2E redesign)** — not started.
+- Doc sweep: `docs/24-BFF_ARCHITECTURE.md` and `plan/M17-CLOUD-DEPLOY.md`'s S22/S27 sections still describe the pre-TD38 model — not yet updated (Definition of Done item, CLAUDE.md §7).
+
+---
+
 ## Open questions (resolve before/during implementation, not silently assumed)
 
 1. **Why did S22 originally put BFF behind the ALB (`INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER`) instead of `INTERNAL_ONLY` like the backend?** **Partially answered during Story A's story-discovery (2026-07-31), relevant to Story B (prod) not Story A (staging — S22's edge module is prod-only, staging has no edge module at all):** `TD35` (Done, PR #262) explicitly documents that the *intended long-term* gateway is edge/load-balancer **path** routing (`/v1/*` → BFF NEG directly, every other path → web NEG), and that the current web-side `route.ts` reverse-proxy is an interim step "until edge routing becomes available" — at which point the identical public `/v1` contract should move to the edge without changing browser clients. S22's actual `modules/edge` implementation today is **host**-routed only (`bff.ikaro.online` → bff NEG, `ikaro.online`/`www` → web NEG), not path-routed, so TD35's interim proxy is genuinely what's live in prod today too — TD38's assumption that prod behaves like staging in the relevant respect still holds *for now*. But Phase 1 step 4's proposed move to full `INTERNAL_ONLY` for prod BFF would remove BFF's ALB reachability entirely, foreclosing TD35's documented future path-routing migration (which needs BFF reachable via the LB) without that tradeoff being called out. **Still open:** decide, before Story B, whether to accept that tradeoff (re-adding ALB reachability later if path-routing is ever built) or keep prod's BFF ingress at `INTERNAL_LOAD_BALANCER` and rely solely on removing the public invoker grant (Cloud Run IAM would still reject any unauthenticated call arriving via the LB, achieving the same lockdown without closing off the LB network path). No Cloud Armor/WAF-specific reason was found in S22 or TD35.
@@ -235,15 +257,15 @@ Since prod has no live traffic yet, there is no transition to sequence and no ou
 
 ## Acceptance criteria
 
-- [ ] BFF's ingress is `INGRESS_TRAFFIC_INTERNAL_ONLY` in both staging and prod; `allUsers` public invoker grant on `ikaro-bff` is removed in both projects
-- [ ] `ikaro-web` presents a valid Google ID token (audience = BFF's internal service URI) on every server-side call to BFF; verified via a real deploy, not just code review
-- [ ] A direct, unauthenticated call to BFF's internal service URI from outside the VPC fails at the ingress layer (connection-level rejection, not an app-level 401)
-- [ ] The new app-layer shared-secret guard (`X-Web-Internal-Key` or equivalent) rejects any BFF request missing/mismatching it, mirroring `InternalApiGuard`'s existing backend behavior and test coverage shape
-- [ ] `client-ip.ts`'s CF-Connecting-IP/rightmost-XFF guessing logic is deleted, replaced by a direct read of the new trusted header
-- [ ] A real staging request from a known IP shows that IP (not `ikaro-web`'s egress address) in the resolved client-IP log
-- [ ] `pr-e2e.yml` (local/docker-compose E2E) passes unmodified
-- [ ] E2E-against-staging (M17-S28 or this TD, whichever lands the wiring) routes BFF-bound test-helper calls through the web app's `/v1` gateway, not a direct BFF URL, when targeting a deployed environment
-- [ ] Both `docs/24-BFF_ARCHITECTURE.md` and `plan/M17-CLOUD-DEPLOY.md`'s S22/S27 sections are updated to reflect the new ingress/auth model (stale-doc sweep, per CLAUDE.md §7 Definition of Done)
+- [ ] BFF's ingress is `INGRESS_TRAFFIC_INTERNAL_ONLY` in both staging and prod; `allUsers` public invoker grant on `ikaro-bff` is removed in both projects — **staging: Terraform written and validated, not yet applied. Prod: not started (Story B).**
+- [ ] `ikaro-web` presents a valid Google ID token (audience = BFF's internal service URI) on every server-side call to BFF; verified via a real deploy, not just code review — **code-complete (route.ts + bff-server.ts), unit-tested; live-deploy verification still pending.**
+- [ ] A direct, unauthenticated call to BFF's internal service URI from outside the VPC fails at the ingress layer (connection-level rejection, not an app-level 401) — **pending live deploy.**
+- [ ] The new app-layer shared-secret guard (`X-Web-Internal-Key` or equivalent) rejects any BFF request missing/mismatching it, mirroring `InternalApiGuard`'s existing backend behavior and test coverage shape — **code-complete (`WebOnlyGuard`), test coverage mirrors `InternalApiGuard.spec.ts`'s shape exactly; live-deploy verification still pending.**
+- [x] `client-ip.ts`'s CF-Connecting-IP/rightmost-XFF guessing logic is deleted, replaced by a direct read of the new trusted header
+- [ ] A real staging request from a known IP shows that IP (not `ikaro-web`'s egress address) in the resolved client-IP log — **pending live deploy (repeats the M17-S27 verification).**
+- [x] `pr-e2e.yml` (local/docker-compose E2E) passes unmodified — confirmed both structurally (the merge-gating `e2e` job in `pr-tests.yml` runs `docker compose`, no Cloud Run ingress concept) and empirically (full web/BFF test suites green, including that job's underlying component/unit tests)
+- [ ] E2E-against-staging (M17-S28 or this TD, whichever lands the wiring) routes BFF-bound test-helper calls through the web app's `/v1` gateway, not a direct BFF URL, when targeting a deployed environment — **not started (Story C).**
+- [ ] Both `docs/24-BFF_ARCHITECTURE.md` and `plan/M17-CLOUD-DEPLOY.md`'s S22/S27 sections are updated to reflect the new ingress/auth model (stale-doc sweep, per CLAUDE.md §7 Definition of Done) — **not done yet.**
 
 ## Dependencies
 
