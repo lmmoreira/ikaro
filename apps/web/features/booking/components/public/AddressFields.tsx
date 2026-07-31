@@ -185,7 +185,7 @@ export function AddressFields({
         <div className="sm:col-span-3">
           <TextField
             id={`${idPrefix}-neighborhood`}
-            label={addressSpec.neighborhoodLabel ?? 'Neighborhood'}
+            label={addressSpec.neighborhoodLabel ?? t('neighborhoodLabel')}
             value={value.neighborhood ?? ''}
             onChange={(neighborhood) => onChange({ ...value, neighborhood })}
             required={required}

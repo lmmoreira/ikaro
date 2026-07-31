@@ -561,8 +561,23 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('Calendar widget on the public booking page: blocks selection past maxBookingAdvanceDays with a message (M18-S01)', async ({
     page,
   }) => {
+    // The boundary date (maxDateIso = today + maxBookingAdvanceDays - 1) must not land on the
+    // last day of its own month — if it did, every day in the initially-visible month would be
+    // in range and endMonth (capped at the boundary month) would block forward navigation
+    // entirely, making the out-of-range state genuinely unreachable in the UI that day. On an
+    // ordinary day, maxBookingAdvanceDays=1 already leaves later, out-of-range days visible in
+    // the current month. The one day that isn't true — today is itself the last day of the
+    // month — bumps it to 2 so the boundary falls on day 1 of *next* month instead (never a
+    // month-end itself), and the test advances the calendar forward once to reach it.
+    const today = new Date();
+    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    const isLastDayOfMonth = today.getDate() === daysInMonth;
+    const maxBookingAdvanceDays = isLastDayOfMonth ? 2 : 1;
+
     await updateTenantSettings(page, {
-      settings: { booking: { ...originalSettings.settings.booking, maxBookingAdvanceDays: 1 } },
+      settings: {
+        booking: { ...originalSettings.settings.booking, maxBookingAdvanceDays },
+      },
     });
 
     await updateHotsiteConfig(page, {
@@ -588,13 +603,12 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
       .click();
     await page.locator('[data-testid="step-next"]').click();
 
-    // maxBookingAdvanceDays=1 means only "today" is in range — endMonth now caps forward
-    // navigation at the boundary month (usually the current one), so the last visible day cell
-    // of the initial month view is out of range regardless of which day of the month "today"
-    // happens to be when this test runs (the sole exception — today being the last day of the
-    // month, putting the boundary exactly there too — is the same rare edge case the original
-    // "3 months forward" heuristic never fully covered either).
     await expect(page.locator('[data-testid="calendar-day"]').first()).toBeVisible();
+
+    if (isLastDayOfMonth) {
+      await page.locator('[data-testid="calendar-next-month"]').click();
+      await expect(page.locator('[data-testid="calendar-day"]').first()).toBeVisible();
+    }
 
     await page.locator('[data-testid="calendar-day"]').last().click();
 

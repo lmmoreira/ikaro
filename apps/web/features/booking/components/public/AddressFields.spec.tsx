@@ -35,6 +35,11 @@ const US_SPEC: HotsiteAddressSpec = {
   lookupService: 'none',
 };
 
+const MISSING_NEIGHBORHOOD_LABEL_SPEC: HotsiteAddressSpec = {
+  ...BR_SPEC,
+  neighborhoodLabel: null,
+};
+
 function emptyAddress(): Address {
   return {
     street: '',
@@ -144,5 +149,11 @@ describe('AddressFields', () => {
     expect(screen.getByLabelText('City')).toBeInTheDocument();
     expect(screen.queryByLabelText('Rua')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Cidade')).not.toBeInTheDocument();
+  });
+
+  it('falls back to the translated default label when the tenant spec has no neighborhoodLabel', () => {
+    renderWithIntl(<Wrapper addressSpec={MISSING_NEIGHBORHOOD_LABEL_SPEC} />);
+
+    expect(screen.getByLabelText('Bairro')).toBeInTheDocument();
   });
 });

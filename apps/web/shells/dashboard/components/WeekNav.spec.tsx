@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { renderWithIntl } from '@/test-utils';
 import { WeekNav } from './WeekNav';
 
 const windowStart = new Date('2026-06-16T00:00:00');
@@ -9,7 +10,7 @@ const today = new Date('2026-06-16T00:00:00');
 
 describe('WeekNav — header', () => {
   it('renders the month/year label for windowStart', () => {
-    render(
+    renderWithIntl(
       <WeekNav
         windowStart={windowStart}
         windowDays={7}
@@ -23,7 +24,7 @@ describe('WeekNav — header', () => {
 
   it('calls onPrev when the ‹ button is clicked', async () => {
     const onPrev = vi.fn();
-    render(
+    renderWithIntl(
       <WeekNav
         windowStart={windowStart}
         windowDays={7}
@@ -38,7 +39,7 @@ describe('WeekNav — header', () => {
 
   it('calls onNext when the › button is clicked', async () => {
     const onNext = vi.fn();
-    render(
+    renderWithIntl(
       <WeekNav
         windowStart={windowStart}
         windowDays={7}
@@ -52,7 +53,7 @@ describe('WeekNav — header', () => {
   });
 
   it('disables the ‹ button when disablePrev is true', () => {
-    render(
+    renderWithIntl(
       <WeekNav
         windowStart={windowStart}
         windowDays={7}
@@ -66,7 +67,7 @@ describe('WeekNav — header', () => {
   });
 
   it('disables the › button when disableNext is true', () => {
-    render(
+    renderWithIntl(
       <WeekNav
         windowStart={windowStart}
         windowDays={7}
@@ -82,7 +83,7 @@ describe('WeekNav — header', () => {
 
 describe('WeekNav — day strip', () => {
   it('renders exactly windowDays day pills', () => {
-    render(
+    renderWithIntl(
       <WeekNav
         windowStart={windowStart}
         windowDays={7}
@@ -95,7 +96,7 @@ describe('WeekNav — day strip', () => {
   });
 
   it('renders 14 day pills when windowDays is 14', () => {
-    render(
+    renderWithIntl(
       <WeekNav
         windowStart={windowStart}
         windowDays={14}
@@ -108,7 +109,7 @@ describe('WeekNav — day strip', () => {
   });
 
   it('marks today pill with data-today=true', () => {
-    render(
+    renderWithIntl(
       <WeekNav
         windowStart={windowStart}
         windowDays={7}
@@ -124,7 +125,7 @@ describe('WeekNav — day strip', () => {
   });
 
   it('does not mark non-today pills with data-today', () => {
-    render(
+    renderWithIntl(
       <WeekNav
         windowStart={windowStart}
         windowDays={7}
@@ -140,7 +141,7 @@ describe('WeekNav — day strip', () => {
   });
 
   it('shows day numbers for each date in the window', () => {
-    render(
+    renderWithIntl(
       <WeekNav
         windowStart={windowStart}
         windowDays={3}
@@ -156,7 +157,7 @@ describe('WeekNav — day strip', () => {
   });
 
   it('assigns data-date attributes to day pills', () => {
-    render(
+    renderWithIntl(
       <WeekNav
         windowStart={windowStart}
         windowDays={3}
