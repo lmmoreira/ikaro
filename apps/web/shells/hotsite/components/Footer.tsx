@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import type { FooterModuleData, HotsiteBusinessInfoResponse } from '@ikaro/types';
 import { digitsOnly } from '@/shared/utils/digits-only';
 
@@ -44,10 +45,11 @@ export function Footer({
   business,
   logoUrl,
 }: FooterProps): React.JSX.Element {
+  const t = useTranslations('hotsite');
   const whatsapp = business.socialLinks?.whatsapp;
   const showWhatsapp = data.showWhatsapp !== false;
   const year = new Date().getFullYear();
-  const copyrightNote = data.copyrightNote ?? 'Todos os direitos reservados.';
+  const copyrightNote = data.copyrightNote ?? t('footer.copyrightDefault');
 
   return (
     <footer

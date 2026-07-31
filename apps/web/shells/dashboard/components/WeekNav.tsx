@@ -1,6 +1,7 @@
 'use client';
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { addDays, isSameDay, toISODate } from '@/shared/lib/formatting/date-utils';
 
@@ -49,6 +50,7 @@ export function WeekNav({
   activeDates,
   dimmedDates,
 }: WeekNavProps): React.JSX.Element {
+  const t = useTranslations('dashboard.weekNav');
   const { formatMonthYear, formatWeekdayShort } = useFormatting();
   const days: Date[] = Array.from({ length: windowDays }, (_, i) => addDays(windowStart, i));
 
@@ -62,7 +64,7 @@ export function WeekNav({
           type="button"
           onClick={onPrev}
           disabled={disablePrev}
-          aria-label="Período anterior"
+          aria-label={t('previousPeriod')}
           className="flex h-8 w-8 items-center justify-center rounded border border-gray-200 bg-white text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30"
         >
           <ChevronLeft className="h-4 w-4" />
@@ -76,7 +78,7 @@ export function WeekNav({
           type="button"
           onClick={onNext}
           disabled={disableNext}
-          aria-label="Próximo período"
+          aria-label={t('nextPeriod')}
           className="flex h-8 w-8 items-center justify-center rounded border border-gray-200 bg-white text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30"
         >
           <ChevronRight className="h-4 w-4" />

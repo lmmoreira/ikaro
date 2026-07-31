@@ -109,7 +109,8 @@
       "streetLabel": "Rua",
       "numberLabel": "Número",
       "complementLabel": "Complemento",
-      "cityLabel": "Cidade"
+      "cityLabel": "Cidade",
+      "neighborhoodLabel": "Bairro"
     },
     "confirmation": {
       "heading": "Confirme seu agendamento",
@@ -192,7 +193,8 @@
     "testimonials": {
       "defaultTitle": "O que nossos clientes dizem",
       "previousAriaLabel": "Depoimento anterior",
-      "nextAriaLabel": "Próximo depoimento"
+      "nextAriaLabel": "Próximo depoimento",
+      "ratingAriaLabel": "{rating} de 5 estrelas"
     },
     "contact": {
       "defaultTitle": "Fale conosco",
@@ -202,6 +204,9 @@
       "whatsappLabel": "WhatsApp",
       "whatsappDefaultCta": "Chamar no WhatsApp",
       "mapTitle": "Mapa de localização"
+    },
+    "footer": {
+      "copyrightDefault": "Todos os direitos reservados."
     },
     "unavailable": {
       "label": "Em breve",
@@ -1180,6 +1185,10 @@
       "roleManager": "Gerente",
       "roleStaff": "Staff",
       "signOut": "Sair"
+    },
+    "weekNav": {
+      "previousPeriod": "Período anterior",
+      "nextPeriod": "Próximo período"
     },
     "topbar": {
       "openMenu": "Abrir menu",

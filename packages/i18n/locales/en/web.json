@@ -109,7 +109,8 @@
       "streetLabel": "Street",
       "numberLabel": "Number",
       "complementLabel": "Apt / Suite",
-      "cityLabel": "City"
+      "cityLabel": "City",
+      "neighborhoodLabel": "Neighborhood"
     },
     "confirmation": {
       "heading": "Confirm your booking",
@@ -192,7 +193,8 @@
     "testimonials": {
       "defaultTitle": "What our clients say",
       "previousAriaLabel": "Previous testimonial",
-      "nextAriaLabel": "Next testimonial"
+      "nextAriaLabel": "Next testimonial",
+      "ratingAriaLabel": "{rating} out of 5 stars"
     },
     "contact": {
       "defaultTitle": "Get in touch",
@@ -202,6 +204,9 @@
       "whatsappLabel": "WhatsApp",
       "whatsappDefaultCta": "Message us on WhatsApp",
       "mapTitle": "Location map"
+    },
+    "footer": {
+      "copyrightDefault": "All rights reserved."
     },
     "unavailable": {
       "label": "Coming soon",
@@ -1180,6 +1185,10 @@
       "roleManager": "Manager",
       "roleStaff": "Staff",
       "signOut": "Sign out"
+    },
+    "weekNav": {
+      "previousPeriod": "Previous period",
+      "nextPeriod": "Next period"
     },
     "topbar": {
       "openMenu": "Open menu",
