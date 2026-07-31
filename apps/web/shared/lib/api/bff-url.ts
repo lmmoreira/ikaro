@@ -7,6 +7,9 @@ export function getBffUpstreamUrl(): string {
   return process.env.BFF_UPSTREAM_URL ?? process.env.NEXT_PUBLIC_BFF_URL ?? '';
 }
 
+// TD38: normalizes a trailing slash on the resolved base before joining, mirroring
+// apps/web/app/v1/[...path]/route.ts's own upstreamUrl() — a real risk once BFF_UPSTREAM_URL's
+// shape changes from a fixed public hostname to a Cloud Run-generated internal service URI.
 export function buildBffUrl(path: string): string {
-  return `${getBffUpstreamUrl()}${path}`;
+  return `${getBffUpstreamUrl().replace(/\/$/, '')}${path}`;
 }

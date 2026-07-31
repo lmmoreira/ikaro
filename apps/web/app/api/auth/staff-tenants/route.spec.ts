@@ -50,7 +50,10 @@ describe('GET /api/auth/staff-tenants', () => {
     expect(fetchSpy).toHaveBeenCalledWith(
       `${BFF_URL}/auth/staff-tenants`,
       expect.objectContaining({
-        headers: { Cookie: 'access_token=signed-jwt' },
+        headers: {
+          Cookie: 'access_token=signed-jwt',
+          'x-web-internal-key': 'test-web-internal-key-test-web-internal-key',
+        },
         cache: 'no-store',
         signal: expect.any(AbortSignal),
       }),

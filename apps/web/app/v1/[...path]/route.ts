@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { attachBffAuthHeaders, resolveClientIp } from '@/shared/lib/api/bff-transport-headers';
 
 const HOP_BY_HOP_HEADERS = new Set([
   'connection',
@@ -39,6 +40,15 @@ async function proxy(
   for (const header of HOP_BY_HOP_HEADERS) headers.delete(header);
   for (const header of INTERNAL_IDENTITY_HEADERS) headers.delete(header);
   headers.delete('content-length');
+
+  // TD38: this is the genuinely trustworthy hop (single real proxy layer: GFE direct in
+  // staging, Cloudflare in prod) -- resolve the real client IP here and forward it as a
+  // trusted header. BFF no longer re-derives it from raw proxy headers on its own side, and
+  // this always overwrites any client-supplied X-Real-Client-Ip rather than forwarding it.
+  headers.set('x-real-client-ip', resolveClientIp(Object.fromEntries(request.headers.entries())));
+  // TD38: BFF only ever accepts calls from ikaro-web now -- attach the IAM ID token (when
+  // required) and the app-layer shared-secret header on every outbound call.
+  await attachBffAuthHeaders(headers);
 
   const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
   const body = hasBody ? await request.arrayBuffer() : undefined;

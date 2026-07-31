@@ -41,7 +41,10 @@ describe('fetchServices', () => {
     expect(fetchSpy).toHaveBeenCalledWith(
       `${BFF_URL}/public/services`,
       expect.objectContaining({
-        headers: { 'X-Tenant-Slug': 'lavacar-beloauto' },
+        headers: {
+          'X-Tenant-Slug': 'lavacar-beloauto',
+          'x-web-internal-key': 'test-web-internal-key-test-web-internal-key',
+        },
         next: { revalidate: 300, tags: ['hotsite-services-lavacar-beloauto'] },
       }),
     );

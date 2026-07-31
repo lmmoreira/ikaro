@@ -2,6 +2,14 @@ import '@testing-library/jest-dom/vitest';
 import { toHaveNoViolations } from 'jest-axe';
 import { expect, vi } from 'vitest';
 
+// TD38: attachBffAuthHeaders() requires WEB_INTERNAL_KEY unconditionally on every BFF call
+// (bffServerFetch/bffPublicFetch and the same-origin gateway route.ts alike), regardless of
+// auth mode -- mirrors INTERNAL_API_KEY's existing bff<->backend requirement. Default it here
+// so the many specs that call those transports incidentally (not testing this var itself)
+// don't all need to set it individually; a spec that specifically wants to test the
+// missing-key path deletes it explicitly.
+process.env.WEB_INTERNAL_KEY ??= 'test-web-internal-key-test-web-internal-key';
+
 // Register jest-axe matchers globally — available in all jsdom component specs.
 // The configured axe instance (color-contrast disabled) lives in axe-helper.ts;
 // specs import { axe } from there, not directly from jest-axe.

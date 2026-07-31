@@ -79,7 +79,10 @@ describe('fetchStaffBookingDetail', () => {
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.stringContaining('/bookings/b-1'),
       expect.objectContaining({
-        headers: { Cookie: 'access_token=access-token' },
+        headers: {
+          Cookie: 'access_token=access-token',
+          'x-web-internal-key': 'test-web-internal-key-test-web-internal-key',
+        },
       }),
     );
   });

@@ -52,7 +52,11 @@ describe('GET /api/session', () => {
     const body = await response.json();
 
     expect(fetchSpy).toHaveBeenCalledWith(`${BFF_URL}/auth/session`, {
-      headers: { Cookie: 'access_token=signed-jwt', 'X-Tenant-Slug': 'lavacar-beloauto' },
+      headers: {
+        Cookie: 'access_token=signed-jwt',
+        'X-Tenant-Slug': 'lavacar-beloauto',
+        'x-web-internal-key': 'test-web-internal-key-test-web-internal-key',
+      },
       cache: 'no-store',
       signal: expect.any(AbortSignal),
     });
@@ -72,7 +76,10 @@ describe('GET /api/session', () => {
     await GET(makeGetRequest());
 
     expect(fetchSpy).toHaveBeenCalledWith(`${BFF_URL}/auth/session`, {
-      headers: { Cookie: 'access_token=signed-jwt' },
+      headers: {
+        Cookie: 'access_token=signed-jwt',
+        'x-web-internal-key': 'test-web-internal-key-test-web-internal-key',
+      },
       cache: 'no-store',
       signal: expect.any(AbortSignal),
     });

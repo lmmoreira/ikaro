@@ -94,7 +94,10 @@ describe('fetchHotsiteConfig', () => {
     expect(fetchMock).toHaveBeenCalledWith(
       'http://bff.test/v1/tenants/hotsite',
       expect.objectContaining({
-        headers: { Cookie: 'access_token=test-token' },
+        headers: {
+          Cookie: 'access_token=test-token',
+          'x-web-internal-key': 'test-web-internal-key-test-web-internal-key',
+        },
         cache: 'no-store',
       }),
     );
@@ -202,7 +205,10 @@ describe('fetchTenantSettings', () => {
     expect(fetchMock).toHaveBeenCalledWith(
       'http://bff.test/v1/tenants/settings',
       expect.objectContaining({
-        headers: { Cookie: 'access_token=test-token' },
+        headers: {
+          Cookie: 'access_token=test-token',
+          'x-web-internal-key': 'test-web-internal-key-test-web-internal-key',
+        },
         next: { revalidate: 300 },
       }),
     );
@@ -233,7 +239,10 @@ describe('fetchTenantSettingsFresh', () => {
     expect(fetchMock).toHaveBeenCalledWith(
       'http://bff.test/v1/tenants/settings',
       expect.objectContaining({
-        headers: { Cookie: 'access_token=test-token' },
+        headers: {
+          Cookie: 'access_token=test-token',
+          'x-web-internal-key': 'test-web-internal-key-test-web-internal-key',
+        },
         cache: 'no-store',
       }),
     );

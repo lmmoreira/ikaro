@@ -3,11 +3,21 @@ import { bffPublicFetch, bffServerFetch } from './bff-server';
 
 const BFF_URL = 'http://bff-test:3002';
 
+function headersFromCall(
+  fetchSpy: ReturnType<typeof vi.spyOn>,
+  callIndex = 0,
+): Record<string, string> {
+  const requestInit = fetchSpy.mock.calls[callIndex]?.[1] as RequestInit | undefined;
+  return requestInit?.headers as Record<string, string>;
+}
+
 describe('bffPublicFetch', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     process.env.NEXT_PUBLIC_BFF_URL = BFF_URL;
+    // TD38: attachBffAuthHeaders() requires this on every call, regardless of auth mode.
+    process.env.WEB_INTERNAL_KEY = 'a'.repeat(32);
     fetchSpy = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(
@@ -68,6 +78,23 @@ describe('bffPublicFetch', () => {
       expect.any(String),
       expect.objectContaining({ method: 'POST', body: expect.any(String) }),
     );
+    expect(headersFromCall(fetchSpy)['Content-Type']).toBe('application/json');
+  });
+
+  it('attaches X-Web-Internal-Key on every call (TD38)', async () => {
+    await bffPublicFetch('/bookings');
+    expect(headersFromCall(fetchSpy)['x-web-internal-key']).toBe('a'.repeat(32));
+  });
+
+  it('throws when WEB_INTERNAL_KEY is unset', async () => {
+    delete process.env.WEB_INTERNAL_KEY;
+    await expect(bffPublicFetch('/bookings')).rejects.toThrow('WEB_INTERNAL_KEY is required');
+  });
+
+  it('does not attach an Authorization header when BFF_AUTH_MODE is unset (default "none")', async () => {
+    delete process.env.BFF_AUTH_MODE;
+    await bffPublicFetch('/bookings');
+    expect(headersFromCall(fetchSpy)['authorization']).toBeUndefined();
   });
 });
 
@@ -76,6 +103,7 @@ describe('bffServerFetch', () => {
 
   beforeEach(() => {
     process.env.NEXT_PUBLIC_BFF_URL = BFF_URL;
+    process.env.WEB_INTERNAL_KEY = 'a'.repeat(32);
     fetchSpy = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(
@@ -89,22 +117,15 @@ describe('bffServerFetch', () => {
 
   it('adds the access_token cookie header', async () => {
     await bffServerFetch('tok', '/bookings');
-    expect(fetchSpy).toHaveBeenCalledWith(
-      `${BFF_URL}/bookings`,
-      expect.objectContaining({
-        headers: expect.objectContaining({ Cookie: 'access_token=tok' }),
-      }),
-    );
+    expect(fetchSpy).toHaveBeenCalledWith(`${BFF_URL}/bookings`, expect.any(Object));
+    expect(headersFromCall(fetchSpy)['Cookie']).toBe('access_token=tok');
   });
 
   it('merges extra headers with the Cookie header', async () => {
     await bffServerFetch('tok', '/customers/me', { headers: { 'X-Tenant-Slug': 'acme' } });
-    expect(fetchSpy).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({
-        headers: { Cookie: 'access_token=tok', 'X-Tenant-Slug': 'acme' },
-      }),
-    );
+    const headers = headersFromCall(fetchSpy);
+    expect(headers['Cookie']).toBe('access_token=tok');
+    expect(headers['X-Tenant-Slug']).toBe('acme');
   });
 
   it('preserves method and body when wrapping the shared transport', async () => {
@@ -117,5 +138,12 @@ describe('bffServerFetch', () => {
       expect.any(String),
       expect.objectContaining({ method: 'POST', body: expect.any(String) }),
     );
+  });
+
+  it('attaches X-Web-Internal-Key alongside the Cookie header (TD38)', async () => {
+    await bffServerFetch('tok', '/bookings');
+    const headers = headersFromCall(fetchSpy);
+    expect(headers['Cookie']).toBe('access_token=tok');
+    expect(headers['x-web-internal-key']).toBe('a'.repeat(32));
   });
 });
