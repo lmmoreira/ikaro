@@ -21,6 +21,9 @@ locals {
     "google-oauth-client-id",
     "google-oauth-client-secret",
     "brevo-smtp-key",
+    # TD38: shared secret between web and BFF, checked by WebOnlyGuard on every BFF request —
+    # app-layer defense-in-depth companion to the Cloud Run IAM lockdown.
+    "web-internal-key",
   ]
 
   # cloudflare-api-token is prod-only (edge module, S22/S23 — DNS:Edit scope).

@@ -26,7 +26,7 @@ variable "region" {
 }
 
 variable "backend_push_endpoint" {
-  description = "Full URL Pub/Sub POSTs push messages to — the backend's real *.run.app URI + \"/pubsub/push\" (module.cloudrun_backend.service_uri from the env root; a normal cross-module reference, not a self-reference, so no placeholder-default bootstrap dance is needed here unlike bff_real_uri/GOOGLE_CALLBACK_URL)."
+  description = "Full URL Pub/Sub POSTs push messages to — the backend's real *.run.app URI + \"/pubsub/push\" (module.cloudrun_backend.service_uri from the env root; a normal cross-module reference, not a self-reference, so no placeholder-default bootstrap dance is needed here unlike web_real_uri/GOOGLE_CALLBACK_URL)."
   type        = string
 
   validation {

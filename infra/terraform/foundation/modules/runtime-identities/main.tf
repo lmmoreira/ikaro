@@ -18,8 +18,10 @@ locals {
 
   secret_accessors_base = {
     backend = ["db-password", "jwt-secret", "internal-api-key", "platform-admin-key", "hotsite-revalidate-secret", "brevo-smtp-key"]
-    bff     = ["jwt-secret", "internal-api-key", "google-oauth-client-id", "google-oauth-client-secret"]
-    web     = ["jwt-secret", "hotsite-revalidate-secret"]
+    # TD38: web-internal-key is the shared secret checked by WebOnlyGuard (bff reads it to
+    # verify) and sent by web on every BFF call (web reads it to send) — both sides need it.
+    bff     = ["jwt-secret", "internal-api-key", "google-oauth-client-id", "google-oauth-client-secret", "web-internal-key"]
+    web     = ["jwt-secret", "hotsite-revalidate-secret", "web-internal-key"]
     migrate = ["db-migrator-password"]
   }
 

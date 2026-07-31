@@ -207,6 +207,7 @@ jobs:
           ALLOWED_ORIGINS: 'http://localhost:3000'
           CRON_SECRET: 'test-cron-secret-must-be-at-least-32-chars!!'
           INTERNAL_API_KEY: 'test-internal-key-test-internal-key'
+          WEB_INTERNAL_KEY: 'test-web-internal-key-test-web-internal!!'
           ENABLE_DEV_AUTH: 'true'
 
   e2e:
@@ -322,6 +323,7 @@ jobs:
           JWT_SECRET: 'e2e-ci-jwt-secret-must-be-at-least-64-characters-long-xxxxxxxxxxxxx'
           PLATFORM_ADMIN_KEY: 'e2e-ci-platform-admin-key-must-be-32-chars!!'
           INTERNAL_API_KEY: 'e2e-ci-internal-api-key-must-be-32-chars!!'
+          WEB_INTERNAL_KEY: 'e2e-ci-web-internal-key-must-be-32-chars!!'
           FRONTEND_URL: 'http://localhost:3000'
           HOTSITE_REVALIDATE_SECRET: 'e2e-ci-revalidate-secret-must-be-32ch!!'
           ENABLE_DEV_AUTH: 'true'
@@ -724,6 +726,7 @@ jobs:
                 -e JWT_SECRET="$(openssl rand -hex 32)"
                 -e CRON_SECRET="$(openssl rand -hex 32)"
                 -e INTERNAL_API_KEY="$(openssl rand -hex 32)"
+                -e WEB_INTERNAL_KEY="$(openssl rand -hex 32)"
                 -e BACKEND_INTERNAL_URL=http://localhost:3001
                 -e GOOGLE_CLIENT_ID=smoke-test
                 -e GOOGLE_CLIENT_SECRET=smoke-test

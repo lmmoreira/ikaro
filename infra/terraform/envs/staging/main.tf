@@ -164,7 +164,13 @@ module "cloudrun_backend" {
       EMAIL_ADAPTER = "brevo"
       EMAIL_FROM    = "noreply@ikaro.online"
 
-      FRONTEND_URL = module.cloudrun_web.service_uri
+      # TD38: var.web_real_uri (bootstrap-placeholder), not a live module.cloudrun_web.service_uri
+      # reference — cloudrun_web's own BFF_UPSTREAM_URL now references module.cloudrun_bff.service_uri
+      # live, and module.cloudrun_bff.env_vars references module.cloudrun_backend.service_uri
+      # (BACKEND_INTERNAL_URL) live, so a live reference here would complete a 3-node cycle
+      # (web -> bff -> backend -> web). Only one edge among backend/bff/web may be a live
+      # module reference at a time — see cloudrun_bff's ALLOWED_ORIGINS/FRONTEND_URL comment.
+      FRONTEND_URL = var.web_real_uri
     },
     # BREVO_SMTP_LOGIN is optional-with-min-length in the backend schema — a
     # present "" satisfies "not absent" but fails min(1), crashing app boot
@@ -184,10 +190,10 @@ module "cloudrun_backend" {
   }
 }
 
-# Public (staging has no LB, D5) — the Foundation-owned public invoker grants
-# preserve application auth on top. ALL_TRAFFIC egress: *.run.app resolves to public IPs, so PRIVATE_RANGES_ONLY would
-# route the backend call outside the VPC and internal ingress would reject
-# it (M17 §0).
+# Internal-ingress only (TD38: BFF's allUsers public invoker grant is removed — the only
+# caller is ikaro-web's IAM-authenticated server-side call, mirroring how the backend already
+# treats BFF). ALL_TRAFFIC egress: *.run.app resolves to public IPs, so PRIVATE_RANGES_ONLY
+# would route the backend call outside the VPC and internal ingress would reject it (M17 §0).
 module "cloudrun_bff" {
   source = "../../modules/cloudrun-service"
 
@@ -205,7 +211,7 @@ module "cloudrun_bff" {
   service_account_email = local.runtime_sa_emails.bff
   max_instance_count    = var.bff_max_instances
 
-  ingress    = "INGRESS_TRAFFIC_ALL"
+  ingress    = "INGRESS_TRAFFIC_INTERNAL_ONLY"
   vpc_egress = "ALL_TRAFFIC"
   network_id = module.network.network_id
   subnet_id  = module.network.subnet_id
@@ -220,11 +226,17 @@ module "cloudrun_bff" {
     LOG_LEVEL   = "DEBUG"
 
     BACKEND_INTERNAL_URL = module.cloudrun_backend.service_uri
-    # var.bff_real_uri starts as a placeholder -- see its description for the
-    # apply-once/paste-real-value/apply-again bootstrap sequence.
-    GOOGLE_CALLBACK_URL = "${var.web_real_uri}/v1/auth/google/callback"
-    ALLOWED_ORIGINS     = module.cloudrun_web.service_uri
-    FRONTEND_URL        = module.cloudrun_web.service_uri
+    GOOGLE_CALLBACK_URL  = "${var.web_real_uri}/v1/auth/google/callback"
+    # TD38: both use var.web_real_uri (the bootstrap-placeholder pattern), not
+    # module.cloudrun_web.service_uri — a live reference here would complete a 3-node module
+    # cycle: cloudrun_web's own BFF_UPSTREAM_URL below references module.cloudrun_bff.service_uri
+    # live, and this module's own BACKEND_INTERNAL_URL above references
+    # module.cloudrun_backend.service_uri live, so web -> bff -> backend -> web would all be
+    # live references at once (Terraform requires a one-directional DAG; confirmed via a real
+    # `terraform validate` cycle error during implementation — cloudrun_backend's own
+    # FRONTEND_URL was switched to var.web_real_uri for the same reason).
+    ALLOWED_ORIGINS = var.web_real_uri
+    FRONTEND_URL    = var.web_real_uri
 
     # M17 §2: ENABLE_DEV_AUTH=true only in staging.
     ENABLE_DEV_AUTH   = "true"
@@ -236,14 +248,18 @@ module "cloudrun_bff" {
     INTERNAL_API_KEY     = module.secrets.secret_ids["internal-api-key"]
     GOOGLE_CLIENT_ID     = module.secrets.secret_ids["google-oauth-client-id"]
     GOOGLE_CLIENT_SECRET = module.secrets.secret_ids["google-oauth-client-secret"]
+    # TD38: app-layer defense-in-depth companion to the IAM lockdown above — checked by
+    # WebOnlyGuard against the X-Web-Internal-Key header ikaro-web sends on every call.
+    WEB_INTERNAL_KEY = module.secrets.secret_ids["web-internal-key"]
   }
 }
 
-# Public (same ingress split as bff, D5). No VPC egress — web never calls the
-# backend directly, only the public BFF URL. NEXT_PUBLIC_* are Cloud Run
-# runtime env vars (not build args) as of TD29 — wired here for staging
-# (M17-S25); M17-S26 adds prod's equivalents with prod-specific values
-# (the fixed ikaro.online domain, no bootstrap-uri dance needed there).
+# Public (browsers must reach it directly, D5). NEXT_PUBLIC_* are Cloud Run runtime env vars
+# (not build args) as of TD29 — wired here for staging (M17-S25); M17-S26 adds prod's
+# equivalents with prod-specific values (the fixed ikaro.online domain, no bootstrap-uri dance
+# needed there). TD38: web now needs VPC egress too — its same-origin gateway
+# (apps/web/app/v1/[...path]/route.ts) calls BFF's internal-only service URI directly, not a
+# public BFF URL.
 module "cloudrun_web" {
   source = "../../modules/cloudrun-service"
 
@@ -264,7 +280,10 @@ module "cloudrun_web" {
   # the story's original "256Mi" spec silently conflicted with "second-gen
   # execution environment", a combination no static check catches).
 
-  ingress = "INGRESS_TRAFFIC_ALL"
+  ingress    = "INGRESS_TRAFFIC_ALL"
+  vpc_egress = "ALL_TRAFFIC"
+  network_id = module.network.network_id
+  subnet_id  = module.network.subnet_id
 
   health_check_ready_path = "/api/health/ready"
   health_check_live_path  = "/api/health/live"
@@ -277,14 +296,18 @@ module "cloudrun_web" {
     # apps/web/shared/lib/runtime-env/public-env.ts, not baked into the
     # image at build time.
     #
-    # Browser calls stay on the web origin through the /v1 gateway. The web
-    # server alone uses BFF_UPSTREAM_URL to reach the BFF's distinct Cloud
-    # Run host, so the OAuth callback can set a first-party session cookie
-    # even though staging's web and BFF hosts share no parent domain.
+    # Browser calls stay on the web origin through the /v1 gateway. The web server alone uses
+    # BFF_UPSTREAM_URL to reach BFF's internal-only service URI over the VPC (TD38: BFF no
+    # longer has a public URL at all) — a live module reference now that it's the only
+    # bff<->web direction using one (see cloudrun_bff's ALLOWED_ORIGINS/FRONTEND_URL comment).
     NEXT_PUBLIC_BFF_URL                = "/v1"
-    BFF_UPSTREAM_URL                   = "${var.bff_real_uri}/v1"
+    BFF_UPSTREAM_URL                   = "${module.cloudrun_bff.service_uri}/v1"
     NEXT_PUBLIC_SITE_URL               = var.web_real_uri
     NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL = module.storage.public_base_url
+
+    # TD38: BFF only accepts calls carrying a valid Google ID token now — web mints one and
+    # attaches it on every server-side call (route.ts, bff-server.ts).
+    BFF_AUTH_MODE = "iam"
   }
 
   # apps/web/middleware.ts verifies the access_token cookie's HS256 signature
@@ -301,6 +324,9 @@ module "cloudrun_web" {
   secret_env_vars = {
     JWT_SECRET                = module.secrets.secret_ids["jwt-secret"]
     HOTSITE_REVALIDATE_SECRET = module.secrets.secret_ids["hotsite-revalidate-secret"]
+    # TD38: sent as X-Web-Internal-Key on every BFF call — the same value BFF's own
+    # WEB_INTERNAL_KEY (cloudrun_bff above) checks against.
+    WEB_INTERNAL_KEY = module.secrets.secret_ids["web-internal-key"]
   }
 }
 

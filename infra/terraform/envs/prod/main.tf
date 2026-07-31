@@ -254,7 +254,7 @@ module "cloudrun_bff" {
     BACKEND_INTERNAL_URL = module.cloudrun_backend.service_uri
     # Fixed custom domain (S22's edge module + Cloudflare DNS make this
     # hostname real) — no placeholder/two-apply bootstrap dance needed here
-    # anymore, unlike staging's bff_real_uri (no edge module there, D5).
+    # anymore, unlike staging's web_real_uri (no edge module there, D5).
     GOOGLE_CALLBACK_URL = "https://${local.root_domain}/v1/auth/google/callback"
     ALLOWED_ORIGINS     = "https://${local.root_domain}"
     FRONTEND_URL        = "https://${local.root_domain}"
@@ -276,7 +276,7 @@ module "cloudrun_bff" {
 # egress — web never calls the backend directly, only the public BFF URL.
 # NEXT_PUBLIC_* are Cloud Run runtime env vars (not build args) as of TD29 —
 # staging wires its own values in M17-S25; this is M17-S26's prod equivalent.
-# Fixed domain values (D11) — unlike staging's bff_real_uri/web_real_uri,
+# Fixed domain values (D11) — unlike staging's web_real_uri,
 # there's no bootstrap-uri two-apply dance needed here.
 module "cloudrun_web" {
   source = "../../modules/cloudrun-service"

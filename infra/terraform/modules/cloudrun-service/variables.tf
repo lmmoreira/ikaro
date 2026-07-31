@@ -133,7 +133,7 @@ variable "min_instance_count" {
 }
 
 variable "network_id" {
-  description = "VPC network ID for direct egress (network module output). Required when vpc_egress is set; leave null for services that don't need VPC access (e.g. web, which only calls the public BFF URL)."
+  description = "VPC network ID for direct egress (network module output). Required when vpc_egress is set; leave null for services that don't need VPC access (TD38: web now needs it too, to reach BFF's internal-only service URI — only a service with no VPC-internal dependency at all should leave this null)."
   type        = string
   default     = null
 }
