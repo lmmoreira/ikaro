@@ -1,5 +1,6 @@
 import { ExecutionContext, HttpException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Reflector } from '@nestjs/core';
 import { WebOnlyGuard } from './web-only.guard';
 
 const TEST_KEY = 'a'.repeat(32);
@@ -11,6 +12,10 @@ const configService = {
   },
 } as unknown as ConfigService;
 
+function makeReflector(bypass: boolean): Reflector {
+  return { getAllAndOverride: () => bypass } as unknown as Reflector;
+}
+
 const makeContext = (webInternalKey?: string): ExecutionContext =>
   ({
     switchToHttp: () => ({
@@ -18,13 +23,20 @@ const makeContext = (webInternalKey?: string): ExecutionContext =>
         headers: webInternalKey ? { 'x-web-internal-key': webInternalKey } : {},
       }),
     }),
+    getHandler: () => undefined,
+    getClass: () => undefined,
   }) as unknown as ExecutionContext;
 
 describe('WebOnlyGuard', () => {
   let guard: WebOnlyGuard;
 
   beforeEach(() => {
-    guard = new WebOnlyGuard(configService);
+    guard = new WebOnlyGuard(configService, makeReflector(false));
+  });
+
+  it('allows a route marked @BypassWebOnlyGuard() without any key (Cloud Run health probes)', () => {
+    const bypassGuard = new WebOnlyGuard(configService, makeReflector(true));
+    expect(bypassGuard.canActivate(makeContext())).toBe(true);
   });
 
   it('returns true for a valid X-Web-Internal-Key', () => {
