@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, ForbiddenError } from '@/shared/lib/api/errors';
+import { ApiError, AuthError, ForbiddenError } from '@/shared/lib/api/errors';
 import {
   extractProblemCode,
   resolveErrorMessage,
@@ -93,6 +93,11 @@ describe('extractProblemCode', () => {
     expect(extractProblemCode(err)).toBe('STAFF_SELF_DEACTIVATION');
   });
 
+  it('extracts code from AuthError.data', () => {
+    const err = new AuthError('Unauthorized', { code: 'AUTH_UNAUTHORIZED' });
+    expect(extractProblemCode(err)).toBe('AUTH_UNAUTHORIZED');
+  });
+
   it('returns undefined when ApiError has no data', () => {
     expect(extractProblemCode(new ApiError(500, 'Internal server error'))).toBeUndefined();
   });
@@ -118,6 +123,11 @@ describe('resolveErrorMessageFromApiError', () => {
 
   it('resolves the message for a ForbiddenError carrying a code', () => {
     const err = new ForbiddenError('Forbidden', { code: 'TEST_NO_PARAM' });
+    expect(resolveErrorMessageFromApiError(err, 'pt-BR')).toBe('Uma mensagem estática.');
+  });
+
+  it('resolves the message for an AuthError carrying a code', () => {
+    const err = new AuthError('Unauthorized', { code: 'TEST_NO_PARAM' });
     expect(resolveErrorMessageFromApiError(err, 'pt-BR')).toBe('Uma mensagem estática.');
   });
 

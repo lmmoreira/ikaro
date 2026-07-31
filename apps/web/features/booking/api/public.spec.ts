@@ -7,18 +7,22 @@ import type {
   GuestBookingReadResponse,
 } from '@ikaro/types';
 import { bffClient } from '@/shared/lib/api/bff-client';
+import { ApiError, AuthError } from '@/shared/lib/api/errors';
 import {
   createAuthenticatedBooking,
   createAttachmentSignedUrl,
   createBooking,
   createGuestAttachmentSignedUrl,
-  CreateBookingError,
   submitGuestBookingInfo,
-  SubmitGuestBookingInfoError,
 } from './public';
 import { fetchGuestBookingSummary, GuestBookingReadError } from './public.server';
 
 const BFF_URL = 'http://bff-test:3002';
+
+// One shared MockAdapter per file: its constructor rebinds bffClient's adapter globally, so a
+// second `new MockAdapter(bffClient)` elsewhere in this file would silently orphan the first
+// instance's registered handlers (they'd stop matching any request, causing a real 404).
+const mock = new MockAdapter(bffClient);
 
 function makePayload(): CreateBookingRequest {
   return {
@@ -31,16 +35,9 @@ function makePayload(): CreateBookingRequest {
 }
 
 describe('createBooking', () => {
-  let fetchSpy: ReturnType<typeof vi.spyOn>;
+  beforeEach(() => mock.reset());
 
-  beforeEach(() => {
-    process.env.NEXT_PUBLIC_BFF_URL = BFF_URL;
-    fetchSpy = vi.spyOn(globalThis, 'fetch');
-  });
-
-  afterEach(() => {
-    fetchSpy.mockRestore();
-  });
+  afterEach(() => mock.reset());
 
   it('returns the booking on a successful BFF response', async () => {
     const booking: BookingResponse = {
@@ -53,31 +50,28 @@ describe('createBooking', () => {
       beforeServicePhotoUrls: [],
       lines: [],
     };
-    fetchSpy.mockResolvedValue(new Response(JSON.stringify(booking), { status: 201 }));
+    mock.onPost('/bookings').reply(201, booking);
 
     const result = await createBooking('lavacar-beloauto', makePayload());
 
     expect(result).toEqual(booking);
-    expect(fetchSpy).toHaveBeenCalledWith(`${BFF_URL}/bookings`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Tenant-Slug': 'lavacar-beloauto' },
-      body: JSON.stringify(makePayload()),
+    expect(mock.history.post?.[0]?.data).toBe(JSON.stringify(makePayload()));
+    expect(mock.history.post?.[0]?.headers).toMatchObject({
+      'X-Tenant-Slug': 'lavacar-beloauto',
     });
   });
 
-  it('throws a CreateBookingError with status 409 when the slot is taken', async () => {
-    fetchSpy.mockResolvedValue(new Response(null, { status: 409 }));
+  it('throws an ApiError with status 409 when the slot is taken', async () => {
+    mock.onPost('/bookings').reply(409);
 
-    await expect(createBooking('lavacar-beloauto', makePayload())).rejects.toThrow(
-      CreateBookingError,
-    );
+    await expect(createBooking('lavacar-beloauto', makePayload())).rejects.toBeInstanceOf(ApiError);
     await expect(createBooking('lavacar-beloauto', makePayload())).rejects.toMatchObject({
       status: 409,
     });
   });
 
-  it('throws a CreateBookingError when the BFF returns a generic error', async () => {
-    fetchSpy.mockResolvedValue(new Response(null, { status: 500 }));
+  it('throws an ApiError when the BFF returns a generic error', async () => {
+    mock.onPost('/bookings').reply(500);
 
     await expect(createBooking('lavacar-beloauto', makePayload())).rejects.toMatchObject({
       status: 500,
@@ -85,30 +79,25 @@ describe('createBooking', () => {
   });
 
   it('parses code/field/violations from the response body instead of discarding it', async () => {
-    fetchSpy.mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          code: 'BOOKING_PICKUP_ADDRESS_REQUIRED',
-          field: 'pickupAddress',
-          violations: [{ field: 'pickupAddress', code: 'ADDRESS_FIELD_REQUIRED' }],
-          detail: 'A pickup address is required.',
-        }),
-        { status: 400 },
-      ),
-    );
-
-    await expect(createBooking('lavacar-beloauto', makePayload())).rejects.toMatchObject({
-      status: 400,
+    mock.onPost('/bookings').reply(400, {
       code: 'BOOKING_PICKUP_ADDRESS_REQUIRED',
       field: 'pickupAddress',
       violations: [{ field: 'pickupAddress', code: 'ADDRESS_FIELD_REQUIRED' }],
+      detail: 'A pickup address is required.',
+    });
+
+    await expect(createBooking('lavacar-beloauto', makePayload())).rejects.toMatchObject({
+      status: 400,
+      data: {
+        code: 'BOOKING_PICKUP_ADDRESS_REQUIRED',
+        field: 'pickupAddress',
+        violations: [{ field: 'pickupAddress', code: 'ADDRESS_FIELD_REQUIRED' }],
+      },
     });
   });
 });
 
 describe('createAuthenticatedBooking', () => {
-  const mock = new MockAdapter(bffClient);
-
   beforeEach(() => mock.reset());
 
   afterEach(() => mock.reset());
@@ -334,16 +323,9 @@ describe('fetchGuestBookingSummary', () => {
 });
 
 describe('submitGuestBookingInfo', () => {
-  let fetchSpy: ReturnType<typeof vi.spyOn>;
+  beforeEach(() => mock.reset());
 
-  beforeEach(() => {
-    process.env.NEXT_PUBLIC_BFF_URL = BFF_URL;
-    fetchSpy = vi.spyOn(globalThis, 'fetch');
-  });
-
-  afterEach(() => {
-    fetchSpy.mockRestore();
-  });
+  afterEach(() => mock.reset());
 
   it('submits the response and returns the updated booking status', async () => {
     const response = {
@@ -351,36 +333,34 @@ describe('submitGuestBookingInfo', () => {
       status: 'PENDING',
       infoSubmittedAt: '2026-06-18T14:00:00.000Z',
     };
-    fetchSpy.mockResolvedValue(new Response(JSON.stringify(response), { status: 200 }));
+    mock.onPatch('/bookings/booking-1/submit-info/guest').reply(200, response);
 
     const result = await submitGuestBookingInfo('booking-1', 'signed.jwt.token', {
       response: 'Segue a foto do veículo conforme solicitado.',
     });
 
     expect(result).toEqual(response);
-    expect(fetchSpy).toHaveBeenCalledWith(
-      `${BFF_URL}/bookings/booking-1/submit-info/guest?token=signed.jwt.token`,
-      {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ response: 'Segue a foto do veículo conforme solicitado.' }),
-      },
+    expect(mock.history.patch?.[0]?.params).toEqual({ token: 'signed.jwt.token' });
+    expect(mock.history.patch?.[0]?.data).toBe(
+      JSON.stringify({ response: 'Segue a foto do veículo conforme solicitado.' }),
     );
   });
 
-  it('throws a SubmitGuestBookingInfoError with status 401 when the token expired mid-flow', async () => {
-    fetchSpy.mockResolvedValue(new Response(null, { status: 401 }));
+  it('throws an AuthError carrying the GUEST_TOKEN_INVALID code when the token expired mid-flow', async () => {
+    mock
+      .onPatch('/bookings/booking-1/submit-info/guest')
+      .reply(401, { code: 'BFF_GUEST_TOKEN_INVALID', detail: 'Invalid or expired guest token' });
 
     await expect(
       submitGuestBookingInfo('booking-1', 'token', { response: 'texto' }),
-    ).rejects.toMatchObject({ status: 401 });
+    ).rejects.toBeInstanceOf(AuthError);
     await expect(
       submitGuestBookingInfo('booking-1', 'token', { response: 'texto' }),
-    ).rejects.toBeInstanceOf(SubmitGuestBookingInfoError);
+    ).rejects.toMatchObject({ data: { code: 'BFF_GUEST_TOKEN_INVALID' } });
   });
 
-  it('throws a SubmitGuestBookingInfoError on a network/server error', async () => {
-    fetchSpy.mockResolvedValue(new Response(null, { status: 500 }));
+  it('throws an ApiError on a network/server error', async () => {
+    mock.onPatch('/bookings/booking-1/submit-info/guest').reply(500);
 
     await expect(
       submitGuestBookingInfo('booking-1', 'token', { response: 'texto' }),
@@ -388,23 +368,17 @@ describe('submitGuestBookingInfo', () => {
   });
 
   it('parses code from the response body instead of discarding it', async () => {
-    fetchSpy.mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          code: 'BOOKING_INFO_MESSAGE_TOO_SHORT',
-          field: 'response',
-          detail: 'The message is too short.',
-        }),
-        { status: 400 },
-      ),
-    );
+    mock.onPatch('/bookings/booking-1/submit-info/guest').reply(400, {
+      code: 'BOOKING_INFO_MESSAGE_TOO_SHORT',
+      field: 'response',
+      detail: 'The message is too short.',
+    });
 
     await expect(
       submitGuestBookingInfo('booking-1', 'token', { response: 'oi' }),
     ).rejects.toMatchObject({
       status: 400,
-      code: 'BOOKING_INFO_MESSAGE_TOO_SHORT',
-      field: 'response',
+      data: { code: 'BOOKING_INFO_MESSAGE_TOO_SHORT', field: 'response' },
     });
   });
 });

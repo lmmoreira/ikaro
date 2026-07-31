@@ -19,6 +19,16 @@ describe('response interceptor — error mapping', () => {
     await expect(bffClient.get('/secure')).rejects.toBeInstanceOf(AuthError);
   });
 
+  it('carries the response body on AuthError.data', async () => {
+    mock.onGet('/secure').reply(401, { detail: 'Unauthorized', code: 'BFF_GUEST_TOKEN_INVALID' });
+    const err = await bffClient.get('/secure').catch((e) => e);
+    expect(err).toBeInstanceOf(AuthError);
+    expect((err as AuthError).data).toEqual({
+      detail: 'Unauthorized',
+      code: 'BFF_GUEST_TOKEN_INVALID',
+    });
+  });
+
   it('maps 403 to ForbiddenError', async () => {
     mock.onGet('/secure').reply(403, { detail: 'Forbidden' });
     await expect(bffClient.get('/secure')).rejects.toBeInstanceOf(ForbiddenError);

@@ -3,6 +3,7 @@ import {
   ApiError,
   AuthError,
   assertOk,
+  extractProblemDetailShape,
   FetchError,
   ForbiddenError,
   parseErrorBody,
@@ -44,6 +45,12 @@ describe('AuthError', () => {
     expect(err.message).toBe('not authenticated');
     expect(err).toBeInstanceOf(Error);
     expect(err).toBeInstanceOf(AuthError);
+  });
+
+  it('exposes the response body via data', () => {
+    const body = { code: 'BFF_GUEST_TOKEN_INVALID' };
+    const err = new AuthError('not authenticated', body);
+    expect(err.data).toBe(body);
   });
 });
 
@@ -105,6 +112,33 @@ describe('FetchError', () => {
     expect(err).toBeInstanceOf(ExampleFetchError);
     expect(err).toBeInstanceOf(FetchError);
     expect(err).toBeInstanceOf(Error);
+  });
+});
+
+describe('extractProblemDetailShape', () => {
+  it('extracts code/field from ApiError.data', () => {
+    const err = new ApiError(409, 'conflict', { code: 'SLOT_UNAVAILABLE' });
+    expect(extractProblemDetailShape(err)).toEqual({ code: 'SLOT_UNAVAILABLE', field: undefined });
+  });
+
+  it('extracts code/field from AuthError.data', () => {
+    const err = new AuthError('expired', { code: 'BFF_GUEST_TOKEN_INVALID' });
+    expect(extractProblemDetailShape(err)).toEqual({
+      code: 'BFF_GUEST_TOKEN_INVALID',
+      field: undefined,
+    });
+  });
+
+  it('extracts code/field from ForbiddenError.data', () => {
+    const err = new ForbiddenError('forbidden', { code: 'STAFF_SELF_DEACTIVATION' });
+    expect(extractProblemDetailShape(err)).toEqual({
+      code: 'STAFF_SELF_DEACTIVATION',
+      field: undefined,
+    });
+  });
+
+  it('returns null for an error class it does not recognize', () => {
+    expect(extractProblemDetailShape(new Error('boom'))).toBeNull();
   });
 });
 

@@ -1,7 +1,6 @@
-import type { ProblemDetail } from '@ikaro/types';
 import enErrors from '@ikaro/i18n/locales/en/errors.json';
 import ptBrErrors from '@ikaro/i18n/locales/pt-BR/errors.json';
-import { ApiError, ForbiddenError } from '@/shared/lib/api/errors';
+import { extractProblemDetailShape } from '@/shared/lib/api/errors';
 import type { SupportedLocale } from './get-messages';
 
 type ErrorParams = Record<string, string | number>;
@@ -72,23 +71,21 @@ export function resolveErrorMessage(
   return interpolate(template, params);
 }
 
-// Extracts `code` from the two bffClient-backed error classes that carry a parsed ProblemDetail
-// body (TD23 Story 15) — `ApiError` (any 401/409/422/500/... response) and `ForbiddenError` (403
-// specifically, its own class since bff-client.ts's interceptor branches 403 separately). Both
-// attach the body via `.data`. Anything else (a plain `Error`, a network failure, `AuthError`) has
-// no code to extract and resolves to the generic fallback message downstream.
+// Extracts `code` from any bffClient-backed error class that carries a parsed ProblemDetail body
+// (TD23 Story 15) — delegates to errors.ts's extractProblemDetailShape(), which covers ApiError,
+// AuthError, and ForbiddenError (the full bffClient interceptor error taxonomy, TD31 Story 7).
+// Anything else (a plain `Error`, a network failure) has no code to extract and resolves to the
+// generic fallback message downstream.
 export function extractProblemCode(err: unknown): string | undefined {
-  if (err instanceof ApiError || err instanceof ForbiddenError) {
-    return (err.data as ProblemDetail | undefined)?.code;
-  }
-  return undefined;
+  return extractProblemDetailShape(err)?.code;
 }
 
-// Shared shape for the `ApiError`/`ForbiddenError` → `ProblemDetail.code` → `resolveErrorMessage`
-// chain repeated across every BFF-backed mutation handler in the dashboard (reschedule, schedule
-// sheets, service create/edit, staff invite/update/deactivate, ...). One extraction point instead
-// of a copy at each call site — a call site that skips it (e.g. only catching `err instanceof
-// Error`) silently regresses to showing raw backend text instead of a resolved catalog message.
+// Shared shape for the `ApiError`/`AuthError`/`ForbiddenError` → `ProblemDetail.code` →
+// `resolveErrorMessage` chain repeated across every BFF-backed mutation handler in the dashboard
+// (reschedule, schedule sheets, service create/edit, staff invite/update/deactivate, ...). One
+// extraction point instead of a copy at each call site — a call site that skips it (e.g. only
+// catching `err instanceof Error`) silently regresses to showing raw backend text instead of a
+// resolved catalog message.
 export function resolveErrorMessageFromApiError(err: unknown, locale: SupportedLocale): string {
   return resolveErrorMessage(extractProblemCode(err), locale);
 }
