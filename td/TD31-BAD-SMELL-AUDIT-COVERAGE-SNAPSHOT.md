@@ -351,7 +351,9 @@ Also fixed during CodeRabbit review on the PR: a real gap where `tenantId`/`cust
 
 ---
 
-### Story 8 — Hardcoded pt-BR strings with no `useTranslations` 🔴 Medium
+### Story 8 — Hardcoded pt-BR strings with no `useTranslations` 🔴 Medium ✅ Done
+
+**Landed**: PR #296 (2026-07-31), `fix/td31-pr14-web-i18n-type-dedup` (branch deleted post-merge), as part of PR 14. Also folded into the same PR: Story 20's `AddressFields.tsx` remainder (see Story 20's Landed note).
 
 **Source**: Web 4.1, 4.2, 4.3, 4.4
 
@@ -645,9 +647,9 @@ Item 4 (JWT runtime shape validation) landed as specced: `jwt.strategy.ts`'s `va
 
 ---
 
-### Story 20 — Web: last two `@ikaro/types` duplicates + one hardcoded fallback 🟡
+### Story 20 — Web: last two `@ikaro/types` duplicates + one hardcoded fallback 🟡 ✅ Done
 
-**Partially landed**: item 1 (loyalty) shipped 2026-07-27 in PR #280, as part of Story 2 — see Story 2's Landed note. Items 2 (`SwitchTenantRequest`) and 3 (`AddressFields.tsx`) remain open, scoped to PR 14 per the execution plan below. Not marking this story `✅ Done` until those land.
+**Landed**: item 1 (loyalty) shipped 2026-07-27 in PR #280, as part of Story 2 — see Story 2's Landed note. Items 2 (`SwitchTenantRequest`) and 3 (`AddressFields.tsx`) shipped 2026-07-31 in PR #296, `fix/td31-pr14-web-i18n-type-dedup` (branch deleted post-merge), as part of PR 14 — both stories now fully closed.
 
 **Source**: Web 2.3, 2.4, 4.5
 
@@ -792,7 +794,7 @@ Grouping rule: two stories collapse into **one PR** only when they genuinely sha
 |---|---|---|---|
 | **PR 12** | Story 9 + Story 11 | `apps/web/features/booking/api/{staff,staff.server}.ts` (renamed) + 8 confirmed importers + `apps/web/features/customer/{api,api.server}.ts` + new homes in `booking`/`loyalty` slices | Story 11 needs Story 9's final naming to avoid collisions — same purpose (reorganizing which slice owns what), sequential by construction, land as one PR. |
 | **PR 13** | Story 7 | `apps/web/features/booking/api/public.ts` | Unrelated to the rename — independent PR. |
-| **PR 14** | Story 8 + Story 20 (AddressFields part) | `WeekNav.tsx`, `Footer.tsx`, `TestimonialCard.tsx`, `AddressFields.tsx`, both locale JSON files | Story 20 already calls for folding its i18n item into Story 8's sweep. |
+| **PR 14** ✅ | Story 8 + Story 20 (AddressFields part) | `WeekNav.tsx`, `Footer.tsx`, `TestimonialCard.tsx`, `AddressFields.tsx`, both locale JSON files | Story 20 already calls for folding its i18n item into Story 8's sweep. **Merged as [#296](https://github.com/lmmoreira/ikaro/pull/296), 2026-07-31.** |
 
 ### Already done (not a PR — applied directly as part of this triage)
 
