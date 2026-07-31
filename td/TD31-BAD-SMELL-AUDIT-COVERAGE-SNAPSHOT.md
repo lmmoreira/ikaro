@@ -326,7 +326,15 @@ Also fixed during CodeRabbit review on the PR: a real gap where `tenantId`/`cust
 
 ---
 
-### Story 7 — Raw `fetch()` calls bypass the required BFF transport helpers 🔴 Medium
+### Story 7 — Raw `fetch()` calls bypass the required BFF transport helpers 🔴 Medium ✅ Done
+
+**Landed**: PR #297 (2026-07-31), `fix/td31-pr13-bff-transport-fetch` (branch deleted post-merge), as part of PR 13.
+
+**Discovery update (2026-07-31, story-discovery for PR 13):** Scope narrowed from the story's original "4 call sites" claim to 2 real fixes. `createAttachmentSignedUrl()`/`createGuestAttachmentSignedUrl()` (the 2 sites found during verification, not in the original TD31 count) target this app's own `/api/bookings/attachments/signed-url` Route Handler, not the BFF directly — confirmed out of scope and left on raw `fetch()` with a documented inline exemption, since routing them through `bffClient` would send the request through the generic `/v1/[...path]` same-origin gateway instead of the dedicated Route Handler, dropping the guest-token-overrides-cookie safety check that Route Handler implements (a real risk of an upload being misattributed to the wrong actor/tenant). Only `createBooking()` and `submitGuestBookingInfo()` were real violations — both migrated to `bffClient`.
+
+`AuthError` was extended with a `.data` field (matching `ForbiddenError`'s existing shape) to preserve `submitGuestBookingInfo()`'s guest-token-expired UX through the migration — a root-cause fix, not a workaround, since `bffClient`'s 401 interceptor branch previously discarded the response body entirely. `CreateBookingError`/`SubmitGuestBookingInfoError` deleted; both consumers (`BookingForm.tsx`, `SubmitInfoForm.tsx`) now share one `extractProblemDetailShape()` helper in `errors.ts`.
+
+Found and fixed via Codex's cross-tool review (Architecture + Requirements lenses, both independently): `extractProblemDetailShape()` duplicated an already-documented canonical helper, `extractProblemCode()`/`resolveErrorMessageFromApiError()` in `shared/lib/i18n/resolve-error-message.ts` (named in `docs/ENGINEERING_RULES.md`'s frontend-resolver section), whose own comment claimed `AuthError` "has no code to extract" — stale after the `.data` change above. Consolidated into one implementation (`extractProblemCode()` now delegates to `extractProblemDetailShape()`); `docs/ENGINEERING_RULES.md` updated to match. Not just cleanup — `AUTH_UNAUTHORIZED` already had real translations in both locale catalogs that no dashboard call site could previously reach, since every 401 fell through to the generic fallback message.
 
 **Source**: Web 5.1, 5.2 (doc undercounts — 4 call sites confirmed, not 2)
 
@@ -793,7 +801,7 @@ Grouping rule: two stories collapse into **one PR** only when they genuinely sha
 | PR | Stories | Target files | Notes |
 |---|---|---|---|
 | **PR 12** | Story 9 + Story 11 | `apps/web/features/booking/api/{staff,staff.server}.ts` (renamed) + 8 confirmed importers + `apps/web/features/customer/{api,api.server}.ts` + new homes in `booking`/`loyalty` slices | Story 11 needs Story 9's final naming to avoid collisions — same purpose (reorganizing which slice owns what), sequential by construction, land as one PR. |
-| **PR 13** | Story 7 | `apps/web/features/booking/api/public.ts` | Unrelated to the rename — independent PR. |
+| **PR 13** ✅ | Story 7 | `apps/web/features/booking/api/public.ts` | Unrelated to the rename — independent PR. **Merged as [#297](https://github.com/lmmoreira/ikaro/pull/297), 2026-07-31.** |
 | **PR 14** ✅ | Story 8 + Story 20 (AddressFields part) | `WeekNav.tsx`, `Footer.tsx`, `TestimonialCard.tsx`, `AddressFields.tsx`, both locale JSON files | Story 20 already calls for folding its i18n item into Story 8's sweep. **Merged as [#296](https://github.com/lmmoreira/ikaro/pull/296), 2026-07-31.** |
 
 ### Already done (not a PR — applied directly as part of this triage)
