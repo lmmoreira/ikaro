@@ -1167,26 +1167,37 @@ Turn staging from placeholder to a working environment. This is a runbook + chec
 
 **Agent:** `test-ts`
 **Complexity:** M
-**Docs to load:** `docs/08-TESTING_STRATEGY.md` § E2E, `apps/web/e2e/helpers/` tree, M115 IA § Dev Login
+**Docs to load:** `docs/08-TESTING_STRATEGY.md` § E2E, `apps/web/e2e/helpers/` tree, M115 IA § Dev Login, `td/TD38-BFF-CLIENT-IP-RESOLUTION-BROKEN-BY-SAME-ORIGIN-GATEWAY.md` § Phase 5
 
 **Description:**
-Absorbs the remainder of old M16-S06. The CI-per-PR E2E infra already exists (AUD-015, `pr-e2e.yml`); the old story’s `E2E_TEST_MODE`/`test-login` design is **superseded by the shipped Dev Login (`ENABLE_DEV_AUTH`, M115-S02)** — do not implement a second bypass.
+Absorbs the remainder of old M16-S06. The CI-per-PR E2E infra already exists (AUD-015, `pr-tests.yml`'s `e2e` job — the standalone `pr-e2e.yml` workflow this description originally cited was consolidated into `pr-tests.yml` at some point and no longer exists; corrected 2026-08-01, TD38 Story C discovery); the old story's `E2E_TEST_MODE`/`test-login` design is **superseded by the shipped Dev Login (`ENABLE_DEV_AUTH`, M115-S02)** — do not implement a second bypass.
+
+**Hard dependency, not just a cross-reference (added 2026-08-01, TD38 Story C discovery):** TD38 locked BFF's staging ingress to VPC-internal-only and removed its public invoker grant (Story A, merged). The 14 `apps/web/e2e/helpers/**` files that call BFF directly (`PLAYWRIGHT_BFF_URL`/`BFF_URL`, bypassing the `/v1` gateway for test-setup speed) can no longer reach a deployed BFF at all — not an auth problem, a network one (GitHub Actions runners aren't in the VPC). This story's own Step 1 below ("verify every spec/helper honors `PLAYWRIGHT_BFF_URL`") can't be satisfied for a staging target until TD38's Phase 5 (Story C, not started, folded into this story) redesigns those helpers to route through the web app's `/v1` gateway instead — see that doc for the two candidate approaches ((a) parameterized API base resolving to `${PLAYWRIGHT_BASE_URL}/v1` for a deployed target, preferred; (b) a local-only-gated direct path).
+
+**Findings from TD38 Story C's story-discovery (2026-08-01) — resolve as part of this story, not rediscovered from scratch:**
+- **The direct-BFF helpers hardcode local-fixture-only data.** `STAFF_TENANT_SLUG = 'lavacar-beloauto'` and `SERVICE_SIMPLES_ID = '00000000-0000-7000-8003-000000000001'` (repeated across several helper files) both come from `apps/backend/src/shared/database/seed.ts`, the docker-compose fixture seeder. Nothing seeds this tenant/service into staging today. A real staging E2E tenant — with matching service/schedule data, or helpers parameterized to accept per-env identifiers instead of hardcoding them — is a hard prerequisite before any helper can run against a deployed target, independent of the gateway-routing fix above.
+- **Staging's Postgres is persistent — data does not get cleaned up between runs**, unlike `pr-tests.yml`'s `e2e` job, which gets a fresh docker-compose container every time. Whatever E2E-against-staging design ships must account for this explicitly:
+  - Existing helper patterns already help: `createAuthenticatedBooking` generates a unique customer email per test and retries across day-offsets to dodge slot conflicts; `approveBookingAsStaff` operates on a specific `bookingId`, never "the first pending booking in a list."
+  - What's missing: no test currently drives its own booking to a terminal state (COMPLETED/CANCELLED/REJECTED) afterward — a leftover PENDING/APPROVED booking will sit in any real "queue"/"pending list" view forever. Any spec selected to run here needs either strict per-test teardown or assertions scoped to that test's own data (by ID/unique content), never by count or list position — needs an explicit audit of whichever specs get selected for step 3's golden paths, not yet done.
+  - The 12-attempt/day-offset retry loop is a bounded, per-test safety valve, not a long-run guarantee — a shared tenant hit repeatedly (weekly cron + manual dispatches) with nothing ever reaching a terminal/filtered-out state will erode a realistic small tenant's schedule headroom over time. A periodic cleanup/reset mechanism (or an explicit decision to accept unbounded row growth) should be decided here, not left implicit.
+- **Open question worth revisiting before building this at all:** every real staging bug TD38 actually found (the `web-internal-key` trailing-newline mismatch, Foundation's IAM apply-ordering failure, the smoke test hitting a since-blocked BFF URL) was a transport/infra wiring defect, not a product/UI bug — none needed a real browser to catch. Before committing to the full golden-path Playwright port described below (with its tenant-provisioning and data-isolation cost), consider whether a much lighter deep-smoke-check job (real HTTP calls through the actual `/v1` gateway, verifying the IAM token + `X-Web-Internal-Key` + a real DB round-trip) would catch the same bug class at a fraction of the complexity — reserving the full browser suite for occasional manual runs instead of a permanent scheduled job. Decide explicitly rather than defaulting to "port everything."
 
 **What to implement:**
-1. Make the E2E suite target a deployed env: `PLAYWRIGHT_BASE_URL` + `PLAYWRIGHT_BFF_URL` already exist in config — verify every spec/helper honors them (no hardcoded localhost; repo rule: helpers in `e2e/helpers/<feature>/`).
-2. Auth journeys use Dev Login against staging (`ENABLE_DEV_AUTH=true` there; S06 guarantees prod refuses it) with the staging demo tenant’s seeded accounts (S27) — no personal emails (repo rule).
-3. Journeys (golden paths only): guest booking on hotsite; customer login + booking + “Próximos agendamentos”; staff approval via CommandCenter; complete + loyalty points visible; hotsite renders per tenant (modules + `--ba-*` branding).
+1. Make the E2E suite target a deployed env: `PLAYWRIGHT_BASE_URL` + `PLAYWRIGHT_BFF_URL` already exist in config — verify every spec/helper honors them (no hardcoded localhost; repo rule: helpers in `e2e/helpers/<feature>/`). **Per the findings above, this also means implementing TD38 Phase 5's gateway-routing redesign and resolving the tenant/data-isolation questions — not just checking existing env-var plumbing.**
+2. Auth journeys use Dev Login against staging (`ENABLE_DEV_AUTH=true` there; S06 guarantees prod refuses it) with the staging demo tenant's seeded accounts (S27) — no personal emails (repo rule). **Confirm whether this reuses S27's general staging demo tenant or needs a dedicated E2E-only tenant (see findings above) before assuming reuse is safe.**
+3. Journeys (golden paths only): guest booking on hotsite; customer login + booking + "Próximos agendamentos"; staff approval via CommandCenter; complete + loyalty points visible; hotsite renders per tenant (modules + `--ba-*` branding).
    - **Cross-reference (TD35):** these browser journeys must use the same-origin `/v1` gateway. A guest-booking or login journey failing with a same-origin 404 on a BFF call detects a gateway regression.
 4. New manual workflow `.github/workflows/e2e-staging.yml` (`workflow_dispatch` + optional weekly cron): runs the suite with staging URLs. Also invoked as an optional post-deploy check from S25 (non-blocking at first; flip to blocking once stable — note in workflow).
 5. Screenshots/traces on failure uploaded as artifacts.
 
 **Acceptance criteria:**
 - [ ] All journeys green against staging from CI (link a passing run)
-- [ ] Same suite still passes locally against the dev stack (`pr-e2e.yml` unaffected)
+- [ ] Same suite still passes locally against the dev stack (`pr-tests.yml`'s `e2e` job unaffected)
 - [ ] No new login helper duplicates; existing `e2e/helpers` extended per repo conventions
 - [ ] Each journey < 60s
+- [ ] Tenant/data-isolation strategy (dedicated E2E tenant vs. shared demo tenant, teardown discipline, cleanup mechanism) explicitly decided and documented, not left implicit
 
-**Dependencies:** M17-S27
+**Dependencies:** M17-S27; TD38 Story C (E2E redesign — not started; this story's own scope now absorbs it, see findings above)
 
 ---
 
