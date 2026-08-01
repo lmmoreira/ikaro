@@ -116,6 +116,7 @@ not yet done) — still `INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER` with BFF reacha
 | Developer → internal backend | From inside the on-demand IAP relay VM (TD32): a correctly-audienced identity token minted by the VM's own attached service account via the GCE metadata server (not `gcloud auth print-identity-token` — the relay VM has no reachable install path for the gcloud CLI, no external IP + no Cloud NAT, redesigned 2026-07-24) + a direct call to the backend's `*.a.run.app` URL — reachable because the relay VM is inside the VPC and Private Google Access classifies its traffic as internal-origin. `gcloud run services proxy` does **not** work for this (confirmed by a real attempt, TD32): it still sends the request over the same public path a browser or `curl` would, so `ingress: internal` blocks it regardless of IAM validity. Used for tenant provisioning (UC-024). |
 | CI → GCP | Workload Identity Federation scoped to `repository == lmmoreira/ikaro` + branch conditions. Zero long-lived keys; org policy blocks SA key creation. |
 | BFF → backend | VPC direct egress (**`ALL_TRAFFIC`** — `*.run.app` resolves to public IPs; private-ranges-only egress would bypass the VPC and internal ingress would reject the call) → internal ingress + Cloud Run IAM ID token (S47) + `InternalApiGuard` (`INTERNAL_API_KEY`, M115-S03). |
+| Web → BFF | VPC direct egress → internal ingress (or IAM-gated LB reachability, per S53's resolved ALB tradeoff) + Cloud Run IAM ID token + app-layer `X-Web-Internal-Key` shared secret (`WebOnlyGuard`, mirrors `InternalApiGuard` exactly) — TD38. BFF's `allUsers` public invoker grant removed; BFF trusts a forwarded `X-Real-Client-Ip` header from `ikaro-web` (the one genuinely trustworthy browser→web hop) instead of guessing from CF-Connecting-IP/XFF. Staging: done, live-verified 2026-08-01. Prod: S53. |
 | Pub/Sub → backend | Push with Google-signed **OIDC token**; backend guard verifies issuer, audience, and the invoker SA email. |
 | Secrets | Secret Manager only. Values **never** in Terraform state, tfvars, git, or CI logs — **no exceptions** (decision revised 2026-07-07: an earlier draft had Terraform generate `db-password`; rejected because `tf-planner` credentials are PR-mintable and read state, so any secret in state is readable from a tampered PR workflow). Terraform creates secret containers + IAM only; all values — including the DB password — are populated via the tightly-scoped activation runbooks (S27/S37). Runtime injection via secret references. |
 | Edge | Cloudflare proxy (DDoS/WAF) in front of ALB; Cloud Armor rule restricting the ALB to Cloudflare IP ranges, enabled at go-live (M17-S36). |
@@ -135,7 +136,7 @@ not yet done) — still `INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER` with BFF reacha
 | 3 | S23–S26 | Pipelines: infra, staging deploy, prod promote | Yes |
 | 4 | S27–S28 | Staging live + E2E against staging | Yes |
 | 5 | S31, S33–S36, S49–S50 | Hardening + observability + DR & governance | Yes |
-| 6 | S37 | Production go-live | Yes |
+| 6 | S53, S37 | Production go-live | Yes |
 | 7 | S38–S46, S51 | Post-launch product: custom domains, edge caching, photo cost/LGPD controls, docs refresh, managed connection pooling, LGPD lifecycle | Yes |
 
 Waves are strictly sequential; stories inside a wave may run in the listed order (some are parallelizable — noted per story). Every story follows the standard workflow: `/story-discovery M17-SXX` → branch → implement → `/pre-pr` → PR.
@@ -1382,11 +1383,50 @@ Closes the “bypass Cloudflare by hitting the LB IP directly” hole. `modules/
 
 ---
 
+### M17-S53 — Production BFF/IAM lockdown (TD38 Story B)
+
+**Agent:** `devops`
+**Complexity:** M
+**Docs to load:** `td/TD38-BFF-CLIENT-IP-RESOLUTION-BROKEN-BY-SAME-ORIGIN-GATEWAY.md`, this file §2, S22 (edge), S37
+
+**Description:**
+TD38 Story A (staging) is merged and verified live: BFF's ingress locked to internal-only, its `allUsers` public invoker grant removed, `ikaro-web` authenticates to BFF with a Cloud Run IAM ID token plus an app-layer `X-Web-Internal-Key` shared secret (mirrors the existing BFF→backend pattern exactly), and BFF trusts a forwarded `X-Real-Client-Ip` header instead of guessing from CF-Connecting-IP/XFF. **None of this is wired for prod yet** — prod's BFF remains `INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER` with its public invoker grant intact (reachable by anyone on the internet via `bff.ikaro.online`, zero IAM-level gate), and `ikaro-web` has no VPC egress at all. This story must land **before** S37 — S37's own go-live checklist does not currently cover any of this, and running it as written today would activate prod with BFF still fully public.
+
+**Resolve first — the ALB-reachability tradeoff (TD38's Open Question #1):** unlike staging (no edge/ALB module at all), prod's BFF sits behind Cloudflare + the global ALB (S22). Moving BFF to `INGRESS_TRAFFIC_INTERNAL_ONLY` (staging's shape) removes its ALB reachability entirely, foreclosing TD35's documented future path-routing migration (`/v1/*` → BFF NEG directly at the edge), which needs BFF reachable via the LB. The alternative — keep `INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER`, rely solely on removing the public invoker grant — achieves the same lockdown (Cloud Run IAM still rejects any unauthenticated call arriving via the LB) without closing off that future path. **Decide and document this choice before writing the Terraform below**, since it determines which ingress value ships.
+
+**Scope:**
+1. **Terraform — mirror staging's Story A changes for prod**, per the decision above:
+   - BFF ingress: either `INGRESS_TRAFFIC_INTERNAL_ONLY` or keep `INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER` (per the resolved question); either way, remove `ikaro-bff` from `workload_cloud_run_public_invokers` in `infra/terraform/foundation/envs/prod/main.tf` (mirrors staging's equivalent change).
+   - `ikaro-web`: add `vpc_egress`/`network_id`/`subnet_id` (mirrors `envs/staging/main.tf`'s `cloudrun_web` block) so it can reach BFF's internal-only ingress over the VPC.
+   - `BFF_UPSTREAM_URL` for prod's web service: point at BFF's internal Cloud Run URI (`module.cloudrun_bff.service_uri` + `/v1`), the same way staging does — **not** the public `bff.ikaro.online` hostname, even if BFF keeps ALB reachability per the decision above. The public hostname stays only for the (IAM-rejected) LB path.
+   - `BFF_AUTH_MODE=iam` on prod's `ikaro-web` Cloud Run env vars (currently unset — `apps/web/shared/lib/api/bff-auth.ts`'s `getBffAuthMode()` already hard-throws on this exact gap whenever `NODE_ENV=production`, so this is not optional once prod serves real traffic).
+   - Confirm `web-internal-key`'s IAM accessor grants (Foundation `runtime-identities`, already unconditional for both envs) and its Secret Manager container/value (already created and populated in prod as an incidental TD38-rollout fix, 2026-08-01) are still correct — no new work here, just verify.
+2. **Apply order:** per `infra/terraform/README.md`'s Foundation-vs-env-root secret-ordering gotcha (found during Story A's staging rollout), confirm prod's env-root apply actually creates/updates whatever this story touches *before* re-running Foundation's prod apply, if Foundation needs a change too.
+3. **Live verification (repeat Story A's staging checks, against prod):**
+   - Direct access to BFF's own `*.run.app`/internal URI from outside the VPC → blocked (ingress-level rejection or Cloud Run IAM 403, not a 200).
+   - A real request through `https://ikaro.online` reaches BFF successfully (IAM token + `X-Web-Internal-Key` both correct) — note prod's actual browser-facing URL is `ikaro.online` (through Cloudflare + ALB), not a raw `*.run.app` URL like staging, so "web's own URL" in these checks means the real domain.
+   - `client-ip-verify` debug log (prod's `LOG_LEVEL` defaults to `INFO` per S37 step 4 — temporarily raise to `DEBUG` for this verification pass only, then revert) shows a real requester IP, not `ikaro-web`'s own egress address.
+
+**Acceptance criteria:**
+- [ ] ALB-reachability question resolved and documented (this file + TD38 doc updated with the decision and why)
+- [ ] BFF's `allUsers` public invoker grant removed in prod
+- [ ] `ikaro-web` has VPC egress in prod, reaches BFF over the internal path with a valid IAM ID token
+- [ ] `BFF_AUTH_MODE=iam` set on prod's `ikaro-web`; app boots and serves without the `getBffAuthMode()` startup error
+- [ ] Direct unauthenticated access to BFF's internal URI fails (network-layer or IAM-layer rejection, not an app-level 401)
+- [ ] A real request through `ikaro.online` shows the requester's actual IP in BFF's `client-ip-verify` log, not `ikaro-web`'s egress address
+- [ ] `td/TD38-BFF-CLIENT-IP-RESOLUTION-BROKEN-BY-SAME-ORIGIN-GATEWAY.md` updated to close out Story B
+
+**Dependencies:** TD38 Story A (done, staging, PR #298); M17-S22 (edge module); must complete before M17-S37
+
+---
+
 ### M17-S37 — Production activation + first tenant
 
 **Agent:** `devops` + `backend-ts`
 **Complexity:** L
-**Docs to load:** this file §1–§2, UC-024, S26, S27
+**Docs to load:** this file §1–§2, UC-024, S26, S27, S53
+
+**Note (2026-08-01, TD38):** this story's checklist below predates TD38 and does not itself cover BFF/IAM lockdown — that's **M17-S53**, a hard dependency added ahead of this story. Do not run this checklist until S53's acceptance criteria are all checked; otherwise prod goes live with BFF still fully public.
 
 **Description:**
 Runbook story mirroring S27 for prod, plus DNS cutover and the first real tenant. Execute in order; check every box.
@@ -1422,7 +1462,7 @@ Runbook story mirroring S27 for prod, plus DNS cutover and the first real tenant
 
 **Acceptance criteria:** checklist fully executed and recorded; prod serving on `ikaro.online` behind Cloudflare; first tenant live; zero critical alerts in the first 24h.
 
-**Dependencies:** all of Waves 2–5 (explicitly including S49's executed restore drill), M17-S26
+**Dependencies:** all of Waves 2–5 (explicitly including S49's executed restore drill), M17-S26, M17-S53
 
 ---
 
