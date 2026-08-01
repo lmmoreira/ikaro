@@ -5,7 +5,6 @@ import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import { AppLogger } from './shared/observability/app-logger';
 import { applySecurityHeaders } from './shared/http/security-headers';
-export { JWT_COOKIE_OPTIONS } from './features/auth/cookie-options';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
