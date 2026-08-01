@@ -87,7 +87,7 @@ Trying to fold bundles, sequential legs, capacity, waitlist, recurring enrollmen
 
 Forcing session-style bookings to use appointment-style's dynamic computation breaks down immediately — there's no stable thing to hang a waitlist or a recurring enrollment off. Forcing appointment-style bookings to pay for materialized sessions is pure waste — a hairdresser's calendar doesn't need a pre-generated row per possible minute. **Two shapes, one shared `Resource` concept underneath.**
 
-**Agenda vs. Turmas — the same fork, surfaced in the console.** The split isn't just a data-modeling concern; it shows up directly in what a staff member or manager sees day to day. `Booking`'s existing approval workflow (PENDING → APPROVED → COMPLETED) needs a queue to work through — that's `Agenda`, unchanged in shape, just resource-scoped now (§8). `SessionBooking` never enters that queue at all: CAND-22 auto-confirms or auto-waitlists purely on capacity, with no human review step — so there is nothing for Agenda to show for the session family. `Turmas` is the equivalent daily-use surface for that family instead: not an approval queue, but a list of upcoming materialized sessions (CAND-13b) and each one's roster (CAND-15). The two nav items aren't redundant or competing for the same job — they're the same appointment/session fork, surfaced as two different screens rather than one screen straining to serve both. A tenant running only session-style services will find Agenda structurally empty; a tenant running only appointment-style services has no use for Turmas. Neither is a bug — it's the direct consequence of keeping the two families apart instead of forcing one queue to model both.
+**Agenda vs. Turmas — the same fork, surfaced in the console.** The split isn't just a data-modeling concern; it shows up directly in what a staff member or manager sees day to day. `Booking`'s existing approval workflow (PENDING → APPROVED → COMPLETED) needs a queue to work through — that's `Agenda`, unchanged in shape, just resource-scoped now (§8). `ClassSessionBooking` never enters that queue at all: CAND-22 auto-confirms or auto-waitlists purely on capacity, with no human review step — so there is nothing for Agenda to show for the session family. `Turmas` is the equivalent daily-use surface for that family instead: not an approval queue, but a list of upcoming materialized sessions (CAND-13b) and each one's roster (CAND-15). The two nav items aren't redundant or competing for the same job — they're the same appointment/session fork, surfaced as two different screens rather than one screen straining to serve both. A tenant running only session-style services will find Agenda structurally empty; a tenant running only appointment-style services has no use for Turmas. Neither is a bug — it's the direct consequence of keeping the two families apart instead of forcing one queue to model both.
 
 ---
 
@@ -112,8 +112,11 @@ ResourceRequirement {
 }
 
 ClassResourceSlot {
-  slotIndex:            int
-  type:                 ResourceType             -- LOCATION | STAFF | ROOM | EQUIPMENT
+  type:                 ResourceType             -- LOCATION | STAFF | ROOM | EQUIPMENT — also the key;
+                                                   -- no slotIndex (removed 2026-08-05, see
+                                                   -- MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md §6 item 17) —
+                                                   -- no worked example ever needs two slots of the same type
+                                                   -- on one service
   eligibleResourceIds:  ResourceId[]              -- the pool. No selectionMode — nothing here resolves per
                                                    -- booking. Declared once per Service, shared by every
                                                    -- ClassScheduleTemplate of it (§6) — each template picks
@@ -187,11 +190,11 @@ Four new aggregates, all in the Booking Context:
 ClassScheduleTemplate {
   templateId, tenantId, serviceId
   resourceIds:  ResourceId[]        -- the bundle this class always uses, e.g. [instructorResource, roomResource].
-                                    -- Each entry is one manual pick from that slot's Service.classResourceSlots[i]
-                                    -- pool — corrected 2026-08-05, was originally going to need its own
-                                    -- per-template pool until that turned out to have no CAND populating it and
-                                    -- to force re-curating the same list separately per template of one service
-                                    -- (MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md §6 item 15).
+                                    -- Each entry is one manual pick from the matching-type entry in
+                                    -- Service.classResourceSlots' pool — corrected 2026-08-05, was originally
+                                    -- going to need its own per-template pool until that turned out to have no
+                                    -- CAND populating it and to force re-curating the same list separately per
+                                    -- template of one service (MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md §6 item 15).
   recurrence:   RecurrenceRule      -- e.g. weekly on [MON, WED, FRI] at 08:00
   capacity:     int
   validFrom / validUntil: Date | null
@@ -208,13 +211,13 @@ ClassSession {                       -- materialized occurrence
   status:       SCHEDULED | CANCELLED
 }
 
-SessionBooking {                     -- the session-style equivalent of Booking
-  sessionBookingId, tenantId, sessionId
+ClassSessionBooking {                     -- the session-style equivalent of Booking
+  classClassSessionBookingId, tenantId, sessionId
   type:            GUEST | CUSTOMER  -- same BookingType enum as Booking
   customerId:      CustomerId | null -- null if guest
   contactEmail / contactName / contactPhone   -- mirrors Booking's contact fields exactly — corrected
                                                -- 2026-08-05, was the vague "customerId | guest-contact-fields"
-                                               -- placeholder; needed so SessionBookingCompleted's
+                                               -- placeholder; needed so ClassSessionBookingCompleted's
                                                -- notification stays self-contained (bounded-contexts Rule 4)
   quantity:     int                 -- default 1; multi-unit (model 12)
   status:       CONFIRMED | WAITLISTED | CANCELLED | COMPLETED | NO_SHOW
@@ -222,7 +225,7 @@ SessionBooking {                     -- the session-style equivalent of Booking
 
   -- Snapshots, frozen at booking-request time. Same principle as BookingLine (§1) — a
   -- later Service edit must never retroactively change a past booking, and
-  -- SessionBookingCompleted needs a points value to hand Loyalty. Added 2026-08-05 —
+  -- ClassSessionBookingCompleted needs a points value to hand Loyalty. Added 2026-08-05 —
   -- the original model had none of these at all (MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md
   -- §6 item 1).
   serviceNameAtBooking:  String
@@ -259,15 +262,15 @@ Same `serviceId`, same recurrence, two independent `templateId`s — each genera
 
 **Capacity** lives on `ClassSession`, seeded from the template but instance-overridable — this is what makes model 13 (capacity as Service × Resource, not Resource alone) work: a personal trainer `Resource` can host a 1:1 `ClassSession` (capacity 1) and a group `ClassSession` (capacity 20) on the same underlying resource, because capacity is a property of the session/template, never the resource itself.
 
-**Waitlist**: once `bookedCount = capacity`, new `SessionBooking`s get `status = WAITLISTED`. Queue position is FIFO by `createdAt`, derived at read time rather than stored and shifted on every promotion/cancellation — corrected 2026-08-05; a persisted `waitlistPosition` column was more bookkeeping than the requirement needs (`MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §6 item 8). On a `CONFIRMED` booking's cancellation, the earliest-queued `WAITLISTED` booking promotes automatically. If a `WAITLISTED` booking is never promoted before its `ClassSession.endTime` passes, it's moot — a purely mechanical, no-judgment cleanup (`CAND-25b`) auto-cancels it, the same way `CAND-13`'s generator runs on a schedule with no human in the loop.
+**Waitlist**: once `bookedCount = capacity`, new `ClassSessionBooking`s get `status = WAITLISTED`. Queue position is FIFO by `createdAt`, derived at read time rather than stored and shifted on every promotion/cancellation — corrected 2026-08-05; a persisted `waitlistPosition` column was more bookkeeping than the requirement needs (`MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §6 item 8). On a `CONFIRMED` booking's cancellation, the earliest-queued `WAITLISTED` booking promotes automatically. If a `WAITLISTED` booking is never promoted before its `ClassSession.endTime` passes, it's moot — a purely mechanical, no-judgment cleanup (`CAND-25b`) auto-cancels it, the same way `CAND-13`'s generator runs on a schedule with no human in the loop.
 
-**Attendance, completion, and no-show — deliberately staff-triggered, not a job.** `SessionBooking` needs a terminal state for "this actually happened," the same way `Booking` reaches `COMPLETED` (`UC-009`) — but unlike `UC-009`'s one-booking-at-a-time "Mark Complete" click, a session can have up to `capacity` attendees, so requiring N individual clicks doesn't scale. Instead: the roster pre-marks every `CONFIRMED` booking as attended by default: staff flags only the exceptions (no-shows), then closes the session out in one batch action (`CAND-15b`) — everything still `CONFIRMED` becomes `COMPLETED`, flagged ones become `NO_SHOW`. This mirrors `UC-009`'s staff-driven pattern (not a scheduled job — attendance needs a human to observe it, unlike the mechanical waitlist cleanup above) while fitting the N-attendee shape session capacity actually has. `COMPLETED` publishes a candidate `SessionBookingCompleted` event, mirroring `BookingCompleted`'s consumers (Loyalty inserts a `LoyaltyEntry` when `customerId != null`; Notification sends a "thanks for coming" message regardless — `docs/05-BOUNDED_CONTEXTS.md`).
+**Attendance, completion, and no-show — deliberately staff-triggered, not a job.** `ClassSessionBooking` needs a terminal state for "this actually happened," the same way `Booking` reaches `COMPLETED` (`UC-009`) — but unlike `UC-009`'s one-booking-at-a-time "Mark Complete" click, a session can have up to `capacity` attendees, so requiring N individual clicks doesn't scale. Instead: the roster pre-marks every `CONFIRMED` booking as attended by default: staff flags only the exceptions (no-shows), then closes the session out in one batch action (`CAND-15b`) — everything still `CONFIRMED` becomes `COMPLETED`, flagged ones become `NO_SHOW`. This mirrors `UC-009`'s staff-driven pattern (not a scheduled job — attendance needs a human to observe it, unlike the mechanical waitlist cleanup above) while fitting the N-attendee shape session capacity actually has. `COMPLETED` publishes a candidate `ClassSessionBookingCompleted` event, mirroring `BookingCompleted`'s consumers (Loyalty inserts a `LoyaltyEntry` when `customerId != null`; Notification sends a "thanks for coming" message regardless — `docs/05-BOUNDED_CONTEXTS.md`).
 
-**Scope note — this puts `SessionBooking` ahead of `Booking` on no-show tracking.** `UC-009` alt A1 explicitly marks `NO_SHOW` for `Booking` as *"future state, not in MVP"* — today's real system has no no-show tracking for either family. Deliberately building it for `SessionBooking` here anyway: a no-show against a capacity-constrained class with an active waitlist wastes a spot a waitlisted customer could have used, and attendance/no-show is itself a real operating metric for a studio/gym business — the cost-benefit is different from a private 1:1 appointment's no-show, and this is a knowing scope choice, not an oversight.
+**Scope note — this puts `ClassSessionBooking` ahead of `Booking` on no-show tracking.** `UC-009` alt A1 explicitly marks `NO_SHOW` for `Booking` as *"future state, not in MVP"* — today's real system has no no-show tracking for either family. Deliberately building it for `ClassSessionBooking` here anyway: a no-show against a capacity-constrained class with an active waitlist wastes a spot a waitlisted customer could have used, and attendance/no-show is itself a real operating metric for a studio/gym business — the cost-benefit is different from a private 1:1 appointment's no-show, and this is a knowing scope choice, not an oversight.
 
-**Recurring enrollment**: a process attaches a `SessionBooking` to each upcoming `ClassSession` matching the enrollment's template, respecting capacity (or waitlisting) fresh each time — an enrollment is a *standing intent*, not a guarantee.
+**Recurring enrollment**: a process attaches a `ClassSessionBooking` to each upcoming `ClassSession` matching the enrollment's template, respecting capacity (or waitlisting) fresh each time — an enrollment is a *standing intent*, not a guarantee.
 
-**Multi-unit quantity**: `SessionBooking.quantity` consumes N of the session's remaining capacity in one action, rather than requiring N separate bookings.
+**Multi-unit quantity**: `ClassSessionBooking.quantity` consumes N of the session's remaining capacity in one action, rather than requiring N separate bookings.
 
 ---
 
@@ -293,12 +296,12 @@ Effective gap before the next booking on a resource, for a flat (non-legged) ser
 
 | Aggregate | Change |
 |---|---|
-| `Service` | + `bookingModel`, `resourceRequirements[]`, `legs[] \| null`, `bufferAfterMinutes \| null`. Everything else unchanged. |
+| `Service` | + `bookingModel`, `resourceRequirements[]`, `legs[] \| null`, `bufferAfterMinutes \| null`, `classResourceSlots[] \| null` (SESSION-model eligibility pool, §6). Everything else unchanged. |
 | `BookingLine` | + `resourceAssignments` / `legAssignments` snapshot (which concrete resource(s) got locked), same "freeze at booking time" pattern as existing price/duration snapshots. |
 | `Booking` | Appointment-style only. State machine, approval workflow, cancellation-window rule: **unchanged**. Only the effective calendar-blocked window changes from "the whole tenant" to "this resource(s), this window." |
 | `ScheduleClosure` / `ScheduleOpening` | + nullable `resourceId`. `null` = tenant-wide (today's behavior, default). Three-Layer Resolution gains a resource-level check under the tenant-level one. |
 | `Staff` | **Unchanged.** Stays pure identity/permissions; scheduling data lives on the `Resource` row that references it. |
-| `IBookingAvailabilityPort` | Gains a `resourceId` filter alongside `tenantId`/`date`. |
+| `IBookingAvailabilityPort` | Its real adapter moves from querying `bookings` directly to querying `resource_occupancy` — not just an added `resourceId` filter on the same query. `bookings`/`booking_lines` remain the source of truth for the booking itself (status, contact, price); `resource_occupancy` is the per-resource, per-window projection availability needs, since one booking's `scheduledAt`/`totalDurationMins` can no longer answer "is resource X free" once a booking can span a bundle or leg chain with different sub-windows per resource. `BookedSlot` changes shape accordingly, from `{ scheduledAt, totalDurationMins }` to `{ resourceId, startsAt, endsAt }`. See `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §5. |
 
 ### New (all in Booking Context)
 
@@ -307,15 +310,15 @@ Effective gap before the next booking on a resource, for a flat (non-legged) ser
 | `Resource` | Generic bookable unit — `LOCATION`, `STAFF` (wraps `staffId`), `ROOM`, `EQUIPMENT` (owned outright). |
 | `ClassScheduleTemplate` | Session-style recurring pattern: service, resource bundle, recurrence, capacity. |
 | `ClassSession` | Materialized occurrence, generated on a rolling horizon; capacity/resources overridable per-instance. |
-| `SessionBooking` | Session-style equivalent of `Booking`. `quantity` for multi-unit; `CONFIRMED\|WAITLISTED\|CANCELLED`. |
-| `RecurringEnrollment` | Standing link between a customer and a template; generates a `SessionBooking` per upcoming matching session. |
+| `ClassSessionBooking` | Session-style equivalent of `Booking`. `quantity` for multi-unit; `CONFIRMED\|WAITLISTED\|CANCELLED\|COMPLETED\|NO_SHOW`. |
+| `RecurringEnrollment` | Standing link between a customer and a template; generates a `ClassSessionBooking` per upcoming matching session. |
 
 ---
 
 ## 9. Open Questions / Risks
 
 1. **`LOCATION` resource backfill** — give every existing tenant an explicit `Resource` row at migration time (uniform model), or keep `resourceId = null` as a permanent legacy sentinel? Backfilling is consistent with the "no workarounds" principle but is a real migration decision, not a default to assume.
-2. **Does a `SessionBooking` ever need admin approval**, or is it always auto-confirm/waitlist with no human in the loop? Changes the state machine shape (today's appointment `Booking` has PENDING/APPROVED/INFO_REQUESTED; a class booking plausibly doesn't need any of that).
+2. **Does a `ClassSessionBooking` ever need admin approval**, or is it always auto-confirm/waitlist with no human in the loop? Changes the state machine shape (today's appointment `Booking` has PENDING/APPROVED/INFO_REQUESTED; a class booking plausibly doesn't need any of that).
 3. **Rolling-horizon window size** for `ClassSession` generation — how far ahead does the generator materialize sessions from an active template? **Resolved to a pure UX/cost tradeoff, not a correctness one (2026-08-04):** cross-family resource conflicts (§6) are caught by evaluating a template's recurrence rule directly, not by requiring a `ClassSession` row to exist — so this window no longer needs to match `maxBookingAdvanceDays` or any other correctness-driven size. What's still open is purely: too short risks customers unable to book far enough ahead; too long generates rows nobody will ever fill.
 4. **Lowering a `ClassSession`'s capacity below its current `bookedCount`** (an instance override) — what happens to the customers now over capacity? No clean answer without a business decision (bump to waitlist? grandfather them in?).
 5. **Cancelling a `ClassSession` that already has bookings** — refund policy, notification, whether affected customers get auto-offered another session. Same shape of question as #4 but triggered by the manager cancelling the whole session rather than shrinking it.
@@ -325,7 +328,7 @@ Effective gap before the next booking on a resource, for a flat (non-legged) ser
 9. **CAND-04's actor scoping.** Group A (Resource Management) is uniformly MANAGER-only, but blocking a `STAFF` resource's *own* calendar (a stylist marking herself unavailable) reads as a natural self-service action — unlike blocking a `ROOM`/`EQUIPMENT` resource, which has no self and stays administrative regardless. Not resolved; CAND-04 still says MANAGER-only.
 10. **CAND-17b's tie-breaking rule.** When a service auto-assigns a named staff member (`AUTO_ANY`) and more than one eligible staff member is free for the chosen slot, who gets picked — least-recently-booked, round robin, something else? Not decided.
 11. **Does deactivating a `Staff` row (UC-029, Staff Context) cascade to a wrapping `STAFF`-type `Resource` (CAND-03, Booking Context)?** Two independent deactivation entry points exist — one per context — with nothing wiring them together. `StaffDeactivated` currently has zero consumers in the real system; this would be its first. Surfaced while building `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §6 item 4. Not resolved.
-12. **Do `ClassSession`/`SessionBooking` become full event-emitting aggregates, or stay plain entities published from the use case?** `SessionBookingConfirmed`/`Waitlisted`/`Completed`, `WaitlistPromoted`, and `ClassSessionCancelled` are each triggered by a specific use-case call transitioning state — the same shape as `Booking`'s existing 3-aggregate transactional-outbox pattern (TD24-S02), which would mean `ClassSession`/`SessionBooking` joining that fixed list and getting their own outbox-draining repositories. Surfaced while building `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §6 item 11. Not resolved — a real architectural commitment, not a detail.
+12. **Do `ClassSession`/`ClassSessionBooking` become full event-emitting aggregates, or stay plain entities published from the use case?** `ClassSessionBookingConfirmed`/`Waitlisted`/`Completed`, `WaitlistPromoted`, and `ClassSessionCancelled` are each triggered by a specific use-case call transitioning state — the same shape as `Booking`'s existing 3-aggregate transactional-outbox pattern (TD24-S02), which would mean `ClassSession`/`ClassSessionBooking` joining that fixed list and getting their own outbox-draining repositories. Surfaced while building `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §6 item 11. Not resolved — a real architectural commitment, not a detail.
 
 ---
 

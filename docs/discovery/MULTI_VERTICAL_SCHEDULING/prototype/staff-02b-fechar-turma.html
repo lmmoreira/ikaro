@@ -39,7 +39,7 @@
 
     COMPONENT (GAP): ClassSessionCloseOut
     BFF CALL (GAP): POST /class-sessions/{sessionId}/close
-      body: { noShowBookingIds: SessionBookingId[] }
+      body: { noShowBookingIds: ClassSessionBookingId[] }
       effect: every other CONFIRMED booking on the session -> COMPLETED,
               noShowBookingIds -> NO_SHOW
   -->
@@ -147,7 +147,7 @@
           </div>
         </div>
 
-        <button class="btn-primary" style="width:100%;padding:0.875rem;" onclick="alert('Presença fechada: 2 concluídos, 1 não compareceu (SessionBookingCompleted x2)')">
+        <button class="btn-primary" style="width:100%;padding:0.875rem;" onclick="alert('Presença fechada: 2 concluídos, 1 não compareceu (ClassSessionBookingCompleted x2)')">
           Fechar turma
         </button>
         <p style="font-size:0.75rem;opacity:0.5;margin-top:0.5rem;">

@@ -31,8 +31,6 @@
     .form-actions .btn-secondary { flex: 0 0 auto; padding: 0.875rem 1.25rem; }
     .leg-card { border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); padding: 1rem; margin-bottom: 0.75rem; }
     .leg-order-badge { display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: #2563eb; color: white; font-size: 0.75rem; font-weight: 700; }
-    .leg-resource-tag { padding: 0.5rem 0.75rem; border: 1px solid var(--ba-secondary); border-radius: var(--ba-radius); font-size: 0.8125rem; color: var(--ba-text); margin-bottom: 0.375rem; }
-    .leg-resource-tag:last-child { margin-bottom: 0; }
   </style>
 </head>
 <body>
@@ -102,11 +100,24 @@
     checklist above just without a selection-mode. See
     MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md §6 item 15 for the full correction.
 
+    Fixed on review (2026-08-05): every eligibility checklist on this screen was
+    checked against the actual full resource list in manager-01-resources-list.html --
+    and every single one was missing real resources, always the ones added to the
+    tenant AFTER that checklist was first written (Estúdio 2, Sala de Ioga, Juliana
+    Prado; the Massagem/Jornada Profissional lists were also missing Ana Beatriz).
+    An incomplete checklist is indistinguishable from a correct one unless it's
+    always the full set, checked or disabled-with-a-reason -- silently omitting a
+    resource looks identical to deliberately excluding it. All checklists now list
+    every STAFF (8) or ROOM (7) resource in the tenant; the 3 previously-plain-text
+    single-room leg tags were also converted to full checklists for the same reason
+    (a "single eligible" claim is only trustworthy if the other 6 were shown and
+    ruled out, not just omitted).
+
     COMPONENT (GAP): ServiceResourceConfigSection, appended to ServiceForm
     BFF CALL (GAP): PATCH /services/{id}
       body: { bookingModel, resourceRequirements: [{ type, selectionMode }], bufferAfterMinutes }
       body (legs mode): { bookingModel, legs: [{ name, durationMinutes, resourceRequirements: [{type, selectionMode}], transitionGapAfterMinutes }] }
-      body (session mode): { bookingModel, classResourceSlots: [{ slotIndex, type, eligibleResourceIds }] }
+      body (session mode): { bookingModel, classResourceSlots: [{ type, eligibleResourceIds }] }
   -->
 
   <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
@@ -257,22 +268,27 @@
               <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
                 <input type="checkbox" checked disabled style="margin-top:0.1875rem;">
                 <div style="flex:1;">
-                  <div class="radio-row-title">Instrutor (slot 0)</div>
+                  <div class="radio-row-title">Instrutor</div>
                   <div class="radio-row-sub">Compartilhado por todas as turmas deste serviço</div>
                 </div>
               </label>
               <div class="nested-selmode">
                 <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quem é elegível?</label>
+                <label><input type="checkbox" disabled> Juliana Prado <span style="opacity:0.5;">— ainda sem serviço vinculado, não elegível</span></label>
                 <label><input type="checkbox" checked disabled> Camila Duarte</label>
                 <label><input type="checkbox" checked disabled> Ana Beatriz</label>
-                <label><input type="checkbox" disabled> Bruno Alves <span style="opacity:0.5;">— instrutor de CrossFit, não elegível</span></label>
+                <label><input type="checkbox" disabled> Bruno Alves <span style="opacity:0.5;">— cabeleireiro e instrutor de CrossFit, não elegível</span></label>
+                <label><input type="checkbox" disabled> Renata Souza <span style="opacity:0.5;">— terapeuta de massagem, não elegível</span></label>
+                <label><input type="checkbox" disabled> Maria Santos <span style="opacity:0.5;">— terapeuta de massagem, não elegível</span></label>
+                <label><input type="checkbox" disabled> João Mendes <span style="opacity:0.5;">— instrutor de CrossFit, não elegível</span></label>
+                <label><input type="checkbox" disabled> Fábio Ramos <span style="opacity:0.5;">— instrutor de CrossFit, não elegível</span></label>
               </div>
             </div>
             <div class="resource-check-row checked">
               <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
                 <input type="checkbox" checked disabled style="margin-top:0.1875rem;">
                 <div style="flex:1;">
-                  <div class="radio-row-title">Sala (slot 1)</div>
+                  <div class="radio-row-title">Sala</div>
                   <div class="radio-row-sub">Compartilhado por todas as turmas deste serviço</div>
                 </div>
               </label>
@@ -280,7 +296,11 @@
                 <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quais salas são elegíveis?</label>
                 <label><input type="checkbox" checked disabled> Estúdio 1</label>
                 <label><input type="checkbox" checked disabled> Estúdio 2</label>
-                <label><input type="checkbox" disabled> Área CrossFit <span style="opacity:0.5;">— não elegível</span></label>
+                <label><input type="checkbox" disabled> Sala de Terapia <span style="opacity:0.5;">— equipada para massagem, sem espaço para aula em grupo, não elegível</span></label>
+                <label><input type="checkbox" disabled> Sala de Sauna <span style="opacity:0.5;">— equipada para banho de vapor, sem mesa de massagem, lounge, ou espaço para aula em grupo, não elegível</span></label>
+                <label><input type="checkbox" disabled> Sala de Relaxamento <span style="opacity:0.5;">— lounge de relaxamento, sem mesa de massagem, estrutura de sauna, ou espaço para aula em grupo, não elegível</span></label>
+                <label><input type="checkbox" disabled> Área CrossFit <span style="opacity:0.5;">— espaço aberto de treino funcional, sem estrutura para tratamentos de spa ou aula de Pilates, não elegível</span></label>
+                <label><input type="checkbox" disabled> Sala de Ioga <span style="opacity:0.5;">— ainda sem serviço vinculado, não elegível</span></label>
               </div>
             </div>
             <p class="form-hint">
@@ -337,7 +357,9 @@
             -->
             <div class="nested-selmode">
               <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quem é elegível?</label>
+              <label><input type="checkbox" disabled> Juliana Prado <span style="opacity:0.5;">— ainda sem serviço vinculado, não elegível</span></label>
               <label><input type="checkbox" disabled> Camila Duarte <span style="opacity:0.5;">— cabeleireira, não elegível</span></label>
+              <label><input type="checkbox" disabled> Ana Beatriz <span style="opacity:0.5;">— instrutora de Pilates, não elegível</span></label>
               <label><input type="checkbox" disabled> Bruno Alves <span style="opacity:0.5;">— cabeleireiro, não elegível</span></label>
               <label><input type="checkbox" checked> Renata Souza</label>
               <label><input type="checkbox" checked> Maria Santos</label>
@@ -363,11 +385,13 @@
             <!-- Same fix — "massagem só pode acontecer na Sala 1 e 2" is exactly this list -->
             <div class="nested-selmode">
               <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quais salas são elegíveis?</label>
-              <label><input type="checkbox" disabled> Estúdio 1 <span style="opacity:0.5;">— usada por Pilates, não elegível</span></label>
-              <label><input type="checkbox" disabled> Área CrossFit <span style="opacity:0.5;">— não elegível</span></label>
+              <label><input type="checkbox" disabled> Estúdio 1 <span style="opacity:0.5;">— salão aberto de Pilates, sem privacidade/estrutura para massagem ou sauna, não elegível</span></label>
+              <label><input type="checkbox" disabled> Estúdio 2 <span style="opacity:0.5;">— salão aberto de Pilates, sem privacidade/estrutura para massagem ou sauna, não elegível</span></label>
               <label><input type="checkbox" checked> Sala de Terapia</label>
-              <label><input type="checkbox" disabled> Sala de Sauna <span style="opacity:0.5;">— não elegível</span></label>
+              <label><input type="checkbox" disabled> Sala de Sauna <span style="opacity:0.5;">— equipada para banho de vapor, sem mesa de massagem, lounge, ou espaço para aula em grupo, não elegível</span></label>
               <label><input type="checkbox" checked> Sala de Relaxamento</label>
+              <label><input type="checkbox" disabled> Área CrossFit <span style="opacity:0.5;">— espaço aberto de treino funcional, sem estrutura para tratamentos de spa ou aula de Pilates, não elegível</span></label>
+              <label><input type="checkbox" disabled> Sala de Ioga <span style="opacity:0.5;">— ainda sem serviço vinculado, não elegível</span></label>
             </div>
             <div class="nested-selmode" style="margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
               <label><input type="radio" name="selmode-room" checked> Sistema atribui automaticamente entre as duas elegíveis (CAND-17)</label>
@@ -392,8 +416,8 @@
             <div class="nested-selmode">
               <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quais equipamentos são elegíveis?</label>
               <label><input type="checkbox" checked> Kit de Pedras Quentes</label>
-              <label><input type="checkbox" disabled> Kit Halteres (Rack 1) <span style="opacity:0.5;">— usado por CrossFit, não elegível</span></label>
-              <label><input type="checkbox" disabled> Kit Halteres (Rack 2) <span style="opacity:0.5;">— usado por CrossFit, não elegível</span></label>
+              <label><input type="checkbox" disabled> Kit Halteres (Rack 1) <span style="opacity:0.5;">— equipamento de musculação, não utilizado em massagens</span></label>
+              <label><input type="checkbox" disabled> Kit Halteres (Rack 2) <span style="opacity:0.5;">— equipamento de musculação, não utilizado em massagens</span></label>
             </div>
             <div class="nested-selmode" style="margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
               <label><input type="radio" name="selmode-equip" checked> Sistema atribui automaticamente (única elegível)</label>
@@ -458,7 +482,23 @@
               </div>
             </div>
             <label class="form-label">Recurso(s) necessário(s)</label>
-            <div class="leg-resource-tag">Sala — sistema atribui automaticamente (única elegível: Sala de Sauna)</div>
+            <div class="resource-check-row checked">
+              <div class="radio-row-title">Sala</div>
+              <div class="nested-selmode" style="margin:0.5rem 0 0.125rem 0;padding-top:0;border-top:none;">
+                <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quais salas são elegíveis?</label>
+                <label><input type="checkbox" disabled> Estúdio 1 <span style="opacity:0.5;">— salão aberto de Pilates, sem privacidade/estrutura para massagem ou sauna, não elegível</span></label>
+                <label><input type="checkbox" disabled> Estúdio 2 <span style="opacity:0.5;">— salão aberto de Pilates, sem privacidade/estrutura para massagem ou sauna, não elegível</span></label>
+                <label><input type="checkbox" disabled> Sala de Terapia <span style="opacity:0.5;">— equipada para massagem, sem estrutura de sauna, lounge, ou espaço para aula em grupo, não elegível</span></label>
+                <label><input type="checkbox" checked> Sala de Sauna</label>
+                <label><input type="checkbox" disabled> Sala de Relaxamento <span style="opacity:0.5;">— lounge de relaxamento, sem mesa de massagem, estrutura de sauna, ou espaço para aula em grupo, não elegível</span></label>
+                <label><input type="checkbox" disabled> Área CrossFit <span style="opacity:0.5;">— espaço aberto de treino funcional, sem estrutura para tratamentos de spa ou aula de Pilates, não elegível</span></label>
+                <label><input type="checkbox" disabled> Sala de Ioga <span style="opacity:0.5;">— ainda sem serviço vinculado, não elegível</span></label>
+              </div>
+              <div class="nested-selmode" style="margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
+                <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Como é escolhido dentro do grupo elegível?</label>
+                <label><input type="radio" name="selmode-leg0-room" checked> Sistema atribui automaticamente (única elegível)</label>
+              </div>
+            </div>
           </div>
 
           <!-- This leg needs TWO resources at once, not one — the same two
@@ -488,23 +528,31 @@
             <label class="form-label">Recurso(s) necessário(s) — esta etapa precisa de dois ao mesmo tempo</label>
 
             <!--
-              Fixed on review (2026-08-05): this Profissional requirement's pool was
-              just a text tag ("cliente escolhe entre Renata Souza e Maria Santos") --
-              it narrated the outcome without ever showing the actual eligible-pool
-              checklist, unlike the flat bundle case above and unlike the SESSION
-              checklist elsewhere on this page. Real pool, real choice (2 people),
-              so it gets the real checklist treatment. Sala below stays a plain tag --
-              a single-member pool has nothing to check/uncheck, same precedent as
-              manager-06b's "única elegível ... sem escolha aqui." Same 2 real people
-              as Massagem Relaxante's own Profissional pool above -- coincidentally
-              identical values, but this is Jornada Spa's own separate
-              service_leg_resource_requirement_pool row, not a shared reference.
+              Fixed on review (2026-08-05), then completed same day: every leg's pool
+              here was originally just a text tag narrating an outcome ("cliente
+              escolhe entre Renata Souza e Maria Santos" / "única elegível: Sala de
+              X") instead of showing the actual eligible-pool checklist, unlike the
+              flat bundle case above and the SESSION checklist elsewhere on this page.
+              First fix only converted Profissional (a real 2-person choice) and left
+              the single-member Sala tags as plain text, on the theory that a pool of
+              one has nothing to check/uncheck -- but asked directly, that missed the
+              point: without seeing the FULL room list with the other 6 explicitly
+              ruled out, there's no way to tell "considered and excluded" from "never
+              checked at all" (the exact bug just found and fixed on the checklists
+              above -- Estúdio 2 and Sala de Ioga silently missing from lists that
+              predated them). All three Sala tags are now full 7-room checklists too.
+              Profissional's pool: same 2 real people as Massagem Relaxante's own pool
+              above -- coincidentally identical values, but this is Jornada Spa's own
+              separate service_leg_resource_requirement_pool row, not a shared
+              reference.
             -->
             <div class="resource-check-row checked" style="margin-bottom:0.625rem;">
               <div class="radio-row-title">Profissional</div>
               <div class="nested-selmode" style="margin:0.5rem 0 0.125rem 0;padding-top:0;border-top:none;">
                 <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quem é elegível?</label>
+                <label><input type="checkbox" disabled> Juliana Prado <span style="opacity:0.5;">— ainda sem serviço vinculado, não elegível</span></label>
                 <label><input type="checkbox" disabled> Camila Duarte <span style="opacity:0.5;">— cabeleireira, não elegível</span></label>
+                <label><input type="checkbox" disabled> Ana Beatriz <span style="opacity:0.5;">— instrutora de Pilates, não elegível</span></label>
                 <label><input type="checkbox" disabled> Bruno Alves <span style="opacity:0.5;">— cabeleireiro, não elegível</span></label>
                 <label><input type="checkbox" checked> Renata Souza</label>
                 <label><input type="checkbox" checked> Maria Santos</label>
@@ -518,7 +566,23 @@
               </div>
             </div>
 
-            <div class="leg-resource-tag">Sala — sistema atribui automaticamente (única elegível: Sala de Terapia)</div>
+            <div class="resource-check-row checked">
+              <div class="radio-row-title">Sala</div>
+              <div class="nested-selmode" style="margin:0.5rem 0 0.125rem 0;padding-top:0;border-top:none;">
+                <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quais salas são elegíveis?</label>
+                <label><input type="checkbox" disabled> Estúdio 1 <span style="opacity:0.5;">— salão aberto de Pilates, sem privacidade/estrutura para massagem ou sauna, não elegível</span></label>
+                <label><input type="checkbox" disabled> Estúdio 2 <span style="opacity:0.5;">— salão aberto de Pilates, sem privacidade/estrutura para massagem ou sauna, não elegível</span></label>
+                <label><input type="checkbox" checked> Sala de Terapia</label>
+                <label><input type="checkbox" disabled> Sala de Sauna <span style="opacity:0.5;">— equipada para banho de vapor, sem mesa de massagem, lounge, ou espaço para aula em grupo, não elegível</span></label>
+                <label><input type="checkbox" disabled> Sala de Relaxamento <span style="opacity:0.5;">— lounge de relaxamento, sem mesa de massagem, estrutura de sauna, ou espaço para aula em grupo, não elegível</span></label>
+                <label><input type="checkbox" disabled> Área CrossFit <span style="opacity:0.5;">— espaço aberto de treino funcional, sem estrutura para tratamentos de spa ou aula de Pilates, não elegível</span></label>
+                <label><input type="checkbox" disabled> Sala de Ioga <span style="opacity:0.5;">— ainda sem serviço vinculado, não elegível</span></label>
+              </div>
+              <div class="nested-selmode" style="margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
+                <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Como é escolhido dentro do grupo elegível?</label>
+                <label><input type="radio" name="selmode-leg1-room" checked> Sistema atribui automaticamente (única elegível)</label>
+              </div>
+            </div>
           </div>
 
           <div class="leg-card">
@@ -541,7 +605,23 @@
               </div>
             </div>
             <label class="form-label">Recurso(s) necessário(s)</label>
-            <div class="leg-resource-tag">Sala — sistema atribui automaticamente (única elegível: Sala de Relaxamento)</div>
+            <div class="resource-check-row checked">
+              <div class="radio-row-title">Sala</div>
+              <div class="nested-selmode" style="margin:0.5rem 0 0.125rem 0;padding-top:0;border-top:none;">
+                <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quais salas são elegíveis?</label>
+                <label><input type="checkbox" disabled> Estúdio 1 <span style="opacity:0.5;">— salão aberto de Pilates, sem privacidade/estrutura para massagem ou sauna, não elegível</span></label>
+                <label><input type="checkbox" disabled> Estúdio 2 <span style="opacity:0.5;">— salão aberto de Pilates, sem privacidade/estrutura para massagem ou sauna, não elegível</span></label>
+                <label><input type="checkbox" disabled> Sala de Terapia <span style="opacity:0.5;">— equipada para massagem, sem estrutura de sauna, lounge, ou espaço para aula em grupo, não elegível</span></label>
+                <label><input type="checkbox" disabled> Sala de Sauna <span style="opacity:0.5;">— equipada para banho de vapor, sem mesa de massagem, lounge, ou espaço para aula em grupo, não elegível</span></label>
+                <label><input type="checkbox" checked> Sala de Relaxamento</label>
+                <label><input type="checkbox" disabled> Área CrossFit <span style="opacity:0.5;">— espaço aberto de treino funcional, sem estrutura para tratamentos de spa ou aula de Pilates, não elegível</span></label>
+                <label><input type="checkbox" disabled> Sala de Ioga <span style="opacity:0.5;">— ainda sem serviço vinculado, não elegível</span></label>
+              </div>
+              <div class="nested-selmode" style="margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
+                <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Como é escolhido dentro do grupo elegível?</label>
+                <label><input type="radio" name="selmode-leg2-room" checked> Sistema atribui automaticamente (única elegível)</label>
+              </div>
+            </div>
           </div>
 
           <button type="button" class="btn-secondary" style="width:100%;margin-bottom:0.5rem;">+ Adicionar etapa</button>

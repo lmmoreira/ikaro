@@ -53,10 +53,9 @@ Normalizes `Service.resourceRequirements[]` (domain doc §5).
 | `service_resource_requirements` | id | UUID | PRIMARY KEY |
 | | tenant_id | UUID | NOT NULL |
 | | service_id | UUID | NOT NULL — FK (tenant_id, service_id) → `services` |
-| | requirement_index | INT | NOT NULL — order within the bundle |
 | | resource_type | VARCHAR(20) | NOT NULL |
 | | selection_mode | VARCHAR(30) | NOT NULL — CHECK IN (`NONE`, `CUSTOMER_CHOICE`, `AUTO_ANY`, `AUTO_FUNGIBLE_POOL`) |
-| | **UNIQUE** | (tenant_id, service_id, requirement_index) | |
+| | **UNIQUE** | (tenant_id, service_id, resource_type) | No `requirement_index` — see §6 item 17. `resource_type` (4 fixed values) is itself a sufficient key; no worked example ever needs two requirements of the same type in one bundle. |
 | `service_resource_requirement_pool` | tenant_id | UUID | NOT NULL |
 | | requirement_id | UUID | NOT NULL — FK → `service_resource_requirements` |
 | | resource_id | UUID | NOT NULL — FK (tenant_id, resource_id) → `resources` |
@@ -68,11 +67,11 @@ Today's car wash is the degenerate case: one row, `resource_type='LOCATION'`, `s
 
 `service_resource_requirements`:
 
-| id | service_id | requirement_index | resource_type | selection_mode |
-|---|---|---|---|---|
-| req_1 | svc_massagem_relaxante | 0 | STAFF | CUSTOMER_CHOICE |
-| req_2 | svc_massagem_relaxante | 1 | ROOM | AUTO_FUNGIBLE_POOL |
-| req_3 | svc_massagem_relaxante | 2 | EQUIPMENT | AUTO_ANY |
+| id | service_id | resource_type | selection_mode |
+|---|---|---|---|
+| req_1 | svc_massagem_relaxante | STAFF | CUSTOMER_CHOICE |
+| req_2 | svc_massagem_relaxante | ROOM | AUTO_FUNGIBLE_POOL |
+| req_3 | svc_massagem_relaxante | EQUIPMENT | AUTO_ANY |
 
 `service_resource_requirement_pool`:
 
@@ -103,10 +102,9 @@ For `ServiceLeg[]` (domain doc §5). **Corrected from an earlier draft of this d
 | `service_leg_resource_requirements` | id | UUID | PRIMARY KEY |
 | | tenant_id | UUID | NOT NULL |
 | | leg_id | UUID | NOT NULL — FK → `service_legs` |
-| | requirement_index | INT | NOT NULL — order within this leg's own bundle |
 | | resource_type | VARCHAR(20) | NOT NULL |
 | | selection_mode | VARCHAR(30) | NOT NULL |
-| | **UNIQUE** | (tenant_id, leg_id, requirement_index) | |
+| | **UNIQUE** | (tenant_id, leg_id, resource_type) | No `requirement_index` — same reasoning as `service_resource_requirements` (§6 item 17); no leg in any worked example ever needs two resources of the same type. |
 | `service_leg_resource_requirement_pool` | tenant_id | UUID | NOT NULL |
 | | requirement_id | UUID | NOT NULL — FK → `service_leg_resource_requirements` |
 | | resource_id | UUID | NOT NULL — FK → `resources` |
@@ -124,12 +122,12 @@ For `ServiceLeg[]` (domain doc §5). **Corrected from an earlier draft of this d
 
 `service_leg_resource_requirements`:
 
-| id | leg_id | requirement_index | resource_type | selection_mode |
-|---|---|---|---|---|
-| req_l0_0 | leg_0 | 0 | ROOM | AUTO_ANY |
-| req_l1_0 | leg_1 | 0 | STAFF | CUSTOMER_CHOICE |
-| req_l1_1 | leg_1 | 1 | ROOM | AUTO_ANY |
-| req_l2_0 | leg_2 | 0 | ROOM | AUTO_ANY |
+| id | leg_id | resource_type | selection_mode |
+|---|---|---|---|
+| req_l0_0 | leg_0 | ROOM | AUTO_ANY |
+| req_l1_0 | leg_1 | STAFF | CUSTOMER_CHOICE |
+| req_l1_1 | leg_1 | ROOM | AUTO_ANY |
+| req_l2_0 | leg_2 | ROOM | AUTO_ANY |
 
 `service_leg_resource_requirement_pool`:
 
@@ -177,54 +175,52 @@ The eligible-resource pool for a SESSION-model service's slots — declared **on
 |---|---|---|
 | tenant_id | UUID | NOT NULL |
 | service_id | UUID | NOT NULL — FK (tenant_id, service_id) → `services` |
-| slot_index | INT | NOT NULL — 0 = instructor, 1 = room, 2 = optional equipment, etc.; the slot *shape* (how many, what types) is a property of the service, shared by every template of it |
-| resource_type | VARCHAR(20) | NOT NULL |
+| resource_type | VARCHAR(20) | NOT NULL — denormalized from `resources.type` (derivable via `resource_id`); kept directly so the row is self-describing without a join when rendering the picker. Also the natural key — see §6 item 17: no `slot_index` needed, since no worked example ever needs two eligible-pool slots of the same type for one service |
 | resource_id | UUID | NOT NULL — FK (tenant_id, resource_id) → `resources` |
-| **PK** | (tenant_id, service_id, slot_index, resource_id) | |
-| **INDEX** | (tenant_id, service_id, slot_index) | Feeds the "who's eligible" picker on `manager-06-criar-turma.html` |
+| **PK** | (tenant_id, service_id, resource_type, resource_id) | |
+| **INDEX** | (tenant_id, service_id, resource_type) | Feeds the "who's eligible" picker on `manager-06-criar-turma.html` |
 
 **Example data — Aula de Pilates and CrossFit:**
 
-| service_id | slot_index | resource_type | resource_id | (name) |
-|---|---|---|---|---|
-| svc_pilates | 0 | STAFF | res_staff_camila | Camila Duarte |
-| svc_pilates | 0 | STAFF | res_staff_ana | Ana Beatriz |
-| svc_pilates | 1 | ROOM | res_room_estudio1 | Estúdio 1 |
-| svc_pilates | 1 | ROOM | res_room_estudio2 | Estúdio 2 |
-| svc_crossfit | 0 | STAFF | res_staff_bruno | Bruno Alves |
-| svc_crossfit | 0 | STAFF | res_staff_joao | João Mendes |
-| svc_crossfit | 0 | STAFF | res_staff_fabio | Fábio Ramos |
-| svc_crossfit | 1 | ROOM | res_room_crossfit | Área CrossFit |
-| svc_crossfit | 2 | EQUIPMENT | res_equip_halteres_r1 | Kit Halteres (Rack 1) |
-| svc_crossfit | 2 | EQUIPMENT | res_equip_halteres_r2 | Kit Halteres (Rack 2) |
+| service_id | resource_type | resource_id | (name) |
+|---|---|---|---|
+| svc_pilates | STAFF | res_staff_camila | Camila Duarte |
+| svc_pilates | STAFF | res_staff_ana | Ana Beatriz |
+| svc_pilates | ROOM | res_room_estudio1 | Estúdio 1 |
+| svc_pilates | ROOM | res_room_estudio2 | Estúdio 2 |
+| svc_crossfit | STAFF | res_staff_bruno | Bruno Alves |
+| svc_crossfit | STAFF | res_staff_joao | João Mendes |
+| svc_crossfit | STAFF | res_staff_fabio | Fábio Ramos |
+| svc_crossfit | ROOM | res_room_crossfit | Área CrossFit |
+| svc_crossfit | EQUIPMENT | res_equip_halteres_r1 | Kit Halteres (Rack 1) |
+| svc_crossfit | EQUIPMENT | res_equip_halteres_r2 | Kit Halteres (Rack 2) |
 
 Filled on `manager-02-service-resource-config.html` — the same screen and checklist mechanism `CAND-06` step 3 already uses for the flat case, extended to also cover the `SESSION` branch instead of showing only a static handoff card.
 
 ### `booking.class_schedule_template_slots`
 
-The template's own resolved pick per slot — one specific answer, not a list. Each row's `resource_id` must be a member of `service_class_resource_pool` for that same `(service_id, slot_index)` — app-enforced, not a DB constraint (Postgres can't express a cross-table CHECK), same pattern as this codebase's other aggregate-enforced invariants.
+The template's own resolved pick per slot — one specific answer, not a list. Each row's `resource_id` must be a member of `service_class_resource_pool` for that same `(service_id, resource_type)` — app-enforced, not a DB constraint (Postgres can't express a cross-table CHECK), same pattern as this codebase's other aggregate-enforced invariants.
 
 | Column | Type | Constraints |
 |---|---|---|
 | id | UUID | PRIMARY KEY |
 | tenant_id | UUID | NOT NULL |
 | template_id | UUID | NOT NULL — FK → `class_schedule_templates` |
-| slot_index | INT | NOT NULL — 0 = instructor, 1 = room, 2 = optional equipment, etc. |
-| resource_type | VARCHAR(20) | NOT NULL |
+| resource_type | VARCHAR(20) | NOT NULL — denormalized from `resources.type` (derivable via `resource_id`), same reasoning as `service_class_resource_pool` above. Also the natural key — no `slot_index` needed, see §6 item 17 |
 | resource_id | UUID | NOT NULL — the one resource actually assigned to this template's slot |
-| **UNIQUE** | (tenant_id, template_id, slot_index) | |
+| **UNIQUE** | (tenant_id, template_id, resource_type) | |
 
 **Example data — Pilates (2 slots, no equipment) vs. CrossFit (3 slots):**
 
-| template_id | slot_index | resource_type | resource_id |
-|---|---|---|---|
-| tpl_pilates_estudio1 | 0 | STAFF | res_staff_camila |
-| tpl_pilates_estudio1 | 1 | ROOM | res_room_estudio1 |
-| tpl_crossfit_fabio | 0 | STAFF | res_staff_fabio |
-| tpl_crossfit_fabio | 1 | ROOM | res_room_crossfit |
-| tpl_crossfit_fabio | 2 | EQUIPMENT | res_equip_halteres_r1 |
+| template_id | resource_type | resource_id |
+|---|---|---|
+| tpl_pilates_estudio1 | STAFF | res_staff_camila |
+| tpl_pilates_estudio1 | ROOM | res_room_estudio1 |
+| tpl_crossfit_fabio | STAFF | res_staff_fabio |
+| tpl_crossfit_fabio | ROOM | res_room_crossfit |
+| tpl_crossfit_fabio | EQUIPMENT | res_equip_halteres_r1 |
 
-Camila was picked for `tpl_pilates_estudio1` even though Ana was also eligible (both are in `svc_pilates`'s shared pool above); Fábio was picked for this CrossFit template even though Bruno and João were also eligible — matching `manager-03`'s "(1 de 3 elegíveis)" text exactly, and the same pool any *other* future CrossFit template would draw from too. Note Pilates has **no** `slot_index = 2` row at all — no equipment slot, because nothing about Pilates is independently contended beyond the room's own fixed capacity (see the STAFF+ROOM-only discussion earlier in this conversation).
+Camila was picked for `tpl_pilates_estudio1` even though Ana was also eligible (both are in `svc_pilates`'s shared pool above); Fábio was picked for this CrossFit template even though Bruno and João were also eligible — matching `manager-03`'s "(1 de 3 elegíveis)" text exactly, and the same pool any *other* future CrossFit template would draw from too. Note Pilates has **no** `EQUIPMENT` row at all — no equipment slot, because nothing about Pilates is independently contended beyond the room's own fixed capacity (see the STAFF+ROOM-only discussion earlier in this conversation).
 
 ### `booking.class_sessions`
 
@@ -233,7 +229,7 @@ Camila was picked for `tpl_pilates_estudio1` even though Ana was also eligible (
 | id | UUID | PRIMARY KEY |
 | tenant_id | UUID | NOT NULL |
 | template_id | UUID | NULLABLE — FK → `class_schedule_templates`; null = ad-hoc (see §6 item 7 — currently unused surface) |
-| service_id | UUID | NOT NULL |
+| service_id | UUID | NOT NULL — denormalized from `class_schedule_templates.service_id` (derivable via `template_id` whenever it's set); kept directly on the row so listing/filtering by service (CAND-13b, CAND-21) doesn't require a join, same category as `bookings.total_price_amount`. The "needed for the ad-hoc case, where there's no template to derive it from" justification is currently theoretical — nothing populates `template_id = NULL` yet (§6 item 7) — so today this column is pure query-convenience denormalization, not a load-bearing necessity; revisit its rationale once item 7 is actually resolved either way. |
 | start_time / end_time | TIMESTAMPTZ | NOT NULL |
 | capacity | INT | NOT NULL CHECK > 0 |
 | booked_count | INT | NOT NULL DEFAULT 0 CHECK (booked_count >= 0 AND booked_count <= capacity) |
@@ -251,18 +247,18 @@ Camila was picked for `tpl_pilates_estudio1` even though Ana was also eligible (
 |---|---|---|---|---|---|---|---|
 | sess_pilates_0804 | tpl_pilates_estudio1 | svc_pilates | 2026-08-04T08:00-03:00 | 2026-08-04T09:00-03:00 | 4 | 4 | SCHEDULED |
 
-Same session shown in `staff-02-session-roster.html`. Its roster card currently displays "3 de 4 vagas preenchidas" (75% bar) — but summing the actual attendee quantities (see `session_bookings` example below) gives 4, i.e. genuinely full. That display text/bar is a real bug in the prototype, found while grounding this example — flagged separately from this discovery's own scope.
+Same session shown in `staff-02-session-roster.html`. Its roster card currently displays "3 de 4 vagas preenchidas" (75% bar) — but summing the actual attendee quantities (see `class_session_bookings` example below) gives 4, i.e. genuinely full. That display text/bar is a real bug in the prototype, found while grounding this example — flagged separately from this discovery's own scope.
 
 ### `booking.class_session_resources`
 
-Per-instance snapshot/override of the template's resolved slots (CAND-14): `tenant_id, class_session_id, slot_index, resource_id` — `PK (tenant_id, class_session_id, slot_index)`.
+Per-instance snapshot/override of the template's resolved slots (CAND-14): `tenant_id, class_session_id, resource_type, resource_id` — `PK (tenant_id, class_session_id, resource_type)`. No `slot_index` — same reasoning as the other slot/pool tables, §6 item 17.
 
 **Example data:**
 
-| class_session_id | slot_index | resource_id |
+| class_session_id | resource_type | resource_id |
 |---|---|---|
-| sess_pilates_0804 | 0 | res_staff_camila |
-| sess_pilates_0804 | 1 | res_room_estudio1 |
+| sess_pilates_0804 | STAFF | res_staff_camila |
+| sess_pilates_0804 | ROOM | res_room_estudio1 |
 
 Snapshotted straight from `tpl_pilates_estudio1`'s slots at generation time. CAND-14 (e.g. "instructor injury, swap the room today only") would update just this row — `tpl_pilates_estudio1` itself, and every *other* session it generates, stay untouched.
 
@@ -297,7 +293,7 @@ Snapshotted straight from `tpl_pilates_estudio1`'s slots at generation time. CAN
 
 `occ_1` and `occ_3` both reference `res_staff_camila`, but at non-overlapping times (Monday 08:00–09:00 vs. Tuesday 14:00–14:45), so no constraint violation. If a haircut request landed right on top of her Pilates class — say Monday 08:00–08:30 — a fourth row here would collide with `occ_1` on the shared GIST exclusion constraint and get rejected at the DB level, regardless of which family (`BOOKING_LINE` vs. `CLASS_SESSION`) is asking. This is the Camila Duarte scenario from domain doc §6, made concrete and DB-enforced.
 
-### `booking.session_bookings`
+### `booking.class_session_bookings`
 
 | Column | Type | Constraints |
 |---|---|---|
@@ -321,16 +317,16 @@ Snapshotted straight from `tpl_pilates_estudio1`'s slots at generation time. CAN
 
 **Deliberately no `waitlist_position` column** — see §6 item 8.
 
-**Example data — the roster on `sess_pilates_0804`, matching `staff-02-session-roster.html`:**
+**Example data — the roster on `sess_pilates_0804`, matching `staff-02-session-roster.html`, every column filled in:**
 
-| id | contact_name | quantity | status | series_id |
-|---|---|---|---|---|
-| sb_1 | Fernanda Lima | 1 | CONFIRMED | null |
-| sb_2 | Roberta Dias | 1 | CONFIRMED | enroll_roberta |
-| sb_3 | Ana & Bia (grupo) | 2 | CONFIRMED | null |
-| sb_4 | Marcos Tanaka | 1 | WAITLISTED | null |
+| id | class_session_id | type | customer_id | contact_name | quantity | status | series_id | service_name_at_booking | price_at_booking_amount | points_value_at_booking |
+|---|---|---|---|---|---|---|---|---|---|---|
+| sb_1 | sess_pilates_0804 | CUSTOMER | cust_fernanda | Fernanda Lima | 1 | CONFIRMED | null | Aula de Pilates | 60.00 | 1 |
+| sb_2 | sess_pilates_0804 | CUSTOMER | cust_roberta | Roberta Dias | 1 | CONFIRMED | enroll_roberta | Aula de Pilates | 60.00 | 1 |
+| sb_3 | sess_pilates_0804 | CUSTOMER | cust_ana | Ana & Bia (grupo) | 2 | CONFIRMED | null | Aula de Pilates | 60.00 | 1 |
+| sb_4 | sess_pilates_0804 | CUSTOMER | cust_marcos | Marcos Tanaka | 1 | WAITLISTED | null | Aula de Pilates | 60.00 | 1 |
 
-`sb_3` is CAND-23's multi-unit case — one row, `quantity=2`, not two separate bookings. `1 + 1 + 2 = 4 = capacity`: the session is genuinely full, which is exactly why `sb_4` is correctly `WAITLISTED` rather than `CONFIRMED` — even though the roster screen's own summary text currently says otherwise (see the `class_sessions` example above).
+`sb_3` is CAND-23's multi-unit case — one row, `quantity=2`, not two separate bookings. `1 + 1 + 2 = 4 = capacity`: the session is genuinely full, which is exactly why `sb_4` is correctly `WAITLISTED` rather than `CONFIRMED` — even though the roster screen's own summary text currently says otherwise (see the `class_sessions` example above). `sb_4`'s `status` is the only field distinguishing "wants in" from "actually in" — none of these rows are `COMPLETED`/`NO_SHOW` yet because `sess_pilates_0804` hasn't happened yet; those only get set once staff closes the session out (`CAND-15b`, see `staff-02b-fechar-turma.html`'s post-session sibling of this exact roster).
 
 ### `booking.recurring_enrollments`
 
@@ -353,7 +349,7 @@ Snapshotted straight from `tpl_pilates_estudio1`'s slots at generation time. CAN
 | `booking.services` | `+ booking_model VARCHAR(20) NOT NULL DEFAULT 'APPOINTMENT'` (CHECK IN `APPOINTMENT`\|`SESSION`), `+ buffer_after_minutes INT NULLABLE` |
 | `booking.schedule_closures` | `+ resource_id UUID NULLABLE` (FK when set). No constraint trap — today's overlap rule is already app-enforced, not a DB unique, so it extends cleanly to resource scope. |
 | `booking.schedule_openings` | `+ resource_id UUID NULLABLE` (FK when set). **Constraint trap:** today's `UNIQUE(tenant_id, date)` silently stops enforcing "one opening per date" once `resource_id` is nullable — Postgres treats `NULL ≠ NULL`, so two tenant-wide openings for the same date would no longer collide. Replace with `UNIQUE(tenant_id, date) WHERE resource_id IS NULL` **and** `UNIQUE(tenant_id, resource_id, date) WHERE resource_id IS NOT NULL`. |
-| `loyalty.loyalty_entries` (different context — see §6 item 2) | `booking_line_id` → NULLABLE (was NOT NULL), `+ session_booking_id UUID NULLABLE`, mutual-exclusion CHECK, `+ UNIQUE(tenant_id, session_booking_id) WHERE session_booking_id IS NOT NULL` |
+| `loyalty.loyalty_entries` (different context — see §6 item 2) | `booking_line_id` → NULLABLE (was NOT NULL), `+ class_session_booking_id UUID NULLABLE`, mutual-exclusion CHECK, `+ UNIQUE(tenant_id, class_session_booking_id) WHERE class_session_booking_id IS NOT NULL` |
 
 **Example data — `services`:**
 
@@ -385,12 +381,12 @@ Snapshotted straight from `tpl_pilates_estudio1`'s slots at generation time. CAN
 
 **Example data — `loyalty.loyalty_entries`:**
 
-| id | booking_id | booking_line_id | session_booking_id | service_id | points |
+| id | booking_id | booking_line_id | class_session_booking_id | service_id | points |
 |---|---|---|---|---|---|
 | le_1 | book_123 | line_456 | null | svc_corte_escova | 2 |
 | le_2 | null | null | sb_2 | svc_pilates | 1 |
 
-`le_1` is today's existing path (a completed haircut). `le_2` is the new path this discovery adds: Roberta's Pilates class (`sb_2`) completing — `booking_id`/`booking_line_id` both `null`, `session_booking_id` set instead, enforced by the mutual-exclusion CHECK.
+`le_1` is today's existing path (a completed haircut). `le_2` is the new path this discovery adds: Roberta's Pilates class (`sb_2`) completing — `booking_id`/`booking_line_id` both `null`, `class_session_booking_id` set instead, enforced by the mutual-exclusion CHECK.
 
 ---
 
@@ -406,10 +402,10 @@ Snapshotted straight from `tpl_pilates_estudio1`'s slots at generation time. CAN
 8. `class_sessions` (depends on templates, `services`)
 9. `class_session_resources` (depends on sessions, `resources`)
 10. `resource_occupancy` (depends on `resources`, `booking_lines`, `class_sessions` — must run after both exist)
-11. `session_bookings` (depends on `class_sessions`)
+11. `class_session_bookings` (depends on `class_sessions`)
 12. `recurring_enrollments` (depends on `class_schedule_templates`)
 13. `schedule_closures` / `schedule_openings` `+resource_id` (expand; includes the openings partial-index fix)
-14. `loyalty.loyalty_entries` `+session_booking_id` (separate context — no DB FK across schemas either way, but logically sequenced after `session_bookings` exists)
+14. `loyalty.loyalty_entries` `+class_session_booking_id` (separate context — no DB FK across schemas either way, but logically sequenced after `class_session_bookings` exists)
 
 ---
 
@@ -438,11 +434,11 @@ This still leaves exactly one case with no DB backstop: an appointment booked ag
 
 ## 6. Gaps / inconsistencies found while building this
 
-1. **`SessionBooking` has no snapshot fields, breaking a core Booking-context principle and blocking the event it's supposed to trigger.** `BookingLine` snapshots `price`/`duration`/`points` at booking time specifically so a later `Service` edit never retroactively changes a past booking (domain doc §1; `02-DOMAIN_MODEL.md`). The domain doc's `SessionBooking` properties (§6) have no equivalent. This isn't just an inconsistency with the rest of the model — it concretely breaks §6's own claim that `SessionBookingCompleted` "mirrors `BookingCompleted`'s consumers": Loyalty's insert needs a `points` value to write into `LoyaltyEntry.points`, and nothing currently supplies one. Fixed above via `service_name_at_booking` / `price_at_booking_amount` / `points_value_at_booking` on `session_bookings`.
+1. **`ClassSessionBooking` has no snapshot fields, breaking a core Booking-context principle and blocking the event it's supposed to trigger.** `BookingLine` snapshots `price`/`duration`/`points` at booking time specifically so a later `Service` edit never retroactively changes a past booking (domain doc §1; `02-DOMAIN_MODEL.md`). The domain doc's `ClassSessionBooking` properties (§6) have no equivalent. This isn't just an inconsistency with the rest of the model — it concretely breaks §6's own claim that `ClassSessionBookingCompleted` "mirrors `BookingCompleted`'s consumers": Loyalty's insert needs a `points` value to write into `LoyaltyEntry.points`, and nothing currently supplies one. Fixed above via `service_name_at_booking` / `price_at_booking_amount` / `points_value_at_booking` on `class_session_bookings`.
 
-2. **`loyalty.loyalty_entries` cannot accept a `SessionBookingCompleted` insert without a schema change.** `booking_id`/`booking_line_id` are both `NOT NULL` today. Supporting the class-family path requires widening `booking_line_id` to nullable, adding `session_booking_id`, and a mutual-exclusion CHECK — a real cross-context migration the domain doc's one sentence about "mirroring consumers" doesn't scope at all.
+2. **`loyalty.loyalty_entries` cannot accept a `ClassSessionBookingCompleted` insert without a schema change.** `booking_id`/`booking_line_id` are both `NOT NULL` today. Supporting the class-family path requires widening `booking_line_id` to nullable, adding `class_session_booking_id`, and a mutual-exclusion CHECK — a real cross-context migration the domain doc's one sentence about "mirroring consumers" doesn't scope at all.
 
-3. **`SessionBooking`'s contact/actor shape (`customerId | guest-contact-fields`) was too vague to build.** Now mirrors `Booking` exactly: `type`, nullable `customer_id`, required `contact_email`/`contact_name`/`contact_phone`. Also needed because `Booking`'s events carry contact fields directly (bounded-contexts Rule 4, self-contained events) — `SessionBookingCompleted`'s "thanks for coming" notification can't be self-contained otherwise.
+3. **`ClassSessionBooking`'s contact/actor shape (`customerId | guest-contact-fields`) was too vague to build.** Now mirrors `Booking` exactly: `type`, nullable `customer_id`, required `contact_email`/`contact_name`/`contact_phone`. Also needed because `Booking`'s events carry contact fields directly (bounded-contexts Rule 4, self-contained events) — `ClassSessionBookingCompleted`'s "thanks for coming" notification can't be self-contained otherwise.
 
 4. **Two independent Staff-deactivation paths aren't wired together.** `UC-029` deactivates a `Staff` row in the Staff Context; `CAND-03` deactivates a `Resource` in the Booking Context. Nothing says whether deactivating the underlying `Staff` cascades to (or blocks on) the wrapping `STAFF`-type `Resource`. `StaffDeactivated` currently has zero consumers — this would be its first, and it isn't mentioned in §6/§8 of the domain doc.
 
@@ -452,21 +448,25 @@ This still leaves exactly one case with no DB backstop: an appointment booked ag
 
 7. **`ClassSession.templateId` is nullable for an "ad-hoc" case no candidate use case actually creates.** CAND-13 only generates from a template; CAND-14 only overrides an existing session. Nothing creates a template-less session. Either add the missing use case or drop the nullability until something needs it — currently unused schema surface.
 
-8. **`waitlistPosition` as a stored, shifted-on-every-promotion column is more machinery than the requirement needs.** CAND-25 requires updating every other waitlisted row's position on each promotion/cancellation — the "keeps needing new bookkeeping" pattern CLAUDE.md's engineering rules flag as a signal to reconsider the approach rather than keep patching it. A customer's position is fully recoverable at read time via `ROW_NUMBER() OVER (PARTITION BY class_session_id ORDER BY created_at) WHERE status='WAITLISTED'`. Recommend dropping the persisted field entirely — reflected above (no `waitlist_position` column on `session_bookings`).
+8. **`waitlistPosition` as a stored, shifted-on-every-promotion column is more machinery than the requirement needs.** CAND-25 requires updating every other waitlisted row's position on each promotion/cancellation — the "keeps needing new bookkeeping" pattern CLAUDE.md's engineering rules flag as a signal to reconsider the approach rather than keep patching it. A customer's position is fully recoverable at read time via `ROW_NUMBER() OVER (PARTITION BY class_session_id ORDER BY created_at) WHERE status='WAITLISTED'`. Recommend dropping the persisted field entirely — reflected above (no `waitlist_position` column on `class_session_bookings`).
 
 9. **CAND-22's "atomically checks `bookedCount < capacity`" has no concrete mechanism stated.** Given this codebase's documented TypeORM-optimistic-locking trap (a hand-built `manager.save()` doesn't protect this), the concrete fix is a guarded UPDATE: `UPDATE class_sessions SET booked_count = booked_count + :qty WHERE id = :id AND booked_count + :qty <= capacity`, checking `affected === 1`, falling through to waitlist on 0 rows affected. `class_sessions.version` (added above) covers non-capacity concurrent edits (CAND-14) the same way `bookings.version` does today.
 
 10. **`legs` vs. `bookingModel = SESSION` compatibility is never explicitly forbidden.** Domain doc §5 scopes legs to "flat (non-legged) services only," and CAND-08's precondition just says "Service exists" — not `bookingModel = APPOINTMENT`. Recommend an explicit invariant: `SESSION` services carry neither `resourceRequirements` nor `legs` (aggregate-enforced, same pattern as today's "booking must have ≥ 1 line" — not a DB constraint, since it can't be expressed across the now-normalized child tables).
 
-11. **Aggregate/outbox wiring for the new events is an open architectural decision, not a detail.** `SessionBookingConfirmed`/`Waitlisted`/`Completed`, `WaitlistPromoted`, `ClassSessionCancelled` are all triggered by a specific use-case call (`SessionBooking`/`ClassSession` transitioning state) — the same shape as `Booking`'s 3-aggregate transactional-outbox pattern (TD24-S02), not the 4-cron direct-publish pattern (which already correctly shows "Events Triggered: None" on CAND-13/CAND-25b — no gap there). This means `ClassSession` and `SessionBooking` becoming full `AggregateRoot`s with their own outbox-draining repositories is a real, non-trivial commitment the domain doc never states outright.
+11. **Aggregate/outbox wiring for the new events is an open architectural decision, not a detail.** `ClassSessionBookingConfirmed`/`Waitlisted`/`Completed`, `WaitlistPromoted`, `ClassSessionCancelled` are all triggered by a specific use-case call (`ClassSessionBooking`/`ClassSession` transitioning state) — the same shape as `Booking`'s 3-aggregate transactional-outbox pattern (TD24-S02), not the 4-cron direct-publish pattern (which already correctly shows "Events Triggered: None" on CAND-13/CAND-25b — no gap there). This means `ClassSession` and `ClassSessionBooking` becoming full `AggregateRoot`s with their own outbox-draining repositories is a real, non-trivial commitment the domain doc never states outright.
 
 12. **Doc-hygiene note, independent of this discovery:** `docs/13-DATABASE_SCHEMA.md`'s `booking.bookings` table is already stale against the real migration — missing `scheduled_end_at` and `version`, both present in `CreateBookingBookings1748000000014`. Found while grounding this document against real code; worth a separate fix outside this discovery.
 
 13. **A leg can require more than one resource at once — the domain doc's `ServiceLeg.resourceRequirement` (singular) doesn't allow for this, but the concrete prototype does.** `public-05-multi-leg-itinerary.html`'s middle leg ("Massagem") locks both a therapist (Renata Souza, customer-chosen) *and* a room (Sala de Terapia) simultaneously — the same two resources `Massagem Relaxante`'s own bundle uses, deliberately, to demonstrate CAND-31 cross-service exclusivity "from the other direction" (per that file's own comment). The domain doc §5's abstract JSON example only ever shows one `resourceRequirement` per leg. Fixed above: `service_legs` no longer carries `resource_type`/`selection_mode` directly — those moved to a new `service_leg_resource_requirements` child table (one-to-many per leg), with its own `service_leg_resource_requirement_pool`, mirroring the flat-service bundle shape one level deeper. Worth carrying this fix back into the domain doc's own `ServiceLeg` properties (§5), not just this schema.
 
-14. **Prototype display bug, found while grounding the `session_bookings` example above — fixed (2026-08-05).** `staff-02-session-roster.html`, `staff-04-turmas-proximas.html` (two cards — the "Hoje" listing and the "Turmas passadas" entry), and `staff-02b-fechar-turma.html` all showed "3 de 4"/"3/4 vagas preenchidas" (75% bar) for the same underlying session, but its three confirmed rows (Fernanda ×1, Roberta ×1, Ana & Bia ×2) sum to 4 — genuinely full, which is also the correct reason Marcos Tanaka is waitlisted rather than confirmed. Not a data-model issue, but the bug spanned three files sharing the same wrong number, not one. All three now show 4/4 (100%); `staff-04`'s two cards additionally now use its own already-defined but previously-unused `.capacity-bar-fill.full`/red styling, matching the "Lotada" convention already established in `public-02-class-session-picker.html`.
+14. **Prototype display bug, found while grounding the `class_session_bookings` example above — fixed (2026-08-05).** `staff-02-session-roster.html`, `staff-04-turmas-proximas.html` (two cards — the "Hoje" listing and the "Turmas passadas" entry), and `staff-02b-fechar-turma.html` all showed "3 de 4"/"3/4 vagas preenchidas" (75% bar) for the same underlying session, but its three confirmed rows (Fernanda ×1, Roberta ×1, Ana & Bia ×2) sum to 4 — genuinely full, which is also the correct reason Marcos Tanaka is waitlisted rather than confirmed. Not a data-model issue, but the bug spanned three files sharing the same wrong number, not one. All three now show 4/4 (100%); `staff-04`'s two cards additionally now use its own already-defined but previously-unused `.capacity-bar-fill.full`/red styling, matching the "Lotada" convention already established in `public-02-class-session-picker.html`.
 
 15. **The original fix for §9 item 7, which this doc had marked "Resolved," was itself wrong — corrected mid-conversation (2026-08-05).** The first draft of this doc scoped the eligible pool to `template_id` (`class_schedule_template_slot_pool`). Two problems surfaced on review: (a) no `CAND` ever populated it — `CAND-11`'s main flow only ever picks a resource, never declares a pool, so the table had a schema with no write path anywhere; (b) scoping per-template meant re-curating the same "who can teach Pilates" list separately for every template of the same service, with real drift risk (a newly-qualified instructor would need adding to each template's own pool individually, rather than once). Corrected: the pool moved to `service_class_resource_pool`, scoped by `service_id` — declared once, shared by every template of that service, filled by the same `manager-02` checklist mechanism `CAND-06` step 3 already uses for the flat case. `class_schedule_template_slots` keeps storing only the one resolved pick per template, now validated against the service-level pool instead of a redundant one of its own. This is also a reminder that marking something "Resolved" in this doc means the schema was designed, not that it was verified against every use case that would actually populate it — worth double-checking that in future entries too.
+
+16. **Three columns look like unexplained duplicates because their denormalization was never stated as such.** Asked directly why `class_sessions.service_id` exists when `template_id` already implies it via a join to `class_schedule_templates.service_id` — and the same question applies to `service_class_resource_pool.resource_type` and `class_schedule_template_slots.resource_type`, both derivable via their own `resource_id` → `resources.type`. All three are legitimate denormalization (same category as `bookings.total_price_amount` — computable from a join, stored directly for fast reads), not accidental duplicates, but §2 never said so, which is exactly why they read as unexplained. Fixed by annotating each column inline with what it's denormalized from and why. One of the three has a weaker justification than it looked: `class_sessions.service_id`'s original "needed for the ad-hoc case, where template_id is null" rationale is currently theoretical, since nothing populates `template_id = NULL` yet (item 7) — today the column is pure query-convenience denormalization (CAND-13b/CAND-21 filtering by service without a join), not a load-bearing necessity. Revisit that specific rationale once item 7 is actually resolved either way.
+
+17. **`slot_index`/`requirement_index` were premature abstractions — removed (2026-08-05).** Their original justification for `class_schedule_template_slots`/`service_class_resource_pool` cited "a bigger studio needing two interchangeable room slots on one template" as the reason a fixed `resource_type` key wouldn't suffice — but that scenario was misremembered from a *different*, already-resolved case: model #6 (two Pilates rooms running in parallel) is explicitly handled as two separate `ClassScheduleTemplate` rows (§6, domain doc), never as one template with two `ROOM` slots. Checked every actual worked example across both the flat-bundle and leg families too (Massagem Relaxante's STAFF+ROOM+EQUIPMENT, the dentist's STAFF+EQUIPMENT, every leg in Jornada Spa) — none of them ever need two resources of the same type in one bundle/leg/slot-set. `resource_type` (4 fixed values: `LOCATION`/`STAFF`/`ROOM`/`EQUIPMENT`) is therefore a sufficient natural key on its own. Removed the ordering column from all four affected tables — `service_resource_requirements`, `service_leg_resource_requirements`, `service_class_resource_pool`, `class_schedule_template_slots` — and from `class_session_resources`, which mirrors the last one. Display order (e.g. always showing "Instrutor" before "Sala") doesn't need a stored column either — Postgres gives no ordering guarantee without an explicit `ORDER BY` regardless of whether a stored index exists, so a fixed `ORDER BY CASE resource_type WHEN ...` (or an equivalent small priority list in application code) achieves the same deterministic order more simply, without a column that could drift out of sync with the manager's intended order. One real future case would justify reintroducing an index — a couples-massage-style bundle needing two `STAFF` at once — but nothing here needs it today, and adding it back later is a simple additive migration, not a reason to carry the column now.
 
 ---
 

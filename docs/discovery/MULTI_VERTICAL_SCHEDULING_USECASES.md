@@ -273,12 +273,12 @@ CAND-XX: [Name]
 ### **CAND-15: Manager Cancels a Class Session With Existing Bookings**
 
 - **Actor:** Staff (STAFF or MANAGER)
-- **Preconditions:** `ClassSession` exists with ≥ 1 `SessionBooking` in `CONFIRMED` or `WAITLISTED` status.
+- **Preconditions:** `ClassSession` exists with ≥ 1 `ClassSessionBooking` in `CONFIRMED` or `WAITLISTED` status.
 - **Trigger:** Manager cancels a session (e.g. instructor unavailable, no substitute).
 - **Main Flow:**
   1. Manager confirms cancellation.
   2. System sets `ClassSession.status = CANCELLED`.
-  3. System transitions every `CONFIRMED`/`WAITLISTED` `SessionBooking` referencing it to `CANCELLED`.
+  3. System transitions every `CONFIRMED`/`WAITLISTED` `ClassSessionBooking` referencing it to `CANCELLED`.
   4. System publishes `ClassSessionCancelled` for Notification Context to inform affected customers.
 - **Alternative Flows:**
   - **A1: Refund/credit policy for confirmed bookings** — **Open question** (discovery doc §9): not resolved here; likely tenant-configurable, same spirit as `cancellationWindowHours`.
@@ -287,21 +287,21 @@ CAND-XX: [Name]
 
 ### **CAND-15b: Staff Closes Out a Class Session (Marks Attendance)**
 
-> Added on request (2026-08-05): `SessionBooking` had no terminal state for "this actually happened" — its status enum stopped at `CONFIRMED | WAITLISTED | CANCELLED`, nothing like `Booking`'s `COMPLETED`. Deliberately staff-triggered rather than a scheduled job, unlike `CAND-13`'s generator: attendance needs a human to observe it, the same reason `UC-009` (`Booking`'s own completion) is a manual "Mark Complete" click, not a timer. The difference from `UC-009` is cardinality — a session can have up to `capacity` attendees, so the interaction is "everyone's pre-marked attended, flag the exceptions" instead of N individual clicks. See `MULTI_VERTICAL_SCHEDULING.md` §6 "Attendance, completion, and no-show" for the full reasoning, including why this deliberately puts `SessionBooking` ahead of `Booking` on no-show tracking.
+> Added on request (2026-08-05): `ClassSessionBooking` had no terminal state for "this actually happened" — its status enum stopped at `CONFIRMED | WAITLISTED | CANCELLED`, nothing like `Booking`'s `COMPLETED`. Deliberately staff-triggered rather than a scheduled job, unlike `CAND-13`'s generator: attendance needs a human to observe it, the same reason `UC-009` (`Booking`'s own completion) is a manual "Mark Complete" click, not a timer. The difference from `UC-009` is cardinality — a session can have up to `capacity` attendees, so the interaction is "everyone's pre-marked attended, flag the exceptions" instead of N individual clicks. See `MULTI_VERTICAL_SCHEDULING.md` §6 "Attendance, completion, and no-show" for the full reasoning, including why this deliberately puts `ClassSessionBooking` ahead of `Booking` on no-show tracking.
 
 - **Actor:** Staff (STAFF or MANAGER)
 - **Preconditions:** `ClassSession.endTime` has passed; `status = SCHEDULED`.
 - **Trigger:** Staff opens the session's roster after it has happened to review attendance.
 - **Main Flow:**
-  1. Roster shows every `CONFIRMED` `SessionBooking` pre-marked as attended by default.
+  1. Roster shows every `CONFIRMED` `ClassSessionBooking` pre-marked as attended by default.
   2. Staff flags any customer who didn't show up.
   3. Staff clicks a single close-out action (e.g. "Fechar turma").
   4. System transitions every still-`CONFIRMED` booking to `COMPLETED` and every flagged booking to `NO_SHOW`, in one batch.
-  5. System publishes `SessionBookingCompleted` per completed booking — mirrors `BookingCompleted`'s consumers (Loyalty inserts a `LoyaltyEntry` when `customerId != null`; Notification sends a "thanks for coming" message regardless, same as `UC-009` alt A4 for guest bookings).
+  5. System publishes `ClassSessionBookingCompleted` per completed booking — mirrors `BookingCompleted`'s consumers (Loyalty inserts a `LoyaltyEntry` when `customerId != null`; Notification sends a "thanks for coming" message regardless, same as `UC-009` alt A4 for guest bookings).
 - **Alternative Flows:**
   - **A1: Staff never closes out the session** → Bookings remain `CONFIRMED` indefinitely. **Open question:** no automatic fallback defined here — not resolved, flagged rather than silently assumed away.
 - **Postconditions:** Every booking on the session reaches a terminal state (`COMPLETED` or `NO_SHOW`); loyalty/notification events fire accordingly.
-- **Events Triggered:** `SessionBookingCompleted` (candidate event, per booking — not yet in `docs/03-DOMAIN_EVENTS.md`).
+- **Events Triggered:** `ClassSessionBookingCompleted` (candidate event, per booking — not yet in `docs/03-DOMAIN_EVENTS.md`).
 
 ---
 
@@ -421,12 +421,12 @@ CAND-XX: [Name]
 - **Trigger:** Customer clicks "Book" on a session with remaining capacity.
 - **Main Flow:**
   1. Customer confirms contact details (same guest/authenticated split as today's UC-001/UC-002).
-  2. System atomically checks `bookedCount < capacity` and creates `SessionBooking(quantity=1, status=CONFIRMED)`, incrementing `bookedCount`.
+  2. System atomically checks `bookedCount < capacity` and creates `ClassSessionBooking(quantity=1, status=CONFIRMED)`, incrementing `bookedCount`.
   3. Confirmation shown/sent.
 - **Alternative Flows:**
   - **A1: Session fills between page load and submit (race)** → System re-checks capacity at write time; if now full, falls through to CAND-24 (waitlist) instead of failing outright.
-- **Postconditions:** `SessionBooking` exists, `CONFIRMED`.
-- **Events Triggered:** `SessionBookingConfirmed` (candidate event, mirrors `BookingRequested`'s role for Notification Context).
+- **Postconditions:** `ClassSessionBooking` exists, `CONFIRMED`.
+- **Events Triggered:** `ClassSessionBookingConfirmed` (candidate event, mirrors `BookingRequested`'s role for Notification Context).
 
 ### **CAND-23: Customer Books Multiple Units in One Action**
 
@@ -435,11 +435,11 @@ CAND-XX: [Name]
 - **Trigger:** Customer requests N spots in one checkout (e.g. "2 bikes, me + a friend").
 - **Main Flow:**
   1. Customer sets quantity (bounded by remaining capacity).
-  2. System atomically checks remaining ≥ quantity, creates one `SessionBooking(quantity=N)`, increments `bookedCount` by N.
+  2. System atomically checks remaining ≥ quantity, creates one `ClassSessionBooking(quantity=N)`, increments `bookedCount` by N.
 - **Alternative Flows:**
   - **A1: Requested quantity exceeds remaining capacity** → System caps the selectable quantity in the UI to what's left; never offers an invalid N.
-- **Postconditions:** One `SessionBooking` row consuming N units — distinct from N separate customer bookings filling the same class.
-- **Events Triggered:** `SessionBookingConfirmed`.
+- **Postconditions:** One `ClassSessionBooking` row consuming N units — distinct from N separate customer bookings filling the same class.
+- **Events Triggered:** `ClassSessionBookingConfirmed`.
 
 ### **CAND-24: Customer Joins a Waitlist When a Session Is Full**
 
@@ -447,22 +447,22 @@ CAND-XX: [Name]
 - **Preconditions:** `ClassSession.bookedCount = capacity`.
 - **Trigger:** Customer clicks "Join waitlist" on a full session.
 - **Main Flow:**
-  1. System creates `SessionBooking(status=WAITLISTED)`, assigns the next `waitlistPosition`.
-  2. Customer is told their position ("You're #3 on the waitlist").
+  1. System creates `ClassSessionBooking(status=WAITLISTED)`.
+  2. Customer is told their position ("You're #3 on the waitlist") — computed at read time from queue order (earliest `createdAt` first among `WAITLISTED` rows on this session), not a stored/assigned field (corrected 2026-08-05, see `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §6 item 8).
 - **Alternative Flows:**
   - **A1: Customer already has a `CONFIRMED` or `WAITLISTED` booking on this session** → Blocked, no duplicate entries.
-- **Postconditions:** Waitlisted `SessionBooking` exists.
-- **Events Triggered:** `SessionBookingWaitlisted` (candidate event).
+- **Postconditions:** Waitlisted `ClassSessionBooking` exists.
+- **Events Triggered:** `ClassSessionBookingWaitlisted` (candidate event).
 
 ### **CAND-25: System Auto-Promotes the Next Waitlisted Customer**
 
 - **Actor:** System
-- **Preconditions:** A `CONFIRMED` `SessionBooking` on a session with a non-empty waitlist is cancelled.
+- **Preconditions:** A `CONFIRMED` `ClassSessionBooking` on a session with a non-empty waitlist is cancelled.
 - **Trigger:** Cancellation of a confirmed booking (customer- or admin-initiated).
 - **Main Flow:**
   1. System frees the vacated capacity unit.
-  2. System finds the lowest `waitlistPosition` `WAITLISTED` booking with `quantity ≤` freed capacity.
-  3. Promotes it to `CONFIRMED`; shifts remaining waitlist positions down.
+  2. System finds the earliest-queued (lowest `createdAt`) `WAITLISTED` booking with `quantity ≤` freed capacity.
+  3. Promotes it to `CONFIRMED` — no position bookkeeping to shift; queue order is derived at read time, never stored (§6 item 8 of the data-model doc).
   4. Publishes `WaitlistPromoted` for Notification Context.
 - **Alternative Flows:**
   - **A1: Freed capacity < next waitlisted entry's `quantity`** → Skip to the next entry that fits, or hold the capacity open if none fit (matches a common "first that fits" queue policy — worth confirming against business expectations before building).
@@ -471,13 +471,13 @@ CAND-XX: [Name]
 
 ### **CAND-25b: System Auto-Cancels Unpromoted Waitlist Entries When a Session Ends**
 
-> Added on request (2026-08-05): a `SessionBooking` still `WAITLISTED` when its `ClassSession` starts (never promoted) had no defined fate — nothing ever cleaned it up. Unlike `CAND-15b`'s attendance marking, this needs zero human judgment (a waitlist entry for a class that already happened is simply moot), so it's the mechanical counterpart: purely automatic, no staff step, same "runs on a schedule with no one in the loop" shape as `CAND-13`'s generator.
+> Added on request (2026-08-05): a `ClassSessionBooking` still `WAITLISTED` when its `ClassSession` starts (never promoted) had no defined fate — nothing ever cleaned it up. Unlike `CAND-15b`'s attendance marking, this needs zero human judgment (a waitlist entry for a class that already happened is simply moot), so it's the mechanical counterpart: purely automatic, no staff step, same "runs on a schedule with no one in the loop" shape as `CAND-13`'s generator.
 
 - **Actor:** System
-- **Preconditions:** `ClassSession.endTime` has passed; ≥ 1 `SessionBooking` on it is still `WAITLISTED`.
+- **Preconditions:** `ClassSession.endTime` has passed; ≥ 1 `ClassSessionBooking` on it is still `WAITLISTED`.
 - **Trigger:** Same time-based check as `CAND-13`'s generation job (or piggybacked onto it).
 - **Main Flow:**
-  1. System finds every `SessionBooking` with `status = WAITLISTED` on a session whose `endTime` has passed.
+  1. System finds every `ClassSessionBooking` with `status = WAITLISTED` on a session whose `endTime` has passed.
   2. Transitions each to `CANCELLED`.
 - **Postconditions:** No `WAITLISTED` row persists past the session it was waiting on.
 - **Events Triggered:** None (routine cleanup, same as `CAND-01`'s config-only postconditions).
@@ -490,24 +490,24 @@ CAND-XX: [Name]
 - **Main Flow:**
   1. Customer confirms enrollment start date.
   2. System creates `RecurringEnrollment(status=ACTIVE)`.
-  3. For each upcoming matching `ClassSession` within the current generation horizon, system creates a `SessionBooking(seriesId = enrollmentId)`, respecting capacity/waitlist per occurrence (CAND-22/CAND-24 rules apply per instance).
-  4. As new sessions materialize (CAND-13), the enrollment attaches a fresh `SessionBooking` to each.
+  3. For each upcoming matching `ClassSession` within the current generation horizon, system creates a `ClassSessionBooking(seriesId = enrollmentId)`, respecting capacity/waitlist per occurrence (CAND-22/CAND-24 rules apply per instance).
+  4. As new sessions materialize (CAND-13), the enrollment attaches a fresh `ClassSessionBooking` to each.
 - **Alternative Flows:**
-  - **A1: A given occurrence is full** → That occurrence's `SessionBooking` is `WAITLISTED`, same as a one-off booking; the enrollment itself stays `ACTIVE`.
+  - **A1: A given occurrence is full** → That occurrence's `ClassSessionBooking` is `WAITLISTED`, same as a one-off booking; the enrollment itself stays `ACTIVE`.
 - **Postconditions:** Standing enrollment exists; bookings appear automatically per occurrence.
-- **Events Triggered:** None on the enrollment itself; each generated `SessionBooking` triggers CAND-22/24's events.
+- **Events Triggered:** None on the enrollment itself; each generated `ClassSessionBooking` triggers CAND-22/24's events.
 
 ### **CAND-27: Customer Cancels a Single Occurrence of a Recurring Enrollment**
 
 - **Actor:** Customer
-- **Preconditions:** `RecurringEnrollment` is `ACTIVE`; a `SessionBooking` with matching `seriesId` exists for the target occurrence.
+- **Preconditions:** `RecurringEnrollment` is `ACTIVE`; a `ClassSessionBooking` with matching `seriesId` exists for the target occurrence.
 - **Trigger:** Customer cancels just next week's class, keeping the standing enrollment.
 - **Main Flow:**
   1. Customer picks the specific occurrence to skip.
-  2. System cancels only that `SessionBooking`; `RecurringEnrollment` stays `ACTIVE`.
+  2. System cancels only that `ClassSessionBooking`; `RecurringEnrollment` stays `ACTIVE`.
   3. Freed capacity triggers CAND-25 if a waitlist exists for that occurrence.
 - **Postconditions:** One occurrence skipped; series continues.
-- **Events Triggered:** Same as a normal `SessionBooking` cancellation.
+- **Events Triggered:** Same as a normal `ClassSessionBooking` cancellation.
 
 ### **CAND-28: Customer Cancels an Entire Recurring Enrollment**
 
@@ -516,7 +516,7 @@ CAND-XX: [Name]
 - **Trigger:** Customer stops the standing enrollment entirely.
 - **Main Flow:**
   1. System sets `RecurringEnrollment.status = CANCELLED`.
-  2. Future `SessionBooking`s stop being generated for this series; already-existing future ones for already-materialized sessions are cancelled (freeing capacity, triggering CAND-25 per session).
+  2. Future `ClassSessionBooking`s stop being generated for this series; already-existing future ones for already-materialized sessions are cancelled (freeing capacity, triggering CAND-25 per session).
 - **Postconditions:** Enrollment and its future bookings cancelled.
 - **Events Triggered:** Same per-session cancellation events as CAND-27, fired once per affected future session.
 
