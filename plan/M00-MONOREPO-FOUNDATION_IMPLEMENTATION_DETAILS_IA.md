@@ -186,7 +186,7 @@ TypeOrmModule.forRootAsync({
 `BACKEND_INTERNAL_URL`, `JWT_SECRET` (≥64 chars), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_CALLBACK_URL`, `CRON_SECRET` (≥32 chars)
 
 ### JWT cookie config
-`JWT_COOKIE_OPTIONS` is declared in `apps/bff/src/main.ts` and exported for M03-S04 to import. Do not re-declare.
+`JWT_COOKIE_OPTIONS` is declared and exported from `apps/bff/src/features/auth/cookie-options.ts`. Import it from there — do not re-declare, and do not re-export it from `main.ts`.
 
 ---
 
