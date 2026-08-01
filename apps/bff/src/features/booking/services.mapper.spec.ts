@@ -5,7 +5,7 @@ const serviceDetail: ServiceDetail = {
   id: '10000000-0000-4000-8000-000000000001',
   name: 'Lavagem Completa',
   description: 'Lavagem exterior e interior',
-  price: { amount: 150, currency: 'BRL', formatted: 'R$ 150,00' },
+  price: { amount: 150, currency: 'BRL' },
   durationMinutes: 60,
   loyaltyPointsValue: 10,
   requiresPickupAddress: false,
@@ -14,7 +14,7 @@ const serviceDetail: ServiceDetail = {
 };
 
 describe('toStaffServiceResponse()', () => {
-  it('maps backend service detail fields to StaffServiceResponse, dropping formatted price', () => {
+  it('maps backend service detail fields to StaffServiceResponse', () => {
     const result = toStaffServiceResponse(serviceDetail);
 
     expect(result).toEqual({
