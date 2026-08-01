@@ -15,29 +15,30 @@ flowchart TD
     RegularEntry(["Acessa /dashboard/login"]) --> Login
     InviteEntry(["Clica link no e-mail de convite<br/>→ GET /v1/auth/google?state=__staff__:{slug}"]) --> Google
 
-    Login["❓ GAP: /dashboard/login<br/>Tela de Login da Equipe"] --> GoogleBtn(("Clica Entrar com Google<br/>GET /v1/auth/google?state=__staff__"))
+    Login["/dashboard/login<br/>Tela de Login da Equipe"] --> GoogleBtn(("Clica Entrar com Google<br/>GET /v1/auth/google?state=__staff__"))
     GoogleBtn --> Google["Google OAuth Consent"]
     Google --> Callback{"BFF /v1/auth/google/callback<br/>handleStaffLogin ou handleStaffFirstLogin"}
 
-    Callback -->|"is_active=true<br/>UC-022 Caso A"| Dashboard["❓ GAP: /dashboard/bookings<br/>Fila de Agendamentos"]
+    Callback -->|"is_active=true<br/>UC-022 Caso A"| Dashboard["/dashboard/bookings<br/>Fila de Agendamentos"]
     Callback -->|"is_active=false<br/>UC-022 Caso B"| FirstLogin["❓ GAP: /auth/first-login<br/>Convite Não Aceito"]
-    Callback -->|"Staff não encontrado<br/>UC-022 Caso C"| AuthError["❓ GAP: /auth/error<br/>?reason=not-a-staff-member"]
+    Callback -->|"Staff não encontrado<br/>UC-022 Caso C"| AuthError["/auth/error<br/>?reason=not-a-staff-member"]
     Callback -->|"UC-025: ativa staff_record<br/>is_active false → true"| Dashboard
     Callback -->|"e-mail não bate com convite<br/>UC-025 A1"| AuthError
 
     FirstLogin --> RetryHint["Mensagem: use o link<br/>do e-mail de convite"]
 
-    class Login,Dashboard,FirstLogin,AuthError gap
+    class Login,Dashboard,AuthError existing
+    class FirstLogin gap
 ```
 
 ## Pages referenced
 
 | Page / Route | Component | Story | Status |
 |---|---|---|---|
-| `/dashboard/login` | `StaffLoginPage` | M124-S01 | ❌ GAP |
-| `/auth/first-login` | `FirstLoginPage` | M124-S01 | ❌ GAP |
-| `/auth/error` | `AuthErrorPage` | M124-S01 | ❌ GAP |
-| `/dashboard/bookings` | `BookingQueuePage` | M125-S03 | ❌ GAP (planned) |
+| `/dashboard/login` | `StaffLoginPage` | M124-S01 | ✅ Existing |
+| `/auth/first-login` | `FirstLoginPage` | M124-S01 | ❌ GAP — genuinely missing |
+| `/auth/error` | `AuthErrorPage` | M124-S01 | ✅ Existing |
+| `/dashboard/bookings` | `BookingQueuePage` | M125-S03 | ✅ Existing |
 
 ## BFF calls in this flow
 
@@ -51,7 +52,7 @@ flowchart TD
 
 ## Open questions / gaps
 
-- [ ] **Route for staff login:** prototype uses `/dashboard/login`; M125-S01 references `/{tenantSlug}/staff-login`. Which is canonical? `/dashboard/login` is simpler (staff is single-tenant; no slug needed). Decide before M124-S01.
+- [x] **Route for staff login:** — **Resolved.** `/dashboard/login` is canonical, confirmed shipped (`apps/web/app/dashboard/login/page.tsx`, reads `?tenantSlug` as a query param rather than a URL segment).
 - [ ] **"Bem-vindo(a)!" banner on first login (UC-025 step 8):** does the dashboard show a one-time welcome message after first activation? If yes, it belongs in M124-S01 as an inline success state on the dashboard, not a separate page.
 - [ ] **Deactivated staff (UC-025 A3 / A2):** tenant deactivated after invite sent — should `/auth/error` show a distinct message? The BFF must handle this case and pass `?reason=tenant-deactivated`.
 - [ ] **JWT expiry / re-login:** no logout or refresh endpoint exists yet. Staff whose JWT expires will be redirected to `/dashboard/login`. Confirm this is the intended re-login flow.

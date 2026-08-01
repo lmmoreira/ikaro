@@ -4,7 +4,9 @@ Source: `docs/04-USE_CASES.md`. Working checklist for journeys in this folder �
 
 | UC | Title | Notes | Journey file |
 |---|---|---|---|
-| UC-026 | Admin Edits Tenant Settings | BFF endpoint missing — blocking gap, see `manager/configuracoes.md` | `manager/configuracoes.md` |
+| UC-026 | Admin Edits Tenant Settings | Shipped (`M13-S31`, ✅ Done) | `manager/configuracoes.md` |
 | UC-027 | Tenant Admin Manages Hotsite Content & Branding | Branding field scope expanded 2026-06-16 per `/uc-audit` | `manager/hotsite.md` |
 | UC-028 | Admin Invites New Staff Member | | `manager/equipe.md` |
 | UC-029 | Admin Deactivates Staff Member | | `manager/equipe.md` |
+| UC-030 | Admin Edits Staff Member Profile | Shipped (`M13-S43`, ✅ Done); added to `manager/equipe.md` 2026-07-31 — no prototype screen exists yet | `manager/equipe.md` |
+| UC-031 | Admin Reactivates Staff Member | Shipped (`M13-S44`, ✅ Done); added to `manager/equipe.md` 2026-07-31 — no prototype screen exists yet | `manager/equipe.md` |

@@ -57,11 +57,12 @@
 <body>
 
   <!--
-    PAGE (GAP): apps/web/app/dashboard/bookings/[id]/complete/page.tsx  (or a modal/sheet over [id] — TBD, see dev-notes.md)
+    COMPONENT: MarkCompleteBookingPage
+    FILE:       apps/web/features/booking/components/dashboard/bookings/MarkCompleteBookingPage.tsx  (EXISTS —
+                real component is a dedicated page, not a sheet as an earlier draft proposed)
+    PAGE:       apps/web/app/dashboard/bookings/[id]/complete/page.tsx  (EXISTS)
     ROUTE:      reached from 03-booking-detail-approved.html "Marcar concluído" button
     AUTH:       JWT cookie, STAFF or MANAGER role
-
-    COMPONENT (GAP): MarkCompleteSheet — full screen here, but could be a desktop modal / mobile full-screen sheet
     BFF CALL:   PATCH /v1/bookings/:id/complete
       Body: {
         lines: [{ lineId: uuid, actualPriceCharged: number }],  // required, >= 1
@@ -164,7 +165,7 @@
         </a>
       </nav>
       <div class="sidebar-footer">
-        <div class="auth-avatar" style="flex-shrink: 0; width: 2rem; height: 2rem; font-size: 0.8125rem;">AP</div>
+        <div class="list-avatar" style="flex-shrink: 0; width: 2rem; height: 2rem; font-size: 0.8125rem;">AP</div>
         <div style="min-width: 0;">
           <p class="sidebar-user-name">Ana Pereira</p>
           <span class="role-badge role-badge-manager">Gerente</span>

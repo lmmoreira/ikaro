@@ -1,132 +1,50 @@
 # Dev Notes — CUSTOMER: Book a Service
 
-> **Status:** Steps 1, 2, 4 reuse existing components. Login flow (screen 0), review step (step 3), `BookingForm` branching, and `createAuthenticatedBooking()` fetcher are new builds — target M13-S02 or a dedicated story.
+> **Status:** ✅ Done. Updated 2026-07-31 — this file previously described a design (dedicated login screens, a `BookingForm` `mode` prop, a new `AuthenticatedBookingReviewStep` component) that was never built. The real implementation is simpler: one shared `BookingForm` auto-detects an authenticated customer and reuses the existing guest step components with different props.
 
 ---
 
 ## Overview
 
-The authenticated customer path shares steps 1 and 2 with the guest path, replaces step 3 with a new review component (no personal info form), and calls a different BFF endpoint on submit. The login flow (UC-021) is a prerequisite — steps 1–4 are unreachable until login ships.
+The authenticated customer path shares all 4 steps with the guest path — there is no separate component or route branch. `BookingForm` calls `getHotsiteCustomerProfile(slug)` on mount; if it resolves, the form treats the visitor as an authenticated customer for the rest of the flow (step 3 hides contact fields and pre-fills the pickup address; submit calls a different endpoint).
 
 ---
 
-## File map
+## File map (all ✅ shipped)
 
-| File | Status | Action |
-|---|---|---|
-| `apps/web/app/auth/login/page.tsx` | ❌ Gap | Create — screen 0 |
-| `apps/web/app/api/auth/google/route.ts` | ❌ Gap | Create — OAuth redirect |
-| `apps/web/app/api/auth/callback/google/route.ts` | ❌ Gap | Create — OAuth callback, set JWT cookie |
-| `apps/web/app/select-tenant/page.tsx` | ❌ Gap | Create — multi-tenant picker (UC-021 A3) |
-| `apps/web/components/booking/AuthenticatedBookingReviewStep.tsx` | ❌ Gap | Create — step 3 |
-| `apps/web/components/booking/BookingForm.tsx` | ✅ Exists | Modify — add `mode: 'guest' \| 'customer'` prop |
-| `apps/web/lib/api/bookings.ts` | ✅ Exists | Add `createAuthenticatedBooking()` function |
-| `apps/web/app/[slug]/booking/page.tsx` | ✅ Exists | Modify — detect auth from cookie, pass `mode` to `BookingForm` |
-| `apps/web/components/booking/ServiceSelectionStep.tsx` | ✅ Exists | No changes |
-| `apps/web/components/booking/AvailabilityCarousel.tsx` | ✅ Exists | No changes |
-| `apps/web/components/booking/SlotPicker.tsx` | ✅ Exists | No changes |
-| `apps/web/components/booking/ConfirmationStep.tsx` | ✅ Exists | No changes |
-| `apps/web/components/booking/PhotoUpload.tsx` | ✅ Exists | No changes |
-| `apps/web/components/booking/AddressFields.tsx` | ✅ Exists | No changes |
+| File | Notes |
+|---|---|
+| `apps/web/app/[slug]/login/page.tsx` | Real login route — tenant-scoped, not a generic `/auth/login` |
+| `apps/web/features/booking/components/public/BookingForm.tsx` | Auto-detects auth via `getHotsiteCustomerProfile(slug)` — no `mode` prop |
+| `apps/web/features/booking/api/public.ts` | `createAuthenticatedBooking()`, `createBooking()` |
+| `apps/web/features/booking/components/public/PersonalInfoStep.tsx` | Reused for step 3 in both paths, via `hideContactFields` prop |
+| `apps/web/features/booking/components/public/{ServiceSelectionStep,AvailabilityCarousel,SlotPicker,ConfirmationStep,PhotoUpload,AddressFields}.tsx` | Unchanged, shared with the guest flow |
+
+There is no `/api/auth/callback/google` Next.js route and no `/select-tenant` page — OAuth is handled entirely by the BFF (`GET /v1/auth/google/callback`), and login-time tenant selection was permanently descoped (see `customer/login.md`).
 
 ---
 
-## Screen 0 — Login (`/auth/login`)
-
-**File:** `apps/web/app/auth/login/page.tsx` (Server Component)
-
-**UI:**
-- Centered card (`max-w-sm mx-auto`)
-- Tenant logo (from `hotsiteConfig.branding.logoUrl`, fallback: tenant name initial in `--ba-primary` box)
-- Heading: `"Entrar na {tenantName}"`
-- Google sign-in button: border-1 + Google SVG + `"Entrar com Google"`
-- Fine print: `"Ao entrar, você concorda com os termos de uso."`
-
-**Flow:**
-```
-Click → GET /api/auth/google?redirect=/{slug}/booking
-  → BFF builds Google OAuth URL (scopes: email, profile openid)
-  → Browser → Google consent
-  → Google → GET /api/auth/callback/google?code=...&state=...
-  → BFF exchanges code, upserts Customer row, signs JWT
-  → Sets httpOnly cookie: name=ba_jwt, sameSite=lax, secure
-  → Reads tenants from JWT:
-      1 tenant  → redirect /{slug}/booking (or ?redirect param)
-      >1 tenants → redirect /select-tenant?redirect=/{slug}/booking
-```
-
-**`/select-tenant` page (UC-021 A3):**
-- BFF call: `GET /auth/me/tenants` (verify this endpoint exists — may need creating)
-- Renders tenant list as cards (logo + name)
-- On select → redirect to `/{tenantSlug}/booking`
-
----
-
-## `BookingForm` branching (`mode` prop)
-
-**Change:** Add `mode: 'guest' | 'customer'` prop.
+## Authenticated-customer detection (real design)
 
 ```tsx
-// apps/web/app/[slug]/booking/page.tsx
-const isAuthenticated = /* read JWT from cookie headers */ false; // implement with next/headers
+// Inside BookingForm, on mount:
+const customerProfile = await getHotsiteCustomerProfile(slug); // resolves to null if not authenticated
+const isAuthenticatedCustomer = customerProfile !== null;
 
-<BookingForm slug={slug} services={services} mode={isAuthenticated ? 'customer' : 'guest'} />
-```
-
-**Inside `BookingForm`:**
-```tsx
 // Step 3:
-{step === 3 && mode === 'guest' && <PersonalInfoStep ... />}
-{step === 3 && mode === 'customer' && <AuthenticatedBookingReviewStep ... />}
+<PersonalInfoStep
+  hideContactFields={isAuthenticatedCustomer}
+  pickupAddress={isAuthenticatedCustomer ? customerProfile.defaultAddress : undefined}
+  ...
+/>
 
 // Submit:
-const submit = mode === 'guest'
-  ? () => createBooking(slug, buildGuestPayload(...))
-  : () => createAuthenticatedBooking(buildCustomerPayload(...));
+const submit = isAuthenticatedCustomer
+  ? () => createAuthenticatedBooking(buildCustomerPayload(...))
+  : () => createBooking(slug, buildGuestPayload(...));
 ```
 
----
-
-## Step 3 — `AuthenticatedBookingReviewStep` (new component)
-
-**File:** `apps/web/components/booking/AuthenticatedBookingReviewStep.tsx`
-
-**What it renders:**
-1. **Read-only summary card** — selected services + formatted date/time (context before confirming)
-2. **Pickup address fields** (conditional: `requiresPickupAddress`) — pre-filled from `customer.defaultAddress`
-3. **PhotoUpload** (optional) — reuse existing component unchanged
-
-**What it does NOT render:**
-- ❌ `contactName` / `contactEmail` / `contactPhone` fields (customer is authenticated)
-
-**Customer `defaultAddress` fetch:**
-```
-GET /customers/me
-  Header: Authorization: Bearer <jwt>  (BFF reads from cookie)
-  Response: { id, name, email, phone, defaultAddress?: Address }
-```
-Call on step mount (when `step === 3 && mode === 'customer'`). Show skeleton while loading.
-If fetch fails: show inline error and disable "Próximo".
-
-**Open question:** Does `GET /customers/me` exist in BFF (`apps/bff/src/`)? If not, add it to the story scope.
-
-**Props:**
-```tsx
-interface AuthenticatedBookingReviewStepProps {
-  readonly slug: string;
-  readonly services: readonly HotsiteServiceResponse[];
-  readonly selectedServiceIds: readonly string[];
-  readonly selectedDate: string;
-  readonly selectedSlot: AvailableSlot;
-  readonly requiresPickupAddress: boolean;
-  readonly pickupAddress: Address;
-  readonly onPickupAddressChange: (address: Address) => void;
-  readonly photoFilePaths: readonly string[];
-  readonly onPhotoFilePathsChange: (paths: string[]) => void;
-  readonly onNext: () => void;
-  readonly onBack: () => void;
-}
-```
+No separate review component was built — `PersonalInfoStep` handles both paths via props, and no `GET /customers/me` call is needed since `getHotsiteCustomerProfile` already returns `defaultAddress`.
 
 ---
 
@@ -138,7 +56,7 @@ interface AuthenticatedBookingReviewStepProps {
 |---|---|---|---|
 | `'idle'` | "Confirmar agendamento" | enabled | Normal view |
 | `'submitting'` | "Enviando..." | disabled | Normal view — see `04b-submitting.html` |
-| `'success'` | — | — | Success view replaces step (data-testid: `confirmation-success`) — see `04d-success.html` |
+| `'success'` | — | — | Success view replaces step (data-testid: `booking-success`) — see `04d-success.html` |
 | `'error'` | "Confirmar agendamento" | enabled | Error message shown (data-testid: `confirmation-error`) — see `04c-submission-error.html` |
 
 **Error messages:**
@@ -208,10 +126,8 @@ A small bar showing `"{name} · {email}"` at the top of steps 1–4 for the cust
 
 New files require Vitest unit tests (`*.spec.tsx` alongside each new component) and at least one integration test for `POST /bookings/authenticated`. Reused components (`ServiceSelectionStep`, etc.) do not need new tests.
 
-`AuthenticatedBookingReviewStep` key test cases:
-- Renders read-only summary (service name, date, time)
-- `requiresPickupAddress: true` → `AddressFields` rendered with pre-filled values
+`PersonalInfoStep` (authenticated branch) key test cases:
+- `hideContactFields={true}` → no name/email/phone fields rendered
+- `requiresPickupAddress: true` → `AddressFields` rendered, pre-filled from `pickupAddress`
 - `requiresPickupAddress: false` → no address fields
 - PhotoUpload present regardless of `requiresPickupAddress`
-- "Próximo" disabled while `defaultAddress` is loading
-- "Próximo" calls `onNext` when pickup address filled (if required)

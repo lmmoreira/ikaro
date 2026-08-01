@@ -1,26 +1,27 @@
 # Equipe — Dev Notes
 
 **Journey:** MANAGER — Equipe (Team Management)
-**UCs:** UC-028 (invite), UC-029 (deactivate)
+**UCs:** UC-028 (invite), UC-029 (deactivate), UC-030 (edit profile), UC-031 (reactivate)
 **Prototype:** `manager/prototypes/equipe/`
+**Status:** ✅ Done — `M13-S43` (list, invite, deactivate, edit) / `M13-S44` (reactivate)
 
 ---
 
 ## Overview
 
-Both backend and BFF are fully implemented and `MANAGER`-guarded (confirmed via `/uc-audit UC-026,UC-027,UC-028,UC-029`, 2026-06-16). This is a **frontend-only** gap — no new backend or BFF story needed, just thinner `.http` coverage on the BFF side for invite/deactivate (`apps/bff/http/staff/staff.http` only documents list/detail; add invite + deactivate examples as a small hygiene fix, not blocking).
+Fully shipped. Updated 2026-07-31 — UC-030/UC-031 were added to this journey after a docs audit found them shipped with zero prototype coverage; everything else in this file was already accurate.
 
 ---
 
-## Routes
+## Routes (all ✅ shipped, no `[slug]` segment — dashboard is JWT/session-scoped)
 
 | Prototype file | Production route | Page component |
 |---|---|---|
-| `01-team-list.html` | `/{slug}/dashboard/team` | `TeamListPage` |
-| `02-invite-form.html` | `/{slug}/dashboard/team/invite` | `InviteStaffForm` |
-| `03-deactivate-confirm.html` | `/{slug}/dashboard/team/[id]/deactivate` or bottom-sheet | `DeactivateConfirmPage` or `DeactivateSheet` |
-
-> ⚠️ **Open question:** invite form as full page vs. modal/sheet, and deactivate confirmation as dedicated route vs. inline sheet. The prototype uses full pages for both, matching the `staff/servicos.md` precedent. Decide before implementing.
+| `01-team-list.html` | `/dashboard/team` | `TeamListPage` |
+| `02-invite-form.html` | `/dashboard/team/invite` | `InviteForm` |
+| `03-deactivate-confirm.html` | `/dashboard/team/[id]/deactivate` | `DeactivateConfirmPage` |
+| `04-staff-detail-edit.html` (added 2026-07-31) | `/dashboard/team/[id]` | `StaffDetailPage` (UC-030) |
+| Reactivate (added 2026-07-31, no dedicated screen — one-click on `01-team-list.html`) | inline `PATCH /staff/:id/activate` | `TeamListPage` row action (UC-031) |
 
 ---
 
@@ -31,8 +32,10 @@ Both backend and BFF are fully implemented and `MANAGER`-guarded (confirmed via 
 | List staff | `GET /staff` | MANAGER | — | `StaffListResponse` |
 | Invite staff | `POST /staff/invite` | MANAGER | `InviteStaffDto` | `201` |
 | Deactivate staff | `PATCH /staff/:id/deactivate` | MANAGER | — | `200` |
+| Update staff (UC-030) | `PATCH /staff/:id` | MANAGER | `{ name, role }` | `200` |
+| Reactivate staff (UC-031) | `PATCH /staff/:id/activate` | MANAGER | — | `200` |
 
-All endpoints exist (`apps/bff/src/staff/staff.controller.ts`). Verify exact response shape against `@ikaro/types` before using.
+All endpoints exist (`apps/bff/src/features/staff/staff.controller.ts`).
 
 ```typescript
 interface InviteStaffDto {
@@ -89,6 +92,16 @@ The "Desativar" action must not render on the logged-in admin's own row (compare
 
 ---
 
-## Missing types
+## UC-030 — Edit staff profile (`StaffDetailPage`)
 
-`StaffListItem`/`StaffListResponse` shape not yet verified in `@ikaro/types` — audit before implementing and add the `googleOAuthId` (or precomputed `status`) field discussed above.
+**File:** `apps/web/features/staff/components/team/StaffDetailPage.tsx` (✅ Exists)
+
+Fields: `name` (editable), `email` (read-only, tied to the Google account), `role` (`RoleSelectorField` — `STAFF`/`MANAGER`). No phone field. Submits `PATCH /staff/:id { name, role }`; on success, `router.push('/dashboard/team')`.
+
+## UC-031 — Reactivate staff (one-click, `TeamListPage`)
+
+No dedicated screen — an inactive row in `TeamListPage` gets a one-click "Ativar" action calling `PATCH /staff/:id/activate`, mirroring the pattern already used for reactivating a service (`staff/servicos.md`).
+
+## Types
+
+`StaffResponse`/`StaffListResponse` in `@ikaro/types` are the real shapes consumed by `TeamListPage`/`StaffDetailPage`.

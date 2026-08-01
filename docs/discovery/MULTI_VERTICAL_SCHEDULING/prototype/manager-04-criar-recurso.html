@@ -14,12 +14,12 @@
     .type-card { padding: 0.875rem; text-align: center; cursor: pointer; }
     .type-card p.title { font-weight: 700; color: var(--ba-text); font-size: 0.875rem; margin-top: 0.5rem; }
     .staff-pick-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); margin-bottom: 0.5rem; cursor: pointer; }
-    .staff-pick-row.selected { border-color: var(--ba-primary); border-width: 2px; }
+    .staff-pick-row.selected { border-color: #2563eb; border-width: 2px; } /* fixed platform blue, not --ba-primary */
     .staff-pick-row.disabled { opacity: 0.45; cursor: not-allowed; }
     .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 0.875rem 1rem; border-radius: var(--ba-radius); background: var(--ba-secondary); margin-bottom: 0.75rem; }
     .toggle-label { font-size: 0.9375rem; font-weight: 600; color: var(--ba-text); }
     .toggle-sub { font-size: 0.8125rem; opacity: 0.55; margin-top: 0.125rem; }
-    .toggle-switch { width: 2.75rem; height: 1.5rem; border-radius: 9999px; background: var(--ba-primary); position: relative; cursor: pointer; flex-shrink: 0; border: none; padding: 0; }
+    .toggle-switch { width: 2.75rem; height: 1.5rem; border-radius: 9999px; background: #2563eb; position: relative; cursor: pointer; flex-shrink: 0; border: none; padding: 0; } /* fixed platform blue, not --ba-primary -- confirmed against ServiceFormFields.tsx's real toggle (bg-blue-600) */
     .toggle-knob { position: absolute; top: 2px; left: 1.25rem; width: 1.25rem; height: 1.25rem; border-radius: 9999px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
     .input-suffix-group { position: relative; }
     .input-suffix { position: absolute; right: 0.875rem; top: 50%; transform: translateY(-50%); font-size: 0.8125rem; color: rgba(17,24,39,0.45); pointer-events: none; }
@@ -121,7 +121,7 @@
         </a>
       </nav>
       <div class="sidebar-footer">
-        <div class="auth-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
         <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
         <a class="sidebar-logout" href="../../../../plan/journey/shared/staff-login.html" title="Sair">
           <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -162,22 +162,22 @@
           <label class="form-label">Qual membro da equipe?</label>
 
           <div class="staff-pick-row disabled">
-            <div class="auth-avatar" style="width:2rem;height:2rem;font-size:0.75rem;">CD</div>
+            <div class="list-avatar" style="width:2rem;height:2rem;font-size:0.75rem;">CD</div>
             <div style="flex:1;">Camila Duarte</div>
             <span style="font-size:0.75rem;opacity:0.7;">Já é um recurso</span>
           </div>
           <div class="staff-pick-row disabled">
-            <div class="auth-avatar" style="width:2rem;height:2rem;font-size:0.75rem;background:#7c3aed;">BA</div>
+            <div class="list-avatar" style="width:2rem;height:2rem;font-size:0.75rem;background:#7c3aed;">BA</div>
             <div style="flex:1;">Bruno Alves</div>
             <span style="font-size:0.75rem;opacity:0.7;">Já é um recurso</span>
           </div>
           <div class="staff-pick-row disabled">
-            <div class="auth-avatar" style="width:2rem;height:2rem;font-size:0.75rem;background:#db2777;">RS</div>
+            <div class="list-avatar" style="width:2rem;height:2rem;font-size:0.75rem;background:#db2777;">RS</div>
             <div style="flex:1;">Renata Souza</div>
             <span style="font-size:0.75rem;opacity:0.7;">Já é um recurso</span>
           </div>
           <div class="staff-pick-row selected">
-            <div class="auth-avatar" style="width:2rem;height:2rem;font-size:0.75rem;background:#0891b2;">JP</div>
+            <div class="list-avatar" style="width:2rem;height:2rem;font-size:0.75rem;background:#0891b2;">JP</div>
             <div style="flex:1;">Juliana Prado</div>
           </div>
           <p class="form-hint">

@@ -36,7 +36,7 @@
 
   <h1>Protótipo — CUSTOMER: Minha Conta</h1>
   <p class="subtitle">UC-006 · UC-007 · UC-016 (resumo) &nbsp;|&nbsp;
-    Rota: <code>/{slug}/minha-conta</code> &amp; <code>/{slug}/minha-conta/agendamentos/[id]</code>
+    Rota: <code>/{slug}/my-account</code> &amp; <code>/{slug}/my-account/bookings/[id]</code> — ✅ Done, M13-S27–S30
   </p>
 
   <h2>Entrada</h2>
@@ -51,7 +51,7 @@
   <ul>
     <li>
       <a href="01-minha-conta.html">Tela 1 — Minha Conta (com agendamentos)</a>
-      <span class="tag tag-gap">GAP: M12X-S01</span>
+      <span class="tag tag-exists">EXISTS: M13-S27</span>
     </li>
   </ul>
 
@@ -59,15 +59,15 @@
   <ul>
     <li>
       <a href="02-agendamento-detail.html">Tela 2 — Detalhe (APROVADO)</a>
-      <span class="tag tag-gap">GAP: M12X-S02</span>
+      <span class="tag tag-exists">EXISTS: M13-S28</span>
     </li>
     <li>
       <a href="02b-agendamento-info-requested.html">Tela 2b — Detalhe (INFO_SOLICITADO + form resposta)</a>
-      <span class="tag tag-gap">GAP: UC-005 A2 · M12X-S02</span>
+      <span class="tag tag-exists">EXISTS: UC-005 A2 · M13-S28</span>
     </li>
     <li>
       <a href="02c-agendamento-historico.html">Tela 2c — Detalhe (CONCLUÍDO · somente leitura)</a>
-      <span class="tag tag-gap">GAP: M12X-S02</span>
+      <span class="tag tag-exists">EXISTS: M13-S28</span>
     </li>
   </ul>
 
@@ -75,11 +75,11 @@
   <ul>
     <li>
       <a href="03-cancel-confirm.html">Tela 3 — Confirmar cancelamento</a>
-      <span class="tag tag-gap">GAP: sheet inline · M12X-S02</span>
+      <span class="tag tag-exists">EXISTS: página dedicada (não sheet) · M13-S28</span>
     </li>
     <li>
       <a href="03b-cancel-error.html">Tela 3b — Erro: fora da janela de cancelamento</a>
-      <span class="tag tag-gap">GAP: UC-007 A1 · M12X-S02</span>
+      <span class="tag tag-exists">EXISTS: UC-007 A1 · M13-S28</span>
     </li>
   </ul>
 
@@ -87,11 +87,11 @@
   <ul>
     <li>
       <a href="04-fidelidade.html">Tela 4 — Minha Fidelidade (saldo + histórico + resgates)</a>
-      <span class="tag tag-gap">GAP: /minha-conta/fidelidade · M126</span>
+      <span class="tag tag-exists">EXISTS: /my-account/loyalty · M13-S29</span>
     </li>
     <li>
       <a href="04b-fidelidade-empty.html">Tela 4b — Fidelidade (nenhum ponto acumulado)</a>
-      <span class="tag tag-gap">GAP: estado vazio · M126</span>
+      <span class="tag tag-exists">EXISTS: estado vazio · M13-S29</span>
     </li>
   </ul>
 
@@ -99,7 +99,7 @@
   <ul>
     <li>
       <a href="05-trocar-empresa.html">Tela 5 — Seleção de empresa (dropdown avatar → "Trocar empresa")</a>
-      <span class="tag tag-gap">GAP: modal ou página inline · M124</span>
+      <span class="tag tag-exists">EXISTS: página dedicada (/switch-tenant) · M13-S14</span>
       — visível apenas quando cliente tem 2+ empresas
     </li>
   </ul>
@@ -108,16 +108,16 @@
   <ul>
     <li>
       <a href="01b-minha-conta-empty.html">Tela 1b — Minha Conta (sem agendamentos)</a>
-      <span class="tag tag-gap">GAP: estado vazio · M12X-S01</span>
+      <span class="tag tag-exists">EXISTS: estado vazio · M13-S27</span>
     </li>
     <li>
       <a href="02d-info-sent.html">Tela 2d → sucesso envio de info (UC-005 A2)</a>
-      <span class="tag tag-gap">GAP: estado inline após submit · M126</span>
+      <span class="tag tag-exists">EXISTS: estado inline após submit · M13-S28</span>
       — booking volta a PENDING; banner de confirmação
     </li>
     <li>
       <a href="02e-submit-error.html">Tela 2e → erro ao enviar resposta (UC-005 A2)</a>
-      <span class="tag tag-gap">GAP: erro de rede/5xx no PATCH submit-info · M126</span>
+      <span class="tag tag-exists">EXISTS: erro de rede/5xx no PATCH submit-info · M13-S28</span>
       — alerta vermelho inline; textarea re-habilitado com texto preservado; botão "Tentar novamente"
     </li>
   </ul>

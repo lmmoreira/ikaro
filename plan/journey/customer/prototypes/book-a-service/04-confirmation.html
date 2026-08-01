@@ -9,7 +9,7 @@
 <body>
   <!--
     COMPONENT: ConfirmationStep  (EXISTS — reuse unchanged)
-    FILE:      apps/web/components/booking/ConfirmationStep.tsx
+    FILE:      apps/web/features/booking/components/public/ConfirmationStep.tsx
     DIFFERENCE vs guest: submit calls createAuthenticatedBooking() instead of createBooking()
 
     ON SUBMIT — calls createAuthenticatedBooking(payload) (new function in lib/api/bookings.ts):
@@ -111,7 +111,7 @@
       STATES — see real clickable variant screens instead of inline comments:
         submitting        → 04b-submitting.html
         error (non-409)   → 04c-submission-error.html  (data-testid="confirmation-error")
-        success (201)      → 04d-success.html            (data-testid="confirmation-success")
+        success (201)      → 04d-success.html            (data-testid="booking-success")
     -->
 
     <div class="nav-buttons">

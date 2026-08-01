@@ -31,7 +31,7 @@
 </head>
 <body>
   <h1>Protótipo — GUEST: Agendar Serviço</h1>
-  <p>Fluxo de 4 passos. Todos os componentes já existem em <code>apps/web/components/booking/</code> (M12-S07). Este protótipo é para revisão de UX — nenhum código novo é necessário para o caminho do guest.</p>
+  <p>Fluxo de 4 passos. Todos os componentes já existem em <code>apps/web/features/booking/components/public/</code> (M12-S07). Este protótipo é para revisão de UX — nenhum código novo é necessário para o caminho do guest.</p>
 
   <ul>
     <li>
@@ -78,11 +78,11 @@
     </li>
     <li>
       <a href="02c-availability-error.html">Passo 2c — Erro ao carregar disponibilidade</a>
-      <span class="tag tag-red">⚠ sem botão de retry</span>
+      <span class="tag tag-green">EXISTS: retryCount + handleRetry (corrigido 2026-07-31)</span>
     </li>
     <li>
       <a href="02d-fully-booked.html">Passo 2d — Sem horários disponíveis (totalmente lotado)</a>
-      <span class="tag tag-red">⚠ sem mensagem explicativa</span>
+      <span class="tag tag-green">EXISTS: mensagem "Nenhum horário disponível" (corrigido 2026-07-31)</span>
     </li>
     <li>
       <a href="02e-slot-conflict.html">Passo 2e — Horário indisponível (409 ao confirmar)</a>
@@ -90,7 +90,7 @@
     </li>
     <li>
       <a href="02f-slot-fetch-error.html">Passo 2f — Erro ao carregar horários do dia (SlotPicker)</a>
-      <span class="tag tag-red">⚠ retry é proposta — ver dev-notes.md</span>
+      <span class="tag tag-green">EXISTS: retryCount + handleRetry (corrigido 2026-07-31)</span>
     </li>
     <li>
       <a href="03b-validation-error.html">Passo 3b — Erro de validação (e-mail inválido)</a>
@@ -98,7 +98,7 @@
     </li>
     <li>
       <a href="03c-photo-states.html">Passo 3c — Estados do upload de fotos (enviando / enviada / erro)</a>
-      <span class="tag tag-red">⚠ item com erro não tem "Remover"</span>
+      <span class="tag tag-green">EXISTS: "Remover" também em status=error (corrigido 2026-07-31)</span>
     </li>
     <li>
       <a href="04b-submitting.html">Passo 4b — Enviando agendamento</a>
@@ -110,7 +110,7 @@
     </li>
     <li>
       <a href="04d-success.html">Passo 4d — Solicitação enviada (sucesso)</a>
-      <span class="tag tag-green">EXISTS: ConfirmationStep (confirmation-success)</span>
+      <span class="tag tag-green">EXISTS: ConfirmationStep (booking-success)</span>
     </li>
   </ul>
 

@@ -6,9 +6,13 @@
   <title>Recursos — Vitta Studio</title>
   <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
   <style>
+    /* Desktop-only create button in topbar — same pattern as the real staff/prototypes/servicos/01-servicos-list.html */
+    .topbar-create-btn { display: none; }
+    @media (min-width: 1024px) { .topbar-create-btn { display: inline-flex; } }
+
     .filter-tabs { display: flex; gap: 0.25rem; padding: 0 0 0.875rem; }
     .filter-tab { padding: 0.375rem 0.875rem; border-radius: 9999px; font-size: 0.8125rem; font-weight: 600; border: 1.5px solid var(--ba-secondary); background: white; color: var(--ba-text); text-decoration: none; cursor: pointer; }
-    .filter-tab.active { background: var(--ba-primary); color: white; border-color: var(--ba-primary); }
+    .filter-tab.active { background: #2563eb; color: white; border-color: #2563eb; } /* fixed platform blue, not --ba-primary -- dashboard is tenant-agnostic */
     .member-row { display: flex; align-items: center; gap: 1rem; padding: 1rem; border-bottom: 1px solid var(--ba-secondary); }
     .member-row:last-child { border-bottom: none; }
     .member-info { flex: 1; min-width: 0; }
@@ -19,8 +23,8 @@
     .badge-type-room { background: #ede9fe; color: #6d28d9; font-size: 0.6875rem; font-weight: 700; padding: 0.125rem 0.5rem; border-radius: 9999px; white-space: nowrap; }
     .badge-type-equipment { background: #fce7f3; color: #be185d; font-size: 0.6875rem; font-weight: 700; padding: 0.125rem 0.5rem; border-radius: 9999px; white-space: nowrap; }
     .badge-active { background: #dcfce7; color: #166534; font-size: 0.6875rem; font-weight: 700; padding: 0.125rem 0.5rem; border-radius: 9999px; white-space: nowrap; }
-    .row-action { font-size: 0.8125rem; font-weight: 600; color: var(--ba-primary); text-decoration: none; white-space: nowrap; }
-    .fab { position: fixed; bottom: 1.5rem; right: 1.5rem; width: 3.5rem; height: 3.5rem; background: var(--ba-primary); color: white; border-radius: 9999px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(37,99,235,0.35); text-decoration: none; font-size: 1.5rem; font-weight: 300; line-height: 1; }
+    .row-action { font-size: 0.8125rem; font-weight: 600; color: #2563eb; text-decoration: none; white-space: nowrap; } /* fixed platform blue, not --ba-primary */
+    .fab { position: fixed; bottom: 1.5rem; right: 1.5rem; width: 3.5rem; height: 3.5rem; background: #2563eb; color: white; border-radius: 9999px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(37,99,235,0.35); text-decoration: none; font-size: 1.5rem; font-weight: 300; line-height: 1; } /* fixed platform blue, not --ba-primary -- maps to a shadcn Button in production */
     @media (max-width: 1023px) { .fab { bottom: 5rem; } }
     @media (min-width: 1024px) { .fab { display: none; } }
   </style>
@@ -49,6 +53,10 @@
     <div class="topbar-brand"><div class="topbar-logo-mark">V</div><span class="topbar-tenant-name">Vitta Studio</span></div>
     <h1 class="topbar-page-title">Recursos</h1>
     <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
+      <a href="manager-04-criar-recurso.html" class="btn-primary topbar-create-btn"
+         style="font-size:0.8125rem;padding:0.5rem 0.875rem;align-items:center;gap:0.375rem;">
+        + Novo recurso
+      </a>
       <a href="../../../../plan/journey/shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
       <span class="topbar-date">Hoje, 04 de agosto de 2026</span>
     </div>
@@ -103,7 +111,7 @@
         </a>
       </nav>
       <div class="sidebar-footer">
-        <div class="auth-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
         <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
         <a class="sidebar-logout" href="../../../../plan/journey/shared/staff-login.html" title="Sair">
           <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -115,10 +123,10 @@
       <div class="dashboard-body">
 
         <div class="filter-tabs">
-          <a href="#" class="filter-tab active">Todos (15)</a>
-          <a href="#" class="filter-tab">Profissionais (7)</a>
-          <a href="#" class="filter-tab">Salas (6)</a>
-          <a href="#" class="filter-tab">Equipamentos (2)</a>
+          <a href="#" class="filter-tab active">Todos (18)</a>
+          <a href="#" class="filter-tab">Profissionais (8)</a>
+          <a href="#" class="filter-tab">Salas (7)</a>
+          <a href="#" class="filter-tab">Equipamentos (3)</a>
         </div>
 
         <div class="card" style="padding:0;overflow:hidden;">
@@ -126,7 +134,7 @@
           <!-- Just created via manager-04-criar-recurso.html — closes the "where does it
                go" loop the same way staff-04's "Nova" tag does for turmas. -->
           <div class="member-row">
-            <div class="auth-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#0891b2;">JP</div>
+            <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#0891b2;">JP</div>
             <div class="member-info">
               <div class="member-name">Juliana Prado <span style="font-size:0.6875rem;font-weight:700;color:#15803d;background:#dcfce7;padding:0.125rem 0.4375rem;border-radius:4px;">Novo</span></div>
               <div class="member-meta">Ainda sem serviço vinculado</div>
@@ -139,7 +147,7 @@
           </div>
 
           <div class="member-row">
-            <div class="auth-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;">CD</div>
+            <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;">CD</div>
             <div class="member-info">
               <div class="member-name">Camila Duarte</div>
               <div class="member-meta">Cabeleireira · também instrutora de Pilates</div>
@@ -153,8 +161,24 @@
             <a href="staff-05-horarios-recurso.html" class="row-action">Horários</a>
           </div>
 
+          <!-- Added on review — second Pilates instructor, closing the loop for the
+               Estúdio 2 template created in manager-06-criar-turma.html (a bigger studio
+               running Pilates in 2 rooms at once, model #6) -->
           <div class="member-row">
-            <div class="auth-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#7c3aed;">BA</div>
+            <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#d97706;">AB</div>
+            <div class="member-info">
+              <div class="member-name">Ana Beatriz <span style="font-size:0.6875rem;font-weight:700;color:#15803d;background:#dcfce7;padding:0.125rem 0.4375rem;border-radius:4px;">Novo</span></div>
+              <div class="member-meta">Instrutora de Pilates · Estúdio 2</div>
+            </div>
+            <div class="member-right">
+              <span class="badge-type-staff">Profissional</span>
+              <span class="badge-active">Ativo</span>
+            </div>
+            <a href="#" class="row-action">Horários</a>
+          </div>
+
+          <div class="member-row">
+            <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#7c3aed;">BA</div>
             <div class="member-info">
               <div class="member-name">Bruno Alves</div>
               <div class="member-meta">Cabeleireiro · também instrutor de CrossFit</div>
@@ -168,7 +192,7 @@
 
           <!-- Added on review — was missing even though public-04/05 already assumed it exists -->
           <div class="member-row">
-            <div class="auth-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#db2777;">RS</div>
+            <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#db2777;">RS</div>
             <div class="member-info">
               <div class="member-name">Renata Souza</div>
               <div class="member-meta">Terapeuta de massagem · usada por: Massagem Relaxante, Jornada Spa</div>
@@ -183,7 +207,7 @@
           <!-- Added on review — second eligible therapist, so Massagem Relaxante's
                resourcePoolIds restriction (manager-02) has more than one member to pick from -->
           <div class="member-row">
-            <div class="auth-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#c026d3;">MS</div>
+            <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#c026d3;">MS</div>
             <div class="member-info">
               <div class="member-name">Maria Santos</div>
               <div class="member-meta">Terapeuta de massagem · usada por: Massagem Relaxante</div>
@@ -198,7 +222,7 @@
           <!-- Added on review — eligible-instructor pool for CrossFit templates, so
                manager-03's "Nova turma" can pick from more than one option (not just Bruno) -->
           <div class="member-row">
-            <div class="auth-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#0d9488;">JM</div>
+            <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#0d9488;">JM</div>
             <div class="member-info">
               <div class="member-name">João Mendes</div>
               <div class="member-meta">Instrutor de CrossFit · não dá aula de Pilates nem atende cabelo</div>
@@ -211,7 +235,7 @@
           </div>
 
           <div class="member-row">
-            <div class="auth-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#0d9488;">FR</div>
+            <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#0d9488;">FR</div>
             <div class="member-info">
               <div class="member-name">Fábio Ramos</div>
               <div class="member-meta">Instrutor de CrossFit</div>
@@ -224,9 +248,23 @@
           </div>
 
           <div class="member-row">
-            <div class="auth-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#6d28d9;">E1</div>
+            <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#6d28d9;">E1</div>
             <div class="member-info">
               <div class="member-name">Estúdio 1</div>
+              <div class="member-meta">Usada por: Pilates</div>
+            </div>
+            <div class="member-right">
+              <span class="badge-type-room">Sala</span>
+              <span class="badge-active">Ativo</span>
+            </div>
+            <a href="#" class="row-action">Horários</a>
+          </div>
+
+          <!-- Added on review — second Pilates room, paired with Ana Beatriz above -->
+          <div class="member-row">
+            <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#6d28d9;">E2</div>
+            <div class="member-info">
+              <div class="member-name">Estúdio 2 <span style="font-size:0.6875rem;font-weight:700;color:#15803d;background:#dcfce7;padding:0.125rem 0.4375rem;border-radius:4px;">Novo</span></div>
               <div class="member-meta">Usada por: Pilates</div>
             </div>
             <div class="member-right">
@@ -239,7 +277,7 @@
           <!-- 3 rooms added on review — Massagem Relaxante (bundle) and Jornada Spa
                (multi-leg) both assumed these already existed as resources -->
           <div class="member-row">
-            <div class="auth-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#6d28d9;">ST</div>
+            <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#6d28d9;">ST</div>
             <div class="member-info">
               <div class="member-name">Sala de Terapia</div>
               <div class="member-meta">Usada por: Massagem Relaxante, Jornada Spa (bundle com Renata Souza)</div>
@@ -252,7 +290,7 @@
           </div>
 
           <div class="member-row">
-            <div class="auth-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#6d28d9;">SS</div>
+            <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#6d28d9;">SS</div>
             <div class="member-info">
               <div class="member-name">Sala de Sauna</div>
               <div class="member-meta">Usada por: Jornada Spa (perna 1)</div>
@@ -265,7 +303,7 @@
           </div>
 
           <div class="member-row">
-            <div class="auth-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#6d28d9;">SR</div>
+            <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#6d28d9;">SR</div>
             <div class="member-info">
               <div class="member-name">Sala de Relaxamento</div>
               <div class="member-meta">Usada por: Jornada Spa (perna 3)</div>
@@ -278,7 +316,7 @@
           </div>
 
           <div class="member-row">
-            <div class="auth-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#6d28d9;">AC</div>
+            <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#6d28d9;">AC</div>
             <div class="member-info">
               <div class="member-name">Área CrossFit</div>
               <div class="member-meta">Usada por: CrossFit</div>
@@ -293,7 +331,7 @@
           <!-- Added on request (2026-07-29) — closes the loop for manager-04's Sala path,
                same pattern as Juliana Prado (STAFF) and Kit Halteres Rack 2 (EQUIPMENT) below -->
           <div class="member-row">
-            <div class="auth-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#6d28d9;">SI</div>
+            <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#6d28d9;">SI</div>
             <div class="member-info">
               <div class="member-name">Sala de Ioga <span style="font-size:0.6875rem;font-weight:700;color:#15803d;background:#dcfce7;padding:0.125rem 0.4375rem;border-radius:4px;">Novo</span></div>
               <div class="member-meta">Ainda sem serviço vinculado</div>
@@ -306,7 +344,7 @@
           </div>
 
           <div class="member-row">
-            <div class="auth-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#be185d;">KH</div>
+            <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#be185d;">KH</div>
             <div class="member-info">
               <div class="member-name">Kit Halteres (Rack 1)</div>
               <div class="member-meta">Usado por: CrossFit · turnover: 5 min</div>
@@ -321,10 +359,27 @@
                name pattern as "Rack 1" so the two are readable as a fungible pool
                (AUTO_FUNGIBLE_POOL, CAND-17) rather than two unrelated items. -->
           <div class="member-row">
-            <div class="auth-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#be185d;">KH</div>
+            <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#be185d;">KH</div>
             <div class="member-info">
               <div class="member-name">Kit Halteres (Rack 2) <span style="font-size:0.6875rem;font-weight:700;color:#15803d;background:#dcfce7;padding:0.125rem 0.4375rem;border-radius:4px;">Novo</span></div>
               <div class="member-meta">Usado por: CrossFit · turnover: 5 min</div>
+            </div>
+            <div class="member-right">
+              <span class="badge-type-equipment">Equipamento</span>
+              <span class="badge-active">Ativo</span>
+            </div>
+          </div>
+
+          <!-- Added on review (2026-08-04) — Massagem Relaxante's config (manager-02)
+               checked "Equipamento" with nothing eligible behind it. Every other type
+               there (Profissional, Sala) already had a real backing resource, so this
+               closes the same gap CAND-07's dentist example needs: STAFF + ROOM +
+               EQUIPMENT all required together is a genuine 3-way bundle, not capped at 2. -->
+          <div class="member-row">
+            <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#be185d;">KP</div>
+            <div class="member-info">
+              <div class="member-name">Kit de Pedras Quentes</div>
+              <div class="member-meta">Usado por: Massagem Relaxante · turnover: 15 min</div>
             </div>
             <div class="member-right">
               <span class="badge-type-equipment">Equipamento</span>

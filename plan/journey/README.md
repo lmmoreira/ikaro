@@ -693,7 +693,7 @@ Sidebar, bottom-nav, and bottom-sheet items that point to another journey (e.g. 
 - `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` — canonical page/folder structure; update if a journey reveals a new page
 - `plan/M13-DASHBOARD-FRONTEND.md` — stories implementing these pages; update AC or add stories per gap
 - `apps/backend/src/contexts/platform/domain/hotsite-config.aggregate.ts` — source of truth for token default values
-- `apps/web/lib/hotsite/apply-branding.ts` — token derivation logic (button tokens, hero text contrast)
+- `apps/web/features/platform/hotsite/apply-branding.ts` — token derivation logic (button tokens, hero text contrast)
 
 ---
 

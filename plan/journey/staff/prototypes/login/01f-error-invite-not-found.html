@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acesso Negado — Ikaro</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+</head>
+<body>
+
+  <!--
+    COMPONENT: AuthErrorPage — reason=invite-not-found
+    FILE:      apps/web/app/auth/error/page.tsx  (EXISTS)
+    Added 2026-07-31 — this reason code existed in production with no prototype
+    screen until now. See 01b-error.html for the full reason-code list.
+    Shown when an invite link is followed but the BFF finds no pending invite
+    matching it (e.g. already used, or the invite was revoked).
+  -->
+
+  <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f9fafb;">
+    <div style="width: 100%; max-width: 26rem; padding: 2.25rem; text-align: center; background: white; border-radius: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+
+      <div style="
+        width: 3.5rem; height: 3.5rem;
+        background: #fee2e2; border-radius: 50%;
+        margin: 0 auto 1.25rem;
+        display: flex; align-items: center; justify-content: center;
+      ">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="m15 9-6 6M9 9l6 6"/>
+        </svg>
+      </div>
+
+      <h1 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; color: #111827;">
+        Convite não encontrado
+      </h1>
+
+      <p style="font-size: 0.875rem; color: #6b7280; line-height: 1.5; margin-bottom: 1.75rem;">
+        Nenhum convite pendente foi encontrado para este estabelecimento.
+      </p>
+
+      <a
+        href="../../../shared/hotsite.html"
+        style="display: inline-block; text-decoration: none; padding: 0.625rem 1.5rem; border-radius: 0.5rem; background: #4f46e5; color: white; font-weight: 500; font-size: 0.9375rem;"
+      >
+        Voltar
+      </a>
+
+      <p style="margin-top: 1.25rem; font-size: 0.75rem; opacity: 0.4; color: #9ca3af;">
+        Código: <code>invite-not-found</code>
+      </p>
+
+    </div>
+  </div>
+
+</body>
+</html>

@@ -6,16 +6,17 @@
 
 ---
 
-## Routes
+## Routes (all ✅ shipped — `M13-S22`–`S24`)
 
 | Prototype file | Production route | Page component |
 |---|---|---|
 | `01-servicos-list.html` | `/dashboard/services` | `ServiceListPage` |
-| `02-service-create.html` | `/dashboard/services/new` | `ServiceFormPage` (create mode) |
-| `03-service-edit.html` | `/dashboard/services/[id]/edit` | `ServiceFormPage` (edit mode) |
-| `03b-deactivate-confirm.html` | `/dashboard/services/[id]/deactivate` or bottom-sheet | `DeactivateConfirmPage` or `DeactivateSheet` |
+| `02-service-create.html` | `/dashboard/services/new` | `ServiceCreatePage` |
+| `03-service-edit.html` | `/dashboard/services/[id]/edit` | `ServiceEditPage` (isActive=true branch) |
+| `03c-service-edit-inactive.html` | `/dashboard/services/[id]/edit` | `ServiceEditPage` (isActive=false branch — same component, different section rendered) |
+| `03b-deactivate-confirm.html` | `/dashboard/services/[id]/deactivate` | `ServiceDeactivatePage` — dedicated page, not a bottom sheet (resolved) |
 
-> ⚠️ **Open question:** Deactivation UX — dedicated page (this prototype) vs. inline bottom sheet on the edit form. Decide before implementing `M13-S24`.
+No `[slug]` segment on any of these — the staff/manager dashboard is JWT/session-scoped, not URL-slug-scoped (an earlier draft of this file's HTML comments assumed `[slug]`; corrected 2026-07-31).
 
 ---
 
@@ -27,9 +28,10 @@
 | Get single service | `GET /v1/services/:id` | STAFF \| MANAGER | — | `ServiceDetailResponse` |
 | Create service | `POST /v1/services` | STAFF \| MANAGER | `CreateServiceDto` | `201 ServiceDetailResponse` |
 | Update service | `PATCH /v1/services/:id` | STAFF \| MANAGER | `UpdateServiceDto` | `200 ServiceDetailResponse` |
-| Deactivate service | `DELETE /v1/services/:id` | STAFF \| MANAGER | — | `200` |
+| Deactivate service | `DELETE /v1/services/:id` | STAFF \| MANAGER | — | `204` |
+| Activate service | `PATCH /v1/services/:id/activate` | STAFF \| MANAGER | — | `200` |
 
-`POST`/`PATCH`/`DELETE` are likely already existing (built in M05). `GET /v1/services` (staff list including inactive) and `GET /v1/services/:id` are endpoints to verify-or-add, not confirmed-existing — `M13-S05` treats discovering/filling these as its explicit scope. Verify shapes match `@ikaro/types` before using.
+All confirmed existing in `apps/bff/src/features/booking/services.controller.ts`.
 
 ---
 
@@ -123,26 +125,25 @@ The backend `price` field is a `Money` value object with `{ amount, currency }`.
 
 ---
 
-## Deactivate flow
+## Deactivate flow (shipped)
 
 ```
-Staff clicks "Desativar serviço" (danger zone button)
+Staff clicks "Desativar serviço" (danger zone button, ServiceEditStatusSection)
   → navigate to /dashboard/services/[id]/deactivate
-  → render DeactivateConfirmPage with service summary card
-  → "Confirmar" → DELETE /v1/services/:id → 200
+  → render ServiceDeactivatePage with service summary card + warning box
+  → "Confirmar" → DELETE /v1/services/:id → 204
     → router.push('/dashboard/services')
-    → list shows service with isActive = false badge "Inativo"
-  → "Cancelar" → router.back()
+  → "Cancelar" → link back to the edit page
 ```
 
 ---
 
-## Reactivation (open question)
+## Reactivation (shipped)
 
-The `PATCH /v1/services/:id` endpoint accepts `{ isActive: true }` so reactivation is supported by the API. The prototype does not include a reactivation UI (inactive service in the list is greyed out; clicking it goes to the same edit form). Add an "Ativar serviço" button in the edit form's danger zone when `isActive === false`. Confirm scope before implementing.
+`ServiceEditPage` renders a different section when `service.isActive === false`: an info box (`editInactiveTitle`/`editInactiveDescription`) instead of the danger zone, and the primary action button becomes "Ativar serviço" (`useActivateService()` → `PATCH /v1/services/:id/activate`) instead of "Salvar alterações". On success, `isActive` flips to `true` locally and the page re-renders the normal active-edit view in place — no navigation. See `03c-service-edit-inactive.html`.
 
 ---
 
-## Missing types
+## Types
 
-- `ServiceListResponse`, `ServiceListItem` may not exist in `@ikaro/types` (only added during M05 for public hotsite use). Audit `packages/types/src/service.dto.ts` and add staff-facing shapes if needed.
+`StaffServiceResponse` in `@ikaro/types` is the real shape used by `ServiceEditPage`/`ServiceDeactivatePage` — includes `serviceId`, `name`, `description`, `price` (`MoneyAmount`), `durationMinutes`, `loyaltyPointsValue`, `requiresPickupAddress`, `isActive`.

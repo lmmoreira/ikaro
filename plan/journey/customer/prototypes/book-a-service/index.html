@@ -31,7 +31,7 @@
 </head>
 <body>
   <h1>Protótipo — CUSTOMER: Agendar Serviço</h1>
-  <p>Fluxo de 5 telas. Passos 1, 2 e 4 reutilizam componentes existentes. Telas 0, 3 e a lógica de branching em <code>BookingForm</code> são novos (M13-S02 ou nova story).</p>
+  <p>Fluxo de 5 telas — ✅ Done. Todos os passos reutilizam <code>BookingForm</code>; a detecção de cliente autenticado acontece via <code>getHotsiteCustomerProfile(slug)</code>, não por um branch de rota separado como um rascunho anterior deste arquivo assumia.</p>
 
   <ul>
     <li>
@@ -40,7 +40,7 @@
     </li>
     <li>
       <a href="00-login.html">Tela 1 — Login com Google</a>
-      <span class="tag tag-red">GAP: /auth/login — M13-S02</span>
+      <span class="tag tag-green">EXISTS: /{slug}/login — M13-S42</span>
     </li>
     <li>
       <a href="01-service-selection.html">Passo 1 — Escolha os serviços</a>
@@ -52,7 +52,7 @@
     </li>
     <li>
       <a href="03-review-confirm.html">Passo 3 — Revisar pedido</a>
-      <span class="tag tag-red">GAP: AuthenticatedBookingReviewStep (novo componente)</span>
+      <span class="tag tag-green">EXISTS: PersonalInfoStep (reused, hideContactFields=true)</span>
     </li>
     <li>
       <a href="04-confirmation.html">Passo 4 — Confirmar agendamento</a>
@@ -81,7 +81,7 @@
     </li>
     <li>
       <a href="04d-success.html">Passo 4d — Solicitação enviada (sucesso)</a>
-      <span class="tag tag-green">EXISTS: ConfirmationStep (confirmation-success)</span>
+      <span class="tag tag-green">EXISTS: ConfirmationStep (booking-success)</span>
     </li>
   </ul>
 

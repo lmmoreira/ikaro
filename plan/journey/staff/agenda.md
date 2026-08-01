@@ -16,9 +16,9 @@ flowchart TD
     classDef existing fill:#e6ffe6,stroke:#3a3
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
-    Start(["Dashboard /{slug}/dashboard"]) --> Queue["❓ GAP: /dashboard/bookings<br/>Booking Queue"]
+    Start(["Dashboard /{slug}/dashboard"]) --> Queue["/dashboard/bookings<br/>Booking Queue"]
     Queue --> CardClick(("Click booking card"))
-    CardClick --> Detail["❓ GAP: /dashboard/bookings/[id]<br/>Booking Detail"]
+    CardClick --> Detail["/dashboard/bookings/[id]<br/>Booking Detail"]
 
     Detail --> StatusBranch{"Status?"}
 
@@ -26,8 +26,8 @@ flowchart TD
 
     ActionChoice -->|"UC-003 Aprovar"| ApproveBtn(("Click Aprovar"))
     ApproveBtn --> SlotCheck{"409 Conflict?"}
-    SlotCheck -- "não → PATCH 200" --> ApproveSuccess["❓ GAP: estado inline<br/>PENDING → APPROVED<br/>toast verde + badge atualiza"]
-    SlotCheck -- "sim → 409" --> SlotConflict["❓ GAP: estado de erro inline<br/>Mostra slots adjacentes livres"]
+    SlotCheck -- "não → PATCH 200" --> ApproveSuccess["estado inline<br/>PENDING → APPROVED<br/>toast verde + badge atualiza"]
+    SlotCheck -- "sim → 409" --> SlotConflict["estado de erro inline<br/>Mostra slots adjacentes livres"]
     SlotConflict --> AltSlot(("Seleciona slot alternativo"))
     AltSlot --> ApproveSuccess
 
@@ -36,12 +36,12 @@ flowchart TD
     RejectSheet --> RejectValid{"reason ≥ 10?"}
     RejectValid -- não --> RejectSheet
     RejectValid -- sim --> RejectSubmit(("Confirmar rejeição"))
-    RejectSubmit --> RejectSuccess["❓ GAP: estado inline<br/>PENDING → REJECTED<br/>toast vermelho + badge"]
+    RejectSubmit --> RejectSuccess["estado inline<br/>PENDING → REJECTED<br/>toast vermelho + badge"]
 
     ActionChoice -->|"UC-005 Pedir info"| InfoBtn(("Click Pedir info"))
     InfoBtn --> InfoSheet["Bottom sheet<br/>Texto da pergunta"]
     InfoSheet --> InfoSubmit(("Enviar pergunta"))
-    InfoSubmit --> InfoSuccess["❓ GAP: estado inline<br/>PENDING → INFO_REQUESTED<br/>badge azul"]
+    InfoSubmit --> InfoSuccess["estado inline<br/>PENDING → INFO_REQUESTED<br/>badge azul"]
 
     ApproveSuccess --> Back(("Voltar à agenda"))
     RejectSuccess --> Back
@@ -50,24 +50,24 @@ flowchart TD
     StatusBranch -->|"APPROVED"| ApprovedActionChoice{"Ação"}
 
     ApprovedActionChoice -->|"UC-009 Marcar concluído"| CompleteBtn(("Click Marcar concluído"))
-    CompleteBtn --> CompleteSheet["❓ GAP: tela<br/>Ajusta preço cobrado por linha<br/>+ faixa de fidelidade (UC-009 A6)<br/>+ upload fotos + notas"]
+    CompleteBtn --> CompleteSheet["MarkCompleteBookingPage<br/>Ajusta preço cobrado por linha<br/>+ faixa de fidelidade (UC-009 A6)<br/>+ upload fotos + notas"]
     CompleteSheet --> LoyaltyChoice{"Usar pontos?<br/>(se customerId + points_per_currency_unit > 0)"}
     LoyaltyChoice -->|"Não"| CompleteSubmit(("Confirmar conclusão"))
     LoyaltyChoice -->|"Sim — UC-009 A6"| PointsInput(("Insere pontos / Usar todos"))
     PointsInput --> CompleteSubmit
-    CompleteSubmit --> CompleteSuccess["❓ GAP: estado inline<br/>APPROVED → COMPLETED<br/>resumo cotado vs cobrado + desconto pontos"]
+    CompleteSubmit --> CompleteSuccess["estado inline<br/>APPROVED → COMPLETED<br/>resumo cotado vs cobrado + desconto pontos"]
 
     ApprovedActionChoice -->|"UC-008 Cancelar"| AdminCancelBtn(("Click Cancelar"))
-    AdminCancelBtn --> AdminCancelSheet["❓ GAP: bottom sheet<br/>Motivo (opcional)"]
+    AdminCancelBtn --> AdminCancelSheet["AdminCancelBookingSheet<br/>Motivo (opcional)"]
     AdminCancelSheet --> AdminCancelSubmit(("Confirmar cancelamento"))
-    AdminCancelSubmit --> AdminCancelSuccess["❓ GAP: estado inline<br/>APPROVED → CANCELLED<br/>toast vermelho"]
+    AdminCancelSubmit --> AdminCancelSuccess["estado inline<br/>APPROVED → CANCELLED<br/>toast vermelho"]
 
     ApprovedActionChoice -->|"UC-008 A1 Reagendar"| RescheduleBtn(("Click Reagendar"))
-    RescheduleBtn --> RescheduleCalendar["❓ GAP: tela<br/>Seleciona novo slot no calendário"]
+    RescheduleBtn --> RescheduleCalendar["RescheduleBookingPage<br/>Seleciona novo slot no calendário"]
     RescheduleCalendar --> RescheduleSlotCheck{"Novo slot livre?"}
-    RescheduleSlotCheck -- "não → 409" --> RescheduleConflict["❓ GAP: estado de erro<br/>Sugere slots alternativos"]
+    RescheduleSlotCheck -- "não → 409" --> RescheduleConflict["estado de erro<br/>Sugere slots alternativos"]
     RescheduleConflict --> RescheduleCalendar
-    RescheduleSlotCheck -- "sim → PATCH 200" --> RescheduleSuccess["❓ GAP: estado inline<br/>scheduledAt atualizado<br/>permanece APPROVED"]
+    RescheduleSlotCheck -- "sim → PATCH 200" --> RescheduleSuccess["estado inline<br/>scheduledAt atualizado<br/>permanece APPROVED"]
 
     CompleteSuccess --> Back
     AdminCancelSuccess --> Back
@@ -75,24 +75,24 @@ flowchart TD
 
     Back --> Queue
 
-    class Queue,Detail,SlotConflict,ApproveSuccess,RejectSuccess,InfoSuccess,CompleteSheet,CompleteSuccess,AdminCancelSheet,AdminCancelSuccess,RescheduleCalendar,RescheduleConflict,RescheduleSuccess gap
+    class Queue,Detail,SlotConflict,ApproveSuccess,RejectSuccess,InfoSuccess,CompleteSheet,CompleteSuccess,AdminCancelSheet,AdminCancelSuccess,RescheduleCalendar,RescheduleConflict,RescheduleSuccess existing
 ```
 
 ## Pages referenced
 
 | Page / Route | Component | Story | Status |
 |---|---|---|---|
-| `/dashboard/bookings` | `BookingQueuePage` | M125-S03 | 📋 Planejado |
-| `/dashboard/bookings/[id]` | `BookingDetailPage` + `BookingActionPanel` | M125-S05 | 📋 Planejado |
-| Slot conflict inline state | `SlotConflictAlert` within `BookingActionPanel` | M125-S05 | 📋 Planejado |
-| Approve success inline state | `BookingApprovedBanner` within `BookingDetailPage` | M125-S05 | 📋 Planejado |
-| Reject bottom sheet | `RejectBookingSheet` within `BookingDetailPage` | M125-S05 | 📋 Planejado |
-| Request info bottom sheet | `RequestInfoSheet` within `BookingDetailPage` | M125-S05 | 📋 Planejado |
-| Mark-complete sheet | `MarkCompleteSheet` (per-line `actualPriceCharged` override + loyalty redemption strip UC-009 A6 + after-photo upload + notes) within `BookingDetailPage` | — (not yet scoped) | ❓ GAP |
-| Complete success inline state | `BookingCompletedBanner` within `BookingDetailPage` (shows per-line cotado vs cobrado + optional loyalty discount row) | — (not yet scoped) | ❓ GAP |
-| Admin cancel bottom sheet | `AdminCancelBookingSheet` within `BookingDetailPage` | — (not yet scoped) | ❓ GAP |
-| Reschedule calendar screen | `RescheduleBookingCalendar` within `BookingDetailPage` (reuses UC-011 availability calendar) | — (not yet scoped) | ❓ GAP |
-| Reschedule slot-conflict state | `RescheduleConflictAlert` within `RescheduleBookingCalendar` | — (not yet scoped) | ❓ GAP |
+| `/dashboard/bookings` | `BookingQueuePage` | M125-S03 | ✅ Done |
+| `/dashboard/bookings/[id]` | `BookingDetailPage` + `BookingActionPanel` | M125-S05 | ✅ Done |
+| Slot conflict inline state | `SlotConflictAlert` within `BookingActionPanel` | M125-S05 | ✅ Done |
+| Approve success inline state | inline banner within `BookingDetailPage` | M125-S05 | ✅ Done |
+| Reject bottom sheet | `RejectBookingSheet` within `BookingDetailPage` | M125-S05 | ✅ Done |
+| Request info bottom sheet | `RequestInfoSheet` within `BookingDetailPage` | M125-S05 | ✅ Done |
+| Mark-complete screen | `MarkCompleteBookingPage` (per-line `actualPriceCharged` override + loyalty redemption strip UC-009 A6 + after-photo upload + notes) | M13 | ✅ Done |
+| Complete success inline state | inline banner within `BookingDetailPage` (shows per-line cotado vs cobrado + optional loyalty discount row) | M13 | ✅ Done |
+| Admin cancel bottom sheet | `AdminCancelBookingSheet` within `BookingDetailPage` | M13 | ✅ Done |
+| Reschedule screen | `RescheduleBookingPage` (reuses UC-011 availability calendar) | M13 | ✅ Done |
+| Reschedule slot-conflict state | inline within `RescheduleBookingPage` | M13 | ✅ Done |
 
 ## Open questions / gaps
 

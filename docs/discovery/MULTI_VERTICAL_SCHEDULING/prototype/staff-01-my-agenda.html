@@ -13,7 +13,7 @@
     }
     .filter-tabs { display: flex; gap: 0.25rem; padding-bottom: 0.875rem; }
     .filter-tab { padding: 0.375rem 0.875rem; border-radius: 9999px; font-size: 0.8125rem; font-weight: 600; border: 1.5px solid var(--ba-secondary); background: white; color: var(--ba-text); text-decoration: none; cursor: pointer; }
-    .filter-tab.active { background: var(--ba-primary); color: white; border-color: var(--ba-primary); }
+    .filter-tab.active { background: #2563eb; color: white; border-color: #2563eb; } /* fixed platform blue, not --ba-primary -- dashboard is tenant-agnostic */
     .all-only { display: none; }
   </style>
 </head>
@@ -92,7 +92,7 @@
       </nav>
       <!-- No "Somente Gerente" section — Camila is STAFF, not MANAGER -->
       <div class="sidebar-footer">
-        <div class="auth-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">CD</div>
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">CD</div>
         <div style="min-width:0;">
           <p class="sidebar-user-name">Camila Duarte</p>
           <span class="role-badge role-badge-staff">Equipe</span>
@@ -129,7 +129,7 @@
         <div class="card" style="padding:0;overflow:hidden;">
           <div class="booking-card" style="margin:0;border:none;border-bottom:1px solid var(--ba-secondary);border-radius:0;">
             <div class="booking-card-header">
-              <div class="auth-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#16a34a;">FL</div>
+              <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#16a34a;">FL</div>
               <div class="booking-card-info">
                 <p class="booking-card-name">Fernanda Lima</p>
                 <p class="booking-card-meta">Corte + Escova</p>
@@ -145,7 +145,7 @@
           </div>
           <div class="booking-card" style="margin:0;border:none;border-radius:0;">
             <div class="booking-card-header">
-              <div class="auth-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#7c3aed;">RD</div>
+              <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#7c3aed;">RD</div>
               <div class="booking-card-info">
                 <p class="booking-card-name">Roberta Dias</p>
                 <p class="booking-card-meta">Coloração</p>
@@ -166,7 +166,7 @@
         <div class="card all-only" style="padding:0;overflow:hidden;margin-top:0.75rem;">
           <div class="booking-card" style="margin:0;border:none;border-bottom:1px solid var(--ba-secondary);border-radius:0;">
             <div class="booking-card-header">
-              <div class="auth-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#7c3aed;">MV</div>
+              <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#7c3aed;">MV</div>
               <div class="booking-card-info">
                 <p class="booking-card-name">Marcos Vieira</p>
                 <p class="booking-card-meta">Corte — Bruno Alves</p>
@@ -181,7 +181,7 @@
           </div>
           <div class="booking-card" style="margin:0;border:none;border-radius:0;">
             <div class="booking-card-header">
-              <div class="auth-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#db2777;">AC</div>
+              <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#db2777;">AC</div>
               <div class="booking-card-info">
                 <p class="booking-card-name">Ana Costa</p>
                 <p class="booking-card-meta">Massagem Relaxante — Renata Souza</p>

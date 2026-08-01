@@ -3,7 +3,7 @@
 **Actor(s):** CUSTOMER  
 **Goal:** Customer authenticates with Google OAuth from a tenant's hotsite and lands on that tenant's hotsite in logged-in state; customers belonging to multiple tenants can switch tenant after login  
 **UCs covered:** UC-021, UC-023  
-**Status:** Draft
+**Status:** Reviewed
 
 > **Scope change (2026-06-24, `M13-S14` discovery session):** the original design included a login-time tenant-selection screen (`/select-tenant`, UC-021 Case B) for a customer logging in via a generic, tenant-agnostic entry point. No such entry point exists in this product — every login starts from a specific tenant's hotsite, which always supplies the tenant slug directly. That branch (`handleMultiTenantLogin`'s 2+-tenant case, `POST /auth/token`) is unreachable from any shipped UI and was descoped permanently — see `docs/04-USE_CASES.md` UC-021. Multi-tenant customers are still fully supported via UC-023 (switch tenant after login), which is now part of this same flow/story.
 

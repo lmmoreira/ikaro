@@ -12,32 +12,34 @@ flowchart TD
     classDef existing fill:#e6ffe6,stroke:#3a3
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
-    Start(["Dashboard sidebar/bottom-sheet<br/>'Somente Gerente' → Configurações"]) --> Form["❓ GAP: /dashboard/settings<br/>Settings Form<br/>(BFF endpoint missing — see gap note)"]
+    Start(["Dashboard sidebar/bottom-sheet<br/>'Somente Gerente' → Configurações"]) --> Form["/dashboard/settings<br/>Settings Form"]
 
     Form --> EditFields(("Admin edita campos"))
     EditFields --> Submit(("Click 'Salvar'"))
     Submit --> Valid{"Todos os campos válidos?"}
-    Valid -- "não (A1)" --> FieldError["❓ GAP: campo destacado<br/>com mensagem de erro inline"]
+    Valid -- "não (A1)" --> FieldError["campo destacado<br/>com mensagem de erro inline"]
     FieldError --> Form
-    Valid -- "sim → 200" --> Success["❓ GAP: toast verde<br/>'Configurações salvas com sucesso'"]
+    Valid -- "sim → 200" --> Success["toast verde<br/>'Configurações salvas com sucesso'"]
     Success --> Form
 
-    class Form,FieldError,Success gap
+    class Form,FieldError,Success existing
 ```
+
+**Also shipped, undocumented by the original prototype (2026-07-31 docs audit):** the real form has 7 sections (General, Booking, Loyalty, **Notification**, Hours, Contact, **Localization**) vs. the prototype's 5, with ~9 additional fields (`autoApproveEnabled`, `minBookingAdvanceHours`, `maxBookingAdvanceDays`, `slotGranularityMinutes`, `welcomeStaffScreenDays`, `pointsPerCurrencyUnit`, `enableNotifications`, `expiryWarningDays`, `notificationMinPoints`), a structured address with ViaCEP zip-lookup instead of one free-text line, and social links (WhatsApp/Instagram/Facebook). This was a deliberate scope expansion on the `M13-S31` branch — candidate for the next prototype touch-up pass.
 
 ## Pages referenced
 
 | Page / Route | Component | Story | Status |
 |---|---|---|---|
-| `/dashboard/settings` | `TenantSettingsForm` | TBD | 📋 Gap |
+| `/dashboard/settings` | `SettingsForm` | M13-S31 | ✅ Done |
 
 ## Open questions / gaps
 
-- [ ] **🔴 Blocking — BFF endpoint missing.** Backend `PATCH /tenants/settings` is fully implemented, `MANAGER`-guarded, and `.http`-covered (`apps/backend/src/contexts/platform/infrastructure/controllers/tenant-settings.controller.ts`) — but no BFF controller exposes it (confirmed via `/uc-audit UC-026,UC-027,UC-028,UC-029`, 2026-06-16). Unlike Equipe and Hotsite, this journey needs a **new BFF story** (proxy route in the `platform` BFF module) before any frontend story can follow.
+- [x] **BFF endpoint** — **Resolved/shipped.** `apps/bff/src/features/platform/tenant-settings.controller.ts` fully implements `GET`/`PATCH /tenants/settings` with Zod validation. No separate BFF story was needed after all — it shipped as part of `M13-S31`.
 - [ ] **Two data sources, one form** — UC-026 step 1 describes loading "current `tenants.settings` JSONB," but `Nome do estabelecimento` and `Slug` are actually `tenants` table columns, not JSONB fields (UC step 5 confirms the save updates both `tenants.settings` *and* `tenants.name`). The prototype's single combined form needs to make this invisible to the admin — confirm section grouping (e.g. "Geral" / "Agendamento" / "Fidelidade" / "Contato") so the data-source split doesn't leak into the UI.
-- [ ] **Business hours editor UX** — per-day open/close time pickers, plus a way to mark a day fully closed. Cross-check exact shape against `docs/21-TENANTS_SETTINGS_SCHEMA.md` before designing the form.
+- [x] **Business hours editor UX** — **Resolved/shipped.** Per-day `TimePicker` + a closed-toggle, in the shipped `SettingsForm.tsx`.
 - [ ] **Audit log surface** — UC-026 step 6 says the system logs "who changed what and when," but CLAUDE.md §6 lists "audit log view" as an explicitly missing/undocumented UC. Treat as out of scope for this journey's prototype (no "Histórico de alterações" panel) unless the user says otherwise — don't invent a screen for an undocumented capability.
-- [ ] **Timezone field** — dropdown over the full IANA list, or read-only/fixed display for MVP given CLAUDE.md's "one timezone per tenant, default `America/Sao_Paulo`"? Single-location tenants may never need to change it.
+- [x] **Timezone field** — **Resolved/shipped.** A `<select>` driven by `resolveSettingsLocalization`, in the shipped `SettingsForm.tsx`.
 
 ## Prototype
 

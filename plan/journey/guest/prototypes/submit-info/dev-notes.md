@@ -2,37 +2,22 @@
 
 ## Overview
 
-New standalone public page (`/bookings/[id]/submit-info`) that allows a guest (or authenticated customer via a separate path) to respond to an admin's info request. Backend and BFF are fully implemented (M08-S04/S05). This story creates only the frontend page and updates one backend string.
+✅ Fully shipped (`M13-S38`/`S39`/`S40`). Standalone public page (`/bookings/[id]/submit-info`) that allows a guest (or authenticated customer via a separate path in the Minha Conta journey) to respond to an admin's info request.
 
-## File map
+## File map (all ✅ shipped)
 
-| File | Status | Action |
-|---|---|---|
-| `apps/web/app/bookings/[id]/submit-info/page.tsx` | ❌ GAP | Create — new route |
-| `apps/web/components/booking/SubmitInfoForm.tsx` | ❌ GAP | Create — client component |
-| `apps/backend/src/contexts/notification/application/use-cases/send-booking-info-requested-notification/send-booking-info-requested-notification.use-case.ts` | ✅ EXISTS | Update `buildRespondLink()` — change `responder` → `submit-info` |
-| `apps/backend/src/contexts/notification/application/use-cases/send-booking-info-requested-notification/send-booking-info-requested-notification.use-case.spec.ts` | ✅ EXISTS | Update expected URL in spec |
+| File | Status |
+|---|---|
+| `apps/web/app/bookings/[id]/submit-info/page.tsx` | ✅ Exists |
+| `apps/web/features/booking/components/public/SubmitInfoForm.tsx` | ✅ Exists |
+| `apps/web/features/booking/components/public/InvalidLinkView.tsx` | ✅ Exists |
+| `send-booking-info-requested-notification.use-case.ts` (`buildRespondLink()`) | ✅ Updated — emits `/submit-info`, not `/responder` |
 
-## Prerequisite backend change
-
-**Must ship in the same story as the frontend page** — otherwise email links go to a 404.
-
-```ts
-// send-booking-info-requested-notification.use-case.ts  ~line 84
-// BEFORE:
-return `${frontendUrl}/bookings/${dto.bookingId}/responder?token=${token}`;
-// AFTER:
-return `${frontendUrl}/bookings/${dto.bookingId}/submit-info?token=${token}`;
-```
-
-Update the companion spec to expect the new path:
-```ts
-// spec: expect(link).toContain('/bookings/${BOOKING_ID}/submit-info?token=');
-```
+The backend rename described below already shipped in the same story as the frontend page.
 
 ## Screen 01 — Formulário de resposta (`SubmitInfoPage` / `SubmitInfoForm`)
 
-**File:** `apps/web/app/bookings/[id]/submit-info/page.tsx` (GAP)
+**File:** `apps/web/app/bookings/[id]/submit-info/page.tsx` (✅ Exists)
 
 **Route:** `/bookings/[id]/submit-info?token=<JWT>`
 
@@ -98,16 +83,12 @@ PATCH /v1/bookings/:id/submit-info/guest?token=<JWT>
 - Network/5xx: "Não foi possível enviar sua resposta. Verifique sua conexão e tente novamente." See `01e-submit-error.html`.
 - Token expired (detected client-side after 401 from PATCH): same `error` state as above, but swap copy to "Seu link expirou enquanto você preenchia o formulário..." and replace the retry button with a link to the invalid-link state (retrying with an already-expired token would just 401 again) — redirect to `?error=expired` to show the 01b-equivalent messaging. No separate prototype screen was built for this; the variant is documented inline as a comment in `01e-submit-error.html` since it reuses the same layout as the network/5xx error, just with different copy and CTA target.
 
-## Photo upload flow
+## Photo upload flow (✅ shipped, different design than originally proposed)
 
-> ⚠️ **Verify before implementing:** check if `POST /v1/bookings/:id/presigned-url/guest?token=` exists in BFF.
-> If it does not exist, omit photo upload from MVP — guest can describe in text and staff uploads photos manually.
-
-If the endpoint exists:
-1. Guest selects files (max 5, max 10 MB each)
-2. For each file: `POST /v1/bookings/:id/presigned-url/guest?token=` → `{ uploadUrl, storagePath }`
-3. `PUT <uploadUrl>` with file binary (direct to S3, no BFF)
-4. Collect `storagePath[]` → include as `photoUrls` in submission body
+No dedicated `POST /v1/bookings/:id/presigned-url/guest` endpoint was created. Instead the existing
+`POST /bookings/attachments/signed-url` route gained a `guestToken`+`bookingId` branch
+(`createGuestAttachmentSignedUrl()` in `apps/web/features/booking/api/public.ts`), reusing the same
+upload endpoint the authenticated flow uses.
 
 ## Screen 01b — Link inválido (`SubmitInfoPage` error state)
 
@@ -129,11 +110,11 @@ Shows: green check icon + "Resposta enviada!" + booking summary card + "Ir para 
 
 **"Criar conta" CTA reasoning:** Guest completing this flow has shown intent to engage — this is the lowest-friction moment to invite them into the authenticated experience. Keep it subtle (secondary link, not a button).
 
-## Known limitations
+## Known limitations (all resolved — kept for history)
 
-- **No branding per tenant (canonical description — `submit-info.md` cross-references this entry):** The page currently shows default `--ba-*` tokens. To show the tenant's actual branding: either the token includes `tenantId` only and the page calls `GET /v1/public/tenants/:tenantId/config` (or similar) to fetch branding, or the token includes `tenantSlug` so branding can be fetched the same way the hotsite does (via slug). Decision pending — tracked as an open question in `submit-info.md` "Open questions / gaps".
-- **Booking summary endpoint for guests:** `GET /v1/bookings/:id/guest?token=` is specified in `M13-S39` (optional — M13-S40 can ship without it). If `M13-S39` hasn't shipped yet, render the form without a summary card.
-- **Photo upload unconfirmed:** Presigned-URL endpoint for unauthenticated context may not exist. Default to text-only in MVP.
+- ~~No branding per tenant~~ — **Resolved.** The page applies the tenant's real branding via `fetchManifestSafely` + `applyBranding()`.
+- ~~Booking summary endpoint for guests~~ — **Resolved.** `GET /v1/bookings/:id/guest` exists and is used via `fetchGuestBookingSummary()`.
+- ~~Photo upload unconfirmed~~ — **Resolved**, via the `guestToken`+`bookingId` branch on the existing signed-url endpoint (see Photo upload flow above).
 
 ## Mobile notes
 

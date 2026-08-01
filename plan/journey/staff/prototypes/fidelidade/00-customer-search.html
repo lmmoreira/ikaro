@@ -16,7 +16,7 @@
     .customer-row:hover { background: var(--ba-secondary); }
     .customer-avatar {
       width: 2.5rem; height: 2.5rem; border-radius: 50%;
-      background: var(--ba-primary); color: white;
+      background: #2563eb; color: white; /* fixed platform blue, not --ba-primary — dashboard is tenant-agnostic; real AVATAR_FALLBACK_CLASSES cycles bg-blue-600/violet-600/cyan-600/amber-600/pink-600 by row index */
       display: flex; align-items: center; justify-content: center;
       font-weight: 700; font-size: 0.9375rem; flex-shrink: 0;
     }
@@ -34,12 +34,16 @@
 <body>
 
   <!--
-    PAGE (GAP): apps/web/app/dashboard/loyalty/page.tsx
-    ROUTE:      /dashboard/loyalty
-    COMPONENT:  LoyaltySearchPage ('use client')
-    BFF CALL:   GET /v1/customers?search=:term  → CustomerSearchResponse[]
-    NOTE: Confirm this endpoint exists in apps/bff/src/. If not, it must be added.
-          See dev-notes.md "Customer search endpoint gap".
+    COMPONENT: LoyaltySearchPage
+    FILE:      apps/web/features/loyalty/components/dashboard/LoyaltySearchPage.tsx  (EXISTS, 'use client')
+    ROUTE:     /dashboard/loyalty
+    BFF CALL:  GET /v1/customers?search=:term&limit=  → CustomerSearchListResponse
+    Debounced 300ms. No term → "Clientes recentes" (limit 5). With term → "Resultados
+    para {term}" (limit 20). Has a real loading-skeleton state and a real fetch-error
+    state — see 00b-loading.html and 00c-search-error.html (added 2026-07-31; a prior
+    dev-notes.md draft speculated a skeleton was "unlikely to be needed", which turned
+    out to be wrong once the real component was checked).
+    Row click → /dashboard/loyalty/{customerId} (path segment, not a query param).
   -->
 
   <div class="dashboard-topbar">
@@ -51,7 +55,7 @@
     </div>
     <h1 class="topbar-page-title">Fidelidade</h1>
     <div style="margin-left: auto; display: flex; align-items: center; gap: 0.75rem;">
-      <a href="../../../shared/staff-login.html" class="auth-avatar" title="Sair">AP</a>
+      <a href="../../../shared/staff-login.html" class="list-avatar" title="Sair">AP</a>
       <span class="topbar-date">Hoje, 16 de junho de 2026</span>
     </div>
   </div>
@@ -100,7 +104,7 @@
         </a>
       </nav>
       <div class="sidebar-footer">
-        <div class="auth-avatar" style="flex-shrink: 0; width: 2rem; height: 2rem; font-size: 0.8125rem;">AP</div>
+        <div class="list-avatar" style="flex-shrink: 0; width: 2rem; height: 2rem; font-size: 0.8125rem;">AP</div>
         <div style="min-width: 0;">
           <p class="sidebar-user-name">Ana Pereira</p>
           <span class="role-badge role-badge-manager">Gerente</span>

@@ -9,27 +9,17 @@
 <body>
 
   <!--
-    PAGE (GAP): apps/web/app/auth/error/page.tsx
-    ROUTE:      /auth/error?reason=tenant-deactivated
-    Shared between staff and customer flows.
-
-    reason values and messages:
-      not-a-staff-member   → "Sua conta Google não está cadastrada como funcionário."
-      email-mismatch       → "Por favor, use o e-mail para o qual você foi convidado(a)."
-      tenant-deactivated   → "Este estabelecimento está desativado."
-      no-tenant            → "Nenhum estabelecimento encontrado para sua conta."  (customer only)
-
-    COMPONENT (GAP): AuthErrorPage
-    FILE: apps/web/app/auth/error/page.tsx  (searchParams: { reason: string })
-    Server component — reads ?reason= from URL, renders the appropriate message.
-    No BFF call needed.
+    COMPONENT: AuthErrorPage — reason=tenant-deactivated
+    FILE:      apps/web/app/auth/error/page.tsx  (EXISTS)
+    See 01b-error.html for the full reason-code list and shared conventions.
+    CTA target here is ctaSite (site root '/'), not the tenant's own hotsite —
+    approximated here by linking to shared/entry.html, the closest prototype
+    stand-in for "platform root, no specific tenant".
   -->
 
-  <!-- Preview: reason=tenant-deactivated (tenant has been deactivated by the platform operator) -->
   <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f9fafb;">
-    <div class="card" style="width: 100%; max-width: 26rem; padding: 2.25rem; text-align: center;">
+    <div style="width: 100%; max-width: 26rem; padding: 2.25rem; text-align: center; background: white; border-radius: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
 
-      <!-- Icon: X circle -->
       <div style="
         width: 3.5rem; height: 3.5rem;
         background: #fee2e2; border-radius: 50%;
@@ -42,25 +32,23 @@
         </svg>
       </div>
 
-      <h1 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--ba-text)">
+      <h1 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; color: #111827;">
         Estabelecimento desativado
       </h1>
 
-      <p style="font-size: 0.875rem; color: var(--ba-text); opacity: 0.65; line-height: 1.5; margin-bottom: 1.75rem;">
-        Este estabelecimento está desativado.
-        Entre em contato com o suporte BeloAuto.
+      <p style="font-size: 0.875rem; color: #6b7280; line-height: 1.5; margin-bottom: 1.75rem;">
+        Este estabelecimento está temporariamente desativado.
       </p>
 
       <a
-        href="../../../shared/hotsite.html"
-        class="btn-primary"
-        style="display: inline-block; text-decoration: none; padding: 0.625rem 1.5rem;"
+        href="../../../shared/entry.html"
+        style="display: inline-block; text-decoration: none; padding: 0.625rem 1.5rem; border-radius: 0.5rem; background: #4f46e5; color: white; font-weight: 500; font-size: 0.9375rem;"
       >
         Voltar ao site
       </a>
 
-      <p style="margin-top: 1.25rem; font-size: 0.75rem; opacity: 0.4; color: var(--ba-text);">
-        Código de erro: <code>tenant-deactivated</code>
+      <p style="margin-top: 1.25rem; font-size: 0.75rem; opacity: 0.4; color: #9ca3af;">
+        Código: <code>tenant-deactivated</code>
       </p>
 
     </div>

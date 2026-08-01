@@ -3,7 +3,7 @@
 **Actor(s):** CUSTOMER  
 **Goal:** Logged-in customer views their booking history, checks loyalty balance, and cancels eligible bookings — all scoped to the current tenant  
 **UCs covered:** UC-006, UC-007, UC-016 (balance summary + full breakdown), UC-023 (trigger), UC-005 A2 (authenticated customer path)  
-**Status:** Draft
+**Status:** Reviewed — implemented via `M13-S27`–`M13-S30` (all ✅ Done in `plan/M13-DASHBOARD-FRONTEND.md`)
 
 ## Flow
 
@@ -16,10 +16,10 @@ flowchart TD
     BookingConfirm["/{slug}/booking<br/>Confirmação (UC-002 step 10)"] -->|"'Ver meus agendamentos'"| MinhaConta
     InfoEmail["E-mail de info solicitada<br/>(UC-005 main flow)"] -->|"Link direto → detalhe"| Detail
 
-    MinhaConta["❓ GAP: /{slug}/minha-conta<br/>Minha Conta"] --> LoyaltySummary["Cartão: pontos ativos + próxima expiração<br/>GET /v1/loyalty/balance"]
-    LoyaltySummary -->|"Toca cartão"| LoyaltyFull["❓ GAP: /{slug}/minha-conta/fidelidade<br/>Minha Fidelidade (UC-016)"]
+    MinhaConta["/{slug}/minha-conta<br/>Minha Conta"] --> LoyaltySummary["Cartão: pontos ativos + próxima expiração<br/>GET /v1/loyalty/balance"]
+    LoyaltySummary -->|"Toca cartão"| LoyaltyFull["/{slug}/minha-conta/fidelidade<br/>Minha Fidelidade (UC-016)"]
     MinhaConta --> AvatarMenu(("Avatar dropdown"))
-    AvatarMenu -->|"'Trocar empresa'<br/>(2+ tenants apenas)"| SwitchTenant["❓ GAP: modal Trocar Empresa<br/>POST /v1/auth/switch-tenant"]
+    AvatarMenu -->|"'Trocar empresa'<br/>(2+ tenants apenas)"| SwitchTenant["/switch-tenant<br/>POST /v1/auth/switch-tenant"]
     SwitchTenant -->|"Sucesso"| NewTenant["Hotsite nova empresa"]
     MinhaConta --> BookingList["Seções de agendamentos<br/>GET /v1/bookings"]
 
@@ -31,20 +31,19 @@ flowchart TD
     Pending -->|"Clica card"| Detail
     Past -->|"Clica card (read-only)"| Detail
 
-    Upcoming -->|"Clica 'Cancelar' (dentro da janela)"| CancelSheet["Sheet: Confirmar cancelamento"]
-    Pending -->|"Clica 'Cancelar solicitação'"| CancelSheet
+    Upcoming -->|"Clica 'Cancelar' (dentro da janela)"| CancelPage["Página: Confirmar cancelamento<br/>(não é um sheet — página completa)"]
+    Pending -->|"Clica 'Cancelar solicitação'"| CancelPage
 
-    Detail["❓ GAP: /{slug}/minha-conta/agendamentos/[id]<br/>Detalhe do Agendamento<br/>GET /v1/bookings/:id"] -->|"APPROVED · PENDING · INFO_REQUESTED<br/>→ botão Cancelar"| CancelSheet
+    Detail["/{slug}/minha-conta/agendamentos/[id]<br/>Detalhe do Agendamento<br/>GET /v1/bookings/:id"] -->|"APPROVED · PENDING · INFO_REQUESTED<br/>→ botão Cancelar"| CancelPage
 
     Detail -->|"INFO_REQUESTED<br/>→ mostra mensagem do admin + form UC-005 A2"| InfoSubmit(("PATCH /v1/bookings/:id/submit-info"))
     InfoSubmit -->|"200 → status volta a PENDING"| Detail
 
-    CancelSheet -->|"Confirma"| CancelCall(("PATCH /v1/bookings/:id/cancel"))
+    CancelPage -->|"Confirma"| CancelCall(("PATCH /v1/bookings/:id/cancel"))
     CancelCall -->|"200 → status CANCELLED"| MinhaConta
     CancelCall -->|"422 fora da janela (APPROVED)"| CancelError["Erro inline:<br/>'Cancelamento fora do prazo'"]
 
-    class Hotsite,BookingConfirm existing
-    class MinhaConta,Detail,CancelSheet,LoyaltyFull,SwitchTenant,NewTenant gap
+    class Hotsite,BookingConfirm,MinhaConta,Detail,CancelPage,LoyaltyFull,SwitchTenant,NewTenant existing
 ```
 
 ## Pages referenced
@@ -53,12 +52,12 @@ flowchart TD
 |---|---|---|---|
 | `/{slug}` (hotsite, logged-in nav) | `HotsiteLayout` logged-in state | M12 | ✅ Existente |
 | `/{slug}/booking` (post-booking CTA) | `BookingForm` / confirmation | M12-S07 | ✅ Existente |
-| `/{slug}/minha-conta` | `MinhaContaPage` | M13-S27 | ❌ GAP |
-| `/{slug}/minha-conta/agendamentos/[id]` | `AgendamentoDetailPage` | M13-S28 | ❌ GAP |
-| Cancel sheet | inline `CancelSheet` component on both pages | M13-S28 | ❌ GAP |
-| Info submit form (UC-005 A2) | inline section on detail page (customer auth path) | M13-S28 | ❌ GAP |
-| `/{slug}/minha-conta/fidelidade` | `MinhaFidelidadePage` | M13-S29 | ❌ GAP |
-| Tenant switch modal/page (UC-023) | `TrocarEmpresaPage` — avatar dropdown trigger | M13-S30 | ❌ GAP |
+| `/{slug}/minha-conta` | `MinhaContaPage` | M13-S27 | ✅ Existente |
+| `/{slug}/minha-conta/agendamentos/[id]` | `AgendamentoDetailPage` | M13-S28 | ✅ Existente |
+| Cancel confirmation — full page, not a sheet | dedicated `.../bookings/[id]/cancel` page | M13-S28 | ✅ Existente |
+| Info submit form (UC-005 A2) | inline section on detail page (customer auth path) | M13-S28 | ✅ Existente |
+| `/{slug}/minha-conta/fidelidade` | `MinhaFidelidadePage` | M13-S29 | ✅ Existente |
+| Tenant switch modal/page (UC-023) | `TrocarEmpresaPage` — avatar dropdown trigger | M13-S30 | ✅ Existente |
 
 ## BFF calls in this flow
 
@@ -92,7 +91,7 @@ Cancel button visibility for **Próximos** (APPROVED): hidden with note when `sc
 - [ ] **Empty state CTA (UC-006 A1):** when customer has no bookings, what does the CTA say? "Fazer um agendamento" → `/{slug}/booking`?
 - [ ] **`GET /v1/bookings` query params for customer:** the existing endpoint accepts `status` filter. Should the frontend call it once (all statuses) and split client-side, or call it three times (one per section)? Single call + client split is simpler.
 - [x] **Pagination:** UC-006 doesn't specify pagination behaviour. The backend supports `limit`/`offset`. — **Resolved.** `limit=50`, no infinite scroll, implemented in `M13-S27`.
-- [ ] **Loyalty conversion-rate display (`04-fidelidade.html` balance card):** the prototype shows a points→currency conversion rate ("10 pts = R$ 1,00 · Valor total: R$ 12,00"), gated on `points_per_currency_unit > 0`. Per CLAUDE.md §3, the Loyalty MVP is **points-balance only** — no currency-conversion display is part of the documented MVP scope. The BFF-side dependency (`conversionRate` field on the loyalty balance response) has already been built and resolved by `M13-S12` — this is now purely a UX/product-scope question (does the documented MVP want this UI element at all), not a data-availability question. Verify against UC-016's actual MVP scope before implementation; this UI element may need to be cut or deferred to a post-MVP story.
+- [x] **Loyalty conversion-rate display (`04-fidelidade.html` balance card):** shows a points→currency conversion rate ("10 pts = R$ 1,00 · Valor total: R$ 12,00"), gated on `points_per_currency_unit > 0`. — **Resolved/shipped.** The real `LoyaltyPage.tsx` renders this conversion row exactly when `balance.conversionRate > 0`, matching the prototype. Not cut from MVP.
 
 ## Prototype
 

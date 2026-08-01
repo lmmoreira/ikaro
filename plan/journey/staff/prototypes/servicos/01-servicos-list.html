@@ -23,7 +23,7 @@
       text-decoration: none; cursor: pointer;
     }
     .filter-tab.active {
-      background: var(--ba-primary); color: white; border-color: var(--ba-primary);
+      background: #2563eb; color: white; border-color: #2563eb; /* fixed platform blue, not --ba-primary — dashboard is tenant-agnostic */
     }
 
     /* Service row */
@@ -67,7 +67,10 @@
 <body>
 
   <!--
-    PAGE (GAP): apps/web/app/[slug]/dashboard/services/page.tsx
+    COMPONENT: ServiceListPage
+    PAGE:       apps/web/app/dashboard/services/page.tsx  (EXISTS — no [slug] segment;
+                staff/manager dashboard is JWT/session-scoped, not URL-slug-scoped)
+    FILE:       apps/web/features/booking/components/dashboard/services/ServiceListPage.tsx
     DATA: GET /v1/services  →  ServiceListResponse
     AUTH: STAFF | MANAGER
   -->
@@ -154,7 +157,7 @@
         </a>
       </nav>
       <div class="sidebar-footer">
-        <div class="auth-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
         <div style="min-width:0;">
           <p class="sidebar-user-name">Ana Pereira</p>
           <span class="role-badge role-badge-manager">Gerente</span>

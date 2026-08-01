@@ -30,30 +30,30 @@
 <body>
   <div class="hub">
     <h1>GUEST — Responder à Solicitação de Informação</h1>
-    <p class="meta">UC-005 A2 · Backend+BFF completos (M08) · Frontend: GAP · Protótipo: Draft</p>
+    <p class="meta">UC-005 A2 · ✅ Done — M13-S38/S39/S40</p>
 
     <div class="note">
-      <strong>Pré-requisito de código:</strong> Antes de implementar, renomear o link no email
-      de <code>/bookings/:id/responder?token=</code> para <code>/bookings/:id/submit-info?token=</code>
-      em <code>send-booking-info-requested-notification.use-case.ts → buildRespondLink()</code>.
-      Esse backend code change vai no mesmo story que cria a página.
+      ⚠️ 2026-07-31: this whole journey was previously marked GAP throughout — it has been fully
+      shipped since. There is also a real "already processed" invalid-link variant
+      (<code>reason="processed"</code>) with no dedicated screen yet — only the generic
+      <code>01b-invalid-link.html</code> exists. Candidate for a future prototype touch-up.
     </div>
 
     <h2>Fluxo feliz (happy path)</h2>
     <ul>
       <li>
         <a href="01-submit-form.html">01 — Formulário de resposta</a>
-        <span class="tag tag-red">GAP: /bookings/[id]/submit-info</span>
+        <span class="tag tag-green">EXISTS: /bookings/[id]/submit-info</span>
         — token válido; mostra resumo do agendamento + campo de resposta + upload opcional
       </li>
       <li>
         <a href="01c-submitting.html">01c — Enviando resposta</a>
-        <span class="tag tag-red">GAP: estado de loading inline</span>
+        <span class="tag tag-green">EXISTS: estado de loading inline</span>
         — botão desabilitado + spinner durante PATCH
       </li>
       <li>
         <a href="02-success.html">02 — Confirmação</a>
-        <span class="tag tag-red">GAP: tela de sucesso inline</span>
+        <span class="tag tag-green">EXISTS: tela de sucesso inline</span>
         — "Obrigado! Vamos analisar e confirmar em breve."
       </li>
     </ul>
@@ -63,17 +63,17 @@
     <ul>
       <li>
         <a href="01b-invalid-link.html">01b — Link inválido ou expirado</a>
-        <span class="tag tag-red">GAP: validação do token na page</span>
+        <span class="tag tag-green">EXISTS: validação do token na page</span>
         — token ausente / expirado (TTL 7 dias) / booking já não está INFO_REQUESTED
       </li>
       <li>
         <a href="01d-validation-error.html">01d — Erro de validação</a>
-        <span class="tag tag-red">GAP: campo resposta obrigatório</span>
+        <span class="tag tag-green">EXISTS: campo resposta obrigatório</span>
         — campo "Sua resposta" vazio ao tentar enviar
       </li>
       <li>
         <a href="01e-submit-error.html">01e — Erro de envio</a>
-        <span class="tag tag-red">GAP: retry após falha de rede</span>
+        <span class="tag tag-green">EXISTS: retry após falha de rede</span>
         — erro de servidor / sem rede; botão "Tentar novamente"
       </li>
     </ul>
@@ -99,6 +99,7 @@
       <li>Body: <code>{ response: string (min 1), photoUrls?: string[] }</code></li>
       <li>Resposta: <code>{ bookingId, status: "PENDING", infoSubmittedAt }</code></li>
       <li>Sem <code>X-Tenant-Slug</code> header necessário — <code>TenantGuard</code> bypassed por <code>@Public()</code></li>
+      <li>Página aplica a marca do tenant (<code>fetchManifestSafely</code> + <code>applyBranding()</code>) — não é uma tela genérica sem identidade visual</li>
     </ul>
   </div>
 </body>

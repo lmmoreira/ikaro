@@ -21,26 +21,29 @@
 
   <h1>Protótipo — CUSTOMER: Login</h1>
   <p style="opacity: 0.65; margin-bottom: 0.25rem;">UCs cobertos: <strong>UC-021</strong> (login + seleção de tenant) · <strong>UC-023</strong> (trocar tenant)</p>
-  <p style="opacity: 0.65;">Journey: <code>customer/login.md</code> · Stories: M124-S02</p>
+  <p style="opacity: 0.65;">Journey: <code>customer/login.md</code> · Stories: M13-S42 (login), M13-S14 (phone completion) — ✅ Done</p>
+  <p style="opacity: 0.65; background:#fef2f2; color:#991b1b; padding:0.5rem 0.75rem; border-radius:6px;">
+    ⚠️ 2026-06-24 scope change: the login-time multi-tenant picker ("Caso B" below) was permanently descoped — every login starts from a specific tenant's hotsite, so a slug-less generic login/select-tenant screen is unreachable from any shipped UI. See <code>customer/login.md</code>.
+  </p>
 
   <hr style="border: none; border-top: 1px solid var(--ba-secondary); margin: 1.5rem 0;">
 
-  <h2>Fluxo principal — 1 tenant (Caso A)</h2>
+  <h2>Fluxo principal (único fluxo em produção)</h2>
   <ul>
     <li>
       <a href="./00-hotsite.html">00 — Hotsite do estabelecimento</a>
       <span class="tag tag-green">EXISTS: M12</span>
-      — entry: botão "Entrar" (com ?redirect=/{slug}/booking)
+      — entry: botão "Entrar"
     </li>
     <li>
       <a href="./00-login.html">01 — Tela de login do cliente</a>
-      <span class="tag tag-red">GAP: /{tenantSlug}/login</span>
-      — shared/login.html
+      <span class="tag tag-green">EXISTS: /{tenantSlug}/login</span>
+      — shared/login.html — corrigido 2026-07-31 (estava marcado GAP incorretamente)
     </li>
     <li>
       <a href="./02-phone-completion.html">02 — Completar perfil (sem telefone)</a>
-      <span class="tag tag-red">GAP: prompt pós-login</span>
-      — UC-021 A3 — one-time
+      <span class="tag tag-green">EXISTS: InformationCompletionPrompt</span>
+      — UC-021 A3 — bottom-sheet obrigatório, sem opção "pular"; também inclui endereço (M13-S14), não só telefone
     </li>
     <li>
       <a href="../book-a-service/01-service-selection.html">03 — Agendamento — Passo 1 (escolha de serviço)</a>
@@ -49,40 +52,33 @@
     </li>
   </ul>
 
-  <h2>Fluxo alternativo — +1 tenants (Caso B)</h2>
+  <h2>❌ Descoped — não existe em produção</h2>
   <ul>
     <li>
-      <a href="./00-login.html">00 — Login genérico</a>
-      <span class="tag tag-red">GAP: /auth/login</span>
+      <a href="./01-select-tenant.html">Selecionar estabelecimento (Caso B)</a>
+      <span class="tag tag-red">DESCOPED</span>
+      — handleMultiTenantLogin é inalcançável; não há ponto de entrada sem slug
     </li>
     <li>
-      <a href="./01-select-tenant.html">01 — Selecionar estabelecimento</a>
-      <span class="tag tag-red">GAP: /select-tenant</span>
-      — UC-021 Caso B — mostra pontos por tenant
+      <a href="./01b-loading.html">Carregando estabelecimentos (skeleton)</a>
+      <span class="tag tag-red">DESCOPED</span>
     </li>
-    <li>→ Após seleção: mesmo fluxo do Caso A (phone check → agendamento passo 1)</li>
+    <li>
+      <a href="./01c-fetch-error.html">Erro ao carregar estabelecimentos</a>
+      <span class="tag tag-red">DESCOPED</span>
+    </li>
   </ul>
 
   <h2>Estados alternativos (unhappy paths)</h2>
   <ul>
     <li>
       <a href="./01b-error.html">01b — Erro de autenticação</a>
-      <span class="tag tag-red">GAP: /auth/error</span>
-      — no-tenant / tenant-deactivated (compartilhado com staff)
-    </li>
-    <li>
-      <a href="./01b-loading.html">01b — Carregando estabelecimentos (skeleton)</a>
-      <span class="tag tag-red">GAP: /select-tenant (loading)</span>
-      — token sendo decodificado / GET /v1/auth/tenants em andamento
-    </li>
-    <li>
-      <a href="./01c-fetch-error.html">01c — Erro ao carregar estabelecimentos</a>
-      <span class="tag tag-red">GAP: /select-tenant (fetch error)</span>
-      — token decode ou GET /v1/auth/tenants falhou
+      <span class="tag tag-green">EXISTS: /auth/error</span>
+      — no-tenant / tenant-deactivated (compartilhado com staff) — corrigido 2026-07-31
     </li>
     <li>
       <a href="./02b-validation-error.html">02b — Erro de validação no telefone</a>
-      <span class="tag tag-red">GAP: prompt pós-login (validation)</span>
+      <span class="tag tag-green">EXISTS</span>
       — PATCH /v1/customers/me retornou 422
     </li>
   </ul>
@@ -102,11 +98,11 @@
 
   <h2>Arquitetura</h2>
   <ul>
-    <li><strong>shared/login.html</strong> → produção: <code>apps/web/app/[tenantSlug]/login/page.tsx</code> (GAP, M124-S02)</li>
-    <li><strong>01-select-tenant.html</strong> → produção: <code>apps/web/app/select-tenant/page.tsx</code> (GAP, M124-S02)</li>
-    <li><strong>02-phone-completion.html</strong> → produção: prompt inline pós-login (GAP, M124-S02)</li>
-    <li><strong>01b-error.html</strong> → produção: <code>apps/web/app/auth/error/page.tsx</code> (GAP, M124-S01)</li>
-    <li>Backend/BFF: todos os endpoints de auth já implementados em M03 ✓</li>
+    <li><strong>shared/login.html</strong> → produção: <code>apps/web/app/[slug]/login/page.tsx</code> (✅ EXISTS, M13-S42)</li>
+    <li><strong>01-select-tenant.html</strong> → ❌ descoped, sem equivalente em produção</li>
+    <li><strong>02-phone-completion.html</strong> → produção: <code>InformationCompletionPrompt</code>, inline em `[slug]/layout.tsx` (✅ EXISTS, M13-S14)</li>
+    <li><strong>01b-error.html</strong> → produção: <code>apps/web/app/auth/error/page.tsx</code> (✅ EXISTS)</li>
+    <li>Backend/BFF: todos os endpoints de auth já implementados ✓</li>
   </ul>
 
 </body>

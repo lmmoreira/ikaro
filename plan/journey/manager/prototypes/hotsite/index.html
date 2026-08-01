@@ -17,6 +17,7 @@
     .screen-num { font-size: 0.75rem; font-weight: 700; opacity: 0.4; width: 1.5rem; }
     .uc-tag { font-size: 0.6875rem; font-weight: 700; background: var(--ba-primary); color: white; border-radius: 4px; padding: 0.125rem 0.375rem; margin-left: auto; }
     .gap-tag { font-size: 0.6875rem; font-weight: 700; background: #fecaca; color: #b91c1c; border-radius: 4px; padding: 0.125rem 0.375rem; margin-left: auto; }
+    .exists-tag { font-size: 0.6875rem; font-weight: 700; background: #dcfce7; color: #166534; border-radius: 4px; padding: 0.125rem 0.375rem; margin-left: auto; }
     .checklist { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
     .checklist li { display: flex; gap: 0.5rem; font-size: 0.875rem; }
     .checklist li::before { content: "☐"; font-size: 1rem; line-height: 1.2; flex-shrink: 0; }
@@ -24,25 +25,25 @@
 </head>
 <body>
   <h1>MANAGER — Hotsite</h1>
-  <p class="subtitle">UC-027 (branding, layout, SEO e publicação do hotsite)</p>
+  <p class="subtitle">UC-027 (branding, layout, SEO e publicação do hotsite) — ✅ Done, M13-S35/S36/S37</p>
 
   <div class="section">
     <p class="section-title">Screens</p>
     <div class="screen-list">
       <a href="01-hotsite-editor.html" class="screen-link">
         <span class="screen-num">01</span>
-        Editor — Branding / Layout / SEO
-        <span class="gap-tag">GAP</span>
+        Editor — Branding (5 seções/18 campos) / Layout (8 módulos) / SEO
+        <span class="exists-tag">EXISTS</span>
       </a>
       <a href="01d-module-config-hero.html" class="screen-link">
         <span class="screen-num">01d</span>
         Configurar módulo — Hero (exemplo)
-        <span class="gap-tag">GAP</span>
+        <span class="exists-tag">EXISTS</span>
       </a>
       <a href="02-preview.html" class="screen-link">
         <span class="screen-num">02</span>
         Preview do hotsite (rascunho)
-        <span class="gap-tag">GAP</span>
+        <span class="exists-tag">EXISTS</span>
       </a>
       <a href="03-publish-success.html" class="screen-link">
         <span class="screen-num">03</span>
@@ -77,10 +78,10 @@
     <p class="section-title">Dry-run checklist</p>
     <ul class="checklist">
       <li>3 abas: Branding, Layout, SEO — alternam sem recarregar a página</li>
-      <li>Branding mostra os 13 campos (cores, logo, tipografia, cantos, botão, espaçamento, sombra) agrupados em subseções</li>
-      <li>Layout mostra os 7 módulos com drag handle, link "Configurar" e toggle on/off</li>
+      <li>Branding mostra os 18 campos (cores, logo + nome/slogan da marca, tipografia, cantos, botão, espaçamento, sombra, ritmo visual) agrupados em 5 subseções</li>
+      <li>Layout mostra os 8 módulos (incl. Rodapé) com drag handle, link "Configurar" e toggle on/off</li>
       <li>"Configurar" no módulo Hero abre um drill-down com campos específicos</li>
-      <li>SEO mostra título (70 caracteres) e descrição (160 caracteres), ambos opcionais</li>
+      <li>SEO mostra título (60 caracteres), descrição (158 caracteres) e imagem OG, todos opcionais</li>
       <li>Cor em formato inválido → erro inline, salvar bloqueado</li>
       <li>Falha simulada de upload → campo de URL aparece como alternativa</li>
       <li>"Preview" mostra o hotsite com um banner indicando alterações não publicadas</li>
@@ -92,10 +93,9 @@
   <div class="section">
     <p class="section-title">Open questions</p>
     <ul class="checklist">
-      <li>Per-module config: cada um dos 7 módulos precisa do próprio drill-down — só Hero foi prototipado como exemplo. Confirmar antes de implementar os outros 6.</li>
-      <li>Preview: como renderizar o estado de rascunho (não publicado)? Live client-side vs. parâmetro/token de preview no BFF — ver dev-notes.md.</li>
-      <li>Despublicar: ação de emergência no editor (como prototipado) ou em outro lugar (ex: Configurações)?</li>
-      <li>Onde fica o link "Configurar" nos outros módulos (Lista de serviços, Galeria, etc.) — mesmas posições e padrão do Hero?</li>
+      <li>✅ Resolvido — per-module config: todos os 8 módulos têm seu próprio painel de configuração (`M13-S36`), incl. `FooterConfigPanel`. Só o Hero foi prototipado aqui como exemplo visual; os outros foram construídos direto dos tipos reais.</li>
+      <li>Preview: como renderizar o estado de rascunho (não publicado)? Ainda uma questão de design em aberto — ver `dev-notes.md`.</li>
+      <li>✅ Resolvido — Despublicar é uma ação de zona de risco dentro do próprio editor, como prototipado.</li>
     </ul>
   </div>
 </body>

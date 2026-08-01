@@ -102,7 +102,9 @@
 <body>
 
   <!--
-    PAGE (GAP): apps/web/app/dashboard/bookings/page.tsx
+    COMPONENT: BookingQueuePage
+    FILE:       apps/web/features/booking/components/dashboard/bookings/BookingQueuePage.tsx  (EXISTS)
+    PAGE:       apps/web/app/dashboard/bookings/page.tsx  (EXISTS)
     ROUTE:      /dashboard/bookings?week=2026-06-21  (or equivalent week-offset param)
     AUTH:       JWT cookie, STAFF or MANAGER role
 
@@ -211,7 +213,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <div class="auth-avatar" style="flex-shrink: 0; width: 2rem; height: 2rem; font-size: 0.8125rem;">AP</div>
+        <div class="list-avatar" style="flex-shrink: 0; width: 2rem; height: 2rem; font-size: 0.8125rem;">AP</div>
         <div style="min-width: 0;">
           <p class="sidebar-user-name">Ana Pereira</p>
           <span class="role-badge role-badge-manager">Gerente</span>
@@ -281,9 +283,7 @@
         </div>
 
         <!--
-          COMPONENT (GAP): BookingQueueList — split into 3 sub-components by urgency:
-          ActionNeededList / TodayConfirmedList / UpcomingConfirmedList (or one component with
-          a `group` prop — TBD when this is implemented).
+          COMPONENT: BookingQueuePage (EXISTS) — renders the 3 urgency sections inline.
         -->
 
         <!-- ── PRECISA DE AÇÃO (PENDING + INFO_REQUESTED, qualquer dia) ── -->
@@ -297,7 +297,7 @@
         <a href="01-booking-detail.html" style="text-decoration: none; display: block;">
           <div class="booking-card">
             <div class="booking-card-header">
-              <div class="auth-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#0891b2;">CM</div>
+              <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#0891b2;">CM</div>
               <div class="booking-card-info">
                 <p class="booking-card-name">Carlos Mendes</p>
                 <p class="booking-card-meta">Polimento Completo · R$ 220,00</p>
@@ -316,7 +316,7 @@
         <a href="01-booking-detail.html" style="text-decoration: none; display: block;">
           <div class="booking-card" style="border-left: 3px solid var(--ba-primary);">
             <div class="booking-card-header">
-              <div class="auth-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#7c3aed;">BS</div>
+              <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#7c3aed;">BS</div>
               <div class="booking-card-info">
                 <p class="booking-card-name">Beatriz Souza</p>
                 <p class="booking-card-meta">Lavagem Simples · R$ 60,00</p>
@@ -347,7 +347,7 @@
         <!-- Read-only row — no quick actions, no "Ver detalhes" link: nothing to do until the day arrives -->
         <div class="booking-card" style="opacity: 0.7;">
           <div class="booking-card-header">
-            <div class="auth-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#b45309;">LP</div>
+            <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#b45309;">LP</div>
             <div class="booking-card-info">
               <p class="booking-card-name">Luiza Prado</p>
               <p class="booking-card-meta">Lavagem Completa · R$ 120,00</p>

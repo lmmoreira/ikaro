@@ -10,19 +10,30 @@
     .bottom-nav { display: none !important; }
 
     .balance-card {
-      background: var(--ba-secondary); color: var(--ba-text);
+      background: #f3f4f6; color: #111827; /* fixed gray-100, not var(--ba-secondary) — that token is a tenant-derived light blue, real zero-balance card is neutral gray */
       border-radius: var(--ba-radius); padding: 1.5rem; margin-bottom: 1.25rem;
     }
-    .balance-pts { font-size: 2.5rem; font-weight: 800; line-height: 1; opacity: 0.3; }
-    .balance-label { font-size: 0.875rem; opacity: 0.5; margin-top: 0.25rem; }
+    .balance-pts { font-size: 2.5rem; font-weight: 800; line-height: 1; }
+    .balance-label { font-size: 0.875rem; opacity: 0.6; margin-top: 0.25rem; }
+    .tab-bar { display: flex; border-bottom: 2px solid var(--ba-secondary); margin-bottom: 1rem; }
+    .tab { padding: 0.625rem 1rem; font-size: 0.9375rem; font-weight: 600; color: rgba(17,24,39,0.4); border-bottom: 2px solid transparent; margin-bottom: -2px; text-decoration: none; }
+    .tab.active { color: #2563eb; border-bottom-color: #2563eb; }
   </style>
 </head>
 <body>
 
   <!--
-    STATE: customer found but has zero loyalty points (no completed bookings yet).
-    GET /v1/customers/:customerId/loyalty/balance → { currentPoints: 0, nextExpiryDate: null, nextExpiryPoints: null }
+    COMPONENT: CustomerLoyaltyPage — zero-points state
+    FILE:      apps/web/features/loyalty/components/dashboard/CustomerLoyaltyPage.tsx  (EXISTS)
+    GET /v1/customers/:customerId/loyalty/balance → { currentPoints: 0, ... }
     GET /v1/customers/:customerId/loyalty/entries → { items: [], total: 0 }
+
+    Corrected 2026-07-31: at zero points, production still renders the full tabbed
+    interface (Histórico de ganhos / Resgates) — it does NOT collapse to one combined
+    "sem pontos" message as an earlier draft of this screen showed. Each tab
+    independently renders its own empty state (a star icon for entries, a
+    circle-slash icon for redemptions) via the same EmptyState component used when a
+    customer WITH points has an empty tab.
   -->
 
   <div class="dashboard-topbar">
@@ -36,7 +47,7 @@
     </a>
     <h1 class="topbar-page-title">Renata Oliveira</h1>
     <div style="margin-left: auto;">
-      <a href="../../../shared/staff-login.html" class="auth-avatar" title="Sair">AP</a>
+      <a href="../../../shared/staff-login.html" class="list-avatar" title="Sair">AP</a>
     </div>
   </div>
 
@@ -53,7 +64,7 @@
         <a class="sidebar-nav-item active" href="../fidelidade/00-customer-search.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Fidelidade</a>
       </nav>
       <div class="sidebar-footer">
-        <div class="auth-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
         <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
         <a class="sidebar-logout" href="../../../shared/staff-login.html" title="Sair"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></a>
       </div>
@@ -73,26 +84,33 @@
           </div>
         </div>
 
-        <!-- Zero balance card -->
+        <!-- Zero balance card — flat gray, not the active gradient -->
         <div class="balance-card">
           <p class="balance-pts">0</p>
           <p class="balance-label">pontos acumulados</p>
         </div>
 
-        <!-- Empty state -->
-        <div style="text-align: center; padding: 2.5rem 1rem;">
-          <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-               stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
-               style="opacity: 0.25; margin: 0 auto 1rem;">
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-          </svg>
-          <p style="font-weight: 600; color: var(--ba-text); margin-bottom: 0.375rem;">
-            Nenhum ponto acumulado ainda
-          </p>
-          <p style="font-size: 0.875rem; opacity: 0.6; color: var(--ba-text); max-width: 22rem; margin: 0 auto;">
-            Os pontos aparecem aqui após a conclusão de serviços.
-            Cada serviço concluído adiciona os pontos configurados no catálogo.
-          </p>
+        <!-- Tabs still render at zero points -->
+        <div class="card" style="padding: 1rem 1.25rem;">
+          <div class="tab-bar">
+            <a class="tab active" href="#">Histórico de ganhos</a>
+            <a class="tab" href="#">Resgates</a>
+          </div>
+
+          <!-- Per-tab empty state (entries tab) -->
+          <div style="text-align: center; padding: 2.5rem 1rem;">
+            <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                 stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+                 style="opacity: 0.25; margin: 0 auto 1rem;">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+            <p style="font-weight: 600; color: var(--ba-text); margin-bottom: 0.375rem;">
+              Nenhum ponto ganho ainda
+            </p>
+            <p style="font-size: 0.875rem; opacity: 0.6; color: var(--ba-text); max-width: 22rem; margin: 0 auto;">
+              Os pontos aparecem aqui após a conclusão de serviços.
+            </p>
+          </div>
         </div>
 
       </div>

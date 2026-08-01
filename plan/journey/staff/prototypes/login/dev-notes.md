@@ -2,94 +2,82 @@
 
 ## Overview
 
-All backend and BFF auth endpoints for staff login are already implemented (M03). This is a **frontend-only story** (M124-S01). Three pages need to be created in `apps/web/`.
+All backend, BFF, and frontend for staff login are shipped (`M124-S01`, ✅ Done). This file now documents the real implementation rather than a pre-build spec — updated 2026-07-31 after a docs audit found this journey's docs/prototype still described it as unbuilt.
 
 ## File map
 
-| File | Status | Action |
+| File | Status | Notes |
 |---|---|---|
-| `apps/web/app/dashboard/login/page.tsx` | ❌ Gap | Create — staff login page (see shared/staff-login.html) |
-| `apps/web/app/auth/first-login/page.tsx` | ❌ Gap | Create — UC-022 Case B: invite not accepted |
-| `apps/web/app/auth/error/page.tsx` | ❌ Gap | Create — shared auth error page (staff + customer) |
-| `apps/web/middleware.ts` | ❌ Gap | Create in M125-S01 — redirect unauthenticated /dashboard/** to /dashboard/login |
+| `apps/web/app/dashboard/login/page.tsx` | ✅ Exists | Two branches: with `?tenantSlug=` (Google button) and without it (message only, no button — see `00b-no-tenant-slug.html`) |
+| `apps/web/app/auth/first-login/page.tsx` | ❌ Gap | Genuinely missing — the only real gap in this journey |
+| `apps/web/app/auth/error/page.tsx` | ✅ Exists | Shared staff + customer, 8 reason codes (see table below) |
+| `apps/web/features/auth/google-oauth.ts` (`buildGoogleOAuthUrl`) | ✅ Exists | Builds `{BFF_URL}/auth/google?tenantSlug={slug}&type=staff` — no `state=__staff__` scheme; that was never built |
 
 ## Screen: `/dashboard/login` (`StaffLoginPage`)
 
-**File:** `apps/web/app/dashboard/login/page.tsx` (GAP)  
-**Type:** Server component (static — no data fetching needed)  
-**Prototype:** `shared/staff-login.html`
+**File:** `apps/web/app/dashboard/login/page.tsx` (EXISTS)
+**Type:** Server component (static — no data fetching)
+**Prototype:** `shared/staff-login.html` (with `?tenantSlug=`), `00b-no-tenant-slug.html` (without it)
 
-**What it renders:**
-- Ikaro logo mark
-- Heading: "Área da Equipe"
-- Subtext: "Acesso exclusivo para funcionários e gerentes"
-- Google Sign-In button → `GET /v1/auth/google?state=__staff__`
-- Footer note: "Primeiro acesso? Use o link enviado no e-mail de convite."
+**What it renders (with `?tenantSlug=`):**
+- Logo mark (fixed indigo, not tenant-branded — this page and everything reached from it use `DashboardShell`'s tenant-agnostic palette)
+- Heading: "Área da Equipe" (`t('staffHeading')`)
+- Subtext: "Acesso exclusivo para funcionários e gerentes" (`t('staffSubtitle')`)
+- Google Sign-In button → `buildGoogleOAuthUrl({ tenantSlug, type: 'staff' })`
+- Footer note: "Primeiro acesso? Use o link enviado no e-mail de convite." (`t('staffFirstAccess')`)
 
-**Error state:** if redirected back with `?error=not-a-staff-member`, show inline red error banner before the Google button (see commented-out block in shared/staff-login.html). Do not use a separate error page for this — keep it inline so the user can retry immediately.
+**Without `?tenantSlug=`:** renders only the logo + heading + "Por favor, acesse pelo site da sua empresa." (`t('staffLoginViaHotsite')`) — no Google button at all, since the OAuth URL builder requires `tenantSlug`.
 
-**Note:** the route decision (`/dashboard/login` vs `/{tenantSlug}/staff-login`) is an open question — see login.md. Use `/dashboard/login` until decided.
+**No inline error state exists.** A prior draft of this file proposed one (`?error=` query param, red banner before the Google button); the real page never implements this. All auth failures redirect to the separate `/auth/error` page instead.
 
 ## Screen: `/auth/first-login` (`FirstLoginPage`)
 
-**File:** `apps/web/app/auth/first-login/page.tsx` (GAP)  
-**Type:** Server component  
-**Prototype:** `01-first-login.html`
+**File:** `apps/web/app/auth/first-login/page.tsx` (GAP — still not built)
+**Prototype:** `01-first-login.html` (design proposal, not yet implemented)
 
-**When shown:** BFF calls `GET /internal/staff/by-oauth`, finds a staff record with `is_active=false`, redirects to `/auth/first-login`.
-
-**What it renders:**
-- Envelope icon in blue circle
-- Heading: "Acesso ainda não ativado"
-- Explanation: use the invite link in the invite email
-- Step-by-step instructions (3 steps)
-- "Não recebeu o e-mail? Peça ao gerente que reenvie o convite."
-- "Voltar ao login" link
-
-**No form, no BFF call** — purely informational. The activation happens when the staff clicks the actual invite link (different OAuth flow entry point).
+**When it would be shown:** BFF finds a staff record with `is_active=false` on regular login and would redirect here. Since the page doesn't exist, this redirect target is currently a dead end in production — worth flagging to whoever picks this up.
 
 ## Screen: `/auth/error` (`AuthErrorPage`)
 
-**File:** `apps/web/app/auth/error/page.tsx` (GAP)  
-**Type:** Server component  
-**Prototype:** `01b-error.html` (staff), `customer/prototypes/login/01b-error.html` (customer)
+**File:** `apps/web/app/auth/error/page.tsx` (EXISTS)
+**Prototype:** `01b`–`01h` (staff-relevant reasons), `customer/prototypes/login/01b-error.html` (customer)
 
-**Shared between staff and customer.** Content driven by `searchParams.reason`:
+**Shared between staff and customer.** Content driven by `searchParams.reason`. CTA is one of two configs: `ctaLogin` (label "Voltar", href = `tenantSlug ? /${tenantSlug} : '/'` — the tenant's hotsite, **not** back to `/dashboard/login`) or `ctaSite` (label "Voltar ao site", href = `/`):
 
-| reason | Heading | Message | CTA |
-|---|---|---|---|
-| `not-a-staff-member` | "Acesso não autorizado" | "Sua conta Google não está cadastrada como funcionário..." | "Voltar ao login" → `/dashboard/login` |
-| `email-mismatch` | "Acesso não autorizado" | "Por favor, use o e-mail para o qual você foi convidado(a)." | "Voltar ao login" → `/dashboard/login` |
-| `tenant-deactivated` | "Estabelecimento desativado" | "Este estabelecimento está desativado." | "Voltar ao site" → `/` |
-| `no-tenant` | "Não foi possível entrar" | "Nenhum estabelecimento encontrado para sua conta." | "Voltar ao site" → `/` |
+| reason | Heading | Message | CTA | Staff-relevant? |
+|---|---|---|---|---|
+| `not-a-staff-member` | "Acesso não autorizado" | "Sua conta Google não está cadastrada como funcionário neste estabelecimento." | ctaLogin | Yes |
+| `staff-deactivated` | "Conta desativada" | "Sua conta foi desativada. Entre em contato com o gerente." | ctaLogin | Yes |
+| `email-mismatch` | "Acesso não autorizado" | "Por favor, use o e-mail para o qual você foi convidado(a)." | ctaLogin | Yes |
+| `invite-not-found` | "Convite não encontrado" | "Nenhum convite pendente foi encontrado para este estabelecimento." | ctaLogin | Yes |
+| `account-linked-elsewhere` | "Conta já vinculada" | "Esta conta Google já está vinculada a outro funcionário. Entre com a conta original ou peça ajuda ao gerente." | ctaLogin | Yes |
+| `tenant-not-found` | "Estabelecimento não encontrado" | "O link de convite é inválido ou o estabelecimento foi removido." | ctaSite | Yes |
+| `tenant-deactivated` | "Estabelecimento desativado" | "Este estabelecimento está temporariamente desativado." | ctaSite | Yes |
+| `no-tenant` | "Não foi possível entrar" | "Nenhum estabelecimento encontrado para sua conta Google." | ctaSite | No — customer only |
 
-Show error code at the bottom in small grey text (for support reference).
+Bottom of the card shows "Código: {reason}" in small grey text.
 
-## BFF OAuth flow (already implemented — verify before M124-S01)
+## OAuth flow (as actually implemented)
 
 ```
 UC-022 — Regular staff login:
-  1. GET /v1/auth/google?state=__staff__
+  1. GET {BFF_URL}/auth/google?tenantSlug={slug}&type=staff
   2. Google OAuth
-  3. GET /v1/auth/google/callback → handleStaffLogin()
-     → GET /internal/staff/by-oauth?googleOAuthId=<sub>
-     → if is_active=true: issue JWT → redirect /dashboard/bookings
-     → if is_active=false: redirect /auth/first-login
+  3. BFF GET /v1/auth/google/callback → handleStaffLogin()
+     → resolves staff by googleOAuthId
+     → if is_active=true: issue JWT cookie → redirect /dashboard/bookings
+     → if is_active=false: redirect /auth/first-login  (dead end — page doesn't exist)
      → if not found: redirect /auth/error?reason=not-a-staff-member
 
 UC-025 — First login / accept invite:
-  1. Invite email link → GET /v1/auth/google?state=__staff__:{tenantSlug}
+  1. Invite email link → GET {BFF_URL}/auth/google?tenantSlug={slug}&type=staff
   2. Google OAuth
-  3. GET /v1/auth/google/callback → handleStaffFirstLogin()
-     → GET /internal/tenants/by-slug/:slug
-     → GET /internal/staff/by-email?email=<google_email>&tenantId=<id>
-     → if email mismatch: redirect /auth/error?reason=email-mismatch
-     → POST /internal/staff/:staffId/activate { googleOAuthId, email, name }
-     → issue JWT → redirect /dashboard/bookings
+  3. BFF callback resolves the invite, activates the staff record, issues JWT
+     → redirect /dashboard/bookings
+     → mismatches redirect to /auth/error with the appropriate reason above
 ```
 
-## Open questions (resolve before M124-S01)
+## Known limitations
 
-1. **Staff login route:** `/dashboard/login` or `/{tenantSlug}/staff-login`? If tenant-scoped, the staff needs to know their tenant slug before logging in, which defeats the purpose (staff is found by google_oauth_id, not by slug). `/dashboard/login` is strongly preferred.
-2. **"Bem-vindo(a)!" first-login banner:** show an inline success banner on the dashboard after UC-025 activation? Would require passing a `?welcome=1` query param from the BFF redirect. Confirm with product.
-3. **Error inline vs. error page:** currently the spec uses a separate `/auth/error` page. If the error is `not-a-staff-member`, an inline banner on `/dashboard/login` with a retry button might be better UX. The shared/staff-login.html already has this as a commented-out block. Decide at M124-S01 kickoff.
+- **`/auth/first-login` doesn't exist.** A deactivated-invite login currently redirects to a route that 404s. This is the one real remaining gap in this journey.
+- **No "Bem-vindo(a)!" first-login banner** was built — an open question from the original draft that was never revisited.

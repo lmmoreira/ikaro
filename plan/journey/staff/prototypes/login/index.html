@@ -23,7 +23,7 @@
 
   <h1>Protótipo — STAFF: Login</h1>
   <p style="opacity: 0.65; margin-bottom: 0.25rem;">UCs cobertos: <strong>UC-022</strong> (login regular) · <strong>UC-025</strong> (primeiro acesso / aceitar convite)</p>
-  <p style="opacity: 0.65;">Journey: <code>staff/login.md</code> · Stories: M124-S01</p>
+  <p style="opacity: 0.65;">Journey: <code>staff/login.md</code> · Stories: M124-S01 — ✅ Done</p>
 
   <hr style="border: none; border-top: 1px solid var(--ba-secondary); margin: 1.5rem 0;">
 
@@ -36,12 +36,12 @@
     </li>
     <li>
       <a href="./00-staff-login.html">01 — Tela de login da equipe</a>
-      <span class="tag tag-yellow">GAP: /dashboard/login</span>
+      <span class="tag tag-green">EXISTS: /dashboard/login</span>
       — shared/staff-login.html (UC-022 + UC-025 note)
     </li>
     <li>
       <a href="../agenda/00-agenda.html">Dashboard → Fila de agendamentos</a>
-      <span class="tag tag-yellow">GAP: /dashboard/bookings (M125-S03)</span>
+      <span class="tag tag-green">EXISTS: /dashboard/bookings</span>
       — destino pós-login bem-sucedido
     </li>
   </ul>
@@ -49,24 +49,49 @@
   <h2>Estados alternativos (unhappy paths)</h2>
   <ul>
     <li>
+      <a href="./00b-no-tenant-slug.html">00b — Acesso sem tenantSlug</a>
+      <span class="tag tag-green">EXISTS: mesma page.tsx, ramo sem query param</span>
+      — adicionado 2026-07-31: estado real que faltava no protótipo
+    </li>
+    <li>
       <a href="./01-first-login.html">01 — Convite não aceito</a>
-      <span class="tag tag-yellow">GAP: /auth/first-login</span>
-      — UC-022 Caso B: staff encontrado mas is_active=false
+      <span class="tag tag-red">GAP: /auth/first-login</span>
+      — UC-022 Caso B: staff encontrado mas is_active=false — único gap real remanescente desta jornada
     </li>
     <li>
       <a href="./01b-error.html">01b — Conta não encontrada (reason=not-a-staff-member)</a>
-      <span class="tag tag-yellow">GAP: /auth/error</span>
+      <span class="tag tag-green">EXISTS: /auth/error</span>
       — UC-022 Caso C
     </li>
     <li>
       <a href="./01c-error-email-mismatch.html">01c — E-mail não corresponde ao convite (reason=email-mismatch)</a>
-      <span class="tag tag-yellow">GAP: /auth/error</span>
+      <span class="tag tag-green">EXISTS: /auth/error</span>
       — UC-025 A1
     </li>
     <li>
       <a href="./01d-error-tenant-deactivated.html">01d — Estabelecimento desativado (reason=tenant-deactivated)</a>
-      <span class="tag tag-yellow">GAP: /auth/error</span>
+      <span class="tag tag-green">EXISTS: /auth/error</span>
       — tenant desativado pela plataforma
+    </li>
+    <li>
+      <a href="./01e-error-staff-deactivated.html">01e — Conta de staff desativada (reason=staff-deactivated)</a>
+      <span class="tag tag-green">EXISTS: /auth/error</span>
+      — adicionado 2026-07-31: reason code existia em produção sem tela no protótipo
+    </li>
+    <li>
+      <a href="./01f-error-invite-not-found.html">01f — Convite não encontrado (reason=invite-not-found)</a>
+      <span class="tag tag-green">EXISTS: /auth/error</span>
+      — adicionado 2026-07-31
+    </li>
+    <li>
+      <a href="./01g-error-account-linked-elsewhere.html">01g — Conta já vinculada (reason=account-linked-elsewhere)</a>
+      <span class="tag tag-green">EXISTS: /auth/error</span>
+      — adicionado 2026-07-31
+    </li>
+    <li>
+      <a href="./01h-error-tenant-not-found.html">01h — Estabelecimento não encontrado (reason=tenant-not-found)</a>
+      <span class="tag tag-green">EXISTS: /auth/error</span>
+      — adicionado 2026-07-31
     </li>
   </ul>
 
@@ -79,18 +104,18 @@
       <li>☐ A mensagem "Convite não aceito" é suficientemente clara para um staff que tenta logar antes de aceitar o convite?</li>
       <li>☐ A tela de erro indica a ação correta (falar com o gerente) sem revelar detalhes técnicos desnecessários?</li>
       <li>☐ A nota "Primeiro acesso? Use o link do e-mail de convite" na tela de login (shared/staff-login.html) é visível o suficiente?</li>
-      <li>☐ Após login bem-sucedido (UC-025), um banner de boas-vindas "Bem-vindo(a)!" é necessário na primeira tela do dashboard?</li>
+      <li>☐ Após login bem-sucedido (UC-025), um banner de boas-vindas "Bem-vindo(a)!" é necessário na primeira tela do dashboard? (ainda não implementado — ver dev-notes.md)</li>
       <li>☐ A mensagem de e-mail não correspondente (01c) deixa claro que o convite foi enviado para outro endereço, sem expor qual é?</li>
-      <li>☐ O CTA "Voltar ao site" na tela de estabelecimento desativado (01d) é a ação certa, ou um funcionário nesse estado deveria ver outra orientação (ex.: contato de suporte)?</li>
+      <li>☐ O CTA "Voltar" nos 7 estados de erro vai para o hotsite do tenant (ou site raiz) — isso é a ação certa, ou algum estado deveria oferecer outra orientação (ex.: contato de suporte)?</li>
     </ul>
   </div>
 
   <h2>Arquitetura</h2>
   <ul>
-    <li><strong>shared/staff-login.html</strong> → produção: <code>apps/web/app/dashboard/login/page.tsx</code> (GAP, M124-S01)</li>
-    <li><strong>01-first-login.html</strong> → produção: <code>apps/web/app/auth/first-login/page.tsx</code> (GAP, M124-S01)</li>
-    <li><strong>01b-error.html</strong> → produção: <code>apps/web/app/auth/error/page.tsx</code> (GAP, M124-S01, compartilhado com customer)</li>
-    <li>Backend/BFF: todos os endpoints de auth já implementados em M03 ✓</li>
+    <li><strong>shared/staff-login.html</strong> → produção: <code>apps/web/app/dashboard/login/page.tsx</code> (✅ EXISTS)</li>
+    <li><strong>01-first-login.html</strong> → produção: <code>apps/web/app/auth/first-login/page.tsx</code> (❌ GAP — genuinely missing, the only real gap in this journey)</li>
+    <li><strong>01b–01h error screens</strong> → produção: <code>apps/web/app/auth/error/page.tsx</code> (✅ EXISTS, compartilhado com customer, 8 reason codes)</li>
+    <li>Backend/BFF: todos os endpoints de auth já implementados ✓</li>
   </ul>
 
 </body>

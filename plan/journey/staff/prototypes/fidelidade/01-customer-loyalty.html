@@ -10,7 +10,7 @@
     .bottom-nav { display: none !important; }
 
     .balance-card {
-      background: linear-gradient(135deg, var(--ba-primary) 0%, #1d4ed8 100%);
+      background: linear-gradient(to bottom right, #2563eb, #1d4ed8, #1e40af); /* fixed blue-600→800 gradient, not --ba-primary — dashboard is tenant-agnostic */
       color: white; border-radius: var(--ba-radius); padding: 1.5rem;
       margin-bottom: 1.25rem;
     }
@@ -60,20 +60,27 @@
 <body>
 
   <!--
-    PAGE (GAP): apps/web/app/dashboard/loyalty/page.tsx  (with ?customerId= query param)
-    COMPONENT:  CustomerLoyaltyPage ('use client')
+    COMPONENT: CustomerLoyaltyPage
+    FILE:      apps/web/features/loyalty/components/dashboard/CustomerLoyaltyPage.tsx  (EXISTS, 'use client')
+    ROUTE:     /dashboard/loyalty/[customerId]  — path segment, NOT a ?customerId= query
+               param as an earlier draft of this file assumed (corrected 2026-07-31).
+               Active tab is a query param though: ?tab=redemptions (default = entries).
 
     BFF CALLS (all require X-Actor-Role: STAFF|MANAGER):
       GET /v1/customers/:customerId/loyalty/balance
-        → { currentPoints, nextExpiryDate, nextExpiryPoints }
+        → EnrichedLoyaltyBalanceResponse { currentPoints, nextExpiryDate, nextExpiryPoints, conversionRate }
       GET /v1/customers/:customerId/loyalty/entries?page=1&limit=20
         → { items: LoyaltyEntryItem[], total, page, limit }
-           LoyaltyEntryItem: { id, serviceName, points, earnedAt, expiresAt, isActive }
+           LoyaltyEntryItem: { id, serviceName, points, earnedAt, expiresAt, isActive, bookingId? }
       GET /v1/customers/:customerId/loyalty/redemptions?page=1&limit=20
         → { items: LoyaltyRedemptionItem[], total, page, limit }
            LoyaltyRedemptionItem: { id, pointsRedeemed, amountDeducted, redeemedAt, bookingId?, notes? }
 
-    customerId comes from URL ?customerId= query param (set when staff clicks a customer row).
+    Each entry/redemption row with a bookingId links to /dashboard/bookings/{bookingId}
+    with a returnTo param back to this page+tab — not shown in an earlier draft of this
+    screen (corrected 2026-07-31, see the "Ver agendamento" links below).
+    "Carregar mais" button appears per-tab when total > items shown (not infinite scroll).
+    Header + balance card sit side-by-side on desktop (lg:flex-row), stacked on mobile.
   -->
 
   <div class="dashboard-topbar">
@@ -87,7 +94,7 @@
     </a>
     <h1 class="topbar-page-title">João Silva</h1>
     <div style="margin-left: auto; display: flex; align-items: center; gap: 0.75rem;">
-      <a href="../../../shared/staff-login.html" class="auth-avatar" title="Sair">AP</a>
+      <a href="../../../shared/staff-login.html" class="list-avatar" title="Sair">AP</a>
       <span class="topbar-date">16 de junho de 2026</span>
     </div>
   </div>
@@ -136,7 +143,7 @@
         </a>
       </nav>
       <div class="sidebar-footer">
-        <div class="auth-avatar" style="flex-shrink: 0; width: 2rem; height: 2rem; font-size: 0.8125rem;">AP</div>
+        <div class="list-avatar" style="flex-shrink: 0; width: 2rem; height: 2rem; font-size: 0.8125rem;">AP</div>
         <div style="min-width: 0;">
           <p class="sidebar-user-name">Ana Pereira</p>
           <span class="role-badge role-badge-manager">Gerente</span>
@@ -152,7 +159,7 @@
 
         <!-- Customer header -->
         <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
-          <div style="width: 3rem; height: 3rem; border-radius: 50%; background: var(--ba-primary);
+          <div style="width: 3rem; height: 3rem; border-radius: 50%; background: #2563eb;
                       color: white; display: flex; align-items: center; justify-content: center;
                       font-weight: 700; font-size: 1.125rem; flex-shrink: 0;">JS</div>
           <div>
@@ -171,18 +178,18 @@
           <p class="balance-rate">10 pts = R$ 1,00 · Valor total: R$ 35,00</p>
         </div>
 
-        <!-- Tabs -->
+        <!-- Tabs — real tab query param is ?tab=entries|redemptions (default entries) -->
         <div class="tab-bar">
-          <a class="tab active" href="#" id="tab-earn" onclick="showTab('earn'); return false;">
+          <a class="tab active" href="#" id="tab-entries" onclick="showTab('entries'); return false;">
             Histórico de ganhos
           </a>
-          <a class="tab" href="#" id="tab-redeem" onclick="showTab('redeem'); return false;">
+          <a class="tab" href="#" id="tab-redemptions" onclick="showTab('redemptions'); return false;">
             Resgates
           </a>
         </div>
 
         <!-- Earning history -->
-        <div id="panel-earn">
+        <div id="panel-entries">
           <div class="entry-row">
             <div class="entry-icon earn">
               <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 8 22 12 18 16"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
@@ -193,6 +200,7 @@
                 <span class="active-badge active">ativo</span>
               </p>
               <p class="entry-date">10 de junho de 2026 · expira 7 dez 2026</p>
+              <a href="../agenda/01-booking-detail.html" style="font-size: 0.75rem; opacity: 0.5; color: var(--ba-text); text-decoration: none;">Ver agendamento #a3f8...</a>
             </div>
             <span class="entry-pts earn">+60 pts</span>
           </div>
@@ -206,6 +214,7 @@
                 <span class="active-badge active">ativo</span>
               </p>
               <p class="entry-date">22 de maio de 2026 · expira 18 nov 2026</p>
+              <a href="../agenda/01-booking-detail.html" style="font-size: 0.75rem; opacity: 0.5; color: var(--ba-text); text-decoration: none;">Ver agendamento #b71c...</a>
             </div>
             <span class="entry-pts earn">+120 pts</span>
           </div>
@@ -236,22 +245,23 @@
             <span class="entry-pts earn" style="opacity: 0.4;">+60 pts</span>
           </div>
           <p style="font-size: 0.8125rem; opacity: 0.5; text-align: center; margin-top: 1rem; color: var(--ba-text);">
-            Exibindo 4 de 4 entradas
+            Exibindo 4 de 7 entradas
           </p>
+          <div style="text-align: center; margin-top: 0.75rem;">
+            <button type="button" class="btn-secondary">Carregar mais</button>
+          </div>
         </div>
 
         <!-- Redemption history -->
-        <div id="panel-redeem" style="display: none;">
+        <div id="panel-redemptions" style="display: none;">
           <div class="entry-row">
             <div class="entry-icon redeem">
               <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 8 2 12 6 16"/><line x1="22" y1="12" x2="2" y2="12"/></svg>
             </div>
             <div class="entry-info">
               <p class="entry-name">Resgate no agendamento</p>
-              <p class="entry-date">22 de maio de 2026 · economizou R$ 20,00</p>
-              <p style="font-size: 0.75rem; opacity: 0.5; margin-top: 0.125rem;">
-                Booking #a3f8... · Lavagem Completa
-              </p>
+              <p class="entry-date">22 de maio de 2026</p>
+              <a href="../agenda/01-booking-detail.html" style="font-size: 0.75rem; opacity: 0.5; color: var(--ba-text); text-decoration: none;">Ver agendamento #a3f8...</a>
             </div>
             <span class="entry-pts redeem">−200 pts</span>
           </div>
@@ -330,10 +340,10 @@
 
   <script>
     function showTab(tab) {
-      document.getElementById('panel-earn').style.display   = tab === 'earn'   ? 'block' : 'none';
-      document.getElementById('panel-redeem').style.display = tab === 'redeem' ? 'block' : 'none';
-      document.getElementById('tab-earn').className   = 'tab' + (tab === 'earn'   ? ' active' : '');
-      document.getElementById('tab-redeem').className = 'tab' + (tab === 'redeem' ? ' active' : '');
+      document.getElementById('panel-entries').style.display     = tab === 'entries'     ? 'block' : 'none';
+      document.getElementById('panel-redemptions').style.display = tab === 'redemptions' ? 'block' : 'none';
+      document.getElementById('tab-entries').className     = 'tab' + (tab === 'entries'     ? ' active' : '');
+      document.getElementById('tab-redemptions').className = 'tab' + (tab === 'redemptions' ? ' active' : '');
     }
   </script>
 

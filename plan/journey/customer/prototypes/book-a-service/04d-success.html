@@ -11,9 +11,9 @@
     VARIANT OF: 04-confirmation.html
     SCENARIO:   POST /bookings/authenticated returned 201 Created. status = 'success' — the
                 entire step content is replaced with this view. Terminal state — no nav-buttons.
-    COMPONENT:  ConfirmationStep  apps/web/components/booking/ConfirmationStep.tsx  (EXISTS)
+    COMPONENT:  ConfirmationStep  apps/web/features/booking/components/public/ConfirmationStep.tsx  (EXISTS)
     SUCCESS:    "Solicitação enviada! Aguarde a confirmação por email."
-                (data-testid="confirmation-success")
+                (data-testid="booking-success")
     PRIMARY CTA links to the Agendamentos list (not the Início overview) — "go see what I
     just booked" intent.
   -->
@@ -72,7 +72,7 @@
         </svg>
       </div>
       <div>
-        <p style="font-weight:700;font-size:0.9375rem;color:#15803d;margin-bottom:0.125rem;" data-testid="confirmation-success">Solicitação enviada!</p>
+        <p style="font-weight:700;font-size:0.9375rem;color:#15803d;margin-bottom:0.125rem;" data-testid="booking-success">Solicitação enviada!</p>
         <p style="font-size:0.875rem;color:#166534;opacity:0.85;line-height:1.5;">Aguarde a confirmação por email.</p>
       </div>
     </div>

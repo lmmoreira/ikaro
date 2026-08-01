@@ -9,7 +9,7 @@
 <body>
   <!--
     COMPONENT: ServiceSelectionStep
-    FILE:      apps/web/components/booking/ServiceSelectionStep.tsx  (EXISTS — no changes needed)
+    FILE:      apps/web/features/booking/components/public/ServiceSelectionStep.tsx  (EXISTS — no changes needed)
     PARENT:    BookingForm (step={1})
     PROPS:     services, selectedServiceIds, onToggleService, requiresPickupAddress,
                pickupAddress, onPickupAddressChange, onNext, onBack
@@ -76,7 +76,7 @@
       <!--
         Card 3 — service with requiresPickupAddress: true
         When this is selected, AddressFields (pickup) appear below the card list.
-        COMPONENT: AddressFields  (apps/web/components/booking/AddressFields.tsx)
+        COMPONENT: AddressFields  (apps/web/features/booking/components/public/AddressFields.tsx)
       -->
       <li>
         <label class="card" style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
@@ -105,7 +105,7 @@
 
     <!--
       PICKUP ADDRESS FIELDS — rendered only when requiresPickupAddress = true
-      COMPONENT: AddressFields  (apps/web/components/booking/AddressFields.tsx)
+      COMPONENT: AddressFields  (apps/web/features/booking/components/public/AddressFields.tsx)
       VALIDATION: all fields required; ZIP autocomplete via viacep-address-lookup.adapter.ts
       ERROR: "Informe o endereço de coleta para continuar."  (data-testid="step1-error")
 

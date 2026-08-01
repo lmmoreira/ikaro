@@ -8,7 +8,7 @@
 
 ## Overview
 
-🔴 **Blocking precondition — read this before scoping any story.** Backend `PATCH /tenants/settings` is fully implemented, `MANAGER`-guarded, and `.http`-covered (`apps/backend/src/contexts/platform/infrastructure/controllers/tenant-settings.controller.ts`). **No BFF controller exposes it** (confirmed via `/uc-audit UC-026,UC-027,UC-028,UC-029`, 2026-06-16). Unlike Equipe and Hotsite, this journey needs a **new BFF story** — a proxy route in the `platform` BFF module — before any frontend story can be scoped.
+✅ **Fully shipped** (`M13-S31`). Updated 2026-07-31 — this file previously claimed the BFF endpoint didn't exist; it does, and the real form has 7 sections / far more fields than originally scoped here (deliberate scope expansion during `M13-S31`, never backfilled into this handoff doc until now).
 
 ---
 
@@ -16,7 +16,7 @@
 
 | Prototype file | Production route | Page component |
 |---|---|---|
-| `01-settings-form.html` | `/{slug}/dashboard/settings` | `TenantSettingsForm` |
+| `01-settings-form.html` | `/dashboard/settings` (no `[slug]` segment) | `SettingsForm` |
 
 ---
 
@@ -24,10 +24,10 @@
 
 | Action | Method + Path | Role guard | Status |
 |---|---|---|---|
-| Get settings | `GET /tenants/settings` (new) | MANAGER | ❌ Does not exist — needed for initial form load |
-| Update settings | `PATCH /tenants/settings` (new) | MANAGER | ❌ Does not exist — proxy to backend |
+| Get settings | `GET /tenants/settings` | MANAGER | ✅ Exists |
+| Update settings | `PATCH /tenants/settings` | MANAGER | ✅ Exists |
 
-Backend reference (already built, proxy target for the new BFF routes):
+`apps/bff/src/features/platform/tenant-settings.controller.ts` (EXISTS) proxies to the backend:
 
 ```typescript
 // apps/backend/src/contexts/platform/infrastructure/controllers/tenant-settings.controller.ts
@@ -69,16 +69,21 @@ Verify exact key casing (`businessHours` vs `business_hours`) against the actual
 
 ---
 
-## Field defaults & limits (from `docs/21-TENANTS_SETTINGS_SCHEMA.md` and `TenantSettings` VO)
+## Field set (real, ✅ shipped — expanded well beyond the original scope)
 
-| Field | Default | Range |
-|---|---|---|
-| `cancellation_window_hours` | 48 | 0–720 |
-| `service_buffer_minutes` | 60 | 0–120 |
-| `loyalty.expiry_days` | 180 | 1–3650 |
-| `business_hours.timezone` | `America/Sao_Paulo` | valid IANA identifier |
+The real `SettingsForm.tsx` has 7 sections, not the 5 this file originally described:
 
-`business_hours.<day>` is `{ open, close }` or `null` (closed) per day — Sunday defaults to closed in this prototype as an example, not a hardcoded rule.
+| Section | Fields |
+|---|---|
+| Geral | name, slug (read-only) |
+| Agendamento | cancellationWindowHours, serviceBufferMinutes, **autoApproveEnabled**, **minBookingAdvanceHours**, **maxBookingAdvanceDays**, **slotGranularityMinutes**, **welcomeStaffScreenDays** |
+| Fidelidade | loyaltyExpiryDays, **pointsPerCurrencyUnit**, **loyaltyEnableNotifications**, **loyaltyExpiryWarningDays**, **loyaltyNotificationMinPoints** |
+| **Notificações** (missing from the original draft entirely) | notificationFromEmail |
+| Horário | timezone + per-day open/close/closed |
+| Contato | phone, email, **structured address** (zipCode with ViaCEP lookup, number, street, complement, neighborhood, city, state — not one free-text line as originally drafted), **social links** (whatsapp, instagram, facebook) |
+| **Localização** (missing from the original draft entirely) | countryCode, currency, language — all read-only, set at tenant creation |
+
+Bold fields were entirely absent from this doc and the prototype screen before the 2026-07-31 sync.
 
 ---
 
@@ -95,6 +100,8 @@ Verify exact key casing (`businessHours` vs `business_hours`) against the actual
 | businessInfo.email | `z.email()`, optional | "E-mail inválido." |
 
 Slug is never submitted — input stays `readonly`; UC-026 A2 says the system silently ignores any manipulation attempt, so there's no need for a slug-specific error state.
+
+Address uses a ViaCEP-backed zip lookup (`PostalCodeField`), matching the pattern already used in the guest/customer booking flow's pickup address — not a single free-text field.
 
 ---
 

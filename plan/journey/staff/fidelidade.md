@@ -12,35 +12,37 @@ flowchart TD
     classDef existing fill:#e6ffe6,stroke:#3a3
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
-    Start(["Sidebar → Fidelidade"]) --> SearchPage["❓ GAP: /dashboard/loyalty<br/>Buscar cliente"]
+    Start(["Sidebar → Fidelidade"]) --> SearchPage["/dashboard/loyalty<br/>Buscar cliente"]
     SearchPage --> Input(("Digita nome ou e-mail"))
     Input --> Results{"Resultado?"}
 
-    Results -->|"Nenhum cliente"| NoResults["❓ GAP: estado vazio<br/>Nenhum resultado"]
+    Results -->|"Nenhum cliente"| NoResults["estado vazio<br/>Nenhum resultado"]
     NoResults --> Input
 
     Results -->|"1+ clientes"| Click(("Click no cliente"))
-    Click --> Detail["❓ GAP: /dashboard/loyalty?customerId=:id<br/>Saldo + histórico + resgates"]
+    Click --> Detail["/dashboard/loyalty/[customerId]?tab=entries|redemptions<br/>Saldo + histórico + resgates"]
 
     Detail --> HasBalance{"Tem pontos?"}
     HasBalance -->|"Sim"| Balance["Saldo ativo + data de expiração<br/>Histórico de ganhos (paginado)<br/>Histórico de resgates (paginado)"]
-    HasBalance -->|"Não"| NoEntries["❓ GAP: estado vazio<br/>Sem pontos acumulados"]
+    HasBalance -->|"Não"| NoEntries["estado vazio<br/>Sem pontos acumulados"]
 
     Balance --> Back(("Voltar à busca"))
     NoEntries --> Back
     Back --> SearchPage
 
-    class SearchPage,Detail,NoResults,NoEntries gap
+    class SearchPage,Detail,NoResults,NoEntries existing
 ```
+
+**Note (2026-07-31 docs audit):** the detail route's shape drifted from the original query-param design (`/dashboard/loyalty?customerId=`) to a path segment (`/dashboard/loyalty/[customerId]`), and tabs are named `entries`/`redemptions`, not `earn`/`redeem`.
 
 ## Pages referenced
 
 | Page / Route | Component | Story | Status |
 |---|---|---|---|
-| `/dashboard/loyalty` | `LoyaltySearchPage` | — | ❓ GAP |
-| `/dashboard/loyalty?customerId=:id` | `CustomerLoyaltyPage` | — | ❓ GAP |
-| Estado vazio — sem resultados | inline em `LoyaltySearchPage` | — | ❓ GAP |
-| Estado vazio — sem pontos | inline em `CustomerLoyaltyPage` | — | ❓ GAP |
+| `/dashboard/loyalty` | `LoyaltySearchPage` | M13-S25 | ✅ Done |
+| `/dashboard/loyalty/[customerId]` | `CustomerLoyaltyPage` | M13-S25 | ✅ Done |
+| Estado vazio — sem resultados | inline em `LoyaltySearchPage` | M13-S25 | ✅ Done |
+| Estado vazio — sem pontos | inline em `CustomerLoyaltyPage` | M13-S25 | ✅ Done |
 
 ## Open questions / gaps
 

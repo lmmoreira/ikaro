@@ -195,6 +195,12 @@ h1, h2, h3 { font-family: var(--ba-heading-font); }
   font-size: 0.875rem;
   color: var(--ba-text);
 }
+/* .auth-avatar is tenant-branded (--ba-primary) — correct ONLY on the hotsite tree
+   (guest/customer public auth bar, app/[slug]/**). Per CLAUDE.md's "Web styling boundary":
+   DashboardShell AND CustomerShell (Minha Conta) are both tenant-agnostic — every identity
+   avatar inside either one (current-user chip in a topbar/sidebar-footer, or a list-row
+   avatar in a roster/resource list) must use .list-avatar / .list-avatar-N below instead,
+   never this class. (2026-07-31 docs audit found this open; resolved 2026-08-04.) */
 .auth-avatar {
   width: 1.75rem;
   height: 1.75rem;
@@ -207,6 +213,30 @@ h1, h2, h3 { font-family: var(--ba-heading-font); }
   font-weight: 700;
   font-size: 0.75rem;
 }
+
+/* Fixed-color identity avatar for DashboardShell/CustomerShell — never tenant-branded.
+   .list-avatar alone = blue-600 (also correct for a single current-user chip, e.g. sidebar
+   footer or topbar avatar-link). For a list of distinct rows (staff roster, resource list,
+   customer list), cycle .list-avatar / -2 / -3 / -4 / -5 by row index, matching the real
+   AVATAR_FALLBACK_CLASSES cycle in LoyaltySearchPage.tsx (blue-600/violet-600/cyan-600/
+   amber-600/pink-600). Same box-shape/sizing contract as .auth-avatar — override
+   width/height/font-size inline per screen exactly as .auth-avatar already was. */
+.list-avatar {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 9999px;
+  background: #2563eb; /* blue-600 */
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+.list-avatar-2 { background: #7c3aed; } /* violet-600 */
+.list-avatar-3 { background: #0891b2; } /* cyan-600 */
+.list-avatar-4 { background: #d97706; } /* amber-600 */
+.list-avatar-5 { background: #db2777; } /* pink-600 */
 
 /* ================================================================
    Dashboard shell — MOBILE-FIRST
@@ -243,14 +273,14 @@ h1, h2, h3 { font-family: var(--ba-heading-font); }
 .topbar-brand     { display: flex; align-items: center; gap: 0.625rem; }
 .topbar-logo-mark {
   width: 1.75rem; height: 1.75rem; flex-shrink: 0;
-  background: var(--ba-primary); border-radius: 6px;
+  background: #2563eb; border-radius: 6px; /* fixed platform blue — DashboardShell is tenant-agnostic, never --ba-primary (CLAUDE.md "Web styling boundary") */
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 0.8125rem; color: white;
 }
 .topbar-tenant-name { font-weight: 700; font-size: 0.9375rem; color: var(--ba-text); }
 .topbar-avatar {
   width: 2rem; height: 2rem; border-radius: 9999px;
-  background: var(--ba-primary); color: white;
+  background: #2563eb; color: white; /* fixed platform blue, not --ba-primary — see .topbar-logo-mark note */
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 0.75rem; cursor: pointer; flex-shrink: 0;
 }
@@ -285,7 +315,7 @@ h1, h2, h3 { font-family: var(--ba-heading-font); }
   transition: color 0.12s;
   font-family: var(--ba-body-font);
 }
-.bottom-nav-item.active { color: var(--ba-primary); }
+.bottom-nav-item.active { color: #2563eb; } /* fixed platform blue, not --ba-primary — see .topbar-logo-mark note */
 .bottom-nav-icon { width: 1.375rem; height: 1.375rem; flex-shrink: 0; }
 
 /* Bottom sheet (manager overflow) */
@@ -366,7 +396,7 @@ h1, h2, h3 { font-family: var(--ba-heading-font); }
 }
 .sidebar-logo {
   width: 1.875rem; height: 1.875rem; flex-shrink: 0;
-  background: var(--ba-primary); border-radius: 6px;
+  background: #2563eb; border-radius: 6px; /* fixed platform blue, not --ba-primary — see .topbar-logo-mark note */
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 0.8125rem; color: white;
 }
@@ -386,7 +416,7 @@ h1, h2, h3 { font-family: var(--ba-heading-font); }
   transition: background 0.12s, color 0.12s;
 }
 .sidebar-nav-item:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.9); }
-.sidebar-nav-item.active { background: var(--ba-primary); color: white; }
+.sidebar-nav-item.active { background: #2563eb; color: white; } /* fixed platform blue, not --ba-primary — see .topbar-logo-mark note */
 .sidebar-nav-icon { width: 1rem; height: 1rem; flex-shrink: 0; }
 .sidebar-footer {
   margin-top: auto; padding: 0.875rem 1rem;
@@ -438,8 +468,8 @@ h1, h2, h3 { font-family: var(--ba-heading-font); }
   transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
 .filter-tab.active {
-  background: var(--ba-primary); color: white;
-  border-color: var(--ba-primary); font-weight: 600;
+  background: #2563eb; color: white; /* fixed platform blue, not --ba-primary — see .topbar-logo-mark note */
+  border-color: #2563eb; font-weight: 600;
 }
 
 /* Booking cards — mobile-first full-width stacked */

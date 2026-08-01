@@ -2,7 +2,8 @@
 
 **Status:** Discovery — exploratory. Nothing here is committed to a milestone; no `UC-XXX` numbers are consumed by this document.
 **Companion doc:** `MULTI_VERTICAL_SCHEDULING_USECASES.md` — candidate use cases derived from this model, for completeness-checking.
-**Companion prototype:** `MULTI_VERTICAL_SCHEDULING/prototype/` (start at its `index.html`) — 22 illustrative screens working through the model concretely on one fictional tenant (Vitta Studio). Several findings from building it fed corrections back into this doc and the use-cases doc — see its `dev-notes.md` for the full list.
+**Companion doc:** `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` — the physical schema (tables, constraints, migration ordering) this model implies, plus gaps found while translating it into real DDL.
+**Companion prototype:** `MULTI_VERTICAL_SCHEDULING/prototype/` (start at its `index.html`) — 24 illustrative screens working through the model concretely on one fictional tenant (Vitta Studio). Several findings from building it fed corrections back into this doc and the use-cases doc — see its `dev-notes.md` for the full list.
 
 ---
 
@@ -39,7 +40,7 @@ This document works out what changes in the domain model to support all four, pl
 | 3 | Per-staff exclusive, system-assigned | "Any available stylist" | Named staff resource, auto-picked | 1 per staff | 1 | Appointment |
 | 4 | Fungible resource pool | Squash/padel courts, generic wash bays | Interchangeable, anonymous resource | 1 per unit, no identity exposed to customer | 1 | Appointment |
 | 5 | Group/class capacity | Pilates (4), CrossFit (20) | A class *session*, not a person | Resource(s) attached to the session | N | Session |
-| 6 | Multi-service concurrent timetables | Big gym | Multiple independent instances of #5 running side by side | Independent per service | N per service | Session |
+| 6 | Multi-service concurrent timetables | Big gym; also a big studio running the *same* class twice (2 Pilates rooms, same hour) | Multiple independent instances of #5 running side by side | Independent per service **or per template** — "independent" doesn't require different services, just different `ClassScheduleTemplate` rows | N per template | Session |
 | 7 | Compound/bundled resource requirement | Dentist + chair | Multiple resources, same window, all required | ≥ 2 resources | 1 (or N if the bundle repeats as a session) | Appointment |
 | 8 | Sequential/multi-stage | Spa journey (sauna → massage → lounge) | Multiple resources, different sub-windows of one appointment | Ordered resource legs | 1 per leg | Appointment |
 | 9 | Buffer / transition gap | All verticals | Not a bookable thing — a modifier on the others | Resource turnover + leg transition | N/A | Cross-cutting |
@@ -123,7 +124,7 @@ ServiceLeg {
   legIndex:    int
   name:        String
   durationMinutes: int
-  resourceRequirement: ResourceRequirement
+  resourceRequirements: ResourceRequirement[]   -- ≥ 1; a leg can need more than one resource at once (see the Massage leg below) — corrected 2026-08-05, was a single ResourceRequirement until the prototype's own itinerary exposed the gap (MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md §6 item 13)
   transitionGapAfterMinutes: int          -- customer transition time before the NEXT leg; not applied after the last leg
 }
 ```
@@ -138,14 +139,14 @@ Example — a spa journey moving through three resources:
   "bookingModel": "APPOINTMENT",
   "bufferAfterMinutes": null,
   "legs": [
-    { "legIndex": 0, "name": "Sauna",             "durationMinutes": 20, "resourceRequirement": { "type": "ROOM",      "selectionMode": "AUTO_ANY" },        "transitionGapAfterMinutes": 10 },
-    { "legIndex": 1, "name": "Massage",           "durationMinutes": 50, "resourceRequirement": { "type": "STAFF",     "selectionMode": "CUSTOMER_CHOICE" }, "transitionGapAfterMinutes": 5 },
-    { "legIndex": 2, "name": "Relaxation Lounge",  "durationMinutes": 20, "resourceRequirement": { "type": "ROOM",      "selectionMode": "AUTO_ANY" },        "transitionGapAfterMinutes": 0 }
+    { "legIndex": 0, "name": "Sauna",             "durationMinutes": 20, "resourceRequirements": [{ "type": "ROOM", "selectionMode": "AUTO_ANY" }],                                                           "transitionGapAfterMinutes": 10 },
+    { "legIndex": 1, "name": "Massage",           "durationMinutes": 50, "resourceRequirements": [{ "type": "STAFF", "selectionMode": "CUSTOMER_CHOICE" }, { "type": "ROOM", "selectionMode": "AUTO_ANY" }], "transitionGapAfterMinutes": 5 },
+    { "legIndex": 2, "name": "Relaxation Lounge", "durationMinutes": 20, "resourceRequirements": [{ "type": "ROOM", "selectionMode": "AUTO_ANY" }],                                                           "transitionGapAfterMinutes": 0 }
   ]
 }
 ```
 
-Total span = `sum(durationMinutes) + sum(transitionGapAfterMinutes)` = 90 + 15 = **105 minutes**, even though only 90 minutes are billable. `BookingLine` snapshots the resolved plan at booking time:
+The Massage leg needs **two** resources at once — a therapist and a room, the same two resources `Massagem Relaxante`'s own bundle (§5, CAND-07) uses, deliberately, to demonstrate cross-service exclusivity (CAND-31) from the other direction. Total span = `sum(durationMinutes) + sum(transitionGapAfterMinutes)` = 90 + 15 = **105 minutes**, even though only 90 minutes are billable. `BookingLine` snapshots the resolved plan at booking time — one `legAssignments` entry per `(legIndex, resourceId)` pair, so a leg needing two resources gets two entries sharing the same `legIndex`:
 
 ```json
 {
@@ -155,6 +156,7 @@ Total span = `sum(durationMinutes) + sum(transitionGapAfterMinutes)` = 90 + 15 =
   "legAssignments": [
     { "legIndex": 0, "startsAt": "2026-08-03T13:00:00Z", "endsAt": "2026-08-03T13:20:00Z", "resourceId": "res_sauna_room_1" },
     { "legIndex": 1, "startsAt": "2026-08-03T13:30:00Z", "endsAt": "2026-08-03T14:20:00Z", "resourceId": "res_staff_ana" },
+    { "legIndex": 1, "startsAt": "2026-08-03T13:30:00Z", "endsAt": "2026-08-03T14:20:00Z", "resourceId": "res_massage_room_1" },
     { "legIndex": 2, "startsAt": "2026-08-03T14:25:00Z", "endsAt": "2026-08-03T14:45:00Z", "resourceId": "res_lounge_room_2" }
   ]
 }
@@ -192,11 +194,24 @@ ClassSession {                       -- materialized occurrence
 
 SessionBooking {                     -- the session-style equivalent of Booking
   sessionBookingId, tenantId, sessionId
-  customerId | guest-contact-fields
+  type:            GUEST | CUSTOMER  -- same BookingType enum as Booking
+  customerId:      CustomerId | null -- null if guest
+  contactEmail / contactName / contactPhone   -- mirrors Booking's contact fields exactly — corrected
+                                               -- 2026-08-05, was the vague "customerId | guest-contact-fields"
+                                               -- placeholder; needed so SessionBookingCompleted's
+                                               -- notification stays self-contained (bounded-contexts Rule 4)
   quantity:     int                 -- default 1; multi-unit (model 12)
-  status:       CONFIRMED | WAITLISTED | CANCELLED
-  waitlistPosition: int | null
+  status:       CONFIRMED | WAITLISTED | CANCELLED | COMPLETED | NO_SHOW
   seriesId:     RecurringEnrollmentId | null
+
+  -- Snapshots, frozen at booking-request time. Same principle as BookingLine (§1) — a
+  -- later Service edit must never retroactively change a past booking, and
+  -- SessionBookingCompleted needs a points value to hand Loyalty. Added 2026-08-05 —
+  -- the original model had none of these at all (MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md
+  -- §6 item 1).
+  serviceNameAtBooking:  String
+  priceAtBooking:        Money
+  pointsValueAtBooking:  int
 }
 
 RecurringEnrollment {
@@ -208,9 +223,31 @@ RecurringEnrollment {
 
 A rolling-horizon generator (same shape as the existing loyalty-expiry cron) materializes `ClassSession` rows some window ahead of an active template — window size is an open question, §9.
 
+**Model 6 concretely — two independent templates, not a pool.** A bigger studio running Pilates in 2 rooms at the same hour is **two separate `ClassScheduleTemplate` rows**, not one template pointing at a fungible `ROOM` pool (that would be model 4, and only makes sense for "one slot, whichever unit is free" — it would silently merge two full, independently-running classes into one, which is wrong the moment both are meant to run at capacity simultaneously):
+
+```json
+[
+  { "templateId": "tpl_pilates_estudio1", "serviceId": "svc_pilates", "resourceIds": ["res_staff_camila", "res_room_estudio1"], "recurrence": "MON,WED,FRI@08:00", "capacity": 4 },
+  { "templateId": "tpl_pilates_estudio2", "serviceId": "svc_pilates", "resourceIds": ["res_staff_ana",    "res_room_estudio2"], "recurrence": "MON,WED,FRI@08:00", "capacity": 4 }
+]
+```
+
+Same `serviceId`, same recurrence, two independent `templateId`s — each generates its own `ClassSession` rows (CAND-13), each with its own roster and waitlist. Nothing shares state between them; the only thing they have in common is the service they're both instances of.
+
+**Cross-family resource exclusivity.** A `Resource` shared between an APPOINTMENT-style service and a SESSION-style template — model 13's whole premise, e.g. Camila Duarte as both a hairdressing resource and a Pilates instructor — must present **one unified busy/free view**, regardless of which family is asking. This doesn't fall out for free: `CAND-29` (appointment availability) and `CAND-13` (session generation) are two independently-computed paths that happen to reference the same `Resource`, with nothing making them consult each other by default. Two concrete failure modes if left unaddressed:
+
+- A haircut gets approved for Camila at the exact hour her active Pilates template recurs, because the appointment-side check only looks at other `Booking`s, never at `ClassScheduleTemplate` patterns.
+- Even with that check added, `ClassSession` rows only exist once a rolling-horizon job has materialized them (`CAND-13`) — an appointment booked far enough ahead could still slip into a date whose session hasn't been generated yet, with the conflict only surfacing later when generation catches up and collides with the now-`APPROVED` booking.
+
+**Resolution:** the appointment-side availability check evaluates a resource's active `ClassScheduleTemplate` recurrence rules **directly** — does this rule produce an occurrence at this candidate time, honoring `validFrom`/`validUntil` — rather than depending on a `ClassSession` row existing yet. This makes the invariant hold at *any* generation-horizon size: the horizon becomes a pure browsing/UX and storage-cost decision (how far ahead a customer can see and book *into* a class), fully decoupled from correctness, instead of something that has to be kept artificially wide (e.g. matched to `tenants.settings.booking.maxBookingAdvanceDays`, `docs/21-TENANTS_SETTINGS_SCHEMA.md:77`) just to avoid a race. See `CAND-29`, `CAND-11`, `CAND-13`, and `CAND-31` in the use-cases doc for where this lands concretely.
+
 **Capacity** lives on `ClassSession`, seeded from the template but instance-overridable — this is what makes model 13 (capacity as Service × Resource, not Resource alone) work: a personal trainer `Resource` can host a 1:1 `ClassSession` (capacity 1) and a group `ClassSession` (capacity 20) on the same underlying resource, because capacity is a property of the session/template, never the resource itself.
 
-**Waitlist**: once `bookedCount = capacity`, new `SessionBooking`s get `status = WAITLISTED` with an assigned `waitlistPosition`. On a `CONFIRMED` booking's cancellation, the lowest `waitlistPosition` promotes automatically.
+**Waitlist**: once `bookedCount = capacity`, new `SessionBooking`s get `status = WAITLISTED`. Queue position is FIFO by `createdAt`, derived at read time rather than stored and shifted on every promotion/cancellation — corrected 2026-08-05; a persisted `waitlistPosition` column was more bookkeeping than the requirement needs (`MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §6 item 8). On a `CONFIRMED` booking's cancellation, the earliest-queued `WAITLISTED` booking promotes automatically. If a `WAITLISTED` booking is never promoted before its `ClassSession.endTime` passes, it's moot — a purely mechanical, no-judgment cleanup (`CAND-25b`) auto-cancels it, the same way `CAND-13`'s generator runs on a schedule with no human in the loop.
+
+**Attendance, completion, and no-show — deliberately staff-triggered, not a job.** `SessionBooking` needs a terminal state for "this actually happened," the same way `Booking` reaches `COMPLETED` (`UC-009`) — but unlike `UC-009`'s one-booking-at-a-time "Mark Complete" click, a session can have up to `capacity` attendees, so requiring N individual clicks doesn't scale. Instead: the roster pre-marks every `CONFIRMED` booking as attended by default: staff flags only the exceptions (no-shows), then closes the session out in one batch action (`CAND-15b`) — everything still `CONFIRMED` becomes `COMPLETED`, flagged ones become `NO_SHOW`. This mirrors `UC-009`'s staff-driven pattern (not a scheduled job — attendance needs a human to observe it, unlike the mechanical waitlist cleanup above) while fitting the N-attendee shape session capacity actually has. `COMPLETED` publishes a candidate `SessionBookingCompleted` event, mirroring `BookingCompleted`'s consumers (Loyalty inserts a `LoyaltyEntry` when `customerId != null`; Notification sends a "thanks for coming" message regardless — `docs/05-BOUNDED_CONTEXTS.md`).
+
+**Scope note — this puts `SessionBooking` ahead of `Booking` on no-show tracking.** `UC-009` alt A1 explicitly marks `NO_SHOW` for `Booking` as *"future state, not in MVP"* — today's real system has no no-show tracking for either family. Deliberately building it for `SessionBooking` here anyway: a no-show against a capacity-constrained class with an active waitlist wastes a spot a waitlisted customer could have used, and attendance/no-show is itself a real operating metric for a studio/gym business — the cost-benefit is different from a private 1:1 appointment's no-show, and this is a knowing scope choice, not an oversight.
 
 **Recurring enrollment**: a process attaches a `SessionBooking` to each upcoming `ClassSession` matching the enrollment's template, respecting capacity (or waitlisting) fresh each time — an enrollment is a *standing intent*, not a guarantee.
 
@@ -263,14 +300,16 @@ Effective gap before the next booking on a resource, for a flat (non-legged) ser
 
 1. **`LOCATION` resource backfill** — give every existing tenant an explicit `Resource` row at migration time (uniform model), or keep `resourceId = null` as a permanent legacy sentinel? Backfilling is consistent with the "no workarounds" principle but is a real migration decision, not a default to assume.
 2. **Does a `SessionBooking` ever need admin approval**, or is it always auto-confirm/waitlist with no human in the loop? Changes the state machine shape (today's appointment `Booking` has PENDING/APPROVED/INFO_REQUESTED; a class booking plausibly doesn't need any of that).
-3. **Rolling-horizon window size** for `ClassSession` generation — how far ahead does the generator materialize sessions from an active template? Too short risks customers unable to book far enough ahead; too long generates rows nobody will ever fill.
+3. **Rolling-horizon window size** for `ClassSession` generation — how far ahead does the generator materialize sessions from an active template? **Resolved to a pure UX/cost tradeoff, not a correctness one (2026-08-04):** cross-family resource conflicts (§6) are caught by evaluating a template's recurrence rule directly, not by requiring a `ClassSession` row to exist — so this window no longer needs to match `maxBookingAdvanceDays` or any other correctness-driven size. What's still open is purely: too short risks customers unable to book far enough ahead; too long generates rows nobody will ever fill.
 4. **Lowering a `ClassSession`'s capacity below its current `bookedCount`** (an instance override) — what happens to the customers now over capacity? No clean answer without a business decision (bump to waitlist? grandfather them in?).
 5. **Cancelling a `ClassSession` that already has bookings** — refund policy, notification, whether affected customers get auto-offered another session. Same shape of question as #4 but triggered by the manager cancelling the whole session rather than shrinking it.
 6. **Multi-location resource ownership** — ties directly to the open decision already logged in `CLAUDE.md` §12 ("Multiple locations per tenant = separate tenants or sub-tenant model?"). The `Resource` model should leave room for a location dimension later, not attempt to resolve §12 here.
-7. **SESSION-type services have no formal eligible-resource-pool concept.** `ResourceRequirement.resourcePoolIds` (§5) restricts which resources are eligible for an APPOINTMENT-style service. `ClassScheduleTemplate.resourceIds` (§6) has no equivalent — it's just an already-resolved set, with nothing declaring the pool it was drawn from. Surfaced while prototyping a CrossFit template with three eligible instructors (Bruno/João/Fábio): the UI can offer a choice between them, but nothing in the schema says *why* those three and not any other `STAFF` resource in the tenant.
+7. **SESSION-type services have no formal eligible-resource-pool concept.** Surfaced while prototyping a CrossFit template with three eligible instructors (Bruno/João/Fábio), visible on two resource types, not one: `manager-06-criar-turma.html`'s create-turma screen labels its Instrutor field "elegível para Pilates: Camila, Ana" and its Sala field "elegível para Pilates: Estúdio 1, Estúdio 2" — real UI text implying a per-type pool that nothing in the schema declared at the time. **Resolved (2026-08-05):** see `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md`'s `class_schedule_template_slots` / `class_schedule_template_slot_pool` tables — each template slot now has its own resolved resource plus the eligible pool it was drawn from, mirroring `ResourceRequirement.resourcePoolIds`'s shape one level deeper, generalized to `EQUIPMENT` as well as `STAFF`/`ROOM`.
 8. **`Resource` has no `maxCapacity`.** Nothing constrains a `ClassScheduleTemplate.capacity` against the physical size of the resource it uses — a manager could set `capacity: 50` for a class using a room that fits 4, with no validation catching it.
 9. **CAND-04's actor scoping.** Group A (Resource Management) is uniformly MANAGER-only, but blocking a `STAFF` resource's *own* calendar (a stylist marking herself unavailable) reads as a natural self-service action — unlike blocking a `ROOM`/`EQUIPMENT` resource, which has no self and stays administrative regardless. Not resolved; CAND-04 still says MANAGER-only.
 10. **CAND-17b's tie-breaking rule.** When a service auto-assigns a named staff member (`AUTO_ANY`) and more than one eligible staff member is free for the chosen slot, who gets picked — least-recently-booked, round robin, something else? Not decided.
+11. **Does deactivating a `Staff` row (UC-029, Staff Context) cascade to a wrapping `STAFF`-type `Resource` (CAND-03, Booking Context)?** Two independent deactivation entry points exist — one per context — with nothing wiring them together. `StaffDeactivated` currently has zero consumers in the real system; this would be its first. Surfaced while building `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §6 item 4. Not resolved.
+12. **Do `ClassSession`/`SessionBooking` become full event-emitting aggregates, or stay plain entities published from the use case?** `SessionBookingConfirmed`/`Waitlisted`/`Completed`, `WaitlistPromoted`, and `ClassSessionCancelled` are each triggered by a specific use-case call transitioning state — the same shape as `Booking`'s existing 3-aggregate transactional-outbox pattern (TD24-S02), which would mean `ClassSession`/`SessionBooking` joining that fixed list and getting their own outbox-draining repositories. Surfaced while building `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §6 item 11. Not resolved — a real architectural commitment, not a detail.
 
 ---
 
@@ -293,4 +332,4 @@ The fix: a small set of **business-model presets** at onboarding — "Single res
 
 Full list, in the existing `docs/04-USE_CASES.md` field format (labeled `CAND-XX`, not `UC-XXX`, to avoid colliding with the canonical index): **`MULTI_VERTICAL_SCHEDULING_USECASES.md`**.
 
-34 candidates across six groups: resource management, service configuration, class/session management, appointment booking, class/session booking, and cross-cutting system behavior (three added after the original 31 — CAND-13b, CAND-17b, and CAND-13c — each an enumeration gap found by cross-checking the prototypes against this list, or by a direct question about manager oversight of multiple resources at once). Several (session cancellation with existing bookings, capacity override below headcount) surfaced real open questions rather than just missing prose — see §9.
+36 candidates across six groups: resource management, service configuration, class/session management, appointment booking, class/session booking, and cross-cutting system behavior (five added after the original 31 — CAND-13b, CAND-17b, CAND-13c, CAND-15b, and CAND-25b — each an enumeration gap found by cross-checking the prototypes against this list, by a direct question about manager oversight of multiple resources at once, or by working through cross-family resource exclusivity and session attendance/no-show tracking as a domain interview). Several (session cancellation with existing bookings, capacity override below headcount) surfaced real open questions rather than just missing prose — see §9.

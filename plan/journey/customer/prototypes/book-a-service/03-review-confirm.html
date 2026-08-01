@@ -8,35 +8,30 @@
 </head>
 <body>
   <!--
-    COMPONENT (GAP): AuthenticatedBookingReviewStep
-    FILE (TO CREATE): apps/web/components/booking/AuthenticatedBookingReviewStep.tsx
-    STORY:           M13-S02 or new story
+    COMPONENT: PersonalInfoStep (reused, EXISTS)
+    FILE:      apps/web/features/booking/components/public/PersonalInfoStep.tsx
+    Corrected 2026-07-31 — no dedicated AuthenticatedBookingReviewStep component was ever
+    built. The real BookingForm detects an authenticated customer via
+    getHotsiteCustomerProfile(slug) on mount and reuses this SAME step with
+    hideContactFields={true}, rather than branching to a different component.
 
-    KEY DIFFERENCE vs PersonalInfoStep (guest):
-      ✅ NO name / email / phone form — customer is authenticated; data comes from JWT cookie
-      ✅ Services + date/time shown as READ-ONLY summary (for context before confirming)
-      ✅ Pickup address PRE-FILLED from customer.defaultAddress (fetched via GET /customers/me)
+    KEY DIFFERENCE vs the guest path (hideContactFields=false):
+      ✅ NO name / email / phone form fields rendered — customer is authenticated
+      ✅ Pickup address PRE-FILLED from customerProfile.defaultAddress
       ✅ PhotoUpload reused unchanged
 
-    PROPS:
-      slug:               string
-      services:           HotsiteServiceResponse[]
-      selectedServiceIds: string[]
-      selectedDate:       string
-      selectedSlot:       AvailableSlot
-      requiresPickupAddress: boolean
-      pickupAddress:      Address  (pre-filled from customer.defaultAddress)
+    PROPS (subset relevant to the authenticated branch):
+      hideContactFields:  boolean  (true for authenticated customers)
+      pickupAddress:      Address  (pre-filled from customerProfile.defaultAddress)
       onPickupAddressChange: (address: Address) => void
       value:              { photoFilePaths: string[] }
       onChange:           (v: { photoFilePaths: string[] }) => void
       onNext:             () => void
       onBack:             () => void
 
-    DATA FETCH (on mount):
-      GET /customers/me  — returns customer profile including defaultAddress
-      Header: Authorization: Bearer <jwt>  (sent automatically by BFF from cookie)
-      Shows skeleton/loading state while fetching
-      On error: show inline error, disable "Próximo"
+    DATA FETCH (on BookingForm mount, not on this step specifically):
+      getHotsiteCustomerProfile(slug) — resolves the authenticated customer + defaultAddress
+      if it resolves; if not, BookingForm falls back to the guest flow entirely.
 
     OPEN QUESTION: Does GET /customers/me exist in BFF? Check apps/bff/src/ before implementing.
   -->
@@ -107,7 +102,7 @@
       PICKUP ADDRESS — conditional: only when requiresPickupAddress = true
       Pre-filled from customer.defaultAddress via GET /customers/me
       Customer can edit before submitting.
-      COMPONENT: AddressFields (apps/web/components/booking/AddressFields.tsx — reuse unchanged)
+      COMPONENT: AddressFields (apps/web/features/booking/components/public/AddressFields.tsx — reuse unchanged)
 
       Uncomment to preview the pickup address state:
     -->
@@ -149,7 +144,7 @@
 
     <!--
       PHOTO UPLOAD (optional) — reused unchanged
-      COMPONENT: PhotoUpload  (apps/web/components/booking/PhotoUpload.tsx)
+      COMPONENT: PhotoUpload  (apps/web/features/booking/components/public/PhotoUpload.tsx)
       Same upload flow as guest: POST /bookings/attachments/signed-url → PUT to GCS
       NOTE: for authenticated customer, POST /bookings/attachments/signed-url
             sends Authorization header (JWT), not tenantSlug in body (see Scenario 1 in BFF)

@@ -26,22 +26,24 @@
     serviço (UC-012), editar um serviço existente e desativá-lo (UC-013). Ator: Staff ou Manager.
   </p>
 
+  <p style="opacity: 0.65;">Stories: M13-S22–S24 — ✅ Done</p>
+
   <ul>
     <li>
       <a href="01-servicos-list.html">Tela 1 — Lista de serviços (ativos + inativos)</a>
-      <span class="tag tag-red">GAP: /dashboard/services — novo page.tsx</span>
+      <span class="tag tag-green">EXISTS: /dashboard/services</span>
     </li>
     <li>
       <a href="02-service-create.html">Tela 2 — Criar serviço</a>
-      <span class="tag tag-red">GAP: /dashboard/services/new (UC-012)</span>
+      <span class="tag tag-green">EXISTS: /dashboard/services/new (UC-012)</span>
     </li>
     <li>
       <a href="02c-service-create-success.html">Tela 2c — Serviço criado (estado inline)</a>
-      <span class="tag tag-red">GAP: lista + banner inline (UC-012)</span>
+      <span class="tag tag-green">EXISTS: lista + banner inline (UC-012)</span>
     </li>
     <li>
-      <a href="03-service-edit.html">Tela 3 — Editar serviço</a>
-      <span class="tag tag-red">GAP: /dashboard/services/[id]/edit (UC-013)</span>
+      <a href="03-service-edit.html">Tela 3 — Editar serviço (ativo)</a>
+      <span class="tag tag-green">EXISTS: /dashboard/services/[id]/edit (UC-013)</span>
     </li>
   </ul>
 
@@ -50,11 +52,16 @@
   <ul>
     <li>
       <a href="02b-service-create-error.html">Alt A — Nome duplicado ao criar (409)</a>
-      <span class="tag tag-red">GAP: erro inline no campo nome — UC-012 A1</span>
+      <span class="tag tag-green">EXISTS: erro inline no campo nome — UC-012 A1</span>
     </li>
     <li>
       <a href="03b-deactivate-confirm.html">Alt B — Confirmação de desativação</a>
-      <span class="tag tag-red">GAP: /dashboard/services/[id]/deactivate — UC-013 A1</span>
+      <span class="tag tag-green">EXISTS: /dashboard/services/[id]/deactivate — UC-013 A1</span>
+    </li>
+    <li>
+      <a href="03c-service-edit-inactive.html">Alt C — Editar serviço inativo (Ativar)</a>
+      <span class="tag tag-green">EXISTS: PATCH /v1/services/:id/activate</span>
+      — adicionado 2026-07-31: estado real que faltava no protótipo
     </li>
   </ul>
 

@@ -9,7 +9,7 @@
 <body>
   <!--
     COMPONENT: PersonalInfoStep
-    FILE:      apps/web/components/booking/PersonalInfoStep.tsx  (EXISTS — no changes needed)
+    FILE:      apps/web/features/booking/components/public/PersonalInfoStep.tsx  (EXISTS — no changes needed)
     PROPS:     slug, value: PersonalInfoValue, onChange, onNext, onBack
     TYPE:      PersonalInfoValue — lib/booking/personal-info.ts
 
@@ -89,7 +89,7 @@
 
     <!--
       OPTIONAL CONTACT ADDRESS — toggle, aria-expanded tracks state
-      COMPONENT: AddressFields  (apps/web/components/booking/AddressFields.tsx)
+      COMPONENT: AddressFields  (apps/web/features/booking/components/public/AddressFields.tsx)
       When visible: same ZIP/street/number/complement/neighborhood/city/state grid as pickup.
       Sent as contactAddress in payload if filled (isAddressFilled() check in buildPayload).
     -->
@@ -123,7 +123,7 @@
 
     <!--
       PHOTO UPLOAD
-      COMPONENT: PhotoUpload  (apps/web/components/booking/PhotoUpload.tsx)
+      COMPONENT: PhotoUpload  (apps/web/features/booking/components/public/PhotoUpload.tsx)
       FLOW:
         1. User picks file → POST /bookings/attachments/signed-url
            body: { fileName, contentType: 'image/jpeg'|'image/png', tenantSlug: slug }

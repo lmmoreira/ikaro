@@ -12,7 +12,7 @@ flowchart TD
     classDef existing fill:#e6ffe6,stroke:#3a3
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
-    Start(["Dashboard /{slug}/dashboard"]) --> List["❓ GAP: /dashboard/services<br/>Service List"]
+    Start(["Dashboard /{slug}/dashboard"]) --> List["/dashboard/services<br/>Service List"]
 
     List --> CreateBtn(("Click '+ Criar serviço'"))
     List --> EditClick(("Click serviço existente"))
@@ -29,24 +29,24 @@ flowchart TD
     PriceCheck -- "sim → 201" --> CreateSuccess["✅ List banner + redirect<br/>Serviço criado"]
 
     %% UC-013 — Edit
-    EditClick --> EditForm["❓ GAP: /dashboard/services/[id]/edit<br/>Edit Service Form"]
+    EditClick --> EditForm["/dashboard/services/[id]/edit<br/>Edit Service Form (also exposes Ativar/Desativar)"]
     EditForm --> EditSubmit(("Click 'Salvar alterações'"))
     EditSubmit --> EditCheck{"Válido?"}
     EditCheck -- "não" --> EditForm
-    EditCheck -- "sim → 200" --> EditSuccess["❓ GAP: Lista com toast verde<br/>Serviço atualizado"]
+    EditCheck -- "sim → 200" --> EditSuccess["Lista com toast verde<br/>Serviço atualizado"]
 
     EditForm --> DeactivateBtn(("Click 'Desativar serviço'"))
-    DeactivateBtn --> DeactivateConfirm["❓ GAP: /dashboard/services/[id]/deactivate<br/>Confirmação de desativação"]
+    DeactivateBtn --> DeactivateConfirm["/dashboard/services/[id]/deactivate<br/>Confirmação de desativação"]
     DeactivateConfirm --> ConfirmYes(("Confirmar"))
     DeactivateConfirm --> ConfirmNo(("Cancelar"))
-    ConfirmYes --> DeactivateSuccess["❓ GAP: Lista com badge Inativo<br/>isActive = false"]
+    ConfirmYes --> DeactivateSuccess["Lista com badge Inativo<br/>isActive = false"]
     ConfirmNo --> EditForm
 
     CreateSuccess --> List
     EditSuccess --> List
     DeactivateSuccess --> List
 
-    class List,EditForm,DeactivateConfirm,EditSuccess,DeactivateSuccess gap
+    class List,EditForm,DeactivateConfirm,EditSuccess,DeactivateSuccess existing
 ```
 
 ## Pages referenced
@@ -55,15 +55,15 @@ flowchart TD
 |---|---|---|---|
 | `/dashboard/services` | `ServiceListPage` | M13-S22 | ✅ Done |
 | `/dashboard/services/new` | `ServiceCreatePage` | M13-S23 | ✅ Done |
-| `/dashboard/services/[id]/edit` | `ServiceFormPage` (edit mode) | TBD | 📋 Gap |
-| Deactivate confirmation | `DeactivateServiceSheet` or sub-route | TBD | 📋 Gap |
+| `/dashboard/services/[id]/edit` | `ServiceEditPage` | M13 | ✅ Done |
+| Deactivate confirmation | `ServiceDeactivatePage` (`/dashboard/services/[id]/deactivate`) | M13 | ✅ Done |
 
 ## Open questions / gaps
 
 - [x] **Route location** — are service pages under `/dashboard/services/` or `/[slug]/dashboard/services/`? — **Resolved.** `/dashboard/services` (no slug) — `M13-S22`/`M13-S23`/`M13-S24` all use this, consistent with every other M13 dashboard route.
 - [x] **Create as inactive** — UC-012 field list includes `isActive` (default: true). The create form now exposes the toggle and defaults it to ON.
 - [ ] **Deactivate UX** — prototype uses a dedicated confirmation page. Production could use a bottom sheet on the edit form instead. Confirm preference.
-- [ ] **Reactivate** — UC-013 covers deactivation but not reactivation. Can staff toggle `isActive = true` on an inactive service via the edit form? The PATCH endpoint supports it (same `update()` method). Clarify if reactivation is in scope.
+- [x] **Reactivate** — **Resolved/shipped.** `ServiceEditPage` includes a `ServiceEditStatusSection` with an "Ativar serviço" action (via a `useActivateService` hook) wired to the same `PATCH` endpoint.
 - [ ] **Service ordering** — does the service list have a drag-to-reorder or fixed sort (e.g. alphabetical, creation date)? Affects the list page design.
 - [ ] **`requiresPickupAddress` label** — "Coleta e Entrega" toggle in the form — should the label be the feature name ("Requer endereço de coleta") or a free-text helper?
 - [ ] **Price change warning** — UC-013 A2 says past bookings are unaffected. Show an inline note on the price field? Prototype includes it; confirm if it's needed in production.

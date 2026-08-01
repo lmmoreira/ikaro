@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Editar Membro — BeloAuto</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    .form-group { margin-bottom: 1.25rem; }
+    .form-label { display: block; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(17,24,39,0.45); margin-bottom: 0.375rem; }
+    .form-input { width: 100%; box-sizing: border-box; border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); padding: 0.6875rem 0.875rem; font-size: 0.9375rem; font-family: inherit; color: var(--ba-text); background: white; }
+    .form-input:disabled { background: #f3f4f6; color: rgba(17,24,39,0.5); }
+    .form-hint { font-size: 0.8125rem; opacity: 0.5; color: var(--ba-text); margin-top: 0.375rem; }
+    .role-option { display: flex; align-items: center; gap: 0.75rem; padding: 0.875rem 1rem; border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); margin-bottom: 0.625rem; cursor: pointer; }
+    .role-option.selected { border-color: var(--ba-primary); border-width: 2px; background: #eff6ff; }
+    .role-option-title { font-weight: 600; font-size: 0.9375rem; color: var(--ba-text); }
+    .role-option-desc { font-size: 0.8125rem; opacity: 0.55; margin-top: 0.125rem; }
+    .form-actions { display: flex; gap: 0.75rem; margin-top: 2rem; }
+    .form-actions .btn-primary { flex: 1; text-align: center; padding: 0.875rem; }
+    .detail-layout { display: block; }
+    .detail-aside  { display: none; }
+    @media (min-width: 1024px) {
+      .detail-layout { display: grid; grid-template-columns: 1fr 22rem; gap: 1.5rem; align-items: start; }
+      .detail-aside  { display: block; position: sticky; top: 1.5rem; }
+      .form-actions  { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <!--
+    COMPONENT: StaffDetailPage
+    FILE:      apps/web/features/staff/components/team/StaffDetailPage.tsx  (EXISTS)
+    PAGE:      apps/web/app/dashboard/team/[id]/page.tsx  (EXISTS)
+    Added 2026-07-31 — UC-030 shipped (M13-S43) with no prototype screen until now.
+
+    Fields: name (editable), email (read-only), role (RoleSelectorField — STAFF/MANAGER).
+    No phone field on this form.
+    ACTION: PATCH /staff/:id { name, role }
+    200 → 01-team-list.html
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — UC-030 — Editar perfil do membro
+  </div>
+
+  <div class="dashboard-topbar">
+    <a href="01-team-list.html" style="display:flex;align-items:center;gap:0.375rem;color:var(--ba-text);text-decoration:none;font-size:0.9375rem;font-weight:500;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      <span style="font-weight:600;font-size:0.9375rem;color:var(--ba-text);">Equipe</span>
+    </a>
+    <h1 class="topbar-page-title">Rafael Costa</h1>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
+      <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+      <span class="topbar-date">Hoje, 16 de junho de 2026</span>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">B</div>
+        <div><p class="sidebar-tenant-name">BeloAuto Demo</p><p class="sidebar-tenant-slug">@beloauto</p></div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top:0.5rem;">
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html">Agenda</a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/horarios/00-schedule.html">Horários</a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/servicos/01-servicos-list.html">Serviços</a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/fidelidade/00-customer-search.html">Fidelidade</a>
+      </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item active" href="../equipe/01-team-list.html">Equipe</a>
+        <a class="sidebar-nav-item" href="../configuracoes/01-settings-form.html">Configurações</a>
+        <a class="sidebar-nav-item" href="../hotsite/01-hotsite-editor.html">Hotsite</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
+        <a class="sidebar-logout" href="../../../shared/staff-login.html" title="Sair">Sair</a>
+      </div>
+    </aside>
+
+    <main class="main-content" style="padding-bottom:9rem;">
+      <div class="dashboard-body">
+        <div class="detail-layout"><div>
+
+        <div class="form-group">
+          <label class="form-label" for="name">Nome completo</label>
+          <input id="name" type="text" class="form-input" value="Rafael Costa">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="email">E-mail</label>
+          <input id="email" type="email" class="form-input" value="rafael.costa@gmail.com" disabled>
+          <p class="form-hint">O e-mail é vinculado à conta Google e não pode ser alterado.</p>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Função</label>
+          <div class="role-option selected">
+            <div>
+              <div class="role-option-title">Gerente</div>
+              <div class="role-option-desc">Acesso total, incluindo Equipe, Configurações e Hotsite</div>
+            </div>
+          </div>
+          <div class="role-option">
+            <div>
+              <div class="role-option-title">Funcionário</div>
+              <div class="role-option-desc">Acesso a Agenda, Horários, Serviços e Fidelidade</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <a href="01-team-list.html" class="btn-secondary">Cancelar</a>
+          <a href="01-team-list.html" class="btn-primary">Salvar</a>
+        </div>
+
+        </div><!-- /form col -->
+        <div class="detail-aside">
+          <div class="card" style="padding:1.25rem;">
+            <a href="01-team-list.html" class="btn-primary"
+               style="display:block;text-align:center;padding:0.75rem;margin-bottom:0.625rem;">
+              Salvar
+            </a>
+            <a href="01-team-list.html" class="btn-secondary"
+               style="display:block;text-align:center;padding:0.75rem;">
+              Cancelar
+            </a>
+          </div>
+        </div><!-- /aside -->
+      </div><!-- /detail-layout -->
+      </div>
+    </main>
+  </div>
+
+</body>
+</html>

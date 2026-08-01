@@ -2,22 +2,21 @@
 
 ## Overview
 
-New dashboard section for managing the weekly schedule of approved bookings and controlling schedule closures/openings. All backend and BFF endpoints are already implemented — this is purely a frontend task. Target: new story M125-SXX.
+Dashboard section for managing the weekly schedule of approved bookings and controlling schedule closures/openings. Fully shipped (`M13-S21`, ✅ Done). Updated 2026-07-31 — this file previously described the journey as unbuilt and cited pre-domain-slice paths (`apps/web/components/schedule/**`); the real components live under the domain-slice tree.
 
-## File map
+## File map (all ✅ shipped)
 
-| File | Status | Action |
-|---|---|---|
-| `apps/web/app/dashboard/schedule/page.tsx` | ❌ Gap | Create — SchedulePage server component |
-| `apps/web/components/schedule/ScheduleView.tsx` | ❌ Gap | Create — week strip + time grid client component |
-| `apps/web/components/schedule/ClosureFormSheet.tsx` | ❌ Gap | Create — shadcn/ui Sheet for UC-010a |
-| `apps/web/components/schedule/RemoveClosureDialog.tsx` | ❌ Gap | Create — shadcn/ui Sheet (confirmation) for UC-010b |
-| `apps/web/components/schedule/OpeningFormSheet.tsx` | ❌ Gap | Create — shadcn/ui Sheet for UC-010c |
-| `apps/web/components/schedule/RemoveOpeningDialog.tsx` | ❌ Gap | Create — shadcn/ui Sheet (confirmation) for UC-010d |
-| `apps/web/components/dashboard/WeekNav.tsx` | ❌ Gap | Create — shared `‹ month ›` week navigation row (also used by BookingQueuePage) |
-| `apps/web/lib/api/schedule.ts` | ❌ Gap | Create — fetchers for closures, openings, approved bookings |
-| `apps/bff/http/schedule/schedule-openings.http` | ❌ Gap | Create — .http coverage for POST/DELETE /v1/schedule/openings |
-| `apps/bff/http/schedule/availability.http` | ❌ Gap | Create — .http coverage for GET /v1/schedule/availability[/summary] |
+| File | Status |
+|---|---|
+| `apps/web/app/dashboard/schedule/page.tsx` | ✅ Exists |
+| `apps/web/features/booking/components/dashboard/schedule/SchedulePage.tsx` | ✅ Exists |
+| `apps/web/features/booking/components/dashboard/schedule/ClosureFormSheet.tsx` | ✅ Exists |
+| `apps/web/features/booking/components/dashboard/schedule/RemoveClosureDialog.tsx` | ✅ Exists |
+| `apps/web/features/booking/components/dashboard/schedule/OpeningFormSheet.tsx` | ✅ Exists |
+| `apps/web/features/booking/components/dashboard/schedule/RemoveOpeningDialog.tsx` | ✅ Exists |
+| `apps/web/features/booking/components/dashboard/schedule/ScheduleDateTimeRangeSheet.tsx` | ✅ Exists — shared date/time-range sub-form, not mentioned in the original draft |
+| `apps/web/features/booking/components/dashboard/schedule/ScheduleRemovalDialog.tsx` + `ScheduleRemovalSummary.tsx` | ✅ Exists — shared removal-confirmation building blocks used by both `RemoveClosureDialog` and `RemoveOpeningDialog`, not mentioned in the original draft |
+| `apps/bff/http/schedule/*.http` | ✅ Exists |
 
 ## BFF calls (all verified — endpoints implemented)
 
@@ -55,15 +54,15 @@ GET /v1/bookings?status=APPROVED&from=YYYY-MM-DD&to=YYYY-MM-DD
 
 ## Screen: SchedulePage (`/dashboard/schedule`)
 
-**File:** `apps/web/app/dashboard/schedule/page.tsx` (GAP)
+**File:** `apps/web/app/dashboard/schedule/page.tsx` + `apps/web/features/booking/components/dashboard/schedule/SchedulePage.tsx` (✅ Exists)
 
-**Type:** Server component — prefetches the current week's closures, openings, and approved bookings; passes to `<ScheduleView>`.
+**Type:** Server page — prefetches the current week's closures, openings, and approved bookings; passes to the client component.
 
 **Week range:** Monday–Sunday of the currently selected week (default: current week).
 
-## Component: ScheduleView
+## Component: SchedulePage (client)
 
-**File:** `apps/web/components/schedule/ScheduleView.tsx` (GAP)
+**File:** `apps/web/features/booking/components/dashboard/schedule/SchedulePage.tsx` (✅ Exists — real component name; an earlier draft called this `ScheduleView`)
 
 **Client component** (`'use client'`) — handles selected day state and sheet open/close.
 
@@ -107,7 +106,7 @@ type ScheduleState = {
 
 ## Component: ClosureFormSheet (UC-010a)
 
-**File:** `apps/web/components/schedule/ClosureFormSheet.tsx` (GAP)
+**File:** `apps/web/features/booking/components/dashboard/schedule/ClosureFormSheet.tsx` (✅ Exists)
 
 **shadcn/ui:** `<Sheet side="bottom">` on mobile; `<Sheet side="right">` at ≥1024px
 
@@ -137,7 +136,7 @@ type ScheduleState = {
 
 ## Component: RemoveClosureDialog (UC-010b)
 
-**File:** `apps/web/components/schedule/RemoveClosureDialog.tsx` (GAP)
+**File:** `apps/web/features/booking/components/dashboard/schedule/RemoveClosureDialog.tsx` (✅ Exists, built on the shared `ScheduleRemovalDialog`/`ScheduleRemovalSummary`)
 
 **shadcn/ui:** `<Sheet side="bottom">` — confirmation only, compact
 
@@ -145,7 +144,7 @@ Shows: reason label + formatted date + time range. "Remover bloqueio" button = d
 
 ## Component: OpeningFormSheet (UC-010c)
 
-**File:** `apps/web/components/schedule/OpeningFormSheet.tsx` (GAP)
+**File:** `apps/web/features/booking/components/dashboard/schedule/OpeningFormSheet.tsx` (✅ Exists)
 
 **Form fields:**
 
@@ -185,9 +184,9 @@ Add `apps/web/app/dashboard/schedule/page.tsx` to the dashboard sidebar nav unde
 | Warning inline banner | `<Alert variant="warning">` |
 | Success inline banner | `<Alert variant="default">` with green icon |
 
-## Open questions to resolve before implementation
+## Resolved decisions (all shipped in `M13-S21`)
 
-1. **Calendar granularity** — week view vs. day view with week strip: prototype uses week strip + day view. Confirm this is preferred over a 7-column week grid before starting.
-2. **Booking block interaction** — clicking an approved booking navigates to `/dashboard/bookings/[id]` (detail page). Confirm or adjust.
-3. **Warning dialog vs. banner** — UC-010a A4: does the warning block the "Bloquear" button until confirmed, or is it a post-creation non-blocking banner? Prototype shows non-blocking (closure created, warning shown after). Confirm.
-4. **BFF `.http` gap** — create `schedule-openings.http` and `availability.http` in `apps/bff/http/schedule/` before opening the M125 PR.
+1. **Calendar granularity** — week strip (Mon–Sun day buttons) + a time grid for the selected day, as prototyped.
+2. **Booking block interaction** — clicking an approved booking navigates to `/dashboard/bookings/[id]`.
+3. **Warning banner** — UC-010a A4 is non-blocking: closure is created, then a warning banner shows if approved bookings exist in the window.
+4. **BFF `.http` coverage** — `apps/bff/http/schedule/*.http` exists for all closure/opening/availability endpoints.

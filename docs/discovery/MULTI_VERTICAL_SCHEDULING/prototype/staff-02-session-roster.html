@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
   <style>
     .capacity-bar-track { width: 100%; height: 0.5rem; border-radius: 9999px; background: var(--ba-secondary); margin: 0.75rem 0; overflow: hidden; }
-    .capacity-bar-fill { height: 100%; border-radius: 9999px; background: var(--ba-primary); }
+    .capacity-bar-fill { height: 100%; border-radius: 9999px; background: #2563eb; } /* fixed platform blue, not --ba-primary -- dashboard is tenant-agnostic (unlike the public booking flow's same-named class) */
     .attendee-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 0; border-bottom: 1px solid var(--ba-secondary); }
     .attendee-row:last-child { border-bottom: none; }
     .waitlist-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 0; opacity: 0.85; }
@@ -26,6 +26,10 @@
     staff-01-my-agenda.html — same underlying Resource, different Service, different
     capacity (1 for Corte + Escova, 4 for this class). This is the concrete instance of
     taxonomy model #13 (capacity as Service × Resource, not Resource alone).
+
+    This is the "still upcoming/fillable" state — Editar/Cancelar turma make sense here.
+    Once the session has passed, staff-02b-fechar-turma.html is the equivalent screen for
+    closing it out and marking attendance (CAND-15b) — same session, one week later.
 
     COMPONENT (GAP): ClassSessionRoster
     BFF CALL (GAP): GET /class-sessions/{sessionId}/bookings
@@ -77,7 +81,7 @@
         </a>
       </nav>
       <div class="sidebar-footer">
-        <div class="auth-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">CD</div>
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">CD</div>
         <div style="min-width:0;"><p class="sidebar-user-name">Camila Duarte</p><span class="role-badge role-badge-staff">Equipe</span></div>
         <a class="sidebar-logout" href="../../../../plan/journey/shared/staff-login.html" title="Sair">
           <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -98,25 +102,25 @@
         <div class="card" style="margin-bottom:1.25rem;">
           <p style="font-weight:700;color:var(--ba-text);">Segunda, 04 de agosto — 08:00–09:00</p>
           <p style="font-size:0.875rem;opacity:0.65;margin-top:0.25rem;">Sala: Estúdio 1 · Instrutora: Camila Duarte</p>
-          <div class="capacity-bar-track"><div class="capacity-bar-fill" style="width:75%;"></div></div>
-          <p style="font-size:0.875rem;font-weight:600;color:#15803d;">3 de 4 vagas preenchidas</p>
+          <div class="capacity-bar-track"><div class="capacity-bar-fill" style="width:100%;"></div></div>
+          <p style="font-size:0.875rem;font-weight:600;color:#15803d;">4 de 4 vagas preenchidas</p>
         </div>
 
         <p class="section-card-title" style="margin-bottom:0.5rem;">Confirmados (3)</p>
         <div class="card" style="padding:0 1rem;margin-bottom:1.25rem;">
           <div class="attendee-row">
-            <div class="auth-avatar" style="width:2rem;height:2rem;font-size:0.75rem;background:#16a34a;">FL</div>
+            <div class="list-avatar" style="width:2rem;height:2rem;font-size:0.75rem;background:#16a34a;">FL</div>
             <div style="flex:1;"><p style="font-weight:600;font-size:0.9375rem;">Fernanda Lima</p></div>
             <span style="font-size:0.8125rem;opacity:0.6;">1 vaga</span>
           </div>
           <div class="attendee-row">
-            <div class="auth-avatar" style="width:2rem;height:2rem;font-size:0.75rem;background:#7c3aed;">RD</div>
+            <div class="list-avatar" style="width:2rem;height:2rem;font-size:0.75rem;background:#7c3aed;">RD</div>
             <div style="flex:1;"><p style="font-weight:600;font-size:0.9375rem;">Roberta Dias</p></div>
             <span style="font-size:0.8125rem;opacity:0.6;">1 vaga</span>
           </div>
           <!-- CAND-23: one SessionBooking with quantity=2, not two separate bookings -->
           <div class="attendee-row">
-            <div class="auth-avatar" style="width:2rem;height:2rem;font-size:0.75rem;background:#0891b2;">AB</div>
+            <div class="list-avatar" style="width:2rem;height:2rem;font-size:0.75rem;background:#0891b2;">AB</div>
             <div style="flex:1;">
               <p style="font-weight:600;font-size:0.9375rem;">Ana &amp; Bia (grupo)</p>
               <p style="font-size:0.75rem;opacity:0.55;">1 reserva, 2 vagas — quantity=2</p>

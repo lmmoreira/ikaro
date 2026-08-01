@@ -12,49 +12,49 @@ flowchart TD
     classDef existing fill:#e6ffe6,stroke:#3a3
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
-    Start(["Sidebar → Horários"]) --> Schedule["❓ GAP: /dashboard/schedule<br/>Week calendar — APPROVED bookings<br/>+ closures + openings overlay"]
+    Start(["Sidebar → Horários"]) --> Schedule["/dashboard/schedule<br/>Week calendar — APPROVED bookings<br/>+ closures + openings overlay"]
 
     Schedule --> WeekNav(("Navegar semana"))
     WeekNav --> Schedule
 
     Schedule --> ClickSlot(("Click em slot livre<br/>(dia aberto)"))
-    ClickSlot --> ClosureSheet["❓ GAP: bottom sheet<br/>Bloquear período<br/>(UC-010a)"]
+    ClickSlot --> ClosureSheet["ClosureFormSheet<br/>Bloquear período<br/>(UC-010a)"]
     ClosureSheet --> ClosureForm{"Formulário válido?"}
     ClosureForm -- não --> ClosureSheet
-    ClosureForm -- sim → POST /closures --> ClosureSuccess["GAP: calendário atualizado<br/>slot marcado como bloqueado"]
+    ClosureForm -- sim → POST /closures --> ClosureSuccess["calendário atualizado<br/>slot marcado como bloqueado"]
     ClosureSuccess --> Schedule
 
     Schedule --> ClickClosure(("Click em bloqueio existente"))
-    ClickClosure --> RemoveClosureSheet["❓ GAP: confirmação<br/>Remover bloqueio?<br/>(UC-010b)"]
+    ClickClosure --> RemoveClosureSheet["RemoveClosureDialog<br/>Remover bloqueio?<br/>(UC-010b)"]
     RemoveClosureSheet -- cancelar --> Schedule
-    RemoveClosureSheet -- confirmar → DELETE /closures/:id --> RemoveClosureSuccess["GAP: calendário atualizado<br/>slot liberado"]
+    RemoveClosureSheet -- confirmar → DELETE /closures/:id --> RemoveClosureSuccess["calendário atualizado<br/>slot liberado"]
     RemoveClosureSuccess --> Schedule
 
     Schedule --> ClickClosedDay(("Click em dia fechado<br/>(business_hours null)"))
-    ClickClosedDay --> OpeningSheet["❓ GAP: bottom sheet<br/>Abrir dia especial<br/>(UC-010c)"]
+    ClickClosedDay --> OpeningSheet["OpeningFormSheet<br/>Abrir dia especial<br/>(UC-010c)"]
     OpeningSheet --> OpeningForm{"Formulário válido?"}
     OpeningForm -- não --> OpeningSheet
-    OpeningForm -- sim → POST /openings --> OpeningSuccess["GAP: calendário atualizado<br/>janela de abertura exibida"]
+    OpeningForm -- sim → POST /openings --> OpeningSuccess["calendário atualizado<br/>janela de abertura exibida"]
     OpeningSuccess --> Schedule
 
     Schedule --> ClickOpening(("Click em abertura existente"))
-    ClickOpening --> RemoveOpeningSheet["❓ GAP: confirmação<br/>Remover abertura?<br/>(UC-010d)"]
+    ClickOpening --> RemoveOpeningSheet["RemoveOpeningDialog<br/>Remover abertura?<br/>(UC-010d)"]
     RemoveOpeningSheet -- cancelar --> Schedule
-    RemoveOpeningSheet -- confirmar → DELETE /openings/:id --> RemoveOpeningSuccess["GAP: dia volta ao estado fechado"]
+    RemoveOpeningSheet -- confirmar → DELETE /openings/:id --> RemoveOpeningSuccess["dia volta ao estado fechado"]
     RemoveOpeningSuccess --> Schedule
 
-    class Schedule,ClosureSheet,ClosureSuccess,RemoveClosureSheet,RemoveClosureSuccess,OpeningSheet,OpeningSuccess,RemoveOpeningSheet,RemoveOpeningSuccess gap
+    class Schedule,ClosureSheet,ClosureSuccess,RemoveClosureSheet,RemoveClosureSuccess,OpeningSheet,OpeningSuccess,RemoveOpeningSheet,RemoveOpeningSuccess existing
 ```
 
 ## Pages referenced
 
 | Page / Route | Component | Story | Status |
 |---|---|---|---|
-| `/dashboard/schedule` | `SchedulePage` (week calendar grid) | _TBD_ | ❌ Gap |
-| Closure creation bottom sheet | `ClosureFormSheet` within `SchedulePage` | _TBD_ | ❌ Gap |
-| Closure removal confirmation | `RemoveClosureDialog` within `SchedulePage` | _TBD_ | ❌ Gap |
-| Opening creation bottom sheet | `OpeningFormSheet` within `SchedulePage` | _TBD_ | ❌ Gap |
-| Opening removal confirmation | `RemoveOpeningDialog` within `SchedulePage` | _TBD_ | ❌ Gap |
+| `/dashboard/schedule` | `SchedulePage` (week calendar grid) | M13-S21 | ✅ Done |
+| Closure creation bottom sheet | `ClosureFormSheet` within `SchedulePage` | M13-S21 | ✅ Done |
+| Closure removal confirmation | `RemoveClosureDialog` within `SchedulePage` | M13-S21 | ✅ Done |
+| Opening creation bottom sheet | `OpeningFormSheet` within `SchedulePage` | M13-S21 | ✅ Done |
+| Opening removal confirmation | `RemoveOpeningDialog` within `SchedulePage` | M13-S21 | ✅ Done |
 
 ## BFF calls (verified — all implemented)
 

@@ -3,6 +3,7 @@
 **Status:** Discovery — candidate/speculative. Labeled `CAND-XX`, never `UC-XXX`, so this list can never collide with or be mistaken for the canonical index in `docs/04-USE_CASES.md`. Nothing here is committed to a milestone; promote individual candidates into `docs/04-USE_CASES.md` with real UC numbers only if/when a milestone is actually drafted for one of these verticals.
 
 **Companion doc:** `MULTI_VERTICAL_SCHEDULING.md` — the domain model these use cases are derived from.
+**Companion doc:** `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` — the physical schema these use cases' mechanisms (idempotency keys, atomic capacity checks, exclusion constraints) are grounded against.
 **Companion prototype:** `MULTI_VERTICAL_SCHEDULING/prototype/` (start at its `index.html`) — several candidates below (CAND-13b, CAND-13c, CAND-17b) were added *because* building the prototype exposed a gap this list hadn't caught; the prototype's own `dev-notes.md` has the full trail.
 
 ## Format
@@ -122,19 +123,23 @@ CAND-XX: [Name]
 - **Postconditions:** Booking this service now requires *all* listed resources free for the same window.
 - **Events Triggered:** None.
 
+> **A second bundle example, non-dentist:** the same mechanism covers a gym personal-training session needing both a trainer (`STAFF`, customer-chosen) and a specific machine (`EQUIPMENT`, e.g. a Smith machine, `AUTO_ANY`) — `resourceRequirements = [{ type: STAFF, selectionMode: CUSTOMER_CHOICE }, { type: EQUIPMENT, selectionMode: AUTO_ANY }]`. Included so this candidate doesn't read as dentist-specific; the compound-bundle shape (model #7) applies to any vertical where two *different* resource types must be free for the same window.
+
 ### **CAND-08: Manager Configures Service Legs (Sequential Multi-Stage)**
 
 - **Actor:** Staff (STAFF or MANAGER)
 - **Preconditions:** Service exists.
 - **Trigger:** Manager switches the service from "single resource" to "multi-stage journey."
 - **Main Flow:**
-  1. Manager adds ordered legs, each with a name, duration, resource requirement, and transition-gap-after.
+  1. Manager adds ordered legs, each with a name, duration, one or more resource requirements, and transition-gap-after.
   2. System computes and displays the total appointment span (`sum(leg durations) + sum(transition gaps)`), distinct from total billable time.
   3. System clears `resourceRequirements`/`bufferAfterMinutes` on the service (mutually exclusive with `legs`, per §5 of the discovery doc).
 - **Alternative Flows:**
   - **A1: Fewer than 2 legs** → System blocks: a single leg is just the flat model (CAND-06), not this flow.
-- **Postconditions:** Booking this service locks each leg's resource independently for its own sub-window.
+- **Postconditions:** Booking this service locks every leg's resource(s) independently for that leg's own sub-window.
 - **Events Triggered:** None.
+
+> **A leg can need more than one resource at once, not just one:** Jornada Spa Vitta's middle leg (Massagem, `manager-02-service-resource-config.html`'s legs panel) needs both a therapist (customer-chosen between Renata Souza and Maria Santos) *and* a room (Sala de Terapia, system-assigned) for the same sub-window — the exact two resources `Massagem Relaxante`'s own bundle (CAND-07) uses, deliberately, to demonstrate CAND-31's cross-service exclusivity from the other direction. Corrected 2026-08-05 — see `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §6 item 13.
 
 ### **CAND-09: Manager Sets a Service's Buffer Override**
 
@@ -174,15 +179,18 @@ CAND-XX: [Name]
 - **Preconditions:** Service exists with `bookingModel = SESSION`.
 - **Trigger:** Manager sets up the class's recurring pattern.
 - **Main Flow:**
-  1. Manager selects the resource bundle this class always uses (e.g. instructor + room).
+  1. Manager selects the resource bundle this class always uses (e.g. instructor + room, optionally a third resource like equipment — `resourceIds` is an open-ended array, not capped at 2).
   2. Manager sets a recurrence rule (days of week, start time — duration comes from `Service.durationMinutes`).
   3. Manager sets `capacity`.
   4. System creates the `ClassScheduleTemplate`, `isActive = true`.
   5. System (async) begins generating `ClassSession` rows on the rolling horizon (CAND-13).
 - **Alternative Flows:**
   - **A1: Chosen resources are already committed to an overlapping template** → System blocks: e.g. the same room can't host two recurring classes at the same time.
+  - **A2: A chosen resource already has an `APPROVED` appointment-style `Booking` matching the new template's recurrence pattern** (e.g. Camila already has a standing Tuesday 08:00 haircut booked before this template is created) → System blocks creation, listing the conflicting booking(s); manager must resolve (reschedule the booking or pick a different resource/time) before the template can be created. This is a bounded, finite scan — only bookings up to `tenants.settings.booking.maxBookingAdvanceDays` out can exist yet, not an unbounded future.
 - **Postconditions:** Template active; sessions begin appearing on the booking calendar.
 - **Events Triggered:** None.
+
+> **Concrete example (model #6 — independent instances, not a pool):** a bigger Vitta Studio location runs Pilates in 2 rooms at once — `tpl_pilates_estudio1` (Camila, Estúdio 1) and `tpl_pilates_estudio2` (Ana Beatriz, Estúdio 2), same service, same recurrence, two independent templates each with its own capacity/roster (see `MULTI_VERTICAL_SCHEDULING.md` §6 for the full worked example). Equipment is optional on the bundle: this Pilates example uses none, but a CrossFit template would check it to reserve a shared `Kit Halteres` from `manager-01`'s fungible `EQUIPMENT` pool (CAND-17) alongside its instructor and room.
 
 ### **CAND-12: Manager Edits or Deactivates a Template**
 
@@ -209,6 +217,7 @@ CAND-XX: [Name]
   3. Idempotency: a `(templateId, startTime)` uniqueness check prevents double-generation on retry.
 - **Alternative Flows:**
   - **A1: A resource in the bundle is closed (resource-scoped `ScheduleClosure`) for that occurrence** → Session is not generated for that date, or generated as `CANCELLED` — needs a decision.
+  - **A2: A resource in the bundle already has an overlapping `APPROVED` `Booking`** (the appointment side won the race despite `CAND-29` step 4 — e.g. the booking was approved before this template even existed) → Session is not generated for that occurrence; same open-decision shape as A1 (generate as `CANCELLED` for visibility, or skip silently — not resolved here).
 - **Postconditions:** `ClassSession` rows exist far enough ahead for customers to book into.
 - **Events Triggered:** None.
 
@@ -274,6 +283,24 @@ CAND-XX: [Name]
 - **Postconditions:** Session and its bookings cancelled; customers notified.
 - **Events Triggered:** `ClassSessionCancelled` (candidate event — not yet in `docs/03-DOMAIN_EVENTS.md`).
 
+### **CAND-15b: Staff Closes Out a Class Session (Marks Attendance)**
+
+> Added on request (2026-08-05): `SessionBooking` had no terminal state for "this actually happened" — its status enum stopped at `CONFIRMED | WAITLISTED | CANCELLED`, nothing like `Booking`'s `COMPLETED`. Deliberately staff-triggered rather than a scheduled job, unlike `CAND-13`'s generator: attendance needs a human to observe it, the same reason `UC-009` (`Booking`'s own completion) is a manual "Mark Complete" click, not a timer. The difference from `UC-009` is cardinality — a session can have up to `capacity` attendees, so the interaction is "everyone's pre-marked attended, flag the exceptions" instead of N individual clicks. See `MULTI_VERTICAL_SCHEDULING.md` §6 "Attendance, completion, and no-show" for the full reasoning, including why this deliberately puts `SessionBooking` ahead of `Booking` on no-show tracking.
+
+- **Actor:** Staff (STAFF or MANAGER)
+- **Preconditions:** `ClassSession.endTime` has passed; `status = SCHEDULED`.
+- **Trigger:** Staff opens the session's roster after it has happened to review attendance.
+- **Main Flow:**
+  1. Roster shows every `CONFIRMED` `SessionBooking` pre-marked as attended by default.
+  2. Staff flags any customer who didn't show up.
+  3. Staff clicks a single close-out action (e.g. "Fechar turma").
+  4. System transitions every still-`CONFIRMED` booking to `COMPLETED` and every flagged booking to `NO_SHOW`, in one batch.
+  5. System publishes `SessionBookingCompleted` per completed booking — mirrors `BookingCompleted`'s consumers (Loyalty inserts a `LoyaltyEntry` when `customerId != null`; Notification sends a "thanks for coming" message regardless, same as `UC-009` alt A4 for guest bookings).
+- **Alternative Flows:**
+  - **A1: Staff never closes out the session** → Bookings remain `CONFIRMED` indefinitely. **Open question:** no automatic fallback defined here — not resolved, flagged rather than silently assumed away.
+- **Postconditions:** Every booking on the session reaches a terminal state (`COMPLETED` or `NO_SHOW`); loyalty/notification events fire accordingly.
+- **Events Triggered:** `SessionBookingCompleted` (candidate event, per booking — not yet in `docs/03-DOMAIN_EVENTS.md`).
+
 ---
 
 ## Group D — Appointment Booking (Customer/Guest)
@@ -306,6 +333,8 @@ CAND-XX: [Name]
   - **A1: All pool members already booked for that window** → Slot doesn't appear as available at all.
 - **Postconditions:** Booking locks one specific pool resource, invisibly to the customer.
 - **Events Triggered:** `BookingRequested`.
+
+> **`EQUIPMENT` example, not just `ROOM`:** the precondition already covers both types, but every worked example above is a room (courts, wash bays). A CrossFit box with 3 identical rowing ergs is the same fungible pool, just typed `EQUIPMENT`: `resourceRequirements = [{ type: EQUIPMENT, selectionMode: AUTO_FUNGIBLE_POOL, resourcePoolIds: [erg1, erg2, erg3] }]`. Calendar shows "Remo — 30min" as open if any of the 3 ergs is free; customer never learns which one. Structurally distinct from CAND-07/18's bundle: one resource *type*, N interchangeable units, no second resource type involved.
 
 ### **CAND-17b: Customer Books a Service Configured for System-Auto-Assigned Named Staff**
 
@@ -345,10 +374,10 @@ CAND-XX: [Name]
 - **Trigger:** Customer selects the service.
 - **Main Flow:**
   1. Customer picks `CUSTOMER_CHOICE` resources per leg where applicable (e.g. which massage therapist).
-  2. Calendar shows start times where the **entire chained itinerary** fits — every leg's resource is free at its computed sub-window, honoring transition gaps.
-  3. Customer books; confirmation shows the full itinerary (per-leg time + resource), same shape as the `legAssignments` example in the discovery doc §5.
+  2. Calendar shows start times where the **entire chained itinerary** fits — every leg's resource(s) are free at that leg's computed sub-window, honoring transition gaps.
+  3. Customer books; confirmation shows the full itinerary (per-leg time + resource(s)), same shape as the `legAssignments` example in the discovery doc §5.
 - **Alternative Flows:**
-  - **A1: A middle leg's resource becomes unavailable between page load and submit** → System re-validates the whole chain atomically at submit time; rejects with "one part of this journey is no longer available."
+  - **A1: A middle leg's resource(s) become unavailable between page load and submit** → System re-validates the whole chain atomically at submit time; rejects with "one part of this journey is no longer available."
 - **Postconditions:** One `BookingLine` with a full `legAssignments` snapshot.
 - **Events Triggered:** `BookingRequested`.
 
@@ -438,6 +467,19 @@ CAND-XX: [Name]
 - **Postconditions:** Waitlisted customer becomes `CONFIRMED`; notified.
 - **Events Triggered:** `WaitlistPromoted` (candidate event).
 
+### **CAND-25b: System Auto-Cancels Unpromoted Waitlist Entries When a Session Ends**
+
+> Added on request (2026-08-05): a `SessionBooking` still `WAITLISTED` when its `ClassSession` starts (never promoted) had no defined fate — nothing ever cleaned it up. Unlike `CAND-15b`'s attendance marking, this needs zero human judgment (a waitlist entry for a class that already happened is simply moot), so it's the mechanical counterpart: purely automatic, no staff step, same "runs on a schedule with no one in the loop" shape as `CAND-13`'s generator.
+
+- **Actor:** System
+- **Preconditions:** `ClassSession.endTime` has passed; ≥ 1 `SessionBooking` on it is still `WAITLISTED`.
+- **Trigger:** Same time-based check as `CAND-13`'s generation job (or piggybacked onto it).
+- **Main Flow:**
+  1. System finds every `SessionBooking` with `status = WAITLISTED` on a session whose `endTime` has passed.
+  2. Transitions each to `CANCELLED`.
+- **Postconditions:** No `WAITLISTED` row persists past the session it was waiting on.
+- **Events Triggered:** None (routine cleanup, same as `CAND-01`'s config-only postconditions).
+
 ### **CAND-26: Customer Enrolls in a Recurring Weekly Session**
 
 - **Actor:** Customer or Guest (likely Customer-only in practice, given the ongoing relationship — worth confirming)
@@ -489,8 +531,11 @@ CAND-XX: [Name]
   1. `IBookingAvailabilityPort` is queried with `tenantId` + `resourceId(s)` instead of `tenantId` alone.
   2. For a bundle, a slot is available only if **every** required resource is simultaneously free.
   3. For `AUTO_FUNGIBLE_POOL`, a slot is available if **any** pool member is free (union, not intersection).
+  4. "Free" also excludes any `ClassScheduleTemplate` (discovery §6) for that resource where `isActive = true`, the candidate date falls within `[validFrom, validUntil]` (open-ended if `null`), **and** the recurrence rule produces an occurrence at the candidate time — checked against the template's rule directly, not against materialized `ClassSession` rows, since a not-yet-generated future occurrence is still a real commitment. A candidate date outside `[validFrom, validUntil]`, or against a deactivated template, is never blocked by this step — only its already-materialized `ClassSession` rows (if any) still count via steps 1–3.
 - **Postconditions:** Extends today's `AvailabilityService` (`availability.service.ts`) rather than replacing it.
 - **Events Triggered:** None (read path).
+
+> **Cross-family example:** Camila Duarte is both a hairdressing `STAFF` resource (APPOINTMENT) and the instructor on a Pilates `ClassScheduleTemplate` (SESSION) recurring Mon/Wed/Fri 08:00. A haircut request for her at Monday 08:00 must be rejected even 80 days out, before any `ClassSession` row for that date exists — step 4 evaluates her template's recurrence rule directly against the candidate time, rather than waiting for a materialized session to "claim" it first.
 
 ### **CAND-30: System Applies Resource Turnover and Leg Transition Gaps**
 
@@ -503,13 +548,15 @@ CAND-XX: [Name]
 - **Postconditions:** Candidate slots correctly reflect both cleanup time and customer transition time, without conflating the two (discovery doc §7).
 - **Events Triggered:** None.
 
-### **CAND-31: System Rejects Overlapping Bookings Across a Shared Bundled Resource**
+### **CAND-31: System Rejects Overlapping Bookings Across a Shared Resource — Same-Family or Cross-Family**
+
+> Broadened on review (2026-08-04): originally scoped only to two APPOINTMENT-style services sharing a resource (the X-ray-machine case). The same mechanism has to cover a resource shared *across* families too — an APPOINTMENT-style service and a SESSION-style `ClassScheduleTemplate` on the same resource (Camila Duarte: hairdressing + Pilates) is the model-13 flagship scenario this discovery is built around, and it was previously ungoverned by this candidate. See `MULTI_VERTICAL_SCHEDULING.md` §6 "Cross-family resource exclusivity" for the full reasoning.
 
 - **Actor:** System
-- **Preconditions:** Two different services both declare a requirement on the same `EQUIPMENT`/`ROOM` resource (e.g. one X-ray machine used by two different appointment types).
-- **Trigger:** A booking attempt for Service B would overlap an already-approved booking for Service A, where both reference the same resource.
+- **Preconditions:** Two different bookable things share the same resource — either two APPOINTMENT-style services (e.g. one X-ray machine used by two different appointment types), or one APPOINTMENT-style service and one SESSION-style `ClassScheduleTemplate` (e.g. Camila Duarte as both a hairdressing resource and a Pilates instructor).
+- **Trigger:** A booking or session-generation attempt would overlap an already-committed window on the shared resource, regardless of which side created that commitment.
 - **Main Flow:**
-  1. Availability computation for Service B includes existing approved bookings/sessions against the *shared resource*, regardless of which service created them.
-  2. Overlapping candidate slots are excluded.
-- **Postconditions:** A resource's exclusivity holds across service boundaries, not just within one service's own bookings — the resource, not the service, is the unit of exclusivity.
+  1. Availability computation for the new request includes existing approved bookings, materialized sessions, **and active template recurrence patterns** against the *shared resource*, regardless of which service or family created the commitment (`CAND-29` step 4, `CAND-11` alt A2, `CAND-13` alt A2).
+  2. Overlapping candidate slots/occurrences are excluded or blocked.
+- **Postconditions:** A resource's exclusivity holds across service **and family** boundaries — the resource, not the service or the family, is the unit of exclusivity.
 - **Events Triggered:** None.

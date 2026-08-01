@@ -65,7 +65,9 @@
 <body>
 
   <!--
-    PAGE (GAP): apps/web/app/dashboard/bookings/[id]/page.tsx
+    COMPONENT: BookingDetailPage + BookingActionPanel (APPROVED branch)
+    FILE:       apps/web/features/booking/components/dashboard/bookings/BookingDetailPage.tsx  (EXISTS)
+    PAGE:       apps/web/app/dashboard/bookings/[id]/page.tsx  (EXISTS)
     ROUTE:      /dashboard/bookings/:id
     AUTH:       JWT cookie, STAFF or MANAGER role
 
@@ -172,7 +174,7 @@
         </a>
       </nav>
       <div class="sidebar-footer">
-        <div class="auth-avatar" style="flex-shrink: 0; width: 2rem; height: 2rem; font-size: 0.8125rem;">AP</div>
+        <div class="list-avatar" style="flex-shrink: 0; width: 2rem; height: 2rem; font-size: 0.8125rem;">AP</div>
         <div style="min-width: 0;">
           <p class="sidebar-user-name">Ana Pereira</p>
           <span class="role-badge role-badge-manager">Gerente</span>
@@ -194,7 +196,7 @@
 
             <p class="detail-section-label" style="margin-top: 0;">Cliente</p>
             <div class="card" style="display: flex; align-items: center; gap: 0.875rem; margin-bottom: 1.25rem;">
-              <div class="auth-avatar" style="width: 2.75rem; height: 2.75rem; font-size: 1rem; flex-shrink: 0; background: #2563eb;">JS</div>
+              <div class="list-avatar" style="width: 2.75rem; height: 2.75rem; font-size: 1rem; flex-shrink: 0; background: #2563eb;">JS</div>
               <div style="min-width: 0;">
                 <p style="font-weight: 700; font-size: 1rem; color: var(--ba-text);">João Silva</p>
                 <p style="font-size: 0.8125rem; opacity: 0.6; color: var(--ba-text); margin-top: 0.125rem;">joao@email.com · (11) 98765-4321</p>

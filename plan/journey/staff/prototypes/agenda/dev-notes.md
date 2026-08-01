@@ -1,42 +1,30 @@
 # Dev Notes — STAFF: Agenda (Booking Queue Management + Lifecycle)
 
-> **Status:** All files in this path are new — nothing exists yet. M125-S01 through M125-S05 scope UC-003/004/005 (triage) only. **UC-008 (cancel/reschedule) and UC-009 (mark complete) were later assigned to M13-S19/M13-S20** — this doc preserves the prototype + handoff notes for both lifecycle flows.
+> **Status:** ✅ Done. `M125-S01`–`S05` (triage: UC-003/004/005) and `M13-S19`/`M13-S20` (lifecycle: UC-008/UC-009) have all shipped. Updated 2026-07-31 — this file previously described the whole journey as unbuilt and cited pre-domain-slice paths (`apps/web/components/**`, `apps/web/lib/api/**`); real files live under the domain-slice tree below.
 >
-> **Prototype:** `plan/journey/staff/prototypes/agenda/`  
-> **Production target:** `apps/web/` — Next.js 16 + React 19 + shadcn/ui + Tailwind
+> **Prototype:** `plan/journey/staff/prototypes/agenda/`
+> **Production:** `apps/web/features/booking/components/dashboard/bookings/**` — Next.js 16 + React 19 + shadcn/ui + Tailwind
 >
-> Validation note (2026-06-29): the shipped lifecycle coverage now exists in `apps/web/e2e/staff-booking-lifecycle.spec.ts` and covers queue detail, quick approve, reject, request info, complete success, reschedule success, and cancel success.
+> Validation note (2026-06-29): `apps/web/e2e/staff-booking-lifecycle.spec.ts` covers queue detail, quick approve, reject, request info, complete success, reschedule success, and cancel success.
 
 ---
 
-## File map
+## File map (all ✅ shipped)
 
-All files below are to be created. None exist yet.
+| Production file | Notes |
+|---|---|
+| `apps/web/middleware.ts` | Protects `/dashboard/**` |
+| `apps/web/shells/dashboard/components/Sidebar.tsx`, `Topbar.tsx`, `BottomNav.tsx`, `WeekNav.tsx` | Shared dashboard shell — `WeekNav` is shared with the horarios `SchedulePage` as originally planned |
+| `apps/web/app/dashboard/bookings/page.tsx` + `.../BookingQueuePage.tsx` | Queue list |
+| `apps/web/app/dashboard/bookings/[id]/page.tsx` + `.../BookingDetailPage.tsx` | Detail + triage actions |
+| `.../BookingActionPanel.tsx`, `RejectBookingSheet.tsx`, `RequestInfoSheet.tsx`, `SlotConflictAlert.tsx` | Triage sub-components |
+| `.../AdminCancelBookingSheet.tsx` | UC-008 cancel |
+| `apps/web/app/dashboard/bookings/[id]/reschedule/page.tsx` + `.../RescheduleBookingPage.tsx` | UC-008 A1 — dedicated page, not a modal over `[id]` |
+| `apps/web/app/dashboard/bookings/[id]/complete/page.tsx` + `.../MarkCompleteBookingPage.tsx` | UC-009 — dedicated page, not a sheet |
+| `.../BookingCompletionSummary.tsx`, `AfterServicePhotoUpload.tsx`, `BookingOutcomeActionRail.tsx`, `BookingDetailMain.tsx`, `BookingActionSheetShell.tsx`, `BookingClientCard.tsx`, `BookingCard.tsx` | Additional supporting sub-components not anticipated in the original draft |
+| `apps/web/features/booking/api/**` | BFF fetchers |
 
-| Production file | Story | Notes |
-|---|---|---|
-| `apps/web/middleware.ts` | M125-S01 | Protect `/dashboard/**` — redirect to login if no JWT |
-| `apps/web/app/dashboard/layout.tsx` | M125-S01 | Server component — renders `<DashboardShell>` |
-| `apps/web/components/dashboard/DashboardShell.tsx` | M125-S01 | `'use client'` — owns sidebar open/close state |
-| `apps/web/components/dashboard/Sidebar.tsx` | M125-S01 | Desktop sidebar nav |
-| `apps/web/components/dashboard/Topbar.tsx` | M125-S01 | Mobile topbar + back nav |
-| `apps/web/components/dashboard/BottomNav.tsx` | M125-S01 | Mobile bottom nav — hidden on detail pages |
-| `apps/web/components/dashboard/WeekNav.tsx` | M125-S03 | Shared `‹ month ›` week navigation row — also used by ScheduleView (horarios) |
-| `apps/web/app/dashboard/bookings/page.tsx` | M125-S03 | Server component — fetches queue, renders `<BookingQueuePage>` |
-| `apps/web/components/dashboard/bookings/BookingQueuePage.tsx` | M125-S03 | `'use client'` — date picker + filter tabs |
-| `apps/web/components/dashboard/bookings/BookingCard.tsx` | M125-S03 | Pure display component |
-| `apps/web/lib/api/bookings-staff.ts` | M125-S02 + S04 | BFF fetchers — `getStaffBookings()`, `getStaffBookingById()` |
-| `apps/web/app/dashboard/bookings/[id]/page.tsx` | M125-S05 | Server component — fetches initial booking detail |
-| `apps/web/components/dashboard/bookings/BookingDetailPage.tsx` | M125-S05 | `'use client'` — owns `actionState` |
-| `apps/web/components/dashboard/bookings/BookingActionPanel.tsx` | M125-S05 | Approve/Reject/RequestInfo buttons + slot conflict |
-| `apps/web/components/dashboard/bookings/RejectBookingSheet.tsx` | M125-S05 | shadcn `Sheet` — reject reason form |
-| `apps/web/components/dashboard/bookings/RequestInfoSheet.tsx` | M125-S05 | shadcn `Sheet` — info request message form |
-| `apps/web/components/dashboard/bookings/SlotConflictAlert.tsx` | M125-S05 | Inline 409 error with adjacent slot picker |
-| `apps/web/components/dashboard/bookings/BookingLifecyclePanel.tsx` | — (not yet scoped) | Cancelar/Reagendar/Marcar-concluído buttons — renders when `booking.status === 'APPROVED'`, replacing `BookingActionPanel` |
-| `apps/web/components/dashboard/bookings/AdminCancelBookingSheet.tsx` | — (not yet scoped) | shadcn `Sheet` — optional reason, no minimum length (UC-008) |
-| `apps/web/components/dashboard/bookings/MarkCompleteSheet.tsx` | — (not yet scoped) | Per-line `actualPriceCharged` editor + after-photo upload + notes (UC-009) |
-| `apps/web/components/dashboard/bookings/RescheduleBookingCalendar.tsx` | — (not yet scoped) | Reuses `AvailabilityCalendar` from the UC-011 booking flow — same day-pill/slot-btn UI, no basket/duration recompute |
-| `apps/web/lib/api/bookings-staff.ts` (extend) | — (not yet scoped) | Add `cancelBookingAsAdmin()`, `rescheduleBooking()`, `completeBooking()` |
+The real composition doesn't have a single `BookingLifecyclePanel` component as originally planned — the APPROVED-state actions are composed across `BookingDetailMain`/`BookingOutcomeActionRail` instead. Verify the exact split by reading `BookingDetailPage.tsx` directly before extending it further; this file doesn't attempt to fully re-document that internal composition.
 
 ---
 
@@ -199,17 +187,17 @@ Body: { message: string }   // max 200 chars
 → 200: { id, status: 'INFO_REQUESTED', infoRequestedAt }
 ```
 
-### Cancel — admin (UC-008, not yet scoped)
+### Cancel — admin (UC-008, ✅ shipped)
 ```
-PATCH /v1/bookings/:id/cancel-admin
+PATCH /v1/bookings/:id/cancel        ← unified BFF route, not a literal .../cancel-admin path
 Header: X-Tenant-ID: {tenantId}
 Body: { reason?: string }   // OPTIONAL — no minimum length (unlike Reject's 10-char rule)
 
 → 200: { id, status: 'CANCELLED', cancelledAt }
 ```
-Backend confirmed (UC audit, 2026-06-16): `CancelBookingAsAdminBody.reason` has no validation beyond being a string. Do not add a client-side minimum length unless product explicitly asks for parity with Reject.
+The BFF's `PATCH /v1/bookings/:id/cancel` (`apps/bff/src/features/booking/bookings.controller.ts`) internally dispatches to the backend's `cancel-admin` or `cancel-customer` use case based on `user.role` — there is no separate `.../cancel-admin` BFF endpoint (an earlier draft of this file assumed one). `CancelBookingAsAdminBody.reason` has no validation beyond being a string.
 
-### Reschedule (UC-008 A1, not yet scoped)
+### Reschedule (UC-008 A1, ✅ shipped)
 ```
 PATCH /v1/bookings/:id/reschedule
 Header: X-Tenant-ID: {tenantId}
@@ -220,7 +208,7 @@ Body: { scheduledAt: string /* ISO8601 */, adminNotes?: string }
 ```
 Booking status does **not** change — stays `APPROVED`. `adminNotes` is freeform (not auto-generated — see `docs/04-USE_CASES.md` UC-008 A1, fixed in the 2026-06-16 UC audit).
 
-### Mark complete (UC-009, not yet scoped)
+### Mark complete (UC-009, ✅ shipped)
 ```
 PATCH /v1/bookings/:id/complete
 Header: X-Tenant-ID: {tenantId}
@@ -291,21 +279,7 @@ After any successful action, **the admin stays on the detail page**. Do not call
 
 ## WeekNav — shared week navigation row
 
-**File:** `apps/web/components/dashboard/WeekNav.tsx` (GAP — shared with horarios `ScheduleView`)
-
-**Client component** (`'use client'`) — renders `‹ month ›` row above any week strip.
-
-```ts
-interface WeekNavProps {
-  readonly startOfWeek: Date;           // Monday of current strip
-  readonly onPrev: () => void;
-  readonly onNext: () => void;
-  readonly disablePrev?: boolean;       // e.g. cannot go before today's week
-  readonly disableNext?: boolean;
-}
-```
-
-`BookingQueuePage` holds `startOfWeek` in state (default: Monday of current week). Changing it re-calls the BFF with updated `from`/`to` date params. The same component is used by `ScheduleView` for the horarios page — implement once, import in both.
+**File:** `apps/web/shells/dashboard/components/WeekNav.tsx` (✅ Exists — shared with horarios `SchedulePage`, as originally planned)
 
 ---
 
@@ -413,21 +387,9 @@ export interface CompleteBookingResponse {
 
 ---
 
-## Discovery checklist before starting M125-S02 and M125-S04
+## Resolved decisions (all shipped)
 
-> These endpoints may already exist from M08/M09. Verify before creating new BFF routes.
-
-- [ ] Does `GET /v1/bookings` exist for STAFF/MANAGER in `apps/bff/src/`? Check for status filter support.
-- [ ] Does `GET /v1/bookings/:id` exist with full detail (customer + lines)? Check if `loyaltyBalance` is included.
-- [ ] Do `PATCH .../approve`, `.../reject`, `.../request-info` exist? They were specced in M08/M09 — confirm they are implemented and wired in the BFF.
-
-If any endpoint exists but is missing fields, extend it rather than creating a new route.
-
-## Discovery checklist before starting UC-008 / UC-009 work
-
-> Confirmed already by the 2026-06-16 UC audit (`docs/04-USE_CASES.md` UC-008/UC-009) — backend + BFF endpoints for `cancel-admin`, `reschedule`, and `complete` **already exist and are implemented**, including `.http` coverage. What's missing is entirely frontend (no page exists past `/dashboard/bookings/[id]` for the PENDING/INFO_REQUESTED branch). Still verify before starting:
-
-- [ ] Does `BookingDetailPage` (once built in M125-S05) expose a clean seam to branch its action panel by `booking.status`, or will this require refactoring `BookingActionPanel`'s prop contract?
-- [ ] Confirm whether `MarkCompleteSheet` and `RescheduleBookingCalendar` should be modals/sheets over `/dashboard/bookings/[id]`, or dedicated nested routes (`/dashboard/bookings/[id]/complete`, `/dashboard/bookings/[id]/reschedule`) — the prototype models them as full screens but doesn't mandate routing vs. overlay.
-- [ ] Confirm the `AvailabilityCalendar` component (UC-011) is extracted in a way that `RescheduleBookingCalendar` can reuse without pulling in basket/duration-recompute logic that doesn't apply to an already-approved booking.
-- [ ] This work has no milestone/story yet — raise it as a follow-up to M125 before implementation starts.
+- Triage endpoints (`GET /v1/bookings`, `GET /v1/bookings/:id`, `PATCH .../approve|reject|request-info`) — all implemented, `M125-S02`/`S04`/`S05`.
+- Lifecycle endpoints (`cancel`, `reschedule`, `complete`) — all implemented, `M13-S19`/`S20`, with `.http` coverage.
+- `MarkCompleteBookingPage` and `RescheduleBookingPage` are dedicated nested routes (`/dashboard/bookings/[id]/complete`, `/dashboard/bookings/[id]/reschedule`), not modals/sheets over `[id]`.
+- The reschedule flow reuses the UC-011 `AvailabilityCalendar` with duration frozen at the existing booking's `totalDurationMins` (no basket/duration recompute).

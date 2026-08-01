@@ -12,7 +12,7 @@ flowchart TD
     classDef existing fill:#e6ffe6,stroke:#3a3
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
-    Start(["Dashboard sidebar/bottom-sheet<br/>'Somente Gerente' → Hotsite"]) --> Editor["❓ GAP: /dashboard/hotsite<br/>Hotsite Editor<br/>(Branding + Layout + SEO)"]
+    Start(["Dashboard sidebar/bottom-sheet<br/>'Somente Gerente' → Hotsite"]) --> Editor["/dashboard/hotsite<br/>Hotsite Editor<br/>(Branding + Layout + SEO)"]
 
     Editor --> EditBranding(("Edita cor/fonte/botão"))
     Editor --> ToggleModule(("Liga/desliga módulo"))
@@ -20,13 +20,13 @@ flowchart TD
     Editor --> EditSeo(("Edita título/descrição SEO"))
 
     EditBranding --> ColorValid{"Cor em hex válido?"}
-    ColorValid -- "não (A1)" --> ColorError["❓ GAP: erro inline<br/>'Cor inválida'"]
+    ColorValid -- "não (A1)" --> ColorError["erro inline<br/>'Cor inválida'"]
     ColorError --> Editor
     ColorValid -- "sim" --> Editor
 
     EditBranding --> ImageUpload(("Upload de logo/imagem"))
     ImageUpload --> UploadOk{"Upload bem-sucedido?"}
-    UploadOk -- "não (A2)" --> UrlFallback["❓ GAP: campo de URL<br/>como alternativa"]
+    UploadOk -- "não (A2)" --> UrlFallback["campo de URL<br/>como alternativa"]
     UrlFallback --> Editor
     UploadOk -- "sim" --> Editor
 
@@ -35,32 +35,34 @@ flowchart TD
     EditSeo --> Editor
 
     Editor --> PreviewBtn(("Click 'Preview' (opcional)"))
-    PreviewBtn --> PreviewPane["❓ GAP: preview do hotsite<br/>com alterações não publicadas"]
+    PreviewBtn --> PreviewPane["preview do hotsite<br/>com alterações não publicadas"]
     PreviewPane --> Editor
 
     Editor --> PublishBtn(("Click 'Publicar alterações'"))
-    PublishBtn --> PublishSuccess["❓ GAP: confirmação<br/>'Hotsite atualizado e no ar'"]
+    PublishBtn --> PublishSuccess["confirmação<br/>'Hotsite atualizado e no ar'"]
     PublishSuccess --> Editor
 
     Editor --> UnpublishBtn(("Click 'Despublicar hotsite'<br/>(zona de risco)"))
-    UnpublishBtn --> UnpublishSuccess["❓ GAP: confirmação<br/>'Hotsite offline'"]
+    UnpublishBtn --> UnpublishSuccess["confirmação<br/>'Hotsite offline'"]
     UnpublishSuccess --> PublishBtn
     UnpublishSuccess --> Editor
 
-    class Editor,ColorError,UrlFallback,PreviewPane,PublishSuccess,UnpublishSuccess gap
+    class Editor,ColorError,UrlFallback,PreviewPane,PublishSuccess,UnpublishSuccess existing
 ```
+
+**Also drifted from the prototype's documented shape (2026-07-31 docs audit):** the real branding editor has 5 sections/18 fields (adds `heroBgStyle`/`alternateSectionBg`/`dividerStyle`/`brandName`/`brandTagline` — already correctly described in `manager/prototypes/hotsite/dev-notes.md`, just not in the HTML screen itself) vs. the 13-field/4-section prototype; module count is 8 (`FOOTER` added during `M13-S36`) vs. the documented 7; SEO limits are 60/158 chars (real-world Google truncation points) vs. the documented 70/160, and there's an OG-image field the prototype doesn't show. Candidates for the next prototype touch-up pass.
 
 ## Pages referenced
 
 | Page / Route | Component | Story | Status |
 |---|---|---|---|
-| `/dashboard/hotsite` | `HotsiteEditorPage` | TBD | 📋 Gap |
-| Preview pane | `HotsitePreview` (draft-state render) | TBD | 📋 Gap |
+| `/dashboard/hotsite` | `HotsiteEditorPage` | M13-S35/S36/S37 | ✅ Done |
+| Preview pane | `HotsitePreview` (draft-state render) | M13-S37 | ✅ Done |
 
 ## Open questions / gaps
 
 - [x] **Branding field set expanded** — per `/uc-audit UC-026,UC-027,UC-028,UC-029` (2026-06-16) and your decision to cover the full set, `docs/04-USE_CASES.md` UC-027 Section A lists 13 branding fields (colors, fonts, logo, border radius, button style, spacing, shadow style, button colors), not just the original 4. Resolved further during M13-S35 discovery (2026-07-07): the real `HotsiteBrandingResponse` type carries 5 more fields beyond those 13 (`heroBgStyle`, `alternateSectionBg`, `dividerStyle`, `brandName`, `brandTagline`) — all 18 are in scope for M13-S35, grouped into 5 sub-sections ("Cores" / "Logo e identidade" / "Tipografia" / "Forma e estilo" / "Ritmo visual"). See `plan/journey/manager/prototypes/hotsite/dev-notes.md` and `plan/M13-DASHBOARD-FRONTEND.md` § M13-S35.
-- [ ] **Per-module configuration** — the toggle/reorder list shown in the flow above is the simple case. Each module type has its own config shape (HERO: title/subtitle/background image; GALLERY: limit; CONTACT: 4 independent toggles for address/phone/email/map; TESTIMONIALS: grid vs. carousel layout). Does each module need its own drill-down config panel, or are all module configs edited inline in the list? This needs its own decision before the prototype can show real module-editing screens, not just toggle/reorder.
+- [x] **Per-module configuration** — **Resolved/shipped (`M13-S36`).** Each module type has its own drill-down config panel (e.g. `FooterConfigPanel.tsx` for the `FOOTER` module type, added in the same story). The prototype's `01d-module-config-hero.html` shows only the HERO case; the other 7 module types' panels were built directly from the real types without new UX prototypes (an explicit `M13-S36` decision) — candidate for the next prototype touch-up pass if more panels are wanted for review.
 - [ ] **Preview semantics** — `is_published` gates what the public hotsite shows, so "Preview" must render the *draft* (unsaved/unpublished) state. Is this a client-side live preview (iframe re-rendering with draft props), or does it need a preview-mode BFF parameter/token that temporarily serves draft config to the public hotsite route? This is an engineering design question, not just a UI one.
 - [x] **Unpublish action** — resolved: the editor exposes "Despublicar hotsite" in a danger-zone section (per `01-hotsite-editor.html`), with its own confirmation screen (`03b-unpublish-success.html`). See the `Unpublish`/`UnpublishSuccess` nodes in the flow above.
 

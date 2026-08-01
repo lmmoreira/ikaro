@@ -1,19 +1,22 @@
 # Dev Notes — Customer: Minha Conta
 
-Journey spec: `customer/minha-conta.md`  
-Stories: M12X-S01 (list page) · M12X-S02 (detail + cancel + info-submit)
+Journey spec: `customer/minha-conta.md`
+Stories: `M13-S27` (list) · `M13-S28` (detail/cancel/info-submit) · `M13-S29` (loyalty) · `M13-S30`/`M13-S14` (switch tenant) — ✅ Done
+
+> Updated 2026-07-31 — this file previously described the whole journey as unbuilt and cited the old milestone codes (`M12X`/`M126`/`M124`, since retired/renumbered into M13) and Portuguese route segments (`minha-conta`/`agendamentos`/`fidelidade`) that were never the real route names — the shipped routes use English segments (`my-account`/`bookings`/`loyalty`).
 
 ---
 
-## Routes
+## Routes (all ✅ shipped)
 
 | File | Next.js Route | Component |
 |---|---|---|
-| `shared/customer-dashboard.html` | `/{slug}/minha-conta` (Início tab) | `MinhaContaPage` |
-| `01-minha-conta.html` | `/{slug}/minha-conta` (Agendamentos tab) | `MinhaContaPage` |
-| `02-*.html` | `/{slug}/minha-conta/agendamentos/[id]` | `AgendamentoDetailPage` |
-
-Both tabs live on the same `/{slug}/minha-conta` route — tab state is managed client-side (not separate routes for MVP).
+| `01-minha-conta.html` | `/{slug}/my-account` | `MinhaContaPage` |
+| `02-*.html` | `/{slug}/my-account/bookings/[id]` | `AgendamentoDetailPage` |
+| `03-cancel-confirm.html` | `/{slug}/my-account/bookings/[id]/cancel` — a dedicated page, not a bottom sheet | `CancelConfirmPage` |
+| `03b-cancel-error.html` | `/{slug}/my-account/bookings/[id]/cancel/error` | — |
+| `04-*.html` | `/{slug}/my-account/loyalty` | `MinhaFidelidadePage` |
+| `05-trocar-empresa.html` | `/switch-tenant` (not tenant-scoped — no `[slug]` prefix) | `SwitchTenantClient` |
 
 ## Auth guard
 
@@ -80,9 +83,9 @@ When `canCancel === false`: hide button, show note "Prazo de cancelamento encerr
 
 **States:** `idle → submitting → success / error` (submitting state has no dedicated prototype screen — button text/disabled treatment should follow the same pattern as `customer/prototypes/book-a-service/04b-submitting.html`).
 
-## Missing types (open question from journey spec)
+## Types (resolved — shipped as part of M13-S27)
 
-`CustomerBookingListResponse` does not exist in `packages/types/src/`. Needs to be added in M12X-S01:
+The type shape below was the pre-implementation proposal; verify the exact current name/shape in `packages/types/src/` directly rather than trusting this table, since the feature has since shipped and the type may have been named or structured differently during implementation.
 
 ```ts
 export interface CustomerBookingListItem {
@@ -106,22 +109,20 @@ Detail pages (drill-down) use `dashboard-topbar` with a back link replacing the 
 
 Reference shell: `plan/journey/shared/customer-dashboard.html`
 
-## File map — per-screen status
+## File map — per-screen status (all ✅ shipped)
 
 | File | Production target | Status |
 |---|---|---|
-| `00-hotsite-logged-in.html` | `shared/hotsite-logged-in.html` (entry point) | ❌ GAP |
-| `01-minha-conta.html` | `/{slug}/minha-conta` (Agendamentos tab) | ❌ GAP — M12X-S01 |
-| `01b-minha-conta-empty.html` | `/{slug}/minha-conta` — empty state (UC-006 A1) | ❌ GAP — M12X-S01 |
-| `02-agendamento-detail.html` | `/{slug}/minha-conta/agendamentos/[id]` (APPROVED/PENDING) | ❌ GAP — M12X-S02 |
-| `02b-agendamento-info-requested.html` | same route — INFO_REQUESTED + response form | ❌ GAP — M12X-S02 |
-| `02c-agendamento-historico.html` | same route — COMPLETED (read-only) | ❌ GAP — M12X-S02 |
-| `02d-info-sent.html` | same route — inline state after successful submit-info | ❌ GAP — M12X-S02 |
-| `02e-submit-error.html` | same route — inline state after failed submit-info | ❌ GAP — M12X-S02 |
-| `03-cancel-confirm.html` | `CancelSheet` bottom sheet | ❌ GAP — M12X-S02 |
-| `03b-cancel-error.html` | `CancelErrorState` inline (UC-007 A1) | ❌ GAP — M12X-S02 |
-| `04-fidelidade.html` | `/{slug}/minha-conta/fidelidade` | ❌ GAP — M126-S03 |
-| `04b-fidelidade-empty.html` | same route — empty state (0 points) | ❌ GAP — M126-S03 |
-| `05-trocar-empresa.html` | tenant-switch modal/page (UC-023) | ❌ GAP — M124-S02 |
-
-No screen in this prototype maps to an already-`EXISTS` production component — the entire Minha Conta area is net-new (M12X/M126/M124 stories).
+| `00-hotsite-logged-in.html` | `shared/hotsite-logged-in.html` (entry point) | ✅ Done |
+| `01-minha-conta.html` | `/{slug}/my-account` | ✅ Done — M13-S27 |
+| `01b-minha-conta-empty.html` | same route — empty state (UC-006 A1) | ✅ Done — M13-S27 |
+| `02-agendamento-detail.html` | `/{slug}/my-account/bookings/[id]` (APPROVED/PENDING) | ✅ Done — M13-S28 |
+| `02b-agendamento-info-requested.html` | same route — INFO_REQUESTED + response form | ✅ Done — M13-S28 |
+| `02c-agendamento-historico.html` | same route — COMPLETED (read-only) | ✅ Done — M13-S28 |
+| `02d-info-sent.html` | same route — inline state after successful submit-info | ✅ Done — M13-S28 |
+| `02e-submit-error.html` | same route — inline state after failed submit-info | ✅ Done — M13-S28 |
+| `03-cancel-confirm.html` | `/{slug}/my-account/bookings/[id]/cancel` — dedicated page, not a sheet | ✅ Done — M13-S28 |
+| `03b-cancel-error.html` | `/{slug}/my-account/bookings/[id]/cancel/error` | ✅ Done — M13-S28 |
+| `04-fidelidade.html` | `/{slug}/my-account/loyalty` | ✅ Done — M13-S29 |
+| `04b-fidelidade-empty.html` | same route — empty state (0 points) | ✅ Done — M13-S29 |
+| `05-trocar-empresa.html` | `/switch-tenant` (UC-023) | ✅ Done — M13-S14/S30 |

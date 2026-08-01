@@ -11,7 +11,7 @@
     VARIANT OF: 01-service-selection.html
     SCENARIO:   "Lavagem com Coleta" selected (requiresPickupAddress: true), pickup address
                 fields rendered, guest clicked "Próximo" with the fields empty.
-    COMPONENT:  ServiceSelectionStep + AddressFields  (apps/web/components/booking/)
+    COMPONENT:  ServiceSelectionStep + AddressFields  (apps/web/features/booking/components/public/)
     ERROR:      "Informe o endereço de coleta para continuar."  (data-testid="step1-error")
   -->
   <!-- BRAND + AUTH BAR -->
@@ -88,7 +88,7 @@
     <!--
       PICKUP ADDRESS FIELDS — rendered because requiresPickupAddress = true.
       Fields left empty to demonstrate the validation error after "Próximo".
-      COMPONENT: AddressFields  (apps/web/components/booking/AddressFields.tsx)
+      COMPONENT: AddressFields  (apps/web/features/booking/components/public/AddressFields.tsx)
       ZIP autocomplete: lib/address/viacep-address-lookup.adapter.ts — no documented
       fallback if ViaCEP itself is unreachable (CEP just stays unresolved).
     -->

@@ -11,9 +11,9 @@
     VARIANT OF: 04-confirmation.html
     SCENARIO:   POST /bookings returned 201 Created. status = 'success' — the entire
                 step content is replaced with this view. Terminal state — no nav-buttons.
-    COMPONENT:  ConfirmationStep  apps/web/components/booking/ConfirmationStep.tsx  (EXISTS)
+    COMPONENT:  ConfirmationStep  apps/web/features/booking/components/public/ConfirmationStep.tsx  (EXISTS)
     SUCCESS:    "Solicitação enviada! Aguarde a confirmação por email."
-                (data-testid="confirmation-success")
+                (data-testid="booking-success")
   -->
   <!-- BRAND + AUTH BAR -->
   <div style="background:white;border-bottom:1px solid var(--ba-secondary);
@@ -35,7 +35,7 @@
 
   <div class="step-container">
     <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--ba-text)">Solicitação enviada!</h2>
-    <p data-testid="confirmation-success">Solicitação enviada! Aguarde a confirmação por email.</p>
+    <p data-testid="booking-success">Solicitação enviada! Aguarde a confirmação por email.</p>
     <a href="../../../shared/hotsite.html"
       style="display: inline-block; margin-top: 1.5rem; padding: 0.75rem 1.5rem;
              border: 1px solid var(--ba-secondary); border-radius: var(--ba-radius);

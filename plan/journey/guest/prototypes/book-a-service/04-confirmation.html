@@ -9,7 +9,7 @@
 <body>
   <!--
     COMPONENT: ConfirmationStep
-    FILE:      apps/web/components/booking/ConfirmationStep.tsx  (EXISTS — no changes needed)
+    FILE:      apps/web/features/booking/components/public/ConfirmationStep.tsx  (EXISTS — no changes needed)
     STATUS:    BookingSubmissionStatus = 'idle' | 'submitting' | 'success' | 'error'
     MANAGED:   BookingForm (parent) owns status + errorMessage state
 
@@ -83,13 +83,13 @@
 
     <!--
       SUCCESS STATE — status = 'success' — entire step replaced with this view
-      data-testid="confirmation-success"
+      data-testid="booking-success"
       Uncomment to preview:
     -->
     <!--
     <div>
       <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--ba-text)">Solicitação enviada!</h2>
-      <p data-testid="confirmation-success">Solicitação enviada! Aguarde a confirmação por email.</p>
+      <p data-testid="booking-success">Solicitação enviada! Aguarde a confirmação por email.</p>
       <a href="../../../shared/hotsite.html"
         style="display: inline-block; margin-top: 1.5rem; padding: 0.75rem 1.5rem;
                border: 1px solid var(--ba-secondary); border-radius: var(--ba-radius);

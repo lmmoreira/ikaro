@@ -30,9 +30,9 @@
     .schedule-row { display: grid; grid-template-columns: 3.25rem 1fr; min-height: 3rem; border-bottom: 1px solid var(--ba-secondary); }
     .schedule-time { font-size: 0.6875rem; color: rgba(17,24,39,0.35); padding: 0.5rem 0.5rem 0 0; text-align: right; align-self: start; font-variant-numeric: tabular-nums; }
     .schedule-slot { border-left: 2px solid var(--ba-secondary); padding: 0.375rem 0.75rem; }
-    .schedule-slot.booking { background: var(--ba-secondary); border-left: 3px solid var(--ba-primary); }
-    .schedule-slot.booking-cont { background: var(--ba-secondary); border-left: 3px solid var(--ba-primary); }
-    .fab { position: fixed; bottom: 1.5rem; right: 1.5rem; display: flex; align-items: center; gap: 0.5rem; background: var(--ba-primary); color: white; border: none; border-radius: 2rem; padding: 0.75rem 1.25rem; font-size: 0.9375rem; font-weight: 600; box-shadow: 0 4px 12px rgba(37,99,235,0.35); cursor: pointer; }
+    .schedule-slot.booking { background: var(--ba-secondary); border-left: 3px solid #2563eb; } /* fixed platform blue, not --ba-primary */
+    .schedule-slot.booking-cont { background: var(--ba-secondary); border-left: 3px solid #2563eb; }
+    .fab { position: fixed; bottom: 1.5rem; right: 1.5rem; display: flex; align-items: center; gap: 0.5rem; background: #2563eb; color: white; border: none; border-radius: 2rem; padding: 0.75rem 1.25rem; font-size: 0.9375rem; font-weight: 600; box-shadow: 0 4px 12px rgba(37,99,235,0.35); cursor: pointer; } /* fixed platform blue, not --ba-primary -- maps to a shadcn Button in production */
     @media (max-width: 1023px) { .fab { bottom: 5rem; } }
   </style>
 </head>
@@ -118,7 +118,7 @@
         </a>
       </nav>
       <div class="sidebar-footer">
-        <div class="auth-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">CD</div>
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">CD</div>
         <div style="min-width:0;"><p class="sidebar-user-name">Camila Duarte</p><span class="role-badge role-badge-staff">Equipe</span></div>
         <a class="sidebar-logout" href="../../../../plan/journey/shared/staff-login.html" title="Sair">
           <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>

@@ -32,23 +32,23 @@
   <ul>
     <li>
       <a href="00-agenda.html">Tela 0 — Agenda (fila do dia)</a>
-      <span class="tag tag-red">GAP: /dashboard/bookings — novo page.tsx</span>
+      <span class="tag tag-green">EXISTS: /dashboard/bookings — novo page.tsx</span>
     </li>
     <li>
       <a href="00-agenda-next.html">Tela 0 — Agenda (próxima semana)</a>
-      <span class="tag tag-red">GAP: /dashboard/bookings — novo page.tsx</span>
+      <span class="tag tag-green">EXISTS: /dashboard/bookings — novo page.tsx</span>
     </li>
     <li>
       <a href="01-booking-detail.html">Tela 1 — Detalhe do agendamento (PENDING)</a>
-      <span class="tag tag-red">GAP: /dashboard/bookings/[id] — novo page.tsx</span>
+      <span class="tag tag-green">EXISTS: /dashboard/bookings/[id] — novo page.tsx</span>
     </li>
     <li>
       <a href="02-approve-success.html">Tela 2 — Aprovação confirmada</a>
-      <span class="tag tag-red">GAP: estado de sucesso inline no detalhe</span>
+      <span class="tag tag-green">EXISTS: estado de sucesso inline no detalhe</span>
     </li>
     <li>
       <a href="01b-slot-conflict.html">Alt A1 — Conflito de horário (slot tomado ao aprovar)</a>
-      <span class="tag tag-red">GAP: estado de erro inline no detalhe</span>
+      <span class="tag tag-green">EXISTS: estado de erro inline no detalhe</span>
     </li>
   </ul>
 
@@ -57,11 +57,11 @@
   <ul>
     <li>
       <a href="01c-reject-success.html">Alt B — Agendamento rejeitado (estado inline)</a>
-      <span class="tag tag-red">GAP: actionState = 'rejected'</span>
+      <span class="tag tag-green">EXISTS: actionState = 'rejected'</span>
     </li>
     <li>
       <a href="01d-info-success.html">Alt C — Info solicitada (estado inline, UC-005)</a>
-      <span class="tag tag-red">GAP: actionState = 'info-requested'</span>
+      <span class="tag tag-green">EXISTS: actionState = 'info-requested'</span>
     </li>
   </ul>
 
@@ -80,24 +80,24 @@
   <ul>
     <li>
       <a href="03-booking-detail-approved.html">Tela 3 — Detalhe do agendamento (APPROVED)</a>
-      <span class="tag tag-red">GAP: mesma rota de Tela 1, ramo por status</span>
+      <span class="tag tag-green">EXISTS: mesma rota de Tela 1, ramo por status</span>
     </li>
     <li>
       <a href="04-mark-complete.html">Tela 4 — Marcar concluído (UC-009)</a>
-      <span class="tag tag-red">GAP: MarkCompleteSheet — preço por linha + fidelidade (A6) + fotos + notas</span>
+      <span class="tag tag-green">EXISTS: MarkCompleteBookingPage — preço por linha + fidelidade (A6) + fotos + notas</span>
       — <em>interativo: editar preços ou usar pontos atualiza o total em tempo real</em>
     </li>
     <li>
       <a href="04b-complete-success.html">Tela 4b — Conclusão confirmada</a>
-      <span class="tag tag-red">GAP: estado de sucesso inline — cotado vs. cobrado</span>
+      <span class="tag tag-green">EXISTS: estado de sucesso inline — cotado vs. cobrado</span>
     </li>
     <li>
       <a href="05-reschedule.html">Tela 5 — Reagendar (UC-008 A1)</a>
-      <span class="tag tag-red">GAP: reusa o calendário de UC-011</span>
+      <span class="tag tag-green">EXISTS: reusa o calendário de UC-011</span>
     </li>
     <li>
       <a href="05c-reschedule-success.html">Tela 5c — Reagendamento confirmado</a>
-      <span class="tag tag-red">GAP: estado de sucesso inline — permanece APPROVED</span>
+      <span class="tag tag-green">EXISTS: estado de sucesso inline — permanece APPROVED</span>
     </li>
   </ul>
 
@@ -105,7 +105,7 @@
   <ul>
     <li>
       <a href="03b-cancel-success.html">Alt D — Agendamento cancelado pelo staff (estado inline)</a>
-      <span class="tag tag-red">GAP: actionState = 'cancelled', isBusiness = true</span>
+      <span class="tag tag-green">EXISTS: actionState = 'cancelled', isBusiness = true</span>
       <br><span style="font-size: 0.75rem; opacity: 0.6;">
         ↳ Este link mostra o resultado direto, sem clicar no botão. O gatilho real é
         "Cancelar agendamento" em <a href="03-booking-detail-approved.html" style="color: var(--ba-primary);">Tela 3</a>.
@@ -113,7 +113,7 @@
     </li>
     <li>
       <a href="05b-reschedule-conflict.html">Alt A2 — Novo horário ficou indisponível ao confirmar</a>
-      <span class="tag tag-red">GAP: estado de erro inline na tela de reagendar</span>
+      <span class="tag tag-green">EXISTS: estado de erro inline na tela de reagendar</span>
     </li>
   </ul>
 

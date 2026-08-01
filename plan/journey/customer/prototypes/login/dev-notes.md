@@ -2,9 +2,18 @@
 
 ## Overview
 
-All backend and BFF auth endpoints for customer login are already implemented (M03). This is a **frontend-only story** (M124-S02). The shared `/auth/error` page is created in M124-S01 (staff story). This story creates the customer-specific login page, tenant selection, and phone completion prompt.
+✅ Fully shipped (`M13-S42` login, `M13-S14` phone/address completion). **This file predates the 2026-06-24 scope change documented in `customer/login.md`** — its `/select-tenant`/generic-entry sections below describe a design that was never built and permanently descoped (no slug-less entry point exists in this product). Treat `customer/login.md` as canonical for this journey; this file is kept for the still-accurate BFF/error-handling detail only.
 
-## File map
+## File map (current reality — supersedes the table below)
+
+| File | Status |
+|---|---|
+| `apps/web/app/[slug]/login/page.tsx` | ✅ Exists |
+| `apps/web/app/select-tenant/page.tsx` | ❌ Never built — descoped |
+| `apps/web/app/auth/error/page.tsx` | ✅ Exists |
+| `InformationCompletionPrompt` (phone + address) | ✅ Exists, inline in `[slug]/layout.tsx` |
+
+### Original (stale) file map — kept for history only
 
 | File | Status | Action |
 |---|---|---|

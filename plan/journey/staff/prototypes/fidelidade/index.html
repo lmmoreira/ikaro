@@ -22,7 +22,7 @@
 
   <h1>Protótipo — STAFF: Fidelidade</h1>
   <p style="opacity: 0.65; margin-bottom: 0.25rem;">UC coberto: <strong>UC-016</strong> (variante admin/staff — consulta de qualquer cliente)</p>
-  <p style="opacity: 0.65;">Journey: <code>staff/fidelidade.md</code></p>
+  <p style="opacity: 0.65;">Journey: <code>staff/fidelidade.md</code> · Stories: M13-S25 — ✅ Done</p>
 
   <hr>
 
@@ -30,26 +30,36 @@
   <ul>
     <li>
       <a href="00-customer-search.html">00 — Buscar cliente</a>
-      <span class="tag tag-red">GAP: /dashboard/loyalty</span>
-      — busca por nome ou e-mail; exibe saldo resumido por cliente
+      <span class="tag tag-green">EXISTS: /dashboard/loyalty</span>
+      — busca por nome ou e-mail (debounce 300ms); exibe saldo resumido por cliente
     </li>
     <li>
       <a href="01-customer-loyalty.html">01 — Detalhe de fidelidade do cliente</a>
-      <span class="tag tag-red">GAP: /dashboard/loyalty?customerId=:id</span>
-      — saldo ativo, próxima expiração, histórico de ganhos e resgates
+      <span class="tag tag-green">EXISTS: /dashboard/loyalty/[customerId]</span>
+      — saldo ativo, próxima expiração, histórico de ganhos e resgates (corrigido 2026-07-31: rota é segmento de path, não query param)
     </li>
   </ul>
 
   <h2>Estados alternativos (unhappy paths)</h2>
   <ul>
     <li>
+      <a href="00b-loading.html">00b — Carregando resultados</a>
+      <span class="tag tag-green">EXISTS: LoyaltySearchSkeleton</span>
+      — adicionado 2026-07-31: estado real que faltava no protótipo
+    </li>
+    <li>
+      <a href="00c-search-error.html">00c — Erro ao buscar</a>
+      <span class="tag tag-green">EXISTS: searchErrorTitle</span>
+      — adicionado 2026-07-31
+    </li>
+    <li>
       <a href="01b-no-entries.html">01b — Cliente sem pontos</a>
-      <span class="tag tag-red">GAP: estado vazio</span>
-      — cliente encontrado mas nunca acumulou pontos (nenhum booking concluído ainda)
+      <span class="tag tag-green">EXISTS: estado vazio por aba</span>
+      — cliente encontrado mas nunca acumulou pontos; corrigido 2026-07-31 — as abas continuam visíveis, cada uma com seu próprio estado vazio
     </li>
     <li>
       <a href="01c-no-results.html">01c — Nenhum cliente encontrado</a>
-      <span class="tag tag-red">GAP: estado vazio de busca</span>
+      <span class="tag tag-green">EXISTS: noResultsTitle</span>
       — busca sem resultados
     </li>
   </ul>
@@ -63,8 +73,8 @@
       <li>☐ O saldo ativo e a data de expiração ficam claros no topo da tela de detalhe?</li>
       <li>☐ A lista de ganhos com o badge ativo/expirado por entrada é legível em mobile?</li>
       <li>☐ O histórico de resgates mostra contexto suficiente (bookingId, valor economizado)?</li>
-      <li>☐ A tela de "sem pontos" orienta bem o staff sobre quando os pontos serão acumulados?</li>
-      <li>☐ Faz sentido ter um link "Ver histórico completo" no detalhe do agendamento para chegar aqui?</li>
+      <li>☐ As abas vazias (sem pontos) orientam bem o staff sobre quando os pontos serão acumulados?</li>
+      <li>☐ O link "Ver agendamento" em cada entrada é suficiente, ou falta um link "Ver histórico completo" no detalhe do agendamento?</li>
     </ul>
   </div>
 
@@ -73,7 +83,7 @@
     <li><strong>BFF GET:</strong> <code>GET /v1/customers/:customerId/loyalty/balance</code> — <code>@Roles('MANAGER','STAFF')</code></li>
     <li><strong>BFF GET:</strong> <code>GET /v1/customers/:customerId/loyalty/entries?page&amp;limit</code></li>
     <li><strong>BFF GET:</strong> <code>GET /v1/customers/:customerId/loyalty/redemptions?page&amp;limit</code></li>
-    <li>Busca de clientes: <code>GET /v1/customers?search=:term</code> (endpoint existente a confirmar — ver dev-notes.md)</li>
+    <li>Busca de clientes: <code>GET /v1/customers?search=:term&amp;limit</code> (✅ existe, `M13-S12`)</li>
     <li>→ <a href="dev-notes.md">dev-notes.md</a> — componentes, endpoints, tipos</li>
   </ul>
 
