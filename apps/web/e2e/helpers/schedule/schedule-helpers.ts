@@ -3,6 +3,7 @@ import { loginAsStaff } from '../auth';
 
 const BFF_URL = process.env.PLAYWRIGHT_BFF_URL ?? 'http://127.0.0.1:3002/v1';
 const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
+const WEB_INTERNAL_KEY = process.env.WEB_INTERNAL_KEY;
 
 export const SCHEDULE_TENANT_SLUG = 'lavacar-beloauto';
 export const SCHEDULE_STAFF_EMAIL = 'admin@lavacar.com.br';
@@ -10,6 +11,10 @@ export const SCHEDULE_DEFAULT_SERVICE_ID = '00000000-0000-7000-8003-000000000001
 
 if (!INTERNAL_API_KEY) {
   throw new Error('PLAYWRIGHT/INTERNAL_API_KEY is required for schedule E2E helpers');
+}
+
+if (!WEB_INTERNAL_KEY) {
+  throw new Error('WEB_INTERNAL_KEY is required for schedule E2E helpers (TD38)');
 }
 
 function uniqueLabel(prefix: string): string {
@@ -91,6 +96,7 @@ export async function createUniqueScheduleClosure(
     const dateKey = nextOpenDateKey(startOffset + attempt);
     const response = await page.request.post(`${BFF_URL}/schedule/closures`, {
       data: { date: dateKey, ...body },
+      headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
     });
 
     if (response.ok()) {
@@ -109,7 +115,9 @@ export async function createUniqueScheduleClosure(
 }
 
 export async function removeScheduleClosure(page: Page, id: string): Promise<void> {
-  const response = await page.request.delete(`${BFF_URL}/schedule/closures/${id}`);
+  const response = await page.request.delete(`${BFF_URL}/schedule/closures/${id}`, {
+    headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
+  });
   if (response.status() === 404) {
     return;
   }
@@ -132,6 +140,7 @@ export async function createUniqueScheduleOpening(
     const dateKey = nextClosedDateKey(startOffset + attempt * 7);
     const response = await page.request.post(`${BFF_URL}/schedule/openings`, {
       data: { date: dateKey, ...body },
+      headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
     });
 
     if (response.ok()) {
@@ -150,7 +159,9 @@ export async function createUniqueScheduleOpening(
 }
 
 export async function removeScheduleOpening(page: Page, id: string): Promise<void> {
-  const response = await page.request.delete(`${BFF_URL}/schedule/openings/${id}`);
+  const response = await page.request.delete(`${BFF_URL}/schedule/openings/${id}`, {
+    headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
+  });
   if (response.status() === 404) {
     return;
   }
@@ -199,6 +210,7 @@ async function createScheduleBooking(
   const createResponse = await page.request.post(`${BFF_URL}/bookings`, {
     headers: {
       'X-Tenant-Slug': SCHEDULE_TENANT_SLUG,
+      'X-Web-Internal-Key': WEB_INTERNAL_KEY!,
     },
     data: {
       contactName: body.contactName,
@@ -223,7 +235,7 @@ async function createScheduleBooking(
   if (body.approved) {
     const approveResponse = await page.request.patch(
       `${BFF_URL}/bookings/${created.bookingId}/approve`,
-      { data: {} },
+      { data: {}, headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! } },
     );
 
     if (!approveResponse.ok()) {

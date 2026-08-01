@@ -8,7 +8,7 @@ import type {
   PublishHotsiteResponse,
   UnpublishHotsiteResponse,
 } from '@ikaro/types';
-import { BFF_URL } from '../auth/shared';
+import { BFF_URL, WEB_INTERNAL_KEY } from '../auth/shared';
 
 async function readJson<T>(res: APIResponse, action: string): Promise<T> {
   if (!res.ok()) {
@@ -18,7 +18,9 @@ async function readJson<T>(res: APIResponse, action: string): Promise<T> {
 }
 
 export async function getHotsiteConfig(page: Page): Promise<HotsiteAdminContentResponse> {
-  const res = await page.request.get(`${BFF_URL}/tenants/hotsite`);
+  const res = await page.request.get(`${BFF_URL}/tenants/hotsite`, {
+    headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
+  });
   return readJson(res, 'get hotsite config');
 }
 
@@ -97,17 +99,24 @@ export async function updateHotsiteConfig(
   page: Page,
   body: Pick<HotsiteAdminContentResponse, 'branding' | 'layout' | 'seo'>,
 ): Promise<HotsiteAdminContentResponse> {
-  const res = await page.request.patch(`${BFF_URL}/tenants/hotsite`, { data: body });
+  const res = await page.request.patch(`${BFF_URL}/tenants/hotsite`, {
+    data: body,
+    headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
+  });
   return readJson(res, 'update hotsite config');
 }
 
 export async function publishHotsite(page: Page): Promise<PublishHotsiteResponse> {
-  const res = await page.request.post(`${BFF_URL}/tenants/hotsite/publish`);
+  const res = await page.request.post(`${BFF_URL}/tenants/hotsite/publish`, {
+    headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
+  });
   return readJson(res, 'publish hotsite');
 }
 
 export async function unpublishHotsite(page: Page): Promise<UnpublishHotsiteResponse> {
-  const res = await page.request.post(`${BFF_URL}/tenants/hotsite/unpublish`);
+  const res = await page.request.post(`${BFF_URL}/tenants/hotsite/unpublish`, {
+    headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
+  });
   return readJson(res, 'unpublish hotsite');
 }
 
@@ -119,6 +128,8 @@ export async function getPublicManifest(
   page: Page,
   slug: string,
 ): Promise<HotsiteManifestResponse> {
-  const res = await page.request.get(`${BFF_URL}/public/platform/manifest/${slug}`);
+  const res = await page.request.get(`${BFF_URL}/public/platform/manifest/${slug}`, {
+    headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
+  });
   return readJson(res, 'get public manifest');
 }

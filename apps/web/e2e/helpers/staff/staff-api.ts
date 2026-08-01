@@ -8,7 +8,7 @@ import type {
   UpdateStaffRequest,
   UpdateStaffResponse,
 } from '@ikaro/types';
-import { BFF_URL } from '../auth/shared';
+import { BFF_URL, WEB_INTERNAL_KEY } from '../auth/shared';
 
 async function readJson<T>(res: APIResponse, action: string): Promise<T> {
   if (!res.ok()) {
@@ -21,7 +21,10 @@ export async function inviteStaff(
   page: Page,
   body: InviteStaffRequest,
 ): Promise<InviteStaffResponse> {
-  const res = await page.request.post(`${BFF_URL}/staff/invite`, { data: body });
+  const res = await page.request.post(`${BFF_URL}/staff/invite`, {
+    data: body,
+    headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
+  });
   return readJson(res, 'invite staff');
 }
 
@@ -30,12 +33,17 @@ export async function updateStaff(
   staffId: string,
   body: UpdateStaffRequest,
 ): Promise<UpdateStaffResponse> {
-  const res = await page.request.patch(`${BFF_URL}/staff/${staffId}`, { data: body });
+  const res = await page.request.patch(`${BFF_URL}/staff/${staffId}`, {
+    data: body,
+    headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
+  });
   return readJson(res, 'update staff');
 }
 
 export async function getStaffMember(page: Page, staffId: string): Promise<StaffResponse> {
-  const res = await page.request.get(`${BFF_URL}/staff/${staffId}`);
+  const res = await page.request.get(`${BFF_URL}/staff/${staffId}`, {
+    headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
+  });
   return readJson(res, 'get staff member');
 }
 
@@ -43,11 +51,15 @@ export async function deactivateStaff(
   page: Page,
   staffId: string,
 ): Promise<DeactivateStaffResponse> {
-  const res = await page.request.patch(`${BFF_URL}/staff/${staffId}/deactivate`);
+  const res = await page.request.patch(`${BFF_URL}/staff/${staffId}/deactivate`, {
+    headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
+  });
   return readJson(res, 'deactivate staff');
 }
 
 export async function activateStaff(page: Page, staffId: string): Promise<ActivateStaffResponse> {
-  const res = await page.request.patch(`${BFF_URL}/staff/${staffId}/activate`);
+  const res = await page.request.patch(`${BFF_URL}/staff/${staffId}/activate`, {
+    headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
+  });
   return readJson(res, 'activate staff');
 }

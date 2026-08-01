@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { loginAsCustomer } from '../auth/customer-login';
 import { uniqueTestEmail } from '../auth';
+import { WEB_INTERNAL_KEY } from '../auth/shared';
 import { completeCustomerProfile } from '../customer';
 import { parseDayOffset } from './slot-seed';
 
@@ -40,6 +41,7 @@ export async function createAuthenticatedBooking(
         serviceIds,
         ...(options.notes ? { notes: options.notes } : {}),
       },
+      headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
     });
 
     if (res.ok()) {

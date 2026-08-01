@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { loginAsStaff } from '../auth/staff-login';
+import { WEB_INTERNAL_KEY } from '../auth/shared';
 import { createAuthenticatedBooking, type AuthenticatedBookingSetup } from './create-booking';
 
 const BFF_URL = process.env.PLAYWRIGHT_BFF_URL ?? 'http://localhost:3002/v1';
@@ -24,6 +25,7 @@ export async function createInfoRequestedBooking(
   await loginAsStaff(page, staffEmail, STAFF_TENANT_SLUG);
   const res = await page.request.patch(`${BFF_URL}/bookings/${setup.bookingId}/request-info`, {
     data: { message },
+    headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
   });
   if (!res.ok()) {
     throw new Error(`request-info setup failed: ${res.status()} ${await res.text()}`);

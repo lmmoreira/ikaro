@@ -1,6 +1,6 @@
 import type { APIResponse, Page } from '@playwright/test';
 import type { TenantSettingsResponse, UpdateTenantSettingsRequest } from '@ikaro/types';
-import { BFF_URL } from '../auth/shared';
+import { BFF_URL, WEB_INTERNAL_KEY } from '../auth/shared';
 
 async function readSettingsResponse(
   res: APIResponse,
@@ -13,7 +13,9 @@ async function readSettingsResponse(
 }
 
 export async function getTenantSettings(page: Page): Promise<TenantSettingsResponse> {
-  const res = await page.request.get(`${BFF_URL}/tenants/settings`);
+  const res = await page.request.get(`${BFF_URL}/tenants/settings`, {
+    headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
+  });
   return readSettingsResponse(res, 'get tenant settings');
 }
 
@@ -21,7 +23,10 @@ export async function updateTenantSettings(
   page: Page,
   body: UpdateTenantSettingsRequest,
 ): Promise<TenantSettingsResponse> {
-  const res = await page.request.patch(`${BFF_URL}/tenants/settings`, { data: body });
+  const res = await page.request.patch(`${BFF_URL}/tenants/settings`, {
+    data: body,
+    headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
+  });
   return readSettingsResponse(res, 'update tenant settings');
 }
 
