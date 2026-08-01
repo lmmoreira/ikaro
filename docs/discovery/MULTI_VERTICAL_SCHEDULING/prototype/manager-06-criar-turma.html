@@ -57,6 +57,14 @@
     row (unchecked for this Pilates example, since it uses none) reusing manager-02's exact
     resource-check-row pattern.
 
+    Fixed on review (2026-08-05): the Instrutor/Sala <select>s showed "elegível para
+    Pilates: ..." with nothing anywhere showing where that eligibility got declared --
+    traced back and found it had genuinely never been modeled: no CAND populated any
+    pool, template-scoped or otherwise. Added a form-hint under Instrutor pointing at
+    manager-02-service-resource-config.html's new eligibility checklist, which is the
+    real origin of this list now (service-scoped, shared by every template of "Aula de
+    Pilates", not redeclared here). See MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md §6 item 15.
+
     COMPONENT (GAP): ClassTemplateForm
     PAGE (GAP): apps/web/app/dashboard/turmas/new/page.tsx
     BFF CALL (GAP): POST /class-templates
@@ -161,6 +169,7 @@
             <option>Camila Duarte</option>
             <option selected>Ana Beatriz</option>
           </select>
+          <p class="form-hint">Pool definido uma vez em Serviços → Aula de Pilates → Configuração de agendamento (manager-02-service-resource-config.html) — esta tela só escolhe um nome dele, não redeclara a lista (CAND-10, CAND-11; corrigido 2026-08-05).</p>
         </div>
 
         <div class="form-group">

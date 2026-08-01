@@ -99,15 +99,26 @@ Forcing session-style bookings to use appointment-style's dynamic computation br
 Service {
   ...                              -- price, loyaltyPointsValue, requiresPickupAddress, isActive: unchanged
   bookingModel:  'APPOINTMENT' | 'SESSION'
-  resourceRequirements: ResourceRequirement[]   -- flat (non-legged) services only
-  legs:          ServiceLeg[] | null            -- mutually exclusive with resourceRequirements + durationMinutes
-  bufferAfterMinutes: int | null                -- see §7; null on legged services (meaningless there)
+  resourceRequirements: ResourceRequirement[]   -- flat (non-legged) APPOINTMENT services only
+  legs:          ServiceLeg[] | null            -- mutually exclusive with resourceRequirements + durationMinutes; APPOINTMENT only
+  bufferAfterMinutes: int | null                -- see §7; null on legged services (meaningless there); APPOINTMENT only
+  classResourceSlots: ClassResourceSlot[] | null -- SESSION services only — see §6; added 2026-08-05
 }
 
 ResourceRequirement {
   type:           ResourceType                  -- LOCATION | STAFF | ROOM | EQUIPMENT
   selectionMode:  NONE | CUSTOMER_CHOICE | AUTO_ANY | AUTO_FUNGIBLE_POOL
   resourcePoolIds: ResourceId[] | null           -- optional restriction to a subset
+}
+
+ClassResourceSlot {
+  slotIndex:            int
+  type:                 ResourceType             -- LOCATION | STAFF | ROOM | EQUIPMENT
+  eligibleResourceIds:  ResourceId[]              -- the pool. No selectionMode — nothing here resolves per
+                                                   -- booking. Declared once per Service, shared by every
+                                                   -- ClassScheduleTemplate of it (§6) — each template picks
+                                                   -- exactly one resourceId per slot from this list, manually,
+                                                   -- once, at template-creation time (CAND-11).
 }
 ```
 
@@ -175,7 +186,12 @@ Four new aggregates, all in the Booking Context:
 ```
 ClassScheduleTemplate {
   templateId, tenantId, serviceId
-  resourceIds:  ResourceId[]        -- the bundle this class always uses, e.g. [instructorResource, roomResource]
+  resourceIds:  ResourceId[]        -- the bundle this class always uses, e.g. [instructorResource, roomResource].
+                                    -- Each entry is one manual pick from that slot's Service.classResourceSlots[i]
+                                    -- pool — corrected 2026-08-05, was originally going to need its own
+                                    -- per-template pool until that turned out to have no CAND populating it and
+                                    -- to force re-curating the same list separately per template of one service
+                                    -- (MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md §6 item 15).
   recurrence:   RecurrenceRule      -- e.g. weekly on [MON, WED, FRI] at 08:00
   capacity:     int
   validFrom / validUntil: Date | null
@@ -304,7 +320,7 @@ Effective gap before the next booking on a resource, for a flat (non-legged) ser
 4. **Lowering a `ClassSession`'s capacity below its current `bookedCount`** (an instance override) — what happens to the customers now over capacity? No clean answer without a business decision (bump to waitlist? grandfather them in?).
 5. **Cancelling a `ClassSession` that already has bookings** — refund policy, notification, whether affected customers get auto-offered another session. Same shape of question as #4 but triggered by the manager cancelling the whole session rather than shrinking it.
 6. **Multi-location resource ownership** — ties directly to the open decision already logged in `CLAUDE.md` §12 ("Multiple locations per tenant = separate tenants or sub-tenant model?"). The `Resource` model should leave room for a location dimension later, not attempt to resolve §12 here.
-7. **SESSION-type services have no formal eligible-resource-pool concept.** Surfaced while prototyping a CrossFit template with three eligible instructors (Bruno/João/Fábio), visible on two resource types, not one: `manager-06-criar-turma.html`'s create-turma screen labels its Instrutor field "elegível para Pilates: Camila, Ana" and its Sala field "elegível para Pilates: Estúdio 1, Estúdio 2" — real UI text implying a per-type pool that nothing in the schema declared at the time. **Resolved (2026-08-05):** see `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md`'s `class_schedule_template_slots` / `class_schedule_template_slot_pool` tables — each template slot now has its own resolved resource plus the eligible pool it was drawn from, mirroring `ResourceRequirement.resourcePoolIds`'s shape one level deeper, generalized to `EQUIPMENT` as well as `STAFF`/`ROOM`.
+7. **SESSION-type services have no formal eligible-resource-pool concept.** Surfaced while prototyping a CrossFit template with three eligible instructors (Bruno/João/Fábio), visible on two resource types, not one: `manager-06-criar-turma.html`'s create-turma screen labels its Instrutor field "elegível para Pilates: Camila, Ana" and its Sala field "elegível para Pilates: Estúdio 1, Estúdio 2" — real UI text implying a pool that nothing in the schema declared at the time. **Resolved (2026-08-05, corrected same day):** first modeled as a pool scoped to each `ClassScheduleTemplate` — that turned out wrong on two counts: no CAND ever populated it, and it would force re-declaring the same "who can teach Pilates" list separately for every template of one service. Corrected to `Service.classResourceSlots` above — declared once per service, shared by every template of it, filled by the same eligibility checklist `CAND-06` already uses for the flat/APPOINTMENT case (`manager-02-service-resource-config.html`, extended to the SESSION branch). See `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §6 item 15 for the full correction.
 8. **`Resource` has no `maxCapacity`.** Nothing constrains a `ClassScheduleTemplate.capacity` against the physical size of the resource it uses — a manager could set `capacity: 50` for a class using a room that fits 4, with no validation catching it.
 9. **CAND-04's actor scoping.** Group A (Resource Management) is uniformly MANAGER-only, but blocking a `STAFF` resource's *own* calendar (a stylist marking herself unavailable) reads as a natural self-service action — unlike blocking a `ROOM`/`EQUIPMENT` resource, which has no self and stays administrative regardless. Not resolved; CAND-04 still says MANAGER-only.
 10. **CAND-17b's tie-breaking rule.** When a service auto-assigns a named staff member (`AUTO_ANY`) and more than one eligible staff member is free for the chosen slot, who gets picked — least-recently-booked, round robin, something else? Not decided.

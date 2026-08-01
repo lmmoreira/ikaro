@@ -163,11 +163,13 @@ CAND-XX: [Name]
 - **Main Flow:**
   1. Manager picks `APPOINTMENT` (a private appointment, today's default) or `SESSION` (a class with capacity).
   2. If `APPOINTMENT`: proceeds to CAND-06 (or CAND-08 for legs).
-  3. If `SESSION`: no resource requirement is set on the `Service` itself — manager is prompted to create a `ClassScheduleTemplate` next (CAND-11).
+  3. If `SESSION`: manager declares this service's eligible resource pool per slot (e.g. an instructor slot, a room slot, optionally an equipment slot) — same eligibility checklist screen `CAND-06` uses for the flat case, just without a selection mode, since nothing here resolves dynamically per booking. No `resourceRequirements` is set on the `Service` itself; the manager is then prompted to create a `ClassScheduleTemplate` next (CAND-11), which picks exactly one resource per slot from this pool.
 - **Alternative Flows:**
   - **A1: Manager tries to change `bookingModel` on a service with existing bookings** → System blocks; booking model is immutable once the service has history.
-- **Postconditions:** Service exists with a fixed `bookingModel`.
+- **Postconditions:** Service exists with a fixed `bookingModel`; if `SESSION`, its per-slot eligible pool is declared and ready for `CAND-11` to draw from.
 - **Events Triggered:** None.
+
+> **Corrected 2026-08-05:** step 3 originally said nothing about a pool at all — resource eligibility for a `SESSION` service was assumed to live on the `ClassScheduleTemplate` instead (CAND-11), which turned out to have no step that ever declared it either. Moving the pool here, to the service level, means Vitta Studio's "Aula de Pilates" declares its eligible instructors (Camila, Ana Beatriz) and rooms (Estúdio 1, Estúdio 2) *once* — both `tpl_pilates_estudio1` and `tpl_pilates_estudio2` (CAND-11) then each pick one name from that same shared list, rather than the pool needing separate re-declaration per template. See `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §6 item 15 for the full correction.
 
 ---
 
@@ -179,7 +181,7 @@ CAND-XX: [Name]
 - **Preconditions:** Service exists with `bookingModel = SESSION`.
 - **Trigger:** Manager sets up the class's recurring pattern.
 - **Main Flow:**
-  1. Manager selects the resource bundle this class always uses (e.g. instructor + room, optionally a third resource like equipment — `resourceIds` is an open-ended array, not capped at 2).
+  1. For each slot in this service's already-declared eligible pool (CAND-10 step 3 — e.g. instructor, room, optionally equipment), manager picks exactly one resource. The picker only ever shows that pool's members, never every resource of that type tenant-wide — `resourceIds` ends up an open-ended array, not capped at 2, but each entry is one pick from its own slot's pool.
   2. Manager sets a recurrence rule (days of week, start time — duration comes from `Service.durationMinutes`).
   3. Manager sets `capacity`.
   4. System creates the `ClassScheduleTemplate`, `isActive = true`.

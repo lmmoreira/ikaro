@@ -169,27 +169,52 @@ For `ServiceLeg[]` (domain doc §5). **Corrected from an earlier draft of this d
 
 `tpl_crossfit_fabio` is Fábio Ramos's template already shown on `manager-03-class-templates.html` ("até 30/09/2026 (turma de 6 semanas)") — a concrete `valid_until` in use, not a hypothetical one.
 
-### `booking.class_schedule_template_slots` / `booking.class_schedule_template_slot_pool`
+### `booking.service_class_resource_pool`
 
-The template's resolved bundle **and** the eligible pool each slot was drawn from — the concrete fix for domain doc §9 item 7 (surfaced by `manager-06-criar-turma.html`'s "elegível para Pilates: Camila, Ana" text having nothing in the schema behind it).
+The eligible-resource pool for a SESSION-model service's slots — declared **once per service**, shared by every `ClassScheduleTemplate` of that service. **Corrected from an earlier draft of this document** — see §6 item 15: the pool was originally scoped to `template_id`, which had two real problems (no `CAND` ever populated it, and it forced re-curating the same eligibility list separately for every template of the same service). Scoping to `service_id` instead reuses the same "who's eligible" question the flat/APPOINTMENT case already answers via `service_resource_requirements`/pool — just without a `selection_mode`, since nothing here resolves dynamically per booking; a template's slot is picked once, manually, by a manager (CAND-11), from this pool.
 
-| Table | Column | Type | Constraints |
-|---|---|---|---|
-| `class_schedule_template_slots` | id | UUID | PRIMARY KEY |
-| | tenant_id | UUID | NOT NULL |
-| | template_id | UUID | NOT NULL — FK → `class_schedule_templates` |
-| | slot_index | INT | NOT NULL — 0 = instructor, 1 = room, 2 = optional equipment, etc. |
-| | resource_type | VARCHAR(20) | NOT NULL |
-| | resource_id | UUID | NOT NULL — the one resource actually picked for this slot |
-| | **UNIQUE** | (tenant_id, template_id, slot_index) | |
-| `class_schedule_template_slot_pool` | tenant_id | UUID | NOT NULL |
-| | slot_id | UUID | NOT NULL — FK → `class_schedule_template_slots` |
-| | resource_id | UUID | NOT NULL |
-| | **PK** | (tenant_id, slot_id, resource_id) | |
+| Column | Type | Constraints |
+|---|---|---|
+| tenant_id | UUID | NOT NULL |
+| service_id | UUID | NOT NULL — FK (tenant_id, service_id) → `services` |
+| slot_index | INT | NOT NULL — 0 = instructor, 1 = room, 2 = optional equipment, etc.; the slot *shape* (how many, what types) is a property of the service, shared by every template of it |
+| resource_type | VARCHAR(20) | NOT NULL |
+| resource_id | UUID | NOT NULL — FK (tenant_id, resource_id) → `resources` |
+| **PK** | (tenant_id, service_id, slot_index, resource_id) | |
+| **INDEX** | (tenant_id, service_id, slot_index) | Feeds the "who's eligible" picker on `manager-06-criar-turma.html` |
+
+**Example data — Aula de Pilates and CrossFit:**
+
+| service_id | slot_index | resource_type | resource_id | (name) |
+|---|---|---|---|---|
+| svc_pilates | 0 | STAFF | res_staff_camila | Camila Duarte |
+| svc_pilates | 0 | STAFF | res_staff_ana | Ana Beatriz |
+| svc_pilates | 1 | ROOM | res_room_estudio1 | Estúdio 1 |
+| svc_pilates | 1 | ROOM | res_room_estudio2 | Estúdio 2 |
+| svc_crossfit | 0 | STAFF | res_staff_bruno | Bruno Alves |
+| svc_crossfit | 0 | STAFF | res_staff_joao | João Mendes |
+| svc_crossfit | 0 | STAFF | res_staff_fabio | Fábio Ramos |
+| svc_crossfit | 1 | ROOM | res_room_crossfit | Área CrossFit |
+| svc_crossfit | 2 | EQUIPMENT | res_equip_halteres_r1 | Kit Halteres (Rack 1) |
+| svc_crossfit | 2 | EQUIPMENT | res_equip_halteres_r2 | Kit Halteres (Rack 2) |
+
+Filled on `manager-02-service-resource-config.html` — the same screen and checklist mechanism `CAND-06` step 3 already uses for the flat case, extended to also cover the `SESSION` branch instead of showing only a static handoff card.
+
+### `booking.class_schedule_template_slots`
+
+The template's own resolved pick per slot — one specific answer, not a list. Each row's `resource_id` must be a member of `service_class_resource_pool` for that same `(service_id, slot_index)` — app-enforced, not a DB constraint (Postgres can't express a cross-table CHECK), same pattern as this codebase's other aggregate-enforced invariants.
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL |
+| template_id | UUID | NOT NULL — FK → `class_schedule_templates` |
+| slot_index | INT | NOT NULL — 0 = instructor, 1 = room, 2 = optional equipment, etc. |
+| resource_type | VARCHAR(20) | NOT NULL |
+| resource_id | UUID | NOT NULL — the one resource actually assigned to this template's slot |
+| **UNIQUE** | (tenant_id, template_id, slot_index) | |
 
 **Example data — Pilates (2 slots, no equipment) vs. CrossFit (3 slots):**
-
-`class_schedule_template_slots`:
 
 | template_id | slot_index | resource_type | resource_id |
 |---|---|---|---|
@@ -199,21 +224,7 @@ The template's resolved bundle **and** the eligible pool each slot was drawn fro
 | tpl_crossfit_fabio | 1 | ROOM | res_room_crossfit |
 | tpl_crossfit_fabio | 2 | EQUIPMENT | res_equip_halteres_r1 |
 
-`class_schedule_template_slot_pool` (the eligible set each slot was drawn from):
-
-| slot (template, slot_index) | resource_id | (name) |
-|---|---|---|
-| (tpl_pilates_estudio1, 0) | res_staff_camila | Camila Duarte |
-| (tpl_pilates_estudio1, 0) | res_staff_ana | Ana Beatriz |
-| (tpl_pilates_estudio1, 1) | res_room_estudio1 | Estúdio 1 |
-| (tpl_pilates_estudio1, 1) | res_room_estudio2 | Estúdio 2 |
-| (tpl_crossfit_fabio, 0) | res_staff_bruno | Bruno Alves |
-| (tpl_crossfit_fabio, 0) | res_staff_joao | João Mendes |
-| (tpl_crossfit_fabio, 0) | res_staff_fabio | Fábio Ramos |
-| (tpl_crossfit_fabio, 2) | res_equip_halteres_r1 | Kit Halteres (Rack 1) |
-| (tpl_crossfit_fabio, 2) | res_equip_halteres_r2 | Kit Halteres (Rack 2) |
-
-Camila was picked for `tpl_pilates_estudio1` even though Ana was also eligible; Fábio was picked for this CrossFit template even though Bruno and João were also eligible — matching `manager-03`'s "(1 de 3 elegíveis)" text exactly. Note Pilates has **no** `slot_index = 2` row at all — no equipment slot, because nothing about Pilates is independently contended beyond the room's own fixed capacity (see the STAFF+ROOM-only discussion earlier in this conversation).
+Camila was picked for `tpl_pilates_estudio1` even though Ana was also eligible (both are in `svc_pilates`'s shared pool above); Fábio was picked for this CrossFit template even though Bruno and João were also eligible — matching `manager-03`'s "(1 de 3 elegíveis)" text exactly, and the same pool any *other* future CrossFit template would draw from too. Note Pilates has **no** `slot_index = 2` row at all — no equipment slot, because nothing about Pilates is independently contended beyond the room's own fixed capacity (see the STAFF+ROOM-only discussion earlier in this conversation).
 
 ### `booking.class_sessions`
 
@@ -389,15 +400,16 @@ Snapshotted straight from `tpl_pilates_estudio1`'s slots at generation time. CAN
 2. `services` `+booking_model +buffer_after_minutes` (independent expand)
 3. `service_resource_requirements` + pool (depends on `resources`, `services`)
 4. `service_legs` + `service_leg_resource_requirements` + pool (depends on `resources`, `services`)
-5. `class_schedule_templates` (depends on `services`)
-6. `class_schedule_template_slots` + pool (depends on templates, `resources`)
-7. `class_sessions` (depends on templates, `services`)
-8. `class_session_resources` (depends on sessions, `resources`)
-9. `resource_occupancy` (depends on `resources`, `booking_lines`, `class_sessions` — must run after both exist)
-10. `session_bookings` (depends on `class_sessions`)
-11. `recurring_enrollments` (depends on `class_schedule_templates`)
-12. `schedule_closures` / `schedule_openings` `+resource_id` (expand; includes the openings partial-index fix)
-13. `loyalty.loyalty_entries` `+session_booking_id` (separate context — no DB FK across schemas either way, but logically sequenced after `session_bookings` exists)
+5. `service_class_resource_pool` (depends on `resources`, `services`)
+6. `class_schedule_templates` (depends on `services`)
+7. `class_schedule_template_slots` (depends on templates, `resources`)
+8. `class_sessions` (depends on templates, `services`)
+9. `class_session_resources` (depends on sessions, `resources`)
+10. `resource_occupancy` (depends on `resources`, `booking_lines`, `class_sessions` — must run after both exist)
+11. `session_bookings` (depends on `class_sessions`)
+12. `recurring_enrollments` (depends on `class_schedule_templates`)
+13. `schedule_closures` / `schedule_openings` `+resource_id` (expand; includes the openings partial-index fix)
+14. `loyalty.loyalty_entries` `+session_booking_id` (separate context — no DB FK across schemas either way, but logically sequenced after `session_bookings` exists)
 
 ---
 
@@ -454,11 +466,13 @@ This still leaves exactly one case with no DB backstop: an appointment booked ag
 
 14. **Prototype display bug, found while grounding the `session_bookings` example above — fixed (2026-08-05).** `staff-02-session-roster.html`, `staff-04-turmas-proximas.html` (two cards — the "Hoje" listing and the "Turmas passadas" entry), and `staff-02b-fechar-turma.html` all showed "3 de 4"/"3/4 vagas preenchidas" (75% bar) for the same underlying session, but its three confirmed rows (Fernanda ×1, Roberta ×1, Ana & Bia ×2) sum to 4 — genuinely full, which is also the correct reason Marcos Tanaka is waitlisted rather than confirmed. Not a data-model issue, but the bug spanned three files sharing the same wrong number, not one. All three now show 4/4 (100%); `staff-04`'s two cards additionally now use its own already-defined but previously-unused `.capacity-bar-fill.full`/red styling, matching the "Lotada" convention already established in `public-02-class-session-picker.html`.
 
+15. **The original fix for §9 item 7, which this doc had marked "Resolved," was itself wrong — corrected mid-conversation (2026-08-05).** The first draft of this doc scoped the eligible pool to `template_id` (`class_schedule_template_slot_pool`). Two problems surfaced on review: (a) no `CAND` ever populated it — `CAND-11`'s main flow only ever picks a resource, never declares a pool, so the table had a schema with no write path anywhere; (b) scoping per-template meant re-curating the same "who can teach Pilates" list separately for every template of the same service, with real drift risk (a newly-qualified instructor would need adding to each template's own pool individually, rather than once). Corrected: the pool moved to `service_class_resource_pool`, scoped by `service_id` — declared once, shared by every template of that service, filled by the same `manager-02` checklist mechanism `CAND-06` step 3 already uses for the flat case. `class_schedule_template_slots` keeps storing only the one resolved pick per template, now validated against the service-level pool instead of a redundant one of its own. This is also a reminder that marking something "Resolved" in this doc means the schema was designed, not that it was verified against every use case that would actually populate it — worth double-checking that in future entries too.
+
 ---
 
 ## 7. Relationship to domain doc §9 (Open Questions)
 
 - **§9.1 (`LOCATION` backfill)** — informed by §6 item 6 above: backfilling is useful for giving normalized requirement/pool tables something to reference, but does not resolve or replace the separate `resourceId IS NULL` "everything" sentinel on closures/openings. Still an open product decision on backfill itself; this doc only clarifies that the two concepts don't collapse into one.
-- **§9.7 (SESSION-type resource pool)** — resolved concretely by `class_schedule_template_slots` / `class_schedule_template_slot_pool` above, generalized to any resource type including `EQUIPMENT`.
+- **§9.7 (SESSION-type resource pool)** — resolved concretely by `service_class_resource_pool` (service-scoped, not template-scoped — see §6 item 15 for the mid-course correction) plus `class_schedule_template_slots`' resolved pick, generalized to any resource type including `EQUIPMENT`.
 - **§9.8 (`Resource.maxCapacity`)** — deliberately left out of `resources` above; adding it later is a pure additive/expand migration once the product decision is made, so no schema work is blocked on it today.
 - **§9.2–§9.6, §9.9–§9.10** — unaffected by the physical schema; still open at the product/business-rule level, not the data-model level.
