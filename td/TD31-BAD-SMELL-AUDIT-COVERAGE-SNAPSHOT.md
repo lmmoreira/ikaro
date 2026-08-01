@@ -685,7 +685,9 @@ Item 4 (JWT runtime shape validation) landed as specced: `jwt.strategy.ts`'s `va
 
 The 6 ⚪ rows were re-verified directly against source (not just re-read from the audit's word) to check whether "stylistic" was the right call for all of them. Two turned out to be genuinely dead code — real, zero-risk, one-line-each fixes that just happen to be trivial rather than not real. The other 4 are confirmed correctly excluded: either purely cosmetic with real ripple cost (Backend 1.4), explicitly judgment-call/plausibly-intentional (Backend 6.1), message-text-only duplication with the actual logic already centralized (Backend 6.2), or a real observation whose "fix" is actually a bigger design decision (splitting a controller) than the finding implies (BFF H1) — none of these 4 get a story.
 
-### Story 21 — Delete two confirmed-dead pieces of code ⚪→real, trivial
+### Story 21 — Delete two confirmed-dead pieces of code ⚪→real, trivial ✅ Done
+
+**Landed**: PR #300 (2026-08-01), `td31-pr10-dead-code` (worktree removed post-merge). Implemented as specced, plus a type-check ripple not called out in the original story text: 3 test mocks typed against `ServiceDetail` also had `formatted` stripped (the 2 `services.public.controller*.spec.ts` mocks were correctly left untouched — they're typed against the unrelated `HotsiteServiceResponse`/`Money`). Codex's cross-tool review (5 lens runs, 0 critical throughout) caught one real stale-doc reference — `plan/M00-MONOREPO-FOUNDATION_IMPLEMENTATION_DETAILS_IA.md:189` still said `JWT_COOKIE_OPTIONS` was declared in `main.ts` — fixed in the same PR. A second recurring review note (mapper spec no longer exercises "drops `formatted`") was judged not applicable: the field no longer exists on `ServiceDetail` at all, so the type system now provides a stronger guarantee than the runtime test it replaced.
 
 **Source**: BFF C7, BFF G1
 
@@ -793,7 +795,7 @@ Grouping rule: two stories collapse into **one PR** only when they genuinely sha
 | **PR 7** | Story 14 | `provision-tenant.dto.ts`, `update-tenant-settings.dto.ts`, 4 schedule/availability DTOs, 5 BFF schedule/booking controller files |
 | **PR 8** | Story 17 (minus the `E2` slice already folded into PR 3) | `customer.controller.ts`, `loyalty.controller.ts` (backend), `platform.public.controller.ts`, 4 `schedule*.controller.ts` files, `backend-http.service.ts` |
 | **PR 9** | Story 19 | `test/infrastructure/in-memory-loyalty-*` (moved to `test/repositories/loyalty/`), new `test/builders/staff/staff-{activated,deactivated}-event.builder.ts` |
-| **PR 10** | Story 21 | `services.types.ts`, `services.mapper.ts`, `main.ts` — trivial, zero risk, could honestly go first of anything in this whole plan if you want an easy warm-up PR |
+| **PR 10** ✅ | Story 21 | `services.types.ts`, `services.mapper.ts`, `main.ts` — trivial, zero risk, could honestly go first of anything in this whole plan if you want an easy warm-up PR. **Merged as [#300](https://github.com/lmmoreira/ikaro/pull/300), 2026-08-01.** |
 | **PR 11** | Story 10 | `booking-completed.handler.integration.spec.ts`, delete `apps/web/app/not-found.spec.tsx` |
 
 ### Wave 6 — Web (3 PRs — the rename pair collapses, the other two stay separate)
