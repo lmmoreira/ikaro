@@ -386,7 +386,6 @@ jobs:
       contents: read
       id-token: write # mints the short-lived WIF token for google-github-actions/auth
     outputs:
-      bff_url: ${{ steps.bff-url.outputs.url }}
       web_url: ${{ steps.web-url.outputs.url }}
     steps:
       - name: Authenticate as app-deployer (staging)
@@ -436,18 +435,13 @@ jobs:
             --region "$GCP_REGION" \
             --project "$GCP_PROJECT_STAGING"
 
-      # *.run.app URLs are a per-project random hash (M17-S18/S25 findings)
+      # *.run.app URL is a per-project random hash (M17-S18/S25 findings)
       # — read back live rather than hardcoded, so smoke always targets
-      # the real current URL.
-      - name: Resolve bff URL
-        id: bff-url
-        run: |
-          URL=$(gcloud run services describe ikaro-bff \
-            --region "$GCP_REGION" \
-            --project "$GCP_PROJECT_STAGING" \
-            --format='value(status.url)')
-          echo "url=$URL" >> "$GITHUB_OUTPUT"
-
+      # the real current URL. BFF has no equivalent step: it's
+      # INGRESS_TRAFFIC_INTERNAL_ONLY (TD38) with no public invoker, so
+      # nothing outside the VPC — including this runner — can resolve or
+      # reach it directly; smoke below reaches it only through web's own
+      # /v1 gateway.
       - name: Resolve web URL
         id: web-url
         run: |
@@ -498,7 +492,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      BFF_URL: ${{ needs.migrate-and-deploy.outputs.bff_url }}
       WEB_URL: ${{ needs.migrate-and-deploy.outputs.web_url }}
     steps:
       # Retry budget sized to the startup probe's own 180s window
@@ -508,10 +501,17 @@ jobs:
       # own readiness wait, so a genuine cold start is realistic here too,
       # not just at first deploy. --max-time caps a single hung attempt
       # from silently consuming the whole retry budget.
+      #
+      # TD38: BFF is INGRESS_TRAFFIC_INTERNAL_ONLY with no public invoker —
+      # a direct curl to its own *.run.app URL from this runner 404s at the
+      # ingress layer. Routed through web's /v1 gateway instead, the same
+      # (and only) path any real caller reaches BFF through — this also
+      # exercises the IAM token + X-Web-Internal-Key attachment end to end,
+      # not just BFF's own liveness.
       - name: Smoke test bff
         run: |
           curl -f --retry 20 --retry-delay 10 --retry-connrefused --max-time 15 \
-            "${BFF_URL}/v1/health/ready"
+            "${WEB_URL}/v1/health/ready"
 
       - name: Smoke test web
         run: |
