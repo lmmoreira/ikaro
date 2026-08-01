@@ -1,5 +1,7 @@
 # TD36 — Cloud Run GCS Signed-URL Authentication Failure
 
+## Status
+- **State**: ✅ Done
 **Status:** Completed — signed-URL fix implemented in PR #271; attachment API auth follow-up implemented on `fix/gcs_all_operations`
 **Affected environments:** Cloud Run staging and production  
 **Affected capability:** GCS V4 signed URLs for booking attachments and hotsite assets

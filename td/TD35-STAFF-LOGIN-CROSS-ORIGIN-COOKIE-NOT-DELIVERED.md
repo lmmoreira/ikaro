@@ -1,7 +1,7 @@
 # TD35 — Staff Login: Cross-Origin Session Cookie Never Reaches the Web App
 
 ## Status
-
+- **State**: ✅ Done
 Done. Implemented and merged in PR #262 (`fix(auth): route BFF traffic through
 same-origin gateway (TD35)`) on 2026-07-25. The web-side `/v1/*` gateway is
 the public browser contract in staging and production; browser traffic no
