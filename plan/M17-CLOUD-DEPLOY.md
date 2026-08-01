@@ -74,15 +74,21 @@
 
  Each Cloud Run service = app container + otel-collector sidecar (OTLP in → Cloud Trace/Monitoring out)
  Logs: structured JSON stdout → Cloud Logging (automatic). CI → GCP: Workload Identity Federation.
- STAGING: same minus Cloudflare/ALB — services on *.run.app URLs (web/BFF public, backend internal).
+ STAGING: same minus Cloudflare/ALB — services on *.run.app URLs (web public, backend internal).
 ```
+
+**Updated (`TD38`, staging):** BFF is no longer public in staging — `INGRESS_TRAFFIC_INTERNAL_ONLY`,
+`allUsers` public invoker grant removed. The only caller is `ikaro-web`'s IAM-authenticated
+server-side call (plus an app-layer shared-secret guard). See
+`td/TD38-BFF-CLIENT-IP-RESOLUTION-BROKEN-BY-SAME-ORIGIN-GATEWAY.md`. Prod is unchanged (Story B,
+not yet done) — still `INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER` with BFF reachable via the ALB.
 
 ### Hostnames & URLs
 
 | Env | web | BFF | backend |
 |---|---|---|---|
-| staging | `https://ikaro-web-<hash>-rj.a.run.app` | `https://ikaro-bff-<hash>-rj.a.run.app` | internal only |
-| prod | `https://ikaro.online` | `https://bff.ikaro.online` | internal only |
+| staging | `https://ikaro-web-<hash>-rj.a.run.app` | `https://ikaro-bff-<hash>-rj.a.run.app` (internal-only as of TD38 — not publicly reachable despite the `*.run.app` hostname existing) | internal only |
+| prod | `https://ikaro.online` | `https://bff.ikaro.online` (still public — Story B pending) | internal only |
 
 > **Staging cookie caveat (accepted):** web and BFF on `*.run.app` are different *sites* (`run.app` is on the Public Suffix List), so the BFF auth cookie is third-party there. Works in Chrome (current default policy); blocked in Safari/strict modes. Solo-dev testing on Chrome is fine. Escape hatch if it ever blocks work: instantiate the edge module for staging (+~$18/mo) — config-only.
 
@@ -370,6 +376,8 @@ Bind `ThrottlerGuard` globally (`APP_GUARD`) and finalize:
 **Rationale for simplification (2026-07-18 discussion):** rate limiting was found to conflate three distinct problems — volumetric DDoS (Cloudflare's job, not app code), the serverless "denial of wallet" risk (bounded by `max_instances` + billing budget alerts, not the throttler), and targeted low-rate application abuse (brute force, signed-URL spam) — which is the *only* problem this story actually solves, because it's the only one invisible to an edge/WAF. General per-IP edge-level throttling belongs in **Cloud Armor rate-based rules** once the edge exists in prod (S22/S36) — defense-in-depth, not built here; tracked as a small scope addition to those stories, not this one. Staging has no edge at all (no Cloudflare/ALB, D5) and no near-term plan to add one purely for rate-limiting parity (would triple staging's cost for a problem that doesn't exist pre-launch) — so this BFF-level throttle remains staging's *only* limiter, which is why it must be real, not decorative.
 
 **Client-IP extraction (added 2026-07-07 — per-IP tiers are useless or spoofable if this is wrong):** behind the prod chain (Cloudflare → ALB → Cloud Run) the socket peer is never the client. Resolve the throttle key in one env-selected helper (`APP_ENV`): **prod** keys on `CF-Connecting-IP` — trustworthy *only* because S36 origin lockdown guarantees traffic entered via Cloudflare (state the coupling in a code comment); **staging** (no Cloudflare/ALB) keys on the rightmost `X-Forwarded-For` hop, appended by Cloud Run's front end; the leftmost XFF value is attacker-controlled and must never be trusted. Unit-test all branches.
+
+**Superseded (`TD38`, staging, 2026-07-31):** the CF-Connecting-IP/rightmost-XFF derivation above described in this story was verified live in M17-S27 (PR #281) and found broken — every real caller reaches BFF through `ikaro-web`'s same-origin gateway, which opens a *new* connection from `ikaro-web` itself, so neither raw proxy header ever carried the real browser IP. `apps/bff/src/shared/http/client-ip.ts` no longer derives anything from `X-Forwarded-For`/`CF-Connecting-IP` in staging — it trusts a new `X-Real-Client-Ip` header that `ikaro-web` resolves (using this same derivation logic, now relocated to `packages/http-utils`) on the genuinely trustworthy browser→web hop and forwards, now that BFF's staging ingress only accepts calls from `ikaro-web`. See `td/TD38-BFF-CLIENT-IP-RESOLUTION-BROKEN-BY-SAME-ORIGIN-GATEWAY.md`. Prod is unchanged (Story B pending) — still uses `CF-Connecting-IP` as described above.
 
 **Acceptance criteria:**
 - [ ] `ThrottlerGuard` bound globally; confirm via a spec that an unthrottled route 61st request in a minute → 429 (proves the guard is actually active, not just configured)

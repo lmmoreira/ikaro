@@ -59,7 +59,11 @@ describe('POST /api/auth/switch-staff-tenant', () => {
       `${BFF_URL}/auth/switch-staff-tenant`,
       expect.objectContaining({
         method: 'POST',
-        headers: { Cookie: 'access_token=signed-jwt', 'Content-Type': 'application/json' },
+        headers: {
+          Cookie: 'access_token=signed-jwt',
+          'Content-Type': 'application/json',
+          'x-web-internal-key': 'test-web-internal-key-test-web-internal-key',
+        },
         body: JSON.stringify({ staffId: 'staff-uuid' }),
         cache: 'no-store',
         signal: expect.any(AbortSignal),

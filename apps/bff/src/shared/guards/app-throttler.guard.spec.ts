@@ -33,16 +33,16 @@ describe('AppThrottlerGuard', () => {
     });
   });
 
-  describe('getTracker()', () => {
-    it('resolves the client IP via CF-Connecting-IP in production', async () => {
+  describe('getTracker() (TD38: trusts ikaro-web-forwarded X-Real-Client-Ip)', () => {
+    it('resolves the client IP via X-Real-Client-Ip, regardless of APP_ENV', async () => {
       guard = makeGuard('production');
       const tracker = await (
         guard as unknown as { getTracker: (req: unknown) => Promise<string> }
-      ).getTracker({ headers: { 'cf-connecting-ip': '203.0.113.10' }, ip: '10.0.0.1' });
+      ).getTracker({ headers: { 'x-real-client-ip': '203.0.113.10' }, ip: '10.0.0.1' });
       expect(tracker).toBe('203.0.113.10');
     });
 
-    it('resolves the client IP via the rightmost X-Forwarded-For hop in staging', async () => {
+    it('ignores X-Forwarded-For entirely — meaningless post-TD38 lockdown', async () => {
       guard = makeGuard('staging');
       const tracker = await (
         guard as unknown as { getTracker: (req: unknown) => Promise<string> }
@@ -50,10 +50,10 @@ describe('AppThrottlerGuard', () => {
         headers: { 'x-forwarded-for': '198.51.100.1, 203.0.113.99' },
         ip: '10.0.0.1',
       });
-      expect(tracker).toBe('203.0.113.99');
+      expect(tracker).toBe('10.0.0.1');
     });
 
-    it('defaults to local (rightmost-XFF behavior) when APP_ENV is unset', async () => {
+    it('falls back to req.ip when the header is genuinely absent (e.g. local dev, no gateway)', async () => {
       guard = makeGuard(undefined);
       const tracker = await (
         guard as unknown as { getTracker: (req: unknown) => Promise<string> }
@@ -61,18 +61,16 @@ describe('AppThrottlerGuard', () => {
       expect(tracker).toBe('127.0.0.1');
     });
 
-    it('debug-logs the raw X-Forwarded-For header and resolved IP (M17-S27 verification)', async () => {
+    it('debug-logs the X-Real-Client-Ip header and resolved IP', async () => {
       guard = makeGuard('staging');
       const logger = (guard as unknown as { logger: { debug: jest.Mock } }).logger;
       const debugSpy = jest.spyOn(logger, 'debug');
       await (guard as unknown as { getTracker: (req: unknown) => Promise<string> }).getTracker({
-        headers: { 'x-forwarded-for': '198.51.100.1, 203.0.113.99' },
+        headers: { 'x-real-client-ip': '203.0.113.99' },
         ip: '10.0.0.1',
       });
       expect(debugSpy).toHaveBeenCalledWith(
-        expect.stringContaining(
-          'x-forwarded-for="198.51.100.1, 203.0.113.99" resolved="203.0.113.99"',
-        ),
+        expect.stringContaining('x-real-client-ip="203.0.113.99" resolved="203.0.113.99"'),
       );
     });
 
@@ -81,7 +79,7 @@ describe('AppThrottlerGuard', () => {
       const logger = (guard as unknown as { logger: { debug: jest.Mock } }).logger;
       const debugSpy = jest.spyOn(logger, 'debug');
       await (guard as unknown as { getTracker: (req: unknown) => Promise<string> }).getTracker({
-        headers: { 'cf-connecting-ip': '203.0.113.10' },
+        headers: { 'x-real-client-ip': '203.0.113.10' },
         ip: '10.0.0.1',
       });
       expect(debugSpy).toHaveBeenCalledWith(expect.stringContaining('resolved="203.0.113.10"'));

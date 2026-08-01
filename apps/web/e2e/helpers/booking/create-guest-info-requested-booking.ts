@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { loginAsStaff } from '../auth/staff-login';
 import { uniqueTestEmail } from '../auth';
+import { WEB_INTERNAL_KEY } from '../auth/shared';
 import { parseDayOffset } from './slot-seed';
 
 const BFF_URL = process.env.PLAYWRIGHT_BFF_URL ?? 'http://localhost:3002/v1';
@@ -28,7 +29,7 @@ export async function createGuestInfoRequestedBooking(
   for (let attempt = 0; attempt < 12; attempt += 1) {
     const scheduledAt = parseDayOffset(5, `${contactEmail}:${attempt}`);
     const res = await page.request.post(`${BFF_URL}/bookings`, {
-      headers: { 'X-Tenant-Slug': TENANT_SLUG },
+      headers: { 'X-Tenant-Slug': TENANT_SLUG, 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
       data: {
         contactEmail,
         contactName: 'E2E Guest',
@@ -60,6 +61,7 @@ export async function createGuestInfoRequestedBooking(
   await loginAsStaff(page, staffEmail, TENANT_SLUG);
   const res = await page.request.patch(`${BFF_URL}/bookings/${bookingId}/request-info`, {
     data: { message },
+    headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
   });
   if (!res.ok()) {
     throw new Error(`request-info setup failed: ${res.status()} ${await res.text()}`);

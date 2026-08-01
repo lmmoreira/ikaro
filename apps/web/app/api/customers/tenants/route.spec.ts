@@ -48,7 +48,10 @@ describe('GET /api/customers/tenants', () => {
     expect(fetchSpy).toHaveBeenCalledWith(
       `${BFF_URL}/customers/tenants`,
       expect.objectContaining({
-        headers: { Cookie: 'access_token=signed-jwt' },
+        headers: {
+          Cookie: 'access_token=signed-jwt',
+          'x-web-internal-key': 'test-web-internal-key-test-web-internal-key',
+        },
         cache: 'no-store',
         signal: expect.any(AbortSignal),
       }),

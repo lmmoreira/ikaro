@@ -1,8 +1,20 @@
 import { NextRequest } from 'next/server';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const getBffAuthorizationHeader = vi.hoisted(() => vi.fn());
+
+vi.mock('@/shared/lib/auth/google-identity-token', () => ({
+  getBffAuthorizationHeader,
+}));
+
 import { GET } from './route';
 
 describe('same-origin BFF gateway', () => {
+  beforeEach(() => {
+    // TD38: attachBffAuthHeaders() requires this on every call, regardless of auth mode.
+    vi.stubEnv('WEB_INTERNAL_KEY', 'a'.repeat(32));
+  });
+
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
@@ -89,5 +101,77 @@ describe('same-origin BFF gateway', () => {
 
     expect(response.status).toBe(502);
     await expect(response.json()).resolves.toEqual({ message: 'Upstream unavailable' });
+  });
+
+  it('returns a generic 502 (not an unhandled rejection) when attachBffAuthHeaders throws', async () => {
+    vi.stubEnv('BFF_UPSTREAM_URL', 'https://bff.example.test/v1');
+    vi.stubEnv('WEB_INTERNAL_KEY', '');
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    const response = await GET(new NextRequest('https://web.example.test/v1/bookings'), {
+      params: Promise.resolve({ path: ['bookings'] }),
+    });
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({ message: 'Upstream unavailable' });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  describe('TD38: trusted client-IP and BFF auth headers', () => {
+    it('resolves and forwards X-Real-Client-Ip, overwriting any client-supplied value', async () => {
+      vi.stubEnv('BFF_UPSTREAM_URL', 'https://bff.example.test/v1');
+      vi.stubEnv('APP_ENV', 'production');
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null));
+      const request = new NextRequest('https://web.example.test/v1/bookings', {
+        headers: {
+          'cf-connecting-ip': '203.0.113.10',
+          'x-real-client-ip': 'attacker-forged-value',
+        },
+      });
+
+      await GET(request, { params: Promise.resolve({ path: ['bookings'] }) });
+
+      const [, init] = fetchSpy.mock.calls[0] ?? [];
+      expect((init?.headers as Headers).get('x-real-client-ip')).toBe('203.0.113.10');
+    });
+
+    it('attaches X-Web-Internal-Key on every call', async () => {
+      vi.stubEnv('BFF_UPSTREAM_URL', 'https://bff.example.test/v1');
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null));
+
+      await GET(new NextRequest('https://web.example.test/v1/bookings'), {
+        params: Promise.resolve({ path: ['bookings'] }),
+      });
+
+      const [, init] = fetchSpy.mock.calls[0] ?? [];
+      expect((init?.headers as Headers).get('x-web-internal-key')).toBe('a'.repeat(32));
+    });
+
+    it('does not attach an Authorization header when BFF_AUTH_MODE is unset (default "none")', async () => {
+      vi.stubEnv('BFF_UPSTREAM_URL', 'https://bff.example.test/v1');
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null));
+
+      await GET(new NextRequest('https://web.example.test/v1/bookings'), {
+        params: Promise.resolve({ path: ['bookings'] }),
+      });
+
+      const [, init] = fetchSpy.mock.calls[0] ?? [];
+      expect((init?.headers as Headers).has('authorization')).toBe(false);
+    });
+
+    it('attaches a Google ID token when BFF_AUTH_MODE=iam', async () => {
+      vi.stubEnv('BFF_UPSTREAM_URL', 'https://bff.example.test/v1');
+      vi.stubEnv('BFF_AUTH_MODE', 'iam');
+      getBffAuthorizationHeader.mockResolvedValue('Bearer test-token');
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null));
+
+      await GET(new NextRequest('https://web.example.test/v1/bookings'), {
+        params: Promise.resolve({ path: ['bookings'] }),
+      });
+
+      expect(getBffAuthorizationHeader).toHaveBeenCalledWith('https://bff.example.test');
+      const [, init] = fetchSpy.mock.calls[0] ?? [];
+      expect((init?.headers as Headers).get('authorization')).toBe('Bearer test-token');
+    });
   });
 });

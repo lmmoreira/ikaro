@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import { WEB_INTERNAL_KEY } from '../auth/shared';
 
 const BFF_URL = process.env.PLAYWRIGHT_BFF_URL ?? 'http://localhost:3002/v1';
 
@@ -13,7 +14,7 @@ export async function submitGuestInfoDirectly(
 ): Promise<void> {
   const res = await page.request.patch(
     `${BFF_URL}/bookings/${bookingId}/submit-info/guest?token=${token}`,
-    { data: { response } },
+    { data: { response }, headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! } },
   );
   if (!res.ok()) {
     throw new Error(`submit-guest-info-directly setup failed: ${res.status()} ${await res.text()}`);

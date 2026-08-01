@@ -4,10 +4,15 @@ import { ConfigService } from '@nestjs/config';
 import { SkipThrottle } from '@nestjs/throttler';
 import { firstValueFrom } from 'rxjs';
 import { BffErrorCode } from '@ikaro/types';
+import { BypassWebOnlyGuard } from '../shared/decorators/bypass-web-only-guard.decorator';
 import { Public } from '../shared/decorators/public.decorator';
 import { throwProblemDetail } from '../shared/http/problem-detail';
 
+// TD38: Cloud Run's startup/liveness probes hit these routes directly and can't present
+// X-Web-Internal-Key -- see bypass-web-only-guard.decorator.ts for why this is a dedicated
+// marker rather than reusing @Public().
 @Public()
+@BypassWebOnlyGuard()
 @SkipThrottle()
 @Controller('health')
 export class HealthController {

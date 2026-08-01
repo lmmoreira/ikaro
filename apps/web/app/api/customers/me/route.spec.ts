@@ -64,7 +64,11 @@ describe('GET /api/customers/me', () => {
     const body = await response.json();
 
     expect(fetchSpy).toHaveBeenCalledWith(`${BFF_URL}/customers/me`, {
-      headers: { Cookie: 'access_token=signed-jwt', 'X-Tenant-Slug': 'lavacar-beloauto' },
+      headers: {
+        Cookie: 'access_token=signed-jwt',
+        'X-Tenant-Slug': 'lavacar-beloauto',
+        'x-web-internal-key': 'test-web-internal-key-test-web-internal-key',
+      },
       cache: 'no-store',
       signal: expect.any(AbortSignal),
     });
@@ -84,7 +88,10 @@ describe('GET /api/customers/me', () => {
     await GET(makeGetRequest());
 
     expect(fetchSpy).toHaveBeenCalledWith(`${BFF_URL}/customers/me`, {
-      headers: { Cookie: 'access_token=signed-jwt' },
+      headers: {
+        Cookie: 'access_token=signed-jwt',
+        'x-web-internal-key': 'test-web-internal-key-test-web-internal-key',
+      },
       cache: 'no-store',
       signal: expect.any(AbortSignal),
     });
@@ -187,6 +194,7 @@ describe('PATCH /api/customers/me', () => {
         Cookie: 'access_token=signed-jwt',
         'Content-Type': 'application/json',
         'X-Tenant-Slug': 'lavacar-beloauto',
+        'x-web-internal-key': 'test-web-internal-key-test-web-internal-key',
       },
       body: JSON.stringify({ phone: '+5511999999999' }),
       cache: 'no-store',

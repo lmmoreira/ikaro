@@ -1,5 +1,11 @@
 import type { Page } from '@playwright/test';
-import { addDevLoginCookie, BFF_URL, INTERNAL_API_KEY, type DevLoginResponse } from './shared';
+import {
+  addDevLoginCookie,
+  BFF_URL,
+  INTERNAL_API_KEY,
+  WEB_INTERNAL_KEY,
+  type DevLoginResponse,
+} from './shared';
 
 // Logs a Playwright page in as a customer via the BFF's dev-only /auth/dev-login endpoint
 // (ENABLE_DEV_AUTH=true locally and in pr-e2e.yml) — the JWT cookie this sets is identical in
@@ -12,7 +18,7 @@ export async function loginAsCustomer(
   tenantSlug: string,
 ): Promise<DevLoginResponse['user']> {
   const res = await page.request.post(`${BFF_URL}/auth/dev-login`, {
-    headers: { 'X-Internal-Key': INTERNAL_API_KEY! },
+    headers: { 'X-Internal-Key': INTERNAL_API_KEY!, 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
     data: { email, tenantSlug, type: 'customer' },
   });
   if (!res.ok()) throw new Error(`dev-login failed: ${res.status()} ${await res.text()}`);

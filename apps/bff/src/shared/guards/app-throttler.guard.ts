@@ -45,18 +45,15 @@ export class AppThrottlerGuard extends ThrottlerGuard {
   }
 
   protected override async getTracker(req: ClientIpRequest): Promise<string> {
-    const appEnv = this.config.get<string>('APP_ENV') ?? 'local';
-    const clientIp = getClientIp(req, appEnv);
-    // M17-S27 verification (PR #167 review, 2026-07-19): staging has no Cloudflare/ALB in
-    // front, so getClientIp() parses the raw X-Forwarded-For header itself (rightmost hop) —
-    // unlike production, which trusts CF-Connecting-IP. Which hop is actually the client was
-    // never confirmed against real Cloud Run traffic (see client-ip.ts). Left in permanently,
-    // debug-level, unconditional: AppLogger (packages/observability) already filters DEBUG out
-    // in production (LOG_LEVEL=INFO there vs. DEBUG in staging), so no env check is needed here
-    // — cheap enough to keep for any future re-verification if staging's front-end topology
-    // ever changes again.
+    const clientIp = getClientIp(req);
+    // TD38: getClientIp() now trusts the X-Real-Client-Ip header ikaro-web forwards (BFF is
+    // only ever reachable via its same-origin gateway — see client-ip.ts and
+    // web-only.guard.ts). Left in permanently, debug-level, unconditional: AppLogger
+    // (packages/observability) already filters DEBUG out in production (LOG_LEVEL=INFO there
+    // vs. DEBUG in staging), so no env check is needed here — cheap enough to keep for any
+    // future re-verification if the gateway's forwarding behavior ever changes again.
     this.logger.debug(
-      `xff-verify: x-forwarded-for="${req.headers['x-forwarded-for']}" resolved="${clientIp}"`,
+      `client-ip-verify: x-real-client-ip="${req.headers['x-real-client-ip']}" resolved="${clientIp}"`,
     );
     return clientIp;
   }

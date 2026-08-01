@@ -10,12 +10,6 @@ variable "bff_max_instances" {
   default     = 20
 }
 
-variable "bff_real_uri" {
-  description = "BFF's real *.run.app URI, used for the web service's server-only BFF_UPSTREAM_URL. Cannot be derived from module.cloudrun_bff.service_uri (a module cannot take its own output as one of its own inputs) — this is the standard Terraform bootstrap pattern instead: apply once with the placeholder default, read the real value from this root's bff_service_uri output, paste it here (local.auto.tfvars or terraform.tfvars), then apply again. Real apply finding, 2026-07-19: the *.run.app URL is a per-project hash (e.g. \"ikaro-bff-crle4i3nrq-rj.a.run.app\"), not the deterministic project-number format an earlier assumption relied on, so it cannot be precomputed either."
-  type        = string
-  default     = "https://ikaro-bff-placeholder.invalid"
-}
-
 variable "brevo_smtp_login" {
   description = "Brevo SMTP account login (non-secret per the S16 catalog — only BREVO_SMTP_KEY is a Secret Manager secret). Value never committed: gitignored local.auto.tfvars locally, a GitHub environment variable in the pipeline (S24, same treatment as iam_admin_user)."
   type        = string
@@ -79,7 +73,7 @@ variable "project_id" {
 }
 
 variable "project_number" {
-  description = "GCP project number — non-secret, plain value (same treatment as project_id/db_tier). Used to construct GCP-managed service agent principals, which genuinely are deterministic from the project number — unlike a Cloud Run service's own *.run.app URL, which M17-S18's real staging apply proved is a per-project random hash, not derivable this way (see bff_real_uri and envs/staging/main.tf's backend_pubsub_audience for that correction). Current consumer: modules/pubsub's Pub/Sub service agent (service-<number>@gcp-sa-pubsub.iam.gserviceaccount.com), passed as project_number. Discover via: gcloud projects describe ikaro-staging --format='value(projectNumber)'"
+  description = "GCP project number — non-secret, plain value (same treatment as project_id/db_tier). Used to construct GCP-managed service agent principals, which genuinely are deterministic from the project number — unlike a Cloud Run service's own *.run.app URL, which M17-S18's real staging apply proved is a per-project random hash, not derivable this way (see web_real_uri and envs/staging/main.tf's backend_pubsub_audience for that correction). Current consumer: modules/pubsub's Pub/Sub service agent (service-<number>@gcp-sa-pubsub.iam.gserviceaccount.com), passed as project_number. Discover via: gcloud projects describe ikaro-staging --format='value(projectNumber)'"
   type        = string
 }
 
@@ -90,7 +84,7 @@ variable "region" {
 }
 
 variable "web_real_uri" {
-  description = "Web's real *.run.app URI, used for NEXT_PUBLIC_SITE_URL (SEO canonical/OG URLs, sitemap.ts/robots.ts — apps/web/features/platform/hotsite/seo.ts) and cors_origins (M17-S25 discovery finding: cors_origins previously held a guessed project-number-format URL, corrected to the real value here). Cannot be derived from module.cloudrun_web.service_uri (a module cannot take its own output as one of its own inputs) — same standard Terraform bootstrap pattern as bff_real_uri: apply once with the placeholder default, read the real value from this root's web_service_uri output, paste it here (local.auto.tfvars or terraform.tfvars), then apply again. *.run.app URLs are a per-project random hash (see bff_real_uri), not derivable in advance."
+  description = "Web's real *.run.app URI. Three consumers: (1) web's own NEXT_PUBLIC_SITE_URL (SEO canonical/OG URLs, sitemap.ts/robots.ts — apps/web/features/platform/hotsite/seo.ts) and cors_origins (M17-S25 discovery finding: cors_origins previously held a guessed project-number-format URL, corrected to the real value here) — cannot be derived from module.cloudrun_web.service_uri there since a module cannot take its own output as one of its own inputs; (2) BFF's ALLOWED_ORIGINS/FRONTEND_URL and (3) backend's FRONTEND_URL (both TD38) — deliberately this bootstrap variable rather than a live module.cloudrun_web.service_uri reference in either place, since cloudrun_web's own BFF_UPSTREAM_URL references module.cloudrun_bff.service_uri live and module.cloudrun_bff's own BACKEND_INTERNAL_URL references module.cloudrun_backend.service_uri live — a live web reference from either bff or backend would complete a 3-node cycle (web -> bff -> backend -> web), which a real `terraform validate` run confirmed during implementation (Terraform requires a one-directional DAG; see envs/staging/main.tf's cloudrun_bff comment). Standard Terraform bootstrap pattern: apply once with the placeholder default, read the real value from this root's web_service_uri output, paste it here (local.auto.tfvars or terraform.tfvars), then apply again. *.run.app URLs are a per-project random hash, not derivable in advance."
   type        = string
   default     = "https://ikaro-web-placeholder.invalid"
 }

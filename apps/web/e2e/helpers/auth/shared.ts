@@ -6,9 +6,18 @@ import type { Page } from '@playwright/test';
 // needs its own explicit default rather than reading process.env.NEXT_PUBLIC_BFF_URL directly.
 export const BFF_URL = process.env.PLAYWRIGHT_BFF_URL ?? 'http://localhost:3002/v1';
 export const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
+// TD38: every direct-BFF call (bypassing the /v1 same-origin gateway) must send this, same as
+// every other real caller now does. Passed explicitly per request -- never via Playwright's
+// context-wide extraHTTPHeaders, which also reaches the browser's own fetches (see
+// playwright.config.ts's comment for why that broke the direct-to-storage upload flows).
+export const WEB_INTERNAL_KEY = process.env.WEB_INTERNAL_KEY;
 
 if (!INTERNAL_API_KEY) {
   throw new Error('PLAYWRIGHT/INTERNAL_API_KEY is required for dev-login E2E helpers');
+}
+
+if (!WEB_INTERNAL_KEY) {
+  throw new Error('WEB_INTERNAL_KEY is required for direct-BFF E2E helpers (TD38)');
 }
 
 export interface DevLoginResponse {

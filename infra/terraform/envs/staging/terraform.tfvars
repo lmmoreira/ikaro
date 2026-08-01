@@ -27,11 +27,10 @@ db_migrator_user = "ikaro_migrator"
 # finding): this previously held a guessed project-number-format URL
 # (https://ikaro-web-729809528251.southamerica-east1.run.app), which is NOT
 # the format Cloud Run actually assigns — verified live via `gcloud run
-# services describe ikaro-web`, same per-project random hash as
-# bff_real_uri, not the deterministic project-number format an earlier
-# assumption relied on (see bff_real_uri's description). The wrong value
-# meant the uploads bucket's CORS policy never actually matched the real
-# staging web origin.
+# services describe ikaro-web`, a per-project random hash, not the
+# deterministic project-number format an earlier assumption relied on (see
+# web_real_uri's description). The wrong value meant the uploads bucket's
+# CORS policy never actually matched the real staging web origin.
 cors_origins = ["https://ikaro-web-crle4i3nrq-rj.a.run.app"]
 
 # Connection-math invariant (backend) and Direct VPC subnet-capacity
@@ -40,11 +39,6 @@ cors_origins = ["https://ikaro-web-crle4i3nrq-rj.a.run.app"]
 backend_max_instances = 3
 bff_max_instances     = 20
 
-# Real *.run.app URL discovered from the bff_service_uri output after the
-# first apply (see bff_real_uri's description in variables.tf) — used for
-# web's server-only BFF_UPSTREAM_URL.
-bff_real_uri = "https://ikaro-bff-crle4i3nrq-rj.a.run.app"
-
-# Real *.run.app URL discovered the same way as bff_real_uri (see its
-# comment above) — used for NEXT_PUBLIC_SITE_URL and cors_origins (M17-S25).
+# Real *.run.app URL discovered the same way as web's own (see web_real_uri's
+# description in variables.tf) — used for BFF's ALLOWED_ORIGINS/FRONTEND_URL (TD38).
 web_real_uri = "https://ikaro-web-crle4i3nrq-rj.a.run.app"

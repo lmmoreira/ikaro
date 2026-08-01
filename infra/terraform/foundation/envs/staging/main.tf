@@ -27,7 +27,7 @@ module "runtime_identities" {
   uploads_bucket_name = "ikaro-uploads-${var.environment}"
   public_bucket_name  = "ikaro-public-${var.environment}"
   secret_ids = {
-    for name in ["db-password", "db-migrator-password", "jwt-secret", "internal-api-key", "platform-admin-key", "hotsite-revalidate-secret", "google-oauth-client-id", "google-oauth-client-secret", "brevo-smtp-key"] : name => "projects/${var.project_id}/secrets/${name}"
+    for name in ["db-password", "db-migrator-password", "jwt-secret", "internal-api-key", "platform-admin-key", "hotsite-revalidate-secret", "google-oauth-client-id", "google-oauth-client-secret", "brevo-smtp-key", "web-internal-key"] : name => "projects/${var.project_id}/secrets/${name}"
   }
 }
 
@@ -166,7 +166,9 @@ locals {
     }
   } : {})
 
-  workload_cloud_run_public_invokers = toset(["ikaro-bff", "ikaro-web"])
+  # TD38: BFF's allUsers public invoker grant is removed — BFF is now only reachable via
+  # ikaro-web's IAM-authenticated server-side call (workload_cloud_run_invokers.bff_web below).
+  workload_cloud_run_public_invokers = toset(["ikaro-web"])
   workload_relay_cloud_run_services  = toset(["ikaro-backend"])
 
   workload_pubsub_subscription_members = {
@@ -232,7 +234,7 @@ import {
 }
 
 resource "google_cloud_run_v2_service_iam_member" "public_invoker" {
-  #checkov:skip=CKV_IKARO_1:reviewed intentional public BFF/web invoker grants
+  #checkov:skip=CKV_IKARO_1:reviewed intentional public web invoker grant (TD38: BFF's own grant removed)
   for_each = local.workload_cloud_run_public_invokers
 
   project  = var.project_id

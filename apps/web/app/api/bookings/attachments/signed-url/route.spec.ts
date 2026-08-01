@@ -60,6 +60,8 @@ describe('POST /api/bookings/attachments/signed-url', () => {
         Cookie: 'access_token=signed-jwt',
         Authorization: 'Bearer signed-jwt',
         'Content-Type': 'application/json',
+        // TD38: attachBffAuthHeaders() adds this to every BFF server call.
+        'x-web-internal-key': 'test-web-internal-key-test-web-internal-key',
       },
       method: 'POST',
       body: JSON.stringify({
@@ -96,7 +98,10 @@ describe('POST /api/bookings/attachments/signed-url', () => {
       `${BFF_URL}/bookings/attachments/signed-url`,
       expect.objectContaining({
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-web-internal-key': 'test-web-internal-key-test-web-internal-key',
+        },
         body: JSON.stringify({
           fileName: 'photo.jpg',
           contentType: 'image/jpeg',
@@ -136,7 +141,10 @@ describe('POST /api/bookings/attachments/signed-url', () => {
       `${BFF_URL}/bookings/attachments/signed-url`,
       expect.objectContaining({
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-web-internal-key': 'test-web-internal-key-test-web-internal-key',
+        },
         body: JSON.stringify({
           fileName: 'photo.jpg',
           contentType: 'image/jpeg',
@@ -171,7 +179,12 @@ describe('POST /api/bookings/attachments/signed-url', () => {
     expect(mockCookieGet).not.toHaveBeenCalled();
     expect(fetchSpy).toHaveBeenCalledWith(
       `${BFF_URL}/bookings/attachments/signed-url`,
-      expect.objectContaining({ headers: { 'Content-Type': 'application/json' } }),
+      expect.objectContaining({
+        headers: {
+          'Content-Type': 'application/json',
+          'x-web-internal-key': 'test-web-internal-key-test-web-internal-key',
+        },
+      }),
     );
     expect(response.status).toBe(400);
   });

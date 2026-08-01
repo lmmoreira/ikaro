@@ -1,4 +1,4 @@
-# Guards the live secret catalog (M17-S16, extended by M17-S20): the 9
+# Guards the live secret catalog (M17-S16, extended by M17-S20 and TD38): the 10
 # always-on containers, the prod-only cloudflare-api-token, automatic
 # replication, and labels wiring — no values, no IAM (that's S17).
 
@@ -10,7 +10,7 @@ variables {
   labels      = { env = "staging", managed-by = "terraform" }
 }
 
-run "staging_provisions_the_nine_base_secrets_only" {
+run "staging_provisions_the_ten_base_secrets_only" {
   command = plan
 
   assert {
@@ -24,8 +24,9 @@ run "staging_provisions_the_nine_base_secrets_only" {
       "google-oauth-client-id",
       "google-oauth-client-secret",
       "brevo-smtp-key",
+      "web-internal-key",
     ])
-    error_message = "Staging must provision exactly the 9 base secrets — no cloudflare-api-token."
+    error_message = "Staging must provision exactly the 10 base secrets — no cloudflare-api-token."
   }
 }
 
@@ -42,8 +43,13 @@ run "prod_also_provisions_cloudflare_api_token" {
   }
 
   assert {
-    condition     = length(google_secret_manager_secret.this) == 10
-    error_message = "Prod must provision exactly 10 secrets (9 base + cloudflare-api-token)."
+    condition     = contains(keys(google_secret_manager_secret.this), "web-internal-key")
+    error_message = "Prod must also provision web-internal-key (TD38, shared web<->bff secret)."
+  }
+
+  assert {
+    condition     = length(google_secret_manager_secret.this) == 11
+    error_message = "Prod must provision exactly 11 secrets (10 base + cloudflare-api-token)."
   }
 }
 

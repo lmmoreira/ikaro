@@ -125,4 +125,16 @@ export function setupActiveGuardMock(httpService: MockHttpService, isActive = tr
   httpService.get.mockReturnValueOnce(makeObservableResponse({ isActive }));
 }
 
-export { supertest as request };
+// TD38: WebOnlyGuard is registered globally with no @Public() escape hatch, so every request
+// built through this helper needs a valid X-Web-Internal-Key header to reach any controller at
+// all (component tests exercise the real guard chain, unlike unit tests). The plain
+// `supertest(app)` call builds a fresh, default-less request per method call — only
+// `supertest.agent(app)` persists a `.set()` default (via superagent's Agent#_setDefaults) to
+// every request built from it, so this wraps that form instead of re-exporting supertest as-is.
+export function request(app: Parameters<typeof supertest>[0]): supertest.Agent {
+  const webInternalKey = process.env.WEB_INTERNAL_KEY;
+  if (!webInternalKey) {
+    throw new Error('WEB_INTERNAL_KEY must be set for BFF component tests (see .env.example)');
+  }
+  return supertest.agent(app).set('X-Web-Internal-Key', webInternalKey);
+}

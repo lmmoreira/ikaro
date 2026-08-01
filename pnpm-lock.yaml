@@ -201,6 +201,9 @@ importers:
       '@ikaro/env-validation':
         specifier: workspace:*
         version: link:../../packages/env-validation
+      '@ikaro/http-utils':
+        specifier: workspace:*
+        version: link:../../packages/http-utils
       '@ikaro/nestjs-http':
         specifier: workspace:*
         version: link:../../packages/nestjs-http
@@ -349,6 +352,9 @@ importers:
       '@dnd-kit/utilities':
         specifier: ^3.2.2
         version: 3.2.2(react@19.2.8)
+      '@ikaro/http-utils':
+        specifier: workspace:*
+        version: link:../../packages/http-utils
       '@ikaro/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
@@ -388,6 +394,9 @@ importers:
       date-fns:
         specifier: ^4.4.0
         version: 4.4.0
+      google-auth-library:
+        specifier: ^10.9.0
+        version: 10.9.1
       jose:
         specifier: ^6.2.3
         version: 6.2.4
@@ -554,6 +563,24 @@ importers:
       zod:
         specifier: ^4.4.3
         version: 4.4.3
+
+  packages/http-utils:
+    devDependencies:
+      '@ikaro/config':
+        specifier: workspace:*
+        version: link:../config
+      '@types/jest':
+        specifier: ^30.0.0
+        version: 30.0.0
+      '@types/node':
+        specifier: ^25.9.4
+        version: 25.9.5
+      jest:
+        specifier: ^30.4.2
+        version: 30.4.2(@types/node@25.9.5)(ts-node@10.9.2(@swc/core@1.15.46)(@types/node@25.9.5)(typescript@6.0.3))
+      ts-jest:
+        specifier: ^29.4.11
+        version: 29.4.12(@babel/core@7.29.7)(@jest/transform@30.4.1)(@jest/types@30.4.1)(babel-jest@30.4.1(@babel/core@7.29.7))(jest-util@30.4.1)(jest@30.4.2(@types/node@25.9.5))(typescript@6.0.3)
 
   packages/i18n:
     devDependencies:

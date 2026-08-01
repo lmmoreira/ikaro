@@ -118,7 +118,7 @@ variable "project_id" {
 }
 
 variable "project_number" {
-  description = "GCP project number — non-secret, plain value (same treatment as project_id/db_tier). Used to construct GCP-managed service agent principals, which genuinely are deterministic from the project number — unlike a Cloud Run service's own *.run.app URL, which M17-S18's real staging apply proved is a per-project random hash, not derivable this way (see bff_real_uri and envs/staging/main.tf's backend_pubsub_audience for that correction). Current consumer: modules/pubsub's Pub/Sub service agent (service-<number>@gcp-sa-pubsub.iam.gserviceaccount.com), passed as project_number. Discover via: gcloud projects describe ikaro-prod --format='value(projectNumber)'"
+  description = "GCP project number — non-secret, plain value (same treatment as project_id/db_tier). Used to construct GCP-managed service agent principals, which genuinely are deterministic from the project number — unlike a Cloud Run service's own *.run.app URL, which M17-S18's real staging apply proved is a per-project random hash, not derivable this way (see web_real_uri and envs/staging/main.tf's backend_pubsub_audience for that correction). Current consumer: modules/pubsub's Pub/Sub service agent (service-<number>@gcp-sa-pubsub.iam.gserviceaccount.com), passed as project_number. Discover via: gcloud projects describe ikaro-prod --format='value(projectNumber)'"
   type        = string
 }
 

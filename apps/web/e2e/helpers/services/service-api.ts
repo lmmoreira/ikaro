@@ -4,7 +4,7 @@ import type {
   StaffServiceResponse,
   UpdateServiceRequest,
 } from '@ikaro/types';
-import { BFF_URL } from '../auth/shared';
+import { BFF_URL, WEB_INTERNAL_KEY } from '../auth/shared';
 
 export interface CreatedServiceSetup {
   readonly serviceId: string;
@@ -30,7 +30,10 @@ export async function createService(
   page: Page,
   body: CreateServiceRequest,
 ): Promise<StaffServiceResponse> {
-  const res = await page.request.post(`${BFF_URL}/services`, { data: body });
+  const res = await page.request.post(`${BFF_URL}/services`, {
+    data: body,
+    headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
+  });
   return readServiceResponse(res, 'create service');
 }
 
@@ -39,13 +42,17 @@ export async function updateService(
   serviceId: string,
   body: UpdateServiceRequest,
 ): Promise<StaffServiceResponse> {
-  const res = await page.request.patch(`${BFF_URL}/services/${serviceId}`, { data: body });
+  const res = await page.request.patch(`${BFF_URL}/services/${serviceId}`, {
+    data: body,
+    headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
+  });
   return readServiceResponse(res, 'update service');
 }
 
 export async function activateService(page: Page, serviceId: string): Promise<void> {
   const res = await page.request.patch(`${BFF_URL}/services/${serviceId}/activate`, {
     data: {},
+    headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
   });
   if (!res.ok()) {
     throw new Error(`activate service failed: ${res.status()} ${await res.text()}`);
@@ -53,7 +60,9 @@ export async function activateService(page: Page, serviceId: string): Promise<vo
 }
 
 export async function deactivateService(page: Page, serviceId: string): Promise<void> {
-  const res = await page.request.delete(`${BFF_URL}/services/${serviceId}`);
+  const res = await page.request.delete(`${BFF_URL}/services/${serviceId}`, {
+    headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
+  });
   if (!res.ok() && res.status() !== 204) {
     throw new Error(`deactivate service failed: ${res.status()} ${await res.text()}`);
   }

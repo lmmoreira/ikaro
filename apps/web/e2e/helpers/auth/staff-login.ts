@@ -1,5 +1,11 @@
 import { request as playwrightRequest, type Page } from '@playwright/test';
-import { addDevLoginCookie, BFF_URL, INTERNAL_API_KEY, type DevLoginResponse } from './shared';
+import {
+  addDevLoginCookie,
+  BFF_URL,
+  INTERNAL_API_KEY,
+  WEB_INTERNAL_KEY,
+  type DevLoginResponse,
+} from './shared';
 
 // Logs a Playwright page in as a staff member via the BFF's dev-only /auth/dev-login endpoint.
 // The email must correspond to an existing seed staff record at the given tenant — dev-login
@@ -13,7 +19,7 @@ export async function loginAsStaff(
   tenantSlug: string,
 ): Promise<DevLoginResponse['user']> {
   const res = await page.request.post(`${BFF_URL}/auth/dev-login`, {
-    headers: { 'X-Internal-Key': INTERNAL_API_KEY! },
+    headers: { 'X-Internal-Key': INTERNAL_API_KEY!, 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
     data: { email, tenantSlug, type: 'staff' },
   });
   if (!res.ok()) throw new Error(`dev-login failed: ${res.status()} ${await res.text()}`);
@@ -35,7 +41,7 @@ export async function linkStaffGoogleAccount(email: string, tenantSlug: string):
   const context = await playwrightRequest.newContext();
   try {
     const res = await context.post(`${BFF_URL}/auth/dev-login`, {
-      headers: { 'X-Internal-Key': INTERNAL_API_KEY! },
+      headers: { 'X-Internal-Key': INTERNAL_API_KEY!, 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
       data: { email, tenantSlug, type: 'staff' },
     });
     if (!res.ok()) {

@@ -4,7 +4,7 @@ output "backend_service_uri" {
 }
 
 output "bff_service_uri" {
-  description = "BFF's real *.run.app URI. After the first apply, paste this into bff_real_uri (local.auto.tfvars or terraform.tfvars) and re-apply so web's BFF_UPSTREAM_URL reaches the real BFF service."
+  description = "BFF's real internal-only *.run.app URI (TD38: no public invoker grant, INGRESS_TRAFFIC_INTERNAL_ONLY). Informational only — web's BFF_UPSTREAM_URL references module.cloudrun_bff.service_uri directly, no manual paste-back needed."
   value       = module.cloudrun_bff.service_uri
 }
 

@@ -45,4 +45,10 @@ describe('buildBffUrl', () => {
 
     expect(buildBffUrl('/auth/google')).toBe('https://bff.internal.example/v1/auth/google');
   });
+
+  it('normalizes a trailing slash on the base URL to avoid a double slash', () => {
+    process.env.BFF_UPSTREAM_URL = 'https://bff.internal.example/v1/';
+
+    expect(buildBffUrl('/auth/google')).toBe('https://bff.internal.example/v1/auth/google');
+  });
 });

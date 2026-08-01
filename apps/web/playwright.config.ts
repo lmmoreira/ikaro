@@ -16,6 +16,18 @@ export default defineConfig({
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000',
     trace: 'on-first-retry',
+    // TD38: deliberately NOT setting X-Web-Internal-Key here via extraHTTPHeaders. That option
+    // applies to the whole browser context -- not just Playwright's own page.request.* API
+    // calls, but every real fetch/XHR the page itself makes too. It broke the guest photo
+    // upload and hotsite image upload flows: both PUT the file directly from the browser to a
+    // GCS signed URL, and a signed URL's CORS preflight only allows the exact header set baked
+    // into X-Goog-SignedHeaders -- an extra unsigned header made fake-gcs-server's (and real
+    // GCS's) preflight reject the request with a 403 and no CORS headers at all, which Chrome
+    // then reports as a generic "blocked by CORS policy" fetch failure (found by reproducing
+    // the CI failure locally and inspecting the Playwright trace's network log, TD38 PR #298).
+    // The 12 e2e/helpers/** files that call the BFF directly (bypassing the /v1 gateway, for
+    // test-setup speed) instead pass X-Web-Internal-Key explicitly per call -- see
+    // e2e/helpers/auth/shared.ts's WEB_INTERNAL_KEY export.
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   // webServer intentionally omitted — tests run against the already-running dev stack.

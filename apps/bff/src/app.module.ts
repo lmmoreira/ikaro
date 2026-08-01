@@ -18,6 +18,7 @@ import { AppThrottlerGuard } from './shared/guards/app-throttler.guard';
 import { JwtAuthGuard } from './shared/guards/jwt-auth.guard';
 import { TenantGuard } from './shared/guards/tenant.guard';
 import { RolesGuard } from './shared/guards/roles.guard';
+import { WebOnlyGuard } from './shared/guards/web-only.guard';
 import { CorrelationMiddleware } from './shared/middleware/correlation.middleware';
 import { ErrorFilter } from './shared/filters/error.filter';
 import { RequestModule } from './shared/request/request.module';
@@ -50,7 +51,11 @@ import { RequestInterceptor } from './shared/request/request.interceptor';
   controllers: [HealthController],
   providers: [
     { provide: APP_FILTER, useClass: ErrorFilter },
-    // Runs first (registration order) — rejects over-limit requests before JWT
+    // Runs first (registration order, TD38): rejects any caller that isn't ikaro-web itself
+    // before it can consume a rate-limit bucket or reach JWT/tenant/role checks — nothing
+    // legitimate calls BFF except ikaro-web, so this must be the very first gate.
+    { provide: APP_GUARD, useClass: WebOnlyGuard },
+    // Runs second (registration order) — rejects over-limit requests before JWT
     // verification/tenant/role checks do any work.
     { provide: APP_GUARD, useClass: AppThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
