@@ -3,9 +3,18 @@ import { expect, test, type Page } from '@playwright/test';
 const BFF_URL = process.env.PLAYWRIGHT_BFF_URL ?? 'http://localhost:3002/v1';
 const WEB_URL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000';
 const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
+// TD38: every direct-BFF call (bypassing the /v1 same-origin gateway) must send this, same as
+// e2e/helpers/auth/shared.ts's identical export — this file predates that shared helper and
+// still keeps its own inline dev-login call, which was missed by the sweep that added this
+// header to the 12 files under e2e/helpers/**.
+const WEB_INTERNAL_KEY = process.env.WEB_INTERNAL_KEY;
 
 if (!INTERNAL_API_KEY) {
   throw new Error('PLAYWRIGHT/INTERNAL_API_KEY is required for dev-login E2E helpers');
+}
+
+if (!WEB_INTERNAL_KEY) {
+  throw new Error('WEB_INTERNAL_KEY is required for direct-BFF E2E helpers (TD38)');
 }
 
 function uniqueTestEmail(prefix: string): string {
@@ -14,7 +23,7 @@ function uniqueTestEmail(prefix: string): string {
 
 async function loginAsCustomer(page: Page, email: string, tenantSlug: string): Promise<void> {
   const res = await page.request.post(`${BFF_URL}/auth/dev-login`, {
-    headers: { 'X-Internal-Key': INTERNAL_API_KEY! },
+    headers: { 'X-Internal-Key': INTERNAL_API_KEY!, 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
     data: { email, tenantSlug, type: 'customer' },
   });
   if (!res.ok()) throw new Error(`dev-login failed: ${res.status()} ${await res.text()}`);
