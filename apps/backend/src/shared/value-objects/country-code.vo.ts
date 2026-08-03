@@ -1,5 +1,6 @@
 import { type CountrySpec, countrySpec, isSupportedCountryCode } from '@ikaro/i18n';
 import { CountryCodeErrorCode } from '@ikaro/types';
+import { COUNTRY_CODE_FORMAT_PATTERN } from '@ikaro/validation';
 import { DomainErrorShape } from '../domain/domain-error-shape';
 import { ValueObject } from '../domain/value-object';
 
@@ -26,12 +27,14 @@ export class CountryCode extends ValueObject<CountryCodeProps> {
   static isValid(code: string): boolean {
     if (typeof code !== 'string') return false;
     const normalizedCode = code.trim().toUpperCase();
-    return /^[A-Z]{2}$/.test(normalizedCode) && isSupportedCountryCode(normalizedCode);
+    return (
+      COUNTRY_CODE_FORMAT_PATTERN.test(normalizedCode) && isSupportedCountryCode(normalizedCode)
+    );
   }
 
   static create(code: string): CountryCode {
     const normalizedCode = typeof code === 'string' ? code.trim().toUpperCase() : '';
-    if (!/^[A-Z]{2}$/.test(normalizedCode)) {
+    if (!COUNTRY_CODE_FORMAT_PATTERN.test(normalizedCode)) {
       throw new CountryCodeValidationError(
         'countryCode must be a 2-letter ISO 3166-1 alpha-2 code',
         CountryCodeErrorCode.FORMAT_INVALID,
