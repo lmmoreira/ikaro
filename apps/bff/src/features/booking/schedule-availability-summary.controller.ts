@@ -2,13 +2,14 @@ import { Controller, Get, Headers, Query } from '@nestjs/common';
 import { z } from 'zod';
 import { Public } from '../../shared/decorators/public.decorator';
 import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { DATE_ONLY_PATTERN } from '@ikaro/validation';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { AvailabilitySummaryResponse } from './schedule.types';
 import { withPublicTenant } from '../../shared/http/public-tenant';
 
 const GetAvailabilitySummaryQuerySchema = z.object({
-  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'from must be YYYY-MM-DD'),
-  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'to must be YYYY-MM-DD'),
+  from: z.string().regex(DATE_ONLY_PATTERN, 'from must be YYYY-MM-DD'),
+  to: z.string().regex(DATE_ONLY_PATTERN, 'to must be YYYY-MM-DD'),
   serviceIds: z.string().min(1, 'serviceIds is required'),
 });
 

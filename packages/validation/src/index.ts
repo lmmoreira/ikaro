@@ -1,4 +1,6 @@
 export * from './address';
+export * from './country-code';
+export * from './date';
 export * from './email';
 export * from './hotsite';
 export * from './phone';

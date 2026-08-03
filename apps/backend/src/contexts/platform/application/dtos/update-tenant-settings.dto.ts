@@ -1,14 +1,9 @@
 import { z } from 'zod';
-import {
-  CountryCodeErrorCode,
-  PlatformErrorCode,
-  TimeOfDayErrorCode,
-  TimezoneErrorCode,
-} from '@ikaro/types';
+import { PlatformErrorCode, TimeOfDayErrorCode, TimezoneErrorCode } from '@ikaro/types';
 import { PartialAddressSchema } from '@ikaro/validation';
-import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
 import { Timezone } from '../../../../shared/value-objects/timezone.vo';
+import { CountryCodeSchema } from './country-code.schema';
 
 const DayHoursSchema = z
   .object({
@@ -61,18 +56,6 @@ const BusinessHoursSchema = z.object({
   saturday: DayHoursSchema.optional(),
   sunday: DayHoursSchema.optional(),
 });
-
-const CountryCodeSchema = z
-  .string()
-  .trim()
-  .regex(/^[A-Za-z]{2}$/, {
-    message: 'countryCode must be a 2-letter ISO 3166-1 alpha-2 code',
-  })
-  .toUpperCase()
-  .refine(CountryCode.isValid, {
-    error: 'countryCode must be a supported country code',
-    params: { code: CountryCodeErrorCode.UNSUPPORTED },
-  });
 
 const LocalizationSchema = z
   .object({

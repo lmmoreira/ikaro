@@ -1,26 +1,9 @@
 import { z } from 'zod';
-import {
-  CountryCodeErrorCode,
-  EmailErrorCode,
-  SlugErrorCode,
-  TimezoneErrorCode,
-} from '@ikaro/types';
-import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
+import { EmailErrorCode, SlugErrorCode, TimezoneErrorCode } from '@ikaro/types';
 import { Email } from '../../../../shared/value-objects/email.vo';
 import { Slug } from '../../../../shared/value-objects/slug.vo';
 import { Timezone } from '../../../../shared/value-objects/timezone.vo';
-
-const CountryCodeSchema = z
-  .string()
-  .trim()
-  .regex(/^[A-Za-z]{2}$/, {
-    message: 'country_code must be a 2-letter ISO 3166-1 alpha-2 code',
-  })
-  .toUpperCase()
-  .refine(CountryCode.isValid, {
-    error: 'country_code must be a supported country code',
-    params: { code: CountryCodeErrorCode.UNSUPPORTED },
-  });
+import { CountryCodeSchema } from './country-code.schema';
 
 export const ProvisionTenantSchema = z.object({
   name: z.string().min(1, { message: 'name must not be empty' }),

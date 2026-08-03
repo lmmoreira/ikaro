@@ -516,7 +516,11 @@ Also checked in the same pass: `CUSTOMER_EMAIL_INVALID`'s translation is the gen
 
 ---
 
-### Story 14 — Backend + BFF: de-duplicate regex/schema constants 🟡
+### Story 14 — Backend + BFF: de-duplicate regex/schema constants 🟡 ✅ Done
+
+**Landed**: `fix/td31-pr7-dedup-regex-constants` (PR 7). Implemented largely as specced, with two deviations found and confirmed during discovery/implementation:
+1. **A third `country_code` format-regex duplicate**, not in the original scope: `apps/bff/src/features/platform/tenant-settings.controller.ts:63-64` re-implements the same `/^[A-Za-z]{2}$/` check as a lighter, format-only pre-check (it can't call the backend-only `CountryCode.isValid`, mirroring the existing `AddressShapeSchema`-vs-`Address.create()` shape-only-pre-check pattern already used elsewhere). Included in the fix.
+2. **Shared location**: rather than app-local `apps/backend/src/shared/` and `apps/bff/src/shared/` constants as the story text suggested, both `DATE_ONLY_PATTERN` (21 sites across both apps) and `COUNTRY_CODE_FORMAT_PATTERN` (3 sites across both apps) were extracted into `@ikaro/validation` — the existing cross-app shared-schema package already holding `phone.ts`/`email.ts`/`address.ts`, imported by both backend and BFF today. Confirmed via `deriveViolation` (`packages/types/src/zod-violation.ts`) that every `.regex()`/`.refine()` message string is discarded before reaching the client — only `field` and `params.code` survive — so the extraction is purely mechanical, no wording to preserve. The full `country_code` composite (regex + the `CountryCode.isValid` semantic check) stays backend-only, in a new `contexts/platform/application/dtos/country-code.schema.ts` shared by `provision-tenant.dto.ts` and `update-tenant-settings.dto.ts` (used by exactly those 2 files, both in the `platform` slice, per CLAUDE.md §11 — not `shared/`).
 
 **Source**: Backend 2.1, 2.2 · BFF F1
 
@@ -801,7 +805,7 @@ Grouping rule: two stories collapse into **one PR** only when they genuinely sha
 | PR | Story | Target files |
 |---|---|---|
 | **PR 6** ✅ | Story 13 | — no code needed; closed 2026-08-03 as superseded (domain-layer validation already covers all 3 fields — tested, wired, translated). See Story 13's note above. |
-| **PR 7** | Story 14 | `provision-tenant.dto.ts`, `update-tenant-settings.dto.ts`, 4 schedule/availability DTOs, 5 BFF schedule/booking controller files |
+| **PR 7** ✅ | Story 14 | `provision-tenant.dto.ts`, `update-tenant-settings.dto.ts`, new `country-code.schema.ts`, 4 schedule/availability DTOs, 6 BFF booking/platform controller files, new `@ikaro/validation` `date.ts`/`country-code.ts` | See Story 14's note above — scope grew to a 3rd BFF site and moved to `@ikaro/validation`. |
 | **PR 8** | Story 17 (minus the `E2` slice already folded into PR 3) | `customer.controller.ts`, `loyalty.controller.ts` (backend), `platform.public.controller.ts`, 4 `schedule*.controller.ts` files, `backend-http.service.ts` |
 | **PR 9** | Story 19 | `test/infrastructure/in-memory-loyalty-*` (moved to `test/repositories/loyalty/`), new `test/builders/staff/staff-{activated,deactivated}-event.builder.ts` |
 | **PR 10** ✅ | Story 21 | `services.types.ts`, `services.mapper.ts`, `main.ts` — trivial, zero risk, could honestly go first of anything in this whole plan if you want an easy warm-up PR. **Merged as [#300](https://github.com/lmmoreira/ikaro/pull/300), 2026-08-01.** |

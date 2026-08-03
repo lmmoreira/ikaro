@@ -43,7 +43,7 @@ import {
   StaffBookingListResponse,
 } from '@ikaro/types';
 import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
-import { AddressShapeSchema, isValidPhoneNumber } from '@ikaro/validation';
+import { AddressShapeSchema, DATE_ONLY_PATTERN, isValidPhoneNumber } from '@ikaro/validation';
 import {
   toBookingListResponse,
   toCustomerBookingDetail,
@@ -148,18 +148,9 @@ const BOOKING_STATUS_RE =
 const StaffListBookingsQuerySchema = z
   .object({
     status: z.string().regex(BOOKING_STATUS_RE).optional().default('PENDING,INFO_REQUESTED'),
-    date: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/)
-      .optional(),
-    from: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/)
-      .optional(),
-    to: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/)
-      .optional(),
+    date: z.string().regex(DATE_ONLY_PATTERN).optional(),
+    from: z.string().regex(DATE_ONLY_PATTERN).optional(),
+    to: z.string().regex(DATE_ONLY_PATTERN).optional(),
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(100).default(20),
   })
