@@ -7,7 +7,12 @@ import {
   TimeOfDayErrorCode,
 } from '@ikaro/types';
 import { ZodValidationPipe } from '@ikaro/nestjs-http';
-import { PartialAddressSchema, isValidEmail, isValidPhoneNumber } from '@ikaro/validation';
+import {
+  COUNTRY_CODE_FORMAT_PATTERN,
+  PartialAddressSchema,
+  isValidEmail,
+  isValidPhoneNumber,
+} from '@ikaro/validation';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 
@@ -60,7 +65,7 @@ const BusinessHoursSchema = z.object({
 
 const LocalizationSchema = z
   .object({
-    countryCode: z.string().refine((v) => /^[A-Za-z]{2}$/.test(v), {
+    countryCode: z.string().refine((v) => COUNTRY_CODE_FORMAT_PATTERN.test(v), {
       error: 'countryCode must be a 2-letter ISO 3166-1 alpha-2 code',
       params: { code: CountryCodeErrorCode.FORMAT_INVALID },
     }),
