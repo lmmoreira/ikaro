@@ -489,7 +489,16 @@ Decisions made during triage:
 
 ---
 
-### Story 13 — Backend: missing email/phone format validation on 3 DTOs 🟡
+### Story 13 — Backend: missing email/phone format validation on 3 DTOs 🟡 ✅ Done (superseded — no code needed)
+
+**Resolved independently (2026-08-03, discovery for PR 6)**: no code change needed. All 3 findings are stale — a domain-layer validator now covers all 3 fields, added by other work between the 2026-07-23 audit and today, independent of this TD31 remediation stream:
+- `update-tenant-settings.dto.ts` (`businessInfo.phone`/`.email`) → `BusinessInfoValidator.validate()` (`business-info.validator.ts`), throwing `PlatformErrorCode.SETTINGS_BUSINESS_PHONE_INVALID`/`_EMAIL_INVALID`. Tested in `business-info.validator.spec.ts`; confirmed live by running the existing integration test `tenant-settings.controller.integration.spec.ts:279` ("returns 400 for an invalid businessInfo.phone") — it passes today.
+- `find-or-create-customer.dto.ts` (`email`) → `Customer.create()`'s `Email.isValid` check, throwing `CustomerErrorCode.EMAIL_INVALID`. Tested in `customer.spec.ts:43-47`.
+- `update-customer-profile.dto.ts` (`phone`) → `Customer.updateProfile()`'s `PhoneNumber.isValid` check, throwing `CustomerErrorCode.PHONE_INVALID`. Tested in `customer.spec.ts:89-91`.
+
+Implementing the story's original prescription (copying `request-booking.dto.ts`'s DTO-level `z.email()`/`PhoneErrorCode.FORMAT_INVALID` pattern) would now actively regress this: NestJS's `ZodValidationPipe` runs before the use case/aggregate, so a DTO-level check would shadow the domain layer's already-correct, already-tested, already-translated error codes, making them permanently unreachable — the exact violation CLAUDE.md §8 warns against ("Zod validation rule duplicates a VO's own check → Reuse that VO's error code — don't mint a new one").
+
+Also checked in the same pass: `CUSTOMER_EMAIL_INVALID`'s translation is the generic fallback in both locale files, unlike sibling `CUSTOMER_PHONE_INVALID`'s specific copy — initially flagged as a possible gap, then ruled out. `email` is validated only inside `Customer.create()`, reachable solely from the internal OAuth-login path (`find-or-create-customer.use-case.ts`, populated from Google's own profile data) — `Customer.updateProfile()` (the real, user-editable profile-edit flow) doesn't even accept an `email` parameter. The generic copy is consistent with its true siblings `CUSTOMER_TENANT_ID_REQUIRED`/`CUSTOMER_GOOGLE_OAUTH_ID_REQUIRED` (both same "can't happen from real user input" class), not an oversight. Left unchanged.
 
 **Source**: Backend 1.1, 1.2, 1.3
 
@@ -791,7 +800,7 @@ Grouping rule: two stories collapse into **one PR** only when they genuinely sha
 
 | PR | Story | Target files |
 |---|---|---|
-| **PR 6** | Story 13 | 3 DTO files (`update-tenant-settings.dto.ts`, `find-or-create-customer.dto.ts`, `update-customer-profile.dto.ts`) |
+| **PR 6** ✅ | Story 13 | — no code needed; closed 2026-08-03 as superseded (domain-layer validation already covers all 3 fields — tested, wired, translated). See Story 13's note above. |
 | **PR 7** | Story 14 | `provision-tenant.dto.ts`, `update-tenant-settings.dto.ts`, 4 schedule/availability DTOs, 5 BFF schedule/booking controller files |
 | **PR 8** | Story 17 (minus the `E2` slice already folded into PR 3) | `customer.controller.ts`, `loyalty.controller.ts` (backend), `platform.public.controller.ts`, 4 `schedule*.controller.ts` files, `backend-http.service.ts` |
 | **PR 9** | Story 19 | `test/infrastructure/in-memory-loyalty-*` (moved to `test/repositories/loyalty/`), new `test/builders/staff/staff-{activated,deactivated}-event.builder.ts` |
