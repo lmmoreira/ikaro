@@ -242,9 +242,17 @@ reviews:
     - path: '**/Dockerfile'
       instructions: |
         Container build quality and supply-chain:
-        - Base images must be pinned to a digest (FROM node:22-alpine@sha256:...)
-          not a floating tag. A floating tag is non-reproducible and silently
-          pulls a compromised upstream on next build.
+        - Base images must be pinned to a digest only (FROM node@sha256:...),
+          never a floating tag and never tag+digest together — this repo's
+          SonarCloud rule docker:S8431 fails the build on tag+digest (both
+          forms are equally secure; digest-only is the decided convention
+          here). A floating tag alone is non-reproducible and silently pulls
+          a compromised upstream on next build. When a Dependabot digest bump
+          is proposed, verify it still resolves to the same image
+          variant/family (e.g. alpine, not debian) before merging — digest-
+          only pins give Dependabot no tag to anchor updates to, so it can
+          silently drift to a same-repo-different-variant digest (PR #309
+          precedent, 2026-08-03).
         - pnpm install must use --frozen-lockfile --ignore-scripts.
           --ignore-scripts is the single most effective supply-chain control
           (blocks malicious postinstall at build time) — never remove it.

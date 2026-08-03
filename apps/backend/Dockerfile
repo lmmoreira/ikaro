@@ -2,7 +2,7 @@
 # node:22-alpine
 FROM node@sha256:76789712cd1ae89a1225eac9077010d68987a423588042dac30446f502f1858c AS builder
 
-RUN npm install -g pnpm@11.1.1 --ignore-scripts
+RUN npm install -g pnpm@11.1.1 --ignore-scripts --no-audit --no-fund
 
 WORKDIR /app
 
