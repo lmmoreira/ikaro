@@ -1,6 +1,6 @@
 # ─── Stage 1: Build ──────────────────────────────────────────────────────────
 # node:22-alpine
-FROM node@sha256:a9875b5ccb02aa527cf7f2297b16ae425a0ff3da2f7d87fce3df41f04ffa0524 AS builder
+FROM node:22-alpine@sha256:76789712cd1ae89a1225eac9077010d68987a423588042dac30446f502f1858c AS builder
 
 RUN npm install -g pnpm@11.1.1
 
@@ -22,7 +22,7 @@ RUN pnpm --filter @ikaro/web build \
 
 # ─── Stage 2: Run ────────────────────────────────────────────────────────────
 # node:22-alpine
-FROM node@sha256:a9875b5ccb02aa527cf7f2297b16ae425a0ff3da2f7d87fce3df41f04ffa0524 AS runner
+FROM node:22-alpine@sha256:76789712cd1ae89a1225eac9077010d68987a423588042dac30446f502f1858c AS runner
 
 WORKDIR /app
 
