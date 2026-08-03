@@ -2,7 +2,7 @@
 # node:22-alpine
 FROM node@sha256:a9875b5ccb02aa527cf7f2297b16ae425a0ff3da2f7d87fce3df41f04ffa0524 AS builder
 
-RUN corepack enable && corepack prepare pnpm@11.1.1 --activate
+RUN npm install -g pnpm@11.1.1
 
 WORKDIR /app
 
