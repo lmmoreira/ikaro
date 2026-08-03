@@ -27,9 +27,18 @@ export function extractFromCookie(req: Request): string | null {
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(config: ConfigService) {
     super({
+      // Cookie must be tried first (TD38 regression, 2026-08-03): since PR #298,
+      // ikaro-web attaches `Authorization: Bearer <Cloud-Run-IAM-ID-token>` to every
+      // server-side call once BFF_AUTH_MODE=iam (mandatory in staging/prod) — that's a
+      // Google-signed token for Cloud Run's own invoker check, not this app's session JWT.
+      // With the Bearer extractor first, passport-jwt always grabbed that IAM token instead
+      // of the real session cookie and failed verification against JWT_SECRET, 401ing every
+      // authenticated request. The httpOnly cookie is the only real transport for the user's
+      // session (see CLAUDE.md), so it must win; Bearer is kept only as a fallback for any
+      // caller with no cookie available.
       jwtFromRequest: ExtractJwt.fromExtractors([
-        ExtractJwt.fromAuthHeaderAsBearerToken(),
         extractFromCookie,
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
       ]),
       secretOrKey: config.getOrThrow<string>('JWT_SECRET'),
       ignoreExpiration: false,

@@ -119,4 +119,38 @@ describe('JwtStrategy', () => {
       expect(extractFromCookie(makeReq('access_token=%zz'))).toBeNull();
     });
   });
+
+  describe('combined jwtFromRequest extractor (TD38 regression)', () => {
+    // ikaro-web attaches `Authorization: Bearer <Cloud-Run-IAM-ID-token>` to every server-side
+    // BFF call once BFF_AUTH_MODE=iam (mandatory in staging/prod) — that token is for Cloud
+    // Run's own invoker check, not this app's session JWT. The strategy's combined extractor
+    // must prefer the session cookie whenever both are present, or every authenticated request
+    // 401s trying to verify the IAM token against JWT_SECRET (PR #298 regression, 2026-08-03).
+    function makeReq(headers: Record<string, string | undefined>): Request {
+      return { headers } as unknown as Request;
+    }
+
+    it('extracts the session cookie even when an unrelated Authorization Bearer header is also present', () => {
+      const req = makeReq({
+        cookie: 'access_token=session-jwt-value',
+        authorization: 'Bearer google-iam-id-token',
+      });
+
+      const extracted = (
+        strategy as unknown as { _jwtFromRequest: (r: Request) => string | null }
+      )._jwtFromRequest(req);
+
+      expect(extracted).toBe('session-jwt-value');
+    });
+
+    it('falls back to the Authorization Bearer header when no session cookie is present', () => {
+      const req = makeReq({ authorization: 'Bearer some-bearer-token' });
+
+      const extracted = (
+        strategy as unknown as { _jwtFromRequest: (r: Request) => string | null }
+      )._jwtFromRequest(req);
+
+      expect(extracted).toBe('some-bearer-token');
+    });
+  });
 });
