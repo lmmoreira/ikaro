@@ -634,7 +634,9 @@ Item 4 (JWT runtime shape validation) landed as specced: `jwt.strategy.ts`'s `va
 
 ---
 
-### Story 18 — BFF: extend the Story 5 batch loyalty-balance endpoint to `getTenants()` 🟡 (depends on Story 5)
+### Story 18 — BFF: extend the Story 5 batch loyalty-balance endpoint to `getTenants()` 🟡 (depends on Story 5) ✅ Done
+
+**Landed**: PR #317 (2026-08-04), `feat/td31-story18-own-loyalty-balances` (worktree removed post-merge). Implemented per the 2026-08-04 discovery update below — new `GET loyalty/balances/own` route + `ILoyaltyCustomerPort.resolveAllTenantsByOAuthId()` + `ILoyaltyBalanceRepository.findManyByTenantCustomerPairs()`, replacing `getTenants()`'s per-tenant fan-out with one call. Not part of the original 14-PR plan (was split out as an open decision on 2026-07-30) — landed as its own standalone PR once the discovery session below found a real, minimal-machinery fix. Copilot and CodeRabbit cross-review both found one real gap each in the same underlying spot — `InMemoryLoyaltyCustomerPort.resolveAllTenantsByOAuthId()` always returned the home pair even when never seeded, contradicting the port's own not-found contract and blocking a real unit-level tenant-isolation test — fixed by adding explicit home-identity tracking (`seedHome()`) plus the missing test. A third CodeRabbit finding (use `LoyaltyBalanceBuilder` instead of `LoyaltyBalance.create()`+`.increment()` in the repository integration spec) was verified as a false positive — every sibling test in that file, including the pre-existing Story 5 block, uses the same `.create()`+`.increment()` pattern deliberately, to round-trip the aggregate's own lifecycle methods. Codex's independent 4-agent review found 0 critical/important/minor findings.
 
 **Source**: BFF A4
 
