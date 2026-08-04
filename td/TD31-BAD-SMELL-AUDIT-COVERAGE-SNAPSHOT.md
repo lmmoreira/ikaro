@@ -1,7 +1,8 @@
 # TD31 — Bad-Smell Audit Coverage Snapshot (2026-07-23)
 
 ## Status
-- **Type**: Technical Debt / Audit Snapshot — **🔴 items triaged into stories below (2026-07-23); 🟡/⚪ items still pending review**
+- **State**: ✅ Done — all 22 stories triaged, scoped, and merged (last landed: Story 18, PR #317, 2026-08-04). See Acceptance Criteria at the bottom of this file.
+- **Type**: Technical Debt / Audit Snapshot — 🔴 items triaged into stories below (2026-07-23); 🟡/⚪ items triaged in the same pass
 - **Priority**: See per-story priority below
 - **Scope**: whole repo — `apps/backend`, `apps/bff`, `apps/web`
 - **Created**: 2026-07-23
@@ -483,7 +484,7 @@ Decisions made during triage:
 
 ---
 
-### Story 12 — (Docs only, no code) Correct `CLAUDE.md` §11's BFF layer-shape row
+### Story 12 — (Docs only, no code) Correct `CLAUDE.md` §11's BFF layer-shape row ✅ Done
 
 **Source**: BFF architecture-drift caveat
 
@@ -871,4 +872,4 @@ Grouping rule: two stories collapse into **one PR** only when they genuinely sha
 - [x] 22 stories grouped into a 14-PR execution plan (2026-07-23), collapsing only where stories share a file or have a hard dependency (Waves 2, 3, 4, and the Wave 6 rename pair) — everything else kept as separate, single-purpose PRs.
 - [x] PRs 1-14 implemented and landed (each independently, per its stories' Definitions of Done) — all 14 merged as of 2026-08-04 (PR 12, #316, was the last)
 - [x] Story 11's documentation half (the slice-ownership rule) and Story 12 (BFF layer-shape correction) applied directly to `CLAUDE.md` §11 on 2026-07-23 — Story 11's code-move half is now PR 12
-- [ ] This snapshot closed, superseded, or split once all 14 PRs land — **not yet**: all 14 planned PRs are done, but Story 18 (BFF `getTenants()` per-tenant loyalty-balance fan-out) remains an open, unscheduled decision — it was split out of Story 5's PR early on and never folded into any of the 14 PRs. Close this snapshot only once Story 18 is either implemented or explicitly declined with a documented reason.
+- [x] This snapshot closed 2026-08-04 — all 22 stories are `✅ Done`. The last two open items both landed: PR 12 (Story 9 + 11, #316) and Story 18 (BFF `getTenants()` per-tenant loyalty-balance fan-out, #317 — the one item split out of the original 14-PR plan as an unscheduled decision on 2026-07-30, resolved with a real fix rather than declined). Nothing further tracked in this file.
