@@ -49,3 +49,23 @@ run "vpc_egress_null_does_not_require_network_id_or_subnet_id" {
     error_message = "vpc_egress left null (default) must not require network_id/subnet_id — e.g. web, which has no VPC access."
   }
 }
+
+# sidecar_containers' health_check_port/health_check_path cross-field
+# validation (M17-S34): a probe needs both to be meaningful, so one set
+# without the other should fail at plan time, not silently emit a
+# half-configured (or absent) startup_probe.
+run "sidecar_health_check_port_without_path_fails" {
+  command = plan
+
+  variables {
+    sidecar_containers = [{
+      name              = "otel-collector"
+      image             = "otel/opentelemetry-collector-contrib@sha256:f2f01157055a9b2aab9df7118e1f1c9abf345e99b23bc7a2bc791db374a7d0f6"
+      health_check_port = 13133
+    }]
+  }
+
+  expect_failures = [
+    var.sidecar_containers,
+  ]
+}

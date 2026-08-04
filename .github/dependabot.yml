@@ -30,6 +30,15 @@ updates:
       interval: weekly
       day: monday
 
+  # otel-collector sidecar base image (M17-S34) — digest-only pin
+  # (infra/docker/otel-collector/Dockerfile), same convention as the three
+  # app Dockerfiles above.
+  - package-ecosystem: docker
+    directory: /infra/docker/otel-collector
+    schedule:
+      interval: weekly
+      day: monday
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

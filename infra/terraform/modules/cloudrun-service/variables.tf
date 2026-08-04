@@ -171,14 +171,24 @@ variable "service_name" {
 }
 
 variable "sidecar_containers" {
-  description = "Optional additional containers alongside the app container (e.g. the otel-collector sidecar, activated in S34). Empty by default — this module only needs to accept the shape, not configure a real collector yet."
+  description = "Optional additional containers alongside the app container (e.g. the otel-collector sidecar, activated in S34). Empty by default. health_check_port + health_check_path (set together or not at all) give the sidecar its own HTTP startup_probe — the app container automatically depends_on every sidecar's name (see main.tf), so Cloud Run won't start the app container until each sidecar's probe passes. Real schema confirmed against provider v7.40.0 (2026-08-04): containers.depends_on is a plain list(string) attribute, not a nested block; startup_probe's http_get takes path + port."
   type = list(object({
-    name   = string
-    image  = string
-    cpu    = optional(string, "1")
-    memory = optional(string, "512Mi")
+    name              = string
+    image             = string
+    cpu               = optional(string, "1")
+    memory            = optional(string, "512Mi")
+    health_check_port = optional(number, null)
+    health_check_path = optional(string, null)
   }))
   default = []
+
+  validation {
+    condition = alltrue([
+      for c in var.sidecar_containers :
+      (c.health_check_port == null) == (c.health_check_path == null)
+    ])
+    error_message = "sidecar_containers: health_check_port and health_check_path must be set together (both null, or both set) — a probe needs both to be meaningful."
+  }
 }
 
 variable "subnet_id" {

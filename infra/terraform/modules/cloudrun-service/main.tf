@@ -67,6 +67,12 @@ resource "google_cloud_run_v2_service" "this" {
       name  = "app"
       image = var.image
 
+      # Cloud Run's container startup-ordering feature (M17-S34): the app
+      # container waits for every sidecar to pass its own startup_probe
+      # before Cloud Run starts this one. Empty list (no sidecar_containers)
+      # is a no-op, same as omitting depends_on entirely.
+      depends_on = [for c in var.sidecar_containers : c.name]
+
       ports {
         container_port = var.port
       }
@@ -154,18 +160,40 @@ resource "google_cloud_run_v2_service" "this" {
             memory = containers.value.memory
           }
         }
+
+        # Gates the app container's depends_on above — Cloud Run only
+        # considers this sidecar "started" (unblocking the app container)
+        # once this probe passes.
+        dynamic "startup_probe" {
+          for_each = containers.value.health_check_port == null ? [] : [1]
+
+          content {
+            http_get {
+              path = containers.value.health_check_path
+              port = containers.value.health_check_port
+            }
+            period_seconds    = 10
+            timeout_seconds   = 3
+            failure_threshold = 3
+          }
+        }
       }
     }
   }
 
   # The pipeline owns the image (post-S27); Terraform owns everything else. Without
   # this, every `terraform apply` after a real deploy would roll the image back to
-  # whatever's in this file.
+  # whatever's in this file. template[0].containers[1].image (M17-S34): the
+  # otel-collector sidecar's image is pipeline-owned the same way, resolved fresh
+  # from GAR on every backend/BFF deploy — see infra/docker/otel-collector/README.md.
+  # Index [1] assumes exactly one sidecar (the only case this module currently
+  # supports); generalize this if a second sidecar is ever added.
   lifecycle {
     ignore_changes = [
       client,
       client_version,
       template[0].containers[0].image,
+      template[0].containers[1].image,
     ]
   }
 }

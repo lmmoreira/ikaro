@@ -100,6 +100,15 @@ env:
   # env: block can't do. validate-and-summarize resolves it in its first
   # step and publishes it as a job output; migrate-and-deploy builds these
   # same image references from that output instead (see its own env:).
+  #
+  # otel-collector sidecar (M17-S34) IS static here, unlike the three app
+  # images — it's not part of this promotion's own SHA (there's only ever
+  # one otel-collector image, shared by staging and prod, rebuilt on its own
+  # cadence — see infra/docker/otel-collector/README.md). :latest is a
+  # GAR-side lookup convenience only; migrate-and-deploy's "Resolve
+  # otel-collector digest" step resolves it to a concrete digest before
+  # every deploy, so the live sidecar is always pinned.
+  IMAGE_OTEL_COLLECTOR_LATEST: ${{ vars.GAR_HOST }}/${{ vars.GCP_PROJECT_PROD }}/ikaro-registry/ikaro-otel-collector:latest
 
 jobs:
   # ---------------------------------------------------------------------
@@ -387,23 +396,54 @@ jobs:
             --project "$GCP_PROJECT_PROD" \
             --wait
 
+      # otel-collector (M17-S34): resolved to a concrete digest here,
+      # immediately before deploying — see deploy-staging.yml's identically
+      # commented step for the full rationale (undocumented --image
+      # behavior on existing multi-container revisions avoided entirely by
+      # using explicit --container flags below; flag-based gcloud run
+      # deploy inherits unspecified env vars/resources/probes from the
+      # previous revision).
+      - name: Resolve otel-collector digest
+        id: collector-image
+        run: |
+          DIGEST=$(gcloud artifacts docker images describe \
+            "$IMAGE_OTEL_COLLECTOR_LATEST" \
+            --format='value(image_summary.digest)')
+          echo "image=${IMAGE_OTEL_COLLECTOR_LATEST%:latest}@${DIGEST}" >> "$GITHUB_OUTPUT"
+
       # `gcloud run deploy` blocks until the new revision is Ready and
       # serving traffic by default (no --async) — a failed rollout fails
       # this step, no extra "wait for READY" logic needed.
       - name: Deploy backend
+        env:
+          IMAGE_OTEL_COLLECTOR: ${{ steps.collector-image.outputs.image }}
         run: |
           gcloud run deploy ikaro-backend \
-            --image "$IMAGE_BACKEND" \
+            --container=otel-collector \
+            --image="$IMAGE_OTEL_COLLECTOR" \
+            --container=app \
+            --image="$IMAGE_BACKEND" \
+            --port=3001 \
+            --depends-on=otel-collector \
             --region "$GCP_REGION" \
             --project "$GCP_PROJECT_PROD"
 
       - name: Deploy bff
+        env:
+          IMAGE_OTEL_COLLECTOR: ${{ steps.collector-image.outputs.image }}
         run: |
           gcloud run deploy ikaro-bff \
-            --image "$IMAGE_BFF" \
+            --container=otel-collector \
+            --image="$IMAGE_OTEL_COLLECTOR" \
+            --container=app \
+            --image="$IMAGE_BFF" \
+            --port=3002 \
+            --depends-on=otel-collector \
             --region "$GCP_REGION" \
             --project "$GCP_PROJECT_PROD"
 
+      # web has no sidecar and no OTel wiring (D9/S33 scope backend+BFF
+      # only) — stays a plain single-image deploy.
       - name: Deploy web
         run: |
           gcloud run deploy ikaro-web \

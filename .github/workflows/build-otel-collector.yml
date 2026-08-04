@@ -1,0 +1,106 @@
+name: Infra — otel-collector Sidecar Image
+
+# Builds and pushes the otel-collector sidecar image (M17-S34) — decoupled
+# from deploy-staging.yml/deploy-production.yml on purpose: this image
+# rebuilds far less often than the app images (only on real config/Dockerfile
+# changes here), but must ride along on every backend/BFF deploy. The two
+# pipelines are joined through GAR itself, not a hand-maintained "current
+# version" pointer — see infra/docker/otel-collector/README.md for the full
+# rebuild -> deploy path. deploy-staging.yml/deploy-production.yml resolve
+# `:latest` to a concrete digest immediately before each backend/BFF deploy,
+# so the live sidecar is always pinned, never on a floating tag.
+#
+# The Dockerfile's own build already runs the collector's `validate`
+# subcommand against config.yaml (RUN instruction) — a broken config fails
+# this workflow's build step, same as any other Dockerfile RUN failure.
+#
+# Authenticates as the same `app-deployer` (staging) WIF identity
+# deploy-staging.yml uses — it already has cross-project
+# artifactregistry.writer on the prod registry (M17-S15, D8: single
+# Artifact Registry lives in ikaro-prod regardless of which pipeline pushes
+# to it).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infra/docker/otel-collector/**'
+      - '.github/workflows/build-otel-collector.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+env:
+  GAR_HOST: ${{ vars.GAR_HOST }}
+  IMAGE_LATEST: ${{ vars.GAR_HOST }}/${{ vars.GCP_PROJECT_PROD }}/ikaro-registry/ikaro-otel-collector:latest
+  IMAGE_SHA: ${{ vars.GAR_HOST }}/${{ vars.GCP_PROJECT_PROD }}/ikaro-registry/ikaro-otel-collector:${{ github.sha }}
+
+jobs:
+  build-scan-push:
+    name: Build, scan & push otel-collector
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: build-otel-collector-${{ github.ref }}
+      cancel-in-progress: true
+    permissions:
+      contents: read
+      id-token: write # mints the short-lived WIF token for google-github-actions/auth
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Required for `docker buildx build`'s type=gha cache backend when
+      # invoked directly in a run: step — see deploy-staging.yml's
+      # identically-commented step for why this is needed.
+      - name: Expose GitHub Actions runtime for GHA cache backend
+        uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
+
+      - name: Set up Docker Buildx
+        run: docker buildx create --use --driver docker-container
+
+      # The Dockerfile's own RUN instruction runs `otelcol-contrib validate`
+      # against config.yaml as a build step — a broken config fails right
+      # here, before any push.
+      - name: Build otel-collector image
+        run: |
+          docker buildx build \
+            --cache-from "type=gha,scope=build-otel-collector" \
+            --cache-to "type=gha,scope=build-otel-collector,mode=max" \
+            --load \
+            -t "$IMAGE_SHA" \
+            infra/docker/otel-collector
+
+      # Same severity/ignore-unfixed policy as deploy-staging.yml's app
+      # image scans (pr-tests.yml's PR gate uses the same settings) —
+      # unfixed-CVE visibility stays the weekly SARIF report's job, not a
+      # push gate.
+      - name: Trivy scan — otel-collector
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE_SHA }}
+          format: table
+          exit-code: '1'
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+
+      - name: Authenticate as app-deployer (staging)
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER_STAGING }}
+          service_account: ${{ secrets.APP_DEPLOYER_SA_STAGING }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "$GAR_HOST" --quiet
+
+      # Tag :latest locally from the already-scanned image before either
+      # push, so both tags point at the exact bytes Trivy verified.
+      - name: Tag :latest
+        run: docker tag "$IMAGE_SHA" "$IMAGE_LATEST"
+
+      - name: Push otel-collector image (sha + latest)
+        run: |
+          docker push "$IMAGE_SHA"
+          docker push "$IMAGE_LATEST"
