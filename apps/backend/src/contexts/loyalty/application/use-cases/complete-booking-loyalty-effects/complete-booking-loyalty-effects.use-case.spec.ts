@@ -6,7 +6,7 @@ import { InMemoryLoyaltyPlatformPort } from '../../../../../test/infrastructure/
 import { InMemoryLoyaltyRedemptionRepository } from '../../../../../test/repositories/loyalty/in-memory-loyalty-redemption.repository';
 import { InMemoryInboxRepository } from '../../../../../test/infrastructure/in-memory-inbox.repository';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
-import { LoyaltyBalance } from '../../../domain/loyalty-balance.aggregate';
+import { LoyaltyBalanceBuilder } from '../../../../../test/builders/loyalty/index';
 import {
   CompleteBookingLoyaltyEffectsUseCaseInput,
   CompleteBookingLoyaltyEffectsUseCase,
@@ -80,7 +80,11 @@ describe('CompleteBookingLoyaltyEffectsUseCase', () => {
     customerId = CUSTOMER_ID,
   ): Promise<void> {
     await balanceRepo.upsert(
-      LoyaltyBalance.reconstitute({ tenantId, customerId, currentPoints: points }),
+      new LoyaltyBalanceBuilder()
+        .withTenantId(tenantId)
+        .withCustomerId(customerId)
+        .withCurrentPoints(points)
+        .build(),
     );
   }
 
