@@ -2,14 +2,8 @@ import { Controller, Get, Header, Param } from '@nestjs/common';
 import { Public } from '../../shared/decorators/public.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { TenantInfoResponse } from '../../shared/types/backend-responses';
-import {
-  HotsiteBookingSettingsResponse,
-  HotsiteBusinessInfoResponse,
-  HotsiteLocalizationResponse,
-  HotsiteManifestResponse,
-  HotsiteResponse,
-  HotsiteSitemapEntryListResponse,
-} from '@ikaro/types';
+import { BackendHotsiteManifestResponse } from './platform.types';
+import { HotsiteManifestResponse, HotsiteSitemapEntryListResponse } from '@ikaro/types';
 
 @Controller('public/platform')
 export class PlatformPublicController {
@@ -22,13 +16,10 @@ export class PlatformPublicController {
     const tenant = await this.backendHttp.get<TenantInfoResponse>(
       `/internal/tenants/by-slug/${slug}`,
     );
-    const hotsite = await this.backendHttp.getForPublic<
-      HotsiteResponse & {
-        business: HotsiteBusinessInfoResponse;
-        localization: HotsiteLocalizationResponse;
-        booking: HotsiteBookingSettingsResponse;
-      }
-    >('/hotsite', tenant.id);
+    const hotsite = await this.backendHttp.getForPublic<BackendHotsiteManifestResponse>(
+      '/hotsite',
+      tenant.id,
+    );
     return { tenant, ...hotsite };
   }
 

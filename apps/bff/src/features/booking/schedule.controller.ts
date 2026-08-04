@@ -47,9 +47,7 @@ export class ScheduleController {
   list(
     @Query(new ZodValidationPipe(ListClosuresQuerySchema)) query: ListClosuresQuery,
   ): Promise<ScheduleClosureListResponse> {
-    return this.backendHttp.get<ScheduleClosureListResponse>(
-      `/schedule/closures?from=${query.from}&to=${query.to}`,
-    );
+    return this.backendHttp.get<ScheduleClosureListResponse>('/schedule/closures', query);
   }
 
   @Post()

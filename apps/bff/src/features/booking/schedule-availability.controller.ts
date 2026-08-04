@@ -26,8 +26,9 @@ export class ScheduleAvailabilityController {
   ): Promise<AvailabilityResponse> {
     return withPublicTenant(this.backendHttp, tenantSlug, (tenantId) =>
       this.backendHttp.getForPublic<AvailabilityResponse>(
-        `/schedule/availability?date=${query.date}&serviceIds=${query.serviceIds}`,
+        '/schedule/availability',
         tenantId,
+        query,
       ),
     );
   }

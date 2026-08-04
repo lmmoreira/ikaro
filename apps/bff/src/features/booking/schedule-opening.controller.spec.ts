@@ -24,9 +24,10 @@ describe('ScheduleOpeningController', () => {
 
       const result = await controller.list({ from: '2026-12-01', to: '2026-12-31' });
 
-      expect(backendHttp.get).toHaveBeenCalledWith(
-        '/schedule/openings?from=2026-12-01&to=2026-12-31',
-      );
+      expect(backendHttp.get).toHaveBeenCalledWith('/schedule/openings', {
+        from: '2026-12-01',
+        to: '2026-12-31',
+      });
       expect(result.items).toHaveLength(1);
     });
   });

@@ -89,9 +89,10 @@ describe('ScheduleOpeningController (component)', () => {
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual(mockListResponse);
-      expect(backendHttpService.get).toHaveBeenCalledWith(
-        '/schedule/openings?from=2026-12-01&to=2026-12-31',
-      );
+      expect(backendHttpService.get).toHaveBeenCalledWith('/schedule/openings', {
+        from: '2026-12-01',
+        to: '2026-12-31',
+      });
     });
 
     it('STAFF JWT → 200', async () => {

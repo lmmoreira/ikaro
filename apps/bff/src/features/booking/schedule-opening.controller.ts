@@ -40,9 +40,7 @@ export class ScheduleOpeningController {
   list(
     @Query(new ZodValidationPipe(ListOpeningsQuerySchema)) query: ListOpeningsQuery,
   ): Promise<ScheduleOpeningListResponse> {
-    return this.backendHttp.get<ScheduleOpeningListResponse>(
-      `/schedule/openings?from=${query.from}&to=${query.to}`,
-    );
+    return this.backendHttp.get<ScheduleOpeningListResponse>('/schedule/openings', query);
   }
 
   @Post()

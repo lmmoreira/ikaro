@@ -65,10 +65,7 @@ export class BackendHttpService {
   ): Promise<T> {
     return this.call(
       this.http.get<T>(`${this.baseUrl}${path}`, {
-        headers: {
-          'X-Tenant-ID': tenantId,
-          'X-Internal-Key': this.config.getOrThrow('INTERNAL_API_KEY'),
-        },
+        headers: this.publicHeaders(tenantId),
         params,
         timeout: 10_000,
       }),
@@ -78,10 +75,7 @@ export class BackendHttpService {
   async postForPublic<T>(path: string, body: unknown, tenantId: string): Promise<T> {
     return this.call(
       this.http.post<T>(`${this.baseUrl}${path}`, body, {
-        headers: {
-          'X-Tenant-ID': tenantId,
-          'X-Internal-Key': this.config.getOrThrow('INTERNAL_API_KEY'),
-        },
+        headers: this.publicHeaders(tenantId),
         timeout: 10_000,
       }),
     );
@@ -90,10 +84,7 @@ export class BackendHttpService {
   async patchForPublic<T>(path: string, body: unknown, tenantId: string): Promise<T> {
     return this.call(
       this.http.patch<T>(`${this.baseUrl}${path}`, body, {
-        headers: {
-          'X-Tenant-ID': tenantId,
-          'X-Internal-Key': this.config.getOrThrow('INTERNAL_API_KEY'),
-        },
+        headers: this.publicHeaders(tenantId),
         timeout: 10_000,
       }),
     );
@@ -121,6 +112,13 @@ export class BackendHttpService {
   private headers(): Record<string, string> {
     return {
       ...buildBackendHeaders(this.req),
+      'X-Internal-Key': this.config.getOrThrow('INTERNAL_API_KEY'),
+    };
+  }
+
+  private publicHeaders(tenantId: string): Record<string, string> {
+    return {
+      'X-Tenant-ID': tenantId,
       'X-Internal-Key': this.config.getOrThrow('INTERNAL_API_KEY'),
     };
   }
