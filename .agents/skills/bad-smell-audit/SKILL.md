@@ -36,7 +36,7 @@ git diff origin/main...HEAD --name-only | grep "^apps/web/"
 
 3. **BE-4 is skipped in `--pr` mode** — checking for missing entity/event/command builders requires scanning the full `src/test/builders/` tree against all entity/event/command files; this is a full-codebase check that the pre-PR script (Step 1, check 28) already covers for new entities, events, and commands added in the PR.
 
-4. All other checks (BE-1, BE-2, BE-3, BE-5, BE-6, BE-7, BFF-1–4, WEB-1–9) run normally but scoped to the changed file list.
+4. All other checks (BE-1, BE-2, BE-3, BE-5, BE-6, BE-7, BFF-1–4, WEB-1–11) run normally but scoped to the changed file list.
 
 If the `git diff` for a layer returns zero files, skip that layer entirely and report `(no changed files in this layer)`.
 
@@ -50,7 +50,7 @@ Spawn three Explore agents in parallel, one per layer. Give each agent the full 
 |---|---|---|
 | Backend | `apps/backend/src/` (full) or changed files list (--pr) | Backend checks section (BE-1 through BE-7; skip BE-4 in --pr mode) |
 | BFF | `apps/bff/src/` (full) or changed files list (--pr) | BFF checks section (BFF-1 through BFF-4) |
-| Web | `apps/web/` (full) or changed files list (--pr) | Web checks section (WEB-1 through WEB-9) |
+| Web | `apps/web/` (full) or changed files list (--pr) | Web checks section (WEB-1 through WEB-11) |
 
 If `$ARGUMENTS` restricts to a single layer or a specific context path, spawn only the relevant agent.
 
@@ -193,6 +193,18 @@ For interfaces/types declared in `apps/web/features/**/api/**` or `apps/web/shar
 
 This is CLAUDE.md's own documented anti-pattern ("New interface in `apps/web/features/**/api/**`... without checking `@ikaro/types` first"), but `bad-smell-audit` had no check for it until 2026-07-23. See `td/TD09-WEB-TYPES-DRIFT-VS-IKARO-TYPES.md` for prior resolved instances (`services`, `customers`, `staff`, `LoyaltyBalanceResponse`) and `td/TD31-BAD-SMELL-AUDIT-COVERAGE-SNAPSHOT.md` for the newly-found drift on `LoyaltyEntryItem`/`LoyaltyRedemptionItem` that prompted adding this check.
 
+### WEB-10. `--ba-*` CSS variables used outside the hotsite tree
+
+`--ba-*` custom properties are injected by `applyBranding()` in `app/[slug]/layout.tsx` and are only defined within that layout's subtree — **except** `app/[slug]/my-account/**`, which is the `CustomerShell` (fixed SaaS design system), not hotsite-branded, despite being physically nested under `app/[slug]/`.
+
+Grep `apps/web/` for `--ba-` references (`var(--ba-*)`, or a CSS-in-JS/style-object key matching `--ba-${string}`). Flag any occurrence in a file that is **not** under `app/[slug]/` (excluding `app/[slug]/my-account/**`), `shells/hotsite/components/`, or `features/platform/hotsite/`. In particular, check `shells/dashboard/`, `app/[slug]/my-account/**`, and `features/customer/` — this exact pattern has broken 3 separate times in this project's history (`Topbar.tsx`/M13-S15, `HotsiteAuthBar`/M13-S14, `/switch-tenant`/M13-S14, all in `docs/ANTI_PATTERNS.md`), always rendering invisible text or a solid-black element rather than throwing an error.
+
+### WEB-11. Actor-scoped domain logic misplaced in the actor's own slice
+
+An actor-scoped view of another domain's aggregate (e.g. a Customer reading/mutating their own Booking or Loyalty data) belongs in the *owning* domain's slice (`features/booking/`, `features/loyalty/`), never the actor's slice (`features/customer/`) — CLAUDE.md §11. TD31 Story 11 found and fixed exactly this drift once already.
+
+Grep `apps/web/features/customer/` for exported functions/components with "Booking" or "Loyalty" in the name (case-insensitive). Read each match: a genuine violation is Booking/Loyalty *domain* logic (fetching, cancelling, redeeming, formatting booking/loyalty data) — not a reference to the Customer aggregate's own identity fields that happens to mention a booking count or similar. Report violations with the correct target slice (`features/booking/` or `features/loyalty/`) and note whether an equivalent already exists there (rename/move) or needs to be created (new file, scoped export name like `cancelBookingAsCustomer`).
+
 ---
 
 ## Output format
@@ -267,6 +279,12 @@ This is CLAUDE.md's own documented anti-pattern ("New interface in `apps/web/fea
 (none found)
 
 #### WEB-9. Local type drift/duplication vs @ikaro/types
+(none found)
+
+#### WEB-10. --ba-* CSS variables outside the hotsite tree
+(none found)
+
+#### WEB-11. Actor-scoped domain logic misplaced in the actor's own slice
 (none found)
 
 ---

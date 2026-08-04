@@ -83,6 +83,8 @@ For each entry in "Docs to load":
 Also load unconditionally:
 - `docs/CODE_STANDARDS.md`
 - `docs/AGENT_PATTERNS.md`
+- `docs/ENGINEERING_RULES.md` — as of the 2026-08-04 CLAUDE.md size reduction, most "critical code invariants" (Transactions, Event Handlers, RequestContext, aggregate-events-outbox, Controller/Route boundaries) live here rather than inline in CLAUDE.md §7. A story can no longer be checked against them without loading this file explicitly.
+- `docs/DEFINITION_OF_DONE.md` — know the full completion bar before writing the story, not just at `/pre-pr` time (see 4p below).
 - The matching `plan/<milestone>_IMPLEMENTATION_DETAILS_IA.md` (if it exists — older milestones have one; use it to understand established patterns for this milestone)
 
 For each entry in "Prototype references":
@@ -157,8 +159,9 @@ Run every check silently. Tag each finding as **BLOCKER**, **RISK**, or **CONFIR
 - No hardcoded business values in use-case steps
 
 ### 4j. Conflicts with project standards
-- Story doesn't contradict CLAUDE.md §7 engineering rules or §8 anti-patterns
+- Story doesn't contradict `docs/ENGINEERING_RULES.md`, `docs/CODE_STANDARDS.md`, or `docs/ANTI_PATTERNS.md` — these are the primary sources now, not CLAUDE.md §7/§8's excerpts of them
 - Story doesn't conflict with patterns locked in prior milestones' `_IMPLEMENTATION_DETAILS_IA.md`
+- Any file path the story specifies matches CLAUDE.md §11's domain-slice rules — in particular, an actor-scoped view of another domain's aggregate (e.g. a Customer reading their own Booking/Loyalty data) belongs in the *owning* domain's slice, never the actor's slice (TD31 Story 11 precedent — this exact mistake already happened once)
 
 ### 4k. Journey / prototype alignment (frontend stories — `Agent: frontend-ts`/`web-ts`, or any story citing a `plan/journey/` path)
 - Frontend-facing story with **no** prototype reference at all → **RISK** — UI wasn't UX-validated via a prototype before this story was written
@@ -180,6 +183,15 @@ Run every check silently. Tag each finding as **BLOCKER**, **RISK**, or **CONFIR
 ### 4n. Migration / entity registration
 - Does the story add a new TypeORM entity or database migration? → **RISK**: "`integration-global-setup.ts` must be updated in the same commit — missing registration causes silent test failures"
 - Check that the migration follows expand/contract (backward-compatible) — no destructive column drops in a single step
+
+### 4o. Engineering discipline — no workarounds, no improvisation, no accumulating machinery
+Check the story's *proposed design*, not just its documentation completeness, against CLAUDE.md §7's 3 NON-NEGOTIABLE principles. This is a design-quality read, not a doc-gap check — findings here are RISKs for discussion with the user, never BLOCKERs:
+- **No workarounds:** does any acceptance criterion describe patching a symptom (suppressing a warning, pinning a version, adding a one-off special case) where a root-cause fix looks available instead?
+- **No improvisation:** if the story cites a specific reference (a library, an existing pattern, a named example), does the design actually use it — or does it describe a bespoke alternative presented as equivalent?
+- **Mounting complexity:** does the story's own description already need multiple stacked safeguards/exceptions/special-cases to work — a sign a structurally simpler approach might need none of it? Before accepting the design as-is, check whether an existing port/adapter/pattern (grep `infrastructure/cross-context/`, `docs/AGENT_PATTERNS.md`'s numbered patterns, or a similar existing use case) already solves this without the extra machinery.
+
+### 4p. Stale-reference sweep anticipation (Definition of Done)
+If this story replaces or removes an existing flow/mechanism (an auth pattern, a data model assumption, a transport layer, a dead endpoint) — does the story's own scope explicitly include grepping `docs/*.md`, other milestones' `plan/*_IMPLEMENTATION_DETAILS_*.md`, `.claude/commands/**`, `.claude/skills/**`, and `scripts/**` for stale references to the old version? If the story is silent on this, flag it now — `docs/DEFINITION_OF_DONE.md` makes this mandatory, and catching the gap here is cheaper than at milestone close-out (M13 precedent: 18 such findings across 8 files, found only when the milestone closed).
 
 ---
 
@@ -213,6 +225,9 @@ Then list findings:
 3. [JOURNEY] No prototype reference found for this frontend story — UX wasn't validated before the story was written
 4. [I18N] Story implies new UI copy but doesn't name i18n keys
 5. [MIGRATION] New entity detected — verify `integration-global-setup.ts` is updated in same commit
+6. [WORKAROUND] AC #3 suppresses a lint warning instead of fixing the underlying type error — root-cause fix looks available
+7. [PATTERN] Story proposes a new Port+Adapter for booking→loyalty reads; `infrastructure/cross-context/` already has one — extend it instead
+8. [STALE-SWEEP] Story replaces the legacy invite-link format but doesn't mention checking `docs/*.md`/`.claude/commands/**` for references to the old one
 
 ### Confirmations (assumed settled — flag if any are wrong)
 1. APPROVED → CANCELLED transition is valid per state machine ✓
