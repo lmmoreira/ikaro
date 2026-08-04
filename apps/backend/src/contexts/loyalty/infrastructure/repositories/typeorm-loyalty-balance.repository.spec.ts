@@ -26,6 +26,7 @@ describe('TypeOrmLoyaltyBalanceRepository', () => {
             findOne: jest.fn(),
             find: jest.fn(),
             upsert: jest.fn(),
+            createQueryBuilder: jest.fn(),
           },
         },
       ],
@@ -83,6 +84,46 @@ describe('TypeOrmLoyaltyBalanceRepository', () => {
 
       const result = await repo.findManyByCustomers(TENANT_ID, [CUSTOMER_ID, customerId2]);
 
+      expect(result).toHaveLength(2);
+      expect(result.every((b) => b instanceof LoyaltyBalance)).toBe(true);
+      expect(result.map((b) => b.currentPoints)).toEqual([50, 10]);
+    });
+  });
+
+  describe('findManyByTenantCustomerPairs()', () => {
+    it('returns an empty array without querying when pairs is empty', async () => {
+      const result = await repo.findManyByTenantCustomerPairs([]);
+
+      expect(result).toEqual([]);
+      expect(ormRepo.createQueryBuilder).not.toHaveBeenCalled();
+    });
+
+    it('maps each found entity to a LoyaltyBalance domain object', async () => {
+      const tenantId2 = '00000000-0000-7000-8000-000000000004';
+      const customerId2 = '00000000-0000-7000-8000-000000000003';
+      const getMany = jest
+        .fn()
+        .mockResolvedValue([
+          new LoyaltyBalanceEntityBuilder()
+            .withTenantId(TENANT_ID)
+            .withCustomerId(CUSTOMER_ID)
+            .withCurrentPoints(50)
+            .build(),
+          new LoyaltyBalanceEntityBuilder()
+            .withTenantId(tenantId2)
+            .withCustomerId(customerId2)
+            .withCurrentPoints(10)
+            .build(),
+        ]);
+      const where = jest.fn().mockReturnValue({ getMany });
+      ormRepo.createQueryBuilder.mockReturnValue({ where } as never);
+
+      const result = await repo.findManyByTenantCustomerPairs([
+        { tenantId: TENANT_ID, customerId: CUSTOMER_ID },
+        { tenantId: tenantId2, customerId: customerId2 },
+      ]);
+
+      expect(ormRepo.createQueryBuilder).toHaveBeenCalledWith('balance');
       expect(result).toHaveLength(2);
       expect(result.every((b) => b instanceof LoyaltyBalance)).toBe(true);
       expect(result.map((b) => b.currentPoints)).toEqual([50, 10]);

@@ -23,6 +23,19 @@ X-Correlation-ID: {{correlationId}}
 
 ###
 
+### GET /loyalty/balances/own — customer views own balance across every linked tenant
+# Used by the BFF's switch-tenant screen (getTenants()) to avoid one /loyalty/balance
+# call per tenant (TD31 Story 18). Takes no params — pairs are resolved server-side
+# from the caller's own OAuth identity.
+GET {{baseUrl}}/loyalty/balances/own
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+X-Correlation-ID: {{correlationId}}
+
+###
+
 ### GET /loyalty/entries — customer views earning history
 GET {{baseUrl}}/loyalty/entries?page=1&limit=20
 X-Tenant-ID: {{tenantId}}

@@ -166,21 +166,22 @@ describe('CustomersController', () => {
   });
 
   describe('getTenants()', () => {
-    it('includes the current tenant alongside the others, each enriched', async () => {
-      const backendHttp = makeBackendHttp({
-        get: jest
-          .fn()
-          .mockResolvedValueOnce([
-            { tenantId: TENANT_ID, customerId: CUSTOMER_ID },
-            { tenantId: TENANT_ID_B, customerId: CUSTOMER_ID_B },
-          ])
-          .mockResolvedValueOnce([
-            { id: TENANT_ID, slug: 'lavacar-bh', name: 'Lavacar BH' },
-            { id: TENANT_ID_B, slug: 'superclean', name: 'SuperClean' },
-          ])
-          .mockResolvedValueOnce({ currentPoints: 120 })
-          .mockResolvedValueOnce({ currentPoints: 8 }),
-      });
+    it('includes the current tenant alongside the others, each enriched, in exactly 3 backend calls', async () => {
+      const getMock = jest
+        .fn()
+        .mockResolvedValueOnce([
+          { tenantId: TENANT_ID, customerId: CUSTOMER_ID },
+          { tenantId: TENANT_ID_B, customerId: CUSTOMER_ID_B },
+        ])
+        .mockResolvedValueOnce([
+          { id: TENANT_ID, slug: 'lavacar-bh', name: 'Lavacar BH' },
+          { id: TENANT_ID_B, slug: 'superclean', name: 'SuperClean' },
+        ])
+        .mockResolvedValueOnce([
+          { tenantId: TENANT_ID, currentPoints: 120 },
+          { tenantId: TENANT_ID_B, currentPoints: 8 },
+        ]);
+      const backendHttp = makeBackendHttp({ get: getMock });
       const controller = new CustomersController(backendHttp);
 
       const result = await controller.getTenants();
@@ -189,11 +190,12 @@ describe('CustomersController', () => {
         { id: TENANT_ID, name: 'Lavacar BH', slug: 'lavacar-bh', loyaltyPoints: 120 },
         { id: TENANT_ID_B, name: 'SuperClean', slug: 'superclean', loyaltyPoints: 8 },
       ]);
-      expect(backendHttp.get).toHaveBeenCalledWith('/customers/me/tenants');
-      // TD20: the balance fetch never carries a client-known customerId — the backend
-      // resolves the caller's own record in each tenant itself.
-      expect(backendHttp.get).toHaveBeenCalledWith('/loyalty/balance', { tenantId: TENANT_ID });
-      expect(backendHttp.get).toHaveBeenCalledWith('/loyalty/balance', { tenantId: TENANT_ID_B });
+      expect(getMock).toHaveBeenCalledTimes(3);
+      expect(getMock).toHaveBeenCalledWith('/customers/me/tenants');
+      // TD31 Story 18: one batch call regardless of how many tenants the customer is
+      // linked to — the backend resolves the caller's own pairs itself, no client-known
+      // customerId is ever sent.
+      expect(getMock).toHaveBeenCalledWith('/loyalty/balances/own');
     });
 
     it('returns a single-item array when the customer belongs to only the current tenant', async () => {
@@ -202,7 +204,7 @@ describe('CustomersController', () => {
           .fn()
           .mockResolvedValueOnce([{ tenantId: TENANT_ID, customerId: CUSTOMER_ID }])
           .mockResolvedValueOnce([{ id: TENANT_ID, slug: 'lavacar-bh', name: 'Lavacar BH' }])
-          .mockResolvedValueOnce({ currentPoints: 120 }),
+          .mockResolvedValueOnce([{ tenantId: TENANT_ID, currentPoints: 120 }]),
       });
       const controller = new CustomersController(backendHttp);
 
@@ -210,6 +212,23 @@ describe('CustomersController', () => {
 
       expect(result).toEqual([
         { id: TENANT_ID, name: 'Lavacar BH', slug: 'lavacar-bh', loyaltyPoints: 120 },
+      ]);
+    });
+
+    it('defaults a tenant missing from the balances-own response to 0 points', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest
+          .fn()
+          .mockResolvedValueOnce([{ tenantId: TENANT_ID, customerId: CUSTOMER_ID }])
+          .mockResolvedValueOnce([{ id: TENANT_ID, slug: 'lavacar-bh', name: 'Lavacar BH' }])
+          .mockResolvedValueOnce([]),
+      });
+      const controller = new CustomersController(backendHttp);
+
+      const result = await controller.getTenants();
+
+      expect(result).toEqual([
+        { id: TENANT_ID, name: 'Lavacar BH', slug: 'lavacar-bh', loyaltyPoints: 0 },
       ]);
     });
 
@@ -219,7 +238,7 @@ describe('CustomersController', () => {
           .fn()
           .mockResolvedValueOnce([{ tenantId: TENANT_ID, customerId: CUSTOMER_ID }])
           .mockResolvedValueOnce([])
-          .mockResolvedValueOnce({ currentPoints: 120 }),
+          .mockResolvedValueOnce([{ tenantId: TENANT_ID, currentPoints: 120 }]),
       });
       const controller = new CustomersController(backendHttp);
 

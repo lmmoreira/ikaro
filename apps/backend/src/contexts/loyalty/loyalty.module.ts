@@ -15,6 +15,7 @@ import { LOYALTY_CUSTOMER_PORT } from './application/ports/loyalty-customer.port
 import { GetLoyaltyBalanceUseCase } from './application/use-cases/get-loyalty-balance/get-loyalty-balance.use-case';
 import { GetLoyaltyBalancesUseCase } from './application/use-cases/get-loyalty-balances/get-loyalty-balances.use-case';
 import { GetOwnLoyaltyBalanceUseCase } from './application/use-cases/get-own-loyalty-balance/get-own-loyalty-balance.use-case';
+import { GetOwnLoyaltyBalancesUseCase } from './application/use-cases/get-own-loyalty-balances/get-own-loyalty-balances.use-case';
 import { GetLoyaltyEntriesUseCase } from './application/use-cases/get-loyalty-entries/get-loyalty-entries.use-case';
 import { GetLoyaltyRedemptionsUseCase } from './application/use-cases/get-loyalty-redemptions/get-loyalty-redemptions.use-case';
 import { RedeemPointsUseCase } from './application/use-cases/redeem-points/redeem-points.use-case';
@@ -66,6 +67,7 @@ import { TypeOrmLoyaltyRedemptionRepository } from './infrastructure/repositorie
     GetLoyaltyBalanceUseCase,
     GetLoyaltyBalancesUseCase,
     GetOwnLoyaltyBalanceUseCase,
+    GetOwnLoyaltyBalancesUseCase,
     GetLoyaltyEntriesUseCase,
     GetLoyaltyRedemptionsUseCase,
     RedeemPointsUseCase,
