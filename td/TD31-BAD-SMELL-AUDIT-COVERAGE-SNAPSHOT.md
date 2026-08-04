@@ -388,7 +388,9 @@ Found and fixed via Codex's cross-tool review (Architecture + Requirements lense
 
 ---
 
-### Story 9 — `booking/api/staff.ts` is misnamed after the wrong aggregate 🔴 Low (mechanical, wide but shallow ripple)
+### Story 9 — `booking/api/staff.ts` is misnamed after the wrong aggregate 🔴 Low (mechanical, wide but shallow ripple) ✅ Done
+
+**Landed**: PR #316 (2026-08-04), `fix-td31-pr12-booking-slice-reorg` (worktree removed post-merge), bundled with Story 11 as PR 12. Discovery found the real importer count was 17 files, not the 8 originally documented — `staff.server.ts`'s importers (5 files, including 3 `app/dashboard/**` route files and `shells/dashboard/model/booking-route.server.ts` + its spec) were never counted separately from `staff.ts`'s. All 17 updated, plus 2 renamed spec files' own internal self-imports (`./staff` → `./booking`) that `git mv` didn't touch, and a stale `staffApi` local variable in `useSchedule.spec.tsx` renamed to `bookingApi` for consistency. Codex's cross-tool review caught 2 real findings, both fixed in the same PR: `docs/24-BFF_ARCHITECTURE.md`'s and `plan/M13-DASHBOARD-FRONTEND.md`'s stale references to the deleted `staff.ts`/`staff.server.ts` paths.
 
 **Source**: WEB-7 (Part 1) = Web 1.1 (Part 2) — cross-validated by two independent audit runs
 
@@ -456,7 +458,9 @@ Decisions made during triage:
 2. **BFF architecture-drift caveat (flat `features/` vs documented layered shape)** → **docs were stale/aspirational for the BFF**. `CLAUDE.md` §11's BFF row corrected in the same pass — see Story 12.
 3. **The remaining 8 themes** (30 🟡 rows total) → all scoped as stories below, same rigor as the 🔴 tier. No 🟡 item was dropped; a few (`6.1`, `6.2`, `1.4` of Backend, `C7`, `G1`, `H1` of BFF) are ⚪-tagged and intentionally excluded — those stay as-is per the original triage grouping.
 
-### Story 11 — Actor-scoped cross-domain code belongs in the owning domain's slice, not the actor's
+### Story 11 — Actor-scoped cross-domain code belongs in the owning domain's slice, not the actor's ✅ Done
+
+**Landed**: PR #316 (2026-08-04), `fix-td31-pr12-booking-slice-reorg` (worktree removed post-merge), bundled with Story 9 as PR 12. Discovery found the suggested grep (`from '@/features/customer/api'`) missed relative-path imports (`'../../api'`) — 4 real consumers used that form (`CancelConfirmPage.tsx`, `InfoSubmitForm.tsx`, `CustomerPhotoUpload.tsx`, and `BookingDetailPage.spec.tsx`, the last one caught only on a post-implementation grep sweep). File layout chosen: `booking/api/customer.ts`/`customer.server.ts` (new files, actor-scoped, mirroring the existing `public.ts` guest-actor split already in that directory) and `loyalty/api.server.ts` (new file) — not folded into `booking.ts`/`booking.server.ts`. Renamed `cancelBooking`→`cancelBookingAsCustomer`, `submitInfo`→`submitBookingInfoAsCustomer` to avoid colliding with Story 9's staff-facing exports of the same name; `fetchCustomerBookings`/`fetchCustomerBookingDetailOrRedirect`/`createCustomerAttachmentSignedUrl`/the 3 loyalty fetchers kept their names (no collision). Copilot's cross-tool review caught a real finding fixed in the same PR: `CustomerFetchError` (previously customer-slice-local) had become a 3-way cross-slice dependency once `booking/api/customer.server.ts` and `loyalty/api.server.ts` both needed it — relocated to `shared/lib/api/errors.ts` alongside its structurally-identical siblings (`AuthError`/`ForbiddenError`/`ApiError`); `withAuthRedirect` stayed in the customer slice (still session/actor-specific, not a generic HTTP concern). Codex's review also flagged missing `bffServerFetch` call-argument assertions in the new fetcher specs — added.
 
 **Source**: Web 1.2, 1.3, 1.4
 
@@ -826,7 +830,7 @@ Grouping rule: two stories collapse into **one PR** only when they genuinely sha
 
 | PR | Stories | Target files | Notes |
 |---|---|---|---|
-| **PR 12** | Story 9 + Story 11 | `apps/web/features/booking/api/{staff,staff.server}.ts` (renamed) + 8 confirmed importers + `apps/web/features/customer/{api,api.server}.ts` + new homes in `booking`/`loyalty` slices | Story 11 needs Story 9's final naming to avoid collisions — same purpose (reorganizing which slice owns what), sequential by construction, land as one PR. |
+| **PR 12** ✅ | Story 9 + Story 11 | `apps/web/features/booking/api/{staff,staff.server}.ts` (renamed) + 17 confirmed importers (not 8 — see Story 9's Landed note) + `apps/web/features/customer/{api,api.server}.ts` + new homes in `booking`/`loyalty` slices | Story 11 needs Story 9's final naming to avoid collisions — same purpose (reorganizing which slice owns what), sequential by construction, land as one PR. **Merged as [#316](https://github.com/lmmoreira/ikaro/pull/316), 2026-08-04.** |
 | **PR 13** ✅ | Story 7 | `apps/web/features/booking/api/public.ts` | Unrelated to the rename — independent PR. **Merged as [#297](https://github.com/lmmoreira/ikaro/pull/297), 2026-07-31.** |
 | **PR 14** ✅ | Story 8 + Story 20 (AddressFields part) | `WeekNav.tsx`, `Footer.tsx`, `TestimonialCard.tsx`, `AddressFields.tsx`, both locale JSON files | Story 20 already calls for folding its i18n item into Story 8's sweep. **Merged as [#296](https://github.com/lmmoreira/ikaro/pull/296), 2026-07-31.** |
 
@@ -844,6 +848,6 @@ Grouping rule: two stories collapse into **one PR** only when they genuinely sha
 - [x] Decision made on which items become scoped stories: the 17 🔴 REAL items → 10 stories (1-10). All 30 🟡 rows triaged in a follow-up conversation the same day → 10 more stories (11-20), including the two genuine open-decision items (slice-ownership convention, BFF layer-shape drift) resolved as documentation corrections rather than code stories. All 6 ⚪ rows spot-checked → 2 confirmed genuinely dead code → Story 21; 4 confirmed correctly excluded with rationale recorded above.
 - [x] Completeness re-check performed 2026-07-23 after the initial triage pass — found and closed 2 gaps: Part 1's `BFF-1` finding had been missed entirely → Story 22; Part 1's "Web — 2 findings" header was a documentation error (only 1 finding was ever recorded) → corrected to "1 finding" in place.
 - [x] 22 stories grouped into a 14-PR execution plan (2026-07-23), collapsing only where stories share a file or have a hard dependency (Waves 2, 3, 4, and the Wave 6 rename pair) — everything else kept as separate, single-purpose PRs.
-- [ ] PRs 1-14 implemented and landed (each independently, per its stories' Definitions of Done); PR 5 has no dependency, PR 12 must land before anything downstream references the renamed paths
+- [x] PRs 1-14 implemented and landed (each independently, per its stories' Definitions of Done) — all 14 merged as of 2026-08-04 (PR 12, #316, was the last)
 - [x] Story 11's documentation half (the slice-ownership rule) and Story 12 (BFF layer-shape correction) applied directly to `CLAUDE.md` §11 on 2026-07-23 — Story 11's code-move half is now PR 12
-- [ ] This snapshot closed, superseded, or split once all 14 PRs land
+- [ ] This snapshot closed, superseded, or split once all 14 PRs land — **not yet**: all 14 planned PRs are done, but Story 18 (BFF `getTenants()` per-tenant loyalty-balance fan-out) remains an open, unscheduled decision — it was split out of Story 5's PR early on and never folded into any of the 14 PRs. Close this snapshot only once Story 18 is either implemented or explicitly declined with a documented reason.
