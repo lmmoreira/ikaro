@@ -11,6 +11,7 @@ import { createNotificationIntegrationApp } from '../../../../test/utils/notific
 import { ServiceEntityBuilder } from '../../../../test/builders/booking/service-entity.builder';
 import { CustomerEntityBuilder } from '../../../../test/builders/customer/customer-entity.builder';
 import { TenantSettingsPropsBuilder } from '../../../../test/builders/platform/tenant-settings-props.builder';
+import { LoyaltyBalanceEntityBuilder } from '../../../../test/builders/loyalty/index';
 import { BookingEntity } from '../../../booking/infrastructure/entities/booking.entity';
 import { BookingLineEntity } from '../../../booking/infrastructure/entities/booking-line.entity';
 import { ServiceEntity } from '../../../booking/infrastructure/entities/service.entity';
@@ -178,7 +179,15 @@ describe('Story: booking completion with a loyalty points discount (integration)
 
   it('decrements the balance, records a LoyaltyRedemption, and persists the discount on the booking', async () => {
     const { tenantId, staffId, customerId, serviceId } = await provisionTenantWithDiscountRate(10);
-    await ds.getRepository(LoyaltyBalanceEntity).save({ tenantId, customerId, currentPoints: 500 });
+    await ds
+      .getRepository(LoyaltyBalanceEntity)
+      .save(
+        new LoyaltyBalanceEntityBuilder()
+          .withTenantId(tenantId)
+          .withCustomerId(customerId)
+          .withCurrentPoints(500)
+          .build(),
+      );
 
     const { bookingId, response } = await completeWithDiscount({
       tenantId,
@@ -224,7 +233,15 @@ describe('Story: booking completion with a loyalty points discount (integration)
 
   it('is idempotent — redelivering the BookingCompleted event does not double-redeem', async () => {
     const { tenantId, staffId, customerId, serviceId } = await provisionTenantWithDiscountRate(10);
-    await ds.getRepository(LoyaltyBalanceEntity).save({ tenantId, customerId, currentPoints: 500 });
+    await ds
+      .getRepository(LoyaltyBalanceEntity)
+      .save(
+        new LoyaltyBalanceEntityBuilder()
+          .withTenantId(tenantId)
+          .withCustomerId(customerId)
+          .withCurrentPoints(500)
+          .build(),
+      );
 
     await completeWithDiscount({
       tenantId,
@@ -262,12 +279,24 @@ describe('Story: booking completion with a loyalty points discount (integration)
     const tenantA = await provisionTenantWithDiscountRate(10);
     await ds
       .getRepository(LoyaltyBalanceEntity)
-      .save({ tenantId: tenantA.tenantId, customerId: tenantA.customerId, currentPoints: 500 });
+      .save(
+        new LoyaltyBalanceEntityBuilder()
+          .withTenantId(tenantA.tenantId)
+          .withCustomerId(tenantA.customerId)
+          .withCurrentPoints(500)
+          .build(),
+      );
 
     const tenantB = await provisionTenantWithDiscountRate(10);
     await ds
       .getRepository(LoyaltyBalanceEntity)
-      .save({ tenantId: tenantB.tenantId, customerId: tenantB.customerId, currentPoints: 777 });
+      .save(
+        new LoyaltyBalanceEntityBuilder()
+          .withTenantId(tenantB.tenantId)
+          .withCustomerId(tenantB.customerId)
+          .withCurrentPoints(777)
+          .build(),
+      );
 
     await completeWithDiscount({
       tenantId: tenantA.tenantId,
