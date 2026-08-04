@@ -444,31 +444,41 @@ jobs:
       # `gcloud run deploy` blocks until the new revision is Ready and
       # serving traffic by default (no --async) — a failed rollout fails
       # this step, no extra "wait for READY" logic needed.
+      # Region/project must come BEFORE --container (real `gcloud run
+      # deploy` behavior, confirmed 2026-08-04 against a live gcloud CLI
+      # after this exact ordering broke the first real staging deploy):
+      # "Flags that are not container-specific must be specified before
+      # --container" — anything placed after the first --container is
+      # parsed as belonging to that container's flag group, so
+      # --region/--project there fail with "unrecognized arguments"
+      # (misleadingly suggesting an alpha/beta track, which was a red
+      # herring — the stable track already supports --container/
+      # --depends-on, just not in this position).
       - name: Deploy backend
         env:
           IMAGE_OTEL_COLLECTOR: ${{ steps.collector-image.outputs.image }}
         run: |
           gcloud run deploy ikaro-backend \
+            --region "$GCP_REGION" \
+            --project "$GCP_PROJECT_STAGING" \
             --container=otel-collector \
             --image="$IMAGE_OTEL_COLLECTOR" \
             --container=app \
             --image="$IMAGE_BACKEND" \
-            --port=3001 \
-            --region "$GCP_REGION" \
-            --project "$GCP_PROJECT_STAGING"
+            --port=3001
 
       - name: Deploy bff
         env:
           IMAGE_OTEL_COLLECTOR: ${{ steps.collector-image.outputs.image }}
         run: |
           gcloud run deploy ikaro-bff \
+            --region "$GCP_REGION" \
+            --project "$GCP_PROJECT_STAGING" \
             --container=otel-collector \
             --image="$IMAGE_OTEL_COLLECTOR" \
             --container=app \
             --image="$IMAGE_BFF" \
-            --port=3002 \
-            --region "$GCP_REGION" \
-            --project "$GCP_PROJECT_STAGING"
+            --port=3002
 
       # web has no sidecar and no OTel wiring (D9/S33 scope backend+BFF
       # only) — stays a plain single-image deploy.
