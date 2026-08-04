@@ -34,6 +34,24 @@ locals {
   # fighting that transition.
   bootstrap_image = "gcr.io/cloudrun/hello@sha256:3beb8d6dd8bac1c597d10f3ddf59f5f684d6054ab589c4334c0486dad07a3f97"
 
+  # otel-collector sidecar (M17-S34) — same bootstrap-placeholder reasoning
+  # as bootstrap_image above: the first `terraform apply` after this story
+  # lands must not depend on build-otel-collector.yml having already pushed
+  # ikaro-otel-collector to GAR, so this pins the public upstream image by
+  # digest instead (matches infra/docker/otel-collector/Dockerfile's own
+  # pin, confirmed 2026-08-04 via `docker pull
+  # otel/opentelemetry-collector-contrib:0.157.0`). The pipeline takes over
+  # from here via modules/cloudrun-service's ignore_changes on
+  # containers[1].image — see infra/docker/otel-collector/README.md.
+  otel_collector_bootstrap_image = "otel/opentelemetry-collector-contrib@sha256:f2f01157055a9b2aab9df7118e1f1c9abf345e99b23bc7a2bc791db374a7d0f6"
+
+  otel_collector_sidecar = [{
+    name   = "otel-collector"
+    image  = local.otel_collector_bootstrap_image
+    cpu    = "0.1"
+    memory = "128Mi"
+  }]
+
   # Single source of truth for the branded domain (D11) — was hardcoded as
   # the literal "ikaro.online" in 5 places across this file (backend/bff env
   # vars, the edge module's own root_domain input); interpolating one local
@@ -153,6 +171,8 @@ module "cloudrun_backend" {
   db_pool_size       = 3
   db_tier            = var.db_tier
 
+  sidecar_containers = local.otel_collector_sidecar
+
   health_check_ready_path = "/health/ready"
   health_check_live_path  = "/health/live"
 
@@ -161,6 +181,14 @@ module "cloudrun_backend" {
       NODE_ENV    = "production"
       APP_ENV     = "production"
       GCP_PROJECT = var.project_id
+
+      # M17-S34 / D12: OTEL_TRACES_SAMPLER_ARG defaults to 1.0 (100%,
+      # env.validation.ts) — staging keeps that default (full sampling for
+      # debugging), prod must override to 10% or it silently ships at full
+      # sampling cost. Named cost tradeoff (D12): the trace volume/Cloud
+      # Trace ingestion cost this avoids is why 10% was chosen over 100%,
+      # accepted for a pre-traffic budget target.
+      OTEL_TRACES_SAMPLER_ARG = "0.1"
 
       # DB_NAME derives from modules/database's own output (single source of
       # truth for the google_sql_database.ikaro name) rather than a second
@@ -243,6 +271,8 @@ module "cloudrun_bff" {
   network_id = module.network.network_id
   subnet_id  = module.network.subnet_id
 
+  sidecar_containers = local.otel_collector_sidecar
+
   health_check_ready_path = "/v1/health/ready"
   health_check_live_path  = "/v1/health/live"
 
@@ -250,6 +280,10 @@ module "cloudrun_bff" {
     NODE_ENV    = "production"
     APP_ENV     = "production"
     GCP_PROJECT = var.project_id
+
+    # M17-S34 / D12: see cloudrun_backend's identically-commented line above
+    # — prod overrides the 100% default to 10%, staging keeps full sampling.
+    OTEL_TRACES_SAMPLER_ARG = "0.1"
 
     BACKEND_INTERNAL_URL = module.cloudrun_backend.service_uri
     # Fixed custom domain (S22's edge module + Cloudflare DNS make this

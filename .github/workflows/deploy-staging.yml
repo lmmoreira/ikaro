@@ -126,6 +126,11 @@ env:
   IMAGE_BACKEND: ${{ vars.GAR_HOST }}/${{ vars.GCP_PROJECT_PROD }}/ikaro-registry/ikaro-backend:${{ github.sha }}
   IMAGE_BFF: ${{ vars.GAR_HOST }}/${{ vars.GCP_PROJECT_PROD }}/ikaro-registry/ikaro-bff:${{ github.sha }}
   IMAGE_WEB: ${{ vars.GAR_HOST }}/${{ vars.GCP_PROJECT_PROD }}/ikaro-registry/ikaro-web:${{ github.sha }}
+  # otel-collector sidecar (M17-S34) — :latest is a GAR-side lookup
+  # convenience only; migrate-and-deploy's "Resolve otel-collector digest"
+  # step below resolves it to a concrete digest before every deploy, so the
+  # live sidecar is always pinned. See infra/docker/otel-collector/README.md.
+  IMAGE_OTEL_COLLECTOR_LATEST: ${{ vars.GAR_HOST }}/${{ vars.GCP_PROJECT_PROD }}/ikaro-registry/ikaro-otel-collector:latest
 
 jobs:
   # ---------------------------------------------------------------------
@@ -411,23 +416,62 @@ jobs:
             --project "$GCP_PROJECT_STAGING" \
             --wait
 
+      # otel-collector (M17-S34): :latest is a GAR-side lookup convenience
+      # only — resolved to a concrete digest here, immediately before
+      # deploying, so the live sidecar is always pinned, never on a
+      # floating tag. `gcloud run deploy --image` (plain, no --container
+      # flags) is undocumented for its effect on an existing multi-container
+      # revision's other containers — backend/bff deploys below use
+      # explicit --container flags for both containers instead of relying
+      # on that, so this is never ambiguous. Flag-based `gcloud run deploy`
+      # inherits unspecified config (env vars, resources, probes) from the
+      # previous revision — confirmed via Google's own docs, distinct from
+      # YAML-manifest deploys, which don't — so neither container's env
+      # vars/secrets/resources need to be re-specified here. No
+      # --depends-on on the app container (removed 2026-08-04, cross-tool
+      # PR review finding on PR #318): gating the app's own startup on the
+      # sidecar's health would mean a crashed/unhealthy collector blocks
+      # the app from deploying at all — see
+      # modules/cloudrun-service/variables.tf for the full rationale.
+      - name: Resolve otel-collector digest
+        id: collector-image
+        run: |
+          DIGEST=$(gcloud artifacts docker images describe \
+            "$IMAGE_OTEL_COLLECTOR_LATEST" \
+            --format='value(image_summary.digest)')
+          echo "image=${IMAGE_OTEL_COLLECTOR_LATEST%:latest}@${DIGEST}" >> "$GITHUB_OUTPUT"
+
       # `gcloud run deploy` blocks until the new revision is Ready and
       # serving traffic by default (no --async) — a failed rollout fails
       # this step, no extra "wait for READY" logic needed.
       - name: Deploy backend
+        env:
+          IMAGE_OTEL_COLLECTOR: ${{ steps.collector-image.outputs.image }}
         run: |
           gcloud run deploy ikaro-backend \
-            --image "$IMAGE_BACKEND" \
+            --container=otel-collector \
+            --image="$IMAGE_OTEL_COLLECTOR" \
+            --container=app \
+            --image="$IMAGE_BACKEND" \
+            --port=3001 \
             --region "$GCP_REGION" \
             --project "$GCP_PROJECT_STAGING"
 
       - name: Deploy bff
+        env:
+          IMAGE_OTEL_COLLECTOR: ${{ steps.collector-image.outputs.image }}
         run: |
           gcloud run deploy ikaro-bff \
-            --image "$IMAGE_BFF" \
+            --container=otel-collector \
+            --image="$IMAGE_OTEL_COLLECTOR" \
+            --container=app \
+            --image="$IMAGE_BFF" \
+            --port=3002 \
             --region "$GCP_REGION" \
             --project "$GCP_PROJECT_STAGING"
 
+      # web has no sidecar and no OTel wiring (D9/S33 scope backend+BFF
+      # only) — stays a plain single-image deploy.
       - name: Deploy web
         run: |
           gcloud run deploy ikaro-web \

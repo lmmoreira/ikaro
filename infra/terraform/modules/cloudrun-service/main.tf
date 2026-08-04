@@ -67,6 +67,14 @@ resource "google_cloud_run_v2_service" "this" {
       name  = "app"
       image = var.image
 
+      # No depends_on on sidecar_containers here (M17-S34) — deliberately.
+      # Gating the app container's own startup on a sidecar's health probe
+      # would mean Cloud Run never starts the app at all if the sidecar
+      # fails to become healthy, contradicting "app boots even if the
+      # collector crashes" (confirmed via a docker-compose depends_on:
+      # condition: service_healthy reproduction, cross-tool PR review
+      # finding, PR #318, 2026-08-04). Sidecars start independently.
+
       ports {
         container_port = var.port
       }
@@ -160,12 +168,17 @@ resource "google_cloud_run_v2_service" "this" {
 
   # The pipeline owns the image (post-S27); Terraform owns everything else. Without
   # this, every `terraform apply` after a real deploy would roll the image back to
-  # whatever's in this file.
+  # whatever's in this file. template[0].containers[1].image (M17-S34): the
+  # otel-collector sidecar's image is pipeline-owned the same way, resolved fresh
+  # from GAR on every backend/BFF deploy — see infra/docker/otel-collector/README.md.
+  # Index [1] assumes exactly one sidecar (the only case this module currently
+  # supports); generalize this if a second sidecar is ever added.
   lifecycle {
     ignore_changes = [
       client,
       client_version,
       template[0].containers[0].image,
+      template[0].containers[1].image,
     ]
   }
 }

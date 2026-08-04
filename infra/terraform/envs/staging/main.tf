@@ -31,6 +31,24 @@ locals {
   # lands — ignore_changes in modules/cloudrun-service keeps this from
   # fighting that transition.
   bootstrap_image = "gcr.io/cloudrun/hello@sha256:3beb8d6dd8bac1c597d10f3ddf59f5f684d6054ab589c4334c0486dad07a3f97"
+
+  # otel-collector sidecar (M17-S34) — same bootstrap-placeholder reasoning
+  # as bootstrap_image above: the first `terraform apply` after this story
+  # lands must not depend on build-otel-collector.yml having already pushed
+  # ikaro-otel-collector to GAR, so this pins the public upstream image by
+  # digest instead (matches infra/docker/otel-collector/Dockerfile's own
+  # pin, confirmed 2026-08-04 via `docker pull
+  # otel/opentelemetry-collector-contrib:0.157.0`). The pipeline takes over
+  # from here via modules/cloudrun-service's ignore_changes on
+  # containers[1].image — see infra/docker/otel-collector/README.md.
+  otel_collector_bootstrap_image = "otel/opentelemetry-collector-contrib@sha256:f2f01157055a9b2aab9df7118e1f1c9abf345e99b23bc7a2bc791db374a7d0f6"
+
+  otel_collector_sidecar = [{
+    name   = "otel-collector"
+    image  = local.otel_collector_bootstrap_image
+    cpu    = "0.1"
+    memory = "128Mi"
+  }]
 }
 
 module "network" {
@@ -132,6 +150,8 @@ module "cloudrun_backend" {
   db_pool_size       = 3
   db_tier            = var.db_tier
 
+  sidecar_containers = local.otel_collector_sidecar
+
   health_check_ready_path = "/health/ready"
   health_check_live_path  = "/health/live"
 
@@ -215,6 +235,8 @@ module "cloudrun_bff" {
   vpc_egress = "ALL_TRAFFIC"
   network_id = module.network.network_id
   subnet_id  = module.network.subnet_id
+
+  sidecar_containers = local.otel_collector_sidecar
 
   health_check_ready_path = "/v1/health/ready"
   health_check_live_path  = "/v1/health/live"

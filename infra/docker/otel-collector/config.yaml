@@ -1,0 +1,68 @@
+# otel-collector config — the ONLY place GCP-specific exporter code appears
+# (M17 D9 anti-lock-in guardrail). Swapping vendors = edit the exporter block
+# below + the traces pipeline's `exporters:` list, rebuild via
+# .github/workflows/build-otel-collector.yml, done. No app change, no
+# Terraform change — see README.md for the full rebuild/deploy path.
+#
+# Validated against the real otel/opentelemetry-collector-contrib:0.157.0
+# binary (M17-S34 implementation, 2026-08-04) — `resourcedetection` is a
+# deprecated processor alias as of this version; `resource_detection` is the
+# canonical name (confirmed via the collector's own startup deprecation
+# warning, not assumed from memory).
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: localhost:4317
+      http:
+        endpoint: localhost:4318
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 25
+  resource_detection:
+    detectors: [gcp]
+    timeout: 2s
+  batch:
+    timeout: 5s
+
+exporters:
+  # No `project:` field — the googlecloud exporter auto-detects the current
+  # project via Application Default Credentials (Cloud Run's metadata
+  # server). This one image is deployed unmodified to both staging and prod
+  # (D8, single Artifact Registry) — a hardcoded project here would silently
+  # break whichever environment it wasn't meant for.
+  googlecloud: {}
+
+  # Alternate exporter (swap target vendor): uncomment, point at the new
+  # backend, add it to the traces pipeline's exporters list below, remove
+  # `googlecloud` from that list (or keep both to dual-ship during a
+  # migration). Rebuild via the dedicated workflow — the next backend/BFF
+  # deploy picks it up automatically. No app change.
+  # otlp/vendor:
+  #   endpoint: tempo.example.com:4317
+  #   tls:
+  #     insecure: false
+
+extensions:
+  # NOT wired to a Cloud Run startup_probe / container dependency (removed
+  # 2026-08-04, cross-tool PR review finding on PR #318): gating the app
+  # container's own startup on this endpoint would mean a crashed/unhealthy
+  # collector blocks the app from starting at all — see
+  # modules/cloudrun-service/variables.tf for the full rationale. Kept for
+  # manual/external diagnostics only (e.g. an operator curling it directly).
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource_detection, batch]
+      exporters: [googlecloud]
+  # Metrics pipeline stub — deferred to a future story (googlemanagedprometheus
+  # exporter), see M17-S34 description.
