@@ -1,10 +1,8 @@
 import { getAccessToken } from '@/features/auth/get-access-token';
 import { decodeJwtPayload } from '@/features/auth/decode-jwt';
-import {
-  fetchCustomerBookings,
-  fetchLoyaltyBalance,
-  withAuthRedirect,
-} from '@/features/customer/api.server';
+import { withAuthRedirect } from '@/features/customer/api.server';
+import { fetchCustomerBookings } from '@/features/booking/api/customer.server';
+import { fetchLoyaltyBalance } from '@/features/loyalty/api.server';
 import { HomeDashboard } from '@/features/customer/components/my-account/HomeDashboard';
 
 interface MyAccountHomePageProps {

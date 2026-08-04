@@ -11,7 +11,7 @@ import {
   generateHotsiteImageReadSignedUrl,
   generateHotsiteImageSignedUrl,
 } from '@/features/platform/api/tenant-settings';
-import { getBooking, listBookings } from '@/features/booking/api/staff';
+import { getBooking, listBookings } from '@/features/booking/api/booking';
 import { ApiError } from '@/shared/lib/api/errors';
 import { compressImage } from '@/shared/utils/compress-image';
 import { GalleryImageManager } from './GalleryImageManager';
@@ -27,7 +27,7 @@ vi.mock('@/shared/utils/compress-image', () => ({
   compressImage: vi.fn((file: File) => Promise.resolve(file)),
 }));
 
-vi.mock('@/features/booking/api/staff', () => ({
+vi.mock('@/features/booking/api/booking', () => ({
   listBookings: vi.fn(),
   getBooking: vi.fn(),
 }));

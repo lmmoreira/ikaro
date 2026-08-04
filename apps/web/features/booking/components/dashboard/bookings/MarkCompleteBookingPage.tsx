@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import { BOOKING_STATUS, type StaffBookingDetailResponse } from '@ikaro/types';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
-import { getBooking } from '@/features/booking/api/staff';
+import { getBooking } from '@/features/booking/api/booking';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { useCompleteBooking } from '@/features/booking/hooks/useBookingMutations';

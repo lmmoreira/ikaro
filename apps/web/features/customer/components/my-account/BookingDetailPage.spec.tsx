@@ -97,8 +97,8 @@ vi.mock('next/link', () => ({
 }));
 
 const submitInfoMock = vi.fn();
-vi.mock('../../api', () => ({
-  submitInfo: (...args: unknown[]) => submitInfoMock(...args),
+vi.mock('@/features/booking/api/customer', () => ({
+  submitBookingInfoAsCustomer: (...args: unknown[]) => submitInfoMock(...args),
 }));
 
 function makeBooking(

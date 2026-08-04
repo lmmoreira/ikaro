@@ -2278,11 +2278,11 @@ Implement the Horários section of the staff dashboard. This is a **frontend-onl
 - reuse the existing `WeekNav` from `apps/web/shells/dashboard/components/WeekNav.tsx`
 - reuse the current schedule API layer under `apps/web/features/booking/schedule/`
 - reuse the existing schedule hooks under `apps/web/features/booking/schedule/useSchedule.ts`
-- reuse the existing staff bookings list helper from `apps/web/features/booking/api/staff.ts`
+- reuse the existing staff bookings list helper from `apps/web/features/booking/api/booking.ts` (renamed from `staff.ts` — TD31 Story 9)
 
 The page is a weekly schedule view where staff can see approved bookings on a time grid and manage schedule closures (UC-010a, UC-010b) and special openings (UC-010c, UC-010d). The top calendar and mobile navigation should feel like the existing bookings pages, not like a new visual system.
 
-> 🔍 **Discover before starting:** Verify that `GET /v1/schedule/closures`, `POST /v1/schedule/closures`, `DELETE /v1/schedule/closures/:id`, `GET /v1/schedule/openings`, `POST /v1/schedule/openings`, and `DELETE /v1/schedule/openings/:id` exist in `apps/bff/src/features/booking/` and return the shapes described below. Check `GET /v1/bookings?status=APPROVED&from=...&to=...` through the existing `listBookings(...)` helper in `apps/web/features/booking/api/staff.ts`; confirm the `from`/`to` filter params work for a date range. Verify `apps/bff/http/schedule/` exists; if `schedule-openings.http` or `availability.http` are missing, create them as part of this story.
+> 🔍 **Discover before starting:** Verify that `GET /v1/schedule/closures`, `POST /v1/schedule/closures`, `DELETE /v1/schedule/closures/:id`, `GET /v1/schedule/openings`, `POST /v1/schedule/openings`, and `DELETE /v1/schedule/openings/:id` exist in `apps/bff/src/features/booking/` and return the shapes described below. Check `GET /v1/bookings?status=APPROVED&from=...&to=...` through the existing `listBookings(...)` helper in `apps/web/features/booking/api/booking.ts` (renamed from `staff.ts` — TD31 Story 9); confirm the `from`/`to` filter params work for a date range. Verify `apps/bff/http/schedule/` exists; if `schedule-openings.http` or `availability.http` are missing, create them as part of this story.
 
 **Prototype reference:** `plan/journey/staff/prototypes/horarios/` (10 screens — `00-schedule.html` through `06-remove-opening.html`)
 **Route:** `/dashboard/schedule`
@@ -3021,6 +3021,8 @@ The booking detail page for a customer. The page adapts based on status: APPROVE
 - `.http` block updated in `apps/bff/http/bookings/bookings.http`.
 
 **What to create:**
+
+> **Moved (2026-08-04):** `fetchCustomerBookingDetail`/`fetchCustomerBookingDetailOrRedirect` and `cancelBooking`/`submitInfo` shown below shipped in `features/customer/api(.server).ts` as this story originally described, then relocated to `features/booking/api/customer(.server).ts` — renamed `cancelBookingAsCustomer`/`submitBookingInfoAsCustomer` to avoid colliding with the staff-facing exports of the same name — per the owning-domain-slice rule in `CLAUDE.md` §11. See `td/TD31-BAD-SMELL-AUDIT-COVERAGE-SNAPSHOT.md` Story 11 / PR #316. Kept below as the historical record of what this story originally built.
 
 `apps/web/features/customer/api.server.ts` (extend from `M13-S27`) — server read via `bffServerFetch`:
 ```typescript

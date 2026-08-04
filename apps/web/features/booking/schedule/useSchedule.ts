@@ -14,7 +14,7 @@ import {
   type CreateClosureRequest,
   type CreateOpeningRequest,
 } from '@/features/booking/api/schedule';
-import { listBookings } from '@/features/booking/api/staff';
+import { listBookings } from '@/features/booking/api/booking';
 import { SCHEDULE_BOOKING_STATUS_ALL } from '@/features/booking/model/booking-status';
 import { useTenant } from '@/providers/tenant-provider';
 

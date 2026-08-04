@@ -5,7 +5,7 @@ import { decodeJwtPayload } from '@/features/auth/decode-jwt';
 import {
   BookingDetailFetchError,
   fetchStaffBookingDetail,
-} from '@/features/booking/api/staff.server';
+} from '@/features/booking/api/booking.server';
 import { loadBookingDetailRouteData } from './booking-route.server';
 import { matchBookingDetailRoute } from './booking-route';
 
@@ -19,7 +19,7 @@ vi.mock('@/features/auth/decode-jwt', () => ({
   decodeJwtPayload: vi.fn(),
 }));
 
-vi.mock('@/features/booking/api/staff.server', () => ({
+vi.mock('@/features/booking/api/booking.server', () => ({
   BookingDetailFetchError: class BookingDetailFetchError extends Error {
     readonly status: number;
 

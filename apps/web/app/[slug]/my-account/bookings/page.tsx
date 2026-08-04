@@ -1,9 +1,7 @@
 import { getAccessToken } from '@/features/auth/get-access-token';
-import {
-  fetchCustomerBookings,
-  fetchLoyaltyBalance,
-  withAuthRedirect,
-} from '@/features/customer/api.server';
+import { withAuthRedirect } from '@/features/customer/api.server';
+import { fetchCustomerBookings } from '@/features/booking/api/customer.server';
+import { fetchLoyaltyBalance } from '@/features/loyalty/api.server';
 import { BookingsList } from '@/features/customer/components/my-account/BookingsList';
 
 interface MyAccountBookingsPageProps {

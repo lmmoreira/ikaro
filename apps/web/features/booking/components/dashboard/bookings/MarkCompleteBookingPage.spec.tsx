@@ -5,7 +5,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
 import type { StaffBookingDetailResponse } from '@ikaro/types';
 import { createAttachmentSignedUrl } from '@/features/booking/api/public';
-import { getBooking } from '@/features/booking/api/staff';
+import { getBooking } from '@/features/booking/api/booking';
 import { MarkCompleteBookingPage } from './MarkCompleteBookingPage';
 
 vi.mock('next/link', () => ({
@@ -26,7 +26,7 @@ vi.mock('@/features/booking/api/public', () => ({
   createAttachmentSignedUrl: vi.fn(),
 }));
 
-vi.mock('@/features/booking/api/staff', () => ({
+vi.mock('@/features/booking/api/booking', () => ({
   getBooking: vi.fn(),
 }));
 

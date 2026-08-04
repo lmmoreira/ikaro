@@ -54,8 +54,8 @@ vi.mock('next/navigation', () => ({
 }));
 
 const cancelBookingMock = vi.fn();
-vi.mock('../../api', () => ({
-  cancelBooking: (...args: unknown[]) => cancelBookingMock(...args),
+vi.mock('@/features/booking/api/customer', () => ({
+  cancelBookingAsCustomer: (...args: unknown[]) => cancelBookingMock(...args),
 }));
 
 function makeBooking(): CustomerBookingDetailResponse {

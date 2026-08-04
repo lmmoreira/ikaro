@@ -1,6 +1,6 @@
 import { BookingQueuePage } from '@/features/booking/components/dashboard/bookings/BookingQueuePage';
 import { getAccessToken } from '@/features/auth/get-access-token';
-import { listBookings } from '@/features/booking/api/staff.server';
+import { listBookings } from '@/features/booking/api/booking.server';
 import { fetchTenantSettings } from '@/features/platform/api/tenant-settings.server';
 import { resolveWelcomeStaffScreenDays } from '@/features/platform/model/tenant-settings';
 import { addDays, toISODate } from '@/shared/lib/formatting/date-utils';

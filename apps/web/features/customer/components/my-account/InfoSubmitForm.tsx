@@ -2,7 +2,7 @@
 
 import { useId, useState, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
-import { submitInfo } from '../../api';
+import { submitBookingInfoAsCustomer } from '@/features/booking/api/customer';
 import { CustomerPhotoUpload } from './CustomerPhotoUpload';
 
 interface InfoSubmitFormProps {
@@ -40,7 +40,7 @@ export function InfoSubmitForm({
     setValidationError(false);
     setState('submitting');
     try {
-      await submitInfo(bookingId, message.trim(), photoUrls);
+      await submitBookingInfoAsCustomer(bookingId, message.trim(), photoUrls);
       onSubmitted();
     } catch {
       setState('error');

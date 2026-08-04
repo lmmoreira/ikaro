@@ -2,7 +2,7 @@
 
 import { useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { createCustomerAttachmentSignedUrl } from '../../api';
+import { createCustomerAttachmentSignedUrl } from '@/features/booking/api/customer';
 import { uploadFileToSignedUrl } from '@/shared/lib/upload/upload-to-signed-url';
 import { compressImage } from '@/shared/utils/compress-image';
 

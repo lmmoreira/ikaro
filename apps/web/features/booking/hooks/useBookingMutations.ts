@@ -13,7 +13,7 @@ import {
   type RescheduleBookingRequest,
   type SubmitInfoRequest,
   type AuthenticatedBookingRequest,
-} from '@/features/booking/api/staff';
+} from '@/features/booking/api/booking';
 import type {
   ApproveBookingRequest,
   RejectBookingRequest,

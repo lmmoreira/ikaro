@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import type { StaffBookingListResponse } from '@ikaro/types';
-import { getBooking, listBookings, type BookingListFilters } from '@/features/booking/api/staff';
+import { getBooking, listBookings, type BookingListFilters } from '@/features/booking/api/booking';
 import { useTenant } from '@/providers/tenant-provider';
 
 export function useBookings(filters?: BookingListFilters) {

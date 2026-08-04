@@ -1,5 +1,5 @@
 import { getAccessToken } from '@/features/auth/get-access-token';
-import { fetchCustomerBookingDetailOrRedirect } from '@/features/customer/api.server';
+import { fetchCustomerBookingDetailOrRedirect } from '@/features/booking/api/customer.server';
 import { resolveReturnTo } from '@/features/customer/booking-navigation';
 import { BookingDetailPage } from '@/features/customer/components/my-account/BookingDetailPage';
 

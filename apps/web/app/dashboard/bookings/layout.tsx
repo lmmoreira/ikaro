@@ -10,7 +10,7 @@ import { DashboardTopbarStatusProvider } from '@/shells/dashboard/components/top
 import {
   BookingDetailFetchError,
   fetchStaffBookingDetail,
-} from '@/features/booking/api/staff.server';
+} from '@/features/booking/api/booking.server';
 import { matchBookingDetailRoute } from '@/shells/dashboard/model/booking-route';
 import type { BookingStatus } from '@ikaro/types';
 import {

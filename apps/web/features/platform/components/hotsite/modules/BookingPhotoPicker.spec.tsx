@@ -4,12 +4,12 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { StaffBookingDetailResponse, StaffBookingListResponse } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
-import { getBooking, listBookings } from '@/features/booking/api/staff';
+import { getBooking, listBookings } from '@/features/booking/api/booking';
 import { featureBookingPhoto } from '@/features/platform/api/tenant-settings';
 import { ApiError } from '@/shared/lib/api/errors';
 import { BookingPhotoPicker } from './BookingPhotoPicker';
 
-vi.mock('@/features/booking/api/staff', () => ({
+vi.mock('@/features/booking/api/booking', () => ({
   listBookings: vi.fn(),
   getBooking: vi.fn(),
 }));

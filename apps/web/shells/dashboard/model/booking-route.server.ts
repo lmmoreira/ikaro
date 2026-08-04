@@ -4,7 +4,7 @@ import { decodeJwtPayload } from '@/features/auth/decode-jwt';
 import {
   BookingDetailFetchError,
   fetchStaffBookingDetail,
-} from '@/features/booking/api/staff.server';
+} from '@/features/booking/api/booking.server';
 
 export interface BookingDetailRouteData {
   readonly booking: StaffBookingDetailResponse;
