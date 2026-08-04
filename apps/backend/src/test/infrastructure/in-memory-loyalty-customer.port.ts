@@ -1,4 +1,7 @@
-import { ILoyaltyCustomerPort } from '../../contexts/loyalty/application/ports/loyalty-customer.port';
+import {
+  ILoyaltyCustomerPort,
+  LoyaltyCustomerTenantPair,
+} from '../../contexts/loyalty/application/ports/loyalty-customer.port';
 import { LoyaltyCustomerNotFoundInTenantError } from '../../contexts/loyalty/domain/errors/loyalty-domain.error';
 
 export class InMemoryLoyaltyCustomerPort implements ILoyaltyCustomerPort {
@@ -21,6 +24,22 @@ export class InMemoryLoyaltyCustomerPort implements ILoyaltyCustomerPort {
     const match = this.links.get(`${homeTenantId}:${homeCustomerId}:${targetTenantId}`);
     if (!match) throw new LoyaltyCustomerNotFoundInTenantError();
     return match;
+  }
+
+  async resolveAllTenantsByOAuthId(
+    homeCustomerId: string,
+    homeTenantId: string,
+  ): Promise<LoyaltyCustomerTenantPair[]> {
+    const prefix = `${homeTenantId}:${homeCustomerId}:`;
+    const pairs: LoyaltyCustomerTenantPair[] = [
+      { tenantId: homeTenantId, customerId: homeCustomerId },
+    ];
+    for (const [key, customerId] of this.links) {
+      if (key.startsWith(prefix)) {
+        pairs.push({ tenantId: key.slice(prefix.length), customerId });
+      }
+    }
+    return pairs;
   }
 
   clear(): void {

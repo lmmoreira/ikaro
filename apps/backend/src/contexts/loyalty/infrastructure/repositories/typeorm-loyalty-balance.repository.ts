@@ -1,8 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Brackets, In, Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
-import { ILoyaltyBalanceRepository } from '../../application/ports/loyalty-balance-repository.port';
+import {
+  ILoyaltyBalanceRepository,
+  LoyaltyBalanceTenantCustomerPair,
+} from '../../application/ports/loyalty-balance-repository.port';
 import { LoyaltyBalance } from '../../domain/loyalty-balance.aggregate';
 import { LoyaltyBalanceEntity } from '../entities/loyalty-balance.entity';
 
@@ -23,6 +26,24 @@ export class TypeOrmLoyaltyBalanceRepository implements ILoyaltyBalanceRepositor
     const entities = await this.repo.find({
       where: { tenantId, customerId: In(customerIds) },
     });
+    return entities.map((entity) => this.toDomain(entity));
+  }
+
+  async findManyByTenantCustomerPairs(
+    pairs: LoyaltyBalanceTenantCustomerPair[],
+  ): Promise<LoyaltyBalance[]> {
+    if (pairs.length === 0) return [];
+    const qb = this.repo.createQueryBuilder('balance').where(
+      new Brackets((sub) => {
+        pairs.forEach((pair, i) => {
+          const clause = `(balance.tenantId = :tenantId${i} AND balance.customerId = :customerId${i})`;
+          const params = { [`tenantId${i}`]: pair.tenantId, [`customerId${i}`]: pair.customerId };
+          if (i === 0) sub.where(clause, params);
+          else sub.orWhere(clause, params);
+        });
+      }),
+    );
+    const entities = await qb.getMany();
     return entities.map((entity) => this.toDomain(entity));
   }
 

@@ -14,7 +14,11 @@ import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { CustomerTenantSummaryResponse } from '../auth/auth.types';
 import { TenantInfoResponse } from '../../shared/types/backend-responses';
 import { toTenantOption } from './customers.mapper';
-import { CustomerSearchResponse, LoyaltyBalanceItem } from './customers.types';
+import {
+  CustomerSearchResponse,
+  LoyaltyBalanceByTenantItem,
+  LoyaltyBalanceItem,
+} from './customers.types';
 import { throwProblemDetail } from '../../shared/http/problem-detail';
 
 export const UpdateCustomerProfileBodySchema = z.object({
@@ -95,17 +99,14 @@ export class CustomersController {
     if (tenants.length === 0) return [];
 
     const tenantIds = tenants.map((t) => t.tenantId);
-    const [tenantInfos, ...balances] = await Promise.all([
+    const [tenantInfos, balances] = await Promise.all([
       this.backendHttp.get<TenantInfoResponse[]>(`/internal/tenants?ids=${tenantIds.join(',')}`),
-      ...tenants.map((t) =>
-        this.backendHttp.get<{ currentPoints: number }>('/loyalty/balance', {
-          tenantId: t.tenantId,
-        }),
-      ),
+      this.backendHttp.get<LoyaltyBalanceByTenantItem[]>('/loyalty/balances/own'),
     ]);
     const tenantMap = new Map(tenantInfos.map((t) => [t.id, t]));
+    const pointsByTenant = new Map(balances.map((b) => [b.tenantId, b.currentPoints]));
 
-    return tenants.map((t, i) => {
+    return tenants.map((t) => {
       const tenantInfo = tenantMap.get(t.tenantId);
       if (!tenantInfo) {
         throw throwProblemDetail(
@@ -114,7 +115,7 @@ export class CustomersController {
           `Tenant ${t.tenantId} missing from batch response`,
         );
       }
-      return toTenantOption(t, tenantInfo, balances[i]);
+      return toTenantOption(t, tenantInfo, { currentPoints: pointsByTenant.get(t.tenantId) ?? 0 });
     });
   }
 

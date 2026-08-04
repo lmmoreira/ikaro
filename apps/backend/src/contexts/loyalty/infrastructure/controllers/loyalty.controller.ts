@@ -30,6 +30,10 @@ import {
 } from '../../application/use-cases/get-loyalty-balances/get-loyalty-balances.use-case';
 import { GetOwnLoyaltyBalanceUseCase } from '../../application/use-cases/get-own-loyalty-balance/get-own-loyalty-balance.use-case';
 import {
+  GetOwnLoyaltyBalancesUseCase,
+  LoyaltyBalanceByTenantResult,
+} from '../../application/use-cases/get-own-loyalty-balances/get-own-loyalty-balances.use-case';
+import {
   GetLoyaltyEntriesUseCase,
   GetLoyaltyEntriesUseCaseResult,
 } from '../../application/use-cases/get-loyalty-entries/get-loyalty-entries.use-case';
@@ -57,6 +61,7 @@ export class LoyaltyController {
     private readonly getLoyaltyBalance: GetLoyaltyBalanceUseCase,
     private readonly getLoyaltyBalances: GetLoyaltyBalancesUseCase,
     private readonly getOwnLoyaltyBalance: GetOwnLoyaltyBalanceUseCase,
+    private readonly getOwnLoyaltyBalances: GetOwnLoyaltyBalancesUseCase,
     private readonly getLoyaltyEntries: GetLoyaltyEntriesUseCase,
     private readonly getLoyaltyRedemptions: GetLoyaltyRedemptionsUseCase,
     private readonly redeemPointsUseCase: RedeemPointsUseCase,
@@ -83,6 +88,20 @@ export class LoyaltyController {
       ...balance,
       conversionRate: isCrossTenant ? null : settings.loyalty.pointsPerCurrencyUnit,
     };
+  }
+
+  // Own balance across every tenant the actor is linked to — used by the BFF's switch-tenant
+  // screen (getTenants()) to avoid one /loyalty/balance call per tenant. The tenant/customerId
+  // pairs are resolved server-side from the actor's own identity (see
+  // GetOwnLoyaltyBalancesUseCase) — this route takes no params, so it can't be used to read
+  // another customer's balance.
+  @Get('loyalty/balances/own')
+  @UseGuards(CustomerRoleGuard)
+  getOwnBalances(): Promise<LoyaltyBalanceByTenantResult[]> {
+    const { tenantId: contextTenantId, actorId } = this.tenantContext;
+    return this.getOwnLoyaltyBalances
+      .execute({ contextTenantId, actorId: actorId! })
+      .catch(mapLoyaltyError);
   }
 
   @Get('loyalty/entries')

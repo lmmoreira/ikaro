@@ -112,6 +112,50 @@ describe('TypeOrmLoyaltyBalanceRepository (integration)', () => {
     });
   });
 
+  describe('findManyByTenantCustomerPairs()', () => {
+    it('returns balances only for the requested tenant/customer pairs', async () => {
+      const b1 = LoyaltyBalance.create(TENANT_A, CUSTOMER_1);
+      b1.increment(10);
+      const b2 = LoyaltyBalance.create(TENANT_B, CUSTOMER_2);
+      b2.increment(40);
+      await repo.upsert(b1);
+      await repo.upsert(b2);
+
+      const result = await repo.findManyByTenantCustomerPairs([
+        { tenantId: TENANT_A, customerId: CUSTOMER_1 },
+        { tenantId: TENANT_B, customerId: CUSTOMER_2 },
+      ]);
+
+      expect(result).toHaveLength(2);
+      expect(result.map((b) => b.currentPoints).sort()).toEqual([10, 40]);
+    });
+
+    it('returns an empty array when pairs is empty', async () => {
+      const result = await repo.findManyByTenantCustomerPairs([]);
+      expect(result).toEqual([]);
+    });
+
+    it("does not cross-match a customerId from one pair with a different pair's tenantId", async () => {
+      // CUSTOMER_1 only has a balance in TENANT_A; CUSTOMER_2 only has one in TENANT_B.
+      // Requesting (TENANT_A, CUSTOMER_2) and (TENANT_B, CUSTOMER_1) — the "swapped" pairs —
+      // must return nothing, proving the query is a genuine per-pair AND, not an OR across
+      // tenantIds and customerIds independently.
+      const b1 = LoyaltyBalance.create(TENANT_A, CUSTOMER_1);
+      b1.increment(10);
+      const b2 = LoyaltyBalance.create(TENANT_B, CUSTOMER_2);
+      b2.increment(40);
+      await repo.upsert(b1);
+      await repo.upsert(b2);
+
+      const result = await repo.findManyByTenantCustomerPairs([
+        { tenantId: TENANT_A, customerId: CUSTOMER_2 },
+        { tenantId: TENANT_B, customerId: CUSTOMER_1 },
+      ]);
+
+      expect(result).toEqual([]);
+    });
+  });
+
   describe('tenant isolation', () => {
     it('findByCustomer with Tenant B id returns null for Tenant A customer', async () => {
       const balance = LoyaltyBalance.create(TENANT_A, CUSTOMER_1);

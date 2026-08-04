@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { GetCustomerTenantsByIdUseCase } from '../../../customer/application/use-cases/get-customer-tenants-by-id.use-case';
 import { CustomerNotFoundError } from '../../../customer/domain/errors/customer-domain.error';
 import { LoyaltyCustomerNotFoundInTenantError } from '../../domain/errors/loyalty-domain.error';
-import { ILoyaltyCustomerPort } from '../../application/ports/loyalty-customer.port';
+import {
+  ILoyaltyCustomerPort,
+  LoyaltyCustomerTenantPair,
+} from '../../application/ports/loyalty-customer.port';
 
 @Injectable()
 export class LoyaltyCustomerAdapter implements ILoyaltyCustomerPort {
@@ -13,9 +16,25 @@ export class LoyaltyCustomerAdapter implements ILoyaltyCustomerPort {
     homeTenantId: string,
     targetTenantId: string,
   ): Promise<string> {
-    let tenants;
+    const tenants = await this.fetchTenants(homeCustomerId, homeTenantId);
+    const match = tenants.find((t) => t.tenantId === targetTenantId);
+    if (!match) throw new LoyaltyCustomerNotFoundInTenantError();
+    return match.customerId;
+  }
+
+  async resolveAllTenantsByOAuthId(
+    homeCustomerId: string,
+    homeTenantId: string,
+  ): Promise<LoyaltyCustomerTenantPair[]> {
+    return this.fetchTenants(homeCustomerId, homeTenantId);
+  }
+
+  private async fetchTenants(
+    homeCustomerId: string,
+    homeTenantId: string,
+  ): Promise<LoyaltyCustomerTenantPair[]> {
     try {
-      tenants = await this.getCustomerTenantsById.execute({
+      return await this.getCustomerTenantsById.execute({
         customerId: homeCustomerId,
         tenantId: homeTenantId,
       });
@@ -28,8 +47,5 @@ export class LoyaltyCustomerAdapter implements ILoyaltyCustomerPort {
       }
       throw error;
     }
-    const match = tenants.find((t) => t.tenantId === targetTenantId);
-    if (!match) throw new LoyaltyCustomerNotFoundInTenantError();
-    return match.customerId;
   }
 }

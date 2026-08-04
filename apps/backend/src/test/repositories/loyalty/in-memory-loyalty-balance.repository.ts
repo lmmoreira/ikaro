@@ -1,4 +1,7 @@
-import { ILoyaltyBalanceRepository } from '../../../contexts/loyalty/application/ports/loyalty-balance-repository.port';
+import {
+  ILoyaltyBalanceRepository,
+  LoyaltyBalanceTenantCustomerPair,
+} from '../../../contexts/loyalty/application/ports/loyalty-balance-repository.port';
 import { LoyaltyBalance } from '../../../contexts/loyalty/domain/loyalty-balance.aggregate';
 
 export class InMemoryLoyaltyBalanceRepository implements ILoyaltyBalanceRepository {
@@ -17,6 +20,13 @@ export class InMemoryLoyaltyBalanceRepository implements ILoyaltyBalanceReposito
     return [...this.store.values()].filter(
       (balance) => balance.tenantId === tenantId && idSet.has(balance.customerId),
     );
+  }
+
+  async findManyByTenantCustomerPairs(
+    pairs: LoyaltyBalanceTenantCustomerPair[],
+  ): Promise<LoyaltyBalance[]> {
+    const keys = new Set(pairs.map((pair) => this.key(pair.tenantId, pair.customerId)));
+    return [...this.store.entries()].filter(([key]) => keys.has(key)).map(([, balance]) => balance);
   }
 
   async upsert(balance: LoyaltyBalance): Promise<void> {

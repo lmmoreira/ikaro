@@ -256,6 +256,120 @@ describe('LoyaltyController (integration)', () => {
     });
   });
 
+  // ── Customer: GET /loyalty/balances/own (getTenants() batch — TD31 Story 18) ─
+
+  describe('GET /loyalty/balances/own (customer)', () => {
+    it('returns the balance for every tenant the actor is linked to, defaulting missing ones to 0', async () => {
+      const { body: t2 } = await request(app.getHttpServer())
+        .post('/internal/tenants')
+        .set('X-Platform-Admin-Key', TEST_KEY)
+        .send({
+          name: 'Loyalty Own Balances Tenant',
+          slug: 'loyalty-own-balances-tenant',
+          adminEmail: 'own-balances@loyalty.test',
+          country_code: 'BR',
+        })
+        .expect(201);
+      const otherTenantId = t2.tenantId as string;
+      const oauthId = 'google-sub-td31-s18-own-balances';
+      const homeCustomerId = 'aaaaaaaa-0000-7000-8000-000000000020';
+      const otherTenantCustomerId = 'aaaaaaaa-0000-7000-8000-000000000021';
+
+      await ds
+        .getRepository(CustomerEntity)
+        .save([
+          new CustomerEntityBuilder()
+            .withId(homeCustomerId)
+            .withTenantId(tenantId)
+            .withGoogleOAuthId(oauthId)
+            .build(),
+          new CustomerEntityBuilder()
+            .withId(otherTenantCustomerId)
+            .withTenantId(otherTenantId)
+            .withGoogleOAuthId(oauthId)
+            .build(),
+        ]);
+      await ds
+        .getRepository(LoyaltyBalanceEntity)
+        .save(
+          new LoyaltyBalanceEntityBuilder()
+            .withTenantId(otherTenantId)
+            .withCustomerId(otherTenantCustomerId)
+            .withCurrentPoints(88)
+            .build(),
+        );
+
+      const { body } = await request(app.getHttpServer())
+        .get('/loyalty/balances/own')
+        .set(actorHeaders(tenantId, homeCustomerId, 'CUSTOMER'))
+        .expect(200);
+
+      expect(body).toEqual(
+        expect.arrayContaining([
+          { tenantId, currentPoints: 0 },
+          { tenantId: otherTenantId, currentPoints: 88 },
+        ]),
+      );
+      expect(body).toHaveLength(2);
+
+      await ds.getRepository(LoyaltyBalanceEntity).delete({ tenantId: otherTenantId });
+      await ds.getRepository(CustomerEntity).delete({ tenantId: otherTenantId });
+      await ds.getRepository(CustomerEntity).delete({ id: homeCustomerId, tenantId });
+    });
+
+    it('tenant isolation: does not return a tenant the actor has no linked record in, even if that tenant has real balance data', async () => {
+      const homeCustomerId = 'aaaaaaaa-0000-7000-8000-000000000022';
+      await ds
+        .getRepository(CustomerEntity)
+        .save(
+          new CustomerEntityBuilder()
+            .withId(homeCustomerId)
+            .withTenantId(tenantId)
+            .withGoogleOAuthId('google-sub-td31-s18-isolation')
+            .build(),
+        );
+
+      const { body: t4 } = await request(app.getHttpServer())
+        .post('/internal/tenants')
+        .set('X-Platform-Admin-Key', TEST_KEY)
+        .send({
+          name: 'Loyalty Own Balances Unlinked Tenant',
+          slug: 'loyalty-own-balances-unlinked-tenant',
+          adminEmail: 'own-balances-unlinked@loyalty.test',
+          country_code: 'BR',
+        })
+        .expect(201);
+      const unlinkedTenantId = t4.tenantId as string;
+      const someoneElsesCustomerId = 'aaaaaaaa-0000-7000-8000-000000000023';
+      await ds
+        .getRepository(LoyaltyBalanceEntity)
+        .save(
+          new LoyaltyBalanceEntityBuilder()
+            .withTenantId(unlinkedTenantId)
+            .withCustomerId(someoneElsesCustomerId)
+            .withCurrentPoints(999)
+            .build(),
+        );
+
+      const { body } = await request(app.getHttpServer())
+        .get('/loyalty/balances/own')
+        .set(actorHeaders(tenantId, homeCustomerId, 'CUSTOMER'))
+        .expect(200);
+
+      expect(body).toEqual([{ tenantId, currentPoints: 0 }]);
+
+      await ds.getRepository(LoyaltyBalanceEntity).delete({ tenantId: unlinkedTenantId });
+      await ds.getRepository(CustomerEntity).delete({ id: homeCustomerId, tenantId });
+    });
+
+    it('returns 403 when called with STAFF role', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/loyalty/balances/own')
+        .set(actorHeaders(tenantId, STAFF_ID, 'STAFF'));
+      expect(res.status).toBe(403);
+    });
+  });
+
   // ── Customer: GET /loyalty/entries ────────────────────────────────────────
 
   describe('GET /loyalty/entries (customer)', () => {

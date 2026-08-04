@@ -322,8 +322,10 @@ describe('CustomersController (component)', () => {
           { id: TENANT_ID, slug: 'lavacar-bh', name: 'Lavacar BH' },
           { id: TENANT_ID_2, slug: 'superclean', name: 'SuperClean' },
         ])
-        .mockResolvedValueOnce({ currentPoints: 120 })
-        .mockResolvedValueOnce({ currentPoints: 8 });
+        .mockResolvedValueOnce([
+          { tenantId: TENANT_ID, currentPoints: 120 },
+          { tenantId: TENANT_ID_2, currentPoints: 8 },
+        ]);
 
       const res = await request(app.getHttpServer())
         .get('/v1/customers/tenants')
@@ -353,7 +355,7 @@ describe('CustomersController (component)', () => {
       backendHttpService.get
         .mockResolvedValueOnce([{ tenantId: TENANT_ID, customerId: CUSTOMER_ID }])
         .mockResolvedValueOnce([{ id: TENANT_ID, slug: 'lavacar-bh', name: 'Lavacar BH' }])
-        .mockResolvedValueOnce({ currentPoints: 120 });
+        .mockResolvedValueOnce([{ tenantId: TENANT_ID, currentPoints: 120 }]);
 
       const res = await request(app.getHttpServer())
         .get('/v1/customers/tenants')

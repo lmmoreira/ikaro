@@ -14,6 +14,7 @@ import {
 import { GetLoyaltyBalanceUseCase } from '../../application/use-cases/get-loyalty-balance/get-loyalty-balance.use-case';
 import { GetLoyaltyBalancesUseCase } from '../../application/use-cases/get-loyalty-balances/get-loyalty-balances.use-case';
 import { GetOwnLoyaltyBalanceUseCase } from '../../application/use-cases/get-own-loyalty-balance/get-own-loyalty-balance.use-case';
+import { GetOwnLoyaltyBalancesUseCase } from '../../application/use-cases/get-own-loyalty-balances/get-own-loyalty-balances.use-case';
 import { GetLoyaltyEntriesUseCase } from '../../application/use-cases/get-loyalty-entries/get-loyalty-entries.use-case';
 import { GetLoyaltyRedemptionsUseCase } from '../../application/use-cases/get-loyalty-redemptions/get-loyalty-redemptions.use-case';
 import { RedeemPointsUseCase } from '../../application/use-cases/redeem-points/redeem-points.use-case';
@@ -54,6 +55,7 @@ describe('LoyaltyController', () => {
           new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
           loyaltyCustomer,
         ),
+        new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
@@ -102,6 +104,7 @@ describe('LoyaltyController', () => {
           new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
           loyaltyCustomer,
         ),
+        new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
@@ -165,6 +168,82 @@ describe('LoyaltyController', () => {
     });
   });
 
+  describe('getOwnBalances() — customer route', () => {
+    beforeEach(() => {
+      balanceRepo = new InMemoryLoyaltyBalanceRepository();
+      txManager = new InMemoryTransactionManager();
+      entryRepo = new InMemoryLoyaltyEntryRepository();
+      redemptionRepo = new InMemoryLoyaltyRedemptionRepository();
+      serviceCatalog = new InMemoryLoyaltyBookingPort();
+      loyaltyCustomer = new InMemoryLoyaltyCustomerPort();
+      const ctx = new RequestContextBuilder()
+        .withTenantId(TENANT_ID)
+        .withActorId(CUSTOMER_ID)
+        .withActorType('CUSTOMER')
+        .withActorRole('CUSTOMER')
+        .build();
+      controller = new LoyaltyController(
+        new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+        new GetLoyaltyBalancesUseCase(balanceRepo),
+        new GetOwnLoyaltyBalanceUseCase(
+          new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+          loyaltyCustomer,
+        ),
+        new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
+        new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
+        new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
+        new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
+        ctx,
+      );
+    });
+
+    it('returns one entry per linked tenant, defaulting missing balances to 0', async () => {
+      const OTHER_TENANT = '10000000-0000-7000-8000-000000000002';
+      const OTHER_TENANT_CUSTOMER_ID = 'bbbbbbbb-0000-7000-8000-000000000099';
+      loyaltyCustomer.seed(CUSTOMER_ID, TENANT_ID, OTHER_TENANT, OTHER_TENANT_CUSTOMER_ID);
+      await balanceRepo.upsert(
+        new LoyaltyBalanceBuilder()
+          .withTenantId(TENANT_ID)
+          .withCustomerId(CUSTOMER_ID)
+          .withCurrentPoints(100)
+          .build(),
+      );
+
+      const result = await controller.getOwnBalances();
+
+      expect(result).toEqual(
+        expect.arrayContaining([
+          { tenantId: TENANT_ID, currentPoints: 100 },
+          { tenantId: OTHER_TENANT, currentPoints: 0 },
+        ]),
+      );
+      expect(result).toHaveLength(2);
+    });
+
+    it("takes no request params — cannot be used to read another customer's balance", async () => {
+      const OTHER_TENANT = '10000000-0000-7000-8000-000000000002';
+      const OTHER_TENANT_CUSTOMER_ID = 'bbbbbbbb-0000-7000-8000-000000000099';
+      const SOMEONE_ELSES_CUSTOMER_ID = 'bbbbbbbb-0000-7000-8000-000000000088';
+      loyaltyCustomer.seed(CUSTOMER_ID, TENANT_ID, OTHER_TENANT, OTHER_TENANT_CUSTOMER_ID);
+      await balanceRepo.upsert(
+        new LoyaltyBalanceBuilder()
+          .withTenantId(OTHER_TENANT)
+          .withCustomerId(SOMEONE_ELSES_CUSTOMER_ID)
+          .withCurrentPoints(999)
+          .build(),
+      );
+
+      const result = await controller.getOwnBalances();
+
+      expect(result).toEqual(
+        expect.arrayContaining([
+          { tenantId: TENANT_ID, currentPoints: 0 },
+          { tenantId: OTHER_TENANT, currentPoints: 0 },
+        ]),
+      );
+    });
+  });
+
   describe('getEntries() — customer route', () => {
     beforeEach(() => {
       balanceRepo = new InMemoryLoyaltyBalanceRepository();
@@ -186,6 +265,7 @@ describe('LoyaltyController', () => {
           new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
           loyaltyCustomer,
         ),
+        new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
@@ -235,6 +315,7 @@ describe('LoyaltyController', () => {
           new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
           loyaltyCustomer,
         ),
+        new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
@@ -282,6 +363,7 @@ describe('LoyaltyController', () => {
           new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
           loyaltyCustomer,
         ),
+        new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
@@ -338,6 +420,7 @@ describe('LoyaltyController', () => {
           new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
           loyaltyCustomer,
         ),
+        new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
@@ -372,6 +455,7 @@ describe('LoyaltyController', () => {
           new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
           loyaltyCustomer,
         ),
+        new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
@@ -445,6 +529,7 @@ describe('LoyaltyController', () => {
           new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
           loyaltyCustomer,
         ),
+        new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
@@ -488,6 +573,7 @@ describe('LoyaltyController', () => {
           new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
           loyaltyCustomer,
         ),
+        new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
@@ -530,6 +616,7 @@ describe('LoyaltyController', () => {
           new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
           loyaltyCustomer,
         ),
+        new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),

@@ -7,3 +7,8 @@ export interface LoyaltyBalanceItem {
   customerId: string;
   currentPoints: number;
 }
+
+export interface LoyaltyBalanceByTenantItem {
+  tenantId: string;
+  currentPoints: number;
+}
