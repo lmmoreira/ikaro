@@ -20,9 +20,13 @@ export async function submitBookingInfoAsCustomer(
   });
 }
 
-// Same Next.js proxy route the guest booking flow's photo upload uses — the route reads the
-// access_token cookie server-side and forwards it as Authorization: Bearer to the BFF, so an
-// authenticated customer's request is scoped to their own tenant automatically.
+// Intentionally stays on raw fetch() rather than bffClient (same TD31 Story 7 discovery,
+// 2026-07-31, as the guest flow's equivalent call in ./public.ts): the target is this app's own
+// Route Handler, not the BFF directly. Here the route reads the access_token cookie server-side
+// and forwards it as Authorization: Bearer, so an authenticated customer's request is scoped to
+// their own tenant automatically — routing through bffClient's same-origin gateway would work
+// too, but bypassing the Route Handler's own actor-scoping logic isn't worth the inconsistency
+// with the guest-flow call this proxy route also serves.
 export async function createCustomerAttachmentSignedUrl(
   fileName: string,
   contentType: ImageContentType,
