@@ -605,9 +605,11 @@ Item 4 (JWT runtime shape validation) landed as specced: `jwt.strategy.ts`'s `va
 
 ---
 
-### Story 17 — Backend + BFF: controller response-shaping / config-lookup duplication 🟡
+### Story 17 — Backend + BFF: controller response-shaping / config-lookup duplication 🟡 ✅ Done
 
-**Partially landed**: the `E2` slice (JWT_SECRET cached once in `bookings.controller.ts`'s constructor instead of 3 separate `getOrThrow()` calls) shipped 2026-07-28 in PR #288 (`fix/td31-pr3-bookings-controller-cleanup`, branch deleted post-merge), as part of PR 3. Backend 3.2/3.3, BFF A5, and F2/F3 remain open, scoped to PR 8 per the execution plan. Not marking this story `✅ Done` until those land.
+**Landed**: PR #311 (2026-08-04), `fix/td31-pr8-controller-dedup` (branch deleted post-merge). The `E2` slice shipped earlier in PR #288/PR 3 (see below). This PR shipped the rest: Backend 3.2 (`customer-response.mapper.ts` dedup), BFF A5 (named `BackendHotsiteManifestResponse` type), BFF F2 (4 schedule controllers now use `BackendHttpService`'s `params` argument), and BFF F3 (shared `publicHeaders(tenantId)` helper). Backend 3.3 (loyalty controller) was descoped during story-discovery — the duplication had shrunk to a single differing `conversionRate` expression after Story 5 (PR #293) changed the code, no longer byte-identical, not worth an extraction. Also bundled into the same branch: two unrelated pre-existing CVE fixes surfaced by CI on this PR (`brace-expansion` → 5.0.9 for CVE-2026-69152, Trivy; `nanoid` → 3.3.17 for CVE-2026-67213, Snyk — the latter merged via admin override before the Snyk fix landed, then completed on a follow-up branch, `fix/nanoid-cve-postcss-override`).
+
+**Original scope note (superseded by the above)**: the `E2` slice (JWT_SECRET cached once in `bookings.controller.ts`'s constructor instead of 3 separate `getOrThrow()` calls) shipped 2026-07-28 in PR #288 (`fix/td31-pr3-bookings-controller-cleanup`, branch deleted post-merge), as part of PR 3. Backend 3.2/3.3, BFF A5, and F2/F3 remained open, scoped to PR 8 per the execution plan.
 
 **Source**: Backend 3.2, 3.3 · BFF A5, E2, F2, F3
 
@@ -808,7 +810,7 @@ Grouping rule: two stories collapse into **one PR** only when they genuinely sha
 |---|---|---|
 | **PR 6** ✅ | Story 13 | — no code needed; closed 2026-08-03 as superseded (domain-layer validation already covers all 3 fields — tested, wired, translated). See Story 13's note above. |
 | **PR 7** ✅ | Story 14 | `provision-tenant.dto.ts`, `update-tenant-settings.dto.ts`, new `country-code.schema.ts`, 4 schedule/availability DTOs, 6 BFF booking/platform controller files, new `@ikaro/validation` `date.ts`/`country-code.ts` | See Story 14's note above — scope grew to a 3rd BFF site and moved to `@ikaro/validation`. **Merged as [#310](https://github.com/lmmoreira/ikaro/pull/310), 2026-08-03.** |
-| **PR 8** | Story 17 (minus the `E2` slice already folded into PR 3) | `customer.controller.ts`, `loyalty.controller.ts` (backend), `platform.public.controller.ts`, 4 `schedule*.controller.ts` files, `backend-http.service.ts` |
+| **PR 8** ✅ | Story 17 (minus the `E2` slice already folded into PR 3) | `customer.controller.ts`, `loyalty.controller.ts` (backend), `platform.public.controller.ts`, 4 `schedule*.controller.ts` files, `backend-http.service.ts` | Backend 3.3 (loyalty) descoped during discovery — no longer byte-identical after PR #293. **Merged as [#311](https://github.com/lmmoreira/ikaro/pull/311), 2026-08-04.** |
 | **PR 9** | Story 19 | `test/infrastructure/in-memory-loyalty-*` (moved to `test/repositories/loyalty/`), new `test/builders/staff/staff-{activated,deactivated}-event.builder.ts` |
 | **PR 10** ✅ | Story 21 | `services.types.ts`, `services.mapper.ts`, `main.ts` — trivial, zero risk, could honestly go first of anything in this whole plan if you want an easy warm-up PR. **Merged as [#300](https://github.com/lmmoreira/ikaro/pull/300), 2026-08-01.** |
 | **PR 11** | Story 10 | `booking-completed.handler.integration.spec.ts`, delete `apps/web/app/not-found.spec.tsx` |
