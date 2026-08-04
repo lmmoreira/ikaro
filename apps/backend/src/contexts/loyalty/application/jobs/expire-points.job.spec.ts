@@ -1,6 +1,6 @@
-import { InMemoryBalanceExpiryLogRepository } from '../../../../test/infrastructure/in-memory-balance-expiry-log.repository';
-import { InMemoryLoyaltyBalanceRepository } from '../../../../test/infrastructure/in-memory-loyalty-balance.repository';
-import { InMemoryLoyaltyEntryRepository } from '../../../../test/infrastructure/in-memory-loyalty-entry.repository';
+import { InMemoryBalanceExpiryLogRepository } from '../../../../test/repositories/loyalty/in-memory-balance-expiry-log.repository';
+import { InMemoryLoyaltyBalanceRepository } from '../../../../test/repositories/loyalty/in-memory-loyalty-balance.repository';
+import { InMemoryLoyaltyEntryRepository } from '../../../../test/repositories/loyalty/in-memory-loyalty-entry.repository';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import {
   LoyaltyBalanceBuilder,
