@@ -46,12 +46,10 @@ locals {
   otel_collector_bootstrap_image = "otel/opentelemetry-collector-contrib@sha256:f2f01157055a9b2aab9df7118e1f1c9abf345e99b23bc7a2bc791db374a7d0f6"
 
   otel_collector_sidecar = [{
-    name              = "otel-collector"
-    image             = local.otel_collector_bootstrap_image
-    cpu               = "0.1"
-    memory            = "128Mi"
-    health_check_port = 13133
-    health_check_path = "/"
+    name   = "otel-collector"
+    image  = local.otel_collector_bootstrap_image
+    cpu    = "0.1"
+    memory = "128Mi"
   }]
 
   # Single source of truth for the branded domain (D11) — was hardcoded as

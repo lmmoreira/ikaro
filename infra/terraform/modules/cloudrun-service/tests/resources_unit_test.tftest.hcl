@@ -102,35 +102,33 @@ run "bootstrap_mode_false_mounts_secret_env_vars" {
   }
 }
 
-# Sidecar wiring (M17-S34) — otel-collector activation. Schema confirmed
-# against provider v7.40.0 (2026-08-04): containers.depends_on is a plain
-# list(string) attribute; startup_probe is a nested block.
+# Sidecar wiring (M17-S34) — otel-collector activation. Deliberately NO
+# depends_on/startup_probe gating between the app container and any sidecar
+# (removed 2026-08-04, cross-tool PR review finding on PR #318, confirmed
+# via a docker-compose depends_on: condition: service_healthy reproduction):
+# gating the app's own startup on a sidecar's health probe means Cloud Run
+# never starts the app at all if the sidecar fails to become healthy — the
+# opposite of "app boots even if the collector crashes". These tests lock
+# in the corrected (non-blocking) behavior as a regression guard.
 
-run "no_sidecar_containers_means_no_dependency_and_single_container" {
+run "no_sidecar_containers_means_single_container" {
   command = plan
 
   assert {
     condition     = length(google_cloud_run_v2_service.this.template[0].containers) == 1
     error_message = "Empty sidecar_containers (the default) must produce exactly one container — no sidecar block emitted."
   }
-
-  assert {
-    condition     = length(google_cloud_run_v2_service.this.template[0].containers[0].depends_on) == 0
-    error_message = "With no sidecar_containers, the app container must have no depends_on entries."
-  }
 }
 
-run "sidecar_with_health_check_gets_startup_probe_and_app_depends_on_it" {
+run "sidecar_containers_never_gate_app_startup_on_sidecar_health" {
   command = plan
 
   variables {
     sidecar_containers = [{
-      name              = "otel-collector"
-      image             = "otel/opentelemetry-collector-contrib@sha256:f2f01157055a9b2aab9df7118e1f1c9abf345e99b23bc7a2bc791db374a7d0f6"
-      cpu               = "0.1"
-      memory            = "128Mi"
-      health_check_port = 13133
-      health_check_path = "/"
+      name   = "otel-collector"
+      image  = "otel/opentelemetry-collector-contrib@sha256:f2f01157055a9b2aab9df7118e1f1c9abf345e99b23bc7a2bc791db374a7d0f6"
+      cpu    = "0.1"
+      memory = "128Mi"
     }]
   }
 
@@ -140,8 +138,8 @@ run "sidecar_with_health_check_gets_startup_probe_and_app_depends_on_it" {
   }
 
   assert {
-    condition     = length(google_cloud_run_v2_service.this.template[0].containers[0].depends_on) == 1 && contains(google_cloud_run_v2_service.this.template[0].containers[0].depends_on, "otel-collector")
-    error_message = "The app container must depend_on every sidecar's name, so Cloud Run starts the app only after the sidecar's own probe passes."
+    condition     = google_cloud_run_v2_service.this.template[0].containers[0].depends_on == null
+    error_message = "The app container must never depend_on a sidecar — a crashed/unhealthy sidecar must not block the app from starting (M17-S34 correction)."
   }
 
   assert {
@@ -150,27 +148,7 @@ run "sidecar_with_health_check_gets_startup_probe_and_app_depends_on_it" {
   }
 
   assert {
-    condition     = google_cloud_run_v2_service.this.template[0].containers[1].startup_probe[0].http_get[0].path == "/" && google_cloud_run_v2_service.this.template[0].containers[1].startup_probe[0].http_get[0].port == 13133
-    error_message = "A sidecar with health_check_port/health_check_path set must get a matching http_get startup_probe."
-  }
-}
-
-run "sidecar_without_health_check_gets_no_startup_probe" {
-  command = plan
-
-  variables {
-    sidecar_containers = [{
-      name   = "otel-collector"
-      image  = "otel/opentelemetry-collector-contrib@sha256:f2f01157055a9b2aab9df7118e1f1c9abf345e99b23bc7a2bc791db374a7d0f6"
-      cpu    = "0.1"
-      memory = "128Mi"
-      # health_check_port / health_check_path left null (both, per the
-      # variable's own validation rule)
-    }]
-  }
-
-  assert {
     condition     = length(google_cloud_run_v2_service.this.template[0].containers[1].startup_probe) == 0
-    error_message = "A sidecar with no health_check_port/path must get no startup_probe block."
+    error_message = "A sidecar container must never get a startup_probe — nothing depends_on it, so a probe here would only add a pointless startup delay for the sidecar itself."
   }
 }

@@ -402,7 +402,9 @@ jobs:
       # behavior on existing multi-container revisions avoided entirely by
       # using explicit --container flags below; flag-based gcloud run
       # deploy inherits unspecified env vars/resources/probes from the
-      # previous revision).
+      # previous revision). No --depends-on on the app container (removed
+      # 2026-08-04, cross-tool PR review finding on PR #318) — see
+      # modules/cloudrun-service/variables.tf for the full rationale.
       - name: Resolve otel-collector digest
         id: collector-image
         run: |
@@ -424,7 +426,6 @@ jobs:
             --container=app \
             --image="$IMAGE_BACKEND" \
             --port=3001 \
-            --depends-on=otel-collector \
             --region "$GCP_REGION" \
             --project "$GCP_PROJECT_PROD"
 
@@ -438,7 +439,6 @@ jobs:
             --container=app \
             --image="$IMAGE_BFF" \
             --port=3002 \
-            --depends-on=otel-collector \
             --region "$GCP_REGION" \
             --project "$GCP_PROJECT_PROD"
 

@@ -48,9 +48,12 @@ exporters:
   #     insecure: false
 
 extensions:
-  # Cloud Run's sidecar startup probe (modules/cloudrun-service) targets this
-  # endpoint so the app container waits until the collector is actually
-  # ready to receive spans.
+  # NOT wired to a Cloud Run startup_probe / container dependency (removed
+  # 2026-08-04, cross-tool PR review finding on PR #318): gating the app
+  # container's own startup on this endpoint would mean a crashed/unhealthy
+  # collector blocks the app from starting at all — see
+  # modules/cloudrun-service/variables.tf for the full rationale. Kept for
+  # manual/external diagnostics only (e.g. an operator curling it directly).
   health_check:
     endpoint: 0.0.0.0:13133
 

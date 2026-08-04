@@ -12,12 +12,13 @@ collector is what actually talks to Cloud Trace.
 ## Rebuild → deploy path
 
 1. Edit `config.yaml` (or bump the pinned digest in `Dockerfile`).
-2. Push to `main`. `.github/workflows/build-otel-collector.yml` (triggered only on changes under this directory) runs `validate`, builds, and pushes the image to GAR tagged `:latest` (plus the commit SHA, for traceability).
-3. **Nothing else to do.** The next backend or BFF deploy (`deploy-staging.yml` / `deploy-production.yml`) resolves `ikaro-otel-collector:latest` to its current digest immediately before deploying, and redeploys both containers with that digest. The live sidecar is always pinned to a resolved digest — `:latest` is only a GAR-side lookup convenience, never what's actually running.
+2. Open a PR touching this directory. `.github/workflows/build-otel-collector.yml`'s `build-and-scan` job (triggered on changes under this directory, or to the workflow file itself) builds, runs `validate`, and Trivy-scans the image on every PR — a broken Dockerfile/config fails the PR, not a post-merge push.
+3. Merge to `main`. The same workflow's `push` job (cache-hit rebuild, push-only, `push` events only) pushes the image to GAR tagged `:latest` (plus the commit SHA, for traceability).
+4. **Nothing else to do.** The next backend or BFF deploy (`deploy-staging.yml` / `deploy-production.yml`) resolves `ikaro-otel-collector:latest` to its current digest immediately before deploying, and redeploys both containers with that digest. The live sidecar is always pinned to a resolved digest — `:latest` is only a GAR-side lookup convenience, never what's actually running.
 
 There is no manual Terraform edit and no manual `terraform apply` in this loop — see `M17-S34` in `plan/M17-CLOUD-DEPLOY.md` for the full design rationale (including the alternatives that were considered and rejected: a GitHub Actions repo variable, and a hand-maintained tag line in the deploy workflow).
 
-If you want the new collector image live *immediately*, without waiting for the next unrelated backend/BFF deploy, trigger `deploy-staging.yml` manually via `workflow_dispatch` (or `deploy-production.yml`'s equivalent promotion flow) after step 2 completes.
+If you want the new collector image live *immediately*, without waiting for the next unrelated backend/BFF deploy, trigger `deploy-staging.yml` manually via `workflow_dispatch` (or `deploy-production.yml`'s equivalent promotion flow) after step 3 completes.
 
 ## Local validation
 

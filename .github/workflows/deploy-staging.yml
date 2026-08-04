@@ -427,7 +427,12 @@ jobs:
       # inherits unspecified config (env vars, resources, probes) from the
       # previous revision — confirmed via Google's own docs, distinct from
       # YAML-manifest deploys, which don't — so neither container's env
-      # vars/secrets/resources need to be re-specified here.
+      # vars/secrets/resources need to be re-specified here. No
+      # --depends-on on the app container (removed 2026-08-04, cross-tool
+      # PR review finding on PR #318): gating the app's own startup on the
+      # sidecar's health would mean a crashed/unhealthy collector blocks
+      # the app from deploying at all — see
+      # modules/cloudrun-service/variables.tf for the full rationale.
       - name: Resolve otel-collector digest
         id: collector-image
         run: |
@@ -449,7 +454,6 @@ jobs:
             --container=app \
             --image="$IMAGE_BACKEND" \
             --port=3001 \
-            --depends-on=otel-collector \
             --region "$GCP_REGION" \
             --project "$GCP_PROJECT_STAGING"
 
@@ -463,7 +467,6 @@ jobs:
             --container=app \
             --image="$IMAGE_BFF" \
             --port=3002 \
-            --depends-on=otel-collector \
             --region "$GCP_REGION" \
             --project "$GCP_PROJECT_STAGING"
 

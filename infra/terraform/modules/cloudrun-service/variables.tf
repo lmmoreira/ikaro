@@ -171,23 +171,18 @@ variable "service_name" {
 }
 
 variable "sidecar_containers" {
-  description = "Optional additional containers alongside the app container (e.g. the otel-collector sidecar, activated in S34). Empty by default. health_check_port + health_check_path (set together or not at all) give the sidecar its own HTTP startup_probe — the app container automatically depends_on every sidecar's name (see main.tf), so Cloud Run won't start the app container until each sidecar's probe passes. Real schema confirmed against provider v7.40.0 (2026-08-04): containers.depends_on is a plain list(string) attribute, not a nested block; startup_probe's http_get takes path + port."
+  description = "Optional additional containers alongside the app container (e.g. the otel-collector sidecar, activated in S34). Empty by default. Deliberately carries NO container_dependencies/startup_probe wiring to the app container (removed 2026-08-04, cross-tool PR review finding on PR #318, confirmed via a docker-compose depends_on: condition: service_healthy reproduction): gating the app container's own startup on a sidecar's health probe means Cloud Run never starts the app at all if the sidecar fails to become healthy — the opposite of the story's \"app boots even if the collector crashes\" requirement. S33's OTLP exporter already tolerates a not-yet-reachable collector gracefully (no crash, warn once), so no Cloud Run-level ordering guarantee is needed for correctness. Sidecars start independently of the app container. Capped at one entry (Copilot review finding, PR #318, 2026-08-04): the type shape allows a list so a caller isn't hand-cuffed to a single-object schema, but main.tf's lifecycle.ignore_changes only covers template[0].containers[1].image — a 2nd+ sidecar would silently get no drift protection on its own image. Generalize ignore_changes before raising this cap."
   type = list(object({
-    name              = string
-    image             = string
-    cpu               = optional(string, "1")
-    memory            = optional(string, "512Mi")
-    health_check_port = optional(number, null)
-    health_check_path = optional(string, null)
+    name   = string
+    image  = string
+    cpu    = optional(string, "1")
+    memory = optional(string, "512Mi")
   }))
   default = []
 
   validation {
-    condition = alltrue([
-      for c in var.sidecar_containers :
-      (c.health_check_port == null) == (c.health_check_path == null)
-    ])
-    error_message = "sidecar_containers: health_check_port and health_check_path must be set together (both null, or both set) — a probe needs both to be meaningful."
+    condition     = length(var.sidecar_containers) <= 1
+    error_message = "sidecar_containers currently supports at most one entry — main.tf's lifecycle.ignore_changes only ignores drift on the first sidecar's image (template[0].containers[1].image); a 2nd+ sidecar would silently lose that protection. Generalize ignore_changes first if a second sidecar is genuinely needed."
   }
 }
 

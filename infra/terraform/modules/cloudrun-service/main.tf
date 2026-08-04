@@ -67,11 +67,13 @@ resource "google_cloud_run_v2_service" "this" {
       name  = "app"
       image = var.image
 
-      # Cloud Run's container startup-ordering feature (M17-S34): the app
-      # container waits for every sidecar to pass its own startup_probe
-      # before Cloud Run starts this one. Empty list (no sidecar_containers)
-      # is a no-op, same as omitting depends_on entirely.
-      depends_on = [for c in var.sidecar_containers : c.name]
+      # No depends_on on sidecar_containers here (M17-S34) — deliberately.
+      # Gating the app container's own startup on a sidecar's health probe
+      # would mean Cloud Run never starts the app at all if the sidecar
+      # fails to become healthy, contradicting "app boots even if the
+      # collector crashes" (confirmed via a docker-compose depends_on:
+      # condition: service_healthy reproduction, cross-tool PR review
+      # finding, PR #318, 2026-08-04). Sidecars start independently.
 
       ports {
         container_port = var.port
@@ -158,23 +160,6 @@ resource "google_cloud_run_v2_service" "this" {
           limits = {
             cpu    = containers.value.cpu
             memory = containers.value.memory
-          }
-        }
-
-        # Gates the app container's depends_on above — Cloud Run only
-        # considers this sidecar "started" (unblocking the app container)
-        # once this probe passes.
-        dynamic "startup_probe" {
-          for_each = containers.value.health_check_port == null ? [] : [1]
-
-          content {
-            http_get {
-              path = containers.value.health_check_path
-              port = containers.value.health_check_port
-            }
-            period_seconds    = 10
-            timeout_seconds   = 3
-            failure_threshold = 3
           }
         }
       }

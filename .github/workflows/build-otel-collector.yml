@@ -12,7 +12,18 @@ name: Infra — otel-collector Sidecar Image
 #
 # The Dockerfile's own build already runs the collector's `validate`
 # subcommand against config.yaml (RUN instruction) — a broken config fails
-# this workflow's build step, same as any other Dockerfile RUN failure.
+# the build step, same as any other Dockerfile RUN failure.
+#
+# build-and-scan/push split, and pull_request trigger (added 2026-08-04,
+# cross-tool PR review finding on PR #318): the original single-job,
+# push-only version meant a broken Dockerfile/config could pass every PR
+# check and only fail post-merge on main, mirroring the exact gap
+# pr-tests.yml's own trivy-scan job already closed for backend/bff/web
+# Dockerfiles. build-and-scan now also runs on pull_request (build +
+# validate + Trivy scan, no push — nothing to authenticate for); push only
+# runs on an actual push to main, and reuses build-and-scan's GHA cache so
+# its own rebuild is a cache hit, not a real recompile (same pattern as
+# deploy-staging.yml's build-scan/push jobs).
 #
 # Authenticates as the same `app-deployer` (staging) WIF identity
 # deploy-staging.yml uses — it already has cross-project
@@ -21,6 +32,10 @@ name: Infra — otel-collector Sidecar Image
 # to it).
 
 on:
+  pull_request:
+    paths:
+      - 'infra/docker/otel-collector/**'
+      - '.github/workflows/build-otel-collector.yml'
   push:
     branches: [main]
     paths:
@@ -37,16 +52,18 @@ env:
   IMAGE_SHA: ${{ vars.GAR_HOST }}/${{ vars.GCP_PROJECT_PROD }}/ikaro-registry/ikaro-otel-collector:${{ github.sha }}
 
 jobs:
-  build-scan-push:
-    name: Build, scan & push otel-collector
+  # ---------------------------------------------------------------------
+  # Build + scan — runs on every PR touching this directory AND on push to
+  # main. No GCP credentials needed (nothing pushed here).
+  # ---------------------------------------------------------------------
+
+  build-and-scan:
+    name: Build & scan otel-collector
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:
       group: build-otel-collector-${{ github.ref }}
       cancel-in-progress: true
-    permissions:
-      contents: read
-      id-token: write # mints the short-lived WIF token for google-github-actions/auth
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -63,7 +80,7 @@ jobs:
 
       # The Dockerfile's own RUN instruction runs `otelcol-contrib validate`
       # against config.yaml as a build step — a broken config fails right
-      # here, before any push.
+      # here, before any push, and on every PR before this even merges.
       - name: Build otel-collector image
         run: |
           docker buildx build \
@@ -86,6 +103,29 @@ jobs:
           severity: HIGH,CRITICAL
           ignore-unfixed: true
 
+  # ---------------------------------------------------------------------
+  # Push — only on an actual push to main (never on pull_request; nothing
+  # to authenticate for or push on a PR). Rebuild is a cache hit from
+  # build-and-scan's --cache-to above, not a real recompile.
+  # ---------------------------------------------------------------------
+
+  push:
+    name: Push otel-collector
+    needs: build-and-scan
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: build-otel-collector-${{ github.ref }}
+      cancel-in-progress: true
+    permissions:
+      contents: read
+      id-token: write # mints the short-lived WIF token for google-github-actions/auth
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
       - name: Authenticate as app-deployer (staging)
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
         with:
@@ -94,6 +134,22 @@ jobs:
 
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker "$GAR_HOST" --quiet
+
+      - name: Expose GitHub Actions runtime for GHA cache backend
+        uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
+
+      - name: Set up Docker Buildx
+        run: docker buildx create --use --driver docker-container
+
+      # Cache hit from build-and-scan's --cache-to above — reconstructs the
+      # already-scanned image, not a real re-compile.
+      - name: Rebuild otel-collector image (cache hit)
+        run: |
+          docker buildx build \
+            --cache-from "type=gha,scope=build-otel-collector" \
+            --load \
+            -t "$IMAGE_SHA" \
+            infra/docker/otel-collector
 
       # Tag :latest locally from the already-scanned image before either
       # push, so both tags point at the exact bytes Trivy verified.
