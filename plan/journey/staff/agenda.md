@@ -123,3 +123,13 @@ Folder: `staff/prototypes/agenda/`
 | `01c-reject-success.html` | Reject success inline state (actionState = 'rejected') | UC-004 | M125-S05 | ✅ Criado |
 | `01d-info-success.html` | Info-request success inline state (actionState = 'info-requested') | UC-005 | M125-S05 | ✅ Criado |
 | `02-approve-success.html` | Approval success (prototype page; production = inline) | UC-003 | M125-S05 | ✅ Criado |
+| `00-agenda-next.html` | Booking queue — next-week view (week-nav demo pair with `00-agenda.html`) | — | — | ✅ Criado |
+| `03-booking-detail-approved.html` | Booking detail, APPROVED state (Cancel/Complete/Reschedule actions) | UC-008, UC-009 | — | ✅ Criado |
+| `03b-cancel-success.html` | Cancel success inline state, triggered from `03-booking-detail-approved.html` | UC-008 | — | ✅ Criado |
+| `04-mark-complete.html` | Mark complete flow | UC-009 | — | ✅ Criado |
+| `04b-complete-success.html` | Completion confirmed inline state | UC-009 | — | ✅ Criado |
+| `05-reschedule.html` | Reschedule flow | UC-008 Alt A1 | — | ✅ Criado |
+| `05b-reschedule-conflict.html` | Reschedule Alt A2 — new slot became unavailable on confirm | UC-008 Alt A2 | — | ✅ Criado |
+| `05c-reschedule-success.html` | Reschedule confirmed inline state | UC-008 Alt A1 | — | ✅ Criado |
+
+(Story numbers left as `—` above where they couldn't be confirmed against a specific milestone story — do not guess when citing these in a new story; check `git log` or ask.)

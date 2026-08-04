@@ -77,7 +77,7 @@ Controls booking lifecycle and rules.
 | `maxBookingAdvanceDays` | integer | 90 | 1 | 365 | Maximum days in advance customer can book |
 | `serviceBufferMinutes` | integer | 60 | 0 | 120 | Buffer time between service end and next booking (cleaning, prep time) |
 | `slotGranularityMinutes` | integer | 30 | 15 | 60 | Calendar slot unit in minutes. Valid values: 15, 30, 60. Controls granularity of available start times shown in UC-011. |
-| `welcomeStaffScreenDays` | integer | — | 1 | 90 | (`M13-S17`) Size of the configurable date window shown/filtered on the staff booking queue's day-strip navigator (`/dashboard/bookings`). |
+| `welcomeStaffScreenDays` | integer | 14 | 1 | 90 | (`M13-S17`) Size of the configurable date window shown/filtered on the staff booking queue's day-strip navigator (`/dashboard/bookings`). |
 
 **Example:**
 ```json
@@ -88,7 +88,8 @@ Controls booking lifecycle and rules.
     "minBookingAdvanceHours": 0,
     "maxBookingAdvanceDays": 90,
     "serviceBufferMinutes": 60,
-    "slotGranularityMinutes": 30
+    "slotGranularityMinutes": 30,
+    "welcomeStaffScreenDays": 14
   }
 }
 ```
@@ -215,7 +216,7 @@ Country, currency, language, and regional preferences.
 |-----|------|---------|-------------|
 | `countryCode` | string | — | ISO 3166-1 alpha-2 country code (e.g. `"BR"`, `"US"`). Drives the `CountrySpec` defaults below. |
 | `currency` | string | "BRL" | ISO 4217 currency code. Defaults from `countryCode`'s `CountrySpec`; overridable per tenant. |
-| `currencySymbol` | string | "R$" | Display symbol (used in UI). |
+| `currencySymbol` | string | *(none — see note)* | Display symbol (used in UI). `TenantSettings.default()` does not set this field at all; it stays `undefined` unless explicitly configured. `useFormatting()` (`apps/web/shared/lib/formatting/use-formatting.ts`) falls back to `formatCurrencySymbol(locale, currency)` at display time when unset — for a BR tenant this computes to "R$", but that's a runtime derivation, not a stored settings default. |
 | `language` | string | "pt-BR" | BCP-47 language tag. Defaults from `countryCode`'s `CountrySpec`; overridable per tenant. |
 | `decimalPlaces` | integer | 2 | Decimal precision for money display |
 
@@ -326,7 +327,8 @@ Public-facing contact details for the tenant's hotsite (M12-S06 `CONTACT` module
     "minBookingAdvanceHours": 0,
     "maxBookingAdvanceDays": 90,
     "serviceBufferMinutes": 60,
-    "slotGranularityMinutes": 30
+    "slotGranularityMinutes": 30,
+    "welcomeStaffScreenDays": 14
   },
   "businessHours": {
     "timezone": "America/Sao_Paulo",
@@ -390,7 +392,8 @@ When a developer provisions a new tenant (UC-024), if settings are not provided,
     "minBookingAdvanceHours": 0,
     "maxBookingAdvanceDays": 90,
     "serviceBufferMinutes": 60,
-    "slotGranularityMinutes": 30
+    "slotGranularityMinutes": 30,
+    "welcomeStaffScreenDays": 14
   },
   "businessHours": {
     "timezone": "America/Sao_Paulo",

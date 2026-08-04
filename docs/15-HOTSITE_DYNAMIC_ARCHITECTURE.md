@@ -14,16 +14,21 @@ The frontend is a **Rendering Engine** — it reads a manifest from the BFF desc
 
 ```typescript
 // packages/types/src/hotsite.ts
+// Simplified — the real contract is `HotsiteManifestResponse extends HotsiteResponse`,
+// with additional `business`, `localization`, and optional `booking` fields not shown here.
 
-interface HotsiteManifest {
-  tenant: {
-    id: string;
-    name: string;
-    slug: string;
-  };
-  branding: HotsiteBranding;
-  layout: HotsiteModule[];   // ordered — rendered top to bottom
+interface HotsiteResponse {
+  branding: HotsiteBrandingResponse;
+  layout: HotsiteModuleResponse[];   // ordered — rendered top to bottom
+  seo: HotsiteSeoResponse;
   isPublished: boolean;
+}
+
+interface HotsiteManifestResponse extends HotsiteResponse {
+  tenant: TenantInfoResponse;
+  business: HotsiteBusinessInfoResponse;
+  localization: HotsiteLocalizationResponse;
+  booking?: HotsiteBookingSettingsResponse;
 }
 ```
 
@@ -181,7 +186,8 @@ type HotsiteModuleType =
   | 'TESTIMONIALS'
   | 'BOOKING_CTA'
   | 'ABOUT'
-  | 'CONTACT';
+  | 'CONTACT'
+  | 'FOOTER';
 
 interface HotsiteModule {
   type: HotsiteModuleType;

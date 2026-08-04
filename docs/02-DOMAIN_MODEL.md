@@ -139,6 +139,9 @@ Booking {
   totalDurationMins:  Duration         -- = SUM(lines.durationMinsAtBooking); derived & cached
   totalPrice:         Money            -- = SUM(lines.priceAtBooking);        derived & cached (quoted total)
   totalActualPrice:   Money | null     -- = SUM(lines.actualPriceCharged);    null until COMPLETED, then cached
+  discountPointsUsed: number | null    -- loyalty points redeemed against this booking, if any
+  discountAmount:     Money | null     -- monetary value of the redeemed points
+  notes:              String | null    -- free-text notes distinct from adminNotes below
   -- Effective slot reserved on the calendar:
   --   [scheduledAt, scheduledAt + totalDurationMins)
 
@@ -799,7 +802,11 @@ Tenant {
 HotsiteConfig {
   configId:      HotsiteConfigId
   tenantId:      TenantId
-  branding:      Branding        -- { primaryColor, logoUrl, font }
+  branding:      HotsiteBranding -- ~17 fields: colors (primary/secondary/background/text/button),
+                                 -- fonts (heading/body), logoUrl, borderRadius, buttonStyle, spacing,
+                                 -- shadowStyle, visual-rhythm + brand-identity overrides — see
+                                 -- `apps/backend/src/contexts/platform/domain/hotsite-config.aggregate.ts`
+                                 -- for the full `HotsiteBranding` interface, this is a summary not the full shape
   layout:        LayoutModule[]  -- ordered list of UI modules to render
   seo:           SeoMetadata     -- { title, description } — tenant SEO overrides, both nullable
   isPublished:   Boolean         -- false = draft; true = visible at /<slug>
@@ -807,7 +814,7 @@ HotsiteConfig {
 }
 ```
 
-**Layout modules (types):** `HERO`, `SERVICE_LIST`, `GALLERY`, `TESTIMONIALS`, `BOOKING_CTA`, `ABOUT`, `CONTACT`.
+**Layout modules (types):** `HERO`, `SERVICE_LIST`, `GALLERY`, `TESTIMONIALS`, `BOOKING_CTA`, `ABOUT`, `CONTACT`, `FOOTER`.
 
 **Key methods:**
 - `updateContent(branding, layout, seo)` → replaces branding, layout, and seo; stays in draft until published.

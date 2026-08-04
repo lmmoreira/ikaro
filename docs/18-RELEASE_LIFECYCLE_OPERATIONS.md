@@ -10,7 +10,7 @@ This document provides a step-by-step operational guide for the entire lifecycle
 
 ### **Step 1: Local Development**
 1. **Branch:** Create a short-lived branch `feat/UC-xxx-description`.
-2. **Environment:** Run `docker-compose up` to have a local PostgreSQL and GCP Pub/Sub Emulator (plus Prometheus/Grafana for observability).
+2. **Environment:** Run `pnpm infra:up` (`docker/docker-compose.yml`) for a local PostgreSQL, GCP Pub/Sub Emulator, GCS emulator, and Mailhog. (No Prometheus/Grafana service is defined in this compose file — see `package.json`'s `obs:up` script, though note its own target file doesn't currently exist in the repo either.)
 3. **TDD:** Write a failing test in the `domain` or `application` layer.
 4. **Implement:** Write the minimal code to pass the test.
 5. **Verify:** Run `pnpm test` and `pnpm lint` locally.
@@ -69,7 +69,7 @@ When a critical bug is found in Production:
 If a deployment causes a regression:
 
 ### **Automated Rollback**
-The container platform (Cloud Run/Fargate) is configured to automatically rollback if health checks fail during the first 5 minutes of a rolling update.
+The container platform (GCP Cloud Run) is configured to automatically rollback if health checks fail during the first 5 minutes of a rolling update.
 
 ### **Manual Rollback**
 1. **GitHub Action:** "Rollback Production".

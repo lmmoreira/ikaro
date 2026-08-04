@@ -49,7 +49,7 @@ UC-XXX: [Use Case Name]
   8. Guest optionally uploads one or more car photos (PNG/JPG).
   9. System validates: email format, phone format, slot availability, ≥ 1 service selected, file sizes, and — if any pickup service selected — pickup address is present and CEP is 8 digits.
   10. Guest clicks "Submit".
-  11. System creates the `Booking` aggregate with status = PENDING and one `BookingLine` per selected service. Each line snapshots `price`, `duration_mins`, `points_value`, and `requiresPickupAddress`. `Booking.contactAddress` stored if provided. `Booking.pickupAddress` is set if any pickup service was selected. Photos stored. All rows scoped to tenant.
+  11. System creates the `Booking` aggregate with status = PENDING and one `BookingLine` per selected service. Each line snapshots `priceAtBooking`, `durationMinsAtBooking`, `pointsValueAtBooking`, and `requiresPickupAddressAtBooking`. `Booking.contactAddress` stored if provided. `Booking.pickupAddress` is set if any pickup service was selected. Photos stored. All rows scoped to tenant.
   12. System publishes `BookingRequested` event (includes `pickupAddress` when applicable).
   13. Guest sees confirmation: "Your request is pending. You'll hear from us soon."
 
@@ -250,7 +250,7 @@ UC-XXX: [Use Case Name]
 - **Actor:** STAFF | MANAGER
 - **Preconditions:** Booking is APPROVED, PENDING, or INFO_REQUESTED
 - **Trigger:** Admin clicks "Cancel" or "Reschedule" in dashboard
-- **Endpoint (cancel):** `PATCH /v1/bookings/:id/cancel` (STAFF | MANAGER — BFF dispatches to backend `/cancel-admin`)
+- **Endpoint (cancel):** `PATCH /v1/bookings/:id/cancel` — this UC's admin path, but the guard is actually `@Roles('CUSTOMER', 'MANAGER', 'STAFF')` on the same shared endpoint (BFF dispatches to backend `/cancel-admin` for STAFF/MANAGER, `/cancel-customer` for CUSTOMER — see UC-007 for the customer-facing half of this same route)
 - **Endpoint (reschedule — A1):** `PATCH /v1/bookings/:id/reschedule` (STAFF | MANAGER)
 - **Main Flow:**
   1. Admin selects booking
@@ -581,7 +581,7 @@ Returns:
      - Duration (minutes)
      - Loyalty points value
      - **Requires pickup address** (toggle, default off) — enable for services that require the customer to provide a pickup location (e.g. "Coleta e Entrega", "Busca em domicílio")
-     - `isActive` flag (default: `true`; set `false` to create as inactive) **(requires a backend change to `Service.create()`/`CreateServiceSchema` to accept this parameter — not yet implemented as of this audit; flag for `M13-S05`)**
+     - `isActive` flag (default: `true`; set `false` to create as inactive) — backend supports this (`CreateServiceSchema`/`Service.create()` both accept it); the "new service" dashboard page has no UI toggle for it yet, so it's create-time-active-only from the browser today
   2. Admin clicks "Create"
   3. System validates: name unique within tenant, price must be greater than zero (> 0), duration > 0
   4. System creates Service aggregate with `requiresPickupAddress` flag
@@ -649,7 +649,9 @@ Returns:
 
 - **Postconditions:** User sees current active-points view. No state changes.
 - **Events Triggered:** None (read operation).
-- **Out of scope (MVP):** No tier labels (BRONZE/SILVER/GOLD), no manual admin point adjustments, no per-service breakdown (deferred to M13 dashboard). Gifts and rewards are offered by the admin outside the system.
+- **Out of scope (MVP):** No tier labels (BRONZE/SILVER/GOLD), no per-service breakdown (deferred to M13 dashboard). Gifts and rewards are offered by the admin outside the system.
+
+> **Undocumented endpoint found via `/docs-audit` (2026-08-04):** `POST /v1/loyalty/redeem` (`apps/bff/src/features/loyalty/loyalty.controller.ts`, `@Roles('MANAGER', 'STAFF')`, body `{ customerId, pointsToRedeem, notes?, bookingId? }`) is fully implemented but has no corresponding UC — this contradicted the "no manual admin point adjustments" out-of-scope line above, which has been removed since the feature evidently exists. **Do not treat this note as the UC** — write a real `UC-032` (or next available number) covering this flow's actual preconditions/main flow/alt flows before citing it in a story.
 
 ---
 
@@ -829,7 +831,7 @@ Returns:
      - System redirects to `/auth/error?reason=<code>`, one of: `not-a-staff-member`, `invite-not-found`, `staff-deactivated`, `email-mismatch`, `account-linked-elsewhere`, `tenant-not-found`
 
 - **Alternative Flows:**
-  - **A1: Staff selects a tenant from `/select-staff-tenant`** → Session created scoped to the chosen tenant. This same screen/endpoint (`GET /staff/me/tenants`, `POST /auth/switch-staff-tenant`) also supports switching tenants **after** login, not just at initial sign-in.
+  - **A1: Staff selects a tenant from `/select-staff-tenant`** → Session created scoped to the chosen tenant. This same screen/endpoint (`GET /auth/staff-tenants`, `POST /auth/switch-staff-tenant`) also supports switching tenants **after** login, not just at initial sign-in. (`GET /staff/me/tenants` is a separate, internal-only backend route — not the BFF-exposed one the client actually calls.)
 
 - **Postconditions:** Staff logged in, session scoped to the selected tenant.
 - **Events Triggered:** None (read operation)
@@ -944,8 +946,8 @@ Returns:
 
 ### **UC-026: Admin Edits Tenant Settings**
 
-- **Actor:** Staff member with `MANAGER` role
-- **Preconditions:** Admin is authenticated with MANAGER role.
+- **Actor:** Staff member with `MANAGER` role (to save changes)
+- **Preconditions:** Admin is authenticated. `GET /tenants/settings` (viewing the screen) allows `STAFF`|`MANAGER`; `PATCH /tenants/settings` (saving changes) is `MANAGER`-only — STAFF can view the settings screen but not edit it.
 - **Trigger:** Admin clicks "Configurações" → "Geral" in the dashboard.
 > **Scope expanded (`M13-S31`):** the shipped settings form covers substantially more than the original draft below — `booking.autoApproveEnabled` (accepted in the UI but currently inert; no booking use case reads it yet), `minBookingAdvanceHours`, `maxBookingAdvanceDays`, `slotGranularityMinutes`, `welcomeStaffScreenDays`; `loyalty.expiryWarningDays`, `enableNotifications`, `notificationMinPoints`; a full **Notificações** section (`notification.fromEmail`); read-only **Localização** (`countryCode`-driven, see `docs/21-TENANTS_SETTINGS_SCHEMA.md`); and `businessInfo.socialLinks`. See `docs/21-TENANTS_SETTINGS_SCHEMA.md` for the authoritative field list — the list below is illustrative, not exhaustive.
 
@@ -1001,7 +1003,7 @@ Returns:
       - Button background color (optional, overrides primary color on buttons)
       - Button text color (optional)
       
-      **Section B: Layout / Modules** (drag-drop list of module types — the 7 types built in M12)
+      **Section B: Layout / Modules** (drag-drop list of module types — the 8 types built in M12/M13-S36: HERO, SERVICE_LIST, GALLERY, TESTIMONIALS, BOOKING_CTA, ABOUT, CONTACT, FOOTER)
       - [x] HERO (title, subtitle, optional background image upload) — toggle on/off
       - [x] SERVICE_LIST (services from catalog, with price/points badges) — toggle on/off
       - [x] GALLERY (booking after-photos + curated images) — toggle on/off + limit (6 default)

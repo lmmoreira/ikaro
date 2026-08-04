@@ -42,11 +42,17 @@ flowchart TD
     ConfirmYes --> DeactivateSuccess["Lista com badge Inativo<br/>isActive = false"]
     ConfirmNo --> EditForm
 
+    %% UC-013 A4 — Reactivate (inactive service)
+    EditForm -- "serviço inativo" --> InactiveEdit["✅ /dashboard/services/[id]/edit<br/>(inactive-state variant — 'Ativar' action)"]
+    InactiveEdit --> ActivateBtn(("Click 'Ativar serviço'"))
+    ActivateBtn --> ActivateSuccess["✅ Lista com badge Ativo<br/>PATCH /v1/services/:id/activate"]
+
     CreateSuccess --> List
     EditSuccess --> List
     DeactivateSuccess --> List
+    ActivateSuccess --> List
 
-    class List,EditForm,DeactivateConfirm,EditSuccess,DeactivateSuccess existing
+    class List,EditForm,DeactivateConfirm,EditSuccess,DeactivateSuccess,InactiveEdit,ActivateSuccess existing
 ```
 
 ## Pages referenced
@@ -81,4 +87,5 @@ Folder: `staff/prototypes/servicos/`
 | `02c-service-create-success.html` | Service created — inline success banner on the list (closes the "Lista com toast verde" gap node) | UC-012 | ✅ Criado |
 | `03-service-edit.html` | Edit service form + deactivate button | UC-013 | ✅ Criado |
 | `03b-deactivate-confirm.html` | Deactivation confirmation | UC-013 A1 | ✅ Criado |
+| `03c-service-edit-inactive.html` | Edit form, inactive-service variant — "Ativar" action (reactivation, shipped 2026-07-31) | UC-013 A4 | ✅ Criado |
 | `dev-notes.md` | Implementation handoff | — | ✅ Criado |

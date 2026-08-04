@@ -17,6 +17,9 @@ flowchart TD
     Editor --> EditBranding(("Edita cor/fonte/botão"))
     Editor --> ToggleModule(("Liga/desliga módulo"))
     Editor --> ReorderModule(("Arrasta para reordenar"))
+    Editor --> ConfigModule(("Click 'Configurar' em um módulo (M13-S36)"))
+    ConfigModule --> ModuleConfigPanel["drill-down config panel<br/>por tipo de módulo (8 tipos)"]
+    ModuleConfigPanel --> Editor
     Editor --> EditSeo(("Edita título/descrição SEO"))
 
     EditBranding --> ColorValid{"Cor em hex válido?"}
@@ -47,7 +50,7 @@ flowchart TD
     UnpublishSuccess --> PublishBtn
     UnpublishSuccess --> Editor
 
-    class Editor,ColorError,UrlFallback,PreviewPane,PublishSuccess,UnpublishSuccess existing
+    class Editor,ColorError,UrlFallback,PreviewPane,PublishSuccess,UnpublishSuccess,ModuleConfigPanel existing
 ```
 
 **Also drifted from the prototype's documented shape (2026-07-31 docs audit):** the real branding editor has 5 sections/18 fields (adds `heroBgStyle`/`alternateSectionBg`/`dividerStyle`/`brandName`/`brandTagline` — already correctly described in `manager/prototypes/hotsite/dev-notes.md`, just not in the HTML screen itself) vs. the 13-field/4-section prototype; module count is 8 (`FOOTER` added during `M13-S36`) vs. the documented 7; SEO limits are 60/158 chars (real-world Google truncation points) vs. the documented 70/160, and there's an OG-image field the prototype doesn't show. Candidates for the next prototype touch-up pass.

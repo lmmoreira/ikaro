@@ -10,4 +10,4 @@ Source: `docs/04-USE_CASES.md`. Working checklist for journeys in this folder â€
 
 ## Exit point
 
-A guest who clicks "Entrar com Google" leaves this folder's journeys and enters `customer/login-and-tenant-selection.md` (UC-021).
+A guest who clicks "Entrar com Google" leaves this folder's journeys and enters `customer/login.md` (UC-021).

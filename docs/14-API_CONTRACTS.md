@@ -66,7 +66,7 @@ Same fields as Pattern A, plus `pagination.nextOffset` (convenience: `offset + l
 
 #### **Pattern C — Page-based, custom item key, no `hasMore`/`nextOffset`**
 
-Used by `GET /loyalty/entries` and `GET /loyalty/redemptions` (`LoyaltyEntriesResponse` / `LoyaltyRedemptionsResponse`, `apps/bff/src/features/loyalty/loyalty.types.ts`). The item array key matches the resource name (`entries`, `redemptions`) rather than a generic `items`/`data`.
+Used by `GET /loyalty/entries` and `GET /loyalty/redemptions` (`BackendLoyaltyEntriesResponse` / `BackendLoyaltyRedemptionsResponse`, `apps/bff/src/features/loyalty/loyalty.types.ts`). The item array key matches the resource name (`entries`, `redemptions`) rather than a generic `items`/`data`.
 
 ```
 GET /customers/:id/loyalty/entries?page=1&limit=20

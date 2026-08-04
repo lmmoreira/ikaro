@@ -138,7 +138,7 @@ VOs are the single normalisation boundary for their input type. When the DB retu
 
 ## PhoneNumber HTTP format
 
-HTTP request bodies (`contactPhone`, customer `phone`) must send digits only, no country-code prefix — 10–11 digits (`31999999999` ✓, `+5531999999999` ✗). `PhoneNumber.create()` strips non-digits and validates length 10–11. HTTP bodies go through `ZodValidationPipe` and will 400 if the prefix is included.
+HTTP request bodies (`contactPhone`, customer `phone`) must send strict E.164 format, prefix required (`+5531999999999` ✓, `31999999999` ✗). `PhoneNumber.create()` (`apps/backend/src/shared/value-objects/phone-number.vo.ts`) validates via `isValidPhoneNumber` from `@ikaro/validation` and throws `PhoneNumberValidationError` on anything else — it does not strip characters or accept a digits-only payload. HTTP bodies go through `ZodValidationPipe` and will 400 if the `+` prefix is missing.
 
 ---
 

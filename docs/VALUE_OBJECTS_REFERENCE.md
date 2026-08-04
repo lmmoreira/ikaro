@@ -9,9 +9,9 @@
 | Field | VO Class | File | Rule |
 |---|---|---|---|
 | Email address | `Email` | `email.vo.ts` | validates format; normalises to lowercase; getter: `.address` |
-| Phone number | `PhoneNumber` | `phone-number.vo.ts` | Brazilian 10–11 digits; strips non-digits on `create()`; getter: `.value`; `format()` → `(XX) XXXXX-XXXX` |
-| Physical address | `Address` | `address.ts` | structured fields; `create()` validates CEP length; `reconstitute()` skips validation |
-| Money amount | `Money` | `money.vo.ts` (future) | currency code + decimal precision — never a plain `number` |
+| Phone number | `PhoneNumber` | `phone-number.vo.ts` | strict E.164 (`+<prefix><digits>`, e.g. `+5511912345678`) via `isValidPhoneNumber` from `@ikaro/validation`; no digit-stripping or normalization — `create()` throws on anything else; getter: `.value` |
+| Physical address | `Address` | `address.ts` | structured fields; `create(props, spec: AddressSpec)` validates against a country-specific spec (postal regex, state pattern, neighborhood requirement) — takes a mandatory `spec` param, not a fixed Brazilian-CEP-length check; `reconstitute()` skips validation |
+| Money amount | `Money` | `money.ts` | currency code + decimal precision — never a plain `number`; fully implemented, used across aggregates/use cases/repositories |
 | Hex colour | `HexColor` | `hex-color.vo.ts` | must match `#RRGGBB`; normalises to uppercase; getter: `.value` |
 | IANA timezone | `Timezone` | `timezone.vo.ts` | validates against `Intl.supportedValuesOf('timeZone')`; getter: `.value` |
 | HH:MM time | `TimeOfDay` | `time-of-day.vo.ts` | validates HH:MM string; `isBefore()` comparison; getter: `.value` |

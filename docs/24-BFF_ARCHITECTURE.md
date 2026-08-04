@@ -283,19 +283,18 @@ The `BackendHttpService` is the single class that all BFF modules use to call th
 
 ```typescript
 // apps/bff/src/shared/http/backend-http.service.ts
-@Injectable()
+@Injectable({ scope: Scope.REQUEST })
 export class BackendHttpService {
   constructor(
-    private http: HttpService,  // @nestjs/axios
-    @Inject(REQUEST) private req: Request,
+    private readonly http: HttpService,  // @nestjs/axios
+    private readonly config: ConfigService,
+    @Inject(REQUEST) private readonly req: Request,
   ) {}
 
   private headers(): Record<string, string> {
     return {
-      'X-Tenant-ID':       this.req['user']?.tenantId ?? '',
-      'X-Correlation-ID':  this.req['correlationId'] ?? '',
-      'X-User-ID':         this.req['user']?.sub ?? '',
-      'X-User-Role':       this.req['user']?.role ?? '',
+      ...buildBackendHeaders(this.req),   // X-Tenant-ID, X-Correlation-ID, X-Actor-ID/Type/Role — see shared/http/backend-headers.ts
+      'X-Internal-Key': this.config.getOrThrow('INTERNAL_API_KEY'),
     };
   }
 

@@ -27,16 +27,15 @@ flowchart TD
     SelectTenantDescoped["❌ DESCOPED: /select-tenant<br/>(handleMultiTenantLogin unreachable —<br/>no slug-less entry point exists)"]
 
     PhoneCheck -->|"Sim"| CustomerArea["/{tenantSlug}<br/>Hotsite, logado (HotsiteAuthBar)"]
-    PhoneCheck -->|"Não — UC-021 A3"| PhoneCompletion["❓ GAP: prompt de telefone<br/>Completar perfil — não dispensável"]
+    PhoneCheck -->|"Não — UC-021 A3"| PhoneCompletion["✅ prompt de telefone<br/>Completar perfil — não dispensável"]
     PhoneCompletion --> PhoneSubmit(("PATCH /v1/customers/me<br/>{ phone } — E.164"))
     PhoneSubmit --> CustomerArea
 
-    CustomerArea -->|"UC-023: Trocar empresa (avatar dropdown)"| SwitchPage["❓ GAP: /switch-tenant"]
+    CustomerArea -->|"UC-023: Trocar empresa (avatar dropdown)"| SwitchPage["✅ /switch-tenant"]
     SwitchPage --> SwitchPost(("POST /v1/auth/switch-tenant<br/>{ targetTenantId }"))
     SwitchPost --> CustomerArea
 
-    class Hotsite,Booking,Login,AuthError existing
-    class PhoneCompletion,SwitchPage gap
+    class Hotsite,Booking,Login,AuthError,PhoneCompletion,SwitchPage existing
     class SelectTenantDescoped descoped
 ```
 
@@ -49,9 +48,9 @@ flowchart TD
 | `/{tenantSlug}/login` | `CustomerLoginPage` | M13-S42 | ✅ Existente |
 | `/auth/error` | `AuthErrorPage` | M13-S02/S42 | ✅ Existente (shared with staff) |
 | ~~`/select-tenant`~~ | ~~`SelectTenantPage`~~ | — | ❌ Descoped — see scope-change note above |
-| profile completion prompt | `PhoneCompletionPrompt` (inline, `[slug]/layout.tsx`) | M13-S14 | ❌ GAP |
-| `/switch-tenant` | `SwitchTenantPage` | M13-S14 (folded from original M13-S30) | ❌ GAP |
-| `HotsiteAuthBar` "Trocar empresa" trigger | avatar dropdown item | M13-S14 | ❌ GAP |
+| profile completion prompt | `InformationCompletionPrompt` (`apps/web/features/customer/components/`) | M13-S14 | ✅ Existente |
+| `/switch-tenant` | `apps/web/app/switch-tenant/page.tsx` | M13-S14 (folded from original M13-S30) | ✅ Existente |
+| `HotsiteAuthBar` "Trocar empresa" trigger | avatar dropdown item (`CustomerTopbar.tsx`) | M13-S14 | ✅ Existente |
 
 ## BFF calls in this flow
 

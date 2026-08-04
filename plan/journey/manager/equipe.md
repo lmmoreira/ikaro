@@ -42,10 +42,22 @@ flowchart TD
     LastManagerError --> List
     DeactivateSuccess --> List
 
-    class List,InviteForm,EmailError,ReactivateSuccess,InviteSuccess,DeactivateConfirm,SelfError,LastManagerError,DeactivateSuccess existing
+    %% UC-030 — Edit profile
+    List --> RowClick(("Click em uma linha ativa"))
+    RowClick --> EditDetail["/dashboard/team/[id]<br/>Staff Detail / Edit"]
+    EditDetail --> EditSubmit(("Click 'Salvar'"))
+    EditSubmit --> EditSuccess["toast verde<br/>'Perfil atualizado'"]
+    EditSuccess --> List
+
+    %% UC-031 — Reactivate
+    List --> ActivateBtn(("Click 'Ativar' em uma linha inativa"))
+    ActivateBtn --> ActivateSuccess["toast verde<br/>'[Nome] foi reativado(a)'"]
+    ActivateSuccess --> List
+
+    class List,InviteForm,EmailError,ReactivateSuccess,InviteSuccess,DeactivateConfirm,SelfError,LastManagerError,DeactivateSuccess,EditDetail,EditSuccess,ActivateSuccess existing
 ```
 
-**Also shipped, not originally covered by this journey (2026-07-31 docs audit):** UC-030 (Admin Edits Staff Member Profile, `/dashboard/team/[id]`) and UC-031 (Admin Reactivates Staff Member, one-click "Ativar" on deactivated rows) — both `M13-S43`/`M13-S44`, ✅ Done. No prototype screens exist for either; see `manager/use-cases.md`.
+**Also shipped, not originally covered by this journey (2026-07-31 docs audit):** UC-030 (Admin Edits Staff Member Profile, `/dashboard/team/[id]`) and UC-031 (Admin Reactivates Staff Member, one-click "Ativar" on deactivated rows) — both `M13-S43`/`M13-S44`, ✅ Done. Prototype coverage: `04-staff-detail-edit.html` exists for UC-030 — see the Prototype table below; UC-031's one-click reactivate has no dedicated screen (it's a row action on `01-team-list.html`).
 
 ## Pages referenced
 
@@ -79,4 +91,5 @@ Folder: `manager/prototypes/equipe/`
 | `03-deactivate-confirm.html` | Deactivation confirmation | UC-029 | ✅ Criado |
 | `03b-deactivate-self-error.html` | Self-deactivation blocked | UC-029 A1 | ✅ Criado |
 | `03c-deactivate-lastmanager-error.html` | Last active manager blocked | UC-029 A2 | ✅ Criado |
+| `04-staff-detail-edit.html` | Staff detail / edit profile page | UC-030 | ✅ Criado |
 | `dev-notes.md` | Implementation handoff | — | ✅ Criado |

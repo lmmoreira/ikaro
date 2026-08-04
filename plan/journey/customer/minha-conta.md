@@ -16,8 +16,8 @@ flowchart TD
     BookingConfirm["/{slug}/booking<br/>Confirmação (UC-002 step 10)"] -->|"'Ver meus agendamentos'"| MinhaConta
     InfoEmail["E-mail de info solicitada<br/>(UC-005 main flow)"] -->|"Link direto → detalhe"| Detail
 
-    MinhaConta["/{slug}/minha-conta<br/>Minha Conta"] --> LoyaltySummary["Cartão: pontos ativos + próxima expiração<br/>GET /v1/loyalty/balance"]
-    LoyaltySummary -->|"Toca cartão"| LoyaltyFull["/{slug}/minha-conta/fidelidade<br/>Minha Fidelidade (UC-016)"]
+    MinhaConta["/{slug}/my-account<br/>Minha Conta"] --> LoyaltySummary["Cartão: pontos ativos + próxima expiração<br/>GET /v1/loyalty/balance"]
+    LoyaltySummary -->|"Toca cartão"| LoyaltyFull["/{slug}/my-account/loyalty<br/>Minha Fidelidade (UC-016)"]
     MinhaConta --> AvatarMenu(("Avatar dropdown"))
     AvatarMenu -->|"'Trocar empresa'<br/>(2+ tenants apenas)"| SwitchTenant["/switch-tenant<br/>POST /v1/auth/switch-tenant"]
     SwitchTenant -->|"Sucesso"| NewTenant["Hotsite nova empresa"]
@@ -34,7 +34,7 @@ flowchart TD
     Upcoming -->|"Clica 'Cancelar' (dentro da janela)"| CancelPage["Página: Confirmar cancelamento<br/>(não é um sheet — página completa)"]
     Pending -->|"Clica 'Cancelar solicitação'"| CancelPage
 
-    Detail["/{slug}/minha-conta/agendamentos/[id]<br/>Detalhe do Agendamento<br/>GET /v1/bookings/:id"] -->|"APPROVED · PENDING · INFO_REQUESTED<br/>→ botão Cancelar"| CancelPage
+    Detail["/{slug}/my-account/bookings/[id]<br/>Detalhe do Agendamento<br/>GET /v1/bookings/:id"] -->|"APPROVED · PENDING · INFO_REQUESTED<br/>→ botão Cancelar"| CancelPage
 
     Detail -->|"INFO_REQUESTED<br/>→ mostra mensagem do admin + form UC-005 A2"| InfoSubmit(("PATCH /v1/bookings/:id/submit-info"))
     InfoSubmit -->|"200 → status volta a PENDING"| Detail
@@ -52,11 +52,11 @@ flowchart TD
 |---|---|---|---|
 | `/{slug}` (hotsite, logged-in nav) | `HotsiteLayout` logged-in state | M12 | ✅ Existente |
 | `/{slug}/booking` (post-booking CTA) | `BookingForm` / confirmation | M12-S07 | ✅ Existente |
-| `/{slug}/minha-conta` | `MinhaContaPage` | M13-S27 | ✅ Existente |
-| `/{slug}/minha-conta/agendamentos/[id]` | `AgendamentoDetailPage` | M13-S28 | ✅ Existente |
+| `/{slug}/my-account` | `MinhaContaPage` | M13-S27 | ✅ Existente |
+| `/{slug}/my-account/bookings/[id]` | `AgendamentoDetailPage` | M13-S28 | ✅ Existente |
 | Cancel confirmation — full page, not a sheet | dedicated `.../bookings/[id]/cancel` page | M13-S28 | ✅ Existente |
 | Info submit form (UC-005 A2) | inline section on detail page (customer auth path) | M13-S28 | ✅ Existente |
-| `/{slug}/minha-conta/fidelidade` | `MinhaFidelidadePage` | M13-S29 | ✅ Existente |
+| `/{slug}/my-account/loyalty` | `MinhaFidelidadePage` | M13-S29 | ✅ Existente |
 | Tenant switch modal/page (UC-023) | `TrocarEmpresaPage` — avatar dropdown trigger | M13-S30 | ✅ Existente |
 
 ## BFF calls in this flow
@@ -87,7 +87,7 @@ Cancel button visibility for **Próximos** (APPROVED): hidden with note when `sc
 - [ ] **"Total washes completed" + "Most recently completed service" (UC-006 step 6):** `GET /v1/loyalty/balance` returns only `{ currentPoints, nextExpiryDate, nextExpiryPoints }`. Neither "total washes" nor "last service" is available from this endpoint. Options: (a) add fields to balance endpoint, (b) derive from `GET /v1/loyalty/entries` pagination `total` + first entry's `serviceName`, (c) drop from MVP minha-conta. Decide before `M13-S27` starts.
 - [ ] **`CustomerBookingListResponse` DTO missing from `packages/types/src/`:** only a backend-internal `BookingListItem` exists. Add to `packages/types/` in `M13-S27`.
 - [ ] **UC-005 A2 scope:** should the info submission form live in this journey's detail page or a separate journey? Recommendation: include it inline in `M13-S28` (detail page) since the customer reaches it from "My Bookings" — it's not a separate navigation destination.
-- [x] **Post-cancel destination:** after successful cancel from the detail page, navigate back to `/{slug}/minha-conta` list (recommended) or show inline CANCELLED state on the detail page and let the customer navigate back manually? — **Resolved.** Redirects to the minha-conta list, implemented in `M13-S28`.
+- [x] **Post-cancel destination:** after successful cancel from the detail page, navigate back to `/{slug}/my-account` list (recommended) or show inline CANCELLED state on the detail page and let the customer navigate back manually? — **Resolved.** Redirects to the my-account list, implemented in `M13-S28`.
 - [ ] **Empty state CTA (UC-006 A1):** when customer has no bookings, what does the CTA say? "Fazer um agendamento" → `/{slug}/booking`?
 - [ ] **`GET /v1/bookings` query params for customer:** the existing endpoint accepts `status` filter. Should the frontend call it once (all statuses) and split client-side, or call it three times (one per section)? Single call + client split is simpler.
 - [x] **Pagination:** UC-006 doesn't specify pagination behaviour. The backend supports `limit`/`offset`. — **Resolved.** `limit=50`, no infinite scroll, implemented in `M13-S27`.

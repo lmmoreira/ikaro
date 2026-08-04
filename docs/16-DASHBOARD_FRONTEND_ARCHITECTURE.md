@@ -131,11 +131,10 @@ apps/web/
 │   │       ├── api/
 │   │       ├── model/
 │   │       └── utils/
-│   ├── staff/
-│   │   ├── api.ts          (flat file, not an api/ folder)
-│   │   ├── components/
-│   │   └── hooks/
-│   └── uploads/
+│   └── staff/
+│       ├── api.ts          (flat file, not an api/ folder)
+│       ├── components/
+│       └── hooks/
 ├── shells/
 │   ├── dashboard/
 │   │   ├── components/

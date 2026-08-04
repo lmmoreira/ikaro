@@ -119,7 +119,7 @@ COMPLETED / REJECTED / CANCELLED  (terminal)
 - UC-017 (booking analytics) — future, out of MVP
 - UC-030 was superseded/renumbered as part of the M13 staff-lifecycle stories (UC-029 deactivate / UC-031 reactivate are the canonical pair) — check `docs/04-USE_CASES.md`'s table before citing a UC number in a story
 
-**Missing UCs (do not implement until documented):** Customer profile edit beyond phone-collection (UC-021 A3), audit log view, notification template management, failed-notification retry.
+**Missing UCs (do not implement until documented):** Customer profile edit beyond phone-collection (UC-021 A3), audit log view, notification template management, failed-notification retry, manual admin loyalty-point redemption (`POST /v1/loyalty/redeem` exists and is implemented but has no UC — found via `/docs-audit` 2026-08-04, see `docs/04-USE_CASES.md` UC-016's note).
 
 ---
 

@@ -17,9 +17,14 @@
 │   ├── types/            # shared TypeScript types / DTOs
 │   ├── config/           # shared ESLint, tsconfig, Prettier configs
 │   ├── observability/    # shared BaseAppLogger (backend + bff each subclass it)
-│   └── env-validation/   # shared validateEnvWithSchema() (backend + bff env.validation.ts)
-├── infrastructure/
-│   └── terraform/        # planned, not yet created — GCP resources (Cloud Run, Cloud SQL, Pub/Sub, Secret Manager)
+│   ├── env-validation/   # shared validateEnvWithSchema() (backend + bff env.validation.ts)
+│   ├── http-utils/       # shared HTTP helpers
+│   ├── i18n/             # shared locale files + formatting helpers
+│   ├── infra-scripts/    # shared infra/tooling scripts
+│   ├── nestjs-http/      # shared NestJS HTTP module helpers (backend + bff)
+│   └── validation/       # shared validation primitives (e.g. phone/email format checks)
+├── infra/
+│   └── terraform/        # GCP resources (Cloud Run, Cloud SQL, Pub/Sub, Secret Manager) — modules/, envs/{staging,prod}/, foundation/; see infra/terraform/README.md
 ├── .github/workflows/    # CI/CD pipeline YAML files
 ├── docker/               # Dockerfiles + docker-compose.yml (local dev)
 ├── .copilot/context.md   # canonical agent context (symlinked as claude.md, CLAUDE.md, gemini.md)
@@ -140,8 +145,7 @@ apps/web/
 │   ├── loyalty/
 │   ├── platform/
 │   │   └── hotsite/
-│   ├── staff/
-│   └── uploads/
+│   └── staff/
 ├── shells/
 │   ├── dashboard/
 │   └── hotsite/
@@ -161,7 +165,7 @@ apps/web/
 ### Web root-level exceptions
 
 - `app/` remains the routing and layout surface.
-- `features/` is the business-owning tree for booking, customer, loyalty, platform, staff, auth, and uploads.
+- `features/` is the business-owning tree for booking, customer, loyalty, platform, staff, and auth (`uploads` is not a current slice — see the BFF tree above for the condition under which it would become one).
 - `shells/` owns route-composition only.
 - `shared/` is for cross-surface primitives and helpers only.
 - `providers/` stays root-level because it is app-wide composition.

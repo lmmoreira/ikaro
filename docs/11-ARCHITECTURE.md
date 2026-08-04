@@ -32,7 +32,7 @@ graph TD
     subgraph "Infrastructure"
         DB[(PostgreSQL 17<br/>Cloud SQL)]
         OAuth[Google OAuth 2.0]
-        Email[IEmailSender Port<br/>SendGrid adapter]
+        Email[IEmailSender Port<br/>Brevo adapter]
         Storage[S3-compatible Storage<br/>GCS adapter]
         Secrets[GCP Secret Manager]
     end
@@ -160,7 +160,7 @@ The architecture enforces tenant isolation at the **Adapter Layer**:
 ## Key Benefits for Ikaro
 
 1. **Independent Testing:** We can test the `Booking` use cases with a "MemoryRepository" (no DB needed).
-2. **Tech Agnostic:** If we switch from SES to SendGrid, we only change one adapter in `infrastructure/`.
+2. **Tech Agnostic:** If we switch from Brevo to another email provider, we only change one adapter in `infrastructure/`.
 3. **Module Isolation:** If `Loyalty` grows too big, we can extract it into a microservice by changing its adapters to use HTTP instead of internal calls.
 
 ---

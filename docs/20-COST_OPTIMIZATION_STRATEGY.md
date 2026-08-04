@@ -24,9 +24,9 @@ For a small startup, being **finance conscious** means maximizing the value of e
 | **Source Control** | GitHub Free/Team | $0 - $4/user | Industry standard, excellent free tier. |
 | **CI/CD** | GitHub Actions | $0 (Free minutes) | Generous free tier for private repos. |
 | **Quality/Security**| SonarCloud + Snyk | $0 (Free tiers) | Use "SaaS" free versions first. |
-| **Compute** | GCP Cloud Run / AWS Fargate | $0 - $10 | Scale-to-zero. Only pay when users are active. |
+| **Compute** | GCP Cloud Run | $0 - $10 | Scale-to-zero. Only pay when users are active. |
 | **Database** | Managed Postgres (Small) | $15 - $30 | **Crucial:** Never self-host DB. Managed backups are worth the $15 premium. |
-| **Email** | SendGrid / AWS SES | $0 (Free tier) | High deliverability for free (up to 3k-10k emails/mo). |
+| **Email** | Brevo | $0 (Free tier) | High deliverability for free (up to 3k-10k emails/mo). |
 | **Observability** | Self-hosted Prometheus/Grafana | ~$5 (Small VM/Volume) | Lower cost than DataDog/NewRelic. |
 | **Total MVP Cost** | | **~$20 - $50** | A professional, scalable SaaS for the price of a dinner. |
 
@@ -35,7 +35,7 @@ For a small startup, being **finance conscious** means maximizing the value of e
 ## 3. Infrastructure Optimization Patterns
 
 ### **A. Scale-to-Zero**
-Use "Serverless Containers" (Cloud Run/Fargate). If no one is using the app at 3 AM, you pay $0 for compute.
+Use "Serverless Containers" (GCP Cloud Run). If no one is using the app at 3 AM, you pay $0 for compute.
 
 ### **B. Development Environments**
 - **No permanent "Dev" server:** Developers run everything in **Docker locally**.

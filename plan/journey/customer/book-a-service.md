@@ -37,9 +37,10 @@ flowchart TD
     Submit --> POST["POST /bookings/authenticated<br/>Auth: JWT cookie → X-Actor-* headers"]
     POST --> SlotOk{"HTTP status?"}
     SlotOk -- 201 Created --> Done["'Solicitação enviada!<br/>Aguarde confirmação por email'"]
-    SlotOk -- 409 Conflict --> S2Error["'Horário indisponível'<br/>→ back to step 2"]
+    SlotOk -- 409 Conflict --> S2Error["❓ GAP: 'Horário indisponível'<br/>→ back to step 2<br/>(no prototype screen here — guest's<br/>02e-slot-conflict.html is the pattern to reuse)"]
 
-    class S1,PickupField,S2,DayClick,SlotPicker,S4,Submit,POST,Done,S2Error,LoginPage,Callback,Hotsite,CTA,S3 existing
+    class S1,PickupField,S2,DayClick,SlotPicker,S4,Submit,POST,Done,LoginPage,Callback,Hotsite,CTA,S3 existing
+    class S2Error gap
 ```
 
 **Note (2026-07-31 docs audit):** this flowchart previously described a generic `/auth/login` + `/api/auth/callback/google` + `/select-tenant` architecture that was never built and has since been superseded — see `customer/login.md`'s 2026-06-24 scope-change note for the canonical, shipped design (tenant-scoped `/{slug}/login`, BFF-only OAuth callback, `/select-tenant` permanently descoped). This file now matches that canonical design instead of duplicating it.

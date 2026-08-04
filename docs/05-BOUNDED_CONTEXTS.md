@@ -87,11 +87,9 @@ Notification Context subscribes:
 │  │  Published:          │──────────────►                           │  │
 │  │  - ServicePointsEarned              │  Sends email via          │  │
 │  │  - PointsExpiringSoon│              │  IEmailSender port        │  │
-│  │                      │              │  (default: SendGrid)      │  │
+│  │                      │              │  (Brevo prod /            │  │
+│  │                      │              │   Mailhog local)          │  │
 │  └──────────────────────┘              │                           │  │
-│                                        │  Published:               │  │
-│                                        │  - EmailSent              │  │
-│                                        │  - EmailFailed            │  │
 │                                        └───────────────────────────┘  │
 │                                                                          │
 │  ┌──────────────────────┐  ┌────────────────────┐  ┌───────────────┐  │
@@ -100,7 +98,7 @@ Notification Context subscribes:
 │  │                      │  │                    │  │               │  │
 │  │  Aggregates:         │  │  Aggregates:       │  │  Aggregates:  │  │
 │  │  - Customer (root)   │  │  - Staff (root)    │  │  - Tenant     │  │
-│  │    (multi-tenant)    │  │    (single-tenant) │  │  - Hotsite-   │  │
+│  │    (multi-tenant)    │  │    (multi-tenant)  │  │  - Hotsite-   │  │
 │  │                      │  │                    │  │    Config     │  │
 │  │  No published events │  │  Published:        │  │               │  │
 │  │  (passive context)   │  │  - StaffInvited    │  │  Published:   │  │
@@ -133,7 +131,7 @@ Notification Context subscribes:
 - Support cancellations with business rules (48h, tenant-scoped)
 - Trigger workflow changes
 
-**Database:** `ikaro_booking` schema
+**Database:** `booking` schema
 - Tables: bookings, services, schedule_closures, schedule_openings, booking_audit_logs
 - Every row has: `tenant_id` (required, indexed)
 - Queries: Always filtered by `WHERE tenant_id = ?`
@@ -258,16 +256,15 @@ TENANT B (completely separate):
 **Responsibilities:**
 - Listen to ALL domain events (from Booking, Loyalty, others)
 - Compose emails from templates
-- Send via SendGrid/SES
+- Send via Brevo (prod) / Mailhog (local)
 - Retry failed emails
 - Log all notifications
 
-**Database:** `ikaro_notification` schema
+**Database:** `notification` schema
 - Tables: notification_templates, notification_logs
 
 **Published Events:**
-- `EmailSent` → for audit
-- `EmailFailed` → for retry queue
+- None currently — audit/retry state is tracked on the `NotificationLog` entity itself, not via published domain events. (`EmailSent`/`EmailFailed` event classes do not exist in code.)
 
 **Consumed Events:**
 - All events from Booking Context
@@ -305,12 +302,12 @@ PointsExpiringSoon → Email (weekly digest): Customer "Heads up — [X] points 
 
 **Dependencies:**
 - **Input:** Event stream from all contexts (decoupled via event bus)
-- **Output:** Calls SendGrid/SES API
+- **Output:** Calls Brevo (prod) / Mailhog (local) API
 
 **Tech Stack:**
 - Event subscriber pattern (GCP Pub/Sub via `IEventBus`)
 - Email template engine (Handlebars or EJS)
-- `IEmailSender` port with SendGrid adapter as default implementation (swappable)
+- `IEmailSender` port with `BrevoEmailAdapter` (prod) / `MailhogEmailAdapter` (local) implementations
 - Retry logic with exponential backoff
 
 ---
@@ -328,7 +325,7 @@ PointsExpiringSoon → Email (weekly digest): Customer "Heads up — [X] points 
 - Provide customer profile lookup per tenant
 - Reference for other contexts
 
-**Database:** `ikaro_customer` schema
+**Database:** `customer` schema
 - Tables: customers
 - Every row has: `tenant_id` (required, indexed)
 - Queries: Always filtered by `WHERE tenant_id = ?`
@@ -382,10 +379,10 @@ Same Person, Multiple Tenants:
 
 ### **5. Staff Context (Supporting Domain, Tenant-Scoped)**
 
-**Purpose:** Store and manage staff information **per tenant only** (staff belongs to exactly one tenant).
+**Purpose:** Store and manage staff information per tenant — same multi-tenant shape as Customer: one `Staff` row per `(tenant, person)` pair, not one global identity (`CLAUDE.md` §2 invariant 6, `docs/06-TENANT_ISOLATION_STRATEGY.md`).
 
 **Owned Aggregates:**
-- `Staff` - Employee profile (tenant-scoped)
+- `Staff` - Employee profile (one row per tenant a person is staff at — multi-tenant rows)
 
 > `ScheduleClosure` is **owned by the Booking Context** — it directly controls calendar availability. Staff Context references `ScheduleClosure` read-only (by `tenant_id` and `staff_id`) when displaying staff schedules. No writes to `schedule_closures` originate from the Staff Context.
 
@@ -395,14 +392,14 @@ Same Person, Multiple Tenants:
 - Manage staff status (active/inactive) per-tenant
 - Foundation for future role-based access control per-tenant
 
-**Database:** `ikaro_staff` schema
+**Database:** `staff` schema
 - Tables: staff_members, (schedule_closures in shared reference)
 - Every row has: `tenant_id` (required, indexed)
 - Queries: Always filtered by `WHERE tenant_id = ?`
-- Unique constraint: UNIQUE(tenantId, googleOAuthId) - staff can ONLY belong to one tenant
+- Unique constraint: UNIQUE(tenantId, googleOAuthId) — per-tenant unique, which is what *allows* the same person to have separate active `Staff` rows at multiple tenants, not what prevents it. 2+ active rows → selection token → `/select-staff-tenant`.
 
 **Published Events:**
-- None (purely supporting)
+- `StaffInvited`, `StaffDeactivated`, `StaffActivated`
 
 **Consumed Events:**
 - None
@@ -413,9 +410,9 @@ Same Person, Multiple Tenants:
 
 **Tenant Isolation Guarantees:**
 - ✓ Cannot view other tenant's staff
-- ✓ Staff can ONLY work for one tenant
-- ✓ Same person cannot be staff in multiple tenants
-- ✓ Staff login directly enters their single tenant
+- ✓ Every query and every published event is scoped to the tenant that row belongs to
+- ✓ A staff row's data never leaks across tenants even when the same person holds rows at 2+ tenants
+- ✓ Staff login resolves to a selection screen when 2+ active rows exist, straight to the dashboard when exactly 1 does
 - ✓ Staff from Tenant A never sees Tenant B data
 - **Output:** Referenced by Booking (approvedBy, completedBy), Notification (recipient), Loyalty (audit)
 - **External:** Google OAuth
@@ -659,7 +656,7 @@ If Loyalty or Notification fails, event retried. Booking already committed.
    - Customer Context: validate and store OAuth ID
    - Staff Context: validate and store OAuth ID
 
-2. **SendGrid / AWS SES (Notification Context)**
+2. **Brevo / Mailhog (Notification Context)**
    - Calls external email service
    - Handles API failures and retries
 

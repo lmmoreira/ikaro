@@ -103,22 +103,22 @@ All GitHub Actions — including GitHub-owned ones (`actions/checkout`, `actions
 - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 ```
 
-**Current SHAs** (update the table when bumping action versions — corrected 2026-07-21, M17-S24: the previous rows for `checkout`/`setup-node`/`download-artifact`/`sonarqube-scan-action` had drifted from what every workflow actually pins, evidently bumped by Dependabot without this table following along):
+**Current SHAs** (update the table when bumping action versions — corrected 2026-07-21, M17-S24, then again 2026-08-04 via a full `/docs-audit` sweep: `checkout`, `sonarqube-scan-action`, `action-actionlint`, and `zizmor-action` had all drifted a second time, evidently bumped by Dependabot without this table following along. This table has now drifted from reality twice — treat it as a recurring risk, not a one-time fix, and re-verify it against the real workflow files whenever a Dependabot Actions PR merges, not just when this doc happens to be touched):
 
 | Action | SHA | Tag |
 |--------|-----|-----|
-| `actions/checkout` | `9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0` | v7.0.0 |
+| `actions/checkout` | `3d3c42e5aac5ba805825da76410c181273ba90b1` | v7.0.1 |
 | `actions/setup-node` | `820762786026740c76f36085b0efc47a31fe5020` | v7.0.0 |
 | `actions/download-artifact` | `3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c` | v8.0.1 |
 | `pnpm/action-setup` | `0ebf47130e4866e96fce0953f49152a61190b271` | v6.0.9 |
-| `SonarSource/sonarqube-scan-action` | `713881670b6b3676cda39549040e2d88c70d582e` | v8.2.0 |
+| `SonarSource/sonarqube-scan-action` | `22918119ff8e1ca75a623e15c8296b6ea4fbe28f` | v8.2.1 |
 | `aquasecurity/trivy-action` | `ed142fd0673e97e23eac54620cfb913e5ce36c25` | v0.36.0 |
 | `crazy-max/ghaction-github-runtime` | `04d248b84655b509d8c44dc1d6f990c879747487` | v4.0.0 |
 | `dorny/paths-filter` | `7b450fff21473bca461d4b92ce414b9d0420d706` | v4.0.2 |
 | `google-github-actions/auth` | `7c6bc770dae815cd3e89ee6cdf493a5fab2cc093` | v3 |
 | `hashicorp/setup-terraform` | `dfe3c3f87815947d99a8997f908cb6525fc44e9e` | v4.0.1 |
-| `reviewdog/action-actionlint` | `01d2dd67e3525e5a0ce72e8fa38e5a3ab65e2ded` | v1.72.1 |
-| `zizmorcore/zizmor-action` | `6599ee8b7a49aef6a770f63d261d214911a7ce02` | v0.6.0 |
+| `reviewdog/action-actionlint` | `50842263c20a7c46bd0065b9e624d3c569db061e` | v1.73.0 |
+| `zizmorcore/zizmor-action` | `6fc4b006235f201fdab3722e17240ab420d580e5` | v0.6.1 |
 | `marocchino/sticky-pull-request-comment` | `5770ad5eb8f42dd2c4f34da00c94c5381e49af88` | v3.0.5 |
 
 To look up the SHA for any action: `gh api repos/<owner>/<repo>/git/ref/tags/<tag> --jq '.object.sha'`
@@ -187,7 +187,7 @@ Coverage must be generated **once** per PR, not re-run by the Sonar job:
 
 Never add a Sonar job that re-runs all `test:cov` suites from scratch — see `docs/CI_TRAPS.md § CI workflow configuration traps`.
 
-The quality gate is enforced by `sonar.qualitygate.wait=true` in `sonar-project.properties` — the scanner waits for the gate result and exits non-zero on ERROR, failing the CI job. The `main-sonar.yml` workflow **must** override this with `-Dsonar.qualitygate.wait=false` because branch-mode scans return `NONE` (not ERROR/OK), which `wait=true` incorrectly treats as a failure.
+The quality gate is enforced by `sonar.qualitygate.wait=true` in `sonar-project.properties` — the scanner waits for the gate result and exits non-zero on ERROR, failing the CI job. The `sonarcloud` job in `weekly-jobs.yml` **must** override this with `-Dsonar.qualitygate.wait=false` because branch-mode scans return `NONE` (not ERROR/OK), which `wait=true` incorrectly treats as a failure.
 
 ---
 
@@ -195,8 +195,8 @@ The quality gate is enforced by `sonar.qualitygate.wait=true` in `sonar-project.
 
 | Scan | File | Trigger | `ignore-unfixed` | `exit-code` | Purpose |
 |------|------|---------|-----------------|-------------|---------|
-| PR gate | `pr-security.yml` | Every PR | `true` | `1` | Block merge on fixable CVEs only |
-| Weekly report | `security-weekly.yml` | Monday 08:00 UTC | `false` | `0` | Surface unfixed CVEs in GitHub Security tab (SARIF) |
+| PR gate | `trivy-scan` job in `pr-tests.yml` | Every PR | `true` | `1` | Block merge on fixable CVEs only |
+| Weekly report | `trivy-unfixed` job in `weekly-jobs.yml` | Monday 08:00 UTC | `false` | `0` | Surface unfixed CVEs in GitHub Security tab (SARIF) |
 
 Never remove `ignore-unfixed: true` from the PR scan — authors cannot patch CVEs with no upstream fix, so any unfixed CVE would permanently block all PRs.
 

@@ -401,41 +401,12 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 
 ### **Notification Events** (Notification Context)
 
-#### **EmailSent**
-- **Trigger:** Outbound email successfully accepted by SES/SendGrid
-- **State change:** `notification_logs.status = SENT`
-- **Data:**
-  ```
-  {
-    notificationLogId: string
-    templateName:      string
-    recipient:         string
-    subject:           string
-    sentAt:            ISO8601
-  }
-  ```
-- **Consumers:**
-  - Audit / dashboard
-
----
-
-#### **EmailFailed**
-- **Trigger:** Outbound email failed after the configured retries
-- **State change:** `notification_logs.status = FAILED`
-- **Data:**
-  ```
-  {
-    notificationLogId: string
-    templateName:      string
-    recipient:         string
-    subject:           string
-    errorMessage:      string
-    retryCount:        number
-  }
-  ```
-- **Consumers:**
-  - Retry queue (further attempts, with backoff)
-  - Ops alerting (if critical)
+> **Not implemented.** `EmailSent`/`EmailFailed` event classes do not exist in code — the section below documents the original design intent, not current behavior. Sent/failed state is currently tracked directly on the `NotificationLog` entity (`notification_logs.status`), not published as domain events. Do not implement against this section until it's confirmed still wanted; if so, promote it out of this warning block first.
+>
+> ```
+> EmailSent   { notificationLogId, templateName, recipient, subject, sentAt }
+> EmailFailed { notificationLogId, templateName, recipient, subject, errorMessage, retryCount }
+> ```
 
 ---
 
@@ -520,14 +491,11 @@ Customer clicks "Cancel"
 - **Data:**
   ```json
   {
-    "staffId":      "uuid",
-    "tenantId":     "uuid",
-    "email":        "invited@example.com",
-    "role":         "MANAGER | STAFF",
-    "invitedBy":    "uuid"
+    "staffId": "uuid"
   }
   ```
-- **`invitedBy` values:**
+  (`tenantId`/`correlationId` are envelope fields on every event, not part of `data` — see the Event Envelope in CLAUDE.md §4. `email`, `role`, and `invitedBy` are **not** part of the event payload — a consumer needing them looks up the `Staff` row by `staffId`.)
+- **`invitedBy` values (on the `Staff` row, not this event):**
   - Normal invite (UC-028): UUID of the MANAGER who sent the invite
   - Tenant provisioning (UC-024 → M04-S06): `SYSTEM_ACTOR_ID = '00000000-0000-0000-0000-000000000000'`
 - **Consumers:** Notification Context → sends invitation email with login link (email template must handle `invitedBy = SYSTEM_ACTOR_ID` gracefully — omit the "invited by [name]" line or show "Ikaro Platform")
@@ -538,11 +506,10 @@ Customer clicks "Cancel"
 - **Data:**
   ```json
   {
-    "staffId":         "uuid",
-    "tenantId":        "uuid",
-    "deactivatedBy":   "uuid"
+    "staffId": "uuid"
   }
   ```
+  (`tenantId`/`correlationId` are envelope fields on every event, not part of `data`. `deactivatedBy` is **not** part of the event payload — it's tracked on the `Staff` row itself, same pattern as `StaffInvited`'s `invitedBy`.)
 - **Consumers:** None in MVP (sessions expire naturally via JWT TTL)
 
 #### **StaffActivated**
@@ -567,13 +534,13 @@ Customer clicks "Cancel"
 - **Data:**
   ```json
   {
-    "tenantId":    "uuid-v7",
     "name":        "string",
     "slug":        "string",
     "adminEmail":  "string",
     "timezone":    "America/Sao_Paulo"
   }
   ```
+  (`tenantId` is the envelope's own field — the constructor's first argument — not part of `data`.)
 - **Consumers:**
   - Staff context (M04-S06) → creates first MANAGER `Staff` row (`isActive=false`) + publishes `StaffInvited`
 - **Design note:** `invitedBy` in the downstream `StaffInvited` event is set to `SYSTEM_ACTOR_ID = '00000000-0000-0000-0000-000000000000'` because no human actor exists yet at provisioning time.

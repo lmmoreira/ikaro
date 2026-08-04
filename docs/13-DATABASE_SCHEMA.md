@@ -77,11 +77,12 @@ Owned by: **Platform Context** (`src/contexts/platform/`)
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY |
 | tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)`, UNIQUE |
-| branding | JSONB | `{ primary_color, logo_url, font }` |
+| branding | JSONB | `HotsiteBranding` shape — ~17 fields (colors, fonts, logo, borderRadius, buttonStyle, spacing, shadowStyle, brand identity); see `docs/02-DOMAIN_MODEL.md`'s `HotsiteConfig` aggregate for the full field list, not just `primary_color`/`logo_url`/`font` |
 | layout | JSONB | Array of modules: `[{ type, data }]` |
 | seo | JSONB | NOT NULL DEFAULT `'{"title": null, "description": null}'::jsonb` — `{ title, description }`, both nullable; tenant-configured SEO overrides |
 | is_published | BOOLEAN | NOT NULL DEFAULT false |
 | updated_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
+| version | INTEGER | NOT NULL DEFAULT 1 — optimistic-locking column |
 | **INDEX** | (tenant_id) | |
 
 ---
@@ -119,13 +120,12 @@ Owned by: **Staff Context** (`src/contexts/staff/`)
 | tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
 | google_oauth_id | VARCHAR(255) | NULLABLE — set on first login (UC-025) |
 | email | VARCHAR(255) | NOT NULL |
-| first_name | VARCHAR(100) | NOT NULL |
-| last_name | VARCHAR(100) | NOT NULL |
+| name | VARCHAR(255) | NULLABLE — single field, not split first/last |
 | role | VARCHAR(50) | NOT NULL — 'MANAGER', 'STAFF' |
-| is_active | BOOLEAN | NOT NULL DEFAULT false — activated on first login |
+| is_active | BOOLEAN | NOT NULL DEFAULT true — staff rows are provisioned active from creation; `google_oauth_id IS NULL` signals "pending invite", not `is_active` (`CLAUDE.md` §2 invariant 6) |
 | created_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
 | updated_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
-| **UNIQUE** | (tenant_id, google_oauth_id) | Staff belongs to exactly one tenant |
+| **UNIQUE** | (tenant_id, google_oauth_id) | Per-tenant unique — this is what *allows* the same person to have separate active rows at multiple tenants, not what prevents it (staff are multi-tenant, same shape as customers) |
 | **UNIQUE** | (tenant_id, email) | Required for invite flow (UC-025, UC-028) |
 
 ---
@@ -166,6 +166,7 @@ A booking is the parent of one or more `booking_lines`. All service-level detail
 | contact_address | JSONB | NULLABLE — `{ street, number, complement?, neighborhood, city, state, zipCode }` — optional general address |
 | pickup_address | JSONB | NULLABLE — same shape as `contact_address` — non-null when any line has `requires_pickup_address_at_booking = true` |
 | scheduled_at | TIMESTAMPTZ | NOT NULL |
+| scheduled_end_at | TIMESTAMPTZ | NOT NULL — `scheduled_at + total_duration_mins`; the range endpoint the exclusion constraint below checks against |
 | total_duration_mins | INTEGER | NOT NULL — denormalised SUM of `booking_lines.duration_mins_at_booking` |
 | total_price_amount | NUMERIC(10,2) | NOT NULL — denormalised SUM of `booking_lines.price_at_booking_amount` |
 | total_actual_price_amount | NUMERIC(10,2) | NULLABLE — null until COMPLETED; SUM of `booking_lines.actual_price_charged_amount` |
@@ -192,8 +193,10 @@ A booking is the parent of one or more `booking_lines`. All service-level detail
 | rejection_reason | TEXT | NULLABLE |
 | created_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
 | updated_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
+| version | INTEGER | NOT NULL DEFAULT 1 — optimistic-locking column (`@VersionColumn`) |
 | **UNIQUE** | (tenant_id, id) | Composite FK target for `booking_lines` |
 | **CHECK** | `CHK_booking_bookings_discount_consistency` | `discount_points_used`/`discount_amount` must be both `NULL` or both `> 0` |
+| **EXCLUDE** | `EX_booking_bookings_approved_slot` — `USING gist (tenant_id WITH =, tstzrange(scheduled_at, scheduled_end_at, '[)') WITH &&) WHERE (status = 'APPROVED')` | DB-level enforcement that no two `APPROVED` bookings for the same tenant overlap — the authoritative cross-row invariant; `version` alone cannot catch this (see `docs/ENGINEERING_RULES.md` § Transactions) |
 | **INDEX** | (tenant_id) | Tenant-scoped base filter |
 | **INDEX** | (tenant_id, status) | Main dashboard query |
 | **INDEX** | (tenant_id, customer_id) | Customer booking history |
@@ -330,6 +333,7 @@ Append-only audit log of every redemption. Never updated or deleted.
 | tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
 | customer_id | UUID | NOT NULL |
 | points_redeemed | INT | NOT NULL, CHECK > 0 |
+| points_per_currency_unit | INTEGER | NOT NULL DEFAULT 0 — conversion rate snapshot at redemption time |
 | redeemed_by | UUID | NOT NULL — staffId who recorded the redemption |
 | notes | TEXT | NULLABLE — optional admin note |
 | booking_id | UUID | NULLABLE — booking the redemption was applied to |
@@ -385,12 +389,13 @@ Each row is a rendered template for one `(trigger_event, channel)` pair. Rows wi
 | tenant_id | UUID | NULLABLE — NULL = global default; FK → `platform.tenants(id)` when set |
 | trigger_event | VARCHAR(100) | NOT NULL — `NotificationTemplateKey` enum value, e.g. `'booking-approved-customer'` |
 | channel | VARCHAR(20) | NOT NULL DEFAULT `'EMAIL'` — `'EMAIL'` now; `'SMS'`/`'WHATSAPP'` when those channels are built |
-| subject | VARCHAR(255) | NOT NULL — pt-BR |
-| body | TEXT | NOT NULL — pt-BR; plain text for SMS, HTML for EMAIL |
+| locale | VARCHAR(10) | NOT NULL DEFAULT `'pt-BR'` — seeded from `packages/i18n/locales/<locale>/notifications.json`, one row per `trigger_event × locale` (TD02-S10) |
+| subject | VARCHAR(255) | NOT NULL |
+| body | TEXT | NOT NULL — plain text for SMS, HTML for EMAIL |
 | created_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
 | updated_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
-| **UNIQUE INDEX** | `(trigger_event, channel) WHERE tenant_id IS NULL` | One global default per key+channel |
-| **UNIQUE INDEX** | `(tenant_id, trigger_event, channel) WHERE tenant_id IS NOT NULL` | One tenant template per key+channel |
+| **UNIQUE INDEX** | `(trigger_event, channel, locale) WHERE tenant_id IS NULL` | One global default per key+channel+locale |
+| **UNIQUE INDEX** | `(tenant_id, trigger_event, channel) WHERE tenant_id IS NOT NULL` | One tenant template per key+channel — note: **not** locale-scoped, unlike the global-default index above |
 | **INDEX** | `(tenant_id)` | Fast lookup of all templates for a tenant |
 
 ### `notification.notification_logs`
