@@ -418,7 +418,9 @@ Found and fixed via Codex's cross-tool review (Architecture + Requirements lense
 
 ---
 
-### Story 10 — Test hygiene: builder bypass + a unit spec contradicting its own documented exemption 🔴 Low
+### Story 10 — Test hygiene: builder bypass + a unit spec contradicting its own documented exemption 🔴 Low ✅ Done
+
+**Landed**: PR #315 (2026-08-04), `fix/td31-pr11-loyalty-test-hygiene` (worktree removed post-merge). Implemented exactly as specced — all 4 raw `.save({...})` literals in `booking-completed.handler.integration.spec.ts` replaced with `LoyaltyBalanceEntityBuilder`; `apps/web/app/not-found.spec.tsx` deleted. Codex's cross-tool review (4-perspective) and Copilot both found 0 critical/important/minor findings; CodeRabbit and SonarCloud raised nothing.
 
 **Source**: Backend 4.2, Web 3.1
 
@@ -818,7 +820,7 @@ Grouping rule: two stories collapse into **one PR** only when they genuinely sha
 | **PR 8** ✅ | Story 17 (minus the `E2` slice already folded into PR 3) | `customer.controller.ts`, `platform.public.controller.ts`, 4 `schedule*.controller.ts` files, `backend-http.service.ts` | `loyalty.controller.ts` dropped during story-discovery — no longer duplicative after Story 5 (PR #293). **Merged as [#311](https://github.com/lmmoreira/ikaro/pull/311), 2026-08-04.** |
 | **PR 9** ✅ | Story 19 | `test/infrastructure/in-memory-loyalty-*` (moved to `test/repositories/loyalty/`), new `test/builders/staff/staff-{activated,deactivated}-event.builder.ts` | Scope corrected during discovery — only 4 of the original 6 files moved (see Story 19's Discovery update). **Merged as [#312](https://github.com/lmmoreira/ikaro/pull/312), 2026-08-04.** |
 | **PR 10** ✅ | Story 21 | `services.types.ts`, `services.mapper.ts`, `main.ts` — trivial, zero risk, could honestly go first of anything in this whole plan if you want an easy warm-up PR. **Merged as [#300](https://github.com/lmmoreira/ikaro/pull/300), 2026-08-01.** |
-| **PR 11** | Story 10 | `booking-completed.handler.integration.spec.ts`, delete `apps/web/app/not-found.spec.tsx` |
+| **PR 11** ✅ | Story 10 | `booking-completed.handler.integration.spec.ts`, delete `apps/web/app/not-found.spec.tsx` — trivial, zero risk. **Merged as [#315](https://github.com/lmmoreira/ikaro/pull/315), 2026-08-04.** |
 
 ### Wave 6 — Web (3 PRs — the rename pair collapses, the other two stay separate)
 
