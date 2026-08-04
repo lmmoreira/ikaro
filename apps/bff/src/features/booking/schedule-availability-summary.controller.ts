@@ -28,8 +28,9 @@ export class ScheduleAvailabilitySummaryController {
   ): Promise<AvailabilitySummaryResponse> {
     return withPublicTenant(this.backendHttp, tenantSlug, (tenantId) =>
       this.backendHttp.getForPublic<AvailabilitySummaryResponse>(
-        `/schedule/availability/summary?from=${query.from}&to=${query.to}&serviceIds=${query.serviceIds}`,
+        '/schedule/availability/summary',
         tenantId,
+        query,
       ),
     );
   }

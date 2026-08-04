@@ -33,8 +33,9 @@ describe('ScheduleAvailabilitySummaryController', () => {
 
       expect(backendHttp.get).toHaveBeenCalledWith(`/internal/tenants/by-slug/${TENANT_SLUG}`);
       expect(backendHttp.getForPublic).toHaveBeenCalledWith(
-        `/schedule/availability/summary?from=${FROM}&to=${TO}&serviceIds=${SERVICE_ID}`,
+        '/schedule/availability/summary',
         TENANT_ID,
+        { from: FROM, to: TO, serviceIds: SERVICE_ID },
       );
       expect(result).toHaveLength(2);
       expect(result[0].slotCount).toBe(12);

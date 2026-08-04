@@ -31,10 +31,10 @@ describe('ScheduleAvailabilityController', () => {
       const result = await controller.get(TENANT_SLUG, { date: DATE, serviceIds: SERVICE_ID });
 
       expect(backendHttp.get).toHaveBeenCalledWith(`/internal/tenants/by-slug/${TENANT_SLUG}`);
-      expect(backendHttp.getForPublic).toHaveBeenCalledWith(
-        `/schedule/availability?date=${DATE}&serviceIds=${SERVICE_ID}`,
-        TENANT_ID,
-      );
+      expect(backendHttp.getForPublic).toHaveBeenCalledWith('/schedule/availability', TENANT_ID, {
+        date: DATE,
+        serviceIds: SERVICE_ID,
+      });
       expect(result.available).toBe(true);
       expect(result.slots).toHaveLength(2);
     });

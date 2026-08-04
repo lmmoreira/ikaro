@@ -16,13 +16,14 @@ import { CustomerRoleGuard } from '../../../../shared/guards/customer-role.guard
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
 import { mapCustomerError } from '../http/customer-error.mapper';
 import {
+  GetCustomerProfileResponse,
+  toGetCustomerProfileResponse,
+} from '../http/customer-response.mapper';
+import {
   UpdateCustomerProfileDto,
   UpdateCustomerProfileSchema,
 } from '../../application/dtos/update-customer-profile.dto';
-import {
-  GetCustomerByIdUseCase,
-  GetCustomerByIdUseCaseResult,
-} from '../../application/use-cases/get-customer-by-id.use-case';
+import { GetCustomerByIdUseCase } from '../../application/use-cases/get-customer-by-id.use-case';
 import {
   GetCustomerTenantsByIdUseCase,
   GetCustomerTenantsByIdUseCaseResult,
@@ -37,14 +38,6 @@ import {
   SearchCustomersUseCaseInput,
   SearchCustomersUseCaseResult,
 } from '../../application/use-cases/search-customers.use-case';
-
-export type GetCustomerProfileResponse = {
-  customerId: string;
-  email: string;
-  name: string;
-  phone: string | null;
-  defaultAddress: GetCustomerByIdUseCaseResult['defaultAddress'];
-};
 
 @Controller('customers')
 export class CustomerController {
@@ -75,13 +68,7 @@ export class CustomerController {
   getMe(): Promise<GetCustomerProfileResponse> {
     return this.getCustomerById
       .execute({ customerId: this.ctx.actorId!, tenantId: this.ctx.tenantId })
-      .then((customer) => ({
-        customerId: customer.id,
-        email: customer.email,
-        name: customer.name,
-        phone: customer.phone,
-        defaultAddress: customer.defaultAddress,
-      }))
+      .then(toGetCustomerProfileResponse)
       .catch(mapCustomerError);
   }
 
@@ -92,13 +79,7 @@ export class CustomerController {
   ): Promise<GetCustomerProfileResponse> {
     return this.getCustomerById
       .execute({ customerId, tenantId: this.ctx.tenantId })
-      .then((customer) => ({
-        customerId: customer.id,
-        email: customer.email,
-        name: customer.name,
-        phone: customer.phone,
-        defaultAddress: customer.defaultAddress,
-      }))
+      .then(toGetCustomerProfileResponse)
       .catch(mapCustomerError);
   }
 
