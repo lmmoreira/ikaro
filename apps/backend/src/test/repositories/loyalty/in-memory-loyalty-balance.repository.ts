@@ -1,5 +1,5 @@
-import { ILoyaltyBalanceRepository } from '../../contexts/loyalty/application/ports/loyalty-balance-repository.port';
-import { LoyaltyBalance } from '../../contexts/loyalty/domain/loyalty-balance.aggregate';
+import { ILoyaltyBalanceRepository } from '../../../contexts/loyalty/application/ports/loyalty-balance-repository.port';
+import { LoyaltyBalance } from '../../../contexts/loyalty/domain/loyalty-balance.aggregate';
 
 export class InMemoryLoyaltyBalanceRepository implements ILoyaltyBalanceRepository {
   private readonly store = new Map<string, LoyaltyBalance>();

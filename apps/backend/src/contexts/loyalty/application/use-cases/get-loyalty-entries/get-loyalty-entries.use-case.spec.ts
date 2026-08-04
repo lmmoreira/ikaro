@@ -1,4 +1,4 @@
-import { InMemoryLoyaltyEntryRepository } from '../../../../../test/infrastructure/in-memory-loyalty-entry.repository';
+import { InMemoryLoyaltyEntryRepository } from '../../../../../test/repositories/loyalty/in-memory-loyalty-entry.repository';
 import { InMemoryLoyaltyBookingPort } from '../../../../../test/infrastructure/in-memory-loyalty-booking.port';
 import { LoyaltyEntryBuilder } from '../../../../../test/builders/loyalty/index';
 import { GetLoyaltyEntriesUseCase } from './get-loyalty-entries.use-case';

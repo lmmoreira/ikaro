@@ -1,4 +1,4 @@
-import { IBalanceExpiryLogRepository } from '../../contexts/loyalty/application/ports/balance-expiry-log-repository.port';
+import { IBalanceExpiryLogRepository } from '../../../contexts/loyalty/application/ports/balance-expiry-log-repository.port';
 
 export class InMemoryBalanceExpiryLogRepository implements IBalanceExpiryLogRepository {
   private readonly processed = new Set<string>();
