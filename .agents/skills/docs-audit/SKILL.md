@@ -33,7 +33,7 @@ Find the plan file: `plan/<milestone>-*.md` — exclude `*_IMPLEMENTATION_DETAIL
 Grep the **entire file** (not just "Docs to load" lines — story blocks cite paths under inconsistent labels: "Docs to load", "Prototype references:", "Prototype reference:", "Journey prototype:", or as bare filenames inside a list) for:
 - `UC-\d+` → UC scope
 - `docs/[A-Z0-9_-]+\.md` → doc scope
-- `plan/journey/[a-z]+/.*\.(md|html)` → journey scope
+- `plan/journey/[a-z]+/.*\.(md|html|css)` → journey scope (the `css` case matters specifically for `plan/journey/shared/tokens.css` — a bare `.md`/`.html` pattern misses it entirely)
 - `plan/M\d+.*\.md` → other-milestone scope (e.g. a "Depends on M08" reference)
 
 **Bare-filename rule:** within one citation list/line, a filename with no directory prefix (e.g. `dev-notes.md`, `05-reschedule.html`) inherits the most recent fully-qualified `plan/journey/.../` directory mentioned earlier in the same field.
@@ -44,16 +44,18 @@ Grep the **entire file** (not just "Docs to load" lines — story blocks cite pa
 
 **Light-check docs (direct-read pass only, Step 3f — no agent spawn, no code artifact to diff against, but still read and checked for staleness/contradictions):** every other file under `docs/` not listed above (e.g. `01-BUSINESS_CONTEXT.md`, `08-TESTING_STRATEGY.md`, `09-CI_CD_PIPELINE.md`, `10-OBSERVABILITY_STRATEGY.md`, `12-DEPLOYMENT_STRATEGY.md`, `19-INFRASTRUCTURE_TOOLING_MAP.md`, `20-COST_OPTIMIZATION_STRATEGY.md`, `22-TECH_STACK_DECISIONS.md`, `23-INFRASTRUCTURE_SETUP.md`, `AGENT_PATTERNS.md`, `DEFINITION_OF_DONE.md`, `README.md`, `discovery/**`, `docs/lean/*`).
 
+**`docs/BOOTSTRAP_LOG.md` is gitignored (operator-local) — check `git check-ignore -v docs/BOOTSTRAP_LOG.md` before including it.** If the file doesn't exist in this checkout, that's expected in most environments (CI, a fresh clone, another operator's machine) — skip it silently, do not report it as a MISSING/stale finding. If it does exist locally, light-check it normally.
+
 Also note any prose-only mentions outside story blocks (e.g. an "Architecture & conventions" section, a supersession note naming old milestone files) — include cited docs/journeys from there too (deep- or light-check, per the lists above), but exclude filenames that are clearly historical/dead references (e.g. inside a "(formerly ...)" or "supersedes ..." note) — those are deliberate history, not live citations.
 
 ### If `$ARGUMENTS` is a journey path (e.g. `staff/agenda`)
-Scope = `plan/journey/<actor>/<slug>.md`, `plan/journey/<actor>/prototypes/<slug>/` (all files), `plan/journey/<actor>/use-cases.md`, `plan/journey/README.md`'s index row for this journey.
+Scope = `plan/journey/<actor>/<slug>.md`, `plan/journey/<actor>/prototypes/<slug>/` (all files), `plan/journey/<actor>/use-cases.md`, `plan/journey/README.md`'s index row for this journey, **plus `plan/journey/shared/` in full** (`tokens.css` and the shared HTML fragments — `dashboard-shell.html`, `hotsite.html`, `login.html`, etc.). `shared/` belongs to no single actor, so every journey audit implicitly depends on it and must include it, not just the actor-specific paths. Light-check `shared/` for internal consistency: does every CSS custom property / shared fragment this journey's prototype actually references still exist there.
 
 ### If `$ARGUMENTS` is one or more doc/journey paths (comma-separated)
 Scope = exactly those files/journeys, each depth-classified per the deep-check/light-check lists above (a doc path) or per the journey-path rules above (a journey path) — mixing both kinds in one invocation is expected, not a special case. With 2+ items in scope, Step 3b's cross-doc consistency check treats the whole batch as one pool to cross-reference, not independent single-doc passes — this is what a `/discovery-to-milestone` promotion-verification call relies on.
 
 ### If `$ARGUMENTS` is blank
-Scope = every UC, every doc under `docs/` (deep-check list + light-check list, both), every milestone — active drafts (`plan/M*.md` with no matching `_IMPLEMENTATION_DETAILS_IA.md`) get the full deep self-consistency pass (Step 3c), completed milestones (the 13 with an `_IMPLEMENTATION_DETAILS_IA.md`) get the light pass (Step 3f) — every journey under `plan/journey/`, and `CLAUDE.md`/`.copilot/context.md`.
+Scope = every UC, every doc under `docs/` (deep-check list + light-check list, both), every milestone — active drafts (`plan/M*.md` with no matching `_IMPLEMENTATION_DETAILS_IA.md`) get the full deep self-consistency pass (Step 3c), completed milestones (the 13 with an `_IMPLEMENTATION_DETAILS_IA.md`) get the light pass (Step 3f) — every journey under `plan/journey/` (including `plan/journey/shared/`, which is not itself a journey but is in scope on every full sweep for the same reason it's always included in a single-journey audit), and `CLAUDE.md`/`.copilot/context.md`.
 
 ### Print the resolved scope before proceeding
 
@@ -127,6 +129,7 @@ Direct-read pass per in-scope journey. Only promote to a real subagent — bound
 - `dev-notes.md` has the mandatory sections per `plan/journey/README.md`'s template (file map, props, BFF call, validation table, state machine) for every screen that needs them
 - `index.html`'s screen list matches the files actually on disk; every lettered variant follows the `01b`/`01c` naming convention with no collisions
 - Every "Known limitations" bullet in `dev-notes.md` is either still accurate or stale
+- `plan/journey/shared/` consistency: every `var(--...)` custom property or shared class this journey's prototype references actually exists in `shared/tokens.css`; every shared HTML fragment (`dashboard-shell.html`, `hotsite.html`, `login.html`, etc.) this journey's screens include/reference still exists and hasn't drifted in a way that breaks the reference
 
 ### 3e. `CLAUDE.md`/`.copilot/context.md` self-consistency — always runs (cheap, one file, no agent spawn)
 - No duplicated subsections (read top to bottom once; flag any heading/content block that repeats)
