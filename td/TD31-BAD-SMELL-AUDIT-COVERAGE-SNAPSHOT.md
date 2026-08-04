@@ -605,9 +605,9 @@ Item 4 (JWT runtime shape validation) landed as specced: `jwt.strategy.ts`'s `va
 
 ---
 
-### Story 17 — Backend + BFF: controller response-shaping / config-lookup duplication 🟡
+### Story 17 — Backend + BFF: controller response-shaping / config-lookup duplication 🟡 ✅ Done
 
-**Partially landed**: the `E2` slice (JWT_SECRET cached once in `bookings.controller.ts`'s constructor instead of 3 separate `getOrThrow()` calls) shipped 2026-07-28 in PR #288 (`fix/td31-pr3-bookings-controller-cleanup`, branch deleted post-merge), as part of PR 3. Backend 3.2/3.3, BFF A5, and F2/F3 remain open, scoped to PR 8 per the execution plan. Not marking this story `✅ Done` until those land.
+**Landed**: the `E2` slice (JWT_SECRET cached once in `bookings.controller.ts`'s constructor instead of 3 separate `getOrThrow()` calls) shipped 2026-07-28 in PR #288 (`fix/td31-pr3-bookings-controller-cleanup`, branch deleted post-merge), as part of PR 3. The rest shipped 2026-08-04 in PR #311 (`fix/td31-pr8-controller-dedup`, branch deleted post-merge): backend `customer.controller.ts`'s `getMe()`/`getById()` duplication extracted into `customer-response.mapper.ts`'s `toGetCustomerProfileResponse`; BFF `platform.public.controller.ts`'s `getManifest()` inline intersection type named `BackendHotsiteManifestResponse` in new `platform.types.ts`; all 4 schedule controllers switched to `BackendHttpService`'s `params` argument instead of manual query-string interpolation; `BackendHttpService` given a shared `private publicHeaders(tenantId)` helper used by `getForPublic`/`postForPublic`/`patchForPublic`. Backend 3.3 (loyalty controller) was dropped during PR 8's story-discovery — it no longer matched the original "byte-identical" finding after Story 5 (PR #293) changed the code; the remaining duplication is a single differing `conversionRate` expression, not worth an extraction.
 
 **Source**: Backend 3.2, 3.3 · BFF A5, E2, F2, F3
 
@@ -652,7 +652,9 @@ Item 4 (JWT runtime shape validation) landed as specced: `jwt.strategy.ts`'s `va
 
 ---
 
-### Story 19 — Backend: test/builder hygiene — misfiled repos + missing event builder 🟡
+### Story 19 — Backend: test/builder hygiene — misfiled repos + missing event builder 🟡 ✅ Done
+
+**Landed**: PR #312 (2026-08-04), `fix/td31-pr9-loyalty-test-hygiene` (branch deleted post-merge). Implemented as specced in the discovery update below. One additional fix found via `bad-smell-audit backend --pr` on this PR's own changed files (not in the original story scope): `complete-booking-loyalty-effects.use-case.spec.ts`'s `seedBalance()` helper called `LoyaltyBalance.reconstitute(...)` directly with raw literals instead of `LoyaltyBalanceBuilder`, while every sibling spec touched in this same PR already used the builder for the identical construction — fixed to use `LoyaltyBalanceBuilder`. Codex's cross-tool review (4-agent) found 0 critical/important/minor findings; Copilot approved with 0 comments; CodeRabbit was rate-limited and produced no review.
 
 **Source**: Backend 4.1, 5
 
@@ -813,8 +815,8 @@ Grouping rule: two stories collapse into **one PR** only when they genuinely sha
 |---|---|---|
 | **PR 6** ✅ | Story 13 | — no code needed; closed 2026-08-03 as superseded (domain-layer validation already covers all 3 fields — tested, wired, translated). See Story 13's note above. |
 | **PR 7** ✅ | Story 14 | `provision-tenant.dto.ts`, `update-tenant-settings.dto.ts`, new `country-code.schema.ts`, 4 schedule/availability DTOs, 6 BFF booking/platform controller files, new `@ikaro/validation` `date.ts`/`country-code.ts` | See Story 14's note above — scope grew to a 3rd BFF site and moved to `@ikaro/validation`. **Merged as [#310](https://github.com/lmmoreira/ikaro/pull/310), 2026-08-03.** |
-| **PR 8** | Story 17 (minus the `E2` slice already folded into PR 3) | `customer.controller.ts`, `loyalty.controller.ts` (backend), `platform.public.controller.ts`, 4 `schedule*.controller.ts` files, `backend-http.service.ts` |
-| **PR 9** | Story 19 | `test/infrastructure/in-memory-loyalty-*` (moved to `test/repositories/loyalty/`), new `test/builders/staff/staff-{activated,deactivated}-event.builder.ts` |
+| **PR 8** ✅ | Story 17 (minus the `E2` slice already folded into PR 3) | `customer.controller.ts`, `platform.public.controller.ts`, 4 `schedule*.controller.ts` files, `backend-http.service.ts` | `loyalty.controller.ts` dropped during story-discovery — no longer duplicative after Story 5 (PR #293). **Merged as [#311](https://github.com/lmmoreira/ikaro/pull/311), 2026-08-04.** |
+| **PR 9** ✅ | Story 19 | `test/infrastructure/in-memory-loyalty-*` (moved to `test/repositories/loyalty/`), new `test/builders/staff/staff-{activated,deactivated}-event.builder.ts` | Scope corrected during discovery — only 4 of the original 6 files moved (see Story 19's Discovery update). **Merged as [#312](https://github.com/lmmoreira/ikaro/pull/312), 2026-08-04.** |
 | **PR 10** ✅ | Story 21 | `services.types.ts`, `services.mapper.ts`, `main.ts` — trivial, zero risk, could honestly go first of anything in this whole plan if you want an easy warm-up PR. **Merged as [#300](https://github.com/lmmoreira/ikaro/pull/300), 2026-08-01.** |
 | **PR 11** | Story 10 | `booking-completed.handler.integration.spec.ts`, delete `apps/web/app/not-found.spec.tsx` |
 
