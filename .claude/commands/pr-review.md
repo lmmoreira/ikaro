@@ -72,9 +72,11 @@ Spawn four agents in parallel (one message, four `Agent` calls, `subagent_type: 
 - Check off **every** acceptance-criteria bullet individually: Met / Not Met / Partial, each with evidence (`file:line`, or "no corresponding change found").
 - Verify the cited UC's main flow **and every alt flow** are implemented — not just the happy path.
 - Hunt logic bugs: wrong state transitions (cross-check CLAUDE.md §5 booking state machine if booking-related), off-by-one, wrong error codes, inverted boolean logic, unhandled edges (empty list, zero, null, boundary dates/timezones — default TZ is `America/Sao_Paulo`).
-- Backward compatibility: migration expand/contract compliance; event/DTO schema changes checked against existing consumers (grep `@ikaro/types`); whether the PR is safely revertible without a stuck deploy-ordering dependency.
+- Backward compatibility: migration expand/contract compliance (full rules + pre-production exception: `docs/DEFINITION_OF_DONE.md`); event/DTO schema changes checked against existing consumers (grep `@ikaro/types`); whether the PR is safely revertible without a stuck deploy-ordering dependency.
+- Hardcoded business values: any threshold/window/limit that reads like a business rule (a cancellation window, an expiry period, a points value) must read from `tenants.settings` (cross-check `docs/21-TENANTS_SETTINGS_SCHEMA.md`), never a literal constant.
+- Stale-reference sweep: if this PR replaces or removes an existing flow/mechanism (an auth pattern, a data model assumption, a transport layer, a dead endpoint), did it also update `docs/*.md`, other milestones' `plan/*_IMPLEMENTATION_DETAILS_*.md`, `.claude/commands/**`, `.claude/skills/**`, and `scripts/**` for stale references to the old version — mandatory per `docs/DEFINITION_OF_DONE.md`, not optional cleanup.
 - i18n completeness: any new error code or new visible UI copy has entries in **both** `packages/i18n/locales/pt-BR/` and `.../en/` — this exact gap has broken CI here before (M17-S30).
-- Docs: the loaded story/TD, `docs/04-USE_CASES.md` (cited UC), `docs/02-DOMAIN_MODEL.md`, `docs/03-DOMAIN_EVENTS.md` (if event-related), `docs/ANTI_PATTERNS.md`, `CLAUDE.md`.
+- Docs: the loaded story/TD, `docs/04-USE_CASES.md` (cited UC), `docs/02-DOMAIN_MODEL.md`, `docs/03-DOMAIN_EVENTS.md` (if event-related), `docs/21-TENANTS_SETTINGS_SCHEMA.md`, `docs/DEFINITION_OF_DONE.md`, `docs/ANTI_PATTERNS.md`, `CLAUDE.md`.
 
 ### Agent B — Security, Tenant Isolation & Operational Risk
 Perspectives converging on the same artifact: security engineer, attacker, SRE, DevOps.
@@ -85,7 +87,7 @@ Perspectives converging on the same artifact: security engineer, attacker, SRE, 
 - Idempotency & concurrency: event handlers dedup via `eventId`; optimistic-locking correctness (`manager.save()` on a detached hand-built entity does **not** enforce version safety — needs an explicit version-guarded `UPDATE ... WHERE id AND tenant_id AND version`); cross-row invariants (e.g. booking overlap) enforced inside the write transaction, not left to `@VersionColumn` alone.
 - Observability on failure paths: correlation ID passed through (`event.correlationId`, never regenerated), OTel span attributes (`tenant.id`, `user.id`, `correlation.id`) present, and whether an on-call engineer could actually diagnose a prod failure from what's logged.
 - Attacker framing for every new/changed endpoint: forged/missing/expired token, tenant-mismatched ID, oversized payload, replayed request.
-- Docs: `docs/06-TENANT_ISOLATION_STRATEGY.md`, `docs/10-OBSERVABILITY_STRATEGY.md`, `docs/ENGINEERING_RULES.md`, `docs/ANTI_PATTERNS.md`, CLAUDE.md §2 and §7 critical invariants.
+- Docs: `docs/06-TENANT_ISOLATION_STRATEGY.md`, `docs/10-OBSERVABILITY_STRATEGY.md`, `docs/ENGINEERING_RULES.md` (critical invariants — Interceptor-vs-Middleware, cross-service I/O in transactions, `declare global` typing trap — live here now; CLAUDE.md §7 only holds short pointers to them), `docs/ANTI_PATTERNS.md`, CLAUDE.md §2.
 
 ### Agent C — Performance & Scalability
 - N+1 query patterns: a DB/repository call invoked inside a loop over a collection that could be one batched query.
@@ -98,15 +100,19 @@ Perspectives converging on the same artifact: security engineer, attacker, SRE, 
 
 ### Agent D — Architecture, Design Patterns & Quality
 - SOLID violations; single-responsibility breaches.
-- No-workarounds rule (CLAUDE.md §7, NON-NEGOTIABLE): suppressed type errors (`as unknown as`), pinned/overridden dependency instead of a real upgrade, a skipped/ignored CI issue, or any short-term hack where a proper root-cause fix was available.
+- CLAUDE.md §7's 3 NON-NEGOTIABLE principles:
+  - **No workarounds:** suppressed type errors (`as unknown as`), pinned/overridden dependency instead of a real upgrade, a skipped/ignored CI issue, or any short-term hack where a proper root-cause fix was available.
+  - **No improvisation:** if the story/TD cited a specific reference (a library, an existing pattern, a named example), does the implementation actually use it, or does it quietly substitute a bespoke alternative presented as equivalent.
+  - **Mounting complexity:** does the implementation need multiple stacked safeguards/exceptions/special-cases where a structurally simpler approach — an existing port/adapter, an existing pattern from `docs/AGENT_PATTERNS.md` — would need none of it.
 - Ports & adapters: raw SQL / `@InjectRepository` / TypeORM `Repository<T>` outside a repository adapter; a new cross-context Port+Adapter where `infrastructure/cross-context/` already has one for the same context pair.
-- Design pattern fit: is the right pattern used (repository, factory for VO creation, builder, strategy for branching policy) — flag **both** directions: over-engineering (abstraction the task didn't need — CLAUDE.md is explicit about no speculative abstraction) and under-engineering (duplicated logic an existing pattern elsewhere in the same bounded context already solves).
+- Repository-slice placement (CLAUDE.md §11): do new/moved files match the domain-slice rules — in particular, an actor-scoped view of another domain's aggregate (e.g. a Customer reading their own Booking/Loyalty data) belongs in the *owning* domain's slice, never the actor's slice (TD31 Story 11 precedent — this exact mistake already happened once).
+- Design pattern fit: is the right pattern used (repository, factory for VO creation, builder, strategy for branching policy) — flag **both** directions: over-engineering (abstraction the task didn't need — `docs/CODE_STANDARDS.md` § Comments and abstraction discipline is explicit about no speculative abstraction) and under-engineering (duplicated logic an existing pattern elsewhere in the same bounded context already solves).
 - Consistency with sibling code: does this PR solve a problem the same bounded context already solved differently, without reusing it.
 - Decoupling / abstraction level: layering respected (`domain/` → `application/` → `infrastructure/`), no framework deps leaking into `domain/`.
-- Clean naming; comment discipline (flag comments that just restate *what*; flag missing comments on genuinely non-obvious workarounds or invariants).
+- Clean naming; comment discipline per `docs/CODE_STANDARDS.md` § Comments and abstraction discipline (flag comments that just restate *what*; flag missing comments on genuinely non-obvious workarounds or invariants).
 - Test meaningfulness: assertions that would actually fail if the underlying logic broke (mentally mutate the implementation — would this test catch it), not just coverage padding; flag tautological or over-mocked tests.
 - Error handling: RFC 9457 Problem Details shape, `mapXxxError` pattern followed (never `throw new HttpException` from a use case), messages meaningful enough to debug from, no silently swallowed exceptions.
-- Docs: `docs/CODE_STANDARDS.md`, `docs/AGENT_PATTERNS.md`, `docs/ENGINEERING_RULES.md`, `docs/08-TESTING_STRATEGY.md`, `docs/ANTI_PATTERNS.md`, plus `docs/24-BFF_ARCHITECTURE.md` / `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` if BFF/web files are touched.
+- Docs: `docs/CODE_STANDARDS.md`, `docs/AGENT_PATTERNS.md`, `docs/ENGINEERING_RULES.md`, `docs/08-TESTING_STRATEGY.md`, `docs/ANTI_PATTERNS.md`, `docs/REPOSITORY_STRUCTURE.md`, plus `docs/24-BFF_ARCHITECTURE.md` / `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` if BFF/web files are touched, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` if hotsite files are touched (`app/[slug]/`, `shells/hotsite/components/`, `features/platform/hotsite/`).
 
 ### Agent E — Infrastructure, Cloud & DevOps/SRE (spawned only when Step 0's infra-scope check is non-empty)
 Perspectives converging on the same artifact: security engineer, SRE, cost owner, on-call.

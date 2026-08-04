@@ -2,7 +2,7 @@
 
 This folder contains the foundational documentation for Ikaro, built on **Domain-Driven Design (DDD)** principles and **Hexagonal Architecture**.
 
-**Quick start:** Read `CLAUDE.md` (root) first — it is the canonical agent context and links everything else. Use `QUICK_REFERENCE.md` for a one-page cheat sheet.
+**Quick start:** Read `CLAUDE.md` (root) first — it is the canonical agent context and links everything else via its §10 dynamic-loading table.
 
 ---
 
@@ -20,16 +20,13 @@ This folder contains the foundational documentation for Ikaro, built on **Domain
 - **What:** All domain events with full payload definitions and flow diagrams.
 
 #### **04-USE_CASES.md**
-- **What:** 27 active use cases (UC-001 through UC-029; UC-014 and UC-015 superseded).
+- **What:** 30 active use cases (UC-001 through UC-031, including UC-016b; UC-014 and UC-015 superseded).
 
 #### **05-BOUNDED_CONTEXTS.md**
 - **What:** How the 6 contexts interact, communicate, and maintain isolation.
 
 #### **06-TENANT_ISOLATION_STRATEGY.md**
 - **What:** Business and Technical strategy for multi-tenancy.
-
-#### **07-ENGINEERING_PRINCIPLES.md** ⭐
-- **What:** The **authority document** for code standards, AI-agent code of conduct, Definition of Done, forbidden patterns. Start here before writing any code.
 
 ---
 
@@ -82,6 +79,12 @@ These documents define the implementation, testing, and deployment strategies:
 #### **22-TECH_STACK_DECISIONS.md**
 - **What:** Final technology decisions with justifications — TypeORM, NestJS, Next.js, Pub/Sub, Cloud Run, Cloud SQL, Terraform.
 
+#### **23-INFRASTRUCTURE_SETUP.md**
+- **What:** GCP infrastructure setup — Terraform-provisioned resources, environments, and bootstrap steps.
+
+#### **24-BFF_ARCHITECTURE.md**
+- **What:** Backend-for-Frontend module structure, Web → BFF transport layer, request/response mapping conventions.
+
 #### **25-ERROR_CATALOG.md**
 - **What:** All RFC 9457 Problem Details error responses, organised by category.
 
@@ -89,28 +92,21 @@ These documents define the implementation, testing, and deployment strategies:
 
 ## 🎯 How to Use This Documentation
 
-### **Core Engineering Principles:**
-- **→ START HERE:** `07-ENGINEERING_PRINCIPLES.md` (Authority document for all work)
-- **Simplicity First:** Choose the simplest, professional solution.
-- **SaaS Excellence:** Build for multi-tenancy, security, and scale.
-- **Verification:** Mandatory automated tests and quality gates.
+**→ START HERE:** `CLAUDE.md` (root) — canonical agent context. Its §10 table tells you exactly which doc(s) below to load for a given task, so you rarely need to read this folder end-to-end.
 
 ### **For Quick Understanding:**
-1. Read **07-ENGINEERING_PRINCIPLES.md** (principles & checklist)
-2. Read **01-BUSINESS_CONTEXT.md** (executive summary)
-3. Skim **QUICK_REFERENCE.md** (one-page cheat sheet)
+1. Read `CLAUDE.md` §1 (Project Facts) and §2 (Multi-Tenancy Invariants).
+2. Read **01-BUSINESS_CONTEXT.md** (executive summary).
 
 ### **For Implementation:**
 1. Reference **04-USE_CASES.md** and **14-API_CONTRACTS.md** for feature specs.
 2. Follow **11-ARCHITECTURE.md** for code structure.
 3. Adhere to **08-TESTING_STRATEGY.md** and **09-CI_CD_PIPELINE.md** for quality.
-4. Use **07-ENGINEERING_PRINCIPLES.md** "Definition of Done" checklist.
+4. Use `docs/DEFINITION_OF_DONE.md`'s checklist.
 
 ---
 
 ## 🤖 AI Agent Guidelines
-- **Permission-First:** Discuss changes before writing.
-- **Context-Optimized:** Load only relevant docs (see **AI_AGENT_DOCUMENTATION.md**).
-- **Principles Authority:** Follow **07-ENGINEERING_PRINCIPLES.md** for code standards.
-- **Checklist:** Use the AI Agent Code of Conduct before implementing.
-
+- **Permission-First:** Discuss changes before writing (`CLAUDE.md` §0).
+- **Context-Optimized:** Load only relevant docs — see `CLAUDE.md` §10's dynamic-loading table.
+- **Standards Authority:** `docs/CODE_STANDARDS.md` + `docs/ENGINEERING_RULES.md` + `docs/ANTI_PATTERNS.md` for code standards and forbidden patterns; `docs/DEFINITION_OF_DONE.md` for the Definition of Done.

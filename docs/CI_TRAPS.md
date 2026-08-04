@@ -367,7 +367,9 @@ GitHub Actions' `pull_request` trigger checks out the **speculative merge** of y
 
 Found in TD23-S11: `main` merged a concurrent story (TD24-S02) that changed a shared test helper's function signature (`makeController()`, 4 params → 3, dropping `eventBus`) in `staff.controller.spec.ts`. The PR branch had added new call sites elsewhere in that same file, still using the old 4-arg form — `main` never touched those specific lines, so git's line-based merge saw no conflict, but the merged file ended up calling a 3-param function with 4 arguments.
 
-**Fix:** `git fetch origin main && git merge origin/main` locally (never rebase an already-pushed/reviewed branch — CLAUDE.md §9 Step 9), reconcile any content only your branch added against `main`'s changes by hand, re-verify locally, then push. Don't spend time trying to reproduce a CI-only failure by inspecting your own commit in isolation — check whether `main` has diverged first.
+**Fix:** `git fetch origin main && git merge origin/main` locally, reconcile any content only your branch added against `main`'s changes by hand, re-verify locally, then push. Don't spend time trying to reproduce a CI-only failure by inspecting your own commit in isolation — check whether `main` has diverged first.
+
+**Never rebase an already-pushed/reviewed branch.** Rebasing rewrites the already-pushed commits and forces a `--force` push, which invalidates existing review/CI history on those commits. A regular merge commit + normal push keeps everything intact.
 
 ---
 

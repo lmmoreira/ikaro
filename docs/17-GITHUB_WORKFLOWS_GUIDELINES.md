@@ -125,6 +125,16 @@ To look up the SHA for any action: `gh api repos/<owner>/<repo>/git/ref/tags/<ta
 
 ---
 
+### Docker base-image digest pinning (Dependabot)
+
+`FROM` lines in `apps/{backend,bff,web}/Dockerfile` are pinned by digest only (`image@sha256:...`, no tag) — this repo's SonarCloud rule `docker:S8431` fails the build on the tag+digest form, even though both forms are cryptographically equivalent for pinning; digest-only is the decided convention here.
+
+Digest-only pins give Dependabot no tag to anchor updates to, so a proposed bump can silently resolve to a same-repository-but-different-variant digest — a different OS/package set entirely, with no corresponding code change. Before merging any Dependabot Docker PR, confirm the proposed digest still matches the intended image variant: `docker manifest inspect <image>@sha256:<digest>` or the Docker Hub tags API, comparing image size/OS family against the current digest.
+
+**PR #309 precedent (2026-08-03):** Dependabot's proposed bump for `apps/{backend,bff,web}/Dockerfile` silently jumped from `node:22.23.1-alpine` (~55MB) to the full Debian `node:22` image (~390MB), introducing 40 new HIGH-severity `linux-libc-dev` CVEs.
+
+---
+
 ### Node / pnpm version — single source of truth
 
 | Where | What it pins |

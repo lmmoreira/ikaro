@@ -76,6 +76,14 @@ Both `{UseCaseName}Input` and `{UseCaseName}Result` are defined in the use case 
 
 ---
 
+## Comments and abstraction discipline (mandatory)
+
+- **Default to no comments.** Well-named identifiers already say *what* the code does. Add a comment only when the *why* is genuinely non-obvious — a hidden constraint, a subtle invariant, a workaround for a specific bug, behavior that would surprise a reader. Never restate what the code visibly does, and never a comment referencing the current task/story/ticket ("added for M0X-SYY", "fix for #123") — that belongs in the commit message, not the source.
+- **No speculative abstraction.** Don't add a pattern, interface, or extension point the current task doesn't need on the assumption a future task might. A bug fix doesn't need surrounding refactoring; a one-shot operation doesn't need a reusable helper. Three similar lines beat a premature abstraction. Extract only once a second real caller exists (see `docs/24-BFF_ARCHITECTURE.md`'s "second mapper function" convention for the canonical example of this threshold).
+- These two rules apply identically regardless of which agent/tool authors the code — Claude, Codex, or a human — since neither is enforced by a linter.
+
+---
+
 ## Domain events (mandatory)
 
 - **Aggregate-driven events:** Aggregates record events via `this.addDomainEvent()` inside their domain methods — including system-initiated factory methods. Use cases flush via `aggregate.clearDomainEvents()` **after** `txManager.run()` completes.
@@ -181,3 +189,9 @@ Any screen or component that renders or edits an address, phone number, currency
 - **Phone fields**: component state holds only the local digits; the country's dialing prefix (`countrySpec(countryCode).phonePrefix`, e.g. `+55`) is a fixed adornment shown beside the input, never typed by the user. Format the input as the user types with `formatPhoneForDisplay`/`sanitizePhoneInput`/`phonePlaceholder` (`apps/web/shared/utils/phone-format.ts`), and build the full E.164 value only at submit time with `buildContactPhone` (`apps/web/shared/utils/contact-phone.ts`). The backend's shared `PhoneNumber` VO (`apps/backend/src/shared/value-objects/phone-number.vo.ts`) requires strict E.164 (`+<prefix><digits>`) — a digits-only payload with no prefix fails validation.
 - **Currency/date/time formatting**: use `useFormatting()` (`FormattingProvider`) — never a hardcoded `Intl` call or a fixed format string.
 - Grep `apps/web/shared/lib/address/` and `apps/web/shared/utils/phone-format.ts` before writing a new address/phone implementation. The booking flow (`AddressFields.tsx`, `PersonalInfoStep.tsx`) and the dashboard settings form (`SettingsForm.tsx`) already share this infrastructure — a third bespoke implementation is exactly the anti-pattern this rule exists to prevent.
+
+## Next.js (`apps/web`): shared data fetch between `generateMetadata()` and the page/layout body
+
+A Server Component's `generateMetadata()` that needs the same data as the page/layout body must share one fetch, not re-fetch independently. Next.js does not deduplicate a plain `async function` data-fetcher across `generateMetadata()` and the component body on its own — only `fetch()` calls that keep the Next.js Data Cache enabled get that for free, and a per-request helper that explicitly disables it (e.g. `revalidate: isDev ? 0 : ...`, common in dev) gets no deduplication at all. Wrap the shared fetch function in React's `cache()` (from `'react'`) so every call site within one request shares a single result.
+
+**M18-S03 precedent (2026-07-29):** `app/[slug]/layout.tsx`'s new `generateMetadata()` added a second, undeduplicated `fetchManifest()` call to a layout every customer `/my-account/**` route also shares — under CI's `next dev`, the two concurrent calls occasionally raced and one returned 404, intermittently rendering the global tenant-not-found page mid-test. Root-caused via the actual CI Playwright trace's page snapshot, not local reproduction — see `docs/CI_TRAPS.md`.
