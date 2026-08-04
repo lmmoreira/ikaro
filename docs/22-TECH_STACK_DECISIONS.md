@@ -1211,6 +1211,18 @@ pnpm start
 
 ---
 
+## 9. EMAIL PROVIDER: Brevo (prod) / Mailhog (local)
+
+### Decision
+**Brevo** in production, **Mailhog** for local dev — accessed exclusively through the `IEmailSender` port (`BrevoEmailAdapter` / `MailhogEmailAdapter`), never called directly from application code.
+
+### Why Brevo
+High-deliverability free tier (3k–10k emails/month) suitable at MVP scale; standard SMTP/API adapter shape, so swapping providers later means changing one adapter behind `IEmailSender`, not touching any use case or event handler.
+
+**Added 2026-08-04** (a full `/docs-audit` sweep found the previously-documented provider, SendGrid/AWS SES, was never actually implemented — stale across 6 docs at once because none of them had a single canonical decision record to point to. This section exists so that's no longer true.)
+
+---
+
 ## 📊 COST SUMMARY
 
 ### MVP (Month 1)

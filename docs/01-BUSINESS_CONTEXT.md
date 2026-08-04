@@ -294,7 +294,7 @@ Small car wash businesses face challenges:
   - Infrastructure as Code (Terraform) focused on portable resources.
 - **Stack:** NestJS backend, React frontend, BFF gateway.
 - **Authentication:** Google OAuth 2.0 (standard implementation, not cloud-specific).
-- **Email:** Standard SMTP or API adapters (currently Brevo prod / Mailhog local) with easy swapability.
+- **Email:** Standard SMTP or API adapters with easy swapability — see `docs/22-TECH_STACK_DECISIONS.md` §9 for the current provider.
 - **Storage:** Standard S3-compatible or local-disk adapters.
 
 ---

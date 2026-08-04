@@ -6,8 +6,10 @@ Checked at the end of every story or TD, before `/pre-pr` runs (CLAUDE.md §9 St
 - [ ] Coverage delta ≥ 80%; unit + integration + tenant-isolation tests pass
 - [ ] All queries filter `tenant_id`; all events include `tenantId`/`eventId`/`correlationId`
 - [ ] Migration is backward-compatible (expand/contract) — see "Migration history" below for the pre-production exception
+- [ ] New/modified migration → `docs/13-DATABASE_SCHEMA.md`'s matching table updated in the same commit (columns, defaults, constraints, indexes) — same discipline as the `integration-global-setup.ts` registration requirement, same silent-drift risk if skipped
 - [ ] Conventional Commit + PR description links the UC
 - [ ] If this story replaces or removes an existing flow/mechanism, the stale-reference sweep below is done
+- [ ] If this story ships something a `plan/journey/<actor>/<slug>.md` currently marks `❓ GAP` (a screen, a mermaid node, a Prototype-table row), that doc's status is flipped in the same commit — not just `dev-notes.md`. See "Journey GAP-status drift" below.
 
 ---
 
@@ -30,3 +32,13 @@ If this story replaces or removes an existing flow/mechanism (an auth pattern, a
 A replaced flow with stale docs left behind means the next agent builds on a wrong assumption with no signal it's wrong. **M13 precedent:** the milestone alone left 18 such findings across 8 files, found only when the milestone closed out — don't defer this to milestone-end if the story itself is the one making the change.
 
 **Agent-executable check files are not exempt just because they aren't prose docs.** The TD-21 domain-slice migration left a stale `apps/web/lib/api/`/`apps/web/components/` path hardcoded in `bad-smell-audit.md`'s `WEB-2`/`WEB-4`/`WEB-7` checks and in `scripts/pre-pr.sh`'s `WEB-4`/`23`/`27` checks (found and fixed 2026-07-23) — these shipped because the stale-reference sweep only looked at docs/plan files, not command/script files that encode the same knowledge. `TD09` had already flagged and fixed `pre-pr.sh`'s `WEB-7` path once, but its own note went stale in turn — a fixed instance of this bug is not proof the whole file is safe; re-grep the actual script, don't trust an old TD's summary of it.
+
+---
+
+## Journey GAP-status drift — when a story ships something a journey doc marks incomplete
+
+This is the inverse trigger of the stale-reference sweep above: not a flow being *replaced*, but a screen/flow being *added* or *completed* that a `plan/journey/<actor>/<slug>.md` still marks `❓ GAP` (in its mermaid flow, its Prototype table, or its "Pages referenced" table).
+
+If this story builds a screen or flow that journey doc already describes as a gap, flip its status (`❓ GAP` → `✅`) in the same commit, and update the Prototype table row if the actual filename differs from what was drafted.
+
+**Why this is a separate item from the stale-reference sweep above, not a duplicate:** a `/docs-audit` full sweep (2026-08-04) found this exact pattern in *every single actor's* journeys (guest, customer, staff, manager — 28 findings total) — a consistent, mechanical pattern, not scattered neglect. In every case, `dev-notes.md` had already been correctly updated to say the feature shipped; the journey `.md`'s own mermaid/Prototype-table status just never followed. The habit of updating `dev-notes.md` is evidently already enforced somewhere in practice — this item exists to make the journey `.md` itself get the same treatment, not to introduce a new habit from scratch.

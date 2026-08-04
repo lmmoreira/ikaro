@@ -183,6 +183,7 @@ Run every check silently. Tag each finding as **BLOCKER**, **RISK**, or **CONFIR
 ### 4n. Migration / entity registration
 - Does the story add a new TypeORM entity or database migration? → **RISK**: "`integration-global-setup.ts` must be updated in the same commit — missing registration causes silent test failures"
 - Check that the migration follows expand/contract (backward-compatible) — no destructive column drops in a single step
+- New/modified migration → **RISK**: "`docs/13-DATABASE_SCHEMA.md`'s matching table must be updated in the same commit — same silent-drift risk as the `integration-global-setup.ts` registration above" (a full `/docs-audit` sweep, 2026-08-04, found 6 tables where this had already drifted)
 
 ### 4o. Engineering discipline — no workarounds, no improvisation, no accumulating machinery
 Check the story's *proposed design*, not just its documentation completeness, against CLAUDE.md §7's 3 NON-NEGOTIABLE principles. This is a design-quality read, not a doc-gap check — findings here are RISKs for discussion with the user, never BLOCKERs:
@@ -192,6 +193,8 @@ Check the story's *proposed design*, not just its documentation completeness, ag
 
 ### 4p. Stale-reference sweep anticipation (Definition of Done)
 If this story replaces or removes an existing flow/mechanism (an auth pattern, a data model assumption, a transport layer, a dead endpoint) — does the story's own scope explicitly include grepping `docs/*.md`, other milestones' `plan/*_IMPLEMENTATION_DETAILS_*.md`, `.claude/commands/**`, `.claude/skills/**`, and `scripts/**` for stale references to the old version? If the story is silent on this, flag it now — `docs/DEFINITION_OF_DONE.md` makes this mandatory, and catching the gap here is cheaper than at milestone close-out (M13 precedent: 18 such findings across 8 files, found only when the milestone closed).
+
+**Inverse case — journey GAP-status drift:** if this story's own `Prototype references` point at a `plan/journey/<actor>/<slug>.md` that currently marks the relevant screen/flow `❓ GAP`, does the story's scope include flipping that status in the same commit? A full `/docs-audit` sweep (2026-08-04) found this exact pattern in *every actor's* journeys (28 findings) — `dev-notes.md` consistently got updated when a gap shipped, the parent journey `.md`'s mermaid/Prototype table consistently didn't. Flag as **RISK** if the story is silent on it.
 
 ---
 

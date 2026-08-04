@@ -256,7 +256,7 @@ TENANT B (completely separate):
 **Responsibilities:**
 - Listen to ALL domain events (from Booking, Loyalty, others)
 - Compose emails from templates
-- Send via Brevo (prod) / Mailhog (local)
+- Send via the current email provider (`docs/22-TECH_STACK_DECISIONS.md` §9)
 - Retry failed emails
 - Log all notifications
 
