@@ -3,11 +3,11 @@ import { renderWithIntl } from '@/test-utils';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createCustomerAttachmentSignedUrl } from '../../api';
+import { createCustomerAttachmentSignedUrl } from '@/features/booking/api/customer';
 import { compressImage } from '@/shared/utils/compress-image';
 import { CustomerPhotoUpload } from './CustomerPhotoUpload';
 
-vi.mock('../../api', () => ({
+vi.mock('@/features/booking/api/customer', () => ({
   createCustomerAttachmentSignedUrl: vi.fn(),
 }));
 

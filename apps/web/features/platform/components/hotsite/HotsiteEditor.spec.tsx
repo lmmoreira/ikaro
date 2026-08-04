@@ -31,7 +31,7 @@ vi.mock('@/providers/tenant-provider', () => ({
   useTenant: () => ({ tenantId: 'tenant-a-id', tenantSlug: 'tenant-a' }),
 }));
 
-vi.mock('@/features/booking/api/staff', () => ({
+vi.mock('@/features/booking/api/booking', () => ({
   listBookings: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, limit: 50 }),
   getBooking: vi.fn(),
 }));

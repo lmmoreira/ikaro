@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { approveBooking } from '@/features/booking/api/staff';
+import { approveBooking } from '@/features/booking/api/booking';
 import {
   useApproveBooking,
   useCancelBooking,
@@ -15,7 +15,7 @@ import {
   useSubmitBookingInfo,
 } from './useBookingMutations';
 
-vi.mock('@/features/booking/api/staff', () => ({
+vi.mock('@/features/booking/api/booking', () => ({
   approveBooking: vi
     .fn()
     .mockResolvedValue({ bookingId: 'b-1', status: 'APPROVED', approvedAt: '' }),

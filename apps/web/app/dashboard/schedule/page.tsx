@@ -1,5 +1,5 @@
 import { getAccessToken } from '@/features/auth/get-access-token';
-import { listBookings } from '@/features/booking/api/staff.server';
+import { listBookings } from '@/features/booking/api/booking.server';
 import {
   fetchScheduleClosures,
   fetchScheduleOpenings,

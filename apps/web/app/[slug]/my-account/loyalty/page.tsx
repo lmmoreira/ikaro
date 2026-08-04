@@ -1,10 +1,10 @@
 import { getAccessToken } from '@/features/auth/get-access-token';
+import { withAuthRedirect } from '@/features/customer/api.server';
 import {
   fetchLoyaltyBalance,
   fetchLoyaltyEntries,
   fetchLoyaltyRedemptions,
-  withAuthRedirect,
-} from '@/features/customer/api.server';
+} from '@/features/loyalty/api.server';
 import { LoyaltyPage } from '@/features/customer/components/my-account/LoyaltyPage';
 
 interface MyAccountLoyaltyPageProps {

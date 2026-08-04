@@ -11,7 +11,7 @@ vi.mock('@/features/platform/api/tenant-settings', () => ({
   deleteHotsiteImage: vi.fn(),
 }));
 
-vi.mock('@/features/booking/api/staff', () => ({
+vi.mock('@/features/booking/api/booking', () => ({
   listBookings: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, limit: 50 }),
   getBooking: vi.fn(),
 }));

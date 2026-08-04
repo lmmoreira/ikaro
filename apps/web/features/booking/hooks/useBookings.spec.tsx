@@ -14,7 +14,7 @@ import {
 const mockListBookings = vi.fn();
 const mockGetBooking = vi.fn();
 
-vi.mock('@/features/booking/api/staff', () => ({
+vi.mock('@/features/booking/api/booking', () => ({
   listBookings: (...args: unknown[]) => mockListBookings(...args),
   getBooking: (...args: unknown[]) => mockGetBooking(...args),
 }));

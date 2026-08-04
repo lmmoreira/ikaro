@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { GalleryImage } from '@ikaro/types';
-import { getBooking, listBookings } from '@/features/booking/api/staff';
+import { getBooking, listBookings } from '@/features/booking/api/booking';
 import { featureBookingPhoto } from '@/features/platform/api/tenant-settings';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';

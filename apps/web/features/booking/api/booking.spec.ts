@@ -12,8 +12,8 @@ import {
   requestMoreInfo,
   rescheduleBooking,
   submitBookingInfo,
-} from './staff';
-import { fetchStaffBookingDetail } from './staff.server';
+} from './booking';
+import { fetchStaffBookingDetail } from './booking.server';
 import { fetchBookingAvailability } from './availability';
 
 const mock = new MockAdapter(bffClient);

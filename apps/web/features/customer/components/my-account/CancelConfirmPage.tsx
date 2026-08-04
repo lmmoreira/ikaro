@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { BookingErrorCode, type CustomerBookingDetailResponse } from '@ikaro/types';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
-import { cancelBooking } from '../../api';
+import { cancelBookingAsCustomer } from '@/features/booking/api/customer';
 import { useCustomerTopbarStatus } from '../customer-topbar-status-context';
 import { extractProblemCode, resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
@@ -46,7 +46,7 @@ export function CancelConfirmPage({
     setIsSubmitting(true);
     setErrorMessage(null);
     try {
-      await cancelBooking(booking.bookingId);
+      await cancelBookingAsCustomer(booking.bookingId);
       router.push(`/${tenantSlug}/my-account`);
     } catch (err) {
       const code = extractProblemCode(err);
