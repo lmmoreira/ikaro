@@ -1,6 +1,7 @@
 import { InMemoryLoyaltyBalanceRepository } from '../../../../../test/repositories/loyalty/in-memory-loyalty-balance.repository';
 import { InMemoryLoyaltyCustomerPort } from '../../../../../test/infrastructure/in-memory-loyalty-customer.port';
 import { LoyaltyBalanceBuilder } from '../../../../../test/builders/loyalty/index';
+import { LoyaltyCustomerNotFoundInTenantError } from '../../../domain/errors/loyalty-domain.error';
 import { GetOwnLoyaltyBalancesUseCase } from './get-own-loyalty-balances.use-case';
 
 const TENANT_A = '10000000-0000-7000-8000-000000000001';
@@ -52,6 +53,7 @@ describe('GetOwnLoyaltyBalancesUseCase', () => {
   });
 
   it('defaults missing balances to 0 instead of omitting the tenant', async () => {
+    loyaltyCustomer.seedHome(CUSTOMER_ID, TENANT_A);
     // No balance row seeded anywhere — the actor still gets one entry per linked tenant.
     const result = await useCase.execute({ contextTenantId: TENANT_A, actorId: CUSTOMER_ID });
 
@@ -59,6 +61,7 @@ describe('GetOwnLoyaltyBalancesUseCase', () => {
   });
 
   it('never accepts a caller-supplied customerId — pairs are derived entirely from the actor identity', async () => {
+    loyaltyCustomer.seedHome(CUSTOMER_ID, TENANT_A);
     // A different customer's balance in TENANT_B must not leak into this actor's result,
     // even though both rows share the same tenant, because the actor has no link there.
     await balanceRepo.upsert(
@@ -72,5 +75,15 @@ describe('GetOwnLoyaltyBalancesUseCase', () => {
     const result = await useCase.execute({ contextTenantId: TENANT_A, actorId: CUSTOMER_ID });
 
     expect(result).toEqual([{ tenantId: TENANT_A, currentPoints: 0 }]);
+  });
+
+  it('tenant isolation: throws not-found when the actor has no home record in the given contextTenantId', async () => {
+    // CUSTOMER_ID's real home is TENANT_A (never seeded here) — calling with TENANT_B as the
+    // contextTenantId must not silently succeed just because the actor identity is reused.
+    loyaltyCustomer.seedHome(CUSTOMER_ID, TENANT_A);
+
+    await expect(
+      useCase.execute({ contextTenantId: TENANT_B, actorId: CUSTOMER_ID }),
+    ).rejects.toThrow(LoyaltyCustomerNotFoundInTenantError);
   });
 });
