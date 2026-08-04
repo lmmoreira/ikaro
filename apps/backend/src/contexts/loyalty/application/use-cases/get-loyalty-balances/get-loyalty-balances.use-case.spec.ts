@@ -1,4 +1,4 @@
-import { InMemoryLoyaltyBalanceRepository } from '../../../../../test/infrastructure/in-memory-loyalty-balance.repository';
+import { InMemoryLoyaltyBalanceRepository } from '../../../../../test/repositories/loyalty/in-memory-loyalty-balance.repository';
 import { LoyaltyBalanceBuilder } from '../../../../../test/builders/loyalty/index';
 import { GetLoyaltyBalancesUseCase } from './get-loyalty-balances.use-case';
 

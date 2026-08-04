@@ -1,12 +1,12 @@
 import { ServicePointsEarned } from '../../../domain/events/service-points-earned.event';
 import { InMemoryEventBus } from '../../../../../test/infrastructure/in-memory-event-bus';
-import { InMemoryLoyaltyBalanceRepository } from '../../../../../test/infrastructure/in-memory-loyalty-balance.repository';
-import { InMemoryLoyaltyEntryRepository } from '../../../../../test/infrastructure/in-memory-loyalty-entry.repository';
+import { InMemoryLoyaltyBalanceRepository } from '../../../../../test/repositories/loyalty/in-memory-loyalty-balance.repository';
+import { InMemoryLoyaltyEntryRepository } from '../../../../../test/repositories/loyalty/in-memory-loyalty-entry.repository';
 import { InMemoryLoyaltyPlatformPort } from '../../../../../test/infrastructure/in-memory-loyalty-platform.port';
-import { InMemoryLoyaltyRedemptionRepository } from '../../../../../test/infrastructure/in-memory-loyalty-redemption.repository';
+import { InMemoryLoyaltyRedemptionRepository } from '../../../../../test/repositories/loyalty/in-memory-loyalty-redemption.repository';
 import { InMemoryInboxRepository } from '../../../../../test/infrastructure/in-memory-inbox.repository';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
-import { LoyaltyBalance } from '../../../domain/loyalty-balance.aggregate';
+import { LoyaltyBalanceBuilder } from '../../../../../test/builders/loyalty/index';
 import {
   CompleteBookingLoyaltyEffectsUseCaseInput,
   CompleteBookingLoyaltyEffectsUseCase,
@@ -80,7 +80,11 @@ describe('CompleteBookingLoyaltyEffectsUseCase', () => {
     customerId = CUSTOMER_ID,
   ): Promise<void> {
     await balanceRepo.upsert(
-      LoyaltyBalance.reconstitute({ tenantId, customerId, currentPoints: points }),
+      new LoyaltyBalanceBuilder()
+        .withTenantId(tenantId)
+        .withCustomerId(customerId)
+        .withCurrentPoints(points)
+        .build(),
     );
   }
 

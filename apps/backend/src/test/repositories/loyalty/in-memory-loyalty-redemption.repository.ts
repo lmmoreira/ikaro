@@ -1,8 +1,8 @@
 import {
   ILoyaltyRedemptionRepository,
   PaginatedRedemptions,
-} from '../../contexts/loyalty/application/ports/loyalty-redemption-repository.port';
-import { LoyaltyRedemption } from '../../contexts/loyalty/domain/loyalty-redemption.aggregate';
+} from '../../../contexts/loyalty/application/ports/loyalty-redemption-repository.port';
+import { LoyaltyRedemption } from '../../../contexts/loyalty/domain/loyalty-redemption.aggregate';
 
 export class InMemoryLoyaltyRedemptionRepository implements ILoyaltyRedemptionRepository {
   readonly saved: LoyaltyRedemption[] = [];

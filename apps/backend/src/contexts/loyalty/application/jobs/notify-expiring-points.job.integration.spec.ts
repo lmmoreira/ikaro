@@ -8,7 +8,7 @@ import { makeConfigService } from '../../../../test/infrastructure/fake-config-s
 import { makeRealOutboxPublisher } from '../../../../test/factories/real-outbox-publisher.factory';
 import { InMemoryInboxRepository } from '../../../../test/infrastructure/in-memory-inbox.repository';
 import { createTestDataSource } from '../../../../test/test-datasource';
-import { InMemoryLoyaltyEntryRepository } from '../../../../test/infrastructure/in-memory-loyalty-entry.repository';
+import { InMemoryLoyaltyEntryRepository } from '../../../../test/repositories/loyalty/in-memory-loyalty-entry.repository';
 import { InMemoryLoyaltyPlatformPort } from '../../../../test/infrastructure/in-memory-loyalty-platform.port';
 import { LoyaltyEntryBuilder } from '../../../../test/builders/loyalty/index';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';

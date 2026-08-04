@@ -2,8 +2,8 @@ import {
   ILoyaltyEntryRepository,
   NextExpiry,
   PaginatedLoyaltyEntries,
-} from '../../contexts/loyalty/application/ports/loyalty-entry-repository.port';
-import { LoyaltyEntry } from '../../contexts/loyalty/domain/loyalty-entry.aggregate';
+} from '../../../contexts/loyalty/application/ports/loyalty-entry-repository.port';
+import { LoyaltyEntry } from '../../../contexts/loyalty/domain/loyalty-entry.aggregate';
 
 export class InMemoryLoyaltyEntryRepository implements ILoyaltyEntryRepository {
   readonly entries: LoyaltyEntry[] = [];
