@@ -4,8 +4,7 @@ import type {
   CustomerLoyaltyRedemptionsResponse,
 } from '@ikaro/types';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
-import { assertOk } from '@/shared/lib/api/errors';
-import { CustomerFetchError } from '@/shared/lib/api/errors';
+import { assertOk, CustomerFetchError } from '@/shared/lib/api/errors';
 
 // GET /v1/loyalty/entries and /redemptions default to limit=20 (shared PaginationSchema) —
 // pass limit=50 explicitly to match the my-account list pages' page size.
