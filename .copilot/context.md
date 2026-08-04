@@ -352,6 +352,7 @@ If all stories are `✅ Done`: create `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA
 | Observability | `docs/10-OBSERVABILITY_STRATEGY.md` |
 | Implementing a milestone story | Load `plan/<M0X>-<NAME>_IMPLEMENTATION_DETAILS_IA.md` for that milestone (`ls plan/*_IMPLEMENTATION_DETAILS_IA.md` to list). Special cases: `plan/M115-PRODUCTION-READINESS_IMPLEMENTATION_DETAILS_IA.md`, `td/TD02-LOCALIZATION.md` |
 | New journey or prototype | `plan/journey/README.md` |
+| Promoting a `docs/discovery/` doc into a milestone | `/discovery-to-milestone` — see `.claude/commands/discovery-to-milestone.md` |
 
 **Anti-patterns reference:** `docs/ANTI_PATTERNS.md` — full table; loaded automatically by `/pre-pr`.
 **Never load:** `docs/archive/` (superseded) · `plan/*_DEVELOPER.md` (written for humans, not agents).
@@ -438,6 +439,7 @@ Pinned Terraform skills live in `.claude/skills/`; refresh them by re-vendoring 
 | Command | File |
 |---|---|
 | `/bad-smell-audit [backend\|bff\|web]` | `.claude/commands/bad-smell-audit.md` |
+| `/discovery-to-milestone <discovery-doc-path>` | `.claude/commands/discovery-to-milestone.md` |
 | `/docs-audit [UC-XXX\|M0X\|actor/slug\|doc-path]` | `.claude/commands/docs-audit.md` |
 | `/mark-done M0X-SYY` | `.claude/commands/mark-done.md` |
 | `/pre-pr` | `.claude/commands/pre-pr.md` |
