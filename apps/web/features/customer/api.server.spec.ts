@@ -10,7 +10,8 @@ const redirect = vi.hoisted(() =>
 
 vi.mock('next/navigation', () => ({ redirect, notFound: vi.fn() }));
 
-import { CustomerFetchError, withAuthRedirect } from './api.server';
+import { CustomerFetchError } from '@/shared/lib/api/errors';
+import { withAuthRedirect } from './api.server';
 
 beforeEach(() => {
   redirect.mockClear();

@@ -17,7 +17,7 @@ const notFound = vi.hoisted(() =>
 vi.mock('@/shared/lib/api/bff-server', () => ({ bffServerFetch }));
 vi.mock('next/navigation', () => ({ redirect, notFound }));
 
-import { CustomerFetchError } from '@/features/customer/api.server';
+import { CustomerFetchError } from '@/shared/lib/api/errors';
 import { fetchCustomerBookingDetailOrRedirect, fetchCustomerBookings } from './customer.server';
 
 function jsonResponse(body: unknown, ok = true, status = 200): Response {
@@ -31,6 +31,15 @@ beforeEach(() => {
 });
 
 describe('fetchCustomerBookings', () => {
+  it('requests every status with the my-account page size', async () => {
+    bffServerFetch.mockResolvedValue(jsonResponse({ items: [] }));
+    await fetchCustomerBookings('token');
+    expect(bffServerFetch).toHaveBeenCalledWith(
+      'token',
+      '/bookings?status=PENDING%2CINFO_REQUESTED%2CAPPROVED%2CCOMPLETED%2CCANCELLED%2CREJECTED&limit=50',
+    );
+  });
+
   it('returns the parsed body on success', async () => {
     bffServerFetch.mockResolvedValue(jsonResponse({ items: [] }));
     await expect(fetchCustomerBookings('token')).resolves.toEqual({ items: [] });
@@ -59,6 +68,12 @@ describe('fetchCustomerBookings', () => {
 });
 
 describe('fetchCustomerBookingDetailOrRedirect', () => {
+  it('requests the booking by id with the given token', async () => {
+    bffServerFetch.mockResolvedValue(jsonResponse({ bookingId: 'b1' }));
+    await fetchCustomerBookingDetailOrRedirect('token', 'b1', 'lavacar-bh');
+    expect(bffServerFetch).toHaveBeenCalledWith('token', '/bookings/b1');
+  });
+
   it('returns the parsed booking on success', async () => {
     bffServerFetch.mockResolvedValue(jsonResponse({ bookingId: 'b1' }));
     await expect(

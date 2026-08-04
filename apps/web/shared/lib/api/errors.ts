@@ -31,6 +31,19 @@ export class FetchError extends Error {
   }
 }
 
+// Single-cause FetchError subclass shared by every my-account-style server fetcher, regardless
+// of which domain's data it reads (TD31 Story 9+11): customer/api.server.ts, booking/api/
+// customer.server.ts, and loyalty/api.server.ts all throw this on a failed BFF read. Lives here
+// rather than under features/customer/ because it carries no Customer-specific shape — moving it
+// out of the customer slice avoids the booking/loyalty slices importing an error type from a
+// sibling domain slice for a purely generic HTTP-status/code/field/detail carrier.
+export class CustomerFetchError extends FetchError {
+  constructor(status: number, code?: string, field?: string, detail?: string) {
+    super(`Customer request failed (${status})`, status, code, field, detail);
+    this.name = 'CustomerFetchError';
+  }
+}
+
 // Constructor shape shared by every single-cause FetchError subclass (no violations) — lets
 // assertOk() construct and throw the right subclass generically instead of repeating
 // `parseErrorBody()` + `throw new Xxx(...)` at every fetch call site.

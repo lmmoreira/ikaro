@@ -95,7 +95,7 @@ bffServerFetch(token: string, path: string, init?: BffServerFetchInit): Promise<
 - **Never import in `'use client'` files** — server transport only
 
 Canonical callers:
-- feature-owned authenticated API helpers such as `features/booking/api/staff.server.ts`, `features/customer/api.server.ts`, and `features/platform/api/tenant-settings.server.ts`
+- feature-owned authenticated API helpers such as `features/booking/api/booking.server.ts`, `features/booking/api/customer.server.ts`, `features/loyalty/api.server.ts`, and `features/platform/api/tenant-settings.server.ts`
 - shell-owned route helpers under `shells/dashboard/**` when server-side composition needs BFF data
 - Route Handlers (`app/api/bookings/route.ts`, etc.) — these proxy BFF calls for React Query's client-side refetch
 

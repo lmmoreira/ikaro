@@ -4,7 +4,7 @@ const bffServerFetch = vi.hoisted(() => vi.fn());
 
 vi.mock('@/shared/lib/api/bff-server', () => ({ bffServerFetch }));
 
-import { CustomerFetchError } from '@/features/customer/api.server';
+import { CustomerFetchError } from '@/shared/lib/api/errors';
 import { fetchLoyaltyBalance, fetchLoyaltyEntries, fetchLoyaltyRedemptions } from './api.server';
 
 function jsonResponse(body: unknown, ok = true, status = 200): Response {
@@ -16,6 +16,16 @@ beforeEach(() => {
 });
 
 describe('fetchLoyaltyBalance / fetchLoyaltyEntries / fetchLoyaltyRedemptions', () => {
+  it.each([
+    ['fetchLoyaltyBalance', fetchLoyaltyBalance, '/loyalty/balance'],
+    ['fetchLoyaltyEntries', fetchLoyaltyEntries, '/loyalty/entries?limit=50'],
+    ['fetchLoyaltyRedemptions', fetchLoyaltyRedemptions, '/loyalty/redemptions?limit=50'],
+  ])('%s requests %s with the given token', async (_name, fetcher, expectedPath) => {
+    bffServerFetch.mockResolvedValue(jsonResponse({ items: [] }));
+    await fetcher('token');
+    expect(bffServerFetch).toHaveBeenCalledWith('token', expectedPath);
+  });
+
   it.each([
     ['fetchLoyaltyBalance', fetchLoyaltyBalance],
     ['fetchLoyaltyEntries', fetchLoyaltyEntries],

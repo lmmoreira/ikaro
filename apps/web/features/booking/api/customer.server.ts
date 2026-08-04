@@ -1,8 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import type { CustomerBookingDetailResponse, CustomerBookingListResponse } from '@ikaro/types';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
-import { assertOk } from '@/shared/lib/api/errors';
-import { CustomerFetchError } from '@/features/customer/api.server';
+import { assertOk, CustomerFetchError } from '@/shared/lib/api/errors';
 
 // GET /v1/bookings defaults to status=PENDING,INFO_REQUESTED and limit=20 — both params
 // must be passed explicitly or APPROVED/COMPLETED/CANCELLED/REJECTED are silently dropped.

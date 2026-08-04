@@ -1,12 +1,5 @@
 import { redirect } from 'next/navigation';
-import { FetchError } from '@/shared/lib/api/errors';
-
-export class CustomerFetchError extends FetchError {
-  constructor(status: number, code?: string, field?: string, detail?: string) {
-    super(`Customer request failed (${status})`, status, code, field, detail);
-    this.name = 'CustomerFetchError';
-  }
-}
+import { CustomerFetchError } from '@/shared/lib/api/errors';
 
 // Wraps a my-account page's BFF read: an expired/invalid session (401) or a tenant/actor
 // mismatch (403) redirects to login instead of falling through to the generic error boundary.
