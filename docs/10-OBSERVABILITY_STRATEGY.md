@@ -219,7 +219,7 @@ import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentation
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME, ATTR_DEPLOYMENT_ENVIRONMENT_NAME } from '@opentelemetry/semantic-conventions';
-import { ParentBasedSampler, TraceIdRatioBasedSampler, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
+import { ParentBasedSampler, TraceIdRatioBasedSampler, SimpleSpanProcessor, type Sampler } from '@opentelemetry/sdk-trace-base';
 import { redactSensitiveQueryParams, SENSITIVE_QUERY_PARAMS } from './otel-query-redaction';
 
 export interface TracingOptions {
@@ -238,6 +238,19 @@ export function isHealthCheckPath(url: string | undefined): boolean {
   if (!url) return false;
   const pathname = url.split('?')[0] ?? '';
   return pathname.startsWith('/health/') || pathname.startsWith('/v1/health/');
+}
+
+// Extracted + unit-tested directly (2026-08-05, M17-S34 follow-up) — remoteParentNotSampled/
+// localParentNotSampled explicitly override OTel's own AlwaysOff default for those two slots,
+// which blindly trusted an inherited "not sampled" parent regardless of `ratio`. This was the
+// actual root cause of ~75-89% of real traces never being recorded — see
+// docs/ENGINEERING_RULES.md § Cloud Run CPU throttling for the full incident.
+export function createSampler(ratio: number): Sampler {
+  return new ParentBasedSampler({
+    root: new TraceIdRatioBasedSampler(ratio),
+    remoteParentNotSampled: new TraceIdRatioBasedSampler(ratio),
+    localParentNotSampled: new TraceIdRatioBasedSampler(ratio),
+  });
 }
 
 export function bootstrapTracing(
@@ -261,9 +274,15 @@ export function bootstrapTracing(
       [ATTR_SERVICE_NAME]: process.env.SERVICE_NAME ?? defaultServiceName,
       [ATTR_DEPLOYMENT_ENVIRONMENT_NAME]: process.env.APP_ENV ?? 'local',
     }),
-    sampler: new ParentBasedSampler({
-      root: new TraceIdRatioBasedSampler(samplingRate),
-    }),
+    // remoteParentNotSampled/localParentNotSampled explicitly overridden (2026-08-05, M17-S34
+    // follow-up — real staging finding): OTel's own ParentBasedSampler defaults for these two
+    // slots are AlwaysOff, blindly trusting an inherited "not sampled" parent regardless of
+    // `ratio` — this was the actual root cause of ~75-89% of real traces never being recorded in
+    // the first place (a sampling bug, not a CPU/export bug — see docs/ENGINEERING_RULES.md §
+    // Cloud Run CPU throttling for the full incident). remoteParentSampled/localParentSampled
+    // are deliberately left at their AlwaysOn default, so a genuinely-sampled parent is still
+    // respected. Extracted as createSampler() and unit-tested directly in otel-tracing.spec.ts.
+    sampler: createSampler(samplingRate),
     // spanProcessors, NOT `traceExporter` (M17-S34 follow-up, 2026-08-05 — real staging
     // finding): passing `traceExporter` directly lets NodeSDK silently wrap it in its own
     // default BatchSpanProcessor (timer/size-flushed). The live service has
@@ -343,7 +362,7 @@ export function bootstrapTracing(
 }
 ```
 
-**The same CPU-throttling timer-starvation bug this comment describes was found a second time, one hop downstream, in the collector sidecar itself (2026-08-05).** `infra/docker/otel-collector/config.yaml`'s traces pipeline still had a `batch` processor (5s timer) and the `googlecloud` exporter's default async `sending_queue` — both share the exact same vulnerability as the `BatchSpanProcessor` fixed above, just running in a second container on the same CPU-throttled instance. Measured impact before the collector-side fix: ~73% of real traces never reached Cloud Trace. Fixed by removing `batch` and setting `sending_queue: enabled: false` plus an explicit `timeout: 2s` (fail fast rather than block on an unbounded downstream outage), forcing every export to complete synchronously inside the OTLP receive call. Full incident, the rejected always-allocated-CPU alternative with real cost numbers, and the verified no-user-facing-latency finding: `docs/ENGINEERING_RULES.md` § Cloud Run CPU throttling — timer/async work can be silently starved (sidecars included).
+**The same CPU-throttling timer-starvation bug this comment describes was found a second time, one hop downstream, in the collector sidecar itself (2026-08-05).** `infra/docker/otel-collector/config.yaml`'s traces pipeline still had a `batch` processor (5s timer) and the `googlecloud` exporter's default async `sending_queue` — both share the exact same vulnerability as the `BatchSpanProcessor` fixed above, just running in a second container on the same CPU-throttled instance. Fixed by removing `batch` and setting `sending_queue: enabled: false` plus an explicit `timeout: 2s` (fail fast rather than block on an unbounded downstream outage), forcing every export to complete synchronously inside the OTLP receive call. **This fix is real and worth keeping, but a live follow-up investigation the same day found it was never the dominant cause of production trace loss — the real root cause was a sampling bug (`ParentBasedSampler` blindly trusting an inherited "not sampled" parent decision, fixed via `createSampler()`'s explicit `remoteParentNotSampled`/`localParentNotSampled` overrides above), completely unrelated to CPU throttling or the collector.** Full incident — both bugs, the always-allocated-CPU alternative with real cost numbers, the diagnostic sequence that told them apart, and the verified no-user-facing-latency finding: `docs/ENGINEERING_RULES.md` § Cloud Run CPU throttling — timer/async work can be silently starved (sidecars included).
 
 **Disabled by default locally, enabled by default in staging/production** (`otel-sdk-disabled.ts`) — keyed on `APP_ENV`, not a flat default. Staging/prod always have the collector sidecar present (M17-S34), so tracing should be on there with nothing to remember to flip; local dev (and CI, which never sets `APP_ENV` either — both fall through to the schema default `'local'`) has no collector unless a dev opts into `pnpm obs`, so attempting to start there just produces failed-export WARN noise once `diag.setLogger` was added. `OTEL_SDK_DISABLED`, when explicitly set to `"true"`/`"false"`, always overrides the default either direction — e.g. set it to `"false"` locally to test against a real local collector. When enabled, a genuinely unreachable collector still degrades gracefully on its own: `SimpleSpanProcessor`'s per-span export call fails and is dropped async, never blocking or crashing the request it belongs to — `diag.setLogger` above just makes that failure visible instead of silent.
 
@@ -931,9 +950,20 @@ Health checks are excluded from tracing entirely (`ignoreIncomingRequestHook`, s
 // defaults to 1.0; production: "0.1", Terraform-set — see infra/terraform/envs/prod/main.tf).
 const samplingRate = Number(process.env.OTEL_TRACES_SAMPLER_ARG ?? 1.0);
 
-new ParentBasedSampler({
-  root: new TraceIdRatioBasedSampler(samplingRate),
-})
+// remoteParentNotSampled/localParentNotSampled explicitly overridden (2026-08-05, M17-S34
+// follow-up — real staging finding, fixed the actual root cause of ~75-89% of real traces
+// never being recorded): OTel's own ParentBasedSampler defaults these two slots to AlwaysOff,
+// blindly trusting an inherited "not sampled" parent regardless of `ratio`. See
+// docs/ENGINEERING_RULES.md § Cloud Run CPU throttling for the full incident.
+function createSampler(ratio: number) {
+  return new ParentBasedSampler({
+    root: new TraceIdRatioBasedSampler(ratio),
+    remoteParentNotSampled: new TraceIdRatioBasedSampler(ratio),
+    localParentNotSampled: new TraceIdRatioBasedSampler(ratio),
+  });
+}
+
+createSampler(samplingRate)
 ```
 
 ---

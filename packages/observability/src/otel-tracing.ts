@@ -11,9 +11,26 @@ import {
   ParentBasedSampler,
   TraceIdRatioBasedSampler,
   SimpleSpanProcessor,
+  type Sampler,
 } from '@opentelemetry/sdk-trace-base';
 import { isOtelSdkDisabled } from './otel-sdk-disabled';
 import { redactSensitiveQueryParams, SENSITIVE_QUERY_PARAMS } from './otel-query-redaction';
+
+/**
+ * Extracted and exported for direct unit testing (2026-08-05, M17-S34 follow-up) — this exact
+ * configuration has already had one real, hard-to-find bug: without the explicit
+ * remoteParentNotSampled/localParentNotSampled overrides, ParentBasedSampler's own defaults
+ * blindly trust an inherited "not sampled" parent decision regardless of `ratio`, silently
+ * dropping the majority of real traces before export was ever attempted. See the call site in
+ * bootstrapTracing() for the full incident writeup.
+ */
+export function createSampler(ratio: number): Sampler {
+  return new ParentBasedSampler({
+    root: new TraceIdRatioBasedSampler(ratio),
+    remoteParentNotSampled: new TraceIdRatioBasedSampler(ratio),
+    localParentNotSampled: new TraceIdRatioBasedSampler(ratio),
+  });
+}
 
 /**
  * Options a caller's own `src/tracing.ts` can request, in vendor-neutral terms — never an
@@ -83,9 +100,19 @@ export function bootstrapTracing(
       [ATTR_SERVICE_NAME]: process.env['SERVICE_NAME'] ?? defaultServiceName,
       [ATTR_DEPLOYMENT_ENVIRONMENT_NAME]: process.env['APP_ENV'] ?? 'local',
     }),
-    sampler: new ParentBasedSampler({
-      root: new TraceIdRatioBasedSampler(samplingRate),
-    }),
+    // createSampler() explicitly overrides remoteParentNotSampled/localParentNotSampled
+    // (2026-08-05, M17-S34 follow-up — real staging finding): without these,
+    // ParentBasedSampler's own defaults blindly trust an inherited "not sampled" parent
+    // decision, regardless of `ratio` — a span with ANY parent context (even one this process
+    // never actually verified) skips the root sampler entirely and is silently never recorded.
+    // Measured impact: ~75-89% of real traces never reached Cloud Trace, consistently, across
+    // every collector-side/CPU/timeout config tried — because the spans were never being
+    // recorded in the first place, long before export was ever attempted. Verified via live A/B
+    // on real staging traffic: 0/40 traces missing after this change, vs. the ~75-89% baseline
+    // before it — see docs/ENGINEERING_RULES.md § Cloud Run CPU throttling for the full
+    // investigation and why this was so hard to find (every collector/CPU/timeout fix was
+    // chasing a red herring).
+    sampler: createSampler(samplingRate),
     // Security review follow-up (2026-07-21): a user-provided `url` always wins over the
     // exporter's own environment-derived config (verified against
     // @opentelemetry/otlp-exporter-base's merge precedence) — so explicitly passing `url` here
