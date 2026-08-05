@@ -204,7 +204,12 @@ export class GcpPubSubEventBusAdapter
     handler: () => Promise<void>,
   ): Promise<void> {
     try {
-      await handler();
+      // Explicit span for the same reason as dispatch()/dispatchPushMessage() below: nothing
+      // auto-instrumented marks "this is where a cron-triggered dispatch began" on its own — this
+      // was a real gap found live (2026-08-05, M17-S34 follow-up), where a trigger's handler work
+      // ended up invisible/unlabeled under the incoming push request's own span instead of getting
+      // its own identifiable child span.
+      await this.tracingPort.startActiveSpan(`pubsub.trigger.${triggerName}`, () => handler());
       message.ack();
     } catch (err) {
       const attempt = message.deliveryAttempt ?? 1;
@@ -235,7 +240,17 @@ export class GcpPubSubEventBusAdapter
     // Trigger map checked first — a cron tick carries no envelope at all, see trigger-bus.port.ts.
     const triggerConfig = this.pendingTriggers.get(subscriptionName);
     if (triggerConfig) {
-      await triggerConfig.handler();
+      // Explicit span, same rationale as the regular-event branch below (TD28): a cron trigger's
+      // message.attributes is always empty (publishTrigger() injects no trace context), so
+      // runWithExtractedContext() falls back to whatever was already active — the incoming
+      // POST /pubsub/push request's own span. Without this explicit span, the handler's work has
+      // no dispatch-boundary span identifying it, and can end up effectively invisible in the
+      // trace depending on what (if anything) the handler itself auto-instruments. Found live
+      // (2026-08-05, M17-S34 follow-up) as the cause of the hourly cron-triggered /pubsub/push
+      // traces that were still showing as missing after the sampler and concurrency-limit fixes.
+      await this.tracingPort.startActiveSpan(`pubsub.trigger.${triggerConfig.triggerName}`, () =>
+        triggerConfig.handler(),
+      );
       return;
     }
 

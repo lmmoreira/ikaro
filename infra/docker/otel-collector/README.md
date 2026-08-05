@@ -28,6 +28,8 @@ The traces pipeline in `config.yaml` has neither. Both are timer/async-worker pa
 
 **TL;DR: `packages/observability/src/otel-tracing.ts`'s `ParentBasedSampler` was silently dropping most spans before they were ever recorded — nothing to do with the collector, CPU throttling, or anything in this directory. Fixed by explicitly overriding `remoteParentNotSampled`/`localParentNotSampled` instead of leaving them at OTel's own `AlwaysOff` default. Verified 0/40 traces missing on real staging traffic after the fix, vs. ~75-89% missing before it.** Full technical writeup, including the exact code and why it was so hard to distinguish from the CPU-throttling bug above: `docs/ENGINEERING_RULES.md` § Cloud Run CPU throttling.
 
+**Follow-up, same day: fixing the sampler bug uncovered a second, smaller bug.** Once real traffic started actually reaching the exporter, the OTLP exporter's own default `concurrencyLimit` (30 in-flight exports) turned out to be too low — bursts were hitting `Error('Concurrent export limit reached')` (598 times in ~80 minutes on staging). Fixed by passing `concurrencyLimit: 200` explicitly. Also nothing to do with this directory (app-side exporter config, not the collector) — full writeup: `docs/ENGINEERING_RULES.md` § Cloud Run CPU throttling, same section as above.
+
 This section is kept as a **methodology playbook** — the live-debugging techniques below are reusable for any future "telemetry is silently missing" investigation, on this pipeline or any other.
 
 ### How to measure trace loss yourself

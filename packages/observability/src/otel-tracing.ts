@@ -147,12 +147,26 @@ export function bootstrapTracing(
     // applies at a volume this deployment doesn't have today.
     spanProcessors: [
       new SimpleSpanProcessor(
-        new OTLPTraceExporter(
-          process.env['OTEL_EXPORTER_OTLP_ENDPOINT'] ||
-            process.env['OTEL_EXPORTER_OTLP_TRACES_ENDPOINT']
+        new OTLPTraceExporter({
+          ...(process.env['OTEL_EXPORTER_OTLP_ENDPOINT'] ||
+          process.env['OTEL_EXPORTER_OTLP_TRACES_ENDPOINT']
             ? {}
-            : { url: 'http://localhost:4318/v1/traces' },
-        ),
+            : { url: 'http://localhost:4318/v1/traces' }),
+          // concurrencyLimit (2026-08-05, M17-S34 follow-up — real staging finding, discovered
+          // immediately after fixing the ParentBasedSampler bug above): the exporter's own
+          // default is 30 simultaneous in-flight exports — once exceeded, NEW exports are
+          // rejected outright ("Concurrent export limit reached"), not queued or retried, and
+          // SimpleSpanProcessor never retries a failed export either. This limit was essentially
+          // never hit before the sampler fix, since the sampler was silently dropping most spans
+          // before export was ever attempted. Once fixed, real traffic correctly generates far
+          // more concurrent exports — a single request can have 20-30 child spans, and Cloud
+          // Run's own per-instance request concurrency cap is 80 — so bursts routinely exceeded
+          // 30: 598 rejections measured in ~80 minutes on staging, one burst of 500 in 29
+          // seconds. 200 gives real headroom above the 80-request cap while staying a bounded,
+          // sane value — self-limiting regardless via each export's own `timeoutMillis` default
+          // (10s), which frees a slot even if a downstream call hangs.
+          concurrencyLimit: 200,
+        }),
       ),
     ],
     instrumentations: [

@@ -296,16 +296,25 @@ export function bootstrapTracing(
     // real overload backstop.
     spanProcessors: [
       new SimpleSpanProcessor(
-        new OTLPTraceExporter(
+        new OTLPTraceExporter({
           // A user-provided `url` always wins over the exporter's own environment-derived
           // config (verified against @opentelemetry/otlp-exporter-base's merge precedence,
           // security review follow-up 2026-07-21) — so only pass `url` as a last-resort
           // default when neither OTEL_EXPORTER_OTLP_ENDPOINT nor the signal-specific
           // OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is set.
-          process.env.OTEL_EXPORTER_OTLP_ENDPOINT || process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+          ...(process.env.OTEL_EXPORTER_OTLP_ENDPOINT || process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
             ? {}
-            : { url: 'http://localhost:4318/v1/traces' },
-        ),
+            : { url: 'http://localhost:4318/v1/traces' }),
+          // concurrencyLimit (2026-08-05, M17-S34 follow-up — found immediately after fixing the
+          // ParentBasedSampler bug): default is 30 in-flight exports; once exceeded, new exports
+          // are rejected outright ("Concurrent export limit reached"), never retried. Essentially
+          // never hit before the sampler fix (most spans were silently dropped pre-export); once
+          // fixed, real bursts (20-30 child spans per request, 80 concurrent requests per
+          // instance) routinely exceeded 30 — 598 rejections in ~80 minutes measured on staging.
+          // 200 gives headroom above the 80-request cap; self-limiting via each export's own
+          // timeoutMillis (10s default) regardless.
+          concurrencyLimit: 200,
+        }),
       ),
     ],
     instrumentations: [
