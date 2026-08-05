@@ -49,7 +49,11 @@
           <p class="occurrence-date">Segunda, 18 de agosto</p>
           <p class="occurrence-meta">08:00–09:00 · Confirmado</p>
         </div>
-        <a href="#" style="font-size:0.8125rem;font-weight:600;color:var(--ba-primary);text-decoration:none;">Pular esta semana</a>
+        <!-- Fixed 2026-08-05: was href="#" — the first occurrence's identical link was wired to
+             customer-05 (dev-notes item 5), but the fix wasn't copied to this second row. Both
+             occurrences share the same illustrative "after" screen — this prototype demonstrates
+             the skip mechanism once, not a distinct state per week. -->
+        <a href="customer-05-ocorrencia-pulada.html" style="font-size:0.8125rem;font-weight:600;color:var(--ba-primary);text-decoration:none;">Pular esta semana</a>
       </div>
       <!-- CAND-26 A1: an occurrence lands on a full session — enrollment stays ACTIVE -->
       <div class="occurrence-row">

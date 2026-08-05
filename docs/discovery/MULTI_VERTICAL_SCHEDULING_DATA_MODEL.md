@@ -55,9 +55,10 @@ Normalizes `Service.resourceRequirements[]` (domain doc §5).
 | | service_id | UUID | NOT NULL — FK (tenant_id, service_id) → `services` |
 | | resource_type | VARCHAR(20) | NOT NULL |
 | | selection_mode | VARCHAR(30) | NOT NULL — CHECK IN (`NONE`, `CUSTOMER_CHOICE`, `AUTO_ANY`, `AUTO_FUNGIBLE_POOL`) |
-| | **UNIQUE** | (tenant_id, service_id, resource_type) | No `requirement_index` — see §6 item 17. `resource_type` (4 fixed values) is itself a sufficient key; no worked example ever needs two requirements of the same type in one bundle. |
+| | **UNIQUE** | (tenant_id, service_id, resource_type) | No `requirement_index` — see §6 item 19. `resource_type` (4 fixed values) is itself a sufficient key; no worked example ever needs two requirements of the same type in one bundle. |
+| | **UNIQUE** | (tenant_id, id) | Composite FK target for `service_resource_requirement_pool` — added §6 item 17, closing a tenant-isolation gap (`CLAUDE.md` §2.4) where the pool table's FK was non-composite. |
 | `service_resource_requirement_pool` | tenant_id | UUID | NOT NULL |
-| | requirement_id | UUID | NOT NULL — FK → `service_resource_requirements` |
+| | requirement_id | UUID | NOT NULL — FK (tenant_id, requirement_id) → `service_resource_requirements` |
 | | resource_id | UUID | NOT NULL — FK (tenant_id, resource_id) → `resources` |
 | | **PK** | (tenant_id, requirement_id, resource_id) | |
 
@@ -99,15 +100,17 @@ For `ServiceLeg[]` (domain doc §5). **Corrected from an earlier draft of this d
 | | duration_minutes | INT | NOT NULL CHECK > 0 |
 | | transition_gap_after_minutes | INT | NOT NULL DEFAULT 0 |
 | | **UNIQUE** | (tenant_id, service_id, leg_index) | |
+| | **UNIQUE** | (tenant_id, id) | Composite FK target for `service_leg_resource_requirements` — added §6 item 17. |
 | `service_leg_resource_requirements` | id | UUID | PRIMARY KEY |
 | | tenant_id | UUID | NOT NULL |
-| | leg_id | UUID | NOT NULL — FK → `service_legs` |
+| | leg_id | UUID | NOT NULL — FK (tenant_id, leg_id) → `service_legs` |
 | | resource_type | VARCHAR(20) | NOT NULL |
 | | selection_mode | VARCHAR(30) | NOT NULL |
-| | **UNIQUE** | (tenant_id, leg_id, resource_type) | No `requirement_index` — same reasoning as `service_resource_requirements` (§6 item 17); no leg in any worked example ever needs two resources of the same type. |
+| | **UNIQUE** | (tenant_id, leg_id, resource_type) | No `requirement_index` — same reasoning as `service_resource_requirements` (§6 item 19); no leg in any worked example ever needs two resources of the same type. |
+| | **UNIQUE** | (tenant_id, id) | Composite FK target for `service_leg_resource_requirement_pool` — same fix, one level deeper (§6 item 17). |
 | `service_leg_resource_requirement_pool` | tenant_id | UUID | NOT NULL |
-| | requirement_id | UUID | NOT NULL — FK → `service_leg_resource_requirements` |
-| | resource_id | UUID | NOT NULL — FK → `resources` |
+| | requirement_id | UUID | NOT NULL — FK (tenant_id, requirement_id) → `service_leg_resource_requirements` |
+| | resource_id | UUID | NOT NULL — FK (tenant_id, resource_id) → `resources` |
 | | **PK** | (tenant_id, requirement_id, resource_id) | |
 
 **Example data — Jornada Spa Vitta** (`svc_jornada_spa`, from `public-05-multi-leg-itinerary.html`):
@@ -175,7 +178,7 @@ The eligible-resource pool for a SESSION-model service's slots — declared **on
 |---|---|---|
 | tenant_id | UUID | NOT NULL |
 | service_id | UUID | NOT NULL — FK (tenant_id, service_id) → `services` |
-| resource_type | VARCHAR(20) | NOT NULL — denormalized from `resources.type` (derivable via `resource_id`); kept directly so the row is self-describing without a join when rendering the picker. Also the natural key — see §6 item 17: no `slot_index` needed, since no worked example ever needs two eligible-pool slots of the same type for one service |
+| resource_type | VARCHAR(20) | NOT NULL — denormalized from `resources.type` (derivable via `resource_id`); kept directly so the row is self-describing without a join when rendering the picker. Also the natural key — see §6 item 19: no `slot_index` needed, since no worked example ever needs two eligible-pool slots of the same type for one service |
 | resource_id | UUID | NOT NULL — FK (tenant_id, resource_id) → `resources` |
 | **PK** | (tenant_id, service_id, resource_type, resource_id) | |
 | **INDEX** | (tenant_id, service_id, resource_type) | Feeds the "who's eligible" picker on `manager-06-criar-turma.html` |
@@ -206,7 +209,7 @@ The template's own resolved pick per slot — one specific answer, not a list. E
 | id | UUID | PRIMARY KEY |
 | tenant_id | UUID | NOT NULL |
 | template_id | UUID | NOT NULL — FK → `class_schedule_templates` |
-| resource_type | VARCHAR(20) | NOT NULL — denormalized from `resources.type` (derivable via `resource_id`), same reasoning as `service_class_resource_pool` above. Also the natural key — no `slot_index` needed, see §6 item 17 |
+| resource_type | VARCHAR(20) | NOT NULL — denormalized from `resources.type` (derivable via `resource_id`), same reasoning as `service_class_resource_pool` above. Also the natural key — no `slot_index` needed, see §6 item 19 |
 | resource_id | UUID | NOT NULL — the one resource actually assigned to this template's slot |
 | **UNIQUE** | (tenant_id, template_id, resource_type) | |
 
@@ -251,7 +254,7 @@ Same session shown in `staff-02-session-roster.html`. Its roster card currently 
 
 ### `booking.class_session_resources`
 
-Per-instance snapshot/override of the template's resolved slots (CAND-14): `tenant_id, class_session_id, resource_type, resource_id` — `PK (tenant_id, class_session_id, resource_type)`. No `slot_index` — same reasoning as the other slot/pool tables, §6 item 17.
+Per-instance snapshot/override of the template's resolved slots (CAND-14): `tenant_id, class_session_id, resource_type, resource_id` — `PK (tenant_id, class_session_id, resource_type)`. No `slot_index` — same reasoning as the other slot/pool tables, §6 item 19.
 
 **Example data:**
 
@@ -422,7 +425,7 @@ CONSTRAINT "EX_booking_bookings_approved_slot"
   WHERE ("status" = 'APPROVED')
 ```
 
-(Verified against the actual migration, `CreateBookingBookings1748000000014` — `docs/13-DATABASE_SCHEMA.md` doesn't even list `scheduled_end_at`/`version`, a stale-doc issue independent of this discovery, worth fixing separately.)
+(Verified against the actual migration, `CreateBookingBookings1748000000014` — `apps/backend/src/contexts/booking/infrastructure/migrations/1748000000014-CreateBookingBookings.ts`, lines 61–66. `docs/13-DATABASE_SCHEMA.md` correctly documents both `scheduled_end_at` and `version` on `booking.bookings` — see §6 item 12 for a correction to an earlier, wrong claim in this document that it didn't.)
 
 This works today because there's exactly one thing to protect: the whole tenant, one row per booking. The domain doc's §5/§8 describe the resource split as if it's a query-side change only ("only the effective calendar-blocked window changes"). It isn't: once a booking can lock a *bundle* of resources (model 7) or a different resource per *leg* (model 8), there's no longer one row per booking to key an exclusion constraint on — the granularity has to move to one row per resource-assignment. And a materialized `ClassSession` needs the *identical* protection on the *same* resources. Postgres exclusion constraints cannot span two tables — so if `Booking` resource-locks and `ClassSession` resource-locks lived in separate tables, cross-family exclusivity (CAND-31, model 13's whole premise) could never be DB-enforced no matter how well either table were built individually.
 
@@ -456,7 +459,7 @@ This still leaves exactly one case with no DB backstop: an appointment booked ag
 
 11. **Aggregate/outbox wiring for the new events is an open architectural decision, not a detail.** `ClassSessionBookingConfirmed`/`Waitlisted`/`Completed`, `WaitlistPromoted`, `ClassSessionCancelled` are all triggered by a specific use-case call (`ClassSessionBooking`/`ClassSession` transitioning state) — the same shape as `Booking`'s 3-aggregate transactional-outbox pattern (TD24-S02), not the 4-cron direct-publish pattern (which already correctly shows "Events Triggered: None" on CAND-13/CAND-25b — no gap there). This means `ClassSession` and `ClassSessionBooking` becoming full `AggregateRoot`s with their own outbox-draining repositories is a real, non-trivial commitment the domain doc never states outright.
 
-12. **Doc-hygiene note, independent of this discovery:** `docs/13-DATABASE_SCHEMA.md`'s `booking.bookings` table is already stale against the real migration — missing `scheduled_end_at` and `version`, both present in `CreateBookingBookings1748000000014`. Found while grounding this document against real code; worth a separate fix outside this discovery.
+12. **Correction (2026-08-05): the "doc-hygiene note" this item used to make was itself wrong.** This item previously claimed `docs/13-DATABASE_SCHEMA.md`'s `booking.bookings` table was stale against the real migration, missing `scheduled_end_at` and `version`. Re-verified directly against the file: `docs/13-DATABASE_SCHEMA.md:169` documents `scheduled_end_at` and `docs/13-DATABASE_SCHEMA.md:196` documents `version` — both present and correctly described. No stale-doc issue exists here. Left in place, corrected rather than deleted, as a reminder to this document's own author discipline: a claim made "while grounding against real code" still needs the actual grep/read to back it, not just a plausible-sounding assertion — the same caution item 15 already applies to its own "Resolved" claims.
 
 13. **A leg can require more than one resource at once — the domain doc's `ServiceLeg.resourceRequirement` (singular) doesn't allow for this, but the concrete prototype does.** `public-05-multi-leg-itinerary.html`'s middle leg ("Massagem") locks both a therapist (Renata Souza, customer-chosen) *and* a room (Sala de Terapia) simultaneously — the same two resources `Massagem Relaxante`'s own bundle uses, deliberately, to demonstrate CAND-31 cross-service exclusivity "from the other direction" (per that file's own comment). The domain doc §5's abstract JSON example only ever shows one `resourceRequirement` per leg. Fixed above: `service_legs` no longer carries `resource_type`/`selection_mode` directly — those moved to a new `service_leg_resource_requirements` child table (one-to-many per leg), with its own `service_leg_resource_requirement_pool`, mirroring the flat-service bundle shape one level deeper. Worth carrying this fix back into the domain doc's own `ServiceLeg` properties (§5), not just this schema.
 
@@ -466,7 +469,11 @@ This still leaves exactly one case with no DB backstop: an appointment booked ag
 
 16. **Three columns look like unexplained duplicates because their denormalization was never stated as such.** Asked directly why `class_sessions.service_id` exists when `template_id` already implies it via a join to `class_schedule_templates.service_id` — and the same question applies to `service_class_resource_pool.resource_type` and `class_schedule_template_slots.resource_type`, both derivable via their own `resource_id` → `resources.type`. All three are legitimate denormalization (same category as `bookings.total_price_amount` — computable from a join, stored directly for fast reads), not accidental duplicates, but §2 never said so, which is exactly why they read as unexplained. Fixed by annotating each column inline with what it's denormalized from and why. One of the three has a weaker justification than it looked: `class_sessions.service_id`'s original "needed for the ad-hoc case, where template_id is null" rationale is currently theoretical, since nothing populates `template_id = NULL` yet (item 7) — today the column is pure query-convenience denormalization (CAND-13b/CAND-21 filtering by service without a join), not a load-bearing necessity. Revisit that specific rationale once item 7 is actually resolved either way.
 
-17. **`slot_index`/`requirement_index` were premature abstractions — removed (2026-08-05).** Their original justification for `class_schedule_template_slots`/`service_class_resource_pool` cited "a bigger studio needing two interchangeable room slots on one template" as the reason a fixed `resource_type` key wouldn't suffice — but that scenario was misremembered from a *different*, already-resolved case: model #6 (two Pilates rooms running in parallel) is explicitly handled as two separate `ClassScheduleTemplate` rows (§6, domain doc), never as one template with two `ROOM` slots. Checked every actual worked example across both the flat-bundle and leg families too (Massagem Relaxante's STAFF+ROOM+EQUIPMENT, the dentist's STAFF+EQUIPMENT, every leg in Jornada Spa) — none of them ever need two resources of the same type in one bundle/leg/slot-set. `resource_type` (4 fixed values: `LOCATION`/`STAFF`/`ROOM`/`EQUIPMENT`) is therefore a sufficient natural key on its own. Removed the ordering column from all four affected tables — `service_resource_requirements`, `service_leg_resource_requirements`, `service_class_resource_pool`, `class_schedule_template_slots` — and from `class_session_resources`, which mirrors the last one. Display order (e.g. always showing "Instrutor" before "Sala") doesn't need a stored column either — Postgres gives no ordering guarantee without an explicit `ORDER BY` regardless of whether a stored index exists, so a fixed `ORDER BY CASE resource_type WHEN ...` (or an equivalent small priority list in application code) achieves the same deterministic order more simply, without a column that could drift out of sync with the manager's intended order. One real future case would justify reintroducing an index — a couples-massage-style bundle needing two `STAFF` at once — but nothing here needs it today, and adding it back later is a simple additive migration, not a reason to carry the column now.
+17. **Three tables broke the tenant-first composite-FK invariant (`CLAUDE.md` §2.4) — fixed (2026-08-05).** `service_resource_requirements`, `service_legs`, and `service_leg_resource_requirements` each have a child table that referenced them by plain `id` (`service_resource_requirement_pool.requirement_id`, `service_leg_resource_requirements.leg_id`, `service_leg_resource_requirement_pool.requirement_id`) while every sibling FK in the same tables — e.g. `resource_id → resources` — correctly used the composite `(tenant_id, resource_id)` shape. Without a `UNIQUE(tenant_id, id)` on the parent, a true composite FK wasn't even expressible, so this path couldn't block a cross-tenant reference at the DB level the way the rest of the schema does. Fixed in §2 above: all three parents now declare `UNIQUE(tenant_id, id)`, and all three child FKs are now composite. Found during a business/architecture review cross-checking this document against `CLAUDE.md`'s multi-tenancy invariants directly, rather than by working through a specific worked example — the other ~10 new tables already got this right.
+
+18. **No constraint in this document carries an explicit name, unlike the real schema's own convention.** The live migration names every constraint (`EX_booking_bookings_approved_slot`, `CHK_booking_bookings_discount_consistency`, `UQ_booking_services_tenant_id`, `FK_booking_lines_tenant_booking`, `IDX_booking_bookings_tenant_status`) with a `<PREFIX>_<schema>_<table>_<descriptor>` shape. Every constraint above is described positionally instead (`**UNIQUE** | (tenant_id, id) |`). Not fixed by exhaustively naming all ~13 new tables' constraints here — at discovery stage that's mechanical busywork without much payoff — but flagged explicitly so implementation doesn't silently improvise a different convention: follow the existing `<PREFIX>_booking_<table>_<descriptor>` shape (e.g. `EX_booking_resource_occupancy_locked_window`, `UQ_booking_resources_staff_ref`) when these become real migrations.
+
+19. **`slot_index`/`requirement_index` were premature abstractions — removed (2026-08-05).** Their original justification for `class_schedule_template_slots`/`service_class_resource_pool` cited "a bigger studio needing two interchangeable room slots on one template" as the reason a fixed `resource_type` key wouldn't suffice — but that scenario was misremembered from a *different*, already-resolved case: model #6 (two Pilates rooms running in parallel) is explicitly handled as two separate `ClassScheduleTemplate` rows (§6, domain doc), never as one template with two `ROOM` slots. Checked every actual worked example across both the flat-bundle and leg families too (Massagem Relaxante's STAFF+ROOM+EQUIPMENT, the dentist's STAFF+EQUIPMENT, every leg in Jornada Spa) — none of them ever need two resources of the same type in one bundle/leg/slot-set. `resource_type` (4 fixed values: `LOCATION`/`STAFF`/`ROOM`/`EQUIPMENT`) is therefore a sufficient natural key on its own. Removed the ordering column from all four affected tables — `service_resource_requirements`, `service_leg_resource_requirements`, `service_class_resource_pool`, `class_schedule_template_slots` — and from `class_session_resources`, which mirrors the last one. Display order (e.g. always showing "Instrutor" before "Sala") doesn't need a stored column either — Postgres gives no ordering guarantee without an explicit `ORDER BY` regardless of whether a stored index exists, so a fixed `ORDER BY CASE resource_type WHEN ...` (or an equivalent small priority list in application code) achieves the same deterministic order more simply, without a column that could drift out of sync with the manager's intended order. One real future case would justify reintroducing an index — a couples-massage-style bundle needing two `STAFF` at once — but nothing here needs it today, and adding it back later is a simple additive migration, not a reason to carry the column now.
 
 ---
 
@@ -476,3 +483,4 @@ This still leaves exactly one case with no DB backstop: an appointment booked ag
 - **§9.7 (SESSION-type resource pool)** — resolved concretely by `service_class_resource_pool` (service-scoped, not template-scoped — see §6 item 15 for the mid-course correction) plus `class_schedule_template_slots`' resolved pick, generalized to any resource type including `EQUIPMENT`.
 - **§9.8 (`Resource.maxCapacity`)** — deliberately left out of `resources` above; adding it later is a pure additive/expand migration once the product decision is made, so no schema work is blocked on it today.
 - **§9.2–§9.6, §9.9–§9.10** — unaffected by the physical schema; still open at the product/business-rule level, not the data-model level.
+- **§9.13–§9.15** (added 2026-08-05) — the two centralized open questions (CAND-25's waitlist "fit" policy, CAND-26's actor scope) and the resolved no-response-window decision are all use-case/product level, not schema level; no table above is affected either way.

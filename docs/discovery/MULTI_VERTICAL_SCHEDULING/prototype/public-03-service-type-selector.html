@@ -67,7 +67,11 @@
           </div>
           <div style="flex:1;">
             <p class="type-name">Pilates</p>
-            <p class="type-meta">Turmas de até 4 pessoas — a partir de R$ 45,00 por aula</p>
+            <!-- Fixed 2026-08-05: was "a partir de R$ 45,00" (starting from) — Service.price has no
+                 range/tier concept anywhere in the model, and every class_session_bookings example
+                 (MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md §2, sb_1-sb_4) prices Pilates flat at R$60,00.
+                 Corrected to match, and dropped "a partir de" since nothing backs a range. -->
+            <p class="type-meta">Turmas de até 4 pessoas — R$ 60,00 por aula</p>
             <p class="type-next">Próxima turma: hoje, 18:00 (2 vagas)</p>
           </div>
         </a>
@@ -84,7 +88,9 @@
           </div>
           <div style="flex:1;">
             <p class="type-name">CrossFit</p>
-            <p class="type-meta">Turmas de até 20 pessoas — a partir de R$ 60,00 por aula</p>
+            <!-- Fixed 2026-08-05: dropped "a partir de" (same reasoning as the Pilates tile above) —
+                 no range/tier pricing concept exists in the model, so a flat number reads honestly. -->
+            <p class="type-meta">Turmas de até 20 pessoas — R$ 60,00 por aula</p>
             <p class="type-next">Próxima turma: amanhã, 07:00 (12 vagas)</p>
           </div>
         </a>
@@ -99,8 +105,12 @@
             </svg>
           </div>
           <div style="flex:1;">
-            <p class="type-name">Corte e Coloração</p>
-            <p class="type-meta">Atendimento individual, escolha o profissional — a partir de R$ 90,00</p>
+            <!-- Fixed 2026-08-05: this tile said "Corte e Coloração" but links to public-01-staff-picker.html,
+                 which shows a differently-named service — "Corte + Escova — R$ 90,00 — 50 min". Renamed
+                 this tile to match (same price coincided, name didn't) and dropped "a partir de" for the
+                 same no-range-pricing reason as the Pilates/CrossFit tiles above. -->
+            <p class="type-name">Corte + Escova</p>
+            <p class="type-meta">Atendimento individual, escolha o profissional — R$ 90,00, 50 min</p>
             <p class="type-next">Próximo horário: hoje, 15:30</p>
           </div>
         </a>
