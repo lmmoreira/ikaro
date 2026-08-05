@@ -283,6 +283,16 @@ export function bootstrapTracing(
     // are deliberately left at their AlwaysOn default, so a genuinely-sampled parent is still
     // respected. Extracted as createSampler() and unit-tested directly in otel-tracing.spec.ts.
     sampler: createSampler(samplingRate),
+    // metricReaders: [] (M17-S34 follow-up, 2026-08-05 — real staging finding): this bootstrap
+    // is traces-only by design, but NodeSDK has its own independent metrics default —
+    // @opentelemetry/sdk-node falls back to a default OTLP PeriodicExportingMetricReader
+    // whenever OTEL_METRICS_EXPORTER isn't "none" and no metricReaders/metricReader is passed.
+    // The collector's config.yaml has no `metrics:` pipeline (traces-only, deliberately), so
+    // every periodic export attempt hit a genuine 404 (OTLPExporterError: Not Found), logged as
+    // an ERROR every cycle, forever, in both services/envs. An explicit empty array is a
+    // deterministic code-level fix, not an env var to remember per Cloud Run env — see M17-S35's
+    // notes in plan/M17-CLOUD-DEPLOY.md for why that story doesn't need this reader re-enabled.
+    metricReaders: [],
     // spanProcessors, NOT `traceExporter` (M17-S34 follow-up, 2026-08-05 — real staging
     // finding): passing `traceExporter` directly lets NodeSDK silently wrap it in its own
     // default BatchSpanProcessor (timer/size-flushed). The live service has

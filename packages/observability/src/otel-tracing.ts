@@ -113,6 +113,22 @@ export function bootstrapTracing(
     // investigation and why this was so hard to find (every collector/CPU/timeout fix was
     // chasing a red herring).
     sampler: createSampler(samplingRate),
+    // metricReaders: [] (2026-08-05, M17-S34 follow-up — real staging finding): this bootstrap
+    // is traces-only by design (see the file-level doc comment above), but NodeSDK has its own
+    // independent default for metrics — @opentelemetry/sdk-node's getMetricReadersFromEnv()
+    // falls back to a default OTLP PeriodicExportingMetricReader whenever OTEL_METRICS_EXPORTER
+    // isn't set to "none" and neither metricReaders nor metricReader is passed explicitly. Since
+    // this repo never set either, every instance was silently starting a metrics export loop
+    // (default: every 60s) against a collector whose config.yaml has no `metrics:` pipeline
+    // (traces-only, deliberately — see infra/docker/otel-collector/config.yaml) — every export
+    // attempt hit a genuine 404 (OTLPExporterError: Not Found) on the collector's HTTP router,
+    // logged as an ERROR every cycle, forever, in both services, in both environments. An
+    // explicit empty array here is the deterministic, code-level fix (not an env var to
+    // remember to set in every Cloud Run env) — an empty array is truthy, so it short-circuits
+    // NodeSDK's own env-var fallback and disables metrics entirely until M17-S35 (Cloud
+    // Monitoring dashboards/alerts) actually needs them — see that story's notes in
+    // plan/M17-CLOUD-DEPLOY.md for why it doesn't, today, need this reader re-enabled at all.
+    metricReaders: [],
     // Security review follow-up (2026-07-21): a user-provided `url` always wins over the
     // exporter's own environment-derived config (verified against
     // @opentelemetry/otlp-exporter-base's merge precedence) — so explicitly passing `url` here
