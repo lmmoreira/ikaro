@@ -1436,7 +1436,7 @@ The Pub/Sub emulator **does not support** native dead-letter policies. Test DLQ 
 | `deploy-backend` | — | — | — | — | Migrations must pass first; prod requires approval |
 | `deploy-bff` | — | — | — | — | Prod requires approval |
 | `deploy-frontend` | — | — | — | — | Prod requires approval |
-| `deploy-observability` | — | health checks | — | — | Always requires approval |
+| ~~`deploy-observability`~~ | — | — | — | — | **Does not exist** — see `## Deploy — Observability (GCE VM + Docker Compose)`'s banner below; observability is now the M17-S34 collector sidecar, deployed as part of `deploy-backend`/`deploy-bff` |
 
 ---
 

@@ -40,7 +40,7 @@ This document provides a step-by-step operational guide for the entire lifecycle
    - **No New Build:** The *exact same* Docker image from Staging is used.
    - **Production Migrations:** Run migrations against the Prod DB.
    - **Blue/Green or Rolling Update:** Deploy to the Production platform.
-3. **Verification:** Monitor Grafana dashboards and Loki error logs for any spike in errors or latency.
+3. **Verification:** No Grafana/Loki stack is deployed (see `docs/10-OBSERVABILITY_STRATEGY.md`'s file-level banner) — check Cloud Trace for latency/error spans and Cloud Logging for `ERROR`-level entries instead. Dashboards/alerts-as-code (M17-S35) is not yet implemented.
 
 ---
 
@@ -81,10 +81,11 @@ The container platform (GCP Cloud Run) is configured to automatically rollback i
 
 ## 5. Monitoring the Release
 
-During and after deployment, the team monitors the "Release Dashboard" in Grafana:
-- **Success Rate:** Should remain > 99%.
-- **Latency (P99):** Should not increase by more than 10%.
-- **Error Logs:** Check Loki for new `ERROR`-level entries; correlate via `correlationId`.
+> No "Release Dashboard"/Grafana/Loki exists — see `docs/10-OBSERVABILITY_STRATEGY.md`'s file-level banner. Dashboards/alerts-as-code (M17-S35) is not yet implemented.
+
+During and after deployment, the team monitors:
+- **Success Rate / Latency (P99):** Cloud Trace (traces from the OTel SDK + collector sidecar, M17-S33/S34) — should remain > 99% success, P99 not increasing by more than 10%.
+- **Error Logs:** Cloud Logging for new `ERROR`-level entries; correlate via `correlationId` (also promoted to `logging.googleapis.com/trace`/`spanId` for trace↔log linking).
 
 ---
 

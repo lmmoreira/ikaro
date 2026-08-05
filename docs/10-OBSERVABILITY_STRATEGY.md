@@ -1,12 +1,12 @@
 # Observability Strategy - Ikaro
 
-> ⚠️ **Partially superseded by `plan/M17-CLOUD-DEPLOY.md` D9 (2026-07-07), corrected 2026-08-04.** The `## Deployment`, `## Local Development Setup`, `## Prometheus Metrics`, `## Loki Label Strategy`, `## Grafana Dashboards`, and `## Alerting Rules (Email)` sections below describe the original self-hosted GCE VM + Docker Compose stack (Prometheus/Grafana/Loki) — cut in favor of D9's "OTel SDK (OTLP-only) → collector sidecar → GCP managed backends (Cloud Trace, Cloud Monitoring, Cloud Logging)." That self-hosted stack remains a valid *future* option (swap the collector's exporter config — see M17 D9) but is **not** what's deployed today, and several of its supporting files (`docker/docker-compose.observability.yml`, `infrastructure/observability/`) don't exist in this repo. Dashboards/alerts-as-code via Cloud Monitoring is **M17-S35, not yet implemented** — until it lands there is no dashboard or alerting layer in this repo at all; sections describing Grafana dashboards/alerts below are historical reference, not a currently-usable feature. `## NestJS OTel Implementation` (below) **is** current and accurate — that's the real, implemented mechanism (M17-S33 SDK bootstrap, M17-S34 collector sidecar).
+> ⚠️ **Partially superseded by `plan/M17-CLOUD-DEPLOY.md` D9 (2026-07-07), corrected 2026-08-04, 2026-08-05.** The `## Deployment`, `## Local Development Setup`, `## Prometheus Metrics`, `## Loki Label Strategy`, `## Grafana Dashboards`, `## Alerting Rules (Email)`, and `## SLOs (Service Level Objectives)` sections below describe the original self-hosted GCE VM + Docker Compose stack (Prometheus/Grafana/Loki) — cut in favor of D9's "OTel SDK (OTLP-only) → collector sidecar → GCP managed backends (Cloud Trace, Cloud Monitoring, Cloud Logging)." That self-hosted stack remains a valid *future* option (swap the collector's exporter config — see M17 D9) but is **not** what's deployed today, and several of its supporting files (`docker/docker-compose.observability.yml`, `infrastructure/observability/`) don't exist in this repo. Dashboards/alerts-as-code via Cloud Monitoring is **M17-S35, not yet implemented** — until it lands there is no dashboard or alerting layer in this repo at all; sections describing Grafana dashboards/alerts below are historical reference, not a currently-usable feature. `## NestJS OTel Implementation` (below) **is** current and accurate — that's the real, implemented mechanism (M17-S33 SDK bootstrap, M17-S34 collector sidecar).
 
 ## Overview
 
 Observability answers three questions: **is the system healthy?** (metrics), **why did this request fail?** (traces), and **what exactly happened?** (logs). All three must include `tenant_id` so issues can be isolated per car wash company.
 
-**Stack:** Prometheus → metrics · Loki → logs · OTel Collector → telemetry pipeline · Grafana → dashboards + alerts
+**Stack (as originally planned, see the superseded-sections banner above for what's actually deployed today):** Prometheus → metrics · Loki → logs · OTel Collector → telemetry pipeline · Grafana → dashboards + alerts. **Actually deployed (M17-S33/S34):** OTel SDK (traces only) → collector sidecar → Cloud Trace + Cloud Logging. No metrics or dashboard/alerting layer exists yet (M17-S35, not implemented).
 
 ---
 
@@ -354,7 +354,7 @@ export function bootstrapTracing(
 {
   "scripts": {
     "start": "node -r ./dist/tracing.js dist/main.js",
-    "start:dev": "ts-node -r ./src/tracing.ts src/main.ts"
+    "dev": "ts-node --swc -r tsconfig-paths/register -r ./src/tracing.ts src/main.ts"
   }
 }
 ```
@@ -790,7 +790,9 @@ providers:
 
 ## SLOs (Service Level Objectives)
 
-| SLO | Target | Prometheus query |
+> **Targets below are the real objectives; the Prometheus query column is not — see the file-level banner above.** No Prometheus/metrics pipeline is deployed today (M17-S35, Cloud Monitoring dashboards/alerts using log-based metrics, is not yet implemented). Until it lands, these SLOs are not measured by any automated system in this repo.
+
+| SLO | Target | Prometheus query (not currently runnable — no metrics pipeline exists) |
 |---|---|---|
 | **API availability** | ≥ 99.5% over 30 days | `sum(rate(http_requests_total{status_code!~"5.."}[30d])) / sum(rate(http_requests_total[30d]))` |
 | **Booking P99 latency** | < 2s | `histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{route="/bookings",method="POST"}[5m]))` |
@@ -1079,7 +1081,8 @@ NestJS Backend
     │  OTel auto-instruments incoming HTTP → child span (no manual use-case span — manual
     │  business spans stay deferred, see "Manual Span Creation — deferred" above)
     │  AppLogger logs use case start + completion
-    │  Metrics: bookingStatusTransitions.inc({ tenant_id, from, to })
+    │  Metrics (not yet implemented — see "No metrics pipeline exists yet" note below):
+    │  bookingStatusTransitions.inc({ tenant_id, from, to })
     │  Event enters outbox: OutboxPublisher captures the active trace context onto
     │  Envelope.traceContext (TD28) — captured once, here, regardless of inline vs. swept dispatch
     │  Event published: { ...envelope, correlationId }; message.attributes carries traceContext
@@ -1093,7 +1096,8 @@ Pub/Sub → Event Consumer (push or pull, TD28 covers both symmetrically)
     │  Consumer span: ITracingPort.startActiveSpan('pubsub.event.<eventName>') — a transport-layer
     │  span at the dispatch boundary (TD28), not the manual per-use-case business span this
     │  diagram used to (wrongly) imply; those stay deferred same as the backend hop above
-    │  Metrics: loyaltyEntriesCreated.inc({ tenant_id })
+    │  Metrics (not yet implemented — see "No metrics pipeline exists yet" note below):
+    │  loyaltyEntriesCreated.inc({ tenant_id })
     ▼
 stdout (JSON logs)
     ▼
