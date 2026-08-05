@@ -1010,6 +1010,8 @@ jobs:
 
 ## Deploy — Observability (GCE VM + Docker Compose)
 
+> ⚠️ **Superseded, never actually built (corrected 2026-08-04).** Neither `.github/workflows/deploy/deploy-observability.yml` nor `infrastructure/terraform/observability.tf` exists in this repo — the ~300 lines below (through the end of this file, before `## Health Check Contract`) describe a GCE VM + Docker Compose deployment pipeline that was planned for M14 but cut in favor of M17 D9's "OTel SDK → collector sidecar → GCP managed backends" decision. **The real observability CI is:** `.github/workflows/build-otel-collector.yml` (builds/validates/scans the collector image on PRs touching `infra/docker/otel-collector/**`, pushes on merge) plus the collector-sidecar wiring inside `deploy-staging.yml`/`deploy-production.yml`'s existing backend/BFF deploy steps (resolves the collector's digest and deploys it as a second container alongside the app — no separate observability deploy pipeline at all). See `plan/M17-CLOUD-DEPLOY.md` M17-S34 and `infra/docker/otel-collector/README.md` for the real, implemented mechanism. Kept below for historical reference only.
+
 **File:** `.github/workflows/deploy/deploy-observability.yml`
 **Triggers:** push to `main` with `infrastructure/observability/**` changes **OR** `workflow_dispatch`
 

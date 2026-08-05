@@ -10,7 +10,7 @@ This document provides a step-by-step operational guide for the entire lifecycle
 
 ### **Step 1: Local Development**
 1. **Branch:** Create a short-lived branch `feat/UC-xxx-description`.
-2. **Environment:** Run `pnpm infra:up` (`docker/docker-compose.yml`) for a local PostgreSQL, GCP Pub/Sub Emulator, GCS emulator, and Mailhog. (No Prometheus/Grafana service is defined in this compose file — see `package.json`'s `obs:up` script, though note its own target file doesn't currently exist in the repo either.)
+2. **Environment:** Run `pnpm infra:up` (`docker/docker-compose.yml`) for a local PostgreSQL, GCP Pub/Sub Emulator, GCS emulator, and Mailhog. No Prometheus/Grafana/Loki stack exists locally or otherwise (`package.json`'s `obs:up` script was removed 2026-08-04 — it pointed at a compose file that never existed). To see real traces locally, see `docs/10-OBSERVABILITY_STRATEGY.md` § Local Development Setup.
 3. **TDD:** Write a failing test in the `domain` or `application` layer.
 4. **Implement:** Write the minimal code to pass the test.
 5. **Verify:** Run `pnpm test` and `pnpm lint` locally.

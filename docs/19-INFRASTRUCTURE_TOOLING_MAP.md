@@ -233,7 +233,7 @@ Runs as Docker Compose on a single GCE e2-small VM (~$13/month) with a 50 GB per
 
 **Full configuration, dashboard inventory, metric catalog, alerting rules, and OTel NestJS setup:** `docs/10-OBSERVABILITY_STRATEGY.md`.
 
-**Local development:** Run `pnpm obs:up` to start the same stack on your machine (Prometheus on :9090, Grafana on :3010, Loki on :3100). See `docs/23-INFRASTRUCTURE_SETUP.md`.
+**Local development:** `pnpm obs:up` was removed 2026-08-04 — it pointed at a Docker Compose file that never existed in this repo. This section describes a self-hosted stack that was never built; see `docs/10-OBSERVABILITY_STRATEGY.md`'s file-level banner for what's actually deployed (OTel SDK → collector sidecar → Cloud Trace, M17-S33/S34).
 
 ---
 

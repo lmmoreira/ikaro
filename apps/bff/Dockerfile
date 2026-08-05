@@ -59,4 +59,4 @@ EXPOSE 3002
 HEALTHCHECK --interval=10s --timeout=3s --retries=3 \
   CMD wget -qO- http://localhost:3002/v1/health/live || exit 1
 
-CMD ["node", "dist/main.js"]
+CMD ["node", "-r", "./dist/tracing.js", "dist/main.js"]

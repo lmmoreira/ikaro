@@ -19,7 +19,6 @@
     "test:e2e": "pnpm --filter @ikaro/web run e2e",
     "infra:up": "docker compose -f docker/docker-compose.yml up -d",
     "infra:down": "docker compose -f docker/docker-compose.yml down",
-    "obs:up": "docker compose -f docker/docker-compose.observability.yml up -d",
     "db:migrate": "pnpm --filter @ikaro/backend migration:run",
     "db:revert": "pnpm --filter @ikaro/backend migration:revert",
     "db:seed": "pnpm --filter @ikaro/backend seed",

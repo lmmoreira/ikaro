@@ -1,5 +1,7 @@
 # Observability Strategy - Ikaro
 
+> ⚠️ **Partially superseded by `plan/M17-CLOUD-DEPLOY.md` D9 (2026-07-07), corrected 2026-08-04.** The `## Deployment`, `## Local Development Setup`, `## Prometheus Metrics`, `## Loki Label Strategy`, `## Grafana Dashboards`, and `## Alerting Rules (Email)` sections below describe the original self-hosted GCE VM + Docker Compose stack (Prometheus/Grafana/Loki) — cut in favor of D9's "OTel SDK (OTLP-only) → collector sidecar → GCP managed backends (Cloud Trace, Cloud Monitoring, Cloud Logging)." That self-hosted stack remains a valid *future* option (swap the collector's exporter config — see M17 D9) but is **not** what's deployed today, and several of its supporting files (`docker/docker-compose.observability.yml`, `infrastructure/observability/`) don't exist in this repo. Dashboards/alerts-as-code via Cloud Monitoring is **M17-S35, not yet implemented** — until it lands there is no dashboard or alerting layer in this repo at all; sections describing Grafana dashboards/alerts below are historical reference, not a currently-usable feature. `## NestJS OTel Implementation` (below) **is** current and accurate — that's the real, implemented mechanism (M17-S33 SDK bootstrap, M17-S34 collector sidecar).
+
 ## Overview
 
 Observability answers three questions: **is the system healthy?** (metrics), **why did this request fail?** (traces), and **what exactly happened?** (logs). All three must include `tenant_id` so issues can be isolated per car wash company.
@@ -10,6 +12,8 @@ Observability answers three questions: **is the system healthy?** (metrics), **w
 
 ## Deployment
 
+> **Superseded — see the file-level banner above.** The table below (GCE VM + Docker Compose, `deploy-observability.yml`) was never actually built (that workflow file doesn't exist) and is not the real deployment. **What's actually deployed:** backend + BFF run OTel SDK (M17-S33) exporting OTLP to an `otel-collector` Cloud Run sidecar (M17-S34, `infra/docker/otel-collector/`), which exports traces to Cloud Trace directly — see `plan/M17-CLOUD-DEPLOY.md` M17-S33/S34 for the real, implemented deployment.
+
 | Environment | Hosting | How |
 |---|---|---|
 | **Production** | GCE e2-small VM + Docker Compose | Deployed by `deploy-observability.yml` CI pipeline (see `docs/09-CI_CD_PIPELINE.md`) |
@@ -19,6 +23,8 @@ Observability answers three questions: **is the system healthy?** (metrics), **w
 ---
 
 ## Local Development Setup
+
+> **Superseded/broken — see the file-level banner above.** `docker/docker-compose.observability.yml` (referenced by `pnpm obs:up` below) does not exist in this repo; the script is dead (removed 2026-08-04). **To see real traces locally today:** run a local `otel-collector` container directly against `infra/docker/otel-collector/config.yaml` (swap the `googlecloud` exporter for `debug` — no GCP credentials needed locally), then set `OTEL_SDK_DISABLED=false` when starting the app. There is currently no local metrics/logs stack (Prometheus/Loki) — see `## NestJS OTel Implementation` below for the real (traces-only) local verification path.
 
 The observability stack is **optional** locally. Run it when you want to see real metrics, traces, or logs during development. Normal development (writing/testing code) does not require it.
 
@@ -326,7 +332,9 @@ export function bootstrapTracing(
 }
 ```
 
-Because `-r` preloads `tracing.ts` *before* `main.ts` runs, it also runs before NestJS's `ConfigModule` has loaded `.env` — so each app's `tracing.ts` calls `dotenv`'s `config()` itself first (same pattern as `data-source.ts`/`seed.ts`), otherwise `OTEL_EXPORTER_OTLP_ENDPOINT`/`SERVICE_NAME`/`OTEL_SDK_DISABLED` from `.env` are invisible to it in local dev (security review follow-up, 2026-07-21). Cloud Run sets these directly as container env vars, so staging/production are unaffected either way.
+Because `-r` preloads `tracing.ts` *before* `main.ts` runs, it also runs before NestJS's `ConfigModule` has loaded `.env` — so each app's `tracing.ts` calls `dotenv`'s `config()` itself first (same pattern as `data-source.ts`/`seed.ts`), otherwise `OTEL_EXPORTER_OTLP_ENDPOINT`/`SERVICE_NAME`/`OTEL_SDK_DISABLED` from `.env` are invisible to it in local dev (security review follow-up, 2026-07-21). Corrected (2026-08-04, M17-S34 follow-up): staging/production are unaffected, but *not* because Cloud Run sets these directly as container env vars — Terraform sets none of the three. Each has its own fallback that happens to already be correct in Cloud Run: `OTEL_EXPORTER_OTLP_ENDPOINT` falls back to the hardcoded `http://localhost:4318/v1/traces` (correct — the collector sidecar, M17-S34, shares the instance's network namespace), `SERVICE_NAME` falls back to the literal passed into `bootstrapTracing()`, and `OTEL_SDK_DISABLED` falls back to an `APP_ENV` check (`APP_ENV` *is* Terraform-set, unlike the other two).
+
+**Critical prerequisite this section doesn't mention on its own (found only via a real staging deploy, 2026-08-04):** the preload flag above (`-r ./dist/tracing.js`) must actually be part of the **Docker image's runtime `CMD`**, not just `package.json`'s `"start"` script — a plain `CMD ["node", "dist/main.js"]` silently skips tracing entirely, with no error anywhere (the SDK just never starts). Both `apps/backend/Dockerfile` and `apps/bff/Dockerfile` must use `CMD ["node", "-r", "./dist/tracing.js", "dist/main.js"]`. This is exactly what happened in this repo from M17-S33 until it was caught and fixed as an M17-S34 follow-up: tracing had never actually run in any real deployment, because there was no collector sidecar to reveal the silent gap until M17-S34 added one.
 
 Environment variables (Cloud Run `--set-env-vars`, injected per environment by Terraform; `.env` locally):
 
@@ -582,6 +590,8 @@ path or to push-only delivery.
 
 ## Prometheus Metrics
 
+> **Superseded/never built — see the file-level banner above.** Neither `src/shared/observability/metrics.ts` nor `metrics.controller.ts` exists in `apps/backend` or `apps/bff` (verified 2026-08-04), and `prom-client` is not a dependency of either app. This section describes the original M14 plan; it was never implemented, and M17-S35 (Cloud Monitoring dashboards/alerts, not yet built) will use **log-based metrics** derived from structured log fields already emitted (see `docs/ENGINEERING_RULES.md` § gauge vs. event logging), not a custom `/metrics` Prometheus-scrape endpoint. Treat the catalog and code below as a historical design sketch, not a currently-usable API.
+
 ### Naming Convention
 
 ```
@@ -664,6 +674,8 @@ export class MetricsController {
 
 ## Loki Label Strategy
 
+> **Superseded — see the file-level banner above.** No Loki instance is deployed. Structured JSON logs go to `stdout` and are ingested by **Cloud Logging** automatically (Cloud Run captures every container's stdout/stderr) — no collector logs pipeline exists (`infra/docker/otel-collector/config.yaml` has a traces pipeline only). Query via Cloud Logging's own filter syntax, not LogQL — see this doc's `## Log Format Specification` above for the field schema, which is unchanged and still accurate.
+
 Loki uses **labels** for stream identification and **log line fields** for filtering within a stream. Keep labels **low-cardinality** — never use `tenant_id` as a label (thousands of tenants = thousands of streams = Loki performance issues).
 
 ### Labels (low-cardinality, on every stream)
@@ -717,6 +729,8 @@ exporters:
 
 ## Grafana Dashboards
 
+> **Superseded — see the file-level banner above.** No Grafana instance is deployed. M17-S35 (Cloud Monitoring dashboards as Terraform-provisioned JSON) is the real future replacement and is **not yet implemented** — until it lands, there is no dashboard layer in this repo at all. Traces are viewable ad hoc via Cloud Trace's own Trace Explorer in the GCP Console; logs via Cloud Logging's Logs Explorer.
+
 Dashboards are **version-controlled as JSON** in the repo and auto-provisioned by Grafana on startup — never created manually in the UI.
 
 ### Dashboard inventory
@@ -759,6 +773,8 @@ providers:
 ---
 
 ## Alerting Rules (Email)
+
+> **Superseded — see the file-level banner above.** No Grafana alerting is deployed. M17-S35 (Cloud Monitoring alert policies as Terraform — uptime checks, 5xx rate, latency, DLQ depth, etc.) is the real future replacement and is **not yet implemented** — until it lands, there is no automated alerting in this repo at all.
 
 All alerting rules are **provisioned as code** — never create alerts manually in the Grafana UI.
 
@@ -872,14 +888,20 @@ from_name = Ikaro Alerts
 | Staging | 100% | Full visibility before promoting to production |
 | Production | 10% (head-based) | Reduces OTel overhead; enough for latency analysis |
 
-Override for specific routes (always sample health checks = never; always sample errors = yes):
+Health checks are excluded from tracing entirely (`ignoreIncomingRequestHook`, see `## NestJS OTel Implementation` above), not sampled-out.
+
+**Real implementation (`packages/observability/src/otel-tracing.ts`) — reads `OTEL_TRACES_SAMPLER_ARG` directly, never branches on `NODE_ENV`:**
 
 ```typescript
-// tracing.ts — sampler configuration
+// otel-tracing.ts — sampler configuration
+// NODE_ENV is never used here — both staging and prod build with
+// NODE_ENV=production, so it can't distinguish the two environments.
+// OTEL_TRACES_SAMPLER_ARG is set per-environment directly (staging: unset,
+// defaults to 1.0; production: "0.1", Terraform-set — see infra/terraform/envs/prod/main.tf).
+const samplingRate = Number(process.env.OTEL_TRACES_SAMPLER_ARG ?? 1.0);
+
 new ParentBasedSampler({
-  root: new TraceIdRatioBasedSampler(
-    process.env.NODE_ENV === 'production' ? 0.1 : 1.0
-  ),
+  root: new TraceIdRatioBasedSampler(samplingRate),
 })
 ```
 
@@ -889,9 +911,9 @@ new ParentBasedSampler({
 
 | Signal | Retention | Config |
 |---|---|---|
-| Prometheus metrics | 30 days | `--storage.tsdb.retention.time=30d` |
-| Loki logs | 14 days | `retention_period: 14d` in `loki.yml` |
-| Traces | Not stored (OTel → logs) | Post-MVP: add Grafana Tempo for trace storage |
+| Prometheus metrics | N/A — no Prometheus deployed | See file-level banner; superseded |
+| Loki logs | N/A — no Loki deployed | Logs go to Cloud Logging directly; see Cloud Logging's own retention settings |
+| Traces | **Stored in Cloud Trace** (M17-S34) | GCP default retention (30 days); no app-level config — collector's `googlecloud` exporter ships directly, no Grafana Tempo involved |
 
 ---
 
@@ -1048,12 +1070,18 @@ Pub/Sub → Event Consumer (push or pull, TD28 covers both symmetrically)
     ▼
 stdout (JSON logs)
     ▼
-OTel Collector
-    ├── traces  → (future: Grafana Tempo)
-    ├── metrics → Prometheus
-    └── logs    → Loki
+Cloud Logging (Cloud Run captures every container's stdout/stderr directly — logs never pass
+    through the collector; infra/docker/otel-collector/config.yaml has a traces pipeline only)
 
-Grafana
-    ├── Dashboards query Prometheus (metrics) + Loki (logs)
-    └── Alerts → email → alerts@<ikaro-domain>
+Separately — traces only:
+Backend/BFF OTel SDK (M17-S33)
+    ▼  OTLP over localhost:4318 (collector sidecar shares the instance's network namespace)
+otel-collector sidecar (M17-S34)
+    ▼  googlecloud exporter — the only place GCP-specific code appears in this pipeline (D9)
+Cloud Trace
+
+No metrics pipeline exists yet (config.yaml's metrics section is a commented stub for a future
+googlemanagedprometheus exporter). No dashboard/alerting layer exists yet — that's M17-S35, not
+yet implemented. This whole diagram supersedes the Grafana/Prometheus/Loki version this section
+originally described — see the file-level banner at the top of this doc.
 ```
