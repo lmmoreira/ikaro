@@ -451,7 +451,7 @@ On limit exceeded: `429` with the standard RFC 9457 Problem Detail envelope, `co
 | `GOOGLE_CLIENT_ID` | Secret Manager | OAuth client ID from Google Console |
 | `GOOGLE_CLIENT_SECRET` | Secret Manager | OAuth client secret from Google Console |
 | `GOOGLE_CALLBACK_URL` | Cloud Run env | `https://ikaro.online/v1/auth/google/callback` (prod; web-origin gateway) |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | Cloud Run env | OTel Collector URL (from `observability_vm_ip`) |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Not Terraform-set | Falls back to the hardcoded `http://localhost:4318` (`otel-tracing.ts`) — correct because the otel-collector sidecar (M17-S34) shares this instance's network namespace |
 | `SERVICE_NAME` | Cloud Run env | `ikaro-bff` |
 
 **Local `.env.local` values:**
