@@ -332,7 +332,7 @@ export function bootstrapTracing(
 }
 ```
 
-Because `-r` preloads `tracing.ts` *before* `main.ts` runs, it also runs before NestJS's `ConfigModule` has loaded `.env` — so each app's `tracing.ts` calls `dotenv`'s `config()` itself first (same pattern as `data-source.ts`/`seed.ts`), otherwise `OTEL_EXPORTER_OTLP_ENDPOINT`/`SERVICE_NAME`/`OTEL_SDK_DISABLED` from `.env` are invisible to it in local dev (security review follow-up, 2026-07-21). Corrected (2026-08-04, M17-S34 follow-up): staging/production are unaffected, but *not* because Cloud Run sets these directly as container env vars — Terraform sets none of the three. Each has its own fallback that happens to already be correct in Cloud Run: `OTEL_EXPORTER_OTLP_ENDPOINT` falls back to the hardcoded `http://localhost:4318` (correct — the collector sidecar, M17-S34, shares the instance's network namespace), `SERVICE_NAME` falls back to the literal passed into `bootstrapTracing()`, and `OTEL_SDK_DISABLED` falls back to an `APP_ENV` check (`APP_ENV` *is* Terraform-set, unlike the other two).
+Because `-r` preloads `tracing.ts` *before* `main.ts` runs, it also runs before NestJS's `ConfigModule` has loaded `.env` — so each app's `tracing.ts` calls `dotenv`'s `config()` itself first (same pattern as `data-source.ts`/`seed.ts`), otherwise `OTEL_EXPORTER_OTLP_ENDPOINT`/`SERVICE_NAME`/`OTEL_SDK_DISABLED` from `.env` are invisible to it in local dev (security review follow-up, 2026-07-21). Corrected (2026-08-04, M17-S34 follow-up): staging/production are unaffected, but *not* because Cloud Run sets these directly as container env vars — Terraform sets none of the three. Each has its own fallback that happens to already be correct in Cloud Run: `OTEL_EXPORTER_OTLP_ENDPOINT` falls back to the hardcoded `http://localhost:4318/v1/traces` (correct — the collector sidecar, M17-S34, shares the instance's network namespace), `SERVICE_NAME` falls back to the literal passed into `bootstrapTracing()`, and `OTEL_SDK_DISABLED` falls back to an `APP_ENV` check (`APP_ENV` *is* Terraform-set, unlike the other two).
 
 **Critical prerequisite this section doesn't mention on its own (found only via a real staging deploy, 2026-08-04):** the preload flag above (`-r ./dist/tracing.js`) must actually be part of the **Docker image's runtime `CMD`**, not just `package.json`'s `"start"` script — a plain `CMD ["node", "dist/main.js"]` silently skips tracing entirely, with no error anywhere (the SDK just never starts). Both `apps/backend/Dockerfile` and `apps/bff/Dockerfile` must use `CMD ["node", "-r", "./dist/tracing.js", "dist/main.js"]`. This is exactly what happened in this repo from M17-S33 until it was caught and fixed as an M17-S34 follow-up: tracing had never actually run in any real deployment, because there was no collector sidecar to reveal the silent gap until M17-S34 added one.
 
@@ -897,7 +897,7 @@ Health checks are excluded from tracing entirely (`ignoreIncomingRequestHook`, s
 // NODE_ENV is never used here — both staging and prod build with
 // NODE_ENV=production, so it can't distinguish the two environments.
 // OTEL_TRACES_SAMPLER_ARG is set per-environment directly (staging: unset,
-// defaults to 1.0; production: "0.1", Terraform-set — see envs/prod/main.tf).
+// defaults to 1.0; production: "0.1", Terraform-set — see infra/terraform/envs/prod/main.tf).
 const samplingRate = Number(process.env.OTEL_TRACES_SAMPLER_ARG ?? 1.0);
 
 new ParentBasedSampler({

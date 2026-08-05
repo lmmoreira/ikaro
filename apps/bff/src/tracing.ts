@@ -13,7 +13,7 @@ import { bootstrapTracing } from '@ikaro/observability';
 // local dev. Corrected (2026-08-04, M17-S34 follow-up): staging/production are unaffected, but
 // NOT because Cloud Run sets these directly as container env vars — Terraform sets none of the
 // three. Each has its own fallback in otel-tracing.ts/here that happens to already be correct in
-// Cloud Run: OTEL_EXPORTER_OTLP_ENDPOINT falls back to the hardcoded http://localhost:4318
+// Cloud Run: OTEL_EXPORTER_OTLP_ENDPOINT falls back to the hardcoded http://localhost:4318/v1/traces
 // (correct — the M17-S34 collector sidecar shares this instance's network namespace),
 // SERVICE_NAME falls back to the literal passed to bootstrapTracing() below, and
 // OTEL_SDK_DISABLED falls back to an APP_ENV check (APP_ENV IS Terraform-set, unlike the other

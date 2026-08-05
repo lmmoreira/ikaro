@@ -1276,9 +1276,10 @@ pnpm dev
     "infra:down":         "docker-compose -f docker/docker-compose.yml down",
     "infra:logs":         "docker-compose -f docker/docker-compose.yml logs -f",
     "infra:init-pubsub":  "bash docker/pubsub-init.sh",
-    "obs:up":             "docker-compose -f docker/docker-compose.observability.yml up -d",
-    "obs:down":           "docker-compose -f docker/docker-compose.observability.yml down",
-    "obs:logs":           "docker-compose -f docker/docker-compose.observability.yml logs -f",
+    // obs:up/obs:down/obs:logs removed 2026-08-04 — pointed at
+    // docker/docker-compose.observability.yml, which never existed in
+    // this repo. See docs/10-OBSERVABILITY_STRATEGY.md's file-level
+    // banner for what's actually deployed (M17-S33/S34).
     "db:migrate":         "pnpm --filter backend migration:run",
     "db:revert":          "pnpm --filter backend migration:revert",
     "db:reset":           "pnpm infra:down && docker volume rm ikaro_postgres_data && pnpm infra:up && pnpm db:migrate",
@@ -1540,7 +1541,7 @@ Cloud Run deploys reference this GAR path. No GHCR authentication needed at runt
 [ ] Open browser: http://localhost:3000 (hotsite / dashboard)
 [ ] Test OAuth: click "Login with Google" — should redirect to Google and back
 [ ] View emails: http://localhost:8025 (MailHog — catches all outbound email)
-[ ] Optional — start observability: pnpm obs:up, then http://localhost:9090 (Prometheus) / http://localhost:3010 (Grafana)
+[ ] Optional — real traces: see docs/10-OBSERVABILITY_STRATEGY.md § Local Development Setup (pnpm obs:up removed 2026-08-04 — no local Prometheus/Grafana stack exists)
 [ ] Run tests: pnpm test
 [ ] Run linting: pnpm lint
 ```
