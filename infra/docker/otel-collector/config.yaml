@@ -27,7 +27,8 @@ processors:
     detectors: [gcp]
     timeout: 2s
   # No `batch` processor (removed 2026-08-05, M17-S34 follow-up — real staging
-  # finding): its default flush trigger is a 5s wall-clock timer, and this
+  # finding): its flush trigger was a wall-clock timer (explicitly configured
+  # `timeout: 5s` here, not merely the framework default), and this
   # collector runs as a sidecar in the SAME CPU-throttled Cloud Run instance as
   # the app (`run.googleapis.com/cpu-throttling: "true"`). The app side already
   # fixed an identical timer-starvation bug by switching to SimpleSpanProcessor
@@ -66,6 +67,17 @@ exporters:
     # only triggers export from the HTTP response's `close` event (see
     # @opentelemetry/instrumentation-http's `_onServerResponseFinish`), which
     # fires strictly after the response has already been sent to the client.
+    #
+    # `timeout: 5s` (added 2026-08-05, cross-tool review finding on PR #324):
+    # without an explicit bound, a synchronous export blocks for however long
+    # the underlying Google Cloud Go SDK's own internal retry/backoff takes to
+    # give up during a real Cloud Trace outage — undocumented here and
+    # potentially much longer than the ~330-1165ms this took in normal
+    # operation (measured, PR #324). Concurrent spans during an outage would
+    # each hold a blocked connection on the sidecar's small 0.1 vCPU
+    # allocation for that whole window. An explicit timeout caps the worst
+    # case per export without reintroducing the async queue this fix removes.
+    timeout: 5s
     sending_queue:
       enabled: false
 
