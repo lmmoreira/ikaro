@@ -7,7 +7,11 @@ import {
   ATTR_SERVICE_NAME,
   ATTR_DEPLOYMENT_ENVIRONMENT_NAME,
 } from '@opentelemetry/semantic-conventions';
-import { ParentBasedSampler, TraceIdRatioBasedSampler } from '@opentelemetry/sdk-trace-base';
+import {
+  ParentBasedSampler,
+  TraceIdRatioBasedSampler,
+  SimpleSpanProcessor,
+} from '@opentelemetry/sdk-trace-base';
 import { isOtelSdkDisabled } from './otel-sdk-disabled';
 import { redactSensitiveQueryParams, SENSITIVE_QUERY_PARAMS } from './otel-query-redaction';
 
@@ -21,6 +25,25 @@ import { redactSensitiveQueryParams, SENSITIVE_QUERY_PARAMS } from './otel-query
 export interface TracingOptions {
   /** Enables Postgres client instrumentation (backend only — BFF has no DB). */
   postgres?: boolean;
+}
+
+/**
+ * Health-check paths to exclude from tracing — shared across backend (no global
+ * prefix, e.g. `/health/live`) and BFF (global `v1` prefix, e.g. `/v1/health/live`).
+ * Exported and unit-tested directly, not just exercised indirectly through the SDK —
+ * this exact check has already had two real bugs: `.startsWith('/health/')` silently
+ * never matched BFF's prefixed path (2026-08-05, caught only via a real staging
+ * deploy), and a follow-up `.includes('/health/')` matched the substring anywhere in
+ * the full URL, including query-string *values* on unrelated real routes (e.g.
+ * `/v1/bookings?redirect=/health/live`), silently excluding those from tracing too.
+ * Checks the parsed pathname only, against the two known real prefixes.
+ */
+export function isHealthCheckPath(url: string | undefined): boolean {
+  if (!url) {
+    return false;
+  }
+  const pathname = url.split('?')[0] ?? '';
+  return pathname.startsWith('/health/') || pathname.startsWith('/v1/health/');
 }
 
 /**
@@ -71,12 +94,40 @@ export function bootstrapTracing(
     // handling of OTEL_EXPORTER_OTLP_ENDPOINT (auto-appends `v1/traces`). Only fall back to our
     // own hardcoded default when neither var is set, so both standard vars work exactly per
     // OTel's spec in every other case.
-    traceExporter: new OTLPTraceExporter(
-      process.env['OTEL_EXPORTER_OTLP_ENDPOINT'] ||
-        process.env['OTEL_EXPORTER_OTLP_TRACES_ENDPOINT']
-        ? {}
-        : { url: 'http://localhost:4318/v1/traces' },
-    ),
+    //
+    // spanProcessors (not `traceExporter`, which NodeSDK would otherwise silently wrap in its
+    // own default BatchSpanProcessor) — real M17-S34 staging finding, 2026-08-05: every real
+    // business-request trace and every low-volume cron-triggered trace was missing from Cloud
+    // Trace, while only the small fraction of health-check traces from instances that stayed
+    // warm long enough made it through. A local repro with an immediate SIGTERM right after one
+    // span *did* correctly flush a buffered BatchSpanProcessor span (sdk.shutdown() keeps
+    // Node's event loop alive until the flush completes) — so the mechanism isn't simply "5s
+    // window vs. instance teardown". The live service has
+    // `run.googleapis.com/cpu-throttling: "true"` (Cloud Run only allocates CPU while a request
+    // is actively being handled), which a local repro can't reproduce: BatchSpanProcessor's
+    // flush is timer-scheduled, and a timer tick that lands in a CPU-throttled gap simply never
+    // runs, no matter how much wall-clock time passes. SimpleSpanProcessor's export is
+    // triggered synchronously from span.end(), inline within request-handling code — guaranteed
+    // to run during a CPU-allocated window, unlike a timer for some seconds later.
+    //
+    // Tradeoff, acknowledged explicitly (cross-tool review, PR #323): one export call per ended
+    // span (not batched) means a single business request producing several child spans (HTTP +
+    // DB + outbound calls) makes that many separate OTLP calls, all concurrently, instead of one
+    // batched call. Accepted for now: the collector is a sidecar (loopback, not a real network
+    // hop), its own memory_limiter processor is the real backstop against overload, and Cloud
+    // Run's per-instance concurrency cap (80) bounds the worst case. Revisit if real traffic
+    // volume ever makes the extra per-span overhead measurable — batching's benefit only
+    // applies at a volume this deployment doesn't have today.
+    spanProcessors: [
+      new SimpleSpanProcessor(
+        new OTLPTraceExporter(
+          process.env['OTEL_EXPORTER_OTLP_ENDPOINT'] ||
+            process.env['OTEL_EXPORTER_OTLP_TRACES_ENDPOINT']
+            ? {}
+            : { url: 'http://localhost:4318/v1/traces' },
+        ),
+      ),
+    ],
     instrumentations: [
       getNodeAutoInstrumentations({
         '@opentelemetry/instrumentation-fs': { enabled: false }, // too noisy
@@ -86,7 +137,12 @@ export function bootstrapTracing(
           // threw away exactly the span this TD wants a genuine trace-linked child of. Every
           // push delivery now gets a real span like any other HTTP endpoint; prod sampling stays
           // at the existing 10% (D12), bounding volume growth.
-          ignoreIncomingRequestHook: (req) => Boolean(req.url?.startsWith('/health/')),
+          //
+          // isHealthCheckPath (fixed 2026-08-05, M17-S34 follow-up) — see its own doc comment
+          // above for the two real bugs this replaced. Confirmed via Cloud Trace before the fix:
+          // 5 of the only 7 real traces in the whole project were BFF's own GET /v1/health/live
+          // probes, none were real business requests — the opposite of this hook's purpose.
+          ignoreIncomingRequestHook: (req) => isHealthCheckPath(req.url),
           // Covers OUTGOING (client) request spans — the instrumentation redacts these query
           // params itself for url.full/http.url. NOTE: this option *replaces* the
           // instrumentation's own defaults rather than extending them, so
@@ -124,9 +180,9 @@ export function bootstrapTracing(
   // Defaults off locally (APP_ENV=local, including CI which never sets APP_ENV), on in
   // staging/production — see otel-sdk-disabled.ts. OTEL_SDK_DISABLED, when explicitly set,
   // always overrides the default either direction. When enabled, a genuinely unreachable
-  // collector still degrades gracefully on its own: the exporter retries in the background and
-  // never blocks or crashes the app (BatchSpanProcessor default) — diag.setLogger above just
-  // makes that failure visible instead of silent.
+  // collector still degrades gracefully on its own: SimpleSpanProcessor's per-span export call
+  // fails and is dropped async, never blocking or crashing the request it belongs to — diag.setLogger
+  // above just makes that failure visible instead of silent.
   if (!isOtelSdkDisabled(process.env)) {
     sdk.start();
   }
