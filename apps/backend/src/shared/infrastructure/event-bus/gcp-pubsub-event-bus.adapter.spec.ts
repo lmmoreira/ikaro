@@ -255,8 +255,7 @@ describe('GcpPubSubEventBusAdapter', () => {
       )?.[1] as (msg: unknown) => void;
 
       messageHandler({ ack: mockAck, nack: mockNack, deliveryAttempt: 1 });
-      await Promise.resolve();
-      await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 10));
 
       expect(tracingPort.startedSpans).toEqual(['pubsub.trigger.cron-reminders']);
       expect(triggerSpy).toHaveBeenCalledTimes(1);

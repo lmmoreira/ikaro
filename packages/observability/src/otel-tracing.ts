@@ -64,6 +64,50 @@ export function isHealthCheckPath(url: string | undefined): boolean {
 }
 
 /**
+ * Extracted and exported for direct unit testing (2026-08-05, M17-S34 follow-up, cross-tool
+ * review finding on PR #326): asserts the exact shape sent to `OTLPTraceExporter` — in
+ * particular `concurrencyLimit: 200`, which has no other regression coverage and would
+ * otherwise be silently reversible by a future edit. Uses `ConstructorParameters` rather than
+ * importing `OTLPExporterNodeConfigBase` directly from `@opentelemetry/otlp-exporter-base` —
+ * that package is only a transitive dependency of `@opentelemetry/exporter-trace-otlp-http`,
+ * not declared directly in this package's own `package.json`.
+ */
+export function buildOtlpExporterOptions(
+  env: NodeJS.ProcessEnv,
+): NonNullable<ConstructorParameters<typeof OTLPTraceExporter>[0]> {
+  return {
+    // A user-provided `url` always wins over the exporter's own environment-derived config
+    // (verified against @opentelemetry/otlp-exporter-base's merge precedence, security review
+    // follow-up 2026-07-21) — so only pass `url` as a last-resort default when neither
+    // OTEL_EXPORTER_OTLP_ENDPOINT nor the signal-specific OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is
+    // set. Only fall back to our own hardcoded default when neither var is set, so both
+    // standard vars work exactly per OTel's spec in every other case.
+    ...(env['OTEL_EXPORTER_OTLP_ENDPOINT'] || env['OTEL_EXPORTER_OTLP_TRACES_ENDPOINT']
+      ? {}
+      : { url: 'http://localhost:4318/v1/traces' }),
+    // concurrencyLimit (2026-08-05, M17-S34 follow-up — real staging finding, discovered
+    // immediately after fixing the ParentBasedSampler bug): the exporter's own default is 30
+    // simultaneous in-flight exports — once exceeded, NEW exports are rejected outright
+    // ("Concurrent export limit reached"), not queued or retried, and SimpleSpanProcessor never
+    // retries a failed export either. This limit was essentially never hit before the sampler
+    // fix, since the sampler was silently dropping most spans before export was ever attempted.
+    // 200 is sized from the empirically measured rejection pattern at the old default of 30 —
+    // 598 rejections in ~80 minutes on staging, one burst of 500 in 29 seconds — not from a
+    // theoretical worst case. (An earlier version of this comment justified 200 as "headroom
+    // above the 80-request Cloud Run concurrency cap" — that reasoning doesn't actually hold:
+    // the real bound is concurrent *span exports*, not concurrent *requests*, and a single
+    // request can fan out to 20-30 spans, so the true theoretical worst case is far higher than
+    // 80. Cross-tool review finding on PR #326, 2026-08-05.) Real traffic is the only reliable
+    // measure here — this value must be re-verified against live staging traffic after deploy
+    // (near-zero "Concurrent export limit reached" occurrences expected); if rejections recur
+    // at this new ceiling, the fix is a structural backpressure/queueing redesign, not another
+    // arbitrary increase to this number. Self-limiting regardless via each export's own
+    // `timeoutMillis` default (10s), which frees a slot even if a downstream call hangs.
+    concurrencyLimit: 200,
+  };
+}
+
+/**
  * M17-S33 — shared tracing SDK bootstrap for backend + bff. Traces only, OTLP-HTTP only (D9
  * anti-lock-in: no vendor exporter here — the collector, M17-S34, is the only place GCP
  * appears in the whole pipeline). Currently implemented on OpenTelemetry; nothing about this
@@ -129,15 +173,6 @@ export function bootstrapTracing(
     // Monitoring dashboards/alerts) actually needs them — see that story's notes in
     // plan/M17-CLOUD-DEPLOY.md for why it doesn't, today, need this reader re-enabled at all.
     metricReaders: [],
-    // Security review follow-up (2026-07-21): a user-provided `url` always wins over the
-    // exporter's own environment-derived config (verified against
-    // @opentelemetry/otlp-exporter-base's merge precedence) — so explicitly passing `url` here
-    // unconditionally would silently ignore OTEL_EXPORTER_OTLP_TRACES_ENDPOINT (the
-    // signal-specific var, used as-is) and bypass the exporter's own trailing-slash-safe
-    // handling of OTEL_EXPORTER_OTLP_ENDPOINT (auto-appends `v1/traces`). Only fall back to our
-    // own hardcoded default when neither var is set, so both standard vars work exactly per
-    // OTel's spec in every other case.
-    //
     // spanProcessors (not `traceExporter`, which NodeSDK would otherwise silently wrap in its
     // own default BatchSpanProcessor) — real M17-S34 staging finding, 2026-08-05: every real
     // business-request trace and every low-volume cron-triggered trace was missing from Cloud
@@ -157,33 +192,17 @@ export function bootstrapTracing(
     // span (not batched) means a single business request producing several child spans (HTTP +
     // DB + outbound calls) makes that many separate OTLP calls, all concurrently, instead of one
     // batched call. Accepted for now: the collector is a sidecar (loopback, not a real network
-    // hop), its own memory_limiter processor is the real backstop against overload, and Cloud
-    // Run's per-instance concurrency cap (80) bounds the worst case. Revisit if real traffic
-    // volume ever makes the extra per-span overhead measurable — batching's benefit only
-    // applies at a volume this deployment doesn't have today.
+    // hop), its own memory_limiter processor is the real backstop against overload, and
+    // OTLPTraceExporter's own concurrencyLimit (see buildOtlpExporterOptions() above) is the
+    // backstop against unbounded concurrent exports specifically — not Cloud Run's per-instance
+    // request concurrency cap (80), which bounds concurrent *requests*, not concurrent *span
+    // exports*; a single request can fan out to 20-30 spans, so the two aren't the same number
+    // (cross-tool review finding on PR #326, 2026-08-05 — an earlier version of this comment
+    // conflated them). Revisit if real traffic volume ever makes the extra per-span overhead
+    // measurable — batching's benefit only applies at a volume this deployment doesn't have
+    // today.
     spanProcessors: [
-      new SimpleSpanProcessor(
-        new OTLPTraceExporter({
-          ...(process.env['OTEL_EXPORTER_OTLP_ENDPOINT'] ||
-          process.env['OTEL_EXPORTER_OTLP_TRACES_ENDPOINT']
-            ? {}
-            : { url: 'http://localhost:4318/v1/traces' }),
-          // concurrencyLimit (2026-08-05, M17-S34 follow-up — real staging finding, discovered
-          // immediately after fixing the ParentBasedSampler bug above): the exporter's own
-          // default is 30 simultaneous in-flight exports — once exceeded, NEW exports are
-          // rejected outright ("Concurrent export limit reached"), not queued or retried, and
-          // SimpleSpanProcessor never retries a failed export either. This limit was essentially
-          // never hit before the sampler fix, since the sampler was silently dropping most spans
-          // before export was ever attempted. Once fixed, real traffic correctly generates far
-          // more concurrent exports — a single request can have 20-30 child spans, and Cloud
-          // Run's own per-instance request concurrency cap is 80 — so bursts routinely exceeded
-          // 30: 598 rejections measured in ~80 minutes on staging, one burst of 500 in 29
-          // seconds. 200 gives real headroom above the 80-request cap while staying a bounded,
-          // sane value — self-limiting regardless via each export's own `timeoutMillis` default
-          // (10s), which frees a slot even if a downstream call hangs.
-          concurrencyLimit: 200,
-        }),
-      ),
+      new SimpleSpanProcessor(new OTLPTraceExporter(buildOtlpExporterOptions(process.env))),
     ],
     instrumentations: [
       getNodeAutoInstrumentations({
