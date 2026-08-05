@@ -28,6 +28,25 @@ export interface TracingOptions {
 }
 
 /**
+ * Health-check paths to exclude from tracing — shared across backend (no global
+ * prefix, e.g. `/health/live`) and BFF (global `v1` prefix, e.g. `/v1/health/live`).
+ * Exported and unit-tested directly, not just exercised indirectly through the SDK —
+ * this exact check has already had two real bugs: `.startsWith('/health/')` silently
+ * never matched BFF's prefixed path (2026-08-05, caught only via a real staging
+ * deploy), and a follow-up `.includes('/health/')` matched the substring anywhere in
+ * the full URL, including query-string *values* on unrelated real routes (e.g.
+ * `/v1/bookings?redirect=/health/live`), silently excluding those from tracing too.
+ * Checks the parsed pathname only, against the two known real prefixes.
+ */
+export function isHealthCheckPath(url: string | undefined): boolean {
+  if (!url) {
+    return false;
+  }
+  const pathname = url.split('?')[0] ?? '';
+  return pathname.startsWith('/health/') || pathname.startsWith('/v1/health/');
+}
+
+/**
  * M17-S33 — shared tracing SDK bootstrap for backend + bff. Traces only, OTLP-HTTP only (D9
  * anti-lock-in: no vendor exporter here — the collector, M17-S34, is the only place GCP
  * appears in the whole pipeline). Currently implemented on OpenTelemetry; nothing about this
@@ -89,9 +108,16 @@ export function bootstrapTracing(
     // flush is timer-scheduled, and a timer tick that lands in a CPU-throttled gap simply never
     // runs, no matter how much wall-clock time passes. SimpleSpanProcessor's export is
     // triggered synchronously from span.end(), inline within request-handling code — guaranteed
-    // to run during a CPU-allocated window, unlike a timer for some seconds later. This traffic
-    // volume (a handful of requests per cold-start instance) never benefits from batching's
-    // amortized-HTTP-calls upside anyway, so there's no real tradeoff being made here.
+    // to run during a CPU-allocated window, unlike a timer for some seconds later.
+    //
+    // Tradeoff, acknowledged explicitly (cross-tool review, PR #323): one export call per ended
+    // span (not batched) means a single business request producing several child spans (HTTP +
+    // DB + outbound calls) makes that many separate OTLP calls, all concurrently, instead of one
+    // batched call. Accepted for now: the collector is a sidecar (loopback, not a real network
+    // hop), its own memory_limiter processor is the real backstop against overload, and Cloud
+    // Run's per-instance concurrency cap (80) bounds the worst case. Revisit if real traffic
+    // volume ever makes the extra per-span overhead measurable — batching's benefit only
+    // applies at a volume this deployment doesn't have today.
     spanProcessors: [
       new SimpleSpanProcessor(
         new OTLPTraceExporter(
@@ -112,16 +138,11 @@ export function bootstrapTracing(
           // push delivery now gets a real span like any other HTTP endpoint; prod sampling stays
           // at the existing 10% (D12), bounding volume growth.
           //
-          // .includes(), not .startsWith() (fixed 2026-08-05, M17-S34 follow-up): this file is
-          // shared between backend (bare /health/live, /health/ready — no global prefix) and BFF
-          // (/v1/health/live, /v1/health/ready — global 'v1' prefix). .startsWith('/health/')
-          // only ever matched backend's path; BFF's own health-check probes (every 10s, per the
-          // Cloud Run startup/liveness probe interval) were silently NOT excluded, the opposite
-          // of this hook's purpose. Confirmed via Cloud Trace: 5 of 7 real traces in the project
-          // were BFF's GET /v1/health/live, none were real business requests. .includes() is
-          // safe against false positives — neither app has any other route containing "health"
-          // as a substring (verified 2026-08-05).
-          ignoreIncomingRequestHook: (req) => Boolean(req.url?.includes('/health/')),
+          // isHealthCheckPath (fixed 2026-08-05, M17-S34 follow-up) — see its own doc comment
+          // above for the two real bugs this replaced. Confirmed via Cloud Trace before the fix:
+          // 5 of the only 7 real traces in the whole project were BFF's own GET /v1/health/live
+          // probes, none were real business requests — the opposite of this hook's purpose.
+          ignoreIncomingRequestHook: (req) => isHealthCheckPath(req.url),
           // Covers OUTGOING (client) request spans — the instrumentation redacts these query
           // params itself for url.full/http.url. NOTE: this option *replaces* the
           // instrumentation's own defaults rather than extending them, so

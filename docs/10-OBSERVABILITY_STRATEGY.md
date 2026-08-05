@@ -219,12 +219,25 @@ import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentation
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME, ATTR_DEPLOYMENT_ENVIRONMENT_NAME } from '@opentelemetry/semantic-conventions';
-import { ParentBasedSampler, TraceIdRatioBasedSampler } from '@opentelemetry/sdk-trace-base';
+import { ParentBasedSampler, TraceIdRatioBasedSampler, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { redactSensitiveQueryParams, SENSITIVE_QUERY_PARAMS } from './otel-query-redaction';
 
 export interface TracingOptions {
   /** Enables Postgres client instrumentation (backend only — BFF has no DB). */
   postgres?: boolean;
+}
+
+// Health-check paths to exclude from tracing — shared across backend (no global prefix,
+// e.g. `/health/live`) and BFF (global `v1` prefix, e.g. `/v1/health/live`). Exported and
+// unit-tested directly — this check has already had two real bugs: `.startsWith('/health/')`
+// silently never matched BFF's prefixed path (caught only via a real staging deploy, M17-S34
+// follow-up, 2026-08-05), and a follow-up `.includes('/health/')` matched the substring
+// anywhere in the full URL, including query-string *values* on unrelated real routes. Checks
+// the parsed pathname only, against the two known real prefixes.
+export function isHealthCheckPath(url: string | undefined): boolean {
+  if (!url) return false;
+  const pathname = url.split('?')[0] ?? '';
+  return pathname.startsWith('/health/') || pathname.startsWith('/v1/health/');
 }
 
 export function bootstrapTracing(
@@ -251,17 +264,31 @@ export function bootstrapTracing(
     sampler: new ParentBasedSampler({
       root: new TraceIdRatioBasedSampler(samplingRate),
     }),
-    // A user-provided `url` always wins over the exporter's own environment-derived config
-    // (verified against @opentelemetry/otlp-exporter-base's merge precedence, security review
-    // follow-up 2026-07-21) — so only pass `url` as a last-resort default when neither
-    // OTEL_EXPORTER_OTLP_ENDPOINT nor the signal-specific OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is
-    // set. Otherwise the exporter's own env resolution handles both vars correctly, including
-    // trailing-slash normalization.
-    traceExporter: new OTLPTraceExporter(
-      process.env.OTEL_EXPORTER_OTLP_ENDPOINT || process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
-        ? {}
-        : { url: 'http://localhost:4318/v1/traces' },
-    ),
+    // spanProcessors, NOT `traceExporter` (M17-S34 follow-up, 2026-08-05 — real staging
+    // finding): passing `traceExporter` directly lets NodeSDK silently wrap it in its own
+    // default BatchSpanProcessor (timer/size-flushed). The live service has
+    // `run.googleapis.com/cpu-throttling: "true"` — Cloud Run only allocates CPU while a
+    // request is actively being handled — so a timer-scheduled flush landing in a
+    // CPU-throttled gap simply never runs; every real business-request and cron-triggered
+    // trace was missing from Cloud Trace as a result. SimpleSpanProcessor exports each span
+    // synchronously from span.end(), inline within request-handling code that's guaranteed to
+    // have CPU. Tradeoff, accepted: one export call per span instead of batched — fine at this
+    // traffic volume, with the collector sidecar on loopback and its own memory_limiter as the
+    // real overload backstop.
+    spanProcessors: [
+      new SimpleSpanProcessor(
+        new OTLPTraceExporter(
+          // A user-provided `url` always wins over the exporter's own environment-derived
+          // config (verified against @opentelemetry/otlp-exporter-base's merge precedence,
+          // security review follow-up 2026-07-21) — so only pass `url` as a last-resort
+          // default when neither OTEL_EXPORTER_OTLP_ENDPOINT nor the signal-specific
+          // OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is set.
+          process.env.OTEL_EXPORTER_OTLP_ENDPOINT || process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+            ? {}
+            : { url: 'http://localhost:4318/v1/traces' },
+        ),
+      ),
+    ],
     instrumentations: [
       getNodeAutoInstrumentations({
         '@opentelemetry/instrumentation-fs': { enabled: false },   // too noisy
@@ -271,7 +298,7 @@ export function bootstrapTracing(
           // away exactly the span needed to link a Pub/Sub-delivered event's consumer-side
           // processing back to the original request's trace. Every push delivery now gets a
           // real span like any other HTTP endpoint.
-          ignoreIncomingRequestHook: (req) => Boolean(req.url?.startsWith('/health/')),
+          ignoreIncomingRequestHook: (req) => isHealthCheckPath(req.url),
           // SECURITY (added post-review, 2026-07-21): covers OUTGOING (client) spans — the
           // instrumentation redacts these query params itself for url.full/http.url. This
           // option *replaces* the instrumentation's own defaults rather than extending them,
@@ -316,7 +343,7 @@ export function bootstrapTracing(
 }
 ```
 
-**Disabled by default locally, enabled by default in staging/production** (`otel-sdk-disabled.ts`) — keyed on `APP_ENV`, not a flat default. Staging/prod always have the collector sidecar present (M17-S34), so tracing should be on there with nothing to remember to flip; local dev (and CI, which never sets `APP_ENV` either — both fall through to the schema default `'local'`) has no collector unless a dev opts into `pnpm obs`, so attempting to start there just produces failed-export WARN noise once `diag.setLogger` was added. `OTEL_SDK_DISABLED`, when explicitly set to `"true"`/`"false"`, always overrides the default either direction — e.g. set it to `"false"` locally to test against a `pnpm obs` collector. When enabled, a genuinely unreachable collector still degrades gracefully on its own: the exporter retries in the background and never blocks or crashes the app (`BatchSpanProcessor` default) — `diag.setLogger` above just makes that failure visible instead of silent.
+**Disabled by default locally, enabled by default in staging/production** (`otel-sdk-disabled.ts`) — keyed on `APP_ENV`, not a flat default. Staging/prod always have the collector sidecar present (M17-S34), so tracing should be on there with nothing to remember to flip; local dev (and CI, which never sets `APP_ENV` either — both fall through to the schema default `'local'`) has no collector unless a dev opts into `pnpm obs`, so attempting to start there just produces failed-export WARN noise once `diag.setLogger` was added. `OTEL_SDK_DISABLED`, when explicitly set to `"true"`/`"false"`, always overrides the default either direction — e.g. set it to `"false"` locally to test against a real local collector. When enabled, a genuinely unreachable collector still degrades gracefully on its own: `SimpleSpanProcessor`'s per-span export call fails and is dropped async, never blocking or crashing the request it belongs to — `diag.setLogger` above just makes that failure visible instead of silent.
 
 **Query-string redaction is mandatory, not optional.** Any route that receives a secret as a query param (OAuth `code`/`state`, a signed link, a password-reset token) will otherwise have that secret captured verbatim in trace span attributes and shipped to the collector/trace backend, readable by anyone with telemetry access and retained for as long as traces are retained — far longer than the secret's own validity window. `SENSITIVE_QUERY_PARAMS` in `otel-query-redaction.ts` is a block-list; when adding a new route with a sensitive query param, add its param name there rather than assuming redaction is automatic.
 
