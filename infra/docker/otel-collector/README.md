@@ -20,6 +20,10 @@ There is no manual Terraform edit and no manual `terraform apply` in this loop �
 
 If you want the new collector image live *immediately*, without waiting for the next unrelated backend/BFF deploy, trigger `deploy-staging.yml` manually via `workflow_dispatch` (or `deploy-production.yml`'s equivalent promotion flow) after step 3 completes.
 
+## No `batch` processor, no async `sending_queue` — deliberate, not an oversight
+
+The traces pipeline in `config.yaml` has neither. Both are timer/async-worker patterns, and this collector runs as a sidecar on the same `run.googleapis.com/cpu-throttling: "true"` Cloud Run instance as the app — a flush that depends on a background timer or queue worker can be silently starved the same way the app-side `BatchSpanProcessor` was, just in a different container. Before "helpfully" re-adding batching for throughput: read `docs/ENGINEERING_RULES.md` § Cloud Run CPU throttling — timer/async work can be silently starved (sidecars included) first — it documents the ~73% trace-loss measurement that led to removing it, and the always-allocated-CPU alternative that was considered and rejected on cost.
+
 ## Local validation
 
 ```bash
