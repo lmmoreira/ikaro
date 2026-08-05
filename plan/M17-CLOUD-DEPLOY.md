@@ -1271,7 +1271,7 @@ Old M14-S01 preserved with the anti-lock-in rule: **only OTLP exporters in code*
 
 ---
 
-### M17-S34 — OTel Collector sidecar (the vendor boundary)
+### M17-S34 — OTel Collector sidecar (the vendor boundary) ✅ Done
 
 **Agent:** `devops`
 **Complexity:** M
@@ -1293,7 +1293,7 @@ The collector is where GCP appears — and the only place. Build a pinned image 
 Runtime SA already has `cloudtrace.agent` (S17) — no new IAM needed.
 
 **Acceptance criteria:**
-- [ ] Staging: a real request appears as a trace in Cloud Trace with `tenant.id` attribute, and its log lines link to it (S05 correlation) in Logs Explorer
+- [x] Staging: a real request appears as a trace in Cloud Trace with `tenant.id` attribute, and its log lines link to it (S05 correlation) in Logs Explorer — verified 2026-08-05 against live staging data (PR #322 fixed the Dockerfile CMD gap that had silently prevented the SDK from ever starting): real traces confirmed in Cloud Trace, and log entries confirmed carrying the correct top-level `trace`/`spanId` LogEntry fields (`gcp-log-vendor-formatter.ts`'s `logging.googleapis.com/trace`/`spanId`), e.g. `trace: projects/ikaro-staging/traces/63bfba2d905bb28c994207cca02cea26`
 - [x] Collector memory-bounded; app boots even if collector crashes (graceful degradation from S33) — no `depends_on`/`startup_probe` gates the app container on the sidecar (see design note above); proven via a docker-compose reproduction, not just asserted
 - [x] Prod sampling at 10% (env-controlled) — cost note recorded; `OTEL_TRACES_SAMPLER_ARG = "0.1"` added to prod backend + BFF (found missing entirely during implementation — the schema's 1.0 default had no Terraform override anywhere, staging or prod)
 - [x] Dedicated `infra/docker/otel-collector/**`-triggered workflow builds, validates, and pushes `:latest` (+ commit SHA) to GAR on push to `main`, and also builds/validates/scans (no push) on every PR touching this directory — decoupled from `deploy-staging.yml`'s own `apps/**`-scoped trigger
