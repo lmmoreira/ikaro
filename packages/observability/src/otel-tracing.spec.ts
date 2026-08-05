@@ -1,6 +1,6 @@
 import { ROOT_CONTEXT, trace, SpanKind, TraceFlags, type SpanContext } from '@opentelemetry/api';
 import { SamplingDecision } from '@opentelemetry/sdk-trace-base';
-import { createSampler, isHealthCheckPath } from './otel-tracing';
+import { buildOtlpExporterOptions, createSampler, isHealthCheckPath } from './otel-tracing';
 
 describe('isHealthCheckPath', () => {
   it('matches backend health-check paths (no global prefix)', () => {
@@ -82,5 +82,29 @@ describe('createSampler', () => {
   it('still respects a genuinely-sampled remote parent even at ratio 0 — remoteParentSampled is deliberately left at its AlwaysOn default, only the NotSampled cases are overridden, so an already-in-progress upstream-sampled trace is never broken mid-way', () => {
     const sampledParent = contextWithParent({ isRemote: true, traceFlags: TraceFlags.SAMPLED });
     expect(decide(0, sampledParent)).toBe(SamplingDecision.RECORD_AND_SAMPLED);
+  });
+});
+
+describe('buildOtlpExporterOptions', () => {
+  it('sets concurrencyLimit: 200 — cross-tool review finding on PR #326, this had no regression coverage', () => {
+    expect(buildOtlpExporterOptions({}).concurrencyLimit).toBe(200);
+  });
+
+  it('falls back to the hardcoded localhost URL when neither OTEL_EXPORTER_OTLP_ENDPOINT nor the signal-specific var is set', () => {
+    expect(buildOtlpExporterOptions({}).url).toBe('http://localhost:4318/v1/traces');
+  });
+
+  it('omits the hardcoded url when the generic OTEL_EXPORTER_OTLP_ENDPOINT is set — lets the exporter derive it per spec', () => {
+    const options = buildOtlpExporterOptions({
+      OTEL_EXPORTER_OTLP_ENDPOINT: 'http://collector:4318',
+    });
+    expect(options.url).toBeUndefined();
+  });
+
+  it('omits the hardcoded url when the signal-specific OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is set', () => {
+    const options = buildOtlpExporterOptions({
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: 'http://collector:4318/v1/traces',
+    });
+    expect(options.url).toBeUndefined();
   });
 });

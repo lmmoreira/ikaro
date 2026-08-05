@@ -243,6 +243,24 @@ describe('GcpPubSubEventBusAdapter', () => {
       expect(handlerSpy).toHaveBeenCalledTimes(1);
     });
 
+    it('wraps the trigger handler call in a named span (M17-S34 follow-up, pull mode, 2026-08-05)', async () => {
+      const tracingPort = new FakeTracingPort();
+      adapter = new GcpPubSubEventBusAdapter(makeConfigService(), tracingPort);
+      const triggerSpy = jest.fn().mockResolvedValue(undefined);
+      adapter.registerTrigger('cron-reminders', triggerSpy, 'booking-reminder');
+      await adapter.onApplicationBootstrap();
+
+      const messageHandler = mockSubOn.mock.calls.find(
+        (c: unknown[]) => c[0] === 'message',
+      )?.[1] as (msg: unknown) => void;
+
+      messageHandler({ ack: mockAck, nack: mockNack, deliveryAttempt: 1 });
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(tracingPort.startedSpans).toEqual(['pubsub.trigger.cron-reminders']);
+      expect(triggerSpy).toHaveBeenCalledTimes(1);
+    });
+
     it('nacks message when handler throws and attempt is below threshold', async () => {
       const throwingHandler = async (_e: DomainEvent): Promise<void> => {
         throw new Error('boom');
@@ -412,7 +430,7 @@ describe('GcpPubSubEventBusAdapter', () => {
         expect(handlerSpy).toHaveBeenCalledTimes(1);
       });
 
-      it('does not wrap the trigger handler call in a span — cron triggers are out of TD28 scope', async () => {
+      it('wraps the trigger handler call in a named span (M17-S34 follow-up, 2026-08-05)', async () => {
         const tracingPort = new FakeTracingPort();
         adapter = new GcpPubSubEventBusAdapter(
           makeConfigService({ PUBSUB_CONSUMER_MODE: 'push', PUBSUB_AUTO_CREATE: false }),
@@ -427,7 +445,7 @@ describe('GcpPubSubEventBusAdapter', () => {
           Buffer.from('{}').toString('base64'),
         );
 
-        expect(tracingPort.startedSpans).toEqual([]);
+        expect(tracingPort.startedSpans).toEqual(['pubsub.trigger.cron-reminders']);
         expect(triggerSpy).toHaveBeenCalledTimes(1);
       });
 
