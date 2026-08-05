@@ -441,6 +441,29 @@ CAND-XX: [Name]
 - **Postconditions:** One `ClassSessionBooking` row consuming N units — distinct from N separate customer bookings filling the same class.
 - **Events Triggered:** `ClassSessionBookingConfirmed`.
 
+### **CAND-23b: Customer Cancels a Single (Non-Recurring) Class Session Booking**
+
+> Added 2026-08-05 — this is the direct SESSION-family analog of `UC-007`, and until now the single most basic cancellation flow was entirely absent from this group: nothing let a customer cancel a plain `ClassSessionBooking` made via `CAND-22`/`CAND-23`. `CAND-27` only cancels *one occurrence of a `RecurringEnrollment`* (its precondition requires a `seriesId` to already exist) — Fernanda's booking (`sb_1`, `seriesId = null`, `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §2) had no cancellation path at all until this candidate. Introduces a new tenant setting, `tenants.settings.booking.classCancellationWindowHours`, deliberately separate from `Booking`'s own `cancellationWindowHours` — a studio/gym's late-cancel window for a class is commonly different, often shorter, than a private appointment's, and a capacity-constrained class with an active waitlist has a real cost a private 1:1 slot doesn't share the same way (see `MULTI_VERTICAL_SCHEDULING.md` §6 "Cancellation").
+
+- **Actor:** Customer or Guest (mirrors `CAND-22`/`CAND-23`'s booking actor — whoever could book it can cancel it)
+- **Preconditions:** `ClassSessionBooking` exists, `status = CONFIRMED`, `seriesId = null` (a plain one-off booking — cancelling one occurrence of a *recurring* enrollment is `CAND-27`'s job; cancelling the whole enrollment is `CAND-28`'s). Time to `ClassSession.startTime` ≥ `tenants.settings.booking.classCancellationWindowHours`.
+- **Trigger:** Customer clicks "Cancelar" on an upcoming class booking (e.g. in "Minha Conta").
+- **Main Flow:**
+  1. System validates `session.startTime − now() ≥ tenants.settings.booking.classCancellationWindowHours`. If not, returns error (A1).
+  2. Customer sees confirmation: "Cancelar esta aula?"
+  3. Customer confirms.
+  4. System transitions the booking `CONFIRMED → CANCELLED` and frees its `quantity` back to `ClassSession.bookedCount`.
+  5. System promotes the earliest-queued `WAITLISTED` booking on the same session, if any (`CAND-25`).
+  6. System publishes `ClassSessionBookingCancelled` (candidate event, mirrors `BookingCancelled`).
+  7. Customer sees success: "Sua vaga foi cancelada."
+- **Alternative Flows:**
+  - **A1: Inside the cancellation window** → System shows error: "Cancelamentos devem ser feitos com pelo menos `classCancellationWindowHours` horas de antecedência."
+  - **A2: Booking is `WAITLISTED`, not `CONFIRMED`** → No time restriction — a waitlist entry occupies no real capacity, so it can be withdrawn any time before the session starts. Transitions straight to `CANCELLED`; no promotion is triggered (nothing to free).
+  - **A3: Booking has `seriesId != null`** → System redirects to `CAND-27` (skip one occurrence) or `CAND-28` (cancel the whole enrollment) — this flow is for one-off bookings only.
+  - **A4: Staff/manager cancels on the customer's behalf** (e.g. a phone request) → Same mechanism, no separate use case: `STAFF | MANAGER` can perform this from the session roster (`staff-02-session-roster.html`), bypassing the customer-facing copy but still subject to the same `classCancellationWindowHours` check — mirrors `UC-008`'s admin-initiated pattern for `Booking`.
+- **Postconditions:** Booking is `CANCELLED`; freed capacity offered to the waitlist if one exists.
+- **Events Triggered:** `ClassSessionBookingCancelled` (candidate event, not yet in `docs/03-DOMAIN_EVENTS.md`).
+
 ### **CAND-24: Customer Joins a Waitlist When a Session Is Full**
 
 - **Actor:** Customer or Guest
@@ -465,7 +488,8 @@ CAND-XX: [Name]
   3. Promotes it to `CONFIRMED` — no position bookkeeping to shift; queue order is derived at read time, never stored (§6 item 8 of the data-model doc).
   4. Publishes `WaitlistPromoted` for Notification Context.
 - **Alternative Flows:**
-  - **A1: Freed capacity < next waitlisted entry's `quantity`** → Skip to the next entry that fits, or hold the capacity open if none fit (matches a common "first that fits" queue policy — worth confirming against business expectations before building).
+  - **A1: Freed capacity < next waitlisted entry's `quantity`** → Skip to the next entry that fits, or hold the capacity open if none fit (matches a common "first that fits" queue policy). Centralized as an open question — `MULTI_VERTICAL_SCHEDULING.md` §9 item 13 — rather than left only here.
+  - **A2 (considered, deliberately not built): a response/decline window before promotion is final.** Promotion is immediate and unconditional — no "confirm within N hours or we move to the next person" step. Resolved 2026-08-05, `MULTI_VERTICAL_SCHEDULING.md` §9 item 15: keeps this extension's scope contained, and mirrors how today's booking flow also has no accept-step on a fresh booking.
 - **Postconditions:** Waitlisted customer becomes `CONFIRMED`; notified.
 - **Events Triggered:** `WaitlistPromoted` (candidate event).
 
@@ -484,7 +508,7 @@ CAND-XX: [Name]
 
 ### **CAND-26: Customer Enrolls in a Recurring Weekly Session**
 
-- **Actor:** Customer or Guest (likely Customer-only in practice, given the ongoing relationship — worth confirming)
+- **Actor:** Customer or Guest (likely Customer-only in practice, given the ongoing relationship — open question, centralized at `MULTI_VERTICAL_SCHEDULING.md` §9 item 14 rather than left only here)
 - **Preconditions:** Template exists and is active.
 - **Trigger:** Customer opts into "book this every week" instead of a single session.
 - **Main Flow:**
