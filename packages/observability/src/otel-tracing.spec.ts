@@ -13,9 +13,9 @@ describe('isHealthCheckPath', () => {
 
   it('does not match a real route whose query string happens to contain a health-check-looking value — the .includes() regression this fixes', () => {
     expect(isHealthCheckPath('/v1/bookings?redirect=/health/live')).toBe(false);
-    expect(isHealthCheckPath('/services/019f9e4e-7d01-74ad-ae3f-4bf4450b2e92?next=/v1/health/ready')).toBe(
-      false,
-    );
+    expect(
+      isHealthCheckPath('/services/019f9e4e-7d01-74ad-ae3f-4bf4450b2e92?next=/v1/health/ready'),
+    ).toBe(false);
   });
 
   it('does not match unrelated real routes', () => {
