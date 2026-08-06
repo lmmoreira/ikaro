@@ -94,6 +94,16 @@ processors:
   # follow-up (see `infra/docker/otel-collector/README.md`), not silently
   # accepted as solved.
   #
+  # Extended observation (2026-08-06, same day, ~2 hours total): the actual
+  # rate is low. 363 total requests, 2 loss events total (both within the
+  # first 77 minutes), zero since, despite continued real traffic including
+  # a deliberate ~100-request stress test. And even during a loss event, the
+  # TRACE itself still shows up in Cloud Trace (the request-level span
+  # survives) — what's missing is depth: the child spans showing what the
+  # handler actually did internally, not the trace's existence. This is a
+  # real, low-frequency intermittent gap (~1 in ~180 requests observed so
+  # far, small sample), not a persistent or worsening one.
+  #
   # Known, NOT fully mitigated risks with this configuration (deliberately
   # not glossed over):
   # - Below `send_batch_size` (50), a batch's only flush trigger is this
