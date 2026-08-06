@@ -42,33 +42,73 @@ processors:
   # under doesn't reflect steady real traffic.
   #
   # Once the sampler bug and the exporter's own `concurrencyLimit` were both
-  # fixed (PR #325, PR #326), a NEW, unrelated problem appeared: Cloud
-  # Trace's write API has a documented, per-project quota of 4,800 requests
-  # per 60 seconds (80 req/s) — https://docs.cloud.google.com/trace/docs/quotas.
-  # With one synchronous export call per span (no batching) and real traffic
-  # flowing, a single burst of ordinary dashboard traffic (~4 HTTP requests,
-  # each fanning out to 15-20+ spans) produced 71 simultaneous export calls
-  # within ~300ms — an instantaneous rate of ~237 req/s, nearly 3x the quota
-  # — causing Cloud Trace to throttle and the exporter's `timeout: 2s` to
-  # trip, permanently losing all 71 spans (no retry — see the exporter's own
-  # `sending_queue` comment below). This is a hard external ceiling, not a
-  # resource-contention problem — more CPU/memory would not have fixed it.
+  # fixed (PR #325, PR #326), a NEW round of "context deadline exceeded"
+  # export failures appeared under real traffic — 71 spans lost in one
+  # ~300ms burst from just 4 ordinary HTTP requests. The first hypothesis
+  # was Cloud Trace's documented per-project write-API quota (4,800
+  # requests/60s) — https://docs.cloud.google.com/trace/docs/quotas — being
+  # burst past. **That hypothesis was directly checked against Cloud
+  # Monitoring's own quota metrics (`serviceruntime.googleapis.com/quota/
+  # exceeded` and `.../quota/rate/net_usage`) for the exact failure windows
+  # and is REFUTED, not just unconfirmed**: zero quota-exceeded events, and
+  # actual write-request usage peaked at ~1,027/minute — ~21% of the 4,800
+  # limit, nowhere near exhausted (cross-tool review finding on PR #327,
+  # 2026-08-06, correctly challenging an initial write-up that treated an
+  # unverified hypothesis as a confirmed root cause without checking actual
+  # quota usage or looking for a real rejection response — see
+  # docs/ANTI_PATTERNS.md for the general lesson). **The actual mechanism
+  # behind the original failures remains unconfirmed** — CPU/resource
+  # contention on the sidecar's small 0.1 vCPU allocation is the next most
+  # plausible candidate, but Cloud Run's container CPU metric is too coarse
+  # (effectively one sample per minute) to confirm or rule it out either.
   #
-  # Re-tested batching live on staging with real traffic (2026-08-06): a
-  # small `send_batch_size` and short `timeout` (well under the old 5s)
-  # coalesce many small export calls into far fewer, larger ones, keeping
-  # comfortably under the write-quota ceiling without depending on the timer
-  # ever firing during genuinely idle/throttled time — real traffic keeps the
-  # batch's size threshold hit long before its timeout would matter. Verified
-  # over ~34 minutes across two real-traffic bursts: one dropped batch (32
-  # spans) ~2 minutes after a fresh deploy — consistent with one-time
-  # connection/auth warm-up, not a steady-state pattern — then zero failures
-  # and 37/37 traces fully intact on a second burst ~20 minutes later, once
-  # warm. Compare to the committed-at-the-time no-batch design, which lost
-  # spans on two separate occasions under the same kind of ordinary traffic
-  # (71 in one burst, 4 more shortly after) with no warm-up excuse either
-  # time. Not proven zero-loss forever — still worth monitoring — but a
-  # clear, repeatable improvement over unbounded one-call-per-span.
+  # Re-tested batching live on staging with real traffic (2026-08-06)
+  # regardless: a small `send_batch_size` and short `timeout` (well under
+  # the old 5s) coalesce many small export calls into far fewer, larger
+  # ones. Result over ~90 minutes of live observation, on the SAME
+  # long-running collector instance throughout (confirmed via its
+  # `service.instance.id` in the drop logs — not a fresh-instance effect):
+  # **two loss events, not zero** — 32 spans dropped ~2 minutes after
+  # deploy, then 28 more dropped ~77 minutes later — but the two events
+  # split cleanly along a real pattern, not randomly. The 28-span drop
+  # correlated with exactly ONE incoming request (`POST /pubsub/push`, a
+  # cron trigger) in the surrounding 20-second window — a single request's
+  # own async processing chain, not a multi-request burst. A SEPARATE,
+  # deliberately-generated real burst of ordinary multi-request dashboard
+  # traffic in between the two drops went through completely clean (37/37
+  # traces fully intact). So: **batching fixed the originally-observed,
+  # more severe failure mode (concurrent multi-request bursts — 71 spans
+  # lost in one shot under the old no-batch design; 0 lost across a
+  # comparable burst here) but did NOT fix a narrower, separately-confirmed
+  # failure mode: a single low-volume request whose own span count doesn't
+  # reach `send_batch_size`, leaving delivery dependent on this `timeout`
+  # timer** — which is exactly the CPU-throttling starvation mechanism the
+  # 2026-08-05 removal was originally about, now confirmed to still apply
+  # in this narrower case rather than just theorized. The old (no-batch)
+  # design has no comparable timer dependency at all — it exports every
+  # span immediately — so batching may be a net-worse choice specifically
+  # for this low-volume pattern, though no direct old-vs-new comparison
+  # exists for it. **Kept anyway**: the multi-request-burst win is a
+  # confirmed fix for the more severe, more visible failure mode; the
+  # single-request/cron-trigger gap is real, named, and left as an explicit
+  # follow-up (see `infra/docker/otel-collector/README.md`), not silently
+  # accepted as solved.
+  #
+  # Known, NOT fully mitigated risks with this configuration (deliberately
+  # not glossed over):
+  # - Below `send_batch_size` (50), a batch's only flush trigger is this
+  #   `timeout` — CONFIRMED live (not just theorized) as the mechanism
+  #   behind the second drop event above: a single `/pubsub/push`-triggered
+  #   request's own async chain, too small to hit the size threshold,
+  #   relying on the timer instead. Dense, multi-request bursty traffic
+  #   reliably hits the size threshold and is unaffected; low-volume
+  #   single-request traffic is not.
+  # - Batching only bounds each *instance's own* concurrent call rate — it
+  #   was verified against one backend + one BFF instance. Production can
+  #   scale to ~20 BFF + ~3 backend instances, each batching independently
+  #   against the same per-project quota; aggregate behavior across many
+  #   concurrent instances has not been tested (cross-tool review finding,
+  #   PR #327).
   batch:
     timeout: 1s
     send_batch_size: 50
@@ -99,21 +139,46 @@ exporters:
     # need to keep flowing into the next batch rather than queueing up behind
     # a single in-flight synchronous export.
     #
-    # IMPORTANT — this is NOT resilience against failure, despite the name.
-    # `retry_on_failure` is NOT set here — this exporter version rejects it
-    # as an invalid key (confirmed via `validate` against the real pinned
-    # binary: `'googlecloudexporter.Config' has invalid keys: retry_on_failure`,
-    # re-verified 2026-08-06). When an export genuinely fails or times out,
-    # the queue sender logs `"Exporting failed. Dropping data."` with a
-    # `dropped_items` count and the batch is gone — permanently, no retry,
-    # no requeue. Confirmed live in the same 2026-08-06 test that justified
-    # reintroducing this: one such drop (32 items) happened ~2 minutes after
-    # a fresh deploy, most likely a one-time connection/auth warm-up cost,
-    # not a steady-state pattern — but the mechanism itself is real and
-    # unmitigated. If failures recur under steady traffic (not just after a
-    # fresh deploy), the fix is a smaller `send_batch_size` (less lost per
-    # failure) or investigating a genuine backpressure/retry mechanism, not
+    # IMPORTANT — precise about what retry does and doesn't happen here
+    # (corrected 2026-08-06, cross-tool review finding on PR #327: an
+    # earlier version of this comment said "no retry" flatly, which is
+    # materially inaccurate and could mislead an incident responder). Two
+    # separate things:
+    # - `retry_on_failure` (the collector's own exporterhelper-level retry
+    #   config) is NOT set here — this exporter version genuinely rejects it
+    #   as an invalid key (confirmed via `validate` against the real pinned
+    #   binary: `'googlecloudexporter.Config' has invalid keys:
+    #   retry_on_failure`, re-verified 2026-08-06).
+    # - The underlying Google Cloud Go client DOES retry internally, but
+    #   only within the `timeout: 2s` budget above — once that context
+    #   deadline is exceeded, whatever retry was in flight is cancelled
+    #   along with everything else, and the queue sender logs
+    #   `"Exporting failed. Dropping data."` with a `dropped_items` count.
+    #   The batch is then gone permanently — no further retry, no requeue,
+    #   from either the collector or the client. So: retries do happen, but
+    #   are bounded by the same 2s window as everything else, not disabled
+    #   outright.
+    # Confirmed live in the same 2026-08-06 test that justified reintroducing
+    # this: TWO such drops on the same long-running collector instance, 32
+    # items ~2 minutes after deploy and 28 more ~77 minutes later (not a
+    # fresh-instance effect — same `service.instance.id` both times). The
+    # second correlated with a single `/pubsub/push`-triggered request, too
+    # small to hit `send_batch_size`, relying on the `batch` timer instead
+    # — see that processor's comment above for the full read. If failures
+    # keep recurring specifically under dense multi-request traffic (not
+    # just isolated low-volume requests, which already has a known,
+    # unmitigated gap), the fix is a smaller `send_batch_size`, not
     # assuming this is safe by default.
+    #
+    # Also NOT configured: `queue_size` / `num_consumers` (this exporter
+    # version's defaults apply — 1000 queued items, 10 consumers, per
+    # collector v0.157.0), and no persistent storage extension, so queued
+    # and batched spans live in memory only. Both backend and BFF run with
+    # `min_instance_count = 0` (scale-to-zero) — a scale-down or restart
+    # while spans are still queued/batched loses them, with no durability
+    # backstop. Accepted for now, not mitigated (cross-tool review finding,
+    # PR #327) — revisit with an explicit `queue_size` and/or persistent
+    # queue storage if this proves to matter in practice.
     sending_queue:
       enabled: true
 
