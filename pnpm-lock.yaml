@@ -400,7 +400,7 @@ importers:
         version: 10.9.1
       jose:
         specifier: ^6.2.3
-        version: 6.2.6
+        version: 6.2.7
       jsonwebtoken:
         specifier: ^9.0.3
         version: 9.0.3
@@ -5975,8 +5975,8 @@ packages:
     resolution: {integrity: sha512-N5A3KTWQpPWT4ExxxPlUx7WmykGXRzhNidWhV41d6Abu9YfI2NyWCJuxdPnslJCPWtbRpSVOWSnSS6GakLM/Rg==}
     engines: {node: '>= 20'}
 
-  jose@6.2.6:
-    resolution: {integrity: sha512-HwMtbJjMw8rC8dUTwCNilHJD+fxTeKM3JV1eprSmTjS41qwXSSt6exJXgyPK1QOu0jB9eDYLESRDkB3qaT3jnw==}
+  jose@6.2.7:
+    resolution: {integrity: sha512-hq1OB1bALKfydZNoViyg6hPVGV4i93ny9Op+n4zP5RSf7SCZEXa/TsG2O3IEr7+WlHRTPnpqDmHfMH6qXAD60w==}
 
   js-tokens@10.0.0:
     resolution: {integrity: sha512-lM/UBzQmfJRo9ABXbPWemivdCW8V2G8FHaHdypQaIy523snUjog0W71ayWXTjiR+ixeMyVHN2XcpnTd/liPg/Q==}
@@ -14215,7 +14215,7 @@ snapshots:
       '@hapi/topo': 6.0.2
       '@standard-schema/spec': 1.1.0
 
-  jose@6.2.6: {}
+  jose@6.2.7: {}
 
   js-tokens@10.0.0: {}
 
