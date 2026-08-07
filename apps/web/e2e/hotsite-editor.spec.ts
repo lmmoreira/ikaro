@@ -239,6 +239,106 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     expect(contactModule?.enabled).toBe(false);
   });
 
+  // M18-S08 — Preview reachable from inside a module's own config screen, not just the main tabs
+  // view. Back returns to that same panel with the in-progress edit intact (not reset to the
+  // last-Aplicar'd value, not sent to the tabs view).
+  test('Module config Preview: shows the in-progress edit without Aplicar, and Back returns to the same panel with the edit intact (M18-S08)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await page.locator(configureButton('HERO')).click();
+
+    await page.locator('#hero-title').fill('Título em progresso');
+
+    // Preview from module-config, without clicking Aplicar first.
+    await page.getByTestId('module-config-preview-desktop').click();
+    const previewContent = page.getByTestId('hotsite-preview-content');
+    await expect(previewContent).toBeVisible();
+    await expect(previewContent.locator('h1')).toContainText('Título em progresso');
+
+    // Back returns to the same module-config panel — not reset, not sent to the tabs view.
+    await page.getByTestId('topbar-back-button').click();
+    await expect(page.locator('#hero-title')).toHaveValue('Título em progresso');
+
+    await page.getByTestId('module-config-apply-desktop').click();
+    await page.getByTestId('hotsite-publish-desktop').click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+
+    await page.reload();
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await page.locator(configureButton('HERO')).click();
+    await expect(page.locator('#hero-title')).toHaveValue('Título em progresso');
+  });
+
+  // Proves the merged-submit path in HotsiteEditor's handlePublish(contentOverride), not just the
+  // visual preview above — Publish reachable directly from module-config-preview, skipping Aplicar
+  // entirely, still saves the in-progress edit.
+  test('Module config Preview: Publish directly from that preview (skipping Aplicar) persists the edit after reload (M18-S08)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await page.locator(configureButton('HERO')).click();
+
+    await page.locator('#hero-title').fill('Publicado direto do preview');
+    await page.getByTestId('module-config-preview-desktop').click();
+
+    await page.getByTestId('hotsite-preview-publish-desktop').click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+    await expect(page.getByRole('tablist')).toBeVisible();
+
+    await page.reload();
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await page.locator(configureButton('HERO')).click();
+    await expect(page.locator('#hero-title')).toHaveValue('Publicado direto do preview');
+  });
+
+  // M18-S08 — Cancelar/topbar-back only prompts when there's an actual unapplied edit to lose.
+  test('Module config discard-confirm: Cancelar after an edit prompts before discarding; "Continuar editando" keeps it, "Descartar alterações" discards it (M18-S08)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await page.locator(configureButton('HERO')).click();
+
+    await page.locator('#hero-title').fill('Vai ser descartado');
+    await page.getByTestId('module-config-cancel-desktop').click();
+
+    // "Continuar editando" closes the dialog and keeps the edit on the same panel.
+    await expect(page.getByTestId('module-config-discard-confirm')).toBeVisible();
+    await page.getByRole('button', { name: 'Continuar editando' }).click();
+    await expect(page.getByTestId('module-config-discard-confirm')).toBeHidden();
+    await expect(page.locator('#hero-title')).toHaveValue('Vai ser descartado');
+
+    // Cancelar again, this time confirming the discard.
+    await page.getByTestId('module-config-cancel-desktop').click();
+    await page.getByTestId('module-config-discard-confirm').click();
+    await expect(page.getByRole('tablist')).toBeVisible();
+
+    // Re-opening Hero's config shows the original, unedited value — never applied or saved.
+    await page.locator(configureButton('HERO')).click();
+    await expect(page.locator('#hero-title')).not.toHaveValue('Vai ser descartado');
+  });
+
+  // M18-S08 — a plain link to the real, currently-published public hotsite, from the main tabs
+  // view only. Opens in a new tab so the in-progress draft in the editor is never navigated away
+  // from.
+  test('"Visitar site" opens the public hotsite in a new tab (M18-S08)', async ({
+    page,
+    context,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+
+    const [newPage] = await Promise.all([
+      context.waitForEvent('page'),
+      page.getByTestId('hotsite-view-live-site-desktop').click(),
+    ]);
+    await newPage.waitForLoadState();
+
+    expect(newPage.url()).toContain(`/${MANAGER_TENANT_SLUG}`);
+  });
+
   test('Despublicar hotsite takes the public manifest offline without discarding the draft', async ({
     page,
   }) => {

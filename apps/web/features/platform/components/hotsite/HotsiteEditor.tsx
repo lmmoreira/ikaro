@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
 import type {
@@ -42,6 +42,11 @@ type EditorView =
   | { readonly view: 'preview' }
   | {
       readonly view: 'module-config';
+      readonly type: HotsiteModuleType;
+      readonly localData: Record<string, unknown>;
+    }
+  | {
+      readonly view: 'module-config-preview';
       readonly type: HotsiteModuleType;
       readonly localData: Record<string, unknown>;
     };
@@ -100,6 +105,26 @@ const HotsitePreview = dynamic(() => import('./HotsitePreview').then((m) => m.Ho
   ssr: false,
 });
 
+function mergeLocalDataIntoLayout(
+  layout: HotsiteAdminContentResponse['layout'],
+  type: HotsiteModuleType,
+  localData: Record<string, unknown>,
+): HotsiteAdminContentResponse['layout'] {
+  return layout.map((m) => (m.type === type ? { ...m, data: localData } : m));
+}
+
+// Structural comparison only — this data is always plain JSON coming straight out of the config
+// panels (no functions/dates), so JSON.stringify is sufficient. If a panel ever rebuilds an
+// unchanged object with different key insertion order, this reports a false "dirty" (an
+// unnecessary discard-confirm prompt) but never a false "clean" — the safe direction to be wrong
+// in, since it never silently discards a real edit.
+function isModuleDataDirty(
+  committed: Record<string, unknown>,
+  local: Record<string, unknown>,
+): boolean {
+  return JSON.stringify(committed) !== JSON.stringify(local);
+}
+
 export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage');
   const locale = useResolvedLocale();
@@ -120,6 +145,7 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
   // discards it — draft.layout is only ever touched by handleApply below.
   const [view, setView] = useState<EditorView>({ view: 'tabs' });
   const [actionBanner, setActionBanner] = useState<ActionBanner | null>(null);
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const { tenantId, tenantSlug } = useTenant();
   const updateConfig = useUpdateHotsiteConfig();
   const publishHotsite = usePublishHotsite();
@@ -136,10 +162,19 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
   // not the whole `view` object, so this doesn't re-run on every keystroke while editing a panel.
   const configuringType = view.view === 'module-config' ? view.type : null;
   const isPreview = view.view === 'preview';
+  const moduleConfigPreview = view.view === 'module-config-preview' ? view : null;
+  // The `configuringType` branch below intentionally doesn't re-run this effect on every
+  // keystroke (see the dependency array's own comment). But `requestCancelConfig` needs the
+  // *current* `view.localData`/`draft` on every click, not whatever was there when the panel
+  // first opened — so the override stored in topbar-status-context calls through this ref
+  // instead of closing over `requestCancelConfig` directly. The ref is refreshed by a
+  // `useLayoutEffect` right after `requestCancelConfig`'s own definition below (see its comment
+  // for why `useLayoutEffect` specifically), so the effect's dependency array here can stay
+  // unchanged while the invoked function always reads fresh.
+  const requestCancelConfigRef = useRef<() => void>(() => {});
   useEffect(() => {
     if (configuringType) {
-      const backToTabs = () => setView({ view: 'tabs' });
-      setOnBackOverride?.(() => backToTabs);
+      setOnBackOverride?.(() => () => requestCancelConfigRef.current());
       setBackLabelOverride?.(t('layout.configShell.backLabel'));
       const moduleLabel = t(`layout.modules.${configuringType}`);
       setPageTitleOverride?.(`${t('layout.configShell.titlePrefix')}: ${moduleLabel}`);
@@ -160,10 +195,27 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
         setPageTitleOverride?.(null);
       };
     }
+    if (moduleConfigPreview) {
+      const backToModuleConfig = () =>
+        setView({
+          view: 'module-config',
+          type: moduleConfigPreview.type,
+          localData: moduleConfigPreview.localData,
+        });
+      setOnBackOverride?.(() => backToModuleConfig);
+      setBackLabelOverride?.(t('previewView.backLabel'));
+      setPageTitleOverride?.(t('previewView.pageTitle'));
+      return () => {
+        setOnBackOverride?.(null);
+        setBackLabelOverride?.(null);
+        setPageTitleOverride?.(null);
+      };
+    }
     return undefined;
   }, [
     configuringType,
     isPreview,
+    moduleConfigPreview,
     setOnBackOverride,
     setBackLabelOverride,
     setPageTitleOverride,
@@ -193,9 +245,20 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
     setActionBanner(null);
   }
 
-  async function handlePublish(): Promise<void> {
+  // `contentOverride` lets Publish be triggered from the module-config-preview screen (Part 2
+  // below), where the visually-displayed content is `draft` merged with an in-progress module
+  // edit that hasn't gone through "Aplicar" yet — submitting exactly what's shown in one call,
+  // rather than a separate "apply, then publish" step. The ordinary tabs -> Preview -> Publish
+  // path passes no override and behaves exactly as before.
+  async function handlePublish(contentOverride?: HotsiteAdminContentResponse): Promise<void> {
+    const content = contentOverride ?? draft;
     try {
-      const stripped = stripResolvedImageUrls(draft.branding, draft.layout, draft.seo, tenantId);
+      const stripped = stripResolvedImageUrls(
+        content.branding,
+        content.layout,
+        content.seo,
+        tenantId,
+      );
       const updated = await updateConfig.mutateAsync({
         branding: stripped.branding,
         layout: stripped.layout,
@@ -256,14 +319,44 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
     const { type, localData } = view;
     setDraft((current) => ({
       ...current,
-      layout: current.layout.map((m) => (m.type === type ? { ...m, data: localData } : m)),
+      layout: mergeLocalDataIntoLayout(current.layout, type, localData),
     }));
     setActionBanner(null);
     setView({ view: 'tabs' });
   }
 
-  function handleCancelConfig(): void {
+  // Only discards immediately when there's nothing to lose. Otherwise opens the discard-confirm
+  // dialog instead of navigating away silently — the actual discard happens in
+  // handleConfirmDiscardConfig below, once the admin confirms.
+  function requestCancelConfig(): void {
+    if (view.view !== 'module-config') return;
+    const committedData = draft.layout.find((m) => m.type === view.type)?.data ?? {};
+    if (isModuleDataDirty(committedData, view.localData)) {
+      setDiscardConfirmOpen(true);
+    } else {
+      setView({ view: 'tabs' });
+    }
+  }
+  // No dependency array — refreshes the ref after every render (not just when `configuringType`
+  // changes), which is what lets the topbar override above always call the current, non-stale
+  // version. A plain assignment during render is disallowed by the react-hooks/refs lint rule.
+  // useLayoutEffect (not useEffect) so this ref is guaranteed to be refreshed before the
+  // topbar-wiring effect above can run on the same commit, regardless of declaration order —
+  // React flushes all of a component's layout effects before any of its passive effects. Belt and
+  // suspenders: `configuringType` can only turn true via a user's "Configurar" click, never on
+  // initial mount, so by the time that's possible this effect has already run at least once
+  // either way — but useLayoutEffect makes the ordering structural instead of relying on that.
+  useLayoutEffect(() => {
+    requestCancelConfigRef.current = requestCancelConfig;
+  });
+
+  function handleConfirmDiscardConfig(): void {
+    setDiscardConfirmOpen(false);
     setView({ view: 'tabs' });
+  }
+
+  function handleCancelDiscardConfig(): void {
+    setDiscardConfirmOpen(false);
   }
 
   if (view.view === 'module-config') {
@@ -271,16 +364,38 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
     return (
       <ModuleConfigShell
         moduleLabel={t(`layout.modules.${view.type}`)}
-        onBack={handleCancelConfig}
+        onBack={requestCancelConfig}
         onApply={handleApply}
+        onPreview={() =>
+          setView({ view: 'module-config-preview', type: view.type, localData: view.localData })
+        }
+        discardConfirmOpen={discardConfirmOpen}
+        onConfirmDiscard={handleConfirmDiscardConfig}
+        onCancelDiscard={handleCancelDiscardConfig}
       >
         <Panel data={view.localData} onChange={handleLocalDataChange} />
       </ModuleConfigShell>
     );
   }
 
+  if (view.view === 'module-config-preview') {
+    const previewDraft: HotsiteAdminContentResponse = {
+      ...draft,
+      layout: mergeLocalDataIntoLayout(draft.layout, view.type, view.localData),
+    };
+    return (
+      <HotsitePreview
+        draft={previewDraft}
+        onPublish={() => handlePublish(previewDraft)}
+        isPublishing={isPublishing}
+      />
+    );
+  }
+
   if (view.view === 'preview') {
-    return <HotsitePreview draft={draft} onPublish={handlePublish} isPublishing={isPublishing} />;
+    return (
+      <HotsitePreview draft={draft} onPublish={() => handlePublish()} isPublishing={isPublishing} />
+    );
   }
 
   return (
@@ -395,7 +510,7 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
               <Button
                 type="button"
                 disabled={isPublishing}
-                onClick={handlePublish}
+                onClick={() => handlePublish()}
                 className="w-full"
                 data-testid="hotsite-publish-desktop"
               >
@@ -410,6 +525,16 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
               >
                 {t('preview')}
               </Button>
+              <Button
+                asChild
+                variant="outline"
+                className="w-full"
+                data-testid="hotsite-view-live-site-desktop"
+              >
+                <a href={`/${tenantSlug}`} target="_blank" rel="noopener noreferrer">
+                  {t('viewLiveSite')}
+                </a>
+              </Button>
               <hr className="border-t border-gray-200" />
               <p className="text-sm leading-6 text-gray-500">{t('unpublishedHint')}</p>
             </CardContent>
@@ -420,6 +545,16 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
       <div
         className={`fixed inset-x-0 ${MOBILE_ACTION_BAR_CLEARANCE_CLASS} z-20 flex gap-3 border-t border-gray-200 bg-white p-4 shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden`}
       >
+        <Button
+          asChild
+          variant="outline"
+          className="flex-1"
+          data-testid="hotsite-view-live-site-mobile"
+        >
+          <a href={`/${tenantSlug}`} target="_blank" rel="noopener noreferrer">
+            {t('viewLiveSite')}
+          </a>
+        </Button>
         <Button
           type="button"
           variant="outline"
@@ -432,8 +567,8 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
         <Button
           type="button"
           disabled={isPublishing}
-          onClick={handlePublish}
-          className="flex-[2]"
+          onClick={() => handlePublish()}
+          className="flex-1"
           data-testid="hotsite-publish-mobile"
         >
           {t('publish')}

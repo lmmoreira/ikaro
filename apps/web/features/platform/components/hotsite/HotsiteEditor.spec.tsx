@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { HotsiteAdminContentResponse } from '@ikaro/types';
+import type { HotsiteAdminContentResponse, HotsiteManifestResponse } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
 import {
   DashboardTopbarStatusProvider,
@@ -14,6 +14,8 @@ import {
   publishHotsite,
   unpublishHotsite,
 } from '@/features/platform/api/tenant-settings';
+import { fetchManifestClient } from '@/features/platform/api';
+import { fetchServicesClient } from '@/features/platform/hotsite/api/services';
 import { ApiError } from '@/shared/lib/api/errors';
 import { HotsiteEditor } from './HotsiteEditor';
 
@@ -36,9 +38,18 @@ vi.mock('@/features/booking/api/booking', () => ({
   getBooking: vi.fn(),
 }));
 
+// Only needed so the Preview view (opened either from the tabs or from module-config) can
+// actually render its module content instead of getting stuck on its own load-error state — the
+// existing pre-M18-S08 tests never inspected that content, only the always-rendered sidebar, so
+// they don't depend on these resolving any particular way.
+vi.mock('@/features/platform/api', () => ({ fetchManifestClient: vi.fn() }));
+vi.mock('@/features/platform/hotsite/api/services', () => ({ fetchServicesClient: vi.fn() }));
+
 const mockUpdateHotsiteConfig = vi.mocked(updateHotsiteConfig);
 const mockPublishHotsite = vi.mocked(publishHotsite);
 const mockUnpublishHotsite = vi.mocked(unpublishHotsite);
+const mockFetchManifestClient = vi.mocked(fetchManifestClient);
+const mockFetchServicesClient = vi.mocked(fetchServicesClient);
 
 const INITIAL: HotsiteAdminContentResponse = {
   branding: {
@@ -58,6 +69,38 @@ const INITIAL: HotsiteAdminContentResponse = {
   seo: { title: null, description: null, ogImageUrl: '' },
   isPublished: true,
   updatedAt: '2026-07-01T00:00:00.000Z',
+};
+
+const MANIFEST: HotsiteManifestResponse = {
+  tenant: { id: 'tenant-a-id', name: 'Tenant A', slug: 'tenant-a' },
+  branding: INITIAL.branding,
+  layout: [],
+  seo: INITIAL.seo,
+  isPublished: true,
+  business: { phone: null, email: null, address: null, socialLinks: null },
+  localization: {
+    language: 'pt-BR',
+    currency: 'BRL',
+    timezone: 'America/Sao_Paulo',
+    phonePrefix: '+55',
+    dateFormat: 'DD/MM/YYYY',
+    timeFormat: '24h',
+    numberFormat: '1.234,56',
+    firstDayOfWeek: 0,
+    address: {
+      postalLabel: 'CEP',
+      postalPlaceholder: '00000-000',
+      stateLabel: 'UF',
+      requireNeighborhood: true,
+      neighborhoodLabel: 'Bairro',
+      streetLabel: 'Rua',
+      numberLabel: 'Número',
+      complementLabel: 'Complemento',
+      cityLabel: 'Cidade',
+      lookupService: 'viacep',
+    },
+  },
+  booking: { maxBookingAdvanceDays: 90 },
 };
 
 function TopbarOverrideProbe(): React.JSX.Element {
@@ -93,6 +136,8 @@ describe('HotsiteEditor', () => {
     mockUpdateHotsiteConfig.mockReset();
     mockPublishHotsite.mockReset();
     mockUnpublishHotsite.mockReset();
+    mockFetchManifestClient.mockReset().mockResolvedValue(MANIFEST);
+    mockFetchServicesClient.mockReset().mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -482,6 +527,7 @@ describe('HotsiteEditor', () => {
       const titleInput = await screen.findByLabelText('Título *');
       await user.type(titleInput, 'Descartado');
       await user.click(screen.getByTestId('module-config-cancel-desktop'));
+      await user.click(screen.getByTestId('module-config-discard-confirm'));
 
       expect(screen.getByRole('tablist')).toBeInTheDocument();
       await user.click(
@@ -571,6 +617,185 @@ describe('HotsiteEditor', () => {
       await user.click(heroToggle);
 
       expect(heroToggle.getAttribute('aria-checked')).not.toBe(initialChecked);
+    });
+  });
+
+  async function openHeroConfig(user: ReturnType<typeof userEvent.setup>): Promise<void> {
+    await user.click(screen.getByRole('tab', { name: 'Layout' }));
+    await user.click(
+      screen.getAllByTestId('layout-row-configure').find((el) => el.dataset.moduleType === 'HERO')!,
+    );
+    await screen.findByLabelText('Título *');
+  }
+
+  describe('Preview from module config', () => {
+    it("shows the in-progress edit (not yet Aplicar'd) merged with the rest of the draft", async () => {
+      // HERO must be `enabled: true` to actually render in the preview — the default
+      // materialized layout starts every module disabled (materializeLayout), which is fine for
+      // the other tests here (they inspect the config panel's own input, or the submitted
+      // mutation body, never the rendered preview content).
+      const draftWithHeroEnabled: HotsiteAdminContentResponse = {
+        ...INITIAL,
+        layout: [
+          {
+            type: 'HERO',
+            enabled: true,
+            data: {
+              variant: 'centered',
+              title: 'Título original',
+              ctaLabel: 'Agendar',
+              ctaTarget: 'booking-form',
+            },
+          },
+        ],
+      };
+      const user = userEvent.setup();
+      renderEditor(draftWithHeroEnabled);
+
+      await openHeroConfig(user);
+      const titleInput = screen.getByLabelText('Título *');
+      await user.clear(titleInput);
+      await user.type(titleInput, 'Título em progresso');
+      await user.click(screen.getByTestId('module-config-preview-desktop'));
+
+      expect(await screen.findByText('Título em progresso')).toBeInTheDocument();
+      expect(screen.queryByLabelText('Título *')).not.toBeInTheDocument();
+    });
+
+    it('Back from that preview returns to the same module-config view with the edit intact', async () => {
+      const user = userEvent.setup();
+      renderWithIntl(
+        withQueryClient(
+          <DashboardTopbarStatusProvider>
+            <TopbarOverrideProbe />
+            <HotsiteEditor initial={INITIAL} />
+          </DashboardTopbarStatusProvider>,
+        ),
+      );
+
+      await openHeroConfig(user);
+      const titleInput = screen.getByLabelText('Título *');
+      await user.clear(titleInput);
+      await user.type(titleInput, 'Título em progresso');
+      await user.click(screen.getByTestId('module-config-preview-desktop'));
+      await waitFor(() => expect(screen.getByTestId('probe-onback')).toHaveTextContent('set'));
+
+      await user.click(screen.getByTestId('probe-trigger-back'));
+
+      expect(await screen.findByDisplayValue('Título em progresso')).toBeInTheDocument();
+    });
+
+    it('Publish from that preview submits the merged content in one call and shows the success banner on the tabs view', async () => {
+      mockUpdateHotsiteConfig.mockResolvedValue({ ...INITIAL });
+      mockPublishHotsite.mockResolvedValue({ isPublished: true });
+      const user = userEvent.setup();
+      renderEditor();
+
+      await openHeroConfig(user);
+      const titleInput = screen.getByLabelText('Título *');
+      await user.clear(titleInput);
+      await user.type(titleInput, 'Publicado direto');
+      await user.click(screen.getByTestId('module-config-preview-desktop'));
+
+      await user.click(
+        await screen.findByTestId('hotsite-preview-publish-desktop', {}, { timeout: 5000 }),
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hotsite-action-success-banner')).toBeInTheDocument();
+      });
+      expect(mockUpdateHotsiteConfig).toHaveBeenCalledTimes(1);
+      const submittedBody = mockUpdateHotsiteConfig.mock.calls[0]![0];
+      const submittedHero = submittedBody.layout?.find((m) => m.type === 'HERO');
+      expect((submittedHero?.data as { title: string }).title).toBe('Publicado direto');
+      expect(screen.getByRole('tablist')).toBeInTheDocument();
+    });
+  });
+
+  describe('Discard-confirm on Cancelar / topbar back', () => {
+    it('Cancelar with no edit navigates straight to tabs, no dialog', async () => {
+      const user = userEvent.setup();
+      renderEditor();
+
+      await openHeroConfig(user);
+      await user.click(screen.getByTestId('module-config-cancel-desktop'));
+
+      expect(screen.getByRole('tablist')).toBeInTheDocument();
+      expect(screen.queryByTestId('module-config-discard-confirm')).not.toBeInTheDocument();
+    });
+
+    it('Cancelar after an edit opens the dialog; confirming discards and returns to tabs', async () => {
+      const user = userEvent.setup();
+      renderEditor();
+
+      await openHeroConfig(user);
+      await user.type(screen.getByLabelText('Título *'), 'Editado');
+      await user.click(screen.getByTestId('module-config-cancel-desktop'));
+
+      expect(screen.getByTestId('module-config-discard-confirm')).toBeInTheDocument();
+      expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+
+      await user.click(screen.getByTestId('module-config-discard-confirm'));
+
+      expect(screen.getByRole('tablist')).toBeInTheDocument();
+    });
+
+    it('"Continuar editando" closes the dialog and keeps the edit intact on the same module-config view', async () => {
+      const user = userEvent.setup();
+      renderEditor();
+
+      await openHeroConfig(user);
+      await user.type(screen.getByLabelText('Título *'), 'Editado');
+      await user.click(screen.getByTestId('module-config-cancel-desktop'));
+
+      await user.click(screen.getByRole('button', { name: 'Continuar editando' }));
+
+      expect(screen.queryByTestId('module-config-discard-confirm')).not.toBeInTheDocument();
+      expect(await screen.findByDisplayValue(/Editado/)).toBeInTheDocument();
+    });
+
+    // Regression test for the ref-based staleness fix (Part 7): the topbar back-arrow override
+    // is only recreated when the module type changes, not on every keystroke — without the ref,
+    // it would still be checking dirtiness against the value captured when the panel first
+    // opened, missing an edit made afterward.
+    it('the topbar back arrow, invoked after an edit made post-open, still detects the edit as dirty', async () => {
+      const user = userEvent.setup();
+      renderWithIntl(
+        withQueryClient(
+          <DashboardTopbarStatusProvider>
+            <TopbarOverrideProbe />
+            <HotsiteEditor initial={INITIAL} />
+          </DashboardTopbarStatusProvider>,
+        ),
+      );
+
+      await openHeroConfig(user);
+      await user.type(screen.getByLabelText('Título *'), 'Editado via topbar');
+
+      await user.click(screen.getByTestId('probe-trigger-back'));
+
+      expect(screen.getByTestId('module-config-discard-confirm')).toBeInTheDocument();
+    });
+  });
+
+  describe('"Visitar site" link', () => {
+    it('renders on the tabs view only, linking to the public hotsite in a new tab', async () => {
+      const user = userEvent.setup();
+      renderEditor();
+
+      const desktopLink = screen.getByTestId('hotsite-view-live-site-desktop');
+      expect(desktopLink.tagName).toBe('A');
+      expect(desktopLink).toHaveAttribute('href', '/tenant-a');
+      expect(desktopLink).toHaveAttribute('target', '_blank');
+      expect(desktopLink).toHaveAttribute('rel', 'noopener noreferrer');
+      expect(screen.getByTestId('hotsite-view-live-site-mobile')).toHaveAttribute(
+        'href',
+        '/tenant-a',
+      );
+
+      await openHeroConfig(user);
+
+      expect(screen.queryByTestId('hotsite-view-live-site-desktop')).not.toBeInTheDocument();
     });
   });
 });

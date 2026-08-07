@@ -52,6 +52,7 @@
     "@ikaro/http-utils": "workspace:*",
     "@ikaro/i18n": "workspace:*",
     "@ikaro/types": "workspace:*",
+    "@radix-ui/react-alert-dialog": "^1.1.23",
     "@radix-ui/react-avatar": "^1.2.1",
     "@radix-ui/react-popover": "^1.1.18",
     "@radix-ui/react-select": "^2.3.2",
