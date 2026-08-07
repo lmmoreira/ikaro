@@ -550,9 +550,7 @@ describe('HotsiteConfig', () => {
             type: 'GALLERY',
             enabled: true,
             data: {
-              images: [
-                { url: 'https://storage.example.com/gallery/photo.jpg', source: 'upload' },
-              ],
+              images: [{ url: 'https://storage.example.com/gallery/photo.jpg', source: 'upload' }],
               layout: 'featured',
               maxVisible: 6,
               featuredPosition: 'center',
