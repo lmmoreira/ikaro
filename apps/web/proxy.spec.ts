@@ -315,7 +315,7 @@ describe('proxy', () => {
       const csp = response.headers.get('Content-Security-Policy') ?? '';
 
       expect(csp).toContain("script-src 'self' 'unsafe-inline'");
-      expect(csp).toContain('frame-src https://maps.google.com');
+      expect(csp).toContain('frame-src https://maps.google.com https://www.google.com');
     });
 
     it('extends the Maps frame-src relaxation to booking, login, and my-account sub-routes', async () => {
@@ -328,7 +328,7 @@ describe('proxy', () => {
       ]) {
         const response = await proxy(makeRequest(path));
         const csp = response.headers.get('Content-Security-Policy') ?? '';
-        expect(csp).toContain('frame-src https://maps.google.com');
+        expect(csp).toContain('frame-src https://maps.google.com https://www.google.com');
       }
     });
 

@@ -75,7 +75,11 @@ function buildContentSecurityPolicy(pathname: string): string {
     'https://viacep.com.br',
     isDev && 'ws://localhost:*',
   ].filter((v): v is string => Boolean(v));
-  const frameSrc = isHotsite ? 'https://maps.google.com' : "'none'";
+  // The embed URL (ContactModule.tsx) requests https://maps.google.com/maps?...&output=embed,
+  // which 302-redirects to https://www.google.com/maps/embed?... — CSP frame-src is checked
+  // against every hop of a navigation/redirect chain, so both origins must be allowed or the
+  // final navigation is silently blocked ("This content is blocked" in the browser).
+  const frameSrc = isHotsite ? 'https://maps.google.com https://www.google.com' : "'none'";
 
   return [
     `default-src 'self'`,
