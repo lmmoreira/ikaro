@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
 import type {
@@ -339,7 +339,13 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
   // No dependency array — refreshes the ref after every render (not just when `configuringType`
   // changes), which is what lets the topbar override above always call the current, non-stale
   // version. A plain assignment during render is disallowed by the react-hooks/refs lint rule.
-  useEffect(() => {
+  // useLayoutEffect (not useEffect) so this ref is guaranteed to be refreshed before the
+  // topbar-wiring effect above can run on the same commit, regardless of declaration order —
+  // React flushes all of a component's layout effects before any of its passive effects. Belt and
+  // suspenders: `configuringType` can only turn true via a user's "Configurar" click, never on
+  // initial mount, so by the time that's possible this effect has already run at least once
+  // either way — but useLayoutEffect makes the ordering structural instead of relying on that.
+  useLayoutEffect(() => {
     requestCancelConfigRef.current = requestCancelConfig;
   });
 

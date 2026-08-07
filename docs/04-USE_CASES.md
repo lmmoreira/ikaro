@@ -1041,7 +1041,7 @@ Returns:
    - **A1: Invalid color (not hex)** → System shows error and prevents save
    - **A2: Image upload fails** → System falls back to URL input
    - **A3: Malformed/invalid JSON in the Manifesto tab** → "Aplicar" shows an inline error and does not merge the edit into the draft; leaving the tab without clicking "Aplicar" discards the pending edit
-   - **A4: Admin leaves a module's config screen with unapplied edits (M18-S08)** → "Cancelar" or the topbar back arrow shows a confirm-discard prompt, only when the edit actually differs from the module's last-applied value. "Descartar alterações" discards the edit and returns to the tabs view (same end state as before this story); "Continuar editando" (or dismissing the prompt) keeps the admin on the same config screen with the edit intact
+   - **A4: Admin leaves a module's config screen with unapplied edits (M18-S08)** → "Cancelar" or the topbar back arrow shows a confirm-discard prompt, only when the edit actually differs from the module's last-applied value. "Descartar alterações" discards the edit and returns to the tabs view (same end state as before this story); "Continuar editando" or pressing Escape keeps the admin on the same config screen with the edit intact — clicking outside the dialog does not dismiss it, matching how confirm/destructive dialogs work everywhere (deliberate, not a gap)
 
 - **Postconditions:** `hotsite_configs` updated. Hotsite public page reflects new branding and layout immediately (cached at edge if needed).
 - **Events Triggered:** None

@@ -42,14 +42,14 @@ AlertDialogContent.displayName = AlertDialogPrimitive.Content.displayName;
 function AlertDialogHeader({
   className,
   ...props
-}: React.HTMLAttributes<HTMLDivElement>): React.JSX.Element {
+}: Readonly<React.HTMLAttributes<HTMLDivElement>>): React.JSX.Element {
   return <div className={cn('flex flex-col space-y-2 text-left', className)} {...props} />;
 }
 
 function AlertDialogFooter({
   className,
   ...props
-}: React.HTMLAttributes<HTMLDivElement>): React.JSX.Element {
+}: Readonly<React.HTMLAttributes<HTMLDivElement>>): React.JSX.Element {
   return (
     <div
       className={cn('mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end', className)}
