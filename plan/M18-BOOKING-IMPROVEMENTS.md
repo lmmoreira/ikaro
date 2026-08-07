@@ -18,6 +18,7 @@
 | M18-S05 | Hero & Booking CTA banners: tenant-configurable content position (independent X/Y anchor, decoupled from `variant`) |
 | M18-S06 | Gallery module: automatic masonry layout (tile height from photo aspect ratio) |
 | M18-S07 | Gallery module: "Destaque" layout — 1 large + 4 small photos, fixed 5-image template |
+| M18-S08 | Hotsite editor usability: module-config Preview + discard-confirm, and a "visit live site" link |
 
 *(more stories will be appended here as they're scoped)*
 
@@ -694,7 +695,7 @@ None — extends existing components (`HeroModule`, `HeroConfigPanel`, `BookingC
 
 ---
 
-## M18-S06 — Gallery module: automatic masonry layout (tile height from photo aspect ratio)
+## M18-S06 — Gallery module: automatic masonry layout (tile height from photo aspect ratio) ✅ Done
 
 **Agent:** `fullstack-ts`
 **Complexity:** M
@@ -807,7 +808,7 @@ None — extends existing components (`GalleryItem`, `GalleryModule`, `GalleryIm
 
 ---
 
-## M18-S07 — Gallery module: "Destaque" layout — 1 large + 4 small photos, fixed 5-image template
+## M18-S07 — Gallery module: "Destaque" layout — 1 large + 4 small photos, fixed 5-image template ✅ Done
 
 **Agent:** `fullstack-ts`
 **Complexity:** L
@@ -920,3 +921,258 @@ Exactly 5 photos in both files. The first one spans both rows (`go-cowork` also 
 ### Dependencies
 
 M18-S06 — code confirmed present in this branch (not yet `✅ Done`-marked; both stories ship in the same PR). No migration (`jsonb`, same pattern as every module-data field in this milestone).
+
+---
+
+## M18-S08 — Hotsite editor usability: module-config Preview + discard-confirm, and a "visit live site" link
+
+**Agent:** `frontend-ts`
+**Complexity:** M
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-027
+**UC reference:** UC-027 (Tenant Admin Manages Hotsite Content & Branding)
+
+This story bundles three small, independently-scoped usability improvements to `HotsiteEditor.tsx`, all raised in the same conversation: (1) a "Preview" button inside the per-module config screen (Parts 1–6), (2) a confirm-before-discard prompt when leaving that same screen with unsaved edits (Part 7), and (3) a "visit live site" link on the main tabs screen's action bar (Part 8, unrelated to module-config).
+
+### Background
+
+`HotsiteEditor.tsx` holds one `draft: HotsiteAdminContentResponse` plus a `view: EditorView` union (`'tabs' | 'preview' | {view:'module-config', type, localData}`). Opening "Configurar" on a module (`handleConfigure`, `HotsiteEditor.tsx:245-248`) seeds `view.localData` from `draft.layout`; editing a panel (`handleLocalDataChange`, `:250-252`) mutates only `localData`. "Aplicar" (`handleApply`, `:254-263`) merges `localData` into `draft.layout` and returns to `'tabs'`; "Cancelar" (`handleCancelConfig`, `:265-267`) discards `localData` and also returns to `'tabs'`.
+
+"Preview" already exists (`HotsitePreview.tsx`, shipped in M13-S37) but is only reachable from the `'tabs'` view — the desktop aside and mobile action bar buttons in `HotsiteEditor.tsx:404-412`/`:423-431` both do `setView({view:'preview'})`, and it renders `draft` directly (a true live/in-memory preview, not a saved-data fetch). Because a module's edits only land in `draft` after Aplicar, previewing an in-progress module change today requires Aplicar → back to tabs → Preview, and — per the user's report — if the tenant then wants to tweak further, they must navigate back into "Configurar" on that module again from scratch, having already committed the previous attempt. There is no Preview affordance inside `ModuleConfigShell.tsx` at all today.
+
+"Back" from Preview isn't a route — it's the shared dashboard Topbar's back-arrow override (`apps/web/shells/dashboard/components/topbar-status-context.tsx`), wired in the `useEffect` at `HotsiteEditor.tsx:139-171`. Today it always resolves to `() => setView({view:'tabs'})` when `isPreview` is true, regardless of how Preview was reached.
+
+### Description
+
+Add a "Preview" button to `ModuleConfigShell.tsx` so a tenant admin can see their in-progress module edit rendered in the real hotsite layout without first committing it via Aplicar, and without losing that edit if they come back to keep tweaking.
+
+**Part 1 — New `EditorView` variant + a shared merge helper**
+
+- `HotsiteEditor.tsx:40-47`: add a fourth `EditorView` member, sibling to `'module-config'`, sharing its `type`/`localData` shape:
+  ```ts
+  | {
+      readonly view: 'module-config-preview';
+      readonly type: HotsiteModuleType;
+      readonly localData: Record<string, unknown>;
+    }
+  ```
+- Extract the merge logic `handleApply` already does inline (`current.layout.map((m) => (m.type === type ? { ...m, data: localData } : m))`, `:257-260`) into a small top-level pure function `mergeLocalDataIntoLayout(layout, type, localData)`, reused by both `handleApply` and the new preview-draft computation below — avoids duplicating the same merge in two places.
+
+**Part 2 — Ephemeral preview draft, rendered via the existing `HotsitePreview`**
+
+- New render branch in `HotsiteEditor.tsx`, alongside the existing `view.view === 'module-config'`/`'preview'` branches (`:269-284`):
+  ```ts
+  if (view.view === 'module-config-preview') {
+    const previewDraft: HotsiteAdminContentResponse = {
+      ...draft,
+      layout: mergeLocalDataIntoLayout(draft.layout, view.type, view.localData),
+    };
+    return (
+      <HotsitePreview
+        draft={previewDraft}
+        onPublish={() => handlePublish(previewDraft)}
+        isPublishing={isPublishing}
+      />
+    );
+  }
+  ```
+- No changes to `HotsitePreview.tsx` itself — it already renders whatever `draft` it's given; this is the same component used for the ordinary tabs → Preview path, just fed a merged-but-not-yet-committed draft instead of the real one. `draft` and `view.localData` are both untouched by entering this state — neither is written to.
+
+**Part 3 — `handlePublish` accepts an optional content override, and every existing wiring must be fixed to not leak a click event into it**
+
+- `HotsiteEditor.tsx:196`: change the signature from `async function handlePublish(): Promise<void>` to `async function handlePublish(contentOverride?: HotsiteAdminContentResponse): Promise<void>`, with `const content = contentOverride ?? draft;` at the top, and every `draft.branding`/`draft.layout`/`draft.seo` reference inside the function body (currently just the one `stripResolvedImageUrls(draft.branding, draft.layout, draft.seo, tenantId)` call at `:198`) reading from `content` instead. This makes Publish-from-module-config-preview submit exactly what's visually shown — the in-progress module edit merged with the rest of the draft — in the same single mutation call `handlePublish` already makes, not a separate "apply, then publish" step. The ordinary tabs → Preview → Publish path is unaffected: no `contentOverride` passed, `content` falls back to `draft`, byte-for-byte the same behavior as today.
+  - **Gotcha the refactor must not introduce:** `handlePublish` is currently wired directly as a raw DOM/React event handler in three places, all of which pass the click's `SyntheticEvent` as the function's first argument today — harmless while `handlePublish` took zero parameters, but a real bug once it has an optional first parameter, since the event object would silently become `contentOverride` (crashing `stripResolvedImageUrls` on `event.branding` being undefined). Every one of these three sites must be changed to a zero-arg wrapper, `() => handlePublish()`, so no event ever reaches the parameter:
+    - `HotsiteEditor.tsx:398` — desktop aside "Publicar" button, `onClick={handlePublish}` → `onClick={() => handlePublish()}`.
+    - `HotsiteEditor.tsx:435` — mobile action bar "Publicar" button, same fix.
+    - `HotsiteEditor.tsx:283` — `<HotsitePreview draft={draft} onPublish={handlePublish} .../>` (tabs → Preview path) → `onPublish={() => handlePublish()}`. (`HotsitePreview.tsx:295,312` themselves wire their Publish buttons as `onClick={onPublish}` directly, so whatever function reaches its `onPublish` prop is invoked with the click event as the first argument — the prop's `readonly onPublish: () => void` type doesn't change, but the caller must supply a genuinely zero-arg closure, not rely on structural typing to save it.)
+  - The new Part 2 call site (`onPublish={() => handlePublish(previewDraft)}`) is written correctly from the start — called out here so the fix to the three *existing* sites isn't skipped as "not part of this change."
+
+**Part 4 — Back from this preview returns to module-config, not tabs, with the same edit intact**
+
+- In the topbar-override `useEffect` (`HotsiteEditor.tsx:139-171`), add a third branch (alongside `configuringType` and `isPreview`) for `view.view === 'module-config-preview'`:
+  ```ts
+  const moduleConfigPreview = view.view === 'module-config-preview' ? view : null;
+  // ...
+  if (moduleConfigPreview) {
+    const backToModuleConfig = () =>
+      setView({
+        view: 'module-config',
+        type: moduleConfigPreview.type,
+        localData: moduleConfigPreview.localData,
+      });
+    setOnBackOverride?.(() => backToModuleConfig);
+    setBackLabelOverride?.(t('previewView.backLabel'));
+    setPageTitleOverride?.(t('previewView.pageTitle'));
+    return () => {
+      setOnBackOverride?.(null);
+      setBackLabelOverride?.(null);
+      setPageTitleOverride?.(null);
+    };
+  }
+  ```
+  Add `moduleConfigPreview` to the effect's dependency array alongside the existing `configuringType`/`isPreview`. This is the one concrete behavior change the user asked for: clicking the topbar back arrow from a module-config-triggered preview lands back on `{view:'module-config', type, localData}` with `localData` exactly as it was — never reset to the last-Aplicar'd value, never discarded.
+- Reuses `previewView.backLabel` ("Voltar a editar"/"Back to edit") and `previewView.pageTitle` ("Preview") — both already generic enough to apply regardless of which screen Preview was opened from. No new i18n keys for this part.
+
+**Part 5 — "Preview" button on `ModuleConfigShell`**
+
+- `ModuleConfigShellProps` (`ModuleConfigShell.tsx:8-13`) gains `readonly onPreview: () => void`.
+- Desktop aside (`ModuleConfigShell.tsx:43-59`): insert a new outline `Button` between the existing Aplicar and Cancelar buttons, `onClick={onPreview}`, `data-testid="module-config-preview-desktop"`, label `t('...preview')` reusing the existing top-level `dashboard.hotsitePage.preview` key ("Preview" in both locales) — the same word already used for the tabs-level Preview button. `useTranslations('dashboard.hotsitePage.layout.configShell')` is scoped to that sub-namespace today (`ModuleConfigShell.tsx:28`); reach the sibling top-level key via a second `useTranslations('dashboard.hotsitePage')` call (mirrors how `HotsiteEditor.tsx` itself calls `t('preview')` off the unscoped `dashboard.hotsitePage` namespace).
+- Mobile fixed bar (`ModuleConfigShell.tsx:65-85`): currently 2 buttons, `flex-1` Cancelar + `flex-[2]` Aplicar. Revise to 3 evenly-weighted (`flex-1` each) buttons in order Cancelar / Preview / Aplicar — both Cancelar and the new Preview stay `variant="outline"`; Aplicar keeps sole use of the primary color so the "most likely next action" stays visually distinct even without the extra width it had at 2 buttons. `data-testid="module-config-preview-mobile"`.
+- `HotsiteEditor.tsx:269-279` (the `view.view === 'module-config'` render branch): pass `onPreview={() => setView({view: 'module-config-preview', type: view.type, localData: view.localData})}` into `<ModuleConfigShell>`.
+
+**Part 6 — i18n**
+
+No new keys for Parts 1–5. Part 4 and Part 5 both reuse existing copy (`previewView.backLabel`, `previewView.pageTitle`, top-level `preview`) — confirmed accurate for this new entry point, not repurposed from an unrelated meaning. (Parts 7 and 8, below, each need their own new keys.)
+
+**Part 7 — Confirm before discarding unsaved module-config edits**
+
+Today, both ways of leaving the module-config screen without clicking Aplicar — the "Cancelar" button and the topbar back arrow — discard `view.localData` immediately and silently (`handleCancelConfig`, `HotsiteEditor.tsx:265-267`, and the `backToTabs` closure at `:141`, both just `setView({view:'tabs'})`). This adds a confirmation prompt, but **only when there's actually something to lose** — an edit that differs from the module's last-Aplicar'd value. This is the first confirm-dialog anywhere in `apps/web` today (confirmed by direct search — not even the existing "Unpublish" destructive button at `HotsiteEditor.tsx:380-388` has one; that stays out of scope here, unrelated to this story).
+
+- **New primitive:** `apps/web/shared/components/ui/alert-dialog.tsx` (+ `.spec.tsx`) — standard shadcn `AlertDialog` composition wrapping `@radix-ui/react-alert-dialog` (new dependency, added to `apps/web/package.json` at the same major version already used by this workspace's other `@radix-ui/react-*` packages, e.g. `-popover`/`-select`). Mirrors how `popover.tsx`/`select.tsx` already wrap their own Radix primitives in this repo — tenant-agnostic dashboard styling only, no `--ba-*` (this screen is outside the hotsite styling boundary, same as every other dashboard component). **Must land in `dependencies`, not `devDependencies`** — it's imported by production code (`alert-dialog.tsx`, itself imported by `ModuleConfigShell.tsx`), and `docs/ANTI_PATTERNS.md`'s "production import listed only in `devDependencies`" row documents exactly this failure mode: `pnpm deploy --prod` strips `devDependencies` entirely, so a misclassified package boots fine in dev/test and fails only in production with `Cannot find module`.
+- **Dirty check:** a new top-level, unexported function in `HotsiteEditor.tsx`, alongside `mergeLocalDataIntoLayout` (Part 1):
+  ```ts
+  function isModuleDataDirty(
+    committed: Record<string, unknown>,
+    local: Record<string, unknown>,
+  ): boolean {
+    return JSON.stringify(committed) !== JSON.stringify(local);
+  }
+  ```
+  Structural (`JSON.stringify`) comparison, not a deep-equal library — none is currently a dependency of `apps/web` (confirmed by direct check of `package.json`), and this data is always plain JSON (no functions/dates) coming straight out of the config panels. Accepted, deliberate limitation: if a panel ever rebuilds an unchanged object with different key insertion order, this reports a false "dirty" (an unnecessary prompt), never a false "clean" (never silently loses a real edit) — the safe direction to be wrong in.
+- **State + wiring, in `HotsiteEditor.tsx`:**
+  - New `const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);`.
+  - Replace `handleCancelConfig` (`:265-267`) with three functions:
+    ```ts
+    function requestCancelConfig(): void {
+      if (view.view !== 'module-config') return;
+      const committedData = draft.layout.find((m) => m.type === view.type)?.data ?? {};
+      if (isModuleDataDirty(committedData, view.localData)) {
+        setDiscardConfirmOpen(true);
+      } else {
+        setView({ view: 'tabs' });
+      }
+    }
+
+    function handleConfirmDiscardConfig(): void {
+      setDiscardConfirmOpen(false);
+      setView({ view: 'tabs' });
+    }
+
+    function handleCancelDiscardConfig(): void {
+      setDiscardConfirmOpen(false);
+    }
+    ```
+  - `<ModuleConfigShell onBack={...}>` (`:274`) changes from `handleCancelConfig` to `requestCancelConfig` — the Cancelar button now goes through the dirty check.
+  - **Stale-closure gotcha the topbar wiring must avoid:** the topbar back-arrow override is (re)created only when `configuringType` changes (`HotsiteEditor.tsx:139-171`'s `useEffect` dependency array) — deliberately, so it doesn't re-run on every keystroke (see the effect's own comment). `requestCancelConfig` itself, however, needs the *current* `view.localData`/`draft` on every click, which the effect's stale dependency array won't provide if wired in directly. Fix: keep a ref holding the latest function, refreshed every render (not inside the effect):
+    ```ts
+    const requestCancelConfigRef = useRef<() => void>(() => {});
+    requestCancelConfigRef.current = requestCancelConfig;
+    ```
+    and inside the `configuringType` branch of the existing effect, change `const backToTabs = () => setView({ view: 'tabs' }); setOnBackOverride?.(() => backToTabs);` to `setOnBackOverride?.(() => () => requestCancelConfigRef.current());` — the effect's dependency array stays exactly as-is (`configuringType`, `isPreview`, `setOnBackOverride`, `setBackLabelOverride`, `setPageTitleOverride`, `t`), but the invoked function always reads the fresh ref, so a click on the topbar arrow always dirty-checks against the edit the admin is actually looking at, not whatever was there when the panel first opened.
+- **Dialog rendering — lifted state, child-rendered UI:** `discardConfirmOpen` must be visible to both trigger points (`ModuleConfigShell`'s Cancelar button and the topbar arrow, which lives outside `ModuleConfigShell`'s subtree entirely), so the boolean stays in `HotsiteEditor`. The dialog's JSX itself renders inside `ModuleConfigShell` (it's only ever relevant while that screen is mounted, exactly matching this component's existing scope). `ModuleConfigShellProps` (`ModuleConfigShell.tsx:8-13`) gains:
+  ```ts
+  readonly discardConfirmOpen: boolean;
+  readonly onConfirmDiscard: () => void;
+  readonly onCancelDiscard: () => void;
+  ```
+  Rendered as a fully-controlled `AlertDialog` (no `AlertDialogTrigger` — it's opened programmatically via the `open` prop, a standard supported Radix usage):
+  ```tsx
+  <AlertDialog
+    open={discardConfirmOpen}
+    onOpenChange={(open) => { if (!open) onCancelDiscard(); }}
+  >
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>{t('discardConfirmTitle')}</AlertDialogTitle>
+        <AlertDialogDescription>{t('discardConfirmDescription')}</AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel>{t('discardConfirmKeepEditing')}</AlertDialogCancel>
+        <AlertDialogAction onClick={onConfirmDiscard}>
+          {t('discardConfirmDiscardButton')}
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+  ```
+  `AlertDialogCancel` needs no explicit `onClick` — Radix's own Cancel element dismisses the dialog, which fires the `Root`'s `onOpenChange(false)` above, which already calls `onCancelDiscard()`; clicking outside the dialog or pressing Escape take the same path (both correctly treated as "keep editing," never as a silent discard).
+  - `HotsiteEditor.tsx:269-279` (the `view.view === 'module-config'` render branch) passes the three new props through: `discardConfirmOpen={discardConfirmOpen}`, `onConfirmDiscard={handleConfirmDiscardConfig}`, `onCancelDiscard={handleCancelDiscardConfig}`.
+- **Scope, confirmed:** this only guards the module-config screen's two discard paths (Cancelar, topbar back arrow) — not the top-level Branding/Layout/SEO/Manifest tabs (switching tabs there already silently discards in-progress state today, e.g. Manifesto per M18-S02 Part 3, and that's unchanged by this story), and not browser-level navigation (closing the tab, the browser back button) — this view is client-side state on one route, not a real route change, so there's no `beforeunload`/route-guard mechanism to hook into, and none is added here.
+- **i18n** — 4 new keys under `dashboard.hotsitePage.layout.configShell`, both `pt-BR` and `en`, same commit:
+
+  | Key | pt-BR | en |
+  |---|---|---|
+  | `discardConfirmTitle` | Descartar alterações? | Discard changes? |
+  | `discardConfirmDescription` | Você tem alterações neste módulo que ainda não foram aplicadas. Se sair agora, elas serão perdidas. | You have unapplied changes to this module. If you leave now, they'll be lost. |
+  | `discardConfirmKeepEditing` | Continuar editando | Keep editing |
+  | `discardConfirmDiscardButton` | Descartar alterações | Discard changes |
+
+**Part 8 — "Visitar site": a link to the real, live public hotsite, from the main tabs screen only**
+
+Not related to module-config — this is the top-level tabs screen's action area (`HotsiteEditor.tsx`'s desktop aside, `:392-417`, and mobile fixed bar, `:420-441`), which today has exactly "Publicar"/"Preview". Confirmed by direct read of `apps/web/app/[slug]/page.tsx:42-48`: the public hotsite route already renders gracefully for an unpublished tenant (`<Unavailable />`, not a 404/error), so this link needs no conditional disabling for that case — it's always safe to offer.
+
+- Both the dashboard (`/dashboard/hotsite`) and the public hotsite (`/[slug]`) are routes within this same `apps/web` Next.js app, on the same origin — confirmed by the user's own examples (`localhost:3000/dashboard/hotsite` + `localhost:3000/ikaro`; staging `ikaro-web-crle4i3nrq-rj.a.run.app` for both). So the link is a plain relative path, `/${tenantSlug}` — no origin-detection logic needed, `tenantSlug` already comes from the existing `useTenant()` call (`HotsiteEditor.tsx:123`).
+- A real `<a>` tag (not Next.js `<Link>`, and not a `window.open()` in a click handler) — `target="_blank" rel="noopener noreferrer"` — opens the live site in a new tab, so the admin's in-progress draft in the editor is never at risk of being navigated away from. Uses the existing `Button asChild` + Radix `Slot` pattern already established at ~15 other call sites in `apps/web` (e.g. `ServiceEditPage.tsx:45`, `StaffDetailPage.tsx:170`) — not a new pattern.
+- Desktop aside (`HotsiteEditor.tsx:392-417`): new `variant="outline"` button, placed after the existing Preview button and before the `<hr>`/hint text — order becomes Publicar (primary) → Preview (outline) → Visitar site (outline):
+  ```tsx
+  <Button asChild variant="outline" className="w-full" data-testid="hotsite-view-live-site-desktop">
+    <a href={`/${tenantSlug}`} target="_blank" rel="noopener noreferrer">
+      {t('viewLiveSite')}
+    </a>
+  </Button>
+  ```
+- Mobile fixed bar (`HotsiteEditor.tsx:420-441`): currently 2 buttons (`flex-1` Preview, `flex-[2]` Publicar). Revised to 3 evenly-weighted (`flex-1` each) buttons, same rebalancing approach as Part 5's `ModuleConfigShell` mobile bar: Visitar site (outline) / Preview (outline) / Publicar (primary, keeps sole use of the primary color).
+- **i18n** — 1 new key, both locales:
+
+  | Key | pt-BR | en |
+  |---|---|---|
+  | `dashboard.hotsitePage.viewLiveSite` | Visitar site | Visit site |
+
+### Acceptance Criteria
+
+- [ ] "Preview" button appears in `ModuleConfigShell`, both desktop aside and mobile action bar, alongside Aplicar/Cancelar
+- [ ] Clicking Preview from an open module-config panel shows the hotsite preview reflecting the in-progress (not-yet-Aplicar'd) edit merged with the rest of the current `draft` — without discarding `view.localData` and without writing into `draft`
+- [ ] Clicking the topbar back arrow from that preview returns to the same `module-config` view — same `type`, same `localData` — not reset to the last-Aplicar'd value and not sent to the tabs view
+- [ ] Clicking Publish from that preview submits the in-progress module edit merged with the rest of `draft` in a single mutation call, publishes it, and lands back on the tabs view with the success banner — same end state as today's Publish-from-tabs success path
+- [ ] All three pre-existing `handlePublish` call sites (`HotsiteEditor.tsx:398`, `:435`, and the tabs-view `HotsitePreview`'s `onPublish` wiring at `:283`) are wrapped as zero-arg closures — none of them can accidentally pass a click `SyntheticEvent` as `contentOverride`
+- [ ] The ordinary tabs → Preview → Publish flow (module-config never involved) is behaviorally unchanged
+- [ ] Aplicar/Cancelar from the plain `module-config` view behave exactly as before this story **when there is no unsaved edit** — Cancelar/topbar-back navigate straight to `'tabs'`, no dialog
+- [ ] Cancelar or the topbar back arrow, when `view.localData` differs from the module's last-Aplicar'd value, opens the discard-confirm dialog instead of navigating away; "Keep editing" (or clicking outside / Escape) closes the dialog and stays on the same `module-config` view with `localData` untouched; "Discard changes" navigates to `'tabs'`, discarding it — same end state as today's silent Cancelar
+- [ ] The discard-confirm dialog correctly reflects the *current* edit, not the edit that existed when the panel was first opened — verified by editing a field, waiting (no click), then clicking Cancelar, confirming the dialog appears (proves the stale-closure/ref fix in Part 7 actually works, not just "a dialog exists")
+- [ ] No new i18n keys required for Parts 1–6; existing `previewView.backLabel`/`previewView.pageTitle`/top-level `preview` keys are confirmed accurate when reused from this new entry point
+- [ ] The 4 new `discardConfirm*` keys (Part 7) and the 1 new `viewLiveSite` key (Part 8) exist in both `pt-BR` and `en` in the same commit
+- [ ] A "Visitar site"/"Visit site" link appears on the main tabs screen's action area only (desktop aside + mobile bar) — **not** on the module-config or module-config-preview screens — opens `/${tenantSlug}` in a new browser tab (`target="_blank"`), leaving the editor's current state untouched in the original tab
+- [ ] Coverage ≥80% on changed code; `tsc --noEmit`, lint, full test suite green
+
+### Testing
+
+**Unit — Vitest (`apps/web`):**
+- NEW `apps/web/shared/components/ui/alert-dialog.spec.tsx` — mirrors the other new `ui/*` primitive specs' shape (renders when `open`, hidden when not; `AlertDialogAction`/`AlertDialogCancel` fire their respective callbacks).
+- UPDATE `apps/web/features/platform/components/hotsite/modules/ModuleConfigShell.spec.tsx`:
+  - New Preview button renders in both the desktop aside and mobile bar; clicking it calls `onPreview` exactly once and does not call `onApply`/`onBack`.
+  - The discard-confirm dialog renders when `discardConfirmOpen` is `true` and not when `false`; clicking "Discard changes" calls `onConfirmDiscard`; clicking "Keep editing" calls `onCancelDiscard`; neither calls `onBack`/`onApply` directly (`ModuleConfigShell` no longer owns the discard decision, just the dialog's visibility).
+- UPDATE `apps/web/features/platform/components/hotsite/HotsiteEditor.spec.tsx`:
+  - Opening a module's Configurar panel, editing a field, then clicking Preview switches to a preview showing the merged (draft + `localData`) content — assert against the specific edited value, not just "a preview rendered."
+  - Clicking Back from that preview (invoking the pushed `onBackOverride`) returns to the `module-config` view with the same `type` and the edited `localData` still present — not reverted to the pre-edit value.
+  - Publish from that preview calls the update-config mutation with the merged layout (not the stale `draft.layout` that predates the edit) and, on success, returns to `'tabs'` with the success banner — mirrors the existing Publish-from-tabs assertions.
+  - Regression: the existing Publish-from-tabs tests (aside button, mobile button, `HotsitePreview`'s own Publish button) continue to pass unmodified — proves the optional-override refactor doesn't change default behavior when no override is supplied.
+  - Clicking Cancelar (or invoking the topbar back-arrow override) with no edit made goes straight to `'tabs'` — no dialog opens.
+  - Clicking Cancelar (or the topbar back-arrow override) after editing a field opens the dialog instead of navigating; confirming discards and returns to `'tabs'`; keep-editing stays on `module-config` with the edit intact.
+  - Editing a field, waiting a render cycle (no further interaction), then invoking the topbar back-arrow override still correctly detects the edit as dirty — regression test for the ref-based staleness fix specifically (asserts against the *current* `requestCancelConfigRef.current`, not a snapshot captured at panel-open time).
+  - The "Visitar site" link renders in the tabs view's desktop aside and mobile bar with `href="/${tenantSlug}"` and `target="_blank"`; does **not** render in the `module-config` or `module-config-preview` views.
+
+**Playwright E2E (`apps/web/e2e`):**
+- UPDATE `apps/web/e2e/hotsite-editor.spec.ts`:
+  - Open a module's Configurar panel, edit a field, click Preview (without Aplicar first) — verify the preview reflects the edited value. Click Back — verify the field still shows the edited value (not reverted). Then Aplicar, Publish, reload, verify persisted.
+  - Separate case: from that same module-config-preview screen, click Publish directly (skipping Aplicar entirely) — verify the edit persists after reload. This is the case that specifically proves the merged-submit path in Part 3, not just the visual preview.
+  - Discard-confirm: open a module's Configurar panel, edit a field, click Cancelar — assert the dialog appears; click "Keep editing" — assert still on the config panel with the edit intact; click Cancelar again, then "Discard changes" — assert back on the tabs view and the field's value (re-opening Configurar) reflects the pre-edit, last-Aplicar'd value.
+  - "Visitar site": click it from the tabs view, assert a new tab/page opens at `/${tenantSlug}` (Playwright's `context.waitForEvent('page')` pattern).
+
+### Dependencies
+
+None outstanding for Parts 1–6 — `ModuleConfigShell`, `HotsitePreview`, `draft`/`view` state, and the topbar back-override mechanism all already exist and ship today (M13-S37). Part 7 adds one new runtime dependency, `@radix-ui/react-alert-dialog` (not currently installed — confirmed by direct check of `apps/web/package.json`). Part 8 has no new dependencies.
+
+### Resolved during `/story-discovery M18-S08` (2026-08-07)
+
+1. **No `plan/journey/` prototype required.** All three parts of this story are small, self-contained additions to an already-shipped, already-validated screen (`HotsiteEditor.tsx`, M13-S37) — not a new UX surface needing validation from scratch. Same precedent as M18-S01/S02/S06/S07 in this same milestone.
+2. **`docs/04-USE_CASES.md` UC-027 updated in the same pass** (not deferred to this story's own implementation) — step 4 of the Main Flow now describes both the module-config Preview entry point and the "Visitar site" link; a new Alternative Flow A4 describes the discard-confirm prompt. Confirmed by direct read of UC-027 that neither the pre-existing module-config screen nor this story's additions were previously documented there.
+3. **`@radix-ui/react-alert-dialog` must be added to `dependencies`, not `devDependencies`** — confirmed against `docs/ANTI_PATTERNS.md`'s documented failure mode (a production-only import misclassified as dev-only passes CI, since tests see the full graph regardless, and only breaks at `pnpm deploy --prod`). Called out explicitly in Part 7 above so it isn't missed during implementation.
