@@ -79,7 +79,7 @@ function buildContentSecurityPolicy(pathname: string): string {
   // which 302-redirects to https://www.google.com/maps/embed?... — CSP frame-src is checked
   // against every hop of a navigation/redirect chain, so both origins must be allowed or the
   // final navigation is silently blocked ("This content is blocked" in the browser).
-  const frameSrc = isHotsite ? 'https://maps.google.com https://www.google.com' : "'none'";
+  const frameSrc = isHotsite ? ['https://maps.google.com', 'https://www.google.com'] : ["'none'"];
 
   return [
     `default-src 'self'`,
@@ -88,7 +88,7 @@ function buildContentSecurityPolicy(pathname: string): string {
     `img-src ${imgSrc.join(' ')}`,
     `font-src 'self'`,
     `connect-src ${connectSrc.join(' ')}`,
-    `frame-src ${frameSrc}`,
+    `frame-src ${frameSrc.join(' ')}`,
     `frame-ancestors 'none'`,
     `base-uri 'self'`,
     `form-action 'self'`,
