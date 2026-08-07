@@ -31,6 +31,18 @@
     plan/journey/customer/prototypes/minha-conta/01-minha-conta.html. Same tab nav
     (Início / Agendamentos / Fidelidade), same booking-item list pattern.
 
+    UX-review fix (deviated from the literal instruction on purpose): the reviewer
+    that flagged this screen assumed `.booking-item` was a locally-reinvented pattern
+    that should be replaced with the shared `.booking-card` (tokens.css, used by the
+    STAFF-side agenda). Checked against the real 01-minha-conta.html first — it turns
+    out `.booking-item` IS the real, deliberately-matched CUSTOMER-side pattern (also
+    locally defined there, not in tokens.css); switching to `.booking-card` here would
+    have made this screen LESS consistent with the actual product, not more. Kept
+    `.booking-item`. What's still fixed: "Gerenciar recorrência" promoted from a small
+    plain text link to a real `.btn-secondary`, since it's a consequential action.
+    The customer-side vs. staff-side card duplication itself is pre-existing in the
+    real app (01-minha-conta.html), outside this discovery set's scope to fix.
+
     Finding worth keeping: a recurring booking surfaces INSIDE the existing
     "Agendamentos" tab (Próximos section), tagged, not as a separate new tab — no new
     top-level customer-facing IA needed for this feature, unlike the staff/manager side
@@ -72,7 +84,7 @@
             </div>
             <div class="booking-item-aside">
               <span class="status-badge status-approved">Confirmado</span>
-              <a href="customer-04-gerenciar-recorrencia.html" style="font-size:0.75rem;color:var(--ba-primary);text-decoration:none;font-weight:600;">Gerenciar recorrência</a>
+              <a href="customer-04-gerenciar-recorrencia.html" class="btn-secondary" style="padding:0.375rem 0.75rem;font-size:0.8125rem;text-decoration:none;white-space:nowrap;">Gerenciar recorrência</a>
             </div>
           </div>
         </div>

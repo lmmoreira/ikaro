@@ -31,6 +31,15 @@
     .form-actions .btn-secondary { flex: 0 0 auto; padding: 0.875rem 1.25rem; }
     .leg-card { border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); padding: 1rem; margin-bottom: 0.75rem; }
     .leg-order-badge { display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: #2563eb; color: white; font-size: 0.75rem; font-weight: 700; }
+    /* Compact eligibility picker — replaces the full eligible+ineligible checklist with
+       chips for who's in the pool today + a single "add" select, same spirit as
+       manager-06's compact <select> pattern for the SESSION path. */
+    .eligible-count { font-size: 0.8125rem; font-weight: 600; color: var(--ba-text); margin-bottom: 0.5rem; }
+    .eligible-chip-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .eligible-chip { display: inline-flex; align-items: center; gap: 0.375rem; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 9999px; padding: 0.3125rem 0.5rem 0.3125rem 0.75rem; font-size: 0.8125rem; font-weight: 600; }
+    .chip-remove { background: none; border: none; color: #1d4ed8; opacity: 0.6; cursor: pointer; font-size: 0.9375rem; line-height: 1; padding: 0.125rem; }
+    .chip-remove:hover { opacity: 1; }
+    .eligible-add-select { margin-top: 0.625rem; }
   </style>
 </head>
 <body>
@@ -226,6 +235,11 @@
             </div>
           </div>
           <p class="form-hint" id="model-hint">"Agendamento" selecionado — os campos abaixo aparecem. "Turma com capacidade" leva para a tela de Turmas em vez disso.</p>
+          <p class="form-hint" style="margin-top:0.375rem;color:#92400e;">
+            <strong>Ilustrativo apenas:</strong> Massagem Relaxante já tem agendamentos, então
+            na prática o modelo não pode mais ser trocado (CAND-10, alt. A1) — a troca real só
+            é possível ao <em>criar</em> um serviço novo.
+          </p>
         </div>
 
         <!--
@@ -311,13 +325,6 @@
               (<code>manager-06-criar-turma.html</code> só escolhe, nunca redeclara).
             </p>
           </div>
-
-          <p class="form-hint" style="margin-top:0.75rem;">
-            <strong>Massagem Relaxante já tem agendamentos</strong> — na prática o modelo de
-            agendamento não pode mais ser trocado depois que o serviço tem histórico
-            (CAND-10, alt. A1). Este toggle é só ilustrativo aqui; a troca real só é
-            possível ao <em>criar</em> um serviço novo.
-          </p>
         </div>
 
         <div class="form-group" id="appointment-config">
@@ -350,21 +357,30 @@
             </label>
 
             <!--
-              Fixed on review (2026-07-29): resourcePoolIds (discovery doc §5) had no UI at
-              all — checking "Profissional" implied "anyone on staff is eligible," which is
-              wrong. Camila/Bruno are hairdressers/instructors, not massage therapists; they
-              shouldn't be selectable here at all. This checklist IS the pool restriction.
+              Redesigned (fix pass): a full 8-row eligible+ineligible checklist per
+              resource type was the "spreadsheet, not a SaaS product" anti-pattern the
+              discovery doc's own §10 warns against — doesn't scale past a handful of
+              staff. Replaced with a compact chip list of who's eligible today + a
+              single "add" select, same spirit as manager-06's compact <select>
+              eligibility picker for the SESSION path. Checking "Profissional" still
+              means "not anyone on staff" — Camila/Bruno remain excluded by simply not
+              being in the chip list, not via a disabled row explaining why.
             -->
             <div class="nested-selmode">
-              <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quem é elegível?</label>
-              <label><input type="checkbox" disabled> Juliana Prado <span style="opacity:0.5;">— ainda sem serviço vinculado, não elegível</span></label>
-              <label><input type="checkbox" disabled> Camila Duarte <span style="opacity:0.5;">— cabeleireira, não elegível</span></label>
-              <label><input type="checkbox" disabled> Ana Beatriz <span style="opacity:0.5;">— instrutora de Pilates, não elegível</span></label>
-              <label><input type="checkbox" disabled> Bruno Alves <span style="opacity:0.5;">— cabeleireiro, não elegível</span></label>
-              <label><input type="checkbox" checked> Renata Souza</label>
-              <label><input type="checkbox" checked> Maria Santos</label>
-              <label><input type="checkbox" disabled> João Mendes <span style="opacity:0.5;">— instrutor de CrossFit, não elegível</span></label>
-              <label><input type="checkbox" disabled> Fábio Ramos <span style="opacity:0.5;">— instrutor de CrossFit, não elegível</span></label>
+              <p class="eligible-count">Elegíveis (2)</p>
+              <div class="eligible-chip-row">
+                <span class="eligible-chip">Renata Souza <button type="button" class="chip-remove" aria-label="Remover Renata Souza">×</button></span>
+                <span class="eligible-chip">Maria Santos <button type="button" class="chip-remove" aria-label="Remover Maria Santos">×</button></span>
+              </div>
+              <select class="form-input eligible-add-select">
+                <option value="">+ Adicionar profissional elegível…</option>
+                <option>Juliana Prado</option>
+                <option>Camila Duarte</option>
+                <option>Ana Beatriz</option>
+                <option>Bruno Alves</option>
+                <option>João Mendes</option>
+                <option>Fábio Ramos</option>
+              </select>
             </div>
             <div class="nested-selmode" style="margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
               <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Como é escolhido dentro do grupo elegível?</label>
@@ -382,16 +398,21 @@
               </div>
             </label>
 
-            <!-- Same fix — "massagem só pode acontecer na Sala 1 e 2" is exactly this list -->
+            <!-- Same redesign as Profissional above — "massagem só pode acontecer na Sala 1 e 2" is now this chip list -->
             <div class="nested-selmode">
-              <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quais salas são elegíveis?</label>
-              <label><input type="checkbox" disabled> Estúdio 1 <span style="opacity:0.5;">— salão aberto de Pilates, sem privacidade/estrutura para massagem ou sauna, não elegível</span></label>
-              <label><input type="checkbox" disabled> Estúdio 2 <span style="opacity:0.5;">— salão aberto de Pilates, sem privacidade/estrutura para massagem ou sauna, não elegível</span></label>
-              <label><input type="checkbox" checked> Sala de Terapia</label>
-              <label><input type="checkbox" disabled> Sala de Sauna <span style="opacity:0.5;">— equipada para banho de vapor, sem mesa de massagem, lounge, ou espaço para aula em grupo, não elegível</span></label>
-              <label><input type="checkbox" checked> Sala de Relaxamento</label>
-              <label><input type="checkbox" disabled> Área CrossFit <span style="opacity:0.5;">— espaço aberto de treino funcional, sem estrutura para tratamentos de spa ou aula de Pilates, não elegível</span></label>
-              <label><input type="checkbox" disabled> Sala de Ioga <span style="opacity:0.5;">— ainda sem serviço vinculado, não elegível</span></label>
+              <p class="eligible-count">Elegíveis (2)</p>
+              <div class="eligible-chip-row">
+                <span class="eligible-chip">Sala de Terapia <button type="button" class="chip-remove" aria-label="Remover Sala de Terapia">×</button></span>
+                <span class="eligible-chip">Sala de Relaxamento <button type="button" class="chip-remove" aria-label="Remover Sala de Relaxamento">×</button></span>
+              </div>
+              <select class="form-input eligible-add-select">
+                <option value="">+ Adicionar sala elegível…</option>
+                <option>Estúdio 1</option>
+                <option>Estúdio 2</option>
+                <option>Sala de Sauna</option>
+                <option>Área CrossFit</option>
+                <option>Sala de Ioga</option>
+              </select>
             </div>
             <div class="nested-selmode" style="margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
               <label><input type="radio" name="selmode-room" checked> Sistema atribui automaticamente entre as duas elegíveis (CAND-17)</label>
@@ -414,10 +435,15 @@
             </label>
 
             <div class="nested-selmode">
-              <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quais equipamentos são elegíveis?</label>
-              <label><input type="checkbox" checked> Kit de Pedras Quentes</label>
-              <label><input type="checkbox" disabled> Kit Halteres (Rack 1) <span style="opacity:0.5;">— equipamento de musculação, não utilizado em massagens</span></label>
-              <label><input type="checkbox" disabled> Kit Halteres (Rack 2) <span style="opacity:0.5;">— equipamento de musculação, não utilizado em massagens</span></label>
+              <p class="eligible-count">Elegíveis (1)</p>
+              <div class="eligible-chip-row">
+                <span class="eligible-chip">Kit de Pedras Quentes <button type="button" class="chip-remove" aria-label="Remover Kit de Pedras Quentes">×</button></span>
+              </div>
+              <select class="form-input eligible-add-select">
+                <option value="">+ Adicionar equipamento elegível…</option>
+                <option>Kit Halteres (Rack 1)</option>
+                <option>Kit Halteres (Rack 2)</option>
+              </select>
             </div>
             <div class="nested-selmode" style="margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
               <label><input type="radio" name="selmode-equip" checked> Sistema atribui automaticamente (única elegível)</label>
@@ -431,9 +457,9 @@
             na mesma janela ao mesmo tempo (CAND-07, CAND-31); ver a experiência do
             cliente em public-04-bundle-booking.html. <strong>Massagem Relaxante aqui marca
             as três</strong> — Profissional, Sala <em>e</em> Equipamento precisam estar livres
-            juntos. Dentro de cada tipo marcado, a checklist "elegível" restringe o pool a
-            um subconjunto — <code>resourcePoolIds</code> no domínio (discovery §5) — em vez
-            de qualquer recurso daquele tipo no tenant inteiro.
+            juntos. Dentro de cada tipo marcado, a lista de elegíveis restringe o pool a um
+            grupo específico de profissionais/salas/equipamentos, não qualquer recurso
+            daquele tipo no tenant inteiro.
           </p>
 
         <div class="form-group" style="margin-top:1.25rem;">
@@ -697,7 +723,9 @@
       document.getElementById('model-appointment').classList.toggle('selected', !isSession);
       document.getElementById('model-session').classList.toggle('selected', isSession);
       document.getElementById('appointment-config').style.display = isSession ? 'none' : '';
-      document.getElementById('appointment-form-actions').style.display = isSession ? 'none' : '';
+      // Always keep Cancelar/Salvar visible — the session-handoff panel used to hide this
+      // row entirely, leaving the "Configurar turma →" link as the only way forward and no
+      // way to back out of this screen.
       document.getElementById('session-handoff').style.display = isSession ? '' : 'none';
       document.getElementById('model-hint').textContent = isSession
         ? '"Turma com capacidade" selecionado — em vez dos campos de recurso, este serviço é configurado na tela de Turmas.'

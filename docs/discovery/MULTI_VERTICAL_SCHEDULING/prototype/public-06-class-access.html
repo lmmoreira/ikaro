@@ -17,24 +17,27 @@
     <p class="step-indicator">Pilates · Seg, 04 ago · 08:00–09:00 · Estúdio 1</p>
     <h1 style="font-size:1.5rem;">Reserve sua vaga</h1>
     <div class="mode" role="tablist" aria-label="Tipo de acesso">
-      <button class="active" onclick="showState('customer',this)" role="tab">Sou cliente</button>
-      <button onclick="showState('guest',this)" role="tab">Quero experimentar</button>
+      <button class="active" onclick="showState('customer',this)" role="tab" aria-selected="true">Sou cliente</button>
+      <button onclick="showState('guest',this)" role="tab" aria-selected="false">Quero experimentar</button>
     </div>
     <section id="customer" class="state active">
       <div class="card selected"><p style="font-weight:700;">Seu contrato Pilates está ativo</p><p style="font-size:.875rem;opacity:.7;margin-top:.25rem;">Válido até 31 de agosto · esta reserva usa 1 vaga do grupo, sem pagamento por aula.</p></div>
       <div class="notice" style="background:#eff6ff;color:#1d4ed8;">Você reserva uma vaga para si. Grupos são permitidos apenas para convidados.</div>
       <div class="nav-buttons"><a class="btn-secondary" href="public-02-class-session-picker.html">Voltar</a><a class="btn-primary" href="customer-01-session-confirmed-optin.html">Confirmar 1 vaga</a></div>
-      <p style="font-size:.75rem;opacity:.6;margin-top:1rem;">Sem contrato elegível? Você não pode reservar como convidado. Fale com a equipe.</p>
+      <p style="font-size:.75rem;opacity:.6;margin-top:1rem;">Sem contrato elegível? Você ainda pode reservar como convidado avulso — veja a aba "Quero experimentar".</p>
     </section>
     <section id="guest" class="state">
       <div class="notice" style="background:#fef3c7;color:#92400e;">Primeira aula gratuita por e-mail no Vitta Studio. Depois, o pagamento é feito presencialmente no encerramento da turma. Esta turma exige aprovação da equipe.</div>
       <div class="form-group"><label class="form-label">Seu e-mail</label><input class="form-input" type="email" value="ana@email.com"></div>
       <div class="form-group"><label class="form-label">Seu nome</label><input class="form-input" value="Ana Costa"></div>
-      <div class="form-group"><label class="form-label">Convidada 2</label><input class="form-input" value="Bia Santos"><p style="font-size:.75rem;opacity:.6;margin-top:.3rem;">Cada vaga tem uma pessoa identificada. Você pode adicionar até 2 vagas restantes.</p></div>
+      <div id="guest-list">
+        <div class="form-group"><label class="form-label">Convidada 2</label><input class="form-input" value="Bia Santos"><p style="font-size:.75rem;opacity:.6;margin-top:.3rem;">Cada vaga tem uma pessoa identificada. Você pode adicionar até 2 vagas restantes.</p></div>
+        <div id="add-guest-row"><button type="button" onclick="addGuest()" style="width:100%;padding:.625rem;background:white;border:1px dashed var(--ba-secondary);border-radius:var(--ba-radius);color:var(--ba-primary);font-weight:600;font:inherit;cursor:pointer;">+ Adicionar convidado</button></div>
+      </div>
       <div class="nav-buttons"><a class="btn-secondary" href="public-02-class-session-picker.html">Voltar</a><a class="btn-primary" href="#verified" onclick="showVerified()">Enviar link de verificação</a></div>
       <div id="verified" class="notice" style="display:none;background:#eff6ff;color:#1d4ed8;">E-mail verificado. As 2 vagas agora estão <strong>aguardando aprovação</strong>; a equipe aprova ou recusa as duas em uma única decisão. Se a turma lotar antes da verificação, sua solicitação entra na fila sem reservar vagas.</div>
     </section>
   </main>
-  <script>function showState(id,button){document.querySelectorAll('.state').forEach(e=>e.classList.remove('active'));document.querySelectorAll('.mode button').forEach(e=>e.classList.remove('active'));document.getElementById(id).classList.add('active');button.classList.add('active')}function showVerified(){document.getElementById('verified').style.display='block'}</script>
+  <script>function showState(id,button){document.querySelectorAll('.state').forEach(e=>e.classList.remove('active'));document.querySelectorAll('.mode button').forEach(e=>{e.classList.remove('active');e.setAttribute('aria-selected','false')});document.getElementById(id).classList.add('active');button.classList.add('active');button.setAttribute('aria-selected','true')}function showVerified(){document.getElementById('verified').style.display='block'}function addGuest(){const group=document.getElementById('guest-list');const idx=group.querySelectorAll('.form-group').length+2;const div=document.createElement('div');div.className='form-group';div.innerHTML='<label class="form-label">Convidada '+idx+'</label><input class="form-input" placeholder="Nome da convidada">';group.insertBefore(div,document.getElementById('add-guest-row'))}</script>
 </body>
 </html>

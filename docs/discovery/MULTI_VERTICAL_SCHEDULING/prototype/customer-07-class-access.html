@@ -1,2 +1,65 @@
 <!DOCTYPE html>
-<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Meu acesso às aulas — Vitta Studio</title><link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css"><style>.item{padding:1rem 0;border-bottom:1px solid var(--ba-secondary)}.status{font-size:.72rem;font-weight:700;padding:.2rem .5rem;border-radius:999px;background:#dcfce7;color:#166534}</style></head><body><div class="dashboard-topbar"><div class="topbar-brand"><div class="topbar-logo-mark">V</div><span class="topbar-tenant-name">Vitta Studio</span></div><span class="topbar-page-title">Meus agendamentos</span><div class="list-avatar" style="margin-left:auto">FL</div></div><main class="main-content"><div class="dashboard-body" style="max-width:42rem"><h1 style="font-size:1.25rem;margin-bottom:1rem">Meu acesso às aulas</h1><div class="card"><div class="item"><strong>Contrato ativo</strong><span class="status" style="float:right">ATIVO</span><p style="font-size:.8125rem;opacity:.65;margin-top:.25rem">Pilates · válido até 31 de agosto</p></div><div class="item"><strong>Minha recorrência</strong><p style="font-size:.8125rem;opacity:.65;margin-top:.25rem">Segundas às 08:00 · termina em 31 de agosto junto com seu contrato.</p></div><div class="item"><strong>Seg, 18 ago · Pilates</strong><span class="status" style="float:right">CONFIRMADO</span><p style="font-size:.8125rem;opacity:.65;margin-top:.25rem">1 vaga · contrato</p><button class="btn-secondary" style="padding:.4rem .75rem;font-size:.8125rem;margin-top:.65rem" onclick="document.getElementById('cancel').style.display='block'">Cancelar esta reserva</button><div id="cancel" style="display:none;margin-top:.75rem;background:#fef2f2;padding:.75rem;border-radius:var(--ba-radius);font-size:.8125rem"><strong>Cancelar esta aula?</strong><p style="margin:.25rem 0 .5rem">A janela de cancelamento é até 4 horas antes. Sua vaga será oferecida à fila de espera.</p><button class="btn-danger" style="padding:.4rem .75rem;font-size:.8125rem">Confirmar cancelamento</button></div></div></div><p style="font-size:.8125rem;opacity:.65;margin-top:1rem">Quando o contrato terminar, as reservas futuras e a recorrência encerram. Depois de renovar, você escolhe novamente se quer repetir semanalmente.</p></div></main></body></html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meu acesso às aulas — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
+  <style>
+    .item { padding: 1rem 0; border-bottom: 1px solid var(--ba-secondary); }
+  </style>
+</head>
+<body>
+
+  <!--
+    DISCOVERY PROTOTYPE — illustrative only, NOT a plan/journey/ prototype.
+    Reformatted on UX-review fix pass: was previously a single minified line, unlike
+    every sibling in this recurring-enrollment/class-access set — now readable/diffable.
+    Also swapped the bespoke local `.status` pill for the real shared `.status-badge`
+    classes (status-approved/status-info) already used by customer-02/customer-03,
+    for consistency across this screen set.
+  -->
+
+  <div class="dashboard-topbar">
+    <div class="topbar-brand">
+      <div class="topbar-logo-mark">V</div>
+      <span class="topbar-tenant-name">Vitta Studio</span>
+    </div>
+    <span class="topbar-page-title">Meus agendamentos</span>
+    <div class="list-avatar" style="margin-left:auto">FL</div>
+  </div>
+
+  <main class="main-content">
+    <div class="dashboard-body" style="max-width:42rem">
+      <h1 style="font-size:1.25rem;margin-bottom:1rem">Meu acesso às aulas</h1>
+
+      <div class="card">
+        <div class="item">
+          <strong>Contrato ativo</strong>
+          <span class="status-badge status-approved" style="float:right">ATIVO</span>
+          <p style="font-size:.8125rem;opacity:.65;margin-top:.25rem">Pilates · válido até 31 de agosto</p>
+        </div>
+
+        <div class="item">
+          <strong>Minha recorrência</strong>
+          <p style="font-size:.8125rem;opacity:.65;margin-top:.25rem">Segundas às 08:00 · termina em 31 de agosto junto com seu contrato.</p>
+        </div>
+
+        <div class="item">
+          <strong>Seg, 18 ago · Pilates</strong>
+          <span class="status-badge status-info" style="float:right">CONFIRMADO</span>
+          <p style="font-size:.8125rem;opacity:.65;margin-top:.25rem">1 vaga · pagamento via contrato</p>
+          <button class="btn-secondary" style="padding:.4rem .75rem;font-size:.8125rem;margin-top:.65rem" onclick="document.getElementById('cancel').style.display='block'">Cancelar esta reserva</button>
+          <div id="cancel" style="display:none;margin-top:.75rem;background:#fef2f2;padding:.75rem;border-radius:var(--ba-radius);font-size:.8125rem">
+            <strong>Cancelar esta aula?</strong>
+            <p style="margin:.25rem 0 .5rem">A janela de cancelamento é até 4 horas antes. Sua vaga será oferecida à fila de espera.</p>
+            <button class="btn-danger" style="padding:.4rem .75rem;font-size:.8125rem">Confirmar cancelamento</button>
+          </div>
+        </div>
+      </div>
+
+      <p style="font-size:.8125rem;opacity:.65;margin-top:1rem">Quando o contrato terminar, as reservas futuras e a recorrência encerram. Depois de renovar, você escolhe novamente se quer repetir semanalmente.</p>
+    </div>
+  </main>
+</body>
+</html>

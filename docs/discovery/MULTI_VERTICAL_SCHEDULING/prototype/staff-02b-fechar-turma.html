@@ -8,6 +8,7 @@
   <style>
     .capacity-bar-track { width: 100%; height: 0.5rem; border-radius: 9999px; background: var(--ba-secondary); margin: 0.75rem 0; overflow: hidden; }
     .capacity-bar-fill { height: 100%; border-radius: 9999px; background: #2563eb; } /* fixed platform blue, not --ba-primary -- dashboard is tenant-agnostic */
+    .capacity-bar-fill.full { background: #dc2626; } /* matches staff-04-turmas-proximas.html's full-capacity treatment -- same state must read the same everywhere */
     .attendee-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 0; border-bottom: 1px solid var(--ba-secondary); }
     .attendee-row:last-child { border-bottom: none; }
     .attendee-row.no-show { opacity: 0.6; }
@@ -108,8 +109,8 @@
         <div class="card" style="margin-bottom:1.25rem;">
           <p style="font-weight:700;color:var(--ba-text);">Segunda, 28 de julho — 08:00–09:00 <span style="font-size:0.6875rem;font-weight:700;color:#92400e;background:#fef3c7;padding:0.125rem 0.4375rem;border-radius:4px;">Encerrada — presença pendente</span></p>
           <p style="font-size:0.875rem;opacity:0.65;margin-top:0.25rem;">Sala: Estúdio 1 · Instrutora: Camila Duarte</p>
-          <div class="capacity-bar-track"><div class="capacity-bar-fill" style="width:100%;"></div></div>
-          <p style="font-size:0.875rem;font-weight:600;color:#15803d;">4 de 4 vagas preenchidas</p>
+          <div class="capacity-bar-track"><div class="capacity-bar-fill full" style="width:100%;"></div></div>
+          <p style="font-size:0.875rem;font-weight:600;color:#dc2626;">4 de 4 vagas preenchidas</p>
         </div>
 
         <p class="section-card-title" style="margin-bottom:0.5rem;">Presença (4)</p>
@@ -125,8 +126,11 @@
             <div style="flex:1;"><p style="font-weight:600;font-size:0.9375rem;">Roberta Dias</p></div>
             <button class="attend-toggle attended" onclick="toggleAttendance(this)">✓ Compareceu</button>
           </div>
-          <!-- Guest reservation remains one parent payment/approval decision, but attendance is individual. -->
-          <div class="attendee-row no-show">
+          <!-- Guest reservation remains one parent payment/approval decision, but attendance is individual.
+               Fixed on UX review: this row previously carried the "no-show" wrapper class (dimming it)
+               while its own toggle said "attended" -- a direct contradiction. Only an actually-absent
+               attendee (Bia Santos, below) should carry that class. -->
+          <div class="attendee-row">
             <div class="list-avatar" style="width:2rem;height:2rem;font-size:0.75rem;background:#0891b2;">AB</div>
             <div style="flex:1;">
               <p style="font-weight:600;font-size:0.9375rem;">Ana Costa</p>

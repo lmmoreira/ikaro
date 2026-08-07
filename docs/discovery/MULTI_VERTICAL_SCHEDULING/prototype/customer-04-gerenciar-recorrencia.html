@@ -64,10 +64,22 @@
       </div>
     </div>
 
-    <button class="btn-danger" style="width:100%;" onclick="window.location.href='customer-06-recorrencia-cancelada.html'">Cancelar recorrência</button>
+    <button class="btn-danger" style="width:100%;" onclick="document.getElementById('cancel-confirm').style.display='block'">Cancelar recorrência</button>
     <p style="font-size:0.75rem;opacity:0.5;margin-top:0.5rem;">
-      Cancela a série inteira (CAND-28) — as turmas já passadas continuam no seu histórico.
+      Cancela a série inteira — as turmas já passadas continuam no seu histórico.
     </p>
+
+    <!-- UX-review fix: was a one-click danger button straight to customer-06 with zero
+         confirmation, even though this cancels the entire remaining series — the highest-stakes
+         action in this 6-screen sequence. Now uses the same reveal-and-confirm pattern as
+         customer-07's single-booking cancel. -->
+    <div id="cancel-confirm" style="display:none;margin-top:0.75rem;background:#fef2f2;padding:0.875rem;border-radius:var(--ba-radius);font-size:0.8125rem;">
+      <strong>Cancelar toda a recorrência?</strong>
+      <p style="margin:0.25rem 0 0.625rem;">
+        As próximas 2 turmas (11 e 18 de agosto) e sua entrada na fila de espera de 25 de agosto serão canceladas. Turmas já ocorridas continuam no seu histórico. Essa ação não pode ser desfeita.
+      </p>
+      <button class="btn-danger" style="padding:0.5rem 1rem;font-size:0.8125rem;" onclick="window.location.href='customer-06-recorrencia-cancelada.html'">Confirmar cancelamento</button>
+    </div>
   </div>
 </body>
 </html>

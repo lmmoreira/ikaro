@@ -360,11 +360,11 @@ Snapshotted straight from `tpl_pilates_estudio1`'s slots at generation time. CAN
 
 | Table | Shape and invariant |
 |---|---|
-| `booking.class_access_contracts` | `id, tenant_id, customer_id, starts_on, ends_on, status (ACTIVE|CANCELLED|EXPIRED), cancelled_at`. `EXCLUDE USING gist (tenant_id WITH =, customer_id WITH =, daterange(starts_on, ends_on, '[]') WITH &&) WHERE status='ACTIVE'` enforces one active contract at a time. |
+| `booking.class_access_contracts` | `id, tenant_id, customer_id, starts_on, ends_on, status (ACTIVE|CANCELLED|EXPIRED), cancelled_at` — `PRIMARY KEY (id)`, `UNIQUE(tenant_id, id)`. `EXCLUDE USING gist (tenant_id WITH =, customer_id WITH =, daterange(starts_on, ends_on, '[]') WITH &&) WHERE status='ACTIVE'` enforces one active contract at a time. |
 | `booking.class_access_contract_services` | `(tenant_id, contract_id, service_id)` primary key; composite FKs to the contract and `services`. A CrossFit contract lists `svc_crossfit`, thereby covering every CrossFit timetable/session. |
 | `booking.class_session_booking_attendees` | `id, tenant_id, class_session_booking_id, name, customer_id NULL, attendance NULL|PRESENT|NO_SHOW`; FK `(tenant_id, class_session_booking_id)` → `class_session_bookings`. `quantity` equals attendee count in the aggregate. A contract customer has exactly one attendee row; guest groups have one row per named person. |
 | `booking.guest_class_booking_email_verifications` | `id, tenant_id, class_session_booking_id, token_hash, expires_at, verified_at`. Only a hash of the one-time email-verification token is stored. A guest booking moves from `PENDING_EMAIL_VERIFICATION` only after verification; that pre-verification state does not reserve capacity. |
-| `booking.guest_class_trial_redemptions` | `tenant_id, normalized_email, class_session_booking_id, approved_at`, with unique `(tenant_id, normalized_email)`. Inserted atomically at approval, so a tenant-wide first-free trial is consumed exactly once. |
+| `booking.guest_class_trial_redemptions` | `tenant_id, normalized_email, class_session_booking_id, approved_at` — `PRIMARY KEY (tenant_id, normalized_email)`. Inserted atomically at approval, so a tenant-wide first-free trial is consumed exactly once. |
 | `booking.class_schedule_template_exceptions` | `id, tenant_id, template_id, starts_on, ends_on, kind='CANCELLED', created_by`. A bounded cancellation persists here, so generation cannot recreate cancelled future occurrences. A one-off session cancellation remains a session action; from-date-forward updates `valid_until`/deactivates the template and cancels materialized future sessions. |
 
 `class_access_contracts` are eligibility records, not online-payment records. Their successful creation/payment is outside this discovery. Customer session bookings require a matching active contract on the session date; guest bookings use the configured guest policy and are paid in person only when payment is due.
@@ -380,6 +380,7 @@ Snapshotted straight from `tpl_pilates_estudio1`'s slots at generation time. CAN
 | `booking.schedule_closures` | `+ resource_id UUID NULLABLE` (FK when set). No constraint trap — today's overlap rule is already app-enforced, not a DB unique, so it extends cleanly to resource scope. |
 | `booking.schedule_openings` | `+ resource_id UUID NULLABLE` (FK when set). **Constraint trap:** today's `UNIQUE(tenant_id, date)` silently stops enforcing "one opening per date" once `resource_id` is nullable — Postgres treats `NULL ≠ NULL`, so two tenant-wide openings for the same date would no longer collide. Replace with `UNIQUE(tenant_id, date) WHERE resource_id IS NULL` **and** `UNIQUE(tenant_id, resource_id, date) WHERE resource_id IS NOT NULL`. |
 | `loyalty.loyalty_entries` (different context — see §6 item 2) | `booking_line_id` → NULLABLE (was NOT NULL), `+ class_session_booking_id UUID NULLABLE`, mutual-exclusion CHECK, `+ UNIQUE(tenant_id, class_session_booking_id) WHERE class_session_booking_id IS NOT NULL` |
+| `booking.booking_lines` | `+ UNIQUE(tenant_id, line_id)` — today only `PRIMARY KEY (line_id)` exists; required so `resource_occupancy.booking_line_id`'s composite FK `(tenant_id, booking_line_id)` is expressible against the real schema. |
 
 **Example data — `services`:**
 
@@ -422,7 +423,7 @@ Snapshotted straight from `tpl_pilates_estudio1`'s slots at generation time. CAN
 
 ## 4. Migration ordering (expand/contract)
 
-1. **Expand:** create `resources`, service/model fields, all requirement/leg tables, contract/attendee/trial/exception tables, session tables, and `resource_occupancy` with every composite FK and index. Do not drop the current tenant-wide booking exclusion yet.
+1. **Expand:** create `resources`, service/model fields, all requirement/leg tables, contract/attendee/trial/exception tables, session tables, and `resource_occupancy` with every composite FK and index; add `UNIQUE(tenant_id, line_id)` to the existing `booking_lines` table, required by `resource_occupancy`'s composite FK to it. Do not drop the current tenant-wide booking exclusion yet.
 2. **Backfill:** create one active `LOCATION` resource per tenant; add the default LOCATION requirement to each existing APPOINTMENT service; materialize resource-occupancy assignment rows for every existing BookingLine, using that location and the existing `scheduled_end_at` window. Approved rows are `is_locked=true`.
 3. **Dual-read/write deployment:** new booking writes populate occupancy snapshots; approval/generation/override paths use the shared occupancy exclusion constraint and advisory resource locks. Availability reads occupancy, tenant/resource schedules, and future template patterns.
 4. **Validate:** verify every existing approved booking has a locked LOCATION occupancy row and that no resource assignment is missing or cross-tenant before changing the old invariant.
@@ -505,4 +506,142 @@ The notes below record issues found in earlier drafts. They are retained for des
 - `Resource.maxCapacity` is now an optional physical ceiling for capacity-bearing resources. Template/session capacity cannot exceed the lowest applicable ceiling.
 - SESSION services use service-scoped eligible resource pools and fixed template picks. They never carry APPOINTMENT `resourceRequirements` or `legs`.
 - The class family has no ad-hoc session creation, no online billing, and no customer pay-per-session path. Customer access is through one active, non-overlapping, service-scoped contract; configured guest trials/drop-ins are the only exception.
-- Capacity, guest verification/approval, attendee-level attendance, cancellation ranges, and future-template concurrency are all resolved above. There are no remaining schema-level open questions that block promotion into milestone planning.
+- Capacity, guest verification/approval, attendee-level attendance, cancellation ranges, and future-template concurrency are all resolved above. Candidate domain events are formalized in §8 below. There are no remaining schema-level open questions that block promotion into milestone planning.
+
+---
+
+## 8. Candidate Domain Events
+
+> Added to close a coverage gap found during a pre-promotion audit (2026-08-07): every candidate event referenced across this discovery set (`ClassSessionCancelled`, `ClassSessionBookingConfirmed`/`Cancelled`/`Waitlisted`/`Completed`, `WaitlistPromoted`, plus CAND-33's "candidate guest-verification/guest-reservation events" and CAND-35's "candidate contract-created/cancelled events") was named in a CAND's "Events Triggered" field but never given a concrete envelope/payload, unlike every event in `docs/03-DOMAIN_EVENTS.md`. Follows that file's mandatory envelope (`eventId`, `tenantId`, `occurredAt`, `correlationId`, `eventName`, `eventVersion`, `data`) exactly — only the `data` shape is shown below, per that doc's own convention. All are Booking Context events (item 11 above already flags that `ClassSession`/`ClassSessionBooking` becoming outbox-draining `AggregateRoot`s is the real architectural commitment this implies).
+
+#### **ClassSessionCancelled**
+- **Trigger:** `CAND-15` (single session cancelled with existing bookings) or `CAND-32` (date-range/from-date template cancellation, once per affected session)
+- **State change:** `ClassSession.status → CANCELLED`; every active `ClassSessionBooking` on it → `CANCELLED`
+- **Data:**
+  ```
+  {
+    classSessionId:  string
+    serviceId:       string
+    templateId:      string
+    startTime:       ISO8601
+    cancelledBookingIds: string[]   // every ClassSessionBooking transitioned by this cancellation
+    reason:          "MANUAL" | "TEMPLATE_RANGE" | "TEMPLATE_ENDED"   // CAND-15 vs. CAND-32's two scopes
+  }
+  ```
+
+#### **ClassSessionBookingConfirmed**
+- **Trigger:** `CAND-22`/`CAND-23` (capacity confirms a reservation directly), `CAND-33` step 3 (guest, `AUTO` policy), or `CAND-34` step 3 (guest, `MANUAL` policy approval)
+- **State change:** `ClassSessionBooking.status → CONFIRMED`
+- **Data:**
+  ```
+  {
+    classSessionBookingId: string
+    classSessionId:        string
+    serviceId:              string
+    type:                   "GUEST" | "CUSTOMER"
+    customerId:             string | null
+    contactEmail:           string
+    contactName:            string
+    quantity:                number
+    paymentSource:          "CONTRACT" | "GUEST_TRIAL" | "IN_PERSON"
+    startTime:               ISO8601
+  }
+  ```
+
+#### **ClassSessionBookingCancelled**
+- **Trigger:** `CAND-23b` (customer self-cancel), `CAND-27`/`CAND-28` (recurring-enrollment occurrence/whole-series cancel), `CAND-34` step 4 (staff rejects a guest reservation), or `CAND-36` (system auto-expires an unresolved guest reservation)
+- **State change:** `ClassSessionBooking.status → CANCELLED`; `ClassSession.reservedCount` decremented by `quantity`
+- **Data:**
+  ```
+  {
+    classSessionBookingId: string
+    classSessionId:        string
+    serviceId:              string
+    quantity:                number
+    reason:      "CUSTOMER_CANCELLED" | "ENROLLMENT_OCCURRENCE_SKIPPED" | "ENROLLMENT_CANCELLED"
+                 | "STAFF_REJECTED" | "AUTO_EXPIRED_AT_SESSION_START"
+  }
+  ```
+
+#### **ClassSessionBookingWaitlisted**
+- **Trigger:** `CAND-24` (session full at booking time) or `CAND-22` A1 (session fills in the race window between load and submit)
+- **State change:** `ClassSessionBooking.status → WAITLISTED`
+- **Data:**
+  ```
+  {
+    classSessionBookingId: string
+    classSessionId:        string
+    serviceId:              string
+    quantity:                number
+    contactEmail:            string
+  }
+  ```
+
+#### **WaitlistPromoted**
+- **Trigger:** `CAND-25` (a confirmed booking's cancellation frees enough capacity for the earliest fitting waitlisted entry)
+- **State change:** `ClassSessionBooking.status: WAITLISTED → CONFIRMED`
+- **Data:**
+  ```
+  {
+    classSessionBookingId: string
+    classSessionId:        string
+    serviceId:              string
+    quantity:                number
+    contactEmail:            string
+    contactName:             string
+  }
+  ```
+
+#### **ClassSessionBookingCompleted**
+- **Trigger:** `CAND-37` (staff closes a session; publishes once per eligible attended `CUSTOMER` reservation — mirrors `BookingCompleted`'s role for Loyalty Context, per item 1/2 above)
+- **State change:** `ClassSessionBooking.status → CLOSED`; consumed by Loyalty Context to insert a `LoyaltyEntry` (§3's `loyalty_entries` change above)
+- **Data:**
+  ```
+  {
+    classSessionBookingId: string
+    classSessionId:        string
+    serviceId:               string
+    customerId:              string
+    pointsValue:             number   // = points_value_per_unit_at_booking × quantity, attended units only
+  }
+  ```
+
+#### **GuestClassReservationRequested**
+- **Trigger:** `CAND-33` step 1 (guest submits contact + attendee details, before email verification) — consumed by Notification Context to send the one-time verification link
+- **State change:** none (the `PENDING_EMAIL_VERIFICATION` draft is created in the same transaction, not itself event-sourced — it holds no capacity, so no cross-context consumer needs to react to its existence, only to send the email)
+- **Data:**
+  ```
+  {
+    classSessionBookingId: string
+    classSessionId:        string
+    contactEmail:            string
+    verificationTokenId:     string   // opaque reference; the raw token is never in the event payload, only its hash is persisted (guest_class_booking_email_verifications)
+  }
+  ```
+
+#### **ClassAccessContractCreated**
+- **Trigger:** `CAND-35` step 2 (manager creates a contract)
+- **State change:** `ClassAccessContract` row created, `status = ACTIVE`
+- **Data:**
+  ```
+  {
+    contractId:   string
+    customerId:   string
+    serviceIds:   string[]
+    startsOn:     Date
+    endsOn:       Date
+  }
+  ```
+
+#### **ClassAccessContractCancelled**
+- **Trigger:** `CAND-35` step 4 (manager cancels early) or `CAND-35` A1 (contract reaches its natural end date)
+- **State change:** `ClassAccessContract.status → CANCELLED | EXPIRED`; dependent `RecurringEnrollment`s end; their future `ClassSessionBooking`s cancel (each publishing its own `ClassSessionBookingCancelled`)
+- **Data:**
+  ```
+  {
+    contractId:   string
+    customerId:   string
+    reason:       "MANAGER_CANCELLED" | "EXPIRED"
+    endedEnrollmentIds: string[]
+  }
+  ```

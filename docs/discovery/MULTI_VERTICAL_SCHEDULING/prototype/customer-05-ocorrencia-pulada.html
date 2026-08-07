@@ -55,7 +55,7 @@
           <p class="occurrence-date">Segunda, 18 de agosto</p>
           <p class="occurrence-meta">08:00–09:00 · Confirmado</p>
         </div>
-        <a href="#" style="font-size:0.8125rem;font-weight:600;color:var(--ba-primary);text-decoration:none;">Pular esta semana</a>
+        <a href="customer-05-ocorrencia-pulada.html" style="font-size:0.8125rem;font-weight:600;color:var(--ba-primary);text-decoration:none;">Pular esta semana</a>
       </div>
       <div class="occurrence-row">
         <div style="flex:1;">
@@ -65,10 +65,20 @@
       </div>
     </div>
 
-    <button class="btn-danger" style="width:100%;" onclick="window.location.href='customer-06-recorrencia-cancelada.html'">Cancelar recorrência</button>
+    <button class="btn-danger" style="width:100%;" onclick="document.getElementById('cancel-confirm').style.display='block'">Cancelar recorrência</button>
     <p style="font-size:0.75rem;opacity:0.5;margin-top:0.5rem;">
       A série continua ativa — pular uma semana não afeta as próximas ocorrências.
     </p>
+
+    <!-- UX-review fix: same reveal-and-confirm pattern added to customer-04, kept
+         consistent here since this screen has the identical cancel button. -->
+    <div id="cancel-confirm" style="display:none;margin-top:0.75rem;background:#fef2f2;padding:0.875rem;border-radius:var(--ba-radius);font-size:0.8125rem;">
+      <strong>Cancelar toda a recorrência?</strong>
+      <p style="margin:0.25rem 0 0.625rem;">
+        As próximas turmas confirmadas (18 de agosto) e sua entrada na fila de espera de 25 de agosto serão canceladas. Turmas já ocorridas ou puladas continuam no seu histórico. Essa ação não pode ser desfeita.
+      </p>
+      <button class="btn-danger" style="padding:0.5rem 1rem;font-size:0.8125rem;" onclick="window.location.href='customer-06-recorrencia-cancelada.html'">Confirmar cancelamento</button>
+    </div>
   </div>
 </body>
 </html>

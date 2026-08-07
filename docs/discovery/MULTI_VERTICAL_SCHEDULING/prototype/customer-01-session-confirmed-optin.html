@@ -76,15 +76,39 @@
         <div class="toggle-label">Repetir esta turma toda segunda-feira</div>
         <div class="toggle-sub">Cria reservas nas próximas turmas de Pilates de segunda, 08:00, até 31 de agosto — fim do seu contrato. Depois de renovar, você escolhe novamente se quer repetir.</div>
       </div>
-      <button class="toggle-switch" onclick="this.classList.toggle('on'); this.style.background=this.classList.contains('on')?'var(--ba-primary)':'#d1d5db'; this.querySelector('.toggle-knob').style.transform=this.classList.contains('on')?'translateX(1.25rem)':'none';">
+      <button
+        class="toggle-switch"
+        role="switch"
+        aria-checked="false"
+        aria-label="Repetir esta turma toda segunda-feira"
+        onclick="toggleRecurrence(this)"
+      >
         <span class="toggle-knob"></span>
       </button>
     </div>
 
     <div class="nav-buttons">
-      <a class="btn-secondary" href="../../../../plan/journey/customer/prototypes/minha-conta/01-minha-conta.html">Não, só esta vez</a>
-      <a class="btn-primary" href="customer-02-recorrencia-ativada.html">Confirmar recorrência</a>
+      <a id="confirmBtn" class="btn-primary" href="../../../../plan/journey/customer/prototypes/minha-conta/01-minha-conta.html">Confirmar, só esta vez</a>
     </div>
   </div>
+
+  <script>
+    function toggleRecurrence(btn) {
+      const on = !btn.classList.contains('on');
+      btn.classList.toggle('on', on);
+      btn.setAttribute('aria-checked', String(on));
+      btn.style.background = on ? 'var(--ba-primary)' : '#d1d5db';
+      btn.querySelector('.toggle-knob').style.transform = on ? 'translateX(1.25rem)' : 'none';
+
+      const confirmBtn = document.getElementById('confirmBtn');
+      if (on) {
+        confirmBtn.textContent = 'Confirmar recorrência';
+        confirmBtn.href = 'customer-02-recorrencia-ativada.html';
+      } else {
+        confirmBtn.textContent = 'Confirmar, só esta vez';
+        confirmBtn.href = '../../../../plan/journey/customer/prototypes/minha-conta/01-minha-conta.html';
+      }
+    }
+  </script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 **Status:** Discovery — exploratory. Nothing here is committed to a milestone; no `UC-XXX` numbers are consumed by this document.
 **Companion doc:** `MULTI_VERTICAL_SCHEDULING_USECASES.md` — candidate use cases derived from this model, for completeness-checking.
 **Companion doc:** `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` — the physical schema (tables, constraints, migration ordering) this model implies, plus gaps found while translating it into real DDL.
-**Companion prototype:** `MULTI_VERTICAL_SCHEDULING/prototype/` (start at its `index.html`) — 24 illustrative screens working through the model concretely on one fictional tenant (Vitta Studio). Several findings from building it fed corrections back into this doc and the use-cases doc — see its `dev-notes.md` for the full list.
+**Companion prototype:** `MULTI_VERTICAL_SCHEDULING/prototype/` (start at its `index.html`) — 34 illustrative screens working through the model concretely on one fictional tenant (Vitta Studio). Several findings from building it fed corrections back into this doc and the use-cases doc — see its `dev-notes.md` for the full list.
 
 ---
 
@@ -74,7 +74,7 @@ Resource {
 ```
 
 Three different relationships to existing data, by design, not by accident:
-- **`LOCATION`** — the degenerate default every tenant gets. Replaces today's implicit "whole tenant is the resource" behavior with an explicit row, so the model is uniform (see the backfill question in §9).
+- **`LOCATION`** — the degenerate default every tenant gets. Replaces today's implicit "whole tenant is the resource" behavior with an explicit row, so the model is uniform (resolved in §9 item 1 — no legacy `resourceId = null` path).
 - **`STAFF`** — *wraps* an existing `Staff` aggregate by reference (`refId = staffId`). Staff Context stays pure identity/permissions; scheduling data (working hours, turnover) lives on the `Resource` row, not on `Staff` itself. Mirrors the existing rule that Staff Context reads closures but never writes them.
 - **`ROOM` / `EQUIPMENT`** — no other context owns these; the `Resource` row *is* the aggregate, full stop.
 
@@ -306,7 +306,7 @@ Same `serviceId`, same recurrence, two independent `templateId`s — each genera
 
 **Cancellation.** Class cancellation has no refund/credit workflow in this discovery: payments are collected only in person at close-out. Cancelling a future reservation frees its quantity and triggers the applicable waitlist transition; a guest asks staff to cancel, while an authenticated customer follows the applicable customer flow. A booking with `seriesId != null` is skipped/ended through its enrollment. A manager can cancel one session, a bounded range of occurrences, or every occurrence from a selected date forward; range cancellations are persistent template exceptions so the generator cannot recreate them. A closed-out session is not subsequently cancelled; financial/audit corrections are a future concern.
 
-**Attendance and close-out — deliberately staff-triggered, not guessed by a job.** At end time a session becomes `AWAITING_ATTENDANCE` and remains a visible Turmas task until staff closes it. The roster pre-marks every named attendee as present; staff flags the exceptions, then closes the session in one action. The parent booking becomes `CLOSED`; attendee rows hold the actual `PRESENT`/`NO_SHOW` result, so a guest group can have mixed attendance. A customer contract booking has exactly one attendee. Close-out records an in-person guest payment when due and publishes a candidate completion event for eligible customer loyalty/notification consumers.
+**Attendance and close-out — deliberately staff-triggered, not guessed by a job.** At end time a session becomes `AWAITING_ATTENDANCE` and remains a visible Turmas task until staff closes it. The roster pre-marks every named attendee as present; staff flags the exceptions, then closes the session in one action. The parent `ClassSessionBooking` — its own status enum, independent of `Booking.status` (which has no `CLOSED` value) — becomes `CLOSED`; attendee rows hold the actual `PRESENT`/`NO_SHOW` result, so a guest group can have mixed attendance. A customer contract booking has exactly one attendee. Close-out records an in-person guest payment when due and publishes a candidate completion event for eligible customer loyalty/notification consumers.
 
 **Scope note — this puts attendee-level no-show tracking ahead of private appointments.** `UC-009` still treats appointment no-show as future state. Deliberately building it for class attendees: a capacity-constrained class needs an operational attendance record, especially for guest trials and contract usage.
 
@@ -388,6 +388,8 @@ The domain model above is necessarily richer than today's, but that richness sho
 
 The fix: a small set of **business-model presets** at onboarding — "Single resource" (car wash), "Staff, customer-chosen" (salon), "Class with capacity" (studio/gym), etc. Each preset pre-wires the underlying `Resource`/`Service`/`ClassScheduleTemplate` configuration; the admin picks the preset closest to their business rather than assembling the general model by hand. Power stays in the domain model; simplicity stays in the wizard on top of it. Any prototype work coming out of this discovery should sketch the *preset picker*, not a raw configuration screen, as the primary onboarding surface.
 
+> **Deliberately no `CAND-XX` for this section** (checked during a pre-promotion audit, 2026-08-07): the preset picker is onboarding-wizard UX layered *on top of* the CANDs already in `MULTI_VERTICAL_SCHEDULING_USECASES.md` (CAND-06 through CAND-10b) — it doesn't introduce a new domain mechanism or write path of its own, it's a guided sequence through the existing ones. Writing a proper use case for it means designing the actual preset list, the wizard's step sequence, and how a preset's pre-wired choices map onto each real config field — real product/UX design work that belongs in the `plan/journey/` prototype stage (per this doc's own instruction above), not fabricated here as a discovery-stage placeholder. Carry this forward explicitly as a milestone story once promoted, rather than letting it silently fall out of scope.
+
 ---
 
 ## 11. Non-Goals / Explicitly Deferred
@@ -410,4 +412,4 @@ Checked deliberately (2026-08-05) — "deferred" must not silently mean "whoever
 
 Full list, in the existing `docs/04-USE_CASES.md` field format (labeled `CAND-XX`, not `UC-XXX`, to avoid colliding with the canonical index): **`MULTI_VERTICAL_SCHEDULING_USECASES.md`**.
 
-43 candidates across seven groups: resource management, service configuration, class/session management, appointment booking, class/session booking, cross-cutting system behavior, and finalized contract/guest lifecycle. The final six add template-range cancellation, guest email verification/approval, class-access contracts, pending-request expiry, and individual-attendee close-out; the earlier discovery questions are now resolved in §9.
+45 candidates across seven groups: resource management, service configuration, class/session management, appointment booking, class/session booking, cross-cutting system behavior, and finalized contract/guest lifecycle. The final six add template-range cancellation, guest email verification/approval, class-access contracts, pending-request expiry, and individual-attendee close-out; the earlier discovery questions are now resolved in §9. Two more (CAND-03b, CAND-10b) were added in a pre-promotion coverage-gap pass (2026-08-07): the automatic staff-deactivation→resource cascade, and a manager configuring a SESSION service's guest access policy.

@@ -23,9 +23,13 @@
     See ../../MULTI_VERTICAL_SCHEDULING.md (§9 open question #4) and
     ../../MULTI_VERTICAL_SCHEDULING_USECASES.md (CAND-14).
 
-    The capacity field below is set to 2 to deliberately trigger the warning — this
-    session already has bookedCount=3 (see staff-02-session-roster.html). The banner
-    makes CAND-14's A1 open question tangible rather than silently allowing the save.
+    Fixed on UX review: the capacity field previously always showed the warning banner
+    regardless of what was typed (static markup, no conditional logic) — the field's
+    actual value never matched this comment's own claim of being set to 2 either. Now the
+    field starts at the session's real current capacity (4, matching staff-02-session-
+    roster.html's "4 de 4 vagas preenchidas") with the warning correctly hidden, and a
+    small inline script toggles the warning on/off as you type, based on the real CAND-14
+    rule: capacity can't drop below reservedCount (4 here). Try typing 3 or lower.
 
     COMPONENT (GAP): SessionCapacityOverrideForm
     BFF CALL (GAP): PATCH /class-sessions/{id} — this instance only, template untouched
@@ -94,8 +98,8 @@
 
         <div class="form-group">
           <label class="form-label">Capacidade</label>
-          <input class="form-input" type="number" min="4" value="4">
-          <div class="warning-banner">
+          <input class="form-input" id="capacity-input" type="number" min="1" value="4" oninput="checkCapacityWarning(this)">
+          <div class="warning-banner" id="capacity-warning" style="display:none;">
             Esta turma já tem <strong>4 vagas reservadas</strong>, incluindo 2 convidadas aguardando aprovação.
             A capacidade mínima é 4: reduzir abaixo disso é bloqueado. Estúdio 1 comporta no máximo 4 pessoas.
           </div>
@@ -103,7 +107,10 @@
 
         <div class="form-group">
           <label class="form-label">Sala</label>
-          <input class="form-input" value="Estúdio 1" readonly style="opacity:0.7;">
+          <div style="display:flex;gap:0.5rem;align-items:center;">
+            <input class="form-input" value="Estúdio 1" readonly style="opacity:0.7;flex:1;">
+            <button type="button" class="btn-secondary" style="white-space:nowrap;">Trocar sala</button>
+          </div>
           <p style="font-size:0.8125rem;opacity:0.5;margin-top:0.375rem;">
             Trocar a sala exige que a nova sala esteja livre no mesmo horário (mesma checagem de disponibilidade do CAND-11).
           </p>
@@ -142,6 +149,15 @@
       Fidelidade
     </a>
   </nav>
+
+  <script>
+    const RESERVED_COUNT = 4; // matches staff-02-session-roster.html's "4 de 4 vagas preenchidas"
+    function checkCapacityWarning(input) {
+      const value = parseInt(input.value, 10);
+      document.getElementById('capacity-warning').style.display =
+        (isNaN(value) || value < RESERVED_COUNT) ? 'block' : 'none';
+    }
+  </script>
 
 </body>
 </html>

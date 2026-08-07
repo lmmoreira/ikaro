@@ -1,3 +1,244 @@
 <!DOCTYPE html>
-<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Horários e cancelamentos — Vitta Studio</title><link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css"><style>.form-group{margin-bottom:1rem}.choice{display:block;padding:.875rem;margin:.5rem 0;border:1px solid var(--ba-secondary);border-radius:var(--ba-radius)}.notice{font-size:.8125rem;padding:.875rem;border-radius:var(--ba-radius);background:#fef3c7;color:#92400e}</style></head>
-<body><div class="dashboard-topbar"><div class="topbar-brand"><div class="topbar-logo-mark">V</div><span class="topbar-tenant-name">Vitta Studio</span></div><span class="topbar-page-title">Configurações de recurso</span><div class="list-avatar" style="margin-left:auto">AP</div></div><main class="main-content"><div class="dashboard-body" style="max-width:44rem"><h1 style="font-size:1.25rem;margin-bottom:.25rem">Camila Duarte · Profissional</h1><p style="font-size:.875rem;opacity:.65;margin-bottom:1rem">O recurso sempre funciona dentro do horário do Vitta Studio.</p><div class="card"><h2 style="font-size:1rem;margin-bottom:.75rem">Horário semanal</h2><div class="form-group"><label class="form-label">Seg / Qua / Sex</label><div style="display:flex;gap:.5rem"><input class="form-input" value="08:00"><input class="form-input" value="17:00"></div><p style="font-size:.75rem;opacity:.6;margin-top:.25rem">O negócio abre 08:00–20:00. Não é possível ampliar esse limite.</p></div><div class="form-group"><label class="form-label">Ter / Qui</label><div style="display:flex;gap:.5rem"><input class="form-input" value="09:00"><input class="form-input" value="18:00"></div></div><button class="btn-primary">Salvar horários futuros</button></div><div class="card" style="margin-top:1rem"><h2 style="font-size:1rem">Exceção pontual</h2><label class="choice"><input type="radio" name="exception" checked> Bloquear período (férias, consulta)</label><label class="choice"><input type="radio" name="exception"> Abrir horário dentro do horário do negócio</label><p class="notice">Mudanças alteram apenas disponibilidade futura. Aulas materializadas e atendimentos aprovados são compromissos: revise-os antes de salvar.</p></div><div class="card" style="margin-top:1rem"><h2 style="font-size:1rem">Turmas recorrentes</h2><label class="choice"><input type="radio" name="cancel" checked> Cancelar somente esta turma — 18 ago</label><label class="choice"><input type="radio" name="cancel"> Cancelar período — 18 a 31 ago (férias)</label><label class="choice"><input type="radio" name="cancel"> Encerrar a partir de — 01 set</label><p style="font-size:.8125rem;opacity:.65">A confirmação lista sessões e reservas futuras afetadas. Períodos persistem como exceção para não serem gerados novamente.</p><button class="btn-danger">Revisar cancelamento</button></div><div class="card" style="margin-top:1rem;border-color:#fecaca"><h2 style="font-size:1rem;color:#b91c1c">Desativar recurso</h2><p style="font-size:.8125rem;opacity:.7;margin:.5rem 0">Impede novos agendamentos. O sistema mostra compromissos futuros que precisam ser resolvidos; histórico nunca é removido.</p><button class="btn-danger">Revisar desativação</button></div></div></main></body></html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Horários e cancelamentos — Camila Duarte — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
+  <style>
+    .form-group { margin-bottom: 1rem; }
+    .choice { display: block; padding: .875rem; margin: .5rem 0; border: 1px solid var(--ba-secondary); border-radius: var(--ba-radius); }
+    .notice { font-size: .8125rem; padding: .875rem; border-radius: var(--ba-radius); background: #fef3c7; color: #92400e; }
+
+    .danger-zone { border: 1.5px solid #fecaca; background: #fff5f5; border-radius: var(--ba-radius); padding: 1.125rem; margin-top: 1.25rem; }
+    .danger-zone h2 { font-size: 1rem; color: #b91c1c; margin: 0 0 .875rem; }
+    .danger-zone h3 { font-size: .9375rem; margin: 0 0 .375rem; }
+    .danger-zone hr { border: 0; border-top: 1px solid #fecaca; margin: 1rem 0; }
+
+    /* Reveal-and-confirm pattern for a destructive action, instead of "Revisar..." leading nowhere */
+    .confirm-panel { display: none; margin-top: .75rem; padding: .875rem; border-radius: var(--ba-radius); background: white; border: 1.5px solid #dc2626; }
+    .confirm-panel.open { display: block; }
+    .confirm-panel p { font-size: .8125rem; color: #991b1b; margin: 0 0 .75rem; }
+    .confirm-panel .confirm-actions { display: flex; gap: .5rem; }
+
+    /* Action-pane pattern -- same as manager-06-criar-turma.html, kept for the routine (non-destructive) primary action only */
+    .form-actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
+    .form-actions .btn-primary { flex: 1; text-align: center; padding: 0.875rem; }
+    .detail-layout { display: block; }
+    .detail-aside  { display: none; }
+    @media (min-width: 1024px) {
+      .detail-layout { display: grid; grid-template-columns: 1fr 22rem; gap: 1.5rem; align-items: start; }
+      .detail-aside  { display: block; position: sticky; top: 1.5rem; }
+      .form-actions  { display: none !important; }
+    }
+  </style>
+  <script>
+    function toggleConfirm(id) {
+      document.getElementById(id).classList.toggle('open');
+    }
+  </script>
+</head>
+<body>
+
+  <!--
+    DISCOVERY PROTOTYPE -- illustrative only, NOT a plan/journey/ prototype.
+    See ../../MULTI_VERTICAL_SCHEDULING.md and ../../MULTI_VERTICAL_SCHEDULING_USECASES.md
+    (CAND-02 weekly hours, CAND-04/05 resource-scoped closure/opening, CAND-32 template
+    occurrence cancellation, CAND-03 resource deactivation).
+
+    Rebuilt on UX-fix pass: this screen previously had no dashboard shell at all (no
+    sidebar, no bottom-nav) unlike every other manager screen, and its <title> ("Horários
+    e cancelamentos") disagreed with its own visible page title ("Configurações de
+    recurso") -- both now consistently read "Horários e cancelamentos — Camila Duarte".
+    Its two destructive actions (cancel occurrences, deactivate) previously said
+    "Revisar..." but the button led nowhere -- they now reveal a real inline confirmation
+    panel restating the specific consequence before anything commits. Routine settings
+    (weekly hours, one-off exception) and destructive ones (cancel occurrences,
+    deactivate) are now visually separated: routine stays as plain cards, destructive
+    moves into a bordered "Zona de risco" panel with its own heading.
+
+    This is a resource-scoped screen, reached from manager-01's per-resource "Horários"
+    row action. Shown here for Camila Duarte (a STAFF resource) -- the real app
+    parameterizes this by resourceId so the same layout serves any resource, the same
+    way staff-05-horarios-recurso.html is one resource-scoped timeline reused for any
+    resource rather than one file per resource.
+
+    COMPONENT (GAP): ResourceScheduleControls
+    PAGE (GAP): apps/web/app/dashboard/recursos/[resourceId]/horarios/page.tsx
+    BFF CALL (GAP): PATCH /resources/:id/working-hours, POST /schedule-closures,
+                    POST /class-schedule-templates/:id/cancel-occurrences,
+                    PATCH /resources/:id (isActive=false)
+  -->
+
+  <div class="dashboard-topbar">
+    <a href="manager-01-resources-list.html" style="display:flex;align-items:center;gap:0.375rem;color:var(--ba-text);text-decoration:none;font-size:0.9375rem;font-weight:500;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      <span style="font-weight:600;">Recursos</span>
+    </a>
+    <h1 class="topbar-page-title">Horários e cancelamentos — Camila Duarte</h1>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
+      <a href="../../../../plan/journey/shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">V</div>
+        <div><p class="sidebar-tenant-name">Vitta Studio</p><p class="sidebar-tenant-slug">@vittastudio</p></div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top:0.5rem;">
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Agenda
+        </a>
+        <a class="sidebar-nav-item active" href="manager-05-visao-geral.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Horários
+        </a>
+        <a class="sidebar-nav-item" href="manager-02-service-resource-config.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          Serviços
+        </a>
+        <a class="sidebar-nav-item" href="staff-04-turmas-proximas.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
+          Turmas
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          Fidelidade
+        </a>
+      </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item" href="manager-01-resources-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Recursos
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Equipe
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Configurações
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          Hotsite
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
+        <a class="sidebar-logout" href="../../../../plan/journey/shared/staff-login.html" title="Sair">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </a>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="dashboard-body">
+        <div class="detail-layout">
+        <div>
+
+        <h2 style="font-size:1.05rem;margin-bottom:.25rem">Camila Duarte · Profissional</h2>
+        <p style="font-size:.875rem;opacity:.65;margin-bottom:1rem">O recurso sempre funciona dentro do horário do Vitta Studio.</p>
+
+        <div class="card">
+          <h2 style="font-size:1rem;margin-bottom:.75rem">Horário semanal</h2>
+          <div class="form-group">
+            <label class="form-label">Seg / Qua / Sex</label>
+            <div style="display:flex;gap:.5rem">
+              <input class="form-input" type="time" value="08:00">
+              <input class="form-input" type="time" value="17:00">
+            </div>
+            <p style="font-size:.75rem;opacity:.6;margin-top:.25rem">O negócio abre 08:00–20:00. Não é possível ampliar esse limite.</p>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Ter / Qui</label>
+            <div style="display:flex;gap:.5rem">
+              <input class="form-input" type="time" value="09:00">
+              <input class="form-input" type="time" value="18:00">
+            </div>
+            <p style="font-size:.75rem;opacity:.6;margin-top:.25rem">O negócio abre 08:00–20:00. Não é possível ampliar esse limite.</p>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:1rem">
+          <h2 style="font-size:1rem">Exceção pontual</h2>
+          <label class="choice"><input type="radio" name="exception" checked> Bloquear período (férias, consulta)</label>
+          <label class="choice"><input type="radio" name="exception"> Abrir horário dentro do horário do negócio</label>
+          <p class="notice">Mudanças alteram apenas disponibilidade futura. Aulas materializadas e atendimentos aprovados são compromissos: revise-os antes de salvar.</p>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn-primary">Salvar horários futuros</button>
+        </div>
+
+        <div class="danger-zone">
+          <h2>Zona de risco</h2>
+
+          <h3>Turmas recorrentes</h3>
+          <label class="choice"><input type="radio" name="cancel" checked> Cancelar somente esta turma — 18 ago</label>
+          <label class="choice"><input type="radio" name="cancel"> Cancelar período — 18 a 31 ago (férias)</label>
+          <label class="choice"><input type="radio" name="cancel"> Encerrar a partir de — 01 set</label>
+          <p style="font-size:.8125rem;opacity:.65;margin-bottom:.75rem">A confirmação lista sessões e reservas futuras afetadas. Períodos persistem como exceção para não serem gerados novamente.</p>
+          <button class="btn-danger" onclick="toggleConfirm('confirm-cancel')">Revisar cancelamento</button>
+          <div class="confirm-panel" id="confirm-cancel">
+            <p><strong>3 reservas futuras</strong> serão canceladas e os clientes afetados serão notificados. Sessões já fechadas (com presença registrada) não são afetadas.</p>
+            <div class="confirm-actions">
+              <button class="btn-secondary" onclick="toggleConfirm('confirm-cancel')">Voltar</button>
+              <button class="btn-danger">Confirmar cancelamento</button>
+            </div>
+          </div>
+
+          <hr>
+
+          <h3 style="color:#b91c1c">Desativar recurso</h3>
+          <p style="font-size:.8125rem;opacity:.7;margin:.5rem 0 .75rem">Impede novos agendamentos. O sistema mostra compromissos futuros que precisam ser resolvidos; histórico nunca é removido.</p>
+          <button class="btn-danger" onclick="toggleConfirm('confirm-deactivate')">Revisar desativação</button>
+          <div class="confirm-panel" id="confirm-deactivate">
+            <p>Este recurso não poderá mais receber novos agendamentos. Compromissos futuros já existentes continuam válidos e precisam ser resolvidos separadamente — nada é cancelado silenciosamente.</p>
+            <div class="confirm-actions">
+              <button class="btn-secondary" onclick="toggleConfirm('confirm-deactivate')">Voltar</button>
+              <button class="btn-danger">Confirmar desativação</button>
+            </div>
+          </div>
+        </div>
+
+        </div><!-- /form col -->
+        <div class="detail-aside">
+          <div class="card" style="padding:1.25rem;">
+            <button class="btn-primary" style="display:block;width:100%;text-align:center;padding:0.75rem;">
+              Salvar horários futuros
+            </button>
+            <p style="font-size:.75rem;opacity:.6;margin-top:.75rem;margin-bottom:0;">Cancelamento de turmas e desativação do recurso ficam na Zona de risco, abaixo — ações destrutivas não têm atalho neste painel.</p>
+          </div>
+        </div><!-- /aside -->
+        </div><!-- /detail-layout -->
+      </div>
+    </main>
+  </div>
+
+  <nav class="bottom-nav">
+    <a class="bottom-nav-item" href="#">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Agenda
+    </a>
+    <a class="bottom-nav-item active" href="manager-05-visao-geral.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Horários
+    </a>
+    <a class="bottom-nav-item" href="manager-02-service-resource-config.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      Serviços
+    </a>
+    <a class="bottom-nav-item" href="staff-04-turmas-proximas.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
+      Turmas
+    </a>
+  </nav>
+
+</body>
+</html>

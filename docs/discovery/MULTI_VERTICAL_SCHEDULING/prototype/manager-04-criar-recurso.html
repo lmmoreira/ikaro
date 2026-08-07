@@ -231,7 +231,7 @@
           </p>
         </div>
 
-        <div class="form-group" id="physical-capacity">
+        <div class="form-group" id="physical-capacity" style="display:none;">
           <label class="form-label">Capacidade física (sala/equipamento)</label>
           <input class="form-input" type="number" min="1" placeholder="Ex.: 4">
           <p class="form-hint">Opcional para recursos sem lotação. Quando informada, nenhuma turma pode ultrapassar este limite.</p>
@@ -293,6 +293,9 @@
       const isStaff = type === 'staff';
       document.getElementById('staff-fields').style.display = isStaff ? 'block' : 'none';
       document.getElementById('name-fields').style.display = isStaff ? 'none' : 'block';
+      // A STAFF resource never has maxCapacity — the domain model reserves physical
+      // capacity ceilings for LOCATION/ROOM and capacity-bearing EQUIPMENT only.
+      document.getElementById('physical-capacity').style.display = isStaff ? 'none' : 'block';
 
       const label = document.getElementById('name-field-label');
       const input = document.getElementById('name-field-input');

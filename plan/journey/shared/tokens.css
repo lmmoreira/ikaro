@@ -444,12 +444,13 @@ h1, h2, h3 { font-family: var(--ba-heading-font); }
   letter-spacing: 0.05em; padding: 0.1875rem 0.5rem;
   border-radius: 4px; white-space: nowrap; flex-shrink: 0;
 }
-.status-pending  { background: #fef3c7; color: #92400e; }
-.status-info     { background: #dbeafe; color: #1d4ed8; }
-.status-approved { background: #dcfce7; color: #15803d; }
-.status-cancelled{ background: #fee2e2; color: #dc2626; }
-.status-rejected { background: #fee2e2; color: #dc2626; }
-.status-completed{ background: #f1f5f9; color: #475569; }
+.status-pending   { background: #fef3c7; color: #92400e; }
+.status-waitlisted{ background: #fef3c7; color: #92400e; }
+.status-info      { background: #dbeafe; color: #1d4ed8; }
+.status-approved  { background: #dcfce7; color: #15803d; }
+.status-cancelled { background: #fee2e2; color: #dc2626; }
+.status-rejected  { background: #fee2e2; color: #dc2626; }
+.status-completed { background: #f1f5f9; color: #475569; }
 
 /* Filter tabs — horizontally scrollable on mobile */
 .filter-tabs {

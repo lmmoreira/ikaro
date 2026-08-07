@@ -24,11 +24,16 @@
       border-right: 2px solid var(--ba-secondary);
     }
     .overview-table th.time-col { z-index: 3; }
-    .ov-booking { background: var(--ba-secondary); border-left: 3px solid #2563eb; } /* fixed platform blue, not --ba-primary -- dashboard is tenant-agnostic */
+    .ov-booking { background: var(--ba-secondary); border-left: 3px solid #2563eb; } /* fixed platform blue, not --ba-primary -- dashboard is tenant-agnostic. APPOINTMENT-family. */
     .ov-booking p.name { font-weight: 600; color: #2563eb; margin: 0; line-height: 1.2; } /* fixed platform blue, not --ba-primary */
     .ov-booking p.meta { opacity: 0.65; margin: 0; line-height: 1.2; }
+    .ov-session { background: #ede9fe; border-left: 3px solid #7c3aed; } /* SESSION-family — distinct purple accent so a manager can tell appointment vs. class cells apart without reading the text */
+    .ov-session p.name { font-weight: 600; color: #7c3aed; margin: 0; line-height: 1.2; }
+    .ov-session p.meta { opacity: 0.65; margin: 0; line-height: 1.2; }
     .ov-cont { background: var(--ba-secondary); border-left: 3px solid #2563eb; } /* fixed platform blue, not --ba-primary */
+    .ov-cont.ov-session-cont { background: #ede9fe; border-left: 3px solid #7c3aed; }
     .ov-empty-col { text-align: center; opacity: 0.35; font-style: italic; padding-top: 2rem; }
+    .ov-cell-link { display: block; height: 100%; width: 100%; padding: 0.375rem 0.625rem; margin: -0.375rem -0.625rem; cursor: pointer; text-decoration: none; color: inherit; box-sizing: content-box; }
   </style>
 </head>
 <body>
@@ -163,17 +168,17 @@
               <tr>
                 <td class="time-col">08:00</td>
                 <td></td><td></td><td></td>
-                <td class="ov-booking"><p class="name">Pilates</p><p class="meta">3/4 vagas</p></td>
+                <td class="ov-session"><a class="ov-cell-link" href="staff-02-session-roster.html"><p class="name">Pilates</p><p class="meta">3/4 vagas</p></a></td>
                 <td></td>
               </tr>
-              <tr><td class="time-col">08:30</td><td></td><td></td><td></td><td class="ov-cont"></td><td></td></tr>
+              <tr><td class="time-col">08:30</td><td></td><td></td><td></td><td class="ov-cont ov-session-cont"></td><td></td></tr>
               <tr><td class="time-col">09:00</td><td></td><td></td><td></td><td></td><td></td></tr>
               <tr><td class="time-col">09:30</td><td></td><td></td><td></td><td></td><td></td></tr>
 
               <!-- Fernanda Lima — Corte + Escova, same booking as staff-01/staff-05 -->
               <tr>
                 <td class="time-col">10:00</td>
-                <td class="ov-booking"><p class="name">Fernanda Lima</p><p class="meta">Corte + Escova</p></td>
+                <td class="ov-booking"><a class="ov-cell-link" href="staff-01-my-agenda.html"><p class="name">Fernanda Lima</p><p class="meta">Corte + Escova</p></a></td>
                 <td></td><td></td><td></td><td></td>
               </tr>
               <tr><td class="time-col">10:30</td><td class="ov-cont"></td><td></td><td></td><td></td><td></td></tr>
@@ -182,8 +187,8 @@
               <tr>
                 <td class="time-col">11:00</td>
                 <td></td>
-                <td class="ov-booking"><p class="name">Marcos Vieira</p><p class="meta">Corte</p></td>
-                <td class="ov-booking"><p class="name">Ana Costa</p><p class="meta">Massagem Relaxante</p></td>
+                <td class="ov-booking"><a class="ov-cell-link" href="staff-01-my-agenda.html"><p class="name">Marcos Vieira</p><p class="meta">Corte</p></a></td>
+                <td class="ov-booking"><a class="ov-cell-link" href="staff-01-my-agenda.html"><p class="name">Ana Costa</p><p class="meta">Massagem Relaxante</p></a></td>
                 <td></td><td></td>
               </tr>
               <tr><td class="time-col">11:30</td><td></td><td class="ov-cont"></td><td class="ov-cont"></td><td></td><td></td></tr>
@@ -196,7 +201,7 @@
               <!-- Roberta Dias — Coloração (90 min), same booking as staff-01/staff-05 -->
               <tr>
                 <td class="time-col">14:00</td>
-                <td class="ov-booking"><p class="name">Roberta Dias</p><p class="meta">Coloração</p></td>
+                <td class="ov-booking"><a class="ov-cell-link" href="staff-01-my-agenda.html"><p class="name">Roberta Dias</p><p class="meta">Coloração</p></a></td>
                 <td></td><td></td><td></td><td></td>
               </tr>
               <tr><td class="time-col">14:30</td><td class="ov-cont"></td><td></td><td></td><td></td><td></td></tr>

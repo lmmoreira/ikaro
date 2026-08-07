@@ -42,6 +42,13 @@
     deliberate extension so there's an actual entry point into closing out attendance,
     not just the roster screen existing in isolation with nothing pointing at it.
 
+    NOTE (added on UX review): every card below links to staff-02-session-roster.html
+    regardless of which session was clicked — that file is a single representative/
+    parameterized roster template, not a real per-session mock. In the real
+    implementation each card's link carries a session ID and the roster page renders
+    that session's actual data; building out several more full roster mocks here was
+    judged out of scope for a discovery-stage fix pass.
+
     COMPONENT (GAP): UpcomingClassSessionsList
     BFF CALL (GAP): GET /class-sessions?scope=mine|all&from=today&days=14
                      GET /class-sessions?scope=mine|all&status=past-pending-closeout
