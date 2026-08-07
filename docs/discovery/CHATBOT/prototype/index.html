@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Discovery Prototype — Hotsite Chatbot</title>
+  <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
+  <style>
+    body { padding: 2rem; max-width: 48rem; margin: 0 auto; }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+    h2 { font-size: 1.0625rem; font-weight: 700; margin: 1.75rem 0 0.5rem; }
+    p { margin-bottom: 1rem; font-size: 0.9375rem; line-height: 1.6; }
+    ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.625rem; margin: 1rem 0; }
+    li { display: flex; align-items: center; gap: 0.75rem; }
+    li a { color: var(--ba-primary); font-weight: 500; }
+    .tag { font-size: 0.75rem; font-weight: 600; padding: 0.125rem 0.5rem; border-radius: 4px; white-space: nowrap; }
+    .tag-state { background: var(--ba-secondary); color: var(--ba-text); }
+    hr { border: none; border-top: 1px solid var(--ba-secondary); margin: 1.25rem 0; }
+    .note { background: var(--ba-secondary); border-radius: var(--ba-radius); padding: 1rem 1.25rem; font-size: 0.875rem; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <h1>Discovery Prototype — Hotsite Chatbot</h1>
+  <p>
+    Directional mockups for the chatbot module explored in
+    <a href="../CHATBOT.md">CHATBOT.md</a>. One fictional tenant, <strong>BeloAuto</strong> —
+    reusing the same tenant, branding tokens, and public-hotsite base already established in
+    <a href="../../../../plan/journey/manager/prototypes/hotsite/02-preview.html">the manager
+    hotsite prototype</a> — shows the widget in both layout variants and all three states
+    from CHATBOT.md §7 ("Widget States &amp; Failure UX"), plus the admin-facing module
+    config screen.
+  </p>
+
+  <div class="note">
+    <strong>Illustrative only.</strong> This is <em>not</em> a <code>plan/journey/</code>
+    prototype — no <code>/docs-audit</code>, no mandatory unhappy-path variants, no
+    dev-notes handoff spec at that depth. One representative screen per concept, reusing
+    the real <code>--ba-*</code> tokens and shared component classes so it reads
+    authentically, built to answer "what direction are we heading," not to be
+    implementation-ready.
+  </div>
+
+  <h2>Public hotsite — widget states (§7)</h2>
+  <ul>
+    <li>
+      <a href="01-bubble-collapsed.html">Bolha fechada (padrão)</a>
+      <span class="tag tag-state">bubble · idle</span>
+    </li>
+    <li>
+      <a href="02-bubble-active-chat.html">Conversa em andamento</a>
+      <span class="tag tag-state">bubble · active</span>
+    </li>
+    <li>
+      <a href="03-bubble-interrupted.html">Limite atingido — conversa interrompida</a>
+      <span class="tag tag-state">bubble · interrupted</span>
+    </li>
+    <li>
+      <a href="04-not-available.html">Indisponível (sem bolha)</a>
+      <span class="tag tag-state">not available</span>
+    </li>
+    <li>
+      <a href="05-inline-active-chat.html">Variante embutida na página</a>
+      <span class="tag tag-state">inline · active</span>
+    </li>
+  </ul>
+
+  <h2>Dashboard — configuração (gerente)</h2>
+  <ul>
+    <li>
+      <a href="06-module-config.html">Configurar módulo: Chatbot</a>
+      <span class="tag tag-state">botName / welcomeMessage / variant</span>
+    </li>
+    <li>
+      <a href="07-tenant-settings.html">Configurações — seção Chatbot</a>
+      <span class="tag tag-state">knowledgeText only</span>
+    </li>
+  </ul>
+
+  <div class="note" style="background:#fef3c7;color:#92400e;">
+    <strong>Caps are deliberately absent from both config screens.</strong> Fixed platform
+    defaults for MVP, not tenant-editable anywhere in the admin UI — a non-technical tenant
+    admin has no way to judge the cost consequence of raising a number like
+    <code>maxConversationsPerDay</code> (CHATBOT.md §5). <code>07-tenant-settings.html</code>
+    shows this next to the existing <code>Localização</code> section's readonly pattern for
+    contrast — caps aren't quite that either; they're just not in the admin UI at all yet.
+  </div>
+</body>
+</html>
