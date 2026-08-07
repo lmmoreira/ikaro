@@ -167,9 +167,10 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
   // keystroke (see the dependency array's own comment). But `requestCancelConfig` needs the
   // *current* `view.localData`/`draft` on every click, not whatever was there when the panel
   // first opened — so the override stored in topbar-status-context calls through this ref
-  // instead of closing over `requestCancelConfig` directly. The ref is refreshed on every render
-  // (see the plain assignment right after `requestCancelConfig`'s own definition below), so the
-  // effect's dependency array can stay unchanged while the invoked function always reads fresh.
+  // instead of closing over `requestCancelConfig` directly. The ref is refreshed by a
+  // `useLayoutEffect` right after `requestCancelConfig`'s own definition below (see its comment
+  // for why `useLayoutEffect` specifically), so the effect's dependency array here can stay
+  // unchanged while the invoked function always reads fresh.
   const requestCancelConfigRef = useRef<() => void>(() => {});
   useEffect(() => {
     if (configuringType) {
