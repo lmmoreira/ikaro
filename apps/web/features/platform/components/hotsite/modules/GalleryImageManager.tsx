@@ -9,7 +9,7 @@ import {
   generateHotsiteImageSignedUrl,
 } from '@/features/platform/api/tenant-settings';
 import { uploadFileToSignedUrl } from '@/shared/lib/upload/upload-to-signed-url';
-import { compressImage } from '@/shared/utils/compress-image';
+import { compressImageWithDimensions } from '@/shared/utils/compress-image';
 import {
   isTmpImagePath,
   resolveHotsiteImageDisplayUrl,
@@ -90,11 +90,11 @@ export function GalleryImageManager({
     const localPreviewUrl = URL.createObjectURL(file);
     setStatus('uploading');
     try {
-      const compressed = await compressImage(file);
+      const { file: compressed, width, height } = await compressImageWithDimensions(file);
       const filePath = await uploadFileToSignedUrl(compressed, (fileName, contentType) =>
         generateHotsiteImageSignedUrl({ fileName, contentType, purpose: 'gallery' }),
       );
-      const newImage: GalleryImage = { url: filePath, source: 'upload' };
+      const newImage: GalleryImage = { url: filePath, source: 'upload', width, height };
       previewUrls.set(filePath, localPreviewUrl);
       onChange([...images, newImage]);
       setStatus('idle');

@@ -33,6 +33,21 @@ function isHotsiteRoute(pathname: string): boolean {
   return !RESERVED_TOP_SEGMENTS.has(firstSegment);
 }
 
+// /dashboard/hotsite's "Preview" view renders the real ContactModule component tree — the same
+// one the public hotsite uses, HotsitePreview.tsx imports it directly — inside the dashboard,
+// Google Maps iframe included whenever the Contact module is enabled. It needs the same
+// frame-src Maps allowance the public hotsite route gets below, even though /dashboard is
+// otherwise excluded from isHotsiteRoute() (M18-S07 follow-up: hotsite preview blocked the map).
+const HOTSITE_EDITOR_ROUTE = '/dashboard/hotsite';
+
+function needsMapsFrameSrc(pathname: string): boolean {
+  return (
+    isHotsiteRoute(pathname) ||
+    pathname === HOTSITE_EDITOR_ROUTE ||
+    pathname.startsWith(`${HOTSITE_EDITOR_ROUTE}/`)
+  );
+}
+
 // scheme+host+port only — CSP source expressions don't need (or want) the path.
 function originOf(rawUrl: string | undefined): string | null {
   if (!rawUrl) return null;
@@ -52,7 +67,7 @@ function originOf(rawUrl: string | undefined): string | null {
 // rendering mode. 'unsafe-inline' on script-src is a blanket, verified-working baseline instead.
 function buildContentSecurityPolicy(pathname: string): string {
   const isDev = process.env.NODE_ENV !== 'production';
-  const isHotsite = isHotsiteRoute(pathname);
+  const allowMapsFrame = needsMapsFrameSrc(pathname);
   const bffOrigin = originOf(getPublicEnv('NEXT_PUBLIC_BFF_URL'));
   // Public hotsite images and private signed booking-photo URLs are served from the same
   // GCS/S3-compatible backend, so one origin (no path) covers both.
@@ -79,7 +94,9 @@ function buildContentSecurityPolicy(pathname: string): string {
   // which 302-redirects to https://www.google.com/maps/embed?... — CSP frame-src is checked
   // against every hop of a navigation/redirect chain, so both origins must be allowed or the
   // final navigation is silently blocked ("This content is blocked" in the browser).
-  const frameSrc = isHotsite ? ['https://maps.google.com', 'https://www.google.com'] : ["'none'"];
+  const frameSrc = allowMapsFrame
+    ? ['https://maps.google.com', 'https://www.google.com']
+    : ["'none'"];
 
   return [
     `default-src 'self'`,

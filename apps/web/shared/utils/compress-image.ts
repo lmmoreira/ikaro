@@ -144,24 +144,18 @@ function toBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
 // sourceAspectRatio regardless of the original upload's resolution — checking the raw natural
 // height would not actually guard anything. Always a hard requirement when set, independent of
 // targetAspectRatio's own fail-open behavior (see rethrowOrFailOpen).
-export async function compressImage(
+// Shared by compressImage and compressImageWithDimensions — takes an already-decoded bitmap so
+// callers that also need the bitmap's own width/height (compressImageWithDimensions) don't have
+// to decode the same file twice to get it (see that function's own doc comment: an earlier version
+// did exactly that, decoding once here and again in a separate readImageDimensions helper, doubling
+// the decoded-buffer/CPU cost on every gallery upload — Codex review, PR #329).
+async function compressDecodedBitmap(
   file: File,
-  targetAspectRatio?: number,
-  minHeight?: number,
+  bitmap: ImageBitmap,
+  targetAspectRatio: number | undefined,
+  minHeight: number | undefined,
 ): Promise<File> {
-  if (!ALLOWED_SOURCE_TYPES.has(file.type)) return file;
-  if (typeof createImageBitmap !== 'function') {
-    return failOpenOrThrow(
-      file,
-      targetAspectRatio,
-      minHeight,
-      'Image cropping is not supported in this browser',
-    );
-  }
-
-  let bitmap: ImageBitmap | undefined;
   try {
-    bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
     const crop = resolveCropRect(bitmap.width, bitmap.height, targetAspectRatio);
     const { width, height } = scaledDimensions(crop.sWidth, crop.sHeight, MAX_DIMENSION);
     if (minHeight !== undefined && height < minHeight) {
@@ -202,7 +196,71 @@ export async function compressImage(
     return new File([blob], withExtension(file.name, extension), { type: blob.type });
   } catch (err) {
     return rethrowOrFailOpen(file, targetAspectRatio, minHeight, err);
+  }
+}
+
+export async function compressImage(
+  file: File,
+  targetAspectRatio?: number,
+  minHeight?: number,
+): Promise<File> {
+  if (!ALLOWED_SOURCE_TYPES.has(file.type)) return file;
+  if (typeof createImageBitmap !== 'function') {
+    return failOpenOrThrow(
+      file,
+      targetAspectRatio,
+      minHeight,
+      'Image cropping is not supported in this browser',
+    );
+  }
+
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  } catch (err) {
+    return rethrowOrFailOpen(file, targetAspectRatio, minHeight, err);
+  }
+  try {
+    return await compressDecodedBitmap(file, bitmap, targetAspectRatio, minHeight);
   } finally {
-    bitmap?.close();
+    bitmap.close();
+  }
+}
+
+// Gallery-only variant (M18-S06): same compression as compressImage, plus the width/height that
+// actually match whatever File it returns — decoding the source exactly once and sharing the
+// resulting bitmap between the compress path and the dimensions read, unlike compressImage's own
+// (unavoidable) separate decode for its other callers (branding/hero/SEO purposes, which never
+// need dimensions back). compressImage returns the exact same File reference on every fail-open
+// path (unsupported type/API, decode/canvas/encode failure, "not actually smaller") and only a
+// genuinely new File on success — that reference equality is what tells us whether the real pixels
+// are the untouched source (raw bitmap dimensions) or the resized output (scaledDimensions).
+// Reporting the wrong one would silently desync GalleryImage.width/height from the file actually
+// sitting at GalleryImage.url. Best-effort like compressImage's own no-hard-requirement path:
+// unsupported type/API or a decode failure falls back to the untouched file with no dimensions.
+export async function compressImageWithDimensions(
+  file: File,
+): Promise<{ file: File; width?: number; height?: number }> {
+  if (!ALLOWED_SOURCE_TYPES.has(file.type) || typeof createImageBitmap !== 'function') {
+    return { file: await compressImage(file) };
+  }
+
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  } catch {
+    return { file: await compressImage(file) };
+  }
+
+  try {
+    const sourceDimensions = { width: bitmap.width, height: bitmap.height };
+    const compressed = await compressDecodedBitmap(file, bitmap, undefined, undefined);
+    const { width, height } =
+      compressed === file
+        ? sourceDimensions
+        : scaledDimensions(sourceDimensions.width, sourceDimensions.height, MAX_DIMENSION);
+    return { file: compressed, width, height };
+  } finally {
+    bitmap.close();
   }
 }

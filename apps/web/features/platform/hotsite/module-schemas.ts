@@ -55,6 +55,8 @@ const GalleryImageSchema = z.object({
   source: z.enum(['booking', 'upload']),
   bookingId: z.string().optional(),
   photoType: z.enum(['before', 'after']).optional(),
+  width: z.number().optional(),
+  height: z.number().optional(),
 }) satisfies z.ZodType<GalleryImage>;
 
 // Mirrors GalleryModuleData (packages/types/src/hotsite.ts) — keep in sync when that type changes.
@@ -62,8 +64,9 @@ export const GalleryModuleDataSchema = z.object({
   title: z.string().optional(),
   eyebrow: z.string().optional(),
   images: z.array(GalleryImageSchema),
-  layout: z.enum(['grid', 'masonry']),
+  layout: z.enum(['grid', 'masonry', 'featured']),
   maxVisible: z.number().int().min(1),
+  featuredPosition: z.enum(['left', 'right']).optional(),
 }) satisfies z.ZodType<GalleryModuleData>;
 
 // Mirrors Testimonial (packages/types/src/hotsite.ts) — keep in sync when that type changes.

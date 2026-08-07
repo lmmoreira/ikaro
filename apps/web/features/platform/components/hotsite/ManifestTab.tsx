@@ -5,11 +5,37 @@ import { useTranslations } from 'next-intl';
 import { SectionCard } from '@/shared/components/ui/section-card';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { Button } from '@/shared/components/ui/button';
-import { parseManifestJson, type ManifestDraft } from '@/features/platform/hotsite/manifest-schema';
+import {
+  parseManifestJson,
+  type ManifestDraft,
+  type ManifestParseErrorReason,
+} from '@/features/platform/hotsite/manifest-schema';
 
 interface ManifestTabProps {
   readonly value: ManifestDraft;
   readonly onApply: (next: ManifestDraft) => void;
+}
+
+// Maps `reason.code` to the matching `manifest.errors.*` key, passing along the params
+// (`max`/`moduleType`) that key's translation interpolates.
+function manifestErrorMessage(
+  t: ReturnType<typeof useTranslations<'dashboard.hotsitePage'>>,
+  reason: ManifestParseErrorReason,
+): string {
+  switch (reason.code) {
+    case 'invalidSyntax':
+      return t('manifest.errors.invalidSyntax');
+    case 'invalidStructure':
+      return t('manifest.errors.invalidStructure');
+    case 'tooManyModules':
+      return t('manifest.errors.tooManyModules', { max: reason.max });
+    case 'unknownModuleType':
+      return t('manifest.errors.unknownModuleType', { moduleType: reason.moduleType });
+    case 'duplicateModuleType':
+      return t('manifest.errors.duplicateModuleType', { moduleType: reason.moduleType });
+    case 'invalidModuleData':
+      return t('manifest.errors.invalidModuleData', { moduleType: reason.moduleType });
+  }
 }
 
 // Unlike Branding/Layout/SEO's per-keystroke onChange, this tab holds its own local text buffer —
@@ -22,20 +48,20 @@ interface ManifestTabProps {
 export function ManifestTab({ value, onApply }: ManifestTabProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage');
   const [text, setText] = useState(() => JSON.stringify(value, null, 2));
-  const [hasError, setHasError] = useState(false);
+  const [errorReason, setErrorReason] = useState<ManifestParseErrorReason | null>(null);
 
   function handleTextChange(next: string): void {
     setText(next);
-    setHasError(false);
+    setErrorReason(null);
   }
 
   function handleApply(): void {
     const result = parseManifestJson(text);
     if (!result.success) {
-      setHasError(true);
+      setErrorReason(result.reason);
       return;
     }
-    setHasError(false);
+    setErrorReason(null);
     onApply(result.value);
   }
 
@@ -50,13 +76,13 @@ export function ManifestTab({ value, onApply }: ManifestTabProps): React.JSX.Ele
           spellCheck={false}
           className="min-h-[28rem] font-mono text-xs"
         />
-        {hasError && (
+        {errorReason && (
           <p
             role="alert"
             data-testid="hotsite-manifest-error"
             className="text-sm font-semibold text-red-700"
           >
-            {t('manifest.invalidJsonError')}
+            {manifestErrorMessage(t, errorReason)}
           </p>
         )}
         <Button type="button" onClick={handleApply} data-testid="hotsite-manifest-apply">

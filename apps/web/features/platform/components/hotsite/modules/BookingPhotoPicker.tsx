@@ -45,6 +45,22 @@ export function BookingPhotoPicker({
   const [photos, setPhotos] = useState<BookingPhotos | null>(null);
   const [picking, setPicking] = useState(false);
   const [pickError, setPickError] = useState<string | null>(null);
+  // Captured from the thumbnail <img> the browser already fetched to display — no extra network
+  // request. Keyed by the display URL (not the storage path — that's only known once picked).
+  // Reactive (not a plain mutable Map) so the pick buttons below can disable themselves until a
+  // thumbnail's dimensions actually land — a fast click right after mount could otherwise fire
+  // handlePick before the corresponding onLoad event, silently persisting the image with no
+  // width/height (M18-S06 requires every picker-added image to carry them; Codex review, PR #329).
+  const [photoDimensions, setPhotoDimensions] = useState(
+    () => new Map<string, { width: number; height: number }>(),
+  );
+
+  function handleThumbnailLoad(url: string, event: React.SyntheticEvent<HTMLImageElement>): void {
+    const img = event.currentTarget;
+    setPhotoDimensions((prev) =>
+      new Map(prev).set(url, { width: img.naturalWidth, height: img.naturalHeight }),
+    );
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -109,6 +125,9 @@ export function BookingPhotoPicker({
     const filePath =
       photoType === 'before' ? currentPhotos.beforePaths[index] : currentPhotos.afterPaths[index];
     if (!filePath) return;
+    const thumbnailUrl =
+      photoType === 'before' ? currentPhotos.beforeUrls[index] : currentPhotos.afterUrls[index];
+    const dimensions = photoDimensions.get(thumbnailUrl);
 
     setPicking(true);
     setPickError(null);
@@ -124,6 +143,8 @@ export function BookingPhotoPicker({
           source: 'booking',
           bookingId: selectedBookingId,
           photoType: result.photoType,
+          width: dimensions?.width,
+          height: dimensions?.height,
         },
         result.url,
       );
@@ -199,13 +220,18 @@ export function BookingPhotoPicker({
             <button
               key={url}
               type="button"
-              disabled={picking}
+              disabled={picking || !photoDimensions.has(url)}
               onClick={() => {
                 void handlePick('before', index);
               }}
-              className="group relative overflow-hidden rounded-md border border-gray-200"
+              className="group relative overflow-hidden rounded-md border border-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <img src={url} alt="" className="aspect-square w-full object-cover" />
+              <img
+                src={url}
+                alt=""
+                onLoad={(event) => handleThumbnailLoad(url, event)}
+                className="aspect-square w-full object-cover"
+              />
               <span className="absolute bottom-0 left-0 right-0 bg-black/60 px-1 text-[10px] text-white">
                 {t('beforeLabel')}
               </span>
@@ -215,13 +241,18 @@ export function BookingPhotoPicker({
             <button
               key={url}
               type="button"
-              disabled={picking}
+              disabled={picking || !photoDimensions.has(url)}
               onClick={() => {
                 void handlePick('after', index);
               }}
-              className="group relative overflow-hidden rounded-md border border-gray-200"
+              className="group relative overflow-hidden rounded-md border border-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <img src={url} alt="" className="aspect-square w-full object-cover" />
+              <img
+                src={url}
+                alt=""
+                onLoad={(event) => handleThumbnailLoad(url, event)}
+                className="aspect-square w-full object-cover"
+              />
               <span className="absolute bottom-0 left-0 right-0 bg-black/60 px-1 text-[10px] text-white">
                 {t('afterLabel')}
               </span>

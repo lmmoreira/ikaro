@@ -508,6 +508,118 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     expect(box!.height).toBeLessThan(700);
   });
 
+  // M18-S06 — Mosaico only differs from Grade once tiles are allowed unequal heights; this proves
+  // the real, end-to-end effect (actual browser decode → real width/height → rendered box), not
+  // just that the flex-basis tile class is present (already covered at the unit level).
+  test('Gallery panel: two photos of different aspect ratios render at different heights under Mosaico, after Publish and reload (M18-S06)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'Layout' }).click();
+
+    // GALLERY is absent from the autospa-premium seed layout — materializeLayout() gives it a
+    // disabled row with default data, same as ABOUT/TESTIMONIALS/BOOKING_CTA above.
+    await page.locator(layoutToggle('GALLERY')).click();
+    await page.locator(configureButton('GALLERY')).click();
+
+    // A tall (1:3) and a wide (3:1) photo — deliberately extreme so the height difference can't
+    // be mistaken for layout noise.
+    await page.getByTestId('gallery-upload-input').setInputFiles({
+      name: 'tall.png',
+      mimeType: 'image/png',
+      buffer: makeSolidPng(100, 300),
+    });
+    await expect(page.getByTestId('gallery-image')).toHaveCount(1);
+    await page.getByTestId('gallery-upload-input').setInputFiles({
+      name: 'wide.png',
+      mimeType: 'image/png',
+      buffer: makeSolidPng(300, 100),
+    });
+    await expect(page.getByTestId('gallery-image')).toHaveCount(2);
+
+    await page.getByTestId('gallery-layout-masonry').click();
+    await page.getByTestId('module-config-apply-desktop').click();
+
+    await page.getByTestId('hotsite-publish-desktop').click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+
+    await page.goto(`/${MANAGER_TENANT_SLUG}`);
+    const tiles = page.locator('section#gallery a[data-gallery-url]');
+    await expect(tiles).toHaveCount(2);
+    const tallBox = await tiles.nth(0).boundingBox();
+    const wideBox = await tiles.nth(1).boundingBox();
+    expect(tallBox).not.toBeNull();
+    expect(wideBox).not.toBeNull();
+    // Same tile width (both at basis-[calc(50%-0.5rem)], 2 images) — a real 9:1 height ratio is
+    // expected; 2x is a generous floor against layout/rounding noise, not a tight tolerance.
+    expect(tallBox!.height).toBeGreaterThan(wideBox!.height * 2);
+  });
+
+  // M18-S07 — "Destaque": 1 large + 4 small tiles, a fixed 5-image template. Verifies the real
+  // end-to-end effect on both breakpoints, not just that .gallery-featured-grid is present.
+  test('Gallery panel: "Destaque" with 5 photos renders 1 large + 4 small tiles, position and breakpoint both correct, after Publish and reload (M18-S07)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'Layout' }).click();
+
+    await page.locator(layoutToggle('GALLERY')).click();
+    await page.locator(configureButton('GALLERY')).click();
+
+    for (let i = 0; i < 5; i++) {
+      await page.getByTestId('gallery-upload-input').setInputFiles({
+        name: `photo-${i}.png`,
+        mimeType: 'image/png',
+        buffer: makeSolidPng(300, 200),
+      });
+      await expect(page.getByTestId('gallery-image')).toHaveCount(i + 1);
+    }
+
+    // Exactly 5 images — "Destaque" must be selectable, not disabled.
+    const featuredPill = page.getByTestId('gallery-layout-featured');
+    await expect(featuredPill).toBeEnabled();
+    await featuredPill.click();
+    await page.getByTestId('gallery-featured-position-right').click();
+    await page.getByTestId('module-config-apply-desktop').click();
+
+    await page.getByTestId('hotsite-publish-desktop').click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+
+    await page.goto(`/${MANAGER_TENANT_SLUG}`);
+    const tiles = page.locator('section#gallery a[data-gallery-url]');
+    await expect(tiles).toHaveCount(5);
+
+    const bigBox = await tiles.nth(0).boundingBox();
+    const smallBox = await tiles.nth(1).boundingBox();
+    expect(bigBox).not.toBeNull();
+    expect(smallBox).not.toBeNull();
+    // Desktop: 4 equal columns, the large tile spans 2 of them and both rows — wider and taller
+    // than a small tile, but square itself (see the per-tile squareness assertions below — a
+    // uniformly-scaled-but-non-square rectangle would also pass these two alone).
+    expect(bigBox!.width).toBeGreaterThan(smallBox!.width * 1.5);
+    expect(bigBox!.height).toBeGreaterThan(smallBox!.height);
+    // featuredPosition: 'right' — the large tile sits to the right of the small ones.
+    expect(bigBox!.x).toBeGreaterThan(smallBox!.x);
+    // Every tile — big and small alike — must render exactly square, not just "larger" (CodeRabbit
+    // review, PR #329: the original assertions above alone would still pass for a uniformly
+    // landscape- or portrait-biased rectangle). A few px of rounding tolerance for real layout math.
+    expect(Math.abs(bigBox!.width - bigBox!.height)).toBeLessThan(2);
+    expect(Math.abs(smallBox!.width - smallBox!.height)).toBeLessThan(2);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload();
+    const bigBoxMobile = await tiles.nth(0).boundingBox();
+    const smallBoxMobile = await tiles.nth(1).boundingBox();
+    expect(bigBoxMobile).not.toBeNull();
+    expect(smallBoxMobile).not.toBeNull();
+    // Mobile: stacked — the large tile is full-width and sits above the small tiles regardless
+    // of featuredPosition, which has no effect once collapsed to a single column.
+    expect(bigBoxMobile!.y).toBeLessThan(smallBoxMobile!.y);
+    expect(bigBoxMobile!.width).toBeGreaterThan(smallBoxMobile!.width * 1.5);
+    expect(Math.abs(bigBoxMobile!.width - bigBoxMobile!.height)).toBeLessThan(2);
+    expect(Math.abs(smallBoxMobile!.width - smallBoxMobile!.height)).toBeLessThan(2);
+  });
+
   // Default seed state has no logo uploaded (autospa-premium's branding.logoUrl is '') — this
   // test relies on that default rather than explicitly clearing it, since afterEach always
   // restores `original` between tests in this serial block.

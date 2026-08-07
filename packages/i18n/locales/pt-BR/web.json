@@ -275,7 +275,7 @@
     },
     "emptyState": {
       "title": "Nenhum agendamento ainda",
-      "body": "Faça seu primeiro agendamento e acompanhe o histórico do seu carro aqui.",
+      "body": "Faça seu primeiro agendamento e acompanhe seu histórico aqui.",
       "cta": "Fazer agendamento"
     },
     "error": {
@@ -548,7 +548,7 @@
         "panels": {
           "hero": {
             "titleLabel": "Título *",
-            "titlePlaceholder": "Seu carro impecável, sem complicação",
+            "titlePlaceholder": "Título principal exibido no topo do seu site",
             "subtitleLabel": "Subtítulo (opcional)",
             "subtitlePlaceholder": "Agende em segundos e acompanhe tudo pelo celular",
             "eyebrowLabel": "Texto de destaque (opcional)",
@@ -612,6 +612,12 @@
             "layoutLabel": "Layout",
             "layoutGrid": "Grade",
             "layoutMasonry": "Mosaico",
+            "layoutFeatured": "Destaque",
+            "featuredRequiresFiveImages": "O layout Destaque exige pelo menos 5 imagens.",
+            "featuredUsesFirstFiveImages": "O layout Destaque usa apenas as 5 primeiras imagens.",
+            "featuredPositionLabel": "Posição da foto em destaque",
+            "featuredPositionLeft": "Esquerda",
+            "featuredPositionRight": "Direita",
             "maxVisibleLabel": "Máximo de imagens visíveis",
             "imagesLabel": "Imagens"
           },
@@ -721,7 +727,7 @@
           },
           "footer": {
             "taglineLabel": "Slogan (opcional)",
-            "taglinePlaceholder": "Cuidando do seu carro com carinho",
+            "taglinePlaceholder": "Frase curta exibida no rodapé do site",
             "copyrightNoteLabel": "Nota de direitos autorais (opcional)",
             "copyrightNotePlaceholder": "Todos os direitos reservados",
             "showWhatsappLabel": "Mostrar botão do WhatsApp"
@@ -740,7 +746,14 @@
       },
       "manifest": {
         "sectionTitle": "Manifesto",
-        "invalidJsonError": "JSON inválido. Verifique a sintaxe e a estrutura (branding, layout, seo) antes de aplicar."
+        "errors": {
+          "invalidSyntax": "JSON inválido: a sintaxe do texto está incorreta (verifique vírgulas, chaves e aspas).",
+          "invalidStructure": "JSON inválido: a estrutura não corresponde ao formato esperado (branding, layout, seo).",
+          "tooManyModules": "JSON inválido: o layout tem mais de {max} módulos.",
+          "unknownModuleType": "JSON inválido: tipo de módulo desconhecido \"{moduleType}\".",
+          "duplicateModuleType": "JSON inválido: tipo de módulo duplicado \"{moduleType}\".",
+          "invalidModuleData": "JSON inválido: dados inválidos para o módulo \"{moduleType}\"."
+        }
       }
     },
     "settingsPage": {
@@ -812,7 +825,7 @@
       "copyToWeekdays": "Aplicar de terça a sexta",
       "phoneLabel": "Telefone",
       "emailLabel": "E-mail",
-      "emailPlaceholder": "contato@beloauto.com.br",
+      "emailPlaceholder": "contato@suaempresa.com.br",
       "addressLegend": "Endereço",
       "addressHint": "Opcional — preencha todos os campos para exibir o endereço no site, ou deixe todos em branco.",
       "addressZipSearching": "Buscando endereço...",
@@ -868,7 +881,7 @@
       "pointsBadge": "{count, plural, one {# pt} other {# pts}}",
       "createPageTitle": "Criar serviço",
       "createNameLabel": "Nome do serviço",
-      "createNamePlaceholder": "Ex: Lavagem Completa",
+      "createNamePlaceholder": "Nome do serviço",
       "createDescriptionLabel": "Descrição",
       "createDescriptionPlaceholder": "Descreva o que está incluso…",
       "createPriceLabel": "Preço",

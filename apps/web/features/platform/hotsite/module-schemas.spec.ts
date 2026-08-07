@@ -202,6 +202,61 @@ describe('GalleryModuleDataSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  it('accepts layout: "featured" (M18-S07)', () => {
+    const result = GalleryModuleDataSchema.safeParse({ ...validGalleryData, layout: 'featured' });
+
+    expect(result.success).toBe(true);
+  });
+
+  it.each(['left', 'right', undefined] as const)(
+    'accepts featuredPosition %s',
+    (featuredPosition) => {
+      const result = GalleryModuleDataSchema.safeParse({ ...validGalleryData, featuredPosition });
+
+      expect(result.success).toBe(true);
+    },
+  );
+
+  it('rejects an invalid featuredPosition', () => {
+    const result = GalleryModuleDataSchema.safeParse({
+      ...validGalleryData,
+      featuredPosition: 'center',
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts an image with width/height (M18-S06)', () => {
+    const result = GalleryModuleDataSchema.safeParse({
+      ...validGalleryData,
+      images: [
+        {
+          url: 'https://storage.example.com/gallery/photo.jpg',
+          source: 'upload',
+          width: 400,
+          height: 800,
+        },
+      ],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts an image with width/height absent (pre-existing images stored before M18-S06)', () => {
+    expect(GalleryModuleDataSchema.safeParse(validGalleryData).success).toBe(true);
+  });
+
+  it('rejects a non-number width', () => {
+    const result = GalleryModuleDataSchema.safeParse({
+      ...validGalleryData,
+      images: [
+        { url: 'https://storage.example.com/gallery/photo.jpg', source: 'upload', width: '400' },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it('rejects an invalid photoType', () => {
     const result = GalleryModuleDataSchema.safeParse({
       ...validGalleryData,

@@ -7,7 +7,7 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => {
     const translations: Record<string, string> = {
       title: 'Nenhum agendamento ainda',
-      body: 'Faça seu primeiro agendamento e acompanhe o histórico do seu carro aqui.',
+      body: 'Faça seu primeiro agendamento e acompanhe seu histórico aqui.',
       cta: 'Fazer agendamento',
     };
     return translations[key] ?? key;
@@ -32,7 +32,7 @@ describe('BookingEmptyState', () => {
 
     expect(screen.getByText('Nenhum agendamento ainda')).toBeInTheDocument();
     expect(
-      screen.getByText('Faça seu primeiro agendamento e acompanhe o histórico do seu carro aqui.'),
+      screen.getByText('Faça seu primeiro agendamento e acompanhe seu histórico aqui.'),
     ).toBeInTheDocument();
   });
 

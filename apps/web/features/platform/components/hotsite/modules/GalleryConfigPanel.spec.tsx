@@ -18,6 +18,11 @@ vi.mock('@/features/booking/api/booking', () => ({
 
 const GALLERY: GalleryModuleData = { images: [], layout: 'grid', maxVisible: 6 };
 
+const FIVE_IMAGES = Array.from({ length: 5 }, (_, i) => ({
+  url: `https://storage.example.com/gallery/photo-${i}.jpg`,
+  source: 'upload' as const,
+}));
+
 describe('GalleryConfigPanel', () => {
   it('renders current values', () => {
     renderWithIntl(<GalleryConfigPanel data={writeModuleData(GALLERY)} onChange={vi.fn()} />);
@@ -67,5 +72,155 @@ describe('GalleryConfigPanel', () => {
     fireEvent.click(screen.getByTestId('gallery-layout-masonry'));
 
     expect(onChange).toHaveBeenCalledWith(writeModuleData({ ...GALLERY, layout: 'masonry' }));
+  });
+
+  describe('"Destaque" layout (M18-S07)', () => {
+    it('disables the "Destaque" pill and shows the "requires at least 5" hint below 5 images', () => {
+      renderWithIntl(<GalleryConfigPanel data={writeModuleData(GALLERY)} onChange={vi.fn()} />);
+
+      expect(screen.getByTestId('gallery-layout-featured')).toBeDisabled();
+      expect(screen.getByText('O layout Destaque exige pelo menos 5 imagens.')).toBeInTheDocument();
+    });
+
+    it('enables the "Destaque" pill and hides the "requires at least 5" hint at exactly 5 images', () => {
+      renderWithIntl(
+        <GalleryConfigPanel
+          data={writeModuleData({ ...GALLERY, images: FIVE_IMAGES })}
+          onChange={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByTestId('gallery-layout-featured')).not.toBeDisabled();
+      expect(
+        screen.queryByText('O layout Destaque exige pelo menos 5 imagens.'),
+      ).not.toBeInTheDocument();
+    });
+
+    it('enables the "Destaque" pill at more than 5 images too — extras are just ignored, not blocked', () => {
+      renderWithIntl(
+        <GalleryConfigPanel
+          data={writeModuleData({
+            ...GALLERY,
+            images: [...FIVE_IMAGES, ...FIVE_IMAGES.slice(0, 2)],
+          })}
+          onChange={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByTestId('gallery-layout-featured')).not.toBeDisabled();
+    });
+
+    it('shows the "uses only the first 5" note once layout is "featured" with more than 5 images', () => {
+      renderWithIntl(
+        <GalleryConfigPanel
+          data={writeModuleData({
+            ...GALLERY,
+            images: [...FIVE_IMAGES, ...FIVE_IMAGES.slice(0, 2)],
+            layout: 'featured',
+          })}
+          onChange={vi.fn()}
+        />,
+      );
+
+      expect(
+        screen.getByText('O layout Destaque usa apenas as 5 primeiras imagens.'),
+      ).toBeInTheDocument();
+    });
+
+    it('does not show the "uses only the first 5" note at exactly 5 images', () => {
+      renderWithIntl(
+        <GalleryConfigPanel
+          data={writeModuleData({ ...GALLERY, images: FIVE_IMAGES, layout: 'featured' })}
+          onChange={vi.fn()}
+        />,
+      );
+
+      expect(
+        screen.queryByText('O layout Destaque usa apenas as 5 primeiras imagens.'),
+      ).not.toBeInTheDocument();
+    });
+
+    it('does not show the "uses only the first 5" note when layout is not "featured", even with more than 5 images', () => {
+      renderWithIntl(
+        <GalleryConfigPanel
+          data={writeModuleData({
+            ...GALLERY,
+            images: [...FIVE_IMAGES, ...FIVE_IMAGES.slice(0, 2)],
+            layout: 'grid',
+          })}
+          onChange={vi.fn()}
+        />,
+      );
+
+      expect(
+        screen.queryByText('O layout Destaque usa apenas as 5 primeiras imagens.'),
+      ).not.toBeInTheDocument();
+    });
+
+    it('does not call onChange when clicking the disabled "Destaque" pill', () => {
+      const onChange = vi.fn();
+      renderWithIntl(<GalleryConfigPanel data={writeModuleData(GALLERY)} onChange={onChange} />);
+
+      fireEvent.click(screen.getByTestId('gallery-layout-featured'));
+
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it('does not render the position pill unless layout is "featured"', () => {
+      renderWithIntl(
+        <GalleryConfigPanel
+          data={writeModuleData({ ...GALLERY, images: FIVE_IMAGES })}
+          onChange={vi.fn()}
+        />,
+      );
+
+      expect(screen.queryByTestId('gallery-featured-position-left')).not.toBeInTheDocument();
+    });
+
+    // Removing images can leave layout: 'featured' persisted while it's actually rendering as the
+    // grid fallback on the live site (GalleryModule's effectiveLayout) — the position selector
+    // must not stay visibly editable for a layout that isn't currently active (Copilot + CodeRabbit
+    // review, PR #329).
+    it('does not render the position pill when layout is "featured" but fewer than 5 images remain', () => {
+      renderWithIntl(
+        <GalleryConfigPanel
+          data={writeModuleData({
+            ...GALLERY,
+            images: FIVE_IMAGES.slice(0, 3),
+            layout: 'featured',
+          })}
+          onChange={vi.fn()}
+        />,
+      );
+
+      expect(screen.queryByTestId('gallery-featured-position-left')).not.toBeInTheDocument();
+    });
+
+    it('renders the position pill, defaulting to "left", once layout is "featured"', () => {
+      renderWithIntl(
+        <GalleryConfigPanel
+          data={writeModuleData({ ...GALLERY, images: FIVE_IMAGES, layout: 'featured' })}
+          onChange={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByTestId('gallery-featured-position-left')).toHaveAttribute(
+        'aria-checked',
+        'true',
+      );
+    });
+
+    it('changing the position pill calls onChange with the new featuredPosition', () => {
+      const onChange = vi.fn();
+      const data: GalleryModuleData = { ...GALLERY, images: FIVE_IMAGES, layout: 'featured' };
+
+      renderWithIntl(<GalleryConfigPanel data={writeModuleData(data)} onChange={onChange} />);
+
+      fireEvent.click(screen.getByTestId('gallery-featured-position-right'));
+
+      expect(onChange).toHaveBeenCalledWith(
+        writeModuleData({ ...data, featuredPosition: 'right' }),
+      );
+    });
   });
 });

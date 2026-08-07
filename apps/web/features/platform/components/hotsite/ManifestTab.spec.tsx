@@ -61,7 +61,31 @@ describe('ManifestTab', () => {
     fireEvent.change(textarea, { target: { value: '{ not valid json' } });
     await user.click(screen.getByTestId('hotsite-manifest-apply'));
 
-    expect(screen.getByTestId('hotsite-manifest-error')).toBeInTheDocument();
+    expect(screen.getByTestId('hotsite-manifest-error')).toHaveTextContent(
+      'a sintaxe do texto está incorreta',
+    );
+    expect(onApply).not.toHaveBeenCalled();
+  });
+
+  it('shows a message naming the offending module type for an unknown module', async () => {
+    const onApply = vi.fn();
+    const user = userEvent.setup();
+    renderWithIntl(<ManifestTab value={VALID_MANIFEST} onApply={onApply} />);
+
+    const textarea = screen.getByTestId('hotsite-manifest-textarea');
+    fireEvent.change(textarea, {
+      target: {
+        value: JSON.stringify({
+          ...VALID_MANIFEST,
+          layout: [{ type: 'NOT_A_REAL_MODULE', enabled: true, data: {} }],
+        }),
+      },
+    });
+    await user.click(screen.getByTestId('hotsite-manifest-apply'));
+
+    expect(screen.getByTestId('hotsite-manifest-error')).toHaveTextContent(
+      'tipo de módulo desconhecido "NOT_A_REAL_MODULE"',
+    );
     expect(onApply).not.toHaveBeenCalled();
   });
 

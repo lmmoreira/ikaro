@@ -24,6 +24,18 @@ function makeData(overrides?: Partial<GalleryModuleData>): GalleryModuleData {
   };
 }
 
+function makeImages(count: number): GalleryImage[] {
+  return Array.from({ length: count }, (_, i) =>
+    makeImage({ url: `https://storage.example.com/gallery/photo-${i}.jpg` }),
+  );
+}
+
+// The gridClass div (grid or columns) is always the direct parent of every gallery tile's <a>
+// wrapper — a more stable anchor than the class name itself, which is exactly what's under test.
+function galleryGridContainer(container: HTMLElement): Element | null | undefined {
+  return container.querySelector('a[data-gallery-url]')?.parentElement;
+}
+
 describe('GalleryModule', () => {
   it('renders the default title when none is provided', () => {
     renderWithIntl(<GalleryModule data={makeData()} slug="tenant" />);
@@ -53,12 +65,202 @@ describe('GalleryModule', () => {
     expect(container.querySelector('.grid')).toBeInTheDocument();
   });
 
-  it('renders a CSS-columns container for layout: masonry', () => {
+  it('renders a flex-wrap container for layout: masonry, not the grid layout classes', () => {
     const { container } = renderWithIntl(
-      <GalleryModule data={makeData({ layout: 'masonry' })} slug="tenant" />,
+      <GalleryModule
+        data={makeData({ layout: 'masonry', images: makeImages(6), maxVisible: 6 })}
+        slug="tenant"
+      />,
     );
 
-    expect(container.querySelector('.columns-2')).toBeInTheDocument();
+    expect(galleryGridContainer(container)).toHaveClass('flex', 'flex-wrap', 'justify-center');
+    expect(galleryGridContainer(container)).not.toHaveClass('grid');
+  });
+
+  // M18-S06/S07 follow-up: CSS `columns` is column-major with no concept of a row, so it has no
+  // way to center a lopsided remainder (e.g. 3 images in 2 columns stacks 2-then-1, leaving a
+  // large empty gap the technique can't address — confirmed against real screenshots). flex-wrap +
+  // justify-center centers a short last row automatically. An earlier version of this fix still
+  // capped desktop at 2/row for ≤3 images (avoiding tiny tiles at very low counts) — tested against
+  // real screenshots, that made every tile 50% width, "really big/enormous" for exactly the count
+  // (3) that fits one clean 3-column row. Since flex-wrap centers any remainder regardless of
+  // column count, there's no reason left to vary it by count at all — see MASONRY_TILE_BASIS_CLASS's
+  // own doc comment in GalleryModule.tsx.
+  describe('masonry tile width is fixed (3/row desktop, 2/row mobile), regardless of image count', () => {
+    it.each([1, 2, 3, 4, 20])('uses the same basis class at %i visible images', (count) => {
+      const { container } = renderWithIntl(
+        <GalleryModule
+          data={makeData({ layout: 'masonry', images: makeImages(count), maxVisible: 20 })}
+          slug="tenant"
+        />,
+      );
+
+      const tiles = container.querySelectorAll('a[data-gallery-url]');
+      for (const tile of tiles) {
+        expect(tile).toHaveClass('basis-[calc(50%-0.5rem)]');
+        expect(tile).toHaveClass('sm:basis-[calc(33.333%-0.667rem)]');
+      }
+    });
+
+    it('does not affect the grid layout, regardless of image count', () => {
+      const { container } = renderWithIntl(
+        <GalleryModule
+          data={makeData({ layout: 'grid', images: makeImages(1), maxVisible: 6 })}
+          slug="tenant"
+        />,
+      );
+
+      expect(galleryGridContainer(container)).toHaveClass('grid-cols-2', 'sm:grid-cols-3');
+      const tile = container.querySelector('a[data-gallery-url]');
+      expect(tile).not.toHaveClass('basis-[calc(50%-0.5rem)]');
+    });
+  });
+
+  // M18-S07 — "Destaque": 1 large + 4 small tiles, a fixed 5-image template.
+  describe('layout: featured', () => {
+    it('renders exactly 5 tiles at exactly 5 images', () => {
+      const { container } = renderWithIntl(
+        <GalleryModule
+          data={makeData({ layout: 'featured', images: makeImages(5), maxVisible: 6 })}
+          slug="tenant"
+        />,
+      );
+
+      expect(container.querySelectorAll('a[data-gallery-url]')).toHaveLength(5);
+    });
+
+    it('places the first image in the "big" grid area, the rest in reading order', () => {
+      const { container } = renderWithIntl(
+        <GalleryModule
+          data={makeData({ layout: 'featured', images: makeImages(5), maxVisible: 6 })}
+          slug="tenant"
+        />,
+      );
+
+      const tiles = container.querySelectorAll('a[data-gallery-url]');
+      expect((tiles[0] as HTMLElement).style.gridArea).toBe('big');
+      expect((tiles[1] as HTMLElement).style.gridArea).toBe('s1');
+      expect((tiles[4] as HTMLElement).style.gridArea).toBe('s4');
+    });
+
+    it('defaults featuredPosition to "left" on the container when unset', () => {
+      const { container } = renderWithIntl(
+        <GalleryModule
+          data={makeData({ layout: 'featured', images: makeImages(5), maxVisible: 6 })}
+          slug="tenant"
+        />,
+      );
+
+      expect(galleryGridContainer(container)).toHaveAttribute('data-featured-position', 'left');
+    });
+
+    it('reflects an explicit featuredPosition on the container', () => {
+      const { container } = renderWithIntl(
+        <GalleryModule
+          data={makeData({
+            layout: 'featured',
+            images: makeImages(5),
+            maxVisible: 6,
+            featuredPosition: 'right',
+          })}
+          slug="tenant"
+        />,
+      );
+
+      expect(galleryGridContainer(container)).toHaveAttribute('data-featured-position', 'right');
+    });
+
+    it('never renders a "Ver mais" button — GalleryGrid is still wrapped, but maxVisible/totalImages are both the effective count', () => {
+      renderWithIntl(
+        <GalleryModule
+          data={makeData({ layout: 'featured', images: makeImages(5), maxVisible: 1 })}
+          slug="tenant"
+        />,
+      );
+
+      expect(screen.queryByRole('button', { name: 'Ver mais' })).not.toBeInTheDocument();
+    });
+
+    it('still opens the lightbox on tile click — confirms GalleryGrid is still wrapping, not skipped', async () => {
+      const user = userEvent.setup();
+      const { container } = renderWithIntl(
+        <GalleryModule
+          data={makeData({ layout: 'featured', images: makeImages(5), maxVisible: 6 })}
+          slug="tenant"
+        />,
+      );
+
+      await user.click(screen.getAllByRole('link')[0]);
+
+      const dialog = container.querySelector('dialog');
+      expect(dialog?.querySelector('img')).toHaveAttribute(
+        'src',
+        'https://storage.example.com/gallery/photo-0.jpg',
+      );
+    });
+
+    it('falls back to rendering as grid when there are fewer than 5 images', () => {
+      const { container } = renderWithIntl(
+        <GalleryModule
+          data={makeData({ layout: 'featured', images: makeImages(3), maxVisible: 6 })}
+          slug="tenant"
+        />,
+      );
+
+      expect(galleryGridContainer(container)).toHaveClass('grid-cols-2', 'sm:grid-cols-3');
+      expect(galleryGridContainer(container)).not.toHaveClass('gallery-featured-grid');
+    });
+
+    it('passes isFeaturedPrimary sizes only to the first ("big") tile, not the 4 small ones', () => {
+      const { container } = renderWithIntl(
+        <GalleryModule
+          data={makeData({ layout: 'featured', images: makeImages(5), maxVisible: 6 })}
+          slug="tenant"
+        />,
+      );
+
+      const imgs = container.querySelectorAll('img');
+      expect(imgs[0]).toHaveAttribute('sizes', '(min-width: 640px) 50vw, 100vw');
+      for (const img of Array.from(imgs).slice(1)) {
+        expect(img).toHaveAttribute('sizes', '(min-width: 640px) 25vw, 50vw');
+      }
+    });
+
+    it('renders as featured, using only the first 5, when there are more than 5 images', () => {
+      const { container } = renderWithIntl(
+        <GalleryModule
+          data={makeData({ layout: 'featured', images: makeImages(7), maxVisible: 6 })}
+          slug="tenant"
+        />,
+      );
+
+      expect(galleryGridContainer(container)).toHaveClass('gallery-featured-grid');
+      const tiles = container.querySelectorAll('a[data-gallery-url]');
+      expect(tiles).toHaveLength(5);
+      expect(tiles[0]).toHaveAttribute(
+        'data-gallery-url',
+        'https://storage.example.com/gallery/photo-0.jpg',
+      );
+      expect(tiles[4]).toHaveAttribute(
+        'data-gallery-url',
+        'https://storage.example.com/gallery/photo-4.jpg',
+      );
+    });
+  });
+
+  it("forwards layout to each GalleryItem, so a masonry tile sizes to the photo's own aspect ratio", () => {
+    const { container } = renderWithIntl(
+      <GalleryModule
+        data={makeData({
+          layout: 'masonry',
+          images: [makeImage({ width: 400, height: 800 })],
+        })}
+        slug="tenant"
+      />,
+    );
+
+    const wrapper = container.querySelector('img')?.parentElement;
+    expect(wrapper).toHaveStyle({ aspectRatio: '400 / 800' });
   });
 
   it('renders the first image with loading="eager" (LCP) and subsequent ones with loading="lazy"', () => {

@@ -508,6 +508,62 @@ describe('HotsiteConfig', () => {
         ).not.toThrow();
       });
 
+      // M18-S06 — GalleryImage.width/height follow the same precedent: no business rule to
+      // enforce, so MODULE_DATA_VALIDATORS has no entry for GALLERY and these fields are never
+      // validated by the aggregate, including a nonsensical value.
+      it('does not throw for a GALLERY module with any width/height value on an image, including nonsensical ones', () => {
+        const config = new HotsiteConfigBuilder().build();
+        const layout: HotsiteModule[] = [
+          {
+            type: 'GALLERY',
+            enabled: true,
+            data: {
+              images: [
+                {
+                  url: 'https://storage.example.com/gallery/photo.jpg',
+                  source: 'upload',
+                  width: -5,
+                  height: 'not-a-number',
+                },
+              ],
+              layout: 'masonry',
+              maxVisible: 6,
+            } as never,
+          },
+        ];
+        expect(() =>
+          config.updateContent(DEFAULT_HOTSITE_BRANDING, layout, DEFAULT_HOTSITE_SEO, {
+            maxBookingAdvanceDays: 90,
+          }),
+        ).not.toThrow();
+      });
+
+      // M18-S07 — layout: 'featured' and featuredPosition follow the same precedent: no business
+      // rule to enforce (the exactly-5-images guard is a display-time fallback in GalleryModule,
+      // not an aggregate invariant), so MODULE_DATA_VALIDATORS has no entry for GALLERY covering
+      // these fields either, including a nonsensical featuredPosition and an image count that
+      // wouldn't actually render as 'featured' on the live site.
+      it('does not throw for a GALLERY module with layout: "featured" and any featuredPosition value, regardless of image count', () => {
+        const config = new HotsiteConfigBuilder().build();
+        const layout: HotsiteModule[] = [
+          {
+            type: 'GALLERY',
+            enabled: true,
+            data: {
+              images: [{ url: 'https://storage.example.com/gallery/photo.jpg', source: 'upload' }],
+              layout: 'featured',
+              maxVisible: 6,
+              featuredPosition: 'center',
+            } as never,
+          },
+        ];
+        expect(() =>
+          config.updateContent(DEFAULT_HOTSITE_BRANDING, layout, DEFAULT_HOTSITE_SEO, {
+            maxBookingAdvanceDays: 90,
+          }),
+        ).not.toThrow();
+      });
+
       // M18-S05 — BookingCtaModuleData.backgroundImagePosition follows the same precedent as
       // HeroModuleData.backgroundImagePosition (M18-S04) above: no business rule to enforce, so
       // MODULE_DATA_VALIDATORS has no entry for it either.

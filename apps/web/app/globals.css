@@ -56,3 +56,46 @@ body {
 [data-gallery-expanded='false'] [data-gallery-extra] {
   display: none;
 }
+
+/* Gallery 'featured' layout (M18-S07): 1 large + 4 small tiles sharing one CSS Grid. grid-area
+   lets the same 5 tiles re-template between the mobile-stacked and desktop-asymmetric layouts,
+   rather than duplicating markup per breakpoint.
+
+   Squareness comes from each tile's own `aspect-ratio: 1`, not a guessed container-level ratio
+   (M18-S07 follow-up — Codex review, PR #329: the original version set aspect-ratio: 2/1 desktop
+   / 1/2 mobile on the *container*, reasoning the fr-track split alone would force every cell
+   square. It doesn't: for the big tile specifically, the horizontal axis crosses 2 column gaps
+   while the vertical axis it spans only crosses 1 internal row gap, so the two axes disagree by
+   exactly one `gap` — the big tile came out visibly narrower than tall on desktop, and the mirror
+   error on mobile. Small tiles were never affected, since each sits in exactly 1 column and 1 row
+   either way.).
+
+   Fix: every tile gets `aspect-ratio: 1` directly (below). On desktop, all 4 columns are equal
+   width, so the 4 small tiles derive a uniform row height from their own square shape (rows are
+   implicit/auto — no grid-template-rows needed), and the big tile — spanning 2 of those columns
+   and both derived rows — comes out exactly that same square side length for free: 2 equal
+   column-widths + 1 gap (its width) always equals 2 equal row-heights + 1 gap (its height), since
+   both derive from the same column width. On mobile the big tile has no sibling in its own row, so
+   its own `aspect-ratio: 1` is what makes it square there. This holds at any container width or
+   gap size — no magic ratio to keep in sync with the gap utility class. Square (not the
+   reference's fixed pixel proportions, which cropped hard off-center on non-4:3 photos) was chosen
+   to match Grade's own square tiles (M18-S06 Part 6). */
+.gallery-featured-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas: 'big big' 's1 s2' 's3 s4';
+}
+
+.gallery-featured-grid > a {
+  aspect-ratio: 1;
+}
+
+@media (min-width: 640px) {
+  .gallery-featured-grid {
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-areas: 'big big s1 s2' 'big big s3 s4';
+  }
+  .gallery-featured-grid[data-featured-position='right'] {
+    grid-template-areas: 's1 s2 big big' 's3 s4 big big';
+  }
+}

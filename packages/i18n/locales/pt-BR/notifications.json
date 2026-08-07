@@ -74,7 +74,7 @@
   "ServicePointsEarned": {
     "customer": {
       "subject": "Você ganhou pontos de fidelidade!",
-      "body": "<p>Olá, {{customerName}}!</p><p>Sua lavagem foi concluída e você ganhou <strong>{{totalPointsEarned}} pontos</strong> de fidelidade.</p><p>Seu saldo atual é de <strong>{{currentBalance}} pontos</strong>.</p><p>Use seus pontos no próximo agendamento!</p>"
+      "body": "<p>Olá, {{customerName}}!</p><p>Seu agendamento foi concluído e você ganhou <strong>{{totalPointsEarned}} pontos</strong> de fidelidade.</p><p>Seu saldo atual é de <strong>{{currentBalance}} pontos</strong>.</p><p>Use seus pontos no próximo agendamento!</p>"
     }
   },
   "PointsExpiringSoon": {
