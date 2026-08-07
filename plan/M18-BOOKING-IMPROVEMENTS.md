@@ -807,7 +807,7 @@ None — extends existing components (`GalleryItem`, `GalleryModule`, `GalleryIm
 
 ---
 
-## M18-S07 — Gallery module: "Destaque" layout — 1 large + 4 small photos, fixed 5-image template
+## M18-S07 — Gallery module: "Destaque" layout — 1 large + 4 small photos, fixed 5-image template ✅ Done
 
 **Agent:** `fullstack-ts`
 **Complexity:** L
