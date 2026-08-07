@@ -2,13 +2,27 @@
 
 import { useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/shared/components/ui/card';
-import { Button } from '@/shared/components/ui/button';
+import { Button, buttonVariants } from '@/shared/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/shared/components/ui/alert-dialog';
 import { MOBILE_ACTION_BAR_CLEARANCE_CLASS } from '@/shells/dashboard/utils/mobile-action-bar';
 
 interface ModuleConfigShellProps {
   readonly moduleLabel: string;
   readonly onBack: () => void;
   readonly onApply: () => void;
+  readonly onPreview: () => void;
+  readonly discardConfirmOpen: boolean;
+  readonly onConfirmDiscard: () => void;
+  readonly onCancelDiscard: () => void;
   readonly children: React.ReactNode;
 }
 
@@ -19,13 +33,23 @@ interface ModuleConfigShellProps {
 // arrow + title live in the shared dashboard Topbar (HotsiteEditor pushes an onBackOverride +
 // pageTitleOverride into topbar-status-context), matching where every other dashboard drill-down
 // screen puts its back navigation — not duplicated here.
+//
+// `discardConfirmOpen` is lifted state, not local — the topbar back arrow (outside this
+// component's subtree entirely) also needs to open the same dialog, via HotsiteEditor's
+// requestCancelConfig/ref wiring (see HotsiteEditor.tsx). This component only owns the dialog's
+// visual rendering, not the decision to open it.
 export function ModuleConfigShell({
   moduleLabel,
   onBack,
   onApply,
+  onPreview,
+  discardConfirmOpen,
+  onConfirmDiscard,
+  onCancelDiscard,
   children,
 }: ModuleConfigShellProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage.layout.configShell');
+  const tRoot = useTranslations('dashboard.hotsitePage');
 
   return (
     <div className="space-y-4 pb-28 lg:space-y-6 lg:pb-0">
@@ -47,6 +71,15 @@ export function ModuleConfigShell({
                 data-testid="module-config-apply-desktop"
               >
                 {t('applyLabel')}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={onPreview}
+                data-testid="module-config-preview-desktop"
+              >
+                {tRoot('preview')}
               </Button>
               <Button
                 type="button"
@@ -76,13 +109,46 @@ export function ModuleConfigShell({
         </Button>
         <Button
           type="button"
-          className="flex-[2]"
+          variant="outline"
+          className="flex-1"
+          onClick={onPreview}
+          data-testid="module-config-preview-mobile"
+        >
+          {tRoot('preview')}
+        </Button>
+        <Button
+          type="button"
+          className="flex-1"
           onClick={onApply}
           data-testid="module-config-apply-mobile"
         >
           {t('applyLabel')}
         </Button>
       </div>
+
+      <AlertDialog
+        open={discardConfirmOpen}
+        onOpenChange={(open) => {
+          if (!open) onCancelDiscard();
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('discardConfirmTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('discardConfirmDescription')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('discardConfirmKeepEditing')}</AlertDialogCancel>
+            <AlertDialogAction
+              className={buttonVariants({ variant: 'destructive' })}
+              onClick={onConfirmDiscard}
+              data-testid="module-config-discard-confirm"
+            >
+              {t('discardConfirmDiscardButton')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

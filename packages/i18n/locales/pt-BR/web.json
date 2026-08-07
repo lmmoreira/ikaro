@@ -436,6 +436,7 @@
       },
       "publish": "Publicar alterações",
       "preview": "Preview",
+      "viewLiveSite": "Visitar site",
       "unpublish": "Despublicar hotsite",
       "dangerZoneTitle": "Zona de risco",
       "unpublishedHint": "Alterações não publicadas só são visíveis no Preview — o hotsite público continua mostrando a versão anterior.",
@@ -524,7 +525,11 @@
           "titlePrefix": "Configurar",
           "applyLabel": "Aplicar",
           "cancelLabel": "Cancelar",
-          "description": "As alterações são aplicadas ao rascunho — ainda não são visíveis no hotsite público."
+          "description": "As alterações são aplicadas ao rascunho — ainda não são visíveis no hotsite público.",
+          "discardConfirmTitle": "Descartar alterações?",
+          "discardConfirmDescription": "Você tem alterações neste módulo que ainda não foram aplicadas. Se sair agora, elas serão perdidas.",
+          "discardConfirmKeepEditing": "Continuar editando",
+          "discardConfirmDiscardButton": "Descartar alterações"
         },
         "gallery": {
           "addUploadLabel": "Adicionar imagem",

@@ -1030,7 +1030,7 @@ Returns:
       - SEO title/description overrides
       - Or edits the equivalent raw JSON directly in the Manifesto tab (Section D)
    
-   4. Admin clicks "Preview" to see hotsite live (optional)
+   4. Admin clicks "Preview" to see hotsite live (optional) — reachable from the main tabs view, and (M18-S08) from within a module's own config screen (`Configurar`) via a **Preview** button alongside Aplicar/Cancelar. In the latter case, clicking Back returns to that same module's config screen with the in-progress edit intact, not discarded. Separately, Admin can click "Visitar site" (M18-S08, main tabs view only) at any time to open the real, currently-published public hotsite in a new browser tab — unlike Preview, this always reflects the last-published version, never the draft
    5. Admin clicks "Publish Changes"
    6. System updates `hotsite_configs.branding` and `hotsite_configs.layout`
    7. System sets `is_published = true`
@@ -1041,6 +1041,7 @@ Returns:
    - **A1: Invalid color (not hex)** → System shows error and prevents save
    - **A2: Image upload fails** → System falls back to URL input
    - **A3: Malformed/invalid JSON in the Manifesto tab** → "Aplicar" shows an inline error and does not merge the edit into the draft; leaving the tab without clicking "Aplicar" discards the pending edit
+   - **A4: Admin leaves a module's config screen with unapplied edits (M18-S08)** → "Cancelar" or the topbar back arrow shows a confirm-discard prompt, only when the edit actually differs from the module's last-applied value. "Descartar alterações" discards the edit and returns to the tabs view (same end state as before this story); "Continuar editando" or pressing Escape keeps the admin on the same config screen with the edit intact — clicking outside the dialog does not dismiss it, matching how confirm/destructive dialogs work everywhere (deliberate, not a gap)
 
 - **Postconditions:** `hotsite_configs` updated. Hotsite public page reflects new branding and layout immediately (cached at edge if needed).
 - **Events Triggered:** None

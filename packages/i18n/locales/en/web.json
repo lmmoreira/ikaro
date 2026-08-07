@@ -436,6 +436,7 @@
       },
       "publish": "Publish changes",
       "preview": "Preview",
+      "viewLiveSite": "Visit site",
       "unpublish": "Unpublish hotsite",
       "dangerZoneTitle": "Danger zone",
       "unpublishedHint": "Unpublished changes are only visible in Preview — the public hotsite still shows the previous version.",
@@ -524,7 +525,11 @@
           "titlePrefix": "Configure",
           "applyLabel": "Apply",
           "cancelLabel": "Cancel",
-          "description": "Changes are applied to the draft — they aren't visible on the public hotsite yet."
+          "description": "Changes are applied to the draft — they aren't visible on the public hotsite yet.",
+          "discardConfirmTitle": "Discard changes?",
+          "discardConfirmDescription": "You have unapplied changes to this module. If you leave now, they'll be lost.",
+          "discardConfirmKeepEditing": "Keep editing",
+          "discardConfirmDiscardButton": "Discard changes"
         },
         "gallery": {
           "addUploadLabel": "Add image",
