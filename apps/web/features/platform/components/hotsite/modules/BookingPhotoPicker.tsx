@@ -45,6 +45,14 @@ export function BookingPhotoPicker({
   const [photos, setPhotos] = useState<BookingPhotos | null>(null);
   const [picking, setPicking] = useState(false);
   const [pickError, setPickError] = useState<string | null>(null);
+  // Captured from the thumbnail <img> the browser already fetched to display — no extra network
+  // request. Keyed by the display URL (not the storage path — that's only known once picked).
+  const [photoDimensions] = useState(() => new Map<string, { width: number; height: number }>());
+
+  function handleThumbnailLoad(url: string, event: React.SyntheticEvent<HTMLImageElement>): void {
+    const img = event.currentTarget;
+    photoDimensions.set(url, { width: img.naturalWidth, height: img.naturalHeight });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -109,6 +117,9 @@ export function BookingPhotoPicker({
     const filePath =
       photoType === 'before' ? currentPhotos.beforePaths[index] : currentPhotos.afterPaths[index];
     if (!filePath) return;
+    const thumbnailUrl =
+      photoType === 'before' ? currentPhotos.beforeUrls[index] : currentPhotos.afterUrls[index];
+    const dimensions = photoDimensions.get(thumbnailUrl);
 
     setPicking(true);
     setPickError(null);
@@ -124,6 +135,8 @@ export function BookingPhotoPicker({
           source: 'booking',
           bookingId: selectedBookingId,
           photoType: result.photoType,
+          width: dimensions?.width,
+          height: dimensions?.height,
         },
         result.url,
       );
@@ -205,7 +218,12 @@ export function BookingPhotoPicker({
               }}
               className="group relative overflow-hidden rounded-md border border-gray-200"
             >
-              <img src={url} alt="" className="aspect-square w-full object-cover" />
+              <img
+                src={url}
+                alt=""
+                onLoad={(event) => handleThumbnailLoad(url, event)}
+                className="aspect-square w-full object-cover"
+              />
               <span className="absolute bottom-0 left-0 right-0 bg-black/60 px-1 text-[10px] text-white">
                 {t('beforeLabel')}
               </span>
@@ -221,7 +239,12 @@ export function BookingPhotoPicker({
               }}
               className="group relative overflow-hidden rounded-md border border-gray-200"
             >
-              <img src={url} alt="" className="aspect-square w-full object-cover" />
+              <img
+                src={url}
+                alt=""
+                onLoad={(event) => handleThumbnailLoad(url, event)}
+                className="aspect-square w-full object-cover"
+              />
               <span className="absolute bottom-0 left-0 right-0 bg-black/60 px-1 text-[10px] text-white">
                 {t('afterLabel')}
               </span>

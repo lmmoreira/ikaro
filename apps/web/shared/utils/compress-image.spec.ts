@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { compressImage, LOW_RESOLUTION_ERROR_MESSAGE, MAX_DIMENSION } from './compress-image';
+import {
+  compressImage,
+  compressImageWithDimensions,
+  LOW_RESOLUTION_ERROR_MESSAGE,
+  MAX_DIMENSION,
+} from './compress-image';
 
 function makeFile(name: string, type: string, size: number): File {
   return new File([new Uint8Array(size)], name, { type });
@@ -454,5 +459,61 @@ describe('compressImage — minHeight (minimum stored-height guard)', () => {
     const result = await compressImage(file, 1);
 
     expect(result).not.toBe(file);
+  });
+});
+
+// M18-S06 — Gallery masonry needs each photo's own aspect ratio; compressImageWithDimensions
+// reuses compressImage's own decode/scale path for the File, and independently reads intrinsic
+// dimensions for the ratio (see compress-image.ts's doc comment on why a separate decode is fine).
+describe('compressImageWithDimensions', () => {
+  it('returns the same compressed file compressImage would produce, plus the scaled width/height', async () => {
+    const bitmap = makeBitmap(2000, 4000);
+    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));
+    const smallerBlob = new Blob([new Uint8Array(1000)], { type: 'image/webp' });
+    stubCanvas({ blob: smallerBlob });
+    const file = makeFile('photo.jpg', 'image/jpeg', 5_000_000);
+
+    const result = await compressImageWithDimensions(file);
+
+    expect(result.file).not.toBe(file);
+    expect(result.file.type).toBe('image/webp');
+    expect(result.width).toBe(MAX_DIMENSION / 2);
+    expect(result.height).toBe(MAX_DIMENSION);
+  });
+
+  it('leaves dimensions unchanged when the image is already within MAX_DIMENSION', async () => {
+    const bitmap = makeBitmap(800, 600);
+    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));
+    stubCanvas({ blob: new Blob([new Uint8Array(1000)], { type: 'image/webp' }) });
+    const file = makeFile('photo.jpg', 'image/jpeg', 500_000);
+
+    const result = await compressImageWithDimensions(file);
+
+    expect(result.width).toBe(800);
+    expect(result.height).toBe(600);
+  });
+
+  it('returns undefined width/height, but still the fallback file, when createImageBitmap is unavailable', async () => {
+    const file = makeFile('photo.jpg', 'image/jpeg', 5_000_000);
+
+    const result = await compressImageWithDimensions(file);
+
+    expect(result.file).toBe(file);
+    expect(result.width).toBeUndefined();
+    expect(result.height).toBeUndefined();
+  });
+
+  it('returns undefined width/height when createImageBitmap throws (compressImage still falls open to the original file)', async () => {
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn().mockRejectedValue(new Error('unsupported image format')),
+    );
+    const file = makeFile('photo.jpg', 'image/jpeg', 5_000_000);
+
+    const result = await compressImageWithDimensions(file);
+
+    expect(result.file).toBe(file);
+    expect(result.width).toBeUndefined();
+    expect(result.height).toBeUndefined();
   });
 });

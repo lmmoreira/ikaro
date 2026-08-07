@@ -244,13 +244,16 @@ interface GalleryImage {
   source: 'booking' | 'upload';
   bookingId?: string;                 // present when source === 'booking'
   photoType?: 'before' | 'after';     // present when source === 'booking' — derived server-side from which photo list (before/after) the original came from; lets the frontend label "Antes"/"Depois"
+  width?: number;                     // natural pixel width — captured at upload/pick time (M18-S06); absent for images stored before that story
+  height?: number;                    // natural pixel height — same as width; the pair drives layout: 'masonry' tile sizing, absent falls back to a fixed square box
 }
 
 interface GalleryModuleData {
   title?: string;            // default "Nossos Resultados"
   images: GalleryImage[];    // admin-curated ordered list
-  layout: 'grid' | 'masonry';   // default: 'grid'
+  layout: 'grid' | 'masonry' | 'featured';   // default: 'grid'
   maxVisible: number;        // default 6 — "ver mais" shown if images.length > maxVisible
+  featuredPosition?: 'left' | 'right';   // only meaningful when layout === 'featured' — which side images[0] (the large tile) renders on; default 'left' (M18-S07)
 }
 ```
 

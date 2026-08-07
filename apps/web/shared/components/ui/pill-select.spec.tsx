@@ -31,4 +31,52 @@ describe('PillSelect', () => {
 
     expect(onChange).toHaveBeenCalledWith('pill');
   });
+
+  it('renders a disabled option as a disabled button and does not call onChange when clicked', async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    const optionsWithDisabled = [
+      ...OPTIONS.slice(0, 2),
+      { value: 'pill', label: 'Bem arredondados', disabled: true },
+    ] as const;
+    render(
+      <PillSelect
+        label="Cantos"
+        value="rounded"
+        options={optionsWithDisabled}
+        onChange={onChange}
+      />,
+    );
+
+    const disabledOption = screen.getByRole('radio', { name: 'Bem arredondados' });
+    expect(disabledOption).toBeDisabled();
+
+    await user.click(disabledOption);
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('leaves options without an explicit disabled flag enabled, unaffected by a sibling being disabled', async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    const optionsWithDisabled = [
+      ...OPTIONS.slice(0, 2),
+      { value: 'pill', label: 'Bem arredondados', disabled: true },
+    ] as const;
+    render(
+      <PillSelect
+        label="Cantos"
+        value="rounded"
+        options={optionsWithDisabled}
+        onChange={onChange}
+      />,
+    );
+
+    const enabledOption = screen.getByRole('radio', { name: 'Retos' });
+    expect(enabledOption).not.toBeDisabled();
+
+    await user.click(enabledOption);
+
+    expect(onChange).toHaveBeenCalledWith('sharp');
+  });
 });

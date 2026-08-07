@@ -16,6 +16,8 @@
 | M18-S03 | Dedicated SEO share image (`seo.ogImageUrl`), auto-cropped uploads, and rendering `branding.logoUrl` (topbar, footer, favicon) |
 | M18-S04 | Hero banner responsive crop: breakpoint aspect-ratio, focal point, and a minimum upload resolution guard |
 | M18-S05 | Hero & Booking CTA banners: tenant-configurable content position (independent X/Y anchor, decoupled from `variant`) |
+| M18-S06 | Gallery module: automatic masonry layout (tile height from photo aspect ratio) |
+| M18-S07 | Gallery module: "Destaque" layout — 1 large + 4 small photos, fixed 5-image template |
 
 *(more stories will be appended here as they're scoped)*
 
@@ -689,3 +691,220 @@ Cross-tool review surfaced 2 critical + 1 minor finding; verified each against t
 ### Dependencies
 
 None — extends existing components (`HeroModule`, `HeroConfigPanel`, `BookingCtaModule`, `BookingCtaConfigPanel`, `SingleImageUploadField`); no migration (module `data` is a `jsonb` field, same pattern as M18-S04's `backgroundImagePosition`).
+
+---
+
+## M18-S06 — Gallery module: automatic masonry layout (tile height from photo aspect ratio)
+
+**Agent:** `fullstack-ts`
+**Complexity:** M
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-027
+**UC reference:** UC-027 (Tenant Admin Manages Hotsite Content & Branding)
+
+### Background
+
+`GalleryModuleData.layout` already offers `'grid' | 'masonry'` (`packages/types/src/hotsite.ts:64`), surfaced in `GalleryConfigPanel.tsx` as "Grade"/"Mosaico". `GalleryModule.tsx:33-36` does apply different container CSS per option — `grid grid-cols-2 sm:grid-cols-3 gap-4` for `'grid'`, `columns-2 sm:columns-3 gap-4 [&>*]:mb-4` for `'masonry'` — and CSS multi-column layout genuinely packs variable-height children natively; no custom packing algorithm is needed for the visual effect this story wants.
+
+Confirmed by direct read: the reason "Mosaico" renders identically to "Grade" today is a single unconditional line in `GalleryItem.tsx:25` — `className="relative aspect-[4/3] w-full overflow-hidden"` — applied regardless of which layout the parent chose. A masonry/mosaic look only exists when tiles have unequal heights; clamping every tile to the same ratio removes the one input the `columns` technique needs to do anything different from a grid.
+
+`GalleryImage` (`packages/types/src/hotsite.ts:52`) has no `width`/`height` field today, so even removing the clamp would have nothing to size a tile from. This story adds that field and the two places it needs to be captured, then makes masonry mode actually use it.
+
+### Description
+
+**Part 1 — `GalleryImage.width`/`height`, 3-layer mirror, both optional:**
+- `packages/types/src/hotsite.ts`: add `width?: number;` and `height?: number;` to `GalleryImage`.
+- `apps/backend/src/contexts/platform/domain/hotsite-config.aggregate.ts`: mirror both fields on its own independent `GalleryImage` interface (line 57) — this file doesn't import `@ikaro/types`, same as every other module-data field added in this milestone.
+- `apps/web/features/platform/hotsite/module-schemas.ts`: add `width: z.number().optional()` and `height: z.number().optional()` to `GalleryImageSchema` (line 52-58).
+- **No migration** — `hotsite_config.layout` is a `jsonb` column (confirmed in the entity); every gallery already stored simply has no `width`/`height` key, which is a legitimate, permanent state this story must render correctly, not a transitional one.
+- **No `@ikaro/validation` change** — `HotsiteModuleSchema` (`packages/validation/src/hotsite.ts`) *is* applied to gallery modules, by both the BFF's and backend's save-path Zod pipes (`UpdateHotsiteContentSchema` reuses it directly), but its `data` field is `z.record(z.string(), z.unknown())` — deliberately opaque, same as every other module's `data`. `width`/`height` pass through both validation layers untouched with no schema change needed.
+- `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §4 GALLERY: add `width?`/`height?` to the documented `GalleryImage` snippet (lines 241-247), matching M18-S03/S05's precedent of refreshing this doc whenever a module's data shape changes.
+
+**Part 2 — Capture dimensions on fresh upload:**
+- `apps/web/shared/utils/compress-image.ts`: new sibling export `compressImageWithDimensions(file: File): Promise<{ file: File; width: number; height: number }>`, reusing `compressImage`'s existing `createImageBitmap`/`scaledDimensions` decode path (lines 164-166) instead of discarding the computed `{width, height}`. `compressImage` itself is unchanged — it's shared by callers (branding logo, SEO share image, hero background) that only want a `File` back; a new export avoids changing their return-type contract.
+- `apps/web/features/platform/components/hotsite/modules/GalleryImageManager.tsx`: `handleUpload` (line 85) calls `compressImageWithDimensions` instead of `compressImage`, and the new `GalleryImage` built at line 97 carries `width`/`height` from the result.
+
+**Part 3 — Capture dimensions on booking-photo pick:**
+- `apps/web/features/platform/components/hotsite/modules/BookingPhotoPicker.tsx`: the thumbnail `<img>` elements already rendered to browse photos (lines 208, 224) gain an `onLoad` handler reading `naturalWidth`/`naturalHeight` off the loaded element — no extra network request, the browser already fetched the image for display. `handlePick` (line 107) attaches the captured dimensions to the `GalleryImage` passed to `onPick`.
+
+**Part 4 — Rendering: `GalleryItem.tsx` and `GalleryModule.tsx`:**
+- `GalleryItem.tsx`: new props `layout: 'grid' | 'masonry'` (the image's `width`/`height` are already on `image: GalleryImage`, no new prop needed beyond `layout`).
+  - `layout === 'grid'`: fixed box, unconditionally — see Part 6 for why this is `aspect-square`, not the original `aspect-[4/3]`.
+  - `layout === 'masonry'` and both dimensions present: wrapper gets `style={{ aspectRatio: \`${image.width} / ${image.height}\` }}` instead of the fixed-box class, plus `break-inside-avoid` so a tile can't split across a column break (`<Image fill>` stays as-is inside the now-variably-sized wrapper — simpler than switching Image modes).
+  - `layout === 'masonry'` and either dimension missing (pre-existing image): falls back to the same fixed box grid mode uses — explicit, not accidental; matches this codebase's "unset renders identically to today" precedent.
+- `GalleryModule.tsx`: passes `data.layout` down to each `GalleryItem` (line 69) so it can select its own sizing; the container's `gridClass` computation for `layout: 'grid'` is unchanged — see Part 5 for the masonry side, which is not.
+
+**Part 5 — Masonry: CSS `columns` replaced with flex-wrap rows (found during user testing after Parts 1-4 shipped; revised a second time after further testing against real screenshots — see below):**
+- Problem (round 1): `GalleryModule.tsx`'s masonry `gridClass` was an unconditional `columns-2 sm:columns-3`, regardless of `images.length`. With too few images for 3 desktop columns (e.g. 4 images), the browser's `column-fill: balance` heuristic commonly produces a lopsided 2-1-1 split — column 1 gets 2 stacked images, columns 2-3 get 1 each — which reads as "3 images across the top, 1 hanging below," not an intentional mosaic. Round-1 fix (superseded, see below): a `masonryColumnsClass(visibleCount)` helper tiering `columns-1`/`columns-2`/`columns-2 sm:columns-3` by count.
+- **Problem (round 2 — the round-1 fix didn't actually solve the underlying issue, just capped it):** tested against real screenshots. 3 images in `columns-2` still produced the same lopsided gap (2 stacked in column 1, column 2 empty below its single image) — because CSS `columns` is column-major with **no concept of a row at all**, so it has no way to center a remainder, no matter how the column count is tuned. Separately, capping at `columns-2` for low counts (round 1's fix for a *different* problem — an empty 3rd column) made every tile render very wide on desktop ("really big... had to reduce zoom").
+- **Fix: switch the technique entirely, not tune the tiering further.** `GalleryModule.tsx`'s masonry container is now `flex flex-wrap justify-center items-start gap-4` (not `columns-N`). Each tile gets a **fixed, count-independent** per-tile class, `MASONRY_TILE_BASIS_CLASS = 'basis-[calc(50%-0.5rem)] sm:basis-[calc(33.333%-0.667rem)]'` — 2 per row on mobile, 3 per row on desktop, always. The `calc()` compensates for `gap-4`'s 1rem, which flex-basis percentages don't otherwise account for. `align-items: flex-start` keeps each tile's own `aspect-ratio`-driven height (the actual masonry effect, unchanged from Part 1-4) rather than stretching to match its row. `justify-content: center` is what actually solves the round-2 problem: a short last row (e.g. 1 leftover tile) centers itself automatically — CSS `columns` categorically cannot do this. `GalleryItem.tsx`'s `break-inside-avoid` (a CSS-`columns`-specific property) is removed — meaningless with flex-wrap, there's no "column break" to avoid.
+- **Round 3 (further user testing): dropped the remaining count-based branching entirely.** The fix above still capped desktop at 2/row for ≤3 visible images (reasoning: avoid tiny tiles at very low counts). User tested with exactly 3 images and reported the tiles were still "really big... enormous" — the 2-column cap made each tile 50% width for the *one* count (3) that fits a clean, complete 3-column row with zero remainder, no centering even needed. Since flex-wrap centers any remainder gracefully regardless of column count, there was no longer a reason to reduce it for a low count at all — `MASONRY_TILE_BASIS_CLASS` is now the single fixed value above, with no `visibleCount` parameter.
+- Called with the same `Math.min(data.images.length, data.maxVisible)` as round 1, for the same reason — images beyond `maxVisible` are `display: none` (`app/globals.css:56`) until "Ver mais," so they don't participate in the layout yet.
+- `layout: 'grid'`'s `gridClass` is untouched — a CSS Grid with an incomplete last row is normal, expected grid behavior (unlike a masonry column left empty), so it never had either problem.
+- **Considered and rejected: real Pinterest-style column-packed masonry** (a JS component measuring each tile's rendered height and placing the next tile into the shortest column — what Pinterest/most masonry libraries actually do; native CSS `grid-template-rows: masonry` would be the zero-JS version, but isn't shipped in Chrome/Safari stable). Confirmed with user this is more machinery than the payoff justifies for a ~5-20 photo small-business gallery — flex-wrap rows get most of the visual quality (especially given real photos here are mostly similar, portrait-ish proportions) for CSS-only simplicity. The honest tradeoff, stated to the user and accepted: row-based flex can't tuck a short photo directly under a tall one in the same column the way true masonry can, so it's not pixel-identical to Pinterest for widely disparate photo heights — just close enough for this product without a stateful layout component.
+- Explicitly rejected (still applies): a tenant-facing "number of columns" config field. Same reasoning as rejecting manual per-image size in Part 1's story discussion — a non-technical tenant has no intuition for "how many columns," and a manual field would let them recreate the exact sparse/oversized-tile problem this fix prevents. Solved automatically instead.
+
+**Part 6 — Grade crop ratio: `aspect-[4/3]` → `aspect-square` (found during user testing after Parts 1-4 shipped):**
+- Problem: `GalleryItem.tsx`'s fixed box (both `layout: 'grid'` and the masonry width/height-missing fallback) was `aspect-[4/3]`, a landscape-biased ratio. `object-cover`'s crop loss for a source ratio `S` in a box ratio `R` is `1 - min(R/S, S/R)`. Into `4:3` (R=1.333), a portrait phone photo (3:4, S=0.75) loses ~44% of its height cropped away; a landscape photo (16:9, S=1.778) loses only ~25% — a hard bias against portrait shots, which are common for a service business's before/after close-ups.
+- Fix: box ratio changed to `aspect-square` (R=1) in `GalleryItem.tsx`, for both the `layout: 'grid'` box and the masonry no-dimensions fallback (kept identical on purpose — see Part 4). Square is not an arbitrary pick: it's the exact geometric mean between a 4:3 landscape source and its 3:4 portrait mirror (`R² = 1.333 × 0.75 = 1.0`), so it crops both by the same ~25% instead of favoring one orientation — a rebalancing toward this gallery's likely mixed-orientation content, not a claim of zero cropping (a genuinely panoramic 16:9 photo now crops ~44% in a square box, the same magnitude the portrait-bias problem started from, just relocated to wide shots instead).
+- Side effect, not the goal: this also fixes a pre-existing mismatch where `GalleryImageManager.tsx`'s own admin-panel thumbnail preview (line 151) and `BookingPhotoPicker.tsx`'s picker thumbnails were already `aspect-square`, while the live public site rendered `aspect-[4/3]` — what the admin previewed didn't match what shipped.
+- Explicitly rejected: a tenant-facing crop-ratio or per-image focal-point picker. No fixed ratio is crop-free for every source orientation — that's mathematically inherent to a uniform-cell grid, not a gap this story can close by picking a smarter number. The actual zero-crop answer for a tenant who cares is `layout: 'masonry'` (Parts 1-4); Grade's own lightbox (`GalleryGrid.tsx`, pre-existing) already lets anyone see the full, uncropped photo on click regardless of which layout is active — no image content is ever actually lost, only previewed smaller.
+
+**Explicitly out of scope for this story (real gaps, not silently dropped):**
+- No drag-to-reorder added to `GalleryImageManager.tsx` — there is none today (order is purely upload/pick sequence); a real, pre-existing gap, independent of this story.
+- No backfill for galleries already stored without `width`/`height` — they keep the fixed-box fallback in masonry mode until re-uploaded/re-picked, permanently, unless a future story adds one.
+
+**No new i18n keys.** This story changes what the already-shipped `layout: 'masonry'`/`layout: 'grid'` options render as — it doesn't expose any new tenant-facing copy or config control.
+
+### Acceptance Criteria
+
+- [ ] `GalleryImage.width`/`height` exist in `@ikaro/types`, the backend aggregate's own `GalleryImage` interface, and the web zod schema — all optional
+- [ ] A freshly uploaded gallery image (`GalleryImageManager`'s file-upload path) has `width`/`height` set, matching the compressed/scaled output's real dimensions
+- [ ] A gallery image added via `BookingPhotoPicker` has `width`/`height` set, captured from the already-rendered thumbnail with no extra network request
+- [ ] `layout: 'grid'` renders identically for every image regardless of `width`/`height` being present — but is **not** pixel-identical to the pre-story crop: the fixed box is `aspect-square`, not the original `aspect-[4/3]` (Part 6)
+- [ ] `layout: 'masonry'` with photos of different aspect ratios visibly produces unequal tile heights (verified in the live preview and/or a Playwright screenshot, not just class-name assertions)
+- [ ] `layout: 'masonry'` with a `width`/`height`-less image (pre-existing gallery) falls back to the same fixed `aspect-square` box `layout: 'grid'` uses — no broken/zero-height tile
+- [ ] Masonry tiles carry `break-inside-avoid` — a tile never visibly splits across a column break
+- [ ] Masonry uses `flex flex-wrap justify-center`, not CSS `columns`; every tile — regardless of image count — is `basis-[calc(50%-0.5rem)]` (2/row) on mobile and `sm:basis-[calc(33.333%-0.667rem)]` (3/row) on desktop (Part 5, round 3)
+- [ ] A masonry gallery with an uneven image count (e.g. 3 images at 2/row) renders its incomplete last row centered, not lopsided against one side — verified visually/via bounding-box position, not just class presence
+- [ ] `layout: 'grid'`'s column count (`grid-cols-2 sm:grid-cols-3`) is unaffected by image count — only masonry's column count scales
+- [ ] No `@ikaro/types`/backend/web schema drift — the same 3-layer mirror check every other module-data field in this milestone follows
+- [ ] Coverage ≥80% on changed code; `tsc --noEmit`, lint, full test suite green
+
+### Testing
+
+**Unit — Vitest (`apps/web`):**
+- NEW `apps/web/shells/hotsite/components/GalleryItem.spec.tsx` — doesn't exist today. Grid mode always renders `aspect-square` regardless of `width`/`height`; masonry mode with both dimensions renders the computed `aspectRatio` style and `break-inside-avoid`, not the fixed class; masonry mode missing either dimension falls back to `aspect-square` (same box grid mode uses).
+- UPDATE `apps/web/shells/hotsite/components/GalleryModule.spec.tsx` — `layout` is forwarded to each `GalleryItem`; masonry container is `flex flex-wrap justify-center`, not `grid`; new `describe('masonry tile width is fixed..., regardless of image count')` block (`it.each([1, 2, 3, 4, 20])`) confirms every tile always gets the same `MASONRY_TILE_BASIS_CLASS`, at any count; confirms `layout: 'grid'` is unaffected (no basis class, unchanged `grid-cols-2 sm:grid-cols-3`).
+- UPDATE `apps/web/shared/utils/compress-image.spec.ts` — new `compressImageWithDimensions` cases: returns the same file `compressImage` would, plus `width`/`height` matching the scaled (not source) dimensions; respects `MAX_DIMENSION` downscaling the same way.
+- UPDATE `apps/web/features/platform/components/hotsite/modules/GalleryImageManager.spec.tsx` — uploading an image stores `width`/`height` on the resulting `GalleryImage` passed to `onChange`.
+- UPDATE `apps/web/features/platform/components/hotsite/modules/BookingPhotoPicker.spec.tsx` — picking a photo stores `width`/`height` (from the thumbnail's simulated `load` event) on the `GalleryImage` passed to `onPick`.
+- UPDATE `apps/web/features/platform/hotsite/module-schemas.spec.ts` — `GalleryImageSchema` accepts `width`/`height` as optional numbers, accepts their absence, rejects non-number values.
+
+**Backend (Jest):** UPDATE `apps/backend/src/contexts/platform/domain/hotsite-config.spec.ts` — `GalleryImage.width`/`height` remain unvalidated by the aggregate, matching the existing precedent for every other module-data field.
+
+**Playwright E2E (`apps/web/e2e`):** UPDATE `apps/web/e2e/hotsite-editor.spec.ts` — upload two gallery images with visibly different aspect ratios (e.g. one portrait crop, one landscape), switch layout to Mosaico, publish, and assert the two tiles render at different heights on the live hotsite page (not just that the `columns` class is present).
+
+### Resolved during story discussion (2026-08-07, to confirm at `/story-discovery`)
+
+1. **No hand-rolled packing algorithm.** `GalleryModule.tsx` already applies CSS `columns-3` in masonry mode; CSS multi-column layout natively packs variable-height children. The only defect is `GalleryItem.tsx:25`'s unconditional `aspect-[4/3]` clamp — fixing this is removing a clamp, not building a layout engine.
+2. **Automatic sizing (photo's own aspect ratio), not a manual size picker.** Considered a bento-style explicit size-per-image control (small/large, or spanning tiles); rejected for this product — Ikaro's hotsite editor targets small-business owners (car wash, gym, salon) without a strong intuition for "pick a size class," and a manual picker would need a different CSS technique entirely (`grid-auto-flow: dense` with explicit spans, since `columns` can't span tiles).
+3. **No backfill for pre-existing galleries.** They keep the fixed-box fallback in masonry mode (`aspect-square` as of Part 6, originally `aspect-[4/3]`), permanently, until re-uploaded/re-picked. Treated as a legitimate default, not a shortcut — matches this codebase's "unset renders identically to today" precedent (`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`).
+4. **Reordering is a real, separate gap**, explicitly not folded into this story.
+
+### Resolved after initial implementation (2026-08-07)
+
+Two additional findings surfaced from user testing after Parts 1-4 were built and verified, both folded into this same story rather than split off, per explicit user direction:
+
+1. **Masonry column count didn't account for how few images might be visible (Part 5).** User observed that 4 images under the unconditional `columns-2 sm:columns-3` rendered as "3 across the top, 1 hanging below" rather than a balanced mosaic — a real CSS multi-column quirk (`column-fill: balance` is a height-estimate heuristic, not a symmetry optimizer). Considered and rejected: a tenant-facing "number of columns" field (same "no manual knob for something automatic can solve" reasoning as the size-picker rejection above) and a hand-rolled JS packing algorithm (unnecessary — CSS `columns` already packs correctly once given enough images to fill each column). Fixed by scaling the column count itself off the count actually visible pre-expansion.
+2. **Grade's fixed `aspect-[4/3]` box cropped portrait photos far more aggressively than landscape ones (Part 6).** User reported "cropping in half" for some photos. Confirmed by direct calculation: a 3:4 portrait source loses ~44% of its height in a 4:3 box, vs. ~25% for a 16:9 landscape source in the same box — a real, systematic bias, not a misperception. Considered and rejected: a tenant-facing crop-ratio/focal-point picker (no fixed ratio is crop-free for every orientation, so this would trade one manual-config burden for a problem that isn't actually solvable that way) and treating `layout: 'masonry'` as sufficient on its own (it solves the problem differently, but doesn't help a tenant who specifically wants Grade's uniform look). Fixed by changing the box ratio to `aspect-square` — the mathematically balanced midpoint between a 4:3 landscape source and its 3:4 portrait mirror, not an arbitrary swap. Explicitly not a claim of zero cropping: a genuinely panoramic photo still crops meaningfully in a square box, same magnitude as the portrait bias this fix removes, just relocated. The pre-existing lightbox (`GalleryGrid.tsx`, predates this story) remains the actual "see the uncropped photo" answer, for either layout.
+
+### Dependencies
+
+None — extends existing components (`GalleryItem`, `GalleryModule`, `GalleryImageManager`, `BookingPhotoPicker`, `compress-image.ts`); no migration (`layout` module `data` is a `jsonb` field, same pattern as every other module-data field added in this milestone).
+
+---
+
+## M18-S07 — Gallery module: "Destaque" layout — 1 large + 4 small photos, fixed 5-image template
+
+**Agent:** `fullstack-ts`
+**Complexity:** L
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-027
+**UC reference:** UC-027 (Tenant Admin Manages Hotsite Content & Branding)
+**Reference:** two external HTML mockups supplied directly by the user — `go-cowork-site.html` and `cf-cross-site.html` (not under `plan/journey/`; read directly, not copied from memory) — both a `#galeria` section captioned "Conheça o espaço."/"Conheça o box.". Both are static desktop-only wireframes: `.photo` is a placeholder `<div>` with caption text, not a real `<img>`; **zero `@media` queries in either file** — no mobile behavior to copy, it has to be designed for this story.
+
+### Background
+
+Confirmed by direct read of both reference files: the mechanism is plain CSS Grid, not the `columns` technique `layout: 'masonry'` uses:
+
+```css
+.galeria-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; grid-template-rows: 220px 220px; gap: 12px; }
+.galeria-grid .photo:first-child { grid-row: span 2; }
+```
+
+Exactly 5 photos in both files. The first one spans both rows (`go-cowork` also gives it a wider `2fr` column — bigger both ways; `cf-cross` uses equal `1fr` columns — only taller). Both use fixed pixel row heights (220px/240px) — this story does not carry that over; see Part 3 for the actual technique landed on (a solved container `aspect-ratio`, not the `vw`-clamp pattern from M18-S04/S05, which turned out not to fit — that pattern is for a full-bleed background image outside normal flow, and this grid isn't full-bleed).
+
+`layout: 'grid'`/`'masonry'` both flow with however many photos exist. This layout doesn't — it's a fixed template, a real departure the config panel has to guard against, not paper over (Part 4).
+
+### Description
+
+**Part 1 — `layout` gains a third value, `GalleryModuleData` gains `featuredPosition`, 3-layer mirror:**
+- `packages/types/src/hotsite.ts`: `GalleryModuleData.layout: 'grid' | 'masonry' | 'featured'`; add `featuredPosition?: 'left' | 'right'` (only meaningful when `layout === 'featured'`; default `'left'`, matching both reference files, which both place the large photo in the first column).
+- `apps/backend/src/contexts/platform/domain/hotsite-config.aggregate.ts`: mirror both on its own independent `GalleryModuleData`/`GalleryImage`-adjacent interface — same pattern as every prior field in this milestone; no new aggregate validation (`layout`/`featuredPosition` join `contentPositionX`-style fields that stay unvalidated by `HotsiteConfig.validateLayout()`, since there's no cross-field business rule here, just a rendering choice).
+- `apps/web/features/platform/hotsite/module-schemas.ts`: `layout: z.enum(['grid', 'masonry', 'featured'])`, `featuredPosition: z.enum(['left', 'right']).optional()`.
+- **No migration, no `@ikaro/validation` change** — same reasoning as M18-S06 Part 1: `jsonb` column, `HotsiteModuleSchema.data` stays a deliberately opaque `z.record()` at both the BFF's and backend's save-path Zod pipes.
+- `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §4 GALLERY: update the `GalleryModuleData` snippet's `layout` union and add `featuredPosition`.
+
+**Part 2 — Which photo is "featured" is array order, not a new field (confirmed with user):**
+- `images[0]` is always the large photo. No per-image "is featured" flag. If a tenant wants a different photo featured, they remove and re-add it in the order they want — accepted as good enough; `GalleryImageManager`'s lack of drag-to-reorder (flagged as a separate gap in M18-S06) is **not** a blocker for this story, but reordering would directly benefit this layout more than Grade/Mosaico ever needed it to, since order now has real visual meaning beyond "which shows first."
+
+**Part 3 — Rendering: new `layout === 'featured'` branch in `GalleryModule.tsx`, widened `GalleryItem.tsx`, new `.gallery-featured-grid` CSS in `globals.css`:**
+- `GalleryItem.tsx`: `layout` prop becomes `'grid' | 'masonry' | 'featured'`. For `'featured'`, the wrapper does **not** self-impose a box at all (no `aspect-square`, no computed `aspectRatio`, no per-tile ratio of any kind) — `className="relative h-full w-full overflow-hidden"`, filling whatever grid cell it's given. This is a third, distinct sizing strategy alongside grid's fixed box and masonry's natural-ratio box.
+- `GalleryModule.tsx`: currently one `gridClass` ternary + one `data.images.map()` (confirmed at today's line numbers: 46-49, 70-85). `'featured'` needs a genuinely separate JSX branch, not a third value slotted into that structure — different image slice (`data.images.slice(0, 5)`, not the full array), different per-tile roles (1 large + 4 small), not a uniform map with just a container-class difference. Each tile's wrapping `<a>` gets `style={{ gridArea: 'big' | 's1' | 's2' | 's3' | 's4' }}` — a JS-computed area name per index, constant across breakpoints.
+- **Still wraps in `<GalleryGrid>`, does not skip it.** `GalleryGrid.tsx` owns both the "Ver mais" reveal *and* the lightbox (full-image click-through) — skipping it for "no Ver mais needed" would silently lose the lightbox too, which this whole milestone's cropping discussion (M18-S06 Part 6) treats as the standing safety net for any crop/sizing choice. Call it with `maxVisible`/`totalImages` both set to the effective count (5, or fewer if the fallback below is active) — `hasMore` is then always false, so "Ver mais" naturally never renders, while the lightbox machinery stays intact for free.
+- **`.gallery-featured-grid` (`app/globals.css`, alongside the pre-existing `data-gallery-expanded` rule):** `grid-template-areas` re-templates the *same* 5 elements between breakpoints — `'big big' / 's1 s2' / 's3 s4'` on mobile, `'big s1 s2' / 'big s3 s4'` at `sm:` (640px) and up — rather than duplicating markup per breakpoint (no precedent for that pattern anywhere else in this codebase, confirmed absent at `/story-discovery`). `[data-featured-position='right']` swaps the desktop columns/areas to put "big" last instead of first.
+- **Sizing: solved, not guessed, so every cell — big and small alike — is exactly square.** Originally planned as per-tile `aspect-[4/3]`/`aspect-square` (and, briefly during implementation, unsolved `fr` ratios that produced a uniform-but-non-square ~1.31:1 desktop / 1.5:1 mobile rectangle for every tile — user feedback: "it feels like it is cutting"). With 2 equal row-tracks and a `2fr` "big" column against two `1fr` columns, a cell's own ratio is `(its fr-share) × the container's own aspect-ratio`; setting the container to `aspect-ratio: 2/1` (desktop) or `1/2` (mobile) makes every cell resolve to exactly `1:1`. Square matches Grade's own square choice (M18-S06 Part 6) rather than the reference's fixed-pixel, landscape-biased proportions. `featuredPosition` still has no effect on mobile — there's no "side" once stacked; noted explicitly, not a silent no-op.
+
+**Part 4 — Config panel: `GalleryConfigPanel.tsx`, guarded to at least 5 images:**
+- New `'featured'` option on the existing `layout` `PillSelect` (pt-BR "Destaque", en "Featured" — "Destaque" reused directly from the reference's own "Foto destaque" caption, not invented).
+- New `featuredPosition` `PillSelect` (`left`/`right`), rendered only when `layout === 'featured'` — same conditional-render pattern as `contentPositionX` (M18-S05).
+- **`PillSelect` needs an optional per-option `disabled` field first — it doesn't have one today** (confirmed by direct read of `pill-select.tsx`: `PillSelectOption<T>` is just `{value, label}`, the rendered `<button>` has no `disabled` attribute at all). Add `disabled?: boolean` to `PillSelectOption`, wire it to the button's native `disabled` + a muted style. Purely additive — backward-compatible with all 8 existing consumers (Branding/About/ServiceList/Testimonials/Contact/Hero/BookingCta/Gallery config panels), none of which need to pass it.
+- **Revised after hands-on testing: "at least 5," not "exactly 5."** Originally disabled the `'featured'` option unless `images.length === 5`. User, after testing the disabled state directly: extra images beyond 5 should just be ignored (`images.slice(0, 5)`, already what the renderer does), not blocked — only a genuine *shortfall* (fewer than 5) is the real problem, since there's no way to fill 5 template slots from fewer photos. The `'featured'` option is now `disabled` only while `images.length < 5`, with inline copy explaining why (i18n key, Part 5); a **separate**, non-blocking note appears once `layout === 'featured'` and `images.length > 5`, clarifying that only the first 5 are used.
+- **Confirmed fallback:** if a tenant already has `layout: 'featured'` saved and then removes photos down to fewer than 5, the live public site (and admin preview) renders as `layout: 'grid'` until back to at least 5 — the *stored* `layout` value stays `'featured'` unchanged; only the rendering falls back. Restoring a 5th photo restores the featured view with no re-selection needed — this is a display-time fallback, not a data mutation. More than 5 never triggers this fallback — `GalleryModule`'s guard is `images.length < 5`, not `!== 5`.
+
+**Part 5 — i18n:**
+- `dashboard.hotsitePage.layout.panels.gallery.layoutFeatured` — pill option label.
+- `dashboard.hotsitePage.layout.panels.gallery.featuredPositionLabel`/`Left`/`Right` — mirrors `contentPositionXLabel`/`Left`/`Right`'s naming convention (M18-S05).
+- `dashboard.hotsitePage.layout.panels.gallery.featuredRequiresFiveImages` (or similar) — the disabled-state explanation from Part 4.
+- All new keys in both `packages/i18n/locales/pt-BR/web.json` and `.../en/web.json` in the same commit.
+
+### Acceptance Criteria
+
+- [ ] `GalleryModuleData.layout` accepts `'featured'`; `featuredPosition` exists in `@ikaro/types`, the backend aggregate, and the web zod schema — all following the existing 3-layer mirror pattern
+- [ ] `layout: 'featured'` renders exactly `images[0]` as the large tile, spanning 2 rows on desktop, with `featuredPosition` controlling which side it's on
+- [ ] Grid sizing is fully responsive (container-relative `aspect-ratio` + `fr` tracks), not the reference's hardcoded `220px`/`240px`
+- [ ] Every tile — the large one and all 4 small ones — renders exactly square (`aspect-ratio: 1/1`) on both breakpoints, not the reference's landscape-biased proportions
+- [ ] Mobile (below `sm:`) renders the large photo full-width first, then the remaining 4 in a 2×2 grid — verified as an actual rendered layout, not just "doesn't crash on narrow viewports"
+- [ ] `featuredPosition` has no visible effect on the mobile layout — confirmed explicitly, not just untested
+- [ ] The `layout` `PillSelect`'s "Destaque" option is disabled while `images.length < 5`, with an inline explanation; a separate, non-blocking note appears once `layout === 'featured'` and `images.length > 5`, explaining that only the first 5 are used
+- [ ] A previously-saved `layout: 'featured'` gallery that drops below 5 images on the public site does not render a broken/incomplete grid — falls back to `'grid'`. Gaining more than 5 does **not** trigger any fallback — it keeps rendering as `'featured'` using the first 5
+- [ ] `GalleryItem.tsx`'s `'featured'` branch fills its grid cell (no self-imposed `aspect-square`/`aspectRatio`) — confirmed not to conflict with the parent's explicit `grid-row`/`grid-column` sizing
+- [ ] New i18n keys exist in both `pt-BR` and `en` in the same commit
+- [ ] Coverage ≥80% on changed code; `tsc --noEmit`, lint, full test suite green
+
+### Testing
+
+**Unit — Vitest (`apps/web`):**
+- UPDATE `pill-select.spec.tsx` — a `disabled: true` option renders a disabled `<button>` and doesn't call `onChange` when clicked; existing options without `disabled` are unaffected.
+- UPDATE `GalleryItem.spec.tsx` — `layout="featured"` renders the fill-parent wrapper (no `aspect-square`, no computed `aspectRatio`), distinct from both existing branches.
+- UPDATE `GalleryModule.spec.tsx` — new `describe('layout: featured')` block: renders exactly 5 tiles at exactly 5 images; renders as featured (using only the first 5) at more than 5, not a grid fallback; falls back to grid below 5; first tile spans 2 rows; `featuredPosition: 'left'` vs `'right'` produces the expected column placement; the "Ver mais" button never renders for `layout: 'featured'` (confirms `GalleryGrid` is still wrapping, with `maxVisible`/`totalImages` both set to the effective count); the lightbox still opens on tile click (confirms `GalleryGrid`'s interaction-capture is intact); mobile-viewport-equivalent class assertions for the stacked large-then-2×2 structure (jsdom has no real viewport, so this asserts responsive class names/structure, not actual rendered pixels — real cross-breakpoint verification is the Playwright test below).
+- UPDATE `module-schemas.spec.ts` — `layout` accepts `'featured'`; `featuredPosition` accepts `'left'`/`'right'`/absent, rejects other values.
+- UPDATE `GalleryConfigPanel.spec.tsx` — "Destaque" pill disabled below 5 images, enabled at exactly 5 *and* above 5; the "uses only the first 5" note appears only when `layout === 'featured'` and `images.length > 5`, not at exactly 5 and not for other layouts; `featuredPosition` pill renders only when `layout === 'featured'`.
+
+**Backend (Jest):** UPDATE `hotsite-config.spec.ts` — `layout: 'featured'` and `featuredPosition` remain unvalidated by the aggregate, matching the existing precedent for every other module-data field.
+
+**Playwright E2E (`apps/web/e2e`):** UPDATE `hotsite-editor.spec.ts` — upload exactly 5 images, select "Destaque", set `featuredPosition`, publish; verify on the live public page that the first image's tile is visibly larger than the other 4 (bounding-box comparison, same technique as M18-S06's masonry test) at a desktop viewport, and verify the stacked large-then-grid structure at a mobile viewport (`page.setViewportSize`, same pattern as M18-S04/S05's mobile crop regression tests).
+
+### Resolved during story discussion (2026-08-07, to confirm at `/story-discovery`)
+
+1. **Featured photo is `images[0]`, not a new per-image field.** User: "we can make the first one to be the destaque, since user can just reupload another, ok for him to replace. Easy and simple." Reordering stays out of scope for this story too, same as M18-S06 — but is now a more valuable follow-up than it was there.
+2. **Originally: fixed at exactly 5 images, no graceful degradation for other counts.** User: "more than that will become just bad layout." The `'featured'` layout option was disabled in the config panel until exactly 5 images existed. **Revised after hands-on testing — see "Resolved after initial implementation" below: "at least 5," extras above 5 are just ignored, not blocked.**
+3. **Mobile gets a real, distinct design, not a copy of the (nonexistent) reference mobile behavior.** User: "design thinking in mobile as well, to be well enough." Proposed: large photo full-width first, then the other 4 in a 2×2 grid — preserves the "1 hero + 4 supporting" hierarchy the desktop layout has, using the same square tiles Grade already settled on (M18-S06 Part 6) for visual consistency.
+4. **`featuredPosition` is a plain enum field** (`'left' | 'right'`), same pattern as `contentPositionX`/`backgroundImagePosition` elsewhere in this milestone — confirmed with user ("left right, is a property right?").
+5. **Fallback when a saved `'featured'` gallery drifts away from exactly 5 images: render as `'grid'` on both admin preview and public site until back at exactly 5.** The stored `layout` value is untouched — this is a display-time fallback, not a data mutation (confirmed at `/story-discovery`, see Part 4).
+6. **No `plan/journey/` prototype.** Confirmed with user: the UX-validation purpose that process serves has already happened here, directly — two real external reference files (read in full, not recalled from memory) plus point-by-point design decisions confirmed in conversation. Same precedent as M18-S01/S02/S06 (no separate prototype needed absent a new UX surface requiring validation from scratch).
+
+### Resolved during `/story-discovery M18-S07` (2026-08-07)
+
+1. **`PillSelect` needs an optional `disabled` field added — confirmed by direct read, not assumed.** `pill-select.tsx`'s `PillSelectOption<T>` has no such field today; Part 4 now specifies adding it as a purely additive change.
+2. **`GalleryModule.tsx`'s `'featured'` branch is a structural fork, not a third ternary value** — confirmed against the file's current shape (one `gridClass` + one `.map()`, lines 46-49/70-85 as of this story's discovery).
+3. **`GalleryGrid` must still wrap `'featured'` mode — confirmed by direct read of `GalleryGrid.tsx`, which owns both "Ver mais" and the lightbox together.** The naive reading ("fixed 5, no Ver mais needed, so skip the wrapper") would have silently dropped the lightbox too. Fixed in Part 3: still wrap, with `maxVisible`/`totalImages` both set to the effective count so "Ver mais" never renders on its own.
+4. **M18-S06 dependency verified directly, not via its plan-file status.** M18-S06 isn't `✅ Done`-marked (neither story has gone through `/pre-pr`/merge yet — both ship in the same PR, per user direction), but its code is confirmed present and correct in this branch by direct file read, which is sufficient here.
+
+### Resolved after initial implementation (2026-08-07)
+
+1. **"Exactly 5" relaxed to "at least 5" after hands-on testing.** User tested the disabled "Destaque" pill directly and pushed back: extra images beyond 5 should just be ignored, not force the tenant to delete photos to unlock the layout. The renderer already truncated to `images.slice(0, 5)` regardless — only the config panel's gate and `GalleryModule`'s fallback guard were stricter than the actual rendering needed. Both changed from `=== 5`/`!== 5` to `< 5`; a new, separate non-blocking note (`featuredUsesFirstFiveImages`) tells the tenant only the first 5 show once they're over that count. A genuine shortfall (fewer than 5) still blocks selection and still falls back to `'grid'` on the live site — there's no way to fill 5 template slots from fewer photos, so that half of the original constraint was correct and unchanged.
+2. **Tile cropping was landscape-biased and unaddressed — user, testing the live result: "it feels like it is cutting."** Traced to `.gallery-featured-grid`'s container `aspect-ratio` (`21/8` desktop, `3/4` mobile), inherited from the reference's own pixel proportions without solving for cell shape — every tile (`object-cover`, always centered, same mechanism as Grade) came out ~1.31:1 on desktop and 1.5:1 on mobile, both landscape-biased ratios in the same severity class as the pre-M18-S06-Part-6 Grade problem this milestone already fixed once. Root cause: `GalleryItem`'s original Part 3 design called for per-tile `aspect-square` on the small mobile tiles (matching Grade's precedent) — that requirement was silently dropped during implementation when the sizing strategy moved to "no self-imposed box at all, fill the parent cell" to sidestep a CSS-specificity conflict with `GalleryModule`'s grid placement (see Part 3's `useNaturalAspectRatio`-style reasoning). Fixed by solving for the container `aspect-ratio` instead of guessing it: with this grid's specific track structure (2 equal rows, a `2fr` column against two `1fr` columns), setting the container to `2/1` (desktop) or `1/2` (mobile) makes every cell — big and small alike — resolve to exactly square, matching Grade's standard rather than reintroducing its already-fixed bias. Considered and rejected: tuning the ratio to something between the reference's original proportions and square (a "less bad" middle ground) — square is the same principled, already-user-approved standard this milestone settled on for Grade, not a new judgment call to make from scratch.
+
+### Dependencies
+
+M18-S06 — code confirmed present in this branch (not yet `✅ Done`-marked; both stories ship in the same PR). No migration (`jsonb`, same pattern as every module-data field in this milestone).

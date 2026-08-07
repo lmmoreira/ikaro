@@ -55,14 +55,18 @@ export interface GalleryImage {
   source: 'booking' | 'upload';
   bookingId?: string;
   photoType?: 'before' | 'after';
+  width?: number;
+  height?: number;
 }
 
 export interface GalleryModuleData {
   title?: string;
   eyebrow?: string;
   images: GalleryImage[];
-  layout: 'grid' | 'masonry';
+  layout: 'grid' | 'masonry' | 'featured';
   maxVisible: number;
+  /** Only meaningful when layout === 'featured' — which side the large tile (images[0]) renders on. Default 'left'. */
+  featuredPosition?: 'left' | 'right';
 }
 
 export interface Testimonial {

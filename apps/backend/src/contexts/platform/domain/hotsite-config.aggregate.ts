@@ -61,14 +61,19 @@ export interface GalleryImage {
   bookingId?: string;
   /** Present when source === 'booking' — derived server-side, lets the frontend label "Antes"/"Depois" */
   photoType?: 'before' | 'after';
+  /** Natural pixel dimensions, captured at upload/pick time (M18-S06) — absent for images stored before that story */
+  width?: number;
+  height?: number;
 }
 
 export interface GalleryModuleData {
   title?: string;
   eyebrow?: string;
   images: GalleryImage[];
-  layout: 'grid' | 'masonry';
+  layout: 'grid' | 'masonry' | 'featured';
   maxVisible: number;
+  /** Only meaningful when layout === 'featured' — which side the large tile (images[0]) renders on. Default 'left'. */
+  featuredPosition?: 'left' | 'right';
 }
 
 export interface Testimonial {

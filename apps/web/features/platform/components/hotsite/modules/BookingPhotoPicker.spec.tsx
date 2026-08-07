@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { StaffBookingDetailResponse, StaffBookingListResponse } from '@ikaro/types';
@@ -105,6 +105,74 @@ describe('BookingPhotoPicker', () => {
       },
       'https://public.storage.example.com/tenants/tenant-1/hotsite/gallery/g1/before-1.jpg',
     );
+  });
+
+  it("picking a photo whose thumbnail already loaded includes the thumbnail's captured width/height", async () => {
+    const user = userEvent.setup();
+    vi.mocked(listBookings).mockResolvedValue(LIST_RESPONSE);
+    vi.mocked(getBooking).mockResolvedValue(DETAIL_RESPONSE as StaffBookingDetailResponse);
+    vi.mocked(featureBookingPhoto).mockResolvedValue({
+      filePath: 'tenants/tenant-1/hotsite/gallery/g1/before-1.jpg',
+      url: 'https://public.storage.example.com/tenants/tenant-1/hotsite/gallery/g1/before-1.jpg',
+      photoType: 'before',
+    });
+    const onPick = vi.fn();
+
+    renderWithIntl(<BookingPhotoPicker onPick={onPick} onClose={vi.fn()} />);
+
+    await screen.findByTestId('booking-photo-picker-select');
+    await user.selectOptions(screen.getByTestId('booking-photo-picker-select'), 'b-1');
+
+    const grid = await screen.findByTestId('booking-photo-picker-grid');
+    const beforeThumb = grid.querySelector('img[src="https://cdn.example.com/before-1.jpg"]')!;
+    // jsdom never computes real natural* dimensions for an <img> — stub them the way the browser
+    // would populate them once the thumbnail the picker already fetched for display finishes
+    // loading, then fire the load event handleThumbnailLoad listens for.
+    Object.defineProperty(beforeThumb, 'naturalWidth', { value: 400, configurable: true });
+    Object.defineProperty(beforeThumb, 'naturalHeight', { value: 800, configurable: true });
+    fireEvent.load(beforeThumb);
+
+    await user.click(beforeThumb.closest('button')!);
+
+    await waitFor(() => {
+      expect(onPick).toHaveBeenCalledWith(
+        expect.objectContaining({ width: 400, height: 800 }),
+        'https://public.storage.example.com/tenants/tenant-1/hotsite/gallery/g1/before-1.jpg',
+      );
+    });
+  });
+
+  it('picking a photo whose thumbnail never fired a load event omits width/height (no crash)', async () => {
+    const user = userEvent.setup();
+    vi.mocked(listBookings).mockResolvedValue(LIST_RESPONSE);
+    vi.mocked(getBooking).mockResolvedValue(DETAIL_RESPONSE as StaffBookingDetailResponse);
+    vi.mocked(featureBookingPhoto).mockResolvedValue({
+      filePath: 'tenants/tenant-1/hotsite/gallery/g1/before-1.jpg',
+      url: 'https://public.storage.example.com/tenants/tenant-1/hotsite/gallery/g1/before-1.jpg',
+      photoType: 'before',
+    });
+    const onPick = vi.fn();
+
+    renderWithIntl(<BookingPhotoPicker onPick={onPick} onClose={vi.fn()} />);
+
+    await screen.findByTestId('booking-photo-picker-select');
+    await user.selectOptions(screen.getByTestId('booking-photo-picker-select'), 'b-1');
+
+    const grid = await screen.findByTestId('booking-photo-picker-grid');
+    const beforeThumb = grid.querySelector('img[src="https://cdn.example.com/before-1.jpg"]')!;
+    await user.click(beforeThumb.closest('button')!);
+
+    await waitFor(() => {
+      expect(onPick).toHaveBeenCalledWith(
+        {
+          url: 'tenants/tenant-1/hotsite/gallery/g1/before-1.jpg',
+          source: 'booking',
+          bookingId: 'b-1',
+          photoType: 'before',
+        },
+        'https://public.storage.example.com/tenants/tenant-1/hotsite/gallery/g1/before-1.jpg',
+      );
+    });
   });
 
   it('shows the specific translated message when featureBookingPhoto fails with a known code, without calling onPick', async () => {

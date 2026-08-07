@@ -13,7 +13,7 @@ import {
 } from '@/features/platform/api/tenant-settings';
 import { getBooking, listBookings } from '@/features/booking/api/booking';
 import { ApiError } from '@/shared/lib/api/errors';
-import { compressImage } from '@/shared/utils/compress-image';
+import { compressImageWithDimensions } from '@/shared/utils/compress-image';
 import { GalleryImageManager } from './GalleryImageManager';
 
 vi.mock('@/features/platform/api/tenant-settings', () => ({
@@ -24,7 +24,7 @@ vi.mock('@/features/platform/api/tenant-settings', () => ({
 }));
 
 vi.mock('@/shared/utils/compress-image', () => ({
-  compressImage: vi.fn((file: File) => Promise.resolve(file)),
+  compressImageWithDimensions: vi.fn((file: File) => Promise.resolve({ file })),
 }));
 
 vi.mock('@/features/booking/api/booking', () => ({
@@ -50,8 +50,10 @@ describe('GalleryImageManager', () => {
     vi.mocked(generateHotsiteImageReadSignedUrl).mockReset();
     vi.mocked(deleteHotsiteImage).mockReset();
     vi.mocked(listBookings).mockReset();
-    vi.mocked(compressImage).mockReset();
-    vi.mocked(compressImage).mockImplementation((file: File) => Promise.resolve(file));
+    vi.mocked(compressImageWithDimensions).mockReset();
+    vi.mocked(compressImageWithDimensions).mockImplementation((file: File) =>
+      Promise.resolve({ file }),
+    );
     clearPublicEnv();
   });
 
@@ -135,10 +137,10 @@ describe('GalleryImageManager', () => {
     ]);
   });
 
-  it('uploads the compressed file returned by compressImage, not the original selection', async () => {
+  it('uploads the compressed file returned by compressImageWithDimensions, not the original selection', async () => {
     const user = userEvent.setup();
     const compressedFile = makeFile('g2.webp', 'image/webp');
-    vi.mocked(compressImage).mockResolvedValue(compressedFile);
+    vi.mocked(compressImageWithDimensions).mockResolvedValue({ file: compressedFile });
     vi.mocked(generateHotsiteImageSignedUrl).mockResolvedValue({
       signedUrl: 'https://storage.example.com/upload?sig=abc',
       filePath: 'tenants/tenant-1/hotsite/gallery/g2.webp',
@@ -156,6 +158,35 @@ describe('GalleryImageManager', () => {
         contentType: 'image/webp',
         purpose: 'gallery',
       });
+    });
+  });
+
+  it('stores the width/height returned by compressImageWithDimensions on the new GalleryImage', async () => {
+    const user = userEvent.setup();
+    vi.mocked(compressImageWithDimensions).mockImplementation((file: File) =>
+      Promise.resolve({ file, width: 400, height: 800 }),
+    );
+    vi.mocked(generateHotsiteImageSignedUrl).mockResolvedValue({
+      signedUrl: 'https://storage.example.com/upload?sig=abc',
+      filePath: 'tenants/tenant-1/hotsite/gallery/g2.png',
+      expiresAt: '2026-06-15T12:00:00.000Z',
+    });
+    fetchSpy.mockResolvedValue(new Response(null, { status: 200 }));
+    const onChange = vi.fn();
+
+    renderWithIntl(<GalleryImageManager images={[]} onChange={onChange} />);
+
+    await user.upload(screen.getByTestId('gallery-upload-input'), makeFile('g2.png', 'image/png'));
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith([
+        {
+          url: 'tenants/tenant-1/hotsite/gallery/g2.png',
+          source: 'upload',
+          width: 400,
+          height: 800,
+        },
+      ]);
     });
   });
 

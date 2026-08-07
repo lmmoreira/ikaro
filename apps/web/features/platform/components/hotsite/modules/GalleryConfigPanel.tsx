@@ -59,8 +59,28 @@ export function GalleryConfigPanel({ data, onChange }: ModuleConfigPanelProps): 
         options={[
           { value: 'grid', label: t('layoutGrid') },
           { value: 'masonry', label: t('layoutMasonry') },
+          { value: 'featured', label: t('layoutFeatured'), disabled: gallery.images.length < 5 },
         ]}
       />
+      {gallery.images.length < 5 && (
+        <p className="text-xs text-gray-500">{t('featuredRequiresFiveImages')}</p>
+      )}
+      {gallery.layout === 'featured' && gallery.images.length > 5 && (
+        <p className="text-xs text-gray-500">{t('featuredUsesFirstFiveImages')}</p>
+      )}
+
+      {gallery.layout === 'featured' && (
+        <PillSelect
+          label={t('featuredPositionLabel')}
+          value={gallery.featuredPosition ?? 'left'}
+          onChange={(featuredPosition) => update({ featuredPosition })}
+          testId="gallery-featured-position"
+          options={[
+            { value: 'left', label: t('featuredPositionLeft') },
+            { value: 'right', label: t('featuredPositionRight') },
+          ]}
+        />
+      )}
 
       <div>
         <label

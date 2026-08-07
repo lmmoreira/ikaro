@@ -206,3 +206,45 @@ export async function compressImage(
     bitmap?.close();
   }
 }
+
+// Reads intrinsic pixel dimensions independently of compressImage's own encode path — decoupled
+// on purpose rather than threaded through compressImage's internals, since this only needs the
+// source's aspect ratio (for Gallery masonry tile sizing, M18-S06), not an exact pixel match with
+// whatever File compressImage ultimately returns. compressImage only ever scales proportionally
+// (when no targetAspectRatio is passed) or falls back to the untouched original — either way, the
+// ratio computed here is correct. Best-effort: unsupported API or a decode failure returns null,
+// which callers already treat as "no dimensions" (same as a pre-existing image with none stored).
+async function readImageDimensions(file: File): Promise<{ width: number; height: number } | null> {
+  if (typeof createImageBitmap !== 'function') return null;
+  try {
+    const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    const dimensions = { width: bitmap.width, height: bitmap.height };
+    bitmap.close();
+    return dimensions;
+  } catch {
+    return null;
+  }
+}
+
+// Gallery-only variant (M18-S06): same compression as compressImage, plus the width/height that
+// actually match whatever File it returns. compressImage returns the exact same File reference on
+// every fail-open path (unsupported type/API, decode/canvas/encode failure, "not actually
+// smaller") and only a genuinely new File on success — that reference equality is what tells us
+// whether the real pixels are the untouched source (raw bitmap dimensions) or the resized output
+// (scaledDimensions). Reporting the wrong one would silently desync GalleryImage.width/height from
+// the file actually sitting at GalleryImage.url.
+export async function compressImageWithDimensions(
+  file: File,
+): Promise<{ file: File; width?: number; height?: number }> {
+  const [compressed, dimensions] = await Promise.all([
+    compressImage(file),
+    readImageDimensions(file),
+  ]);
+  if (!dimensions) return { file: compressed };
+
+  const { width, height } =
+    compressed === file
+      ? dimensions
+      : scaledDimensions(dimensions.width, dimensions.height, MAX_DIMENSION);
+  return { file: compressed, width, height };
+}
