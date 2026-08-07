@@ -33,7 +33,7 @@ vi.mock('next-intl', () => ({
       },
       'customer.emptyState': {
         title: 'Nenhum agendamento ainda',
-        body: 'Faça seu primeiro agendamento e acompanhe o histórico do seu carro aqui.',
+        body: 'Faça seu primeiro agendamento e acompanhe seu histórico aqui.',
         cta: 'Fazer agendamento',
       },
     };
