@@ -6,6 +6,9 @@ interface GalleryItemProps {
   readonly image: GalleryImage;
   readonly layout: 'grid' | 'masonry' | 'featured';
   readonly priority?: boolean;
+  /** Only meaningful when layout === 'featured' — this is the images[0] "big" tile, not one of
+   * the 4 small ones. Drives `sizes` only; GalleryModule's CSS grid handles the actual box shape. */
+  readonly isFeaturedPrimary?: boolean;
 }
 
 const badgeStyle = {
@@ -14,10 +17,34 @@ const badgeStyle = {
   borderRadius: 'var(--ba-radius)',
 };
 
+// Extracted rather than a nested ternary (Sonar S3358) — see the sizing-strategy comment below
+// for why each layout gets its own box.
+function galleryItemWrapperClassName(
+  layout: GalleryItemProps['layout'],
+  useNaturalAspectRatio: boolean,
+): string {
+  if (useNaturalAspectRatio) return 'relative w-full overflow-hidden';
+  if (layout === 'featured') return 'relative h-full w-full overflow-hidden';
+  return 'relative aspect-square w-full overflow-hidden';
+}
+
+// The featured big tile renders roughly 50vw on desktop / 100vw on mobile; its 4 small siblings
+// render roughly 25vw / 50vw (see .gallery-featured-grid in globals.css) — noticeably different
+// from each other and from grid/masonry's own 33vw/50vw/100vw split, so each needs its own value
+// rather than sharing one generic guess (Codex review, PR #329: the previous single value
+// under-fetched the big tile and over-fetched the small ones).
+function galleryItemSizes(layout: GalleryItemProps['layout'], isFeaturedPrimary: boolean): string {
+  if (layout !== 'featured') {
+    return '(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw';
+  }
+  return isFeaturedPrimary ? '(min-width: 640px) 50vw, 100vw' : '(min-width: 640px) 25vw, 50vw';
+}
+
 export function GalleryItem({
   image,
   layout,
   priority = false,
+  isFeaturedPrimary = false,
 }: GalleryItemProps): React.JSX.Element {
   const t = useTranslations('hotsite');
   const photoTypeLabels: Record<'before' | 'after', string> = {
@@ -42,11 +69,7 @@ export function GalleryItem({
   //   lightbox (object-fit: contain there, not cover), regardless of which strategy applies here.
   const useNaturalAspectRatio = layout === 'masonry' && image.width != null && image.height != null;
 
-  const wrapperClassName = useNaturalAspectRatio
-    ? 'relative w-full overflow-hidden'
-    : layout === 'featured'
-      ? 'relative h-full w-full overflow-hidden'
-      : 'relative aspect-square w-full overflow-hidden';
+  const wrapperClassName = galleryItemWrapperClassName(layout, useNaturalAspectRatio);
 
   const wrapperStyle: React.CSSProperties = {
     borderRadius: 'var(--ba-radius)',
@@ -61,7 +84,7 @@ export function GalleryItem({
         fill
         loading={priority ? 'eager' : 'lazy'}
         priority={priority}
-        sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+        sizes={galleryItemSizes(layout, isFeaturedPrimary)}
         className="object-cover"
       />
       {image.photoType && (

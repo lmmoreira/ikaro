@@ -343,8 +343,30 @@ describe('proxy', () => {
       const response = await proxy(makeRequest('/dashboard/hotsite', validManagerToken));
       const csp = response.headers.get('Content-Security-Policy') ?? '';
 
-      expect(csp).toContain('https://maps.google.com');
-      expect(csp).toContain('https://www.google.com');
+      // The exact directive, not just a substring match elsewhere in the header (CodeRabbit
+      // review, PR #329) — a future change that placed these origins in another directive while
+      // frame-src stayed 'none' would still pass a bare toContain(origin) check.
+      expect(csp).toContain(
+        'frame-src https://maps.google.com https://www.google.com; frame-ancestors',
+      );
+    });
+
+    // needsMapsFrameSrc() matches the editor route by prefix (pathname === HOTSITE_EDITOR_ROUTE ||
+    // startsWith(`${HOTSITE_EDITOR_ROUTE}/`)) — verifies both that a genuine nested route also gets
+    // the relaxation and that a merely similarly-named route doesn't false-positive on it
+    // (CodeRabbit review, PR #329).
+    it('relaxes frame-src for a nested /dashboard/hotsite/* route too, but not a route that only shares the prefix as text', async () => {
+      vi.stubEnv('NODE_ENV', 'production');
+
+      const nested = await proxy(makeRequest('/dashboard/hotsite/edit', validManagerToken));
+      expect(nested.headers.get('Content-Security-Policy') ?? '').toContain(
+        'frame-src https://maps.google.com https://www.google.com; frame-ancestors',
+      );
+
+      const nearMiss = await proxy(makeRequest('/dashboard/hotsite-preview', validManagerToken));
+      expect(nearMiss.headers.get('Content-Security-Policy') ?? '').toContain(
+        "frame-src 'none'; frame-ancestors",
+      );
     });
 
     it('does not relax frame-src for other /dashboard routes', async () => {
@@ -352,7 +374,7 @@ describe('proxy', () => {
       const response = await proxy(makeRequest('/dashboard/settings', validManagerToken));
       const csp = response.headers.get('Content-Security-Policy') ?? '';
 
-      expect(csp).toContain("frame-src 'none'");
+      expect(csp).toContain("frame-src 'none'; frame-ancestors");
     });
 
     it('allows the configured BFF origin and storage origin in connect-src (direct-to-storage photo uploads PUT from the browser)', async () => {

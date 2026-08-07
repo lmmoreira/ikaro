@@ -80,7 +80,12 @@ export function GalleryModule({
               className="block cursor-zoom-in overflow-hidden"
               style={{ gridArea: FEATURED_GRID_AREAS[i], borderRadius: 'var(--ba-radius)' }}
             >
-              <GalleryItem image={image} layout="featured" priority={i === 0} />
+              <GalleryItem
+                image={image}
+                layout="featured"
+                priority={i === 0}
+                isFeaturedPrimary={i === 0}
+              />
             </a>
           ))}
         </div>

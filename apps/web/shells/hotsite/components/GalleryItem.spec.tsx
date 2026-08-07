@@ -101,6 +101,42 @@ describe('GalleryItem', () => {
     expect(screen.getByText('Legenda de teste')).toBeInTheDocument();
   });
 
+  // Codex review, PR #329: a single fixed `sizes` value for every layout under/over-fetched the
+  // featured layout's asymmetric tiles (the big tile is ~50vw/100vw, the 4 small ones ~25vw/50vw —
+  // neither matches grid/masonry's own 33vw/50vw/100vw split).
+  describe('sizes', () => {
+    it('uses the grid/masonry value for layout: grid, ignoring isFeaturedPrimary', () => {
+      const { container } = renderWithIntl(
+        <GalleryItem image={makeImage()} layout="grid" isFeaturedPrimary />,
+      );
+
+      expect(container.querySelector('img')).toHaveAttribute(
+        'sizes',
+        '(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw',
+      );
+    });
+
+    it('uses the primary-tile value for layout: featured when isFeaturedPrimary is true', () => {
+      const { container } = renderWithIntl(
+        <GalleryItem image={makeImage()} layout="featured" isFeaturedPrimary />,
+      );
+
+      expect(container.querySelector('img')).toHaveAttribute(
+        'sizes',
+        '(min-width: 640px) 50vw, 100vw',
+      );
+    });
+
+    it('uses the small-tile value for layout: featured when isFeaturedPrimary is false or absent', () => {
+      const { container } = renderWithIntl(<GalleryItem image={makeImage()} layout="featured" />);
+
+      expect(container.querySelector('img')).toHaveAttribute(
+        'sizes',
+        '(min-width: 640px) 25vw, 50vw',
+      );
+    });
+  });
+
   it('marks the image as loading="eager" when priority is set, "lazy" otherwise', () => {
     const { container: eager } = renderWithIntl(
       <GalleryItem image={makeImage()} layout="grid" priority />,

@@ -211,6 +211,21 @@ describe('GalleryModule', () => {
       expect(galleryGridContainer(container)).not.toHaveClass('gallery-featured-grid');
     });
 
+    it('passes isFeaturedPrimary sizes only to the first ("big") tile, not the 4 small ones', () => {
+      const { container } = renderWithIntl(
+        <GalleryModule
+          data={makeData({ layout: 'featured', images: makeImages(5), maxVisible: 6 })}
+          slug="tenant"
+        />,
+      );
+
+      const imgs = container.querySelectorAll('img');
+      expect(imgs[0]).toHaveAttribute('sizes', '(min-width: 640px) 50vw, 100vw');
+      for (const img of Array.from(imgs).slice(1)) {
+        expect(img).toHaveAttribute('sizes', '(min-width: 640px) 25vw, 50vw');
+      }
+    });
+
     it('renders as featured, using only the first 5, when there are more than 5 images', () => {
       const { container } = renderWithIntl(
         <GalleryModule

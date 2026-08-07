@@ -59,32 +59,43 @@ body {
 
 /* Gallery 'featured' layout (M18-S07): 1 large + 4 small tiles sharing one CSS Grid. grid-area
    lets the same 5 tiles re-template between the mobile-stacked and desktop-asymmetric layouts,
-   rather than duplicating markup per breakpoint. Every tile fills its own area via GalleryItem's
-   'featured' sizing (h-full w-full, no self-imposed aspect-ratio) — this container's own
-   aspect-ratio + fr-based tracks are what give every row/column real height, on both breakpoints.
-   The container aspect-ratio is solved, not guessed, so every cell — big and small alike — comes
-   out exactly square: with 2 equal row-tracks and a 2fr "big" column against two 1fr columns, a
-   cell's own ratio is (its fr-width / column-count-equivalent) × the container ratio; setting the
-   container ratio to 2/1 (desktop) or 1/2 (mobile) makes that resolve to 1 for every cell. Square
-   was chosen to match Grade's own square tiles (M18-S06 Part 6) rather than the reference's
-   original fixed pixel proportions, which cropped hard off-center on non-4:3 photos. */
+   rather than duplicating markup per breakpoint.
+
+   Squareness comes from each tile's own `aspect-ratio: 1`, not a guessed container-level ratio
+   (M18-S07 follow-up — Codex review, PR #329: the original version set aspect-ratio: 2/1 desktop
+   / 1/2 mobile on the *container*, reasoning the fr-track split alone would force every cell
+   square. It doesn't: for the big tile specifically, the horizontal axis crosses 2 column gaps
+   while the vertical axis it spans only crosses 1 internal row gap, so the two axes disagree by
+   exactly one `gap` — the big tile came out visibly narrower than tall on desktop, and the mirror
+   error on mobile. Small tiles were never affected, since each sits in exactly 1 column and 1 row
+   either way.).
+
+   Fix: every tile gets `aspect-ratio: 1` directly (below). On desktop, all 4 columns are equal
+   width, so the 4 small tiles derive a uniform row height from their own square shape (rows are
+   implicit/auto — no grid-template-rows needed), and the big tile — spanning 2 of those columns
+   and both derived rows — comes out exactly that same square side length for free: 2 equal
+   column-widths + 1 gap (its width) always equals 2 equal row-heights + 1 gap (its height), since
+   both derive from the same column width. On mobile the big tile has no sibling in its own row, so
+   its own `aspect-ratio: 1` is what makes it square there. This holds at any container width or
+   gap size — no magic ratio to keep in sync with the gap utility class. Square (not the
+   reference's fixed pixel proportions, which cropped hard off-center on non-4:3 photos) was chosen
+   to match Grade's own square tiles (M18-S06 Part 6). */
 .gallery-featured-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: 2fr 1fr 1fr;
   grid-template-areas: 'big big' 's1 s2' 's3 s4';
-  aspect-ratio: 1 / 2;
+}
+
+.gallery-featured-grid > a {
+  aspect-ratio: 1;
 }
 
 @media (min-width: 640px) {
   .gallery-featured-grid {
-    grid-template-columns: 2fr 1fr 1fr;
-    grid-template-rows: 1fr 1fr;
-    grid-template-areas: 'big s1 s2' 'big s3 s4';
-    aspect-ratio: 2 / 1;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-areas: 'big big s1 s2' 'big big s3 s4';
   }
   .gallery-featured-grid[data-featured-position='right'] {
-    grid-template-columns: 1fr 1fr 2fr;
-    grid-template-areas: 's1 s2 big' 's3 s4 big';
+    grid-template-areas: 's1 s2 big big' 's3 s4 big big';
   }
 }

@@ -593,11 +593,18 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     const smallBox = await tiles.nth(1).boundingBox();
     expect(bigBox).not.toBeNull();
     expect(smallBox).not.toBeNull();
-    // Desktop: 2fr vs 1fr columns and a 2-row span — the large tile is both wider and taller.
+    // Desktop: 4 equal columns, the large tile spans 2 of them and both rows — wider and taller
+    // than a small tile, but square itself (see the per-tile squareness assertions below — a
+    // uniformly-scaled-but-non-square rectangle would also pass these two alone).
     expect(bigBox!.width).toBeGreaterThan(smallBox!.width * 1.5);
     expect(bigBox!.height).toBeGreaterThan(smallBox!.height);
     // featuredPosition: 'right' — the large tile sits to the right of the small ones.
     expect(bigBox!.x).toBeGreaterThan(smallBox!.x);
+    // Every tile — big and small alike — must render exactly square, not just "larger" (CodeRabbit
+    // review, PR #329: the original assertions above alone would still pass for a uniformly
+    // landscape- or portrait-biased rectangle). A few px of rounding tolerance for real layout math.
+    expect(Math.abs(bigBox!.width - bigBox!.height)).toBeLessThan(2);
+    expect(Math.abs(smallBox!.width - smallBox!.height)).toBeLessThan(2);
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.reload();
@@ -609,6 +616,8 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     // of featuredPosition, which has no effect once collapsed to a single column.
     expect(bigBoxMobile!.y).toBeLessThan(smallBoxMobile!.y);
     expect(bigBoxMobile!.width).toBeGreaterThan(smallBoxMobile!.width * 1.5);
+    expect(Math.abs(bigBoxMobile!.width - bigBoxMobile!.height)).toBeLessThan(2);
+    expect(Math.abs(smallBoxMobile!.width - smallBoxMobile!.height)).toBeLessThan(2);
   });
 
   // Default seed state has no logo uploaded (autospa-premium's branding.logoUrl is '') — this

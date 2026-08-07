@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { useState } from 'react';
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GalleryImage, StaffBookingDetailResponse } from '@ikaro/types';
@@ -402,15 +402,21 @@ describe('GalleryImageManager', () => {
     await user.selectOptions(await screen.findByTestId('booking-photo-picker-select'), 'b-1');
     const grid = await screen.findByTestId('booking-photo-picker-grid');
     const beforeThumb = grid.querySelector('img[src="https://cdn.example.com/before-1.jpg"]');
+    // The pick button stays disabled until its thumbnail fires a load event (BookingPhotoPicker's
+    // own race-condition fix, PR #329) — jsdom's fireEvent.load doesn't populate real
+    // naturalWidth/naturalHeight, so this integration test (about the picker appending to
+    // GalleryImageManager's list, not about dimension capture — that's BookingPhotoPicker's own
+    // unit test concern) only asserts the fields it actually cares about.
+    fireEvent.load(beforeThumb!);
     await user.click(beforeThumb!.closest('button')!);
 
     expect(onChange).toHaveBeenCalledWith([
-      {
+      expect.objectContaining({
         url: 'tenants/tenant-1/hotsite/gallery/g1/before-1.jpg',
         source: 'booking',
         bookingId: 'b-1',
         photoType: 'before',
-      },
+      }),
     ]);
     expect(screen.queryByTestId('booking-photo-picker-close')).not.toBeInTheDocument();
   });

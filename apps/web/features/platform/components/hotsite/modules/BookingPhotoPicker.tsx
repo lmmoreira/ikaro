@@ -47,11 +47,19 @@ export function BookingPhotoPicker({
   const [pickError, setPickError] = useState<string | null>(null);
   // Captured from the thumbnail <img> the browser already fetched to display — no extra network
   // request. Keyed by the display URL (not the storage path — that's only known once picked).
-  const [photoDimensions] = useState(() => new Map<string, { width: number; height: number }>());
+  // Reactive (not a plain mutable Map) so the pick buttons below can disable themselves until a
+  // thumbnail's dimensions actually land — a fast click right after mount could otherwise fire
+  // handlePick before the corresponding onLoad event, silently persisting the image with no
+  // width/height (M18-S06 requires every picker-added image to carry them; Codex review, PR #329).
+  const [photoDimensions, setPhotoDimensions] = useState(
+    () => new Map<string, { width: number; height: number }>(),
+  );
 
   function handleThumbnailLoad(url: string, event: React.SyntheticEvent<HTMLImageElement>): void {
     const img = event.currentTarget;
-    photoDimensions.set(url, { width: img.naturalWidth, height: img.naturalHeight });
+    setPhotoDimensions((prev) =>
+      new Map(prev).set(url, { width: img.naturalWidth, height: img.naturalHeight }),
+    );
   }
 
   useEffect(() => {
@@ -212,11 +220,11 @@ export function BookingPhotoPicker({
             <button
               key={url}
               type="button"
-              disabled={picking}
+              disabled={picking || !photoDimensions.has(url)}
               onClick={() => {
                 void handlePick('before', index);
               }}
-              className="group relative overflow-hidden rounded-md border border-gray-200"
+              className="group relative overflow-hidden rounded-md border border-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <img
                 src={url}
@@ -233,11 +241,11 @@ export function BookingPhotoPicker({
             <button
               key={url}
               type="button"
-              disabled={picking}
+              disabled={picking || !photoDimensions.has(url)}
               onClick={() => {
                 void handlePick('after', index);
               }}
-              className="group relative overflow-hidden rounded-md border border-gray-200"
+              className="group relative overflow-hidden rounded-md border border-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <img
                 src={url}

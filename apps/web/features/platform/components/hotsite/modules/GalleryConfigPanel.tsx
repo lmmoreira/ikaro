@@ -69,7 +69,7 @@ export function GalleryConfigPanel({ data, onChange }: ModuleConfigPanelProps): 
         <p className="text-xs text-gray-500">{t('featuredUsesFirstFiveImages')}</p>
       )}
 
-      {gallery.layout === 'featured' && (
+      {gallery.layout === 'featured' && gallery.images.length >= 5 && (
         <PillSelect
           label={t('featuredPositionLabel')}
           value={gallery.featuredPosition ?? 'left'}

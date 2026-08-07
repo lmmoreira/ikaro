@@ -14,6 +14,25 @@ interface PillSelectProps<T extends string> {
   readonly testId?: string;
 }
 
+// A selected-but-disabled option (e.g. a saved layout: 'featured' choice that becomes disabled
+// once its image count drops below the minimum) still needs to read as "this is your current
+// pick," not just "unavailable" — a plain disabled style alone loses that signal. Extracted out
+// of the JSX as its own statement (Sonar S3358 — no nested ternary), not just for the lint rule:
+// a 4th combined disabled+selected style needs its own branch, which a ternary chain can't add
+// without nesting further.
+function pillButtonClassName(selected: boolean, disabled: boolean | undefined): string {
+  if (disabled && selected) {
+    return 'cursor-not-allowed border-blue-200 bg-blue-50 text-blue-400';
+  }
+  if (disabled) {
+    return 'cursor-not-allowed border-gray-100 bg-gray-50 text-gray-400';
+  }
+  if (selected) {
+    return 'border-blue-600 bg-blue-600 text-white';
+  }
+  return 'border-gray-200 bg-white text-gray-700 hover:border-gray-300';
+}
+
 export function PillSelect<T extends string>({
   label,
   value,
@@ -34,13 +53,7 @@ export function PillSelect<T extends string>({
             disabled={option.disabled}
             data-testid={testId ? `${testId}-${option.value}` : undefined}
             onClick={() => onChange(option.value)}
-            className={`rounded-full border px-3.5 py-2 text-sm font-semibold transition-colors ${
-              option.disabled
-                ? 'cursor-not-allowed border-gray-100 bg-gray-50 text-gray-400'
-                : option.value === value
-                  ? 'border-blue-600 bg-blue-600 text-white'
-                  : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-            }`}
+            className={`rounded-full border px-3.5 py-2 text-sm font-semibold transition-colors ${pillButtonClassName(option.value === value, option.disabled)}`}
           >
             {option.label}
           </button>
