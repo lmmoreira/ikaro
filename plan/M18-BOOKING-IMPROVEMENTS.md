@@ -694,7 +694,7 @@ None — extends existing components (`HeroModule`, `HeroConfigPanel`, `BookingC
 
 ---
 
-## M18-S06 — Gallery module: automatic masonry layout (tile height from photo aspect ratio)
+## M18-S06 — Gallery module: automatic masonry layout (tile height from photo aspect ratio) ✅ Done
 
 **Agent:** `fullstack-ts`
 **Complexity:** M
