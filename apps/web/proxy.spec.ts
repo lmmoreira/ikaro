@@ -334,6 +334,27 @@ describe('proxy', () => {
       }
     });
 
+    // M18-S07 follow-up: /dashboard/hotsite's "Preview" view renders the real ContactModule
+    // component tree (HotsitePreview.tsx imports it directly, same component the public hotsite
+    // uses), Google Maps iframe included — it was silently blocked because /dashboard is
+    // otherwise excluded from the hotsite-route frame-src relaxation above.
+    it('also relaxes frame-src for /dashboard/hotsite (the Preview view embeds the same Maps iframe)', async () => {
+      vi.stubEnv('NODE_ENV', 'production');
+      const response = await proxy(makeRequest('/dashboard/hotsite', validManagerToken));
+      const csp = response.headers.get('Content-Security-Policy') ?? '';
+
+      expect(csp).toContain('https://maps.google.com');
+      expect(csp).toContain('https://www.google.com');
+    });
+
+    it('does not relax frame-src for other /dashboard routes', async () => {
+      vi.stubEnv('NODE_ENV', 'production');
+      const response = await proxy(makeRequest('/dashboard/settings', validManagerToken));
+      const csp = response.headers.get('Content-Security-Policy') ?? '';
+
+      expect(csp).toContain("frame-src 'none'");
+    });
+
     it('allows the configured BFF origin and storage origin in connect-src (direct-to-storage photo uploads PUT from the browser)', async () => {
       vi.stubEnv('NODE_ENV', 'production');
       vi.stubEnv('NEXT_PUBLIC_BFF_URL', 'https://bff.ikaro.example/v1');
