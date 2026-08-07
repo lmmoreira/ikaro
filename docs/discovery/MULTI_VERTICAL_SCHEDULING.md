@@ -62,12 +62,13 @@ Resource {
   type:         ResourceType        -- LOCATION | STAFF | ROOM | EQUIPMENT
   refId:        StaffId | null      -- set only when type = STAFF
   name:         String              -- denormalized display name, independent of Staff.name
-  workingHours: BusinessHours | null -- same shape as Tenant.settings.businessHours, scoped to this resource;
-                                     -- null = inherits the tenant's businessHours (corrected 2026-08-05 —
-                                     -- CAND-01 A2, CAND-02, and the DB schema's `working_hours JSONB NULLABLE`
-                                     -- already treated this as optional-with-fallback; this property table
-                                     -- just hadn't caught up)
+  workingHours: BusinessHours | null -- same per-weekday shape as Tenant.settings.businessHours;
+                                     -- null = inherits tenant hours. When present, every window must be a
+                                     -- subset of the tenant's recurring window; a resource never extends
+                                     -- the business's operating time.
   turnoverMinutes: int              -- default 0; see §7
+  maxCapacity: int | null           -- optional physical ceiling for LOCATION/ROOM (and only genuinely
+                                     -- capacity-bearing EQUIPMENT); never a generic STAFF capacity.
   isActive:     Boolean
 }
 ```
@@ -77,7 +78,18 @@ Three different relationships to existing data, by design, not by accident:
 - **`STAFF`** — *wraps* an existing `Staff` aggregate by reference (`refId = staffId`). Staff Context stays pure identity/permissions; scheduling data (working hours, turnover) lives on the `Resource` row, not on `Staff` itself. Mirrors the existing rule that Staff Context reads closures but never writes them.
 - **`ROOM` / `EQUIPMENT`** — no other context owns these; the `Resource` row *is* the aggregate, full stop.
 
-`ScheduleClosure` / `ScheduleOpening` gain a nullable `resourceId`. `null` = tenant-wide (today's exact behavior, unchanged default). Set = scoped to one resource ("Maria is out Tuesday" closes her calendar only, not the whole salon). The Three-Layer Resolution algorithm gains a resource-level check layered under the existing tenant-level one.
+`ScheduleClosure` / `ScheduleOpening` gain a nullable `resourceId`. `null` = tenant-wide (today's exact behavior, unchanged default). Set = scoped to one resource ("Maria is out Tuesday" closes her calendar only, not the whole salon).
+
+### Tenant boundary and resource schedule resolution
+
+The tenant calendar is a hard outer boundary. Resolve it first using today's three-layer rule (tenant opening, tenant closure, recurring tenant business hours). A resource can be available only inside that resulting tenant window:
+
+1. If the tenant is closed, every resource is closed. A resource opening never bypasses a tenant-wide closure or extends beyond a tenant opening/window.
+2. Within an open tenant window, a resource uses its own recurring hours (or inherits tenant hours when `workingHours = null`). A resource opening can make that resource available on one of *its* normally-off dates, but only in the tenant window.
+3. A resource closure removes time from that resource even when a tenant opening exists. A tenant-wide closure removes time from every resource.
+4. A bundled appointment intersects this result for every required resource.
+
+Changing resource hours, adding a closure, deactivating a resource, or changing a template is a change to **future availability/generation**, not a retroactive invalidation. Already-approved appointments and already-materialized sessions remain explicit commitments even if they now fall outside the new default; the manager is warned and can resolve them separately. The generator creates no new occurrence outside current tenant/resource availability.
 
 ---
 
@@ -91,7 +103,7 @@ Trying to fold bundles, sequential legs, capacity, waitlist, recurring enrollmen
 
 Forcing session-style bookings to use appointment-style's dynamic computation breaks down immediately — there's no stable thing to hang a waitlist or a recurring enrollment off. Forcing appointment-style bookings to pay for materialized sessions is pure waste — a hairdresser's calendar doesn't need a pre-generated row per possible minute. **Two shapes, one shared `Resource` concept underneath.**
 
-**Agenda vs. Turmas — the same fork, surfaced in the console.** The split isn't just a data-modeling concern; it shows up directly in what a staff member or manager sees day to day. `Booking`'s existing approval workflow (PENDING → APPROVED → COMPLETED) needs a queue to work through — that's `Agenda`, unchanged in shape, just resource-scoped now (§8). `ClassSessionBooking` never enters that queue at all: CAND-22 auto-confirms or auto-waitlists purely on capacity, with no human review step — so there is nothing for Agenda to show for the session family. `Turmas` is the equivalent daily-use surface for that family instead: not an approval queue, but a list of upcoming materialized sessions (CAND-13b) and each one's roster (CAND-15). The two nav items aren't redundant or competing for the same job — they're the same appointment/session fork, surfaced as two different screens rather than one screen straining to serve both. A tenant running only session-style services will find Agenda structurally empty; a tenant running only appointment-style services has no use for Turmas. Neither is a bug — it's the direct consequence of keeping the two families apart instead of forcing one queue to model both.
+**Agenda vs. Turmas — the same fork, surfaced in the console.** `Agenda` remains the private-appointment approval queue. `Turmas` is the session-family surface: it lists upcoming materialized sessions, holds a roster-level guest approval action where configured, and carries the post-session attendance task. Authenticated contract customers auto-confirm when capacity fits; verified guests are manual-approval or auto-approval according to the SERVICE guest policy. The two nav items are complementary rather than competing.
 
 ---
 
@@ -107,6 +119,8 @@ Service {
   legs:          ServiceLeg[] | null            -- mutually exclusive with resourceRequirements + durationMinutes; APPOINTMENT only
   bufferAfterMinutes: int | null                -- see §7; null on legged services (meaningless there); APPOINTMENT only
   classResourceSlots: ClassResourceSlot[] | null -- SESSION services only — see §6; added 2026-08-05
+  guestPolicy: SessionGuestPolicy | null         -- SESSION only: disabled/manual/auto guest access plus
+                                                  -- optional first-free-per-email policy
 }
 
 ResourceRequirement {
@@ -206,26 +220,30 @@ ClassScheduleTemplate {
 }
 
 ClassSession {                       -- materialized occurrence
-  sessionId, tenantId, templateId (nullable — null if ad-hoc, not template-generated)
+  sessionId, tenantId, templateId    -- always generated from a recurring template; ad-hoc sessions are out of scope
   serviceId
   resourceIds:  ResourceId[]        -- snapshot from template at generation time; can be overridden per-instance
   startTime, endTime
   capacity:     int                 -- snapshot from template; admin can override per-instance (e.g. cap today's class lower)
-  bookedCount:  int                 -- derived/maintained
-  status:       SCHEDULED | CANCELLED
+  reservedCount: int                -- CONFIRMED + PENDING_APPROVAL attendee seats, atomically maintained
+  status:       SCHEDULED | AWAITING_ATTENDANCE | CANCELLED | CLOSED
 }
 
 ClassSessionBooking {                     -- the session-style equivalent of Booking
-  classClassSessionBookingId, tenantId, sessionId
+  classSessionBookingId, tenantId, sessionId
   type:            GUEST | CUSTOMER  -- same BookingType enum as Booking
   customerId:      CustomerId | null -- null if guest
   contactEmail / contactName / contactPhone   -- mirrors Booking's contact fields exactly — corrected
                                                -- 2026-08-05, was the vague "customerId | guest-contact-fields"
                                                -- placeholder; needed so ClassSessionBookingCompleted's
                                                -- notification stays self-contained (bounded-contexts Rule 4)
-  quantity:     int                 -- default 1; multi-unit (model 12)
-  status:       CONFIRMED | WAITLISTED | CANCELLED | COMPLETED | NO_SHOW
+  quantity:     int                 -- number of named attendee rows. Contract customers always reserve 1;
+                                     -- verified guest/drop-in reservations may reserve a group.
+  status:       PENDING_EMAIL_VERIFICATION | PENDING_APPROVAL | CONFIRMED |
+                WAITLISTED | CANCELLED | CLOSED
   seriesId:     RecurringEnrollmentId | null
+  contractId:   ClassAccessContractId | null
+  paymentSource: CONTRACT | GUEST_TRIAL | IN_PERSON
 
   -- Snapshots, frozen at booking-request time. Same principle as BookingLine (§1) — a
   -- later Service edit must never retroactively change a past booking, and
@@ -237,10 +255,24 @@ ClassSessionBooking {                     -- the session-style equivalent of Boo
   pointsValueAtBooking:  int
 }
 
+ClassSessionAttendee {                 -- one immutable named seat, never just a quantity
+  attendeeId, tenantId, classSessionBookingId
+  name: String
+  customerId: CustomerId | null        -- set for the contract holder; guests remain contact-only
+  attendance: PRESENT | NO_SHOW | null -- null until the session is closed out
+}
+
 RecurringEnrollment {
   enrollmentId, tenantId, customerId, templateId
   startDate, endDate: Date | null   -- null = ongoing
   status:       ACTIVE | PAUSED | CANCELLED
+}
+
+ClassAccessContract {
+  contractId, tenantId, customerId
+  startsOn, endsOn                    -- inclusive, tenant-local dates
+  status: ACTIVE | CANCELLED | EXPIRED
+  eligibleServiceIds: ServiceId[]     -- e.g. CrossFit covers every CrossFit time/template
 }
 ```
 
@@ -266,15 +298,19 @@ Same `serviceId`, same recurrence, two independent `templateId`s — each genera
 
 **Capacity** lives on `ClassSession`, seeded from the template but instance-overridable — this is what makes model 13 (capacity as Service × Resource, not Resource alone) work: a personal trainer `Resource` can host a 1:1 `ClassSession` (capacity 1) and a group `ClassSession` (capacity 20) on the same underlying resource, because capacity is a property of the session/template, never the resource itself.
 
-**Waitlist**: once `bookedCount = capacity`, new `ClassSessionBooking`s get `status = WAITLISTED`. Queue position is FIFO by `createdAt`, derived at read time rather than stored and shifted on every promotion/cancellation — corrected 2026-08-05; a persisted `waitlistPosition` column was more bookkeeping than the requirement needs (`MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §6 item 8). On a `CONFIRMED` booking's cancellation, the earliest-queued `WAITLISTED` booking promotes automatically, with no response/decline step (§9 item 15). If a `WAITLISTED` booking is never promoted before its `ClassSession.endTime` passes, it's moot — a purely mechanical, no-judgment cleanup (`CAND-25b`) auto-cancels it, the same way `CAND-13`'s generator runs on a schedule with no human in the loop.
+**Capacity, guest approval, and waitlist**: `ClassSession.reservedCount` counts both `CONFIRMED` and capacity-holding `PENDING_APPROVAL` seats. A verified guest request is either `PENDING_APPROVAL` (manual guest-approval mode) or `CONFIRMED` (auto mode), and its named attendee rows are retained either way. Email-verification drafts and waitlist entries do not reserve capacity. Queue order is FIFO by `createdAt`, derived at read time rather than stored. When seats release, the system promotes the earliest entries that fit, repeatedly, without splitting a group: a customer becomes `CONFIRMED`; a manual-approval guest becomes `PENDING_APPROVAL`; an auto-approved guest becomes `CONFIRMED`. A waitlisted entry remaining after `ClassSession.endTime` is mechanically cancelled.
 
-**Cancellation.** Unlike `Booking`, which reuses the single tenant-wide `cancellationWindowHours` setting (`UC-007`), `ClassSessionBooking` gets its own `tenants.settings.booking.classCancellationWindowHours` (new setting, added 2026-08-05 — see `CAND-23b`) rather than sharing `cancellationWindowHours`: studios/gyms commonly enforce a materially different — often shorter — late-cancel window for a class than a car wash or salon enforces for a private appointment, and a capacity-constrained class with an active waitlist has a real cost to a late cancellation that a private 1:1 slot doesn't share the same way. Cancelling a `CONFIRMED` booking frees its `quantity` back to the session's capacity and triggers waitlist promotion exactly as a manager-initiated session cancellation already does (`CAND-15`). A booking with `seriesId != null` is *not* cancelled this way — skipping or ending a recurring occurrence is `CAND-27`/`CAND-28`'s job, which operate on the standing `RecurringEnrollment`, not a single occurrence in isolation.
+**Guest trials and payment**: only a verified guest may enter the guest path. A SESSION service chooses whether guests are disabled, manually approved, or auto-approved, and may offer one free trial per normalized email across the tenant. The first-free entitlement is atomically consumed when staff approves the reservation (rejection/cancellation before approval does not consume it; an approved no-show does). Every subsequent paid guest drop-in is paid in person and recorded at close-out; online billing is deliberately outside this discovery.
 
-**Attendance, completion, and no-show — deliberately staff-triggered, not a job.** `ClassSessionBooking` needs a terminal state for "this actually happened," the same way `Booking` reaches `COMPLETED` (`UC-009`) — but unlike `UC-009`'s one-booking-at-a-time "Mark Complete" click, a session can have up to `capacity` attendees, so requiring N individual clicks doesn't scale. Instead: the roster pre-marks every `CONFIRMED` booking as attended by default: staff flags only the exceptions (no-shows), then closes the session out in one batch action (`CAND-15b`) — everything still `CONFIRMED` becomes `COMPLETED`, flagged ones become `NO_SHOW`. This mirrors `UC-009`'s staff-driven pattern (not a scheduled job — attendance needs a human to observe it, unlike the mechanical waitlist cleanup above) while fitting the N-attendee shape session capacity actually has. `COMPLETED` publishes a candidate `ClassSessionBookingCompleted` event, mirroring `BookingCompleted`'s consumers (Loyalty inserts a `LoyaltyEntry` when `customerId != null`; Notification sends a "thanks for coming" message regardless — `docs/05-BOUNDED_CONTEXTS.md`).
+**Contracts**: an authenticated customer can book a SESSION only through one active, non-overlapping `ClassAccessContract` whose eligible service list contains that session's service and whose date range includes the session. A contract grants eligibility, not a standing seat: each booking still claims exactly one real seat. Cancelling a contract early automatically cancels its future contract-funded bookings and releases their seats.
 
-**Scope note — this puts `ClassSessionBooking` ahead of `Booking` on no-show tracking.** `UC-009` alt A1 explicitly marks `NO_SHOW` for `Booking` as *"future state, not in MVP"* — today's real system has no no-show tracking for either family. Deliberately building it for `ClassSessionBooking` here anyway: a no-show against a capacity-constrained class with an active waitlist wastes a spot a waitlisted customer could have used, and attendance/no-show is itself a real operating metric for a studio/gym business — the cost-benefit is different from a private 1:1 appointment's no-show, and this is a knowing scope choice, not an oversight.
+**Cancellation.** Class cancellation has no refund/credit workflow in this discovery: payments are collected only in person at close-out. Cancelling a future reservation frees its quantity and triggers the applicable waitlist transition; a guest asks staff to cancel, while an authenticated customer follows the applicable customer flow. A booking with `seriesId != null` is skipped/ended through its enrollment. A manager can cancel one session, a bounded range of occurrences, or every occurrence from a selected date forward; range cancellations are persistent template exceptions so the generator cannot recreate them. A closed-out session is not subsequently cancelled; financial/audit corrections are a future concern.
 
-**Recurring enrollment**: a process attaches a `ClassSessionBooking` to each upcoming `ClassSession` matching the enrollment's template, respecting capacity (or waitlisting) fresh each time — an enrollment is a *standing intent*, not a guarantee.
+**Attendance and close-out — deliberately staff-triggered, not guessed by a job.** At end time a session becomes `AWAITING_ATTENDANCE` and remains a visible Turmas task until staff closes it. The roster pre-marks every named attendee as present; staff flags the exceptions, then closes the session in one action. The parent booking becomes `CLOSED`; attendee rows hold the actual `PRESENT`/`NO_SHOW` result, so a guest group can have mixed attendance. A customer contract booking has exactly one attendee. Close-out records an in-person guest payment when due and publishes a candidate completion event for eligible customer loyalty/notification consumers.
+
+**Scope note — this puts attendee-level no-show tracking ahead of private appointments.** `UC-009` still treats appointment no-show as future state. Deliberately building it for class attendees: a capacity-constrained class needs an operational attendance record, especially for guest trials and contract usage.
+
+**Recurring enrollment**: a process attaches a `ClassSessionBooking` to each upcoming `ClassSession` matching the enrollment's template, respecting capacity (or waitlisting) fresh each time — an enrollment is a *standing intent*, not a guarantee. It is customer-only and its end date cannot exceed the qualifying contract's end date. When that contract ends or is cancelled, the enrollment ends too; a later contract requires the customer to opt in again rather than silently reviving a past standing request.
 
 **Multi-unit quantity**: `ClassSessionBooking.quantity` consumes N of the session's remaining capacity in one action, rather than requiring N separate bookings.
 
@@ -316,27 +352,32 @@ Effective gap before the next booking on a resource, for a flat (non-legged) ser
 | `Resource` | Generic bookable unit — `LOCATION`, `STAFF` (wraps `staffId`), `ROOM`, `EQUIPMENT` (owned outright). |
 | `ClassScheduleTemplate` | Session-style recurring pattern: service, resource bundle, recurrence, capacity. |
 | `ClassSession` | Materialized occurrence, generated on a rolling horizon; capacity/resources overridable per-instance. |
-| `ClassSessionBooking` | Session-style equivalent of `Booking`. `quantity` for multi-unit; `CONFIRMED\|WAITLISTED\|CANCELLED\|COMPLETED\|NO_SHOW`. |
-| `RecurringEnrollment` | Standing link between a customer and a template; generates a `ClassSessionBooking` per upcoming matching session. |
+| `ClassSessionBooking` | Reservation/contact and payment snapshot. Guest states include verification/approval; attendee-level results live in child rows. |
+| `ClassSessionAttendee` | One named seat per reservation, with individual `PRESENT`/`NO_SHOW` attendance. |
+| `RecurringEnrollment` | Customer-only standing link to a template; generates a `ClassSessionBooking` per matching session. |
+| `ClassAccessContract` | One non-overlapping customer contract, date-bounded and eligible for selected SESSION services. It grants booking eligibility, not a reserved seat. |
+| `ClassScheduleTemplateException` | Persistent bounded cancellation range that prevents future generation from recreating cancelled occurrences. |
 
 ---
 
-## 9. Open Questions / Risks
+## 9. Historical questions and final decisions
 
-1. **`LOCATION` resource backfill** — give every existing tenant an explicit `Resource` row at migration time (uniform model), or keep `resourceId = null` as a permanent legacy sentinel? Backfilling is consistent with the "no workarounds" principle but is a real migration decision, not a default to assume.
-2. **Does a `ClassSessionBooking` ever need admin approval**, or is it always auto-confirm/waitlist with no human in the loop? Changes the state machine shape (today's appointment `Booking` has PENDING/APPROVED/INFO_REQUESTED; a class booking plausibly doesn't need any of that).
+The numbered notes below preserve the earlier discovery trail and are not an implementation source. The following decisions now supersede the previously open items: LOCATION is backfilled; class bookings use guest verification/approval or customer contracts; capacity cannot be reduced below reserved seats; resource capacity ceilings exist; resource schedule configuration is manager-only; Staff deactivation deactivates its scheduling resource for new work; recurring enrollment is customer-only and ends with its qualifying contract; named-staff auto-assignment is least locked tenant-local-day workload then stable `resourceId`; waitlists are first-fitting; and session aggregates emit transactional-outbox events. The remaining deferred work is explicitly listed in §11.
+
+1. **Resolved — LOCATION is backfilled.** Every tenant receives one active `LOCATION` resource during migration; `resourceId = null` is not a legacy path.
+2. **Resolved — guest approval is service-configured.** Verified guests are `PENDING_APPROVAL` or `CONFIRMED` according to the guest policy; contract customers confirm when capacity fits.
 3. **Rolling-horizon window size** for `ClassSession` generation — how far ahead does the generator materialize sessions from an active template? **Resolved to a pure UX/cost tradeoff, not a correctness one (2026-08-04):** cross-family resource conflicts (§6) are caught by evaluating a template's recurrence rule directly, not by requiring a `ClassSession` row to exist — so this window no longer needs to match `maxBookingAdvanceDays` or any other correctness-driven size. What's still open is purely: too short risks customers unable to book far enough ahead; too long generates rows nobody will ever fill.
-4. **Lowering a `ClassSession`'s capacity below its current `bookedCount`** (an instance override) — what happens to the customers now over capacity? No clean answer without a business decision (bump to waitlist? grandfather them in?).
-5. **Cancelling a `ClassSession` that already has bookings** — refund policy, notification, whether affected customers get auto-offered another session. Same shape of question as #4 but triggered by the manager cancelling the whole session rather than shrinking it.
+4. **Resolved — capacity cannot drop below `reservedCount`.** Reject the edit; never silently demote or cancel confirmed/pending reservations.
+5. **Resolved — cancellation notifies customers.** No refund/credit workflow exists because payment is collected at close-out; a closed session cannot be cancelled.
 6. **Multi-location resource ownership** — ties directly to the open decision already logged in `CLAUDE.md` §12 ("Multiple locations per tenant = separate tenants or sub-tenant model?"). The `Resource` model should leave room for a location dimension later, not attempt to resolve §12 here.
 7. **SESSION-type services have no formal eligible-resource-pool concept.** Surfaced while prototyping a CrossFit template with three eligible instructors (Bruno/João/Fábio), visible on two resource types, not one: `manager-06-criar-turma.html`'s create-turma screen labels its Instrutor field "elegível para Pilates: Camila, Ana" and its Sala field "elegível para Pilates: Estúdio 1, Estúdio 2" — real UI text implying a pool that nothing in the schema declared at the time. **Resolved (2026-08-05, corrected same day):** first modeled as a pool scoped to each `ClassScheduleTemplate` — that turned out wrong on two counts: no CAND ever populated it, and it would force re-declaring the same "who can teach Pilates" list separately for every template of one service. Corrected to `Service.classResourceSlots` above — declared once per service, shared by every template of it, filled by the same eligibility checklist `CAND-06` already uses for the flat/APPOINTMENT case (`manager-02-service-resource-config.html`, extended to the SESSION branch). See `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §6 item 15 for the full correction.
-8. **`Resource` has no `maxCapacity`.** Nothing constrains a `ClassScheduleTemplate.capacity` against the physical size of the resource it uses — a manager could set `capacity: 50` for a class using a room that fits 4, with no validation catching it.
-9. **CAND-04's actor scoping.** Group A (Resource Management) is uniformly MANAGER-only, but blocking a `STAFF` resource's *own* calendar (a stylist marking herself unavailable) reads as a natural self-service action — unlike blocking a `ROOM`/`EQUIPMENT` resource, which has no self and stays administrative regardless. Not resolved; CAND-04 still says MANAGER-only.
-10. **CAND-17b's tie-breaking rule.** When a service auto-assigns a named staff member (`AUTO_ANY`) and more than one eligible staff member is free for the chosen slot, who gets picked — least-recently-booked, round robin, something else? Not decided.
-11. **Does deactivating a `Staff` row (UC-029, Staff Context) cascade to a wrapping `STAFF`-type `Resource` (CAND-03, Booking Context)?** Two independent deactivation entry points exist — one per context — with nothing wiring them together. `StaffDeactivated` currently has zero consumers in the real system; this would be its first. Surfaced while building `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §6 item 4. Not resolved.
-12. **Do `ClassSession`/`ClassSessionBooking` become full event-emitting aggregates, or stay plain entities published from the use case?** `ClassSessionBookingConfirmed`/`Waitlisted`/`Completed`, `WaitlistPromoted`, and `ClassSessionCancelled` are each triggered by a specific use-case call transitioning state — the same shape as `Booking`'s existing 3-aggregate transactional-outbox pattern (TD24-S02), which would mean `ClassSession`/`ClassSessionBooking` joining that fixed list and getting their own outbox-draining repositories. Surfaced while building `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §6 item 11. Not resolved — a real architectural commitment, not a detail.
-13. **CAND-25's "fit" policy when freed capacity < the next waitlisted entry's `quantity`.** Skip to the next entry that fits, or hold the capacity open for the one that's next in line? Centralized here 2026-08-05 — this was flagged only as an inline aside on `CAND-25` A1 and never promoted to this list, the exact scattering this document's own §9 is supposed to prevent (see item 7's history for why centralizing matters). Not resolved.
-14. **CAND-26's actor scope.** Is `RecurringEnrollment` realistically `Customer`-only, or does `Guest` genuinely need it too? A *standing* weekly booking needs something stable to keep attaching fresh occurrences to, which a guest's per-booking contact fields don't obviously provide. Centralized here 2026-08-05 from an inline aside on `CAND-26`. Not resolved.
+8. **Resolved — physical capacity ceilings exist.** `LOCATION`/`ROOM` and capacity-bearing `EQUIPMENT` may define `maxCapacity`; template/session capacity cannot exceed the lowest applicable ceiling.
+9. **Resolved — resource schedules are manager-only.** A staff absence-request workflow is separate future scope.
+10. **Resolved — named-staff AUTO_ANY uses least locked workload.** The stable tie-breaker is `resourceId`.
+11. **Resolved — Staff deactivation deactivates the wrapping STAFF resource for new scheduling.** Existing materialized sessions and approved appointments remain explicit commitments to resolve.
+12. **Resolved — session aggregates use the transactional outbox.** `ClassSession` and `ClassSessionBooking` are event-emitting aggregates with their own outbox-draining repositories.
+13. **Resolved — promotion is first-fitting.** The FIFO queue is scanned until an entry whose whole group fits is found; groups are never split.
+14. **Resolved — recurring enrollment is customer-only.** It ends with its qualifying contract and never resumes under a later contract without a new opt-in.
 15. **Resolved (2026-08-05): no waitlist-promotion response/decline window.** Considered adding one (a promoted customer gets N hours to confirm before the system moves to the next person in queue) — deliberately not adding it. `CAND-25` keeps its plain auto-confirm: this extension already commits to a real amount of new machinery (item 12 above), a response window would add a new state plus an expiry job on top of that, and today's booking flow has no accept-step for a fresh `PENDING` booking either, so auto-confirm is the more consistent default, not a shortcut. Revisit only if real-world waitlist abandonment turns out to be a problem once this ships.
 
 ---
@@ -353,16 +394,15 @@ The fix: a small set of **business-model presets** at onboarding — "Single res
 
 - **Time-varying resource/service eligibility** (e.g. a chair reserved for coloring only in the afternoon) — noted as a real pattern, not scoped in detail here.
 - **Multi-location resourcing** — deferred until `CLAUDE.md` §12's open decision resolves.
-- **Credit-passes and time-based memberships** — deferred; no `CreditPack`, `CreditRedemption`, or `MembershipSubscription` aggregate is built in this extension. Credit packs (e.g. "10-class pack") are the nearer-term wave the business wants next; time-based memberships (e.g. "unlimited monthly Pilates") are a second, later wave. Not scoped in detail here — but unlike the other two deferred items above, this one had to be actively checked for rework risk rather than just named and set aside, because both booking families this document builds (`BookingLine` and `ClassSessionBooking`) are exactly where a future purchase would be redeemed. See the extension-point note immediately below.
+- **Credit-passes** — deferred. Time-bounded class access is no longer deferred: this discovery includes `ClassAccessContract` for one customer's non-overlapping, date-bounded access to selected SESSION services. It is an entitlement record, not an online-billing implementation.
 
-### Extension point: why credit-passes/memberships need no rework here
+### Extension point: why future credit-passes need no rework here
 
 Checked deliberately (2026-08-05) — "deferred" must not silently mean "whoever builds this discovers a restructuring is needed":
 
-1. **`ClassSessionBooking.quantity` is already the redemption-count hook.** Spending 2 credits to bring a friend is structurally identical to today's `CAND-23` multi-unit booking (`quantity = 2`) — no new field is needed to express "how many units does this booking consume." A future `CreditPack` story adds a *source* for that quantity; it doesn't need a new shape for it.
-2. **The snapshot pattern already separates "quoted price" from "how it was actually paid."** `Booking` does this today — `totalPrice` (quoted) vs. `totalActualPrice` (what was actually charged, null until `COMPLETED`), plus `discountPointsUsed`/`discountAmount` as an optional loyalty-points redemption layered on top. A future credit-pack redemption is the same shape one layer over: `ClassSessionBooking.priceAtBooking` stays the quoted/list price no matter how it's eventually paid; a nullable `creditPackRedemptionId` (or a small `paymentSource: CASH | CREDIT_PACK | MEMBERSHIP` discriminator, default `CASH`) would be a pure **expand** migration on `class_session_bookings` — additive, nothing removed or retyped, every existing row defaults cleanly.
-3. **`RecurringEnrollment` is already the right neighborhood for "standing access."** A future `MembershipSubscription` (unlimited access for a period) is a sibling aggregate to `RecurringEnrollment`, not a replacement for it — both are `(tenantId, customerId, ...)` standing records checked at booking time. `RecurringEnrollment` generates a fresh booking per matching session from a fixed template; a membership would instead *waive the price* on any booking matching its scope during its active window. Different mechanism, same neighborhood — nothing about `RecurringEnrollment`'s current shape blocks adding `MembershipSubscription` beside it later.
-4. **No schema field is added anywhere in this document for either concept.** Building ahead of an actual scoped story is exactly the anti-pattern this codebase's engineering rules warn against (`CLAUDE.md` § "Mounting complexity is a signal to reconsider the approach"). This note exists so that when that story is actually scoped, it starts from "these are the three join points" instead of rediscovering them by re-reading every table in `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` from scratch.
+1. **A credit pack is a separate entitlement source.** It can later join a session booking beside `CONTRACT`, `GUEST_TRIAL`, and `IN_PERSON` payment sources without changing the attendee/capacity model.
+2. **A credit redemption must remain append-only and separately auditable.** It should not be represented by changing a booking's quoted price or mutating the access contract.
+3. **No credit-pack schema is introduced now.** The contract is in scope because it is the required access rule for authenticated customer session bookings; a credit pack is not.
 
 ---
 
@@ -370,4 +410,4 @@ Checked deliberately (2026-08-05) — "deferred" must not silently mean "whoever
 
 Full list, in the existing `docs/04-USE_CASES.md` field format (labeled `CAND-XX`, not `UC-XXX`, to avoid colliding with the canonical index): **`MULTI_VERTICAL_SCHEDULING_USECASES.md`**.
 
-37 candidates across six groups: resource management, service configuration, class/session management, appointment booking, class/session booking, and cross-cutting system behavior (six added after the original 31 — CAND-13b, CAND-17b, CAND-13c, CAND-15b, CAND-25b, and CAND-23b — each an enumeration gap found by cross-checking the prototypes against this list, by a direct question about manager oversight of multiple resources at once, by working through cross-family resource exclusivity and session attendance/no-show tracking as a domain interview, or — for `CAND-23b`, added 2026-08-05 — by a business-maturity review finding that the single most basic session-cancellation flow, a customer cancelling their own one-off class booking, had no use case at all). Several (session cancellation with existing bookings, capacity override below headcount) surfaced real open questions rather than just missing prose — see §9.
+43 candidates across seven groups: resource management, service configuration, class/session management, appointment booking, class/session booking, cross-cutting system behavior, and finalized contract/guest lifecycle. The final six add template-range cancellation, guest email verification/approval, class-access contracts, pending-request expiry, and individual-attendee close-out; the earlier discovery questions are now resolved in §9.

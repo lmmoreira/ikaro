@@ -28,6 +28,15 @@ Full model: `../MULTI_VERTICAL_SCHEDULING.md`. Full candidate use-case list: `..
 | `ServiceResourceConfigSection` | manager-02 | `PATCH /services/{id}` (new fields only) |
 | `ClassTemplateList` | manager-03 | `GET /class-templates` |
 | `ClassTemplateForm` | manager-06 | `POST /class-templates` |
+| `ClassAccessFlow` | public-06 | session availability + contract eligibility / guest verification request |
+| `AutoAssignedStaffSlotPicker` | public-07 | `GET /schedule/availability?serviceId=` then booking request with no staff choice |
+| `PublicStaffCalendar` | public-08 | `GET /resources/{id}/availability` |
+| `FungibleResourceSlotPicker` | public-09 | pooled-resource availability; no resource identity in response |
+| `ClassWaitlistStatus` | public-10 | `POST /class-sessions/{id}/waitlist` + reservation status read |
+| `GuestReservationApproval` | staff-06 | `POST /class-session-bookings/{id}/approve|reject` |
+| `ClassAccessContractForm` | manager-07 | `POST/DELETE /class-access-contracts` |
+| `ResourceScheduleControls` | manager-08 | resource hours/opening/closure/deactivation + template cancellation scope |
+| `ClassTemplateEditForm` | manager-11 | `PATCH /class-templates/{id}` |
 
 ## Cross-links to real, existing prototypes
 
@@ -95,8 +104,7 @@ A full pass cross-checking prototypes against all 31 candidates found:
 - Unhappy-path variants (loading/error/empty states) — none created. If this direction is promoted to a real `plan/journey/` prototype, those become mandatory per that folder's README.
 - A full "Serviços" or "Horários" list screen — sidebar/bottom-nav items not central to this discovery point to `#` placeholders.
 - Session-cancellation refund policy (staff-02) — still an open question, surfaced visibly on purpose (see discovery doc §9), not answered here.
-- CAND-12 (edit/deactivate a template) and CAND-02/04/05 (resource working-hours editor, resource-scoped closure/opening) — still no dedicated screens; lower priority than the four closed above since they're closer to today's existing settings-editor patterns and less novel.
-- CAND-23b (customer cancels a single one-off class booking, added 2026-08-05) — no dedicated screen yet either; same priority tier as CAND-12/CAND-02/04/05 above.
+- Full loading/error/empty variants remain intentionally out of scope for this discovery-stage folder. The core happy/unhappy business states are now represented by `public-06`, `staff-06`, `manager-07`, `manager-08`, and `customer-07`.
 - Credit-passes and time-based memberships — explicitly deferred; see `MULTI_VERTICAL_SCHEDULING.md` §11's extension-point note for why today's shape needs no rework to receive either, once that story is actually scoped.
 
 ## If this gets promoted to a real journey

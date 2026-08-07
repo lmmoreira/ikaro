@@ -43,7 +43,7 @@
 
     COMPONENT (GAP): ClassSessionList / ClassSessionCard
     BFF CALL (GAP): GET /class-sessions?serviceId=svc_pilates&from=2026-08-03&to=2026-08-10
-      Response: { sessionId, startsAt, endsAt, resourceNames: string[], capacity, bookedCount }[]
+      Response: { sessionId, startsAt, endsAt, resourceNames: string[], capacity, reservedCount }[]
   -->
 
   <div style="background:white;border-bottom:1px solid var(--ba-secondary);
@@ -84,14 +84,7 @@
           <div class="capacity-bar-track"><div class="capacity-bar-fill" style="width:50%;"></div></div>
           <p class="capacity-label open">2 de 4 vagas preenchidas — 2 vagas restantes</p>
 
-          <!-- CAND-23: one booking claiming N units, bounded by remaining capacity -->
-          <div class="qty-stepper">
-            <span style="font-size:0.8125rem;color:var(--ba-text);">Quantidade:</span>
-            <button class="qty-btn">−</button>
-            <span style="font-weight:700;">1</span>
-            <button class="qty-btn">+</button>
-            <span style="font-size:0.75rem;opacity:0.55;">(máx. 2 — vagas restantes)</span>
-          </div>
+          <p style="font-size:0.8125rem;margin-top:0.75rem;color:var(--ba-text);">Cliente com contrato reserva 1 vaga. Convidados podem pedir mais vagas, sempre com o nome de cada pessoa.</p>
           <!--
             CAND-26: opt into recurring enrollment. This links to the confirmation step
             (customer-01), not directly to a toggle here, because recurring enrollment
@@ -101,9 +94,7 @@
             cancel series) is customer-01 through customer-06.
           -->
           <p style="font-size:0.8125rem;margin-top:0.75rem;">
-            <a href="customer-01-session-confirmed-optin.html" style="color:var(--ba-primary);font-weight:600;text-decoration:none;">
-              Repetir esta turma toda semana →
-            </a>
+            <a href="customer-07-class-access.html" style="color:var(--ba-primary);font-weight:600;text-decoration:none;">Ver contrato e recorrência →</a>
           </p>
         </div>
       </li>
@@ -135,7 +126,7 @@
           <div class="capacity-bar-track"><div class="capacity-bar-fill full" style="width:100%;"></div></div>
           <p class="capacity-label full">4 de 4 vagas preenchidas — turma lotada</p>
           <div style="margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
-            <button class="btn-secondary" style="width:100%;text-align:center;">Entrar na fila de espera</button>
+            <a class="btn-secondary" href="public-10-waitlist.html" style="width:100%;text-align:center;">Entrar na fila de espera</a>
           </div>
         </div>
       </li>
@@ -144,11 +135,7 @@
 
     <div class="nav-buttons">
       <button class="btn-secondary" onclick="window.history.back()">Voltar</button>
-      <!--
-        Same confirmation screen as today's guest flow — only the summary card content
-        changes (session, not a generic time slot). No new confirmation UI needed.
-      -->
-      <a class="btn-primary" href="../../../../plan/journey/guest/prototypes/book-a-service/04-confirmation.html">Reservar</a>
+      <a class="btn-primary" href="public-06-class-access.html">Continuar</a>
     </div>
   </div>
 </body>

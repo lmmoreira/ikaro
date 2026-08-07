@@ -112,7 +112,7 @@
           <p style="font-size:0.875rem;font-weight:600;color:#15803d;">4 de 4 vagas preenchidas</p>
         </div>
 
-        <p class="section-card-title" style="margin-bottom:0.5rem;">Presença (3)</p>
+        <p class="section-card-title" style="margin-bottom:0.5rem;">Presença (4)</p>
         <p class="form-hint" style="margin-bottom:0.625rem;">Todos marcados como "Compareceu" por padrão — clique para marcar quem faltou (CAND-15b).</p>
         <div class="card" style="padding:0 1rem;margin-bottom:1.25rem;">
           <div class="attendee-row">
@@ -125,15 +125,29 @@
             <div style="flex:1;"><p style="font-weight:600;font-size:0.9375rem;">Roberta Dias</p></div>
             <button class="attend-toggle attended" onclick="toggleAttendance(this)">✓ Compareceu</button>
           </div>
-          <!-- Pre-flagged, demonstrating the exception case -->
+          <!-- Guest reservation remains one parent payment/approval decision, but attendance is individual. -->
           <div class="attendee-row no-show">
             <div class="list-avatar" style="width:2rem;height:2rem;font-size:0.75rem;background:#0891b2;">AB</div>
             <div style="flex:1;">
-              <p style="font-weight:600;font-size:0.9375rem;">Ana &amp; Bia (grupo)</p>
-              <p style="font-size:0.75rem;opacity:0.55;">1 reserva, 2 vagas — quantity=2</p>
+              <p style="font-weight:600;font-size:0.9375rem;">Ana Costa</p>
+              <p style="font-size:0.75rem;opacity:0.55;">Convidada · primeira aula gratuita</p>
+            </div>
+            <button class="attend-toggle attended" onclick="toggleAttendance(this)">✓ Compareceu</button>
+          </div>
+          <div class="attendee-row no-show">
+            <div class="list-avatar" style="width:2rem;height:2rem;font-size:0.75rem;background:#0891b2;">BS</div>
+            <div style="flex:1;">
+              <p style="font-weight:600;font-size:0.9375rem;">Bia Santos</p>
+              <p style="font-size:0.75rem;opacity:0.55;">Convidada · pagamento presencial R$ 60,00</p>
             </div>
             <button class="attend-toggle no-show" onclick="toggleAttendance(this)">✕ Não compareceu</button>
           </div>
+        </div>
+
+        <div class="card" style="margin-bottom:1.25rem;">
+          <p style="font-weight:600;font-size:0.9375rem;">Pagamento presencial</p>
+          <p style="font-size:0.75rem;opacity:0.55;margin-top:0.25rem;">Bia Santos · devido por presença</p>
+          <input class="form-input" value="60,00" aria-label="Valor recebido de Bia Santos" style="margin-top:0.625rem;">
         </div>
 
         <p class="section-card-title" style="margin-bottom:0.5rem;">Fila de espera (1)</p>
@@ -147,11 +161,13 @@
           </div>
         </div>
 
-        <button class="btn-primary" style="width:100%;padding:0.875rem;" onclick="alert('Presença fechada: 2 concluídos, 1 não compareceu (ClassSessionBookingCompleted x2)')">
+        <p style="font-size:0.75rem;opacity:0.55;margin-top:-0.75rem;margin-bottom:1.25rem;">Solicitações de convidado ainda pendentes também foram canceladas no início da turma; nenhuma vaga é promovida após esse momento.</p>
+
+        <button class="btn-primary" style="width:100%;padding:0.875rem;" onclick="alert('Presença fechada: 3 presentes, 1 falta; pagamento presencial registrado')">
           Fechar turma
         </button>
         <p style="font-size:0.75rem;opacity:0.5;margin-top:0.5rem;">
-          Concluídos geram pontos de fidelidade e notificação de agradecimento (mesmos consumidores de BookingCompleted). Não-comparecimentos não geram nenhum dos dois.
+          Apenas clientes com contrato e presença registrada geram fidelidade. Convidados recebem a confirmação pelo contato da reserva; não-comparecimentos não geram fidelidade.
         </p>
 
       </div>

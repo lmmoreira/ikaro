@@ -57,17 +57,17 @@ CAND-XX: [Name]
 - **Preconditions:** Resource exists and is active.
 - **Trigger:** Manager clicks "Deactivate" on a resource (e.g. a stylist leaves, equipment is retired).
 - **Main Flow:**
-  1. System checks for future `APPROVED` bookings/sessions referencing this resource.
-  2. If none, sets `isActive = false` immediately.
-  3. If some exist, manager is shown the list and must resolve them (reassign or cancel) before deactivation completes.
+  1. System shows future approved appointments and materialized sessions referencing this resource as explicit commitments.
+  2. System sets `isActive = false` immediately for new scheduling and stops future generation using the resource.
+  3. Manager receives a resolution worklist for the existing commitments; none is silently cancelled or demoted.
 - **Alternative Flows:**
-  - **A1: Resource is part of an active `ClassScheduleTemplate`'s bundle** → System blocks deactivation until the template is edited or deactivated first.
+  - **A1: Resource is part of an active `ClassScheduleTemplate`'s bundle** → System ends/deactivates that template for future generation and lists any materialized future sessions for resolution.
 - **Postconditions:** Resource no longer offered for new bookings; existing history intact.
 - **Events Triggered:** None.
 
 ### **CAND-04: Manager Creates a Resource-Scoped Schedule Closure**
 
-> Grounded on review (2026-07-29) against the real `plan/journey/staff/prototypes/horarios/00-schedule-next.html` — a per-tenant week timeline of bookings, whose FAB "Bloquear período" is exactly where today's tenant-wide `ScheduleClosure` gets created. This candidate is that same screen, resourceId-scoped instead of tenant-wide — see the discovery prototype's `staff-05-horarios-recurso.html` for a concrete extension. Open actor question surfaced by building it: should a STAFF-type resource's *own* calendar be self-service (the staff member blocking their own time) rather than this group's blanket MANAGER-only? A ROOM/EQUIPMENT resource has no self, so blocking those stays administrative either way — not resolved here, flagged rather than silently decided.
+> Grounded on review (2026-07-29) against the real `plan/journey/staff/prototypes/horarios/00-schedule-next.html` — a per-tenant week timeline of bookings, whose FAB "Bloquear período" is exactly where today's tenant-wide `ScheduleClosure` gets created. This candidate is that same screen, resourceId-scoped instead of tenant-wide. Resource working hours, openings, and closures remain manager-owned configuration; staff absence self-service is deliberately out of scope until it can be designed as a distinct request/approval workflow.
 
 - **Actor:** Staff (MANAGER)
 - **Preconditions:** Resource exists.
@@ -84,11 +84,11 @@ CAND-XX: [Name]
 ### **CAND-05: Manager Creates a Resource-Scoped Schedule Opening**
 
 - **Actor:** Staff (MANAGER)
-- **Preconditions:** Resource exists; the target day-of-week is closed in that resource's `workingHours` (or, if the resource has none, in tenant `businessHours`).
+- **Preconditions:** Resource exists; the target day is inside the tenant's recurring business-hours window and is closed only in the resource's own `workingHours`.
 - **Trigger:** Manager opens a normally-closed day for one resource only (e.g. a stylist takes an extra Saturday).
 - **Main Flow:** Same as today's tenant-wide `ScheduleOpening` (UC-010), with `resourceId` set.
 - **Alternative Flows:** Same as UC-010's.
-- **Postconditions:** Only that resource's calendar opens for the date; the rest of the tenant is unaffected.
+- **Postconditions:** Only that resource's calendar opens for the date, never outside the tenant’s effective hours; the rest of the tenant is unaffected.
 - **Events Triggered:** None.
 
 ---
@@ -218,8 +218,8 @@ CAND-XX: [Name]
   2. System creates a `ClassSession` per occurrence, snapshotting `resourceIds`/`capacity` from the template at generation time.
   3. Idempotency: a `(templateId, startTime)` uniqueness check prevents double-generation on retry.
 - **Alternative Flows:**
-  - **A1: A resource in the bundle is closed (resource-scoped `ScheduleClosure`) for that occurrence** → Session is not generated for that date, or generated as `CANCELLED` — needs a decision.
-  - **A2: A resource in the bundle already has an overlapping `APPROVED` `Booking`** (the appointment side won the race despite `CAND-29` step 4 — e.g. the booking was approved before this template even existed) → Session is not generated for that occurrence; same open-decision shape as A1 (generate as `CANCELLED` for visibility, or skip silently — not resolved here).
+  - **A1: A resource is closed or outside its current hours for that occurrence** → Session is not generated. Existing materialized sessions remain explicit commitments when a later schedule change makes them exceptional.
+  - **A2: A resource has an overlapping approved appointment** → Session generation is rejected by the shared occupancy constraint; manager resolves the already-existing commitment rather than creating an impossible session.
 - **Postconditions:** `ClassSession` rows exist far enough ahead for customers to book into.
 - **Events Triggered:** None.
 
@@ -231,7 +231,7 @@ CAND-XX: [Name]
 - **Preconditions:** At least one active `ClassScheduleTemplate` has generated future `ClassSession` rows.
 - **Trigger:** Staff/manager opens "Turmas."
 - **Main Flow:**
-  1. System lists upcoming `ClassSession`s grouped by day (today first, then upcoming days), each showing service name, time, resources, and `capacity - bookedCount`.
+  1. System lists upcoming `ClassSession`s grouped by day (today first, then upcoming days), each showing service name, time, resources, and `capacity - reservedCount` remaining seats.
   2. A filter defaults to "my turmas" for a STAFF viewer (sessions where one of their own `Resource`-wrapped rows is in `resourceIds`) vs. "all turmas" for a MANAGER viewer — same spirit as Agenda's queue scope.
   3. Selecting a session opens its roster (CAND-15's screen).
   4. A secondary link leads to the recurring-template CRUD (CAND-11/12) for setup, since that's a config action, not a daily one.
@@ -266,7 +266,7 @@ CAND-XX: [Name]
   2. System validates the new resource(s) are free for the window (if changed).
   3. System saves — this instance only; the template is untouched.
 - **Alternative Flows:**
-  - **A1: New capacity < current `bookedCount`** → **Open question** (discovery doc §9): no clean default — needs a business decision (bump excess to waitlist? grandfather them in?). Flagged, not resolved, in this candidate.
+  - **A1: New capacity < current `reservedCount`** → System rejects the edit. Staff must explicitly resolve reservations before reducing capacity; confirmed/pending guests are never silently demoted or cancelled.
 - **Postconditions:** This session reflects the override; future template-generated sessions are unaffected.
 - **Events Triggered:** None (unless resolving A1 requires notifying affected customers — see CAND-15's event).
 
@@ -278,29 +278,31 @@ CAND-XX: [Name]
 - **Main Flow:**
   1. Manager confirms cancellation.
   2. System sets `ClassSession.status = CANCELLED`.
-  3. System transitions every `CONFIRMED`/`WAITLISTED` `ClassSessionBooking` referencing it to `CANCELLED`.
+  3. System transitions every active (`PENDING_APPROVAL`, `CONFIRMED`, or `WAITLISTED`) `ClassSessionBooking` referencing it to `CANCELLED`.
   4. System publishes `ClassSessionCancelled` for Notification Context to inform affected customers.
 - **Alternative Flows:**
-  - **A1: Refund/credit policy for confirmed bookings** — **Open question** (discovery doc §9): not resolved here; likely tenant-configurable, same spirit as `cancellationWindowHours`.
+  - **A1: Financial treatment** → No refund/credit workflow exists in this discovery: guest payment is in person at close-out, and a closed-out session is not subsequently cancelled.
 - **Postconditions:** Session and its bookings cancelled; customers notified.
 - **Events Triggered:** `ClassSessionCancelled` (candidate event — not yet in `docs/03-DOMAIN_EVENTS.md`).
 
 ### **CAND-15b: Staff Closes Out a Class Session (Marks Attendance)**
 
-> Added on request (2026-08-05): `ClassSessionBooking` had no terminal state for "this actually happened" — its status enum stopped at `CONFIRMED | WAITLISTED | CANCELLED`, nothing like `Booking`'s `COMPLETED`. Deliberately staff-triggered rather than a scheduled job, unlike `CAND-13`'s generator: attendance needs a human to observe it, the same reason `UC-009` (`Booking`'s own completion) is a manual "Mark Complete" click, not a timer. The difference from `UC-009` is cardinality — a session can have up to `capacity` attendees, so the interaction is "everyone's pre-marked attended, flag the exceptions" instead of N individual clicks. See `MULTI_VERTICAL_SCHEDULING.md` §6 "Attendance, completion, and no-show" for the full reasoning, including why this deliberately puts `ClassSessionBooking` ahead of `Booking` on no-show tracking.
+> **Superseded by CAND-37.** Retained only for numbering continuity; CAND-37 is the authoritative attendee-level attendance and in-person-payment flow.
+
+> Historical rationale only. The final model is: parent reservations close as `CLOSED`; individual attendee rows carry `PRESENT`/`NO_SHOW`; close-out is staff-triggered and includes due in-person guest payment. See CAND-37.
 
 - **Actor:** Staff (STAFF or MANAGER)
 - **Preconditions:** `ClassSession.endTime` has passed; `status = SCHEDULED`.
 - **Trigger:** Staff opens the session's roster after it has happened to review attendance.
 - **Main Flow:**
-  1. Roster shows every `CONFIRMED` `ClassSessionBooking` pre-marked as attended by default.
-  2. Staff flags any customer who didn't show up.
+  1. Roster shows every named attendee from an active reservation pre-marked as attended by default.
+  2. Staff flags individual attendee exceptions; a guest group can have mixed attendance.
   3. Staff clicks a single close-out action (e.g. "Fechar turma").
-  4. System transitions every still-`CONFIRMED` booking to `COMPLETED` and every flagged booking to `NO_SHOW`, in one batch.
-  5. System publishes `ClassSessionBookingCompleted` per completed booking — mirrors `BookingCompleted`'s consumers (Loyalty inserts a `LoyaltyEntry` when `customerId != null`; Notification sends a "thanks for coming" message regardless, same as `UC-009` alt A4 for guest bookings).
+  4. System records attendee `PRESENT`/`NO_SHOW`, closes each parent reservation, and records any due in-person guest payment atomically.
+  5. System publishes `ClassSessionBookingCompleted` only for eligible attended contract customers.
 - **Alternative Flows:**
-  - **A1: Staff never closes out the session** → Bookings remain `CONFIRMED` indefinitely. **Open question:** no automatic fallback defined here — not resolved, flagged rather than silently assumed away.
-- **Postconditions:** Every booking on the session reaches a terminal state (`COMPLETED` or `NO_SHOW`); loyalty/notification events fire accordingly.
+  - **A1: Staff never closes out the session** → Session remains `AWAITING_ATTENDANCE` as a visible Turmas task; the system never guesses attendance.
+- **Postconditions:** Every parent reservation reaches `CLOSED`; attendee rows retain the individual outcome.
 - **Events Triggered:** `ClassSessionBookingCompleted` (candidate event, per booking — not yet in `docs/03-DOMAIN_EVENTS.md`).
 
 ---
@@ -351,7 +353,7 @@ CAND-XX: [Name]
   3. Customer picks a slot and submits; system assigns whichever eligible staff member is free for that exact window.
   4. Confirmation reveals the assigned staff member's name (unlike CAND-17, where no identity is ever shown).
 - **Alternative Flows:**
-  - **A1: More than one staff member is free for the chosen slot** → System needs a tie-breaking rule (least-recently-booked? round robin?) — not resolved here, a genuine open question alongside discovery doc §9.
+  - **A1: More than one staff member is free for the chosen slot** → System selects the eligible staff member with the least already-locked workload on that tenant-local day; `resourceId` is the stable tie-breaker.
 - **Postconditions:** Booking exists with a resolved `resourceAssignments` entry the customer did not choose.
 - **Events Triggered:** `BookingRequested`.
 
@@ -407,35 +409,35 @@ CAND-XX: [Name]
 - **Preconditions:** Service has `bookingModel = SESSION` with an active template generating sessions.
 - **Trigger:** Customer selects a class-type service.
 - **Main Flow:**
-  1. System lists upcoming `ClassSession`s for the service, each showing `capacity - bookedCount` remaining spots.
+  1. System lists upcoming `ClassSession`s for the service, each showing `capacity - reservedCount` remaining spots.
   2. Sessions at 0 remaining show "Full — join waitlist" instead of a book button.
 - **Alternative Flows:**
   - **A1: No upcoming sessions in range** → "No upcoming classes" shown; consistent with today's "no available slots" messaging.
 - **Postconditions:** None (read-only browse).
 - **Events Triggered:** None.
 
-### **CAND-22: Customer Books Into a Session (Single Unit)**
+### **CAND-22: Contract Customer Books Into a Session (Single Unit)**
 
-- **Actor:** Customer or Guest
-- **Preconditions:** `ClassSession` exists, `bookedCount < capacity`.
+- **Actor:** Customer
+- **Preconditions:** `ClassSession` exists, `reservedCount < capacity`, and Customer has an active ClassAccessContract covering the session's service/date.
 - **Trigger:** Customer clicks "Book" on a session with remaining capacity.
 - **Main Flow:**
   1. Customer confirms contact details (same guest/authenticated split as today's UC-001/UC-002).
-  2. System atomically checks `bookedCount < capacity` and creates `ClassSessionBooking(quantity=1, status=CONFIRMED)`, incrementing `bookedCount`.
+  2. System atomically checks `reservedCount < capacity` and creates the contract customer's one-seat `ClassSessionBooking(status=CONFIRMED)`, incrementing `reservedCount`.
   3. Confirmation shown/sent.
 - **Alternative Flows:**
   - **A1: Session fills between page load and submit (race)** → System re-checks capacity at write time; if now full, falls through to CAND-24 (waitlist) instead of failing outright.
 - **Postconditions:** `ClassSessionBooking` exists, `CONFIRMED`.
 - **Events Triggered:** `ClassSessionBookingConfirmed` (candidate event, mirrors `BookingRequested`'s role for Notification Context).
 
-### **CAND-23: Customer Books Multiple Units in One Action**
+### **CAND-23: Verified Guest Books Multiple Named Units in One Action**
 
-- **Actor:** Customer or Guest
-- **Preconditions:** Same as CAND-22; `capacity - bookedCount ≥ requested quantity`.
+- **Actor:** Guest
+- **Preconditions:** Guest path is enabled; guest has verified email; `capacity - reservedCount ≥ requested quantity`.
 - **Trigger:** Customer requests N spots in one checkout (e.g. "2 bikes, me + a friend").
 - **Main Flow:**
-  1. Customer sets quantity (bounded by remaining capacity).
-  2. System atomically checks remaining ≥ quantity, creates one `ClassSessionBooking(quantity=N)`, increments `bookedCount` by N.
+  1. Guest sets quantity (bounded by remaining capacity) and gives a name for every attendee.
+  2. After email verification, system atomically checks remaining ≥ quantity, creates one named-attendee guest reservation, and increments `reservedCount` by N when it enters `PENDING_APPROVAL` or `CONFIRMED`.
 - **Alternative Flows:**
   - **A1: Requested quantity exceeds remaining capacity** → System caps the selectable quantity in the UI to what's left; never offers an invalid N.
 - **Postconditions:** One `ClassSessionBooking` row consuming N units — distinct from N separate customer bookings filling the same class.
@@ -445,14 +447,14 @@ CAND-XX: [Name]
 
 > Added 2026-08-05 — this is the direct SESSION-family analog of `UC-007`, and until now the single most basic cancellation flow was entirely absent from this group: nothing let a customer cancel a plain `ClassSessionBooking` made via `CAND-22`/`CAND-23`. `CAND-27` only cancels *one occurrence of a `RecurringEnrollment`* (its precondition requires a `seriesId` to already exist) — Fernanda's booking (`sb_1`, `seriesId = null`, `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §2) had no cancellation path at all until this candidate. Introduces a new tenant setting, `tenants.settings.booking.classCancellationWindowHours`, deliberately separate from `Booking`'s own `cancellationWindowHours` — a studio/gym's late-cancel window for a class is commonly different, often shorter, than a private appointment's, and a capacity-constrained class with an active waitlist has a real cost a private 1:1 slot doesn't share the same way (see `MULTI_VERTICAL_SCHEDULING.md` §6 "Cancellation").
 
-- **Actor:** Customer or Guest (mirrors `CAND-22`/`CAND-23`'s booking actor — whoever could book it can cancel it)
+- **Actor:** Customer. Guests ask staff to cancel; they never self-cancel from the public/customer surface.
 - **Preconditions:** `ClassSessionBooking` exists, `status = CONFIRMED`, `seriesId = null` (a plain one-off booking — cancelling one occurrence of a *recurring* enrollment is `CAND-27`'s job; cancelling the whole enrollment is `CAND-28`'s). Time to `ClassSession.startTime` ≥ `tenants.settings.booking.classCancellationWindowHours`.
 - **Trigger:** Customer clicks "Cancelar" on an upcoming class booking (e.g. in "Minha Conta").
 - **Main Flow:**
   1. System validates `session.startTime − now() ≥ tenants.settings.booking.classCancellationWindowHours`. If not, returns error (A1).
   2. Customer sees confirmation: "Cancelar esta aula?"
   3. Customer confirms.
-  4. System transitions the booking `CONFIRMED → CANCELLED` and frees its `quantity` back to `ClassSession.bookedCount`.
+  4. System transitions the booking `CONFIRMED → CANCELLED` and frees its `quantity` back to `ClassSession.reservedCount`.
   5. System promotes the earliest-queued `WAITLISTED` booking on the same session, if any (`CAND-25`).
   6. System publishes `ClassSessionBookingCancelled` (candidate event, mirrors `BookingCancelled`).
   7. Customer sees success: "Sua vaga foi cancelada."
@@ -467,7 +469,7 @@ CAND-XX: [Name]
 ### **CAND-24: Customer Joins a Waitlist When a Session Is Full**
 
 - **Actor:** Customer or Guest
-- **Preconditions:** `ClassSession.bookedCount = capacity`.
+- **Preconditions:** `ClassSession.reservedCount = capacity`.
 - **Trigger:** Customer clicks "Join waitlist" on a full session.
 - **Main Flow:**
   1. System creates `ClassSessionBooking(status=WAITLISTED)`.
@@ -488,7 +490,7 @@ CAND-XX: [Name]
   3. Promotes it to `CONFIRMED` — no position bookkeeping to shift; queue order is derived at read time, never stored (§6 item 8 of the data-model doc).
   4. Publishes `WaitlistPromoted` for Notification Context.
 - **Alternative Flows:**
-  - **A1: Freed capacity < next waitlisted entry's `quantity`** → Skip to the next entry that fits, or hold the capacity open if none fit (matches a common "first that fits" queue policy). Centralized as an open question — `MULTI_VERTICAL_SCHEDULING.md` §9 item 13 — rather than left only here.
+  - **A1: Freed capacity < next waitlisted entry's `quantity`** → Skip it and continue in queue order until a fitting entry is found; never split a group. Continue promoting while another entry fits the remaining capacity.
   - **A2 (considered, deliberately not built): a response/decline window before promotion is final.** Promotion is immediate and unconditional — no "confirm within N hours or we move to the next person" step. Resolved 2026-08-05, `MULTI_VERTICAL_SCHEDULING.md` §9 item 15: keeps this extension's scope contained, and mirrors how today's booking flow also has no accept-step on a fresh booking.
 - **Postconditions:** Waitlisted customer becomes `CONFIRMED`; notified.
 - **Events Triggered:** `WaitlistPromoted` (candidate event).
@@ -508,17 +510,17 @@ CAND-XX: [Name]
 
 ### **CAND-26: Customer Enrolls in a Recurring Weekly Session**
 
-- **Actor:** Customer or Guest (likely Customer-only in practice, given the ongoing relationship — open question, centralized at `MULTI_VERTICAL_SCHEDULING.md` §9 item 14 rather than left only here)
-- **Preconditions:** Template exists and is active.
+- **Actor:** Customer
+- **Preconditions:** Customer has an active ClassAccessContract covering the template's SESSION service; template exists and is active. Enrollment cannot extend beyond the contract's inclusive end date.
 - **Trigger:** Customer opts into "book this every week" instead of a single session.
 - **Main Flow:**
   1. Customer confirms enrollment start date.
-  2. System creates `RecurringEnrollment(status=ACTIVE)`.
+  2. System creates `RecurringEnrollment(status=ACTIVE)` ending on or before the contract end date.
   3. For each upcoming matching `ClassSession` within the current generation horizon, system creates a `ClassSessionBooking(seriesId = enrollmentId)`, respecting capacity/waitlist per occurrence (CAND-22/CAND-24 rules apply per instance).
   4. As new sessions materialize (CAND-13), the enrollment attaches a fresh `ClassSessionBooking` to each.
 - **Alternative Flows:**
   - **A1: A given occurrence is full** → That occurrence's `ClassSessionBooking` is `WAITLISTED`, same as a one-off booking; the enrollment itself stays `ACTIVE`.
-- **Postconditions:** Standing enrollment exists; bookings appear automatically per occurrence.
+- **Postconditions:** Standing enrollment exists only for the qualifying-contract period; contract expiry/cancellation ends it and its future reservations. A later contract never revives it implicitly.
 - **Events Triggered:** None on the enrollment itself; each generated `ClassSessionBooking` triggers CAND-22/24's events.
 
 ### **CAND-27: Customer Cancels a Single Occurrence of a Recurring Enrollment**
@@ -586,3 +588,82 @@ CAND-XX: [Name]
   2. Overlapping candidate slots/occurrences are excluded or blocked.
 - **Postconditions:** A resource's exclusivity holds across service **and family** boundaries — the resource, not the service or the family, is the unit of exclusivity.
 - **Events Triggered:** None.
+
+---
+
+## Group G — Finalized contract, guest, and lifecycle rules
+
+> These candidates supersede the earlier discovery-stage assumptions that every session booking auto-confirms, that a group is only a `quantity`, or that recurring access can be guest-owned. They are the authoritative rules for CAND-12 through CAND-28.
+
+### **CAND-32: Manager Cancels Template Occurrences for a Date Range or From a Date Forward**
+
+- **Actor:** Staff (STAFF or MANAGER)
+- **Preconditions:** Template exists; selected dates are future dates.
+- **Trigger:** Manager needs to cancel one holiday range or stop a timetable from a future date.
+- **Main Flow:**
+  1. Manager chooses a bounded date range or “from this date forward.”
+  2. For a range, system creates a persistent `ClassScheduleTemplateException` so generation will not recreate those occurrences.
+  3. For “from” scope, system ends/deactivates the template at the preceding date.
+  4. System cancels every already-materialized affected future session, every active reservation on it, and its locked resource occupancy; customers are notified.
+- **Postconditions:** Earlier/history sessions remain intact; no affected future occurrence can be regenerated.
+- **Events Triggered:** `ClassSessionCancelled` per cancelled session, through the transactional outbox.
+
+### **CAND-33: Guest Verifies Email Before Requesting a Class Seat**
+
+- **Actor:** Guest
+- **Preconditions:** The SESSION service enables guest access.
+- **Trigger:** Guest enters contact details and one or more named attendees for a trial/drop-in.
+- **Main Flow:**
+  1. System stores a non-capacity-holding `PENDING_EMAIL_VERIFICATION` draft and emails a one-time verification link.
+  2. Guest verifies the address before token expiry.
+  3. System re-checks capacity. If it fits, the reservation becomes `PENDING_APPROVAL` for manual guest policy or `CONFIRMED` for auto policy; otherwise it becomes `WAITLISTED`.
+  4. Every requested seat has a named attendee row. The parent reservation is the single staff approval action.
+- **Alternative Flows:** An authenticated Customer without a qualifying contract cannot use this guest path to bypass contract-only access.
+- **Postconditions:** Only verified guest requests can reserve capacity.
+- **Events Triggered:** Candidate guest-verification/guest-reservation events through the outbox.
+
+### **CAND-34: Staff Approves or Rejects a Verified Guest Class Reservation**
+
+- **Actor:** Staff (STAFF or MANAGER)
+- **Preconditions:** Reservation is `PENDING_APPROVAL` and its guest policy is MANUAL.
+- **Main Flow:**
+  1. Staff reviews the reservation and its named attendees in the session roster.
+  2. Staff approves or rejects the reservation in one action.
+  3. On approval, a `FIRST_FREE_PER_EMAIL` entitlement is atomically consumed if still available; otherwise the reservation remains payable in person. The reservation becomes `CONFIRMED` without changing its already-reserved capacity.
+  4. On rejection, reservation becomes `CANCELLED`, releases its capacity, and triggers first-fitting waitlist promotion.
+- **Postconditions:** Guests are never silently auto-approved under a MANUAL policy.
+- **Events Triggered:** `ClassSessionBookingConfirmed` or `ClassSessionBookingCancelled`.
+
+### **CAND-35: Manager Creates or Cancels a Customer Class-Access Contract**
+
+- **Actor:** Staff (MANAGER)
+- **Preconditions:** Customer exists; the customer has no overlapping active contract.
+- **Main Flow:**
+  1. Manager selects customer, inclusive start/end dates, and eligible SESSION services (for example, CrossFit covers every CrossFit timetable).
+  2. System creates the contract. It grants booking eligibility but reserves no capacity itself.
+  3. An authenticated customer may book exactly one seat in any eligible session whose start date falls in the contract window; capacity then decides confirmation/waitlist normally.
+  4. If the manager cancels the contract early, system cancels every future booking funded by it, ends dependent recurring enrollments, and releases capacity.
+- **Alternative Flows:**
+  - **A1: Contract reaches its end date** → System expires it and ends dependent recurring enrollments. A later contract does not silently resume a previous enrollment; the customer opts in again.
+- **Postconditions:** One customer has at most one active contract at a time; service eligibility, not a single class timetable, defines access.
+- **Events Triggered:** Candidate contract-created/cancelled events; per-booking cancellation events for affected future reservations.
+
+### **CAND-36: System Expires Unresolved Guest Requests at Session Start**
+
+- **Actor:** System
+- **Preconditions:** A session has started and contains `PENDING_APPROVAL` guest reservations.
+- **Main Flow:** System cancels each unresolved guest reservation and attendee rows. It does not promote a waitlist after the class begins.
+- **Postconditions:** No unapproved guest seat persists into attendance.
+- **Events Triggered:** `ClassSessionBookingCancelled` as applicable.
+
+### **CAND-37: Staff Closes a Session With Individual Attendance and In-Person Payment**
+
+- **Actor:** Staff (STAFF or MANAGER)
+- **Preconditions:** Session has ended and is `AWAITING_ATTENDANCE`.
+- **Main Flow:**
+  1. Roster defaults every attendee to PRESENT; staff flags individual NO_SHOW exceptions.
+  2. Staff records the actual paid amount for each payable guest reservation; contract and approved-free-trial reservations have no payment due.
+  3. System closes attendee rows and parent reservations atomically, then marks the session `CLOSED`.
+  4. Eligible customer attendance publishes the candidate completion event for loyalty; notifications use the booking contact snapshot.
+- **Postconditions:** Attendance is never inferred by a timer. A session that reaches end time stays visibly `AWAITING_ATTENDANCE` until this action occurs.
+- **Events Triggered:** `ClassSessionBookingCompleted` for eligible customer attendance.

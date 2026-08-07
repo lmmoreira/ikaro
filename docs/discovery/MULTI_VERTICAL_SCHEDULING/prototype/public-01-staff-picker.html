@@ -77,25 +77,6 @@
 
     <ul style="display: flex; flex-direction: column; gap: 0.75rem; list-style: none; padding: 0;">
 
-      <!-- "Any available" — CAND-17b (system-auto-assigned named staff), shown here as an
-           opt-in choice within a CUSTOMER_CHOICE picker rather than CAND-17b's stricter
-           "no picker at all" flow. Staff still has a name once booked, unlike a truly
-           fungible pool (courts/bays, CAND-17) where no identity is ever shown. -->
-      <li>
-        <label class="card staff-card">
-          <input type="radio" name="staff" style="width:1.125rem;height:1.125rem;">
-          <div class="staff-avatar any-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-            </svg>
-          </div>
-          <div style="flex:1;">
-            <p class="staff-name">Qualquer profissional disponível</p>
-            <p class="staff-meta">Reserva mais rápida — combinamos com quem estiver livre</p>
-          </div>
-        </label>
-      </li>
-
       <!-- Named staff, selected — CAND-16 -->
       <li>
         <label class="card selected staff-card">

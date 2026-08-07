@@ -57,13 +57,10 @@
     editor is a different, simpler settings screen this file doesn't represent; see
     manager-04's "Usar horário padrão do negócio" toggle for that separate concept.
 
-    Actor question surfaced by building this concretely: should blocking a STAFF
-    resource's OWN calendar be self-service (the stylist herself, like this screen
-    shows) rather than Group A's blanket "MANAGER only"? A room or piece of equipment
-    has no self — blocking THOSE stays a manager action either way. Not resolved in
-    CAND-04's text yet; flagged here rather than silently decided.
+    Resource schedule configuration remains MANAGER-only. Staff absence self-service
+    is separate future scope, not an implicit exception to resource administration.
 
-    COMPONENT (GAP): ScheduleGrid, extended with a resourceId prop
+    COMPONENT (GAP): ManagerResourceScheduleGrid, extended with a resourceId prop
     BFF CALL (GAP): GET /bookings?resourceId=res_staff_camila&from=2026-08-03&to=2026-08-09
   -->
 
