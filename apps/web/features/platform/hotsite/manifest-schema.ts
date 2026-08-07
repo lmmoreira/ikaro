@@ -14,9 +14,20 @@ export interface ManifestDraft {
   readonly seo: HotsiteSeoResponse;
 }
 
+// One reason per distinct failure `parseManifestJson` can detect — ManifestTab maps `code` to a
+// localized message (interpolating `max`/`moduleType` where present) instead of showing one
+// generic string for every failure.
+export type ManifestParseErrorReason =
+  | { readonly code: 'invalidSyntax' }
+  | { readonly code: 'invalidStructure' }
+  | { readonly code: 'tooManyModules'; readonly max: number }
+  | { readonly code: 'unknownModuleType'; readonly moduleType: string }
+  | { readonly code: 'duplicateModuleType'; readonly moduleType: string }
+  | { readonly code: 'invalidModuleData'; readonly moduleType: string };
+
 export type ManifestParseResult =
   | { readonly success: true; readonly value: ManifestDraft }
-  | { readonly success: false; readonly error: string };
+  | { readonly success: false; readonly error: string; readonly reason: ManifestParseErrorReason };
 
 // Structural only — every field's primitive TYPE from HotsiteBrandingResponse, not the deeper
 // business rules (hex format, specific enum members, length caps) that @ikaro/validation's
@@ -71,49 +82,69 @@ type LayoutModuleEnvelope = z.infer<typeof LayoutModuleEnvelopeSchema>;
 // or duplicate type breaks the *client* immediately once Aplicar merges it into `draft` —
 // LayoutTab/ModuleConfigShell key their rows and dnd-kit ids by `type`, and
 // HotsiteEditor.MODULE_CONFIG_PANELS[type] would be undefined for anything outside the known 8.
-function validateLayoutModules(layout: readonly LayoutModuleEnvelope[]): string | null {
+function validateLayoutModules(
+  layout: readonly LayoutModuleEnvelope[],
+): ManifestParseErrorReason | null {
   if (layout.length > MODULE_ORDER.length) {
-    return `layout must have at most ${MODULE_ORDER.length} modules`;
+    return { code: 'tooManyModules', max: MODULE_ORDER.length };
   }
   const seenTypes = new Set<string>();
   for (const module of layout) {
     if (!MODULE_TYPE_SET.has(module.type)) {
-      return `unknown module type "${module.type}"`;
+      return { code: 'unknownModuleType', moduleType: module.type };
     }
     if (seenTypes.has(module.type)) {
-      return `duplicate module type "${module.type}"`;
+      return { code: 'duplicateModuleType', moduleType: module.type };
     }
     seenTypes.add(module.type);
     if (!isValidModuleData(module.type as HotsiteModuleType, module.data)) {
-      return `invalid data for module "${module.type}"`;
+      return { code: 'invalidModuleData', moduleType: module.type };
     }
   }
   return null;
 }
 
-// One error string, first failure only — this is a client-side pre-flight sanity check before
-// Aplicar merges the edit into `draft`, not a full form-validation UI with per-field messages.
-// The caller (ManifestTab) shows a single static translated message on any failure; `error` here
-// is plain English for tests/debugging, not end-user copy.
+// `error` stays plain English for tests/debugging (see the comment on `parseManifestJson` below);
+// `reason` is what the UI actually renders, via ManifestTab's localized lookup.
+function describeReason(reason: ManifestParseErrorReason): string {
+  switch (reason.code) {
+    case 'invalidSyntax':
+      return 'invalid JSON syntax';
+    case 'invalidStructure':
+      return 'JSON does not match the expected { branding, layout, seo } structure';
+    case 'tooManyModules':
+      return `layout must have at most ${reason.max} modules`;
+    case 'unknownModuleType':
+      return `unknown module type "${reason.moduleType}"`;
+    case 'duplicateModuleType':
+      return `duplicate module type "${reason.moduleType}"`;
+    case 'invalidModuleData':
+      return `invalid data for module "${reason.moduleType}"`;
+  }
+}
+
+// One reason, first failure only — this is a client-side pre-flight sanity check before Aplicar
+// merges the edit into `draft`, not a full form-validation UI with per-field messages. The caller
+// (ManifestTab) maps `reason.code` to a localized message; `error` is plain English for
+// tests/debugging, not end-user copy.
 export function parseManifestJson(raw: string): ManifestParseResult {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch {
-    return { success: false, error: 'invalid JSON syntax' };
+    const reason: ManifestParseErrorReason = { code: 'invalidSyntax' };
+    return { success: false, error: describeReason(reason), reason };
   }
 
   const shapeResult = ManifestShapeSchema.safeParse(parsed);
   if (!shapeResult.success) {
-    return {
-      success: false,
-      error: 'JSON does not match the expected { branding, layout, seo } structure',
-    };
+    const reason: ManifestParseErrorReason = { code: 'invalidStructure' };
+    return { success: false, error: describeReason(reason), reason };
   }
 
   const layoutError = validateLayoutModules(shapeResult.data.layout);
   if (layoutError) {
-    return { success: false, error: layoutError };
+    return { success: false, error: describeReason(layoutError), reason: layoutError };
   }
 
   return {

@@ -53,7 +53,11 @@ describe('parseManifestJson', () => {
   it('rejects invalid JSON syntax', () => {
     const result = parseManifestJson('{ branding: not valid json');
 
-    expect(result).toEqual({ success: false, error: 'invalid JSON syntax' });
+    expect(result).toEqual({
+      success: false,
+      error: 'invalid JSON syntax',
+      reason: { code: 'invalidSyntax' },
+    });
   });
 
   it('rejects a manifest missing a required branding field', () => {
@@ -62,6 +66,8 @@ describe('parseManifestJson', () => {
     const result = parseManifestJson(manifestJson({ branding: brandingWithoutPrimaryColor }));
 
     expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.reason).toEqual({ code: 'invalidStructure' });
   });
 
   it('rejects a branding field with the wrong primitive type', () => {
@@ -100,7 +106,11 @@ describe('parseManifestJson', () => {
       manifestJson({ layout: [{ type: 'UNKNOWN', enabled: true, data: {} }] }),
     );
 
-    expect(result).toEqual({ success: false, error: 'unknown module type "UNKNOWN"' });
+    expect(result).toEqual({
+      success: false,
+      error: 'unknown module type "UNKNOWN"',
+      reason: { code: 'unknownModuleType', moduleType: 'UNKNOWN' },
+    });
   });
 
   it('rejects a layout with a duplicate module type', () => {
@@ -108,7 +118,11 @@ describe('parseManifestJson', () => {
       manifestJson({ layout: [VALID_HERO_MODULE, VALID_HERO_MODULE] }),
     );
 
-    expect(result).toEqual({ success: false, error: 'duplicate module type "HERO"' });
+    expect(result).toEqual({
+      success: false,
+      error: 'duplicate module type "HERO"',
+      reason: { code: 'duplicateModuleType', moduleType: 'HERO' },
+    });
   });
 
   it('rejects a layout with more than 8 modules', () => {
@@ -122,7 +136,11 @@ describe('parseManifestJson', () => {
       JSON.stringify({ branding: VALID_BRANDING, layout: nineModules, seo: VALID_SEO }),
     );
 
-    expect(result).toEqual({ success: false, error: 'layout must have at most 8 modules' });
+    expect(result).toEqual({
+      success: false,
+      error: 'layout must have at most 8 modules',
+      reason: { code: 'tooManyModules', max: 8 },
+    });
   });
 
   it("rejects a module whose data fails that module type's own schema", () => {
@@ -132,7 +150,11 @@ describe('parseManifestJson', () => {
       }),
     );
 
-    expect(result).toEqual({ success: false, error: 'invalid data for module "HERO"' });
+    expect(result).toEqual({
+      success: false,
+      error: 'invalid data for module "HERO"',
+      reason: { code: 'invalidModuleData', moduleType: 'HERO' },
+    });
   });
 
   it('ignores extra top-level keys instead of rejecting them', () => {
