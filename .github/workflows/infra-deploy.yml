@@ -250,6 +250,7 @@ jobs:
         env:
           TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
           TF_VAR_brevo_smtp_login: ${{ secrets.BREVO_SMTP_LOGIN }}
+          TF_VAR_notification_email: ${{ vars.NOTIFICATION_EMAIL }}
         run: |
           terraform init -input=false -lockfile=readonly
           terraform plan -input=false -no-color -lock-timeout=60s -out=tfplan
@@ -358,6 +359,7 @@ jobs:
         env:
           TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
           TF_VAR_brevo_smtp_login: ${{ secrets.BREVO_SMTP_LOGIN }}
+          TF_VAR_notification_email: ${{ vars.NOTIFICATION_EMAIL }}
           # Genuine credential (Cloudflare API token) — Terraform's own
           # `sensitive = true` on this variable redacts it from *rendered*
           # plan output (terraform show, CLI text) and GitHub also masks
@@ -556,6 +558,7 @@ jobs:
         env:
           TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
           TF_VAR_brevo_smtp_login: ${{ secrets.BREVO_SMTP_LOGIN }}
+          TF_VAR_notification_email: ${{ vars.NOTIFICATION_EMAIL }}
         run: |
           terraform init -input=false -lockfile=readonly
           terraform apply -input=false -lock-timeout=60s -auto-approve
@@ -614,6 +617,7 @@ jobs:
         env:
           TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
           TF_VAR_brevo_smtp_login: ${{ secrets.BREVO_SMTP_LOGIN }}
+          TF_VAR_notification_email: ${{ vars.NOTIFICATION_EMAIL }}
           TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           terraform init -input=false -lockfile=readonly
@@ -680,6 +684,7 @@ jobs:
         env:
           TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
           TF_VAR_brevo_smtp_login: ${{ secrets.BREVO_SMTP_LOGIN }}
+          TF_VAR_notification_email: ${{ vars.NOTIFICATION_EMAIL }}
         run: |
           trap 'rm -f tfplan' EXIT
           terraform init -input=false -lockfile=readonly
@@ -751,6 +756,7 @@ jobs:
         env:
           TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
           TF_VAR_brevo_smtp_login: ${{ secrets.BREVO_SMTP_LOGIN }}
+          TF_VAR_notification_email: ${{ vars.NOTIFICATION_EMAIL }}
           TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           trap 'rm -f tfplan' EXIT
@@ -845,6 +851,7 @@ jobs:
         env:
           TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
           TF_VAR_brevo_smtp_login: ${{ secrets.BREVO_SMTP_LOGIN }}
+          TF_VAR_notification_email: ${{ vars.NOTIFICATION_EMAIL }}
         run: |
           terraform init -input=false -lockfile=readonly
           terraform plan -input=false -no-color -lock-timeout=60s -detailed-exitcode
@@ -923,6 +930,7 @@ jobs:
         env:
           TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
           TF_VAR_brevo_smtp_login: ${{ secrets.BREVO_SMTP_LOGIN }}
+          TF_VAR_notification_email: ${{ vars.NOTIFICATION_EMAIL }}
           TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           terraform init -input=false -lockfile=readonly

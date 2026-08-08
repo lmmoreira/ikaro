@@ -475,6 +475,56 @@ module "scheduler" {
   outbox_relay_schedule = var.outbox_relay_schedule
 }
 
+# Dashboards, alerts & uptime checks as code (M17-S35, narrowed 2026-08-08 —
+# see plan/M17-CLOUD-DEPLOY.md's M17-S35 section for the split rationale and
+# for why prod's uptime checks are written now but their "verify green"
+# acceptance criterion is deferred to post-S37, mirroring module.edge's own
+# established count-gating pattern below).
+#
+# database_instance_name: try(...) against module.database[0], same pattern
+# as this file's other database-output references — empty string (skip the
+# SQL alert policies) until S37 flips enable_database=true.
+#
+# uptime_checks: empty map until var.enable_edge=true — bff.ikaro.online/
+# ikaro.online don't resolve before S37's edge apply, and an uptime check
+# against a non-resolving domain would immediately and perpetually fire the
+# failure alert from the moment it's created. enable_edge/enable_database
+# are already enforced to flip together (variables.tf validation), so this
+# reuses that same signal rather than inventing a second prod-only flag.
+module "monitoring" {
+  source = "../../modules/monitoring"
+
+  project_id  = var.project_id
+  environment = var.environment
+  region      = var.region
+  labels      = var.labels
+
+  notification_email = var.notification_email
+
+  cloud_run_services = {
+    backend = { service_name = module.cloudrun_backend.service_name, max_instance_count = var.backend_max_instances }
+    bff     = { service_name = module.cloudrun_bff.service_name, max_instance_count = var.bff_max_instances }
+    # web has no explicit max_instances override in this env — matches
+    # modules/cloudrun-service's own var.max_instance_count default (100).
+    web = { service_name = module.cloudrun_web.service_name, max_instance_count = 100 }
+  }
+
+  database_instance_name = try(module.database[0].instance_name, "")
+
+  uptime_checks = var.enable_edge ? {
+    bff = {
+      host    = "bff.${local.root_domain}"
+      path    = "/v1/health/ready"
+      use_ssl = true
+    }
+    web = {
+      host    = local.root_domain
+      path    = "/api/health/live"
+      use_ssl = true
+    }
+  } : {}
+}
+
 # Prod-only (D8): single Artifact Registry backing both envs. The one
 # Terraform-external prerequisite is documented in modules/registry's
 # variables and the story's Dependencies note — ikaro-tf-deployer@ikaro-prod
