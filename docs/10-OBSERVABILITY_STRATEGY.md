@@ -803,13 +803,23 @@ exporters:
 
 ---
 
-## Grafana Dashboards
+## Dashboards
 
-> **Superseded — see the file-level banner above.** No Grafana instance is deployed. M17-S35 (Cloud Monitoring dashboards as Terraform-provisioned JSON, `infra/terraform/modules/monitoring`) implements the real replacement as of 2026-08-08 — one dashboard per env with request rate/latency/5xx per service, instance counts, SQL connections/CPU, and Pub/Sub oldest-unacked-age/DLQ depths. Traces remain viewable ad hoc via Cloud Trace's own Trace Explorer in the GCP Console; logs via Cloud Logging's Logs Explorer.
+> **Historical section below (`### Superseded Grafana design`) — see the file-level banner above for why.** M17-S35 (`infra/terraform/modules/monitoring`, 2026-08-08) implements the real, live mechanism: one Cloud Monitoring dashboard per env, provisioned as Terraform (`google_monitoring_dashboard`), not JSON files auto-loaded by a Grafana instance that doesn't exist.
 
-Dashboards are **version-controlled as JSON** in the repo and auto-provisioned by Grafana on startup — never created manually in the UI.
+**Deliberately not duplicated here as a hand-maintained table** — a dashboard-tile inventory drifts the moment someone edits the Terraform locals, the same failure mode already caught once in this repo for `docs/13-DATABASE_SCHEMA.md` (6 tables found stale during a `/docs-audit` sweep). The module's own `main.tf` locals (`service_widgets`, `latency_widgets`, `instance_count_widgets`, `sql_widgets`, `pubsub_widgets`) are the single source of truth for exactly which tiles exist. Current categories, by name only:
 
-### Dashboard inventory
+- Per Cloud Run service (backend/bff/web): request rate/5xx, p99 latency, instance count
+- Cloud SQL: connections, CPU (only once a database exists — count-gated on `database_instance_name`)
+- Pub/Sub: oldest unacked message age (live queues), DLQ depth (dead-letter queues)
+
+View live: Cloud Monitoring console → Dashboards, or via `terraform output dashboard_id` in `envs/<env>` (see that output's own description for the console URL format).
+
+### Superseded Grafana design
+
+Kept for historical reference only — not a currently-usable feature.
+
+Dashboards were originally meant to be **version-controlled as JSON** in the repo and auto-provisioned by Grafana on startup.
 
 | File | Dashboard | Panels |
 |---|---|---|
@@ -850,11 +860,27 @@ providers:
 
 ---
 
-## Alerting Rules (Email)
+## Alerting Rules
 
-> **Superseded — see the file-level banner above.** No Grafana alerting is deployed. M17-S35 (Cloud Monitoring alert policies as Terraform — uptime checks, 5xx rate, latency, DLQ depth, outbox backlog, ERROR bursts, collector export failures) implements the real replacement as of 2026-08-08 (`infra/terraform/modules/monitoring`, PR #331).
+> **Historical section below (`### Superseded Grafana design`) — see the file-level banner above for why.** M17-S35 (`infra/terraform/modules/monitoring`, 2026-08-08) implements the real, live mechanism: Cloud Monitoring alert policies as Terraform (`google_monitoring_alert_policy`), notifying a single shared email channel — not Grafana's alerting engine, which doesn't exist here.
 
-All alerting rules are **provisioned as code** — never create alerts manually in the Grafana UI.
+**Deliberately not duplicated here as a hand-maintained threshold table**, same reasoning as the Dashboards section above — thresholds are variables in the module (`variables.tf`), each with a documented rationale in its own `description`, and every policy resource carries a `documentation.content` block readable directly in the Cloud Monitoring console. That's the single source of truth; a copy here would drift the first time a threshold gets tuned. Current alert categories, by name only:
+
+- Uptime failure (per uptime check)
+- Cloud Run 5xx rate, p99 latency, instance-count-stuck-at-max (per service)
+- Cloud SQL disk/CPU (only once a database exists)
+- DLQ has undelivered messages (any DLQ, regex-matched — not enumerated per-topic)
+- ERROR-level log burst
+- Outbox relay backlog age (TD24-S05 cross-reference)
+- OTel collector export failures above baseline (M17-S34 follow-up)
+
+Notification behavior (what actually happens when one fires): a single email on incident open, silence while it stays open, a single email on resolution — GCP's bare defaults, since no policy in `main.tf` currently sets `alert_strategy.notification_rate_limit`/`auto_close`. Add those there directly if a policy ever needs periodic re-reminders or a shorter auto-close window.
+
+### Superseded Grafana design
+
+Kept for historical reference only — not a currently-usable feature.
+
+All alerting rules were originally meant to be **provisioned as code** — never created manually in the Grafana UI.
 
 ```yaml
 # infrastructure/observability/grafana/provisioning/alerting/rules.yml

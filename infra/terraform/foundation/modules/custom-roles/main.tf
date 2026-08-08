@@ -199,6 +199,38 @@ locals {
     "compute.urlMaps.use",
     "compute.zones.get",
     "compute.zones.list",
+    # Added M17-S35 (2026-08-08, incident): the module.monitoring Terraform
+    # module (dashboards/alerts/uptime checks/log-based metrics) shipped
+    # without tf-deployer having any monitoring.*/logging.* permission —
+    # the first real staging apply after merge failed on every resource
+    # type below with a 403. Full CRUD (not just create) so a later plan
+    # can also detect drift and this role never needs re-touching for an
+    # in-place update to any of these resources.
+    "logging.logMetrics.create",
+    "logging.logMetrics.delete",
+    "logging.logMetrics.get",
+    "logging.logMetrics.list",
+    "logging.logMetrics.update",
+    "monitoring.alertPolicies.create",
+    "monitoring.alertPolicies.delete",
+    "monitoring.alertPolicies.get",
+    "monitoring.alertPolicies.list",
+    "monitoring.alertPolicies.update",
+    "monitoring.dashboards.create",
+    "monitoring.dashboards.delete",
+    "monitoring.dashboards.get",
+    "monitoring.dashboards.list",
+    "monitoring.dashboards.update",
+    "monitoring.notificationChannels.create",
+    "monitoring.notificationChannels.delete",
+    "monitoring.notificationChannels.get",
+    "monitoring.notificationChannels.list",
+    "monitoring.notificationChannels.update",
+    "monitoring.uptimeCheckConfigs.create",
+    "monitoring.uptimeCheckConfigs.delete",
+    "monitoring.uptimeCheckConfigs.get",
+    "monitoring.uptimeCheckConfigs.list",
+    "monitoring.uptimeCheckConfigs.update",
     "pubsub.subscriptions.create",
     "pubsub.subscriptions.delete",
     "pubsub.subscriptions.get",

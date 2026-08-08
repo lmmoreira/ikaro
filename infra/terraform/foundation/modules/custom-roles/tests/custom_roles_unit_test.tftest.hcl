@@ -33,7 +33,7 @@ run "roles_have_exactly_the_reviewed_permissions" {
   }
 
   assert {
-    condition     = google_project_iam_custom_role.normal_infrastructure_deployer.role_id == "tfNormalInfrastructureDeployer" && length(google_project_iam_custom_role.normal_infrastructure_deployer.permissions) == 162 && alltrue([for permission in ["artifactregistry.repositories.create", "certificatemanager.certs.create", "cloudsql.instances.update", "compute.networks.create", "pubsub.topics.create", "run.services.update", "secretmanager.secrets.create", "servicenetworking.services.addPeering", "storage.buckets.update"] : contains(tolist(google_project_iam_custom_role.normal_infrastructure_deployer.permissions), permission)])
+    condition     = google_project_iam_custom_role.normal_infrastructure_deployer.role_id == "tfNormalInfrastructureDeployer" && length(google_project_iam_custom_role.normal_infrastructure_deployer.permissions) == 187 && alltrue([for permission in ["artifactregistry.repositories.create", "certificatemanager.certs.create", "cloudsql.instances.update", "compute.networks.create", "logging.logMetrics.create", "monitoring.alertPolicies.create", "monitoring.dashboards.create", "monitoring.notificationChannels.create", "monitoring.uptimeCheckConfigs.create", "pubsub.topics.create", "run.services.update", "secretmanager.secrets.create", "servicenetworking.services.addPeering", "storage.buckets.update"] : contains(tolist(google_project_iam_custom_role.normal_infrastructure_deployer.permissions), permission)])
     error_message = "The normal deployer role must cover every reviewed ordinary infrastructure API family."
   }
 
