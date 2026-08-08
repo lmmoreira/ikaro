@@ -6,7 +6,7 @@
 
 Observability answers three questions: **is the system healthy?** (metrics), **why did this request fail?** (traces), and **what exactly happened?** (logs). All three must include `tenant_id` so issues can be isolated per car wash company.
 
-**Stack (as originally planned, see the superseded-sections banner above for what's actually deployed today):** Prometheus → metrics · Loki → logs · OTel Collector → telemetry pipeline · Grafana → dashboards + alerts. **Actually deployed (M17-S33/S34):** OTel SDK (traces only) → collector sidecar → Cloud Trace + Cloud Logging. No metrics or dashboard/alerting layer exists yet (M17-S35, not implemented).
+**Stack (as originally planned, see the superseded-sections banner above for what's actually deployed today):** Prometheus → metrics · Loki → logs · OTel Collector → telemetry pipeline · Grafana → dashboards + alerts. **Actually deployed (M17-S33/S34):** OTel SDK (traces only) → collector sidecar → Cloud Trace + Cloud Logging. No dashboard/alerting layer exists yet (M17-S35, not implemented) and no native metrics layer exists yet either (deferred, M17-S55, split from S35 2026-08-08).
 
 ---
 
@@ -666,7 +666,7 @@ path or to push-only delivery.
 
 ## Prometheus Metrics
 
-> **Superseded/never built — see the file-level banner above.** Neither `src/shared/observability/metrics.ts` nor `metrics.controller.ts` exists in `apps/backend` or `apps/bff` (verified 2026-08-04), and `prom-client` is not a dependency of either app. This section describes the original M14 plan; it was never implemented, and M17-S35 (Cloud Monitoring dashboards/alerts, not yet built) will use **log-based metrics** derived from structured log fields already emitted (see `docs/ENGINEERING_RULES.md` § gauge vs. event logging), not a custom `/metrics` Prometheus-scrape endpoint. Treat the catalog and code below as a historical design sketch, not a currently-usable API.
+> **Superseded/never built — see the file-level banner above.** Neither `src/shared/observability/metrics.ts` nor `metrics.controller.ts` exists in `apps/backend` or `apps/bff` (verified 2026-08-04), and `prom-client` is not a dependency of either app. This section describes the original M14 plan; it was never implemented. **Split 2026-08-08:** M17-S35 (Cloud Monitoring dashboards/alerts, not yet built) uses **log-based metrics** for infra-level signals already emitted (DLQ depth, outbox backlog — see `docs/ENGINEERING_RULES.md` § gauge vs. event logging); M17-S54 adds the structured log lines business counters need first (bookings requested/approved/completed, logins — confirmed *not* emitted today, corrected 2026-08-08). Neither uses a custom `/metrics` Prometheus-scrape endpoint — that path, if ever needed, is M17-S55's Managed Prometheus exporter, not a self-hosted scrape endpoint. Treat the catalog and code below as a historical design sketch, not a currently-usable API.
 
 ### Naming Convention
 
@@ -839,7 +839,7 @@ providers:
 
 ## SLOs (Service Level Objectives)
 
-> **Targets below are the real objectives; the Prometheus query column is not — see the file-level banner above.** No Prometheus/metrics pipeline is deployed today (M17-S35, Cloud Monitoring dashboards/alerts using log-based metrics, is not yet implemented). Until it lands, these SLOs are not measured by any automated system in this repo.
+> **Targets below are the real objectives; the Prometheus query column is not — see the file-level banner above.** No Prometheus/metrics pipeline is deployed today (deferred, M17-S55, split from S35 2026-08-08), and no Cloud Monitoring dashboards/alerts using log-based metrics exist yet either (M17-S35, not yet implemented). Until either lands, these SLOs are not measured by any automated system in this repo.
 
 | SLO | Target | Prometheus query (not currently runnable — no metrics pipeline exists) |
 |---|---|---|
@@ -1172,7 +1172,8 @@ otel-collector sidecar (M17-S34)
 Cloud Trace
 
 No metrics pipeline exists yet (config.yaml's metrics section is a commented stub for a future
-googlemanagedprometheus exporter). No dashboard/alerting layer exists yet — that's M17-S35, not
-yet implemented. This whole diagram supersedes the Grafana/Prometheus/Loki version this section
-originally described — see the file-level banner at the top of this doc.
+googlemanagedprometheus exporter — owned by M17-S55, split from S35 2026-08-08). No dashboard/
+alerting layer exists yet either — that's M17-S35, not yet implemented. This whole diagram
+supersedes the Grafana/Prometheus/Loki version this section originally described — see the
+file-level banner at the top of this doc.
 ```

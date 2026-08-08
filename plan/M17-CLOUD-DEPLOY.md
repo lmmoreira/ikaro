@@ -135,7 +135,7 @@ not yet done) — still `INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER` with BFF reacha
 | 2 | S11–S22 | Terraform: modules + staging/prod envs | Yes |
 | 3 | S23–S26 | Pipelines: infra, staging deploy, prod promote | Yes |
 | 4 | S27–S28 | Staging live + E2E against staging | Yes |
-| 5 | S31, S33–S36, S49–S50 | Hardening + observability + DR & governance | Yes |
+| 5 | S31, S33–S36, S49–S50, S54–S55 | Hardening + observability + DR & governance | Yes |
 | 6 | S53, S37 | Production go-live | Yes |
 | 7 | S38–S46, S51 | Post-launch product: custom domains, edge caching, photo cost/LGPD controls, docs refresh, managed connection pooling, LGPD lifecycle | Yes |
 
@@ -1289,30 +1289,86 @@ Runtime SA already has `cloudtrace.agent` (S17) — no new IAM needed.
 
 ---
 
-### M17-S35 — Dashboards, alerts & uptime checks as code
+### M17-S35 — Dashboards, alerts & uptime checks as code (core infra)
 
 **Agent:** `devops`
 **Complexity:** M
 **Docs to load:** `docs/10-OBSERVABILITY_STRATEGY.md` § SLOs/alerting (metric *intents*; the metric names there are stale — use Cloud Run built-ins)
 
+**Narrowed 2026-08-08, via story-discovery.** Originally bundled business-counter log metrics and an OTel-metrics decision into this story; both split out (see M17-S54/M17-S55 below) once discovery found the business counters' premise didn't hold (the use cases it assumed already logged start/completion don't) and the OTel-metrics work is a separate, careful initiative in its own right. This story now covers only infra-level signals that already exist — Cloud Run built-ins, Cloud SQL metrics, Pub/Sub DLQ depth, and the outbox relay's already-confirmed structured logs — no new application code required.
+
 **Description:**
-`modules/monitoring` (both envs; alert thresholds via variables): 
-- **Uptime checks (prod):** `https://bff.ikaro.online/v1/health/ready`, `https://ikaro.online/api/health/live` (staging: run.app equivalents, relaxed). FinOps note (2026-07-07): uptime checks probe from multiple regions every few minutes, keeping prod BFF/web permanently warm — scale-to-zero effectively stops applying to them. Accepted: the cost is a fraction of an instance and it masks cold starts for real users; the §1 cost model's Cloud Run line absorbs it.
-- **Alert policies:** uptime failure; Cloud Run 5xx rate > 5% over 5m (per service); p99 latency > 2s over 10m; Cloud SQL disk > 80% & CPU > 80%; **any DLQ topic with undelivered messages > 0 for 10m** (per-DLQ, from S19 catalog — this is the “events are silently dying” alarm); Cloud Run instance count stuck at max; **staging only:** log-based alert on Dev Login usage (`ENABLE_DEV_AUTH` flow) — turns the S27 accepted risk into a watched one (any use from an unexpected source gets investigated; 2026-07-08). Notification channel: email (admin address); structure so a Slack webhook channel can be added later.
+`modules/monitoring` (both envs; alert thresholds via variables):
+- **Uptime checks:** prod — `https://bff.ikaro.online/v1/health/ready`, `https://ikaro.online/api/health/live`; staging — `run.app` equivalents, relaxed. **Interval: 5 minutes** (documented rationale, decided 2026-08-08: at this project's traffic volume the cost delta vs. a 1-minute interval is effectively $0 either way — both stay inside GCP's free tier — so the real tradeoff is detection latency vs. check volume/log noise; 5 minutes still comfortably beats Cloud Run's idle-to-scale-down window, so cold-start masking for real users is unaffected). FinOps note (2026-07-07, reconfirmed 2026-08-08): uptime checks keep prod BFF/web permanently warm — scale-to-zero effectively stops applying to them — but under Cloud Run's request-based billing this costs only the compute for the health-check requests themselves, not a full idle instance; back-of-envelope math puts the delta at under $1/month either way, comfortably inside the free tier (2,000,000 requests, 180,000 vCPU-s, 360,000 GiB-s/month). The §1 cost model's Cloud Run line already absorbs it.
+- **Prod sequencing:** prod's `enable_edge` flag stays gated `false` until S37's atomic apply (per S22's own established pattern for the same not-yet-live-edge problem) — write prod's uptime-check Terraform in this story, but its "verify green" acceptance criterion is deferred to post-S37, not required here.
+- **Alert policies:** uptime failure; Cloud Run 5xx rate > 5% over 5m (per service); p99 latency > 2s over 10m; Cloud SQL disk > 80% & CPU > 80%; **any DLQ topic with undelivered messages > 0 for 10m** (per-DLQ — source topic names from S19's `infra/terraform/pubsub-catalog.json`, the existing single source of truth, not a second hardcoded list — this is the "events are silently dying" alarm); Cloud Run instance count stuck at max; **outbox-backlog age > 3 sweep intervals** (TD24-S05 cross-reference: `OutboxRelayService` already logs `unpublishedCount`/`oldestUnpublishedAgeSeconds`/`failureCount` structured fields — confirmed real, no code prerequisite — same "events are backing up" category as the DLQ-depth alarm above). Notification channel: email (admin address); structure so a Slack webhook channel can be added later.
 - **Dashboard:** one per env (JSON in Terraform): request rate/latency/5xx per service, instance counts, SQL connections/CPU, Pub/Sub oldest-unacked-age, DLQ depths.
 - Log-based metric: count of `severity=ERROR` per service, alerted at a burst threshold.
-- **Business counters via log-based metrics (zero app code):** use cases already log start/completion with structured fields (S05), so define Terraform log-based counters for: bookings requested, approved, completed, and failed notifications. Dashboard panel per counter. Anything beyond these four waits for real traffic (do not overbuild — the Managed Prometheus path exists when needed).
-- **TD24-S05 cross-reference (2026-07-14):** the outbox/inbox relay (`OutboxRelayService`) already logs structured fields for unpublished-row count, oldest-unpublished age, GC deletion counts, and publish-failure counts — same zero-app-code log-based-counter treatment applies. Add an alert policy here for oldest-unpublished age > 3 sweep intervals (the "events are backing up" signal, same category as the DLQ-depth alarm above) when this story is implemented.
-- **OTel SDK metrics are currently fully disabled — this story's own plan (log-based metrics, zero app code) doesn't need them re-enabled (2026-08-05, M17-S34 follow-up finding):** `packages/observability/src/otel-tracing.ts`'s `bootstrapTracing()` passes `metricReaders: []` explicitly to `NodeSDK`. Without it, `@opentelemetry/sdk-node` falls back to a default OTLP `PeriodicExportingMetricReader` (since `OTEL_METRICS_EXPORTER` was never set to `none`), which every instance was silently running against a collector with no `metrics:` pipeline configured — a genuine 404 (`OTLPExporterError: Not Found`) logged as an ERROR every export cycle, forever, in both services/envs, found live via Cloud Logging. Since this story's actual design above uses Cloud Run built-ins + log-based metrics (explicitly "zero app code"), the OTel SDK metrics path was never needed for it — `metricReaders: []` is the correct steady state, not a stopgap to undo when this story starts. **Only if a future story chooses the Managed Prometheus path instead** (mentioned above as "exists when needed", and stubbed in `infra/docker/otel-collector/config.yaml`'s commented-out `# Metrics pipeline stub — deferred to a future story (googlemanagedprometheus exporter)`) would `metricReaders: []` need to change to a real reader, alongside adding a `metrics:` pipeline to the collector config wired to a `googlemanagedprometheus` exporter. **Correction (2026-08-06):** the IAM prerequisite for that path is already satisfied, not missing — S17's IAM table already grants both `ikaro-backend@`/`ikaro-bff@` runtime SAs `roles/monitoring.metricWriter` (alongside `roles/cloudtrace.agent`), and the collector sidecar runs under the same Cloud Run revision's single service account as the app container it rides alongside (no separate sidecar identity in this design) — so it already has write access to Cloud Monitoring today, unused. Only the collector config change (and the metrics pipeline itself) would be needed, not a new IAM grant.
-- **Collector export-failure monitoring — a concrete, ready-to-add item for this story's alert catalog (2026-08-06, M17-S34 follow-up):** the collector's `googlecloud` exporter can silently drop a batch of spans on a timeout, logged as `"Exporting failed. Dropping data."` with a `dropped_items` count (`internal/queue_sender.go`, `otelcol-contrib` structured log). Confirmed live and low-frequency (2 events / 363 requests / ~2h observation, ~0.78% of spans, no complete traces lost — see `infra/docker/otel-collector/README.md`), but currently only "documented, accepted, not actively monitored." A log-based alert on this exact line (same category and construction as the DLQ-depth and outbox-backlog-age alarms already planned above) would turn it into something actually watched, catching if the rate ever changes from its current low baseline.
+- **OTel SDK metrics stay fully disabled — this story doesn't need them (2026-08-05, M17-S34 follow-up finding; reconfirmed 2026-08-08 during the S35 split):** `packages/observability/src/otel-tracing.ts`'s `bootstrapTracing()` passes `metricReaders: []` explicitly to `NodeSDK`. Without it, `@opentelemetry/sdk-node` falls back to a default OTLP `PeriodicExportingMetricReader` (since `OTEL_METRICS_EXPORTER` was never set to `none`), which every instance was silently running against a collector with no `metrics:` pipeline configured — a genuine 404 (`OTLPExporterError: Not Found`) logged as an ERROR every export cycle, forever, in both services/envs, found live via Cloud Logging. Since this story's design (Cloud Run built-ins + log-based metrics) is explicitly "zero app code," the OTel SDK metrics path is not needed here — `metricReaders: []` is this story's correct steady state. **M17-S55 (new, split out 2026-08-08) owns re-enabling it, if/when a real need for request-level native metrics (percentile histograms, per-route throughput) justifies the build.** S17's IAM table already grants both `ikaro-backend@`/`ikaro-bff@` runtime SAs `roles/monitoring.metricWriter` — the permission prerequisite for that future path is already satisfied, unused, not something S55 needs to add.
+- **Collector export-failure monitoring — a concrete, ready-to-add item for this story's alert catalog (2026-08-06, M17-S34 follow-up):** the collector's `googlecloud` exporter can silently drop a batch of spans on a timeout, logged as `"Exporting failed. Dropping data."` with a `dropped_items` count (`internal/queue_sender.go`, `otelcol-contrib` structured log). Confirmed live and low-frequency (2 events / 363 requests / ~2h observation, ~0.78% of spans, no complete traces lost — see `infra/docker/otel-collector/README.md`), but currently only "documented, accepted, not actively monitored." A log-based alert on this exact line (same category and construction as the DLQ-depth and outbox-backlog-age alarms above) would turn it into something actually watched, catching if the rate ever changes from its current low baseline.
 
 **Acceptance criteria:**
 - [ ] Kill staging backend (scale a bad revision) → uptime/5xx alerts fire to email within policy windows
 - [ ] Publish a poison message → DLQ alert fires (test via a temp subscription with maxAttempts=1)
-- [ ] Dashboards render with live data in both envs
-- [ ] All thresholds are variables with documented rationale
+- [ ] Dashboards render with live data in staging; prod dashboard Terraform applied but "live data" verification deferred to post-S37
+- [ ] All thresholds are variables with documented rationale (including the 5-min uptime-check interval above)
+- [ ] `docs/10-OBSERVABILITY_STRATEGY.md`'s "M17-S35 not yet implemented" banners flipped to reflect what shipped (stale-reference sweep, per Definition of Done)
 
 **Dependencies:** M17-S19, M17-S27
+
+---
+
+### M17-S54 — Business/audit log-based counters
+
+**Agent:** `backend-ts` (new logger calls) + `devops` (Terraform log-based metrics)
+**Complexity:** S
+**Docs to load:** `docs/10-OBSERVABILITY_STRATEGY.md` § SLOs/alerting, `docs/ENGINEERING_RULES.md` § gauge vs. event logging
+
+**Split out of M17-S35, 2026-08-08, via story-discovery.** The original S35 description assumed "use cases already log start/completion with structured fields (S05)" for bookings requested/approved/completed. Checked directly during discovery: `request-booking.use-case.ts`, `approve-booking.use-case.ts`, and `complete-booking.use-case.ts` have **zero** logger calls today. "Failed notifications" data exists (`NotificationLog` aggregate, DB-persisted) but not as a log line either. This story adds the missing log lines first, then the log-based counters/dashboard panels that consume them — a code story, not a pure-Terraform one, which is why it's split from S35.
+
+**Description:**
+1. Add structured `AppLogger` info-level log lines (carrying `tenant.id`/`correlation.id` per CLAUDE.md §2 invariant 8) at the point of the relevant domain event/use-case completion for:
+   - Booking requested (`request-booking.use-case.ts`)
+   - Booking approved (`approve-booking.use-case.ts`)
+   - Booking completed (`complete-booking.use-case.ts`)
+   - Notification failed (wherever `NotificationLog` records a failure today)
+   - **New (2026-08-08):** Customer/staff login, with a `tenantId` field — enables a "logins by tenant" counter via Cloud Logging's label-extraction on log-based metrics
+2. Define Terraform log-based counters (in `modules/monitoring`, built by S35) for each of the above, with a dashboard panel per counter.
+3. Verify (or add, if missing) the log line backing S35's originally-scoped staging-only Dev-Login-usage alert (`ENABLE_DEV_AUTH` flow) — not yet independently confirmed to exist.
+
+**Acceptance criteria:**
+- [ ] Each new logger call ships with a unit test asserting the log line's structured fields
+- [ ] Each counter's dashboard panel renders with live data in staging
+- [ ] Dev-Login-usage alert's log line confirmed to exist (or added) and the alert fires on a test trigger
+
+**Dependencies:** M17-S35 (dashboard module must exist first)
+
+---
+
+### M17-S55 — OTel metrics + Managed Prometheus export pipeline
+
+**Agent:** `devops` + `backend-ts`/`bff-ts` (instrumentation)
+**Complexity:** M
+**Docs to load:** `docs/10-OBSERVABILITY_STRATEGY.md`, `docs/ENGINEERING_RULES.md` § Cloud Run CPU throttling (the OTel-pipeline incident history), `infra/docker/otel-collector/README.md`
+
+**Split out of M17-S35, 2026-08-08.** Deferred, no urgency trigger yet — revisit once real post-launch traffic makes request-level percentile metrics (not just log-based counters) worth having. Captured here as a real backlog item, not left as prose in a doc, per the "mature company, have both" direction decided 2026-08-08: log-based metrics remain right for business/audit-style events (S35/S54); this story is for infra/request-level performance signals that log-based metrics approximate poorly (native latency histograms, per-route throughput).
+
+**Description:**
+1. Re-enable OTel SDK metrics: change `packages/observability/src/otel-tracing.ts`'s `bootstrapTracing()` from `metricReaders: []` to a real `PeriodicExportingMetricReader`.
+2. Wire the collector's metrics pipeline: `infra/docker/otel-collector/config.yaml` has a commented-out stub (`# Metrics pipeline stub — deferred to a future story (googlemanagedprometheus exporter)`) — build it out, exporting to `googlemanagedprometheus`.
+3. Add real instrumentation (counters/histograms) at the call sites that matter — e.g. `POST /v1/bookings` request count + duration histogram — rather than trying to approximate this via log-based metrics.
+4. **IAM is already satisfied, not a new grant:** S17's IAM table already grants both `ikaro-backend@`/`ikaro-bff@` runtime SAs `roles/monitoring.metricWriter`, unused today.
+5. **Apply the same careful, isolated empirical verification this repo's OTel tracing pipeline has already needed three separate times** (a `ParentBasedSampler` default silently dropping most spans, `OTLPTraceExporter`'s concurrency limit silently rejecting exports, Cloud Run's CPU throttling starving the batch-flush timer — all real incidents, all caught only via live, empirical verification, not code review alone; full history: `docs/ENGINEERING_RULES.md` § Cloud Run CPU throttling). Enabling the metrics half deserves the same rigor, not a quick toggle bundled into a bigger story.
+
+**Cost note (2026-08-08, verified against GCP's published pricing):** at this project's current/near-term traffic volume, Managed Prometheus's per-sample billing ($0.06/million samples) and Cloud Monitoring's log-based-metrics billing ($0.2580/MiB beyond a 150 MiB/month free tier) both round to ~$0/month — the deferral here is about engineering complexity and verification rigor, not cost.
+
+**Acceptance criteria:**
+- [ ] `metricReaders` re-enabled; no regression to the existing traces pipeline (verify live, not just code review)
+- [ ] Collector's metrics pipeline live in staging; a real GMP-sourced panel renders on the S35 dashboard
+- [ ] At least one native histogram (e.g. booking-creation duration) live and queryable via PromQL
+- [ ] No repeat of the sampler/concurrency-limit/CPU-throttling incident classes — explicit live verification of each, documented
+
+**Dependencies:** M17-S35, M17-S54 (conceptually — same dashboard/monitoring foundation; not a hard blocker)
 
 ---
 
@@ -1778,7 +1834,9 @@ When the trigger above is met, move the instance to Enterprise Plus and enable *
 | S32 | M16-S11 | redesigned to wrap routing payload; moved to Wave 0 (2026-07-07) |
 | S33 | M14-S01/S02 | OTLP-only; manual spans deferred |
 | S34 | M14-S04 + M16-S09 | compose stack/VM → collector sidecar (D9) |
-| S35 | M14-S05/S06 | Grafana JSONs/Prometheus rules → Cloud Monitoring as code |
+| S35 | M14-S05/S06 | Grafana JSONs/Prometheus rules → Cloud Monitoring as code (core infra alerts/dashboard only; split 2026-08-08, see S54/S55) |
+| S54 | M14-S05/S06 (split from S35, 2026-08-08) | business/audit log-based dashboard counters — needed new logger calls M14's plan never anticipated |
+| S55 | M14-S05/S06 (split from S35, 2026-08-08) | the actual Prometheus-metrics lineage from M14-S06 — deferred until real post-launch traffic justifies the build |
 | S36 | M15-S12 remnant | Armor reduced to origin lockdown; enabled at go-live (revised 2026-07-07) |
 | S37 | M16-S10 | go-live |
 | S38–S40 | new product | custom domains (UC-032 doc-first) |
