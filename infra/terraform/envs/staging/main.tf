@@ -419,3 +419,42 @@ module "scheduler" {
   cron_topic_ids        = module.pubsub.topic_ids
   outbox_relay_schedule = var.outbox_relay_schedule
 }
+
+# Dashboards, alerts & uptime checks as code (M17-S35, narrowed 2026-08-08 —
+# see plan/M17-CLOUD-DEPLOY.md's M17-S35 section for the split rationale).
+# Staging always has both a database and reachable run.app URLs (no
+# enable_edge-style gating here, unlike prod below), so every input is
+# unconditional.
+module "monitoring" {
+  source = "../../modules/monitoring"
+
+  project_id  = var.project_id
+  environment = var.environment
+  region      = var.region
+  labels      = var.labels
+
+  notification_email = var.notification_email
+
+  cloud_run_services = {
+    backend = { service_name = module.cloudrun_backend.service_name, max_instance_count = var.backend_max_instances }
+    bff     = { service_name = module.cloudrun_bff.service_name, max_instance_count = var.bff_max_instances }
+    # web has no explicit max_instances override in this env — matches
+    # modules/cloudrun-service's own var.max_instance_count default (100).
+    web = { service_name = module.cloudrun_web.service_name, max_instance_count = 100 }
+  }
+
+  database_instance_name = module.database.instance_name
+
+  uptime_checks = {
+    bff = {
+      host    = replace(module.cloudrun_bff.service_uri, "https://", "")
+      path    = "/v1/health/ready"
+      use_ssl = true
+    }
+    web = {
+      host    = replace(module.cloudrun_web.service_uri, "https://", "")
+      path    = "/api/health/live"
+      use_ssl = true
+    }
+  }
+}
