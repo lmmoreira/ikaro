@@ -7,7 +7,7 @@ mock_provider "google" {}
 variables {
   project_id         = "ikaro-test"
   environment        = "staging"
-  notification_email = "ops@ikaro.online"
+  notification_email = "ops@example.com"
 
   cloud_run_services = {
     backend = { service_name = "ikaro-backend", max_instance_count = 3 }
@@ -68,8 +68,11 @@ run "cloud_run_alert_policies_created_one_per_service" {
   }
 
   assert {
-    condition     = google_monitoring_alert_policy.instance_count_stuck_at_max["backend"].conditions[0].condition_threshold[0].threshold_value == 3
-    error_message = "The instance-count-stuck threshold must come from that service's own max_instance_count, not a shared/hardcoded number."
+    # max_instance_count - 1, not the raw value: Cloud Monitoring's
+    # MetricThreshold only supports COMPARISON_GT/LT, not GE (cross-tool
+    # review finding, 2026-08-08) — see main.tf's own comment.
+    condition     = google_monitoring_alert_policy.instance_count_stuck_at_max["backend"].conditions[0].condition_threshold[0].threshold_value == 2
+    error_message = "The instance-count-stuck threshold must come from that service's own max_instance_count - 1, not a shared/hardcoded number."
   }
 }
 
@@ -113,4 +116,43 @@ run "environment_rejects_invalid_values" {
   }
 
   expect_failures = [var.environment]
+}
+
+run "notification_email_accepts_a_valid_address" {
+  command = plan
+
+  assert {
+    condition     = google_monitoring_notification_channel.email.labels["email_address"] == "ops@example.com"
+    error_message = "A valid email address must plan cleanly and be passed through unchanged."
+  }
+}
+
+run "notification_email_rejects_empty_string" {
+  command = plan
+
+  variables {
+    notification_email = ""
+  }
+
+  expect_failures = [var.notification_email]
+}
+
+run "sql_cpu_threshold_rejects_out_of_range_values" {
+  command = plan
+
+  variables {
+    sql_cpu_threshold = 80
+  }
+
+  expect_failures = [var.sql_cpu_threshold]
+}
+
+run "sql_disk_threshold_rejects_out_of_range_values" {
+  command = plan
+
+  variables {
+    sql_disk_threshold = 80
+  }
+
+  expect_failures = [var.sql_disk_threshold]
 }

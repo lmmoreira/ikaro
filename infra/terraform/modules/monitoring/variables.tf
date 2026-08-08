@@ -40,6 +40,18 @@ variable "error_burst_threshold" {
   default     = 10
 }
 
+variable "error_rate_5xx_duration_seconds" {
+  description = "How long the 5xx ratio must stay above error_rate_5xx_threshold before the alert fires (cross-tool review finding, 2026-08-08: at this project's low pre-launch traffic volume, a single 5-minute window with e.g. 1 failing request out of 2 total already crosses a 5% ratio — a genuine false-positive risk the story's own MQL design didn't account for). Requiring the ratio to stay elevated across multiple consecutive alignment windows, not just one sparse sample, filters that out without needing a request-volume floor in the MQL itself."
+  type        = number
+  default     = 300
+}
+
+variable "error_rate_5xx_threshold" {
+  description = "5xx response ratio (0-1 fraction) above which the alert fires. Story default: 5%."
+  type        = number
+  default     = 0.05
+}
+
 variable "labels" {
   description = "Common labels applied to every resource that supports them"
   type        = map(string)
@@ -49,6 +61,23 @@ variable "labels" {
 variable "notification_email" {
   description = "Email address for Cloud Monitoring alert notifications. Value never committed — gitignored local.auto.tfvars locally, a GitHub environment variable in the pipeline (S24, same treatment as iam_admin_user)."
   type        = string
+
+  # Both env roots default this to "" (matching iam_admin_user's
+  # never-committed pattern) — without this validation, an apply that
+  # forgot to set TF_VAR_notification_email would plan cleanly and only
+  # fail once it reaches Cloud Monitoring's API, aborting the whole module
+  # since every alert policy references this channel (cross-tool review
+  # finding, 2026-08-08).
+  validation {
+    condition     = can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", var.notification_email))
+    error_message = "notification_email must be a non-empty email address — set TF_VAR_notification_email (pipeline: the NOTIFICATION_EMAIL GitHub Variable)."
+  }
+}
+
+variable "p99_latency_threshold_ms" {
+  description = "p99 request latency in milliseconds above which the alert fires. Story default: 2000ms (2s)."
+  type        = number
+  default     = 2000
 }
 
 variable "outbox_sweep_interval_seconds" {
@@ -72,12 +101,22 @@ variable "sql_cpu_threshold" {
   description = "Cloud SQL CPU utilization (0-1 fraction) above which the alert fires."
   type        = number
   default     = 0.8
+
+  validation {
+    condition     = var.sql_cpu_threshold > 0 && var.sql_cpu_threshold <= 1
+    error_message = "sql_cpu_threshold is a fraction in (0, 1] — a value like 80 would silently create an alert that never fires."
+  }
 }
 
 variable "sql_disk_threshold" {
   description = "Cloud SQL disk utilization (0-1 fraction) above which the alert fires."
   type        = number
   default     = 0.8
+
+  validation {
+    condition     = var.sql_disk_threshold > 0 && var.sql_disk_threshold <= 1
+    error_message = "sql_disk_threshold is a fraction in (0, 1] — a value like 80 would silently create an alert that never fires."
+  }
 }
 
 variable "uptime_check_period_seconds" {

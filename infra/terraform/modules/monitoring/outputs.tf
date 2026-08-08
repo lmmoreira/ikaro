@@ -1,5 +1,5 @@
 output "dashboard_id" {
-  description = "Cloud Monitoring dashboard resource id — link via https://console.cloud.google.com/monitoring/dashboards/builder/<id>?project=<project_id>"
+  description = "Full Cloud Monitoring dashboard resource name, format projects/<project_id>/dashboards/<dashboard_id> — the console builder URL needs only the trailing <dashboard_id> segment: https://console.cloud.google.com/monitoring/dashboards/builder/<dashboard_id>?project=<project_id> (basename(this output) extracts it; cross-tool review finding, 2026-08-08 — the description previously implied the raw output value was already URL-ready)."
   value       = google_monitoring_dashboard.main.id
 }
 

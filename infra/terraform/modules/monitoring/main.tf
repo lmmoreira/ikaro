@@ -71,13 +71,20 @@ resource "google_monitoring_alert_policy" "uptime_failure" {
         "metric.type=\"monitoring.googleapis.com/uptime_check/check_passed\"",
         "metric.label.check_id=\"${google_monitoring_uptime_check_config.this[each.key].uptime_check_id}\"",
       ])
-      comparison      = "COMPARISON_LT"
+      # Canonical Google-documented uptime-alert pattern (cross-tool review
+      # finding, 2026-08-08): ALIGN_FRACTION_TRUE converts the BOOLEAN
+      # check_passed series to a DOUBLE fraction, which REDUCE_COUNT_FALSE
+      # (a boolean-input reducer) then rejects at apply — a real GCP API
+      # type mismatch terraform validate/test can't catch. ALIGN_NEXT_OLDER
+      # preserves the BOOLEAN type instead, so REDUCE_COUNT_FALSE can
+      # correctly count literal "false" (failing) values across regions.
+      comparison      = "COMPARISON_GT"
       threshold_value = 1
-      duration        = "0s"
+      duration        = "60s"
 
       aggregations {
-        alignment_period     = "${var.uptime_check_period_seconds}s"
-        per_series_aligner   = "ALIGN_FRACTION_TRUE"
+        alignment_period     = "1200s"
+        per_series_aligner   = "ALIGN_NEXT_OLDER"
         cross_series_reducer = "REDUCE_COUNT_FALSE"
         group_by_fields      = ["resource.label.host", "resource.label.project_id"]
       }
@@ -108,7 +115,7 @@ resource "google_monitoring_alert_policy" "error_rate_5xx" {
     display_name = "${each.key} 5xx rate over 5m"
 
     condition_monitoring_query_language {
-      query    = <<-MQL
+      query = <<-MQL
         fetch cloud_run_revision
         | metric 'run.googleapis.com/request_count'
         | filter resource.service_name == '${each.value.service_name}'
@@ -116,9 +123,13 @@ resource "google_monitoring_alert_policy" "error_rate_5xx" {
         | { group_by [], [error_rate: aggregate(if(metric.response_code_class == '5xx', val(), 0))]
           ; group_by [], [total_rate: aggregate(val())] }
         | ratio
-        | condition val() > 0.05
+        | condition val() > ${var.error_rate_5xx_threshold}
       MQL
-      duration = "0s"
+      # duration, not "0s" (cross-tool review finding, 2026-08-08): at this
+      # project's low pre-launch traffic, a single 5-minute window can cross
+      # a 5% ratio on e.g. 1 failing request out of 2 total — see
+      # error_rate_5xx_duration_seconds's own description.
+      duration = "${var.error_rate_5xx_duration_seconds}s"
 
       trigger {
         count = 1
@@ -152,7 +163,7 @@ resource "google_monitoring_alert_policy" "p99_latency" {
         "metric.type=\"run.googleapis.com/request_latencies\"",
       ])
       comparison      = "COMPARISON_GT"
-      threshold_value = 2000
+      threshold_value = var.p99_latency_threshold_ms
       duration        = "0s"
 
       aggregations {
@@ -188,14 +199,26 @@ resource "google_monitoring_alert_policy" "instance_count_stuck_at_max" {
         "resource.label.service_name=\"${each.value.service_name}\"",
         "metric.type=\"run.googleapis.com/container/instance_count\"",
       ])
-      comparison      = "COMPARISON_GE"
-      threshold_value = each.value.max_instance_count
+      # Cloud Monitoring's MetricThreshold only supports COMPARISON_GT and
+      # COMPARISON_LT (cross-tool review finding, 2026-08-08 — COMPARISON_GE
+      # is a valid Terraform-schema enum value but rejected by the live API)
+      # — GT against (max - 1) preserves the intended ">=" semantics.
+      comparison      = "COMPARISON_GT"
+      threshold_value = each.value.max_instance_count - 1
       duration        = "900s"
 
       aggregations {
-        alignment_period     = "300s"
-        per_series_aligner   = "ALIGN_MAX"
+        alignment_period   = "300s"
+        per_series_aligner = "ALIGN_MAX"
+        # group_by_fields on revision_name (cross-tool review finding,
+        # 2026-08-08): max_instance_count is enforced per-revision by Cloud
+        # Run (modules/cloudrun-service's own connection-math comment: two
+        # revisions can each independently reach it during a rollout).
+        # Without this, REDUCE_SUM combines old+new revisions' instance
+        # counts during a deploy and can cross the threshold even though
+        # neither revision is individually at its cap — a false positive.
         cross_series_reducer = "REDUCE_SUM"
+        group_by_fields      = ["resource.label.revision_name"]
       }
     }
   }
@@ -424,8 +447,12 @@ resource "google_monitoring_alert_policy" "outbox_backlog" {
       duration        = "0s"
 
       aggregations {
-        alignment_period   = "300s"
-        per_series_aligner = "ALIGN_MAX"
+        alignment_period = "300s"
+        # ALIGN_MAX is not a valid aligner for a DISTRIBUTION-valued metric
+        # (cross-tool review finding, 2026-08-08 — outbox_backlog_age is
+        # declared value_type = "DISTRIBUTION" above); ALIGN_PERCENTILE_99
+        # is, and matches the same aligner already used for p99_latency.
+        per_series_aligner = "ALIGN_PERCENTILE_99"
       }
     }
   }
