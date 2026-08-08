@@ -1,7 +1,7 @@
 # TD38 — BFF can never see the real client IP; the same-origin gateway masks every real user behind `ikaro-web`'s own address
 
 ## Status
-- **State**: ✅ Done — Story A (staging) merged and verified live, which delivers this TD's actual defect fix (BFF's per-IP rate limiter now sees the real client IP for all live staging traffic). Deferred items tracked against other stories, not this TD: Story B (prod) moved to `plan/M17-CLOUD-DEPLOY.md`'s **M17-S53** (2026-08-01, a hard dependency of M17-S37); Story C (E2E redesign) moved to `plan/M17-CLOUD-DEPLOY.md`'s **M17-S28** (2026-08-01), which absorbed its scope plus the story-discovery findings below (tenant/data-isolation gap, hardcoded fixture-only IDs, whether a full Playwright port is even the right tool).
+- **State**: ✅ Done — Story A (staging) merged and verified live, which delivers this TD's actual defect fix (BFF's per-IP rate limiter now sees the real client IP for all live staging traffic). Story B (prod) moved to `plan/M17-CLOUD-DEPLOY.md`'s **M17-S53** (2026-08-01, a hard dependency of M17-S37). Story C (E2E redesign) moved to `plan/M17-CLOUD-DEPLOY.md`'s **M17-S28** (2026-08-01), then **cut 2026-08-08** — see that story: the deploy-staging.yml `smoke` job already exercises the IAM token + `X-Web-Internal-Key` handshake end to end via the real `/v1` gateway, and docker-compose E2E already covers product/UI logic, so the direct-BFF helpers' gateway-routing redesign has no remaining consumer. Nothing further to do for Story C.
 - **Type**: Technical Debt / Architecture Gap (security + reliability: rate-limiter correctness)
 - **Priority**: High — the BFF's per-IP rate limiter (`AppThrottlerGuard`) does not protect what it believes it protects, in **both** staging and production, for 100% of real user traffic
 - **Context**: `apps/bff/src/shared/http/client-ip.ts`, `apps/bff/src/shared/guards/app-throttler.guard.ts`, `apps/web/app/v1/[...path]/route.ts`, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `plan/M17-CLOUD-DEPLOY.md` M17-S27's XFF checklist item
@@ -191,7 +191,9 @@ Once Phases 1-3 land, BFF is provably only reachable by `ikaro-web`. The entire 
 1. **Simplify `apps/bff/src/shared/http/client-ip.ts`**: replace the CF-Connecting-IP/rightmost-XFF branching with a single trusted read of the new `X-Real-Client-Ip` header (fallback to `req.ip` only if genuinely absent, e.g. a local dev call with no proxy at all — mirrors the existing local-env fallback behavior).
 2. **`AppThrottlerGuard.getTracker()`** (`apps/bff/src/shared/guards/app-throttler.guard.ts`): unchanged in structure, just now backed by a trustworthy source. Keep or adapt the `xff-verify` debug log added in M17-S27/PR #281 to log the new header instead, or remove it if it's no longer needed for verification purposes — implementer's judgment call once the new mechanism is live and re-verified the same way M17-S27 verified the old (broken) one: a real staging request, a known IP, a Cloud Logging check.
 
-### Phase 5 — E2E redesign (Playwright)
+### Phase 5 — E2E redesign (Playwright) — cut 2026-08-08, see M17-S28
+
+**This phase is not being built.** M17-S28 (which absorbed this phase's scope) was cut via story-discovery on 2026-08-08: `deploy-staging.yml`'s `smoke` job already routes through the real `/v1` gateway and exercises the IAM token + `X-Web-Internal-Key` handshake end to end, and `pr-tests.yml`'s docker-compose `e2e` job already covers product/UI logic — so a Playwright-against-staging port would mostly duplicate existing coverage at materially higher cost (tenant provisioning, data-isolation/cleanup machinery, GitHub Actions minutes). The section below is kept for historical/design record only — do not implement it without first re-reading M17-S28's cut rationale and confirming a real, observed gap justifies revisiting.
 
 The 9 helper files listed above (`apps/web/e2e/helpers/**`, `apps/web/e2e/authenticated-booking.spec.ts`) that build `BFF_URL = process.env.PLAYWRIGHT_BFF_URL ?? 'http://localhost:3002/v1'` and call it directly need to route through the web app's own `/v1` gateway instead, for any run targeting a **deployed** environment (staging). This is the traffic-fidelity-correct choice anyway — it's exactly what a real browser does, and it removes the need for BFF to ever be reachable from a GitHub Actions runner at all.
 
@@ -215,7 +217,7 @@ Decision: for staging, this window (an outage of unknown-but-likely-multi-minute
 2. **Re-run the same live verification M17-S27 did**: real browser request from a known IP against staging, confirm the new `X-Real-Client-Ip`-sourced log line now shows the actual requester's IP, not `ikaro-web`'s egress address.
 3. Confirm the app-layer guard actually rejects an unauthenticated direct call to BFF's internal URL attempted from *outside* the VPC (should fail at the ingress layer before even reaching the guard) and from a VPC-internal-but-unauthenticated caller if one is easy to construct for the test (should fail at the guard).
 4. Confirm the per-PR merge-gating E2E job (`e2e` job in `pr-tests.yml`, part of the required `test-suite-passed` check) is unaffected — it runs against `docker compose`, with `PLAYWRIGHT_BFF_URL` defaulting to `http://localhost:3002/v1` (no Cloud Run ingress concept there at all), so nothing in Phases 1-4 touches it.
-5. Land Phase 5 (E2E redesign) before or alongside M17-S28 — that phase only affects the not-yet-built `e2e-staging.yml` workflow (Playwright against a *deployed* staging URL), never the merge-gating docker-compose job.
+5. ~~Land Phase 5 (E2E redesign) before or alongside M17-S28~~ **Moot — M17-S28 cut 2026-08-08, Phase 5 not being built (see above).**
 
 #### Prod (not yet live — no outage to avoid, just build it correct from the start)
 
@@ -255,7 +257,7 @@ Since prod has no live traffic yet, there is no transition to sequence and no ou
 - **New — `web-internal-key`'s value had a trailing newline byte, breaking every real (non-health) BFF call.** Set via `openssl rand -hex 32 | gcloud secrets versions add ...`, which pipes `openssl`'s own trailing `\n` straight into the secret (confirmed via `gcloud secrets versions access ... | xxd`: 65 bytes, not 64). BFF hashes its raw env-var copy (65 bytes, `\n` included) as the comparison baseline in `WebOnlyGuard`; web's copy gets silently normalized to 64 bytes somewhere in the fetch/HTTP-header stack before it reaches BFF on the wire. Different lengths → different SHA-256 hashes → every real route (anything without `@BypassWebOnlyGuard()`) rejected with `401 AUTH_UNAUTHORIZED "Missing or invalid X-Web-Internal-Key header"`, even though `/v1/health/ready` (bypassed) looked fine — this is what actually broke the live site (`/v1/public/platform/manifest/...` 500s, real hotsite pages down) after the "everything applied cleanly" point. Fixed in both envs: `printf '%s' "$(openssl rand -hex 32)"` (no trailing newline) piped into a new secret version, then a forced new Cloud Run revision (`gcloud run deploy` with the same image — a services-update with no real spec change does *not* force Cloud Run to re-resolve `secret_key_ref: latest`) for both `ikaro-bff` and `ikaro-web`.
 - **Empirically verified live in staging, post-fix** (not just code-reviewed): direct `curl` to BFF's own `*.run.app` URL → 404 (ingress blocks it); `curl <web-url>/v1/health/ready` (bypassed guard) → 200; `curl <web-url>/v1/health/ready` and real routes through the gateway with the corrected secret → 200; `client-ip-verify` log for a real browser request → `x-real-client-ip="177.76.129.80" resolved="177.76.129.80"` (a real ISP address, not a Google-owned one — the exact defect this TD started from).
 - **Story B (prod)** — moved to `plan/M17-CLOUD-DEPLOY.md`'s **M17-S53** (2026-08-01), a hard dependency of M17-S37 (production activation). Full scope, the ALB-reachability decision, and acceptance criteria now live there, not here.
-- **Story C (Phase 5, E2E redesign)** — moved to `plan/M17-CLOUD-DEPLOY.md`'s **M17-S28** (2026-08-01). Story-discovery on Story C (run before implementation started) surfaced a materially bigger scope than Phase 5's original text: the 14 direct-BFF E2E helpers hardcode a local-fixture-only tenant/service ID (`lavacar-beloauto` / `apps/backend/src/shared/database/seed.ts`'s service UUID) that doesn't exist in staging, staging's Postgres never gets cleaned up between runs (unlike `pr-tests.yml`'s docker-compose job), and no test currently drives its bookings to a terminal state — all of which need deciding before the gateway-routing redesign is even useful. Full findings now live in M17-S28, not here.
+- **Story C (Phase 5, E2E redesign)** — moved to `plan/M17-CLOUD-DEPLOY.md`'s **M17-S28** (2026-08-01), then **cut 2026-08-08**. Story-discovery on Story C (run before implementation started) had surfaced a materially bigger scope than Phase 5's original text (hardcoded fixture-only tenant/service IDs, staging Postgres never cleaning up between runs, no test driving bookings to a terminal state) — but M17-S28's own later story-discovery found the underlying premise no longer held: `deploy-staging.yml`'s `smoke` job already covers the deploy-wiring bug class this was meant to catch, and docker-compose E2E already covers product logic. Full rationale lives in M17-S28, not here.
 
 ---
 
@@ -265,7 +267,7 @@ Since prod has no live traffic yet, there is no transition to sequence and no ou
 2. **Where exactly does S22's edge module create `bff.ikaro.online`'s DNS/cert?** Needed to do M17-S53's Terraform cleanly (or to explicitly decide to leave it dangling and document why). Tracked as part of M17-S53 now, not here.
 3. ~~**Shared client-IP-resolution package placement**~~ **Resolved during Story A's story-discovery (2026-07-31):** new package `packages/http-utils` — see Phase 2 item 4 above for why `packages/observability` was ruled out and why duplication was rejected in favor of a new package.
 4. ~~**`APP_GUARD` ordering**~~ **Resolved during Story A's story-discovery (2026-07-31):** confirmed registration order is execution order (`apps/bff/src/app.module.ts:53-54`); new guard registers first, ahead of `AppThrottlerGuard` — see Phase 3 item 2 above.
-5. **E2E redesign approach** (Phase 5) — (a) vs (b), see above. Tracked as part of **M17-S28** now, not here (folded in 2026-08-01 alongside the tenant/data-isolation findings surfaced during Story C's story-discovery — see that story).
+5. ~~**E2E redesign approach** (Phase 5) — (a) vs (b)~~ **Moot — M17-S28 cut 2026-08-08 (see that story); Phase 5 not being built.**
 
 ---
 
@@ -283,13 +285,15 @@ Since prod has no live traffic yet, there is no transition to sequence and no ou
 - [x] The `e2e` job in `pr-tests.yml` (local/docker-compose E2E) passes unmodified — confirmed green pre-merge (required check on PR #298).
 - [x] Both `docs/24-BFF_ARCHITECTURE.md` and `plan/M17-CLOUD-DEPLOY.md`'s S22/S27 sections are updated to reflect the new ingress/auth model (stale-doc sweep, per CLAUDE.md §7 Definition of Done)
 
-**Deferred to M17-S53 / M17-S28 (not achievable in a staging-only TD — prod and E2E infra weren't live/built when this TD's own scope closed):**
+**Deferred to M17-S53 (not achievable in a staging-only TD — prod infra wasn't live when this TD's own scope closed):**
 - [ ] Same ingress lockdown + public-invoker-grant removal + IAM ID-token auth, applied to **prod** — owned by `plan/M17-CLOUD-DEPLOY.md`'s **M17-S53**
-- [ ] E2E-against-staging routes BFF-bound test-helper calls through the web app's `/v1` gateway, not a direct BFF URL, when targeting a deployed environment — owned by `plan/M17-CLOUD-DEPLOY.md`'s **M17-S28**
+
+**Cut, not deferred:**
+- ~~E2E-against-staging routes BFF-bound test-helper calls through the web app's `/v1` gateway~~ — was owned by `plan/M17-CLOUD-DEPLOY.md`'s **M17-S28**, cut 2026-08-08 (existing `deploy-staging.yml` smoke test already covers the bug class this would have caught).
 
 ## Dependencies
 
 - M17-S18 (BFF/backend Cloud Run services, IAM baseline) — done, this TD builds on its existing `bff_web` invoker binding
 - M17-S47 (BFF→backend IAM ID-token pattern) — done, this TD mirrors it exactly for web→BFF
-- E2E redesign (formerly "Story C"/Phase 5 here) is now tracked as part of **M17-S28** in `plan/M17-CLOUD-DEPLOY.md`, which absorbed its scope plus the tenant/data-isolation findings from Story C's story-discovery (2026-08-01) — see that story for full detail. Nothing further to track for E2E here.
+- E2E redesign (formerly "Story C"/Phase 5 here) was tracked as **M17-S28** in `plan/M17-CLOUD-DEPLOY.md`, then cut 2026-08-08 — see that story for the full rationale. Nothing further to track for E2E here.
 - Prod rollout (formerly "Story B" here) is now tracked as **M17-S53** in `plan/M17-CLOUD-DEPLOY.md`, an explicit dependency of M17-S37 (production activation) — see that story for full scope, the ALB-reachability decision, and its own acceptance criteria. Nothing further to track for prod in this TD.
