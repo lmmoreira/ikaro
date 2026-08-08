@@ -378,10 +378,36 @@ resource "google_logging_metric" "error_count" {
   }
 }
 
+# Confirmed live (prod's first apply, 2026-08-08): a google_logging_metric's
+# Create() call returning success does not mean the metric is immediately
+# queryable by the separate Cloud Monitoring alerting API — an alert policy
+# referencing a metric created moments earlier in the same apply can 404
+# with "Cannot find metric(s) ... could take up to 10 minutes to become
+# available." Terraform's dependency graph (each policy below interpolates
+# google_logging_metric.<x>.name) already sequences metric-before-policy
+# correctly; this is GCP's own cross-service eventual-consistency delay,
+# not a Terraform ordering bug — staging got lucky with timing on the exact
+# same apply that failed this way in prod. 60s is an empirical buffer (this
+# repo's existing time_sleep.iam_propagation precedent is 30s for a
+# different propagation delay), not a guarantee against the documented
+# worst case — if this still flakes, a real fix would be to move to a
+# retry-with-backoff instead of a fixed sleep.
+resource "time_sleep" "log_metric_propagation" {
+  create_duration = "60s"
+
+  depends_on = [
+    google_logging_metric.error_count,
+    google_logging_metric.outbox_backlog_age,
+    google_logging_metric.collector_export_failure,
+  ]
+}
+
 resource "google_monitoring_alert_policy" "error_burst" {
   project      = var.project_id
   display_name = "Ikaro ${var.environment} — ERROR log burst"
   combiner     = "OR"
+
+  depends_on = [time_sleep.log_metric_propagation]
 
   conditions {
     display_name = "severity=ERROR count over 5m"
@@ -444,6 +470,8 @@ resource "google_monitoring_alert_policy" "outbox_backlog" {
   display_name = "Ikaro ${var.environment} — outbox backlog age"
   combiner     = "OR"
 
+  depends_on = [time_sleep.log_metric_propagation]
+
   conditions {
     display_name = "Oldest unpublished outbox row older than 3 sweep intervals"
 
@@ -496,6 +524,8 @@ resource "google_monitoring_alert_policy" "collector_export_failure" {
   project      = var.project_id
   display_name = "Ikaro ${var.environment} — collector export failures above baseline"
   combiner     = "OR"
+
+  depends_on = [time_sleep.log_metric_propagation]
 
   conditions {
     display_name = "Collector 'Exporting failed' count over 10m"
