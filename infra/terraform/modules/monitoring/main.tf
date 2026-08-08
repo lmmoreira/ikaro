@@ -14,6 +14,16 @@
 # them as final, same discipline this repo already applies to the OTel
 # pipeline (see docs/ENGINEERING_RULES.md § Cloud Run CPU throttling for why
 # "the plan succeeded" is never proof alone).
+#
+# Confirmed live (first real staging apply, 2026-08-08): the error_rate_5xx
+# MQL's `if(condition, val(), 0)` failed apply with "Operands of 'if' do not
+# have same type: 'Double' and 'Int'" — `val()` from `align rate(5m)` is a
+# Double, but the bare literal `0` is inferred as an Int. MQL requires both
+# `if()` branches to share a type; fixed by writing `0.0` instead of `0`.
+# Every other resource in this module (uptime checks, condition_threshold
+# alerts, log-based metrics, the dashboard) applied cleanly on the same run
+# — MQL's typed-if-branches quirk is specific to this one query, not a
+# systemic issue with the module.
 
 resource "google_monitoring_notification_channel" "email" {
   project      = var.project_id
@@ -120,7 +130,7 @@ resource "google_monitoring_alert_policy" "error_rate_5xx" {
         | metric 'run.googleapis.com/request_count'
         | filter resource.service_name == '${each.value.service_name}'
         | align rate(5m)
-        | { group_by [], [error_rate: aggregate(if(metric.response_code_class == '5xx', val(), 0))]
+        | { group_by [], [error_rate: aggregate(if(metric.response_code_class == '5xx', val(), 0.0))]
           ; group_by [], [total_rate: aggregate(val())] }
         | ratio
         | condition val() > ${var.error_rate_5xx_threshold}

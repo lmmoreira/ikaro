@@ -43,6 +43,69 @@ run "roles_have_exactly_the_reviewed_permissions" {
   }
 }
 
+run "normal_deployer_monitoring_logging_permissions_are_exactly_reviewed" {
+  # Strengthens the count+sample check above (M17-S35 cross-tool review
+  # finding, 2026-08-08): a same-cardinality swap of an unlisted new
+  # permission for a reviewed one would still pass a count-only assertion.
+  # True set equality via setsubtract in both directions, scoped to just
+  # the monitoring./logging.logMetrics. permissions this story added — this
+  # role is the least-privilege boundary being changed, so the addition
+  # itself deserves an exact check, not just the whole-role sample check.
+  command = plan
+
+  variables {
+    project_id = "ikaro-staging"
+  }
+
+  assert {
+    condition = (
+      length(setsubtract(
+        toset([
+          "logging.logMetrics.create", "logging.logMetrics.delete", "logging.logMetrics.get",
+          "logging.logMetrics.list", "logging.logMetrics.update",
+          "monitoring.alertPolicies.create", "monitoring.alertPolicies.delete", "monitoring.alertPolicies.get",
+          "monitoring.alertPolicies.list", "monitoring.alertPolicies.update",
+          "monitoring.dashboards.create", "monitoring.dashboards.delete", "monitoring.dashboards.get",
+          "monitoring.dashboards.list", "monitoring.dashboards.update",
+          "monitoring.notificationChannels.create", "monitoring.notificationChannels.delete", "monitoring.notificationChannels.get",
+          "monitoring.notificationChannels.list", "monitoring.notificationChannels.update",
+          "monitoring.uptimeCheckConfigs.create", "monitoring.uptimeCheckConfigs.delete", "monitoring.uptimeCheckConfigs.get",
+          "monitoring.uptimeCheckConfigs.list", "monitoring.uptimeCheckConfigs.update",
+        ]),
+        toset([
+          for p in google_project_iam_custom_role.normal_infrastructure_deployer.permissions :
+          p if strcontains(p, "monitoring.") || strcontains(p, "logging.logMetrics.")
+        ])
+      )) == 0
+    )
+    error_message = "The normal deployer role is missing at least one of the 25 reviewed monitoring./logging.logMetrics. permissions."
+  }
+
+  assert {
+    condition = (
+      length(setsubtract(
+        toset([
+          for p in google_project_iam_custom_role.normal_infrastructure_deployer.permissions :
+          p if strcontains(p, "monitoring.") || strcontains(p, "logging.logMetrics.")
+        ]),
+        toset([
+          "logging.logMetrics.create", "logging.logMetrics.delete", "logging.logMetrics.get",
+          "logging.logMetrics.list", "logging.logMetrics.update",
+          "monitoring.alertPolicies.create", "monitoring.alertPolicies.delete", "monitoring.alertPolicies.get",
+          "monitoring.alertPolicies.list", "monitoring.alertPolicies.update",
+          "monitoring.dashboards.create", "monitoring.dashboards.delete", "monitoring.dashboards.get",
+          "monitoring.dashboards.list", "monitoring.dashboards.update",
+          "monitoring.notificationChannels.create", "monitoring.notificationChannels.delete", "monitoring.notificationChannels.get",
+          "monitoring.notificationChannels.list", "monitoring.notificationChannels.update",
+          "monitoring.uptimeCheckConfigs.create", "monitoring.uptimeCheckConfigs.delete", "monitoring.uptimeCheckConfigs.get",
+          "monitoring.uptimeCheckConfigs.list", "monitoring.uptimeCheckConfigs.update",
+        ])
+      )) == 0
+    )
+    error_message = "The normal deployer role has an unreviewed monitoring./logging.logMetrics. permission not in the 25-permission reviewed set."
+  }
+}
+
 run "relay_planner_is_read_only" {
   command = plan
 
