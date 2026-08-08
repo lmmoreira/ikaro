@@ -763,10 +763,14 @@ Staff  → Notification: StaffInvited → invitation email
 - Allow tenant admins to edit their operational settings (cancellation window, loyalty rules, business hours, timezone)
 - Allow tenant admins to manage and publish their public hotsite (branding, layout, content)
 - Allow tenant admins to invite and manage staff members
+- Answer public hotsite visitors' FAQ-style questions via an LLM-backed chatbot widget, scoped to the tenant's own business data (UC-033/UC-034) — informational only, no booking/customer/staff record access (`docs/discovery/CHATBOT/CHATBOT.md`)
 
 **Key Aggregates:**
 - `Tenant` (root) — the car wash company record; owns the `settings` JSONB blob
 - `HotsiteConfig` (root) — tenant-scoped branding and layout for the public hotsite
+- `ChatbotSession` (root) — one chat widget conversation; tracks cap-enforcement state
+- `ChatbotMessage` (root) — one turn (visitor question or bot answer) within a `ChatbotSession`
+- `ChatbotProviderBalance` (root) — single-row-per-provider prepaid balance, upserted by a periodic poll
 - Staff lifecycle (create/deactivate) — Platform use cases operate on the `Staff` aggregate owned by the Staff Context
 
 **Notes:**
@@ -820,6 +824,71 @@ HotsiteConfig {
 - `updateContent(branding, layout, seo)` → replaces branding, layout, and seo; stays in draft until published.
 - `publish()` → sets `isPublished = true`; hotsite becomes publicly visible.
 - `unpublish()` → reverts to draft.
+
+---
+
+#### **Aggregate: ChatbotSession** (Root Entity)
+Tracks one chat widget conversation for cap enforcement (`docs/discovery/CHATBOT/CHATBOT.md` §8) and as the anchor `ChatbotMessage` rows reference for history reassembly. Not a rich DDD aggregate with cross-field invariants — same thin treatment as `NotificationLog`: a plain persistence record with a plain repository, no business rules beyond its own field transitions.
+
+**Properties:**
+```
+ChatbotSession {
+  sessionId:         UUID v7
+  tenantId:           TenantId
+  clientIp:           String            -- abuse/cost-control signal, distinct from sessionId's job of conversation continuity
+  startedAt:          DateTime
+  lastMessageAt:      DateTime
+  conversationDate:   Date              -- tenant-timezone date bucket, used by the per-day caps
+  messageCount:       SmallInt          -- matches platform.chatbot_sessions.message_count's SMALLINT column
+  status:             'ACTIVE' | 'CLOSED' | 'CAPPED'
+}
+```
+
+**Methods:**
+- `static create(props)` — creates with `status='ACTIVE'`, `messageCount=0`.
+- `recordMessage()` — increments `messageCount`, updates `lastMessageAt`.
+- `markCapped()` — transitions to `CAPPED` (a per-conversation limit was reached — `maxMessagesPerConversation`/`maxMessageLengthChars`).
+- `close()` — transitions to `CLOSED`.
+
+---
+
+#### **Aggregate: ChatbotMessage** (Root Entity)
+One turn (visitor question or bot answer) within a `ChatbotSession`. Stores the real conversation text on both sides — not just metadata — since the LLM is stateless between calls (the BFF must resend prior turns as history) and since this is the source of the per-message token/cost audit trail (`docs/discovery/CHATBOT/CHATBOT.md` §8). Same thin "plain record" treatment as `ChatbotSession`/`NotificationLog`.
+
+**Properties:**
+```
+ChatbotMessage {
+  messageId:      UUID v7
+  sessionId:      UUID v7           -- composite FK (tenantId, sessionId) → ChatbotSession
+  tenantId:       TenantId
+  role:           'USER' | 'ASSISTANT'
+  content:        String
+  inputTokens:    Integer
+  outputTokens:   Integer
+  modelId:        String            -- recorded per-message for cost auditing (models/providers can vary per tenant)
+  createdAt:      DateTime
+}
+```
+
+**Methods:**
+- `static create(props)` — creates a message row; no state transitions (append-only, like `LoyaltyEntry`).
+
+---
+
+#### **Aggregate: ChatbotProviderBalance** (Root Entity)
+Single-row-per-provider prepaid balance, upserted by a periodic poll job (UC-036) against the provider's own account API (e.g. OpenRouter's `GET /api/v1/credits`). Read by UC-034's availability pre-flight check as a trivial local lookup — never a live external call in that hot path.
+
+**Properties:**
+```
+ChatbotProviderBalance {
+  provider:      String        -- e.g. 'openrouter'
+  remainingUsd:  Decimal
+  checkedAt:     DateTime
+}
+```
+
+**Methods:**
+- `static upsert(provider, remainingUsd)` — replaces the single row for that provider; no history kept (this is a live-status cache, not an audit log).
 
 ---
 

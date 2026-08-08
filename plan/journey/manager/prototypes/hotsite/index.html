@@ -32,13 +32,18 @@
     <div class="screen-list">
       <a href="01-hotsite-editor.html" class="screen-link">
         <span class="screen-num">01</span>
-        Editor — Branding (5 seções/18 campos) / Layout (8 módulos) / SEO
+        Editor — Branding (5 seções/18 campos) / Layout (9 módulos) / SEO
         <span class="exists-tag">EXISTS</span>
       </a>
       <a href="01d-module-config-hero.html" class="screen-link">
         <span class="screen-num">01d</span>
         Configurar módulo — Hero (exemplo)
         <span class="exists-tag">EXISTS</span>
+      </a>
+      <a href="01e-module-config-chatbot.html" class="screen-link">
+        <span class="screen-num">01e</span>
+        Configurar módulo — Chatbot (9º tipo, não implementado)
+        <span class="gap-tag">GAP</span>
       </a>
       <a href="02-preview.html" class="screen-link">
         <span class="screen-num">02</span>
@@ -79,8 +84,9 @@
     <ul class="checklist">
       <li>3 abas: Branding, Layout, SEO — alternam sem recarregar a página</li>
       <li>Branding mostra os 18 campos (cores, logo + nome/slogan da marca, tipografia, cantos, botão, espaçamento, sombra, ritmo visual) agrupados em 5 subseções</li>
-      <li>Layout mostra os 8 módulos (incl. Rodapé) com drag handle, link "Configurar" e toggle on/off</li>
+      <li>Layout mostra os 9 módulos (incl. Rodapé e Chatbot) com drag handle, link "Configurar" e toggle on/off</li>
       <li>"Configurar" no módulo Hero abre um drill-down com campos específicos</li>
+      <li>"Configurar" no módulo Chatbot mostra variant/accentColor/botName/welcomeMessage, a nota permanente sobre créditos de IA, e (quando aplicável) o banner de limite diário atingido</li>
       <li>SEO mostra título (60 caracteres), descrição (158 caracteres) e imagem OG, todos opcionais</li>
       <li>Cor em formato inválido → erro inline, salvar bloqueado</li>
       <li>Falha simulada de upload → campo de URL aparece como alternativa</li>
@@ -93,8 +99,9 @@
   <div class="section">
     <p class="section-title">Open questions</p>
     <ul class="checklist">
-      <li>✅ Resolvido — per-module config: todos os 8 módulos têm seu próprio painel de configuração (`M13-S36`), incl. `FooterConfigPanel`. Só o Hero foi prototipado aqui como exemplo visual; os outros foram construídos direto dos tipos reais.</li>
-      <li>Preview: como renderizar o estado de rascunho (não publicado)? Ainda uma questão de design em aberto — ver `dev-notes.md`.</li>
+      <li>✅ Resolvido — per-module config: os 8 módulos originais têm seu próprio painel de configuração (`M13-S36`), incl. `FooterConfigPanel`. Só o Hero foi prototipado aqui como exemplo visual; os outros foram construídos direto dos tipos reais.</li>
+      <li>❌ Não resolvido — `CHATBOT` (9º módulo, adicionado 2026-08-08) ainda não tem `ChatbotConfigPanel.tsx` construído. Prototipado em `01e-module-config-chatbot.html`; precisa de story própria.</li>
+      <li>✅ Resolvido — Preview: renderização client-side do rascunho. `HotsiteEditor` passa `draft` diretamente para `HotsitePreview.tsx`, que renderiza a árvore de módulos no cliente. Não existe nem é necessário parâmetro/token de preview na BFF — ver `dev-notes.md`.</li>
       <li>✅ Resolvido — Despublicar é uma ação de zona de risco dentro do próprio editor, como prototipado.</li>
     </ul>
   </div>

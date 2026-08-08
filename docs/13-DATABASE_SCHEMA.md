@@ -85,6 +85,54 @@ Owned by: **Platform Context** (`src/contexts/platform/`)
 | version | INTEGER | NOT NULL DEFAULT 1 — optimistic-locking column |
 | **INDEX** | (tenant_id) | |
 
+### `platform.chatbot_sessions`
+
+One chat widget conversation. Cap enforcement (`docs/discovery/CHATBOT/CHATBOT.md` §8) `COUNT`s rows here directly — no separate counter table.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
+| client_ip | VARCHAR(45) | NOT NULL — abuse/cost-control signal (IPv4/IPv6), distinct from `id`'s job of conversation continuity |
+| started_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
+| last_message_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
+| conversation_date | DATE | NOT NULL — tenant-timezone date bucket, used by the per-day caps |
+| message_count | SMALLINT | NOT NULL DEFAULT 0 |
+| status | VARCHAR(10) | NOT NULL DEFAULT `'ACTIVE'` — `'ACTIVE'`, `'CLOSED'`, `'CAPPED'` |
+| **UNIQUE** | (tenant_id, id) | Composite FK target for `chatbot_messages` |
+| **INDEX** | (tenant_id, conversation_date) | Layer 1 cap: daily conversations per tenant |
+| **INDEX** | (tenant_id, client_ip, conversation_date) | Layer 2 cap: daily conversations per tenant+IP |
+| **INDEX** | (tenant_id, status, last_message_at) | Layer 3 cap: concurrent conversations (live-ness proxy) |
+
+### `platform.chatbot_messages`
+
+The actual chat log — visitor questions and bot answers, both sides, not just metadata. Needed because the LLM is stateless between calls (history must be resent) and as the per-message cost audit trail.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | UUID | PRIMARY KEY |
+| session_id | UUID | NOT NULL |
+| tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
+| role | VARCHAR(9) | NOT NULL — `'USER'` \| `'ASSISTANT'` |
+| content | TEXT | NOT NULL |
+| input_tokens | INTEGER | NOT NULL DEFAULT 0 |
+| output_tokens | INTEGER | NOT NULL DEFAULT 0 |
+| model_id | VARCHAR(100) | NOT NULL — recorded per-message since a tenant can override its LLM provider/model |
+| created_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
+| **FK (composite)** | (tenant_id, session_id) → `platform.chatbot_sessions(tenant_id, id)` | Tenant-safe — a message can never reference another tenant's session |
+| **INDEX** | (tenant_id, session_id) | History reassembly for a given session |
+| **INDEX** | (created_at) | Required for the platform-wide daily spend circuit breaker's `WHERE created_at >= CURRENT_DATE` aggregate — without it, that query full-table-scans on every session-start request, platform-wide, as the table grows |
+
+### `platform.chatbot_provider_balance`
+
+Single-row-per-provider, upserted by a periodic poll (UC-036) — not appended. Platform-wide, not tenant-scoped.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| provider | VARCHAR(32) | PRIMARY KEY — e.g. `'openrouter'` |
+| remaining_usd | NUMERIC(10,4) | NOT NULL |
+| checked_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
+
 ---
 
 ## Schema: `customer`

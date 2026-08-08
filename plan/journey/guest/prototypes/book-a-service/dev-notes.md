@@ -136,7 +136,7 @@ Response: AvailabilityResponse
 
 ## Step 4 — Confirmation + Submit (`ConfirmationStep`)
 
-**Submit → `createBooking(slug, payload)` in `lib/api/bookings.ts`:**
+**Submit → `createBooking(slug, payload)` in `apps/web/features/booking/api/public.ts`:**
 ```
 POST /bookings
   Header: X-Tenant-Slug: {slug}

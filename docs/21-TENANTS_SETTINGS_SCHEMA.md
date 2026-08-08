@@ -23,9 +23,12 @@ The `tenants.settings` column is a JSONB field that stores per-tenant configurat
   "businessHours": { ... },
   "notification": { ... },
   "localization": { ... },
-  "businessInfo": { ... }
+  "businessInfo": { ... },
+  "chatbot": { ... }
 }
 ```
+
+> **`chatbot` is the first category that deviates from this doc's own default-at-creation rule (§ Defaults below) — only its `knowledgeText` field is written into every tenant's row at creation; its other fields are deliberately absent unless Ikaro explicitly overrides one. See §7 below for the full rationale.
 
 ---
 
@@ -310,6 +313,57 @@ Public-facing contact details for the tenant's hotsite (M12-S06 `CONTACT` module
 
 ---
 
+### **7. Chatbot Settings** (`settings.chatbot`)
+
+Configuration for the `CHATBOT` hotsite module (`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT) — an LLM-backed FAQ widget scoped to the tenant's own business data. Full design rationale: `docs/discovery/CHATBOT/CHATBOT.md`.
+
+**Deliberate deviation from this doc's own pattern, explained once here:** every other category above writes its full default into every tenant's row at creation (§ Defaults), because those fields are meant to diverge per tenant over time — each tenant genuinely owns its own value going forward. `chatbot`'s caps are the opposite: they're meant to stay **uniform across every tenant**. Copying today's default into every row at creation would mean a future platform-wide default change silently doesn't apply to any tenant already provisioned — a migration would be needed to bulk-update everyone, defeating the point of a cap that's supposed to be adjustable without a deploy touching tenant data. So: only `knowledgeText` follows the normal pattern (real per-tenant content, defaulted to `""` at creation). Every other field in this category is **absent from a tenant's row unless Ikaro explicitly overrides it for that one tenant** — resolved at read time as `tenant.settings.chatbot?.X ?? DEFAULT_X`, where `DEFAULT_X` is a plain code constant (`contexts/platform/chatbot.constants.ts`), not a database value. Changing a platform-wide default is a one-line code change through a normal reviewed deploy, applying instantly to every tenant with no migration.
+
+| Key | Type | Default | Tenant-editable via UC-026 form? | Description |
+|-----|------|---------|---|-------------|
+| `knowledgeText` | string | `""` | **Yes** — the only self-service field in this category | Free-form business info/policy/FAQ/tone text, assembled into the chatbot's system prompt alongside live services/prices |
+| `maxKnowledgeTextLength` | integer | 4000 | No — fixed platform default, optional Ikaro-only per-tenant override | Char cap on `knowledgeText`. Bounds the system-prompt cost impact of one tenant's free-text field, since it inflates every message of every conversation for that tenant, not just one conversation's worth |
+| `maxConversationsPerDay` | integer | 30 | No | Tenant-wide daily cap on new conversations, from any visitor |
+| `maxConversationsPerIpPerDay` | integer | 5 | No | Per-visitor daily cap on new conversations |
+| `maxConcurrentConversations` | integer | 5 | No | Tenant-wide cap on conversations live at the same instant (live-ness proxy: `last_message_at` within the last 2 minutes) |
+| `maxMessagesPerConversation` | integer | 20 (= 10 exchanges) | No | Cap on one conversation's total stored message count (both `USER` and `ASSISTANT` rows) |
+| `maxMessageLengthChars` | integer | 1000 | No | Cap on one message's length, validated at the BFF before the request reaches the backend or the LLM |
+| `maxHistoryMessagesSentToLlm` | integer | 10 (= last 5 exchanges) | No | Sliding-window cap on how much stored history gets **resent** to the LLM per call — distinct from `maxMessagesPerConversation`, which caps what gets **stored**. Exists to keep per-call cost flat regardless of conversation length (without it, cost grows roughly with the square of conversation length, since every turn resends the entire prior history) |
+| `maxOutputTokensPerResponse` | integer | 300 | No | Hard ceiling on every `ILlmProvider.complete()` call |
+| `llmProvider` | `'openrouter'` \| `'anthropic'` \| `'openai'` \| null | null (falls back to `CHATBOT_LLM_PROVIDER` env var) | No | Per-tenant override of which adapter answers this tenant's chatbot (e.g. a premium contract, or a tenant testing a different model) |
+| `llmModel` | string \| null | null (adapter's own default model) | No | Per-tenant override of which model the resolved provider uses |
+
+**Not in this category, on purpose:** two platform-wide operational breakers — `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` (25) and `CHATBOT_MIN_PROVIDER_BALANCE_USD` (2) — stay env vars, never a `tenants.settings` field at all, even as an override. No tenant should be able to opt out of a platform-protecting backstop, and these need to change fast during a real incident (an env var updates in minutes; a code constant needs a full deploy cycle) — the opposite risk profile from the security-critical guardrail rules (`buildAssistantRules()`'s text), which deliberately need *friction* to change and are a hardcoded string, never sourced from any tenant data or settings field at all.
+
+**Example** (a tenant with only `knowledgeText` set — the common case):
+```json
+{
+  "chatbot": {
+    "knowledgeText": "Trabalhamos apenas com agendamento — não atendemos por ordem de chegada. Aceitamos Pix, cartão de débito e crédito."
+  }
+}
+```
+
+**Example** (a tenant Ikaro has granted a specific override — the caps/provider fields only ever appear when explicitly set for that one tenant):
+```json
+{
+  "chatbot": {
+    "knowledgeText": "...",
+    "maxConversationsPerDay": 100,
+    "llmProvider": "anthropic"
+  }
+}
+```
+
+**Validation Rules:**
+- `knowledgeText`, when present, must not exceed the resolved `maxKnowledgeTextLength` (default 4000, or this tenant's own override if one exists)
+- Every other field in this category is rejected by `PATCH /v1/tenants/settings` if a request attempts to set it through the normal admin-facing settings form path — these are set only via a direct database update or an ad hoc script, run by a developer, not through the API (see `docs/discovery/CHATBOT/CHATBOT.md` §5 — deliberately not gold-plated with a dedicated internal endpoint at this frequency)
+- `llmProvider`, when present, must be one of the built adapters (`'openrouter'`, `'anthropic'`, `'openai'`)
+
+**Usage:** Read by UC-033's system-prompt assembly (`knowledgeText`) and by the per-tenant LLM provider/model resolution (`llmProvider`/`llmModel`) — see `docs/04-USE_CASES.md` UC-033/UC-034 and `docs/discovery/CHATBOT/CHATBOT.md` §4/§6.
+
+---
+
 ## Complete Settings Example
 
 ```json
@@ -367,9 +421,14 @@ Public-facing contact details for the tenant's hotsite (M12-S06 `CONTACT` module
       "instagram": "https://instagram.com/lavacar",
       "facebook": "https://facebook.com/lavacar"
     }
+  },
+  "chatbot": {
+    "knowledgeText": "Trabalhamos apenas com agendamento — não atendemos por ordem de chegada. Aceitamos Pix, cartão de débito e crédito."
   }
 }
 ```
+
+Note: this example tenant has no `chatbot` override fields set (`maxConversationsPerDay`, `llmProvider`, etc.) — that's the common case. See §7 above for what a tenant *with* an explicit Ikaro-granted override looks like.
 
 ---
 
@@ -420,9 +479,14 @@ When a developer provisions a new tenant (UC-024), if settings are not provided,
     "email": null,
     "address": null,
     "socialLinks": null
+  },
+  "chatbot": {
+    "knowledgeText": ""
   }
 }
 ```
+
+**`chatbot` only gets `knowledgeText: ""` written here — none of its other fields (the 8 caps, `llmProvider`, `llmModel`) are written into a new tenant's row.** This is the deviation §7 explains: those fields are resolved `tenant.settings.chatbot?.X ?? DEFAULT_X` at read time, with `DEFAULT_X` a code constant, not a per-tenant database value copied at creation.
 
 ---
 
@@ -510,5 +574,5 @@ When implementing any feature that reads tenant configuration:
 
 ---
 
-**Status:** Complete — UC-026 (Tenant Settings Edit) implemented in `M13-S31`  
-**Reference:** 04-USE_CASES.md UC-026, 02-DOMAIN_MODEL.md tenants section
+**Status:** Complete — UC-026 (Tenant Settings Edit) implemented in `M13-S31`; §7 Chatbot Settings promoted from discovery, not yet implemented — see the chatbot milestone plan  
+**Reference:** 04-USE_CASES.md UC-026/UC-033/UC-034, 02-DOMAIN_MODEL.md tenants section, `docs/discovery/CHATBOT/CHATBOT.md`

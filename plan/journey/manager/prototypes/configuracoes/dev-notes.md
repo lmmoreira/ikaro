@@ -81,9 +81,44 @@ The real `SettingsForm.tsx` has 7 sections, not the 5 this file originally descr
 | **Notificações** (missing from the original draft entirely) | notificationFromEmail |
 | Horário | timezone + per-day open/close/closed |
 | Contato | phone, email, **structured address** (zipCode with ViaCEP lookup, number, street, complement, neighborhood, city, state — not one free-text line as originally drafted), **social links** (whatsapp, instagram, facebook) |
+| **Chatbot** (❌ GAP — not yet built, added 2026-08-08) | `chatbot.knowledgeText` only — see below |
 | **Localização** (missing from the original draft entirely) | countryCode, currency, language — all read-only, set at tenant creation |
 
-Bold fields were entirely absent from this doc and the prototype screen before the 2026-07-31 sync.
+Bold fields (excluding Chatbot, tracked separately below) were entirely absent from this doc and the prototype screen before the 2026-07-31 sync.
+
+---
+
+## Chatbot section (❌ GAP — not yet built)
+
+Promoted from `docs/discovery/CHATBOT/CHATBOT.md` §5/§6 via `/discovery-to-milestone` (2026-08-08).
+Prototyped in `01d-chatbot-section.html` against the full, current 7-section form (not an excerpt).
+
+**Field:** `chatbot.knowledgeText` — the only tenant-editable field in the `chatbot` settings
+category (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §7). Free-form business info/policy/FAQ/tone text,
+assembled into the chatbot's system prompt alongside live services/prices (UC-033).
+
+**BFF call:** part of the existing `PATCH /v1/tenants/settings` call — no new endpoint. Body adds
+one key to the existing `settings` payload:
+```typescript
+interface UpdateTenantSettingsDto {
+  // ...existing categories unchanged...
+  settings: {
+    // ...
+    chatbot?: { knowledgeText?: string };
+  };
+}
+```
+
+**Validation:**
+| Field | Rule | Error message |
+|---|---|---|
+| `chatbot.knowledgeText` | optional string, max `maxKnowledgeTextLength` (4000 chars, tenant-overridable but not exposed in this form) | `400` — "O texto de conhecimento não pode ultrapassar 4000 caracteres." (exact copy TBD, confirm at story-discovery) |
+
+**Deliberately absent from this form:** the 8 volume/cost caps (`maxConversationsPerDay`, etc.) and
+`llmProvider`/`llmModel` — fixed platform defaults, Ikaro-only per-tenant override, never accepted
+through this endpoint even if present in the request body (see
+`docs/discovery/CHATBOT/CHATBOT.md` §5 for the full rationale, `docs/21-TENANTS_SETTINGS_SCHEMA.md`
+§7 for the complete field list).
 
 ---
 

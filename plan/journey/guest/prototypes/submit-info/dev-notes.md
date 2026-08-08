@@ -102,7 +102,7 @@ Shows: reason list + "Ir para o site" CTA + "Entrar / Criar conta" link.
 3. `payload.bookingId !== params.id` → invalid (token reuse attempt)
 4. Optional: fetch booking status; if not `INFO_REQUESTED` → show "já respondido ou processado" variant
 
-## Screen 02 — Sucesso
+## Screen 01f — Sucesso
 
 **Rendered by:** `SubmitInfoForm` component after 200 OK replaces the form in-place.
 

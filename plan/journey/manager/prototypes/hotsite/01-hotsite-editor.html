@@ -64,10 +64,11 @@
     PROTOTYPE-ONLY SIMULATION: color fields write their value to
     localStorage (key "beloauto_hotsite_draft") on change, and 02-preview.html
     reads it back so the Editor → Preview click-through actually reflects
-    the edited branding color. The real implementation must NOT use
-    localStorage — it must persist draft state via the BFF (PATCH
-    /tenants/hotsite draft, or equivalent) and have the preview route read
-    from there, per the open question in hotsite.md / dev-notes.md.
+    the edited branding color. The real implementation does NOT use
+    localStorage or a BFF preview-mode param — preview semantics are
+    resolved (see hotsite.md / dev-notes.md): HotsiteEditor holds draft
+    state client-side and passes it directly to HotsitePreview.tsx as a
+    prop, no persistence round-trip needed for the preview itself.
   -->
 
   <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
@@ -328,6 +329,12 @@
               <span class="module-drag">⠿</span>
               <span class="module-name">Rodapé</span>
               <a href="#" class="module-configure">Configurar</a>
+              <button class="toggle-switch on" onclick="this.classList.toggle('on')"><span class="toggle-knob"></span></button>
+            </div>
+            <div class="module-row">
+              <span class="module-drag">⠿</span>
+              <span class="module-name">Chatbot</span>
+              <a href="01e-module-config-chatbot.html" class="module-configure">Configurar</a>
               <button class="toggle-switch on" onclick="this.classList.toggle('on')"><span class="toggle-knob"></span></button>
             </div>
           </div>

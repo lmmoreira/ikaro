@@ -23,22 +23,23 @@
 <body>
 
   <!--
-    Engineering open question (see dev-notes.md): "Preview" must render
+    Engineering question — RESOLVED (see dev-notes.md): "Preview" must render
     the DRAFT/unpublished hotsite state, but is_published gates what the
-    public route serves. This mock shows the intended UX; the actual
-    implementation needs either a client-side live preview or a
-    preview-mode BFF parameter/token. Not resolved here — flagged for
-    implementation discussion.
+    public route serves. Resolved as a client-side live preview, confirmed
+    shipped: HotsiteEditor passes a `draft: HotsiteAdminContentResponse` prop
+    directly into HotsitePreview.tsx, which renders the module tree
+    client-side from that prop. No BFF preview-mode parameter/token exists
+    or is needed. This mock shows that UX.
   -->
 
   <!--
     PROTOTYPE-ONLY SIMULATION: this reads the draft branding color from
     localStorage (written by 01-hotsite-editor.html) or a ?primaryColor=
     query param, purely so a reviewer clicking Editor → Preview sees the
-    edited color reflected here. The real implementation must NOT use
-    localStorage — it must bind to actual draft form/state via the BFF
-    (GET /tenants/hotsite draft config, or a preview-mode token), per the
-    open question above.
+    edited color reflected here. The real implementation does NOT use
+    localStorage or a BFF fetch — it binds directly to the in-memory draft
+    state via the `draft` prop passed into HotsitePreview.tsx, per the
+    resolution above.
   -->
 
   <div class="preview-banner">

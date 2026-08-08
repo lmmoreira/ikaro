@@ -18,6 +18,11 @@
     .hours-day { font-size: 0.875rem; font-weight: 600; color: var(--ba-text); }
     .hours-closed-toggle { display: flex; align-items: center; gap: 0.375rem; font-size: 0.8125rem; opacity: 0.6; white-space: nowrap; }
 
+    .toggle-switch { width: 2.75rem; height: 1.5rem; border-radius: 9999px; background: #d1d5db; position: relative; cursor: pointer; flex-shrink: 0; border: none; padding: 0; }
+    .toggle-switch.on { background: var(--ba-primary); }
+    .toggle-knob { position: absolute; top: 2px; left: 2px; width: 1.25rem; height: 1.25rem; border-radius: 9999px; background: white; transition: transform 0.15s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    .toggle-switch.on .toggle-knob { transform: translateX(1.25rem); }
+
     .form-actions {
       position: fixed; bottom: 3.75rem; left: 0; right: 0; z-index: 20;
       background: white; border-top: 1px solid var(--ba-secondary);
@@ -138,7 +143,7 @@
           </div>
           <div class="toggle-row" style="display:flex;align-items:center;justify-content:space-between;padding:0.875rem 1rem;border-radius:var(--ba-radius);background:var(--ba-secondary);margin-bottom:1.25rem;">
             <div><div class="toggle-label" style="font-weight:600;font-size:0.9375rem;">Aprovação automática</div><div class="form-hint" style="margin-top:0.125rem;">Aprova novos agendamentos sem revisão manual do staff</div></div>
-            <button class="toggle-switch" onclick="this.classList.toggle('on')" style="width:2.75rem;height:1.5rem;border-radius:9999px;background:#d1d5db;position:relative;border:none;flex-shrink:0;"><span style="position:absolute;top:2px;left:2px;width:1.25rem;height:1.25rem;border-radius:9999px;background:white;"></span></button>
+            <button class="toggle-switch" onclick="this.classList.toggle('on')"><span class="toggle-knob"></span></button>
           </div>
           <div class="form-row">
             <div class="form-group" style="margin-bottom:0;">
@@ -195,7 +200,7 @@
           </div>
           <div class="toggle-row" style="display:flex;align-items:center;justify-content:space-between;padding:0.875rem 1rem;border-radius:var(--ba-radius);background:var(--ba-secondary);margin-bottom:1.25rem;">
             <div><div class="toggle-label" style="font-weight:600;font-size:0.9375rem;">Notificações de expiração</div></div>
-            <button class="toggle-switch on" onclick="this.classList.toggle('on')" style="width:2.75rem;height:1.5rem;border-radius:9999px;background:var(--ba-primary);position:relative;border:none;flex-shrink:0;"><span style="position:absolute;top:2px;left:1.25rem;width:1.25rem;height:1.25rem;border-radius:9999px;background:white;"></span></button>
+            <button class="toggle-switch on" onclick="this.classList.toggle('on')"><span class="toggle-knob"></span></button>
           </div>
           <div class="form-row" style="margin-bottom:0;">
             <div class="form-group" style="margin-bottom:0;">

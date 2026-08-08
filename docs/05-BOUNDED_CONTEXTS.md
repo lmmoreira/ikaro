@@ -712,6 +712,7 @@ For MVP: All deployed as single service, but code organized as separate modules 
 **Owned Aggregates:**
 - `Tenant` — name, slug, settings JSONB, is_active
 - `HotsiteConfig` — branding, layout modules, publish flag
+- `ChatbotSession` / `ChatbotMessage` / `ChatbotProviderBalance` — chat widget conversation log + cost/cap tracking (thin persistence records, not rich aggregates — same treatment as `NotificationLog`)
 
 **Responsibilities:**
 - Provision new tenants (developer CLI in MVP; no super-admin UI)
@@ -719,27 +720,30 @@ For MVP: All deployed as single service, but code organized as separate modules 
 - Allow MANAGER-role staff to edit and publish the hotsite (UC-027)
 - Allow MANAGER-role staff to invite new staff members (UC-025) and deactivate existing ones (UC-028)
 - Validate that `slug` is globally unique on create
+- Answer public hotsite visitors' FAQ-style questions via an LLM-backed chatbot widget, scoped to the tenant's own business data — informational only (UC-033/UC-034)
 
-**Database:** `tenants` + `hotsite_configs` tables (see `docs/13-DATABASE_SCHEMA.md`)
+**Database:** `tenants` + `hotsite_configs` + `chatbot_sessions` + `chatbot_messages` + `chatbot_provider_balance` tables (see `docs/13-DATABASE_SCHEMA.md`)
 
 **Published Events:**
 - `StaffInvited` → consumed by Notification (sends invitation/welcome email to new staff member's Google email)
 - `StaffDeactivated` → no consumers in MVP
 
-**Consumed Events:** none — Platform is the source for its own data.
+**Consumed Events:** none — Platform is the source for its own data. The chatbot flow reads live services/prices from Booking context via BFF orchestration (`BackendHttpService.getForPublic('/services', tenantId)`), not an event or an in-process port — see `docs/discovery/CHATBOT/CHATBOT.md` §6 for why a Platform→Booking port was considered and rejected.
 
 **Dependencies:**
 - **Output:** All other contexts read `tenant_id` and `tenants.settings` from here (via repository, not API)
-- **External:** Google OAuth (to validate the invited email belongs to a Google account at login time)
+- **External:** Google OAuth (to validate the invited email belongs to a Google account at login time); an LLM provider (OpenRouter primary, Anthropic and OpenAI as additional adapters — behind `ILlmProvider`, resolved per-tenant, `docs/discovery/CHATBOT/CHATBOT.md` §4)
 
 **Tenant Isolation:**
 - `Tenant` itself is NOT scoped by `tenant_id` (it IS the tenant).
 - `HotsiteConfig` is scoped by `tenant_id`.
+- `ChatbotSession`/`ChatbotMessage` are scoped by `tenant_id`, with a composite FK `(tenant_id, session_id)` on `chatbot_messages` blocking cross-tenant references at the DB level. `ChatbotProviderBalance` is platform-wide, not tenant-scoped (one row per provider, shared across all tenants).
 - Staff invite/deactivate use cases are scoped to the actor's `tenant_id` — a MANAGER can only manage staff in their own tenant.
 
 **Tech Stack:**
 - Repository pattern for `Tenant` and `HotsiteConfig`
 - Slug uniqueness enforced at DB level (`UNIQUE(slug)`) and validated at application level before insert
+- Chatbot cap enforcement queries Postgres directly (`chatbot_sessions`/`chatbot_messages` `COUNT`s) — never a per-instance `CachePort` cache, which would undercount independently on each Cloud Run replica and silently multiply an intended platform-wide/tenant-wide limit by the replica count
 
 ---
 

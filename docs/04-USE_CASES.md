@@ -704,6 +704,93 @@ Returns:
 
 ---
 
+## Chatbot Use Cases
+
+Promoted from `docs/discovery/CHATBOT/CHATBOT.md` (discovery doc kept as the permanent design rationale — not superseded by these entries). Folds into the Platform context, not a new bounded context (`docs/05-BOUNDED_CONTEXTS.md`). MVP scope boundary: informational-only — the bot never confirms/creates/modifies a booking, never quotes a binding price as a commitment, never accesses any customer/staff/booking record.
+
+### **UC-033: Guest Asks Chatbot a Question**
+
+- **Actor:** Guest (unauthenticated public hotsite visitor)
+- **Preconditions:** Tenant's hotsite has a `CHATBOT` module with `enabled: true` in its published layout. UC-034's pre-flight availability check has already returned `available: true` for this tenant — the widget is never rendered otherwise.
+- **Trigger:** Guest types a message into the chat widget (`bubble` or `inline` variant) and submits it.
+- **Main Flow:**
+   1. Widget `POST`s the message to `POST /public/platform/chatbot/messages` (BFF, public, `X-Tenant-Slug` header) with `{ sessionId?, message }`. First message of a session omits `sessionId`.
+   2. If `sessionId` is omitted: backend enforces the volume caps (`COUNT`-based, against `chatbot_sessions`) — `maxConversationsPerDay` (30, per tenant), `maxConversationsPerIpPerDay` (5, per tenant+IP), `maxConcurrentConversations` (5, per tenant, live-ness proxy `last_message_at > now() - interval '2 minutes'`) — then creates a new `chatbot_sessions` row and returns a new `sessionId` for the widget to hold in `sessionStorage`.
+   3. If `sessionId` is present: backend enforces `maxMessagesPerConversation` (20 = 10 exchanges, `COUNT` of all `chatbot_messages` rows for that session, both roles).
+   4. BFF validates `message.length <= maxMessageLengthChars` (1000, tenant-overridable) — a DTO-level check, before the request reaches the backend or the LLM.
+   5. BFF assembles the system prompt (`chatbot.mapper.ts`'s `buildSystemPrompt()`): live services/prices from Booking context (`BackendHttpService.getForPublic('/services', tenantId)` — the same call the `SERVICE_LIST` module already makes), business info + `settings.chatbot.knowledgeText` from Platform tenant settings (via `CachingTenantRepository`, not a fresh query per message), and the hardcoded `buildAssistantRules(locale)` guardrail section — never sourced from tenant data, never admin-editable.
+   6. BFF truncates history to the last `maxHistoryMessagesSentToLlm` (10 = last 5 exchanges) messages from `chatbot_messages` and forwards `{ systemPrompt, sessionId, history, userMessage }` to backend's Platform "send chat message" use case.
+   7. Backend resolves the tenant's LLM provider (`tenant.settings.chatbot?.llmProvider ?? process.env.CHATBOT_LLM_PROVIDER`) via a provider registry, calls `ILlmProvider.complete()` with `maxOutputTokensPerResponse` (300) as a hard ceiling.
+   8. Backend persists both the user message and the assistant's reply as two `chatbot_messages` rows (`role USER`/`ASSISTANT`, `input_tokens`/`output_tokens`/`model_id` from the adapter's result), updates `chatbot_sessions.last_message_at`/`message_count`.
+   9. Backend returns the reply; BFF forwards `{ sessionId, reply }` to the widget, which renders it as a chat bubble.
+
+- **Alternative Flows:**
+   - **A1: Daily/per-IP/concurrency cap exceeded on session creation** → `429`, specific cap-exceeded error code; widget shows the interrupted state — input disables, tenant's phone/WhatsApp offered as a fallback contact.
+   - **A2: `maxMessagesPerConversation` reached mid-conversation** → same interrupted-state behavior as A1, distinct error code.
+   - **A3: `message.length > maxMessageLengthChars`** → `400`, rejected before reaching the backend or the LLM; inline validation message, input stays enabled (not conversation-ending).
+   - **A4: LLM provider call fails mid-conversation** (timeout, `insufficient credits`, upstream error) after being healthy at the last pre-flight check → interrupted state, generic "assistant unavailable" message, phone/WhatsApp fallback offered.
+   - **A5: Visitor attempts prompt injection** (e.g. "ignore your instructions," a fake-authority booking-confirmation attempt) → the hardcoded guardrail section causes the model to refuse/redirect; empirically validated 7/7 in `docs/discovery/CHATBOT/eval/` (2026-08-07). This is a model-behavior outcome, not a server-side detection branch — the bot has zero tools/write access (§2 scope boundary), so even an unlikely successful jailbreak has nothing to execute.
+   - **A6: Platform-wide daily spend circuit breaker or provider balance floor already tripped** → new session creation refused for every tenant simultaneously. Normally caught earlier at UC-034's pre-flight check; listed here too since the breaker could trip between messages of an already-open conversation.
+
+- **Postconditions:** One or more `chatbot_messages` rows persisted per exchange; `chatbot_sessions.message_count`/`last_message_at` updated. No booking, customer, or staff record is ever read or written.
+- **Events Triggered:** None — no other bounded context needs to react synchronously to a chat message (`docs/03-DOMAIN_EVENTS.md` deliberately unchanged by this feature).
+- **Out of scope (MVP):** availability-aware answers (reading live schedule data), booking actions from chat, multi-turn memory across sessions (visitor is anonymous).
+
+---
+
+### **UC-034: Guest Checks Chatbot Availability**
+
+- **Actor:** Guest
+- **Preconditions:** None — this is the widget's own mount-time check, run before any message can be sent.
+- **Trigger:** Chat widget mounts on the hotsite page (its `CHATBOT` module is `enabled: true` on the cached manifest).
+- **Main Flow:**
+   1. Widget calls `GET /public/platform/chatbot/status` (BFF, public, `X-Tenant-Slug` header) — always fresh, never cached (unlike the manifest's 5-minute cache), since availability depends on live state.
+   2. Backend evaluates, for this tenant, whether any of five conditions is currently true: (a) tenant's daily cap already exhausted, (b) tenant's concurrency cap already exhausted, (c) the resolved LLM provider (`tenant override ?? platform default`) failing a health check, (d) the platform-wide daily spend circuit breaker already tripped, (e) the resolved provider's balance floor already tripped (reads the periodically-polled `chatbot_provider_balance` row — no live external call in this hot path).
+   3. Backend returns `{ available: boolean }`.
+   4. Widget renders the bubble/inline widget only if `available: true`; renders nothing at all otherwise — a visitor never sees a chat button that then fails when clicked.
+
+- **Alternative Flows:**
+   - **A1: `CHATBOT` module `enabled: false` on the manifest** → handled entirely client-side by the existing generic module-render filter (`buildHotsiteModuleRenderPlan()`, `apps/web/features/platform/hotsite/page-model.ts`) — this status check is never even called, since the module isn't rendered at all.
+- **Postconditions:** None (pure read).
+- **Events Triggered:** None.
+
+---
+
+### **UC-035: System Purges Expired Chatbot Conversations**
+
+- **Actor:** System (GCP Cloud Scheduler)
+- **Preconditions:** `chatbot_messages`/`chatbot_sessions` rows exist older than the retention window.
+- **Trigger:** GCP Cloud Scheduler publishes to a `ikaro-cron-chatbot-retention-purge` Pub/Sub topic daily; the push subscription dispatches to the retention-purge trigger handler (local dev: `POST /cron/chatbot-retention-purge` publishes the same trigger — mirrors UC-016b's cron pattern).
+- **Main Flow:**
+   1. Job deletes every `chatbot_messages` row where `created_at < now() - interval '180 days'`, across all tenants in one pass.
+   2. Job deletes every `chatbot_sessions` row whose `started_at < now() - interval '180 days'` **and** that now has zero remaining `chatbot_messages` rows (avoids orphaning a session record with no messages left).
+   3. Job logs `{ messagesDeleted, sessionsDeleted }`.
+- **Alternative Flows:**
+   - **A1: No rows past the retention window** → no-op, logs `{ messagesDeleted: 0, sessionsDeleted: 0 }`.
+- **Postconditions:** No `chatbot_messages`/`chatbot_sessions` row older than 180 days remains for any tenant.
+- **Events Triggered:** None.
+- **Config key:** retention window is a code constant (180 days) — not a tenant-editable setting.
+- **Out of scope (MVP):** partial truncation (keeping token counts while dropping `content`) — full row deletion only.
+
+---
+
+### **UC-036: System Polls LLM Provider Balance**
+
+- **Actor:** System (GCP Cloud Scheduler)
+- **Preconditions:** At least one LLM provider adapter with a prepaid-balance concept is configured (OpenRouter, for MVP — Anthropic/OpenAI billing don't have the same prepaid-balance concept and are out of scope for this specific check).
+- **Trigger:** GCP Cloud Scheduler publishes to a `ikaro-cron-chatbot-balance-poll` Pub/Sub topic every 15–30 minutes; the push subscription dispatches to the balance-poll trigger handler (local dev: `POST /cron/chatbot-balance-poll` publishes the same trigger).
+- **Main Flow:**
+   1. Job calls OpenRouter's account API (`GET /api/v1/credits`) using the platform's own API key.
+   2. Job upserts the result into `chatbot_provider_balance` (`provider = 'openrouter'`, `remaining_usd`, `checked_at = now()`) — one row per provider, not appended.
+   3. UC-034's pre-flight status check reads this stored value on every widget mount — no external call in that hot path.
+- **Alternative Flows:**
+   - **A1: OpenRouter's account API call fails/times out** → job logs a warning and leaves the existing `chatbot_provider_balance` row unchanged; the last known value keeps being served until the next successful poll (a stale reading in either direction costs a few extra minutes, not a correctness problem at this cost scale).
+- **Postconditions:** `chatbot_provider_balance` row for `openrouter` reflects the balance as of the last successful poll.
+- **Events Triggered:** None.
+- **Config key:** poll interval is deploy-time Cloud Scheduler config, not a tenant setting; `CHATBOT_MIN_PROVIDER_BALANCE_USD = 2` is the threshold UC-034 compares against.
+
+---
+
 ## Admin Reminders & Notifications
 
 ### **UC-018: Admin Receives Daily Schedule Reminder**
@@ -961,6 +1048,7 @@ Returns:
       - **Fuso horário** — required; default `America/Sao_Paulo`
       - **Buffer entre agendamentos** (minutos) — prep time between bookings, default 60
       - **Endereço, telefone e e-mail do estabelecimento** — `settings.businessInfo` (M12-S06); all optional. Shown on the hotsite `CONTACT` module when its `showAddress`/`showPhone`/`showEmail`/`showMap` flags are enabled (`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §4 CONTACT, `docs/21-TENANTS_SETTINGS_SCHEMA.md` §6)
+      - **Conhecimento do assistente (chatbot)** — `settings.chatbot.knowledgeText` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §7); free-form textarea (policies, FAQ, tone notes), max 4000 characters (`maxKnowledgeTextLength`, a fixed platform default, not shown in this form — see below). Read by UC-033's system-prompt assembly alongside live services/prices. The other `settings.chatbot` fields (the 8 volume/cost caps, `llmProvider`/`llmModel`) are deliberately **not** in this form — fixed platform defaults for MVP, resolved `tenant override ?? platform default` at read time, only ever set by a developer directly on a specific tenant's row when Ikaro grants an explicit override (see `docs/21-TENANTS_SETTINGS_SCHEMA.md` §7 for the full rationale)
       - (see scope-expansion note above for the full M13-S31 field set)
    2. Admin updates values.
    3. Admin clicks "Salvar".
@@ -1003,7 +1091,7 @@ Returns:
       - Button background color (optional, overrides primary color on buttons)
       - Button text color (optional)
       
-      **Section B: Layout / Modules** (drag-drop list of module types — the 8 types built in M12/M13-S36: HERO, SERVICE_LIST, GALLERY, TESTIMONIALS, BOOKING_CTA, ABOUT, CONTACT, FOOTER)
+      **Section B: Layout / Modules** (drag-drop list of module types — the 8 types built in M12/M13-S36: HERO, SERVICE_LIST, GALLERY, TESTIMONIALS, BOOKING_CTA, ABOUT, CONTACT, FOOTER; CHATBOT added as a 9th type)
       - [x] HERO (title, subtitle, optional background image upload) — toggle on/off
       - [x] SERVICE_LIST (services from catalog, with price/points badges) — toggle on/off
       - [x] GALLERY (booking after-photos + curated images) — toggle on/off + limit (6 default)
@@ -1011,6 +1099,7 @@ Returns:
       - [x] TESTIMONIALS (author, text, optional rating; grid or carousel) — toggle on/off
       - [x] ABOUT (markdown body + optional image, configurable position) — toggle on/off
       - [x] CONTACT (address/phone/email/WhatsApp/map, each independently toggleable) — toggle on/off
+      - [x] CHATBOT (AI-assisted FAQ widget scoped to the tenant's own business data) — toggle on/off; drill-down config carries only `variant` (`bubble`|`inline`), `accentColor`, `botName`, `welcomeMessage` — everything cost/security-sensitive (`knowledgeText`, the volume/cost caps) is deliberately excluded from this module data and lives on the tenant settings page instead (UC-026) or isn't tenant-editable at all (`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT). This config screen also carries a standing (non-dismissible) disclosure note: the assistant depends on Ikaro-managed AI provider credits, and a temporary provider/credit shortfall disables the widget automatically until resolved — no tenant action needed
 
       **Section C: SEO** (M12-S09; share image added M18-S03)
       - Title (text input, max 60 chars) — overrides the generated `<title>` for search results and social sharing
@@ -1042,6 +1131,7 @@ Returns:
    - **A2: Image upload fails** → System falls back to URL input
    - **A3: Malformed/invalid JSON in the Manifesto tab** → "Aplicar" shows an inline error and does not merge the edit into the draft; leaving the tab without clicking "Aplicar" discards the pending edit
    - **A4: Admin leaves a module's config screen with unapplied edits (M18-S08)** → "Cancelar" or the topbar back arrow shows a confirm-discard prompt, only when the edit actually differs from the module's last-applied value. "Descartar alterações" discards the edit and returns to the tabs view (same end state as before this story); "Continuar editando" or pressing Escape keeps the admin on the same config screen with the edit intact — clicking outside the dialog does not dismiss it, matching how confirm/destructive dialogs work everywhere (deliberate, not a gap)
+   - **A5: CHATBOT module's daily conversation cap already reached today** → the CHATBOT module's config screen (only — no other module type shows this) displays a red banner reading that today's conversation limit was reached and the widget resumes automatically tomorrow. Driven by a small authenticated read (`GET /v1/tenants/chatbot/cap-status`, MANAGER-only) reusing the same per-tenant daily-cap `COUNT` query UC-033's cap enforcement already runs — not a new counting mechanism. Other backstops (concurrency cap, platform-wide spend breaker, provider balance floor) are **not** surfaced here; they stay covered by the visitor-facing "not available" widget state (UC-034) only, since they aren't specific to — or actionable by — this one tenant
 
 - **Postconditions:** `hotsite_configs` updated. Hotsite public page reflects new branding and layout immediately (cached at edge if needed).
 - **Events Triggered:** None
@@ -1173,3 +1263,7 @@ Returns:
 | UC-029 | Admin deactivates staff member | MANAGER staff | `staff.is_active = false`; `StaffDeactivated` event |
 | UC-030 | Admin edits staff member profile | MANAGER staff | `staff.name`/`staff.role` updated; no event |
 | UC-031 | Admin reactivates staff member | MANAGER staff | `staff.is_active = true`; `deactivated_by` cleared; `StaffActivated` event |
+| UC-033 | Guest asks chatbot a question | Guest | `chatbot_messages` rows persisted (USER+ASSISTANT); no booking/customer/staff record touched |
+| UC-034 | Guest checks chatbot availability | Guest | Read-only: `{ available: boolean }` |
+| UC-035 | System purges expired chatbot conversations | System (cron) | Daily — deletes `chatbot_messages`/`chatbot_sessions` rows past 180-day retention |
+| UC-036 | System polls LLM provider balance | System (cron) | Every 15-30 min — upserts `chatbot_provider_balance` row |

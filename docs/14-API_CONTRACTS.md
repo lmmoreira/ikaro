@@ -86,10 +86,10 @@ Response:
 
 #### **Pattern D — Unpaginated (full list)**
 
-Used by `GET /services` (`HotsiteServiceListResponse`, `packages/types/src/hotsite.ts`) — see "Services List" example below. No `limit`/`offset`/`page` query params accepted; no pagination wrapper in the response.
+Used by `GET /public/services` (`HotsiteServiceListResponse`, `packages/types/src/hotsite.ts`) — see "Services List" example below. No `limit`/`offset`/`page` query params accepted; no pagination wrapper in the response. **Corrected 2026-08-08:** this was previously documented as the bare `GET /services` — that path is actually the `STAFF`|`MANAGER`-authenticated staff list endpoint (see § below); the public, unauthenticated list moved to `/public/services` in `M13-S05` (`docs/24-BFF_ARCHITECTURE.md`'s `.public.controller.ts` → `public/<resource>` convention).
 
 ```
-GET /services
+GET /public/services
 Response:
 { "items": [ /* all active services for the tenant */ ] }
 ```
@@ -220,6 +220,34 @@ Used by `app/sitemap.ts` to enumerate every published tenant hotsite for search-
 - `updatedAt` is `hotsite_configs.updated_at` (ISO-8601 UTC) — used as `lastmod` in the sitemap
 - Backed by `GET /internal/tenants/published-hotsites` (Platform context, gated by the global `InternalApiGuard`)
 
+### **Chatbot Widget (Public — UC-033, UC-034)**
+The `CHATBOT` hotsite module's own endpoints — never part of the cached manifest (§ above), since availability and message content are visitor-specific/live, not static per-tenant data. Full design: `docs/discovery/CHATBOT/CHATBOT.md`.
+
+- `GET /public/platform/chatbot/status`
+  - **Public** — `X-Tenant-Slug` header required (same convention as `GET /public/services`, not a query param; `.public.controller.ts` routes always carry the `public/` prefix — `docs/24-BFF_ARCHITECTURE.md`)
+  - Never cached — always evaluates live state, unlike the 5-minute-cached manifest
+  - **Response:** `200 OK` — `{ "available": boolean }`
+  - Evaluates, for the tenant resolved from the header (and that tenant's resolved LLM provider — `tenant override ?? platform default`): tenant daily cap already exhausted, tenant concurrency cap already exhausted, resolved provider failing a health check, platform-wide daily spend circuit breaker tripped, resolved provider's balance floor tripped (`platform.chatbot_provider_balance`, a local lookup — never a live external call here)
+  - `404` — tenant slug not found
+
+- `POST /public/platform/chatbot/messages`
+  - **Public** — `X-Tenant-Slug` header required
+  - **Request body:** `{ "sessionId"?: "uuid-v7", "message": "string, max 1000 chars (tenant-overridable)" }` — `sessionId` omitted on the first message of a conversation
+  - **Response `200 OK`:** `{ "sessionId": "uuid-v7", "reply": "string" }`
+  - `400` — `message` exceeds `maxMessageLengthChars`; validated before the request reaches the backend or the LLM
+  - `429` — a volume cap rejected the request (new-session caps: daily/per-IP/concurrency; existing-session cap: `maxMessagesPerConversation`) — a specific error code per cap layer, see `docs/discovery/CHATBOT/CHATBOT.md` §8 for the full list
+  - `503` — LLM provider call failed (timeout, upstream error, insufficient credits) — widget shows the interrupted state, phone/WhatsApp fallback offered
+  - `404` — tenant slug not found, or `sessionId` doesn't belong to this tenant
+
+### **Tenant Settings (Admin — UC-026)**
+First documented entry for this route — it existed and was implemented (`M13-S31`) before it had a dedicated API contract entry; see `docs/04-USE_CASES.md` UC-026 and `docs/21-TENANTS_SETTINGS_SCHEMA.md` for the full field-level rules this section doesn't repeat.
+
+- `GET /v1/tenants/settings` → `200 { tenantId, name, slug, settings: { loyalty, booking, businessHours, notification, localization, businessInfo, chatbot } }` — `STAFF`|`MANAGER` (read allowed to both roles)
+- `PATCH /v1/tenants/settings` → body `{ settings: { <category>?: {...}, ... } }` — partial update, any subset of the category keys nested under `settings` (unspecified categories/fields unchanged); `200` returns updated state — `MANAGER` only, `STAFF` gets `403`
+  - Request body is validated against a `.strict()` schema with a fixed category key list on both the BFF (`UpdateTenantSettingsBodySchema`, `apps/bff/src/features/platform/tenant-settings.controller.ts`) and backend DTO layers (`UpdateTenantSettingsSchema`, `apps/backend/src/contexts/platform/application/dtos/update-tenant-settings.dto.ts`) — an unrecognized top-level key under `settings` is rejected as `400`, not silently ignored. `chatbot` is a category in that fixed list (added by this milestone) alongside the six pre-existing ones.
+  - `chatbot.knowledgeText` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §7): optional string, max `maxKnowledgeTextLength` (4000 chars, tenant-overridable but not exposed in this form) — `400` if exceeded. This is the **only** tenant-editable field in the `chatbot` settings category; the 8 volume/cost caps and `llmProvider`/`llmModel` are never accepted in this body even if present — a request including them either gets silently stripped or rejected, per whichever the implementing story's Zod schema chooses (must be one or the other, not left ambiguous — see `docs/discovery/CHATBOT/CHATBOT.md` §5 for why these stay Ikaro-only overrides)
+- `400 PLATFORM_SETTINGS_UPDATE_EMPTY` — body has no recognized fields at all
+
 ### **Hotsite Admin Management (Admin — UC-027, M12-S02)**
 Lets a `MANAGER` configure branding, layout modules, and publish status. Mirrors the public manifest's `branding`/`layout`/`isPublished` shape, but `GET` always returns the full draft state regardless of publish status — unlike the public endpoint, which stubs `layout: []` and `business` (all fields `null`) when `isPublished: false` (see §1 above).
 
@@ -233,6 +261,13 @@ Lets a `MANAGER` configure branding, layout modules, and publish status. Mirrors
 - `POST /v1/tenants/hotsite/publish` → `200 { isPublished: true }`; `400 publish-requires-enabled-module` if the layout has no `enabled: true` modules
 - `POST /v1/tenants/hotsite/unpublish` → `200 { isPublished: false }`
 - All four require JWT + `MANAGER` role — `STAFF` gets `403`
+
+### **Chatbot Cap Status (Admin — UC-027 A5)**
+Powers the red banner on the `CHATBOT` module's own config screen only (not shown for any other module type, and not shown on the visitor-facing widget — that's `GET /public/platform/chatbot/status` above).
+
+- `GET /v1/tenants/chatbot/cap-status` → `200 { dailyCapReachedToday: boolean }` — `MANAGER` only (matches Hotsite Admin Management's all-MANAGER convention, since this reads out inside `/dashboard/hotsite`)
+  - Reuses the identical per-tenant daily-cap `COUNT` query `POST /public/platform/chatbot/messages` already runs for cap enforcement (`docs/13-DATABASE_SCHEMA.md`'s `platform.chatbot_sessions` index on `(tenant_id, conversation_date)`) — not a new counting mechanism
+  - Deliberately narrow: only reports the daily-cap condition. Concurrency cap, platform-wide spend breaker, and provider balance floor are not surfaced here — they stay covered by the visitor-facing "not available" state only, since they aren't specific to or actionable by one tenant
 
 ### **Hotsite Image Upload (Admin — UC-027, M12-S02 + M12-S10; tmp/ staging — TD22)**
 Generates a GCS signed **upload** URL for hotsite images (logo, hero/CTA backgrounds, gallery, about photos). Reuses the same `IStorageService`/`GcsSignedUrlAdapter` and upload constraints introduced for booking attachments in M115-S01 (15-minute *upload*-URL expiry, content-type lock, 10 MB cap) — no new upload mechanics.
@@ -968,6 +1003,56 @@ resource "google_cloud_scheduler_job" "loyalty_expire_points" {
   time_zone = "UTC"
   pubsub_target {
     topic_name = google_pubsub_topic.cron_loyalty_expiry.id
+    data       = base64encode("{}")
+  }
+}
+```
+
+---
+
+### `POST /cron/chatbot-retention-purge` — Publish the daily chatbot-retention-purge trigger (UC-035)
+
+Same shape as `POST /cron/loyalty-expiry` above — local/manual trigger path only, `InternalApiGuard`-protected, not the endpoint Cloud Scheduler calls in prod (Scheduler publishes to the `ikaro-cron-chatbot-retention-purge` Pub/Sub topic directly). The trigger handler deletes every `chatbot_messages` row older than 180 days, then every now-orphaned `chatbot_sessions` row past the same window.
+
+**Request headers:** `X-Internal-Key` required.
+
+**Request body:** none
+
+**Response `200 OK`:** `{ "ok": true }` — returned once the trigger is published, not once the purge job finishes.
+
+**GCP Cloud Scheduler resource (Terraform — `modules/scheduler`):**
+```hcl
+resource "google_cloud_scheduler_job" "chatbot_retention_purge" {
+  name      = "chatbot-retention-purge"
+  schedule  = "0 3 * * *"
+  time_zone = "UTC"
+  pubsub_target {
+    topic_name = google_pubsub_topic.cron_chatbot_retention_purge.id
+    data       = base64encode("{}")
+  }
+}
+```
+
+---
+
+### `POST /cron/chatbot-balance-poll` — Publish the LLM provider balance-poll trigger (UC-036)
+
+Same shape as `POST /cron/loyalty-expiry` above. The trigger handler calls OpenRouter's `GET /api/v1/credits` and upserts `platform.chatbot_provider_balance`.
+
+**Request headers:** `X-Internal-Key` required.
+
+**Request body:** none
+
+**Response `200 OK`:** `{ "ok": true }`
+
+**GCP Cloud Scheduler resource (Terraform — `modules/scheduler`):**
+```hcl
+resource "google_cloud_scheduler_job" "chatbot_balance_poll" {
+  name      = "chatbot-balance-poll"
+  schedule  = "*/15 * * * *"
+  time_zone = "UTC"
+  pubsub_target {
+    topic_name = google_pubsub_topic.cron_chatbot_balance_poll.id
     data       = base64encode("{}")
   }
 }

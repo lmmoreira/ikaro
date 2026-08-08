@@ -703,6 +703,7 @@ Sidebar, bottom-nav, and bottom-sheet items that point to another journey (e.g. 
 |---|---|---|---|
 | GUEST — Book a Service | `guest/book-a-service.md` | `guest/prototypes/book-a-service/` | Reviewed |
 | GUEST — Responder à Solicitação de Informação | `guest/submit-info.md` | `guest/prototypes/submit-info/` | Reviewed |
+| GUEST — Ask Chatbot | `guest/ask-chatbot.md` | `guest/prototypes/ask-chatbot/` | Draft |
 | CUSTOMER — Book a Service | `customer/book-a-service.md` | `customer/prototypes/book-a-service/` | Reviewed |
 | CUSTOMER — Login & Tenant Selection | `customer/login.md` | `customer/prototypes/login/` | Reviewed |
 | STAFF — Login & First Access | `staff/login.md` | `staff/prototypes/login/` | Reviewed |

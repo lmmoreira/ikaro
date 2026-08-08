@@ -171,6 +171,7 @@ Module components consume these via inline `style` (e.g. `backgroundColor: 'var(
 | `BOOKING_CTA` | Secondary call-to-action section | Manifest |
 | `ABOUT` | Business / team story | Manifest |
 | `CONTACT` | Address, phone, social, map | Tenant settings |
+| `CHATBOT` | AI-assisted FAQ widget, scoped to the tenant's own business data | Booking context (live services) + tenant settings (`knowledgeText`), assembled BFF-side — never in the manifest, see § CHATBOT below |
 
 The `FOOTER` is always rendered automatically from tenant settings — it is **not** part of the `layout` array.
 
@@ -187,7 +188,8 @@ type HotsiteModuleType =
   | 'BOOKING_CTA'
   | 'ABOUT'
   | 'CONTACT'
-  | 'FOOTER';
+  | 'FOOTER'
+  | 'CHATBOT';
 
 interface HotsiteModule {
   type: HotsiteModuleType;
@@ -373,6 +375,29 @@ interface HotsiteManifestResponse extends HotsiteResponse {
 - `business.socialLinks.instagram` / `business.socialLinks.facebook` → rendered as links when present, independent of the `showXxx` flags above
 - `showMap` → embeds `https://maps.google.com/maps?q=<urlencoded address>&output=embed` (keyless query-based embed, no Google Maps API key needed) using `business.address`; omitted if `business.address` is `null`, even when `showMap: true`
 
+### CHATBOT
+
+```typescript
+interface ChatbotModuleData {
+  variant?: 'bubble' | 'inline';         // widget placement, default 'bubble'
+  accentColor?: 'primary' | 'secondary'; // maps to var(--ba-*), no raw hex
+  botName?: string;                      // shown in the widget header, defaults to the tenant's own name if unset
+  welcomeMessage?: string;               // first message shown when the chat opens, default a generic greeting
+}
+```
+
+Same split as `ContactModuleData`, made explicit: `ChatbotModuleData` only carries fields **rendered verbatim to every visitor** — `botName`/`welcomeMessage` are shown exactly as typed, same category as `HeroModuleData.title`. Everything cost/security-sensitive is deliberately excluded from this module data and fetched separately:
+- `tenants.settings.chatbot.knowledgeText` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §7) — edited on the tenant settings page (UC-026), not the module editor, same reason `ContactModuleData` excludes `businessInfo`
+- The 8 volume/cost caps + `llmProvider`/`llmModel` — not editable anywhere in the admin UI for MVP; fixed platform defaults, optional Ikaro-only per-tenant override (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §7)
+
+**Why this split matters more here than for `CONTACT`:** the manifest is public and cached for 5 minutes (`Cache-Control: public, max-age=300`, § 2 above). Shipping `maxConversationsPerDay` or the raw `knowledgeText` into that payload would mean any visitor could read a tenant's cost-control settings and internal FAQ notes directly from the JSON response, whether or not the widget UI shows them.
+
+**Availability is not derived from the manifest at all.** Unlike every other module, whether the `CHATBOT` widget actually renders depends on live, uncached state (per-tenant caps, LLM provider health, platform-wide spend/balance breakers) that can change from one request to the next — the `enabled: false` flag only covers the "admin turned this module off" case. The widget makes its own always-fresh pre-flight call on mount (`GET /public/platform/chatbot/status`, UC-034) before rendering anything; see `docs/14-API_CONTRACTS.md` § Chatbot Widget for the full contract and `docs/04-USE_CASES.md` UC-033/UC-034 for the three widget states (not available / active / interrupted).
+
+**Module-config screen carries a standing disclosure, not shown for any other module type:** since availability depends on a platform-wide LLM provider account being funded and healthy — not just this tenant's own settings — the `CHATBOT` module's own config screen (`/dashboard/hotsite`, per-module drill-down) shows a permanent info note that a temporary provider/credit shortfall can disable the widget automatically, no tenant action needed. It also shows a red banner (not a permanent note — conditional) when this tenant's own daily conversation cap was already reached today (`docs/04-USE_CASES.md` UC-027 A5, `docs/14-API_CONTRACTS.md` § Chatbot Cap Status).
+
+Full design rationale, cost model, and the ten-layer cap/abuse-prevention design: `docs/discovery/CHATBOT/CHATBOT.md`.
+
 ---
 
 ## 5. Next.js Routing & SSR Strategy
@@ -417,14 +442,21 @@ export default async function HotsiteLayout({
 }
 ```
 
-**`app/[slug]/page.tsx`** — renders enabled modules in manifest order. `MODULE_MAP` starts empty and grows as each module story (M12-S04–S06) lands:
+**`app/[slug]/page.tsx`** — renders enabled modules in manifest order. **Corrected 2026-08-08 (docs-audit, promoted via `/discovery-to-milestone` for the CHATBOT module):** the actual implementation is not a `MODULE_MAP` lookup table — it's a direct per-type component-import chain, fed by `buildHotsiteModuleRenderPlan()` (`apps/web/features/platform/hotsite/page-model.ts`), which does the generic `enabled` filter (the outcome this doc originally described is still accurate — no per-module logic needed for the on/off toggle — just not via the mechanism previously documented here):
 
 ```typescript
+// apps/web/app/[slug]/page.tsx (real shape, simplified)
+// Corrected 2026-08-08: the module components live under @/shells/hotsite/components/,
+// not @/features/platform/hotsite/components/ — only buildHotsiteModuleRenderPlan()
+// itself lives in the features/ slice. buildHotsiteModuleRenderPlan() also takes
+// (layout, alternateSectionBg), not the whole manifest, and returns { parsed, bgVariant }
+// items, not the parsed module directly.
+import { buildHotsiteModuleRenderPlan } from '@/features/platform/hotsite/page-model';
+import { HeroModule } from '@/shells/hotsite/components/HeroModule';
+import { ServiceListModule } from '@/shells/hotsite/components/ServiceListModule';
+import { ContactModule } from '@/shells/hotsite/components/ContactModule';
+// ...one import per module component, including ChatbotModule once built
 import { Footer } from '@/shells/hotsite/components/Footer';
-import { HotsiteModuleType } from '@ikaro/types';
-
-// Each module story registers its component here
-const MODULE_MAP: Partial<Record<HotsiteModuleType, React.ComponentType<{ data: any; slug: string }>>> = {};
 
 export default async function HotsitePage({
   params,
@@ -433,16 +465,22 @@ export default async function HotsitePage({
 }) {
   const { slug } = await params;
   const manifest = await fetchManifest(slug);
+  // does the enabled-filter, generically, once — also resolves each module's
+  // alternating-section-background variant from the branding token
+  const plan = buildHotsiteModuleRenderPlan(manifest.layout, manifest.branding.alternateSectionBg);
 
   return (
     <main>
-      {manifest.layout
-        .filter((m) => m.enabled)
-        .map((m) => {
-          const Component = MODULE_MAP[m.type];
-          return Component ? <Component key={m.type} data={m.data} slug={slug} /> : null;
-        })}
-      <Footer slug={slug} />
+      {plan.map(({ parsed, bgVariant }) => {
+        let moduleEl = null;
+        if (parsed.type === 'HERO') moduleEl = <HeroModule data={parsed.data} slug={slug} bgVariant={bgVariant} />;
+        else if (parsed.type === 'SERVICE_LIST') moduleEl = <ServiceListModule data={parsed.data} slug={slug} bgVariant={bgVariant} />;
+        else if (parsed.type === 'CONTACT') moduleEl = <ContactModule data={parsed.data} slug={slug} bgVariant={bgVariant} />;
+        else if (parsed.type === 'CHATBOT') moduleEl = <ChatbotModule data={parsed.data} slug={slug} />;
+        // ...one branch per module type
+        else if (parsed.type === 'FOOTER') moduleEl = <Footer slug={slug} />; // FOOTER is one more branch here, not unconditionally appended outside the loop
+        return moduleEl;
+      })}
     </main>
   );
 }
@@ -558,9 +596,9 @@ Create `apps/web/shells/hotsite/components/XxxModule.tsx`. Rules:
 
 Add a `XxxModuleDataSchema` to `apps/web/features/platform/hotsite/module-schemas.ts` and register it in `MODULE_DATA_SCHEMAS`. Without this, `isValidModuleData('XXX', data)` returns `true` for any data including structurally invalid payloads — a malformed module will reach the component and may crash the page. Every `HotsiteModuleType` must have a schema registered before its story ships.
 
-**4. Register in MODULE_MAP**
+**4. Register the render branch**
 
-Add the entry to `MODULE_MAP` in `apps/web/app/[slug]/page.tsx`.
+Add an `else if (parsed.type === 'XXX')` branch (importing the new module's component) to the if/else-if chain in `apps/web/app/[slug]/page.tsx` — see § 3 "Module Type Union" above for the real, current shape of this chain (not a `MODULE_MAP` lookup table, corrected 2026-08-08).
 
 **5. Add the admin configuration form**
 
@@ -603,7 +641,7 @@ The manifest pattern is designed to grow without rework:
 
 | Future feature | How it fits |
 |---|---|
-| New module type | Add interface + component + register in MODULE_MAP — rendering engine unchanged |
+| New module type | Add interface + component + add render branch in `app/[slug]/page.tsx` — rendering engine unchanged |
 | Module layout variants | Add a `variant` field to the module's `data` interface — no manifest schema change |
 | Deeper per-module theming | Add more `--ba-*` tokens to `applyBranding()` — all modules inherit automatically |
 | Side-by-side columns | Wrap modules in a `ROW` container type with `columns` array — post-MVP |

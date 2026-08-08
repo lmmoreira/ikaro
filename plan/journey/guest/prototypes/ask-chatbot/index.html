@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Protótipo — GUEST: Falar com o Chatbot</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    body { padding: 2rem; }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+    p { margin-bottom: 1rem; font-size: 0.9375rem; }
+    ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; margin: 1.25rem 0; }
+    li { display: flex; align-items: center; gap: 0.75rem; }
+    li a { color: var(--ba-primary); font-weight: 500; }
+    .tag {
+      font-size: 0.75rem; font-weight: 600; padding: 0.125rem 0.5rem;
+      border-radius: 4px; white-space: nowrap;
+    }
+    .tag-green  { background: #dcfce7; color: #15803d; }
+    .tag-red    { background: #fee2e2; color: #dc2626; }
+    .note {
+      background: var(--ba-secondary);
+      border-radius: var(--ba-radius);
+      padding: 1rem 1.25rem;
+      margin-top: 1.5rem;
+      font-size: 0.875rem;
+      line-height: 1.6;
+    }
+    hr { border: none; border-top: 1px solid var(--ba-secondary); margin: 1.25rem 0; }
+  </style>
+</head>
+<body>
+  <h1>Protótipo — GUEST: Falar com o Chatbot</h1>
+  <p>
+    Visitante não-autenticado faz uma pergunta livre ao assistente IA do hotsite (UC-033/UC-034).
+    <strong>Status: Draft — nada foi construído ainda.</strong> Promovido de
+    <code>docs/discovery/CHATBOT/CHATBOT.md</code> via <code>/discovery-to-milestone</code>
+    (2026-08-08); ainda sem número de milestone/story atribuído — ver <code>dev-notes.md</code>.
+  </p>
+
+  <ul>
+    <li>
+      <a href="00-hotsite.html">Tela 0 — Hotsite (ponto de entrada, com a bolha do chat)</a>
+      <span class="tag tag-green">EXISTS: HeroModule + ServiceListModule (redireciona para shared/hotsite.html)</span>
+    </li>
+    <li>
+      <a href="01-active-chat.html">Passo 1 — Conversa ativa (bolha)</a>
+      <span class="tag tag-red">GAP: ChatbotWidget — sem story ainda</span>
+    </li>
+  </ul>
+
+  <hr>
+
+  <h2 style="font-size: 1.125rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--ba-text)">
+    Variante de configuração
+  </h2>
+  <!--
+    Judgment call (2026-08-08): book-a-service/index.html has no precedent for a
+    non-unhappy-path variant section (nothing in that journey has an alternate valid
+    configuration, only error/loading/empty/success states). 01d-inline-variant.html shows
+    a different, equally-valid ChatbotModuleData.variant config — not an error state — so it
+    gets its own section here rather than being folded into "Estados alternativos" below.
+  -->
+  <p>
+    <code>01d-inline-variant.html</code> não é um estado de erro — é a mesma conversa ativa
+    renderizada com <code>variant: 'inline'</code> em vez de <code>bubble</code>, uma configuração
+    igualmente válida escolhida pelo gerente no editor do hotsite.
+  </p>
+  <ul>
+    <li>
+      <a href="01d-inline-variant.html">Passo 1d — Variante inline (embutida na página)</a>
+      <span class="tag tag-red">GAP: ChatbotWidget — sem story ainda</span>
+    </li>
+  </ul>
+
+  <hr>
+
+  <h2 style="font-size: 1.125rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--ba-text)">
+    Estados alternativos (unhappy paths)
+  </h2>
+  <p>
+    Cada tela abaixo é uma <strong>variante</strong> do widget, mostrando um estado de limite,
+    falha ou indisponibilidade. Nenhuma é uma rota nova — todas usam o mesmo componente
+    (ainda não construído), apenas em outro estado.
+  </p>
+
+  <ul>
+    <li>
+      <a href="01b-interrupted.html">Passo 1b — Limite de mensagens atingido / provedor falhou</a>
+      <span class="tag tag-red">GAP: ChatbotWidget — UC-033 A1/A2/A4, sem story ainda</span>
+    </li>
+    <li>
+      <a href="01c-not-available.html">Passo 1c — Indisponível (nada renderizado)</a>
+      <span class="tag tag-red">GAP: ChatbotWidget — UC-034, sem story ainda</span>
+    </li>
+  </ul>
+
+  <hr>
+
+  <div class="note">
+    <strong>O que este protótipo valida:</strong><br>
+    ✅ A bolha de chat no hotsite (canto inferior direito) é visualmente clara e não conflita com outros elementos fixos?<br>
+    ✅ O título do widget ("{botName} — Assistente IA") comunica que é uma IA sem precisar de um banner separado?<br>
+    ✅ O estado "indisponível" (nada renderizado) é aceitável, ou o visitante precisa de algum sinal de que o recurso existe mas está temporariamente fora?<br>
+    ✅ O estado interrompido (limite atingido) explica claramente o motivo e oferece uma saída (WhatsApp/telefone)?<br>
+    ✅ A variante <code>inline</code> se encaixa bem no fluxo da página, na ordem definida pelo gerente?<br>
+    ✅ Tokens de branding (<code>--ba-*</code>) são os mesmos que o hotsite usa?<br>
+    <br>
+    <strong>Início do protótipo</strong> (seleção de ator) →
+    <a href="../../../shared/entry.html">shared/entry.html</a><br>
+    <strong>Ver também:</strong> jornada MANAGER — configurar o módulo Chatbot →
+    <a href="../../../manager/prototypes/hotsite/01e-module-config-chatbot.html">manager/prototypes/hotsite/01e-module-config-chatbot.html</a><br>
+    <strong>Dev notes</strong> (componentes, API, validações, máquina de estados) → <a href="dev-notes.md">dev-notes.md</a>
+  </div>
+</body>
+</html>

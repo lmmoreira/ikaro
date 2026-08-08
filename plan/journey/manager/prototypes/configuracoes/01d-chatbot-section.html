@@ -3,30 +3,42 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Configurações — Erro de validação — BeloAuto</title>
+  <title>Configurações — BeloAuto (Chatbot)</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
     .form-group { margin-bottom: 1.25rem; }
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1.25rem; }
     .form-hint { font-size: 0.8125rem; opacity: 0.5; color: var(--ba-text); margin-top: 0.375rem; }
+    .form-input[readonly] { background: var(--ba-secondary); opacity: 0.7; cursor: not-allowed; }
     .input-suffix-group { position: relative; }
     .input-suffix { position: absolute; right: 0.875rem; top: 50%; transform: translateY(-50%); font-size: 0.8125rem; color: rgba(17,24,39,0.45); pointer-events: none; }
     .input-with-suffix { padding-right: 3.5rem !important; }
-    .form-input.has-error { border-color: #dc2626; background: #fef2f2; }
-    .field-error { font-size: 0.8125rem; color: #dc2626; margin-top: 0.375rem; font-weight: 500; }
+
+    .hours-row { display: grid; grid-template-columns: 6.5rem 1fr 1fr auto; gap: 0.625rem; align-items: center; margin-bottom: 0.625rem; }
+    .hours-day { font-size: 0.875rem; font-weight: 600; color: var(--ba-text); }
+    .hours-closed-toggle { display: flex; align-items: center; gap: 0.375rem; font-size: 0.8125rem; opacity: 0.6; white-space: nowrap; }
 
     .toggle-switch { width: 2.75rem; height: 1.5rem; border-radius: 9999px; background: #d1d5db; position: relative; cursor: pointer; flex-shrink: 0; border: none; padding: 0; }
     .toggle-switch.on { background: var(--ba-primary); }
     .toggle-knob { position: absolute; top: 2px; left: 2px; width: 1.25rem; height: 1.25rem; border-radius: 9999px; background: white; transition: transform 0.15s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
     .toggle-switch.on .toggle-knob { transform: translateX(1.25rem); }
 
-    .error-banner { display: flex; gap: 0.75rem; background: #fef2f2; border: 1.5px solid #fecaca; border-radius: var(--ba-radius); padding: 1rem; margin-bottom: 1.25rem; }
-    .error-banner-body { font-size: 0.875rem; color: #991b1b; font-weight: 500; }
+    textarea.form-input { resize: vertical; min-height: 8rem; font-family: inherit; line-height: 1.6; }
+    .char-counter { font-size: 0.75rem; opacity: 0.5; text-align: right; margin-top: 0.25rem; }
+    .caps-elsewhere-note {
+      background: #fef3c7; border: 1px solid #fde68a; color: #92400e; border-radius: var(--ba-radius);
+      padding: 0.875rem 1rem; font-size: 0.8125rem; line-height: 1.6; margin-top: 0.75rem;
+    }
 
-    .form-actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; position: fixed; bottom: 3.75rem; left: 0; right: 0; z-index: 20;
+    .form-actions {
+      position: fixed; bottom: 3.75rem; left: 0; right: 0; z-index: 20;
       background: white; border-top: 1px solid var(--ba-secondary);
-      padding: 0.75rem 1rem; box-shadow: 0 -2px 8px rgba(0,0,0,.06); }
+      padding: 0.75rem 1rem;
+      box-shadow: 0 -2px 8px rgba(0,0,0,.06);
+      display: flex; gap: 0.75rem;
+    }
     .form-actions .btn-primary  { flex: 1; text-align: center; padding: 0.875rem; }
+    .form-actions .btn-secondary { flex: 0 0 auto; padding: 0.875rem 1.25rem; }
 
     .detail-layout { display: block; }
     .detail-aside  { display: none; }
@@ -40,16 +52,28 @@
 <body>
 
   <!--
-    UC-026 A1 — Invalid field value
-    422 → field highlighted with error message, save blocked
+    COMPONENT: SettingsForm
+    FILE:      apps/web/features/platform/components/settings/SettingsForm.tsx  (EXISTS for the other 7 sections; the Chatbot section-card below is a GAP — not yet built)
+    PAGE:      apps/web/app/dashboard/settings/page.tsx  (EXISTS — no [slug] segment)
+    UC-026 — Admin edits tenant settings; the Chatbot section is new, relocated from
+    docs/discovery/CHATBOT/prototype/07-tenant-settings.html and shown here against the FULL,
+    current 7-section form (not an excerpt) so it doesn't repeat the staleness bug already fixed
+    once in 01b/01c in this same folder.
+    ACTION: PATCH /tenants/settings  (BFF: apps/bff/src/features/platform/tenant-settings.controller.ts)
+    chatbot.knowledgeText: optional string, max 4000 chars — the ONLY tenant-editable field in
+    the chatbot settings category (docs/21-TENANTS_SETTINGS_SCHEMA.md §7). Caps are deliberately
+    NOT shown on this form — fixed platform defaults, Ikaro-only override.
   -->
 
   <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
-    Protótipo — UC-026 A1 — Valor inválido
+    Protótipo — formulário completo (7 seções existentes) + nova seção "Chatbot" (GAP, ver docs/discovery/CHATBOT/CHATBOT.md §5)
   </div>
 
   <div class="dashboard-topbar">
-    <div class="topbar-brand"><div class="topbar-logo-mark">B</div><span class="topbar-tenant-name">BeloAuto Demo</span></div>
+    <div class="topbar-brand">
+      <div class="topbar-logo-mark">B</div>
+      <span class="topbar-tenant-name">BeloAuto Demo</span>
+    </div>
     <h1 class="topbar-page-title">Configurações</h1>
     <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
       <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
@@ -86,12 +110,7 @@
       <div class="dashboard-body">
         <div class="detail-layout"><div>
 
-        <div class="error-banner">
-          <span style="font-size:1.25rem;">⚠️</span>
-          <span class="error-banner-body">Corrija os campos destacados antes de salvar.</span>
-        </div>
-
-        <!-- Geral — unchanged -->
+        <!-- Geral -->
         <div class="section-card">
           <div class="section-card-title">Geral</div>
           <div class="section-card-sub">Nome do estabelecimento e identificador público</div>
@@ -101,23 +120,23 @@
           </div>
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label" for="slug">Slug (endereço do site)</label>
-            <input id="slug" type="text" class="form-input" value="beloauto" readonly style="background:var(--ba-secondary);opacity:0.7;cursor:not-allowed;">
+            <input id="slug" type="text" class="form-input" value="beloauto" readonly>
             <p class="form-hint">O slug não pode ser alterado depois da criação do estabelecimento.</p>
           </div>
         </div>
 
-        <!-- Agendamento — error on cancellationWindow -->
-        <div class="section-card" style="border-color:#fca5a5;">
+        <!-- Agendamento -->
+        <div class="section-card">
           <div class="section-card-title">Agendamento</div>
           <div class="section-card-sub">Regras que afetam como clientes agendam e cancelam</div>
           <div class="form-row">
             <div class="form-group" style="margin-bottom:0;">
               <label class="form-label" for="cancellationWindow">Janela de cancelamento</label>
               <div class="input-suffix-group">
-                <input id="cancellationWindow" type="number" class="form-input input-with-suffix has-error" value="900">
+                <input id="cancellationWindow" type="number" min="0" max="720" class="form-input input-with-suffix" value="48">
                 <span class="input-suffix">horas</span>
               </div>
-              <p class="field-error">O valor máximo é 720 horas (30 dias).</p>
+              <p class="form-hint">Tempo mínimo antes do horário agendado para o cliente cancelar.</p>
             </div>
             <div class="form-group" style="margin-bottom:0;">
               <label class="form-label" for="buffer">Buffer entre agendamentos</label>
@@ -125,6 +144,7 @@
                 <input id="buffer" type="number" min="0" max="120" class="form-input input-with-suffix" value="60">
                 <span class="input-suffix">min</span>
               </div>
+              <p class="form-hint">Tempo de preparo entre o fim de um serviço e o início do próximo.</p>
             </div>
           </div>
           <div class="toggle-row" style="display:flex;align-items:center;justify-content:space-between;padding:0.875rem 1rem;border-radius:var(--ba-radius);background:var(--ba-secondary);margin-bottom:1.25rem;">
@@ -166,7 +186,7 @@
           </div>
         </div>
 
-        <!-- Fidelidade — unchanged -->
+        <!-- Fidelidade -->
         <div class="section-card">
           <div class="section-card-title">Fidelidade</div>
           <div class="section-card-sub">Regras do programa de pontos</div>
@@ -213,7 +233,7 @@
           </div>
         </div>
 
-        <!-- Horário de funcionamento — unchanged -->
+        <!-- Horário de funcionamento -->
         <div class="section-card">
           <div class="section-card-title">Horário de funcionamento</div>
           <div class="section-card-sub">Fuso horário e horários de abertura por dia da semana</div>
@@ -227,51 +247,52 @@
               <option>America/Noronha</option>
             </select>
           </div>
-          <div style="display:grid;grid-template-columns:6.5rem 1fr 1fr auto;gap:0.625rem;align-items:center;margin-bottom:0.625rem;">
-            <span style="font-size:0.875rem;font-weight:600;color:var(--ba-text);">Segunda</span>
+
+          <div class="hours-row">
+            <span class="hours-day">Segunda</span>
             <input type="time" class="form-input" value="09:00">
             <input type="time" class="form-input" value="18:00">
-            <label style="display:flex;align-items:center;gap:0.375rem;font-size:0.8125rem;opacity:0.6;white-space:nowrap;"><input type="checkbox"> Fechado</label>
+            <label class="hours-closed-toggle"><input type="checkbox"> Fechado</label>
           </div>
-          <div style="display:grid;grid-template-columns:6.5rem 1fr 1fr auto;gap:0.625rem;align-items:center;margin-bottom:0.625rem;">
-            <span style="font-size:0.875rem;font-weight:600;color:var(--ba-text);">Terça</span>
+          <div class="hours-row">
+            <span class="hours-day">Terça</span>
             <input type="time" class="form-input" value="09:00">
             <input type="time" class="form-input" value="18:00">
-            <label style="display:flex;align-items:center;gap:0.375rem;font-size:0.8125rem;opacity:0.6;white-space:nowrap;"><input type="checkbox"> Fechado</label>
+            <label class="hours-closed-toggle"><input type="checkbox"> Fechado</label>
           </div>
-          <div style="display:grid;grid-template-columns:6.5rem 1fr 1fr auto;gap:0.625rem;align-items:center;margin-bottom:0.625rem;">
-            <span style="font-size:0.875rem;font-weight:600;color:var(--ba-text);">Quarta</span>
+          <div class="hours-row">
+            <span class="hours-day">Quarta</span>
             <input type="time" class="form-input" value="09:00">
             <input type="time" class="form-input" value="18:00">
-            <label style="display:flex;align-items:center;gap:0.375rem;font-size:0.8125rem;opacity:0.6;white-space:nowrap;"><input type="checkbox"> Fechado</label>
+            <label class="hours-closed-toggle"><input type="checkbox"> Fechado</label>
           </div>
-          <div style="display:grid;grid-template-columns:6.5rem 1fr 1fr auto;gap:0.625rem;align-items:center;margin-bottom:0.625rem;">
-            <span style="font-size:0.875rem;font-weight:600;color:var(--ba-text);">Quinta</span>
+          <div class="hours-row">
+            <span class="hours-day">Quinta</span>
             <input type="time" class="form-input" value="09:00">
             <input type="time" class="form-input" value="18:00">
-            <label style="display:flex;align-items:center;gap:0.375rem;font-size:0.8125rem;opacity:0.6;white-space:nowrap;"><input type="checkbox"> Fechado</label>
+            <label class="hours-closed-toggle"><input type="checkbox"> Fechado</label>
           </div>
-          <div style="display:grid;grid-template-columns:6.5rem 1fr 1fr auto;gap:0.625rem;align-items:center;margin-bottom:0.625rem;">
-            <span style="font-size:0.875rem;font-weight:600;color:var(--ba-text);">Sexta</span>
+          <div class="hours-row">
+            <span class="hours-day">Sexta</span>
             <input type="time" class="form-input" value="09:00">
             <input type="time" class="form-input" value="18:00">
-            <label style="display:flex;align-items:center;gap:0.375rem;font-size:0.8125rem;opacity:0.6;white-space:nowrap;"><input type="checkbox"> Fechado</label>
+            <label class="hours-closed-toggle"><input type="checkbox"> Fechado</label>
           </div>
-          <div style="display:grid;grid-template-columns:6.5rem 1fr 1fr auto;gap:0.625rem;align-items:center;margin-bottom:0.625rem;">
-            <span style="font-size:0.875rem;font-weight:600;color:var(--ba-text);">Sábado</span>
+          <div class="hours-row">
+            <span class="hours-day">Sábado</span>
             <input type="time" class="form-input" value="09:00">
             <input type="time" class="form-input" value="13:00">
-            <label style="display:flex;align-items:center;gap:0.375rem;font-size:0.8125rem;opacity:0.6;white-space:nowrap;"><input type="checkbox"> Fechado</label>
+            <label class="hours-closed-toggle"><input type="checkbox"> Fechado</label>
           </div>
-          <div style="display:grid;grid-template-columns:6.5rem 1fr 1fr auto;gap:0.625rem;align-items:center;margin-bottom:0;">
-            <span style="font-size:0.875rem;font-weight:600;color:var(--ba-text);">Domingo</span>
+          <div class="hours-row" style="margin-bottom:0;">
+            <span class="hours-day">Domingo</span>
             <input type="time" class="form-input" value="" disabled style="opacity:0.4;">
             <input type="time" class="form-input" value="" disabled style="opacity:0.4;">
-            <label style="display:flex;align-items:center;gap:0.375rem;font-size:0.8125rem;opacity:0.6;white-space:nowrap;"><input type="checkbox" checked> Fechado</label>
+            <label class="hours-closed-toggle"><input type="checkbox" checked> Fechado</label>
           </div>
         </div>
 
-        <!-- Contato — unchanged -->
+        <!-- Contato -->
         <div class="section-card">
           <div class="section-card-title">Contato</div>
           <div class="section-card-sub">Exibido no módulo de Contato do hotsite (opcional)</div>
@@ -339,6 +360,25 @@
           </div>
         </div>
 
+        <!-- Chatbot — NEW (GAP, docs/discovery/CHATBOT/CHATBOT.md §5, docs/21-TENANTS_SETTINGS_SCHEMA.md §7) -->
+        <div class="section-card">
+          <div class="section-card-title">Chatbot</div>
+          <div class="section-card-sub">Conhecimento usado pelo assistente do hotsite para responder visitantes</div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" for="knowledgeText">Sobre o seu negócio</label>
+            <textarea id="knowledgeText" class="form-input" maxlength="4000" placeholder="Ex: Aceitamos pagamento por Pix e cartão. Não fazemos lavagem a seco. Vagas de estacionamento disponíveis na rua. Atendimento prioritário para clientes fidelidade Ouro...">Trabalhamos apenas com agendamento — não atendemos por ordem de chegada. Aceitamos Pix, cartão de débito e crédito. Se o cliente cancelar com menos de 48h de antecedência, não é possível reagendar no mesmo dia.</textarea>
+            <p class="form-hint">Políticas, perguntas frequentes e observações que o assistente deve conhecer — os serviços e preços já são incluídos automaticamente, não é preciso repeti-los aqui.</p>
+            <p class="char-counter">247 / 4000 caracteres</p>
+            <div class="caps-elsewhere-note">
+              Os limites de volume/custo (conversas por dia, mensagens por conversa, etc.) e o
+              provedor de IA <strong>não aparecem neste formulário</strong> — são padrões fixos da
+              plataforma, ajustáveis apenas pela Ikaro diretamente no banco de dados quando
+              necessário (docs/discovery/CHATBOT/CHATBOT.md §5). <code>knowledgeText</code> é o
+              único campo desta categoria editável por aqui.
+            </div>
+          </div>
+        </div>
+
         <!-- Localização -->
         <div class="section-card" style="margin-bottom:0;">
           <div class="section-card-title">Localização</div>
@@ -360,24 +400,22 @@
         </div>
 
         <div class="form-actions">
-          <!-- Disabled: validation errors must be resolved before saving -->
-          <span class="btn-primary" style="flex:1;text-align:center;padding:0.875rem;
-                opacity:0.4;cursor:not-allowed;display:block;">
-            Salvar configurações
-          </span>
+          <a href="01c-saved-success.html" class="btn-primary">Salvar configurações</a>
         </div>
 
         </div><!-- /form col -->
         <div class="detail-aside">
           <div class="card" style="padding:1.25rem;">
-            <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:var(--ba-radius);
-                        padding:0.75rem;margin-bottom:1rem;font-size:0.8125rem;color:#dc2626;">
-              Corrija os campos destacados antes de salvar.
-            </div>
-            <a href="01-settings-form.html" class="btn-primary"
-               style="display:block;text-align:center;padding:0.75rem;opacity:0.5;pointer-events:none;">
+            <a href="01c-saved-success.html" class="btn-primary"
+               style="display:block;text-align:center;padding:0.75rem;">
               Salvar configurações
             </a>
+            <hr style="border:none;border-top:1px solid var(--ba-secondary);margin:1rem 0;">
+            <p style="font-size:0.75rem;opacity:0.5;color:var(--ba-text);line-height:1.5;">
+              As alterações no texto do assistente entram em vigor na próxima conversa — não é
+              preciso publicar o hotsite novamente. Demais configurações afetam novos agendamentos;
+              horários de funcionamento e fuso entram em vigor imediatamente.
+            </p>
           </div>
         </div>
       </div><!-- /detail-layout -->

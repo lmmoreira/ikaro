@@ -17,6 +17,11 @@
     .hours-row { display: grid; grid-template-columns: 6.5rem 1fr 1fr auto; gap: 0.625rem; align-items: center; margin-bottom: 0.625rem; }
     .hours-day { font-size: 0.875rem; font-weight: 600; color: var(--ba-text); }
     .hours-closed-toggle { display: flex; align-items: center; gap: 0.375rem; font-size: 0.8125rem; opacity: 0.6; white-space: nowrap; }
+
+    .toggle-switch { width: 2.75rem; height: 1.5rem; border-radius: 9999px; background: #d1d5db; position: relative; cursor: pointer; flex-shrink: 0; border: none; padding: 0; }
+    .toggle-switch.on { background: var(--ba-primary); }
+    .toggle-knob { position: absolute; top: 2px; left: 2px; width: 1.25rem; height: 1.25rem; border-radius: 9999px; background: white; transition: transform 0.15s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    .toggle-switch.on .toggle-knob { transform: translateX(1.25rem); }
   </style>
 </head>
 <body>
@@ -105,7 +110,7 @@
         <div class="section-card">
           <div class="section-card-title">Agendamento</div>
           <div class="section-card-sub">Regras que afetam como clientes agendam e cancelam</div>
-          <div class="form-row" style="margin-bottom:0;">
+          <div class="form-row">
             <div class="form-group" style="margin-bottom:0;">
               <label class="form-label" for="cancellationWindow">Janela de cancelamento</label>
               <div class="input-suffix-group">
@@ -123,19 +128,89 @@
               <p class="form-hint">Tempo de preparo entre o fim de um serviço e o início do próximo.</p>
             </div>
           </div>
+          <div class="toggle-row" style="display:flex;align-items:center;justify-content:space-between;padding:0.875rem 1rem;border-radius:var(--ba-radius);background:var(--ba-secondary);margin-bottom:1.25rem;">
+            <div><div class="toggle-label" style="font-weight:600;font-size:0.9375rem;">Aprovação automática</div><div class="form-hint" style="margin-top:0.125rem;">Aprova novos agendamentos sem revisão manual do staff</div></div>
+            <button class="toggle-switch" onclick="this.classList.toggle('on')"><span class="toggle-knob"></span></button>
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="minAdvance">Antecedência mínima</label>
+              <div class="input-suffix-group">
+                <input id="minAdvance" type="number" min="0" class="form-input input-with-suffix" value="2">
+                <span class="input-suffix">horas</span>
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="maxAdvance">Antecedência máxima</label>
+              <div class="input-suffix-group">
+                <input id="maxAdvance" type="number" min="0" class="form-input input-with-suffix" value="60">
+                <span class="input-suffix">dias</span>
+              </div>
+            </div>
+          </div>
+          <div class="form-row" style="margin-bottom:0;">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="slotGranularity">Granularidade dos horários</label>
+              <select id="slotGranularity" class="form-input">
+                <option>15 minutos</option>
+                <option selected>30 minutos</option>
+                <option>60 minutos</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="welcomeStaffDays">Tela de boas-vindas (staff)</label>
+              <div class="input-suffix-group">
+                <input id="welcomeStaffDays" type="number" min="0" class="form-input input-with-suffix" value="7">
+                <span class="input-suffix">dias</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Fidelidade -->
         <div class="section-card">
           <div class="section-card-title">Fidelidade</div>
           <div class="section-card-sub">Regras do programa de pontos</div>
-          <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label" for="expiry">Validade dos pontos de fidelidade</label>
-            <div class="input-suffix-group">
-              <input id="expiry" type="number" min="1" max="3650" class="form-input input-with-suffix" value="180">
-              <span class="input-suffix">dias</span>
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="expiry">Validade dos pontos de fidelidade</label>
+              <div class="input-suffix-group">
+                <input id="expiry" type="number" min="1" max="3650" class="form-input input-with-suffix" value="180">
+                <span class="input-suffix">dias</span>
+              </div>
             </div>
-            <p class="form-hint">Dias até os pontos ganhos expirarem.</p>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="pointsPerUnit">Pontos por unidade monetária</label>
+              <input id="pointsPerUnit" type="number" min="0" max="10000" class="form-input" value="10">
+              <p class="form-hint">0 = conversão em R$ desativada.</p>
+            </div>
+          </div>
+          <div class="toggle-row" style="display:flex;align-items:center;justify-content:space-between;padding:0.875rem 1rem;border-radius:var(--ba-radius);background:var(--ba-secondary);margin-bottom:1.25rem;">
+            <div><div class="toggle-label" style="font-weight:600;font-size:0.9375rem;">Notificações de expiração</div></div>
+            <button class="toggle-switch on" onclick="this.classList.toggle('on')"><span class="toggle-knob"></span></button>
+          </div>
+          <div class="form-row" style="margin-bottom:0;">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="expiryWarning">Avisar expiração com</label>
+              <div class="input-suffix-group">
+                <input id="expiryWarning" type="number" min="0" class="form-input input-with-suffix" value="14">
+                <span class="input-suffix">dias</span>
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="notificationMinPoints">Pontos mínimos para avisar</label>
+              <input id="notificationMinPoints" type="number" min="0" class="form-input" value="50">
+            </div>
+          </div>
+        </div>
+
+        <!-- Notificações -->
+        <div class="section-card">
+          <div class="section-card-title">Notificações</div>
+          <div class="section-card-sub">Remetente usado nos e-mails enviados pelo sistema</div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" for="fromEmail">E-mail de envio</label>
+            <input id="fromEmail" type="email" class="form-input" placeholder="contato@beloauto.com.br">
           </div>
         </div>
 
@@ -199,7 +274,7 @@
         </div>
 
         <!-- Contato -->
-        <div class="section-card" style="margin-bottom:0;">
+        <div class="section-card">
           <div class="section-card-title">Contato</div>
           <div class="section-card-sub">Exibido no módulo de Contato do hotsite (opcional)</div>
           <div class="form-row">
@@ -212,9 +287,77 @@
               <input id="businessEmail" type="email" class="form-input" placeholder="contato@beloauto.com.br">
             </div>
           </div>
-          <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label" for="address">Endereço</label>
-            <input id="address" type="text" class="form-input" placeholder="Rua das Flores, 123 — Centro, Belo Horizonte/MG">
+
+          <p style="font-size:0.8125rem;font-weight:600;color:var(--ba-text);margin:1rem 0 0.75rem;">Endereço</p>
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="zip">CEP</label>
+              <input id="zip" type="text" class="form-input" placeholder="00000-000">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="addrNumber">Número</label>
+              <input id="addrNumber" type="text" class="form-input" placeholder="123">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="street">Rua</label>
+            <input id="street" type="text" class="form-input" placeholder="Rua das Flores">
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="complement">Complemento</label>
+              <input id="complement" type="text" class="form-input">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="neighborhood">Bairro</label>
+              <input id="neighborhood" type="text" class="form-input" placeholder="Centro">
+            </div>
+          </div>
+          <div class="form-row" style="margin-bottom:0;">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="city">Cidade</label>
+              <input id="city" type="text" class="form-input" placeholder="Belo Horizonte">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="state">Estado</label>
+              <input id="state" type="text" class="form-input" maxlength="2" placeholder="MG">
+            </div>
+          </div>
+
+          <p style="font-size:0.8125rem;font-weight:600;color:var(--ba-text);margin:1.25rem 0 0.75rem;">Redes sociais</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="whatsapp">WhatsApp</label>
+              <input id="whatsapp" type="tel" class="form-input" placeholder="(31) 99999-9999">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="instagram">Instagram</label>
+              <input id="instagram" type="url" class="form-input" placeholder="https://instagram.com/...">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="facebook">Facebook</label>
+              <input id="facebook" type="url" class="form-input" placeholder="https://facebook.com/...">
+            </div>
+          </div>
+        </div>
+
+        <!-- Localização -->
+        <div class="section-card" style="margin-bottom:0;">
+          <div class="section-card-title">Localização</div>
+          <div class="section-card-sub">Definida na criação do estabelecimento — somente leitura</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">País</label>
+              <input type="text" class="form-input" value="BR" readonly>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Moeda</label>
+              <input type="text" class="form-input" value="BRL" readonly>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Idioma</label>
+              <input type="text" class="form-input" value="pt-BR" readonly>
+            </div>
           </div>
         </div>
       </div>

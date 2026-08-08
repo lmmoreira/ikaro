@@ -166,10 +166,19 @@
           </div>
 
           <div class="section-card">
-            <div class="section-card-title">Logo</div>
+            <div class="section-card-title">Logo e identidade</div>
             <div class="upload-area" style="text-align:center;">
               <p style="font-size:0.875rem;opacity:0.6;margin:0;">Arraste uma imagem ou clique para enviar</p>
               <p style="font-size:0.75rem;opacity:0.4;margin-top:0.25rem;">PNG ou SVG, fundo transparente recomendado</p>
+            </div>
+            <!-- brandName/brandTagline — adicionado 2026-07-31: campos reais (M13-S35) que faltavam neste protótipo -->
+            <div class="form-group" style="margin-top:1.25rem;">
+              <label class="form-label" for="brandName">Nome da marca</label>
+              <input id="brandName" type="text" class="form-input" value="BeloAuto">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="brandTagline">Slogan</label>
+              <input id="brandTagline" type="text" class="form-input" placeholder="Ex: Seu carro sempre impecável">
             </div>
           </div>
 
@@ -232,6 +241,35 @@
             </div>
           </div>
 
+          <!-- Ritmo visual — adicionado 2026-07-31: seção real (M13-S35) que faltava neste protótipo -->
+          <div class="section-card" style="margin-bottom:0;">
+            <div class="section-card-title">Ritmo visual</div>
+            <div class="form-group">
+              <label class="form-label">Fundo do Hero</label>
+              <div class="pill-options">
+                <button type="button" class="pill-option selected" onclick="selectPill(this)">Sólido</button>
+                <button type="button" class="pill-option" onclick="selectPill(this)">Gradiente</button>
+                <button type="button" class="pill-option" onclick="selectPill(this)">Imagem</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Fundo de seções alternadas</label>
+              <div class="pill-options">
+                <button type="button" class="pill-option selected" onclick="selectPill(this)">Nenhum</button>
+                <button type="button" class="pill-option" onclick="selectPill(this)">Cinza claro</button>
+                <button type="button" class="pill-option" onclick="selectPill(this)">Cor secundária</button>
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Estilo de divisor entre seções</label>
+              <div class="pill-options">
+                <button type="button" class="pill-option selected" onclick="selectPill(this)">Nenhum</button>
+                <button type="button" class="pill-option" onclick="selectPill(this)">Linha</button>
+                <button type="button" class="pill-option" onclick="selectPill(this)">Onda</button>
+              </div>
+            </div>
+          </div>
+
         </div>
 
         <!-- LAYOUT -->
@@ -279,8 +317,20 @@
               <a href="#" class="module-configure">Configurar</a>
               <button class="toggle-switch on" onclick="this.classList.toggle('on')"><span class="toggle-knob"></span></button>
             </div>
+            <div class="module-row">
+              <span class="module-drag">⠿</span>
+              <span class="module-name">Rodapé</span>
+              <a href="#" class="module-configure">Configurar</a>
+              <button class="toggle-switch on" onclick="this.classList.toggle('on')"><span class="toggle-knob"></span></button>
+            </div>
+            <div class="module-row">
+              <span class="module-drag">⠿</span>
+              <span class="module-name">Chatbot</span>
+              <a href="01e-module-config-chatbot.html" class="module-configure">Configurar</a>
+              <button class="toggle-switch on" onclick="this.classList.toggle('on')"><span class="toggle-knob"></span></button>
+            </div>
           </div>
-          <p class="form-hint" style="margin-top:0.75rem;">Arraste pelo ícone <strong>⠿</strong> para reordenar. "Configurar" abre as opções específicas de cada módulo — exemplo completo em <a href="01d-module-config-hero.html">Hero</a>.</p>
+          <p class="form-hint" style="margin-top:0.75rem;">Arraste pelo ícone <strong>⠿</strong> para reordenar. "Configurar" abre as opções específicas de cada módulo — exemplo completo em <a href="01d-module-config-hero.html">Hero</a>. "Rodapé" (FOOTER) é um 8º tipo de módulo adicionado em `M13-S36` (2026-07-31: faltava neste protótipo); "Chatbot" é um 9º tipo, adicionado 2026-08-08.</p>
         </div>
 
         <!-- SEO -->
@@ -288,12 +338,20 @@
           <div class="section-card" style="margin-bottom:0;">
             <div class="section-card-title">SEO</div>
             <div class="form-group">
-              <label class="form-label" for="seoTitle">Título (máx. 70 caracteres)</label>
-              <input id="seoTitle" type="text" maxlength="70" class="form-input" placeholder="Deixe em branco para usar o título gerado automaticamente">
+              <label class="form-label" for="seoTitle">Título (máx. 60 caracteres)</label>
+              <input id="seoTitle" type="text" maxlength="60" class="form-input" placeholder="Deixe em branco para usar o título gerado automaticamente">
             </div>
+            <div class="form-group">
+              <label class="form-label" for="seoDescription">Descrição (máx. 158 caracteres)</label>
+              <textarea id="seoDescription" maxlength="158" class="form-input" style="min-height:80px;resize:vertical;" placeholder="Deixe em branco para usar a descrição gerada automaticamente"></textarea>
+            </div>
+            <!-- OG image — adicionado 2026-07-31: campo real (OgImageUpload) que faltava neste protótipo -->
             <div class="form-group" style="margin-bottom:0;">
-              <label class="form-label" for="seoDescription">Descrição (máx. 160 caracteres)</label>
-              <textarea id="seoDescription" maxlength="160" class="form-input" style="min-height:80px;resize:vertical;" placeholder="Deixe em branco para usar a descrição gerada automaticamente"></textarea>
+              <label class="form-label">Imagem de compartilhamento (OG image)</label>
+              <div class="upload-area" style="text-align:center;">
+                <p style="font-size:0.875rem;opacity:0.6;margin:0;">Arraste uma imagem ou clique para enviar</p>
+                <p style="font-size:0.75rem;opacity:0.4;margin-top:0.25rem;">Usada ao compartilhar o link do hotsite em redes sociais</p>
+              </div>
             </div>
           </div>
         </div>
