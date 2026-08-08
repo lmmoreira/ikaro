@@ -419,3 +419,56 @@ module "scheduler" {
   cron_topic_ids        = module.pubsub.topic_ids
   outbox_relay_schedule = var.outbox_relay_schedule
 }
+
+# Dashboards, alerts & uptime checks as code (M17-S35, narrowed 2026-08-08 —
+# see plan/M17-CLOUD-DEPLOY.md's M17-S35 section for the split rationale).
+# Staging always has a database (no enable_edge-style gating here, unlike
+# prod below), so database_instance_name is unconditional. uptime_checks is
+# NOT fully unconditional in the same way, though — see that block's own
+# comment for why bff's check routes through web, not BFF's own URL.
+module "monitoring" {
+  source = "../../modules/monitoring"
+
+  project_id  = var.project_id
+  environment = var.environment
+  region      = var.region
+  labels      = var.labels
+
+  notification_email = var.notification_email
+
+  cloud_run_services = {
+    backend = { service_name = module.cloudrun_backend.service_name, max_instance_count = var.backend_max_instances }
+    bff     = { service_name = module.cloudrun_bff.service_name, max_instance_count = var.bff_max_instances }
+    # web has no explicit max_instances override in this env — matches
+    # modules/cloudrun-service's own var.max_instance_count default (100).
+    web = { service_name = module.cloudrun_web.service_name, max_instance_count = 100 }
+  }
+
+  database_instance_name = module.database.instance_name
+
+  # bff's own service_uri is NOT used here: TD38 locked staging's BFF
+  # ingress to INGRESS_TRAFFIC_INTERNAL_ONLY (same as backend, confirmed
+  # ingress = "INGRESS_TRAFFIC_INTERNAL_ONLY" above) with no public invoker
+  # grant and no ALB in staging (D5, "Staging has no LB") — Cloud
+  # Monitoring's uptime prober runs from Google's external infrastructure
+  # and could never reach it, so a check against BFF's raw URL would fail
+  # every single period regardless of BFF's actual health. Routed through
+  # web's own reachable host + the /v1 gateway path instead — the exact
+  # same path deploy-staging.yml's smoke test already uses
+  # (`curl "${WEB_URL}/v1/health/ready"`), and BFF's own /v1/health/ready
+  # already chains through to backend's readiness too (see
+  # apps/bff/src/health/health.controller.ts), so this single check covers
+  # web -> bff -> backend end to end.
+  uptime_checks = {
+    bff = {
+      host    = replace(module.cloudrun_web.service_uri, "https://", "")
+      path    = "/v1/health/ready"
+      use_ssl = true
+    }
+    web = {
+      host    = replace(module.cloudrun_web.service_uri, "https://", "")
+      path    = "/api/health/live"
+      use_ssl = true
+    }
+  }
+}

@@ -61,6 +61,12 @@ variable "labels" {
   default     = {}
 }
 
+variable "notification_email" {
+  description = "Email address for Cloud Monitoring alert notifications (M17-S35), passed through to module.monitoring. Value never committed — gitignored local.auto.tfvars locally, a GitHub environment variable in the pipeline (S24, same treatment as iam_admin_user)."
+  type        = string
+  default     = ""
+}
+
 variable "outbox_relay_schedule" {
   description = "Cron schedule for the outbox sweep + retention GC tick (TD24-S01/D3), passed through to module.scheduler (M17-S21). Default matches the app's own default assumption (*/5 * * * *) — override only if the sweep interval needs to change."
   type        = string

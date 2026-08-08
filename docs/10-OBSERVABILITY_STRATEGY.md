@@ -1,12 +1,12 @@
 # Observability Strategy - Ikaro
 
-> ⚠️ **Partially superseded by `plan/M17-CLOUD-DEPLOY.md` D9 (2026-07-07), corrected 2026-08-04, 2026-08-05.** The `## Deployment`, `## Local Development Setup`, `## Prometheus Metrics`, `## Loki Label Strategy`, `## Grafana Dashboards`, `## Alerting Rules (Email)`, and `## SLOs (Service Level Objectives)` sections below describe the original self-hosted GCE VM + Docker Compose stack (Prometheus/Grafana/Loki) — cut in favor of D9's "OTel SDK (OTLP-only) → collector sidecar → GCP managed backends (Cloud Trace, Cloud Monitoring, Cloud Logging)." That self-hosted stack remains a valid *future* option (swap the collector's exporter config — see M17 D9) but is **not** what's deployed today, and several of its supporting files (`docker/docker-compose.observability.yml`, `infrastructure/observability/`) don't exist in this repo. Dashboards/alerts-as-code via Cloud Monitoring is **M17-S35, not yet implemented** — until it lands there is no dashboard or alerting layer in this repo at all; sections describing Grafana dashboards/alerts below are historical reference, not a currently-usable feature. `## NestJS OTel Implementation` (below) **is** current and accurate — that's the real, implemented mechanism (M17-S33 SDK bootstrap, M17-S34 collector sidecar).
+> ⚠️ **Partially superseded by `plan/M17-CLOUD-DEPLOY.md` D9 (2026-07-07), corrected 2026-08-04, 2026-08-05.** The `## Deployment`, `## Local Development Setup`, `## Prometheus Metrics`, `## Loki Label Strategy`, `## Grafana Dashboards`, `## Alerting Rules (Email)`, and `## SLOs (Service Level Objectives)` sections below describe the original self-hosted GCE VM + Docker Compose stack (Prometheus/Grafana/Loki) — cut in favor of D9's "OTel SDK (OTLP-only) → collector sidecar → GCP managed backends (Cloud Trace, Cloud Monitoring, Cloud Logging)." That self-hosted stack remains a valid *future* option (swap the collector's exporter config — see M17 D9) but is **not** what's deployed today, and several of its supporting files (`docker/docker-compose.observability.yml`, `infrastructure/observability/`) don't exist in this repo. Dashboards/alerts-as-code via Cloud Monitoring is **M17-S35** (`infra/terraform/modules/monitoring`, PR #331, 2026-08-08) — uptime checks, Cloud Run/SQL/DLQ alert policies, log-based metrics, and one dashboard per env. Business/audit log-based counters are a separate story, **M17-S54**, not yet built. Sections describing Grafana dashboards/alerts below remain historical reference, not a currently-usable feature. `## NestJS OTel Implementation` (below) **is** current and accurate — that's the real, implemented mechanism (M17-S33 SDK bootstrap, M17-S34 collector sidecar).
 
 ## Overview
 
 Observability answers three questions: **is the system healthy?** (metrics), **why did this request fail?** (traces), and **what exactly happened?** (logs). All three must include `tenant_id` so issues can be isolated per car wash company.
 
-**Stack (as originally planned, see the superseded-sections banner above for what's actually deployed today):** Prometheus → metrics · Loki → logs · OTel Collector → telemetry pipeline · Grafana → dashboards + alerts. **Actually deployed (M17-S33/S34):** OTel SDK (traces only) → collector sidecar → Cloud Trace + Cloud Logging. No dashboard/alerting layer exists yet (M17-S35, not implemented) and no native metrics layer exists yet either (deferred, M17-S55, split from S35 2026-08-08).
+**Stack (as originally planned, see the superseded-sections banner above for what's actually deployed today):** Prometheus → metrics · Loki → logs · OTel Collector → telemetry pipeline · Grafana → dashboards + alerts. **Actually deployed (M17-S33/S34):** OTel SDK (traces only) → collector sidecar → Cloud Trace + Cloud Logging. Dashboards/alerting (M17-S35) implemented as of 2026-08-08 (`infra/terraform/modules/monitoring`) — no native metrics layer exists yet (deferred, M17-S55, split from S35).
 
 ---
 
@@ -666,7 +666,7 @@ path or to push-only delivery.
 
 ## Prometheus Metrics
 
-> **Superseded/never built — see the file-level banner above.** Neither `src/shared/observability/metrics.ts` nor `metrics.controller.ts` exists in `apps/backend` or `apps/bff` (verified 2026-08-04), and `prom-client` is not a dependency of either app. This section describes the original M14 plan; it was never implemented. **Split 2026-08-08:** M17-S35 (Cloud Monitoring dashboards/alerts, not yet built) uses **log-based metrics** for infra-level signals already emitted (DLQ depth, outbox backlog — see `docs/ENGINEERING_RULES.md` § gauge vs. event logging); M17-S54 adds the structured log lines business counters need first (bookings requested/approved/completed, logins — confirmed *not* emitted today, corrected 2026-08-08). Neither uses a custom `/metrics` Prometheus-scrape endpoint — that path, if ever needed, is M17-S55's Managed Prometheus exporter, not a self-hosted scrape endpoint. Treat the catalog and code below as a historical design sketch, not a currently-usable API.
+> **Superseded/never built — see the file-level banner above.** Neither `src/shared/observability/metrics.ts` nor `metrics.controller.ts` exists in `apps/backend` or `apps/bff` (verified 2026-08-04), and `prom-client` is not a dependency of either app. This section describes the original M14 plan; it was never implemented. **Split 2026-08-08, implemented as of PR #331:** M17-S35 (`infra/terraform/modules/monitoring`) uses **log-based metrics** for infra-level signals already emitted (DLQ depth, outbox backlog — see `docs/ENGINEERING_RULES.md` § gauge vs. event logging); M17-S54 (not yet built) adds the structured log lines business counters need first (bookings requested/approved/completed, logins — confirmed *not* emitted today). Neither uses a custom `/metrics` Prometheus-scrape endpoint — that path, if ever needed, is M17-S55's Managed Prometheus exporter, not a self-hosted scrape endpoint. Treat the catalog and code below as a historical design sketch, not a currently-usable API.
 
 ### Naming Convention
 
@@ -805,7 +805,7 @@ exporters:
 
 ## Grafana Dashboards
 
-> **Superseded — see the file-level banner above.** No Grafana instance is deployed. M17-S35 (Cloud Monitoring dashboards as Terraform-provisioned JSON) is the real future replacement and is **not yet implemented** — until it lands, there is no dashboard layer in this repo at all. Traces are viewable ad hoc via Cloud Trace's own Trace Explorer in the GCP Console; logs via Cloud Logging's Logs Explorer.
+> **Superseded — see the file-level banner above.** No Grafana instance is deployed. M17-S35 (Cloud Monitoring dashboards as Terraform-provisioned JSON, `infra/terraform/modules/monitoring`) implements the real replacement as of 2026-08-08 — one dashboard per env with request rate/latency/5xx per service, instance counts, SQL connections/CPU, and Pub/Sub oldest-unacked-age/DLQ depths. Traces remain viewable ad hoc via Cloud Trace's own Trace Explorer in the GCP Console; logs via Cloud Logging's Logs Explorer.
 
 Dashboards are **version-controlled as JSON** in the repo and auto-provisioned by Grafana on startup — never created manually in the UI.
 
@@ -839,7 +839,7 @@ providers:
 
 ## SLOs (Service Level Objectives)
 
-> **Targets below are the real objectives; the Prometheus query column is not — see the file-level banner above.** No Prometheus/metrics pipeline is deployed today (deferred, M17-S55, split from S35 2026-08-08), and no Cloud Monitoring dashboards/alerts using log-based metrics exist yet either (M17-S35, not yet implemented). Until either lands, these SLOs are not measured by any automated system in this repo.
+> **Targets below are the real objectives; the Prometheus query column is not — see the file-level banner above.** No Prometheus/metrics pipeline is deployed today (deferred, M17-S55, split from S35 2026-08-08). Cloud Monitoring dashboards/alerts using log-based metrics **are** implemented (M17-S35, `infra/terraform/modules/monitoring`) — p99 latency and 5xx-rate thresholds specifically are measured via Cloud Run built-in metrics, not log-based metrics or Prometheus. These SLO targets are the real objectives this story's alert policies encode.
 
 | SLO | Target | Prometheus query (not currently runnable — no metrics pipeline exists) |
 |---|---|---|
@@ -852,7 +852,7 @@ providers:
 
 ## Alerting Rules (Email)
 
-> **Superseded — see the file-level banner above.** No Grafana alerting is deployed. M17-S35 (Cloud Monitoring alert policies as Terraform — uptime checks, 5xx rate, latency, DLQ depth, etc.) is the real future replacement and is **not yet implemented** — until it lands, there is no automated alerting in this repo at all.
+> **Superseded — see the file-level banner above.** No Grafana alerting is deployed. M17-S35 (Cloud Monitoring alert policies as Terraform — uptime checks, 5xx rate, latency, DLQ depth, outbox backlog, ERROR bursts, collector export failures) implements the real replacement as of 2026-08-08 (`infra/terraform/modules/monitoring`, PR #331).
 
 All alerting rules are **provisioned as code** — never create alerts manually in the Grafana UI.
 
@@ -1172,8 +1172,10 @@ otel-collector sidecar (M17-S34)
 Cloud Trace
 
 No metrics pipeline exists yet (config.yaml's metrics section is a commented stub for a future
-googlemanagedprometheus exporter — owned by M17-S55, split from S35 2026-08-08). No dashboard/
-alerting layer exists yet either — that's M17-S35, not yet implemented. This whole diagram
+googlemanagedprometheus exporter — owned by M17-S55, split from S35 2026-08-08). The dashboard/
+alerting layer is implemented separately from this trace pipeline — M17-S35
+(`infra/terraform/modules/monitoring`) reads Cloud Run built-ins, Cloud SQL metrics, and
+log-based metrics, not anything flowing through the collector shown above. This whole diagram
 supersedes the Grafana/Prometheus/Loki version this section originally described — see the
 file-level banner at the top of this doc.
 ```
