@@ -387,19 +387,33 @@ resource "google_logging_metric" "error_count" {
 # google_logging_metric.<x>.name) already sequences metric-before-policy
 # correctly; this is GCP's own cross-service eventual-consistency delay,
 # not a Terraform ordering bug — staging got lucky with timing on the exact
-# same apply that failed this way in prod. 60s is an empirical buffer (this
-# repo's existing time_sleep.iam_propagation precedent is 30s for a
-# different propagation delay), not a guarantee against the documented
-# worst case — if this still flakes, a real fix would be to move to a
-# retry-with-backoff instead of a fixed sleep.
+# same apply that failed this way in prod.
+#
+# create_duration = 600s (10 min), not an empirical guess: Google's own
+# troubleshooting docs for this exact error
+# (https://docs.cloud.google.com/monitoring/alerts/troubleshooting-alerts#alerting-policy-creation-fails)
+# state "at least ten minutes" before resubmitting — an earlier version of
+# this fix used 60s, which is exactly the unverified-empirical-buffer
+# problem the vendor's own guidance already answers; this repo's
+# time_sleep.iam_propagation precedent (30s, for a different propagation
+# delay with no comparable vendor SLA) doesn't apply here.
+#
+# triggers, not depends_on alone (cross-tool review finding, 2026-08-08):
+# time_sleep only sleeps on its own *first* create — depends_on orders that
+# one-time create after the metrics, but a later apply that changes/
+# recreates a metric (e.g. M17-S54 adding more log-based metrics to this
+# module) would not re-run the wait, since the already-applied time_sleep
+# resource has nothing forcing it to replace. Keying `triggers` on each
+# metric's id forces time_sleep to replace (and its create_duration to
+# re-run) whenever any watched metric's id changes.
 resource "time_sleep" "log_metric_propagation" {
-  create_duration = "60s"
+  create_duration = "600s"
 
-  depends_on = [
-    google_logging_metric.error_count,
-    google_logging_metric.outbox_backlog_age,
-    google_logging_metric.collector_export_failure,
-  ]
+  triggers = {
+    error_count_id              = google_logging_metric.error_count.id
+    outbox_backlog_age_id       = google_logging_metric.outbox_backlog_age.id
+    collector_export_failure_id = google_logging_metric.collector_export_failure.id
+  }
 }
 
 resource "google_monitoring_alert_policy" "error_burst" {
