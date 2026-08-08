@@ -110,6 +110,29 @@ run "outbox_backlog_threshold_is_three_sweep_intervals" {
   }
 }
 
+run "log_metric_propagation_sleep_is_wired_correctly" {
+  # Guards the cross-tool review fix (2026-08-08): create_duration must
+  # match GCP's own documented worst-case propagation window, and triggers
+  # must reference all 3 log-based metrics' ids so a future metric change
+  # (e.g. M17-S54) forces the sleep to re-run rather than being silently
+  # skipped because time_sleep already exists in state.
+  command = plan
+
+  assert {
+    condition     = time_sleep.log_metric_propagation.create_duration == "600s"
+    error_message = "create_duration must be 600s (10 min) — Google's own troubleshooting docs for this exact error state 'at least ten minutes', not an unverified shorter empirical guess."
+  }
+
+  assert {
+    condition = alltrue([
+      contains(keys(time_sleep.log_metric_propagation.triggers), "error_count_id"),
+      contains(keys(time_sleep.log_metric_propagation.triggers), "outbox_backlog_age_id"),
+      contains(keys(time_sleep.log_metric_propagation.triggers), "collector_export_failure_id"),
+    ])
+    error_message = "triggers must reference all 3 log-based metrics — depends_on alone only orders the sleep's first create, it does not force a re-wait when a metric is later changed/recreated."
+  }
+}
+
 run "dashboard_contains_a_widget_per_service_plus_shared_tiles" {
   # Cardinality (exactly one dashboard per module instantiation) is a
   # syntactic property of the resource having no count/for_each — no
