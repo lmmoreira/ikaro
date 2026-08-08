@@ -40,7 +40,7 @@ This document provides a step-by-step operational guide for the entire lifecycle
    - **No New Build:** The *exact same* Docker image from Staging is used.
    - **Production Migrations:** Run migrations against the Prod DB.
    - **Blue/Green or Rolling Update:** Deploy to the Production platform.
-3. **Verification:** No Grafana/Loki stack is deployed (see `docs/10-OBSERVABILITY_STRATEGY.md`'s file-level banner) — check Cloud Trace for latency/error spans and Cloud Logging for `ERROR`-level entries instead. Dashboards/alerts-as-code (M17-S35) is implemented (`infra/terraform/modules/monitoring`, live in staging as of 2026-08-08) — see `docs/10-OBSERVABILITY_STRATEGY.md`'s Dashboards/Alerting Rules sections.
+3. **Verification:** No Grafana/Loki stack is deployed (see `docs/10-OBSERVABILITY_STRATEGY.md`'s file-level banner) — check Cloud Trace for latency/error spans and Cloud Logging for `ERROR`-level entries instead. Dashboards/alerts-as-code (M17-S35) is implemented (`infra/terraform/modules/monitoring`) — see `docs/10-OBSERVABILITY_STRATEGY.md`'s Dashboards/Alerting Rules sections. Status as of 2026-08-08: dashboard, uptime checks, and most alert policies are live in staging; the 3 `error_rate_5xx` policies were blocked by an MQL type bug (PR #333) and are pending that fix's staging apply.
 
 ---
 
@@ -81,7 +81,7 @@ The container platform (GCP Cloud Run) is configured to automatically rollback i
 
 ## 5. Monitoring the Release
 
-> No "Release Dashboard"/Grafana/Loki exists — see `docs/10-OBSERVABILITY_STRATEGY.md`'s file-level banner. Dashboards/alerts-as-code (M17-S35) is implemented (`infra/terraform/modules/monitoring`, live in staging as of 2026-08-08) — see `docs/10-OBSERVABILITY_STRATEGY.md`'s Dashboards/Alerting Rules sections.
+> No "Release Dashboard"/Grafana/Loki exists — see `docs/10-OBSERVABILITY_STRATEGY.md`'s file-level banner. Dashboards/alerts-as-code (M17-S35) is implemented (`infra/terraform/modules/monitoring`) — see `docs/10-OBSERVABILITY_STRATEGY.md`'s Dashboards/Alerting Rules sections. Status as of 2026-08-08: dashboard, uptime checks, and most alert policies are live in staging; the 3 `error_rate_5xx` policies were blocked by an MQL type bug (PR #333) and are pending that fix's staging apply.
 
 During and after deployment, the team monitors:
 - **Success Rate / Latency (P99):** Cloud Trace (traces from the OTel SDK + collector sidecar, M17-S33/S34) — should remain > 99% success, P99 not increasing by more than 10%.

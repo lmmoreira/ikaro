@@ -1,5 +1,5 @@
 output "dashboard_id" {
-  description = "Cloud Monitoring dashboard resource id (module.monitoring's own output — see its description for the console URL format). Re-exported here since neither env root originally did, leaving docs/10-OBSERVABILITY_STRATEGY.md's `terraform output dashboard_id` instruction unusable (cross-tool review finding, PR #332, 2026-08-08)."
+  description = "Full Cloud Monitoring dashboard resource name (module.monitoring's own output — see its description for the console URL format, which needs only the trailing <dashboard_id> segment, not this full value). Re-exported here since neither env root originally did, leaving docs/10-OBSERVABILITY_STRATEGY.md's `terraform output dashboard_id` instruction unusable (cross-tool review finding, PR #332, 2026-08-08; description corrected, PR #333 review, 2026-08-08 — 'resource id' wrongly implied a bare id, not the full projects/<project_id>/dashboards/<dashboard_id> name)."
   value       = module.monitoring.dashboard_id
 }
 
