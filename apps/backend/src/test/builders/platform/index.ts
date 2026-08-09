@@ -4,3 +4,6 @@ export * from './tenant-settings-props.builder';
 export * from './tenant-entity.builder';
 export * from './hotsite-config-entity.builder';
 export * from './tenant-provisioned-event.builder';
+export * from './chatbot-session.builder';
+export * from './chatbot-message.builder';
+export * from './chatbot-provider-balance.builder';

@@ -30,6 +30,9 @@ import { CreateNotificationLogs1748000000010 } from '../contexts/notification/in
 import { CreateNotificationTemplates1748100000010 } from '../contexts/notification/infrastructure/migrations/1748100000010-CreateNotificationTemplates';
 import { AlterNotificationLogs1748200000010 } from '../contexts/notification/infrastructure/migrations/1748200000010-AlterNotificationLogs';
 import { AddNotificationLogUniqueConstraint1748300000010 } from '../contexts/notification/infrastructure/migrations/1748300000010-AddNotificationLogUniqueConstraint';
+import { ChatbotMessageEntity } from '../contexts/platform/infrastructure/entities/chatbot-message.entity';
+import { ChatbotProviderBalanceEntity } from '../contexts/platform/infrastructure/entities/chatbot-provider-balance.entity';
+import { ChatbotSessionEntity } from '../contexts/platform/infrastructure/entities/chatbot-session.entity';
 import { HotsiteConfigEntity } from '../contexts/platform/infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from '../contexts/platform/infrastructure/entities/tenant.entity';
 import { BootstrapSchemas1700000000000 } from '../contexts/platform/infrastructure/migrations/1700000000000-BootstrapSchemas';
@@ -37,6 +40,7 @@ import { CreatePlatformTenants1716500000001 } from '../contexts/platform/infrast
 import { CreatePlatformHotsiteConfigs1716500000002 } from '../contexts/platform/infrastructure/migrations/1716500000002-CreatePlatformHotsiteConfigs';
 import { AddSeoToHotsiteConfigs1748400000001 } from '../contexts/platform/infrastructure/migrations/1748400000001-AddSeoToHotsiteConfigs';
 import { AddVersionToHotsiteConfigs1748400000009 } from '../contexts/platform/infrastructure/migrations/1748400000009-AddVersionToHotsiteConfigs';
+import { CreateChatbotTables1748400000010 } from '../contexts/platform/infrastructure/migrations/1748400000010-CreateChatbotTables';
 import { StaffEntity } from '../contexts/staff/infrastructure/entities/staff.entity';
 import { CreateStaffStaff1716600000002 } from '../contexts/staff/infrastructure/migrations/1716600000002-CreateStaffStaff';
 import { AddNameToStaff1716600000003 } from '../contexts/staff/infrastructure/migrations/1716600000003-AddNameToStaff';
@@ -79,6 +83,9 @@ export default async function globalSetup(): Promise<void> {
       BalanceExpiryLogEntity,
       InboxRecordEntity,
       OutboxEventEntity,
+      ChatbotSessionEntity,
+      ChatbotMessageEntity,
+      ChatbotProviderBalanceEntity,
     ],
     migrations: [
       BootstrapSchemas1700000000000,
@@ -107,6 +114,7 @@ export default async function globalSetup(): Promise<void> {
       AddLoyaltyRedemptionPointsPerCurrencyUnit1748400000003,
       AddSeoToHotsiteConfigs1748400000001,
       AddVersionToHotsiteConfigs1748400000009,
+      CreateChatbotTables1748400000010,
     ],
     synchronize: false,
     migrationsRun: false,
