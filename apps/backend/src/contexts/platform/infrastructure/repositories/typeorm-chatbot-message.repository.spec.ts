@@ -1,23 +1,19 @@
 import { EntityManager, Repository } from 'typeorm';
 import { runWithEntityManager } from '../../../../shared/infrastructure/transaction-context';
-import { ChatbotMessageBuilder } from '../../../../test/builders/platform';
+import {
+  ChatbotMessageBuilder,
+  ChatbotMessageEntityBuilder,
+} from '../../../../test/builders/platform';
 import { ChatbotMessage } from '../../domain/chatbot-message.aggregate';
 import { ChatbotMessageEntity } from '../entities/chatbot-message.entity';
 import { TypeOrmChatbotMessageRepository } from './typeorm-chatbot-message.repository';
 
-const ENTITY = (): ChatbotMessageEntity => {
-  const entity = new ChatbotMessageEntity();
-  entity.id = 'message-id-1';
-  entity.sessionId = 'session-id-1';
-  entity.tenantId = 'tenant-id-1';
-  entity.role = 'USER';
-  entity.content = 'Quais são os horários de funcionamento?';
-  entity.inputTokens = 12;
-  entity.outputTokens = 0;
-  entity.modelId = 'deepseek/deepseek-v4-flash-0731';
-  entity.createdAt = new Date('2026-08-09T10:00:00Z');
-  return entity;
-};
+const ENTITY = (): ChatbotMessageEntity =>
+  new ChatbotMessageEntityBuilder()
+    .withId('message-id-1')
+    .withSessionId('session-id-1')
+    .withTenantId('tenant-id-1')
+    .build();
 
 describe('TypeOrmChatbotMessageRepository', () => {
   let mockRepo: jest.Mocked<Repository<ChatbotMessageEntity>>;

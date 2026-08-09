@@ -1,17 +1,18 @@
 import { EntityManager, Repository } from 'typeorm';
 import { runWithEntityManager } from '../../../../shared/infrastructure/transaction-context';
-import { ChatbotProviderBalanceBuilder } from '../../../../test/builders/platform';
+import {
+  ChatbotProviderBalanceBuilder,
+  ChatbotProviderBalanceEntityBuilder,
+} from '../../../../test/builders/platform';
 import { ChatbotProviderBalance } from '../../domain/chatbot-provider-balance.aggregate';
 import { ChatbotProviderBalanceEntity } from '../entities/chatbot-provider-balance.entity';
 import { TypeOrmChatbotProviderBalanceRepository } from './typeorm-chatbot-provider-balance.repository';
 
-const ENTITY = (): ChatbotProviderBalanceEntity => {
-  const entity = new ChatbotProviderBalanceEntity();
-  entity.provider = 'openrouter';
-  entity.remainingUsd = '18.4200';
-  entity.checkedAt = new Date('2026-08-09T10:00:00Z');
-  return entity;
-};
+const ENTITY = (): ChatbotProviderBalanceEntity =>
+  new ChatbotProviderBalanceEntityBuilder()
+    .withProvider('openrouter')
+    .withRemainingUsd('18.4200')
+    .build();
 
 describe('TypeOrmChatbotProviderBalanceRepository', () => {
   let mockRepo: jest.Mocked<Repository<ChatbotProviderBalanceEntity>>;

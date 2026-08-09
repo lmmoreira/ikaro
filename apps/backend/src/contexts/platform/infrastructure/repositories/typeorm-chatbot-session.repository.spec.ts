@@ -1,22 +1,15 @@
 import { EntityManager, Repository } from 'typeorm';
 import { runWithEntityManager } from '../../../../shared/infrastructure/transaction-context';
-import { ChatbotSessionBuilder } from '../../../../test/builders/platform';
+import {
+  ChatbotSessionBuilder,
+  ChatbotSessionEntityBuilder,
+} from '../../../../test/builders/platform';
 import { ChatbotSession } from '../../domain/chatbot-session.aggregate';
 import { ChatbotSessionEntity } from '../entities/chatbot-session.entity';
 import { TypeOrmChatbotSessionRepository } from './typeorm-chatbot-session.repository';
 
-const ENTITY = (): ChatbotSessionEntity => {
-  const entity = new ChatbotSessionEntity();
-  entity.id = 'session-id-1';
-  entity.tenantId = 'tenant-id-1';
-  entity.clientIp = '203.0.113.10';
-  entity.startedAt = new Date('2026-08-09T10:00:00Z');
-  entity.lastMessageAt = new Date('2026-08-09T10:00:00Z');
-  entity.conversationDate = '2026-08-09';
-  entity.messageCount = 0;
-  entity.status = 'ACTIVE';
-  return entity;
-};
+const ENTITY = (): ChatbotSessionEntity =>
+  new ChatbotSessionEntityBuilder().withId('session-id-1').withTenantId('tenant-id-1').build();
 
 describe('TypeOrmChatbotSessionRepository', () => {
   let mockRepo: jest.Mocked<Repository<ChatbotSessionEntity>>;
