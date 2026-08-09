@@ -6,7 +6,8 @@
 - **Priority**: High (mixes 🔴 proven-recurring-failure stories with 🟡/⚪ lower-risk ones — see Confidence key)
 - **Context**: cross-cutting — `apps/backend`, `apps/bff`, `apps/web`, `packages/*`, `packages/config/eslint-base.js`, CI workflows
 - **Created**: 2026-07-27
-- **Related**: `docs/ANTI_PATTERNS.md` (all 138 rows mined), `docs/ENGINEERING_RULES.md`, `docs/CODE_STANDARDS.md`, `.claude/commands/bad-smell-audit.md`, `docs/ANTI_PATTERNS.md` row #137 (the prior decision this TD executes), `td/TD09-WEB-TYPES-DRIFT-VS-IKARO-TYPES.md`, `td/TD24-OUTBOX-INBOX-PATTERN.md`, `td/TD31-BAD-SMELL-AUDIT-COVERAGE-SNAPSHOT.md`
+- **Decision status**: Revised 2026-08-09 after codebase feasibility review. Ready for discovery and implementation in the dependency order below; individual stories still begin with `/story-discovery`.
+- **Related**: `docs/ANTI_PATTERNS.md`, `docs/ENGINEERING_RULES.md`, `docs/CODE_STANDARDS.md`, `.claude/commands/bad-smell-audit.md`, `td/TD09-WEB-TYPES-DRIFT-VS-IKARO-TYPES.md`, `td/TD24-OUTBOX-INBOX-PATTERN.md`, `td/TD31-BAD-SMELL-AUDIT-COVERAGE-SNAPSHOT.md`
 
 ---
 
@@ -27,7 +28,7 @@ Everything in this TD runs **before or during CI** — ESLint, `tsc --noEmit`, a
 
 ## Method
 
-The candidate list was built by reading `docs/ANTI_PATTERNS.md` (138 rows), `docs/ENGINEERING_RULES.md`, `docs/CODE_STANDARDS.md`, and `.claude/commands/bad-smell-audit.md` (the existing 20-check manual/agent-driven audit) end to end, then cross-checking each candidate against what's **actually installed today** (`packages/config/eslint-base.js`, `apps/*/eslint.config.js`) so this TD doesn't propose re-implementing something SonarCloud or an existing rule already covers. Confirmed already covered elsewhere and intentionally *not* duplicated here:
+The candidate list was built from `docs/ANTI_PATTERNS.md`, `docs/ENGINEERING_RULES.md`, `docs/CODE_STANDARDS.md`, and `.claude/commands/bad-smell-audit.md`, then cross-checked against what's **actually installed today** (`packages/config/eslint-base.js`, `apps/*/eslint.config.js`) so this TD doesn't propose re-implementing something SonarCloud or an existing rule already covers. Row numbers in those living documents are intentionally not used as stable identifiers here; enforcement messages should cite the rule title and source path instead. Confirmed already covered elsewhere and intentionally *not* duplicated here:
 
 - `z.string().uuid()`/`.email()` → flagged by SonarCloud (S1874) in addition to being proposed here as a fast local rule (see Story 4) — not a full duplicate, a faster feedback loop for the same rule.
 - Builder fields without a setter (S2933), non-readonly component props (S6759), default params after required ones (S1788) → already SonarCloud-gated; `default-param-last` and the two `max-lines*` rules are proposed anyway in Story 5 because they're **built into ESLint core** (zero new dependency) and give feedback at `pnpm lint` time instead of waiting for the SonarCloud CI stage.
@@ -44,24 +45,46 @@ The candidate list was built by reading `docs/ANTI_PATTERNS.md` (138 rows), `doc
 
 ## Committed Stories
 
+### Story 0 — Architecture-enforcement foundation and recorded policy decisions 🔴
+
+No detector may encode an undocumented guess. Before adding a blocking rule, create one shared `architecture-check` runner/CLI that can load the backend, BFF, web, and workspace TypeScript projects. Keep the rules themselves in small independently-tested modules; do not install `ts-morph` only in the backend and then make web/package checks depend on an accidental hoist.
+
+This story records the following policy as versioned, reviewable data rather than scattered glob exceptions:
+
+- **Layer taxonomy:** `domain/**` is framework-free; `application/**` is framework-free and depends on domain, application ports/DTOs, and approved shared framework-neutral modules only; infrastructure contains controllers, adapters, repositories, event handlers, and framework wiring. `*.module.ts` is an explicit composition-root exception, not application code.
+- **Context dependency matrix:** cross-context imports are deny-by-default. Permitted edges are exact source-path-to-source-path entries for existing `infrastructure/cross-context/**` adapters and event consumers, each with rationale and owner. This replaces the incorrect claim that a context may import only itself and `shared`.
+- **Backend `@ikaro/types` policy:** backend may consume only explicit, framework-neutral protocol subpaths: error codes/problem-details, actor-role/JWT protocol, and shared media protocol. Migrate the current allowed backend symbols (`ActorRole`, `ACTOR_ROLES`, `ALLOWED_IMAGE_CONTENT_TYPES`) out of the root barrel into those subpaths before enabling the import rule. Backend production code must not import the root `@ikaro/types` barrel or feature request/response DTO modules.
+- **Exception registry:** TypeORM persistence adapters, raw-fetch cases, tenant-exempt entities/tables, dynamic framework exports, and ESLint suppressions are explicit entries with rule, rationale, owner, and review/expiry date. Broad folder exceptions are prohibited.
+- **Detector contract:** every detector has permanent positive and negative fixtures, asserts it scanned at least one intended target, and prints file/line plus remediation. A green scan with zero discovered targets is a failure.
+- **Tool decision spike:** implement three representative semantic rules (transactional save, error-mapper coverage, and Nest DI aliasing) with the shared runner. Evaluate direct `ts-morph` against `ts-archunit`; retain exactly one. `dependency-cruiser` remains the sole authority for import-graph rules.
+
+**Acceptance criteria**:
+- [ ] Shared runner is executable locally and in CI for every project it scans
+- [ ] The taxonomy, dependency matrix, exception registry, and backend package-contract policy are committed as machine-readable configuration next to the checks
+- [ ] The tool spike records the selected semantic-analysis implementation and why it handles the three representative rules
+- [ ] Fixture and zero-target conventions are available to every later story
+
 ### Story 1 — `dependency-cruiser`: architectural boundaries 🔴
 
 **New dependency**: `dependency-cruiser` (dev-only).
 
-Add `.dependency-cruiser.cjs` at repo root (or one per app if rules diverge enough), wire `pnpm dep-cruise` per app, add a CI step.
+Add workspace-aware `dependency-cruiser` configuration at the repo root, wire a root `pnpm dep-cruise` script, and add a CI step. Per-workspace entry/project configuration is required; a top-level-only configuration must not silently omit packages.
 
 Rules to encode:
-- `apps/backend/src/contexts/<A>/**` must not import `apps/backend/src/contexts/<B>/**` — only `shared/**` or its own context (#20, #24, #32).
-- `apps/backend/src/contexts/**/domain/**` must not import `@nestjs/*`, `typeorm`, `axios`, `express` — CLAUDE.md §7's "domain/ (zero framework deps)" invariant, currently enforced nowhere.
+- `apps/backend/src/contexts/<A>/**` must not import `apps/backend/src/contexts/<B>/**` unless the exact edge appears in Story 0's permitted-edge matrix. Existing cross-context adapters and event consumers are therefore permitted intentionally, not by a wildcard.
+- `apps/backend/src/contexts/**/domain/**` must not import framework, transport, persistence, or infrastructure modules: `@nestjs/*`, `typeorm`, `axios`, `express`, sibling-context application/infrastructure paths, or local `application/**`/`infrastructure/**` paths.
+- `apps/backend/src/contexts/**/application/**` must not import NestJS, TypeORM, HTTP/Express, controllers, repositories/adapters, or another context's internal implementation. It may import only its domain, application ports/DTOs, and Story 0-approved shared framework-neutral contracts. `*.module.ts` is excluded because it is composition root.
 - `apps/bff/src/**` must not import `apps/backend/src/contexts/**` (bad-smell-audit BFF-4).
-- `apps/backend/src/**` must not import `@ikaro/types` response/DTO shapes, **except** `packages/types/src/error-codes.ts` and `packages/types/src/errors.dto.ts` (#69's two documented exceptions — encode as an explicit allow-list, not a blanket ban).
+- `apps/bff/src/shared/**` must not import feature code; BFF shared infrastructure must remain feature-neutral.
+- `apps/backend/src/**` must use only the explicit `@ikaro/types` backend protocol subpaths defined in Story 0. Root-barrel and feature DTO imports are forbidden.
+- Generic graph safety: no circular production dependencies, no production-to-test imports, no imports of undeclared packages, no production imports of dev dependencies, and no unresolved imports.
 
 **What it catches**: a future PR reintroducing context coupling, a domain file accidentally pulling in a NestJS decorator, a BFF file reaching into backend source instead of going through HTTP.
 **What it does NOT catch**: semantic duplication — e.g. two cross-context ports doing the same job (#79) is a design judgment call, not an import-graph shape; stays a code-review/bad-smell-audit item.
 
 **Acceptance criteria**:
-- [ ] `.dependency-cruiser.cjs` encodes all 4 rule groups above with the `@ikaro/types` allow-list
-- [ ] `pnpm dep-cruise` added to each app's `package.json` scripts
+- [ ] Configuration encodes all rule groups above, the exact permitted-edge matrix, and the backend package-contract subpath policy
+- [ ] `pnpm dep-cruise` scans all configured workspaces and fails if a workspace/project is omitted
 - [ ] CI step added (non-blocking first — see Rollout Phases)
 - [ ] Zero violations on current `main` before promoting to blocking
 
@@ -71,7 +94,9 @@ Rules to encode:
 
 Directly addresses **#124** — the exact TD24-S01 incident (`OutboxPublisher` had every `INSERT`/`SELECT ... FOR UPDATE SKIP LOCKED`/`UPDATE`/`DELETE` inlined, undetected through a full `/pre-pr` pass).
 
-**Mechanism**: `no-restricted-imports` (zero new dependency) banning `@InjectRepository` from `@nestjs/typeorm` and `Repository`/`EntityManager` type imports from `typeorm`, scoped to every path *except* `**/infrastructure/repositories/**` and `shared/infrastructure/**`.
+**Mechanism**: `no-restricted-imports` (zero new dependency) bans persistence-bypass APIs outside a precise persistence-adapter allowlist. The rule covers `InjectRepository`, `InjectDataSource`, `Repository`, `EntityManager`, `DataSource`, `getDataSourceToken`, and equivalent TypeORM entry points. Restrict imported names rather than a `^typeorm$` pattern, which would incorrectly ban every TypeORM import.
+
+Before enabling it, resolve the current `booking/infrastructure/cross-context/typeorm-booking-availability.adapter.ts` exception: either refactor it behind a formal repository port or list that specific adapter, its reason, and expiry in Story 0's registry. Do not exempt all `shared/infrastructure/**`; that would permit the exact service/publisher failure this rule exists to prevent.
 
 ```js
 // example pattern, mirrors the existing EVENT_BUS/OTel bans already in apps/backend/eslint.config.js
@@ -83,7 +108,7 @@ Directly addresses **#124** — the exact TD24-S01 incident (`OutboxPublisher` h
       paths: [
         { name: '@nestjs/typeorm', importNames: ['InjectRepository'], message: 'Raw @InjectRepository outside a repository adapter — extract an IXxxRepository port instead (see docs/AGENT_PATTERNS.md Pattern #1).' },
       ],
-      patterns: [{ regex: '^typeorm$', message: 'Import Repository/EntityManager only inside infrastructure/repositories/**.' }],
+      // Explicit import-name restrictions for TypeORM APIs; no blanket `typeorm` pattern.
     }],
   },
 }
@@ -93,8 +118,9 @@ Directly addresses **#124** — the exact TD24-S01 incident (`OutboxPublisher` h
 **What it does NOT catch**: a repository adapter itself doing something wrong internally — that's normal code review, this rule only enforces *where* SQL is allowed to live.
 
 **Acceptance criteria**:
-- [ ] Rule added to `apps/backend/eslint.config.js`
-- [ ] Zero current violations (verify `shared/infrastructure/outbox/typeorm-outbox.repository.ts` and equivalents are correctly exempted, not accidentally banned)
+- [ ] Rule added to `apps/backend/eslint.config.js` with precise allowlisted persistence-adapter paths
+- [ ] Every TypeORM bypass API named above is covered; valid repository adapters and reviewed cross-context persistence adapters are explicitly tested
+- [ ] Zero unreviewed current violations; no broad `shared/infrastructure/**` exemption
 - [ ] `docs/AGENT_PATTERNS.md` Pattern #1 referenced in the lint error message
 
 ---
@@ -103,22 +129,25 @@ Directly addresses **#124** — the exact TD24-S01 incident (`OutboxPublisher` h
 
 Directly addresses **#28** — the PR #267 incident (DB read before the network call wasn't wrapped in the "never throws" contract; only the network leg was).
 
-**New dependency**: `ts-morph` (also used by Stories 6–11 — this is the story that introduces the dependency and the test harness).
+**New dependency**: the semantic-analysis implementation selected in Story 0 (also used by Stories 6–12).
 
-**Mechanism**: an `architecture.spec.ts` (run via the existing `pnpm test`, no new CI step) that:
-1. Loads the backend `ts-morph` `Project` from `apps/backend/tsconfig.json`.
+**Mechanism**: a backend architecture test/CLI, run by the shared runner selected in Story 0, that:
+1. Loads the backend TypeScript project from `apps/backend/tsconfig.json`.
 2. Finds every `CallExpression` whose callee is `.run` on an identifier/parameter typed `ITransactionManager`.
-3. Walks the arrow-function argument's body for nested `CallExpression`s whose resolved symbol is `HttpService`, `axios`, or any export from `**/infrastructure/cross-context/*.adapter.ts`.
-4. Fails with the file:line of the offending call if found.
+3. Walks the transactional callback for calls to registered external-side-effect port methods. The registry follows resolved symbols from application ports to their concrete adapters; it must not rely on an adapter merely living under `infrastructure/cross-context/`.
+4. Excludes callbacks explicitly scheduled with `scheduleAfterCommit`, since those execute after the transaction. The check must distinguish lexical nesting from execution timing.
+5. Fails with the file:line of the offending call if found.
 
 **What it catches**: exactly the PR #267 shape — a network-calling adapter method invoked from inside the transactional callback, on either side of the DB write.
-**What it does NOT catch**: a network call made from a method that's merely *reachable* from inside the callback through several layers of indirection (e.g. `a()` calls `b()` calls `c()` which does the network call) — the check only looks at the direct call graph inside the immediate callback body, not full interprocedural analysis. Deep indirection stays a code-review item; flagging it here so the limitation is explicit, not assumed away.
+Also add the complementary structural rule: every production use-case call to a repository `save()` is lexically enclosed by a callback passed to a parameter typed `ITransactionManager.run()`. Explicitly catalog any legitimate non-use-case exceptions.
+
+**What it does NOT catch**: arbitrary deep interprocedural I/O without a registered port marker. New external-side-effect ports must be registered as part of their implementation; hidden/dynamic I/O stays a review concern.
 
 **Acceptance criteria**:
-- [ ] `ts-morph` added as a backend devDependency
-- [ ] `architecture.spec.ts` (or equivalent) added under `apps/backend/src/test/architecture/`
+- [ ] Uses Story 0's shared runner and registered external-side-effect port methods
+- [ ] Transactional-I/O and transactional-`save()` checks are implemented with post-commit scheduling coverage
 - [ ] Passes clean against current `main`
-- [ ] Wired into existing `pnpm test` — no new CI step required
+- [ ] Valid, invalid, and `scheduleAfterCommit` fixtures prove the semantic distinction
 
 ---
 
@@ -130,7 +159,7 @@ Bundles the smaller, cheap-to-add rules using the exact mechanism you already us
 |---|---|---|
 | Ban `RequestContext` import in application layer | ENGINEERING_RULES §RequestContext | `contexts/**/application/**/*.ts` |
 | Ban `z.string().uuid()`/`.email()` chained forms | #51 | repo-wide (`no-restricted-syntax`, `CallExpression` selector) |
-| Ban raw `fetch(` in `apps/web` outside `bffServerFetch`/`bffPublicFetch`/`bffClient` | WEB-8 | `apps/web/**`, with the same documented-exception carve-out bad-smell-audit already allows |
+| Ban raw `fetch(` in `apps/web` outside `bffServerFetch`/`bffPublicFetch`/`bffClient` | WEB-8 | `apps/web/**`, with a reviewed class/path exception registry for gateway forwarding, signed-URL upload, approved external APIs, and documented cached reads |
 | Ban `throw new HttpException` inside `*.use-case.ts` | #54 | `contexts/**/application/**/*.use-case.ts` |
 | Ban a string-literal argument as the first arg to `.subscribe(`/`.registerTrigger(` | ENGINEERING_RULES §Event Handlers (already fixed repo-wide once, `fix/consistency-naming-consumer`) | event handler registration sites |
 | Ban a string-literal argument to `resolveSupportedLocale(` inside protected-area layouts | #106 | `apps/web/app/dashboard/**/layout.tsx`, `apps/web/app/[slug]/my-account/**/layout.tsx` |
@@ -140,9 +169,10 @@ Bundles the smaller, cheap-to-add rules using the exact mechanism you already us
 **What it does NOT catch**: `resolveSupportedLocale(payload.locale ?? 'pt-BR')` — the *correct* pattern — still passes, since the rule only flags a bare literal as the sole argument, not a literal used as a fallback.
 
 **Acceptance criteria**:
-- [ ] All 7 rules added across `apps/backend/eslint.config.js` / `apps/web/eslint.config.js`
+- [ ] All 7 rules added across `apps/backend/eslint.config.js` / `apps/web/eslint.config.js`; raw-fetch exceptions are explicit registry entries because ESLint cannot prove an inline rationale
 - [ ] Zero current violations on `main`
-- [ ] Each rule's error message cites the doc row it enforces (mirrors existing OTel-ban message style)
+- [ ] The CSS assertion selector is limited to type assertions returned from a function, not arbitrary prop assertions in tests
+- [ ] Each rule's error message cites the rule title/source it enforces (not a brittle anti-pattern row number)
 
 ---
 
@@ -150,13 +180,13 @@ Bundles the smaller, cheap-to-add rules using the exact mechanism you already us
 
 Zero new dependencies — these ship inside ESLint itself:
 
-- `max-lines-per-function` — CODE_STANDARDS.md: "Functions ≤ 20 lines"
-- `max-lines` — CODE_STANDARDS.md: "classes ≤ 200 lines"
+- `max-lines-per-function` — CODE_STANDARDS.md: "Functions ≤ 20 lines"; explicitly configure `max: 20` and the chosen comment/blank-line behavior.
+- `max-lines` — file length, **not class length**. Either amend CODE_STANDARDS to state a file limit or introduce a semantic class-length check; do not claim ESLint `max-lines` enforces classes ≤ 200 lines.
 - `default-param-last` — CODE_STANDARDS.md's default-parameter rule (currently only SonarCloud-gated, this gives the same feedback at `pnpm lint` time instead of waiting for the Sonar CI stage)
 
 **Acceptance criteria**:
-- [ ] All 3 added to `packages/config/eslint-base.js`
-- [ ] Existing violations on `main` triaged — decide per-violation whether to fix immediately or grandfather via a scoped `ignores`/inline exception with a comment (do not silently raise the threshold to make the current code pass — that defeats the rule)
+- [ ] Rule configuration matches the documented policy; the class-vs-file decision is recorded before implementation
+- [ ] Existing violations on `main` have a quantified baseline and an owner/expiry for each temporary exception; do not silently raise thresholds
 
 ---
 
@@ -164,72 +194,76 @@ Zero new dependencies — these ship inside ESLint itself:
 
 Builds on Story 3's harness.
 
-- **`mapXxxError` completeness** (#62): enumerate every class extending `XxxDomainError` across `contexts/**/domain/errors/*.ts`; assert each class name appears in an `instanceof` branch in the corresponding `infrastructure/http/*-error.mapper.ts`.
-- **`Object.setPrototypeOf` check** (CLAUDE.md §7, listed there as "not caught by linters"): every class extending `Error` must call `Object.setPrototypeOf(this, new.target.prototype)` in its constructor.
-- **VO `create()` never throws bare `Error`** (#80): scan every `*.vo.ts`'s `create()` method body for `throw new Error(` and flag it — must be a typed class implementing `DomainErrorShape`.
+- **`mapXxxError` completeness**: enumerate every class extending a context domain-error root. Each class must be covered either by a specific `instanceof` branch or by an intentional base-class branch with its documented default status. Generic branches are valid and must not force redundant subclasses branches.
+- **`Object.setPrototypeOf` check**: resolved direct subclasses of `Error` that declare their own constructor must call `Object.setPrototypeOf(this, new.target.prototype)`. Descendants that inherit that constructor are already correct and must not be flagged.
+- **VO `create()` never throws bare `Error`**: scan value objects by base type/interface and `**/value-objects/**`, not only `*.vo.ts`; this includes shared `Address` and `Money`. Flag only actual static `create()` bodies that throw a bare `Error`.
+- **Shared VO error mapping:** where a shared VO owns typed validation errors, verify its consuming HTTP error mappers intentionally map those errors rather than returning an accidental generic 500.
 
 **What it catches**: a new error class added without wiring its mapper branch (falls through to a generic 500 with no test failure today); a copy-pasted error class missing the prototype fix (breaks `instanceof` silently).
 **What it does NOT catch**: whether the *chosen* HTTP status code is semantically correct for the error — that's still a design/review call.
 
 **Acceptance criteria**:
-- [ ] All 3 checks implemented and passing against current `main`
+- [ ] All four checks implemented and passing against current `main`
 - [ ] Failure messages name the exact class and expected mapper file
 
 ---
 
 ### Story 7 — `ts-morph` suite, part 2: test-hygiene completeness 🟡
 
-- **Entity/event/command builder coverage** (bad-smell-audit BE-4): for each `*.entity.ts` in `*/infrastructure/entities/`, assert a matching `XxxEntityBuilder` exists in `src/test/builders/<context>/`. Same for `DomainEvent`/`Command` classes constructed inline in 2+ spec files.
-- **`EntityBuilder` id defaults to `uuidv7()`** (#43): parse every builder constructor's default `id` value; flag a hardcoded string literal.
-- **Migration/entity registered in `integration-global-setup.ts`** (ENGINEERING_RULES §Testing Patterns): diff the set of migration classes and TypeORM entities against what's imported/registered in `src/test/integration-global-setup.ts` and any context-specific helper.
+- **Entity/event/command builder coverage**: derive production entities from resolved TypeORM entity decorators, including shared inbox/outbox entities, then assert a matching builder exists. Same for `DomainEvent`/`Command` classes constructed inline in 2+ spec files.
+- **`EntityBuilder` primary-key defaults to `uuidv7()`**: inspect every resolved TypeORM primary-key property and its builder field initializer/default. Do not assume the field is named `id` or that its default is in the constructor; valid names include `lineId`, `entryId`, and `eventId`.
+- **Migration/entity test registration**: make `integration-global-setup.ts`, `test-datasource.ts`, and intentionally partial context helpers an explicit registration map. Compare each source against the set it is responsible for; do not require every helper to contain every entity.
 
 **What it catches**: a new entity/migration shipped without its test-harness registration — currently "causes silent failures — unit tests pass but integration tests error on the first DB query," per your own docs, with no test pointing at *why*.
-**What it does NOT catch**: whether the builder's other fields are sensible defaults — only that it exists and the `id` default is right.
+**What it does NOT catch**: whether the builder's other fields are sensible defaults — only its existence, primary-key default, and registration.
 
 **Acceptance criteria**:
-- [ ] All 3 checks passing against `main`
+- [ ] All 3 checks cover resolved production entities, including shared entities and non-`id` primary keys
+- [ ] The registration-map source of truth makes intentional helper subsets explicit
 - [ ] BE-4's existing manual bad-smell-audit check can be retired once this ships (avoid running the same check twice, once mechanically and once via LLM prompt)
 
 ---
 
 ### Story 8 — `ts-morph` suite, part 3: DI/module wiring 🔴
 
-- **`@Global()` module ↔ `exports` pairing** (#129): parse every `@Module({...})` decorator; if `global: true`/`@Global()` is present, assert every token consumed outside the module also appears in that module's own `exports:` array.
-- **`useExisting` double-instantiation detector** (#67, #126 — bit you twice): flag a `providers` array where a class appears both as a bare entry (`SomeClass`) and as a `useExisting` target (`{ provide: X, useExisting: SomeClass }`).
+- **`@Global()` module ↔ `exports` pairing**: resolve injections and module exports. A global module must export its externally consumed tokens, but it may retain internal providers; do not require every provider to be exported.
+- **Unsafe class `useExisting` detector**: flag a provider array where a class appears both as a bare entry (or explicit `{ provide: SomeClass, useClass: SomeClass }`) and as a `useExisting` target. Permit safe token-to-token aliases such as `TRIGGER_BUS -> EVENT_BUS`.
+- **Reverse alias detector:** flag the corresponding class-token-to-functional-token alias shape documented in the anti-patterns, using the same resolved-provider model.
 
 **What it catches**: exactly the TD24-S02 incident (`OutboxModule` marked `@Global()` without the export line, DI resolution failing with the error pointing at the *consumer*, not the real cause) and the exact storage/outbox `useExisting` bug, both already proven to recur.
 **What it does NOT catch**: a class that's `useClass`-registered correctly but still has a code smell elsewhere in its DI wiring — this only catches the specific alias-vs-registration shape.
 
 **Acceptance criteria**:
-- [ ] Both checks passing against `main`
-- [ ] Verified against the real historical bug: temporarily reintroduce the TD24-S02 `@Global()`-without-`exports` shape locally and confirm the test fails, then revert
+- [ ] All three checks pass against `main`
+- [ ] Permanent fixtures cover a missing external global export, unsafe class alias, safe token alias, and reverse alias; do not rely on a temporary local regression
 
 ---
 
 ### Story 9 — `ts-morph`: aggregate props typed as primitive when a VO exists (bad-smell-audit BE-1) 🟡
 
-For every `Props` interface inside `*/domain/*.aggregate.ts`, flag a field matching a known VO candidate (`email`, `phone`, `slug`, `timezone`, `color`/`primary_color`/`accent_color`, `open`/`close`/`opens_at`/`closes_at`) typed as `string`/`number` instead of the corresponding VO.
+Use a closed, reviewed registry mapping each aggregate's persisted private property to its required VO. Resolve stored aggregate properties and declared VO mappings; do not infer from broad field-name fragments such as `color`. The registry must include existing concepts such as `contactEmail`, `contactPhone`, Address, and Money while allowing intentional public transport strings.
 
 **What it catches**: a new aggregate field added with a plain primitive where the project already has a VO for that exact concept.
 **What it does NOT catch**: a genuinely new field type with no existing VO — that's a real design decision (build a new VO or not), not a lint violation.
 
 **Acceptance criteria**:
-- [ ] Check passing against `main`
+- [ ] Registry and check pass against `main`, with allowed primitive transport fields covered by fixtures
 - [ ] Bad-smell-audit's manual BE-1 check retired once this ships
 
 ---
 
 ### Story 10 — `ts-morph`: naming-convention checks 🟡
 
-- Use case result type is named `{UseCaseClassName}Result`, never `*Info`/`*Dto`/raw `T[]` (#59).
-- Request DTO is named `{Action}Dto`, never `*RequestDto`/`*InputDto` (#60).
-- BFF response interfaces live in `<module>.types.ts`, never declared inline in a `*.controller.ts` (#63).
+- Use case result type is named `{UseCaseClassName}Result`, never `*Info`/`*Dto`/raw `T[]`; first migrate the current baseline violations and state their scope.
+- Distinguish application `UseCaseNameInput` types from HTTP `{Action}Dto` schemas; do not conflate the two documented contracts.
+- BFF response interfaces **and type aliases** live in `<module>.types.ts`, never declared inline in a `*.controller.ts`, with documented shared response/DTO exceptions.
 
 **What it catches**: naming drift that makes types unpredictable to find/import — a real, if low-severity, recurring pattern per the doc's own examples.
 **What it does NOT catch**: whether the *shape* of the DTO is correct — purely a naming check.
 
 **Acceptance criteria**:
-- [ ] All 3 checks passing against `main`
+- [ ] All 3 checks pass against `main` after the identified baseline migration
+- [ ] Positive/negative fixtures distinguish application input, transport DTO, results, BFF type aliases, and documented exceptions
 
 ---
 
@@ -237,13 +271,14 @@ For every `Props` interface inside `*/domain/*.aggregate.ts`, flag a field match
 
 This is the one your own docs already flag as a **known, currently-unfixed gap**: `scripts/pre-pr.sh`'s version of this check is diff-scoped (only files changed in the current PR), which is "exactly how `LoyaltyEntryItem`/`LoyaltyRedemptionItem` drifted undetected" (TD31, items 2.1/2.2) — nobody had touched those files in the PR that would have caught it. `bad-smell-audit`'s `WEB-9` covers the full codebase today, but only when an LLM agent is explicitly asked to run it — not on every PR.
 
-**Mechanism**: for every interface/type declared in `apps/web/features/**/api/**` or `apps/web/shared/lib/api/**`, if `@ikaro/types` exports a same-named type, use `ts-morph`'s type checker to structurally compare properties (not just names) and fail on any mismatch (missing field, type mismatch, nullability mismatch).
+**Mechanism**: scan all web transport-boundary modules: `features/**/api/**`, root `features/**/api.ts`/`api.server.ts`, and shared API/type modules. If `@ikaro/types` exports a same-named type, use the selected type checker to compare both directions (including nullability and JSON transport compatibility). An identical duplicate name is also a finding unless it is in a documented exception; differently named semantic duplicates remain review territory.
 
 **What it catches**: exactly the `LoyaltyEntryItem`/`LoyaltyRedemptionItem` class of drift, on every PR, regardless of which files that PR touches.
 **What it does NOT catch**: which side is *correct* when they differ (per TD09, sometimes `@ikaro/types` is the stale one) — the check only flags the mismatch; a human still decides the fix direction.
 
 **Acceptance criteria**:
-- [ ] Full-codebase (not diff-scoped) check passing against `main` with zero mismatches
+- [ ] Shared runner scans web and workspace types without relying on backend-only dependencies
+- [ ] Full-codebase (not diff-scoped) check passes against `main` with zero unreviewed duplicate/mismatch findings
 - [ ] `scripts/pre-pr.sh`'s existing diff-scoped `WEB-7`/`WEB-9`-adjacent checks can stay as a fast local pre-check, but this becomes the authoritative full-codebase gate
 
 ---
@@ -252,11 +287,11 @@ This is the one your own docs already flag as a **known, currently-unfixed gap**
 
 `apps/web/shared/lib/i18n/error-codes-exhaustiveness.spec.ts` already proves this exact test pattern works and is already CI-enforced — it's the strongest existing precedent for this whole TD. `notifications.json` and `web.json` have the identical mandatory rule ("always add the key to both locales in the same commit") with **no equivalent spec**.
 
-**Mechanism**: generalize the existing spec into a small reusable helper that takes a pair of locale JSON file paths and asserts identical (recursive) key sets in both directions, then apply it to `notifications.json` and `web.json` alongside the existing `errors.json` one.
+**Mechanism**: retain the existing error-code-catalogue exhaustiveness assertions, then add a small reusable helper that checks recursive locale-key parity in both directions. Apply it to `errors.json`, `notifications.json`, `web.json`, and `email-tables.json`, which is loaded by backend localization too.
 
 **Acceptance criteria**:
-- [ ] Shared helper extracted from the existing errors spec
-- [ ] Applied to `notifications.json` and `web.json`
+- [ ] Existing error-code-catalogue coverage is preserved
+- [ ] Shared helper is applied to all four locale JSON families
 - [ ] Zero current violations
 
 ---
@@ -266,17 +301,19 @@ This is the one your own docs already flag as a **known, currently-unfixed gap**
 **New dependency**: `knip` (dev-only). Replaces the manual grep sweep that already found 3 real cases once (#78 — `express`, `jsonwebtoken`, `ms`) and covers `ts-prune`'s dead-export use case in the same tool, chosen specifically because it's the actively-maintained option built for pnpm workspaces (unlike `depcheck`, which has slower maintenance and known monorepo false-positive issues).
 
 **Acceptance criteria**:
-- [ ] `knip.json` configured per workspace package/app
-- [ ] Ships **non-blocking** first (report-only) — expect real findings on first run, triage before promoting to blocking
+- [ ] Workspace configuration defines entry/project/plugin settings per app/package; it does not rely on ignored top-level monorepo defaults
+- [ ] `--debug` baseline is reviewed, and every intentional dynamic/framework/reflection export is allowlisted with reason, owner, and expiry
+- [ ] Ships **non-blocking** first via `continue-on-error` plus an artifact/PR annotation — expect real findings on first run, triage before promoting to blocking
 
 ---
 
 ### Story 14 — `arethetypeswrong`: `packages/*` publish-shape validation 🟡
 
-**New dependency**: `arethetypeswrong` (dev-only). Directly matches the #77 failure mode (`packages/types` transitioning from type-only to real runtime values, breaking Node's native TS type-stripping in production — invisible to `tsc --noEmit`, tests, and `docker build`, only surfacing at `docker run`).
+**New dependency**: `@arethetypeswrong/cli` (dev-only; command `attw`). It validates built package type/package metadata, but does not by itself reproduce the #77 Node native type-stripping / `pnpm deploy --prod` runtime failure. Pair it with a packed-artifact runtime import smoke test that mirrors production consumption.
 
 **Acceptance criteria**:
-- [ ] Run against every `packages/*` workspace package that ships `"main"`/`"types"`
+- [ ] Build each publish-shaped workspace package, pack the artifact, and run `attw` against that packed/built artifact
+- [ ] Run a production-shaped runtime import smoke test for every package that ships runtime code
 - [ ] Wired into CI for those packages specifically (not the whole monorepo)
 
 ---
@@ -287,7 +324,8 @@ This is the one your own docs already flag as a **known, currently-unfixed gap**
 
 **Acceptance criteria**:
 - [ ] `no-disabled-tests`/`no-focused-tests` (or Vitest's equivalents) enabled in each app's ESLint config
-- [ ] Zero current violations
+- [ ] Scope is honest: either apps only, or an explicit root/static target also scans `packages/*`; recursive `pnpm lint` alone does not currently lint packages without lint scripts
+- [ ] Existing changed-file `scripts/pre-pr.sh` behavior is retained or deliberately replaced without duplicate/conflicting enforcement
 
 ---
 
@@ -295,23 +333,26 @@ This is the one your own docs already flag as a **known, currently-unfixed gap**
 
 **New dependency**: `@eslint-community/eslint-plugin-eslint-comments` (the actively-maintained community fork — the original `eslint-plugin-eslint-comments` package has slower maintenance, not worth adopting the less-maintained one for a new dependency).
 
+Resolve the policy contradiction before implementation: `docs/CODE_STANDARDS.md` currently prohibits all `// eslint-disable`, while this story originally allowed a rule-scoped form. The preferred policy is no disables; if an exceptional scoped disable is approved, it must be in Story 0's exception registry with rationale, owner, and expiry.
+
 **Acceptance criteria**:
-- [ ] `no-unlimited-disable` (bare `eslint-disable` banned, `eslint-disable-next-line <specific-rule>` still allowed) enabled repo-wide
-- [ ] Existing bare disables (if any) triaged to either fix the underlying issue or scope the disable to the specific rule
+- [ ] Documentation and lint policy agree on whether any scoped disable is allowed
+- [ ] Chosen ESLint-comments rules enforce the documented policy across the same scope as Story 15
+- [ ] Existing disables are removed or recorded as time-bounded exceptions
 
 ---
 
 ### Story 17 — Exploratory, non-blocking: tenant_id-missing query-builder detector ⚪
 
-This is the **highest security value** candidate in the whole TD — it directly targets anti-pattern **row #1** (`WHERE id = ?` without `tenant_id` → cross-tenant data leak, the worst-case failure mode for a multi-tenant system) — and also the **highest risk** one, both in false-negative cost (a miss here is a real security incident) and false-positive noise (legitimate tenant-exempt transport tables already exist — `shared.inbox`/`shared.outbox`, see #133).
+This is a useful **narrow heuristic**, not a security guarantee. It targets one dangerous class of missing tenant predicate but has both false-negative and false-positive risk. Tenant isolation remains protected primarily by database constraints and integration tests.
 
-**Mechanism**: `ts-morph` scan of every repository method for `createQueryBuilder()`/`.where()`/`.andWhere()` chains with no `tenantId`/`tenant_id` reference anywhere in the chain.
+**Mechanism**: scan every repository method for `createQueryBuilder()`/`.where()`/`.andWhere()` chains with no `tenantId`/`tenant_id` reference anywhere in the chain. Emit an artifact containing scanned query-builder chains, exemption matches, and coverage. It deliberately does not claim to cover repository `.find({ where: ... })` and similar APIs.
 
 **Explicitly ships report-only, never auto-promoted to blocking without a manual decision** — mirroring the precedent your own docs already set for `scripts/pre-pr.sh` check 25 (#133): a blunt grep-style check can't distinguish "genuinely forgotten `tenant_id`" from "deliberately tenant-exempt transport table," so a documented exemption list (not a code allow-list) is the answer, same as that row's own resolution.
 
 **Acceptance criteria**:
-- [ ] Prototype built and run against `main` in report mode
-- [ ] False-positive list reviewed and documented (expect `shared.inbox`/`shared.outbox` and similar transport tables to need exemption)
+- [ ] Prototype built and run against `main` in report mode, emitting its coverage/exemption artifact
+- [ ] Typed entity/table exemption inventory reviewed and documented, including platform tenant exemptions where applicable—not only shared inbox/outbox
 - [ ] Explicit go/no-go decision recorded before ever considering promotion to blocking — this story does not ship as a blocking gate as part of this TD
 
 ---
@@ -321,8 +362,12 @@ This is the **highest security value** candidate in the whole TD — it directly
 Not sourced from `docs/ANTI_PATTERNS.md` directly — found while verifying `apps/web/eslint.config.js`. The app runs Next.js 16 with **zero** Next-specific linting today (only `eslint-plugin-react-hooks` + `eslint-plugin-jsx-a11y`). Image/link/script best-practice rules (the exact category `<Image fill>` without `sizes` — #72 — falls into) get no static checking at all right now.
 
 **Acceptance criteria**:
-- [ ] `@next/eslint-plugin-next`'s recommended config added to `apps/web/eslint.config.js`
-- [ ] Current violations triaged (expect some — this closes a gap that's existed since the app was scaffolded)
+- [ ] Pin and validate compatibility with this repository's ESLint 10 and Next 16 flat-config setup; document exact config import and ordering
+- [ ] Establish a violation baseline and ship report-only first; promotion to blocking is a separate decision after burn-in
+
+### Separate follow-up candidate — CodeQL security analysis ⚪
+
+CodeQL complements this TD's architecture checks by tracking security-relevant data flow in TypeScript. It does not replace Snyk (dependencies), Gitleaks (secrets), Trivy (images), Sonar, or the architecture runner. Assess GitHub Code Security availability and, if available, introduce `javascript-typescript` with a report-only security-and-quality baseline in a dedicated security-hardening TD so it does not delay the architectural work above.
 
 ---
 
@@ -347,19 +392,19 @@ Named here deliberately, with why, so it's a decision rather than a silent gap:
 
 ## Trade-offs
 
-- **CI wall-clock cost.** Every new blocking step (dependency-cruiser, knip, arethetypeswrong) adds time to every PR. The `ts-morph` stories are the cheapest on this axis — they run inside the existing `pnpm test` invocation, not a new CI stage.
+- **CI wall-clock cost.** Every new blocking step (dependency-cruiser, knip, ATTW) adds time to every PR. The semantic checks should run through the existing test gate where practical; Story 0's spike must record their measured cost before promotion.
 - **False-positive tax vs. periodic audit.** Anti-pattern #137 already made this call: a blocking gate's false positive taxes every engineer on every PR, unlike an occasional audit's. Every story above is scoped to a rule with a documented, real incident behind it — this TD deliberately does not chase the freeform-audit's broader (and more subjective) coverage.
-- **Type-aware ESLint was considered and rejected.** The transaction/IO check (Story 3) could have been built as a custom ESLint rule needing `parserOptions.project` turned on. That was rejected in favor of an isolated `ts-morph` `Project` scoped to the relevant files — same capability, without a repo-wide lint-performance regression on every file, every run. This is the "mounting complexity" principle from `.copilot/context.md` applied directly: prefer the approach that needs less new machinery.
+- **Type-aware ESLint is not the chosen semantic engine.** The transaction/IO check could be built as a custom ESLint rule needing `parserOptions.project` on every lint run. Story 0 compares a focused type-aware runner instead, avoiding a repo-wide lint-performance regression and retaining only the implementation that best expresses the project rules.
 - **New devDependencies are still a supply-chain surface**, even though every one proposed here is dev-only (never shipped to `pnpm deploy --prod`, confirmed via the same dependency-classification discipline as #78). They still flow through the existing Snyk SCA scan — no new blind spot, but not a zero-cost addition either.
 - **Rollout-ordering risk.** A new required CI check must never be added to branch-protection `required_status_checks` before its workflow has been merged and green on `main` for a burn-in period — this has previously broken an unrelated PR live when skipped. See Rollout Phases below; this is not optional sequencing.
 - **Local vs. CI drift.** Whatever runs locally (`/pre-pr`) must be wired identically to what actually blocks in CI — a repeat of the Checkov local-vs-CI gap (local `--framework terraform` runs missed the CI secrets scanner) would quietly reintroduce the exact problem this TD exists to close.
-- **Maintenance burden.** `dependency-cruiser` rules and `ts-morph` tests need updating when a legitimate refactor moves files across the boundaries they encode. This is an accepted, ongoing cost — not a one-time investment — and should be weighed the same way any other test suite's maintenance is.
+- **Maintenance burden.** `dependency-cruiser` rules and semantic architecture tests need updating when a legitimate refactor moves files across the boundaries they encode. This is an accepted, ongoing cost — not a one-time investment — and should be weighed the same way any other test suite's maintenance is.
 
 ---
 
 ## Rollout Phases
 
-1. **Phase 1 — report-only.** Every new check lands as non-blocking first (a CI job that runs and reports but doesn't fail the build).
+1. **Phase 1 — report-only.** Every new check lands as non-blocking first. For independent scripts, use a CI job with `continue-on-error`, artifact, and PR annotation. For a rule running inside the required `pnpm lint` job, configure it as a warning during burn-in; do not configure ESLint `error` and call it report-only.
 2. **Phase 2 — promote to blocking.** Only after verifying zero (or fully triaged/exempted) findings against the current codebase over a burn-in period.
 3. **Phase 3 — add to required checks.** Only after Phase 2 has been green on `main` for a period — never add to `required_status_checks` in the same change that introduces the workflow.
 
@@ -371,11 +416,11 @@ Story 17 (tenant_id detector) is explicitly capped at Phase 1 for the duration o
 
 | Mechanism | Where it executes | New CI step needed? |
 |---|---|---|
-| `no-restricted-imports`/`no-restricted-syntax` (Stories 2, 4) | `pnpm lint` (existing) | No |
-| ESLint core rules (Story 5) | `pnpm lint` (existing) | No |
-| `eslint-plugin-jest`/`@vitest/eslint-plugin`/`eslint-comments` (Stories 15, 16) | `pnpm lint` (existing) | No |
+| `no-restricted-imports`/`no-restricted-syntax` (Stories 2, 4) | `pnpm lint` (existing; warning during Phase 1) | No |
+| ESLint core rules (Story 5) | `pnpm lint` (existing; warning during Phase 1) | No |
+| `eslint-plugin-jest`/`@vitest/eslint-plugin`/`eslint-comments` (Stories 15, 16) | `pnpm lint` (existing; warning during Phase 1) | No |
 | `dependency-cruiser` (Story 1) | New `pnpm dep-cruise` script | Yes (Phase 1 non-blocking, then promoted) |
-| `ts-morph` architecture tests (Stories 3, 6–12) | New spec files under existing `pnpm test` | No — free ride on the existing test gate |
+| Semantic architecture runner (Stories 3, 6–12) | Shared CLI/test harness selected in Story 0 | No if integrated in the existing test gate; otherwise a Phase-1 report-only CI job |
 | `knip` (Story 13) | New script | Yes (Phase 1 non-blocking) |
 | `arethetypeswrong` (Story 14) | New script, scoped to `packages/*` | Yes (Phase 1 non-blocking) |
 | Tenant-id detector (Story 17) | New script | Yes, permanently non-blocking for this TD's duration |
@@ -384,22 +429,24 @@ Story 17 (tenant_id detector) is explicitly capped at Phase 1 for the duration o
 
 ## Suggested PR Waves
 
-- **Wave 1** (cheapest, zero new dependencies): Stories 4, 5 — the ESLint rule pack + core rules.
-- **Wave 2** (flagship fixes, highest proven value): Stories 2, 3 — raw-SQL ban + transaction/IO check. Story 3 introduces the `ts-morph` harness used by everything after it.
-- **Wave 3** (architecture-test suite buildout): Stories 6, 7, 8, 9, 10 — all reuse Wave 2's harness, can land as separate PRs or one batch.
-- **Wave 4** (known-gap closure): Story 11 (`@ikaro/types` drift) and Story 12 (i18n parity) — independent of each other, both close documented gaps.
-- **Wave 5** (new tooling, dependency-cruiser + supply-chain hygiene): Stories 1, 13, 14.
-- **Wave 6** (test hygiene): Stories 15, 16.
-- **Wave 7** (bonus, lowest priority): Story 18.
-- **Separate, deliberately not batched**: Story 17 — ships alone given its explicit non-promotion constraint.
+- **Wave 0 — decisions and baseline:** Story 0. This precedes every detector and includes the `@ikaro/types` subpath extraction/migration needed by Story 1.
+- **Wave 1 — import and layer barriers:** Story 1, then Story 2. Establish the context matrix and framework-free domain/application boundary before scattered lint rules.
+- **Wave 2 — flagship transactional safety:** Story 3. It selects and establishes the semantic runner for the remaining architectural checks.
+- **Wave 3 — low-cost lint feedback:** Stories 4, 5, 15, 16. Respect report-only/warning burn-in and the agreed disable policy.
+- **Wave 4 — semantic architecture suite:** Stories 6–10, each as a separate small PR with fixtures.
+- **Wave 5 — known contract/data-harness gaps:** Stories 11 and 12, then Story 7 if it was not completed in Wave 4.
+- **Wave 6 — package hygiene:** Stories 13 and 14.
+- **Wave 7 — exploratory:** Story 17 alone, then Story 18 after its compatibility spike.
 
 ---
 
 ## Acceptance Criteria (TD-level)
 
+- [ ] Story 0's policy artifacts and package-contract migration completed before dependent stories
 - [ ] All Wave 1–6 stories implemented, passing against `main`, and correctly wired per the "Where Each Check Runs" table
 - [ ] Every new blocking CI step followed the 3-phase rollout (report-only → blocking → required-check) — no check skips straight to required
 - [ ] Story 17 shipped and explicitly capped at report-only, with its go/no-go decision documented separately from this TD's closure
 - [ ] Retired manual bad-smell-audit checks (BE-1, BE-4, WEB-9 once their mechanical equivalents ship) so the same rule isn't checked twice by two different mechanisms
 - [ ] `docs/ANTI_PATTERNS.md` updated to note, per row addressed here, that it's now CI-enforced (not just documented) — so a future reader doesn't re-litigate whether it needs an agent to remember it
 - [ ] This TD's own "Out of Scope" table double-checked against `docs/ANTI_PATTERNS.md` one more time before closure, in case a new incident since 2026-07-27 changed the calculus on any row
+- [ ] Every static detector has permanent valid/invalid fixtures and a zero-target assertion; every exception is in the reviewed registry with rationale, owner, and review/expiry
