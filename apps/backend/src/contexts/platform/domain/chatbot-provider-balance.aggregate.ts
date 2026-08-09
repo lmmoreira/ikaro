@@ -1,14 +1,15 @@
+import { Decimal } from 'decimal.js';
 import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 
 export interface ChatbotProviderBalanceProps {
   provider: string;
-  remainingUsd: number;
+  remainingUsd: Decimal;
   checkedAt: Date;
 }
 
 export class ChatbotProviderBalance extends AggregateRoot {
   readonly provider: string;
-  readonly remainingUsd: number;
+  readonly remainingUsd: Decimal;
   readonly checkedAt: Date;
 
   private constructor(props: ChatbotProviderBalanceProps) {
@@ -18,10 +19,10 @@ export class ChatbotProviderBalance extends AggregateRoot {
     this.checkedAt = props.checkedAt;
   }
 
-  static upsert(provider: string, remainingUsd: number): ChatbotProviderBalance {
+  static upsert(provider: string, remainingUsd: Decimal | number | string): ChatbotProviderBalance {
     return new ChatbotProviderBalance({
       provider,
-      remainingUsd,
+      remainingUsd: new Decimal(remainingUsd),
       checkedAt: new Date(),
     });
   }

@@ -1,3 +1,4 @@
+import { Decimal } from 'decimal.js';
 import { ChatbotProviderBalance } from './chatbot-provider-balance.aggregate';
 
 describe('ChatbotProviderBalance', () => {
@@ -6,7 +7,8 @@ describe('ChatbotProviderBalance', () => {
       const balance = ChatbotProviderBalance.upsert('openrouter', 18.42);
 
       expect(balance.provider).toBe('openrouter');
-      expect(balance.remainingUsd).toBe(18.42);
+      expect(balance.remainingUsd).toBeInstanceOf(Decimal);
+      expect(balance.remainingUsd.toNumber()).toBe(18.42);
       expect(balance.checkedAt).toBeInstanceOf(Date);
     });
 
@@ -14,9 +16,17 @@ describe('ChatbotProviderBalance', () => {
       const first = ChatbotProviderBalance.upsert('openrouter', 18.42);
       const second = ChatbotProviderBalance.upsert('openrouter', 15.0);
 
-      expect(first.remainingUsd).toBe(18.42);
-      expect(second.remainingUsd).toBe(15.0);
+      expect(first.remainingUsd.toNumber()).toBe(18.42);
+      expect(second.remainingUsd.toNumber()).toBe(15.0);
       expect(second.checkedAt.getTime()).toBeGreaterThanOrEqual(first.checkedAt.getTime());
+    });
+
+    it('accepts a string or Decimal input without losing precision', () => {
+      const fromString = ChatbotProviderBalance.upsert('openrouter', '18.4234');
+      const fromDecimal = ChatbotProviderBalance.upsert('openrouter', new Decimal('18.4234'));
+
+      expect(fromString.remainingUsd.toString()).toBe('18.4234');
+      expect(fromDecimal.remainingUsd.toString()).toBe('18.4234');
     });
   });
 
@@ -26,12 +36,12 @@ describe('ChatbotProviderBalance', () => {
 
       const balance = ChatbotProviderBalance.reconstitute({
         provider: 'openrouter',
-        remainingUsd: 5.5,
+        remainingUsd: new Decimal(5.5),
         checkedAt,
       });
 
       expect(balance.provider).toBe('openrouter');
-      expect(balance.remainingUsd).toBe(5.5);
+      expect(balance.remainingUsd.toNumber()).toBe(5.5);
       expect(balance.checkedAt).toBe(checkedAt);
     });
   });

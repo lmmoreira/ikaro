@@ -34,8 +34,21 @@ describe('TypeOrmChatbotProviderBalanceRepository', () => {
 
       expect(result).toBeInstanceOf(ChatbotProviderBalance);
       expect(result!.provider).toBe('openrouter');
-      expect(result!.remainingUsd).toBe(18.42);
+      expect(result!.remainingUsd.toNumber()).toBe(18.42);
       expect(mockRepo.findOne).toHaveBeenCalledWith({ where: { provider: 'openrouter' } });
+    });
+
+    it('preserves full NUMERIC(10,4) precision as a Decimal, not a lossy float', async () => {
+      mockRepo.findOne.mockResolvedValue(
+        new ChatbotProviderBalanceEntityBuilder()
+          .withProvider('openrouter')
+          .withRemainingUsd('18.4234')
+          .build(),
+      );
+
+      const result = await repo.findByProvider('openrouter');
+
+      expect(result!.remainingUsd.toString()).toBe('18.4234');
     });
 
     it('returns null when not found', async () => {

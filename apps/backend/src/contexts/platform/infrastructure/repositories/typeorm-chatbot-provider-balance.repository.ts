@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Decimal } from 'decimal.js';
 import { Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { toDate } from '../../../../shared/utils/date';
@@ -33,7 +34,7 @@ export class TypeOrmChatbotProviderBalanceRepository implements IChatbotProvider
   private toDomain(entity: ChatbotProviderBalanceEntity): ChatbotProviderBalance {
     return ChatbotProviderBalance.reconstitute({
       provider: entity.provider,
-      remainingUsd: Number(entity.remainingUsd),
+      remainingUsd: new Decimal(entity.remainingUsd),
       checkedAt: toDate(entity.checkedAt),
     });
   }

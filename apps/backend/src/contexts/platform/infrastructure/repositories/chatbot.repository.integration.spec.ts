@@ -117,7 +117,7 @@ describe('Chatbot repositories (integration)', () => {
     const found = await balanceRepo.findByProvider('openrouter-integration-test');
     expect(found).not.toBeNull();
     expect(found!.provider).toBe('openrouter-integration-test');
-    expect(found!.remainingUsd).toBe(18.42);
+    expect(found!.remainingUsd.toNumber()).toBe(18.42);
 
     // A second upsert replaces the single row for the same provider — no history kept
     const refreshed = new ChatbotProviderBalanceBuilder()
@@ -127,7 +127,7 @@ describe('Chatbot repositories (integration)', () => {
     await balanceRepo.save(refreshed);
 
     const current = await balanceRepo.findByProvider('openrouter-integration-test');
-    expect(current!.remainingUsd).toBe(12.1);
+    expect(current!.remainingUsd.toNumber()).toBe(12.1);
   });
 
   it('multi-tenant isolation — Tenant B cannot find Tenant A chatbot session', async () => {
