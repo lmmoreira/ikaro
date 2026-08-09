@@ -1289,7 +1289,7 @@ Runtime SA already has `cloudtrace.agent` (S17) — no new IAM needed.
 
 ---
 
-### M17-S35 — Dashboards, alerts & uptime checks as code (core infra)
+### M17-S35 — Dashboards, alerts & uptime checks as code (core infra) ✅ Done
 
 **Agent:** `devops`
 **Complexity:** M
@@ -1308,11 +1308,11 @@ Runtime SA already has `cloudtrace.agent` (S17) — no new IAM needed.
 - **Collector export-failure monitoring — a concrete, ready-to-add item for this story's alert catalog (2026-08-06, M17-S34 follow-up):** the collector's `googlecloud` exporter can silently drop a batch of spans on a timeout, logged as `"Exporting failed. Dropping data."` with a `dropped_items` count (`internal/queue_sender.go`, `otelcol-contrib` structured log). Confirmed live and low-frequency (2 events / 363 requests / ~2h observation, ~0.78% of spans, no complete traces lost — see `infra/docker/otel-collector/README.md`), but currently only "documented, accepted, not actively monitored." A log-based alert on this exact line (same category and construction as the DLQ-depth and outbox-backlog-age alarms above) would turn it into something actually watched, catching if the rate ever changes from its current low baseline.
 
 **Acceptance criteria:**
-- [ ] Kill staging backend (scale a bad revision) → uptime/5xx alerts fire to email within policy windows
-- [ ] Publish a poison message → DLQ alert fires (test via a temp subscription with maxAttempts=1)
-- [ ] Dashboards render with live data in staging; prod dashboard Terraform applied but "live data" verification deferred to post-S37
-- [ ] All thresholds are variables with documented rationale (including the 5-min uptime-check interval above)
-- [ ] `docs/10-OBSERVABILITY_STRATEGY.md`'s "M17-S35 not yet implemented" banners flipped to reflect what shipped (stale-reference sweep, per Definition of Done)
+- [x] Kill staging backend (scale a bad revision) → uptime/5xx alerts fire to email within policy windows — **live-verified 2026-08-09**, not via a staged bad revision but via a real, larger outage (staging Cloud SQL instance stopped directly): uptime-failure, error-burst, p99-latency (×3), and 5xx-rate (×3) alert emails all arrived for real, observed values, confirming both the uptime/5xx alert paths and the error-burst/p99 paths in the same pass
+- [x] Publish a poison message → DLQ alert fires (test via a temp subscription with maxAttempts=1) — **live-verified 2026-08-09**, though organically: the same outage above produced real failed message deliveries, the DLQ alert ("Unacked messages is above threshold of 0") fired for real, and the backlog was drained afterward via `gcloud pubsub subscriptions pull ... --auto-ack`
+- [x] Dashboards render with live data in staging; prod dashboard Terraform applied but "live data" verification deferred to post-S37
+- [x] All thresholds are variables with documented rationale (including the 5-min uptime-check interval above)
+- [x] `docs/10-OBSERVABILITY_STRATEGY.md`'s "M17-S35 not yet implemented" banners flipped to reflect what shipped (stale-reference sweep, per Definition of Done)
 
 **Dependencies:** M17-S19, M17-S27
 
