@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "layerTaxonomy": {
+    "domain": { "frameworkFree": true, "allowedRoots": ["domain"] },
+    "application": {
+      "frameworkFree": true,
+      "allowedRoots": ["domain", "application/ports", "application/dtos", "shared"]
+    },
+    "infrastructure": {
+      "frameworkFree": false,
+      "purpose": ["controllers", "adapters", "repositories", "event-handlers", "composition-roots"]
+    },
+    "compositionRootExceptions": ["**/*.module.ts"]
+  },
+  "contextDependencyMatrix": {
+    "default": "deny",
+    "permittedEdges": [
+      {
+        "source": "apps/backend/src/contexts/booking/infrastructure/cross-context/booking-customer.adapter.ts",
+        "target": "customer",
+        "rationale": "Booking reads customer data through the existing cross-context adapter.",
+        "owner": "booking"
+      },
+      {
+        "source": "apps/backend/src/contexts/booking/infrastructure/cross-context/booking-platform.adapter.ts",
+        "target": "platform",
+        "rationale": "Booking uses platform settings through the existing cross-context adapter.",
+        "owner": "booking"
+      },
+      {
+        "source": "apps/backend/src/contexts/loyalty/infrastructure/cross-context/loyalty-booking.adapter.ts",
+        "target": "booking",
+        "rationale": "Loyalty consumes booking facts through the existing adapter.",
+        "owner": "loyalty"
+      },
+      {
+        "source": "apps/backend/src/contexts/loyalty/infrastructure/cross-context/loyalty-customer.adapter.ts",
+        "target": "customer",
+        "rationale": "Loyalty reads customer identity through the existing adapter.",
+        "owner": "loyalty"
+      },
+      {
+        "source": "apps/backend/src/contexts/loyalty/infrastructure/cross-context/loyalty-platform.adapter.ts",
+        "target": "platform",
+        "rationale": "Loyalty reads platform settings through the existing adapter.",
+        "owner": "loyalty"
+      },
+      {
+        "source": "apps/backend/src/contexts/notification/infrastructure/cross-context/notification-booking.adapter.ts",
+        "target": "booking",
+        "rationale": "Notification reads booking projections through the existing adapter.",
+        "owner": "notification"
+      },
+      {
+        "source": "apps/backend/src/contexts/notification/infrastructure/cross-context/notification-customer.adapter.ts",
+        "target": "customer",
+        "rationale": "Notification reads customer contact data through the existing adapter.",
+        "owner": "notification"
+      },
+      {
+        "source": "apps/backend/src/contexts/notification/infrastructure/cross-context/notification-platform.adapter.ts",
+        "target": "platform",
+        "rationale": "Notification reads platform settings through the existing adapter.",
+        "owner": "notification"
+      },
+      {
+        "source": "apps/backend/src/contexts/notification/infrastructure/cross-context/notification-staff.adapter.ts",
+        "target": "staff",
+        "rationale": "Notification reads staff contact data through the existing adapter.",
+        "owner": "notification"
+      },
+      {
+        "source": "apps/backend/src/contexts/platform/infrastructure/cross-context/platform-tenant-settings.adapter.ts",
+        "target": "platform",
+        "rationale": "Platform exposes tenant settings through its existing adapter boundary.",
+        "owner": "platform"
+      }
+    ]
+  },
+  "backendTypesContract": {
+    "package": "@ikaro/types",
+    "allowedSubpaths": ["./protocol/errors", "./protocol/actor", "./protocol/media"],
+    "forbidden": ["root-barrel", "feature-request-response-dtos"]
+  },
+  "exceptions": [
+    {
+      "rule": "error-mapper-coverage",
+      "class": "EmailDeliveryException",
+      "path": "apps/backend/src/contexts/notification/domain/errors/notification-domain.error.ts",
+      "rationale": "Notification delivery failures are consumed by asynchronous event handlers and have no HTTP transport mapper.",
+      "owner": "notification",
+      "reviewBy": "2026-09-30"
+    },
+    {
+      "rule": "raw-persistence-api",
+      "path": "apps/backend/src/contexts/booking/infrastructure/cross-context/typeorm-booking-availability.adapter.ts",
+      "rationale": "Legacy availability adapter requires a repository-port follow-up before Story 2 enforcement.",
+      "owner": "booking",
+      "reviewBy": "2026-09-30"
+    },
+    {
+      "rule": "dynamic-framework-export",
+      "path": "apps/backend/src/**/*.module.ts",
+      "rationale": "Nest composition roots expose providers through decorator metadata and provider arrays.",
+      "owner": "platform",
+      "reviewBy": "2026-09-30"
+    }
+  ],
+  "intentionalErrorMapperGaps": ["EmailDeliveryException"],
+  "projects": [
+    "apps/backend/tsconfig.json",
+    "apps/bff/tsconfig.json",
+    "apps/web/tsconfig.json",
+    "packages/env-validation/tsconfig.json",
+    "packages/http-utils/tsconfig.json",
+    "packages/i18n/tsconfig.json",
+    "packages/infra-scripts/tsconfig.json",
+    "packages/nestjs-http/tsconfig.json",
+    "packages/observability/tsconfig.json",
+    "packages/types/tsconfig.json",
+    "packages/validation/tsconfig.json"
+  ],
+  "detectorContract": {
+    "requiresPermanentPositiveAndNegativeFixtures": true,
+    "requiresScannedTargetCount": true,
+    "requiresFileLineAndRemediation": true
+  }
+}
