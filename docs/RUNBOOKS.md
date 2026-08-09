@@ -106,3 +106,31 @@ Recipe from a real incident (M17-S27, 2026-07-24): a tenant hotsite manifest loo
    SELECT nspname FROM pg_namespace WHERE nspname IN ('platform','customer','staff','booking','loyalty','notification','shared');
    ```
 7. **Verify a migrate-job replay actually ran fresh**, not a no-op, by reading its own execution logs: `"N migrations are new migrations must be executed"` means it replayed; `"No migrations are pending"` means nothing happened and the reset didn't take.
+
+### Simulate an incident (verify alerts)
+
+Validated procedure from M17-S35's live acceptance-criteria run against real staging (2026-08-09) — use this whenever a story adds/changes an alert policy in `infra/terraform/modules/monitoring` and needs live proof it actually fires, not just a clean `terraform apply`.
+
+1. **Don't try to fail the backend via a bad Cloud Run revision.** Two techniques were tried and both hit the same real guardrail: Cloud Run refuses to route traffic to any revision failing its own startup probe, whether via `gcloud run deploy` or `gcloud run services update-traffic` — there is no bypass flag. See `infra/terraform/README.md`'s Gotchas section for the full writeup.
+2. **Don't try to fail the backend via revoking its Cloud SQL IAM role either.** Also tried; existing/cached DB connections and pools can keep working for an unpredictable time after the IAM grant is pulled, since removing a grant doesn't tear down live sessions — too slow and non-deterministic for a verification window.
+3. **Stop the Cloud SQL instance directly instead** — immediate, unambiguous, every connection attempt fails at once:
+   ```bash
+   gcloud sql instances patch <instance-name> --project=<project> --activation-policy=NEVER
+   ```
+   (or via the console: SQL → instance → Stop.) This single action was enough to trip uptime-failure, error-burst, p99-latency, and 5xx-rate alerts together, plus organically produce failed Pub/Sub deliveries that tripped the DLQ alert — no separate poison-message step was needed.
+4. **Watch for the alert emails**, not just the Cloud Monitoring console — email is the actual notification channel configured in `main.tf`, and confirming delivery is part of what the AC is verifying.
+5. **Restart the instance and confirm it, don't assume the `state` field is enough:**
+   ```bash
+   gcloud sql instances patch <instance-name> --project=<project> --activation-policy=ALWAYS
+   gcloud sql operations list --instance=<instance-name> --project=<project> --limit=5
+   ```
+   `state: RUNNABLE` on the instance flips almost immediately, but the actual `UPDATE` operation can stay `RUNNING` for 10+ minutes after — the backend will keep failing health checks until the operation itself finishes, not just the instance state. Poll `operations list`, not `instances describe`, to know when it's really done.
+6. **If a bad revision was deployed as part of diagnosis and needs to be cleanly replaced, redeploy with explicit empty overrides** — `gcloud run deploy` without `--command`/`--args` inherits the *previous* revision's command/args override rather than resetting to the image's real entrypoint:
+   ```bash
+   gcloud run deploy <service> --image=<real-image> --command="" --args="" ...
+   ```
+   If the service-level `status.conditions` still shows the old failure text after the new revision is healthy, check the revision's own conditions directly (`gcloud run revisions describe <revision>`) and force traffic with `gcloud run services update-traffic --to-latest` rather than trusting the service-level aggregate.
+7. **Drain the DLQ once done** — don't leave real failed messages sitting there or the alert stays open:
+   ```bash
+   gcloud pubsub subscriptions pull <dlq-inspect-subscription> --project=<project> --auto-ack --limit=<n>
+   ```

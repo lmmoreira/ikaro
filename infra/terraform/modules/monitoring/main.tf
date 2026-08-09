@@ -24,6 +24,17 @@
 # alerts, log-based metrics, the dashboard) applied cleanly on the same run
 # — MQL's typed-if-branches quirk is specific to this one query, not a
 # systemic issue with the module.
+#
+# Live-verified end-to-end (staging, 2026-08-09): a real outage (Cloud SQL
+# instance stopped directly, not a staged bad revision) produced genuine
+# alert emails for uptime_failure, error_rate_5xx (MQL ratio query — the
+# `if()` fix above confirmed correct under real traffic, not just a clean
+# apply), p99_latency, and dlq_undelivered (fired organically from real
+# failed deliveries, not a deliberately-published poison message). All
+# policies referenced the email notification channel correctly and fired
+# within their configured windows. See docs/RUNBOOKS.md § Simulate an
+# incident (verify alerts) for the reusable procedure and
+# docs/10-OBSERVABILITY_STRATEGY.md for the acceptance-criteria writeup.
 
 resource "google_monitoring_notification_channel" "email" {
   project      = var.project_id

@@ -876,6 +876,8 @@ providers:
 
 Notification behavior (what actually happens when one fires): a single email on incident open, silence while it stays open, a single email on resolution — GCP's bare defaults, since no policy in `main.tf` currently sets `alert_strategy.notification_rate_limit`/`auto_close`. Add those there directly if a policy ever needs periodic re-reminders or a shorter auto-close window.
 
+**Live-verified end-to-end (staging, 2026-08-09):** a real outage — the staging Cloud SQL instance stopped directly, not a synthetic/staged failure — produced genuine alert emails for **uptime failure**, **error-burst** (log-based), **p99 latency** (fired 3 times as latency climbed), **5xx rate** (fired 3 times, MQL ratio query confirmed correct under real traffic), and **DLQ has undelivered messages** (fired organically from real failed Pub/Sub deliveries during the outage, not a deliberately-published poison message). All policies correctly notified the shared email channel and fired within their configured windows; the DLQ backlog was drained afterward with `gcloud pubsub subscriptions pull ... --auto-ack`. This satisfies M17-S35's two live-verification acceptance criteria in full — see `plan/M17-CLOUD-DEPLOY.md`'s M17-S35 entry for the AC-by-AC writeup and `docs/RUNBOOKS.md` § Simulate an incident (verify alerts) for the reusable procedure (including the Cloud Run/Cloud SQL gotchas hit along the way, documented in `infra/terraform/README.md`'s Gotchas section).
+
 ### Superseded Grafana design
 
 Kept for historical reference only — not a currently-usable feature.
