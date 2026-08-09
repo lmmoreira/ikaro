@@ -13,6 +13,8 @@ export class CreateChatbotTables1748400000010 implements MigrationInterface {
         "message_count"      SMALLINT      NOT NULL DEFAULT 0,
         "status"             VARCHAR(10)   NOT NULL DEFAULT 'ACTIVE',
         CONSTRAINT "PK_platform_chatbot_sessions" PRIMARY KEY ("id"),
+        CONSTRAINT "CHK_platform_chatbot_sessions_status"
+          CHECK ("status" IN ('ACTIVE', 'CLOSED', 'CAPPED')),
         CONSTRAINT "UQ_platform_chatbot_sessions_tenant_id" UNIQUE ("tenant_id", "id"),
         CONSTRAINT "FK_platform_chatbot_sessions_tenant_id" FOREIGN KEY ("tenant_id")
           REFERENCES "platform"."tenants" ("id")
