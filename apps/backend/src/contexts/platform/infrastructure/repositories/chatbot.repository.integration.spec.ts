@@ -175,6 +175,10 @@ describe('Chatbot repositories (integration)', () => {
       .withSessionId(sessionA.id)
       .build();
 
-    await expect(messageRepo.save(crossTenantMessage)).rejects.toBeInstanceOf(QueryFailedError);
+    const error = await messageRepo.save(crossTenantMessage).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(QueryFailedError);
+    // 23503 = foreign_key_violation — confirms this is specifically the composite FK rejecting the
+    // cross-tenant reference, not some other unrelated query failure.
+    expect((error as QueryFailedError & { code: string }).code).toBe('23503');
   });
 });

@@ -47,6 +47,10 @@ export class CreateChatbotTables1748400000010 implements MigrationInterface {
         "created_at"     TIMESTAMPTZ   NOT NULL DEFAULT now(),
         CONSTRAINT "PK_platform_chatbot_messages" PRIMARY KEY ("id"),
         CONSTRAINT "CHK_platform_chatbot_messages_role" CHECK ("role" IN ('USER', 'ASSISTANT')),
+        CONSTRAINT "CHK_platform_chatbot_messages_input_tokens_non_negative"
+          CHECK ("input_tokens" >= 0),
+        CONSTRAINT "CHK_platform_chatbot_messages_output_tokens_non_negative"
+          CHECK ("output_tokens" >= 0),
         CONSTRAINT "FK_platform_chatbot_messages_tenant_session"
           FOREIGN KEY ("tenant_id", "session_id")
           REFERENCES "platform"."chatbot_sessions" ("tenant_id", "id")
