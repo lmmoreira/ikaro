@@ -22,7 +22,7 @@ let backend: Project | undefined;
 for (const path of projectPaths) {
   const config = JSON.parse(readFileSync(resolve(root, path), 'utf8')) as { include?: string[] };
   if (!config.include?.length) throw new Error(`${path} has no explicit include targets.`);
-  console.log(
+  process.stdout.write(
     `[architecture-check] registered ${path} (${config.include.length} include pattern(s))`,
   );
 }
@@ -42,12 +42,14 @@ const zeroTargetResults = results.filter((result) => result.scannedTargets === 0
 const findings = results.flatMap((result) => result.findings);
 
 for (const result of results) {
-  console.log(`[architecture-check] ${result.rule}: scanned ${result.scannedTargets} target(s)`);
+  process.stdout.write(
+    `[architecture-check] ${result.rule}: scanned ${result.scannedTargets} target(s)\n`,
+  );
 }
 for (const result of zeroTargetResults) {
-  console.error(`[architecture-check] ${result.rule}: zero targets discovered`);
+  process.stderr.write(`[architecture-check] ${result.rule}: zero targets discovered\n`);
 }
 for (const finding of findings) {
-  console.error(`${finding.file}:${finding.line} [${finding.rule}] ${finding.message}`);
+  process.stderr.write(`${finding.file}:${finding.line} [${finding.rule}] ${finding.message}\n`);
 }
 if (zeroTargetResults.length > 0 || findings.length > 0) process.exitCode = 1;
