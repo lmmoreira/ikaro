@@ -66,7 +66,7 @@ graph TD
 
 ---
 
-### M19-S01 — Chatbot domain aggregates + database migration
+### M19-S01 — Chatbot domain aggregates + database migration ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** M
