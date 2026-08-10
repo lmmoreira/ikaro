@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { z } from 'zod';
 import {
   ChatCompletionRequest,
   ChatCompletionResult,
@@ -15,11 +16,15 @@ interface OpenRouterMessage {
   content: string;
 }
 
-interface OpenRouterResponse {
-  model: string;
-  choices: { message: { content: string } }[];
-  usage: { prompt_tokens: number; completion_tokens: number };
-}
+// Validated at runtime, not just cast — a 200 response with an empty choices array or missing
+// usage (a filtered/refusal response, an upstream schema change) must fail as a controlled
+// error, not an untyped TypeError from an unchecked property access (cross-tool review finding
+// on PR #353).
+const openRouterResponseSchema = z.object({
+  model: z.string(),
+  choices: z.array(z.object({ message: z.object({ content: z.string() }) })).min(1),
+  usage: z.object({ prompt_tokens: z.number(), completion_tokens: z.number() }),
+});
 
 // docs/discovery/CHATBOT/CHATBOT.md §3/§4: reasoning.effort must always be sent explicitly as
 // "none" — the API defaults to "high" if unset, and reasoning tokens bill as output tokens
@@ -60,7 +65,11 @@ export class OpenRouterLlmAdapter implements ILlmProvider {
       throw new Error(`OpenRouter request failed: ${response.status} ${await response.text()}`);
     }
 
-    const body = (await response.json()) as OpenRouterResponse;
+    const parsed = openRouterResponseSchema.safeParse(await response.json());
+    if (!parsed.success) {
+      throw new Error(`OpenRouter returned a malformed response: ${parsed.error.message}`);
+    }
+    const body = parsed.data;
 
     return {
       text: body.choices[0].message.content,

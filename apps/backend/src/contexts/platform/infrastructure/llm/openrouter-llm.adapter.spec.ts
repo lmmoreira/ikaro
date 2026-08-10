@@ -132,4 +132,52 @@ describe('OpenRouterLlmAdapter', () => {
       'OpenRouter request failed: 401 Unauthorized',
     );
   });
+
+  it('throws a controlled error on an empty choices array, instead of an unchecked property access', async () => {
+    fetchSpy.mockResolvedValue(
+      mockSuccessResponse({
+        choices: [],
+      }),
+    );
+    const adapter = new OpenRouterLlmAdapter(makeConfigService());
+
+    await expect(adapter.complete(makeRequest())).rejects.toThrow(
+      'OpenRouter returned a malformed response',
+    );
+  });
+
+  it('throws a controlled error when usage is missing from the response', async () => {
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({
+          model: 'deepseek/deepseek-v4-flash-0731',
+          choices: [{ message: { content: 'We are open 8am to 6pm.' } }],
+        }),
+    } as unknown as Response);
+    const adapter = new OpenRouterLlmAdapter(makeConfigService());
+
+    await expect(adapter.complete(makeRequest())).rejects.toThrow(
+      'OpenRouter returned a malformed response',
+    );
+  });
+
+  it('throws a controlled error when message content is not a string', async () => {
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({
+          model: 'deepseek/deepseek-v4-flash-0731',
+          choices: [{ message: { content: null } }],
+          usage: { prompt_tokens: 10, completion_tokens: 5 },
+        }),
+    } as unknown as Response);
+    const adapter = new OpenRouterLlmAdapter(makeConfigService());
+
+    await expect(adapter.complete(makeRequest())).rejects.toThrow(
+      'OpenRouter returned a malformed response',
+    );
+  });
 });
