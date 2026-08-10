@@ -16,15 +16,19 @@ export class FakeLlmProviderBuilder {
   private text = 'Fake LLM response';
   private inputTokens = 100;
   private outputTokens = 20;
-  private modelId = 'fake-model';
+  private readonly modelId = 'fake-model';
 
-  withResponse(text: string): this {
+  withText(text: string): this {
     this.text = text;
     return this;
   }
 
-  withTokenUsage(inputTokens: number, outputTokens: number): this {
+  withInputTokens(inputTokens: number): this {
     this.inputTokens = inputTokens;
+    return this;
+  }
+
+  withOutputTokens(outputTokens: number): this {
     this.outputTokens = outputTokens;
     return this;
   }

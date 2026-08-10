@@ -115,7 +115,7 @@ Register via `useClass` (never `useExisting` — tests need to swap in a fake `I
 - [ ] `openrouter-llm.adapter.ts` always sends `reasoning: { effort: "none" }` — a regression test that would fail if the field were ever omitted or defaulted
 - [ ] `LlmProviderRegistry` resolves `tenant.settings.chatbot?.llmProvider ?? CHATBOT_LLM_PROVIDER ?? 'openrouter'` correctly, including the all-unset case
 - [ ] Adapter maps OpenRouter's response (`usage.prompt_tokens`, `usage.completion_tokens`) into `ChatCompletionResult` correctly
-- [ ] Adapter registered with `useClass`; a `FakeLlmProviderBuilder` (class + `withResponse()`/`withTokenUsage()`/`build()`, this repo's builder convention — never a plain factory) exists for use-case tests
+- [ ] Adapter registered with `useClass`; a `FakeLlmProviderBuilder` (class + `withText()`/`withInputTokens()`/`withOutputTokens()`/`build()`, this repo's builder convention — never a plain factory) exists for use-case tests. Renamed from the originally-drafted `withResponse()`/`withTokenUsage()` during implementation — the pre-pr script's BE-7 check (S2933) expects an exact `with<FieldName>()` match per private field, which `withTokenUsage()` setting two fields at once didn't satisfy.
 - [ ] Never a real network call in any automated test — stub the HTTP layer
 - [ ] Coverage ≥80%; `tsc --noEmit`, lint, tests green
 

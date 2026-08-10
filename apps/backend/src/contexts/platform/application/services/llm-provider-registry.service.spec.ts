@@ -14,7 +14,7 @@ describe('LlmProviderRegistry', () => {
   let openRouterProvider: ILlmProvider;
 
   beforeEach(() => {
-    openRouterProvider = new FakeLlmProviderBuilder().withResponse('openrouter says hi').build();
+    openRouterProvider = new FakeLlmProviderBuilder().withText('openrouter says hi').build();
   });
 
   it('resolves to the platform default (openrouter) when nothing is set — the all-unset case', () => {
