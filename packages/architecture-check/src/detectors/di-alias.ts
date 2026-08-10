@@ -1,4 +1,4 @@
-import { Node, Project, SyntaxKind } from 'ts-morph';
+import { Node, Project } from 'ts-morph';
 import type { Finding, ScanResult } from '../model';
 import { sourceLine } from '../project';
 
@@ -7,7 +7,17 @@ export function checkUnsafeUseExisting(project: Project): ScanResult {
   let scannedTargets = 0;
   for (const sourceFile of project.getSourceFiles()) {
     if (!sourceFile.getFilePath().endsWith('.module.ts')) continue;
-    for (const array of sourceFile.getDescendantsOfKind(SyntaxKind.ArrayLiteralExpression)) {
+    for (const declaration of sourceFile.getClasses()) {
+      const moduleDecorator = declaration
+        .getDecorators()
+        .find((decorator) => decorator.getName() === 'Module');
+      const metadata = moduleDecorator?.getArguments()[0];
+      if (!metadata || !Node.isObjectLiteralExpression(metadata)) continue;
+      const providersProperty = metadata.getProperty('providers');
+      if (!providersProperty || !Node.isPropertyAssignment(providersProperty)) continue;
+      const initializer = providersProperty.getInitializer();
+      if (!initializer || !Node.isArrayLiteralExpression(initializer)) continue;
+      const array = initializer;
       const providers = array.getElements();
       const bareClasses = new Set(
         providers.filter(Node.isIdentifier).map((provider) => provider.getText()),

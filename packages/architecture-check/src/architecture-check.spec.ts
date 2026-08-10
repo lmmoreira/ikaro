@@ -13,15 +13,21 @@ describe('architecture checks', () => {
       '/repo/apps/backend/src/contexts/demo/application/demo.use-case.ts': `
         interface ITransactionManager { run(callback: () => Promise<void>): Promise<void> }
         interface Repository { save(): Promise<void> }
+        interface Draft { save(): Promise<void> }
         declare const tx: ITransactionManager;
         declare const repository: Repository;
+        declare const draft: Draft;
         async function valid() { await tx.run(async () => { await repository.save(); }); }
         async function invalid() { await repository.save(); }
+        async function unrelated() { await draft.save(); }
+        async function deferred() {
+          await tx.run(async () => { queueMicrotask(() => { void repository.save(); }); });
+        }
       `,
     });
     const result = checkTransactionalSaves(project);
-    expect(result.scannedTargets).toBe(2);
-    expect(result.findings).toHaveLength(1);
+    expect(result.scannedTargets).toBe(3);
+    expect(result.findings).toHaveLength(2);
   });
 
   it('requires each concrete domain error to be referenced by a mapper', () => {
@@ -42,12 +48,14 @@ describe('architecture checks', () => {
   it('rejects unsafe class aliases while allowing token aliases', () => {
     const project = fixtureProject({
       '/repo/apps/backend/src/contexts/demo/infrastructure/demo.module.ts': `
+        function Module(metadata: unknown): ClassDecorator { return () => undefined; }
         class Adapter {}
         const ADAPTER = Symbol('ADAPTER');
         const EVENT_BUS = Symbol('EVENT_BUS');
         const TRIGGER_BUS = Symbol('TRIGGER_BUS');
-        const unsafe = [Adapter, { provide: ADAPTER, useExisting: Adapter }];
-        const safe = [{ provide: TRIGGER_BUS, useExisting: EVENT_BUS }];
+        const unrelated = [Adapter, { provide: ADAPTER, useExisting: Adapter }];
+        @Module({ providers: [Adapter, { provide: ADAPTER, useExisting: Adapter }, { provide: TRIGGER_BUS, useExisting: EVENT_BUS }] })
+        class DemoModule {}
       `,
     });
     const result = checkUnsafeUseExisting(project);

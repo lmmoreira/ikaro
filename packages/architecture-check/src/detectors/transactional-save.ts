@@ -2,6 +2,14 @@ import { CallExpression, Node, Project, SyntaxKind } from 'ts-morph';
 import type { Finding, ScanResult } from '../model';
 import { sourceLine } from '../project';
 
+function isRepositorySave(call: CallExpression): boolean {
+  const expression = call.getExpression();
+  if (!Node.isPropertyAccessExpression(expression) || expression.getName() !== 'save') return false;
+  const receiverType = expression.getExpression().getType();
+  if (!receiverType.getProperty('save')) return false;
+  return /\bI?[A-Za-z]*Repository\b/.test(receiverType.getText(call));
+}
+
 function isTransactionRun(call: CallExpression): boolean {
   const expression = call.getExpression();
   if (!Node.isPropertyAccessExpression(expression)) return false;
@@ -18,6 +26,7 @@ function isInsideTransactionSave(call: CallExpression): boolean {
       if (!callback) return false;
       let descendant: Node | undefined = call;
       while (descendant && descendant !== current) {
+        if (descendant !== callback && isFunctionBoundary(descendant)) return false;
         if (descendant === callback) return true;
         descendant = descendant.getParent();
       }
@@ -25,6 +34,18 @@ function isInsideTransactionSave(call: CallExpression): boolean {
     current = current.getParent();
   }
   return false;
+}
+
+function isFunctionBoundary(node: Node): boolean {
+  return [
+    SyntaxKind.ArrowFunction,
+    SyntaxKind.FunctionDeclaration,
+    SyntaxKind.FunctionExpression,
+    SyntaxKind.MethodDeclaration,
+    SyntaxKind.GetAccessor,
+    SyntaxKind.SetAccessor,
+    SyntaxKind.Constructor,
+  ].includes(node.getKind());
 }
 
 export function checkTransactionalSaves(project: Project): ScanResult {
@@ -38,8 +59,7 @@ export function checkTransactionalSaves(project: Project): ScanResult {
     )
       continue;
     for (const call of sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-      const expression = call.getExpression();
-      if (!Node.isPropertyAccessExpression(expression) || expression.getName() !== 'save') continue;
+      if (!isRepositorySave(call)) continue;
       scannedTargets++;
       if (!isInsideTransactionSave(call)) {
         findings.push({

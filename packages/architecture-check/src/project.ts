@@ -1,4 +1,4 @@
-import { dirname, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { Project, type SourceFile } from 'ts-morph';
 
 export function loadProject(root: string, tsconfigPath: string): Project {
@@ -9,7 +9,7 @@ export function loadProject(root: string, tsconfigPath: string): Project {
 }
 
 export function loadFixtureProject(sourceFilePath: string): Project {
-  const project = new Project({ useInMemoryFileSystem: true });
+  const project = new Project({ skipAddingFilesFromTsConfig: true });
   project.addSourceFileAtPath(sourceFilePath);
   return project;
 }
@@ -19,5 +19,5 @@ export function sourceLine(sourceFile: SourceFile, position: number): number {
 }
 
 export function relativePath(root: string, filePath: string): string {
-  return filePath.startsWith(root) ? filePath.slice(dirname(root).length + 1) : filePath;
+  return filePath.startsWith(root) ? filePath.slice(root.length + 1) : filePath;
 }
