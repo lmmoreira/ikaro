@@ -64,7 +64,7 @@ This story records the following policy as versioned, reviewable data rather tha
 - [ ] The tool spike records the selected semantic-analysis implementation and why it handles the three representative rules
 - [ ] Fixture and zero-target conventions are available to every later story
 
-### Story 1 — `dependency-cruiser`: architectural boundaries 🔴
+### Story 1 — `dependency-cruiser`: architectural boundaries 🔴 ✅ Done
 
 **New dependency**: `dependency-cruiser` (dev-only).
 
