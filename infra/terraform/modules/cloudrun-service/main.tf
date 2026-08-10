@@ -156,7 +156,17 @@ resource "google_cloud_run_v2_service" "this" {
         name  = containers.value.name
         image = containers.value.image
 
+        # Explicit — matches the "app" container above. Without these, GCP still applies its
+        # own default (cpu_idle=true, startup_cpu_boost=true) live, but Terraform's plan sees
+        # no declared value and perpetually diffs it back toward null on every refresh
+        # (staging drift check, 2026-08-10). cpu_idle stays true deliberately: request-based
+        # CPU billing, not always-allocated — the cost tradeoff for this sidecar was already
+        # weighed once (see CLAUDE.md's Cloud Run CPU throttling entries) and always-allocated
+        # was rejected on cost grounds.
         resources {
+          cpu_idle          = true
+          startup_cpu_boost = true
+
           limits = {
             cpu    = containers.value.cpu
             memory = containers.value.memory

@@ -151,4 +151,20 @@ run "sidecar_containers_never_gate_app_startup_on_sidecar_health" {
     condition     = length(google_cloud_run_v2_service.this.template[0].containers[1].startup_probe) == 0
     error_message = "A sidecar container must never get a startup_probe — nothing depends_on it, so a probe here would only add a pointless startup delay for the sidecar itself."
   }
+
+  # cpu_idle/startup_cpu_boost must be explicit here, matching the app container (staging
+  # drift check, 2026-08-10): GCP still applies its own default (both true) to the sidecar
+  # live regardless of what's declared, so an undeclared value makes every `terraform plan
+  # -refresh` perpetually diff it back toward null. cpu_idle stays true deliberately —
+  # request-based CPU billing for the sidecar, not always-allocated (cost tradeoff already
+  # weighed; see CLAUDE.md's Cloud Run CPU throttling entries).
+  assert {
+    condition     = google_cloud_run_v2_service.this.template[0].containers[1].resources[0].cpu_idle == true
+    error_message = "Sidecar resources.cpu_idle must be explicitly true — an undeclared value still reads back as true live but perpetually drifts in `terraform plan`."
+  }
+
+  assert {
+    condition     = google_cloud_run_v2_service.this.template[0].containers[1].resources[0].startup_cpu_boost == true
+    error_message = "Sidecar resources.startup_cpu_boost must be explicitly true — an undeclared value still reads back as true live but perpetually drifts in `terraform plan`."
+  }
 }
