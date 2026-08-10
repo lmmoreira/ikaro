@@ -1,6 +1,5 @@
 import type { AddressSpec } from '@ikaro/i18n';
 import { ITransactionManager } from '../../../../shared/ports/transaction-manager.port';
-import { scheduleAfterCommit } from '../../../../shared/infrastructure/transaction-context';
 import { Booking } from '../../domain/booking.aggregate';
 import { BookingLineInput } from '../../domain/booking-line.entity';
 import {
@@ -19,18 +18,7 @@ import {
   PhotoPromotionOperation,
   PhotoExistenceService,
 } from '../services/photo-existence.service';
-import { AddressResult, BookingLineResult } from './request-booking.use-case';
-
-export interface BookingRequestResult {
-  bookingId: string;
-  status: string;
-  scheduledAt: string;
-  totalPrice: { amount: number; currency: string };
-  totalDurationMins: number;
-  pickupAddress: AddressResult | null;
-  beforeServicePhotoUrls: string[];
-  lines: BookingLineResult[];
-}
+import { BookingRequestResult } from './booking-request.types';
 
 export interface PersistRequestedBookingParams {
   booking: Booking;
@@ -141,6 +129,8 @@ export async function persistRequestedBooking(
       timezone,
     );
     await bookingRepo.save(booking);
-    await scheduleAfterCommit(() => photoExistenceService.executePhotoPromotion(operations));
+    await txManager.scheduleAfterCommit(() =>
+      photoExistenceService.executePhotoPromotion(operations),
+    );
   });
 }

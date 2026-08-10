@@ -4,7 +4,6 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
 import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
-import { scheduleAfterCommit } from '../../../../shared/infrastructure/transaction-context';
 import {
   HotsiteNotFoundError,
   TenantNotFoundError,
@@ -92,7 +91,7 @@ export class UpdateHotsiteContentUseCase {
       });
 
       await this.hotsiteConfigRepo.save(config);
-      await scheduleAfterCommit(() =>
+      await this.txManager.scheduleAfterCommit(() =>
         this.imagePromotionService.executeImagePromotion(promotions, deletions),
       );
     });

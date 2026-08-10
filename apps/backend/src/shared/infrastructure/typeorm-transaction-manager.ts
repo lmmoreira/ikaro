@@ -3,6 +3,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { ITransactionManager } from '../ports/transaction-manager.port';
 import { runInNewTransaction } from './run-in-new-transaction';
+import { scheduleAfterCommit } from './transaction-context';
 
 @Injectable()
 export class TypeOrmTransactionManager implements ITransactionManager {
@@ -10,5 +11,9 @@ export class TypeOrmTransactionManager implements ITransactionManager {
 
   async run<T>(work: () => Promise<T>): Promise<T> {
     return runInNewTransaction(this.dataSource, () => work());
+  }
+
+  async scheduleAfterCommit(callback: () => Promise<void> | void): Promise<void> {
+    return scheduleAfterCommit(callback);
   }
 }

@@ -3,7 +3,6 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { scheduleAfterCommit } from '../../../../shared/infrastructure/transaction-context';
 import {
   BookingForbiddenError,
   BookingNotFoundError,
@@ -55,7 +54,9 @@ export class SubmitGuestBookingInfoUseCase {
 
     await this.txManager.run(async () => {
       await this.bookingRepo.save(booking);
-      await scheduleAfterCommit(() => this.photoExistenceService.executePhotoPromotion(operations));
+      await this.txManager.scheduleAfterCommit(() =>
+        this.photoExistenceService.executePhotoPromotion(operations),
+      );
     });
 
     return {

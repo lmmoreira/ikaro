@@ -37,7 +37,6 @@ jobs:
   dependency-cruise:
     name: Dependency graph validation (report-only)
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -54,7 +53,10 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm dep-cruise:test
-      - run: pnpm dep-cruise
+
+      - name: Run dependency graph scan (report-only)
+        continue-on-error: true
+        run: pnpm dep-cruise
 
   no-infra-app-mix:
     name: No infra + app mix

@@ -18,10 +18,10 @@ import { RequestBookingDto } from '../dtos/request-booking.dto';
 import {
   buildLineInputs,
   createBookingAddress,
-  BookingRequestResult,
   persistRequestedBooking,
   toBookingResult,
 } from './booking-request.helpers';
+import { BookingRequestResult } from './booking-request.types';
 
 export type RequestBookingInput = RequestBookingDto & {
   tenantId: string;
@@ -29,25 +29,6 @@ export type RequestBookingInput = RequestBookingDto & {
   countryCode: string;
   timezone: string;
 };
-
-export interface BookingLineResult {
-  lineId: string;
-  serviceId: string;
-  priceAtBooking: { amount: number; currency: string };
-  durationMinsAtBooking: number;
-  pointsValueAtBooking: number;
-  requiresPickupAddressAtBooking: boolean;
-}
-
-export interface AddressResult {
-  street: string;
-  number: string;
-  complement: string | null;
-  neighborhood: string | null;
-  city: string;
-  state: string;
-  zipCode: string;
-}
 
 export type RequestBookingUseCaseResult = BookingRequestResult;
 

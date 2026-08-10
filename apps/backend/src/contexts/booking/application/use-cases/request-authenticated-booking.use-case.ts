@@ -22,10 +22,10 @@ import { RequestAuthenticatedBookingDto } from '../dtos/request-authenticated-bo
 import {
   buildLineInputs,
   createBookingAddress,
-  BookingRequestResult,
   persistRequestedBooking,
   toBookingResult,
 } from './booking-request.helpers';
+import { BookingRequestResult } from './booking-request.types';
 
 export type RequestAuthenticatedBookingInput = RequestAuthenticatedBookingDto & {
   tenantId: string;
