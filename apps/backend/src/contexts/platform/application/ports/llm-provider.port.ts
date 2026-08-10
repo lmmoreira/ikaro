@@ -18,6 +18,11 @@ export interface ChatCompletionRequest {
   history: ChatTurn[];
   userMessage: string;
   maxOutputTokens: number;
+  // Tenant override (tenant.settings.chatbot?.llmModel ?? adapter's own default) — resolved by
+  // the caller the same way as llmProvider (docs/discovery/CHATBOT/CHATBOT.md §5's identical
+  // "tenant.settings.chatbot?.X ?? DEFAULT_X" pattern for every one of the 10 chatbot settings).
+  // Optional: an adapter falls back to its own default model when unset.
+  model?: string;
 }
 
 export interface ChatCompletionResult {

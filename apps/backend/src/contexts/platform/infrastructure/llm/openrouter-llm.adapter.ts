@@ -8,7 +8,9 @@ import {
 } from '../../application/ports/llm-provider.port';
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const OPENROUTER_MODEL = 'deepseek/deepseek-v4-flash-0731';
+// Fallback when ChatCompletionRequest.model is unset — the tenant override
+// (tenant.settings.chatbot?.llmModel) takes precedence when the caller provides one.
+const DEFAULT_OPENROUTER_MODEL = 'deepseek/deepseek-v4-flash-0731';
 const OPENROUTER_TIMEOUT_MS = 30000;
 
 interface OpenRouterMessage {
@@ -53,7 +55,7 @@ export class OpenRouterLlmAdapter implements ILlmProvider {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: OPENROUTER_MODEL,
+        model: request.model ?? DEFAULT_OPENROUTER_MODEL,
         reasoning: { effort: 'none' },
         max_tokens: request.maxOutputTokens,
         messages,

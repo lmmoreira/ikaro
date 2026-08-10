@@ -75,6 +75,17 @@ describe('OpenRouterLlmAdapter', () => {
     expect(calledOptions.signal).toBeInstanceOf(AbortSignal);
   });
 
+  it('sends the request-provided model override instead of the default when one is set', async () => {
+    fetchSpy.mockResolvedValue(mockSuccessResponse());
+    const adapter = new OpenRouterLlmAdapter(makeConfigService());
+
+    await adapter.complete(makeRequest({ model: 'deepseek/deepseek-v4-flash-thinking' }));
+
+    const [, calledOptions] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(calledOptions.body as string);
+    expect(body.model).toBe('deepseek/deepseek-v4-flash-thinking');
+  });
+
   it('assembles messages as system prompt, then history, then the user message', async () => {
     fetchSpy.mockResolvedValue(mockSuccessResponse());
     const adapter = new OpenRouterLlmAdapter(makeConfigService());
