@@ -74,6 +74,111 @@
         "target": "platform",
         "rationale": "Platform exposes tenant settings through its existing adapter boundary.",
         "owner": "platform"
+      },
+      {
+        "source": "apps/backend/src/contexts/staff/infrastructure/events/tenant-provisioned.handler.ts",
+        "target": "platform",
+        "rationale": "Staff reacts to the platform tenant-provisioned domain event.",
+        "owner": "staff",
+        "reviewBy": "2026-09-30"
+      },
+      {
+        "source": "apps/backend/src/contexts/loyalty/infrastructure/events/booking-completed.handler.ts",
+        "target": "booking",
+        "rationale": "Loyalty reacts to the booking-completed domain event.",
+        "owner": "loyalty",
+        "reviewBy": "2026-09-30"
+      },
+      {
+        "source": "apps/backend/src/contexts/notification/infrastructure/events/staff-invited.handler.ts",
+        "target": "staff",
+        "rationale": "Notification reacts to the staff-invited domain event.",
+        "owner": "notification",
+        "reviewBy": "2026-09-30"
+      },
+      {
+        "source": "apps/backend/src/contexts/notification/infrastructure/events/tenant-provisioned.handler.ts",
+        "target": "platform",
+        "rationale": "Notification reacts to the platform tenant-provisioned domain event.",
+        "owner": "notification",
+        "reviewBy": "2026-09-30"
+      },
+      {
+        "source": "apps/backend/src/contexts/notification/infrastructure/events/service-points-earned.handler.ts",
+        "target": "loyalty",
+        "rationale": "Notification reacts to the loyalty service-points-earned domain event.",
+        "owner": "notification",
+        "reviewBy": "2026-09-30"
+      },
+      {
+        "source": "apps/backend/src/contexts/notification/infrastructure/events/points-expiring-soon.handler.ts",
+        "target": "loyalty",
+        "rationale": "Notification reacts to the loyalty points-expiring-soon command contract.",
+        "owner": "notification",
+        "reviewBy": "2026-09-30"
+      },
+      {
+        "source": "apps/backend/src/contexts/notification/infrastructure/events/booking-rescheduled.handler.ts",
+        "target": "booking",
+        "rationale": "Notification reacts to the booking-rescheduled domain event.",
+        "owner": "notification",
+        "reviewBy": "2026-09-30"
+      },
+      {
+        "source": "apps/backend/src/contexts/notification/infrastructure/events/booking-requested.handler.ts",
+        "target": "booking",
+        "rationale": "Notification reacts to the booking-requested domain event.",
+        "owner": "notification",
+        "reviewBy": "2026-09-30"
+      },
+      {
+        "source": "apps/backend/src/contexts/notification/infrastructure/events/booking-reminder.handler.ts",
+        "target": "booking",
+        "rationale": "Notification dispatches the booking reminder command contracts.",
+        "owner": "notification",
+        "reviewBy": "2026-09-30"
+      },
+      {
+        "source": "apps/backend/src/contexts/notification/infrastructure/events/booking-rejected.handler.ts",
+        "target": "booking",
+        "rationale": "Notification reacts to the booking-rejected domain event.",
+        "owner": "notification",
+        "reviewBy": "2026-09-30"
+      },
+      {
+        "source": "apps/backend/src/contexts/notification/infrastructure/events/booking-info-submitted.handler.ts",
+        "target": "booking",
+        "rationale": "Notification reacts to the booking-info-submitted domain event.",
+        "owner": "notification",
+        "reviewBy": "2026-09-30"
+      },
+      {
+        "source": "apps/backend/src/contexts/notification/infrastructure/events/booking-info-requested.handler.ts",
+        "target": "booking",
+        "rationale": "Notification reacts to the booking-info-requested domain event.",
+        "owner": "notification",
+        "reviewBy": "2026-09-30"
+      },
+      {
+        "source": "apps/backend/src/contexts/notification/infrastructure/events/booking-cancelled.handler.ts",
+        "target": "booking",
+        "rationale": "Notification reacts to the booking-cancelled domain event.",
+        "owner": "notification",
+        "reviewBy": "2026-09-30"
+      },
+      {
+        "source": "apps/backend/src/contexts/notification/infrastructure/events/booking-approved.handler.ts",
+        "target": "booking",
+        "rationale": "Notification reacts to the booking-approved domain event.",
+        "owner": "notification",
+        "reviewBy": "2026-09-30"
+      },
+      {
+        "source": "apps/backend/src/contexts/notification/infrastructure/events/admin-daily-schedule-reminder.handler.ts",
+        "target": "booking",
+        "rationale": "Notification dispatches the booking daily-schedule reminder command contract.",
+        "owner": "notification",
+        "reviewBy": "2026-09-30"
       }
     ]
   },

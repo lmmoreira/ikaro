@@ -3,7 +3,6 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { scheduleAfterCommit } from '../../../../shared/infrastructure/transaction-context';
 import { Money } from '../../../../shared/value-objects/money';
 import { Booking } from '../../domain/booking.aggregate';
 import {
@@ -79,7 +78,9 @@ export class CompleteBookingUseCase {
 
     await this.txManager.run(async () => {
       await this.bookingRepo.save(booking);
-      await scheduleAfterCommit(() => this.photoExistenceService.executePhotoPromotion(operations));
+      await this.txManager.scheduleAfterCommit(() =>
+        this.photoExistenceService.executePhotoPromotion(operations),
+      );
     });
 
     return {
