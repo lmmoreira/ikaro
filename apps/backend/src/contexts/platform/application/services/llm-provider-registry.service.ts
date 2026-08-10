@@ -1,26 +1,24 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { ILlmProvider, OPENROUTER_LLM_PROVIDER } from '../ports/llm-provider.port';
+import { ILlmProvider, OPENROUTER_PROVIDER_NAME } from '../ports/llm-provider.port';
 
 export const LLM_PROVIDER_REGISTRY = Symbol('LlmProviderRegistry');
-
-const DEFAULT_PROVIDER = 'openrouter';
 
 // Resolved per-request by the caller (e.g. tenant.settings.chatbot?.llmProvider ?? platform
 // default), never by this class reading TenantSettings itself — keeps this registry usable
 // before the chatbot settings category exists and decoupled from its shape either way
 // (docs/discovery/CHATBOT/CHATBOT.md §4).
-@Injectable()
+//
+// Framework/env-free by design: platformDefault is resolved once, at module-wiring time
+// (platform.module.ts's useFactory reads CHATBOT_LLM_PROVIDER, mirroring the EMAIL_SENDER
+// selection pattern in notification.module.ts), and passed in already resolved — this class
+// never injects ConfigService or reads process.env itself.
 export class LlmProviderRegistry {
   private readonly providers: Map<string, ILlmProvider>;
-  private readonly platformDefault: string;
 
   constructor(
-    config: ConfigService,
-    @Inject(OPENROUTER_LLM_PROVIDER) openRouterProvider: ILlmProvider,
+    private readonly platformDefault: string,
+    openRouterProvider: ILlmProvider,
   ) {
-    this.platformDefault = config.get<string>('CHATBOT_LLM_PROVIDER', DEFAULT_PROVIDER);
-    this.providers = new Map([['openrouter', openRouterProvider]]);
+    this.providers = new Map([[OPENROUTER_PROVIDER_NAME, openRouterProvider]]);
   }
 
   resolve(providerNameOverride?: string): ILlmProvider {

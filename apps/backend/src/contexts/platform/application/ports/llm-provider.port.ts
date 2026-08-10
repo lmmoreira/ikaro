@@ -3,6 +3,11 @@
 // (docs/discovery/CHATBOT/CHATBOT.md §4). Each is registered with useClass (never useExisting).
 export const OPENROUTER_LLM_PROVIDER = Symbol('OpenRouterLlmProvider');
 
+// The registry's Map key for the OpenRouter adapter — also platform.module.ts's factory
+// fallback when CHATBOT_LLM_PROVIDER is entirely unset. Centralized here so the two can never
+// drift apart (a mismatch would throw "Unknown LLM provider" at the first unconfigured request).
+export const OPENROUTER_PROVIDER_NAME = 'openrouter';
+
 export interface ChatTurn {
   role: 'user' | 'assistant';
   content: string;

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { StorageModule } from '../../shared/infrastructure/storage.module';
 import { RequestModule } from '../../shared/request/request.module';
@@ -9,7 +10,11 @@ import { CHATBOT_PROVIDER_BALANCE_REPOSITORY } from './application/ports/chatbot
 import { CHATBOT_SESSION_REPOSITORY } from './application/ports/chatbot-session-repository.port';
 import { FRONTEND_REVALIDATION_PORT } from './application/ports/frontend-revalidation.port';
 import { HOTSITE_CONFIG_REPOSITORY } from './application/ports/hotsite-config-repository.port';
-import { OPENROUTER_LLM_PROVIDER } from './application/ports/llm-provider.port';
+import {
+  ILlmProvider,
+  OPENROUTER_LLM_PROVIDER,
+  OPENROUTER_PROVIDER_NAME,
+} from './application/ports/llm-provider.port';
 import { TENANT_REPOSITORY } from './application/ports/tenant-repository.port';
 import {
   LLM_PROVIDER_REGISTRY,
@@ -90,7 +95,15 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     },
     { provide: TENANT_SETTINGS_PORT, useClass: PlatformTenantSettingsAdapter },
     { provide: OPENROUTER_LLM_PROVIDER, useClass: OpenRouterLlmAdapter },
-    { provide: LLM_PROVIDER_REGISTRY, useClass: LlmProviderRegistry },
+    {
+      provide: LLM_PROVIDER_REGISTRY,
+      useFactory: (config: ConfigService, openRouterProvider: ILlmProvider) =>
+        new LlmProviderRegistry(
+          config.get<string>('CHATBOT_LLM_PROVIDER', OPENROUTER_PROVIDER_NAME),
+          openRouterProvider,
+        ),
+      inject: [ConfigService, OPENROUTER_LLM_PROVIDER],
+    },
     HotsiteContentReader,
     { provide: FRONTEND_REVALIDATION_PORT, useClass: FrontendRevalidationAdapter },
     HotsiteImagePathsService,
