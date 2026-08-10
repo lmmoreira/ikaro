@@ -191,6 +191,10 @@ module "cloudrun_backend" {
       # (web -> bff -> backend -> web). Only one edge among backend/bff/web may be a live
       # module reference at a time — see cloudrun_bff's ALLOWED_ORIGINS/FRONTEND_URL comment.
       FRONTEND_URL = var.web_real_uri
+
+      # M19-S02: platform-wide chatbot LLM provider default — a plain env var (not a secret)
+      # deliberately, so ops can fail over to another provider in minutes without a deploy.
+      CHATBOT_LLM_PROVIDER = "openrouter"
     },
     # BREVO_SMTP_LOGIN is optional-with-min-length in the backend schema — a
     # present "" satisfies "not absent" but fails min(1), crashing app boot
@@ -207,6 +211,13 @@ module "cloudrun_backend" {
     HOTSITE_REVALIDATE_SECRET = module.secrets.secret_ids["hotsite-revalidate-secret"]
     JWT_SECRET                = module.secrets.secret_ids["jwt-secret"]
     BREVO_SMTP_KEY            = module.secrets.secret_ids["brevo-smtp-key"]
+    # M19-S02: only the OpenRouter adapter is built yet (S03 builds Anthropic/OpenAI), but all 3
+    # secret containers + this wiring land together — see SECRETS.md. Each secret's real value
+    # must be populated via `gcloud secrets versions add` before this apply runs, or Cloud Run
+    # revision creation fails resolving secret_key_ref against a zero-version secret.
+    OPENROUTER_API_KEY = module.secrets.secret_ids["openrouter-api-key"]
+    ANTHROPIC_API_KEY  = module.secrets.secret_ids["anthropic-api-key"]
+    OPENAI_API_KEY     = module.secrets.secret_ids["openai-api-key"]
   }
 }
 

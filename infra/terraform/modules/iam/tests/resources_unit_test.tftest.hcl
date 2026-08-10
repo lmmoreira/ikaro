@@ -20,6 +20,9 @@ variables {
     google-oauth-client-id     = "projects/ikaro-test/secrets/google-oauth-client-id"
     google-oauth-client-secret = "projects/ikaro-test/secrets/google-oauth-client-secret"
     brevo-smtp-key             = "projects/ikaro-test/secrets/brevo-smtp-key"
+    openrouter-api-key         = "projects/ikaro-test/secrets/openrouter-api-key"
+    anthropic-api-key          = "projects/ikaro-test/secrets/anthropic-api-key"
+    openai-api-key             = "projects/ikaro-test/secrets/openai-api-key"
   }
 }
 
@@ -80,10 +83,10 @@ run "backend_consumes_exactly_its_own_secrets_staging" {
 
   assert {
     condition = alltrue([
-      for secret in ["db-password", "jwt-secret", "internal-api-key", "platform-admin-key", "hotsite-revalidate-secret", "brevo-smtp-key"] :
+      for secret in ["db-password", "jwt-secret", "internal-api-key", "platform-admin-key", "hotsite-revalidate-secret", "brevo-smtp-key", "openrouter-api-key", "anthropic-api-key", "openai-api-key"] :
       contains(keys(google_secret_manager_secret_iam_member.accessor), "backend-${secret}")
     ])
-    error_message = "Backend must get accessor bindings for all 6 of its consumed secrets."
+    error_message = "Backend must get accessor bindings for all 9 of its consumed secrets."
   }
 
   assert {
@@ -180,6 +183,9 @@ run "backend_gets_cloudflare_token_in_prod_only" {
       google-oauth-client-secret = "projects/ikaro-prod/secrets/google-oauth-client-secret"
       brevo-smtp-key             = "projects/ikaro-prod/secrets/brevo-smtp-key"
       cloudflare-api-token       = "projects/ikaro-prod/secrets/cloudflare-api-token"
+      openrouter-api-key         = "projects/ikaro-prod/secrets/openrouter-api-key"
+      anthropic-api-key          = "projects/ikaro-prod/secrets/anthropic-api-key"
+      openai-api-key             = "projects/ikaro-prod/secrets/openai-api-key"
     }
   }
 

@@ -19,6 +19,9 @@ version is populated by the S27 (staging) / S37 (prod) activation runbooks via
 | `google-oauth-client-secret` | BFF | `GOOGLE_CLIENT_SECRET` (BFF env.validation.ts) | Per-env OAuth client (S10) |
 | `brevo-smtp-key` | backend | `BREVO_SMTP_KEY` (backend env.validation.ts) | Per-env transactional-email key (S10) |
 | `cloudflare-api-token` | infra pipeline (S22), CI purge (S41), backend (S40 runtime) | n/a — not in either app's env schema yet | **Prod only.** Two intentional homes (2026-07-08): a GitHub environment secret drives CI/CD (S23/S24); this Secret Manager container is for the runtime consumer once S40 lands (backend's Cloudflare verification adapter) |
+| `openrouter-api-key` | backend | `OPENROUTER_API_KEY` (backend env.validation.ts) | M19-S02. Primary chatbot LLM provider adapter (`openrouter-llm.adapter.ts`) |
+| `anthropic-api-key` | backend | `ANTHROPIC_API_KEY` (backend env.validation.ts, added by M19-S03) | Container + IAM + Cloud Run wiring provisioned by M19-S02 ahead of the consuming adapter (M19-S03) — same "provision the shape, wire the consumer later" precedent as `cloudflare-api-token` above |
+| `openai-api-key` | backend | `OPENAI_API_KEY` (backend env.validation.ts, added by M19-S03) | Same as `anthropic-api-key` — provisioned by M19-S02, consumed starting M19-S03 |
 
 ## Rotation procedure
 

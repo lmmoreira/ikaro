@@ -120,7 +120,8 @@ Register via `useClass` (never `useExisting` — tests need to swap in a fake `I
 - [ ] Coverage ≥80%; `tsc --noEmit`, lint, tests green
 
 **Dependencies:** None (parallel to S01, S03, S04).
-**New env var:** `CHATBOT_LLM_PROVIDER` (default `openrouter`). **New secret:** `OPENROUTER_API_KEY` — provisioned by S14, use a placeholder/local env var for development until then.
+**New env var:** `CHATBOT_LLM_PROVIDER` (default `openrouter`), wired into Terraform (`envs/staging` + `envs/prod` `cloudrun_backend`) as part of this story — not deferred to S14.
+**New secrets — provisioned by this story, not S14 (scope moved during `/story-discovery`, 2026-08-10):** `OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` — all 3 Secret Manager containers + the backend SA's Foundation-owned accessor grant + `secret_env_vars` wiring on `cloudrun_backend` land in this story, even though only the OpenRouter adapter itself is built here (S03 builds the other two adapters against secrets that already exist by then). Real key values populated out-of-band via `gcloud secrets versions add`, same mechanism as every other secret in this codebase — not via Terraform.
 
 ---
 
@@ -140,7 +141,7 @@ Build `anthropic-llm.adapter.ts` and `openai-llm.adapter.ts` against the same `I
 - [ ] Coverage ≥80%; `tsc --noEmit`, lint, tests green
 
 **Dependencies:** S02.
-**New secrets:** `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` — provisioned by S14.
+**Secrets:** `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` — containers + IAM + Terraform wiring already provisioned by S02 (scope moved during `/story-discovery`, 2026-08-10); this story only needs real key values populated (out-of-band, `gcloud secrets versions add`) before its adapters can be exercised against the real APIs.
 
 ---
 
@@ -404,22 +405,22 @@ Add a "Chatbot" section to `SettingsForm.tsx` (`apps/web/features/platform/compo
 **Docs to load:** `infra/terraform/README.md`, the existing `modules/secret-manager` and `modules/scheduler` Terraform modules, `docs/14-API_CONTRACTS.md` § Chatbot Widget / cron entries
 
 **Description:**
-Not new infra capability — the Secret Manager and Cloud Scheduler modules already exist (`M15-S06`, `M15-S10`/`M17-S21`). This story adds new instances via those existing modules, mirroring the exact shape of the existing `loyalty_expire_points` scheduler resource and existing secret entries:
+Not new infra capability — the Secret Manager and Cloud Scheduler modules already exist (`M15-S06`, `M15-S10`/`M17-S21`). This story adds new instances via those existing modules, mirroring the exact shape of the existing `loyalty_expire_points` scheduler resource and existing secret entries.
 
-- **3 new secrets** in Secret Manager: `OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` — wired as Cloud Run secret-env bindings on the backend service (consumed by S02/S03's adapters)
-- **3 new plain env vars** on the backend Cloud Run service: `CHATBOT_LLM_PROVIDER` (default `openrouter`), `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` (default `25`), `CHATBOT_MIN_PROVIDER_BALANCE_USD` (default `2`)
+**Note (scope moved during `/story-discovery`, 2026-08-10):** the 3 LLM provider secrets (`OPENROUTER_API_KEY`/`ANTHROPIC_API_KEY`/`OPENAI_API_KEY`) and the `CHATBOT_LLM_PROVIDER` env var were pulled forward into S02 instead of waiting for this story — S02 needed the Terraform pattern established immediately rather than deferred, and building it once for all 3 providers avoided repeating the same Terraform PR shape across S02/S03/S14. This story's remaining scope:
+
+- **2 new plain env vars** on the backend Cloud Run service: `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` (default `25`), `CHATBOT_MIN_PROVIDER_BALANCE_USD` (default `2`)
 - **2 new Pub/Sub topics + 2 new Cloud Scheduler jobs**: `ikaro-cron-chatbot-retention-purge` (daily, `0 3 * * *`) and `ikaro-cron-chatbot-balance-poll` (every 15 min, `*/15 * * * *`) — if not already added directly in S07/S08 (implementer's call on sequencing; not a hard dependency either way)
 
 Not a functional blocker for local development, which uses local `.env` values + the manual `POST /cron/...` trigger endpoints, same as every existing cron job. Required before real staging/prod traffic — mirrors `M11`→`M15`'s precedent (SendGrid's secret was provisioned in a later, separate infra pass, not blocking `M11`'s own app-code stories).
 
 **Acceptance Criteria:**
-- [ ] 3 secrets provisioned in Secret Manager, bound to the backend Cloud Run service, never logged or exposed
-- [ ] 3 env vars set on the backend Cloud Run service with the documented defaults
+- [ ] 2 env vars set on the backend Cloud Run service with the documented defaults
 - [ ] 2 Pub/Sub topics + 2 Cloud Scheduler jobs provisioned via the existing `modules/scheduler`, matching the real `loyalty_expire_points` resource's shape
 - [ ] Terraform plan/apply verified in a real (staging) environment, not just `terraform validate`
 - [ ] No secret value committed anywhere in the repo (Gitleaks-clean)
 
-**Dependencies:** None (can run in parallel with any wave). Required before staging/prod activation of S02, S03, S07, S08.
+**Dependencies:** None (can run in parallel with any wave). Required before staging/prod activation of S07, S08.
 
 ---
 

@@ -83,6 +83,13 @@ export const schema = z.object({
     .int()
     .min(8, { message: 'INBOX_RETENTION_DAYS must be >= 8 (Pub/Sub max redelivery is 7 days)' })
     .default(14),
+  // M19-S02 — kept an env var deliberately (not a code constant): lets ops fail the platform
+  // default over to another provider in minutes if OpenRouter has an outage, no deploy needed.
+  // A specific tenant can still override via tenants.settings.chatbot.llmProvider.
+  CHATBOT_LLM_PROVIDER: z.string().default('openrouter'),
+  // Optional: only needed when the OpenRouter adapter actually makes a real call. Automated
+  // tests never call the real API (stubbed fetch), so local dev/CI work fine unset.
+  OPENROUTER_API_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof schema>;

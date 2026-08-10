@@ -57,6 +57,15 @@ export interface BusinessInfo {
   socialLinks: SocialLinks | null;
 }
 
+// M19-S02: type only for now — knowledgeText/default()/validation land in S04. llmProvider/llmModel
+// are never written by default() for any tenant; they exist only as a manual per-tenant override
+// (docs/discovery/CHATBOT/CHATBOT.md §5), resolved as `tenant.settings.chatbot?.llmProvider ?? DEFAULT`.
+export interface ChatbotSettings {
+  knowledgeText?: string;
+  llmProvider?: string;
+  llmModel?: string;
+}
+
 export interface TenantSettingsData {
   loyalty: LoyaltySettings;
   booking: BookingSettings;
@@ -64,4 +73,5 @@ export interface TenantSettingsData {
   localization: LocalizationSettings;
   notification?: NotificationSettings;
   businessInfo?: BusinessInfo;
+  chatbot?: ChatbotSettings;
 }

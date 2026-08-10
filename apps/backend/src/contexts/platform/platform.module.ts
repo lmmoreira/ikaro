@@ -9,7 +9,12 @@ import { CHATBOT_PROVIDER_BALANCE_REPOSITORY } from './application/ports/chatbot
 import { CHATBOT_SESSION_REPOSITORY } from './application/ports/chatbot-session-repository.port';
 import { FRONTEND_REVALIDATION_PORT } from './application/ports/frontend-revalidation.port';
 import { HOTSITE_CONFIG_REPOSITORY } from './application/ports/hotsite-config-repository.port';
+import { OPENROUTER_LLM_PROVIDER } from './application/ports/llm-provider.port';
 import { TENANT_REPOSITORY } from './application/ports/tenant-repository.port';
+import {
+  LLM_PROVIDER_REGISTRY,
+  LlmProviderRegistry,
+} from './application/services/llm-provider-registry.service';
 import { HotsiteImagePathsService } from './domain/services/hotsite-image-paths.service';
 import { HotsiteImageUrlResolver } from './domain/services/hotsite-image-url-resolver.service';
 import { DeleteHotsiteImageUseCase } from './application/use-cases/delete-hotsite-image.use-case';
@@ -35,6 +40,7 @@ import { HotsiteConfigEntity } from './infrastructure/entities/hotsite-config.en
 import { TenantEntity } from './infrastructure/entities/tenant.entity';
 import { FrontendRevalidationAdapter } from './infrastructure/adapters/frontend-revalidation.adapter';
 import { PlatformTenantSettingsAdapter } from './infrastructure/cross-context/platform-tenant-settings.adapter';
+import { OpenRouterLlmAdapter } from './infrastructure/llm/openrouter-llm.adapter';
 import { HotsiteContentReader } from './application/services/hotsite-content-reader.service';
 import { HotsiteImagePromotionService } from './application/services/hotsite-image-promotion.service';
 import { HotsiteAdminController } from './infrastructure/controllers/hotsite-admin.controller';
@@ -83,6 +89,8 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
       useClass: TypeOrmChatbotProviderBalanceRepository,
     },
     { provide: TENANT_SETTINGS_PORT, useClass: PlatformTenantSettingsAdapter },
+    { provide: OPENROUTER_LLM_PROVIDER, useClass: OpenRouterLlmAdapter },
+    { provide: LLM_PROVIDER_REGISTRY, useClass: LlmProviderRegistry },
     HotsiteContentReader,
     { provide: FRONTEND_REVALIDATION_PORT, useClass: FrontendRevalidationAdapter },
     HotsiteImagePathsService,
