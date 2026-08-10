@@ -39,7 +39,7 @@ function crossContextRules() {
         return {
           name: `no-${sourceContext}-to-${targetContext}-context-import`,
           comment:
-            'Cross-context imports are denied by default; use the exact Story 0 permitted edge matrix entry.',
+            'Cross-context imports are denied by default; add the exact source path to architecture-policy.json#contextDependencyMatrix.permittedEdges.',
           severity: 'error',
           from: {
             path: `^${backendSourcePrefix}contexts/${sourceContext}/`,
