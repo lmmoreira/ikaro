@@ -27,7 +27,8 @@
     "ci:fast": "pnpm lint && pnpm prettier --check . && pnpm type-check && pnpm --filter @ikaro/backend test:unit && pnpm --filter @ikaro/bff test:unit",
     "ci:integration": "pnpm --filter @ikaro/backend test:integration && pnpm --filter @ikaro/bff test:component && pnpm --filter @ikaro/web test",
     "ci:full": "pnpm ci:fast && pnpm ci:integration",
-    "ci:local": "bash scripts/ci-local.sh"
+    "ci:local": "bash scripts/ci-local.sh",
+    "architecture-check": "pnpm --filter @ikaro/architecture-check run check"
   },
   "workspaces": [
     "apps/*",
@@ -36,6 +37,7 @@
   "devDependencies": {
     "eslint": "^10.6.0",
     "prettier": "^3.9.4",
+    "ts-morph": "^28.0.0",
     "typescript": "^6.0.3",
     "wait-on": "^8.0.5"
   }

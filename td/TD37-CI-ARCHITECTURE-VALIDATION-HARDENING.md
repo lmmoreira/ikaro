@@ -365,6 +365,20 @@ Not sourced from `docs/ANTI_PATTERNS.md` directly — found while verifying `app
 - [ ] Pin and validate compatibility with this repository's ESLint 10 and Next 16 flat-config setup; document exact config import and ordering
 - [ ] Establish a violation baseline and ship report-only first; promotion to blocking is a separate decision after burn-in
 
+### Story 19 — Mature-flow promotion: blocking and required architecture checks 🔴
+
+This story is deliberately scheduled after the detector waves have shipped and burned in. It is the formal promotion point for architecture validation; no detector may become a merge blocker merely because its first implementation is green once.
+
+**Acceptance criteria**:
+
+- [ ] The burn-in window is recorded in the PR/plan history, with the report-only job green on `main` and reviewed findings either at zero or explicitly resolved in the machine-readable exception registry.
+- [ ] Every detector has a permanent positive fixture, negative fixture, zero-target assertion, remediation message, and an owned exception entry where applicable.
+- [ ] The local command and CI command are byte-for-byte equivalent in behavior; a clean local run is reproduced from a clean CI checkout with `pnpm install --frozen-lockfile`.
+- [ ] The report-only `architecture-check` job is promoted to blocking by removing `continue-on-error: true`; the job still publishes actionable file/line output for any failure.
+- [ ] The blocking job is observed green on `main` for a second burn-in window before branch protection changes are made.
+- [ ] The repository's branch-protection configuration is updated in a separate, reviewable change to add the architecture check as a required status check; the workflow introduction and required-check promotion are never the same change.
+- [ ] A rollback procedure is documented: temporarily return the job to report-only only through an explicit reviewed change, with the reason and expiry recorded.
+
 ### Separate follow-up candidate — CodeQL security analysis ⚪
 
 CodeQL complements this TD's architecture checks by tracking security-relevant data flow in TypeScript. It does not replace Snyk (dependencies), Gitleaks (secrets), Trivy (images), Sonar, or the architecture runner. Assess GitHub Code Security availability and, if available, introduce `javascript-typescript` with a report-only security-and-quality baseline in a dedicated security-hardening TD so it does not delay the architectural work above.
@@ -437,6 +451,7 @@ Story 17 (tenant_id detector) is explicitly capped at Phase 1 for the duration o
 - **Wave 5 — known contract/data-harness gaps:** Stories 11 and 12, then Story 7 if it was not completed in Wave 4.
 - **Wave 6 — package hygiene:** Stories 13 and 14.
 - **Wave 7 — exploratory:** Story 17 alone, then Story 18 after its compatibility spike.
+- **Wave 8 — mature rollout:** Story 19 after all selected blocking detectors have completed report-only burn-in.
 
 ---
 
@@ -445,6 +460,7 @@ Story 17 (tenant_id detector) is explicitly capped at Phase 1 for the duration o
 - [ ] Story 0's policy artifacts and package-contract migration completed before dependent stories
 - [ ] All Wave 1–6 stories implemented, passing against `main`, and correctly wired per the "Where Each Check Runs" table
 - [ ] Every new blocking CI step followed the 3-phase rollout (report-only → blocking → required-check) — no check skips straight to required
+- [ ] Story 19 completed before any architecture validation job is added to branch protection as a required check
 - [ ] Story 17 shipped and explicitly capped at report-only, with its go/no-go decision documented separately from this TD's closure
 - [ ] Retired manual bad-smell-audit checks (BE-1, BE-4, WEB-9 once their mechanical equivalents ship) so the same rule isn't checked twice by two different mechanisms
 - [ ] `docs/ANTI_PATTERNS.md` updated to note, per row addressed here, that it's now CI-enforced (not just documented) — so a future reader doesn't re-litigate whether it needs an agent to remember it

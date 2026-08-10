@@ -1,0 +1,26 @@
+{
+  "name": "@ikaro/architecture-check",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Type-aware architecture validation runner for CI",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "test": "jest",
+    "test:cov": "jest --coverage",
+    "check": "tsc -p tsconfig.json && node dist/cli.js"
+  },
+  "dependencies": {
+    "ts-morph": "^28.0.0",
+    "typescript": "^6.0.3"
+  },
+  "devDependencies": {
+    "@ikaro/config": "workspace:*",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.9.4",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.11"
+  }
+}
