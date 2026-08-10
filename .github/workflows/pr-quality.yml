@@ -34,6 +34,28 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm architecture-check
 
+  dependency-cruise:
+    name: Dependency graph validation (report-only)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        with:
+          version: 11.1.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm dep-cruise:test
+      - run: pnpm dep-cruise
+
   no-infra-app-mix:
     name: No infra + app mix
     runs-on: ubuntu-latest
