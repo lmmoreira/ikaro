@@ -51,6 +51,13 @@ Ikaro uses the **"Shared Database, Shared Schema"** pattern for simplicity and c
 - `shared.inbox` carries no `tenant_id` at all — a consumer's dedup key is the event's own `eventId` plus its `consumerName`, which is already globally unique per event.
 - **LGPD data inventory:** `shared.outbox.payload` persists the full event envelope — including customer names, emails, and phones for booking/customer events — in Postgres for `OUTBOX_RETENTION_DAYS` (default 14 days). This is not a new *class* of PII exposure (Pub/Sub already retains the same payload up to 7 days), but it is a new *store* and belongs in the data inventory alongside the tables above.
 
+### **Documented exemption: platform-operator data (`platform.chatbot_provider_balance`)**
+
+- `platform.chatbot_provider_balance` (M19) carries no `tenant_id` at all — its primary key is `provider` (e.g. `'openrouter'`), one row per LLM provider, platform-wide.
+- This is a different exemption category from `shared.outbox`/`shared.inbox` above: it isn't transport infrastructure shared across contexts, it's a single Platform Context aggregate whose data genuinely isn't tenant business data — it's Ikaro's own prepaid balance with the LLM vendor, polled from the provider's account API (`GET /api/v1/credits`, UC-036) and read only by Platform Context's own use cases (`SendChatMessageUseCase`, `GetChatbotStatusUseCase`). No other bounded context ever reads or writes it.
+- It stays in the `platform` schema — not a new bounded context — precisely because every consumer of this data is already a Platform Context use case; splitting it out would require a new cross-context Port+Adapter with no corresponding decoupling benefit, since there is no second context on the other side of that boundary.
+- Not an audit table: upserted (never appended), no history kept — a periodically-refreshed live-status cache of the vendor's own balance, not a ledger. Exists specifically so `GET /public/platform/chatbot/status` (called on every widget mount, public and unauthenticated) never has to call the vendor's API live on that hot path.
+
 ---
 
 ## 3. Communication Isolation

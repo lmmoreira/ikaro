@@ -11,6 +11,9 @@ import { LoyaltyBalanceEntity } from '../contexts/loyalty/infrastructure/entitie
 import { LoyaltyEntryEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-entry.entity';
 import { LoyaltyRedemptionEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-redemption.entity';
 import { NotificationLogEntity } from '../contexts/notification/infrastructure/entities/notification-log.entity';
+import { ChatbotMessageEntity } from '../contexts/platform/infrastructure/entities/chatbot-message.entity';
+import { ChatbotProviderBalanceEntity } from '../contexts/platform/infrastructure/entities/chatbot-provider-balance.entity';
+import { ChatbotSessionEntity } from '../contexts/platform/infrastructure/entities/chatbot-session.entity';
 import { HotsiteConfigEntity } from '../contexts/platform/infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from '../contexts/platform/infrastructure/entities/tenant.entity';
 import { StaffEntity } from '../contexts/staff/infrastructure/entities/staff.entity';
@@ -50,6 +53,9 @@ export async function createTestDataSource(): Promise<DataSource> {
       BalanceExpiryLogEntity,
       InboxRecordEntity,
       OutboxEventEntity,
+      ChatbotSessionEntity,
+      ChatbotMessageEntity,
+      ChatbotProviderBalanceEntity,
     ],
     synchronize: false,
     migrationsRun: false,

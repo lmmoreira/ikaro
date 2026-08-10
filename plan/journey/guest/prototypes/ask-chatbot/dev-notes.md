@@ -53,7 +53,8 @@ shared hotsite file, now additionally showing the collapsed chat bubble (bottom-
 hotsite manifest; `tenantSlug` is ambient (`useTenant()`/route param), not part of the module data.
 
 **Internal state:** `sessionId: string | null` (held in `sessionStorage`, not component state, so a
-page reload doesn't lose the conversation mid-session), `messages: ChatTurn[]`, `status: 'idle' |
+page reload keeps the same underlying session — see "Known open questions" below for what this does
+and doesn't preserve), `messages: ChatTurn[]` (component state only, not persisted), `status: 'idle' |
 'sending' | 'interrupted'`.
 
 **BFF call — send message:**
@@ -149,5 +150,19 @@ error codes) in the UC text and `docs/14-API_CONTRACTS.md` § Chatbot Widget.
   — not decided, this dev-notes file intentionally treats it as one logical component.
 - Whether `sessionId` persistence uses `sessionStorage` (survives reload, not tab close) or
   in-memory only — CHATBOT.md §8 says `sessionStorage`, not yet confirmed against a real story AC.
+- **Reload/F5 behavior — the visible transcript does not survive a reload today.** `sessionId`
+  persists via `sessionStorage`, so the underlying session/cap-enforcement state and the LLM's own
+  conversational memory both continue correctly after a reload (the backend rebuilds history from
+  `chatbot_messages` by `sessionId` on every message, independent of anything the client sends). But
+  `messages: ChatTurn[]` above is plain component state — nothing currently re-fetches or re-renders
+  it after a reload, so the widget appears empty until the visitor sends another message. The data
+  itself fully supports reconstructing the complete transcript (`chatbot_messages` stores full
+  `content` for both `USER` and `ASSISTANT` rows, indexed by `(tenant_id, session_id)` for exactly
+  this purpose — see `docs/13-DATABASE_SCHEMA.md`), but no repository method or endpoint to serve it
+  back exists yet (M19-S01 only). Resolve at story-discovery for whichever story builds
+  `ChatbotWidget.tsx`: either (a) fetch-on-mount — widget re-fetches the transcript from the server
+  when `sessionId` already exists in `sessionStorage`, requiring a small new backend/BFF read
+  endpoint — or (b) client-side cache — widget also persists `messages` to
+  `sessionStorage`/`localStorage` alongside `sessionId`, no backend change needed.
 - No E2E/component test file paths chosen yet — will follow `docs/08-TESTING_STRATEGY.md` once a
   story exists.

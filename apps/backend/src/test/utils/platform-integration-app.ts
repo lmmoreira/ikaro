@@ -16,6 +16,9 @@ import { STORAGE_SERVICE } from '../../shared/ports/storage.service.port';
 import { RequestInterceptor } from '../../shared/request/request.interceptor';
 import { RequestModule } from '../../shared/request/request.module';
 import { FRONTEND_REVALIDATION_PORT } from '../../contexts/platform/application/ports/frontend-revalidation.port';
+import { ChatbotMessageEntity } from '../../contexts/platform/infrastructure/entities/chatbot-message.entity';
+import { ChatbotProviderBalanceEntity } from '../../contexts/platform/infrastructure/entities/chatbot-provider-balance.entity';
+import { ChatbotSessionEntity } from '../../contexts/platform/infrastructure/entities/chatbot-session.entity';
 import { HotsiteConfigEntity } from '../../contexts/platform/infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from '../../contexts/platform/infrastructure/entities/tenant.entity';
 import { PlatformModule } from '../../contexts/platform/platform.module';
@@ -52,7 +55,14 @@ export async function createPlatformIntegrationApp(
       TypeOrmModule.forRoot({
         type: 'postgres',
         url: process.env['TEST_DATABASE_URL'],
-        entities: [TenantEntity, HotsiteConfigEntity, InboxRecordEntity],
+        entities: [
+          TenantEntity,
+          HotsiteConfigEntity,
+          InboxRecordEntity,
+          ChatbotSessionEntity,
+          ChatbotMessageEntity,
+          ChatbotProviderBalanceEntity,
+        ],
         synchronize: false,
       }),
       TransactionManagerModule,

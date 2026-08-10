@@ -4,6 +4,9 @@ import { StorageModule } from '../../shared/infrastructure/storage.module';
 import { RequestModule } from '../../shared/request/request.module';
 import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cache.module';
 import { TENANT_SETTINGS_PORT } from '../../shared/ports/tenant-settings.port';
+import { CHATBOT_MESSAGE_REPOSITORY } from './application/ports/chatbot-message-repository.port';
+import { CHATBOT_PROVIDER_BALANCE_REPOSITORY } from './application/ports/chatbot-provider-balance-repository.port';
+import { CHATBOT_SESSION_REPOSITORY } from './application/ports/chatbot-session-repository.port';
 import { FRONTEND_REVALIDATION_PORT } from './application/ports/frontend-revalidation.port';
 import { HOTSITE_CONFIG_REPOSITORY } from './application/ports/hotsite-config-repository.port';
 import { TENANT_REPOSITORY } from './application/ports/tenant-repository.port';
@@ -25,6 +28,9 @@ import { RenameTenantUseCase } from './application/use-cases/rename-tenant.use-c
 import { UnpublishHotsiteUseCase } from './application/use-cases/unpublish-hotsite.use-case';
 import { UpdateHotsiteContentUseCase } from './application/use-cases/update-hotsite-content.use-case';
 import { UpdateTenantSettingsUseCase } from './application/use-cases/update-tenant-settings.use-case';
+import { ChatbotMessageEntity } from './infrastructure/entities/chatbot-message.entity';
+import { ChatbotProviderBalanceEntity } from './infrastructure/entities/chatbot-provider-balance.entity';
+import { ChatbotSessionEntity } from './infrastructure/entities/chatbot-session.entity';
 import { HotsiteConfigEntity } from './infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from './infrastructure/entities/tenant.entity';
 import { FrontendRevalidationAdapter } from './infrastructure/adapters/frontend-revalidation.adapter';
@@ -38,12 +44,21 @@ import { InternalTenantReadController } from './infrastructure/controllers/inter
 import { TenantController } from './infrastructure/controllers/tenant.controller';
 import { TenantSettingsController } from './infrastructure/controllers/tenant-settings.controller';
 import { CachingTenantRepository } from './infrastructure/repositories/caching-tenant.repository';
+import { TypeOrmChatbotMessageRepository } from './infrastructure/repositories/typeorm-chatbot-message.repository';
+import { TypeOrmChatbotProviderBalanceRepository } from './infrastructure/repositories/typeorm-chatbot-provider-balance.repository';
+import { TypeOrmChatbotSessionRepository } from './infrastructure/repositories/typeorm-chatbot-session.repository';
 import { TypeOrmHotsiteConfigRepository } from './infrastructure/repositories/typeorm-hotsite-config.repository';
 import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-tenant.repository';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([TenantEntity, HotsiteConfigEntity]),
+    TypeOrmModule.forFeature([
+      TenantEntity,
+      HotsiteConfigEntity,
+      ChatbotSessionEntity,
+      ChatbotMessageEntity,
+      ChatbotProviderBalanceEntity,
+    ]),
     RequestModule,
     StorageModule,
     SharedCacheModule,
@@ -61,6 +76,12 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     CachingTenantRepository,
     { provide: TENANT_REPOSITORY, useClass: CachingTenantRepository },
     { provide: HOTSITE_CONFIG_REPOSITORY, useClass: TypeOrmHotsiteConfigRepository },
+    { provide: CHATBOT_SESSION_REPOSITORY, useClass: TypeOrmChatbotSessionRepository },
+    { provide: CHATBOT_MESSAGE_REPOSITORY, useClass: TypeOrmChatbotMessageRepository },
+    {
+      provide: CHATBOT_PROVIDER_BALANCE_REPOSITORY,
+      useClass: TypeOrmChatbotProviderBalanceRepository,
+    },
     { provide: TENANT_SETTINGS_PORT, useClass: PlatformTenantSettingsAdapter },
     HotsiteContentReader,
     { provide: FRONTEND_REVALIDATION_PORT, useClass: FrontendRevalidationAdapter },
