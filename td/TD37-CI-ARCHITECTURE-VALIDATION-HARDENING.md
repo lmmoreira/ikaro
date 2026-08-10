@@ -45,7 +45,7 @@ The candidate list was built from `docs/ANTI_PATTERNS.md`, `docs/ENGINEERING_RUL
 
 ## Committed Stories
 
-### Story 0 — Architecture-enforcement foundation and recorded policy decisions 🔴
+### Story 0 — Architecture-enforcement foundation and recorded policy decisions 🔴 ✅ Done
 
 No detector may encode an undocumented guess. Before adding a blocking rule, create one shared `architecture-check` runner/CLI that can load the backend, BFF, web, and workspace TypeScript projects. Keep the rules themselves in small independently-tested modules; do not install `ts-morph` only in the backend and then make web/package checks depend on an accidental hoist.
 
