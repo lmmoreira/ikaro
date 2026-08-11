@@ -404,10 +404,12 @@ Widget header reads `"{tenant name} — Assistente IA"` / `"— AI Assistant"` p
 **Prototype references:** `plan/journey/manager/prototypes/configuracoes/01d-chatbot-section.html`
 
 **Description:**
-Add a "Chatbot" section to `SettingsForm.tsx` (`apps/web/features/platform/components/`) — a single `knowledgeText` textarea, `maxlength=4000`, matching the prototype exactly. No caps shown, deliberately (per `docs/21` §7). Wired into the existing `PATCH /v1/tenants/settings` save flow, same as every other settings section — no new endpoint.
+Add a "Chatbot" section to `SettingsForm.tsx` (`apps/web/features/platform/components/`) — a single `knowledgeText` textarea, matching the prototype exactly. No caps shown, deliberately (per `docs/21` §7). Wired into the existing `PATCH /v1/tenants/settings` save flow, same as every other settings section — no new endpoint.
+
+**Follow-up (M19-S04 story-discovery, 2026-08-11, re-flagged by PR #358 review, 2026-08-11): no client-side `maxlength` on this textarea.** `docs/21` §7 deliberately made `maxKnowledgeTextLength` a per-tenant resolved override (`tenant.settings.chatbot?.maxKnowledgeTextLength ?? DEFAULT_MAX_KNOWLEDGE_TEXT_LENGTH`) with no static Zod-level bound, specifically so a tenant Ikaro grants a higher limit isn't blocked at the request layer. A hardcoded client `maxlength` (originally planned as `4000`, the default) would silently reintroduce that exact static bound one layer up — the form itself would refuse to let an above-4000 tenant type past 4000 chars, even though the backend would accept it. The response never exposes the resolved limit to the frontend (it's an Ikaro-only override field, filtered out of `GET /v1/tenants/settings` — `docs/21` §7), so there's no value to bind a dynamic `maxlength` to either; the server's `400 PLATFORM_SETTINGS_CHATBOT_KNOWLEDGE_TEXT_TOO_LONG` is the only correct backstop, same principle already applied at the Zod layer.
 
 **Acceptance Criteria:**
-- [ ] Chatbot section renders with only the `knowledgeText` field; `maxlength` enforced client-side, `400` from server as backstop
+- [ ] Chatbot section renders with only the `knowledgeText` field; no client-side length cap — the server's `400 PLATFORM_SETTINGS_CHATBOT_KNOWLEDGE_TEXT_TOO_LONG` is the sole backstop, surfaced as a form validation error
 - [ ] Saves via the existing settings `PATCH` flow
 - [ ] New locale keys (section label, field label, help text) in both `pt-BR` and `en` in the same commit
 - [ ] `.spec.tsx` covering the field's render/edit/save/validation-error states

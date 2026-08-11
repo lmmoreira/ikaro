@@ -87,12 +87,13 @@ export interface TenantSettings {
   localization: TenantLocalizationSettings;
   notification?: TenantNotificationSettings;
   businessInfo?: TenantBusinessInfo;
-  // Optional here for consistency with notification/businessInfo, even though the backend
-  // response construction (get-tenant-by-id.use-case.ts, update-tenant-settings.use-case.ts)
-  // guarantees it's always present at runtime, defaulting knowledgeText to '' for any tenant
-  // whose stored settings predate M19-S04 — tightening this to required is deferred to whichever
-  // story first builds a web consumer of this field (M19 has none; scope stays backend + BFF).
-  chatbot?: TenantChatbotSettings;
+  // Required, unlike notification/businessInfo above: those two are optional because their
+  // presence merely mirrors whatever TenantSettings.toJSON() happens to contain for a given
+  // tenant. chatbot is different — get-tenant-by-id.use-case.ts and
+  // update-tenant-settings.use-case.ts both override toJSON()'s raw value with the chatbot
+  // getter's result, which always resolves knowledgeText (defaulting to '' for any tenant whose
+  // stored settings predate M19-S04). The response genuinely can never omit this field.
+  chatbot: TenantChatbotSettings;
 }
 
 export interface TenantSettingsResponse {

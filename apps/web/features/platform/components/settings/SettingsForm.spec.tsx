@@ -77,6 +77,7 @@ function buildTenant(): TenantSettingsResponse {
         socialLinks: null,
       },
       notification: { fromEmail: null },
+      chatbot: { knowledgeText: '' },
     },
   };
 }

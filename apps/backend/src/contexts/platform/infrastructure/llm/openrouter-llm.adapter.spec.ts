@@ -162,6 +162,19 @@ describe('OpenRouterLlmAdapter', () => {
     );
   });
 
+  it('throws a controlled error when the response body is not valid JSON, instead of an unhandled SyntaxError', async () => {
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.reject(new SyntaxError('Unexpected token < in JSON')),
+    } as unknown as Response);
+    const adapter = new OpenRouterLlmAdapter(makeConfigService());
+
+    await expect(adapter.complete(makeRequest())).rejects.toThrow(
+      'OpenRouter returned a malformed response: invalid JSON',
+    );
+  });
+
   it('throws when OpenRouter responds with a non-ok status', async () => {
     fetchSpy.mockResolvedValue({
       ok: false,

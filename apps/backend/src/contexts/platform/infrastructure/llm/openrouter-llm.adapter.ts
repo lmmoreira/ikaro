@@ -76,7 +76,14 @@ export class OpenRouterLlmAdapter implements ILlmProvider {
       throw new Error(`OpenRouter request failed: ${response.status} ${await response.text()}`);
     }
 
-    const parsed = openRouterResponseSchema.safeParse(await response.json());
+    let responseBody: unknown;
+    try {
+      responseBody = await response.json();
+    } catch {
+      throw new Error('OpenRouter returned a malformed response: invalid JSON');
+    }
+
+    const parsed = openRouterResponseSchema.safeParse(responseBody);
     if (!parsed.success) {
       throw new Error(`OpenRouter returned a malformed response: ${parsed.error.message}`);
     }

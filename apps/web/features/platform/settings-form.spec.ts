@@ -63,6 +63,7 @@ function buildTenant(overrides?: Partial<TenantSettingsResponse>): TenantSetting
         socialLinks: null,
       },
       notification: { fromEmail: null },
+      chatbot: { knowledgeText: '' },
     },
     ...overrides,
   };
