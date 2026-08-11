@@ -83,6 +83,7 @@ jobs:
       infra: ${{ steps.filter.outputs.infra }}
       terraform: ${{ steps.filter.outputs.terraform }}
       modules: ${{ steps.modules.outputs.modules }}
+      foundation: ${{ steps.filter.outputs.foundation }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -119,6 +120,8 @@ jobs:
               - '.github/workflows/infra-deploy.yml'
             terraform:
               - 'infra/terraform/!(foundation)/**'
+            foundation:
+              - 'infra/terraform/foundation/**'
 
       - name: List modules with tests
         id: modules
@@ -521,10 +524,31 @@ jobs:
   # Merge to main: apply staging, then (after approval) apply prod
   # ---------------------------------------------------------------------
 
+  # M19-S02 precedent (2026-08-11): a push can touch infra/terraform/foundation/**
+  # together with normal infra/terraform/** changes in the same commit (e.g. a new
+  # secret's Terraform wiring plus its Foundation-owned IAM grant). Foundation is
+  # deliberately never auto-applied (TD34 — a human must dispatch foundation-deploy.yml
+  # with apply=true), so without this check the normal apply below would proceed and
+  # silently create a Cloud Run revision referencing a permission Foundation hasn't
+  # granted yet — exactly what happened here, caught only days later by a live check
+  # instead of CI. This job exists purely to fail loudly (not silently skip) so the
+  # gap is visible immediately, not "0 issues" on a broken deploy.
+  foundation-apply-required:
+    name: Apply foundation before infra (blocking)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.foundation == 'true' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Block automatic apply until Foundation is manually applied
+        run: |
+          echo "::error::This push touches infra/terraform/foundation/** together with normal infra/terraform/** changes. Foundation (IAM/API/service-account) changes are never auto-applied (TD34) — a human must manually dispatch foundation-deploy.yml with apply=true for BOTH staging and prod FIRST, before apply-staging/apply-prod below can safely reference whatever Foundation just changed. Once the Foundation apply succeeds, re-run this workflow's skipped jobs (gh run rerun <run-id> --failed) to continue."
+          exit 1
+
   apply-staging:
     name: Terraform apply (staging)
     needs: [detect-changes, plan-staging]
-    if: needs.detect-changes.outputs.infra == 'true' && github.event_name == 'push' && needs.plan-staging.result == 'success'
+    if: needs.detect-changes.outputs.infra == 'true' && needs.detect-changes.outputs.foundation != 'true' && github.event_name == 'push' && needs.plan-staging.result == 'success'
     runs-on: ubuntu-latest
     # 45m, not 20m (M17-S27, 2026-07-23): a real first-time Cloud SQL
     # instance creation took 17m32s alone -- 20m left only ~2.5min of
@@ -582,7 +606,7 @@ jobs:
     # this apply) is an acceptable, low-probability trade for never
     # persisting a credential-bearing artifact on a public repo.
     needs: [detect-changes, plan-prod, apply-staging]
-    if: needs.detect-changes.outputs.infra == 'true' && github.event_name == 'push' && needs.plan-prod.result == 'success' && needs.apply-staging.result == 'success'
+    if: needs.detect-changes.outputs.infra == 'true' && needs.detect-changes.outputs.foundation != 'true' && github.event_name == 'push' && needs.plan-prod.result == 'success' && needs.apply-staging.result == 'success'
     runs-on: ubuntu-latest
     # 60m, not 20m (M17-S27, 2026-07-23): S37's atomic apply creates both
     # the Cloud SQL instance (staging's own first-time creation alone took
