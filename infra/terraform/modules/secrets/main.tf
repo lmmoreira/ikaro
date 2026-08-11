@@ -24,6 +24,12 @@ locals {
     # TD38: shared secret between web and BFF, checked by WebOnlyGuard on every BFF request —
     # app-layer defense-in-depth companion to the Cloud Run IAM lockdown.
     "web-internal-key",
+    # M19-S02: chatbot LLM provider API keys. All 3 provisioned together even though only the
+    # OpenRouter adapter is built yet (S03 builds the other two adapters against secrets that
+    # already exist by then) — avoids repeating this same Terraform shape across S02/S03/S14.
+    "openrouter-api-key",
+    "anthropic-api-key",
+    "openai-api-key",
   ]
 
   # cloudflare-api-token is prod-only (edge module, S22/S23 — DNS:Edit scope).

@@ -10,3 +10,4 @@ export * from './chatbot-provider-balance.builder';
 export * from './chatbot-session-entity.builder';
 export * from './chatbot-message-entity.builder';
 export * from './chatbot-provider-balance-entity.builder';
+export * from './fake-llm-provider.builder';

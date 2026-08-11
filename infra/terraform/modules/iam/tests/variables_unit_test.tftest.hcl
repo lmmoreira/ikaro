@@ -19,6 +19,9 @@ variables {
     google-oauth-client-id     = "projects/ikaro-test/secrets/google-oauth-client-id"
     google-oauth-client-secret = "projects/ikaro-test/secrets/google-oauth-client-secret"
     brevo-smtp-key             = "projects/ikaro-test/secrets/brevo-smtp-key"
+    openrouter-api-key         = "projects/ikaro-test/secrets/openrouter-api-key"
+    anthropic-api-key          = "projects/ikaro-test/secrets/anthropic-api-key"
+    openai-api-key             = "projects/ikaro-test/secrets/openai-api-key"
   }
 }
 

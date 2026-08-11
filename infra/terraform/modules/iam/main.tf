@@ -127,7 +127,10 @@ locals {
   }
 
   secret_accessors_base = {
-    backend = ["db-password", "jwt-secret", "internal-api-key", "platform-admin-key", "hotsite-revalidate-secret", "brevo-smtp-key"]
+    # openrouter-api-key/anthropic-api-key/openai-api-key (M19-S02): granted now since the
+    # secret containers and this SA both already exist — harmless ahead of S03's Anthropic/OpenAI
+    # adapters landing, same reasoning as cloudflare-api-token below being granted ahead of S40.
+    backend = ["db-password", "jwt-secret", "internal-api-key", "platform-admin-key", "hotsite-revalidate-secret", "brevo-smtp-key", "openrouter-api-key", "anthropic-api-key", "openai-api-key"]
     bff     = ["jwt-secret", "internal-api-key", "google-oauth-client-id", "google-oauth-client-secret"]
     web     = ["jwt-secret", "hotsite-revalidate-secret"]
     # Dedicated migrator credential (M17-S20) — never db-password, which is
