@@ -90,7 +90,7 @@ Rules to encode:
 
 ---
 
-### Story 2 — Ban raw SQL / repository-bypass outside repository adapters 🔴
+### Story 2 — Ban raw SQL / repository-bypass outside repository adapters 🔴 ✅ Done
 
 Directly addresses **#124** — the exact TD24-S01 incident (`OutboxPublisher` had every `INSERT`/`SELECT ... FOR UPDATE SKIP LOCKED`/`UPDATE`/`DELETE` inlined, undetected through a full `/pre-pr` pass).
 
