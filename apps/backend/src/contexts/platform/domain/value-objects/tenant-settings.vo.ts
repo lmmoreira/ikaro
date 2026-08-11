@@ -87,7 +87,10 @@ export class TenantSettings {
   }
 
   get chatbot(): ChatbotSettings {
-    return { ...(this.props.chatbot ?? { knowledgeText: '' }) };
+    // Per-field default, not whole-object: an Ikaro override stored without ever touching
+    // knowledgeText (e.g. `{ llmProvider: 'anthropic' }`) must still resolve knowledgeText to ''
+    // rather than leaving it undefined.
+    return { knowledgeText: '', ...this.props.chatbot };
   }
 
   toJSON(): TenantSettingsProps {

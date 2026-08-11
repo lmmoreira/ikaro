@@ -87,6 +87,11 @@ export interface TenantSettings {
   localization: TenantLocalizationSettings;
   notification?: TenantNotificationSettings;
   businessInfo?: TenantBusinessInfo;
+  // Optional here for consistency with notification/businessInfo, even though the backend
+  // response construction (get-tenant-by-id.use-case.ts, update-tenant-settings.use-case.ts)
+  // guarantees it's always present at runtime, defaulting knowledgeText to '' for any tenant
+  // whose stored settings predate M19-S04 — tightening this to required is deferred to whichever
+  // story first builds a web consumer of this field (M19 has none; scope stays backend + BFF).
   chatbot?: TenantChatbotSettings;
 }
 

@@ -405,6 +405,45 @@ describe('TenantSettingsController (integration)', () => {
     expect(body.status).toBe(400);
   });
 
+  it('returns chatbot: { knowledgeText: "" } on GET for a legacy tenant whose stored settings predate the chatbot category', async () => {
+    const currentTenant = await ds.getRepository(TenantEntity).findOne({ where: { id: tenantId } });
+    const legacyTenant = new TenantEntityBuilder()
+      .withId('00000000-0000-0000-0000-000000000002')
+      .withSlug('lavacar-legacy-settings-integ-01')
+      .withSettings({ ...currentTenant!.settings, chatbot: undefined })
+      .build();
+    await ds.getRepository(TenantEntity).save(legacyTenant);
+
+    const { body } = await request(app.getHttpServer())
+      .get('/tenants/settings')
+      .set('X-Tenant-ID', legacyTenant.id)
+      .set('X-Actor-Role', 'MANAGER')
+      .expect(200);
+
+    expect(body.settings.chatbot).toEqual({ knowledgeText: '' });
+  });
+
+  it('never leaks an Ikaro-only chatbot override (llmProvider, caps) into the GET response', async () => {
+    const currentTenant = await ds.getRepository(TenantEntity).findOne({ where: { id: tenantId } });
+    const overrideTenant = new TenantEntityBuilder()
+      .withId('00000000-0000-0000-0000-000000000003')
+      .withSlug('lavacar-override-settings-integ-01')
+      .withSettings({
+        ...currentTenant!.settings,
+        chatbot: { knowledgeText: 'texto', llmProvider: 'anthropic', maxConversationsPerDay: 100 },
+      })
+      .build();
+    await ds.getRepository(TenantEntity).save(overrideTenant);
+
+    const { body } = await request(app.getHttpServer())
+      .get('/tenants/settings')
+      .set('X-Tenant-ID', overrideTenant.id)
+      .set('X-Actor-Role', 'MANAGER')
+      .expect(200);
+
+    expect(body.settings.chatbot).toEqual({ knowledgeText: 'texto' });
+  });
+
   it('returns 409 when the tenant is inactive', async () => {
     const inactiveTenant = new TenantEntityBuilder()
       .withId('00000000-0000-0000-0000-000000000001')

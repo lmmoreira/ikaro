@@ -363,6 +363,13 @@ describe('TenantSettings', () => {
         maxConversationsPerDay: 100,
       });
     });
+
+    it('defaults knowledgeText to "" when a chatbot object exists but never set it (an override written without touching knowledgeText)', () => {
+      const props = new TenantSettingsPropsBuilder().build();
+      props.chatbot = { llmProvider: 'anthropic' };
+      const settings = TenantSettings.reconstitute(props);
+      expect(settings.chatbot).toEqual({ knowledgeText: '', llmProvider: 'anthropic' });
+    });
   });
 
   describe('encapsulation — getters return independent copies', () => {
