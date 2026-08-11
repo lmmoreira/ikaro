@@ -87,7 +87,13 @@ describe('Booking → Outbox cutover (integration, TD24-S02)', () => {
       publish: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<IEventBus>;
     const config = makeConfigService({ OUTBOX_INLINE_DISPATCH_ENABLED: false });
-    const relay = new OutboxRelayService(typeOrmOutboxRepo, eventBus, typeOrmInboxRepo, config, txManager);
+    const relay = new OutboxRelayService(
+      typeOrmOutboxRepo,
+      eventBus,
+      typeOrmInboxRepo,
+      config,
+      txManager,
+    );
     const outboxPublisher = new OutboxPublisher(typeOrmOutboxRepo, relay, config);
     const repo = makeRepo(outboxPublisher);
 
@@ -119,7 +125,13 @@ describe('Booking → Outbox cutover (integration, TD24-S02)', () => {
       OUTBOX_INLINE_DISPATCH_ENABLED: true,
       OUTBOX_SWEEP_GRACE_SECONDS: 0,
     });
-    const relay = new OutboxRelayService(typeOrmOutboxRepo, eventBus, typeOrmInboxRepo, config, txManager);
+    const relay = new OutboxRelayService(
+      typeOrmOutboxRepo,
+      eventBus,
+      typeOrmInboxRepo,
+      config,
+      txManager,
+    );
     const outboxPublisher = new OutboxPublisher(typeOrmOutboxRepo, relay, config);
     const repo = makeRepo(outboxPublisher);
 
@@ -163,7 +175,13 @@ describe('Booking → Outbox cutover (integration, TD24-S02)', () => {
       OUTBOX_INLINE_DISPATCH_ENABLED: false,
       OUTBOX_SWEEP_GRACE_SECONDS: 0,
     });
-    const relay = new OutboxRelayService(typeOrmOutboxRepo, eventBus, typeOrmInboxRepo, config, txManager);
+    const relay = new OutboxRelayService(
+      typeOrmOutboxRepo,
+      eventBus,
+      typeOrmInboxRepo,
+      config,
+      txManager,
+    );
     const outboxPublisher = new OutboxPublisher(typeOrmOutboxRepo, relay, config);
     const repo = makeRepo(outboxPublisher);
 

@@ -124,12 +124,23 @@ export class TypeOrmOutboxRepository implements IOutboxRepository {
     if (!manager) {
       throw new Error('Outbox claims must run inside ITransactionManager.run().');
     }
-    return (await manager.query(CLAIM_UNPUBLISHED_SQL, [graceSeconds, batchSize, leaseToken, leaseSeconds])) as OutboxClaim[];
+    const result = (await manager.query(CLAIM_UNPUBLISHED_SQL, [
+      graceSeconds,
+      batchSize,
+      leaseToken,
+      leaseSeconds,
+    ])) as OutboxClaim[] | [OutboxClaim[], number];
+    // PostgreSQL's TypeORM transaction manager can return UPDATE ... RETURNING as
+    // [rows, rowCount], while Repository.query() returns rows directly. Normalize at the adapter
+    // boundary so the port never leaks driver-specific result shapes to the relay.
+    if (Array.isArray(result[0])) return result[0] as OutboxClaim[];
+    return result as OutboxClaim[];
   }
 
   async releaseClaim(id: string, leaseToken: string): Promise<void> {
     const manager = getActiveEntityManager();
-    if (!manager) throw new Error('Outbox claim release must run inside ITransactionManager.run().');
+    if (!manager)
+      throw new Error('Outbox claim release must run inside ITransactionManager.run().');
     await manager.query(RELEASE_CLAIM_SQL, [id, leaseToken]);
   }
 

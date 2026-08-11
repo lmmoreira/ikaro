@@ -23,12 +23,20 @@ describe('OutboxRelayService', () => {
       countUnpublished: jest.fn().mockResolvedValue({ count: 0, oldestAgeSeconds: null }),
       deleteOldPublished: jest.fn().mockResolvedValue(0),
     } as jest.Mocked<IOutboxRepository>;
-    eventBus = { publish: jest.fn().mockResolvedValue(undefined) } as unknown as jest.Mocked<IEventBus>;
+    eventBus = {
+      publish: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<IEventBus>;
     inboxRepo = {
-      hasBeenProcessed: jest.fn(), markProcessed: jest.fn(), tryClaim: jest.fn(), unclaim: jest.fn(),
+      hasBeenProcessed: jest.fn(),
+      markProcessed: jest.fn(),
+      tryClaim: jest.fn(),
+      unclaim: jest.fn(),
       deleteOldProcessed: jest.fn().mockResolvedValue(0),
     } as jest.Mocked<IInboxRepository>;
-    txManager = { run: jest.fn((work) => work()), scheduleAfterCommit: jest.fn() } as jest.Mocked<ITransactionManager>;
+    txManager = {
+      run: jest.fn((work) => work()),
+      scheduleAfterCommit: jest.fn(),
+    } as jest.Mocked<ITransactionManager>;
     config = makeConfigService();
   });
 
@@ -37,7 +45,10 @@ describe('OutboxRelayService', () => {
 
   describe('relay(rowIds) — inline dispatch path', () => {
     it('publishes and marks the given row id', async () => {
-      outboxRepo.findUnpublishedById.mockResolvedValue({ id: 'row-1', payload: { eventName: 'X' } });
+      outboxRepo.findUnpublishedById.mockResolvedValue({
+        id: 'row-1',
+        payload: { eventName: 'X' },
+      });
 
       await createService().relay(['row-1']);
 
@@ -53,7 +64,10 @@ describe('OutboxRelayService', () => {
     });
 
     it('swallows a publish failure — relay() never throws', async () => {
-      outboxRepo.findUnpublishedById.mockResolvedValue({ id: 'row-1', payload: { eventName: 'X' } });
+      outboxRepo.findUnpublishedById.mockResolvedValue({
+        id: 'row-1',
+        payload: { eventName: 'X' },
+      });
       eventBus.publish.mockRejectedValue(new Error('pubsub down'));
       await expect(createService().relay(['row-1'])).resolves.toBeUndefined();
     });
@@ -67,7 +81,9 @@ describe('OutboxRelayService', () => {
 
   describe('relay() — sweep + GC path (no rowIds)', () => {
     it('leases in a transaction, publishes outside it, then marks in a second transaction', async () => {
-      outboxRepo.claimUnpublished.mockResolvedValue([{ id: 'row-1', leaseToken: 'lease-1', payload: { eventName: 'X' } }]);
+      outboxRepo.claimUnpublished.mockResolvedValue([
+        { id: 'row-1', leaseToken: 'lease-1', payload: { eventName: 'X' } },
+      ]);
       let transactionOpen = false;
       txManager.run.mockImplementation(async (work) => {
         transactionOpen = true;
@@ -93,10 +109,12 @@ describe('OutboxRelayService', () => {
     });
 
     it('releases a failed publish lease and continues the rest of its batch', async () => {
-      outboxRepo.claimUnpublished.mockResolvedValueOnce([
-        { id: 'row-1', leaseToken: 'lease-1', payload: { eventName: 'X' } },
-        { id: 'row-2', leaseToken: 'lease-2', payload: { eventName: 'Y' } },
-      ]).mockResolvedValueOnce([]);
+      outboxRepo.claimUnpublished
+        .mockResolvedValueOnce([
+          { id: 'row-1', leaseToken: 'lease-1', payload: { eventName: 'X' } },
+          { id: 'row-2', leaseToken: 'lease-2', payload: { eventName: 'Y' } },
+        ])
+        .mockResolvedValueOnce([]);
       eventBus.publish.mockRejectedValueOnce(new Error('down')).mockResolvedValueOnce(undefined);
 
       await expect(createService().relay()).resolves.toBeUndefined();
@@ -108,7 +126,9 @@ describe('OutboxRelayService', () => {
 
     it('loops when a batch is full', async () => {
       outboxRepo.claimUnpublished
-        .mockResolvedValueOnce([{ id: 'row-1', leaseToken: 'lease-1', payload: { eventName: 'X' } }])
+        .mockResolvedValueOnce([
+          { id: 'row-1', leaseToken: 'lease-1', payload: { eventName: 'X' } },
+        ])
         .mockResolvedValueOnce([]);
 
       await createService(makeConfigService({ OUTBOX_SWEEP_BATCH_SIZE: 1 })).relay();

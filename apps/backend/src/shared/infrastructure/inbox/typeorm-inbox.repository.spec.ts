@@ -107,12 +107,16 @@ describe('TypeOrmInboxRepository', () => {
     });
 
     it('returns 0 when nothing was deleted', async () => {
-      const manager = { query: jest.fn().mockResolvedValue([]) } as unknown as jest.Mocked<EntityManager>;
+      const manager = {
+        query: jest.fn().mockResolvedValue([]),
+      } as unknown as jest.Mocked<EntityManager>;
 
       await expect(repo.deleteOldProcessed(14, 100)).rejects.toThrow(
         'Inbox retention GC must run inside ITransactionManager.run()',
       );
-      await expect(runWithEntityManager(manager, () => repo.deleteOldProcessed(14, 100))).resolves.toBe(0);
+      await expect(
+        runWithEntityManager(manager, () => repo.deleteOldProcessed(14, 100)),
+      ).resolves.toBe(0);
     });
   });
 });

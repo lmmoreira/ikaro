@@ -61,7 +61,9 @@ describe('TD37-S02 persistence boundary', () => {
   it('forbids event-bus publishing inside a shared transaction callback', () => {
     const config = readFileSync(resolve(backendRoot, 'eslint.config.js'), 'utf8');
 
-    expect(config).toContain("CallExpression[callee.object.name='txManager'][callee.property.name='run']");
+    expect(config).toContain(
+      "CallExpression[callee.object.name='txManager'][callee.property.name='run']",
+    );
     expect(config).toContain('Do not call eventBus.publish() inside txManager.run()');
   });
 });

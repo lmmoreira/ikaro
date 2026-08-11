@@ -113,7 +113,9 @@ describe('TypeOrmOutboxRepository', () => {
   describe('claimUnpublished()', () => {
     it('requires and joins the ambient transaction manager', async () => {
       const manager = {
-        query: jest.fn().mockResolvedValue([{ id: 'row-1', payload: { eventName: 'X' }, leaseToken: 'lease-1' }]),
+        query: jest
+          .fn()
+          .mockResolvedValue([{ id: 'row-1', payload: { eventName: 'X' }, leaseToken: 'lease-1' }]),
       } as unknown as jest.Mocked<EntityManager>;
 
       const rows = await runWithEntityManager(manager, () =>
@@ -125,6 +127,17 @@ describe('TypeOrmOutboxRepository', () => {
         expect.stringContaining('FOR UPDATE SKIP LOCKED'),
         [30, 100, 'lease-1', 120],
       );
+    });
+
+    it('normalizes TypeORM’s transactional [rows, rowCount] result shape', async () => {
+      const claimedRows = [{ id: 'row-1', payload: { eventName: 'X' }, leaseToken: 'lease-1' }];
+      const manager = {
+        query: jest.fn().mockResolvedValue([claimedRows, 1]),
+      } as unknown as jest.Mocked<EntityManager>;
+
+      await expect(
+        runWithEntityManager(manager, () => repo.claimUnpublished(30, 100, 'lease-1', 120)),
+      ).resolves.toEqual(claimedRows);
     });
 
     it('throws when no transaction is ambient', async () => {
@@ -166,12 +179,16 @@ describe('TypeOrmOutboxRepository', () => {
     });
 
     it('returns 0 when nothing was deleted', async () => {
-      const manager = { query: jest.fn().mockResolvedValue([]) } as unknown as jest.Mocked<EntityManager>;
+      const manager = {
+        query: jest.fn().mockResolvedValue([]),
+      } as unknown as jest.Mocked<EntityManager>;
 
       await expect(repo.deleteOldPublished(14, 100)).rejects.toThrow(
         'Outbox retention GC must run inside ITransactionManager.run()',
       );
-      await expect(runWithEntityManager(manager, () => repo.deleteOldPublished(14, 100))).resolves.toBe(0);
+      await expect(
+        runWithEntityManager(manager, () => repo.deleteOldPublished(14, 100)),
+      ).resolves.toBe(0);
     });
   });
 
