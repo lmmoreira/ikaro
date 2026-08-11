@@ -125,7 +125,7 @@ Register via `useClass` (never `useExisting` — tests need to swap in a fake `I
 
 ---
 
-### M19-S03 — Anthropic + OpenAI adapters
+### M19-S03 — Anthropic + OpenAI adapters ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** S
