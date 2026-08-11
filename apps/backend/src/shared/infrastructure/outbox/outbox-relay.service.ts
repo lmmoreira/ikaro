@@ -5,7 +5,11 @@ import { uuidv7 } from '../../domain/uuid-v7';
 import { AppLogger } from '../../observability/app-logger';
 import { EVENT_BUS, IEventBus } from '../../ports/event-bus.port';
 import { IInboxRepository, INBOX_REPOSITORY } from '../../ports/inbox.port';
-import { IOutboxRepository, OUTBOX_REPOSITORY } from '../../ports/outbox-repository.port';
+import {
+  IOutboxRepository,
+  OUTBOX_REPOSITORY,
+  OutboxClaim,
+} from '../../ports/outbox-repository.port';
 import { ITransactionManager, TRANSACTION_MANAGER } from '../../ports/transaction-manager.port';
 
 // The stored payload is the verbatim envelope JSON.stringify()'d from a real DomainEvent or
@@ -118,29 +122,7 @@ export class OutboxRelayService {
       if (rows.length === 0) break;
 
       for (const row of rows) {
-        const event = asStoredEvent(row.payload);
-        try {
-          await this.eventBus.publish(event);
-          await this.txManager.run(() => this.outboxRepo.markPublished(row.id, row.leaseToken));
-        } catch (err) {
-          failureCount++;
-          // Release promptly so the next tick can retry. If this short DB transaction fails, the
-          // lease expiry is the recovery path and the original publish error is still reported.
-          try {
-            await this.txManager.run(() => this.outboxRepo.releaseClaim(row.id, row.leaseToken));
-          } catch (releaseErr) {
-            this.logger.error(
-              '[outbox] failed to release a relay lease — expiry will recover it',
-              releaseErr instanceof Error ? releaseErr.stack : String(releaseErr),
-              { outboxRowId: row.id, tenantId: event.tenantId, correlationId: event.correlationId },
-            );
-          }
-          this.logger.error(
-            '[outbox] sweep publish failed — row stays unpublished for next tick',
-            err instanceof Error ? err.stack : String(err),
-            { outboxRowId: row.id, tenantId: event.tenantId, correlationId: event.correlationId },
-          );
-        }
+        failureCount += await this.publishClaimedRow(row);
       }
 
       // A full failed batch must not immediately reclaim the same oldest rows and spin forever
@@ -150,6 +132,38 @@ export class OutboxRelayService {
 
     if (failureCount > 0) {
       this.logger.log('[outbox] sweep tick completed with publish failures', { failureCount });
+    }
+  }
+
+  // Returns one when publication failed so sweep() can stop after a full batch with failures.
+  private async publishClaimedRow(row: OutboxClaim): Promise<0 | 1> {
+    const event = asStoredEvent(row.payload);
+    try {
+      await this.eventBus.publish(event);
+      await this.txManager.run(() => this.outboxRepo.markPublished(row.id, row.leaseToken));
+      return 0;
+    } catch (err) {
+      await this.releaseFailedClaim(row, event);
+      this.logger.error(
+        '[outbox] sweep publish failed — row stays unpublished for next tick',
+        err instanceof Error ? err.stack : String(err),
+        { outboxRowId: row.id, tenantId: event.tenantId, correlationId: event.correlationId },
+      );
+      return 1;
+    }
+  }
+
+  private async releaseFailedClaim(row: OutboxClaim, event: Envelope): Promise<void> {
+    // Release promptly so the next tick can retry. If this short DB transaction fails, lease
+    // expiry is the recovery path and the original publish error is still reported.
+    try {
+      await this.txManager.run(() => this.outboxRepo.releaseClaim(row.id, row.leaseToken));
+    } catch (releaseErr) {
+      this.logger.error(
+        '[outbox] failed to release a relay lease — expiry will recover it',
+        releaseErr instanceof Error ? releaseErr.stack : String(releaseErr),
+        { outboxRowId: row.id, tenantId: event.tenantId, correlationId: event.correlationId },
+      );
     }
   }
 
