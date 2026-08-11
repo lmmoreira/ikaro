@@ -160,17 +160,23 @@ Add `chatbot` as a new category to `TenantSettings` VO (`apps/backend/src/contex
 
 Add `chatbot` to the fixed category-key list in both `UpdateTenantSettingsSchema` (backend DTO, `.strict()`) and `UpdateTenantSettingsBodySchema` (BFF, `.strict()`). Within the `chatbot` category, accept **only** `knowledgeText` — a request setting any cap/provider field is rejected `400`, not silently stripped (an explicit, deliberate choice, not left ambiguous).
 
+**3 decisions made during `/story-discovery`, 2026-08-11:**
+1. **Error code renamed** from the originally-drafted `PLATFORM_CHATBOT_KNOWLEDGE_TEXT_TOO_LONG` to `PLATFORM_SETTINGS_CHATBOT_KNOWLEDGE_TEXT_TOO_LONG` — matches the `PLATFORM_SETTINGS_<CATEGORY>_<FIELD>_<REASON>` convention every other `PlatformErrorCode.SETTINGS_*` entry already follows (e.g. `SETTINGS_LOYALTY_EXPIRY_DAYS_INVALID`); the original name was the only one of ~24 settings error codes that dropped `SETTINGS`.
+2. **`knowledgeText` gets no hardcoded length bound at the Zod layer** (BFF `UpdateTenantSettingsBodySchema` and backend `UpdateTenantSettingsSchema` both validate it as a plain `z.string()`). `docs/21-TENANTS_SETTINGS_SCHEMA.md` §7 defines the cap as the *resolved* `maxKnowledgeTextLength` (default 4000, or a tenant's own Ikaro-granted override) — a static Zod `.max(4000)` would silently make any override above 4000 unenforceable, since Zod would reject the request before the domain layer (which knows the real per-tenant value) ever runs. This also follows `docs/ENGINEERING_RULES.md` § "Single source of truth for a validation rule's code": this rule is VO-backed (`ChatbotSettingsValidator`), so Zod must not mint its own bound/code for it. The domain validator alone throws `PLATFORM_SETTINGS_CHATBOT_KNOWLEDGE_TEXT_TOO_LONG`, resolving `props.chatbot?.maxKnowledgeTextLength ?? DEFAULT_MAX_KNOWLEDGE_TEXT_LENGTH` from `chatbot.constants.ts`.
+3. **`packages/types/src/tenant.dto.ts` is in scope for this story** (not originally named in this story's docs-to-load) — its `TenantSettings` and `UpdateTenantSettingsRequest` interfaces need a `chatbot` field for BFF/web type safety on this story's own `GET`/`PATCH` endpoints; without it the backend would return `chatbot` in the JSON body untyped.
+
 **Acceptance Criteria:**
 - [ ] `TenantSettings.default()` writes `chatbot: { knowledgeText: "" }` only — no caps/provider fields
-- [ ] `contexts/platform/chatbot.constants.ts` holds the 8 cap defaults (`maxConversationsPerDay=30`, `maxConversationsPerIpPerDay=5`, `maxConcurrentConversations=5`, `maxMessagesPerConversation=20`, `maxMessageLengthChars=1000`, `maxHistoryMessagesSentToLlm=10`, `maxOutputTokensPerResponse=300`, `maxKnowledgeTextLength=4000`) — consumed by S05/S06
-- [ ] `PATCH /v1/tenants/settings` accepts `settings.chatbot.knowledgeText` (max 4000 chars, `400` if exceeded), rejects any other `chatbot.*` key with `400`
+- [ ] `contexts/platform/chatbot.constants.ts` holds the 8 cap defaults (`maxConversationsPerDay=30`, `maxConversationsPerIpPerDay=5`, `maxConcurrentConversations=5`, `maxMessagesPerConversation=20`, `maxMessageLengthChars=1000`, `maxHistoryMessagesSentToLlm=10`, `maxOutputTokensPerResponse=300`, `maxKnowledgeTextLength=4000`) — consumed by S05/S06 and by this story's own `ChatbotSettingsValidator`
+- [ ] `PATCH /v1/tenants/settings` accepts `settings.chatbot.knowledgeText` as a string with no hardcoded length bound at the Zod layer (BFF + backend) — the resolved `maxKnowledgeTextLength` cap is enforced solely by `ChatbotSettingsValidator` in the domain layer, `400 PLATFORM_SETTINGS_CHATBOT_KNOWLEDGE_TEXT_TOO_LONG` if exceeded; rejects any other `chatbot.*` key with `400` at the Zod `.strict()` layer
 - [ ] `GET /v1/tenants/settings` returns the `chatbot` category for every tenant (empty `knowledgeText` for tenants that never set it)
-- [ ] New error code `PLATFORM_CHATBOT_KNOWLEDGE_TEXT_TOO_LONG` added to `packages/types/src/error-codes.ts` + both `pt-BR`/`en` locale files in the same commit — exhaustiveness test passes
+- [ ] New error code `PLATFORM_SETTINGS_CHATBOT_KNOWLEDGE_TEXT_TOO_LONG` added to `packages/types/src/error-codes.ts` + both `pt-BR`/`en` locale files in the same commit — exhaustiveness test passes
+- [ ] `packages/types/src/tenant.dto.ts`'s `TenantSettings` and `UpdateTenantSettingsRequest` interfaces gain a `chatbot` field (`TenantChatbotSettings { knowledgeText: string }`, and `Partial<TenantChatbotSettings>` on the update request), matching the existing `TenantNotificationSettings` pattern
 - [ ] Unit + integration tests for the VO default/validation and the `PATCH`/`GET` endpoints
 - [ ] Coverage ≥80%; `tsc --noEmit`, lint, tests green
 
 **Dependencies:** None (parallel to S01–S03).
-**New error code:** `PLATFORM_CHATBOT_KNOWLEDGE_TEXT_TOO_LONG` (both locale files).
+**New error code:** `PLATFORM_SETTINGS_CHATBOT_KNOWLEDGE_TEXT_TOO_LONG` (both locale files).
 
 ---
 

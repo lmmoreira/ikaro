@@ -73,6 +73,13 @@ export interface TenantNotificationSettings {
   fromEmail: string | null;
 }
 
+// The only chatbot field exposed through this wire contract — the 8 volume/cost caps and
+// llmProvider/llmModel are Ikaro-only overrides, never accepted or returned via this form
+// (docs/21-TENANTS_SETTINGS_SCHEMA.md §7).
+export interface TenantChatbotSettings {
+  knowledgeText: string;
+}
+
 export interface TenantSettings {
   loyalty: TenantLoyaltySettings;
   booking: TenantBookingSettings;
@@ -80,6 +87,7 @@ export interface TenantSettings {
   localization: TenantLocalizationSettings;
   notification?: TenantNotificationSettings;
   businessInfo?: TenantBusinessInfo;
+  chatbot?: TenantChatbotSettings;
 }
 
 export interface TenantSettingsResponse {
@@ -102,6 +110,7 @@ export interface UpdateTenantSettingsRequest {
       address?: Partial<TenantBusinessInfoAddress> | null;
       socialLinks?: Partial<TenantSocialLinks> | null;
     };
+    chatbot?: Partial<TenantChatbotSettings>;
   };
 }
 

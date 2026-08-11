@@ -5,6 +5,7 @@ import type { BusinessHours } from '../../../../shared/value-objects/business-ho
 import type {
   BusinessInfo,
   BookingSettings,
+  ChatbotSettings,
   LocalizationSettings,
   LoyaltySettings,
   NotificationSettings,
@@ -14,6 +15,7 @@ import type {
 import { BookingSettingsValidator } from './validators/booking-settings.validator';
 import { BusinessHoursValidator } from './validators/business-hours.validator';
 import { BusinessInfoValidator } from './validators/business-info.validator';
+import { ChatbotSettingsValidator } from './validators/chatbot-settings.validator';
 import { LocalizationSettingsValidator } from './validators/localization-settings.validator';
 import { LoyaltySettingsValidator } from './validators/loyalty-settings.validator';
 import { NotificationSettingsValidator } from './validators/notification-settings.validator';
@@ -23,6 +25,7 @@ export type {
   AddressProps,
   BookingSettings,
   BusinessInfo,
+  ChatbotSettings,
   LocalizationSettings,
   LoyaltySettings,
   NotificationSettings,
@@ -83,6 +86,10 @@ export class TenantSettings {
     };
   }
 
+  get chatbot(): ChatbotSettings {
+    return { ...(this.props.chatbot ?? { knowledgeText: '' }) };
+  }
+
   toJSON(): TenantSettingsProps {
     const clone = structuredClone(this.props);
     return {
@@ -141,6 +148,9 @@ export class TenantSettings {
         address: null,
         socialLinks: null,
       },
+      chatbot: {
+        knowledgeText: '',
+      },
     });
   }
 
@@ -175,6 +185,7 @@ export class TenantSettings {
     LocalizationSettingsValidator.validate(props.localization);
     NotificationSettingsValidator.validate(props.notification);
     BusinessInfoValidator.validate(props.businessInfo);
+    ChatbotSettingsValidator.validate(props.chatbot);
   }
 
   private static normalizeBusinessInfo(

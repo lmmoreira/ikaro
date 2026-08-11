@@ -47,6 +47,7 @@ describe('TenantSettingsController (integration)', () => {
     expect(body.name).toBe('Lavacar Settings Test');
     expect(body.settings.loyalty).toBeDefined();
     expect(body.settings.booking).toBeDefined();
+    expect(body.settings.chatbot).toEqual({ knowledgeText: '' });
   });
 
   it('returns 200 on GET when X-Actor-Role is STAFF', async () => {
@@ -355,6 +356,53 @@ describe('TenantSettingsController (integration)', () => {
 
     const row = await ds.getRepository(TenantEntity).findOne({ where: { id: tenantId } });
     expect(row!.settings.notification?.fromEmail).toBe('reservas@lavacar.com.br');
+  });
+
+  it('returns 200 and persists a chatbot.knowledgeText update', async () => {
+    const { body } = await request(app.getHttpServer())
+      .patch('/tenants/settings')
+      .set('X-Tenant-ID', tenantId)
+      .set('X-Actor-Role', 'MANAGER')
+      .send({
+        settings: {
+          chatbot: {
+            knowledgeText:
+              'Trabalhamos apenas com agendamento — não atendemos por ordem de chegada.',
+          },
+        },
+      })
+      .expect(200);
+
+    expect(body.settings.chatbot.knowledgeText).toBe(
+      'Trabalhamos apenas com agendamento — não atendemos por ordem de chegada.',
+    );
+
+    const row = await ds.getRepository(TenantEntity).findOne({ where: { id: tenantId } });
+    expect(row!.settings.chatbot?.knowledgeText).toBe(
+      'Trabalhamos apenas com agendamento — não atendemos por ordem de chegada.',
+    );
+  });
+
+  it('returns 400 for a chatbot.knowledgeText exceeding the default 4000-char limit', async () => {
+    const { body } = await request(app.getHttpServer())
+      .patch('/tenants/settings')
+      .set('X-Tenant-ID', tenantId)
+      .set('X-Actor-Role', 'MANAGER')
+      .send({ settings: { chatbot: { knowledgeText: 'a'.repeat(4001) } } })
+      .expect(400);
+
+    expect(body.status).toBe(400);
+  });
+
+  it('returns 400 for an unrecognized key inside chatbot (e.g. an Ikaro-only cap field)', async () => {
+    const { body } = await request(app.getHttpServer())
+      .patch('/tenants/settings')
+      .set('X-Tenant-ID', tenantId)
+      .set('X-Actor-Role', 'MANAGER')
+      .send({ settings: { chatbot: { maxConversationsPerDay: 100 } } })
+      .expect(400);
+
+    expect(body.status).toBe(400);
   });
 
   it('returns 409 when the tenant is inactive', async () => {

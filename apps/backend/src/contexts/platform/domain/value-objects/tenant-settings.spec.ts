@@ -36,6 +36,7 @@ describe('TenantSettings', () => {
         address: null,
         socialLinks: null,
       });
+      expect(settings.chatbot).toEqual({ knowledgeText: '' });
     });
 
     it('accepts a custom timezone', () => {
@@ -312,6 +313,58 @@ describe('TenantSettings', () => {
     });
   });
 
+  describe('create() — chatbot validation', () => {
+    it('accepts the default empty knowledgeText', () => {
+      const props = new TenantSettingsPropsBuilder().build();
+      expect(() => TenantSettings.create(props)).not.toThrow();
+    });
+
+    it('accepts a knowledgeText within the default 4000-char limit', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withChatbot({ knowledgeText: 'a'.repeat(4000) })
+        .build();
+      expect(() => TenantSettings.create(props)).not.toThrow();
+    });
+
+    it('throws for a knowledgeText exceeding the default 4000-char limit', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withChatbot({ knowledgeText: 'a'.repeat(4001) })
+        .build();
+      expect(() => TenantSettings.create(props)).toThrow(TenantSettingsValidationError);
+    });
+
+    it('accepts a knowledgeText above 4000 chars when a per-tenant maxKnowledgeTextLength override raises the cap', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withChatbot({ knowledgeText: 'a'.repeat(5000), maxKnowledgeTextLength: 6000 })
+        .build();
+      expect(() => TenantSettings.create(props)).not.toThrow();
+    });
+
+    it('exposes knowledgeText via the getter', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withChatbot({ knowledgeText: 'Aceitamos Pix e cartão.' })
+        .build();
+      const settings = TenantSettings.create(props);
+      expect(settings.chatbot.knowledgeText).toBe('Aceitamos Pix e cartão.');
+    });
+
+    it('preserves an Ikaro-granted override (e.g. llmProvider) not touched by this update', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withChatbot({
+          knowledgeText: 'texto',
+          llmProvider: 'anthropic',
+          maxConversationsPerDay: 100,
+        })
+        .build();
+      const settings = TenantSettings.create(props);
+      expect(settings.chatbot).toEqual({
+        knowledgeText: 'texto',
+        llmProvider: 'anthropic',
+        maxConversationsPerDay: 100,
+      });
+    });
+  });
+
   describe('encapsulation — getters return independent copies', () => {
     it('mutating loyalty getter result does not affect internal state', () => {
       const settings = TenantSettings.default();
@@ -325,6 +378,13 @@ describe('TenantSettings', () => {
       const booking = settings.booking;
       booking.cancellationWindowHours = 9999;
       expect(settings.booking.cancellationWindowHours).toBe(48);
+    });
+
+    it('mutating chatbot getter result does not affect internal state', () => {
+      const settings = TenantSettings.default();
+      const chatbot = settings.chatbot;
+      chatbot.knowledgeText = 'mutated';
+      expect(settings.chatbot.knowledgeText).toBe('');
     });
 
     it('mutating businessHours nested day does not affect internal state', () => {
