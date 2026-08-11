@@ -94,8 +94,8 @@ describe('BookingReminderJob (integration, TD24-S03 cron double-send fix)', () =
     // "SKIP LOCKED" test documents why: the sweep scans the whole shared.outbox table with no
     // per-test scoping, and other spec files in this suite deliberately configure
     // OUTBOX_SWEEP_GRACE_SECONDS: 0 — if one of those sweeps claims and publishes this exact row
-    // between insertion and this relay.relay() call, findUnpublishedById() correctly finds
-    // nothing left to do and this test's own eventBus.published would be a false-negative 0,
+    // between insertion and this relay.relay() call, the atomic inline claim correctly returns
+    // no row and this test's own eventBus.published would be a false-negative 0,
     // even though the row genuinely got published — which is the only invariant this assertion
     // needs to prove (exactly-once delivery of the deduplicated row is covered separately by the
     // toHaveLength(1) row-count assertion above plus the SKIP LOCKED dedup test).

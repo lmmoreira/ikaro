@@ -72,19 +72,29 @@ describe('TypeOrmOutboxRepository', () => {
     });
   });
 
-  describe('findUnpublishedById()', () => {
-    it('returns the row when found', async () => {
-      mockRepo.query.mockResolvedValue([{ id: 'row-1', payload: { eventName: 'X' } }]);
+  describe('claimUnpublishedById()', () => {
+    it('requires the ambient transaction and returns its atomic claim', async () => {
+      const manager = {
+        query: jest
+          .fn()
+          .mockResolvedValue([{ id: 'row-1', payload: { eventName: 'X' }, leaseToken: 'lease-1' }]),
+      } as unknown as jest.Mocked<EntityManager>;
 
-      const row = await repo.findUnpublishedById('row-1');
+      const row = await runWithEntityManager(manager, () =>
+        repo.claimUnpublishedById('row-1', 'lease-1', 120),
+      );
 
-      expect(row).toEqual({ id: 'row-1', payload: { eventName: 'X' } });
+      expect(row).toEqual({ id: 'row-1', payload: { eventName: 'X' }, leaseToken: 'lease-1' });
+      expect(manager.query).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE "shared"."outbox"'),
+        ['row-1', 'lease-1', 120],
+      );
     });
 
-    it('returns null when not found (already published or missing)', async () => {
-      mockRepo.query.mockResolvedValue([]);
-
-      expect(await repo.findUnpublishedById('row-1')).toBeNull();
+    it('throws when no transaction is ambient', async () => {
+      await expect(repo.claimUnpublishedById('row-1', 'lease-1', 120)).rejects.toThrow(
+        'Outbox inline claims must run inside ITransactionManager.run()',
+      );
     });
   });
 

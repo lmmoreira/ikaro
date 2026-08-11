@@ -34,7 +34,7 @@ describe('OutboxPublisher', () => {
   beforeEach(() => {
     outboxRepo = {
       insert: jest.fn(),
-      findUnpublishedById: jest.fn(),
+      claimUnpublishedById: jest.fn(),
       markPublished: jest.fn(),
       claimUnpublished: jest.fn(),
       releaseClaim: jest.fn(),

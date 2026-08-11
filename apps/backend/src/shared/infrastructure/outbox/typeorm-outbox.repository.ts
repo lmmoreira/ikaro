@@ -5,7 +5,6 @@ import { Envelope } from '../../domain/envelope';
 import {
   IOutboxRepository,
   OutboxClaim,
-  OutboxRow,
   UnpublishedBacklog,
 } from '../../ports/outbox-repository.port';
 import { getActiveEntityManager } from '../transaction-context';
@@ -24,10 +23,14 @@ const INSERT_SQL = `
   RETURNING "id"
 `;
 
-const SELECT_UNPUBLISHED_BY_ID_SQL = `
-  SELECT "id", "payload" FROM "shared"."outbox"
-  WHERE "id" = $1 AND "published_at" IS NULL
+const CLAIM_UNPUBLISHED_BY_ID_SQL = `
+  UPDATE "shared"."outbox"
+  SET "lease_token" = $2::uuid,
+      "lease_expires_at" = now() + make_interval(secs => $3)
+  WHERE "id" = $1
+    AND "published_at" IS NULL
     AND ("lease_expires_at" IS NULL OR "lease_expires_at" < now())
+  RETURNING "id", "payload", "lease_token" AS "leaseToken"
 `;
 
 const MARK_PUBLISHED_SQL = `UPDATE "shared"."outbox" SET "published_at" = now(), "lease_token" = NULL, "lease_expires_at" = NULL WHERE "id" = $1 AND "published_at" IS NULL AND (($2::uuid IS NULL AND "lease_token" IS NULL) OR "lease_token" = $2::uuid)`;
@@ -104,8 +107,20 @@ export class TypeOrmOutboxRepository implements IOutboxRepository {
     return rows[0]?.id;
   }
 
-  async findUnpublishedById(id: string): Promise<OutboxRow | null> {
-    const rows = (await this.repo.query(SELECT_UNPUBLISHED_BY_ID_SQL, [id])) as OutboxRow[];
+  async claimUnpublishedById(
+    id: string,
+    leaseToken: string,
+    leaseSeconds: number,
+  ): Promise<OutboxClaim | null> {
+    const manager = getActiveEntityManager();
+    if (!manager) {
+      throw new Error('Outbox inline claims must run inside ITransactionManager.run().');
+    }
+    const rows = (await manager.query(CLAIM_UNPUBLISHED_BY_ID_SQL, [
+      id,
+      leaseToken,
+      leaseSeconds,
+    ])) as OutboxClaim[];
     return rows[0] ?? null;
   }
 

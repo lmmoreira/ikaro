@@ -1,6 +1,6 @@
 ---
 name: pre-pr
-description: Run the pre-PR checklist against the current branch. This is the mandatory gate - run it once when the story implementation is complete. If a PR is already open for this branch, this skill exits immediately. Once it opens the PR, dispatches /pr-review to the other tool (Claude <-> Codex) in the background for an independent cross-tool review.
+description: Run the pre-PR checklist against the current branch. This is the mandatory gate - run it once when the story implementation is complete. If a PR is already open for this branch, this skill exits immediately. Once it opens the PR, dispatches Codex /pr-review in the background and verifies it started.
 metadata:
   short-description: Run the mandatory pre-PR checklist
 ---
@@ -210,12 +210,22 @@ Wait for explicit yes before running `gh pr create` (per CLAUDE.md §9 Step 8).
 
 ## Step 5 — Dispatch cross-tool review (mandatory, once the PR exists)
 
-Once `gh pr create` succeeds and you have the PR number, dispatch `/pr-review` to Codex.
-
-Run this in the background — don't block on it; pre-pr's own job is done once the PR is open, and `/pr-review` handles everything else itself (review, verification, report, and posting the comment, per its own mandatory Step 4):
+Once `gh pr create` succeeds and you have the PR number, dispatch `/pr-review` to Codex. Do not merely state that it was dispatched: start the process with a closed stdin, capture its PID and log, then verify it actually started before reporting success. `/pr-review` handles review, verification, and posting its own mandatory PR comment.
 
 ```bash
-codex exec -C "$(pwd)" "Run the pr-review skill (.agents/skills/pr-review/SKILL.md) against GitHub PR #<N> on lmmoreira/ikaro."
+review_log="/tmp/pr-<N>-codex-review.log"
+nohup codex exec -C "$(pwd)" "Run the pr-review skill (.agents/skills/pr-review/SKILL.md) against GitHub PR #<N> on lmmoreira/ikaro." \
+  </dev/null >"$review_log" 2>&1 &
+review_pid=$!
+sleep 2
+
+if kill -0 "$review_pid" 2>/dev/null; then
+  echo "Codex PR review started (PID $review_pid; log: $review_log)"
+else
+  echo "Codex PR review did not stay running; inspect $review_log before reporting dispatch."
+  tail -80 "$review_log"
+  exit 1
+fi
 ```
 
-Tell the user the PR is open and that Codex review has been dispatched in the background — don't wait for it to finish before considering pre-pr complete.
+Tell the user the PR is open and that Codex review was **verified started** (include its PID/log). Do not wait for completion before considering pre-pr complete. If it exits before the two-second verification, report the launch failure; never claim a review was dispatched.

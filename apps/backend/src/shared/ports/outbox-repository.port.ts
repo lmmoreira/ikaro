@@ -21,12 +21,17 @@ export interface UnpublishedBacklog {
 // (shared/infrastructure/outbox/typeorm-outbox.repository.ts). OutboxPublisher and
 // OutboxRelayService depend on this port only; neither knows the outbox is backed by raw SQL.
 export interface IOutboxRepository {
-  // Joins the ambient transaction (getActiveEntityManager()) if one is active, else runs
-  // standalone. Returns the inserted row's id, or undefined on a dedup_key conflict (no-op).
+  // Must run inside ITransactionManager.run(). Returns the inserted row's id, or undefined on a
+  // dedup_key conflict (no-op).
   insert(event: Envelope, dedupKey: string): Promise<string | undefined>;
 
-  // The inline-dispatch path: this process's own just-inserted, still-unpublished row.
-  findUnpublishedById(id: string): Promise<OutboxRow | null>;
+  // Must run inside ITransactionManager.run(). Atomically leases a specific unpublished row for
+  // the inline-dispatch path, preventing a concurrent sweep from publishing it too.
+  claimUnpublishedById(
+    id: string,
+    leaseToken: string,
+    leaseSeconds: number,
+  ): Promise<OutboxClaim | null>;
 
   markPublished(id: string, leaseToken?: string): Promise<void>;
 

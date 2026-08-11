@@ -1,33 +1,39 @@
-import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Linter } from 'eslint';
 
 const backendRoot = resolve(__dirname, '../../..');
-const persistenceRuleConfig: Linter.Config = {
-  files: ['**/*.ts'],
-  rules: {
-    'no-restricted-imports': [
-      'error',
-      {
-        paths: [
-          {
-            name: 'typeorm',
-            importNames: ['EntityManager'],
-            message: 'docs/AGENT_PATTERNS.md Pattern #1',
-          },
-        ],
-      },
-    ],
-  },
-};
+// Load the actual CommonJS flat config rather than duplicating its rules in this spec. ESLint's
+// higher-level config loader uses dynamic import, which Jest's normal unit-test command does not
+// enable; Linter executes the same config array without that test-runtime dependency.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const productionConfig = require(resolve(backendRoot, 'eslint.config.js')) as Linter.Config[];
 
 describe('TD37-S02 persistence boundary', () => {
-  const linter = new Linter({ configType: 'flat' });
+  const eslint = new Linter({ configType: 'flat' });
 
-  it('rejects a persistence API imported by an outbox service', () => {
-    const messages = linter.verify(
-      "import { EntityManager } from 'typeorm';\nexport { EntityManager };\n",
-      persistenceRuleConfig,
+  function lint(source: string, filePath: string) {
+    return eslint.verify(source, productionConfig, filePath);
+  }
+
+  it('rejects configured TypeORM bypass APIs and namespace imports outside adapters', () => {
+    const messages = lint(
+      `
+        import {
+          Connection, DataSource, DeleteQueryBuilder, EntityManager, getConnection,
+          getConnectionManager, getManager, getMongoRepository, getRepository,
+          getTreeRepository, InsertQueryBuilder, MongoRepository, QueryBuilder,
+          QueryRunner, Repository, SelectQueryBuilder, TreeRepository, UpdateQueryBuilder,
+        } from 'typeorm';
+        import * as TypeOrm from 'typeorm';
+        import { getDataSourceToken, InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+        export {
+          Connection, DataSource, DeleteQueryBuilder, EntityManager, getConnection,
+          getConnectionManager, getDataSourceToken, getManager, getMongoRepository,
+          getRepository, getTreeRepository, InjectDataSource, InjectRepository,
+          InsertQueryBuilder, MongoRepository, QueryBuilder, QueryRunner, Repository,
+          SelectQueryBuilder, TreeRepository, TypeOrm, UpdateQueryBuilder,
+        };
+      `,
       'src/shared/infrastructure/outbox/outbox-publisher.ts',
     );
 
@@ -37,33 +43,61 @@ describe('TD37-S02 persistence boundary', () => {
           ruleId: 'no-restricted-imports',
           message: expect.stringContaining('docs/AGENT_PATTERNS.md Pattern #1'),
         }),
+        expect.objectContaining({
+          ruleId: 'no-restricted-syntax',
+          message: expect.stringContaining('docs/AGENT_PATTERNS.md Pattern #1'),
+        }),
       ]),
     );
   });
 
-  it('lists repository adapters and the reviewed availability adapter as narrow exceptions', () => {
-    const config = readFileSync(resolve(backendRoot, 'eslint.config.js'), 'utf8');
-
-    expect(config).toContain("'**/infrastructure/repositories/**'");
-    expect(config).toContain(
-      "'src/contexts/booking/infrastructure/cross-context/typeorm-booking-availability.adapter.ts'",
+  it('permits TypeORM persistence imports in the explicit outbox repository adapter exception', () => {
+    const messages = lint(
+      `
+        import { InjectRepository } from '@nestjs/typeorm';
+        import { EntityManager, Repository } from 'typeorm';
+        export { EntityManager, InjectRepository, Repository };
+      `,
+      'src/shared/infrastructure/outbox/typeorm-outbox.repository.ts',
     );
-    expect(config).not.toContain("'src/shared/infrastructure/**'");
+
+    expect(
+      messages.filter(
+        (message) =>
+          message.ruleId === 'no-restricted-imports' || message.ruleId === 'no-restricted-syntax',
+      ),
+    ).toHaveLength(0);
   });
 
   it('forbids repository ports from opening their own transaction callback', () => {
-    const config = readFileSync(resolve(backendRoot, 'eslint.config.js'), 'utf8');
+    const messages = lint(
+      'export interface IExampleRepository { runInTransaction(): void; }',
+      'src/shared/ports/example-repository.port.ts',
+    );
 
-    expect(config).toContain("TSMethodSignature[key.name.name='runInTransaction']");
-    expect(config).toContain('Repository ports must not own transactions');
+    expect(messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: 'no-restricted-syntax',
+          message: expect.stringContaining('Repository ports must not own transactions'),
+        }),
+      ]),
+    );
   });
 
   it('forbids event-bus publishing inside a shared transaction callback', () => {
-    const config = readFileSync(resolve(backendRoot, 'eslint.config.js'), 'utf8');
-
-    expect(config).toContain(
-      "CallExpression[callee.object.name='txManager'][callee.property.name='run']",
+    const messages = lint(
+      'txManager.run(() => eventBus.publish(event));',
+      'src/shared/infrastructure/outbox/outbox-publisher.ts',
     );
-    expect(config).toContain('Do not call eventBus.publish() inside txManager.run()');
+
+    expect(messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: 'no-restricted-syntax',
+          message: expect.stringContaining('Do not call eventBus.publish() inside txManager.run()'),
+        }),
+      ]),
+    );
   });
 });

@@ -64,19 +64,29 @@ export class OutboxRelayService {
     await this.gc();
   }
 
-  // Inline-dispatch path: the row was just inserted by this same process, no contention — a
-  // plain SELECT + conditional UPDATE is enough. If the sweep already claimed and published this
-  // row concurrently (only possible once the grace window has elapsed), the SELECT finds nothing
-  // and this is a no-op — never a double-publish-then-double-mark.
+  // Inline-dispatch path: atomically lease the just-inserted row before external publication, so
+  // a concurrent sweep cannot claim and publish the same row between a read and its mark.
   private async publishAndMarkOne(id: string): Promise<void> {
-    const row = await this.outboxRepo.findUnpublishedById(id);
+    const leaseToken = uuidv7();
+    const row = await this.txManager.run(() =>
+      this.outboxRepo.claimUnpublishedById(id, leaseToken, this.claimLeaseSeconds),
+    );
     if (!row) return;
 
     const event = asStoredEvent(row.payload);
     try {
       await this.eventBus.publish(event);
-      await this.txManager.run(() => this.outboxRepo.markPublished(id));
+      await this.txManager.run(() => this.outboxRepo.markPublished(id, row.leaseToken));
     } catch (err) {
+      try {
+        await this.txManager.run(() => this.outboxRepo.releaseClaim(id, row.leaseToken));
+      } catch (releaseErr) {
+        this.logger.error(
+          '[outbox] failed to release an inline relay lease — expiry will recover it',
+          releaseErr instanceof Error ? releaseErr.stack : String(releaseErr),
+          { outboxRowId: id, tenantId: event.tenantId, correlationId: event.correlationId },
+        );
+      }
       this.logger.error(
         '[outbox] relay publish failed — row stays unpublished, the sweep will retry',
         err instanceof Error ? err.stack : String(err),
@@ -133,7 +143,9 @@ export class OutboxRelayService {
         }
       }
 
-      more = rows.length === this.sweepBatchSize;
+      // A full failed batch must not immediately reclaim the same oldest rows and spin forever
+      // in one tick. The released lease makes it eligible for the next scheduled tick instead.
+      more = rows.length === this.sweepBatchSize && failureCount === 0;
     }
 
     if (failureCount > 0) {

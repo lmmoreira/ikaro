@@ -125,27 +125,22 @@ module.exports = [
                 'InsertQueryBuilder',
                 'UpdateQueryBuilder',
                 'DeleteQueryBuilder',
+                'TreeRepository',
+                'MongoRepository',
+                'Connection',
+                'getManager',
+                'getConnection',
+                'getConnectionManager',
+                'getRepository',
+                'getTreeRepository',
+                'getMongoRepository',
+                'createConnection',
+                'createConnections',
               ],
               message:
                 'TypeORM persistence APIs belong only in repository adapters or explicitly reviewed database infrastructure (TD37-S02; docs/AGENT_PATTERNS.md Pattern #1).',
             },
           ],
-        },
-      ],
-    },
-  },
-  // TD37-S02: transaction lifetime belongs to the application/service orchestration layer.
-  // Repository ports describe persistence operations only; exposing a transaction callback from
-  // a port lets adapters bypass the shared ALS/after-commit transaction context.
-  {
-    files: ['src/**/ports/**/*repository.port.ts', 'src/shared/ports/*-repository.port.ts'],
-    rules: {
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector: "TSMethodSignature[key.name.name='runInTransaction']",
-          message:
-            'Repository ports must not own transactions. Inject ITransactionManager into the orchestrating service/use case and let the TypeORM adapter join its ambient context (TD37-S02; docs/ENGINEERING_RULES.md Transactions).',
         },
       ],
     },
@@ -164,6 +159,16 @@ module.exports = [
             "CallExpression[callee.object.name='txManager'][callee.property.name='run']:has(CallExpression[callee.property.name='publish'])",
           message:
             'Do not call eventBus.publish() inside txManager.run(). Claim durable work in a short transaction, publish outside it, then mark/release in another short transaction (TD37-S02; docs/ENGINEERING_RULES.md Transactions).',
+        },
+        {
+          selector: "ImportDeclaration[source.value='typeorm'] > ImportNamespaceSpecifier",
+          message:
+            'TypeORM namespace imports hide persistence-bypass APIs. Import only the permitted decorator/type helpers by name, or move persistence access into a repository adapter (TD37-S02; docs/AGENT_PATTERNS.md Pattern #1).',
+        },
+        {
+          selector: "TSMethodSignature[key.name='runInTransaction']",
+          message:
+            'Repository ports must not own transactions. Inject ITransactionManager into the orchestrating service/use case and let the TypeORM adapter join its ambient context (TD37-S02; docs/ENGINEERING_RULES.md Transactions).',
         },
       ],
     },

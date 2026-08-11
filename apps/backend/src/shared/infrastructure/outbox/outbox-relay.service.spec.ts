@@ -16,7 +16,7 @@ describe('OutboxRelayService', () => {
   beforeEach(() => {
     outboxRepo = {
       insert: jest.fn(),
-      findUnpublishedById: jest.fn(),
+      claimUnpublishedById: jest.fn(),
       markPublished: jest.fn(),
       claimUnpublished: jest.fn(),
       releaseClaim: jest.fn(),
@@ -45,27 +45,34 @@ describe('OutboxRelayService', () => {
 
   describe('relay(rowIds) — inline dispatch path', () => {
     it('publishes and marks the given row id', async () => {
-      outboxRepo.findUnpublishedById.mockResolvedValue({
+      outboxRepo.claimUnpublishedById.mockResolvedValue({
         id: 'row-1',
+        leaseToken: 'lease-1',
         payload: { eventName: 'X' },
       });
 
       await createService().relay(['row-1']);
 
       expect(eventBus.publish).toHaveBeenCalledTimes(1);
-      expect(outboxRepo.markPublished).toHaveBeenCalledWith('row-1');
-      expect(txManager.run).toHaveBeenCalledTimes(1);
+      expect(outboxRepo.claimUnpublishedById).toHaveBeenCalledWith(
+        'row-1',
+        expect.any(String),
+        120,
+      );
+      expect(outboxRepo.markPublished).toHaveBeenCalledWith('row-1', 'lease-1');
+      expect(txManager.run).toHaveBeenCalledTimes(2);
     });
 
     it('does nothing for a row that is already published or missing', async () => {
-      outboxRepo.findUnpublishedById.mockResolvedValue(null);
+      outboxRepo.claimUnpublishedById.mockResolvedValue(null);
       await createService().relay(['row-1']);
       expect(eventBus.publish).not.toHaveBeenCalled();
     });
 
     it('swallows a publish failure — relay() never throws', async () => {
-      outboxRepo.findUnpublishedById.mockResolvedValue({
+      outboxRepo.claimUnpublishedById.mockResolvedValue({
         id: 'row-1',
+        leaseToken: 'lease-1',
         payload: { eventName: 'X' },
       });
       eventBus.publish.mockRejectedValue(new Error('pubsub down'));
@@ -74,7 +81,7 @@ describe('OutboxRelayService', () => {
 
     it('is a no-op for an explicitly empty rowIds array — never falls through to sweep+GC', async () => {
       await createService().relay([]);
-      expect(outboxRepo.findUnpublishedById).not.toHaveBeenCalled();
+      expect(outboxRepo.claimUnpublishedById).not.toHaveBeenCalled();
       expect(txManager.run).not.toHaveBeenCalled();
     });
   });
@@ -134,6 +141,18 @@ describe('OutboxRelayService', () => {
       await createService(makeConfigService({ OUTBOX_SWEEP_BATCH_SIZE: 1 })).relay();
 
       expect(outboxRepo.claimUnpublished).toHaveBeenCalledTimes(2);
+    });
+
+    it('stops after a failed full batch so one tick cannot retry forever', async () => {
+      outboxRepo.claimUnpublished.mockResolvedValue([
+        { id: 'row-1', leaseToken: 'lease-1', payload: { eventName: 'X' } },
+      ]);
+      eventBus.publish.mockRejectedValue(new Error('down'));
+
+      await createService(makeConfigService({ OUTBOX_SWEEP_BATCH_SIZE: 1 })).relay();
+
+      expect(outboxRepo.claimUnpublished).toHaveBeenCalledTimes(1);
+      expect(outboxRepo.releaseClaim).toHaveBeenCalledWith('row-1', 'lease-1');
     });
   });
 });
