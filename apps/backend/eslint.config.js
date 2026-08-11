@@ -80,4 +80,58 @@ module.exports = [
       ],
     },
   },
+  // TD37-S02: persistence APIs belong behind repository adapters. Keep this list name-based
+  // rather than banning `typeorm` wholesale: entities, migrations, and module composition still
+  // legitimately import TypeORM decorators and registration helpers.
+  {
+    files: ['src/**/*.ts'],
+    ignores: [
+      '**/infrastructure/repositories/**',
+      '**/infrastructure/entities/**',
+      '**/infrastructure/migrations/**',
+      '**/*.spec.ts',
+      '**/*.integration.spec.ts',
+      '**/*.module.ts',
+      'src/test/**',
+      'src/shared/database/**',
+      'src/shared/infrastructure/transaction-context.ts',
+      'src/shared/infrastructure/run-in-new-transaction.ts',
+      'src/shared/infrastructure/typeorm-transaction-manager.ts',
+      'src/shared/infrastructure/inbox/typeorm-inbox.repository.ts',
+      'src/shared/infrastructure/outbox/typeorm-outbox.repository.ts',
+      // Story 0 registry: legacy adapter scheduled for repository-port follow-up.
+      'src/contexts/booking/infrastructure/cross-context/typeorm-booking-availability.adapter.ts',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@nestjs/typeorm',
+              importNames: ['InjectRepository', 'InjectDataSource', 'getDataSourceToken'],
+              message:
+                'Persistence DI APIs belong only in repository adapters or explicitly reviewed database infrastructure (TD37-S02; docs/AGENT_PATTERNS.md Pattern #1).',
+            },
+            {
+              name: 'typeorm',
+              importNames: [
+                'Repository',
+                'EntityManager',
+                'DataSource',
+                'QueryRunner',
+                'QueryBuilder',
+                'SelectQueryBuilder',
+                'InsertQueryBuilder',
+                'UpdateQueryBuilder',
+                'DeleteQueryBuilder',
+              ],
+              message:
+                'TypeORM persistence APIs belong only in repository adapters or explicitly reviewed database infrastructure (TD37-S02; docs/AGENT_PATTERNS.md Pattern #1).',
+            },
+          ],
+        },
+      ],
+    },
+  },
 ];

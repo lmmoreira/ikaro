@@ -4,6 +4,7 @@ import { EntityManager, Repository } from 'typeorm';
 import { Envelope } from '../../domain/envelope';
 import {
   IOutboxRepository,
+  IOutboxTransaction,
   OutboxRow,
   UnpublishedBacklog,
 } from '../../ports/outbox-repository.port';
@@ -105,12 +106,11 @@ export class TypeOrmOutboxRepository implements IOutboxRepository {
     return rows[0] ?? null;
   }
 
-  async markPublished(id: string, manager?: EntityManager): Promise<void> {
-    const runner = manager ?? this.repo.manager;
-    await runner.query(MARK_PUBLISHED_SQL, [id]);
+  async markPublished(id: string): Promise<void> {
+    await this.repo.manager.query(MARK_PUBLISHED_SQL, [id]);
   }
 
-  async claimUnpublished(
+  private async claimUnpublished(
     manager: EntityManager,
     graceSeconds: number,
     batchSize: number,
@@ -118,8 +118,18 @@ export class TypeOrmOutboxRepository implements IOutboxRepository {
     return (await manager.query(SWEEP_SELECT_SQL, [graceSeconds, batchSize])) as OutboxRow[];
   }
 
-  async runInTransaction<T>(work: (manager: EntityManager) => Promise<T>): Promise<T> {
-    return this.repo.manager.transaction(work);
+  async runInTransaction<T>(work: (transaction: IOutboxTransaction) => Promise<T>): Promise<T> {
+    return this.repo.manager.transaction((manager) =>
+      work({
+        claimUnpublished: (graceSeconds, batchSize) =>
+          this.claimUnpublished(manager, graceSeconds, batchSize),
+        markPublished: (id) => this.markPublishedWithManager(manager, id),
+      }),
+    );
+  }
+
+  private async markPublishedWithManager(manager: EntityManager, id: string): Promise<void> {
+    await manager.query(MARK_PUBLISHED_SQL, [id]);
   }
 
   async countUnpublished(): Promise<UnpublishedBacklog> {

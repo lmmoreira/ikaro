@@ -1,5 +1,4 @@
 import { ConfigService } from '@nestjs/config';
-import { EntityManager } from 'typeorm';
 import { makeConfigService } from '../../../test/infrastructure/fake-config-service';
 import { IEventBus } from '../../ports/event-bus.port';
 import { IInboxRepository } from '../../ports/inbox.port';
@@ -93,16 +92,17 @@ describe('OutboxRelayService', () => {
 
   describe('relay() — sweep + GC path (no rowIds)', () => {
     it('runs the sweep inside a transaction, stops once a batch is empty, then runs retention GC', async () => {
-      const manager = {} as EntityManager;
-      outboxRepo.runInTransaction.mockImplementation((work) => work(manager));
-      outboxRepo.claimUnpublished.mockResolvedValue([]);
+      const transaction = {
+        claimUnpublished: jest.fn().mockResolvedValue([]),
+        markPublished: jest.fn(),
+      };
+      outboxRepo.runInTransaction.mockImplementation((work) => work(transaction));
       const service = new OutboxRelayService(outboxRepo, eventBus, inboxRepo, config);
 
       await service.relay();
 
       expect(outboxRepo.runInTransaction).toHaveBeenCalledTimes(1);
-      expect(outboxRepo.claimUnpublished).toHaveBeenCalledWith(
-        manager,
+      expect(transaction.claimUnpublished).toHaveBeenCalledWith(
         expect.any(Number),
         expect.any(Number),
       );
@@ -118,9 +118,12 @@ describe('OutboxRelayService', () => {
     });
 
     it('loops again when a batch comes back full (more rows may remain)', async () => {
-      const manager = {} as EntityManager;
-      outboxRepo.runInTransaction.mockImplementation((work) => work(manager));
-      outboxRepo.claimUnpublished
+      const transaction = {
+        claimUnpublished: jest.fn(),
+        markPublished: jest.fn(),
+      };
+      outboxRepo.runInTransaction.mockImplementation((work) => work(transaction));
+      transaction.claimUnpublished
         .mockResolvedValueOnce([{ id: 'row-1', payload: { eventName: 'X' } }]) // full "batch" of size 1 == batchSize below
         .mockResolvedValueOnce([]); // second iteration: empty, stop
       const configWithBatchSizeOne = makeConfigService({ OUTBOX_SWEEP_BATCH_SIZE: 1 });
@@ -137,20 +140,22 @@ describe('OutboxRelayService', () => {
     });
 
     it('a per-row publish failure during the sweep does not stop the rest of the batch', async () => {
-      const manager = {} as EntityManager;
-      outboxRepo.runInTransaction.mockImplementation((work) => work(manager));
-      outboxRepo.claimUnpublished.mockResolvedValue([
-        { id: 'row-1', payload: { eventName: 'X' } },
-        { id: 'row-2', payload: { eventName: 'Y' } },
-      ]);
+      const transaction = {
+        claimUnpublished: jest.fn().mockResolvedValue([
+          { id: 'row-1', payload: { eventName: 'X' } },
+          { id: 'row-2', payload: { eventName: 'Y' } },
+        ]),
+        markPublished: jest.fn(),
+      };
+      outboxRepo.runInTransaction.mockImplementation((work) => work(transaction));
       eventBus.publish.mockRejectedValueOnce(new Error('down')).mockResolvedValueOnce(undefined);
       const service = new OutboxRelayService(outboxRepo, eventBus, inboxRepo, config);
 
       await expect(service.relay()).resolves.toBeUndefined();
 
       expect(eventBus.publish).toHaveBeenCalledTimes(2);
-      expect(outboxRepo.markPublished).toHaveBeenCalledTimes(1);
-      expect(outboxRepo.markPublished).toHaveBeenCalledWith('row-2', manager);
+      expect(transaction.markPublished).toHaveBeenCalledTimes(1);
+      expect(transaction.markPublished).toHaveBeenCalledWith('row-2');
     });
   });
 });

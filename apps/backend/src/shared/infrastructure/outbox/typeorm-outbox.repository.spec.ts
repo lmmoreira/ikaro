@@ -89,7 +89,7 @@ describe('TypeOrmOutboxRepository', () => {
   });
 
   describe('markPublished()', () => {
-    it('runs via repo.manager when no explicit manager is passed', async () => {
+    it('runs via repo.manager', async () => {
       await repo.markPublished('row-1');
 
       expect(mockRepo.manager.query).toHaveBeenCalledWith(
@@ -97,42 +97,35 @@ describe('TypeOrmOutboxRepository', () => {
         ['row-1'],
       );
     });
-
-    it('runs via the given manager when one is passed (same transaction as the caller)', async () => {
-      const explicitManager = { query: jest.fn() } as unknown as jest.Mocked<EntityManager>;
-
-      await repo.markPublished('row-1', explicitManager);
-
-      expect(explicitManager.query).toHaveBeenCalledWith(expect.any(String), ['row-1']);
-      expect(mockRepo.manager.query).not.toHaveBeenCalled();
-    });
   });
 
-  describe('claimUnpublished()', () => {
-    it('queries with FOR UPDATE SKIP LOCKED using the given manager', async () => {
+  describe('runInTransaction()', () => {
+    it('binds transactional operations to the manager without exposing it to callers', async () => {
       const manager = {
         query: jest.fn().mockResolvedValue([{ id: 'row-1', payload: { eventName: 'X' } }]),
       } as unknown as jest.Mocked<EntityManager>;
 
-      const rows = await repo.claimUnpublished(manager, 30, 100);
+      (mockRepo.manager.transaction as jest.Mock).mockImplementation((cb) => cb(manager));
+      let transaction!: {
+        claimUnpublished: (graceSeconds: number, batchSize: number) => Promise<unknown>;
+        markPublished: (id: string) => Promise<void>;
+      };
+      await repo.runInTransaction(async (operations) => {
+        transaction = operations;
+        const rows = await operations.claimUnpublished(30, 100);
+        expect(rows).toEqual([{ id: 'row-1', payload: { eventName: 'X' } }]);
+        await operations.markPublished('row-1');
+      });
 
-      expect(rows).toEqual([{ id: 'row-1', payload: { eventName: 'X' } }]);
       expect(manager.query).toHaveBeenCalledWith(
         expect.stringContaining('FOR UPDATE SKIP LOCKED'),
         [30, 100],
       );
-    });
-  });
-
-  describe('runInTransaction()', () => {
-    it('delegates to repo.manager.transaction', async () => {
-      const work = jest.fn().mockResolvedValue('result');
-      (mockRepo.manager.transaction as jest.Mock).mockImplementation((cb) => cb('fake-manager'));
-
-      const result = await repo.runInTransaction(work);
-
-      expect(result).toBe('result');
-      expect(work).toHaveBeenCalledWith('fake-manager');
+      expect(manager.query).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE "shared"."outbox"'),
+        ['row-1'],
+      );
+      expect(transaction).toBeDefined();
     });
   });
 

@@ -1,6 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { EntityManager } from 'typeorm';
 import { Envelope } from '../../domain/envelope';
 import { AppLogger } from '../../observability/app-logger';
 import { EVENT_BUS, IEventBus } from '../../ports/event-bus.port';
@@ -83,15 +82,15 @@ export class OutboxRelayService {
 
     let more = true;
     while (more) {
-      more = await this.outboxRepo.runInTransaction(async (manager: EntityManager) => {
-        const rows = await this.outboxRepo.claimUnpublished(manager, graceSeconds, batchSize);
+      more = await this.outboxRepo.runInTransaction(async (transaction) => {
+        const rows = await transaction.claimUnpublished(graceSeconds, batchSize);
 
         if (rows.length === 0) return false;
 
         for (const row of rows) {
           try {
             await this.eventBus.publish(asStoredEvent(row.payload));
-            await this.outboxRepo.markPublished(row.id, manager);
+            await transaction.markPublished(row.id);
           } catch (err) {
             // Swallowed: this row stays unpublished (published_at still NULL) and is retried
             // next tick. The transaction still commits, releasing the SKIP LOCKED lock on it.
