@@ -236,10 +236,11 @@ resource "google_compute_instance_iam_member" "admin_os_login" {
 }
 
 # Closes the TD32 discovery gap: only the backend runtime SA could read
-# platform-admin-key (foundation/modules/runtime-identities) before this. Grants the relay VM's own
-# service account (not the human, per the 2026-07-24 redesign) — read via
-# a metadata-server-minted access token from inside the VM, no gcloud
-# needed.
+# platform-admin-key before this. Grants the relay VM's own service account (not the human, per
+# the 2026-07-24 redesign) — read via a metadata-server-minted access token from inside the VM, no
+# gcloud needed. Intentional exception to the "foundation/modules/runtime-identities owns all
+# per-SA accessor bindings" rule (see SECRETS.md) — this module is also Foundation-owned but
+# grants its own SA's access directly rather than going through runtime-identities' shared map.
 resource "google_secret_manager_secret_iam_member" "relay_platform_admin_key" {
   count = var.create ? 1 : 0
 

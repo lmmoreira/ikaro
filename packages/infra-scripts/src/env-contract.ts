@@ -13,7 +13,7 @@ interface AppEnvSpec {
    * *_EMULATOR_HOST, GCS_KEY_FILE, SMTP_*), or because the default is
    * already correct for cloud / their absence is a quality issue rather
    * than a startup crash (LOG_LEVEL, FRONTEND_URL, ...). Hand-maintained,
-   * same discipline as modules/iam's secret_accessors comment — keep in
+   * same discipline as foundation/modules/runtime-identities's secret_accessors comment — keep in
    * sync with the app's own env source (env.validation.ts, or
    * public-env.ts for web).
    */

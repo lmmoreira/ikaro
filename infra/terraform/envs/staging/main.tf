@@ -2,11 +2,13 @@
 # stories land (module dependency graph in ../../README.md):
 #
 #   network (M17-S12) → database (M17-S13)
-#   storage (M17-S14), secrets (M17-S16) → iam (M17-S17)
+#   storage (M17-S14), secrets (M17-S16)
 #   → cloudrun-service (M17-S18) → pubsub (M17-S19), migrate-job (M17-S20)
 #   → scheduler (M17-S21), monitoring (M17-S35)
 #
 # registry (M17-S15) and edge (M17-S22) are instantiated in envs/prod only.
+# iam (M17-S17, originally composed here) is Foundation-owned since TD34 —
+# see foundation/envs/<env>/main.tf, not this file.
 
 locals {
   # Fixed, self-chosen OIDC audience for Pub/Sub push -> backend (S19).
@@ -92,9 +94,9 @@ module "storage" {
 
 # Unconditional, same reasoning as storage: empty Secret Manager containers
 # cost effectively nothing. No values, no IAM here — foundation/modules/runtime-identities
-# (Foundation-owned since TD34, applied only via the protected foundation-deploy.yml
-# workflow_dispatch — never automatically on a normal envs/* apply) grants the per-SA
-# accessor bindings once it lands.
+# grants the per-SA accessor bindings (Foundation-owned since TD34, applied only via the
+# protected foundation-deploy.yml workflow_dispatch — never automatically on a normal
+# envs/* apply, so a new secret here needs a separate manual Foundation apply afterward).
 module "secrets" {
   source = "../../modules/secrets"
 

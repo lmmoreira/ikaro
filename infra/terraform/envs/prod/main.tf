@@ -2,11 +2,13 @@
 # stories land (module dependency graph in ../../README.md):
 #
 #   network (M17-S12) → database (M17-S13)
-#   storage (M17-S14), secrets (M17-S16) → iam (M17-S17)
+#   storage (M17-S14), secrets (M17-S16)
 #   → cloudrun-service (M17-S18) → pubsub (M17-S19), migrate-job (M17-S20)
 #   → scheduler (M17-S21), monitoring (M17-S35)
 #
 # registry (M17-S15) and edge (M17-S22) are instantiated in THIS env only (D8/D5).
+# iam (M17-S17, originally composed here) is Foundation-owned since TD34 —
+# see foundation/envs/<env>/main.tf, not this file.
 #
 # Composed but NOT applied yet — prod stays plan-only until the S24 pipeline /
 # S37 go-live (M17-S12 discovery decision).
@@ -108,9 +110,11 @@ module "storage" {
   cors_origins = var.cors_origins
 }
 
-# Unconditional, same reasoning as storage. No values, no IAM here — M17-S17
-# grants the per-SA accessor bindings once it lands. Composed but not applied
-# yet — same plan-only status as the rest of this env root until S24/S37.
+# Unconditional, same reasoning as storage. No values, no IAM here —
+# foundation/modules/runtime-identities grants the per-SA accessor bindings
+# (Foundation-owned since TD34, applied only via the protected foundation-deploy.yml
+# workflow_dispatch — never automatically on a normal envs/* apply, so a new secret
+# here needs a separate manual Foundation apply afterward).
 module "secrets" {
   source = "../../modules/secrets"
 

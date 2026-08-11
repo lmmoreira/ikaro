@@ -11,17 +11,19 @@ infra/terraform/
 │   ├── database/          Cloud SQL PostgreSQL 17, private IP        (M17-S13)
 │   ├── storage/           GCS uploads (private) + hotsite (public)   (M17-S14)
 │   ├── registry/          Artifact Registry — prod project only      (M17-S15)
-│   ├── secrets/           Secret Manager containers + IAM only       (M17-S16)
-│   ├── iam/               runtime service accounts, least privilege  (M17-S17)
+│   ├── secrets/           Secret Manager containers only, no IAM     (M17-S16)
 │   ├── cloudrun-service/  Cloud Run services + otel sidecar          (M17-S18)
 │   ├── pubsub/            topics, push subscriptions, DLQs           (M17-S19)
 │   ├── migrate-job/       TypeORM migration Cloud Run Job            (M17-S20)
 │   ├── scheduler/         Cloud Scheduler cron → Pub/Sub             (M17-S21)
 │   ├── edge/              Global ALB + NEGs + Cloudflare — prod only (M17-S22)
 │   ├── monitoring/        dashboards, alerts, uptime checks          (M17-S35)
-│   └── relay-vm/          on-demand IAP relay VM, count-gated        (TD32)
+│   └── relay-vm/          on-demand IAP relay VM, count-gated        (TD32; Foundation-owned, see below)
 ├── foundation/       # separately protected IAM/API control plane    (TD34)
-│   ├── modules/control-plane/  foundation identities, WIF, state IAM
+│   ├── modules/control-plane/       foundation identities, WIF, state IAM
+│   ├── modules/runtime-identities/  runtime SAs + least-privilege per-SA
+│   │                                 accessor bindings (originally M17-S17's
+│   │                                 modules/iam, moved here under TD34)
 │   └── envs/         # isolated roots: foundation/staging and /prod
 └── envs/             # root modules — one state per env, never shared
     ├── staging/      # backend prefix envs/staging → project ikaro-staging
@@ -41,7 +43,7 @@ infra/terraform/
 network + database + secrets ──► relay-vm ──► cloudrun-service
 network ──► database ─────────────┐
 storage ──────────────────────────┤
-secrets ──► iam ──────────────────┼──► cloudrun-service ──► pubsub ──► scheduler
+secrets ───────────────────────────┼──► cloudrun-service ──► pubsub ──► scheduler
 registry (prod only) ─────────────┘          │
                                              ├──► migrate-job (+ database)
                                              ├──► edge (prod only)
@@ -49,6 +51,8 @@ registry (prod only) ─────────────┘          │
 ```
 
 Instantiation order for a fresh env follows the arrows left to right. `registry` and `edge` exist only in `envs/prod` (D8: single registry serving both envs; D5: staging has no LB). `relay-vm` (TD32) runs inside each environment's VPC but is composed and state-owned exclusively by the matching Foundation root. Its `create_relay_vm` toggle defaults to `false` and is changed only through a reviewed Foundation PR plus protected Foundation apply.
+
+**Not shown above — a separate, cross-root prerequisite, not a Terraform dependency edge:** `cloudrun-service` can only successfully *serve* once `foundation/modules/runtime-identities` has granted its service account access to every `secret_key_ref` it references. That grant lives in a different Terraform root/state (Foundation) and is never applied automatically by this env root's own apply — see `foundation/README.md` and the M19-S02 precedent in `.copilot/context.md`'s "Cross-layer deployment invariants" for what happens when a new secret's env-root wiring and its Foundation-side grant land out of order.
 
 **`modules/scheduler`'s 4 cron jobs are real in both envs (M17-S21) — staging is not a dry run.** Once staging's Cloud Scheduler jobs are active, `ikaro-cron-reminders` genuinely emails whichever test users have bookings in staging's database, on the same `*/30 * * * *` cadence as prod. This is accepted, not a bug to fix — there is no lower-cost way to exercise the full Scheduler → Pub/Sub → push → trigger-handler path pre-production. Keep staging's booking data limited to real test accounts you're fine receiving reminder/expiry emails.
 
