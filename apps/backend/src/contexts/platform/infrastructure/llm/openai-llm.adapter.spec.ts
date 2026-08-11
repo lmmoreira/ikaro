@@ -1,4 +1,5 @@
 import { ConfigService } from '@nestjs/config';
+import { Decimal } from 'decimal.js';
 import { ChatCompletionRequest } from '../../application/ports/llm-provider.port';
 import { OpenAiLlmAdapter } from './openai-llm.adapter';
 
@@ -118,7 +119,20 @@ describe('OpenAiLlmAdapter', () => {
       inputTokens: 281,
       outputTokens: 42,
       modelId: 'gpt-5.6-luna',
+      costUsd: new Decimal(0.0001066),
     });
+  });
+
+  it("computes costUsd from its own pricing constant — never returned by OpenAI's API", async () => {
+    fetchSpy.mockResolvedValue(
+      mockSuccessResponse({ usage: { prompt_tokens: 1_000_000, completion_tokens: 0 } }),
+    );
+    const adapter = new OpenAiLlmAdapter(makeConfigService());
+
+    const result = await adapter.complete(makeRequest());
+
+    // 1M input tokens at $0.20/1M input — the adapter's own OPENAI_PRICING constant.
+    expect(result.costUsd).toEqual(new Decimal(0.2));
   });
 
   it('throws when OpenAI responds with a non-ok status', async () => {

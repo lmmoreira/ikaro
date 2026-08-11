@@ -1,3 +1,5 @@
+import type { Decimal } from 'decimal.js';
+
 // Per-adapter DI tokens — one per concrete provider, all implementing ILlmProvider, so
 // LlmProviderRegistry can hold every built adapter in a Map keyed by provider name
 // (docs/discovery/CHATBOT/CHATBOT.md §4). Each is registered with useClass (never useExisting).
@@ -36,6 +38,12 @@ export interface ChatCompletionResult {
   inputTokens: number;
   outputTokens: number;
   modelId: string;
+  // USD cost of this exact call. OpenRouter's adapter reads this straight from the API response
+  // (usage.cost — confirmed always present); Anthropic's and OpenAI's adapters compute it from
+  // inputTokens/outputTokens against a local per-adapter pricing constant, since neither provider
+  // returns cost in its response. Callers persist this directly rather than reconstructing cost
+  // from stored tokens later — see docs/discovery/CHATBOT/CHATBOT.md §8.9.
+  costUsd: Decimal;
 }
 
 export interface ILlmProvider {

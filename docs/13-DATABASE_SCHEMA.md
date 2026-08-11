@@ -118,6 +118,7 @@ The actual chat log — visitor questions and bot answers, both sides, not just 
 | input_tokens | INTEGER | NOT NULL DEFAULT 0 |
 | output_tokens | INTEGER | NOT NULL DEFAULT 0 |
 | model_id | VARCHAR(100) | NOT NULL — recorded per-message since a tenant can override its LLM provider/model |
+| cost_usd | NUMERIC(12,8) | NOT NULL DEFAULT 0, `CHECK (cost_usd >= 0)` — added by a follow-up migration (`1748400000011`, after `1748400000010` had already shipped to staging). Computed and stored once, at send-time, by the adapter that produced the message: OpenRouter's adapter reads its provider-confirmed `usage.cost`; Anthropic's and OpenAI's adapters compute it from `input_tokens`/`output_tokens` against their own private pricing constant, since neither provider returns cost in its response. Stored directly rather than reconstructed later from tokens, so a mid-day pricing-constant change never retroactively re-prices messages already sent under the old rate. Scale 8 (not `chatbot_provider_balance.remaining_usd`'s 4) — a single message routinely costs a small fraction of a cent |
 | created_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
 | **FK (composite)** | (tenant_id, session_id) → `platform.chatbot_sessions(tenant_id, id)` | Tenant-safe — a message can never reference another tenant's session |
 | **INDEX** | (tenant_id, session_id) | History reassembly for a given session |

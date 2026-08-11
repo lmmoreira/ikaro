@@ -11,21 +11,11 @@ export const DEFAULT_MAX_MESSAGE_LENGTH_CHARS = 1000;
 export const DEFAULT_MAX_HISTORY_MESSAGES_SENT_TO_LLM = 10;
 export const DEFAULT_MAX_OUTPUT_TOKENS_PER_RESPONSE = 300;
 
-// Per-1M-token list pricing for the global daily spend circuit breaker (S05, CHATBOT.md §8.9) —
-// grouped by `model_id`, not by provider, so an Ikaro-granted per-tenant model override still
-// contributes its actual cost to the platform total. Verified against each provider's own pricing
-// page, not training memory: OpenRouter — CHATBOT.md §3 (2026-08-07); Anthropic — the `claude-api`
-// skill's cached model table (2026-06-24); OpenAI — S03 story text (2026-08-11).
-export interface ModelPricing {
-  inputPerMillionTokensUsd: number;
-  outputPerMillionTokensUsd: number;
-}
-
-export const MODEL_PRICING: Readonly<Record<string, ModelPricing>> = {
-  'deepseek/deepseek-v4-flash-0731': {
-    inputPerMillionTokensUsd: 0.09,
-    outputPerMillionTokensUsd: 0.18,
-  },
-  'claude-haiku-4-5': { inputPerMillionTokensUsd: 1.0, outputPerMillionTokensUsd: 5.0 },
-  'gpt-5.6-luna': { inputPerMillionTokensUsd: 0.2, outputPerMillionTokensUsd: 1.2 },
-};
+// No MODEL_PRICING lookup here (removed during M19-S04 story-discovery) — pricing is now each
+// LLM adapter's own responsibility, not a shared cross-provider table: OpenRouter's adapter
+// reads its real cost from the API response (usage.cost — always present, confirmed against
+// OpenRouter's own docs); Anthropic's and OpenAI's adapters, which never receive cost from their
+// APIs, each hold a private per-adapter pricing constant instead
+// (infrastructure/llm/anthropic-llm.adapter.ts, infrastructure/llm/openai-llm.adapter.ts). The
+// platform-wide daily spend circuit breaker (S05) now sums the cost_usd already stored on each
+// chatbot_messages row rather than reconstructing it from tokens at query time.

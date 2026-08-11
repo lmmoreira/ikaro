@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Decimal } from 'decimal.js';
 import { z } from 'zod';
 import {
   ChatCompletionRequest,
@@ -20,6 +21,21 @@ const ANTHROPIC_API_VERSION = '2023-06-01';
 // is not protected against here (plan/M19-HOTSITE-CHATBOT.md M19-S03).
 const DEFAULT_ANTHROPIC_MODEL = 'claude-haiku-4-5';
 const ANTHROPIC_TIMEOUT_MS = 30000;
+
+// Anthropic's Messages API never returns cost in its response (confirmed against the live docs,
+// 2026-08-11 — usage only carries token/cache/thinking counts), unlike OpenRouter's usage.cost.
+// Priced for DEFAULT_ANTHROPIC_MODEL only — same known gap as the model-override comment above:
+// a tenant `llmModel` override to a different Claude tier is not priced correctly here, it's
+// still computed at this rate. Verified against the claude-api skill's cached model table
+// (2026-06-24) — re-verify before trusting this for real billing decisions; prices move fast.
+const ANTHROPIC_PRICING = { inputPerMillionTokensUsd: 1.0, outputPerMillionTokensUsd: 5.0 };
+
+function computeCostUsd(inputTokens: number, outputTokens: number): Decimal {
+  return new Decimal(inputTokens)
+    .times(ANTHROPIC_PRICING.inputPerMillionTokensUsd)
+    .plus(new Decimal(outputTokens).times(ANTHROPIC_PRICING.outputPerMillionTokensUsd))
+    .dividedBy(1_000_000);
+}
 
 // Validated at runtime, not just cast — a 200 response with an empty content array or missing
 // usage (a filtered/refusal response, an upstream schema change) must fail as a controlled
@@ -87,6 +103,7 @@ export class AnthropicLlmAdapter implements ILlmProvider {
       inputTokens: body.usage.input_tokens,
       outputTokens: body.usage.output_tokens,
       modelId: body.model,
+      costUsd: computeCostUsd(body.usage.input_tokens, body.usage.output_tokens),
     };
   }
 }

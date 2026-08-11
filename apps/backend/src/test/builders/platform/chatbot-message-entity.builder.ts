@@ -10,6 +10,7 @@ export class ChatbotMessageEntityBuilder {
   private inputTokens = 12;
   private outputTokens = 0;
   private modelId = 'deepseek/deepseek-v4-flash-0731';
+  private costUsd = '0.00000108';
   private readonly createdAt = new Date('2026-01-01T00:00:00Z');
 
   withId(id: string): this {
@@ -52,6 +53,11 @@ export class ChatbotMessageEntityBuilder {
     return this;
   }
 
+  withCostUsd(costUsd: string): this {
+    this.costUsd = costUsd;
+    return this;
+  }
+
   build(): ChatbotMessageEntity {
     const e = new ChatbotMessageEntity();
     e.id = this.id;
@@ -62,6 +68,7 @@ export class ChatbotMessageEntityBuilder {
     e.inputTokens = this.inputTokens;
     e.outputTokens = this.outputTokens;
     e.modelId = this.modelId;
+    e.costUsd = this.costUsd;
     e.createdAt = this.createdAt;
     return e;
   }

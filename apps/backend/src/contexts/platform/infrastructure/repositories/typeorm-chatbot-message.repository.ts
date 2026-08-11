@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Decimal } from 'decimal.js';
 import { Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { toDate } from '../../../../shared/utils/date';
@@ -39,6 +40,7 @@ export class TypeOrmChatbotMessageRepository implements IChatbotMessageRepositor
       inputTokens: entity.inputTokens,
       outputTokens: entity.outputTokens,
       modelId: entity.modelId,
+      costUsd: new Decimal(entity.costUsd),
       createdAt: toDate(entity.createdAt),
     });
   }
@@ -53,6 +55,7 @@ export class TypeOrmChatbotMessageRepository implements IChatbotMessageRepositor
     entity.inputTokens = message.inputTokens;
     entity.outputTokens = message.outputTokens;
     entity.modelId = message.modelId;
+    entity.costUsd = message.costUsd.toFixed(8);
     entity.createdAt = message.createdAt;
     return entity;
   }

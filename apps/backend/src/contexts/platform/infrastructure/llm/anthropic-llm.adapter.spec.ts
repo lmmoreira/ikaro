@@ -1,4 +1,5 @@
 import { ConfigService } from '@nestjs/config';
+import { Decimal } from 'decimal.js';
 import { ChatCompletionRequest } from '../../application/ports/llm-provider.port';
 import { AnthropicLlmAdapter } from './anthropic-llm.adapter';
 
@@ -147,7 +148,20 @@ describe('AnthropicLlmAdapter', () => {
       inputTokens: 281,
       outputTokens: 42,
       modelId: 'claude-haiku-4-5',
+      costUsd: new Decimal(0.000491),
     });
+  });
+
+  it("computes costUsd from its own pricing constant — never returned by Anthropic's API", async () => {
+    fetchSpy.mockResolvedValue(
+      mockSuccessResponse({ usage: { input_tokens: 1_000_000, output_tokens: 0 } }),
+    );
+    const adapter = new AnthropicLlmAdapter(makeConfigService());
+
+    const result = await adapter.complete(makeRequest());
+
+    // 1M input tokens at $1.00/1M input — the adapter's own ANTHROPIC_PRICING constant.
+    expect(result.costUsd).toEqual(new Decimal(1));
   });
 
   it('throws when Anthropic responds with a non-ok status', async () => {

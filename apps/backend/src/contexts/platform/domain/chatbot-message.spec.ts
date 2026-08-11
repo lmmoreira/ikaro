@@ -1,3 +1,4 @@
+import { Decimal } from 'decimal.js';
 import { ChatbotMessage } from './chatbot-message.aggregate';
 
 const BASE_PROPS = {
@@ -8,6 +9,7 @@ const BASE_PROPS = {
   inputTokens: 12,
   outputTokens: 0,
   modelId: 'deepseek/deepseek-v4-flash-0731',
+  costUsd: new Decimal('0.00000108'),
 };
 
 describe('ChatbotMessage', () => {
@@ -23,6 +25,7 @@ describe('ChatbotMessage', () => {
       expect(message.inputTokens).toBe(BASE_PROPS.inputTokens);
       expect(message.outputTokens).toBe(BASE_PROPS.outputTokens);
       expect(message.modelId).toBe(BASE_PROPS.modelId);
+      expect(message.costUsd).toEqual(BASE_PROPS.costUsd);
       expect(message.createdAt).toBeInstanceOf(Date);
     });
 

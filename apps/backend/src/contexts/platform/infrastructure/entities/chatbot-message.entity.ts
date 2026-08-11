@@ -28,6 +28,11 @@ export class ChatbotMessageEntity {
   @Column({ name: 'model_id', type: 'varchar', length: 100 })
   modelId!: string;
 
+  // NUMERIC column — TypeORM returns these as strings to avoid float precision loss (same
+  // convention as ChatbotProviderBalanceEntity.remainingUsd).
+  @Column({ name: 'cost_usd', type: 'numeric', precision: 12, scale: 8, default: 0 })
+  costUsd!: string;
+
   @Column({ name: 'created_at', type: 'timestamptz', update: false })
   createdAt!: Date;
 }
