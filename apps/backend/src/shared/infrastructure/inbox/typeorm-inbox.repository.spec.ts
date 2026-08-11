@@ -90,12 +90,14 @@ describe('TypeOrmInboxRepository', () => {
 
   describe('deleteOldProcessed()', () => {
     it('runs the batched retention delete and returns the number of rows deleted', async () => {
-      mockRepo.query.mockResolvedValue([{ event_id: 'event-1' }, { event_id: 'event-2' }]);
+      const manager = {
+        query: jest.fn().mockResolvedValue([{ event_id: 'event-1' }, { event_id: 'event-2' }]),
+      } as unknown as jest.Mocked<EntityManager>;
 
-      const deleted = await repo.deleteOldProcessed(14, 100);
+      const deleted = await runWithEntityManager(manager, () => repo.deleteOldProcessed(14, 100));
 
       expect(deleted).toBe(2);
-      const [sql, params] = mockRepo.query.mock.calls[0] as [string, unknown[]];
+      const [sql, params] = manager.query.mock.calls[0] as [string, unknown[]];
       // Asserts the RETURNING clause is actually present — without it, `deleted` above would be
       // wrong in production even though this mock (which returns canned rows regardless of the
       // SQL sent) would still pass.
@@ -105,9 +107,12 @@ describe('TypeOrmInboxRepository', () => {
     });
 
     it('returns 0 when nothing was deleted', async () => {
-      mockRepo.query.mockResolvedValue([]);
+      const manager = { query: jest.fn().mockResolvedValue([]) } as unknown as jest.Mocked<EntityManager>;
 
-      expect(await repo.deleteOldProcessed(14, 100)).toBe(0);
+      await expect(repo.deleteOldProcessed(14, 100)).rejects.toThrow(
+        'Inbox retention GC must run inside ITransactionManager.run()',
+      );
+      await expect(runWithEntityManager(manager, () => repo.deleteOldProcessed(14, 100))).resolves.toBe(0);
     });
   });
 });

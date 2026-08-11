@@ -50,4 +50,18 @@ describe('TD37-S02 persistence boundary', () => {
     );
     expect(config).not.toContain("'src/shared/infrastructure/**'");
   });
+
+  it('forbids repository ports from opening their own transaction callback', () => {
+    const config = readFileSync(resolve(backendRoot, 'eslint.config.js'), 'utf8');
+
+    expect(config).toContain("TSMethodSignature[key.name.name='runInTransaction']");
+    expect(config).toContain('Repository ports must not own transactions');
+  });
+
+  it('forbids event-bus publishing inside a shared transaction callback', () => {
+    const config = readFileSync(resolve(backendRoot, 'eslint.config.js'), 'utf8');
+
+    expect(config).toContain("CallExpression[callee.object.name='txManager'][callee.property.name='run']");
+    expect(config).toContain('Do not call eventBus.publish() inside txManager.run()');
+  });
 });

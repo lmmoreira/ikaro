@@ -74,6 +74,9 @@ Read the changed files once, then run all checks below. Script results from Step
 ### 2. Multi-aggregate writes wrapped in ITransactionManager.run()
 Read each changed use-case file (`*.use-case.ts`). If it calls `save()` on two or more different repositories, verify all saves are inside a `txManager.run(async () => { … })` call.
 
+### 2a. Transaction ownership and external I/O
+For changed repository ports, verify none exposes `runInTransaction(...)` or `EntityManager`. For changed `txManager.run(...)` callbacks, verify they contain only database work: no event-bus publish, HTTP/client call, storage call, or other cross-service network I/O. A durable-work relay must claim/lease in a short transaction, do I/O outside it, then mark or release in a second short transaction.
+
 ### 3. Every new REST endpoint has a .http request block
 For every new `@Get`, `@Post`, `@Put`, `@Patch`, `@Delete` route in changed controller files, verify a corresponding block exists in `apps/backend/http/<context>/<resource>.http` (backend) or `apps/bff/http/<module>/<resource>.http` (BFF), covering the happy path and at least the main error cases.
 
@@ -207,17 +210,12 @@ Wait for explicit yes before running `gh pr create` (per CLAUDE.md §9 Step 8).
 
 ## Step 5 — Dispatch cross-tool review (mandatory, once the PR exists)
 
-Once `gh pr create` succeeds and you have the PR number: self-identify — you already know whether you are Claude or Codex, this is not something to detect — and dispatch `/pr-review` to the *other* tool. A tool should never be the sole reviewer of its own PR.
+Once `gh pr create` succeeds and you have the PR number, dispatch `/pr-review` to Codex.
 
 Run this in the background — don't block on it; pre-pr's own job is done once the PR is open, and `/pr-review` handles everything else itself (review, verification, report, and posting the comment, per its own mandatory Step 4):
 
-- If you are Claude:
-  ```bash
-  codex exec -C "$(pwd)" "Run the pr-review skill (.agents/skills/pr-review/SKILL.md) against GitHub PR #<N> on lmmoreira/ikaro."
-  ```
-- If you are Codex:
-  ```bash
-  claude -p "Run the pr-review skill (.claude/commands/pr-review.md) against GitHub PR #<N> on lmmoreira/ikaro."
-  ```
+```bash
+codex exec -C "$(pwd)" "Run the pr-review skill (.agents/skills/pr-review/SKILL.md) against GitHub PR #<N> on lmmoreira/ikaro."
+```
 
-Tell the user the PR is open and that cross-tool review has been dispatched in the background — don't wait for it to finish before considering pre-pr complete.
+Tell the user the PR is open and that Codex review has been dispatched in the background — don't wait for it to finish before considering pre-pr complete.

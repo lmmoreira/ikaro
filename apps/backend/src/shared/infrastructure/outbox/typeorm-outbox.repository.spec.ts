@@ -94,49 +94,69 @@ describe('TypeOrmOutboxRepository', () => {
 
       expect(mockRepo.manager.query).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE "shared"."outbox"'),
-        ['row-1'],
+        ['row-1', null],
+      );
+    });
+
+    it('joins the ambient transaction and conditionally marks its lease', async () => {
+      const manager = { query: jest.fn() } as unknown as jest.Mocked<EntityManager>;
+
+      await runWithEntityManager(manager, () => repo.markPublished('row-1', 'lease-1'));
+
+      expect(manager.query).toHaveBeenCalledWith(
+        expect.stringContaining('"lease_token" = $2::uuid'),
+        ['row-1', 'lease-1'],
       );
     });
   });
 
-  describe('runInTransaction()', () => {
-    it('binds transactional operations to the manager without exposing it to callers', async () => {
+  describe('claimUnpublished()', () => {
+    it('requires and joins the ambient transaction manager', async () => {
       const manager = {
-        query: jest.fn().mockResolvedValue([{ id: 'row-1', payload: { eventName: 'X' } }]),
+        query: jest.fn().mockResolvedValue([{ id: 'row-1', payload: { eventName: 'X' }, leaseToken: 'lease-1' }]),
       } as unknown as jest.Mocked<EntityManager>;
 
-      (mockRepo.manager.transaction as jest.Mock).mockImplementation((cb) => cb(manager));
-      let transaction!: {
-        claimUnpublished: (graceSeconds: number, batchSize: number) => Promise<unknown>;
-        markPublished: (id: string) => Promise<void>;
-      };
-      await repo.runInTransaction(async (operations) => {
-        transaction = operations;
-        const rows = await operations.claimUnpublished(30, 100);
-        expect(rows).toEqual([{ id: 'row-1', payload: { eventName: 'X' } }]);
-        await operations.markPublished('row-1');
-      });
+      const rows = await runWithEntityManager(manager, () =>
+        repo.claimUnpublished(30, 100, 'lease-1', 120),
+      );
 
+      expect(rows).toEqual([{ id: 'row-1', payload: { eventName: 'X' }, leaseToken: 'lease-1' }]);
       expect(manager.query).toHaveBeenCalledWith(
         expect.stringContaining('FOR UPDATE SKIP LOCKED'),
-        [30, 100],
+        [30, 100, 'lease-1', 120],
       );
+    });
+
+    it('throws when no transaction is ambient', async () => {
+      await expect(repo.claimUnpublished(30, 100, 'lease-1', 120)).rejects.toThrow(
+        'Outbox claims must run inside ITransactionManager.run()',
+      );
+    });
+  });
+
+  describe('releaseClaim()', () => {
+    it('joins the ambient transaction and clears only its lease', async () => {
+      const manager = { query: jest.fn() } as unknown as jest.Mocked<EntityManager>;
+
+      await runWithEntityManager(manager, () => repo.releaseClaim('row-1', 'lease-1'));
+
       expect(manager.query).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE "shared"."outbox"'),
-        ['row-1'],
+        expect.stringContaining('"lease_token" = $2::uuid'),
+        ['row-1', 'lease-1'],
       );
-      expect(transaction).toBeDefined();
     });
   });
 
   describe('deleteOldPublished()', () => {
     it('runs the batched retention delete and returns the number of rows deleted', async () => {
-      mockRepo.query.mockResolvedValue([{ id: 'row-1' }, { id: 'row-2' }]);
+      const manager = {
+        query: jest.fn().mockResolvedValue([{ id: 'row-1' }, { id: 'row-2' }]),
+      } as unknown as jest.Mocked<EntityManager>;
 
-      const deleted = await repo.deleteOldPublished(14, 100);
+      const deleted = await runWithEntityManager(manager, () => repo.deleteOldPublished(14, 100));
 
       expect(deleted).toBe(2);
-      const [sql, params] = mockRepo.query.mock.calls[0] as [string, unknown[]];
+      const [sql, params] = manager.query.mock.calls[0] as [string, unknown[]];
       // Asserts the RETURNING clause is actually present — without it, `deleted` above would be
       // wrong in production even though this mock (which returns canned rows regardless of the
       // SQL sent) would still pass.
@@ -146,9 +166,12 @@ describe('TypeOrmOutboxRepository', () => {
     });
 
     it('returns 0 when nothing was deleted', async () => {
-      mockRepo.query.mockResolvedValue([]);
+      const manager = { query: jest.fn().mockResolvedValue([]) } as unknown as jest.Mocked<EntityManager>;
 
-      expect(await repo.deleteOldPublished(14, 100)).toBe(0);
+      await expect(repo.deleteOldPublished(14, 100)).rejects.toThrow(
+        'Outbox retention GC must run inside ITransactionManager.run()',
+      );
+      await expect(runWithEntityManager(manager, () => repo.deleteOldPublished(14, 100))).resolves.toBe(0);
     });
   });
 

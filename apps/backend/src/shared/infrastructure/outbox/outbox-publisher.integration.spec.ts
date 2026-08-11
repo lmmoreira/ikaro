@@ -95,6 +95,7 @@ describe('OutboxPublisher (integration)', () => {
       eventBus,
       new InMemoryInboxRepository(),
       config,
+      txManager,
     );
     return new OutboxPublisher(typeOrmOutboxRepo, relay, config);
   }
@@ -221,6 +222,7 @@ describe('OutboxPublisher (integration)', () => {
       eventBus,
       new InMemoryInboxRepository(),
       config,
+      txManager,
     );
     const publisher = new OutboxPublisher(typeOrmOutboxRepo, relay, config, tracingPort);
     const tenantId = uuidv7();

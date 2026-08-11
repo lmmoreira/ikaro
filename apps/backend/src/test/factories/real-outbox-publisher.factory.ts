@@ -6,6 +6,7 @@ import { OutboxPublisher } from '../../shared/infrastructure/outbox/outbox-publi
 import { OutboxRelayService } from '../../shared/infrastructure/outbox/outbox-relay.service';
 import { makeConfigService } from '../infrastructure/fake-config-service';
 import { InMemoryInboxRepository } from '../infrastructure/in-memory-inbox.repository';
+import { InMemoryTransactionManager } from '../infrastructure/in-memory-transaction-manager';
 
 // Shared factory for the 3 cron-job integration specs (TD24-S03, bad-smell-audit BE-3) that each
 // independently hand-rolled a real OutboxPublisher wired to a real IOutboxRepository — inline
@@ -21,6 +22,12 @@ export function makeRealOutboxPublisher(
   inboxRepo: IInboxRepository = new InMemoryInboxRepository(),
 ): IOutboxPublisher {
   const config = makeConfigService({ OUTBOX_INLINE_DISPATCH_ENABLED: inlineDispatchEnabled });
-  const relay = new OutboxRelayService(outboxRepo, eventBus, inboxRepo, config);
+  const relay = new OutboxRelayService(
+    outboxRepo,
+    eventBus,
+    inboxRepo,
+    config,
+    new InMemoryTransactionManager(),
+  );
   return new OutboxPublisher(outboxRepo, relay, config);
 }

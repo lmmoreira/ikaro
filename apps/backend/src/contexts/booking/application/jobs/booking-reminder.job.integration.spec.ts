@@ -86,6 +86,7 @@ describe('BookingReminderJob (integration, TD24-S03 cron double-send fix)', () =
       eventBus,
       new InMemoryInboxRepository(),
       makeConfigService(),
+      txManager,
     );
     await relay.relay([rows[0].id]);
 

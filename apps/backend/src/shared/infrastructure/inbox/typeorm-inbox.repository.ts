@@ -63,7 +63,9 @@ export class TypeOrmInboxRepository implements IInboxRepository {
   }
 
   async deleteOldProcessed(retentionDays: number, batchSize: number): Promise<number> {
-    const rows = (await this.repo.query(GC_SQL, [retentionDays, batchSize])) as unknown[];
+    const manager = getActiveEntityManager();
+    if (!manager) throw new Error('Inbox retention GC must run inside ITransactionManager.run().');
+    const rows = (await manager.query(GC_SQL, [retentionDays, batchSize])) as unknown[];
     return rows.length;
   }
 }

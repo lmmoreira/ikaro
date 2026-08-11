@@ -7,15 +7,14 @@ export interface OutboxRow {
   payload: Record<string, unknown>;
 }
 
+export interface OutboxClaim extends OutboxRow {
+  leaseToken: string;
+}
+
 export interface UnpublishedBacklog {
   count: number;
   // Age of the oldest unpublished row, in seconds. null when count is 0 (nothing to measure).
   oldestAgeSeconds: number | null;
-}
-
-export interface IOutboxTransaction {
-  claimUnpublished(graceSeconds: number, batchSize: number): Promise<OutboxRow[]>;
-  markPublished(id: string): Promise<void>;
 }
 
 // Persistence port for shared.outbox — all SQL lives behind the TypeORM implementation
@@ -29,15 +28,20 @@ export interface IOutboxRepository {
   // The inline-dispatch path: this process's own just-inserted, still-unpublished row.
   findUnpublishedById(id: string): Promise<OutboxRow | null>;
 
-  markPublished(id: string): Promise<void>;
+  markPublished(id: string, leaseToken?: string): Promise<void>;
 
-  // The callback receives repository operations bound to one database transaction. The port
-  // deliberately does not expose the ORM's transaction-manager type to its callers.
-  runInTransaction<T>(work: (transaction: IOutboxTransaction) => Promise<T>): Promise<T>;
+  // Must run inside ITransactionManager.run(). The TypeORM adapter joins the ambient context.
+  claimUnpublished(
+    graceSeconds: number,
+    batchSize: number,
+    leaseToken: string,
+    leaseSeconds: number,
+  ): Promise<OutboxClaim[]>;
+  releaseClaim(id: string, leaseToken: string): Promise<void>;
 
   // The queue-lag signal (TD24-S05): how many rows are waiting, and how stale the oldest one is.
   countUnpublished(): Promise<UnpublishedBacklog>;
 
-  // Returns the number of rows actually deleted, for the GC observability log (TD24-S05).
+  // Must run inside ITransactionManager.run(). Returns the number actually deleted for GC logs.
   deleteOldPublished(retentionDays: number, batchSize: number): Promise<number>;
 }

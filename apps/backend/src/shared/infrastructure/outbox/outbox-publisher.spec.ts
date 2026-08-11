@@ -37,7 +37,7 @@ describe('OutboxPublisher', () => {
       findUnpublishedById: jest.fn(),
       markPublished: jest.fn(),
       claimUnpublished: jest.fn(),
-      runInTransaction: jest.fn(),
+      releaseClaim: jest.fn(),
       deleteOldPublished: jest.fn(),
     } as unknown as jest.Mocked<IOutboxRepository>;
     relay = {

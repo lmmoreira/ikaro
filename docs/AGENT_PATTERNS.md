@@ -25,6 +25,8 @@ export interface IXxxRepository {
 
 **Applies to `shared/infrastructure/` cross-cutting classes too, not just bounded-context aggregates.** Any class outside a `typeorm-xxx.repository.ts` file that touches `@InjectRepository`, `Repository<T>.query()`, raw SQL, or `EntityManager` directly has the same problem a context's use case would have — extract the port to `shared/ports/xxx-repository.port.ts` and the adapter to `shared/infrastructure/<feature>/typeorm-xxx.repository.ts`. Worked example: `shared/infrastructure/outbox/typeorm-outbox.repository.ts` — `OutboxPublisher`/`OutboxRelayService` originally embedded every `INSERT`/`SELECT ... FOR UPDATE SKIP LOCKED`/`UPDATE`/`DELETE` statement directly before this split (TD24 D13; see `docs/ANTI_PATTERNS.md`).
 
+**Transaction boundary:** a repository port describes reads/writes only. Do not add `runInTransaction(...)` to it and do not pass `EntityManager` through it. The use case/service injects `ITransactionManager` and owns the short transaction; the TypeORM repository adapter joins the ambient manager with `getActiveEntityManager()`. If the flow includes external I/O, claim durable work in one short transaction, perform I/O outside it, then mark/release in another short transaction.
+
 **Checklist before writing a new class in `shared/infrastructure/` (or any infrastructure folder):**
 1. Does it touch a database or raw SQL directly? → extract a repository port first (above), even if there's only one call site today.
 2. Does it implement more than one interface/port? → confirm each interface's methods are actually invoked through the token *this* class will occupy — not merely carried along by DI alias chaining (`docs/ANTI_PATTERNS.md`'s ISP-via-alias-chaining row).

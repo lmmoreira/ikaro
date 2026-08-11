@@ -26,6 +26,7 @@ import { IEventBus } from '../../ports/event-bus.port';
 import { GcpPubSubEventBusAdapter } from '../event-bus/gcp-pubsub-event-bus.adapter';
 import { InboxRecordEntity } from '../inbox/inbox-record.entity';
 import { TypeOrmInboxRepository } from '../inbox/typeorm-inbox.repository';
+import { TypeOrmTransactionManager } from '../typeorm-transaction-manager';
 import { OutboxEventEntity } from './outbox-event.entity';
 import { OutboxRelayService } from './outbox-relay.service';
 import { TypeOrmOutboxRepository } from './typeorm-outbox.repository';
@@ -36,6 +37,7 @@ describe('OutboxRelayService (integration)', () => {
   let inboxRepo: Repository<InboxRecordEntity>;
   let typeOrmOutboxRepo: TypeOrmOutboxRepository;
   let typeOrmInboxRepo: TypeOrmInboxRepository;
+  let txManager: TypeOrmTransactionManager;
 
   beforeAll(async () => {
     ds = await createTestDataSource();
@@ -43,6 +45,7 @@ describe('OutboxRelayService (integration)', () => {
     inboxRepo = ds.getRepository(InboxRecordEntity);
     typeOrmOutboxRepo = new TypeOrmOutboxRepository(outboxRepo);
     typeOrmInboxRepo = new TypeOrmInboxRepository(inboxRepo);
+    txManager = new TypeOrmTransactionManager(ds);
   });
 
   afterAll(async () => {
@@ -59,6 +62,7 @@ describe('OutboxRelayService (integration)', () => {
         eventBus,
         typeOrmInboxRepo,
         makeConfigService(),
+        txManager,
       );
       const row = new OutboxEventEntityBuilder().withPayload({ eventName: 'StubEvent' }).build();
       await outboxRepo.save(row);
@@ -78,6 +82,7 @@ describe('OutboxRelayService (integration)', () => {
         eventBus,
         typeOrmInboxRepo,
         makeConfigService(),
+        txManager,
       );
       const row = new OutboxEventEntityBuilder().withPayload({ eventName: 'StubEvent' }).build();
       await outboxRepo.save(row);
@@ -121,6 +126,7 @@ describe('OutboxRelayService (integration)', () => {
         eventBus,
         typeOrmInboxRepo,
         makeConfigService({ OUTBOX_SWEEP_GRACE_SECONDS: 300 }),
+        txManager,
       );
       await service.relay();
 
@@ -149,6 +155,7 @@ describe('OutboxRelayService (integration)', () => {
         eventBus,
         typeOrmInboxRepo,
         makeConfigService({ OUTBOX_SWEEP_GRACE_SECONDS: 0, OUTBOX_SWEEP_BATCH_SIZE: 2 }),
+        txManager,
       );
       await service.relay();
 
@@ -162,7 +169,7 @@ describe('OutboxRelayService (integration)', () => {
       }
     });
 
-    it('SKIP LOCKED: two concurrent sweeps on the same rows publish each row exactly once', async () => {
+    it('lease claim: two concurrent sweeps on the same rows publish each row exactly once', async () => {
       const publishedDedupKeys: string[] = [];
       const eventBus = {
         publish: jest.fn().mockImplementation(async (event: { dedupKeyMarker?: string }) => {
@@ -185,6 +192,7 @@ describe('OutboxRelayService (integration)', () => {
         eventBus,
         typeOrmInboxRepo,
         makeConfigService({ OUTBOX_SWEEP_GRACE_SECONDS: 0, OUTBOX_SWEEP_BATCH_SIZE: 10 }),
+        txManager,
       );
 
       await Promise.all([service.relay(), service.relay()]);
@@ -229,6 +237,7 @@ describe('OutboxRelayService (integration)', () => {
         eventBus,
         typeOrmInboxRepo,
         makeConfigService({ OUTBOX_RETENTION_DAYS: 14, OUTBOX_SWEEP_GRACE_SECONDS: 999_999 }),
+        txManager,
       );
       await service.relay();
 
@@ -260,6 +269,7 @@ describe('OutboxRelayService (integration)', () => {
         eventBus,
         typeOrmInboxRepo,
         makeConfigService({ INBOX_RETENTION_DAYS: 14, OUTBOX_SWEEP_GRACE_SECONDS: 999_999 }),
+        txManager,
       );
       await service.relay();
 
@@ -314,6 +324,7 @@ describe('OutboxRelayService (integration)', () => {
         realAdapter,
         typeOrmInboxRepo,
         makeConfigService(),
+        txManager,
       );
       await service.relay([row.id]);
 

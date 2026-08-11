@@ -104,6 +104,8 @@ Every `save()` in every use case must be wrapped in `ITransactionManager.run()` 
 
 **Repository transaction-awareness:** write methods check `getActiveEntityManager()` — use active `EntityManager` if present, else fall back to `this.repo`. Read methods do not need this.
 
+**Transaction ownership:** `ITransactionManager.run()` is the only application-facing transaction boundary. Repository ports expose persistence operations, never `runInTransaction(...)` callbacks or `EntityManager`; their TypeORM adapters simply join the ambient context. When a durable DB row must drive external I/O (for example the outbox relay), use short transactions to claim/lease and then mark or release the row, with the network call between those transactions. Never keep locks or a database connection open while publishing, calling HTTP, or doing any other cross-service I/O. ESLint enforces the repository-port half of this rule in CI (`no-restricted-syntax`).
+
 | Artifact | Location |
 |---|---|
 | Port | `src/shared/ports/transaction-manager.port.ts` |

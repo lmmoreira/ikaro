@@ -134,4 +134,38 @@ module.exports = [
       ],
     },
   },
+  // TD37-S02: transaction lifetime belongs to the application/service orchestration layer.
+  // Repository ports describe persistence operations only; exposing a transaction callback from
+  // a port lets adapters bypass the shared ALS/after-commit transaction context.
+  {
+    files: ['src/**/ports/**/*repository.port.ts', 'src/shared/ports/*-repository.port.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "TSMethodSignature[key.name.name='runInTransaction']",
+          message:
+            'Repository ports must not own transactions. Inject ITransactionManager into the orchestrating service/use case and let the TypeORM adapter join its ambient context (TD37-S02; docs/ENGINEERING_RULES.md Transactions).',
+        },
+      ],
+    },
+  },
+  // TD37-S02: publishing to the event transport is network I/O, so it must never run while the
+  // shared transaction manager holds a database connection/lock. This intentionally targets the
+  // concrete event-bus call rather than guessing at every possible network client API.
+  {
+    files: ['src/**/*.ts'],
+    ignores: ['**/*.spec.ts', '**/*.integration.spec.ts', 'src/test/**'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "CallExpression[callee.object.name='txManager'][callee.property.name='run']:has(CallExpression[callee.property.name='publish'])",
+          message:
+            'Do not call eventBus.publish() inside txManager.run(). Claim durable work in a short transaction, publish outside it, then mark/release in another short transaction (TD37-S02; docs/ENGINEERING_RULES.md Transactions).',
+        },
+      ],
+    },
+  },
 ];
