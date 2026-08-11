@@ -9,7 +9,7 @@ output "public_bucket_name" {
 }
 
 output "public_bucket_self_link" {
-  description = "Self-link of the public bucket — for the M17-S17 IAM module and the M17-S44 load-balancer backend-bucket wiring"
+  description = "Self-link of the public bucket — for foundation/modules/runtime-identities (originally M17-S17's modules/iam) and the M17-S44 load-balancer backend-bucket wiring"
   value       = google_storage_bucket.public.self_link
 }
 
@@ -19,6 +19,6 @@ output "uploads_bucket_name" {
 }
 
 output "uploads_bucket_self_link" {
-  description = "Self-link of the uploads bucket — for the M17-S17 IAM module"
+  description = "Self-link of the uploads bucket — for foundation/modules/runtime-identities (originally M17-S17's modules/iam)"
   value       = google_storage_bucket.uploads.self_link
 }

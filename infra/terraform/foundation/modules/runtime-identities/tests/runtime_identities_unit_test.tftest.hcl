@@ -16,6 +16,9 @@ variables {
     "jwt-secret"                 = "projects/ikaro-staging/secrets/jwt-secret"
     "platform-admin-key"         = "projects/ikaro-staging/secrets/platform-admin-key"
     "web-internal-key"           = "projects/ikaro-staging/secrets/web-internal-key"
+    "openrouter-api-key"         = "projects/ikaro-staging/secrets/openrouter-api-key"
+    "anthropic-api-key"          = "projects/ikaro-staging/secrets/anthropic-api-key"
+    "openai-api-key"             = "projects/ikaro-staging/secrets/openai-api-key"
   }
 }
 
@@ -28,8 +31,13 @@ run "runtime_identities_are_least_privilege_and_complete" {
   }
 
   assert {
-    condition     = length(google_project_iam_member.runtime) == 6 && length(google_storage_bucket_iam_member.backend_object_admin) == 2 && length(google_secret_manager_secret_iam_member.accessor) == 15
-    error_message = "Foundation must retain the reviewed project, bucket, and secret IAM bindings."
+    condition = length(google_project_iam_member.runtime) == 6 && length(google_storage_bucket_iam_member.backend_object_admin) == 2 && sort(keys(google_secret_manager_secret_iam_member.accessor)) == sort([
+      "backend-db-password", "backend-jwt-secret", "backend-internal-api-key", "backend-platform-admin-key", "backend-hotsite-revalidate-secret", "backend-brevo-smtp-key", "backend-openrouter-api-key", "backend-anthropic-api-key", "backend-openai-api-key",
+      "bff-jwt-secret", "bff-internal-api-key", "bff-google-oauth-client-id", "bff-google-oauth-client-secret", "bff-web-internal-key",
+      "web-jwt-secret", "web-hotsite-revalidate-secret", "web-web-internal-key",
+      "migrate-db-migrator-password",
+    ])
+    error_message = "Foundation must grant exactly this set of per-SA secret accessor bindings — not just the right count."
   }
 
   assert {

@@ -1,8 +1,11 @@
 # modules/secrets — Secret Manager containers only. No values, no IAM
-# (M17-S17's `modules/iam` owns the per-SA accessor bindings, looping over
-# the consumer map documented in plan/M17-CLOUD-DEPLOY.md's M17-S16 table
-# and in SECRETS.md). Values are populated out-of-band by the S27/S37
-# activation runbooks — never via Terraform (M17 §2).
+# (`foundation/modules/runtime-identities` owns most per-SA accessor bindings — originally
+# M17-S17's `modules/iam`, moved under TD34's Foundation boundary and never reachable from a
+# normal envs/* apply since — looping over the consumer map documented in
+# plan/M17-CLOUD-DEPLOY.md's M17-S16 table and in SECRETS.md; the on-demand relay VM's own
+# accessor grants are a documented exception living in modules/relay-vm/main.tf instead, see
+# SECRETS.md). Values are populated out-of-band by the S27/S37 activation runbooks — never via
+# Terraform (M17 §2).
 
 locals {
   # Always-provisioned secrets (both envs) — catalog derived from the live
