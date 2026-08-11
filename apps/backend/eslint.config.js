@@ -80,4 +80,97 @@ module.exports = [
       ],
     },
   },
+  // TD37-S02: persistence APIs belong behind repository adapters. Keep this list name-based
+  // rather than banning `typeorm` wholesale: entities, migrations, and module composition still
+  // legitimately import TypeORM decorators and registration helpers.
+  {
+    files: ['src/**/*.ts'],
+    ignores: [
+      '**/infrastructure/repositories/**',
+      '**/infrastructure/entities/**',
+      '**/infrastructure/migrations/**',
+      '**/*.spec.ts',
+      '**/*.integration.spec.ts',
+      '**/*.module.ts',
+      'src/test/**',
+      'src/shared/database/**',
+      'src/shared/infrastructure/transaction-context.ts',
+      'src/shared/infrastructure/run-in-new-transaction.ts',
+      'src/shared/infrastructure/typeorm-transaction-manager.ts',
+      'src/shared/infrastructure/inbox/typeorm-inbox.repository.ts',
+      'src/shared/infrastructure/outbox/typeorm-outbox.repository.ts',
+      // Story 0 registry: legacy adapter scheduled for repository-port follow-up.
+      'src/contexts/booking/infrastructure/cross-context/typeorm-booking-availability.adapter.ts',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@nestjs/typeorm',
+              importNames: ['InjectRepository', 'InjectDataSource', 'getDataSourceToken'],
+              message:
+                'Persistence DI APIs belong only in repository adapters or explicitly reviewed database infrastructure (TD37-S02; docs/AGENT_PATTERNS.md Pattern #1).',
+            },
+            {
+              name: 'typeorm',
+              importNames: [
+                'Repository',
+                'EntityManager',
+                'DataSource',
+                'QueryRunner',
+                'QueryBuilder',
+                'SelectQueryBuilder',
+                'InsertQueryBuilder',
+                'UpdateQueryBuilder',
+                'DeleteQueryBuilder',
+                'TreeRepository',
+                'MongoRepository',
+                'Connection',
+                'getManager',
+                'getConnection',
+                'getConnectionManager',
+                'getRepository',
+                'getTreeRepository',
+                'getMongoRepository',
+                'createConnection',
+                'createConnections',
+              ],
+              message:
+                'TypeORM persistence APIs belong only in repository adapters or explicitly reviewed database infrastructure (TD37-S02; docs/AGENT_PATTERNS.md Pattern #1).',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // TD37-S02: publishing to the event transport is network I/O, so it must never run while the
+  // shared transaction manager holds a database connection/lock. This intentionally targets the
+  // concrete event-bus call rather than guessing at every possible network client API.
+  {
+    files: ['src/**/*.ts'],
+    ignores: ['**/*.spec.ts', '**/*.integration.spec.ts', 'src/test/**'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "CallExpression[callee.object.name='txManager'][callee.property.name='run']:has(CallExpression[callee.property.name='publish'])",
+          message:
+            'Do not call eventBus.publish() inside txManager.run(). Claim durable work in a short transaction, publish outside it, then mark/release in another short transaction (TD37-S02; docs/ENGINEERING_RULES.md Transactions).',
+        },
+        {
+          selector: "ImportDeclaration[source.value='typeorm'] > ImportNamespaceSpecifier",
+          message:
+            'TypeORM namespace imports hide persistence-bypass APIs. Import only the permitted decorator/type helpers by name, or move persistence access into a repository adapter (TD37-S02; docs/AGENT_PATTERNS.md Pattern #1).',
+        },
+        {
+          selector: "TSMethodSignature[key.name='runInTransaction']",
+          message:
+            'Repository ports must not own transactions. Inject ITransactionManager into the orchestrating service/use case and let the TypeORM adapter join its ambient context (TD37-S02; docs/ENGINEERING_RULES.md Transactions).',
+        },
+      ],
+    },
+  },
 ];

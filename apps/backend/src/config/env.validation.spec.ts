@@ -252,6 +252,7 @@ describe('validateEnv()', () => {
     expect(result.OUTBOX_INLINE_DISPATCH_ENABLED).toBe(true);
     expect(result.OUTBOX_SWEEP_BATCH_SIZE).toBe(100);
     expect(result.OUTBOX_SWEEP_GRACE_SECONDS).toBe(30);
+    expect(result.OUTBOX_CLAIM_LEASE_SECONDS).toBe(120);
     expect(result.OUTBOX_RETENTION_DAYS).toBe(14);
   });
 
@@ -261,11 +262,13 @@ describe('validateEnv()', () => {
       OUTBOX_INLINE_DISPATCH_ENABLED: 'false',
       OUTBOX_SWEEP_BATCH_SIZE: '250',
       OUTBOX_SWEEP_GRACE_SECONDS: '60',
+      OUTBOX_CLAIM_LEASE_SECONDS: '180',
       OUTBOX_RETENTION_DAYS: '30',
     });
     expect(result.OUTBOX_INLINE_DISPATCH_ENABLED).toBe(false);
     expect(result.OUTBOX_SWEEP_BATCH_SIZE).toBe(250);
     expect(result.OUTBOX_SWEEP_GRACE_SECONDS).toBe(60);
+    expect(result.OUTBOX_CLAIM_LEASE_SECONDS).toBe(180);
     expect(result.OUTBOX_RETENTION_DAYS).toBe(30);
   });
 

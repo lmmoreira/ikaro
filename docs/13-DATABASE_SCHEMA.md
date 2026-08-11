@@ -498,10 +498,15 @@ Durable staging table for every domain event/command published by an aggregate-d
 | payload | JSONB | NOT NULL — the full serialized event/command envelope |
 | created_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
 | published_at | TIMESTAMP WITH TIME ZONE | NULLABLE — set once the relay successfully publishes to Pub/Sub |
+| lease_token | UUID | NULLABLE — opaque relay ownership token while a row is being published |
+| lease_expires_at | TIMESTAMP WITH TIME ZONE | NULLABLE — expired leases are eligible for another relay to claim, preserving at-least-once delivery after a crash |
 | **INDEX** | (created_at) WHERE published_at IS NULL | Sweep's unpublished-row scan |
+| **INDEX** | (lease_expires_at) WHERE published_at IS NULL | Lease-expiry eligibility scan |
 | **INDEX** | (published_at) WHERE published_at IS NOT NULL | Retention GC scan |
 
 **Retention:** `OUTBOX_RETENTION_DAYS` (default 14) — batched trickle-delete of published rows on every relay sweep tick (`OutboxRelayService.gc()`).
+
+**Relay lease:** `OUTBOX_CLAIM_LEASE_SECONDS` (default 120) bounds ownership after the relay claims rows in a short transaction. Pub/Sub publication happens outside that transaction; success is conditionally marked in another short transaction and failure releases the lease. A crash after publication may intentionally redeliver after expiry, so consumers remain idempotent.
 
 **LGPD note:** `payload` persists the full event envelope — including customer names, emails, and phones for booking/customer events — in Postgres for the retention window above. This is not a new *class* of PII exposure (Pub/Sub already retains the same payload up to 7 days), but it is a new *store* and belongs in the data inventory.
 

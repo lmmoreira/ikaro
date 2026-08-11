@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Envelope } from '../../domain/envelope';
 import {
   IOutboxRepository,
-  OutboxRow,
+  OutboxClaim,
   UnpublishedBacklog,
 } from '../../ports/outbox-repository.port';
 import { getActiveEntityManager } from '../transaction-context';
@@ -23,24 +23,31 @@ const INSERT_SQL = `
   RETURNING "id"
 `;
 
-const SELECT_UNPUBLISHED_BY_ID_SQL = `
-  SELECT "id", "payload" FROM "shared"."outbox"
-  WHERE "id" = $1 AND "published_at" IS NULL
+const CLAIM_UNPUBLISHED_BY_ID_SQL = `
+  UPDATE "shared"."outbox"
+  SET "lease_token" = $2::uuid,
+      "lease_expires_at" = now() + make_interval(secs => $3)
+  WHERE "id" = $1
+    AND "published_at" IS NULL
+    AND ("lease_expires_at" IS NULL OR "lease_expires_at" < now())
+  RETURNING "id", "payload", "lease_token" AS "leaseToken"
 `;
 
-const MARK_PUBLISHED_SQL = `
-  UPDATE "shared"."outbox" SET "published_at" = now()
-  WHERE "id" = $1 AND "published_at" IS NULL
-`;
+const MARK_PUBLISHED_SQL = `UPDATE "shared"."outbox" SET "published_at" = now(), "lease_token" = NULL, "lease_expires_at" = NULL WHERE "id" = $1 AND "published_at" IS NULL AND (($2::uuid IS NULL AND "lease_token" IS NULL) OR "lease_token" = $2::uuid)`;
 
-const SWEEP_SELECT_SQL = `
-  SELECT "id", "payload" FROM "shared"."outbox"
-  WHERE "published_at" IS NULL
-    AND "created_at" < now() - make_interval(secs => $1)
-  ORDER BY "created_at"
-  LIMIT $2
-  FOR UPDATE SKIP LOCKED
+const CLAIM_UNPUBLISHED_SQL = `
+  WITH candidates AS (
+    SELECT "id" FROM "shared"."outbox"
+    WHERE "published_at" IS NULL AND "created_at" < now() - make_interval(secs => $1)
+      AND ("lease_expires_at" IS NULL OR "lease_expires_at" < now())
+    ORDER BY "created_at" LIMIT $2 FOR UPDATE SKIP LOCKED
+  )
+  UPDATE "shared"."outbox" AS outbox SET "lease_token" = $3::uuid,
+    "lease_expires_at" = now() + make_interval(secs => $4)
+  FROM candidates WHERE outbox."id" = candidates."id"
+  RETURNING outbox."id", outbox."payload", outbox."lease_token" AS "leaseToken"
 `;
+const RELEASE_CLAIM_SQL = `UPDATE "shared"."outbox" SET "lease_token" = NULL, "lease_expires_at" = NULL WHERE "id" = $1 AND "lease_token" = $2::uuid AND "published_at" IS NULL`;
 
 const GC_SQL = `
   DELETE FROM "shared"."outbox"
@@ -100,26 +107,59 @@ export class TypeOrmOutboxRepository implements IOutboxRepository {
     return rows[0]?.id;
   }
 
-  async findUnpublishedById(id: string): Promise<OutboxRow | null> {
-    const rows = (await this.repo.query(SELECT_UNPUBLISHED_BY_ID_SQL, [id])) as OutboxRow[];
+  async claimUnpublishedById(
+    id: string,
+    leaseToken: string,
+    leaseSeconds: number,
+  ): Promise<OutboxClaim | null> {
+    const manager = getActiveEntityManager();
+    if (!manager) {
+      throw new Error('Outbox inline claims must run inside ITransactionManager.run().');
+    }
+    const result = (await manager.query(CLAIM_UNPUBLISHED_BY_ID_SQL, [
+      id,
+      leaseToken,
+      leaseSeconds,
+    ])) as OutboxClaim[] | [OutboxClaim[], number];
+    // Like the batch claim, TypeORM's transactional UPDATE ... RETURNING may be [rows, rowCount].
+    // Normalize this driver-specific shape before exposing the port result to the relay.
+    const rows = (Array.isArray(result[0]) ? result[0] : result) as OutboxClaim[];
     return rows[0] ?? null;
   }
 
-  async markPublished(id: string, manager?: EntityManager): Promise<void> {
-    const runner = manager ?? this.repo.manager;
-    await runner.query(MARK_PUBLISHED_SQL, [id]);
+  async markPublished(id: string, leaseToken?: string): Promise<void> {
+    const manager = getActiveEntityManager() ?? this.repo.manager;
+    await manager.query(MARK_PUBLISHED_SQL, [id, leaseToken ?? null]);
   }
 
   async claimUnpublished(
-    manager: EntityManager,
     graceSeconds: number,
     batchSize: number,
-  ): Promise<OutboxRow[]> {
-    return (await manager.query(SWEEP_SELECT_SQL, [graceSeconds, batchSize])) as OutboxRow[];
+    leaseToken: string,
+    leaseSeconds: number,
+  ): Promise<OutboxClaim[]> {
+    const manager = getActiveEntityManager();
+    if (!manager) {
+      throw new Error('Outbox claims must run inside ITransactionManager.run().');
+    }
+    const result = (await manager.query(CLAIM_UNPUBLISHED_SQL, [
+      graceSeconds,
+      batchSize,
+      leaseToken,
+      leaseSeconds,
+    ])) as OutboxClaim[] | [OutboxClaim[], number];
+    // PostgreSQL's TypeORM transaction manager can return UPDATE ... RETURNING as
+    // [rows, rowCount], while Repository.query() returns rows directly. Normalize at the adapter
+    // boundary so the port never leaks driver-specific result shapes to the relay.
+    if (Array.isArray(result[0])) return result[0] as OutboxClaim[];
+    return result as OutboxClaim[];
   }
 
-  async runInTransaction<T>(work: (manager: EntityManager) => Promise<T>): Promise<T> {
-    return this.repo.manager.transaction(work);
+  async releaseClaim(id: string, leaseToken: string): Promise<void> {
+    const manager = getActiveEntityManager();
+    if (!manager)
+      throw new Error('Outbox claim release must run inside ITransactionManager.run().');
+    await manager.query(RELEASE_CLAIM_SQL, [id, leaseToken]);
   }
 
   async countUnpublished(): Promise<UnpublishedBacklog> {
@@ -128,7 +168,9 @@ export class TypeOrmOutboxRepository implements IOutboxRepository {
   }
 
   async deleteOldPublished(retentionDays: number, batchSize: number): Promise<number> {
-    const rows = (await this.repo.query(GC_SQL, [retentionDays, batchSize])) as unknown[];
+    const manager = getActiveEntityManager();
+    if (!manager) throw new Error('Outbox retention GC must run inside ITransactionManager.run().');
+    const rows = (await manager.query(GC_SQL, [retentionDays, batchSize])) as unknown[];
     return rows.length;
   }
 }

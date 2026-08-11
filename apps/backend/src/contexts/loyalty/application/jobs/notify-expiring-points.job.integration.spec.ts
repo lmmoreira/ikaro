@@ -72,6 +72,7 @@ describe('NotifyExpiringPointsJob (integration, TD24-S03 cron double-send fix)',
       eventBus,
       new InMemoryInboxRepository(),
       makeConfigService(),
+      txManager,
     );
     await relay.relay([rows[0].id]);
 
@@ -79,8 +80,8 @@ describe('NotifyExpiringPointsJob (integration, TD24-S03 cron double-send fix)',
     // booking-reminder.job.integration.spec.ts for why: the sweep scans the whole shared.outbox
     // table with no per-test scoping, and other spec files in this suite deliberately configure
     // OUTBOX_SWEEP_GRACE_SECONDS: 0 — if one of those sweeps claims and publishes this exact row
-    // between insertion and this relay.relay() call, findUnpublishedById() correctly finds
-    // nothing left to do and this test's own eventBus.published would be a false-negative 0,
+    // between insertion and this relay.relay() call, the atomic inline claim correctly returns
+    // no row and this test's own eventBus.published would be a false-negative 0,
     // even though the row genuinely got published.
     const publishedRow = await ds.getRepository(OutboxEventEntity).findOne({
       where: { id: rows[0].id },

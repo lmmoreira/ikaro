@@ -75,6 +75,7 @@ export const schema = z.object({
   OUTBOX_INLINE_DISPATCH_ENABLED: z.stringbool().default(true),
   OUTBOX_SWEEP_BATCH_SIZE: z.coerce.number().int().min(1).default(100),
   OUTBOX_SWEEP_GRACE_SECONDS: z.coerce.number().int().min(0).default(30),
+  OUTBOX_CLAIM_LEASE_SECONDS: z.coerce.number().int().min(1).default(120),
   OUTBOX_RETENTION_DAYS: z.coerce.number().int().min(1).default(14),
   // TD24-S04 — shared.inbox retention. Must stay above Pub/Sub's 7-day max redelivery window
   // (D8) or the dedup guarantee weakens — enforced here as a hard minimum, not just a default.

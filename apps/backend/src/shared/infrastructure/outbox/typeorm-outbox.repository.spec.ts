@@ -72,78 +72,125 @@ describe('TypeOrmOutboxRepository', () => {
     });
   });
 
-  describe('findUnpublishedById()', () => {
-    it('returns the row when found', async () => {
-      mockRepo.query.mockResolvedValue([{ id: 'row-1', payload: { eventName: 'X' } }]);
+  describe('claimUnpublishedById()', () => {
+    it('requires the ambient transaction and returns its atomic claim', async () => {
+      const manager = {
+        query: jest
+          .fn()
+          .mockResolvedValue([{ id: 'row-1', payload: { eventName: 'X' }, leaseToken: 'lease-1' }]),
+      } as unknown as jest.Mocked<EntityManager>;
 
-      const row = await repo.findUnpublishedById('row-1');
+      const row = await runWithEntityManager(manager, () =>
+        repo.claimUnpublishedById('row-1', 'lease-1', 120),
+      );
 
-      expect(row).toEqual({ id: 'row-1', payload: { eventName: 'X' } });
+      expect(row).toEqual({ id: 'row-1', payload: { eventName: 'X' }, leaseToken: 'lease-1' });
+      expect(manager.query).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE "shared"."outbox"'),
+        ['row-1', 'lease-1', 120],
+      );
     });
 
-    it('returns null when not found (already published or missing)', async () => {
-      mockRepo.query.mockResolvedValue([]);
+    it('throws when no transaction is ambient', async () => {
+      await expect(repo.claimUnpublishedById('row-1', 'lease-1', 120)).rejects.toThrow(
+        'Outbox inline claims must run inside ITransactionManager.run()',
+      );
+    });
 
-      expect(await repo.findUnpublishedById('row-1')).toBeNull();
+    it('normalizes TypeORM’s transactional [rows, rowCount] result shape', async () => {
+      const claimedRow = { id: 'row-1', payload: { eventName: 'X' }, leaseToken: 'lease-1' };
+      const manager = {
+        query: jest.fn().mockResolvedValue([[claimedRow], 1]),
+      } as unknown as jest.Mocked<EntityManager>;
+
+      await expect(
+        runWithEntityManager(manager, () => repo.claimUnpublishedById('row-1', 'lease-1', 120)),
+      ).resolves.toEqual(claimedRow);
     });
   });
 
   describe('markPublished()', () => {
-    it('runs via repo.manager when no explicit manager is passed', async () => {
+    it('runs via repo.manager', async () => {
       await repo.markPublished('row-1');
 
       expect(mockRepo.manager.query).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE "shared"."outbox"'),
-        ['row-1'],
+        ['row-1', null],
       );
     });
 
-    it('runs via the given manager when one is passed (same transaction as the caller)', async () => {
-      const explicitManager = { query: jest.fn() } as unknown as jest.Mocked<EntityManager>;
+    it('joins the ambient transaction and conditionally marks its lease', async () => {
+      const manager = { query: jest.fn() } as unknown as jest.Mocked<EntityManager>;
 
-      await repo.markPublished('row-1', explicitManager);
+      await runWithEntityManager(manager, () => repo.markPublished('row-1', 'lease-1'));
 
-      expect(explicitManager.query).toHaveBeenCalledWith(expect.any(String), ['row-1']);
-      expect(mockRepo.manager.query).not.toHaveBeenCalled();
+      expect(manager.query).toHaveBeenCalledWith(
+        expect.stringContaining('"lease_token" = $2::uuid'),
+        ['row-1', 'lease-1'],
+      );
     });
   });
 
   describe('claimUnpublished()', () => {
-    it('queries with FOR UPDATE SKIP LOCKED using the given manager', async () => {
+    it('requires and joins the ambient transaction manager', async () => {
       const manager = {
-        query: jest.fn().mockResolvedValue([{ id: 'row-1', payload: { eventName: 'X' } }]),
+        query: jest
+          .fn()
+          .mockResolvedValue([{ id: 'row-1', payload: { eventName: 'X' }, leaseToken: 'lease-1' }]),
       } as unknown as jest.Mocked<EntityManager>;
 
-      const rows = await repo.claimUnpublished(manager, 30, 100);
+      const rows = await runWithEntityManager(manager, () =>
+        repo.claimUnpublished(30, 100, 'lease-1', 120),
+      );
 
-      expect(rows).toEqual([{ id: 'row-1', payload: { eventName: 'X' } }]);
+      expect(rows).toEqual([{ id: 'row-1', payload: { eventName: 'X' }, leaseToken: 'lease-1' }]);
       expect(manager.query).toHaveBeenCalledWith(
         expect.stringContaining('FOR UPDATE SKIP LOCKED'),
-        [30, 100],
+        [30, 100, 'lease-1', 120],
+      );
+    });
+
+    it('normalizes TypeORM’s transactional [rows, rowCount] result shape', async () => {
+      const claimedRows = [{ id: 'row-1', payload: { eventName: 'X' }, leaseToken: 'lease-1' }];
+      const manager = {
+        query: jest.fn().mockResolvedValue([claimedRows, 1]),
+      } as unknown as jest.Mocked<EntityManager>;
+
+      await expect(
+        runWithEntityManager(manager, () => repo.claimUnpublished(30, 100, 'lease-1', 120)),
+      ).resolves.toEqual(claimedRows);
+    });
+
+    it('throws when no transaction is ambient', async () => {
+      await expect(repo.claimUnpublished(30, 100, 'lease-1', 120)).rejects.toThrow(
+        'Outbox claims must run inside ITransactionManager.run()',
       );
     });
   });
 
-  describe('runInTransaction()', () => {
-    it('delegates to repo.manager.transaction', async () => {
-      const work = jest.fn().mockResolvedValue('result');
-      (mockRepo.manager.transaction as jest.Mock).mockImplementation((cb) => cb('fake-manager'));
+  describe('releaseClaim()', () => {
+    it('joins the ambient transaction and clears only its lease', async () => {
+      const manager = { query: jest.fn() } as unknown as jest.Mocked<EntityManager>;
 
-      const result = await repo.runInTransaction(work);
+      await runWithEntityManager(manager, () => repo.releaseClaim('row-1', 'lease-1'));
 
-      expect(result).toBe('result');
-      expect(work).toHaveBeenCalledWith('fake-manager');
+      expect(manager.query).toHaveBeenCalledWith(
+        expect.stringContaining('"lease_token" = $2::uuid'),
+        ['row-1', 'lease-1'],
+      );
     });
   });
 
   describe('deleteOldPublished()', () => {
     it('runs the batched retention delete and returns the number of rows deleted', async () => {
-      mockRepo.query.mockResolvedValue([{ id: 'row-1' }, { id: 'row-2' }]);
+      const manager = {
+        query: jest.fn().mockResolvedValue([{ id: 'row-1' }, { id: 'row-2' }]),
+      } as unknown as jest.Mocked<EntityManager>;
 
-      const deleted = await repo.deleteOldPublished(14, 100);
+      const deleted = await runWithEntityManager(manager, () => repo.deleteOldPublished(14, 100));
 
       expect(deleted).toBe(2);
-      const [sql, params] = mockRepo.query.mock.calls[0] as [string, unknown[]];
+      const [sql, params] = manager.query.mock.calls[0] as [string, unknown[]];
       // Asserts the RETURNING clause is actually present — without it, `deleted` above would be
       // wrong in production even though this mock (which returns canned rows regardless of the
       // SQL sent) would still pass.
@@ -153,9 +200,16 @@ describe('TypeOrmOutboxRepository', () => {
     });
 
     it('returns 0 when nothing was deleted', async () => {
-      mockRepo.query.mockResolvedValue([]);
+      const manager = {
+        query: jest.fn().mockResolvedValue([]),
+      } as unknown as jest.Mocked<EntityManager>;
 
-      expect(await repo.deleteOldPublished(14, 100)).toBe(0);
+      await expect(repo.deleteOldPublished(14, 100)).rejects.toThrow(
+        'Outbox retention GC must run inside ITransactionManager.run()',
+      );
+      await expect(
+        runWithEntityManager(manager, () => repo.deleteOldPublished(14, 100)),
+      ).resolves.toBe(0);
     });
   });
 

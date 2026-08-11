@@ -22,4 +22,10 @@ export class OutboxEventEntity {
 
   @Column({ name: 'published_at', type: 'timestamptz', nullable: true })
   publishedAt!: Date | null;
+
+  @Column({ name: 'lease_token', type: 'uuid', nullable: true })
+  leaseToken!: string | null;
+
+  @Column({ name: 'lease_expires_at', type: 'timestamptz', nullable: true })
+  leaseExpiresAt!: Date | null;
 }

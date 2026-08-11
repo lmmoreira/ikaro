@@ -1,11 +1,16 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { EntityManager } from 'typeorm';
 import { Envelope } from '../../domain/envelope';
+import { uuidv7 } from '../../domain/uuid-v7';
 import { AppLogger } from '../../observability/app-logger';
 import { EVENT_BUS, IEventBus } from '../../ports/event-bus.port';
 import { IInboxRepository, INBOX_REPOSITORY } from '../../ports/inbox.port';
-import { IOutboxRepository, OUTBOX_REPOSITORY } from '../../ports/outbox-repository.port';
+import {
+  IOutboxRepository,
+  OUTBOX_REPOSITORY,
+  OutboxClaim,
+} from '../../ports/outbox-repository.port';
+import { ITransactionManager, TRANSACTION_MANAGER } from '../../ports/transaction-manager.port';
 
 // The stored payload is the verbatim envelope JSON.stringify()'d from a real DomainEvent or
 // Command by OutboxPublisher.publish() — this reinterprets it back for
@@ -30,13 +35,25 @@ function asStoredEvent(payload: unknown): Envelope {
 @Injectable()
 export class OutboxRelayService {
   private readonly logger = new AppLogger(OutboxRelayService.name);
+  private readonly sweepBatchSize: number;
+  private readonly sweepGraceSeconds: number;
+  private readonly claimLeaseSeconds: number;
+  private readonly outboxRetentionDays: number;
+  private readonly inboxRetentionDays: number;
 
   constructor(
     @Inject(OUTBOX_REPOSITORY) private readonly outboxRepo: IOutboxRepository,
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
     @Inject(INBOX_REPOSITORY) private readonly inboxRepo: IInboxRepository,
     private readonly config: ConfigService,
-  ) {}
+    @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
+  ) {
+    this.sweepBatchSize = this.config.get<number>('OUTBOX_SWEEP_BATCH_SIZE', 100);
+    this.sweepGraceSeconds = this.config.get<number>('OUTBOX_SWEEP_GRACE_SECONDS', 30);
+    this.claimLeaseSeconds = this.config.get<number>('OUTBOX_CLAIM_LEASE_SECONDS', 120);
+    this.outboxRetentionDays = this.config.get<number>('OUTBOX_RETENTION_DAYS', 14);
+    this.inboxRetentionDays = this.config.get<number>('INBOX_RETENTION_DAYS', 14);
+  }
 
   async relay(rowIds?: string[]): Promise<void> {
     if (rowIds !== undefined) {
@@ -51,19 +68,29 @@ export class OutboxRelayService {
     await this.gc();
   }
 
-  // Inline-dispatch path: the row was just inserted by this same process, no contention — a
-  // plain SELECT + conditional UPDATE is enough. If the sweep already claimed and published this
-  // row concurrently (only possible once the grace window has elapsed), the SELECT finds nothing
-  // and this is a no-op — never a double-publish-then-double-mark.
+  // Inline-dispatch path: atomically lease the just-inserted row before external publication, so
+  // a concurrent sweep cannot claim and publish the same row between a read and its mark.
   private async publishAndMarkOne(id: string): Promise<void> {
-    const row = await this.outboxRepo.findUnpublishedById(id);
+    const leaseToken = uuidv7();
+    const row = await this.txManager.run(() =>
+      this.outboxRepo.claimUnpublishedById(id, leaseToken, this.claimLeaseSeconds),
+    );
     if (!row) return;
 
     const event = asStoredEvent(row.payload);
     try {
       await this.eventBus.publish(event);
-      await this.outboxRepo.markPublished(id);
+      await this.txManager.run(() => this.outboxRepo.markPublished(id, row.leaseToken));
     } catch (err) {
+      try {
+        await this.txManager.run(() => this.outboxRepo.releaseClaim(id, row.leaseToken));
+      } catch (releaseErr) {
+        this.logger.error(
+          '[outbox] failed to release an inline relay lease — expiry will recover it',
+          releaseErr instanceof Error ? releaseErr.stack : String(releaseErr),
+          { outboxRowId: id, tenantId: event.tenantId, correlationId: event.correlationId },
+        );
+      }
       this.logger.error(
         '[outbox] relay publish failed — row stays unpublished, the sweep will retry',
         err instanceof Error ? err.stack : String(err),
@@ -72,45 +99,71 @@ export class OutboxRelayService {
     }
   }
 
-  // Sweep: SELECT ... FOR UPDATE SKIP LOCKED must hold its row locks across the publish attempts
-  // for the whole batch, or two concurrent sweeps could both select the same rows before either
-  // marks them published. The transaction is deliberately held open across the Pub/Sub network
-  // calls for this reason — accepted at this scale (small batches, low-latency publishes).
+  // Sweep: each batch is leased in a short transaction, then published outside any transaction.
+  // A second relay cannot claim an active lease; after each external publish, a second short
+  // transaction conditionally marks that specific lease published. A crash after publishing can
+  // therefore redeliver after the lease expires — intentional at-least-once delivery, with the
+  // inbox consumer responsible for idempotency.
   private async sweep(): Promise<void> {
-    const batchSize = this.config.get<number>('OUTBOX_SWEEP_BATCH_SIZE', 100);
-    const graceSeconds = this.config.get<number>('OUTBOX_SWEEP_GRACE_SECONDS', 30);
     let failureCount = 0;
 
     let more = true;
     while (more) {
-      more = await this.outboxRepo.runInTransaction(async (manager: EntityManager) => {
-        const rows = await this.outboxRepo.claimUnpublished(manager, graceSeconds, batchSize);
+      const leaseToken = uuidv7();
+      const rows = await this.txManager.run(() =>
+        this.outboxRepo.claimUnpublished(
+          this.sweepGraceSeconds,
+          this.sweepBatchSize,
+          leaseToken,
+          this.claimLeaseSeconds,
+        ),
+      );
 
-        if (rows.length === 0) return false;
+      if (rows.length === 0) break;
 
-        for (const row of rows) {
-          try {
-            await this.eventBus.publish(asStoredEvent(row.payload));
-            await this.outboxRepo.markPublished(row.id, manager);
-          } catch (err) {
-            // Swallowed: this row stays unpublished (published_at still NULL) and is retried
-            // next tick. The transaction still commits, releasing the SKIP LOCKED lock on it.
-            failureCount++;
-            const event = asStoredEvent(row.payload);
-            this.logger.error(
-              '[outbox] sweep publish failed — row stays unpublished for next tick',
-              err instanceof Error ? err.stack : String(err),
-              { outboxRowId: row.id, tenantId: event.tenantId, correlationId: event.correlationId },
-            );
-          }
-        }
+      for (const row of rows) {
+        failureCount += await this.publishClaimedRow(row);
+      }
 
-        return rows.length === batchSize;
-      });
+      // A full failed batch must not immediately reclaim the same oldest rows and spin forever
+      // in one tick. The released lease makes it eligible for the next scheduled tick instead.
+      more = rows.length === this.sweepBatchSize && failureCount === 0;
     }
 
     if (failureCount > 0) {
       this.logger.log('[outbox] sweep tick completed with publish failures', { failureCount });
+    }
+  }
+
+  // Returns one when publication failed so sweep() can stop after a full batch with failures.
+  private async publishClaimedRow(row: OutboxClaim): Promise<0 | 1> {
+    const event = asStoredEvent(row.payload);
+    try {
+      await this.eventBus.publish(event);
+      await this.txManager.run(() => this.outboxRepo.markPublished(row.id, row.leaseToken));
+      return 0;
+    } catch (err) {
+      await this.releaseFailedClaim(row, event);
+      this.logger.error(
+        '[outbox] sweep publish failed — row stays unpublished for next tick',
+        err instanceof Error ? err.stack : String(err),
+        { outboxRowId: row.id, tenantId: event.tenantId, correlationId: event.correlationId },
+      );
+      return 1;
+    }
+  }
+
+  private async releaseFailedClaim(row: OutboxClaim, event: Envelope): Promise<void> {
+    // Release promptly so the next tick can retry. If this short DB transaction fails, lease
+    // expiry is the recovery path and the original publish error is still reported.
+    try {
+      await this.txManager.run(() => this.outboxRepo.releaseClaim(row.id, row.leaseToken));
+    } catch (releaseErr) {
+      this.logger.error(
+        '[outbox] failed to release a relay lease — expiry will recover it',
+        releaseErr instanceof Error ? releaseErr.stack : String(releaseErr),
+        { outboxRowId: row.id, tenantId: event.tenantId, correlationId: event.correlationId },
+      );
     }
   }
 
@@ -130,13 +183,16 @@ export class OutboxRelayService {
   // exactly what keeps both tables bounded without a separate cleanup job. Inbox GC (TD24-S04)
   // rides the same tick as the outbox's own GC rather than a separate schedule.
   private async gc(): Promise<void> {
-    const batchSize = this.config.get<number>('OUTBOX_SWEEP_BATCH_SIZE', 100);
-
-    const outboxRetentionDays = this.config.get<number>('OUTBOX_RETENTION_DAYS', 14);
-    const outboxDeleted = await this.outboxRepo.deleteOldPublished(outboxRetentionDays, batchSize);
-
-    const inboxRetentionDays = this.config.get<number>('INBOX_RETENTION_DAYS', 14);
-    const inboxDeleted = await this.inboxRepo.deleteOldProcessed(inboxRetentionDays, batchSize);
+    const { outboxDeleted, inboxDeleted } = await this.txManager.run(async () => ({
+      outboxDeleted: await this.outboxRepo.deleteOldPublished(
+        this.outboxRetentionDays,
+        this.sweepBatchSize,
+      ),
+      inboxDeleted: await this.inboxRepo.deleteOldProcessed(
+        this.inboxRetentionDays,
+        this.sweepBatchSize,
+      ),
+    }));
 
     if (outboxDeleted > 0 || inboxDeleted > 0) {
       this.logger.log('[outbox] retention GC', { outboxDeleted, inboxDeleted });
