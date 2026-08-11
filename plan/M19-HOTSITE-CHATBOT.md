@@ -95,7 +95,7 @@ Migration: `apps/backend/src/contexts/platform/infrastructure/migrations/<timest
 
 ---
 
-### M19-S02 — `ILlmProvider` port + registry + OpenRouter adapter
+### M19-S02 — `ILlmProvider` port + registry + OpenRouter adapter ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** M
