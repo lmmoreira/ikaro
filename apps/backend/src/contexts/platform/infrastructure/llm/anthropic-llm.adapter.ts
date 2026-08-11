@@ -65,13 +65,20 @@ export class AnthropicLlmAdapter implements ILlmProvider {
       throw new Error(`Anthropic request failed: ${response.status} ${await response.text()}`);
     }
 
-    const parsed = anthropicResponseSchema.safeParse(await response.json());
+    let responseBody: unknown;
+    try {
+      responseBody = await response.json();
+    } catch {
+      throw new Error('Anthropic returned a malformed response: invalid JSON');
+    }
+
+    const parsed = anthropicResponseSchema.safeParse(responseBody);
     if (!parsed.success) {
       throw new Error(`Anthropic returned a malformed response: ${parsed.error.message}`);
     }
     const body = parsed.data;
     const textBlock = body.content.find((block) => block.type === 'text');
-    if (!textBlock || textBlock.text === undefined) {
+    if (textBlock?.text === undefined) {
       throw new Error('Anthropic returned a malformed response: no text content block');
     }
 

@@ -163,6 +163,19 @@ describe('AnthropicLlmAdapter', () => {
     );
   });
 
+  it('throws a controlled error when the response body is not valid JSON, instead of an unhandled SyntaxError', async () => {
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.reject(new SyntaxError('Unexpected token < in JSON')),
+    } as unknown as Response);
+    const adapter = new AnthropicLlmAdapter(makeConfigService());
+
+    await expect(adapter.complete(makeRequest())).rejects.toThrow(
+      'Anthropic returned a malformed response: invalid JSON',
+    );
+  });
+
   it('throws a controlled error on an empty content array, instead of an unchecked property access', async () => {
     fetchSpy.mockResolvedValue(mockSuccessResponse({ content: [] }));
     const adapter = new AnthropicLlmAdapter(makeConfigService());

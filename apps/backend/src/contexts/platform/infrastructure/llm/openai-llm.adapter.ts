@@ -63,7 +63,14 @@ export class OpenAiLlmAdapter implements ILlmProvider {
       throw new Error(`OpenAI request failed: ${response.status} ${await response.text()}`);
     }
 
-    const parsed = openAiResponseSchema.safeParse(await response.json());
+    let responseBody: unknown;
+    try {
+      responseBody = await response.json();
+    } catch {
+      throw new Error('OpenAI returned a malformed response: invalid JSON');
+    }
+
+    const parsed = openAiResponseSchema.safeParse(responseBody);
     if (!parsed.success) {
       throw new Error(`OpenAI returned a malformed response: ${parsed.error.message}`);
     }
