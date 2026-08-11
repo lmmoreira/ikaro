@@ -96,6 +96,17 @@ describe('TypeOrmOutboxRepository', () => {
         'Outbox inline claims must run inside ITransactionManager.run()',
       );
     });
+
+    it('normalizes TypeORM’s transactional [rows, rowCount] result shape', async () => {
+      const claimedRow = { id: 'row-1', payload: { eventName: 'X' }, leaseToken: 'lease-1' };
+      const manager = {
+        query: jest.fn().mockResolvedValue([[claimedRow], 1]),
+      } as unknown as jest.Mocked<EntityManager>;
+
+      await expect(
+        runWithEntityManager(manager, () => repo.claimUnpublishedById('row-1', 'lease-1', 120)),
+      ).resolves.toEqual(claimedRow);
+    });
   });
 
   describe('markPublished()', () => {

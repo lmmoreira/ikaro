@@ -116,11 +116,14 @@ export class TypeOrmOutboxRepository implements IOutboxRepository {
     if (!manager) {
       throw new Error('Outbox inline claims must run inside ITransactionManager.run().');
     }
-    const rows = (await manager.query(CLAIM_UNPUBLISHED_BY_ID_SQL, [
+    const result = (await manager.query(CLAIM_UNPUBLISHED_BY_ID_SQL, [
       id,
       leaseToken,
       leaseSeconds,
-    ])) as OutboxClaim[];
+    ])) as OutboxClaim[] | [OutboxClaim[], number];
+    // Like the batch claim, TypeORM's transactional UPDATE ... RETURNING may be [rows, rowCount].
+    // Normalize this driver-specific shape before exposing the port result to the relay.
+    const rows = (Array.isArray(result[0]) ? result[0] : result) as OutboxClaim[];
     return rows[0] ?? null;
   }
 
