@@ -1,29 +1,59 @@
 import { FakeLlmProviderBuilder } from '../../../../test/builders/platform/fake-llm-provider.builder';
-import { ILlmProvider, OPENROUTER_PROVIDER_NAME } from '../ports/llm-provider.port';
+import {
+  ANTHROPIC_PROVIDER_NAME,
+  ILlmProvider,
+  OPENAI_PROVIDER_NAME,
+  OPENROUTER_PROVIDER_NAME,
+} from '../ports/llm-provider.port';
 import { LlmProviderRegistry } from './llm-provider-registry.service';
 
 describe('LlmProviderRegistry', () => {
   let openRouterProvider: ILlmProvider;
+  let anthropicProvider: ILlmProvider;
+  let openAiProvider: ILlmProvider;
 
   beforeEach(() => {
     openRouterProvider = new FakeLlmProviderBuilder().withText('openrouter says hi').build();
+    anthropicProvider = new FakeLlmProviderBuilder().withText('anthropic says hi').build();
+    openAiProvider = new FakeLlmProviderBuilder().withText('openai says hi').build();
   });
 
+  function buildRegistry(platformDefault: string): LlmProviderRegistry {
+    return new LlmProviderRegistry(
+      platformDefault,
+      openRouterProvider,
+      anthropicProvider,
+      openAiProvider,
+    );
+  }
+
   it('resolves to the platform default when no override is passed — the all-unset case', () => {
-    const registry = new LlmProviderRegistry(OPENROUTER_PROVIDER_NAME, openRouterProvider);
+    const registry = buildRegistry(OPENROUTER_PROVIDER_NAME);
 
     expect(registry.resolve()).toBe(openRouterProvider);
   });
 
   it('resolves to the explicit override when one is passed, regardless of the platform default', () => {
-    const registry = new LlmProviderRegistry(OPENROUTER_PROVIDER_NAME, openRouterProvider);
+    const registry = buildRegistry(OPENROUTER_PROVIDER_NAME);
 
     expect(registry.resolve(OPENROUTER_PROVIDER_NAME)).toBe(openRouterProvider);
   });
 
-  it('throws for an unknown provider name', () => {
-    const registry = new LlmProviderRegistry(OPENROUTER_PROVIDER_NAME, openRouterProvider);
+  it('resolves the anthropic override to a real adapter instance', () => {
+    const registry = buildRegistry(OPENROUTER_PROVIDER_NAME);
 
-    expect(() => registry.resolve('anthropic')).toThrow('Unknown LLM provider: anthropic');
+    expect(registry.resolve(ANTHROPIC_PROVIDER_NAME)).toBe(anthropicProvider);
+  });
+
+  it('resolves the openai override to a real adapter instance', () => {
+    const registry = buildRegistry(OPENROUTER_PROVIDER_NAME);
+
+    expect(registry.resolve(OPENAI_PROVIDER_NAME)).toBe(openAiProvider);
+  });
+
+  it('throws for an unknown provider name', () => {
+    const registry = buildRegistry(OPENROUTER_PROVIDER_NAME);
+
+    expect(() => registry.resolve('vertex-ai')).toThrow('Unknown LLM provider: vertex-ai');
   });
 });

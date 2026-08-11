@@ -511,12 +511,21 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           PR=${{ github.event.pull_request.number }}
+          # SonarCloud's issues/search does not reliably apply statuses/issueStatuses/resolved
+          # filters when scoped to a pull request — a CLOSED/FIXED issue (raised, then fixed by
+          # a later commit in the same PR) can still come back under statuses=OPEN,CONFIRMED,
+          # keeping this gate permanently red even after the code is fixed. Confirmed live
+          # against PR #356, 2026-08-11: every filter combination (statuses=, issueStatuses=,
+          # resolved=false, and no filter at all) returned the identical single fixed issue.
+          # Fetch unfiltered and filter client-side on issueStatus, the authoritative
+          # current-state field, instead of trusting the server-side filter's `.total`.
           RESULT=$(curl -sf -u "${SONAR_TOKEN}:" \
-            "https://sonarcloud.io/api/issues/search?componentKeys=lmmoreira_ikaro&pullRequest=${PR}&statuses=OPEN,CONFIRMED&ps=50")
-          COUNT=$(echo "$RESULT" | jq '.total')
+            "https://sonarcloud.io/api/issues/search?componentKeys=lmmoreira_ikaro&pullRequest=${PR}&ps=50")
+          OPEN_ISSUES=$(echo "$RESULT" | jq '[.issues[] | select(.issueStatus == "OPEN" or .issueStatus == "CONFIRMED")]')
+          COUNT=$(echo "$OPEN_ISSUES" | jq 'length')
           if [ "$COUNT" -gt 0 ]; then
             echo "❌ ${COUNT} new SonarCloud issue(s) — fix before merging:"
-            echo "$RESULT" | jq -r '.issues[] | "  [\(.severity)] \(.message) — \(.component | split(":")[1]):\(.line // "?")"'
+            echo "$OPEN_ISSUES" | jq -r '.[] | "  [\(.severity)] \(.message) — \(.component | split(":")[1]):\(.line // "?")"'
             exit 1
           fi
           echo "✅ No new SonarCloud issues."
