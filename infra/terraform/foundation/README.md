@@ -86,6 +86,23 @@ foundation Environments using only the foundation deployer. Planner account
 emails are public identifiers, not credentials; no protected environment is
 requested by a pull-request plan.
 
+### Verifying Foundation state from the normal pipeline
+
+`infra-deploy.yml` (the normal `envs/*` pipeline) runs a `foundation-applied-check`
+job before `apply-staging`/`apply-prod`, confirming a qualifying Foundation apply
+already ran at or after the last commit that touched `foundation/**`. It answers
+this purely via `git log`/`git merge-base --is-ancestor` plus the GitHub Actions
+API (`gh api .../actions/workflows/foundation-deploy.yml/runs`, default
+`GITHUB_TOKEN`, `permissions: { actions: read }` only) — it never authenticates
+as any GCP identity, foundation or otherwise, and never gains a live Terraform
+credential. This deliberately keeps the check itself on the zero-new-trust side
+of the boundary this document exists to protect: the normal pipeline learns
+*whether* Foundation ran, never anything that would let it act as Foundation.
+Added M19-S02, 2026-08-11, after a secret's IAM grant was merged into an
+orphaned pre-TD34 module (`infra/terraform/modules/iam/`) instead of this
+directory's `modules/runtime-identities/`, and shipped to staging with no CI
+signal that the real Foundation-owned grant was missing.
+
 ### Shared-state bucket policy reads
 
 `ikaro-tfstate` belongs to the production project, while both foundation states

@@ -83,7 +83,6 @@ jobs:
       infra: ${{ steps.filter.outputs.infra }}
       terraform: ${{ steps.filter.outputs.terraform }}
       modules: ${{ steps.modules.outputs.modules }}
-      foundation: ${{ steps.filter.outputs.foundation }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -120,8 +119,6 @@ jobs:
               - '.github/workflows/infra-deploy.yml'
             terraform:
               - 'infra/terraform/!(foundation)/**'
-            foundation:
-              - 'infra/terraform/foundation/**'
 
       - name: List modules with tests
         id: modules
@@ -533,22 +530,83 @@ jobs:
   # granted yet — exactly what happened here, caught only days later by a live check
   # instead of CI. This job exists purely to fail loudly (not silently skip) so the
   # gap is visible immediately, not "0 issues" on a broken deploy.
-  foundation-apply-required:
-    name: Apply foundation before infra (blocking)
+  #
+  # Design note (superseded an earlier, flawed version of this job the same day, per
+  # cross-tool + user review): a diff-based check ("did THIS push touch foundation/**")
+  # is NOT sufficient — it only catches the one push that introduced the change. Any
+  # later, completely unrelated push has an empty diff against foundation/** too and
+  # would silently sail through even if Foundation was never actually applied. This
+  # job instead verifies LIVE CI history on every run: it finds the most recent commit
+  # (as of the current one) that touched infra/terraform/foundation/**, then checks
+  # GitHub's own record of foundation-deploy.yml runs for a successful apply (both
+  # staging AND prod) at or after that commit. Deliberately uses only the default
+  # GITHUB_TOKEN (actions: read) — no GCP credential of any kind, and specifically
+  # never the Foundation-only planner/deployer identities. Granting this workflow the
+  # ability to impersonate *any* Foundation identity — even a read-only one — would
+  # itself widen this workflow's blast radius into a boundary TD34 exists to keep
+  # separate; reading GitHub's own Actions API costs nothing on that front. Because
+  # this queries live state fresh every run (not a value computed once and cached),
+  # re-running just this job after a real Foundation apply succeeds is a valid way to
+  # unblock — no new commit is required (unlike the earlier diff-based version).
+  foundation-applied-check:
+    name: Verify Foundation is applied (staging + prod)
     needs: detect-changes
-    if: needs.detect-changes.outputs.foundation == 'true' && github.event_name == 'push'
+    if: needs.detect-changes.outputs.infra == 'true' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
     steps:
-      - name: Block automatic apply until Foundation is manually applied
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # full history — needed for git log / merge-base below
+
+      - name: Verify a qualifying Foundation apply exists
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          echo "::error::This push touches infra/terraform/foundation/** together with normal infra/terraform/** changes. Foundation (IAM/API/service-account) changes are never auto-applied (TD34) — a human must manually dispatch foundation-deploy.yml with apply=true for BOTH staging and prod FIRST, before apply-staging/apply-prod below can safely reference whatever Foundation just changed. Once the Foundation apply succeeds, re-run this workflow's skipped jobs (gh run rerun <run-id> --failed) to continue."
-          exit 1
+          set -euo pipefail
+
+          last_foundation_commit=$(git log -1 --format=%H HEAD -- infra/terraform/foundation/)
+          if [ -z "$last_foundation_commit" ]; then
+            echo "No commit has ever touched infra/terraform/foundation/ — nothing to verify."
+            exit 0
+          fi
+          echo "Most recent commit touching infra/terraform/foundation/: $last_foundation_commit"
+
+          found=0
+          while read -r run_id run_sha; do
+            [ -z "$run_id" ] && continue
+            if ! git merge-base --is-ancestor "$last_foundation_commit" "$run_sha" 2>/dev/null; then
+              continue # this successful run predates the current foundation/** state
+            fi
+
+            staging_conclusion=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs" \
+              --jq '[.jobs[] | select(.name=="Apply foundation (staging)") | .conclusion][0] // "missing"')
+            prod_conclusion=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs" \
+              --jq '[.jobs[] | select(.name=="Apply foundation (prod)") | .conclusion][0] // "missing"')
+
+            if [ "$staging_conclusion" = "success" ] && [ "$prod_conclusion" = "success" ]; then
+              echo "Found a qualifying Foundation apply: run $run_id (commit $run_sha) — staging and prod both succeeded."
+              found=1
+              break
+            fi
+          done < <(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/foundation-deploy.yml/runs?event=workflow_dispatch&status=success&per_page=30" \
+            --jq '.workflow_runs[] | "\(.id) \(.head_sha)"')
+
+          if [ "$found" -ne 1 ]; then
+            echo "::error::No successful foundation-deploy.yml apply (both staging AND prod) found for a commit at or after the last change under infra/terraform/foundation/ ($last_foundation_commit). A human must manually dispatch foundation-deploy.yml with apply=true, approving both protected environments, before apply-staging/apply-prod below can safely proceed. This check re-evaluates live CI history every time it runs — once the Foundation apply succeeds, just re-run this job (gh run rerun --job <job-id>, or re-run the whole workflow) to continue. No new commit is required."
+            exit 1
+          fi
+
+          echo "Foundation is up to date for staging and prod — proceeding."
 
   apply-staging:
     name: Terraform apply (staging)
-    needs: [detect-changes, plan-staging]
-    if: needs.detect-changes.outputs.infra == 'true' && needs.detect-changes.outputs.foundation != 'true' && github.event_name == 'push' && needs.plan-staging.result == 'success'
+    needs: [detect-changes, plan-staging, foundation-applied-check]
+    if: needs.detect-changes.outputs.infra == 'true' && github.event_name == 'push' && needs.plan-staging.result == 'success' && needs.foundation-applied-check.result == 'success'
     runs-on: ubuntu-latest
     # 45m, not 20m (M17-S27, 2026-07-23): a real first-time Cloud SQL
     # instance creation took 17m32s alone -- 20m left only ~2.5min of
@@ -605,8 +663,8 @@ jobs:
     # TOCTOU gap (state could theoretically drift between plan-prod and
     # this apply) is an acceptable, low-probability trade for never
     # persisting a credential-bearing artifact on a public repo.
-    needs: [detect-changes, plan-prod, apply-staging]
-    if: needs.detect-changes.outputs.infra == 'true' && needs.detect-changes.outputs.foundation != 'true' && github.event_name == 'push' && needs.plan-prod.result == 'success' && needs.apply-staging.result == 'success'
+    needs: [detect-changes, plan-prod, apply-staging, foundation-applied-check]
+    if: needs.detect-changes.outputs.infra == 'true' && github.event_name == 'push' && needs.plan-prod.result == 'success' && needs.apply-staging.result == 'success' && needs.foundation-applied-check.result == 'success'
     runs-on: ubuntu-latest
     # 60m, not 20m (M17-S27, 2026-07-23): S37's atomic apply creates both
     # the Cloud SQL instance (staging's own first-time creation alone took
