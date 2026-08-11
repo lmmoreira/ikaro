@@ -27,7 +27,7 @@ module "runtime_identities" {
   uploads_bucket_name = "ikaro-uploads-${var.environment}"
   public_bucket_name  = "ikaro-public-${var.environment}"
   secret_ids = {
-    for name in ["db-password", "db-migrator-password", "jwt-secret", "internal-api-key", "platform-admin-key", "hotsite-revalidate-secret", "google-oauth-client-id", "google-oauth-client-secret", "brevo-smtp-key", "web-internal-key"] : name => "projects/${var.project_id}/secrets/${name}"
+    for name in ["db-password", "db-migrator-password", "jwt-secret", "internal-api-key", "platform-admin-key", "hotsite-revalidate-secret", "google-oauth-client-id", "google-oauth-client-secret", "brevo-smtp-key", "web-internal-key", "openrouter-api-key", "anthropic-api-key", "openai-api-key"] : name => "projects/${var.project_id}/secrets/${name}"
   }
 }
 

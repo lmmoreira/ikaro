@@ -1,11 +1,12 @@
 # Secrets — catalog, consumers, rotation
 
 `modules/secrets` (M17-S16) creates Secret Manager **containers only** — no values, no IAM.
-Per-SA accessor bindings are `modules/iam`'s job (M17-S17); the consumer column below is
-documentation, not a Terraform artifact — S17 hand-maintains its own local map (secret → SA)
-mirroring this table. Values are **never** managed by Terraform (M17 §2) — every secret's first
-version is populated by the S27 (staging) / S37 (prod) activation runbooks via
-`gcloud secrets versions add`.
+Per-SA accessor bindings are `foundation/modules/runtime-identities`'s job (originally M17-S17's
+`modules/iam`, moved under TD34's Foundation boundary and never reachable from a normal
+`envs/*` apply since) — the consumer column below is documentation, not a Terraform artifact;
+`runtime-identities` hand-maintains its own local map (secret → SA) mirroring this table. Values
+are **never** managed by Terraform (M17 §2) — every secret's first version is populated by the
+S27 (staging) / S37 (prod) activation runbooks via `gcloud secrets versions add`.
 
 | Secret | Consumer(s) | Source of truth | Notes |
 |---|---|---|---|

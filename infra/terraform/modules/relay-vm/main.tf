@@ -236,7 +236,7 @@ resource "google_compute_instance_iam_member" "admin_os_login" {
 }
 
 # Closes the TD32 discovery gap: only the backend runtime SA could read
-# platform-admin-key (modules/iam) before this. Grants the relay VM's own
+# platform-admin-key (foundation/modules/runtime-identities) before this. Grants the relay VM's own
 # service account (not the human, per the 2026-07-24 redesign) — read via
 # a metadata-server-minted access token from inside the VM, no gcloud
 # needed.

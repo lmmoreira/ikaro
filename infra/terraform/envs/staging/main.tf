@@ -91,8 +91,10 @@ module "storage" {
 }
 
 # Unconditional, same reasoning as storage: empty Secret Manager containers
-# cost effectively nothing. No values, no IAM here — M17-S17 (modules/iam)
-# grants the per-SA accessor bindings once it lands.
+# cost effectively nothing. No values, no IAM here — foundation/modules/runtime-identities
+# (Foundation-owned since TD34, applied only via the protected foundation-deploy.yml
+# workflow_dispatch — never automatically on a normal envs/* apply) grants the per-SA
+# accessor bindings once it lands.
 module "secrets" {
   source = "../../modules/secrets"
 

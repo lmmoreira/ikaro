@@ -16,6 +16,9 @@ variables {
     "jwt-secret"                 = "projects/ikaro-staging/secrets/jwt-secret"
     "platform-admin-key"         = "projects/ikaro-staging/secrets/platform-admin-key"
     "web-internal-key"           = "projects/ikaro-staging/secrets/web-internal-key"
+    "openrouter-api-key"         = "projects/ikaro-staging/secrets/openrouter-api-key"
+    "anthropic-api-key"          = "projects/ikaro-staging/secrets/anthropic-api-key"
+    "openai-api-key"             = "projects/ikaro-staging/secrets/openai-api-key"
   }
 }
 
@@ -28,7 +31,7 @@ run "runtime_identities_are_least_privilege_and_complete" {
   }
 
   assert {
-    condition     = length(google_project_iam_member.runtime) == 6 && length(google_storage_bucket_iam_member.backend_object_admin) == 2 && length(google_secret_manager_secret_iam_member.accessor) == 15
+    condition     = length(google_project_iam_member.runtime) == 6 && length(google_storage_bucket_iam_member.backend_object_admin) == 2 && length(google_secret_manager_secret_iam_member.accessor) == 18
     error_message = "Foundation must retain the reviewed project, bucket, and secret IAM bindings."
   }
 
