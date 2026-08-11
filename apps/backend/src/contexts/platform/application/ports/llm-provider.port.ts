@@ -8,6 +8,12 @@ export const OPENROUTER_LLM_PROVIDER = Symbol('OpenRouterLlmProvider');
 // drift apart (a mismatch would throw "Unknown LLM provider" at the first unconfigured request).
 export const OPENROUTER_PROVIDER_NAME = 'openrouter';
 
+export const ANTHROPIC_LLM_PROVIDER = Symbol('AnthropicLlmProvider');
+export const ANTHROPIC_PROVIDER_NAME = 'anthropic';
+
+export const OPENAI_LLM_PROVIDER = Symbol('OpenAiLlmProvider');
+export const OPENAI_PROVIDER_NAME = 'openai';
+
 export interface ChatTurn {
   role: 'user' | 'assistant';
   content: string;

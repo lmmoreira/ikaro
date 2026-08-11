@@ -11,7 +11,9 @@ import { CHATBOT_SESSION_REPOSITORY } from './application/ports/chatbot-session-
 import { FRONTEND_REVALIDATION_PORT } from './application/ports/frontend-revalidation.port';
 import { HOTSITE_CONFIG_REPOSITORY } from './application/ports/hotsite-config-repository.port';
 import {
+  ANTHROPIC_LLM_PROVIDER,
   ILlmProvider,
+  OPENAI_LLM_PROVIDER,
   OPENROUTER_LLM_PROVIDER,
   OPENROUTER_PROVIDER_NAME,
 } from './application/ports/llm-provider.port';
@@ -45,6 +47,8 @@ import { HotsiteConfigEntity } from './infrastructure/entities/hotsite-config.en
 import { TenantEntity } from './infrastructure/entities/tenant.entity';
 import { FrontendRevalidationAdapter } from './infrastructure/adapters/frontend-revalidation.adapter';
 import { PlatformTenantSettingsAdapter } from './infrastructure/cross-context/platform-tenant-settings.adapter';
+import { AnthropicLlmAdapter } from './infrastructure/llm/anthropic-llm.adapter';
+import { OpenAiLlmAdapter } from './infrastructure/llm/openai-llm.adapter';
 import { OpenRouterLlmAdapter } from './infrastructure/llm/openrouter-llm.adapter';
 import { HotsiteContentReader } from './application/services/hotsite-content-reader.service';
 import { HotsiteImagePromotionService } from './application/services/hotsite-image-promotion.service';
@@ -95,14 +99,23 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     },
     { provide: TENANT_SETTINGS_PORT, useClass: PlatformTenantSettingsAdapter },
     { provide: OPENROUTER_LLM_PROVIDER, useClass: OpenRouterLlmAdapter },
+    { provide: ANTHROPIC_LLM_PROVIDER, useClass: AnthropicLlmAdapter },
+    { provide: OPENAI_LLM_PROVIDER, useClass: OpenAiLlmAdapter },
     {
       provide: LLM_PROVIDER_REGISTRY,
-      useFactory: (config: ConfigService, openRouterProvider: ILlmProvider) =>
+      useFactory: (
+        config: ConfigService,
+        openRouterProvider: ILlmProvider,
+        anthropicProvider: ILlmProvider,
+        openAiProvider: ILlmProvider,
+      ) =>
         new LlmProviderRegistry(
           config.get<string>('CHATBOT_LLM_PROVIDER', OPENROUTER_PROVIDER_NAME),
           openRouterProvider,
+          anthropicProvider,
+          openAiProvider,
         ),
-      inject: [ConfigService, OPENROUTER_LLM_PROVIDER],
+      inject: [ConfigService, OPENROUTER_LLM_PROVIDER, ANTHROPIC_LLM_PROVIDER, OPENAI_LLM_PROVIDER],
     },
     HotsiteContentReader,
     { provide: FRONTEND_REVALIDATION_PORT, useClass: FrontendRevalidationAdapter },

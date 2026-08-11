@@ -1,4 +1,9 @@
-import { ILlmProvider, OPENROUTER_PROVIDER_NAME } from '../ports/llm-provider.port';
+import {
+  ANTHROPIC_PROVIDER_NAME,
+  ILlmProvider,
+  OPENAI_PROVIDER_NAME,
+  OPENROUTER_PROVIDER_NAME,
+} from '../ports/llm-provider.port';
 
 export const LLM_PROVIDER_REGISTRY = Symbol('LlmProviderRegistry');
 
@@ -17,8 +22,14 @@ export class LlmProviderRegistry {
   constructor(
     private readonly platformDefault: string,
     openRouterProvider: ILlmProvider,
+    anthropicProvider: ILlmProvider,
+    openAiProvider: ILlmProvider,
   ) {
-    this.providers = new Map([[OPENROUTER_PROVIDER_NAME, openRouterProvider]]);
+    this.providers = new Map([
+      [OPENROUTER_PROVIDER_NAME, openRouterProvider],
+      [ANTHROPIC_PROVIDER_NAME, anthropicProvider],
+      [OPENAI_PROVIDER_NAME, openAiProvider],
+    ]);
   }
 
   resolve(providerNameOverride?: string): ILlmProvider {
