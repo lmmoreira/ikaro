@@ -1,3 +1,4 @@
+import { Decimal } from 'decimal.js';
 import { DataSource, QueryFailedError } from 'typeorm';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
@@ -94,6 +95,7 @@ describe('Chatbot repositories (integration)', () => {
       .withContent('Funcionamos de segunda a sábado, das 8h às 18h.')
       .withInputTokens(120)
       .withOutputTokens(35)
+      .withCostUsd('0.00019700')
       .build();
     await messageRepo.save(message);
 
@@ -105,6 +107,7 @@ describe('Chatbot repositories (integration)', () => {
     expect(found!.content).toBe('Funcionamos de segunda a sábado, das 8h às 18h.');
     expect(found!.inputTokens).toBe(120);
     expect(found!.outputTokens).toBe(35);
+    expect(found!.costUsd).toEqual(new Decimal('0.000197'));
   });
 
   it('chatbot provider balance round-trip — upsert, save, findByProvider', async () => {

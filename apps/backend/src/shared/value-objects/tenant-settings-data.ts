@@ -57,11 +57,21 @@ export interface BusinessInfo {
   socialLinks: SocialLinks | null;
 }
 
-// M19-S02: type only for now — knowledgeText/default()/validation land in S04. llmProvider/llmModel
-// are never written by default() for any tenant; they exist only as a manual per-tenant override
-// (docs/discovery/CHATBOT/CHATBOT.md §5), resolved as `tenant.settings.chatbot?.llmProvider ?? DEFAULT`.
+// `knowledgeText` is the only field default()-written or tenant-editable via UC-026 (M19-S04).
+// Every other field here is an Ikaro-only per-tenant override — absent unless Ikaro explicitly
+// grants one for that tenant — resolved as `tenant.settings.chatbot?.X ?? DEFAULT_X` at read time,
+// where DEFAULT_X lives in `contexts/platform/chatbot.constants.ts`
+// (docs/21-TENANTS_SETTINGS_SCHEMA.md §7).
 export interface ChatbotSettings {
   knowledgeText?: string;
+  maxKnowledgeTextLength?: number;
+  maxConversationsPerDay?: number;
+  maxConversationsPerIpPerDay?: number;
+  maxConcurrentConversations?: number;
+  maxMessagesPerConversation?: number;
+  maxMessageLengthChars?: number;
+  maxHistoryMessagesSentToLlm?: number;
+  maxOutputTokensPerResponse?: number;
   llmProvider?: string;
   llmModel?: string;
 }

@@ -1,4 +1,5 @@
 import { ConfigService } from '@nestjs/config';
+import { Decimal } from 'decimal.js';
 import { ChatCompletionRequest } from '../../application/ports/llm-provider.port';
 import { OpenRouterLlmAdapter } from './openrouter-llm.adapter';
 
@@ -30,7 +31,7 @@ function mockSuccessResponse(overrides: Record<string, unknown> = {}): Response 
       Promise.resolve({
         model: 'deepseek/deepseek-v4-flash-0731',
         choices: [{ message: { content: 'We are open 8am to 6pm.' } }],
-        usage: { prompt_tokens: 120, completion_tokens: 15 },
+        usage: { prompt_tokens: 120, completion_tokens: 15, cost: 0.0000135 },
         ...overrides,
       }),
   } as unknown as Response;
@@ -111,12 +112,12 @@ describe('OpenRouterLlmAdapter', () => {
     ]);
   });
 
-  it('maps usage.prompt_tokens/completion_tokens and the response model into ChatCompletionResult', async () => {
+  it('maps usage.prompt_tokens/completion_tokens/cost and the response model into ChatCompletionResult', async () => {
     fetchSpy.mockResolvedValue(
       mockSuccessResponse({
         model: 'deepseek/deepseek-v4-flash-0731',
         choices: [{ message: { content: 'We are open 8am to 6pm.' } }],
-        usage: { prompt_tokens: 281, completion_tokens: 42 },
+        usage: { prompt_tokens: 281, completion_tokens: 42, cost: 0.0000328 },
       }),
     );
     const adapter = new OpenRouterLlmAdapter(makeConfigService());
@@ -128,7 +129,50 @@ describe('OpenRouterLlmAdapter', () => {
       inputTokens: 281,
       outputTokens: 42,
       modelId: 'deepseek/deepseek-v4-flash-0731',
+      costUsd: new Decimal(0.0000328),
     });
+  });
+
+  it('reads costUsd straight from usage.cost — the provider-confirmed value, never self-computed', async () => {
+    fetchSpy.mockResolvedValue(
+      mockSuccessResponse({ usage: { prompt_tokens: 100, completion_tokens: 10, cost: 0.00042 } }),
+    );
+    const adapter = new OpenRouterLlmAdapter(makeConfigService());
+
+    const result = await adapter.complete(makeRequest());
+
+    expect(result.costUsd).toEqual(new Decimal(0.00042));
+  });
+
+  it('throws a controlled error when usage.cost is missing — a documented-as-always-present field going absent is treated as a malformed response, not silently priced at zero', async () => {
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({
+          model: 'deepseek/deepseek-v4-flash-0731',
+          choices: [{ message: { content: 'We are open 8am to 6pm.' } }],
+          usage: { prompt_tokens: 120, completion_tokens: 15 },
+        }),
+    } as unknown as Response);
+    const adapter = new OpenRouterLlmAdapter(makeConfigService());
+
+    await expect(adapter.complete(makeRequest())).rejects.toThrow(
+      'OpenRouter returned a malformed response',
+    );
+  });
+
+  it('throws a controlled error when the response body is not valid JSON, instead of an unhandled SyntaxError', async () => {
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.reject(new SyntaxError('Unexpected token < in JSON')),
+    } as unknown as Response);
+    const adapter = new OpenRouterLlmAdapter(makeConfigService());
+
+    await expect(adapter.complete(makeRequest())).rejects.toThrow(
+      'OpenRouter returned a malformed response: invalid JSON',
+    );
   });
 
   it('throws when OpenRouter responds with a non-ok status', async () => {

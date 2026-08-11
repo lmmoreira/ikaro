@@ -1,12 +1,16 @@
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
-import { TenantBuilder } from '../../../../test/builders/platform/index';
+import {
+  TenantBuilder,
+  TenantSettingsPropsBuilder,
+} from '../../../../test/builders/platform/index';
 import { CountryCodeValidationError } from '../../../../shared/value-objects/country-code.vo';
 import {
   PlatformDomainError,
   TenantInactiveError,
   TenantNotFoundError,
 } from '../../domain/errors/platform-domain.error';
+import { TenantSettings } from '../../domain/value-objects/tenant-settings.vo';
 import { UpdateTenantSettingsUseCase } from './update-tenant-settings.use-case';
 
 describe('UpdateTenantSettingsUseCase', () => {
@@ -271,5 +275,58 @@ describe('UpdateTenantSettingsUseCase', () => {
     await expect(
       useCase.execute({ tenantId: tenant.id, settings: { loyalty: { expiryDays: 90 } } }),
     ).rejects.toThrow(TenantInactiveError);
+  });
+
+  it('merges a chatbot.knowledgeText update without wiping other settings', async () => {
+    const tenant = new TenantBuilder().build();
+    await tenantRepo.save(tenant);
+
+    const result = await useCase.execute({
+      tenantId: tenant.id,
+      settings: { chatbot: { knowledgeText: 'Aceitamos Pix e cartão.' } },
+    });
+
+    expect(result.settings.chatbot).toEqual({ knowledgeText: 'Aceitamos Pix e cartão.' });
+    expect(result.settings.loyalty.expiryDays).toBe(180);
+  });
+
+  it('never leaks an Ikaro-only chatbot override (llmProvider, caps) into the response', async () => {
+    const props = new TenantSettingsPropsBuilder()
+      .withChatbot({
+        knowledgeText: 'texto',
+        llmProvider: 'anthropic',
+        maxConversationsPerDay: 100,
+      })
+      .build();
+    const tenant = new TenantBuilder().withSettings(TenantSettings.create(props)).build();
+    await tenantRepo.save(tenant);
+
+    const result = await useCase.execute({
+      tenantId: tenant.id,
+      settings: { loyalty: { expiryDays: 90 } },
+    });
+
+    expect(result.settings.chatbot).toEqual({ knowledgeText: 'texto' });
+  });
+
+  it('preserves an Ikaro-granted chatbot override in the database when an unrelated category is patched', async () => {
+    const props = new TenantSettingsPropsBuilder()
+      .withChatbot({
+        knowledgeText: 'texto',
+        llmProvider: 'anthropic',
+        maxConversationsPerDay: 100,
+      })
+      .build();
+    const tenant = new TenantBuilder().withSettings(TenantSettings.create(props)).build();
+    await tenantRepo.save(tenant);
+
+    await useCase.execute({ tenantId: tenant.id, settings: { loyalty: { expiryDays: 90 } } });
+
+    const reloaded = await tenantRepo.findById(tenant.id);
+    expect(reloaded!.settings.chatbot).toEqual({
+      knowledgeText: 'texto',
+      llmProvider: 'anthropic',
+      maxConversationsPerDay: 100,
+    });
   });
 });

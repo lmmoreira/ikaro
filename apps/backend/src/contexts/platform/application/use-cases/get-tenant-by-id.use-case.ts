@@ -28,7 +28,13 @@ export class GetTenantByIdUseCase {
       slug: tenant.slug.value,
       name: tenant.name,
       locale: tenant.settings.localization.language,
-      settings: tenant.settings.toJSON(),
+      settings: {
+        ...tenant.settings.toJSON(),
+        // `chatbot` getter — unlike toJSON()'s raw props — always resolves knowledgeText even for
+        // a tenant whose stored settings predate M19-S04, and never leaks an Ikaro-only override
+        // (maxConversationsPerDay, llmProvider, ...) into the API response (docs/21 §7).
+        chatbot: { knowledgeText: tenant.settings.chatbot.knowledgeText },
+      },
     };
   }
 }

@@ -1,3 +1,4 @@
+import { Decimal } from 'decimal.js';
 import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 
@@ -12,6 +13,7 @@ export interface ChatbotMessageProps {
   inputTokens: number;
   outputTokens: number;
   modelId: string;
+  costUsd: Decimal;
   createdAt: Date;
 }
 
@@ -26,6 +28,7 @@ export class ChatbotMessage extends AggregateRoot {
   readonly inputTokens: number;
   readonly outputTokens: number;
   readonly modelId: string;
+  readonly costUsd: Decimal;
   readonly createdAt: Date;
 
   private constructor(props: ChatbotMessageProps) {
@@ -38,6 +41,7 @@ export class ChatbotMessage extends AggregateRoot {
     this.inputTokens = props.inputTokens;
     this.outputTokens = props.outputTokens;
     this.modelId = props.modelId;
+    this.costUsd = props.costUsd;
     this.createdAt = props.createdAt;
   }
 

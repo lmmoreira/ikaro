@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Decimal } from 'decimal.js';
 import { z } from 'zod';
 import {
   ChatCompletionRequest,
@@ -21,11 +22,19 @@ interface OpenRouterMessage {
 // Validated at runtime, not just cast — a 200 response with an empty choices array or missing
 // usage (a filtered/refusal response, an upstream schema change) must fail as a controlled
 // error, not an untyped TypeError from an unchecked property access (cross-tool review finding
-// on PR #353).
+// on PR #353). `cost` is required (not `.nullable()`) on the same "fail loud on unexpected
+// shape" principle as the rest of this schema: OpenRouter's own docs confirm usage.cost is
+// always included automatically on every response — a null/missing cost is exactly the kind of
+// unexpected upstream shape this schema exists to catch as a controlled error, not a value to
+// silently default to zero (which would silently undercount the platform-wide spend breaker).
 const openRouterResponseSchema = z.object({
   model: z.string(),
   choices: z.array(z.object({ message: z.object({ content: z.string() }) })).min(1),
-  usage: z.object({ prompt_tokens: z.number(), completion_tokens: z.number() }),
+  usage: z.object({
+    prompt_tokens: z.number(),
+    completion_tokens: z.number(),
+    cost: z.number(),
+  }),
 });
 
 // docs/discovery/CHATBOT/CHATBOT.md §3/§4: reasoning.effort must always be sent explicitly as
@@ -67,7 +76,14 @@ export class OpenRouterLlmAdapter implements ILlmProvider {
       throw new Error(`OpenRouter request failed: ${response.status} ${await response.text()}`);
     }
 
-    const parsed = openRouterResponseSchema.safeParse(await response.json());
+    let responseBody: unknown;
+    try {
+      responseBody = await response.json();
+    } catch {
+      throw new Error('OpenRouter returned a malformed response: invalid JSON');
+    }
+
+    const parsed = openRouterResponseSchema.safeParse(responseBody);
     if (!parsed.success) {
       throw new Error(`OpenRouter returned a malformed response: ${parsed.error.message}`);
     }
@@ -78,6 +94,7 @@ export class OpenRouterLlmAdapter implements ILlmProvider {
       inputTokens: body.usage.prompt_tokens,
       outputTokens: body.usage.completion_tokens,
       modelId: body.model,
+      costUsd: new Decimal(body.usage.cost),
     };
   }
 }

@@ -109,6 +109,7 @@
   "PLATFORM_SETTINGS_BUSINESS_HOURS_ORDER_INVALID": "O horário de fechamento deve ser depois do horário de abertura.",
   "PLATFORM_SETTINGS_BUSINESS_PHONE_INVALID": "O telefone informado é inválido.",
   "PLATFORM_SETTINGS_BUSINESS_EMAIL_INVALID": "O e-mail informado é inválido.",
+  "PLATFORM_SETTINGS_CHATBOT_KNOWLEDGE_TEXT_TOO_LONG": "O texto de conhecimento do assistente excede o limite de caracteres permitido.",
   "PLATFORM_SETTINGS_SOCIAL_WHATSAPP_INVALID": "O número de WhatsApp informado é inválido.",
   "MONEY_AMOUNT_INVALID": "O valor informado é inválido.",
   "MONEY_CURRENCY_INVALID": "A moeda informada é inválida.",

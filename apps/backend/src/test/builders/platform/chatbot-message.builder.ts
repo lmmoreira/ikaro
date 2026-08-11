@@ -1,3 +1,4 @@
+import { Decimal } from 'decimal.js';
 import {
   ChatbotMessage,
   ChatbotMessageRole,
@@ -15,6 +16,7 @@ export class ChatbotMessageBuilder {
   private inputTokens = 42;
   private outputTokens = 0;
   private modelId = DEFAULT_MODEL_ID;
+  private costUsd = new Decimal('0.00000378');
 
   withTenantId(tenantId: string): this {
     this.tenantId = tenantId;
@@ -51,6 +53,11 @@ export class ChatbotMessageBuilder {
     return this;
   }
 
+  withCostUsd(costUsd: Decimal | number | string): this {
+    this.costUsd = new Decimal(costUsd);
+    return this;
+  }
+
   build(): ChatbotMessage {
     const message = ChatbotMessage.create({
       tenantId: this.tenantId,
@@ -60,6 +67,7 @@ export class ChatbotMessageBuilder {
       inputTokens: this.inputTokens,
       outputTokens: this.outputTokens,
       modelId: this.modelId,
+      costUsd: this.costUsd,
     });
     message.clearDomainEvents();
     return message;

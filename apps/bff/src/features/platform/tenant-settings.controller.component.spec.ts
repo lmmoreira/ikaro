@@ -50,6 +50,9 @@ const settingsResponse: TenantSettingsResponse = {
       language: 'pt-BR',
       decimalPlaces: 2,
     },
+    chatbot: {
+      knowledgeText: '',
+    },
   },
 };
 

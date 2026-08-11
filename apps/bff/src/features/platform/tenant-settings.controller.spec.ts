@@ -42,6 +42,9 @@ const settingsResponse: TenantSettingsResponse = {
       language: 'pt-BR',
       decimalPlaces: 2,
     },
+    chatbot: {
+      knowledgeText: '',
+    },
   },
 };
 
@@ -152,6 +155,30 @@ describe('TenantSettingsController', () => {
       });
 
       expect(result.success).toBe(true);
+    });
+
+    it('accepts a chatbot.knowledgeText update', () => {
+      const result = UpdateTenantSettingsBodySchema.safeParse({
+        settings: { chatbot: { knowledgeText: 'Aceitamos Pix e cartão.' } },
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it('rejects an unrecognized key inside chatbot (e.g. an Ikaro-only cap field)', () => {
+      const result = UpdateTenantSettingsBodySchema.safeParse({
+        settings: { chatbot: { maxConversationsPerDay: 100 } },
+      });
+
+      expect(result.success).toBe(false);
+    });
+
+    it('rejects llmProvider inside chatbot', () => {
+      const result = UpdateTenantSettingsBodySchema.safeParse({
+        settings: { chatbot: { llmProvider: 'anthropic' } },
+      });
+
+      expect(result.success).toBe(false);
     });
   });
 });

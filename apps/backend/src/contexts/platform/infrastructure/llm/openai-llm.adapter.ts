@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Decimal } from 'decimal.js';
 import { z } from 'zod';
 import {
   ChatCompletionRequest,
@@ -14,6 +15,21 @@ const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 // M19-S03) — re-verify against OpenAI's own pricing page before assuming this is still current.
 const DEFAULT_OPENAI_MODEL = 'gpt-5.6-luna';
 const OPENAI_TIMEOUT_MS = 30000;
+
+// OpenAI's Chat Completions API never returns cost in its response (confirmed against the live
+// docs, 2026-08-11 — usage only carries prompt/completion/reasoning/cached token counts), unlike
+// OpenRouter's usage.cost. Priced for DEFAULT_OPENAI_MODEL only — a tenant `llmModel` override to
+// a different OpenAI tier is not priced correctly here, same known gap as the model-override
+// comment above. Verified against developers.openai.com's live pricing page, 2026-08-11 — not
+// training memory; re-verify before trusting this for real billing decisions, prices move fast.
+const OPENAI_PRICING = { inputPerMillionTokensUsd: 0.2, outputPerMillionTokensUsd: 1.2 };
+
+function computeCostUsd(inputTokens: number, outputTokens: number): Decimal {
+  return new Decimal(inputTokens)
+    .times(OPENAI_PRICING.inputPerMillionTokensUsd)
+    .plus(new Decimal(outputTokens).times(OPENAI_PRICING.outputPerMillionTokensUsd))
+    .dividedBy(1_000_000);
+}
 
 interface OpenAiMessage {
   role: 'system' | 'user' | 'assistant';
@@ -81,6 +97,7 @@ export class OpenAiLlmAdapter implements ILlmProvider {
       inputTokens: body.usage.prompt_tokens,
       outputTokens: body.usage.completion_tokens,
       modelId: body.model,
+      costUsd: computeCostUsd(body.usage.prompt_tokens, body.usage.completion_tokens),
     };
   }
 }

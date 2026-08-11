@@ -866,6 +866,9 @@ ChatbotMessage {
   inputTokens:    Integer
   outputTokens:   Integer
   modelId:        String            -- recorded per-message for cost auditing (models/providers can vary per tenant)
+  costUsd:        Decimal           -- computed and stored at send-time by whichever adapter produced this
+                                     -- message (provider-confirmed for OpenRouter, self-computed for
+                                     -- Anthropic/OpenAI) — never reconstructed later from tokens
   createdAt:      DateTime
 }
 ```

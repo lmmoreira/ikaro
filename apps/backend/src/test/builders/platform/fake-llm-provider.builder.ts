@@ -1,3 +1,4 @@
+import { Decimal } from 'decimal.js';
 import {
   ChatCompletionRequest,
   ChatCompletionResult,
@@ -17,6 +18,7 @@ export class FakeLlmProviderBuilder {
   private inputTokens = 100;
   private outputTokens = 20;
   private readonly modelId = 'fake-model';
+  private costUsd = new Decimal('0.00001');
 
   withText(text: string): this {
     this.text = text;
@@ -33,12 +35,18 @@ export class FakeLlmProviderBuilder {
     return this;
   }
 
+  withCostUsd(costUsd: Decimal | number | string): this {
+    this.costUsd = new Decimal(costUsd);
+    return this;
+  }
+
   build(): ILlmProvider {
     return new FakeLlmProvider({
       text: this.text,
       inputTokens: this.inputTokens,
       outputTokens: this.outputTokens,
       modelId: this.modelId,
+      costUsd: this.costUsd,
     });
   }
 }

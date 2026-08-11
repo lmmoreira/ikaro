@@ -92,6 +92,18 @@ const NotificationSchema = z
   })
   .partial();
 
+// Only `knowledgeText` is accepted here — the resolved `maxKnowledgeTextLength` cap (default or a
+// tenant's own Ikaro-granted override) is enforced by ChatbotSettingsValidator in the domain layer,
+// not here: a hardcoded Zod .max() would make an above-default override unenforceable. `.strict()`
+// rejects any other `chatbot.*` key (the 8 caps, llmProvider/llmModel) with 400 — deliberately not
+// silently stripped, unlike the other categories' sub-schemas.
+const ChatbotSchema = z
+  .object({
+    knowledgeText: z.string(),
+  })
+  .partial()
+  .strict();
+
 export const UpdateTenantSettingsSchema = z.object({
   settings: z
     .object({
@@ -101,6 +113,7 @@ export const UpdateTenantSettingsSchema = z.object({
       notification: NotificationSchema.optional(),
       localization: LocalizationSchema.optional(),
       businessInfo: BusinessInfoSchema.optional(),
+      chatbot: ChatbotSchema.optional(),
     })
     .strict()
     .refine((settings) => Object.values(settings).some((value) => value !== undefined), {

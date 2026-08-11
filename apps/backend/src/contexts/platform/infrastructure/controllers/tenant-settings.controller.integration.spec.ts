@@ -47,6 +47,7 @@ describe('TenantSettingsController (integration)', () => {
     expect(body.name).toBe('Lavacar Settings Test');
     expect(body.settings.loyalty).toBeDefined();
     expect(body.settings.booking).toBeDefined();
+    expect(body.settings.chatbot).toEqual({ knowledgeText: '' });
   });
 
   it('returns 200 on GET when X-Actor-Role is STAFF', async () => {
@@ -355,6 +356,92 @@ describe('TenantSettingsController (integration)', () => {
 
     const row = await ds.getRepository(TenantEntity).findOne({ where: { id: tenantId } });
     expect(row!.settings.notification?.fromEmail).toBe('reservas@lavacar.com.br');
+  });
+
+  it('returns 200 and persists a chatbot.knowledgeText update', async () => {
+    const { body } = await request(app.getHttpServer())
+      .patch('/tenants/settings')
+      .set('X-Tenant-ID', tenantId)
+      .set('X-Actor-Role', 'MANAGER')
+      .send({
+        settings: {
+          chatbot: {
+            knowledgeText:
+              'Trabalhamos apenas com agendamento — não atendemos por ordem de chegada.',
+          },
+        },
+      })
+      .expect(200);
+
+    expect(body.settings.chatbot.knowledgeText).toBe(
+      'Trabalhamos apenas com agendamento — não atendemos por ordem de chegada.',
+    );
+
+    const row = await ds.getRepository(TenantEntity).findOne({ where: { id: tenantId } });
+    expect(row!.settings.chatbot?.knowledgeText).toBe(
+      'Trabalhamos apenas com agendamento — não atendemos por ordem de chegada.',
+    );
+  });
+
+  it('returns 400 for a chatbot.knowledgeText exceeding the default 4000-char limit', async () => {
+    const { body } = await request(app.getHttpServer())
+      .patch('/tenants/settings')
+      .set('X-Tenant-ID', tenantId)
+      .set('X-Actor-Role', 'MANAGER')
+      .send({ settings: { chatbot: { knowledgeText: 'a'.repeat(4001) } } })
+      .expect(400);
+
+    expect(body.status).toBe(400);
+  });
+
+  it('returns 400 for an unrecognized key inside chatbot (e.g. an Ikaro-only cap field)', async () => {
+    const { body } = await request(app.getHttpServer())
+      .patch('/tenants/settings')
+      .set('X-Tenant-ID', tenantId)
+      .set('X-Actor-Role', 'MANAGER')
+      .send({ settings: { chatbot: { maxConversationsPerDay: 100 } } })
+      .expect(400);
+
+    expect(body.status).toBe(400);
+  });
+
+  it('returns chatbot: { knowledgeText: "" } on GET for a legacy tenant whose stored settings predate the chatbot category', async () => {
+    const currentTenant = await ds.getRepository(TenantEntity).findOne({ where: { id: tenantId } });
+    const legacyTenant = new TenantEntityBuilder()
+      .withId('00000000-0000-0000-0000-000000000002')
+      .withSlug('lavacar-legacy-settings-integ-01')
+      .withSettings({ ...currentTenant!.settings, chatbot: undefined })
+      .build();
+    await ds.getRepository(TenantEntity).save(legacyTenant);
+
+    const { body } = await request(app.getHttpServer())
+      .get('/tenants/settings')
+      .set('X-Tenant-ID', legacyTenant.id)
+      .set('X-Actor-Role', 'MANAGER')
+      .expect(200);
+
+    expect(body.settings.chatbot).toEqual({ knowledgeText: '' });
+  });
+
+  it('never leaks an Ikaro-only chatbot override (llmProvider, caps) into the GET response', async () => {
+    const currentTenant = await ds.getRepository(TenantEntity).findOne({ where: { id: tenantId } });
+    const overrideTenant = new TenantEntityBuilder()
+      .withId('00000000-0000-0000-0000-000000000003')
+      .withSlug('lavacar-override-settings-integ-01')
+      .withSettings({
+        ...currentTenant!.settings,
+        chatbot: { knowledgeText: 'texto', llmProvider: 'anthropic', maxConversationsPerDay: 100 },
+      })
+      .build();
+    await ds.getRepository(TenantEntity).save(overrideTenant);
+
+    const { body } = await request(app.getHttpServer())
+      .get('/tenants/settings')
+      .set('X-Tenant-ID', overrideTenant.id)
+      .set('X-Actor-Role', 'MANAGER')
+      .expect(200);
+
+    expect(body.settings.chatbot).toEqual({ knowledgeText: 'texto' });
   });
 
   it('returns 409 when the tenant is inactive', async () => {

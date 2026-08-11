@@ -70,6 +70,7 @@ const tenantSettingsResponse = {
       address: null,
       socialLinks: null,
     },
+    chatbot: { knowledgeText: '' },
   },
 } as const;
 

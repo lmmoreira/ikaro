@@ -1,6 +1,7 @@
 import {
   BookingSettings,
   BusinessInfo,
+  ChatbotSettings,
   LocalizationSettings,
   LoyaltySettings,
   NotificationSettings,
@@ -67,6 +68,11 @@ export class TenantSettingsPropsBuilder {
       ...this.props.businessInfo,
       socialLinks: { ...current, ...overrides },
     };
+    return this;
+  }
+
+  withChatbot(overrides: Partial<ChatbotSettings>): this {
+    this.props.chatbot = { knowledgeText: '', ...this.props.chatbot, ...overrides };
     return this;
   }
 

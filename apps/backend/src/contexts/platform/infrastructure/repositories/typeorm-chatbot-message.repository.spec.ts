@@ -1,3 +1,4 @@
+import { Decimal } from 'decimal.js';
 import { EntityManager, Repository } from 'typeorm';
 import { runWithEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import {
@@ -13,6 +14,7 @@ const ENTITY = (): ChatbotMessageEntity =>
     .withId('message-id-1')
     .withSessionId('session-id-1')
     .withTenantId('tenant-id-1')
+    .withCostUsd('0.00001234')
     .build();
 
 describe('TypeOrmChatbotMessageRepository', () => {
@@ -37,6 +39,7 @@ describe('TypeOrmChatbotMessageRepository', () => {
       expect(result!.id).toBe('message-id-1');
       expect(result!.sessionId).toBe('session-id-1');
       expect(result!.role).toBe('USER');
+      expect(result!.costUsd).toEqual(new Decimal('0.00001234'));
       expect(mockRepo.findOne).toHaveBeenCalledWith({
         where: { id: 'message-id-1', tenantId: 'tenant-id-1' },
       });
@@ -54,6 +57,7 @@ describe('TypeOrmChatbotMessageRepository', () => {
         .withTenantId('tenant-id-1')
         .withRole('ASSISTANT')
         .withOutputTokens(35)
+        .withCostUsd('0.00005678')
         .build();
       mockRepo.save.mockResolvedValue({} as ChatbotMessageEntity);
 
@@ -65,6 +69,7 @@ describe('TypeOrmChatbotMessageRepository', () => {
       expect(savedEntity.tenantId).toBe('tenant-id-1');
       expect(savedEntity.role).toBe('ASSISTANT');
       expect(savedEntity.outputTokens).toBe(35);
+      expect(savedEntity.costUsd).toBe('0.00005678');
     });
 
     it('uses the active EntityManager when inside a transaction', async () => {
