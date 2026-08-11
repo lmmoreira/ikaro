@@ -6,7 +6,7 @@
 # Pinned 2026-08-04 to otel/opentelemetry-collector-contrib:0.157.0 — the
 # latest stable release as of this story (confirmed via Docker Hub's tags
 # API, not the moving `:latest` tag).
-FROM otel/opentelemetry-collector-contrib@sha256:f2f01157055a9b2aab9df7118e1f1c9abf345e99b23bc7a2bc791db374a7d0f6
+FROM otel/opentelemetry-collector-contrib@sha256:c5918f78992ee73b0d6f0e599423ac5ec52dd5d9726733114d6eca53d5a32ed5
 
 COPY config.yaml /etc/otelcol-contrib/config.yaml
 
