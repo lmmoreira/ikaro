@@ -1,12 +1,14 @@
 # Observability Strategy - Ikaro
 
-> ⚠️ **Partially superseded by `plan/M17-CLOUD-DEPLOY.md` D9 (2026-07-07), corrected 2026-08-04, 2026-08-05.** The `## Deployment`, `## Local Development Setup`, `## Prometheus Metrics`, `## Loki Label Strategy`, `## Grafana Dashboards`, `## Alerting Rules (Email)`, and `## SLOs (Service Level Objectives)` sections below describe the original self-hosted GCE VM + Docker Compose stack (Prometheus/Grafana/Loki) — cut in favor of D9's "OTel SDK (OTLP-only) → collector sidecar → GCP managed backends (Cloud Trace, Cloud Monitoring, Cloud Logging)." That self-hosted stack remains a valid *future* option (swap the collector's exporter config — see M17 D9) but is **not** what's deployed today, and several of its supporting files (`docker/docker-compose.observability.yml`, `infrastructure/observability/`) don't exist in this repo. Dashboards/alerts-as-code via Cloud Monitoring is **M17-S35** (`infra/terraform/modules/monitoring`, PR #331, 2026-08-08) — uptime checks, Cloud Run/SQL/DLQ alert policies, log-based metrics, and one dashboard per env. Business/audit log-based counters (**M17-S54**, implemented 2026-08-12) added the missing `AppLogger` calls (bookings requested/approved/completed, notification failures, customer/staff logins) plus their log-based-metric counters and dashboard panels in the same `modules/monitoring` module. Sections describing Grafana dashboards/alerts below remain historical reference, not a currently-usable feature. `## NestJS OTel Implementation` (below) **is** current and accurate — that's the real, implemented mechanism (M17-S33 SDK bootstrap, M17-S34 collector sidecar).
+> ⚠️ **Partially superseded by `plan/M17-CLOUD-DEPLOY.md` D9 (2026-07-07), corrected 2026-08-04, 2026-08-05, 2026-08-12.** The `## Deployment`, `## Local Development Setup`, `## Loki Label Strategy`, `## Grafana Dashboards`, `## Alerting Rules (Email)`, and `## SLOs (Service Level Objectives)` sections below describe the original self-hosted GCE VM + Docker Compose stack (Prometheus/Grafana/Loki) — cut in favor of D9's "OTel SDK (OTLP-only) → collector sidecar → GCP managed backends (Cloud Trace, Cloud Monitoring, Cloud Logging)." That self-hosted stack remains a valid *future* option (swap the collector's exporter config — see M17 D9) but is **not** what's deployed today, and several of its supporting files (`docker/docker-compose.observability.yml`, `infrastructure/observability/`) don't exist in this repo. Dashboards/alerts-as-code via Cloud Monitoring is **M17-S35** (`infra/terraform/modules/monitoring`, PR #331, 2026-08-08) — uptime checks, Cloud Run/SQL/DLQ alert policies, log-based metrics, and one dashboard per env. Business/audit log-based counters (**M17-S54**, implemented 2026-08-12) added the missing `AppLogger` calls (bookings requested/approved/completed, notification failures, customer/staff logins) plus their log-based-metric counters and dashboard panels in the same `modules/monitoring` module. **`## Prometheus Metrics` below is now partially current, not fully superseded** — see that section's own updated banner: the real mechanism (OTel SDK metrics → collector → Google Managed Prometheus, **M17-S55**, implemented 2026-08-12) is a different shape from the section's original `prom-client`/custom-`/metrics`-endpoint design, but it is real and coded, not just planned. Sections describing Grafana dashboards/alerts below remain historical reference, not a currently-usable feature. `## NestJS OTel Implementation` (below) **is** current and accurate — that's the real, implemented mechanism (M17-S33 SDK bootstrap, M17-S34 collector sidecar).
 
 ## Overview
 
 Observability answers three questions: **is the system healthy?** (metrics), **why did this request fail?** (traces), and **what exactly happened?** (logs). All three must include `tenant_id` so issues can be isolated per car wash company.
 
-**Stack (as originally planned, see the superseded-sections banner above for what's actually deployed today):** Prometheus → metrics · Loki → logs · OTel Collector → telemetry pipeline · Grafana → dashboards + alerts. **Actually deployed (M17-S33/S34):** OTel SDK (traces only) → collector sidecar → Cloud Trace + Cloud Logging. Dashboards/alerting (M17-S35) implemented as of 2026-08-08 (`infra/terraform/modules/monitoring`) — no native metrics layer exists yet (deferred, M17-S55, split from S35).
+> **Scoped exception (M17-S55, decided 2026-08-12, cross-tool PR review finding on PR #362):** the generic per-route HTTP request-count/duration metrics `## Prometheus Metrics` describes below are **aggregate across all tenants, with no `tenant_id` label** — a deliberate, documented exception to the invariant above, not an oversight. Two reasons: (1) **technical** — `@opentelemetry/instrumentation-http`'s auto-generated metric attributes come from a fixed internal function with no hook to inject request-scoped context (confirmed against the real pinned source, `getIncomingRequestMetricAttributes()` in `instrumentation-http@0.220.0`); adding `tenant_id` would require abandoning auto-instrumentation for a hand-written `Counter`/`Histogram` recorded from `RequestContext`, real new instrumentation work out of this story's scope. (2) **structural, and the stronger reason to keep it this way even if built:** a `tenant_id` label on a per-route histogram multiplies cardinality by tenant count — the exact same reasoning `## Loki Label Strategy` below already applies to logs ("never use `tenant_id` as a label... thousands of tenants = thousands of streams") and M17-S54's own dashboard widgets already apply to Cloud Monitoring charts (`business_counter_widgets` in `infra/terraform/modules/monitoring/main.tf` — aggregate-only, `REDUCE_SUM`, explicitly to avoid the ~50-series-per-chart cap as tenant count grows, this platform's actual intended trajectory per CLAUDE.md's business context). Tenant-level drill-down for request-level signals stays available via **logs and traces**, both of which already carry `tenant_id`/`tenantId` on every request (`AppLogger.withContext()`, span attributes) — metrics are for aggregate health signals, not a second per-tenant drill-down surface. If a genuine need for tenant-scoped request metrics emerges, it requires the custom-instrumentation path above as its own story, not a retrofit onto the auto-instrumentation this story relies on.
+
+**Stack (as originally planned, see the superseded-sections banner above for what's actually deployed today):** Prometheus → metrics · Loki → logs · OTel Collector → telemetry pipeline · Grafana → dashboards + alerts. **Actually deployed (M17-S33/S34/S55):** OTel SDK (traces + metrics) → collector sidecar → Cloud Trace + Cloud Monitoring/Google Managed Prometheus + Cloud Logging. Dashboards/alerting (M17-S35) implemented as of 2026-08-08 (`infra/terraform/modules/monitoring`). Native request-level metrics (M17-S55, implemented 2026-08-12) — see `## Prometheus Metrics` below; live-staging verification of the export pipeline is still open (see that story's own AC in `plan/M17-CLOUD-DEPLOY.md`).
 
 ---
 
@@ -24,7 +26,7 @@ Observability answers three questions: **is the system healthy?** (metrics), **w
 
 ## Local Development Setup
 
-> **Superseded/broken — see the file-level banner above.** `docker/docker-compose.observability.yml` (referenced by `pnpm obs:up` below) does not exist in this repo; the script is dead (removed 2026-08-04). **To see real traces locally today:** run a local `otel-collector` container directly against `infra/docker/otel-collector/config.yaml` (swap the `googlecloud` exporter for `debug` — no GCP credentials needed locally), then set `OTEL_SDK_DISABLED=false` when starting the app. There is currently no local metrics/logs stack (Prometheus/Loki) — see `## NestJS OTel Implementation` below for the real (traces-only) local verification path.
+> **Superseded/broken — see the file-level banner above.** `docker/docker-compose.observability.yml` (referenced by `pnpm obs:up` below) does not exist in this repo; the script is dead (removed 2026-08-04). **To see real traces locally today:** run a local `otel-collector` container directly against `infra/docker/otel-collector/config.yaml` (swap the `googlecloud` exporter for `debug` — no GCP credentials needed locally), then set `OTEL_SDK_DISABLED=false` when starting the app. There is currently no local logs stack (Loki) — see `## NestJS OTel Implementation` below for the real (traces + metrics, as of M17-S55) local verification path.
 
 The observability stack is **optional** locally. Run it when you want to see real metrics, traces, or logs during development. Normal development (writing/testing code) does not require it.
 
@@ -159,7 +161,7 @@ scrape_configs:
 
 ## NestJS OTel Implementation
 
-**Scope (M17-S33): traces only, OTLP-HTTP only.** No metrics pipeline in code — Cloud Run's built-in metrics cover that per D9 (`plan/M17-CLOUD-DEPLOY.md`); the only vendor coupling anywhere in this pipeline is the collector's exporter config (M17-S34), never app code.
+**Scope (M17-S33 traces, M17-S55 metrics): OTLP-HTTP only, both signals.** Cloud Run's built-in metrics still cover infra-level signals per D9 (`plan/M17-CLOUD-DEPLOY.md`) — this SDK's own metrics (M17-S55) cover request-level native histograms/counters instead, via the same collector sidecar. The only vendor coupling anywhere in this pipeline is the collector's exporter config (M17-S34/S55), never app code.
 
 ### Package Installation
 
@@ -220,6 +222,8 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME, ATTR_DEPLOYMENT_ENVIRONMENT_NAME } from '@opentelemetry/semantic-conventions';
 import { ParentBasedSampler, TraceIdRatioBasedSampler, SimpleSpanProcessor, type Sampler } from '@opentelemetry/sdk-trace-base';
+import { OTLPMetricExporter, AggregationTemporalityPreference } from '@opentelemetry/exporter-metrics-otlp-http';
+import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { redactSensitiveQueryParams, SENSITIVE_QUERY_PARAMS } from './otel-query-redaction';
 
 export interface TracingOptions {
@@ -270,6 +274,25 @@ export function buildOtlpExporterOptions(
   };
 }
 
+// Metrics-signal counterpart (M17-S55). temporalityPreference is explicit — CUMULATIVE is
+// already the exporter's own env-driven default, but Google Managed Prometheus (this
+// collector's export target) requires it, and that shouldn't depend on an unset env var
+// resolving correctly forever. concurrencyLimit: 200 is carried over from the trace exporter's
+// own empirically-derived value (cross-tool PR review finding, 2026-08-12: this exporter shares
+// the same OTLPExporterConfigBase and the same library default of 30) — not yet independently
+// re-verified against real metrics traffic the way 200 was for traces.
+export function buildOtlpMetricExporterOptions(
+  env: NodeJS.ProcessEnv,
+): NonNullable<ConstructorParameters<typeof OTLPMetricExporter>[0]> {
+  return {
+    ...(env.OTEL_EXPORTER_OTLP_ENDPOINT || env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
+      ? {}
+      : { url: 'http://localhost:4318/v1/metrics' }),
+    temporalityPreference: AggregationTemporalityPreference.CUMULATIVE,
+    concurrencyLimit: 200,
+  };
+}
+
 export function bootstrapTracing(
   defaultServiceName: string,
   options: TracingOptions = {},
@@ -300,16 +323,23 @@ export function bootstrapTracing(
     // are deliberately left at their AlwaysOn default, so a genuinely-sampled parent is still
     // respected. Extracted as createSampler() and unit-tested directly in otel-tracing.spec.ts.
     sampler: createSampler(samplingRate),
-    // metricReaders: [] (M17-S34 follow-up, 2026-08-05 — real staging finding): this bootstrap
-    // is traces-only by design, but NodeSDK has its own independent metrics default —
+    // metricReaders (M17-S34: explicit `[]` between 2026-08-05 and 2026-08-12; M17-S55:
+    // re-enabled with a real reader). NodeSDK has its own independent metrics default —
     // @opentelemetry/sdk-node falls back to a default OTLP PeriodicExportingMetricReader
-    // whenever OTEL_METRICS_EXPORTER isn't "none" and no metricReaders/metricReader is passed.
-    // The collector's config.yaml has no `metrics:` pipeline (traces-only, deliberately), so
-    // every periodic export attempt hit a genuine 404 (OTLPExporterError: Not Found), logged as
-    // an ERROR every cycle, forever, in both services/envs. An explicit empty array is a
-    // deterministic code-level fix, not an env var to remember per Cloud Run env — see M17-S35's
-    // notes in plan/M17-CLOUD-DEPLOY.md for why that story doesn't need this reader re-enabled.
-    metricReaders: [],
+    // whenever OTEL_METRICS_EXPORTER isn't "none" and no metricReaders/metricReader is passed —
+    // so whichever state this is in must always be explicit, in code, never left to that
+    // env-var fallback: an empty array disabled metrics deterministically while the collector's
+    // `metrics:` pipeline didn't exist yet (M17-S34-era `config.yaml` was traces-only —
+    // omitting this would have hit a genuine 404 every export cycle, forever); a real
+    // PeriodicExportingMetricReader now enables it, matched by a real `metrics:` pipeline added
+    // to `config.yaml` in the same M17-S55 change. Whichever direction this is edited next, the
+    // collector's pipeline must move with it in the same commit, or this exact 404 loop (or the
+    // opposite — a configured pipeline nothing ever exports to) reproduces.
+    metricReaders: [
+      new PeriodicExportingMetricReader({
+        exporter: new OTLPMetricExporter(buildOtlpMetricExporterOptions(process.env)),
+      }),
+    ],
     // spanProcessors, NOT `traceExporter` (M17-S34 follow-up, 2026-08-05 — real staging
     // finding): passing `traceExporter` directly lets NodeSDK silently wrap it in its own
     // default BatchSpanProcessor (timer/size-flushed). The live service has
@@ -666,7 +696,9 @@ path or to push-only delivery.
 
 ## Prometheus Metrics
 
-> **Superseded/never built — see the file-level banner above.** Neither `src/shared/observability/metrics.ts` nor `metrics.controller.ts` exists in `apps/backend` or `apps/bff` (verified 2026-08-04), and `prom-client` is not a dependency of either app. This section describes the original M14 plan; it was never implemented. **Split 2026-08-08, implemented as of PR #331:** M17-S35 (`infra/terraform/modules/monitoring`) uses **log-based metrics** for infra-level signals already emitted (DLQ depth, outbox backlog — see this file's `## Log Format Specification` § gauge vs. event logging). **M17-S54 (implemented 2026-08-12)** added the structured log lines business counters need (bookings requested/approved/completed, notification failures, customer/staff logins — previously confirmed not emitted) and their matching log-based-metric counters, in the same `modules/monitoring` module. Neither uses a custom `/metrics` Prometheus-scrape endpoint — that path, if ever needed, is M17-S55's Managed Prometheus exporter, not a self-hosted scrape endpoint. Treat the catalog and code below as a historical design sketch, not a currently-usable API.
+> **Design sketch below (`prom-client`, custom `/metrics` scrape endpoint) never built and never will be — see the file-level banner above.** Neither `src/shared/observability/metrics.ts` nor `metrics.controller.ts` exists in `apps/backend` or `apps/bff`, and `prom-client` is not a dependency of either app. This section describes the original M14 plan; it was never implemented, and the real metrics mechanism (below) is a different shape entirely — a `/metrics`-scrape endpoint was never built because OTel's own push-based metrics SDK (already used for traces) plus a collector-side exporter covers the same need without a second, parallel instrumentation library. **Split 2026-08-08, implemented as of PR #331:** M17-S35 (`infra/terraform/modules/monitoring`) uses **log-based metrics** for infra-level signals already emitted (DLQ depth, outbox backlog — see this file's `## Log Format Specification` § gauge vs. event logging). **M17-S54 (implemented 2026-08-12)** added the structured log lines business counters need (bookings requested/approved/completed, notification failures, customer/staff logins — previously confirmed not emitted) and their matching log-based-metric counters, in the same `modules/monitoring` module.
+>
+> **M17-S55 (implemented 2026-08-12): native, request-level metrics are real now, but not via this section's catalog.** `packages/observability/src/otel-tracing.ts`'s `bootstrapTracing()` re-enables `metricReaders` with a real `PeriodicExportingMetricReader`; `infra/docker/otel-collector/config.yaml` has a real `metrics:` pipeline exporting to `googlemanagedprometheus`. Rather than hand-written `Counter`/`Histogram` instruments in app code (the catalog below), the actual source of request-level metrics is `@opentelemetry/instrumentation-http`'s own auto-instrumentation — already active for tracing — which emits an `http.server.duration` histogram (old semconv name; this repo doesn't set `OTEL_SEMCONV_STABILITY_OPT_IN`) per route automatically, once a real `MeterProvider` exists. This is deliberately simpler than the catalog below: no new per-endpoint instrumentation code, generic per-route throughput/latency for every route rather than one hand-picked endpoint at a time. **Still open, not yet live-verified:** the exact resulting Cloud Monitoring metric-type name after GMP export, and this story's own three empirical checks (timer-starvation, export-concurrency, temporality-correctness) — none of this pipeline has carried real traffic yet. See `plan/M17-CLOUD-DEPLOY.md`'s M17-S55 section for the full AC list. Treat the catalog and code below as a historical design sketch, not a currently-usable API.
 
 ### Naming Convention
 
@@ -849,9 +881,9 @@ providers:
 
 ## SLOs (Service Level Objectives)
 
-> **Targets below are the real objectives; the Prometheus query column is not — see the file-level banner above.** No Prometheus/metrics pipeline is deployed today (deferred, M17-S55, split from S35 2026-08-08). Cloud Monitoring dashboards/alerts using log-based metrics **are** implemented (M17-S35, `infra/terraform/modules/monitoring`) — p99 latency and 5xx-rate thresholds specifically are measured via Cloud Run built-in metrics, not log-based metrics or Prometheus. These SLO targets are the real objectives this story's alert policies encode.
+> **Targets below are the real objectives; the Prometheus query column is still not runnable as written — see the file-level banner above.** A Prometheus/metrics pipeline is now deployed (M17-S55, 2026-08-12) — OTel SDK metrics → collector → Google Managed Prometheus — but it only emits the generic HTTP auto-instrumentation histogram (`http.server.duration`, filterable by route), not the custom `ikaro_*` metric names (`ikaro_booking_transitions_total`, etc.) the queries below assume; that custom-metric design sketch (`## Prometheus Metrics` above) was never built, and never will be — see that section's own updated banner. Cloud Monitoring dashboards/alerts using log-based metrics **are** implemented (M17-S35, `infra/terraform/modules/monitoring`) — p99 latency and 5xx-rate thresholds specifically are measured via Cloud Run built-in metrics, not log-based metrics or Prometheus. These SLO targets are the real objectives this story's alert policies encode.
 
-| SLO | Target | Prometheus query (not currently runnable — no metrics pipeline exists) |
+| SLO | Target | Prometheus query (illustrative — assumes the never-built custom `ikaro_*` metrics, not what M17-S55 actually emits) |
 |---|---|---|
 | **API availability** | ≥ 99.5% over 30 days | `sum(rate(http_requests_total{status_code!~"5.."}[30d])) / sum(rate(http_requests_total[30d]))` |
 | **Booking P99 latency** | < 2s | `histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{route="/bookings",method="POST"}[5m]))` |
@@ -1169,7 +1201,8 @@ NestJS Backend
     │  OTel auto-instruments incoming HTTP → child span (no manual use-case span — manual
     │  business spans stay deferred, see "Manual Span Creation — deferred" above)
     │  AppLogger logs use case start + completion
-    │  Metrics (not yet implemented — see "No metrics pipeline exists yet" note below):
+    │  Custom business metrics (still never implemented — see "## Prometheus Metrics"
+    │  above; this specific per-transition counter with a tenant_id label was never built):
     │  bookingStatusTransitions.inc({ tenant_id, from, to })
     │  Event enters outbox: OutboxPublisher captures the active trace context onto
     │  Envelope.traceContext (TD28) — captured once, here, regardless of inline vs. swept dispatch
@@ -1184,24 +1217,31 @@ Pub/Sub → Event Consumer (push or pull, TD28 covers both symmetrically)
     │  Consumer span: ITracingPort.startActiveSpan('pubsub.event.<eventName>') — a transport-layer
     │  span at the dispatch boundary (TD28), not the manual per-use-case business span this
     │  diagram used to (wrongly) imply; those stay deferred same as the backend hop above
-    │  Metrics (not yet implemented — see "No metrics pipeline exists yet" note below):
+    │  Custom business metrics (still never implemented — see "## Prometheus Metrics"
+    │  above for that design sketch and why it stays a sketch; generic HTTP request/duration
+    │  metrics ARE emitted via auto-instrumentation, see below):
     │  loyaltyEntriesCreated.inc({ tenant_id })
     ▼
 stdout (JSON logs)
     ▼
 Cloud Logging (Cloud Run captures every container's stdout/stderr directly — logs never pass
-    through the collector; infra/docker/otel-collector/config.yaml has a traces pipeline only)
+    through the collector; infra/docker/otel-collector/config.yaml has both a traces and a
+    metrics pipeline, neither carries logs)
 
-Separately — traces only:
-Backend/BFF OTel SDK (M17-S33)
+Separately — traces and metrics (M17-S33 traces, M17-S55 metrics):
+Backend/BFF OTel SDK (M17-S33 traces, M17-S55 metrics)
     ▼  OTLP over localhost:4318 (collector sidecar shares the instance's network namespace)
-otel-collector sidecar (M17-S34)
-    ▼  googlecloud exporter — the only place GCP-specific code appears in this pipeline (D9)
-Cloud Trace
+otel-collector sidecar (M17-S34 traces pipeline, M17-S55 metrics pipeline)
+    ▼  googlecloud (traces) / googlemanagedprometheus (metrics) exporters — the only place
+    ▼  GCP-specific code appears in this pipeline (D9)
+Cloud Trace / Google Managed Prometheus
 
-No metrics pipeline exists yet (config.yaml's metrics section is a commented stub for a future
-googlemanagedprometheus exporter — owned by M17-S55, split from S35 2026-08-08). The dashboard/
-alerting layer is implemented separately from this trace pipeline — M17-S35
+Generic per-route HTTP request count + duration histogram (http.server.duration) is emitted
+automatically by the existing HTTP auto-instrumentation once metrics are enabled — no custom
+counters/histograms were written. Custom business metrics (loyaltyEntriesCreated, etc., shown
+above) remain unimplemented — that's a different, never-built design (see "## Prometheus
+Metrics" above). The dashboard/alerting layer built on log-based metrics is implemented
+separately from this OTel pipeline — M17-S35
 (`infra/terraform/modules/monitoring`) reads Cloud Run built-ins, Cloud SQL metrics, and
 log-based metrics, not anything flowing through the collector shown above. This whole diagram
 supersedes the Grafana/Prometheus/Loki version this section originally described — see the

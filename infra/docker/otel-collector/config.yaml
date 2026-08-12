@@ -192,6 +192,26 @@ exporters:
     sending_queue:
       enabled: true
 
+  # googlemanagedprometheus (M17-S55): metrics counterpart to the googlecloud
+  # exporter above — same auto-detected-project rationale (no `project:`
+  # field, ADC via the Cloud Run metadata server, one image deployed
+  # unmodified to both envs). Component confirmed present in the pinned
+  # otel/opentelemetry-collector-contrib@sha256:c5918...a32ed5 image
+  # (`otelcol-contrib components` lists
+  # `googlemanagedprometheusexporter v0.158.0`) and this whole config
+  # confirmed to `validate` cleanly against that real binary (not just
+  # assumed from the component list) before merge.
+  #
+  # timeout/sending_queue mirror the googlecloud exporter's own settings
+  # above for the same reasons — not yet independently tuned against real
+  # metrics export volume, since this pipeline has never carried real
+  # traffic. Revisit once live staging data exists (see this story's AC:
+  # export-concurrency and timer-starvation checks are both still open).
+  googlemanagedprometheus:
+    timeout: 2s
+    sending_queue:
+      enabled: true
+
   # Alternate exporter (swap target vendor): uncomment, point at the new
   # backend, add it to the traces pipeline's exporters list below, remove
   # `googlecloud` from that list (or keep both to dual-ship during a
@@ -219,5 +239,15 @@ service:
       receivers: [otlp]
       processors: [memory_limiter, resource_detection, batch]
       exporters: [googlecloud]
-  # Metrics pipeline stub — deferred to a future story (googlemanagedprometheus
-  # exporter), see M17-S34 description.
+    # metrics (M17-S55, built out from the stub this comment used to be —
+    # see plan/M17-CLOUD-DEPLOY.md's M17-S55 section for the app-side half:
+    # packages/observability/src/otel-tracing.ts's bootstrapTracing() now
+    # passes a real PeriodicExportingMetricReader instead of
+    # `metricReaders: []`). Same receiver/processors as traces — the `otlp`
+    # receiver already accepts both signals on the same endpoint, and
+    # `memory_limiter`/`resource_detection`/`batch` are all signal-agnostic
+    # processors, already proven safe for traces at real staging volume.
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, resource_detection, batch]
+      exporters: [googlemanagedprometheus]
