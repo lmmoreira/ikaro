@@ -223,8 +223,14 @@ module "cloudrun_backend" {
 
       # M19-S02: platform-wide chatbot LLM provider default — a plain env var (not a secret)
       # deliberately, so ops can fail over to another provider in minutes without a deploy.
-      CHATBOT_LLM_PROVIDER       = "openrouter"
-      OUTBOX_CLAIM_LEASE_SECONDS = "120"
+      CHATBOT_LLM_PROVIDER = "openrouter"
+      # M19-S05/S06: platform-wide chatbot cost/abuse-prevention backstops — plain env vars
+      # (not secrets, not tenants.settings) so ops can bump them in minutes during a real
+      # incident, not a deploy cycle. Final, confirmed values — not placeholders.
+      CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD     = "25"
+      CHATBOT_MIN_PROVIDER_BALANCE_USD         = "2"
+      CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES = "5"
+      OUTBOX_CLAIM_LEASE_SECONDS               = "120"
     },
     # BREVO_SMTP_LOGIN is optional-with-min-length in the backend schema — a
     # present "" satisfies "not absent" but fails min(1), crashing app boot
