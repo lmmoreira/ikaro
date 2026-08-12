@@ -1,4 +1,4 @@
-import { PhoneErrorCode } from '@ikaro/types';
+import { PhoneErrorCode } from '@ikaro/types/protocol/errors';
 import { isValidPhoneNumber } from '@ikaro/validation';
 import { DomainErrorShape } from '../domain/domain-error-shape';
 

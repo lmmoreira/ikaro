@@ -1,4 +1,4 @@
-import { EmailErrorCode } from '@ikaro/types';
+import { EmailErrorCode } from '@ikaro/types/protocol/errors';
 import { isValidEmail } from '@ikaro/validation';
 import { DomainErrorShape } from '../domain/domain-error-shape';
 import { ValueObject } from '../domain/value-object';

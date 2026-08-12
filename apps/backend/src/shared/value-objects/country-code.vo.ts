@@ -1,5 +1,5 @@
 import { type CountrySpec, countrySpec, isSupportedCountryCode } from '@ikaro/i18n';
-import { CountryCodeErrorCode } from '@ikaro/types';
+import { CountryCodeErrorCode } from '@ikaro/types/protocol/errors';
 import { COUNTRY_CODE_FORMAT_PATTERN } from '@ikaro/validation';
 import { DomainErrorShape } from '../domain/domain-error-shape';
 import { ValueObject } from '../domain/value-object';

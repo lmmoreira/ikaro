@@ -1,6 +1,8 @@
 import type { Address } from './address';
 import type { MoneyAmount } from './money';
 import type { BookingStatus } from './enums';
+export { ALLOWED_IMAGE_CONTENT_TYPES } from './media';
+export type { ImageContentType } from './media';
 
 export interface CreateBookingRequest {
   contactEmail: string;
@@ -61,9 +63,6 @@ export interface SlotConflictError {
   error: 'slot-conflict';
   suggestions: SlotConflictSuggestion[];
 }
-
-export const ALLOWED_IMAGE_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
-export type ImageContentType = (typeof ALLOWED_IMAGE_CONTENT_TYPES)[number];
 
 export interface AttachmentSignedUrlResponse {
   signedUrl: string;

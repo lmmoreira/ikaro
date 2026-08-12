@@ -13,6 +13,7 @@ import { LOYALTY_PLATFORM_PORT } from './application/ports/loyalty-platform.port
 import { LOYALTY_BOOKING_PORT } from './application/ports/loyalty-booking.port';
 import { LOYALTY_CUSTOMER_PORT } from './application/ports/loyalty-customer.port';
 import { GetLoyaltyBalanceUseCase } from './application/use-cases/get-loyalty-balance/get-loyalty-balance.use-case';
+import { LoyaltyBalanceReaderService } from './application/services/loyalty-balance-reader.service';
 import { GetLoyaltyBalancesUseCase } from './application/use-cases/get-loyalty-balances/get-loyalty-balances.use-case';
 import { GetOwnLoyaltyBalanceUseCase } from './application/use-cases/get-own-loyalty-balance/get-own-loyalty-balance.use-case';
 import { GetOwnLoyaltyBalancesUseCase } from './application/use-cases/get-own-loyalty-balances/get-own-loyalty-balances.use-case';
@@ -64,6 +65,7 @@ import { TypeOrmLoyaltyRedemptionRepository } from './infrastructure/repositorie
     { provide: LOYALTY_BOOKING_PORT, useClass: LoyaltyBookingAdapter },
     { provide: LOYALTY_CUSTOMER_PORT, useClass: LoyaltyCustomerAdapter },
     CustomerRoleGuard,
+    LoyaltyBalanceReaderService,
     GetLoyaltyBalanceUseCase,
     GetLoyaltyBalancesUseCase,
     GetOwnLoyaltyBalanceUseCase,

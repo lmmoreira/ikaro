@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
+import { ApplicationConfigModule } from '../../shared/infrastructure/application-config.module';
 import { BookingModule } from '../booking/booking.module';
 import { PlatformModule } from '../platform/platform.module';
 import { StaffModule } from '../staff/staff.module';
@@ -62,6 +63,7 @@ import { DeadLetterHandler } from './infrastructure/events/dead-letter.handler';
   imports: [
     TypeOrmModule.forFeature([NotificationLogEntity, NotificationTemplateEntity]),
     TransactionManagerModule,
+    ApplicationConfigModule,
     BookingModule,
     StaffModule,
     PlatformModule,

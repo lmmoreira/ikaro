@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { ALLOWED_IMAGE_CONTENT_TYPES, GenericErrorCode } from '@ikaro/types';
+import { GenericErrorCode } from '@ikaro/types/protocol/errors';
+import { ALLOWED_IMAGE_CONTENT_TYPES } from '@ikaro/types/protocol/media';
 
 export const GenerateHotsiteImageSignedUrlSchema = z.object({
   fileName: z

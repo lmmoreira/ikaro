@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { defaultTracingPort, ITracingPort } from '@ikaro/observability';
 import { Observable } from 'rxjs';
-import { ProblemDetail } from '@ikaro/types';
+import { ProblemDetail } from '@ikaro/types/protocol/errors';
 import { ITenantSettingsPort, TENANT_SETTINGS_PORT } from '../ports/tenant-settings.port';
 import type { TenantSettingsData } from '../value-objects/tenant-settings-data';
 import { isActorRole, runWithRequestContext } from './request-context';

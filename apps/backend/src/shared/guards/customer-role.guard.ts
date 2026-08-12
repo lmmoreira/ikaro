@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, HttpStatus, Injectable } from '@nestjs/common';
 import { throwProblemDetail } from '@ikaro/nestjs-http';
-import { ActorRole } from '@ikaro/types';
+import { ActorRole } from '@ikaro/types/protocol/actor';
 
 @Injectable()
 export class CustomerRoleGuard implements CanActivate {

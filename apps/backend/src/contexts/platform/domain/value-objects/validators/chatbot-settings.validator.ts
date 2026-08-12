@@ -1,4 +1,4 @@
-import { PlatformErrorCode } from '@ikaro/types';
+import { PlatformErrorCode } from '@ikaro/types/protocol/errors';
 import type { ChatbotSettings } from '../../../../../shared/value-objects/tenant-settings-data';
 import { DEFAULT_MAX_KNOWLEDGE_TEXT_LENGTH } from '../../../chatbot.constants';
 import { TenantSettingsValidationError } from '../../errors/platform-domain.error';

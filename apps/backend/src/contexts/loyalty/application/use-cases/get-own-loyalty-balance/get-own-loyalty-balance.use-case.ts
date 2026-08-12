@@ -1,9 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ILoyaltyCustomerPort, LOYALTY_CUSTOMER_PORT } from '../../ports/loyalty-customer.port';
 import {
-  GetLoyaltyBalanceUseCase,
-  GetLoyaltyBalanceUseCaseResult,
-} from '../get-loyalty-balance/get-loyalty-balance.use-case';
+  LoyaltyBalanceReaderService,
+  type LoyaltyBalanceResult,
+} from '../../services/loyalty-balance-reader.service';
 
 export interface GetOwnLoyaltyBalanceUseCaseInput {
   contextTenantId: string;
@@ -12,7 +12,7 @@ export interface GetOwnLoyaltyBalanceUseCaseInput {
 }
 
 export interface GetOwnLoyaltyBalanceUseCaseResult {
-  balance: GetLoyaltyBalanceUseCaseResult;
+  balance: LoyaltyBalanceResult;
   isCrossTenant: boolean;
 }
 
@@ -23,7 +23,7 @@ export interface GetOwnLoyaltyBalanceUseCaseResult {
 @Injectable()
 export class GetOwnLoyaltyBalanceUseCase {
   constructor(
-    private readonly getLoyaltyBalance: GetLoyaltyBalanceUseCase,
+    private readonly balanceReader: LoyaltyBalanceReaderService,
     @Inject(LOYALTY_CUSTOMER_PORT) private readonly loyaltyCustomer: ILoyaltyCustomerPort,
   ) {}
 
@@ -41,7 +41,7 @@ export class GetOwnLoyaltyBalanceUseCase {
         )
       : actorId;
 
-    const balance = await this.getLoyaltyBalance.execute({ tenantId: targetTenantId, customerId });
+    const balance = await this.balanceReader.read(targetTenantId, customerId);
     return { balance, isCrossTenant };
   }
 }

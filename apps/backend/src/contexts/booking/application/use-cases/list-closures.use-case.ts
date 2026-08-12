@@ -3,15 +3,15 @@ import {
   IScheduleClosureRepository,
   SCHEDULE_CLOSURE_REPOSITORY,
 } from '../ports/schedule-closure-repository.port';
-import { CloseScheduleUseCaseResult } from './close-schedule.use-case';
 import { ListClosuresDto } from '../dtos/close-schedule.dto';
+import { ScheduleClosureListItem } from '../dtos/schedule-list-item.dto';
 
 export type ListClosuresInput = ListClosuresDto & {
   tenantId: string;
 };
 
 export interface ListClosuresUseCaseResult {
-  items: CloseScheduleUseCaseResult[];
+  items: ScheduleClosureListItem[];
 }
 
 @Injectable()

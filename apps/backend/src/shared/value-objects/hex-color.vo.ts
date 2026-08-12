@@ -1,4 +1,4 @@
-import { HexColorErrorCode } from '@ikaro/types';
+import { HexColorErrorCode } from '@ikaro/types/protocol/errors';
 import { isValidHexColor } from '@ikaro/validation';
 import { DomainErrorShape } from '../domain/domain-error-shape';
 

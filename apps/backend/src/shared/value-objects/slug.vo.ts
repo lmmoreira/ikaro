@@ -1,4 +1,4 @@
-import { SlugErrorCode } from '@ikaro/types';
+import { SlugErrorCode } from '@ikaro/types/protocol/errors';
 import { DomainErrorShape } from '../domain/domain-error-shape';
 
 const SLUG_PATTERN = /^[a-z0-9-]+$/;

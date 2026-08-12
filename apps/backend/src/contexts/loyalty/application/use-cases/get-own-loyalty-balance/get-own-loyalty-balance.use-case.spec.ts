@@ -3,7 +3,7 @@ import { InMemoryLoyaltyEntryRepository } from '../../../../../test/repositories
 import { InMemoryLoyaltyCustomerPort } from '../../../../../test/infrastructure/in-memory-loyalty-customer.port';
 import { LoyaltyBalanceBuilder } from '../../../../../test/builders/loyalty/index';
 import { LoyaltyCustomerNotFoundInTenantError } from '../../../domain/errors/loyalty-domain.error';
-import { GetLoyaltyBalanceUseCase } from '../get-loyalty-balance/get-loyalty-balance.use-case';
+import { LoyaltyBalanceReaderService } from '../../services/loyalty-balance-reader.service';
 import { GetOwnLoyaltyBalanceUseCase } from './get-own-loyalty-balance.use-case';
 
 const TENANT_ID = '10000000-0000-7000-8000-000000000001';
@@ -22,7 +22,7 @@ describe('GetOwnLoyaltyBalanceUseCase', () => {
     entryRepo = new InMemoryLoyaltyEntryRepository();
     loyaltyCustomer = new InMemoryLoyaltyCustomerPort();
     useCase = new GetOwnLoyaltyBalanceUseCase(
-      new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+      new LoyaltyBalanceReaderService(balanceRepo, entryRepo),
       loyaltyCustomer,
     );
   });

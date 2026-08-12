@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PhoneErrorCode } from '@ikaro/types';
+import { PhoneErrorCode } from '@ikaro/types/protocol/errors';
 import { AddressShapeSchema } from '@ikaro/validation';
 import { PhoneNumber } from '../../../../shared/value-objects/phone-number.vo';
 import { BookingTmpPhotoPathsSchema } from '../../../../shared/utils/tmp-path-regex';

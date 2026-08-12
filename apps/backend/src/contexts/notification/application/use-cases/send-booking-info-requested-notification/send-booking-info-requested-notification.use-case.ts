@@ -1,6 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
+import {
+  APPLICATION_CONFIG,
+  IApplicationConfig,
+} from '../../../../../shared/ports/application-config.port';
 import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import {
   ITransactionManager,
@@ -50,7 +53,7 @@ export class SendBookingInfoRequestedNotificationUseCase extends BaseNotificatio
     private readonly templateRepo: INotificationTemplateRepository,
     @Inject(NOTIFICATION_PLATFORM_PORT) private readonly tenantPort: INotificationPlatformPort,
     @Inject(LOCALIZATION_PORT) private readonly localizationPort: ILocalizationPort,
-    private readonly config: ConfigService,
+    @Inject(APPLICATION_CONFIG) private readonly config: IApplicationConfig,
   ) {
     super(logRepo, inboxRepo, dispatcher, txManager);
   }
@@ -85,13 +88,13 @@ export class SendBookingInfoRequestedNotificationUseCase extends BaseNotificatio
     input: SendBookingInfoRequestedNotificationUseCaseInput,
     tenantInfo: NotificationTenantInfo | null,
   ): string {
-    const frontendUrl = this.config.getOrThrow<string>('FRONTEND_URL');
+    const frontendUrl = this.config.getOrThrow('FRONTEND_URL');
 
     if (input.customerId !== null) {
       return `${frontendUrl}/dashboard/bookings/${input.bookingId}`;
     }
 
-    const secret = this.config.getOrThrow<string>('JWT_SECRET');
+    const secret = this.config.getOrThrow('JWT_SECRET');
     const token = jwt.sign(
       {
         bookingId: input.bookingId,
