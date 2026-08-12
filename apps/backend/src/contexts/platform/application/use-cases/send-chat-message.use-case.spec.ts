@@ -2,7 +2,8 @@ import { ConfigService } from '@nestjs/config';
 import { ITracingPort, SpanAttributeValue } from '@ikaro/observability';
 import { Decimal } from 'decimal.js';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
-import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
+import { fakeConfig } from '../../../../test/utils/fake-config';
+import { staleSession, todayInSaoPaulo } from '../../../../test/utils/chatbot-test-helpers';
 import {
   ChatbotMessageBuilder,
   ChatbotProviderBalanceBuilder,
@@ -14,7 +15,6 @@ import {
   InMemoryChatbotProviderBalanceRepository,
   InMemoryChatbotSessionRepository,
 } from '../../../../test/repositories/platform';
-import { ChatbotSession } from '../../domain/chatbot-session.aggregate';
 import { ILlmProvider } from '../ports/llm-provider.port';
 import { LlmProviderRegistry } from '../services/llm-provider-registry.service';
 import {
@@ -44,12 +44,6 @@ class FakeTracingPort implements ITracingPort {
   startActiveSpan<T>(_name: string, fn: () => T): T {
     return fn();
   }
-}
-
-function fakeConfig(overrides: Record<string, string> = {}): ConfigService {
-  return {
-    get: (key: string, defaultValue: string) => overrides[key] ?? defaultValue,
-  } as unknown as ConfigService;
 }
 
 const TENANT_ID = '01234567-0000-7000-8000-000000000001';
@@ -828,21 +822,4 @@ class CapturingLlmProvider implements ILlmProvider {
       costUsd: new Decimal('0.000001'),
     };
   }
-}
-
-function todayInSaoPaulo(): string {
-  return utcDateToLocalDate(new Date(), 'America/Sao_Paulo');
-}
-
-function staleSession(session: ChatbotSession, tenantId: string): ChatbotSession {
-  return ChatbotSession.reconstitute({
-    id: session.id,
-    tenantId,
-    clientIp: session.clientIp,
-    startedAt: session.startedAt,
-    lastMessageAt: new Date(Date.now() - 5 * 60 * 1000),
-    conversationDate: session.conversationDate,
-    messageCount: session.messageCount,
-    status: 'ACTIVE',
-  });
 }

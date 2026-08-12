@@ -1,5 +1,6 @@
 import { ConfigService } from '@nestjs/config';
-import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
+import { fakeConfig } from '../../../../test/utils/fake-config';
+import { staleSession, todayInSaoPaulo } from '../../../../test/utils/chatbot-test-helpers';
 import {
   ChatbotMessageBuilder,
   ChatbotProviderBalanceBuilder,
@@ -11,19 +12,12 @@ import {
   InMemoryChatbotProviderBalanceRepository,
   InMemoryChatbotSessionRepository,
 } from '../../../../test/repositories/platform';
-import { ChatbotSession } from '../../domain/chatbot-session.aggregate';
 import { ILlmProvider } from '../ports/llm-provider.port';
 import { LlmProviderRegistry } from '../services/llm-provider-registry.service';
 import {
   GetChatbotStatusUseCase,
   GetChatbotStatusUseCaseInput,
 } from './get-chatbot-status.use-case';
-
-function fakeConfig(overrides: Record<string, string> = {}): ConfigService {
-  return {
-    get: (key: string, defaultValue: string) => overrides[key] ?? defaultValue,
-  } as unknown as ConfigService;
-}
 
 const TENANT_ID = '01234567-0000-7000-8000-000000000001';
 
@@ -130,7 +124,8 @@ describe('GetChatbotStatusUseCase', () => {
     it('does not count a session last active more than 2 minutes ago', async () => {
       const useCase = buildUseCase();
       for (let i = 0; i < 5; i++) {
-        await sessionRepo.save(staleSession(TENANT_ID));
+        const session = new ChatbotSessionBuilder().withTenantId(TENANT_ID).build();
+        await sessionRepo.save(staleSession(session, TENANT_ID));
       }
 
       const result = await useCase.execute(baseInput());
@@ -279,21 +274,3 @@ describe('GetChatbotStatusUseCase', () => {
     });
   });
 });
-
-function todayInSaoPaulo(): string {
-  return utcDateToLocalDate(new Date(), 'America/Sao_Paulo');
-}
-
-function staleSession(tenantId: string): ChatbotSession {
-  const session = new ChatbotSessionBuilder().withTenantId(tenantId).build();
-  return ChatbotSession.reconstitute({
-    id: session.id,
-    tenantId,
-    clientIp: session.clientIp,
-    startedAt: session.startedAt,
-    lastMessageAt: new Date(Date.now() - 5 * 60 * 1000),
-    conversationDate: session.conversationDate,
-    messageCount: session.messageCount,
-    status: 'ACTIVE',
-  });
-}
