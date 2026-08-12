@@ -7,9 +7,11 @@
 #
 # OTel/Managed-Prometheus metrics (M17-S55, added 2026-08-12): one widget
 # below (booking_creation_latency_widget) sources from Google Managed
-# Prometheus instead of a native Cloud Monitoring metric — see that local's
-# own comment for why its exact metric.type is unconfirmed against live data
-# and what to check before trusting it.
+# Prometheus via a native PromQL query (timeSeriesQuery.prometheusQuery, not
+# timeSeriesFilter — see that local's own comment for why) instead of a
+# native Cloud Monitoring metric — see that local's own comment for why its
+# exact metric name is unconfirmed against live data and what to check
+# before trusting it.
 #
 # Business/audit log-based counters (M17-S54, added 2026-08-12): bookings
 # requested/approved/completed, notification failures, and customer/staff
@@ -944,23 +946,41 @@ locals {
   # not a per-route family — this story's own AC scopes instrumentation
   # verification to this one endpoint (see plan/M17-CLOUD-DEPLOY.md).
   #
-  # metric.type below is written from the documented OTel→Prometheus naming
-  # translation (dots become underscores; the histogram's declared `unit:
-  # 'ms'` is spelled out as `milliseconds`), cross-checked against the real
-  # pinned instrumentation-http@0.220.0 source
-  # (meter.createHistogram('http.server.duration', { unit: 'ms' }) — the
-  # *old*, non-stable semconv name; this repo does not set
+  # metric name below (http_server_duration_milliseconds_bucket) is written
+  # from the documented OTel→Prometheus naming translation (dots become
+  # underscores; the histogram's declared `unit: 'ms'` is spelled out as
+  # `milliseconds`; Prometheus's own histogram convention appends `_bucket`
+  # to the base name for the per-`le`-boundary series `histogram_quantile`
+  # reads), cross-checked against the real pinned instrumentation-http@0.220.0
+  # source (meter.createHistogram('http.server.duration', { unit: 'ms' }) —
+  # the *old*, non-stable semconv name; this repo does not set
   # OTEL_SEMCONV_STABILITY_OPT_IN, so the newer `http.server.request.duration`
-  # name is NOT what's actually emitted). That said: **this metric.type
-  # string is unconfirmed against real, live GMP data** — no traffic has ever
-  # flowed through this pipeline, and (like every other MQL/filter string in
-  # this module, see the file header comment) the Cloud Monitoring API
-  # validates it server-side only. `terraform plan`/`terraform test` can
-  # confirm the JSON is well-formed, not that it renders real data. Before
-  # trusting this widget: deploy, generate real POST /v1/bookings traffic,
-  # and confirm in the Cloud Monitoring console (Metrics Explorer,
-  # `resource.type="prometheus_target"`) which metric.type string GMP
-  # actually assigned, correcting this filter if it differs.
+  # name is NOT what's actually emitted). That said: **this metric name is
+  # unconfirmed against real, live GMP data** — no traffic has ever flowed
+  # through this pipeline, and (like every other MQL/filter string in this
+  # module, see the file header comment) the Cloud Monitoring API validates
+  # it server-side only. `terraform plan`/`terraform test` can confirm the
+  # JSON is well-formed, not that it renders real data. Before trusting this
+  # widget: deploy, generate real POST /v1/bookings traffic, and confirm in
+  # the Cloud Monitoring console (Metrics Explorer, PromQL mode) which metric
+  # name GMP actually assigned, correcting this query if it differs.
+  #
+  # prometheusQuery (not timeSeriesFilter + perSeriesAligner), found via
+  # cross-tool PR review on PR #362 (2026-08-12): the first version of this
+  # widget used `timeSeriesFilter` + `perSeriesAligner = "ALIGN_PERCENTILE_99"`
+  # directly on the raw histogram — invalid per Cloud Monitoring's own
+  # Aligner reference (confirmed against
+  # docs.cloud.google.com/monitoring/api/ref_v3/rest/v3/projects.alertPolicies#Aligner):
+  # ALIGN_PERCENTILE_99 is valid only for GAUGE and DELTA distribution
+  # metrics, never CUMULATIVE — and GMP-exported OTLP histograms are
+  # CUMULATIVE (this file's own buildOtlpMetricExporterOptions() explicitly
+  # requests that temporality). Applying it directly would render an invalid
+  # or empty panel. `timeSeriesQuery.prometheusQuery` (confirmed present in
+  # the same API reference) sidesteps the aligner-type mismatch entirely —
+  # standard PromQL `rate()` + `histogram_quantile()` is the correct,
+  # well-documented way to compute a percentile from a cumulative histogram,
+  # and is also directly runnable ad-hoc in Metrics Explorer's PromQL mode
+  # for manual verification.
   #
   # http_route/http_method labels: instrumentation-http records these as
   # span/metric attributes `http.route`/`http.method` — sanitized to
@@ -975,13 +995,7 @@ locals {
         dataSets = [
           {
             timeSeriesQuery = {
-              timeSeriesFilter = {
-                filter = "resource.type=\"prometheus_target\" AND metric.type=\"prometheus.googleapis.com/http_server_duration_milliseconds/histogram\" AND metric.label.http_route=\"/v1/bookings\" AND metric.label.http_method=\"POST\""
-                aggregation = {
-                  alignmentPeriod  = "60s"
-                  perSeriesAligner = "ALIGN_PERCENTILE_99"
-                }
-              }
+              prometheusQuery = "histogram_quantile(0.99, sum(rate(http_server_duration_milliseconds_bucket{http_route=\"/v1/bookings\", http_method=\"POST\"}[5m])) by (le))"
             }
             plotType = "LINE"
           }

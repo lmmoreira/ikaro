@@ -122,6 +122,10 @@ describe('buildOtlpMetricExporterOptions', () => {
     );
   });
 
+  it('sets concurrencyLimit: 200 — cross-tool review finding on PR #362, matches the trace exporter default this exporter shares', () => {
+    expect(buildOtlpMetricExporterOptions({}).concurrencyLimit).toBe(200);
+  });
+
   it('falls back to the hardcoded localhost URL when neither OTEL_EXPORTER_OTLP_ENDPOINT nor the signal-specific var is set', () => {
     expect(buildOtlpMetricExporterOptions({}).url).toBe('http://localhost:4318/v1/metrics');
   });

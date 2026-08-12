@@ -120,11 +120,23 @@ export function buildOtlpExporterOptions(
  * OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE-driven default — verified against the real
  * @opentelemetry/exporter-metrics-otlp-http source (chooseTemporalitySelectorFromEnvironment())
  * that this default is already 'cumulative' when the env var is unset, so this isn't fixing a
- * bug the way `metricReaders: []` and `concurrencyLimit: 200` were. It's still made explicit in
- * code, for the same reason those two are: Google Managed Prometheus (this collector's export
- * target) requires cumulative temporality to render correctly, and that requirement shouldn't
- * depend on an unset environment variable happening to resolve to the right default in every
- * deployment environment, forever.
+ * bug the way `metricReaders: []` was. It's still made explicit in code, for the same reason:
+ * Google Managed Prometheus (this collector's export target) requires cumulative temporality to
+ * render correctly, and that requirement shouldn't depend on an unset environment variable
+ * happening to resolve to the right default in every deployment environment, forever.
+ *
+ * concurrencyLimit (found via cross-tool PR review on PR #362, 2026-08-12 — a genuine gap, not
+ * a stale finding): `OTLPMetricExporterOptions` extends the same `OTLPExporterConfigBase` as the
+ * trace exporter, and shares the identical default of 30 in-flight exports (confirmed against
+ * the real @opentelemetry/otlp-exporter-base@0.220.0 source —
+ * shared-configuration.js's getSharedConfigurationDefaults()). Past that limit,
+ * BoundedQueueExportPromiseHandler rejects outright rather than queueing, exactly like the trace
+ * exporter's own documented incident (`docs/ENGINEERING_RULES.md` § Cloud Run CPU throttling,
+ * `buildOtlpExporterOptions()` above). 200 is carried over from that trace-side value as a
+ * starting point, not independently re-derived — this metrics path has never carried real
+ * traffic, so unlike the trace exporter's 200 (empirically sized from measured staging
+ * rejections), this number still needs its own live verification. Tracked as this story's own
+ * open "export concurrency/rejection check" AC in plan/M17-CLOUD-DEPLOY.md.
  */
 export function buildOtlpMetricExporterOptions(
   env: NodeJS.ProcessEnv,
@@ -134,6 +146,7 @@ export function buildOtlpMetricExporterOptions(
       ? {}
       : { url: 'http://localhost:4318/v1/metrics' }),
     temporalityPreference: AggregationTemporalityPreference.CUMULATIVE,
+    concurrencyLimit: 200,
   };
 }
 
