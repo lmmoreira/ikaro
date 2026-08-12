@@ -3,6 +3,7 @@ import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-m
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
+import { AppLogger } from '../../../../shared/observability/app-logger';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import {
   BookingDiscountDisabledError,
@@ -241,6 +242,20 @@ describe('CompleteBookingUseCase', () => {
     await expect(
       useCase.execute({ ...makeDto(booking.id), ...baseCtx, tenantId: TENANT_A }),
     ).rejects.toThrow(BookingNotFoundError);
+  });
+
+  it('logs "Booking completed" with tenantId, bookingId, and staffId', async () => {
+    const logSpy = jest.spyOn(AppLogger.prototype, 'log').mockImplementation();
+    const booking = BookingBuilder.approved(TENANT_A, [LINE_ID_1]).build();
+    await bookingRepo.save(booking);
+
+    await useCase.execute({ ...makeDto(booking.id), ...baseCtx });
+
+    expect(logSpy).toHaveBeenCalledWith('Booking completed', {
+      tenantId: TENANT_A,
+      bookingId: booking.id,
+      staffId: STAFF_ID,
+    });
   });
 
   describe('discountByPoints', () => {

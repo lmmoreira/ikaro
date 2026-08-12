@@ -135,7 +135,7 @@ not yet done) — still `INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER` with BFF reacha
 | 2 | S11–S22 | Terraform: modules + staging/prod envs | Yes |
 | 3 | S23–S26 | Pipelines: infra, staging deploy, prod promote | Yes |
 | 4 | S27–S28 | Staging live + E2E against staging | Yes |
-| 5 | S31, S33–S36, S49–S50, S54–S55 | Hardening + observability + DR & governance | Yes |
+| 5 | S31, S33–S36, S49–S50, S54–S56 | Hardening + observability + DR & governance | Yes |
 | 6 | S53, S37 | Production go-live | Yes |
 | 7 | S38–S46, S51 | Post-launch product: custom domains, edge caching, photo cost/LGPD controls, docs refresh, managed connection pooling, LGPD lifecycle | Yes |
 
@@ -1320,26 +1320,34 @@ Runtime SA already has `cloudtrace.agent` (S17) — no new IAM needed.
 
 ### M17-S54 — Business/audit log-based counters
 
-**Agent:** `backend-ts` (new logger calls) + `devops` (Terraform log-based metrics)
+**Agent:** `backend-ts` (new logger calls in booking/notification use cases) + `bff-ts` (new logger calls in the auth login flow) + `devops` (Terraform log-based metrics)
 **Complexity:** S
-**Docs to load:** `docs/10-OBSERVABILITY_STRATEGY.md` § SLOs/alerting, `docs/ENGINEERING_RULES.md` § gauge vs. event logging
+**Docs to load:** `docs/10-OBSERVABILITY_STRATEGY.md` § SLOs/alerting, `docs/10-OBSERVABILITY_STRATEGY.md` § Log Format Specification (gauge vs. event logging — corrected 2026-08-12 via story-discovery: this content lives in this file, not `docs/ENGINEERING_RULES.md`, which has no such section)
 
 **Split out of M17-S35, 2026-08-08, via story-discovery.** The original S35 description assumed "use cases already log start/completion with structured fields (S05)" for bookings requested/approved/completed. Checked directly during discovery: `request-booking.use-case.ts`, `approve-booking.use-case.ts`, and `complete-booking.use-case.ts` have **zero** logger calls today. "Failed notifications" data exists (`NotificationLog` aggregate, DB-persisted) but not as a log line either. This story adds the missing log lines first, then the log-based counters/dashboard panels that consume them — a code story, not a pure-Terraform one, which is why it's split from S35.
 
 **Description:**
-1. Add structured `AppLogger` info-level log lines (carrying `tenant.id`/`correlation.id` per CLAUDE.md §2 invariant 8) at the point of the relevant domain event/use-case completion for:
-   - Booking requested (`request-booking.use-case.ts`)
-   - Booking approved (`approve-booking.use-case.ts`)
-   - Booking completed (`complete-booking.use-case.ts`)
-   - Notification failed (wherever `NotificationLog` records a failure today)
-   - **New (2026-08-08):** Customer/staff login, with a `tenantId` field — enables a "logins by tenant" counter via Cloud Logging's label-extraction on log-based metrics
+1. Add structured `AppLogger` log lines (carrying `tenant.id`/`correlation.id` per CLAUDE.md §2 invariant 8) at the point of the relevant domain event/use-case completion for:
+   - Booking requested (`request-booking.use-case.ts`) — info-level
+   - Booking approved (`approve-booking.use-case.ts`) — info-level
+   - Booking completed (`complete-booking.use-case.ts`) — info-level
+   - Notification failed — `base-notification.use-case.ts`'s `saveFailedLog()`, the one place `NotificationLog.markFailed()` is recorded today — **warn-level** (`logger.warn`, not `.log`), matching a failure signal rather than a routine lifecycle event (CodeRabbit finding, 2026-08-12: this section's original wording said "info-level" for every item, which was wrong for this one)
+   - **New (2026-08-08), file-scoped 2026-08-12 via story-discovery, relocated 2026-08-12 (post-implementation review) — both login log lines live in the BFF, not one in the backend:**
+     - **Customer login:** `handleTenantLogin()` in `apps/bff/src/features/auth/auth-controller-flow.service.ts` (BFF) — **not** `find-or-create-customer.use-case.ts` (backend), the original placement. Reasoning for the move: `FindOrCreateCustomerUseCase` is a generic, reusable "find or create" primitive (name and shape say nothing about login) — today it happens to be invoked only from the login path, but tagging every one of its invocations "Customer login" would silently mislabel a future non-login caller (an admin-provisioned customer, a webhook sync, a CSV import) the moment one gets added. The BFF's `handleTenantLogin()` is where the actual login business event is decided, symmetric with `handleStaffLogin()` below — same reasoning CLAUDE.md already applies to keeping business-event semantics at the orchestration layer, not a generic backend primitive. `tenantId`/`customerId` come from `handleTenantLogin()`'s own `tenantInfo`/`FindOrCreateCustomerResponse`, no extra plumbing needed.
+     - **Staff login:** `handleStaffLogin()` in `apps/bff/src/features/auth/auth-controller-flow.service.ts` (BFF) — staff-login success (JWT issuance + redirect, line ~358) has no backend call that fires on every login, only conditional ones (`by-email`, `link-google`), so this log line can only be added in the BFF, passing `tenantId` explicitly as an `extra` field (the BFF `AppLogger.enrich()` only auto-populates `tenantId` when a request-scoped tenant context exists, which it doesn't yet during the pre-auth OAuth callback).
+   - **Dropped (2026-08-12, post-implementation review):** a "Dev auth used" log line + staging-only alert on `devLogin()` was built, then removed before merge — `ENABLE_DEV_AUTH` is unreachable in production and, in staging, is exercised only by Playwright/E2E harnesses, not real usage worth monitoring. No log line, metric, or alert for dev-auth usage exists in this story's final scope. `devLogin()`'s customer branch still calls `/internal/customers` directly (never through `handleTenantLogin()`), so it correctly emits no "Customer login" line either — dev-auth logins are invisible to these counters entirely, by design.
 2. Define Terraform log-based counters (in `modules/monitoring`, built by S35) for each of the above, with a dashboard panel per counter.
-3. Verify (or add, if missing) the log line backing S35's originally-scoped staging-only Dev-Login-usage alert (`ENABLE_DEV_AUTH` flow) — not yet independently confirmed to exist.
+
+**Cross-tool review fixes (Codex, PR #359, 2026-08-12):**
+- **`correlationId` was silently dropped from the "Notification failed" log line.** `BaseNotificationDto` (every notification DTO's base interface) always carries `correlationId: string`, but `dispatchTemplates`/`dispatchTemplatesToMany`'s own parameter type narrowed the incoming `dto` to `{ tenantId, eventId }`, discarding the field before it ever reached `saveFailedLog()`. Widened both signatures (and `saveFailedLog`'s own params) to include `correlationId`; no call site needed changes, since every real caller already passes an `input` object whose actual runtime type is a superset of the widened signature.
+- **`errorMessage: String(err)` could leak PII into Cloud Logging.** Dispatcher/SMTP error text is arbitrary and can embed the recipient's email address (e.g. `SelectiveFailDispatcher`'s own `dispatch failed for ${message.to}` pattern, used elsewhere in this same spec file). Added `redactEmailForLogging()` (`src/shared/utils/redact-email-for-logging.ts`, mirrors the existing `redactStoragePathForLogging` precedent) and applied it only to the **log line** — `NotificationLog.errorMessage` (the DB row, `log.markFailed()`) keeps the full, unredacted message, since DB access is already access-controlled differently than a Cloud Logging stream. Deliberately not a blanket fix inside `AppLogger` itself: `NotificationDispatcherAdapter` already logs a raw recipient email (`to: message.to`) as an intentional structured field elsewhere, and a shared logger-level redaction would have silently mangled that legitimate use.
+- **The 6 dashboard widgets originally broke down every counter by `tenant_id`** (`groupByFields`, `STACKED_BAR`, titled "(by tenant)"). Cloud Monitoring caps a chart at ~50 rendered series; past that a widget silently truncates — tenants beyond the cap just stop appearing, no error anywhere — as this platform's active tenant count grows, which is the intended trajectory. A live per-tenant drill-down (Cloud Monitoring `dashboardFilters`) was considered for this story and deferred to **M17-S56**: that JSON schema is new to this codebase, validated server-side only (same caveat this module's header comment already states for its MQL bodies), and this session has no path to a live staging apply to confirm it renders correctly. Switched all 6 widgets to aggregate totals (`crossSeriesReducer = "REDUCE_SUM"`, no `groupByFields`, `LINE`, titled "(total)") — `tenant_id` stays a label on the underlying log-based metric (unchanged), so an operator can still drill into one tenant via Cloud Logging's own filter (`jsonPayload.tenantId="..."`) without a second, unverified dashboard mechanism.
+- Codex's other two findings on this PR were resolved as a side effect of the customer-login relocation above, not by a separate fix: the backend `find-or-create-customer.use-case.ts` correlationId gap no longer applies (that use case no longer logs at all), and the dev-auth-alert-related acceptance criterion no longer exists (dev-auth logging/alerting was dropped from this story's scope, above).
 
 **Acceptance criteria:**
-- [ ] Each new logger call ships with a unit test asserting the log line's structured fields
+- [x] Each new logger call ships with a unit test asserting the log line's structured fields, `tenantId` and `correlationId` included, at its specific call site (`request-booking.use-case.spec.ts`, `approve-booking.use-case.spec.ts`, `complete-booking.use-case.spec.ts`, `base-notification.use-case.spec.ts` — including a dedicated redaction test — and the BFF's `auth-controller-flow.service.spec.ts` for the customer-login and staff-login lines) — verified 2026-08-12: backend/BFF tests pass across all touched spec files; `terraform test` (22 runs, `modules/monitoring`) covers the 6 counters' filters/tenant_id extraction and the dashboard's aggregate (non-per-tenant) widget shape
 - [ ] Each counter's dashboard panel renders with live data in staging
-- [ ] Dev-Login-usage alert's log line confirmed to exist (or added) and the alert fires on a test trigger
+  - ⚠️ Not verified as of 2026-08-12 — needs a real staging deploy; `terraform test`'s `mock_provider` can prove the widget JSON is well-formed, but not that live Cloud Logging data actually flows into it (this module's own header comment already states this limitation for its existing resources)
 
 **Dependencies:** M17-S35 (dashboard module must exist first)
 
@@ -1369,6 +1377,27 @@ Runtime SA already has `cloudtrace.agent` (S17) — no new IAM needed.
 - [ ] No repeat of the sampler/concurrency-limit/CPU-throttling incident classes — explicit live verification of each, documented
 
 **Dependencies:** M17-S35, M17-S54 (conceptually — same dashboard/monitoring foundation; not a hard blocker)
+
+---
+
+### M17-S56 — Per-tenant dashboard drill-down (Cloud Monitoring `dashboardFilters`)
+
+**Agent:** `devops`
+**Complexity:** S
+**Docs to load:** `infra/terraform/modules/monitoring/main.tf` (S54's `business_counter_widgets` local — this story's starting point)
+
+**Split out of M17-S54, 2026-08-12, via cross-tool PR review (Codex).** Deferred, no urgency trigger — unlike S46/S55, this isn't a growing-problem-if-left-undone item. S54's 6 business-counter widgets (bookings requested/approved/completed, notification failed, customer/staff logins) render aggregate totals across all tenants (`crossSeriesReducer = "REDUCE_SUM"`, no `groupByFields`) rather than a per-tenant breakdown — a per-tenant `STACKED_BAR` design was tried first and reverted in S54 itself, since Cloud Monitoring silently truncates a chart past ~50 rendered series, and a per-tenant breakdown would eventually hit that as active tenant count grows. Today, drilling into one tenant's numbers means a manual Cloud Logging query (`jsonPayload.tenantId="..."` — every one of the 6 log lines already carries this field) — fully functional, not degraded by tenant growth, just a manual step instead of a dashboard control. This story would replace that manual step with a live, in-dashboard filter.
+
+**Description:**
+1. Add a Cloud Monitoring `dashboardFilters` block (dashboard-level template variable filtering on `metric.label.tenant_id`) to the S35/S54 dashboard, scoped to the 6 business-counter widgets — letting a viewer pick one tenant in the console UI and have those charts re-filter live, instead of leaving the console entirely to run a Logs Explorer query.
+2. **Why this needs its own story, not a quick addition to S54:** this exact JSON shape (`dashboardFilters`) is new to this codebase — no widget in `modules/monitoring` uses it today. Like this module's MQL query bodies and log-based-metric filters (see the module's own header comment), it's a string the Cloud Monitoring API validates server-side only; `terraform validate`/`terraform test` (`mock_provider`) can confirm the JSON is syntactically well-formed but not that it actually parses into a working, renderable filter control. This needs a real staging `terraform apply` + a manual console check (pick a tenant, confirm the charts actually re-filter) before it can be trusted — the same discipline this module already applies to every other query body, just not something achievable from an agent session with no staging deploy access.
+
+**Acceptance criteria:**
+- [ ] `dashboardFilters` added, scoped to the 6 business-counter widgets (or dashboard-wide, if that proves more useful during implementation — decide then, not now)
+- [ ] Live-verified in staging: picking a tenant in the console UI actually re-filters the 6 charts to that tenant's data, not just a clean `terraform apply`
+- [ ] The default (no filter selected) view is unchanged — still the aggregate totals S54 shipped, no regression
+
+**Dependencies:** M17-S54 (the 6 widgets must exist first)
 
 ---
 
@@ -1837,6 +1866,7 @@ When the trigger above is met, move the instance to Enterprise Plus and enable *
 | S35 | M14-S05/S06 | Grafana JSONs/Prometheus rules → Cloud Monitoring as code (core infra alerts/dashboard only; split 2026-08-08, see S54/S55) |
 | S54 | M14-S05/S06 (split from S35, 2026-08-08) | business/audit log-based dashboard counters — needed new logger calls M14's plan never anticipated |
 | S55 | M14-S05/S06 (split from S35, 2026-08-08) | the actual Prometheus-metrics lineage from M14-S06 — deferred until real post-launch traffic justifies the build |
+| S56 | new (split from S54, 2026-08-12, cross-tool review) | per-tenant Cloud Monitoring dashboard drill-down (`dashboardFilters`) — deferred, no urgency trigger; Cloud Logging's own tenantId filter already covers the same need manually |
 | S36 | M15-S12 remnant | Armor reduced to origin lockdown; enabled at go-live (revised 2026-07-07) |
 | S37 | M16-S10 | go-live |
 | S38–S40 | new product | custom domains (UC-032 doc-first) |
