@@ -45,7 +45,7 @@ The candidate list was built from `docs/ANTI_PATTERNS.md`, `docs/ENGINEERING_RUL
 
 ## Committed Stories
 
-### Story 0 — Architecture-enforcement foundation and recorded policy decisions 🔴 ◐ Partial
+### Story 0 — Architecture-enforcement foundation and recorded policy decisions 🔴 ✅ Done
 
 No detector may encode an undocumented guess. Before adding a blocking rule, create one shared `architecture-check` runner/CLI that can load the backend, BFF, web, and workspace TypeScript projects. Keep the rules themselves in small independently-tested modules; do not install `ts-morph` only in the backend and then make web/package checks depend on an accidental hoist.
 
@@ -59,12 +59,12 @@ This story records the following policy as versioned, reviewable data rather tha
 - **Tool decision spike:** implement three representative semantic rules (transactional save, error-mapper coverage, and Nest DI aliasing) with the shared runner. Evaluate direct `ts-morph` against `ts-archunit`; retain exactly one. `dependency-cruiser` remains the sole authority for import-graph rules.
 
 **Acceptance criteria**:
-- [ ] Shared runner is executable locally and in CI for every project it scans
-- [ ] The taxonomy, dependency matrix, exception registry, and backend package-contract policy are committed as machine-readable configuration next to the checks
-- [ ] The tool spike records the selected semantic-analysis implementation and why it handles the three representative rules
-- [ ] Fixture and zero-target conventions are available to every later story
+- [x] Shared runner is executable locally and in CI for every project it scans
+- [x] The taxonomy, dependency matrix, exception registry, and backend package-contract policy are committed as machine-readable configuration next to the checks
+- [x] The tool spike records the selected semantic-analysis implementation and why it handles the three representative rules
+- [x] Fixture and zero-target conventions are available to every later story
 
-### Story 1 — `dependency-cruiser`: architectural boundaries 🔴 ◐ Partial
+### Story 1 — `dependency-cruiser`: architectural boundaries 🔴 ✅ Done
 
 **New dependency**: `dependency-cruiser` (dev-only).
 
@@ -83,14 +83,14 @@ Rules to encode:
 **What it does NOT catch**: semantic duplication — e.g. two cross-context ports doing the same job (#79) is a design judgment call, not an import-graph shape; stays a code-review/bad-smell-audit item.
 
 **Acceptance criteria**:
-- [ ] Configuration encodes all rule groups above, the exact permitted-edge matrix, and the backend package-contract subpath policy
-- [ ] `pnpm dep-cruise` scans all configured workspaces and fails if a workspace/project is omitted
-- [ ] CI step added (non-blocking first — see Rollout Phases)
-- [ ] Zero violations on current `main` before promoting to blocking
+- [x] Configuration encodes all rule groups above, the exact permitted-edge matrix, and the backend package-contract subpath policy
+- [x] `pnpm dep-cruise` scans all configured workspaces and fails if a workspace/project is omitted
+- [x] CI step added (non-blocking first — see Rollout Phases)
+- [x] Zero violations on current `main` before promoting to blocking
 
 ---
 
-### Story 2 — Ban raw SQL / repository-bypass outside repository adapters 🔴 ◐ Partial
+### Story 2 — Ban raw SQL / repository-bypass outside repository adapters 🔴 ✅ Done
 
 Directly addresses **#124** — the exact TD24-S01 incident (`OutboxPublisher` had every `INSERT`/`SELECT ... FOR UPDATE SKIP LOCKED`/`UPDATE`/`DELETE` inlined, undetected through a full `/pre-pr` pass).
 
@@ -118,14 +118,14 @@ Before enabling it, resolve the current `booking/infrastructure/cross-context/ty
 **What it does NOT catch**: a repository adapter itself doing something wrong internally — that's normal code review, this rule only enforces *where* SQL is allowed to live.
 
 **Acceptance criteria**:
-- [ ] Rule added to `apps/backend/eslint.config.js` with precise allowlisted persistence-adapter paths
-- [ ] Every TypeORM bypass API named above is covered; valid repository adapters and reviewed cross-context persistence adapters are explicitly tested
-- [ ] Zero unreviewed current violations; no broad `shared/infrastructure/**` exemption
-- [ ] `docs/AGENT_PATTERNS.md` Pattern #1 referenced in the lint error message
+- [x] Rule added to `apps/backend/eslint.config.js` with precise allowlisted persistence-adapter paths
+- [x] Every TypeORM bypass API named above is covered; valid repository adapters and reviewed cross-context persistence adapters are explicitly tested
+- [x] Zero unreviewed current violations; no broad `shared/infrastructure/**` exemption
+- [x] `docs/AGENT_PATTERNS.md` Pattern #1 referenced in the lint error message
 
 ---
 
-### Story 2A — Corrective completion of Stories 0–2 🔴
+### Story 2A — Corrective completion of Stories 0–2 🔴 ✅ Done
 
 Stories 0–2 were marked done without a criterion-by-criterion verification. The audit found that their core direction is sound, but the following completion work remains. This story closes those gaps before Story 3 expands the semantic suite.
 
@@ -137,12 +137,31 @@ Stories 0–2 were marked done without a criterion-by-criterion verification. Th
 6. Perform the Definition-of-Done stale-reference sweep for the invalid previous completion record and the replaced dependency-cruiser/type-contract mechanisms, including their known aliases.
 
 **Acceptance criteria**:
-- [ ] Stories 0–2 each have criterion-level verification evidence; no prior `✅ Done` label is relied upon as evidence
-- [ ] Backend protocol subpaths are exported and no backend production root-barrel `@ikaro/types` imports remain
-- [ ] Dependency-cruiser enforces every Story 1 boundary from explicit source-to-target policy edges against all TypeScript workspaces and passes clean under repository-pinned Node 22
-- [ ] Semantic and ESLint fixtures cover the missing valid, invalid, and zero-target cases identified above
-- [ ] Story 2 retains the conventional repository-adapter boundary, has no broad shared-infrastructure exemption, and passes clean
-- [ ] Stale references to the previous completion record and replaced boundary mechanisms are updated or explicitly retained with a rationale
+- [x] Stories 0–2 each have criterion-level verification evidence; no prior `✅ Done` label is relied upon as evidence
+- [x] Backend protocol subpaths are exported and no backend production root-barrel `@ikaro/types` imports remain
+- [x] Dependency-cruiser enforces every Story 1 boundary from explicit source-to-target policy edges against all TypeScript workspaces and passes clean under repository-pinned Node 22
+- [x] Semantic and ESLint fixtures cover the missing valid, invalid, and zero-target cases identified above
+- [x] Story 2 retains the conventional repository-adapter boundary, has no broad shared-infrastructure exemption, and passes clean
+- [x] Stale references to the previous completion record and replaced boundary mechanisms are updated or explicitly retained with a rationale
+
+#### Completion verification — PR #361 (2026-08-12)
+
+| Original story | Original criterion | Verification evidence | Result |
+|---|---|---|---|
+| Story 0 | Shared runner is executable locally and in CI for every project it scans. | `@ikaro/architecture-check` loads the policy project list; `pnpm architecture-check` runs it locally and CI's Architecture validation job passed on PR #361. | Met |
+| Story 0 | Taxonomy, dependency matrix, exception registry, and backend package-contract policy are machine-readable next to the checks. | `packages/architecture-check/architecture-policy.json` contains all four policy sections. | Met |
+| Story 0 | Tool spike records the selected semantic-analysis implementation and its suitability for all three representative rules. | `docs/TD37-ARCHITECTURE-CHECK-DECISIONS.md` records the `ts-morph` selection, rejected alternative, and transactional-save, error-mapper, and DI-alias spike detectors. | Met |
+| Story 0 | Fixture and zero-target conventions are available to later stories. | `packages/architecture-check/src/architecture-check.spec.ts` provides valid, invalid, and zero-target detector fixtures; its shared fixture helpers are used by the semantic checks. | Met |
+| Story 1 | Configuration encodes every required rule group, exact permitted-edge matrix, and backend subpath contract. | `scripts/dependency-cruiser.config.cjs` derives rules from policy `source` → `targetPaths` edges and includes domain, application, BFF, graph-safety, and `@ikaro/types` contract rules. | Met |
+| Story 1 | `pnpm dep-cruise` scans all configured workspaces and fails if one is omitted. | The policy and `scripts/dependency-cruiser-projects.cjs` list all 12 TypeScript workspaces, including `packages/architecture-check`; their consistency is tested. | Met |
+| Story 1 | CI step is added as non-blocking first. | CI's Dependency graph validation (report-only) job ran and passed on PR #361. | Met |
+| Story 1 | Zero violations on the current baseline before promotion to blocking. | PR #361's repository-pinned Node 22 dependency-graph validation passed clean. | Met |
+| Story 2 | ESLint rule has precise persistence-adapter allowlisted paths. | `apps/backend/eslint.config.js` builds the additional reviewed path from the exact `raw-persistence-api` policy exception and lists exact repository/database adapter paths. | Met |
+| Story 2 | Every named TypeORM bypass API is covered and permitted conventional/reviewed adapters are tested. | `apps/backend/src/eslint/persistence-boundary.eslint.spec.ts` rejects every listed bypass API and proves both adapter categories pass. | Met |
+| Story 2 | No unreviewed current violations and no broad `shared/infrastructure/**` exemption. | The ESLint list has no broad shared-infrastructure glob; its negative test proves a newly added repository file is rejected until explicitly allowlisted. | Met |
+| Story 2 | Lint error message references `docs/AGENT_PATTERNS.md` Pattern #1. | Each TypeORM restriction message in `apps/backend/eslint.config.js` cites Pattern #1. | Met |
+
+Story 2A follow-through: `@ikaro/types` exports only the approved backend protocol subpaths, the production-backend root-barrel sweep returned zero hits, and the stale TD11 statement now distinguishes forbidden root/feature DTO contracts from approved `protocol/*` imports. PR #361 CI passed ESLint, TypeScript, architecture validation, dependency-graph validation, backend/BFF tests, and the full application suite before merge.
 
 ---
 
