@@ -131,16 +131,18 @@ Stories 0–2 were marked done without a criterion-by-criterion verification. Th
 
 1. Complete Story 0's fixture contract: establish reusable semantic-check fixture/zero-target conventions, including an invalid error-mapper fixture.
 2. Complete Story 1's `@ikaro/types` protocol-subpath migration: export the approved backend protocol subpaths and migrate backend production code off the root barrel before enforcing the contract.
-3. Correct Story 1's dependency-cruiser semantics: make cross-context permissions exact source-to-target edges, restrict application imports to the documented domain/ports/DTOs/framework-neutral shared surface, detect BFF imports of backend contexts, and derive/check the project registry against every TypeScript workspace (including `packages/architecture-check`).
-4. Produce a clean dependency-cruiser baseline under the repository-pinned Node version, with fixtures proving the repaired boundaries.
+3. Correct Story 1's dependency-cruiser semantics: make cross-context permissions exact source-to-target edges using explicit `source` and `targetPath` policy entries, restrict application imports to the documented domain/ports/DTOs/framework-neutral shared surface, detect BFF imports of backend contexts, and derive/check the project registry against every TypeScript workspace (including `packages/architecture-check`).
+4. Produce a clean dependency-cruiser baseline under the repository-pinned Node 22 version, with fixtures proving the repaired boundaries.
 5. Complete Story 2's fixture coverage: prove a normal repository adapter and the reviewed booking cross-context adapter are permitted, and cover every restricted TypeORM API in the negative fixture.
+6. Perform the Definition-of-Done stale-reference sweep for the invalid previous completion record and the replaced dependency-cruiser/type-contract mechanisms, including their known aliases.
 
 **Acceptance criteria**:
 - [ ] Stories 0–2 each have criterion-level verification evidence; no prior `✅ Done` label is relied upon as evidence
 - [ ] Backend protocol subpaths are exported and no backend production root-barrel `@ikaro/types` imports remain
-- [ ] Dependency-cruiser enforces every Story 1 boundary against all TypeScript workspaces and passes clean under the repository-pinned Node version
+- [ ] Dependency-cruiser enforces every Story 1 boundary from explicit source-to-target policy edges against all TypeScript workspaces and passes clean under repository-pinned Node 22
 - [ ] Semantic and ESLint fixtures cover the missing valid, invalid, and zero-target cases identified above
 - [ ] Story 2 retains the conventional repository-adapter boundary, has no broad shared-infrastructure exemption, and passes clean
+- [ ] Stale references to the previous completion record and replaced boundary mechanisms are updated or explicitly retained with a rationale
 
 ---
 
