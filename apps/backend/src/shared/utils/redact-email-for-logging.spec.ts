@@ -22,4 +22,15 @@ describe('redactEmailForLogging', () => {
   it('returns the message unchanged when it has no email address', () => {
     expect(redactEmailForLogging('Error: smtp timeout')).toBe('Error: smtp timeout');
   });
+
+  it('completes in linear time on a pathological non-matching input (S5852 regression guard)', () => {
+    // The pre-fix pattern (`[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+`, flagged by SonarCloud for
+    // super-linear backtracking) would hang on inputs like this — many repeated dot-separated
+    // segments followed by a character that can never complete a match. A regression back to
+    // that shape would make this test time out, not just fail an assertion.
+    const pathological = `${'a.'.repeat(50_000)}!`;
+    const start = Date.now();
+    expect(redactEmailForLogging(pathological)).toBe(pathological);
+    expect(Date.now() - start).toBeLessThan(1000);
+  });
 });
