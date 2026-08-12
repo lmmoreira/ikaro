@@ -45,7 +45,7 @@ The candidate list was built from `docs/ANTI_PATTERNS.md`, `docs/ENGINEERING_RUL
 
 ## Committed Stories
 
-### Story 0 — Architecture-enforcement foundation and recorded policy decisions 🔴 ✅ Done
+### Story 0 — Architecture-enforcement foundation and recorded policy decisions 🔴 ◐ Partial
 
 No detector may encode an undocumented guess. Before adding a blocking rule, create one shared `architecture-check` runner/CLI that can load the backend, BFF, web, and workspace TypeScript projects. Keep the rules themselves in small independently-tested modules; do not install `ts-morph` only in the backend and then make web/package checks depend on an accidental hoist.
 
@@ -64,7 +64,7 @@ This story records the following policy as versioned, reviewable data rather tha
 - [ ] The tool spike records the selected semantic-analysis implementation and why it handles the three representative rules
 - [ ] Fixture and zero-target conventions are available to every later story
 
-### Story 1 — `dependency-cruiser`: architectural boundaries 🔴 ✅ Done
+### Story 1 — `dependency-cruiser`: architectural boundaries 🔴 ◐ Partial
 
 **New dependency**: `dependency-cruiser` (dev-only).
 
@@ -90,7 +90,7 @@ Rules to encode:
 
 ---
 
-### Story 2 — Ban raw SQL / repository-bypass outside repository adapters 🔴 ✅ Done
+### Story 2 — Ban raw SQL / repository-bypass outside repository adapters 🔴 ◐ Partial
 
 Directly addresses **#124** — the exact TD24-S01 incident (`OutboxPublisher` had every `INSERT`/`SELECT ... FOR UPDATE SKIP LOCKED`/`UPDATE`/`DELETE` inlined, undetected through a full `/pre-pr` pass).
 
@@ -122,6 +122,25 @@ Before enabling it, resolve the current `booking/infrastructure/cross-context/ty
 - [ ] Every TypeORM bypass API named above is covered; valid repository adapters and reviewed cross-context persistence adapters are explicitly tested
 - [ ] Zero unreviewed current violations; no broad `shared/infrastructure/**` exemption
 - [ ] `docs/AGENT_PATTERNS.md` Pattern #1 referenced in the lint error message
+
+---
+
+### Story 2A — Corrective completion of Stories 0–2 🔴
+
+Stories 0–2 were marked done without a criterion-by-criterion verification. The audit found that their core direction is sound, but the following completion work remains. This story closes those gaps before Story 3 expands the semantic suite.
+
+1. Complete Story 0's fixture contract: establish reusable semantic-check fixture/zero-target conventions, including an invalid error-mapper fixture.
+2. Complete Story 1's `@ikaro/types` protocol-subpath migration: export the approved backend protocol subpaths and migrate backend production code off the root barrel before enforcing the contract.
+3. Correct Story 1's dependency-cruiser semantics: make cross-context permissions exact source-to-target edges, restrict application imports to the documented domain/ports/DTOs/framework-neutral shared surface, detect BFF imports of backend contexts, and derive/check the project registry against every TypeScript workspace (including `packages/architecture-check`).
+4. Produce a clean dependency-cruiser baseline under the repository-pinned Node version, with fixtures proving the repaired boundaries.
+5. Complete Story 2's fixture coverage: prove a normal repository adapter and the reviewed booking cross-context adapter are permitted, and cover every restricted TypeORM API in the negative fixture.
+
+**Acceptance criteria**:
+- [ ] Stories 0–2 each have criterion-level verification evidence; no prior `✅ Done` label is relied upon as evidence
+- [ ] Backend protocol subpaths are exported and no backend production root-barrel `@ikaro/types` imports remain
+- [ ] Dependency-cruiser enforces every Story 1 boundary against all TypeScript workspaces and passes clean under the repository-pinned Node version
+- [ ] Semantic and ESLint fixtures cover the missing valid, invalid, and zero-target cases identified above
+- [ ] Story 2 retains the conventional repository-adapter boundary, has no broad shared-infrastructure exemption, and passes clean
 
 ---
 
