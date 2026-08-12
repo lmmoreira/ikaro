@@ -67,8 +67,22 @@ export class ChatbotSession extends AggregateRoot {
   }
 
   recordMessage(): void {
-    this._messageCount += 1;
+    this.recordMessages(1);
+  }
+
+  /** Records `count` messages as a single point in time — e.g. one USER + one ASSISTANT row for
+   * the same turn — rather than calling recordMessage() once per row, which sets lastMessageAt
+   * to a fresh Date() each time for what is really one instant. */
+  recordMessages(count: number): void {
+    this._messageCount += count;
     this._lastMessageAt = new Date();
+  }
+
+  /** Releases a reservation made by recordMessages() that was never fulfilled — e.g. the LLM
+   * call failed after this turn's rows were reserved but before either was written. Doesn't
+   * touch lastMessageAt, since no message actually landed at this instant. */
+  releaseMessages(count: number): void {
+    this._messageCount -= count;
   }
 
   markCapped(): void {

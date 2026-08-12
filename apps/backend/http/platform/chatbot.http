@@ -1,0 +1,110 @@
+# Platform — Chatbot (UC-033)
+# Guest-only — no actor. TenantContext is populated from X-Tenant-ID (set by the BFF).
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run seed
+#   4. pnpm --filter @ikaro/backend run dev
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@baseUrl = {{backendUrl}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH
+# ─────────────────────────────────────────────────────────────────────────────
+
+### New conversation — sessionId omitted, backend creates a new session
+POST {{baseUrl}}/platform/chatbot/messages
+X-Tenant-ID: {{tenantId}}
+Content-Type: application/json
+
+{
+  "systemPrompt": "You are a helpful assistant for a car wash business. Answer only questions about this business.",
+  "message": "Vocês trabalham aos sábados?",
+  "clientIp": "203.0.113.10"
+}
+
+###
+
+### Existing conversation — sessionId from a prior response's { sessionId, reply }
+POST {{baseUrl}}/platform/chatbot/messages
+X-Tenant-ID: {{tenantId}}
+Content-Type: application/json
+
+{
+  "sessionId": "REPLACE_WITH_SESSION_ID_FROM_PRIOR_RESPONSE",
+  "systemPrompt": "You are a helpful assistant for a car wash business. Answer only questions about this business.",
+  "message": "E qual o valor da lavagem completa?",
+  "clientIp": "203.0.113.10"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR CASES
+# ─────────────────────────────────────────────────────────────────────────────
+
+### 400 — Missing X-Tenant-ID header
+POST {{baseUrl}}/platform/chatbot/messages
+Content-Type: application/json
+
+{
+  "systemPrompt": "You are a helpful assistant.",
+  "message": "Oi",
+  "clientIp": "203.0.113.10"
+}
+
+###
+
+### 400 — Empty message
+POST {{baseUrl}}/platform/chatbot/messages
+X-Tenant-ID: {{tenantId}}
+Content-Type: application/json
+
+{
+  "systemPrompt": "You are a helpful assistant.",
+  "message": "",
+  "clientIp": "203.0.113.10"
+}
+
+###
+
+### 404 — sessionId doesn't belong to this tenant (or doesn't exist)
+POST {{baseUrl}}/platform/chatbot/messages
+X-Tenant-ID: {{tenantId}}
+Content-Type: application/json
+
+{
+  "sessionId": "00000000-0000-7000-8000-000000000000",
+  "systemPrompt": "You are a helpful assistant.",
+  "message": "Oi",
+  "clientIp": "203.0.113.10"
+}
+
+###
+
+### 429 — Volume cap reached (send this same request 31+ times in a row for the same
+### tenant/day to trigger the default maxConversationsPerDay=30 cap; PLATFORM_CHATBOT_DAILY_CAP_REACHED)
+POST {{baseUrl}}/platform/chatbot/messages
+X-Tenant-ID: {{tenantId}}
+Content-Type: application/json
+
+{
+  "systemPrompt": "You are a helpful assistant.",
+  "message": "Oi",
+  "clientIp": "203.0.113.99"
+}
+
+###
+
+### 503 — LLM provider call failed (unset/invalid OPENROUTER_API_KEY locally reproduces this;
+### PLATFORM_CHATBOT_PROVIDER_UNAVAILABLE)
+POST {{baseUrl}}/platform/chatbot/messages
+X-Tenant-ID: {{tenantId}}
+Content-Type: application/json
+
+{
+  "systemPrompt": "You are a helpful assistant.",
+  "message": "Oi",
+  "clientIp": "203.0.113.98"
+}

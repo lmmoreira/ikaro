@@ -20,6 +20,45 @@ export class TypeOrmChatbotMessageRepository implements IChatbotMessageRepositor
     return entity ? this.toDomain(entity) : null;
   }
 
+  async findBySession(sessionId: string, tenantId: string): Promise<ChatbotMessage[]> {
+    const entities = await this.repo.find({
+      where: { sessionId, tenantId },
+      order: { createdAt: 'ASC' },
+    });
+    return entities.map((entity) => this.toDomain(entity));
+  }
+
+  async findRecentBySession(
+    sessionId: string,
+    tenantId: string,
+    limit: number,
+  ): Promise<ChatbotMessage[]> {
+    const entities = await this.repo.find({
+      where: { sessionId, tenantId },
+      order: { createdAt: 'DESC' },
+      take: limit,
+    });
+    // DESC + LIMIT fetches the most recent `limit` rows only. reverse() is a separate statement,
+    // not chained mid-expression, since it mutates in place (toReversed() needs ES2023, past this
+    // project's configured lib target) — restores the oldest-first order every caller of this
+    // port expects (matches findBySession's ordering).
+    entities.reverse();
+    return entities.map((entity) => this.toDomain(entity));
+  }
+
+  // SUM(cost_usd) has no plain repository.sum() shorthand in TypeORM — the QueryBuilder's own
+  // SELECT/getRawOne() is the idiomatic way to express one aggregate, not a raw-SQL escape hatch
+  // (contrast with shared/infrastructure/outbox's ON CONFLICT/FOR UPDATE SKIP LOCKED cases, which
+  // genuinely can't be expressed through the query builder).
+  async sumCostUsdSince(since: Date): Promise<Decimal> {
+    const row = await this.repo
+      .createQueryBuilder('message')
+      .select('COALESCE(SUM(message.costUsd), 0)', 'total')
+      .where('message.createdAt >= :since', { since })
+      .getRawOne<{ total: string }>();
+    return new Decimal(row?.total ?? 0);
+  }
+
   async save(message: ChatbotMessage): Promise<void> {
     const entity = this.toEntity(message);
     const manager = getActiveEntityManager();

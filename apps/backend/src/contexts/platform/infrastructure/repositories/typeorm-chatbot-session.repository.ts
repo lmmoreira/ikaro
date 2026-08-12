@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { MoreThan, Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { toDate } from '../../../../shared/utils/date';
 import { IChatbotSessionRepository } from '../../application/ports/chatbot-session-repository.port';
@@ -17,6 +17,24 @@ export class TypeOrmChatbotSessionRepository implements IChatbotSessionRepositor
   async findById(id: string, tenantId: string): Promise<ChatbotSession | null> {
     const entity = await this.repo.findOne({ where: { id, tenantId } });
     return entity ? this.toDomain(entity) : null;
+  }
+
+  async countByTenantAndDate(tenantId: string, conversationDate: string): Promise<number> {
+    return this.repo.count({ where: { tenantId, conversationDate } });
+  }
+
+  async countByTenantIpAndDate(
+    tenantId: string,
+    clientIp: string,
+    conversationDate: string,
+  ): Promise<number> {
+    return this.repo.count({ where: { tenantId, clientIp, conversationDate } });
+  }
+
+  async countActiveSince(tenantId: string, since: Date): Promise<number> {
+    return this.repo.count({
+      where: { tenantId, status: 'ACTIVE', lastMessageAt: MoreThan(since) },
+    });
   }
 
   async save(session: ChatbotSession): Promise<void> {

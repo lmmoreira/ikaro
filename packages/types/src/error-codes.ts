@@ -133,6 +133,21 @@ export const PlatformErrorCode = {
   SETTINGS_UPDATE_EMPTY: 'PLATFORM_SETTINGS_UPDATE_EMPTY',
   HOTSITE_UPDATE_EMPTY: 'PLATFORM_HOTSITE_UPDATE_EMPTY',
   FEATURED_PHOTO_PATH_MISMATCH: 'PLATFORM_FEATURED_PHOTO_PATH_MISMATCH',
+  // Chatbot cap-rejection reasons (UC-033, docs/discovery/CHATBOT/CHATBOT.md §8) — all 5 map to
+  // HTTP 429 (M19-S05 story-discovery, 2026-08-12). DAILY_CAP_REACHED covers both layer 1
+  // (tenant-wide) and layer 2 (per-IP) — both are the same "come back tomorrow" outcome from the
+  // visitor's perspective, matching UC-033 A1's own grouping of the two.
+  CHATBOT_DAILY_CAP_REACHED: 'PLATFORM_CHATBOT_DAILY_CAP_REACHED',
+  CHATBOT_CONCURRENCY_CAP_REACHED: 'PLATFORM_CHATBOT_CONCURRENCY_CAP_REACHED',
+  CHATBOT_MESSAGE_CAP_REACHED: 'PLATFORM_CHATBOT_MESSAGE_CAP_REACHED',
+  CHATBOT_GLOBAL_SPEND_LIMIT_REACHED: 'PLATFORM_CHATBOT_GLOBAL_SPEND_LIMIT_REACHED',
+  CHATBOT_PROVIDER_BALANCE_LOW: 'PLATFORM_CHATBOT_PROVIDER_BALANCE_LOW',
+  // UC-033 A4 (LLM provider call failed) — 503, distinct from the 429 cap-rejection family above.
+  CHATBOT_PROVIDER_UNAVAILABLE: 'PLATFORM_CHATBOT_PROVIDER_UNAVAILABLE',
+  // UC-033 A3 (message exceeds resolved maxMessageLengthChars) — 400, PR #360 review finding.
+  CHATBOT_MESSAGE_TOO_LONG: 'PLATFORM_CHATBOT_MESSAGE_TOO_LONG',
+  // docs/14-API_CONTRACTS.md Chatbot Widget: "404 — ... sessionId doesn't belong to this tenant".
+  CHATBOT_SESSION_NOT_FOUND: 'PLATFORM_CHATBOT_SESSION_NOT_FOUND',
 } as const;
 export type PlatformErrorCode = (typeof PlatformErrorCode)[keyof typeof PlatformErrorCode];
 

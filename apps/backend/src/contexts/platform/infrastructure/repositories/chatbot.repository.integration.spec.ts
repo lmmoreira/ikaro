@@ -184,4 +184,183 @@ describe('Chatbot repositories (integration)', () => {
     // cross-tenant reference, not some other unrelated query failure.
     expect((error as QueryFailedError & { code: string }).code).toBe('23503');
   });
+
+  // M19-S05's cap-query method extensions — real Postgres COUNT/SUM, not the in-memory fakes.
+  describe('cap-enforcement query methods (M19-S05)', () => {
+    it('countByTenantAndDate counts only this tenant, this date', async () => {
+      const tenant = new TenantBuilder().withSlug('lavacar-count-daily').build();
+      await tenantRepo.save(tenant);
+      const otherTenant = new TenantBuilder().withSlug('lavacar-count-daily-other').build();
+      await tenantRepo.save(otherTenant);
+
+      await sessionRepo.save(
+        new ChatbotSessionBuilder()
+          .withTenantId(tenant.id)
+          .withConversationDate('2026-08-01')
+          .build(),
+      );
+      await sessionRepo.save(
+        new ChatbotSessionBuilder()
+          .withTenantId(tenant.id)
+          .withConversationDate('2026-08-01')
+          .build(),
+      );
+      // Different date — must not count
+      await sessionRepo.save(
+        new ChatbotSessionBuilder()
+          .withTenantId(tenant.id)
+          .withConversationDate('2026-08-02')
+          .build(),
+      );
+      // Different tenant, same date — must not count
+      await sessionRepo.save(
+        new ChatbotSessionBuilder()
+          .withTenantId(otherTenant.id)
+          .withConversationDate('2026-08-01')
+          .build(),
+      );
+
+      const count = await sessionRepo.countByTenantAndDate(tenant.id, '2026-08-01');
+      expect(count).toBe(2);
+    });
+
+    it('countByTenantIpAndDate adds the client_ip filter on top of tenant+date', async () => {
+      const tenant = new TenantBuilder().withSlug('lavacar-count-ip').build();
+      await tenantRepo.save(tenant);
+
+      await sessionRepo.save(
+        new ChatbotSessionBuilder()
+          .withTenantId(tenant.id)
+          .withClientIp('198.51.100.1')
+          .withConversationDate('2026-08-01')
+          .build(),
+      );
+      await sessionRepo.save(
+        new ChatbotSessionBuilder()
+          .withTenantId(tenant.id)
+          .withClientIp('198.51.100.2')
+          .withConversationDate('2026-08-01')
+          .build(),
+      );
+
+      const count = await sessionRepo.countByTenantIpAndDate(
+        tenant.id,
+        '198.51.100.1',
+        '2026-08-01',
+      );
+      expect(count).toBe(1);
+    });
+
+    it('countActiveSince counts only ACTIVE sessions with last_message_at after the cutoff', async () => {
+      const tenant = new TenantBuilder().withSlug('lavacar-count-active').build();
+      await tenantRepo.save(tenant);
+
+      const active = new ChatbotSessionBuilder().withTenantId(tenant.id).build();
+      await sessionRepo.save(active);
+      const closed = new ChatbotSessionBuilder().withTenantId(tenant.id).build();
+      closed.close();
+      await sessionRepo.save(closed);
+
+      const since = new Date(Date.now() - 2 * 60 * 1000);
+      const count = await sessionRepo.countActiveSince(tenant.id, since);
+      expect(count).toBe(1);
+    });
+
+    it("findBySession returns a tenant-scoped session's messages ordered oldest first", async () => {
+      const tenant = new TenantBuilder().withSlug('lavacar-find-by-session').build();
+      await tenantRepo.save(tenant);
+      const session = new ChatbotSessionBuilder().withTenantId(tenant.id).build();
+      await sessionRepo.save(session);
+
+      await messageRepo.save(
+        new ChatbotMessageBuilder()
+          .withTenantId(tenant.id)
+          .withSessionId(session.id)
+          .withContent('first')
+          .build(),
+      );
+      await messageRepo.save(
+        new ChatbotMessageBuilder()
+          .withTenantId(tenant.id)
+          .withSessionId(session.id)
+          .withContent('second')
+          .build(),
+      );
+
+      const messages = await messageRepo.findBySession(session.id, tenant.id);
+      expect(messages.map((m) => m.content)).toEqual(['first', 'second']);
+    });
+
+    it('findRecentBySession returns only the last N messages, ordered oldest first (PR #360 review — SQL LIMIT, not fetch-all-then-slice)', async () => {
+      const tenant = new TenantBuilder().withSlug('lavacar-find-recent-session').build();
+      await tenantRepo.save(tenant);
+      const session = new ChatbotSessionBuilder().withTenantId(tenant.id).build();
+      await sessionRepo.save(session);
+
+      for (let i = 0; i < 5; i++) {
+        await messageRepo.save(
+          new ChatbotMessageBuilder()
+            .withTenantId(tenant.id)
+            .withSessionId(session.id)
+            .withContent(`message ${i}`)
+            .build(),
+        );
+      }
+
+      const recent = await messageRepo.findRecentBySession(session.id, tenant.id, 2);
+      expect(recent.map((m) => m.content)).toEqual(['message 3', 'message 4']);
+    });
+
+    // sumCostUsdSince is deliberately platform-wide, not tenant-scoped (docs/discovery/CHATBOT/CHATBOT.md
+    // §8's global spend breaker) — so `since` is captured narrowly, right before this test's own
+    // inserts, rather than an arbitrary window. Capturing it any earlier would pick up cost from
+    // whichever other test in this file happened to run first, making the exact-sum assertion flaky.
+    it('sumCostUsdSince sums cost_usd across every tenant, from `since` onward', async () => {
+      const tenant = new TenantBuilder().withSlug('lavacar-sum-cost').build();
+      await tenantRepo.save(tenant);
+      const session = new ChatbotSessionBuilder().withTenantId(tenant.id).build();
+      await sessionRepo.save(session);
+      const otherTenant = new TenantBuilder().withSlug('lavacar-sum-cost-other').build();
+      await tenantRepo.save(otherTenant);
+      const otherSession = new ChatbotSessionBuilder().withTenantId(otherTenant.id).build();
+      await sessionRepo.save(otherSession);
+
+      const since = new Date();
+      await messageRepo.save(
+        new ChatbotMessageBuilder()
+          .withTenantId(tenant.id)
+          .withSessionId(session.id)
+          .withCostUsd('0.001')
+          .build(),
+      );
+      await messageRepo.save(
+        new ChatbotMessageBuilder()
+          .withTenantId(otherTenant.id)
+          .withSessionId(otherSession.id)
+          .withCostUsd('0.002')
+          .build(),
+      );
+
+      const total = await messageRepo.sumCostUsdSince(since);
+      expect(total.toString()).toBe('0.003');
+    });
+
+    it('sumCostUsdSince excludes messages created before `since`', async () => {
+      const tenant = new TenantBuilder().withSlug('lavacar-sum-cost-cutoff').build();
+      await tenantRepo.save(tenant);
+      const session = new ChatbotSessionBuilder().withTenantId(tenant.id).build();
+      await sessionRepo.save(session);
+      await messageRepo.save(
+        new ChatbotMessageBuilder()
+          .withTenantId(tenant.id)
+          .withSessionId(session.id)
+          .withCostUsd('0.005')
+          .build(),
+      );
+
+      const since = new Date(Date.now() + 1000);
+      const total = await messageRepo.sumCostUsdSince(since);
+      expect(total.toString()).toBe('0');
+    });
+  });
 });

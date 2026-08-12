@@ -56,4 +56,16 @@ describe('LlmProviderRegistry', () => {
 
     expect(() => registry.resolve('vertex-ai')).toThrow('Unknown LLM provider: vertex-ai');
   });
+
+  it('resolveName returns the platform default when no override is passed', () => {
+    const registry = buildRegistry(OPENROUTER_PROVIDER_NAME);
+
+    expect(registry.resolveName()).toBe(OPENROUTER_PROVIDER_NAME);
+  });
+
+  it("resolveName returns the explicit override, matching resolve()'s own resolution", () => {
+    const registry = buildRegistry(OPENROUTER_PROVIDER_NAME);
+
+    expect(registry.resolveName(ANTHROPIC_PROVIDER_NAME)).toBe(ANTHROPIC_PROVIDER_NAME);
+  });
 });

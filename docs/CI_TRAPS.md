@@ -23,6 +23,8 @@ These are flagged as bugs/code smells and cause the Quality Gate to fail.
 | **S2699** No assertion in test | Integration test that uses only supertest's `.expect(403)` — SonarCloud does not recognise chained supertest `.expect()` as a Jest assertion | Capture the response (`const res = await request(...).set(...)`) then add `expect(res.status).toBe(403)` |
 | **void operator** | `void tenantId;` to suppress an unused-parameter warning | Use an underscore prefix: `_tenantId` in the method signature |
 | **S7776** Array membership check on a fixed set | `const MODULE_TYPES: readonly T[] = [...]; MODULE_TYPES.includes(x)` | `const MODULE_TYPES: ReadonlySet<T> = new Set([...]); MODULE_TYPES.has(x)` |
+| **S3776** Cognitive Complexity > 15 | One method with several sequential/nested `if` cap-checks or branches — common in a use case enforcing many independent business rules in order | Extract each cohesive branch (e.g. "existing session" vs. "new session" resolution, a shared sub-check both paths call) into its own private method. Behavior stays identical; only the call graph changes. See `SendChatMessageUseCase` (M19-S05, PR #360) for a real 21→under-15 refactor |
+| Mutating array method (`.reverse()`, `.sort()`, `.splice()`) chained mid-expression | `return entities.reverse().map(...)` — reads as a pure chain but `.reverse()` mutates `entities` in place and returns the same reference | `entities.reverse(); return entities.map(...);` as two statements — or `entities.toReversed().map(...)` if the project's tsconfig `lib` target is ES2023+ (this repo's isn't, as of 2026-08) |
 
 **S2933 appears in two recurring spots:**
 - **Aggregate `props` field** — `private props: XxxProps` set once in the constructor, then its *contents* mutate via `increment()` / `decrement()`. `readonly` applies to the reference, not the object's internals — this is always safe to add.
@@ -157,6 +159,22 @@ curl -s -u "$SONAR_TOKEN:" "https://sonarcloud.io/api/duplications/show?key=<pro
 | `new_duplicated_lines_density` fails on a PR | The PR introduced a duplicate block that is still counted in the live analysis, even if the code looks cleaner locally | Find the exact duplicated files/lines with `duplications/show`, extract the shared logic into one reusable component/helper, or remove one side entirely. If the duplicate lives across two parallel implementations, the right fix is usually a shared abstraction plus both call sites updated to use it. |
 | `new_uncovered_lines` or `new_uncovered_conditions` fails on a PR | The touched code path or branch is not covered by tests | Add or update the smallest test that executes the exact line or branch the gate reports. |
 | Sonar still fails after a refactor and the metric is unchanged | The refactor moved code without eliminating the failing pattern | Re-query the live Sonar API and change strategy. The correct fix is the one that moves the metric, not the one that feels locally cleaner. |
+
+---
+
+## `gh run view --log-failed` can report "still in progress" for a run that has already completed and failed
+
+`gh run view <run-id> --job <job-id> --log-failed` sometimes returns `run <id> is still in progress; logs will be available when it is complete` even when the job finished and failed minutes ago. Don't take that at face value or retry-loop waiting for it to "finish" — query the job directly instead, which reflects the real state immediately:
+
+```bash
+# Confirms actual status/conclusion — trust this over gh run view's summary
+gh api repos/<org>/<repo>/actions/jobs/<job-id> --jq '{name, status, conclusion, started_at, completed_at}'
+
+# Full raw log for a completed job, regardless of what `gh run view` claims
+gh api repos/<org>/<repo>/actions/jobs/<job-id>/logs
+```
+
+Found while triaging PR #360's SonarCloud job (2026-08-12): `gh pr checks` and `gh api .../check-runs` both already showed `conclusion: "failure"`, `status: "completed"`, but `gh run view --log-failed` on the exact same job ID still claimed it was in progress. The job-by-ID API calls above were correct immediately; `gh run view`'s own view of the run was just stale.
 
 ---
 
