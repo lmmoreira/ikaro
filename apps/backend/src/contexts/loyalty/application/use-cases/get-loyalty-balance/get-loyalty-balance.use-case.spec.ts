@@ -5,6 +5,7 @@ import {
   LoyaltyEntryBuilder,
 } from '../../../../../test/builders/loyalty/index';
 import { GetLoyaltyBalanceUseCase } from './get-loyalty-balance.use-case';
+import { LoyaltyBalanceReaderService } from '../../services/loyalty-balance-reader.service';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
 const CUSTOMER_ID = 'aaaaaaaa-0000-7000-8000-000000000001';
@@ -17,7 +18,7 @@ describe('GetLoyaltyBalanceUseCase', () => {
   beforeEach(() => {
     balanceRepo = new InMemoryLoyaltyBalanceRepository();
     entryRepo = new InMemoryLoyaltyEntryRepository();
-    useCase = new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo);
+    useCase = new GetLoyaltyBalanceUseCase(new LoyaltyBalanceReaderService(balanceRepo, entryRepo));
   });
 
   it('returns zero balance and no expiry when customer has no data', async () => {

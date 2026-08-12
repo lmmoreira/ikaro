@@ -1,5 +1,5 @@
 import type { AddressSpec } from '@ikaro/i18n';
-import { AddressErrorCode } from '@ikaro/types';
+import { AddressErrorCode } from '@ikaro/types/protocol/errors';
 import { DomainErrorShape } from '../domain/domain-error-shape';
 import { ValueObject } from '../domain/value-object';
 

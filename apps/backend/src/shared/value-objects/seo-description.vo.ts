@@ -1,4 +1,4 @@
-import { SeoErrorCode } from '@ikaro/types';
+import { SeoErrorCode } from '@ikaro/types/protocol/errors';
 import { isValidSeoDescription, SEO_DESCRIPTION_MAX_LENGTH } from '@ikaro/validation';
 import { DomainErrorShape } from '../domain/domain-error-shape';
 

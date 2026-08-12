@@ -1,4 +1,4 @@
-import { PlatformErrorCode } from '@ikaro/types';
+import { PlatformErrorCode } from '@ikaro/types/protocol/errors';
 import { Email } from '../../../../../shared/value-objects/email.vo';
 import { PhoneNumber } from '../../../../../shared/value-objects/phone-number.vo';
 import type {

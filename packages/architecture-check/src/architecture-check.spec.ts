@@ -1,11 +1,6 @@
 import { Project } from 'ts-morph';
 import { checkErrorMapperCoverage, checkTransactionalSaves, checkUnsafeUseExisting } from './index';
-
-function fixtureProject(files: Record<string, string>): Project {
-  const project = new Project({ useInMemoryFileSystem: true });
-  for (const [file, text] of Object.entries(files)) project.createSourceFile(file, text);
-  return project;
-}
+import { expectScannedTargets, expectZeroTargets, fixtureProject } from './testing/fixtures';
 
 describe('architecture checks', () => {
   it('accepts repository saves inside a transaction and rejects saves outside it', () => {
@@ -26,7 +21,7 @@ describe('architecture checks', () => {
       `,
     });
     const result = checkTransactionalSaves(project);
-    expect(result.scannedTargets).toBe(3);
+    expectScannedTargets(result, 3);
     expect(result.findings).toHaveLength(2);
   });
 
@@ -41,8 +36,25 @@ describe('architecture checks', () => {
       `,
     });
     const result = checkErrorMapperCoverage(project);
-    expect(result.scannedTargets).toBe(1);
+    expectScannedTargets(result, 1);
     expect(result.findings).toHaveLength(0);
+  });
+
+  it('reports an unmapped concrete domain error with its source location', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/contexts/demo/domain/errors/demo-domain.error.ts': `
+        class DemoDomainError extends Error {}
+        class DemoNotFoundError extends DemoDomainError {}
+      `,
+      '/repo/apps/backend/src/contexts/demo/infrastructure/http/demo-error.mapper.ts': `
+        function map(error: unknown) { return error instanceof Error ? 500 : 400; }
+      `,
+    });
+    const result = checkErrorMapperCoverage(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({ rule: 'error-mapper-coverage', line: 3 }),
+    ]);
   });
 
   it('rejects unsafe class aliases while allowing token aliases', () => {
@@ -59,13 +71,12 @@ describe('architecture checks', () => {
       `,
     });
     const result = checkUnsafeUseExisting(project);
-    expect(result.scannedTargets).toBe(2);
+    expectScannedTargets(result, 2);
     expect(result.findings).toHaveLength(1);
   });
 
   it('fails the zero-target contract for an empty scan', () => {
     const result = checkTransactionalSaves(new Project({ useInMemoryFileSystem: true }));
-    expect(result.scannedTargets).toBe(0);
-    expect(result.findings).toHaveLength(0);
+    expectZeroTargets(result);
   });
 });

@@ -1,5 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import {
+  APPLICATION_CONFIG,
+  IApplicationConfig,
+} from '../../../../../shared/ports/application-config.port';
 import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import {
   ITransactionManager,
@@ -51,7 +54,7 @@ export class SendStaffInvitationUseCase extends BaseNotificationUseCase {
     @Inject(NOTIFICATION_TEMPLATE_REPOSITORY)
     private readonly templateRepo: INotificationTemplateRepository,
     @Inject(LOCALIZATION_PORT) private readonly localizationPort: ILocalizationPort,
-    private readonly config: ConfigService,
+    @Inject(APPLICATION_CONFIG) private readonly config: IApplicationConfig,
   ) {
     super(logRepo, inboxRepo, dispatcher, txManager);
   }
@@ -74,7 +77,7 @@ export class SendStaffInvitationUseCase extends BaseNotificationUseCase {
 
     this.localizeTemplates(templates, this.localizationPort, tenant.locale ?? DEFAULT_LOCALE);
 
-    const activationLink = `${this.config.getOrThrow<string>('FRONTEND_URL')}/dashboard/login?tenantSlug=${encodeURIComponent(tenant.slug)}`;
+    const activationLink = `${this.config.getOrThrow('FRONTEND_URL')}/dashboard/login?tenantSlug=${encodeURIComponent(tenant.slug)}`;
 
     const sent = await this.dispatchTemplates(templates, input, staff.email, {
       staffName: staff.name ?? staff.email,

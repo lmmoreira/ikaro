@@ -5,11 +5,39 @@
   "description": "Shared TypeScript types and DTOs",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "protocol/errors": [
+        "dist/protocol/errors.d.ts"
+      ],
+      "protocol/actor": [
+        "dist/protocol/actor.d.ts"
+      ],
+      "protocol/media": [
+        "dist/protocol/media.d.ts"
+      ]
+    }
+  },
   "exports": {
     ".": {
       "import": "./dist/index.js",
       "require": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./protocol/errors": {
+      "import": "./dist/protocol/errors.js",
+      "require": "./dist/protocol/errors.js",
+      "types": "./dist/protocol/errors.d.ts"
+    },
+    "./protocol/actor": {
+      "import": "./dist/protocol/actor.js",
+      "require": "./dist/protocol/actor.js",
+      "types": "./dist/protocol/actor.d.ts"
+    },
+    "./protocol/media": {
+      "import": "./dist/protocol/media.js",
+      "require": "./dist/protocol/media.js",
+      "types": "./dist/protocol/media.d.ts"
     },
     "./package.json": "./package.json"
   },

@@ -1,41 +1,21 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import {
-  ILoyaltyBalanceRepository,
-  LOYALTY_BALANCE_REPOSITORY,
-} from '../../ports/loyalty-balance-repository.port';
-import {
-  ILoyaltyEntryRepository,
-  LOYALTY_ENTRY_REPOSITORY,
-} from '../../ports/loyalty-entry-repository.port';
+  LoyaltyBalanceReaderService,
+  type LoyaltyBalanceResult,
+} from '../../services/loyalty-balance-reader.service';
 
 export interface GetLoyaltyBalanceUseCaseInput {
   tenantId: string;
   customerId: string;
 }
 
-export interface GetLoyaltyBalanceUseCaseResult {
-  currentPoints: number;
-  nextExpiryDate: string | null;
-  nextExpiryPoints: number | null;
-}
+export type GetLoyaltyBalanceUseCaseResult = LoyaltyBalanceResult;
 
 @Injectable()
 export class GetLoyaltyBalanceUseCase {
-  constructor(
-    @Inject(LOYALTY_BALANCE_REPOSITORY) private readonly balanceRepo: ILoyaltyBalanceRepository,
-    @Inject(LOYALTY_ENTRY_REPOSITORY) private readonly entryRepo: ILoyaltyEntryRepository,
-  ) {}
+  constructor(private readonly balanceReader: LoyaltyBalanceReaderService) {}
 
   async execute(dto: GetLoyaltyBalanceUseCaseInput): Promise<GetLoyaltyBalanceUseCaseResult> {
-    const [balance, nextExpiry] = await Promise.all([
-      this.balanceRepo.findByCustomer(dto.tenantId, dto.customerId),
-      this.entryRepo.findNextExpiry(dto.tenantId, dto.customerId),
-    ]);
-
-    return {
-      currentPoints: balance?.currentPoints ?? 0,
-      nextExpiryDate: nextExpiry ? nextExpiry.expiryDate.toISOString() : null,
-      nextExpiryPoints: nextExpiry ? nextExpiry.points : null,
-    };
+    return this.balanceReader.read(dto.tenantId, dto.customerId);
   }
 }

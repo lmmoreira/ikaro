@@ -10,7 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { CanonicalParseUUIDPipe, throwProblemDetail, ZodValidationPipe } from '@ikaro/nestjs-http';
-import { GenericErrorCode } from '@ikaro/types';
+import { GenericErrorCode } from '@ikaro/types/protocol/errors';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
 import { parseCommaSeparatedIds } from '../../../../shared/utils/parse-comma-separated-ids';

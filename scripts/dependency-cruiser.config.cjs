@@ -17,14 +17,28 @@ const contexts = fs
   .filter((entry) => entry.isDirectory())
   .map((entry) => entry.name);
 const permittedEdges = policy.contextDependencyMatrix.permittedEdges;
+const applicationAllowedPaths = policy.layerTaxonomy.application.sameContextAllowedApplicationPaths;
+const applicationAllowedPathsByContext =
+  policy.layerTaxonomy.application.sameContextAllowedApplicationPathsByContext ?? {};
 const testPath =
   '(^|/)(test|__tests__)/|[.](?:spec|test|integration[.]spec|component[.]spec)[.](?:[cm]?js|[cm]?ts|jsx|tsx)$';
 const workspace = process.env.DEP_CRUISE_WORKSPACE ?? 'backend';
 const backendSourcePrefix = workspace === 'backend' ? 'src/' : 'never/';
 const productionSource = workspace === 'web' ? '^(app|features|shells|shared)/' : '^src/';
 
+function escapeRegex(pathname) {
+  return pathname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function exactPath(pathname) {
-  return `^${pathname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`;
+  return `^${escapeRegex(pathname)}$`;
+}
+
+function policyPathPattern(pathname) {
+  return `^${pathname
+    .split('**')
+    .map((segment) => segment.split('*').map(escapeRegex).join('[^/]*'))
+    .join('.*')}$`;
 }
 
 function crossContextRules() {
@@ -32,11 +46,11 @@ function crossContextRules() {
   return contexts.flatMap((sourceContext) =>
     contexts
       .filter((targetContext) => targetContext !== sourceContext)
-      .map((targetContext) => {
+      .flatMap((targetContext) => {
         const permittedSourcePaths = permittedEdges
           .filter((edge) => edge.owner === sourceContext && edge.target === targetContext)
           .map((edge) => exactPath(edge.source.replace('apps/backend/src/', 'src/')));
-        return {
+        const sourceRule = {
           name: `no-${sourceContext}-to-${targetContext}-context-import`,
           comment:
             'Cross-context imports are denied by default; add the exact source path to architecture-policy.json#contextDependencyMatrix.permittedEdges.',
@@ -47,6 +61,22 @@ function crossContextRules() {
           },
           to: { path: `^${backendSourcePrefix}contexts/${targetContext}/` },
         };
+        const targetRules = permittedEdges
+          .filter((edge) => edge.owner === sourceContext && edge.target === targetContext)
+          .map((edge) => ({
+            name: `no-${edge.source.replace(/[^a-zA-Z0-9]+/g, '-').replace(/-ts$/, '')}-to-unapproved-${targetContext}-imports`,
+            comment:
+              'A permitted cross-context source may import only its exact target paths from architecture-policy.json#contextDependencyMatrix.permittedEdges.',
+            severity: 'error',
+            from: { path: exactPath(edge.source.replace('apps/backend/src/', 'src/')) },
+            to: {
+              path: `^${backendSourcePrefix}contexts/${targetContext}/`,
+              pathNot: edge.targetPaths.map((targetPath) =>
+                exactPath(targetPath.replace('apps/backend/src/', 'src/')),
+              ),
+            },
+          }));
+        return [sourceRule, ...targetRules];
       }),
   );
 }
@@ -56,7 +86,7 @@ function applicationBoundaryRules() {
   return contexts.map((context) => ({
     name: `no-${context}-application-internal-imports`,
     comment:
-      'Application code may depend only on its domain, ports/DTOs, and framework-neutral shared contracts.',
+      'Use cases are self-contained: application imports may target domain code, ports, DTOs, services, and explicitly named shared abstractions only.',
     severity: 'error',
     from: {
       path: `^${backendSourcePrefix}contexts/${context}/application/`,
@@ -66,14 +96,15 @@ function applicationBoundaryRules() {
       path: [
         `^${backendSourcePrefix}contexts/`,
         `^${backendSourcePrefix}shared/infrastructure/`,
-        '^@nestjs/',
-        '^typeorm$',
-        '^axios$',
-        '^express$',
+        '(^|/)node_modules/@nestjs/(?!common/)',
+        '(^|/)node_modules/(typeorm|axios|express)(/|$)',
       ],
       pathNot: [
         `^${backendSourcePrefix}contexts/${context}/domain/`,
-        `^${backendSourcePrefix}contexts/${context}/application/`,
+        ...[...applicationAllowedPaths, ...(applicationAllowedPathsByContext[context] ?? [])].map(
+          (allowedPath) =>
+            policyPathPattern(`${backendSourcePrefix}contexts/${context}/${allowedPath}`),
+        ),
       ],
     },
   }));
@@ -112,10 +143,8 @@ module.exports = {
         path: [
           `^${backendSourcePrefix}contexts/[^/]+/(application|infrastructure)/`,
           `^${backendSourcePrefix}shared/infrastructure/`,
-          '^@nestjs/',
-          '^typeorm$',
-          '^axios$',
-          '^express$',
+          '(^|/)node_modules/@nestjs/',
+          '(^|/)node_modules/(typeorm|axios|express)(/|$)',
         ],
       },
     },
@@ -126,7 +155,7 @@ module.exports = {
         'The BFF communicates with the backend over HTTP, never by importing backend contexts.',
       severity: 'error',
       from: { path: workspace === 'bff' ? '^src/' : '^never/', pathNot: testPath },
-      to: { path: '^backend-contexts/' },
+      to: { path: '(^|/)backend/src/contexts/' },
     },
     {
       name: 'no-bff-shared-to-feature-import',

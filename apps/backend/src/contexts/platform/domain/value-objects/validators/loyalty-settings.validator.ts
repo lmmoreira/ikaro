@@ -1,4 +1,4 @@
-import { PlatformErrorCode } from '@ikaro/types';
+import { PlatformErrorCode } from '@ikaro/types/protocol/errors';
 import type { LoyaltySettings } from '../../../../../shared/value-objects/tenant-settings-data';
 import { TenantSettingsValidationError } from '../../errors/platform-domain.error';
 

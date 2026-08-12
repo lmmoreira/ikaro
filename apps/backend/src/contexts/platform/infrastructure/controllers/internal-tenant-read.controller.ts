@@ -1,6 +1,6 @@
 import { Controller, Get, HttpStatus, Param, Query } from '@nestjs/common';
 import { CanonicalParseUUIDPipe, throwProblemDetail } from '@ikaro/nestjs-http';
-import { GenericErrorCode } from '@ikaro/types';
+import { GenericErrorCode } from '@ikaro/types/protocol/errors';
 import { parseCommaSeparatedIds } from '../../../../shared/utils/parse-comma-separated-ids';
 import {
   GetTenantByIdUseCase,

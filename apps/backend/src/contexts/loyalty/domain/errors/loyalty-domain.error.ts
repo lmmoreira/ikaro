@@ -1,4 +1,4 @@
-import { LoyaltyErrorCode } from '@ikaro/types';
+import { LoyaltyErrorCode } from '@ikaro/types/protocol/errors';
 import { DomainErrorShape } from '../../../../shared/domain/domain-error-shape';
 
 export class LoyaltyDomainError extends Error implements DomainErrorShape {

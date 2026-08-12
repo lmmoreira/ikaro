@@ -3,15 +3,15 @@ import {
   IScheduleOpeningRepository,
   SCHEDULE_OPENING_REPOSITORY,
 } from '../ports/schedule-opening-repository.port';
-import { OpenScheduleUseCaseResult } from './open-schedule.use-case';
 import { ListOpeningsDto } from '../dtos/open-schedule.dto';
+import { ScheduleListItem } from '../dtos/schedule-list-item.dto';
 
 export type ListOpeningsInput = ListOpeningsDto & {
   tenantId: string;
 };
 
 export interface ListOpeningsUseCaseResult {
-  items: OpenScheduleUseCaseResult[];
+  items: ScheduleListItem[];
 }
 
 @Injectable()

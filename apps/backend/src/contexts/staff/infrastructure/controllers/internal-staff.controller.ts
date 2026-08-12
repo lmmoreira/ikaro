@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
 import { CanonicalParseUUIDPipe, throwProblemDetail, ZodValidationPipe } from '@ikaro/nestjs-http';
-import { GenericErrorCode } from '@ikaro/types';
+import { GenericErrorCode } from '@ikaro/types/protocol/errors';
 import {
   LinkGoogleAccountDto,
   LinkGoogleAccountSchema,
