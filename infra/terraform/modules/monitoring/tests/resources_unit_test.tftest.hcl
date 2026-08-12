@@ -56,7 +56,6 @@ run "every_alert_policy_declares_exactly_one_notification_channel" {
       [length(google_monitoring_alert_policy.error_burst.notification_channels) == 1],
       [length(google_monitoring_alert_policy.outbox_backlog.notification_channels) == 1],
       [length(google_monitoring_alert_policy.collector_export_failure.notification_channels) == 1],
-      [for p in google_monitoring_alert_policy.dev_auth_used : length(p.notification_channels) == 1],
     ))
     error_message = "Every alert policy must declare exactly one notification channel — a policy silently shipped with zero would fail alone, undetected by any other check."
   }
@@ -109,7 +108,6 @@ run "business_counter_metrics_filter_on_their_exact_log_message" {
       strcontains(google_logging_metric.notification_failed.filter, "\"Notification failed\""),
       strcontains(google_logging_metric.customer_logins.filter, "\"Customer login\""),
       strcontains(google_logging_metric.staff_logins.filter, "\"Staff login\""),
-      strcontains(google_logging_metric.dev_auth_used.filter, "\"Dev auth used\""),
     ])
     error_message = "Each M17-S54 log-based metric must filter on its own exact log message — a drifted filter would silently stop counting the real log line."
   }
@@ -128,28 +126,6 @@ run "business_counter_metrics_extract_tenant_id" {
       google_logging_metric.staff_logins.label_extractors["tenant_id"] == "EXTRACT(jsonPayload.tenantId)",
     ])
     error_message = "Every M17-S54 business counter must extract tenant_id from jsonPayload.tenantId — the 'by tenant' breakdown the story asks for depends on this label existing."
-  }
-}
-
-run "dev_auth_used_alert_is_staging_only" {
-  command = plan
-
-  assert {
-    condition     = length(google_monitoring_alert_policy.dev_auth_used) == 1
-    error_message = "The dev-auth-usage alert must exist in staging (default fixture environment)."
-  }
-}
-
-run "dev_auth_used_alert_skipped_in_prod" {
-  command = plan
-
-  variables {
-    environment = "prod"
-  }
-
-  assert {
-    condition     = length(google_monitoring_alert_policy.dev_auth_used) == 0
-    error_message = "The dev-auth-usage alert must not exist in prod — dev auth is unreachable there (devLogin() 403s on APP_ENV=production), so a prod alert would be dead Terraform that never fires."
   }
 }
 
@@ -184,9 +160,8 @@ run "log_metric_propagation_sleep_is_wired_correctly" {
       contains(keys(time_sleep.log_metric_propagation.triggers), "error_count_id"),
       contains(keys(time_sleep.log_metric_propagation.triggers), "outbox_backlog_age_id"),
       contains(keys(time_sleep.log_metric_propagation.triggers), "collector_export_failure_id"),
-      contains(keys(time_sleep.log_metric_propagation.triggers), "dev_auth_used_id"),
     ])
-    error_message = "triggers must reference every log-based metric with an alert policy consuming it — depends_on alone only orders the sleep's first create, it does not force a re-wait when a metric is later changed/recreated. M17-S54 added dev_auth_used_id; the other 6 new business counters have no alert policy, so they don't need a trigger entry."
+    error_message = "triggers must reference every log-based metric with an alert policy consuming it — depends_on alone only orders the sleep's first create, it does not force a re-wait when a metric is later changed/recreated. M17-S54's 6 new business counters have no alert policy, so none need a trigger entry."
   }
 }
 
@@ -204,22 +179,28 @@ run "dashboard_contains_a_widget_per_service_plus_shared_tiles" {
       length(jsondecode(google_monitoring_dashboard.main.dashboard_json).gridLayout.widgets)
       == (3 * length(var.cloud_run_services)) + 3 + 6
     )
-    error_message = "Expected 3 tiles per Cloud Run service (request rate, latency, instance count) plus 1 SQL tile (database_instance_name is set in this fixture) plus 2 Pub/Sub tiles plus 6 M17-S54 business-counter tiles (booking requested/approved/completed, notification failed, customer logins, staff logins — dev_auth_used deliberately has no tile) — a broken widget local would still produce a valid but empty/truncated plan."
+    error_message = "Expected 3 tiles per Cloud Run service (request rate, latency, instance count) plus 1 SQL tile (database_instance_name is set in this fixture) plus 2 Pub/Sub tiles plus 6 M17-S54 business-counter tiles (booking requested/approved/completed, notification failed, customer logins, staff logins) — a broken widget local would still produce a valid but empty/truncated plan."
   }
 }
 
-run "business_counter_widgets_are_grouped_by_tenant_id" {
+run "business_counter_widgets_are_aggregated_not_grouped_by_tenant" {
+  # Cross-tool review finding (Codex, PR #359, 2026-08-12): a per-tenant
+  # STACKED_BAR breakdown (groupByFields on tenant_id) silently truncates
+  # past Cloud Monitoring's ~50-series-per-chart cap as active tenant count
+  # grows — exactly this platform's intended trajectory. Widgets aggregate
+  # instead; tenant_id stays a metric label for Cloud Logging drill-down,
+  # just not a dashboard-chart dimension.
   command = plan
 
   assert {
     condition = alltrue([
       for w in jsondecode(google_monitoring_dashboard.main.dashboard_json).gridLayout.widgets :
-      contains(
-        w.xyChart.dataSets[0].timeSeriesQuery.timeSeriesFilter.aggregation.groupByFields,
-        "metric.label.tenant_id"
+      (
+        w.xyChart.dataSets[0].timeSeriesQuery.timeSeriesFilter.aggregation.crossSeriesReducer == "REDUCE_SUM" &&
+        !contains(keys(w.xyChart.dataSets[0].timeSeriesQuery.timeSeriesFilter.aggregation), "groupByFields")
       )
-      if strcontains(w.title, "(by tenant)")
+      if strcontains(w.title, "(total)")
     ])
-    error_message = "Every M17-S54 business-counter widget must group by tenant_id, not just sum across all tenants — the whole point of these panels is a per-tenant breakdown."
+    error_message = "Every M17-S54 business-counter widget must be REDUCE_SUM-aggregated with no groupByFields — a per-tenant breakdown here would silently truncate past Cloud Monitoring's ~50-series-per-chart cap as tenant count grows."
   }
 }

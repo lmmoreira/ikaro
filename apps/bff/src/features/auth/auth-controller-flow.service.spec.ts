@@ -112,6 +112,27 @@ describe('AuthControllerFlowService', () => {
       expect(res.redirect).toHaveBeenCalledWith('http://localhost:3000/lavacar-bh');
     });
 
+    it('logs "Customer login" with tenantId and customerId', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockResolvedValue({
+          id: TENANT_ID_A,
+          slug: 'lavacar-bh',
+          name: 'Lavacar BH',
+        }),
+        post: jest.fn().mockResolvedValue({ customerId: CUSTOMER_ID_A, created: true }),
+      });
+      const service = makeService(backendHttp);
+      const res = makeRes();
+      const logSpy = jest.spyOn(AppLogger.prototype, 'log').mockImplementation();
+
+      await service.handleGoogleCallback(customerProfile, res);
+
+      expect(logSpy).toHaveBeenCalledWith('Customer login', {
+        tenantId: TENANT_ID_A,
+        customerId: CUSTOMER_ID_A,
+      });
+    });
+
     it('redirects to /auth/error?reason=no-tenant when tenantSlug is missing', async () => {
       const backendHttp = makeBackendHttp({ get: jest.fn() });
       const service = makeService(backendHttp);
@@ -664,32 +685,6 @@ describe('AuthControllerFlowService', () => {
       const decoded = jwtService.decode(token) as Record<string, unknown>;
       expect(decoded['sub']).toBe(CUSTOMER_ID_A);
       expect(decoded['tenantSlug']).toBe('lavacar-bh');
-    });
-
-    it('logs "Dev auth used" with tenantId and actorType', async () => {
-      const backendHttp = makeBackendHttp({
-        get: jest.fn().mockResolvedValueOnce({
-          id: TENANT_ID_A,
-          slug: 'lavacar-bh',
-          name: 'Lavacar BH',
-        }),
-        post: jest.fn().mockResolvedValueOnce({ customerId: CUSTOMER_ID_A, created: false }),
-      });
-      const service = makeService(backendHttp);
-      const res = makeRes();
-      const dto: DevLoginDto = {
-        email: 'joao@gmail.com',
-        tenantSlug: 'lavacar-bh',
-        type: 'customer',
-      };
-      const warnSpy = jest.spyOn(AppLogger.prototype, 'warn').mockImplementation();
-
-      await service.devLogin(dto, res);
-
-      expect(warnSpy).toHaveBeenCalledWith('Dev auth used', {
-        tenantId: TENANT_ID_A,
-        actorType: 'customer',
-      });
     });
 
     it('returns a staff token when dev auth resolves an existing staff account', async () => {

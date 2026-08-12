@@ -1,7 +1,6 @@
 import { CustomerBuilder } from '../../../../test/builders/customer';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryCustomerRepository } from '../../../../test/repositories/customer/in-memory-customer.repository';
-import { AppLogger } from '../../../../shared/observability/app-logger';
 import { FindOrCreateCustomerUseCase } from './find-or-create-customer.use-case';
 
 describe('FindOrCreateCustomerUseCase', () => {
@@ -51,33 +50,5 @@ describe('FindOrCreateCustomerUseCase', () => {
     expect(resultA.customerId).not.toBe(resultB.customerId);
     expect(resultA.created).toBe(true);
     expect(resultB.created).toBe(true);
-  });
-
-  it('logs "Customer login" with tenantId and customerId when creating a new customer', async () => {
-    const logSpy = jest.spyOn(AppLogger.prototype, 'log').mockImplementation();
-
-    const result = await useCase.execute(dto);
-
-    expect(logSpy).toHaveBeenCalledWith('Customer login', {
-      tenantId: dto.tenantId,
-      customerId: result.customerId,
-    });
-  });
-
-  it('logs "Customer login" with tenantId and customerId for an existing customer', async () => {
-    const existing = new CustomerBuilder()
-      .withTenantId(dto.tenantId)
-      .withGoogleOAuthId(dto.googleOAuthId)
-      .withEmail(dto.email)
-      .build();
-    await repo.save(existing);
-    const logSpy = jest.spyOn(AppLogger.prototype, 'log').mockImplementation();
-
-    await useCase.execute(dto);
-
-    expect(logSpy).toHaveBeenCalledWith('Customer login', {
-      tenantId: dto.tenantId,
-      customerId: existing.id,
-    });
   });
 });

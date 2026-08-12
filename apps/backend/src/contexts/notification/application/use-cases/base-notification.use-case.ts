@@ -1,6 +1,7 @@
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { IInboxRepository } from '../../../../shared/ports/inbox.port';
 import { ITransactionManager } from '../../../../shared/ports/transaction-manager.port';
+import { redactEmailForLogging } from '../../../../shared/utils/redact-email-for-logging';
 import { NotificationLog } from '../../domain/notification-log.aggregate';
 import { NotificationTemplate } from '../../domain/notification-template.aggregate';
 import { NOTIFICATION_TEMPLATE_KEY_MAPPING } from '../../domain/notification-template-key.mapping';
@@ -61,6 +62,7 @@ export abstract class BaseNotificationUseCase {
     channel: string,
     recipientEmail: string,
     errorMessage: string,
+    correlationId: string,
   ): Promise<void> {
     const log = NotificationLog.create({
       tenantId,
@@ -75,9 +77,16 @@ export abstract class BaseNotificationUseCase {
     });
     this.logger.warn('Notification failed', {
       tenantId,
+      correlationId,
       notificationType,
       channel,
-      errorMessage,
+      // Redacted, not the raw errorMessage: this string is arbitrary upstream
+      // dispatcher/SMTP text (e.g. "550 mailbox not found: <email>") that can carry the
+      // recipient's email address into a broadly searchable log stream. The full,
+      // unredacted message is still preserved in NotificationLog.errorMessage (log.markFailed()
+      // above) — this log line trades a small amount of debug detail for not duplicating that
+      // PII into Cloud Logging (cross-tool review finding, PR #359, 2026-08-12).
+      errorMessage: redactEmailForLogging(errorMessage),
     });
   }
 
@@ -109,7 +118,7 @@ export abstract class BaseNotificationUseCase {
 
   protected async dispatchTemplates(
     templates: NotificationTemplate[],
-    dto: { tenantId: string; eventId: string },
+    dto: { tenantId: string; eventId: string; correlationId: string },
     to: string,
     variables: Record<string, string>,
   ): Promise<boolean> {
@@ -136,6 +145,7 @@ export abstract class BaseNotificationUseCase {
           template.channel,
           to,
           String(err),
+          dto.correlationId,
         );
         throw err;
       }
@@ -164,7 +174,7 @@ export abstract class BaseNotificationUseCase {
   // — a single error is thrown at the end (to nack for Pub/Sub redelivery) only if any failed.
   protected async dispatchTemplatesToMany(
     templates: NotificationTemplate[],
-    dto: { tenantId: string; eventId: string },
+    dto: { tenantId: string; eventId: string; correlationId: string },
     emails: string[],
     variables: Record<string, string>,
   ): Promise<boolean> {
@@ -194,6 +204,7 @@ export abstract class BaseNotificationUseCase {
             template.channel,
             email,
             String(err),
+            dto.correlationId,
           );
           errors.push(err);
           continue;

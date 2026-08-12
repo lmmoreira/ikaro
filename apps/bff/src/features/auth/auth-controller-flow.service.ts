@@ -315,7 +315,6 @@ async function devLogin(
   }
 
   res.cookie(SESSION_COOKIE_NAME, accessToken, JWT_COOKIE_OPTIONS);
-  logger.warn('Dev auth used', { tenantId: tenantInfo.id, actorType: dto.type });
 
   return {
     accessToken,
@@ -464,5 +463,6 @@ async function handleTenantLogin(
 
   const token = issueCustomerToken(jwtIssuer, customerId, tenantInfo, profile.name);
   res.cookie(SESSION_COOKIE_NAME, token, JWT_COOKIE_OPTIONS);
+  logger.log('Customer login', { tenantId: tenantInfo.id, customerId });
   res.redirect(`${frontendUrl}/${tenantInfo.slug}`);
 }
