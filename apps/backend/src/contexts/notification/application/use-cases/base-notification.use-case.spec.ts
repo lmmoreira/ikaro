@@ -9,6 +9,7 @@ import { INotificationDispatcher, OutboundMessage } from '../ports/notification-
 import { INotificationLogRepository } from '../ports/notification-log-repository.port';
 import { NotificationLog } from '../../domain/notification-log.aggregate';
 import { NotificationTemplateBuilder } from '../../../../test/builders/notification/notification-template.builder';
+import { AppLogger } from '../../../../shared/observability/app-logger';
 import { BaseNotificationUseCase } from './base-notification.use-case';
 
 class TestNotificationUseCase extends BaseNotificationUseCase {
@@ -182,6 +183,30 @@ describe('BaseNotificationUseCase.dispatchTemplates (single recipient)', () => {
     expect(await inboxRepo.hasBeenProcessed(dto.eventId, 'booking-approved-customer:EMAIL')).toBe(
       false,
     );
+  });
+
+  it('logs "Notification failed" with tenantId, notificationType, channel, and errorMessage', async () => {
+    const dispatcher = new InMemoryNotificationDispatcher();
+    dispatcher.failNext(new Error('smtp timeout'));
+    const useCase = new TestNotificationUseCase(
+      new InMemoryNotificationLogRepository(),
+      new InMemoryInboxRepository(),
+      dispatcher,
+      new InMemoryTransactionManager(),
+    );
+    const template = buildTemplate(NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER);
+    const warnSpy = jest.spyOn(AppLogger.prototype, 'warn').mockImplementation();
+
+    await expect(
+      useCase.dispatchOne([template], dto, 'customer@test.com', { name: 'Ana' }),
+    ).rejects.toThrow('smtp timeout');
+
+    expect(warnSpy).toHaveBeenCalledWith('Notification failed', {
+      tenantId: dto.tenantId,
+      notificationType: NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER,
+      channel: 'EMAIL',
+      errorMessage: 'Error: smtp timeout',
+    });
   });
 
   it('does not unclaim when persistence fails after a successful dispatch', async () => {

@@ -73,6 +73,12 @@ export abstract class BaseNotificationUseCase {
     await this.txManager.run(async () => {
       await this.logRepo.save(log);
     });
+    this.logger.warn('Notification failed', {
+      tenantId,
+      notificationType,
+      channel,
+      errorMessage,
+    });
   }
 
   // Overlays each fetched template's subject/body with locale-correct content from

@@ -10,6 +10,7 @@ import { Response } from 'express';
 import { BffErrorCode, GenericErrorCode } from '@ikaro/types';
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import { CurrentUserPayloadBuilder } from '../../test/builders/current-user-payload.builder';
+import { AppLogger } from '../../shared/observability/app-logger';
 import { AuthControllerFlowService } from './auth-controller-flow.service';
 import { DevLoginDto } from './dtos/dev-login.dto';
 import { JwtIssuerService } from './jwt-issuer.service';
@@ -171,6 +172,45 @@ describe('AuthControllerFlowService', () => {
       );
       expect(res.redirect).toHaveBeenCalledWith('http://localhost:3000/dashboard');
       expect(backendHttp.post).not.toHaveBeenCalled();
+    });
+
+    it('logs "Staff login" with tenantId and staffId', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest
+          .fn()
+          .mockResolvedValueOnce({
+            id: TENANT_ID_A,
+            slug: 'lavacar-bh',
+            name: 'Lavacar BH',
+            locale: 'pt-BR',
+          })
+          .mockResolvedValueOnce({
+            staffId: STAFF_ID_A,
+            email: 'gerente@lavacar.com.br',
+            role: 'MANAGER',
+            isActive: true,
+            googleOAuthId: 'google-sub-staff-123',
+          }),
+      });
+      const service = makeService(backendHttp);
+      const res = makeRes();
+      const logSpy = jest.spyOn(AppLogger.prototype, 'log').mockImplementation();
+
+      await service.handleGoogleCallback(
+        {
+          googleOAuthId: 'google-sub-staff-123',
+          email: 'gerente@lavacar.com.br',
+          name: 'Carlos Gerente',
+          tenantSlug: 'lavacar-bh',
+          loginType: 'staff',
+        } as GoogleProfile,
+        res,
+      );
+
+      expect(logSpy).toHaveBeenCalledWith('Staff login', {
+        tenantId: TENANT_ID_A,
+        staffId: STAFF_ID_A,
+      });
     });
 
     it('redirects staff logins to tenant-not-found when the tenant is missing', async () => {
@@ -624,6 +664,32 @@ describe('AuthControllerFlowService', () => {
       const decoded = jwtService.decode(token) as Record<string, unknown>;
       expect(decoded['sub']).toBe(CUSTOMER_ID_A);
       expect(decoded['tenantSlug']).toBe('lavacar-bh');
+    });
+
+    it('logs "Dev auth used" with tenantId and actorType', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockResolvedValueOnce({
+          id: TENANT_ID_A,
+          slug: 'lavacar-bh',
+          name: 'Lavacar BH',
+        }),
+        post: jest.fn().mockResolvedValueOnce({ customerId: CUSTOMER_ID_A, created: false }),
+      });
+      const service = makeService(backendHttp);
+      const res = makeRes();
+      const dto: DevLoginDto = {
+        email: 'joao@gmail.com',
+        tenantSlug: 'lavacar-bh',
+        type: 'customer',
+      };
+      const warnSpy = jest.spyOn(AppLogger.prototype, 'warn').mockImplementation();
+
+      await service.devLogin(dto, res);
+
+      expect(warnSpy).toHaveBeenCalledWith('Dev auth used', {
+        tenantId: TENANT_ID_A,
+        actorType: 'customer',
+      });
     });
 
     it('returns a staff token when dev auth resolves an existing staff account', async () => {

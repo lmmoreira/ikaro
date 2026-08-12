@@ -138,39 +138,49 @@ describe('ScheduleClosureController (integration)', () => {
 
   describe('GET /schedule/closures', () => {
     const LIST_TENANT = '10000000-0000-4000-8000-000000000302';
+    // Offsets 200/215 (query window 190-230) are deliberately far from every other
+    // futureDate(N) offset used elsewhere in this file (10, 11, 20, 30) — hardcoded
+    // absolute dates ('2026-09-01'/'2026-09-15') previously collided with the POST
+    // block's `futureDate(20)` closure on any run where "today" was 2026-08-12,
+    // making "does not return closures from another tenant" fail: TENANT_A's own
+    // closure at futureDate(20) landed inside the queried range and coincidentally
+    // matched LIST_TENANT's literal fixture date, which the assertion misread as a
+    // tenant-isolation leak. Root cause was date-relative-vs-absolute collision in
+    // the test fixtures, not the repository's tenant filtering (findByTenantAndDateRange
+    // already scopes by `{ tenantId, date: Between(from, to) }`).
+    const LIST_DATE_1 = futureDate(200);
+    const LIST_DATE_2 = futureDate(215);
+    const LIST_FROM = futureDate(190);
+    const LIST_TO = futureDate(230);
 
     beforeAll(async () => {
       const repo = ds.getRepository(ScheduleClosureEntity);
       await repo.save(
-        new ScheduleClosureEntityBuilder().withTenantId(LIST_TENANT).withDate('2026-09-01').build(),
+        new ScheduleClosureEntityBuilder().withTenantId(LIST_TENANT).withDate(LIST_DATE_1).build(),
       );
       await repo.save(
-        new ScheduleClosureEntityBuilder().withTenantId(LIST_TENANT).withDate('2026-09-15').build(),
+        new ScheduleClosureEntityBuilder().withTenantId(LIST_TENANT).withDate(LIST_DATE_2).build(),
       );
     });
 
     it('returns all closures in range sorted by date', async () => {
       const { body } = await request(app.getHttpServer())
-        .get('/schedule/closures?from=2026-09-01&to=2026-09-30')
+        .get(`/schedule/closures?from=${LIST_FROM}&to=${LIST_TO}`)
         .set(actorHeaders(LIST_TENANT, MANAGER_ID))
         .expect(200);
 
       expect(body.items).toHaveLength(2);
-      expect(body.items[0].date).toBe('2026-09-01');
-      expect(body.items[1].date).toBe('2026-09-15');
+      expect(body.items[0].date).toBe(LIST_DATE_1);
+      expect(body.items[1].date).toBe(LIST_DATE_2);
     });
 
     it('does not return closures from another tenant', async () => {
       const { body } = await request(app.getHttpServer())
-        .get('/schedule/closures?from=2026-09-01&to=2026-09-30')
+        .get(`/schedule/closures?from=${LIST_FROM}&to=${LIST_TO}`)
         .set(actorHeaders(TENANT_A, MANAGER_ID))
         .expect(200);
 
-      expect(
-        body.items.every(
-          (i: { date: string }) => !['2026-09-01', '2026-09-15'].includes(i.date) || false,
-        ),
-      ).toBe(true);
+      expect(body.items).toHaveLength(0);
     });
   });
 });

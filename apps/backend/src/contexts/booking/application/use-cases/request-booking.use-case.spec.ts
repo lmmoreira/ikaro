@@ -2,6 +2,7 @@ import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-even
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure/in-memory-booking-availability';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
+import { AppLogger } from '../../../../shared/observability/app-logger';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
@@ -246,5 +247,17 @@ describe('RequestBookingUseCase', () => {
     });
     const sum = result.lines.reduce((acc, l) => acc + l.priceAtBooking.amount, 0);
     expect(result.totalPrice.amount).toBe(sum);
+  });
+
+  it('logs "Booking requested" with tenantId, bookingId, and bookingType', async () => {
+    const logSpy = jest.spyOn(AppLogger.prototype, 'log').mockImplementation();
+
+    const result = await useCase.execute(baseInput());
+
+    expect(logSpy).toHaveBeenCalledWith('Booking requested', {
+      tenantId: TENANT_A,
+      bookingId: result.bookingId,
+      bookingType: 'GUEST',
+    });
   });
 });

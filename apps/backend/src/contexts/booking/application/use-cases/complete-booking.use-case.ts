@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { AppLogger } from '../../../../shared/observability/app-logger';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
@@ -34,6 +35,8 @@ export interface CompleteBookingUseCaseResult {
 
 @Injectable()
 export class CompleteBookingUseCase {
+  private readonly logger = new AppLogger(CompleteBookingUseCase.name);
+
   constructor(
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
@@ -81,6 +84,12 @@ export class CompleteBookingUseCase {
       await this.txManager.scheduleAfterCommit(() =>
         this.photoExistenceService.executePhotoPromotion(operations),
       );
+    });
+
+    this.logger.log('Booking completed', {
+      tenantId,
+      bookingId: booking.id,
+      staffId,
     });
 
     return {

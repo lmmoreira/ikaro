@@ -3,9 +3,17 @@
 # Scope (M17-S35, narrowed 2026-08-08): infra-level signals that already
 # exist — Cloud Run built-ins, Cloud SQL metrics, Pub/Sub DLQ depth, and the
 # outbox relay's already-confirmed structured logs. No new application code
-# required. Business/audit log-based counters (bookings requested/approved/
-# completed, logins) are M17-S54 — they need new logger calls this module
-# doesn't depend on. OTel/Managed-Prometheus metrics are M17-S55, deferred.
+# required. OTel/Managed-Prometheus metrics are M17-S55, deferred.
+#
+# Business/audit log-based counters (M17-S54, added 2026-08-12): bookings
+# requested/approved/completed, notification failures, and customer/staff
+# logins — each backed by a new AppLogger call added in this story (backend:
+# request/approve/complete-booking use cases, base-notification use case,
+# find-or-create-customer use case; BFF: auth-controller-flow.service.ts's
+# handleStaffLogin/devLogin). The dev-auth-usage alert is staging-only
+# (count = var.environment == "staging" ? 1 : 0) — dev auth is unreachable in
+# production (apps/bff's own devLogin() 403s there), so a prod alert would
+# never fire and would just be dead Terraform.
 #
 # MQL query bodies below (5xx ratio) and log-based-metric filters encode
 # string content Cloud Monitoring's API validates server-side, not something
@@ -424,6 +432,10 @@ resource "time_sleep" "log_metric_propagation" {
     error_count_id              = google_logging_metric.error_count.id
     outbox_backlog_age_id       = google_logging_metric.outbox_backlog_age.id
     collector_export_failure_id = google_logging_metric.collector_export_failure.id
+    # M17-S54: only dev_auth_used gets its own alert policy (below) among
+    # this story's new metrics — the other 6 business counters have no
+    # alert consuming them, so they don't need a propagation-wait trigger.
+    dev_auth_used_id = google_logging_metric.dev_auth_used.id
   }
 }
 
@@ -582,6 +594,219 @@ resource "google_monitoring_alert_policy" "collector_export_failure" {
 }
 
 # ---------------------------------------------------------------------------
+# Business/audit log-based counters (M17-S54)
+# ---------------------------------------------------------------------------
+
+resource "google_logging_metric" "booking_requested" {
+  project     = var.project_id
+  name        = "ikaro-${var.environment}-booking-requested"
+  description = "Count of 'Booking requested' log lines (RequestBookingUseCase), by tenant."
+  filter      = "resource.type=\"cloud_run_revision\" AND jsonPayload.message=\"Booking requested\""
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+    unit        = "1"
+
+    labels {
+      key         = "tenant_id"
+      value_type  = "STRING"
+      description = "Tenant the booking was requested for."
+    }
+  }
+
+  label_extractors = {
+    "tenant_id" = "EXTRACT(jsonPayload.tenantId)"
+  }
+}
+
+resource "google_logging_metric" "booking_approved" {
+  project     = var.project_id
+  name        = "ikaro-${var.environment}-booking-approved"
+  description = "Count of 'Booking approved' log lines (ApproveBookingUseCase), by tenant."
+  filter      = "resource.type=\"cloud_run_revision\" AND jsonPayload.message=\"Booking approved\""
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+    unit        = "1"
+
+    labels {
+      key         = "tenant_id"
+      value_type  = "STRING"
+      description = "Tenant the booking was approved for."
+    }
+  }
+
+  label_extractors = {
+    "tenant_id" = "EXTRACT(jsonPayload.tenantId)"
+  }
+}
+
+resource "google_logging_metric" "booking_completed" {
+  project     = var.project_id
+  name        = "ikaro-${var.environment}-booking-completed"
+  description = "Count of 'Booking completed' log lines (CompleteBookingUseCase), by tenant."
+  filter      = "resource.type=\"cloud_run_revision\" AND jsonPayload.message=\"Booking completed\""
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+    unit        = "1"
+
+    labels {
+      key         = "tenant_id"
+      value_type  = "STRING"
+      description = "Tenant the booking was completed for."
+    }
+  }
+
+  label_extractors = {
+    "tenant_id" = "EXTRACT(jsonPayload.tenantId)"
+  }
+}
+
+resource "google_logging_metric" "notification_failed" {
+  project     = var.project_id
+  name        = "ikaro-${var.environment}-notification-failed"
+  description = "Count of 'Notification failed' log lines (BaseNotificationUseCase.saveFailedLog), by tenant."
+  filter      = "resource.type=\"cloud_run_revision\" AND jsonPayload.message=\"Notification failed\""
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+    unit        = "1"
+
+    labels {
+      key         = "tenant_id"
+      value_type  = "STRING"
+      description = "Tenant the failed notification belonged to."
+    }
+  }
+
+  label_extractors = {
+    "tenant_id" = "EXTRACT(jsonPayload.tenantId)"
+  }
+}
+
+resource "google_logging_metric" "customer_logins" {
+  project     = var.project_id
+  name        = "ikaro-${var.environment}-customer-logins"
+  description = "Count of 'Customer login' log lines (FindOrCreateCustomerUseCase), by tenant."
+  filter      = "resource.type=\"cloud_run_revision\" AND jsonPayload.message=\"Customer login\""
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+    unit        = "1"
+
+    labels {
+      key         = "tenant_id"
+      value_type  = "STRING"
+      description = "Tenant the customer logged into."
+    }
+  }
+
+  label_extractors = {
+    "tenant_id" = "EXTRACT(jsonPayload.tenantId)"
+  }
+}
+
+resource "google_logging_metric" "staff_logins" {
+  project     = var.project_id
+  name        = "ikaro-${var.environment}-staff-logins"
+  description = "Count of 'Staff login' log lines (AuthControllerFlowService.handleStaffLogin, BFF), by tenant."
+  filter      = "resource.type=\"cloud_run_revision\" AND jsonPayload.message=\"Staff login\""
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+    unit        = "1"
+
+    labels {
+      key         = "tenant_id"
+      value_type  = "STRING"
+      description = "Tenant the staff member logged into."
+    }
+  }
+
+  label_extractors = {
+    "tenant_id" = "EXTRACT(jsonPayload.tenantId)"
+  }
+}
+
+# Staging-only: dev auth (ENABLE_DEV_AUTH) is unreachable in production
+# (AuthControllerFlowService.devLogin() 403s there via APP_ENV=production),
+# so this metric only ever has data in staging — created in every env for a
+# consistent resource graph, but its alert policy below is count-gated.
+resource "google_logging_metric" "dev_auth_used" {
+  project     = var.project_id
+  name        = "ikaro-${var.environment}-dev-auth-used"
+  description = "Count of 'Dev auth used' log lines (AuthControllerFlowService.devLogin, BFF) — a staging-only security signal for how often ENABLE_DEV_AUTH is exercised."
+  filter      = "resource.type=\"cloud_run_revision\" AND jsonPayload.message=\"Dev auth used\""
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+    unit        = "1"
+
+    labels {
+      key         = "tenant_id"
+      value_type  = "STRING"
+      description = "Tenant the dev-auth session targeted."
+    }
+    labels {
+      key         = "actor_type"
+      value_type  = "STRING"
+      description = "customer or staff — which dev-login branch was used."
+    }
+  }
+
+  label_extractors = {
+    "tenant_id"  = "EXTRACT(jsonPayload.tenantId)"
+    "actor_type" = "EXTRACT(jsonPayload.actorType)"
+  }
+}
+
+resource "google_monitoring_alert_policy" "dev_auth_used" {
+  count = var.environment == "staging" ? 1 : 0
+
+  project      = var.project_id
+  display_name = "Ikaro ${var.environment} — dev auth used"
+  combiner     = "OR"
+
+  depends_on = [time_sleep.log_metric_propagation]
+
+  conditions {
+    display_name = "Any 'Dev auth used' log line in 5m"
+
+    condition_threshold {
+      filter = join(" AND ", [
+        "resource.type=\"cloud_run_revision\"",
+        "metric.type=\"logging.googleapis.com/user/${google_logging_metric.dev_auth_used.name}\"",
+      ])
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0
+      duration        = "0s"
+
+      aggregations {
+        alignment_period     = "300s"
+        per_series_aligner   = "ALIGN_SUM"
+        cross_series_reducer = "REDUCE_SUM"
+      }
+    }
+  }
+
+  notification_channels = [google_monitoring_notification_channel.email.id]
+  user_labels           = var.labels
+
+  documentation {
+    content   = "ENABLE_DEV_AUTH's dev-login endpoint was used — expected in staging (dev tooling, E2E harnesses); this alert exists so usage is visible, not to gate it (dev auth is already hard-blocked in production, see M17-S30/S32)."
+    mime_type = "text/markdown"
+  }
+}
+
+# ---------------------------------------------------------------------------
 # Dashboard — one per env (this module is instantiated once per env root)
 # ---------------------------------------------------------------------------
 
@@ -733,12 +958,50 @@ locals {
     }
   ]
 
+  # One tile per M17-S54 log-based business counter, each broken down by
+  # tenant_id (groupByFields, no crossSeriesReducer) rather than summed —
+  # matches service_widgets' own per-response-code-class breakdown pattern
+  # above. dev_auth_used deliberately has no tile here: it's a staging-only
+  # alert signal (see the alert policy's own comment), not a cross-env
+  # business metric, and this dashboard's widget list is identical in every
+  # env (only the underlying data differs).
+  business_counter_widgets = [
+    for metric in [
+      { title = "Bookings requested (by tenant)", metric = google_logging_metric.booking_requested },
+      { title = "Bookings approved (by tenant)", metric = google_logging_metric.booking_approved },
+      { title = "Bookings completed (by tenant)", metric = google_logging_metric.booking_completed },
+      { title = "Notifications failed (by tenant)", metric = google_logging_metric.notification_failed },
+      { title = "Customer logins (by tenant)", metric = google_logging_metric.customer_logins },
+      { title = "Staff logins (by tenant)", metric = google_logging_metric.staff_logins },
+      ] : {
+      title = metric.title
+      xyChart = {
+        dataSets = [
+          {
+            timeSeriesQuery = {
+              timeSeriesFilter = {
+                filter = "resource.type=\"cloud_run_revision\" AND metric.type=\"logging.googleapis.com/user/${metric.metric.name}\""
+                aggregation = {
+                  alignmentPeriod  = "60s"
+                  perSeriesAligner = "ALIGN_RATE"
+                  groupByFields    = ["metric.label.tenant_id"]
+                }
+              }
+            }
+            plotType = "STACKED_BAR"
+          }
+        ]
+      }
+    }
+  ]
+
   dashboard_widgets = concat(
     local.service_widgets,
     local.latency_widgets,
     local.instance_count_widgets,
     local.sql_widgets,
     local.pubsub_widgets,
+    local.business_counter_widgets,
   )
 }
 

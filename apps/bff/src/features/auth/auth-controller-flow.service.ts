@@ -2,6 +2,7 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
 import { ActorRole, BffErrorCode, GenericErrorCode } from '@ikaro/types';
+import { AppLogger } from '../../shared/observability/app-logger';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { throwProblemDetail } from '../../shared/http/problem-detail';
 import { JWT_COOKIE_OPTIONS, OAUTH_NONCE_COOKIE_NAME } from './cookie-options';
@@ -25,6 +26,9 @@ import { SwitchStaffTenantDto } from './dtos/switch-staff-tenant.dto';
 import { SwitchTenantDto } from './dtos/switch-tenant.dto';
 
 type StaffLoginFailureReason = 'email-mismatch' | 'staff-deactivated' | 'account-linked-elsewhere';
+
+// Module-level: handleStaffLogin/devLogin are free functions, not class methods.
+const logger = new AppLogger('AuthControllerFlowService');
 
 @Injectable()
 export class AuthControllerFlowService {
@@ -311,6 +315,7 @@ async function devLogin(
   }
 
   res.cookie(SESSION_COOKIE_NAME, accessToken, JWT_COOKIE_OPTIONS);
+  logger.warn('Dev auth used', { tenantId: tenantInfo.id, actorType: dto.type });
 
   return {
     accessToken,
@@ -356,6 +361,7 @@ async function handleStaffLogin(
 
   const token = issueStaffToken(jwtIssuer, staffByEmail, tenantInfo, profile.name);
   res.cookie(SESSION_COOKIE_NAME, token, JWT_COOKIE_OPTIONS);
+  logger.log('Staff login', { tenantId: tenantInfo.id, staffId: staffByEmail.staffId });
   res.redirect(`${frontendUrl}/dashboard`);
 }
 

@@ -4,6 +4,7 @@ import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-m
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { futureDate } from '../../../../test/utils/date-helpers';
+import { AppLogger } from '../../../../shared/observability/app-logger';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import {
   BookingNotFoundError,
@@ -231,6 +232,23 @@ describe('ApproveBookingUseCase', () => {
       await expect(useCase.execute({ bookingId: booking.id, ...ctx })).rejects.toThrow(
         BookingNotFoundError,
       );
+    });
+
+    it('logs "Booking approved" with tenantId, bookingId, and staffId', async () => {
+      const logSpy = jest.spyOn(AppLogger.prototype, 'log').mockImplementation();
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withScheduledAt(scheduledAt)
+        .build();
+      await bookingRepo.save(booking);
+
+      await useCase.execute({ bookingId: booking.id, ...ctx });
+
+      expect(logSpy).toHaveBeenCalledWith('Booking approved', {
+        tenantId: TENANT_A,
+        bookingId: booking.id,
+        staffId: STAFF_ID,
+      });
     });
   });
 });

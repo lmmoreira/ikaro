@@ -1320,9 +1320,9 @@ Runtime SA already has `cloudtrace.agent` (S17) — no new IAM needed.
 
 ### M17-S54 — Business/audit log-based counters
 
-**Agent:** `backend-ts` (new logger calls) + `devops` (Terraform log-based metrics)
+**Agent:** `backend-ts` (new logger calls in booking/notification use cases) + `bff-ts` (new logger calls in the auth login flow) + `devops` (Terraform log-based metrics)
 **Complexity:** S
-**Docs to load:** `docs/10-OBSERVABILITY_STRATEGY.md` § SLOs/alerting, `docs/ENGINEERING_RULES.md` § gauge vs. event logging
+**Docs to load:** `docs/10-OBSERVABILITY_STRATEGY.md` § SLOs/alerting, `docs/10-OBSERVABILITY_STRATEGY.md` § Log Format Specification (gauge vs. event logging — corrected 2026-08-12 via story-discovery: this content lives in this file, not `docs/ENGINEERING_RULES.md`, which has no such section)
 
 **Split out of M17-S35, 2026-08-08, via story-discovery.** The original S35 description assumed "use cases already log start/completion with structured fields (S05)" for bookings requested/approved/completed. Checked directly during discovery: `request-booking.use-case.ts`, `approve-booking.use-case.ts`, and `complete-booking.use-case.ts` have **zero** logger calls today. "Failed notifications" data exists (`NotificationLog` aggregate, DB-persisted) but not as a log line either. This story adds the missing log lines first, then the log-based counters/dashboard panels that consume them — a code story, not a pure-Terraform one, which is why it's split from S35.
 
@@ -1331,15 +1331,20 @@ Runtime SA already has `cloudtrace.agent` (S17) — no new IAM needed.
    - Booking requested (`request-booking.use-case.ts`)
    - Booking approved (`approve-booking.use-case.ts`)
    - Booking completed (`complete-booking.use-case.ts`)
-   - Notification failed (wherever `NotificationLog` records a failure today)
-   - **New (2026-08-08):** Customer/staff login, with a `tenantId` field — enables a "logins by tenant" counter via Cloud Logging's label-extraction on log-based metrics
+   - Notification failed — `base-notification.use-case.ts`'s `saveFailedLog()`, the one place `NotificationLog.markFailed()` is recorded today
+   - **New (2026-08-08), file-scoped 2026-08-12 via story-discovery — login is split across two layers, not one call site:**
+     - **Customer login:** `find-or-create-customer.use-case.ts` (backend) — already invoked on every real customer login (via the BFF's `handleTenantLogin`), whether the customer is new or existing; `tenantId` comes from the use case's own input, no extra plumbing needed.
+     - **Staff login:** `handleStaffLogin()` in `apps/bff/src/features/auth/auth-controller-flow.service.ts` (BFF) — staff-login success (JWT issuance + redirect, line ~358) has no backend call that fires on every login, only conditional ones (`by-email`, `link-google`), so this log line can only be added in the BFF, passing `tenantId` explicitly as an `extra` field (the BFF `AppLogger.enrich()` only auto-populates `tenantId` when a request-scoped tenant context exists, which it doesn't yet during the pre-auth OAuth callback).
+     - **Accepted (2026-08-12):** `devLogin()`'s customer branch reuses `find-or-create-customer.use-case.ts`, so in staging the "customer logins by tenant" counter will include dev-auth-issued logins, indistinguishable from real ones. Accepted as-is — no flag threaded through to separate them.
 2. Define Terraform log-based counters (in `modules/monitoring`, built by S35) for each of the above, with a dashboard panel per counter.
-3. Verify (or add, if missing) the log line backing S35's originally-scoped staging-only Dev-Login-usage alert (`ENABLE_DEV_AUTH` flow) — not yet independently confirmed to exist.
+3. **Dev-Login-usage alert's backing log line — confirmed missing (2026-08-12 via story-discovery, not just "unconfirmed"):** `devLogin()` (`auth-controller-flow.service.ts`) has zero logger calls today. Add a distinct log line there (e.g. `"Dev auth used"` with `tenantId`, actor type) — a separate event from the customer/staff login counters above, not a reuse of them, since it exists to answer "is dev auth being used" (a staging security-relevant signal), not "who logged in."
 
 **Acceptance criteria:**
-- [ ] Each new logger call ships with a unit test asserting the log line's structured fields
+- [x] Each new logger call ships with a unit test asserting the log line's structured fields, `tenantId` included, at its specific call site (`request-booking.use-case.spec.ts`, `approve-booking.use-case.spec.ts`, `complete-booking.use-case.spec.ts`, `base-notification.use-case.spec.ts`, `find-or-create-customer.use-case.spec.ts`, and the BFF's `auth-controller-flow.service.spec.ts` for both the staff-login and dev-login-usage lines) — verified 2026-08-12: 96 backend/BFF tests pass across the 6 touched spec files; `terraform test` (24 runs, `modules/monitoring`) covers the 6 counters' filters/tenant_id extraction, the dashboard's per-tenant widget grouping, and the dev-auth alert's staging-only gating
 - [ ] Each counter's dashboard panel renders with live data in staging
-- [ ] Dev-Login-usage alert's log line confirmed to exist (or added) and the alert fires on a test trigger
+  - ⚠️ Not verified as of 2026-08-12 — needs a real staging deploy; `terraform test`'s `mock_provider` can prove the widget JSON is well-formed and correctly grouped, but not that live Cloud Logging data actually flows into it (this module's own header comment already states this limitation for its existing resources)
+- [ ] Dev-Login-usage alert's log line added (confirmed not pre-existing) and the alert fires on a test trigger
+  - ⚠️ Not verified as of 2026-08-12 — the log line is added and the alert policy exists (staging-only, `terraform test`-verified), but "fires on a test trigger" needs a real `ENABLE_DEV_AUTH` call against staging, same live-verification gap as above
 
 **Dependencies:** M17-S35 (dashboard module must exist first)
 
