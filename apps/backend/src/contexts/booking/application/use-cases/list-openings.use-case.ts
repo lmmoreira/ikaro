@@ -3,7 +3,6 @@ import {
   IScheduleOpeningRepository,
   SCHEDULE_OPENING_REPOSITORY,
 } from '../ports/schedule-opening-repository.port';
-import { OpenScheduleUseCaseResult } from './open-schedule.use-case';
 import { ListOpeningsDto } from '../dtos/open-schedule.dto';
 
 export type ListOpeningsInput = ListOpeningsDto & {
@@ -11,7 +10,15 @@ export type ListOpeningsInput = ListOpeningsDto & {
 };
 
 export interface ListOpeningsUseCaseResult {
-  items: OpenScheduleUseCaseResult[];
+  items: Array<{
+    id: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    notes: string | null;
+    createdBy: string;
+    createdAt: string;
+  }>;
 }
 
 @Injectable()

@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { Injectable } from '@nestjs/common';
-import { ACTOR_ROLES, ActorRole } from '@ikaro/types';
+import { ACTOR_ROLES, ActorRole } from '@ikaro/types/protocol/actor';
 import type { TenantSettingsData } from '../value-objects/tenant-settings-data';
 
 interface RequestStore {

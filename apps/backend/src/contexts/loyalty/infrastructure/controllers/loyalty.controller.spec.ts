@@ -12,6 +12,7 @@ import {
   LoyaltyRedemptionBuilder,
 } from '../../../../test/builders/loyalty/index';
 import { GetLoyaltyBalanceUseCase } from '../../application/use-cases/get-loyalty-balance/get-loyalty-balance.use-case';
+import { LoyaltyBalanceReaderService } from '../../application/services/loyalty-balance-reader.service';
 import { GetLoyaltyBalancesUseCase } from '../../application/use-cases/get-loyalty-balances/get-loyalty-balances.use-case';
 import { GetOwnLoyaltyBalanceUseCase } from '../../application/use-cases/get-own-loyalty-balance/get-own-loyalty-balance.use-case';
 import { GetOwnLoyaltyBalancesUseCase } from '../../application/use-cases/get-own-loyalty-balances/get-own-loyalty-balances.use-case';
@@ -49,10 +50,10 @@ describe('LoyaltyController', () => {
         .withActorRole('CUSTOMER')
         .build();
       controller = new LoyaltyController(
-        new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+        new GetLoyaltyBalanceUseCase(new LoyaltyBalanceReaderService(balanceRepo, entryRepo)),
         new GetLoyaltyBalancesUseCase(balanceRepo),
         new GetOwnLoyaltyBalanceUseCase(
-          new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+          new LoyaltyBalanceReaderService(balanceRepo, entryRepo),
           loyaltyCustomer,
         ),
         new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
@@ -98,10 +99,10 @@ describe('LoyaltyController', () => {
         )
         .build();
       const customerController = new LoyaltyController(
-        new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+        new GetLoyaltyBalanceUseCase(new LoyaltyBalanceReaderService(balanceRepo, entryRepo)),
         new GetLoyaltyBalancesUseCase(balanceRepo),
         new GetOwnLoyaltyBalanceUseCase(
-          new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+          new LoyaltyBalanceReaderService(balanceRepo, entryRepo),
           loyaltyCustomer,
         ),
         new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
@@ -183,10 +184,10 @@ describe('LoyaltyController', () => {
         .withActorRole('CUSTOMER')
         .build();
       controller = new LoyaltyController(
-        new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+        new GetLoyaltyBalanceUseCase(new LoyaltyBalanceReaderService(balanceRepo, entryRepo)),
         new GetLoyaltyBalancesUseCase(balanceRepo),
         new GetOwnLoyaltyBalanceUseCase(
-          new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+          new LoyaltyBalanceReaderService(balanceRepo, entryRepo),
           loyaltyCustomer,
         ),
         new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
@@ -259,10 +260,10 @@ describe('LoyaltyController', () => {
         .withActorRole('CUSTOMER')
         .build();
       controller = new LoyaltyController(
-        new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+        new GetLoyaltyBalanceUseCase(new LoyaltyBalanceReaderService(balanceRepo, entryRepo)),
         new GetLoyaltyBalancesUseCase(balanceRepo),
         new GetOwnLoyaltyBalanceUseCase(
-          new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+          new LoyaltyBalanceReaderService(balanceRepo, entryRepo),
           loyaltyCustomer,
         ),
         new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
@@ -309,10 +310,10 @@ describe('LoyaltyController', () => {
         .withActorRole('CUSTOMER')
         .build();
       controller = new LoyaltyController(
-        new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+        new GetLoyaltyBalanceUseCase(new LoyaltyBalanceReaderService(balanceRepo, entryRepo)),
         new GetLoyaltyBalancesUseCase(balanceRepo),
         new GetOwnLoyaltyBalanceUseCase(
-          new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+          new LoyaltyBalanceReaderService(balanceRepo, entryRepo),
           loyaltyCustomer,
         ),
         new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
@@ -357,10 +358,10 @@ describe('LoyaltyController', () => {
         .withActorRole('MANAGER')
         .build();
       controller = new LoyaltyController(
-        new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+        new GetLoyaltyBalanceUseCase(new LoyaltyBalanceReaderService(balanceRepo, entryRepo)),
         new GetLoyaltyBalancesUseCase(balanceRepo),
         new GetOwnLoyaltyBalanceUseCase(
-          new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+          new LoyaltyBalanceReaderService(balanceRepo, entryRepo),
           loyaltyCustomer,
         ),
         new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
@@ -414,10 +415,10 @@ describe('LoyaltyController', () => {
         )
         .build();
       const managerController = new LoyaltyController(
-        new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+        new GetLoyaltyBalanceUseCase(new LoyaltyBalanceReaderService(balanceRepo, entryRepo)),
         new GetLoyaltyBalancesUseCase(balanceRepo),
         new GetOwnLoyaltyBalanceUseCase(
-          new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+          new LoyaltyBalanceReaderService(balanceRepo, entryRepo),
           loyaltyCustomer,
         ),
         new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
@@ -449,10 +450,10 @@ describe('LoyaltyController', () => {
         .withActorRole('MANAGER')
         .build();
       controller = new LoyaltyController(
-        new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+        new GetLoyaltyBalanceUseCase(new LoyaltyBalanceReaderService(balanceRepo, entryRepo)),
         new GetLoyaltyBalancesUseCase(balanceRepo),
         new GetOwnLoyaltyBalanceUseCase(
-          new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+          new LoyaltyBalanceReaderService(balanceRepo, entryRepo),
           loyaltyCustomer,
         ),
         new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
@@ -523,10 +524,10 @@ describe('LoyaltyController', () => {
         .withActorRole('STAFF')
         .build();
       controller = new LoyaltyController(
-        new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+        new GetLoyaltyBalanceUseCase(new LoyaltyBalanceReaderService(balanceRepo, entryRepo)),
         new GetLoyaltyBalancesUseCase(balanceRepo),
         new GetOwnLoyaltyBalanceUseCase(
-          new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+          new LoyaltyBalanceReaderService(balanceRepo, entryRepo),
           loyaltyCustomer,
         ),
         new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
@@ -567,10 +568,10 @@ describe('LoyaltyController', () => {
         .withActorRole('STAFF')
         .build();
       controller = new LoyaltyController(
-        new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+        new GetLoyaltyBalanceUseCase(new LoyaltyBalanceReaderService(balanceRepo, entryRepo)),
         new GetLoyaltyBalancesUseCase(balanceRepo),
         new GetOwnLoyaltyBalanceUseCase(
-          new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+          new LoyaltyBalanceReaderService(balanceRepo, entryRepo),
           loyaltyCustomer,
         ),
         new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
@@ -610,10 +611,10 @@ describe('LoyaltyController', () => {
         .withActorRole('MANAGER')
         .build();
       controller = new LoyaltyController(
-        new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+        new GetLoyaltyBalanceUseCase(new LoyaltyBalanceReaderService(balanceRepo, entryRepo)),
         new GetLoyaltyBalancesUseCase(balanceRepo),
         new GetOwnLoyaltyBalanceUseCase(
-          new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+          new LoyaltyBalanceReaderService(balanceRepo, entryRepo),
           loyaltyCustomer,
         ),
         new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),

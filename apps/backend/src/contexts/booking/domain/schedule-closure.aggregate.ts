@@ -1,4 +1,4 @@
-import { BookingErrorCode } from '@ikaro/types';
+import { BookingErrorCode } from '@ikaro/types/protocol/errors';
 import { todayUTC } from '../../../shared/utils/calendar-date';
 import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';

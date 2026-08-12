@@ -1,4 +1,4 @@
-import { PlatformErrorCode } from '@ikaro/types';
+import { PlatformErrorCode } from '@ikaro/types/protocol/errors';
 import type {
   BusinessHours,
   DayHours,

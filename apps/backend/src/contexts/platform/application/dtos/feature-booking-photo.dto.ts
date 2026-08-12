@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PlatformErrorCode } from '@ikaro/types';
+import { PlatformErrorCode } from '@ikaro/types/protocol/errors';
 
 export const FeatureBookingPhotoSchema = z
   .object({

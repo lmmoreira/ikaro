@@ -20,7 +20,8 @@ describe('TD37-S02 persistence boundary', () => {
       `
         import {
           Connection, DataSource, DeleteQueryBuilder, EntityManager, getConnection,
-          getConnectionManager, getManager, getMongoRepository, getRepository,
+          getConnectionManager, getManager, getMongoRepository, getRepository, createConnection,
+          createConnections,
           getTreeRepository, InsertQueryBuilder, MongoRepository, QueryBuilder,
           QueryRunner, Repository, SelectQueryBuilder, TreeRepository, UpdateQueryBuilder,
         } from 'typeorm';
@@ -29,7 +30,7 @@ describe('TD37-S02 persistence boundary', () => {
         export {
           Connection, DataSource, DeleteQueryBuilder, EntityManager, getConnection,
           getConnectionManager, getDataSourceToken, getManager, getMongoRepository,
-          getRepository, getTreeRepository, InjectDataSource, InjectRepository,
+          getRepository, getTreeRepository, createConnection, createConnections, InjectDataSource, InjectRepository,
           InsertQueryBuilder, MongoRepository, QueryBuilder, QueryRunner, Repository,
           SelectQueryBuilder, TreeRepository, TypeOrm, UpdateQueryBuilder,
         };
@@ -67,6 +68,24 @@ describe('TD37-S02 persistence boundary', () => {
           message.ruleId === 'no-restricted-imports' || message.ruleId === 'no-restricted-syntax',
       ),
     ).toHaveLength(0);
+  });
+
+  it('permits a conventional repository adapter and the reviewed availability adapter', () => {
+    const source = `
+      import { InjectRepository } from '@nestjs/typeorm';
+      import { DataSource, EntityManager, Repository } from 'typeorm';
+      export { DataSource, EntityManager, InjectRepository, Repository };
+    `;
+    for (const filePath of [
+      'src/contexts/booking/infrastructure/repositories/typeorm-booking.repository.ts',
+      'src/contexts/booking/infrastructure/cross-context/typeorm-booking-availability.adapter.ts',
+    ]) {
+      const messages = lint(source, filePath).filter(
+        (message) =>
+          message.ruleId === 'no-restricted-imports' || message.ruleId === 'no-restricted-syntax',
+      );
+      expect(messages).toHaveLength(0);
+    }
   });
 
   it('forbids repository ports from opening their own transaction callback', () => {

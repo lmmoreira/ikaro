@@ -3,6 +3,11 @@ module.exports = [
   { name: 'bff', source: 'apps/bff/src', tsConfig: 'apps/bff/tsconfig.json' },
   { name: 'web', source: 'apps/web', tsConfig: 'apps/web/tsconfig.json' },
   {
+    name: 'architecture-check',
+    source: 'packages/architecture-check/src',
+    tsConfig: 'packages/architecture-check/tsconfig.json',
+  },
+  {
     name: 'env-validation',
     source: 'packages/env-validation/src',
     tsConfig: 'packages/env-validation/tsconfig.json',

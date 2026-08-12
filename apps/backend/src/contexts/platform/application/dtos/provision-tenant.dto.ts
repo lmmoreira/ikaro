@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { EmailErrorCode, SlugErrorCode, TimezoneErrorCode } from '@ikaro/types';
+import { EmailErrorCode, SlugErrorCode, TimezoneErrorCode } from '@ikaro/types/protocol/errors';
 import { Email } from '../../../../shared/value-objects/email.vo';
 import { Slug } from '../../../../shared/value-objects/slug.vo';
 import { Timezone } from '../../../../shared/value-objects/timezone.vo';

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CountryCodeErrorCode } from '@ikaro/types';
+import { CountryCodeErrorCode } from '@ikaro/types/protocol/errors';
 import { COUNTRY_CODE_FORMAT_PATTERN } from '@ikaro/validation';
 import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
 

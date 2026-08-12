@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TimeOfDayErrorCode } from '@ikaro/types';
+import { TimeOfDayErrorCode } from '@ikaro/types/protocol/errors';
 import { DATE_ONLY_PATTERN } from '@ikaro/validation';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
 

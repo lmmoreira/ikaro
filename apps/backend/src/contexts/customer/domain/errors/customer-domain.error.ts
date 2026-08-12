@@ -1,4 +1,8 @@
-import { AddressErrorCode, CountryCodeErrorCode, CustomerErrorCode } from '@ikaro/types';
+import {
+  AddressErrorCode,
+  CountryCodeErrorCode,
+  CustomerErrorCode,
+} from '@ikaro/types/protocol/errors';
 import { DomainErrorShape } from '../../../../shared/domain/domain-error-shape';
 
 export class CustomerDomainError extends Error implements DomainErrorShape {

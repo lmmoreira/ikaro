@@ -4,7 +4,21 @@
     "domain": { "frameworkFree": true, "allowedRoots": ["domain"] },
     "application": {
       "frameworkFree": true,
-      "allowedRoots": ["domain", "application/ports", "application/dtos", "shared"]
+      "allowedRoots": [
+        "domain",
+        "application/ports",
+        "application/dtos",
+        "application/services",
+        "shared"
+      ],
+      "sameContextAllowedApplicationPaths": [
+        "application/dtos/**",
+        "application/ports/**",
+        "application/services/**",
+        "application/use-cases/base-*.use-case.ts",
+        "application/use-cases/booking-request.helpers.ts",
+        "application/use-cases/booking-request.types.ts"
+      ]
     },
     "infrastructure": {
       "frameworkFree": false,
@@ -18,66 +32,102 @@
       {
         "source": "apps/backend/src/contexts/booking/infrastructure/cross-context/booking-customer.adapter.ts",
         "target": "customer",
+        "targetPaths": [
+          "apps/backend/src/contexts/customer/application/use-cases/get-customer-by-id.use-case.ts"
+        ],
         "rationale": "Booking reads customer data through the existing cross-context adapter.",
         "owner": "booking"
       },
       {
         "source": "apps/backend/src/contexts/booking/infrastructure/cross-context/booking-platform.adapter.ts",
         "target": "platform",
+        "targetPaths": [
+          "apps/backend/src/contexts/platform/application/ports/frontend-revalidation.port.ts",
+          "apps/backend/src/contexts/platform/application/use-cases/get-tenant-by-id.use-case.ts",
+          "apps/backend/src/contexts/platform/application/use-cases/get-tenants.use-case.ts"
+        ],
         "rationale": "Booking uses platform settings through the existing cross-context adapter.",
         "owner": "booking"
       },
       {
         "source": "apps/backend/src/contexts/loyalty/infrastructure/cross-context/loyalty-booking.adapter.ts",
         "target": "booking",
+        "targetPaths": [
+          "apps/backend/src/contexts/booking/application/use-cases/get-booking-by-id.use-case.ts",
+          "apps/backend/src/contexts/booking/application/use-cases/get-services.use-case.ts"
+        ],
         "rationale": "Loyalty consumes booking facts through the existing adapter.",
         "owner": "loyalty"
       },
       {
         "source": "apps/backend/src/contexts/loyalty/infrastructure/cross-context/loyalty-customer.adapter.ts",
         "target": "customer",
+        "targetPaths": [
+          "apps/backend/src/contexts/customer/application/use-cases/get-customer-tenants-by-id.use-case.ts",
+          "apps/backend/src/contexts/customer/domain/errors/customer-domain.error.ts"
+        ],
         "rationale": "Loyalty reads customer identity through the existing adapter.",
         "owner": "loyalty"
       },
       {
         "source": "apps/backend/src/contexts/loyalty/infrastructure/cross-context/loyalty-platform.adapter.ts",
         "target": "platform",
+        "targetPaths": [
+          "apps/backend/src/contexts/platform/application/use-cases/get-tenant-by-id.use-case.ts"
+        ],
         "rationale": "Loyalty reads platform settings through the existing adapter.",
         "owner": "loyalty"
       },
       {
         "source": "apps/backend/src/contexts/notification/infrastructure/cross-context/notification-booking.adapter.ts",
         "target": "booking",
+        "targetPaths": [
+          "apps/backend/src/contexts/booking/application/use-cases/get-services.use-case.ts"
+        ],
         "rationale": "Notification reads booking projections through the existing adapter.",
         "owner": "notification"
       },
       {
         "source": "apps/backend/src/contexts/notification/infrastructure/cross-context/notification-customer.adapter.ts",
         "target": "customer",
+        "targetPaths": [
+          "apps/backend/src/contexts/customer/application/use-cases/get-customer-by-id.use-case.ts"
+        ],
         "rationale": "Notification reads customer contact data through the existing adapter.",
         "owner": "notification"
       },
       {
         "source": "apps/backend/src/contexts/notification/infrastructure/cross-context/notification-platform.adapter.ts",
         "target": "platform",
+        "targetPaths": [
+          "apps/backend/src/contexts/platform/application/use-cases/get-tenant-by-id.use-case.ts"
+        ],
         "rationale": "Notification reads platform settings through the existing adapter.",
         "owner": "notification"
       },
       {
         "source": "apps/backend/src/contexts/notification/infrastructure/cross-context/notification-staff.adapter.ts",
         "target": "staff",
+        "targetPaths": [
+          "apps/backend/src/contexts/staff/application/use-cases/get-staff.use-case.ts",
+          "apps/backend/src/contexts/staff/application/use-cases/get-staff-by-id.use-case.ts"
+        ],
         "rationale": "Notification reads staff contact data through the existing adapter.",
         "owner": "notification"
       },
       {
         "source": "apps/backend/src/contexts/platform/infrastructure/cross-context/platform-tenant-settings.adapter.ts",
         "target": "platform",
+        "targetPaths": [],
         "rationale": "Platform exposes tenant settings through its existing adapter boundary.",
         "owner": "platform"
       },
       {
         "source": "apps/backend/src/contexts/staff/infrastructure/events/tenant-provisioned.handler.ts",
         "target": "platform",
+        "targetPaths": [
+          "apps/backend/src/contexts/platform/domain/events/tenant-provisioned.event.ts"
+        ],
         "rationale": "Staff reacts to the platform tenant-provisioned domain event.",
         "owner": "staff",
         "reviewBy": "2026-09-30"
@@ -85,6 +135,9 @@
       {
         "source": "apps/backend/src/contexts/loyalty/infrastructure/events/booking-completed.handler.ts",
         "target": "booking",
+        "targetPaths": [
+          "apps/backend/src/contexts/booking/domain/events/booking-completed.event.ts"
+        ],
         "rationale": "Loyalty reacts to the booking-completed domain event.",
         "owner": "loyalty",
         "reviewBy": "2026-09-30"
@@ -92,6 +145,7 @@
       {
         "source": "apps/backend/src/contexts/notification/infrastructure/events/staff-invited.handler.ts",
         "target": "staff",
+        "targetPaths": ["apps/backend/src/contexts/staff/domain/events/staff-invited.event.ts"],
         "rationale": "Notification reacts to the staff-invited domain event.",
         "owner": "notification",
         "reviewBy": "2026-09-30"
@@ -99,6 +153,9 @@
       {
         "source": "apps/backend/src/contexts/notification/infrastructure/events/tenant-provisioned.handler.ts",
         "target": "platform",
+        "targetPaths": [
+          "apps/backend/src/contexts/platform/domain/events/tenant-provisioned.event.ts"
+        ],
         "rationale": "Notification reacts to the platform tenant-provisioned domain event.",
         "owner": "notification",
         "reviewBy": "2026-09-30"
@@ -106,6 +163,9 @@
       {
         "source": "apps/backend/src/contexts/notification/infrastructure/events/service-points-earned.handler.ts",
         "target": "loyalty",
+        "targetPaths": [
+          "apps/backend/src/contexts/loyalty/domain/events/service-points-earned.event.ts"
+        ],
         "rationale": "Notification reacts to the loyalty service-points-earned domain event.",
         "owner": "notification",
         "reviewBy": "2026-09-30"
@@ -113,6 +173,9 @@
       {
         "source": "apps/backend/src/contexts/notification/infrastructure/events/points-expiring-soon.handler.ts",
         "target": "loyalty",
+        "targetPaths": [
+          "apps/backend/src/contexts/loyalty/domain/commands/points-expiring-soon.command.ts"
+        ],
         "rationale": "Notification reacts to the loyalty points-expiring-soon command contract.",
         "owner": "notification",
         "reviewBy": "2026-09-30"
@@ -120,6 +183,9 @@
       {
         "source": "apps/backend/src/contexts/notification/infrastructure/events/booking-rescheduled.handler.ts",
         "target": "booking",
+        "targetPaths": [
+          "apps/backend/src/contexts/booking/domain/events/booking-rescheduled.event.ts"
+        ],
         "rationale": "Notification reacts to the booking-rescheduled domain event.",
         "owner": "notification",
         "reviewBy": "2026-09-30"
@@ -127,6 +193,9 @@
       {
         "source": "apps/backend/src/contexts/notification/infrastructure/events/booking-requested.handler.ts",
         "target": "booking",
+        "targetPaths": [
+          "apps/backend/src/contexts/booking/domain/events/booking-requested.event.ts"
+        ],
         "rationale": "Notification reacts to the booking-requested domain event.",
         "owner": "notification",
         "reviewBy": "2026-09-30"
@@ -134,6 +203,10 @@
       {
         "source": "apps/backend/src/contexts/notification/infrastructure/events/booking-reminder.handler.ts",
         "target": "booking",
+        "targetPaths": [
+          "apps/backend/src/contexts/booking/domain/commands/booking-reminder-due.command.ts",
+          "apps/backend/src/contexts/booking/domain/commands/booking-reminder-due-today.command.ts"
+        ],
         "rationale": "Notification dispatches the booking reminder command contracts.",
         "owner": "notification",
         "reviewBy": "2026-09-30"
@@ -141,6 +214,9 @@
       {
         "source": "apps/backend/src/contexts/notification/infrastructure/events/booking-rejected.handler.ts",
         "target": "booking",
+        "targetPaths": [
+          "apps/backend/src/contexts/booking/domain/events/booking-rejected.event.ts"
+        ],
         "rationale": "Notification reacts to the booking-rejected domain event.",
         "owner": "notification",
         "reviewBy": "2026-09-30"
@@ -148,6 +224,9 @@
       {
         "source": "apps/backend/src/contexts/notification/infrastructure/events/booking-info-submitted.handler.ts",
         "target": "booking",
+        "targetPaths": [
+          "apps/backend/src/contexts/booking/domain/events/booking-info-submitted.event.ts"
+        ],
         "rationale": "Notification reacts to the booking-info-submitted domain event.",
         "owner": "notification",
         "reviewBy": "2026-09-30"
@@ -155,6 +234,9 @@
       {
         "source": "apps/backend/src/contexts/notification/infrastructure/events/booking-info-requested.handler.ts",
         "target": "booking",
+        "targetPaths": [
+          "apps/backend/src/contexts/booking/domain/events/booking-info-requested.event.ts"
+        ],
         "rationale": "Notification reacts to the booking-info-requested domain event.",
         "owner": "notification",
         "reviewBy": "2026-09-30"
@@ -162,6 +244,9 @@
       {
         "source": "apps/backend/src/contexts/notification/infrastructure/events/booking-cancelled.handler.ts",
         "target": "booking",
+        "targetPaths": [
+          "apps/backend/src/contexts/booking/domain/events/booking-cancelled.event.ts"
+        ],
         "rationale": "Notification reacts to the booking-cancelled domain event.",
         "owner": "notification",
         "reviewBy": "2026-09-30"
@@ -169,6 +254,9 @@
       {
         "source": "apps/backend/src/contexts/notification/infrastructure/events/booking-approved.handler.ts",
         "target": "booking",
+        "targetPaths": [
+          "apps/backend/src/contexts/booking/domain/events/booking-approved.event.ts"
+        ],
         "rationale": "Notification reacts to the booking-approved domain event.",
         "owner": "notification",
         "reviewBy": "2026-09-30"
@@ -176,6 +264,9 @@
       {
         "source": "apps/backend/src/contexts/notification/infrastructure/events/admin-daily-schedule-reminder.handler.ts",
         "target": "booking",
+        "targetPaths": [
+          "apps/backend/src/contexts/booking/domain/commands/admin-daily-schedule-reminder.command.ts"
+        ],
         "rationale": "Notification dispatches the booking daily-schedule reminder command contract.",
         "owner": "notification",
         "reviewBy": "2026-09-30"
@@ -216,6 +307,7 @@
     "apps/backend/tsconfig.json",
     "apps/bff/tsconfig.json",
     "apps/web/tsconfig.json",
+    "packages/architecture-check/tsconfig.json",
     "packages/env-validation/tsconfig.json",
     "packages/http-utils/tsconfig.json",
     "packages/i18n/tsconfig.json",

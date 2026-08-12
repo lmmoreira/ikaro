@@ -3,7 +3,6 @@ import {
   IScheduleClosureRepository,
   SCHEDULE_CLOSURE_REPOSITORY,
 } from '../ports/schedule-closure-repository.port';
-import { CloseScheduleUseCaseResult } from './close-schedule.use-case';
 import { ListClosuresDto } from '../dtos/close-schedule.dto';
 
 export type ListClosuresInput = ListClosuresDto & {
@@ -11,7 +10,16 @@ export type ListClosuresInput = ListClosuresDto & {
 };
 
 export interface ListClosuresUseCaseResult {
-  items: CloseScheduleUseCaseResult[];
+  items: Array<{
+    id: string;
+    date: string;
+    startTime: string | null;
+    endTime: string | null;
+    reason: string;
+    notes: string | null;
+    createdBy: string;
+    createdAt: string;
+  }>;
 }
 
 @Injectable()

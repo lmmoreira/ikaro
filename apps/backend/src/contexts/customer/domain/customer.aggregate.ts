@@ -1,4 +1,4 @@
-import { CustomerErrorCode } from '@ikaro/types';
+import { CustomerErrorCode } from '@ikaro/types/protocol/errors';
 import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { Address } from '../../../shared/value-objects/address';

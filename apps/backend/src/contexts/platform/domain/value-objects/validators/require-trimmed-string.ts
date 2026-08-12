@@ -1,4 +1,4 @@
-import { PlatformErrorCode } from '@ikaro/types';
+import { PlatformErrorCode } from '@ikaro/types/protocol/errors';
 import { normalizeText } from '../../../../../shared/utils/text-normalization';
 import { TenantSettingsValidationError } from '../../errors/platform-domain.error';
 

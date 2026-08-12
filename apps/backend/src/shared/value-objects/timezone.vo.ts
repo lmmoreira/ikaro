@@ -1,4 +1,4 @@
-import { TimezoneErrorCode } from '@ikaro/types';
+import { TimezoneErrorCode } from '@ikaro/types/protocol/errors';
 import { DomainErrorShape } from '../domain/domain-error-shape';
 
 export class TimezoneValidationError extends Error implements DomainErrorShape {

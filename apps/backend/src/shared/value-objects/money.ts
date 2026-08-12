@@ -1,5 +1,5 @@
 import { Decimal } from 'decimal.js';
-import { MoneyErrorCode } from '@ikaro/types';
+import { MoneyErrorCode } from '@ikaro/types/protocol/errors';
 import { DomainErrorShape } from '../domain/domain-error-shape';
 import { ValueObject } from '../domain/value-object';
 import { formatMoney } from '../utils/money-format';

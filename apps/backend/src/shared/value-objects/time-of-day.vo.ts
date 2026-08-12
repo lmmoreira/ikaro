@@ -1,4 +1,4 @@
-import { TimeOfDayErrorCode } from '@ikaro/types';
+import { TimeOfDayErrorCode } from '@ikaro/types/protocol/errors';
 import { DomainErrorShape } from '../domain/domain-error-shape';
 
 const HHMM_PATTERN = /^\d{2}:\d{2}$/;

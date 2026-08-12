@@ -2,7 +2,7 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import { throwProblemDetail } from '@ikaro/nestjs-http';
 import { mapSharedAddressError } from '../../../../shared/http/address-validation-error.mapper';
 import { mapSharedVoError } from '../../../../shared/http/vo-validation-error.mapper';
-import { ProblemDetail } from '@ikaro/types';
+import { ProblemDetail } from '@ikaro/types/protocol/errors';
 import {
   CustomerAddressValidationError,
   CustomerDomainError,

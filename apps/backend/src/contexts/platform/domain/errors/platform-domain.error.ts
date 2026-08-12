@@ -1,4 +1,4 @@
-import { PlatformErrorCode } from '@ikaro/types';
+import { PlatformErrorCode } from '@ikaro/types/protocol/errors';
 import { DomainErrorShape } from '../../../../shared/domain/domain-error-shape';
 
 export class PlatformDomainError extends Error implements DomainErrorShape {

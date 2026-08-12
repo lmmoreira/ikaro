@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { PlatformErrorCode, TimeOfDayErrorCode, TimezoneErrorCode } from '@ikaro/types';
+import {
+  PlatformErrorCode,
+  TimeOfDayErrorCode,
+  TimezoneErrorCode,
+} from '@ikaro/types/protocol/errors';
 import { PartialAddressSchema } from '@ikaro/validation';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
 import { Timezone } from '../../../../shared/value-objects/timezone.vo';

@@ -1,4 +1,4 @@
-import { StaffErrorCode } from '@ikaro/types';
+import { StaffErrorCode } from '@ikaro/types/protocol/errors';
 import { DomainErrorShape } from '../../../../shared/domain/domain-error-shape';
 
 export class StaffDomainError extends Error implements DomainErrorShape {

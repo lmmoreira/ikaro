@@ -13,7 +13,7 @@ import { defaultTracingPort, ITracingPort } from '@ikaro/observability';
 import { PUSHABLE_EVENT_BUS, IPushableEventBus } from '../../ports/pushable-event-bus.port';
 import { Public } from '../../decorators/public.decorator';
 import { PubSubPushGuard } from '../../guards/pubsub-push.guard';
-import { ProblemDetail } from '@ikaro/types';
+import { ProblemDetail } from '@ikaro/types/protocol/errors';
 import { AppLogger } from '../../observability/app-logger';
 
 interface PubSubPushMessage {
