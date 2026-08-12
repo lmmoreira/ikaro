@@ -353,7 +353,15 @@ jobs:
     name: Check still current
     needs: push
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # 10m, not 5m (M17-S55, 2026-08-12): the new otel-collector-readiness step
+    # below polls for up to ~5 minutes on top of the pre-existing staleness
+    # check.
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      # actions: read (M17-S55) — needed for the otel-collector-readiness
+      # step's gh api calls against this repo's own Actions run history.
+      actions: read
     outputs:
       is_current: ${{ steps.check.outputs.is_current }}
     steps:
@@ -370,6 +378,82 @@ jobs:
             echo "is_current=false" >> "$GITHUB_OUTPUT"
             echo "::notice::A newer commit ($LATEST_SHA) has landed on main since this run started ($GITHUB_SHA) — a newer run will handle deploying it; stopping here to avoid an out-of-order stale deploy."
           fi
+
+      # M17-S55, cross-tool PR review finding (2026-08-12): this checkout
+      # exists only for the step below — `git log`/`git merge-base` need
+      # real history, and no earlier step in this job checks the repo out at
+      # all (check-current only calls gh api). fetch-depth: 0 (full history)
+      # is required for `git merge-base --is-ancestor` against arbitrary past
+      # commits to work correctly.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.check.outputs.is_current == 'true'
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Wait for otel-collector image publish (if this commit rebuilt it)
+        if: steps.check.outputs.is_current == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          # This workflow and build-otel-collector.yml trigger independently on
+          # push to main, filtered to disjoint paths (apps/**+packages/** here,
+          # infra/docker/otel-collector/** there) — GitHub Actions has no
+          # cross-workflow `needs:` across separate workflow files. A commit
+          # touching both path sets races: migrate-and-deploy's "Resolve
+          # otel-collector digest" step resolves `:latest` to whatever's
+          # currently in GAR — if that runs before build-otel-collector.yml's
+          # `push` job finishes publishing, the app deploys paired with the OLD
+          # collector image, silently missing whatever config.yaml pipeline
+          # change this commit made (the exact metrics-404-export-loop incident
+          # class this pipeline has already hit three times —
+          # docs/ENGINEERING_RULES.md § Cloud Run CPU throttling).
+          #
+          # Same idiom already established in this repo for cross-workflow
+          # readiness (infra-deploy.yml's foundation-applied-check): find the
+          # most recent commit (up to this one) that touched the collector
+          # directory via real git history, not a diff-based guess, then check
+          # GitHub's own record of build-otel-collector.yml runs for a
+          # successful one at or after that commit. Unlike that Foundation
+          # check (a human-gated, approval-required apply, where a fresh commit
+          # or manual job re-run is the correct recovery), build-otel-collector.yml
+          # is fully automatic with no approval gate and normally completes in
+          # a couple of minutes, so a bounded poll here is the right UX, not an
+          # immediate fail requiring a human to notice and re-run.
+          last_collector_commit=$(git log -1 --format=%H HEAD -- infra/docker/otel-collector/)
+          if [ -z "$last_collector_commit" ]; then
+            echo "No commit has ever touched infra/docker/otel-collector/ — nothing to wait for."
+            exit 0
+          fi
+          echo "Most recent commit touching infra/docker/otel-collector/: $last_collector_commit"
+
+          check_ready() {
+            while read -r run_id run_sha conclusion; do
+              [ -z "$run_id" ] && continue
+              if ! git merge-base --is-ancestor "$last_collector_commit" "$run_sha" 2>/dev/null; then
+                continue # this run predates the current collector/** state
+              fi
+              if [ "$conclusion" = "success" ]; then
+                echo "Found a qualifying build-otel-collector.yml push: run $run_id (commit $run_sha)."
+                return 0
+              fi
+            done < <(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/build-otel-collector.yml/runs?event=push&status=completed&per_page=30" \
+              --jq '.workflow_runs[] | "\(.id) \(.head_sha) \(.conclusion)"')
+            return 1
+          }
+
+          for i in $(seq 1 20); do
+            if check_ready; then
+              exit 0
+            fi
+            echo "No completed, successful build-otel-collector.yml run yet for $last_collector_commit (attempt $i/20) — waiting 15s..."
+            sleep 15
+          done
+
+          echo "::error::Timed out waiting for a successful build-otel-collector.yml push run at or after $last_collector_commit. The otel-collector image may be stale, or the build/push failed — check https://github.com/${GITHUB_REPOSITORY}/actions/workflows/build-otel-collector.yml before retrying this deploy (gh run rerun, or push again)."
+          exit 1
 
   # ---------------------------------------------------------------------
   # Migrate + deploy — one job, so `staging-mutations` is held

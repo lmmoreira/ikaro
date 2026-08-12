@@ -1,6 +1,12 @@
 import { ROOT_CONTEXT, trace, SpanKind, TraceFlags, type SpanContext } from '@opentelemetry/api';
 import { SamplingDecision } from '@opentelemetry/sdk-trace-base';
-import { buildOtlpExporterOptions, createSampler, isHealthCheckPath } from './otel-tracing';
+import { AggregationTemporalityPreference } from '@opentelemetry/exporter-metrics-otlp-http';
+import {
+  buildOtlpExporterOptions,
+  buildOtlpMetricExporterOptions,
+  createSampler,
+  isHealthCheckPath,
+} from './otel-tracing';
 
 describe('isHealthCheckPath', () => {
   it('matches backend health-check paths (no global prefix)', () => {
@@ -104,6 +110,36 @@ describe('buildOtlpExporterOptions', () => {
   it('omits the hardcoded url when the signal-specific OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is set', () => {
     const options = buildOtlpExporterOptions({
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: 'http://collector:4318/v1/traces',
+    });
+    expect(options.url).toBeUndefined();
+  });
+});
+
+describe('buildOtlpMetricExporterOptions', () => {
+  it('sets temporalityPreference to CUMULATIVE explicitly — required by Google Managed Prometheus (M17-S55)', () => {
+    expect(buildOtlpMetricExporterOptions({}).temporalityPreference).toBe(
+      AggregationTemporalityPreference.CUMULATIVE,
+    );
+  });
+
+  it('sets concurrencyLimit: 200 — cross-tool review finding on PR #362, matches the trace exporter default this exporter shares', () => {
+    expect(buildOtlpMetricExporterOptions({}).concurrencyLimit).toBe(200);
+  });
+
+  it('falls back to the hardcoded localhost URL when neither OTEL_EXPORTER_OTLP_ENDPOINT nor the signal-specific var is set', () => {
+    expect(buildOtlpMetricExporterOptions({}).url).toBe('http://localhost:4318/v1/metrics');
+  });
+
+  it('omits the hardcoded url when the generic OTEL_EXPORTER_OTLP_ENDPOINT is set — lets the exporter derive it per spec', () => {
+    const options = buildOtlpMetricExporterOptions({
+      OTEL_EXPORTER_OTLP_ENDPOINT: 'http://collector:4318',
+    });
+    expect(options.url).toBeUndefined();
+  });
+
+  it('omits the hardcoded url when the signal-specific OTEL_EXPORTER_OTLP_METRICS_ENDPOINT is set', () => {
+    const options = buildOtlpMetricExporterOptions({
+      OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: 'http://collector:4318/v1/metrics',
     });
     expect(options.url).toBeUndefined();
   });
