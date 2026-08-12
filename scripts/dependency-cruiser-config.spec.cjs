@@ -133,6 +133,14 @@ test('application boundary denies use-case imports but allows declared shared ab
     'a concrete use case must not be an allowed application dependency',
   );
   assert.ok(
+    !rule.to.pathNot.some((allowedPath) =>
+      new RegExp(allowedPath).test(
+        'src/contexts/notification/application/use-cases/booking-request.types.ts',
+      ),
+    ),
+    'booking-specific application paths must not be allowlisted for other contexts',
+  );
+  assert.ok(
     rule.to.pathNot.some((allowedPath) => new RegExp(allowedPath).test(basePath)),
     'an explicitly named base abstraction must remain allowed',
   );

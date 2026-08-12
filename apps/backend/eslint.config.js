@@ -1,4 +1,9 @@
 const baseConfig = require('@ikaro/config/eslint-base');
+const architecturePolicy = require('../../packages/architecture-check/architecture-policy.json');
+
+const reviewedRawPersistencePaths = architecturePolicy.exceptions
+  .filter((exception) => exception.rule === 'raw-persistence-api')
+  .map((exception) => exception.path.replace(/^apps\/backend\//, ''));
 
 module.exports = [
   ...baseConfig,
@@ -144,8 +149,7 @@ module.exports = [
       'src/shared/infrastructure/migrations/1748500000001-AddOutboxLease.ts',
       'src/shared/infrastructure/outbox/drain-domain-events.ts',
       'src/shared/infrastructure/outbox/typeorm-outbox.repository.ts',
-      // Story 0 registry: legacy adapter scheduled for repository-port follow-up.
-      'src/contexts/booking/infrastructure/cross-context/typeorm-booking-availability.adapter.ts',
+      ...reviewedRawPersistencePaths,
     ],
     rules: {
       'no-restricted-imports': [

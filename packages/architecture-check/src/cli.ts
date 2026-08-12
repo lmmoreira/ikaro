@@ -8,7 +8,7 @@ const root = resolve(__dirname, '../../..');
 const policy = JSON.parse(
   readFileSync(resolve(root, 'packages/architecture-check/architecture-policy.json'), 'utf8'),
 ) as {
-  intentionalErrorMapperGaps?: string[];
+  exceptions?: Array<{ rule: string; class?: string }>;
   projects?: string[];
 };
 const projectPaths = policy.projects ?? [];
@@ -24,10 +24,15 @@ for (const path of projectPaths) {
 const backendIndex = projectPaths.indexOf('apps/backend/tsconfig.json');
 const backend = backendIndex >= 0 ? projects[backendIndex] : undefined;
 if (!backend) throw new Error('The architecture policy must register apps/backend/tsconfig.json.');
+const intentionalErrorMapperGaps = new Set(
+  (policy.exceptions ?? [])
+    .filter((exception) => exception.rule === 'error-mapper-coverage' && exception.class)
+    .map((exception) => exception.class!),
+);
 
 const results = [
   checkTransactionalSaves(backend),
-  checkErrorMapperCoverage(backend, new Set(policy.intentionalErrorMapperGaps ?? [])),
+  checkErrorMapperCoverage(backend, intentionalErrorMapperGaps),
   checkUnsafeUseExisting(backend),
 ];
 const zeroTargetResults = results.filter((result) => result.scannedTargets === 0);

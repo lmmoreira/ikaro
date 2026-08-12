@@ -4,21 +4,14 @@ import {
   SCHEDULE_OPENING_REPOSITORY,
 } from '../ports/schedule-opening-repository.port';
 import { ListOpeningsDto } from '../dtos/open-schedule.dto';
+import { ScheduleListItem } from '../dtos/schedule-list-item.dto';
 
 export type ListOpeningsInput = ListOpeningsDto & {
   tenantId: string;
 };
 
 export interface ListOpeningsUseCaseResult {
-  items: Array<{
-    id: string;
-    date: string;
-    startTime: string;
-    endTime: string;
-    notes: string | null;
-    createdBy: string;
-    createdAt: string;
-  }>;
+  items: ScheduleListItem[];
 }
 
 @Injectable()

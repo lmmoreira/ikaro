@@ -4,22 +4,14 @@ import {
   SCHEDULE_CLOSURE_REPOSITORY,
 } from '../ports/schedule-closure-repository.port';
 import { ListClosuresDto } from '../dtos/close-schedule.dto';
+import { ScheduleClosureListItem } from '../dtos/schedule-list-item.dto';
 
 export type ListClosuresInput = ListClosuresDto & {
   tenantId: string;
 };
 
 export interface ListClosuresUseCaseResult {
-  items: Array<{
-    id: string;
-    date: string;
-    startTime: string | null;
-    endTime: string | null;
-    reason: string;
-    notes: string | null;
-    createdBy: string;
-    createdAt: string;
-  }>;
+  items: ScheduleClosureListItem[];
 }
 
 @Injectable()

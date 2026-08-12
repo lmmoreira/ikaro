@@ -16,10 +16,14 @@
         "application/dtos/**",
         "application/ports/**",
         "application/services/**",
-        "application/use-cases/base-*.use-case.ts",
-        "application/use-cases/booking-request.helpers.ts",
-        "application/use-cases/booking-request.types.ts"
-      ]
+        "application/use-cases/base-*.use-case.ts"
+      ],
+      "sameContextAllowedApplicationPathsByContext": {
+        "booking": [
+          "application/use-cases/booking-request.helpers.ts",
+          "application/use-cases/booking-request.types.ts"
+        ]
+      }
     },
     "infrastructure": {
       "frameworkFree": false,
@@ -295,7 +299,6 @@
       "reviewBy": "2026-09-30"
     }
   ],
-  "intentionalErrorMapperGaps": ["EmailDeliveryException"],
   "projects": [
     "apps/backend/tsconfig.json",
     "apps/bff/tsconfig.json",

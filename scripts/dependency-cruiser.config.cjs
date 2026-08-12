@@ -18,6 +18,8 @@ const contexts = fs
   .map((entry) => entry.name);
 const permittedEdges = policy.contextDependencyMatrix.permittedEdges;
 const applicationAllowedPaths = policy.layerTaxonomy.application.sameContextAllowedApplicationPaths;
+const applicationAllowedPathsByContext =
+  policy.layerTaxonomy.application.sameContextAllowedApplicationPathsByContext ?? {};
 const testPath =
   '(^|/)(test|__tests__)/|[.](?:spec|test|integration[.]spec|component[.]spec)[.](?:[cm]?js|[cm]?ts|jsx|tsx)$';
 const workspace = process.env.DEP_CRUISE_WORKSPACE ?? 'backend';
@@ -99,8 +101,9 @@ function applicationBoundaryRules() {
       ],
       pathNot: [
         `^${backendSourcePrefix}contexts/${context}/domain/`,
-        ...applicationAllowedPaths.map((allowedPath) =>
-          policyPathPattern(`${backendSourcePrefix}contexts/${context}/${allowedPath}`),
+        ...[...applicationAllowedPaths, ...(applicationAllowedPathsByContext[context] ?? [])].map(
+          (allowedPath) =>
+            policyPathPattern(`${backendSourcePrefix}contexts/${context}/${allowedPath}`),
         ),
       ],
     },
