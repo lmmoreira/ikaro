@@ -8,7 +8,7 @@ import { z } from 'zod';
 // §7 already applies to knowledgeText: a static bound here must never be the tenant's real cap,
 // or an Ikaro-granted override above this ceiling would be silently unenforceable.
 export const SendChatMessageSchema = z.object({
-  sessionId: z.string().uuid().optional(),
+  sessionId: z.uuid().optional(),
   systemPrompt: z.string().min(1),
   message: z.string().min(1).max(5000),
   // Real visitor IP as resolved by the BFF (getClientIp()) — the backend only ever sees the BFF's

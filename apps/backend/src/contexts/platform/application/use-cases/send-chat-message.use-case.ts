@@ -107,6 +107,11 @@ export class SendChatMessageUseCase {
       const messages = await this.messageRepo.findBySession(input.sessionId, tenantId);
       const maxMessages =
         chatbotSettings.maxMessagesPerConversation ?? DEFAULT_MAX_MESSAGES_PER_CONVERSATION;
+      // Checked before this turn's 2 rows (USER+ASSISTANT) are written, so an odd maxMessages
+      // can be exceeded by 1 on the turn that crosses it — exact for every even value, which is
+      // the only value this cap is ever documented as ("N exchanges" — docs/21 §7). It's an
+      // Ikaro-only override with no API-layer validation, so an odd value is a direct-DB typo,
+      // not a real caller-facing scenario worth adding a pre-write check for.
       if (messages.length >= maxMessages) {
         session.markCapped();
         await this.txManager.run(() => this.sessionRepo.save(session));

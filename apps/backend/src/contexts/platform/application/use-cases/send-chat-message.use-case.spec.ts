@@ -2,6 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { ITracingPort, SpanAttributeValue } from '@ikaro/observability';
 import { Decimal } from 'decimal.js';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
+import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
 import {
   ChatbotMessageBuilder,
   ChatbotProviderBalanceBuilder,
@@ -490,7 +491,7 @@ class CapturingLlmProvider implements ILlmProvider {
 }
 
 function todayInSaoPaulo(): string {
-  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+  return utcDateToLocalDate(new Date(), 'America/Sao_Paulo');
 }
 
 function staleSession(session: ChatbotSession, tenantId: string): ChatbotSession {
