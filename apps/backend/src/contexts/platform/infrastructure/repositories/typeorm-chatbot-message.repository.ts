@@ -28,6 +28,21 @@ export class TypeOrmChatbotMessageRepository implements IChatbotMessageRepositor
     return entities.map((entity) => this.toDomain(entity));
   }
 
+  async findRecentBySession(
+    sessionId: string,
+    tenantId: string,
+    limit: number,
+  ): Promise<ChatbotMessage[]> {
+    const entities = await this.repo.find({
+      where: { sessionId, tenantId },
+      order: { createdAt: 'DESC' },
+      take: limit,
+    });
+    // DESC + LIMIT fetches the most recent `limit` rows only; reverse to restore the oldest-first
+    // order every caller of this port expects (matches findBySession's own ordering).
+    return entities.reverse().map((entity) => this.toDomain(entity));
+  }
+
   // SUM(cost_usd) has no plain repository.sum() shorthand in TypeORM — the QueryBuilder's own
   // SELECT/getRawOne() is the idiomatic way to express one aggregate, not a raw-SQL escape hatch
   // (contrast with shared/infrastructure/outbox's ON CONFLICT/FOR UPDATE SKIP LOCKED cases, which

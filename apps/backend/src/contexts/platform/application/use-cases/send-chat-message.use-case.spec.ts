@@ -22,6 +22,7 @@ import {
   ChatbotDailyCapReachedError,
   ChatbotGlobalSpendLimitReachedError,
   ChatbotMessageCapReachedError,
+  ChatbotMessageTooLongError,
   ChatbotProviderBalanceLowError,
   ChatbotProviderUnavailableError,
   ChatbotSessionNotFoundError,
@@ -94,6 +95,44 @@ describe('SendChatMessageUseCase', () => {
     messageRepo = new InMemoryChatbotMessageRepository();
     balanceRepo = new InMemoryChatbotProviderBalanceRepository();
     tracingPort = new FakeTracingPort();
+  });
+
+  describe('message length (layer 5)', () => {
+    it('throws ChatbotMessageTooLongError once the resolved cap is exceeded, using the tenant override', async () => {
+      const useCase = buildUseCase();
+
+      await expect(
+        useCase.execute(
+          baseInput({
+            userMessage: 'a'.repeat(11),
+            chatbotSettings: { maxMessageLengthChars: 10 },
+          }),
+        ),
+      ).rejects.toThrow(ChatbotMessageTooLongError);
+    });
+
+    it('allows a message under the default cap when no tenant override is set', async () => {
+      const useCase = buildUseCase();
+
+      const result = await useCase.execute(baseInput({ userMessage: 'a'.repeat(999) }));
+
+      expect(result.sessionId).toBeTruthy();
+    });
+
+    it('is checked before any repository read — no session/message row is ever touched for a rejected message', async () => {
+      const useCase = buildUseCase();
+
+      await expect(
+        useCase.execute(
+          baseInput({
+            userMessage: 'a'.repeat(11),
+            chatbotSettings: { maxMessageLengthChars: 10 },
+          }),
+        ),
+      ).rejects.toThrow(ChatbotMessageTooLongError);
+
+      expect(await sessionRepo.countByTenantAndDate(TENANT_ID, todayInSaoPaulo())).toBe(0);
+    });
   });
 
   describe('new session — volume caps (layers 1-3)', () => {
@@ -195,6 +234,44 @@ describe('SendChatMessageUseCase', () => {
       const result = await useCase.execute(baseInput());
       expect(result.sessionId).toBeTruthy();
     });
+
+    it('persists the new session before calling the LLM, not after (PR #360 review — narrows the concurrency-cap race to the LLM call itself, not the full request)', async () => {
+      let sessionCountAtLlmCallTime = -1;
+      const observingProvider: ILlmProvider = {
+        complete: async () => {
+          sessionCountAtLlmCallTime = await sessionRepo.countActiveSince(
+            TENANT_ID,
+            new Date(Date.now() - 2 * 60 * 1000),
+          );
+          return {
+            text: 'ok',
+            inputTokens: 1,
+            outputTokens: 1,
+            modelId: 'fake-model',
+            costUsd: new Decimal(0),
+          };
+        },
+      };
+      const registry = new LlmProviderRegistry(
+        'openrouter',
+        observingProvider,
+        observingProvider,
+        observingProvider,
+      );
+      const useCase = new SendChatMessageUseCase(
+        sessionRepo,
+        messageRepo,
+        balanceRepo,
+        registry,
+        new InMemoryTransactionManager(),
+        fakeConfig(),
+        tracingPort,
+      );
+
+      await useCase.execute(baseInput());
+
+      expect(sessionCountAtLlmCallTime).toBe(1);
+    });
   });
 
   describe('existing session — message cap (layer 4) + history truncation (layer 8)', () => {
@@ -219,12 +296,8 @@ describe('SendChatMessageUseCase', () => {
     it('throws ChatbotMessageCapReachedError and marks the session CAPPED once the message cap is reached', async () => {
       const useCase = buildUseCase();
       const session = new ChatbotSessionBuilder().withTenantId(TENANT_ID).build();
+      for (let i = 0; i < 20; i++) session.recordMessage();
       await sessionRepo.save(session);
-      for (let i = 0; i < 20; i++) {
-        await messageRepo.save(
-          new ChatbotMessageBuilder().withTenantId(TENANT_ID).withSessionId(session.id).build(),
-        );
-      }
 
       await expect(useCase.execute(baseInput({ sessionId: session.id }))).rejects.toThrow(
         ChatbotMessageCapReachedError,
@@ -232,6 +305,35 @@ describe('SendChatMessageUseCase', () => {
 
       const reloaded = await sessionRepo.findById(session.id, TENANT_ID);
       expect(reloaded!.status).toBe('CAPPED');
+    });
+
+    it('rejects a turn that would push messageCount past the cap, even from an odd-configured value (exact ceiling, PR #360 review)', async () => {
+      const useCase = buildUseCase();
+      const session = new ChatbotSessionBuilder().withTenantId(TENANT_ID).build();
+      for (let i = 0; i < 4; i++) session.recordMessage();
+      await sessionRepo.save(session);
+
+      // maxMessagesPerConversation=5 (odd): 4 stored + this turn's 2 would reach 6 > 5 — must
+      // reject here, not silently allow the conversation to overshoot the configured cap by 1.
+      await expect(
+        useCase.execute(
+          baseInput({ sessionId: session.id, chatbotSettings: { maxMessagesPerConversation: 5 } }),
+        ),
+      ).rejects.toThrow(ChatbotMessageCapReachedError);
+    });
+
+    it('allows a turn that lands exactly on the cap', async () => {
+      const useCase = buildUseCase();
+      const session = new ChatbotSessionBuilder().withTenantId(TENANT_ID).build();
+      for (let i = 0; i < 3; i++) session.recordMessage();
+      await sessionRepo.save(session);
+
+      // maxMessagesPerConversation=5: 3 stored + this turn's 2 lands exactly on 5 — must pass.
+      const result = await useCase.execute(
+        baseInput({ sessionId: session.id, chatbotSettings: { maxMessagesPerConversation: 5 } }),
+      );
+
+      expect(result.sessionId).toBe(session.id);
     });
 
     it('sends only the last maxHistoryMessagesSentToLlm messages to the LLM, not the full conversation', async () => {
@@ -283,7 +385,7 @@ describe('SendChatMessageUseCase', () => {
       );
     });
 
-    it('rejects an existing, already-open conversation once the global spend limit trips mid-conversation', async () => {
+    it('does NOT reject an existing, already-open conversation once the global spend limit trips mid-conversation — docs/discovery/CHATBOT/CHATBOT.md §8.9: "already-open conversations remain bounded by their own per-session caps regardless"', async () => {
       const session = new ChatbotSessionBuilder().withTenantId(TENANT_ID).build();
       await sessionRepo.save(session);
       await messageRepo.save(
@@ -291,9 +393,22 @@ describe('SendChatMessageUseCase', () => {
       );
       const useCase = buildUseCase(fakeConfig({ CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD: '25' }));
 
-      await expect(useCase.execute(baseInput({ sessionId: session.id }))).rejects.toThrow(
-        ChatbotGlobalSpendLimitReachedError,
+      const result = await useCase.execute(baseInput({ sessionId: session.id }));
+
+      expect(result.sessionId).toBe(session.id);
+    });
+
+    it('does NOT reject an existing, already-open conversation once the provider balance floor trips mid-conversation', async () => {
+      const session = new ChatbotSessionBuilder().withTenantId(TENANT_ID).build();
+      await sessionRepo.save(session);
+      await balanceRepo.save(
+        new ChatbotProviderBalanceBuilder().withProvider('openrouter').withRemainingUsd(0).build(),
       );
+      const useCase = buildUseCase(fakeConfig({ CHATBOT_MIN_PROVIDER_BALANCE_USD: '2' }));
+
+      const result = await useCase.execute(baseInput({ sessionId: session.id }));
+
+      expect(result.sessionId).toBe(session.id);
     });
 
     it('throws ChatbotProviderBalanceLowError once the resolved provider balance is below the minimum', async () => {
@@ -398,6 +513,73 @@ describe('SendChatMessageUseCase', () => {
       );
 
       await expect(useCase.execute(baseInput())).rejects.toThrow(ChatbotProviderUnavailableError);
+    });
+
+    it('never embeds the raw upstream error text in the public-facing error (PR #360 review — info disclosure)', async () => {
+      const failingProvider: ILlmProvider = {
+        complete: () =>
+          Promise.reject(
+            new Error('OpenRouter request failed: 500 {"error":"invalid api key sk-abc123"}'),
+          ),
+      };
+      const registry = new LlmProviderRegistry(
+        'openrouter',
+        failingProvider,
+        failingProvider,
+        failingProvider,
+      );
+      const useCase = new SendChatMessageUseCase(
+        sessionRepo,
+        messageRepo,
+        balanceRepo,
+        registry,
+        new InMemoryTransactionManager(),
+        fakeConfig(),
+        tracingPort,
+      );
+
+      let caught: unknown;
+      try {
+        await useCase.execute(baseInput());
+      } catch (err) {
+        caught = err;
+      }
+
+      expect(caught).toBeInstanceOf(ChatbotProviderUnavailableError);
+      expect((caught as Error).message).not.toContain('sk-abc123');
+      expect((caught as Error).message).not.toContain('OpenRouter');
+    });
+
+    it('logs the real upstream cause server-side when the LLM call fails', async () => {
+      let logged: Record<string, unknown> | undefined;
+      const writeSpy = jest.spyOn(process.stdout, 'write').mockImplementation((chunk: unknown) => {
+        const parsed = JSON.parse(chunk as string) as Record<string, unknown>;
+        if (parsed['message'] === 'Chatbot LLM provider call failed') logged = parsed;
+        return true;
+      });
+      const failingProvider: ILlmProvider = {
+        complete: () => Promise.reject(new Error('upstream cause detail')),
+      };
+      const registry = new LlmProviderRegistry(
+        'openrouter',
+        failingProvider,
+        failingProvider,
+        failingProvider,
+      );
+      const useCase = new SendChatMessageUseCase(
+        sessionRepo,
+        messageRepo,
+        balanceRepo,
+        registry,
+        new InMemoryTransactionManager(),
+        fakeConfig(),
+        tracingPort,
+      );
+
+      await expect(useCase.execute(baseInput())).rejects.toThrow(ChatbotProviderUnavailableError);
+
+      expect(logged).toBeDefined();
+      writeSpy.mockRestore();
     });
   });
 

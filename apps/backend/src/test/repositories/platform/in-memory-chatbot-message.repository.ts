@@ -16,6 +16,15 @@ export class InMemoryChatbotMessageRepository implements IChatbotMessageReposito
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   }
 
+  async findRecentBySession(
+    sessionId: string,
+    tenantId: string,
+    limit: number,
+  ): Promise<ChatbotMessage[]> {
+    const all = await this.findBySession(sessionId, tenantId);
+    return all.slice(-limit);
+  }
+
   async sumCostUsdSince(since: Date): Promise<Decimal> {
     return [...this.store.values()]
       .filter((m) => m.createdAt >= since)

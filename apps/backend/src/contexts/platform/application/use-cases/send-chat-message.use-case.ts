@@ -18,6 +18,7 @@ import {
   DEFAULT_MAX_CONVERSATIONS_PER_DAY,
   DEFAULT_MAX_CONVERSATIONS_PER_IP_PER_DAY,
   DEFAULT_MAX_HISTORY_MESSAGES_SENT_TO_LLM,
+  DEFAULT_MAX_MESSAGE_LENGTH_CHARS,
   DEFAULT_MAX_MESSAGES_PER_CONVERSATION,
   DEFAULT_MAX_OUTPUT_TOKENS_PER_RESPONSE,
 } from '../../chatbot.constants';
@@ -28,6 +29,7 @@ import {
   ChatbotDailyCapReachedError,
   ChatbotGlobalSpendLimitReachedError,
   ChatbotMessageCapReachedError,
+  ChatbotMessageTooLongError,
   ChatbotProviderBalanceLowError,
   ChatbotProviderUnavailableError,
   ChatbotSessionNotFoundError,
@@ -95,6 +97,22 @@ export class SendChatMessageUseCase {
     const { tenantId, clientIp, chatbotSettings } = input;
     const now = new Date();
     const conversationDate = utcDateToLocalDate(now, input.timezone);
+    const resolvedProviderName = this.llmRegistry.resolveName(chatbotSettings.llmProvider);
+
+    // Layer 5 — checked first, uniformly, before any DB read (docs/14-API_CONTRACTS.md UC-033
+    // A3). The BFF DTO layer (S09) is the primary UX-facing check; this is the real backstop so
+    // this use case is never reachable with an oversized message from any caller — a generous
+    // static Zod ceiling at the backend DTO layer alone left the tenant's real, often-smaller
+    // resolved cap unenforced for any caller reaching this endpoint directly (PR #360 review).
+    const maxMessageLength =
+      chatbotSettings.maxMessageLengthChars ?? DEFAULT_MAX_MESSAGE_LENGTH_CHARS;
+    if (input.userMessage.length > maxMessageLength) {
+      this.rejectAndThrow(
+        'message_too_long',
+        input.sessionId,
+        () => new ChatbotMessageTooLongError(),
+      );
+    }
 
     let session: ChatbotSession;
     let history: ChatTurn[];
@@ -104,15 +122,16 @@ export class SendChatMessageUseCase {
       if (!existing) throw new ChatbotSessionNotFoundError(input.sessionId);
       session = existing;
 
-      const messages = await this.messageRepo.findBySession(input.sessionId, tenantId);
+      // Layer 4, checked against session.messageCount (already-persisted, incrementally
+      // maintained by recordMessage() below) rather than counting live chatbot_messages rows —
+      // avoids loading the whole conversation just to check its length (PR #360 review,
+      // performance), and checks capacity for BOTH rows this turn writes, not just whether the
+      // count is already at cap — exact for every configured value, not just even ones (PR #360
+      // review, correctness: the previous `>= maxMessages` check could overshoot by 1 on an odd
+      // cap, since it only rejected once already at/over cap, not when this turn would cross it).
       const maxMessages =
         chatbotSettings.maxMessagesPerConversation ?? DEFAULT_MAX_MESSAGES_PER_CONVERSATION;
-      // Checked before this turn's 2 rows (USER+ASSISTANT) are written, so an odd maxMessages
-      // can be exceeded by 1 on the turn that crosses it — exact for every even value, which is
-      // the only value this cap is ever documented as ("N exchanges" — docs/21 §7). It's an
-      // Ikaro-only override with no API-layer validation, so an odd value is a direct-DB typo,
-      // not a real caller-facing scenario worth adding a pre-write check for.
-      if (messages.length >= maxMessages) {
+      if (session.messageCount + 2 > maxMessages) {
         session.markCapped();
         await this.txManager.run(() => this.sessionRepo.save(session));
         this.rejectAndThrow('message_cap', session.id, () => new ChatbotMessageCapReachedError());
@@ -120,7 +139,12 @@ export class SendChatMessageUseCase {
 
       const maxHistory =
         chatbotSettings.maxHistoryMessagesSentToLlm ?? DEFAULT_MAX_HISTORY_MESSAGES_SENT_TO_LLM;
-      history = messages.slice(-maxHistory).map(toChatTurn);
+      const recentMessages = await this.messageRepo.findRecentBySession(
+        input.sessionId,
+        tenantId,
+        maxHistory,
+      );
+      history = recentMessages.map(toChatTurn);
     } else {
       const maxPerDay = chatbotSettings.maxConversationsPerDay ?? DEFAULT_MAX_CONVERSATIONS_PER_DAY;
       const dailyCount = await this.sessionRepo.countByTenantAndDate(tenantId, conversationDate);
@@ -153,48 +177,61 @@ export class SendChatMessageUseCase {
         );
       }
 
+      // Platform-wide backstops (layers 9-10) — new-session creation only, per
+      // docs/discovery/CHATBOT/CHATBOT.md §8.9: "already-open conversations remain bounded by
+      // their own per-session caps regardless" (not the global breaker). Checking these on every
+      // message of an already-open conversation contradicted this canonical text (PR #360 review
+      // — reverting the M19-S05 story-discovery decision to check on every message).
+      const globalSpendLimitUsd = new Decimal(
+        this.config.get<string>('CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD', '25'),
+      );
+      const todaySpend = await this.messageRepo.sumCostUsdSince(
+        new Date(startOfDayUTC(todayUTC())),
+      );
+      if (todaySpend.greaterThanOrEqualTo(globalSpendLimitUsd)) {
+        this.rejectAndThrow(
+          'global_spend_limit',
+          undefined,
+          () => new ChatbotGlobalSpendLimitReachedError(),
+        );
+      }
+
+      const balance = await this.balanceRepo.findByProvider(resolvedProviderName);
+      const minBalanceUsd = new Decimal(
+        this.config.get<string>(
+          'CHATBOT_MIN_PROVIDER_BALANCE_USD',
+          DEFAULT_MIN_PROVIDER_BALANCE_USD,
+        ),
+      );
+      if (balance && balance.remainingUsd.lessThan(minBalanceUsd)) {
+        this.rejectAndThrow(
+          'provider_balance_low',
+          undefined,
+          () => new ChatbotProviderBalanceLowError(),
+        );
+      }
+
       session = ChatbotSession.create({ tenantId, clientIp, conversationDate });
       history = [];
     }
 
-    // Platform-wide backstops (layers 9-10) — checked on every message, not just new-session
-    // creation: UC-033 A6 is explicit these can trip "between messages of an already-open
-    // conversation," and only gating new sessions would let an already-open conversation keep
-    // spending after the breaker trips, defeating the "bounds the sum of all of them" purpose
-    // docs/discovery/CHATBOT/CHATBOT.md §8 describes (M19-S05 story-discovery, 2026-08-12).
-    const globalSpendLimitUsd = new Decimal(
-      this.config.get<string>('CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD', '25'),
-    );
-    const todaySpend = await this.messageRepo.sumCostUsdSince(new Date(startOfDayUTC(todayUTC())));
-    if (todaySpend.greaterThanOrEqualTo(globalSpendLimitUsd)) {
-      this.rejectAndThrow(
-        'global_spend_limit',
-        session.id,
-        () => new ChatbotGlobalSpendLimitReachedError(),
-      );
-    }
-
-    const resolvedProviderName = this.llmRegistry.resolveName(chatbotSettings.llmProvider);
-    const balance = await this.balanceRepo.findByProvider(resolvedProviderName);
-    const minBalanceUsd = new Decimal(
-      this.config.get<string>('CHATBOT_MIN_PROVIDER_BALANCE_USD', DEFAULT_MIN_PROVIDER_BALANCE_USD),
-    );
-    if (balance && balance.remainingUsd.lessThan(minBalanceUsd)) {
-      this.rejectAndThrow(
-        'provider_balance_low',
-        session.id,
-        () => new ChatbotProviderBalanceLowError(),
-      );
-    }
+    // Reserve this turn's 2 rows (persist the session with its updated messageCount/
+    // lastMessageAt) BEFORE the LLM call, not after. Narrows the concurrent-write race on layers
+    // 3 and 4 to the same DB-round-trip-sized window docs/discovery/CHATBOT/CHATBOT.md §8 already
+    // accepts for layers 1-2, instead of the full LLM-call-latency window a concurrent burst
+    // could previously exploit (PR #360 review finding — the session/messageCount used to be
+    // written only in the final save alongside the message rows, after the LLM call returned).
+    session.recordMessage();
+    session.recordMessage();
+    await this.txManager.run(() => this.sessionRepo.save(session));
 
     const provider = this.llmRegistry.resolve(chatbotSettings.llmProvider);
     const maxOutputTokens =
       chatbotSettings.maxOutputTokensPerResponse ?? DEFAULT_MAX_OUTPUT_TOKENS_PER_RESPONSE;
 
     // Cross-service network I/O — never inside txManager.run() (PR #267 precedent,
-    // docs/ENGINEERING_RULES.md § Transactions). All reads above already happened; the two
-    // message saves + session save below are the only writes, batched in one transaction after
-    // this call returns.
+    // docs/ENGINEERING_RULES.md § Transactions). All reads/reservation writes above already
+    // happened; the two message saves below are the only write left, after this call returns.
     let result: ChatCompletionResult;
     try {
       result = await provider.complete({
@@ -205,12 +242,19 @@ export class SendChatMessageUseCase {
         model: chatbotSettings.llmModel,
       });
     } catch (err: unknown) {
+      // The real cause is logged server-side only — never embedded in the public Problem Details
+      // response, which could otherwise leak upstream vendor diagnostic details (PR #360 review).
+      this.logger.error(
+        'Chatbot LLM provider call failed',
+        err instanceof Error ? err.stack : undefined,
+        { sessionId: session.id, provider: resolvedProviderName },
+      );
       this.tracingPort.setActiveSpanAttributes({
         'chatbot.session_id': session.id,
         'chatbot.provider': resolvedProviderName,
         'chatbot.cap_rejected': 'provider_unavailable',
       });
-      throw new ChatbotProviderUnavailableError(err instanceof Error ? err.message : String(err));
+      throw new ChatbotProviderUnavailableError();
     }
 
     const userMessageRow = ChatbotMessage.create({
@@ -233,8 +277,6 @@ export class SendChatMessageUseCase {
       modelId: result.modelId,
       costUsd: result.costUsd,
     });
-    session.recordMessage();
-    session.recordMessage();
 
     this.tracingPort.setActiveSpanAttributes({
       'chatbot.session_id': session.id,
@@ -245,7 +287,6 @@ export class SendChatMessageUseCase {
     });
 
     await this.txManager.run(async () => {
-      await this.sessionRepo.save(session);
       await this.messageRepo.save(userMessageRow);
       await this.messageRepo.save(assistantMessageRow);
     });

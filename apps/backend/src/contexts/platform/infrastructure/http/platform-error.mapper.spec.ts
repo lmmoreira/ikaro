@@ -168,7 +168,7 @@ describe('mapPlatformError', () => {
   });
 
   it('maps ChatbotProviderUnavailableError to 503 with code', () => {
-    const err = call(new ChatbotProviderUnavailableError('timeout'));
+    const err = call(new ChatbotProviderUnavailableError());
     expect(err.getStatus()).toBe(HttpStatus.SERVICE_UNAVAILABLE);
     expect(err.getResponse()).toMatchObject({
       code: PlatformErrorCode.CHATBOT_PROVIDER_UNAVAILABLE,

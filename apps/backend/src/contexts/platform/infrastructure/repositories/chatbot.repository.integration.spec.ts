@@ -291,6 +291,26 @@ describe('Chatbot repositories (integration)', () => {
       expect(messages.map((m) => m.content)).toEqual(['first', 'second']);
     });
 
+    it('findRecentBySession returns only the last N messages, ordered oldest first (PR #360 review — SQL LIMIT, not fetch-all-then-slice)', async () => {
+      const tenant = new TenantBuilder().withSlug('lavacar-find-recent-session').build();
+      await tenantRepo.save(tenant);
+      const session = new ChatbotSessionBuilder().withTenantId(tenant.id).build();
+      await sessionRepo.save(session);
+
+      for (let i = 0; i < 5; i++) {
+        await messageRepo.save(
+          new ChatbotMessageBuilder()
+            .withTenantId(tenant.id)
+            .withSessionId(session.id)
+            .withContent(`message ${i}`)
+            .build(),
+        );
+      }
+
+      const recent = await messageRepo.findRecentBySession(session.id, tenant.id, 2);
+      expect(recent.map((m) => m.content)).toEqual(['message 3', 'message 4']);
+    });
+
     // sumCostUsdSince is deliberately platform-wide, not tenant-scoped (docs/discovery/CHATBOT/CHATBOT.md
     // §8's global spend breaker) — so `since` is captured narrowly, right before this test's own
     // inserts, rather than an arbitrary window. Capturing it any earlier would pick up cost from

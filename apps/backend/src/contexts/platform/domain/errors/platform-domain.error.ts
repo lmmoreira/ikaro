@@ -232,14 +232,35 @@ export class ChatbotProviderBalanceLowError extends PlatformDomainError {
   }
 }
 
-/** UC-033 A4 — the LLM provider call itself failed (timeout, upstream error, malformed response). Mapped to 503, distinct from the 429 cap-rejection family above. */
+/**
+ * UC-033 A4 — the LLM provider call itself failed (timeout, upstream error, malformed response).
+ * Mapped to 503, distinct from the 429 cap-rejection family above. Deliberately carries a fixed,
+ * generic public message — never the real upstream error text, which can include vendor-specific
+ * diagnostic details (PR #360 review finding). The real cause is logged server-side by the
+ * use case before this is thrown, not embedded in the public Problem Details response.
+ */
 export class ChatbotProviderUnavailableError extends PlatformDomainError {
-  constructor(cause: string) {
+  constructor() {
     super(
-      `Chatbot LLM provider call failed: ${cause}`,
+      'The chat assistant is temporarily unavailable',
       PlatformErrorCode.CHATBOT_PROVIDER_UNAVAILABLE,
     );
     this.name = 'ChatbotProviderUnavailableError';
+  }
+}
+
+/**
+ * UC-033 A3 — resolved-cap message-length enforcement (layer 5), same
+ * `tenant.settings.chatbot?.X ?? DEFAULT_X` resolution as every other cap. The BFF DTO layer
+ * (S09) is the primary UX-facing check; this is the real backstop so the use case is never
+ * reachable with an oversized message from any caller (PR #360 review finding — a generous
+ * static Zod ceiling at the backend DTO layer alone left the tenant's real, often-smaller cap
+ * unenforced for any caller that reaches this endpoint directly).
+ */
+export class ChatbotMessageTooLongError extends PlatformDomainError {
+  constructor() {
+    super('Message exceeds the maximum allowed length', PlatformErrorCode.CHATBOT_MESSAGE_TOO_LONG);
+    this.name = 'ChatbotMessageTooLongError';
   }
 }
 

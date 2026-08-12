@@ -131,6 +131,7 @@
   "PLATFORM_CHATBOT_GLOBAL_SPEND_LIMIT_REACHED": "The chat assistant is temporarily unavailable. Please try again later.",
   "PLATFORM_CHATBOT_PROVIDER_BALANCE_LOW": "The chat assistant is temporarily unavailable. Please try again later.",
   "PLATFORM_CHATBOT_PROVIDER_UNAVAILABLE": "The chat assistant could not respond right now. Please try again shortly.",
+  "PLATFORM_CHATBOT_MESSAGE_TOO_LONG": "Your message is too long. Please shorten it and try again.",
   "PLATFORM_CHATBOT_SESSION_NOT_FOUND": "This conversation could not be found.",
   "GENERIC_FIELD_REQUIRED": "This field is required.",
   "GENERIC_VALUE_TOO_SHORT": "This value must be at least {minimum} characters.",

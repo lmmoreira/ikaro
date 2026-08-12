@@ -144,6 +144,8 @@ export const PlatformErrorCode = {
   CHATBOT_PROVIDER_BALANCE_LOW: 'PLATFORM_CHATBOT_PROVIDER_BALANCE_LOW',
   // UC-033 A4 (LLM provider call failed) — 503, distinct from the 429 cap-rejection family above.
   CHATBOT_PROVIDER_UNAVAILABLE: 'PLATFORM_CHATBOT_PROVIDER_UNAVAILABLE',
+  // UC-033 A3 (message exceeds resolved maxMessageLengthChars) — 400, PR #360 review finding.
+  CHATBOT_MESSAGE_TOO_LONG: 'PLATFORM_CHATBOT_MESSAGE_TOO_LONG',
   // docs/14-API_CONTRACTS.md Chatbot Widget: "404 — ... sessionId doesn't belong to this tenant".
   CHATBOT_SESSION_NOT_FOUND: 'PLATFORM_CHATBOT_SESSION_NOT_FOUND',
 } as const;
