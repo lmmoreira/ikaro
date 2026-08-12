@@ -177,16 +177,8 @@ describe('Chatbot repositories (integration)', () => {
     });
 
     it('a later failure overwrites an earlier success on the same provider row, and vice versa', async () => {
-      await balanceRepo.recordCallOutcome(
-        'openrouter-overwrite-test',
-        'SUCCESS',
-        new Date(),
-      );
-      await balanceRepo.recordCallOutcome(
-        'openrouter-overwrite-test',
-        'FAILURE',
-        new Date(),
-      );
+      await balanceRepo.recordCallOutcome('openrouter-overwrite-test', 'SUCCESS', new Date());
+      await balanceRepo.recordCallOutcome('openrouter-overwrite-test', 'FAILURE', new Date());
 
       const found = await balanceRepo.findByProvider('openrouter-overwrite-test');
       expect(found!.lastFailureAt).toBeInstanceOf(Date);
