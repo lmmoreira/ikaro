@@ -248,24 +248,41 @@ Also added, incidental to fix #2: `IChatbotMessageRepository.findRecentBySession
 ### M19-S06 — Chatbot availability status use case (UC-034)
 
 **Agent:** `backend-ts`
-**Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` UC-034, `docs/discovery/CHATBOT/CHATBOT.md` § 7 (Widget States), § 8.10 (balance floor)
+**Complexity:** L (bumped from M during story-discovery, 2026-08-12 — see Resolved note below)
+**Docs to load:** `docs/04-USE_CASES.md` UC-034, `docs/discovery/CHATBOT/CHATBOT.md` § 7 (Widget States), § 8.10 (balance floor), `docs/13-DATABASE_SCHEMA.md` § `platform.chatbot_provider_balance`, `docs/02-DOMAIN_MODEL.md` § `ChatbotProviderBalance`
 
 **Description:**
-`GetChatbotStatusUseCase` evaluating the 5 "not available" conditions per UC-034, for the tenant resolved from the request: tenant daily cap already exhausted, tenant concurrency cap already exhausted, resolved LLM provider (`tenant override ?? platform default`) failing a health check, global daily spend breaker already tripped, resolved provider's balance floor already tripped (`chatbot_provider_balance`, a local lookup — never a live external call in this path, per S08's periodic poll). Pure read, no writes.
+`GetChatbotStatusUseCase` evaluating the 5 "not available" conditions per UC-034, for the tenant resolved from the request: tenant daily cap already exhausted, tenant concurrency cap already exhausted, resolved LLM provider (`tenant override ?? platform default`) failing a health check, global daily spend breaker already tripped, resolved provider's balance floor already tripped (`chatbot_provider_balance`, a local lookup — never a live external call in this path, per S08's periodic poll). Pure read, no writes of its own.
 
-**Open design detail, deliberately not resolved here** — the exact provider health-check mechanism (a lightweight cached "last successful call" timestamp updated by S05, vs. a dedicated cheap ping) isn't specified in `CHATBOT.md` at this level of detail. Resolve at `/story-discovery` time, not by guessing here.
+Backend controller: extend the existing `ChatbotController` (`platform/chatbot`, built in S05) with `GET status` — same bare-route, no-`/public/`-prefix, `RequestContext`-sourced-`tenantId`/`settings.chatbot` pattern S05 already established. No new controller class.
 
-**Note (found during M19-S05 story-discovery, 2026-08-12; corrected 2026-08-12 per CodeRabbit review on PR #360):** like S05, this story's own text names only a use-case class with no backend HTTP controller/route — the same gap S05 had. `docs/14-API_CONTRACTS.md`'s `GET /public/platform/chatbot/status` is the BFF-facing path; the **backend** endpoint this story adds needs a real HTTP route for S09's BFF to call, same as S05's backend route (`platform/chatbot/messages` — no `/public/` prefix; that convention is BFF-only, per S05's `ChatbotController`). Scope this story's own controller the same way S05 did — see S05's Description for the `ServiceController`/`TenantSettingsController` precedent — when this story reaches `/story-discovery`, don't re-derive it from scratch.
+**Resolved (M19-S06 story-discovery, 2026-08-12) — the provider health-check mechanism (condition c), the one open design detail this story started with:**
+
+A dedicated live ping was ruled out — it would add real external latency/cost to every hotsite page load platform-wide (every widget mount, not just real chats), the exact hot-path cost `CHATBOT.md` §8.10 already explicitly avoids for the balance-floor check one condition over. Instead: extend `chatbot_provider_balance` (already read for condition e) with `last_success_at`/`last_failure_at`, written by `SendChatMessageUseCase` (S05, already merged — this story adds two write calls to its existing single success path and existing single `catch` block around `provider.complete()`) as a passive side effect of real chat traffic. `GetChatbotStatusUseCase` reads the same row already fetched for the balance-floor check — one query serves both conditions.
+
+**Availability rule — a half-open/circuit-breaker cooldown, not a plain "last event wins" comparison:** unhealthy only if `last_failure_at` is more recent than `last_success_at` **and** within `CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES` (new env var, default `5`) of now. A plain "most recent event wins" rule was considered and rejected during discovery: since `available: false` means the widget never renders at all (UC-034 A1), a single transient failure with no cooldown would permanently lock the widget dark — no visitor could ever attempt the message that would produce the success needed to clear it. The cooldown gives the next real visitor's attempt, after the window elapses, the chance to either confirm recovery (fresh `last_success_at`) or restart the wait (fresh `last_failure_at`). Contrast with the other 4 conditions, which all self-heal on a clock with no visitor dependency: (a)/(b) are rolling time-windowed `COUNT`s, (d) resets at UTC midnight, (e) recovers via S08's independently-scheduled poll (or the manual `POST /cron/chatbot-balance-poll` trigger) regardless of widget state — (c) is the only condition with no independent signal source, which is why it alone needed this cooldown.
+
+**Critical correctness requirement, not implementation detail:** the health write must happen **only** inside the `provider.complete()` `catch` block already in `SendChatMessageUseCase` — never in any of the cap-rejection paths (`rejectAndThrow()` for daily/IP/concurrency/message/length caps, global spend breaker, balance floor), all of which already throw earlier in that method, before the `try`/`catch` around the LLM call is ever reached. One tenant hitting its own daily cap must never flip every tenant's widget dark. See `docs/13-DATABASE_SCHEMA.md`'s updated `chatbot_provider_balance` section for the full write-discipline note (partial-column upsert only, e.g. TypeORM `repository.upsert(entityLike, ['provider'])` — never `Repository.save()` on a fully-populated entity, which would let S08's independent balance-poll writer or S06/S05's health writer silently clobber the other's columns).
+
+Migration: `apps/backend/src/contexts/platform/infrastructure/migrations/<timestamp>-AddHealthColumnsToChatbotProviderBalance.ts` (next timestamp after the current highest, `1748400000011` as of this writing — verify again at implementation time) — `ALTER COLUMN remaining_usd DROP NOT NULL`, `ALTER COLUMN checked_at DROP NOT NULL`, `ADD COLUMN last_success_at TIMESTAMPTZ NULL`, `ADD COLUMN last_failure_at TIMESTAMPTZ NULL`. Pure additive/relaxing change — no backfill, no data loss risk (S08 isn't built yet, so no real poll data exists in any environment to migrate).
+
+**Note (found during M19-S05 story-discovery, 2026-08-12; corrected 2026-08-12 per CodeRabbit review on PR #360):** like S05, this story's own text originally named only a use-case class with no backend HTTP controller/route — the same gap S05 had. Resolved above (extend S05's existing `ChatbotController`).
 
 **Acceptance Criteria:**
 - [ ] All 5 conditions independently tested — each has its own test case proving it correctly flips `available: false`
-- [ ] Resolves the tenant's actual provider (`tenant override ?? platform default`) before checking the balance floor — a tenant overridden to Anthropic isn't blocked by OpenRouter running low
-- [ ] Pure read, no writes, no side effects
+- [ ] Resolves the tenant's actual provider (`tenant override ?? platform default`) before checking the balance floor and health — a tenant overridden to Anthropic isn't blocked by OpenRouter running low or erroring
+- [ ] Health rule test: `last_failure_at` more recent than `last_success_at` but outside the cooldown window → available (cooldown elapsed, half-open retry allowed)
+- [ ] Health rule test: `last_failure_at` more recent than `last_success_at` and within the cooldown window → unavailable
+- [ ] Health rule test: `last_success_at` more recent than `last_failure_at` (of any age) → available
+- [ ] Negative test: a cap/volume rejection (any of daily/IP/concurrency/message/length/global-spend/balance-floor) in `SendChatMessageUseCase` does **not** write `last_failure_at` — only a genuine `provider.complete()` failure does
+- [ ] `SendChatMessageUseCase`'s two new write call sites (success, failure) use a partial-column upsert — a test or code-review-verifiable fact that a balance-only write (S08, when built) and a health-only write can never clobber each other's columns
+- [ ] Migration creates the 2 new nullable columns and relaxes `remaining_usd`/`checked_at` to nullable; runs cleanly against a fresh DB and the existing seeded dev DB; registered in `integration-global-setup.ts`
+- [ ] `docs/13-DATABASE_SCHEMA.md`'s `chatbot_provider_balance` table already updated to match (done during this story's discovery — verify still accurate at implementation time)
+- [ ] Pure read in `GetChatbotStatusUseCase` itself — no writes, no side effects (the two new writes live in `SendChatMessageUseCase`, not here)
 - [ ] Coverage ≥80%; `tsc --noEmit`, lint, tests green
 
 **Dependencies:** S01, S02, S03, S04.
-**New env var:** `CHATBOT_MIN_PROVIDER_BALANCE_USD` (default `2`, confirmed value — not a placeholder).
+**New env var:** `CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES` (default `5`). Correction: `CHATBOT_MIN_PROVIDER_BALANCE_USD` was previously listed here as this story's new env var, but it already exists — S05 added it in anticipation of this story (`.env.example:112`, already read by `SendChatMessageUseCase`'s own balance-floor check). Nothing to add for it.
 
 ---
 
@@ -303,9 +320,11 @@ Mirrors the loyalty-expiry cron pattern exactly (`docs/04-USE_CASES.md` UC-016b,
 **Description:**
 Same cron pattern as S07. `POST /cron/chatbot-balance-poll`, Cloud Scheduler every 15 minutes, new Pub/Sub topic `ikaro-cron-chatbot-balance-poll`. Job calls OpenRouter's `GET /api/v1/credits` (reuse S02's adapter's HTTP client, or a small dedicated client — implementer's choice) and upserts `chatbot_provider_balance` (`provider='openrouter'`, `remaining_usd`, `checked_at=now()`). On API failure: log a warning, leave the existing row unchanged — never throw or crash the job (staleness in either direction is safe at this cost scale, per `CHATBOT.md` §8.10).
 
+**Write discipline (S06 precedent, added during M19-S06 story-discovery, 2026-08-12):** by the time this story is implemented, `chatbot_provider_balance` also carries `last_success_at`/`last_failure_at` (S06's provider-health columns, written by `SendChatMessageUseCase` on every real chat message). This job's write must use a partial-column upsert touching only `remaining_usd`/`checked_at` (e.g. TypeORM `repository.upsert({ provider, remainingUsd, checkedAt }, ['provider'])`) — never `Repository.save()` on a fully-populated entity object, which would null out the health columns on every 15-minute poll. See `docs/13-DATABASE_SCHEMA.md`'s `chatbot_provider_balance` section for the full rationale.
+
 **Acceptance Criteria:**
 - [ ] Job calls OpenRouter's real credits API in production; fully stubbed in all automated tests
-- [ ] Upserts (never appends) the single `chatbot_provider_balance` row for `provider='openrouter'`
+- [ ] Upserts (never appends) the single `chatbot_provider_balance` row for `provider='openrouter'`, via a partial-column upsert that never touches `last_success_at`/`last_failure_at` (S06's health columns) — a test proving an existing row's health columns survive a balance poll unchanged
 - [ ] API failure logs a warning and leaves the existing row unchanged — verified by a test simulating a failed call
 - [ ] **Same tracing-inheritance verification as S07** — confirm this new trigger branch isn't a repeat of the documented sibling-dispatch-branch gap (M17-S34 precedent)
 - [ ] Terraform: `google_pubsub_topic` + `google_cloud_scheduler_job` (`*/15 * * * *`) per `docs/14-API_CONTRACTS.md`'s spec (or deferred to S14)

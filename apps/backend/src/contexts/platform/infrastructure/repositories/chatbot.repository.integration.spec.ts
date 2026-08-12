@@ -115,22 +115,85 @@ describe('Chatbot repositories (integration)', () => {
       .withProvider('openrouter-integration-test')
       .withRemainingUsd(18.42)
       .build();
-    await balanceRepo.save(balance);
+    await balanceRepo.saveBalance(balance);
 
     const found = await balanceRepo.findByProvider('openrouter-integration-test');
     expect(found).not.toBeNull();
     expect(found!.provider).toBe('openrouter-integration-test');
-    expect(found!.remainingUsd.toNumber()).toBe(18.42);
+    expect(found!.remainingUsd!.toNumber()).toBe(18.42);
 
     // A second upsert replaces the single row for the same provider — no history kept
     const refreshed = new ChatbotProviderBalanceBuilder()
       .withProvider('openrouter-integration-test')
       .withRemainingUsd(12.1)
       .build();
-    await balanceRepo.save(refreshed);
+    await balanceRepo.saveBalance(refreshed);
 
     const current = await balanceRepo.findByProvider('openrouter-integration-test');
-    expect(current!.remainingUsd.toNumber()).toBe(12.1);
+    expect(current!.remainingUsd!.toNumber()).toBe(12.1);
+  });
+
+  // M19-S06 — proves the partial-column upsert really holds against real Postgres, not just the
+  // in-memory test double: two independent writers (S08's balance poll, S05/S06's health signal)
+  // sharing one row by provider must never clobber each other's columns.
+  describe('chatbot provider balance — partial-column write discipline (M19-S06)', () => {
+    it('recordCallOutcome does not clobber an existing balance row written by saveBalance', async () => {
+      await balanceRepo.saveBalance(
+        new ChatbotProviderBalanceBuilder()
+          .withProvider('openrouter-partial-write-test')
+          .withRemainingUsd(9.99)
+          .build(),
+      );
+
+      await balanceRepo.recordCallOutcome('openrouter-partial-write-test', 'SUCCESS', new Date());
+
+      const found = await balanceRepo.findByProvider('openrouter-partial-write-test');
+      expect(found!.remainingUsd!.toNumber()).toBe(9.99);
+      expect(found!.lastSuccessAt).toBeInstanceOf(Date);
+    });
+
+    it('saveBalance does not clobber existing health columns written by recordCallOutcome', async () => {
+      await balanceRepo.recordCallOutcome('anthropic-partial-write-test', 'FAILURE', new Date());
+
+      await balanceRepo.saveBalance(
+        new ChatbotProviderBalanceBuilder()
+          .withProvider('anthropic-partial-write-test')
+          .withRemainingUsd(5)
+          .build(),
+      );
+
+      const found = await balanceRepo.findByProvider('anthropic-partial-write-test');
+      expect(found!.remainingUsd!.toNumber()).toBe(5);
+      expect(found!.lastFailureAt).toBeInstanceOf(Date);
+    });
+
+    it('recordCallOutcome creates a health-only row (no balance) for a provider that has never been polled', async () => {
+      await balanceRepo.recordCallOutcome('openai-health-only-test', 'SUCCESS', new Date());
+
+      const found = await balanceRepo.findByProvider('openai-health-only-test');
+      expect(found!.remainingUsd).toBeNull();
+      expect(found!.checkedAt).toBeNull();
+      expect(found!.lastSuccessAt).toBeInstanceOf(Date);
+    });
+
+    it('a later failure overwrites an earlier success on the same provider row, and vice versa', async () => {
+      await balanceRepo.recordCallOutcome(
+        'openrouter-overwrite-test',
+        'SUCCESS',
+        new Date(),
+      );
+      await balanceRepo.recordCallOutcome(
+        'openrouter-overwrite-test',
+        'FAILURE',
+        new Date(),
+      );
+
+      const found = await balanceRepo.findByProvider('openrouter-overwrite-test');
+      expect(found!.lastFailureAt).toBeInstanceOf(Date);
+      // The success column is untouched by the later failure write — its own separate column —
+      // still holding the first call's timestamp, not null and not overwritten.
+      expect(found!.lastSuccessAt).toBeInstanceOf(Date);
+    });
   });
 
   it('multi-tenant isolation — Tenant B cannot find Tenant A chatbot session', async () => {

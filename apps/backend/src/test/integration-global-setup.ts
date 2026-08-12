@@ -42,6 +42,7 @@ import { AddSeoToHotsiteConfigs1748400000001 } from '../contexts/platform/infras
 import { AddVersionToHotsiteConfigs1748400000009 } from '../contexts/platform/infrastructure/migrations/1748400000009-AddVersionToHotsiteConfigs';
 import { CreateChatbotTables1748400000010 } from '../contexts/platform/infrastructure/migrations/1748400000010-CreateChatbotTables';
 import { AddCostUsdToChatbotMessages1748400000011 } from '../contexts/platform/infrastructure/migrations/1748400000011-AddCostUsdToChatbotMessages';
+import { AddHealthColumnsToChatbotProviderBalance1748400000012 } from '../contexts/platform/infrastructure/migrations/1748400000012-AddHealthColumnsToChatbotProviderBalance';
 import { StaffEntity } from '../contexts/staff/infrastructure/entities/staff.entity';
 import { CreateStaffStaff1716600000002 } from '../contexts/staff/infrastructure/migrations/1716600000002-CreateStaffStaff';
 import { AddNameToStaff1716600000003 } from '../contexts/staff/infrastructure/migrations/1716600000003-AddNameToStaff';
@@ -119,6 +120,7 @@ export default async function globalSetup(): Promise<void> {
       AddVersionToHotsiteConfigs1748400000009,
       CreateChatbotTables1748400000010,
       AddCostUsdToChatbotMessages1748400000011,
+      AddHealthColumnsToChatbotProviderBalance1748400000012,
     ],
     synchronize: false,
     migrationsRun: false,

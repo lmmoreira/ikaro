@@ -1,4 +1,4 @@
-# Platform — Chatbot (UC-033)
+# Platform — Chatbot (UC-033, UC-034)
 # Guest-only — no actor. TenantContext is populated from X-Tenant-ID (set by the BFF).
 #
 # Prerequisites:
@@ -10,6 +10,30 @@
 # REST Client environment: select "local" in VS Code status bar
 
 @baseUrl = {{backendUrl}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STATUS (UC-034) — pure read, always 200 { available: boolean }
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Available — no cap/health/spend/balance condition currently tripped
+GET {{baseUrl}}/platform/chatbot/status
+X-Tenant-ID: {{tenantId}}
+
+###
+
+### Not available — condition (a): send the same "31+ times" burst from the 429 case below first,
+### then re-run this — daily cap already exhausted means status flips to { available: false }
+GET {{baseUrl}}/platform/chatbot/status
+X-Tenant-ID: {{tenantId}}
+
+###
+
+### Not available — condition (c): trigger a real provider failure first (unset/invalid
+### OPENROUTER_API_KEY, see the 503 case below), then re-run this within
+### CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES (default 5) — half-open cooldown means status stays
+### { available: false } until either the cooldown elapses or a subsequent real call succeeds
+GET {{baseUrl}}/platform/chatbot/status
+X-Tenant-ID: {{tenantId}}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH

@@ -879,19 +879,28 @@ ChatbotMessage {
 ---
 
 #### **Aggregate: ChatbotProviderBalance** (Root Entity)
-Single-row-per-provider prepaid balance, upserted by a periodic poll job (UC-036) against the provider's own account API (e.g. OpenRouter's `GET /api/v1/credits`). Read by UC-034's availability pre-flight check as a trivial local lookup — never a live external call in that hot path.
+Single-row-per-provider, platform-wide operational state for an LLM provider — two independent facts, written by two independent mechanisms, read together by UC-034's pre-flight check:
+- **Balance** (`remainingUsd`/`checkedAt`) — upserted by S08's periodic poll job (UC-036) against the provider's own account API (e.g. OpenRouter's `GET /api/v1/credits`). Only OpenRouter has a prepaid-balance concept; Anthropic/OpenAI rows never get these fields populated.
+- **Health** (`lastSuccessAt`/`lastFailureAt`) — upserted by `SendChatMessageUseCase` (S05/S06) as a side effect of real chat traffic: every real `ILlmProvider.complete()` call outcome stamps one or the other. Not a poll — a passive signal derived from actual usage, never from a cap/volume rejection.
+
+Both facts are a trivial local lookup for UC-034's pre-flight check — never a live external call in that hot path, for either one.
 
 **Properties:**
 ```
 ChatbotProviderBalance {
-  provider:      String        -- e.g. 'openrouter'
-  remainingUsd:  Decimal
-  checkedAt:     DateTime
+  provider:       String            -- e.g. 'openrouter'
+  remainingUsd:   Decimal | null    -- null until S08's first poll; always null for providers with no prepaid-balance concept
+  checkedAt:      DateTime | null
+  lastSuccessAt:  DateTime | null   -- most recent real complete() success for this provider, across any tenant
+  lastFailureAt:  DateTime | null   -- most recent real complete() failure — never set by a cap/volume rejection, only a genuine provider-call failure
 }
 ```
 
 **Methods:**
-- `static upsert(provider, remainingUsd)` — replaces the single row for that provider; no history kept (this is a live-status cache, not an audit log).
+- `static upsert(provider, remainingUsd)` — S08's balance write.
+- A corresponding health-write method (S06's own call on exact signature) — both persisted via a **partial-column upsert only** (`docs/13-DATABASE_SCHEMA.md`'s "Write discipline" note), never a full-row replace, so the two independent writers can never clobber each other's columns.
+
+**Availability rule (UC-034 condition c):** the provider is unhealthy only if `lastFailureAt` is more recent than `lastSuccessAt` **and** within `CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES` (default `5`) of now — a half-open/circuit-breaker cooldown, not a permanent trip, so a single transient failure can't leave the widget dark forever (`available: false` means the widget never renders at all, so without a cooldown no visitor could ever produce the success that would clear it).
 
 ---
 

@@ -21,6 +21,7 @@ import {
   DEFAULT_MAX_MESSAGE_LENGTH_CHARS,
   DEFAULT_MAX_MESSAGES_PER_CONVERSATION,
   DEFAULT_MAX_OUTPUT_TOKENS_PER_RESPONSE,
+  DEFAULT_MIN_PROVIDER_BALANCE_USD,
 } from '../../chatbot.constants';
 import { ChatbotMessage } from '../../domain/chatbot-message.aggregate';
 import { ChatbotSession } from '../../domain/chatbot-session.aggregate';
@@ -51,12 +52,6 @@ import {
   LLM_PROVIDER_REGISTRY,
   LlmProviderRegistry,
 } from '../services/llm-provider-registry.service';
-
-// docs/discovery/CHATBOT/CHATBOT.md §8.10 — proposed default, confirmed during M19-S04
-// story-discovery. Read as a plain env var (fast to bump during an incident, same reasoning as
-// CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD below) once S06 builds the balance-floor pre-flight check;
-// this use case only needs the already-polled chatbot_provider_balance row (S08), not the env var.
-const DEFAULT_MIN_PROVIDER_BALANCE_USD = '2';
 
 // Cap layer 3's live-ness proxy window (docs/discovery/CHATBOT/CHATBOT.md §8): a session counts
 // as concurrently active if it received a message in the last 2 minutes. Not tenant-configurable.
@@ -138,7 +133,13 @@ export class SendChatMessageUseCase {
       // message/daily/IP/concurrency budgets must not stay burned by a provider outage
       // (PR #360 review).
       session.releaseMessages(2);
-      await this.txManager.run(() => this.sessionRepo.save(session));
+      await this.txManager.run(async () => {
+        await this.sessionRepo.save(session);
+        // UC-034 condition (c)'s only failure signal — a genuine provider.complete() failure,
+        // never a cap/volume rejection (those all throw earlier in this method, before this
+        // catch block is ever reached). docs/13-DATABASE_SCHEMA.md's "Write discipline" note.
+        await this.balanceRepo.recordCallOutcome(resolvedProviderName, 'FAILURE', new Date());
+      });
       this.handleProviderFailure(err, session, resolvedProviderName);
     }
 
@@ -174,6 +175,8 @@ export class SendChatMessageUseCase {
     await this.txManager.run(async () => {
       await this.messageRepo.save(userMessageRow);
       await this.messageRepo.save(assistantMessageRow);
+      // UC-034 condition (c)'s success signal — see the matching failure-path write above.
+      await this.balanceRepo.recordCallOutcome(resolvedProviderName, 'SUCCESS', new Date());
     });
 
     return { sessionId: session.id, reply: result.text };
@@ -308,7 +311,10 @@ export class SendChatMessageUseCase {
     const minBalanceUsd = new Decimal(
       this.config.get<string>('CHATBOT_MIN_PROVIDER_BALANCE_USD', DEFAULT_MIN_PROVIDER_BALANCE_USD),
     );
-    if (balance?.remainingUsd.lessThan(minBalanceUsd)) {
+    // remainingUsd is null until S08's first poll for this provider, and always null for a
+    // provider with no prepaid-balance concept (Anthropic/OpenAI) — treated as "not tripped",
+    // never as a comparison failure.
+    if (balance?.remainingUsd?.lessThan(minBalanceUsd)) {
       this.rejectAndThrow(
         'provider_balance_low',
         undefined,
