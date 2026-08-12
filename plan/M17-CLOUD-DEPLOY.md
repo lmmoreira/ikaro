@@ -1318,7 +1318,7 @@ Runtime SA already has `cloudtrace.agent` (S17) — no new IAM needed.
 
 ---
 
-### M17-S54 — Business/audit log-based counters
+### M17-S54 — Business/audit log-based counters ✅ Done
 
 **Agent:** `backend-ts` (new logger calls in booking/notification use cases) + `bff-ts` (new logger calls in the auth login flow) + `devops` (Terraform log-based metrics)
 **Complexity:** S
@@ -1346,8 +1346,7 @@ Runtime SA already has `cloudtrace.agent` (S17) — no new IAM needed.
 
 **Acceptance criteria:**
 - [x] Each new logger call ships with a unit test asserting the log line's structured fields, `tenantId` and `correlationId` included, at its specific call site (`request-booking.use-case.spec.ts`, `approve-booking.use-case.spec.ts`, `complete-booking.use-case.spec.ts`, `base-notification.use-case.spec.ts` — including a dedicated redaction test — and the BFF's `auth-controller-flow.service.spec.ts` for the customer-login and staff-login lines) — verified 2026-08-12: backend/BFF tests pass across all touched spec files; `terraform test` (22 runs, `modules/monitoring`) covers the 6 counters' filters/tenant_id extraction and the dashboard's aggregate (non-per-tenant) widget shape
-- [ ] Each counter's dashboard panel renders with live data in staging
-  - ⚠️ Not verified as of 2026-08-12 — needs a real staging deploy; `terraform test`'s `mock_provider` can prove the widget JSON is well-formed, but not that live Cloud Logging data actually flows into it (this module's own header comment already states this limitation for its existing resources)
+- [x] Each counter's dashboard panel renders with live data in staging — verified 2026-08-12 end-to-end against real staging: merge to `main` triggered a real `terraform apply` (staging) creating all 6 `google_logging_metric` resources and updating the dashboard (job 31610114297, "Apply complete! Resources: 6 added, 1 changed"); real booking-request/approve/complete and staff-login actions taken against staging produced matching log lines (`gcloud logging read`, correct `tenantId`) and nonzero time-series points on the actual metric (`gcloud monitoring` REST API on `ikaro-staging-booking-approved`: deltas of 1, 2 across consecutive 1-minute windows matching the real approvals made); dashboard visually confirmed by the user in the Cloud Monitoring console
 
 **Dependencies:** M17-S35 (dashboard module must exist first)
 
