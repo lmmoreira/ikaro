@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { AppLogger } from '../../../../shared/observability/app-logger';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
@@ -30,6 +31,8 @@ export interface ApproveBookingUseCaseResult {
 
 @Injectable()
 export class ApproveBookingUseCase {
+  private readonly logger = new AppLogger(ApproveBookingUseCase.name);
+
   constructor(
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     private readonly slotConflictService: BookingSlotConflictService,
@@ -66,6 +69,12 @@ export class ApproveBookingUseCase {
       );
       booking.approve(staffId, correlationId, input.scheduledAt ? scheduledAt : undefined);
       await this.bookingRepo.save(booking);
+    });
+
+    this.logger.log('Booking approved', {
+      tenantId,
+      bookingId: booking.id,
+      staffId,
     });
 
     return {

@@ -9,6 +9,7 @@ import { INotificationDispatcher, OutboundMessage } from '../ports/notification-
 import { INotificationLogRepository } from '../ports/notification-log-repository.port';
 import { NotificationLog } from '../../domain/notification-log.aggregate';
 import { NotificationTemplateBuilder } from '../../../../test/builders/notification/notification-template.builder';
+import { AppLogger } from '../../../../shared/observability/app-logger';
 import { BaseNotificationUseCase } from './base-notification.use-case';
 
 class TestNotificationUseCase extends BaseNotificationUseCase {
@@ -22,7 +23,7 @@ class TestNotificationUseCase extends BaseNotificationUseCase {
 
   dispatchOne(
     templates: NotificationTemplate[],
-    dto: { tenantId: string; eventId: string },
+    dto: { tenantId: string; eventId: string; correlationId: string },
     to: string,
     variables: Record<string, string>,
   ): Promise<boolean> {
@@ -31,7 +32,7 @@ class TestNotificationUseCase extends BaseNotificationUseCase {
 
   dispatchMany(
     templates: NotificationTemplate[],
-    dto: { tenantId: string; eventId: string },
+    dto: { tenantId: string; eventId: string; correlationId: string },
     emails: string[],
     variables: Record<string, string>,
   ): Promise<boolean> {
@@ -136,7 +137,11 @@ describe('BaseNotificationUseCase.localizeTemplates', () => {
 });
 
 describe('BaseNotificationUseCase.dispatchTemplates (single recipient)', () => {
-  const dto = { tenantId: 'tenant-1', eventId: '00000000-0000-4000-8000-0000000000e1' };
+  const dto = {
+    tenantId: 'tenant-1',
+    eventId: '00000000-0000-4000-8000-0000000000e1',
+    correlationId: 'corr-dispatch-single',
+  };
 
   it('dispatches, logs, and marks the claim on success', async () => {
     const dispatcher = new InMemoryNotificationDispatcher();
@@ -184,6 +189,52 @@ describe('BaseNotificationUseCase.dispatchTemplates (single recipient)', () => {
     );
   });
 
+  it('logs "Notification failed" with tenantId, correlationId, notificationType, channel, and errorMessage', async () => {
+    const dispatcher = new InMemoryNotificationDispatcher();
+    dispatcher.failNext(new Error('smtp timeout'));
+    const useCase = new TestNotificationUseCase(
+      new InMemoryNotificationLogRepository(),
+      new InMemoryInboxRepository(),
+      dispatcher,
+      new InMemoryTransactionManager(),
+    );
+    const template = buildTemplate(NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER);
+    const warnSpy = jest.spyOn(AppLogger.prototype, 'warn').mockImplementation();
+
+    await expect(
+      useCase.dispatchOne([template], dto, 'customer@test.com', { name: 'Ana' }),
+    ).rejects.toThrow('smtp timeout');
+
+    expect(warnSpy).toHaveBeenCalledWith('Notification failed', {
+      tenantId: dto.tenantId,
+      correlationId: dto.correlationId,
+      notificationType: NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER,
+      channel: 'EMAIL',
+      errorMessage: 'Error: smtp timeout',
+    });
+  });
+
+  it('redacts an email address embedded in the dispatcher error before logging "Notification failed"', async () => {
+    const dispatcher = new SelectiveFailDispatcher(new Set(['customer@test.com']));
+    const useCase = new TestNotificationUseCase(
+      new InMemoryNotificationLogRepository(),
+      new InMemoryInboxRepository(),
+      dispatcher,
+      new InMemoryTransactionManager(),
+    );
+    const template = buildTemplate(NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER);
+    const warnSpy = jest.spyOn(AppLogger.prototype, 'warn').mockImplementation();
+
+    await expect(
+      useCase.dispatchOne([template], dto, 'customer@test.com', { name: 'Ana' }),
+    ).rejects.toThrow('dispatch failed for customer@test.com');
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      'Notification failed',
+      expect.objectContaining({ errorMessage: 'Error: dispatch failed for <redacted-email>' }),
+    );
+  });
+
   it('does not unclaim when persistence fails after a successful dispatch', async () => {
     const dispatcher = new InMemoryNotificationDispatcher();
     const inboxRepo = new InMemoryInboxRepository();
@@ -209,7 +260,11 @@ describe('BaseNotificationUseCase.dispatchTemplates (single recipient)', () => {
 });
 
 describe('BaseNotificationUseCase.dispatchTemplatesToMany (multi-recipient)', () => {
-  const dto = { tenantId: 'tenant-1', eventId: '00000000-0000-4000-8000-0000000000e2' };
+  const dto = {
+    tenantId: 'tenant-1',
+    eventId: '00000000-0000-4000-8000-0000000000e2',
+    correlationId: 'corr-dispatch-many',
+  };
   const emails = ['a@test.com', 'b@test.com', 'c@test.com'];
 
   it('dispatches to every recipient and claims each one independently', async () => {

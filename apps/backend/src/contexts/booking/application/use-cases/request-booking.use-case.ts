@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
+import { AppLogger } from '../../../../shared/observability/app-logger';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
@@ -34,6 +35,8 @@ export type RequestBookingUseCaseResult = BookingRequestResult;
 
 @Injectable()
 export class RequestBookingUseCase {
+  private readonly logger = new AppLogger(RequestBookingUseCase.name);
+
   constructor(
     @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
     private readonly slotConflictService: BookingSlotConflictService,
@@ -116,6 +119,12 @@ export class RequestBookingUseCase {
         operations,
       },
     );
+
+    this.logger.log('Booking requested', {
+      tenantId,
+      bookingId: booking.id,
+      bookingType: booking.type,
+    });
 
     return this.toResult(booking);
   }

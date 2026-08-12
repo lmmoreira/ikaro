@@ -97,6 +97,38 @@ run "sql_alert_filters_reference_the_exact_configured_instance" {
   }
 }
 
+run "business_counter_metrics_filter_on_their_exact_log_message" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      strcontains(google_logging_metric.booking_requested.filter, "\"Booking requested\""),
+      strcontains(google_logging_metric.booking_approved.filter, "\"Booking approved\""),
+      strcontains(google_logging_metric.booking_completed.filter, "\"Booking completed\""),
+      strcontains(google_logging_metric.notification_failed.filter, "\"Notification failed\""),
+      strcontains(google_logging_metric.customer_logins.filter, "\"Customer login\""),
+      strcontains(google_logging_metric.staff_logins.filter, "\"Staff login\""),
+    ])
+    error_message = "Each M17-S54 log-based metric must filter on its own exact log message — a drifted filter would silently stop counting the real log line."
+  }
+}
+
+run "business_counter_metrics_extract_tenant_id" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      google_logging_metric.booking_requested.label_extractors["tenant_id"] == "EXTRACT(jsonPayload.tenantId)",
+      google_logging_metric.booking_approved.label_extractors["tenant_id"] == "EXTRACT(jsonPayload.tenantId)",
+      google_logging_metric.booking_completed.label_extractors["tenant_id"] == "EXTRACT(jsonPayload.tenantId)",
+      google_logging_metric.notification_failed.label_extractors["tenant_id"] == "EXTRACT(jsonPayload.tenantId)",
+      google_logging_metric.customer_logins.label_extractors["tenant_id"] == "EXTRACT(jsonPayload.tenantId)",
+      google_logging_metric.staff_logins.label_extractors["tenant_id"] == "EXTRACT(jsonPayload.tenantId)",
+    ])
+    error_message = "Every M17-S54 business counter must extract tenant_id from jsonPayload.tenantId — the 'by tenant' breakdown the story asks for depends on this label existing."
+  }
+}
+
 run "outbox_backlog_threshold_is_three_sweep_intervals" {
   command = plan
 
@@ -129,7 +161,7 @@ run "log_metric_propagation_sleep_is_wired_correctly" {
       contains(keys(time_sleep.log_metric_propagation.triggers), "outbox_backlog_age_id"),
       contains(keys(time_sleep.log_metric_propagation.triggers), "collector_export_failure_id"),
     ])
-    error_message = "triggers must reference all 3 log-based metrics — depends_on alone only orders the sleep's first create, it does not force a re-wait when a metric is later changed/recreated."
+    error_message = "triggers must reference every log-based metric with an alert policy consuming it — depends_on alone only orders the sleep's first create, it does not force a re-wait when a metric is later changed/recreated. M17-S54's 6 new business counters have no alert policy, so none need a trigger entry."
   }
 }
 
@@ -145,8 +177,30 @@ run "dashboard_contains_a_widget_per_service_plus_shared_tiles" {
   assert {
     condition = (
       length(jsondecode(google_monitoring_dashboard.main.dashboard_json).gridLayout.widgets)
-      == (3 * length(var.cloud_run_services)) + 3
+      == (3 * length(var.cloud_run_services)) + 3 + 6
     )
-    error_message = "Expected 3 tiles per Cloud Run service (request rate, latency, instance count) plus 1 SQL tile (database_instance_name is set in this fixture) plus 2 Pub/Sub tiles — a broken widget local would still produce a valid but empty/truncated plan."
+    error_message = "Expected 3 tiles per Cloud Run service (request rate, latency, instance count) plus 1 SQL tile (database_instance_name is set in this fixture) plus 2 Pub/Sub tiles plus 6 M17-S54 business-counter tiles (booking requested/approved/completed, notification failed, customer logins, staff logins) — a broken widget local would still produce a valid but empty/truncated plan."
+  }
+}
+
+run "business_counter_widgets_are_aggregated_not_grouped_by_tenant" {
+  # Cross-tool review finding (Codex, PR #359, 2026-08-12): a per-tenant
+  # STACKED_BAR breakdown (groupByFields on tenant_id) silently truncates
+  # past Cloud Monitoring's ~50-series-per-chart cap as active tenant count
+  # grows — exactly this platform's intended trajectory. Widgets aggregate
+  # instead; tenant_id stays a metric label for Cloud Logging drill-down,
+  # just not a dashboard-chart dimension.
+  command = plan
+
+  assert {
+    condition = alltrue([
+      for w in jsondecode(google_monitoring_dashboard.main.dashboard_json).gridLayout.widgets :
+      (
+        w.xyChart.dataSets[0].timeSeriesQuery.timeSeriesFilter.aggregation.crossSeriesReducer == "REDUCE_SUM" &&
+        !contains(keys(w.xyChart.dataSets[0].timeSeriesQuery.timeSeriesFilter.aggregation), "groupByFields")
+      )
+      if strcontains(w.title, "(total)")
+    ])
+    error_message = "Every M17-S54 business-counter widget must be REDUCE_SUM-aggregated with no groupByFields — a per-tenant breakdown here would silently truncate past Cloud Monitoring's ~50-series-per-chart cap as tenant count grows."
   }
 }
