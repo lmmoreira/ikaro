@@ -94,10 +94,8 @@ function applicationBoundaryRules() {
       path: [
         `^${backendSourcePrefix}contexts/`,
         `^${backendSourcePrefix}shared/infrastructure/`,
-        '^@nestjs/',
-        '^typeorm$',
-        '^axios$',
-        '^express$',
+        '(^|/)node_modules/@nestjs/(?!common/)',
+        '(^|/)node_modules/(typeorm|axios|express)(/|$)',
       ],
       pathNot: [
         `^${backendSourcePrefix}contexts/${context}/domain/`,
@@ -142,10 +140,8 @@ module.exports = {
         path: [
           `^${backendSourcePrefix}contexts/[^/]+/(application|infrastructure)/`,
           `^${backendSourcePrefix}shared/infrastructure/`,
-          '^@nestjs/',
-          '^typeorm$',
-          '^axios$',
-          '^express$',
+          '(^|/)node_modules/@nestjs/',
+          '(^|/)node_modules/(typeorm|axios|express)(/|$)',
         ],
       },
     },

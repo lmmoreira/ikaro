@@ -3,7 +3,8 @@
   "layerTaxonomy": {
     "domain": { "frameworkFree": true, "allowedRoots": ["domain"] },
     "application": {
-      "frameworkFree": true,
+      "frameworkFree": false,
+      "allowedFrameworkPackages": ["@nestjs/common"],
       "allowedRoots": [
         "domain",
         "application/ports",
@@ -63,8 +64,7 @@
         "source": "apps/backend/src/contexts/loyalty/infrastructure/cross-context/loyalty-customer.adapter.ts",
         "target": "customer",
         "targetPaths": [
-          "apps/backend/src/contexts/customer/application/use-cases/get-customer-tenants-by-id.use-case.ts",
-          "apps/backend/src/contexts/customer/domain/errors/customer-domain.error.ts"
+          "apps/backend/src/contexts/customer/application/ports/customer-tenant-lookup.port.ts"
         ],
         "rationale": "Loyalty reads customer identity through the existing adapter.",
         "owner": "loyalty"
@@ -292,13 +292,6 @@
       "path": "apps/backend/src/contexts/booking/infrastructure/cross-context/typeorm-booking-availability.adapter.ts",
       "rationale": "Legacy availability adapter requires a repository-port follow-up before Story 2 enforcement.",
       "owner": "booking",
-      "reviewBy": "2026-09-30"
-    },
-    {
-      "rule": "dynamic-framework-export",
-      "path": "apps/backend/src/**/*.module.ts",
-      "rationale": "Nest composition roots expose providers through decorator metadata and provider arrays.",
-      "owner": "platform",
       "reviewBy": "2026-09-30"
     }
   ],

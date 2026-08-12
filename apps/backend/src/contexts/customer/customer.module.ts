@@ -3,12 +3,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
 import { RequestModule } from '../../shared/request/request.module';
 import { CUSTOMER_REPOSITORY } from './application/ports/customer-repository.port';
+import { CUSTOMER_TENANT_LOOKUP } from './application/ports/customer-tenant-lookup.port';
 import { FindOrCreateCustomerUseCase } from './application/use-cases/find-or-create-customer.use-case';
 import { GetCustomerByIdUseCase } from './application/use-cases/get-customer-by-id.use-case';
 import { GetCustomerTenantsByIdUseCase } from './application/use-cases/get-customer-tenants-by-id.use-case';
 import { GetCustomerTenantsUseCase } from './application/use-cases/get-customer-tenants.use-case';
 import { SearchCustomersUseCase } from './application/use-cases/search-customers.use-case';
 import { UpdateCustomerProfileUseCase } from './application/use-cases/update-customer-profile.use-case';
+import { CustomerTenantLookupService } from './application/services/customer-tenant-lookup.service';
 import { CustomerController } from './infrastructure/controllers/customer.controller';
 import { InternalCustomerController } from './infrastructure/controllers/internal-customer.controller';
 import { CustomerEntity } from './infrastructure/entities/customer.entity';
@@ -23,9 +25,10 @@ import { TypeOrmCustomerRepository } from './infrastructure/repositories/typeorm
     FindOrCreateCustomerUseCase,
     GetCustomerTenantsUseCase,
     GetCustomerTenantsByIdUseCase,
+    { provide: CUSTOMER_TENANT_LOOKUP, useClass: CustomerTenantLookupService },
     UpdateCustomerProfileUseCase,
     SearchCustomersUseCase,
   ],
-  exports: [GetCustomerByIdUseCase, GetCustomerTenantsByIdUseCase],
+  exports: [GetCustomerByIdUseCase, CUSTOMER_TENANT_LOOKUP],
 })
 export class CustomerModule {}

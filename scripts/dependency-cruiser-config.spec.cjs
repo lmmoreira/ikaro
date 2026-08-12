@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 const test = require('node:test');
 
 const root = path.resolve(__dirname, '..');
@@ -9,6 +10,8 @@ const policy = JSON.parse(
   fs.readFileSync(path.join(root, 'packages/architecture-check/architecture-policy.json'), 'utf8'),
 );
 const config = require('./dependency-cruiser.config.cjs');
+const dependencyCruiserRoot = fs.realpathSync(path.join(root, 'node_modules/dependency-cruiser'));
+const dependencyCruiseBin = path.join(dependencyCruiserRoot, 'bin/dependency-cruise.mjs');
 
 function discoverWorkspaceTsconfigs() {
   return ['apps', 'packages'].flatMap((rootDirectory) =>
@@ -29,6 +32,16 @@ test('registry includes every TypeScript workspace exactly once', () => {
   const expected = discoverWorkspaceTsconfigs().sort();
   const configured = projects.map((project) => project.tsConfig).sort();
   assert.deepEqual(configured, expected);
+});
+
+test('policy exceptions name exact files, never wildcard paths', () => {
+  for (const exception of policy.exceptions ?? []) {
+    assert.ok(exception.path, `exception ${exception.rule} is missing a path`);
+    assert.ok(
+      !/[?*[{]/.test(exception.path),
+      `exception must name one exact file: ${exception.path}`,
+    );
+  }
 });
 
 test('boundary configuration contains every Story 1 rule family', () => {
@@ -124,3 +137,56 @@ test('application boundary denies use-case imports but allows declared shared ab
     'an explicitly named base abstraction must remain allowed',
   );
 });
+
+function nodeSupportsDependencyCruiser() {
+  const major = Number(process.versions.node.split('.')[0]);
+  return major === 22 || major === 24 || major >= 26;
+}
+
+function assertFixtureIsRejected(source) {
+  const backendRoot = path.join(root, 'apps/backend');
+  const fixture = path.join(
+    backendRoot,
+    'src/contexts/booking/application/dependency-cruiser-boundary.fixture.ts',
+  );
+  fs.writeFileSync(fixture, source);
+  try {
+    const result = spawnSync(
+      process.execPath,
+      [
+        dependencyCruiseBin,
+        '--config',
+        path.join(root, 'scripts/dependency-cruiser.config.cjs'),
+        '--ts-config',
+        'tsconfig.json',
+        '--output-type',
+        'err',
+        '--progress',
+        'none',
+        'src/contexts/booking/application/dependency-cruiser-boundary.fixture.ts',
+      ],
+      {
+        cwd: backendRoot,
+        encoding: 'utf8',
+        env: { ...process.env, DEP_CRUISE_WORKSPACE: 'backend' },
+      },
+    );
+    assert.notEqual(result.status, 0, result.stdout + result.stderr);
+    assert.match(result.stdout + result.stderr, /no-booking-application-internal-imports/);
+  } finally {
+    fs.rmSync(fixture, { force: true });
+  }
+}
+
+test(
+  'dependency-cruiser rejects resolved framework and infrastructure targets from application code',
+  { skip: !nodeSupportsDependencyCruiser() },
+  () => {
+    assertFixtureIsRejected(
+      "import { ConfigService } from '@nestjs/config'; export { ConfigService };",
+    );
+    assertFixtureIsRejected(
+      "import { BookingEntity } from '../infrastructure/entities/booking.entity'; export { BookingEntity };",
+    );
+  },
+);

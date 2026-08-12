@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import { Linter } from 'eslint';
 
-const backendRoot = resolve(__dirname, '../../..');
+const backendRoot = resolve(__dirname, '../..');
 // Load the actual CommonJS flat config rather than duplicating its rules in this spec. ESLint's
 // higher-level config loader uses dynamic import, which Jest's normal unit-test command does not
 // enable; Linter executes the same config array without that test-runtime dependency.
@@ -86,6 +86,17 @@ describe('TD37-S02 persistence boundary', () => {
       );
       expect(messages).toHaveLength(0);
     }
+  });
+
+  it('does not exempt a new file merely because it is in a repository directory', () => {
+    const messages = lint(
+      "import { Repository } from 'typeorm'; export { Repository };",
+      'src/contexts/booking/infrastructure/repositories/unreviewed.repository.ts',
+    );
+
+    expect(messages).toEqual(
+      expect.arrayContaining([expect.objectContaining({ ruleId: 'no-restricted-imports' })]),
+    );
   });
 
   it('forbids repository ports from opening their own transaction callback', () => {

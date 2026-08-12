@@ -1,6 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { GetCustomerTenantsByIdUseCase } from '../../../customer/application/use-cases/get-customer-tenants-by-id.use-case';
-import { CustomerNotFoundError } from '../../../customer/domain/errors/customer-domain.error';
+import { Inject, Injectable } from '@nestjs/common';
+import {
+  CUSTOMER_TENANT_LOOKUP,
+  ICustomerTenantLookup,
+} from '../../../customer/application/ports/customer-tenant-lookup.port';
 import { LoyaltyCustomerNotFoundInTenantError } from '../../domain/errors/loyalty-domain.error';
 import {
   ILoyaltyCustomerPort,
@@ -9,7 +11,9 @@ import {
 
 @Injectable()
 export class LoyaltyCustomerAdapter implements ILoyaltyCustomerPort {
-  constructor(private readonly getCustomerTenantsById: GetCustomerTenantsByIdUseCase) {}
+  constructor(
+    @Inject(CUSTOMER_TENANT_LOOKUP) private readonly customerTenantLookup: ICustomerTenantLookup,
+  ) {}
 
   async resolveCustomerIdByOAuthId(
     homeCustomerId: string,
@@ -33,19 +37,11 @@ export class LoyaltyCustomerAdapter implements ILoyaltyCustomerPort {
     homeCustomerId: string,
     homeTenantId: string,
   ): Promise<LoyaltyCustomerTenantPair[]> {
-    try {
-      return await this.getCustomerTenantsById.execute({
-        customerId: homeCustomerId,
-        tenantId: homeTenantId,
-      });
-    } catch (error) {
-      // Only translate the known "home customer doesn't exist" case into the loyalty-owned
-      // domain error. Any other failure (DB timeout, connection error, ...) is a real 500 —
-      // rethrow it unchanged instead of masking it as a 404.
-      if (error instanceof CustomerNotFoundError) {
-        throw new LoyaltyCustomerNotFoundInTenantError();
-      }
-      throw error;
-    }
+    const tenants = await this.customerTenantLookup.find({
+      customerId: homeCustomerId,
+      tenantId: homeTenantId,
+    });
+    if (!tenants) throw new LoyaltyCustomerNotFoundInTenantError();
+    return tenants;
   }
 }
