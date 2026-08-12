@@ -156,7 +156,7 @@ Build `anthropic-llm.adapter.ts` and `openai-llm.adapter.ts` against the same `I
 
 ---
 
-### M19-S04 — `chatbot` tenant-settings category
+### M19-S04 — `chatbot` tenant-settings category ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** S
