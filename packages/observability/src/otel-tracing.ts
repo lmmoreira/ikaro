@@ -2,6 +2,11 @@ import { diag, DiagConsoleLogger, DiagLogLevel } from '@opentelemetry/api';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import {
+  OTLPMetricExporter,
+  AggregationTemporalityPreference,
+} from '@opentelemetry/exporter-metrics-otlp-http';
+import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import {
   ATTR_SERVICE_NAME,
@@ -108,6 +113,31 @@ export function buildOtlpExporterOptions(
 }
 
 /**
+ * Metrics-signal counterpart to buildOtlpExporterOptions() above (M17-S55). Mirrors its
+ * URL-fallback logic exactly, for the metrics-specific env vars.
+ *
+ * temporalityPreference is passed explicitly rather than left to the exporter's own
+ * OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE-driven default — verified against the real
+ * @opentelemetry/exporter-metrics-otlp-http source (chooseTemporalitySelectorFromEnvironment())
+ * that this default is already 'cumulative' when the env var is unset, so this isn't fixing a
+ * bug the way `metricReaders: []` and `concurrencyLimit: 200` were. It's still made explicit in
+ * code, for the same reason those two are: Google Managed Prometheus (this collector's export
+ * target) requires cumulative temporality to render correctly, and that requirement shouldn't
+ * depend on an unset environment variable happening to resolve to the right default in every
+ * deployment environment, forever.
+ */
+export function buildOtlpMetricExporterOptions(
+  env: NodeJS.ProcessEnv,
+): NonNullable<ConstructorParameters<typeof OTLPMetricExporter>[0]> {
+  return {
+    ...(env['OTEL_EXPORTER_OTLP_ENDPOINT'] || env['OTEL_EXPORTER_OTLP_METRICS_ENDPOINT']
+      ? {}
+      : { url: 'http://localhost:4318/v1/metrics' }),
+    temporalityPreference: AggregationTemporalityPreference.CUMULATIVE,
+  };
+}
+
+/**
  * M17-S33 — shared tracing SDK bootstrap for backend + bff. Traces only, OTLP-HTTP only (D9
  * anti-lock-in: no vendor exporter here — the collector, M17-S34, is the only place GCP
  * appears in the whole pipeline). Currently implemented on OpenTelemetry; nothing about this
@@ -157,22 +187,34 @@ export function bootstrapTracing(
     // investigation and why this was so hard to find (every collector/CPU/timeout fix was
     // chasing a red herring).
     sampler: createSampler(samplingRate),
-    // metricReaders: [] (2026-08-05, M17-S34 follow-up — real staging finding): this bootstrap
-    // is traces-only by design (see the file-level doc comment above), but NodeSDK has its own
-    // independent default for metrics — @opentelemetry/sdk-node's getMetricReadersFromEnv()
-    // falls back to a default OTLP PeriodicExportingMetricReader whenever OTEL_METRICS_EXPORTER
-    // isn't set to "none" and neither metricReaders nor metricReader is passed explicitly. Since
-    // this repo never set either, every instance was silently starting a metrics export loop
-    // (default: every 60s) against a collector whose config.yaml has no `metrics:` pipeline
-    // (traces-only, deliberately — see infra/docker/otel-collector/config.yaml) — every export
-    // attempt hit a genuine 404 (OTLPExporterError: Not Found) on the collector's HTTP router,
-    // logged as an ERROR every cycle, forever, in both services, in both environments. An
-    // explicit empty array here is the deterministic, code-level fix (not an env var to
-    // remember to set in every Cloud Run env) — an empty array is truthy, so it short-circuits
-    // NodeSDK's own env-var fallback and disables metrics entirely until M17-S35 (Cloud
-    // Monitoring dashboards/alerts) actually needs them — see that story's notes in
-    // plan/M17-CLOUD-DEPLOY.md for why it doesn't, today, need this reader re-enabled at all.
-    metricReaders: [],
+    // metricReaders (2026-08-05, M17-S34 follow-up — real staging finding; re-enabled 2026-08-12,
+    // M17-S55): between those two dates this was an explicit empty array. NodeSDK has its own
+    // independent default for metrics — @opentelemetry/sdk-node's getMetricReadersFromEnv() falls
+    // back to a default OTLP PeriodicExportingMetricReader whenever OTEL_METRICS_EXPORTER isn't
+    // set to "none" and neither metricReaders nor metricReader is passed explicitly. Since this
+    // repo never set either, every instance was silently starting a metrics export loop (default:
+    // every 60s) against a collector whose config.yaml had no `metrics:` pipeline (traces-only at
+    // the time) — every export attempt hit a genuine 404 (OTLPExporterError: Not Found), logged as
+    // an ERROR every cycle, forever, in both services, in both environments. `metricReaders: []`
+    // was the deterministic, code-level fix — an empty array is truthy, so it short-circuited
+    // NodeSDK's own env-var fallback and disabled metrics entirely until this story needed them.
+    //
+    // M17-S55 re-enables it with an explicit, code-configured reader — never the bare env-var
+    // fallback above, which would silently regress into the exact 404 loop this comment
+    // describes if the collector's `metrics:` pipeline (infra/docker/otel-collector/config.yaml)
+    // is ever removed or misconfigured without this reader being removed in the same change.
+    // PeriodicExportingMetricReader is timer-driven (default: one export every 60s) — the direct
+    // metrics-side analog of the traces `BatchSpanProcessor` that was proven vulnerable to Cloud
+    // Run's `run.googleapis.com/cpu-throttling: "true"` starving a timer tick mid-throttled-gap
+    // (see docs/ENGINEERING_RULES.md § Cloud Run CPU throttling). That risk is real for this
+    // reader too and is NOT ruled out by code review alone — it requires the same live,
+    // empirical verification on a real (including scale-to-zero / low-traffic) Cloud Run
+    // instance that the traces pipeline needed three separate times before it could be trusted.
+    metricReaders: [
+      new PeriodicExportingMetricReader({
+        exporter: new OTLPMetricExporter(buildOtlpMetricExporterOptions(process.env)),
+      }),
+    ],
     // spanProcessors (not `traceExporter`, which NodeSDK would otherwise silently wrap in its
     // own default BatchSpanProcessor) — real M17-S34 staging finding, 2026-08-05: every real
     // business-request trace and every low-volume cron-triggered trace was missing from Cloud

@@ -3,7 +3,13 @@
 # Scope (M17-S35, narrowed 2026-08-08): infra-level signals that already
 # exist — Cloud Run built-ins, Cloud SQL metrics, Pub/Sub DLQ depth, and the
 # outbox relay's already-confirmed structured logs. No new application code
-# required. OTel/Managed-Prometheus metrics are M17-S55, deferred.
+# required.
+#
+# OTel/Managed-Prometheus metrics (M17-S55, added 2026-08-12): one widget
+# below (booking_creation_latency_widget) sources from Google Managed
+# Prometheus instead of a native Cloud Monitoring metric — see that local's
+# own comment for why its exact metric.type is unconfirmed against live data
+# and what to check before trusting it.
 #
 # Business/audit log-based counters (M17-S54, added 2026-08-12): bookings
 # requested/approved/completed, notification failures, and customer/staff
@@ -933,6 +939,57 @@ locals {
     }
   ]
 
+  # M17-S55: GMP-sourced widget for the auto-instrumentation HTTP duration
+  # histogram, filtered to POST /v1/bookings. Deliberately a single widget,
+  # not a per-route family — this story's own AC scopes instrumentation
+  # verification to this one endpoint (see plan/M17-CLOUD-DEPLOY.md).
+  #
+  # metric.type below is written from the documented OTel→Prometheus naming
+  # translation (dots become underscores; the histogram's declared `unit:
+  # 'ms'` is spelled out as `milliseconds`), cross-checked against the real
+  # pinned instrumentation-http@0.220.0 source
+  # (meter.createHistogram('http.server.duration', { unit: 'ms' }) — the
+  # *old*, non-stable semconv name; this repo does not set
+  # OTEL_SEMCONV_STABILITY_OPT_IN, so the newer `http.server.request.duration`
+  # name is NOT what's actually emitted). That said: **this metric.type
+  # string is unconfirmed against real, live GMP data** — no traffic has ever
+  # flowed through this pipeline, and (like every other MQL/filter string in
+  # this module, see the file header comment) the Cloud Monitoring API
+  # validates it server-side only. `terraform plan`/`terraform test` can
+  # confirm the JSON is well-formed, not that it renders real data. Before
+  # trusting this widget: deploy, generate real POST /v1/bookings traffic,
+  # and confirm in the Cloud Monitoring console (Metrics Explorer,
+  # `resource.type="prometheus_target"`) which metric.type string GMP
+  # actually assigned, correcting this filter if it differs.
+  #
+  # http_route/http_method labels: instrumentation-http records these as
+  # span/metric attributes `http.route`/`http.method` — sanitized to
+  # `http_route`/`http_method` as Prometheus/GMP labels, same dots-to-
+  # underscores translation as the metric name itself. http.route is the
+  # route *template* (e.g. "/v1/bookings"), not the raw URL, so this does not
+  # explode into one series per booking ID.
+  booking_creation_latency_widget = [
+    {
+      title = "POST /v1/bookings — request duration (p99, GMP)"
+      xyChart = {
+        dataSets = [
+          {
+            timeSeriesQuery = {
+              timeSeriesFilter = {
+                filter = "resource.type=\"prometheus_target\" AND metric.type=\"prometheus.googleapis.com/http_server_duration_milliseconds/histogram\" AND metric.label.http_route=\"/v1/bookings\" AND metric.label.http_method=\"POST\""
+                aggregation = {
+                  alignmentPeriod  = "60s"
+                  perSeriesAligner = "ALIGN_PERCENTILE_99"
+                }
+              }
+            }
+            plotType = "LINE"
+          }
+        ]
+      }
+    }
+  ]
+
   dashboard_widgets = concat(
     local.service_widgets,
     local.latency_widgets,
@@ -940,6 +997,7 @@ locals {
     local.sql_widgets,
     local.pubsub_widgets,
     local.business_counter_widgets,
+    local.booking_creation_latency_widget,
   )
 }
 

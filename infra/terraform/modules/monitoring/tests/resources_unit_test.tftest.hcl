@@ -177,9 +177,9 @@ run "dashboard_contains_a_widget_per_service_plus_shared_tiles" {
   assert {
     condition = (
       length(jsondecode(google_monitoring_dashboard.main.dashboard_json).gridLayout.widgets)
-      == (3 * length(var.cloud_run_services)) + 3 + 6
+      == (3 * length(var.cloud_run_services)) + 3 + 6 + 1
     )
-    error_message = "Expected 3 tiles per Cloud Run service (request rate, latency, instance count) plus 1 SQL tile (database_instance_name is set in this fixture) plus 2 Pub/Sub tiles plus 6 M17-S54 business-counter tiles (booking requested/approved/completed, notification failed, customer logins, staff logins) — a broken widget local would still produce a valid but empty/truncated plan."
+    error_message = "Expected 3 tiles per Cloud Run service (request rate, latency, instance count) plus 1 SQL tile (database_instance_name is set in this fixture) plus 2 Pub/Sub tiles plus 6 M17-S54 business-counter tiles (booking requested/approved/completed, notification failed, customer logins, staff logins) plus 1 M17-S55 GMP booking-creation-latency tile — a broken widget local would still produce a valid but empty/truncated plan."
   }
 }
 
