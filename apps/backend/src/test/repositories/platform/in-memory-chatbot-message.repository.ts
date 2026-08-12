@@ -21,6 +21,7 @@ export class InMemoryChatbotMessageRepository implements IChatbotMessageReposito
     tenantId: string,
     limit: number,
   ): Promise<ChatbotMessage[]> {
+    if (limit <= 0) return [];
     const all = await this.findBySession(sessionId, tenantId);
     return all.slice(-limit);
   }

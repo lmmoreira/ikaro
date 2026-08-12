@@ -274,6 +274,26 @@ describe('SendChatMessageUseCase', () => {
     });
   });
 
+  describe('new session — message cap edge case (layer 4)', () => {
+    it('rejects a new session outright when maxMessagesPerConversation cannot fit even one turn (PR #360 review)', async () => {
+      const useCase = buildUseCase();
+
+      await expect(
+        useCase.execute(baseInput({ chatbotSettings: { maxMessagesPerConversation: 1 } })),
+      ).rejects.toThrow(ChatbotMessageCapReachedError);
+    });
+
+    it('allows a new session when maxMessagesPerConversation fits exactly one turn', async () => {
+      const useCase = buildUseCase();
+
+      const result = await useCase.execute(
+        baseInput({ chatbotSettings: { maxMessagesPerConversation: 2 } }),
+      );
+
+      expect(result.sessionId).toBeTruthy();
+    });
+  });
+
   describe('existing session — message cap (layer 4) + history truncation (layer 8)', () => {
     it('throws ChatbotSessionNotFoundError for an unknown sessionId', async () => {
       const useCase = buildUseCase();
@@ -370,6 +390,36 @@ describe('SendChatMessageUseCase', () => {
       );
 
       expect(capturingProvider.lastRequest?.history).toHaveLength(4);
+    });
+
+    it('sends no history when maxHistoryMessagesSentToLlm is 0, not the full conversation (CodeRabbit review — slice(-0) quirk)', async () => {
+      const capturingProvider = new CapturingLlmProvider();
+      const registry = new LlmProviderRegistry(
+        'openrouter',
+        capturingProvider,
+        capturingProvider,
+        capturingProvider,
+      );
+      const session = new ChatbotSessionBuilder().withTenantId(TENANT_ID).build();
+      await sessionRepo.save(session);
+      await messageRepo.save(
+        new ChatbotMessageBuilder().withTenantId(TENANT_ID).withSessionId(session.id).build(),
+      );
+      const useCase = new SendChatMessageUseCase(
+        sessionRepo,
+        messageRepo,
+        balanceRepo,
+        registry,
+        new InMemoryTransactionManager(),
+        fakeConfig(),
+        tracingPort,
+      );
+
+      await useCase.execute(
+        baseInput({ sessionId: session.id, chatbotSettings: { maxHistoryMessagesSentToLlm: 0 } }),
+      );
+
+      expect(capturingProvider.lastRequest?.history).toHaveLength(0);
     });
   });
 
@@ -513,6 +563,34 @@ describe('SendChatMessageUseCase', () => {
       );
 
       await expect(useCase.execute(baseInput())).rejects.toThrow(ChatbotProviderUnavailableError);
+    });
+
+    it('releases the reserved message capacity when the LLM call fails, so a provider outage does not burn the cap (PR #360 review)', async () => {
+      const failingProvider: ILlmProvider = {
+        complete: () => Promise.reject(new Error('OpenRouter request failed: 500')),
+      };
+      const registry = new LlmProviderRegistry(
+        'openrouter',
+        failingProvider,
+        failingProvider,
+        failingProvider,
+      );
+      const useCase = new SendChatMessageUseCase(
+        sessionRepo,
+        messageRepo,
+        balanceRepo,
+        registry,
+        new InMemoryTransactionManager(),
+        fakeConfig(),
+        tracingPort,
+      );
+      const saveSpy = jest.spyOn(sessionRepo, 'save');
+
+      await expect(useCase.execute(baseInput())).rejects.toThrow(ChatbotProviderUnavailableError);
+
+      const reservedSessionId = saveSpy.mock.calls[0][0].id;
+      const reloaded = await sessionRepo.findById(reservedSessionId, TENANT_ID);
+      expect(reloaded!.messageCount).toBe(0);
     });
 
     it('never embeds the raw upstream error text in the public-facing error (PR #360 review — info disclosure)', async () => {

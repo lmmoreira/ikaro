@@ -1,3 +1,4 @@
+import { ChatbotSessionBuilder } from '../../../test/builders/platform';
 import { ChatbotSession } from './chatbot-session.aggregate';
 
 const BASE_PROPS = {
@@ -47,7 +48,7 @@ describe('ChatbotSession', () => {
 
   describe('recordMessages()', () => {
     it('increments messageCount by the given count in one call', () => {
-      const session = ChatbotSession.create(BASE_PROPS);
+      const session = new ChatbotSessionBuilder().build();
 
       session.recordMessages(2);
 
@@ -55,7 +56,7 @@ describe('ChatbotSession', () => {
     });
 
     it('updates lastMessageAt once, not once per message', () => {
-      const session = ChatbotSession.create(BASE_PROPS);
+      const session = new ChatbotSessionBuilder().build();
       const startedLastMessageAt = session.lastMessageAt;
 
       session.recordMessages(2);
@@ -66,11 +67,32 @@ describe('ChatbotSession', () => {
     });
 
     it('accumulates across repeated calls, same as recordMessage()', () => {
-      const session = ChatbotSession.create(BASE_PROPS);
+      const session = new ChatbotSessionBuilder().build();
       session.recordMessages(2);
       session.recordMessages(3);
 
       expect(session.messageCount).toBe(5);
+    });
+  });
+
+  describe('releaseMessages()', () => {
+    it('decrements messageCount by the given count', () => {
+      const session = new ChatbotSessionBuilder().build();
+      session.recordMessages(2);
+
+      session.releaseMessages(2);
+
+      expect(session.messageCount).toBe(0);
+    });
+
+    it('does not touch lastMessageAt, since no message actually landed', () => {
+      const session = new ChatbotSessionBuilder().build();
+      session.recordMessages(2);
+      const lastMessageAtAfterRecord = session.lastMessageAt;
+
+      session.releaseMessages(2);
+
+      expect(session.lastMessageAt).toBe(lastMessageAtAfterRecord);
     });
   });
 

@@ -134,6 +134,11 @@ export class SendChatMessageUseCase {
         model: chatbotSettings.llmModel,
       });
     } catch (err: unknown) {
+      // Release the pre-LLM reservation — no rows were actually written, so the tenant's
+      // message/daily/IP/concurrency budgets must not stay burned by a provider outage
+      // (PR #360 review).
+      session.releaseMessages(2);
+      await this.txManager.run(() => this.sessionRepo.save(session));
       this.handleProviderFailure(err, session, resolvedProviderName);
     }
 
@@ -263,6 +268,16 @@ export class SendChatMessageUseCase {
         undefined,
         () => new ChatbotConcurrencyCapReachedError(),
       );
+    }
+
+    // Layer 4 — a first turn always writes 2 rows (USER + ASSISTANT). If the tenant's configured
+    // cap can't even fit one turn (0 or 1 — no min-bound validator exists on
+    // maxMessagesPerConversation), reject before creating the session at all, mirroring
+    // resolveExistingSession's own +2 > maxMessages check (PR #360 review).
+    const maxMessages =
+      chatbotSettings.maxMessagesPerConversation ?? DEFAULT_MAX_MESSAGES_PER_CONVERSATION;
+    if (2 > maxMessages) {
+      this.rejectAndThrow('message_cap', undefined, () => new ChatbotMessageCapReachedError());
     }
 
     await this.enforcePlatformBackstops(resolvedProviderName);

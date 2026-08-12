@@ -2,7 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
-import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
+import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typeorm-transaction-manager';
 import { FakeLlmProviderBuilder, TenantBuilder } from '../../../../test/builders/platform';
 import { ChatbotMessageEntity } from '../../infrastructure/entities/chatbot-message.entity';
 import { ChatbotProviderBalanceEntity } from '../../infrastructure/entities/chatbot-provider-balance.entity';
@@ -55,7 +55,7 @@ describe('SendChatMessageUseCase (integration — real Postgres cap enforcement)
       messageRepo,
       balanceRepo,
       registry,
-      new InMemoryTransactionManager(),
+      new TypeOrmTransactionManager(dataSource),
       fakeConfig(),
     );
   });

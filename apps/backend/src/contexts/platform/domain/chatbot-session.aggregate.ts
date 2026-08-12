@@ -78,6 +78,13 @@ export class ChatbotSession extends AggregateRoot {
     this._lastMessageAt = new Date();
   }
 
+  /** Releases a reservation made by recordMessages() that was never fulfilled — e.g. the LLM
+   * call failed after this turn's rows were reserved but before either was written. Doesn't
+   * touch lastMessageAt, since no message actually landed at this instant. */
+  releaseMessages(count: number): void {
+    this._messageCount -= count;
+  }
+
   markCapped(): void {
     this._status = 'CAPPED';
   }
