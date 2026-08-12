@@ -187,7 +187,7 @@ Add `chatbot` to the fixed category-key list in both `UpdateTenantSettingsSchema
 
 ---
 
-### M19-S05 — Send-chat-message use case + cap enforcement (UC-033)
+### M19-S05 — Send-chat-message use case + cap enforcement (UC-033) ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** L
