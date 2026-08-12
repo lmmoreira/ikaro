@@ -78,6 +78,11 @@ export interface SendChatMessageUseCaseResult {
   reply: string;
 }
 
+interface ResolvedSession {
+  session: ChatbotSession;
+  history: ChatTurn[];
+}
+
 @Injectable()
 export class SendChatMessageUseCase {
   private readonly logger = new AppLogger(SendChatMessageUseCase.name);
@@ -94,126 +99,14 @@ export class SendChatMessageUseCase {
   ) {}
 
   async execute(input: SendChatMessageUseCaseInput): Promise<SendChatMessageUseCaseResult> {
-    const { tenantId, clientIp, chatbotSettings } = input;
-    const now = new Date();
-    const conversationDate = utcDateToLocalDate(now, input.timezone);
+    const { tenantId, chatbotSettings } = input;
     const resolvedProviderName = this.llmRegistry.resolveName(chatbotSettings.llmProvider);
 
-    // Layer 5 — checked first, uniformly, before any DB read (docs/14-API_CONTRACTS.md UC-033
-    // A3). The BFF DTO layer (S09) is the primary UX-facing check; this is the real backstop so
-    // this use case is never reachable with an oversized message from any caller — a generous
-    // static Zod ceiling at the backend DTO layer alone left the tenant's real, often-smaller
-    // resolved cap unenforced for any caller reaching this endpoint directly (PR #360 review).
-    const maxMessageLength =
-      chatbotSettings.maxMessageLengthChars ?? DEFAULT_MAX_MESSAGE_LENGTH_CHARS;
-    if (input.userMessage.length > maxMessageLength) {
-      this.rejectAndThrow(
-        'message_too_long',
-        input.sessionId,
-        () => new ChatbotMessageTooLongError(),
-      );
-    }
+    this.enforceMessageLength(input);
 
-    let session: ChatbotSession;
-    let history: ChatTurn[];
-
-    if (input.sessionId) {
-      const existing = await this.sessionRepo.findById(input.sessionId, tenantId);
-      if (!existing) throw new ChatbotSessionNotFoundError(input.sessionId);
-      session = existing;
-
-      // Layer 4, checked against session.messageCount (already-persisted, incrementally
-      // maintained by recordMessage() below) rather than counting live chatbot_messages rows —
-      // avoids loading the whole conversation just to check its length (PR #360 review,
-      // performance), and checks capacity for BOTH rows this turn writes, not just whether the
-      // count is already at cap — exact for every configured value, not just even ones (PR #360
-      // review, correctness: the previous `>= maxMessages` check could overshoot by 1 on an odd
-      // cap, since it only rejected once already at/over cap, not when this turn would cross it).
-      const maxMessages =
-        chatbotSettings.maxMessagesPerConversation ?? DEFAULT_MAX_MESSAGES_PER_CONVERSATION;
-      if (session.messageCount + 2 > maxMessages) {
-        session.markCapped();
-        await this.txManager.run(() => this.sessionRepo.save(session));
-        this.rejectAndThrow('message_cap', session.id, () => new ChatbotMessageCapReachedError());
-      }
-
-      const maxHistory =
-        chatbotSettings.maxHistoryMessagesSentToLlm ?? DEFAULT_MAX_HISTORY_MESSAGES_SENT_TO_LLM;
-      const recentMessages = await this.messageRepo.findRecentBySession(
-        input.sessionId,
-        tenantId,
-        maxHistory,
-      );
-      history = recentMessages.map(toChatTurn);
-    } else {
-      const maxPerDay = chatbotSettings.maxConversationsPerDay ?? DEFAULT_MAX_CONVERSATIONS_PER_DAY;
-      const dailyCount = await this.sessionRepo.countByTenantAndDate(tenantId, conversationDate);
-      if (dailyCount >= maxPerDay) {
-        this.rejectAndThrow('daily_cap', undefined, () => new ChatbotDailyCapReachedError());
-      }
-
-      const maxPerIpPerDay =
-        chatbotSettings.maxConversationsPerIpPerDay ?? DEFAULT_MAX_CONVERSATIONS_PER_IP_PER_DAY;
-      const ipDailyCount = await this.sessionRepo.countByTenantIpAndDate(
-        tenantId,
-        clientIp,
-        conversationDate,
-      );
-      if (ipDailyCount >= maxPerIpPerDay) {
-        this.rejectAndThrow('daily_cap', undefined, () => new ChatbotDailyCapReachedError());
-      }
-
-      const maxConcurrent =
-        chatbotSettings.maxConcurrentConversations ?? DEFAULT_MAX_CONCURRENT_CONVERSATIONS;
-      const concurrentCount = await this.sessionRepo.countActiveSince(
-        tenantId,
-        new Date(now.getTime() - CONCURRENCY_WINDOW_MS),
-      );
-      if (concurrentCount >= maxConcurrent) {
-        this.rejectAndThrow(
-          'concurrency_cap',
-          undefined,
-          () => new ChatbotConcurrencyCapReachedError(),
-        );
-      }
-
-      // Platform-wide backstops (layers 9-10) — new-session creation only, per
-      // docs/discovery/CHATBOT/CHATBOT.md §8.9: "already-open conversations remain bounded by
-      // their own per-session caps regardless" (not the global breaker). Checking these on every
-      // message of an already-open conversation contradicted this canonical text (PR #360 review
-      // — reverting the M19-S05 story-discovery decision to check on every message).
-      const globalSpendLimitUsd = new Decimal(
-        this.config.get<string>('CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD', '25'),
-      );
-      const todaySpend = await this.messageRepo.sumCostUsdSince(
-        new Date(startOfDayUTC(todayUTC())),
-      );
-      if (todaySpend.greaterThanOrEqualTo(globalSpendLimitUsd)) {
-        this.rejectAndThrow(
-          'global_spend_limit',
-          undefined,
-          () => new ChatbotGlobalSpendLimitReachedError(),
-        );
-      }
-
-      const balance = await this.balanceRepo.findByProvider(resolvedProviderName);
-      const minBalanceUsd = new Decimal(
-        this.config.get<string>(
-          'CHATBOT_MIN_PROVIDER_BALANCE_USD',
-          DEFAULT_MIN_PROVIDER_BALANCE_USD,
-        ),
-      );
-      if (balance && balance.remainingUsd.lessThan(minBalanceUsd)) {
-        this.rejectAndThrow(
-          'provider_balance_low',
-          undefined,
-          () => new ChatbotProviderBalanceLowError(),
-        );
-      }
-
-      session = ChatbotSession.create({ tenantId, clientIp, conversationDate });
-      history = [];
-    }
+    const { session, history } = input.sessionId
+      ? await this.resolveExistingSession(input.sessionId, tenantId, chatbotSettings)
+      : await this.resolveNewSession(input, resolvedProviderName);
 
     // Reserve this turn's 2 rows (persist the session with its updated messageCount/
     // lastMessageAt) BEFORE the LLM call, not after. Narrows the concurrent-write race on layers
@@ -242,19 +135,7 @@ export class SendChatMessageUseCase {
         model: chatbotSettings.llmModel,
       });
     } catch (err: unknown) {
-      // The real cause is logged server-side only — never embedded in the public Problem Details
-      // response, which could otherwise leak upstream vendor diagnostic details (PR #360 review).
-      this.logger.error(
-        'Chatbot LLM provider call failed',
-        err instanceof Error ? err.stack : undefined,
-        { sessionId: session.id, provider: resolvedProviderName },
-      );
-      this.tracingPort.setActiveSpanAttributes({
-        'chatbot.session_id': session.id,
-        'chatbot.provider': resolvedProviderName,
-        'chatbot.cap_rejected': 'provider_unavailable',
-      });
-      throw new ChatbotProviderUnavailableError();
+      this.handleProviderFailure(err, session, resolvedProviderName);
     }
 
     const userMessageRow = ChatbotMessage.create({
@@ -292,6 +173,154 @@ export class SendChatMessageUseCase {
     });
 
     return { sessionId: session.id, reply: result.text };
+  }
+
+  // Layer 5 — checked first, uniformly, before any DB read (docs/14-API_CONTRACTS.md UC-033 A3).
+  // The BFF DTO layer (S09) is the primary UX-facing check; this is the real backstop so this use
+  // case is never reachable with an oversized message from any caller — a generous static Zod
+  // ceiling at the backend DTO layer alone left the tenant's real, often-smaller resolved cap
+  // unenforced for any caller reaching this endpoint directly (PR #360 review).
+  private enforceMessageLength(input: SendChatMessageUseCaseInput): void {
+    const maxMessageLength =
+      input.chatbotSettings.maxMessageLengthChars ?? DEFAULT_MAX_MESSAGE_LENGTH_CHARS;
+    if (input.userMessage.length > maxMessageLength) {
+      this.rejectAndThrow(
+        'message_too_long',
+        input.sessionId,
+        () => new ChatbotMessageTooLongError(),
+      );
+    }
+  }
+
+  private async resolveExistingSession(
+    sessionId: string,
+    tenantId: string,
+    chatbotSettings: ChatbotSettings,
+  ): Promise<ResolvedSession> {
+    const existing = await this.sessionRepo.findById(sessionId, tenantId);
+    if (!existing) throw new ChatbotSessionNotFoundError(sessionId);
+    const session = existing;
+
+    // Layer 4, checked against session.messageCount (already-persisted, incrementally maintained
+    // by recordMessage() in execute()) rather than counting live chatbot_messages rows — avoids
+    // loading the whole conversation just to check its length (PR #360 review, performance), and
+    // checks capacity for BOTH rows this turn writes, not just whether the count is already at
+    // cap — exact for every configured value, not just even ones (PR #360 review, correctness:
+    // the previous `>= maxMessages` check could overshoot by 1 on an odd cap, since it only
+    // rejected once already at/over cap, not when this turn would cross it).
+    const maxMessages =
+      chatbotSettings.maxMessagesPerConversation ?? DEFAULT_MAX_MESSAGES_PER_CONVERSATION;
+    if (session.messageCount + 2 > maxMessages) {
+      session.markCapped();
+      await this.txManager.run(() => this.sessionRepo.save(session));
+      this.rejectAndThrow('message_cap', session.id, () => new ChatbotMessageCapReachedError());
+    }
+
+    const maxHistory =
+      chatbotSettings.maxHistoryMessagesSentToLlm ?? DEFAULT_MAX_HISTORY_MESSAGES_SENT_TO_LLM;
+    const recentMessages = await this.messageRepo.findRecentBySession(
+      sessionId,
+      tenantId,
+      maxHistory,
+    );
+
+    return { session, history: recentMessages.map(toChatTurn) };
+  }
+
+  private async resolveNewSession(
+    input: SendChatMessageUseCaseInput,
+    resolvedProviderName: string,
+  ): Promise<ResolvedSession> {
+    const { tenantId, clientIp, chatbotSettings } = input;
+    const now = new Date();
+    const conversationDate = utcDateToLocalDate(now, input.timezone);
+
+    const maxPerDay = chatbotSettings.maxConversationsPerDay ?? DEFAULT_MAX_CONVERSATIONS_PER_DAY;
+    const dailyCount = await this.sessionRepo.countByTenantAndDate(tenantId, conversationDate);
+    if (dailyCount >= maxPerDay) {
+      this.rejectAndThrow('daily_cap', undefined, () => new ChatbotDailyCapReachedError());
+    }
+
+    const maxPerIpPerDay =
+      chatbotSettings.maxConversationsPerIpPerDay ?? DEFAULT_MAX_CONVERSATIONS_PER_IP_PER_DAY;
+    const ipDailyCount = await this.sessionRepo.countByTenantIpAndDate(
+      tenantId,
+      clientIp,
+      conversationDate,
+    );
+    if (ipDailyCount >= maxPerIpPerDay) {
+      this.rejectAndThrow('daily_cap', undefined, () => new ChatbotDailyCapReachedError());
+    }
+
+    const maxConcurrent =
+      chatbotSettings.maxConcurrentConversations ?? DEFAULT_MAX_CONCURRENT_CONVERSATIONS;
+    const concurrentCount = await this.sessionRepo.countActiveSince(
+      tenantId,
+      new Date(now.getTime() - CONCURRENCY_WINDOW_MS),
+    );
+    if (concurrentCount >= maxConcurrent) {
+      this.rejectAndThrow(
+        'concurrency_cap',
+        undefined,
+        () => new ChatbotConcurrencyCapReachedError(),
+      );
+    }
+
+    await this.enforcePlatformBackstops(resolvedProviderName);
+
+    const session = ChatbotSession.create({ tenantId, clientIp, conversationDate });
+    return { session, history: [] };
+  }
+
+  // Platform-wide backstops (layers 9-10) — new-session creation only, per
+  // docs/discovery/CHATBOT/CHATBOT.md §8.9: "already-open conversations remain bounded by their
+  // own per-session caps regardless" (not the global breaker). Checking these on every message of
+  // an already-open conversation contradicted this canonical text (PR #360 review — reverting the
+  // M19-S05 story-discovery decision to check on every message).
+  private async enforcePlatformBackstops(resolvedProviderName: string): Promise<void> {
+    const globalSpendLimitUsd = new Decimal(
+      this.config.get<string>('CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD', '25'),
+    );
+    const todaySpend = await this.messageRepo.sumCostUsdSince(new Date(startOfDayUTC(todayUTC())));
+    if (todaySpend.greaterThanOrEqualTo(globalSpendLimitUsd)) {
+      this.rejectAndThrow(
+        'global_spend_limit',
+        undefined,
+        () => new ChatbotGlobalSpendLimitReachedError(),
+      );
+    }
+
+    const balance = await this.balanceRepo.findByProvider(resolvedProviderName);
+    const minBalanceUsd = new Decimal(
+      this.config.get<string>('CHATBOT_MIN_PROVIDER_BALANCE_USD', DEFAULT_MIN_PROVIDER_BALANCE_USD),
+    );
+    if (balance?.remainingUsd.lessThan(minBalanceUsd)) {
+      this.rejectAndThrow(
+        'provider_balance_low',
+        undefined,
+        () => new ChatbotProviderBalanceLowError(),
+      );
+    }
+  }
+
+  // The real cause is logged server-side only — never embedded in the public Problem Details
+  // response, which could otherwise leak upstream vendor diagnostic details (PR #360 review).
+  private handleProviderFailure(
+    err: unknown,
+    session: ChatbotSession,
+    resolvedProviderName: string,
+  ): never {
+    this.logger.error(
+      'Chatbot LLM provider call failed',
+      err instanceof Error ? err.stack : undefined,
+      { sessionId: session.id, provider: resolvedProviderName },
+    );
+    this.tracingPort.setActiveSpanAttributes({
+      'chatbot.session_id': session.id,
+      'chatbot.provider': resolvedProviderName,
+      'chatbot.cap_rejected': 'provider_unavailable',
+    });
+    throw new ChatbotProviderUnavailableError();
   }
 
   /** Structured log (AppThrottlerGuard's own logging pattern) + span attribute + throw, in one

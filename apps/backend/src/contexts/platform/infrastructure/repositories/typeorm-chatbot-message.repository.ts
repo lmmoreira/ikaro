@@ -38,9 +38,12 @@ export class TypeOrmChatbotMessageRepository implements IChatbotMessageRepositor
       order: { createdAt: 'DESC' },
       take: limit,
     });
-    // DESC + LIMIT fetches the most recent `limit` rows only; reverse to restore the oldest-first
-    // order every caller of this port expects (matches findBySession's own ordering).
-    return entities.reverse().map((entity) => this.toDomain(entity));
+    // DESC + LIMIT fetches the most recent `limit` rows only. reverse() is a separate statement,
+    // not chained mid-expression, since it mutates in place (toReversed() needs ES2023, past this
+    // project's configured lib target) — restores the oldest-first order every caller of this
+    // port expects (matches findBySession's ordering).
+    entities.reverse();
+    return entities.map((entity) => this.toDomain(entity));
   }
 
   // SUM(cost_usd) has no plain repository.sum() shorthand in TypeORM — the QueryBuilder's own
