@@ -48,12 +48,12 @@ If the story cites a UC that CLAUDE.md §6 lists as a trap (superseded / future 
 **Detect infra scope (for Step 1's conditional Agent E):**
 ```bash
 # local branch (blank argument)
-git diff origin/main...HEAD --name-only | grep -E '^(infra/terraform/|\.github/workflows/|Dockerfile|docker-compose)'
+git diff origin/main...HEAD --name-only | grep -E '^(infra/terraform/|infra/docker/|\.github/workflows/|Dockerfile|docker-compose)'
 
 # PR number argument
-gh pr diff <N> --repo lmmoreira/ikaro --name-only | grep -E '^(infra/terraform/|\.github/workflows/|Dockerfile|docker-compose)'
+gh pr diff <N> --repo lmmoreira/ikaro --name-only | grep -E '^(infra/terraform/|infra/docker/|\.github/workflows/|Dockerfile|docker-compose)'
 ```
-Non-empty output → this PR touches infra/pipeline files, spawn Agent E in Step 1. Empty → four agents only, same as today.
+Non-empty output → this PR touches infra/pipeline files, spawn Agent E in Step 1. Empty → four agents only, same as today. (`infra/docker/` added 2026-08-12 — the bare `Dockerfile` alternative only matches a root-level file; a nested one like `infra/docker/otel-collector/Dockerfile` needs its own path prefix.)
 
 ---
 
@@ -61,12 +61,15 @@ Non-empty output → this PR touches infra/pipeline files, spawn Agent E in Step
 
 Spawn four agents in parallel (one message, four `Agent` calls, `subagent_type: general-purpose`) — five if Step 0's infra-scope check was non-empty, adding Agent E below. Give each one: the full diff, the changed-file list, the pinned head commit (PR-number mode) or working-directory state (local-branch mode) to read full file content from, plus the story/TD text, the AC checklist, the cited UC flows, and the docs listed under its section below. Instruct each to **read each changed file's current full content** (not just the diff hunk — a hunk alone hides whether a flagged loop/caller pattern already existed before this PR), from the source pinned in Step 0, never from an assumption about what the working directory contains.
 
+**Each agent's checklist below is a floor, not the full scope (2026-08-12).** If investigating one item leads into a related file, a sibling CI workflow, a doc section not explicitly listed, or a cross-cutting invariant from CLAUDE.md that isn't spelled out below — follow it. A fixed checklist can only catch what someone already thought to write down; the highest-value findings are often the ones nobody anticipated. Depth within a lens and breadth beyond it are both in scope.
+
 **Every agent applies this discipline to every finding, no exceptions:**
 1. Read the full surrounding context before reporting — never flag from pattern-matching a single line in isolation.
 2. Cross-check against `docs/ANTI_PATTERNS.md`'s full table and any explicit "never / don't / must / forbidden / avoid" rule in `CLAUDE.md` or the docs loaded for this lens. When a finding matches a documented rule or named anti-pattern, **cite it directly** (doc + section/row) instead of general reasoning alone — a grounded finding beats a stylistic opinion.
-3. Attach a suggested severity (rubric in Step 2), a one-line rationale, and `file:line`.
-4. If genuinely unsure whether something is a real defect vs. an intentional, documented design choice, say so explicitly and suggest Minor rather than guessing Critical.
-5. Do not invoke `/pre-pr`, `/bad-smell-audit`, or any other skill.
+3. **Verify against the real primary source before asserting anything about third-party or external behavior (2026-08-12).** A claim about a library's actual default, a cloud API's actual constraint, a framework's actual runtime behavior — never assert this from memory alone. Fetch the real docs (`WebFetch`), pull the real package (`npm pack`/`npm view`, then read its source), or run the real binary (`docker run`, a local repro) before writing the finding down. This is this codebase's own established discipline (`docs/ENGINEERING_RULES.md`'s incident history is built on "checked directly," "confirmed against the real pinned binary," "refuted, not just unconfirmed" — see `docs/ANTI_PATTERNS.md`'s rows on unverified quota/CPU hypotheses for what happens when this step is skipped). An unverified claim, even a plausible-sounding one, is not a finding yet.
+4. Attach a suggested severity (rubric in Step 2), a one-line rationale, and `file:line`.
+5. If genuinely unsure whether something is a real defect vs. an intentional, documented design choice, say so explicitly and suggest Minor rather than guessing Critical.
+6. Do not invoke `/pre-pr`, `/bad-smell-audit`, or any other skill.
 
 ### Agent A — Requirements & Correctness
 - Check off **every** acceptance-criteria bullet individually: Met / Not Met / Partial, each with evidence (`file:line`, or "no corresponding change found").
@@ -88,6 +91,7 @@ Perspectives converging on the same artifact: security engineer, attacker, SRE, 
 - Sensitive data: PII (name, phone, documents — Brazil-market SaaS, LGPD applies) landing in logs, traces, span attributes, or error messages; secrets/tokens hardcoded or logged.
 - Idempotency & concurrency: event handlers dedup via `eventId`; optimistic-locking correctness (`manager.save()` on a detached hand-built entity does **not** enforce version safety — needs an explicit version-guarded `UPDATE ... WHERE id AND tenant_id AND version`); cross-row invariants (e.g. booking overlap) enforced inside the write transaction, not left to `@VersionColumn` alone.
 - Observability on failure paths: correlation ID passed through (`event.correlationId`, never regenerated), OTel span attributes (`tenant.id`, `user.id`, `correlation.id`) present, and whether an on-call engineer could actually diagnose a prod failure from what's logged.
+- **New/changed metrics carry `tenant_id`, or the gap is a documented, reasoned exception (2026-08-12):** CLAUDE.md §2 rule 8 says "logs, metrics, **and** traces include `tenant_id`" — not just spans/logs. If a PR adds a counter/histogram/gauge with no `tenant_id`-equivalent label, that's a real invariant violation unless the PR itself documents why (e.g. a cardinality tradeoff — a per-tenant label on a high-volume metric multiplying series count — mirroring `## Loki Label Strategy` in `docs/10-OBSERVABILITY_STRATEGY.md`, which already makes the identical call for logs). Don't let "it's just an HTTP metric" wave this past — check whether the auto-instrumentation or library in use has any way to carry the label before accepting the gap as unavoidable, and if it doesn't, say so explicitly (found via M17-S55, PR #362: this exact gap existed for two full review passes before being caught).
 - Attacker framing for every new/changed endpoint: forged/missing/expired token, tenant-mismatched ID, oversized payload, replayed request.
 - Docs: `docs/06-TENANT_ISOLATION_STRATEGY.md`, `docs/10-OBSERVABILITY_STRATEGY.md`, `docs/ENGINEERING_RULES.md` (critical invariants — Interceptor-vs-Middleware, cross-service I/O in transactions, `declare global` typing trap — live here now; CLAUDE.md §7 only holds short pointers to them), `docs/ANTI_PATTERNS.md`, CLAUDE.md §2.
 
@@ -125,6 +129,7 @@ Perspectives converging on the same artifact: security engineer, SRE, cost owner
 - Network/ingress posture: public exposure of a resource that should be internal-only (Cloud Run ingress, firewall/network rule, public GCS bucket/object); default-deny posture not weakened.
 - Cost & right-sizing: Cloud Run min/max instances and DB tier changes justified by an actual load reason (not copy-pasted from another module); orphaned/unused resources left behind by a refactor.
 - CI/CD pipeline changes (`.github/workflows/**`): required-status-check ordering — never adding a check to branch protection before its workflow is merged and has run on `main` at least once; `zizmor`/`actionlint` concerns (script injection via untrusted `${{ }}` interpolation, missing `permissions:` scoping).
+- **Cross-workflow ordering (2026-08-12):** if this PR creates or changes a producer→consumer relationship between two *independently-triggered* workflows (one publishes an image/artifact/digest another workflow resolves and deploys; one workflow's output is assumed ready by another) — check whether the ordering is actually guaranteed (`needs:` within one workflow, a `workflow_run` trigger, or an explicit live-state check against the Actions API) or merely assumed because they usually finish in a convenient order. Two workflows triggered by the same push, filtered to disjoint `paths:`, with no dependency between them, is the shape to watch for — a single commit touching both path sets races (found via M17-S55, PR #362: `deploy-staging.yml` could resolve `otel-collector:latest` before `build-otel-collector.yml`'s `push` job finished publishing it, silently deploying app code paired with a stale sidecar image).
 - Module design & reuse: a new resource defined ad hoc when an existing module in `infra/terraform/modules/` already covers the same concern (check the "Module dependency graph" section); Checkov custom checks (`.checkov/custom_checks`) updated if a new resource type needs one.
 - Test coverage: new/changed resource or module has `.tftest.hcl` coverage per the "Unit-test convention" section of `infra/terraform/README.md`.
 - Docs: `infra/terraform/README.md`, `plan/M17-CLOUD-DEPLOY.md` §0–§2, `docs/12-DEPLOYMENT_STRATEGY.md`, `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md`, `docs/22-TECH_STACK_DECISIONS.md`; vendored `.claude/skills/terraform-style-guide/` for style/convention questions.
