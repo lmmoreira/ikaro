@@ -1,4 +1,4 @@
-import { ConfigService } from '@nestjs/config';
+import { IApplicationConfig } from '../../../../shared/ports/application-config.port';
 import { fakeConfig } from '../../../../test/utils/fake-config';
 import { staleSession, todayInSaoPaulo } from '../../../../test/utils/chatbot-test-helpers';
 import {
@@ -27,7 +27,7 @@ describe('GetChatbotStatusUseCase', () => {
   let balanceRepo: InMemoryChatbotProviderBalanceRepository;
   let llmProvider: ILlmProvider;
 
-  function buildUseCase(config: ConfigService = fakeConfig()): GetChatbotStatusUseCase {
+  function buildUseCase(config: IApplicationConfig = fakeConfig()): GetChatbotStatusUseCase {
     llmProvider = new FakeLlmProviderBuilder().build();
     const registry = new LlmProviderRegistry('openrouter', llmProvider, llmProvider, llmProvider);
     return new GetChatbotStatusUseCase(sessionRepo, messageRepo, balanceRepo, registry, config);

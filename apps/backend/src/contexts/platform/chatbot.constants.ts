@@ -20,11 +20,9 @@ export const DEFAULT_MAX_OUTPUT_TOKENS_PER_RESPONSE = 300;
 // platform-wide daily spend circuit breaker (S05) now sums the cost_usd already stored on each
 // chatbot_messages row rather than reconstructing it from tokens at query time.
 
-// Platform-wide operational backstops — deliberately plain env vars, never a tenants.settings
-// field (docs/21-TENANTS_SETTINGS_SCHEMA.md §7's own "Not in this category, on purpose" note):
-// no tenant should be able to opt out, and both need to be bumpable in minutes during a real
-// incident, not a deploy cycle. Read as `config.get('CHATBOT_X', DEFAULT_X)` by both S05 (which
-// enforces them) and S06 (which pre-flight-checks them) — a single source of truth for the
-// fallback value, not duplicated per call site.
-export const DEFAULT_MIN_PROVIDER_BALANCE_USD = '2';
-export const DEFAULT_PROVIDER_HEALTH_COOLDOWN_MINUTES = 5;
+// Platform-wide operational backstops (CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD,
+// CHATBOT_MIN_PROVIDER_BALANCE_USD, CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES) are plain env vars,
+// never a tenants.settings field or a code constant here — no tenant should be able to opt out,
+// and all three need to be bumpable in minutes during a real incident, not a deploy cycle. Their
+// defaults live in apps/backend/src/config/env.validation.ts's Zod schema (single source of
+// truth), read via IApplicationConfig.getOrThrow() — not duplicated as a constant in this file.

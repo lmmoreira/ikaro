@@ -1,6 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { Decimal } from 'decimal.js';
+import {
+  APPLICATION_CONFIG,
+  IApplicationConfig,
+} from '../../../../shared/ports/application-config.port';
 import {
   startOfDayUTC,
   todayUTC,
@@ -10,8 +13,6 @@ import type { ChatbotSettings } from '../../../../shared/value-objects/tenant-se
 import {
   DEFAULT_MAX_CONCURRENT_CONVERSATIONS,
   DEFAULT_MAX_CONVERSATIONS_PER_DAY,
-  DEFAULT_MIN_PROVIDER_BALANCE_USD,
-  DEFAULT_PROVIDER_HEALTH_COOLDOWN_MINUTES,
 } from '../../chatbot.constants';
 import {
   CHATBOT_MESSAGE_REPOSITORY,
@@ -59,7 +60,7 @@ export class GetChatbotStatusUseCase {
     @Inject(CHATBOT_PROVIDER_BALANCE_REPOSITORY)
     private readonly balanceRepo: IChatbotProviderBalanceRepository,
     @Inject(LLM_PROVIDER_REGISTRY) private readonly llmRegistry: LlmProviderRegistry,
-    private readonly config: ConfigService,
+    @Inject(APPLICATION_CONFIG) private readonly config: IApplicationConfig,
   ) {}
 
   async execute(input: GetChatbotStatusUseCaseInput): Promise<GetChatbotStatusUseCaseResult> {
@@ -87,16 +88,13 @@ export class GetChatbotStatusUseCase {
 
     // (c) Resolved provider failing a health check.
     const cooldownMinutes = Number(
-      this.config.get<string>(
-        'CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES',
-        String(DEFAULT_PROVIDER_HEALTH_COOLDOWN_MINUTES),
-      ),
+      this.config.getOrThrow('CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES'),
     );
     if (balance && !balance.isHealthy(cooldownMinutes, now)) return { available: false };
 
     // (d) Global daily spend circuit breaker already tripped.
     const globalSpendLimitUsd = new Decimal(
-      this.config.get<string>('CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD', '25'),
+      this.config.getOrThrow('CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD'),
     );
     const todaySpend = await this.messageRepo.sumCostUsdSince(new Date(startOfDayUTC(todayUTC())));
     if (todaySpend.greaterThanOrEqualTo(globalSpendLimitUsd)) return { available: false };
@@ -104,9 +102,7 @@ export class GetChatbotStatusUseCase {
     // (e) Resolved provider's balance floor already tripped. remainingUsd is null until S08's
     // first poll for this provider, and always null for a provider with no prepaid-balance
     // concept (Anthropic/OpenAI) — treated as "not tripped", never as a comparison failure.
-    const minBalanceUsd = new Decimal(
-      this.config.get<string>('CHATBOT_MIN_PROVIDER_BALANCE_USD', DEFAULT_MIN_PROVIDER_BALANCE_USD),
-    );
+    const minBalanceUsd = new Decimal(this.config.getOrThrow('CHATBOT_MIN_PROVIDER_BALANCE_USD'));
     if (balance?.remainingUsd?.lessThan(minBalanceUsd)) return { available: false };
 
     return { available: true };

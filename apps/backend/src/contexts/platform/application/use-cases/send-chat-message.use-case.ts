@@ -1,8 +1,11 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { defaultTracingPort, ITracingPort } from '@ikaro/observability';
 import { Decimal } from 'decimal.js';
 import { AppLogger } from '../../../../shared/observability/app-logger';
+import {
+  APPLICATION_CONFIG,
+  IApplicationConfig,
+} from '../../../../shared/ports/application-config.port';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
@@ -21,7 +24,6 @@ import {
   DEFAULT_MAX_MESSAGE_LENGTH_CHARS,
   DEFAULT_MAX_MESSAGES_PER_CONVERSATION,
   DEFAULT_MAX_OUTPUT_TOKENS_PER_RESPONSE,
-  DEFAULT_MIN_PROVIDER_BALANCE_USD,
 } from '../../chatbot.constants';
 import { ChatbotMessage } from '../../domain/chatbot-message.aggregate';
 import { ChatbotSession } from '../../domain/chatbot-session.aggregate';
@@ -89,7 +91,7 @@ export class SendChatMessageUseCase {
     private readonly balanceRepo: IChatbotProviderBalanceRepository,
     @Inject(LLM_PROVIDER_REGISTRY) private readonly llmRegistry: LlmProviderRegistry,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-    private readonly config: ConfigService,
+    @Inject(APPLICATION_CONFIG) private readonly config: IApplicationConfig,
     @Optional() private readonly tracingPort: ITracingPort = defaultTracingPort,
   ) {}
 
@@ -296,7 +298,7 @@ export class SendChatMessageUseCase {
   // M19-S05 story-discovery decision to check on every message).
   private async enforcePlatformBackstops(resolvedProviderName: string): Promise<void> {
     const globalSpendLimitUsd = new Decimal(
-      this.config.get<string>('CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD', '25'),
+      this.config.getOrThrow('CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD'),
     );
     const todaySpend = await this.messageRepo.sumCostUsdSince(new Date(startOfDayUTC(todayUTC())));
     if (todaySpend.greaterThanOrEqualTo(globalSpendLimitUsd)) {
@@ -308,9 +310,7 @@ export class SendChatMessageUseCase {
     }
 
     const balance = await this.balanceRepo.findByProvider(resolvedProviderName);
-    const minBalanceUsd = new Decimal(
-      this.config.get<string>('CHATBOT_MIN_PROVIDER_BALANCE_USD', DEFAULT_MIN_PROVIDER_BALANCE_USD),
-    );
+    const minBalanceUsd = new Decimal(this.config.getOrThrow('CHATBOT_MIN_PROVIDER_BALANCE_USD'));
     // remainingUsd is null until S08's first poll for this provider, and always null for a
     // provider with no prepaid-balance concept (Anthropic/OpenAI) — treated as "not tripped",
     // never as a comparison failure.

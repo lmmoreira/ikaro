@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ApplicationConfigModule } from '../../shared/infrastructure/application-config.module';
 import { StorageModule } from '../../shared/infrastructure/storage.module';
 import { RequestModule } from '../../shared/request/request.module';
 import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cache.module';
@@ -77,6 +78,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
       ChatbotMessageEntity,
       ChatbotProviderBalanceEntity,
     ]),
+    ApplicationConfigModule,
     RequestModule,
     StorageModule,
     SharedCacheModule,

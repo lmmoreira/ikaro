@@ -1,7 +1,7 @@
-import { ConfigService } from '@nestjs/config';
 import { ITracingPort, SpanAttributeValue } from '@ikaro/observability';
 import { Decimal } from 'decimal.js';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
+import { IApplicationConfig } from '../../../../shared/ports/application-config.port';
 import { fakeConfig } from '../../../../test/utils/fake-config';
 import { staleSession, todayInSaoPaulo } from '../../../../test/utils/chatbot-test-helpers';
 import {
@@ -56,7 +56,7 @@ describe('SendChatMessageUseCase', () => {
   let tracingPort: FakeTracingPort;
   let llmProvider: ILlmProvider;
 
-  function buildUseCase(config: ConfigService = fakeConfig()): SendChatMessageUseCase {
+  function buildUseCase(config: IApplicationConfig = fakeConfig()): SendChatMessageUseCase {
     llmProvider = new FakeLlmProviderBuilder().build();
     const registry = new LlmProviderRegistry('openrouter', llmProvider, llmProvider, llmProvider);
     return new SendChatMessageUseCase(
