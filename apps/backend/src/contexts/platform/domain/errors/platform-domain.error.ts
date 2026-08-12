@@ -174,3 +174,82 @@ export class TenantSettingsValidationError extends PlatformDomainError {
     this.name = 'TenantSettingsValidationError';
   }
 }
+
+/**
+ * Chatbot cap-rejection errors (UC-033, docs/discovery/CHATBOT/CHATBOT.md §8) — all mapped to
+ * HTTP 429 in platform-error.mapper.ts. Covers both layer 1 (tenant-wide) and layer 2 (per-IP)
+ * daily caps: same visitor-facing outcome ("come back tomorrow"), same error code.
+ */
+export class ChatbotDailyCapReachedError extends PlatformDomainError {
+  constructor() {
+    super(
+      "Tenant's daily chatbot conversation cap has been reached",
+      PlatformErrorCode.CHATBOT_DAILY_CAP_REACHED,
+    );
+    this.name = 'ChatbotDailyCapReachedError';
+  }
+}
+
+export class ChatbotConcurrencyCapReachedError extends PlatformDomainError {
+  constructor() {
+    super(
+      "Tenant's concurrent chatbot conversation cap has been reached",
+      PlatformErrorCode.CHATBOT_CONCURRENCY_CAP_REACHED,
+    );
+    this.name = 'ChatbotConcurrencyCapReachedError';
+  }
+}
+
+export class ChatbotMessageCapReachedError extends PlatformDomainError {
+  constructor() {
+    super(
+      'This conversation has reached its message cap',
+      PlatformErrorCode.CHATBOT_MESSAGE_CAP_REACHED,
+    );
+    this.name = 'ChatbotMessageCapReachedError';
+  }
+}
+
+/** Platform-wide backstop (layer 9) — never tenant-scoped, refuses new sessions for everyone. */
+export class ChatbotGlobalSpendLimitReachedError extends PlatformDomainError {
+  constructor() {
+    super(
+      'Platform-wide chatbot daily spend limit has been reached',
+      PlatformErrorCode.CHATBOT_GLOBAL_SPEND_LIMIT_REACHED,
+    );
+    this.name = 'ChatbotGlobalSpendLimitReachedError';
+  }
+}
+
+/** Platform-wide backstop (layer 10) — the resolved provider's prepaid balance is too low. */
+export class ChatbotProviderBalanceLowError extends PlatformDomainError {
+  constructor() {
+    super(
+      "The resolved LLM provider's balance is below the minimum threshold",
+      PlatformErrorCode.CHATBOT_PROVIDER_BALANCE_LOW,
+    );
+    this.name = 'ChatbotProviderBalanceLowError';
+  }
+}
+
+/** UC-033 A4 — the LLM provider call itself failed (timeout, upstream error, malformed response). Mapped to 503, distinct from the 429 cap-rejection family above. */
+export class ChatbotProviderUnavailableError extends PlatformDomainError {
+  constructor(cause: string) {
+    super(
+      `Chatbot LLM provider call failed: ${cause}`,
+      PlatformErrorCode.CHATBOT_PROVIDER_UNAVAILABLE,
+    );
+    this.name = 'ChatbotProviderUnavailableError';
+  }
+}
+
+/** docs/14-API_CONTRACTS.md: "404 — ... sessionId doesn't belong to this tenant". */
+export class ChatbotSessionNotFoundError extends PlatformDomainError {
+  constructor(sessionId: string) {
+    super(
+      `Chatbot session '${sessionId}' not found for this tenant`,
+      PlatformErrorCode.CHATBOT_SESSION_NOT_FOUND,
+    );
+    this.name = 'ChatbotSessionNotFoundError';
+  }
+}

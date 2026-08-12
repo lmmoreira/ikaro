@@ -235,7 +235,7 @@ The `CHATBOT` hotsite module's own endpoints — never part of the cached manife
   - **Request body:** `{ "sessionId"?: "uuid-v7", "message": "string, max 1000 chars (tenant-overridable)" }` — `sessionId` omitted on the first message of a conversation
   - **Response `200 OK`:** `{ "sessionId": "uuid-v7", "reply": "string" }`
   - `400` — `message` exceeds `maxMessageLengthChars`; validated before the request reaches the backend or the LLM
-  - `429` — a volume cap rejected the request (new-session caps: daily/per-IP/concurrency; existing-session cap: `maxMessagesPerConversation`) — a specific error code per cap layer, see `docs/discovery/CHATBOT/CHATBOT.md` §8 for the full list
+  - `429` — a volume cap rejected the request: new-session caps (daily/per-IP/concurrency), existing-session cap (`maxMessagesPerConversation`), **or** either platform-wide backstop (global daily spend circuit breaker, provider balance floor — `CHATBOT.md` §8 layers 9-10; decided during M19-S05 story-discovery, 2026-08-12, that these map to the same status as the per-tenant caps, not `503`) — a specific error code per layer, see `docs/discovery/CHATBOT/CHATBOT.md` §8 for the full list
   - `503` — LLM provider call failed (timeout, upstream error, insufficient credits) — widget shows the interrupted state, phone/WhatsApp fallback offered
   - `404` — tenant slug not found, or `sessionId` doesn't belong to this tenant
 

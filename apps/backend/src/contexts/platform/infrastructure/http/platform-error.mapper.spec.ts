@@ -14,6 +14,13 @@ import { SeoDescriptionValidationError } from '../../../../shared/value-objects/
 import { SlugValidationError } from '../../../../shared/value-objects/slug.vo';
 import { HexColorValidationError } from '../../../../shared/value-objects/hex-color.vo';
 import {
+  ChatbotConcurrencyCapReachedError,
+  ChatbotDailyCapReachedError,
+  ChatbotGlobalSpendLimitReachedError,
+  ChatbotMessageCapReachedError,
+  ChatbotProviderBalanceLowError,
+  ChatbotProviderUnavailableError,
+  ChatbotSessionNotFoundError,
   HotsiteBrandingColorInvalidError,
   HotsiteConfigConcurrentModificationError,
   HotsiteNotFoundError,
@@ -143,6 +150,35 @@ describe('mapPlatformError', () => {
     const err = call(new HexColorValidationError('bad color', HexColorErrorCode.FORMAT_INVALID));
     expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
     expect(err.getResponse()).toMatchObject({ code: HexColorErrorCode.FORMAT_INVALID });
+  });
+
+  it.each([
+    [new ChatbotDailyCapReachedError(), PlatformErrorCode.CHATBOT_DAILY_CAP_REACHED],
+    [new ChatbotConcurrencyCapReachedError(), PlatformErrorCode.CHATBOT_CONCURRENCY_CAP_REACHED],
+    [new ChatbotMessageCapReachedError(), PlatformErrorCode.CHATBOT_MESSAGE_CAP_REACHED],
+    [
+      new ChatbotGlobalSpendLimitReachedError(),
+      PlatformErrorCode.CHATBOT_GLOBAL_SPEND_LIMIT_REACHED,
+    ],
+    [new ChatbotProviderBalanceLowError(), PlatformErrorCode.CHATBOT_PROVIDER_BALANCE_LOW],
+  ])('maps %p to 429 with code %s', (error, code) => {
+    const err = call(error);
+    expect(err.getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
+    expect(err.getResponse()).toMatchObject({ code });
+  });
+
+  it('maps ChatbotProviderUnavailableError to 503 with code', () => {
+    const err = call(new ChatbotProviderUnavailableError('timeout'));
+    expect(err.getStatus()).toBe(HttpStatus.SERVICE_UNAVAILABLE);
+    expect(err.getResponse()).toMatchObject({
+      code: PlatformErrorCode.CHATBOT_PROVIDER_UNAVAILABLE,
+    });
+  });
+
+  it('maps ChatbotSessionNotFoundError to 404 with code', () => {
+    const err = call(new ChatbotSessionNotFoundError('session-1'));
+    expect(err.getStatus()).toBe(HttpStatus.NOT_FOUND);
+    expect(err.getResponse()).toMatchObject({ code: PlatformErrorCode.CHATBOT_SESSION_NOT_FOUND });
   });
 
   it('re-throws plain Error instances unchanged', () => {

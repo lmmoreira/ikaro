@@ -40,4 +40,11 @@ export class LlmProviderRegistry {
     }
     return provider;
   }
+
+  /** The resolved provider *name* for a given override — same resolution as resolve(), for
+   * callers that need the name itself (e.g. a `chatbot.provider` trace attribute), not an
+   * ILlmProvider instance. */
+  resolveName(providerNameOverride?: string): string {
+    return providerNameOverride ?? this.platformDefault;
+  }
 }

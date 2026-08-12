@@ -37,6 +37,7 @@ import { ListPublishedHotsitesUseCase } from './application/use-cases/list-publi
 import { ProvisionTenantUseCase } from './application/use-cases/provision-tenant.use-case';
 import { PublishHotsiteUseCase } from './application/use-cases/publish-hotsite.use-case';
 import { RenameTenantUseCase } from './application/use-cases/rename-tenant.use-case';
+import { SendChatMessageUseCase } from './application/use-cases/send-chat-message.use-case';
 import { UnpublishHotsiteUseCase } from './application/use-cases/unpublish-hotsite.use-case';
 import { UpdateHotsiteContentUseCase } from './application/use-cases/update-hotsite-content.use-case';
 import { UpdateTenantSettingsUseCase } from './application/use-cases/update-tenant-settings.use-case';
@@ -52,6 +53,7 @@ import { OpenAiLlmAdapter } from './infrastructure/llm/openai-llm.adapter';
 import { OpenRouterLlmAdapter } from './infrastructure/llm/openrouter-llm.adapter';
 import { HotsiteContentReader } from './application/services/hotsite-content-reader.service';
 import { HotsiteImagePromotionService } from './application/services/hotsite-image-promotion.service';
+import { ChatbotController } from './infrastructure/controllers/chatbot.controller';
 import { HotsiteAdminController } from './infrastructure/controllers/hotsite-admin.controller';
 import { HotsiteController } from './infrastructure/controllers/hotsite.controller';
 import { InternalTenantController } from './infrastructure/controllers/internal-tenant.controller';
@@ -79,6 +81,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     SharedCacheModule,
   ],
   controllers: [
+    ChatbotController,
     HotsiteAdminController,
     HotsiteController,
     InternalTenantController,
@@ -135,6 +138,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     ProvisionTenantUseCase,
     PublishHotsiteUseCase,
     RenameTenantUseCase,
+    SendChatMessageUseCase,
     UnpublishHotsiteUseCase,
     UpdateHotsiteContentUseCase,
     UpdateTenantSettingsUseCase,

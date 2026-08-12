@@ -3,6 +3,13 @@ import { throwProblemDetail } from '@ikaro/nestjs-http';
 import { mapSharedAddressError } from '../../../../shared/http/address-validation-error.mapper';
 import { mapSharedVoError } from '../../../../shared/http/vo-validation-error.mapper';
 import {
+  ChatbotConcurrencyCapReachedError,
+  ChatbotDailyCapReachedError,
+  ChatbotGlobalSpendLimitReachedError,
+  ChatbotMessageCapReachedError,
+  ChatbotProviderBalanceLowError,
+  ChatbotProviderUnavailableError,
+  ChatbotSessionNotFoundError,
   HotsiteConfigConcurrentModificationError,
   HotsiteNotFoundError,
   PlatformDomainError,
@@ -21,8 +28,26 @@ export function mapPlatformError(err: unknown): never {
   ) {
     throw throwProblemDetail(HttpStatus.CONFLICT, err.code, err.message, err.field);
   }
-  if (err instanceof TenantNotFoundError || err instanceof HotsiteNotFoundError) {
+  if (
+    err instanceof TenantNotFoundError ||
+    err instanceof HotsiteNotFoundError ||
+    err instanceof ChatbotSessionNotFoundError
+  ) {
     throw throwProblemDetail(HttpStatus.NOT_FOUND, err.code, err.message, err.field);
+  }
+  // Chatbot cap-rejection family (docs/discovery/CHATBOT/CHATBOT.md §8) — all map to 429,
+  // including the 2 platform-wide backstops (M19-S05 story-discovery, 2026-08-12).
+  if (
+    err instanceof ChatbotDailyCapReachedError ||
+    err instanceof ChatbotConcurrencyCapReachedError ||
+    err instanceof ChatbotMessageCapReachedError ||
+    err instanceof ChatbotGlobalSpendLimitReachedError ||
+    err instanceof ChatbotProviderBalanceLowError
+  ) {
+    throw throwProblemDetail(HttpStatus.TOO_MANY_REQUESTS, err.code, err.message, err.field);
+  }
+  if (err instanceof ChatbotProviderUnavailableError) {
+    throw throwProblemDetail(HttpStatus.SERVICE_UNAVAILABLE, err.code, err.message, err.field);
   }
   if (err instanceof PlatformDomainError) {
     throw throwProblemDetail(HttpStatus.BAD_REQUEST, err.code, err.message, err.field);

@@ -1,0 +1,28 @@
+import { Decimal } from 'decimal.js';
+import { IChatbotMessageRepository } from '../../../contexts/platform/application/ports/chatbot-message-repository.port';
+import { ChatbotMessage } from '../../../contexts/platform/domain/chatbot-message.aggregate';
+
+export class InMemoryChatbotMessageRepository implements IChatbotMessageRepository {
+  private readonly store = new Map<string, ChatbotMessage>();
+
+  async findById(id: string, tenantId: string): Promise<ChatbotMessage | null> {
+    const message = this.store.get(id);
+    return message && message.tenantId === tenantId ? message : null;
+  }
+
+  async findBySession(sessionId: string, tenantId: string): Promise<ChatbotMessage[]> {
+    return [...this.store.values()]
+      .filter((m) => m.sessionId === sessionId && m.tenantId === tenantId)
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  }
+
+  async sumCostUsdSince(since: Date): Promise<Decimal> {
+    return [...this.store.values()]
+      .filter((m) => m.createdAt >= since)
+      .reduce((sum, m) => sum.plus(m.costUsd), new Decimal(0));
+  }
+
+  async save(message: ChatbotMessage): Promise<void> {
+    this.store.set(message.id, message);
+  }
+}
