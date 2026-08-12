@@ -114,8 +114,7 @@ export class SendChatMessageUseCase {
     // accepts for layers 1-2, instead of the full LLM-call-latency window a concurrent burst
     // could previously exploit (PR #360 review finding — the session/messageCount used to be
     // written only in the final save alongside the message rows, after the LLM call returned).
-    session.recordMessage();
-    session.recordMessage();
+    session.recordMessages(2); // USER + ASSISTANT rows for this turn, recorded as one instant
     await this.txManager.run(() => this.sessionRepo.save(session));
 
     const provider = this.llmRegistry.resolve(chatbotSettings.llmProvider);
@@ -202,7 +201,7 @@ export class SendChatMessageUseCase {
     const session = existing;
 
     // Layer 4, checked against session.messageCount (already-persisted, incrementally maintained
-    // by recordMessage() in execute()) rather than counting live chatbot_messages rows — avoids
+    // by recordMessages() in execute()) rather than counting live chatbot_messages rows — avoids
     // loading the whole conversation just to check its length (PR #360 review, performance), and
     // checks capacity for BOTH rows this turn writes, not just whether the count is already at
     // cap — exact for every configured value, not just even ones (PR #360 review, correctness:

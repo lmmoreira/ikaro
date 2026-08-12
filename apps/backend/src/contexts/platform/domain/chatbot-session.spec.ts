@@ -45,6 +45,35 @@ describe('ChatbotSession', () => {
     });
   });
 
+  describe('recordMessages()', () => {
+    it('increments messageCount by the given count in one call', () => {
+      const session = ChatbotSession.create(BASE_PROPS);
+
+      session.recordMessages(2);
+
+      expect(session.messageCount).toBe(2);
+    });
+
+    it('updates lastMessageAt once, not once per message', () => {
+      const session = ChatbotSession.create(BASE_PROPS);
+      const startedLastMessageAt = session.lastMessageAt;
+
+      session.recordMessages(2);
+
+      expect(session.lastMessageAt.getTime()).toBeGreaterThanOrEqual(
+        startedLastMessageAt.getTime(),
+      );
+    });
+
+    it('accumulates across repeated calls, same as recordMessage()', () => {
+      const session = ChatbotSession.create(BASE_PROPS);
+      session.recordMessages(2);
+      session.recordMessages(3);
+
+      expect(session.messageCount).toBe(5);
+    });
+  });
+
   describe('markCapped()', () => {
     it('transitions to CAPPED', () => {
       const session = ChatbotSession.create(BASE_PROPS);
