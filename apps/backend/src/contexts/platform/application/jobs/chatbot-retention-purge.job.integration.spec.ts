@@ -92,8 +92,11 @@ describe('ChatbotRetentionPurgeJob (integration)', () => {
 
     const result = await job.run(NOW);
 
-    expect(result.messagesDeleted).toBeGreaterThanOrEqual(2);
-    expect(result.sessionsDeleted).toBeGreaterThanOrEqual(2);
+    // Exact counts, not >= — this is the first test in the file (no other test has created
+    // old-dated rows yet), so a precise assertion catches an over/under-delete regression that
+    // >= would silently let through (CodeRabbit finding, PR #365).
+    expect(result.messagesDeleted).toBe(2);
+    expect(result.sessionsDeleted).toBe(2);
     expect(await messageRepo.findById(oldMessageA.id, tenantA.id)).toBeNull();
     expect(await messageRepo.findById(oldMessageB.id, tenantB.id)).toBeNull();
     expect(await sessionRepo.findById(sessionA.id, tenantA.id)).toBeNull();

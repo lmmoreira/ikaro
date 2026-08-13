@@ -115,17 +115,20 @@ describe('TypeOrmChatbotSessionRepository', () => {
     });
 
     it('normalizes the [rows, rowCount] shape the transactional EntityManager can return for DELETE ... RETURNING', async () => {
+      // Deliberately one inner row against a two-element wrapper ([rows, rowCount] is always
+      // 2 long) — a regression to `result.length` (the wrapper's own length) would read 2 here,
+      // not 1, so this actually fails if normalization is removed. The previous version used two
+      // inner rows, which coincidentally also made the wrapper's length 2 — indistinguishable
+      // from the bug it meant to catch (CodeRabbit finding, PR #365).
       const mockManager = {
-        query: jest.fn().mockResolvedValue([[{ id: 'session-1' }, { id: 'session-2' }], 2]),
+        query: jest.fn().mockResolvedValue([[{ id: 'session-1' }], 1]),
       } as unknown as EntityManager;
 
       const result = await runWithEntityManager(mockManager, () =>
         repo.deleteOrphanedStartedBefore(cutoff),
       );
 
-      // Without normalizing, this would read as 2 (the wrapper array's own length) even when
-      // zero or one row actually matched — the bug this test locks in against regressing.
-      expect(result).toBe(2);
+      expect(result).toBe(1);
     });
 
     it('returns 0 when nothing matches', async () => {
