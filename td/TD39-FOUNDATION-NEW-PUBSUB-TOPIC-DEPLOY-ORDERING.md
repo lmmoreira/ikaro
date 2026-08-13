@@ -1,7 +1,7 @@
 # TD39 — `foundation`'s Terraform plan cannot succeed for a brand-new Pub/Sub topic registered in the same PR that first introduces it
 
 ## Status
-- **State**: 🟡 In Progress — the live incident (deadlock + deployer permission gap) is fully resolved and verified in both staging and prod. The permanent cleanup (remove the temporary catalog filter, add the real grant, add the CI guardrail, document the rule) is in a follow-up PR, not yet merged.
+- **State**: ✅ Resolved — the live incident, the permanent cleanup, and the domain-event question are all closed. Follow-up PR #367 merged 2026-08-13, verified green in CI (including a live `Terraform plan — foundation (staging/prod)` showing zero drift after removing all 17 `import` blocks).
 - **Type**: Technical Debt / Architecture Gap (Terraform deploy ordering, `foundation`/`envs/*` state split)
 - **Priority**: Was Low/Medium at filing; escalated same-day after the M19-S07 incident turned into a live deploy deadlock affecting the whole pipeline, not just the one story.
 - **Context**: `infra/terraform/foundation/envs/{staging,prod}/main.tf` (`workload_catalog`/`workload_topics`/`workload_subscriptions` locals), `infra/terraform/foundation/modules/workload-iam/main.tf` (`google_pubsub_topic_iam_member`/`google_pubsub_subscription_iam_member`), `infra/terraform/foundation/modules/custom-roles/main.tf` (`normal_infrastructure_deployer` role), `infra/terraform/modules/pubsub` (the separate `envs/*`-root module that actually creates topics/subscriptions), `infra/terraform/modules/scheduler`, `infra/terraform/pubsub-catalog.json`, TD34 (`TD34-TERRAFORM-DEPLOYER-PRIVILEGE-ESCALATION.md` — established the Foundation/Workload IAM split this gap lives inside)
@@ -64,20 +64,20 @@ This let `foundation` plan/apply successfully without the topic existing, breaki
 
 ---
 
-## Open questions
+## Open questions (resolved)
 
-1. **Still unconfirmed**: does this affect brand-new **domain events** too, or only cron triggers? The mechanism (`workload_catalog` reads every entry in `pubsub-catalog.json`, both event and cron rows) strongly suggests yes, but this incident only ever exercised the cron-trigger path live. The new CI guardrail (scoped to all of `infra/terraform/**` vs `foundation/**`, not just pubsub) protects against both regardless of which it turns out to be.
+1. **Does this affect brand-new domain events too, or only cron triggers?** Confirmed via code tracing (not a live repro — deliberately triggering one would now violate the new guardrail, so this is settled analytically): `backend_publisher_${event}` iterates `keys(local.workload_topics)` — every entry in `pubsub-catalog.json`, cron or domain event alike, with zero filtering by name. Likewise `service_agent_dlq_publisher_*`/`service_agent_subscriber_*` iterate every consumer of every catalog entry. The *only* cron-specific piece anywhere in this derivation is `scheduler_publisher_${event}`, a hardcoded cron-name list — and that's irrelevant to the deadlock, since `backend_publisher_<event>` alone is sufficient to trigger the identical live-IAM-read-404 for a brand-new domain event's not-yet-existing topic. **Answer: yes, equally affected**, and the CI guardrail (scoped to all of `infra/terraform/**` vs `foundation/**`, not just pubsub) already protects against both cases identically.
 
 ## Acceptance criteria
 
 - [x] The specific deadlock from M19-S07/PR #365 resolved live — topic, DLQ topic, both subscriptions, and the Cloud Scheduler job confirmed live in both staging and prod via real `terraform apply` runs
 - [x] The deployer's missing `cloudscheduler.jobs.enable`/`run` permissions fixed and verified live
-- [ ] Temporary `workload_catalog` filter removed once the topic existed live (this PR) — written, not yet CI-verified
-- [ ] Real `scheduler_publisher_cron-chatbot-retention-purge` grant added to both env roots (this PR) — written, not yet CI-verified
-- [ ] All 17 `import` blocks removed from both `foundation/envs/{staging,prod}/main.tf`, closing the second bug this PR's own CI surfaced — and its whole latent class, not just the pubsub instance (this PR) — written, not yet CI-verified (the bug this fixes was itself only caught by this PR's live `Terraform plan — foundation` check, so don't check this box on local `validate` alone)
-- [x] New CI guardrail added, catching this exact scenario before merge for the next new topic/trigger (this PR)
-- [x] `infra/terraform/README.md` gets a permanent entry describing the constraint (this PR)
-- [ ] Confirmed (or ruled out) whether this also affects brand-new domain events, not just cron triggers — left genuinely open (see Open questions), not silently closed
+- [x] Temporary `workload_catalog` filter removed once the topic existed live — merged and CI-verified (PR #367)
+- [x] Real `scheduler_publisher_cron-chatbot-retention-purge` grant added to both env roots — merged and CI-verified (PR #367)
+- [x] All 17 `import` blocks removed from both `foundation/envs/{staging,prod}/main.tf`, closing the second bug this PR's own CI surfaced — and its whole latent class, not just the pubsub instance — merged and CI-verified: `Terraform plan — foundation (staging/prod)` both green with zero unexpected drift (PR #367)
+- [x] New CI guardrail added, catching this exact scenario before merge for the next new topic/trigger (PR #367)
+- [x] `infra/terraform/README.md` gets a permanent entry describing the constraint (PR #367)
+- [x] Confirmed whether this also affects brand-new domain events, not just cron triggers — yes, confirmed via code tracing (see Open questions above)
 
 ## Dependencies
 
