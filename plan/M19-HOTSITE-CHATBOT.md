@@ -269,17 +269,17 @@ Migration: `apps/backend/src/contexts/platform/infrastructure/migrations/<timest
 **Note (found during M19-S05 story-discovery, 2026-08-12; corrected 2026-08-12 per CodeRabbit review on PR #360):** like S05, this story's own text originally named only a use-case class with no backend HTTP controller/route — the same gap S05 had. Resolved above (extend S05's existing `ChatbotController`).
 
 **Acceptance Criteria:**
-- [ ] All 5 conditions independently tested — each has its own test case proving it correctly flips `available: false`
-- [ ] Resolves the tenant's actual provider (`tenant override ?? platform default`) before checking the balance floor and health — a tenant overridden to Anthropic isn't blocked by OpenRouter running low or erroring
-- [ ] Health rule test: `last_failure_at` more recent than `last_success_at` but outside the cooldown window → available (cooldown elapsed, half-open retry allowed)
-- [ ] Health rule test: `last_failure_at` more recent than `last_success_at` and within the cooldown window → unavailable
-- [ ] Health rule test: `last_success_at` more recent than `last_failure_at` (of any age) → available
-- [ ] Negative test: a cap/volume rejection (any of daily/IP/concurrency/message/length/global-spend/balance-floor) in `SendChatMessageUseCase` does **not** write `last_failure_at` — only a genuine `provider.complete()` failure does
-- [ ] `SendChatMessageUseCase`'s two new write call sites (success, failure) use a partial-column upsert — a test or code-review-verifiable fact that a balance-only write (S08, when built) and a health-only write can never clobber each other's columns
-- [ ] Migration creates the 2 new nullable columns and relaxes `remaining_usd`/`checked_at` to nullable; runs cleanly against a fresh DB and the existing seeded dev DB; registered in `integration-global-setup.ts`
-- [ ] `docs/13-DATABASE_SCHEMA.md`'s `chatbot_provider_balance` table already updated to match (done during this story's discovery — verify still accurate at implementation time)
-- [ ] Pure read in `GetChatbotStatusUseCase` itself — no writes, no side effects (the two new writes live in `SendChatMessageUseCase`, not here)
-- [ ] Coverage ≥80%; `tsc --noEmit`, lint, tests green
+- [x] All 5 conditions independently tested — each has its own test case proving it correctly flips `available: false`
+- [x] Resolves the tenant's actual provider (`tenant override ?? platform default`) before checking the balance floor and health — a tenant overridden to Anthropic isn't blocked by OpenRouter running low or erroring
+- [x] Health rule test: `last_failure_at` more recent than `last_success_at` but outside the cooldown window → available (cooldown elapsed, half-open retry allowed)
+- [x] Health rule test: `last_failure_at` more recent than `last_success_at` and within the cooldown window → unavailable
+- [x] Health rule test: `last_success_at` more recent than `last_failure_at` (of any age) → available
+- [x] Negative test: a cap/volume rejection (any of daily/IP/concurrency/message/length/global-spend/balance-floor) in `SendChatMessageUseCase` does **not** write `last_failure_at` — only a genuine `provider.complete()` failure does
+- [x] `SendChatMessageUseCase`'s two new write call sites (success, failure) use a partial-column upsert — a test or code-review-verifiable fact that a balance-only write (S08, when built) and a health-only write can never clobber each other's columns
+- [x] Migration creates the 2 new nullable columns and relaxes `remaining_usd`/`checked_at` to nullable; runs cleanly against a fresh DB and the existing seeded dev DB; registered in `integration-global-setup.ts`
+- [x] `docs/13-DATABASE_SCHEMA.md`'s `chatbot_provider_balance` table already updated to match (done during this story's discovery — verify still accurate at implementation time)
+- [x] Pure read in `GetChatbotStatusUseCase` itself — no writes, no side effects (the two new writes live in `SendChatMessageUseCase`, not here)
+- [x] Coverage ≥80%; `tsc --noEmit`, lint, tests green
 
 **Dependencies:** S01, S02, S03, S04.
 **New env var:** `CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES` (default `5`). Correction: `CHATBOT_MIN_PROVIDER_BALANCE_USD` was previously listed here as this story's new env var, but it already exists — S05 added it in anticipation of this story (`.env.example:112`, already read by `SendChatMessageUseCase`'s own balance-floor check). Nothing to add for it.
