@@ -20,4 +20,13 @@ export interface IChatbotSessionRepository {
   ): Promise<number>;
   /** Cap layer 3: ACTIVE sessions whose last_message_at is after `since` (live-ness proxy). */
   countActiveSince(tenantId: string, since: Date): Promise<number>;
+  /**
+   * UC-035 retention purge: sessions where `started_at < cutoff`, across all tenants — candidates
+   * for deletion, not a deletion itself. The job re-checks each candidate against the live
+   * chatbot_messages table (via IChatbotMessageRepository.findBySession()) before deleting with
+   * the existing deleteById() above, since message_count is never decremented when a session's
+   * old messages are purged and so can't be trusted to answer "zero remaining messages" on its
+   * own — see ChatbotRetentionPurgeJob.
+   */
+  findStartedBefore(cutoff: Date): Promise<ChatbotSession[]>;
 }

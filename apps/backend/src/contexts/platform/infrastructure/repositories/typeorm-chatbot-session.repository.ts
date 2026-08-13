@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThan, Repository } from 'typeorm';
+import { LessThan, MoreThan, Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { toDate } from '../../../../shared/utils/date';
 import { IChatbotSessionRepository } from '../../application/ports/chatbot-session-repository.port';
@@ -54,6 +54,11 @@ export class TypeOrmChatbotSessionRepository implements IChatbotSessionRepositor
     } else {
       await this.repo.delete({ id, tenantId });
     }
+  }
+
+  async findStartedBefore(cutoff: Date): Promise<ChatbotSession[]> {
+    const entities = await this.repo.find({ where: { startedAt: LessThan(cutoff) } });
+    return entities.map((entity) => this.toDomain(entity));
   }
 
   private toDomain(entity: ChatbotSessionEntity): ChatbotSession {

@@ -3,12 +3,14 @@ import {
   ChatbotMessage,
   ChatbotMessageRole,
 } from '../../../contexts/platform/domain/chatbot-message.aggregate';
+import { uuidv7 } from '../../../shared/domain/uuid-v7';
 
 const DEFAULT_TENANT_ID = '01234567-0000-7000-8000-000000000001';
 const DEFAULT_SESSION_ID = '01234567-0000-7000-8000-000000000002';
 const DEFAULT_MODEL_ID = 'deepseek/deepseek-v4-flash-0731';
 
 export class ChatbotMessageBuilder {
+  private id = uuidv7();
   private tenantId = DEFAULT_TENANT_ID;
   private sessionId = DEFAULT_SESSION_ID;
   private role: ChatbotMessageRole = 'USER';
@@ -17,6 +19,12 @@ export class ChatbotMessageBuilder {
   private outputTokens = 0;
   private modelId = DEFAULT_MODEL_ID;
   private costUsd = new Decimal('0.00000378');
+  private createdAt = new Date();
+
+  withId(id: string): this {
+    this.id = id;
+    return this;
+  }
 
   withTenantId(tenantId: string): this {
     this.tenantId = tenantId;
@@ -58,8 +66,14 @@ export class ChatbotMessageBuilder {
     return this;
   }
 
+  withCreatedAt(createdAt: Date): this {
+    this.createdAt = createdAt;
+    return this;
+  }
+
   build(): ChatbotMessage {
-    const message = ChatbotMessage.create({
+    return ChatbotMessage.reconstitute({
+      id: this.id,
       tenantId: this.tenantId,
       sessionId: this.sessionId,
       role: this.role,
@@ -68,8 +82,7 @@ export class ChatbotMessageBuilder {
       outputTokens: this.outputTokens,
       modelId: this.modelId,
       costUsd: this.costUsd,
+      createdAt: this.createdAt,
     });
-    message.clearDomainEvents();
-    return message;
   }
 }

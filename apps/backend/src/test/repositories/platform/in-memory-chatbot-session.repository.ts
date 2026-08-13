@@ -42,4 +42,8 @@ export class InMemoryChatbotSessionRepository implements IChatbotSessionReposito
       (s) => s.tenantId === tenantId && s.status === 'ACTIVE' && s.lastMessageAt > since,
     ).length;
   }
+
+  async findStartedBefore(cutoff: Date): Promise<ChatbotSession[]> {
+    return [...this.store.values()].filter((s) => s.startedAt < cutoff);
+  }
 }

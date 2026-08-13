@@ -25,6 +25,7 @@ import {
 } from './application/services/llm-provider-registry.service';
 import { HotsiteImagePathsService } from './domain/services/hotsite-image-paths.service';
 import { HotsiteImageUrlResolver } from './domain/services/hotsite-image-url-resolver.service';
+import { ChatbotRetentionPurgeJob } from './application/jobs/chatbot-retention-purge.job';
 import { DeleteHotsiteImageUseCase } from './application/use-cases/delete-hotsite-image.use-case';
 import { FeatureBookingPhotoUseCase } from './application/use-cases/feature-booking-photo.use-case';
 import { GenerateHotsiteImageReadSignedUrlUseCase } from './application/use-cases/generate-hotsite-image-read-signed-url.use-case';
@@ -56,6 +57,8 @@ import { OpenRouterLlmAdapter } from './infrastructure/llm/openrouter-llm.adapte
 import { HotsiteContentReader } from './application/services/hotsite-content-reader.service';
 import { HotsiteImagePromotionService } from './application/services/hotsite-image-promotion.service';
 import { ChatbotController } from './infrastructure/controllers/chatbot.controller';
+import { CronChatbotController } from './infrastructure/controllers/cron-chatbot.controller';
+import { ChatbotRetentionPurgeTriggerHandler } from './infrastructure/events/chatbot-retention-purge-trigger.handler';
 import { HotsiteAdminController } from './infrastructure/controllers/hotsite-admin.controller';
 import { HotsiteController } from './infrastructure/controllers/hotsite.controller';
 import { InternalTenantController } from './infrastructure/controllers/internal-tenant.controller';
@@ -85,6 +88,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
   ],
   controllers: [
     ChatbotController,
+    CronChatbotController,
     HotsiteAdminController,
     HotsiteController,
     InternalTenantController,
@@ -132,6 +136,8 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     FeatureBookingPhotoUseCase,
     GenerateHotsiteImageReadSignedUrlUseCase,
     GenerateHotsiteImageSignedUrlUseCase,
+    ChatbotRetentionPurgeJob,
+    ChatbotRetentionPurgeTriggerHandler,
     GetChatbotStatusUseCase,
     GetHotsiteContentUseCase,
     GetHotsiteManifestUseCase,
