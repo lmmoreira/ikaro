@@ -1,7 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Project } from 'ts-morph';
-import { checkErrorMapperCoverage, checkTransactionalSaves, checkUnsafeUseExisting } from './index';
+import {
+  checkErrorMapperCoverage,
+  checkTransactionalIo,
+  checkTransactionalSaves,
+  checkUnsafeUseExisting,
+  type ExternalSideEffectPort,
+} from './index';
 import { loadProject } from './project';
 
 const root = resolve(__dirname, '../../..');
@@ -9,6 +15,7 @@ const policy = JSON.parse(
   readFileSync(resolve(root, 'packages/architecture-check/architecture-policy.json'), 'utf8'),
 ) as {
   exceptions?: Array<{ rule: string; class?: string }>;
+  externalSideEffectPorts?: ExternalSideEffectPort[];
   projects?: string[];
 };
 const projectPaths = policy.projects ?? [];
@@ -29,8 +36,13 @@ const intentionalErrorMapperGaps = new Set(
     .filter((exception) => exception.rule === 'error-mapper-coverage' && exception.class)
     .map((exception) => exception.class!),
 );
+const externalSideEffectPorts = policy.externalSideEffectPorts;
+if (!externalSideEffectPorts?.length) {
+  throw new Error('The architecture policy must register at least one external-side-effect port.');
+}
 
 const results = [
+  checkTransactionalIo(backend, externalSideEffectPorts),
   checkTransactionalSaves(backend),
   checkErrorMapperCoverage(backend, intentionalErrorMapperGaps),
   checkUnsafeUseExisting(backend),
