@@ -245,7 +245,7 @@ Also added, incidental to fix #2: `IChatbotMessageRepository.findRecentBySession
 
 ---
 
-### M19-S06 — Chatbot availability status use case (UC-034)
+### M19-S06 — Chatbot availability status use case (UC-034) ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** L (bumped from M during story-discovery, 2026-08-12 — see Resolved note below)
