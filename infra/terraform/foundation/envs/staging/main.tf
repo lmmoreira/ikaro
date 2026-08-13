@@ -16,8 +16,12 @@ module "project_services" {
 }
 
 # TD34: Foundation, not the routine environment deployer, owns runtime
-# identities and their IAM bindings. The explicit imports below will adopt the
-# existing objects without changing their live access.
+# identities and their IAM bindings. Already adopted into state by TD34's
+# original migration (see TD39: import blocks are a one-time adoption
+# mechanism, safe to delete once the resource is confirmed in state — kept
+# out of this file going forward to avoid the exact "Cannot find binding"
+# failure a genuinely new entry hits when an import block for_each is
+# wired to a local that can grow).
 module "runtime_identities" {
   source = "../../modules/runtime-identities"
 
@@ -63,23 +67,6 @@ module "static_resource_iam" {
   audit_log_types_by_service = local.static_resource_audit_log_types_by_service
 }
 
-import {
-  to = module.static_resource_iam.google_storage_bucket_iam_member.public_viewer
-  id = "b/ikaro-public-${var.environment} roles/storage.objectViewer allUsers"
-}
-
-import {
-  for_each = local.static_resource_project_members
-  to       = module.static_resource_iam.google_project_iam_member.project_member[each.key]
-  id       = "${var.project_id} ${each.value.role} ${each.value.member}"
-}
-
-import {
-  for_each = local.static_resource_audit_log_types_by_service
-  to       = module.static_resource_iam.google_project_iam_audit_config.service[each.key]
-  id       = "${var.project_id} ${each.key}"
-}
-
 locals {
   runtime_project_roles = {
     backend_cloudsql_client          = { role = "roles/cloudsql.client", principal = "backend" }
@@ -100,53 +87,11 @@ locals {
   runtime_secret_bindings = merge([for principal, secrets in local.runtime_secret_accessors : { for secret in secrets : "${principal}-${secret}" => { principal = principal, secret = secret } }]...)
 }
 
-import {
-  for_each = toset(["backend", "bff", "web", "pubsub_invoker", "migrate"])
-  to       = module.runtime_identities.google_service_account.runtime[each.key]
-  id       = "projects/${var.project_id}/serviceAccounts/ikaro-${replace(each.key, "_", "-")}@${var.project_id}.iam.gserviceaccount.com"
-}
-
-import {
-  for_each = local.runtime_project_roles
-  to       = module.runtime_identities.google_project_iam_member.runtime[each.key]
-  id       = "${var.project_id} ${each.value.role} serviceAccount:ikaro-${replace(each.value.principal, "_", "-")}@${var.project_id}.iam.gserviceaccount.com"
-}
-
-import {
-  to = module.runtime_identities.google_service_account_iam_member.backend_token_creator_self
-  id = "projects/${var.project_id}/serviceAccounts/ikaro-backend@${var.project_id}.iam.gserviceaccount.com roles/iam.serviceAccountTokenCreator serviceAccount:ikaro-backend@${var.project_id}.iam.gserviceaccount.com"
-}
-
-import {
-  for_each = { uploads = "ikaro-uploads-${var.environment}", public = "ikaro-public-${var.environment}" }
-  to       = module.runtime_identities.google_storage_bucket_iam_member.backend_object_admin[each.key]
-  id       = "b/${each.value} roles/storage.objectAdmin serviceAccount:ikaro-backend@${var.project_id}.iam.gserviceaccount.com"
-}
-
-import {
-  for_each = local.runtime_secret_bindings
-  to       = module.runtime_identities.google_secret_manager_secret_iam_member.accessor[each.key]
-  id       = "projects/${var.project_id}/secrets/${each.value.secret} roles/secretmanager.secretAccessor serviceAccount:ikaro-${replace(each.value.principal, "_", "-")}@${var.project_id}.iam.gserviceaccount.com"
-}
-
 # TD34: ordinary resource modules continue to own services, topics,
 # subscriptions, and jobs. Foundation owns only their IAM policies.
 locals {
-  # TEMPORARY (M19-S07 unblock, TD39): cron-chatbot-retention-purge is filtered out of the
-  # catalog foundation reads here. Its target Pub/Sub topic/subscription/DLQ don't exist live
-  # yet — envs/* creates them, and foundation's IAM-member resources do a live read of the
-  # target's current policy even at plan time, which 404s until they do. Without this filter,
-  # foundation can never successfully plan/apply (blocking every future change, not just this
-  # one), and envs/*'s own deploy is gated behind a successful foundation apply — a mutual
-  # deadlock with no other way out short of this filter. Remove it and add this entry's real
-  # IAM grants (scheduler_publisher_cron-chatbot-retention-purge and whatever
-  # workload_topics/workload_subscriptions derive automatically) in a genuine follow-up PR,
-  # once envs/* has deployed and the topic exists live. See TD39 for the full incident.
-  workload_catalog = [
-    for entry in jsondecode(file("${path.module}/../../../pubsub-catalog.json")) : entry
-    if entry.event != "cron-chatbot-retention-purge"
-  ]
-  workload_topics = { for entry in local.workload_catalog : entry.event => entry }
+  workload_catalog = jsondecode(file("${path.module}/../../../pubsub-catalog.json"))
+  workload_topics  = { for entry in local.workload_catalog : entry.event => entry }
   workload_subscriptions = merge([
     for entry in local.workload_catalog : {
       for consumer in entry.consumers : jsonencode([entry.event, consumer]) => {
@@ -205,7 +150,7 @@ locals {
       member = "serviceAccount:ikaro-backend@${var.project_id}.iam.gserviceaccount.com"
     }
     }, {
-    for event in ["cron-reminders", "cron-loyalty-expiry", "cron-loyalty-expiry-warning", "cron-outbox-relay"] : "scheduler_publisher_${event}" => {
+    for event in ["cron-reminders", "cron-loyalty-expiry", "cron-loyalty-expiry-warning", "cron-outbox-relay", "cron-chatbot-retention-purge"] : "scheduler_publisher_${event}" => {
       topic  = "ikaro-${event}"
       role   = "roles/pubsub.publisher"
       member = "serviceAccount:${local.workload_scheduler_service_agent}"
@@ -234,18 +179,6 @@ module "workload_iam" {
   service_account_members     = local.workload_service_account_members
 }
 
-import {
-  for_each = local.workload_cloud_run_invokers
-  to       = module.workload_iam.google_cloud_run_v2_service_iam_member.invoker[each.key]
-  id       = "projects/${var.project_id}/locations/${var.region}/services/${each.value.service_name} roles/run.invoker ${each.value.member}"
-}
-
-import {
-  for_each = local.workload_cloud_run_public_invokers
-  to       = google_cloud_run_v2_service_iam_member.public_invoker[each.value]
-  id       = "projects/${var.project_id}/locations/${var.region}/services/${each.value} roles/run.invoker allUsers"
-}
-
 resource "google_cloud_run_v2_service_iam_member" "public_invoker" {
   #checkov:skip=CKV_IKARO_1:reviewed intentional public web invoker grant (TD38: BFF's own grant removed)
   for_each = local.workload_cloud_run_public_invokers
@@ -255,24 +188,6 @@ resource "google_cloud_run_v2_service_iam_member" "public_invoker" {
   name     = each.value
   role     = "roles/run.invoker"
   member   = "allUsers"
-}
-
-import {
-  for_each = local.workload_pubsub_subscription_members
-  to       = module.workload_iam.google_pubsub_subscription_iam_member.member[each.key]
-  id       = "projects/${var.project_id}/subscriptions/${each.value.subscription} ${each.value.role} ${each.value.member}"
-}
-
-import {
-  for_each = local.workload_pubsub_topic_members
-  to       = module.workload_iam.google_pubsub_topic_iam_member.member[each.key]
-  id       = "projects/${var.project_id}/topics/${each.value.topic} ${each.value.role} ${each.value.member}"
-}
-
-import {
-  for_each = local.workload_service_account_members
-  to       = module.workload_iam.google_service_account_iam_member.member[each.key]
-  id       = "${each.value.service_account_id} ${each.value.role} ${each.value.member}"
 }
 
 module "custom_roles" {
@@ -310,16 +225,6 @@ module "relay_control_plane" {
   depends_on = [time_sleep.relay_operator_iam_propagation]
 }
 
-import {
-  to = module.relay_control_plane.google_service_account.relay
-  id = "projects/${var.project_id}/serviceAccounts/ikaro-relay-vm@${var.project_id}.iam.gserviceaccount.com"
-}
-
-import {
-  to = module.relay_control_plane.google_compute_firewall.allow_iap_ssh
-  id = "projects/${var.project_id}/global/firewalls/ikaro-relay-vm-allow-iap-ssh-${var.environment}"
-}
-
 resource "google_project_iam_member" "foundation_deployer_resource_iam_writer" {
   project = var.project_id
   role    = module.custom_roles.resource_iam_writer_role_id
@@ -350,14 +255,4 @@ resource "google_project_iam_member" "normal_deployer_infrastructure_operator" {
   project = var.project_id
   role    = module.custom_roles.normal_infrastructure_deployer_role_id
   member  = "serviceAccount:ikaro-tf-deployer@${var.project_id}.iam.gserviceaccount.com"
-}
-
-import {
-  to = module.project_services.google_project_service.managed["iap.googleapis.com"]
-  id = "${var.project_id}/iap.googleapis.com"
-}
-
-import {
-  to = module.custom_roles.google_project_iam_custom_role.planner_iam_policy_reader
-  id = "${var.project_id}/tfPlannerIamPolicyReader"
 }

@@ -1,12 +1,12 @@
 # TD39 — `foundation`'s Terraform plan cannot succeed for a brand-new Pub/Sub topic registered in the same PR that first introduces it
 
 ## Status
-- **State**: 🟡 Open — not started. Not merge-blocking today (see below), worked around ad hoc for M19-S07 by deferring the affected IAM grant to a follow-up PR. No implementation plan chosen yet; this TD exists to make the gap discoverable the next time a story adds a new domain event or cron trigger, instead of re-deriving it from a red CI run.
+- **State**: 🟡 In Progress — the live incident (deadlock + deployer permission gap) is fully resolved and verified in both staging and prod. The permanent cleanup (remove the temporary catalog filter, add the real grant, add the CI guardrail, document the rule) is in a follow-up PR, not yet merged.
 - **Type**: Technical Debt / Architecture Gap (Terraform deploy ordering, `foundation`/`envs/*` state split)
-- **Priority**: Low/Medium — doesn't block any currently-required CI check and doesn't affect any live functionality, but will silently resurface for every future story that registers a genuinely new Pub/Sub event or cron trigger, each time looking like a fresh mystery unless this doc is found first.
-- **Context**: `infra/terraform/foundation/envs/{staging,prod}/main.tf` (`workload_catalog`/`workload_topics`/`workload_subscriptions` locals), `infra/terraform/foundation/modules/workload-iam/main.tf` (`google_pubsub_topic_iam_member`/`google_pubsub_subscription_iam_member`), `infra/terraform/modules/pubsub` (the separate `envs/*`-root module that actually creates topics/subscriptions), `infra/terraform/pubsub-catalog.json`, TD34 (`TD34-TERRAFORM-DEPLOYER-PRIVILEGE-ESCALATION.md` — established the Foundation/Workload IAM split this gap lives inside)
+- **Priority**: Was Low/Medium at filing; escalated same-day after the M19-S07 incident turned into a live deploy deadlock affecting the whole pipeline, not just the one story.
+- **Context**: `infra/terraform/foundation/envs/{staging,prod}/main.tf` (`workload_catalog`/`workload_topics`/`workload_subscriptions` locals), `infra/terraform/foundation/modules/workload-iam/main.tf` (`google_pubsub_topic_iam_member`/`google_pubsub_subscription_iam_member`), `infra/terraform/foundation/modules/custom-roles/main.tf` (`normal_infrastructure_deployer` role), `infra/terraform/modules/pubsub` (the separate `envs/*`-root module that actually creates topics/subscriptions), `infra/terraform/modules/scheduler`, `infra/terraform/pubsub-catalog.json`, TD34 (`TD34-TERRAFORM-DEPLOYER-PRIVILEGE-ESCALATION.md` — established the Foundation/Workload IAM split this gap lives inside)
 - **Created**: 2026-08-13
-- **Discovered**: M19-S07 (PR #365) — registering the `cron-chatbot-retention-purge` trigger (`registerTrigger()` call site) regenerated `pubsub-catalog.json` with a new entry, which is mandatory and CI-enforced (`Pub/Sub topic/subscription catalog` check diffs the committed file against what the code actually registers). `foundation`'s Terraform plan then failed live in CI with `Error retrieving IAM policy for pubsub topic ... 404: Resource not found` for the topic, its DLQ topic, and its subscription — the target Pub/Sub resources don't exist yet in the real GCP project, since they're created by `envs/*`, a separate Terraform root/state that hadn't been applied with this PR's changes.
+- **Live incident resolved**: 2026-08-13 (same day)
 
 ---
 
@@ -16,41 +16,70 @@
 
 `foundation`'s `workload_catalog` local reads `pubsub-catalog.json` directly (`jsondecode(file(...))`) and unconditionally derives IAM grants — backend-publisher, DLQ-publisher, subscription-ack, and (for cron triggers) scheduler-publisher — for **every** entry in that file, via `google_pubsub_topic_iam_member`/`google_pubsub_subscription_iam_member` resources in `foundation/modules/workload-iam`. These aren't plain "create a new resource" operations: an IAM-member resource modifies an *existing* resource's policy, so the Google provider does a live read of the target's current IAM policy even at `plan` time (not just `apply`) to compute an accurate diff. That live read 404s if the target topic/subscription doesn't exist yet in the real project.
 
-The topic/subscription are created by `modules/pubsub`, invoked from the **separate** `envs/*` Terraform root/state (`infra/terraform/envs/{staging,prod}/main.tf`) — not `foundation`. For a topic that already exists (created by a past `envs/*` apply), this is a non-issue: `foundation`'s live read finds the resource and computes a normal diff. For a topic being introduced in the **same PR** that first registers it in code, `foundation`'s plan cannot succeed until `envs/*` has actually been applied first — a genuine two-phase deploy requirement, not a Terraform config bug per se.
+The topic/subscription are created by `modules/pubsub`, invoked from the **separate** `envs/*` Terraform root/state — not `foundation`. For a topic that already exists (created by a past `envs/*` apply), this is a non-issue. For a topic being introduced in the **same PR** that first registers it in code, `foundation`'s plan cannot succeed until `envs/*` has actually been applied first.
 
-### Why this has never come up before
+### The mutual deadlock (discovered live, not anticipated at filing)
 
-Checked via `git log -- infra/terraform/foundation/envs/staging/main.tf`: the file's entire history is TD34's own migration (PRs #209 through #237-ish), which *transferred* already-existing IAM grants for already-existing topics from the old `envs/*`-owned IAM into `foundation`. Every one of `foundation`'s current `scheduler_publisher_*` entries (the 4 pre-M19 cron topics) was added at a point when its topic had already been live for a while. There is no prior precedent in this repo for "introduce a brand-new topic and its `foundation` IAM grant in the same PR" — M19-S07 is the first time this exact scenario has occurred since TD34 established the split.
+The TD as originally filed treated this as a simple ordering nuisance: defer the `foundation` grant to a follow-up PR, done. That mitigation was applied to PR #365 (M19-S07) and turned out to be **insufficient** — merging it produced a genuine live deadlock, not just an inconvenience:
 
-### Current mitigation (M19-S07, not a general fix)
+1. `foundation`'s own CI (`foundation-deploy.yml`) is gated behind a separate check, `Verify Foundation is applied (staging + prod)`, run as part of `envs/*`'s own deploy pipeline (`infra-deploy.yml`). That check finds the most recent commit touching `infra/terraform/foundation/` and requires a *successful* `foundation-deploy.yml` apply (both staging and prod) for a commit at or after it, before `envs/*`'s own apply is allowed to proceed.
+2. Editing `foundation/envs/*/main.tf` at all — even just to add a comment deferring the grant — counts as "touching `foundation/`". This re-armed the gate, demanding a *fresh* successful Foundation apply.
+3. But `foundation`'s own plan **still** couldn't succeed: `workload_catalog` reads the *entire* `pubsub-catalog.json` unconditionally, independent of anything hand-edited in `scheduler_publisher_*`. The new topic's entry was in that file the moment PR #365 merged, so `foundation` tried (and failed) to grant IAM on it regardless of the deferred-comment edit.
+4. And `envs/*`'s own deploy — the *only* thing that creates the topic — was itself blocked behind step 1's gate.
 
-For the one topic this affected (`cron-chatbot-retention-purge`), the `scheduler_publisher_cron-chatbot-retention-purge` entry was deferred out of `foundation/envs/{staging,prod}/main.tf`'s `scheduler_publisher_*` `for_each` list, to be added in a follow-up PR once `envs/*` has actually deployed and the topic exists live. This only closes the one grant list M19-S07 happened to hand-edit — the deeper issue (`workload_topics`/`workload_subscriptions`, driven automatically by the *entire* catalog file, including backend-publisher and DLQ grants) is **not** worked around; it will 404 the same way for `foundation`'s plan regardless, since those locals can't selectively exclude one catalog entry without editing shared, generic derivation logic. This TD's finding was accepted as **non-blocking** because `Terraform plan — foundation (staging/prod)` is not in this repo's required-status-checks list (confirmed via `gh api repos/.../branches/main/protection`) and the required `Infra PR Checks Passed` gate's `needs:` graph doesn't depend on it either.
+Neither side could go first. This was confirmed live: a manually dispatched `foundation-deploy.yml` run failed on the identical 404 twice in a row, once with the grant present and once with it removed-but-commented, before the actual mechanism (step 3) was correctly diagnosed.
+
+### A second, unrelated finding surfaced during recovery
+
+Once the topic/subscriptions were unblocked and `envs/*`'s apply ran for real, it failed a third way: `Error 403: lacks IAM permission "cloudscheduler.jobs.enable"` when creating the new Cloud Scheduler job. The `normal_infrastructure_deployer` custom role (`foundation/modules/custom-roles`) had `cloudscheduler.jobs.{create,delete,get,list,pause,update}` but was missing `enable`/`run` — this repo's first-ever *new* Scheduler job since that role's permission set was last reviewed. Fixed by adding both permissions (mirroring the existing `pause`/`update` pattern) — unrelated to the deadlock above, but discovered only because resolving the deadlock let the apply reach far enough to hit it.
+
+### Why this had never come up before
+
+`git log -- infra/terraform/foundation/envs/staging/main.tf`: the file's entire history is TD34's own migration, which *transferred* already-existing IAM grants for already-existing topics into `foundation`. Every one of `foundation`'s pre-M19 `scheduler_publisher_*` entries was added when its topic had already been live for a while. M19-S07 was the first time a brand-new topic and its `foundation` grant were introduced in the same change since TD34 established the split.
 
 ---
 
-## Candidate directions (none chosen — needs dedicated design work, not a story-scoped patch)
+## Resolution
 
-1. **Formalize the two-phase rollout as a documented, required process** (lowest-effort, what M19-S07 improvised ad hoc): whenever a new domain event/cron trigger's Pub/Sub topic is introduced, land the code + `envs/*` Terraform in one PR (creates the topic), merge/deploy it, *then* land a small follow-up PR adding just the `foundation` IAM grant. Document this explicitly — likely `infra/terraform/README.md`'s existing gotchas list, or a new checklist item in `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` — so the next story finds the answer instead of a red, confusing CI run.
-2. **Make `foundation`'s plan tolerant of a not-yet-existing target.** Needs research into whether the Google provider's `google_pubsub_topic_iam_member`/`_subscription_iam_member` resources (or a `data` source variant) support any "skip if target absent" behavior, or whether this requires a `count`/`for_each` guarded by an external existence check (e.g. a `data "external"` or Terraform-external lookup script) — adds real complexity for a case that's rare by nature (only on the *first* deploy of a new topic).
-3. **Split the catalog-derived grants into "confirmed live" vs "pending".** E.g., persist a separate, hand-maintained (or previous-`terraform apply`-derived) list of topics `foundation` should currently grant IAM on, decoupled from the full always-current `pubsub-catalog.json`. Adds a manual sync step but avoids live-read fragility entirely.
+### 1. Temporary unblock (already live, verified in both staging and prod)
 
-Direction 1 is the cheapest and matches what already happened in practice; 2 and 3 are real fixes but need someone with deeper Terraform/GCP IAM context to scope properly before committing to an approach — per this repo's own engineering discipline (`CLAUDE.md` § Mounting complexity is a signal to reconsider the approach), don't bolt on machinery here without first checking whether a structurally simpler option (1) is actually sufficient for how rarely this occurs.
+`workload_catalog` in `foundation/envs/{staging,prod}/main.tf` filtered out `cron-chatbot-retention-purge` at the earliest point in the derivation chain, so `workload_topics`/`workload_subscriptions` (and everything downstream) naturally excluded it too:
+
+```hcl
+workload_catalog = [
+  for entry in jsondecode(file("${path.module}/../../../pubsub-catalog.json")) : entry
+  if entry.event != "cron-chatbot-retention-purge"
+]
+```
+
+This let `foundation` plan/apply successfully without the topic existing, breaking the deadlock. `envs/*` then deployed for real, creating the topic, DLQ topic, both subscriptions, and (once the deployer permission fix above landed) the Cloud Scheduler job — all confirmed live in staging and prod via real `terraform apply` runs, not just planned.
+
+### 2. Permanent fix (this PR)
+
+- Remove the temporary `workload_catalog` filter — the topic now exists live, so `foundation`'s plan no longer needs it.
+- Re-add `scheduler_publisher_cron-chatbot-retention-purge` to both env roots' `scheduler_publisher_*` list — this now succeeds, since the target topic is live.
+- **New CI guardrail**: `no-foundation-plus-other-infra-mix` in `pr-quality.yml` (mirroring `no-infra-app-mix`'s structure) fails — hard, no label escape hatch — when a PR touches both `infra/terraform/foundation/**` and any other `infra/terraform/**` path. Scoped to the whole of `infra/terraform/**`, not just `pubsub-catalog.json`'s `event` entries: the same live-IAM-read pattern applies to every one of `foundation`'s other grant lists (secrets, Cloud Run invokers, Artifact Registry, buckets), and a narrower content-diff check on just top-level `event` names would also miss a new *consumer* added to an existing event (a new subscription + DLQ, same 404 mechanism) — both gaps found in cross-tool review of this PR's first draft. Unlike the infra/app-mix case, there's no legitimate reason to combine these two in one PR — the safe path (land the new resource via `envs/*` first, add the `foundation` grant in a follow-up once it's live) has no real exception to preserve.
+- **Documented rule**, added to `infra/terraform/README.md`'s gotchas list: *`infra/terraform/foundation/**` and any other `infra/terraform/**` path must never change in the same PR — not even a deferral comment. Land the `envs/*` change first, add the `foundation` IAM grant in a genuine follow-up PR once the target exists live.*
+- **A second, related bug found by this PR's own CI run**: `foundation`'s two Pub/Sub `import { for_each = ... }` blocks (TD34's one-time adoption of pre-existing bindings) were wired to the same live, catalog-derived locals used for resource creation. `import` blocks require the target binding to already exist — a brand-new binding was never granted by hand, so Terraform tried to *import* something that didn't exist and failed with `Cannot find binding for ...` (caught live: this PR's own `Terraform plan — foundation (staging/prod)` checks went red on first push). First fixed narrowly (parallel `_migrated` locals frozen to the pre-existing snapshot, used only by the two pubsub import blocks) — but a follow-up question ("why does `workload_cloud_run_public_invokers`'s import block get away with reusing its live local, when it's structurally the same pattern?") surfaced that *every* `import { for_each = local.X }` block in both env roots has the identical latent risk the moment `local.X` ever gains one new entry, whether catalog-derived or a plain hand-maintained map — the pubsub ones just happened to be first, because TD34's migration is the entire history of every other one. **Final fix**: removed all 17 `import` blocks from both env roots entirely (net deletion, no `_migrated` locals needed). Terraform's own documented `import`-block lifecycle confirms this is safe once a resource is confirmed in state — the block's only job was the one-time historical adoption, already complete; deleting it has zero effect on how the underlying `resource`/`module` block manages that same state address going forward. This closes the entire bug class permanently, not just the one pubsub instance of it.
 
 ---
 
 ## Open questions
 
-1. Does this affect **domain events** too, or only cron triggers? The mechanism (`workload_catalog` reads the *entire* `pubsub-catalog.json`, both event and cron entries) suggests yes — a brand-new domain event's first PR would hit the identical 404, not just cron triggers. Not verified with a real repro since M19-S07 only exercised the cron-trigger path.
-2. Is there a lighter-weight live-existence check `foundation`'s plan step could run first (e.g. a `gcloud pubsub topics list` diff, similar in spirit to the `pubsub-catalog` scanner's own regeneration script) to automatically detect "these catalog entries aren't live yet" and skip just those, rather than requiring a human to notice a CI failure and manually defer a grant?
+1. **Still unconfirmed**: does this affect brand-new **domain events** too, or only cron triggers? The mechanism (`workload_catalog` reads every entry in `pubsub-catalog.json`, both event and cron rows) strongly suggests yes, but this incident only ever exercised the cron-trigger path live. The new CI guardrail (scoped to all of `infra/terraform/**` vs `foundation/**`, not just pubsub) protects against both regardless of which it turns out to be.
 
-## Acceptance criteria (once someone picks this up)
+## Acceptance criteria
 
-- [ ] A chosen direction (see Candidate directions) is implemented and documented
-- [ ] `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` or `infra/terraform/README.md` gets a permanent entry describing the constraint, so the next new-topic story doesn't rediscover it via a red CI run
-- [ ] The deferred `scheduler_publisher_cron-chatbot-retention-purge` grant (M19-S07) is added to `foundation/envs/{staging,prod}/main.tf` once `envs/*` has deployed with that topic live, closing that specific loose end
-- [ ] Confirmed (or ruled out) whether this also affects brand-new domain events, not just cron triggers
+- [x] The specific deadlock from M19-S07/PR #365 resolved live — topic, DLQ topic, both subscriptions, and the Cloud Scheduler job confirmed live in both staging and prod via real `terraform apply` runs
+- [x] The deployer's missing `cloudscheduler.jobs.enable`/`run` permissions fixed and verified live
+- [ ] Temporary `workload_catalog` filter removed once the topic existed live (this PR) — written, not yet CI-verified
+- [ ] Real `scheduler_publisher_cron-chatbot-retention-purge` grant added to both env roots (this PR) — written, not yet CI-verified
+- [ ] All 17 `import` blocks removed from both `foundation/envs/{staging,prod}/main.tf`, closing the second bug this PR's own CI surfaced — and its whole latent class, not just the pubsub instance (this PR) — written, not yet CI-verified (the bug this fixes was itself only caught by this PR's live `Terraform plan — foundation` check, so don't check this box on local `validate` alone)
+- [x] New CI guardrail added, catching this exact scenario before merge for the next new topic/trigger (this PR)
+- [x] `infra/terraform/README.md` gets a permanent entry describing the constraint (this PR)
+- [ ] Confirmed (or ruled out) whether this also affects brand-new domain events, not just cron triggers — left genuinely open (see Open questions), not silently closed
 
 ## Dependencies
 
-- TD34 (`TD34-TERRAFORM-DEPLOYER-PRIVILEGE-ESCALATION.md`) — established the Foundation/Workload IAM split this gap lives inside; any fix here should stay consistent with TD34's security boundary (Foundation identity isolation), not weaken it for convenience
-- M19-S07 (PR #365) — origin of this finding; owns the one specific deferred grant listed in Acceptance criteria
+- TD34 (`TD34-TERRAFORM-DEPLOYER-PRIVILEGE-ESCALATION.md`) — established the Foundation/Workload IAM split this gap lives inside; the fix stays consistent with TD34's security boundary (Foundation identity isolation), not weakened for convenience
+- M19-S07 (PR #365) — origin of this finding

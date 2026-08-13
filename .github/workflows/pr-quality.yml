@@ -103,6 +103,68 @@ jobs:
           echo "::error::This PR touches both infra/terraform/** and apps/** or packages/** — split them into separate PRs. If truly unavoidable, note in the PR description that infra applies first and re-run the app deploy if it loses the race against the Terraform apply, then add the 'infra-app-mix-ok' label to acknowledge and bypass this check."
           exit 1
 
+  no-foundation-plus-other-infra-mix:
+    name: No foundation/** + other infra/terraform/** changes in the same PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # need the base commit to diff infra/terraform/** against
+
+      # TD39 (2026-08-13): foundation's workload_catalog local reads
+      # infra/terraform/pubsub-catalog.json unconditionally and derives IAM
+      # grants for every entry via google_pubsub_topic_iam_member/
+      # _subscription_iam_member — resources that do a live IAM-policy read
+      # of their target even at plan time. A brand-new topic's (or a new
+      # consumer's) target doesn't exist yet until envs/* (a separate
+      # Terraform root/state) deploys it. Introducing that target and
+      # touching foundation/** in the same PR produced a real, live mutual
+      # deadlock (M19-S07/PR #365): foundation's plan 404s on the missing
+      # target, and envs/*'s own deploy — the only thing that creates it —
+      # is itself gated behind a successful foundation apply. Neither side
+      # can go first. The same live-read pattern applies to every other
+      # foundation grant list (secrets, Cloud Run invokers, Artifact
+      # Registry, buckets) — not just Pub/Sub — so the check is scoped to
+      # the whole of infra/terraform/** vs foundation/**, not just the
+      # pubsub catalog.
+      #
+      # Unlike no-infra-app-mix above, there's no legitimate reason to
+      # combine these two changes in one PR: the safe path (land the new
+      # resource via envs/* first, add the foundation IAM grant in a
+      # genuine follow-up PR once it exists live) has no real exception to
+      # preserve. Hard-fail, no label escape hatch.
+      - name: Detect foundation/** vs other infra/terraform/** changes
+        id: filter
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          foundation=false
+          other=false
+          while IFS= read -r path; do
+            [ -z "$path" ] && continue
+            case "$path" in
+              # Documentation carries zero deploy-ordering risk — only
+              # actually-applied Terraform config (or pubsub-catalog.json,
+              # which drives it) can ever hit the live-IAM-read deadlock.
+              # Excluded so a PR combining a foundation/** fix with its own
+              # required README.md doc update (Definition of Done) doesn't
+              # trip this guard on itself.
+              *.md) ;;
+              infra/terraform/foundation/*) foundation=true ;;
+              *) other=true ;;
+            esac
+          done < <(git diff --name-only "$BASE_SHA" HEAD -- infra/terraform)
+          echo "foundation=$foundation" >> "$GITHUB_OUTPUT"
+          echo "other=$other" >> "$GITHUB_OUTPUT"
+
+      - name: Fail if both foundation/** and other infra/terraform/** changed
+        if: steps.filter.outputs.foundation == 'true' && steps.filter.outputs.other == 'true'
+        run: |
+          echo "::error::This PR touches both infra/terraform/foundation/** and another infra/terraform/** path — split them into separate PRs. This is the TD39 deadlock (M19-S07/PR #365): foundation's IAM-member resources do a live policy read of their target even at plan time, which 404s until envs/* has actually created that target — and envs/* is itself gated behind a successful foundation apply, so neither side can go first when they land together. Land the envs/* change first and merge/deploy it, then add the foundation IAM grant in a genuine follow-up PR once the target exists live. See td/TD39-FOUNDATION-NEW-PUBSUB-TOPIC-DEPLOY-ORDERING.md."
+          exit 1
+
   lint:
     name: ESLint
     runs-on: ubuntu-latest
