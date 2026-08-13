@@ -1395,24 +1395,50 @@ Runtime SA already has `cloudtrace.agent` (S17) — no new IAM needed.
 
 ---
 
-### M17-S56 — Per-tenant dashboard drill-down (Cloud Monitoring `dashboardFilters`)
+### M17-S56 — Split Engineering/Business dashboards + per-tenant drill-down (Cloud Monitoring `dashboardFilters`)
 
 **Agent:** `devops`
-**Complexity:** S
-**Docs to load:** `infra/terraform/modules/monitoring/main.tf` (S54's `business_counter_widgets` local — this story's starting point)
+**Complexity:** M (expanded 2026-08-13, via story-discovery — see below)
+**Docs to load:** `infra/terraform/modules/monitoring/main.tf` (S54's `business_counter_widgets` local + the `dashboard_widgets` concat + `google_monitoring_dashboard.main` — this story's starting point), `infra/terraform/modules/monitoring/outputs.tf`, `infra/terraform/envs/staging/outputs.tf`, `infra/terraform/envs/prod/outputs.tf`
 
 **Split out of M17-S54, 2026-08-12, via cross-tool PR review (Codex).** Deferred, no urgency trigger — unlike S46/S55, this isn't a growing-problem-if-left-undone item. S54's 6 business-counter widgets (bookings requested/approved/completed, notification failed, customer/staff logins) render aggregate totals across all tenants (`crossSeriesReducer = "REDUCE_SUM"`, no `groupByFields`) rather than a per-tenant breakdown — a per-tenant `STACKED_BAR` design was tried first and reverted in S54 itself, since Cloud Monitoring silently truncates a chart past ~50 rendered series, and a per-tenant breakdown would eventually hit that as active tenant count grows. Today, drilling into one tenant's numbers means a manual Cloud Logging query (`jsonPayload.tenantId="..."` — every one of the 6 log lines already carries this field) — fully functional, not degraded by tenant growth, just a manual step instead of a dashboard control. This story would replace that manual step with a live, in-dashboard filter.
 
+**Expanded 2026-08-13, via story-discovery (user decision):** the single combined dashboard (`google_monitoring_dashboard.main`) mixes infra/ops signals (Cloud Run request count, latency, instance count, Cloud SQL, Pub/Sub DLQ depth, the S55 GMP `POST /v1/bookings` p99 latency widget) with S54's 6 business-counter widgets on one page — confusing for two different audiences (SRE/on-call vs. business-facing) and slow to load. This also sharpens the original per-tenant filter design: a `tenant_id` filter is meaningless sitting above widgets that carry no `tenant_id` label (all the infra ones) — it only makes sense on a dashboard scoped to the widgets that actually have that label. Rather than defer the split to a separate story, the user chose to fold it into this one so the filter lands on the right dashboard from the start, in one live-apply/verify pass instead of two.
+
 **Description:**
-1. Add a Cloud Monitoring `dashboardFilters` block (dashboard-level template variable filtering on `metric.label.tenant_id`) to the S35/S54 dashboard, scoped to the 6 business-counter widgets — letting a viewer pick one tenant in the console UI and have those charts re-filter live, instead of leaving the console entirely to run a Logs Explorer query.
-2. **Why this needs its own story, not a quick addition to S54:** this exact JSON shape (`dashboardFilters`) is new to this codebase — no widget in `modules/monitoring` uses it today. Like this module's MQL query bodies and log-based-metric filters (see the module's own header comment), it's a string the Cloud Monitoring API validates server-side only; `terraform validate`/`terraform test` (`mock_provider`) can confirm the JSON is syntactically well-formed but not that it actually parses into a working, renderable filter control. This needs a real staging `terraform apply` + a manual console check (pick a tenant, confirm the charts actually re-filter) before it can be trusted — the same discipline this module already applies to every other query body, just not something achievable from an agent session with no staging deploy access.
+1. Split `google_monitoring_dashboard.main` into two resources:
+   - `google_monitoring_dashboard.engineering` — `displayName = "Ikaro ${var.environment} — Engineering"` — `service_widgets`, `latency_widgets`, `instance_count_widgets`, `sql_widgets`, `pubsub_widgets`, `booking_creation_latency_widget` (S55's GMP p99 widget — a performance signal, not a business count, stays here)
+   - `google_monitoring_dashboard.business` — `displayName = "Ikaro ${var.environment} — Business"` — `business_counter_widgets` only (the 6 widgets that actually carry a `tenant_id` label)
+   - Every widget from the current combined `dashboard_widgets` concat must land in exactly one of the two — none dropped, none duplicated.
+2. Add a `dashboardFilters` block to `google_monitoring_dashboard.business` only. Concrete JSON shape (confirmed 2026-08-13 via story-discovery against Google's `DashboardFilter` API reference, `com.google.monitoring.dashboard.v1.DashboardFilter` — resolves this story's own previously-open "what shape, and scoped how" question):
+   ```hcl
+   dashboardFilters = [
+     {
+       labelKey   = "tenant_id"
+       filterType = "METRIC_LABEL"
+     }
+   ]
+   ```
+   `labelKey` is the bare label name (not `metric.label.tenant_id`). Deliberately omitting `templateVariable` makes this a **pinned filter**: per Google's docs, a pinned filter "auto-applies to every widget whose data includes the label key" with zero per-widget query edits — since only `business_counter_widgets` carry `tenant_id`, the filter naturally scopes itself to exactly those 6 charts by living on the `.business` dashboard, no explicit widget list needed. `stringValue` is also omitted so no tenant is pinned by default — matches AC "default view unchanged." A pinned filter (not a `templateVariable`-based variable) is confirmed to be an interactive console control ("the toolbar provides menus for pinned filters... use these menus to change the value for the current session") — matches this story's "letting a viewer pick one tenant in the console UI" requirement without needing `${variable}` interpolation in each widget's query.
+3. **Split the `dashboard_id` output chain** — currently one output threaded through 3 files: `infra/terraform/modules/monitoring/outputs.tf`'s `dashboard_id` (→ `google_monitoring_dashboard.main.id`), re-exported unchanged by both `infra/terraform/envs/staging/outputs.tf` and `infra/terraform/envs/prod/outputs.tf`. Replace with `dashboard_id_engineering`/`dashboard_id_business` in all three files (module + both env roots).
+4. **Stale-reference sweep, same commit (Definition of Done):**
+   - `infra/terraform/modules/monitoring/main.tf` lines 898–913 — the comment above `business_counter_widgets` currently says a per-tenant drill-down "was considered and rejected for this story" — update to describe the shipped design instead.
+   - `docs/10-OBSERVABILITY_STRATEGY.md:840,842` — "one Cloud Monitoring dashboard per env" language → two dashboards per env.
+   - `docs/10-OBSERVABILITY_STRATEGY.md:848` — `terraform output dashboard_id` instruction → the two new output names.
+5. **Why this needs its own story, not a quick addition to S54:** the `dashboardFilters` JSON shape is new to this codebase — no widget in `modules/monitoring` uses it today. Like this module's MQL query bodies and log-based-metric filters (see the module's own header comment), it's a string the Cloud Monitoring API validates server-side only; `terraform validate`/`terraform test` (`mock_provider`) can confirm the JSON is syntactically well-formed but not that it actually parses into a working, renderable filter control. This needs a real staging `terraform apply` + a manual console check (pick a tenant, confirm the charts actually re-filter) before it can be trusted — the same discipline this module already applies to every other query body.
 
 **Acceptance criteria:**
-- [ ] `dashboardFilters` added, scoped to the 6 business-counter widgets (or dashboard-wide, if that proves more useful during implementation — decide then, not now)
-- [ ] Live-verified in staging: picking a tenant in the console UI actually re-filters the 6 charts to that tenant's data, not just a clean `terraform apply`
-- [ ] The default (no filter selected) view is unchanged — still the aggregate totals S54 shipped, no regression
+- [x] `google_monitoring_dashboard.engineering` and `google_monitoring_dashboard.business` both exist; every widget from the original combined dashboard appears in exactly one of the two, none lost or duplicated — verified 2026-08-13: `terraform test` asserts Engineering has `(3 × services) + 3 + 1 = 13` widgets and Business has exactly `6`, summing to the original combined count of `19`
+- [x] `dashboardFilters` added to `.business` only: `labelKey = "tenant_id"`, `filterType = "METRIC_LABEL"`, no `templateVariable`/`stringValue` — verified 2026-08-13: `terraform test` asserts the exact JSON shape on `.business` and asserts `.engineering` has no `dashboardFilters` key at all
+- [ ] `dashboard_id_engineering`/`dashboard_id_business` outputs resolve correctly at both the module and each env root (`terraform output` in `envs/staging` and `envs/prod`) — `terraform validate` is clean on the module and both env roots (2026-08-13), but resolving a real output value needs a live `terraform plan`/`apply` against real state, not achievable from this agent session (no staging deploy access — same constraint this story's own Description §5 already states for the filter itself)
+- [ ] Live-verified in staging: both dashboards render post-apply with their correct widget sets; picking a tenant in `.business`'s console filter control actually re-filters the 6 business charts to that tenant's data, not just a clean `terraform apply`
+- [x] The default (no filter selected) view on `.business` is unchanged, by construction — `stringValue` is omitted from the `dashboardFilters` entry, so no tenant is pinned by default and `business_counter_widgets`' own widget definitions are untouched (still `REDUCE_SUM`, no `groupByFields` — verified 2026-08-13 by the pre-existing `business_counter_widgets_are_aggregated_not_grouped_by_tenant` test, now pointed at `.business`). Live-render confirmation folds into the "Live-verified in staging" item above.
+- [x] `terraform test` (`modules/monitoring`) updated for the two-dashboard resource shape — verified 2026-08-13: `terraform test` — 25 passed, 0 failed, including 2 new dashboard-split runs and 2 new `dashboardFilters` runs
+- [x] Stale-reference sweep items above completed in the same commit — verified 2026-08-13: `main.tf` lines 898–913 rewritten to describe the shipped filter (not "considered and rejected"); `docs/10-OBSERVABILITY_STRATEGY.md`'s file-level banner (line 3) and `## Dashboards` section (lines 840, 842, 848) both updated to the two-dashboard shape and the new output names; grepped `docs/`, `.claude/commands/`, `.github/workflows/` for any other `google_monitoring_dashboard`/`dashboard_id` reference — none found
 
-**Dependencies:** M17-S54 (the 6 widgets must exist first)
+**Implementation note (2026-08-13):** everything checkable from this coding session is done — both dashboard resources, the filter, the split outputs, `terraform fmt`/`validate`/`test` all clean across the module and both env roots, and the full stale-reference sweep. The two live-staging checks above are unchecked by design, not overlooked — this story's own Description §5 already calls out that this needs a real `terraform apply` + a manual console check, which this session has no path to. Whoever deploys this to staging should run those checks before considering the story done, then check the remaining boxes.
+
+**Dependencies:** M17-S54 (the 6 business-counter widgets must exist first)
 
 ---
 
@@ -1881,7 +1907,7 @@ When the trigger above is met, move the instance to Enterprise Plus and enable *
 | S35 | M14-S05/S06 | Grafana JSONs/Prometheus rules → Cloud Monitoring as code (core infra alerts/dashboard only; split 2026-08-08, see S54/S55) |
 | S54 | M14-S05/S06 (split from S35, 2026-08-08) | business/audit log-based dashboard counters — needed new logger calls M14's plan never anticipated |
 | S55 | M14-S05/S06 (split from S35, 2026-08-08) | the actual Prometheus-metrics lineage from M14-S06 — deferred until real post-launch traffic justifies the build |
-| S56 | new (split from S54, 2026-08-12, cross-tool review) | per-tenant Cloud Monitoring dashboard drill-down (`dashboardFilters`) — deferred, no urgency trigger; Cloud Logging's own tenantId filter already covers the same need manually |
+| S56 | new (split from S54, 2026-08-12, cross-tool review) | split combined dashboard into Engineering + Business, plus per-tenant `dashboardFilters` drill-down on Business only — scope expanded 2026-08-13 via story-discovery |
 | S36 | M15-S12 remnant | Armor reduced to origin lockdown; enabled at go-live (revised 2026-07-07) |
 | S37 | M16-S10 | go-live |
 | S38–S40 | new product | custom domains (UC-032 doc-first) |

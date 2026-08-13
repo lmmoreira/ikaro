@@ -165,21 +165,36 @@ run "log_metric_propagation_sleep_is_wired_correctly" {
   }
 }
 
-run "dashboard_contains_a_widget_per_service_plus_shared_tiles" {
+run "engineering_dashboard_contains_a_widget_per_service_plus_shared_tiles" {
   # Cardinality (exactly one dashboard per module instantiation) is a
   # syntactic property of the resource having no count/for_each — no
   # assertion can regress it, so this instead guards the real risk: a
   # broken `for` expression in one of the widget locals silently producing
   # an empty or truncated array while the plan still succeeds (cross-tool
-  # review finding, 2026-08-08).
+  # review finding, 2026-08-08). Split into engineering/business dashboards
+  # in M17-S56 — this run covers the Engineering side only.
   command = plan
 
   assert {
     condition = (
-      length(jsondecode(google_monitoring_dashboard.main.dashboard_json).gridLayout.widgets)
-      == (3 * length(var.cloud_run_services)) + 3 + 6 + 1
+      length(jsondecode(google_monitoring_dashboard.engineering.dashboard_json).gridLayout.widgets)
+      == (3 * length(var.cloud_run_services)) + 3 + 1
     )
-    error_message = "Expected 3 tiles per Cloud Run service (request rate, latency, instance count) plus 1 SQL tile (database_instance_name is set in this fixture) plus 2 Pub/Sub tiles plus 6 M17-S54 business-counter tiles (booking requested/approved/completed, notification failed, customer logins, staff logins) plus 1 M17-S55 GMP booking-creation-latency tile — a broken widget local would still produce a valid but empty/truncated plan."
+    error_message = "Expected 3 tiles per Cloud Run service (request rate, latency, instance count) plus 1 SQL tile (database_instance_name is set in this fixture) plus 2 Pub/Sub tiles plus 1 M17-S55 GMP booking-creation-latency tile — a broken widget local would still produce a valid but empty/truncated plan."
+  }
+}
+
+run "business_dashboard_contains_exactly_the_six_business_counter_tiles" {
+  # M17-S56: business_counter_widgets moved to its own dashboard, alongside
+  # the tenant_id dashboardFilters pinned filter below.
+  command = plan
+
+  assert {
+    condition = (
+      length(jsondecode(google_monitoring_dashboard.business.dashboard_json).gridLayout.widgets)
+      == 6
+    )
+    error_message = "Expected exactly 6 M17-S54 business-counter tiles (booking requested/approved/completed, notification failed, customer logins, staff logins) on the Business dashboard — a broken widget local would still produce a valid but empty/truncated plan."
   }
 }
 
@@ -188,19 +203,65 @@ run "business_counter_widgets_are_aggregated_not_grouped_by_tenant" {
   # STACKED_BAR breakdown (groupByFields on tenant_id) silently truncates
   # past Cloud Monitoring's ~50-series-per-chart cap as active tenant count
   # grows — exactly this platform's intended trajectory. Widgets aggregate
-  # instead; tenant_id stays a metric label for Cloud Logging drill-down,
-  # just not a dashboard-chart dimension.
+  # instead; tenant_id stays a metric label the M17-S56 dashboardFilters
+  # pinned filter (and Cloud Logging) can drill into, just not a
+  # dashboard-chart dimension.
   command = plan
 
   assert {
+    # No `if strcontains(w.title, "(total)")` guard (removed, cross-tool
+    # review finding, CodeRabbit, 2026-08-13): the Business dashboard now
+    # contains only these 6 counter widgets, so the title filter was
+    # vestigial and would have silently skipped validating any widget whose
+    # title changed — validate every widget on this dashboard instead.
     condition = alltrue([
-      for w in jsondecode(google_monitoring_dashboard.main.dashboard_json).gridLayout.widgets :
+      for w in jsondecode(google_monitoring_dashboard.business.dashboard_json).gridLayout.widgets :
       (
         w.xyChart.dataSets[0].timeSeriesQuery.timeSeriesFilter.aggregation.crossSeriesReducer == "REDUCE_SUM" &&
         !contains(keys(w.xyChart.dataSets[0].timeSeriesQuery.timeSeriesFilter.aggregation), "groupByFields")
       )
-      if strcontains(w.title, "(total)")
     ])
     error_message = "Every M17-S54 business-counter widget must be REDUCE_SUM-aggregated with no groupByFields — a per-tenant breakdown here would silently truncate past Cloud Monitoring's ~50-series-per-chart cap as tenant count grows."
+  }
+}
+
+run "business_dashboard_has_the_tenant_id_pinned_filter" {
+  # M17-S56: the per-tenant drill-down. Confirmed against Google's
+  # DashboardFilter API reference (com.google.monitoring.dashboard.v1.
+  # DashboardFilter) — labelKey is the bare label name (not
+  # "metric.label.tenant_id"), and templateVariable/stringValue must stay
+  # unset: omitting templateVariable makes this a pinned filter that
+  # auto-applies to every widget carrying the label (no per-widget query
+  # wiring needed); omitting stringValue keeps the default view unfiltered,
+  # matching M17-S54's shipped aggregate-totals default. This only proves
+  # the JSON is well-formed and shaped as intended — like every other
+  # query/filter string in this module, the Cloud Monitoring API validates
+  # it server-side only; live-verify in staging before trusting it renders
+  # a working filter control.
+  command = plan
+
+  assert {
+    condition = (
+      jsondecode(google_monitoring_dashboard.business.dashboard_json).dashboardFilters ==
+      [
+        {
+          labelKey   = "tenant_id"
+          filterType = "METRIC_LABEL"
+        }
+      ]
+    )
+    error_message = "Business dashboard must have exactly one dashboardFilters entry: labelKey=tenant_id, filterType=METRIC_LABEL, no templateVariable/stringValue (pinned filter, unfiltered by default)."
+  }
+}
+
+run "engineering_dashboard_has_no_dashboard_filters" {
+  # The tenant_id filter must not leak onto the Engineering dashboard — none
+  # of its widgets carry a tenant_id label, so a filter there would be dead
+  # UI at best and misleading at worst.
+  command = plan
+
+  assert {
+    condition     = !contains(keys(jsondecode(google_monitoring_dashboard.engineering.dashboard_json)), "dashboardFilters")
+    error_message = "Engineering dashboard must not declare dashboardFilters — its widgets carry no tenant_id label, so a tenant filter there would be dead/misleading UI."
   }
 }

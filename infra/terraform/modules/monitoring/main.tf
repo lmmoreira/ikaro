@@ -902,15 +902,13 @@ locals {
   # design (2026-08-12), but Cloud Monitoring caps a chart at ~50 rendered
   # series — past that, a widget silently truncates (no error, missing
   # tenants just stop appearing) as active tenant count grows, which is the
-  # actual, intended trajectory of this platform. A real per-tenant
-  # drill-down (Cloud Monitoring `dashboardFilters`) was considered and
-  # rejected for this story: its JSON schema is new to this codebase and,
-  # like the MQL bodies above, is validated server-side only — `terraform
-  # test`'s mock_provider can't confirm it renders correctly, and this
-  # session has no path to a live staging apply to verify it. The tenant_id
-  # label already makes every one of these six log lines directly
-  # filterable in Cloud Logging (`jsonPayload.tenantId="..."`) — that's this
-  # story's drill-down path, not a second, unverified dashboard mechanism.
+  # actual, intended trajectory of this platform. Per-tenant drill-down is
+  # handled instead by a Cloud Monitoring `dashboardFilters` pinned filter
+  # (M17-S56, google_monitoring_dashboard.business below) — a viewer picks a
+  # tenant in the console UI and these 6 widgets re-filter live, without any
+  # per-widget change here. The tenant_id label also stays directly
+  # filterable in Cloud Logging (`jsonPayload.tenantId="..."`) as a manual
+  # fallback.
   business_counter_widgets = [
     for metric in [
       { title = "Bookings requested (total)", metric = google_logging_metric.booking_requested },
@@ -1004,24 +1002,76 @@ locals {
     }
   ]
 
-  dashboard_widgets = concat(
+  # M17-S56: the combined dashboard was split into two — Engineering
+  # (infra/performance signals) and Business (S54's tenant-labelled
+  # counters) — so the tenant_id dashboardFilters pinned filter below only
+  # ever sits above widgets it actually applies to. Every widget from the
+  # original single dashboard_widgets concat must appear in exactly one of
+  # the two lists below.
+  engineering_dashboard_widgets = concat(
     local.service_widgets,
     local.latency_widgets,
     local.instance_count_widgets,
     local.sql_widgets,
     local.pubsub_widgets,
-    local.business_counter_widgets,
     local.booking_creation_latency_widget,
   )
+
+  business_dashboard_widgets = local.business_counter_widgets
 }
 
-resource "google_monitoring_dashboard" "main" {
+# Without this, Terraform has no way to know google_monitoring_dashboard.main
+# and .engineering are the same underlying object — it plans a destroy of
+# .main + a fresh create of .engineering instead of an in-place update,
+# losing the live dashboard's resource identity/URL for no reason (confirmed
+# via this PR's own staging/prod plan output: "1 to destroy" on .main before
+# this block was added — cross-tool PR review finding, Codex, 2026-08-13).
+# google_monitoring_dashboard.business has no prior address to move from —
+# it's a genuinely new resource, correctly a create.
+moved {
+  from = google_monitoring_dashboard.main
+  to   = google_monitoring_dashboard.engineering
+}
+
+resource "google_monitoring_dashboard" "engineering" {
   project = var.project_id
   dashboard_json = jsonencode({
-    displayName = "Ikaro ${var.environment}"
+    displayName = "Ikaro ${var.environment} — Engineering"
     gridLayout = {
       columns = "2"
-      widgets = local.dashboard_widgets
+      widgets = local.engineering_dashboard_widgets
+    }
+  })
+}
+
+resource "google_monitoring_dashboard" "business" {
+  project = var.project_id
+  dashboard_json = jsonencode({
+    displayName = "Ikaro ${var.environment} — Business"
+    # Pinned filter (no templateVariable) on the tenant_id label every one
+    # of the 6 business-counter widgets' underlying log-based metric already
+    # carries (see google_logging_metric resources above). Per Google's
+    # DashboardFilter reference (com.google.monitoring.dashboard.v1.
+    # DashboardFilter), omitting templateVariable makes this a pinned
+    # filter that auto-applies to any widget whose data includes labelKey —
+    # no per-widget query changes needed, and since only this dashboard's
+    # widgets carry tenant_id, it's the only one affected. stringValue is
+    # deliberately omitted so no tenant is pinned by default — the default
+    # view stays every tenant's aggregate total, matching M17-S54. Like
+    # every other query/filter string in this module (see file header
+    # comment), this JSON is validated server-side only by the Cloud
+    # Monitoring API — terraform validate/test can't confirm it renders a
+    # working filter control; verify live in staging (pick a tenant in the
+    # console, confirm the 6 charts re-filter) before trusting it.
+    dashboardFilters = [
+      {
+        labelKey   = "tenant_id"
+        filterType = "METRIC_LABEL"
+      }
+    ]
+    gridLayout = {
+      columns = "2"
+      widgets = local.business_dashboard_widgets
     }
   })
 }
