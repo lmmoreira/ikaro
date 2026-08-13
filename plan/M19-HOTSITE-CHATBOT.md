@@ -286,7 +286,7 @@ Migration: `apps/backend/src/contexts/platform/infrastructure/migrations/<timest
 
 ---
 
-### M19-S07 — Retention-purge cron (UC-035)
+### M19-S07 — Retention-purge cron (UC-035) ✅ Done
 
 **Agent:** `backend-ts` + `devops`
 **Complexity:** S
