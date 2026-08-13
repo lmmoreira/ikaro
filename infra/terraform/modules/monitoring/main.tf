@@ -1020,6 +1020,19 @@ locals {
   business_dashboard_widgets = local.business_counter_widgets
 }
 
+# Without this, Terraform has no way to know google_monitoring_dashboard.main
+# and .engineering are the same underlying object — it plans a destroy of
+# .main + a fresh create of .engineering instead of an in-place update,
+# losing the live dashboard's resource identity/URL for no reason (confirmed
+# via this PR's own staging/prod plan output: "1 to destroy" on .main before
+# this block was added — cross-tool PR review finding, Codex, 2026-08-13).
+# google_monitoring_dashboard.business has no prior address to move from —
+# it's a genuinely new resource, correctly a create.
+moved {
+  from = google_monitoring_dashboard.main
+  to   = google_monitoring_dashboard.engineering
+}
+
 resource "google_monitoring_dashboard" "engineering" {
   project = var.project_id
   dashboard_json = jsonencode({

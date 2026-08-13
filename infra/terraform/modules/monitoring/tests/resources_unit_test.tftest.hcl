@@ -209,13 +209,17 @@ run "business_counter_widgets_are_aggregated_not_grouped_by_tenant" {
   command = plan
 
   assert {
+    # No `if strcontains(w.title, "(total)")` guard (removed, cross-tool
+    # review finding, CodeRabbit, 2026-08-13): the Business dashboard now
+    # contains only these 6 counter widgets, so the title filter was
+    # vestigial and would have silently skipped validating any widget whose
+    # title changed — validate every widget on this dashboard instead.
     condition = alltrue([
       for w in jsondecode(google_monitoring_dashboard.business.dashboard_json).gridLayout.widgets :
       (
         w.xyChart.dataSets[0].timeSeriesQuery.timeSeriesFilter.aggregation.crossSeriesReducer == "REDUCE_SUM" &&
         !contains(keys(w.xyChart.dataSets[0].timeSeriesQuery.timeSeriesFilter.aggregation), "groupByFields")
       )
-      if strcontains(w.title, "(total)")
     ])
     error_message = "Every M17-S54 business-counter widget must be REDUCE_SUM-aggregated with no groupByFields — a per-tenant breakdown here would silently truncate past Cloud Monitoring's ~50-series-per-chart cap as tenant count grows."
   }
