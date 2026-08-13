@@ -22,7 +22,8 @@
         "booking": [
           "application/use-cases/booking-request.helpers.ts",
           "application/use-cases/booking-request.types.ts"
-        ]
+        ],
+        "platform": ["chatbot.constants.ts"]
       }
     },
     "infrastructure": {

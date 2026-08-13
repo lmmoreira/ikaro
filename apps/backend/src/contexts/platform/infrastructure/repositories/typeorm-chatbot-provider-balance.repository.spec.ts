@@ -14,6 +14,19 @@ const ENTITY = (): ChatbotProviderBalanceEntity =>
     .withRemainingUsd('18.4200')
     .build();
 
+/** Chainable mock for `manager.createQueryBuilder().insert().into(...).values(...).orUpdate(...).execute()`
+ * — recordCallOutcome()'s own conditional-overwrite upsert (never Repository.upsert(), unlike
+ * saveBalance()), so it needs its own mock shape rather than mockRepo.upsert. */
+function mockQueryBuilder() {
+  const execute = jest.fn().mockResolvedValue({});
+  const orUpdate = jest.fn().mockReturnValue({ execute });
+  const values = jest.fn().mockReturnValue({ orUpdate });
+  const into = jest.fn().mockReturnValue({ values });
+  const insert = jest.fn().mockReturnValue({ into });
+  const createQueryBuilder = jest.fn().mockReturnValue({ insert });
+  return { createQueryBuilder, insert, into, values, orUpdate, execute };
+}
+
 describe('TypeOrmChatbotProviderBalanceRepository', () => {
   let mockRepo: jest.Mocked<Repository<ChatbotProviderBalanceEntity>>;
   let repo: TypeOrmChatbotProviderBalanceRepository;
@@ -22,6 +35,7 @@ describe('TypeOrmChatbotProviderBalanceRepository', () => {
     mockRepo = {
       findOne: jest.fn(),
       upsert: jest.fn(),
+      manager: mockQueryBuilder(),
     } as unknown as jest.Mocked<Repository<ChatbotProviderBalanceEntity>>;
     repo = new TypeOrmChatbotProviderBalanceRepository(mockRepo);
   });
@@ -126,46 +140,56 @@ describe('TypeOrmChatbotProviderBalanceRepository', () => {
   });
 
   describe('recordCallOutcome', () => {
-    it('upserts only provider/lastSuccessAt on a SUCCESS outcome — never remainingUsd/checkedAt/lastFailureAt', async () => {
+    it('upserts only provider/lastSuccessAt on a SUCCESS outcome, guarded so an older write can never clobber a newer one', async () => {
       const occurredAt = new Date('2026-08-12T10:00:00Z');
 
       await repo.recordCallOutcome('openrouter', 'SUCCESS', occurredAt);
 
-      expect(mockRepo.upsert).toHaveBeenCalledTimes(1);
-      const [savedEntity, conflictPaths] = mockRepo.upsert.mock.calls[0];
-      const entity = savedEntity as ChatbotProviderBalanceEntity;
-      expect(entity.provider).toBe('openrouter');
-      expect(entity.lastSuccessAt).toBe(occurredAt);
-      expect(entity.lastFailureAt).toBeUndefined();
-      expect(entity.remainingUsd).toBeUndefined();
-      expect(entity.checkedAt).toBeUndefined();
-      expect(conflictPaths).toEqual(['provider']);
+      const qb = mockRepo.manager as unknown as ReturnType<typeof mockQueryBuilder>;
+      expect(qb.values).toHaveBeenCalledWith({ provider: 'openrouter', lastSuccessAt: occurredAt });
+      const [overwrite, conflictTarget, options] = qb.orUpdate.mock.calls[0] as [
+        string[],
+        string[],
+        { overwriteCondition: { where: string } },
+      ];
+      expect(overwrite).toEqual(['last_success_at']);
+      expect(conflictTarget).toEqual(['provider']);
+      expect(options.overwriteCondition.where).toContain('last_success_at');
+      expect(options.overwriteCondition.where).not.toContain('last_failure_at');
+      expect(qb.execute).toHaveBeenCalledTimes(1);
+      expect(mockRepo.upsert).not.toHaveBeenCalled();
     });
 
-    it('upserts only provider/lastFailureAt on a FAILURE outcome', async () => {
+    it('upserts only provider/lastFailureAt on a FAILURE outcome, guarded so an older write can never clobber a newer one', async () => {
       const occurredAt = new Date('2026-08-12T10:05:00Z');
 
       await repo.recordCallOutcome('anthropic', 'FAILURE', occurredAt);
 
-      const [savedEntity] = mockRepo.upsert.mock.calls[0];
-      const entity = savedEntity as ChatbotProviderBalanceEntity;
-      expect(entity.provider).toBe('anthropic');
-      expect(entity.lastFailureAt).toBe(occurredAt);
-      expect(entity.lastSuccessAt).toBeUndefined();
+      const qb = mockRepo.manager as unknown as ReturnType<typeof mockQueryBuilder>;
+      expect(qb.values).toHaveBeenCalledWith({ provider: 'anthropic', lastFailureAt: occurredAt });
+      const [overwrite, conflictTarget, options] = qb.orUpdate.mock.calls[0] as [
+        string[],
+        string[],
+        { overwriteCondition: { where: string } },
+      ];
+      expect(overwrite).toEqual(['last_failure_at']);
+      expect(conflictTarget).toEqual(['provider']);
+      expect(options.overwriteCondition.where).toContain('last_failure_at');
+      expect(options.overwriteCondition.where).not.toContain('last_success_at');
     });
 
     it('uses the active EntityManager when inside a transaction', async () => {
-      const mockManager = { upsert: jest.fn().mockResolvedValue({}) } as unknown as EntityManager;
+      const qb = mockQueryBuilder();
+      const mockManager = qb as unknown as EntityManager;
 
       await runWithEntityManager(mockManager, () =>
         repo.recordCallOutcome('openrouter', 'SUCCESS', new Date()),
       );
 
-      expect(mockManager.upsert).toHaveBeenCalledWith(
-        ChatbotProviderBalanceEntity,
-        expect.objectContaining({ provider: 'openrouter' }),
-        ['provider'],
-      );
+      expect(qb.createQueryBuilder).toHaveBeenCalledTimes(1);
+      expect(
+        (mockRepo.manager as unknown as ReturnType<typeof mockQueryBuilder>).createQueryBuilder,
+      ).not.toHaveBeenCalled();
       expect(mockRepo.upsert).not.toHaveBeenCalled();
     });
   });

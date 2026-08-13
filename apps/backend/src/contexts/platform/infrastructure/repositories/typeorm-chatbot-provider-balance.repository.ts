@@ -35,22 +35,45 @@ export class TypeOrmChatbotProviderBalanceRepository implements IChatbotProvider
     await this.upsertEntity(entity);
   }
 
-  /** Health-only partial upsert — touches last_success_at OR last_failure_at only, via the same
-   * partial-upsert mechanism as saveBalance() above. Never touches remaining_usd/checked_at
-   * (S08's balance columns). */
+  /** Health-only partial upsert — touches last_success_at OR last_failure_at only, never
+   * remaining_usd/checked_at (S08's balance columns). Guards the update with `orUpdate()`'s
+   * `overwriteCondition` (TypeORM's own conflict-condition API, not a hand-rolled raw
+   * `ON CONFLICT` string) so the incoming timestamp only applies when it's actually newer than
+   * (or the column has never been set): two concurrent calls (e.g. a slow FAILURE write from an
+   * older request landing after a newer SUCCESS write) must never let the older timestamp
+   * clobber the newer one — isHealthy()'s cooldown logic depends on
+   * last_success_at/last_failure_at reflecting the true most-recent outcome, not just the
+   * most-recently-applied write. */
   async recordCallOutcome(
     provider: string,
     outcome: 'SUCCESS' | 'FAILURE',
     occurredAt: Date,
   ): Promise<void> {
-    const entity = new ChatbotProviderBalanceEntity();
-    entity.provider = provider;
+    const manager = getActiveEntityManager() ?? this.repo.manager;
+    const qb = manager.createQueryBuilder().insert().into(ChatbotProviderBalanceEntity);
     if (outcome === 'SUCCESS') {
-      entity.lastSuccessAt = occurredAt;
+      await qb
+        .values({ provider, lastSuccessAt: occurredAt })
+        .orUpdate(['last_success_at'], ['provider'], {
+          overwriteCondition: {
+            where:
+              'chatbot_provider_balance.last_success_at IS NULL OR ' +
+              'chatbot_provider_balance.last_success_at < EXCLUDED.last_success_at',
+          },
+        })
+        .execute();
     } else {
-      entity.lastFailureAt = occurredAt;
+      await qb
+        .values({ provider, lastFailureAt: occurredAt })
+        .orUpdate(['last_failure_at'], ['provider'], {
+          overwriteCondition: {
+            where:
+              'chatbot_provider_balance.last_failure_at IS NULL OR ' +
+              'chatbot_provider_balance.last_failure_at < EXCLUDED.last_failure_at',
+          },
+        })
+        .execute();
     }
-    await this.upsertEntity(entity);
   }
 
   private async upsertEntity(entity: ChatbotProviderBalanceEntity): Promise<void> {

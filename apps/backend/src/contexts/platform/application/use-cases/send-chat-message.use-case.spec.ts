@@ -559,7 +559,7 @@ describe('SendChatMessageUseCase', () => {
       await expect(useCase.execute(baseInput())).rejects.toThrow(ChatbotProviderUnavailableError);
     });
 
-    it('releases the reserved message capacity when the LLM call fails, so a provider outage does not burn the cap (PR #360 review)', async () => {
+    it('deletes a brand-new session entirely when the LLM call fails, so a provider outage does not burn the daily/IP/concurrency cap for a conversation that never happened (cross-tool review finding)', async () => {
       const failingProvider: ILlmProvider = {
         complete: () => Promise.reject(new Error('OpenRouter request failed: 500')),
       };
@@ -583,8 +583,43 @@ describe('SendChatMessageUseCase', () => {
       await expect(useCase.execute(baseInput())).rejects.toThrow(ChatbotProviderUnavailableError);
 
       const reservedSessionId = saveSpy.mock.calls[0][0].id;
+      // Merely releasing messageCount back to 0 isn't enough — the row itself would still be
+      // counted by chatbot_sessions' COUNT-based caps. The row must not exist at all.
       const reloaded = await sessionRepo.findById(reservedSessionId, TENANT_ID);
-      expect(reloaded!.messageCount).toBe(0);
+      expect(reloaded).toBeNull();
+      expect(await sessionRepo.countByTenantAndDate(TENANT_ID, todayInSaoPaulo())).toBe(0);
+    });
+
+    it('releases (not deletes) an existing session when a later message fails, since it already has real prior messages', async () => {
+      const failingProvider: ILlmProvider = {
+        complete: () => Promise.reject(new Error('OpenRouter request failed: 500')),
+      };
+      const registry = new LlmProviderRegistry(
+        'openrouter',
+        failingProvider,
+        failingProvider,
+        failingProvider,
+      );
+      const useCase = new SendChatMessageUseCase(
+        sessionRepo,
+        messageRepo,
+        balanceRepo,
+        registry,
+        new InMemoryTransactionManager(),
+        fakeConfig(),
+        tracingPort,
+      );
+      const session = new ChatbotSessionBuilder().withTenantId(TENANT_ID).build();
+      session.recordMessages(2);
+      await sessionRepo.save(session);
+
+      await expect(useCase.execute(baseInput({ sessionId: session.id }))).rejects.toThrow(
+        ChatbotProviderUnavailableError,
+      );
+
+      const reloaded = await sessionRepo.findById(session.id, TENANT_ID);
+      expect(reloaded).not.toBeNull();
+      expect(reloaded!.messageCount).toBe(2);
     });
 
     it('never embeds the raw upstream error text in the public-facing error (PR #360 review — info disclosure)', async () => {

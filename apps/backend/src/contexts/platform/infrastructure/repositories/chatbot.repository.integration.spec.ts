@@ -186,6 +186,21 @@ describe('Chatbot repositories (integration)', () => {
       // still holding the first call's timestamp, not null and not overwritten.
       expect(found!.lastSuccessAt).toBeInstanceOf(Date);
     });
+
+    // Two concurrent requests can race so that the chronologically-older outcome's write reaches
+    // Postgres second. A plain EXCLUDED-based upsert would let it clobber the newer timestamp,
+    // corrupting isHealthy()'s cooldown logic. GREATEST() in the upsert's DO UPDATE SET must
+    // reject the older write regardless of arrival order.
+    it('an out-of-order write never overwrites a newer timestamp with an older one', async () => {
+      const older = new Date('2026-08-01T10:00:00.000Z');
+      const newer = new Date('2026-08-01T10:05:00.000Z');
+
+      await balanceRepo.recordCallOutcome('openrouter-out-of-order-test', 'FAILURE', newer);
+      await balanceRepo.recordCallOutcome('openrouter-out-of-order-test', 'FAILURE', older);
+
+      const found = await balanceRepo.findByProvider('openrouter-out-of-order-test');
+      expect(found!.lastFailureAt!.toISOString()).toBe(newer.toISOString());
+    });
   });
 
   it('multi-tenant isolation — Tenant B cannot find Tenant A chatbot session', async () => {

@@ -101,6 +101,7 @@ export class SendChatMessageUseCase {
 
     this.enforceMessageLength(input);
 
+    const isNewSession = !input.sessionId;
     const { session, history } = input.sessionId
       ? await this.resolveExistingSession(input.sessionId, tenantId, chatbotSettings)
       : await this.resolveNewSession(input, resolvedProviderName);
@@ -131,12 +132,21 @@ export class SendChatMessageUseCase {
         model: chatbotSettings.llmModel,
       });
     } catch (err: unknown) {
-      // Release the pre-LLM reservation — no rows were actually written, so the tenant's
-      // message/daily/IP/concurrency budgets must not stay burned by a provider outage
-      // (PR #360 review).
-      session.releaseMessages(2);
       await this.txManager.run(async () => {
-        await this.sessionRepo.save(session);
+        if (isNewSession) {
+          // A brand-new session has no chatbot_messages rows yet (those are only written after
+          // a successful complete() call below), so deleting it entirely is safe — and
+          // necessary: releasing messageCount alone still leaves the row itself counted by
+          // chatbot_sessions' COUNT-based daily/per-IP/concurrency caps, silently burning the
+          // tenant's budget for a conversation that never happened (cross-tool review finding,
+          // 2026-08-12 — releaseMessages(2) narrowed the overshoot but didn't close it).
+          await this.sessionRepo.deleteById(session.id, tenantId);
+        } else {
+          // An existing session already has real prior messages and already counted toward the
+          // caps when it was first created — release only this turn's reservation, keep the row.
+          session.releaseMessages(2);
+          await this.sessionRepo.save(session);
+        }
         // UC-034 condition (c)'s only failure signal — a genuine provider.complete() failure,
         // never a cap/volume rejection (those all throw earlier in this method, before this
         // catch block is ever reached). docs/13-DATABASE_SCHEMA.md's "Write discipline" note.

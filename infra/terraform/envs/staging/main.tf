@@ -200,8 +200,10 @@ module "cloudrun_backend" {
       # deliberately, so ops can fail over to another provider in minutes without a deploy.
       CHATBOT_LLM_PROVIDER = "openrouter"
       # M19-S05/S06: platform-wide chatbot cost/abuse-prevention backstops — plain env vars
-      # (not secrets, not tenants.settings) so ops can bump them in minutes during a real
-      # incident, not a deploy cycle. Final, confirmed values — not placeholders.
+      # (not secrets, not tenants.settings) so ops can change them via a Terraform var update +
+      # apply (a new Cloud Run revision, no application code build/test/deploy) during a real
+      # incident, without waiting for the next app release. Final, confirmed values — not
+      # placeholders.
       CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD     = "25"
       CHATBOT_MIN_PROVIDER_BALANCE_USD         = "2"
       CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES = "5"
