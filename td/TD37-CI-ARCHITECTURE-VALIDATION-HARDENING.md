@@ -165,7 +165,7 @@ Story 2A follow-through: `@ikaro/types` exports only the approved backend protoc
 
 ---
 
-### Story 3 — No network I/O inside `txManager.run()` 🔴
+### Story 3 — No network I/O inside `txManager.run()` 🔴 ✅ Done
 
 Directly addresses **#28** — the PR #267 incident (DB read before the network call wasn't wrapped in the "never throws" contract; only the network leg was).
 
@@ -178,16 +178,18 @@ Directly addresses **#28** — the PR #267 incident (DB read before the network 
 4. Excludes callbacks explicitly scheduled with `scheduleAfterCommit`, since those execute after the transaction. The check must distinguish lexical nesting from execution timing.
 5. Fails with the file:line of the offending call if found.
 
+**External-side-effect registry**: add a machine-readable `externalSideEffectPorts` section to `packages/architecture-check/architecture-policy.json`. Each entry must name the resolved port-declaration file, interface, method, and every concrete production adapter implementation path that realizes it. The detector resolves a call receiver to the registered port method rather than inferring external I/O from a folder name, adapter name, or `fetch()` syntax. Initial entries cover `IFrontendRevalidationPort.revalidate`, `IBookingPlatformPort.revalidatePublicPages`, `ILlmProvider.complete`, notification delivery/send methods, `IStorageService` network methods, and direct `IEventBus.publish`. `IOutboxPublisher.publish` is deliberately excluded: it durably inserts the outbox row in the ambient transaction and schedules its relay with `scheduleAfterCommit`, so its network leg executes only after commit. A new direct external-side-effect port or implementation is incomplete until its registry entry is added in the same change.
+
 **What it catches**: exactly the PR #267 shape — a network-calling adapter method invoked from inside the transactional callback, on either side of the DB write.
 Also add the complementary structural rule: every production use-case call to a repository `save()` is lexically enclosed by a callback passed to a parameter typed `ITransactionManager.run()`. Explicitly catalog any legitimate non-use-case exceptions.
 
 **What it does NOT catch**: arbitrary deep interprocedural I/O without a registered port marker. New external-side-effect ports must be registered as part of their implementation; hidden/dynamic I/O stays a review concern.
 
 **Acceptance criteria**:
-- [ ] Uses Story 0's shared runner and registered external-side-effect port methods
-- [ ] Transactional-I/O and transactional-`save()` checks are implemented with post-commit scheduling coverage
-- [ ] Passes clean against current `main`
-- [ ] Valid, invalid, and `scheduleAfterCommit` fixtures prove the semantic distinction
+- [x] Uses Story 0's shared runner and registered external-side-effect port methods
+- [x] Transactional-I/O and transactional-`save()` checks are implemented with post-commit scheduling coverage
+- [x] Passes clean against current `main`
+- [x] Valid, invalid, and `scheduleAfterCommit` fixtures prove the semantic distinction
 
 ---
 

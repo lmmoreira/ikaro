@@ -283,6 +283,97 @@
     "allowedSubpaths": ["./protocol/errors", "./protocol/actor", "./protocol/media"],
     "forbidden": ["root-barrel", "feature-request-response-dtos"]
   },
+  "externalSideEffectPorts": [
+    {
+      "portFile": "apps/backend/src/contexts/platform/application/ports/frontend-revalidation.port.ts",
+      "interfaceName": "IFrontendRevalidationPort",
+      "methodName": "revalidate",
+      "adapterPaths": [
+        "apps/backend/src/contexts/platform/infrastructure/adapters/frontend-revalidation.adapter.ts"
+      ]
+    },
+    {
+      "portFile": "apps/backend/src/contexts/booking/application/ports/booking-platform.port.ts",
+      "interfaceName": "IBookingPlatformPort",
+      "methodName": "revalidatePublicPages",
+      "adapterPaths": [
+        "apps/backend/src/contexts/booking/infrastructure/cross-context/booking-platform.adapter.ts"
+      ]
+    },
+    {
+      "portFile": "apps/backend/src/contexts/platform/application/ports/llm-provider.port.ts",
+      "interfaceName": "ILlmProvider",
+      "methodName": "complete",
+      "adapterPaths": [
+        "apps/backend/src/contexts/platform/infrastructure/llm/anthropic-llm.adapter.ts",
+        "apps/backend/src/contexts/platform/infrastructure/llm/openai-llm.adapter.ts",
+        "apps/backend/src/contexts/platform/infrastructure/llm/openrouter-llm.adapter.ts"
+      ]
+    },
+    {
+      "portFile": "apps/backend/src/contexts/notification/application/ports/notification-dispatcher.port.ts",
+      "interfaceName": "INotificationDispatcher",
+      "methodName": "dispatch",
+      "adapterPaths": [
+        "apps/backend/src/contexts/notification/infrastructure/delivery/notification-dispatcher.adapter.ts"
+      ]
+    },
+    {
+      "portFile": "apps/backend/src/contexts/notification/application/ports/delivery-channel.port.ts",
+      "interfaceName": "IDeliveryChannel",
+      "methodName": "send",
+      "adapterPaths": [
+        "apps/backend/src/contexts/notification/infrastructure/delivery/email-delivery-channel.adapter.ts"
+      ]
+    },
+    {
+      "portFile": "apps/backend/src/contexts/notification/application/ports/email-sender.port.ts",
+      "interfaceName": "IEmailSender",
+      "methodName": "send",
+      "adapterPaths": [
+        "apps/backend/src/contexts/notification/infrastructure/delivery/brevo-email.adapter.ts",
+        "apps/backend/src/contexts/notification/infrastructure/delivery/mailhog-email.adapter.ts"
+      ]
+    },
+    {
+      "portFile": "apps/backend/src/shared/ports/storage.service.port.ts",
+      "interfaceName": "IStorageService",
+      "methodName": "generateWriteSignedUrl",
+      "adapterPaths": ["apps/backend/src/shared/infrastructure/gcs/gcs-signed-url.adapter.ts"]
+    },
+    {
+      "portFile": "apps/backend/src/shared/ports/storage.service.port.ts",
+      "interfaceName": "IStorageService",
+      "methodName": "generateReadSignedUrl",
+      "adapterPaths": ["apps/backend/src/shared/infrastructure/gcs/gcs-signed-url.adapter.ts"]
+    },
+    {
+      "portFile": "apps/backend/src/shared/ports/storage.service.port.ts",
+      "interfaceName": "IStorageService",
+      "methodName": "exists",
+      "adapterPaths": ["apps/backend/src/shared/infrastructure/gcs/gcs-signed-url.adapter.ts"]
+    },
+    {
+      "portFile": "apps/backend/src/shared/ports/storage.service.port.ts",
+      "interfaceName": "IStorageService",
+      "methodName": "copy",
+      "adapterPaths": ["apps/backend/src/shared/infrastructure/gcs/gcs-signed-url.adapter.ts"]
+    },
+    {
+      "portFile": "apps/backend/src/shared/ports/storage.service.port.ts",
+      "interfaceName": "IStorageService",
+      "methodName": "delete",
+      "adapterPaths": ["apps/backend/src/shared/infrastructure/gcs/gcs-signed-url.adapter.ts"]
+    },
+    {
+      "portFile": "apps/backend/src/shared/ports/event-bus.port.ts",
+      "interfaceName": "IEventBus",
+      "methodName": "publish",
+      "adapterPaths": [
+        "apps/backend/src/shared/infrastructure/event-bus/gcp-pubsub-event-bus.adapter.ts"
+      ]
+    }
+  ],
   "exceptions": [
     {
       "rule": "error-mapper-coverage",

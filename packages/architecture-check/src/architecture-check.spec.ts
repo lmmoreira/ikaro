@@ -1,5 +1,10 @@
 import { Project } from 'ts-morph';
-import { checkErrorMapperCoverage, checkTransactionalSaves, checkUnsafeUseExisting } from './index';
+import {
+  checkErrorMapperCoverage,
+  checkTransactionalIo,
+  checkTransactionalSaves,
+  checkUnsafeUseExisting,
+} from './index';
 import { expectScannedTargets, expectZeroTargets, fixtureProject } from './testing/fixtures';
 
 describe('architecture checks', () => {
@@ -23,6 +28,44 @@ describe('architecture checks', () => {
     const result = checkTransactionalSaves(project);
     expectScannedTargets(result, 3);
     expect(result.findings).toHaveLength(2);
+  });
+
+  it('rejects registered external I/O inside a transaction while allowing post-commit scheduling', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/contexts/demo/application/ports/external.port.ts': `
+        export interface IExternalPort { call(): Promise<void> }
+      `,
+      '/repo/apps/backend/src/contexts/demo/infrastructure/external.adapter.ts': `
+        import { IExternalPort } from '../application/ports/external.port';
+        class ExternalAdapter implements IExternalPort { async call(): Promise<void> {} }
+      `,
+      '/repo/apps/backend/src/contexts/demo/application/demo.use-case.ts': `
+        import { IExternalPort } from './ports/external.port';
+        interface ITransactionManager {
+          run(callback: () => Promise<void>): Promise<void>
+          scheduleAfterCommit(callback: () => Promise<void>): Promise<void>
+        }
+        declare const tx: ITransactionManager;
+        declare const external: IExternalPort;
+        async function invalid() { await tx.run(async () => { await external.call(); }); }
+        async function scheduled() {
+          await tx.run(async () => {
+            await tx.scheduleAfterCommit(async () => { await external.call(); });
+          });
+        }
+        async function afterTransaction() { await tx.run(async () => undefined); await external.call(); }
+      `,
+    });
+    const result = checkTransactionalIo(project, [
+      {
+        portFile: 'apps/backend/src/contexts/demo/application/ports/external.port.ts',
+        interfaceName: 'IExternalPort',
+        methodName: 'call',
+        adapterPaths: ['apps/backend/src/contexts/demo/infrastructure/external.adapter.ts'],
+      },
+    ]);
+    expectScannedTargets(result, 3);
+    expect(result.findings).toEqual([expect.objectContaining({ rule: 'transactional-io' })]);
   });
 
   it('requires each concrete domain error to be referenced by a mapper', () => {
