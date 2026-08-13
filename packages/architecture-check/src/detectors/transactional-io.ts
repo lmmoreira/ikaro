@@ -62,6 +62,7 @@ export function checkTransactionalIo(
   let scannedTargets = 0;
 
   for (const entry of registry) {
+    scannedTargets++;
     if (hasRegisteredAdapter(project, entry)) continue;
     findings.push({
       rule: 'transactional-io',

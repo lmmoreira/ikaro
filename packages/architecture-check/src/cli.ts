@@ -36,9 +36,13 @@ const intentionalErrorMapperGaps = new Set(
     .filter((exception) => exception.rule === 'error-mapper-coverage' && exception.class)
     .map((exception) => exception.class!),
 );
+const externalSideEffectPorts = policy.externalSideEffectPorts;
+if (!externalSideEffectPorts?.length) {
+  throw new Error('The architecture policy must register at least one external-side-effect port.');
+}
 
 const results = [
-  checkTransactionalIo(backend, policy.externalSideEffectPorts ?? []),
+  checkTransactionalIo(backend, externalSideEffectPorts),
   checkTransactionalSaves(backend),
   checkErrorMapperCoverage(backend, intentionalErrorMapperGaps),
   checkUnsafeUseExisting(backend),

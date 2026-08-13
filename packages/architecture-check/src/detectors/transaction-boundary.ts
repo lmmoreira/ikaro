@@ -23,16 +23,27 @@ function isAfterCommitCallback(node: Node): boolean {
   if (!Node.isCallExpression(parent)) return false;
 
   const expression = parent.getExpression();
-  if (
-    !Node.isPropertyAccessExpression(expression) ||
-    expression.getName() !== 'scheduleAfterCommit'
-  ) {
-    return false;
+  if (parent.getArguments()[0] !== node) return false;
+
+  if (Node.isPropertyAccessExpression(expression)) {
+    return (
+      expression.getName() === 'scheduleAfterCommit' &&
+      expression.getExpression().getType().getSymbol()?.getName() === 'ITransactionManager'
+    );
   }
 
-  return (
-    parent.getArguments()[0] === node &&
-    expression.getExpression().getType().getSymbol()?.getName() === 'ITransactionManager'
+  if (!Node.isIdentifier(expression) || expression.getText() !== 'scheduleAfterCommit')
+    return false;
+  const symbol = expression.getSymbol()?.getAliasedSymbol() ?? expression.getSymbol();
+  return Boolean(
+    symbol
+      ?.getDeclarations()
+      .some((declaration) =>
+        declaration
+          .getSourceFile()
+          .getFilePath()
+          .endsWith('apps/backend/src/shared/infrastructure/transaction-context.ts'),
+      ),
   );
 }
 

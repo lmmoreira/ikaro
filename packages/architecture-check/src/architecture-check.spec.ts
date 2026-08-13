@@ -18,12 +18,15 @@ describe('architecture checks', () => {
         declare const repository: Repository;
         declare const draft: Draft;
         async function valid() { await tx.run(async () => { await repository.save(); }); }
+        async function nested() {
+          await tx.run(async () => { queueMicrotask(async () => { await repository.save(); }); });
+        }
         async function invalid() { await repository.save(); }
         async function unrelated() { await draft.save(); }
       `,
     });
     const result = checkTransactionalSaves(project);
-    expectScannedTargets(result, 2);
+    expectScannedTargets(result, 3);
     expect(result.findings).toHaveLength(1);
   });
 
@@ -36,8 +39,14 @@ describe('architecture checks', () => {
         import { IExternalPort } from '../application/ports/external.port';
         class ExternalAdapter implements IExternalPort { async call(): Promise<void> {} }
       `,
+      '/repo/apps/backend/src/shared/infrastructure/transaction-context.ts': `
+        export function scheduleAfterCommit(callback: () => Promise<void>): Promise<void> {
+          return Promise.resolve(callback());
+        }
+      `,
       '/repo/apps/backend/src/contexts/demo/application/demo.use-case.ts': `
         import { IExternalPort } from './ports/external.port';
+        import { scheduleAfterCommit } from '../../../shared/infrastructure/transaction-context';
         interface ITransactionManager {
           run(callback: () => Promise<void>): Promise<void>
           scheduleAfterCommit(callback: () => Promise<void>): Promise<void>
@@ -48,6 +57,11 @@ describe('architecture checks', () => {
         async function scheduled() {
           await tx.run(async () => {
             await tx.scheduleAfterCommit(async () => { await external.call(); });
+          });
+        }
+        async function directlyScheduled() {
+          await tx.run(async () => {
+            await scheduleAfterCommit(async () => { await external.call(); });
           });
         }
         async function nestedButAwaited() {
@@ -69,11 +83,11 @@ describe('architecture checks', () => {
         adapterPaths: ['apps/backend/src/contexts/demo/infrastructure/external.adapter.ts'],
       },
     ]);
-    expectScannedTargets(result, 5);
+    expectScannedTargets(result, 7);
     expect(result.findings).toEqual([
-      expect.objectContaining({ rule: 'transactional-io' }),
-      expect.objectContaining({ rule: 'transactional-io' }),
-      expect.objectContaining({ rule: 'transactional-io' }),
+      expect.objectContaining({ rule: 'transactional-io', line: 10 }),
+      expect.objectContaining({ rule: 'transactional-io', line: 23 }),
+      expect.objectContaining({ rule: 'transactional-io', line: 27 }),
     ]);
   });
 
