@@ -145,6 +145,13 @@ jobs:
           while IFS= read -r path; do
             [ -z "$path" ] && continue
             case "$path" in
+              # Documentation carries zero deploy-ordering risk — only
+              # actually-applied Terraform config (or pubsub-catalog.json,
+              # which drives it) can ever hit the live-IAM-read deadlock.
+              # Excluded so a PR combining a foundation/** fix with its own
+              # required README.md doc update (Definition of Done) doesn't
+              # trip this guard on itself.
+              *.md) ;;
               infra/terraform/foundation/*) foundation=true ;;
               *) other=true ;;
             esac
