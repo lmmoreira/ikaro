@@ -142,8 +142,21 @@ import {
 # TD34: ordinary resource modules continue to own services, topics,
 # subscriptions, and jobs. Foundation owns only their IAM policies.
 locals {
-  workload_catalog = jsondecode(file("${path.module}/../../../pubsub-catalog.json"))
-  workload_topics  = { for entry in local.workload_catalog : entry.event => entry }
+  # TEMPORARY (M19-S07 unblock, TD39): cron-chatbot-retention-purge is filtered out of the
+  # catalog foundation reads here. Its target Pub/Sub topic/subscription/DLQ don't exist live
+  # yet — envs/* creates them, and foundation's IAM-member resources do a live read of the
+  # target's current policy even at plan time, which 404s until they do. Without this filter,
+  # foundation can never successfully plan/apply (blocking every future change, not just this
+  # one), and envs/*'s own deploy is gated behind a successful foundation apply — a mutual
+  # deadlock with no other way out short of this filter. Remove it and add this entry's real
+  # IAM grants (scheduler_publisher_cron-chatbot-retention-purge and whatever
+  # workload_topics/workload_subscriptions derive automatically) in a genuine follow-up PR,
+  # once envs/* has deployed and the topic exists live. See TD39 for the full incident.
+  workload_catalog = [
+    for entry in jsondecode(file("${path.module}/../../../pubsub-catalog.json")) : entry
+    if entry.event != "cron-chatbot-retention-purge"
+  ]
+  workload_topics = { for entry in local.workload_catalog : entry.event => entry }
   workload_subscriptions = merge([
     for entry in local.workload_catalog : {
       for consumer in entry.consumers : jsonencode([entry.event, consumer]) => {
