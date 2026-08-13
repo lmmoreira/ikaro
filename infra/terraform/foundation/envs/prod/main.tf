@@ -200,12 +200,6 @@ locals {
       member = "serviceAccount:ikaro-backend@${var.project_id}.iam.gserviceaccount.com"
     }
     }, {
-    # cron-chatbot-retention-purge deliberately excluded (M19-S07): this module's
-    # google_pubsub_topic_iam_member does a live read of the target topic's IAM
-    # policy even at plan time, which fails with a 404 until the topic actually
-    # exists — and that topic is created by the separate envs/* root/state, not
-    # this one. Add this event here in a follow-up PR/story once envs/* has
-    # deployed and the topic exists live (PR #365 discussion).
     for event in ["cron-reminders", "cron-loyalty-expiry", "cron-loyalty-expiry-warning", "cron-outbox-relay"] : "scheduler_publisher_${event}" => {
       topic  = "ikaro-${event}"
       role   = "roles/pubsub.publisher"
