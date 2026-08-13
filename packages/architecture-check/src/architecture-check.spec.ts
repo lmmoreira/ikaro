@@ -20,14 +20,11 @@ describe('architecture checks', () => {
         async function valid() { await tx.run(async () => { await repository.save(); }); }
         async function invalid() { await repository.save(); }
         async function unrelated() { await draft.save(); }
-        async function deferred() {
-          await tx.run(async () => { queueMicrotask(() => { void repository.save(); }); });
-        }
       `,
     });
     const result = checkTransactionalSaves(project);
-    expectScannedTargets(result, 3);
-    expect(result.findings).toHaveLength(2);
+    expectScannedTargets(result, 2);
+    expect(result.findings).toHaveLength(1);
   });
 
   it('rejects registered external I/O inside a transaction while allowing post-commit scheduling', () => {
@@ -53,6 +50,14 @@ describe('architecture checks', () => {
             await tx.scheduleAfterCommit(async () => { await external.call(); });
           });
         }
+        async function nestedButAwaited() {
+          await tx.run(async () => {
+            await Promise.resolve().then(async () => { await external.call(); });
+          });
+        }
+        async function nestedMicrotask() {
+          await tx.run(async () => { queueMicrotask(async () => { await external.call(); }); });
+        }
         async function afterTransaction() { await tx.run(async () => undefined); await external.call(); }
       `,
     });
@@ -64,8 +69,12 @@ describe('architecture checks', () => {
         adapterPaths: ['apps/backend/src/contexts/demo/infrastructure/external.adapter.ts'],
       },
     ]);
-    expectScannedTargets(result, 3);
-    expect(result.findings).toEqual([expect.objectContaining({ rule: 'transactional-io' })]);
+    expectScannedTargets(result, 5);
+    expect(result.findings).toEqual([
+      expect.objectContaining({ rule: 'transactional-io' }),
+      expect.objectContaining({ rule: 'transactional-io' }),
+      expect.objectContaining({ rule: 'transactional-io' }),
+    ]);
   });
 
   it('requires each concrete domain error to be referenced by a mapper', () => {

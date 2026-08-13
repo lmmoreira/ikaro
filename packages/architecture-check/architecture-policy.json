@@ -372,6 +372,22 @@
       "adapterPaths": [
         "apps/backend/src/shared/infrastructure/event-bus/gcp-pubsub-event-bus.adapter.ts"
       ]
+    },
+    {
+      "portFile": "apps/backend/src/shared/ports/trigger-bus.port.ts",
+      "interfaceName": "ITriggerBus",
+      "methodName": "publishTrigger",
+      "adapterPaths": [
+        "apps/backend/src/shared/infrastructure/event-bus/gcp-pubsub-event-bus.adapter.ts"
+      ]
+    },
+    {
+      "portFile": "apps/backend/src/shared/ports/oidc-token-verifier.port.ts",
+      "interfaceName": "IOidcTokenVerifier",
+      "methodName": "verify",
+      "adapterPaths": [
+        "apps/backend/src/shared/infrastructure/google-oidc-token-verifier.adapter.ts"
+      ]
     }
   ],
   "exceptions": [
