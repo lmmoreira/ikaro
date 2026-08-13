@@ -47,6 +47,15 @@ export class TypeOrmChatbotSessionRepository implements IChatbotSessionRepositor
     }
   }
 
+  async deleteById(id: string, tenantId: string): Promise<void> {
+    const manager = getActiveEntityManager();
+    if (manager) {
+      await manager.delete(ChatbotSessionEntity, { id, tenantId });
+    } else {
+      await this.repo.delete({ id, tenantId });
+    }
+  }
+
   private toDomain(entity: ChatbotSessionEntity): ChatbotSession {
     return ChatbotSession.reconstitute({
       id: entity.id,

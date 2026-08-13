@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ApplicationConfigModule } from '../../shared/infrastructure/application-config.module';
 import { StorageModule } from '../../shared/infrastructure/storage.module';
 import { RequestModule } from '../../shared/request/request.module';
 import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cache.module';
@@ -28,6 +29,7 @@ import { DeleteHotsiteImageUseCase } from './application/use-cases/delete-hotsit
 import { FeatureBookingPhotoUseCase } from './application/use-cases/feature-booking-photo.use-case';
 import { GenerateHotsiteImageReadSignedUrlUseCase } from './application/use-cases/generate-hotsite-image-read-signed-url.use-case';
 import { GenerateHotsiteImageSignedUrlUseCase } from './application/use-cases/generate-hotsite-image-signed-url.use-case';
+import { GetChatbotStatusUseCase } from './application/use-cases/get-chatbot-status.use-case';
 import { GetHotsiteContentUseCase } from './application/use-cases/get-hotsite-content.use-case';
 import { GetHotsiteManifestUseCase } from './application/use-cases/get-hotsite-manifest.use-case';
 import { GetTenantByIdUseCase } from './application/use-cases/get-tenant-by-id.use-case';
@@ -76,6 +78,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
       ChatbotMessageEntity,
       ChatbotProviderBalanceEntity,
     ]),
+    ApplicationConfigModule,
     RequestModule,
     StorageModule,
     SharedCacheModule,
@@ -129,6 +132,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     FeatureBookingPhotoUseCase,
     GenerateHotsiteImageReadSignedUrlUseCase,
     GenerateHotsiteImageSignedUrlUseCase,
+    GetChatbotStatusUseCase,
     GetHotsiteContentUseCase,
     GetHotsiteManifestUseCase,
     GetTenantByIdUseCase,

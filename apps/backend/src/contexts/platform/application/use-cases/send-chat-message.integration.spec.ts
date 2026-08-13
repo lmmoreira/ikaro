@@ -1,8 +1,8 @@
-import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typeorm-transaction-manager';
+import { fakeConfig } from '../../../../test/utils/fake-config';
 import { FakeLlmProviderBuilder, TenantBuilder } from '../../../../test/builders/platform';
 import { ChatbotMessageEntity } from '../../infrastructure/entities/chatbot-message.entity';
 import { ChatbotProviderBalanceEntity } from '../../infrastructure/entities/chatbot-provider-balance.entity';
@@ -19,12 +19,6 @@ import {
 } from '../../domain/errors/platform-domain.error';
 import { LlmProviderRegistry } from '../services/llm-provider-registry.service';
 import { SendChatMessageUseCase, SendChatMessageUseCaseInput } from './send-chat-message.use-case';
-
-function fakeConfig(overrides: Record<string, string> = {}): ConfigService {
-  return {
-    get: (key: string, defaultValue: string) => overrides[key] ?? defaultValue,
-  } as unknown as ConfigService;
-}
 
 // Never a real network call — the LLM adapter itself is stubbed via FakeLlmProviderBuilder, same
 // as every unit test; only the Postgres cap-enforcement path is genuinely exercised here.

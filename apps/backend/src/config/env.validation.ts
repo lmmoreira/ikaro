@@ -91,6 +91,17 @@ export const schema = z.object({
   // Optional: only needed when the OpenRouter adapter actually makes a real call. Automated
   // tests never call the real API (stubbed fetch), so local dev/CI work fine unset.
   OPENROUTER_API_KEY: z.string().optional(),
+  // Chatbot cost/abuse-prevention platform-wide backstops (M19-S05/S06) — deliberately env vars,
+  // not tenants.settings fields (docs/discovery/CHATBOT/CHATBOT.md §8.9-8.10): no tenant can opt
+  // out, and all three can be changed via a Terraform var update + apply (a new Cloud Run
+  // revision, no application code build/test/deploy) during a real incident, without waiting for
+  // the next app release. Registered here (not a bare code constant) so
+  // IApplicationConfig.getOrThrow() always resolves — the single source of truth for the default
+  // value, not duplicated per call site. Positive-only: zero/negative would silently disable the
+  // safety backstop instead of enforcing it.
+  CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD: z.coerce.number().positive().default(25),
+  CHATBOT_MIN_PROVIDER_BALANCE_USD: z.coerce.number().positive().default(2),
+  CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES: z.coerce.number().int().positive().default(5),
 });
 
 export type Env = z.infer<typeof schema>;

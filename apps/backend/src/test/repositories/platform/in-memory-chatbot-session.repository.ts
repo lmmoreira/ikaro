@@ -13,6 +13,11 @@ export class InMemoryChatbotSessionRepository implements IChatbotSessionReposito
     this.store.set(session.id, session);
   }
 
+  async deleteById(id: string, tenantId: string): Promise<void> {
+    const session = this.store.get(id);
+    if (session && session.tenantId === tenantId) this.store.delete(id);
+  }
+
   async countByTenantAndDate(tenantId: string, conversationDate: string): Promise<number> {
     return [...this.store.values()].filter(
       (s) => s.tenantId === tenantId && s.conversationDate === conversationDate,

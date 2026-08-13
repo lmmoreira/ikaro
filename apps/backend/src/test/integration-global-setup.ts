@@ -42,6 +42,7 @@ import { AddSeoToHotsiteConfigs1748400000001 } from '../contexts/platform/infras
 import { AddVersionToHotsiteConfigs1748400000009 } from '../contexts/platform/infrastructure/migrations/1748400000009-AddVersionToHotsiteConfigs';
 import { CreateChatbotTables1748400000010 } from '../contexts/platform/infrastructure/migrations/1748400000010-CreateChatbotTables';
 import { AddCostUsdToChatbotMessages1748400000011 } from '../contexts/platform/infrastructure/migrations/1748400000011-AddCostUsdToChatbotMessages';
+import { AddHealthColumnsToChatbotProviderBalance1748400000012 } from '../contexts/platform/infrastructure/migrations/1748400000012-AddHealthColumnsToChatbotProviderBalance';
 import { StaffEntity } from '../contexts/staff/infrastructure/entities/staff.entity';
 import { CreateStaffStaff1716600000002 } from '../contexts/staff/infrastructure/migrations/1716600000002-CreateStaffStaff';
 import { AddNameToStaff1716600000003 } from '../contexts/staff/infrastructure/migrations/1716600000003-AddNameToStaff';
@@ -61,6 +62,16 @@ export default async function globalSetup(): Promise<void> {
   process.env['TEST_DATABASE_URL'] = pgContainer.getConnectionUri();
   process.env['FRONTEND_URL'] = 'http://localhost:3000';
   process.env['JWT_SECRET'] ??= 'integration-test-jwt-secret-64-chars-xxxxxxxxxxxxxxxxxxxxxxxxxxx';
+  // M19-S06 — IApplicationConfig.getOrThrow() reads process.env directly; it never sees a Zod
+  // schema .default() unless something copies validated values back into process.env
+  // (docs/CI_TRAPS.md's ConfigService.getOrThrow() trap). This test harness's ConfigModule.forRoot()
+  // doesn't wire `validate` (adding it would also require DB_USER/DB_PASSWORD/DB_NAME, which this
+  // harness never sets — it connects via TEST_DATABASE_URL directly), so these need the same
+  // explicit-literal treatment as FRONTEND_URL/JWT_SECRET above, mirroring env.validation.ts's
+  // real defaults.
+  process.env['CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD'] ??= '25';
+  process.env['CHATBOT_MIN_PROVIDER_BALANCE_USD'] ??= '2';
+  process.env['CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES'] ??= '5';
 
   (globalThis as Record<string, unknown>)['__TC_PG_CONTAINER__'] = pgContainer;
 
@@ -119,6 +130,7 @@ export default async function globalSetup(): Promise<void> {
       AddVersionToHotsiteConfigs1748400000009,
       CreateChatbotTables1748400000010,
       AddCostUsdToChatbotMessages1748400000011,
+      AddHealthColumnsToChatbotProviderBalance1748400000012,
     ],
     synchronize: false,
     migrationsRun: false,

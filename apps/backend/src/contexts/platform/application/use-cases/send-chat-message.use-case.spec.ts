@@ -1,8 +1,9 @@
-import { ConfigService } from '@nestjs/config';
 import { ITracingPort, SpanAttributeValue } from '@ikaro/observability';
 import { Decimal } from 'decimal.js';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
-import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
+import { IApplicationConfig } from '../../../../shared/ports/application-config.port';
+import { fakeConfig } from '../../../../test/utils/fake-config';
+import { staleSession, todayInSaoPaulo } from '../../../../test/utils/chatbot-test-helpers';
 import {
   ChatbotMessageBuilder,
   ChatbotProviderBalanceBuilder,
@@ -14,7 +15,6 @@ import {
   InMemoryChatbotProviderBalanceRepository,
   InMemoryChatbotSessionRepository,
 } from '../../../../test/repositories/platform';
-import { ChatbotSession } from '../../domain/chatbot-session.aggregate';
 import { ILlmProvider } from '../ports/llm-provider.port';
 import { LlmProviderRegistry } from '../services/llm-provider-registry.service';
 import {
@@ -46,12 +46,6 @@ class FakeTracingPort implements ITracingPort {
   }
 }
 
-function fakeConfig(overrides: Record<string, string> = {}): ConfigService {
-  return {
-    get: (key: string, defaultValue: string) => overrides[key] ?? defaultValue,
-  } as unknown as ConfigService;
-}
-
 const TENANT_ID = '01234567-0000-7000-8000-000000000001';
 const CLIENT_IP = '203.0.113.10';
 
@@ -62,7 +56,7 @@ describe('SendChatMessageUseCase', () => {
   let tracingPort: FakeTracingPort;
   let llmProvider: ILlmProvider;
 
-  function buildUseCase(config: ConfigService = fakeConfig()): SendChatMessageUseCase {
+  function buildUseCase(config: IApplicationConfig = fakeConfig()): SendChatMessageUseCase {
     llmProvider = new FakeLlmProviderBuilder().build();
     const registry = new LlmProviderRegistry('openrouter', llmProvider, llmProvider, llmProvider);
     return new SendChatMessageUseCase(
@@ -451,7 +445,7 @@ describe('SendChatMessageUseCase', () => {
     it('does NOT reject an existing, already-open conversation once the provider balance floor trips mid-conversation', async () => {
       const session = new ChatbotSessionBuilder().withTenantId(TENANT_ID).build();
       await sessionRepo.save(session);
-      await balanceRepo.save(
+      await balanceRepo.saveBalance(
         new ChatbotProviderBalanceBuilder().withProvider('openrouter').withRemainingUsd(0).build(),
       );
       const useCase = buildUseCase(fakeConfig({ CHATBOT_MIN_PROVIDER_BALANCE_USD: '2' }));
@@ -462,7 +456,7 @@ describe('SendChatMessageUseCase', () => {
     });
 
     it('throws ChatbotProviderBalanceLowError once the resolved provider balance is below the minimum', async () => {
-      await balanceRepo.save(
+      await balanceRepo.saveBalance(
         new ChatbotProviderBalanceBuilder().withProvider('openrouter').withRemainingUsd(1).build(),
       );
       const useCase = buildUseCase(fakeConfig({ CHATBOT_MIN_PROVIDER_BALANCE_USD: '2' }));
@@ -471,10 +465,10 @@ describe('SendChatMessageUseCase', () => {
     });
 
     it('checks the balance of the tenant-overridden provider, not the platform default', async () => {
-      await balanceRepo.save(
+      await balanceRepo.saveBalance(
         new ChatbotProviderBalanceBuilder().withProvider('openrouter').withRemainingUsd(0).build(),
       );
-      await balanceRepo.save(
+      await balanceRepo.saveBalance(
         new ChatbotProviderBalanceBuilder().withProvider('anthropic').withRemainingUsd(50).build(),
       );
       const useCase = buildUseCase(fakeConfig({ CHATBOT_MIN_PROVIDER_BALANCE_USD: '2' }));
@@ -565,7 +559,7 @@ describe('SendChatMessageUseCase', () => {
       await expect(useCase.execute(baseInput())).rejects.toThrow(ChatbotProviderUnavailableError);
     });
 
-    it('releases the reserved message capacity when the LLM call fails, so a provider outage does not burn the cap (PR #360 review)', async () => {
+    it('deletes a brand-new session entirely when the LLM call fails, so a provider outage does not burn the daily/IP/concurrency cap for a conversation that never happened (cross-tool review finding)', async () => {
       const failingProvider: ILlmProvider = {
         complete: () => Promise.reject(new Error('OpenRouter request failed: 500')),
       };
@@ -589,8 +583,43 @@ describe('SendChatMessageUseCase', () => {
       await expect(useCase.execute(baseInput())).rejects.toThrow(ChatbotProviderUnavailableError);
 
       const reservedSessionId = saveSpy.mock.calls[0][0].id;
+      // Merely releasing messageCount back to 0 isn't enough — the row itself would still be
+      // counted by chatbot_sessions' COUNT-based caps. The row must not exist at all.
       const reloaded = await sessionRepo.findById(reservedSessionId, TENANT_ID);
-      expect(reloaded!.messageCount).toBe(0);
+      expect(reloaded).toBeNull();
+      expect(await sessionRepo.countByTenantAndDate(TENANT_ID, todayInSaoPaulo())).toBe(0);
+    });
+
+    it('releases (not deletes) an existing session when a later message fails, since it already has real prior messages', async () => {
+      const failingProvider: ILlmProvider = {
+        complete: () => Promise.reject(new Error('OpenRouter request failed: 500')),
+      };
+      const registry = new LlmProviderRegistry(
+        'openrouter',
+        failingProvider,
+        failingProvider,
+        failingProvider,
+      );
+      const useCase = new SendChatMessageUseCase(
+        sessionRepo,
+        messageRepo,
+        balanceRepo,
+        registry,
+        new InMemoryTransactionManager(),
+        fakeConfig(),
+        tracingPort,
+      );
+      const session = new ChatbotSessionBuilder().withTenantId(TENANT_ID).build();
+      session.recordMessages(2);
+      await sessionRepo.save(session);
+
+      await expect(useCase.execute(baseInput({ sessionId: session.id }))).rejects.toThrow(
+        ChatbotProviderUnavailableError,
+      );
+
+      const reloaded = await sessionRepo.findById(session.id, TENANT_ID);
+      expect(reloaded).not.toBeNull();
+      expect(reloaded!.messageCount).toBe(2);
     });
 
     it('never embeds the raw upstream error text in the public-facing error (PR #360 review — info disclosure)', async () => {
@@ -658,6 +687,86 @@ describe('SendChatMessageUseCase', () => {
 
       expect(logged).toBeDefined();
       writeSpy.mockRestore();
+    });
+  });
+
+  describe('provider health signal (UC-034 condition c)', () => {
+    it('records a success on the resolved provider after a successful LLM call', async () => {
+      const useCase = buildUseCase();
+
+      await useCase.execute(baseInput());
+
+      const balance = await balanceRepo.findByProvider('openrouter');
+      expect(balance?.lastSuccessAt).toBeInstanceOf(Date);
+      expect(balance?.lastFailureAt).toBeNull();
+    });
+
+    it('records a failure on the resolved provider when the LLM call itself fails', async () => {
+      const failingProvider: ILlmProvider = {
+        complete: () => Promise.reject(new Error('OpenRouter request failed: 500')),
+      };
+      const registry = new LlmProviderRegistry(
+        'openrouter',
+        failingProvider,
+        failingProvider,
+        failingProvider,
+      );
+      const useCase = new SendChatMessageUseCase(
+        sessionRepo,
+        messageRepo,
+        balanceRepo,
+        registry,
+        new InMemoryTransactionManager(),
+        fakeConfig(),
+        tracingPort,
+      );
+
+      await expect(useCase.execute(baseInput())).rejects.toThrow(ChatbotProviderUnavailableError);
+
+      const balance = await balanceRepo.findByProvider('openrouter');
+      expect(balance?.lastFailureAt).toBeInstanceOf(Date);
+      expect(balance?.lastSuccessAt).toBeNull();
+    });
+
+    it('never records a failure when a cap/volume rejection throws before the LLM call is ever reached', async () => {
+      const useCase = buildUseCase();
+      for (let i = 0; i < 30; i++) {
+        await sessionRepo.save(
+          new ChatbotSessionBuilder()
+            .withTenantId(TENANT_ID)
+            .withConversationDate(todayInSaoPaulo())
+            .build(),
+        );
+      }
+
+      await expect(useCase.execute(baseInput())).rejects.toThrow(ChatbotDailyCapReachedError);
+
+      expect(await balanceRepo.findByProvider('openrouter')).toBeNull();
+    });
+
+    it('records the health outcome on the resolved (tenant-overridden) provider, not the platform default', async () => {
+      const useCase = buildUseCase();
+
+      await useCase.execute(baseInput({ chatbotSettings: { llmProvider: 'anthropic' } }));
+
+      expect(await balanceRepo.findByProvider('anthropic')).not.toBeNull();
+      expect(await balanceRepo.findByProvider('openrouter')).toBeNull();
+    });
+
+    it("does not clobber an existing balance row's remainingUsd when recording a health outcome", async () => {
+      await balanceRepo.saveBalance(
+        new ChatbotProviderBalanceBuilder()
+          .withProvider('openrouter')
+          .withRemainingUsd(18.42)
+          .build(),
+      );
+      const useCase = buildUseCase();
+
+      await useCase.execute(baseInput());
+
+      const balance = await balanceRepo.findByProvider('openrouter');
+      expect(balance?.remainingUsd?.toNumber()).toBe(18.42);
+      expect(balance?.lastSuccessAt).toBeInstanceOf(Date);
     });
   });
 
@@ -748,21 +857,4 @@ class CapturingLlmProvider implements ILlmProvider {
       costUsd: new Decimal('0.000001'),
     };
   }
-}
-
-function todayInSaoPaulo(): string {
-  return utcDateToLocalDate(new Date(), 'America/Sao_Paulo');
-}
-
-function staleSession(session: ChatbotSession, tenantId: string): ChatbotSession {
-  return ChatbotSession.reconstitute({
-    id: session.id,
-    tenantId,
-    clientIp: session.clientIp,
-    startedAt: session.startedAt,
-    lastMessageAt: new Date(Date.now() - 5 * 60 * 1000),
-    conversationDate: session.conversationDate,
-    messageCount: session.messageCount,
-    status: 'ACTIVE',
-  });
 }

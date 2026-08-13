@@ -19,3 +19,10 @@ export const DEFAULT_MAX_OUTPUT_TOKENS_PER_RESPONSE = 300;
 // (infrastructure/llm/anthropic-llm.adapter.ts, infrastructure/llm/openai-llm.adapter.ts). The
 // platform-wide daily spend circuit breaker (S05) now sums the cost_usd already stored on each
 // chatbot_messages row rather than reconstructing it from tokens at query time.
+
+// Platform-wide operational backstops (CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD,
+// CHATBOT_MIN_PROVIDER_BALANCE_USD, CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES) are plain env vars,
+// never a tenants.settings field or a code constant here — no tenant should be able to opt out,
+// and all three need to be bumpable in minutes during a real incident, not a deploy cycle. Their
+// defaults live in apps/backend/src/config/env.validation.ts's Zod schema (single source of
+// truth), read via IApplicationConfig.getOrThrow() — not duplicated as a constant in this file.

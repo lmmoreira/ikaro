@@ -125,6 +125,7 @@ module.exports = [
       'src/contexts/platform/infrastructure/migrations/1748400000009-AddVersionToHotsiteConfigs.ts',
       'src/contexts/platform/infrastructure/migrations/1748400000010-CreateChatbotTables.ts',
       'src/contexts/platform/infrastructure/migrations/1748400000011-AddCostUsdToChatbotMessages.ts',
+      'src/contexts/platform/infrastructure/migrations/1748400000012-AddHealthColumnsToChatbotProviderBalance.ts',
       'src/contexts/platform/infrastructure/repositories/typeorm-chatbot-message.repository.ts',
       'src/contexts/platform/infrastructure/repositories/typeorm-chatbot-provider-balance.repository.ts',
       'src/contexts/platform/infrastructure/repositories/typeorm-chatbot-session.repository.ts',

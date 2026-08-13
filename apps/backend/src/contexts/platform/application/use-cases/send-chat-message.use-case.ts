@@ -1,8 +1,11 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { defaultTracingPort, ITracingPort } from '@ikaro/observability';
 import { Decimal } from 'decimal.js';
 import { AppLogger } from '../../../../shared/observability/app-logger';
+import {
+  APPLICATION_CONFIG,
+  IApplicationConfig,
+} from '../../../../shared/ports/application-config.port';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
@@ -52,12 +55,6 @@ import {
   LlmProviderRegistry,
 } from '../services/llm-provider-registry.service';
 
-// docs/discovery/CHATBOT/CHATBOT.md §8.10 — proposed default, confirmed during M19-S04
-// story-discovery. Read as a plain env var (fast to bump during an incident, same reasoning as
-// CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD below) once S06 builds the balance-floor pre-flight check;
-// this use case only needs the already-polled chatbot_provider_balance row (S08), not the env var.
-const DEFAULT_MIN_PROVIDER_BALANCE_USD = '2';
-
 // Cap layer 3's live-ness proxy window (docs/discovery/CHATBOT/CHATBOT.md §8): a session counts
 // as concurrently active if it received a message in the last 2 minutes. Not tenant-configurable.
 const CONCURRENCY_WINDOW_MS = 2 * 60 * 1000;
@@ -94,7 +91,7 @@ export class SendChatMessageUseCase {
     private readonly balanceRepo: IChatbotProviderBalanceRepository,
     @Inject(LLM_PROVIDER_REGISTRY) private readonly llmRegistry: LlmProviderRegistry,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-    private readonly config: ConfigService,
+    @Inject(APPLICATION_CONFIG) private readonly config: IApplicationConfig,
     @Optional() private readonly tracingPort: ITracingPort = defaultTracingPort,
   ) {}
 
@@ -104,6 +101,7 @@ export class SendChatMessageUseCase {
 
     this.enforceMessageLength(input);
 
+    const isNewSession = !input.sessionId;
     const { session, history } = input.sessionId
       ? await this.resolveExistingSession(input.sessionId, tenantId, chatbotSettings)
       : await this.resolveNewSession(input, resolvedProviderName);
@@ -134,11 +132,26 @@ export class SendChatMessageUseCase {
         model: chatbotSettings.llmModel,
       });
     } catch (err: unknown) {
-      // Release the pre-LLM reservation — no rows were actually written, so the tenant's
-      // message/daily/IP/concurrency budgets must not stay burned by a provider outage
-      // (PR #360 review).
-      session.releaseMessages(2);
-      await this.txManager.run(() => this.sessionRepo.save(session));
+      await this.txManager.run(async () => {
+        if (isNewSession) {
+          // A brand-new session has no chatbot_messages rows yet (those are only written after
+          // a successful complete() call below), so deleting it entirely is safe — and
+          // necessary: releasing messageCount alone still leaves the row itself counted by
+          // chatbot_sessions' COUNT-based daily/per-IP/concurrency caps, silently burning the
+          // tenant's budget for a conversation that never happened (cross-tool review finding,
+          // 2026-08-12 — releaseMessages(2) narrowed the overshoot but didn't close it).
+          await this.sessionRepo.deleteById(session.id, tenantId);
+        } else {
+          // An existing session already has real prior messages and already counted toward the
+          // caps when it was first created — release only this turn's reservation, keep the row.
+          session.releaseMessages(2);
+          await this.sessionRepo.save(session);
+        }
+        // UC-034 condition (c)'s only failure signal — a genuine provider.complete() failure,
+        // never a cap/volume rejection (those all throw earlier in this method, before this
+        // catch block is ever reached). docs/13-DATABASE_SCHEMA.md's "Write discipline" note.
+        await this.balanceRepo.recordCallOutcome(resolvedProviderName, 'FAILURE', new Date());
+      });
       this.handleProviderFailure(err, session, resolvedProviderName);
     }
 
@@ -174,6 +187,8 @@ export class SendChatMessageUseCase {
     await this.txManager.run(async () => {
       await this.messageRepo.save(userMessageRow);
       await this.messageRepo.save(assistantMessageRow);
+      // UC-034 condition (c)'s success signal — see the matching failure-path write above.
+      await this.balanceRepo.recordCallOutcome(resolvedProviderName, 'SUCCESS', new Date());
     });
 
     return { sessionId: session.id, reply: result.text };
@@ -293,7 +308,7 @@ export class SendChatMessageUseCase {
   // M19-S05 story-discovery decision to check on every message).
   private async enforcePlatformBackstops(resolvedProviderName: string): Promise<void> {
     const globalSpendLimitUsd = new Decimal(
-      this.config.get<string>('CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD', '25'),
+      this.config.getOrThrow('CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD'),
     );
     const todaySpend = await this.messageRepo.sumCostUsdSince(new Date(startOfDayUTC(todayUTC())));
     if (todaySpend.greaterThanOrEqualTo(globalSpendLimitUsd)) {
@@ -305,10 +320,11 @@ export class SendChatMessageUseCase {
     }
 
     const balance = await this.balanceRepo.findByProvider(resolvedProviderName);
-    const minBalanceUsd = new Decimal(
-      this.config.get<string>('CHATBOT_MIN_PROVIDER_BALANCE_USD', DEFAULT_MIN_PROVIDER_BALANCE_USD),
-    );
-    if (balance?.remainingUsd.lessThan(minBalanceUsd)) {
+    const minBalanceUsd = new Decimal(this.config.getOrThrow('CHATBOT_MIN_PROVIDER_BALANCE_USD'));
+    // remainingUsd is null until S08's first poll for this provider, and always null for a
+    // provider with no prepaid-balance concept (Anthropic/OpenAI) — treated as "not tripped",
+    // never as a comparison failure.
+    if (balance?.remainingUsd?.lessThan(minBalanceUsd)) {
       this.rejectAndThrow(
         'provider_balance_low',
         undefined,

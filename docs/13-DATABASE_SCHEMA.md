@@ -126,13 +126,23 @@ The actual chat log — visitor questions and bot answers, both sides, not just 
 
 ### `platform.chatbot_provider_balance`
 
-Single-row-per-provider, upserted by a periodic poll (UC-036) — not appended. Platform-wide, not tenant-scoped.
+Single-row-per-provider, platform-wide, not tenant-scoped. Two independent write paths update different columns on the same row — never a full-row replace from either side (see "Write discipline" below):
+- `remaining_usd`/`checked_at`: upserted by S08's periodic poll (UC-036) against the provider's own account API (OpenRouter's `GET /api/v1/credits`).
+- `last_success_at`/`last_failure_at`: upserted by `SendChatMessageUseCase` (S05/S06) at send-time, reflecting whether the most recent real LLM call for that provider succeeded or failed — the passive signal UC-034's provider-health condition (c) reads.
 
 | Column | Type | Constraints |
 |--------|------|-------------|
 | provider | VARCHAR(32) | PRIMARY KEY — e.g. `'openrouter'` |
-| remaining_usd | NUMERIC(10,4) | NOT NULL |
-| checked_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
+| remaining_usd | NUMERIC(10,4) | NULL — absent until S08's first successful poll for this provider; also genuinely absent for Anthropic/OpenAI, which have no prepaid-balance concept (`CHATBOT.md` §8.10) |
+| checked_at | TIMESTAMP WITH TIME ZONE | NULL, no DEFAULT — set alongside `remaining_usd`. The original migration's `DEFAULT now()` is dropped along with `NOT NULL`, not just the latter — otherwise Postgres would silently substitute `now()` on an INSERT that deliberately omits this column (the health-only write path), producing a value that misleadingly implies a balance poll happened when it didn't |
+| last_success_at | TIMESTAMP WITH TIME ZONE | NULL — most recent real `ILlmProvider.complete()` success for this provider, across any tenant |
+| last_failure_at | TIMESTAMP WITH TIME ZONE | NULL — most recent real `ILlmProvider.complete()` failure for this provider, across any tenant. **Never set by a cap/volume rejection** (daily/IP/concurrency/message/length caps, global spend breaker, balance floor) — only by a genuine provider-call failure (timeout/upstream error/insufficient credits) |
+
+**Write discipline (mandatory):** every writer must use a partial-column upsert (e.g. TypeORM `repository.upsert(entityLike, ['provider'])`, which generates `INSERT ... ON CONFLICT (provider) DO UPDATE SET <only the listed columns>`) — never `Repository.save()` on a fully-populated entity object, and never a raw full-row `UPDATE`. S08's balance write must only ever touch `remaining_usd`/`checked_at`; S05/S06's health write must only ever touch `last_success_at`/`last_failure_at`. Either writer touching the other's columns would silently clobber it — S08 polls every 15-30 minutes, so a naive full-row write from that path would wipe health data on every poll.
+
+**Health-write ordering guard:** two concurrent `recordCallOutcome()` calls can reach Postgres out of chronological order (e.g. a slow FAILURE request's write landing after a newer SUCCESS write already committed). A plain `EXCLUDED`-based upsert would let the older write silently clobber the newer timestamp, corrupting the cooldown resolution below. `TypeOrmChatbotProviderBalanceRepository.recordCallOutcome()` guards each column independently via TypeORM's `orUpdate()` `overwriteCondition` (`... DO UPDATE SET last_success_at = EXCLUDED.last_success_at WHERE last_success_at IS NULL OR last_success_at < EXCLUDED.last_success_at`, and the equivalent for `last_failure_at`) — an incoming write only applies when the column has never been set or the incoming timestamp is strictly newer.
+
+**Provider health resolution (UC-034 condition c):** the resolved provider is "failing a health check" only if `last_failure_at` is more recent than `last_success_at` **and** that failure happened within the last `CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES` (env var, default `5`) — a half-open/circuit-breaker cooldown, not a permanent trip. Without the cooldown, a single transient failure would take the widget dark forever: `available: false` means the widget never renders at all (UC-034 A1), so no visitor could ever attempt the message that would produce a new success to clear it. Once the cooldown elapses, the widget optimistically shows as available again, giving the next real visitor's attempt the chance to either confirm recovery (writes a fresh `last_success_at`) or restart the cooldown (writes a fresh `last_failure_at`). A cap/volume rejection (daily/IP/concurrency/message/length/spend/balance) must never be recorded here — only the actual `provider.complete()` call failing counts (see S05's `send-chat-message.use-case.ts` — the cap checks throw before that call is ever reached, so structurally can't land in its `catch` block).
 
 ---
 
