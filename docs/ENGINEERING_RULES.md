@@ -157,6 +157,32 @@ if (result.affected !== 1) {
 
 Always prove this behavior with an integration test that loads the same aggregate twice, saves copy A, then asserts saving stale copy B fails.
 
+### TypeORM upsert internals — partial-column upserts, `orUpdate()`, and column-name resolution
+
+When two independent writers share one row and each must touch only its own columns (never a full-row `save()`), the partial-column upsert relies on TypeORM internals that are easy to get wrong without reading the actual source (`node_modules/.pnpm/typeorm@.../typeorm/entity-manager/EntityManager.js`, `.../query-builder/InsertQueryBuilder.js`).
+
+**`Repository.upsert()`/`EntityManager.upsert()` only include a column in `DO UPDATE SET` when its value on the passed entity is not `undefined`** — not based on whether the property was ever assigned. Build the entity with only the fields this writer owns actually set; leave the rest genuinely unassigned.
+
+- **`useDefineForClassFields` (on by default under this repo's `target`) makes a declared-but-unassigned class field a real own-property.** `'lastSuccessAt' in entity` returns `true` even when the field was never assigned — the class field declaration itself creates the property, just with value `undefined`. When a test asserts that a partial upsert correctly *excluded* a column, assert on the **value** (`expect(entity.lastSuccessAt).toBeUndefined()`), never on property presence via `in`.
+
+**There is no `InsertQueryBuilder.onConflict()` method.** A raw `ON CONFLICT (...) DO UPDATE SET ...` string is not part of the public API — code (or a bot-suggested fix) that calls `.onConflict(...)` fails at compile time. For a conditional upsert (only overwrite when the incoming value is actually newer, or the column was never set), use the real method:
+
+```ts
+await manager
+  .createQueryBuilder()
+  .insert()
+  .into(Entity)
+  .values({ provider, lastSuccessAt: occurredAt })
+  .orUpdate(['last_success_at'], ['provider'], {
+    overwriteCondition: {
+      where: 'entity_table.last_success_at IS NULL OR entity_table.last_success_at < EXCLUDED.last_success_at',
+    },
+  })
+  .execute();
+```
+
+**`orUpdate()`'s `overwrite`/`conflictTarget` arrays take real DB column names (snake_case, matching `@Column({ name: ... })`), not entity property names.** Unlike `.values()`, which translates entity properties to columns via metadata, `orUpdate()` passes each array entry straight through `this.escape(column)` with no translation — confirmed by reading `EntityManager.upsert()`'s own implementation, which explicitly maps `conflictPaths`/columns to `col.databaseName` *before* calling `orUpdate()`. Passing a property name here (e.g. `lastSuccessAt` instead of `last_success_at`) silently generates SQL referencing a column that doesn't exist under that name — verify the exact SQL a new `orUpdate()` call produces against a real database (integration test), not just that it type-checks. (M19-S06 precedent, 2026-08-13: `TypeOrmChatbotProviderBalanceRepository.recordCallOutcome()` needed exactly this — two concurrent calls could write out of chronological order, and a plain `EXCLUDED`-based overwrite would let the older one clobber a newer timestamp.)
+
 ---
 
 ## Aggregate domain events → outbox (repo auto-flush)
