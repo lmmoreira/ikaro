@@ -8,6 +8,7 @@ import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
   'conversationDate',
 ])
 @Index('IDX_chatbot_sessions_tenant_status_last_message', ['tenantId', 'status', 'lastMessageAt'])
+@Index('IDX_chatbot_sessions_started_at_last_message_at', ['startedAt', 'lastMessageAt'])
 export class ChatbotSessionEntity {
   @PrimaryColumn({ type: 'uuid' })
   id!: string;

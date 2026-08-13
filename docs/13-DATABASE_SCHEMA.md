@@ -103,6 +103,7 @@ One chat widget conversation. Cap enforcement (`docs/discovery/CHATBOT/CHATBOT.m
 | **INDEX** | (tenant_id, conversation_date) | Layer 1 cap: daily conversations per tenant |
 | **INDEX** | (tenant_id, client_ip, conversation_date) | Layer 2 cap: daily conversations per tenant+IP |
 | **INDEX** | (tenant_id, status, last_message_at) | Layer 3 cap: concurrent conversations (live-ness proxy) |
+| **INDEX** | (started_at, last_message_at) | UC-035 retention purge (M19-S07): supports `ChatbotRetentionPurgeJob`'s daily, cross-tenant `WHERE started_at < :cutoff AND last_message_at < :cutoff` scan — without it, that query full-table-scans as the table grows, same rationale as `chatbot_messages`'s own `(created_at)` index below |
 
 ### `platform.chatbot_messages`
 

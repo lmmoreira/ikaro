@@ -7,6 +7,24 @@ import { IChatbotSessionRepository } from '../../application/ports/chatbot-sessi
 import { ChatbotSession, ChatbotSessionStatus } from '../../domain/chatbot-session.aggregate';
 import { ChatbotSessionEntity } from '../entities/chatbot-session.entity';
 
+// UC-035 retention purge: a raw parameterized statement (manager.query() escape hatch, same
+// convention as shared/infrastructure/outbox), not the query builder — DeleteQueryBuilder never
+// emits a table alias for the DELETE target regardless of what alias is requested via .from(),
+// so a correlated NOT EXISTS subquery referencing the row being deleted can't be expressed
+// through it. Both date columns are checked against the same $1 cutoff — see the port doc for
+// why last_message_at is included, not just started_at.
+const DELETE_ORPHANED_SESSIONS_SQL = `
+  DELETE FROM "platform"."chatbot_sessions"
+  WHERE "started_at" < $1
+    AND "last_message_at" < $1
+    AND NOT EXISTS (
+      SELECT 1 FROM "platform"."chatbot_messages"
+      WHERE "chatbot_messages"."tenant_id" = "chatbot_sessions"."tenant_id"
+        AND "chatbot_messages"."session_id" = "chatbot_sessions"."id"
+    )
+  RETURNING "id"
+`;
+
 @Injectable()
 export class TypeOrmChatbotSessionRepository implements IChatbotSessionRepository {
   constructor(
@@ -54,6 +72,24 @@ export class TypeOrmChatbotSessionRepository implements IChatbotSessionRepositor
     } else {
       await this.repo.delete({ id, tenantId });
     }
+  }
+
+  async deleteOrphanedStartedBefore(cutoff: Date): Promise<number> {
+    const manager = getActiveEntityManager();
+    if (!manager) {
+      throw new Error(
+        "Chatbot retention purge must run inside ITransactionManager.run() — deleteOrphanedStartedBefore() depends on seeing deleteOlderThan()'s own not-yet-committed effect within the same transaction.",
+      );
+    }
+    const result = (await manager.query(DELETE_ORPHANED_SESSIONS_SQL, [cutoff])) as
+      Array<{ id: string }> | [Array<{ id: string }>, number];
+    // PostgreSQL's TypeORM transactional EntityManager can return DELETE ... RETURNING as
+    // [rows, rowCount] rather than the flat rows array Repository.query() returns — same
+    // driver-specific shape TypeOrmOutboxRepository.claimUnpublished() already normalizes.
+    // Without this, result.length here would always be 2 (the wrapper array), not the actual
+    // deleted-row count.
+    const rows = Array.isArray(result[0]) ? result[0] : (result as Array<{ id: string }>);
+    return rows.length;
   }
 
   private toDomain(entity: ChatbotSessionEntity): ChatbotSession {

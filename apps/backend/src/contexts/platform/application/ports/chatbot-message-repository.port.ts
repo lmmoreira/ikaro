@@ -26,4 +26,9 @@ export interface IChatbotMessageRepository {
    * messages created at/after `since`, for the global daily spend circuit breaker.
    */
   sumCostUsdSince(since: Date): Promise<Decimal>;
+  /**
+   * UC-035 retention purge: deletes every message row where `created_at < cutoff`, across all
+   * tenants in one pass. Returns the number of rows deleted.
+   */
+  deleteOlderThan(cutoff: Date): Promise<number>;
 }

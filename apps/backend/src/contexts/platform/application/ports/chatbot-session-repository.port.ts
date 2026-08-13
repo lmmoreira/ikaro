@@ -20,4 +20,19 @@ export interface IChatbotSessionRepository {
   ): Promise<number>;
   /** Cap layer 3: ACTIVE sessions whose last_message_at is after `since` (live-ness proxy). */
   countActiveSince(tenantId: string, since: Date): Promise<number>;
+  /**
+   * UC-035 retention purge: deletes every session row where `started_at < cutoff` AND
+   * `last_message_at < cutoff` AND it now has zero remaining `chatbot_messages` rows — never a
+   * session that still has messages (message_count is never decremented when a session's old
+   * messages are purged, so it can't be trusted to answer "zero remaining messages" on its
+   * own; this checks the live table instead). A single set-based statement, not a
+   * candidate-list-then-per-row loop — the adapter must express the eligibility check and the
+   * delete as one atomic, correlated operation (see
+   * TypeOrmChatbotSessionRepository.deleteOrphanedStartedBefore()), both to avoid an unbounded
+   * N+1 scan and to close the cross-transaction race window against a concurrent
+   * SendChatMessageUseCase call reusing this same session (PR #365 review findings). The
+   * `last_message_at` condition narrows that race further: a session that received a message
+   * even moments ago is never a delete candidate, regardless of how old `started_at` is.
+   */
+  deleteOrphanedStartedBefore(cutoff: Date): Promise<number>;
 }

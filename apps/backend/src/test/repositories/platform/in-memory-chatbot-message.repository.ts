@@ -35,4 +35,16 @@ export class InMemoryChatbotMessageRepository implements IChatbotMessageReposito
   async save(message: ChatbotMessage): Promise<void> {
     this.store.set(message.id, message);
   }
+
+  async deleteOlderThan(cutoff: Date): Promise<number> {
+    const toDelete = [...this.store.values()].filter((m) => m.createdAt < cutoff);
+    for (const message of toDelete) this.store.delete(message.id);
+    return toDelete.length;
+  }
+
+  async existsForSession(sessionId: string, tenantId: string): Promise<boolean> {
+    return [...this.store.values()].some(
+      (m) => m.sessionId === sessionId && m.tenantId === tenantId,
+    );
+  }
 }

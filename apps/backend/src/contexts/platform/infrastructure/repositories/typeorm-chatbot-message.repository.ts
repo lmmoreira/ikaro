@@ -69,6 +69,17 @@ export class TypeOrmChatbotMessageRepository implements IChatbotMessageRepositor
     }
   }
 
+  async deleteOlderThan(cutoff: Date): Promise<number> {
+    const manager = getActiveEntityManager();
+    const result = await (manager ?? this.repo.manager)
+      .createQueryBuilder()
+      .delete()
+      .from(ChatbotMessageEntity)
+      .where('created_at < :cutoff', { cutoff })
+      .execute();
+    return result.affected ?? 0;
+  }
+
   private toDomain(entity: ChatbotMessageEntity): ChatbotMessage {
     return ChatbotMessage.reconstitute({
       id: entity.id,
