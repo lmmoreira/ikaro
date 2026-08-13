@@ -31,14 +31,4 @@ export interface IChatbotMessageRepository {
    * tenants in one pass. Returns the number of rows deleted.
    */
   deleteOlderThan(cutoff: Date): Promise<number>;
-  /**
-   * UC-035 retention purge: whether any message row still exists for this session — the
-   * existence check ChatbotRetentionPurgeJob uses (not findBySession(), which loads full rows)
-   * to decide whether a session past the retention window is now orphaned. Unlike this
-   * repository's other read methods, the TypeORM adapter must be transaction-aware here: the
-   * job calls this inside the same transaction as deleteOlderThan() and needs to see that
-   * call's own not-yet-committed deletions — a plain repository read on a separate connection
-   * would still see the pre-delete state until commit.
-   */
-  existsForSession(sessionId: string, tenantId: string): Promise<boolean>;
 }

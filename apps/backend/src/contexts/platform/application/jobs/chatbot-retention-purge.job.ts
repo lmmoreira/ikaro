@@ -34,25 +34,16 @@ export class ChatbotRetentionPurgeJob {
 
     return this.txManager.run(async () => {
       const messagesDeleted = await this.messageRepo.deleteOlderThan(cutoff);
-
-      // A session's message_count column is never decremented when its old messages are
-      // purged above, so "now-orphaned" is decided by re-checking the live chatbot_messages
-      // table per candidate, not by trusting that stale counter — never deletes a session
-      // that still has messages (UC-035 main flow step 2). existsForSession() (not
-      // findBySession()) is deliberately transaction-aware so this check sees the delete
-      // above's own not-yet-committed effect within this same transaction.
-      const candidates = await this.sessionRepo.findStartedBefore(cutoff);
-      let sessionsDeleted = 0;
-      for (const session of candidates) {
-        const stillHasMessages = await this.messageRepo.existsForSession(
-          session.id,
-          session.tenantId,
-        );
-        if (!stillHasMessages) {
-          await this.sessionRepo.deleteById(session.id, session.tenantId);
-          sessionsDeleted++;
-        }
-      }
+      // A single set-based correlated DELETE, not a candidate-list-then-per-row loop — the
+      // latter was this story's first draft and was replaced after cross-tool review (PR #365)
+      // flagged it as an unbounded N+1 (a candidate read with no supporting index, followed by
+      // an existence check + delete per row) and a cross-transaction TOCTOU race (a session
+      // could be reserved by a concurrent SendChatMessageUseCase call between the candidate
+      // read and the per-row delete). A single statement removes both: it evaluates its own
+      // NOT EXISTS subquery server-side, atomically, against the exact row it's deleting, and
+      // sees deleteOlderThan()'s own not-yet-committed effect within this same transaction —
+      // see TypeOrmChatbotSessionRepository.deleteOrphanedStartedBefore().
+      const sessionsDeleted = await this.sessionRepo.deleteOrphanedStartedBefore(cutoff);
 
       return { messagesDeleted, sessionsDeleted };
     });

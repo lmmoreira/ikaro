@@ -19,7 +19,10 @@ describe('ChatbotRetentionPurgeJob', () => {
 
   beforeEach(() => {
     messageRepo = new InMemoryChatbotMessageRepository();
-    sessionRepo = new InMemoryChatbotSessionRepository();
+    // Wired to messageRepo so deleteOrphanedStartedBefore() can confirm orphan status — real
+    // production correlation happens entirely server-side in one SQL statement (see
+    // TypeOrmChatbotSessionRepository), this double just needs to replicate the same contract.
+    sessionRepo = new InMemoryChatbotSessionRepository(messageRepo);
     txManager = new InMemoryTransactionManager();
     job = new ChatbotRetentionPurgeJob(messageRepo, sessionRepo, txManager);
   });
@@ -118,6 +121,23 @@ describe('ChatbotRetentionPurgeJob', () => {
 
     expect(result).toEqual({ messagesDeleted: 0, sessionsDeleted: 1 });
     expect(await sessionRepo.findById(session.id, TENANT_ID)).toBeNull();
+  });
+
+  it('never deletes a session whose last_message_at is recent, even if started before the window and it has zero messages', async () => {
+    // Narrows the TOCTOU race against a concurrent SendChatMessageUseCase call reusing this
+    // session (PR #365 review finding): a session that just recorded activity is never a
+    // candidate, regardless of how old started_at is or whether its messages are visible yet.
+    const session = new ChatbotSessionBuilder()
+      .withTenantId(TENANT_ID)
+      .withStartedAt(OLD)
+      .withLastMessageAt(RECENT)
+      .build();
+    await sessionRepo.save(session);
+
+    const result = await job.run(NOW);
+
+    expect(result.sessionsDeleted).toBe(0);
+    expect(await sessionRepo.findById(session.id, TENANT_ID)).not.toBeNull();
   });
 
   it('does not delete a session started before the window whose recent-message check is unaffected by other tenants', async () => {

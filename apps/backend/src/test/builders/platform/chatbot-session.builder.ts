@@ -11,6 +11,7 @@ export class ChatbotSessionBuilder {
   private clientIp = DEFAULT_CLIENT_IP;
   private conversationDate = DEFAULT_CONVERSATION_DATE;
   private startedAt = new Date();
+  private lastMessageAt: Date | null = null;
   private readonly messageCount = 0;
   private readonly status: 'ACTIVE' | 'CLOSED' | 'CAPPED' = 'ACTIVE';
 
@@ -39,13 +40,18 @@ export class ChatbotSessionBuilder {
     return this;
   }
 
+  withLastMessageAt(lastMessageAt: Date): this {
+    this.lastMessageAt = lastMessageAt;
+    return this;
+  }
+
   build(): ChatbotSession {
     return ChatbotSession.reconstitute({
       id: this.id,
       tenantId: this.tenantId,
       clientIp: this.clientIp,
       startedAt: this.startedAt,
-      lastMessageAt: this.startedAt,
+      lastMessageAt: this.lastMessageAt ?? this.startedAt,
       conversationDate: this.conversationDate,
       messageCount: this.messageCount,
       status: this.status,

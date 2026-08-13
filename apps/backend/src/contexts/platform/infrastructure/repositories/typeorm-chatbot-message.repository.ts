@@ -80,16 +80,6 @@ export class TypeOrmChatbotMessageRepository implements IChatbotMessageRepositor
     return result.affected ?? 0;
   }
 
-  async existsForSession(sessionId: string, tenantId: string): Promise<boolean> {
-    const manager = getActiveEntityManager();
-    const count = await (manager ?? this.repo.manager)
-      .createQueryBuilder(ChatbotMessageEntity, 'message')
-      .where('message.sessionId = :sessionId', { sessionId })
-      .andWhere('message.tenantId = :tenantId', { tenantId })
-      .getCount();
-    return count > 0;
-  }
-
   private toDomain(entity: ChatbotMessageEntity): ChatbotMessage {
     return ChatbotMessage.reconstitute({
       id: entity.id,

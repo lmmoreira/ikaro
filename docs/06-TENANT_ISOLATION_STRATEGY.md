@@ -58,6 +58,13 @@ Ikaro uses the **"Shared Database, Shared Schema"** pattern for simplicity and c
 - It stays in the `platform` schema — not a new bounded context — precisely because every consumer of this data is already a Platform Context use case; splitting it out would require a new cross-context Port+Adapter with no corresponding decoupling benefit, since there is no second context on the other side of that boundary.
 - Not an audit table: upserted (never appended), no history kept — a periodically-refreshed live-status cache of the vendor's own balance, not a ledger. Exists specifically so `GET /public/platform/chatbot/status` (called on every widget mount, public and unauthenticated) never has to call the vendor's API live on that hot path.
 
+### **Documented exemption: system-wide retention/expiry cron jobs (`loyalty.loyalty_entries`, `platform.chatbot_sessions`/`chatbot_messages`)**
+
+- A third, different category from both above: the tables themselves **are** ordinary tenant-scoped business data (loyalty point entries, real chatbot conversation content) — every business-facing read/write against them still filters by `tenant_id`, no exception. The exemption is narrow and applies to exactly one query per job: the single sweep query a system-actor cron job runs to find or delete rows past a time-based threshold, across every tenant, in one pass — by design, since the whole point of the job is a platform-wide sweep, not a per-tenant one.
+- Precedent: `ILoyaltyEntryRepository.findExpiringBefore(date)` (the loyalty-expiry cron, UC-016) reads across all tenants with no `tenant_id` filter, then groups the results by `tenantId:customerId` in the job itself before writing any tenant-scoped decrement.
+- `ChatbotRetentionPurgeJob` (UC-035, M19-S07) follows the same shape: `IChatbotMessageRepository.deleteOlderThan(cutoff)` and `IChatbotSessionRepository.deleteOrphanedStartedBefore(cutoff)` both delete across all tenants in one statement, matching UC-035's own acceptance criteria ("across all tenants in one pass").
+- What makes this safe despite crossing tenant boundaries: (1) the actor is always "System (Cloud Scheduler)", never a request carrying tenant context that could leak into another tenant's data; (2) the operation is a pure time-based sweep (an age comparison), never a lookup keyed by any tenant-supplied identifier; (3) the job's own output (an entry, a session, a message) never crosses back into a response to any tenant or customer — it's deleted or aggregated, not returned. Contrast with a genuine violation: a query filtering by a caller-supplied `id` with no `tenant_id` check, which *would* leak cross-tenant data into a response.
+
 ---
 
 ## 3. Communication Isolation

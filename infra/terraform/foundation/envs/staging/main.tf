@@ -192,7 +192,7 @@ locals {
       member = "serviceAccount:ikaro-backend@${var.project_id}.iam.gserviceaccount.com"
     }
     }, {
-    for event in ["cron-reminders", "cron-loyalty-expiry", "cron-loyalty-expiry-warning", "cron-outbox-relay"] : "scheduler_publisher_${event}" => {
+    for event in ["cron-reminders", "cron-loyalty-expiry", "cron-loyalty-expiry-warning", "cron-outbox-relay", "cron-chatbot-retention-purge"] : "scheduler_publisher_${event}" => {
       topic  = "ikaro-${event}"
       role   = "roles/pubsub.publisher"
       member = "serviceAccount:${local.workload_scheduler_service_agent}"

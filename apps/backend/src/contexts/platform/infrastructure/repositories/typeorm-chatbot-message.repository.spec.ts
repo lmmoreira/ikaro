@@ -17,6 +17,26 @@ const ENTITY = (): ChatbotMessageEntity =>
     .withCostUsd('0.00001234')
     .build();
 
+// Chainable delete-query-builder fake — each method returns the same object except the
+// terminal execute() call, matching TypeORM's own fluent DeleteQueryBuilder API surface.
+function makeDeleteQueryBuilder(affected: number): {
+  delete: jest.Mock;
+  from: jest.Mock;
+  where: jest.Mock;
+  execute: jest.Mock;
+} {
+  const qb = {
+    delete: jest.fn(),
+    from: jest.fn(),
+    where: jest.fn(),
+    execute: jest.fn().mockResolvedValue({ affected }),
+  };
+  qb.delete.mockReturnValue(qb);
+  qb.from.mockReturnValue(qb);
+  qb.where.mockReturnValue(qb);
+  return qb;
+}
+
 describe('TypeOrmChatbotMessageRepository', () => {
   let mockRepo: jest.Mocked<Repository<ChatbotMessageEntity>>;
   let repo: TypeOrmChatbotMessageRepository;
@@ -25,6 +45,7 @@ describe('TypeOrmChatbotMessageRepository', () => {
     mockRepo = {
       findOne: jest.fn(),
       save: jest.fn(),
+      manager: { createQueryBuilder: jest.fn() },
     } as unknown as jest.Mocked<Repository<ChatbotMessageEntity>>;
     repo = new TypeOrmChatbotMessageRepository(mockRepo);
   });
@@ -83,6 +104,42 @@ describe('TypeOrmChatbotMessageRepository', () => {
         expect.objectContaining({ id: message.id, tenantId: 'tenant-id-1' }),
       );
       expect(mockRepo.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deleteOlderThan', () => {
+    const cutoff = new Date('2026-02-14T00:00:00.000Z');
+
+    it('deletes via repo.manager.createQueryBuilder() when no transaction is active', async () => {
+      const qb = makeDeleteQueryBuilder(3);
+      (mockRepo.manager.createQueryBuilder as jest.Mock).mockReturnValue(qb);
+
+      const result = await repo.deleteOlderThan(cutoff);
+
+      expect(qb.from).toHaveBeenCalledWith(ChatbotMessageEntity);
+      expect(qb.where).toHaveBeenCalledWith('created_at < :cutoff', { cutoff });
+      expect(result).toBe(3);
+    });
+
+    it('returns 0 when execute() reports no affected rows', async () => {
+      const qb = makeDeleteQueryBuilder(0);
+      qb.execute.mockResolvedValue({ affected: null });
+      (mockRepo.manager.createQueryBuilder as jest.Mock).mockReturnValue(qb);
+
+      expect(await repo.deleteOlderThan(cutoff)).toBe(0);
+    });
+
+    it('uses the active EntityManager when inside a transaction', async () => {
+      const qb = makeDeleteQueryBuilder(5);
+      const mockManager = {
+        createQueryBuilder: jest.fn().mockReturnValue(qb),
+      } as unknown as EntityManager;
+
+      const result = await runWithEntityManager(mockManager, () => repo.deleteOlderThan(cutoff));
+
+      expect(mockManager.createQueryBuilder).toHaveBeenCalled();
+      expect(mockRepo.manager.createQueryBuilder).not.toHaveBeenCalled();
+      expect(result).toBe(5);
     });
   });
 });

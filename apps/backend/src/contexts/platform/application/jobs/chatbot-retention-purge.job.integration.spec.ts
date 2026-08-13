@@ -146,9 +146,10 @@ describe('ChatbotRetentionPurgeJob (integration)', () => {
         .build(),
     );
 
-    await job.run(NOW);
+    const firstRun = await job.run(NOW);
     const secondRun = await job.run(NOW);
 
+    expect(firstRun).toEqual({ messagesDeleted: 1, sessionsDeleted: 1 });
     expect(secondRun).toEqual({ messagesDeleted: 0, sessionsDeleted: 0 });
   });
 });

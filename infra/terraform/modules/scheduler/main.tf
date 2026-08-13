@@ -34,6 +34,10 @@ locals {
       topic_key = "cron-outbox-relay"
       schedule  = var.outbox_relay_schedule
     }
+    ikaro-cron-chatbot-retention-purge = {
+      topic_key = "cron-chatbot-retention-purge"
+      schedule  = "0 3 * * *"
+    }
   }
 }
 

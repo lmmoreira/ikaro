@@ -85,4 +85,57 @@ describe('TypeOrmChatbotSessionRepository', () => {
       expect(savedEntity.status).toBe('CAPPED');
     });
   });
+
+  describe('deleteOrphanedStartedBefore', () => {
+    const cutoff = new Date('2026-02-14T00:00:00.000Z');
+
+    it('throws when called outside an active transaction', async () => {
+      await expect(repo.deleteOrphanedStartedBefore(cutoff)).rejects.toThrow(
+        'must run inside ITransactionManager.run()',
+      );
+    });
+
+    it('runs the correlated delete via the active EntityManager and returns the row count', async () => {
+      const mockManager = {
+        query: jest.fn().mockResolvedValue([{ id: 'session-1' }, { id: 'session-2' }]),
+      } as unknown as EntityManager;
+
+      const result = await runWithEntityManager(mockManager, () =>
+        repo.deleteOrphanedStartedBefore(cutoff),
+      );
+
+      expect(mockManager.query).toHaveBeenCalledWith(expect.stringContaining('DELETE FROM'), [
+        cutoff,
+      ]);
+      expect(mockManager.query).toHaveBeenCalledWith(
+        expect.stringContaining('NOT EXISTS'),
+        expect.anything(),
+      );
+      expect(result).toBe(2);
+    });
+
+    it('normalizes the [rows, rowCount] shape the transactional EntityManager can return for DELETE ... RETURNING', async () => {
+      const mockManager = {
+        query: jest.fn().mockResolvedValue([[{ id: 'session-1' }, { id: 'session-2' }], 2]),
+      } as unknown as EntityManager;
+
+      const result = await runWithEntityManager(mockManager, () =>
+        repo.deleteOrphanedStartedBefore(cutoff),
+      );
+
+      // Without normalizing, this would read as 2 (the wrapper array's own length) even when
+      // zero or one row actually matched — the bug this test locks in against regressing.
+      expect(result).toBe(2);
+    });
+
+    it('returns 0 when nothing matches', async () => {
+      const mockManager = { query: jest.fn().mockResolvedValue([]) } as unknown as EntityManager;
+
+      const result = await runWithEntityManager(mockManager, () =>
+        repo.deleteOrphanedStartedBefore(cutoff),
+      );
+
+      expect(result).toBe(0);
+    });
+  });
 });
