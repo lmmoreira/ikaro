@@ -11,9 +11,8 @@ export class ChatbotSessionBuilder {
   private clientIp = DEFAULT_CLIENT_IP;
   private conversationDate = DEFAULT_CONVERSATION_DATE;
   private startedAt = new Date();
-  private lastMessageAt = this.startedAt;
-  private messageCount = 0;
-  private status: 'ACTIVE' | 'CLOSED' | 'CAPPED' = 'ACTIVE';
+  private readonly messageCount = 0;
+  private readonly status: 'ACTIVE' | 'CLOSED' | 'CAPPED' = 'ACTIVE';
 
   withId(id: string): this {
     this.id = id;
@@ -46,7 +45,7 @@ export class ChatbotSessionBuilder {
       tenantId: this.tenantId,
       clientIp: this.clientIp,
       startedAt: this.startedAt,
-      lastMessageAt: this.lastMessageAt,
+      lastMessageAt: this.startedAt,
       conversationDate: this.conversationDate,
       messageCount: this.messageCount,
       status: this.status,

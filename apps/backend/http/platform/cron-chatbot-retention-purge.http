@@ -1,0 +1,20 @@
+# Platform — Cron Chatbot Retention Purge Trigger
+# M19-S07: publishes the cron-chatbot-retention-purge trigger, dispatched to
+# ChatbotRetentionPurgeTriggerHandler. In production, Cloud Scheduler publishes the same trigger
+# directly to Pub/Sub daily at 03:00 UTC — this endpoint is the local/manual trigger path only,
+# protected by the global InternalApiGuard (X-Internal-Key), not PubSubPushGuard.
+# Response is { ok: true } once the trigger is published — it does not wait for the job to
+# finish. Requires the Pub/Sub emulator running (pnpm infra:up).
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run dev
+
+@baseUrl = {{backendUrl}}
+
+### POST /cron/chatbot-retention-purge — publish the daily chatbot retention-purge trigger
+POST {{baseUrl}}/cron/chatbot-retention-purge
+X-Internal-Key: {{internalKey}}
+
+###
