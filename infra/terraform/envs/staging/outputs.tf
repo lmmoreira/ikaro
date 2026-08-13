@@ -1,6 +1,11 @@
-output "dashboard_id" {
-  description = "Full Cloud Monitoring dashboard resource name (module.monitoring's own output — see its description for the console URL format, which needs only the trailing <dashboard_id> segment, not this full value). Re-exported here since neither env root originally did, leaving docs/10-OBSERVABILITY_STRATEGY.md's `terraform output dashboard_id` instruction unusable (cross-tool review finding, PR #332, 2026-08-08; description corrected, PR #333 review, 2026-08-08 — 'resource id' wrongly implied a bare id, not the full projects/<project_id>/dashboards/<dashboard_id> name)."
-  value       = module.monitoring.dashboard_id
+output "dashboard_id_engineering" {
+  description = "Full Cloud Monitoring dashboard resource name for the Engineering dashboard (module.monitoring's own output — see its description for the console URL format, which needs only the trailing <dashboard_id> segment, not this full value). Re-exported here since neither env root originally did, leaving docs/10-OBSERVABILITY_STRATEGY.md's `terraform output` instruction unusable (cross-tool review finding, PR #332, 2026-08-08; description corrected, PR #333 review, 2026-08-08 — 'resource id' wrongly implied a bare id, not the full projects/<project_id>/dashboards/<dashboard_id> name). Split from the single dashboard_id output in M17-S56, when the combined dashboard was split in two."
+  value       = module.monitoring.dashboard_id_engineering
+}
+
+output "dashboard_id_business" {
+  description = "Full Cloud Monitoring dashboard resource name for the Business dashboard (M17-S54's tenant-labelled counters + M17-S56's per-tenant dashboardFilters) — same format/URL rules as dashboard_id_engineering above."
+  value       = module.monitoring.dashboard_id_business
 }
 
 output "backend_service_uri" {

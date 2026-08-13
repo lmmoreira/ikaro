@@ -1,6 +1,11 @@
-output "dashboard_id" {
-  description = "Full Cloud Monitoring dashboard resource name, format projects/<project_id>/dashboards/<dashboard_id> — the console builder URL needs only the trailing <dashboard_id> segment: https://console.cloud.google.com/monitoring/dashboards/builder/<dashboard_id>?project=<project_id> (basename(this output) extracts it; cross-tool review finding, 2026-08-08 — the description previously implied the raw output value was already URL-ready)."
-  value       = google_monitoring_dashboard.main.id
+output "dashboard_id_engineering" {
+  description = "Full Cloud Monitoring dashboard resource name for the Engineering dashboard (Cloud Run/SQL/Pub-Sub/latency), format projects/<project_id>/dashboards/<dashboard_id> — the console builder URL needs only the trailing <dashboard_id> segment: https://console.cloud.google.com/monitoring/dashboards/builder/<dashboard_id>?project=<project_id> (basename(this output) extracts it). Split from the single dashboard_id output in M17-S56, when the combined dashboard was split in two."
+  value       = google_monitoring_dashboard.engineering.id
+}
+
+output "dashboard_id_business" {
+  description = "Full Cloud Monitoring dashboard resource name for the Business dashboard (M17-S54's tenant-labelled counters + M17-S56's per-tenant dashboardFilters), same format/URL rules as dashboard_id_engineering above."
+  value       = google_monitoring_dashboard.business.id
 }
 
 output "error_count_metric_name" {
