@@ -206,6 +206,60 @@ locals {
       member             = "serviceAccount:${local.workload_pubsub_service_agent}"
     }
   }
+
+  # TD39 permanent fix: the import blocks below adopt bindings that already
+  # existed live before Terraform managed them (TD34's migration) — they
+  # must stay frozen to that historical snapshot, never track the
+  # ever-growing pubsub-catalog.json the way workload_pubsub_topic_members/
+  # workload_pubsub_subscription_members above do. A topic added after
+  # TD34's migration never had its bindings granted by hand, so there is
+  # nothing to import for it — module.workload_iam's own for_each (driven
+  # by the live locals above) correctly plans a CREATE instead. Reusing the
+  # live locals for these import blocks' for_each broke exactly this way
+  # the first time a new topic was added (M19-S07/PR #365): Terraform tried
+  # to import a binding that was never granted, failing with "Cannot find
+  # binding for ...". This frozen catalog must never gain a new entry.
+  workload_catalog_migrated = [
+    for entry in local.workload_catalog : entry
+    if entry.event != "cron-chatbot-retention-purge"
+  ]
+  workload_topics_migrated = { for entry in local.workload_catalog_migrated : entry.event => entry }
+  workload_subscriptions_migrated = merge([
+    for entry in local.workload_catalog_migrated : {
+      for consumer in entry.consumers : jsonencode([entry.event, consumer]) => {
+        topic    = entry.event
+        consumer = consumer
+      }
+    }
+  ]...)
+
+  workload_pubsub_subscription_members_migrated = {
+    for key, subscription in local.workload_subscriptions_migrated : "service_agent_subscriber_${key}" => {
+      subscription = "ikaro-${subscription.topic}-${subscription.consumer}"
+      role         = "roles/pubsub.subscriber"
+      member       = "serviceAccount:${local.workload_pubsub_service_agent}"
+    }
+  }
+
+  workload_pubsub_topic_members_migrated = merge({
+    for key, subscription in local.workload_subscriptions_migrated : "service_agent_dlq_publisher_${key}" => {
+      topic  = "ikaro-${subscription.topic}-${subscription.consumer}-dlq"
+      role   = "roles/pubsub.publisher"
+      member = "serviceAccount:${local.workload_pubsub_service_agent}"
+    }
+    }, {
+    for event in keys(local.workload_topics_migrated) : "backend_publisher_${event}" => {
+      topic  = "ikaro-${event}"
+      role   = "roles/pubsub.publisher"
+      member = "serviceAccount:ikaro-backend@${var.project_id}.iam.gserviceaccount.com"
+    }
+    }, {
+    for event in ["cron-reminders", "cron-loyalty-expiry", "cron-loyalty-expiry-warning", "cron-outbox-relay"] : "scheduler_publisher_${event}" => {
+      topic  = "ikaro-${event}"
+      role   = "roles/pubsub.publisher"
+      member = "serviceAccount:${local.workload_scheduler_service_agent}"
+    }
+  })
 }
 
 module "workload_iam" {
@@ -245,13 +299,13 @@ resource "google_cloud_run_v2_service_iam_member" "public_invoker" {
 }
 
 import {
-  for_each = local.workload_pubsub_subscription_members
+  for_each = local.workload_pubsub_subscription_members_migrated
   to       = module.workload_iam.google_pubsub_subscription_iam_member.member[each.key]
   id       = "projects/${var.project_id}/subscriptions/${each.value.subscription} ${each.value.role} ${each.value.member}"
 }
 
 import {
-  for_each = local.workload_pubsub_topic_members
+  for_each = local.workload_pubsub_topic_members_migrated
   to       = module.workload_iam.google_pubsub_topic_iam_member.member[each.key]
   id       = "projects/${var.project_id}/topics/${each.value.topic} ${each.value.role} ${each.value.member}"
 }

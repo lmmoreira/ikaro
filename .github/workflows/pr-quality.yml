@@ -103,57 +103,59 @@ jobs:
           echo "::error::This PR touches both infra/terraform/** and apps/** or packages/** — split them into separate PRs. If truly unavoidable, note in the PR description that infra applies first and re-run the app deploy if it loses the race against the Terraform apply, then add the 'infra-app-mix-ok' label to acknowledge and bypass this check."
           exit 1
 
-  no-new-topic-plus-foundation:
-    name: No new Pub/Sub topic + foundation/** in the same PR
+  no-foundation-plus-other-infra-mix:
+    name: No foundation/** + other infra/terraform/** changes in the same PR
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          fetch-depth: 0 # need the base commit's pubsub-catalog.json to diff against
-
-      - name: Detect foundation/** changes
-        id: filter
-        uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
-        with:
-          filters: |
-            foundation:
-              - 'infra/terraform/foundation/**'
+          fetch-depth: 0 # need the base commit to diff infra/terraform/** against
 
       # TD39 (2026-08-13): foundation's workload_catalog local reads
       # infra/terraform/pubsub-catalog.json unconditionally and derives IAM
       # grants for every entry via google_pubsub_topic_iam_member/
       # _subscription_iam_member — resources that do a live IAM-policy read
-      # of their target even at plan time. A brand-new topic's target
-      # doesn't exist yet until envs/* (a separate Terraform root/state)
-      # deploys it. Introducing the topic and touching foundation/** in the
-      # same PR produced a real, live mutual deadlock (M19-S07/PR #365):
-      # foundation's plan 404s on the new topic, and envs/*'s own deploy —
-      # the only thing that creates it — is itself gated behind a
-      # successful foundation apply. Neither side can go first.
+      # of their target even at plan time. A brand-new topic's (or a new
+      # consumer's) target doesn't exist yet until envs/* (a separate
+      # Terraform root/state) deploys it. Introducing that target and
+      # touching foundation/** in the same PR produced a real, live mutual
+      # deadlock (M19-S07/PR #365): foundation's plan 404s on the missing
+      # target, and envs/*'s own deploy — the only thing that creates it —
+      # is itself gated behind a successful foundation apply. Neither side
+      # can go first. The same live-read pattern applies to every other
+      # foundation grant list (secrets, Cloud Run invokers, Artifact
+      # Registry, buckets) — not just Pub/Sub — so the check is scoped to
+      # the whole of infra/terraform/** vs foundation/**, not just the
+      # pubsub catalog.
       #
       # Unlike no-infra-app-mix above, there's no legitimate reason to
-      # combine these two changes in one PR: the safe path (land the topic
-      # via envs/* first, add the foundation IAM grant in a genuine
-      # follow-up PR once it exists live) has no real exception to
+      # combine these two changes in one PR: the safe path (land the new
+      # resource via envs/* first, add the foundation IAM grant in a
+      # genuine follow-up PR once it exists live) has no real exception to
       # preserve. Hard-fail, no label escape hatch.
-      - name: Detect new Pub/Sub catalog entries vs base
-        id: catalog
-        if: steps.filter.outputs.foundation == 'true'
-        run: |
-          git show "${{ github.event.pull_request.base.sha }}:infra/terraform/pubsub-catalog.json" \
-            | jq -r '.[].event' | sort > base-events.txt
-          jq -r '.[].event' infra/terraform/pubsub-catalog.json | sort > head-events.txt
-          new_events="$(comm -13 base-events.txt head-events.txt | paste -sd ', ' -)"
-          echo "new_events=$new_events" >> "$GITHUB_OUTPUT"
-
-      - name: Fail if a new Pub/Sub topic and foundation/** are in the same PR
-        if: steps.filter.outputs.foundation == 'true' && steps.catalog.outputs.new_events != ''
+      - name: Detect foundation/** vs other infra/terraform/** changes
+        id: filter
         env:
-          NEW_EVENTS: ${{ steps.catalog.outputs.new_events }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          echo "::error::This PR both registers a brand-new Pub/Sub topic/trigger ($NEW_EVENTS) in infra/terraform/pubsub-catalog.json AND touches infra/terraform/foundation/**. This is the exact TD39 deadlock (M19-S07/PR #365): foundation's plan does a live IAM-policy read that 404s until the new topic exists, and envs/* — the only thing that creates it — is itself gated behind a successful foundation apply. Split into two PRs: land the new topic via envs/* first and merge/deploy it, then add the foundation IAM grant in a genuine follow-up PR once it exists live. See td/TD39-FOUNDATION-NEW-PUBSUB-TOPIC-DEPLOY-ORDERING.md."
+          foundation=false
+          other=false
+          while IFS= read -r path; do
+            [ -z "$path" ] && continue
+            case "$path" in
+              infra/terraform/foundation/*) foundation=true ;;
+              *) other=true ;;
+            esac
+          done < <(git diff --name-only "$BASE_SHA" HEAD -- infra/terraform)
+          echo "foundation=$foundation" >> "$GITHUB_OUTPUT"
+          echo "other=$other" >> "$GITHUB_OUTPUT"
+
+      - name: Fail if both foundation/** and other infra/terraform/** changed
+        if: steps.filter.outputs.foundation == 'true' && steps.filter.outputs.other == 'true'
+        run: |
+          echo "::error::This PR touches both infra/terraform/foundation/** and another infra/terraform/** path — split them into separate PRs. This is the TD39 deadlock (M19-S07/PR #365): foundation's IAM-member resources do a live policy read of their target even at plan time, which 404s until envs/* has actually created that target — and envs/* is itself gated behind a successful foundation apply, so neither side can go first when they land together. Land the envs/* change first and merge/deploy it, then add the foundation IAM grant in a genuine follow-up PR once the target exists live. See td/TD39-FOUNDATION-NEW-PUBSUB-TOPIC-DEPLOY-ORDERING.md."
           exit 1
 
   lint:

@@ -58,23 +58,25 @@ This let `foundation` plan/apply successfully without the topic existing, breaki
 
 - Remove the temporary `workload_catalog` filter — the topic now exists live, so `foundation`'s plan no longer needs it.
 - Re-add `scheduler_publisher_cron-chatbot-retention-purge` to both env roots' `scheduler_publisher_*` list — this now succeeds, since the target topic is live.
-- **New CI guardrail**: a job in `pr-quality.yml` (mirroring `no-infra-app-mix`'s structure) that fails — hard, no label escape hatch — when a PR both (a) adds a *new* `event` entry to `infra/terraform/pubsub-catalog.json` (a real content diff against the base ref, not just "was the file touched") and (b) touches `infra/terraform/foundation/**`. Unlike the infra/app-mix case, there's no legitimate reason to combine these two in one PR — the safe path (land the topic via `envs/*` first, add the `foundation` grant in a follow-up once it's live) has no real exception to preserve.
-- **Documented rule**, added to `infra/terraform/README.md`'s gotchas list: *when introducing a brand-new Pub/Sub topic (a new `registerTrigger()`/`subscribe()` call site), `infra/terraform/foundation/**` must stay byte-for-byte untouched in that PR — not even a deferral comment. Land the topic via `envs/*` first, add the `foundation` IAM grant in a genuine follow-up PR once it exists live.*
+- **New CI guardrail**: `no-foundation-plus-other-infra-mix` in `pr-quality.yml` (mirroring `no-infra-app-mix`'s structure) fails — hard, no label escape hatch — when a PR touches both `infra/terraform/foundation/**` and any other `infra/terraform/**` path. Scoped to the whole of `infra/terraform/**`, not just `pubsub-catalog.json`'s `event` entries: the same live-IAM-read pattern applies to every one of `foundation`'s other grant lists (secrets, Cloud Run invokers, Artifact Registry, buckets), and a narrower content-diff check on just top-level `event` names would also miss a new *consumer* added to an existing event (a new subscription + DLQ, same 404 mechanism) — both gaps found in cross-tool review of this PR's first draft. Unlike the infra/app-mix case, there's no legitimate reason to combine these two in one PR — the safe path (land the new resource via `envs/*` first, add the `foundation` grant in a follow-up once it's live) has no real exception to preserve.
+- **Documented rule**, added to `infra/terraform/README.md`'s gotchas list: *`infra/terraform/foundation/**` and any other `infra/terraform/**` path must never change in the same PR — not even a deferral comment. Land the `envs/*` change first, add the `foundation` IAM grant in a genuine follow-up PR once the target exists live.*
+- **A second, related bug found by this PR's own CI run**: `foundation`'s two Pub/Sub `import { for_each = ... }` blocks (TD34's one-time adoption of pre-existing bindings) were wired to the same live, catalog-derived locals used for resource creation. `import` blocks require the target binding to already exist — a brand-new binding was never granted by hand, so Terraform tried to *import* something that didn't exist and failed with `Cannot find binding for ...` (caught live: this PR's own `Terraform plan — foundation (staging/prod)` checks went red on first push). Fixed by adding parallel `_migrated` locals frozen to the pre-existing (pre-M19-S07) set — the import blocks read only these frozen locals now, permanently, and this frozen set must never gain a new entry: every topic introduced after TD34's migration is created fresh via the live locals, never imported. This is a structural fix, not a per-topic patch — it does not need touching again for the next new topic.
 
 ---
 
 ## Open questions
 
-1. **Still unconfirmed**: does this affect brand-new **domain events** too, or only cron triggers? The mechanism (`workload_catalog` reads every entry in `pubsub-catalog.json`, both event and cron rows) strongly suggests yes, but this incident only ever exercised the cron-trigger path live. The new CI guardrail (checks any new `event` entry, not just cron-prefixed ones) protects against both regardless of which it turns out to be.
+1. **Still unconfirmed**: does this affect brand-new **domain events** too, or only cron triggers? The mechanism (`workload_catalog` reads every entry in `pubsub-catalog.json`, both event and cron rows) strongly suggests yes, but this incident only ever exercised the cron-trigger path live. The new CI guardrail (scoped to all of `infra/terraform/**` vs `foundation/**`, not just pubsub) protects against both regardless of which it turns out to be.
 
 ## Acceptance criteria
 
 - [x] The specific deadlock from M19-S07/PR #365 resolved live — topic, DLQ topic, both subscriptions, and the Cloud Scheduler job confirmed live in both staging and prod via real `terraform apply` runs
 - [x] The deployer's missing `cloudscheduler.jobs.enable`/`run` permissions fixed and verified live
-- [ ] Temporary `workload_catalog` filter removed once the topic existed live (this PR)
-- [ ] Real `scheduler_publisher_cron-chatbot-retention-purge` grant added to both env roots (this PR)
-- [ ] New CI guardrail added, catching this exact scenario before merge for the next new topic/trigger (this PR)
-- [ ] `infra/terraform/README.md` gets a permanent entry describing the constraint (this PR)
+- [ ] Temporary `workload_catalog` filter removed once the topic existed live (this PR) — written, not yet CI-verified
+- [ ] Real `scheduler_publisher_cron-chatbot-retention-purge` grant added to both env roots (this PR) — written, not yet CI-verified
+- [ ] `foundation`'s Pub/Sub `import` blocks frozen to a pre-existing snapshot, fixing the second bug this PR's own CI surfaced (this PR) — written, not yet CI-verified (the bug this fixes was itself only caught by this PR's live `Terraform plan — foundation` check, so don't check this box on local `validate` alone)
+- [x] New CI guardrail added, catching this exact scenario before merge for the next new topic/trigger (this PR)
+- [x] `infra/terraform/README.md` gets a permanent entry describing the constraint (this PR)
 - [ ] Confirmed (or ruled out) whether this also affects brand-new domain events, not just cron triggers — left genuinely open (see Open questions), not silently closed
 
 ## Dependencies
