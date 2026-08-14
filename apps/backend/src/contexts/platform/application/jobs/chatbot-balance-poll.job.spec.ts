@@ -1,4 +1,5 @@
 import { Decimal } from 'decimal.js';
+import { AppLogger } from '../../../../shared/observability/app-logger';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryChatbotProviderBalanceRepository } from '../../../../test/repositories/platform/in-memory-chatbot-provider-balance.repository';
 import { ChatbotProviderBalance } from '../../domain/chatbot-provider-balance.aggregate';
@@ -45,6 +46,7 @@ describe('ChatbotBalancePollJob', () => {
   });
 
   it('logs a warning and leaves the existing row unchanged when the credits API call fails', async () => {
+    const warnSpy = jest.spyOn(AppLogger.prototype, 'warn').mockImplementation();
     await balanceRepo.saveBalance(ChatbotProviderBalance.upsert('openrouter', new Decimal('5')));
     creditsClient.getRemainingBalanceUsd.mockRejectedValue(
       new Error('OpenRouter credits request failed: 503'),
@@ -55,12 +57,21 @@ describe('ChatbotBalancePollJob', () => {
     expect(result).toEqual({ polled: false });
     const stored = await balanceRepo.findByProvider('openrouter');
     expect(stored!.remainingUsd!.toNumber()).toBe(5);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('OpenRouter credits poll failed'),
+      expect.objectContaining({ error: 'OpenRouter credits request failed: 503' }),
+    );
   });
 
-  it('never throws when the credits API call fails', async () => {
+  it('never throws when the credits API call fails, and still logs the warning', async () => {
+    const warnSpy = jest.spyOn(AppLogger.prototype, 'warn').mockImplementation();
     creditsClient.getRemainingBalanceUsd.mockRejectedValue(new Error('timeout'));
 
     await expect(job.run()).resolves.toEqual({ polled: false });
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('OpenRouter credits poll failed'),
+      expect.objectContaining({ error: 'timeout' }),
+    );
   });
 
   it('writes the balance inside a transaction', async () => {

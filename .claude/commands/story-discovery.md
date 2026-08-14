@@ -172,7 +172,8 @@ Run every check silently. Tag each finding as **BLOCKER**, **RISK**, or **CONFIR
 - `index.html`'s dry-run checklist questions are either answered by the story's AC or explicitly left open
 
 ### 4l. Infrastructure / environment
-- Does the story introduce a new **Pub/Sub topic**? → RISK: topic must be provisioned in infra config before deployment; flag it
+- Does the story introduce a new **secret**, **Pub/Sub topic**, **Cloud Scheduler job**, or **env var** — or touch `infra/terraform/**` at all? → **Consult `infra/terraform/README.md`'s "New-resource PR-sequencing playbook" table now, before continuing.** Match the story's change against the table's rows and state the required PR count and sequence explicitly as a finding — not a bare "flag it." Carry the same statement into the Scope Summary's `Devops PR sequence` line (Step 5). This table exists specifically because this exact class of gap (foundation/envs split, `env-contract`'s all-or-nothing schema requirement, Cloud Run's `secret_env_vars` deploy hazard) was independently rediscovered from scratch across M19-S02, S07, and S08 — the whole point is to stop that from happening an S09th time.
+- If the story adds a new **secret** and it's ambiguous whether the table's safe-3-PR row or the accept-deploy-risk-2-PR row applies → this is a **question for the user in Step 6**, never a silent default. State both options' tradeoff (deploy-risk window vs. an extra PR) the way the table does.
 - Does the story require a new **env var**? → RISK: verify naming follows `SNAKE_UPPER_CASE`; flag it for `.env.example` update
 - Does the story use a **feature flag**? → RISK: flag must follow `FEATURE_FLAG_XYZ=true` convention (CLAUDE.md §1); verify it's not wired to an external system
 
@@ -212,6 +213,7 @@ Start with a **Story scope summary** — a quick mental model for the agent befo
 - **Migration required:** yes / no
 - **i18n keys required:** yes / no
 - **Feature flag:** yes (`FEATURE_FLAG_XYZ`) / no
+- **Devops PR sequence:** N/A / <N> PRs (<one-line summary — e.g. "1: topic+scheduler job+app code (infra-app-mix-ok); 2: foundation IAM grant follow-up">)
 ```
 
 Then list findings:
