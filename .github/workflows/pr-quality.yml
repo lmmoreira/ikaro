@@ -112,6 +112,19 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0 # need the base commit to diff infra/terraform/** against
+          # actions/checkout's default ref for a pull_request event is the synthetic
+          # refs/pull/<PR#>/merge — the PR branch merged onto the CURRENT tip of main,
+          # not the PR's own actual last commit. For a PR whose branch is stale relative
+          # to main, diffing BASE_SHA (the PR's real, historical merge-base) against that
+          # synthetic ref picks up every unrelated change that landed on main since —
+          # including any foundation/** churn — as if it were part of this PR's own diff.
+          # Pinning ref here to the PR's real head SHA makes the diff below reflect only
+          # what this PR itself changed. Confirmed live (2026-08-14): a Dependabot PR
+          # touching only a .terraform.lock.hcl file (opened 2026-08-11, before this gate
+          # existed) false-failed this check once main had accumulated foundation/**
+          # commits in the meantime — the identical diff against the PR's real branch tip
+          # correctly showed only the lockfile.
+          ref: ${{ github.event.pull_request.head.sha }}
 
       # TD39 (2026-08-13): foundation's workload_catalog local reads
       # infra/terraform/pubsub-catalog.json unconditionally and derives IAM
