@@ -1773,7 +1773,7 @@ Uploads currently go browser → V4 signed URL → GCS **raw** — a phone photo
 
 ---
 
-### M17-S45 — Photo lifecycle & retention: booking photos expire, hotsite assets permanent
+### M17-S45 — Photo lifecycle & retention: booking photos expire, hotsite assets permanent ✅ Done
 
 **Agent:** `devops` + `backend-ts` + `frontend-ts`
 **Complexity:** M
