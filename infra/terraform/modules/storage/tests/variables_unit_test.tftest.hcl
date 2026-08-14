@@ -63,3 +63,15 @@ run "rejects_retention_below_nearline_tiering_age" {
     var.booking_photo_retention_days,
   ]
 }
+
+run "rejects_fractional_retention_days" {
+  command = plan
+
+  variables {
+    booking_photo_retention_days = 365.5
+  }
+
+  expect_failures = [
+    var.booking_photo_retention_days,
+  ]
+}

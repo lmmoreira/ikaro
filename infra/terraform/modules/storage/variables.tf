@@ -4,8 +4,8 @@ variable "booking_photo_retention_days" {
   default     = 365
 
   validation {
-    condition     = var.booking_photo_retention_days > 60
-    error_message = "booking_photo_retention_days must be greater than the 60-day Nearline transition age, or promoted photos would be deleted before tiering ever applies."
+    condition     = var.booking_photo_retention_days > 60 && var.booking_photo_retention_days == floor(var.booking_photo_retention_days)
+    error_message = "booking_photo_retention_days must be a whole number of days greater than the 60-day Nearline transition age (GCS lifecycle age conditions don't accept fractional days)."
   }
 }
 

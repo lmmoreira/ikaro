@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ImageOff } from 'lucide-react';
 
 interface PhotoTileProps {
@@ -21,6 +21,16 @@ export function PhotoTile({
   className,
 }: PhotoTileProps): React.JSX.Element {
   const [failed, setFailed] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  // The browser can load-and-fail a server-rendered <img> before React attaches onError during
+  // hydration — a native error event that fires before the listener exists is never replayed, so
+  // onError alone misses an image that was already broken at hydration time.
+  useEffect(() => {
+    if (imgRef.current?.complete && imgRef.current.naturalWidth === 0) {
+      setFailed(true);
+    }
+  }, []);
 
   if (failed) {
     return (
@@ -36,6 +46,13 @@ export function PhotoTile({
   }
 
   return (
-    <img src={url} alt={alt} loading="lazy" className={className} onError={() => setFailed(true)} />
+    <img
+      ref={imgRef}
+      src={url}
+      alt={alt}
+      loading="lazy"
+      className={className}
+      onError={() => setFailed(true)}
+    />
   );
 }
