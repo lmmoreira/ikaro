@@ -27,6 +27,7 @@ activation runbooks via `gcloud secrets versions add`.
 | `openrouter-api-key` | backend | `OPENROUTER_API_KEY` (backend env.validation.ts) | M19-S02. Primary chatbot LLM provider adapter (`openrouter-llm.adapter.ts`) |
 | `anthropic-api-key` | backend | `ANTHROPIC_API_KEY` (backend env.validation.ts, added by M19-S03) | Container + IAM + Cloud Run wiring provisioned by M19-S02 ahead of the consuming adapter (M19-S03) — same "provision the shape, wire the consumer later" precedent as `cloudflare-api-token` above |
 | `openai-api-key` | backend | `OPENAI_API_KEY` (backend env.validation.ts, added by M19-S03) | Same as `anthropic-api-key` — provisioned by M19-S02, consumed starting M19-S03 |
+| `openrouter-management-api-key` | backend | `OPENROUTER_MANAGEMENT_API_KEY` (backend env.validation.ts, M19-S08) | Distinct credential from `openrouter-api-key` — OpenRouter's `GET /api/v1/credits` (`ChatbotBalancePollJob`'s UC-036 poll) requires a Management/Provisioning key and rejects the chat-completions key. **Staged rollout, deliberately not landed in one PR like the 3 keys above** (TD39: the same live-IAM-read-at-plan-time problem that blocked pubsub topics also applies to `google_secret_manager_secret_iam_member`, and wiring `secret_env_vars` before the accessor grant exists would fail the backend's Cloud Run deploy) — container created by M19-S08's own PR, backend SA accessor grant + `secret_env_vars` wiring land in 2 genuine follow-up PRs once the container exists live |
 
 ## Rotation procedure
 

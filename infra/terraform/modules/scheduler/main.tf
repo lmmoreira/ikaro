@@ -38,6 +38,10 @@ locals {
       topic_key = "cron-chatbot-retention-purge"
       schedule  = "0 3 * * *"
     }
+    ikaro-cron-chatbot-balance-poll = {
+      topic_key = "cron-chatbot-balance-poll"
+      schedule  = "*/15 * * * *"
+    }
   }
 }
 

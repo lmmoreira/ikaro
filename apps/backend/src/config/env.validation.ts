@@ -91,6 +91,11 @@ export const schema = z.object({
   // Optional: only needed when the OpenRouter adapter actually makes a real call. Automated
   // tests never call the real API (stubbed fetch), so local dev/CI work fine unset.
   OPENROUTER_API_KEY: z.string().optional(),
+  // M19-S08 — a distinct Management/Provisioning key, not OPENROUTER_API_KEY above.
+  // GET /api/v1/credits rejects a regular chat-completions key (confirmed against OpenRouter's
+  // own live API reference). Optional for the same reason: ChatbotBalancePollJob treats a
+  // failed credits call as a safe no-op (log a warning, leave the stored balance unchanged).
+  OPENROUTER_MANAGEMENT_API_KEY: z.string().optional(),
   // Chatbot cost/abuse-prevention platform-wide backstops (M19-S05/S06) — deliberately env vars,
   // not tenants.settings fields (docs/discovery/CHATBOT/CHATBOT.md §8.9-8.10): no tenant can opt
   // out, and all three can be changed via a Terraform var update + apply (a new Cloud Run
