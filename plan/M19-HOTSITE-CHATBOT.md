@@ -312,7 +312,7 @@ Mirrors the loyalty-expiry cron pattern exactly (`docs/04-USE_CASES.md` UC-016b,
 
 ---
 
-### M19-S08 — Balance-poll cron (UC-036)
+### M19-S08 — Balance-poll cron (UC-036) ✅ Done
 
 **Agent:** `backend-ts` + `devops`
 **Complexity:** S
