@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
 import type { StaffBookingDetailResponse } from '@ikaro/types';
@@ -78,5 +78,29 @@ describe('BookingDetailMain', () => {
     renderWithIntl(<BookingDetailMain booking={makeBooking({ status: 'INFO_REQUESTED' })} />);
 
     expect(screen.getByText('Info enviada')).toBeInTheDocument();
+  });
+
+  it('shows the pt-BR placeholder when a booking photo fails to load', () => {
+    renderWithIntl(<BookingDetailMain booking={makeBooking()} />);
+
+    fireEvent.error(screen.getByRole('img', { name: 'Foto antes do serviço 1' }));
+
+    expect(screen.queryByRole('img', { name: 'Foto antes do serviço 1' })).not.toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Foto indisponível' })).toBeInTheDocument();
+    expect(screen.getByText('Foto expirada')).toBeInTheDocument();
+    // The other photo, still loaded, is unaffected.
+    expect(screen.getByRole('img', { name: 'Foto depois do serviço 1' })).toBeInTheDocument();
+  });
+
+  it('shows the en placeholder when a booking photo fails to load', () => {
+    renderWithIntl(<BookingDetailMain booking={makeBooking()} />, { locale: 'en' });
+
+    // "Before-service photo {index}" (hyphenated), not "Before service photo {index}" — the
+    // en catalog defines beforePhotoAlt twice inside dashboard.bookingDetail (a pre-existing
+    // duplicate key), and this hyphenated one is the last-wins value actually rendered.
+    fireEvent.error(screen.getByRole('img', { name: 'Before-service photo 1' }));
+
+    expect(screen.getByRole('img', { name: 'Photo unavailable' })).toBeInTheDocument();
+    expect(screen.getByText('Photo expired')).toBeInTheDocument();
   });
 });

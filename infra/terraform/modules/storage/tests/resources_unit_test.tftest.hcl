@@ -103,6 +103,22 @@ run "booking_photo_deleted_at_retention_days" {
   }
 }
 
+run "booking_photo_deletion_honors_retention_override" {
+  command = plan
+
+  variables {
+    booking_photo_retention_days = 730
+  }
+
+  assert {
+    condition = anytrue([
+      for rule in google_storage_bucket.uploads.lifecycle_rule :
+      one(rule.action).type == "Delete" && one(rule.condition).age == 730 && one(rule.condition).matches_prefix == tolist(["tenants/"])
+    ])
+    error_message = "The tenants/-prefixed Delete rule must read its age from var.booking_photo_retention_days, not a hardcoded literal — this run overrides the default (365) to 730 and must see the rule follow it."
+  }
+}
+
 run "tmp_prefix_lifecycle_rule_deletes_at_two_days" {
   command = plan
 

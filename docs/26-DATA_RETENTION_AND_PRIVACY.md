@@ -14,9 +14,13 @@ Customer vehicle photos uploaded during booking (`beforeServicePhotoUrls`) or af
 |---|---|
 | 0–60 days | Standard storage, instant access |
 | 60 days | Transitions to Nearline storage class (still instant-access, just cheaper storage / pricier reads) |
-| **365 days** | **Permanently deleted** from cloud storage |
+| **365 days** | Deleted and made permanently inaccessible from the app |
+| 365–372 days | Recoverable only via GCS's bucket-wide soft-delete safety net (see below) |
+| **372 days** | Irreversibly purged |
 
 The 365-day value is `var.booking_photo_retention_days` (`infra/terraform/modules/storage`), confirmed at `/story-discovery` for M17-S45 (2026-08-14) — chosen to exceed any reasonable tenant dispute/warranty window, not as a cost-only decision.
+
+**Soft-delete window:** the uploads bucket keeps GCS's default soft-delete policy (7-day retention, not overridden — see `infra/terraform/modules/storage/main.tf`'s header comment), which applies to every deletion on the bucket, including this lifecycle rule's. A deleted photo is inaccessible to the app immediately at day 365, but the underlying object isn't irrecoverably gone until day 372 — a deliberate operational safety net against an accidental or malicious delete, not an exception carved out for booking photos specifically.
 
 After deletion, the booking record's photo-URL fields still contain the (now-dead) path — there is no cleanup job scrubbing the database, since the storage layer is the sole source of truth for whether a photo still exists. The dashboard and customer-facing booking views show a localized "Foto expirada" / "Photo expired" placeholder in place of a photo that fails to load, rather than a broken image.
 
