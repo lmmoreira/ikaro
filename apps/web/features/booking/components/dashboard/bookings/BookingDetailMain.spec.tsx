@@ -95,9 +95,6 @@ describe('BookingDetailMain', () => {
   it('shows the en placeholder when a booking photo fails to load', () => {
     renderWithIntl(<BookingDetailMain booking={makeBooking()} />, { locale: 'en' });
 
-    // "Before-service photo {index}" (hyphenated), not "Before service photo {index}" — the
-    // en catalog defines beforePhotoAlt twice inside dashboard.bookingDetail (a pre-existing
-    // duplicate key), and this hyphenated one is the last-wins value actually rendered.
     fireEvent.error(screen.getByRole('img', { name: 'Before-service photo 1' }));
 
     expect(screen.getByRole('img', { name: 'Photo unavailable' })).toBeInTheDocument();
