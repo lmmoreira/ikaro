@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Decimal } from 'decimal.js';
 import { z } from 'zod';
+import { fetchAndParseJson } from '../../../../shared/utils/fetch-and-parse-json';
 import {
   ChatCompletionRequest,
   ChatCompletionResult,
@@ -57,37 +58,25 @@ export class OpenRouterLlmAdapter implements ILlmProvider {
       { role: 'user', content: request.userMessage },
     ];
 
-    const response = await fetch(OPENROUTER_API_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
+    const body = await fetchAndParseJson(
+      OPENROUTER_API_URL,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: request.model ?? DEFAULT_OPENROUTER_MODEL,
+          reasoning: { effort: 'none' },
+          max_tokens: request.maxOutputTokens,
+          messages,
+        }),
+        signal: AbortSignal.timeout(OPENROUTER_TIMEOUT_MS),
       },
-      body: JSON.stringify({
-        model: request.model ?? DEFAULT_OPENROUTER_MODEL,
-        reasoning: { effort: 'none' },
-        max_tokens: request.maxOutputTokens,
-        messages,
-      }),
-      signal: AbortSignal.timeout(OPENROUTER_TIMEOUT_MS),
-    });
-
-    if (!response.ok) {
-      throw new Error(`OpenRouter request failed: ${response.status} ${await response.text()}`);
-    }
-
-    let responseBody: unknown;
-    try {
-      responseBody = await response.json();
-    } catch {
-      throw new Error('OpenRouter returned a malformed response: invalid JSON');
-    }
-
-    const parsed = openRouterResponseSchema.safeParse(responseBody);
-    if (!parsed.success) {
-      throw new Error(`OpenRouter returned a malformed response: ${parsed.error.message}`);
-    }
-    const body = parsed.data;
+      openRouterResponseSchema,
+      'OpenRouter',
+    );
 
     return {
       text: body.choices[0].message.content,

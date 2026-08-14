@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Decimal } from 'decimal.js';
 import { z } from 'zod';
+import { fetchAndParseJson } from '../../../../shared/utils/fetch-and-parse-json';
 
 const OPENROUTER_CREDITS_API_URL = 'https://openrouter.ai/api/v1/credits';
 const OPENROUTER_CREDITS_TIMEOUT_MS = 10000;
@@ -29,32 +30,19 @@ export class OpenRouterCreditsClient {
    * caller (ChatbotBalancePollJob) is responsible for catching this and treating it as the
    * documented "API failure" case (log a warning, leave the stored row unchanged). */
   async getRemainingBalanceUsd(): Promise<Decimal> {
-    const response = await fetch(OPENROUTER_CREDITS_API_URL, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${this.managementApiKey}`,
+    const body = await fetchAndParseJson(
+      OPENROUTER_CREDITS_API_URL,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${this.managementApiKey}`,
+        },
+        signal: AbortSignal.timeout(OPENROUTER_CREDITS_TIMEOUT_MS),
       },
-      signal: AbortSignal.timeout(OPENROUTER_CREDITS_TIMEOUT_MS),
-    });
+      openRouterCreditsResponseSchema,
+      'OpenRouter credits',
+    );
 
-    if (!response.ok) {
-      throw new Error(
-        `OpenRouter credits request failed: ${response.status} ${await response.text()}`,
-      );
-    }
-
-    let responseBody: unknown;
-    try {
-      responseBody = await response.json();
-    } catch {
-      throw new Error('OpenRouter credits returned a malformed response: invalid JSON');
-    }
-
-    const parsed = openRouterCreditsResponseSchema.safeParse(responseBody);
-    if (!parsed.success) {
-      throw new Error(`OpenRouter credits returned a malformed response: ${parsed.error.message}`);
-    }
-
-    return new Decimal(parsed.data.data.total_credits).minus(parsed.data.data.total_usage);
+    return new Decimal(body.data.total_credits).minus(body.data.total_usage);
   }
 }
