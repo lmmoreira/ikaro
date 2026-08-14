@@ -263,6 +263,10 @@ module "cloudrun_backend" {
     OPENROUTER_API_KEY = module.secrets.secret_ids["openrouter-api-key"]
     ANTHROPIC_API_KEY  = module.secrets.secret_ids["anthropic-api-key"]
     OPENAI_API_KEY     = module.secrets.secret_ids["openai-api-key"]
+    # M19-S08: distinct Management/Provisioning key, not OPENROUTER_API_KEY above — see
+    # SECRETS.md. Per TD39, the foundation SA accessor grant lands in a genuine follow-up PR
+    # (can't be in the same PR as this envs/* change). Same bootstrap_mode caveat as above.
+    OPENROUTER_MANAGEMENT_API_KEY = module.secrets.secret_ids["openrouter-management-api-key"]
   }
 }
 

@@ -33,6 +33,13 @@ locals {
     "openrouter-api-key",
     "anthropic-api-key",
     "openai-api-key",
+    # M19-S08: OpenRouter's GET /api/v1/credits requires a Management/Provisioning key, a
+    # distinct credential from openrouter-api-key above (which can't call this endpoint, and
+    # vice versa). Container only here — the backend SA's accessor grant (foundation/**) and
+    # cloudrun_backend's secret_env_vars wiring land in 2 follow-up PRs (TD39: a foundation IAM
+    # grant on a not-yet-existing secret 404s at plan time; wiring secret_env_vars before the
+    # accessor grant exists would fail the backend's Cloud Run deploy).
+    "openrouter-management-api-key",
   ]
 
   # cloudflare-api-token is prod-only (edge module, S22/S23 — DNS:Edit scope).

@@ -91,6 +91,12 @@
     ]
   },
   {
+    "event": "cron-chatbot-balance-poll",
+    "consumers": [
+      "chatbot-balance-poll"
+    ]
+  },
+  {
     "event": "cron-chatbot-retention-purge",
     "consumers": [
       "chatbot-retention-purge"

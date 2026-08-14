@@ -1,0 +1,20 @@
+# Platform — Cron Chatbot Balance Poll Trigger
+# M19-S08: publishes the cron-chatbot-balance-poll trigger, dispatched to
+# ChatbotBalancePollTriggerHandler. In production, Cloud Scheduler publishes the same trigger
+# directly to Pub/Sub every 15 minutes — this endpoint is the local/manual trigger path only,
+# protected by the global InternalApiGuard (X-Internal-Key), not PubSubPushGuard.
+# Response is { ok: true } once the trigger is published — it does not wait for the job to
+# finish. Requires the Pub/Sub emulator running (pnpm infra:up).
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run dev
+
+@baseUrl = {{backendUrl}}
+
+### POST /cron/chatbot-balance-poll — publish the OpenRouter balance-poll trigger
+POST {{baseUrl}}/cron/chatbot-balance-poll
+X-Internal-Key: {{internalKey}}
+
+###

@@ -2,8 +2,12 @@ import { ConfigService } from '@nestjs/config';
 import { ITracingPort } from '@ikaro/observability';
 import { DomainEvent } from '../../domain/domain-event';
 import { StubEvent as SharedStubEvent } from '../../../test/infrastructure/stub-envelope-classes';
+import { ChatbotBalancePollTriggerHandler } from '../../../contexts/platform/infrastructure/events/chatbot-balance-poll-trigger.handler';
 import { ChatbotRetentionPurgeTriggerHandler } from '../../../contexts/platform/infrastructure/events/chatbot-retention-purge-trigger.handler';
-import { CRON_CHATBOT_RETENTION_PURGE_TRIGGER } from '../../../contexts/platform/infrastructure/events/cron-trigger-names.constants';
+import {
+  CRON_CHATBOT_BALANCE_POLL_TRIGGER,
+  CRON_CHATBOT_RETENTION_PURGE_TRIGGER,
+} from '../../../contexts/platform/infrastructure/events/cron-trigger-names.constants';
 
 const mockAck = jest.fn();
 const mockNack = jest.fn();
@@ -291,6 +295,32 @@ describe('GcpPubSubEventBusAdapter', () => {
       expect(triggerSpy).toHaveBeenCalledTimes(1);
     });
 
+    // M19-S08: same rationale as the S07 case above — proves this specific trigger, not just
+    // an arbitrary one, is dispatched through the real adapter's span-wrapped path.
+    it('wraps the chatbot-balance-poll trigger handler call in a named span (M19-S08, pull mode)', async () => {
+      const tracingPort = new FakeTracingPort();
+      adapter = new GcpPubSubEventBusAdapter(makeConfigService(), tracingPort);
+      const triggerSpy = jest.fn().mockResolvedValue(undefined);
+      adapter.registerTrigger(
+        CRON_CHATBOT_BALANCE_POLL_TRIGGER,
+        triggerSpy,
+        ChatbotBalancePollTriggerHandler.CONSUMER_NAME,
+      );
+      await adapter.onApplicationBootstrap();
+
+      const messageHandler = mockSubOn.mock.calls.find(
+        (c: unknown[]) => c[0] === 'message',
+      )?.[1] as (msg: unknown) => void;
+
+      messageHandler({ ack: mockAck, nack: mockNack, deliveryAttempt: 1 });
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(tracingPort.startedSpans).toEqual([
+        `pubsub.trigger.${CRON_CHATBOT_BALANCE_POLL_TRIGGER}`,
+      ]);
+      expect(triggerSpy).toHaveBeenCalledTimes(1);
+    });
+
     it('nacks message when handler throws and attempt is below threshold', async () => {
       const throwingHandler = async (_e: DomainEvent): Promise<void> => {
         throw new Error('boom');
@@ -502,6 +532,32 @@ describe('GcpPubSubEventBusAdapter', () => {
 
         expect(tracingPort.startedSpans).toEqual([
           `pubsub.trigger.${CRON_CHATBOT_RETENTION_PURGE_TRIGGER}`,
+        ]);
+        expect(triggerSpy).toHaveBeenCalledTimes(1);
+      });
+
+      // M19-S08: same rationale as the S07 case above.
+      it('wraps the chatbot-balance-poll trigger handler call in a named span (M19-S08)', async () => {
+        const tracingPort = new FakeTracingPort();
+        adapter = new GcpPubSubEventBusAdapter(
+          makeConfigService({ PUBSUB_CONSUMER_MODE: 'push', PUBSUB_AUTO_CREATE: false }),
+          tracingPort,
+        );
+        const triggerSpy = jest.fn().mockResolvedValue(undefined);
+        adapter.registerTrigger(
+          CRON_CHATBOT_BALANCE_POLL_TRIGGER,
+          triggerSpy,
+          ChatbotBalancePollTriggerHandler.CONSUMER_NAME,
+        );
+        await adapter.onApplicationBootstrap();
+
+        await adapter.dispatchPushMessage(
+          `projects/ikaro-local/subscriptions/ikaro-${CRON_CHATBOT_BALANCE_POLL_TRIGGER}-${ChatbotBalancePollTriggerHandler.CONSUMER_NAME}`,
+          Buffer.from('{}').toString('base64'),
+        );
+
+        expect(tracingPort.startedSpans).toEqual([
+          `pubsub.trigger.${CRON_CHATBOT_BALANCE_POLL_TRIGGER}`,
         ]);
         expect(triggerSpy).toHaveBeenCalledTimes(1);
       });

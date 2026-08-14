@@ -56,6 +56,32 @@ Instantiation order for a fresh env follows the arrows left to right. `registry`
 
 **`modules/scheduler`'s 4 cron jobs are real in both envs (M17-S21) — staging is not a dry run.** Once staging's Cloud Scheduler jobs are active, `ikaro-cron-reminders` genuinely emails whichever test users have bookings in staging's database, on the same `*/30 * * * *` cadence as prod. This is accepted, not a bug to fix — there is no lower-cost way to exercise the full Scheduler → Pub/Sub → push → trigger-handler path pre-production. Keep staging's booking data limited to real test accounts you're fine receiving reminder/expiry emails.
 
+## New-resource PR-sequencing playbook (consult at story-discovery, before any code)
+
+Every "add a secret / topic / scheduler job / env var" story in this repo has hit the same class
+of surprise mid-implementation, rediscovered from scratch each time (M19-S02, M19-S07/TD39,
+M19-S08). This table is the fix: `/story-discovery` consults it for any story touching
+`infra/terraform/**`, and states the required PR count and sequence in the story's own plan-file
+text *before* implementation starts.
+
+**Two hard rules drive every row below, both CI-enforced:**
+1. **`foundation/**` and any other `infra/terraform/**` path can never change in the same PR** (`no-foundation-plus-other-infra-mix`, TD39; no escape hatch) — a Foundation IAM-member grant does a live read of its target's current IAM policy even at `plan` time, which 404s until the target exists live (created by a separate `envs/*` apply, a separate state).
+2. **`infra/terraform/**` and `apps/**`/`packages/**` should not change in the same PR either** (`no-infra-app-mix`, TD30) — but this one has a sanctioned escape hatch: add the `infra-app-mix-ok` label plus a PR-body note when the two are genuinely coupled (a new `registerTrigger()`/`subscribe()` call site and the Terraform that provisions its topic are inherently the same change). M19-S07/PR #365 and M19-S08/PR #370 are the precedent shape for that note.
+
+| Adding... | PRs | What's in each | Why |
+|---|---|---|---|
+| A new plain env var (no secret) | 1 | `env.validation.ts` schema entry + `env_vars` in `cloudrun_<app>`, both env roots, together | No IAM-member resource involved — no live-read constraint, no Foundation coupling |
+| A new Pub/Sub topic (domain event or cron trigger) + its app code | 2 | PR1 (`envs/*` + app, needs `infra-app-mix-ok`): the `registerTrigger()`/`subscribe()` call site, `pubsub-catalog.json` regenerated (`pnpm --filter @ikaro/infra-scripts run pubsub-catalog`), topic auto-provisions via `modules/pubsub`. If a cron trigger, the `google_cloud_scheduler_job` entry in `modules/scheduler`'s `locals.jobs` is mandatory in this same PR — `variables.tf`'s validation rejects any catalog `cron-*` topic with no matching job (M19-S07 finding: deferring it was never actually viable). PR2 (`foundation` only): publisher/subscriber/DLQ/scheduler-publisher IAM grants | Rule 1 — the topic must exist live before Foundation can grant IAM on it |
+| A new secret whose consumer degrades safely if unset (e.g. a background job that logs-and-skips on a failed call) | 3 | PR1 (`envs/*`): container only (`modules/secrets`'s `base_secret_ids`). **Do not** add the `env.validation.ts` schema entry yet — `ConfigService.get(key, fallback)` falls back to raw `process.env` for an undeclared key (verified against `@nestjs/config`'s source, M19-S08), so app code reads it safely with no schema entry. PR2 (`foundation` only): the accessor grant (`secret_accessors_base` in `runtime-identities` + both env roots' `secret_ids` map). PR3 (`envs/*`): the `env.validation.ts` schema entry **and** `secret_env_vars` wiring, together — `env-contract`'s CI check (`packages/infra-scripts/src/env-contract.ts`) requires every schema key to be Terraform-wired in both env roots unconditionally, so these two can't split further | Rule 1, plus a Cloud Run–specific hazard a plain topic doesn't have: Cloud Run resolves `secret_key_ref` at revision-creation time, so wiring it before the accessor grant exists fails that deploy outright, not just leaves a feature dark |
+| Same, but a temporary broken deploy is acceptable (e.g. pre-launch, no real traffic depends on that service's next deploy succeeding) | 2 | PR1 (`envs/*`): container + `secret_env_vars` wiring + schema entry, all together (satisfies `env-contract` immediately). PR2 (`foundation` only): the accessor grant. Between merging PR1 and merging+applying PR2, the next `envs/*` apply's Cloud Run revision creation for the affected service fails resolving `secret_key_ref` — the *previous* revision keeps serving 100% of traffic throughout, so this is a broken deploy-pipeline step, not a live outage | Same rule 1 constraint, deliberately not worked around — a real, accepted tradeoff, stated explicitly in the story/PR (M19-S08/PR #370 precedent), never a silent default |
+| A new IAM grant on an already-live resource (e.g. a new role for an existing SA) | 1 (`foundation` only) | The grant itself | Rule 1 only bites when the target is new in the same PR — an existing resource has nothing to 404 against |
+
+**At story-discovery time:** state the matched row, resulting PR count, and a one-line sequence
+summary in the story's own plan-file text (mirroring the "Devops half" / "Secret rollout"
+paragraphs in `plan/M19-HOTSITE-CHATBOT.md`'s S07/S08 entries) before implementation starts. If
+the secret-degrades-safely vs. accept-broken-deploy choice applies, ask the user which one up
+front — never default silently to either.
+
 ## Bootstrap prerequisites (M17-S08 — already done, manual, never Terraform)
 
 Terraform assumes these exist (recorded in the operator-local `docs/BOOTSTRAP_LOG.md`, gitignored):

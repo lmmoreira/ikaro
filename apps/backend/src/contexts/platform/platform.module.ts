@@ -25,6 +25,7 @@ import {
 } from './application/services/llm-provider-registry.service';
 import { HotsiteImagePathsService } from './domain/services/hotsite-image-paths.service';
 import { HotsiteImageUrlResolver } from './domain/services/hotsite-image-url-resolver.service';
+import { ChatbotBalancePollJob } from './application/jobs/chatbot-balance-poll.job';
 import { ChatbotRetentionPurgeJob } from './application/jobs/chatbot-retention-purge.job';
 import { DeleteHotsiteImageUseCase } from './application/use-cases/delete-hotsite-image.use-case';
 import { FeatureBookingPhotoUseCase } from './application/use-cases/feature-booking-photo.use-case';
@@ -53,11 +54,13 @@ import { FrontendRevalidationAdapter } from './infrastructure/adapters/frontend-
 import { PlatformTenantSettingsAdapter } from './infrastructure/cross-context/platform-tenant-settings.adapter';
 import { AnthropicLlmAdapter } from './infrastructure/llm/anthropic-llm.adapter';
 import { OpenAiLlmAdapter } from './infrastructure/llm/openai-llm.adapter';
+import { OpenRouterCreditsClient } from './infrastructure/llm/openrouter-credits.client';
 import { OpenRouterLlmAdapter } from './infrastructure/llm/openrouter-llm.adapter';
 import { HotsiteContentReader } from './application/services/hotsite-content-reader.service';
 import { HotsiteImagePromotionService } from './application/services/hotsite-image-promotion.service';
 import { ChatbotController } from './infrastructure/controllers/chatbot.controller';
 import { CronChatbotController } from './infrastructure/controllers/cron-chatbot.controller';
+import { ChatbotBalancePollTriggerHandler } from './infrastructure/events/chatbot-balance-poll-trigger.handler';
 import { ChatbotRetentionPurgeTriggerHandler } from './infrastructure/events/chatbot-retention-purge-trigger.handler';
 import { HotsiteAdminController } from './infrastructure/controllers/hotsite-admin.controller';
 import { HotsiteController } from './infrastructure/controllers/hotsite.controller';
@@ -136,6 +139,9 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     FeatureBookingPhotoUseCase,
     GenerateHotsiteImageReadSignedUrlUseCase,
     GenerateHotsiteImageSignedUrlUseCase,
+    ChatbotBalancePollJob,
+    ChatbotBalancePollTriggerHandler,
+    OpenRouterCreditsClient,
     ChatbotRetentionPurgeJob,
     ChatbotRetentionPurgeTriggerHandler,
     GetChatbotStatusUseCase,

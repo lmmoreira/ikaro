@@ -1,5 +1,8 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
-import { CRON_CHATBOT_RETENTION_PURGE_TRIGGER } from '../events/cron-trigger-names.constants';
+import {
+  CRON_CHATBOT_BALANCE_POLL_TRIGGER,
+  CRON_CHATBOT_RETENTION_PURGE_TRIGGER,
+} from '../events/cron-trigger-names.constants';
 import { CronChatbotController } from './cron-chatbot.controller';
 
 describe('CronChatbotController', () => {
@@ -20,6 +23,18 @@ describe('CronChatbotController', () => {
     it('publishes the cron-chatbot-retention-purge trigger', async () => {
       await controller.runRetentionPurge();
       expect(triggerBus.publishedTriggers).toEqual([CRON_CHATBOT_RETENTION_PURGE_TRIGGER]);
+    });
+  });
+
+  describe('POST /cron/chatbot-balance-poll', () => {
+    it('returns { ok: true }', async () => {
+      const result = await controller.runBalancePoll();
+      expect(result).toEqual({ ok: true });
+    });
+
+    it('publishes the cron-chatbot-balance-poll trigger', async () => {
+      await controller.runBalancePoll();
+      expect(triggerBus.publishedTriggers).toEqual([CRON_CHATBOT_BALANCE_POLL_TRIGGER]);
     });
   });
 });

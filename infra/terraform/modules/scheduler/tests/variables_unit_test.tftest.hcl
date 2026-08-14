@@ -13,6 +13,7 @@ variables {
     cron-loyalty-expiry-warning  = "projects/ikaro-test/topics/ikaro-cron-loyalty-expiry-warning"
     cron-outbox-relay            = "projects/ikaro-test/topics/ikaro-cron-outbox-relay"
     cron-chatbot-retention-purge = "projects/ikaro-test/topics/ikaro-cron-chatbot-retention-purge"
+    cron-chatbot-balance-poll    = "projects/ikaro-test/topics/ikaro-cron-chatbot-balance-poll"
   }
 }
 
@@ -51,6 +52,7 @@ run "rejects_cron_topic_ids_missing_a_required_key" {
       cron-loyalty-expiry          = "projects/ikaro-test/topics/ikaro-cron-loyalty-expiry"
       cron-loyalty-expiry-warning  = "projects/ikaro-test/topics/ikaro-cron-loyalty-expiry-warning"
       cron-chatbot-retention-purge = "projects/ikaro-test/topics/ikaro-cron-chatbot-retention-purge"
+      cron-chatbot-balance-poll    = "projects/ikaro-test/topics/ikaro-cron-chatbot-balance-poll"
       # cron-outbox-relay deliberately omitted
     }
   }
@@ -70,7 +72,8 @@ run "rejects_cron_topic_ids_with_an_orphan_cron_topic" {
       cron-loyalty-expiry-warning  = "projects/ikaro-test/topics/ikaro-cron-loyalty-expiry-warning"
       cron-outbox-relay            = "projects/ikaro-test/topics/ikaro-cron-outbox-relay"
       cron-chatbot-retention-purge = "projects/ikaro-test/topics/ikaro-cron-chatbot-retention-purge"
-      # A 6th cron-* topic from the pubsub catalog with no matching Scheduler
+      cron-chatbot-balance-poll    = "projects/ikaro-test/topics/ikaro-cron-chatbot-balance-poll"
+      # A 7th cron-* topic from the pubsub catalog with no matching Scheduler
       # job in locals.jobs — the exact drift this validation guards against.
       cron-something-new = "projects/ikaro-test/topics/ikaro-cron-something-new"
     }
@@ -81,7 +84,7 @@ run "rejects_cron_topic_ids_with_an_orphan_cron_topic" {
   ]
 }
 
-run "accepts_non_cron_topics_alongside_the_5_required_ones" {
+run "accepts_non_cron_topics_alongside_the_6_required_ones" {
   command = plan
 
   variables {
@@ -91,6 +94,7 @@ run "accepts_non_cron_topics_alongside_the_5_required_ones" {
       cron-loyalty-expiry-warning  = "projects/ikaro-test/topics/ikaro-cron-loyalty-expiry-warning"
       cron-outbox-relay            = "projects/ikaro-test/topics/ikaro-cron-outbox-relay"
       cron-chatbot-retention-purge = "projects/ikaro-test/topics/ikaro-cron-chatbot-retention-purge"
+      cron-chatbot-balance-poll    = "projects/ikaro-test/topics/ikaro-cron-chatbot-balance-poll"
       # module.pubsub.topic_ids is the FULL catalog — domain-event topics
       # (non "cron-" prefixed) must never trip the orphan-topic validation.
       BookingInfoSubmitted = "projects/ikaro-test/topics/ikaro-BookingInfoSubmitted"

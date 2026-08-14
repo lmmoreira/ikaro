@@ -16,15 +16,16 @@ variables {
     cron-loyalty-expiry-warning  = "projects/ikaro-test/topics/ikaro-cron-loyalty-expiry-warning"
     cron-outbox-relay            = "projects/ikaro-test/topics/ikaro-cron-outbox-relay"
     cron-chatbot-retention-purge = "projects/ikaro-test/topics/ikaro-cron-chatbot-retention-purge"
+    cron-chatbot-balance-poll    = "projects/ikaro-test/topics/ikaro-cron-chatbot-balance-poll"
   }
 }
 
-run "all_five_jobs_exist_with_correct_cadence_and_topic" {
+run "all_six_jobs_exist_with_correct_cadence_and_topic" {
   command = plan
 
   assert {
-    condition     = length(google_cloud_scheduler_job.cron) == 5
-    error_message = "Exactly 5 cron jobs must exist: reminders, loyalty-expiry, loyalty-expiry-warning, outbox-relay, chatbot-retention-purge."
+    condition     = length(google_cloud_scheduler_job.cron) == 6
+    error_message = "Exactly 6 cron jobs must exist: reminders, loyalty-expiry, loyalty-expiry-warning, outbox-relay, chatbot-retention-purge, chatbot-balance-poll."
   }
 
   assert {
@@ -65,6 +66,14 @@ run "all_five_jobs_exist_with_correct_cadence_and_topic" {
       google_cloud_scheduler_job.cron["ikaro-cron-chatbot-retention-purge"].pubsub_target[0].topic_name == var.cron_topic_ids["cron-chatbot-retention-purge"]
     )
     error_message = "ikaro-cron-chatbot-retention-purge must fire daily at 03:00 UTC against the cron-chatbot-retention-purge topic (UC-035, M19-S07)."
+  }
+
+  assert {
+    condition = (
+      google_cloud_scheduler_job.cron["ikaro-cron-chatbot-balance-poll"].schedule == "*/15 * * * *" &&
+      google_cloud_scheduler_job.cron["ikaro-cron-chatbot-balance-poll"].pubsub_target[0].topic_name == var.cron_topic_ids["cron-chatbot-balance-poll"]
+    )
+    error_message = "ikaro-cron-chatbot-balance-poll must fire every 15 minutes against the cron-chatbot-balance-poll topic (UC-036, M19-S08)."
   }
 
   assert {
