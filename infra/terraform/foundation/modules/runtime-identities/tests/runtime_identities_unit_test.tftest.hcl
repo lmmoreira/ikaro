@@ -6,19 +6,20 @@ variables {
   public_bucket_name  = "ikaro-public-staging"
   uploads_bucket_name = "ikaro-uploads-staging"
   secret_ids = {
-    "brevo-smtp-key"             = "projects/ikaro-staging/secrets/brevo-smtp-key"
-    "db-migrator-password"       = "projects/ikaro-staging/secrets/db-migrator-password"
-    "db-password"                = "projects/ikaro-staging/secrets/db-password"
-    "google-oauth-client-id"     = "projects/ikaro-staging/secrets/google-oauth-client-id"
-    "google-oauth-client-secret" = "projects/ikaro-staging/secrets/google-oauth-client-secret"
-    "hotsite-revalidate-secret"  = "projects/ikaro-staging/secrets/hotsite-revalidate-secret"
-    "internal-api-key"           = "projects/ikaro-staging/secrets/internal-api-key"
-    "jwt-secret"                 = "projects/ikaro-staging/secrets/jwt-secret"
-    "platform-admin-key"         = "projects/ikaro-staging/secrets/platform-admin-key"
-    "web-internal-key"           = "projects/ikaro-staging/secrets/web-internal-key"
-    "openrouter-api-key"         = "projects/ikaro-staging/secrets/openrouter-api-key"
-    "anthropic-api-key"          = "projects/ikaro-staging/secrets/anthropic-api-key"
-    "openai-api-key"             = "projects/ikaro-staging/secrets/openai-api-key"
+    "brevo-smtp-key"                = "projects/ikaro-staging/secrets/brevo-smtp-key"
+    "db-migrator-password"          = "projects/ikaro-staging/secrets/db-migrator-password"
+    "db-password"                   = "projects/ikaro-staging/secrets/db-password"
+    "google-oauth-client-id"        = "projects/ikaro-staging/secrets/google-oauth-client-id"
+    "google-oauth-client-secret"    = "projects/ikaro-staging/secrets/google-oauth-client-secret"
+    "hotsite-revalidate-secret"     = "projects/ikaro-staging/secrets/hotsite-revalidate-secret"
+    "internal-api-key"              = "projects/ikaro-staging/secrets/internal-api-key"
+    "jwt-secret"                    = "projects/ikaro-staging/secrets/jwt-secret"
+    "platform-admin-key"            = "projects/ikaro-staging/secrets/platform-admin-key"
+    "web-internal-key"              = "projects/ikaro-staging/secrets/web-internal-key"
+    "openrouter-api-key"            = "projects/ikaro-staging/secrets/openrouter-api-key"
+    "anthropic-api-key"             = "projects/ikaro-staging/secrets/anthropic-api-key"
+    "openai-api-key"                = "projects/ikaro-staging/secrets/openai-api-key"
+    "openrouter-management-api-key" = "projects/ikaro-staging/secrets/openrouter-management-api-key"
   }
 }
 
@@ -32,7 +33,7 @@ run "runtime_identities_are_least_privilege_and_complete" {
 
   assert {
     condition = length(google_project_iam_member.runtime) == 6 && length(google_storage_bucket_iam_member.backend_object_admin) == 2 && sort(keys(google_secret_manager_secret_iam_member.accessor)) == sort([
-      "backend-db-password", "backend-jwt-secret", "backend-internal-api-key", "backend-platform-admin-key", "backend-hotsite-revalidate-secret", "backend-brevo-smtp-key", "backend-openrouter-api-key", "backend-anthropic-api-key", "backend-openai-api-key",
+      "backend-db-password", "backend-jwt-secret", "backend-internal-api-key", "backend-platform-admin-key", "backend-hotsite-revalidate-secret", "backend-brevo-smtp-key", "backend-openrouter-api-key", "backend-anthropic-api-key", "backend-openai-api-key", "backend-openrouter-management-api-key",
       "bff-jwt-secret", "bff-internal-api-key", "bff-google-oauth-client-id", "bff-google-oauth-client-secret", "bff-web-internal-key",
       "web-jwt-secret", "web-hotsite-revalidate-secret", "web-web-internal-key",
       "migrate-db-migrator-password",

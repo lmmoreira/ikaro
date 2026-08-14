@@ -31,7 +31,7 @@ module "runtime_identities" {
   uploads_bucket_name = "ikaro-uploads-${var.environment}"
   public_bucket_name  = "ikaro-public-${var.environment}"
   secret_ids = {
-    for name in ["db-password", "db-migrator-password", "jwt-secret", "internal-api-key", "platform-admin-key", "hotsite-revalidate-secret", "google-oauth-client-id", "google-oauth-client-secret", "brevo-smtp-key", "cloudflare-api-token", "web-internal-key", "openrouter-api-key", "anthropic-api-key", "openai-api-key"] : name => "projects/${var.project_id}/secrets/${name}"
+    for name in ["db-password", "db-migrator-password", "jwt-secret", "internal-api-key", "platform-admin-key", "hotsite-revalidate-secret", "google-oauth-client-id", "google-oauth-client-secret", "brevo-smtp-key", "cloudflare-api-token", "web-internal-key", "openrouter-api-key", "anthropic-api-key", "openai-api-key", "openrouter-management-api-key"] : name => "projects/${var.project_id}/secrets/${name}"
   }
 }
 
@@ -75,26 +75,6 @@ module "static_resource_iam" {
 
   artifact_registry_members  = local.static_resource_artifact_registry_members
   audit_log_types_by_service = local.static_resource_audit_log_types_by_service
-}
-
-locals {
-  runtime_project_roles = {
-    backend_cloudsql_client          = { role = "roles/cloudsql.client", principal = "backend" }
-    migrate_cloudsql_client          = { role = "roles/cloudsql.client", principal = "migrate" }
-    backend_cloudtrace_agent         = { role = "roles/cloudtrace.agent", principal = "backend" }
-    backend_monitoring_metric_writer = { role = "roles/monitoring.metricWriter", principal = "backend" }
-    bff_cloudtrace_agent             = { role = "roles/cloudtrace.agent", principal = "bff" }
-    bff_monitoring_metric_writer     = { role = "roles/monitoring.metricWriter", principal = "bff" }
-  }
-
-  runtime_secret_accessors = {
-    backend = ["db-password", "jwt-secret", "internal-api-key", "platform-admin-key", "hotsite-revalidate-secret", "brevo-smtp-key", "cloudflare-api-token"]
-    bff     = ["jwt-secret", "internal-api-key", "google-oauth-client-id", "google-oauth-client-secret"]
-    web     = ["jwt-secret", "hotsite-revalidate-secret"]
-    migrate = ["db-migrator-password"]
-  }
-
-  runtime_secret_bindings = merge([for principal, secrets in local.runtime_secret_accessors : { for secret in secrets : "${principal}-${secret}" => { principal = principal, secret = secret } }]...)
 }
 
 # TD34: ordinary resource modules continue to own services, topics,
@@ -158,7 +138,7 @@ locals {
       member = "serviceAccount:ikaro-backend@${var.project_id}.iam.gserviceaccount.com"
     }
     }, {
-    for event in ["cron-reminders", "cron-loyalty-expiry", "cron-loyalty-expiry-warning", "cron-outbox-relay", "cron-chatbot-retention-purge"] : "scheduler_publisher_${event}" => {
+    for event in ["cron-reminders", "cron-loyalty-expiry", "cron-loyalty-expiry-warning", "cron-outbox-relay", "cron-chatbot-retention-purge", "cron-chatbot-balance-poll"] : "scheduler_publisher_${event}" => {
       topic  = "ikaro-${event}"
       role   = "roles/pubsub.publisher"
       member = "serviceAccount:${local.workload_scheduler_service_agent}"
