@@ -5,6 +5,7 @@ import { Calendar, Clock, MessageSquare } from 'lucide-react';
 import type { CustomerBookingDetailResponse } from '@ikaro/types';
 import { BOOKING_STATUS } from '@ikaro/types';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
+import { PhotoTile } from '@/features/booking/components/PhotoTile';
 
 interface BookingDetailMainProps {
   readonly booking: CustomerBookingDetailResponse;
@@ -170,11 +171,12 @@ export function BookingDetailMain({ booking }: BookingDetailMainProps): React.JS
           <SectionLabel>{t('beforePhotosTitle')}</SectionLabel>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {booking.beforeServicePhotoUrls.map((url, index) => (
-              <img
+              <PhotoTile
                 key={`${url}-${index}`}
-                src={url}
+                url={url}
                 alt={t('beforePhotoAlt', { index: index + 1 })}
-                loading="lazy"
+                unavailableLabel={t('photoUnavailableLabel')}
+                unavailableAlt={t('photoUnavailableAlt')}
                 className="aspect-square w-full rounded-lg border border-gray-100 bg-blue-50 object-cover"
               />
             ))}
@@ -187,11 +189,12 @@ export function BookingDetailMain({ booking }: BookingDetailMainProps): React.JS
           <SectionLabel>{t('afterPhotosTitle')}</SectionLabel>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {booking.afterServicePhotoUrls.map((url, index) => (
-              <img
+              <PhotoTile
                 key={`${url}-${index}`}
-                src={url}
+                url={url}
                 alt={t('afterPhotoAlt', { index: index + 1 })}
-                loading="lazy"
+                unavailableLabel={t('photoUnavailableLabel')}
+                unavailableAlt={t('photoUnavailableAlt')}
                 className="aspect-square w-full rounded-lg border border-gray-100 bg-blue-50 object-cover"
               />
             ))}

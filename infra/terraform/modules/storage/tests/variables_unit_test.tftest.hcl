@@ -42,3 +42,36 @@ run "rejects_empty_cors_origins" {
     var.cors_origins,
   ]
 }
+
+run "defaults_booking_photo_retention_to_365_days" {
+  command = plan
+
+  assert {
+    condition     = var.booking_photo_retention_days == 365
+    error_message = "booking_photo_retention_days must default to 365 (M17-S45 discovery decision)."
+  }
+}
+
+run "rejects_retention_below_nearline_tiering_age" {
+  command = plan
+
+  variables {
+    booking_photo_retention_days = 60
+  }
+
+  expect_failures = [
+    var.booking_photo_retention_days,
+  ]
+}
+
+run "rejects_fractional_retention_days" {
+  command = plan
+
+  variables {
+    booking_photo_retention_days = 365.5
+  }
+
+  expect_failures = [
+    var.booking_photo_retention_days,
+  ]
+}

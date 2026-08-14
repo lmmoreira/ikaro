@@ -56,6 +56,38 @@ resource "google_storage_bucket" "uploads" {
       matches_prefix = ["tmp/"]
     }
   }
+
+  # Promoted booking photos (tenants/-prefixed): a viewer opening a
+  # months-old booking still needs the photo to load, so tier to Nearline
+  # (instant-access, cheaper storage / pricier reads) rather than deleting
+  # early. matches_prefix scopes this to tenants/ only, so no future
+  # non-photo object class under this bucket is caught by accident.
+  lifecycle_rule {
+    action {
+      type          = "SetStorageClass"
+      storage_class = "NEARLINE"
+    }
+    condition {
+      age            = 60
+      matches_prefix = ["tenants/"]
+    }
+  }
+
+  # Retention decision, not a cost-only knob (M17-S45, confirmed 365 at
+  # /story-discovery 2026-08-14) — customer vehicle photos are personal
+  # data (LGPD) and must not be kept indefinitely. Deletion leaves the DB's
+  # photo-URL reference dangling by design: the storage layer is the source
+  # of truth for existence, and the app degrades gracefully on a missing
+  # object (apps/web PhotoTile component) rather than needing a cleanup job.
+  lifecycle_rule {
+    action {
+      type = "Delete"
+    }
+    condition {
+      age            = var.booking_photo_retention_days
+      matches_prefix = ["tenants/"]
+    }
+  }
 }
 
 resource "google_storage_bucket" "public" {
@@ -83,5 +115,10 @@ resource "google_storage_bucket" "public" {
 
   # Deliberately NO age-based lifecycle rule: hotsite/marketing assets are
   # permanent by design (M17-S45 decision, 2026-07-07) — tenant-owned
-  # content, not a cost-trim candidate.
+  # marketing content, not a cost-trim candidate. This is intentional, not
+  # an oversight — do NOT "optimize" this by adding one. Unlike the uploads
+  # bucket's tenants/-prefixed booking-photo retention rule above, a
+  # featured gallery image here is a permanent editorial copy
+  # (feature-booking-photo.use-case.ts), decoupled from the source booking's
+  # own lifecycle — nothing in this bucket should ever expire.
 }

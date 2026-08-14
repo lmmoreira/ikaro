@@ -10,6 +10,12 @@ variable "bff_max_instances" {
   default     = 20
 }
 
+variable "booking_photo_retention_days" {
+  description = "Age (days) at which promoted booking photos are deleted from the uploads bucket — passed through to modules/storage. Business + LGPD retention decision (M17-S45, confirmed 365 at /story-discovery 2026-08-14), not a cost-only knob."
+  type        = number
+  default     = 365
+}
+
 variable "brevo_smtp_login" {
   description = "Brevo SMTP account login (non-secret per the S16 catalog — only BREVO_SMTP_KEY is a Secret Manager secret). Value never committed: gitignored local.auto.tfvars locally, a GitHub environment variable in the pipeline (S24, same treatment as iam_admin_user)."
   type        = string

@@ -42,3 +42,8 @@ bff_max_instances     = 20
 # Real *.run.app URL discovered the same way as web's own (see web_real_uri's
 # description in variables.tf) — used for BFF's ALLOWED_ORIGINS/FRONTEND_URL (TD38).
 web_real_uri = "https://ikaro-web-crle4i3nrq-rj.a.run.app"
+
+# Booking-photo retention (M17-S45) — same value as prod; business + LGPD
+# decision, deliberately explicit here rather than left to the module
+# default so it's visible to reviewers per env, not silently baked into code.
+booking_photo_retention_days = 365

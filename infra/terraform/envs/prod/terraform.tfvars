@@ -52,3 +52,8 @@ bff_max_instances     = 20
 # Cloudflare zone ID for ikaro.online (S09 zone, non-secret resource
 # identifier — same treatment as project_number).
 cloudflare_zone_id = "7410cf58ba867f364e641cf9ea873078"
+
+# Booking-photo retention (M17-S45) — business + LGPD decision, deliberately
+# explicit here rather than left to the module default so it's visible to
+# reviewers per env, not silently baked into code.
+booking_photo_retention_days = 365

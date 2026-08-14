@@ -1,7 +1,8 @@
 # Guards the bucket-naming convention, the public_access_prevention asymmetry
 # between the two buckets, CORS config, and the tmp/-prefixed +
 # incomplete-multipart lifecycle rules this module's acceptance criteria
-# depend on (M17-S14).
+# depend on (M17-S14), plus the tenants/-prefixed booking-photo Nearline
+# tiering + retention-delete lifecycle rules (M17-S45).
 
 mock_provider "google" {}
 
@@ -63,17 +64,58 @@ run "cors_configured_per_bucket" {
   }
 }
 
-run "uploads_bucket_has_two_lifecycle_rules_public_has_none" {
+run "uploads_bucket_has_four_lifecycle_rules_public_has_none" {
   command = plan
 
   assert {
-    condition     = length(google_storage_bucket.uploads.lifecycle_rule) == 2
-    error_message = "Uploads bucket must carry exactly two lifecycle rules: incomplete-multipart cleanup + tmp/ staging cleanup."
+    condition     = length(google_storage_bucket.uploads.lifecycle_rule) == 4
+    error_message = "Uploads bucket must carry exactly four lifecycle rules: incomplete-multipart cleanup + tmp/ staging cleanup + booking-photo Nearline tiering + booking-photo retention delete."
   }
 
   assert {
     condition     = length(google_storage_bucket.public.lifecycle_rule) == 0
     error_message = "Public bucket must carry no age-based lifecycle rules — hotsite assets are permanent (M17-S45 decision)."
+  }
+}
+
+run "booking_photo_tiers_to_nearline_at_sixty_days" {
+  command = plan
+
+  assert {
+    condition = anytrue([
+      for rule in google_storage_bucket.uploads.lifecycle_rule :
+      one(rule.action).type == "SetStorageClass" && one(rule.action).storage_class == "NEARLINE" &&
+      one(rule.condition).age == 60 && one(rule.condition).matches_prefix == tolist(["tenants/"])
+    ])
+    error_message = "Uploads bucket must tier tenants/-prefixed (promoted booking photo) objects to Nearline at age 60 days (M17-S45)."
+  }
+}
+
+run "booking_photo_deleted_at_retention_days" {
+  command = plan
+
+  assert {
+    condition = anytrue([
+      for rule in google_storage_bucket.uploads.lifecycle_rule :
+      one(rule.action).type == "Delete" && one(rule.condition).age == 365 && one(rule.condition).matches_prefix == tolist(["tenants/"])
+    ])
+    error_message = "Uploads bucket must delete tenants/-prefixed (promoted booking photo) objects at age var.booking_photo_retention_days (default 365, M17-S45)."
+  }
+}
+
+run "booking_photo_deletion_honors_retention_override" {
+  command = plan
+
+  variables {
+    booking_photo_retention_days = 730
+  }
+
+  assert {
+    condition = anytrue([
+      for rule in google_storage_bucket.uploads.lifecycle_rule :
+      one(rule.action).type == "Delete" && one(rule.condition).age == 730 && one(rule.condition).matches_prefix == tolist(["tenants/"])
+    ])
+    error_message = "The tenants/-prefixed Delete rule must read its age from var.booking_photo_retention_days, not a hardcoded literal — this run overrides the default (365) to 730 and must see the rule follow it."
   }
 }
 

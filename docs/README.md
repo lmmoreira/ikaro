@@ -88,6 +88,9 @@ These documents define the implementation, testing, and deployment strategies:
 #### **25-ERROR_CATALOG.md**
 - **What:** All RFC 9457 Problem Details error responses, organised by category.
 
+#### **26-DATA_RETENTION_AND_PRIVACY.md**
+- **What:** Tenant-facing data retention reference — booking photo retention window, hotsite/public asset permanence, LGPD context. Extended by M17-S51.
+
 ---
 
 ## 🎯 How to Use This Documentation

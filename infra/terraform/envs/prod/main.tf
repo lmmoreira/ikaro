@@ -107,7 +107,8 @@ module "storage" {
   region      = var.region
   labels      = var.labels
 
-  cors_origins = var.cors_origins
+  cors_origins                 = var.cors_origins
+  booking_photo_retention_days = var.booking_photo_retention_days
 }
 
 # Unconditional, same reasoning as storage. No values, no IAM here —

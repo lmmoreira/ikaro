@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { CustomerBookingDetailResponse } from '@ikaro/types';
 import { BookingDetailMain } from './BookingDetailMain';
@@ -25,6 +25,8 @@ vi.mock('next-intl', () => ({
       beforePhotoAlt: 'Foto {index} antes do serviço',
       afterPhotosTitle: 'Fotos após o serviço',
       afterPhotoAlt: 'Foto {index} após o serviço',
+      photoUnavailableLabel: 'Foto expirada',
+      photoUnavailableAlt: 'Foto indisponível',
     };
     let value = translations[key] ?? key;
     if (params) {
@@ -189,5 +191,19 @@ describe('BookingDetailMain', () => {
     render(<BookingDetailMain booking={makeBooking({ infoResponseMessage: 'Seguem as fotos' })} />);
     expect(screen.getByText('Sua resposta')).toBeInTheDocument();
     expect(screen.getByText('Seguem as fotos')).toBeInTheDocument();
+  });
+
+  it('shows the localized placeholder when a booking photo fails to load', () => {
+    render(
+      <BookingDetailMain
+        booking={makeBooking({ beforeServicePhotoUrls: ['https://example.com/before.jpg'] })}
+      />,
+    );
+
+    fireEvent.error(screen.getByRole('img', { name: 'Foto 1 antes do serviço' }));
+
+    expect(screen.queryByRole('img', { name: 'Foto 1 antes do serviço' })).not.toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Foto indisponível' })).toBeInTheDocument();
+    expect(screen.getByText('Foto expirada')).toBeInTheDocument();
   });
 });
