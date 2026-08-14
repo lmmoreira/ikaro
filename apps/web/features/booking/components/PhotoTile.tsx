@@ -12,14 +12,7 @@ interface PhotoTileProps {
   readonly className: string;
 }
 
-/**
- * Renders a booking photo, falling back to a same-footprint placeholder on
- * load failure. Booking photos are deleted from storage after the
- * retention window (M17-S45) while the DB reference dangles by design — the
- * signed URL is generated blind (no backend existence check) and the actual
- * GET goes straight browser-to-GCS, so a missing object surfaces here as a
- * plain image `onError`, never as a backend error.
- */
+// Deleted booking photos leave a dangling DB reference by design (M17-S45) — the GET goes straight browser-to-GCS, so a missing object only ever surfaces as onError, never a backend error.
 export function PhotoTile({
   url,
   alt,
