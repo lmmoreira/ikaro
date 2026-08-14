@@ -8,6 +8,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/shared/components/ui/card';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
+import { PhotoTile } from '../../PhotoTile';
 import { BookingClientCard } from './BookingClientCard';
 import { BookingOutcomeActionRail } from './BookingOutcomeActionRail';
 
@@ -291,11 +292,12 @@ export function BookingDetailMain({ booking }: BookingDetailMainProps): React.JS
                 <p className="mb-2 text-sm font-semibold text-gray-900">{t('beforePhotosLabel')}</p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {booking.beforeServicePhotoUrls.map((url, index) => (
-                    <img
+                    <PhotoTile
                       key={`${url}-${index}`}
-                      src={url}
+                      url={url}
                       alt={t('beforePhotoAlt', { index: index + 1 })}
-                      loading="lazy"
+                      unavailableLabel={t('photoUnavailableLabel')}
+                      unavailableAlt={t('photoUnavailableAlt')}
                       className="aspect-square w-full rounded-lg border border-gray-200 object-cover"
                     />
                   ))}
@@ -308,11 +310,12 @@ export function BookingDetailMain({ booking }: BookingDetailMainProps): React.JS
                 <p className="mb-2 text-sm font-semibold text-gray-900">{t('afterPhotosLabel')}</p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {booking.afterServicePhotoUrls.map((url, index) => (
-                    <img
+                    <PhotoTile
                       key={`${url}-${index}`}
-                      src={url}
+                      url={url}
                       alt={t('afterPhotoAlt', { index: index + 1 })}
-                      loading="lazy"
+                      unavailableLabel={t('photoUnavailableLabel')}
+                      unavailableAlt={t('photoUnavailableAlt')}
                       className="aspect-square w-full rounded-lg border border-gray-200 object-cover"
                     />
                   ))}
