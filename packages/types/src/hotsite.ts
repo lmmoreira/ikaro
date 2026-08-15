@@ -305,3 +305,14 @@ export interface HotsiteSitemapEntryResponse {
 export interface HotsiteSitemapEntryListResponse {
   items: HotsiteSitemapEntryResponse[];
 }
+
+// ─── Chatbot widget (Public — UC-033, UC-034, M19-S09) ─────────────────────────
+
+export interface HotsiteChatbotStatusResponse {
+  available: boolean;
+}
+
+export interface HotsiteChatbotMessageResponse {
+  sessionId: string;
+  reply: string;
+}

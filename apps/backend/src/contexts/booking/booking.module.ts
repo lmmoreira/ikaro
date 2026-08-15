@@ -66,8 +66,10 @@ import { TypeOrmBookingAvailabilityAdapter } from './infrastructure/cross-contex
 import { TypeOrmBookingRepository } from './infrastructure/repositories/typeorm-booking.repository';
 import { TypeOrmScheduleClosureRepository } from './infrastructure/repositories/typeorm-schedule-closure.repository';
 import { TypeOrmScheduleOpeningRepository } from './infrastructure/repositories/typeorm-schedule-opening.repository';
+import { CachingServiceRepository } from './infrastructure/repositories/caching-service.repository';
 import { TypeOrmServiceRepository } from './infrastructure/repositories/typeorm-service.repository';
 import { AvailabilityService } from './domain/services/availability.service';
+import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cache.module';
 
 @Module({
   imports: [
@@ -84,6 +86,7 @@ import { AvailabilityService } from './domain/services/availability.service';
     StorageModule,
     CustomerModule,
     PlatformSettingsModule,
+    SharedCacheModule,
   ],
   controllers: [
     BookingAttachmentsController,
@@ -96,7 +99,8 @@ import { AvailabilityService } from './domain/services/availability.service';
     CronBookingController,
   ],
   providers: [
-    { provide: SERVICE_REPOSITORY, useClass: TypeOrmServiceRepository },
+    TypeOrmServiceRepository,
+    { provide: SERVICE_REPOSITORY, useClass: CachingServiceRepository },
     { provide: SCHEDULE_CLOSURE_REPOSITORY, useClass: TypeOrmScheduleClosureRepository },
     { provide: SCHEDULE_OPENING_REPOSITORY, useClass: TypeOrmScheduleOpeningRepository },
     { provide: BOOKING_PLATFORM_PORT, useClass: BookingPlatformAdapter },

@@ -34,3 +34,77 @@ GET {{bffUrl}}/v1/public/platform/manifest/unpublished-hotsite-tenant
 
 ### List active tenants with a published hotsite — { items: [{ slug, updatedAt }] }
 GET {{bffUrl}}/v1/public/platform/published-hotsites
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Chatbot widget (M19-S09 — UC-033, UC-034)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Chatbot availability status — { available: boolean } — never cached
+GET {{bffUrl}}/v1/public/platform/chatbot/status
+X-Tenant-Slug: {{tenantSlug}}
+
+###
+
+### Send a chatbot message (first message of a conversation — no sessionId)
+POST {{bffUrl}}/v1/public/platform/chatbot/messages
+Content-Type: application/json
+X-Tenant-Slug: {{tenantSlug}}
+
+{
+  "message": "Vocês abrem aos sábados?"
+}
+
+###
+
+### Send a chatbot message (existing conversation — sessionId from a prior reply)
+POST {{bffUrl}}/v1/public/platform/chatbot/messages
+Content-Type: application/json
+X-Tenant-Slug: {{tenantSlug}}
+
+{
+  "sessionId": "00000000-0000-7000-8000-000000000000",
+  "message": "E qual o preço da lavagem completa?"
+}
+
+###
+
+### 400 — Missing X-Tenant-Slug on chatbot status
+GET {{bffUrl}}/v1/public/platform/chatbot/status
+
+###
+
+### 400 — Missing X-Tenant-Slug on chatbot messages
+POST {{bffUrl}}/v1/public/platform/chatbot/messages
+Content-Type: application/json
+
+{
+  "message": "Oi"
+}
+
+###
+
+### 400 — Empty message
+POST {{bffUrl}}/v1/public/platform/chatbot/messages
+Content-Type: application/json
+X-Tenant-Slug: {{tenantSlug}}
+
+{
+  "message": ""
+}
+
+###
+
+### 404 — Unknown tenant slug on chatbot status
+GET {{bffUrl}}/v1/public/platform/chatbot/status
+X-Tenant-Slug: no-such-tenant-slug
+
+###
+
+### 404 — Unknown tenant slug on chatbot messages
+POST {{bffUrl}}/v1/public/platform/chatbot/messages
+Content-Type: application/json
+X-Tenant-Slug: no-such-tenant-slug
+
+{
+  "message": "Oi"
+}
