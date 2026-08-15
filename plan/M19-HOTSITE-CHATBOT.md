@@ -346,7 +346,7 @@ Real key value populated out-of-band via `gcloud secrets versions add`, same as 
 
 ---
 
-### M19-S09 — Chatbot public BFF endpoints + context/mapper
+### M19-S09 — Chatbot public BFF endpoints + context/mapper ✅ Done
 
 **Agent:** `bff-ts`
 **Complexity:** M
