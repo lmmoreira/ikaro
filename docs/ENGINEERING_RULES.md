@@ -566,6 +566,9 @@ Prefer InMemory classes over `jest.fn()` for any port or repository:
 - `InMemoryTransactionManager` — transaction manager
 - `InMemoryXxxRepository` — per-context repos
 - `InMemoryXxxPort` — cross-context ports (in `src/test/infrastructure/`)
+- `InMemoryCachePort` — `CachePort` (get/set/del + configurable failure injection for error-path tests)
+
+**A same-directory precedent file can itself predate this rule and be non-compliant — check this section before pattern-matching off a neighboring `*.spec.ts`.** (PR #373 review, Codex, 2026-08-15: `caching-service.repository.spec.ts` was written using raw `jest.fn()` mocks, copying `caching-tenant.repository.spec.ts`'s style exactly — but that file predates `InMemoryCachePort`'s existence and violates this same documented rule. Both were rewritten to use `InMemoryCachePort` in the same PR.)
 
 ### Integration test DB isolation
 
