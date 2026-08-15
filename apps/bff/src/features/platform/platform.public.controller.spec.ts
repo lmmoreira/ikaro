@@ -312,13 +312,13 @@ describe('PlatformPublicController', () => {
 
       await controller.sendChatbotMessage(
         'lavacar-bh',
-        { sessionId: 'existing-session-uuid', message: 'E aí, tudo aberto hoje?' },
+        { sessionId: '018f8b00-0000-7000-8000-000000000000', message: 'E aí, tudo aberto hoje?' },
         mockReq,
       );
 
       expect(backendHttp.postForPublic).toHaveBeenCalledWith(
         '/platform/chatbot/messages',
-        expect.objectContaining({ sessionId: 'existing-session-uuid' }),
+        expect.objectContaining({ sessionId: '018f8b00-0000-7000-8000-000000000000' }),
         'tenant-uuid',
       );
     });

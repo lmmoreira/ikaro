@@ -62,7 +62,7 @@ Content-Type: application/json
 X-Tenant-Slug: {{tenantSlug}}
 
 {
-  "sessionId": "00000000-0000-4000-8000-000000000000",
+  "sessionId": "00000000-0000-7000-8000-000000000000",
   "message": "E qual o preço da lavagem completa?"
 }
 
