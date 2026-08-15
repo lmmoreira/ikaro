@@ -1,9 +1,10 @@
 import { DomainEvent } from '../../../../shared/domain/domain-event';
+import { DEAD_LETTER_CHANNEL_NAME } from '../../../../shared/infrastructure/event-bus/dead-letter-channel.constant';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { DeadLetterHandler } from './dead-letter.handler';
 
 class StubDeadLetterEvent extends DomainEvent<Record<string, never>> {
-  readonly eventName = 'dead-letter';
+  readonly eventName = DEAD_LETTER_CHANNEL_NAME;
   readonly eventVersion = 1;
   readonly data: Record<string, never> = {};
   readonly deliveryAttempt?: number;
@@ -45,7 +46,11 @@ describe('DeadLetterHandler', () => {
     it('subscribes to dead-letter event with consumer name monitor', () => {
       const subscribeSpy = jest.spyOn(eventBus, 'subscribe');
       handler.onModuleInit();
-      expect(subscribeSpy).toHaveBeenCalledWith('dead-letter', expect.any(Function), 'monitor');
+      expect(subscribeSpy).toHaveBeenCalledWith(
+        DEAD_LETTER_CHANNEL_NAME,
+        expect.any(Function),
+        'monitor',
+      );
     });
   });
 
@@ -63,7 +68,7 @@ describe('DeadLetterHandler', () => {
         undefined,
         expect.objectContaining({
           eventId: event.eventId,
-          eventName: 'dead-letter',
+          eventName: DEAD_LETTER_CHANNEL_NAME,
           tenantId: 'tenant-123',
           deliveryAttempt: 5,
           deadLetterReason: 'handler crashed',

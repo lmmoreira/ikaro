@@ -201,11 +201,13 @@ Bundles the smaller, cheap-to-add rules using the exact mechanism you already us
 |---|---|---|
 | Ban `RequestContext` import in application layer | ENGINEERING_RULES §RequestContext | `contexts/**/application/**/*.ts` |
 | Ban `z.string().uuid()`/`.email()` chained forms | #51 | repo-wide (`no-restricted-syntax`, `CallExpression` selector) |
-| Ban raw `fetch(` in `apps/web` outside `bffServerFetch`/`bffPublicFetch`/`bffClient` | WEB-8 | `apps/web/**`, with a reviewed class/path exception registry for gateway forwarding, signed-URL upload, approved external APIs, and documented cached reads |
+| Ban raw `fetch(` in `apps/web` outside `bffServerFetch`/`bffPublicFetch`/`bffClient` | bad-smell-audit WEB-8 | `apps/web/**`, with exceptions in a new `rule: "raw-fetch-web"` array under `packages/architecture-check/architecture-policy.json`'s `exceptions` (mirrors Story 2's `raw-persistence-api` pattern) — covering gateway forwarding, signed-URL upload, approved external APIs, and documented cached reads |
 | Ban `throw new HttpException` inside `*.use-case.ts` | #54 | `contexts/**/application/**/*.use-case.ts` |
-| Ban a string-literal argument as the first arg to `.subscribe(`/`.registerTrigger(` | ENGINEERING_RULES §Event Handlers (already fixed repo-wide once, `fix/consistency-naming-consumer`) | event handler registration sites |
-| Ban a string-literal argument to `resolveSupportedLocale(` inside protected-area layouts | #106 | `apps/web/app/dashboard/**/layout.tsx`, `apps/web/app/[slug]/my-account/**/layout.tsx` |
-| Ban `as React.CSSProperties` in function return position | WEB-3 | `apps/web/**` |
+| Ban a string-literal argument as the first arg to `.subscribe(`/`.registerTrigger(` | ENGINEERING_RULES §Event Handlers (already fixed repo-wide once, commit `8a44c21e` / PR #175) | event handler registration sites |
+| Ban a string-literal argument to `resolveSupportedLocale(` inside protected-area layouts | #106 | `apps/web/shells/dashboard/model/dashboard-shell-context.ts`, `apps/web/app/[slug]/my-account/**/layout.tsx` |
+| Ban `as React.CSSProperties` in function return position | bad-smell-audit WEB-3 | `apps/web/**` |
+
+**Discovery note (TD37-S04, 2026-08-15):** baseline raw-`fetch()` scan found 9 files / ~13 call sites bypassing the transport helpers. `features/platform/api.ts` and `features/platform/hotsite/api/*.ts` already carry the accepted isomorphic/`next.revalidate` rationale (WEB-8's documented exemption). Four have no rationale yet and are not pre-exempted — `features/auth/api.ts`, `features/booking/hooks/useBookings.ts`, `features/staff/public.ts`, `shells/hotsite/components/HotsiteAuthBar.tsx` — each needs case-by-case triage during implementation (migrate to a sanctioned helper where feasible, otherwise add a reviewed `raw-fetch-web` registry entry with real rationale). `features/booking/api/customer.ts` and `features/booking/api/public.ts` already carry inline TD31-Story-7 rationale and just need the matching registry entry.
 
 **What it catches**: each is a rule already proven to have been violated at least once (the locale one caused a full JWT-enrichment fire-drill; the consumer-name one was fixed repo-wide once already).
 **What it does NOT catch**: `resolveSupportedLocale(payload.locale ?? 'pt-BR')` — the *correct* pattern — still passes, since the rule only flags a bare literal as the sole argument, not a literal used as a fallback.
