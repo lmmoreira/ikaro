@@ -268,6 +268,29 @@ Builds on Story 3's harness.
 
 ---
 
+### Story 7A — `ts-morph`: ban `jest.fn()` for repository/port-typed mocks 🟡
+
+`.coderabbit.yaml` already documents this as mandatory repo policy ("InMemory doubles over `jest.fn()` for repositories and ports"), and `docs/ANTI_PATTERNS.md` already flags the `IEventBus`/`ITransactionManager` instance of it by name. Currently enforced only by an AI reviewer remembering the rule on each PR — exactly the class of gap this whole TD exists to close. Not a plain-ESLint candidate (Story 4/5's bucket): "is this `jest.fn()` standing in for a repository/port" depends on the mocked target's resolved *type*, which a syntax-only AST selector can't see — it belongs in the type-aware `ts-morph` suite alongside Stories 6–10.
+
+**Mechanism**: extend the Story 0 `ts-morph` runner to resolve every `jest.fn()`/`jest.mock()`-style stub assigned to a constructor argument, parameter, or variable whose declared or inferred type is (or implements) an interface named `I*Repository` or `I*Port`, or resolved from `**/ports/**`. Flag each one with the file:line and the interface name it's standing in for.
+
+**What it catches**: a test using `jest.fn()` to fake an entire repository/port instead of the project's own `InMemoryXxxRepository`/`InMemoryXxxPort` double — losing state assertions and producing brittle mock-expectation-based tests. `docs/ANTI_PATTERNS.md`'s existing `IEventBus`/`ITransactionManager` row is one instance of this; this generalizes the check to every repository/port interface.
+**What it does NOT catch**: `jest.fn()` used for a plain callback (e.g. a handler typed `() => void`), a single ad-hoc method spy on a non-port class, or any dependency that isn't a repository/port — those stay legitimate and unflagged.
+
+**Before this can go blocking** (found while implementing Story 4, TD37-S04, 2026-08-15):
+1. Fix the existing precedent violation: `apps/backend/src/contexts/platform/infrastructure/repositories/caching-tenant.repository.spec.ts` uses `jest.fn()` for what should be an `InMemoryCachePort` double.
+2. Build the missing `InMemoryCachePort` test double (none exists yet in `src/test/infrastructure/`) — same shape as `InMemoryEventBus`/`InMemoryTransactionManager` — including configurable failure injection for that spec's error-path tests.
+3. Full-codebase baseline scan for every other `jest.fn()`-as-repository/port instance; each fixed or added to Story 0's exception registry with rationale/owner/expiry before promotion.
+
+**Acceptance criteria**:
+- [ ] Detector resolves the mocked target's type via the Story 0 `ts-morph` runner and flags `jest.fn()`/`jest.mock()` assigned to a repository/port-typed constructor argument, parameter, or variable
+- [ ] Permanent valid/invalid/zero-target fixtures cover: a real port mock (invalid), a plain callback mock (valid/ignored), and a single-method spy on a non-port class (valid/ignored)
+- [ ] `InMemoryCachePort` double built and `caching-tenant.repository.spec.ts` migrated onto it before this detector is promoted to blocking
+- [ ] Full-codebase baseline reviewed with zero unreviewed violations before promotion (Rollout Phases)
+- [ ] Ships report-only first per the standard 3-phase rollout; `docs/ANTI_PATTERNS.md`'s `IEventBus`/`ITransactionManager` row is updated to note it's now CI-enforced by this generalized check
+
+---
+
 ### Story 8 — `ts-morph` suite, part 3: DI/module wiring 🔴
 
 - **`@Global()` module ↔ `exports` pairing**: resolve injections and module exports. A global module must export its externally consumed tokens, but it may retain internal providers; do not require every provider to be exported.
@@ -491,7 +514,7 @@ Story 17 (tenant_id detector) is explicitly capped at Phase 1 for the duration o
 - **Wave 1 — import and layer barriers:** Story 1, then Story 2. Establish the context matrix and framework-free domain/application boundary before scattered lint rules.
 - **Wave 2 — flagship transactional safety:** Story 3. It selects and establishes the semantic runner for the remaining architectural checks.
 - **Wave 3 — low-cost lint feedback:** Stories 4, 5, 15, 16. Respect report-only/warning burn-in and the agreed disable policy.
-- **Wave 4 — semantic architecture suite:** Stories 6–10, each as a separate small PR with fixtures.
+- **Wave 4 — semantic architecture suite:** Stories 6–10, each as a separate small PR with fixtures. Story 7A depends on Story 7's `ts-morph` test-hygiene harness and additionally needs the `InMemoryCachePort` double built first — sequence it after Story 7.
 - **Wave 5 — known contract/data-harness gaps:** Stories 11 and 12, then Story 7 if it was not completed in Wave 4.
 - **Wave 6 — package hygiene:** Stories 13 and 14.
 - **Wave 7 — exploratory:** Story 17 alone, then Story 18 after its compatibility spike.
