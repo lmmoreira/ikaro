@@ -23,21 +23,21 @@ import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { ClientIpRequest, getClientIp } from '../../shared/http/client-ip';
 import { withPublicTenant } from '../../shared/http/public-tenant';
 import { TenantInfoResponse } from '../../shared/types/backend-responses';
-import {
-  getBusinessInfoContext,
-  getKnowledgeTextContext,
-  getServicesContext,
-} from './chatbot-context';
+import { getBusinessContext, getServicesContext } from './chatbot-context';
 import { buildSystemPrompt } from './chatbot.mapper';
 import { BackendHotsiteManifestResponse } from './platform.types';
 
-// message's real, tenant-resolved cap (maxMessageLengthChars) is enforced by the backend, the real
-// backstop (docs/discovery/CHATBOT/CHATBOT.md §8 layer 5) — this 1000-char default is
-// defense-in-depth only, rejecting the common case before any network hop, never the tenant's
-// real (possibly Ikaro-overridden) cap.
+// `maxMessageLengthChars` (default 1000) is an Ikaro-only override (docs/21-TENANTS_SETTINGS_SCHEMA.md
+// §7 — "No" tenant-editable, set only via a direct DB update, never returned by any BFF-reachable
+// read) — the BFF has no way to know a tenant's real resolved value, so it must never guess at a
+// business-rule ceiling here (same reasoning §7 already applies to knowledgeText/maxKnowledgeTextLength:
+// a static bound at this layer must never be the tenant's real cap, or an above-default override
+// would be silently unenforceable). This 5000 mirrors the backend's own SendChatMessageSchema outer
+// bound — an absurd-payload sanity guard only. The real, tenant-resolved rejection happens
+// backend-side in SendChatMessageUseCase, still before any LLM call (PR #373 review, Codex).
 const ChatbotMessageBodySchema = z.object({
   sessionId: z.uuid().optional(),
-  message: z.string().min(1).max(1000),
+  message: z.string().min(1).max(5000),
 });
 
 type ChatbotMessageBody = z.infer<typeof ChatbotMessageBodySchema>;
@@ -77,9 +77,11 @@ export class PlatformPublicController {
   }
 
   // Never cached — always evaluates live state, unlike the 5-minute-cached manifest above
-  // (docs/14-API_CONTRACTS.md § Chatbot Widget).
+  // (docs/14-API_CONTRACTS.md § Chatbot Widget). Explicit no-store, not just an absent header,
+  // so no intermediate HTTP cache can ever serve a stale "available: true" (PR #373 review, Codex).
   @Get('chatbot/status')
   @Public()
+  @Header('Cache-Control', 'no-store')
   getChatbotStatus(
     @Headers('x-tenant-slug') tenantSlug: string | undefined,
   ): Promise<HotsiteChatbotStatusResponse> {
@@ -100,17 +102,16 @@ export class PlatformPublicController {
     @Req() req: ClientIpRequest,
   ): Promise<HotsiteChatbotMessageResponse> {
     return withPublicTenant(this.backendHttp, tenantSlug, async (tenantId) => {
-      const [services, business, knowledgeText] = await Promise.all([
+      const [services, business] = await Promise.all([
         getServicesContext(this.backendHttp, tenantId),
-        getBusinessInfoContext(this.backendHttp, tenantId),
-        getKnowledgeTextContext(this.backendHttp, tenantId),
+        getBusinessContext(this.backendHttp, tenantId),
       ]);
 
       const systemPrompt = buildSystemPrompt({
         businessInfo: business.businessInfo,
         businessHours: business.businessHours,
         services,
-        knowledgeText,
+        knowledgeText: business.knowledgeText,
         locale: business.locale,
       });
 

@@ -291,6 +291,9 @@ describe('PlatformPublicController', () => {
 
       expect(backendHttp.getForPublic).toHaveBeenCalledWith('/services', 'tenant-uuid');
       expect(backendHttp.get).toHaveBeenCalledWith('/internal/tenants/tenant-uuid');
+      // Exactly twice total: once for by-slug tenant resolution, once for the merged business
+      // context fetch — never twice for business info + knowledge text separately (PR #373 review).
+      expect(backendHttp.get).toHaveBeenCalledTimes(2);
       expect(backendHttp.postForPublic).toHaveBeenCalledWith(
         '/platform/chatbot/messages',
         expect.objectContaining({

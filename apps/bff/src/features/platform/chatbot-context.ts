@@ -11,6 +11,7 @@ export interface ChatbotBusinessContext {
   businessInfo: TenantBusinessInfo | undefined;
   businessHours: TenantBusinessHours;
   locale: string;
+  knowledgeText: string;
 }
 
 // Same call `SERVICE_LIST`/`ServicesPublicController` already makes — no new cross-context
@@ -29,9 +30,11 @@ export async function getServicesContext(
 // `/internal/tenants/:tenantId` (InternalTenantReadController) — no role guard, already called
 // from a @Public() route (platform.public.controller.ts's getManifest, via its by-slug sibling).
 // GetTenantByIdUseCase resolves it through CachingTenantRepository, not a fresh raw query.
-// Bundles `locale` (settings.localization.language) too, from the same payload — buildSystemPrompt
-// needs it and there's no separate "get locale" tool-shaped function named in the story.
-export async function getBusinessInfoContext(
+// One call for everything Platform-side buildSystemPrompt needs (businessInfo, businessHours,
+// locale, knowledgeText) — merged from two separate calls after PR #373 review (Codex) flagged
+// the duplicate round trip: business info and knowledge text used to each independently re-fetch
+// the identical /internal/tenants/:tenantId payload.
+export async function getBusinessContext(
   backendHttp: BackendHttpService,
   tenantId: string,
 ): Promise<ChatbotBusinessContext> {
@@ -40,16 +43,6 @@ export async function getBusinessInfoContext(
     businessInfo: tenant.settings.businessInfo,
     businessHours: tenant.settings.businessHours,
     locale: tenant.locale,
+    knowledgeText: tenant.settings.chatbot.knowledgeText,
   };
-}
-
-// Same `/internal/tenants/:tenantId` route as getBusinessInfoContext — a separate call (not a
-// shared fetch) to keep each function's signature tool-shaped and independently invokable, per
-// CHATBOT.md §6; the extra round trip is cheap and absorbed by CachingTenantRepository's cache.
-export async function getKnowledgeTextContext(
-  backendHttp: BackendHttpService,
-  tenantId: string,
-): Promise<string> {
-  const tenant = await backendHttp.get<BackendTenantByIdResponse>(`/internal/tenants/${tenantId}`);
-  return tenant.settings.chatbot.knowledgeText;
 }

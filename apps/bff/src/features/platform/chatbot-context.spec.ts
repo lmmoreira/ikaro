@@ -1,10 +1,6 @@
 import { HotsiteServiceListResponse, HotsiteServiceResponse, TenantSettings } from '@ikaro/types';
 import { makeBackendHttp } from '../../test/backend-http.mock';
-import {
-  getBusinessInfoContext,
-  getKnowledgeTextContext,
-  getServicesContext,
-} from './chatbot-context';
+import { getBusinessContext, getServicesContext } from './chatbot-context';
 import { BackendTenantByIdResponse } from './platform.types';
 
 const mockService: HotsiteServiceResponse = {
@@ -82,45 +78,34 @@ describe('getServicesContext', () => {
   });
 });
 
-describe('getBusinessInfoContext', () => {
+describe('getBusinessContext', () => {
   afterEach(() => jest.resetAllMocks());
 
-  it('reads businessInfo, businessHours, and locale via the unguarded internal tenant-by-id route', async () => {
+  it('reads businessInfo, businessHours, locale, and knowledgeText via a single call to the unguarded internal tenant-by-id route', async () => {
     const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(mockTenantById) });
 
-    const result = await getBusinessInfoContext(backendHttp, 'tenant-uuid');
+    const result = await getBusinessContext(backendHttp, 'tenant-uuid');
 
     expect(backendHttp.get).toHaveBeenCalledWith('/internal/tenants/tenant-uuid');
+    expect(backendHttp.get).toHaveBeenCalledTimes(1);
     expect(result).toEqual({
       businessInfo: mockSettings.businessInfo,
       businessHours: mockSettings.businessHours,
       locale: 'pt-BR',
+      knowledgeText: 'Aceitamos cartão e Pix.',
     });
   });
 
   it('never calls the role-gated GET /tenants/settings route', async () => {
     const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(mockTenantById) });
 
-    await getBusinessInfoContext(backendHttp, 'tenant-uuid');
+    await getBusinessContext(backendHttp, 'tenant-uuid');
 
     const calledPaths = (backendHttp.get as jest.Mock).mock.calls.map((call) => call[0]);
     expect(calledPaths).not.toContain('/tenants/settings');
   });
-});
 
-describe('getKnowledgeTextContext', () => {
-  afterEach(() => jest.resetAllMocks());
-
-  it('reads chatbot.knowledgeText via the same internal tenant-by-id route', async () => {
-    const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(mockTenantById) });
-
-    const result = await getKnowledgeTextContext(backendHttp, 'tenant-uuid');
-
-    expect(backendHttp.get).toHaveBeenCalledWith('/internal/tenants/tenant-uuid');
-    expect(result).toBe('Aceitamos cartão e Pix.');
-  });
-
-  it('returns an empty string as-is when the tenant has no knowledgeText configured', async () => {
+  it('returns an empty knowledgeText string as-is when the tenant has none configured', async () => {
     const backendHttp = makeBackendHttp({
       get: jest.fn().mockResolvedValue({
         ...mockTenantById,
@@ -128,8 +113,8 @@ describe('getKnowledgeTextContext', () => {
       }),
     });
 
-    const result = await getKnowledgeTextContext(backendHttp, 'tenant-uuid');
+    const result = await getBusinessContext(backendHttp, 'tenant-uuid');
 
-    expect(result).toBe('');
+    expect(result.knowledgeText).toBe('');
   });
 });

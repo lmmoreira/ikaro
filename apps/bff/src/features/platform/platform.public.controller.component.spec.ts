@@ -179,6 +179,7 @@ describe('PlatformPublicController (component)', () => {
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual(response);
+      expect(res.headers['cache-control']).toBe('no-store');
       expect(backendHttpService.getForPublic).toHaveBeenCalledWith(
         '/platform/chatbot/status',
         tenantInfo.id,
@@ -284,12 +285,23 @@ describe('PlatformPublicController (component)', () => {
       expect(res.status).toBe(400);
     });
 
-    it('returns 400 when message exceeds the 1000-char defense-in-depth default', async () => {
+    it('returns 400 when message exceeds the 5000-char BFF outer bound', async () => {
       const res = await request(app.getHttpServer())
         .post('/v1/public/platform/chatbot/messages')
         .set('X-Tenant-Slug', 'lavacar-bh')
-        .send({ message: 'a'.repeat(1001) });
+        .send({ message: 'a'.repeat(5001) });
       expect(res.status).toBe(400);
+    });
+
+    it('does not reject a message above the tenant default (1000) but under the BFF outer bound (5000) — the real tenant cap is backend-only', async () => {
+      mockHappyPathBackend();
+
+      const res = await request(app.getHttpServer())
+        .post('/v1/public/platform/chatbot/messages')
+        .set('X-Tenant-Slug', 'lavacar-bh')
+        .send({ message: 'a'.repeat(2000) });
+
+      expect(res.status).toBe(200);
     });
 
     it('sends a reply on the happy path, without a JWT', async () => {
