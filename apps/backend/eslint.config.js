@@ -213,7 +213,7 @@ const SUBSCRIBE_REGISTER_TRIGGER_LITERAL_SELECTOR = {
 // architecture-policy.json) and must stay allowed.
 const HTTP_EXCEPTION_IN_USE_CASE_SELECTOR = {
   selector:
-    "ThrowStatement > NewExpression[callee.name=/^(HttpException|BadRequestException|UnauthorizedException|ForbiddenException|NotFoundException|ConflictException|GoneException|PayloadTooLargeException|UnprocessableEntityException|InternalServerErrorException|NotImplementedException|BadGatewayException|ServiceUnavailableException|GatewayTimeoutException|RequestTimeoutException|PreconditionFailedException|NotAcceptableException|MethodNotAllowedException|UnsupportedMediaTypeException|ImATeapotException|HttpVersionNotSupportedException)$/]",
+    'ThrowStatement > NewExpression[callee.name=/^(HttpException|BadRequestException|UnauthorizedException|ForbiddenException|NotFoundException|ConflictException|GoneException|PayloadTooLargeException|UnprocessableEntityException|InternalServerErrorException|NotImplementedException|BadGatewayException|ServiceUnavailableException|GatewayTimeoutException|RequestTimeoutException|PreconditionFailedException|NotAcceptableException|MethodNotAllowedException|UnsupportedMediaTypeException|ImATeapotException|HttpVersionNotSupportedException)$/]',
   message:
     'Use cases must not throw HttpException directly — it couples the application layer to HTTP. Throw a domain error; mapXxxError() converts it at the HTTP layer (docs/ANTI_PATTERNS.md).',
 };
