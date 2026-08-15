@@ -32,6 +32,28 @@ describe('TD37-S04 restricted syntax (web)', () => {
       );
     });
 
+    it('rejects globalThis.fetch() and window.fetch() (Codex review, PR #375)', () => {
+      const globalThisMessages = lint(
+        "export async function a() { return globalThis.fetch('https://example.com'); }",
+        'features/booking/api/example.ts',
+      );
+      const windowMessages = lint(
+        "export async function b() { return window.fetch('https://example.com'); }",
+        'features/booking/api/example.ts',
+      );
+
+      for (const messages of [globalThisMessages, windowMessages]) {
+        expect(messages).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              ruleId: 'no-restricted-syntax',
+              message: expect.stringContaining('sanctioned BFF transport helpers'),
+            }),
+          ]),
+        );
+      }
+    });
+
     it('permits a reviewed raw-fetch-web exception (architecture-policy.json)', () => {
       const messages = lint(
         "export async function proxy() { return fetch('https://example.com'); }",
@@ -79,12 +101,57 @@ describe('TD37-S04 restricted syntax (web)', () => {
         ),
       ).toHaveLength(0);
     });
+
+    it('a reviewed raw-fetch-web exception still enforces the other five rules (CodeRabbit review, PR #375)', () => {
+      // ESLint flat config's `ignores` applies to the whole block, not to a single selector — an
+      // earlier version of this config exempted a reviewed file from the fetch ban by excluding
+      // it from the block that ALSO carried the locale/CSSProperties/Zod bans, silently losing
+      // those too for every reviewed file. This proves the fix: the file is still linted for a
+      // real, unrelated violation.
+      const messages = lint(
+        "const locale = resolveSupportedLocale('pt-BR'); export async function proxy() { return fetch('https://example.com'); }",
+        'features/auth/api.ts',
+      );
+
+      expect(messages).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            ruleId: 'no-restricted-syntax',
+            message: expect.stringContaining('Do not hardcode a locale string'),
+          }),
+        ]),
+      );
+      expect(
+        messages.filter(
+          (message) =>
+            message.ruleId === 'no-restricted-syntax' &&
+            typeof message.message === 'string' &&
+            message.message.includes('sanctioned BFF transport helpers'),
+        ),
+      ).toHaveLength(0);
+    });
   });
 
   describe('hardcoded protected-area locale ban', () => {
     it('rejects a bare literal passed to resolveSupportedLocale()', () => {
       const messages = lint(
         "const locale = resolveSupportedLocale('pt-BR');",
+        'shells/dashboard/model/dashboard-shell-context.ts',
+      );
+
+      expect(messages).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            ruleId: 'no-restricted-syntax',
+            message: expect.stringContaining('Do not hardcode a locale string'),
+          }),
+        ]),
+      );
+    });
+
+    it('rejects a no-substitution template literal (Codex review, PR #375)', () => {
+      const messages = lint(
+        'const locale = resolveSupportedLocale(`pt-BR`);',
         'shells/dashboard/model/dashboard-shell-context.ts',
       );
 
@@ -163,6 +230,22 @@ describe('TD37-S04 restricted syntax (web)', () => {
         ),
       ).toHaveLength(0);
     });
+
+    it('rejects a bare `as CSSProperties` cast (import type { CSSProperties } from "react")', () => {
+      const messages = lint(
+        'function style(): CSSProperties { return {} as CSSProperties; }',
+        'features/platform/hotsite/utils/style.ts',
+      );
+
+      expect(messages).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            ruleId: 'no-restricted-syntax',
+            message: expect.stringContaining("Don't cast a function's return value"),
+          }),
+        ]),
+      );
+    });
   });
 
   describe('repo-wide Zod uuid()/email() ban (shared via @ikaro/config/eslint-base.js)', () => {
@@ -187,6 +270,22 @@ describe('TD37-S04 restricted syntax (web)', () => {
           expect.objectContaining({
             ruleId: 'no-restricted-syntax',
             message: expect.stringContaining('z.email()'),
+          }),
+        ]),
+      );
+    });
+
+    it('rejects a refined chain: z.string().min(1).uuid()', () => {
+      const messages = lint(
+        'const schema = z.string().min(1).uuid();',
+        'features/booking/schema.ts',
+      );
+
+      expect(messages).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            ruleId: 'no-restricted-syntax',
+            message: expect.stringContaining('z.uuid()'),
           }),
         ]),
       );

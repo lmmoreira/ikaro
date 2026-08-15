@@ -3,8 +3,11 @@ import { DEAD_LETTER_CHANNEL_NAME } from '../../../../shared/infrastructure/even
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { DeadLetterHandler } from './dead-letter.handler';
 
+// The DLQ payload's own eventName is the ORIGINAL failed event's name (e.g. "BookingRequested")
+// — DEAD_LETTER_CHANNEL_NAME is the subscription/channel name, a different concept that happens
+// to be unrelated to what actually failed (CodeRabbit review, PR #375).
 class StubDeadLetterEvent extends DomainEvent<Record<string, never>> {
-  readonly eventName = DEAD_LETTER_CHANNEL_NAME;
+  readonly eventName = 'BookingRequested';
   readonly eventVersion = 1;
   readonly data: Record<string, never> = {};
   readonly deliveryAttempt?: number;
@@ -68,7 +71,7 @@ describe('DeadLetterHandler', () => {
         undefined,
         expect.objectContaining({
           eventId: event.eventId,
-          eventName: DEAD_LETTER_CHANNEL_NAME,
+          eventName: 'BookingRequested',
           tenantId: 'tenant-123',
           deliveryAttempt: 5,
           deadLetterReason: 'handler crashed',

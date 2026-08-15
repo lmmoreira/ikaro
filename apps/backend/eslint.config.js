@@ -5,7 +5,7 @@ const reviewedRawPersistencePaths = architecturePolicy.exceptions
   .filter((exception) => exception.rule === 'raw-persistence-api')
   .map((exception) => exception.path.replace(/^apps\/backend\//, ''));
 
-// TD37-S02/S04: ESLint flat config REPLACES (not merges) a rule's options when two config objects
+// ESLint flat config REPLACES (not merges) a rule's options when two config objects
 // both match the same file for the same rule name — whichever matching block appears LAST in
 // this array wins *entirely* for that rule, on that file (confirmed against TD37-S02's original
 // layout, which shipped exactly this bug: its broad src/**/*.ts persistence-bypass block silently
@@ -39,7 +39,7 @@ const EVENT_BUS_PORT_PATTERN = {
   message:
     'Publish sites depend on OUTBOX_PUBLISHER/IOutboxPublisher (shared/ports/outbox-publisher.port), not EVENT_BUS — see td/TD24-OUTBOX-INBOX-PATTERN.md D14.',
 };
-// TD37-S04: use cases and application services must not inject RequestContext — caller context is
+// Use cases and application services must not inject RequestContext — caller context is
 // passed via the input DTO instead, keeping use cases callable from event handlers, scheduled
 // jobs, and cross-context adapters without an HTTP request in scope
 // (docs/ENGINEERING_RULES.md §RequestContext).
@@ -162,11 +162,21 @@ const REVIEWED_REPOSITORY_ADAPTER_PATHS = PERSISTENCE_BYPASS_IGNORES.filter((pat
 );
 
 // TD37-S02: publishing to the event transport is network I/O, so it must never run while the
-// shared transaction manager holds a database connection/lock. This intentionally targets the
-// concrete event-bus call rather than guessing at every possible network client API.
+// shared transaction manager holds a database connection/lock. Targets eventBus.publish()
+// specifically, not outboxPublisher.publish() — TD24-S03's outbox pattern deliberately writes the
+// outbox row inside the same transaction as the business write (that's the whole point: an
+// atomic fact), relaying it over the network only after commit.
+// Matches both a bare `txManager.run(...)`/`eventBus.publish(...)` and the real production shape,
+// constructor-injected as `this.txManager`/`this.eventBus` (CodeRabbit review, PR #375: the
+// bare-identifier-only version never matched any real use case — every one injects txManager as
+// `private readonly txManager` and calls it via `this.txManager.run(...)`, so this rule had never
+// actually fired on production code since it shipped. The first fix attempt widened the outer
+// match but left the inner `:has(...)` clause matching ANY `.publish(`-named method, flagging 4
+// legitimate `this.outboxPublisher.publish(...)` call sites as false positives — narrowed to
+// eventBus specifically once real production code was linted for the first time.)
 const TX_MANAGER_PUBLISH_SELECTOR = {
   selector:
-    "CallExpression[callee.object.name='txManager'][callee.property.name='run']:has(CallExpression[callee.property.name='publish'])",
+    "CallExpression[callee.property.name='run']:matches([callee.object.name=/^_?txManager$/], [callee.object.property.name=/^_?txManager$/]):has(CallExpression[callee.property.name='publish']:matches([callee.object.name=/^_?eventBus$/], [callee.object.property.name=/^_?eventBus$/]))",
   message:
     'Do not call eventBus.publish() inside txManager.run(). Claim durable work in a short transaction, publish outside it, then mark/release in another short transaction (TD37-S02; docs/ENGINEERING_RULES.md Transactions).',
 };
@@ -180,40 +190,38 @@ const RUN_IN_TRANSACTION_SELECTOR = {
   message:
     'Repository ports must not own transactions. Inject ITransactionManager into the orchestrating service/use case and let the TypeORM adapter join its ambient context (TD37-S02; docs/ENGINEERING_RULES.md Transactions).',
 };
-// TD37-S04: DomainEvent.eventName is derived from the class's own name — a bare string literal at
+// DomainEvent.eventName is derived from the class's own name — a bare string literal at
 // the subscribe()/registerTrigger() call site can silently drift from the class if either is
 // renamed, and a mistyped literal creates a dead Pub/Sub channel no one publishes to correctly.
 // Cron triggers use a shared exported const (e.g. CRON_REMINDERS_TRIGGER) instead
-// (docs/ENGINEERING_RULES.md §Event Handlers).
+// (docs/ENGINEERING_RULES.md §Event Handlers). Matches both a string literal and a
+// no-substitution template literal (Codex review, PR #375: eventBus.subscribe(`BookingCompleted`,
+// ...) is an equally hand-typed name but is a distinct TemplateLiteral AST node, not a Literal, so
+// the original selector missed it).
 const SUBSCRIBE_REGISTER_TRIGGER_LITERAL_SELECTOR = {
   selector:
-    "CallExpression[callee.property.name=/^(subscribe|registerTrigger)$/][arguments.0.type='Literal']",
+    "CallExpression[callee.property.name=/^(subscribe|registerTrigger)$/]:matches([arguments.0.type='Literal'], [arguments.0.type='TemplateLiteral'][arguments.0.expressions.length=0])",
   message:
     'Do not hand-type the event/trigger name as a string literal at the subscribe()/registerTrigger() call site — use <Event>.name or a shared exported trigger-name const instead (docs/ENGINEERING_RULES.md §Event Handlers).',
 };
-// TD37-S04: use cases must be framework-agnostic — throw domain errors only, and let
+// Use cases must be framework-agnostic — throw domain errors only, and let
 // mapXxxError() convert them to HttpException at the HTTP layer (docs/ANTI_PATTERNS.md).
+// Enumerates every @nestjs/common HTTP exception subclass, not just the HttpException base class
+// (CodeRabbit review, PR #375) — throw new NotFoundException(...)/BadRequestException(...)/etc.
+// couple a use case to HTTP exactly the same way and must be caught too. Deliberately not a
+// generic /Exception$/ regex: domain errors also use that suffix (e.g. EmailDeliveryException in
+// architecture-policy.json) and must stay allowed.
 const HTTP_EXCEPTION_IN_USE_CASE_SELECTOR = {
-  selector: "ThrowStatement > NewExpression[callee.name='HttpException']",
+  selector:
+    "ThrowStatement > NewExpression[callee.name=/^(HttpException|BadRequestException|UnauthorizedException|ForbiddenException|NotFoundException|ConflictException|GoneException|PayloadTooLargeException|UnprocessableEntityException|InternalServerErrorException|NotImplementedException|BadGatewayException|ServiceUnavailableException|GatewayTimeoutException|RequestTimeoutException|PreconditionFailedException|NotAcceptableException|MethodNotAllowedException|UnsupportedMediaTypeException|ImATeapotException|HttpVersionNotSupportedException)$/]",
   message:
     'Use cases must not throw HttpException directly — it couples the application layer to HTTP. Throw a domain error; mapXxxError() converts it at the HTTP layer (docs/ANTI_PATTERNS.md).',
 };
-// Repeats @ikaro/config/eslint-base.js's repo-wide uuid/email selectors (not imported — the base
-// config exports a full config array, not individual rule objects) so a block here that also sets
-// no-restricted-syntax for the same files doesn't silently drop them (see the file-level note
-// above).
-const ZOD_UUID_SELECTOR = {
-  selector:
-    "CallExpression[callee.property.name='uuid'][callee.object.callee.object.name='z'][callee.object.callee.property.name='string']",
-  message:
-    'z.string().uuid() is deprecated in Zod v4 and rejects non-RFC-4122 test UUIDs (SonarCloud S1874) — use z.uuid() directly (docs/ANTI_PATTERNS.md).',
-};
-const ZOD_EMAIL_SELECTOR = {
-  selector:
-    "CallExpression[callee.property.name='email'][callee.object.callee.object.name='z'][callee.object.callee.property.name='string']",
-  message:
-    'z.string().email() is deprecated in Zod v4 (SonarCloud S1874) — use z.email() directly (docs/ANTI_PATTERNS.md).',
-};
+// Imported (not redefined) from @ikaro/config/eslint-base.js so the uuid/email selectors have one
+// source of truth (CodeRabbit review, PR #375) — still repeated into this file's own tiers below,
+// because ESLint flat config replaces, not merges, a rule's options per matching file (see the
+// file-level note above).
+const { ZOD_UUID_SELECTOR, ZOD_EMAIL_SELECTOR } = baseConfig;
 
 module.exports = [
   ...baseConfig,
@@ -293,7 +301,7 @@ module.exports = [
     },
   },
 
-  // Tier 3 — application layer (TD24-S03 D14 + TD37-S04): the full set applies here — the
+  // Tier 3 — application layer (TD24-S03 D14): the full set applies here — the
   // persistence-bypass ban, the outbox-not-EVENT_BUS ban, and the RequestContext ban, on top of
   // the Tier 0 base. Self-sufficient: repeats every selector/path a broader tier already requires
   // for these files, so this narrower/later block doesn't drop them.
@@ -317,8 +325,9 @@ module.exports = [
     },
   },
 
-  // Tier S0 — TD37-S02 + TD37-S04 syntax bans, broad across src/**/*.ts. Self-sufficient: repeats
-  // @ikaro/config/eslint-base.js's uuid/email selectors too (see the file-level note above).
+  // Tier S0 — TD37-S02 syntax bans plus the event/trigger literal ban, broad across src/**/*.ts.
+  // Self-sufficient: repeats @ikaro/config/eslint-base.js's uuid/email selectors too (see the
+  // file-level note above).
   {
     files: ['src/**/*.ts'],
     ignores: ['**/*.spec.ts', '**/*.integration.spec.ts', 'src/test/**'],
