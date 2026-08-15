@@ -570,6 +570,15 @@ Prefer InMemory classes over `jest.fn()` for any port or repository:
 
 **A same-directory precedent file can itself predate this rule and be non-compliant — check this section before pattern-matching off a neighboring `*.spec.ts`.** (PR #373 review, Codex, 2026-08-15: `caching-service.repository.spec.ts` was written using raw `jest.fn()` mocks, copying `caching-tenant.repository.spec.ts`'s style exactly — but that file predates `InMemoryCachePort`'s existence and violates this same documented rule. Both were rewritten to use `InMemoryCachePort` in the same PR.)
 
+### Caching decorator repositories — DI wiring
+
+Building a new `CachingXxxRepository` (wrapping a `TypeOrmXxxRepository` behind `CachePort`, same shape as `CachingTenantRepository`/`CachingServiceRepository`)? Two DI-registration mistakes are easy to make and easy to miss, since `tsc --noEmit` doesn't catch either — only a real Nest DI container resolving the module at runtime does:
+
+- **Constructor parameter type must be the port interface (`IXxxRepository`), not the concrete `TypeOrmXxxRepository` class — but that requires an explicit `@Inject(TypeOrmXxxRepository)` token.** Interfaces are erased at compile time, so Nest's constructor-reflection metadata can't infer an injection token from an interface-typed parameter; omitting the explicit `@Inject()` fails at runtime with an unresolvable-dependency error, not a type error. The interface typing is what makes the class substitutable with an `InMemoryXxxRepository` in a unit spec — don't drop it in favor of the concrete class just to avoid adding the decorator.
+- **Don't register the caching class as its own bare provider once its only real consumer is the port token binding.** `providers: [TypeOrmXxxRepository, CachingXxxRepository, { provide: XXX_REPOSITORY, useClass: CachingXxxRepository }]` instantiates `CachingXxxRepository` **twice** — once for the bare class token, once for `XXX_REPOSITORY` — unless something else in the module actually injects it by class reference. Register only `TypeOrmXxxRepository` (needed for the `@Inject()` token above) and the `{ provide: XXX_REPOSITORY, useClass: CachingXxxRepository }` binding.
+
+(PR #373 review, Codex, 2026-08-15: both mistakes were introduced in `CachingServiceRepository`'s first draft and fixed in the same PR — see `apps/backend/src/contexts/booking/infrastructure/repositories/caching-service.repository.ts` and `booking.module.ts` for the corrected shape. `CachingTenantRepository`'s own registrations in `platform.module.ts`/`platform-settings.module.ts` still carry the redundant-bare-provider version of the second mistake — left as-is, out of scope for that PR; don't copy it as precedent.)
+
 ### Integration test DB isolation
 
 Unique inline tenant UUID for any `it()` sensitive to aggregate counts. Never reuse `TENANT_A`/`TENANT_B` for count assertions — cross-test contamination.
