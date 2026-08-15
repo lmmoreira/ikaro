@@ -54,6 +54,22 @@ describe('TD37-S04 restricted syntax (web)', () => {
       }
     });
 
+    it("rejects window['fetch']() (computed member access — Codex review, PR #375, round 2)", () => {
+      const messages = lint(
+        "export async function a() { return window['fetch']('https://example.com'); }",
+        'features/booking/api/example.ts',
+      );
+
+      expect(messages).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            ruleId: 'no-restricted-syntax',
+            message: expect.stringContaining('sanctioned BFF transport helpers'),
+          }),
+        ]),
+      );
+    });
+
     it('permits a reviewed raw-fetch-web exception (architecture-policy.json)', () => {
       const messages = lint(
         "export async function proxy() { return fetch('https://example.com'); }",
@@ -183,27 +199,21 @@ describe('TD37-S04 restricted syntax (web)', () => {
   });
 
   describe('React.CSSProperties return-position cast ban', () => {
-    it('rejects `as React.CSSProperties` in a return statement', () => {
-      const messages = lint(
+    it.each([
+      [
+        'a return statement, namespaced `as React.CSSProperties`',
         'function style(): React.CSSProperties { return {} as React.CSSProperties; }',
-        'features/platform/hotsite/utils/style.ts',
-      );
-
-      expect(messages).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            ruleId: 'no-restricted-syntax',
-            message: expect.stringContaining("Don't cast a function's return value"),
-          }),
-        ]),
-      );
-    });
-
-    it('rejects `as React.CSSProperties` in an arrow function expression body', () => {
-      const messages = lint(
+      ],
+      [
+        'an arrow function expression body, namespaced `as React.CSSProperties`',
         'const style = (): React.CSSProperties => ({} as React.CSSProperties);',
-        'features/platform/hotsite/utils/style.ts',
-      );
+      ],
+      [
+        'a bare (non-namespaced) `as CSSProperties` cast (import type { CSSProperties } from "react")',
+        'function style(): CSSProperties { return {} as CSSProperties; }',
+      ],
+    ])('rejects a return-position CSS cast — %s', (_label, source) => {
+      const messages = lint(source, 'features/platform/hotsite/utils/style.ts');
 
       expect(messages).toEqual(
         expect.arrayContaining([
@@ -229,22 +239,6 @@ describe('TD37-S04 restricted syntax (web)', () => {
             message.message.includes('CSSProperties'),
         ),
       ).toHaveLength(0);
-    });
-
-    it('rejects a bare `as CSSProperties` cast (import type { CSSProperties } from "react")', () => {
-      const messages = lint(
-        'function style(): CSSProperties { return {} as CSSProperties; }',
-        'features/platform/hotsite/utils/style.ts',
-      );
-
-      expect(messages).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            ruleId: 'no-restricted-syntax',
-            message: expect.stringContaining("Don't cast a function's return value"),
-          }),
-        ]),
-      );
     });
   });
 

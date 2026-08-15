@@ -19,13 +19,16 @@ const reviewedRawFetchPaths = architecturePolicy.exceptions
 // bad-smell-audit WEB-8). Reviewed exceptions come from architecture-policy.json's raw-fetch-web
 // entries (the gateway Route Handler itself, local /api/** Route Handler proxies, signed-URL
 // uploads, and approved external APIs). Matches a bare fetch(...) call and the same call
-// qualified via window./globalThis./self. — Codex review, PR #375: a bare-identifier-only
-// selector lets globalThis.fetch(...)/window.fetch(...) bypass the ban entirely, since those
-// resolve to the exact same global Fetch API through a MemberExpression callee instead of an
-// Identifier one.
+// qualified via window./globalThis./self. — both the dotted form (Codex review, PR #375, round 1:
+// a bare-identifier-only selector let globalThis.fetch(...)/window.fetch(...) bypass the ban,
+// since those resolve to the identical global Fetch API through a MemberExpression callee instead
+// of an Identifier one) and the computed form (Codex review, PR #375, round 2:
+// window['fetch'](...) still bypassed the round-1 fix — a computed member's property is a Literal
+// node with a `.value`, not an Identifier with a `.name`, so callee.property.name never matched
+// it).
 const RAW_FETCH_SELECTOR = {
   selector:
-    "CallExpression:matches([callee.name='fetch'], [callee.object.name=/^(window|globalThis|self)$/][callee.property.name='fetch'])",
+    "CallExpression:matches([callee.name='fetch'], [callee.object.name=/^(window|globalThis|self)$/][callee.property.name='fetch'], [callee.object.name=/^(window|globalThis|self)$/][callee.property.value='fetch'])",
   message:
     'Raw fetch() bypasses the sanctioned BFF transport helpers. Use bffServerFetch/bffPublicFetch (server-only) or bffClient (client-only) instead, or add a reviewed raw-fetch-web entry to packages/architecture-check/architecture-policy.json (docs/ANTI_PATTERNS.md; bad-smell-audit WEB-8).',
 };
