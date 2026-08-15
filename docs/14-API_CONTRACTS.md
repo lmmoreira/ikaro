@@ -232,9 +232,9 @@ The `CHATBOT` hotsite module's own endpoints — never part of the cached manife
 
 - `POST /public/platform/chatbot/messages`
   - **Public** — `X-Tenant-Slug` header required
-  - **Request body:** `{ "sessionId"?: "uuid-v7", "message": "string, max 1000 chars (tenant-overridable)" }` — `sessionId` omitted on the first message of a conversation
+  - **Request body:** `{ "sessionId"?: "uuid-v7", "message": "string, max 5000 chars" }` — `sessionId` omitted on the first message of a conversation
   - **Response `200 OK`:** `{ "sessionId": "uuid-v7", "reply": "string" }`
-  - `400` — `message` exceeds `maxMessageLengthChars`; validated before the request reaches the backend or the LLM
+  - `400` — `message` exceeds 5000 chars (BFF-side absurd-payload outer bound) **or** the tenant's real, resolved `maxMessageLengthChars` (default 1000, an Ikaro-only override never exposed to the BFF — `docs/21-TENANTS_SETTINGS_SCHEMA.md` §7), enforced backend-only in `SendChatMessageUseCase`, still before any LLM call
   - `429` — a volume cap rejected the request: new-session caps (daily/per-IP/concurrency), existing-session cap (`maxMessagesPerConversation`), **or** either platform-wide backstop (global daily spend circuit breaker, provider balance floor — `CHATBOT.md` §8 layers 9-10; decided during M19-S05 story-discovery, 2026-08-12, that these map to the same status as the per-tenant caps, not `503`) — a specific error code per layer, see `docs/discovery/CHATBOT/CHATBOT.md` §8 for the full list. **The platform-wide backstops are evaluated on new-session creation only** — `CHATBOT.md` §8.9: "already-open conversations remain bounded by their own per-session caps regardless"; an existing session is never rejected by either backstop mid-conversation (PR #360 review)
   - `503` — LLM provider call failed (timeout, upstream error, insufficient credits) — widget shows the interrupted state, phone/WhatsApp fallback offered
   - `404` — tenant slug not found, or `sessionId` doesn't belong to this tenant

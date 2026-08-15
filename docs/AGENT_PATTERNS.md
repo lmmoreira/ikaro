@@ -414,6 +414,7 @@ Do not search for these — they exist at the paths below.
 | `in-memory-notification-staff.port.ts` | `InMemoryNotificationStaffPort` | Notification unit specs |
 | `in-memory-notification-tenant.port.ts` | `InMemoryNotificationTenantPort` | Notification unit specs |
 | `in-memory-booking-availability.ts` | `InMemoryBookingAvailability` | Booking unit specs |
+| `in-memory-cache.port.ts` | `InMemoryCachePort` | Any `CachingXxxRepository` unit spec — `.has(key)` for state assertions, `failNextGet/Set/Del(err)` for error-path tests |
 
 #### InMemory repositories (`apps/backend/src/test/repositories/<ctx>/`)
 

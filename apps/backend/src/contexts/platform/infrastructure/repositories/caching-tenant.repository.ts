@@ -6,8 +6,8 @@ import { Slug } from '../../../../shared/value-objects/slug.vo';
 import { ITenantRepository, TenantFilters } from '../../application/ports/tenant-repository.port';
 import { Tenant } from '../../domain/tenant.aggregate';
 import { TenantSettings } from '../../domain/value-objects/tenant-settings.vo';
-import { TypeOrmTenantRepository } from './typeorm-tenant.repository';
 import { AppLogger } from '../../../../shared/observability/app-logger';
+import { TypeOrmTenantRepository } from './typeorm-tenant.repository';
 
 type TenantCacheRecord = {
   id: string;
@@ -26,7 +26,12 @@ export class CachingTenantRepository implements ITenantRepository {
   private readonly logger = new AppLogger(CachingTenantRepository.name);
 
   constructor(
-    private readonly repo: TypeOrmTenantRepository,
+    // Explicit @Inject(TypeOrmTenantRepository) — required now that the parameter's static type
+    // is the ITenantRepository interface: interfaces are erased at runtime, so Nest's constructor
+    // reflection alone can't infer a token from an interface-typed parameter (PR #373 review,
+    // Codex — the concrete class stays the real DI token; the interface type only widens what a
+    // test can substitute here, e.g. InMemoryTenantRepository).
+    @Inject(TypeOrmTenantRepository) private readonly repo: ITenantRepository,
     @Inject(CACHE_PORT) private readonly cache: CachePort,
   ) {}
 
