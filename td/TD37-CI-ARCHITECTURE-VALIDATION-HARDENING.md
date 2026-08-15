@@ -193,7 +193,7 @@ Also add the complementary structural rule: every production use-case call to a 
 
 ---
 
-### Story 4 — ESLint `no-restricted-imports`/`no-restricted-syntax` pack (zero new dependency) 🟡
+### Story 4 — ESLint `no-restricted-imports`/`no-restricted-syntax` pack (zero new dependency) 🟡 ✅ Done
 
 Bundles the smaller, cheap-to-add rules using the exact mechanism you already use for the `EVENT_BUS`/OTel bans — one PR, several rules, all mirroring existing precedent:
 
