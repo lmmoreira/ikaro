@@ -1,10 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { CACHE_PORT, CachePort } from '../../../../shared/ports/cache.port';
 import { scheduleAfterCommit } from '../../../../shared/infrastructure/transaction-context';
-import {
-  ITenantSettingsPort,
-  TENANT_SETTINGS_PORT,
-} from '../../../../shared/ports/tenant-settings.port';
 import { Money } from '../../../../shared/value-objects/money';
 import { toDate } from '../../../../shared/utils/date';
 import {
@@ -13,8 +9,8 @@ import {
   ServiceStatusFilter,
 } from '../../application/ports/service-repository.port';
 import { Service } from '../../domain/service.aggregate';
-import { TypeOrmServiceRepository } from './typeorm-service.repository';
 import { AppLogger } from '../../../../shared/observability/app-logger';
+import { TypeOrmServiceRepository } from './typeorm-service.repository';
 
 type ServiceCacheRecord = {
   id: string;
@@ -22,6 +18,7 @@ type ServiceCacheRecord = {
   name: string;
   description: string | null;
   priceAmount: string;
+  priceCurrency: string;
   durationMinutes: number;
   loyaltyPointsValue: number;
   requiresPickupAddress: boolean;
@@ -35,13 +32,20 @@ const CACHEABLE_STATUSES: ServiceStatusFilter[] = ['ACTIVE', 'INACTIVE', 'ANY'];
 @Injectable()
 export class CachingServiceRepository implements IServiceRepository {
   private static readonly CACHE_TTL_MS = 60_000;
-  private static readonly CACHE_KEY_PREFIX = 'booking:service:';
+  // v2: cache records now carry their own priceCurrency (PR #373 review, Codex) instead of
+  // re-deriving it from live tenant settings on every cache hit — bumped so no v1 entry (lacking
+  // priceCurrency) is ever read back with an undefined currency during the rollout.
+  private static readonly CACHE_KEY_PREFIX = 'booking:service:v2:';
   private readonly logger = new AppLogger(CachingServiceRepository.name);
 
   constructor(
-    private readonly repo: TypeOrmServiceRepository,
+    // Explicit @Inject(TypeOrmServiceRepository) — required now that the parameter's static type
+    // is the IServiceRepository interface: interfaces are erased at runtime, so Nest's constructor
+    // reflection alone can't infer a token from an interface-typed parameter (PR #373 review,
+    // Codex — the concrete class stays the real DI token; the interface type only widens what a
+    // test can substitute here, e.g. InMemoryServiceRepository).
+    @Inject(TypeOrmServiceRepository) private readonly repo: IServiceRepository,
     @Inject(CACHE_PORT) private readonly cache: CachePort,
-    @Inject(TENANT_SETTINGS_PORT) private readonly settingsPort: ITenantSettingsPort,
   ) {}
 
   async findById(id: string, tenantId: string): Promise<Service | null> {
@@ -65,8 +69,7 @@ export class CachingServiceRepository implements IServiceRepository {
 
     const cached = await this.readCache(cacheKey);
     if (cached) {
-      const currency = await this.resolveCurrency(tenantId);
-      return cached.map((record) => this.toDomain(record, currency));
+      return cached.map((record) => this.toDomain(record));
     }
 
     const services = await this.repo.findAllByTenant(tenantId, filters);
@@ -89,10 +92,6 @@ export class CachingServiceRepository implements IServiceRepository {
 
   private cacheKey(tenantId: string, status: ServiceStatusFilter): string {
     return `${CachingServiceRepository.CACHE_KEY_PREFIX}${tenantId}:${status}`;
-  }
-
-  private async resolveCurrency(tenantId: string): Promise<string> {
-    return (await this.settingsPort.getSettings(tenantId)).localization.currency;
   }
 
   private async readCache(key: string): Promise<ServiceCacheRecord[] | null> {
@@ -132,13 +131,13 @@ export class CachingServiceRepository implements IServiceRepository {
     return String(err);
   }
 
-  private toDomain(record: ServiceCacheRecord, currency: string): Service {
+  private toDomain(record: ServiceCacheRecord): Service {
     return Service.reconstitute({
       id: record.id,
       tenantId: record.tenantId,
       name: record.name,
       description: record.description,
-      price: Money.from(record.priceAmount, currency),
+      price: Money.from(record.priceAmount, record.priceCurrency),
       durationMinutes: record.durationMinutes,
       loyaltyPointsValue: record.loyaltyPointsValue,
       requiresPickupAddress: record.requiresPickupAddress,
@@ -155,6 +154,7 @@ export class CachingServiceRepository implements IServiceRepository {
       name: service.name,
       description: service.description,
       priceAmount: service.price.amount.toFixed(2),
+      priceCurrency: service.price.currency,
       durationMinutes: service.durationMinutes,
       loyaltyPointsValue: service.loyaltyPointsValue,
       requiresPickupAddress: service.requiresPickupAddress,

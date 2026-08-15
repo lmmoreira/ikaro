@@ -100,7 +100,6 @@ import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cach
   ],
   providers: [
     TypeOrmServiceRepository,
-    CachingServiceRepository,
     { provide: SERVICE_REPOSITORY, useClass: CachingServiceRepository },
     { provide: SCHEDULE_CLOSURE_REPOSITORY, useClass: TypeOrmScheduleClosureRepository },
     { provide: SCHEDULE_OPENING_REPOSITORY, useClass: TypeOrmScheduleOpeningRepository },
