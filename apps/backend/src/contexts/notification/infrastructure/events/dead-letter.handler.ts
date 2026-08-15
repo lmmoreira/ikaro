@@ -1,5 +1,6 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { Envelope } from '../../../../shared/domain/envelope';
+import { DEAD_LETTER_CHANNEL_NAME } from '../../../../shared/infrastructure/event-bus/dead-letter-channel.constant';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { EVENT_BUS, IEventBus } from '../../../../shared/ports/event-bus.port';
 
@@ -20,7 +21,7 @@ export class DeadLetterHandler implements OnModuleInit {
 
   onModuleInit(): void {
     this.eventBus.subscribe<Envelope>(
-      'dead-letter',
+      DEAD_LETTER_CHANNEL_NAME,
       (event) => this.handle(event),
       DeadLetterHandler.CONSUMER_NAME,
     );

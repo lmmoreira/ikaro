@@ -35,10 +35,17 @@ test('registry includes every TypeScript workspace exactly once', () => {
 });
 
 test('policy exceptions name exact files, never wildcard paths', () => {
+  // A Next.js dynamic-route segment (e.g. apps/web/app/v1/[...path]/route.ts) contains literal
+  // square brackets as part of one real, single file's path — not a glob wildcard. Strip only
+  // that exact shape (a param name made of word chars/hyphens, optionally prefixed with `...`)
+  // before checking for actual wildcard syntax, so a real dynamic-route file can still be named
+  // exactly without also letting a disguised wildcard (e.g. `[*]`) slip through.
+  const nextJsDynamicSegment = /\/\[(?:\.\.\.)?[\w-]+\]/g;
   for (const exception of policy.exceptions ?? []) {
     assert.ok(exception.path, `exception ${exception.rule} is missing a path`);
+    const withoutDynamicSegments = exception.path.replace(nextJsDynamicSegment, '');
     assert.ok(
-      !/[?*[{]/.test(exception.path),
+      !/[?*[{]/.test(withoutDynamicSegments),
       `exception must name one exact file: ${exception.path}`,
     );
   }

@@ -1,9 +1,13 @@
 import { DomainEvent } from '../../../../shared/domain/domain-event';
+import { DEAD_LETTER_CHANNEL_NAME } from '../../../../shared/infrastructure/event-bus/dead-letter-channel.constant';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { DeadLetterHandler } from './dead-letter.handler';
 
+// The DLQ payload's own eventName is the ORIGINAL failed event's name (e.g. "BookingRequested")
+// — DEAD_LETTER_CHANNEL_NAME is the subscription/channel name, a different concept that happens
+// to be unrelated to what actually failed (CodeRabbit review, PR #375).
 class StubDeadLetterEvent extends DomainEvent<Record<string, never>> {
-  readonly eventName = 'dead-letter';
+  readonly eventName = 'BookingRequested';
   readonly eventVersion = 1;
   readonly data: Record<string, never> = {};
   readonly deliveryAttempt?: number;
@@ -45,7 +49,11 @@ describe('DeadLetterHandler', () => {
     it('subscribes to dead-letter event with consumer name monitor', () => {
       const subscribeSpy = jest.spyOn(eventBus, 'subscribe');
       handler.onModuleInit();
-      expect(subscribeSpy).toHaveBeenCalledWith('dead-letter', expect.any(Function), 'monitor');
+      expect(subscribeSpy).toHaveBeenCalledWith(
+        DEAD_LETTER_CHANNEL_NAME,
+        expect.any(Function),
+        'monitor',
+      );
     });
   });
 
@@ -63,7 +71,7 @@ describe('DeadLetterHandler', () => {
         undefined,
         expect.objectContaining({
           eventId: event.eventId,
-          eventName: 'dead-letter',
+          eventName: 'BookingRequested',
           tenantId: 'tenant-123',
           deliveryAttempt: 5,
           deadLetterReason: 'handler crashed',

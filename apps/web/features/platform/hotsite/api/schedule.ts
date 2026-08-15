@@ -1,6 +1,9 @@
 import type { AvailabilityResponse, AvailabilitySummaryResponse } from '@ikaro/types';
-import { buildBffUrl } from '@/shared/lib/api/bff-url';
+import { bffClient } from '@/shared/lib/api/bff-client';
 
+// bffClient's baseURL is a hardcoded '/v1' literal — a structural same-origin guarantee, immune
+// to NEXT_PUBLIC_BFF_URL ever being misconfigured as an absolute host — matching this directory's
+// services.ts sibling for the identical public-hotsite-read shape.
 export async function fetchAvailabilitySummary(
   slug: string,
   from: string,
@@ -8,13 +11,11 @@ export async function fetchAvailabilitySummary(
   serviceIds: readonly string[],
 ): Promise<AvailabilitySummaryResponse> {
   const params = new URLSearchParams({ from, to, serviceIds: serviceIds.join(',') });
-  const res = await fetch(`${buildBffUrl('/schedule/availability/summary')}?${params}`, {
-    headers: { 'X-Tenant-Slug': slug },
-  });
-
-  if (!res.ok) throw new Error(`Failed to fetch availability summary for slug "${slug}"`);
-
-  return res.json() as Promise<AvailabilitySummaryResponse>;
+  const res = await bffClient.get<AvailabilitySummaryResponse>(
+    `/schedule/availability/summary?${params}`,
+    { headers: { 'X-Tenant-Slug': slug } },
+  );
+  return res.data;
 }
 
 export async function fetchAvailability(
@@ -23,11 +24,8 @@ export async function fetchAvailability(
   serviceIds: readonly string[],
 ): Promise<AvailabilityResponse> {
   const params = new URLSearchParams({ date, serviceIds: serviceIds.join(',') });
-  const res = await fetch(`${buildBffUrl('/schedule/availability')}?${params}`, {
+  const res = await bffClient.get<AvailabilityResponse>(`/schedule/availability?${params}`, {
     headers: { 'X-Tenant-Slug': slug },
   });
-
-  if (!res.ok) throw new Error(`Failed to fetch availability for slug "${slug}"`);
-
-  return res.json() as Promise<AvailabilityResponse>;
+  return res.data;
 }

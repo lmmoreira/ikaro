@@ -405,6 +405,76 @@
       "rationale": "Legacy availability adapter requires a repository-port follow-up before Story 2 enforcement.",
       "owner": "booking",
       "reviewBy": "2026-09-30"
+    },
+    {
+      "rule": "raw-fetch-web",
+      "path": "apps/web/app/v1/[...path]/route.ts",
+      "rationale": "This IS the centralized same-origin gateway Route Handler — it forwards arbitrary requests, cookies, redirects, and response headers to the BFF. The sanctioned transport helpers are for feature code calling through the gateway, not the gateway's own implementation.",
+      "owner": "web",
+      "reviewBy": "2026-09-30"
+    },
+    {
+      "rule": "raw-fetch-web",
+      "path": "apps/web/features/auth/api.ts",
+      "rationale": "Calls this app's own /api/auth/** and /api/customers/tenants Route Handlers (same-origin, not the BFF/backend directly) — each Route Handler itself uses bffServerFetch (TD31 Story 7 pattern, 2026-07-31).",
+      "owner": "web",
+      "reviewBy": "2026-09-30"
+    },
+    {
+      "rule": "raw-fetch-web",
+      "path": "apps/web/features/platform/hotsite/api/customers.ts",
+      "rationale": "Calls this app's own /api/customers/me Route Handler (same-origin, not the BFF/backend directly) — the Route Handler itself uses bffServerFetch (TD31 Story 7 pattern, 2026-07-31).",
+      "owner": "web",
+      "reviewBy": "2026-09-30"
+    },
+    {
+      "rule": "raw-fetch-web",
+      "path": "apps/web/features/staff/public.ts",
+      "rationale": "Calls this app's own /api/staff/me Route Handler (same-origin, not the BFF/backend directly) — the Route Handler itself uses bffServerFetch (TD31 Story 7 pattern, 2026-07-31).",
+      "owner": "web",
+      "reviewBy": "2026-09-30"
+    },
+    {
+      "rule": "raw-fetch-web",
+      "path": "apps/web/shells/hotsite/components/HotsiteAuthBar.tsx",
+      "rationale": "Calls this app's own /api/session Route Handler (same-origin, not the BFF/backend directly) — the Route Handler itself uses bffServerFetch (TD31 Story 7 pattern, 2026-07-31).",
+      "owner": "web",
+      "reviewBy": "2026-09-30"
+    },
+    {
+      "rule": "raw-fetch-web",
+      "path": "apps/web/features/booking/hooks/useBookings.ts",
+      "rationale": "fetchBookingsViaProxy() calls this app's own /api/bookings Route Handler (same-origin, not the BFF/backend directly) — the Route Handler itself uses bffServerFetch (TD31 Story 7 pattern, 2026-07-31).",
+      "owner": "web",
+      "reviewBy": "2026-09-30"
+    },
+    {
+      "rule": "raw-fetch-web",
+      "path": "apps/web/features/booking/api/customer.ts",
+      "rationale": "createCustomerAttachmentSignedUrl() calls /api/bookings/attachments/signed-url, this app's own Route Handler, not the BFF directly — that route reads the access_token cookie server-side and forwards it as Authorization: Bearer, scoping the request to the authenticated customer's own tenant (TD31 Story 7, 2026-07-31).",
+      "owner": "web",
+      "reviewBy": "2026-09-30"
+    },
+    {
+      "rule": "raw-fetch-web",
+      "path": "apps/web/features/booking/api/public.ts",
+      "rationale": "createAttachmentSignedUrl()/createGuestAttachmentSignedUrl() call /api/bookings/attachments/signed-url, this app's own Route Handler, not the BFF directly — the route deliberately ignores any leftover cookie when a guestToken is present in the body; routing through bffClient's generic gateway would transparently forward whatever cookie the browser has and risk misattributing the upload (TD31 Story 7, 2026-07-31).",
+      "owner": "web",
+      "reviewBy": "2026-09-30"
+    },
+    {
+      "rule": "raw-fetch-web",
+      "path": "apps/web/shared/lib/upload/upload-to-signed-url.ts",
+      "rationale": "Uploads directly to a GCS/S3 pre-signed URL returned by the BFF — this leg of the flow is not a BFF/backend endpoint, so the transport helpers don't apply.",
+      "owner": "web",
+      "reviewBy": "2026-09-30"
+    },
+    {
+      "rule": "raw-fetch-web",
+      "path": "apps/web/shared/lib/address/viacep-address-lookup.adapter.ts",
+      "rationale": "Calls the public ViaCEP Brazilian postal-code lookup API (viacep.com.br) — an approved third-party service, not the BFF/backend.",
+      "owner": "web",
+      "reviewBy": "2026-09-30"
     }
   ],
   "projects": [

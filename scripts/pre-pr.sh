@@ -100,7 +100,14 @@ grep_into_tmp "$ts_modules" "useExisting:"
 run_check "24. No useExisting in module providers — use useClass (CLAUDE.md §8)"
 
 # 18. No barrel imports from ports/ or shared/domain/
-grep_into_tmp "$ts_all" \
+# *.eslint.spec.ts files (e.g. src/eslint/persistence-boundary.eslint.spec.ts) deliberately embed
+# literal import-statement strings as Linter.verify() fixtures to prove the ESLint rule catches
+# the exact pattern this check also greps for — excluded here for the same reason WEB-7's naive
+# fetcher-naming grep was narrowed to manual/audit-only after producing false positives on
+# non-production content (see td/TD37-CI-ARCHITECTURE-VALIDATION-HARDENING.md's "Explicitly Out
+# of Scope" table).
+ts_all_no_eslint_fixtures=$(echo "$ts_all" | grep -v '\.eslint\.spec\.ts$' || true)
+grep_into_tmp "$ts_all_no_eslint_fixtures" \
   "from '[^']*/ports'|from \"[^\"]+/ports\"|from '[^']*/shared/domain'|from \"[^\"]+/shared/domain\""
 run_check "18. No barrel imports from ports/ or shared/domain/"
 

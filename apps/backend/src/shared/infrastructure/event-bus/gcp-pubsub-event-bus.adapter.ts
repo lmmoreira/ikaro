@@ -7,6 +7,7 @@ import { AppLogger } from '../../observability/app-logger';
 import { IEventBus } from '../../ports/event-bus.port';
 import { IPushableEventBus } from '../../ports/pushable-event-bus.port';
 import { ITriggerBus } from '../../ports/trigger-bus.port';
+import { DEAD_LETTER_CHANNEL_NAME } from './dead-letter-channel.constant';
 
 interface PendingSubscription {
   eventName: string;
@@ -290,7 +291,7 @@ export class GcpPubSubEventBusAdapter
     eventName: string,
     err: unknown,
   ): Promise<void> {
-    const dlqTopic = 'ikaro-dead-letter';
+    const dlqTopic = `ikaro-${DEAD_LETTER_CHANNEL_NAME}`;
     await this.ensureTopicOnce(dlqTopic);
     // event is spread into a new object below, never mutated — no defensive clone needed.
     const enrichedData = {
