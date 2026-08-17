@@ -818,7 +818,7 @@ HotsiteConfig {
 }
 ```
 
-**Layout modules (types):** `HERO`, `SERVICE_LIST`, `GALLERY`, `TESTIMONIALS`, `BOOKING_CTA`, `ABOUT`, `CONTACT`, `FOOTER`.
+**Layout modules (types):** `HERO`, `SERVICE_LIST`, `GALLERY`, `TESTIMONIALS`, `BOOKING_CTA`, `ABOUT`, `CONTACT`, `FOOTER`, `CHATBOT`.
 
 **Key methods:**
 - `updateContent(branding, layout, seo)` → replaces branding, layout, and seo; stays in draft until published.

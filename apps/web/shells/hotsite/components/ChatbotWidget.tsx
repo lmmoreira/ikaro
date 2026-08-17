@@ -40,16 +40,32 @@ function messagesKey(slug: string): string {
   return `ikaro-chatbot-messages:${slug}`;
 }
 
+type StoredChatTurn = Partial<ChatTurn> & Pick<ChatTurn, 'role' | 'content'>;
+
+// A syntactically valid but malformed stored turn (e.g. content: {}) previously reached JSX
+// unchecked and crashed the widget — the try/catch below only ever covered JSON.parse failures,
+// not a well-formed-but-wrong-shape value (PR #385 review, Codex).
+function isStoredChatTurn(value: unknown): value is StoredChatTurn {
+  if (typeof value !== 'object' || value === null) return false;
+  const turn = value as Record<string, unknown>;
+  return (
+    (turn.role === 'user' || turn.role === 'assistant') &&
+    typeof turn.content === 'string' &&
+    (turn.id === undefined || typeof turn.id === 'string')
+  );
+}
+
 // Backfills `id` for a transcript stored before this field existed — sessionStorage can
 // legitimately hold that older shape across a hot-reload/deploy within the same tab session.
 function readStoredMessages(slug: string): ChatTurn[] {
   try {
     const raw = sessionStorage.getItem(messagesKey(slug));
     if (!raw) return [];
-    const parsed = JSON.parse(raw) as ReadonlyArray<
-      Partial<ChatTurn> & Pick<ChatTurn, 'role' | 'content'>
-    >;
-    return parsed.map((turn) => ({ id: turn.id ?? crypto.randomUUID(), ...turn }));
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(isStoredChatTurn)
+      .map((turn) => ({ id: turn.id ?? crypto.randomUUID(), ...turn }));
   } catch {
     return [];
   }

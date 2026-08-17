@@ -470,5 +470,33 @@ describe('ChatbotWidget', () => {
 
       expect(await screen.findByText('Olá! Como posso ajudar?')).toBeInTheDocument();
     });
+
+    // PR #385 review (Codex): syntactically valid JSON with a malformed turn shape (content as
+    // an object, an unknown role) previously reached JSX unchecked and crashed the widget.
+    it('discards malformed turns instead of crashing, keeping only well-formed ones', async () => {
+      sessionStorage.setItem(
+        `ikaro-chatbot-messages:${SLUG}`,
+        JSON.stringify([
+          { role: 'user', content: 'Oi' },
+          { role: 'assistant', content: { nested: 'object' } },
+          { role: 'unknown-role', content: 'ignored' },
+          { role: 'assistant', content: 'Como posso ajudar?' },
+        ]),
+      );
+      mock.onGet('/public/platform/chatbot/status').reply(200, { available: true });
+
+      render(
+        <ChatbotWidget
+          data={makeData({ variant: 'inline' })}
+          slug={SLUG}
+          business={makeBusiness()}
+          tenantName={TENANT_NAME}
+        />,
+      );
+
+      expect(await screen.findByText('Oi')).toBeInTheDocument();
+      expect(screen.getByText('Como posso ajudar?')).toBeInTheDocument();
+      expect(screen.getAllByTestId('chatbot-message')).toHaveLength(2);
+    });
   });
 });

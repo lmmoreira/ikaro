@@ -13,13 +13,26 @@ function makeRequest(overrides?: Partial<ChatCompletionRequest>): ChatCompletion
 }
 
 describe('FakeLlmAdapter', () => {
-  it('returns a deterministic reply referencing the user message, never a real network call', async () => {
+  it('returns a deterministic reply referencing the user message', async () => {
     const adapter = new FakeLlmAdapter();
 
     const result = await adapter.complete(makeRequest());
 
     expect(result.text).toContain('Vocês abrem aos sábados?');
     expect(result.modelId).toBe('fake-llm-e2e');
+  });
+
+  // PR #385 review (Codex): the original version of this test only asserted on the returned
+  // value, which would still pass even if an outbound call were added later — spying on fetch
+  // is what actually proves no network I/O happens.
+  it('never performs a real network call', async () => {
+    const fetchSpy = jest.spyOn(globalThis, 'fetch');
+    const adapter = new FakeLlmAdapter();
+
+    await adapter.complete(makeRequest());
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
   });
 
   it('always costs zero — never billed', async () => {
@@ -37,5 +50,18 @@ describe('FakeLlmAdapter', () => {
 
     expect(result.inputTokens).toBeGreaterThan(0);
     expect(result.outputTokens).toBeGreaterThan(0);
+  });
+
+  // PR #385 review (Codex): the echo was previously unbounded, so this fake never actually
+  // exercised UC-033's maxOutputTokensPerResponse ceiling the way a real adapter must.
+  it('truncates the reply to maxOutputTokens, never exceeding the requested ceiling', async () => {
+    const adapter = new FakeLlmAdapter();
+
+    const result = await adapter.complete(
+      makeRequest({ userMessage: 'a'.repeat(50), maxOutputTokens: 10 }),
+    );
+
+    expect(result.text).toHaveLength(10);
+    expect(result.outputTokens).toBe(10);
   });
 });
