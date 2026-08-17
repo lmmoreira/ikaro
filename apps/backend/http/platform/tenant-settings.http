@@ -455,3 +455,23 @@ X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{managerId}}
 X-Actor-Type: STAFF
 X-Actor-Role: STAFF
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CHATBOT CAP STATUS (M19-S10, UC-027 A5)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### 200 — Cap status for the CHATBOT module's own config-screen banner
+GET {{baseUrl}}/tenants/chatbot/cap-status
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+###
+
+### 403 — STAFF role not allowed (ManagerRoleGuard rejects)
+GET {{baseUrl}}/tenants/chatbot/cap-status
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
