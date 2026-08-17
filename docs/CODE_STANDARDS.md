@@ -7,7 +7,7 @@ Detailed mandatory rules for all TypeScript code. CLAUDE.md §7 holds the conden
 ## TypeScript
 
 - `strict: true` — no `any`, no `@ts-ignore`, no `// eslint-disable`
-- Functions ≤ 40 lines (`.ts`); ≤ 200 lines for `.tsx` component functions (JSX markup counts as function body under ESLint's `max-lines-per-function` — not the same complexity signal as equivalent-length imperative logic). Files ≤ 200 lines (supersedes the earlier "classes ≤ 200 lines" framing — ESLint's `max-lines` measures files, not classes, and this codebase is predominantly one-class/one-use-case-per-file already; see TD37-S05).
+- Functions ≤ 40 lines (`.ts`); ≤ 200 lines for `.tsx` component functions (JSX markup counts as function body under ESLint's `max-lines-per-function` — not the same complexity signal as equivalent-length imperative logic). Files ≤ 250 lines (supersedes the earlier "classes ≤ 200 lines" framing — ESLint's `max-lines` measures files, not classes, and this codebase is predominantly one-class/one-use-case-per-file already; see TD37-S05). A domain aggregate or other file with a documented reason further splitting would hurt cohesion or reintroduce a known incident (e.g. `booking.aggregate.ts`, `gcp-pubsub-event-bus.adapter.ts`) may carry a reviewed `max-lines`/`max-lines-aggregate` exception in `packages/architecture-check/architecture-policy.json` instead of being force-split — `max-lines-per-function` still applies to these files regardless.
 - No raw SQL outside repository adapters
 - DI everywhere — no `new SomeRepository()` in services
 

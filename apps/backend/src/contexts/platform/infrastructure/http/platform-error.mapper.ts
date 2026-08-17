@@ -3,13 +3,6 @@ import { throwProblemDetail } from '@ikaro/nestjs-http';
 import { mapSharedAddressError } from '../../../../shared/http/address-validation-error.mapper';
 import { mapSharedVoError } from '../../../../shared/http/vo-validation-error.mapper';
 import {
-  ChatbotConcurrencyCapReachedError,
-  ChatbotDailyCapReachedError,
-  ChatbotGlobalSpendLimitReachedError,
-  ChatbotMessageCapReachedError,
-  ChatbotProviderBalanceLowError,
-  ChatbotProviderUnavailableError,
-  ChatbotSessionNotFoundError,
   HotsiteConfigConcurrentModificationError,
   HotsiteNotFoundError,
   PlatformDomainError,
@@ -17,6 +10,15 @@ import {
   TenantInactiveError,
   TenantNotFoundError,
 } from '../../domain/errors/platform-domain.error';
+import {
+  ChatbotConcurrencyCapReachedError,
+  ChatbotDailyCapReachedError,
+  ChatbotGlobalSpendLimitReachedError,
+  ChatbotMessageCapReachedError,
+  ChatbotProviderBalanceLowError,
+  ChatbotProviderUnavailableError,
+  ChatbotSessionNotFoundError,
+} from '../../domain/errors/chatbot-domain.error';
 
 export function mapPlatformError(err: unknown): never {
   mapSharedAddressError(err);

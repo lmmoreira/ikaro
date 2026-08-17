@@ -26,4 +26,16 @@ module.exports = [
       ],
     },
   },
+  // TD37-S05: docs/CODE_STANDARDS.md's function/file length limits, enforced via ESLint core
+  // (zero new dependency). Specs are exempt (test bodies are naturally longer due to setup/
+  // assertions — the rule's intent targets production logic); src/test/** is exempt (test
+  // infrastructure, not production code).
+  {
+    files: ['src/**/*.ts'],
+    ignores: ['**/*.spec.ts', '**/*.integration.spec.ts', 'src/test/**'],
+    rules: {
+      'max-lines-per-function': ['error', { max: 40, skipBlankLines: true, skipComments: true }],
+      'max-lines': ['error', { max: 250, skipBlankLines: true, skipComments: true }],
+    },
+  },
 ];

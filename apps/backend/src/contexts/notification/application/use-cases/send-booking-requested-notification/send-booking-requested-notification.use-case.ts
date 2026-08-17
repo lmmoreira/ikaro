@@ -59,39 +59,14 @@ export class SendBookingRequestedNotificationUseCase extends BaseNotificationUse
     input: SendBookingRequestedNotificationUseCaseInput,
   ): Promise<SendBookingRequestedNotificationUseCaseResult> {
     const serviceNames = input.lines.map((l) => l.serviceNameAtBooking).join(', ');
+    const { adminTemplates, customerTemplates, managerEmails, tenantInfo } = await this.loadContext(
+      input.tenantId,
+    );
 
-    const [adminTemplates, customerTemplates, managerEmails, tenantInfo] = await Promise.all([
-      this.templateRepo.findAllByTriggerEvent(
-        input.tenantId,
-        NotificationTemplateKey.BOOKING_REQUESTED_ADMIN,
-      ),
-      this.templateRepo.findAllByTriggerEvent(
-        input.tenantId,
-        NotificationTemplateKey.BOOKING_REQUESTED_CUSTOMER,
-      ),
-      this.staffPort.getManagerEmails(input.tenantId),
-      this.tenantPort.getTenantInfo(input.tenantId),
-    ]);
-
-    const timezone = tenantInfo?.timezone ?? 'UTC';
     const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
     this.localizeTemplates(adminTemplates, this.localizationPort, locale);
     this.localizeTemplates(customerTemplates, this.localizationPort, locale);
-    const formattedPrice = formatMoney(input.totalPrice.amount, locale, input.totalPrice.currency);
-    const scheduledDate = new Date(input.scheduledAt);
-    const localDate = utcDateToLocalDate(scheduledDate, timezone);
-    const localTime = utcDateToLocalHHMM(scheduledDate, timezone);
-    const [year, month, day] = localDate.split('-') as [string, string, string];
-    const formattedScheduledAt = `${day}/${month}/${year} às ${localTime}`;
-
-    const variables: Record<string, string> = {
-      contactName: input.contactName,
-      scheduledAt: formattedScheduledAt,
-      serviceNames,
-      totalPrice: formattedPrice,
-      pickupAddress: input.pickupAddress ? JSON.stringify(input.pickupAddress) : '',
-      tenantName: tenantInfo?.name ?? '',
-    };
+    const variables = this.buildVariables(input, tenantInfo, serviceNames);
 
     const adminEmailSent =
       managerEmails.length > 0
@@ -106,5 +81,45 @@ export class SendBookingRequestedNotificationUseCase extends BaseNotificationUse
     );
 
     return { adminEmailSent, customerEmailSent };
+  }
+
+  private async loadContext(tenantId: string) {
+    const [adminTemplates, customerTemplates, managerEmails, tenantInfo] = await Promise.all([
+      this.templateRepo.findAllByTriggerEvent(
+        tenantId,
+        NotificationTemplateKey.BOOKING_REQUESTED_ADMIN,
+      ),
+      this.templateRepo.findAllByTriggerEvent(
+        tenantId,
+        NotificationTemplateKey.BOOKING_REQUESTED_CUSTOMER,
+      ),
+      this.staffPort.getManagerEmails(tenantId),
+      this.tenantPort.getTenantInfo(tenantId),
+    ]);
+    return { adminTemplates, customerTemplates, managerEmails, tenantInfo };
+  }
+
+  private buildVariables(
+    input: SendBookingRequestedNotificationUseCaseInput,
+    tenantInfo: Awaited<ReturnType<INotificationPlatformPort['getTenantInfo']>>,
+    serviceNames: string,
+  ): Record<string, string> {
+    const timezone = tenantInfo?.timezone ?? 'UTC';
+    const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
+    const formattedPrice = formatMoney(input.totalPrice.amount, locale, input.totalPrice.currency);
+    const scheduledDate = new Date(input.scheduledAt);
+    const localDate = utcDateToLocalDate(scheduledDate, timezone);
+    const localTime = utcDateToLocalHHMM(scheduledDate, timezone);
+    const [year, month, day] = localDate.split('-') as [string, string, string];
+    const formattedScheduledAt = `${day}/${month}/${year} às ${localTime}`;
+
+    return {
+      contactName: input.contactName,
+      scheduledAt: formattedScheduledAt,
+      serviceNames,
+      totalPrice: formattedPrice,
+      pickupAddress: input.pickupAddress ? JSON.stringify(input.pickupAddress) : '',
+      tenantName: tenantInfo?.name ?? '',
+    };
   }
 }

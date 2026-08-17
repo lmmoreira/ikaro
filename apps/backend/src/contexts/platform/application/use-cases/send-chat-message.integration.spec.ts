@@ -16,7 +16,7 @@ import {
   ChatbotConcurrencyCapReachedError,
   ChatbotDailyCapReachedError,
   ChatbotMessageCapReachedError,
-} from '../../domain/errors/platform-domain.error';
+} from '../../domain/errors/chatbot-domain.error';
 import { LlmProviderRegistry } from '../services/llm-provider-registry.service';
 import { SendChatMessageUseCase, SendChatMessageUseCaseInput } from './send-chat-message.use-case';
 

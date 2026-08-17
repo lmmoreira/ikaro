@@ -475,6 +475,13 @@
       "rationale": "Calls the public ViaCEP Brazilian postal-code lookup API (viacep.com.br) — an approved third-party service, not the BFF/backend.",
       "owner": "web",
       "reviewBy": "2026-09-30"
+    },
+    {
+      "rule": "max-lines-aggregate",
+      "path": "apps/backend/src/contexts/booking/domain/booking.aggregate.ts",
+      "rationale": "TD37-S05: a domain aggregate with many small, cohesive methods naturally exceeds the 250-line file cap even after extracting every type/mapper that could safely move out (booking.types.ts) — splitting Booking's remaining methods across files to satisfy the metric would fragment one cohesive domain concept, not reduce real complexity (max-lines-per-function still applies and is enforced/fixed on this file).",
+      "owner": "booking",
+      "reviewBy": "2026-11-30"
     }
   ],
   "projects": [

@@ -34,8 +34,25 @@ export class ExpirePointsJob {
   ) {}
 
   async run(now: Date = new Date()): Promise<ExpirePointsJobResult> {
-    const expired = await this.entryRepo.findExpiringBefore(now);
+    const unprocessed = await this.findUnprocessedExpired(now);
+    if (unprocessed.length === 0) {
+      return { processedEntries: 0, affectedCustomers: 0, totalPointsExpired: 0 };
+    }
 
+    const groups = this.groupByCustomer(unprocessed);
+    let affectedCustomers = 0;
+    let totalPointsExpired = 0;
+
+    for (const entries of groups.values()) {
+      totalPointsExpired += await this.processGroup(entries);
+      affectedCustomers++;
+    }
+
+    return { processedEntries: unprocessed.length, affectedCustomers, totalPointsExpired };
+  }
+
+  private async findUnprocessedExpired(now: Date): Promise<LoyaltyEntry[]> {
+    const expired = await this.entryRepo.findExpiringBefore(now);
     const unprocessed: LoyaltyEntry[] = [];
     for (const entry of expired) {
       if (await this.expiryLogRepo.hasBeenProcessed(entry.id)) continue;
@@ -44,46 +61,41 @@ export class ExpirePointsJob {
       if (!(await this.entryRepo.existsById(entry.id))) continue;
       unprocessed.push(entry);
     }
+    return unprocessed;
+  }
 
-    if (unprocessed.length === 0) {
-      return { processedEntries: 0, affectedCustomers: 0, totalPointsExpired: 0 };
-    }
-
+  private groupByCustomer(entries: LoyaltyEntry[]): Map<string, LoyaltyEntry[]> {
     const groups = new Map<string, LoyaltyEntry[]>();
-    for (const entry of unprocessed) {
+    for (const entry of entries) {
       const key = `${entry.tenantId}:${entry.customerId}`;
       const group = groups.get(key) ?? [];
       group.push(entry);
       groups.set(key, group);
     }
+    return groups;
+  }
 
-    let affectedCustomers = 0;
-    let totalPointsExpired = 0;
+  /** Expires one customer's due points, returning the amount actually decremented. */
+  private async processGroup(entries: LoyaltyEntry[]): Promise<number> {
+    const { tenantId, customerId } = entries[0];
+    const expiredPoints = entries.reduce((sum, e) => sum + e.points, 0);
 
-    for (const entries of groups.values()) {
-      const { tenantId, customerId } = entries[0];
-      const expiredPoints = entries.reduce((sum, e) => sum + e.points, 0);
+    const balance = await this.balanceRepo.findByCustomer(tenantId, customerId);
+    const pointsToDecrement = balance ? Math.min(expiredPoints, balance.currentPoints) : 0;
 
-      const balance = await this.balanceRepo.findByCustomer(tenantId, customerId);
-      const pointsToDecrement = balance ? Math.min(expiredPoints, balance.currentPoints) : 0;
-
-      if (balance && pointsToDecrement > 0) {
-        balance.decrement(pointsToDecrement);
-      }
-
-      await this.txManager.run(async () => {
-        if (balance && pointsToDecrement > 0) {
-          await this.balanceRepo.upsert(balance);
-        }
-        for (const entry of entries) {
-          await this.expiryLogRepo.markProcessed(entry.id);
-        }
-      });
-
-      affectedCustomers++;
-      totalPointsExpired += pointsToDecrement;
+    if (balance && pointsToDecrement > 0) {
+      balance.decrement(pointsToDecrement);
     }
 
-    return { processedEntries: unprocessed.length, affectedCustomers, totalPointsExpired };
+    await this.txManager.run(async () => {
+      if (balance && pointsToDecrement > 0) {
+        await this.balanceRepo.upsert(balance);
+      }
+      for (const entry of entries) {
+        await this.expiryLogRepo.markProcessed(entry.id);
+      }
+    });
+
+    return pointsToDecrement;
   }
 }

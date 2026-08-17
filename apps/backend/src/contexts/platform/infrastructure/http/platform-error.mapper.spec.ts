@@ -14,13 +14,6 @@ import { SeoDescriptionValidationError } from '../../../../shared/value-objects/
 import { SlugValidationError } from '../../../../shared/value-objects/slug.vo';
 import { HexColorValidationError } from '../../../../shared/value-objects/hex-color.vo';
 import {
-  ChatbotConcurrencyCapReachedError,
-  ChatbotDailyCapReachedError,
-  ChatbotGlobalSpendLimitReachedError,
-  ChatbotMessageCapReachedError,
-  ChatbotProviderBalanceLowError,
-  ChatbotProviderUnavailableError,
-  ChatbotSessionNotFoundError,
   HotsiteBrandingColorInvalidError,
   HotsiteConfigConcurrentModificationError,
   HotsiteNotFoundError,
@@ -29,6 +22,15 @@ import {
   TenantNotFoundError,
   TenantSettingsValidationError,
 } from '../../domain/errors/platform-domain.error';
+import {
+  ChatbotConcurrencyCapReachedError,
+  ChatbotDailyCapReachedError,
+  ChatbotGlobalSpendLimitReachedError,
+  ChatbotMessageCapReachedError,
+  ChatbotProviderBalanceLowError,
+  ChatbotProviderUnavailableError,
+  ChatbotSessionNotFoundError,
+} from '../../domain/errors/chatbot-domain.error';
 import { mapPlatformError } from './platform-error.mapper';
 
 function call(err: unknown): HttpException {

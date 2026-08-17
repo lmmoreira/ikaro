@@ -20,6 +20,14 @@ import { LocalizationSettingsValidator } from './validators/localization-setting
 import { LoyaltySettingsValidator } from './validators/loyalty-settings.validator';
 import { NotificationSettingsValidator } from './validators/notification-settings.validator';
 import { requireTrimmedString } from './validators/require-trimmed-string';
+import {
+  DEFAULT_BOOKING_SETTINGS,
+  DEFAULT_BUSINESS_INFO_SETTINGS,
+  DEFAULT_CHATBOT_SETTINGS,
+  DEFAULT_LOYALTY_SETTINGS,
+  DEFAULT_NOTIFICATION_SETTINGS,
+  buildDefaultBusinessHours,
+} from './tenant-settings-defaults';
 
 export type {
   AddressProps,
@@ -110,50 +118,18 @@ export class TenantSettings {
     const resolvedCountryCode = CountryCode.create(countryCode);
     const spec = resolvedCountryCode.spec;
     return new TenantSettings({
-      loyalty: {
-        expiryDays: 180,
-        enableNotifications: true,
-        expiryWarningDays: 7,
-        notificationMinPoints: 50,
-        pointsPerCurrencyUnit: 0,
-      },
-      booking: {
-        cancellationWindowHours: 48,
-        autoApproveEnabled: false,
-        minBookingAdvanceHours: 0,
-        maxBookingAdvanceDays: 90,
-        serviceBufferMinutes: 60,
-        slotGranularityMinutes: 30,
-        welcomeStaffScreenDays: 14,
-      },
-      businessHours: {
-        timezone,
-        monday: { open: '09:00', close: '18:00' },
-        tuesday: { open: '09:00', close: '18:00' },
-        wednesday: { open: '09:00', close: '18:00' },
-        thursday: { open: '09:00', close: '18:00' },
-        friday: { open: '09:00', close: '18:00' },
-        saturday: { open: '09:00', close: '17:00' },
-        sunday: null,
-      },
+      loyalty: DEFAULT_LOYALTY_SETTINGS,
+      booking: DEFAULT_BOOKING_SETTINGS,
+      businessHours: buildDefaultBusinessHours(timezone),
       localization: {
         countryCode: resolvedCountryCode.value,
         currency: spec.currency,
         language: spec.language,
         decimalPlaces: 2,
       },
-      notification: {
-        fromEmail: null,
-      },
-      businessInfo: {
-        phone: null,
-        email: null,
-        address: null,
-        socialLinks: null,
-      },
-      chatbot: {
-        knowledgeText: '',
-      },
+      notification: DEFAULT_NOTIFICATION_SETTINGS,
+      businessInfo: DEFAULT_BUSINESS_INFO_SETTINGS,
+      chatbot: DEFAULT_CHATBOT_SETTINGS,
     });
   }
 

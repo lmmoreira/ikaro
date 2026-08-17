@@ -4,13 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type React from 'react';
 import type { Address, HotsiteAddressSpec } from '@ikaro/types';
-import { buildContactPhone } from '@/shared/utils/contact-phone';
 import { digitsOnly } from '@/shared/utils/digits-only';
-import {
-  formatPhoneForDisplay,
-  phonePlaceholder,
-  sanitizePhoneInput,
-} from '@/shared/utils/phone-format';
 import {
   emptyAddress,
   isAddressFilled,
@@ -26,6 +20,7 @@ import { ErrorAlert } from '@/features/booking/components/public/ErrorAlert';
 import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
+import { InformationCompletionPhoneField } from './InformationCompletionPhoneField';
 
 interface InformationCompletionPromptProps {
   readonly slug: string;
@@ -137,42 +132,12 @@ export function InformationCompletionPrompt({
         <p className="mt-1 text-sm opacity-70">{t('informationCompletionSubtitle')}</p>
 
         <form onSubmit={handleSubmit} noValidate className="mt-5">
-          <label htmlFor="information-completion-phone" className="mb-1 block text-sm font-medium">
-            {t('informationCompletionPhoneLabel')}
-          </label>
-          <div className="flex">
-            <span
-              data-testid="information-completion-phone-prefix"
-              className="flex items-center border border-r-0 px-3 text-sm font-medium"
-              style={{
-                borderRadius: 'var(--ba-radius) 0 0 var(--ba-radius)',
-                borderColor: 'var(--ba-secondary)',
-                backgroundColor: 'var(--ba-secondary)',
-              }}
-            >
-              {phonePrefix}
-            </span>
-            <input
-              id="information-completion-phone"
-              type="tel"
-              inputMode="numeric"
-              required
-              data-testid="information-completion-phone-input"
-              placeholder={phonePlaceholder(phonePrefix)}
-              value={formatPhoneForDisplay(localPhoneDigits, phonePrefix)}
-              onChange={(e) => {
-                const input = sanitizePhoneInput(e.target.value, phonePrefix);
-                setPhone(buildContactPhone(input, phonePrefix));
-              }}
-              className="min-w-0 flex-1 border px-3 py-2"
-              style={{
-                borderRadius: '0 var(--ba-radius) var(--ba-radius) 0',
-                borderColor: 'var(--ba-secondary)',
-                backgroundColor: 'var(--ba-secondary)',
-                color: 'var(--ba-text)',
-              }}
-            />
-          </div>
+          <InformationCompletionPhoneField
+            phonePrefix={phonePrefix}
+            localPhoneDigits={localPhoneDigits}
+            onChangeLocalDigits={setPhone}
+            label={t('informationCompletionPhoneLabel')}
+          />
 
           <div className="mt-5">
             <p className="mb-2 text-sm font-medium">{t('informationCompletionAddressLabel')}</p>

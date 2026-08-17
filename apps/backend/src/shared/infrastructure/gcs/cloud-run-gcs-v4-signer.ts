@@ -27,26 +27,42 @@ export class CloudRunGcsV4Signer {
       this.getMetadataText('instance/service-accounts/default/email'),
       this.getAccessToken(),
     ]);
+    const { query, canonicalUri, stringToSign } = this.buildSignatureInputs(
+      bucketName,
+      storagePath,
+      method,
+      expiresAt,
+      contentType,
+      serviceAccountEmail,
+    );
+    const signedBlob = await this.signBlob(serviceAccountEmail, accessToken, stringToSign);
+    const signature = Buffer.from(signedBlob, 'base64').toString('hex');
+
+    return `https://${STORAGE_HOST}${canonicalUri}?${query}&X-Goog-Signature=${signature}`;
+  }
+
+  private buildSignatureInputs(
+    bucketName: string,
+    storagePath: string,
+    method: 'GET' | 'PUT',
+    expiresAt: Date,
+    contentType: string | undefined,
+    serviceAccountEmail: string,
+  ): { query: string; canonicalUri: string; stringToSign: string } {
     const accessibleAt = new Date();
     const isoDate = formatIsoDate(accessibleAt);
     const date = isoDate.slice(0, 8);
     const credentialScope = `${date}/auto/storage/goog4_request`;
     const canonicalUri = `/${encodePathSegment(bucketName)}/${encodeStoragePath(storagePath)}`;
-    const canonicalHeaders = contentType
-      ? `content-type:${contentType}\nhost:${STORAGE_HOST}\n`
-      : `host:${STORAGE_HOST}\n`;
-    const signedHeaders = contentType ? 'content-type;host' : 'host';
+    const { canonicalHeaders, signedHeaders } = buildCanonicalHeaders(contentType);
     const expiresInSeconds = Math.floor((expiresAt.getTime() - accessibleAt.getTime()) / 1000);
-    const query = [
-      ['X-Goog-Algorithm', 'GOOG4-RSA-SHA256'],
-      ['X-Goog-Credential', `${serviceAccountEmail}/${credentialScope}`],
-      ['X-Goog-Date', isoDate],
-      ['X-Goog-Expires', String(expiresInSeconds)],
-      ['X-Goog-SignedHeaders', signedHeaders],
-    ]
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, value]) => `${encodeQueryValue(key)}=${encodeQueryValue(value)}`)
-      .join('&');
+    const query = buildQueryString(
+      serviceAccountEmail,
+      credentialScope,
+      isoDate,
+      expiresInSeconds,
+      signedHeaders,
+    );
     const canonicalRequest = [
       method,
       canonicalUri,
@@ -61,10 +77,7 @@ export class CloudRunGcsV4Signer {
       credentialScope,
       sha256(canonicalRequest),
     ].join('\n');
-    const signedBlob = await this.signBlob(serviceAccountEmail, accessToken, stringToSign);
-    const signature = Buffer.from(signedBlob, 'base64').toString('hex');
-
-    return `https://${STORAGE_HOST}${canonicalUri}?${query}&X-Goog-Signature=${signature}`;
+    return { query, canonicalUri, stringToSign };
   }
 
   private async getAccessToken(): Promise<string> {
@@ -102,6 +115,37 @@ export class CloudRunGcsV4Signer {
     const body = await readResponse<SignBlobResponse>(response, 'IAM signBlob');
     return body.signedBlob;
   }
+}
+
+function buildCanonicalHeaders(contentType: string | undefined): {
+  canonicalHeaders: string;
+  signedHeaders: string;
+} {
+  return contentType
+    ? {
+        canonicalHeaders: `content-type:${contentType}\nhost:${STORAGE_HOST}\n`,
+        signedHeaders: 'content-type;host',
+      }
+    : { canonicalHeaders: `host:${STORAGE_HOST}\n`, signedHeaders: 'host' };
+}
+
+function buildQueryString(
+  serviceAccountEmail: string,
+  credentialScope: string,
+  isoDate: string,
+  expiresInSeconds: number,
+  signedHeaders: string,
+): string {
+  return [
+    ['X-Goog-Algorithm', 'GOOG4-RSA-SHA256'],
+    ['X-Goog-Credential', `${serviceAccountEmail}/${credentialScope}`],
+    ['X-Goog-Date', isoDate],
+    ['X-Goog-Expires', String(expiresInSeconds)],
+    ['X-Goog-SignedHeaders', signedHeaders],
+  ]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, value]) => `${encodeQueryValue(key)}=${encodeQueryValue(value)}`)
+    .join('&');
 }
 
 function formatIsoDate(date: Date): string {

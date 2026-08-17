@@ -8,15 +8,14 @@ import {
   sendChatbotMessageClient,
 } from '@/features/platform/hotsite/api/chatbot';
 import { ApiError } from '@/shared/lib/api/errors';
-import { digitsOnly } from '@/shared/utils/digits-only';
-
-interface ChatTurn {
-  // Stable React key (SonarCloud S6479 — array index is not a valid key once messages can be
-  // rolled back on a 400, which removes an item from the middle of the array, not just appends).
-  readonly id: string;
-  readonly role: 'user' | 'assistant';
-  readonly content: string;
-}
+import { BotIcon } from './chatbot-icons';
+import { ChatbotPanel } from './ChatbotPanel';
+import {
+  type ChatTurn,
+  messagesKey,
+  readStoredMessages,
+  sessionIdKey,
+} from './chatbot-widget-storage';
 
 interface ChatbotWidgetProps {
   readonly data: ChatbotModuleData;
@@ -28,140 +27,6 @@ interface ChatbotWidgetProps {
 // checking/unavailable: pre-flight in flight or resolved false — widget renders null either way
 // (UC-034). idle/sending/interrupted: the 3 states the prototype validates (docs/15 § CHATBOT).
 type ConversationStatus = 'checking' | 'unavailable' | 'idle' | 'sending' | 'interrupted';
-
-// Scoped per tenant slug: a visitor can browse two tenants' hotsites in the same browser tab
-// sequence (no full reload required between them), so a bare, unscoped key would leak one
-// tenant's session/transcript into another's widget.
-function sessionIdKey(slug: string): string {
-  return `ikaro-chatbot-session-id:${slug}`;
-}
-
-function messagesKey(slug: string): string {
-  return `ikaro-chatbot-messages:${slug}`;
-}
-
-type StoredChatTurn = Partial<ChatTurn> & Pick<ChatTurn, 'role' | 'content'>;
-
-// A syntactically valid but malformed stored turn (e.g. content: {}) previously reached JSX
-// unchecked and crashed the widget — the try/catch below only ever covered JSON.parse failures,
-// not a well-formed-but-wrong-shape value (PR #385 review, Codex).
-function isStoredChatTurn(value: unknown): value is StoredChatTurn {
-  if (typeof value !== 'object' || value === null) return false;
-  const turn = value as Record<string, unknown>;
-  return (
-    (turn.role === 'user' || turn.role === 'assistant') &&
-    typeof turn.content === 'string' &&
-    (turn.id === undefined || typeof turn.id === 'string')
-  );
-}
-
-// Backfills `id` for a transcript stored before this field existed — sessionStorage can
-// legitimately hold that older shape across a hot-reload/deploy within the same tab session.
-function readStoredMessages(slug: string): ChatTurn[] {
-  try {
-    const raw = sessionStorage.getItem(messagesKey(slug));
-    if (!raw) return [];
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter(isStoredChatTurn)
-      .map((turn) => ({ id: turn.id ?? crypto.randomUUID(), ...turn }));
-  } catch {
-    return [];
-  }
-}
-
-const BotIcon = (
-  <svg
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-  </svg>
-);
-
-const CloseIcon = (
-  <svg
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <line x1="18" y1="6" x2="6" y2="18" />
-    <line x1="6" y1="6" x2="18" y2="18" />
-  </svg>
-);
-
-const SendIcon = (
-  <svg
-    width="16"
-    height="16"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <line x1="22" y1="2" x2="11" y2="13" />
-    <polygon points="22 2 15 22 11 13 2 9 22 2" />
-  </svg>
-);
-
-interface FallbackCtaProps {
-  readonly business: HotsiteBusinessInfoResponse;
-}
-
-// Interrupted-state fallback contact — reuses the manifest's already-resolved business.phone /
-// business.socialLinks.whatsapp (docs/15 § CONTACT's resolution path), never a new field.
-// WhatsApp preferred when both are set, matching ContactModule's own display precedent.
-function FallbackCta({ business }: FallbackCtaProps): React.JSX.Element | null {
-  const t = useTranslations('hotsite');
-  const whatsapp = business.socialLinks?.whatsapp;
-
-  if (whatsapp) {
-    return (
-      <a
-        href={`https://wa.me/${digitsOnly(whatsapp)}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        data-testid="chatbot-whatsapp-cta"
-        className="self-center rounded-full px-5 py-2.5 text-sm font-semibold text-white no-underline"
-        style={{ backgroundColor: '#25D366' }}
-      >
-        {t('chatbot.whatsappFallbackCta')}
-      </a>
-    );
-  }
-
-  if (business.phone) {
-    return (
-      <a
-        href={`tel:${digitsOnly(business.phone)}`}
-        data-testid="chatbot-phone-cta"
-        className="self-center rounded-full px-5 py-2.5 text-sm font-semibold no-underline"
-        style={{ backgroundColor: 'var(--ba-primary)', color: 'var(--ba-btn-text)' }}
-      >
-        {t('chatbot.phoneFallbackCta')}
-      </a>
-    );
-  }
-
-  return null;
-}
 
 export function ChatbotWidget({
   data,
@@ -291,8 +156,6 @@ export function ChatbotWidget({
     );
   }
 
-  const isInterrupted = status === 'interrupted';
-  const isSending = status === 'sending';
   const displayedMessages: ChatTurn[] =
     messages.length === 0
       ? [
@@ -305,132 +168,22 @@ export function ChatbotWidget({
       : messages;
 
   const panel = (
-    <div
-      className={
-        variant === 'bubble'
-          ? 'fixed bottom-6 right-6 z-50 flex h-[32rem] max-h-[calc(100vh-3rem)] w-[23rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden shadow-2xl'
-          : 'mx-auto flex h-80 w-full max-w-2xl flex-col overflow-hidden border shadow-sm'
-      }
-      style={{
-        backgroundColor: 'var(--ba-background)',
-        borderRadius: 'var(--ba-radius)',
-        borderColor: variant === 'inline' ? 'var(--ba-secondary)' : undefined,
-      }}
-      data-testid="chatbot-panel"
-    >
-      <div
-        className="flex items-center gap-2.5 px-5 py-3.5"
-        style={{ backgroundColor: accentColor, color: 'var(--ba-btn-text)' }}
-      >
-        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/20">
-          {BotIcon}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[0.9375rem] font-bold leading-tight">{title}</div>
-        </div>
-        {variant === 'bubble' && (
-          <button
-            type="button"
-            onClick={() => setIsOpen(false)}
-            title={t('chatbot.closeButtonLabel')}
-            aria-label={t('chatbot.closeButtonLabel')}
-            data-testid="chatbot-close-button"
-            className="border-none bg-transparent opacity-85"
-            style={{ color: 'var(--ba-btn-text)' }}
-          >
-            {CloseIcon}
-          </button>
-        )}
-      </div>
-
-      <div
-        ref={bodyRef}
-        className="flex flex-1 flex-col gap-3 overflow-y-auto p-4"
-        style={{ backgroundColor: 'var(--ba-secondary)' }}
-      >
-        {displayedMessages.map((turn) => (
-          <div
-            key={turn.id}
-            data-testid="chatbot-message"
-            data-role={turn.role}
-            className={
-              turn.role === 'user'
-                ? 'max-w-[82%] self-end rounded-2xl rounded-br-sm px-3.5 py-2.5 text-sm'
-                : 'max-w-[82%] self-start rounded-2xl rounded-bl-sm border px-3.5 py-2.5 text-sm'
-            }
-            style={
-              turn.role === 'user'
-                ? { backgroundColor: accentColor, color: 'var(--ba-btn-text)' }
-                : {
-                    backgroundColor: 'var(--ba-background)',
-                    borderColor: 'var(--ba-secondary)',
-                    color: 'var(--ba-text)',
-                  }
-            }
-          >
-            {turn.content}
-          </div>
-        ))}
-
-        {isInterrupted && (
-          <>
-            <div
-              data-testid="chatbot-interrupted-notice"
-              className="self-center rounded-xl px-4 py-3 text-center text-[0.8125rem]"
-              style={{ backgroundColor: '#fef3c7', color: '#92400e' }}
-            >
-              {t('chatbot.interruptedMessage')}
-            </div>
-            <FallbackCta business={business} />
-          </>
-        )}
-      </div>
-
-      <div className="flex gap-2 border-t p-3" style={{ borderColor: 'var(--ba-secondary)' }}>
-        <input
-          ref={inputRef}
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') void handleSend();
-          }}
-          disabled={isInterrupted || isSending}
-          placeholder={
-            isInterrupted ? t('chatbot.interruptedInputPlaceholder') : t('chatbot.inputPlaceholder')
-          }
-          aria-label={t('chatbot.inputPlaceholder')}
-          data-testid="chatbot-message-input"
-          className="flex-1 rounded-full border px-4 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-          style={{
-            borderColor: 'var(--ba-secondary)',
-            backgroundColor: 'var(--ba-background)',
-            color: 'var(--ba-text)',
-          }}
-        />
-        <button
-          type="button"
-          onClick={() => void handleSend()}
-          disabled={isInterrupted || isSending || !inputValue.trim()}
-          title={t('chatbot.sendButtonLabel')}
-          aria-label={t('chatbot.sendButtonLabel')}
-          data-testid="chatbot-send-button"
-          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border-none disabled:cursor-not-allowed disabled:opacity-40"
-          style={{ backgroundColor: accentColor, color: 'var(--ba-btn-text)' }}
-        >
-          {SendIcon}
-        </button>
-      </div>
-      {validationError && (
-        <div
-          data-testid="chatbot-validation-error"
-          className="px-4 pb-3 text-center text-xs"
-          style={{ color: '#dc2626' }}
-        >
-          {validationError}
-        </div>
-      )}
-    </div>
+    <ChatbotPanel
+      variant={variant}
+      accentColor={accentColor}
+      title={title}
+      displayedMessages={displayedMessages}
+      isInterrupted={status === 'interrupted'}
+      isSending={status === 'sending'}
+      business={business}
+      inputValue={inputValue}
+      validationError={validationError}
+      bodyRef={bodyRef}
+      inputRef={inputRef}
+      onInputChange={setInputValue}
+      onSend={() => void handleSend()}
+      onClose={() => setIsOpen(false)}
+    />
   );
 
   if (variant === 'inline') {

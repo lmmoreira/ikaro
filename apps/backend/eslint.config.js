@@ -5,6 +5,14 @@ const reviewedRawPersistencePaths = architecturePolicy.exceptions
   .filter((exception) => exception.rule === 'raw-persistence-api')
   .map((exception) => exception.path.replace(/^apps\/backend\//, ''));
 
+// TD37-S05: reviewed max-lines (file-length) exceptions for domain aggregates — see
+// packages/architecture-check/architecture-policy.json's max-lines-aggregate entries for
+// rationale. Exempts the file-length rule only; max-lines-per-function still applies to these
+// files (a long aggregate file is expected, a long method inside it is not).
+const maxLinesAggregateExceptionPaths = architecturePolicy.exceptions
+  .filter((exception) => exception.rule === 'max-lines-aggregate')
+  .map((exception) => exception.path.replace(/^apps\/backend\//, ''));
+
 // ESLint flat config REPLACES (not merges) a rule's options when two config objects
 // both match the same file for the same rule name — whichever matching block appears LAST in
 // this array wins *entirely* for that rule, on that file (confirmed against TD37-S02's original
@@ -361,6 +369,48 @@ module.exports = [
         ZOD_UUID_SELECTOR,
         ZOD_EMAIL_SELECTOR,
       ],
+    },
+  },
+
+  // Tier L1 — TD37-S05: docs/CODE_STANDARDS.md's function-length limit, enforced via ESLint core
+  // (zero new dependency). Specs are exempt (test bodies are naturally longer due to setup/
+  // assertions — the rule's intent targets production logic); migrations and the seed script are
+  // exempt (DDL/seed data, not application logic — same rationale as PERSISTENCE_BYPASS_IGNORES
+  // above); src/test/** is exempt (test infrastructure, not production code). Applies to every
+  // production file, including the max-lines-aggregate exceptions below — a long aggregate FILE
+  // is expected, a long method inside it is not.
+  {
+    files: ['src/**/*.ts'],
+    ignores: [
+      '**/*.spec.ts',
+      '**/*.integration.spec.ts',
+      'src/contexts/**/infrastructure/migrations/**',
+      'src/shared/infrastructure/migrations/**',
+      'src/shared/database/seed.ts',
+      'src/test/**',
+    ],
+    rules: {
+      'max-lines-per-function': ['error', { max: 40, skipBlankLines: true, skipComments: true }],
+    },
+  },
+
+  // Tier L2 — same as Tier L1 but for the file-length limit, additionally exempting the reviewed
+  // max-lines-aggregate paths (see architecture-policy.json) — domain aggregates whose file
+  // length is a natural consequence of many small, cohesive methods, not a complexity smell that
+  // splitting across files would fix.
+  {
+    files: ['src/**/*.ts'],
+    ignores: [
+      '**/*.spec.ts',
+      '**/*.integration.spec.ts',
+      'src/contexts/**/infrastructure/migrations/**',
+      'src/shared/infrastructure/migrations/**',
+      'src/shared/database/seed.ts',
+      'src/test/**',
+      ...maxLinesAggregateExceptionPaths,
+    ],
+    rules: {
+      'max-lines': ['error', { max: 250, skipBlankLines: true, skipComments: true }],
     },
   },
 ];

@@ -13,6 +13,26 @@ const reviewedRawFetchPaths = architecturePolicy.exceptions
   .filter((exception) => exception.rule === 'raw-fetch-web')
   .map((exception) => escapeGlobBrackets(exception.path.replace(/^apps\/web\//, '')));
 
+// TD37-S05 discovery (2026-08-17) split out the 13 highest-risk oversized .tsx components into
+// a dedicated follow-up, TD37-S5A, rather than bundling live-UI decomposition into this
+// lint-config story — see td/TD37-CI-ARCHITECTURE-VALIDATION-HARDENING.md. Temporary, dated,
+// and tracked (not an indefinite grandfather): remove each entry as Story 5A decomposes it.
+const DEFERRED_TO_TD37_S5A = [
+  'features/booking/components/dashboard/schedule/SchedulePage.tsx',
+  'features/platform/components/settings/SettingsForm.tsx',
+  'features/booking/components/dashboard/bookings/BookingDetailPage.tsx',
+  'features/booking/components/dashboard/bookings/MarkCompleteBookingPage.tsx',
+  'features/platform/components/hotsite/HotsiteEditor.tsx',
+  'features/booking/components/dashboard/bookings/RescheduleBookingPage.tsx',
+  'features/booking/components/public/BookingForm.tsx',
+  'features/booking/components/public/SubmitInfoForm.tsx',
+  'features/booking/components/dashboard/services/ServiceFormFields.tsx',
+  'features/booking/components/public/PersonalInfoStep.tsx',
+  'features/platform/components/hotsite/BrandingTab.tsx',
+  'features/platform/components/hotsite/modules/HeroConfigPanel.tsx',
+  'features/platform/components/hotsite/modules/BookingPhotoPicker.tsx',
+];
+
 // Every BFF/backend call must go through bffServerFetch/bffPublicFetch (server-only) or
 // bffClient (client-only) — a raw fetch() duplicates base-URL construction, timeout policy, and
 // cache defaults, and on the client it also misses withCredentials (docs/ANTI_PATTERNS.md,
@@ -152,6 +172,32 @@ module.exports = [
     ignores: ['**/*.spec.ts', '**/*.spec.tsx'],
     rules: {
       'no-restricted-syntax': ['error', ...NON_FETCH_SELECTORS],
+    },
+  },
+
+  // TD37-S05: docs/CODE_STANDARDS.md's function/file length limits, enforced via ESLint core
+  // (zero new dependency). Specs are exempt (test bodies are naturally longer due to setup/
+  // assertions — the rule's intent targets production logic); e2e/helpers/** is exempt
+  // (reusable Playwright flow helpers, not app production code, per CLAUDE.md §7 Testing).
+  // .tsx gets its own, much higher max-lines-per-function threshold: ESLint counts JSX markup
+  // as function body, so a component's render function isn't the same complexity signal as
+  // equivalent-length imperative logic (discovery baseline, TD37-S05: web .ts violators had p90
+  // 47/max 85, matching backend/BFF's .ts distribution; .tsx violators were structurally
+  // different — median 49/p90 160/max 792).
+  {
+    files: ['**/*.ts'],
+    ignores: ['**/*.spec.ts', 'e2e/helpers/**'],
+    rules: {
+      'max-lines-per-function': ['error', { max: 40, skipBlankLines: true, skipComments: true }],
+      'max-lines': ['error', { max: 250, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
+    files: ['**/*.tsx'],
+    ignores: ['**/*.spec.tsx', ...DEFERRED_TO_TD37_S5A],
+    rules: {
+      'max-lines-per-function': ['error', { max: 200, skipBlankLines: true, skipComments: true }],
+      'max-lines': ['error', { max: 250, skipBlankLines: true, skipComments: true }],
     },
   },
 ];

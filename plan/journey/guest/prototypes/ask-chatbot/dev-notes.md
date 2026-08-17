@@ -34,12 +34,17 @@ context each row's Action column records.
 | Chatbot backend controller | ✅ Done (M19-S05) | Cap enforcement, persistence, calls `ILlmProvider.complete()` |
 | Migration for `platform.chatbot_sessions`/`platform.chatbot_messages`/`platform.chatbot_provider_balance` | ✅ Done (M19-S01) | See `docs/13-DATABASE_SCHEMA.md` |
 
-**Resolved at M19-S11 story-discovery (2026-08-17):** `ChatbotWidget.tsx` stays one file (no bubble/panel/inline
-split); `sessionId` **and** the visible `messages` transcript both persist to `sessionStorage`, so a reload
-restores the visible conversation client-side — closes the "reload/F5 behavior" open question below in favor
-of client-side caching (no new backend read endpoint). `CHATBOT` renders with no divider before/after it in
-`page.tsx`'s render loop, matching the existing `FOOTER` special-case (the `bubble` variant is `position:
-fixed`, outside document flow).
+**Resolved at M19-S11 story-discovery (2026-08-17):** `sessionId` **and** the visible `messages` transcript
+both persist to `sessionStorage`, so a reload restores the visible conversation client-side — closes the
+"reload/F5 behavior" open question below in favor of client-side caching (no new backend read endpoint).
+`CHATBOT` renders with no divider before/after it in `page.tsx`'s render loop, matching the existing
+`FOOTER` special-case (the `bubble` variant is `position: fixed`, outside document flow). The
+one-file-no-split decision from this same discovery session was superseded the same day by TD37-S05: once
+that story's `max-lines`/`max-lines-per-function` ESLint rules landed, `ChatbotWidget.tsx` (459 lines)
+violated both and was split into `ChatbotWidget.tsx` (state/handlers) + `ChatbotPanel.tsx` (open-panel JSX)
++ `chatbot-icons.tsx` (SVG icons) + `chatbot-widget-storage.ts` (sessionStorage helpers) — a pure
+presentational/logic split, no behavior change, verified via `ChatbotWidget.spec.tsx`'s unmodified coverage
+plus a new direct `ChatbotPanel.spec.tsx`.
 
 ---
 
@@ -156,7 +161,7 @@ error codes) in the UC text and `docs/14-API_CONTRACTS.md` § Chatbot Widget.
 
 All resolved at M19-S11 story-discovery (2026-08-17):
 
-- **Component split:** `ChatbotWidget.tsx` stays one file — no bubble/panel/inline split.
+- **Component split:** originally decided as one file, no bubble/panel/inline split — superseded the same day by TD37-S05's length-rule enforcement, see the note above.
 - **`sessionId` persistence:** `sessionStorage`, confirmed against the real story AC.
 - **Reload/F5 behavior:** resolved as (b) client-side cache — `messages` persists to
   `sessionStorage` alongside `sessionId`, so the visible transcript survives a reload with no new

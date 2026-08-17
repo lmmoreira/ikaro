@@ -51,8 +51,10 @@ one GUEST's perspective, it's indistinguishable from any other "not available" c
 ## Open questions / gaps
 
 - [x] Milestone/story: M19-S11, built 2026-08-17.
-- [x] `ChatbotWidget.tsx` stays one file — no bubble/panel/inline split — resolved at M19-S11
-      story-discovery, see `guest/prototypes/ask-chatbot/dev-notes.md`.
+- [x] `ChatbotWidget.tsx`'s one-file decision (M19-S11 story-discovery) was superseded the same day
+      by TD37-S05's length-rule enforcement — now split into `ChatbotWidget.tsx`/`ChatbotPanel.tsx`/
+      `chatbot-icons.tsx`/`chatbot-widget-storage.ts`, no behavior change. See
+      `guest/prototypes/ask-chatbot/dev-notes.md`.
 - [ ] Whether the collapsed-bubble state (`01-bubble-collapsed.html` in the original discovery
       prototype) needs its own numbered screen in this folder was resolved: no — `00-hotsite.html`
       (via `shared/hotsite.html`) already shows it, since the bubble lives on every hotsite page, not

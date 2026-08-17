@@ -22,7 +22,7 @@ import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error
 import { useRescheduleBooking } from '@/features/booking/hooks/useBookingMutations';
 import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
 import { BookingOutcomeActionRail } from './BookingOutcomeActionRail';
-import { BookingOutcomeLayout } from './BookingDetailMain';
+import { BookingOutcomeLayout } from './BookingOutcomeLayout';
 import { SlotConflictAlert } from './SlotConflictAlert';
 import { BookingClientCard } from './BookingClientCard';
 

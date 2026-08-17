@@ -26,7 +26,7 @@ import {
   ChatbotProviderBalanceLowError,
   ChatbotProviderUnavailableError,
   ChatbotSessionNotFoundError,
-} from '../../domain/errors/platform-domain.error';
+} from '../../domain/errors/chatbot-domain.error';
 import { SendChatMessageUseCase, SendChatMessageUseCaseInput } from './send-chat-message.use-case';
 
 class FakeTracingPort implements ITracingPort {

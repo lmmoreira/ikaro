@@ -10,6 +10,7 @@ import {
 } from '../../domain/errors/platform-domain.error';
 import {
   HotsiteBranding,
+  HotsiteConfig,
   HotsiteModule,
   HotsiteModuleData,
   HotsiteSeo,
@@ -54,28 +55,17 @@ export class UpdateHotsiteContentUseCase {
     // Captured before the merge — needed to detect "was this field pointing at a permanent
     // object that the merged value no longer references" (delete-previous-on-replace).
     const oldPaths = this.imagePathsService.collect(config.branding, config.layout, config.seo);
-
-    const mergedBranding: HotsiteBranding = dto.branding
-      ? { ...config.branding, ...dto.branding }
-      : config.branding;
-    const mergedLayout: HotsiteModule[] = dto.layout
-      ? this.toDomainLayout(dto.layout)
-      : config.layout;
-    const mergedSeo: HotsiteSeo = dto.seo ? { ...config.seo, ...dto.seo } : config.seo;
+    const merged = this.mergeContent(config, dto);
 
     const { branding, layout, seo, promotions } =
       await this.imagePromotionService.prepareImagePromotion(
-        mergedBranding,
-        mergedLayout,
-        mergedSeo,
+        merged.branding,
+        merged.layout,
+        merged.seo,
         tenantId,
       );
 
-    const newPaths = this.imagePathsService.collect(branding, layout, seo);
-    const tenantPrefix = `tenants/${tenantId}/`;
-    const deletions = oldPaths.filter(
-      (path) => !newPaths.includes(path) && path.startsWith(tenantPrefix),
-    );
+    const deletions = this.computeDeletions(oldPaths, branding, layout, seo, tenantId);
 
     await this.txManager.run(async () => {
       // Locked and re-read here, not before the transaction — carouselDays vs.
@@ -117,6 +107,29 @@ export class UpdateHotsiteContentUseCase {
       seo: resolved.seo,
       isPublished: config.isPublished,
     };
+  }
+
+  private mergeContent(
+    config: HotsiteConfig,
+    dto: UpdateHotsiteContentUseCaseInput,
+  ): { branding: HotsiteBranding; layout: HotsiteModule[]; seo: HotsiteSeo } {
+    return {
+      branding: dto.branding ? { ...config.branding, ...dto.branding } : config.branding,
+      layout: dto.layout ? this.toDomainLayout(dto.layout) : config.layout,
+      seo: dto.seo ? { ...config.seo, ...dto.seo } : config.seo,
+    };
+  }
+
+  private computeDeletions(
+    oldPaths: string[],
+    branding: HotsiteBranding,
+    layout: HotsiteModule[],
+    seo: HotsiteSeo,
+    tenantId: string,
+  ): string[] {
+    const newPaths = this.imagePathsService.collect(branding, layout, seo);
+    const tenantPrefix = `tenants/${tenantId}/`;
+    return oldPaths.filter((path) => !newPaths.includes(path) && path.startsWith(tenantPrefix));
   }
 
   private toDomainLayout(layout: UpdateHotsiteContentDto['layout']): HotsiteModule[] {

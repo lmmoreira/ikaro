@@ -13,7 +13,7 @@ import { useCompleteBooking } from '@/features/booking/hooks/useBookingMutations
 import { AfterServicePhotoUpload } from './AfterServicePhotoUpload';
 import { BookingCompletionSummary } from './BookingCompletionSummary';
 import { BookingOutcomeActionRail } from './BookingOutcomeActionRail';
-import { BookingOutcomeLayout } from './BookingDetailMain';
+import { BookingOutcomeLayout } from './BookingOutcomeLayout';
 import { BookingClientCard } from './BookingClientCard';
 import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
 

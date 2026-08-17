@@ -47,41 +47,67 @@ export class AvailabilityService {
 
     const { open, close, partialClosures } = effectiveHours;
     const timezone = businessHours.timezone;
-
     const totalMins =
       services.reduce((sum, s) => sum + s.durationMinutes, 0) + serviceBufferMinutes;
+    const bookedRanges = this.buildBookedRanges(existingBookings, timezone);
 
-    const bookedRanges = existingBookings.map((b) => {
+    return this.generateSlots({
+      date,
+      timezone,
+      open,
+      close,
+      totalMins,
+      slotGranularityMinutes,
+      partialClosures,
+      bookedRanges,
+    });
+  }
+
+  private buildBookedRanges(
+    existingBookings: BookedSlot[],
+    timezone: string,
+  ): { start: string; end: string }[] {
+    return existingBookings.map((b) => {
       const startHHMM = utcDateToLocalHHMM(b.scheduledAt, timezone);
       return {
         start: startHHMM,
         end: TimeOfDay.create(startHHMM).addMinutes(b.totalDurationMins).value,
       };
     });
+  }
 
+  private generateSlots(ctx: {
+    date: string;
+    timezone: string;
+    open: string;
+    close: string;
+    totalMins: number;
+    slotGranularityMinutes: number;
+    partialClosures: ScheduleClosure[];
+    bookedRanges: { start: string; end: string }[];
+  }): AvailableSlot[] {
     const slots: AvailableSlot[] = [];
-    let cursor = TimeOfDay.create(open);
-    const closeTime = TimeOfDay.create(close);
+    let cursor = TimeOfDay.create(ctx.open);
+    const closeTime = TimeOfDay.create(ctx.close);
 
-    while (cursor.addMinutes(totalMins).toMinutes() <= closeTime.toMinutes()) {
-      const endTime = cursor.addMinutes(totalMins);
+    while (cursor.addMinutes(ctx.totalMins).toMinutes() <= closeTime.toMinutes()) {
+      const endTime = cursor.addMinutes(ctx.totalMins);
 
-      const blockedByClosure = partialClosures.some((c) =>
+      const blockedByClosure = ctx.partialClosures.some((c) =>
         this.overlaps(cursor.value, endTime.value, c.startTime!.value, c.endTime!.value),
       );
-
-      const blockedByBooking = bookedRanges.some((b) =>
+      const blockedByBooking = ctx.bookedRanges.some((b) =>
         this.overlaps(cursor.value, endTime.value, b.start, b.end),
       );
 
       if (!blockedByClosure && !blockedByBooking) {
         slots.push({
-          startsAt: localDateTimeToUTCIso(date, cursor.value, timezone),
-          endsAt: localDateTimeToUTCIso(date, endTime.value, timezone),
+          startsAt: localDateTimeToUTCIso(ctx.date, cursor.value, ctx.timezone),
+          endsAt: localDateTimeToUTCIso(ctx.date, endTime.value, ctx.timezone),
         });
       }
 
-      cursor = cursor.addMinutes(slotGranularityMinutes);
+      cursor = cursor.addMinutes(ctx.slotGranularityMinutes);
     }
 
     return slots;
