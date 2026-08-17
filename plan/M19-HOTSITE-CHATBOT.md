@@ -390,19 +390,25 @@ System prompt rebuilt fresh on every message (not frozen at session start) — f
 
 ### M19-S10 — Chatbot cap-status admin BFF endpoint (UC-027 A5)
 
-**Agent:** `bff-ts`
+**Agent:** `backend-ts` + `bff-ts`
 **Complexity:** S
 **Docs to load:** `docs/14-API_CONTRACTS.md` § Chatbot Cap Status
 
 **Description:**
 `GET /v1/tenants/chatbot/cap-status` (`MANAGER`-only, matching Hotsite Admin Management's all-`MANAGER` convention since this reads out inside `/dashboard/hotsite`) → `{ dailyCapReachedToday: boolean }`. Reuses the identical per-tenant daily-cap `COUNT` query S05's cap enforcement already runs against `chatbot_sessions` — not a new counting mechanism.
 
+**This story's scope also includes a small backend addition, not just the BFF route** (gap found during M19-S10 story-discovery, 2026-08-17 — see Follow-up below): a `GetChatbotCapStatusUseCase` (reuses `IChatbotSessionRepository.countByTenantAndDate()` + `chatbotSettings.maxConversationsPerDay ?? DEFAULT_MAX_CONVERSATIONS_PER_DAY`, same comparison `GetChatbotStatusUseCase` already does for its own layer-(a) check) exposed via a new `@Get('chatbot/cap-status')` route on the existing backend `TenantSettingsController` (`@Controller('tenants')`, guarded by `ManagerRoleGuard` — **not** the guest/bare-route `ChatbotController`, whose class doc explicitly documents it as unguarded). BFF side adds `@Get('chatbot/cap-status') @Roles('MANAGER')` to the existing `apps/bff/src/features/platform/tenant-settings.controller.ts`, calling `backendHttp.get('/tenants/chatbot/cap-status')` — same shape as that file's existing `getSettings()`. New response type `ChatbotCapStatusResponse` in `packages/types/src/tenant.dto.ts` (sibling to `TenantSettingsResponse`, not `hotsite.ts` — this isn't part of the hotsite public/manifest response family).
+
 **Acceptance Criteria:**
 - [ ] `MANAGER`-only; `STAFF` gets `403`
 - [ ] Correctly reflects today's cap status using the same `COUNT` query/threshold as S05's enforcement — a test proving both agree at the boundary
+- [ ] Tenant isolation: Tenant A reaching its daily cap doesn't affect Tenant B's `dailyCapReachedToday` result — a test proving the count is tenant-scoped
 - [ ] Coverage ≥80%; `tsc --noEmit`, lint, tests green
 
 **Dependencies:** S05.
+
+**Follow-up (M19-S10 story-discovery, 2026-08-17) — 1 gap found and resolved before implementation:**
+1. **The story was labeled BFF-only, but no backend endpoint or use case for cap-status existed anywhere in the codebase** (confirmed via `grep` for `cap-status`/`dailyCapReachedToday`/`CapStatus` across `apps/`) — the daily-cap `COUNT` query it needs to reuse only exists reachable from the backend (`IChatbotSessionRepository.countByTenantAndDate`, used today by `SendChatMessageUseCase` and `GetChatbotStatusUseCase`), not from the BFF. Same class of gap S05 hit and resolved for itself ("Backend HTTP controller was entirely unspecified"). Resolved: backend piece folded into this story's own scope (see Description); `Agent` updated to `backend-ts` + `bff-ts` to match.
 
 ---
 
