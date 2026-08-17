@@ -9,9 +9,9 @@ import { Badge } from '@/shared/components/ui/badge';
 import { cn } from '@/shared/utils/cn';
 import { formatTodayLabel } from '@/shells/dashboard/utils/format-today';
 import { getInitials } from '@/shared/utils/initials';
-import { matchBookingDetailRoute } from '@/shells/dashboard/model/booking-route';
-import { isServiceCreateRoute, matchServiceRoute } from '@/shells/dashboard/model/service-route';
-import { isTeamInviteRoute, matchTeamRoute } from '@/shells/dashboard/model/team-route';
+import { matchServiceRoute } from '@/shells/dashboard/model/service-route';
+import { matchTeamRoute } from '@/shells/dashboard/model/team-route';
+import { resolveTopbarRouteState } from '@/shells/dashboard/model/topbar-route';
 import {
   BOOKING_STATUS_CLASSES,
   buildBookingStatusLabels,
@@ -22,106 +22,6 @@ interface TopbarProps {
   readonly tenantName: string;
   readonly userName: string | null;
   readonly action?: React.ReactNode;
-}
-
-const PAGE_TITLE_KEYS: ReadonlyArray<[string, string]> = [
-  ['/dashboard/bookings', 'nav.bookings'],
-  ['/dashboard/schedule', 'nav.schedule'],
-  ['/dashboard/services', 'nav.services'],
-  ['/dashboard/loyalty', 'nav.loyalty'],
-  ['/dashboard/team', 'nav.team'],
-  ['/dashboard/settings', 'nav.settings'],
-  ['/dashboard/hotsite', 'nav.hotsite'],
-];
-
-interface TopbarRouteState {
-  readonly pageTitle: string;
-  readonly backHref: string | null;
-  readonly backLabel: string;
-  readonly isBookingRoute: boolean;
-  readonly isServicesCreateRoute: boolean;
-  readonly isTeamInviteRoute: boolean;
-}
-
-function resolveTopbarRouteState({
-  pathname,
-  commonBackLabel,
-  dashboardT,
-  servicesT,
-  teamT,
-  bookingT,
-  returnTo,
-}: {
-  readonly pathname: string;
-  readonly commonBackLabel: string;
-  readonly dashboardT: ReturnType<typeof useTranslations>;
-  readonly servicesT: ReturnType<typeof useTranslations>;
-  readonly teamT: ReturnType<typeof useTranslations>;
-  readonly bookingT: ReturnType<typeof useTranslations>;
-  readonly returnTo: string | null;
-}): TopbarRouteState {
-  const bookingRouteMatch = matchBookingDetailRoute(pathname);
-  const serviceRouteMatch = matchServiceRoute(pathname);
-  const teamRouteMatch = matchTeamRoute(pathname);
-  const isBookingRoute = bookingRouteMatch !== null;
-  const isServicesCreateRouteMatch = isServiceCreateRoute(pathname);
-  const isTeamInviteRouteMatch = isTeamInviteRoute(pathname);
-  const pageTitleKey = PAGE_TITLE_KEYS.find(([path]) => pathname.startsWith(path))?.[1];
-  let pageTitle = dashboardT('topbar.defaultTitle');
-  let backHref: string | null = null;
-  let backLabel = commonBackLabel;
-
-  if (bookingRouteMatch) {
-    if (bookingRouteMatch.action === 'complete') {
-      pageTitle = bookingT('completeSheetTitle');
-    } else if (bookingRouteMatch.action === 'reschedule') {
-      pageTitle = bookingT('rescheduleSheetTitle');
-    } else {
-      pageTitle = bookingT('title');
-    }
-
-    backHref =
-      returnTo ??
-      (bookingRouteMatch.action === null
-        ? '/dashboard/bookings'
-        : `/dashboard/bookings/${bookingRouteMatch.bookingId}`);
-    backLabel = commonBackLabel;
-  } else if (serviceRouteMatch?.action === 'edit') {
-    pageTitle = servicesT('editPageTitle');
-    backHref = '/dashboard/services';
-    backLabel = dashboardT('nav.services');
-  } else if (serviceRouteMatch?.action === 'deactivate') {
-    pageTitle = servicesT('deactivatePageTitle');
-    backHref = `/dashboard/services/${serviceRouteMatch.serviceId}/edit`;
-    backLabel = servicesT('editPageTitle');
-  } else if (isServicesCreateRouteMatch) {
-    pageTitle = servicesT('createPageTitle');
-    backHref = '/dashboard/services';
-    backLabel = commonBackLabel;
-  } else if (isTeamInviteRouteMatch) {
-    pageTitle = teamT('invite');
-    backHref = '/dashboard/team';
-    backLabel = dashboardT('nav.team');
-  } else if (teamRouteMatch?.action === 'deactivate') {
-    pageTitle = teamT('deactivateMemberPageTitle');
-    backHref = '/dashboard/team';
-    backLabel = dashboardT('nav.team');
-  } else if (pageTitleKey) {
-    pageTitle = dashboardT(pageTitleKey);
-  }
-
-  if (returnTo && backHref === null) {
-    backHref = returnTo;
-  }
-
-  return {
-    pageTitle,
-    backHref,
-    backLabel,
-    isBookingRoute,
-    isServicesCreateRoute: isServicesCreateRouteMatch,
-    isTeamInviteRoute: isTeamInviteRouteMatch,
-  };
 }
 
 export function Topbar({ tenantName, userName, action }: TopbarProps): React.JSX.Element {

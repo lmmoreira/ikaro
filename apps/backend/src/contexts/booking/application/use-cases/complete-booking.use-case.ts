@@ -46,16 +46,7 @@ export class CompleteBookingUseCase {
   async execute(input: CompleteBookingInput): Promise<CompleteBookingUseCaseResult> {
     const { tenantId, staffId, correlationId, currency } = input;
 
-    const booking = await this.bookingRepo.findById(input.bookingId, tenantId);
-    if (!booking) throw new BookingNotFoundError(input.bookingId);
-
-    const requestLineIds = new Set(input.lines.map((l) => l.lineId));
-    const missingLineIds = booking.lines
-      .filter((l) => !requestLineIds.has(l.lineId))
-      .map((l) => l.lineId);
-    if (missingLineIds.length > 0) {
-      throw new CompleteBookingLinesIncompleteError(missingLineIds);
-    }
+    const booking = await this.findAndValidateBooking(input, tenantId);
 
     const { permanentPaths: afterServicePhotoUrls, operations } =
       await this.photoExistenceService.preparePhotoPromotion(
@@ -92,6 +83,27 @@ export class CompleteBookingUseCase {
       staffId,
     });
 
+    return this.buildResult(booking);
+  }
+
+  private async findAndValidateBooking(
+    input: CompleteBookingInput,
+    tenantId: string,
+  ): Promise<Booking> {
+    const booking = await this.bookingRepo.findById(input.bookingId, tenantId);
+    if (!booking) throw new BookingNotFoundError(input.bookingId);
+
+    const requestLineIds = new Set(input.lines.map((l) => l.lineId));
+    const missingLineIds = booking.lines
+      .filter((l) => !requestLineIds.has(l.lineId))
+      .map((l) => l.lineId);
+    if (missingLineIds.length > 0) {
+      throw new CompleteBookingLinesIncompleteError(missingLineIds);
+    }
+    return booking;
+  }
+
+  private buildResult(booking: Booking): CompleteBookingUseCaseResult {
     return {
       bookingId: booking.id,
       status: booking.status,

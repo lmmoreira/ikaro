@@ -53,6 +53,10 @@ const config = [
       '@typescript-eslint/no-require-imports': 'error',
       'no-console': 'error',
       'prettier/prettier': 'error',
+      // docs/CODE_STANDARDS.md's default-parameter rule (SonarCloud S1788) — zero baseline
+      // violations repo-wide (TD37-S05, 2026-08-17), ships as error immediately with no
+      // exceptions needed. Faster feedback than waiting for the SonarCloud CI stage.
+      'default-param-last': 'error',
       'no-restricted-syntax': ['error', ZOD_UUID_SELECTOR, ZOD_EMAIL_SELECTOR],
     },
   },

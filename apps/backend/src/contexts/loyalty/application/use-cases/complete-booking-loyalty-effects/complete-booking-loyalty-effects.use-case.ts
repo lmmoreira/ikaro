@@ -83,26 +83,59 @@ export class CompleteBookingLoyaltyEffectsUseCase {
     dto: CompleteBookingLoyaltyEffectsUseCaseInput,
   ): Promise<CompleteBookingLoyaltyEffectsUseCaseResult> {
     if (dto.customerId === null) return SKIPPED_RESULT;
+    if (await this.isAlreadyProcessed(dto.eventId)) return SKIPPED_RESULT;
 
-    const alreadyProcessed = await this.inboxRepo.hasBeenProcessed(
-      dto.eventId,
-      CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME,
-    );
-    if (alreadyProcessed) return SKIPPED_RESULT;
-
+    const customerId = dto.customerId;
     const { expiryDays, pointsPerCurrencyUnit } = await this.tenantSettingsPort.getLoyaltySettings(
       dto.tenantId,
     );
-
     const totalPointsEarned = dto.lines.reduce((sum, l) => sum + l.pointsValueAtBooking, 0);
     const pointsRedeemed = dto.discountByPoints?.pointsUsed ?? 0;
-    const customerId = dto.customerId;
 
-    const balance =
-      (await this.balanceRepo.findByCustomer(dto.tenantId, customerId)) ??
-      LoyaltyBalance.create(dto.tenantId, customerId);
+    const balance = await this.findOrCreateBalance(dto.tenantId, customerId);
+    const entries = this.buildEntries(dto, customerId, expiryDays);
+    balance.increment(totalPointsEarned);
 
-    const entries = dto.lines.map((line) =>
+    const redemption = this.applyRedemption(
+      balance,
+      dto,
+      customerId,
+      pointsRedeemed,
+      pointsPerCurrencyUnit,
+    );
+    const servicePointsEarned = this.buildServicePointsEarnedEvent(
+      dto,
+      customerId,
+      totalPointsEarned,
+      entries,
+      balance.currentPoints,
+    );
+
+    await this.persist(entries, balance, redemption, dto, servicePointsEarned);
+
+    return { skipped: false, entriesCreated: entries.length, totalPointsEarned, pointsRedeemed };
+  }
+
+  private isAlreadyProcessed(eventId: string): Promise<boolean> {
+    return this.inboxRepo.hasBeenProcessed(
+      eventId,
+      CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME,
+    );
+  }
+
+  private async findOrCreateBalance(tenantId: string, customerId: string): Promise<LoyaltyBalance> {
+    return (
+      (await this.balanceRepo.findByCustomer(tenantId, customerId)) ??
+      LoyaltyBalance.create(tenantId, customerId)
+    );
+  }
+
+  private buildEntries(
+    dto: CompleteBookingLoyaltyEffectsUseCaseInput,
+    customerId: string,
+    expiryDays: number,
+  ): LoyaltyEntry[] {
+    return dto.lines.map((line) =>
       LoyaltyEntry.record({
         tenantId: dto.tenantId,
         customerId,
@@ -113,24 +146,35 @@ export class CompleteBookingLoyaltyEffectsUseCase {
         expiryDays,
       }),
     );
-    balance.increment(totalPointsEarned);
+  }
 
-    let redemption: LoyaltyRedemption | null = null;
-    if (pointsRedeemed > 0) {
-      balance.decrement(pointsRedeemed);
-      redemption = LoyaltyRedemption.record({
-        tenantId: dto.tenantId,
-        customerId,
-        pointsRedeemed,
-        pointsPerCurrencyUnit,
-        redeemedBy: dto.completedBy,
-        bookingId: dto.bookingId,
-      });
-    }
+  private applyRedemption(
+    balance: LoyaltyBalance,
+    dto: CompleteBookingLoyaltyEffectsUseCaseInput,
+    customerId: string,
+    pointsRedeemed: number,
+    pointsPerCurrencyUnit: number,
+  ): LoyaltyRedemption | null {
+    if (pointsRedeemed <= 0) return null;
+    balance.decrement(pointsRedeemed);
+    return LoyaltyRedemption.record({
+      tenantId: dto.tenantId,
+      customerId,
+      pointsRedeemed,
+      pointsPerCurrencyUnit,
+      redeemedBy: dto.completedBy,
+      bookingId: dto.bookingId,
+    });
+  }
 
-    const finalBalance = balance.currentPoints;
-
-    const servicePointsEarned = new ServicePointsEarned(dto.tenantId, dto.correlationId, {
+  private buildServicePointsEarnedEvent(
+    dto: CompleteBookingLoyaltyEffectsUseCaseInput,
+    customerId: string,
+    totalPointsEarned: number,
+    entries: LoyaltyEntry[],
+    currentBalance: number,
+  ): ServicePointsEarned {
+    return new ServicePointsEarned(dto.tenantId, dto.correlationId, {
       customerId,
       bookingId: dto.bookingId,
       totalPointsEarned,
@@ -141,12 +185,20 @@ export class CompleteBookingLoyaltyEffectsUseCase {
         pointsEarned: e.points,
         expiresAt: e.expiresAt.toISOString(),
       })),
-      currentBalance: finalBalance,
+      currentBalance,
     });
+  }
 
-    // TD08 §12.3: the re-emit and the idempotency mark are one atomic fact — a crash between
-    // this transaction and a separately-published event used to leave ServicePointsEarned lost
-    // forever, since hasBeenProcessed() short-circuits any redelivery of BookingCompleted.
+  // TD08 §12.3: the re-emit and the idempotency mark are one atomic fact — a crash between
+  // this transaction and a separately-published event used to leave ServicePointsEarned lost
+  // forever, since hasBeenProcessed() short-circuits any redelivery of BookingCompleted.
+  private async persist(
+    entries: LoyaltyEntry[],
+    balance: LoyaltyBalance,
+    redemption: LoyaltyRedemption | null,
+    dto: CompleteBookingLoyaltyEffectsUseCaseInput,
+    servicePointsEarned: ServicePointsEarned,
+  ): Promise<void> {
     await this.txManager.run(async () => {
       for (const entry of entries) {
         await this.entryRepo.save(entry);
@@ -159,12 +211,5 @@ export class CompleteBookingLoyaltyEffectsUseCase {
       );
       await this.outboxPublisher.publish(servicePointsEarned);
     });
-
-    return {
-      skipped: false,
-      entriesCreated: entries.length,
-      totalPointsEarned,
-      pointsRedeemed,
-    };
   }
 }

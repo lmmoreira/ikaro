@@ -1,138 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import type {
-  HotsiteAdminContentResponse,
-  HotsiteBusinessInfoResponse,
-  HotsiteServiceResponse,
-} from '@ikaro/types';
+import type { HotsiteAdminContentResponse } from '@ikaro/types';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
 import { useTenant } from '@/providers/tenant-provider';
-import { fetchManifestClient } from '@/features/platform/api';
-import { fetchServicesClient } from '@/features/platform/hotsite/api/services';
 import { applyBranding } from '@/features/platform/hotsite/apply-branding';
 import { getActiveFontVariables } from '@/features/platform/hotsite/font-config';
-import { collectHotsiteImagePaths } from '@/features/platform/hotsite/map-hotsite-image-fields';
-import {
-  buildHotsiteModuleRenderPlan,
-  resolveHotsiteDisplayName,
-} from '@/features/platform/hotsite/page-model';
+import { buildHotsiteModuleRenderPlan } from '@/features/platform/hotsite/page-model';
 import { resolveDraftImageUrls } from '@/features/platform/hotsite/resolve-draft-image-urls';
-import {
-  hotsiteImageBaseUrl,
-  isTmpImagePath,
-} from '@/features/platform/hotsite/resolve-hotsite-image-url';
-import { generateHotsiteImageReadSignedUrl } from '@/features/platform/api/tenant-settings';
+import { hotsiteImageBaseUrl } from '@/features/platform/hotsite/resolve-hotsite-image-url';
 import { MOBILE_ACTION_BAR_CLEARANCE_CLASS } from '@/shells/dashboard/utils/mobile-action-bar';
-import { HeroModule } from '@/shells/hotsite/components/HeroModule';
-import { ServiceListModule } from '@/shells/hotsite/components/ServiceListModule';
-import { GalleryModule } from '@/shells/hotsite/components/GalleryModule';
-import { BookingCtaModule } from '@/shells/hotsite/components/BookingCtaModule';
-import { TestimonialsModule } from '@/shells/hotsite/components/TestimonialsModule';
-import { AboutModule } from '@/shells/hotsite/components/AboutModule';
-import { ContactModule } from '@/shells/hotsite/components/ContactModule';
-import { Footer } from '@/shells/hotsite/components/Footer';
+import { usePreviewSupplementaryData, useTmpSignedUrls } from './useHotsitePreviewData';
+import { renderHotsitePreviewModule } from './renderHotsitePreviewModule';
 
 interface HotsitePreviewProps {
   readonly draft: HotsiteAdminContentResponse;
   readonly onPublish: () => void;
   readonly isPublishing: boolean;
-}
-
-interface PreviewSupplementaryData {
-  readonly business: HotsiteBusinessInfoResponse;
-  readonly tenantName: string;
-  readonly services: readonly HotsiteServiceResponse[];
-}
-
-// services/business/tenant name aren't part of the editable draft — they're read-only context
-// sourced from the public manifest, fetched once when Preview opens (not on every draft edit).
-function usePreviewSupplementaryData(
-  tenantSlug: string,
-  hasServiceList: boolean,
-): { data: PreviewSupplementaryData | null; loadError: boolean } {
-  const [data, setData] = useState<PreviewSupplementaryData | null>(null);
-  const [loadError, setLoadError] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load(): Promise<void> {
-      try {
-        const manifest = await fetchManifestClient(tenantSlug);
-        const services = hasServiceList ? await fetchServicesClient(tenantSlug) : [];
-        if (cancelled) return;
-        setData({
-          business: manifest.business,
-          tenantName: resolveHotsiteDisplayName({
-            branding: manifest.branding,
-            tenant: manifest.tenant,
-          }),
-          services,
-        });
-      } catch {
-        if (!cancelled) setLoadError(true);
-      }
-    }
-
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [tenantSlug, hasServiceList]);
-
-  return { data, loadError };
-}
-
-// A not-yet-promoted tmp/ upload lives in the private bucket — it can't resolve via the public
-// base URL, so Preview needs a fresh private signed read URL per tmp/ path before rendering
-// (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md § tmp/ image preview).
-function useTmpSignedUrls(
-  branding: HotsiteAdminContentResponse['branding'],
-  layout: HotsiteAdminContentResponse['layout'],
-  seo: HotsiteAdminContentResponse['seo'],
-): ReadonlyMap<string, string> {
-  const [signedUrls, setSignedUrls] = useState<ReadonlyMap<string, string>>(new Map());
-
-  useEffect(() => {
-    // Deduped — the same tmp/ path can appear in more than one field (e.g. a reused image), and
-    // fetching a signed URL for it once is enough.
-    const tmpPaths = [
-      ...new Set(collectHotsiteImagePaths(branding, layout, seo).filter(isTmpImagePath)),
-    ];
-    if (tmpPaths.length === 0) return;
-
-    let cancelled = false;
-    // Each path's signed-URL request is isolated (catch -> null) so one failing path doesn't
-    // discard every other path's already-successful result — Promise.all otherwise rejects the
-    // whole batch on a single failure, silently dropping resolved URLs the "best-effort" comment
-    // below implies should still apply (CodeRabbit review, PR #291).
-    Promise.all(
-      tmpPaths.map(async (path) => {
-        try {
-          return [path, await generateHotsiteImageReadSignedUrl(path)] as const;
-        } catch {
-          return null;
-        }
-      }),
-    ).then((resolved) => {
-      if (cancelled) return;
-      setSignedUrls((prev) => {
-        const next = new Map(prev);
-        for (const result of resolved) {
-          if (result) next.set(result[0], result[1].signedUrl);
-        }
-        return next;
-      });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [branding, layout, seo]);
-
-  return signedUrls;
 }
 
 export function HotsitePreview({
@@ -192,95 +77,14 @@ export function HotsitePreview({
                 branding.bodyFontFamily,
               ).join(' ')}
             >
-              {modulesWithVariant.map(({ parsed, bgVariant }, index) => {
-                const key = `${parsed.type}-${index}`;
-
-                if (parsed.type === 'HERO') {
-                  return (
-                    <HeroModule
-                      key={key}
-                      data={parsed.data}
-                      slug={tenantSlug}
-                      tenantBrand={tenantBrand}
-                    />
-                  );
-                }
-                if (parsed.type === 'SERVICE_LIST') {
-                  return (
-                    <ServiceListModule
-                      key={key}
-                      data={parsed.data}
-                      slug={tenantSlug}
-                      services={data.services}
-                      bgVariant={bgVariant}
-                    />
-                  );
-                }
-                if (parsed.type === 'CONTACT') {
-                  return (
-                    <ContactModule
-                      key={key}
-                      data={parsed.data}
-                      business={data.business}
-                      slug={tenantSlug}
-                      bgVariant={bgVariant}
-                    />
-                  );
-                }
-                if (parsed.type === 'BOOKING_CTA') {
-                  return (
-                    <BookingCtaModule
-                      key={key}
-                      data={parsed.data}
-                      slug={tenantSlug}
-                      tenantBrand={tenantBrand}
-                    />
-                  );
-                }
-                if (parsed.type === 'GALLERY') {
-                  return (
-                    <GalleryModule
-                      key={key}
-                      data={parsed.data}
-                      slug={tenantSlug}
-                      bgVariant={bgVariant}
-                    />
-                  );
-                }
-                if (parsed.type === 'TESTIMONIALS') {
-                  return (
-                    <TestimonialsModule
-                      key={key}
-                      data={parsed.data}
-                      slug={tenantSlug}
-                      bgVariant={bgVariant}
-                    />
-                  );
-                }
-                if (parsed.type === 'ABOUT') {
-                  return (
-                    <AboutModule
-                      key={key}
-                      data={parsed.data}
-                      slug={tenantSlug}
-                      bgVariant={bgVariant}
-                    />
-                  );
-                }
-                if (parsed.type === 'FOOTER') {
-                  return (
-                    <Footer
-                      key={key}
-                      data={parsed.data}
-                      slug={tenantSlug}
-                      tenantName={data.tenantName}
-                      business={data.business}
-                      logoUrl={branding.logoUrl}
-                    />
-                  );
-                }
-                return null;
-              })}
+              {modulesWithVariant.map((moduleWithVariant, index) =>
+                renderHotsitePreviewModule(moduleWithVariant, index, {
+                  tenantSlug,
+                  tenantBrand,
+                  logoUrl: branding.logoUrl,
+                  data,
+                }),
+              )}
             </div>
           )}
         </div>

@@ -58,40 +58,12 @@ export class SendBookingRescheduledNotificationUseCase extends BaseNotificationU
   async execute(
     input: SendBookingRescheduledNotificationUseCaseInput,
   ): Promise<SendBookingRescheduledNotificationUseCaseResult> {
-    const tenantInfo = await this.tenantPort.getTenantInfo(input.tenantId);
-    const timezone = tenantInfo?.timezone ?? 'UTC';
-    const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
-    const previousStart = new Date(input.previousSlot.startTime);
-    const newStart = new Date(input.newSlot.startTime);
-    const previousLocalDate = utcDateToLocalDate(previousStart, timezone);
-    const previousLocalTime = utcDateToLocalHHMM(previousStart, timezone);
-    const newLocalDate = utcDateToLocalDate(newStart, timezone);
-    const newLocalTime = utcDateToLocalHHMM(newStart, timezone);
-    const serviceNames = input.lineSummary.map((l) => l.serviceNameAtBooking).join(', ');
-    const formattedTotal = formatMoney(input.totalPrice.amount, locale, input.totalPrice.currency);
+    const ctx = await this.resolveDisplayContext(input);
+    const [customerTemplates, adminTemplates] = await this.loadTemplates(input.tenantId);
+    this.localizeTemplates(customerTemplates, this.localizationPort, ctx.locale);
+    this.localizeTemplates(adminTemplates, this.localizationPort, ctx.locale);
 
-    const [customerTemplates, adminTemplates] = await Promise.all([
-      this.templateRepo.findAllByTriggerEvent(
-        input.tenantId,
-        NotificationTemplateKey.BOOKING_RESCHEDULED_CUSTOMER,
-      ),
-      this.templateRepo.findAllByTriggerEvent(
-        input.tenantId,
-        NotificationTemplateKey.BOOKING_RESCHEDULED_ADMIN,
-      ),
-    ]);
-    this.localizeTemplates(customerTemplates, this.localizationPort, locale);
-    this.localizeTemplates(adminTemplates, this.localizationPort, locale);
-
-    const variables: Record<string, string> = {
-      contactName: input.contactName,
-      serviceNames,
-      totalPrice: formattedTotal,
-      previousLocalDate,
-      previousLocalTime,
-      newLocalDate,
-      newLocalTime,
-    };
+    const variables = this.buildVariables(input, ctx);
 
     const customerEmailSent = await this.dispatchTemplates(
       customerTemplates,
@@ -107,5 +79,50 @@ export class SendBookingRescheduledNotificationUseCase extends BaseNotificationU
         : false;
 
     return { customerEmailSent, adminEmailSent };
+  }
+
+  private async resolveDisplayContext(input: SendBookingRescheduledNotificationUseCaseInput) {
+    const tenantInfo = await this.tenantPort.getTenantInfo(input.tenantId);
+    const timezone = tenantInfo?.timezone ?? 'UTC';
+    const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
+    const previousStart = new Date(input.previousSlot.startTime);
+    const newStart = new Date(input.newSlot.startTime);
+    return {
+      locale,
+      previousLocalDate: utcDateToLocalDate(previousStart, timezone),
+      previousLocalTime: utcDateToLocalHHMM(previousStart, timezone),
+      newLocalDate: utcDateToLocalDate(newStart, timezone),
+      newLocalTime: utcDateToLocalHHMM(newStart, timezone),
+      serviceNames: input.lineSummary.map((l) => l.serviceNameAtBooking).join(', '),
+      formattedTotal: formatMoney(input.totalPrice.amount, locale, input.totalPrice.currency),
+    };
+  }
+
+  private loadTemplates(tenantId: string) {
+    return Promise.all([
+      this.templateRepo.findAllByTriggerEvent(
+        tenantId,
+        NotificationTemplateKey.BOOKING_RESCHEDULED_CUSTOMER,
+      ),
+      this.templateRepo.findAllByTriggerEvent(
+        tenantId,
+        NotificationTemplateKey.BOOKING_RESCHEDULED_ADMIN,
+      ),
+    ]);
+  }
+
+  private buildVariables(
+    input: SendBookingRescheduledNotificationUseCaseInput,
+    ctx: Awaited<ReturnType<typeof this.resolveDisplayContext>>,
+  ): Record<string, string> {
+    return {
+      contactName: input.contactName,
+      serviceNames: ctx.serviceNames,
+      totalPrice: ctx.formattedTotal,
+      previousLocalDate: ctx.previousLocalDate,
+      previousLocalTime: ctx.previousLocalTime,
+      newLocalDate: ctx.newLocalDate,
+      newLocalTime: ctx.newLocalTime,
+    };
   }
 }

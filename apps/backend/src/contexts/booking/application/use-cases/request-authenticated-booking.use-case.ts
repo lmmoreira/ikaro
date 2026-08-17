@@ -14,10 +14,18 @@ import {
   CustomerPhoneNotSetError,
 } from '../../domain/errors/booking-domain.error';
 import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
-import { IBookingCustomerPort, BOOKING_CUSTOMER_PORT } from '../ports/booking-customer.port';
+import {
+  IBookingCustomerPort,
+  BOOKING_CUSTOMER_PORT,
+  CustomerProfileDto,
+} from '../ports/booking-customer.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
+import { Service } from '../../domain/service.aggregate';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
-import { PhotoExistenceService } from '../services/photo-existence.service';
+import {
+  PhotoExistenceService,
+  PhotoPromotionOperation,
+} from '../services/photo-existence.service';
 import { RequestAuthenticatedBookingDto } from '../dtos/request-authenticated-booking.dto';
 import {
   buildLineInputs,
@@ -51,34 +59,41 @@ export class RequestAuthenticatedBookingUseCase {
   async execute(
     input: RequestAuthenticatedBookingInput,
   ): Promise<RequestAuthenticatedBookingUseCaseResult> {
-    const { tenantId, correlationId, customerId, countryCode, timezone } = input;
+    const { tenantId, customerId, countryCode, timezone } = input;
 
-    const customer = await this.customerProfilePort.findById(customerId, tenantId);
-    if (!customer) throw new BookingCustomerNotFoundError(customerId);
-    if (!customer.phone) throw new CustomerPhoneNotSetError();
+    const customer = await this.findCustomerWithPhone(customerId, tenantId);
+    const serviceMap = await this.resolveServices(input.serviceIds, tenantId);
+    const pickupAddress = this.resolvePickupAddress(input, customer, countryCode, serviceMap);
 
-    const services = await this.serviceRepo.findByIds(input.serviceIds, tenantId);
-    const serviceMap = new Map(services.map((s) => [s.id, s]));
-    const uniqueIds = [...new Set(input.serviceIds)];
-    for (const serviceId of uniqueIds) {
-      const service = serviceMap.get(serviceId);
-      if (!service) throw new BookingServiceNotInTenantError(serviceId);
-      if (!service.isActive) throw new BookingServiceNotActiveError(serviceId);
-    }
+    const { booking, scheduledAt, totalDurationMins, operations } = await this.prepareBooking(
+      input,
+      customer,
+      serviceMap,
+      pickupAddress,
+    );
 
-    const requiresPickup = input.serviceIds.some((id) => serviceMap.get(id)?.requiresPickupAddress);
+    await persistRequestedBooking(
+      this.txManager,
+      this.slotConflictService,
+      this.bookingRepo,
+      this.photoExistenceService,
+      { booking, tenantId, scheduledAt, totalDurationMins, timezone, operations },
+    );
 
-    let pickupAddress: Address | undefined;
-    if (input.pickupAddress) {
-      pickupAddress = createBookingAddress(
-        { ...input.pickupAddress, complement: input.pickupAddress.complement ?? undefined },
-        CountryCode.create(countryCode).spec.address,
-        'pickupAddress',
-      );
-    } else if (requiresPickup && customer.defaultAddress) {
-      pickupAddress = customer.defaultAddress;
-    }
+    return this.toResult(booking);
+  }
 
+  private async prepareBooking(
+    input: RequestAuthenticatedBookingInput,
+    customer: CustomerProfileDto & { phone: string },
+    serviceMap: Map<string, Service>,
+    pickupAddress: Address | undefined,
+  ): Promise<{
+    booking: Booking;
+    scheduledAt: Date;
+    totalDurationMins: number;
+    operations: PhotoPromotionOperation[];
+  }> {
     const scheduledAt = new Date(input.scheduledAt);
     const totalDurationMins = input.serviceIds.reduce(
       (sum, id) => sum + (serviceMap.get(id)?.durationMinutes ?? 0),
@@ -89,47 +104,91 @@ export class RequestAuthenticatedBookingUseCase {
     const { permanentPaths: beforeServicePhotoUrls, operations } =
       await this.photoExistenceService.preparePhotoPromotion(
         input.beforeServicePhotoUrls ?? [],
-        tenantId,
+        input.tenantId,
         bookingId,
       );
 
     const lineInputs = buildLineInputs(input.serviceIds, serviceMap);
+    const booking = this.buildBooking(
+      input,
+      customer,
+      bookingId,
+      scheduledAt,
+      lineInputs,
+      pickupAddress,
+      beforeServicePhotoUrls,
+    );
 
-    const contactAddress = customer.defaultAddress ?? undefined;
+    return { booking, scheduledAt, totalDurationMins, operations };
+  }
 
-    const booking = Booking.requestBooking({
+  private buildBooking(
+    input: RequestAuthenticatedBookingInput,
+    customer: CustomerProfileDto & { phone: string },
+    bookingId: string,
+    scheduledAt: Date,
+    lineInputs: ReturnType<typeof buildLineInputs>,
+    pickupAddress: Address | undefined,
+    beforeServicePhotoUrls: string[],
+  ): Booking {
+    return Booking.requestBooking({
       id: bookingId,
-      tenantId,
+      tenantId: input.tenantId,
       contactEmail: customer.email,
       contactName: customer.name,
       contactPhone: customer.phone,
       scheduledAt,
       lineInputs,
       type: 'CUSTOMER',
-      correlationId,
-      customerId,
-      contactAddress,
+      correlationId: input.correlationId,
+      customerId: input.customerId,
+      contactAddress: customer.defaultAddress ?? undefined,
       pickupAddress,
       notes: input.notes,
       beforeServicePhotoUrls,
     });
+  }
 
-    await persistRequestedBooking(
-      this.txManager,
-      this.slotConflictService,
-      this.bookingRepo,
-      this.photoExistenceService,
-      {
-        booking,
-        tenantId,
-        scheduledAt,
-        totalDurationMins,
-        timezone,
-        operations,
-      },
-    );
+  private async findCustomerWithPhone(
+    customerId: string,
+    tenantId: string,
+  ): Promise<CustomerProfileDto & { phone: string }> {
+    const customer = await this.customerProfilePort.findById(customerId, tenantId);
+    if (!customer) throw new BookingCustomerNotFoundError(customerId);
+    if (!customer.phone) throw new CustomerPhoneNotSetError();
+    return customer as CustomerProfileDto & { phone: string };
+  }
 
-    return this.toResult(booking);
+  private async resolveServices(
+    serviceIds: string[],
+    tenantId: string,
+  ): Promise<Map<string, Service>> {
+    const services = await this.serviceRepo.findByIds(serviceIds, tenantId);
+    const serviceMap = new Map(services.map((s) => [s.id, s]));
+    for (const serviceId of [...new Set(serviceIds)]) {
+      const service = serviceMap.get(serviceId);
+      if (!service) throw new BookingServiceNotInTenantError(serviceId);
+      if (!service.isActive) throw new BookingServiceNotActiveError(serviceId);
+    }
+    return serviceMap;
+  }
+
+  private resolvePickupAddress(
+    input: RequestAuthenticatedBookingInput,
+    customer: CustomerProfileDto,
+    countryCode: string,
+    serviceMap: Map<string, Service>,
+  ): Address | undefined {
+    if (input.pickupAddress) {
+      return createBookingAddress(
+        { ...input.pickupAddress, complement: input.pickupAddress.complement ?? undefined },
+        CountryCode.create(countryCode).spec.address,
+        'pickupAddress',
+      );
+    }
+    const requiresPickup = input.serviceIds.some((id) => serviceMap.get(id)?.requiresPickupAddress);
+    if (requiresPickup && customer.defaultAddress) return customer.defaultAddress;
+    return undefined;
   }
 
   private toResult(booking: Booking): RequestAuthenticatedBookingUseCaseResult {

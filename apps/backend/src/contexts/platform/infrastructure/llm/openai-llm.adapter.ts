@@ -60,7 +60,22 @@ export class OpenAiLlmAdapter implements ILlmProvider {
       ...request.history.map((turn) => ({ role: turn.role, content: turn.content })),
       { role: 'user', content: request.userMessage },
     ];
+    const responseBody = await this.callOpenAiApi(request, messages);
+    const body = this.parseAndValidate(responseBody);
 
+    return {
+      text: body.choices[0].message.content,
+      inputTokens: body.usage.prompt_tokens,
+      outputTokens: body.usage.completion_tokens,
+      modelId: body.model,
+      costUsd: computeCostUsd(body.usage.prompt_tokens, body.usage.completion_tokens),
+    };
+  }
+
+  private async callOpenAiApi(
+    request: ChatCompletionRequest,
+    messages: OpenAiMessage[],
+  ): Promise<unknown> {
     const response = await fetch(OPENAI_API_URL, {
       method: 'POST',
       headers: {
@@ -79,25 +94,18 @@ export class OpenAiLlmAdapter implements ILlmProvider {
       throw new Error(`OpenAI request failed: ${response.status} ${await response.text()}`);
     }
 
-    let responseBody: unknown;
     try {
-      responseBody = await response.json();
+      return await response.json();
     } catch {
       throw new Error('OpenAI returned a malformed response: invalid JSON');
     }
+  }
 
+  private parseAndValidate(responseBody: unknown): z.infer<typeof openAiResponseSchema> {
     const parsed = openAiResponseSchema.safeParse(responseBody);
     if (!parsed.success) {
       throw new Error(`OpenAI returned a malformed response: ${parsed.error.message}`);
     }
-    const body = parsed.data;
-
-    return {
-      text: body.choices[0].message.content,
-      inputTokens: body.usage.prompt_tokens,
-      outputTokens: body.usage.completion_tokens,
-      modelId: body.model,
-      costUsd: computeCostUsd(body.usage.prompt_tokens, body.usage.completion_tokens),
-    };
+    return parsed.data;
   }
 }

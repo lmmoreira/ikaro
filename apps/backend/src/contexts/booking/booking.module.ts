@@ -55,6 +55,8 @@ import { ScheduleOpeningEntity } from './infrastructure/entities/schedule-openin
 import { ServiceEntity } from './infrastructure/entities/service.entity';
 import { BookingCustomerAdapter } from './infrastructure/cross-context/booking-customer.adapter';
 import { BookingController } from './infrastructure/controllers/booking.controller';
+import { BookingLifecycleController } from './infrastructure/controllers/booking-lifecycle.controller';
+import { BookingCompletionController } from './infrastructure/controllers/booking-completion.controller';
 import { CronBookingController } from './infrastructure/controllers/cron-booking.controller';
 import { ScheduleAvailabilityController } from './infrastructure/controllers/schedule-availability.controller';
 import { ScheduleAvailabilitySummaryController } from './infrastructure/controllers/schedule-availability-summary.controller';
@@ -91,6 +93,8 @@ import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cach
   controllers: [
     BookingAttachmentsController,
     BookingController,
+    BookingLifecycleController,
+    BookingCompletionController,
     ServiceController,
     ScheduleClosureController,
     ScheduleOpeningController,

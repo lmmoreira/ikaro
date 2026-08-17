@@ -77,44 +77,43 @@ export function createSchedulePreferencesStore(
   };
 }
 
+function subscribeToPreferencesChanges(onStoreChange: () => void): () => void {
+  globalThis.window?.addEventListener('storage', onStoreChange);
+  globalThis.window?.addEventListener(PREFERENCES_CHANGED_EVENT, onStoreChange);
+  return () => {
+    globalThis.window?.removeEventListener('storage', onStoreChange);
+    globalThis.window?.removeEventListener(PREFERENCES_CHANGED_EVENT, onStoreChange);
+  };
+}
+
+function parseSelectedStatusesSnapshot(snapshot: string): readonly BookingStatus[] {
+  try {
+    const parsed = JSON.parse(snapshot) as unknown;
+    if (Array.isArray(parsed)) {
+      return normalizeSelectedStatuses(parsed as readonly BookingStatus[]);
+    }
+  } catch {
+    return SCHEDULE_BOOKING_STATUS_DEFAULT;
+  }
+  return SCHEDULE_BOOKING_STATUS_DEFAULT;
+}
+
 export function useSchedulePreferences(): SchedulePreferencesState {
   const store = useMemo(() => createSchedulePreferencesStore(), []);
   const viewMode = useSyncExternalStore(
-    (onStoreChange) => {
-      globalThis.window?.addEventListener('storage', onStoreChange);
-      globalThis.window?.addEventListener(PREFERENCES_CHANGED_EVENT, onStoreChange);
-      return () => {
-        globalThis.window?.removeEventListener('storage', onStoreChange);
-        globalThis.window?.removeEventListener(PREFERENCES_CHANGED_EVENT, onStoreChange);
-      };
-    },
+    subscribeToPreferencesChanges,
     () => store.getViewMode(),
     () => null,
   );
   const selectedStatusesSnapshot = useSyncExternalStore(
-    (onStoreChange) => {
-      globalThis.window?.addEventListener('storage', onStoreChange);
-      globalThis.window?.addEventListener(PREFERENCES_CHANGED_EVENT, onStoreChange);
-      return () => {
-        globalThis.window?.removeEventListener('storage', onStoreChange);
-        globalThis.window?.removeEventListener(PREFERENCES_CHANGED_EVENT, onStoreChange);
-      };
-    },
+    subscribeToPreferencesChanges,
     () => JSON.stringify(store.getSelectedStatuses()),
     () => JSON.stringify(SCHEDULE_BOOKING_STATUS_DEFAULT),
   );
-  const selectedStatuses = useMemo(() => {
-    try {
-      const parsed = JSON.parse(selectedStatusesSnapshot) as unknown;
-      if (Array.isArray(parsed)) {
-        return normalizeSelectedStatuses(parsed as readonly BookingStatus[]);
-      }
-    } catch {
-      return SCHEDULE_BOOKING_STATUS_DEFAULT;
-    }
-
-    return SCHEDULE_BOOKING_STATUS_DEFAULT;
-  }, [selectedStatusesSnapshot]);
+  const selectedStatuses = useMemo(
+    () => parseSelectedStatusesSnapshot(selectedStatusesSnapshot),
+    [selectedStatusesSnapshot],
+  );
 
   function updateViewMode(nextViewMode: ScheduleViewMode): void {
     store.setViewMode(nextViewMode);

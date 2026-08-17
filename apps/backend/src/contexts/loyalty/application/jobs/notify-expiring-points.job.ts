@@ -44,42 +44,49 @@ export class NotifyExpiringPointsJob {
     let customersNotified = 0;
 
     for (const [tenantId, tenantGroups] of groupsByTenant) {
-      const { notificationMinPoints } = await this.settingsPort.getLoyaltySettings(tenantId);
-
-      const toPublish: PointsExpiringSoon[] = [];
-      for (const group of tenantGroups) {
-        const { customerId } = group[0];
-        const pointsExpiringSoon = group.reduce((sum, e) => sum + e.points, 0);
-        if (pointsExpiringSoon < notificationMinPoints) continue;
-
-        const earliestExpiresAt = group
-          .map((e) => e.expiresAt)
-          .reduce((min, d) => new Date(Math.min(d.getTime(), min.getTime())), group[0].expiresAt);
-
-        toPublish.push(
-          new PointsExpiringSoon(
-            tenantId,
-            correlationId,
-            {
-              customerId,
-              pointsExpiringSoon,
-              earliestExpiresAt: earliestExpiresAt.toISOString(),
-            },
-            runDate,
-          ),
-        );
-        customersNotified++;
-      }
-
-      // One transaction per tenant-batch (see booking-reminder.job.ts for the rationale).
-      await this.txManager.run(async () => {
-        for (const event of toPublish) {
-          await this.outboxPublisher.publish(event);
-        }
-      });
+      customersNotified += await this.processTenant(tenantId, tenantGroups, correlationId, runDate);
     }
 
     return { customersNotified };
+  }
+
+  /** Publishes PointsExpiringSoon for one tenant's qualifying customer groups, returning the count notified. */
+  private async processTenant(
+    tenantId: string,
+    tenantGroups: LoyaltyEntry[][],
+    correlationId: string,
+    runDate: string,
+  ): Promise<number> {
+    const { notificationMinPoints } = await this.settingsPort.getLoyaltySettings(tenantId);
+
+    const toPublish: PointsExpiringSoon[] = [];
+    for (const group of tenantGroups) {
+      const { customerId } = group[0];
+      const pointsExpiringSoon = group.reduce((sum, e) => sum + e.points, 0);
+      if (pointsExpiringSoon < notificationMinPoints) continue;
+
+      const earliestExpiresAt = group
+        .map((e) => e.expiresAt)
+        .reduce((min, d) => new Date(Math.min(d.getTime(), min.getTime())), group[0].expiresAt);
+
+      toPublish.push(
+        new PointsExpiringSoon(
+          tenantId,
+          correlationId,
+          { customerId, pointsExpiringSoon, earliestExpiresAt: earliestExpiresAt.toISOString() },
+          runDate,
+        ),
+      );
+    }
+
+    // One transaction per tenant-batch (see booking-reminder.job.ts for the rationale).
+    await this.txManager.run(async () => {
+      for (const event of toPublish) {
+        await this.outboxPublisher.publish(event);
+      }
+    });
+
+    return toPublish.length;
   }
 
   private groupByTenant(entries: LoyaltyEntry[]): Map<string, LoyaltyEntry[][]> {

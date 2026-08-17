@@ -58,23 +58,8 @@ export class GetAvailabilitySummaryUseCase {
       maxBookingAdvanceDays,
     } = input;
 
-    if (input.from > input.to) {
-      throw new AvailabilityRangeInvalidError('from must not be after to');
-    }
-
-    const rangeDays = this.daysBetween(input.from, input.to);
-    if (rangeDays > maxBookingAdvanceDays) {
-      throw new AvailabilityRangeInvalidError(
-        `range exceeds maxBookingAdvanceDays (${maxBookingAdvanceDays})`,
-      );
-    }
-
-    const services = await this.serviceRepo.findByIds(input.serviceIds, tenantId);
-    for (const requestedId of input.serviceIds) {
-      const service = services.find((s) => s.id === requestedId);
-      if (!service) throw new ServiceNotFoundError(requestedId);
-      if (!service.isActive) throw new BookingServiceNotActiveError(requestedId);
-    }
+    this.validateRange(input.from, input.to, maxBookingAdvanceDays);
+    const services = await this.findAndValidateServices(input.serviceIds, tenantId);
 
     const [closures, openings, bookings] = await Promise.all([
       this.closureRepo.findByTenantAndDateRange(tenantId, input.from, input.to),
@@ -82,9 +67,53 @@ export class GetAvailabilitySummaryUseCase {
       this.bookingPort.findApprovedByTenantAndDateRange(tenantId, input.from, input.to),
     ]);
 
+    return this.buildDaySummaries(input, {
+      services,
+      closures,
+      openings,
+      bookings,
+      businessHours,
+      slotGranularityMinutes,
+      serviceBufferMinutes,
+    });
+  }
+
+  private validateRange(from: string, to: string, maxBookingAdvanceDays: number): void {
+    if (from > to) {
+      throw new AvailabilityRangeInvalidError('from must not be after to');
+    }
+    if (this.daysBetween(from, to) > maxBookingAdvanceDays) {
+      throw new AvailabilityRangeInvalidError(
+        `range exceeds maxBookingAdvanceDays (${maxBookingAdvanceDays})`,
+      );
+    }
+  }
+
+  private async findAndValidateServices(serviceIds: string[], tenantId: string) {
+    const services = await this.serviceRepo.findByIds(serviceIds, tenantId);
+    for (const requestedId of serviceIds) {
+      const service = services.find((s) => s.id === requestedId);
+      if (!service) throw new ServiceNotFoundError(requestedId);
+      if (!service.isActive) throw new BookingServiceNotActiveError(requestedId);
+    }
+    return services;
+  }
+
+  private buildDaySummaries(
+    input: GetAvailabilitySummaryInput,
+    ctx: {
+      services: Awaited<ReturnType<IServiceRepository['findByIds']>>;
+      closures: Awaited<ReturnType<IScheduleClosureRepository['findByTenantAndDateRange']>>;
+      openings: Awaited<ReturnType<IScheduleOpeningRepository['findByTenantAndDateRange']>>;
+      bookings: Awaited<ReturnType<IBookingAvailabilityPort['findApprovedByTenantAndDateRange']>>;
+      businessHours: BusinessHours;
+      slotGranularityMinutes: 15 | 30 | 60;
+      serviceBufferMinutes: number;
+    },
+  ): GetAvailabilitySummaryUseCaseResult {
     const today = todayUTC();
+    const tz = ctx.businessHours.timezone;
     const results: GetAvailabilitySummaryUseCaseResult = [];
-    const tz = businessHours.timezone;
 
     for (const date of this.dateRange(input.from, input.to)) {
       if (date < today) {
@@ -92,16 +121,18 @@ export class GetAvailabilitySummaryUseCase {
         continue;
       }
 
-      const dayClosures = closures.filter((c) => c.date === date);
-      const dayOpening = openings.find((o) => o.date === date) ?? null;
-      const dayBookings = bookings.filter((b) => utcDateToLocalDate(b.scheduledAt, tz) === date);
+      const dayClosures = ctx.closures.filter((c) => c.date === date);
+      const dayOpening = ctx.openings.find((o) => o.date === date) ?? null;
+      const dayBookings = ctx.bookings.filter(
+        (b) => utcDateToLocalDate(b.scheduledAt, tz) === date,
+      );
 
       const slots = this.availabilityService.calculate({
         date,
-        services: services.map((s) => ({ durationMinutes: s.durationMinutes })),
-        businessHours,
-        slotGranularityMinutes,
-        serviceBufferMinutes,
+        services: ctx.services.map((s) => ({ durationMinutes: s.durationMinutes })),
+        businessHours: ctx.businessHours,
+        slotGranularityMinutes: ctx.slotGranularityMinutes,
+        serviceBufferMinutes: ctx.serviceBufferMinutes,
         closures: dayClosures,
         opening: dayOpening,
         existingBookings: dayBookings,

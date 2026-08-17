@@ -5,7 +5,7 @@ import { Email } from '../../../shared/value-objects/email.vo';
 import { Money } from '../../../shared/value-objects/money';
 import { PhoneNumber } from '../../../shared/value-objects/phone-number.vo';
 import { normalizeOptionalText, normalizeText } from '../../../shared/utils/text-normalization';
-import { BookingLine, BookingLineInput } from './booking-line.entity';
+import { BookingLine } from './booking-line.entity';
 import {
   BookingDiscountExceedsTotalError,
   BookingInfoMessageTooShortError,
@@ -22,82 +22,11 @@ import { BookingInfoSubmitted } from './events/booking-info-submitted.event';
 import { BookingRequested } from './events/booking-requested.event';
 import { BookingRescheduled } from './events/booking-rescheduled.event';
 import { BookingRejected } from './events/booking-rejected.event';
+import { BookingProps, BookingStatus, BookingType, RequestBookingInput } from './booking.types';
 
-export enum BookingStatus {
-  PENDING = 'PENDING',
-  INFO_REQUESTED = 'INFO_REQUESTED',
-  APPROVED = 'APPROVED',
-  COMPLETED = 'COMPLETED',
-  REJECTED = 'REJECTED',
-  CANCELLED = 'CANCELLED',
-}
-
-export type BookingType = 'GUEST' | 'CUSTOMER';
-
-export interface BookingProps {
-  id: string;
-  tenantId: string;
-  status: BookingStatus;
-  type: BookingType;
-  customerId: string | null;
-  contactEmail: Email;
-  contactName: string;
-  contactPhone: PhoneNumber;
-  contactAddress: Address | null;
-  pickupAddress: Address | null;
-  notes: string | null;
-  scheduledAt: Date;
-  totalDurationMins: number;
-  totalPrice: Money;
-  totalActualPrice: Money | null;
-  discountPointsUsed: number | null;
-  discountAmount: Money | null;
-  lines: BookingLine[];
-  beforeServicePhotoUrls: string[];
-  afterServicePhotoUrls: string[];
-  adminNotes: string | null;
-  infoRequestMessage: string | null;
-  infoRequestedAt: Date | null;
-  infoRequestedBy: string | null;
-  infoResponseMessage: string | null;
-  infoSubmittedAt: Date | null;
-  approvedAt: Date | null;
-  approvedBy: string | null;
-  completedAt: Date | null;
-  completedBy: string | null;
-  cancelledAt: Date | null;
-  cancelledBy: string | null;
-  cancellationReason: string | null;
-  rejectedAt: Date | null;
-  rejectedBy: string | null;
-  rejectionReason: string | null;
-  createdAt: Date;
-  version?: number;
-}
-
-export interface RequestBookingInput {
-  /**
-   * Pre-generated booking ID — pass this when the caller needs to know the ID before the
-   * aggregate exists (e.g. to promote `tmp/`-staged photos to their permanent
-   * `tenants/<id>/bookings/<bookingId>/...` path before construction; see
-   * td/TD22-ORPHANED-UPLOAD-CLEANUP.md). Omit to keep the existing behavior of generating a
-   * fresh `uuidv7()` inside the factory.
-   */
-  id?: string;
-  tenantId: string;
-  contactEmail: string;
-  contactName: string;
-  contactPhone: string;
-  scheduledAt: Date;
-  lineInputs: BookingLineInput[];
-  type: BookingType;
-  correlationId: string;
-  customerId?: string;
-  contactAddress?: Address;
-  pickupAddress?: Address;
-  notes?: string;
-  beforeServicePhotoUrls?: string[];
-}
+// BookingStatus/BookingType/BookingProps/RequestBookingInput moved to booking.types.ts
+// (TD37-S05, file-length) — re-exported so existing imports of these symbols keep working.
+export * from './booking.types';
 
 export class Booking extends AggregateRoot {
   private readonly props: BookingProps;
@@ -232,17 +161,8 @@ export class Booking extends AggregateRoot {
     const {
       id: suppliedId,
       tenantId,
-      contactEmail,
-      contactName,
-      contactPhone,
-      scheduledAt,
       lineInputs,
-      type,
-      correlationId,
-      customerId,
-      contactAddress,
       pickupAddress,
-      notes,
       beforeServicePhotoUrls = [],
     } = input;
 
@@ -259,27 +179,84 @@ export class Booking extends AggregateRoot {
       Money.zero(lines[0].priceAtBooking.currency),
     );
 
-    const booking = new Booking({
+    const booking = new Booking(
+      Booking.buildRequestedProps(id, input, lines, totalDurationMins, totalPrice),
+    );
+    booking._linesModified = true;
+
+    booking.addDomainEvent(
+      Booking.buildRequestedEvent(
+        id,
+        input,
+        lines,
+        totalDurationMins,
+        totalPrice,
+        requiresPickup,
+        beforeServicePhotoUrls,
+      ),
+    );
+
+    return booking;
+  }
+
+  private static buildRequestedProps(
+    id: string,
+    input: RequestBookingInput,
+    lines: BookingLine[],
+    totalDurationMins: number,
+    totalPrice: Money,
+  ): BookingProps {
+    const { tenantId, contactEmail, contactName, contactPhone, contactAddress, pickupAddress } =
+      input;
+    return {
       id,
       tenantId,
       status: BookingStatus.PENDING,
-      type,
-      customerId: customerId ?? null,
+      type: input.type,
+      customerId: input.customerId ?? null,
       contactEmail: Email.create(contactEmail),
       contactName: normalizeText(contactName),
       contactPhone: PhoneNumber.create(contactPhone),
       contactAddress: contactAddress ?? null,
       pickupAddress: pickupAddress ?? null,
-      notes: normalizeOptionalText(notes),
-      scheduledAt,
+      notes: normalizeOptionalText(input.notes),
+      scheduledAt: input.scheduledAt,
       totalDurationMins,
       totalPrice,
       totalActualPrice: null,
       discountPointsUsed: null,
       discountAmount: null,
       lines,
-      beforeServicePhotoUrls: [...beforeServicePhotoUrls],
+      beforeServicePhotoUrls: [...(input.beforeServicePhotoUrls ?? [])],
       afterServicePhotoUrls: [],
+      createdAt: new Date(),
+      ...Booking.freshLifecycleProps(),
+    };
+  }
+
+  // The lifecycle fields a freshly-requested booking always starts empty — split out purely to
+  // keep buildRequestedProps under the 40-line function cap (TD37-S05), not a semantic grouping
+  // beyond "not yet happened".
+  private static freshLifecycleProps(): Pick<
+    BookingProps,
+    | 'adminNotes'
+    | 'infoRequestMessage'
+    | 'infoRequestedAt'
+    | 'infoRequestedBy'
+    | 'infoResponseMessage'
+    | 'infoSubmittedAt'
+    | 'approvedAt'
+    | 'approvedBy'
+    | 'completedAt'
+    | 'completedBy'
+    | 'cancelledAt'
+    | 'cancelledBy'
+    | 'cancellationReason'
+    | 'rejectedAt'
+    | 'rejectedBy'
+    | 'rejectionReason'
+  > {
+    return {
       adminNotes: null,
       infoRequestMessage: null,
       infoRequestedAt: null,
@@ -296,42 +273,46 @@ export class Booking extends AggregateRoot {
       rejectedAt: null,
       rejectedBy: null,
       rejectionReason: null,
-      createdAt: new Date(),
+    };
+  }
+
+  private static buildRequestedEvent(
+    id: string,
+    input: RequestBookingInput,
+    lines: BookingLine[],
+    totalDurationMins: number,
+    totalPrice: Money,
+    requiresPickup: boolean,
+    beforeServicePhotoUrls: string[],
+  ): BookingRequested {
+    const { tenantId, correlationId, contactEmail, contactName, contactPhone } = input;
+    return new BookingRequested(tenantId, correlationId, {
+      bookingId: id,
+      type: input.type,
+      customerId: input.customerId ?? null,
+      contactEmail,
+      contactName: normalizeText(contactName),
+      contactPhone,
+      contactAddress: Booking.toAddressPayload(input.contactAddress ?? null),
+      scheduledAt: input.scheduledAt.toISOString(),
+      totalDurationMins,
+      totalPrice: { amount: totalPrice.amount.toFixed(2), currency: totalPrice.currency },
+      requiresPickup,
+      pickupAddress: Booking.toAddressPayload(input.pickupAddress ?? null),
+      lines: lines.map((l) => ({
+        lineId: l.lineId,
+        serviceId: l.serviceId,
+        serviceNameAtBooking: l.serviceNameAtBooking,
+        priceAtBooking: {
+          amount: l.priceAtBooking.amount.toFixed(2),
+          currency: l.priceAtBooking.currency,
+        },
+        durationMinsAtBooking: l.durationMinsAtBooking,
+        pointsValueAtBooking: l.pointsValueAtBooking,
+        requiresPickupAddressAtBooking: l.requiresPickupAddressAtBooking,
+      })),
+      beforeServicePhotoUrls: [...beforeServicePhotoUrls],
     });
-
-    booking._linesModified = true;
-
-    booking.addDomainEvent(
-      new BookingRequested(tenantId, correlationId, {
-        bookingId: id,
-        type,
-        customerId: customerId ?? null,
-        contactEmail,
-        contactName: normalizeText(contactName),
-        contactPhone,
-        contactAddress: Booking.toAddressPayload(contactAddress ?? null),
-        scheduledAt: scheduledAt.toISOString(),
-        totalDurationMins,
-        totalPrice: { amount: totalPrice.amount.toFixed(2), currency: totalPrice.currency },
-        requiresPickup,
-        pickupAddress: Booking.toAddressPayload(pickupAddress ?? null),
-        lines: lines.map((l) => ({
-          lineId: l.lineId,
-          serviceId: l.serviceId,
-          serviceNameAtBooking: l.serviceNameAtBooking,
-          priceAtBooking: {
-            amount: l.priceAtBooking.amount.toFixed(2),
-            currency: l.priceAtBooking.currency,
-          },
-          durationMinsAtBooking: l.durationMinsAtBooking,
-          pointsValueAtBooking: l.pointsValueAtBooking,
-          requiresPickupAddressAtBooking: l.requiresPickupAddressAtBooking,
-        })),
-        beforeServicePhotoUrls: [...beforeServicePhotoUrls],
-      }),
-    );
-
-    return booking;
   }
 
   approve(staffId: string, correlationId: string, scheduledAt?: Date): void {
@@ -469,23 +450,10 @@ export class Booking extends AggregateRoot {
       throw new InvalidBookingTransitionError(this.props.status, BookingStatus.COMPLETED);
     }
 
-    for (const line of this.props.lines) {
-      const actual = lineActualPrices.get(line.lineId) ?? line.priceAtBooking;
-      line.setActualPrice(actual);
-    }
-
-    const linesTotal = this.props.lines.reduce(
-      (sum, l) => sum.add(l.actualPriceCharged!),
-      Money.zero(this.props.totalPrice.currency),
+    const { totalActualPrice, discountAmount } = this.applyActualPrices(
+      lineActualPrices,
+      discountByPoints,
     );
-
-    let totalActualPrice = linesTotal;
-    let discountAmount: Money | null = null;
-    if (discountByPoints) {
-      discountAmount = Money.from(discountByPoints.amountDeducted, this.props.totalPrice.currency);
-      if (discountAmount.isGreaterThan(linesTotal)) throw new BookingDiscountExceedsTotalError();
-      totalActualPrice = linesTotal.subtract(discountAmount);
-    }
 
     this._linesModified = true;
     this.props.status = BookingStatus.COMPLETED;
@@ -497,56 +465,108 @@ export class Booking extends AggregateRoot {
     this.props.afterServicePhotoUrls = [...afterPhotos];
     if (adminNotes !== undefined) this.props.adminNotes = normalizeOptionalText(adminNotes);
 
+    this.addDomainEvent(
+      this.buildCompletedEvent(
+        staffId,
+        afterPhotos,
+        correlationId,
+        totalActualPrice,
+        discountByPoints,
+        discountAmount,
+      ),
+    );
+  }
+
+  private applyActualPrices(
+    lineActualPrices: Map<string, Money>,
+    discountByPoints?: { pointsUsed: number; amountDeducted: number },
+  ): { totalActualPrice: Money; discountAmount: Money | null } {
+    for (const line of this.props.lines) {
+      const actual = lineActualPrices.get(line.lineId) ?? line.priceAtBooking;
+      line.setActualPrice(actual);
+    }
+
+    const linesTotal = this.props.lines.reduce(
+      (sum, l) => sum.add(l.actualPriceCharged!),
+      Money.zero(this.props.totalPrice.currency),
+    );
+
+    if (!discountByPoints) return { totalActualPrice: linesTotal, discountAmount: null };
+
+    const discountAmount = Money.from(
+      discountByPoints.amountDeducted,
+      this.props.totalPrice.currency,
+    );
+    if (discountAmount.isGreaterThan(linesTotal)) throw new BookingDiscountExceedsTotalError();
+    return { totalActualPrice: linesTotal.subtract(discountAmount), discountAmount };
+  }
+
+  private buildCompletedEvent(
+    staffId: string,
+    afterPhotos: string[],
+    correlationId: string,
+    totalActualPrice: Money,
+    discountByPoints: { pointsUsed: number; amountDeducted: number } | undefined,
+    discountAmount: Money | null,
+  ): BookingCompleted {
     const endTime = new Date(
       this.props.scheduledAt.getTime() + this.props.totalDurationMins * 60_000,
     );
 
-    this.addDomainEvent(
-      new BookingCompleted(this.props.tenantId, correlationId, {
-        bookingId: this.props.id,
-        customerId: this.props.customerId,
-        contactEmail: this.props.contactEmail.address,
-        contactName: this.props.contactName,
-        completedSlot: {
-          startTime: this.props.scheduledAt.toISOString(),
-          endTime: endTime.toISOString(),
-        },
-        completedBy: staffId,
-        afterServicePhotoUrls: [...afterPhotos],
-        adminNotes: this.props.adminNotes,
-        pickupAddress: Booking.toAddressPayload(this.props.pickupAddress),
-        totalPrice: {
-          amount: this.props.totalPrice.amount.toFixed(2),
-          currency: this.props.totalPrice.currency,
-        },
-        totalActualPrice: {
-          amount: totalActualPrice.amount.toFixed(2),
-          currency: totalActualPrice.currency,
-        },
-        lines: this.props.lines.map((l) => ({
-          lineId: l.lineId,
-          serviceId: l.serviceId,
-          priceAtBooking: {
-            amount: l.priceAtBooking.amount.toFixed(2),
-            currency: l.priceAtBooking.currency,
-          },
-          actualPriceCharged: {
-            amount: l.actualPriceCharged!.amount.toFixed(2),
-            currency: l.actualPriceCharged!.currency,
-          },
-          pointsValueAtBooking: l.pointsValueAtBooking,
-        })),
-        discountByPoints: discountByPoints
-          ? {
-              pointsUsed: discountByPoints.pointsUsed,
-              amountDeducted: {
-                amount: discountAmount!.amount.toFixed(2),
-                currency: discountAmount!.currency,
-              },
-            }
-          : undefined,
-      }),
-    );
+    return new BookingCompleted(this.props.tenantId, correlationId, {
+      bookingId: this.props.id,
+      customerId: this.props.customerId,
+      contactEmail: this.props.contactEmail.address,
+      contactName: this.props.contactName,
+      completedSlot: {
+        startTime: this.props.scheduledAt.toISOString(),
+        endTime: endTime.toISOString(),
+      },
+      completedBy: staffId,
+      afterServicePhotoUrls: [...afterPhotos],
+      adminNotes: this.props.adminNotes,
+      pickupAddress: Booking.toAddressPayload(this.props.pickupAddress),
+      totalPrice: {
+        amount: this.props.totalPrice.amount.toFixed(2),
+        currency: this.props.totalPrice.currency,
+      },
+      totalActualPrice: {
+        amount: totalActualPrice.amount.toFixed(2),
+        currency: totalActualPrice.currency,
+      },
+      lines: this.completedLinesPayload(),
+      discountByPoints: Booking.discountByPointsPayload(discountByPoints, discountAmount),
+    });
+  }
+
+  private completedLinesPayload() {
+    return this.props.lines.map((l) => ({
+      lineId: l.lineId,
+      serviceId: l.serviceId,
+      priceAtBooking: {
+        amount: l.priceAtBooking.amount.toFixed(2),
+        currency: l.priceAtBooking.currency,
+      },
+      actualPriceCharged: {
+        amount: l.actualPriceCharged!.amount.toFixed(2),
+        currency: l.actualPriceCharged!.currency,
+      },
+      pointsValueAtBooking: l.pointsValueAtBooking,
+    }));
+  }
+
+  private static discountByPointsPayload(
+    discountByPoints: { pointsUsed: number; amountDeducted: number } | undefined,
+    discountAmount: Money | null,
+  ) {
+    if (!discountByPoints) return undefined;
+    return {
+      pointsUsed: discountByPoints.pointsUsed,
+      amountDeducted: {
+        amount: discountAmount!.amount.toFixed(2),
+        currency: discountAmount!.currency,
+      },
+    };
   }
 
   cancel(cancelledBy: string, isBusiness: boolean, correlationId: string, reason?: string): void {

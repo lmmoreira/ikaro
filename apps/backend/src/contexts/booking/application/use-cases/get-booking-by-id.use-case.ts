@@ -122,6 +122,22 @@ export class GetBookingByIdUseCase {
     );
   }
 
+  private toLineDetail(l: Booking['lines'][number]): BookingLineDetail {
+    return {
+      lineId: l.lineId,
+      serviceId: l.serviceId,
+      serviceNameAtBooking: l.serviceNameAtBooking,
+      priceAtBooking: {
+        amount: l.priceAtBooking.amount.toNumber(),
+        currency: l.priceAtBooking.currency,
+      },
+      durationMinsAtBooking: l.durationMinsAtBooking,
+      pointsValueAtBooking: l.pointsValueAtBooking,
+      requiresPickupAddressAtBooking: l.requiresPickupAddressAtBooking,
+      actualPriceCharged: this.toMoneyDetail(l.actualPriceCharged),
+    };
+  }
+
   private async toResult(
     booking: Booking,
     cancellationWindowHours: number,
@@ -131,6 +147,17 @@ export class GetBookingByIdUseCase {
       this.signPhotoUrls(booking.afterServicePhotoUrls),
     ]);
 
+    return this.buildResult(booking, cancellationWindowHours, {
+      beforeServicePhotoUrls,
+      afterServicePhotoUrls,
+    });
+  }
+
+  private buildResult(
+    booking: Booking,
+    cancellationWindowHours: number,
+    signedPhotoUrls: { beforeServicePhotoUrls: string[]; afterServicePhotoUrls: string[] },
+  ): GetBookingByIdUseCaseResult {
     return {
       id: booking.id,
       status: booking.status,
@@ -143,29 +170,13 @@ export class GetBookingByIdUseCase {
       notes: booking.notes,
       scheduledAt: booking.scheduledAt.toISOString(),
       totalDurationMins: booking.totalDurationMins,
-      totalPrice: {
-        amount: booking.totalPrice.amount.toNumber(),
-        currency: booking.totalPrice.currency,
-      },
+      totalPrice: this.toMoneyDetail(booking.totalPrice)!,
       totalActualPrice: this.toMoneyDetail(booking.totalActualPrice),
       discountPointsUsed: booking.discountPointsUsed,
       discountAmount: this.toMoneyDetail(booking.discountAmount),
       pickupAddress: this.toAddressDetail(booking.pickupAddress),
-      lines: booking.lines.map((l) => ({
-        lineId: l.lineId,
-        serviceId: l.serviceId,
-        serviceNameAtBooking: l.serviceNameAtBooking,
-        priceAtBooking: {
-          amount: l.priceAtBooking.amount.toNumber(),
-          currency: l.priceAtBooking.currency,
-        },
-        durationMinsAtBooking: l.durationMinsAtBooking,
-        pointsValueAtBooking: l.pointsValueAtBooking,
-        requiresPickupAddressAtBooking: l.requiresPickupAddressAtBooking,
-        actualPriceCharged: this.toMoneyDetail(l.actualPriceCharged),
-      })),
-      beforeServicePhotoUrls,
-      afterServicePhotoUrls,
+      lines: booking.lines.map((l) => this.toLineDetail(l)),
+      ...signedPhotoUrls,
       beforeServicePhotoPaths: booking.beforeServicePhotoUrls,
       afterServicePhotoPaths: booking.afterServicePhotoUrls,
       adminNotes: booking.adminNotes,
