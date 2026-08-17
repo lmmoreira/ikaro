@@ -58,7 +58,13 @@ describe('SendChatMessageUseCase', () => {
 
   function buildUseCase(config: IApplicationConfig = fakeConfig()): SendChatMessageUseCase {
     llmProvider = new FakeLlmProviderBuilder().build();
-    const registry = new LlmProviderRegistry('openrouter', llmProvider, llmProvider, llmProvider);
+    const registry = new LlmProviderRegistry(
+      'openrouter',
+      llmProvider,
+      llmProvider,
+      llmProvider,
+      llmProvider,
+    );
     return new SendChatMessageUseCase(
       sessionRepo,
       messageRepo,
@@ -251,6 +257,7 @@ describe('SendChatMessageUseCase', () => {
         observingProvider,
         observingProvider,
         observingProvider,
+        observingProvider,
       );
       const useCase = new SendChatMessageUseCase(
         sessionRepo,
@@ -357,6 +364,7 @@ describe('SendChatMessageUseCase', () => {
         capturingProvider,
         capturingProvider,
         capturingProvider,
+        capturingProvider,
       );
       const session = new ChatbotSessionBuilder().withTenantId(TENANT_ID).build();
       await sessionRepo.save(session);
@@ -390,6 +398,7 @@ describe('SendChatMessageUseCase', () => {
       const capturingProvider = new CapturingLlmProvider();
       const registry = new LlmProviderRegistry(
         'openrouter',
+        capturingProvider,
         capturingProvider,
         capturingProvider,
         capturingProvider,
@@ -497,6 +506,7 @@ describe('SendChatMessageUseCase', () => {
         capturingProvider,
         capturingProvider,
         capturingProvider,
+        capturingProvider,
       );
       const useCase = new SendChatMessageUseCase(
         sessionRepo,
@@ -517,6 +527,7 @@ describe('SendChatMessageUseCase', () => {
       const capturingProvider = new CapturingLlmProvider();
       const registry = new LlmProviderRegistry(
         'openrouter',
+        capturingProvider,
         capturingProvider,
         capturingProvider,
         capturingProvider,
@@ -545,6 +556,7 @@ describe('SendChatMessageUseCase', () => {
         failingProvider,
         failingProvider,
         failingProvider,
+        failingProvider,
       );
       const useCase = new SendChatMessageUseCase(
         sessionRepo,
@@ -565,6 +577,7 @@ describe('SendChatMessageUseCase', () => {
       };
       const registry = new LlmProviderRegistry(
         'openrouter',
+        failingProvider,
         failingProvider,
         failingProvider,
         failingProvider,
@@ -596,6 +609,7 @@ describe('SendChatMessageUseCase', () => {
       };
       const registry = new LlmProviderRegistry(
         'openrouter',
+        failingProvider,
         failingProvider,
         failingProvider,
         failingProvider,
@@ -631,6 +645,7 @@ describe('SendChatMessageUseCase', () => {
       };
       const registry = new LlmProviderRegistry(
         'openrouter',
+        failingProvider,
         failingProvider,
         failingProvider,
         failingProvider,
@@ -672,6 +687,7 @@ describe('SendChatMessageUseCase', () => {
         failingProvider,
         failingProvider,
         failingProvider,
+        failingProvider,
       );
       const useCase = new SendChatMessageUseCase(
         sessionRepo,
@@ -707,6 +723,7 @@ describe('SendChatMessageUseCase', () => {
       };
       const registry = new LlmProviderRegistry(
         'openrouter',
+        failingProvider,
         failingProvider,
         failingProvider,
         failingProvider,

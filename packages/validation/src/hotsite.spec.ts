@@ -88,6 +88,12 @@ describe('HotsiteModuleSchema', () => {
       HotsiteModuleSchema.safeParse({ type: 'UNKNOWN', enabled: true, data: {} }).success,
     ).toBe(false);
   });
+
+  it('accepts a CHATBOT module (M19-S11)', () => {
+    expect(
+      HotsiteModuleSchema.safeParse({ type: 'CHATBOT', enabled: true, data: {} }).success,
+    ).toBe(true);
+  });
 });
 
 describe('HotsiteSeoSchema', () => {

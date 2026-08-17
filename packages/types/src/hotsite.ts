@@ -134,6 +134,16 @@ export interface ContactModuleData {
   whatsappCtaLabel?: string;
 }
 
+// Only fields rendered verbatim to every visitor — see docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md
+// § CHATBOT for why knowledgeText and the volume/cost caps are deliberately excluded here and
+// fetched separately, never shipped into the cached public manifest.
+export interface ChatbotModuleData {
+  variant?: 'bubble' | 'inline';
+  accentColor?: 'primary' | 'secondary';
+  botName?: string;
+  welcomeMessage?: string;
+}
+
 // ─── BFF response types ───────────────────────────────────────────────────────
 
 export interface HotsiteModuleResponse {

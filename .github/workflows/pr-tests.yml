@@ -320,6 +320,10 @@ jobs:
           EMAIL_FROM: noreply@ikaro.example
           SMTP_HOST: localhost
           SMTP_PORT: '1025'
+          # Selects the DI-registered fake/noop ILlmProvider (M19-S11) — never the real, billed
+          # openrouter default — so chatbot-widget.spec.ts's E2E flow exercises the genuine
+          # widget -> BFF -> backend -> adapter path with no real LLM call in CI.
+          CHATBOT_LLM_PROVIDER: fake
           JWT_SECRET: 'e2e-ci-jwt-secret-must-be-at-least-64-characters-long-xxxxxxxxxxxxx'
           PLATFORM_ADMIN_KEY: 'e2e-ci-platform-admin-key-must-be-32-chars!!'
           INTERNAL_API_KEY: 'e2e-ci-internal-api-key-must-be-32-chars!!'

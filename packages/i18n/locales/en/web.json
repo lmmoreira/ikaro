@@ -211,6 +211,20 @@
     "unavailable": {
       "label": "Coming soon",
       "body": "We're preparing something special. Check back soon!"
+    },
+    "chatbot": {
+      "titleSuffix": "— AI Assistant",
+      "defaultWelcomeMessage": "Hello! How can I help you?",
+      "inputPlaceholder": "Type your message...",
+      "sendButtonLabel": "Send",
+      "closeButtonLabel": "Close",
+      "interruptedMessage": "This conversation was interrupted. To continue, get in touch with us directly:",
+      "interruptedInputPlaceholder": "Conversation interrupted",
+      "whatsappFallbackCta": "Chat on WhatsApp",
+      "phoneFallbackCta": "Call now",
+      "messageTooLong": "Message too long. Try something shorter.",
+      "inlineHeading": "Got questions?",
+      "inlineSubheading": "Chat with our assistant about hours, prices and services"
     }
   },
   "notFound": {
@@ -520,7 +534,8 @@
           "BOOKING_CTA": "Booking call-to-action",
           "ABOUT": "About",
           "CONTACT": "Contact",
-          "FOOTER": "Footer"
+          "FOOTER": "Footer",
+          "CHATBOT": "Chatbot"
         },
         "configShell": {
           "backLabel": "Back",

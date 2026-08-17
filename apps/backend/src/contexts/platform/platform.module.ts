@@ -13,6 +13,7 @@ import { FRONTEND_REVALIDATION_PORT } from './application/ports/frontend-revalid
 import { HOTSITE_CONFIG_REPOSITORY } from './application/ports/hotsite-config-repository.port';
 import {
   ANTHROPIC_LLM_PROVIDER,
+  FAKE_LLM_PROVIDER,
   ILlmProvider,
   OPENAI_LLM_PROVIDER,
   OPENROUTER_LLM_PROVIDER,
@@ -54,6 +55,7 @@ import { TenantEntity } from './infrastructure/entities/tenant.entity';
 import { FrontendRevalidationAdapter } from './infrastructure/adapters/frontend-revalidation.adapter';
 import { PlatformTenantSettingsAdapter } from './infrastructure/cross-context/platform-tenant-settings.adapter';
 import { AnthropicLlmAdapter } from './infrastructure/llm/anthropic-llm.adapter';
+import { FakeLlmAdapter } from './infrastructure/llm/fake-llm.adapter';
 import { OpenAiLlmAdapter } from './infrastructure/llm/openai-llm.adapter';
 import { OpenRouterCreditsClient } from './infrastructure/llm/openrouter-credits.client';
 import { OpenRouterLlmAdapter } from './infrastructure/llm/openrouter-llm.adapter';
@@ -115,6 +117,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     { provide: OPENROUTER_LLM_PROVIDER, useClass: OpenRouterLlmAdapter },
     { provide: ANTHROPIC_LLM_PROVIDER, useClass: AnthropicLlmAdapter },
     { provide: OPENAI_LLM_PROVIDER, useClass: OpenAiLlmAdapter },
+    { provide: FAKE_LLM_PROVIDER, useClass: FakeLlmAdapter },
     {
       provide: LLM_PROVIDER_REGISTRY,
       useFactory: (
@@ -122,14 +125,22 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
         openRouterProvider: ILlmProvider,
         anthropicProvider: ILlmProvider,
         openAiProvider: ILlmProvider,
+        fakeProvider: ILlmProvider,
       ) =>
         new LlmProviderRegistry(
           config.get<string>('CHATBOT_LLM_PROVIDER', OPENROUTER_PROVIDER_NAME),
           openRouterProvider,
           anthropicProvider,
           openAiProvider,
+          fakeProvider,
         ),
-      inject: [ConfigService, OPENROUTER_LLM_PROVIDER, ANTHROPIC_LLM_PROVIDER, OPENAI_LLM_PROVIDER],
+      inject: [
+        ConfigService,
+        OPENROUTER_LLM_PROVIDER,
+        ANTHROPIC_LLM_PROVIDER,
+        OPENAI_LLM_PROVIDER,
+        FAKE_LLM_PROVIDER,
+      ],
     },
     HotsiteContentReader,
     { provide: FRONTEND_REVALIDATION_PORT, useClass: FrontendRevalidationAdapter },
