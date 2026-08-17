@@ -8,8 +8,8 @@ import type { ChatTurn } from './chatbot-widget-storage';
 // Split out of ChatbotWidget.tsx (TD37-S05, file-length/function-length) — the open-panel
 // presentation (header, message list, input row, interrupted-state fallback CTA). Pure
 // presentational split: all conversation state/handlers stay owned by ChatbotWidget.tsx and are
-// passed down as props, so this file needs no spec of its own — ChatbotWidget.spec.tsx already
-// exercises every rendering branch here through the parent.
+// passed down as props. Covered by its own ChatbotPanel.spec.tsx in addition to the rendering
+// paths ChatbotWidget.spec.tsx already exercises through the parent.
 
 interface FallbackCtaProps {
   readonly business: HotsiteBusinessInfoResponse;

@@ -24,7 +24,7 @@ import {
   ChatbotProviderBalanceLowError,
   ChatbotProviderUnavailableError,
   ChatbotSessionNotFoundError,
-} from '../../domain/errors/platform-domain.error';
+} from '../../domain/errors/chatbot-domain.error';
 import { ChatTurn } from '../ports/llm-provider.port';
 import { SendChatMessageUseCaseInput } from './send-chat-message.use-case';
 import { ChatbotCapCheckDeps, ResolvedSession } from './chatbot-cap-check.types';

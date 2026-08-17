@@ -174,8 +174,3 @@ export class TenantSettingsValidationError extends PlatformDomainError {
     this.name = 'TenantSettingsValidationError';
   }
 }
-
-// TD37-S05: chatbot error classes moved to chatbot-domain.error.ts to satisfy
-// docs/CODE_STANDARDS.md's file-length limit — call sites are unaffected, every name still
-// resolves from this same path.
-export * from './chatbot-domain.error';

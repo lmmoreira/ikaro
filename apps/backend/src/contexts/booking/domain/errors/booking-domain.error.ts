@@ -1,22 +1,9 @@
-import {
-  AddressErrorCode,
-  BookingErrorCode,
-  CountryCodeErrorCode,
-} from '@ikaro/types/protocol/errors';
+import { AddressErrorCode, CountryCodeErrorCode } from '@ikaro/types/protocol/errors';
 import { DomainErrorShape } from '../../../../shared/domain/domain-error-shape';
 
-export class BookingDomainError extends Error implements DomainErrorShape {
-  readonly code: BookingErrorCode;
-  readonly field?: string;
-
-  constructor(message: string, code: BookingErrorCode, field?: string) {
-    super(message);
-    Object.setPrototypeOf(this, new.target.prototype);
-    this.name = 'BookingDomainError';
-    this.code = code;
-    this.field = field;
-  }
-}
+// Base class lives in its own file — see booking-domain-error.base.ts for why (breaks a
+// circular-import that crashed backend boot under ts-node).
+export { BookingDomainError } from './booking-domain-error.base';
 
 /**
  * Booking-owned translation of a VO-level address/country-code validation failure.

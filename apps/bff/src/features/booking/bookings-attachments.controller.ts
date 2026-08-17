@@ -13,7 +13,7 @@ import { AttachmentSignedUrlBody, AttachmentSignedUrlBodySchema } from './bookin
 // JWT/tenantSlug/guestToken, never a route param). Same @Controller('bookings') base and route
 // as before the split, so no URL changes.
 @Controller('bookings')
-export class BookingAttachmentsController {
+export class BookingsAttachmentsController {
   private readonly jwtSecret: string;
 
   constructor(

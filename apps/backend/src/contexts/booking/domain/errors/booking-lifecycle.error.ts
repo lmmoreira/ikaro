@@ -1,5 +1,5 @@
 import { BookingErrorCode } from '@ikaro/types/protocol/errors';
-import { BookingDomainError } from './booking-domain.error';
+import { BookingDomainError } from './booking-domain-error.base';
 
 export class BookingNotFoundError extends BookingDomainError {
   constructor(id: string) {

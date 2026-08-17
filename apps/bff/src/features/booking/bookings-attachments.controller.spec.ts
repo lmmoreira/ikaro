@@ -4,7 +4,7 @@ import * as jwt from 'jsonwebtoken';
 import { BffErrorCode } from '@ikaro/types';
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import { AttachmentSignedUrlBodySchema } from './bookings.schemas';
-import { BookingAttachmentsController } from './bookings-attachments.controller';
+import { BookingsAttachmentsController } from './bookings-attachments.controller';
 import { AttachmentSignedUrlResponse } from './bookings.types';
 
 const JWT_SECRET = 'test-secret-64-chars-for-bff-spec-xxxxxxxxxxxxxxxxxxxxxxxxxxxx';
@@ -15,7 +15,7 @@ const TENANT_SLUG = 'lavacar-bh';
 const TENANT_ID = '10000000-0000-4000-8000-000000000001';
 const BOOKING_ID = '40000000-0000-4000-8000-000000000001';
 
-describe('BookingAttachmentsController', () => {
+describe('BookingsAttachmentsController', () => {
   afterEach(() => jest.resetAllMocks());
 
   describe('generateAttachmentSignedUrl()', () => {
@@ -43,7 +43,7 @@ describe('BookingAttachmentsController', () => {
         { sub: 'cust-id', tenantId: TENANT_ID, tenantSlug: TENANT_SLUG, role: 'CUSTOMER' },
         JWT_SECRET,
       );
-      const controller = new BookingAttachmentsController(backendHttp, makeConfigService());
+      const controller = new BookingsAttachmentsController(backendHttp, makeConfigService());
 
       const result = await controller.generateAttachmentSignedUrl(`Bearer ${token}`, {
         fileName: 'car.jpg',
@@ -64,7 +64,7 @@ describe('BookingAttachmentsController', () => {
         get: jest.fn().mockResolvedValue(tenantInfo),
         postForPublic: jest.fn().mockResolvedValue(mockSignedUrlResponse),
       });
-      const controller = new BookingAttachmentsController(backendHttp, makeConfigService());
+      const controller = new BookingsAttachmentsController(backendHttp, makeConfigService());
 
       const result = await controller.generateAttachmentSignedUrl(undefined, {
         fileName: 'car.jpg',
@@ -89,7 +89,7 @@ describe('BookingAttachmentsController', () => {
       const backendHttp = makeBackendHttp({
         postForPublic: jest.fn().mockResolvedValue(mockSignedUrlResponse),
       });
-      const controller = new BookingAttachmentsController(backendHttp, makeConfigService());
+      const controller = new BookingsAttachmentsController(backendHttp, makeConfigService());
 
       const result = await controller.generateAttachmentSignedUrl(undefined, {
         fileName: 'info.jpg',
@@ -107,7 +107,7 @@ describe('BookingAttachmentsController', () => {
 
     it('scenario 3 — invalid guestToken: returns 401 with BFF_GUEST_TOKEN_INVALID', async () => {
       const backendHttp = makeBackendHttp({});
-      const controller = new BookingAttachmentsController(backendHttp, makeConfigService());
+      const controller = new BookingsAttachmentsController(backendHttp, makeConfigService());
 
       const err = await controller
         .generateAttachmentSignedUrl(undefined, {
@@ -126,7 +126,7 @@ describe('BookingAttachmentsController', () => {
 
     it('scenario 2 — no JWT, no tenantSlug, no guestToken: returns 400', async () => {
       const backendHttp = makeBackendHttp({});
-      const controller = new BookingAttachmentsController(backendHttp, makeConfigService());
+      const controller = new BookingsAttachmentsController(backendHttp, makeConfigService());
 
       const err = await controller
         .generateAttachmentSignedUrl(undefined, {
@@ -141,7 +141,7 @@ describe('BookingAttachmentsController', () => {
 
     it('Bearer with valid signature but wrong schema is treated as no-JWT (falls through to slug/guest branch)', async () => {
       const backendHttp = makeBackendHttp({});
-      const controller = new BookingAttachmentsController(backendHttp, makeConfigService());
+      const controller = new BookingsAttachmentsController(backendHttp, makeConfigService());
       // Guest token has correct signature but lacks sub/tenantSlug/role — parsed.success is false
       const guestShapedToken = jwt.sign(
         { bookingId: BOOKING_ID, tenantId: TENANT_ID, contactEmail: 'g@test.com' },
@@ -161,7 +161,7 @@ describe('BookingAttachmentsController', () => {
 
     it('invalid Bearer token is treated as no-JWT (falls through to slug/guest branch)', async () => {
       const backendHttp = makeBackendHttp({});
-      const controller = new BookingAttachmentsController(backendHttp, makeConfigService());
+      const controller = new BookingsAttachmentsController(backendHttp, makeConfigService());
 
       const err = await controller
         .generateAttachmentSignedUrl('Bearer not-a-jwt', {
