@@ -417,34 +417,53 @@ System prompt rebuilt fresh on every message (not frozen at session start) — f
 
 ### M19-S11 — `CHATBOT` module type + widget component + `page.tsx` registration
 
-**Agent:** `frontend-ts`
+**Agent:** `frontend-ts` + `backend-ts`
 **Complexity:** L
-**Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT, `docs/04-USE_CASES.md` UC-033/UC-034, `docs/14-API_CONTRACTS.md` § Chatbot Widget
+**Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT, `docs/04-USE_CASES.md` UC-033/UC-034, `docs/14-API_CONTRACTS.md` § Chatbot Widget, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer
 **Prototype references:** `plan/journey/guest/prototypes/ask-chatbot/` (`00-hotsite.html`, `01-active-chat.html`, `01b-interrupted.html`, `01c-not-available.html`, `01d-inline-variant.html`, `dev-notes.md`)
 
 **Description:**
-Add `'CHATBOT'` to `HotsiteModuleType` union (`packages/types/src/hotsite.ts`) and the `ChatbotModuleData` interface (`variant?: 'bubble' | 'inline'`, `accentColor?: 'primary' | 'secondary'`, `botName?: string`, `welcomeMessage?: string`).
+Add `'CHATBOT'` to `HotsiteModuleType` union (`packages/types/src/hotsite.ts`) and the `ChatbotModuleData` interface (`variant?: 'bubble' | 'inline'`, `accentColor?: 'primary' | 'secondary'`, `botName?: string`, `welcomeMessage?: string`). Add a matching `ChatbotModuleDataSchema` to `apps/web/features/platform/hotsite/module-schemas.ts`, registered in `MODULE_DATA_SCHEMAS` — every `HotsiteModuleType` needs a schema before it ships (`docs/15` §7 step 3), otherwise `isValidModuleData('CHATBOT', data)` accepts any malformed payload.
 
-Build `ChatbotWidget.tsx` (`apps/web/shells/hotsite/components/`) covering all 3 states from the prototype: **not available** (renders nothing — pre-flight `GET /public/platform/chatbot/status` on mount), **active chat** (bubble + inline variants), **interrupted** (cap/error mid-conversation — input disables, tenant's phone/WhatsApp offered as fallback contact, already resolved onto the manifest per `docs/15` §4 CONTACT). A visitor never sees a chat button that then fails when clicked.
+Build `ChatbotWidget.tsx` (`apps/web/shells/hotsite/components/`) covering all 3 states from the prototype: **not available** (renders nothing — pre-flight `GET /public/platform/chatbot/status` on mount), **active chat** (bubble + inline variants), **interrupted** (cap/error mid-conversation — input disables, tenant's phone/WhatsApp offered as fallback contact, already resolved onto the manifest per `docs/15` §4 CONTACT). A visitor never sees a chat button that then fails when clicked. Fully `'use client'` (real-time chat is inherently interactive — `docs/CODE_STANDARDS.md`'s server-component-default exception).
 
-Add the `CHATBOT` branch to the if/else-if chain in `apps/web/app/[slug]/page.tsx` (per `docs/15`'s corrected description — a direct component-import branch, not a `MODULE_MAP` lookup).
+Add the `CHATBOT` branch to the if/else-if chain in `apps/web/app/[slug]/page.tsx` (per `docs/15`'s corrected description — a direct component-import branch, not a `MODULE_MAP` lookup). Unlike every other branch, `CHATBOT` renders with **no divider** before/after it (matches the existing `FOOTER` special-case in that same render loop) — the `bubble` variant is `position: fixed`, outside document flow, so a generic divider would render as a stray orphaned line.
+
+**Client transport (new pattern — first live client-side call in the public hotsite):** neither existing helper fits a `'use client'` component calling an unauthenticated, `X-Tenant-Slug`-scoped public BFF route (`bffPublicFetch` is public but server-only; `bffClient` is client-only but cookie-authenticated against `/v1`). Use `docs/24`'s documented Route Handler proxy pattern: two new Route Handlers, `apps/web/app/api/hotsite/chatbot/status/route.ts` and `apps/web/app/api/hotsite/chatbot/messages/route.ts`, each server-side calling `bffPublicFetch` with the `X-Tenant-Slug` header; `ChatbotWidget` calls these local `/api/...` paths via `bffClient`.
 
 Widget header reads `"{tenant name} — Assistente IA"` / `"— AI Assistant"` per locale — doubles as the AI disclosure, no separate disclaimer banner needed.
 
-`sessionId` held in `sessionStorage`, sent on every subsequent message.
+`sessionId` **and** the visible `messages` transcript both held in `sessionStorage`, so a page reload restores the visible conversation client-side (no new backend read endpoint) — resolves `dev-notes.md`'s previously-open reload-behavior question in favor of client-side caching, since S11 stays frontend-scoped this way.
+
+**Fake LLM provider for CI/E2E (folded in from story-discovery — see Follow-up below):** add a DI-registered fake/noop `ILlmProvider` (`apps/backend/src/contexts/platform/infrastructure/llm/`), a new provider-name constant, and register it in `LlmProviderRegistry`'s map. Wire it as a selectable (never default) option for `CHATBOT_LLM_PROVIDER` — mirrors the existing `EMAIL_ADAPTER=mailhog` precedent (a real, free, safe local adapter, not a network-level mock). Production/staging keep `openrouter` as the default; only the E2E environment sets `CHATBOT_LLM_PROVIDER=fake`.
+
+On completion, flip `plan/journey/guest/ask-chatbot.md`'s mermaid `❓ GAP` tags and "Pages referenced" table (all currently `Story: TBD`) to reflect the shipped flow — the GUEST-facing UC-033/UC-034 journey is complete end-to-end once this story ships (`docs/DEFINITION_OF_DONE.md` § Journey GAP-status drift).
 
 **Acceptance Criteria:**
 - [ ] All 3 states implemented, matching the prototype's visual treatment
 - [ ] Both `variant: 'bubble'` and `'inline'` render correctly
 - [ ] Widget never shows a chat button that then fails when clicked
-- [ ] `sessionId` held in `sessionStorage`, sent on every subsequent message
+- [ ] `ChatbotModuleDataSchema` added to `module-schemas.ts` and registered in `MODULE_DATA_SCHEMAS.CHATBOT`
+- [ ] No divider renders adjacent to the `CHATBOT` module in `page.tsx`'s render loop (matches `FOOTER`'s existing special-case)
+- [ ] `sessionId` **and** `messages` transcript held in `sessionStorage`; a reload with an existing session restores the visible conversation; `sessionId` sent on every subsequent message
 - [ ] Widget title includes `"— Assistente IA"`/`"— AI Assistant"` per locale
+- [ ] Two Route Handlers (`apps/web/app/api/hotsite/chatbot/status/route.ts`, `.../messages/route.ts`) proxy the public BFF routes via `bffPublicFetch` server-side; `ChatbotWidget` calls them via `bffClient` — never a raw `fetch()`, never a server transport helper called client-side
 - [ ] `.spec.tsx` ships in the same commit (`jsdom` + `@testing-library/react`), covering all 3 states as distinct rendering branches
-- [ ] New locale keys (placeholder text, interrupted message, not-available fallback) in both `pt-BR` and `en` in the same commit
-- [ ] At minimum one Playwright E2E flow exercising a real conversation against a fake/stubbed LLM response end to end (widget → BFF → backend → adapter) — never a real billed model call in CI
+- [ ] New locale keys (placeholder text, interrupted message, not-available fallback) in both `pt-BR` and `en` in the same commit, under `hotsite.chatbot.*`
+- [ ] A DI-registered fake/noop `ILlmProvider` exists, selectable via `CHATBOT_LLM_PROVIDER=fake`, registered in `LlmProviderRegistry`; a unit test confirms it never performs real network I/O; production/staging default (`openrouter`) unchanged
+- [ ] At minimum one Playwright E2E flow exercising a real conversation against the fake provider end to end (widget → Route Handler → BFF → backend → fake adapter), with the E2E environment set to `CHATBOT_LLM_PROVIDER=fake` — never a real billed model call in CI
+- [ ] `plan/journey/guest/ask-chatbot.md`'s mermaid flowchart and "Pages referenced" table updated (GAP tags cleared, Story column set to M19-S11) in the same commit
 - [ ] Coverage ≥80%; `tsc --noEmit`, lint, tests green
 
 **Dependencies:** S09.
+
+**Follow-up (M19-S11 story-discovery, 2026-08-17) — 2 blockers + 4 risks found and resolved before implementation:**
+1. **[BLOCKER] The E2E AC ("fake/stubbed LLM response end to end") was unimplementable as originally scoped.** Playwright runs against the real, already-running backend/BFF stack (no mocked network layer), but `LlmProviderRegistry` only supports 3 real, billed adapters, the existing `FakeLlmProviderBuilder` is Jest-only (not DI-registered), and `docs/08-TESTING_STRATEGY.md` has no guidance for this case. Resolved: folded a minimal fake/noop `ILlmProvider` + registry entry + `CHATBOT_LLM_PROVIDER=fake` env option into this story's own scope (mirrors the `EMAIL_ADAPTER=mailhog` precedent); `Agent` updated to `frontend-ts` + `backend-ts`, matching the M19-S10 precedent for folding a discovered backend gap into a nominally single-layer story.
+2. **[BLOCKER] No existing Web→BFF transport helper covers an unauthenticated, client-side, tenant-slug-scoped call** — `bffPublicFetch` is public but server-only, `bffClient` is client-only but cookie-authenticated against `/v1`. This is the first live client-side data call anywhere in the public hotsite. Resolved: use `docs/24`'s documented Route Handler proxy pattern (two new `apps/web/app/api/hotsite/chatbot/*` handlers).
+3. **[RISK] `dev-notes.md`'s open reload-behavior question was never resolved.** Resolved: client-side cache (`messages` persisted to `sessionStorage` alongside `sessionId`) — no new backend endpoint, keeps the story frontend-scoped on this axis.
+4. **[RISK] `module-schemas.ts` had no path to a `CHATBOT` entry**, though `docs/15` §7 step 3 makes this mandatory before any new module type ships. Folded into this story's scope.
+5. **[RISK] `page.tsx`'s per-module divider didn't account for a `position: fixed` widget.** Resolved: `CHATBOT` gets the same no-divider treatment as `FOOTER`.
+6. **[RISK] `plan/journey/guest/ask-chatbot.md` still marks every node `❓ GAP`** even though this story completes the guest-facing flow end-to-end. Folded into this story's own Definition-of-Done scope rather than deferred to milestone close-out.
 
 ---
 

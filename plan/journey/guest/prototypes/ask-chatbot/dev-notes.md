@@ -17,23 +17,28 @@ Paths below follow this repo's domain-slice conventions (`docs/24-BFF_ARCHITECTU
 
 | File | Status | Action |
 |---|---|---|
-| `apps/web/shells/hotsite/components/ChatbotWidget.tsx` | ❌ Gap | Create — bubble/inline widget, owns pre-flight check + conversation state (idle/active/interrupted) |
-| `apps/web/shells/hotsite/components/ChatbotWidget.spec.tsx` | ❌ Gap | Create in the same commit (CLAUDE.md §7 — every new `shells/hotsite/components/**` ships its spec) |
-| `apps/web/features/platform/hotsite/api/chatbot.ts` (or similar) | ❌ Gap | Create — TBD, confirm exact fetcher location at story-discovery; must use `bffPublicFetch` per `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, never a raw `fetch()` |
-| `apps/bff/src/features/platform/chatbot/public/chatbot.public.controller.ts` | ❌ Gap | Create — `GET /public/platform/chatbot/status`, `POST /public/platform/chatbot/messages`, per the `.public.controller.ts` under `public/` convention (`docs/24-BFF_ARCHITECTURE.md` § Module & Controller Naming Conventions) |
-| `apps/bff/src/features/platform/chatbot/chatbot.mapper.ts` | ❌ Gap | Create — `buildSystemPrompt()` (CHATBOT.md §6) |
-| `apps/bff/src/features/platform/chatbot/chatbot-context.ts` | ❌ Gap | Create — `getServicesContext()`, `getBusinessInfoContext()`, `getKnowledgeTextContext()` (CHATBOT.md §6) |
-| `apps/bff/src/features/platform/chatbot/chatbot.types.ts` | ❌ Gap | Create — BFF-side request/response DTOs |
-| `apps/backend/src/contexts/platform/application/ports/llm-provider.port.ts` | ❌ Gap | Create — `ILlmProvider`, `ChatCompletionRequest`/`Result` (CHATBOT.md §4) |
-| `apps/backend/src/contexts/platform/infrastructure/llm/openrouter-llm.adapter.ts` | ❌ Gap | Create — primary, DeepSeek V4 Flash 0731, always `reasoning: { effort: "none" }` |
-| `apps/backend/src/contexts/platform/infrastructure/llm/anthropic-llm.adapter.ts` | ❌ Gap | Create |
-| `apps/backend/src/contexts/platform/infrastructure/llm/openai-llm.adapter.ts` | ❌ Gap | Create |
-| `apps/backend/src/contexts/platform/infrastructure/controllers/chatbot.controller.ts` (name TBD) | ❌ Gap | Create — cap enforcement (UC-033 steps 2-3), persistence, calls `ILlmProvider.complete()` |
-| Migration for `platform.chatbot_sessions`/`platform.chatbot_messages`/`platform.chatbot_provider_balance` | ❌ Gap | Create — see `docs/13-DATABASE_SCHEMA.md` |
+| `apps/web/shells/hotsite/components/ChatbotWidget.tsx` | ❌ Gap (M19-S11) | Create — bubble/inline widget, owns pre-flight check + conversation state (idle/active/interrupted) |
+| `apps/web/shells/hotsite/components/ChatbotWidget.spec.tsx` | ❌ Gap (M19-S11) | Create in the same commit (CLAUDE.md §7 — every new `shells/hotsite/components/**` ships its spec) |
+| `apps/web/app/api/hotsite/chatbot/status/route.ts` | ❌ Gap (M19-S11) | Create — Route Handler proxy, calls `bffPublicFetch('/public/platform/chatbot/status', ...)` with `X-Tenant-Slug`. Resolved at M19-S11 story-discovery: neither `bffPublicFetch` (server-only) nor `bffClient` (cookie-authenticated) fits a client-side unauthenticated call, so this uses `docs/24-BFF_ARCHITECTURE.md`'s Route Handler proxy pattern — `ChatbotWidget` calls this local path via `bffClient` |
+| `apps/web/app/api/hotsite/chatbot/messages/route.ts` | ❌ Gap (M19-S11) | Create — same proxy pattern, for `POST /public/platform/chatbot/messages` |
+| `apps/web/features/platform/hotsite/module-schemas.ts` | Existing file, needs new entry | Add `ChatbotModuleDataSchema`, register in `MODULE_DATA_SCHEMAS.CHATBOT` (`docs/15` §7 step 3 — mandatory before any module type ships) |
+| `apps/bff/src/features/platform/platform.public.controller.ts` | ✅ Done (M19-S09) | `GET chatbot/status` / `POST chatbot/messages` added directly to the existing `PlatformPublicController` — **not** a new nested `chatbot/public/chatbot.public.controller.ts` as originally predicted below; no domain nests controllers below the domain folder |
+| `apps/bff/src/features/platform/chatbot.mapper.ts` | ✅ Done (M19-S09) | `buildSystemPrompt()` (CHATBOT.md §6) — flat file directly in `features/platform/`, not under a `chatbot/` subfolder as originally predicted |
+| `apps/bff/src/features/platform/chatbot-context.ts` | ✅ Done (M19-S09) | Merged `getBusinessContext()` (services + business info + hours in one call) — flat file, not under a `chatbot/` subfolder; the original two-function split (`getBusinessInfoContext`/`getKnowledgeTextContext`) was consolidated during S09 to avoid a redundant duplicate fetch (PR #373 review) |
+| `apps/backend/src/contexts/platform/application/ports/llm-provider.port.ts` | ✅ Done (M19-S02) | `ILlmProvider`, `ChatCompletionRequest`/`Result` (CHATBOT.md §4) |
+| `apps/backend/src/contexts/platform/infrastructure/llm/openrouter-llm.adapter.ts` | ✅ Done (M19-S02) | Primary, DeepSeek V4 Flash 0731, always `reasoning: { effort: "none" }` |
+| `apps/backend/src/contexts/platform/infrastructure/llm/anthropic-llm.adapter.ts` | ✅ Done (M19-S03) | — |
+| `apps/backend/src/contexts/platform/infrastructure/llm/openai-llm.adapter.ts` | ✅ Done (M19-S03) | — |
+| `apps/backend/src/contexts/platform/infrastructure/llm/fake-llm.adapter.ts` (name TBD) | ❌ Gap (M19-S11) | Create — DI-registered fake/noop `ILlmProvider`, selectable via `CHATBOT_LLM_PROVIDER=fake`, registered in `LlmProviderRegistry`. Resolved at M19-S11 story-discovery: the AC requiring a real Playwright E2E flow (widget → BFF → backend → adapter) against a non-billed response has no existing infrastructure to satisfy it — the existing `FakeLlmProviderBuilder` is Jest-only, not DI-registered. Mirrors the `EMAIL_ADAPTER=mailhog` precedent (a real, free, safe local adapter, never the production default) |
+| Chatbot backend controller | ✅ Done (M19-S05) | Cap enforcement, persistence, calls `ILlmProvider.complete()` |
+| Migration for `platform.chatbot_sessions`/`platform.chatbot_messages`/`platform.chatbot_provider_balance` | ✅ Done (M19-S01) | See `docs/13-DATABASE_SCHEMA.md` |
 
-**TBD, confirm at story-discovery:** exact BFF fetcher file name/location, exact backend controller
-class name, and whether `ChatbotWidget.tsx` splits into separate bubble/panel/inline components or
-stays one file — none of this is decided yet, don't guess a precise shape into a story.
+**Resolved at M19-S11 story-discovery (2026-08-17):** `ChatbotWidget.tsx` stays one file (no bubble/panel/inline
+split); `sessionId` **and** the visible `messages` transcript both persist to `sessionStorage`, so a reload
+restores the visible conversation client-side — closes the "reload/F5 behavior" open question below in favor
+of client-side caching (no new backend read endpoint). `CHATBOT` renders with no divider before/after it in
+`page.tsx`'s render loop, matching the existing `FOOTER` special-case (the `bubble` variant is `position:
+fixed`, outside document flow).
 
 ---
 
@@ -144,25 +149,19 @@ error codes) in the UC text and `docs/14-API_CONTRACTS.md` § Chatbot Widget.
 
 ---
 
-## Known open questions (not yet resolved — flag at story-discovery)
+## Known open questions
 
-- Exact split of `ChatbotWidget.tsx` into sub-components (bubble trigger vs. panel vs. inline card)
-  — not decided, this dev-notes file intentionally treats it as one logical component.
-- Whether `sessionId` persistence uses `sessionStorage` (survives reload, not tab close) or
-  in-memory only — CHATBOT.md §8 says `sessionStorage`, not yet confirmed against a real story AC.
-- **Reload/F5 behavior — the visible transcript does not survive a reload today.** `sessionId`
-  persists via `sessionStorage`, so the underlying session/cap-enforcement state and the LLM's own
-  conversational memory both continue correctly after a reload (the backend rebuilds history from
-  `chatbot_messages` by `sessionId` on every message, independent of anything the client sends). But
-  `messages: ChatTurn[]` above is plain component state — nothing currently re-fetches or re-renders
-  it after a reload, so the widget appears empty until the visitor sends another message. The data
-  itself fully supports reconstructing the complete transcript (`chatbot_messages` stores full
-  `content` for both `USER` and `ASSISTANT` rows, indexed by `(tenant_id, session_id)` for exactly
-  this purpose — see `docs/13-DATABASE_SCHEMA.md`), but no repository method or endpoint to serve it
-  back exists yet (M19-S01 only). Resolve at story-discovery for whichever story builds
-  `ChatbotWidget.tsx`: either (a) fetch-on-mount — widget re-fetches the transcript from the server
-  when `sessionId` already exists in `sessionStorage`, requiring a small new backend/BFF read
-  endpoint — or (b) client-side cache — widget also persists `messages` to
-  `sessionStorage`/`localStorage` alongside `sessionId`, no backend change needed.
-- No E2E/component test file paths chosen yet — will follow `docs/08-TESTING_STRATEGY.md` once a
-  story exists.
+All resolved at M19-S11 story-discovery (2026-08-17):
+
+- **Component split:** `ChatbotWidget.tsx` stays one file — no bubble/panel/inline split.
+- **`sessionId` persistence:** `sessionStorage`, confirmed against the real story AC.
+- **Reload/F5 behavior:** resolved as (b) client-side cache — `messages` persists to
+  `sessionStorage` alongside `sessionId`, so the visible transcript survives a reload with no new
+  backend read endpoint. (Option (a), fetch-on-mount, was ruled out since it would've pulled a new
+  backend/BFF endpoint into what's otherwise a frontend-scoped story.)
+- **E2E test infrastructure:** no fake/stubbed `ILlmProvider` existed anywhere that a real running
+  backend process could select — folded into M19-S11's own scope as a DI-registered fake adapter
+  selectable via `CHATBOT_LLM_PROVIDER=fake` (see File map above).
+- **Client transport:** neither `bffPublicFetch` (server-only) nor `bffClient` (cookie-authenticated)
+  fits a `'use client'` component calling an unauthenticated public BFF route — resolved via
+  `docs/24-BFF_ARCHITECTURE.md`'s Route Handler proxy pattern (see File map above).
