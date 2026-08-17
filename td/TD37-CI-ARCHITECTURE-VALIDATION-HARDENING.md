@@ -220,7 +220,7 @@ Bundles the smaller, cheap-to-add rules using the exact mechanism you already us
 
 ---
 
-### Story 5 — ESLint core rules already mandatory in `docs/CODE_STANDARDS.md`, currently off 🟡
+### Story 5 — ESLint core rules already mandatory in `docs/CODE_STANDARDS.md`, currently off ✅ Done
 
 Zero new dependencies — these ship inside ESLint itself:
 
