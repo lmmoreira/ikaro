@@ -224,13 +224,55 @@ Bundles the smaller, cheap-to-add rules using the exact mechanism you already us
 
 Zero new dependencies — these ship inside ESLint itself:
 
-- `max-lines-per-function` — CODE_STANDARDS.md: "Functions ≤ 20 lines"; explicitly configure `max: 20` and the chosen comment/blank-line behavior.
-- `max-lines` — file length, **not class length**. Either amend CODE_STANDARDS to state a file limit or introduce a semantic class-length check; do not claim ESLint `max-lines` enforces classes ≤ 200 lines.
-- `default-param-last` — CODE_STANDARDS.md's default-parameter rule (currently only SonarCloud-gated, this gives the same feedback at `pnpm lint` time instead of waiting for the Sonar CI stage)
+- `max-lines-per-function` — `.ts` files: `max: 40`. `.tsx` files: `max: 200` — ESLint counts JSX markup as function body, so a component's render function isn't the same complexity signal as equivalent-length imperative logic (discovery baseline, 2026-08-17: web `.ts` violators had p90 47/max 85, closely matching backend/BFF's p90 60/max 113 — a shared `.ts` threshold of 40 is consistent across all three apps; `.tsx` violators were a structurally different distribution, median 49/p90 160/max 792). `skipBlankLines: true`, `skipComments: true`. Exempt `**/*.spec.ts`, `**/*.integration.spec.ts` (test bodies are naturally longer due to setup/assertions — the rule's intent targets production logic), backend migrations (`src/contexts/**/infrastructure/migrations/**`, `src/shared/infrastructure/migrations/**`) and `src/shared/database/seed.ts` (DDL/seed data, not application logic — same rationale as their existing `PERSISTENCE_BYPASS_IGNORES` exemption in `apps/backend/eslint.config.js`), backend/BFF test infrastructure (`src/test/**`), and web Playwright helpers (`apps/web/e2e/helpers/**` — reusable flow helpers, not app production code, per CLAUDE.md §7 Testing).
+- `max-lines` — file length, `max: 200`, same `skipBlankLines`/`skipComments` options and the same exemption list as above. Resolves the prior "classes ≤ 200 lines" framing in `docs/CODE_STANDARDS.md`: ESLint's `max-lines` measures files, not classes, and this codebase is predominantly one-class/one-use-case-per-file already, so file length is the enforced proxy going forward — no separate ts-morph class-length check.
+- `default-param-last` — CODE_STANDARDS.md's default-parameter rule (currently only SonarCloud-gated; this gives the same feedback at `pnpm lint` time instead of waiting for the Sonar CI stage). Zero baseline violations repo-wide across backend/BFF/web (confirmed 2026-08-17) — ships as `error` immediately, no exceptions needed.
+
+**Discovery note (TD37-S05, 2026-08-17):** with the thresholds/exemptions above, the baseline is **not** near-zero the way Story 4's was (~13 call sites) — real counts required renegotiating this story's scope mid-discovery. Per repo policy (no workarounds when a root-cause fix is available; CLAUDE.md §7 "No workarounds"), every genuine production violation found is fixed within this story or its explicit follow-up (Story 5A), never grandfathered into the exceptions registry — `packages/architecture-check/architecture-policy.json`'s exceptions list currently has 12 entries, each individually reasoned, and is not the right mechanism for bulk lint debt.
+
+Baseline breakdown (production code only, exemptions above already excluded):
+- **~37 `.ts` files, 41-99 lines over the 40-line function cap** — use-cases (`request-booking.use-case.ts`, `complete-booking.use-case.ts`, several notification send-*-notification use cases, `send-chat-message.use-case.ts`, etc.), jobs (`booking-reminder.job.ts`, `expire-points.job.ts`, `notify-expiring-points.job.ts`), a repository adapter (`typeorm-booking.repository.ts`), a BFF guard (`active-staff.guard.ts`), a BFF service (`auth-controller-flow.service.ts`), mappers, and a handful of web hooks/utils. Mechanical helper-extraction, low regression risk — **fixed within this story**.
+- **~21 additional files that only violate `max-lines` (file length), not `max-lines-per-function`** — every individual function is already compliant; the file is just organizationally large (e.g. `booking.controller.ts` 338 lines of thin endpoint handlers, `hotsite-config.aggregate.ts` 433 lines, `booking-domain.error.ts`/`platform-domain.error.ts` with many small error subclasses, `gcp-pubsub-event-bus.adapter.ts` 270, BFF's `bookings.controller.ts` 382, and ~15 web components/shells including `Topbar.tsx` and `ContactModule.tsx`). Restructuring into cohesive sub-modules/sub-files rather than shortening any single function — **fixed within this story** (folded in rather than deferred, per explicit decision during discovery).
+- **13 `.tsx` page/form components that violate *both* rules at 205-1242 lines** — carry materially higher UI-regression risk than the above (live, high-traffic booking/settings screens) and are split out to **Story 5A** instead of bundled into this lint-config PR.
+
+If the combined ~58-file production fix proves too large for a single reviewable PR at implementation time, split it into sequential PRs by bounded context (booking / platform / loyalty / shared, then BFF, then web) — still within this story's scope, not a reason to fall back to exceptions.
 
 **Acceptance criteria**:
-- [ ] Rule configuration matches the documented policy; the class-vs-file decision is recorded before implementation
-- [ ] Existing violations on `main` have a quantified baseline and an owner/expiry for each temporary exception; do not silently raise thresholds
+- [ ] All 3 rules added to `packages/config/eslint-base.js` / each app's `eslint.config.js` with the thresholds and exemptions above (separate `.ts`/`.tsx` blocks for `max-lines-per-function`)
+- [ ] `docs/CODE_STANDARDS.md` updated: "Functions ≤ 20 lines, classes ≤ 200 lines" → the `.ts`/`.tsx` split + "files ≤ 200 lines" framing (already applied, TD37-S05 discovery)
+- [ ] All ~37 `.ts` function-length violations and ~21 file-length-only violations fixed — zero violations on `main` for all 3 rules once Story 5A also lands (no new exceptions-registry entries added for this story's rules)
+- [ ] Each rule's error message cites the rule title/source it enforces
+- [ ] Story 5A opened/sequenced immediately after, for the 13 `.tsx` decompositions
+
+---
+
+### Story 5A — Decompose the 13 oversized `.tsx` components flagged by Story 5 🟡
+
+Follow-up to Story 5: once `max-lines-per-function` (`.tsx: 200`) and `max-lines` (`200`) are enforced, these 13 components still violate one or both — same "no workarounds" rationale as Story 5's fixes, split into its own story because UI decomposition on live booking/settings/hotsite screens carries materially higher regression risk than Story 5's mechanical `.ts` extractions and file restructuring, and deserves focused review on its own.
+
+Baseline (discovery, 2026-08-17 — re-verify at implementation time since `main` may have moved; `max-lines-per-function` violation shown first, `max-lines` file-length in parentheses):
+
+| File | Longest function | File length |
+|---|---|---|
+| `apps/web/features/booking/components/dashboard/schedule/SchedulePage.tsx` | 792 | 1242 |
+| `apps/web/features/platform/components/settings/SettingsForm.tsx` | 579 | 1003 |
+| `apps/web/features/booking/components/dashboard/bookings/BookingDetailPage.tsx` | 515 | 666 |
+| `apps/web/features/booking/components/dashboard/bookings/MarkCompleteBookingPage.tsx` | 437 | 460 |
+| `apps/web/features/platform/components/hotsite/HotsiteEditor.tsx` | 380 | 482 |
+| `apps/web/features/booking/components/dashboard/bookings/RescheduleBookingPage.tsx` | 278 | 319 |
+| `apps/web/features/booking/components/public/BookingForm.tsx` | 258 | 366 |
+| `apps/web/features/booking/components/public/SubmitInfoForm.tsx` | 254 | 320 |
+| `apps/web/features/booking/components/dashboard/services/ServiceFormFields.tsx` | 239 | 261 |
+| `apps/web/features/booking/components/public/PersonalInfoStep.tsx` | 216 | 267 |
+| `apps/web/features/platform/components/hotsite/BrandingTab.tsx` | 214 | 245 |
+| `apps/web/features/platform/components/hotsite/modules/HeroConfigPanel.tsx` | 208 | 226 |
+| `apps/web/features/platform/components/hotsite/modules/BookingPhotoPicker.tsx` | 205 | 230 |
+
+**Acceptance criteria**:
+- [ ] Each file decomposed into subcomponents under the `.tsx` `max-lines-per-function` (200) and `max-lines` (200) thresholds — extract cohesive sections (form field groups, panel sections, list rows), not an arbitrary mechanical split
+- [ ] No behavior change — existing `.spec.tsx` coverage for each page continues to pass, beyond import-path updates for extracted subcomponents
+- [ ] Every extracted subcomponent that contains meaningful logic/branching ships its own `.spec.tsx` per CLAUDE.md §7 Testing; a pure presentational split of existing JSX can share the parent's existing test coverage
+- [ ] Zero `max-lines-per-function`/`max-lines` violations remain in `apps/web` after this story
 
 ---
 

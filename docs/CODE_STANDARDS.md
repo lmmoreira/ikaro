@@ -7,7 +7,7 @@ Detailed mandatory rules for all TypeScript code. CLAUDE.md §7 holds the conden
 ## TypeScript
 
 - `strict: true` — no `any`, no `@ts-ignore`, no `// eslint-disable`
-- Functions ≤ 20 lines, classes ≤ 200 lines
+- Functions ≤ 40 lines (`.ts`); ≤ 200 lines for `.tsx` component functions (JSX markup counts as function body under ESLint's `max-lines-per-function` — not the same complexity signal as equivalent-length imperative logic). Files ≤ 200 lines (supersedes the earlier "classes ≤ 200 lines" framing — ESLint's `max-lines` measures files, not classes, and this codebase is predominantly one-class/one-use-case-per-file already; see TD37-S05).
 - No raw SQL outside repository adapters
 - DI everywhere — no `new SomeRepository()` in services
 
