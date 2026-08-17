@@ -60,8 +60,9 @@ test.describe.serial('chatbot widget (GUEST) — M19-S11', () => {
     await page.getByTestId('chatbot-message-input').fill(message);
     await page.getByTestId('chatbot-send-button').click();
 
-    await expect(page.getByText(message)).toBeVisible();
-    await expect(page.getByText(fakeReplyText(message))).toBeVisible();
+    const messages = page.getByTestId('chatbot-message');
+    await expect(messages.filter({ hasText: message })).toBeVisible();
+    await expect(messages.filter({ hasText: fakeReplyText(message) })).toBeVisible();
   });
 
   test('sessionId and the visible transcript persist across a reload', async ({ page }) => {
@@ -71,12 +72,14 @@ test.describe.serial('chatbot widget (GUEST) — M19-S11', () => {
     const message = 'Oi';
     await page.getByTestId('chatbot-message-input').fill(message);
     await page.getByTestId('chatbot-send-button').click();
-    await expect(page.getByText(fakeReplyText(message))).toBeVisible();
+
+    const messages = page.getByTestId('chatbot-message');
+    await expect(messages.filter({ hasText: fakeReplyText(message) })).toBeVisible();
 
     await page.reload();
     await page.getByTestId('chatbot-bubble-button').click();
 
-    await expect(page.getByText(message)).toBeVisible();
-    await expect(page.getByText(fakeReplyText(message))).toBeVisible();
+    await expect(messages.filter({ hasText: message })).toBeVisible();
+    await expect(messages.filter({ hasText: fakeReplyText(message) })).toBeVisible();
   });
 });
