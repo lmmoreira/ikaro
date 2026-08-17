@@ -1,6 +1,7 @@
 import { FakeLlmProviderBuilder } from '../../../../test/builders/platform/fake-llm-provider.builder';
 import {
   ANTHROPIC_PROVIDER_NAME,
+  FAKE_PROVIDER_NAME,
   ILlmProvider,
   OPENAI_PROVIDER_NAME,
   OPENROUTER_PROVIDER_NAME,
@@ -11,11 +12,13 @@ describe('LlmProviderRegistry', () => {
   let openRouterProvider: ILlmProvider;
   let anthropicProvider: ILlmProvider;
   let openAiProvider: ILlmProvider;
+  let fakeProvider: ILlmProvider;
 
   beforeEach(() => {
     openRouterProvider = new FakeLlmProviderBuilder().withText('openrouter says hi').build();
     anthropicProvider = new FakeLlmProviderBuilder().withText('anthropic says hi').build();
     openAiProvider = new FakeLlmProviderBuilder().withText('openai says hi').build();
+    fakeProvider = new FakeLlmProviderBuilder().withText('fake says hi').build();
   });
 
   function buildRegistry(platformDefault: string): LlmProviderRegistry {
@@ -24,6 +27,7 @@ describe('LlmProviderRegistry', () => {
       openRouterProvider,
       anthropicProvider,
       openAiProvider,
+      fakeProvider,
     );
   }
 
@@ -49,6 +53,12 @@ describe('LlmProviderRegistry', () => {
     const registry = buildRegistry(OPENROUTER_PROVIDER_NAME);
 
     expect(registry.resolve(OPENAI_PROVIDER_NAME)).toBe(openAiProvider);
+  });
+
+  it('resolves the fake override to the fake adapter instance — never the platform default', () => {
+    const registry = buildRegistry(OPENROUTER_PROVIDER_NAME);
+
+    expect(registry.resolve(FAKE_PROVIDER_NAME)).toBe(fakeProvider);
   });
 
   it('throws for an unknown provider name', () => {

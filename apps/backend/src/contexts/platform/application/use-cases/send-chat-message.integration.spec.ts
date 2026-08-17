@@ -43,7 +43,13 @@ describe('SendChatMessageUseCase (integration — real Postgres cap enforcement)
       dataSource.getRepository(ChatbotProviderBalanceEntity),
     );
     const llmProvider = new FakeLlmProviderBuilder().build();
-    const registry = new LlmProviderRegistry('openrouter', llmProvider, llmProvider, llmProvider);
+    const registry = new LlmProviderRegistry(
+      'openrouter',
+      llmProvider,
+      llmProvider,
+      llmProvider,
+      llmProvider,
+    );
     useCase = new SendChatMessageUseCase(
       sessionRepo,
       messageRepo,

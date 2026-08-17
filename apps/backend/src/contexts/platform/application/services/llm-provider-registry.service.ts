@@ -1,5 +1,6 @@
 import {
   ANTHROPIC_PROVIDER_NAME,
+  FAKE_PROVIDER_NAME,
   ILlmProvider,
   OPENAI_PROVIDER_NAME,
   OPENROUTER_PROVIDER_NAME,
@@ -24,11 +25,13 @@ export class LlmProviderRegistry {
     openRouterProvider: ILlmProvider,
     anthropicProvider: ILlmProvider,
     openAiProvider: ILlmProvider,
+    fakeProvider: ILlmProvider,
   ) {
     this.providers = new Map([
       [OPENROUTER_PROVIDER_NAME, openRouterProvider],
       [ANTHROPIC_PROVIDER_NAME, anthropicProvider],
       [OPENAI_PROVIDER_NAME, openAiProvider],
+      [FAKE_PROVIDER_NAME, fakeProvider],
     ]);
   }
 

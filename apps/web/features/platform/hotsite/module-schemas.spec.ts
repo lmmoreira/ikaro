@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   AboutModuleDataSchema,
   BookingCtaModuleDataSchema,
+  ChatbotModuleDataSchema,
   ContactModuleDataSchema,
   GalleryModuleDataSchema,
   HeroModuleDataSchema,
@@ -534,6 +535,35 @@ describe('ContactModuleDataSchema', () => {
   });
 });
 
+describe('ChatbotModuleDataSchema', () => {
+  it('accepts an empty object — every field is optional', () => {
+    expect(ChatbotModuleDataSchema.safeParse({}).success).toBe(true);
+  });
+
+  it('accepts all fields set', () => {
+    const result = ChatbotModuleDataSchema.safeParse({
+      variant: 'inline',
+      accentColor: 'secondary',
+      botName: 'Sofia',
+      welcomeMessage: 'Olá! Como posso ajudar?',
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects an invalid variant', () => {
+    const result = ChatbotModuleDataSchema.safeParse({ variant: 'floating' });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects an invalid accentColor', () => {
+    const result = ChatbotModuleDataSchema.safeParse({ accentColor: 'tertiary' });
+
+    expect(result.success).toBe(false);
+  });
+});
+
 describe('isValidModuleData', () => {
   it('returns true for valid HERO data', () => {
     expect(isValidModuleData('HERO', validHeroData)).toBe(true);
@@ -597,5 +627,13 @@ describe('isValidModuleData', () => {
 
   it('returns false for invalid BOOKING_CTA data', () => {
     expect(isValidModuleData('BOOKING_CTA', { ctaLabel: 'Agendar' })).toBe(false);
+  });
+
+  it('returns true for valid CHATBOT data', () => {
+    expect(isValidModuleData('CHATBOT', { variant: 'bubble' })).toBe(true);
+  });
+
+  it('returns false for invalid CHATBOT data', () => {
+    expect(isValidModuleData('CHATBOT', { variant: 'floating' })).toBe(false);
   });
 });

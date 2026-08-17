@@ -64,9 +64,10 @@ const TABS: readonly EditorTab[] = ['branding', 'layout', 'seo', 'manifest'];
 // Each panel is lazy-loaded so a manager who never opens "Configurar" on a given module never
 // downloads that panel's JS — the same code-splitting benefit a real route would give, without
 // needing to lift `draft` into a layout.tsx/Context (see the view-swap note below).
-const MODULE_CONFIG_PANELS: Record<
-  HotsiteModuleType,
-  React.ComponentType<ModuleConfigPanelProps>
+// Partial, not exhaustive: CHATBOT (M19-S11) has no config panel yet — its drill-down entry ships
+// in M19-S12, same reasoning as default-layout.ts's DEFAULT_MODULE_DATA.
+const MODULE_CONFIG_PANELS: Partial<
+  Record<HotsiteModuleType, React.ComponentType<ModuleConfigPanelProps>>
 > = {
   HERO: dynamic(() => import('./modules/HeroConfigPanel').then((m) => m.HeroConfigPanel), {
     ssr: false,
@@ -361,6 +362,11 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
 
   if (view.view === 'module-config') {
     const Panel = MODULE_CONFIG_PANELS[view.type];
+    // Defensive only — unreachable today (manifest-schema.ts's MODULE_TYPE_SET, derived from
+    // MODULE_ORDER, already rejects any module type without a panel entry before a view for it
+    // can be set), kept for the same "never crash on a missing map entry" discipline as
+    // default-layout.ts's `?? {}` fallback.
+    if (!Panel) return <></>;
     return (
       <ModuleConfigShell
         moduleLabel={t(`layout.modules.${view.type}`)}

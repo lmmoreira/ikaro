@@ -81,6 +81,7 @@ export const HotsiteModuleSchema = z.object({
     'ABOUT',
     'CONTACT',
     'FOOTER',
+    'CHATBOT',
   ]),
   enabled: z.boolean(),
   data: z.record(z.string(), z.unknown()),
