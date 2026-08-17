@@ -240,8 +240,8 @@ export function ChatbotWidget({
         onClick={() => setIsOpen(true)}
         title={title}
         data-testid="chatbot-bubble-button"
-        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full border-none text-white shadow-lg"
-        style={{ backgroundColor: accentColor }}
+        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full border-none shadow-lg"
+        style={{ backgroundColor: accentColor, color: 'var(--ba-btn-text)' }}
       >
         {BotIcon}
       </button>
@@ -263,15 +263,15 @@ export function ChatbotWidget({
           : 'mx-auto flex h-80 w-full max-w-2xl flex-col overflow-hidden border shadow-sm'
       }
       style={{
-        backgroundColor: 'white',
+        backgroundColor: 'var(--ba-background)',
         borderRadius: 'var(--ba-radius)',
         borderColor: variant === 'inline' ? 'var(--ba-secondary)' : undefined,
       }}
       data-testid="chatbot-panel"
     >
       <div
-        className="flex items-center gap-2.5 px-5 py-3.5 text-white"
-        style={{ backgroundColor: accentColor }}
+        className="flex items-center gap-2.5 px-5 py-3.5"
+        style={{ backgroundColor: accentColor, color: 'var(--ba-btn-text)' }}
       >
         <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/20">
           {BotIcon}
@@ -286,7 +286,8 @@ export function ChatbotWidget({
             title={t('chatbot.closeButtonLabel')}
             aria-label={t('chatbot.closeButtonLabel')}
             data-testid="chatbot-close-button"
-            className="border-none bg-transparent text-white opacity-85"
+            className="border-none bg-transparent opacity-85"
+            style={{ color: 'var(--ba-btn-text)' }}
           >
             {CloseIcon}
           </button>
@@ -296,7 +297,7 @@ export function ChatbotWidget({
       <div
         ref={bodyRef}
         className="flex flex-1 flex-col gap-3 overflow-y-auto p-4"
-        style={{ backgroundColor: '#f9fafb' }}
+        style={{ backgroundColor: 'var(--ba-secondary)' }}
       >
         {displayedMessages.map((turn, index) => (
           <div
@@ -305,14 +306,14 @@ export function ChatbotWidget({
             data-role={turn.role}
             className={
               turn.role === 'user'
-                ? 'max-w-[82%] self-end rounded-2xl rounded-br-sm px-3.5 py-2.5 text-sm text-white'
+                ? 'max-w-[82%] self-end rounded-2xl rounded-br-sm px-3.5 py-2.5 text-sm'
                 : 'max-w-[82%] self-start rounded-2xl rounded-bl-sm border px-3.5 py-2.5 text-sm'
             }
             style={
               turn.role === 'user'
-                ? { backgroundColor: accentColor }
+                ? { backgroundColor: accentColor, color: 'var(--ba-btn-text)' }
                 : {
-                    backgroundColor: 'white',
+                    backgroundColor: 'var(--ba-background)',
                     borderColor: 'var(--ba-secondary)',
                     color: 'var(--ba-text)',
                   }
@@ -350,8 +351,12 @@ export function ChatbotWidget({
           }
           aria-label={t('chatbot.inputPlaceholder')}
           data-testid="chatbot-message-input"
-          className="flex-1 rounded-full border px-4 py-2.5 text-sm disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50"
-          style={{ borderColor: 'var(--ba-secondary)' }}
+          className="flex-1 rounded-full border px-4 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+          style={{
+            borderColor: 'var(--ba-secondary)',
+            backgroundColor: 'var(--ba-background)',
+            color: 'var(--ba-text)',
+          }}
         />
         <button
           type="button"
@@ -360,8 +365,8 @@ export function ChatbotWidget({
           title={t('chatbot.sendButtonLabel')}
           aria-label={t('chatbot.sendButtonLabel')}
           data-testid="chatbot-send-button"
-          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border-none text-white disabled:cursor-not-allowed disabled:opacity-40"
-          style={{ backgroundColor: accentColor }}
+          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border-none disabled:cursor-not-allowed disabled:opacity-40"
+          style={{ backgroundColor: accentColor, color: 'var(--ba-btn-text)' }}
         >
           {SendIcon}
         </button>

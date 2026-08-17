@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { HotsiteManifestResponse, HotsiteModuleResponse } from '@ikaro/types';
-import { buildHotsiteModuleRenderPlan, resolveHotsiteDisplayName } from './page-model';
+import {
+  buildHotsiteModuleRenderPlan,
+  resolveHotsiteDisplayName,
+  shouldSkipDivider,
+} from './page-model';
 
 function makeLayoutItem(
   overrides: Partial<HotsiteModuleResponse> & Pick<HotsiteModuleResponse, 'type' | 'data'>,
@@ -178,5 +182,38 @@ describe('buildHotsiteModuleRenderPlan', () => {
     // module (HERO/BOOKING_CTA/FOOTER already behave this way, per the first test in this file).
     expect(plan[1].bgVariant).toBe('alt');
     expect(plan[2].bgVariant).toBe('default');
+  });
+});
+
+describe('shouldSkipDivider', () => {
+  it('skips the divider for the first module regardless of type', () => {
+    expect(shouldSkipDivider(0, 'HERO', undefined)).toBe(true);
+  });
+
+  it('skips the divider when the current module is CHATBOT', () => {
+    expect(shouldSkipDivider(1, 'CHATBOT', 'HERO')).toBe(true);
+  });
+
+  it('skips the divider when the current module is FOOTER', () => {
+    expect(shouldSkipDivider(3, 'FOOTER', 'CONTACT')).toBe(true);
+  });
+
+  // PR #385 review (Codex): the module immediately following CHATBOT must also skip its own
+  // leading divider — CHATBOT's bubble variant is position: fixed and contributes no height to
+  // the flow, so a divider here would be a stray orphaned line unrelated to anything above it.
+  it('skips the divider for the module immediately following CHATBOT', () => {
+    expect(shouldSkipDivider(2, 'CONTACT', 'CHATBOT')).toBe(true);
+  });
+
+  it('skips the divider for the module immediately following FOOTER', () => {
+    expect(shouldSkipDivider(2, 'CONTACT', 'FOOTER')).toBe(true);
+  });
+
+  it('renders the divider between two ordinary modules', () => {
+    expect(shouldSkipDivider(1, 'ABOUT', 'HERO')).toBe(false);
+  });
+
+  it('renders the divider between two ordinary modules later in the layout', () => {
+    expect(shouldSkipDivider(3, 'TESTIMONIALS', 'GALLERY')).toBe(false);
   });
 });

@@ -16,6 +16,7 @@ import { Unavailable } from '@/shells/hotsite/components/Unavailable';
 import {
   buildHotsiteModuleRenderPlan,
   resolveHotsiteDisplayName,
+  shouldSkipDivider,
 } from '@/features/platform/hotsite/page-model';
 import { buildHotsiteMetadata, buildLocalBusinessJsonLd } from '@/features/platform/hotsite/seo';
 import { fetchServices } from '@/features/platform/hotsite/api/services.server';
@@ -76,6 +77,7 @@ export default async function HotsitePage({ params }: HotsitePageProps) {
       <JsonLdScript data={localBusinessJsonLd} />
       {modulesWithVariant.map(({ parsed, bgVariant }, index) => {
         const key = `${parsed.type}-${index}`;
+        const previousType = index > 0 ? modulesWithVariant[index - 1].parsed.type : undefined;
         let moduleEl: React.ReactNode = null;
 
         if (parsed.type === 'HERO') {
@@ -139,12 +141,9 @@ export default async function HotsitePage({ params }: HotsitePageProps) {
           );
         }
 
-        // CHATBOT gets the same no-divider treatment as FOOTER: the 'bubble' variant is
-        // position: fixed, outside document flow, so a generic divider would render as a stray
-        // orphaned line unrelated to anything above it.
         return moduleEl ? (
           <div key={key}>
-            {index > 0 && parsed.type !== 'FOOTER' && parsed.type !== 'CHATBOT' && dividerEl}
+            {!shouldSkipDivider(index, parsed.type, previousType) && dividerEl}
             {moduleEl}
           </div>
         ) : null;

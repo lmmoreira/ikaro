@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import type { HotsiteAdminContentResponse } from '@ikaro/types';
 import { loginAsStaff } from './helpers/auth';
 import {
@@ -18,6 +19,19 @@ const MANAGER_TENANT_SLUG = 'autospa-premium';
 // — FakeLlmAdapter's deterministic reply, never a real billed model call.
 function fakeReplyText(userMessage: string): string {
   return `[fake-llm] echo: ${userMessage}`;
+}
+
+// The fake reply always embeds the user's own message as a substring ("[fake-llm] echo: <msg>"),
+// so a bare data-testid + hasText filter matches both bubbles once the reply has rendered — a
+// real CI failure (strict mode violation, 2 elements) once the reload test's beforeEach loads
+// both messages from sessionStorage simultaneously. data-role scoping makes each locator
+// unambiguous regardless of timing.
+function userBubble(page: Page): Locator {
+  return page.locator('[data-testid="chatbot-message"][data-role="user"]');
+}
+
+function assistantBubble(page: Page): Locator {
+  return page.locator('[data-testid="chatbot-message"][data-role="assistant"]');
 }
 
 test.describe.serial('chatbot widget (GUEST) — M19-S11', () => {
@@ -60,9 +74,8 @@ test.describe.serial('chatbot widget (GUEST) — M19-S11', () => {
     await page.getByTestId('chatbot-message-input').fill(message);
     await page.getByTestId('chatbot-send-button').click();
 
-    const messages = page.getByTestId('chatbot-message');
-    await expect(messages.filter({ hasText: message })).toBeVisible();
-    await expect(messages.filter({ hasText: fakeReplyText(message) })).toBeVisible();
+    await expect(userBubble(page).filter({ hasText: message })).toBeVisible();
+    await expect(assistantBubble(page).filter({ hasText: fakeReplyText(message) })).toBeVisible();
   });
 
   test('sessionId and the visible transcript persist across a reload', async ({ page }) => {
@@ -73,13 +86,12 @@ test.describe.serial('chatbot widget (GUEST) — M19-S11', () => {
     await page.getByTestId('chatbot-message-input').fill(message);
     await page.getByTestId('chatbot-send-button').click();
 
-    const messages = page.getByTestId('chatbot-message');
-    await expect(messages.filter({ hasText: fakeReplyText(message) })).toBeVisible();
+    await expect(assistantBubble(page).filter({ hasText: fakeReplyText(message) })).toBeVisible();
 
     await page.reload();
     await page.getByTestId('chatbot-bubble-button').click();
 
-    await expect(messages.filter({ hasText: message })).toBeVisible();
-    await expect(messages.filter({ hasText: fakeReplyText(message) })).toBeVisible();
+    await expect(userBubble(page).filter({ hasText: message })).toBeVisible();
+    await expect(assistantBubble(page).filter({ hasText: fakeReplyText(message) })).toBeVisible();
   });
 });
