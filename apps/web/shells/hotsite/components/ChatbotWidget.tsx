@@ -11,6 +11,9 @@ import { ApiError } from '@/shared/lib/api/errors';
 import { digitsOnly } from '@/shared/utils/digits-only';
 
 interface ChatTurn {
+  // Stable React key (SonarCloud S6479 — array index is not a valid key once messages can be
+  // rolled back on a 400, which removes an item from the middle of the array, not just appends).
+  readonly id: string;
   readonly role: 'user' | 'assistant';
   readonly content: string;
 }
@@ -37,10 +40,16 @@ function messagesKey(slug: string): string {
   return `ikaro-chatbot-messages:${slug}`;
 }
 
+// Backfills `id` for a transcript stored before this field existed — sessionStorage can
+// legitimately hold that older shape across a hot-reload/deploy within the same tab session.
 function readStoredMessages(slug: string): ChatTurn[] {
   try {
     const raw = sessionStorage.getItem(messagesKey(slug));
-    return raw ? (JSON.parse(raw) as ChatTurn[]) : [];
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as ReadonlyArray<
+      Partial<ChatTurn> & Pick<ChatTurn, 'role' | 'content'>
+    >;
+    return parsed.map((turn) => ({ id: turn.id ?? crypto.randomUUID(), ...turn }));
   } catch {
     return [];
   }
@@ -202,7 +211,7 @@ export function ChatbotWidget({
     if (!message || status === 'sending' || status === 'interrupted') return;
 
     setValidationError(null);
-    setMessages((prev) => [...prev, { role: 'user', content: message }]);
+    setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'user', content: message }]);
     setInputValue('');
     setStatus('sending');
 
@@ -213,7 +222,10 @@ export function ChatbotWidget({
       });
       sessionIdRef.current = res.sessionId;
       sessionStorage.setItem(sessionIdKey(slug), res.sessionId);
-      setMessages((prev) => [...prev, { role: 'assistant', content: res.reply }]);
+      setMessages((prev) => [
+        ...prev,
+        { id: crypto.randomUUID(), role: 'assistant', content: res.reply },
+      ]);
       setStatus('idle');
     } catch (err) {
       // 400 (message too long): not conversation-ending — roll back the optimistic bubble,
@@ -252,7 +264,13 @@ export function ChatbotWidget({
   const isSending = status === 'sending';
   const displayedMessages: ChatTurn[] =
     messages.length === 0
-      ? [{ role: 'assistant', content: data.welcomeMessage ?? t('chatbot.defaultWelcomeMessage') }]
+      ? [
+          {
+            id: 'welcome',
+            role: 'assistant',
+            content: data.welcomeMessage ?? t('chatbot.defaultWelcomeMessage'),
+          },
+        ]
       : messages;
 
   const panel = (
@@ -299,9 +317,9 @@ export function ChatbotWidget({
         className="flex flex-1 flex-col gap-3 overflow-y-auto p-4"
         style={{ backgroundColor: 'var(--ba-secondary)' }}
       >
-        {displayedMessages.map((turn, index) => (
+        {displayedMessages.map((turn) => (
           <div
-            key={index}
+            key={turn.id}
             data-testid="chatbot-message"
             data-role={turn.role}
             className={
