@@ -167,6 +167,7 @@ export function ChatbotWidget({
   const [validationError, setValidationError] = useState<string | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Always-fresh pre-flight on mount (never cached, unlike the manifest — UC-034). A visitor
   // never sees a chat button that then fails when clicked: nothing renders until this resolves.
@@ -205,6 +206,20 @@ export function ChatbotWidget({
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
   }, [messages, status]);
+
+  // Returns focus to the input after every reply (and after a 400 rollback restores the draft)
+  // so a visitor can keep typing without re-clicking — never while sending (avoid stealing focus
+  // mid-request) or interrupted (input is disabled). For the bubble variant this also fires when
+  // the panel is first opened, since status is already 'idle' by the time that happens.
+  useEffect(() => {
+    if (status !== 'idle') return;
+    if (variant === 'bubble' && !isOpen) return;
+    const input = inputRef.current;
+    if (!input) return;
+    input.focus();
+    const caretPosition = input.value.length;
+    input.setSelectionRange(caretPosition, caretPosition);
+  }, [status, isOpen, variant]);
 
   async function handleSend(): Promise<void> {
     const message = inputValue.trim();
@@ -357,6 +372,7 @@ export function ChatbotWidget({
 
       <div className="flex gap-2 border-t p-3" style={{ borderColor: 'var(--ba-secondary)' }}>
         <input
+          ref={inputRef}
           type="text"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}

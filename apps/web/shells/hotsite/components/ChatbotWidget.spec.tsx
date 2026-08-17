@@ -202,6 +202,31 @@ describe('ChatbotWidget', () => {
       expect(await screen.findByTestId('chatbot-bubble-button')).toBeInTheDocument();
     });
 
+    it('opens with the input focused, and refocuses it after the reply arrives so the visitor can keep typing', async () => {
+      mock
+        .onPost('/public/platform/chatbot/messages')
+        .reply(200, { sessionId: 'session-1', reply: 'Sim! Abrimos aos sábados.' });
+      const user = userEvent.setup();
+      render(
+        <ChatbotWidget
+          data={makeData()}
+          slug={SLUG}
+          business={makeBusiness()}
+          tenantName={TENANT_NAME}
+        />,
+      );
+
+      await user.click(await screen.findByTestId('chatbot-bubble-button'));
+      const input = await screen.findByTestId('chatbot-message-input');
+      expect(input).toHaveFocus();
+
+      await user.type(input, 'Vocês abrem aos sábados?');
+      await user.click(screen.getByTestId('chatbot-send-button'));
+      await screen.findByText('Sim! Abrimos aos sábados.');
+
+      expect(input).toHaveFocus();
+    });
+
     it('sends the stored sessionId on a subsequent message', async () => {
       sessionStorage.setItem(`ikaro-chatbot-session-id:${SLUG}`, 'existing-session');
       mock
