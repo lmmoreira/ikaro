@@ -2,11 +2,12 @@ import { HexColor } from '../../../shared/value-objects/hex-color.vo';
 import { SeoTitle } from '../../../shared/value-objects/seo-title.vo';
 import { SeoDescription } from '../../../shared/value-objects/seo-description.vo';
 
-// Split out of hotsite-config.aggregate.ts (TD37-S05, file-length — PR #386 review finding: the
-// exception originally kept for this file copied booking.aggregate.ts's rationale without
-// applying the same type-extraction fix, leaving 350 lines of pure type declarations before the
-// class even started). Re-exported via `export *` in hotsite-config.aggregate.ts so every
-// existing import of these names keeps resolving from that same path unchanged.
+// Split out of hotsite-config.aggregate.ts to keep it under the file-length cap: a max-lines
+// exception was briefly kept for that file by copying booking.aggregate.ts's rationale without
+// applying the same type-extraction technique, leaving 350 lines of pure type declarations before
+// the class even started — extracting them here removed the need for any exception. Re-exported
+// via `export *` in hotsite-config.aggregate.ts so every existing import of these names keeps
+// resolving from that same path unchanged.
 
 export type HotsiteModuleType =
   | 'HERO'

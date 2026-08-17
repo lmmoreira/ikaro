@@ -3,9 +3,9 @@ import { matchBookingDetailRoute } from './booking-route';
 import { isServiceCreateRoute, matchServiceRoute } from './service-route';
 import { isTeamInviteRoute, matchTeamRoute } from './team-route';
 
-// Split out of Topbar.tsx (TD37-S05, file-length) — pure pathname-to-title/back-link resolution,
-// no JSX or component state, so it belongs alongside this shell's other route-matching model
-// files rather than in the component file itself.
+// Split out of Topbar.tsx to keep it under the file-length cap — pure pathname-to-title/back-link
+// resolution, no JSX or component state, so it belongs alongside this shell's other
+// route-matching model files rather than in the component file itself.
 
 export const PAGE_TITLE_KEYS: ReadonlyArray<[string, string]> = [
   ['/dashboard/bookings', 'nav.bookings'],

@@ -1,5 +1,5 @@
-// Split out of ChatbotWidget.tsx (TD37-S05, file-length) — sessionStorage read/write helpers for
-// the widget's client-side transcript cache, no JSX/component logic.
+// Split out of ChatbotWidget.tsx to keep it under the file-length cap — sessionStorage
+// read/write helpers for the widget's client-side transcript cache, no JSX/component logic.
 
 export interface ChatTurn {
   // Stable React key (SonarCloud S6479 — array index is not a valid key once messages can be

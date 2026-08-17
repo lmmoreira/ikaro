@@ -32,9 +32,8 @@ import {
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
 import { mapBookingError } from '../http/booking-error.mapper';
 
-// TD37-S05: split from booking-lifecycle.controller.ts — same 'bookings' route prefix — to
-// satisfy docs/CODE_STANDARDS.md's file-length limit. Cancel/reschedule/complete endpoints live
-// here.
+// Split from booking-lifecycle.controller.ts — same 'bookings' route prefix — to satisfy
+// docs/CODE_STANDARDS.md's file-length limit. Cancel/reschedule/complete endpoints live here.
 @Controller('bookings')
 export class BookingCompletionController {
   constructor(

@@ -9,8 +9,8 @@ import { JWT_COOKIE_OPTIONS } from './cookie-options';
 import { LinkGoogleAccountResponse, StaffByEmailResponse } from './auth.types';
 import { authLoginLogger, findTenantBySlug } from './auth-login-shared';
 
-// Split out of auth-controller-flow.service.ts (TD37-S05, file-length) — the staff half of
-// handleGoogleCallback's Google OAuth flow.
+// Split out of auth-controller-flow.service.ts to keep it under the file-length cap — the
+// staff half of handleGoogleCallback's Google OAuth flow.
 
 type StaffLoginFailureReason = 'email-mismatch' | 'staff-deactivated' | 'account-linked-elsewhere';
 

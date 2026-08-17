@@ -33,10 +33,9 @@ import {
   BookingCtaModuleData,
 } from './hotsite-config.types';
 
-// Types moved to hotsite-config.types.ts, mapper functions to hotsite-config.mapper.ts
-// (TD37-S05, file-length — PR #386 review finding: the original max-lines-aggregate exception
-// for this file copied booking.aggregate.ts's rationale without applying the same fix). Every
-// name still resolves from this same path via the re-export below.
+// Types moved to hotsite-config.types.ts, mapper functions to hotsite-config.mapper.ts to keep
+// this file under the file-length cap — see hotsite-config.types.ts for the extraction rationale.
+// Every name still resolves from this same path via the re-export below.
 export * from './hotsite-config.types';
 
 const HEX_COLOR_FIELDS = [

@@ -28,9 +28,9 @@ export function verifyGuestToken(token: string, secret: string): GuestTokenPaylo
   return parsed.success ? parsed.data : false;
 }
 
-// Split out of bookings.controller.ts (TD37-S05, file-length) — shared by getOneGuest/
-// submitInfoGuest, colocated with verifyGuestToken since it's this function's own caller-facing
-// wrapper.
+// Split out of bookings.controller.ts to keep it under the file-length cap — shared by
+// getOneGuest/submitInfoGuest, colocated with verifyGuestToken since it's this function's own
+// caller-facing wrapper.
 export function verifyGuestTokenOrThrow(
   id: string,
   token: string | undefined,

@@ -4,8 +4,8 @@ import { Money } from '../../../shared/value-objects/money';
 import { PhoneNumber } from '../../../shared/value-objects/phone-number.vo';
 import { BookingLine, BookingLineInput } from './booking-line.entity';
 
-// Split out of booking.aggregate.ts (TD37-S05, file-length) — re-exported from there via
-// `export * from './booking.types'` so existing imports of these symbols keep working
+// Split out of booking.aggregate.ts to keep it under the file-length cap — re-exported from
+// there via `export * from './booking.types'` so existing imports of these symbols keep working
 // unchanged. Pure type/interface/enum definitions, no aggregate behavior moved.
 
 export enum BookingStatus {

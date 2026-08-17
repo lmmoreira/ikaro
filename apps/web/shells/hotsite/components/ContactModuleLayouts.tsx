@@ -3,10 +3,11 @@ import type React from 'react';
 import type { ContactModuleData, HotsiteBusinessInfoResponse } from '@ikaro/types';
 import { digitsOnly } from '@/shared/utils/digits-only';
 
-// Split out of ContactModule.tsx (TD37-S05, file-length) — the two display-style layouts
-// (list vs. icon-cards), their shared IconRow presentational piece, and the address-formatting
-// helper both this file and ContactModule.tsx need. Pure presentational split — no new logic —
-// so it shares ContactModule.spec.tsx's existing coverage rather than needing its own spec.
+// Split out of ContactModule.tsx to keep it under the file-length cap — the two display-style
+// layouts (list vs. icon-cards), their shared IconRow presentational piece, and the
+// address-formatting helper both this file and ContactModule.tsx need. Pure presentational
+// split — no new logic — so it shares ContactModule.spec.tsx's existing coverage rather than
+// needing its own spec.
 
 const linkStyle: React.CSSProperties = {
   color: 'var(--ba-primary)',

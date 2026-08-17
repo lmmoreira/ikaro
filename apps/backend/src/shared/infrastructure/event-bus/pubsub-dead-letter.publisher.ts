@@ -4,9 +4,10 @@ import { AppLogger } from '../../observability/app-logger';
 import { DEAD_LETTER_CHANNEL_NAME } from './dead-letter-channel.constant';
 import { PubSubTopicProvisioner } from './pubsub-topic-provisioner';
 
-// Split out of gcp-pubsub-event-bus.adapter.ts (TD37-S05, file-length) — only called from
-// dispatch()'s own catch block when delivery attempts are exhausted; self-contained side effect
-// that doesn't touch the dispatch()/dispatchTrigger()/dispatchPushMessage() tracing symmetry.
+// Split out of gcp-pubsub-event-bus.adapter.ts to keep it under the file-length cap — only
+// called from dispatch()'s own catch block when delivery attempts are exhausted; self-contained
+// side effect that doesn't touch the dispatch()/dispatchTrigger()/dispatchPushMessage() tracing
+// symmetry.
 export async function publishToDlq(
   pubsub: PubSub,
   provisioner: PubSubTopicProvisioner,

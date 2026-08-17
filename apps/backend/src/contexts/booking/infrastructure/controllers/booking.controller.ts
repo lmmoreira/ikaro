@@ -28,8 +28,8 @@ import {
 } from '../../application/use-cases/get-booking-by-id.use-case';
 import { mapBookingError } from '../http/booking-error.mapper';
 
-// TD37-S05: split from the lifecycle-transition endpoints (approve/reject/cancel/reschedule/
-// complete/...) — see booking-lifecycle.controller.ts, same 'bookings' route prefix — to satisfy
+// Split from the lifecycle-transition endpoints (approve/reject/cancel/reschedule/complete/...)
+// — see booking-lifecycle.controller.ts, same 'bookings' route prefix — to satisfy
 // docs/CODE_STANDARDS.md's file-length limit. This controller keeps read + creation only.
 @Controller('bookings')
 export class BookingController {

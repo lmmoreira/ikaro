@@ -61,12 +61,12 @@ import {
   SubmitBookingInfoBodySchema,
 } from './bookings.schemas';
 
-// Request/query Zod schemas moved to bookings.schemas.ts (TD37-S05, file-length) — re-exported
-// here so existing imports of these symbols from this file keep working unchanged. The
-// attachment-upload and guest-token-gated endpoints moved to bookings-attachments.controller.ts
-// and bookings-guest.controller.ts (also TD37-S05, file-length) — same @Controller('bookings')
-// base and routes, no URL changes; both registered alongside this controller in
-// bookings.module.ts.
+// Request/query Zod schemas moved to bookings.schemas.ts to keep this file under the
+// file-length cap — re-exported here so existing imports of these symbols from this file keep
+// working unchanged. The attachment-upload and guest-token-gated endpoints moved to
+// bookings-attachments.controller.ts and bookings-guest.controller.ts for the same reason —
+// same @Controller('bookings') base and routes, no URL changes; both registered alongside this
+// controller in bookings.module.ts.
 export * from './bookings.schemas';
 
 @Controller('bookings')

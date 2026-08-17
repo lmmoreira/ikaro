@@ -1,9 +1,9 @@
 import { BookingErrorCode } from '@ikaro/types/protocol/errors';
 import { DomainErrorShape } from '../../../../shared/domain/domain-error-shape';
 
-// Split out of booking-domain.error.ts (TD37-S05) into its own file with zero imports from any
-// sibling error file. booking-domain.error.ts re-exports every split error file (TD37-S05,
-// file-length) via `export *`, and every split file needs this base class — importing it from
+// Split out of booking-domain.error.ts into its own file with zero imports from any
+// sibling error file. booking-domain.error.ts re-exports every file-length-split error file
+// via `export *`, and every split file needs this base class — importing it from
 // booking-domain.error.ts itself would be circular (booking-domain.error.ts's own `export *`
 // requires the split file, which requires BookingDomainError back from booking-domain.error.ts,
 // which isn't done executing yet). Confirmed as a real bug, not a theoretical one: it crashed

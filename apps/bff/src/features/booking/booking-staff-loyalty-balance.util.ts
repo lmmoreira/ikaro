@@ -2,9 +2,9 @@ import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { AppLogger } from '../../shared/observability/app-logger';
 import { LoyaltyBalanceResponse } from '../loyalty/loyalty.types';
 
-// Split out of bookings.controller.ts (TD37-S05, file-length) — best-effort loyalty balance
-// lookup for the staff-facing booking detail view; a failure here must not break the booking
-// detail response itself.
+// Split out of bookings.controller.ts to keep it under the file-length cap — best-effort loyalty
+// balance lookup for the staff-facing booking detail view; a failure here must not break the
+// booking detail response itself.
 export async function fetchLoyaltyBalanceForStaffBookingDetail(
   backendHttp: BackendHttpService,
   logger: AppLogger,

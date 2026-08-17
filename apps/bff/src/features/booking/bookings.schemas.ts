@@ -7,10 +7,10 @@ import {
 } from '@ikaro/types';
 import { AddressShapeSchema, DATE_ONLY_PATTERN, isValidPhoneNumber } from '@ikaro/validation';
 
-// Split out of bookings.controller.ts (TD37-S05, file-length) — request/query Zod schemas and
-// their inferred body types, re-exported from bookings.controller.ts so existing imports of
-// these symbols (e.g. bookings.controller.spec.ts, address-schema-code-reuse.spec.ts) don't
-// need to change.
+// Split out of bookings.controller.ts to keep it under the file-length cap — request/query Zod
+// schemas and their inferred body types, re-exported from bookings.controller.ts so existing
+// imports of these symbols (e.g. bookings.controller.spec.ts, address-schema-code-reuse.spec.ts)
+// don't need to change.
 
 // Required-field checks are deliberately NOT duplicated here (TD23-S13) — the backend's
 // Uploads always target tmp/ staging (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md) — promotion to

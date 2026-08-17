@@ -1,5 +1,6 @@
-// Split out of ChatbotWidget.tsx (TD37-S05, file-length) — the widget's inline SVG icons, shared
-// between ChatbotWidget.tsx (bubble button) and ChatbotPanel.tsx (panel header/send button).
+// Split out of ChatbotWidget.tsx to keep it under the file-length cap — the widget's inline SVG
+// icons, shared between ChatbotWidget.tsx (bubble button) and ChatbotPanel.tsx (panel
+// header/send button).
 
 export const BotIcon = (
   <svg

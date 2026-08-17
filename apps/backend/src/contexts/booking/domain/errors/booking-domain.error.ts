@@ -32,9 +32,9 @@ export class BookingAddressValidationError extends Error implements DomainErrorS
   }
 }
 
-// TD37-S05: split by sub-concern to satisfy docs/CODE_STANDARDS.md's file-length limit — this
-// file's own call sites (booking-error.mapper.ts, use-cases, aggregates) are unaffected since
-// every name still resolves from this same path.
+// Split by sub-concern to satisfy docs/CODE_STANDARDS.md's file-length limit — this file's own
+// call sites (booking-error.mapper.ts, use-cases, aggregates) are unaffected since every name
+// still resolves from this same path.
 export * from './booking-schedule.error';
 export * from './booking-service.error';
 export * from './booking-discount.error';

@@ -8,10 +8,10 @@ import {
   HotsiteSeoProps,
 } from './hotsite-config.types';
 
-// Split out of hotsite-config.aggregate.ts (TD37-S05, file-length — see hotsite-config.types.ts
-// for the full rationale). Private branding/seo <-> VO mapping helpers, used only by
-// hotsite-config.aggregate.ts — not re-exported from there, since these were never part of the
-// file's public contract.
+// Split out of hotsite-config.aggregate.ts to keep it under the file-length cap (see
+// hotsite-config.types.ts for the full rationale). Private branding/seo <-> VO mapping helpers,
+// used only by hotsite-config.aggregate.ts — not re-exported from there, since these were never
+// part of the file's public contract.
 
 export function brandingToDomain(b: HotsiteBranding): HotsiteBrandingProps {
   return {

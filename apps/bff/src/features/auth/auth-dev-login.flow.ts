@@ -17,8 +17,8 @@ import {
   StaffInfoResponse,
 } from './auth.types';
 
-// Split out of auth-controller-flow.service.ts (TD37-S05, file-length) — the local-only dev-auth
-// login flow (ENABLE_DEV_AUTH=true, never available in production).
+// Split out of auth-controller-flow.service.ts to keep it under the file-length cap — the
+// local-only dev-auth login flow (ENABLE_DEV_AUTH=true, never available in production).
 
 interface DevActorResolution {
   actorId: string;

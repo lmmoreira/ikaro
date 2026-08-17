@@ -1,8 +1,8 @@
 import { QueryFailedError } from 'typeorm';
 import { BookingSlotUnavailableError } from '../../domain/errors/booking-domain.error';
 
-// Split out of typeorm-booking.repository.ts (TD37-S05, file-length) — pure error-mapping, no
-// persistence I/O of its own.
+// Split out of typeorm-booking.repository.ts to keep it under the file-length cap — pure
+// error-mapping, no persistence I/O of its own.
 export const APPROVED_SLOT_EXCLUSION = 'EX_booking_bookings_approved_slot';
 
 export function rethrowSaveError(err: unknown): never {

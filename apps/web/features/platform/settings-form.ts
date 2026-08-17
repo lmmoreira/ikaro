@@ -3,8 +3,8 @@ import { countrySpec, type AddressSpec } from '@ikaro/i18n';
 import { digitsOnly } from '@/shared/utils/digits-only';
 
 // Validation logic (schema, address/phone/social-links validation, normalization) lives in the
-// colocated settings-form-validation.ts — split out (TD37-S05) to keep this file under the
-// documented file-length limit; re-exported here so existing importers are unaffected.
+// colocated settings-form-validation.ts — split out to keep this file under the documented
+// file-length limit; re-exported here so existing importers are unaffected.
 export { validateSettingsForm } from './settings-form-validation';
 
 export const WEEK_DAYS = [

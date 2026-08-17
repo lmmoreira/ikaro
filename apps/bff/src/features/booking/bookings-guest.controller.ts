@@ -10,9 +10,9 @@ import { verifyGuestTokenOrThrow } from './guest-token.util';
 import { BookingDetailResponse } from './bookings.types';
 import { SubmitGuestBookingInfoBody, SubmitGuestBookingInfoBodySchema } from './bookings.schemas';
 
-// Split out of bookings.controller.ts (TD37-S05, file-length) — the two guest-token-gated
-// (@Public()) endpoints under the same /bookings resource path. Same @Controller('bookings')
-// base and routes as before the split, so no URL changes.
+// Split out of bookings.controller.ts to keep it under the file-length cap — the two
+// guest-token-gated (@Public()) endpoints under the same /bookings resource path. Same
+// @Controller('bookings') base and routes as before the split, so no URL changes.
 @Controller('bookings')
 export class BookingsGuestController {
   private readonly jwtSecret: string;

@@ -24,8 +24,9 @@ import { BookingRescheduled } from './events/booking-rescheduled.event';
 import { BookingRejected } from './events/booking-rejected.event';
 import { BookingProps, BookingStatus, BookingType, RequestBookingInput } from './booking.types';
 
-// BookingStatus/BookingType/BookingProps/RequestBookingInput moved to booking.types.ts
-// (TD37-S05, file-length) — re-exported so existing imports of these symbols keep working.
+// BookingStatus/BookingType/BookingProps/RequestBookingInput moved to booking.types.ts to keep
+// this file under the file-length cap — re-exported so existing imports of these symbols keep
+// working.
 export * from './booking.types';
 
 export class Booking extends AggregateRoot {
@@ -235,8 +236,8 @@ export class Booking extends AggregateRoot {
   }
 
   // The lifecycle fields a freshly-requested booking always starts empty — split out purely to
-  // keep buildRequestedProps under the 40-line function cap (TD37-S05), not a semantic grouping
-  // beyond "not yet happened".
+  // keep buildRequestedProps under the function-length cap, not a semantic grouping beyond
+  // "not yet happened".
   private static freshLifecycleProps(): Pick<
     BookingProps,
     | 'adminNotes'

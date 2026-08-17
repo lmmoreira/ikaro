@@ -8,9 +8,9 @@ import { BookingLine } from '../../domain/booking-line.entity';
 import { BookingEntity } from '../entities/booking.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
 
-// Split out of typeorm-booking.repository.ts (TD37-S05, file-length) — pure domain<->entity
-// mapping, no persistence I/O. Plain exported functions, mirroring this repo's `<x>.mapper.ts`
-// convention (e.g. apps/bff/src/features/booking/bookings.mapper.ts).
+// Split out of typeorm-booking.repository.ts to keep it under the file-length cap — pure
+// domain<->entity mapping, no persistence I/O. Plain exported functions, mirroring this repo's
+// `<x>.mapper.ts` convention (e.g. apps/bff/src/features/booking/bookings.mapper.ts).
 
 export function toDomain(
   entity: BookingEntity,
@@ -94,7 +94,7 @@ type DomainLifecycleProps = Pick<
 >;
 
 // Lifecycle fields carried through verbatim from the entity — split out purely to keep
-// toDomainProps under the 40-line function cap (TD37-S05).
+// toDomainProps under the function-length cap.
 function toDomainLifecycleProps(entity: BookingEntity): DomainLifecycleProps {
   return {
     adminNotes: entity.adminNotes,

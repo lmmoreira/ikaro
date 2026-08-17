@@ -4,8 +4,8 @@ import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { TenantInfoResponse } from '../../shared/types/backend-responses';
 
 // Shared by auth-staff-login.flow.ts and auth-tenant-login.flow.ts — split out of
-// auth-controller-flow.service.ts (TD37-S05, file-length) to keep each Google-callback flow in
-// its own file.
+// auth-controller-flow.service.ts to keep it under the file-length cap, and to keep each
+// Google-callback flow in its own file.
 export const authLoginLogger = new AppLogger('AuthControllerFlowService');
 
 export async function findTenantBySlug(

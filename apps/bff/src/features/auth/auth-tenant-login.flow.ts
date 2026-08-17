@@ -22,9 +22,9 @@ import {
 } from './auth.types';
 import { authLoginLogger, findTenantBySlug } from './auth-login-shared';
 
-// Split out of auth-controller-flow.service.ts (TD37-S05, file-length) — the customer half of
-// handleGoogleCallback's Google OAuth flow, plus the logout/tenant-switching endpoints that
-// share the same tenant-lookup/token-issuing shape.
+// Split out of auth-controller-flow.service.ts to keep it under the file-length cap — the
+// customer half of handleGoogleCallback's Google OAuth flow, plus the logout/tenant-switching
+// endpoints that share the same tenant-lookup/token-issuing shape.
 
 export function logoutWithTenantSlug(
   config: ConfigService,

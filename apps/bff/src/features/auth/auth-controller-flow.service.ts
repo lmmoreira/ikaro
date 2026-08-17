@@ -21,8 +21,8 @@ import {
 } from './auth-tenant-login.flow';
 import { devLogin } from './auth-dev-login.flow';
 
-// TD37-S05 (file-length): the actual Google-callback/dev-login flows live in
-// auth-staff-login.flow.ts, auth-tenant-login.flow.ts, and auth-dev-login.flow.ts (plus the
+// To keep this file under the file-length cap, the actual Google-callback/dev-login flows live
+// in auth-staff-login.flow.ts, auth-tenant-login.flow.ts, and auth-dev-login.flow.ts (plus the
 // findTenantBySlug/logger shared by the first two, in auth-login-shared.ts). This class stays a
 // thin delegator so auth.controller.ts's DI shape and this file's own spec are unaffected.
 @Injectable()

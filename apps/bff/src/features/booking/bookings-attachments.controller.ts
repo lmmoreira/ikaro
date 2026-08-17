@@ -8,10 +8,10 @@ import { resolveTenantIdForAttachmentUpload } from './attachment-tenant-resolver
 import { AttachmentSignedUrlResponse } from './bookings.types';
 import { AttachmentSignedUrlBody, AttachmentSignedUrlBodySchema } from './bookings.schemas';
 
-// Split out of bookings.controller.ts (TD37-S05, file-length) — the attachment-upload endpoint,
-// a distinct concern (signed-URL issuance ahead of booking creation, tenant resolved from a
-// JWT/tenantSlug/guestToken, never a route param). Same @Controller('bookings') base and route
-// as before the split, so no URL changes.
+// Split out of bookings.controller.ts to keep it under the file-length cap — the
+// attachment-upload endpoint, a distinct concern (signed-URL issuance ahead of booking creation,
+// tenant resolved from a JWT/tenantSlug/guestToken, never a route param). Same
+// @Controller('bookings') base and route as before the split, so no URL changes.
 @Controller('bookings')
 export class BookingsAttachmentsController {
   private readonly jwtSecret: string;

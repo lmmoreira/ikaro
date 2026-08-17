@@ -5,8 +5,8 @@ import { digitsOnly } from '@/shared/utils/digits-only';
 import { BotIcon, CloseIcon, SendIcon } from './chatbot-icons';
 import type { ChatTurn } from './chatbot-widget-storage';
 
-// Split out of ChatbotWidget.tsx (TD37-S05, file-length/function-length) — the open-panel
-// presentation (header, message list, input row, interrupted-state fallback CTA). Pure
+// Split out of ChatbotWidget.tsx to keep it under the file-length/function-length caps — the
+// open-panel presentation (header, message list, input row, interrupted-state fallback CTA). Pure
 // presentational split: all conversation state/handlers stay owned by ChatbotWidget.tsx and are
 // passed down as props. Covered by its own ChatbotPanel.spec.tsx in addition to the rendering
 // paths ChatbotWidget.spec.tsx already exercises through the parent.
