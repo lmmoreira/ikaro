@@ -128,3 +128,10 @@ export interface RenameTenantResponse {
   tenantId: string;
   name: string;
 }
+
+// UC-027 A5 — powers the CHATBOT module config screen's own red banner. Deliberately narrow:
+// only the daily-cap condition, not concurrency/spend/balance (docs/14-API_CONTRACTS.md §
+// Chatbot Cap Status).
+export interface ChatbotCapStatusResponse {
+  dailyCapReachedToday: boolean;
+}

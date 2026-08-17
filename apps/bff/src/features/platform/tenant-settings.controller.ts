@@ -1,6 +1,7 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Patch } from '@nestjs/common';
 import { z } from 'zod';
 import {
+  ChatbotCapStatusResponse,
   CountryCodeErrorCode,
   PlatformErrorCode,
   TenantSettingsResponse,
@@ -170,5 +171,11 @@ export class TenantSettingsController {
     @Body(new ZodValidationPipe(UpdateTenantSettingsBodySchema)) body: UpdateTenantSettingsBody,
   ): Promise<TenantSettingsResponse> {
     return this.backendHttp.patch<TenantSettingsResponse>('/tenants/settings', body);
+  }
+
+  @Get('chatbot/cap-status')
+  @Roles('MANAGER')
+  getChatbotCapStatus(): Promise<ChatbotCapStatusResponse> {
+    return this.backendHttp.get<ChatbotCapStatusResponse>('/tenants/chatbot/cap-status');
   }
 }

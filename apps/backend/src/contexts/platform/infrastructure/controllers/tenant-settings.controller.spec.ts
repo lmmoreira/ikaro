@@ -2,29 +2,43 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
-import { TenantBuilder } from '../../../../test/builders/platform/index';
+import { InMemoryChatbotSessionRepository } from '../../../../test/repositories/platform/in-memory-chatbot-session.repository';
+import { ChatbotSessionBuilder, TenantBuilder } from '../../../../test/builders/platform/index';
+import { todayInSaoPaulo } from '../../../../test/utils/chatbot-test-helpers';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { TRANSACTION_MANAGER } from '../../../../shared/ports/transaction-manager.port';
 import { TENANT_REPOSITORY } from '../../application/ports/tenant-repository.port';
+import { CHATBOT_SESSION_REPOSITORY } from '../../application/ports/chatbot-session-repository.port';
 import { UpdateTenantSettingsUseCase } from '../../application/use-cases/update-tenant-settings.use-case';
 import { GetTenantByIdUseCase } from '../../application/use-cases/get-tenant-by-id.use-case';
+import { GetChatbotCapStatusUseCase } from '../../application/use-cases/get-chatbot-cap-status.use-case';
 import { TenantSettingsController } from './tenant-settings.controller';
 
 describe('TenantSettingsController', () => {
   let controller: TenantSettingsController;
   let tenantRepo: InMemoryTenantRepository;
-  let tenantContext: { tenantId: string };
+  let sessionRepo: InMemoryChatbotSessionRepository;
+  let tenantContext: {
+    tenantId: string;
+    settings: { chatbot: unknown; businessHours: { timezone: string } };
+  };
 
   beforeEach(async () => {
     tenantRepo = new InMemoryTenantRepository();
-    tenantContext = { tenantId: '' };
+    sessionRepo = new InMemoryChatbotSessionRepository();
+    tenantContext = {
+      tenantId: '',
+      settings: { chatbot: {}, businessHours: { timezone: 'America/Sao_Paulo' } },
+    };
 
     const moduleRef = await Test.createTestingModule({
       controllers: [TenantSettingsController],
       providers: [
         GetTenantByIdUseCase,
         UpdateTenantSettingsUseCase,
+        GetChatbotCapStatusUseCase,
         { provide: TENANT_REPOSITORY, useValue: tenantRepo },
+        { provide: CHATBOT_SESSION_REPOSITORY, useValue: sessionRepo },
         { provide: RequestContext, useValue: tenantContext },
         { provide: TRANSACTION_MANAGER, useValue: new InMemoryTransactionManager() },
       ],
@@ -115,5 +129,31 @@ describe('TenantSettingsController', () => {
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.CONFLICT);
     }
+  });
+
+  describe('getCapStatus', () => {
+    it('returns dailyCapReachedToday: false when no conversations happened today', async () => {
+      tenantContext.tenantId = 'tenant-cap-status-01';
+
+      const result = await controller.getCapStatus();
+
+      expect(result).toEqual({ dailyCapReachedToday: false });
+    });
+
+    it('returns dailyCapReachedToday: true once the default daily cap (30) is reached', async () => {
+      tenantContext.tenantId = 'tenant-cap-status-02';
+      for (let i = 0; i < 30; i++) {
+        await sessionRepo.save(
+          new ChatbotSessionBuilder()
+            .withTenantId('tenant-cap-status-02')
+            .withConversationDate(todayInSaoPaulo())
+            .build(),
+        );
+      }
+
+      const result = await controller.getCapStatus();
+
+      expect(result).toEqual({ dailyCapReachedToday: true });
+    });
   });
 });
