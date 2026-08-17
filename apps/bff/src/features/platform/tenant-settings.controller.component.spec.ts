@@ -101,6 +101,28 @@ describe('TenantSettingsController (component)', () => {
         .send({ settings: { loyalty: { expiryDays: 90 } } });
       expect(res.status).toBe(403);
     });
+
+    it('GET /v1/tenants/chatbot/cap-status → 403 for STAFF role', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/v1/tenants/chatbot/cap-status')
+        .set('Authorization', `Bearer ${makeStaffJwt(jwtService)}`);
+      expect(res.status).toBe(403);
+    });
+  });
+
+  describe('getChatbotCapStatus', () => {
+    it('GET /v1/tenants/chatbot/cap-status → 200, proxies to backend unchanged', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce({ dailyCapReachedToday: true });
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/tenants/chatbot/cap-status')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ dailyCapReachedToday: true });
+      expect(backendHttpService.get).toHaveBeenCalledWith('/tenants/chatbot/cap-status');
+    });
   });
 
   describe('getSettings', () => {
