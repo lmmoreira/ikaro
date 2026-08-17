@@ -15,6 +15,23 @@ import { createPlatformIntegrationApp } from '../../../../test/utils/platform-in
 
 const TEST_KEY = 'settings-integ-test-key-settings-xx'; // exactly 36 chars
 
+// ChatbotSessionEntityBuilder defaults startedAt/lastMessageAt to a fixed 2026-01-01 timestamp —
+// old enough to be swept by ChatbotRetentionPurgeJob's real, platform-wide (all-tenants) sweep,
+// which shares this same test-run's Postgres instance with every other integration spec file.
+// Force both fields to "now" so rows inserted here are never eligible for that sweep, regardless
+// of file execution order (caught via chatbot-retention-purge.job.integration.spec.ts failing
+// with sessionsDeleted: 33 instead of 2 — this file's own leftover rows had leaked in).
+function recentSession(tenantId: string): ChatbotSessionEntity {
+  const session = new ChatbotSessionEntityBuilder()
+    .withTenantId(tenantId)
+    .withConversationDate(todayInSaoPaulo())
+    .build();
+  const now = new Date();
+  session.startedAt = now;
+  session.lastMessageAt = now;
+  return session;
+}
+
 describe('TenantSettingsController (integration)', () => {
   let app: INestApplication;
   let ds: DataSource;
@@ -518,14 +535,7 @@ describe('TenantSettingsController (integration)', () => {
         .expect(200);
       expect(belowCap.body).toEqual({ dailyCapReachedToday: false });
 
-      await ds
-        .getRepository(ChatbotSessionEntity)
-        .save(
-          new ChatbotSessionEntityBuilder()
-            .withTenantId(cappedTenantId)
-            .withConversationDate(todayInSaoPaulo())
-            .build(),
-        );
+      await ds.getRepository(ChatbotSessionEntity).save(recentSession(cappedTenantId));
 
       const atCap = await request(app.getHttpServer())
         .get('/tenants/chatbot/cap-status')
@@ -547,14 +557,7 @@ describe('TenantSettingsController (integration)', () => {
       await ds.getRepository(TenantEntity).save([tenantA, tenantB]);
 
       for (let i = 0; i < 30; i++) {
-        await ds
-          .getRepository(ChatbotSessionEntity)
-          .save(
-            new ChatbotSessionEntityBuilder()
-              .withTenantId(tenantA.id)
-              .withConversationDate(todayInSaoPaulo())
-              .build(),
-          );
+        await ds.getRepository(ChatbotSessionEntity).save(recentSession(tenantA.id));
       }
 
       const { body } = await request(app.getHttpServer())
