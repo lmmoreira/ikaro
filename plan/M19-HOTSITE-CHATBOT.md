@@ -415,7 +415,7 @@ System prompt rebuilt fresh on every message (not frozen at session start) — f
 
 ---
 
-### M19-S11 — `CHATBOT` module type + widget component + `page.tsx` registration
+### M19-S11 — `CHATBOT` module type + widget component + `page.tsx` registration ✅ Done
 
 **Agent:** `frontend-ts` + `backend-ts`
 **Complexity:** L
