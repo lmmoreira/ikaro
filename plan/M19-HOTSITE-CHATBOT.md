@@ -388,7 +388,7 @@ System prompt rebuilt fresh on every message (not frozen at session start) — f
 
 ---
 
-### M19-S10 — Chatbot cap-status admin BFF endpoint (UC-027 A5)
+### M19-S10 — Chatbot cap-status admin BFF endpoint (UC-027 A5) ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** S
