@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { fetchManifest } from '@/features/platform/api.server';
 import { AboutModule } from '@/shells/hotsite/components/AboutModule';
 import { BookingCtaModule } from '@/shells/hotsite/components/BookingCtaModule';
+import { ChatbotWidget } from '@/shells/hotsite/components/ChatbotWidget';
 import { ContactModule } from '@/shells/hotsite/components/ContactModule';
 import { JsonLdScript } from '@/shells/hotsite/components/JsonLdScript';
 import { Footer } from '@/shells/hotsite/components/Footer';
@@ -126,11 +127,24 @@ export default async function HotsitePage({ params }: HotsitePageProps) {
               logoUrl={branding.logoUrl}
             />
           );
+        } else if (parsed.type === 'CHATBOT') {
+          moduleEl = (
+            <ChatbotWidget
+              key={key}
+              data={parsed.data}
+              slug={slug}
+              business={business}
+              tenantName={displayName}
+            />
+          );
         }
 
+        // CHATBOT gets the same no-divider treatment as FOOTER: the 'bubble' variant is
+        // position: fixed, outside document flow, so a generic divider would render as a stray
+        // orphaned line unrelated to anything above it.
         return moduleEl ? (
           <div key={key}>
-            {index > 0 && parsed.type !== 'FOOTER' && dividerEl}
+            {index > 0 && parsed.type !== 'FOOTER' && parsed.type !== 'CHATBOT' && dividerEl}
             {moduleEl}
           </div>
         ) : null;

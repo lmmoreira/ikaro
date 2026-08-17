@@ -211,6 +211,20 @@
     "unavailable": {
       "label": "Em breve",
       "body": "Estamos preparando algo especial. Volte em breve!"
+    },
+    "chatbot": {
+      "titleSuffix": "— Assistente IA",
+      "defaultWelcomeMessage": "Olá! Como posso ajudar?",
+      "inputPlaceholder": "Digite sua mensagem...",
+      "sendButtonLabel": "Enviar",
+      "closeButtonLabel": "Fechar",
+      "interruptedMessage": "Esta conversa foi interrompida. Para continuar, fale com a gente diretamente:",
+      "interruptedInputPlaceholder": "Conversa interrompida",
+      "whatsappFallbackCta": "Falar no WhatsApp",
+      "phoneFallbackCta": "Ligar agora",
+      "messageTooLong": "Mensagem muito longa. Tente algo mais curto.",
+      "inlineHeading": "Tire suas dúvidas",
+      "inlineSubheading": "Converse com nosso assistente sobre horários, preços e serviços"
     }
   },
   "notFound": {
@@ -520,7 +534,8 @@
           "BOOKING_CTA": "Chamada para agendamento",
           "ABOUT": "Sobre",
           "CONTACT": "Contato",
-          "FOOTER": "Rodapé"
+          "FOOTER": "Rodapé",
+          "CHATBOT": "Chatbot"
         },
         "configShell": {
           "backLabel": "Voltar",

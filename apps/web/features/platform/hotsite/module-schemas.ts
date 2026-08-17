@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type {
   AboutModuleData,
   BookingCtaModuleData,
+  ChatbotModuleData,
   ContactModuleData,
   FooterModuleData,
   GalleryImage,
@@ -135,6 +136,14 @@ export const FooterModuleDataSchema = z.object({
   showWhatsapp: z.boolean().optional(),
 }) satisfies z.ZodType<FooterModuleData>;
 
+// Mirrors ChatbotModuleData (packages/types/src/hotsite.ts) — keep in sync when that type changes.
+export const ChatbotModuleDataSchema = z.object({
+  variant: z.enum(['bubble', 'inline']).optional(),
+  accentColor: z.enum(['primary', 'secondary']).optional(),
+  botName: z.string().optional(),
+  welcomeMessage: z.string().optional(),
+}) satisfies z.ZodType<ChatbotModuleData>;
+
 const MODULE_DATA_SCHEMAS: Partial<Record<HotsiteModuleType, z.ZodType>> = {
   HERO: HeroModuleDataSchema,
   SERVICE_LIST: ServiceListModuleDataSchema,
@@ -144,6 +153,7 @@ const MODULE_DATA_SCHEMAS: Partial<Record<HotsiteModuleType, z.ZodType>> = {
   ABOUT: AboutModuleDataSchema,
   CONTACT: ContactModuleDataSchema,
   FOOTER: FooterModuleDataSchema,
+  CHATBOT: ChatbotModuleDataSchema,
 };
 
 // Module types without a registered schema render unvalidated until their story (M12-S05+) adds one.

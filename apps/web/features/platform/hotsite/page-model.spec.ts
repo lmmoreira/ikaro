@@ -151,4 +151,32 @@ describe('buildHotsiteModuleRenderPlan', () => {
     expect(plan[1].parsed.type).toBe('BOOKING_CTA');
     expect(plan[2].parsed.type).toBe('CONTACT');
   });
+
+  it('parses a CHATBOT module and excludes it from the alternating-background rotation', () => {
+    const layout = [
+      makeLayoutItem({ type: 'CHATBOT', data: { variant: 'inline' } }),
+      makeLayoutItem({
+        type: 'ABOUT',
+        data: { title: 'Sobre nós', body: 'Conteúdo válido', imagePosition: 'left' },
+      }),
+      makeLayoutItem({
+        type: 'TESTIMONIALS',
+        data: { items: [], layout: 'grid' },
+      }),
+    ];
+
+    const plan = buildHotsiteModuleRenderPlan(layout, true);
+
+    expect(plan).toHaveLength(3);
+    expect(plan[0]).toEqual({
+      parsed: { type: 'CHATBOT', data: { variant: 'inline' } },
+      bgVariant: 'default',
+    });
+    // CHATBOT still advances the underlying altIndex counter (like every enabled module does —
+    // only the *output* bgVariant is suppressed for non-participating types), so ABOUT lands on
+    // the odd altIndex slot and alternates, same as it would after any single non-participating
+    // module (HERO/BOOKING_CTA/FOOTER already behave this way, per the first test in this file).
+    expect(plan[1].bgVariant).toBe('alt');
+    expect(plan[2].bgVariant).toBe('default');
+  });
 });

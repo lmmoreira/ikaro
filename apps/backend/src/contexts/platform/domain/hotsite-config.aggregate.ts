@@ -21,7 +21,8 @@ export type HotsiteModuleType =
   | 'BOOKING_CTA'
   | 'ABOUT'
   | 'CONTACT'
-  | 'FOOTER';
+  | 'FOOTER'
+  | 'CHATBOT';
 
 // Shared by HeroModuleData/BookingCtaModuleData's backgroundImagePosition, contentPositionX, and
 // contentPositionY fields — SonarCloud (S4323) flags a union type repeated verbatim across
@@ -134,6 +135,16 @@ export interface ContactModuleData {
   whatsappCtaLabel?: string;
 }
 
+// Mirrors packages/types/src/hotsite.ts's ChatbotModuleData — only fields rendered verbatim to
+// every visitor; knowledgeText and the volume/cost caps are deliberately excluded (docs/15
+// § CHATBOT), never part of this aggregate's own layout data.
+export interface ChatbotModuleData {
+  variant?: 'bubble' | 'inline';
+  accentColor?: 'primary' | 'secondary';
+  botName?: string;
+  welcomeMessage?: string;
+}
+
 export type HotsiteModuleData =
   | HeroModuleData
   | ServiceListModuleData
@@ -142,7 +153,8 @@ export type HotsiteModuleData =
   | BookingCtaModuleData
   | AboutModuleData
   | ContactModuleData
-  | FooterModuleData;
+  | FooterModuleData
+  | ChatbotModuleData;
 
 export interface HotsiteModule {
   type: HotsiteModuleType;
@@ -322,6 +334,7 @@ const MODULE_TYPES: ReadonlySet<HotsiteModuleType> = new Set([
   'ABOUT',
   'CONTACT',
   'FOOTER',
+  'CHATBOT',
 ]);
 
 export interface LayoutValidationContext {

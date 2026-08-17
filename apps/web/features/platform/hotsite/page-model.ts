@@ -1,6 +1,7 @@
 import type {
   AboutModuleData,
   BookingCtaModuleData,
+  ChatbotModuleData,
   ContactModuleData,
   FooterModuleData,
   GalleryModuleData,
@@ -14,6 +15,7 @@ import type {
 import {
   AboutModuleDataSchema,
   BookingCtaModuleDataSchema,
+  ChatbotModuleDataSchema,
   ContactModuleDataSchema,
   FooterModuleDataSchema,
   GalleryModuleDataSchema,
@@ -32,17 +34,22 @@ export type HotsiteModuleParsed =
   | { readonly type: 'BOOKING_CTA'; readonly data: BookingCtaModuleData }
   | { readonly type: 'ABOUT'; readonly data: AboutModuleData }
   | { readonly type: 'CONTACT'; readonly data: ContactModuleData }
-  | { readonly type: 'FOOTER'; readonly data: FooterModuleData };
+  | { readonly type: 'FOOTER'; readonly data: FooterModuleData }
+  | { readonly type: 'CHATBOT'; readonly data: ChatbotModuleData };
 
 export interface HotsiteModuleRenderPlanItem {
   readonly parsed: HotsiteModuleParsed;
   readonly bgVariant: HotsiteSectionBgVariant;
 }
 
+// CHATBOT included: the bubble variant is a fixed-position floating element with its own
+// self-contained background (not a full-width section), and the inline variant uses a fixed
+// var(--ba-background), same reasoning as HERO/BOOKING_CTA/FOOTER's own self-contained treatment.
 const NON_ALTERNATING_TYPES: ReadonlySet<HotsiteModuleType> = new Set([
   'HERO',
   'BOOKING_CTA',
   'FOOTER',
+  'CHATBOT',
 ]);
 
 const MODULE_SCHEMAS = {
@@ -54,6 +61,7 @@ const MODULE_SCHEMAS = {
   ABOUT: AboutModuleDataSchema,
   CONTACT: ContactModuleDataSchema,
   FOOTER: FooterModuleDataSchema,
+  CHATBOT: ChatbotModuleDataSchema,
 } satisfies Record<
   HotsiteModuleType,
   { safeParse(data: unknown): { success: boolean; data?: unknown } }

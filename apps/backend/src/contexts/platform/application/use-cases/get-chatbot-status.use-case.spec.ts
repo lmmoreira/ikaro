@@ -29,7 +29,13 @@ describe('GetChatbotStatusUseCase', () => {
 
   function buildUseCase(config: IApplicationConfig = fakeConfig()): GetChatbotStatusUseCase {
     llmProvider = new FakeLlmProviderBuilder().build();
-    const registry = new LlmProviderRegistry('openrouter', llmProvider, llmProvider, llmProvider);
+    const registry = new LlmProviderRegistry(
+      'openrouter',
+      llmProvider,
+      llmProvider,
+      llmProvider,
+      llmProvider,
+    );
     return new GetChatbotStatusUseCase(sessionRepo, messageRepo, balanceRepo, registry, config);
   }
 

@@ -19,8 +19,7 @@ Paths below follow this repo's domain-slice conventions (`docs/24-BFF_ARCHITECTU
 |---|---|---|
 | `apps/web/shells/hotsite/components/ChatbotWidget.tsx` | ❌ Gap (M19-S11) | Create — bubble/inline widget, owns pre-flight check + conversation state (idle/active/interrupted) |
 | `apps/web/shells/hotsite/components/ChatbotWidget.spec.tsx` | ❌ Gap (M19-S11) | Create in the same commit (CLAUDE.md §7 — every new `shells/hotsite/components/**` ships its spec) |
-| `apps/web/app/api/hotsite/chatbot/status/route.ts` | ❌ Gap (M19-S11) | Create — Route Handler proxy, calls `bffPublicFetch('/public/platform/chatbot/status', ...)` with `X-Tenant-Slug`. Resolved at M19-S11 story-discovery: neither `bffPublicFetch` (server-only) nor `bffClient` (cookie-authenticated) fits a client-side unauthenticated call, so this uses `docs/24-BFF_ARCHITECTURE.md`'s Route Handler proxy pattern — `ChatbotWidget` calls this local path via `bffClient` |
-| `apps/web/app/api/hotsite/chatbot/messages/route.ts` | ❌ Gap (M19-S11) | Create — same proxy pattern, for `POST /public/platform/chatbot/messages` |
+| `apps/web/features/platform/hotsite/api/chatbot.ts` | ❌ Gap (M19-S11) | Create — client-only fetchers using `bffClient` with an explicit `X-Tenant-Slug` header, mirroring `apps/web/features/platform/hotsite/api/services.ts`'s existing `fetchServicesClient()` pattern exactly. Story-discovery's first pass proposed two new Route Handler proxies (neither `bffPublicFetch` nor `bffClient` looked like an exact fit against `docs/24`'s abstract decision table); corrected during implementation once `fetchServicesClient()` was found as a working precedent for this exact case — `bffClient`'s `/v1` baseURL already reaches `/public/...` BFF routes via the existing generic same-origin gateway (`apps/web/app/v1/[...path]/route.ts`, since the BFF's `setGlobalPrefix('v1')` makes them live at `/v1/public/...`). No new Route Handlers needed. |
 | `apps/web/features/platform/hotsite/module-schemas.ts` | Existing file, needs new entry | Add `ChatbotModuleDataSchema`, register in `MODULE_DATA_SCHEMAS.CHATBOT` (`docs/15` §7 step 3 — mandatory before any module type ships) |
 | `apps/bff/src/features/platform/platform.public.controller.ts` | ✅ Done (M19-S09) | `GET chatbot/status` / `POST chatbot/messages` added directly to the existing `PlatformPublicController` — **not** a new nested `chatbot/public/chatbot.public.controller.ts` as originally predicted below; no domain nests controllers below the domain folder |
 | `apps/bff/src/features/platform/chatbot.mapper.ts` | ✅ Done (M19-S09) | `buildSystemPrompt()` (CHATBOT.md §6) — flat file directly in `features/platform/`, not under a `chatbot/` subfolder as originally predicted |
@@ -162,6 +161,6 @@ All resolved at M19-S11 story-discovery (2026-08-17):
 - **E2E test infrastructure:** no fake/stubbed `ILlmProvider` existed anywhere that a real running
   backend process could select — folded into M19-S11's own scope as a DI-registered fake adapter
   selectable via `CHATBOT_LLM_PROVIDER=fake` (see File map above).
-- **Client transport:** neither `bffPublicFetch` (server-only) nor `bffClient` (cookie-authenticated)
-  fits a `'use client'` component calling an unauthenticated public BFF route — resolved via
-  `docs/24-BFF_ARCHITECTURE.md`'s Route Handler proxy pattern (see File map above).
+- **Client transport:** resolved via `bffClient` with an explicit `X-Tenant-Slug` header — the
+  same pattern `fetchServicesClient()` (`apps/web/features/platform/hotsite/api/services.ts`)
+  already uses for the identical case (see File map above).

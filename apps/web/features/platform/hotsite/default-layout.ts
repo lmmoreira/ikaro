@@ -17,7 +17,12 @@ export const MODULE_ORDER: readonly HotsiteModuleType[] = [
 // Minimal data satisfying each module data type's required fields (module-schemas.ts) — used
 // only to materialize a type not yet present in a tenant's saved layout (new tenants start with
 // layout: [] — HotsiteConfig.create() on the backend). Kept in sync with module-schemas.ts.
-const DEFAULT_MODULE_DATA: Record<HotsiteModuleType, Record<string, unknown>> = {
+// Partial, not exhaustive: CHATBOT is a valid HotsiteModuleType (M19-S11) but isn't in
+// MODULE_ORDER yet — the admin editor's Layout tab / config panel for it ships in M19-S12. Until
+// then, materializeLayout() never needs a CHATBOT default (MODULE_ORDER doesn't ask for one), and
+// manifest-schema.ts's MODULE_TYPE_SET (derived from MODULE_ORDER) rejects a raw-JSON-pasted
+// CHATBOT module the same way — the admin editor genuinely can't reach this type yet.
+const DEFAULT_MODULE_DATA: Partial<Record<HotsiteModuleType, Record<string, unknown>>> = {
   HERO: { variant: 'centered', title: '', ctaLabel: '', ctaTarget: 'booking-form' },
   SERVICE_LIST: { showPrices: true, showPoints: true, layout: 'grid' },
   GALLERY: { images: [], layout: 'grid', maxVisible: 6 },
@@ -45,7 +50,7 @@ export function materializeLayout(
     (type): HotsiteModuleResponse => ({
       type,
       enabled: false,
-      data: DEFAULT_MODULE_DATA[type],
+      data: DEFAULT_MODULE_DATA[type] ?? {},
     }),
   );
   return [...existing, ...missing];

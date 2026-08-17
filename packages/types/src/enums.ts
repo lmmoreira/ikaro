@@ -30,4 +30,5 @@ export type HotsiteModuleType =
   | 'BOOKING_CTA'
   | 'ABOUT'
   | 'CONTACT'
-  | 'FOOTER';
+  | 'FOOTER'
+  | 'CHATBOT';
