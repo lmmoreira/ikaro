@@ -86,7 +86,7 @@ export class RequestBookingUseCase {
   ): Promise<Map<string, Service>> {
     const services = await this.serviceRepo.findByIds(serviceIds, tenantId);
     const serviceMap = new Map(services.map((s) => [s.id, s]));
-    for (const serviceId of [...new Set(serviceIds)]) {
+    for (const serviceId of new Set(serviceIds)) {
       const service = serviceMap.get(serviceId);
       if (!service) throw new BookingServiceNotInTenantError(serviceId);
       if (!service.isActive) throw new BookingServiceNotActiveError(serviceId);

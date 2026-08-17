@@ -1,7 +1,11 @@
 import { z } from 'zod';
-import { ApproveBookingRequest, GenericErrorCode, PhoneErrorCode } from '@ikaro/types';
+import {
+  ALLOWED_IMAGE_CONTENT_TYPES,
+  ApproveBookingRequest,
+  GenericErrorCode,
+  PhoneErrorCode,
+} from '@ikaro/types';
 import { AddressShapeSchema, DATE_ONLY_PATTERN, isValidPhoneNumber } from '@ikaro/validation';
-import { ALLOWED_IMAGE_CONTENT_TYPES } from '@ikaro/types';
 
 // Split out of bookings.controller.ts (TD37-S05, file-length) — request/query Zod schemas and
 // their inferred body types, re-exported from bookings.controller.ts so existing imports of

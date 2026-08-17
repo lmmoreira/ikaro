@@ -10,7 +10,6 @@ import { PubSubTopicProvisioner } from './pubsub-topic-provisioner';
 export async function publishToDlq(
   pubsub: PubSub,
   provisioner: PubSubTopicProvisioner,
-  ensuredTopics: Set<string>,
   logger: AppLogger,
   message: Message,
   event: Envelope,
@@ -18,7 +17,7 @@ export async function publishToDlq(
   err: unknown,
 ): Promise<void> {
   const dlqTopic = `ikaro-${DEAD_LETTER_CHANNEL_NAME}`;
-  await provisioner.ensureTopicOnce(dlqTopic, ensuredTopics);
+  await provisioner.ensureTopicOnce(dlqTopic);
   // event is spread into a new object below, never mutated — no defensive clone needed.
   const enrichedData = {
     ...event,

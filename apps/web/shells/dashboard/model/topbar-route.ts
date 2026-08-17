@@ -42,17 +42,21 @@ interface TitleAndBackLink {
   readonly backLabel: string;
 }
 
+function resolveBookingSheetTitle(
+  action: NonNullable<ReturnType<typeof matchBookingDetailRoute>>['action'],
+  bookingT: TopbarRouteContext['bookingT'],
+): string {
+  if (action === 'complete') return bookingT('completeSheetTitle');
+  if (action === 'reschedule') return bookingT('rescheduleSheetTitle');
+  return bookingT('title');
+}
+
 function resolveBookingTitleAndBackLink(
   ctx: TopbarRouteContext,
   bookingRouteMatch: NonNullable<ReturnType<typeof matchBookingDetailRoute>>,
 ): TitleAndBackLink {
   const { commonBackLabel, bookingT, returnTo } = ctx;
-  const pageTitle =
-    bookingRouteMatch.action === 'complete'
-      ? bookingT('completeSheetTitle')
-      : bookingRouteMatch.action === 'reschedule'
-        ? bookingT('rescheduleSheetTitle')
-        : bookingT('title');
+  const pageTitle = resolveBookingSheetTitle(bookingRouteMatch.action, bookingT);
   const backHref =
     returnTo ??
     (bookingRouteMatch.action === null

@@ -8,15 +8,20 @@ import { AppLogger } from '../../observability/app-logger';
 // this adapter has repeatedly needed to preserve (see CLAUDE.md's Cloud Run CPU throttling /
 // M17-S34 entries).
 export class PubSubTopicProvisioner {
+  // Owned here (not threaded in by the caller) — every caller shares the same provisioner
+  // instance per adapter, so this is the one place the "have we already ensured this topic
+  // exists this process lifetime" cache needs to live (SonarCloud S107, PR #386 review finding).
+  private readonly ensuredTopics = new Set<string>();
+
   constructor(
     private readonly pubsub: PubSub,
     private readonly config: ConfigService,
     private readonly logger: AppLogger,
   ) {}
 
-  async ensureTopicOnce(topicName: string, ensuredTopics: Set<string>): Promise<void> {
+  async ensureTopicOnce(topicName: string): Promise<void> {
     if (!this.config.get<boolean>('PUBSUB_AUTO_CREATE', true)) return;
-    if (ensuredTopics.has(topicName)) return;
+    if (this.ensuredTopics.has(topicName)) return;
     const [exists] = await this.pubsub.topic(topicName).exists();
     if (!exists) {
       try {
@@ -27,7 +32,7 @@ export class PubSubTopicProvisioner {
         if ((err as { code?: number }).code !== 6) throw err;
       }
     }
-    ensuredTopics.add(topicName);
+    this.ensuredTopics.add(topicName);
   }
 
   async ensureSubscription(topicName: string, subscriptionName: string): Promise<void> {

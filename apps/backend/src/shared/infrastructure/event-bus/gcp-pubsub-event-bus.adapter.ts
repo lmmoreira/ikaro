@@ -20,7 +20,6 @@ export class GcpPubSubEventBusAdapter
   private readonly pending = new Map<string, PendingSubscription>();
   private readonly pendingTriggers = new Map<string, PendingTrigger>();
   private readonly active: Subscription[] = [];
-  private readonly ensuredTopics = new Set<string>();
   private readonly topicProvisioner: PubSubTopicProvisioner;
 
   constructor(
@@ -36,7 +35,7 @@ export class GcpPubSubEventBusAdapter
 
   async publish(event: Envelope): Promise<void> {
     const topicName = `ikaro-${event.eventName}`;
-    await this.topicProvisioner.ensureTopicOnce(topicName, this.ensuredTopics);
+    await this.topicProvisioner.ensureTopicOnce(topicName);
     await this.pubsub.topic(topicName).publishMessage({
       data: Buffer.from(JSON.stringify(event)),
       // event.traceContext (TD28) was captured once by OutboxPublisher.publish() at the moment
@@ -88,7 +87,7 @@ export class GcpPubSubEventBusAdapter
 
   async publishTrigger(name: string): Promise<void> {
     const topicName = `ikaro-${name}`;
-    await this.topicProvisioner.ensureTopicOnce(topicName, this.ensuredTopics);
+    await this.topicProvisioner.ensureTopicOnce(topicName);
     // Empty payload — mirrors what Cloud Scheduler's Pub/Sub target publishes in prod
     // (data = base64("{}")); the trigger carries no data, only "run now".
     await this.pubsub.topic(topicName).publishMessage({ data: Buffer.from('{}') });
@@ -132,7 +131,7 @@ export class GcpPubSubEventBusAdapter
     subscriptionName: string,
     onMessage: (message: Message) => void,
   ): Promise<void> {
-    await this.topicProvisioner.ensureTopicOnce(topicName, this.ensuredTopics);
+    await this.topicProvisioner.ensureTopicOnce(topicName);
     await this.topicProvisioner.ensureSubscription(topicName, subscriptionName);
 
     const subscription = this.pubsub.subscription(subscriptionName);
@@ -197,7 +196,6 @@ export class GcpPubSubEventBusAdapter
       await publishToDlq(
         this.pubsub,
         this.topicProvisioner,
-        this.ensuredTopics,
         this.logger,
         message,
         event,
