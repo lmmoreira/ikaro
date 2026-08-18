@@ -62,6 +62,17 @@ describe('OpenRouterLlmAdapter', () => {
     expect(body.reasoning).toEqual({ effort: 'none' });
   });
 
+  it('sorts by latency with a generous max_price backstop, so a chat visitor is not routed to a slow provider', async () => {
+    fetchSpy.mockResolvedValue(mockSuccessResponse());
+    const adapter = new OpenRouterLlmAdapter(makeConfigService());
+
+    await adapter.complete(makeRequest());
+
+    const [, calledOptions] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(calledOptions.body as string);
+    expect(body.provider).toEqual({ sort: 'latency', max_price: { prompt: 1, completion: 2 } });
+  });
+
   it('calls the OpenRouter chat completions endpoint with the model, max_tokens, and bearer auth', async () => {
     fetchSpy.mockResolvedValue(mockSuccessResponse());
     const adapter = new OpenRouterLlmAdapter(makeConfigService());

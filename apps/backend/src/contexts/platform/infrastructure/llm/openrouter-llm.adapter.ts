@@ -22,6 +22,19 @@ const DEFAULT_OPENROUTER_MODEL = 'deepseek/deepseek-v4-flash-0731';
 // bounds the BFF's own per-call timeout to CHATBOT_MESSAGE_TIMEOUT_MS
 // (apps/bff/src/features/platform/platform.public.controller.ts) — keep the two in sync.
 const OPENROUTER_TIMEOUT_MS = 8000;
+// Real incident, 2026-08-18: OpenRouter's default price-based load balancing routed a request to
+// a provider with 4.3s latency-to-first-token and 3.8 tok/s throughput, which the OPENROUTER_TIMEOUT_MS
+// budget above correctly cut off — but a faster provider for the same model measured the same day
+// (553ms latency, 12.8 tok/s) cost only ~11% more per token, and actually completed. Sorting by
+// latency — what OpenRouter's own docs recommend for a chat UI, vs. throughput for long-output
+// workloads — trades a marginal, evidence-backed cost delta for materially fewer of these timeouts.
+// max_price is a generous backstop (OpenRouter's own USD-per-million-tokens units), not a binding
+// budget — it's ~10x the actual observed cost for this model, there only to guard against a
+// pathological outlier provider, never expected to exclude a normal one.
+const OPENROUTER_PROVIDER_PREFERENCES = {
+  sort: 'latency',
+  max_price: { prompt: 1, completion: 2 },
+} as const;
 
 interface OpenRouterMessage {
   role: 'system' | 'user' | 'assistant';
@@ -89,6 +102,7 @@ export class OpenRouterLlmAdapter implements ILlmProvider {
           reasoning: { effort: 'none' },
           max_tokens: request.maxOutputTokens,
           messages,
+          provider: OPENROUTER_PROVIDER_PREFERENCES,
         }),
         signal: AbortSignal.timeout(OPENROUTER_TIMEOUT_MS),
       },
