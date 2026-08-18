@@ -65,11 +65,18 @@ export async function fetchAndParseJson<T>(
     throw new Error(`${errorLabel} request failed: ${response.status} ${await response.text()}`);
   }
 
+  // Read as text first (rather than response.json()) so the raw body is available to include in
+  // the thrown error when it isn't valid JSON — response.json() consumes the body stream and
+  // gives no way to inspect what was actually returned once it throws. Truncated to keep one bad
+  // response from flooding the error log.
+  const rawText = await response.text();
   let responseBody: unknown;
   try {
-    responseBody = await response.json();
+    responseBody = JSON.parse(rawText);
   } catch {
-    throw new Error(`${errorLabel} returned a malformed response: invalid JSON`);
+    throw new Error(
+      `${errorLabel} returned a malformed response: invalid JSON: ${rawText.slice(0, 500)}`,
+    );
   }
 
   const parsed = schema.safeParse(responseBody);

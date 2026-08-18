@@ -28,13 +28,15 @@ function mockSuccessResponse(overrides: Record<string, unknown> = {}): Response 
   return {
     ok: true,
     status: 200,
-    json: () =>
-      Promise.resolve({
-        model: 'deepseek/deepseek-v4-flash-0731',
-        choices: [{ message: { content: 'We are open 8am to 6pm.' } }],
-        usage: { prompt_tokens: 120, completion_tokens: 15, cost: 0.0000135 },
-        ...overrides,
-      }),
+    text: () =>
+      Promise.resolve(
+        JSON.stringify({
+          model: 'deepseek/deepseek-v4-flash-0731',
+          choices: [{ message: { content: 'We are open 8am to 6pm.' } }],
+          usage: { prompt_tokens: 120, completion_tokens: 15, cost: 0.0000135 },
+          ...overrides,
+        }),
+      ),
   } as unknown as Response;
 }
 
@@ -149,12 +151,14 @@ describe('OpenRouterLlmAdapter', () => {
     fetchSpy.mockResolvedValue({
       ok: true,
       status: 200,
-      json: () =>
-        Promise.resolve({
-          model: 'deepseek/deepseek-v4-flash-0731',
-          choices: [{ message: { content: 'We are open 8am to 6pm.' } }],
-          usage: { prompt_tokens: 120, completion_tokens: 15 },
-        }),
+      text: () =>
+        Promise.resolve(
+          JSON.stringify({
+            model: 'deepseek/deepseek-v4-flash-0731',
+            choices: [{ message: { content: 'We are open 8am to 6pm.' } }],
+            usage: { prompt_tokens: 120, completion_tokens: 15 },
+          }),
+        ),
     } as unknown as Response);
     const adapter = new OpenRouterLlmAdapter(makeConfigService());
 
@@ -167,12 +171,12 @@ describe('OpenRouterLlmAdapter', () => {
     fetchSpy.mockResolvedValue({
       ok: true,
       status: 200,
-      json: () => Promise.reject(new SyntaxError('Unexpected token < in JSON')),
+      text: () => Promise.resolve('<html>502 Bad Gateway</html>'),
     } as unknown as Response);
     const adapter = new OpenRouterLlmAdapter(makeConfigService());
 
     await expect(adapter.complete(makeRequest())).rejects.toThrow(
-      'OpenRouter returned a malformed response: invalid JSON',
+      'OpenRouter returned a malformed response: invalid JSON: <html>502 Bad Gateway</html>',
     );
   });
 
@@ -206,11 +210,13 @@ describe('OpenRouterLlmAdapter', () => {
     fetchSpy.mockResolvedValue({
       ok: true,
       status: 200,
-      json: () =>
-        Promise.resolve({
-          model: 'deepseek/deepseek-v4-flash-0731',
-          choices: [{ message: { content: 'We are open 8am to 6pm.' } }],
-        }),
+      text: () =>
+        Promise.resolve(
+          JSON.stringify({
+            model: 'deepseek/deepseek-v4-flash-0731',
+            choices: [{ message: { content: 'We are open 8am to 6pm.' } }],
+          }),
+        ),
     } as unknown as Response);
     const adapter = new OpenRouterLlmAdapter(makeConfigService());
 
@@ -251,12 +257,14 @@ describe('OpenRouterLlmAdapter', () => {
     fetchSpy.mockResolvedValue({
       ok: true,
       status: 200,
-      json: () =>
-        Promise.resolve({
-          model: 'deepseek/deepseek-v4-flash-0731',
-          choices: [{ message: { content: null } }],
-          usage: { prompt_tokens: 10, completion_tokens: 5 },
-        }),
+      text: () =>
+        Promise.resolve(
+          JSON.stringify({
+            model: 'deepseek/deepseek-v4-flash-0731',
+            choices: [{ message: { content: null } }],
+            usage: { prompt_tokens: 10, completion_tokens: 5 },
+          }),
+        ),
     } as unknown as Response);
     const adapter = new OpenRouterLlmAdapter(makeConfigService());
 

@@ -15,10 +15,12 @@ function mockSuccessResponse(overrides: Record<string, unknown> = {}): Response 
   return {
     ok: true,
     status: 200,
-    json: () =>
-      Promise.resolve({
-        data: { total_credits: 100.5, total_usage: 25.75, ...overrides },
-      }),
+    text: () =>
+      Promise.resolve(
+        JSON.stringify({
+          data: { total_credits: 100.5, total_usage: 25.75, ...overrides },
+        }),
+      ),
   } as unknown as Response;
 }
 
@@ -78,12 +80,12 @@ describe('OpenRouterCreditsClient', () => {
     fetchSpy.mockResolvedValue({
       ok: true,
       status: 200,
-      json: () => Promise.reject(new Error('invalid json')),
+      text: () => Promise.resolve('<html>502 Bad Gateway</html>'),
     } as unknown as Response);
     const client = new OpenRouterCreditsClient(makeConfigService());
 
     await expect(client.getRemainingBalanceUsd()).rejects.toThrow(
-      'OpenRouter credits returned a malformed response: invalid JSON',
+      'OpenRouter credits returned a malformed response: invalid JSON: <html>502 Bad Gateway</html>',
     );
   });
 
@@ -91,7 +93,7 @@ describe('OpenRouterCreditsClient', () => {
     fetchSpy.mockResolvedValue({
       ok: true,
       status: 200,
-      json: () => Promise.resolve({ data: { total_credits: 'not-a-number' } }),
+      text: () => Promise.resolve(JSON.stringify({ data: { total_credits: 'not-a-number' } })),
     } as unknown as Response);
     const client = new OpenRouterCreditsClient(makeConfigService());
 

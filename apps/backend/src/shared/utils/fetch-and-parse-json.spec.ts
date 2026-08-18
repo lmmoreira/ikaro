@@ -7,7 +7,7 @@ function mockSuccessResponse(body: unknown): Response {
   return {
     ok: true,
     status: 200,
-    json: () => Promise.resolve(body),
+    text: () => Promise.resolve(JSON.stringify(body)),
   } as unknown as Response;
 }
 
@@ -52,16 +52,31 @@ describe('fetchAndParseJson', () => {
     ).rejects.toThrow('Example request failed: 503 upstream down');
   });
 
-  it('throws "<label> returned a malformed response: invalid JSON" when the body is not valid JSON', async () => {
+  it('throws "<label> returned a malformed response: invalid JSON: <raw text>" when the body is not valid JSON', async () => {
     fetchSpy.mockResolvedValue({
       ok: true,
       status: 200,
-      json: () => Promise.reject(new Error('not json')),
+      text: () => Promise.resolve('<html>502 Bad Gateway</html>'),
     } as unknown as Response);
 
     await expect(
       fetchAndParseJson('https://example.com/api', {}, schema, 'Example'),
-    ).rejects.toThrow('Example returned a malformed response: invalid JSON');
+    ).rejects.toThrow(
+      'Example returned a malformed response: invalid JSON: <html>502 Bad Gateway</html>',
+    );
+  });
+
+  it('truncates a long malformed body to 500 chars in the error message', async () => {
+    const longBody = 'x'.repeat(600);
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve(longBody),
+    } as unknown as Response);
+
+    await expect(
+      fetchAndParseJson('https://example.com/api', {}, schema, 'Example'),
+    ).rejects.toThrow(`Example returned a malformed response: invalid JSON: ${'x'.repeat(500)}`);
   });
 
   it('throws "<label> returned a malformed response: ..." when the body fails schema validation', async () => {
