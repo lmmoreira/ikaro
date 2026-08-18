@@ -6,6 +6,7 @@ import {
   featureBookingPhoto,
   generateHotsiteImageReadSignedUrl,
   generateHotsiteImageSignedUrl,
+  getChatbotCapStatus,
   getHotsiteConfig,
   publishHotsite,
   resolveTenantFormatting,
@@ -258,6 +259,14 @@ describe('fetchTenantSettingsFresh', () => {
       'Failed to fetch tenant settings',
     );
     vi.unstubAllGlobals();
+  });
+});
+
+describe('getChatbotCapStatus', () => {
+  it('calls GET /tenants/chatbot/cap-status', async () => {
+    mock.onGet('/tenants/chatbot/cap-status').reply(200, { dailyCapReachedToday: true });
+    const res = await getChatbotCapStatus();
+    expect(res).toEqual({ dailyCapReachedToday: true });
   });
 });
 
