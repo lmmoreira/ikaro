@@ -479,7 +479,7 @@ On completion, flip `plan/journey/guest/ask-chatbot.md`'s mermaid `❓ GAP` tags
 
 ---
 
-### M19-S12 — Chatbot module config panel
+### M19-S12 — Chatbot module config panel ✅ Done
 
 **Agent:** `frontend-ts`
 **Complexity:** M
