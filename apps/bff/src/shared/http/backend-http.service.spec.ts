@@ -146,6 +146,39 @@ describe('BackendHttpService', () => {
     });
   });
 
+  describe('postForPublic()', () => {
+    it('defaults to the same 10s timeout as every other method when none is given', async () => {
+      const { service, http } = makeService({ tenantId: 'tid-actor' });
+      http.post.mockReturnValue(axiosOf({ ok: true }));
+
+      await service.postForPublic('/bookings', { serviceId: 's1' }, 'tid-guest');
+
+      expect(http.post).toHaveBeenCalledWith(
+        'http://backend:3001/bookings',
+        { serviceId: 's1' },
+        expect.objectContaining({ timeout: 10_000 }),
+      );
+    });
+
+    it('uses a caller-provided timeout override when given', async () => {
+      const { service, http } = makeService({ tenantId: 'tid-actor' });
+      http.post.mockReturnValue(axiosOf({ ok: true }));
+
+      await service.postForPublic(
+        '/platform/chatbot/messages',
+        { message: 'oi' },
+        'tid-guest',
+        12_000,
+      );
+
+      expect(http.post).toHaveBeenCalledWith(
+        'http://backend:3001/platform/chatbot/messages',
+        { message: 'oi' },
+        expect.objectContaining({ timeout: 12_000 }),
+      );
+    });
+  });
+
   describe('patchForPublic()', () => {
     it('calls HttpService.patch with X-Tenant-ID and X-Internal-Key (no actor headers)', async () => {
       const { service, http } = makeService({ tenantId: 'tid-actor' });

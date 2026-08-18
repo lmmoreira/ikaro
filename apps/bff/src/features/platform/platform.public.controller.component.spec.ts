@@ -11,6 +11,7 @@ import {
   HotsiteServiceResponse,
   TenantSettings,
 } from '@ikaro/types';
+import { CHATBOT_MESSAGE_TIMEOUT_MS } from './platform.public.controller';
 import { BackendTenantByIdResponse } from './platform.types';
 
 const tenantInfo = { id: 'tenant-uuid', slug: 'lavacar-bh', name: 'Lavacar BH' };
@@ -318,6 +319,7 @@ describe('PlatformPublicController (component)', () => {
         '/platform/chatbot/messages',
         expect.objectContaining({ message: 'Vocês abrem aos sábados?' }),
         tenantInfo.id,
+        CHATBOT_MESSAGE_TIMEOUT_MS,
       );
     });
 

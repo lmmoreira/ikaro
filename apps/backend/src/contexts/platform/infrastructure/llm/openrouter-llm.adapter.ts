@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Decimal } from 'decimal.js';
 import { z } from 'zod';
 import { fetchAndParseJson } from '../../../../shared/utils/fetch-and-parse-json';
+import { AppLogger } from '../../../../shared/observability/app-logger';
 import {
   ChatCompletionRequest,
   ChatCompletionResult,
@@ -13,7 +14,14 @@ const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 // Fallback when ChatCompletionRequest.model is unset — the tenant override
 // (tenant.settings.chatbot?.llmModel) takes precedence when the caller provides one.
 const DEFAULT_OPENROUTER_MODEL = 'deepseek/deepseek-v4-flash-0731';
-const OPENROUTER_TIMEOUT_MS = 30000;
+// Deliberately short, not OpenRouter's own generic ~120s recommendation for long-running
+// inference — this call sits behind a visitor actively waiting in a live chat widget, and this
+// product already asks for short, concise answers (maxOutputTokens, reasoning:'none', the system
+// prompt's own "seja conciso"). A real answer that size shouldn't need anywhere near this long; if
+// it does, the visitor is better served by a fast, controlled "unavailable" than a long wait. Also
+// bounds the BFF's own per-call timeout to CHATBOT_MESSAGE_TIMEOUT_MS
+// (apps/bff/src/features/platform/platform.public.controller.ts) — keep the two in sync.
+const OPENROUTER_TIMEOUT_MS = 8000;
 
 interface OpenRouterMessage {
   role: 'system' | 'user' | 'assistant';
@@ -46,6 +54,7 @@ const openRouterResponseSchema = z.object({
 @Injectable()
 export class OpenRouterLlmAdapter implements ILlmProvider {
   private readonly apiKey: string;
+  private readonly logger = new AppLogger(OpenRouterLlmAdapter.name);
 
   constructor(config: ConfigService) {
     this.apiKey = config.get<string>('OPENROUTER_API_KEY', '');
@@ -57,6 +66,15 @@ export class OpenRouterLlmAdapter implements ILlmProvider {
       ...request.history.map((turn) => ({ role: turn.role, content: turn.content })),
       { role: 'user', content: request.userMessage },
     ];
+    const model = request.model ?? DEFAULT_OPENROUTER_MODEL;
+
+    // Debug-only visibility into the exact context sent to the provider (never the API key) —
+    // silent by default, since AppLogger's minimum level is INFO unless LOG_LEVEL=DEBUG.
+    this.logger.debug('OpenRouter request payload', {
+      model,
+      maxOutputTokens: request.maxOutputTokens,
+      messages,
+    });
 
     const body = await fetchAndParseJson(
       OPENROUTER_API_URL,
@@ -67,7 +85,7 @@ export class OpenRouterLlmAdapter implements ILlmProvider {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: request.model ?? DEFAULT_OPENROUTER_MODEL,
+          model,
           reasoning: { effort: 'none' },
           max_tokens: request.maxOutputTokens,
           messages,

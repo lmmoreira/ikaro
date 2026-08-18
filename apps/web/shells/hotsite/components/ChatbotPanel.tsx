@@ -4,6 +4,7 @@ import type { HotsiteBusinessInfoResponse } from '@ikaro/types';
 import { digitsOnly } from '@/shared/utils/digits-only';
 import { BotIcon, CloseIcon, SendIcon } from './chatbot-icons';
 import type { ChatTurn } from './chatbot-widget-storage';
+import { linkifyChatText } from './linkify-chat-text';
 
 // Split out of ChatbotWidget.tsx to keep it under the file-length/function-length caps — the
 // open-panel presentation (header, message list, input row, interrupted-state fallback CTA). Pure
@@ -152,7 +153,7 @@ export function ChatbotPanel({
                   }
             }
           >
-            {turn.content}
+            {linkifyChatText(turn.content)}
           </div>
         ))}
 

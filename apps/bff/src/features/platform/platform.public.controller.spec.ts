@@ -1,6 +1,6 @@
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import { ClientIpRequest } from '../../shared/http/client-ip';
-import { PlatformPublicController } from './platform.public.controller';
+import { CHATBOT_MESSAGE_TIMEOUT_MS, PlatformPublicController } from './platform.public.controller';
 import { BackendTenantByIdResponse } from './platform.types';
 import {
   HotsiteBookingSettingsResponse,
@@ -302,6 +302,7 @@ describe('PlatformPublicController', () => {
           systemPrompt: expect.stringContaining('## Informações do negócio'),
         }),
         'tenant-uuid',
+        CHATBOT_MESSAGE_TIMEOUT_MS,
       );
       expect(result).toEqual({ sessionId: 'session-uuid', reply: 'Olá!' });
     });
@@ -320,6 +321,7 @@ describe('PlatformPublicController', () => {
         '/platform/chatbot/messages',
         expect.objectContaining({ sessionId: '018f8b00-0000-7000-8000-000000000000' }),
         'tenant-uuid',
+        CHATBOT_MESSAGE_TIMEOUT_MS,
       );
     });
 

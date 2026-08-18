@@ -1,5 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import { Decimal } from 'decimal.js';
+import { AppLogger } from '../../../../shared/observability/app-logger';
 import { ChatCompletionRequest } from '../../application/ports/llm-provider.port';
 import { OpenRouterLlmAdapter } from './openrouter-llm.adapter';
 
@@ -216,6 +217,34 @@ describe('OpenRouterLlmAdapter', () => {
     await expect(adapter.complete(makeRequest())).rejects.toThrow(
       'OpenRouter returned a malformed response',
     );
+  });
+
+  it('debug-logs the outbound request payload, never the API key', async () => {
+    const debugSpy = jest.spyOn(AppLogger.prototype, 'debug').mockImplementation();
+    fetchSpy.mockResolvedValue(mockSuccessResponse());
+    const adapter = new OpenRouterLlmAdapter(makeConfigService());
+
+    await adapter.complete(
+      makeRequest({
+        systemPrompt: 'System instructions.',
+        history: [{ role: 'user', content: 'How much is a wash?' }],
+        userMessage: 'And a polish?',
+        maxOutputTokens: 250,
+      }),
+    );
+
+    expect(debugSpy).toHaveBeenCalledWith('OpenRouter request payload', {
+      model: 'deepseek/deepseek-v4-flash-0731',
+      maxOutputTokens: 250,
+      messages: [
+        { role: 'system', content: 'System instructions.' },
+        { role: 'user', content: 'How much is a wash?' },
+        { role: 'user', content: 'And a polish?' },
+      ],
+    });
+    const loggedArgs = debugSpy.mock.calls[0];
+    expect(JSON.stringify(loggedArgs)).not.toContain('test-api-key');
+    debugSpy.mockRestore();
   });
 
   it('throws a controlled error when message content is not a string', async () => {

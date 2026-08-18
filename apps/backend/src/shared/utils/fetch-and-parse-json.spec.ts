@@ -71,4 +71,58 @@ describe('fetchAndParseJson', () => {
       fetchAndParseJson('https://example.com/api', {}, schema, 'Example'),
     ).rejects.toThrow('Example returned a malformed response');
   });
+
+  describe('network-level failure retry', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('retries a fetch() throw with backoff and returns the result once a later attempt succeeds', async () => {
+      fetchSpy
+        .mockRejectedValueOnce(new TypeError('fetch failed'))
+        .mockResolvedValueOnce(mockSuccessResponse({ value: 42 }));
+
+      const promise = fetchAndParseJson('https://example.com/api', {}, schema, 'Example');
+      await jest.advanceTimersByTimeAsync(300);
+
+      await expect(promise).resolves.toEqual({ value: 42 });
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not retry a non-ok HTTP response — only a thrown fetch() failure', async () => {
+      fetchSpy.mockResolvedValue(mockFailureResponse(503, 'upstream down'));
+
+      await expect(
+        fetchAndParseJson('https://example.com/api', {}, schema, 'Example'),
+      ).rejects.toThrow('Example request failed: 503 upstream down');
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('gives up after exhausting retries and throws a controlled error naming the cause', async () => {
+      fetchSpy.mockRejectedValue(new TypeError('fetch failed'));
+
+      const promise = fetchAndParseJson('https://example.com/api', {}, schema, 'Example');
+      const assertion = expect(promise).rejects.toThrow(
+        'Example request failed after retries: fetch failed',
+      );
+      await jest.advanceTimersByTimeAsync(300);
+      await jest.advanceTimersByTimeAsync(800);
+      await assertion;
+
+      expect(fetchSpy).toHaveBeenCalledTimes(3);
+    });
+
+    it('does not retry an aborted/timed-out request — only a genuine TypeError network failure', async () => {
+      fetchSpy.mockRejectedValue(new DOMException('The operation was aborted', 'TimeoutError'));
+
+      await expect(
+        fetchAndParseJson('https://example.com/api', {}, schema, 'Example'),
+      ).rejects.toThrow('Example request failed: TimeoutError: The operation was aborted');
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+  });
 });

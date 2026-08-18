@@ -72,11 +72,19 @@ export class BackendHttpService {
     );
   }
 
-  async postForPublic<T>(path: string, body: unknown, tenantId: string): Promise<T> {
+  // timeoutMs defaults to the same 10s every other method uses — the chatbot message endpoint
+  // is the only caller that overrides it, since its own backend-side worst case (a real, slow
+  // LLM completion) can legitimately run a couple seconds longer than typical backend calls.
+  async postForPublic<T>(
+    path: string,
+    body: unknown,
+    tenantId: string,
+    timeoutMs = 10_000,
+  ): Promise<T> {
     return this.call(
       this.http.post<T>(`${this.baseUrl}${path}`, body, {
         headers: this.publicHeaders(tenantId),
-        timeout: 10_000,
+        timeout: timeoutMs,
       }),
     );
   }
