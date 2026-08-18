@@ -225,7 +225,7 @@ Resolves the tenant's LLM provider **and model** via `LlmProviderRegistry` (S02/
 - [ ] Coverage ≥80%; `tsc --noEmit`, lint, tests green
 
 **Dependencies:** S01, S02, S03, S04.
-**New env var:** `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` (default `25`).
+**New env var:** `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` (default `1` — revised from the original `25`, see `docs/discovery/CHATBOT/CHATBOT.md` §9's dated correction).
 **New error codes:** 5 listed above, both locale files, all mapped to `429`.
 
 **Follow-up (M19-S05 story-discovery, 2026-08-12) — 4 gaps found and resolved before implementation:**
@@ -544,7 +544,7 @@ Not new infra capability — the Secret Manager and Cloud Scheduler modules alre
 
 **Note (scope moved during `/story-discovery`, 2026-08-10):** the 3 LLM provider secrets (`OPENROUTER_API_KEY`/`ANTHROPIC_API_KEY`/`OPENAI_API_KEY`) and the `CHATBOT_LLM_PROVIDER` env var were pulled forward into S02 instead of waiting for this story — S02 needed the Terraform pattern established immediately rather than deferred, and building it once for all 3 providers avoided repeating the same Terraform PR shape across S02/S03/S14. This story's remaining scope:
 
-- **2 new plain env vars** on the backend Cloud Run service: `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` (default `25`), `CHATBOT_MIN_PROVIDER_BALANCE_USD` (default `2`)
+- **2 new plain env vars** on the backend Cloud Run service: `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` (default `1` — revised from the original `25`, see `docs/discovery/CHATBOT/CHATBOT.md` §9's dated correction), `CHATBOT_MIN_PROVIDER_BALANCE_USD` (default `2`)
 - **2 new Pub/Sub topics + 2 new Cloud Scheduler jobs**: `ikaro-cron-chatbot-retention-purge` (daily, `0 3 * * *`) and `ikaro-cron-chatbot-balance-poll` (every 15 min, `*/15 * * * *`) — if not already added directly in S07/S08 (implementer's call on sequencing; not a hard dependency either way)
 
 Not a functional blocker for local development, which uses local `.env` values + the manual `POST /cron/...` trigger endpoints, same as every existing cron job. Required before real staging/prod traffic — mirrors `M11`→`M15`'s precedent (SendGrid's secret was provisioned in a later, separate infra pass, not blocking `M11`'s own app-code stories).
