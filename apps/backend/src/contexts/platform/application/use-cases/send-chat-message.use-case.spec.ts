@@ -196,6 +196,27 @@ describe('SendChatMessageUseCase', () => {
       await expect(useCase.execute(baseInput())).rejects.toThrow(ChatbotDailyCapReachedError);
     });
 
+    // Distinct from the tenant-wide daily cap's own 'tenant_daily_cap' tag (tracing +
+    // logged-warning test above) — both throw the same ChatbotDailyCapReachedError, so this is
+    // the only way to tell which of the two actually tripped from a trace/log alone.
+    it("tags the rejection as 'ip_daily_cap', not the tenant-wide cap's tag", async () => {
+      const useCase = buildUseCase();
+      for (let i = 0; i < 5; i++) {
+        await sessionRepo.save(
+          new ChatbotSessionBuilder()
+            .withTenantId(TENANT_ID)
+            .withClientIp(CLIENT_IP)
+            .withConversationDate(todayInSaoPaulo())
+            .build(),
+        );
+      }
+
+      await expect(useCase.execute(baseInput())).rejects.toThrow();
+
+      const rejectionCall = tracingPort.calls.find((c) => c['chatbot.cap_rejected']);
+      expect(rejectionCall?.['chatbot.cap_rejected']).toBe('ip_daily_cap');
+    });
+
     it('does not block a different IP once one IP has hit its own per-IP cap', async () => {
       const useCase = buildUseCase();
       for (let i = 0; i < 5; i++) {
@@ -815,7 +836,7 @@ describe('SendChatMessageUseCase', () => {
       await expect(useCase.execute(baseInput())).rejects.toThrow();
 
       const rejectionCall = tracingPort.calls.find((c) => c['chatbot.cap_rejected']);
-      expect(rejectionCall?.['chatbot.cap_rejected']).toBe('daily_cap');
+      expect(rejectionCall?.['chatbot.cap_rejected']).toBe('tenant_daily_cap');
     });
 
     it('logs a structured warning on cap rejection', async () => {
@@ -838,7 +859,7 @@ describe('SendChatMessageUseCase', () => {
       await expect(useCase.execute(baseInput())).rejects.toThrow();
 
       expect(logged).toBeDefined();
-      expect(logged?.['capLayer']).toBe('daily_cap');
+      expect(logged?.['capLayer']).toBe('tenant_daily_cap');
       writeSpy.mockRestore();
     });
   });
