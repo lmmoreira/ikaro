@@ -1,4 +1,4 @@
-// Shared prop contract for all 8 module config panels. `data`/`onChange` operate on the generic
+// Shared prop contract for all 9 module config panels. `data`/`onChange` operate on the generic
 // wire shape (HotsiteModuleResponse.data: Record<string, unknown> — packages/types/src/hotsite.ts)
 // because HotsiteEditor holds a single heterogeneous registry of panels keyed by HotsiteModuleType;
 // each panel casts `data` to its own specific *ModuleData type internally (module-schemas.ts is

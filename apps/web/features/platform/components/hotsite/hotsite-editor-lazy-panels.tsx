@@ -5,8 +5,6 @@ import type { ModuleConfigPanelProps } from './modules/module-config-panel.types
 // Extracted from HotsiteEditor (TD37-S5A) — each panel is lazy-loaded so a manager who never
 // opens "Configurar" on a given module never downloads that panel's JS — the same code-splitting
 // benefit a real route would give, without needing to lift `draft` into a layout.tsx/Context.
-// Partial, not exhaustive: CHATBOT (M19-S11) has no config panel yet — its drill-down entry ships
-// in M19-S12, same reasoning as default-layout.ts's DEFAULT_MODULE_DATA.
 export const MODULE_CONFIG_PANELS: Partial<
   Record<HotsiteModuleType, React.ComponentType<ModuleConfigPanelProps>>
 > = {
@@ -35,6 +33,9 @@ export const MODULE_CONFIG_PANELS: Partial<
     ssr: false,
   }),
   FOOTER: dynamic(() => import('./modules/FooterConfigPanel').then((m) => m.FooterConfigPanel), {
+    ssr: false,
+  }),
+  CHATBOT: dynamic(() => import('./modules/ChatbotConfigPanel').then((m) => m.ChatbotConfigPanel), {
     ssr: false,
   }),
 };

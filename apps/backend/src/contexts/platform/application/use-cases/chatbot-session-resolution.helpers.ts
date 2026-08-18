@@ -131,7 +131,7 @@ async function checkNewSessionVolumeCaps(
   const maxPerDay = chatbotSettings.maxConversationsPerDay ?? DEFAULT_MAX_CONVERSATIONS_PER_DAY;
   const dailyCount = await deps.sessionRepo.countByTenantAndDate(tenantId, conversationDate);
   if (dailyCount >= maxPerDay) {
-    rejectAndThrow(deps, 'daily_cap', undefined, () => new ChatbotDailyCapReachedError());
+    rejectAndThrow(deps, 'tenant_daily_cap', undefined, () => new ChatbotDailyCapReachedError());
   }
 
   const maxPerIpPerDay =
@@ -142,7 +142,7 @@ async function checkNewSessionVolumeCaps(
     conversationDate,
   );
   if (ipDailyCount >= maxPerIpPerDay) {
-    rejectAndThrow(deps, 'daily_cap', undefined, () => new ChatbotDailyCapReachedError());
+    rejectAndThrow(deps, 'ip_daily_cap', undefined, () => new ChatbotDailyCapReachedError());
   }
 
   const maxConcurrent =

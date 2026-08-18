@@ -62,8 +62,8 @@
 
   <!--
     COMPONENT: ChatbotConfigPanel
-    FILE:      apps/web/features/platform/components/hotsite/modules/ChatbotConfigPanel.tsx  (GAP — not yet built; the other 8 module types got this treatment in M13-S36, CHATBOT needs the same, see manager/hotsite.md "Open questions")
-    PROPS:     data: ChatbotModuleData (variant, accentColor, botName, welcomeMessage), onApply, onCancel
+    FILE:      apps/web/features/platform/components/hotsite/modules/ChatbotConfigPanel.tsx  (shipped M19-S12, 2026-08-18 — same drill-down treatment the other 8 module types got in M13-S36)
+    PROPS:     data: Record<string, unknown> (cast internally to ChatbotModuleData: variant, accentColor, botName, welcomeMessage), onChange — ModuleConfigPanelProps, same shared contract as every other module panel
     BFF CALL:  PATCH /v1/tenants/hotsite  (module data — existing pattern, see dev-notes.md)
     BFF CALL:  GET /v1/tenants/chatbot/cap-status  (drives the red banner below — see dev-notes.md)
   -->

@@ -175,6 +175,31 @@ describe('ChatbotWidget', () => {
       expect(screen.getByText('Bem-vindo à BeloAuto!')).toBeInTheDocument();
     });
 
+    // The welcome text is a pure display-time prepend (never pushed into `messages`), so it's
+    // never persisted to sessionStorage or sent to the backend — it only needs to keep rendering
+    // once a fresh conversation has real turns too, not disappear the moment one exists.
+    it('keeps the welcome message visible once the visitor sends their first message', async () => {
+      mock
+        .onPost('/public/platform/chatbot/messages')
+        .reply(200, { sessionId: 'session-1', reply: 'Sim! Abrimos aos sábados.' });
+      const user = userEvent.setup();
+      render(
+        <ChatbotWidget
+          data={makeData({ welcomeMessage: 'Bem-vindo à BeloAuto!' })}
+          slug={SLUG}
+          business={makeBusiness()}
+          tenantName={TENANT_NAME}
+        />,
+      );
+
+      await user.click(await screen.findByTestId('chatbot-bubble-button'));
+      await user.type(screen.getByTestId('chatbot-message-input'), 'Vocês abrem aos sábados?');
+      await user.click(screen.getByTestId('chatbot-send-button'));
+
+      expect(await screen.findByText('Sim! Abrimos aos sábados.')).toBeInTheDocument();
+      expect(screen.getByText('Bem-vindo à BeloAuto!')).toBeInTheDocument();
+    });
+
     it('sends a message, shows the optimistic user bubble, then the assistant reply, and closes with the close button', async () => {
       mock
         .onPost('/public/platform/chatbot/messages')

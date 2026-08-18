@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type {
   AboutModuleData,
   BookingCtaModuleData,
+  ChatbotModuleData,
   ContactModuleData,
   FooterModuleData,
   GalleryModuleData,
@@ -45,6 +46,9 @@ vi.mock('@/shells/hotsite/components/ContactModule', () => ({
 vi.mock('@/shells/hotsite/components/Footer', () => ({
   Footer: () => <div data-testid="footer-module" />,
 }));
+vi.mock('@/shells/hotsite/components/ChatbotWidget', () => ({
+  ChatbotWidget: () => <div data-testid="chatbot-module" />,
+}));
 
 const baseCtx = {
   tenantSlug: 'lavacar-bh',
@@ -76,6 +80,7 @@ describe('renderHotsitePreviewModule', () => {
     ['TESTIMONIALS', 'testimonials-module', {} as TestimonialsModuleData],
     ['ABOUT', 'about-module', {} as AboutModuleData],
     ['FOOTER', 'footer-module', {} as FooterModuleData],
+    ['CHATBOT', 'chatbot-module', {} as ChatbotModuleData],
   ] as const)('renders the %s module for a %s plan item', (type, testId, data) => {
     const result = renderHotsitePreviewModule(
       planItem({ type, data } as HotsiteModuleParsed),
@@ -87,9 +92,9 @@ describe('renderHotsitePreviewModule', () => {
     expect(screen.getByTestId(testId)).toBeInTheDocument();
   });
 
-  it('returns null for a module type with no preview renderer (e.g. CHATBOT)', () => {
+  it('returns null for an unknown module type', () => {
     const result = renderHotsitePreviewModule(
-      planItem({ type: 'CHATBOT', data: {} } as unknown as HotsiteModuleParsed),
+      planItem({ type: 'NOT_A_REAL_TYPE', data: {} } as unknown as HotsiteModuleParsed),
       0,
       baseCtx,
     );

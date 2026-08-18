@@ -3,7 +3,7 @@ import type { HotsiteModuleResponse } from '@ikaro/types';
 import { materializeLayout } from './default-layout';
 
 describe('materializeLayout', () => {
-  it('appends all 8 module types with sensible defaults for a brand-new tenant (layout: [])', () => {
+  it('appends all 9 module types with sensible defaults for a brand-new tenant (layout: [])', () => {
     const result = materializeLayout([]);
 
     expect(result.map((m) => m.type)).toEqual([
@@ -15,6 +15,7 @@ describe('materializeLayout', () => {
       'ABOUT',
       'CONTACT',
       'FOOTER',
+      'CHATBOT',
     ]);
     expect(result.every((m) => m.enabled === false)).toBe(true);
   });
@@ -42,6 +43,7 @@ describe('materializeLayout', () => {
       'ABOUT',
       'CONTACT',
       'FOOTER',
+      'CHATBOT',
     ]);
   });
 
@@ -80,5 +82,6 @@ describe('materializeLayout', () => {
     expect(byType.ABOUT).toMatchObject({ title: '', body: '', imagePosition: 'left' });
     expect(byType.CONTACT).toMatchObject({ showAddress: true, showMap: true });
     expect(byType.FOOTER).toEqual({});
+    expect(byType.CHATBOT).toEqual({});
   });
 });

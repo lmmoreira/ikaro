@@ -753,6 +753,24 @@
             "copyrightNoteLabel": "Copyright note (optional)",
             "copyrightNotePlaceholder": "All rights reserved",
             "showWhatsappLabel": "Show WhatsApp button"
+          },
+          "chatbot": {
+            "availabilityNoteTitle": "Availability depends on AI credits.",
+            "availabilityNoteBody": "The assistant relies on credits from an external AI provider, managed and monitored by Ikaro. If the provider runs out of credits or becomes temporarily unavailable, the chat is automatically disabled on your hotsite until service is restored — no action is needed on your part.",
+            "capReachedBannerTitle": "Today's daily conversation limit was reached.",
+            "capReachedBannerBody": "The assistant stopped accepting new conversations for this tenant today. It resumes automatically tomorrow — no action is needed on your part.",
+            "botNameLabel": "Assistant name (optional)",
+            "botNamePlaceholder": "e.g. BeloAuto",
+            "botNameHint": "Shown in the widget header, followed by \"— AI Assistant\". Empty = uses the business name.",
+            "welcomeMessageLabel": "Welcome message",
+            "welcomeMessagePlaceholder": "Hello! How can I help you?",
+            "welcomeMessageHint": "First message shown when the visitor opens the chat.",
+            "variantLabel": "Widget format",
+            "variantBubble": "Floating bubble",
+            "variantInline": "Embedded in page",
+            "accentColorLabel": "Accent color",
+            "accentColorPrimary": "Primary color",
+            "accentColorSecondary": "Secondary color"
           }
         }
       },

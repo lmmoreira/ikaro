@@ -25,7 +25,7 @@
 </head>
 <body>
   <h1>MANAGER — Hotsite</h1>
-  <p class="subtitle">UC-027 (branding, layout, SEO e publicação do hotsite) — ✅ Done, M13-S35/S36/S37</p>
+  <p class="subtitle">UC-027 (branding, layout, SEO e publicação do hotsite) — ✅ Done, M13-S35/S36/S37 + M19-S12 (Chatbot)</p>
 
   <div class="section">
     <p class="section-title">Screens</p>
@@ -42,8 +42,8 @@
       </a>
       <a href="01e-module-config-chatbot.html" class="screen-link">
         <span class="screen-num">01e</span>
-        Configurar módulo — Chatbot (9º tipo, não implementado)
-        <span class="gap-tag">GAP</span>
+        Configurar módulo — Chatbot (9º tipo)
+        <span class="exists-tag">EXISTS</span>
       </a>
       <a href="02-preview.html" class="screen-link">
         <span class="screen-num">02</span>
@@ -100,7 +100,7 @@
     <p class="section-title">Open questions</p>
     <ul class="checklist">
       <li>✅ Resolvido — per-module config: os 8 módulos originais têm seu próprio painel de configuração (`M13-S36`), incl. `FooterConfigPanel`. Só o Hero foi prototipado aqui como exemplo visual; os outros foram construídos direto dos tipos reais.</li>
-      <li>❌ Não resolvido — `CHATBOT` (9º módulo, adicionado 2026-08-08) ainda não tem `ChatbotConfigPanel.tsx` construído. Prototipado em `01e-module-config-chatbot.html`; precisa de story própria.</li>
+      <li>✅ Resolvido — `CHATBOT` (9º módulo, adicionado 2026-08-08) tem `ChatbotConfigPanel.tsx` construído (`M19-S12`, 2026-08-18). Prototipado em `01e-module-config-chatbot.html`.</li>
       <li>✅ Resolvido — Preview: renderização client-side do rascunho. `HotsiteEditor` passa `draft` diretamente para `HotsitePreview.tsx`, que renderiza a árvore de módulos no cliente. Não existe nem é necessário parâmetro/token de preview na BFF — ver `dev-notes.md`.</li>
       <li>✅ Resolvido — Despublicar é uma ação de zona de risco dentro do próprio editor, como prototipado.</li>
     </ul>

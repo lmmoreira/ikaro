@@ -225,7 +225,7 @@ Resolves the tenant's LLM provider **and model** via `LlmProviderRegistry` (S02/
 - [ ] Coverage ≥80%; `tsc --noEmit`, lint, tests green
 
 **Dependencies:** S01, S02, S03, S04.
-**New env var:** `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` (default `25`).
+**New env var:** `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` (default `1` — revised from the original `25`, see `docs/discovery/CHATBOT/CHATBOT.md` §9's dated correction).
 **New error codes:** 5 listed above, both locale files, all mapped to `429`.
 
 **Follow-up (M19-S05 story-discovery, 2026-08-12) — 4 gaps found and resolved before implementation:**
@@ -479,7 +479,7 @@ On completion, flip `plan/journey/guest/ask-chatbot.md`'s mermaid `❓ GAP` tags
 
 ---
 
-### M19-S12 — Chatbot module config panel
+### M19-S12 — Chatbot module config panel ✅ Done
 
 **Agent:** `frontend-ts`
 **Complexity:** M
@@ -489,15 +489,24 @@ On completion, flip `plan/journey/guest/ask-chatbot.md`'s mermaid `❓ GAP` tags
 **Description:**
 `ChatbotConfigPanel.tsx` (`apps/web/features/platform/components/hotsite/modules/`), same drill-down pattern as the other 8 module panels (M13-S36 precedent). Fields: `variant` (bubble/inline pill-toggle), `accentColor` (primary/secondary), `botName`, `welcomeMessage`. Standing (non-dismissible) info note about the AI-provider-credit dependency. Conditional red banner — queries S10's `GET /v1/tenants/chatbot/cap-status` on mount, shown only when `dailyCapReachedToday` is `true`.
 
+Also requires `apps/web/features/platform/hotsite/default-layout.ts`: add `'CHATBOT'` to `MODULE_ORDER` and a minimal `DEFAULT_MODULE_DATA.CHATBOT` entry (`{}` — every field is optional) — without this the Layout tab never materializes a CHATBOT row (`materializeLayout()` only walks `MODULE_ORDER`) and `manifest-schema.ts`'s Manifesto-tab validation keeps rejecting a pasted `CHATBOT` module, making the new panel unreachable. Cap-status fetch follows the existing hotsite hook convention: `getChatbotCapStatus()` in `apps/web/features/platform/api/tenant-settings.ts` (client-side `bffClient` call) + `useChatbotCapStatus()` in `useHotsite.ts` (`useQuery` wrapper) — called from inside the panel, not a bespoke fetch embedded in the component.
+
 **Acceptance Criteria:**
 - [ ] Panel matches the prototype's field set and standing disclosure note
 - [ ] Red banner appears only when the cap-status endpoint returns `{ dailyCapReachedToday: true }`; absent otherwise
 - [ ] Registered as the `CHATBOT` module's config panel via the same drill-down registration mechanism as the other 8 panels
+- [ ] `'CHATBOT'` added to `default-layout.ts`'s `MODULE_ORDER` and `DEFAULT_MODULE_DATA`; the Layout tab shows a CHATBOT row for every tenant (new or existing) and the Manifesto tab accepts a pasted `CHATBOT` module
 - [ ] New locale keys (panel labels, disclosure text, banner text) in both `pt-BR` and `en` in the same commit
 - [ ] `.spec.tsx` covering both banner states (shown/hidden) and field editing/persistence
+- [ ] `plan/journey/manager/hotsite.md`'s open-question line and `index.html`'s GAP tag for `01e-module-config-chatbot.html` updated to resolved, in the same commit
 - [ ] Coverage ≥80%; `tsc --noEmit`, lint, tests green
 
 **Dependencies:** S09, S10, S11.
+
+**Follow-up (M19-S12 story-discovery, 2026-08-18) — 1 blocker + 2 risks found and resolved before implementation:**
+1. **[BLOCKER] The story's original Description never mentioned `default-layout.ts`, but the panel is unreachable without editing it.** `MODULE_ORDER`/`DEFAULT_MODULE_DATA` both excluded `'CHATBOT'`, with the code already carrying an explicit forward-reference comment placed during S11 ("CHATBOT... ships in M19-S12"). `materializeLayout()` only walks `MODULE_ORDER`, so without this edit no tenant ever gets a CHATBOT row in the Layout tab and `manifest-schema.ts`'s `MODULE_TYPE_SET`/`tooManyModules` cap (both derived from `MODULE_ORDER.length`) keep rejecting a pasted `CHATBOT` module in the Manifesto tab. Resolved: folded into this story's own Description/AC above.
+2. **[RISK] No existing module panel does its own data fetch** — all 8 prior panels (`grep`-confirmed) are pure `{ data, onChange }` local-state editors with zero network I/O; `HotsiteEditor.tsx` owns all mutations. Resolved: `ChatbotConfigPanel` follows the existing hotsite hook convention (`api/tenant-settings.ts` + `useHotsite.ts`'s `useQuery` wrappers), not a bespoke fetch embedded in the component.
+3. **[RISK] Journey GAP-status drift not originally in scope** — `plan/journey/manager/hotsite.md` line 71 and `index.html`'s GAP tag on `01e-module-config-chatbot.html` were never flagged for this story, unlike S11's equivalent flip for the guest journey. Resolved: added as its own AC above.
 
 ---
 
@@ -535,7 +544,7 @@ Not new infra capability — the Secret Manager and Cloud Scheduler modules alre
 
 **Note (scope moved during `/story-discovery`, 2026-08-10):** the 3 LLM provider secrets (`OPENROUTER_API_KEY`/`ANTHROPIC_API_KEY`/`OPENAI_API_KEY`) and the `CHATBOT_LLM_PROVIDER` env var were pulled forward into S02 instead of waiting for this story — S02 needed the Terraform pattern established immediately rather than deferred, and building it once for all 3 providers avoided repeating the same Terraform PR shape across S02/S03/S14. This story's remaining scope:
 
-- **2 new plain env vars** on the backend Cloud Run service: `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` (default `25`), `CHATBOT_MIN_PROVIDER_BALANCE_USD` (default `2`)
+- **2 new plain env vars** on the backend Cloud Run service: `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` (default `1` — revised from the original `25`, see `docs/discovery/CHATBOT/CHATBOT.md` §9's dated correction), `CHATBOT_MIN_PROVIDER_BALANCE_USD` (default `2`)
 - **2 new Pub/Sub topics + 2 new Cloud Scheduler jobs**: `ikaro-cron-chatbot-retention-purge` (daily, `0 3 * * *`) and `ikaro-cron-chatbot-balance-poll` (every 15 min, `*/15 * * * *`) — if not already added directly in S07/S08 (implementer's call on sequencing; not a hard dependency either way)
 
 Not a functional blocker for local development, which uses local `.env` values + the manual `POST /cron/...` trigger endpoints, same as every existing cron job. Required before real staging/prod traffic — mirrors `M11`→`M15`'s precedent (SendGrid's secret was provisioned in a later, separate infra pass, not blocking `M11`'s own app-code stories).
