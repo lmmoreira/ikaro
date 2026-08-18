@@ -50,7 +50,15 @@ export function HotsitePreview({
   return (
     <div className="space-y-4 pb-28 lg:space-y-6 lg:pb-0">
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
-        <div className="overflow-hidden rounded-md border border-gray-200">
+        {/* The inline transform establishes a new CSS containing block for any `position: fixed`
+            descendant (e.g. ChatbotWidget's bubble variant) — without it, "fixed" resolves
+            against the real browser viewport, pinning the bubble to the dashboard shell's corner
+            instead of this preview frame. translateZ(0) is a no-visual-effect way to opt into
+            that containment; overflow-hidden then actually clips it to the frame. */}
+        <div
+          className="overflow-hidden rounded-md border border-gray-200"
+          style={{ transform: 'translateZ(0)' }}
+        >
           {loadError && (
             <div
               role="alert"

@@ -104,7 +104,7 @@ export const schema = z.object({
   // IApplicationConfig.getOrThrow() always resolves — the single source of truth for the default
   // value, not duplicated per call site. Positive-only: zero/negative would silently disable the
   // safety backstop instead of enforcing it.
-  CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD: z.coerce.number().positive().default(25),
+  CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD: z.coerce.number().positive().default(1),
   CHATBOT_MIN_PROVIDER_BALANCE_USD: z.coerce.number().positive().default(2),
   CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES: z.coerce.number().int().positive().default(5),
 });

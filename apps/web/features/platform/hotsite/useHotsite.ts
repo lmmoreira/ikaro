@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   featureBookingPhoto,
   generateHotsiteImageSignedUrl,
+  getChatbotCapStatus,
   getHotsiteConfig,
   publishHotsite,
   unpublishHotsite,
@@ -59,5 +60,15 @@ export function useFeatureBookingPhoto() {
   return useMutation({
     mutationFn: (body: FeatureBookingPhotoRequest) => featureBookingPhoto(body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hotsite', tenantId] }),
+  });
+}
+
+// Powers the CHATBOT module config panel's own red banner (UC-027 A5) — the only module panel
+// that reads its own data instead of operating purely on draft.layout via props.
+export function useChatbotCapStatus() {
+  const { tenantId } = useTenant();
+  return useQuery({
+    queryKey: ['chatbot-cap-status', tenantId],
+    queryFn: getChatbotCapStatus,
   });
 }

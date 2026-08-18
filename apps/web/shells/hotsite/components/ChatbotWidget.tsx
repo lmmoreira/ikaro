@@ -44,6 +44,12 @@ export function ChatbotWidget({
   // Only meaningful for variant 'bubble' — 'inline' always renders expanded, no collapse state.
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatTurn[]>([]);
+  // Set once, from what sessionStorage actually held at mount — never recomputed from
+  // messages.length afterward, so the welcome bubble stays visible once the visitor starts
+  // typing (it's a pure display-time prepend, never pushed into `messages` itself: never
+  // persisted to sessionStorage, never sent to the backend). A resumed conversation (real
+  // history already in sessionStorage) never gets a synthetic greeting injected in front of it.
+  const [isFreshConversation, setIsFreshConversation] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
   const sessionIdRef = useRef<string | null>(null);
@@ -63,7 +69,9 @@ export function ChatbotWidget({
           return;
         }
         sessionIdRef.current = sessionStorage.getItem(sessionIdKey(slug));
-        setMessages(readStoredMessages(slug));
+        const restored = readStoredMessages(slug);
+        setIsFreshConversation(restored.length === 0);
+        setMessages(restored);
         setStatus('idle');
       })
       .catch(() => {
@@ -156,16 +164,16 @@ export function ChatbotWidget({
     );
   }
 
-  const displayedMessages: ChatTurn[] =
-    messages.length === 0
-      ? [
-          {
-            id: 'welcome',
-            role: 'assistant',
-            content: data.welcomeMessage ?? t('chatbot.defaultWelcomeMessage'),
-          },
-        ]
-      : messages;
+  const displayedMessages: ChatTurn[] = isFreshConversation
+    ? [
+        {
+          id: 'welcome',
+          role: 'assistant',
+          content: data.welcomeMessage ?? t('chatbot.defaultWelcomeMessage'),
+        },
+        ...messages,
+      ]
+    : messages;
 
   const panel = (
     <ChatbotPanel

@@ -2,7 +2,7 @@ import type { HotsiteModuleResponse, HotsiteModuleType } from '@ikaro/types';
 
 // Canonical order for module types absent from a tenant's saved layout (packages/types/src/enums.ts).
 // Exported so manifest-schema.ts can validate a pasted layout's `type` values against this same
-// list, rather than re-declaring the 8 literals a second time.
+// list, rather than re-declaring the 9 literals a second time.
 export const MODULE_ORDER: readonly HotsiteModuleType[] = [
   'HERO',
   'SERVICE_LIST',
@@ -12,16 +12,12 @@ export const MODULE_ORDER: readonly HotsiteModuleType[] = [
   'ABOUT',
   'CONTACT',
   'FOOTER',
+  'CHATBOT',
 ];
 
 // Minimal data satisfying each module data type's required fields (module-schemas.ts) — used
 // only to materialize a type not yet present in a tenant's saved layout (new tenants start with
 // layout: [] — HotsiteConfig.create() on the backend). Kept in sync with module-schemas.ts.
-// Partial, not exhaustive: CHATBOT is a valid HotsiteModuleType (M19-S11) but isn't in
-// MODULE_ORDER yet — the admin editor's Layout tab / config panel for it ships in M19-S12. Until
-// then, materializeLayout() never needs a CHATBOT default (MODULE_ORDER doesn't ask for one), and
-// manifest-schema.ts's MODULE_TYPE_SET (derived from MODULE_ORDER) rejects a raw-JSON-pasted
-// CHATBOT module the same way — the admin editor genuinely can't reach this type yet.
 const DEFAULT_MODULE_DATA: Partial<Record<HotsiteModuleType, Record<string, unknown>>> = {
   HERO: { variant: 'centered', title: '', ctaLabel: '', ctaTarget: 'booking-form' },
   SERVICE_LIST: { showPrices: true, showPoints: true, layout: 'grid' },
@@ -37,11 +33,14 @@ const DEFAULT_MODULE_DATA: Partial<Record<HotsiteModuleType, Record<string, unkn
     showMap: true,
   },
   FOOTER: {},
+  // Every ChatbotModuleData field is optional (packages/types/src/hotsite.ts) — {} is already a
+  // minimal valid value, unlike every other type above.
+  CHATBOT: {},
 };
 
 // Appends any module type missing from `existing` (disabled, with minimal default data) — never
 // reorders what's already there, so a tenant's saved custom order is preserved. Ensures
-// LayoutTab always has a row for all 8 module types regardless of what was actually saved.
+// LayoutTab always has a row for all 9 module types regardless of what was actually saved.
 export function materializeLayout(
   existing: readonly HotsiteModuleResponse[],
 ): HotsiteModuleResponse[] {

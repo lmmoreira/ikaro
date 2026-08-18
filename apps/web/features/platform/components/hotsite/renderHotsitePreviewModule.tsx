@@ -7,6 +7,7 @@ import { TestimonialsModule } from '@/shells/hotsite/components/TestimonialsModu
 import { AboutModule } from '@/shells/hotsite/components/AboutModule';
 import { ContactModule } from '@/shells/hotsite/components/ContactModule';
 import { Footer } from '@/shells/hotsite/components/Footer';
+import { ChatbotWidget } from '@/shells/hotsite/components/ChatbotWidget';
 import type { PreviewSupplementaryData } from './useHotsitePreviewData';
 
 export function renderHotsitePreviewModule(
@@ -72,6 +73,20 @@ export function renderHotsitePreviewModule(
         tenantName={data.tenantName}
         business={data.business}
         logoUrl={logoUrl}
+      />
+    );
+  }
+  if (parsed.type === 'CHATBOT') {
+    // Same component the public page renders — CHATBOT's real availability is always a live
+    // pre-flight check (docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md § CHATBOT), never derivable from
+    // the manifest/draft alone, so reusing ChatbotWidget as-is is the only faithful preview.
+    return (
+      <ChatbotWidget
+        key={key}
+        data={parsed.data}
+        slug={tenantSlug}
+        business={data.business}
+        tenantName={data.tenantName}
       />
     );
   }
