@@ -8,6 +8,7 @@ import { featureBookingPhoto } from '@/features/platform/api/tenant-settings';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
+import { BookingPhotoThumbnailGroup } from './BookingPhotoThumbnailGroup';
 
 interface BookingPhotoPickerProps {
   readonly onPick: (image: GalleryImage, previewUrl: string) => void;
@@ -216,48 +217,26 @@ export function BookingPhotoPicker({
 
       {selectedBookingId && currentPhotos && hasPhotos && (
         <div className="grid grid-cols-3 gap-3" data-testid="booking-photo-picker-grid">
-          {currentPhotos.beforeUrls.map((url, index) => (
-            <button
-              key={url}
-              type="button"
-              disabled={picking || !photoDimensions.has(url)}
-              onClick={() => {
-                void handlePick('before', index);
-              }}
-              className="group relative overflow-hidden rounded-md border border-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <img
-                src={url}
-                alt=""
-                onLoad={(event) => handleThumbnailLoad(url, event)}
-                className="aspect-square w-full object-cover"
-              />
-              <span className="absolute bottom-0 left-0 right-0 bg-black/60 px-1 text-[10px] text-white">
-                {t('beforeLabel')}
-              </span>
-            </button>
-          ))}
-          {currentPhotos.afterUrls.map((url, index) => (
-            <button
-              key={url}
-              type="button"
-              disabled={picking || !photoDimensions.has(url)}
-              onClick={() => {
-                void handlePick('after', index);
-              }}
-              className="group relative overflow-hidden rounded-md border border-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <img
-                src={url}
-                alt=""
-                onLoad={(event) => handleThumbnailLoad(url, event)}
-                className="aspect-square w-full object-cover"
-              />
-              <span className="absolute bottom-0 left-0 right-0 bg-black/60 px-1 text-[10px] text-white">
-                {t('afterLabel')}
-              </span>
-            </button>
-          ))}
+          <BookingPhotoThumbnailGroup
+            urls={currentPhotos.beforeUrls}
+            label={t('beforeLabel')}
+            picking={picking}
+            photoDimensions={photoDimensions}
+            onPick={(index) => {
+              void handlePick('before', index);
+            }}
+            onThumbnailLoad={handleThumbnailLoad}
+          />
+          <BookingPhotoThumbnailGroup
+            urls={currentPhotos.afterUrls}
+            label={t('afterLabel')}
+            picking={picking}
+            photoDimensions={photoDimensions}
+            onPick={(index) => {
+              void handlePick('after', index);
+            }}
+            onThumbnailLoad={handleThumbnailLoad}
+          />
         </div>
       )}
     </div>

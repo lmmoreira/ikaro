@@ -13,26 +13,6 @@ const reviewedRawFetchPaths = architecturePolicy.exceptions
   .filter((exception) => exception.rule === 'raw-fetch-web')
   .map((exception) => escapeGlobBrackets(exception.path.replace(/^apps\/web\//, '')));
 
-// TD37-S05 discovery (2026-08-17) split out the 13 highest-risk oversized .tsx components into
-// a dedicated follow-up, TD37-S5A, rather than bundling live-UI decomposition into this
-// lint-config story — see td/TD37-CI-ARCHITECTURE-VALIDATION-HARDENING.md. Temporary, dated,
-// and tracked (not an indefinite grandfather): remove each entry as Story 5A decomposes it.
-const DEFERRED_TO_TD37_S5A = [
-  'features/booking/components/dashboard/schedule/SchedulePage.tsx',
-  'features/platform/components/settings/SettingsForm.tsx',
-  'features/booking/components/dashboard/bookings/BookingDetailPage.tsx',
-  'features/booking/components/dashboard/bookings/MarkCompleteBookingPage.tsx',
-  'features/platform/components/hotsite/HotsiteEditor.tsx',
-  'features/booking/components/dashboard/bookings/RescheduleBookingPage.tsx',
-  'features/booking/components/public/BookingForm.tsx',
-  'features/booking/components/public/SubmitInfoForm.tsx',
-  'features/booking/components/dashboard/services/ServiceFormFields.tsx',
-  'features/booking/components/public/PersonalInfoStep.tsx',
-  'features/platform/components/hotsite/BrandingTab.tsx',
-  'features/platform/components/hotsite/modules/HeroConfigPanel.tsx',
-  'features/platform/components/hotsite/modules/BookingPhotoPicker.tsx',
-];
-
 // Every BFF/backend call must go through bffServerFetch/bffPublicFetch (server-only) or
 // bffClient (client-only) — a raw fetch() duplicates base-URL construction, timeout policy, and
 // cache defaults, and on the client it also misses withCredentials (docs/ANTI_PATTERNS.md,
@@ -194,7 +174,7 @@ module.exports = [
   },
   {
     files: ['**/*.tsx'],
-    ignores: ['**/*.spec.tsx', ...DEFERRED_TO_TD37_S5A],
+    ignores: ['**/*.spec.tsx'],
     rules: {
       'max-lines-per-function': ['error', { max: 200, skipBlankLines: true, skipComments: true }],
       'max-lines': ['error', { max: 250, skipBlankLines: true, skipComments: true }],

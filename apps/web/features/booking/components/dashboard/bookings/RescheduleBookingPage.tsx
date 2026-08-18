@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useMemo, useState, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import {
@@ -9,7 +8,6 @@ import {
   type SlotConflictSuggestion,
   type StaffBookingDetailResponse,
 } from '@ikaro/types';
-import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { AvailabilityCarousel } from '@/features/booking/components/public/AvailabilityCarousel';
 import { SlotPicker } from '@/features/booking/components/public/SlotPicker';
@@ -21,10 +19,10 @@ import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { useRescheduleBooking } from '@/features/booking/hooks/useBookingMutations';
 import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
-import { BookingOutcomeActionRail } from './BookingOutcomeActionRail';
-import { BookingOutcomeLayout } from './BookingOutcomeLayout';
 import { SlotConflictAlert } from './SlotConflictAlert';
 import { BookingClientCard } from './BookingClientCard';
+import { RescheduleActionRail } from './RescheduleActionRail';
+import { RescheduleSuccessView } from './RescheduleSuccessView';
 
 interface RescheduleBookingPageProps {
   readonly booking: StaffBookingDetailResponse;
@@ -32,15 +30,6 @@ interface RescheduleBookingPageProps {
   readonly maxBookingAdvanceDays: number;
   readonly backHref: string;
   readonly agendaHref: string;
-}
-
-function formatRangeLine(
-  start: Date,
-  end: Date,
-  formatDateLong: (date: Date) => string,
-  formatTime: (date: Date) => string,
-): string {
-  return `${formatDateLong(start)} · ${formatTime(start)}–${formatTime(end)}`;
 }
 
 export function RescheduleBookingPage({
@@ -51,7 +40,6 @@ export function RescheduleBookingPage({
   agendaHref,
 }: RescheduleBookingPageProps): React.JSX.Element {
   const t = useTranslations('dashboard.bookingDetail');
-  const commonT = useTranslations('common');
   const locale = useResolvedLocale();
   const { formatDateLong, formatTime } = useFormatting();
   const rescheduleBookingMutation = useRescheduleBooking();
@@ -131,54 +119,13 @@ export function RescheduleBookingPage({
   }
 
   if (rescheduled && lastReschedule) {
-    const oldStart = new Date(lastReschedule.from);
-    const oldEnd = new Date(oldStart.getTime() + booking.totalDurationMins * 60_000);
-    const newStart = new Date(lastReschedule.to);
-    const newEnd = new Date(newStart.getTime() + booking.totalDurationMins * 60_000);
-
     return (
-      <BookingOutcomeLayout
+      <RescheduleSuccessView
         booking={booking}
-        tone="success"
-        bannerTitle={t('rescheduledTitle')}
-        bannerBody={
-          <>
-            <p data-testid="reschedule-body-email">
-              {t('rescheduledBodyEmail', { name: booking.contactName })}
-            </p>
-            <p className="mt-2">{t('rescheduledBodyStatus')}</p>
-          </>
-        }
-        asideBody={t('rescheduledAsideBody')}
-        primaryAction={{ label: t('viewUpdatedBooking'), href: backHref }}
-        secondaryAction={{ label: t('backToAgenda'), href: agendaHref }}
-      >
-        <section>
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-            {t('rescheduledSummaryLabel')}
-          </p>
-          <Card>
-            <CardContent className="space-y-3 p-4">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-                  {t('rescheduledFromLabel')}
-                </p>
-                <p className="mt-1 text-sm font-semibold text-gray-900">
-                  {formatDateLong(oldStart)} · {formatTime(oldStart)}–{formatTime(oldEnd)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-                  {t('rescheduledToLabel')}
-                </p>
-                <p className="mt-1 text-sm font-semibold text-gray-900">
-                  {formatDateLong(newStart)} · {formatTime(newStart)}–{formatTime(newEnd)}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-      </BookingOutcomeLayout>
+        lastReschedule={lastReschedule}
+        backHref={backHref}
+        agendaHref={agendaHref}
+      />
     );
   }
 
@@ -274,67 +221,14 @@ export function RescheduleBookingPage({
           </section>
         </div>
 
-        <BookingOutcomeActionRail
-          desktopTop={
-            error ? (
-              <Card className="border-red-200 bg-red-50/80">
-                <CardContent className="p-4 text-sm text-red-700">{error}</CardContent>
-              </Card>
-            ) : null
-          }
-        >
-          <div className="space-y-2">
-            <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-              {t('actionsSection')}
-            </p>
-            <Card>
-              <CardContent className="space-y-3 p-4">
-                <Button type="submit" disabled={pendingSubmit} className="w-full">
-                  {t('submitReschedule')}
-                </Button>
-                <Button
-                  asChild
-                  className="w-full border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50"
-                >
-                  <Link href={backHref}>{commonT('cancel')}</Link>
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card className="border-blue-200 bg-blue-50/70">
-            <CardContent className="space-y-3 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.07em] text-blue-700">
-                {t('summaryLabel')}
-              </p>
-              <div className="space-y-3 text-sm text-blue-700/90">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.07em] text-blue-700">
-                    {t('rescheduledFromLabel')}
-                  </p>
-                  <p className="mt-1 font-medium">
-                    {formatRangeLine(currentStart, currentEnd, formatDateLong, formatTime)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.07em] text-blue-700">
-                    {t('rescheduledToLabel')}
-                  </p>
-                  <p className="mt-1 font-medium">
-                    {selectedSlot
-                      ? formatRangeLine(
-                          new Date(selectedSlot.startsAt),
-                          new Date(selectedSlot.endsAt),
-                          formatDateLong,
-                          formatTime,
-                        )
-                      : t('summaryPending')}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </BookingOutcomeActionRail>
+        <RescheduleActionRail
+          error={error}
+          pendingSubmit={pendingSubmit}
+          backHref={backHref}
+          currentStart={currentStart}
+          currentEnd={currentEnd}
+          selectedSlot={selectedSlot}
+        />
       </div>
     </form>
   );
