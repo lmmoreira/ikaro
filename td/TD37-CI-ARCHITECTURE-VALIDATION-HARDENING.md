@@ -250,7 +250,7 @@ If the combined ~58-file production fix proves too large for a single reviewable
 
 ---
 
-### Story 5A — Decompose the 13 oversized `.tsx` components flagged by Story 5 🟡
+### Story 5A — Decompose the 13 oversized `.tsx` components flagged by Story 5 ✅ Done
 
 Follow-up to Story 5: once `max-lines-per-function` (`.tsx: 200`) and `max-lines` (`250`) are enforced, these 13 components still violate one or both — same "no workarounds" rationale as Story 5's fixes, split into its own story because UI decomposition on live booking/settings/hotsite screens carries materially higher regression risk than Story 5's mechanical `.ts` extractions and file restructuring, and deserves focused review on its own.
 
@@ -273,10 +273,12 @@ Baseline (discovery, 2026-08-17 — re-verify at implementation time since `main
 | `apps/web/features/platform/components/hotsite/modules/BookingPhotoPicker.tsx` | 205 | 230 |
 
 **Acceptance criteria**:
-- [ ] Each file decomposed into subcomponents under the `.tsx` `max-lines-per-function` (200) and `max-lines` (250) thresholds — extract cohesive sections (form field groups, panel sections, list rows), not an arbitrary mechanical split
-- [ ] No behavior change — existing `.spec.tsx` coverage for each page continues to pass, beyond import-path updates for extracted subcomponents
-- [ ] Every extracted subcomponent that contains meaningful logic/branching ships its own `.spec.tsx` per CLAUDE.md §7 Testing; a pure presentational split of existing JSX can share the parent's existing test coverage
-- [ ] Zero `max-lines-per-function`/`max-lines` violations remain in `apps/web` after this story
+- [x] Each file decomposed into subcomponents under the `.tsx` `max-lines-per-function` (200) and `max-lines` (250) thresholds — extract cohesive sections (form field groups, panel sections, list rows), not an arbitrary mechanical split
+- [x] No behavior change — existing `.spec.tsx` coverage for each page continues to pass, beyond import-path updates for extracted subcomponents
+- [x] Every extracted subcomponent that contains meaningful logic/branching ships its own `.spec.tsx` per CLAUDE.md §7 Testing; a pure presentational split of existing JSX can share the parent's existing test coverage
+- [x] Zero `max-lines-per-function`/`max-lines` violations remain in `apps/web` after this story
+
+**Implementation note (2026-08-18):** `DEFERRED_TO_TD37_S5A` removed entirely from `apps/web/eslint.config.js` (was already empty once all 13 files were decomposed — no replacement suppression mechanism added). One genuine bug found and fixed during extraction: `HotsiteEditor.tsx` had an infinite render loop from inline arrow functions passed into a `useEffect` dependency array inside the new `useHotsiteEditorTopbarOverride` hook, fixed via `useCallback` at the call site — see `docs/ENGINEERING_RULES.md` if a similar pattern recurs. PR: #388.
 
 ---
 

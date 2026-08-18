@@ -45,10 +45,12 @@ export function buildWeekNavHandlers(
 }
 
 // Extracted from SchedulePage (TD37-S5A) — the status-filter popover's toggle/select/reset/close
-// handlers are a cohesive, self-contained unit.
+// handlers are a cohesive, self-contained unit. Takes the already-memoized `selectedStatusSet`
+// (computed once in useScheduleCoreData for filtering visibleBookings) rather than rebuilding a
+// fresh Set from the raw array on every render.
 export function buildStatusFilterHandlers(
   ui: ScheduleUiState,
-  selectedStatuses: readonly BookingStatus[],
+  selectedStatusSet: ReadonlySet<BookingStatus>,
   setSelectedStatuses: (selectedStatuses: SetStateAction<readonly BookingStatus[]>) => void,
 ) {
   function handleToggleStatus(status: BookingStatus): void {
@@ -64,7 +66,7 @@ export function buildStatusFilterHandlers(
   }
 
   return {
-    selectedStatusSet: new Set(selectedStatuses),
+    selectedStatusSet,
     handleToggleStatus,
     handleResetStatusFilter: () => setSelectedStatuses(SCHEDULE_BOOKING_STATUS_DEFAULT),
     handleToggleStatusFilterOpen: () => ui.setStatusFilterOpen((current) => !current),

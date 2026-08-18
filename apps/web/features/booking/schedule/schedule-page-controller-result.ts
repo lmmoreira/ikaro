@@ -119,7 +119,7 @@ function buildControllerHandlers(
       t,
       ...mutations,
     }),
-    statusFilter: buildStatusFilterHandlers(ui, core.selectedStatuses, core.setSelectedStatuses),
+    statusFilter: buildStatusFilterHandlers(ui, core.selectedStatusSet, core.setSelectedStatuses),
   };
 }
 

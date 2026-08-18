@@ -5,8 +5,12 @@ import type { ModuleConfigPanelProps } from './modules/module-config-panel.types
 // Extracted from HotsiteEditor (TD37-S5A) — each panel is lazy-loaded so a manager who never
 // opens "Configurar" on a given module never downloads that panel's JS — the same code-splitting
 // benefit a real route would give, without needing to lift `draft` into a layout.tsx/Context.
-export const MODULE_CONFIG_PANELS: Partial<
-  Record<HotsiteModuleType, React.ComponentType<ModuleConfigPanelProps>>
+// Not `Partial<Record<...>>` — a non-partial Record makes `tsc` reject this literal unless every
+// HotsiteModuleType has an entry, catching a missing panel (e.g. the CHATBOT entry this branch's
+// main-merge conflict resolution restored by hand) at compile time instead of relying on a test.
+export const MODULE_CONFIG_PANELS: Record<
+  HotsiteModuleType,
+  React.ComponentType<ModuleConfigPanelProps>
 > = {
   HERO: dynamic(() => import('./modules/HeroConfigPanel').then((m) => m.HeroConfigPanel), {
     ssr: false,
