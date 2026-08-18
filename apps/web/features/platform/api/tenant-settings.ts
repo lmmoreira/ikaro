@@ -11,6 +11,7 @@ import type {
   UpdateTenantSettingsRequest,
   RenameTenantRequest,
   RenameTenantResponse,
+  ChatbotCapStatusResponse,
 } from '@ikaro/types';
 import { bffClient } from '@/shared/lib/api/bff-client';
 export {
@@ -125,6 +126,13 @@ export async function featureBookingPhoto(
 
 export async function deleteHotsiteImage(filePath: string): Promise<void> {
   await bffClient.post('/tenants/hotsite/images/delete', { filePath });
+}
+
+// Powers the CHATBOT module config panel's own red banner (UC-027 A5) — MANAGER-only,
+// docs/14-API_CONTRACTS.md § Chatbot Cap Status.
+export async function getChatbotCapStatus(): Promise<ChatbotCapStatusResponse> {
+  const res = await bffClient.get<ChatbotCapStatusResponse>('/tenants/chatbot/cap-status');
+  return res.data;
 }
 
 export async function updateTenantSettings(
