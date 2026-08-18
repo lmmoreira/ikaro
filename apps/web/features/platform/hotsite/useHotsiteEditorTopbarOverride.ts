@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, type MutableRefObject } from 'react';
+import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react';
 import type { HotsiteModuleType } from '@ikaro/types';
 
 interface ModuleConfigPreviewState {
@@ -26,7 +26,7 @@ function clearOverrides(setters: OverrideSetters): void {
 function applyConfiguringTypeOverride(
   configuringType: HotsiteModuleType,
   t: TranslateFn,
-  requestCancelConfigRef: MutableRefObject<() => void>,
+  requestCancelConfigRef: RefObject<() => void>,
   setters: OverrideSetters,
 ): () => void {
   setters.setOnBackOverride?.(() => () => requestCancelConfigRef.current());
@@ -73,16 +73,29 @@ interface UseHotsiteEditorTopbarOverrideParams {
   readonly setPageTitleOverride: SetOverrideFn<string>;
 }
 
+interface TopbarOverrideEffectState {
+  readonly configuringType: HotsiteModuleType | null;
+  readonly isPreview: boolean;
+  readonly moduleConfigPreview: ModuleConfigPreviewState | null;
+  readonly onBackToModuleConfigPreview: (state: ModuleConfigPreviewState) => void;
+  readonly onBackToTabs: () => void;
+  readonly t: TranslateFn;
+}
+
 function runTopbarOverrideEffect(
-  configuringType: HotsiteModuleType | null,
-  isPreview: boolean,
-  moduleConfigPreview: ModuleConfigPreviewState | null,
-  onBackToModuleConfigPreview: (state: ModuleConfigPreviewState) => void,
-  onBackToTabs: () => void,
-  t: TranslateFn,
-  requestCancelConfigRef: MutableRefObject<() => void>,
+  state: TopbarOverrideEffectState,
+  requestCancelConfigRef: RefObject<() => void>,
   setters: OverrideSetters,
 ): (() => void) | undefined {
+  const {
+    configuringType,
+    isPreview,
+    moduleConfigPreview,
+    onBackToModuleConfigPreview,
+    onBackToTabs,
+    t,
+  } = state;
+
   if (configuringType) {
     return applyConfiguringTypeOverride(configuringType, t, requestCancelConfigRef, setters);
   }
@@ -119,12 +132,14 @@ export function useHotsiteEditorTopbarOverride(params: UseHotsiteEditorTopbarOve
   useEffect(
     () =>
       runTopbarOverrideEffect(
-        params.configuringType,
-        params.isPreview,
-        params.moduleConfigPreview,
-        params.onBackToModuleConfigPreview,
-        params.onBackToTabs,
-        params.t,
+        {
+          configuringType: params.configuringType,
+          isPreview: params.isPreview,
+          moduleConfigPreview: params.moduleConfigPreview,
+          onBackToModuleConfigPreview: params.onBackToModuleConfigPreview,
+          onBackToTabs: params.onBackToTabs,
+          t: params.t,
+        },
         requestCancelConfigRef,
         {
           setOnBackOverride: params.setOnBackOverride,

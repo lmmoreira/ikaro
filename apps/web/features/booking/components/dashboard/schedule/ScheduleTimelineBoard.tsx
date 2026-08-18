@@ -121,10 +121,12 @@ function TimelineCompactBoard({
 
 function TimelineDesktopBoard({
   timeline,
+  slotLabels,
   props,
   t,
 }: {
   readonly timeline: TimelineDayData;
+  readonly slotLabels: readonly string[];
   readonly props: ScheduleTimelineBoardProps;
   readonly t: ReturnType<typeof useTranslations>;
 }): React.JSX.Element {
@@ -133,7 +135,7 @@ function TimelineDesktopBoard({
   return (
     <div className="grid grid-cols-[4.75rem_minmax(0,1fr)] gap-0">
       <div className="relative" style={{ height: `${timelineHeight}px` }}>
-        {props.slotLabels.map((label, index) => (
+        {slotLabels.map((label, index) => (
           <div
             key={`${label}-${index}`}
             className="flex items-start pr-2 pt-1 text-[0.6875rem] font-semibold text-gray-400"
@@ -168,7 +170,7 @@ function TimelineDesktopBoard({
 // data-fetching/state above it.
 export function ScheduleTimelineBoard(props: ScheduleTimelineBoardProps): React.JSX.Element {
   const t = useTranslations('dashboard.schedule');
-  const { timeline, compact } = props;
+  const { timeline, compact, slotLabels } = props;
   const hasHours = !timeline.selectedDayClosed;
 
   if (!hasHours) {
@@ -179,5 +181,5 @@ export function ScheduleTimelineBoard(props: ScheduleTimelineBoardProps): React.
     return <TimelineCompactBoard timeline={timeline} props={props} t={t} />;
   }
 
-  return <TimelineDesktopBoard timeline={timeline} props={props} t={t} />;
+  return <TimelineDesktopBoard timeline={timeline} slotLabels={slotLabels} props={props} t={t} />;
 }
