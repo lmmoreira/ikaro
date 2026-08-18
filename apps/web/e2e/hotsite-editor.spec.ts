@@ -1034,6 +1034,92 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
 
     await expect(availableDay).toHaveCSS('background-color', 'rgb(124, 58, 237)');
   });
+
+  // M19-S12 — CHATBOT is the 9th module type, auto-materialized disabled by default (not in the
+  // seed, same as ABOUT/TESTIMONIALS/CONTACT above) via default-layout.ts's MODULE_ORDER. Its
+  // config panel is also the first to carry a standing disclosure note — asserted here alongside
+  // the field set, matching the prototype (01e-module-config-chatbot.html).
+  test('enables and configures Chatbot (variant, accent color, name, welcome message), and the changes survive a reload', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'Layout' }).click();
+
+    await page.locator(layoutToggle('CHATBOT')).click();
+    await page.locator(configureButton('CHATBOT')).click();
+
+    await expect(page.getByTestId('chatbot-availability-note')).toBeVisible();
+
+    await page.locator('#chatbot-bot-name').fill('Bot da AutoSpa');
+    await page.locator('#chatbot-welcome-message').fill('Oi! Como posso ajudar você hoje?');
+    await page.getByTestId('chatbot-variant-inline').click();
+    await page.getByTestId('chatbot-accent-color-secondary').click();
+    await page.getByTestId('module-config-apply-desktop').click();
+
+    await expect(page.locator(layoutToggle('CHATBOT'))).toHaveAttribute('aria-checked', 'true');
+
+    await page.getByTestId('hotsite-publish-desktop').click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+
+    await page.reload();
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await expect(page.locator(layoutToggle('CHATBOT'))).toHaveAttribute('aria-checked', 'true');
+    await page.locator(configureButton('CHATBOT')).click();
+
+    await expect(page.locator('#chatbot-bot-name')).toHaveValue('Bot da AutoSpa');
+    await expect(page.locator('#chatbot-welcome-message')).toHaveValue(
+      'Oi! Como posso ajudar você hoje?',
+    );
+    await expect(page.getByTestId('chatbot-variant-inline')).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    await expect(page.getByTestId('chatbot-accent-color-secondary')).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+  });
+
+  // M19-S12 — the cap-reached banner (UC-027 A5) is the only module-panel state sourced from a
+  // live read (GET /tenants/chatbot/cap-status) instead of draft.layout, so it's driven here via
+  // page.route() rather than real quota state — deterministic, and doesn't burn any of the
+  // tenant's real daily conversation cap (shared with chatbot-widget.spec.ts's real fake-adapter
+  // conversations against this same tenant).
+  test('shows the daily-cap-reached banner only when the cap-status endpoint reports it', async ({
+    page,
+  }) => {
+    await page.route('**/v1/tenants/chatbot/cap-status', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ dailyCapReachedToday: true }),
+      }),
+    );
+
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await page.locator(configureButton('CHATBOT')).click();
+
+    await expect(page.getByTestId('chatbot-cap-reached-banner')).toBeVisible();
+  });
+
+  test('hides the daily-cap-reached banner when the cap-status endpoint reports false', async ({
+    page,
+  }) => {
+    await page.route('**/v1/tenants/chatbot/cap-status', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ dailyCapReachedToday: false }),
+      }),
+    );
+
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await page.locator(configureButton('CHATBOT')).click();
+
+    await expect(page.getByTestId('chatbot-cap-reached-banner')).toHaveCount(0);
+  });
 });
 
 test.describe('hotsite editor (STAFF)', () => {
