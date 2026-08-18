@@ -10,20 +10,17 @@ import { formatDateLong, formatTime } from '@/shared/lib/formatting/format-time'
 import { resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
 import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { extractProblemDetailShape } from '@/shared/lib/api/errors';
+import { BrandHeader } from './BrandHeader';
 import { PhotoUpload } from './PhotoUpload';
+import { SubmitInfoSuccessView, type SubmitInfoFormSummary } from './SubmitInfoSuccessView';
+
+export type { SubmitInfoFormSummary } from './SubmitInfoSuccessView';
 
 const EXPIRED_LINK_CODES: ReadonlySet<string> = new Set([
   BffErrorCode.GUEST_TOKEN_INVALID,
   BffErrorCode.GUEST_TOKEN_MISSING,
   BffErrorCode.GUEST_TOKEN_BOOKING_MISMATCH,
 ]);
-
-export interface SubmitInfoFormSummary {
-  readonly serviceSummary: string;
-  readonly scheduledAt: string;
-  readonly infoRequestMessage: string;
-  readonly contactName: string;
-}
 
 export interface SubmitInfoFormProps {
   readonly bookingId: string;
@@ -102,82 +99,15 @@ export function SubmitInfoForm({
 
   if (state.status === 'success') {
     return (
-      <main
-        data-testid="submit-info-success"
-        className="min-h-screen"
-        style={{
-          backgroundColor: 'var(--ba-background)',
-          color: 'var(--ba-text)',
-          ...brandingStyle,
-        }}
-      >
-        <BrandHeader brandName={brandName} />
-        <div className="mx-auto max-w-[480px] px-4 pb-16 pt-12 text-center">
-          <div
-            className="mx-auto mb-5 flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full"
-            style={{ backgroundColor: '#dcfce7' }}
-          >
-            <svg
-              width="32"
-              height="32"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#16a34a"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          </div>
-          <h1 className="mb-2 text-2xl font-bold">{t('successTitle')}</h1>
-          <p className="mb-8 text-[0.9375rem] leading-relaxed opacity-65">{t('successMessage')}</p>
-
-          {summary && (
-            <dl
-              className="mb-6 space-y-2 rounded-md border p-4 text-left text-sm"
-              style={{ borderColor: 'var(--ba-secondary)', borderRadius: 'var(--ba-radius)' }}
-            >
-              <div className="flex justify-between gap-3">
-                <dt className="opacity-60">{t('successServiceLabel')}</dt>
-                <dd className="font-semibold">{summary.serviceSummary}</dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="opacity-60">{t('successDateLabel')}</dt>
-                <dd className="font-semibold">{formatScheduledAt(summary.scheduledAt)}</dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="opacity-60">{t('successResponseLabel')}</dt>
-                <dd className="max-w-[60%] truncate font-semibold">{response}</dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="opacity-60">{t('successSubmittedLabel')}</dt>
-                <dd className="font-semibold">{formatScheduledAt(state.infoSubmittedAt)}</dd>
-              </div>
-            </dl>
-          )}
-
-          <a
-            href={tenantSlug ? `/${tenantSlug}` : '/'}
-            className="mb-4 block border-2 px-8 py-3 text-center font-semibold"
-            style={btnStyle}
-          >
-            {t('goToSiteCta')}
-          </a>
-          {tenantSlug && (
-            <p className="text-[0.8125rem] leading-relaxed opacity-50">
-              <a
-                href={`/${tenantSlug}/login`}
-                style={{ color: 'var(--ba-primary)' }}
-                className="font-semibold"
-              >
-                {t('createAccountCta')}
-              </a>
-            </p>
-          )}
-        </div>
-      </main>
+      <SubmitInfoSuccessView
+        brandName={brandName}
+        brandingStyle={brandingStyle}
+        summary={summary}
+        response={response}
+        infoSubmittedAt={state.infoSubmittedAt}
+        formatScheduledAt={formatScheduledAt}
+        tenantSlug={tenantSlug}
+      />
     );
   }
 
@@ -318,27 +248,5 @@ export function SubmitInfoForm({
         <p className="mt-4 text-center text-xs opacity-45">{t('linkValidityNote')}</p>
       </div>
     </main>
-  );
-}
-
-function BrandHeader({ brandName }: { readonly brandName?: string }): React.JSX.Element {
-  return (
-    <header
-      className="flex items-center gap-3 border-b px-5 py-3.5"
-      style={{ borderColor: 'var(--ba-secondary)' }}
-    >
-      <div
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-sm font-bold text-white"
-        style={{ backgroundColor: 'var(--ba-primary)' }}
-        aria-hidden="true"
-      >
-        {brandName?.charAt(0).toUpperCase() ?? '?'}
-      </div>
-      {brandName && (
-        <span data-testid="brand-name" className="text-base font-bold">
-          {brandName}
-        </span>
-      )}
-    </header>
   );
 }

@@ -14,7 +14,7 @@ import { MOBILE_ACTION_BAR_CLEARANCE_CLASS } from '@/shells/dashboard/utils/mobi
 import { usePreviewSupplementaryData, useTmpSignedUrls } from './useHotsitePreviewData';
 import { renderHotsitePreviewModule } from './renderHotsitePreviewModule';
 
-interface HotsitePreviewProps {
+export interface HotsitePreviewProps {
   readonly draft: HotsiteAdminContentResponse;
   readonly onPublish: () => void;
   readonly isPublishing: boolean;

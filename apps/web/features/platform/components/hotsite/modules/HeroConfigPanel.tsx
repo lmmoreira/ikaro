@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from '@/shared/components/ui/select';
 import { SingleImageUploadField } from '../SingleImageUploadField';
+import { ConfigTextField } from './ConfigTextField';
 import {
   readModuleData,
   writeModuleData,
@@ -38,47 +39,29 @@ export function HeroConfigPanel({ data, onChange }: ModuleConfigPanelProps): Rea
 
   return (
     <div className="space-y-5">
-      <div>
-        <label htmlFor="hero-title" className="mb-1.5 block text-sm font-semibold text-gray-900">
-          {t('titleLabel')}
-        </label>
-        <input
-          id="hero-title"
-          type="text"
-          value={hero.title}
-          placeholder={t('titlePlaceholder')}
-          onChange={(event) => update({ title: event.target.value })}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-        />
-      </div>
+      <ConfigTextField
+        id="hero-title"
+        label={t('titleLabel')}
+        value={hero.title}
+        placeholder={t('titlePlaceholder')}
+        onChange={(title) => update({ title })}
+      />
 
-      <div>
-        <label htmlFor="hero-subtitle" className="mb-1.5 block text-sm font-semibold text-gray-900">
-          {t('subtitleLabel')}
-        </label>
-        <input
-          id="hero-subtitle"
-          type="text"
-          value={hero.subtitle ?? ''}
-          placeholder={t('subtitlePlaceholder')}
-          onChange={(event) => update({ subtitle: event.target.value })}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-        />
-      </div>
+      <ConfigTextField
+        id="hero-subtitle"
+        label={t('subtitleLabel')}
+        value={hero.subtitle ?? ''}
+        placeholder={t('subtitlePlaceholder')}
+        onChange={(subtitle) => update({ subtitle })}
+      />
 
-      <div>
-        <label htmlFor="hero-eyebrow" className="mb-1.5 block text-sm font-semibold text-gray-900">
-          {t('eyebrowLabel')}
-        </label>
-        <input
-          id="hero-eyebrow"
-          type="text"
-          value={hero.eyebrow ?? ''}
-          placeholder={t('eyebrowPlaceholder')}
-          onChange={(event) => update({ eyebrow: event.target.value })}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-        />
-      </div>
+      <ConfigTextField
+        id="hero-eyebrow"
+        label={t('eyebrowLabel')}
+        value={hero.eyebrow ?? ''}
+        placeholder={t('eyebrowPlaceholder')}
+        onChange={(eyebrow) => update({ eyebrow })}
+      />
 
       <PillSelect
         label={t('variantLabel')}
@@ -117,22 +100,13 @@ export function HeroConfigPanel({ data, onChange }: ModuleConfigPanelProps): Rea
         />
       )}
 
-      <div>
-        <label
-          htmlFor="hero-cta-label"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
-          {t('ctaLabelLabel')}
-        </label>
-        <input
-          id="hero-cta-label"
-          type="text"
-          value={hero.ctaLabel}
-          placeholder={t('ctaLabelPlaceholder')}
-          onChange={(event) => update({ ctaLabel: event.target.value })}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-        />
-      </div>
+      <ConfigTextField
+        id="hero-cta-label"
+        label={t('ctaLabelLabel')}
+        value={hero.ctaLabel}
+        placeholder={t('ctaLabelPlaceholder')}
+        onChange={(ctaLabel) => update({ ctaLabel })}
+      />
 
       <div>
         <label className="mb-1.5 block text-sm font-semibold text-gray-900">
@@ -155,22 +129,13 @@ export function HeroConfigPanel({ data, onChange }: ModuleConfigPanelProps): Rea
         </Select>
       </div>
 
-      <div>
-        <label
-          htmlFor="hero-secondary-cta-label"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
-          {t('secondaryCtaLabelLabel')}
-        </label>
-        <input
-          id="hero-secondary-cta-label"
-          type="text"
-          value={hero.secondaryCtaLabel ?? ''}
-          placeholder={t('secondaryCtaLabelPlaceholder')}
-          onChange={(event) => update({ secondaryCtaLabel: event.target.value })}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-        />
-      </div>
+      <ConfigTextField
+        id="hero-secondary-cta-label"
+        label={t('secondaryCtaLabelLabel')}
+        value={hero.secondaryCtaLabel ?? ''}
+        placeholder={t('secondaryCtaLabelPlaceholder')}
+        onChange={(secondaryCtaLabel) => update({ secondaryCtaLabel })}
+      />
 
       <div>
         <label className="mb-1.5 block text-sm font-semibold text-gray-900">
