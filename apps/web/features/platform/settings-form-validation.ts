@@ -117,6 +117,7 @@ function buildNormalizedSettings(
       businessHours: buildBusinessHours(values.timezone, values.days),
       businessInfo: buildBusinessInfo(phone, parsed.email, address, socialLinks),
       notification: { fromEmail: parsed.notificationFromEmail },
+      chatbot: { knowledgeText: values.knowledgeText },
     },
   };
 }

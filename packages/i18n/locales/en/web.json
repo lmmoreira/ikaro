@@ -804,7 +804,8 @@
         "loyalty": "Loyalty",
         "notification": "Notifications",
         "hours": "Business hours",
-        "contact": "Contact"
+        "contact": "Contact",
+        "chatbot": "Chatbot"
       },
       "nameLabel": "Business name *",
       "slugLabel": "Slug (site address)",
@@ -874,6 +875,10 @@
       "socialLinksWhatsappLabel": "WhatsApp",
       "socialLinksInstagramLabel": "Instagram",
       "socialLinksFacebookLabel": "Facebook",
+      "chatbotKnowledgeTextLabel": "About your business",
+      "chatbotKnowledgeTextHint": "Policies, frequently asked questions, and notes the assistant should know — services and prices are already included automatically, no need to repeat them here.",
+      "chatbotKnowledgeTextPlaceholder": "E.g.: We accept Pix and card payments. We don't do dry cleaning. Street parking is available nearby. Priority service for Gold loyalty customers...",
+      "chatbotCapsElsewhereNote": "Volume/cost limits (conversations per day, messages per conversation, etc.) and the AI provider don't appear in this form — they're fixed platform defaults, adjustable only by Ikaro directly in the database when needed.",
       "submit": "Save settings",
       "actionHint": "Settings affect new bookings. Business hours and timezone take effect immediately.",
       "successTitle": "Settings saved!",

@@ -77,7 +77,7 @@ function buildTenant(): TenantSettingsResponse {
         socialLinks: null,
       },
       notification: { fromEmail: null },
-      chatbot: { knowledgeText: '' },
+      chatbot: { knowledgeText: 'Aceitamos Pix e cartão.' },
     },
   };
 }
@@ -460,6 +460,54 @@ describe('SettingsForm', () => {
     expect(screen.getByTestId('settings-notification-from-email-error')).toHaveTextContent(
       'E-mail inválido.',
     );
+  });
+
+  it('pre-fills the chatbot knowledge text field with no maxLength cap', () => {
+    renderWithIntl(<SettingsForm initial={buildTenant()} />);
+
+    const field = screen.getByLabelText('Sobre o seu negócio');
+    expect(field).toHaveValue('Aceitamos Pix e cartão.');
+    expect(field).not.toHaveAttribute('maxLength');
+  });
+
+  it('edits and saves the chatbot knowledge text, sending it in the PATCH body', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<SettingsForm initial={buildTenant()} />);
+
+    const field = screen.getByLabelText('Sobre o seu negócio');
+    await user.clear(field);
+    await user.type(field, 'Não atendemos por ordem de chegada.');
+    await user.click(screen.getByTestId('settings-submit-desktop'));
+
+    expect(await screen.findByTestId('settings-saved-banner')).toBeInTheDocument();
+    expect(mockUpdateTenantSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        settings: expect.objectContaining({
+          chatbot: { knowledgeText: 'Não atendemos por ordem de chegada.' },
+        }),
+      }),
+    );
+  });
+
+  it('shows the knowledge-text-too-long error inline under the field, not as the generic submit banner', async () => {
+    mockUpdateTenantSettings.mockRejectedValueOnce(
+      new ApiError(400, 'Bad request', {
+        code: 'PLATFORM_SETTINGS_CHATBOT_KNOWLEDGE_TEXT_TOO_LONG',
+        field: 'chatbot.knowledgeText',
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithIntl(<SettingsForm initial={buildTenant()} />);
+
+    await user.click(screen.getByTestId('settings-submit-desktop'));
+
+    expect(
+      await screen.findByText(
+        'O texto de conhecimento do assistente excede o limite de caracteres permitido.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId('settings-submit-error')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('settings-saved-banner')).not.toBeInTheDocument();
   });
 
   it('sends socialLinks as null when all three fields are blank, and masks whatsapp otherwise', async () => {

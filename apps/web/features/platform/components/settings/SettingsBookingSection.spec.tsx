@@ -44,6 +44,7 @@ function buildValues(): SettingsFormValues {
     },
     notificationFromEmail: '',
     socialLinks: { whatsapp: '', instagram: '', facebook: '' },
+    knowledgeText: '',
   };
 }
 
