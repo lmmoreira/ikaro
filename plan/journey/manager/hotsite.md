@@ -81,7 +81,7 @@ Folder: `manager/prototypes/hotsite/`
 | `01b-color-error.html` | Invalid hex color error | UC-027 A1 | ✅ Criado |
 | `01c-image-upload-fallback.html` | Image upload failure → URL fallback | UC-027 A2 | ✅ Criado |
 | `01d-module-config-hero.html` | Per-module config drill-down (HERO, representative example) | — | ✅ Criado |
-| `01e-module-config-chatbot.html` | Per-module config drill-down (CHATBOT, 9º tipo — não implementado) | UC-027 Section B | ✅ Criado |
+| `01e-module-config-chatbot.html` | Per-module config drill-down (CHATBOT, 9º tipo — implementado `M19-S12`) | UC-027 Section B | ✅ Criado |
 | `02-preview.html` | Draft preview mock | — | ✅ Criado |
 | `03-publish-success.html` | Publish confirmation | UC-027 | ✅ Criado |
 | `03b-unpublish-success.html` | Unpublish confirmation (zona de risco) | UC-027 | ✅ Criado |
