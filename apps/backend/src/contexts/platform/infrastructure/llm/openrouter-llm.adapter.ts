@@ -34,23 +34,28 @@ const OPENROUTER_TIMEOUT_MS = 8000;
 // backstop (OpenRouter's own USD-per-million-tokens units), not a binding budget — it's ~10x the
 // actual observed cost for this model, there only to guard against a pathological outlier
 // provider, never expected to exclude a normal one.
-// Real incident, 2026-08-18, separate from the throughput ones above: two consecutive AtlasCloud
-// generations, in the same conversation, both burned their entire max_tokens budget on hidden
-// reasoning tokens (280/300 and 300/300) despite reasoning.effort:'none' being sent every call —
-// the first survived by luck (20 tokens left over for a real answer), the second didn't (content
-// came back empty). "effort: 'none'" is OpenRouter's documented, correct way to disable reasoning
-// and is expected to work across models — checked across every other generation in this same
-// conversation's history, AtlasCloud is the only provider that ever showed non-zero
-// native_tokens_reasoning; every one from another provider was 0. require_parameters:true is the
-// root-cause fix (not raising max_tokens, which only delays the same failure at higher cost/
-// latency, and not an atlas-cloud-specific `ignore`, which would only ever patch this one already-
-// caught provider): it tells OpenRouter to exclude any provider that can't honor every parameter
-// in this request — including reasoning — rather than silently dropping the ones a cheaper/faster
-// host doesn't support and returning a result shaped by a request we didn't actually send.
+// Real incidents, 2026-08-18, separate from the throughput ones above: three separate AtlasCloud
+// generations, across the same conversation, each burned their entire max_tokens budget on hidden
+// reasoning tokens (280/300, then twice 300/300) despite reasoning.effort:'none' being sent every
+// call — content came back empty twice. "effort: 'none'" is OpenRouter's documented, correct way
+// to disable reasoning and is expected to work across models — checked across every other
+// generation in this same conversation's history, AtlasCloud is the only provider that ever showed
+// non-zero native_tokens_reasoning; every one from another provider was 0.
+//
+// require_parameters:true alone was tried first as the general, root-cause-shaped fix (excludes
+// any provider OpenRouter's own metadata says can't honor a request parameter) — confirmed
+// insufficient: a third incident recurred with require_parameters:true already active in the
+// request, AtlasCloud selected again (after Wafer/Baidu both hit 429 first), same 300/300
+// reasoning-token burn. AtlasCloud is evidently registered as *supporting* reasoning (so
+// require_parameters doesn't exclude it) but doesn't correctly honor the effort:'none' value once
+// selected — a provider-side implementation bug, not a declared-capability gap the general
+// mechanism can see. The explicit `ignore` below is the empirically-necessary complement, proven
+// against three real failures, not a redundant belt-and-suspenders addition.
 const OPENROUTER_PROVIDER_PREFERENCES = {
   sort: 'throughput',
   max_price: { prompt: 1, completion: 2 },
   require_parameters: true,
+  ignore: ['atlas-cloud'],
 } as const;
 
 interface OpenRouterMessage {

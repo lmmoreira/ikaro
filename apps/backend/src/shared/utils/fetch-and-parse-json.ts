@@ -1,57 +1,58 @@
+import { Agent, fetch as undiciFetch, interceptors, type RequestInit } from 'undici';
 import { z } from 'zod';
 
-// Backoff between retries of a network-level fetch failure (connection refused, DNS failure,
-// TLS error — fetch() itself throwing) — never applied to a non-2xx HTTP response, which is a
-// completed round-trip, not a transient connectivity blip, and retrying it wastes time/cost on
-// what's usually a genuine client/auth error. 2 retries (3 attempts total) with a short,
-// deliberately non-exponential backoff — this call sits behind a user-facing request (chatbot
-// message send), so it must fail fast enough to stay within the caller's own timeout budget
-// rather than accumulate a long exponential tail.
-const FETCH_RETRY_BACKOFF_MS = [300, 800];
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-// A genuine network-level failure (DNS, connection refused, TLS error) rejects fetch() with a
-// TypeError per the WHATWG fetch spec — cheap and worth retrying. An aborted/timed-out request
-// (the caller's own AbortSignal.timeout() firing) rejects with a DOMException instead, and means
-// the server was just slow to respond within the caller's own timeout budget — retrying that
-// with the same budget again doesn't meaningfully improve the odds and just multiplies the
-// caller's own worst-case wait, so it's never retried here.
-function isRetryableNetworkError(err: unknown): boolean {
-  return err instanceof TypeError;
-}
-
-async function fetchWithRetry(
-  url: string,
-  init: RequestInit,
-  errorLabel: string,
-): Promise<Response> {
-  for (let attempt = 0; ; attempt++) {
-    try {
-      return await fetch(url, init);
-    } catch (err) {
-      const cause = err instanceof Error ? err.message : String(err);
-      if (!isRetryableNetworkError(err)) {
-        throw new Error(`${errorLabel} request failed: ${cause}`);
-      }
-      if (attempt >= FETCH_RETRY_BACKOFF_MS.length) {
-        throw new Error(`${errorLabel} request failed after retries: ${cause}`);
-      }
-      await sleep(FETCH_RETRY_BACKOFF_MS[attempt]);
-    }
-  }
-}
+// A single shared dispatcher (connection pool), reused across every fetchAndParseJson call so
+// keep-alive connections are actually reused rather than rebuilt per call.
+//
+// connectTimeout bounds only the TCP/TLS handshake phase, separately from a slow-but-connected
+// response — which stays governed solely by the caller's own AbortSignal (passed via
+// `init.signal`, still the hard ceiling for the whole operation: a shared AbortSignal.timeout()
+// instance caps every attempt underneath it too, verified empirically — see
+// OPENROUTER_TIMEOUT_MS's comment in openrouter-llm.adapter.ts). Replaces a hand-rolled retry
+// loop that couldn't make this distinction — it only ever saw one error type (fetch() throwing)
+// and had to guess whether a stalled connection or a genuinely slow response caused it. A real
+// incident (2026-08-19) surfaced this gap: a request timed out with no corresponding entry in
+// OpenRouter's own request log at all, meaning it never reached their servers — a connect-phase
+// stall, not a slow response, and exactly the case this dispatcher now retries on its own short
+// budget instead of burning the full response-timeout window just to notice.
+//
+// The retry interceptor's own defaults exclude POST (assumed non-idempotent) — every current
+// caller of this helper sends either GET (already a default) or POST (OpenRouter chat
+// completions/credits, both safe: a connect-phase failure means the request never reached the
+// server), so POST is added explicitly rather than replacing GET's own default coverage. The
+// defaults also include response-status-based retries (429/500/502/503/504), overridden to empty
+// below — a completed non-2xx response is a real answer (bad auth, rate limit, already-incurred
+// generation cost), never a connectivity blip worth retrying.
+const RESILIENT_DISPATCHER = new Agent({ connectTimeout: 2000 }).compose(
+  interceptors.retry({
+    maxRetries: 2,
+    minTimeout: 300,
+    maxTimeout: 800,
+    timeoutFactor: 2,
+    methods: ['GET', 'POST'],
+    errorCodes: [
+      'ECONNRESET',
+      'ECONNREFUSED',
+      'ENOTFOUND',
+      'ENETDOWN',
+      'ENETUNREACH',
+      'EHOSTDOWN',
+      'EHOSTUNREACH',
+      'EPIPE',
+      'UND_ERR_CONNECT_TIMEOUT',
+    ],
+    statusCodes: [],
+  }),
+);
 
 /**
  * Fetches `url`, verifies a 2xx response, parses the body as JSON, and validates it against
  * `schema` — the four-step "call an external JSON API safely" shape this codebase's outbound
  * HTTP clients need (OpenRouter chat completions, OpenRouter credits). Throws a plain `Error`
- * prefixed with `errorLabel` at every failure point (non-2xx, invalid JSON, schema mismatch) —
- * callers decide how to handle/log the failure, this helper never swallows one. A genuine
- * network-level failure (fetch() throwing a TypeError) is retried with a short backoff before
- * giving up; an aborted/timed-out request is not — see fetchWithRetry above.
+ * prefixed with `errorLabel` at every failure point (connect failure, non-2xx, invalid JSON,
+ * schema mismatch) — callers decide how to handle/log the failure, this helper never swallows
+ * one. Uses undici's own Agent + retry interceptor (RESILIENT_DISPATCHER above), not a
+ * hand-rolled retry loop — see its comment for why.
  */
 export async function fetchAndParseJson<T>(
   url: string,
@@ -59,7 +60,13 @@ export async function fetchAndParseJson<T>(
   schema: z.ZodType<T>,
   errorLabel: string,
 ): Promise<T> {
-  const response = await fetchWithRetry(url, init, errorLabel);
+  let response;
+  try {
+    response = await undiciFetch(url, { ...init, dispatcher: RESILIENT_DISPATCHER });
+  } catch (err) {
+    const cause = err instanceof Error ? err.message : String(err);
+    throw new Error(`${errorLabel} request failed: ${cause}`);
+  }
 
   if (!response.ok) {
     throw new Error(`${errorLabel} request failed: ${response.status} ${await response.text()}`);
