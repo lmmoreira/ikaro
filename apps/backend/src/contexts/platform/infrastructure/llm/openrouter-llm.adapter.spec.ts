@@ -62,7 +62,7 @@ describe('OpenRouterLlmAdapter', () => {
     expect(body.reasoning).toEqual({ effort: 'none' });
   });
 
-  it('sorts by throughput with a generous max_price backstop, so a chat visitor is not routed to a slow-generating provider', async () => {
+  it('sorts by throughput, ignores atlas-cloud, with a generous max_price backstop, so a chat visitor is not routed to a slow or reasoning-token-starved provider', async () => {
     fetchSpy.mockResolvedValue(mockSuccessResponse());
     const adapter = new OpenRouterLlmAdapter(makeConfigService());
 
@@ -70,7 +70,11 @@ describe('OpenRouterLlmAdapter', () => {
 
     const [, calledOptions] = fetchSpy.mock.calls[0] as [string, RequestInit];
     const body = JSON.parse(calledOptions.body as string);
-    expect(body.provider).toEqual({ sort: 'throughput', max_price: { prompt: 1, completion: 2 } });
+    expect(body.provider).toEqual({
+      sort: 'throughput',
+      max_price: { prompt: 1, completion: 2 },
+      ignore: ['atlas-cloud'],
+    });
   });
 
   it('calls the OpenRouter chat completions endpoint with the model, max_tokens, and bearer auth', async () => {
@@ -258,6 +262,11 @@ describe('OpenRouterLlmAdapter', () => {
         { role: 'user', content: 'How much is a wash?' },
         { role: 'user', content: 'And a polish?' },
       ],
+      provider: {
+        sort: 'throughput',
+        max_price: { prompt: 1, completion: 2 },
+        ignore: ['atlas-cloud'],
+      },
     });
     const loggedArgs = debugSpy.mock.calls[0];
     expect(JSON.stringify(loggedArgs)).not.toContain('test-api-key');

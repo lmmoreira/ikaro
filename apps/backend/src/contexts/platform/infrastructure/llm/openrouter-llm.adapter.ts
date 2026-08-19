@@ -34,14 +34,33 @@ const OPENROUTER_TIMEOUT_MS = 8000;
 // backstop (OpenRouter's own USD-per-million-tokens units), not a binding budget — it's ~10x the
 // actual observed cost for this model, there only to guard against a pathological outlier
 // provider, never expected to exclude a normal one.
+// Real incident, 2026-08-18, separate from the throughput ones above: two consecutive AtlasCloud
+// generations, in the same conversation, both burned their entire max_tokens budget on hidden
+// reasoning tokens (280/300 and 300/300) despite reasoning.effort:'none' being sent every call —
+// the first survived by luck (20 tokens left over for a real answer), the second didn't (content
+// came back empty). "effort: 'none'" is OpenRouter's documented, correct way to disable reasoning
+// and is expected to work across models — checked across every other generation in this same
+// conversation's history, AtlasCloud is the only provider that ever showed non-zero
+// native_tokens_reasoning; every one from another provider was 0. Excluding it via `ignore` (not
+// raising max_tokens, which only delays the same failure at higher cost/latency) is the direct
+// fix for a specific provider not honoring a parameter the whole system depends on.
 const OPENROUTER_PROVIDER_PREFERENCES = {
   sort: 'throughput',
   max_price: { prompt: 1, completion: 2 },
+  ignore: ['atlas-cloud'],
 } as const;
 
 interface OpenRouterMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
+}
+
+function buildOpenRouterMessages(request: ChatCompletionRequest): OpenRouterMessage[] {
+  return [
+    { role: 'system', content: request.systemPrompt },
+    ...request.history.map((turn) => ({ role: turn.role, content: turn.content })),
+    { role: 'user', content: request.userMessage },
+  ];
 }
 
 // Validated at runtime, not just cast — a 200 response with an empty choices array or missing
@@ -77,11 +96,7 @@ export class OpenRouterLlmAdapter implements ILlmProvider {
   }
 
   async complete(request: ChatCompletionRequest): Promise<ChatCompletionResult> {
-    const messages: OpenRouterMessage[] = [
-      { role: 'system', content: request.systemPrompt },
-      ...request.history.map((turn) => ({ role: turn.role, content: turn.content })),
-      { role: 'user', content: request.userMessage },
-    ];
+    const messages = buildOpenRouterMessages(request);
     const model = request.model ?? DEFAULT_OPENROUTER_MODEL;
 
     // Debug-only visibility into the exact context sent to the provider (never the API key) —
@@ -90,6 +105,7 @@ export class OpenRouterLlmAdapter implements ILlmProvider {
       model,
       maxOutputTokens: request.maxOutputTokens,
       messages,
+      provider: OPENROUTER_PROVIDER_PREFERENCES,
     });
 
     const body = await fetchAndParseJson(
