@@ -510,7 +510,7 @@ Also requires `apps/web/features/platform/hotsite/default-layout.ts`: add `'CHAT
 
 ---
 
-### M19-S13 — Tenant settings form — Chatbot section
+### M19-S13 — Tenant settings form — Chatbot section ✅ Done
 
 **Agent:** `frontend-ts`
 **Complexity:** S
