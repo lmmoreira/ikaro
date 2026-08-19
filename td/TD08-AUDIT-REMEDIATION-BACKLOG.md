@@ -3,7 +3,7 @@
 **Status:** Open — drain incrementally as tech debt (no big-bang; see §0 "How to use")
 **Scope:** whole repo — `apps/backend`, `apps/bff`, `apps/web`, `packages/*`, CI/CD, supply-chain, infra
 **Derived from:** `OPUS_AUDITORY.md` (full senior audit of Ikaro, 2026-06-21 — architecture, events, frontend, CI/CD, supply-chain, QA, operability)
-**Last updated:** 2026-06-21
+**Last updated:** 2026-08-19 — `/docs-audit` pass re-verified every open/partial item against current code; see per-item "Implemented notes"/status updates below for what changed since the 2026-06-21 audit snapshot.
 
 > **Purpose:** Turn every audit finding into a **discrete, self-contained story** you can implement one at a time, ordered by **risk/urgency first, effort second**.
 > **Audience:** This document is written to be read by **AI coding agents**. Each story is self-contained — problem, evidence, why it's wrong, the fix, and acceptance criteria — so a future agent can plan and implement it without re-reading the whole audit. Always cross-reference the cited `OPUS_AUDITORY.md §x.y` for the long-form rationale.
@@ -57,7 +57,7 @@
 | **AUD-022** | Contract tests at BFF↔backend seam | 🟡 Medium | M | Now | — | §11.5 |
 | **AUD-023** | Runtime accessibility tests (axe) ✅ | 🟡 Medium | S | Now | — | §11.7 |
 | **AUD-024** | CI efficiency: dedupe test runs, docker cache, trivy ✅ | 🟡 Medium | S | Now | — | §9.3, §9.6 |
-| **AUD-025** | Public-image CDN delivery vs signed URLs | 🟡 Medium | S | Pre-deploy | — | §8.5 |
+| **AUD-025** | Public-image CDN delivery vs signed URLs ✅ | 🟡 Medium | S | Pre-deploy | — | §8.5 |
 | **AUD-026** | Reconsider `BackendHttpService` request scope | 🟡 Medium | M | Now | — | §5.4 |
 | **AUD-027** | Booking-lines diff-upsert (drop delete-all) ✅ | 🔵 Low | S | Now | — | §5.5 |
 | **AUD-028** | Polish bundle (VO error mapping, default params, minor) | 🔵 Low | S | Now | — | §6, §8.7, §10.7 |
@@ -67,7 +67,7 @@
 | **AUD-031** | Introduce Redis (unlocks 032/034/016/011) | 🟠 High | M | Infra/Deploy | — | §13.2 |
 | **AUD-032** | Distributed rate limiting + trust proxy + per-tenant | 🟠 High | S | Infra/Deploy | AUD-031 | §13.2 |
 | **AUD-033** | Readiness probe checks dependencies | ✅ Done | S | Infra/Deploy | M17-S04 | §13.3 |
-| **AUD-034** | Wire OpenTelemetry tracing + metrics | 🟠 High | M | Infra/Deploy | — | §13.4 |
+| **AUD-034** | Wire OpenTelemetry tracing + metrics ✅ | 🟠 High | M | Infra/Deploy | — | §13.4 |
 | **AUD-035** | LGPD / PII data-protection plan (design early) | 🟠 High | L | Pre-deploy | — | §13.5 |
 | **AUD-036** | Resilience: retry/backoff + circuit breaker (BFF→backend) | 🟡 Medium | M | Infra/Deploy | — | §13.6 |
 | **AUD-037** | Auth lifecycle: JWT revocation/refresh/rotation | 🟡 Medium | M | Infra/Deploy | AUD-031 | §13.7 |
@@ -76,7 +76,7 @@
 | **AUD-040** | Abuse/bot protection on public booking | 🟡 Medium | S | Infra/Deploy | AUD-032 | §13.10 |
 | **AUD-041** | Load / throughput regression tests (k6) | 🟡 Medium | M | Infra/Deploy | AUD-030 | §11.6 |
 | **AUD-042** | RUM / Core Web Vitals field monitoring | 🔵 Low | S | Infra/Deploy | — | §13.10 |
-| **AUD-043** | Rename `apps/web/middleware.ts` → `proxy.ts` (Next.js 16 deprecation) | 🔵 Low | XS | Now | — | (not in original audit — found during AUD-007) |
+| **AUD-043** | Rename `apps/web/middleware.ts` → `proxy.ts` (Next.js 16 deprecation) ✅ | 🔵 Low | XS | Now | — | (not in original audit — found during AUD-007) |
 
 ### Suggested execution order (the critical path)
 
@@ -150,10 +150,10 @@ Double-booking a physical service slot (one wash bay) is a real-world operationa
 3. **Prove/repair the optimistic lock:** add a concurrency test (load twice, save both, assert second throws `OptimisticLockVersionMismatchError`); if it doesn't fire, switch to explicit `manager.update(BookingEntity, { id, tenantId, version }, …)` checking `affected === 1`.
 
 #### Acceptance criteria
-- [ ] Two concurrent approvals for the same/overlapping slot → exactly one succeeds, the other gets `BookingSlotUnavailableError` (test in AUD-003).
-- [ ] Conflict check runs inside the transaction.
-- [ ] Optimistic-lock behavior is asserted by a test (passes, or the write path is repaired so it does).
-- [ ] Exclusion-constraint migration registered in `integration-global-setup.ts` same commit.
+- [x] Two concurrent approvals for the same/overlapping slot → exactly one succeeds, the other gets `BookingSlotUnavailableError` (test in AUD-003).
+- [x] Conflict check runs inside the transaction.
+- [x] Optimistic-lock behavior is asserted by a test (passes, or the write path is repaired so it does).
+- [x] Exclusion-constraint migration registered in `integration-global-setup.ts` same commit.
 
 **Implemented notes**
 - The write paths now re-check slot conflicts inside `txManager.run(...)`.
@@ -251,8 +251,8 @@ On Cloud Run scale-in, subscriptions aren't closed cleanly, in-flight handlers a
 Add `app.enableShutdownHooks()` in both bootstraps; ensure SIGTERM drains the HTTP server before exit. Verify the Pub/Sub adapter's `onModuleDestroy` actually runs on shutdown.
 
 #### Acceptance criteria
-- [ ] Both apps call `enableShutdownHooks()`.
-- [ ] On SIGTERM, Pub/Sub subscriptions close and the server stops accepting new requests before exit (manually verifiable via logs).
+- [x] Both apps call `enableShutdownHooks()`. Verified: `apps/backend/src/main.ts:13`, `apps/bff/src/main.ts:31`.
+- [ ] On SIGTERM, Pub/Sub subscriptions close and the server stops accepting new requests before exit (manually verifiable via logs) — not independently re-verified by log inspection; the call site exists but a live-shutdown check hasn't been re-run.
 
 ---
 
@@ -299,7 +299,7 @@ Extend `middleware.ts` (which already runs on every non-`api`/`_next`/favicon pa
 - [x] `pnpm dev` still works — the entire live browser verification above ran against `pnpm --filter @ikaro/web dev` (Turbopack), which serves the dev-mode CSP (`'unsafe-eval'` + `ws://localhost:*`) and rendered every page correctly; HMR's websocket reconnect specifically wasn't exercised (no file edit was made while the dev server was running against a loaded page).
 
 #### Affected areas
-`middleware.ts` (CSP + header injection, branching on route group).
+`apps/web/proxy.ts` (formerly `middleware.ts`, renamed by AUD-043 — CSP + header injection, branching on route group).
 
 ---
 
@@ -339,11 +339,11 @@ Either (a) add `import 'client-only'` at the top of `bff-client.ts` so any accid
 5. Pin Dockerfile base images to `node:22-alpine@sha256:<digest>` (builder + runner).
 
 #### Acceptance criteria
-- [ ] No `@master` (or floating major) third-party action remains; all on SHAs.
-- [ ] Dependabot config covers all three ecosystems.
-- [ ] PR workflows cancel superseded runs.
-- [ ] Default token scope is `contents: read` unless a job needs more.
-- [ ] Dockerfiles pin base image digests.
+- [x] No `@master` (or floating major) third-party action remains; all on SHAs. Verified: zero matches for `uses:.*@master` or floating `@vN` tags across `.github/workflows/*.yml`.
+- [x] Dependabot config covers all three ecosystems. Verified: `.github/dependabot.yml` exists.
+- [x] PR workflows cancel superseded runs. Verified: `pr-quality.yml` and `pr-tests.yml` (the two PR-triggered workflows) both have `concurrency:` blocks; the other 7 workflows are deploy/infra/scheduled, not PR-triggered, so this criterion doesn't apply to them.
+- [x] Default token scope is `contents: read` unless a job needs more. Verified: all 9 workflows have a top-level `permissions:` block.
+- [x] Dockerfiles pin base image digests. Verified: all 3 Dockerfiles use `FROM node@sha256:...` for both builder and runner stages.
 
 #### Affected areas
 `.github/workflows/*.yml`, new `.github/dependabot.yml`, all three `Dockerfile`s.
@@ -455,27 +455,31 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 
 ### AUD-019 — DLQ replay runbook + endpoint + depth alert
 **Risk:** 🟡 Medium · **Effort:** M · **Phase:** Pre-deploy · **Audit ref:** §12.7
-**Status:** ☐ Not started
+**Status:** 🟡 Partially done — depth alerting shipped, replay path still missing
 
-**What's wrong:** `dead-letter.handler.ts` only logs; dead-lettered events have no path back into processing — recovery is a manual DB/Pub/Sub exercise.
-**Fix:** A guarded admin/cron endpoint to re-drive DLQ messages (re-publish to the original topic) after a fix is deployed; alert on DLQ depth; at least one test that drives an event to the DLQ and replays it.
-**Acceptance:** ☐ A DLQ'd event can be replayed through a guarded endpoint and is processed idempotently; DLQ depth is observable.
+**Implemented notes (2026-08-19 re-verify):** `infra/terraform/modules/monitoring/main.tf` now defines `google_monitoring_alert_policy.dlq_undelivered`, live-verified in staging on 2026-08-09 (`docs/10-OBSERVABILITY_STRATEGY.md`). That alert's own description says the replay runbook "lands in `docs/RUNBOOKS.md` as an M17-S37 item, not yet written" — so depth observability is done, but the runbook + replay mechanism below are still open.
+
+**What's wrong:** `dead-letter.handler.ts` still only logs (explicit "does NOT throw — must ACK to prevent infinite DLQ redelivery" comment); dead-lettered events still have no path back into processing — recovery is still a manual DB/Pub/Sub exercise.
+**Fix:** A guarded admin/cron endpoint to re-drive DLQ messages (re-publish to the original topic) after a fix is deployed; a runbook (tracked as M17-S37); at least one test that drives an event to the DLQ and replays it.
+**Acceptance:** ☑ DLQ depth is observable (alert policy live). ☐ A DLQ'd event can be replayed through a guarded endpoint and is processed idempotently — still open.
 
 ### AUD-020 — Slim the `Booking` aggregate (event-payload factories)
 **Risk:** 🟡 Medium · **Effort:** M · **Phase:** Now · **Audit ref:** §5.3
-**Status:** ☐ Not started
+**Status:** ☐ Not started — and worse: re-verified 2026-08-19 at **709 lines**, up from the 615-line snapshot below. `lineSummaryPayload()`/`toAddressPayload()` are still inline, unextracted.
 
-**What's wrong:** `booking.aggregate.ts` is 615 lines (largest source file), well over the project's ≤200-line class rule, mostly inline event-payload serialization (`lineSummaryPayload`, `toAddressPayload`, large literal payloads in `complete()`/`approve()`).
+**What's wrong:** `booking.aggregate.ts` was 615 lines (largest source file) at the original 2026-06-21 audit, well over the project's ≤200-line class rule, mostly inline event-payload serialization (`lineSummaryPayload`, `toAddressPayload`, large literal payloads in `complete()`/`approve()`).
 **Fix:** Extract event-payload assembly into dedicated factories/mappers (`BookingEventPayloadFactory`), leaving the aggregate with state-transition logic.
 **Acceptance:** ☐ `Booking` aggregate ≤ ~200 lines; event payloads built by a separate, unit-tested factory; behavior unchanged (tests green).
 
 ### AUD-021 — Edge-case tests: timezone/DST, money, idempotency replay
 **Risk:** 🟡 Medium · **Effort:** M · **Phase:** Now · **Audit ref:** §11.8
-**Status:** ☐ Not started
+**Status:** ☐ Not started — but narrower than originally scoped: the idempotency-replay case is now covered (see note)
 
-**What's wrong:** Thin edge coverage in time/money/idempotency. Notably no DST-boundary tests for non-Brazil tenants, no cancellation-window exact-boundary test, no money-precision-at-rounding test, no explicit idempotency-replay assertion. Customer & Notification contexts are integration-light (3 specs each vs booking's 10).
-**Fix:** Add cases for DST transitions in availability/slot math, the 48h cancellation exact boundary, summing many money lines at the `numeric(10,2)` boundary, and same-`eventId`-twice → one effect. Add integration coverage for notification senders (template render, idempotency, delivery-channel failure).
-**Acceptance:** ☐ The above edge cases have tests; notification/customer integration coverage raised.
+**Implemented notes (2026-08-19 re-verify):** `complete-booking-loyalty-effects.use-case.spec.ts` now has `'is idempotent — replaying the same eventId skips earning and redemption together'` — the idempotency-replay sub-item is done. DST-boundary, cancellation-exact-boundary, and money-rounding tests are still genuinely absent (only comments noting "America/Sao_Paulo has no DST since 2019," not real DST-transition test cases for non-Brazil tenants).
+
+**What's wrong:** Thin edge coverage in time/money. Notably no DST-boundary tests for non-Brazil tenants, no cancellation-window exact-boundary test, no money-precision-at-rounding test. Customer & Notification contexts are integration-light (3 specs each vs booking's 10).
+**Fix:** Add cases for DST transitions in availability/slot math, the 48h cancellation exact boundary, summing many money lines at the `numeric(10,2)` boundary. Add integration coverage for notification senders (template render, idempotency, delivery-channel failure).
+**Acceptance:** ☑ Idempotency-replay case has a test. ☐ DST/cancellation-boundary/money-rounding cases still need tests; notification/customer integration coverage still needs raising.
 
 ### AUD-022 — Contract tests at BFF↔backend seam
 **Risk:** 🟡 Medium · **Effort:** M · **Phase:** Now · **Audit ref:** §11.5
@@ -503,11 +507,13 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 
 ### AUD-025 — Public-image CDN delivery vs signed URLs
 **Risk:** 🟡 Medium · **Effort:** S · **Phase:** Pre-deploy · **Audit ref:** §8.5
-**Status:** ☐ Not started
+**Status:** ✅ Done — fixed in PR #292 (2026-07-30)
 
-**What's wrong:** Public hotsite images (hero/gallery/about) appear to use per-request signed URLs (`generateHotsiteImageSignedUrl`), which defeat Next/CDN image caching (URL changes each request). Signed URLs are correct only for *private* booking photos.
-**Fix:** Serve public hotsite images from a public, CDN-backed bucket with stable URLs; reserve signed URLs for private/after-service photos. Confirm which path gallery/hero use first.
-**Acceptance:** ☐ Public hotsite images use stable, cacheable URLs; private photos remain signed.
+**Implemented notes:** Public hotsite images (hero/gallery/about/branding/SEO/testimonials) now resolve via `HotsiteImageUrlResolver.resolve()` calling `storageService.getPublicUrl(storagePath)`, a deterministic, unsigned URL (`${publicBaseUrl}/${publicBucketName}/${storagePath}`) — fully CDN/Next-Image cacheable. `generateHotsiteImageSignedUrl`/`generateHotsiteImageReadSignedUrl` still exist but are now scoped to the admin dashboard (upload + editor preview), not the public visitor path.
+
+**What's wrong (historical):** Public hotsite images used per-request signed URLs (`generateHotsiteImageSignedUrl`), which defeated Next/CDN image caching (URL changes each request). Signed URLs are correct only for *private* booking photos.
+**Fix:** Serve public hotsite images from a public, CDN-backed bucket with stable URLs; reserve signed URLs for private/after-service photos.
+**Acceptance:** ☑ Public hotsite images use stable, cacheable URLs; private photos remain signed.
 
 ### AUD-026 — Reconsider `BackendHttpService` request scope
 **Risk:** 🟡 Medium · **Effort:** M · **Phase:** Now (measure first) · **Audit ref:** §5.4
@@ -529,9 +535,17 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 
 ### AUD-028 — Polish bundle (VO error mapping, default params, minor notes)
 **Risk:** 🔵 Low · **Effort:** S · **Phase:** Now · **Audit ref:** §6, §8.7, §10.7
-**What's wrong:** Assorted: `Money` VO throws plain `Error` (`money.ts:18,23,41`) — confirm every error mapper maps it to 400 not 500; middleware auth gate only checks cookie presence (fine, document it); error-detail leakage check on 4xx; `.npmrc` registry pin; `ENABLE_DEV_AUTH` hard-fail in prod (also see AUD-037).
-**Fix:** Address each as a small cleanup; add `instanceof` branches / typed VO errors where missing.
-**Acceptance:** ☐ Each sub-item resolved or consciously deferred with a note.
+**Status:** 🟡 Partially done — 4 of 5 sub-items resolved; only the `.npmrc` registry pin remains
+
+**Implemented notes (2026-08-19 re-verify):**
+1. ☑ `Money` VO plain `Error` — resolved. `apps/backend/src/shared/value-objects/money.ts` now defines `MoneyValidationError` (typed, implements `DomainErrorShape`, `Object.setPrototypeOf` applied, carries a `MoneyErrorCode`), used at every throw site.
+2. ☑ Middleware auth gate cookie-presence-only — resolved (closed TD15). `apps/web/proxy.ts` (formerly `middleware.ts`) now performs real HS256 signature verification via `jose.jwtVerify` (`apps/web/features/auth/verify-edge-jwt.ts:33-40`), not a bare cookie-presence check.
+3. ☑ Error-detail leakage on 4xx — checked, confirmed safe, no fix needed. `BaseErrorFilter` (`packages/nestjs-http/src/base-error.filter.ts`) sanitizes 500s to a generic message (stack trace stays server-side-logged only); 4xx `detail` fields are always developer-authored domain-error messages, never a raw DB/framework exception or file path.
+4. ☐ **`.npmrc` registry pin — still open.** `.npmrc` has only `shamefully-hoist=false` / `strict-peer-dependencies=false`, no `registry=` line.
+5. ☑ `ENABLE_DEV_AUTH` hard-fail in prod — resolved. `apps/bff/src/config/env.validation.ts:49-54` Zod-refines that `ENABLE_DEV_AUTH=true` + `APP_ENV=production` fails validation at boot.
+
+**Fix:** Add a `registry=` pin to `.npmrc` (the one remaining sub-item).
+**Acceptance:** ☑ 4 of 5 sub-items resolved. ☐ `.npmrc` registry pin still open.
 
 ### AUD-029 — Mutation testing on domain layer (Stryker)
 **Risk:** 🔵 Low · **Effort:** S · **Phase:** Now · **Audit ref:** §11.9
@@ -547,9 +561,13 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 
 ### AUD-030 — DB connection pool + PgBouncer + SSL
 **Risk:** 🔴 Critical (in prod) · **Effort:** M · **Phase:** Infra/Deploy · **Audit ref:** §13.1
-**What's wrong:** `TypeOrmModule.forRootAsync` (`app.module.ts`) sets no `extra.max`/`poolSize`/`ssl`; node-postgres defaults to 10 conns/instance → `~10×N` connections exhaust Postgres (~100 max) at ~10 instances during a spike.
-**Fix:** Explicit small per-instance pool (`extra:{max:5}`), PgBouncer/Cloud SQL pooler, cap Cloud Run `max-instances` so `max×poolSize < Postgres max × safety`, enable `ssl`. Load-test to the cap (AUD-041).
-**Acceptance:** ☐ Pool sized + pooler in place + SSL on; sustained load at instance cap doesn't exhaust DB connections.
+**Status:** 🟡 Partially done — pool sizing, encryption, and instance-cap math are all handled; only managed pooling remains, explicitly deferred to M17-S46
+
+**Implemented notes (2026-08-19 re-verify):** `apps/backend/src/app.module.ts` now sets `poolSize: config.get<number>('DB_POOL_SIZE', 10)` (env-driven, validated in `config/env.validation.ts`). Encryption is handled via the Cloud SQL Connector's mTLS tunnel (`shared/infrastructure/database/cloud-sql-connector.adapter.ts`), not a plain `ssl` flag — deliberate per TD33, since that's the one file allowed to import `@google-cloud/cloud-sql-connector`. Cloud Run `max_instance_count` is Terraform-enforced against a connection-math invariant (`modules/cloudrun-service/variables.tf`: `max_instance_count * db_pool_size * 2 <= 80% of tier_max_connections`) in both `envs/staging` and `envs/prod`. PgBouncer/managed connection pooling is the one piece still genuinely deferred — `infra/terraform/modules/database/README.md` explicitly schedules "Enterprise Plus + Managed Connection Pooling" as **M17-S46**, a documented scaling ladder rung, not an oversight.
+
+**What's wrong (historical):** `TypeOrmModule.forRootAsync` (`app.module.ts`) set no `extra.max`/`poolSize`/`ssl`; node-postgres defaults to 10 conns/instance → `~10×N` connections exhaust Postgres (~100 max) at ~10 instances during a spike.
+**Fix:** Managed connection pooling (PgBouncer/Cloud SQL Managed Connection Pooling) — tracked as M17-S46. Load-test to the cap (AUD-041).
+**Acceptance:** ☑ Pool sized, SSL/encryption on, instance-cap math enforced. ☐ Managed pooler in place (M17-S46) — still open.
 
 ### AUD-031 — Introduce Redis
 **Risk:** 🟠 High (enabler) · **Effort:** M · **Phase:** Infra/Deploy · **Audit ref:** §13.2 (and unlocks AUD-011 dist, AUD-016, AUD-032, AUD-034)
@@ -574,15 +592,22 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 
 ### AUD-034 — Wire OpenTelemetry tracing + metrics
 **Risk:** 🟠 High · **Effort:** M · **Phase:** Infra/Deploy · **Audit ref:** §13.4
-**What's wrong:** OTel/Prometheus/Grafana/Loki are documented but `packages/observability` exports only a logger; no `NodeSDK`/instrumentation/exporter anywhere. No distributed tracing or app metrics.
+**Status:** ✅ Done — shipped and extensively hardened via M17-S34/S54/S55/S56
+
+**Implemented notes:** `packages/observability/src/` now contains `otel-tracing.ts` (full `NodeSDK` bootstrap: `OTLPTraceExporter`, `OTLPMetricExporter` + `PeriodicExportingMetricReader`, `getNodeAutoInstrumentations`, a custom `createSampler()` using `ParentBasedSampler`/`TraceIdRatioBasedSampler`), plus `otel-tracing-adapter.ts`, `tracing-port.ts`, `otel-sdk-disabled.ts`, `otel-query-redaction.ts`, each with its own spec. Distributed tracing (BFF→backend→Pub/Sub→consumer) and app metrics are both fully wired — see `docs/ENGINEERING_RULES.md` § Cloud Run CPU throttling for the full hardening history (sampler defaults bug, `concurrencyLimit`, collector sidecar starvation, metrics-exporter-by-default gap — all found and fixed post-initial-wiring).
+
+**What's wrong (historical):** OTel/Prometheus/Grafana/Loki were documented but `packages/observability` exported only a logger; no `NodeSDK`/instrumentation/exporter anywhere. No distributed tracing or app metrics.
 **Fix:** Initialize the OTel Node SDK (auto-instrument HTTP/PG/Pub/Sub) with an OTLP exporter to the Collector; emit metrics for handler latency, Pub/Sub backlog + DLQ depth (AUD-019), DB pool utilization (AUD-030), per-tenant request rates.
-**Acceptance:** ☐ A request produces an end-to-end trace BFF→backend→Pub/Sub→consumer; key metrics are scraped.
+**Acceptance:** ☑ A request produces an end-to-end trace BFF→backend→Pub/Sub→consumer; key metrics are scraped.
 
 ### AUD-035 — LGPD / PII data-protection plan
 **Risk:** 🟠 High (compliance) · **Effort:** L · **Phase:** Pre-deploy (design early) · **Audit ref:** §13.5
-**What's wrong:** Raw PII (`contactEmail`/`contactName`/`contactPhone`/addresses) flows through events → the enriched `dead-letter` topic → logs; photos in GCS; loyalty entries append-only. No scrubbing, retention, encryption, or erasure workflow — a Brazil/LGPD liability.
-**Fix:** PII inventory + plan: minimize PII in event payloads (reference IDs or field-level encryption), set DLQ + log/notification retention/TTL, scrub PII from logs, encrypt sensitive columns at rest, design an erasure/anonymization workflow respecting append-only invariants, list sub-processors.
-**Acceptance:** ☐ A documented PII map + retention + erasure design; high-risk leaks (DLQ/logs) mitigated. *Design during Wave 1–2; implement here.*
+**Status:** 🟡 Partially done — photo retention designed and shipped; subject-rights/erasure workflow designed but not implemented (tracked as M17-S51); no field-level encryption
+
+**Implemented notes (2026-08-19 re-verify):** `docs/26-DATA_RETENTION_AND_PRIVACY.md` exists (shipped by M17-S45, ✅ Done) — documents a concrete, Terraform-enforced photo retention/deletion lifecycle (`booking_photo_retention_days` = 365 days, GCS lifecycle rule, 7-day soft-delete safety net). That doc's own "What this stub does not yet cover" section names exactly the remaining AUD-035 gaps — export/deletion/erasure workflow, tenant-offboarding, backup interplay — and assigns them to **M17-S51**, which is scoped in detail (`plan/M17-CLOUD-DEPLOY.md`) but not yet marked done. No field-level encryption of sensitive columns exists in any entity or migration.
+**What's wrong (historical):** Raw PII (`contactEmail`/`contactName`/`contactPhone`/addresses) flows through events → the enriched `dead-letter` topic → logs; photos in GCS; loyalty entries append-only. No scrubbing, retention, encryption, or erasure workflow — a Brazil/LGPD liability.
+**Fix:** Subject-rights/erasure/tenant-offboarding workflow (M17-S51); field-level encryption for sensitive columns at rest; scrub PII from logs; list sub-processors.
+**Acceptance:** ☑ Photo retention/deletion designed and shipped (M17-S45). ☐ Subject-rights/erasure/offboarding design → implementation (M17-S51). ☐ Field-level encryption still open.
 
 ### AUD-036 — Resilience: retry/backoff + circuit breaker (BFF→backend)
 **Risk:** 🟡 Medium · **Effort:** M · **Phase:** Infra/Deploy · **Audit ref:** §13.6
@@ -598,9 +623,12 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 
 ### AUD-038 — CD pipeline + migration job + IaC + DR
 **Risk:** 🟡 Medium · **Effort:** L · **Phase:** Infra/Deploy · **Audit ref:** §13.8, §9.6
-**What's wrong:** No CD workflow, no migration job (despite the documented "separate job before deploy"), and the Checkov job scans `infrastructure/terraform/**` which **doesn't exist** (dead scan, no IaC). Backups/DR are doc-only.
-**Fix:** Add a migration CI job gating deploys; commit the Terraform the Checkov job expects (or remove the dead scan); define canary/rollback + zero-downtime (expand/contract) migration discipline; document + drill backups/RTO/RPO.
-**Acceptance:** ☐ Deploys run migrations first and abort on failure; IaC exists and is scanned; a restore drill is documented/tested.
+**Status:** 🟡 Partially done — CD pipeline, migration gating, and IaC all shipped; only backup/DR automation remains open
+
+**Implemented notes (2026-08-19 re-verify):** A CD pipeline exists (`deploy-staging.yml`: build → scan → push → migrate → deploy → smoke; `deploy-production.yml`: manual promote; `rollback-production.yml`). The migration job is real and gates deploy — `deploy-staging.yml`'s `migrate-and-deploy` job runs `gcloud run jobs execute ikaro-migrate --wait` and fails the pipeline on a non-zero exit. `infra/terraform/` fully exists (`envs/`, `foundation/`, `modules/`, with `.tftest.hcl` unit tests). The Checkov job now scans the real `infra/terraform` path, gated by `dorny/paths-filter` — not a dead scan. Only piece still open: `rollback-production.yml` gives a manual traffic-split rollback, but no automated backup/DR strategy (RTO/RPO drill) was found.
+**What's wrong (historical):** No CD workflow, no migration job (despite the documented "separate job before deploy"), and the Checkov job scanned `infrastructure/terraform/**` which didn't exist (dead scan, no IaC). Backups/DR are doc-only.
+**Fix:** Document + drill backups/RTO/RPO — the one remaining sub-item.
+**Acceptance:** ☑ Deploys run migrations first and abort on failure. ☑ IaC exists and is scanned. ☐ A restore drill is documented/tested — still open.
 
 ### AUD-039 — SBOM generation + image signing (cosign)
 **Risk:** 🟡 Medium · **Effort:** S · **Phase:** Infra/Deploy · **Audit ref:** §10.5
@@ -630,11 +658,13 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 
 ### AUD-043 — Rename `apps/web/middleware.ts` → `proxy.ts` (Next.js 16 deprecation)
 **Risk:** 🔵 Low · **Effort:** XS · **Phase:** Now · **Depends on:** — · **Audit ref:** not in the original audit — noticed incidentally in `pnpm dev` output while verifying AUD-007 live
-**Status:** ☐ Not started
+**Status:** ✅ Done — renamed in PR #292 (2026-07-30)
 
-**What's wrong:** Every `pnpm --filter @ikaro/web dev`/build run logs: `⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.` The file already carries real logic — staff/customer auth guards and (after AUD-007) CSP/security headers — that needs to keep working once the old convention is removed in a future Next.js major version.
-**Fix:** Rename `apps/web/middleware.ts` → `apps/web/proxy.ts` (and `middleware.spec.ts` → `proxy.spec.ts`) per Next.js's migration guidance, adjusting exported names/config if the new convention requires it. Update every doc reference to `middleware.ts` (`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/CI_TRAPS.md`, this file's AUD-007/AUD-008 entries) in the same change.
-**Acceptance:** ☐ No deprecation warning on `pnpm dev`/`pnpm build` for `apps/web`. ☐ All existing test cases pass unchanged (behavior-preserving rename, not a rewrite). ☐ Every doc reference to `middleware.ts` updated to the new file name.
+**Implemented notes (2026-08-19 re-verify):** `apps/web/middleware.ts` no longer exists; `apps/web/proxy.ts` exists (`export async function proxy(...)`, `export const config = { matcher: ... }`). Doc-reference sweep was incomplete: this file itself (AUD-007's "Affected areas" line, now fixed) still had stale `middleware.ts` references — a reminder that AUD-043's own "update every doc reference in the same change" criterion needs re-checking against `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, and `docs/CI_TRAPS.md` too, which were out of scope for this pass.
+
+**What's wrong (historical):** Every `pnpm --filter @ikaro/web dev`/build run logged: `⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.`
+**Fix:** Rename `apps/web/middleware.ts` → `apps/web/proxy.ts` per Next.js's migration guidance.
+**Acceptance:** ☑ No deprecation warning on `pnpm dev`/`pnpm build` for `apps/web`. ☑ All existing test cases pass unchanged. 🟡 Doc-reference sweep partially done — this file fixed, `docs/15`/`docs/16`/`docs/CI_TRAPS.md` not yet re-checked.
 
 ---
 
