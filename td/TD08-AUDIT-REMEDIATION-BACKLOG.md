@@ -60,7 +60,7 @@
 | **AUD-025** | Public-image CDN delivery vs signed URLs ✅ | 🟡 Medium | S | Pre-deploy | — | §8.5 |
 | **AUD-026** | Reconsider `BackendHttpService` request scope | 🟡 Medium | M | Now | — | §5.4 |
 | **AUD-027** | Booking-lines diff-upsert (drop delete-all) ✅ | 🔵 Low | S | Now | — | §5.5 |
-| **AUD-028** | Polish bundle (VO error mapping, default params, minor) | 🔵 Low | S | Now | — | §6, §8.7, §10.7 |
+| **AUD-028** | Polish bundle (VO error mapping, default params, minor) ✅ | 🔵 Low | S | Now | — | §6, §8.7, §10.7 |
 | **AUD-029** | Mutation testing on domain layer (Stryker) | 🔵 Low | S | Now | — | §11.9 |
 | — | **DEFERRED TO INFRA/DEPLOY PHASE** ↓ | | | | | |
 | **AUD-030** | DB connection pool + PgBouncer + SSL | 🔴 Critical | M | Infra/Deploy | — | §13.1 |
@@ -533,19 +533,19 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 **Fix:** Diff-and-upsert (insert new, update changed, delete removed) when justified. Low urgency at MVP volumes.
 **Acceptance:** ☑ Line saves no longer delete-all unless the line set actually changed.
 
-### AUD-028 — Polish bundle (VO error mapping, default params, minor notes)
+### AUD-028 — Polish bundle (VO error mapping, default params, minor notes) ✅
 **Risk:** 🔵 Low · **Effort:** S · **Phase:** Now · **Audit ref:** §6, §8.7, §10.7
-**Status:** 🟡 Partially done — 4 of 5 sub-items resolved; only the `.npmrc` registry pin remains
+**Status:** ✅ Done — all 5 sub-items resolved
 
-**Implemented notes (2026-08-19 re-verify):**
+**Implemented notes (2026-08-19 re-verify; `.npmrc` pin added same day):**
 1. ☑ `Money` VO plain `Error` — resolved. `apps/backend/src/shared/value-objects/money.ts` now defines `MoneyValidationError` (typed, implements `DomainErrorShape`, `Object.setPrototypeOf` applied, carries a `MoneyErrorCode`), used at every throw site.
 2. ☑ Middleware auth gate cookie-presence-only — resolved (closed TD15). `apps/web/proxy.ts` (formerly `middleware.ts`) now performs real HS256 signature verification via `jose.jwtVerify` (`apps/web/features/auth/verify-edge-jwt.ts:33-40`), not a bare cookie-presence check.
 3. ☑ Error-detail leakage on 4xx — checked, confirmed safe, no fix needed. `BaseErrorFilter` (`packages/nestjs-http/src/base-error.filter.ts`) sanitizes 500s to a generic message (stack trace stays server-side-logged only); 4xx `detail` fields are always developer-authored domain-error messages, never a raw DB/framework exception or file path.
-4. ☐ **`.npmrc` registry pin — still open.** `.npmrc` has only `shamefully-hoist=false` / `strict-peer-dependencies=false`, no `registry=` line.
+4. ☑ `.npmrc` registry pin — resolved. `.npmrc` now sets `registry=https://registry.npmjs.org/` as its first line, closing the registry-substitution gap noted in `OPUS_AUDITORY.md` §10.7.
 5. ☑ `ENABLE_DEV_AUTH` hard-fail in prod — resolved. `apps/bff/src/config/env.validation.ts:49-54` Zod-refines that `ENABLE_DEV_AUTH=true` + `APP_ENV=production` fails validation at boot.
 
-**Fix:** Add a `registry=` pin to `.npmrc` (the one remaining sub-item).
-**Acceptance:** ☑ 4 of 5 sub-items resolved. ☐ `.npmrc` registry pin still open.
+**Fix:** N/A — closed.
+**Acceptance:** ☑ 5 of 5 sub-items resolved.
 
 ### AUD-029 — Mutation testing on domain layer (Stryker)
 **Risk:** 🔵 Low · **Effort:** S · **Phase:** Now · **Audit ref:** §11.9
