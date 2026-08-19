@@ -5,7 +5,11 @@ import { sourceLine } from '../project';
 function throwsBareError(method: MethodDeclaration): boolean {
   return method.getDescendantsOfKind(SyntaxKind.ThrowStatement).some((statement) => {
     const expression = statement.getExpression();
-    if (!expression || !Node.isNewExpression(expression)) return false;
+    // `throw new Error(...)` and the equally-valid, `new`-less `throw Error(...)` (Error is
+    // callable without `new` and produces an identical Error instance) both count as bare.
+    if (!expression || (!Node.isNewExpression(expression) && !Node.isCallExpression(expression))) {
+      return false;
+    }
     return expression.getExpression().getSymbol()?.getName() === 'Error';
   });
 }

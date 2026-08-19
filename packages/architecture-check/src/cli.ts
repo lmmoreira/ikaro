@@ -18,7 +18,7 @@ const root = resolve(__dirname, '../../..');
 const policy = JSON.parse(
   readFileSync(resolve(root, 'packages/architecture-check/architecture-policy.json'), 'utf8'),
 ) as {
-  exceptions?: Array<{ rule: string; class?: string }>;
+  exceptions?: Array<{ rule: string; class?: string; context?: string }>;
   externalSideEffectPorts?: ExternalSideEffectPort[];
   projects?: string[];
 };
@@ -47,6 +47,13 @@ const intentionalErrorMapperGaps = new Set(
     .filter((exception) => exception.rule === 'error-mapper-coverage' && exception.class)
     .map((exception) => exception.class!),
 );
+const intentionalMapperlessContexts = new Set(
+  (policy.exceptions ?? [])
+    .filter(
+      (exception) => exception.rule === 'shared-vo-error-mapper-coverage' && exception.context,
+    )
+    .map((exception) => exception.context!),
+);
 const externalSideEffectPorts = policy.externalSideEffectPorts;
 if (!externalSideEffectPorts?.length) {
   throw new Error('The architecture policy must register at least one external-side-effect port.');
@@ -63,7 +70,7 @@ const results = [
     checkPrototypeChainSafety(web),
   ]),
   checkValueObjectCreateNeverThrowsBareError(backend),
-  checkSharedValueObjectErrorMapperCoverage(backend),
+  checkSharedValueObjectErrorMapperCoverage(backend, intentionalMapperlessContexts),
 ];
 const zeroTargetResults = results.filter((result) => result.scannedTargets === 0);
 const findings = results.flatMap((result) => result.findings);

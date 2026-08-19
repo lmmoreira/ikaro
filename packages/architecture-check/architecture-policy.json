@@ -400,6 +400,13 @@
       "reviewBy": "2026-09-30"
     },
     {
+      "rule": "shared-vo-error-mapper-coverage",
+      "context": "notification",
+      "rationale": "notification is fully event-driven and has no contexts/notification/infrastructure/http/notification-error.mapper.ts at all — same reasoning as the EmailDeliveryException error-mapper-coverage exception above: notification-log.aggregate.ts constructs Email, but any validation failure there is handled by the async event-handler flow, never an HTTP transport mapper.",
+      "owner": "notification",
+      "reviewBy": "2026-09-30"
+    },
+    {
       "rule": "raw-persistence-api",
       "path": "apps/backend/src/contexts/booking/infrastructure/cross-context/typeorm-booking-availability.adapter.ts",
       "rationale": "Legacy availability adapter requires a repository-port follow-up before Story 2 enforcement.",
