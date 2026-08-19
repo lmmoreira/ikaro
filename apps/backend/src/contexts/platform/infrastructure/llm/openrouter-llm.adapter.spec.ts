@@ -85,7 +85,7 @@ describe('OpenRouterLlmAdapter', () => {
     const body = JSON.parse(calledOptions.body as string);
     expect(body.provider).toEqual({
       sort: 'throughput',
-      max_price: { prompt: 1, completion: 2 },
+      max_price: { prompt: 10, completion: 50 },
       require_parameters: true,
       ignore: ['atlas-cloud'],
     });
@@ -274,7 +274,7 @@ describe('OpenRouterLlmAdapter', () => {
       messageCount: 3,
       provider: {
         sort: 'throughput',
-        max_price: { prompt: 1, completion: 2 },
+        max_price: { prompt: 10, completion: 50 },
         require_parameters: true,
         ignore: ['atlas-cloud'],
       },
