@@ -125,9 +125,7 @@ describe('architecture checks', () => {
       expect.objectContaining({
         rule: 'error-mapper-coverage',
         line: 3,
-        message: expect.stringContaining(
-          'contexts/demo/infrastructure/http/demo-error.mapper.ts',
-        ),
+        message: expect.stringContaining('contexts/demo/infrastructure/http/demo-error.mapper.ts'),
       }),
     ]);
   });
