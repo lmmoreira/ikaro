@@ -959,10 +959,12 @@ Always use a **class** with fluent `withXxx()` methods and a `build()` call. Nev
 
 | Test data type | Builder location |
 |---|---|
-| TypeORM entities | `src/test/builders/<context>/XxxEntityBuilder` (`id` defaults to `uuidv7()`) |
+| TypeORM entities | `src/test/builders/<context>/XxxEntityBuilder` (uuid-typed primary key fields default to `uuidv7()`) |
 | Domain aggregates | `src/test/builders/<context>/XxxBuilder` |
 | Domain events / Commands | `src/test/builders/<context>/XxxEventBuilder` / `XxxCommandBuilder` — e.g. `StaffInvitedEventBuilder`, `BookingReminderDueCommandBuilder` (name matches the class suffix — `Command` for classes extending `Command`, `Event` for classes extending `DomainEvent`) |
 | Shared infra stubs (e.g. RequestContext) | `src/test/factories/XxxBuilder` — e.g. `RequestContextBuilder` at `src/test/factories/request-context.factory.ts` |
+
+A primary-key field named `tenantId` is exempt — it defaults to the fixed test-tenant literal like every other `tenantId` field, never `uuidv7()`. A non-uuid-typed primary key (e.g. a `varchar` business key) is exempt too. Enforced by `pnpm architecture-check`'s `entity-builder-pk-uuidv7-default` detector (TD37-S07).
 
 ### Test setup pattern
 
