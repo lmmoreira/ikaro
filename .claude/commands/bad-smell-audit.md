@@ -34,7 +34,7 @@ git diff origin/main...HEAD --name-only | grep "^apps/web/"
 
 2. Pass this file list to the Explore agent as its explicit scope — the agent greps and reads **only those files**, not the full directory tree.
 
-3. **BE-4 is skipped in `--pr` mode** — checking for missing entity/event/command builders requires scanning the full `src/test/builders/` tree against all entity/event/command files; this is a full-codebase check that the pre-PR script (Step 1, check 28) already covers for new entities, events, and commands added in the PR.
+3. **BE-4 is retired** — full-codebase missing-builder coverage (entities, events, commands, primary-key `uuidv7()` defaults, and the test-data-harness registration map) is now enforced mechanically by `pnpm architecture-check`'s `test-builder-coverage`, `entity-builder-pk-uuidv7-default`, and `test-harness-registration` detectors (TD37-S07) — no LLM audit step needed for it, in `--pr` mode or otherwise. `scripts/pre-pr.sh`'s own diff-scoped BE-4 check (Step 1, check 28) is unrelated and still runs — it's a fast, already-mechanical, PR-diff-only check, not the audit-prompt version being retired here.
 
 4. All other checks (BE-1, BE-2, BE-3, BE-5, BE-6, BE-7, BFF-1–4, WEB-1–11) run normally but scoped to the changed file list.
 
@@ -48,7 +48,7 @@ Spawn three Explore agents in parallel, one per layer. Give each agent the full 
 
 | Agent | Scope | Checks to pass |
 |---|---|---|
-| Backend | `apps/backend/src/` (full) or changed files list (--pr) | Backend checks section (BE-1 through BE-7; skip BE-4 in --pr mode) |
+| Backend | `apps/backend/src/` (full) or changed files list (--pr) | Backend checks section (BE-1 through BE-7; BE-4 retired — see PR mode note above) |
 | BFF | `apps/bff/src/` (full) or changed files list (--pr) | BFF checks section (BFF-1 through BFF-4) |
 | Web | `apps/web/` (full) or changed files list (--pr) | Web checks section (WEB-1 through WEB-11) |
 
@@ -88,11 +88,9 @@ Grep for:
 
 The fix pattern: create a `XxxEntityBuilder` (for entities) or `XxxEventBuilder`/`XxxCommandBuilder` (for `DomainEvent`/`Command` classes) in `src/test/builders/<context>/`.
 
-### BE-4. Missing `XxxEntityBuilder`/`XxxEventBuilder`/`XxxCommandBuilder` for existing classes
+### BE-4. RETIRED — mechanized by `pnpm architecture-check` (TD37-S07)
 
-For each TypeORM entity class found in `*/infrastructure/entities/*.entity.ts`, check whether a corresponding `XxxEntityBuilder` exists in `src/test/builders/<context>/`. Report entities that have no builder file.
-
-Same check for domain events and commands: for each class found in `*/domain/events/*.event.ts` or `*/domain/commands/*.command.ts` that is constructed inline (via `new XxxEvent(...)`/`new XxxCommand(...)`) in **two or more** test files, check whether a corresponding `XxxEventBuilder`/`XxxCommandBuilder` exists in `src/test/builders/<context>/`. Report any that don't.
+This used to check for missing `XxxEntityBuilder`/`XxxEventBuilder`/`XxxCommandBuilder` for existing classes. It's now enforced mechanically, full-codebase, on every CI run — no LLM audit step needed. Skip this check; do not re-add it here. See `packages/architecture-check/src/detectors/test-builder-coverage.ts`, `entity-builder-pk-default.ts`, and `test-harness-registration.ts`.
 
 ### BE-5. Seed file containing DDL
 
@@ -222,9 +220,6 @@ Grep `apps/web/features/customer/` for exported functions/components with "Booki
 (none found)
 
 #### BE-3. makeXxx() helpers / inline entity/event/command construction in tests
-...
-
-#### BE-4. Missing XxxEntityBuilder / XxxEventBuilder / XxxCommandBuilder
 ...
 
 #### BE-5. Seed DDL

@@ -2,9 +2,12 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Project } from 'ts-morph';
 import {
+  checkEntityBuilderPrimaryKeyDefaults,
   checkErrorMapperCoverage,
   checkPrototypeChainSafety,
   checkSharedValueObjectErrorMapperCoverage,
+  checkTestBuilderCoverage,
+  checkTestDataHarnessRegistrations,
   checkTransactionalIo,
   checkTransactionalSaves,
   checkUnsafeUseExisting,
@@ -12,6 +15,7 @@ import {
   mergeScanResults,
   type ErrorMapperException,
   type ExternalSideEffectPort,
+  type TestDataHarnessRegistration,
 } from './index';
 import { loadProject } from './project';
 
@@ -21,6 +25,7 @@ const policy = JSON.parse(
 ) as {
   exceptions?: Array<{ rule: string; class?: string; context?: string; path?: string }>;
   externalSideEffectPorts?: ExternalSideEffectPort[];
+  testDataHarnessRegistrations?: TestDataHarnessRegistration[];
   projects?: string[];
 };
 const projectPaths = policy.projects ?? [];
@@ -62,6 +67,10 @@ const externalSideEffectPorts = policy.externalSideEffectPorts;
 if (!externalSideEffectPorts?.length) {
   throw new Error('The architecture policy must register at least one external-side-effect port.');
 }
+const testDataHarnessRegistrations = policy.testDataHarnessRegistrations;
+if (!testDataHarnessRegistrations?.length) {
+  throw new Error('The architecture policy must register at least one test-data-harness file.');
+}
 
 const results = [
   checkTransactionalIo(backend, externalSideEffectPorts),
@@ -75,6 +84,9 @@ const results = [
   ]),
   checkValueObjectCreateNeverThrowsBareError(backend),
   checkSharedValueObjectErrorMapperCoverage(backend, intentionalMapperlessContexts),
+  checkTestBuilderCoverage(backend),
+  checkEntityBuilderPrimaryKeyDefaults(backend),
+  checkTestDataHarnessRegistrations(backend, testDataHarnessRegistrations),
 ];
 const zeroTargetResults = results.filter((result) => result.scannedTargets === 0);
 const findings = results.flatMap((result) => result.findings);

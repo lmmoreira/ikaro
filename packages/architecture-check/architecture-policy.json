@@ -390,6 +390,104 @@
       ]
     }
   ],
+  "testDataHarnessRegistrations": [
+    {
+      "file": "apps/backend/src/test/integration-global-setup.ts",
+      "completeness": "complete",
+      "requiresMigrations": true,
+      "rationale": "Full DB bootstrap shared by every integration spec — must carry every production entity and migration or a new one silently errors on first query (docs/ENGINEERING_RULES.md § Migration / entity registration)."
+    },
+    {
+      "file": "apps/backend/src/test/test-datasource.ts",
+      "completeness": "partial",
+      "entities": [
+        "TenantEntity",
+        "HotsiteConfigEntity",
+        "ServiceEntity",
+        "ScheduleClosureEntity",
+        "ScheduleOpeningEntity",
+        "BookingEntity",
+        "BookingLineEntity",
+        "CustomerEntity",
+        "StaffEntity",
+        "NotificationLogEntity",
+        "LoyaltyEntryEntity",
+        "LoyaltyBalanceEntity",
+        "LoyaltyRedemptionEntity",
+        "BalanceExpiryLogEntity",
+        "InboxRecordEntity",
+        "OutboxEventEntity",
+        "ChatbotSessionEntity",
+        "ChatbotMessageEntity",
+        "ChatbotProviderBalanceEntity"
+      ],
+      "rationale": "General-purpose raw DataSource for integration specs that assert directly against tables. Intentionally omits NotificationTemplateEntity: every spec using this helper reads notification templates through InMemoryNotificationTemplateRepository, never this DataSource."
+    },
+    {
+      "file": "apps/backend/src/test/utils/booking-integration-app.ts",
+      "completeness": "partial",
+      "entities": [
+        "TenantEntity",
+        "HotsiteConfigEntity",
+        "CustomerEntity",
+        "ServiceEntity",
+        "ScheduleClosureEntity",
+        "ScheduleOpeningEntity",
+        "BookingEntity",
+        "BookingLineEntity",
+        "InboxRecordEntity"
+      ],
+      "rationale": "Booking context integration app — scoped to booking's own aggregates plus the platform/customer read dependencies it needs."
+    },
+    {
+      "file": "apps/backend/src/test/utils/customer-integration-app.ts",
+      "completeness": "partial",
+      "entities": ["TenantEntity", "HotsiteConfigEntity", "CustomerEntity", "InboxRecordEntity"],
+      "rationale": "Customer context integration app — scoped to customer plus its platform read dependency."
+    },
+    {
+      "file": "apps/backend/src/test/utils/loyalty-integration-app.ts",
+      "completeness": "partial",
+      "entities": [
+        "TenantEntity",
+        "HotsiteConfigEntity",
+        "CustomerEntity",
+        "LoyaltyEntryEntity",
+        "LoyaltyBalanceEntity",
+        "LoyaltyRedemptionEntity",
+        "BalanceExpiryLogEntity",
+        "InboxRecordEntity"
+      ],
+      "rationale": "Loyalty context integration app — scoped to loyalty's own aggregates plus its platform/customer read dependencies."
+    },
+    {
+      "file": "apps/backend/src/test/utils/notification-integration-app.ts",
+      "completeness": "partial",
+      "entities": [
+        "TenantEntity",
+        "HotsiteConfigEntity",
+        "StaffEntity",
+        "NotificationLogEntity",
+        "NotificationTemplateEntity",
+        "InboxRecordEntity",
+        "OutboxEventEntity"
+      ],
+      "rationale": "Notification context integration app — scoped to notification's own aggregates plus its platform/staff read dependencies. Callers may additionally pass a runtime `...extraEntities` spread — the detector only checks this static list, not the spread."
+    },
+    {
+      "file": "apps/backend/src/test/utils/platform-integration-app.ts",
+      "completeness": "partial",
+      "entities": [
+        "TenantEntity",
+        "HotsiteConfigEntity",
+        "InboxRecordEntity",
+        "ChatbotSessionEntity",
+        "ChatbotMessageEntity",
+        "ChatbotProviderBalanceEntity"
+      ],
+      "rationale": "Platform context integration app — scoped to platform's own aggregates."
+    }
+  ],
   "exceptions": [
     {
       "rule": "error-mapper-coverage",

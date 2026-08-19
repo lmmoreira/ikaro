@@ -1,7 +1,11 @@
+export { checkEntityBuilderPrimaryKeyDefaults } from './detectors/entity-builder-pk-default';
 export { checkErrorMapperCoverage } from './detectors/error-mappers';
 export type { ErrorMapperException } from './detectors/error-mappers';
 export { checkPrototypeChainSafety } from './detectors/prototype-chain';
 export { checkSharedValueObjectErrorMapperCoverage } from './detectors/shared-vo-error-mapping';
+export { checkTestBuilderCoverage } from './detectors/test-builder-coverage';
+export { checkTestDataHarnessRegistrations } from './detectors/test-harness-registration';
+export type { TestDataHarnessRegistration } from './detectors/test-harness-registration';
 export { checkTransactionalIo } from './detectors/transactional-io';
 export { checkTransactionalSaves } from './detectors/transactional-save';
 export { checkUnsafeUseExisting } from './detectors/di-alias';
