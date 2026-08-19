@@ -574,5 +574,5 @@ When implementing any feature that reads tenant configuration:
 
 ---
 
-**Status:** Complete — UC-026 (Tenant Settings Edit) implemented in `M13-S31`; §7 Chatbot Settings promoted from discovery, not yet implemented — see the chatbot milestone plan  
+**Status:** Complete — UC-026 (Tenant Settings Edit) implemented in `M13-S31`; §7 Chatbot Settings implemented across M19 (M19-S04 category/validation, M19-S13 tenant-settings form section)  
 **Reference:** 04-USE_CASES.md UC-026/UC-033/UC-034, 02-DOMAIN_MODEL.md tenants section, `docs/discovery/CHATBOT/CHATBOT.md`
