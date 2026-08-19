@@ -8,6 +8,13 @@
 # API, not the moving `:latest` tag).
 FROM otel/opentelemetry-collector-contrib@sha256:c5918f78992ee73b0d6f0e599423ac5ec52dd5d9726733114d6eca53d5a32ed5
 
+# Explicit non-root USER (Snyk IaC hardening). The base image already runs as
+# 10001:10001 by default (confirmed empirically via `docker inspect` on this
+# exact digest) — Snyk's Dockerfile scan doesn't resolve the parent image's
+# own config layer, so it flags a false positive without this line. This is
+# a no-op at runtime, not a behavior change.
+USER 10001:10001
+
 COPY config.yaml /etc/otelcol-contrib/config.yaml
 
 # Build-time config validation (M17-S34 AC) — a YAML/pipeline typo fails the
