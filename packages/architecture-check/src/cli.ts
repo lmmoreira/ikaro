@@ -3,9 +3,13 @@ import { resolve } from 'node:path';
 import type { Project } from 'ts-morph';
 import {
   checkErrorMapperCoverage,
+  checkPrototypeChainSafety,
+  checkSharedValueObjectErrorMapperCoverage,
   checkTransactionalIo,
   checkTransactionalSaves,
   checkUnsafeUseExisting,
+  checkValueObjectCreateNeverThrowsBareError,
+  mergeScanResults,
   type ExternalSideEffectPort,
 } from './index';
 import { loadProject } from './project';
@@ -28,9 +32,16 @@ for (const path of projectPaths) {
   );
   projects.push(loadProject(root, path));
 }
-const backendIndex = projectPaths.indexOf('apps/backend/tsconfig.json');
-const backend = backendIndex >= 0 ? projects[backendIndex] : undefined;
-if (!backend) throw new Error('The architecture policy must register apps/backend/tsconfig.json.');
+function requireProject(tsconfigPath: string): Project {
+  const index = projectPaths.indexOf(tsconfigPath);
+  const project = index >= 0 ? projects[index] : undefined;
+  if (!project) throw new Error(`The architecture policy must register ${tsconfigPath}.`);
+  return project;
+}
+
+const backend = requireProject('apps/backend/tsconfig.json');
+const bff = requireProject('apps/bff/tsconfig.json');
+const web = requireProject('apps/web/tsconfig.json');
 const intentionalErrorMapperGaps = new Set(
   (policy.exceptions ?? [])
     .filter((exception) => exception.rule === 'error-mapper-coverage' && exception.class)
@@ -46,6 +57,13 @@ const results = [
   checkTransactionalSaves(backend),
   checkErrorMapperCoverage(backend, intentionalErrorMapperGaps),
   checkUnsafeUseExisting(backend),
+  mergeScanResults('error-prototype-chain', [
+    checkPrototypeChainSafety(backend),
+    checkPrototypeChainSafety(bff),
+    checkPrototypeChainSafety(web),
+  ]),
+  checkValueObjectCreateNeverThrowsBareError(backend),
+  checkSharedValueObjectErrorMapperCoverage(backend),
 ];
 const zeroTargetResults = results.filter((result) => result.scannedTargets === 0);
 const findings = results.flatMap((result) => result.findings);

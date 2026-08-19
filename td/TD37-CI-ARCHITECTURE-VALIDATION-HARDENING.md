@@ -282,7 +282,7 @@ Baseline (discovery, 2026-08-17 — re-verify at implementation time since `main
 
 ---
 
-### Story 6 — `ts-morph` suite, part 1: error-handling completeness 🔴
+### Story 6 — `ts-morph` suite, part 1: error-handling completeness 🔴 ✅ Done
 
 Builds on Story 3's harness.
 
@@ -295,8 +295,8 @@ Builds on Story 3's harness.
 **What it does NOT catch**: whether the *chosen* HTTP status code is semantically correct for the error — that's still a design/review call.
 
 **Acceptance criteria**:
-- [ ] All four checks implemented and passing against current `main`
-- [ ] Failure messages name the exact class and expected mapper file
+- [x] All four checks implemented and passing against current `main`
+- [x] Failure messages name the exact class and expected mapper file
 
 ---
 

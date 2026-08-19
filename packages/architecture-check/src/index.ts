@@ -1,6 +1,10 @@
 export { checkErrorMapperCoverage } from './detectors/error-mappers';
+export { checkPrototypeChainSafety } from './detectors/prototype-chain';
+export { checkSharedValueObjectErrorMapperCoverage } from './detectors/shared-vo-error-mapping';
 export { checkTransactionalIo } from './detectors/transactional-io';
 export { checkTransactionalSaves } from './detectors/transactional-save';
 export { checkUnsafeUseExisting } from './detectors/di-alias';
+export { checkValueObjectCreateNeverThrowsBareError } from './detectors/vo-bare-error';
 export type { ExternalSideEffectPort } from './detectors/transactional-io';
+export { mergeScanResults } from './model';
 export type { Finding, ScanResult } from './model';
