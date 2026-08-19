@@ -3,9 +3,14 @@ import { resolve } from 'node:path';
 import type { Project } from 'ts-morph';
 import {
   checkErrorMapperCoverage,
+  checkPrototypeChainSafety,
+  checkSharedValueObjectErrorMapperCoverage,
   checkTransactionalIo,
   checkTransactionalSaves,
   checkUnsafeUseExisting,
+  checkValueObjectCreateNeverThrowsBareError,
+  mergeScanResults,
+  type ErrorMapperException,
   type ExternalSideEffectPort,
 } from './index';
 import { loadProject } from './project';
@@ -14,7 +19,7 @@ const root = resolve(__dirname, '../../..');
 const policy = JSON.parse(
   readFileSync(resolve(root, 'packages/architecture-check/architecture-policy.json'), 'utf8'),
 ) as {
-  exceptions?: Array<{ rule: string; class?: string }>;
+  exceptions?: Array<{ rule: string; class?: string; context?: string; path?: string }>;
   externalSideEffectPorts?: ExternalSideEffectPort[];
   projects?: string[];
 };
@@ -28,13 +33,30 @@ for (const path of projectPaths) {
   );
   projects.push(loadProject(root, path));
 }
-const backendIndex = projectPaths.indexOf('apps/backend/tsconfig.json');
-const backend = backendIndex >= 0 ? projects[backendIndex] : undefined;
-if (!backend) throw new Error('The architecture policy must register apps/backend/tsconfig.json.');
-const intentionalErrorMapperGaps = new Set(
+function requireProject(tsconfigPath: string): Project {
+  const index = projectPaths.indexOf(tsconfigPath);
+  const project = index >= 0 ? projects[index] : undefined;
+  if (!project) throw new Error(`The architecture policy must register ${tsconfigPath}.`);
+  return project;
+}
+
+const backend = requireProject('apps/backend/tsconfig.json');
+const bff = requireProject('apps/bff/tsconfig.json');
+const web = requireProject('apps/web/tsconfig.json');
+const intentionalErrorMapperGaps: ErrorMapperException[] = (policy.exceptions ?? [])
+  .filter(
+    (exception): exception is { rule: string; class: string; path: string } =>
+      exception.rule === 'error-mapper-coverage' &&
+      Boolean(exception.class) &&
+      Boolean(exception.path),
+  )
+  .map((exception) => ({ class: exception.class, path: exception.path }));
+const intentionalMapperlessContexts = new Set(
   (policy.exceptions ?? [])
-    .filter((exception) => exception.rule === 'error-mapper-coverage' && exception.class)
-    .map((exception) => exception.class!),
+    .filter(
+      (exception) => exception.rule === 'shared-vo-error-mapper-coverage' && exception.context,
+    )
+    .map((exception) => exception.context!),
 );
 const externalSideEffectPorts = policy.externalSideEffectPorts;
 if (!externalSideEffectPorts?.length) {
@@ -46,6 +68,13 @@ const results = [
   checkTransactionalSaves(backend),
   checkErrorMapperCoverage(backend, intentionalErrorMapperGaps),
   checkUnsafeUseExisting(backend),
+  mergeScanResults('error-prototype-chain', [
+    checkPrototypeChainSafety(backend),
+    checkPrototypeChainSafety(bff),
+    checkPrototypeChainSafety(web),
+  ]),
+  checkValueObjectCreateNeverThrowsBareError(backend),
+  checkSharedValueObjectErrorMapperCoverage(backend, intentionalMapperlessContexts),
 ];
 const zeroTargetResults = results.filter((result) => result.scannedTargets === 0);
 const findings = results.flatMap((result) => result.findings);
