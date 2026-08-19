@@ -40,10 +40,14 @@ const OPENROUTER_TIMEOUT_MS = 8000;
 // ceiling calibrated to the default model alone (previously {prompt:1, completion:2}) rejects every
 // real endpoint for any pricier model outright with a 404, not just outliers. This does trade away
 // some of the outlier-provider protection for the cheap default model itself (a ~10x-overpriced
-// DeepSeek provider no longer gets caught by this ceiling alone) — CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD
-// remains the real backstop against runaway spend regardless of model, per-call cost is still capped
-// by maxOutputTokensPerResponse independent of max_price, and this is the accepted tradeoff for a
-// single shared constant covering every model rather than a per-model or per-tenant price ceiling.
+// DeepSeek provider no longer gets caught by this ceiling alone), and raising the completion
+// ceiling 25x (2 -> 50) does raise the theoretical worst-case dollar cost of a single call, since
+// dollar cost is tokens x price and max_price only bounds the price side — maxOutputTokensPerResponse
+// independently bounds the *token volume* side, it does not make the dollar cost independent of
+// max_price. CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD remains the real backstop against runaway
+// cumulative spend regardless of model; this is the accepted tradeoff for a single shared constant
+// covering every model rather than a per-model or per-tenant price ceiling — a future model priced
+// above this ceiling would need this constant raised again, the same way this one was.
 // Real incidents, 2026-08-18, separate from the throughput ones above: three separate AtlasCloud
 // generations, across the same conversation, each burned their entire max_tokens budget on hidden
 // reasoning tokens (280/300, then twice 300/300) despite reasoning.effort:'none' being sent every
