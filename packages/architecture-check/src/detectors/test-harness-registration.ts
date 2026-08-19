@@ -17,7 +17,11 @@ export interface TestDataHarnessRegistration {
   requiresMigrations?: boolean;
 }
 
-function resolvedClassNames(project: Project, fileRegex: RegExp, implementsName?: string): Set<string> {
+function resolvedClassNames(
+  project: Project,
+  fileRegex: RegExp,
+  implementsName?: string,
+): Set<string> {
   const names = new Set<string>();
   for (const sourceFile of project.getSourceFiles()) {
     const filePath = sourceFile.getFilePath();

@@ -32,11 +32,15 @@ function isUuidTypedPrimaryColumn(property: PropertyDeclaration): boolean {
   const typeProperty = firstArg.getProperty('type');
   if (!typeProperty || !Node.isPropertyAssignment(typeProperty)) return false;
   const initializer = typeProperty.getInitializer();
-  return Boolean(initializer && Node.isStringLiteral(initializer) && initializer.getLiteralText() === 'uuid');
+  return Boolean(
+    initializer && Node.isStringLiteral(initializer) && initializer.getLiteralText() === 'uuid',
+  );
 }
 
 function isUuidV7Call(node: Node | undefined): boolean {
-  return Boolean(node && Node.isCallExpression(node) && node.getExpression().getText() === 'uuidv7');
+  return Boolean(
+    node && Node.isCallExpression(node) && node.getExpression().getText() === 'uuidv7',
+  );
 }
 
 // The story text explicitly warns not to assume the default lives in a field initializer — so

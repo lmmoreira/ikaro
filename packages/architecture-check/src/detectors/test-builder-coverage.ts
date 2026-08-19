@@ -4,7 +4,8 @@ import { sourceLine } from '../project';
 
 const ENTITY_FILE = /contexts\/([^/]+)\/infrastructure\/entities\/.*\.entity\.ts$/;
 const SHARED_ENTITY_FILE = /shared\/infrastructure\/[^/]+\/.*\.entity\.ts$/;
-const EVENT_OR_COMMAND_FILE = /contexts\/([^/]+)\/domain\/(?:events|commands)\/.*\.(?:event|command)\.ts$/;
+const EVENT_OR_COMMAND_FILE =
+  /contexts\/([^/]+)\/domain\/(?:events|commands)\/.*\.(?:event|command)\.ts$/;
 const BUILDER_FILE = /test\/builders\/[^/]+\/.*\.builder\.ts$/;
 
 function contextFromEntityPath(filePath: string): string | undefined {
