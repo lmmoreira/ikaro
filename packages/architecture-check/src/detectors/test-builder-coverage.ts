@@ -1,21 +1,18 @@
 import { ClassDeclaration, Node, Project, SyntaxKind } from 'ts-morph';
 import type { Finding, ScanResult } from '../model';
 import { sourceLine } from '../project';
+import { hasTypeOrmDecorator } from './typeorm-symbols';
 
 const ENTITY_FILE = /contexts\/([^/]+)\/infrastructure\/entities\/.*\.entity\.ts$/;
 const SHARED_ENTITY_FILE = /shared\/infrastructure\/[^/]+\/.*\.entity\.ts$/;
 const EVENT_OR_COMMAND_FILE =
   /contexts\/([^/]+)\/domain\/(?:events|commands)\/.*\.(?:event|command)\.ts$/;
-const BUILDER_FILE = /test\/builders\/[^/]+\/.*\.builder\.ts$/;
+const BUILDER_FILE = /test\/builders\/([^/]+)\/.*\.builder\.ts$/;
 
 function contextFromEntityPath(filePath: string): string | undefined {
   const match = ENTITY_FILE.exec(filePath);
   if (match) return match[1];
   return SHARED_ENTITY_FILE.test(filePath) ? 'shared' : undefined;
-}
-
-function hasEntityDecorator(declaration: ClassDeclaration): boolean {
-  return declaration.getDecorators().some((decorator) => decorator.getName() === 'Entity');
 }
 
 // Walks the full extends chain, not just the immediate parent, so a deeper hierarchy is still
@@ -29,41 +26,56 @@ function extendsBaseClass(declaration: ClassDeclaration, baseName: string): bool
   return false;
 }
 
-function builderClassNames(project: Project): Set<string> {
-  const names = new Set<string>();
+// Maps a builder class name to every `src/test/builders/<context>/` directory it was found in —
+// a same-named builder in the WRONG context must not satisfy coverage, since docs/08-TESTING_STRATEGY.md
+// requires the builder to live under the same context as the thing it builds.
+function builderContextsByName(project: Project): Map<string, Set<string>> {
+  const contextsByName = new Map<string, Set<string>>();
   for (const sourceFile of project.getSourceFiles()) {
-    if (!BUILDER_FILE.test(sourceFile.getFilePath())) continue;
+    const match = BUILDER_FILE.exec(sourceFile.getFilePath());
+    if (!match) continue;
+    const context = match[1];
     for (const declaration of sourceFile.getDescendantsOfKind(SyntaxKind.ClassDeclaration)) {
       const name = declaration.getName();
-      if (name) names.add(name);
+      if (!name) continue;
+      const contexts = contextsByName.get(name) ?? new Set<string>();
+      contexts.add(context);
+      contextsByName.set(name, contexts);
     }
   }
-  return names;
+  return contextsByName;
 }
 
-// Counts DISTINCT spec files that construct `new <className>(...)` inline — not total call
-// sites — matching bad-smell-audit.md's BE-4 wording ("constructed inline ... in two or more
-// test files"). A class inlined in only 0-1 spec files doesn't need a builder yet.
-function inlineConstructionFileCount(project: Project, className: string): number {
-  const files = new Set<string>();
+// Builds a class-name -> distinct-spec-file-count index in a SINGLE pass over every spec file,
+// instead of re-walking every spec file's AST once per event/command class (O(events/commands x
+// specs) on a codebase this size measurably slowed the CI-blocking scan).
+function inlineConstructionFileCounts(project: Project): Map<string, number> {
+  const filesByClassName = new Map<string, Set<string>>();
   for (const sourceFile of project.getSourceFiles()) {
     const filePath = sourceFile.getFilePath();
     if (!filePath.endsWith('.spec.ts')) continue;
     for (const newExpression of sourceFile.getDescendantsOfKind(SyntaxKind.NewExpression)) {
       const expression = newExpression.getExpression();
-      if (Node.isIdentifier(expression) && expression.getText() === className) {
-        files.add(filePath);
-        break;
-      }
+      if (!Node.isIdentifier(expression)) continue;
+      const className = expression.getText();
+      const files = filesByClassName.get(className) ?? new Set<string>();
+      files.add(filePath);
+      filesByClassName.set(className, files);
     }
   }
-  return files.size;
+  const counts = new Map<string, number>();
+  for (const [className, files] of filesByClassName) counts.set(className, files.size);
+  return counts;
 }
 
 export function checkTestBuilderCoverage(project: Project): ScanResult {
   const findings: Finding[] = [];
   let scannedTargets = 0;
-  const builders = builderClassNames(project);
+  const builderContexts = builderContextsByName(project);
+  // Only DISTINCT spec files that construct `new <className>(...)` inline count — not total call
+  // sites — matching bad-smell-audit.md's BE-4 wording ("constructed inline ... in two or more
+  // test files"). A class inlined in only 0-1 spec files doesn't need a builder yet.
+  const inlineCounts = inlineConstructionFileCounts(project);
 
   for (const sourceFile of project.getSourceFiles()) {
     const filePath = sourceFile.getFilePath();
@@ -78,10 +90,10 @@ export function checkTestBuilderCoverage(project: Project): ScanResult {
       if (!name) continue;
 
       if (entityContext) {
-        if (!hasEntityDecorator(declaration)) continue;
+        if (!hasTypeOrmDecorator(declaration, 'Entity')) continue;
         scannedTargets++;
         const expected = `${name}Builder`;
-        if (builders.has(expected)) continue;
+        if (builderContexts.get(expected)?.has(entityContext)) continue;
         findings.push({
           rule: 'test-builder-coverage',
           file: filePath,
@@ -96,12 +108,12 @@ export function checkTestBuilderCoverage(project: Project): ScanResult {
       const isCommand = !isEvent && extendsBaseClass(declaration, 'Command');
       if (!isEvent && !isCommand) continue;
 
-      if (inlineConstructionFileCount(project, name) < 2) continue;
+      if ((inlineCounts.get(name) ?? 0) < 2) continue;
 
       scannedTargets++;
       const suffix = isEvent ? 'EventBuilder' : 'CommandBuilder';
       const expected = `${name}${suffix}`;
-      if (builders.has(expected)) continue;
+      if (builderContexts.get(expected)?.has(context)) continue;
       findings.push({
         rule: 'test-builder-coverage',
         file: filePath,

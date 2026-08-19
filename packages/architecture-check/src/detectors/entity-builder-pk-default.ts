@@ -1,6 +1,7 @@
 import { ClassDeclaration, Node, Project, PropertyDeclaration, SyntaxKind } from 'ts-morph';
 import type { Finding, ScanResult } from '../model';
 import { sourceLine } from '../project';
+import { findTypeOrmDecorator, hasTypeOrmDecorator } from './typeorm-symbols';
 
 const ENTITY_FILE =
   /(?:contexts\/[^/]+\/infrastructure\/entities\/|shared\/infrastructure\/[^/]+\/).*\.entity\.ts$/;
@@ -13,16 +14,15 @@ const BUILDER_FILE = /test\/builders\/[^/]+\/.*\.builder\.ts$/;
 const EXEMPT_FIELD_NAMES = new Set(['tenantId']);
 
 function isUuidTypedPrimaryColumn(property: PropertyDeclaration): boolean {
-  const decorator = property
-    .getDecorators()
-    .find((d) => d.getName() === 'PrimaryColumn' || d.getName() === 'PrimaryGeneratedColumn');
+  const decorator = findTypeOrmDecorator(property, ['PrimaryColumn', 'PrimaryGeneratedColumn']);
   if (!decorator) return false;
 
   const [firstArg] = decorator.getArguments();
   if (decorator.getName() === 'PrimaryGeneratedColumn') {
-    // No-arg (or an explicit 'uuid' strategy) generates a UUID column; any other explicit
-    // strategy ('increment', 'rowid', 'identity', ...) is not a UUID-shaped primary key.
-    if (!firstArg) return true;
+    // TypeORM's own default generation strategy is 'increment', NOT 'uuid' — a no-arg
+    // @PrimaryGeneratedColumn() is a numeric auto-increment column. Only an EXPLICIT 'uuid'
+    // strategy argument is UUID-shaped; every other case (no arg, 'increment', 'rowid',
+    // 'identity', ...) is not.
     return Node.isStringLiteral(firstArg) && firstArg.getLiteralText() === 'uuid';
   }
 
@@ -84,7 +84,7 @@ export function checkEntityBuilderPrimaryKeyDefaults(project: Project): ScanResu
     if (!ENTITY_FILE.test(filePath) || sourceFile.getBaseName().endsWith('.spec.ts')) continue;
 
     for (const declaration of sourceFile.getDescendantsOfKind(SyntaxKind.ClassDeclaration)) {
-      if (!declaration.getDecorators().some((d) => d.getName() === 'Entity')) continue;
+      if (!hasTypeOrmDecorator(declaration, 'Entity')) continue;
       const entityName = declaration.getName();
       if (!entityName) continue;
 

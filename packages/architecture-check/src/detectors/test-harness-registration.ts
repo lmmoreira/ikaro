@@ -1,6 +1,7 @@
 import { Node, Project, SourceFile, SyntaxKind } from 'ts-morph';
 import type { Finding, ScanResult } from '../model';
 import { sourceLine } from '../project';
+import { hasTypeOrmDecorator, implementsTypeOrmInterface } from './typeorm-symbols';
 
 const ENTITY_FILE =
   /(?:contexts\/[^/]+\/infrastructure\/entities\/|shared\/infrastructure\/[^/]+\/).*\.entity\.ts$/;
@@ -30,11 +31,8 @@ function resolvedClassNames(
       const name = declaration.getName();
       if (!name) continue;
       if (implementsName) {
-        const implementsIt = declaration
-          .getImplements()
-          .some((clause) => clause.getExpression().getText() === implementsName);
-        if (!implementsIt) continue;
-      } else if (!declaration.getDecorators().some((d) => d.getName() === 'Entity')) {
+        if (!implementsTypeOrmInterface(declaration, implementsName)) continue;
+      } else if (!hasTypeOrmDecorator(declaration, 'Entity')) {
         continue;
       }
       names.add(name);

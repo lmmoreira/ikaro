@@ -9,7 +9,7 @@ describe('checkTestBuilderCoverage', () => {
   it('accepts a TypeORM entity that has a matching XxxEntityBuilder', () => {
     const project = fixtureProject({
       '/repo/apps/backend/src/contexts/demo/infrastructure/entities/demo.entity.ts': `
-        function Entity(name?: string, options?: unknown): ClassDecorator { return () => undefined; }
+        import { Entity } from 'typeorm';
         @Entity('demos')
         export class DemoEntity {}
       `,
@@ -25,7 +25,7 @@ describe('checkTestBuilderCoverage', () => {
   it('reports a TypeORM entity with no matching builder, naming the expected class and directory', () => {
     const project = fixtureProject({
       '/repo/apps/backend/src/contexts/demo/infrastructure/entities/demo.entity.ts': `
-        function Entity(name?: string, options?: unknown): ClassDecorator { return () => undefined; }
+        import { Entity } from 'typeorm';
         @Entity('demos')
         export class DemoEntity {}
       `,
@@ -43,7 +43,7 @@ describe('checkTestBuilderCoverage', () => {
   it('resolves a shared entity (outside contexts/**) to the "shared" builder directory', () => {
     const project = fixtureProject({
       '/repo/apps/backend/src/shared/infrastructure/outbox/outbox-event.entity.ts': `
-        function Entity(name?: string, options?: unknown): ClassDecorator { return () => undefined; }
+        import { Entity } from 'typeorm';
         @Entity('outbox')
         export class OutboxEventEntity {}
       `,
@@ -55,6 +55,34 @@ describe('checkTestBuilderCoverage', () => {
         message: expect.stringContaining('src/test/builders/shared/'),
       }),
     ]);
+  });
+
+  it('resolves an aliased "typeorm" Entity import, not just the literal spelling "Entity"', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/contexts/demo/infrastructure/entities/demo.entity.ts': `
+        import { Entity as TypeOrmEntity } from 'typeorm';
+        @TypeOrmEntity('demos')
+        export class DemoEntity {}
+      `,
+    });
+    const result = checkTestBuilderCoverage(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({ message: expect.stringContaining('DemoEntityBuilder') }),
+    ]);
+  });
+
+  it('does not treat a locally-declared decorator merely named "Entity" as a resolved TypeORM entity', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/contexts/demo/infrastructure/entities/demo.entity.ts': `
+        function Entity(name?: string): ClassDecorator { return () => undefined; }
+        @Entity('demos')
+        export class DemoEntity {}
+      `,
+    });
+    const result = checkTestBuilderCoverage(project);
+    // Not resolved to typeorm's own Entity export — must not be scanned as a production entity.
+    expectZeroTargets(result);
   });
 
   it('does not require a builder for an event constructed inline in fewer than 2 spec files', () => {
@@ -130,14 +158,32 @@ describe('checkTestBuilderCoverage', () => {
     expectScannedTargets(result, 1);
     expect(result.findings).toHaveLength(0);
   });
+
+  it('does not accept a same-named builder class declared under the WRONG context directory', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/contexts/demo/infrastructure/entities/demo.entity.ts': `
+        import { Entity } from 'typeorm';
+        @Entity('demos')
+        export class DemoEntity {}
+      `,
+      // A same-named class, but filed under a different context's builders/ directory.
+      '/repo/apps/backend/src/test/builders/other/demo-entity.builder.ts': `
+        export class DemoEntityBuilder {}
+      `,
+    });
+    const result = checkTestBuilderCoverage(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({ message: expect.stringContaining('DemoEntityBuilder') }),
+    ]);
+  });
 });
 
 describe('checkEntityBuilderPrimaryKeyDefaults', () => {
   it('accepts a uuid primary key whose builder field initializer defaults to uuidv7()', () => {
     const project = fixtureProject({
       '/repo/apps/backend/src/contexts/demo/infrastructure/entities/demo.entity.ts': `
-        function Entity(name?: string, options?: unknown): ClassDecorator { return () => undefined; }
-        function PrimaryColumn(options?: unknown): PropertyDecorator { return () => undefined; }
+        import { Entity, PrimaryColumn } from 'typeorm';
         @Entity('demos')
         export class DemoEntity {
           @PrimaryColumn({ type: 'uuid' })
@@ -159,8 +205,7 @@ describe('checkEntityBuilderPrimaryKeyDefaults', () => {
   it('reports a uuid primary key whose builder field defaults to a plain literal instead of uuidv7()', () => {
     const project = fixtureProject({
       '/repo/apps/backend/src/contexts/demo/infrastructure/entities/demo.entity.ts': `
-        function Entity(name?: string, options?: unknown): ClassDecorator { return () => undefined; }
-        function PrimaryColumn(options?: unknown): PropertyDecorator { return () => undefined; }
+        import { Entity, PrimaryColumn } from 'typeorm';
         @Entity('demos')
         export class DemoEntity {
           @PrimaryColumn({ type: 'uuid' })
@@ -186,8 +231,7 @@ describe('checkEntityBuilderPrimaryKeyDefaults', () => {
   it('accepts a non-"id" primary key name (e.g. lineId) defaulting to uuidv7()', () => {
     const project = fixtureProject({
       '/repo/apps/backend/src/contexts/demo/infrastructure/entities/demo-line.entity.ts': `
-        function Entity(name?: string, options?: unknown): ClassDecorator { return () => undefined; }
-        function PrimaryColumn(options?: unknown): PropertyDecorator { return () => undefined; }
+        import { Entity, PrimaryColumn } from 'typeorm';
         @Entity('demo_lines')
         export class DemoLineEntity {
           @PrimaryColumn({ name: 'line_id', type: 'uuid' })
@@ -209,8 +253,7 @@ describe('checkEntityBuilderPrimaryKeyDefaults', () => {
   it('never requires uuidv7() for a tenantId column, even as part of a composite primary key', () => {
     const project = fixtureProject({
       '/repo/apps/backend/src/contexts/demo/infrastructure/entities/demo-balance.entity.ts': `
-        function Entity(name?: string, options?: unknown): ClassDecorator { return () => undefined; }
-        function PrimaryColumn(options?: unknown): PropertyDecorator { return () => undefined; }
+        import { Entity, PrimaryColumn } from 'typeorm';
         @Entity('demo_balances')
         export class DemoBalanceEntity {
           @PrimaryColumn({ name: 'tenant_id', type: 'uuid' })
@@ -237,8 +280,7 @@ describe('checkEntityBuilderPrimaryKeyDefaults', () => {
   it('never requires uuidv7() for a non-uuid-typed primary key', () => {
     const project = fixtureProject({
       '/repo/apps/backend/src/contexts/demo/infrastructure/entities/demo-provider-balance.entity.ts': `
-        function Entity(name?: string, options?: unknown): ClassDecorator { return () => undefined; }
-        function PrimaryColumn(options?: unknown): PropertyDecorator { return () => undefined; }
+        import { Entity, PrimaryColumn } from 'typeorm';
         @Entity('demo_provider_balance')
         export class DemoProviderBalanceEntity {
           @PrimaryColumn({ type: 'varchar', length: 32 })
@@ -258,8 +300,7 @@ describe('checkEntityBuilderPrimaryKeyDefaults', () => {
   it('accepts a constructor-assigned uuidv7() default, not just a field initializer', () => {
     const project = fixtureProject({
       '/repo/apps/backend/src/contexts/demo/infrastructure/entities/demo.entity.ts': `
-        function Entity(name?: string, options?: unknown): ClassDecorator { return () => undefined; }
-        function PrimaryColumn(options?: unknown): PropertyDecorator { return () => undefined; }
+        import { Entity, PrimaryColumn } from 'typeorm';
         @Entity('demos')
         export class DemoEntity {
           @PrimaryColumn({ type: 'uuid' })
@@ -284,8 +325,7 @@ describe('checkEntityBuilderPrimaryKeyDefaults', () => {
   it('skips an entity with no matching builder — that gap is test-builder-coverage’s finding, not this rule’s', () => {
     const project = fixtureProject({
       '/repo/apps/backend/src/contexts/demo/infrastructure/entities/demo.entity.ts': `
-        function Entity(name?: string, options?: unknown): ClassDecorator { return () => undefined; }
-        function PrimaryColumn(options?: unknown): PropertyDecorator { return () => undefined; }
+        import { Entity, PrimaryColumn } from 'typeorm';
         @Entity('demos')
         export class DemoEntity {
           @PrimaryColumn({ type: 'uuid' })
@@ -297,30 +337,22 @@ describe('checkEntityBuilderPrimaryKeyDefaults', () => {
     expectZeroTargets(result);
   });
 
-  it('treats a no-arg PrimaryGeneratedColumn as uuid-shaped and an explicit increment strategy as not', () => {
+  it('treats a no-arg PrimaryGeneratedColumn as NOT uuid-shaped — TypeORM defaults it to "increment"', () => {
     const project = fixtureProject({
-      '/repo/apps/backend/src/contexts/demo/infrastructure/entities/demo.entity.ts': `
-        function Entity(name?: string, options?: unknown): ClassDecorator { return () => undefined; }
-        function PrimaryGeneratedColumn(strategy?: string): PropertyDecorator { return () => undefined; }
-        @Entity('demos')
-        export class DemoEntity {
-          @PrimaryGeneratedColumn()
-          id!: string;
-        }
-      `,
       '/repo/apps/backend/src/contexts/demo/infrastructure/entities/demo-counter.entity.ts': `
-        function Entity(name?: string, options?: unknown): ClassDecorator { return () => undefined; }
-        function PrimaryGeneratedColumn(strategy?: string): PropertyDecorator { return () => undefined; }
+        import { Entity, PrimaryGeneratedColumn } from 'typeorm';
         @Entity('demo_counters')
         export class DemoCounterEntity {
-          @PrimaryGeneratedColumn('increment')
+          @PrimaryGeneratedColumn()
           id!: number;
         }
       `,
-      '/repo/apps/backend/src/test/builders/demo/demo-entity.builder.ts': `
-        function uuidv7(): string { return 'stub'; }
-        export class DemoEntityBuilder {
-          private id = uuidv7();
+      '/repo/apps/backend/src/contexts/demo/infrastructure/entities/demo-uuid.entity.ts': `
+        import { Entity, PrimaryGeneratedColumn } from 'typeorm';
+        @Entity('demo_uuid')
+        export class DemoUuidEntity {
+          @PrimaryGeneratedColumn('uuid')
+          id!: string;
         }
       `,
       '/repo/apps/backend/src/test/builders/demo/demo-counter-entity.builder.ts': `
@@ -328,24 +360,52 @@ describe('checkEntityBuilderPrimaryKeyDefaults', () => {
           private id = 1;
         }
       `,
+      '/repo/apps/backend/src/test/builders/demo/demo-uuid-entity.builder.ts': `
+        function uuidv7(): string { return 'stub'; }
+        export class DemoUuidEntityBuilder {
+          private id = uuidv7();
+        }
+      `,
     });
     const result = checkEntityBuilderPrimaryKeyDefaults(project);
-    // Only DemoEntity.id (no-arg PrimaryGeneratedColumn) is in scope; DemoCounterEntity.id
-    // (explicit 'increment' strategy) is correctly excluded.
+    // Only DemoUuidEntity.id (explicit 'uuid' strategy) is in scope; DemoCounterEntity.id
+    // (no-arg — TypeORM's real default strategy is 'increment') is correctly excluded.
     expectScannedTargets(result, 1);
     expect(result.findings).toHaveLength(0);
+  });
+
+  it('does not resolve a locally-declared decorator merely named "PrimaryColumn"', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/contexts/demo/infrastructure/entities/demo.entity.ts': `
+        import { Entity } from 'typeorm';
+        function PrimaryColumn(options?: unknown): PropertyDecorator { return () => undefined; }
+        @Entity('demos')
+        export class DemoEntity {
+          @PrimaryColumn({ type: 'uuid' })
+          id = 'not-a-uuidv7-call';
+        }
+      `,
+      '/repo/apps/backend/src/test/builders/demo/demo-entity.builder.ts': `
+        export class DemoEntityBuilder {
+          private id = 'demo-id-1';
+        }
+      `,
+    });
+    const result = checkEntityBuilderPrimaryKeyDefaults(project);
+    // The property decorator isn't resolved to typeorm's own PrimaryColumn — not in scope.
+    expectZeroTargets(result);
   });
 });
 
 describe('checkTestDataHarnessRegistrations', () => {
   const entityFiles = {
     '/repo/apps/backend/src/contexts/demo/infrastructure/entities/demo-a.entity.ts': `
-      function Entity(name?: string, options?: unknown): ClassDecorator { return () => undefined; }
+      import { Entity } from 'typeorm';
       @Entity('demo_a')
       export class DemoAEntity {}
     `,
     '/repo/apps/backend/src/contexts/demo/infrastructure/entities/demo-b.entity.ts': `
-      function Entity(name?: string, options?: unknown): ClassDecorator { return () => undefined; }
+      import { Entity } from 'typeorm';
       @Entity('demo_b')
       export class DemoBEntity {}
     `,
@@ -385,6 +445,25 @@ describe('checkTestDataHarnessRegistrations', () => {
         message: expect.stringContaining('missing DemoBEntity'),
       }),
     ]);
+  });
+
+  it('does not scan an entity decorated by a locally-declared decorator merely named "Entity"', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/contexts/demo/infrastructure/entities/demo-a.entity.ts': `
+        function Entity(name?: string): ClassDecorator { return () => undefined; }
+        @Entity('demo_a')
+        export class DemoAEntity {}
+      `,
+      '/repo/apps/backend/src/test/integration-global-setup.ts': `
+        const ds = { entities: [] };
+      `,
+    });
+    const result = checkTestDataHarnessRegistrations(project, [
+      { file: 'apps/backend/src/test/integration-global-setup.ts', completeness: 'complete' },
+    ]);
+    // DemoAEntity is never resolved as a production entity, so the empty array is correct.
+    expectScannedTargets(result, 1);
+    expect(result.findings).toHaveLength(0);
   });
 
   it('compares a "partial" harness against its declared subset, not the full production set', () => {
@@ -467,6 +546,7 @@ describe('checkTestDataHarnessRegistrations', () => {
   it('checks the migrations array too when requiresMigrations is set', () => {
     const project = fixtureProject({
       '/repo/apps/backend/src/contexts/demo/infrastructure/migrations/1-create-demo.ts': `
+        import { MigrationInterface } from 'typeorm';
         export class CreateDemo1 implements MigrationInterface {}
       `,
       '/repo/apps/backend/src/test/integration-global-setup.ts': `
@@ -489,5 +569,26 @@ describe('checkTestDataHarnessRegistrations', () => {
         message: expect.stringContaining('missing CreateDemo1'),
       }),
     ]);
+  });
+
+  it('does not treat a class merely named "implements MigrationInterface" without importing it from typeorm as a resolved migration', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/contexts/demo/infrastructure/migrations/1-create-demo.ts': `
+        interface MigrationInterface {}
+        export class CreateDemo1 implements MigrationInterface {}
+      `,
+      '/repo/apps/backend/src/test/integration-global-setup.ts': `
+        const ds = { entities: [], migrations: [] };
+      `,
+    });
+    const result = checkTestDataHarnessRegistrations(project, [
+      {
+        file: 'apps/backend/src/test/integration-global-setup.ts',
+        completeness: 'complete',
+        requiresMigrations: true,
+      },
+    ]);
+    expectScannedTargets(result, 2);
+    expect(result.findings).toHaveLength(0);
   });
 });
