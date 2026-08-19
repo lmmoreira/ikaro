@@ -181,6 +181,57 @@ describe('architecture checks', () => {
     ]);
   });
 
+  it('scans a concrete leaf error even when its own name happens to end in "DomainError"', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/contexts/demo/domain/errors/demo-domain.error.ts': `
+        export class DemoDomainError extends Error {}
+        // A concrete, thrown leaf that happens to be named like a root — must still be
+        // scanned and required to have its own coverage, not skipped by name suffix.
+        export class SpecificDomainError extends DemoDomainError {}
+      `,
+      '/repo/apps/backend/src/contexts/demo/infrastructure/http/demo-error.mapper.ts': `
+        function map(error: unknown) { return error instanceof Error ? 500 : 400; }
+      `,
+    });
+    const result = checkErrorMapperCoverage(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([expect.objectContaining({ rule: 'error-mapper-coverage' })]);
+  });
+
+  it('only exempts the exact (class, path) pair named by a documented exception', () => {
+    const files = {
+      '/repo/apps/backend/src/contexts/demo/domain/errors/demo-domain.error.ts': `
+        export class DemoDomainError extends Error {}
+        export class DemoNotFoundError extends DemoDomainError {}
+      `,
+      '/repo/apps/backend/src/contexts/demo/infrastructure/http/demo-error.mapper.ts': `
+        function map(error: unknown) { return error instanceof Error ? 500 : 400; }
+      `,
+      // A same-named error in a different context — the exception below names only demo's
+      // own file, so this one must still be scanned and reported.
+      '/repo/apps/backend/src/contexts/other/domain/errors/other-domain.error.ts': `
+        export class OtherDomainError extends Error {}
+        export class DemoNotFoundError extends OtherDomainError {}
+      `,
+      '/repo/apps/backend/src/contexts/other/infrastructure/http/other-error.mapper.ts': `
+        function map(error: unknown) { return error instanceof Error ? 500 : 400; }
+      `,
+    };
+    const result = checkErrorMapperCoverage(fixtureProject(files), [
+      {
+        class: 'DemoNotFoundError',
+        path: 'apps/backend/src/contexts/demo/domain/errors/demo-domain.error.ts',
+      },
+    ]);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        rule: 'error-mapper-coverage',
+        file: expect.stringContaining('/other/'),
+      }),
+    ]);
+  });
+
   it('flags a direct Error subclass with a constructor that never fixes the prototype chain', () => {
     const project = fixtureProject({
       '/repo/apps/backend/src/contexts/demo/domain/errors/demo.error.ts': `
@@ -395,6 +446,87 @@ describe('architecture checks', () => {
       `,
     });
     const result = checkSharedValueObjectErrorMapperCoverage(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({ rule: 'shared-vo-error-mapper-coverage' }),
+    ]);
+  });
+
+  it('does not count a call to a local shadowing the imported shared/http helper as coverage', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/shared/domain/domain-error-shape.ts': `
+        export interface DomainErrorShape { readonly code: string; readonly field?: string }
+      `,
+      '/repo/apps/backend/src/shared/value-objects/demo.vo.ts': `
+        import { DomainErrorShape } from '../domain/domain-error-shape';
+        export class DemoValidationError extends Error implements DomainErrorShape {
+          readonly code = 'DEMO_INVALID';
+        }
+        export class Demo {
+          static create(value: string): Demo {
+            if (!value) throw new DemoValidationError('required');
+            return new Demo();
+          }
+        }
+      `,
+      '/repo/apps/backend/src/shared/http/demo-validation-error.mapper.ts': `
+        import { DemoValidationError } from '../value-objects/demo.vo';
+        export function mapSharedDemoError(err: unknown): void {
+          if (err instanceof DemoValidationError) throw err;
+        }
+      `,
+      '/repo/apps/backend/src/contexts/shadowed/domain/shadowed.aggregate.ts': `
+        import { Demo } from '../../../shared/value-objects/demo.vo';
+        export class Shadowed { static make(v: string) { return Demo.create(v); } }
+      `,
+      // Imports the real helper but never calls it — instead calls a same-named local
+      // parameter that shadows it. Must not be treated as invoking the real helper.
+      '/repo/apps/backend/src/contexts/shadowed/infrastructure/http/shadowed-error.mapper.ts': `
+        import { mapSharedDemoError } from '../../../../shared/http/demo-validation-error.mapper';
+        function delegate(mapSharedDemoError: (err: unknown) => void, err: unknown): never {
+          mapSharedDemoError(err);
+          throw err as never;
+        }
+        export function mapShadowedError(err: unknown): never {
+          return delegate(() => undefined, err);
+        }
+      `,
+    });
+    const result = checkSharedValueObjectErrorMapperCoverage(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({ rule: 'shared-vo-error-mapper-coverage' }),
+    ]);
+  });
+
+  it('resolves an aliased DomainErrorShape import when checking implements', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/shared/domain/domain-error-shape.ts': `
+        export interface DomainErrorShape { readonly code: string; readonly field?: string }
+      `,
+      '/repo/apps/backend/src/shared/value-objects/demo.vo.ts': `
+        import { DomainErrorShape as Shape } from '../domain/domain-error-shape';
+        export class DemoValidationError extends Error implements Shape {
+          readonly code = 'DEMO_INVALID';
+        }
+        export class Demo {
+          static create(value: string): Demo {
+            if (!value) throw new DemoValidationError('required');
+            return new Demo();
+          }
+        }
+      `,
+      '/repo/apps/backend/src/contexts/aliased/domain/aliased.aggregate.ts': `
+        import { Demo } from '../../../shared/value-objects/demo.vo';
+        export class Aliased { static make(v: string) { return Demo.create(v); } }
+      `,
+      '/repo/apps/backend/src/contexts/aliased/infrastructure/http/aliased-error.mapper.ts': `
+        function map(error: unknown) { return error instanceof Error ? 500 : 400; }
+      `,
+    });
+    const result = checkSharedValueObjectErrorMapperCoverage(project);
+    // Scanned as a real target (the aliased implements clause was correctly resolved) and
+    // reported uncovered, since aliased-error.mapper.ts has no instanceof branch for it.
     expectScannedTargets(result, 1);
     expect(result.findings).toEqual([
       expect.objectContaining({ rule: 'shared-vo-error-mapper-coverage' }),

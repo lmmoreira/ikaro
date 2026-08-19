@@ -31,9 +31,12 @@ export function checkSharedValueObjectErrorMapperCoverage(
       // DomainErrorShape interface), not by name pattern — a typed VO error doesn't have to
       // be named "*ValidationError" to be in scope.
       if (declaration.getExtends()?.getExpression().getSymbol()?.getName() !== 'Error') continue;
-      const implementsDomainErrorShape = declaration
-        .getImplements()
-        .some((clause) => clause.getExpression().getSymbol()?.getName() === 'DomainErrorShape');
+      // Follows an aliased import (e.g. `import { DomainErrorShape as Shape }`) back to its
+      // real name — a plain name comparison on the local symbol would miss a renamed import.
+      const implementsDomainErrorShape = declaration.getImplements().some((clause) => {
+        const symbol = clause.getExpression().getSymbol();
+        return (symbol?.getAliasedSymbol() ?? symbol)?.getName() === 'DomainErrorShape';
+      });
       if (!implementsDomainErrorShape) continue;
 
       const consumingContexts = new Set<string>();

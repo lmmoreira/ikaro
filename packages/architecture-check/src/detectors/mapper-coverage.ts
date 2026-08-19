@@ -37,17 +37,18 @@ export function invokedSharedHttpHelperFiles(sourceFile: SourceFile): SourceFile
     const resolved = importDeclaration.getModuleSpecifierSourceFile();
     if (!resolved || !/\/shared\/http\/.*\.ts$/.test(resolved.getFilePath())) continue;
 
-    const localNames = importDeclaration
+    // Compared by resolved symbol identity, not text: a call to a same-named local
+    // parameter/variable that shadows the import must NOT count as invoking the real helper.
+    const importedSymbols = importDeclaration
       .getNamedImports()
-      .map((specifier) => (specifier.getAliasNode() ?? specifier.getNameNode()).getText());
-    const isInvoked = localNames.some((localName) =>
-      sourceFile
-        .getDescendantsOfKind(SyntaxKind.CallExpression)
-        .some(
-          (call) =>
-            Node.isIdentifier(call.getExpression()) && call.getExpression().getText() === localName,
-        ),
-    );
+      .map((specifier) => (specifier.getAliasNode() ?? specifier.getNameNode()).getSymbol())
+      .filter((symbol): symbol is NonNullable<typeof symbol> => Boolean(symbol));
+    const isInvoked = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression).some((call) => {
+      const callee = call.getExpression();
+      if (!Node.isIdentifier(callee)) return false;
+      const calleeSymbol = callee.getSymbol();
+      return calleeSymbol !== undefined && importedSymbols.includes(calleeSymbol);
+    });
     if (isInvoked) files.push(resolved);
   }
   return files;

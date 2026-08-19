@@ -6,6 +6,11 @@ import { coverageSearchSpace, isCoveredBy } from './mapper-coverage';
 const DOMAIN_ERROR_FILE = /contexts\/([^/]+)\/domain\/errors\/.*\.ts$/;
 const CONTEXT_MAPPER_FILE = /contexts\/([^/]+)\/.*error\.mapper\.ts$/;
 
+export interface ErrorMapperException {
+  class: string;
+  path: string;
+}
+
 // Walks the FULL extends chain (not just the immediate parent) so a two-level hierarchy
 // (GrandchildError extends ChildError extends XxxDomainError) is still recognized as owned
 // by XxxDomainError, not silently skipped because ChildError's own name doesn't end in
@@ -19,9 +24,19 @@ function findDomainErrorRoot(declaration: ClassDeclaration): ClassDeclaration | 
   return undefined;
 }
 
+function isIgnored(
+  errorName: string,
+  filePath: string,
+  exceptions: ErrorMapperException[],
+): boolean {
+  return exceptions.some(
+    (exception) => exception.class === errorName && filePath.endsWith(exception.path),
+  );
+}
+
 export function checkErrorMapperCoverage(
   project: Project,
-  ignoredErrorClasses = new Set<string>(),
+  exceptions: ErrorMapperException[] = [],
 ): ScanResult {
   // An array, not a Map keyed by class name: two different contexts can legally declare a
   // same-named error class, and a name-keyed Map would silently collapse them into one entry,
@@ -44,7 +59,13 @@ export function checkErrorMapperCoverage(
     if (!match || sourceFile.getBaseName().endsWith('.spec.ts')) continue;
     for (const declaration of sourceFile.getClasses()) {
       const name = declaration.getName();
-      if (!name || name.endsWith('DomainError')) continue;
+      if (!name) continue;
+      // No name-suffix filtering here on purpose: a class extending Error directly (the
+      // true root, e.g. BookingDomainError) has no resolvable getBaseClass() at all, so it
+      // never gets a root and is naturally excluded below — regardless of what it's named.
+      // A concrete leaf's OWN name (even one that happens to end in "DomainError") must
+      // never gate it out of scanning; only "does it descend from a resolvable ancestor
+      // named *DomainError" decides inclusion.
       const root = findDomainErrorRoot(declaration);
       if (!root) continue;
       errors.push({
@@ -61,7 +82,7 @@ export function checkErrorMapperCoverage(
   const findings: Finding[] = [];
   for (const location of errors) {
     const errorName = location.name;
-    if (ignoredErrorClasses.has(errorName)) continue;
+    if (isIgnored(errorName, location.file, exceptions)) continue;
     scannedTargets++;
 
     const contextMappers = mappers.filter(

@@ -1,4 +1,5 @@
 export { checkErrorMapperCoverage } from './detectors/error-mappers';
+export type { ErrorMapperException } from './detectors/error-mappers';
 export { checkPrototypeChainSafety } from './detectors/prototype-chain';
 export { checkSharedValueObjectErrorMapperCoverage } from './detectors/shared-vo-error-mapping';
 export { checkTransactionalIo } from './detectors/transactional-io';

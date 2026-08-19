@@ -10,6 +10,7 @@ import {
   checkUnsafeUseExisting,
   checkValueObjectCreateNeverThrowsBareError,
   mergeScanResults,
+  type ErrorMapperException,
   type ExternalSideEffectPort,
 } from './index';
 import { loadProject } from './project';
@@ -18,7 +19,7 @@ const root = resolve(__dirname, '../../..');
 const policy = JSON.parse(
   readFileSync(resolve(root, 'packages/architecture-check/architecture-policy.json'), 'utf8'),
 ) as {
-  exceptions?: Array<{ rule: string; class?: string; context?: string }>;
+  exceptions?: Array<{ rule: string; class?: string; context?: string; path?: string }>;
   externalSideEffectPorts?: ExternalSideEffectPort[];
   projects?: string[];
 };
@@ -42,11 +43,14 @@ function requireProject(tsconfigPath: string): Project {
 const backend = requireProject('apps/backend/tsconfig.json');
 const bff = requireProject('apps/bff/tsconfig.json');
 const web = requireProject('apps/web/tsconfig.json');
-const intentionalErrorMapperGaps = new Set(
-  (policy.exceptions ?? [])
-    .filter((exception) => exception.rule === 'error-mapper-coverage' && exception.class)
-    .map((exception) => exception.class!),
-);
+const intentionalErrorMapperGaps: ErrorMapperException[] = (policy.exceptions ?? [])
+  .filter(
+    (exception): exception is { rule: string; class: string; path: string } =>
+      exception.rule === 'error-mapper-coverage' &&
+      Boolean(exception.class) &&
+      Boolean(exception.path),
+  )
+  .map((exception) => ({ class: exception.class, path: exception.path }));
 const intentionalMapperlessContexts = new Set(
   (policy.exceptions ?? [])
     .filter(
