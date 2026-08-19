@@ -107,12 +107,15 @@ export class OpenRouterLlmAdapter implements ILlmProvider {
     const messages = buildOpenRouterMessages(request);
     const model = request.model ?? DEFAULT_OPENROUTER_MODEL;
 
-    // Debug-only visibility into the exact context sent to the provider (never the API key) —
-    // silent by default, since AppLogger's minimum level is INFO unless LOG_LEVEL=DEBUG.
+    // Debug-only visibility into the shape of the request sent to the provider — metadata only,
+    // never the message content itself: `messages` carries the guest's conversation history and
+    // the tenant's `knowledgeText`, both of which AppLogger would otherwise write verbatim to
+    // stdout (and from there, Cloud Logging) at LOG_LEVEL=DEBUG, in violation of this codebase's
+    // no-PII-in-logs invariant (CLAUDE.md §2).
     this.logger.debug('OpenRouter request payload', {
       model,
       maxOutputTokens: request.maxOutputTokens,
-      messages,
+      messageCount: messages.length,
       provider: OPENROUTER_PROVIDER_PREFERENCES,
     });
 

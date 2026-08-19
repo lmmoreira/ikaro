@@ -1,12 +1,16 @@
 import { z } from 'zod';
 
 // The retry/connect-timeout mechanics now live inside undici's own Agent + retry interceptor
-// (RESILIENT_DISPATCHER in fetch-and-parse-json.ts) — a well-tested third-party primitive, not
-// something this suite re-verifies. These tests cover what our own code is responsible for: that
-// fetchAndParseJson wires up that dispatcher with the intended configuration, and that it
-// correctly handles whatever undiciFetch resolves/rejects with (a connect failure that survived
-// every retry, a non-ok response, a malformed body, a schema mismatch).
-const mockAgentCompose = jest.fn().mockReturnValue('mock-dispatcher');
+// (GET_RESILIENT_DISPATCHER / POST_RESILIENT_DISPATCHER in fetch-and-parse-json.ts) — a
+// well-tested third-party primitive, not something this suite re-verifies. These tests cover what
+// our own code is responsible for: that fetchAndParseJson wires up those dispatchers with the
+// intended configuration (including that GET and POST get deliberately different error-code
+// eligibility), that it picks the right one per request method, and that it correctly handles
+// whatever undiciFetch resolves/rejects with.
+const mockAgentCompose = jest
+  .fn()
+  .mockReturnValueOnce('mock-get-dispatcher')
+  .mockReturnValueOnce('mock-post-dispatcher');
 const mockAgentCtor = jest.fn().mockImplementation(() => ({ compose: mockAgentCompose }));
 const mockRetryInterceptor = jest.fn().mockReturnValue('mock-retry-interceptor');
 const mockUndiciFetch = jest.fn();
@@ -22,9 +26,9 @@ jest.mock('undici', () => ({
 }));
 
 // A plain `import` is hoisted above this file's own top-level `const mock...` declarations (ES
-// module evaluation order), which would run fetch-and-parse-json.ts's module-level
-// RESILIENT_DISPATCHER construction — and thus `new Agent(...)` — before those mocks exist.
-// require() runs at this exact line instead, after they're initialized.
+// module evaluation order), which would run fetch-and-parse-json.ts's module-level dispatcher
+// construction — and thus `new Agent(...)` — before those mocks exist. require() runs at this
+// exact line instead, after they're initialized.
 type FetchAndParseJsonModule = typeof import('./fetch-and-parse-json');
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate, see comment above
 const { fetchAndParseJson }: FetchAndParseJsonModule = require('./fetch-and-parse-json');
@@ -47,25 +51,63 @@ function mockFailureResponse(status: number, text = 'server error') {
   };
 }
 
+function retryConfigFor(method: 'GET' | 'POST'): Record<string, unknown> {
+  const call = mockRetryInterceptor.mock.calls.find(
+    ([config]) => (config as { methods: string[] }).methods[0] === method,
+  );
+  if (!call) {
+    throw new Error(`no interceptors.retry() call found for methods: ['${method}']`);
+  }
+  return call[0] as Record<string, unknown>;
+}
+
 describe('fetchAndParseJson', () => {
   beforeEach(() => {
     mockUndiciFetch.mockReset();
   });
 
-  it('constructs the shared dispatcher with a short connect timeout, POST enabled, connect-class error codes, and no status-based retry', () => {
+  it('constructs a single shared Agent with a short connect timeout, and composes both dispatchers off it', () => {
+    expect(mockAgentCtor).toHaveBeenCalledTimes(1);
     expect(mockAgentCtor).toHaveBeenCalledWith({ connectTimeout: 2000 });
-    expect(mockRetryInterceptor).toHaveBeenCalledWith(
-      expect.objectContaining({
-        maxRetries: 2,
-        methods: ['GET', 'POST'],
-        statusCodes: [],
-        errorCodes: expect.arrayContaining(['UND_ERR_CONNECT_TIMEOUT', 'ECONNRESET']),
-      }),
-    );
+    expect(mockAgentCompose).toHaveBeenCalledTimes(2);
     expect(mockAgentCompose).toHaveBeenCalledWith('mock-retry-interceptor');
   });
 
-  it('calls undici fetch with the given url/init plus the shared dispatcher, returning the schema-validated body', async () => {
+  it("gives GET undici's full default error-code set (plus the connect-timeout code) and no status-based retry", () => {
+    expect(retryConfigFor('GET')).toEqual(
+      expect.objectContaining({
+        maxRetries: 2,
+        methods: ['GET'],
+        statusCodes: [],
+        errorCodes: expect.arrayContaining([
+          'ECONNRESET',
+          'EPIPE',
+          'UND_ERR_SOCKET',
+          'UND_ERR_CONNECT_TIMEOUT',
+        ]),
+      }),
+    );
+  });
+
+  it('restricts POST to only provably pre-send error codes, excluding ECONNRESET/EPIPE/UND_ERR_SOCKET', () => {
+    const postConfig = retryConfigFor('POST');
+
+    expect(postConfig).toEqual(
+      expect.objectContaining({
+        maxRetries: 2,
+        methods: ['POST'],
+        statusCodes: [],
+      }),
+    );
+    expect(postConfig['errorCodes']).toEqual(
+      expect.arrayContaining(['ECONNREFUSED', 'UND_ERR_CONNECT_TIMEOUT']),
+    );
+    expect(postConfig['errorCodes']).not.toEqual(
+      expect.arrayContaining(['ECONNRESET', 'EPIPE', 'UND_ERR_SOCKET']),
+    );
+  });
+
+  it('calls undici fetch with the GET dispatcher for a GET request', async () => {
     mockUndiciFetch.mockResolvedValue(mockSuccessResponse({ value: 42 }));
 
     const result = await fetchAndParseJson(
@@ -77,9 +119,36 @@ describe('fetchAndParseJson', () => {
 
     expect(mockUndiciFetch).toHaveBeenCalledWith('https://example.com/api', {
       method: 'GET',
-      dispatcher: 'mock-dispatcher',
+      dispatcher: 'mock-get-dispatcher',
     });
     expect(result).toEqual({ value: 42 });
+  });
+
+  it('calls undici fetch with the POST dispatcher for a POST request', async () => {
+    mockUndiciFetch.mockResolvedValue(mockSuccessResponse({ value: 42 }));
+
+    await fetchAndParseJson(
+      'https://example.com/api',
+      { method: 'POST', body: '{}' },
+      schema,
+      'Example',
+    );
+
+    expect(mockUndiciFetch).toHaveBeenCalledWith('https://example.com/api', {
+      method: 'POST',
+      body: '{}',
+      dispatcher: 'mock-post-dispatcher',
+    });
+  });
+
+  it('defaults to the GET dispatcher when no method is given', async () => {
+    mockUndiciFetch.mockResolvedValue(mockSuccessResponse({ value: 42 }));
+
+    await fetchAndParseJson('https://example.com/api', {}, schema, 'Example');
+
+    expect(mockUndiciFetch).toHaveBeenCalledWith('https://example.com/api', {
+      dispatcher: 'mock-get-dispatcher',
+    });
   });
 
   it('throws "<label> request failed: <cause>" when undici fetch itself rejects (connect failure survived every retry)', async () => {

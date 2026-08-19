@@ -254,14 +254,14 @@ describe('OpenRouterLlmAdapter', () => {
     );
   });
 
-  it('debug-logs the outbound request payload, never the API key', async () => {
+  it('debug-logs only request metadata — never the message content, API key, or knowledgeText it may carry', async () => {
     const debugSpy = jest.spyOn(AppLogger.prototype, 'debug').mockImplementation();
     mockUndiciFetch.mockResolvedValue(mockSuccessResponse());
     const adapter = new OpenRouterLlmAdapter(makeConfigService());
 
     await adapter.complete(
       makeRequest({
-        systemPrompt: 'System instructions.',
+        systemPrompt: 'System instructions with tenant knowledgeText baked in.',
         history: [{ role: 'user', content: 'How much is a wash?' }],
         userMessage: 'And a polish?',
         maxOutputTokens: 250,
@@ -271,11 +271,7 @@ describe('OpenRouterLlmAdapter', () => {
     expect(debugSpy).toHaveBeenCalledWith('OpenRouter request payload', {
       model: 'deepseek/deepseek-v4-flash-0731',
       maxOutputTokens: 250,
-      messages: [
-        { role: 'system', content: 'System instructions.' },
-        { role: 'user', content: 'How much is a wash?' },
-        { role: 'user', content: 'And a polish?' },
-      ],
+      messageCount: 3,
       provider: {
         sort: 'throughput',
         max_price: { prompt: 1, completion: 2 },
@@ -285,6 +281,8 @@ describe('OpenRouterLlmAdapter', () => {
     });
     const loggedArgs = debugSpy.mock.calls[0];
     expect(JSON.stringify(loggedArgs)).not.toContain('test-api-key');
+    expect(JSON.stringify(loggedArgs)).not.toContain('How much is a wash?');
+    expect(JSON.stringify(loggedArgs)).not.toContain('knowledgeText');
     debugSpy.mockRestore();
   });
 
