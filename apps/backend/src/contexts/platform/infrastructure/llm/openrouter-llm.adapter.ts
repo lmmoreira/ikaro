@@ -31,9 +31,19 @@ const OPENROUTER_TIMEOUT_MS = 8000;
 // doesn't optimize for at all. A faster provider for the same model measured the same day (12.8
 // tok/s) cost only ~11% more per token and completed successfully — trading a marginal,
 // evidence-backed cost delta for materially fewer of these timeouts. max_price is a generous
-// backstop (OpenRouter's own USD-per-million-tokens units), not a binding budget — it's ~10x the
-// actual observed cost for this model, there only to guard against a pathological outlier
-// provider, never expected to exclude a normal one.
+// backstop (OpenRouter's own USD-per-million-tokens units), not a binding budget — it's there
+// only to guard against a pathological outlier provider, never expected to exclude a normal one.
+// Sized with headroom over the priciest model this adapter is expected to serve today
+// (tenant.settings.chatbot?.llmModel can override away from DEFAULT_OPENROUTER_MODEL to any
+// OpenRouter model, including premium tiers — anthropic/claude-sonnet-5 real-priced at $2/$10 per
+// million prompt/completion tokens as of 2026-08-19), not just the cheap default model — a tighter
+// ceiling calibrated to the default model alone (previously {prompt:1, completion:2}) rejects every
+// real endpoint for any pricier model outright with a 404, not just outliers. This does trade away
+// some of the outlier-provider protection for the cheap default model itself (a ~10x-overpriced
+// DeepSeek provider no longer gets caught by this ceiling alone) — CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD
+// remains the real backstop against runaway spend regardless of model, per-call cost is still capped
+// by maxOutputTokensPerResponse independent of max_price, and this is the accepted tradeoff for a
+// single shared constant covering every model rather than a per-model or per-tenant price ceiling.
 // Real incidents, 2026-08-18, separate from the throughput ones above: three separate AtlasCloud
 // generations, across the same conversation, each burned their entire max_tokens budget on hidden
 // reasoning tokens (280/300, then twice 300/300) despite reasoning.effort:'none' being sent every
@@ -53,7 +63,7 @@ const OPENROUTER_TIMEOUT_MS = 8000;
 // against three real failures, not a redundant belt-and-suspenders addition.
 const OPENROUTER_PROVIDER_PREFERENCES = {
   sort: 'throughput',
-  max_price: { prompt: 1, completion: 2 },
+  max_price: { prompt: 10, completion: 50 },
   require_parameters: true,
   ignore: ['atlas-cloud'],
 } as const;
