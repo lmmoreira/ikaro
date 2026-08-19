@@ -959,10 +959,12 @@ Always use a **class** with fluent `withXxx()` methods and a `build()` call. Nev
 
 | Test data type | Builder location |
 |---|---|
-| TypeORM entities | `src/test/builders/<context>/XxxEntityBuilder` (`id` defaults to `uuidv7()`) |
+| TypeORM entities | `src/test/builders/<context>/XxxEntityBuilder` (uuid-typed primary key fields default to `uuidv7()`) |
 | Domain aggregates | `src/test/builders/<context>/XxxBuilder` |
 | Domain events / Commands | `src/test/builders/<context>/XxxEventBuilder` / `XxxCommandBuilder` — e.g. `StaffInvitedEventBuilder`, `BookingReminderDueCommandBuilder` (name matches the class suffix — `Command` for classes extending `Command`, `Event` for classes extending `DomainEvent`) |
 | Shared infra stubs (e.g. RequestContext) | `src/test/factories/XxxBuilder` — e.g. `RequestContextBuilder` at `src/test/factories/request-context.factory.ts` |
+
+A primary-key field named `tenantId` is exempt — it defaults to the fixed test-tenant literal like every other `tenantId` field, never `uuidv7()`. A non-uuid-typed primary key (e.g. a `varchar` business key) is exempt too. Enforced by `pnpm architecture-check`'s `entity-builder-pk-uuidv7-default` detector (TD37-S07).
 
 ### Test setup pattern
 
@@ -1039,6 +1041,7 @@ Integration tests share a live DB with no cleanup between tests in the same file
 3. **Import the TypeORM entity class** if it is new.
 4. **Add the entity** to the `entities: [...]` array.
 5. **If the context has its own integration app helper** (e.g. `notification-integration-app.ts`), add the new entity there too.
+6. **If that helper is registered as `"partial"` in `architecture-policy.json`'s `testDataHarnessRegistrations`** (every helper except `integration-global-setup.ts` is), add the entity to that entry's `entities` array too — `pnpm architecture-check`'s `test-harness-registration` detector (TD37-S07) compares the helper's actual code array against this exact list and reports an `unexpected` finding if they drift.
 
 Skipping any of these steps is a silent failure: unit tests pass (InMemory doubles never touch the DB), but integration tests will error on the first query that touches the new column/table.
 

@@ -154,7 +154,7 @@ apps/bff/ changed      →  /bad-smell-audit bff --pr
 apps/web/ changed      →  /bad-smell-audit web --pr
 ```
 
-The `--pr` flag scopes the audit to files changed in this branch only (skips BE-4). Use `/bad-smell-audit backend` (no flag) for a full codebase audit on demand.
+The `--pr` flag scopes the audit to files changed in this branch only. BE-4 is retired entirely (mechanized by `pnpm architecture-check`, TD37-S07) and no longer runs in either mode. Use `/bad-smell-audit backend` (no flag) for a full codebase audit on demand.
 
 Wait for all invocations to complete before continuing. Any FAIL from bad-smell-audit blocks Step 4.
 

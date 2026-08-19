@@ -3,9 +3,10 @@ import {
   TenantSettingsProps,
 } from '../../../contexts/platform/domain/value-objects/tenant-settings.vo';
 import { TenantEntity } from '../../../contexts/platform/infrastructure/entities/tenant.entity';
+import { uuidv7 } from '../../../shared/domain/uuid-v7';
 
 export class TenantEntityBuilder {
-  private id = 'tenant-id-1';
+  private id = uuidv7();
   private readonly name = 'BeloAuto';
   private slug = 'beloauto';
   private isActive = true;

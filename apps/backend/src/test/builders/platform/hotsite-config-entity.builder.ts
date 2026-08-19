@@ -6,6 +6,7 @@ import {
   HotsiteSeo,
 } from '../../../contexts/platform/domain/hotsite-config.aggregate';
 import { HotsiteConfigEntity } from '../../../contexts/platform/infrastructure/entities/hotsite-config.entity';
+import { uuidv7 } from '../../../shared/domain/uuid-v7';
 
 const DEFAULT_LAYOUT: HotsiteModule[] = [
   {
@@ -21,7 +22,7 @@ const DEFAULT_LAYOUT: HotsiteModule[] = [
 ];
 
 export class HotsiteConfigEntityBuilder {
-  private id = 'config-id-1';
+  private id = uuidv7();
   private tenantId = 'tenant-id-1';
   private isPublished = false;
   private branding: HotsiteBranding = { ...DEFAULT_HOTSITE_BRANDING };

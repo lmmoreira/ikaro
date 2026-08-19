@@ -300,7 +300,7 @@ Builds on Story 3's harness.
 
 ---
 
-### Story 7 — `ts-morph` suite, part 2: test-hygiene completeness 🟡
+### Story 7 — `ts-morph` suite, part 2: test-hygiene completeness 🟡 ✅ Done
 
 - **Entity/event/command builder coverage**: derive production entities from resolved TypeORM entity decorators, including shared inbox/outbox entities, then assert a matching builder exists. Same for `DomainEvent`/`Command` classes constructed inline in 2+ spec files.
 - **`EntityBuilder` primary-key defaults to `uuidv7()`**: inspect every resolved TypeORM primary-key property and its builder field initializer/default. Do not assume the field is named `id` or that its default is in the constructor; valid names include `lineId`, `entryId`, and `eventId`.
@@ -310,9 +310,9 @@ Builds on Story 3's harness.
 **What it does NOT catch**: whether the builder's other fields are sensible defaults — only its existence, primary-key default, and registration.
 
 **Acceptance criteria**:
-- [ ] All 3 checks cover resolved production entities, including shared entities and non-`id` primary keys
-- [ ] The registration-map source of truth makes intentional helper subsets explicit
-- [ ] BE-4's existing manual bad-smell-audit check can be retired once this ships (avoid running the same check twice, once mechanically and once via LLM prompt)
+- [x] All 3 checks cover resolved production entities, including shared entities and non-`id` primary keys
+- [x] The registration-map source of truth makes intentional helper subsets explicit
+- [x] BE-4's existing manual bad-smell-audit check can be retired once this ships (avoid running the same check twice, once mechanically and once via LLM prompt)
 
 ---
 

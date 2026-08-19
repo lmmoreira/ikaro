@@ -665,6 +665,8 @@ Use `createNotificationIntegrationApp()`; suppress unrelated handlers; drain pro
 
 Every new migration class and TypeORM entity must be added to `src/test/integration-global-setup.ts` (and to any context-specific helper like `notification-integration-app.ts`) in the **same commit** as the migration file. Skipping causes silent failures — unit tests pass but integration tests error on the first DB query.
 
+`packages/architecture-check/architecture-policy.json`'s `testDataHarnessRegistrations` section is the machine-checked source of truth for this — one entry per file that declares a TypeORM `entities:`/`migrations:` array (`integration-global-setup.ts` plus the 6 `src/test/utils/*-integration-app.ts`/`test-datasource.ts` helpers). `integration-global-setup.ts` is declared `"complete"` and must carry every production entity/migration; the rest are `"partial"` with an explicit, intentional `entities` subset. Adding a new entity to one of the partial helpers' code array without updating its matching policy entry (or vice versa) is flagged as drift by `pnpm architecture-check`'s `test-harness-registration` detector (TD37-S07) — update both in the same commit, not just the code.
+
 ### BFF tests
 
 Two test files per controller: `.spec.ts` (unit) + `.component.spec.ts` (component). Helper-file isolation:

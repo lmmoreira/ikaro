@@ -47,12 +47,13 @@ describe('TypeOrmHotsiteConfigRepository', () => {
 
   describe('findByTenantId', () => {
     it('returns a HotsiteConfig aggregate when found', async () => {
-      mockRepo.findOne.mockResolvedValue(new HotsiteConfigEntityBuilder().build());
+      const entity = new HotsiteConfigEntityBuilder().build();
+      mockRepo.findOne.mockResolvedValue(entity);
 
       const result = await repo.findByTenantId('tenant-id-1');
 
       expect(result).toBeInstanceOf(HotsiteConfig);
-      expect(result!.id).toBe('config-id-1');
+      expect(result!.id).toBe(entity.id);
       expect(result!.tenantId).toBe('tenant-id-1');
       expect(result!.isPublished).toBe(false);
       expect(result!.branding).toEqual(DEFAULT_HOTSITE_BRANDING);
