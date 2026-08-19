@@ -205,7 +205,7 @@ module "cloudrun_backend" {
       # apply (a new Cloud Run revision, no application code build/test/deploy) during a real
       # incident, without waiting for the next app release. Final, confirmed values — not
       # placeholders.
-      CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD     = "25"
+      CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD     = "1"
       CHATBOT_MIN_PROVIDER_BALANCE_USD         = "2"
       CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES = "5"
       OUTBOX_CLAIM_LEASE_SECONDS               = "120"
