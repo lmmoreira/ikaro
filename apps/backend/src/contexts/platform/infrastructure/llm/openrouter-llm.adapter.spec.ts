@@ -1,7 +1,27 @@
 import { ConfigService } from '@nestjs/config';
 import { Decimal } from 'decimal.js';
+import { AppLogger } from '../../../../shared/observability/app-logger';
 import { ChatCompletionRequest } from '../../application/ports/llm-provider.port';
-import { OpenRouterLlmAdapter } from './openrouter-llm.adapter';
+
+// fetch-and-parse-json.ts (imported transitively via OpenRouterLlmAdapter below) constructs a
+// shared undici Agent + retry interceptor at module-load time — mock undici before that module
+// ever loads, same reasoning as fetch-and-parse-json.spec.ts.
+const mockAgentCompose = jest.fn().mockReturnValue('mock-dispatcher');
+const mockAgentCtor = jest.fn().mockImplementation(() => ({ compose: mockAgentCompose }));
+const mockRetryInterceptor = jest.fn().mockReturnValue('mock-retry-interceptor');
+const mockUndiciFetch = jest.fn();
+
+jest.mock('undici', () => ({
+  Agent: function MockAgent(...args: unknown[]) {
+    return mockAgentCtor(...args);
+  },
+  fetch: (...args: unknown[]) => mockUndiciFetch(...args),
+  interceptors: { retry: (...args: unknown[]) => mockRetryInterceptor(...args) },
+}));
+
+type OpenRouterLlmAdapterModule = typeof import('./openrouter-llm.adapter');
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- must load after jest.mock above
+const { OpenRouterLlmAdapter }: OpenRouterLlmAdapterModule = require('./openrouter-llm.adapter');
 
 function makeConfigService(overrides: Record<string, unknown> = {}): ConfigService {
   const values: Record<string, unknown> = {
@@ -23,49 +43,61 @@ function makeRequest(overrides: Partial<ChatCompletionRequest> = {}): ChatComple
   };
 }
 
-function mockSuccessResponse(overrides: Record<string, unknown> = {}): Response {
+function mockSuccessResponse(overrides: Record<string, unknown> = {}) {
   return {
     ok: true,
     status: 200,
-    json: () =>
-      Promise.resolve({
-        model: 'deepseek/deepseek-v4-flash-0731',
-        choices: [{ message: { content: 'We are open 8am to 6pm.' } }],
-        usage: { prompt_tokens: 120, completion_tokens: 15, cost: 0.0000135 },
-        ...overrides,
-      }),
-  } as unknown as Response;
+    text: () =>
+      Promise.resolve(
+        JSON.stringify({
+          model: 'deepseek/deepseek-v4-flash-0731',
+          choices: [{ message: { content: 'We are open 8am to 6pm.' } }],
+          usage: { prompt_tokens: 120, completion_tokens: 15, cost: 0.0000135 },
+          ...overrides,
+        }),
+      ),
+  };
 }
 
 describe('OpenRouterLlmAdapter', () => {
-  let fetchSpy: jest.SpiedFunction<typeof fetch>;
-
   beforeEach(() => {
-    fetchSpy = jest.spyOn(global, 'fetch');
-  });
-
-  afterEach(() => {
-    fetchSpy.mockRestore();
+    mockUndiciFetch.mockReset();
   });
 
   it('always sends reasoning.effort "none" — regression test for the silent-expensive-billing trap', async () => {
-    fetchSpy.mockResolvedValue(mockSuccessResponse());
+    mockUndiciFetch.mockResolvedValue(mockSuccessResponse());
     const adapter = new OpenRouterLlmAdapter(makeConfigService());
 
     await adapter.complete(makeRequest());
 
-    const [, calledOptions] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const [, calledOptions] = mockUndiciFetch.mock.calls[0] as [string, RequestInit];
     const body = JSON.parse(calledOptions.body as string);
     expect(body.reasoning).toEqual({ effort: 'none' });
   });
 
+  it('sorts by throughput, requires every provider to honor all request parameters, ignores atlas-cloud, with a generous max_price backstop', async () => {
+    mockUndiciFetch.mockResolvedValue(mockSuccessResponse());
+    const adapter = new OpenRouterLlmAdapter(makeConfigService());
+
+    await adapter.complete(makeRequest());
+
+    const [, calledOptions] = mockUndiciFetch.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(calledOptions.body as string);
+    expect(body.provider).toEqual({
+      sort: 'throughput',
+      max_price: { prompt: 1, completion: 2 },
+      require_parameters: true,
+      ignore: ['atlas-cloud'],
+    });
+  });
+
   it('calls the OpenRouter chat completions endpoint with the model, max_tokens, and bearer auth', async () => {
-    fetchSpy.mockResolvedValue(mockSuccessResponse());
+    mockUndiciFetch.mockResolvedValue(mockSuccessResponse());
     const adapter = new OpenRouterLlmAdapter(makeConfigService());
 
     await adapter.complete(makeRequest({ maxOutputTokens: 250 }));
 
-    const [calledUrl, calledOptions] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const [calledUrl, calledOptions] = mockUndiciFetch.mock.calls[0] as [string, RequestInit];
     expect(calledUrl).toBe('https://openrouter.ai/api/v1/chat/completions');
     expect((calledOptions.headers as Record<string, string>).Authorization).toBe(
       'Bearer test-api-key',
@@ -77,18 +109,18 @@ describe('OpenRouterLlmAdapter', () => {
   });
 
   it('sends the request-provided model override instead of the default when one is set', async () => {
-    fetchSpy.mockResolvedValue(mockSuccessResponse());
+    mockUndiciFetch.mockResolvedValue(mockSuccessResponse());
     const adapter = new OpenRouterLlmAdapter(makeConfigService());
 
     await adapter.complete(makeRequest({ model: 'deepseek/deepseek-v4-flash-thinking' }));
 
-    const [, calledOptions] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const [, calledOptions] = mockUndiciFetch.mock.calls[0] as [string, RequestInit];
     const body = JSON.parse(calledOptions.body as string);
     expect(body.model).toBe('deepseek/deepseek-v4-flash-thinking');
   });
 
   it('assembles messages as system prompt, then history, then the user message', async () => {
-    fetchSpy.mockResolvedValue(mockSuccessResponse());
+    mockUndiciFetch.mockResolvedValue(mockSuccessResponse());
     const adapter = new OpenRouterLlmAdapter(makeConfigService());
 
     await adapter.complete(
@@ -102,7 +134,7 @@ describe('OpenRouterLlmAdapter', () => {
       }),
     );
 
-    const [, calledOptions] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const [, calledOptions] = mockUndiciFetch.mock.calls[0] as [string, RequestInit];
     const body = JSON.parse(calledOptions.body as string);
     expect(body.messages).toEqual([
       { role: 'system', content: 'System instructions.' },
@@ -113,7 +145,7 @@ describe('OpenRouterLlmAdapter', () => {
   });
 
   it('maps usage.prompt_tokens/completion_tokens/cost and the response model into ChatCompletionResult', async () => {
-    fetchSpy.mockResolvedValue(
+    mockUndiciFetch.mockResolvedValue(
       mockSuccessResponse({
         model: 'deepseek/deepseek-v4-flash-0731',
         choices: [{ message: { content: 'We are open 8am to 6pm.' } }],
@@ -134,7 +166,7 @@ describe('OpenRouterLlmAdapter', () => {
   });
 
   it('reads costUsd straight from usage.cost — the provider-confirmed value, never self-computed', async () => {
-    fetchSpy.mockResolvedValue(
+    mockUndiciFetch.mockResolvedValue(
       mockSuccessResponse({ usage: { prompt_tokens: 100, completion_tokens: 10, cost: 0.00042 } }),
     );
     const adapter = new OpenRouterLlmAdapter(makeConfigService());
@@ -145,16 +177,18 @@ describe('OpenRouterLlmAdapter', () => {
   });
 
   it('throws a controlled error when usage.cost is missing — a documented-as-always-present field going absent is treated as a malformed response, not silently priced at zero', async () => {
-    fetchSpy.mockResolvedValue({
+    mockUndiciFetch.mockResolvedValue({
       ok: true,
       status: 200,
-      json: () =>
-        Promise.resolve({
-          model: 'deepseek/deepseek-v4-flash-0731',
-          choices: [{ message: { content: 'We are open 8am to 6pm.' } }],
-          usage: { prompt_tokens: 120, completion_tokens: 15 },
-        }),
-    } as unknown as Response);
+      text: () =>
+        Promise.resolve(
+          JSON.stringify({
+            model: 'deepseek/deepseek-v4-flash-0731',
+            choices: [{ message: { content: 'We are open 8am to 6pm.' } }],
+            usage: { prompt_tokens: 120, completion_tokens: 15 },
+          }),
+        ),
+    });
     const adapter = new OpenRouterLlmAdapter(makeConfigService());
 
     await expect(adapter.complete(makeRequest())).rejects.toThrow(
@@ -163,24 +197,24 @@ describe('OpenRouterLlmAdapter', () => {
   });
 
   it('throws a controlled error when the response body is not valid JSON, instead of an unhandled SyntaxError', async () => {
-    fetchSpy.mockResolvedValue({
+    mockUndiciFetch.mockResolvedValue({
       ok: true,
       status: 200,
-      json: () => Promise.reject(new SyntaxError('Unexpected token < in JSON')),
-    } as unknown as Response);
+      text: () => Promise.resolve('<html>502 Bad Gateway</html>'),
+    });
     const adapter = new OpenRouterLlmAdapter(makeConfigService());
 
     await expect(adapter.complete(makeRequest())).rejects.toThrow(
-      'OpenRouter returned a malformed response: invalid JSON',
+      'OpenRouter returned a malformed response: invalid JSON: <html>502 Bad Gateway</html>',
     );
   });
 
   it('throws when OpenRouter responds with a non-ok status', async () => {
-    fetchSpy.mockResolvedValue({
+    mockUndiciFetch.mockResolvedValue({
       ok: false,
       status: 401,
       text: () => Promise.resolve('Unauthorized'),
-    } as unknown as Response);
+    });
     const adapter = new OpenRouterLlmAdapter(makeConfigService());
 
     await expect(adapter.complete(makeRequest())).rejects.toThrow(
@@ -189,7 +223,7 @@ describe('OpenRouterLlmAdapter', () => {
   });
 
   it('throws a controlled error on an empty choices array, instead of an unchecked property access', async () => {
-    fetchSpy.mockResolvedValue(
+    mockUndiciFetch.mockResolvedValue(
       mockSuccessResponse({
         choices: [],
       }),
@@ -202,15 +236,17 @@ describe('OpenRouterLlmAdapter', () => {
   });
 
   it('throws a controlled error when usage is missing from the response', async () => {
-    fetchSpy.mockResolvedValue({
+    mockUndiciFetch.mockResolvedValue({
       ok: true,
       status: 200,
-      json: () =>
-        Promise.resolve({
-          model: 'deepseek/deepseek-v4-flash-0731',
-          choices: [{ message: { content: 'We are open 8am to 6pm.' } }],
-        }),
-    } as unknown as Response);
+      text: () =>
+        Promise.resolve(
+          JSON.stringify({
+            model: 'deepseek/deepseek-v4-flash-0731',
+            choices: [{ message: { content: 'We are open 8am to 6pm.' } }],
+          }),
+        ),
+    });
     const adapter = new OpenRouterLlmAdapter(makeConfigService());
 
     await expect(adapter.complete(makeRequest())).rejects.toThrow(
@@ -218,17 +254,51 @@ describe('OpenRouterLlmAdapter', () => {
     );
   });
 
+  it('debug-logs only request metadata — never the message content, API key, or knowledgeText it may carry', async () => {
+    const debugSpy = jest.spyOn(AppLogger.prototype, 'debug').mockImplementation();
+    mockUndiciFetch.mockResolvedValue(mockSuccessResponse());
+    const adapter = new OpenRouterLlmAdapter(makeConfigService());
+
+    await adapter.complete(
+      makeRequest({
+        systemPrompt: 'System instructions with tenant knowledgeText baked in.',
+        history: [{ role: 'user', content: 'How much is a wash?' }],
+        userMessage: 'And a polish?',
+        maxOutputTokens: 250,
+      }),
+    );
+
+    expect(debugSpy).toHaveBeenCalledWith('OpenRouter request payload', {
+      model: 'deepseek/deepseek-v4-flash-0731',
+      maxOutputTokens: 250,
+      messageCount: 3,
+      provider: {
+        sort: 'throughput',
+        max_price: { prompt: 1, completion: 2 },
+        require_parameters: true,
+        ignore: ['atlas-cloud'],
+      },
+    });
+    const loggedArgs = debugSpy.mock.calls[0];
+    expect(JSON.stringify(loggedArgs)).not.toContain('test-api-key');
+    expect(JSON.stringify(loggedArgs)).not.toContain('How much is a wash?');
+    expect(JSON.stringify(loggedArgs)).not.toContain('knowledgeText');
+    debugSpy.mockRestore();
+  });
+
   it('throws a controlled error when message content is not a string', async () => {
-    fetchSpy.mockResolvedValue({
+    mockUndiciFetch.mockResolvedValue({
       ok: true,
       status: 200,
-      json: () =>
-        Promise.resolve({
-          model: 'deepseek/deepseek-v4-flash-0731',
-          choices: [{ message: { content: null } }],
-          usage: { prompt_tokens: 10, completion_tokens: 5 },
-        }),
-    } as unknown as Response);
+      text: () =>
+        Promise.resolve(
+          JSON.stringify({
+            model: 'deepseek/deepseek-v4-flash-0731',
+            choices: [{ message: { content: null } }],
+            usage: { prompt_tokens: 10, completion_tokens: 5 },
+          }),
+        ),
+    });
     const adapter = new OpenRouterLlmAdapter(makeConfigService());
 
     await expect(adapter.complete(makeRequest())).rejects.toThrow(

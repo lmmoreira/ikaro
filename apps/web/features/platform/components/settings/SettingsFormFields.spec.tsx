@@ -7,6 +7,7 @@ import {
   ReadOnlyField,
   SelectField,
   SuffixNumberField,
+  TextareaField,
   TextField,
 } from './SettingsFormFields';
 
@@ -54,6 +55,38 @@ describe('TextField', () => {
     );
     expect(screen.queryByText('Dica')).not.toBeInTheDocument();
     expect(screen.getByTestId('field-b-error')).toHaveTextContent('Erro');
+  });
+});
+
+describe('TextareaField', () => {
+  it('associates the visible hint with the textarea via aria-describedby when there is no error', () => {
+    render(<TextareaField id="field-c" label="Texto" value="" hint="Dica" onChange={vi.fn()} />);
+
+    const textarea = screen.getByTestId('field-c');
+    expect(screen.getByText('Dica')).toHaveAttribute('id', 'field-c-hint');
+    expect(textarea).toHaveAttribute('aria-describedby', 'field-c-hint');
+  });
+
+  it('describes the error instead of the hint once one is present', () => {
+    render(
+      <TextareaField
+        id="field-c"
+        label="Texto"
+        value=""
+        hint="Dica"
+        error="Erro"
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText('Dica')).not.toBeInTheDocument();
+    expect(screen.getByTestId('field-c')).toHaveAttribute('aria-describedby', 'field-c-error');
+  });
+
+  it('has no aria-describedby when neither hint nor error is present', () => {
+    render(<TextareaField id="field-c" label="Texto" value="" onChange={vi.fn()} />);
+
+    expect(screen.getByTestId('field-c')).not.toHaveAttribute('aria-describedby');
   });
 });
 

@@ -6,7 +6,11 @@ import type { TenantSettingsResponse } from '@ikaro/types';
 import { renameTenant, updateTenantSettings } from '@/features/platform/api/tenant-settings';
 import type { AddressLookup } from '@/shared/lib/address/address-lookup.port';
 import { viaCepAddressLookup } from '@/shared/lib/address/viacep-address-lookup.adapter';
-import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
+import { extractProblemDetailShape } from '@/shared/lib/api/errors';
+import {
+  resolveErrorMessage,
+  resolveErrorMessageFromApiError,
+} from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { useSettingsZipLookup } from '@/features/platform/hooks/useSettingsZipLookup';
@@ -27,6 +31,7 @@ import { SettingsLoyaltySection } from './SettingsLoyaltySection';
 import { SettingsNotificationSection } from './SettingsNotificationSection';
 import { SettingsHoursSection } from './SettingsHoursSection';
 import { SettingsContactSection } from './SettingsContactSection';
+import { SettingsChatbotSection } from './SettingsChatbotSection';
 import { SettingsLocalizationSection } from './SettingsLocalizationSection';
 import { SettingsDesktopActions, SettingsMobileActionBar } from './SettingsFormActions';
 
@@ -125,7 +130,17 @@ export function SettingsForm({
     try {
       await updateTenantSettings({ settings: normalized.settings });
     } catch (err) {
-      setFieldErrors({ submit: resolveErrorMessageFromApiError(err, locale) });
+      // chatbot.knowledgeText is the only settings field validated purely server-side (no
+      // client-side length cap, since the resolved max can be a per-tenant Ikaro-only override
+      // never exposed to this form) — its error is shown inline under the field, matching every
+      // other field-level validation error, instead of the generic submit banner used for every
+      // other API failure in this form (e.g. the rename partial-failure case below).
+      const shape = extractProblemDetailShape(err);
+      if (shape?.field === 'chatbot.knowledgeText') {
+        setFieldErrors({ knowledgeText: resolveErrorMessage(shape.code, locale) });
+      } else {
+        setFieldErrors({ submit: resolveErrorMessageFromApiError(err, locale) });
+      }
       setIsSubmitting(false);
       return;
     }
@@ -239,6 +254,12 @@ export function SettingsForm({
             onZipCodeChange={(raw) => {
               void handleZipCodeChange(raw);
             }}
+          />
+
+          <SettingsChatbotSection
+            knowledgeText={values.knowledgeText}
+            knowledgeTextError={fieldErrors.knowledgeText}
+            onChange={(value) => setField('knowledgeText', value)}
           />
 
           <SettingsLocalizationSection

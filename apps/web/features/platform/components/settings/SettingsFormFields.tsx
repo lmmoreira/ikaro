@@ -111,6 +111,58 @@ export function TextField({
   );
 }
 
+interface TextareaFieldProps {
+  readonly id: string;
+  readonly label: string;
+  readonly value: string;
+  readonly error?: string;
+  readonly hint?: string;
+  readonly placeholder?: string;
+  readonly onChange: (value: string) => void;
+}
+
+export function TextareaField({
+  id,
+  label,
+  value,
+  error,
+  hint,
+  placeholder,
+  onChange,
+}: TextareaFieldProps): React.JSX.Element {
+  let describedBy: string | undefined;
+  if (error) {
+    describedBy = `${id}-error`;
+  } else if (hint) {
+    describedBy = `${id}-hint`;
+  }
+
+  return (
+    <div>
+      <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-gray-900">
+        {label}
+      </label>
+      <textarea
+        id={id}
+        data-testid={id}
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+        aria-invalid={Boolean(error)}
+        aria-describedby={describedBy}
+        rows={5}
+        className={`${INPUT_CLASS} min-h-32 resize-y`}
+      />
+      {hint && !error && (
+        <p id={`${id}-hint`} className="mt-1.5 text-sm text-gray-500">
+          {hint}
+        </p>
+      )}
+      <FieldError id={`${id}-error`} message={error} />
+    </div>
+  );
+}
+
 interface SelectFieldProps {
   readonly id: string;
   readonly label: string;

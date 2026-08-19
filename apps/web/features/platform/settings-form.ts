@@ -65,6 +65,7 @@ export interface SettingsFormValues {
   readonly address: SettingsAddressValues;
   readonly notificationFromEmail: string;
   readonly socialLinks: SettingsSocialLinksValues;
+  readonly knowledgeText: string;
 }
 
 export interface SettingsFormErrors {
@@ -90,6 +91,7 @@ export interface SettingsFormErrors {
   addressZipCode?: string;
   notificationFromEmail?: string;
   socialLinksWhatsapp?: string;
+  knowledgeText?: string;
   submit?: string;
 }
 
@@ -181,5 +183,6 @@ export function toSettingsFormValues(tenant: TenantSettingsResponse): SettingsFo
       instagram: socialLinks?.instagram ?? '',
       facebook: socialLinks?.facebook ?? '',
     },
+    knowledgeText: settings.chatbot.knowledgeText,
   };
 }

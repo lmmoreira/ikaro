@@ -27,6 +27,13 @@ import { getBusinessContext, getServicesContext } from './chatbot-context';
 import { buildSystemPrompt } from './chatbot.mapper';
 import { BackendHotsiteManifestResponse } from './platform.types';
 
+// Above the shared 10s default (BackendHttpService's other calls): the backend's own
+// per-OpenRouter-attempt timeout is 8s (OPENROUTER_TIMEOUT_MS), so a single genuine slow-but-real
+// completion can legitimately take close to that before the backend responds at all. 12s gives
+// that headroom plus margin for the BFF<->backend hop itself, so a real (if slow) answer isn't
+// cut off here and reported as "unavailable" while the backend was still going to succeed.
+export const CHATBOT_MESSAGE_TIMEOUT_MS = 12_000;
+
 // `maxMessageLengthChars` (default 1000) is an Ikaro-only override (docs/21-TENANTS_SETTINGS_SCHEMA.md
 // §7 — "No" tenant-editable, set only via a direct DB update, never returned by any BFF-reachable
 // read) — the BFF has no way to know a tenant's real resolved value, so it must never guess at a
@@ -126,6 +133,7 @@ export class PlatformPublicController {
         '/platform/chatbot/messages',
         backendBody,
         tenantId,
+        CHATBOT_MESSAGE_TIMEOUT_MS,
       );
     });
   }
