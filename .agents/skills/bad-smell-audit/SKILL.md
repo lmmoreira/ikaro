@@ -33,9 +33,7 @@ git diff origin/main...HEAD --name-only | grep "^apps/web/"
 ```
 
 2. Pass this file list to the Explore agent as its explicit scope — the agent greps and reads **only those files**, not the full directory tree.
-
 3. **BE-4 is retired** — full-codebase missing-builder coverage (entities, events, commands, primary-key `uuidv7()` defaults, and the test-data-harness registration map) is now enforced mechanically by `pnpm architecture-check`'s `test-builder-coverage`, `entity-builder-pk-uuidv7-default`, and `test-harness-registration` detectors (TD37-S07) — no LLM audit step needed for it, in `--pr` mode or otherwise. `scripts/pre-pr.sh`'s own diff-scoped BE-4 check (Step 1, check 28) is unrelated and still runs — it's a fast, already-mechanical, PR-diff-only check, not the audit-prompt version being retired here.
-
 4. All other checks (BE-1, BE-2, BE-3, BE-5, BE-6, BE-7, BFF-1–4, WEB-1–11) run normally but scoped to the changed file list.
 
 If the `git diff` for a layer returns zero files, skip that layer entirely and report `(no changed files in this layer)`.

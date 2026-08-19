@@ -1,11 +1,9 @@
 import { ClassDeclaration, Node, Project, PropertyDeclaration, SyntaxKind } from 'ts-morph';
 import type { Finding, ScanResult } from '../model';
 import { sourceLine } from '../project';
+import { findBuilderInContext, indexBuilderClasses } from './builder-index';
+import { contextFromEntityPath } from './entity-context';
 import { findTypeOrmDecorator, hasTypeOrmDecorator } from './typeorm-symbols';
-
-const ENTITY_FILE =
-  /(?:contexts\/[^/]+\/infrastructure\/entities\/|shared\/infrastructure\/[^/]+\/).*\.entity\.ts$/;
-const BUILDER_FILE = /test\/builders\/[^/]+\/.*\.builder\.ts$/;
 
 // `tenantId` is excluded even when it participates in a composite primary key (e.g.
 // LoyaltyBalanceEntity's (tenant_id, customer_id)): every builder in this codebase defaults
@@ -14,15 +12,17 @@ const BUILDER_FILE = /test\/builders\/[^/]+\/.*\.builder\.ts$/;
 const EXEMPT_FIELD_NAMES = new Set(['tenantId']);
 
 function isUuidTypedPrimaryColumn(property: PropertyDeclaration): boolean {
-  const decorator = findTypeOrmDecorator(property, ['PrimaryColumn', 'PrimaryGeneratedColumn']);
-  if (!decorator) return false;
+  const resolved = findTypeOrmDecorator(property, ['PrimaryColumn', 'PrimaryGeneratedColumn']);
+  if (!resolved) return false;
+  const { decorator, exportName } = resolved;
 
   const [firstArg] = decorator.getArguments();
-  if (decorator.getName() === 'PrimaryGeneratedColumn') {
+  if (exportName === 'PrimaryGeneratedColumn') {
     // TypeORM's own default generation strategy is 'increment', NOT 'uuid' — a no-arg
     // @PrimaryGeneratedColumn() is a numeric auto-increment column. Only an EXPLICIT 'uuid'
     // strategy argument is UUID-shaped; every other case (no arg, 'increment', 'rowid',
-    // 'identity', ...) is not.
+    // 'identity', ...) is not. Uses the RESOLVED export name, not decorator.getName(), so an
+    // aliased import (`PrimaryGeneratedColumn as X`) is still classified correctly.
     return Node.isStringLiteral(firstArg) && firstArg.getLiteralText() === 'uuid';
   }
 
@@ -64,33 +64,31 @@ function builderDefaultsToUuidV7(builderClass: ClassDeclaration, fieldName: stri
   });
 }
 
-function findBuilderClass(project: Project, className: string): ClassDeclaration | undefined {
-  for (const sourceFile of project.getSourceFiles()) {
-    if (!BUILDER_FILE.test(sourceFile.getFilePath())) continue;
-    const declaration = sourceFile
-      .getDescendantsOfKind(SyntaxKind.ClassDeclaration)
-      .find((c) => c.getName() === className);
-    if (declaration) return declaration;
-  }
-  return undefined;
-}
-
 export function checkEntityBuilderPrimaryKeyDefaults(project: Project): ScanResult {
   const findings: Finding[] = [];
   let scannedTargets = 0;
+  // Indexed once, keyed by (name, context) — shared shape with test-builder-coverage.ts so the
+  // two detectors can never disagree about which builder "counts" for a given entity (PR #393
+  // review: this used to look up any same-named builder regardless of context).
+  const builderIndex = indexBuilderClasses(project);
 
   for (const sourceFile of project.getSourceFiles()) {
     const filePath = sourceFile.getFilePath();
-    if (!ENTITY_FILE.test(filePath) || sourceFile.getBaseName().endsWith('.spec.ts')) continue;
+    const entityContext = contextFromEntityPath(filePath);
+    if (!entityContext || sourceFile.getBaseName().endsWith('.spec.ts')) continue;
 
     for (const declaration of sourceFile.getDescendantsOfKind(SyntaxKind.ClassDeclaration)) {
       if (!hasTypeOrmDecorator(declaration, 'Entity')) continue;
       const entityName = declaration.getName();
       if (!entityName) continue;
 
-      // A missing builder is test-builder-coverage's finding, not this check's — avoid
-      // reporting the same gap twice through two different rules.
-      const builderClass = findBuilderClass(project, `${entityName}Builder`);
+      // A missing (or wrong-context) builder is test-builder-coverage's finding, not this
+      // check's — avoid reporting the same gap twice through two different rules.
+      const builderClass = findBuilderInContext(
+        builderIndex,
+        `${entityName}Builder`,
+        entityContext,
+      );
       if (!builderClass) continue;
 
       for (const property of declaration.getProperties()) {

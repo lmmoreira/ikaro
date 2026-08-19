@@ -15,15 +15,26 @@ function resolvesToTypeOrmExport(identifier: Identifier, exportName: string): bo
   });
 }
 
+export interface ResolvedTypeOrmDecorator {
+  decorator: Decorator;
+  // The matched `typeorm` export name — NOT `decorator.getName()`, which returns the local
+  // (possibly aliased) spelling. A caller that must distinguish which of several exportNames
+  // matched (e.g. PrimaryColumn vs PrimaryGeneratedColumn) needs this, not the decorator's own
+  // local name, or an aliased import silently misclassifies.
+  exportName: string;
+}
+
 export function findTypeOrmDecorator(
   declaration: ClassDeclaration | PropertyDeclaration,
   exportNames: string[],
-): Decorator | undefined {
-  return declaration
-    .getDecorators()
-    .find((decorator) =>
-      exportNames.some((name) => resolvesToTypeOrmExport(decorator.getNameNode(), name)),
+): ResolvedTypeOrmDecorator | undefined {
+  for (const decorator of declaration.getDecorators()) {
+    const exportName = exportNames.find((name) =>
+      resolvesToTypeOrmExport(decorator.getNameNode(), name),
     );
+    if (exportName) return { decorator, exportName };
+  }
+  return undefined;
 }
 
 export function hasTypeOrmDecorator(declaration: ClassDeclaration, exportName: string): boolean {

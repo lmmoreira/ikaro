@@ -95,7 +95,7 @@ describe('checkTestBuilderCoverage', () => {
         export class DemoHappened extends DomainEvent {}
       `,
       '/repo/apps/backend/src/contexts/demo/application/one.use-case.spec.ts': `
-        import { DemoHappened } from '../../domain/events/demo-happened.event';
+        import { DemoHappened } from '../domain/events/demo-happened.event';
         const event = new DemoHappened();
       `,
     });
@@ -115,11 +115,11 @@ describe('checkTestBuilderCoverage', () => {
         export class DemoHappened extends DomainEvent {}
       `,
       '/repo/apps/backend/src/contexts/demo/application/one.use-case.spec.ts': `
-        import { DemoHappened } from '../../domain/events/demo-happened.event';
+        import { DemoHappened } from '../domain/events/demo-happened.event';
         const event = new DemoHappened();
       `,
       '/repo/apps/backend/src/contexts/demo/application/two.use-case.spec.ts': `
-        import { DemoHappened } from '../../domain/events/demo-happened.event';
+        import { DemoHappened } from '../domain/events/demo-happened.event';
         const event = new DemoHappened();
       `,
     });
@@ -143,11 +143,11 @@ describe('checkTestBuilderCoverage', () => {
         export class DemoDue extends Command {}
       `,
       '/repo/apps/backend/src/contexts/demo/application/one.use-case.spec.ts': `
-        import { DemoDue } from '../../domain/commands/demo-due.command';
+        import { DemoDue } from '../domain/commands/demo-due.command';
         const c = new DemoDue();
       `,
       '/repo/apps/backend/src/contexts/demo/application/two.use-case.spec.ts': `
-        import { DemoDue } from '../../domain/commands/demo-due.command';
+        import { DemoDue } from '../domain/commands/demo-due.command';
         const c = new DemoDue();
       `,
       '/repo/apps/backend/src/test/builders/demo/demo-due-command.builder.ts': `
@@ -176,6 +176,35 @@ describe('checkTestBuilderCoverage', () => {
     expect(result.findings).toEqual([
       expect.objectContaining({ message: expect.stringContaining('DemoEntityBuilder') }),
     ]);
+  });
+
+  it('does not conflate two same-named event classes in different contexts, each constructed once', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/shared/domain/domain-event.ts': `
+        export abstract class DomainEvent {}
+      `,
+      '/repo/apps/backend/src/contexts/alpha/domain/events/user-created.event.ts': `
+        import { DomainEvent } from '../../../../shared/domain/domain-event';
+        export class UserCreated extends DomainEvent {}
+      `,
+      '/repo/apps/backend/src/contexts/beta/domain/events/user-created.event.ts': `
+        import { DomainEvent } from '../../../../shared/domain/domain-event';
+        export class UserCreated extends DomainEvent {}
+      `,
+      '/repo/apps/backend/src/contexts/alpha/application/one.use-case.spec.ts': `
+        import { UserCreated } from '../domain/events/user-created.event';
+        const event = new UserCreated();
+      `,
+      '/repo/apps/backend/src/contexts/beta/application/two.use-case.spec.ts': `
+        import { UserCreated } from '../domain/events/user-created.event';
+        const event = new UserCreated();
+      `,
+    });
+    const result = checkTestBuilderCoverage(project);
+    // Each UserCreated is a DISTINCT production class, resolved by declaration identity, each
+    // constructed inline in only 1 spec file — neither meets the 2-file threshold, so neither is
+    // a required target. A naive identifier-text count would wrongly sum these to 2 for both.
+    expectZeroTargets(result);
   });
 });
 
@@ -415,9 +444,10 @@ describe('checkTestDataHarnessRegistrations', () => {
     const project = fixtureProject({
       ...entityFiles,
       '/repo/apps/backend/src/test/integration-global-setup.ts': `
+        import { DataSource } from 'typeorm';
         import { DemoAEntity } from '../contexts/demo/infrastructure/entities/demo-a.entity';
         import { DemoBEntity } from '../contexts/demo/infrastructure/entities/demo-b.entity';
-        const ds = { entities: [DemoAEntity, DemoBEntity] };
+        const ds = new DataSource({ entities: [DemoAEntity, DemoBEntity] });
       `,
     });
     const result = checkTestDataHarnessRegistrations(project, [
@@ -431,8 +461,9 @@ describe('checkTestDataHarnessRegistrations', () => {
     const project = fixtureProject({
       ...entityFiles,
       '/repo/apps/backend/src/test/integration-global-setup.ts': `
+        import { DataSource } from 'typeorm';
         import { DemoAEntity } from '../contexts/demo/infrastructure/entities/demo-a.entity';
-        const ds = { entities: [DemoAEntity] };
+        const ds = new DataSource({ entities: [DemoAEntity] });
       `,
     });
     const result = checkTestDataHarnessRegistrations(project, [
@@ -455,7 +486,8 @@ describe('checkTestDataHarnessRegistrations', () => {
         export class DemoAEntity {}
       `,
       '/repo/apps/backend/src/test/integration-global-setup.ts': `
-        const ds = { entities: [] };
+        import { DataSource } from 'typeorm';
+        const ds = new DataSource({ entities: [] });
       `,
     });
     const result = checkTestDataHarnessRegistrations(project, [
@@ -470,8 +502,9 @@ describe('checkTestDataHarnessRegistrations', () => {
     const project = fixtureProject({
       ...entityFiles,
       '/repo/apps/backend/src/test/test-datasource.ts': `
+        import { DataSource } from 'typeorm';
         import { DemoAEntity } from '../contexts/demo/infrastructure/entities/demo-a.entity';
-        const ds = { entities: [DemoAEntity] };
+        const ds = new DataSource({ entities: [DemoAEntity] });
       `,
     });
     const result = checkTestDataHarnessRegistrations(project, [
@@ -489,9 +522,10 @@ describe('checkTestDataHarnessRegistrations', () => {
     const project = fixtureProject({
       ...entityFiles,
       '/repo/apps/backend/src/test/test-datasource.ts': `
+        import { DataSource } from 'typeorm';
         import { DemoAEntity } from '../contexts/demo/infrastructure/entities/demo-a.entity';
         import { DemoBEntity } from '../contexts/demo/infrastructure/entities/demo-b.entity';
-        const ds = { entities: [DemoAEntity, DemoBEntity] };
+        const ds = new DataSource({ entities: [DemoAEntity, DemoBEntity] });
       `,
     });
     const result = checkTestDataHarnessRegistrations(project, [
@@ -513,15 +547,39 @@ describe('checkTestDataHarnessRegistrations', () => {
     const project = fixtureProject({
       ...entityFiles,
       '/repo/apps/backend/src/test/utils/notification-integration-app.ts': `
+        import { TypeOrmModule } from '@nestjs/typeorm';
         import { DemoAEntity } from '../../contexts/demo/infrastructure/entities/demo-a.entity';
         function build(extraEntities: unknown[]) {
-          return { entities: [DemoAEntity, ...extraEntities] };
+          return TypeOrmModule.forRoot({ entities: [DemoAEntity, ...extraEntities] });
         }
       `,
     });
     const result = checkTestDataHarnessRegistrations(project, [
       {
         file: 'apps/backend/src/test/utils/notification-integration-app.ts',
+        completeness: 'partial',
+        entities: ['DemoAEntity'],
+      },
+    ]);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toHaveLength(0);
+  });
+
+  it('ignores an unrelated same-named "entities" property outside the DataSource/forRoot options object', () => {
+    const project = fixtureProject({
+      ...entityFiles,
+      '/repo/apps/backend/src/test/test-datasource.ts': `
+        import { DataSource } from 'typeorm';
+        import { DemoAEntity } from '../contexts/demo/infrastructure/entities/demo-a.entity';
+        // A same-named property in an unrelated object literal elsewhere in the file — must
+        // never be silently picked up instead of the real DataSource options.
+        const unrelatedConfig = { entities: ['not-a-real-entity-list'] };
+        const ds = new DataSource({ entities: [DemoAEntity] });
+      `,
+    });
+    const result = checkTestDataHarnessRegistrations(project, [
+      {
+        file: 'apps/backend/src/test/test-datasource.ts',
         completeness: 'partial',
         entities: ['DemoAEntity'],
       },
@@ -550,8 +608,9 @@ describe('checkTestDataHarnessRegistrations', () => {
         export class CreateDemo1 implements MigrationInterface {}
       `,
       '/repo/apps/backend/src/test/integration-global-setup.ts': `
+        import { DataSource } from 'typeorm';
         import { CreateDemo1 } from '../contexts/demo/infrastructure/migrations/1-create-demo';
-        const ds = { entities: [], migrations: [] };
+        const ds = new DataSource({ entities: [], migrations: [] });
       `,
     });
     const result = checkTestDataHarnessRegistrations(project, [
@@ -578,7 +637,8 @@ describe('checkTestDataHarnessRegistrations', () => {
         export class CreateDemo1 implements MigrationInterface {}
       `,
       '/repo/apps/backend/src/test/integration-global-setup.ts': `
-        const ds = { entities: [], migrations: [] };
+        import { DataSource } from 'typeorm';
+        const ds = new DataSource({ entities: [], migrations: [] });
       `,
     });
     const result = checkTestDataHarnessRegistrations(project, [

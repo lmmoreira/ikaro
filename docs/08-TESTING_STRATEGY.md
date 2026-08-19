@@ -1041,6 +1041,7 @@ Integration tests share a live DB with no cleanup between tests in the same file
 3. **Import the TypeORM entity class** if it is new.
 4. **Add the entity** to the `entities: [...]` array.
 5. **If the context has its own integration app helper** (e.g. `notification-integration-app.ts`), add the new entity there too.
+6. **If that helper is registered as `"partial"` in `architecture-policy.json`'s `testDataHarnessRegistrations`** (every helper except `integration-global-setup.ts` is), add the entity to that entry's `entities` array too — `pnpm architecture-check`'s `test-harness-registration` detector (TD37-S07) compares the helper's actual code array against this exact list and reports an `unexpected` finding if they drift.
 
 Skipping any of these steps is a silent failure: unit tests pass (InMemory doubles never touch the DB), but integration tests will error on the first query that touches the new column/table.
 
