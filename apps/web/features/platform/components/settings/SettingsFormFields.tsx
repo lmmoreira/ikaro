@@ -130,6 +130,13 @@ export function TextareaField({
   placeholder,
   onChange,
 }: TextareaFieldProps): React.JSX.Element {
+  let describedBy: string | undefined;
+  if (error) {
+    describedBy = `${id}-error`;
+  } else if (hint) {
+    describedBy = `${id}-hint`;
+  }
+
   return (
     <div>
       <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-gray-900">
@@ -142,7 +149,7 @@ export function TextareaField({
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
         aria-invalid={Boolean(error)}
-        aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
+        aria-describedby={describedBy}
         rows={5}
         className={`${INPUT_CLASS} min-h-32 resize-y`}
       />
