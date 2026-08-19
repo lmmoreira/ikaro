@@ -29,7 +29,9 @@ export function checkValueObjectCreateNeverThrowsBareError(project: Project): Sc
     ) {
       continue;
     }
-    for (const declaration of sourceFile.getClasses()) {
+    // getDescendantsOfKind, not getClasses(): the latter only returns top-level class
+    // declarations, silently skipping any class declared inside a namespace/module block.
+    for (const declaration of sourceFile.getDescendantsOfKind(SyntaxKind.ClassDeclaration)) {
       const createMethod = declaration
         .getMethods()
         .find((method) => method.isStatic() && method.getName() === 'create');

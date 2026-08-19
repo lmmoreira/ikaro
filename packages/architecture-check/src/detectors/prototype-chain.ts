@@ -33,7 +33,9 @@ export function checkPrototypeChainSafety(project: Project): ScanResult {
     ) {
       continue;
     }
-    for (const declaration of sourceFile.getClasses()) {
+    // getDescendantsOfKind, not getClasses(): the latter only returns top-level class
+    // declarations, silently skipping any class declared inside a namespace/module block.
+    for (const declaration of sourceFile.getDescendantsOfKind(SyntaxKind.ClassDeclaration)) {
       const extendsClause = declaration.getExtends();
       if (!extendsClause) continue;
       if (extendsClause.getExpression().getSymbol()?.getName() !== 'Error') continue;

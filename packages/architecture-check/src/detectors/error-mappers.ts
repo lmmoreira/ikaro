@@ -1,4 +1,4 @@
-import { ClassDeclaration, Project } from 'ts-morph';
+import { ClassDeclaration, Project, SyntaxKind } from 'ts-morph';
 import type { Finding, ScanResult } from '../model';
 import { sourceLine } from '../project';
 import { coverageSearchSpace, isCoveredBy } from './mapper-coverage';
@@ -57,7 +57,9 @@ export function checkErrorMapperCoverage(
   for (const sourceFile of project.getSourceFiles()) {
     const match = DOMAIN_ERROR_FILE.exec(sourceFile.getFilePath());
     if (!match || sourceFile.getBaseName().endsWith('.spec.ts')) continue;
-    for (const declaration of sourceFile.getClasses()) {
+    // getDescendantsOfKind, not getClasses(): the latter only returns top-level class
+    // declarations, silently skipping any class declared inside a namespace/module block.
+    for (const declaration of sourceFile.getDescendantsOfKind(SyntaxKind.ClassDeclaration)) {
       const name = declaration.getName();
       if (!name) continue;
       // No name-suffix filtering here on purpose: a class extending Error directly (the

@@ -1,10 +1,51 @@
-import { Project } from 'ts-morph';
+import { InterfaceDeclaration, Node, Project, Symbol, SyntaxKind } from 'ts-morph';
 import type { Finding, ScanResult } from '../model';
 import { sourceLine } from '../project';
 import { coverageSearchSpace, isCoveredBy } from './mapper-coverage';
 
 const CONTEXT_FILE = /\/contexts\/([^/]+)\//;
 const CONTEXT_MAPPER_FILE = /\/contexts\/([^/]+)\/.*error\.mapper\.ts$/;
+const DOMAIN_ERROR_SHAPE_FILE = /\/shared\/domain\/domain-error-shape\.ts$/;
+
+function findDomainErrorShapeDeclaration(project: Project): InterfaceDeclaration | undefined {
+  for (const file of project.getSourceFiles()) {
+    if (!DOMAIN_ERROR_SHAPE_FILE.test(file.getFilePath())) continue;
+    const found = file.getInterface('DomainErrorShape');
+    if (found) return found;
+  }
+  return undefined;
+}
+
+function isSameDeclaration(a: Node, b: Node): boolean {
+  return (
+    a.getSourceFile().getFilePath() === b.getSourceFile().getFilePath() &&
+    a.getStart() === b.getStart()
+  );
+}
+
+// A class can implement DomainErrorShape indirectly — `interface DerivedShape extends
+// DomainErrorShape {}` then `implements DerivedShape` — so this walks the resolved
+// declaration's own `extends` chain (recursively, for a multi-level derived interface) rather
+// than requiring the immediate implements-clause to name DomainErrorShape directly.
+function resolvesToDomainErrorShape(
+  declarations: Node[] | undefined,
+  canonical: InterfaceDeclaration,
+  seen: Set<Node> = new Set(),
+): boolean {
+  if (!declarations) return false;
+  for (const declaration of declarations) {
+    if (seen.has(declaration)) continue;
+    seen.add(declaration);
+    if (isSameDeclaration(declaration, canonical)) return true;
+    if (!Node.isInterfaceDeclaration(declaration)) continue;
+    for (const extendsClause of declaration.getExtends()) {
+      const symbol: Symbol | undefined = extendsClause.getExpression().getSymbol();
+      const resolved = (symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations();
+      if (resolvesToDomainErrorShape(resolved, canonical, seen)) return true;
+    }
+  }
+  return false;
+}
 
 export function checkSharedValueObjectErrorMapperCoverage(
   project: Project,
@@ -15,6 +56,7 @@ export function checkSharedValueObjectErrorMapperCoverage(
   const mappers = project
     .getSourceFiles()
     .filter((file) => /error\.mapper\.ts$/.test(file.getFilePath()));
+  const canonicalShape = findDomainErrorShapeDeclaration(project);
 
   for (const sourceFile of project.getSourceFiles()) {
     if (
@@ -24,19 +66,23 @@ export function checkSharedValueObjectErrorMapperCoverage(
       continue;
     }
 
-    for (const declaration of sourceFile.getClasses()) {
+    // getDescendantsOfKind, not getClasses(): the latter only returns top-level class
+    // declarations, silently skipping any class declared inside a namespace/module block.
+    for (const declaration of sourceFile.getDescendantsOfKind(SyntaxKind.ClassDeclaration)) {
       const name = declaration.getName();
       if (!name) continue;
       // Identified by resolved shape (extends the real Error + implements the real
-      // DomainErrorShape interface), not by name pattern — a typed VO error doesn't have to
-      // be named "*ValidationError" to be in scope.
+      // DomainErrorShape interface, directly or via a derived interface), not by name
+      // pattern — a typed VO error doesn't have to be named "*ValidationError" to be in
+      // scope.
       if (declaration.getExtends()?.getExpression().getSymbol()?.getName() !== 'Error') continue;
-      // Follows an aliased import (e.g. `import { DomainErrorShape as Shape }`) back to its
-      // real name — a plain name comparison on the local symbol would miss a renamed import.
-      const implementsDomainErrorShape = declaration.getImplements().some((clause) => {
-        const symbol = clause.getExpression().getSymbol();
-        return (symbol?.getAliasedSymbol() ?? symbol)?.getName() === 'DomainErrorShape';
-      });
+      const implementsDomainErrorShape =
+        canonicalShape !== undefined &&
+        declaration.getImplements().some((clause) => {
+          const symbol = clause.getExpression().getSymbol();
+          const resolved = (symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations();
+          return resolvesToDomainErrorShape(resolved, canonicalShape);
+        });
       if (!implementsDomainErrorShape) continue;
 
       const consumingContexts = new Set<string>();

@@ -198,6 +198,25 @@ describe('architecture checks', () => {
     expect(result.findings).toEqual([expect.objectContaining({ rule: 'error-mapper-coverage' })]);
   });
 
+  it('scans a concrete error class declared inside a namespace block', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/contexts/demo/domain/errors/demo-domain.error.ts': `
+        export class DemoDomainError extends Error {}
+        // getClasses() only returns top-level declarations — a class nested inside a
+        // namespace must still be found via a full descendant walk.
+        export namespace Errors {
+          export class NestedConcreteError extends DemoDomainError {}
+        }
+      `,
+      '/repo/apps/backend/src/contexts/demo/infrastructure/http/demo-error.mapper.ts': `
+        function map(error: unknown) { return error instanceof Error ? 500 : 400; }
+      `,
+    });
+    const result = checkErrorMapperCoverage(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([expect.objectContaining({ rule: 'error-mapper-coverage' })]);
+  });
+
   it('only exempts the exact (class, path) pair named by a documented exception', () => {
     const files = {
       '/repo/apps/backend/src/contexts/demo/domain/errors/demo-domain.error.ts': `
@@ -527,6 +546,42 @@ describe('architecture checks', () => {
     const result = checkSharedValueObjectErrorMapperCoverage(project);
     // Scanned as a real target (the aliased implements clause was correctly resolved) and
     // reported uncovered, since aliased-error.mapper.ts has no instanceof branch for it.
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({ rule: 'shared-vo-error-mapper-coverage' }),
+    ]);
+  });
+
+  it('resolves a derived interface that extends DomainErrorShape when checking implements', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/shared/domain/domain-error-shape.ts': `
+        export interface DomainErrorShape { readonly code: string; readonly field?: string }
+      `,
+      '/repo/apps/backend/src/shared/value-objects/demo.vo.ts': `
+        import { DomainErrorShape } from '../domain/domain-error-shape';
+        interface DerivedShape extends DomainErrorShape {}
+        export class DemoValidationError extends Error implements DerivedShape {
+          readonly code = 'DEMO_INVALID';
+        }
+        export class Demo {
+          static create(value: string): Demo {
+            if (!value) throw new DemoValidationError('required');
+            return new Demo();
+          }
+        }
+      `,
+      '/repo/apps/backend/src/contexts/derived/domain/derived.aggregate.ts': `
+        import { Demo } from '../../../shared/value-objects/demo.vo';
+        export class Derived { static make(v: string) { return Demo.create(v); } }
+      `,
+      '/repo/apps/backend/src/contexts/derived/infrastructure/http/derived-error.mapper.ts': `
+        function map(error: unknown) { return error instanceof Error ? 500 : 400; }
+      `,
+    });
+    const result = checkSharedValueObjectErrorMapperCoverage(project);
+    // Scanned (the derived-interface implements clause was correctly resolved back to the
+    // canonical DomainErrorShape) and reported uncovered, since derived-error.mapper.ts has
+    // no instanceof branch for it.
     expectScannedTargets(result, 1);
     expect(result.findings).toEqual([
       expect.objectContaining({ rule: 'shared-vo-error-mapper-coverage' }),
