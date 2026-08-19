@@ -533,29 +533,28 @@ Add a "Chatbot" section to `SettingsForm.tsx` (`apps/web/features/platform/compo
 
 ---
 
-### M19-S14 — Infra: secrets, env vars, scheduler jobs
+### M19-S14 — Infra: fix stale CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD value
 
 **Agent:** `devops`
-**Complexity:** S
-**Docs to load:** `infra/terraform/README.md`, the existing `modules/secret-manager` and `modules/scheduler` Terraform modules, `docs/14-API_CONTRACTS.md` § Chatbot Widget / cron entries
+**Complexity:** XS
+**Docs to load:** `infra/terraform/README.md`, `infra/terraform/modules/secrets/`, `infra/terraform/modules/scheduler/`, `docs/14-API_CONTRACTS.md` § Chatbot Widget / cron entries, `docs/discovery/CHATBOT/CHATBOT.md` §9
 
 **Description:**
-Not new infra capability — the Secret Manager and Cloud Scheduler modules already exist (`M15-S06`, `M15-S10`/`M17-S21`). This story adds new instances via those existing modules, mirroring the exact shape of the existing `loyalty_expire_points` scheduler resource and existing secret entries.
+Originally drafted as "add 2 env vars + 2 Pub/Sub topics + 2 Cloud Scheduler jobs" for the chatbot module. Story-discovery (2026-08-19) found nearly all of that already delivered by earlier stories, confirmed via live `gcloud` checks against `ikaro-staging`:
 
-**Note (scope moved during `/story-discovery`, 2026-08-10):** the 3 LLM provider secrets (`OPENROUTER_API_KEY`/`ANTHROPIC_API_KEY`/`OPENAI_API_KEY`) and the `CHATBOT_LLM_PROVIDER` env var were pulled forward into S02 instead of waiting for this story — S02 needed the Terraform pattern established immediately rather than deferred, and building it once for all 3 providers avoided repeating the same Terraform PR shape across S02/S03/S14. This story's remaining scope:
+- **2 Pub/Sub topics + 2 Cloud Scheduler jobs** (`ikaro-cron-chatbot-retention-purge` daily `0 3 * * *`, `ikaro-cron-chatbot-balance-poll` every 15 min `*/15 * * * *`) — provisioned directly by **S07** (PR #365) and **S08** (PR #370/#371), including the Foundation `scheduler_publisher_*` IAM grants. Confirmed live: both topics + DLQs exist, both jobs `ENABLED` with the correct schedules.
+- **2 env vars wired to the backend Cloud Run service** — done by **S06** (PR #363), not this story. `CHATBOT_MIN_PROVIDER_BALANCE_USD=2` is live and correct.
 
-- **2 new plain env vars** on the backend Cloud Run service: `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` (default `1` — revised from the original `25`, see `docs/discovery/CHATBOT/CHATBOT.md` §9's dated correction), `CHATBOT_MIN_PROVIDER_BALANCE_USD` (default `2`)
-- **2 new Pub/Sub topics + 2 new Cloud Scheduler jobs**: `ikaro-cron-chatbot-retention-purge` (daily, `0 3 * * *`) and `ikaro-cron-chatbot-balance-poll` (every 15 min, `*/15 * * * *`) — if not already added directly in S07/S08 (implementer's call on sequencing; not a hard dependency either way)
-
-Not a functional blocker for local development, which uses local `.env` values + the manual `POST /cron/...` trigger endpoints, same as every existing cron job. Required before real staging/prod traffic — mirrors `M11`→`M15`'s precedent (SendGrid's secret was provisioned in a later, separate infra pass, not blocking `M11`'s own app-code stories).
+**The one real gap found:** `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` is hardcoded to `"25"` in both `infra/terraform/envs/staging/main.tf` and `infra/terraform/envs/prod/main.tf` (set during S06, before the value was later revised) — a live check confirms staging's deployed Cloud Run revision is actually running with `25`. `docs/discovery/CHATBOT/CHATBOT.md` §9's dated correction (2026-08-18, M19-S12) lowered the intended default to `1`, and `apps/backend/src/config/env.validation.ts` already has `.default(1)` — but that Zod default only applies when the env var is unset, and Terraform explicitly sets it, so `25` wins live in both environments. This story's entire remaining scope is correcting that value.
 
 **Acceptance Criteria:**
-- [ ] 2 env vars set on the backend Cloud Run service with the documented defaults
-- [ ] 2 Pub/Sub topics + 2 Cloud Scheduler jobs provisioned via the existing `modules/scheduler`, matching the real `loyalty_expire_points` resource's shape
-- [ ] Terraform plan/apply verified in a real (staging) environment, not just `terraform validate`
-- [ ] No secret value committed anywhere in the repo (Gitleaks-clean)
+- [ ] `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` changed from `"25"` to `"1"` in both `envs/staging/main.tf` and `envs/prod/main.tf`
+- [ ] `terraform plan` reviewed for both env roots — the only diff is this one value on the existing `cloudrun_backend` env var, no resource replacement
+- [ ] Applied for real in staging (not just `terraform validate`/`plan`); live value re-verified via `gcloud run services describe ikaro-backend --project=ikaro-staging ...`
+- [ ] Applied in prod once staging is confirmed
+- [ ] No secret value committed anywhere in the repo (Gitleaks-clean) — N/A risk here since no secret is touched, kept as a standing check
 
-**Dependencies:** None (can run in parallel with any wave). Required before staging/prod activation of S07, S08.
+**Dependencies:** None. S07/S08 already delivered the topics/scheduler jobs independently; S06 already delivered the env var wiring. This story only fixes the stale value.
 
 ---
 
