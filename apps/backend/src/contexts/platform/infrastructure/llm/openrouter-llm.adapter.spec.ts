@@ -62,7 +62,7 @@ describe('OpenRouterLlmAdapter', () => {
     expect(body.reasoning).toEqual({ effort: 'none' });
   });
 
-  it('sorts by throughput, ignores atlas-cloud, with a generous max_price backstop, so a chat visitor is not routed to a slow or reasoning-token-starved provider', async () => {
+  it('sorts by throughput, requires every provider to honor all request parameters, with a generous max_price backstop', async () => {
     fetchSpy.mockResolvedValue(mockSuccessResponse());
     const adapter = new OpenRouterLlmAdapter(makeConfigService());
 
@@ -73,7 +73,7 @@ describe('OpenRouterLlmAdapter', () => {
     expect(body.provider).toEqual({
       sort: 'throughput',
       max_price: { prompt: 1, completion: 2 },
-      ignore: ['atlas-cloud'],
+      require_parameters: true,
     });
   });
 
@@ -265,7 +265,7 @@ describe('OpenRouterLlmAdapter', () => {
       provider: {
         sort: 'throughput',
         max_price: { prompt: 1, completion: 2 },
-        ignore: ['atlas-cloud'],
+        require_parameters: true,
       },
     });
     const loggedArgs = debugSpy.mock.calls[0];

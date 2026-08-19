@@ -41,13 +41,16 @@ const OPENROUTER_TIMEOUT_MS = 8000;
 // came back empty). "effort: 'none'" is OpenRouter's documented, correct way to disable reasoning
 // and is expected to work across models — checked across every other generation in this same
 // conversation's history, AtlasCloud is the only provider that ever showed non-zero
-// native_tokens_reasoning; every one from another provider was 0. Excluding it via `ignore` (not
-// raising max_tokens, which only delays the same failure at higher cost/latency) is the direct
-// fix for a specific provider not honoring a parameter the whole system depends on.
+// native_tokens_reasoning; every one from another provider was 0. require_parameters:true is the
+// root-cause fix (not raising max_tokens, which only delays the same failure at higher cost/
+// latency, and not an atlas-cloud-specific `ignore`, which would only ever patch this one already-
+// caught provider): it tells OpenRouter to exclude any provider that can't honor every parameter
+// in this request — including reasoning — rather than silently dropping the ones a cheaper/faster
+// host doesn't support and returning a result shaped by a request we didn't actually send.
 const OPENROUTER_PROVIDER_PREFERENCES = {
   sort: 'throughput',
   max_price: { prompt: 1, completion: 2 },
-  ignore: ['atlas-cloud'],
+  require_parameters: true,
 } as const;
 
 interface OpenRouterMessage {
