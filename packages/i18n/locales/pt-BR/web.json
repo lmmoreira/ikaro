@@ -877,7 +877,7 @@
       "socialLinksFacebookLabel": "Facebook",
       "chatbotKnowledgeTextLabel": "Sobre o seu negócio",
       "chatbotKnowledgeTextHint": "Políticas, perguntas frequentes e observações que o assistente deve conhecer — os serviços e preços já são incluídos automaticamente, não é preciso repeti-los aqui.",
-      "chatbotKnowledgeTextPlaceholder": "Ex: Aceitamos pagamento por Pix e cartão. Não fazemos lavagem a seco. Vagas de estacionamento disponíveis na rua. Atendimento prioritário para clientes fidelidade Ouro...",
+      "chatbotKnowledgeTextPlaceholder": "Ex: Aceitamos pagamento por Pix e cartão. Não fazemos lavagem a seco. Vagas de estacionamento disponíveis na rua. Atendimento prioritário para clientes de fidelidade Ouro...",
       "chatbotCapsElsewhereNote": "Os limites de volume/custo (conversas por dia, mensagens por conversa, etc.) e o provedor de IA não aparecem neste formulário — são padrões fixos da plataforma, ajustáveis apenas pela Ikaro diretamente no banco de dados quando necessário.",
       "submit": "Salvar configurações",
       "actionHint": "As configurações afetam novos agendamentos. Horários de funcionamento e fuso entram em vigor imediatamente.",

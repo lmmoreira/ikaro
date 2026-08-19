@@ -142,11 +142,15 @@ export function TextareaField({
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
         aria-invalid={Boolean(error)}
-        aria-describedby={error ? `${id}-error` : undefined}
+        aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
         rows={5}
         className={`${INPUT_CLASS} min-h-32 resize-y`}
       />
-      {hint && !error && <p className="mt-1.5 text-sm text-gray-500">{hint}</p>}
+      {hint && !error && (
+        <p id={`${id}-hint`} className="mt-1.5 text-sm text-gray-500">
+          {hint}
+        </p>
+      )}
       <FieldError id={`${id}-error`} message={error} />
     </div>
   );
