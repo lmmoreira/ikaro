@@ -533,7 +533,7 @@ Add a "Chatbot" section to `SettingsForm.tsx` (`apps/web/features/platform/compo
 
 ---
 
-### M19-S14 — Infra: fix stale CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD value
+### M19-S14 — Infra: fix stale CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD value ✅ Done
 
 **Agent:** `devops`
 **Complexity:** XS
@@ -548,11 +548,11 @@ Originally drafted as "add 2 env vars + 2 Pub/Sub topics + 2 Cloud Scheduler job
 **The one real gap found:** `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` is hardcoded to `"25"` in both `infra/terraform/envs/staging/main.tf` and `infra/terraform/envs/prod/main.tf` (set during S06, before the value was later revised) — a live check confirms staging's deployed Cloud Run revision is actually running with `25`. `docs/discovery/CHATBOT/CHATBOT.md` §9's dated correction (2026-08-18, M19-S12) lowered the intended default to `1`, and `apps/backend/src/config/env.validation.ts` already has `.default(1)` — but that Zod default only applies when the env var is unset, and Terraform explicitly sets it, so `25` wins live in both environments. This story's entire remaining scope is correcting that value.
 
 **Acceptance Criteria:**
-- [ ] `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` changed from `"25"` to `"1"` in both `envs/staging/main.tf` and `envs/prod/main.tf`
-- [ ] `terraform plan` reviewed for both env roots — the only diff is this one value on the existing `cloudrun_backend` env var, no resource replacement
-- [ ] Applied for real in staging (not just `terraform validate`/`plan`); live value re-verified via `gcloud run services describe ikaro-backend --project=ikaro-staging ...`
-- [ ] Applied in prod once staging is confirmed
-- [ ] No secret value committed anywhere in the repo (Gitleaks-clean) — N/A risk here since no secret is touched, kept as a standing check
+- [x] `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` changed from `"25"` to `"1"` in both `envs/staging/main.tf` and `envs/prod/main.tf`
+- [x] `terraform plan` reviewed for both env roots — the only diff is this one value on the existing `cloudrun_backend` env var, no resource replacement
+- [x] Applied for real in staging (not just `terraform validate`/`plan`); live value re-verified via `gcloud run services describe ikaro-backend --project=ikaro-staging ...` — confirmed `1`
+- [x] Applied in prod once staging is confirmed — confirmed `1` live via the same check against `ikaro-prod`
+- [x] No secret value committed anywhere in the repo (Gitleaks-clean) — N/A, no secret touched; CI Gitleaks Secret Scan passed
 
 **Dependencies:** None. S07/S08 already delivered the topics/scheduler jobs independently; S06 already delivered the env var wiring. This story only fixes the stale value.
 
