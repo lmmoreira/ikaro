@@ -70,7 +70,7 @@ export default async function globalSetup(): Promise<void> {
   // harness never sets — it connects via TEST_DATABASE_URL directly), so these need the same
   // explicit-literal treatment as FRONTEND_URL/JWT_SECRET above, mirroring env.validation.ts's
   // real defaults.
-  process.env['CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD'] ??= '25';
+  process.env['CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD'] ??= '1';
   process.env['CHATBOT_MIN_PROVIDER_BALANCE_USD'] ??= '2';
   process.env['CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES'] ??= '5';
 
