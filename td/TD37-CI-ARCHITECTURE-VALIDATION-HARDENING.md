@@ -316,7 +316,7 @@ Builds on Story 3's harness.
 
 ---
 
-### Story 7A — `ts-morph`: ban `jest.fn()` for repository/port-typed mocks 🟡
+### Story 7A — `ts-morph`: ban `jest.fn()` for repository/port-typed mocks 🟡 ✅ Done
 
 `.coderabbit.yaml` already documents this as mandatory repo policy ("InMemory doubles over `jest.fn()` for repositories and ports"), and `docs/ANTI_PATTERNS.md` already flags the `IEventBus`/`ITransactionManager` instance of it by name. Currently enforced only by an AI reviewer remembering the rule on each PR — exactly the class of gap this whole TD exists to close. Not a plain-ESLint candidate (Story 4/5's bucket): "is this `jest.fn()` standing in for a repository/port" depends on the mocked target's resolved *type*, which a syntax-only AST selector can't see — it belongs in the type-aware `ts-morph` suite alongside Stories 6–10.
 
