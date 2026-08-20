@@ -1,26 +1,26 @@
 import { ConfigService } from '@nestjs/config';
 import { EmailDeliveryChannelAdapter } from './email-delivery-channel.adapter';
-import { IEmailSender } from '../../application/ports/email-sender.port';
-import { INotificationPlatformPort } from '../../application/ports/notification-platform.port';
+import { InMemoryEmailSender } from '../../../../test/infrastructure/in-memory-email-sender';
+import { InMemoryNotificationPlatformPort } from '../../../../test/infrastructure/in-memory-notification-platform.port';
 import { OutboundMessage } from '../../application/ports/notification-dispatcher.port';
 
 const TENANT_ID = 'aaaaaaaa-0000-4000-8000-000000000001';
 
 function makeAdapter(fromEmail: string | null = null): {
   adapter: EmailDeliveryChannelAdapter;
-  emailSender: jest.Mocked<IEmailSender>;
+  emailSender: InMemoryEmailSender;
   configService: ConfigService;
 } {
-  const emailSender: jest.Mocked<IEmailSender> = { send: jest.fn().mockResolvedValue(undefined) };
-  const tenantPort: INotificationPlatformPort = {
-    getTenantInfo: jest.fn().mockResolvedValue({
-      id: TENANT_ID,
-      name: 'Lava Car',
-      slug: 'lavacar',
-      timezone: 'America/Sao_Paulo',
-      fromEmail,
-    }),
-  };
+  const emailSender = new InMemoryEmailSender();
+  const tenantPort = new InMemoryNotificationPlatformPort();
+  tenantPort.setTenantInfo(TENANT_ID, {
+    id: TENANT_ID,
+    name: 'Lava Car',
+    slug: 'lavacar',
+    timezone: 'America/Sao_Paulo',
+    locale: 'pt-BR',
+    fromEmail,
+  });
   const configService = {
     get: jest.fn().mockReturnValue('noreply@ikaro.example'),
   } as unknown as ConfigService;
@@ -49,7 +49,7 @@ describe('EmailDeliveryChannelAdapter', () => {
 
       await adapter.send(baseMessage);
 
-      const call = emailSender.send.mock.calls[0][0];
+      const call = emailSender.sent[0];
       expect(call.from).toBe('lavagem@ikaro.example');
     });
 
@@ -58,7 +58,7 @@ describe('EmailDeliveryChannelAdapter', () => {
 
       await adapter.send(baseMessage);
 
-      const call = emailSender.send.mock.calls[0][0];
+      const call = emailSender.sent[0];
       expect(call.from).toBe('noreply@ikaro.example');
     });
   });
@@ -69,7 +69,7 @@ describe('EmailDeliveryChannelAdapter', () => {
 
       await adapter.send(baseMessage);
 
-      const call = emailSender.send.mock.calls[0][0];
+      const call = emailSender.sent[0];
       expect(call.to).toBe('joao@example.com');
       expect(call.subject).toBe('Seu agendamento foi confirmado!');
       expect(call.html).toBe('<p>Olá, João Silva! Seu agendamento foi confirmado.</p>');
@@ -81,7 +81,7 @@ describe('EmailDeliveryChannelAdapter', () => {
 
       await adapter.send({ ...baseMessage, body: customBody });
 
-      const call = emailSender.send.mock.calls[0][0];
+      const call = emailSender.sent[0];
       expect(call.html).toBe(customBody);
     });
   });

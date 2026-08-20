@@ -3,12 +3,12 @@ import { ITracingPort } from '@ikaro/observability';
 import { TenantEntity } from '../../../contexts/platform/infrastructure/entities/tenant.entity';
 import { TenantEntityBuilder } from '../../../test/builders/platform/tenant-entity.builder';
 import { makeConfigService } from '../../../test/infrastructure/fake-config-service';
+import { InMemoryEventBus } from '../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryInboxRepository } from '../../../test/infrastructure/in-memory-inbox.repository';
 import { StubCommand, StubEvent } from '../../../test/infrastructure/stub-envelope-classes';
 import { createTestDataSource } from '../../../test/test-datasource';
 import { uuidv7 } from '../../domain/uuid-v7';
 import { Envelope } from '../../domain/envelope';
-import { IEventBus } from '../../ports/event-bus.port';
 import { getActiveEntityManager } from '../transaction-context';
 import { TypeOrmTransactionManager } from '../typeorm-transaction-manager';
 import { OutboxEventEntity } from './outbox-event.entity';
@@ -68,7 +68,7 @@ describe('OutboxPublisher (integration)', () => {
   let typeOrmOutboxRepo: TypeOrmOutboxRepository;
   let tenantRepo: Repository<TenantEntity>;
   let txManager: TypeOrmTransactionManager;
-  let eventBus: jest.Mocked<IEventBus>;
+  let eventBus: InMemoryEventBus;
 
   beforeAll(async () => {
     ds = await createTestDataSource();
@@ -83,9 +83,7 @@ describe('OutboxPublisher (integration)', () => {
   });
 
   beforeEach(() => {
-    eventBus = {
-      publish: jest.fn().mockResolvedValue(undefined),
-    } as unknown as jest.Mocked<IEventBus>;
+    eventBus = new InMemoryEventBus();
   });
 
   function makePublisher(inlineDispatchEnabled = true): OutboxPublisher {
@@ -120,7 +118,7 @@ describe('OutboxPublisher (integration)', () => {
 
     expect(await outboxRepo.findOne({ where: { id: event.eventId } })).toBeNull();
     expect(await tenantRepo.findOne({ where: { id: tenantId } })).toBeNull();
-    expect(eventBus.publish).not.toHaveBeenCalled();
+    expect(eventBus.publishCallCount).toBe(0);
   });
 
   it('commits the outbox row together with the business write and dispatches inline after commit', async () => {
@@ -140,7 +138,7 @@ describe('OutboxPublisher (integration)', () => {
     expect(outboxRow).not.toBeNull();
     expect(outboxRow!.publishedAt).not.toBeNull();
     expect(await tenantRepo.findOne({ where: { id: tenantId } })).not.toBeNull();
-    expect(eventBus.publish).toHaveBeenCalledTimes(1);
+    expect(eventBus.publishCallCount).toBe(1);
   });
 
   it('rejects when published outside any transaction (TD24-S03 — every publish site must wrap itself)', async () => {
@@ -164,7 +162,7 @@ describe('OutboxPublisher (integration)', () => {
     // Each publish in its own transaction — mirrors two independent (overlapping/retried) job
     // runs each wrapping their own publish batch in txManager.run() (TD24-S03).
     await txManager.run(() => publisher.publish(first));
-    eventBus.publish.mockClear();
+    eventBus.publishCallCount = 0;
 
     const second = new StubCommand(tenantId, uuidv7(), { value: 'y' }, dedupKey);
     await txManager.run(() => publisher.publish(second));
@@ -172,7 +170,7 @@ describe('OutboxPublisher (integration)', () => {
     const rows = await outboxRepo.find({ where: { dedupKey } });
     expect(rows).toHaveLength(1);
     expect(rows[0].id).toBe(first.eventId);
-    expect(eventBus.publish).not.toHaveBeenCalled();
+    expect(eventBus.publishCallCount).toBe(0);
   });
 
   it('after-commit error isolation: a failing inline dispatch does not stop another event in the same tx from dispatching, and txManager.run() resolves normally', async () => {
@@ -181,9 +179,7 @@ describe('OutboxPublisher (integration)', () => {
     const event1 = new StubEvent(tenantId, uuidv7(), { value: 'x' });
     const event2 = new StubEvent(tenantId, uuidv7(), { value: 'y' });
 
-    eventBus.publish
-      .mockRejectedValueOnce(new Error('pubsub down for event1'))
-      .mockResolvedValueOnce(undefined);
+    eventBus.failNextPublish(new Error('pubsub down for event1'));
 
     await expect(
       txManager.run(async () => {
@@ -192,7 +188,7 @@ describe('OutboxPublisher (integration)', () => {
       }),
     ).resolves.toBeUndefined();
 
-    expect(eventBus.publish).toHaveBeenCalledTimes(2);
+    expect(eventBus.publishCallCount).toBe(2);
 
     const row1 = await outboxRepo.findOne({ where: { id: event1.eventId } });
     const row2 = await outboxRepo.findOne({ where: { id: event2.eventId } });
@@ -211,11 +207,11 @@ describe('OutboxPublisher (integration)', () => {
     // extract + start the consumer span from it — using the same tracingPort instance the
     // publish side used, so a regression that captures the wrong trace (e.g. context.active() at
     // actual-publish time instead of the stored traceContext) would be caught here.
-    eventBus.publish.mockImplementation(async (relayedEvent: Envelope) => {
+    eventBus.onPublish = async (relayedEvent: Envelope) => {
       await tracingPort.runWithExtractedContext(relayedEvent.traceContext ?? {}, () =>
         tracingPort.startActiveSpan(`pubsub.event.${relayedEvent.eventName}`, () => undefined),
       );
-    });
+    };
 
     const relay = new OutboxRelayService(
       typeOrmOutboxRepo,

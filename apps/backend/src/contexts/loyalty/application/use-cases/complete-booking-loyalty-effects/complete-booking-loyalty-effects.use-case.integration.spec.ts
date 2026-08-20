@@ -1,7 +1,7 @@
 import { DataSource } from 'typeorm';
-import { IOutboxPublisher } from '../../../../../shared/ports/outbox-publisher.port';
 import { TypeOrmTransactionManager } from '../../../../../shared/infrastructure/typeorm-transaction-manager';
 import { createTestDataSource } from '../../../../../test/test-datasource';
+import { InMemoryEventBus } from '../../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryLoyaltyPlatformPort } from '../../../../../test/infrastructure/in-memory-loyalty-platform.port';
 import { uuidv7 } from '../../../../../shared/domain/uuid-v7';
 import { LoyaltyBalanceEntity } from '../../../infrastructure/entities/loyalty-balance.entity';
@@ -71,9 +71,8 @@ describe('CompleteBookingLoyaltyEffectsUseCase (integration, TD24-S03 §12.3 re-
     const customerId = uuidv7();
     const dto = makeDto(tenantId, customerId);
 
-    const failingPublisher: IOutboxPublisher = {
-      publish: jest.fn().mockRejectedValue(new Error('outbox write failed')),
-    };
+    const failingPublisher = new InMemoryEventBus();
+    failingPublisher.failNextPublish(new Error('outbox write failed'));
     const failingUseCase = new CompleteBookingLoyaltyEffectsUseCase(
       entryRepo,
       balanceRepo,
@@ -104,7 +103,7 @@ describe('CompleteBookingLoyaltyEffectsUseCase (integration, TD24-S03 §12.3 re-
 
     // Redelivery (same eventId): hasBeenProcessed() is still false, so BookingCompleted's
     // redelivery is not short-circuited — this time the outbox publish succeeds too.
-    const workingPublisher: IOutboxPublisher = { publish: jest.fn().mockResolvedValue(undefined) };
+    const workingPublisher = new InMemoryEventBus();
     const retryUseCase = new CompleteBookingLoyaltyEffectsUseCase(
       entryRepo,
       balanceRepo,
@@ -119,7 +118,7 @@ describe('CompleteBookingLoyaltyEffectsUseCase (integration, TD24-S03 §12.3 re-
 
     expect(result.skipped).toBe(false);
     expect(result.totalPointsEarned).toBe(10);
-    expect(workingPublisher.publish).toHaveBeenCalledTimes(1);
+    expect(workingPublisher.published).toHaveLength(1);
 
     const balance = await balanceRepo.findByCustomer(tenantId, customerId);
     expect(balance!.currentPoints).toBe(10);

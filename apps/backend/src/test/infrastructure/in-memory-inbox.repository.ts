@@ -2,6 +2,7 @@ import { IInboxRepository } from '../../shared/ports/inbox.port';
 
 export class InMemoryInboxRepository implements IInboxRepository {
   private readonly processed = new Set<string>();
+  deleteOldProcessedCallCount = 0;
 
   private key(eventId: string, consumerName: string): string {
     return `${eventId}:${consumerName}`;
@@ -37,6 +38,7 @@ export class InMemoryInboxRepository implements IInboxRepository {
   // real TypeOrmInboxRepository in integration tests, matching how the outbox side has no
   // in-memory double for deleteOldPublished() either.
   async deleteOldProcessed(): Promise<number> {
+    this.deleteOldProcessedCallCount++;
     return 0;
   }
 }
