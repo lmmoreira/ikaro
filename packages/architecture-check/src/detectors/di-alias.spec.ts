@@ -48,6 +48,29 @@ describe('checkUnsafeUseExisting', () => {
     ]);
   });
 
+  it('flags an unsafe alias even when the anchor and useExisting target use different import aliases for the same class', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/contexts/demo/infrastructure/adapter.ts': `
+        export class Adapter {}
+      `,
+      '/repo/apps/backend/src/contexts/demo/infrastructure/demo.module.ts': `
+        import { Adapter, Adapter as AdapterAlias } from './adapter';
+        function Module(metadata: unknown): ClassDecorator { return () => undefined; }
+        const ADAPTER_TOKEN = Symbol('ADAPTER_TOKEN');
+        @Module({ providers: [Adapter, { provide: ADAPTER_TOKEN, useExisting: AdapterAlias }] })
+        class DemoModule {}
+      `,
+    });
+    const result = checkUnsafeUseExisting(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        rule: 'unsafe-use-existing',
+        message: expect.stringContaining('AdapterAlias'),
+      }),
+    ]);
+  });
+
   it('fails the zero-target contract when no useExisting entries exist', () => {
     const project = fixtureProject({
       '/repo/apps/backend/src/contexts/demo/infrastructure/demo.module.ts': `
@@ -240,6 +263,96 @@ describe('checkGlobalModuleExportPairing', () => {
         function Inject(token: unknown): ParameterDecorator { return () => undefined; }
         class DemoConsumer {
           constructor(@Inject(DEMO_TOKEN) private readonly demo: unknown) {}
+        }
+      `,
+    });
+    const result = checkGlobalModuleExportPairing(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toHaveLength(0);
+  });
+
+  it('does not flag a bare class provider referenced only as a non-constructor parameter type elsewhere', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/shared/infrastructure/demo-service.ts': `
+        export class DemoService {}
+      `,
+      '/repo/apps/backend/src/shared/infrastructure/demo.module.ts': `
+        import { DemoService } from './demo-service';
+        function Module(metadata: unknown): ClassDecorator { return () => undefined; }
+        function Global(): ClassDecorator { return () => undefined; }
+        @Global()
+        @Module({ providers: [DemoService], exports: [] })
+        class DemoModule {}
+      `,
+      '/repo/apps/backend/src/contexts/demo/infrastructure/demo.consumer.ts': `
+        import { DemoService } from '../../../shared/infrastructure/demo-service';
+        class DemoConsumer {
+          someMethod(service: DemoService) {}
+        }
+      `,
+    });
+    const result = checkGlobalModuleExportPairing(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toHaveLength(0);
+  });
+
+  it('flags a token injected via an aliased Inject import (e.g. import { Inject as DiInject })', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/shared/ports/demo-token.port.ts': `
+        export const DEMO_TOKEN = Symbol('DEMO_TOKEN');
+      `,
+      '/repo/apps/backend/src/shared/infrastructure/demo.module.ts': `
+        import { DEMO_TOKEN } from '../ports/demo-token.port';
+        function Module(metadata: unknown): ClassDecorator { return () => undefined; }
+        function Global(): ClassDecorator { return () => undefined; }
+        class DemoAdapter {}
+        @Global()
+        @Module({ providers: [{ provide: DEMO_TOKEN, useClass: DemoAdapter }], exports: [] })
+        class DemoModule {}
+      `,
+      '/repo/apps/backend/src/nestjs-common-shim.ts': `
+        export function Inject(token: unknown): ParameterDecorator { return () => undefined; }
+      `,
+      '/repo/apps/backend/src/contexts/demo/infrastructure/demo.consumer.ts': `
+        import { DEMO_TOKEN } from '../../../shared/ports/demo-token.port';
+        import { Inject as DiInject } from '../../../nestjs-common-shim';
+        class DemoConsumer {
+          constructor(@DiInject(DEMO_TOKEN) private readonly demo: unknown) {}
+        }
+      `,
+    });
+    const result = checkGlobalModuleExportPairing(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        rule: 'global-module-export-pairing',
+        message: expect.stringContaining('DEMO_TOKEN'),
+      }),
+    ]);
+  });
+
+  it('does not flag a bare class provider whose type only appears on a constructor parameter injected by a different explicit token', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/shared/infrastructure/demo-service.ts': `
+        export class DemoService {}
+      `,
+      '/repo/apps/backend/src/shared/infrastructure/demo.module.ts': `
+        import { DemoService } from './demo-service';
+        function Module(metadata: unknown): ClassDecorator { return () => undefined; }
+        function Global(): ClassDecorator { return () => undefined; }
+        @Global()
+        @Module({ providers: [DemoService], exports: [] })
+        class DemoModule {}
+      `,
+      '/repo/apps/backend/src/shared/ports/other-token.port.ts': `
+        export const OTHER_TOKEN = Symbol('OTHER_TOKEN');
+      `,
+      '/repo/apps/backend/src/contexts/demo/infrastructure/demo.consumer.ts': `
+        import { DemoService } from '../../../shared/infrastructure/demo-service';
+        import { OTHER_TOKEN } from '../../../shared/ports/other-token.port';
+        function Inject(token: unknown): ParameterDecorator { return () => undefined; }
+        class DemoConsumer {
+          constructor(@Inject(OTHER_TOKEN) private readonly demo: DemoService) {}
         }
       `,
     });

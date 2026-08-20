@@ -64,12 +64,21 @@ function resolveDeclarationIdentifier(identifier: Node): Identifier | undefined 
   return undefined;
 }
 
-function resolvesToClass(identifier: Node): boolean {
-  if (!Node.isIdentifier(identifier)) return false;
+// Resolves an identifier through import aliases to the ClassDeclaration it names, or undefined
+// if it isn't a class at all — the shared primitive both `resolvesToClass` and the bare-provider
+// bookkeeping below use, so two different local aliases of the same imported class
+// (`import { Adapter, Adapter as Alias }`) resolve to the identical declaration node instead of
+// comparing raw, and potentially divergent, identifier text.
+function resolveClassDeclaration(identifier: Node): ClassDeclaration | undefined {
+  if (!Node.isIdentifier(identifier)) return undefined;
   let symbol = identifier.getSymbol();
-  if (!symbol) return false;
+  if (!symbol) return undefined;
   symbol = symbol.getAliasedSymbol() ?? symbol;
-  return symbol.getDeclarations().some(Node.isClassDeclaration);
+  return symbol.getDeclarations().find(Node.isClassDeclaration);
+}
+
+function resolvesToClass(identifier: Node): boolean {
+  return Boolean(resolveClassDeclaration(identifier));
 }
 
 // Nest resolves a provider's own dependencies inside the same module regardless of exports — a
@@ -112,19 +121,37 @@ function isWithin(node: Node, container: Node): boolean {
   return node.getStart() >= container.getStart() && node.getEnd() <= container.getEnd();
 }
 
+// Resolves a decorator's callee through import aliases so `import { Inject as DiInject }` is
+// recognized the same as a plain `Inject` import — matching on resolved symbol identity rather
+// than the decorator's local text name.
+function resolvesToInjectDecorator(decorator: Node): boolean {
+  if (!Node.isDecorator(decorator)) return false;
+  const expression = decorator.getExpression();
+  const callee = Node.isCallExpression(expression) ? expression.getExpression() : expression;
+  if (!Node.isIdentifier(callee)) return false;
+  let symbol = callee.getSymbol();
+  if (!symbol) return false;
+  symbol = symbol.getAliasedSymbol() ?? symbol;
+  return symbol.getName() === 'Inject';
+}
+
 // A reference only counts as real DI consumption if it's the argument of an `@Inject(...)`
-// decorator, or inside a constructor parameter's type (Nest's implicit class-token injection,
-// e.g. `constructor(private readonly relay: SomeClass)`). Any other reference — a type-only
-// import, a value used to build an unrelated string, a re-export — is not DI consumption, even
-// though it's a real symbol reference outside the module (Codex PR #396 review, 2026-08-20: the
-// prior "any non-internal, non-test reference" heuristic produced false findings for exactly this
-// gap).
+// decorator, or inside a *constructor* parameter's type with no explicit `@Inject` of its own
+// (Nest's implicit class-token injection, e.g. `constructor(private readonly relay: SomeClass)`).
+// Any other reference — a type-only import, a plain method/function parameter, a value used to
+// build an unrelated string, a re-export — is not DI consumption, even though it's a real symbol
+// reference outside the module. A constructor parameter decorated with `@Inject(OTHER_TOKEN)`
+// resolves by OTHER_TOKEN, not by its own TS type, so a type reference there isn't consumption of
+// THAT class either.
 function isDiInjectionSite(reference: Node): boolean {
   const decorator = reference.getFirstAncestor(Node.isDecorator);
-  if (decorator?.getName() === 'Inject') return true;
+  if (decorator && resolvesToInjectDecorator(decorator)) return true;
+
   const parameter = reference.getFirstAncestor(Node.isParameterDeclaration);
-  const typeNode = parameter?.getTypeNode();
-  return Boolean(typeNode && isWithin(reference, typeNode));
+  if (!parameter || !Node.isConstructorDeclaration(parameter.getParent())) return false;
+  const typeNode = parameter.getTypeNode();
+  if (!typeNode || !isWithin(reference, typeNode)) return false;
+  return !parameter.getDecorators().some(resolvesToInjectDecorator);
 }
 
 function getPropertyIdentifier(
@@ -137,25 +164,30 @@ function getPropertyIdentifier(
   return initializer && Node.isIdentifier(initializer) ? initializer : undefined;
 }
 
-// Builds the set of provider names that are anchored as their own class-token provider — either
-// a bare `SomeClass` entry, or the explicit equivalent `{ provide: SomeClass, useClass: SomeClass }`
-// — the two shapes the story text calls out as equally safe anchors for a useExisting alias to
-// point at.
-function collectBareClassNames(providers: Node[]): Set<string> {
-  const names = new Set<string>();
+// Builds the set of ClassDeclarations that are anchored as their own class-token provider —
+// either a bare `SomeClass` entry, or the explicit equivalent
+// `{ provide: SomeClass, useClass: SomeClass }` — the two shapes the story text calls out as
+// equally safe anchors for a useExisting alias to point at. Keyed by resolved declaration, not
+// raw identifier text, so two different local aliases of the same imported class are recognized
+// as the same anchor.
+function collectBareClassDeclarations(providers: Node[]): Set<ClassDeclaration> {
+  const declarations = new Set<ClassDeclaration>();
   for (const provider of providers) {
     if (Node.isIdentifier(provider)) {
-      names.add(provider.getText());
+      const declaration = resolveClassDeclaration(provider);
+      if (declaration) declarations.add(declaration);
       continue;
     }
     if (!Node.isObjectLiteralExpression(provider)) continue;
     const provide = getPropertyIdentifier(provider, 'provide');
     const useClass = getPropertyIdentifier(provider, 'useClass');
-    if (provide && useClass && provide.getText() === useClass.getText()) {
-      names.add(provide.getText());
+    if (!provide || !useClass) continue;
+    const provideDeclaration = resolveClassDeclaration(provide);
+    if (provideDeclaration && provideDeclaration === resolveClassDeclaration(useClass)) {
+      declarations.add(provideDeclaration);
     }
   }
-  return names;
+  return declarations;
 }
 
 // Detects the double-instantiation bug (CLAUDE.md §8, docs/ANTI_PATTERNS.md row on
@@ -167,19 +199,19 @@ export function checkUnsafeUseExisting(project: Project): ScanResult {
   const findings: Finding[] = [];
   let scannedTargets = 0;
   for (const { sourceFile, providers } of getModules(project)) {
-    const bareClasses = collectBareClassNames(providers);
+    const bareClasses = collectBareClassDeclarations(providers);
     for (const provider of providers) {
       if (!Node.isObjectLiteralExpression(provider)) continue;
       const useExisting = getPropertyIdentifier(provider, 'useExisting');
       if (!useExisting) continue;
       scannedTargets++;
-      const target = useExisting.getText();
-      if (bareClasses.has(target)) {
+      const targetDeclaration = resolveClassDeclaration(useExisting);
+      if (targetDeclaration && bareClasses.has(targetDeclaration)) {
         findings.push({
           rule: 'unsafe-use-existing',
           file: sourceFile.getFilePath(),
           line: sourceLine(sourceFile, provider.getStart()),
-          message: `${target} is registered as a class and also targeted by useExisting. Anchor the class provider and alias tokens to it instead.`,
+          message: `${useExisting.getText()} is registered as a class and also targeted by useExisting. Anchor the class provider and alias tokens to it instead.`,
         });
       }
     }
@@ -207,7 +239,7 @@ export function checkReverseDiAlias(project: Project): ScanResult {
       scannedTargets++;
       // Only a class token redirected to a FUNCTIONAL token (a Symbol/string constant, not
       // another class) matches the anti-pattern's documented shape — a class-to-class alias is a
-      // different, undocumented shape and stays out of scope (Codex PR #396 review, 2026-08-20).
+      // different, undocumented shape and stays out of scope.
       if (resolvesToClass(provide) && !resolvesToClass(useExisting)) {
         findings.push({
           rule: 'reverse-di-alias',
@@ -246,7 +278,7 @@ export function checkGlobalModuleExportPairing(project: Project): ScanResult {
         : undefined;
     // Nest's `exports` array accepts either a bare token (the common shape every current module
     // in this codebase uses) or a full provider-definition object re-declaring the same `provide`
-    // token — both count as exporting that token (Codex PR #396 review, 2026-08-20).
+    // token — both count as exporting that token.
     const exportedNames = new Set(
       exportsInitializer && Node.isArrayLiteralExpression(exportsInitializer)
         ? exportsInitializer.getElements().flatMap((element) => {
