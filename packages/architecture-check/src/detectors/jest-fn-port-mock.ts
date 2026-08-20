@@ -23,11 +23,22 @@ function isPortOrRepositoryInterface(declaration: InterfaceDeclaration): boolean
   return declaration.getSourceFile().getFilePath().includes(PORTS_DIR_SEGMENT);
 }
 
-function resolvePortInterfaceName(type: Type): string | undefined {
-  const declarations = type.getSymbol()?.getDeclarations() ?? [];
-  for (const declaration of declarations) {
-    if (Node.isInterfaceDeclaration(declaration) && isPortOrRepositoryInterface(declaration)) {
-      return declaration.getName();
+// Walks an interface's own `extends` chain (not a class's `implements` — a concrete class mocked
+// via jest.fn() stays deliberately out of scope, see checkNoJestFnForRepositoryOrPortMocks's own
+// comment) so `interface DemoRepository extends IDemoRepository {}` still resolves to the port
+// it extends, matching the AC's "is (or implements) an interface named I*Repository or I*Port"
+// (Codex PR #395 re-review, 2026-08-20).
+function resolvePortInterfaceName(
+  type: Type,
+  seen = new Set<InterfaceDeclaration>(),
+): string | undefined {
+  for (const declaration of type.getSymbol()?.getDeclarations() ?? []) {
+    if (!Node.isInterfaceDeclaration(declaration) || seen.has(declaration)) continue;
+    seen.add(declaration);
+    if (isPortOrRepositoryInterface(declaration)) return declaration.getName();
+    for (const extended of declaration.getExtends()) {
+      const inherited = resolvePortInterfaceName(extended.getType(), seen);
+      if (inherited) return inherited;
     }
   }
   return undefined;
@@ -136,8 +147,14 @@ function findCallArgumentsForParameter(paramDecl: ParameterDeclaration): Node[] 
 // are all treated the same as an inline `new Handler({...})`. Anything else (a
 // `new InMemoryXxxRepository()` double, a builder call, `undefined`) resolves to `undefined` and
 // is correctly left alone.
-function resolveJestMockedArgument(argument: Node): Node | undefined {
+//
+// `visited` guards against a recursive forwarding helper (`function make(repo) { make(repo); ...
+// }`) walking the same identifier forever — a self-inflicted stack overflow would otherwise crash
+// the whole repository-wide scan over one unusual spec file (Codex PR #395 re-review, 2026-08-20).
+function resolveJestMockedArgument(argument: Node, visited = new Set<Node>()): Node | undefined {
   const unwrapped = unwrapExpression(argument);
+  if (visited.has(unwrapped)) return undefined;
+  visited.add(unwrapped);
 
   if (Node.isObjectLiteralExpression(unwrapped)) {
     return containsJestFnCall(unwrapped) ? unwrapped : undefined;
@@ -158,7 +175,7 @@ function resolveJestMockedArgument(argument: Node): Node | undefined {
 
     for (const candidate of candidates) {
       if (!candidate) continue;
-      const resolved = resolveJestMockedArgument(candidate);
+      const resolved = resolveJestMockedArgument(candidate, visited);
       if (resolved) return resolved;
     }
   }
@@ -173,7 +190,13 @@ function resolveJestMockedArgument(argument: Node): Node | undefined {
 // spec file: every repository/port consumer in this codebase is constructor-injected (NestJS DI
 // convention, no property injection), so this covers the real population without ever hitting
 // the zero-target guard once every current violation is fixed — future specs will keep
-// constructing port-typed dependencies forever, they just won't jest.fn() them anymore.
+// constructing port-typed dependencies forever, they just won't jest.fn() them anymore. A
+// consequence: an explicitly port-typed variable/parameter that's mocked with jest.fn() but never
+// actually passed to any `new X(...)` call (declared, then only called directly — e.g. a bare
+// function taking a port parameter instead of a class) is out of scope. Checked empirically (PR
+// #395 re-review, 2026-08-20): zero such call sites exist in apps/backend/src today — grepping for
+// a function parameter typed as a bare `I*Repository`/`I*Port` (excluding InMemory/Fake doubles)
+// returns nothing, matching the constructor-injection convention above.
 //
 // jest.mock()-style module auto-mocking is out of scope: repository/port dependencies are pure
 // TS interfaces with no runtime module to auto-mock, so that form cannot target them — confirmed

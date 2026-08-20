@@ -307,6 +307,58 @@ describe('checkNoJestFnForRepositoryOrPortMocks', () => {
     expectZeroTargets(result);
   });
 
+  it('flags a jest.fn()-backed mock for an interface that extends a repository/port interface, not just a direct match', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/contexts/demo/application/ports/demo-repository.port.ts': `
+        export interface IDemoRepository { findById(id: string): Promise<unknown> }
+      `,
+      '/repo/apps/backend/src/contexts/demo/application/extended-demo-repository.ts': `
+        import { IDemoRepository } from './ports/demo-repository.port';
+        export interface DemoRepository extends IDemoRepository {}
+      `,
+      '/repo/apps/backend/src/contexts/demo/application/demo.use-case.ts': `
+        import { DemoRepository } from './extended-demo-repository';
+        export class DemoUseCase {
+          constructor(private readonly repo: DemoRepository) {}
+        }
+      `,
+      '/repo/apps/backend/src/contexts/demo/application/demo.use-case.spec.ts': `
+        import { DemoUseCase } from './demo.use-case';
+        new DemoUseCase({ findById: jest.fn() });
+      `,
+    });
+    const result = checkNoJestFnForRepositoryOrPortMocks(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        rule: 'no-jest-fn-for-repository-or-port',
+        message: expect.stringContaining('IDemoRepository'),
+      }),
+    ]);
+  });
+
+  it('does not crash on a recursive forwarding helper — no finding, no stack overflow', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/contexts/demo/application/ports/demo-repository.port.ts': `
+        export interface IDemoRepository { findById(id: string): Promise<unknown> }
+      `,
+      '/repo/apps/backend/src/contexts/demo/application/demo.use-case.ts': `
+        import { IDemoRepository } from './ports/demo-repository.port';
+        export class DemoUseCase {
+          constructor(private readonly repo: IDemoRepository) {}
+        }
+      `,
+      '/repo/apps/backend/src/contexts/demo/application/demo.use-case.spec.ts': `
+        import { DemoUseCase } from './demo.use-case';
+        function make(repo: IDemoRepository): DemoUseCase {
+          if (Math.random() < 0) return make(repo);
+          return new DemoUseCase(repo);
+        }
+      `,
+    });
+    expect(() => checkNoJestFnForRepositoryOrPortMocks(project)).not.toThrow();
+  });
+
   it('fails the zero-target contract for an empty scan', () => {
     const result = checkNoJestFnForRepositoryOrPortMocks(fixtureProject({}));
     expectZeroTargets(result);
