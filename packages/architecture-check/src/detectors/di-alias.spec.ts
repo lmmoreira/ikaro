@@ -361,6 +361,92 @@ describe('checkGlobalModuleExportPairing', () => {
     expect(result.findings).toHaveLength(0);
   });
 
+  it('does not flag a token whose only reference is an @Inject(...) decorator on a non-constructor (method) parameter', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/shared/ports/demo-token.port.ts': `
+        export const DEMO_TOKEN = Symbol('DEMO_TOKEN');
+      `,
+      '/repo/apps/backend/src/shared/infrastructure/demo.module.ts': `
+        import { DEMO_TOKEN } from '../ports/demo-token.port';
+        function Module(metadata: unknown): ClassDecorator { return () => undefined; }
+        function Global(): ClassDecorator { return () => undefined; }
+        class DemoAdapter {}
+        @Global()
+        @Module({ providers: [{ provide: DEMO_TOKEN, useClass: DemoAdapter }], exports: [] })
+        class DemoModule {}
+      `,
+      '/repo/apps/backend/src/contexts/demo/infrastructure/demo.consumer.ts': `
+        import { DEMO_TOKEN } from '../../../shared/ports/demo-token.port';
+        function Inject(token: unknown): ParameterDecorator { return () => undefined; }
+        class DemoConsumer {
+          someMethod(@Inject(DEMO_TOKEN) unused: unknown) {}
+        }
+      `,
+    });
+    const result = checkGlobalModuleExportPairing(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toHaveLength(0);
+  });
+
+  it('flags a bare class provider consumed via a no-argument @Inject() constructor parameter (Nest reflects the type)', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/shared/infrastructure/demo-service.ts': `
+        export class DemoService {}
+      `,
+      '/repo/apps/backend/src/shared/infrastructure/demo.module.ts': `
+        import { DemoService } from './demo-service';
+        function Module(metadata: unknown): ClassDecorator { return () => undefined; }
+        function Global(): ClassDecorator { return () => undefined; }
+        @Global()
+        @Module({ providers: [DemoService], exports: [] })
+        class DemoModule {}
+      `,
+      '/repo/apps/backend/src/contexts/demo/infrastructure/demo.consumer.ts': `
+        import { DemoService } from '../../../shared/infrastructure/demo-service';
+        function Inject(token?: unknown): ParameterDecorator { return () => undefined; }
+        class DemoConsumer {
+          constructor(@Inject() private readonly demo: DemoService) {}
+        }
+      `,
+    });
+    const result = checkGlobalModuleExportPairing(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({ rule: 'global-module-export-pairing' }),
+    ]);
+  });
+
+  it('does not flag a token exported under a different local import alias than its provider registration', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/shared/ports/demo-token.port.ts': `
+        export const DEMO_TOKEN = Symbol('DEMO_TOKEN');
+      `,
+      '/repo/apps/backend/src/shared/infrastructure/demo.module.ts': `
+        import { DEMO_TOKEN } from '../ports/demo-token.port';
+        import { DEMO_TOKEN as EXPORTED_TOKEN } from '../ports/demo-token.port';
+        function Module(metadata: unknown): ClassDecorator { return () => undefined; }
+        function Global(): ClassDecorator { return () => undefined; }
+        class DemoAdapter {}
+        @Global()
+        @Module({
+          providers: [{ provide: DEMO_TOKEN, useClass: DemoAdapter }],
+          exports: [EXPORTED_TOKEN],
+        })
+        class DemoModule {}
+      `,
+      '/repo/apps/backend/src/contexts/demo/infrastructure/demo.consumer.ts': `
+        import { DEMO_TOKEN } from '../../../shared/ports/demo-token.port';
+        function Inject(token: unknown): ParameterDecorator { return () => undefined; }
+        class DemoConsumer {
+          constructor(@Inject(DEMO_TOKEN) private readonly demo: unknown) {}
+        }
+      `,
+    });
+    const result = checkGlobalModuleExportPairing(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toHaveLength(0);
+  });
+
   it('fails the zero-target contract when no @Global() module exists', () => {
     const project = fixtureProject({
       '/repo/apps/backend/src/shared/infrastructure/demo.module.ts': `

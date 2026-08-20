@@ -135,23 +135,42 @@ function resolvesToInjectDecorator(decorator: Node): boolean {
   return symbol.getName() === 'Inject';
 }
 
-// A reference only counts as real DI consumption if it's the argument of an `@Inject(...)`
-// decorator, or inside a *constructor* parameter's type with no explicit `@Inject` of its own
-// (Nest's implicit class-token injection, e.g. `constructor(private readonly relay: SomeClass)`).
-// Any other reference — a type-only import, a plain method/function parameter, a value used to
-// build an unrelated string, a re-export — is not DI consumption, even though it's a real symbol
-// reference outside the module. A constructor parameter decorated with `@Inject(OTHER_TOKEN)`
-// resolves by OTHER_TOKEN, not by its own TS type, so a type reference there isn't consumption of
-// THAT class either.
+// Nest's real `Inject(token)` only uses `token` to override the injection key when the decorator
+// is actually called with an argument — `@Inject()` with none falls back to the reflected
+// constructor parameter type, identical to no decorator at all (see
+// `@nestjs/common/decorators/core/inject.decorator.js`). Only an explicit argument means "this
+// parameter's type is NOT what gets injected."
+function hasExplicitInjectToken(decorator: Node): boolean {
+  if (!Node.isDecorator(decorator)) return false;
+  const expression = decorator.getExpression();
+  return Node.isCallExpression(expression) && expression.getArguments().length > 0;
+}
+
+// A reference only counts as real DI consumption if it belongs to a *constructor* parameter, and
+// is either the argument of that parameter's `@Inject(...)` decorator, or inside the parameter's
+// type with no explicit-token `@Inject` overriding it (Nest's implicit class-token injection,
+// e.g. `constructor(private readonly relay: SomeClass)`). Any other reference — a type-only
+// import, a plain method/function parameter (even one carrying its own unrelated `@Inject`, which
+// has no effect outside a constructor), a value used to build an unrelated string, a re-export —
+// is not DI consumption, even though it's a real symbol reference outside the module. A
+// constructor parameter decorated with `@Inject(OTHER_TOKEN)` resolves by OTHER_TOKEN, not by its
+// own TS type, so a type reference there isn't consumption of THAT class either.
 function isDiInjectionSite(reference: Node): boolean {
+  const parameter = reference.getFirstAncestor(Node.isParameterDeclaration);
+  if (!parameter || !Node.isConstructorDeclaration(parameter.getParent())) return false;
+
   const decorator = reference.getFirstAncestor(Node.isDecorator);
   if (decorator && resolvesToInjectDecorator(decorator)) return true;
 
-  const parameter = reference.getFirstAncestor(Node.isParameterDeclaration);
-  if (!parameter || !Node.isConstructorDeclaration(parameter.getParent())) return false;
   const typeNode = parameter.getTypeNode();
   if (!typeNode || !isWithin(reference, typeNode)) return false;
-  return !parameter.getDecorators().some(resolvesToInjectDecorator);
+  const explicitTokenOverride = parameter
+    .getDecorators()
+    .some(
+      (paramDecorator) =>
+        resolvesToInjectDecorator(paramDecorator) && hasExplicitInjectToken(paramDecorator),
+    );
+  return !explicitTokenOverride;
 }
 
 function getPropertyIdentifier(
@@ -278,19 +297,21 @@ export function checkGlobalModuleExportPairing(project: Project): ScanResult {
         : undefined;
     // Nest's `exports` array accepts either a bare token (the common shape every current module
     // in this codebase uses) or a full provider-definition object re-declaring the same `provide`
-    // token — both count as exporting that token.
-    const exportedNames = new Set(
-      exportsInitializer && Node.isArrayLiteralExpression(exportsInitializer)
-        ? exportsInitializer.getElements().flatMap((element) => {
-            if (Node.isIdentifier(element)) return [element.getText()];
-            if (Node.isObjectLiteralExpression(element)) {
-              const provide = getPropertyIdentifier(element, 'provide');
-              return provide ? [provide.getText()] : [];
-            }
-            return [];
-          })
-        : [],
-    );
+    // token — both count as exporting that token. Keyed by resolved declaration, not raw
+    // identifier text, so an export using a different local import alias of the same token as its
+    // provider registration is still recognized as exporting it.
+    const exportedDeclarations = new Set<Identifier>();
+    if (exportsInitializer && Node.isArrayLiteralExpression(exportsInitializer)) {
+      for (const element of exportsInitializer.getElements()) {
+        const exportIdentifier = Node.isIdentifier(element)
+          ? element
+          : Node.isObjectLiteralExpression(element)
+            ? getPropertyIdentifier(element, 'provide')
+            : undefined;
+        const resolved = exportIdentifier && resolveDeclarationIdentifier(exportIdentifier);
+        if (resolved) exportedDeclarations.add(resolved);
+      }
+    }
 
     const internalFiles = collectProviderFilePaths(providers);
     internalFiles.add(sourceFile.getFilePath());
@@ -303,10 +324,9 @@ export function checkGlobalModuleExportPairing(project: Project): ScanResult {
           : undefined;
       if (!provideIdentifier) continue;
       scannedTargets++;
-      if (exportedNames.has(provideIdentifier.getText())) continue;
 
       const declarationIdentifier = resolveDeclarationIdentifier(provideIdentifier);
-      if (!declarationIdentifier) continue;
+      if (!declarationIdentifier || exportedDeclarations.has(declarationIdentifier)) continue;
       const consumedExternally = declarationIdentifier.findReferencesAsNodes().some((reference) => {
         if (reference === declarationIdentifier) return false;
         const referenceFile = reference.getSourceFile().getFilePath();
