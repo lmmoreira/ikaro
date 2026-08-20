@@ -9,7 +9,11 @@ export { checkTestDataHarnessRegistrations } from './detectors/test-harness-regi
 export type { TestDataHarnessRegistration } from './detectors/test-harness-registration';
 export { checkTransactionalIo } from './detectors/transactional-io';
 export { checkTransactionalSaves } from './detectors/transactional-save';
-export { checkUnsafeUseExisting } from './detectors/di-alias';
+export {
+  checkGlobalModuleExportPairing,
+  checkReverseDiAlias,
+  checkUnsafeUseExisting,
+} from './detectors/di-alias';
 export { checkValueObjectCreateNeverThrowsBareError } from './detectors/vo-bare-error';
 export type { ExternalSideEffectPort } from './detectors/transactional-io';
 export { mergeScanResults } from './model';

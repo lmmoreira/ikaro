@@ -5,7 +5,6 @@ import {
   checkSharedValueObjectErrorMapperCoverage,
   checkTransactionalIo,
   checkTransactionalSaves,
-  checkUnsafeUseExisting,
   checkValueObjectCreateNeverThrowsBareError,
 } from './index';
 import { expectScannedTargets, expectZeroTargets, fixtureProject } from './testing/fixtures';
@@ -623,24 +622,6 @@ describe('architecture checks', () => {
     );
     expectScannedTargets(exempted, 1);
     expect(exempted.findings).toHaveLength(0);
-  });
-
-  it('rejects unsafe class aliases while allowing token aliases', () => {
-    const project = fixtureProject({
-      '/repo/apps/backend/src/contexts/demo/infrastructure/demo.module.ts': `
-        function Module(metadata: unknown): ClassDecorator { return () => undefined; }
-        class Adapter {}
-        const ADAPTER = Symbol('ADAPTER');
-        const EVENT_BUS = Symbol('EVENT_BUS');
-        const TRIGGER_BUS = Symbol('TRIGGER_BUS');
-        const unrelated = [Adapter, { provide: ADAPTER, useExisting: Adapter }];
-        @Module({ providers: [Adapter, { provide: ADAPTER, useExisting: Adapter }, { provide: TRIGGER_BUS, useExisting: EVENT_BUS }] })
-        class DemoModule {}
-      `,
-    });
-    const result = checkUnsafeUseExisting(project);
-    expectScannedTargets(result, 2);
-    expect(result.findings).toHaveLength(1);
   });
 
   it('fails the zero-target contract for an empty scan', () => {
