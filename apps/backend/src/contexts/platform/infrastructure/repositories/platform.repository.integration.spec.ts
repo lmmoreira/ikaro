@@ -86,7 +86,7 @@ describe('Platform repositories (integration)', () => {
     expect(result).toBeInstanceOf(Tenant);
     expect(result!.name).toBe(cachedTenant.name);
     expect(findByIdSpy).not.toHaveBeenCalled();
-    expect(cache.setCalls.length).toBe(setCallsBefore);
+    expect(cache.setCalls).toHaveLength(setCallsBefore);
   });
 
   it('hotsite config management — from empty slate to branded and published', async () => {

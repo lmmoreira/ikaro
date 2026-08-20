@@ -1,4 +1,12 @@
-import { ClassDeclaration, InterfaceDeclaration, Node, Project, SyntaxKind, Type } from 'ts-morph';
+import {
+  ClassDeclaration,
+  InterfaceDeclaration,
+  Node,
+  ParameterDeclaration,
+  Project,
+  SyntaxKind,
+  Type,
+} from 'ts-morph';
 import type { Finding, ScanResult } from '../model';
 import { sourceLine } from '../project';
 
@@ -87,10 +95,45 @@ function findAssignedExpressions(declaration: Node): Node[] {
     .map((binary) => binary.getRight());
 }
 
+// One-hop interprocedural resolution: a spec helper function taking a repository/port-typed
+// parameter and forwarding it straight into `new X(...)` — e.g. `function make(repo: IPort) {
+// return new Demo(repo); } make({ find: jest.fn() });` — is a real shape this AC names
+// ("constructor argument, parameter, or variable") and the codebase's own `make*` helper
+// convention makes plausible, even though no current spec file happens to do it this way yet
+// (Codex PR #395 re-review, 2026-08-20). Scoped to the same source file and to a named
+// function/const-arrow-function callable by identifier — not a general call-graph walk; a method,
+// an IIFE, or a callback never called by name stays out of scope.
+function findCallArgumentsForParameter(paramDecl: ParameterDeclaration): Node[] {
+  const functionLike = paramDecl.getParent();
+
+  let index = -1;
+  let ownerDecl: Node | undefined;
+  if (Node.isFunctionDeclaration(functionLike)) {
+    index = functionLike.getParameters().indexOf(paramDecl);
+    ownerDecl = functionLike;
+  } else if (Node.isArrowFunction(functionLike) || Node.isFunctionExpression(functionLike)) {
+    index = functionLike.getParameters().indexOf(paramDecl);
+    const parent = functionLike.getParent();
+    ownerDecl = Node.isVariableDeclaration(parent) ? parent : undefined;
+  }
+  if (!ownerDecl || index < 0) return [];
+
+  const args: Node[] = [];
+  for (const call of paramDecl.getSourceFile().getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    const callee = call.getExpression();
+    if (!Node.isIdentifier(callee)) continue;
+    if (!(callee.getSymbol()?.getDeclarations() ?? []).includes(ownerDecl)) continue;
+    const arg = call.getArguments()[index];
+    if (arg) args.push(arg);
+  }
+  return args;
+}
+
 // Resolves what a constructor argument "really is" for the purpose of this check — following
-// exactly one hop through a local variable, so both `const mockBus = {...}; new Handler(mockBus)`
-// and `let mockBus: jest.Mocked<T>; beforeEach(() => { mockBus = {...}; }); new Handler(mockBus)`
-// are treated the same as an inline `new Handler({...})`. Anything else (a
+// exactly one hop through a local variable or function parameter, so `const mockBus = {...}; new
+// Handler(mockBus)`, `let mockBus: jest.Mocked<T>; beforeEach(() => { mockBus = {...}; });
+// new Handler(mockBus)`, and `function make(repo: IPort) { new Demo(repo); } make({...jest.fn()})`
+// are all treated the same as an inline `new Handler({...})`. Anything else (a
 // `new InMemoryXxxRepository()` double, a builder call, `undefined`) resolves to `undefined` and
 // is correctly left alone.
 function resolveJestMockedArgument(argument: Node): Node | undefined {
@@ -103,11 +146,16 @@ function resolveJestMockedArgument(argument: Node): Node | undefined {
     return containsJestFnCall(unwrapped) ? unwrapped : undefined;
   }
   if (Node.isIdentifier(unwrapped)) {
-    const symbol = unwrapped.getSymbol();
-    const declaration = symbol?.getDeclarations().find(Node.isVariableDeclaration);
-    if (!declaration) return undefined;
+    const declarations = unwrapped.getSymbol()?.getDeclarations() ?? [];
+    const variableDecl = declarations.find(Node.isVariableDeclaration);
+    const paramDecl = declarations.find(Node.isParameterDeclaration);
 
-    const candidates = [declaration.getInitializer(), ...findAssignedExpressions(declaration)];
+    const candidates = variableDecl
+      ? [variableDecl.getInitializer(), ...findAssignedExpressions(variableDecl)]
+      : paramDecl
+        ? [paramDecl.getInitializer(), ...findCallArgumentsForParameter(paramDecl)]
+        : [];
+
     for (const candidate of candidates) {
       if (!candidate) continue;
       const resolved = resolveJestMockedArgument(candidate);

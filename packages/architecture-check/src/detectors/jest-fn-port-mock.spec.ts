@@ -89,6 +89,93 @@ describe('checkNoJestFnForRepositoryOrPortMocks', () => {
     ]);
   });
 
+  it('flags a jest.fn()-backed mock forwarded through a helper function parameter (function declaration)', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/contexts/demo/application/ports/demo-repository.port.ts': `
+        export interface IDemoRepository { findById(id: string): Promise<unknown> }
+      `,
+      '/repo/apps/backend/src/contexts/demo/application/demo.use-case.ts': `
+        import { IDemoRepository } from './ports/demo-repository.port';
+        export class DemoUseCase {
+          constructor(private readonly repo: IDemoRepository) {}
+        }
+      `,
+      '/repo/apps/backend/src/contexts/demo/application/demo.use-case.spec.ts': `
+        import { DemoUseCase } from './demo.use-case';
+        function make(repo: IDemoRepository): DemoUseCase {
+          return new DemoUseCase(repo);
+        }
+        make({ findById: jest.fn() });
+      `,
+    });
+    const result = checkNoJestFnForRepositoryOrPortMocks(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        rule: 'no-jest-fn-for-repository-or-port',
+        message: expect.stringContaining('IDemoRepository'),
+      }),
+    ]);
+  });
+
+  it('flags a jest.fn()-backed mock forwarded through a helper function parameter (const arrow function)', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/contexts/demo/application/ports/demo-repository.port.ts': `
+        export interface IDemoRepository { findById(id: string): Promise<unknown> }
+      `,
+      '/repo/apps/backend/src/contexts/demo/application/demo.use-case.ts': `
+        import { IDemoRepository } from './ports/demo-repository.port';
+        export class DemoUseCase {
+          constructor(private readonly repo: IDemoRepository) {}
+        }
+      `,
+      '/repo/apps/backend/src/contexts/demo/application/demo.use-case.spec.ts': `
+        import { DemoUseCase } from './demo.use-case';
+        const make = (repo: IDemoRepository): DemoUseCase => new DemoUseCase(repo);
+        make({ findById: jest.fn() });
+      `,
+    });
+    const result = checkNoJestFnForRepositoryOrPortMocks(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        rule: 'no-jest-fn-for-repository-or-port',
+        message: expect.stringContaining('IDemoRepository'),
+      }),
+    ]);
+  });
+
+  it('does not flag a helper function parameter whose callers only ever pass a real InMemory double', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/contexts/demo/application/ports/demo-repository.port.ts': `
+        export interface IDemoRepository { findById(id: string): Promise<unknown> }
+      `,
+      '/repo/apps/backend/src/contexts/demo/application/demo.use-case.ts': `
+        import { IDemoRepository } from './ports/demo-repository.port';
+        export class DemoUseCase {
+          constructor(private readonly repo: IDemoRepository) {}
+        }
+      `,
+      '/repo/apps/backend/src/test/repositories/demo/in-memory-demo.repository.ts': `
+        import { IDemoRepository } from '../../../contexts/demo/application/ports/demo-repository.port';
+        export class InMemoryDemoRepository implements IDemoRepository {
+          async findById(id: string): Promise<unknown> { return null; }
+        }
+      `,
+      '/repo/apps/backend/src/contexts/demo/application/demo.use-case.spec.ts': `
+        import { DemoUseCase } from './demo.use-case';
+        import { InMemoryDemoRepository } from '../../../test/repositories/demo/in-memory-demo.repository';
+        function make(repo: IDemoRepository): DemoUseCase {
+          return new DemoUseCase(repo);
+        }
+        make(new InMemoryDemoRepository());
+      `,
+    });
+    const result = checkNoJestFnForRepositoryOrPortMocks(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toHaveLength(0);
+  });
+
   it('flags a jest.fn()-backed mock for an interface named without the I-prefix, resolved via its ports/ path', () => {
     const project = fixtureProject({
       '/repo/apps/backend/src/shared/ports/cache.port.ts': `
