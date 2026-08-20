@@ -4,6 +4,7 @@ import type { Project } from 'ts-morph';
 import {
   checkEntityBuilderPrimaryKeyDefaults,
   checkErrorMapperCoverage,
+  checkNoJestFnForRepositoryOrPortMocks,
   checkPrototypeChainSafety,
   checkSharedValueObjectErrorMapperCoverage,
   checkTestBuilderCoverage,
@@ -87,6 +88,7 @@ const results = [
   checkTestBuilderCoverage(backend),
   checkEntityBuilderPrimaryKeyDefaults(backend),
   checkTestDataHarnessRegistrations(backend, testDataHarnessRegistrations),
+  checkNoJestFnForRepositoryOrPortMocks(backend),
 ];
 const zeroTargetResults = results.filter((result) => result.scannedTargets === 0);
 const findings = results.flatMap((result) => result.findings);

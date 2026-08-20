@@ -1,6 +1,7 @@
 export { checkEntityBuilderPrimaryKeyDefaults } from './detectors/entity-builder-pk-default';
 export { checkErrorMapperCoverage } from './detectors/error-mappers';
 export type { ErrorMapperException } from './detectors/error-mappers';
+export { checkNoJestFnForRepositoryOrPortMocks } from './detectors/jest-fn-port-mock';
 export { checkPrototypeChainSafety } from './detectors/prototype-chain';
 export { checkSharedValueObjectErrorMapperCoverage } from './detectors/shared-vo-error-mapping';
 export { checkTestBuilderCoverage } from './detectors/test-builder-coverage';

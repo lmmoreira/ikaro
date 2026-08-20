@@ -3,6 +3,20 @@ import { IEventBus } from '../../shared/ports/event-bus.port';
 import { IOutboxPublisher } from '../../shared/ports/outbox-publisher.port';
 import { ITriggerBus } from '../../shared/ports/trigger-bus.port';
 
+// Sentinel so `undefined`/`null` can themselves be injected as the rejection value — mirrors
+// InMemoryCachePort's failNextGet/Set/Del convention (docs/ENGINEERING_RULES.md § InMemory
+// doubles): "no pending failure" is tracked by field presence, not by the value's own truthiness.
+const NONE = Symbol('no pending publish failure');
+
+// The recorded handler is widened to Envelope (from the subscribe<T>() call's own T extends
+// Envelope) so a real event instance can be passed back into it from a spec without a contravariant
+// type error — every concrete event/command the codebase publishes is itself an Envelope subclass.
+export interface RecordedSubscription {
+  eventName: string;
+  handler: (event: Envelope) => Promise<void>;
+  consumerName: string;
+}
+
 // Also bound to OUTBOX_PUBLISHER in some integration-app helpers (TD24-S02) — no deferral logic
 // needed here for two independent reasons, depending on caller: in unit specs,
 // InMemoryTransactionManager creates no ambient transaction context, so scheduleAfterCommit()
@@ -14,17 +28,35 @@ import { ITriggerBus } from '../../shared/ports/trigger-bus.port';
 export class InMemoryEventBus implements IEventBus, ITriggerBus, IOutboxPublisher {
   readonly published: Envelope[] = [];
   readonly publishedTriggers: string[] = [];
+  readonly subscriptions: RecordedSubscription[] = [];
+  private nextPublishError: unknown = NONE;
 
   async publish(event: Envelope): Promise<void> {
+    if (this.nextPublishError !== NONE) {
+      const err = this.nextPublishError;
+      this.nextPublishError = NONE;
+      throw err;
+    }
     this.published.push(event);
   }
 
+  failNextPublish(error: unknown): void {
+    this.nextPublishError = error;
+  }
+
+  // Records the subscription (event name, handler, consumer name) for state-based assertions
+  // instead of dispatching — unit tests call handlers directly via `.subscriptions`, not through
+  // routed publish(). See RoutingInMemoryEventBus for the bus that actually dispatches.
   subscribe<T extends Envelope>(
-    _eventName: string,
-    _handler: (event: T) => Promise<void>,
-    _consumerName: string,
+    eventName: string,
+    handler: (event: T) => Promise<void>,
+    consumerName: string,
   ): void {
-    // no-op: unit tests call handlers directly, not via event routing
+    this.subscriptions.push({
+      eventName,
+      handler: handler as (event: Envelope) => Promise<void>,
+      consumerName,
+    });
   }
 
   registerTrigger(_name: string, _handler: () => Promise<void>, _consumerName: string): void {
@@ -38,5 +70,6 @@ export class InMemoryEventBus implements IEventBus, ITriggerBus, IOutboxPublishe
   clear(): void {
     this.published.length = 0;
     this.publishedTriggers.length = 0;
+    this.subscriptions.length = 0;
   }
 }

@@ -1,5 +1,6 @@
 import { InMemoryNotificationTemplateRepository } from '../../../../test/repositories/notification/in-memory-notification-template.repository';
 import { InMemoryNotificationPlatformPort } from '../../../../test/infrastructure/in-memory-notification-platform.port';
+import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { NotificationTemplateBuilder } from '../../../../test/builders/notification/notification-template.builder';
 import { TenantProvisionedEventBuilder } from '../../../../test/builders/platform';
 import { NotificationTemplateKey } from '../../domain/notification-template-key.enum';
@@ -18,10 +19,7 @@ describe('TenantProvisionedNotificationHandler', () => {
       templateRepo,
       new InMemoryNotificationPlatformPort(),
     );
-    handler = new TenantProvisionedNotificationHandler(seedUseCase, {
-      publish: jest.fn(),
-      subscribe: jest.fn(),
-    });
+    handler = new TenantProvisionedNotificationHandler(seedUseCase, new InMemoryEventBus());
   });
 
   it('seeds all global defaults for the new tenant', async () => {
@@ -62,23 +60,24 @@ describe('TenantProvisionedNotificationHandler', () => {
         .withBody('<p>Ok</p>')
         .build(),
     );
-    const mockEventBus = { publish: jest.fn(), subscribe: jest.fn() };
+    const eventBus = new InMemoryEventBus();
     const seedUseCase = new SeedDefaultTemplatesUseCase(
       new InMemoryNotificationTemplateRepository(),
       new InMemoryNotificationPlatformPort(),
     );
-    const h = new TenantProvisionedNotificationHandler(seedUseCase, mockEventBus);
+    const h = new TenantProvisionedNotificationHandler(seedUseCase, eventBus);
 
     h.onModuleInit();
 
-    expect(mockEventBus.subscribe).toHaveBeenCalledWith(
-      'TenantProvisioned',
-      expect.any(Function),
-      'notification-template-seed',
-    );
+    expect(eventBus.subscriptions).toEqual([
+      expect.objectContaining({
+        eventName: 'TenantProvisioned',
+        consumerName: 'notification-template-seed',
+      }),
+    ]);
 
     // Invoke the registered callback to cover the arrow function branch
-    const callback = mockEventBus.subscribe.mock.calls[0][1] as (event: unknown) => Promise<void>;
+    const callback = eventBus.subscriptions[0].handler;
     await expect(
       callback(
         new TenantProvisionedEventBuilder()
