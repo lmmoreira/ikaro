@@ -86,6 +86,21 @@ describe('checkReverseDiAlias', () => {
     ]);
   });
 
+  it('does not flag a class-to-class useExisting alias — outside the documented class-to-functional-token shape', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/contexts/demo/infrastructure/demo.module.ts': `
+        function Module(metadata: unknown): ClassDecorator { return () => undefined; }
+        class Adapter {}
+        class OtherAdapter {}
+        @Module({ providers: [{ provide: Adapter, useExisting: OtherAdapter }] })
+        class DemoModule {}
+      `,
+    });
+    const result = checkReverseDiAlias(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toHaveLength(0);
+  });
+
   it('fails the zero-target contract when no useExisting entries exist', () => {
     const project = fixtureProject({
       '/repo/apps/backend/src/contexts/demo/infrastructure/demo.module.ts': `
@@ -164,6 +179,60 @@ describe('checkGlobalModuleExportPairing', () => {
         class DemoAdapter {}
         @Global()
         @Module({ providers: [{ provide: DEMO_TOKEN, useClass: DemoAdapter }], exports: [DEMO_TOKEN] })
+        class DemoModule {}
+      `,
+      '/repo/apps/backend/src/contexts/demo/infrastructure/demo.consumer.ts': `
+        import { DEMO_TOKEN } from '../../../shared/ports/demo-token.port';
+        function Inject(token: unknown): ParameterDecorator { return () => undefined; }
+        class DemoConsumer {
+          constructor(@Inject(DEMO_TOKEN) private readonly demo: unknown) {}
+        }
+      `,
+    });
+    const result = checkGlobalModuleExportPairing(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toHaveLength(0);
+  });
+
+  it('does not flag a token referenced outside the module in a non-DI way (e.g. a plain value import)', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/shared/ports/demo-token.port.ts': `
+        export const DEMO_TOKEN = Symbol('DEMO_TOKEN');
+      `,
+      '/repo/apps/backend/src/shared/infrastructure/demo.module.ts': `
+        import { DEMO_TOKEN } from '../ports/demo-token.port';
+        function Module(metadata: unknown): ClassDecorator { return () => undefined; }
+        function Global(): ClassDecorator { return () => undefined; }
+        class DemoAdapter {}
+        @Global()
+        @Module({ providers: [{ provide: DEMO_TOKEN, useClass: DemoAdapter }], exports: [] })
+        class DemoModule {}
+      `,
+      '/repo/apps/backend/src/contexts/demo/infrastructure/demo.debug.ts': `
+        import { DEMO_TOKEN } from '../../../shared/ports/demo-token.port';
+        export const knownTokens = [DEMO_TOKEN];
+      `,
+    });
+    const result = checkGlobalModuleExportPairing(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toHaveLength(0);
+  });
+
+  it('does not flag a token exported via a full provider-definition object, not just a bare token', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/shared/ports/demo-token.port.ts': `
+        export const DEMO_TOKEN = Symbol('DEMO_TOKEN');
+      `,
+      '/repo/apps/backend/src/shared/infrastructure/demo.module.ts': `
+        import { DEMO_TOKEN } from '../ports/demo-token.port';
+        function Module(metadata: unknown): ClassDecorator { return () => undefined; }
+        function Global(): ClassDecorator { return () => undefined; }
+        class DemoAdapter {}
+        @Global()
+        @Module({
+          providers: [{ provide: DEMO_TOKEN, useClass: DemoAdapter }],
+          exports: [{ provide: DEMO_TOKEN, useClass: DemoAdapter }],
+        })
         class DemoModule {}
       `,
       '/repo/apps/backend/src/contexts/demo/infrastructure/demo.consumer.ts': `

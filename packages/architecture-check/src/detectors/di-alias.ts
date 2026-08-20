@@ -108,6 +108,25 @@ function isTestFile(filePath: string): boolean {
   return filePath.endsWith('.spec.ts') || filePath.includes('/test/');
 }
 
+function isWithin(node: Node, container: Node): boolean {
+  return node.getStart() >= container.getStart() && node.getEnd() <= container.getEnd();
+}
+
+// A reference only counts as real DI consumption if it's the argument of an `@Inject(...)`
+// decorator, or inside a constructor parameter's type (Nest's implicit class-token injection,
+// e.g. `constructor(private readonly relay: SomeClass)`). Any other reference — a type-only
+// import, a value used to build an unrelated string, a re-export — is not DI consumption, even
+// though it's a real symbol reference outside the module (Codex PR #396 review, 2026-08-20: the
+// prior "any non-internal, non-test reference" heuristic produced false findings for exactly this
+// gap).
+function isDiInjectionSite(reference: Node): boolean {
+  const decorator = reference.getFirstAncestor(Node.isDecorator);
+  if (decorator?.getName() === 'Inject') return true;
+  const parameter = reference.getFirstAncestor(Node.isParameterDeclaration);
+  const typeNode = parameter?.getTypeNode();
+  return Boolean(typeNode && isWithin(reference, typeNode));
+}
+
 function getPropertyIdentifier(
   object: ObjectLiteralExpression,
   name: string,
@@ -186,7 +205,10 @@ export function checkReverseDiAlias(project: Project): ScanResult {
       const provide = getPropertyIdentifier(provider, 'provide');
       if (!useExisting || !provide) continue;
       scannedTargets++;
-      if (resolvesToClass(provide)) {
+      // Only a class token redirected to a FUNCTIONAL token (a Symbol/string constant, not
+      // another class) matches the anti-pattern's documented shape — a class-to-class alias is a
+      // different, undocumented shape and stays out of scope (Codex PR #396 review, 2026-08-20).
+      if (resolvesToClass(provide) && !resolvesToClass(useExisting)) {
         findings.push({
           rule: 'reverse-di-alias',
           file: sourceFile.getFilePath(),
@@ -222,12 +244,19 @@ export function checkGlobalModuleExportPairing(project: Project): ScanResult {
       exportsProperty && Node.isPropertyAssignment(exportsProperty)
         ? exportsProperty.getInitializer()
         : undefined;
+    // Nest's `exports` array accepts either a bare token (the common shape every current module
+    // in this codebase uses) or a full provider-definition object re-declaring the same `provide`
+    // token — both count as exporting that token (Codex PR #396 review, 2026-08-20).
     const exportedNames = new Set(
       exportsInitializer && Node.isArrayLiteralExpression(exportsInitializer)
-        ? exportsInitializer
-            .getElements()
-            .filter(Node.isIdentifier)
-            .map((element) => element.getText())
+        ? exportsInitializer.getElements().flatMap((element) => {
+            if (Node.isIdentifier(element)) return [element.getText()];
+            if (Node.isObjectLiteralExpression(element)) {
+              const provide = getPropertyIdentifier(element, 'provide');
+              return provide ? [provide.getText()] : [];
+            }
+            return [];
+          })
         : [],
     );
 
@@ -251,7 +280,7 @@ export function checkGlobalModuleExportPairing(project: Project): ScanResult {
         const referenceFile = reference.getSourceFile().getFilePath();
         if (internalFiles.has(referenceFile)) return false;
         if (isTestFile(referenceFile)) return false;
-        return true;
+        return isDiInjectionSite(reference);
       });
       if (!consumedExternally) continue;
 
