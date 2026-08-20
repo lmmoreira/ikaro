@@ -51,26 +51,67 @@ function containsJestFnCall(node: Node): boolean {
   return node.getDescendantsOfKind(SyntaxKind.CallExpression).some(isJestFnCall);
 }
 
+// Strips `as X`/`as unknown as X`/`satisfies X`/parenthesization/`!` wrappers so the underlying
+// object literal or call expression is what gets checked for a jest.fn() — e.g.
+// `{ insert: jest.fn() } as unknown as jest.Mocked<IOutboxRepository>`.
+function unwrapExpression(node: Node): Node {
+  if (
+    Node.isAsExpression(node) ||
+    Node.isTypeAssertion(node) ||
+    Node.isSatisfiesExpression(node) ||
+    Node.isParenthesizedExpression(node) ||
+    Node.isNonNullExpression(node)
+  ) {
+    return unwrapExpression(node.getExpression());
+  }
+  return node;
+}
+
+// Finds every `<identifier> = <expr>` assignment (anywhere in the same file) whose left side
+// resolves back to `declaration` — the `let mock: jest.Mocked<T>; beforeEach(() => { mock = {...}
+// })` shape a bare declaration-initializer check misses entirely, since such a `let` has none
+// (CodeRabbit/Codex PR #395 review, 2026-08-20: this exact shape left IPushableEventBus in
+// pubsub-push.controller.spec.ts and IOutboxRepository in outbox-publisher.spec.ts/
+// outbox-relay.service.spec.ts undetected).
+function findAssignedExpressions(declaration: Node): Node[] {
+  return declaration
+    .getSourceFile()
+    .getDescendantsOfKind(SyntaxKind.BinaryExpression)
+    .filter((binary) => binary.getOperatorToken().getKind() === SyntaxKind.EqualsToken)
+    .filter((binary) => {
+      const left = binary.getLeft();
+      return (
+        Node.isIdentifier(left) && (left.getSymbol()?.getDeclarations() ?? []).includes(declaration)
+      );
+    })
+    .map((binary) => binary.getRight());
+}
+
 // Resolves what a constructor argument "really is" for the purpose of this check — following
-// exactly one hop through a local variable, so `const mockBus = {...}; new Handler(mockBus)` is
-// treated the same as an inline `new Handler({...})`. Anything else (a `new InMemoryXxxRepository()`
-// double, a builder call, `undefined`) resolves to `undefined` and is correctly left alone.
+// exactly one hop through a local variable, so both `const mockBus = {...}; new Handler(mockBus)`
+// and `let mockBus: jest.Mocked<T>; beforeEach(() => { mockBus = {...}; }); new Handler(mockBus)`
+// are treated the same as an inline `new Handler({...})`. Anything else (a
+// `new InMemoryXxxRepository()` double, a builder call, `undefined`) resolves to `undefined` and
+// is correctly left alone.
 function resolveJestMockedArgument(argument: Node): Node | undefined {
-  if (Node.isObjectLiteralExpression(argument)) {
-    return containsJestFnCall(argument) ? argument : undefined;
+  const unwrapped = unwrapExpression(argument);
+
+  if (Node.isObjectLiteralExpression(unwrapped)) {
+    return containsJestFnCall(unwrapped) ? unwrapped : undefined;
   }
-  if (Node.isCallExpression(argument)) {
-    return containsJestFnCall(argument) ? argument : undefined;
+  if (Node.isCallExpression(unwrapped)) {
+    return containsJestFnCall(unwrapped) ? unwrapped : undefined;
   }
-  if (Node.isIdentifier(argument)) {
-    const symbol = argument.getSymbol();
+  if (Node.isIdentifier(unwrapped)) {
+    const symbol = unwrapped.getSymbol();
     const declaration = symbol?.getDeclarations().find(Node.isVariableDeclaration);
-    const initializer = declaration?.getInitializer();
-    if (
-      initializer &&
-      (Node.isObjectLiteralExpression(initializer) || Node.isCallExpression(initializer))
-    ) {
-      return resolveJestMockedArgument(initializer);
+    if (!declaration) return undefined;
+
+    const candidates = [declaration.getInitializer(), ...findAssignedExpressions(declaration)];
+    for (const candidate of candidates) {
+      if (!candidate) continue;
+      const resolved = resolveJestMockedArgument(candidate);
+      if (resolved) return resolved;
     }
   }
   return undefined;
@@ -87,7 +128,10 @@ function resolveJestMockedArgument(argument: Node): Node | undefined {
 // constructing port-typed dependencies forever, they just won't jest.fn() them anymore.
 //
 // jest.mock()-style module auto-mocking is out of scope: repository/port dependencies are pure
-// TS interfaces with no runtime module to auto-mock, so that form cannot target them.
+// TS interfaces with no runtime module to auto-mock, so that form cannot target them — confirmed
+// empirically (PR #395 review, 2026-08-20): every jest.mock() call in apps/backend/src is against
+// a third-party package (undici, nodemailer, @google-cloud/*) or a concrete infra-bootstrapping
+// adapter, never a repository/port interface or an adapter injected through one.
 export function checkNoJestFnForRepositoryOrPortMocks(project: Project): ScanResult {
   const findings: Finding[] = [];
   let scannedTargets = 0;

@@ -5,6 +5,7 @@ import {
   ServiceEntityBuilder,
 } from '../../../../test/builders/booking/index';
 import { makeConfigService } from '../../../../test/infrastructure/fake-config-service';
+import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTenantSettingsPort } from '../../../../test/infrastructure/in-memory-tenant-settings.port';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
@@ -15,7 +16,6 @@ import { OutboxPublisher } from '../../../../shared/infrastructure/outbox/outbox
 import { OutboxRelayService } from '../../../../shared/infrastructure/outbox/outbox-relay.service';
 import { TypeOrmOutboxRepository } from '../../../../shared/infrastructure/outbox/typeorm-outbox.repository';
 import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typeorm-transaction-manager';
-import { IEventBus } from '../../../../shared/ports/event-bus.port';
 import { Booking } from '../../domain/booking.aggregate';
 import { BookingEntity } from '../entities/booking.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
@@ -83,9 +83,7 @@ describe('Booking → Outbox cutover (integration, TD24-S02)', () => {
   }
 
   it('crash-between-commit-and-publish: inline dispatch disabled → row unpublished, no Pub/Sub message; relay then delivers exactly one message', async () => {
-    const eventBus = {
-      publish: jest.fn().mockResolvedValue(undefined),
-    } as unknown as jest.Mocked<IEventBus>;
+    const eventBus = new InMemoryEventBus();
     const config = makeConfigService({ OUTBOX_INLINE_DISPATCH_ENABLED: false });
     const relay = new OutboxRelayService(
       typeOrmOutboxRepo,
@@ -105,22 +103,18 @@ describe('Booking → Outbox cutover (integration, TD24-S02)', () => {
     const rowAfterCommit = await outboxRepo.findOne({ where: { id: pendingEventId } });
     expect(rowAfterCommit).not.toBeNull();
     expect(rowAfterCommit!.publishedAt).toBeNull();
-    expect(eventBus.publish).not.toHaveBeenCalled();
+    expect(eventBus.publishCallCount).toBe(0);
 
     await relay.relay([pendingEventId]);
 
     const rowAfterRelay = await outboxRepo.findOne({ where: { id: pendingEventId } });
     expect(rowAfterRelay!.publishedAt).not.toBeNull();
-    expect(eventBus.publish).toHaveBeenCalledTimes(1);
+    expect(eventBus.publishCallCount).toBe(1);
   });
 
   it('inline publish failure: booking approval still succeeds; row stays unpublished; the sweep retries and delivers', async () => {
-    const eventBus = {
-      publish: jest
-        .fn()
-        .mockRejectedValueOnce(new Error('pubsub down'))
-        .mockResolvedValue(undefined),
-    } as unknown as jest.Mocked<IEventBus>;
+    const eventBus = new InMemoryEventBus();
+    eventBus.failNextPublish(new Error('pubsub down'));
     const config = makeConfigService({
       OUTBOX_INLINE_DISPATCH_ENABLED: true,
       OUTBOX_SWEEP_GRACE_SECONDS: 0,
@@ -145,7 +139,7 @@ describe('Booking → Outbox cutover (integration, TD24-S02)', () => {
 
     const rowAfterInline = await outboxRepo.findOne({ where: { id: pendingEventId } });
     expect(rowAfterInline!.publishedAt).toBeNull();
-    expect(eventBus.publish).toHaveBeenCalledTimes(1);
+    expect(eventBus.publishCallCount).toBe(1);
 
     // The scheduled sweep (no rowIds — SKIP LOCKED claim + grace window), not the targeted
     // inline-dispatch path, is what's under test here per this test's own name. The sweep scans
@@ -158,19 +152,18 @@ describe('Booking → Outbox cutover (integration, TD24-S02)', () => {
 
     const rowAfterRetry = await outboxRepo.findOne({ where: { id: pendingEventId } });
     expect(rowAfterRetry!.publishedAt).not.toBeNull();
-    const callsForThisEvent = eventBus.publish.mock.calls.filter(
-      ([event]) => (event as { eventId: string }).eventId === pendingEventId,
+    const callsForThisEvent = eventBus.publishAttempts.filter(
+      (event) => event.eventId === pendingEventId,
     );
     expect(callsForThisEvent).toHaveLength(2); // 1 failed inline attempt + 1 successful sweep retry
   });
 
   it('two concurrent sweeps on the same booking-approval row (SKIP LOCKED) → exactly one Pub/Sub publish', async () => {
     const publishedEventIds: string[] = [];
-    const eventBus = {
-      publish: jest.fn().mockImplementation(async (event: { eventId: string }) => {
-        publishedEventIds.push(event.eventId);
-      }),
-    } as unknown as jest.Mocked<IEventBus>;
+    const eventBus = new InMemoryEventBus();
+    eventBus.onPublish = (event) => {
+      publishedEventIds.push(event.eventId);
+    };
     const config = makeConfigService({
       OUTBOX_INLINE_DISPATCH_ENABLED: false,
       OUTBOX_SWEEP_GRACE_SECONDS: 0,

@@ -55,6 +55,40 @@ describe('checkNoJestFnForRepositoryOrPortMocks', () => {
     ]);
   });
 
+  it('flags a `let`-declared, jest.fn()-backed variable assigned later (e.g. in beforeEach), through an `as` cast', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/shared/ports/outbox-repository.port.ts': `
+        export interface IOutboxRepository { insert(): Promise<void> }
+      `,
+      '/repo/apps/backend/src/contexts/demo/infrastructure/demo.publisher.ts': `
+        import { IOutboxRepository } from '../../../shared/ports/outbox-repository.port';
+        export class DemoPublisher {
+          constructor(private readonly repo: IOutboxRepository) {}
+        }
+      `,
+      '/repo/apps/backend/src/contexts/demo/infrastructure/demo.publisher.spec.ts': `
+        import { DemoPublisher } from './demo.publisher';
+        describe('DemoPublisher', () => {
+          let outboxRepo: jest.Mocked<IOutboxRepository>;
+          beforeEach(() => {
+            outboxRepo = { insert: jest.fn() } as unknown as jest.Mocked<IOutboxRepository>;
+          });
+          it('works', () => {
+            new DemoPublisher(outboxRepo);
+          });
+        });
+      `,
+    });
+    const result = checkNoJestFnForRepositoryOrPortMocks(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        rule: 'no-jest-fn-for-repository-or-port',
+        message: expect.stringContaining('IOutboxRepository'),
+      }),
+    ]);
+  });
+
   it('flags a jest.fn()-backed mock for an interface named without the I-prefix, resolved via its ports/ path', () => {
     const project = fixtureProject({
       '/repo/apps/backend/src/shared/ports/cache.port.ts': `

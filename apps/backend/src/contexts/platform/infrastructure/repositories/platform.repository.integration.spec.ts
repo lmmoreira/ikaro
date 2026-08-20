@@ -1,5 +1,4 @@
 import { DataSource } from 'typeorm';
-import type { Cache } from 'cache-manager';
 import { HotsiteConfigEntity } from '../entities/hotsite-config.entity';
 import { TenantEntity } from '../entities/tenant.entity';
 import { TypeOrmHotsiteConfigRepository } from './typeorm-hotsite-config.repository';
@@ -7,6 +6,7 @@ import { TypeOrmTenantRepository } from './typeorm-tenant.repository';
 import { CachingTenantRepository } from './caching-tenant.repository';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { runInNewTransaction } from '../../../../shared/infrastructure/run-in-new-transaction';
+import { InMemoryCachePort } from '../../../../test/infrastructure/in-memory-cache.port';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { TenantBuilder, HotsiteConfigBuilder } from '../../../../test/builders/platform';
 import { DEFAULT_HOTSITE_BRANDING } from '../../domain/hotsite-config.aggregate';
@@ -18,20 +18,16 @@ describe('Platform repositories (integration)', () => {
   let tenantRepo: CachingTenantRepository;
   let typeOrmTenantRepo: TypeOrmTenantRepository;
   let hotsiteRepo: TypeOrmHotsiteConfigRepository;
-  let cacheManager: jest.Mocked<Pick<Cache, 'get' | 'set' | 'del'>>;
+  let cache: InMemoryCachePort;
 
   beforeAll(async () => {
     dataSource = await createTestDataSource();
-    cacheManager = {
-      get: jest.fn().mockResolvedValue(null),
-      set: jest.fn().mockResolvedValue(undefined),
-      del: jest.fn().mockResolvedValue(undefined),
-    };
+    cache = new InMemoryCachePort();
     typeOrmTenantRepo = new TypeOrmTenantRepository(
       dataSource.getRepository(TenantEntity),
       new InMemoryEventBus(),
     );
-    tenantRepo = new CachingTenantRepository(typeOrmTenantRepo, cacheManager as unknown as Cache);
+    tenantRepo = new CachingTenantRepository(typeOrmTenantRepo, cache);
     hotsiteRepo = new TypeOrmHotsiteConfigRepository(dataSource.getRepository(HotsiteConfigEntity));
   });
 
@@ -45,7 +41,7 @@ describe('Platform repositories (integration)', () => {
       .withSlug('lavacar-estrela')
       .build();
     await tenantRepo.save(tenant);
-    expect(cacheManager.del).toHaveBeenCalledWith(`platform:tenant:${tenant.id}`);
+    expect(cache.delCalls).toContain(`platform:tenant:${tenant.id}`);
 
     // Full retrieval by slug verifies all fields survive the round-trip
     const bySlug = await tenantRepo.findBySlug('lavacar-estrela');
@@ -74,8 +70,7 @@ describe('Platform repositories (integration)', () => {
   it('findById returns cached tenant data without hitting the TypeORM repository again', async () => {
     const cachedTenant = new TenantBuilder().withSlug('cached-estrela').build();
     const findByIdSpy = jest.spyOn(typeOrmTenantRepo, 'findById');
-    cacheManager.set.mockClear();
-    cacheManager.get.mockResolvedValueOnce({
+    await cache.set(`platform:tenant:${cachedTenant.id}`, {
       id: cachedTenant.id,
       name: cachedTenant.name,
       slug: cachedTenant.slug.value,
@@ -84,13 +79,14 @@ describe('Platform repositories (integration)', () => {
       createdAt: cachedTenant.createdAt,
       updatedAt: cachedTenant.updatedAt,
     });
+    const setCallsBefore = cache.setCalls.length;
 
     const result = await tenantRepo.findById(cachedTenant.id);
 
     expect(result).toBeInstanceOf(Tenant);
     expect(result!.name).toBe(cachedTenant.name);
     expect(findByIdSpy).not.toHaveBeenCalled();
-    expect(cacheManager.set).not.toHaveBeenCalled();
+    expect(cache.setCalls.length).toBe(setCallsBefore);
   });
 
   it('hotsite config management — from empty slate to branded and published', async () => {

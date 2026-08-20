@@ -20,9 +20,9 @@ jest.mock('@google-cloud/pubsub', () => ({
 import { InboxRecordEntityBuilder } from '../../../test/builders/shared/inbox-record-entity.builder';
 import { OutboxEventEntityBuilder } from '../../../test/builders/shared/outbox-event-entity.builder';
 import { makeConfigService } from '../../../test/infrastructure/fake-config-service';
+import { InMemoryEventBus } from '../../../test/infrastructure/in-memory-event-bus';
 import { createTestDataSource } from '../../../test/test-datasource';
 import { uuidv7 } from '../../domain/uuid-v7';
-import { IEventBus } from '../../ports/event-bus.port';
 import { GcpPubSubEventBusAdapter } from '../event-bus/gcp-pubsub-event-bus.adapter';
 import { InboxRecordEntity } from '../inbox/inbox-record.entity';
 import { TypeOrmInboxRepository } from '../inbox/typeorm-inbox.repository';
@@ -54,9 +54,7 @@ describe('OutboxRelayService (integration)', () => {
 
   describe('relay(rowIds) — inline dispatch path', () => {
     it('marks published_at only after a successful publish', async () => {
-      const eventBus = {
-        publish: jest.fn().mockResolvedValue(undefined),
-      } as unknown as jest.Mocked<IEventBus>;
+      const eventBus = new InMemoryEventBus();
       const service = new OutboxRelayService(
         typeOrmOutboxRepo,
         eventBus,
@@ -74,9 +72,8 @@ describe('OutboxRelayService (integration)', () => {
     });
 
     it('leaves the row unpublished when the publish fails', async () => {
-      const eventBus = {
-        publish: jest.fn().mockRejectedValue(new Error('pubsub down')),
-      } as unknown as jest.Mocked<IEventBus>;
+      const eventBus = new InMemoryEventBus();
+      eventBus.failNextPublish(new Error('pubsub down'));
       const service = new OutboxRelayService(
         typeOrmOutboxRepo,
         eventBus,
@@ -96,9 +93,7 @@ describe('OutboxRelayService (integration)', () => {
 
   describe('sweep (relay() with no rowIds)', () => {
     it('respects the grace window — a fresh row is left untouched, an old row is published', async () => {
-      const eventBus = {
-        publish: jest.fn().mockResolvedValue(undefined),
-      } as unknown as jest.Mocked<IEventBus>;
+      const eventBus = new InMemoryEventBus();
       const dedup = uuidv7();
       const freshRow = new OutboxEventEntityBuilder()
         .withDedupKey(`fresh-${dedup}`)
@@ -137,9 +132,7 @@ describe('OutboxRelayService (integration)', () => {
     });
 
     it('loops across multiple batches until the batch comes back empty', async () => {
-      const eventBus = {
-        publish: jest.fn().mockResolvedValue(undefined),
-      } as unknown as jest.Mocked<IEventBus>;
+      const eventBus = new InMemoryEventBus();
       const dedup = uuidv7();
       const rows = Array.from({ length: 5 }, (_, i) =>
         new OutboxEventEntityBuilder()
@@ -171,11 +164,11 @@ describe('OutboxRelayService (integration)', () => {
 
     it('lease claim: two concurrent sweeps on the same rows publish each row exactly once', async () => {
       const publishedDedupKeys: string[] = [];
-      const eventBus = {
-        publish: jest.fn().mockImplementation(async (event: { dedupKeyMarker?: string }) => {
-          if (event.dedupKeyMarker) publishedDedupKeys.push(event.dedupKeyMarker);
-        }),
-      } as unknown as jest.Mocked<IEventBus>;
+      const eventBus = new InMemoryEventBus();
+      eventBus.onPublish = (event) => {
+        const dedupKeyMarker = (event as unknown as { dedupKeyMarker?: string }).dedupKeyMarker;
+        if (dedupKeyMarker) publishedDedupKeys.push(dedupKeyMarker);
+      };
       const dedup = uuidv7();
       const rows = Array.from({ length: 4 }, (_, i) => {
         const dedupKey = `concurrent-${dedup}-${i}`;
@@ -210,9 +203,7 @@ describe('OutboxRelayService (integration)', () => {
 
   describe('retention GC', () => {
     it('deletes only published rows older than OUTBOX_RETENTION_DAYS', async () => {
-      const eventBus = {
-        publish: jest.fn().mockResolvedValue(undefined),
-      } as unknown as jest.Mocked<IEventBus>;
+      const eventBus = new InMemoryEventBus();
       const dedup = uuidv7();
       const oldPublished = new OutboxEventEntityBuilder()
         .withDedupKey(`gc-old-${dedup}`)
@@ -247,9 +238,7 @@ describe('OutboxRelayService (integration)', () => {
     });
 
     it('deletes only inbox rows older than INBOX_RETENTION_DAYS (TD24-S04)', async () => {
-      const eventBus = {
-        publish: jest.fn().mockResolvedValue(undefined),
-      } as unknown as jest.Mocked<IEventBus>;
+      const eventBus = new InMemoryEventBus();
       const dedup = uuidv7();
       const oldRecord = new InboxRecordEntityBuilder()
         .withEventId(uuidv7())

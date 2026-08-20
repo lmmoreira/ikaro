@@ -1,4 +1,4 @@
-import { ICustomerTenantLookup } from '../../../customer/application/ports/customer-tenant-lookup.port';
+import { InMemoryCustomerTenantLookup } from '../../../../test/infrastructure/in-memory-customer-tenant-lookup';
 import { LoyaltyCustomerNotFoundInTenantError } from '../../domain/errors/loyalty-domain.error';
 import { LoyaltyCustomerAdapter } from './loyalty-customer.adapter';
 
@@ -8,18 +8,16 @@ const HOME_CUSTOMER_ID = 'bbbbbbbb-0000-4000-8000-000000000001';
 const TARGET_CUSTOMER_ID = 'bbbbbbbb-0000-4000-8000-000000000002';
 
 describe('LoyaltyCustomerAdapter', () => {
-  let customerTenantLookup: jest.Mocked<ICustomerTenantLookup>;
+  let customerTenantLookup: InMemoryCustomerTenantLookup;
   let adapter: LoyaltyCustomerAdapter;
 
   beforeEach(() => {
-    customerTenantLookup = { find: jest.fn() };
+    customerTenantLookup = new InMemoryCustomerTenantLookup();
     adapter = new LoyaltyCustomerAdapter(customerTenantLookup);
   });
 
-  afterEach(() => jest.resetAllMocks());
-
   it('resolves the customer ID in the target tenant for the same OAuth user', async () => {
-    customerTenantLookup.find.mockResolvedValue([
+    customerTenantLookup.setNextResult([
       { tenantId: HOME_TENANT_ID, customerId: HOME_CUSTOMER_ID },
       { tenantId: TARGET_TENANT_ID, customerId: TARGET_CUSTOMER_ID },
     ]);
@@ -31,14 +29,13 @@ describe('LoyaltyCustomerAdapter', () => {
     );
 
     expect(result).toBe(TARGET_CUSTOMER_ID);
-    expect(customerTenantLookup.find).toHaveBeenCalledWith({
-      customerId: HOME_CUSTOMER_ID,
-      tenantId: HOME_TENANT_ID,
-    });
+    expect(customerTenantLookup.findCalls).toEqual([
+      { customerId: HOME_CUSTOMER_ID, tenantId: HOME_TENANT_ID },
+    ]);
   });
 
   it('throws LoyaltyCustomerNotFoundInTenantError when the user has no record in the target tenant', async () => {
-    customerTenantLookup.find.mockResolvedValue([
+    customerTenantLookup.setNextResult([
       { tenantId: HOME_TENANT_ID, customerId: HOME_CUSTOMER_ID },
     ]);
 
@@ -48,7 +45,7 @@ describe('LoyaltyCustomerAdapter', () => {
   });
 
   it('throws LoyaltyCustomerNotFoundInTenantError when the home customer does not exist', async () => {
-    customerTenantLookup.find.mockResolvedValue(null);
+    customerTenantLookup.setNextResult(null);
 
     await expect(
       adapter.resolveCustomerIdByOAuthId(HOME_CUSTOMER_ID, HOME_TENANT_ID, TARGET_TENANT_ID),
@@ -57,7 +54,7 @@ describe('LoyaltyCustomerAdapter', () => {
 
   it('propagates unrelated failures unchanged', async () => {
     const dbError = new Error('connection terminated unexpectedly');
-    customerTenantLookup.find.mockRejectedValue(dbError);
+    customerTenantLookup.failNextFind(dbError);
 
     await expect(
       adapter.resolveCustomerIdByOAuthId(HOME_CUSTOMER_ID, HOME_TENANT_ID, TARGET_TENANT_ID),
@@ -66,7 +63,7 @@ describe('LoyaltyCustomerAdapter', () => {
 
   describe('resolveAllTenantsByOAuthId()', () => {
     it('returns every tenant/customerId pair for the same OAuth user, unfiltered', async () => {
-      customerTenantLookup.find.mockResolvedValue([
+      customerTenantLookup.setNextResult([
         { tenantId: HOME_TENANT_ID, customerId: HOME_CUSTOMER_ID },
         { tenantId: TARGET_TENANT_ID, customerId: TARGET_CUSTOMER_ID },
       ]);
@@ -77,14 +74,13 @@ describe('LoyaltyCustomerAdapter', () => {
         { tenantId: HOME_TENANT_ID, customerId: HOME_CUSTOMER_ID },
         { tenantId: TARGET_TENANT_ID, customerId: TARGET_CUSTOMER_ID },
       ]);
-      expect(customerTenantLookup.find).toHaveBeenCalledWith({
-        customerId: HOME_CUSTOMER_ID,
-        tenantId: HOME_TENANT_ID,
-      });
+      expect(customerTenantLookup.findCalls).toEqual([
+        { customerId: HOME_CUSTOMER_ID, tenantId: HOME_TENANT_ID },
+      ]);
     });
 
     it('throws LoyaltyCustomerNotFoundInTenantError when the home customer does not exist', async () => {
-      customerTenantLookup.find.mockResolvedValue(null);
+      customerTenantLookup.setNextResult(null);
 
       await expect(
         adapter.resolveAllTenantsByOAuthId(HOME_CUSTOMER_ID, HOME_TENANT_ID),
@@ -93,7 +89,7 @@ describe('LoyaltyCustomerAdapter', () => {
 
     it('propagates unrelated failures (e.g. a DB error) unchanged instead of masking them as not-found', async () => {
       const dbError = new Error('connection terminated unexpectedly');
-      customerTenantLookup.find.mockRejectedValue(dbError);
+      customerTenantLookup.failNextFind(dbError);
 
       await expect(
         adapter.resolveAllTenantsByOAuthId(HOME_CUSTOMER_ID, HOME_TENANT_ID),
