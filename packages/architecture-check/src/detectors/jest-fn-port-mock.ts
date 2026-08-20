@@ -202,7 +202,21 @@ function resolveJestMockedArgument(argument: Node, visited = new Set<Node>()): N
 // TS interfaces with no runtime module to auto-mock, so that form cannot target them — confirmed
 // empirically (PR #395 review, 2026-08-20): every jest.mock() call in apps/backend/src is against
 // a third-party package (undici, nodemailer, @google-cloud/*) or a concrete infra-bootstrapping
-// adapter, never a repository/port interface or an adapter injected through one.
+// adapter, never a repository/port interface or an adapter injected through one. Independently
+// re-verified by a second reviewer (CodeRabbit) against the same evidence and resolved.
+//
+// A constructor parameter typed as a *concrete* adapter class that happens to implement a port
+// (e.g. `constructor(bus: ConcreteBus)` where `class ConcreteBus implements IEventBus`) is also
+// out of scope — resolvePortInterfaceName() only walks an interface's own extends chain, not a
+// class's implements chain, deliberately: doing so would reintroduce the exact false-positive
+// this detector already guards against for a jest.fn()-mocked concrete-class dependency that
+// implements nothing port-like (see the OpenRouterCreditsClient fixture below), since the two
+// shapes are structurally indistinguishable from a bare `implements` walk alone. Checked
+// empirically (PR #395 re-review, 2026-08-20): zero constructors anywhere in apps/backend/src
+// type a parameter as a concrete class rather than the port interface it implements — this
+// codebase's own DI convention requires the interface type specifically so a test can substitute
+// a double (see caching-tenant.repository.ts's own comment on this), making the shape structurally
+// excluded, not just currently absent.
 export function checkNoJestFnForRepositoryOrPortMocks(project: Project): ScanResult {
   const findings: Finding[] = [];
   let scannedTargets = 0;
