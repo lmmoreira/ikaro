@@ -224,7 +224,7 @@ ESLint + Prettier · `tsc --noEmit` · all tests · coverage ≥ 80% on changed 
 When SonarCloud is failing, treat the live issue list/quality gate as the only source of truth — never fix from stale logs or guess from the diff (see `docs/ANTI_PATTERNS.md`'s SonarCloud row for the exact discipline and how to verify a fix actually moved the metric).
 
 ### Definition of Done
-Full checklist (coverage, migration pre-production exception, stale-reference sweep, all with precedents): `docs/DEFINITION_OF_DONE.md`. Checked before `/pre-pr` runs (§9 Step 7).
+Full checklist (coverage, migration pre-production exception, stale-reference sweep, all with precedents): `docs/DEFINITION_OF_DONE.md`. Checked before `/pre-pr` runs (§9 Steps 3–9).
 
 ---
 

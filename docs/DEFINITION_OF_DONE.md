@@ -1,6 +1,6 @@
 # Definition of Done
 
-Checked at the end of every story or TD, before `/pre-pr` runs (CLAUDE.md §9 Step 7). Referenced by `/mark-done` and CLAUDE.md §13's self-check.
+Checked at the end of every story or TD, before `/pre-pr` runs (CLAUDE.md §9 Steps 3–9). Referenced by `/mark-done` and CLAUDE.md §13's self-check.
 
 - [ ] Matches cited UC's main + alt flows; CI passes (`pnpm lint`, `pnpm test`, `pnpm type-check`)
 - [ ] Coverage delta ≥ 80%; unit + integration + tenant-isolation tests pass
