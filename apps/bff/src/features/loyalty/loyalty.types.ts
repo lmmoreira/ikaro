@@ -56,3 +56,11 @@ export interface RedeemPointsResponse {
   newBalance: number;
   redeemedAt: string;
 }
+
+// Local helper shape for toPaginatedResponse() in loyalty.controller.ts — not itself a
+// response contract, but still can't live inline in the controller (TD37-S10).
+export type Pagination = {
+  readonly page: number;
+  readonly limit: number;
+  readonly total: number;
+};

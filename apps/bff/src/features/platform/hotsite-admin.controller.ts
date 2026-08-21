@@ -1,99 +1,31 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Patch, Post } from '@nestjs/common';
-import { z } from 'zod';
 import { ZodValidationPipe } from '@ikaro/nestjs-http';
-import {
-  HOTSITE_TMP_PATH_FRAGMENT,
-  HotsiteBrandingSchema,
-  HotsiteModuleSchema,
-  HotsiteSeoSchema,
-} from '@ikaro/validation';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import {
-  ALLOWED_IMAGE_CONTENT_TYPES,
   FeatureBookingPhotoResponse,
   GenerateHotsiteImageReadSignedUrlResponse,
   GenerateHotsiteImageSignedUrlResponse,
-  GenericErrorCode,
   HotsiteAdminContentResponse,
-  PlatformErrorCode,
   PublishHotsiteResponse,
   UnpublishHotsiteResponse,
 } from '@ikaro/types';
+import {
+  DeleteHotsiteImageBody,
+  DeleteHotsiteImageBodySchema,
+  FeatureBookingPhotoBody,
+  FeatureBookingPhotoBodySchema,
+  GenerateHotsiteImageReadSignedUrlBody,
+  GenerateHotsiteImageReadSignedUrlBodySchema,
+  GenerateHotsiteImageSignedUrlBody,
+  GenerateHotsiteImageSignedUrlBodySchema,
+  UpdateHotsiteContentBody,
+  UpdateHotsiteContentBodySchema,
+} from './hotsite-admin.schemas';
 
-export const UpdateHotsiteContentBodySchema = z
-  .object({
-    branding: HotsiteBrandingSchema.optional(),
-    layout: z.array(HotsiteModuleSchema).optional(),
-    seo: HotsiteSeoSchema.optional(),
-  })
-  .refine(
-    (data) => data.branding !== undefined || data.layout !== undefined || data.seo !== undefined,
-    {
-      error: 'at least one of branding, layout, or seo must be provided',
-      params: { code: PlatformErrorCode.HOTSITE_UPDATE_EMPTY },
-    },
-  )
-  .default({});
-
-type UpdateHotsiteContentBody = z.infer<typeof UpdateHotsiteContentBodySchema>;
-
-export const GenerateHotsiteImageSignedUrlBodySchema = z.object({
-  fileName: z
-    .string()
-    .min(1)
-    .max(255)
-    .refine((v) => !v.includes('/') && !v.includes('..'), {
-      error: 'fileName must not contain path separators or ".."',
-      params: { code: GenericErrorCode.FORMAT_INVALID },
-    }),
-  contentType: z.enum(ALLOWED_IMAGE_CONTENT_TYPES),
-  purpose: z.enum([
-    'branding',
-    'hero',
-    'gallery',
-    'about',
-    'booking-cta',
-    'testimonials',
-    'seo-og-image',
-  ]),
-});
-
-type GenerateHotsiteImageSignedUrlBody = z.infer<typeof GenerateHotsiteImageSignedUrlBodySchema>;
-
-// Only for not-yet-promoted tmp/ staging uploads — an already-permanent tenants/.../hotsite/...
-// image resolves via the pure getPublicUrl() string template instead (see
-// td/TD22-ORPHANED-UPLOAD-CLEANUP.md § tmp/ image preview).
-export const GenerateHotsiteImageReadSignedUrlBodySchema = z.object({
-  filePath: z.string().regex(new RegExp(`^${HOTSITE_TMP_PATH_FRAGMENT}$`)),
-});
-
-type GenerateHotsiteImageReadSignedUrlBody = z.infer<
-  typeof GenerateHotsiteImageReadSignedUrlBodySchema
->;
-
-export const FeatureBookingPhotoBodySchema = z
-  .object({
-    bookingId: z.uuid(),
-    filePath: z.string().regex(/^tenants\/[^/]+\/bookings\/[^/]+\/.+$/),
-    photoType: z.enum(['before', 'after']),
-  })
-  .refine((data) => data.filePath.includes(`/bookings/${data.bookingId}/`), {
-    error: 'filePath must belong to the provided bookingId',
-    params: { code: PlatformErrorCode.FEATURED_PHOTO_PATH_MISMATCH },
-  });
-
-type FeatureBookingPhotoBody = z.infer<typeof FeatureBookingPhotoBodySchema>;
-
-// Accepts either an already-permanent hotsite image (tenants/<id>/hotsite/...) or a not-yet
-// promoted tmp/ staging upload (tmp/<id>/...) — see td/TD22-ORPHANED-UPLOAD-CLEANUP.md.
-export const DeleteHotsiteImageBodySchema = z.object({
-  filePath: z
-    .string()
-    .regex(new RegExp(`^(tenants/[^/]+/hotsite/.+|${HOTSITE_TMP_PATH_FRAGMENT})$`)),
-});
-
-type DeleteHotsiteImageBody = z.infer<typeof DeleteHotsiteImageBodySchema>;
+// Request Zod schemas moved to hotsite-admin.schemas.ts (TD37-S10) — re-exported here so
+// existing imports of these symbols from this file keep working unchanged.
+export * from './hotsite-admin.schemas';
 
 @Controller('tenants/hotsite')
 @Roles('MANAGER')

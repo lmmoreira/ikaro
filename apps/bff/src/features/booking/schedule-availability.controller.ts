@@ -1,18 +1,14 @@
 import { Controller, Get, Headers, Query } from '@nestjs/common';
-import { z } from 'zod';
 import { Public } from '../../shared/decorators/public.decorator';
 import { ZodValidationPipe } from '@ikaro/nestjs-http';
-import { DATE_ONLY_PATTERN } from '@ikaro/validation';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { withPublicTenant } from '../../shared/http/public-tenant';
 import { AvailabilityResponse } from './schedule.types';
+import { GetAvailabilityQuery, GetAvailabilityQuerySchema } from './schedule-availability.schemas';
 
-const GetAvailabilityQuerySchema = z.object({
-  date: z.string().regex(DATE_ONLY_PATTERN, 'date must be YYYY-MM-DD'),
-  serviceIds: z.string().min(1, 'serviceIds is required'),
-});
-
-type GetAvailabilityQuery = z.infer<typeof GetAvailabilityQuerySchema>;
+// Request Zod schema moved to schedule-availability.schemas.ts (TD37-S10) — re-exported here so
+// existing imports of these symbols from this file keep working unchanged.
+export * from './schedule-availability.schemas';
 
 @Controller('schedule/availability')
 export class ScheduleAvailabilityController {

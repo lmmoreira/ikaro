@@ -14,7 +14,7 @@ export interface ServiceItemResult {
   createdAt: string;
 }
 
-export interface GetServicesDto {
+export interface GetServicesUseCaseInput {
   tenantId: string;
   ids?: string[];
   status?: 'ACTIVE' | 'INACTIVE' | 'ANY';
@@ -30,13 +30,13 @@ export interface GetServicesUseCaseResult {
 export class GetServicesUseCase {
   constructor(@Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository) {}
 
-  async execute(dto: GetServicesDto): Promise<GetServicesUseCaseResult> {
-    const services = await this.serviceRepo.findAllByTenant(dto.tenantId, {
-      ids: dto.ids,
-      status: dto.status,
-      search: dto.search,
+  async execute(input: GetServicesUseCaseInput): Promise<GetServicesUseCaseResult> {
+    const services = await this.serviceRepo.findAllByTenant(input.tenantId, {
+      ids: input.ids,
+      status: input.status,
+      search: input.search,
     });
-    const locale = dto.locale ?? 'pt-BR';
+    const locale = input.locale ?? 'pt-BR';
     return { items: services.map((s) => this.toItem(s, locale)) };
   }
 

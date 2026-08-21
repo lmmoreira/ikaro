@@ -15,7 +15,7 @@ export interface StaffItemResult {
   createdAt: string;
 }
 
-export interface GetStaffDto {
+export interface GetStaffUseCaseInput {
   tenantId: string;
   ids?: string[];
   roles?: StaffRole[];
@@ -40,16 +40,16 @@ export interface GetStaffUseCaseResult {
 export class GetStaffUseCase {
   constructor(@Inject(STAFF_REPOSITORY) private readonly staffRepo: IStaffRepository) {}
 
-  async execute(dto: GetStaffDto): Promise<GetStaffUseCaseResult> {
-    const { items, total } = await this.staffRepo.findAllByTenant(dto.tenantId, {
-      ids: dto.ids,
-      roles: dto.roles,
-      status: dto.status,
-      search: dto.search,
-      limit: dto.limit,
-      offset: dto.offset,
+  async execute(input: GetStaffUseCaseInput): Promise<GetStaffUseCaseResult> {
+    const { items, total } = await this.staffRepo.findAllByTenant(input.tenantId, {
+      ids: input.ids,
+      roles: input.roles,
+      status: input.status,
+      search: input.search,
+      limit: input.limit,
+      offset: input.offset,
     });
-    const hasMore = dto.offset + items.length < total;
+    const hasMore = input.offset + items.length < total;
 
     return {
       items: items.map((s) => ({
@@ -62,11 +62,11 @@ export class GetStaffUseCase {
         createdAt: s.createdAt.toISOString(),
       })),
       pagination: {
-        limit: dto.limit,
-        offset: dto.offset,
+        limit: input.limit,
+        offset: input.offset,
         total,
         hasMore,
-        nextOffset: hasMore ? dto.offset + items.length : null,
+        nextOffset: hasMore ? input.offset + items.length : null,
       },
     };
   }

@@ -1,0 +1,97 @@
+import { checkBffTypesLiveInModuleFiles } from '../index';
+import { expectScannedTargets, expectZeroTargets, fixtureProject } from '../testing/fixtures';
+
+const CONTROLLER_FILE = 'apps/bff/src/features/demo/demo.controller.ts';
+
+describe('checkBffTypesLiveInModuleFiles', () => {
+  it('passes when the controller only imports/re-exports types, declaring none itself', () => {
+    const project = fixtureProject({
+      'apps/bff/src/features/demo/demo.types.ts': `
+        export interface DemoResponse { id: string }
+      `,
+      'apps/bff/src/features/demo/demo.schemas.ts': `
+        import { z } from 'zod';
+        export const CreateDemoBodySchema = z.object({ name: z.string() });
+        export type CreateDemoBody = z.infer<typeof CreateDemoBodySchema>;
+      `,
+      [CONTROLLER_FILE]: `
+        import { DemoResponse } from './demo.types';
+        import { CreateDemoBody, CreateDemoBodySchema } from './demo.schemas';
+        export * from './demo.schemas';
+        export class DemoController {
+          create(dto: CreateDemoBody): DemoResponse { return { id: '1' }; }
+        }
+      `,
+    });
+    const result = checkBffTypesLiveInModuleFiles(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toHaveLength(0);
+  });
+
+  it('flags a response interface declared inline in the controller', () => {
+    const project = fixtureProject({
+      [CONTROLLER_FILE]: `
+        export interface DemoResponse { id: string }
+        export class DemoController {
+          get(): DemoResponse { return { id: '1' }; }
+        }
+      `,
+    });
+    const result = checkBffTypesLiveInModuleFiles(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        rule: 'bff-controller-inline-type',
+        message: expect.stringContaining('DemoResponse'),
+      }),
+    ]);
+  });
+
+  it('flags a request Body type alias declared inline in the controller', () => {
+    const project = fixtureProject({
+      [CONTROLLER_FILE]: `
+        import { z } from 'zod';
+        const CreateDemoBodySchema = z.object({ name: z.string() });
+        type CreateDemoBody = z.infer<typeof CreateDemoBodySchema>;
+        export class DemoController {
+          create(dto: CreateDemoBody): void {}
+        }
+      `,
+    });
+    const result = checkBffTypesLiveInModuleFiles(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        rule: 'bff-controller-inline-type',
+        message: expect.stringContaining('CreateDemoBody'),
+      }),
+    ]);
+  });
+
+  it('does not flag a non-controller file (e.g. the .schemas.ts sibling itself)', () => {
+    const project = fixtureProject({
+      'apps/bff/src/features/demo/demo.schemas.ts': `
+        import { z } from 'zod';
+        export const CreateDemoBodySchema = z.object({ name: z.string() });
+        export type CreateDemoBody = z.infer<typeof CreateDemoBodySchema>;
+      `,
+    });
+    expectZeroTargets(checkBffTypesLiveInModuleFiles(project));
+  });
+
+  it('respects a documented exception', () => {
+    const project = fixtureProject({
+      [CONTROLLER_FILE]: `
+        export interface LegacyDemoResponse { id: string }
+        export class DemoController {
+          get(): LegacyDemoResponse { return { id: '1' }; }
+        }
+      `,
+    });
+    const result = checkBffTypesLiveInModuleFiles(project, [
+      { path: CONTROLLER_FILE, name: 'LegacyDemoResponse' },
+    ]);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toHaveLength(0);
+  });
+});

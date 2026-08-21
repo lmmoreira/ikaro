@@ -9,37 +9,22 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
-import { z } from 'zod';
 import { StaffServiceListResponse, StaffServiceResponse } from '@ikaro/types';
 import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { ServiceDetail, ServiceListResponse } from './services.types';
 import { toStaffServiceListResponse, toStaffServiceResponse } from './services.mapper';
+import {
+  CreateServiceBody,
+  CreateServiceBodySchema,
+  UpdateServiceBody,
+  UpdateServiceBodySchema,
+} from './services.schemas';
 
-const CreateServiceBodySchema = z.object({
-  name: z.string().min(1),
-  description: z.string().optional(),
-  priceAmount: z.number().positive(),
-  durationMinutes: z.number().int().positive(),
-  loyaltyPointsValue: z.number().int().min(0),
-  requiresPickupAddress: z.boolean().optional(),
-  isActive: z.boolean().optional(),
-});
-
-const UpdateServiceBodySchema = z
-  .object({
-    name: z.string().min(1).optional(),
-    description: z.string().nullable().optional(),
-    priceAmount: z.number().positive().optional(),
-    durationMinutes: z.number().int().positive().optional(),
-    loyaltyPointsValue: z.number().int().min(0).optional(),
-    requiresPickupAddress: z.boolean().optional(),
-  })
-  .default({});
-
-type CreateServiceBody = z.infer<typeof CreateServiceBodySchema>;
-type UpdateServiceBody = z.infer<typeof UpdateServiceBodySchema>;
+// Request Zod schemas moved to services.schemas.ts (TD37-S10) — re-exported here so existing
+// imports of these symbols from this file keep working unchanged.
+export * from './services.schemas';
 
 @Controller('services')
 export class ServicesController {

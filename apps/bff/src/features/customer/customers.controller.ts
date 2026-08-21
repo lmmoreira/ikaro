@@ -1,14 +1,11 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Query } from '@nestjs/common';
-import { z } from 'zod';
 import {
   BffErrorCode,
   CustomerProfileResponse,
   CustomerSearchListResponse,
-  PhoneErrorCode,
   TenantOption,
 } from '@ikaro/types';
 import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
-import { AddressSchema, isValidPhoneNumber } from '@ikaro/validation';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { CustomerTenantSummaryResponse } from '../auth/auth.types';
@@ -20,28 +17,17 @@ import {
   LoyaltyBalanceItem,
 } from './customers.types';
 import { throwProblemDetail } from '../../shared/http/problem-detail';
+import {
+  CustomerSearchQuery,
+  CustomerSearchQuerySchema,
+  UpdateCustomerProfileBody,
+  UpdateCustomerProfileBodySchema,
+} from './customers.schemas';
 
-export const UpdateCustomerProfileBodySchema = z.object({
-  name: z.string().min(1).optional(),
-  phone: z
-    .string()
-    .refine((v) => isValidPhoneNumber(v), {
-      error: 'phone must be in E.164 format',
-      params: { code: PhoneErrorCode.FORMAT_INVALID },
-    })
-    .nullable()
-    .optional(),
-  defaultAddress: AddressSchema.nullable().optional(),
-});
-
-export type UpdateCustomerProfileBody = z.infer<typeof UpdateCustomerProfileBodySchema>;
-
-const CustomerSearchQuerySchema = z.object({
-  search: z.string().trim().min(1).optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-});
-
-type CustomerSearchQuery = z.infer<typeof CustomerSearchQuerySchema>;
+// Request Zod schemas moved to customers.schemas.ts (TD37-S10) — re-exported here so existing
+// imports of these symbols from this file (e.g. address-schema-code-reuse.spec.ts) keep
+// working unchanged.
+export * from './customers.schemas';
 
 @Controller('customers')
 export class CustomersController {

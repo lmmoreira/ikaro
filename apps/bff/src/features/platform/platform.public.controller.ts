@@ -10,7 +10,6 @@ import {
   Post,
   Req,
 } from '@nestjs/common';
-import { z } from 'zod';
 import {
   HotsiteChatbotMessageResponse,
   HotsiteChatbotStatusResponse,
@@ -25,7 +24,12 @@ import { withPublicTenant } from '../../shared/http/public-tenant';
 import { TenantInfoResponse } from '../../shared/types/backend-responses';
 import { getBusinessContext, getServicesContext } from './chatbot-context';
 import { buildSystemPrompt } from './chatbot.mapper';
-import { BackendHotsiteManifestResponse } from './platform.types';
+import { BackendHotsiteManifestResponse, BackendSendChatMessageBody } from './platform.types';
+import { ChatbotMessageBody, ChatbotMessageBodySchema } from './platform.public.schemas';
+
+// Request Zod schema moved to platform.public.schemas.ts (TD37-S10) — re-exported here so
+// existing imports of these symbols from this file keep working unchanged.
+export * from './platform.public.schemas';
 
 // Above the shared 10s default (BackendHttpService's other calls): the backend's own
 // per-OpenRouter-attempt timeout is 8s (OPENROUTER_TIMEOUT_MS), so a single genuine slow-but-real
@@ -33,28 +37,6 @@ import { BackendHotsiteManifestResponse } from './platform.types';
 // that headroom plus margin for the BFF<->backend hop itself, so a real (if slow) answer isn't
 // cut off here and reported as "unavailable" while the backend was still going to succeed.
 export const CHATBOT_MESSAGE_TIMEOUT_MS = 12_000;
-
-// `maxMessageLengthChars` (default 1000) is an Ikaro-only override (docs/21-TENANTS_SETTINGS_SCHEMA.md
-// §7 — "No" tenant-editable, set only via a direct DB update, never returned by any BFF-reachable
-// read) — the BFF has no way to know a tenant's real resolved value, so it must never guess at a
-// business-rule ceiling here (same reasoning §7 already applies to knowledgeText/maxKnowledgeTextLength:
-// a static bound at this layer must never be the tenant's real cap, or an above-default override
-// would be silently unenforceable). This 5000 mirrors the backend's own SendChatMessageSchema outer
-// bound — an absurd-payload sanity guard only. The real, tenant-resolved rejection happens
-// backend-side in SendChatMessageUseCase, still before any LLM call (PR #373 review, Codex).
-const ChatbotMessageBodySchema = z.object({
-  sessionId: z.uuid().optional(),
-  message: z.string().min(1).max(5000),
-});
-
-type ChatbotMessageBody = z.infer<typeof ChatbotMessageBodySchema>;
-
-interface BackendSendChatMessageBody {
-  sessionId?: string;
-  systemPrompt: string;
-  message: string;
-  clientIp: string;
-}
 
 @Controller('public/platform')
 export class PlatformPublicController {
