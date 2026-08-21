@@ -9,6 +9,7 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../../shared/ports/transaction-manager.port';
 import { SendBookingInfoSubmittedNotificationDto } from '../../dtos/send-booking-info-submitted-notification.dto';
+import { BaseNotificationDto } from '../../dtos/base-notification.dto';
 import {
   INotificationDispatcher,
   NOTIFICATION_DISPATCHER,
@@ -36,8 +37,11 @@ import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.BOOKING_INFO_SUBMITTED_ADMIN;
 
-export type SendBookingInfoSubmittedNotificationUseCaseInput =
-  SendBookingInfoSubmittedNotificationDto;
+export interface SendBookingInfoSubmittedNotificationUseCaseInput extends BaseNotificationDto {
+  bookingId: SendBookingInfoSubmittedNotificationDto['bookingId'];
+  submittedByEmail: SendBookingInfoSubmittedNotificationDto['submittedByEmail'];
+  infoPayload: SendBookingInfoSubmittedNotificationDto['infoPayload'];
+}
 
 export interface SendBookingInfoSubmittedNotificationUseCaseResult {
   emailSent: boolean;

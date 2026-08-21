@@ -1,4 +1,4 @@
-import { InterfaceDeclaration, Project, TypeAliasDeclaration } from 'ts-morph';
+import { InterfaceDeclaration, Project, TypeAliasDeclaration, VariableDeclaration } from 'ts-morph';
 import type { Finding, ScanResult } from '../model';
 import { sourceLine } from '../project';
 
@@ -41,9 +41,24 @@ export function checkBffTypesLiveInModuleFiles(
     // "the glob silently matched nothing."
     scannedTargets++;
 
-    const declarations: Array<InterfaceDeclaration | TypeAliasDeclaration> = [
+    // A Zod schema const (`const XSchema = z.object(...)`) is its own declaration kind —
+    // not an interface/type alias — so it needs separate collection. Matched by name suffix
+    // (top-level `const` ending in "Schema"), the same literal convention this codebase
+    // already uses without exception across every controller (confirmed via full-BFF grep,
+    // TD37-S10) — not by resolving the Zod call chain, which the naming convention already
+    // makes unnecessary. A schema with no paired named type (e.g. validated inline via
+    // `z.infer<typeof XSchema>` at each use site, never extracted to its own type alias)
+    // would otherwise pass silently, since only interfaces/type aliases were scanned before
+    // this (PR #399 review, Codex).
+    const schemaConstants = sourceFile
+      .getVariableStatements()
+      .flatMap((statement) => statement.getDeclarations())
+      .filter((declaration) => declaration.getName().endsWith('Schema'));
+
+    const declarations: Array<InterfaceDeclaration | TypeAliasDeclaration | VariableDeclaration> = [
       ...sourceFile.getInterfaces(),
       ...sourceFile.getTypeAliases(),
+      ...schemaConstants,
     ];
 
     for (const declaration of declarations) {

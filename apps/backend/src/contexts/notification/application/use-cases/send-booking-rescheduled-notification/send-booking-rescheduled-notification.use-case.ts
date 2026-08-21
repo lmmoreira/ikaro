@@ -7,6 +7,7 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../../shared/ports/transaction-manager.port';
 import { SendBookingRescheduledNotificationDto } from '../../dtos/send-booking-rescheduled-notification.dto';
+import { BaseContactNotificationDto } from '../../dtos/base-contact-notification.dto';
 import {
   INotificationDispatcher,
   NOTIFICATION_DISPATCHER,
@@ -32,7 +33,14 @@ import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.p
 import { DEFAULT_LOCALE } from '../../../domain/notification-locale.constants';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
-export type SendBookingRescheduledNotificationUseCaseInput = SendBookingRescheduledNotificationDto;
+export interface SendBookingRescheduledNotificationUseCaseInput extends BaseContactNotificationDto {
+  newSlot: SendBookingRescheduledNotificationDto['newSlot'];
+  previousSlot: SendBookingRescheduledNotificationDto['previousSlot'];
+  rescheduledBy: SendBookingRescheduledNotificationDto['rescheduledBy'];
+  adminNotes: SendBookingRescheduledNotificationDto['adminNotes'];
+  lineSummary: SendBookingRescheduledNotificationDto['lineSummary'];
+  totalPrice: SendBookingRescheduledNotificationDto['totalPrice'];
+}
 
 export interface SendBookingRescheduledNotificationUseCaseResult {
   customerEmailSent: boolean;

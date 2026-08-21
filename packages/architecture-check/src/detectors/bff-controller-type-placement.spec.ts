@@ -47,7 +47,7 @@ describe('checkBffTypesLiveInModuleFiles', () => {
     ]);
   });
 
-  it('flags a request Body type alias declared inline in the controller', () => {
+  it('flags both the inline Zod schema const and its inferred Body type alias', () => {
     const project = fixtureProject({
       [CONTROLLER_FILE]: `
         import { z } from 'zod';
@@ -60,10 +60,31 @@ describe('checkBffTypesLiveInModuleFiles', () => {
     });
     const result = checkBffTypesLiveInModuleFiles(project);
     expectScannedTargets(result, 1);
+    const names = result.findings.map((f) => f.message);
+    expect(result.findings).toHaveLength(2);
+    expect(names.some((m) => m.includes('CreateDemoBodySchema'))).toBe(true);
+    expect(names.some((m) => m.includes('CreateDemoBody'))).toBe(true);
+  });
+
+  it('flags a standalone inline Zod schema const with no paired named type', () => {
+    // The type is never extracted to its own type alias — validated inline via
+    // `z.infer<typeof ...>` at the use site instead. Before the fix (PR #399 review,
+    // Codex), only interfaces/type aliases were scanned, so this passed silently.
+    const project = fixtureProject({
+      [CONTROLLER_FILE]: `
+        import { z } from 'zod';
+        const CreateDemoBodySchema = z.object({ name: z.string() });
+        export class DemoController {
+          create(dto: z.infer<typeof CreateDemoBodySchema>): void {}
+        }
+      `,
+    });
+    const result = checkBffTypesLiveInModuleFiles(project);
+    expectScannedTargets(result, 1);
     expect(result.findings).toEqual([
       expect.objectContaining({
         rule: 'bff-controller-inline-type',
-        message: expect.stringContaining('CreateDemoBody'),
+        message: expect.stringContaining('CreateDemoBodySchema'),
       }),
     ]);
   });

@@ -199,4 +199,54 @@ describe('checkUseCaseInputNaming', () => {
     });
     expectZeroTargets(checkUseCaseInputNaming(project));
   });
+
+  it('flags a bare type alias that re-exports an HTTP Dto without adding anything', () => {
+    const project = fixtureProject({
+      [FILE]: `
+        export interface GetDemoDto { id: string }
+        export type GetDemoUseCaseInput = GetDemoDto;
+        export class GetDemoUseCase {
+          async execute(input: GetDemoUseCaseInput): Promise<void> { return; }
+        }
+      `,
+    });
+    const result = checkUseCaseInputNaming(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        rule: 'use-case-input-naming',
+        message: expect.stringContaining('GetDemoDto'),
+      }),
+    ]);
+  });
+
+  it('passes when the Input type extends the Dto via a real interface declaration', () => {
+    const project = fixtureProject({
+      [FILE]: `
+        export interface GetDemoDto { id: string }
+        export interface GetDemoUseCaseInput extends GetDemoDto {}
+        export class GetDemoUseCase {
+          async execute(input: GetDemoUseCaseInput): Promise<void> { return; }
+        }
+      `,
+    });
+    const result = checkUseCaseInputNaming(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toHaveLength(0);
+  });
+
+  it('passes when the Input type intersects the Dto with extra context-derived fields', () => {
+    const project = fixtureProject({
+      [FILE]: `
+        export interface GetDemoDto { id: string }
+        export type GetDemoInput = GetDemoDto & { tenantId: string };
+        export class GetDemoUseCase {
+          async execute(input: GetDemoInput): Promise<void> { return; }
+        }
+      `,
+    });
+    const result = checkUseCaseInputNaming(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toHaveLength(0);
+  });
 });

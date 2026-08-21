@@ -10,6 +10,7 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../../shared/ports/transaction-manager.port';
 import { SendBookingInfoRequestedNotificationDto } from '../../dtos/send-booking-info-requested-notification.dto';
+import { BaseContactNotificationDto } from '../../dtos/base-contact-notification.dto';
 import {
   INotificationDispatcher,
   NOTIFICATION_DISPATCHER,
@@ -35,8 +36,11 @@ import { BaseNotificationUseCase } from '../base-notification.use-case';
 const TRIGGER = NotificationTemplateKey.BOOKING_INFO_REQUESTED_CUSTOMER;
 const GUEST_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
 
-export type SendBookingInfoRequestedNotificationUseCaseInput =
-  SendBookingInfoRequestedNotificationDto;
+export interface SendBookingInfoRequestedNotificationUseCaseInput extends BaseContactNotificationDto {
+  bookingId: SendBookingInfoRequestedNotificationDto['bookingId'];
+  customerId: SendBookingInfoRequestedNotificationDto['customerId'];
+  informationNeeded: SendBookingInfoRequestedNotificationDto['informationNeeded'];
+}
 
 export interface SendBookingInfoRequestedNotificationUseCaseResult {
   emailSent: boolean;

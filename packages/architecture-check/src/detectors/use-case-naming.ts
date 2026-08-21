@@ -6,6 +6,7 @@ import {
   SourceFile,
   SyntaxKind,
   TypeNode,
+  TypeReferenceNode,
 } from 'ts-morph';
 import type { Finding, ScanResult } from '../model';
 import { sourceLine } from '../project';
@@ -114,6 +115,39 @@ export function checkUseCaseResultNaming(project: Project): ScanResult {
   return { rule: 'use-case-result-naming', scannedTargets, findings };
 }
 
+const MAX_ALIAS_DEPTH = 3;
+
+// Resolves a `type X = Y` alias's target — but ONLY when Y is written as a bare type
+// reference (no intersection, union, or added members). `interface X extends YDto {}` and
+// `type X = YDto & { ...extra fields }` both genuinely declare their own shape and are the
+// codebase's accepted ways to combine an application Input type with a validated Dto's
+// fields (e.g. ApproveBookingInput, ~28 use cases) — only a *bare* re-export that adds
+// nothing (`type X = YDto;`) is real conflation wearing an Input-named mask (PR #399 review,
+// Codex: FindOrCreateCustomerUseCaseInput/BookingReminderNotificationUseCaseInput both did
+// exactly this, undetected until then).
+function resolveBareTypeAlias(typeRef: TypeReferenceNode): TypeReferenceNode | undefined {
+  const symbol = typeRef.getTypeName().getSymbol();
+  const declaration = (symbol?.getAliasedSymbol() ?? symbol)
+    ?.getDeclarations()
+    .find((d) => Node.isTypeAliasDeclaration(d));
+  if (!declaration || !Node.isTypeAliasDeclaration(declaration)) return undefined;
+  const aliasedType = declaration.getTypeNode();
+  return aliasedType && Node.isTypeReference(aliasedType) ? aliasedType : undefined;
+}
+
+// Walks a bounded chain of bare aliases (`type A = B; type B = CDto;`) and returns the first
+// name in the chain ending in "Dto" — the starting type's own name if it's a direct Dto
+// reference, or a resolved alias target's name otherwise.
+function resolvesToDtoName(typeRef: TypeReferenceNode): string | undefined {
+  let current: TypeReferenceNode | undefined = typeRef;
+  for (let depth = 0; current && depth < MAX_ALIAS_DEPTH; depth++) {
+    const name = current.getTypeName().getText();
+    if (name.endsWith('Dto')) return name;
+    current = resolveBareTypeAlias(current);
+  }
+  return undefined;
+}
+
 export function checkUseCaseInputNaming(project: Project): ScanResult {
   const findings: Finding[] = [];
   let scannedTargets = 0;
@@ -129,13 +163,19 @@ export function checkUseCaseInputNaming(project: Project): ScanResult {
     if (!typeNode || !Node.isTypeReference(typeNode)) continue;
 
     const typeName = typeNode.getTypeName().getText();
-    if (!typeName.endsWith('Dto')) continue;
+    const dtoName = resolvesToDtoName(typeNode);
+    if (!dtoName) continue;
+
+    const message =
+      dtoName === typeName
+        ? `${className}.execute() takes "${typeName}" directly. Application input types must never be named/typed as an HTTP "*Dto" — define a dedicated "${className}Input" type owned by the use case, and have the calling controller construct it explicitly from the validated Dto (see rename-tenant.use-case.ts for the reference pattern; docs/AGENT_PATTERNS.md § Naming).`
+        : `${className}.execute() takes "${typeName}", a bare alias ("type ${typeName} = ${dtoName}") for the HTTP Dto "${dtoName}" that adds nothing — still conflates the two contracts despite the Input-suffixed name. Declare "interface ${typeName} extends ${dtoName} { ... }" instead (see find-or-create-customer.use-case.ts for the reference pattern), or "${dtoName} & { ...extra fields }" if merging in context-derived fields (see approve-booking.use-case.ts).`;
 
     findings.push({
       rule: 'use-case-input-naming',
       file: sourceFile.getFilePath(),
       line: sourceLine(sourceFile, execute.getStart()),
-      message: `${className}.execute() takes "${typeName}" directly. Application input types must never be named/typed as an HTTP "*Dto" — define a dedicated "${className}Input" type owned by the use case, and have the calling controller construct it explicitly from the validated Dto (see rename-tenant.use-case.ts for the reference pattern; docs/AGENT_PATTERNS.md § Naming).`,
+      message,
     });
   }
 

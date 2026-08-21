@@ -5,6 +5,7 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../../shared/ports/transaction-manager.port';
 import { SendBookingRejectedNotificationDto } from '../../dtos/send-booking-rejected-notification.dto';
+import { BaseContactNotificationDto } from '../../dtos/base-contact-notification.dto';
 import {
   INotificationDispatcher,
   NOTIFICATION_DISPATCHER,
@@ -28,7 +29,9 @@ import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.BOOKING_REJECTED_CUSTOMER;
 
-export type SendBookingRejectedNotificationUseCaseInput = SendBookingRejectedNotificationDto;
+export interface SendBookingRejectedNotificationUseCaseInput extends BaseContactNotificationDto {
+  reason: SendBookingRejectedNotificationDto['reason'];
+}
 
 export interface SendBookingRejectedNotificationUseCaseResult {
   emailSent: boolean;
