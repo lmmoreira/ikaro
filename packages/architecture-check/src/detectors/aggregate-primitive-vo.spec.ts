@@ -95,6 +95,97 @@ describe('checkAggregatePropsUseSharedValueObjects', () => {
     expect(result.findings).toHaveLength(0);
   });
 
+  it('flags a mixed union that still retains a primitive alternative alongside the VO', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/contexts/demo/domain/demo.aggregate.ts': `
+        class Email {}
+        interface DemoProps {
+          contactEmail: Email | string;
+        }
+        class Demo {
+          private readonly props: DemoProps;
+        }
+      `,
+    });
+    const result = checkAggregatePropsUseSharedValueObjects(project, REGISTRY);
+    // A caller can still assign a raw string through the primitive half of the union — this
+    // must be flagged, not accepted just because one member happens to match the VO name.
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        rule: 'aggregate-primitive-vo',
+        message: expect.stringContaining('Demo.contactEmail'),
+      }),
+    ]);
+  });
+
+  it('flags a primitive field inherited via an extended Props interface', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/contexts/demo/domain/demo.aggregate.ts': `
+        interface CommonProps {
+          contactEmail: string;
+        }
+        interface DemoProps extends CommonProps {
+          name: string;
+        }
+        class Demo {
+          private readonly props: DemoProps;
+        }
+      `,
+    });
+    const result = checkAggregatePropsUseSharedValueObjects(project, REGISTRY);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        rule: 'aggregate-primitive-vo',
+        message: expect.stringContaining('Demo.contactEmail'),
+      }),
+    ]);
+  });
+
+  it('recurses into an inline type-literal nested shape, not only a named interface', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/contexts/demo/domain/demo.aggregate.ts': `
+        interface DemoProps {
+          branding: { primaryColor: string };
+        }
+        class Demo {
+          private readonly props: DemoProps;
+        }
+      `,
+    });
+    const result = checkAggregatePropsUseSharedValueObjects(project, REGISTRY);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        rule: 'aggregate-primitive-vo',
+        message: expect.stringContaining('Demo.primaryColor'),
+      }),
+    ]);
+  });
+
+  it('recurses into a nested shape referenced via a type alias', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/contexts/demo/domain/demo.aggregate.ts': `
+        type BrandingProps = { primaryColor: string };
+        interface DemoProps {
+          branding: BrandingProps;
+        }
+        class Demo {
+          private readonly props: DemoProps;
+        }
+      `,
+    });
+    const result = checkAggregatePropsUseSharedValueObjects(project, REGISTRY);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        rule: 'aggregate-primitive-vo',
+        message: expect.stringContaining('Demo.primaryColor'),
+      }),
+    ]);
+  });
+
   it('allows a registered public-transport primitive via a documented exception', () => {
     const project = fixtureProject({
       '/repo/apps/backend/src/contexts/demo/domain/demo.aggregate.ts': `

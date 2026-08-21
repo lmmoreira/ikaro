@@ -32,6 +32,8 @@ Fields with domain validation → `src/shared/value-objects/` (never plain primi
 
 Every VO must have a `.spec.ts` covering valid and invalid inputs. PhoneNumber format and normalisation boundary rules → `docs/CODE_STANDARDS.md`.
 
+**Adding a new VO:** also add its concept entry to `packages/architecture-check/architecture-policy.json`'s `aggregateValueObjectRegistry` (exact field names or a camelCase suffix rule, mapped to the VO's class name) — this is what `pnpm architecture-check`'s `aggregate-primitive-vo` detector (TD37-S09) uses to flag a future aggregate field for that concept left as a plain primitive. A brand-new *aggregate* that reuses an already-registered concept needs no registry change — the check is concept-driven, not per-aggregate.
+
 ### Option A — aggregate props typed as VOs (mandatory)
 
 Aggregate props interfaces use VO types; getters return VOs; `create()` constructs VOs from raw strings; `reconstitute()` skips validation. JSONB columns require a double cast (`as unknown as XxxProps`).

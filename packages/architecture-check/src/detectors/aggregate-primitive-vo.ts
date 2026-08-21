@@ -1,4 +1,11 @@
-import { InterfaceDeclaration, Node, Project, SyntaxKind, Type } from 'ts-morph';
+import {
+  Node,
+  Project,
+  PropertySignature,
+  Symbol as TsMorphSymbol,
+  SyntaxKind,
+  Type,
+} from 'ts-morph';
 import type { Finding, ScanResult } from '../model';
 import { sourceLine } from '../project';
 
@@ -24,6 +31,7 @@ export interface AggregatePrimitiveVoExemption {
 }
 
 const AGGREGATE_FILE = /\/domain\/[^/]+\.aggregate\.ts$/;
+const MAX_WALK_DEPTH = 8;
 
 function matchesConcept(propertyName: string, concept: AggregateValueObjectConcept): boolean {
   return (
@@ -48,22 +56,32 @@ function isPlainPrimitive(type: Type): boolean {
   return type.isString() || type.isNumber() || type.isStringLiteral() || type.isNumberLiteral();
 }
 
-function resolvePlainInterface(type: Type): InterfaceDeclaration | undefined {
-  return type.getSymbol()?.getDeclarations().find(Node.isInterfaceDeclaration);
-}
-
 function isClassType(type: Type): boolean {
   return Boolean(type.getSymbol()?.getDeclarations().some(Node.isClassDeclaration));
 }
 
+// A recursable plain data shape: an object type (interface, inline type literal, or an
+// interface inherited via `extends` — the resolved Type's own `getProperties()` already
+// flattens inheritance, so no separate inherited-member handling is needed) that is NOT a
+// class/VO. Arrays are object types too but are never a nested Props shape in this codebase.
+function isRecursablePlainShape(type: Type): boolean {
+  return type.isObject() && !type.isArray() && !isClassType(type);
+}
+
+function propertyDeclaration(symbol: TsMorphSymbol): PropertySignature | undefined {
+  return symbol.getDeclarations().find(Node.isPropertySignature);
+}
+
 // Aggregate props typed as primitive when a VO exists (bad-smell-audit BE-1, TD37-S09).
-// Resolves each aggregate class's own `props: XxxProps` field and walks its shape, recursing
-// through plain nested object types (organizational sub-shapes of the SAME props tree, e.g.
-// HotsiteConfigProps.branding: HotsiteBrandingProps) but stopping the moment a property
-// resolves to a class/VO type. A class-typed field already encapsulates its own internals per
-// Option A ("aggregate props interfaces use VO types") — that VO's own private representation
-// (e.g. TenantSettings' internal TenantSettingsData, validated by its own Validator classes) is
-// that VO's concern, not a flat property of the aggregate this check enforces.
+// Resolves each aggregate class's own `props: XxxProps` field and walks its resolved TYPE
+// (not the AST interface declaration) — this covers a plain nested interface, an inline object
+// literal shape, and a property inherited via `interface Xxx extends Common` uniformly, since
+// TypeScript's own structural type system already flattens all three into the same resolved
+// property list. Recursion stops the moment a property resolves to a class/VO type: a
+// class-typed field already encapsulates its own internals per Option A ("aggregate props
+// interfaces use VO types") — that VO's own private representation (e.g. TenantSettings'
+// internal TenantSettingsData, validated by its own Validator classes) is that VO's concern,
+// not a flat property of the aggregate this check enforces.
 export function checkAggregatePropsUseSharedValueObjects(
   project: Project,
   registry: AggregateValueObjectConcept[],
@@ -78,46 +96,50 @@ export function checkAggregatePropsUseSharedValueObjects(
     );
   }
 
-  function walk(
-    interfaceDeclaration: InterfaceDeclaration,
-    className: string,
-    seen: Set<InterfaceDeclaration>,
-  ): void {
-    if (seen.has(interfaceDeclaration)) return;
-    seen.add(interfaceDeclaration);
+  function walk(type: Type, className: string, seen: Set<unknown>, depth: number): void {
+    if (depth > MAX_WALK_DEPTH) return;
+    const identity = type.getSymbol() ?? type;
+    if (seen.has(identity)) return;
+    seen.add(identity);
 
-    for (const property of interfaceDeclaration.getProperties()) {
-      const propertyName = property.getName();
-      const propertyType = property.getType();
+    for (const propertySymbol of type.getProperties()) {
+      const declaration = propertyDeclaration(propertySymbol);
+      if (!declaration) continue;
+
+      const propertyName = propertySymbol.getName();
+      const propertyType = declaration.getType();
       const constituents = nonNullishConstituents(propertyType);
       if (constituents.length === 0) continue;
 
-      if (constituents.length === 1 && !isClassType(constituents[0])) {
-        const nestedInterface = resolvePlainInterface(constituents[0]);
-        if (nestedInterface) {
-          walk(nestedInterface, className, seen);
-          continue;
-        }
+      if (constituents.length === 1 && isRecursablePlainShape(constituents[0])) {
+        walk(constituents[0], className, seen, depth + 1);
+        continue;
       }
 
       const concept = findConcept(propertyName, registry);
       if (!concept) continue;
 
       scannedTargets++;
+      // Every non-nullish constituent must resolve to the required VO — a mixed union like
+      // `Email | string` must not pass just because one member happens to match; that still
+      // lets a caller assign a raw, unvalidated string. Flag whenever the type isn't fully and
+      // solely the VO AND at least one constituent is a bypassable primitive — a constituent
+      // that's some other, unrelated type (not the VO, not a primitive) is a different kind of
+      // mismatch, out of this rule's scope per "does NOT catch a genuinely new field type".
       const typeNames = constituents.map(
         (constituent) => constituent.getSymbol()?.getName() ?? constituent.getText(),
       );
-      if (typeNames.includes(concept.requiredType)) continue;
-      if (!constituents.every(isPlainPrimitive)) continue;
+      if (typeNames.every((name) => name === concept.requiredType)) continue;
+      if (!constituents.some(isPlainPrimitive)) continue;
 
-      const propertySourceFile = property.getSourceFile();
+      const propertySourceFile = declaration.getSourceFile();
       const filePath = propertySourceFile.getFilePath();
       if (isExempt(filePath, propertyName)) continue;
 
       findings.push({
         rule: 'aggregate-primitive-vo',
         file: filePath,
-        line: sourceLine(propertySourceFile, property.getStart()),
+        line: sourceLine(propertySourceFile, declaration.getStart()),
         message: `${className}.${propertyName} is typed as ${propertyType.getText()} but this codebase already has a ${concept.requiredType} value object (${concept.voFile}) for this concept — use it instead of a plain primitive.`,
       });
     }
@@ -130,10 +152,10 @@ export function checkAggregatePropsUseSharedValueObjects(
     for (const classDeclaration of sourceFile.getDescendantsOfKind(SyntaxKind.ClassDeclaration)) {
       const propsProperty = classDeclaration.getProperty('props');
       if (!propsProperty) continue;
-      const propsInterface = resolvePlainInterface(propsProperty.getType());
-      if (!propsInterface) continue;
+      const propsType = propsProperty.getType();
+      if (!isRecursablePlainShape(propsType)) continue;
       const className = classDeclaration.getName() ?? '<anonymous>';
-      walk(propsInterface, className, new Set());
+      walk(propsType, className, new Set(), 0);
     }
   }
 
