@@ -4,8 +4,10 @@ import type { Project } from 'ts-morph';
 import {
   checkEntityBuilderPrimaryKeyDefaults,
   checkErrorMapperCoverage,
+  checkGlobalModuleExportPairing,
   checkNoJestFnForRepositoryOrPortMocks,
   checkPrototypeChainSafety,
+  checkReverseDiAlias,
   checkSharedValueObjectErrorMapperCoverage,
   checkTestBuilderCoverage,
   checkTestDataHarnessRegistrations,
@@ -78,6 +80,8 @@ const results = [
   checkTransactionalSaves(backend),
   checkErrorMapperCoverage(backend, intentionalErrorMapperGaps),
   checkUnsafeUseExisting(backend),
+  checkReverseDiAlias(backend),
+  checkGlobalModuleExportPairing(backend),
   mergeScanResults('error-prototype-chain', [
     checkPrototypeChainSafety(backend),
     checkPrototypeChainSafety(bff),
