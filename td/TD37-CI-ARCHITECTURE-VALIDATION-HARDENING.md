@@ -373,13 +373,14 @@ Use a closed, reviewed registry mapping each aggregate's persisted private prope
 
 - Use case result type is named `{UseCaseClassName}Result`, never `*Info`/`*Dto`/raw `T[]`; first migrate the current baseline violations and state their scope.
 - Distinguish application `UseCaseNameInput` types from HTTP `{Action}Dto` schemas; do not conflate the two documented contracts.
-- BFF response interfaces **and type aliases** live in `<module>.types.ts`, never declared inline in a `*.controller.ts`, with documented shared response/DTO exceptions.
+- BFF response interfaces and type aliases live in `<module>.types.ts`; request Zod schemas and their inferred `Body`/`Query` types live in `<module>.schemas.ts` — neither may be declared inline in a `*.controller.ts`, with documented shared response/DTO exceptions. Baseline migration: extract the 12 controllers that still declare schemas inline into a sibling `<module>.schemas.ts` (mirror `booking/bookings.schemas.ts`'s existing split, including its re-export-from-controller convention so `.spec.ts` files that import these symbols from the controller don't need to change): `booking/services.controller.ts`, `booking/schedule.controller.ts`, `booking/schedule-opening.controller.ts`, `booking/schedule-availability.controller.ts`, `booking/schedule-availability-summary.controller.ts`, `customer/customers.controller.ts`, `loyalty/loyalty.controller.ts`, `staff/staff.controller.ts`, `platform/platform.public.controller.ts`, `platform/tenant.controller.ts`, `platform/tenant-settings.controller.ts`, `platform/hotsite-admin.controller.ts`.
 
 **What it catches**: naming drift that makes types unpredictable to find/import — a real, if low-severity, recurring pattern per the doc's own examples.
 **What it does NOT catch**: whether the *shape* of the DTO is correct — purely a naming check.
 
 **Acceptance criteria**:
 - [ ] All 3 checks pass against `main` after the identified baseline migration
+- [ ] All 12 baseline BFF controllers have their inline Zod schemas/inferred types extracted to `<module>.schemas.ts`, following `bookings.schemas.ts`'s pattern
 - [ ] Positive/negative fixtures distinguish application input, transport DTO, results, BFF type aliases, and documented exceptions
 
 ---
