@@ -3,7 +3,7 @@ import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import { GenerateAttachmentSignedUrlDto } from '../dtos/generate-attachment-signed-url.dto';
 
-export type GenerateAttachmentSignedUrlInput = GenerateAttachmentSignedUrlDto & {
+export type GenerateAttachmentSignedUrlUseCaseInput = GenerateAttachmentSignedUrlDto & {
   tenantId: string;
 };
 
@@ -18,7 +18,7 @@ export class GenerateAttachmentSignedUrlUseCase {
   constructor(@Inject(STORAGE_SERVICE) private readonly storageService: IStorageService) {}
 
   async execute(
-    input: GenerateAttachmentSignedUrlInput,
+    input: GenerateAttachmentSignedUrlUseCaseInput,
   ): Promise<GenerateAttachmentSignedUrlUseCaseResult> {
     const { tenantId } = input;
 

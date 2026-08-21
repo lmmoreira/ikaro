@@ -7,7 +7,7 @@ import { ServiceNotFoundError } from '../../domain/errors/booking-domain.error';
 import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 
-export type ActivateServiceInput = {
+export type ActivateServiceUseCaseInput = {
   id: string;
   tenantId: string;
 };
@@ -25,7 +25,7 @@ export class ActivateServiceUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(input: ActivateServiceInput): Promise<ActivateServiceUseCaseResult> {
+  async execute(input: ActivateServiceUseCaseInput): Promise<ActivateServiceUseCaseResult> {
     const { id, tenantId } = input;
     const service = await this.serviceRepo.findById(id, tenantId);
     if (!service) throw new ServiceNotFoundError(id);

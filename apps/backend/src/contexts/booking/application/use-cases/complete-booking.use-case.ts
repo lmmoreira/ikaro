@@ -17,7 +17,7 @@ import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-reposit
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import { CompleteBookingDto } from '../dtos/complete-booking.dto';
 
-export type CompleteBookingInput = CompleteBookingDto & {
+export type CompleteBookingUseCaseInput = CompleteBookingDto & {
   bookingId: string;
   tenantId: string;
   staffId: string;
@@ -43,7 +43,7 @@ export class CompleteBookingUseCase {
     private readonly photoExistenceService: PhotoExistenceService,
   ) {}
 
-  async execute(input: CompleteBookingInput): Promise<CompleteBookingUseCaseResult> {
+  async execute(input: CompleteBookingUseCaseInput): Promise<CompleteBookingUseCaseResult> {
     const { tenantId, staffId, correlationId, currency } = input;
 
     const booking = await this.findAndValidateBooking(input, tenantId);
@@ -87,7 +87,7 @@ export class CompleteBookingUseCase {
   }
 
   private async findAndValidateBooking(
-    input: CompleteBookingInput,
+    input: CompleteBookingUseCaseInput,
     tenantId: string,
   ): Promise<Booking> {
     const booking = await this.bookingRepo.findById(input.bookingId, tenantId);
@@ -115,7 +115,7 @@ export class CompleteBookingUseCase {
     };
   }
 
-  private validateDiscount(input: CompleteBookingInput, booking: Booking): void {
+  private validateDiscount(input: CompleteBookingUseCaseInput, booking: Booking): void {
     if (!input.discountByPoints) return;
 
     if (booking.customerId === null) throw new BookingDiscountNotAvailableError();

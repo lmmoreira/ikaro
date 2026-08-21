@@ -22,7 +22,7 @@ import {
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { GetAvailabilityDto } from '../dtos/get-availability.dto';
 
-export type GetAvailabilityInput = GetAvailabilityDto & {
+export type GetAvailabilityUseCaseInput = GetAvailabilityDto & {
   tenantId: string;
   businessHours: BusinessHours;
   slotGranularityMinutes: 15 | 30 | 60;
@@ -51,7 +51,7 @@ export class GetAvailabilityUseCase {
     private readonly availabilityService: AvailabilityService,
   ) {}
 
-  async execute(input: GetAvailabilityInput): Promise<GetAvailabilityUseCaseResult> {
+  async execute(input: GetAvailabilityUseCaseInput): Promise<GetAvailabilityUseCaseResult> {
     const { tenantId, businessHours, slotGranularityMinutes, serviceBufferMinutes } = input;
 
     const today = todayUTC();

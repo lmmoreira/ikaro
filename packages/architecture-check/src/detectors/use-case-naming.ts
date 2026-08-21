@@ -121,10 +121,10 @@ const MAX_ALIAS_DEPTH = 3;
 // reference (no intersection, union, or added members). `interface X extends YDto {}` and
 // `type X = YDto & { ...extra fields }` both genuinely declare their own shape and are the
 // codebase's accepted ways to combine an application Input type with a validated Dto's
-// fields (e.g. ApproveBookingInput, ~28 use cases) — only a *bare* re-export that adds
-// nothing (`type X = YDto;`) is real conflation wearing an Input-named mask (PR #399 review,
-// Codex: FindOrCreateCustomerUseCaseInput/BookingReminderNotificationUseCaseInput both did
-// exactly this, undetected until then).
+// fields (e.g. ApproveBookingUseCaseInput, ~27 use cases) — only a *bare* re-export that
+// adds nothing (`type X = YDto;`) is real conflation wearing an Input-named mask (PR #399
+// review, Codex: FindOrCreateCustomerUseCaseInput/BookingReminderNotificationUseCaseInput
+// both did exactly this, undetected until then).
 function resolveBareTypeAlias(typeRef: TypeReferenceNode): TypeReferenceNode | undefined {
   const symbol = typeRef.getTypeName().getSymbol();
   const declaration = (symbol?.getAliasedSymbol() ?? symbol)
@@ -167,18 +167,38 @@ export function checkUseCaseInputNaming(project: Project): ScanResult {
 
     const typeName = typeNode.getTypeName().getText();
     const dtoName = resolvesToDtoName(typeNode);
-    if (!dtoName) continue;
+    const line = sourceLine(sourceFile, execute.getStart());
 
-    const message =
-      dtoName === typeName
-        ? `${className}.execute() takes "${typeName}" directly. Application input types must never be named/typed as an HTTP "*Dto" — define a dedicated "${className}Input" type owned by the use case, and have the calling controller construct it explicitly from the validated Dto (see rename-tenant.use-case.ts for the reference pattern; docs/AGENT_PATTERNS.md § Naming).`
-        : `${className}.execute() takes "${typeName}", a bare alias ("type ${typeName} = ${dtoName}") for the HTTP Dto "${dtoName}" that adds nothing — still conflates the two contracts despite the Input-suffixed name. Declare "interface ${typeName} extends ${dtoName} { ... }" instead (see find-or-create-customer.use-case.ts for the reference pattern), or "${dtoName} & { ...extra fields }" if merging in context-derived fields (see approve-booking.use-case.ts).`;
+    if (dtoName) {
+      const message =
+        dtoName === typeName
+          ? `${className}.execute() takes "${typeName}" directly. Application input types must never be named/typed as an HTTP "*Dto" — define a dedicated "${className}Input" type owned by the use case, and have the calling controller construct it explicitly from the validated Dto (see rename-tenant.use-case.ts for the reference pattern; docs/AGENT_PATTERNS.md § Naming).`
+          : `${className}.execute() takes "${typeName}", a bare alias ("type ${typeName} = ${dtoName}") for the HTTP Dto "${dtoName}" that adds nothing — still conflates the two contracts despite the Input-suffixed name. Declare "interface ${typeName} extends ${dtoName} { ... }" instead (see find-or-create-customer.use-case.ts for the reference pattern), or "${dtoName} & { ...extra fields }" if merging in context-derived fields (see approve-booking.use-case.ts).`;
+
+      findings.push({
+        rule: 'use-case-input-naming',
+        file: sourceFile.getFilePath(),
+        line,
+        message,
+      });
+      continue;
+    }
+
+    // Not a Dto/bare-alias conflation — still must match the documented convention exactly
+    // (docs/CODE_STANDARDS.md § Naming conventions: `{ClassName}Input`), not just "any
+    // non-Dto name". A short form missing the `UseCase` segment (e.g. `ApproveBookingInput`
+    // for `ApproveBookingUseCase`) is unpredictable to find/import by the same reasoning the
+    // Result-naming check already applies — flagged separately from Dto conflation since the
+    // fix here is a pure rename, not a structural change (PR #399 review: Codex + CodeRabbit
+    // both independently flagged this gap).
+    const expectedInputName = `${className}Input`;
+    if (typeName === expectedInputName) continue;
 
     findings.push({
       rule: 'use-case-input-naming',
       file: sourceFile.getFilePath(),
-      line: sourceLine(sourceFile, execute.getStart()),
-      message,
+      line,
+      message: `${className}.execute() takes "${typeName}", not the expected "${expectedInputName}". Application input types must be named exactly "{ClassName}Input" (docs/CODE_STANDARDS.md § Naming conventions) — a pure rename here, not a shape change.`,
     });
   }
 

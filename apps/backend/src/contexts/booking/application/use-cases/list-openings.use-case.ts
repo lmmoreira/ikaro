@@ -6,7 +6,7 @@ import {
 import { ListOpeningsDto } from '../dtos/open-schedule.dto';
 import { ScheduleListItem } from '../dtos/schedule-list-item.dto';
 
-export type ListOpeningsInput = ListOpeningsDto & {
+export type ListOpeningsUseCaseInput = ListOpeningsDto & {
   tenantId: string;
 };
 
@@ -21,7 +21,7 @@ export class ListOpeningsUseCase {
     private readonly openingRepo: IScheduleOpeningRepository,
   ) {}
 
-  async execute(input: ListOpeningsInput): Promise<ListOpeningsUseCaseResult> {
+  async execute(input: ListOpeningsUseCaseInput): Promise<ListOpeningsUseCaseResult> {
     const { tenantId } = input;
     const openings = await this.openingRepo.findByTenantAndDateRange(
       tenantId,

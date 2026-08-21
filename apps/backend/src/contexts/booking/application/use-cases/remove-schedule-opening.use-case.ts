@@ -9,7 +9,7 @@ import {
   SCHEDULE_OPENING_REPOSITORY,
 } from '../ports/schedule-opening-repository.port';
 
-export type RemoveScheduleOpeningInput = {
+export type RemoveScheduleOpeningUseCaseInput = {
   id: string;
   tenantId: string;
 };
@@ -22,7 +22,7 @@ export class RemoveScheduleOpeningUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(input: RemoveScheduleOpeningInput): Promise<void> {
+  async execute(input: RemoveScheduleOpeningUseCaseInput): Promise<void> {
     const { id, tenantId } = input;
     const opening = await this.openingRepo.findById(id, tenantId);
     if (!opening) throw new ScheduleOpeningNotFoundError(id);

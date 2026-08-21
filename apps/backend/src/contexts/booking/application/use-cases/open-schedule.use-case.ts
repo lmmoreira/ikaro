@@ -17,7 +17,7 @@ import {
 import { getUtcWeekDayName, todayUTC } from '../../../../shared/utils/calendar-date';
 import { OpenScheduleDto } from '../dtos/open-schedule.dto';
 
-export type OpenScheduleInput = OpenScheduleDto & {
+export type OpenScheduleUseCaseInput = OpenScheduleDto & {
   tenantId: string;
   createdBy: string;
   businessHours: BusinessHours;
@@ -41,7 +41,7 @@ export class OpenScheduleUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(input: OpenScheduleInput): Promise<OpenScheduleUseCaseResult> {
+  async execute(input: OpenScheduleUseCaseInput): Promise<OpenScheduleUseCaseResult> {
     const { tenantId, createdBy, businessHours } = input;
 
     const today = todayUTC();

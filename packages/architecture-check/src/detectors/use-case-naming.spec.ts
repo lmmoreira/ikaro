@@ -263,6 +263,21 @@ describe('checkUseCaseInputNaming', () => {
     const project = fixtureProject({
       [FILE]: `
         export interface GetDemoDto { id: string }
+        export type GetDemoUseCaseInput = GetDemoDto & { tenantId: string };
+        export class GetDemoUseCase {
+          async execute(input: GetDemoUseCaseInput): Promise<void> { return; }
+        }
+      `,
+    });
+    const result = checkUseCaseInputNaming(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toHaveLength(0);
+  });
+
+  it('flags an independently-declared Input type missing the exact {ClassName}Input name', () => {
+    const project = fixtureProject({
+      [FILE]: `
+        export interface GetDemoDto { id: string }
         export type GetDemoInput = GetDemoDto & { tenantId: string };
         export class GetDemoUseCase {
           async execute(input: GetDemoInput): Promise<void> { return; }
@@ -271,6 +286,11 @@ describe('checkUseCaseInputNaming', () => {
     });
     const result = checkUseCaseInputNaming(project);
     expectScannedTargets(result, 1);
-    expect(result.findings).toHaveLength(0);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        rule: 'use-case-input-naming',
+        message: expect.stringContaining('GetDemoUseCaseInput'),
+      }),
+    ]);
   });
 });

@@ -29,7 +29,7 @@ import {
 } from './booking-request.helpers';
 import { BookingRequestResult } from './booking-request.types';
 
-export type RequestBookingInput = RequestBookingDto & {
+export type RequestBookingUseCaseInput = RequestBookingDto & {
   tenantId: string;
   correlationId: string;
   countryCode: string;
@@ -50,7 +50,7 @@ export class RequestBookingUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(input: RequestBookingInput): Promise<RequestBookingUseCaseResult> {
+  async execute(input: RequestBookingUseCaseInput): Promise<RequestBookingUseCaseResult> {
     const { tenantId, timezone } = input;
 
     const serviceMap = await this.resolveServices(input.serviceIds, tenantId);
@@ -94,13 +94,13 @@ export class RequestBookingUseCase {
     return serviceMap;
   }
 
-  private resolveAddresses(input: RequestBookingInput): {
+  private resolveAddresses(input: RequestBookingUseCaseInput): {
     contactAddress: Address | undefined;
     pickupAddress: Address | undefined;
   } {
     const addressSpec = CountryCode.create(input.countryCode).spec.address;
     const buildAddress = (
-      raw: RequestBookingInput['contactAddress'],
+      raw: RequestBookingUseCaseInput['contactAddress'],
       field: 'pickupAddress' | 'contactAddress',
     ) =>
       raw
@@ -117,7 +117,7 @@ export class RequestBookingUseCase {
   }
 
   private async prepareBooking(
-    input: RequestBookingInput,
+    input: RequestBookingUseCaseInput,
     serviceMap: Map<string, Service>,
     contactAddress: Address | undefined,
     pickupAddress: Address | undefined,
@@ -156,7 +156,7 @@ export class RequestBookingUseCase {
   }
 
   private buildBooking(
-    input: RequestBookingInput,
+    input: RequestBookingUseCaseInput,
     bookingId: string,
     scheduledAt: Date,
     lineInputs: ReturnType<typeof buildLineInputs>,

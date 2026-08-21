@@ -7,7 +7,7 @@ import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-reposit
 
 type MoneyDetail = { amount: number; currency: string };
 
-export type GetBookingByIdInput = {
+export type GetBookingByIdUseCaseInput = {
   bookingId: string;
   tenantId: string;
   cancellationWindowHours: number;
@@ -78,7 +78,7 @@ export class GetBookingByIdUseCase {
     @Inject(STORAGE_SERVICE) private readonly storageService: IStorageService,
   ) {}
 
-  async execute(input: GetBookingByIdInput): Promise<GetBookingByIdUseCaseResult> {
+  async execute(input: GetBookingByIdUseCaseInput): Promise<GetBookingByIdUseCaseResult> {
     const { tenantId, cancellationWindowHours, requestingCustomerId } = input;
 
     const booking = await this.bookingRepo.findById(input.bookingId, tenantId);

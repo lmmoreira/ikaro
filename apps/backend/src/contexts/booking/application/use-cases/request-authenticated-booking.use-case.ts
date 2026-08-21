@@ -35,7 +35,7 @@ import {
 } from './booking-request.helpers';
 import { BookingRequestResult } from './booking-request.types';
 
-export type RequestAuthenticatedBookingInput = RequestAuthenticatedBookingDto & {
+export type RequestAuthenticatedBookingUseCaseInput = RequestAuthenticatedBookingDto & {
   tenantId: string;
   correlationId: string;
   customerId: string;
@@ -57,7 +57,7 @@ export class RequestAuthenticatedBookingUseCase {
   ) {}
 
   async execute(
-    input: RequestAuthenticatedBookingInput,
+    input: RequestAuthenticatedBookingUseCaseInput,
   ): Promise<RequestAuthenticatedBookingUseCaseResult> {
     const { tenantId, customerId, countryCode, timezone } = input;
 
@@ -84,7 +84,7 @@ export class RequestAuthenticatedBookingUseCase {
   }
 
   private async prepareBooking(
-    input: RequestAuthenticatedBookingInput,
+    input: RequestAuthenticatedBookingUseCaseInput,
     customer: CustomerProfileDto & { phone: string },
     serviceMap: Map<string, Service>,
     pickupAddress: Address | undefined,
@@ -123,7 +123,7 @@ export class RequestAuthenticatedBookingUseCase {
   }
 
   private buildBooking(
-    input: RequestAuthenticatedBookingInput,
+    input: RequestAuthenticatedBookingUseCaseInput,
     customer: CustomerProfileDto & { phone: string },
     bookingId: string,
     scheduledAt: Date,
@@ -174,7 +174,7 @@ export class RequestAuthenticatedBookingUseCase {
   }
 
   private resolvePickupAddress(
-    input: RequestAuthenticatedBookingInput,
+    input: RequestAuthenticatedBookingUseCaseInput,
     customer: CustomerProfileDto,
     countryCode: string,
     serviceMap: Map<string, Service>,

@@ -15,7 +15,7 @@ import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-reposit
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { ApproveBookingDto } from '../dtos/approve-booking.dto';
 
-export type ApproveBookingInput = ApproveBookingDto & {
+export type ApproveBookingUseCaseInput = ApproveBookingDto & {
   bookingId: string;
   tenantId: string;
   staffId: string;
@@ -39,7 +39,7 @@ export class ApproveBookingUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(input: ApproveBookingInput): Promise<ApproveBookingUseCaseResult> {
+  async execute(input: ApproveBookingUseCaseInput): Promise<ApproveBookingUseCaseResult> {
     const { tenantId, staffId, correlationId } = input;
 
     const booking = await this.bookingRepo.findById(input.bookingId, tenantId);

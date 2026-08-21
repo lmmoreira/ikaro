@@ -7,7 +7,7 @@ import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
 import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
 import { CancelBookingAsAdminDto } from '../dtos/cancel-booking-as-admin.dto';
 
-export type CancelBookingAsAdminInput = CancelBookingAsAdminDto & {
+export type CancelBookingAsAdminUseCaseInput = CancelBookingAsAdminDto & {
   bookingId: string;
   tenantId: string;
   staffId: string;
@@ -26,7 +26,9 @@ export class CancelBookingAsAdminUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(input: CancelBookingAsAdminInput): Promise<CancelBookingAsAdminUseCaseResult> {
+  async execute(
+    input: CancelBookingAsAdminUseCaseInput,
+  ): Promise<CancelBookingAsAdminUseCaseResult> {
     const { tenantId, staffId, correlationId } = input;
 
     const booking = await this.bookingRepo.findById(input.bookingId, tenantId);
