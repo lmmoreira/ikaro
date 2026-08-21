@@ -354,7 +354,7 @@ Builds on Story 3's harness.
 
 ---
 
-### Story 9 — `ts-morph`: aggregate props typed as primitive when a VO exists (bad-smell-audit BE-1) 🟡
+### Story 9 — `ts-morph`: aggregate props typed as primitive when a VO exists (bad-smell-audit BE-1) 🟡 ✅ Done
 
 Use a closed, reviewed registry mapping each aggregate's persisted private property to its required VO. Resolve stored aggregate properties and declared VO mappings; do not infer from broad field-name fragments such as `color`. The registry must include existing concepts such as `contactEmail`, `contactPhone`, Address, and Money while allowing intentional public transport strings.
 
