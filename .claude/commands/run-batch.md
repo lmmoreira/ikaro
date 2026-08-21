@@ -23,10 +23,12 @@ If `$ARGUMENTS` is a milestone ID:
 - Read `plan/<milestone>-*.md` (excluding `_IMPLEMENTATION_DETAILS_*` files).
 - List stories not yet marked `✅ Done` whose `Dependencies` are all `✅ Done` — mirrors `story-discovery.md` Step 3's dependency check, applied across the whole milestone instead of one story.
 
-If `$ARGUMENTS` names explicit story IDs:
+If `$ARGUMENTS` names explicit IDs — story IDs (`M0X-SYY`), TD IDs (`TDNN`), or a mix of both:
 - Use exactly those, but still verify each is not already Done and each declared dependency is Done. Any failure here is a **BLOCKER** — report it before continuing.
+- **TDs have no milestone-level auto-select mode** — there's no `plan/M0X-*.md` wave graph to pull them from, so a TD is only usable named explicitly here, standalone or mixed with regular stories.
+- **A TD may not have a `Files to create/modify` field the way a `/discovery-to-milestone`-drafted story does** — hand-written TDs vary in structure (some split into `#### Story N —` subsections, some are single-scope with one `## Status` block, per `mark-done.md`'s own note). If that field is genuinely absent, don't skip the non-overlap check silently — derive an approximate touched-file set from the TD's own description and story-discovery's dependency-symbol check (its Step 1), and flag it as a RISK for the user's explicit judgment rather than an automatic pass.
 
-If fewer than 2 stories are eligible, say so and suggest running `/story-discovery` solo instead — a batch of 1 has no concurrency benefit.
+If fewer than 2 stories/TDs are eligible, say so and suggest running `/story-discovery` solo instead — a batch of 1 has no concurrency benefit.
 
 ---
 
