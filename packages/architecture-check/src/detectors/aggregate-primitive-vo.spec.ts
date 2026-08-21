@@ -1,4 +1,7 @@
-import { checkAggregatePropsUseSharedValueObjects, type AggregateValueObjectConcept } from '../index';
+import {
+  checkAggregatePropsUseSharedValueObjects,
+  type AggregateValueObjectConcept,
+} from '../index';
 import { expectScannedTargets, expectZeroTargets, fixtureProject } from '../testing/fixtures';
 
 const REGISTRY: AggregateValueObjectConcept[] = [
