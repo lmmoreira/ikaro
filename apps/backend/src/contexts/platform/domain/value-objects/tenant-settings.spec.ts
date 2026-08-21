@@ -202,6 +202,14 @@ describe('TenantSettings', () => {
         .build();
       expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
     });
+
+    it('normalizes a mixed-case/whitespace fromEmail (TD37-S20)', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withNotification({ fromEmail: ' Reservas@LavaCar.com.br ' })
+        .build();
+      const settings = TenantSettings.create(props);
+      expect(settings.notification.fromEmail).toBe('reservas@lavacar.com.br');
+    });
   });
 
   describe('create() — businessInfo validation', () => {
@@ -253,6 +261,14 @@ describe('TenantSettings', () => {
         .withBusinessInfo({ email: 'not-an-email' })
         .build();
       expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
+    });
+
+    it('normalizes a mixed-case/whitespace businessInfo.email (TD37-S20)', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withBusinessInfo({ email: ' Contato@BeloAuto.com.br ' })
+        .build();
+      const settings = TenantSettings.create(props);
+      expect(settings.businessInfo.email).toBe('contato@beloauto.com.br');
     });
 
     it('throws for a zipCode that is not 8 digits', () => {

@@ -496,7 +496,7 @@ This story is deliberately scheduled after the detector waves have shipped and b
 - [ ] The repository's branch-protection configuration is updated in a separate, reviewable change to add the architecture check as a required status check; the workflow introduction and required-check promotion are never the same change.
 - [ ] A rollback procedure is documented: temporarily return the job to report-only only through an explicit reviewed change, with the reason and expiry recorded.
 
-### Story 20 — `ts-morph`: primitive fields matching a VO concept must be validated at their owning class's construction boundary ⚪
+### Story 20 — `ts-morph`: primitive fields matching a VO concept must be validated at their owning class's construction boundary ⚪ ✅ Done
 
 Generalizes a gap found during Story 9 discovery (2026-08-21): a field can correctly skip VO-*typing* (e.g. a JSONB wire-shape field like `TenantSettings`' `businessInfo.email`, which must stay a plain primitive per Story 9's own discovery note above) while still needing that VO's validation *and normalization* applied somewhere in its owning class's `create()` path. Story 9's registry only proves a field *is typed as* the VO; it says nothing about a field that's deliberately *not* VO-typed but still needs the same guarantee applied at runtime.
 

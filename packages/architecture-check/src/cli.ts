@@ -7,6 +7,7 @@ import {
   checkErrorMapperCoverage,
   checkGlobalModuleExportPairing,
   checkNoJestFnForRepositoryOrPortMocks,
+  checkPrimitiveFieldsValidatedAtConstruction,
   checkPrototypeChainSafety,
   checkReverseDiAlias,
   checkSharedValueObjectErrorMapperCoverage,
@@ -18,6 +19,7 @@ import {
   checkValueObjectCreateNeverThrowsBareError,
   mergeScanResults,
   type AggregateValueObjectConcept,
+  type ConstructionValidationTarget,
   type ErrorMapperException,
   type ExternalSideEffectPort,
   type TestDataHarnessRegistration,
@@ -38,6 +40,7 @@ const policy = JSON.parse(
   externalSideEffectPorts?: ExternalSideEffectPort[];
   testDataHarnessRegistrations?: TestDataHarnessRegistration[];
   aggregateValueObjectRegistry?: AggregateValueObjectConcept[];
+  voConstructionValidationRegistry?: ConstructionValidationTarget[];
   projects?: string[];
 };
 const projectPaths = policy.projects ?? [];
@@ -97,6 +100,12 @@ const aggregatePrimitiveVoExemptions = (policy.exceptions ?? [])
       Boolean(exception.property),
   )
   .map((exception) => ({ path: exception.path, property: exception.property }));
+const voConstructionValidationRegistry = policy.voConstructionValidationRegistry;
+if (!voConstructionValidationRegistry?.length) {
+  throw new Error(
+    'The architecture policy must register at least one VO construction-validation target.',
+  );
+}
 
 const results = [
   checkTransactionalIo(backend, externalSideEffectPorts),
@@ -121,6 +130,7 @@ const results = [
     aggregateValueObjectRegistry,
     aggregatePrimitiveVoExemptions,
   ),
+  checkPrimitiveFieldsValidatedAtConstruction(backend, voConstructionValidationRegistry),
 ];
 const zeroTargetResults = results.filter((result) => result.scannedTargets === 0);
 const findings = results.flatMap((result) => result.findings);
