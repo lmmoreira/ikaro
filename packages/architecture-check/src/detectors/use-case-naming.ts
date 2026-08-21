@@ -161,13 +161,34 @@ export function checkUseCaseInputNaming(project: Project): ScanResult {
     if (!firstParam) continue; // no-arg execute() — nothing to name-check
 
     const typeNode = firstParam.getTypeNode();
-    // Primitive/inline/untyped params (e.g. `execute(googleOAuthId: string)`) carry no
-    // application-input contract to conflate with an HTTP Dto — out of scope for this check.
-    if (!typeNode || !Node.isTypeReference(typeNode)) continue;
+    if (!typeNode) continue; // untyped param — out of scope
+
+    const line = sourceLine(sourceFile, execute.getStart());
+
+    // A shape written directly in the execute() signature (`{ ... }`, `XDto & { ... }`,
+    // a union) has no name to check at all — it bypasses the naming rule entirely rather
+    // than merely violating it. Flag it as its own case before the TypeReference-only
+    // checks below, which would otherwise silently skip it.
+    if (
+      Node.isTypeLiteral(typeNode) ||
+      Node.isIntersectionTypeNode(typeNode) ||
+      Node.isUnionTypeNode(typeNode)
+    ) {
+      findings.push({
+        rule: 'use-case-input-naming',
+        file: sourceFile.getFilePath(),
+        line,
+        message: `${className}.execute() takes an inline/anonymous type instead of a named "${className}Input". Application input types must be a named type declared in the use case file (docs/CODE_STANDARDS.md § Naming conventions) — never written inline in the execute() signature.`,
+      });
+      continue;
+    }
+
+    // Primitive params (e.g. `execute(googleOAuthId: string)`) carry no application-input
+    // contract to conflate with an HTTP Dto — out of scope for this check.
+    if (!Node.isTypeReference(typeNode)) continue;
 
     const typeName = typeNode.getTypeName().getText();
     const dtoName = resolvesToDtoName(typeNode);
-    const line = sourceLine(sourceFile, execute.getStart());
 
     if (dtoName) {
       const message =

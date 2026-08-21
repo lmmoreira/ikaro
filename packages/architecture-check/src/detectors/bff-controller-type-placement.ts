@@ -1,4 +1,10 @@
-import { InterfaceDeclaration, Project, TypeAliasDeclaration, VariableDeclaration } from 'ts-morph';
+import {
+  InterfaceDeclaration,
+  Project,
+  SyntaxKind,
+  TypeAliasDeclaration,
+  VariableDeclaration,
+} from 'ts-morph';
 import type { Finding, ScanResult } from '../model';
 import { sourceLine } from '../project';
 
@@ -43,21 +49,23 @@ export function checkBffTypesLiveInModuleFiles(
 
     // A Zod schema const (`const XSchema = z.object(...)`) is its own declaration kind —
     // not an interface/type alias — so it needs separate collection. Matched by name suffix
-    // (top-level `const` ending in "Schema"), the same literal convention this codebase
-    // already uses without exception across every controller (confirmed via full-BFF grep,
-    // TD37-S10) — not by resolving the Zod call chain, which the naming convention already
-    // makes unnecessary. A schema with no paired named type (e.g. validated inline via
-    // `z.infer<typeof XSchema>` at each use site, never extracted to its own type alias)
-    // would otherwise pass silently, since only interfaces/type aliases were scanned before
-    // this (PR #399 review, Codex).
+    // ("const" ending in "Schema"), the same literal convention this codebase already uses
+    // without exception across every controller — not by resolving the Zod call chain, which
+    // the naming convention already makes unnecessary. A schema with no paired named type
+    // (e.g. validated inline via `z.infer<typeof XSchema>` at each use site, never extracted
+    // to its own type alias) would otherwise pass silently.
+    //
+    // getDescendantsOfKind, not the top-level-only sourceFile.getInterfaces()/getTypeAliases()/
+    // getVariableStatements(): a declaration nested inside a controller method/function body
+    // is just as much "declared inline in the controller" as a top-level one, and the
+    // top-level-only accessors would silently miss it.
     const schemaConstants = sourceFile
-      .getVariableStatements()
-      .flatMap((statement) => statement.getDeclarations())
+      .getDescendantsOfKind(SyntaxKind.VariableDeclaration)
       .filter((declaration) => declaration.getName().endsWith('Schema'));
 
     const declarations: Array<InterfaceDeclaration | TypeAliasDeclaration | VariableDeclaration> = [
-      ...sourceFile.getInterfaces(),
-      ...sourceFile.getTypeAliases(),
+      ...sourceFile.getDescendantsOfKind(SyntaxKind.InterfaceDeclaration),
+      ...sourceFile.getDescendantsOfKind(SyntaxKind.TypeAliasDeclaration),
       ...schemaConstants,
     ];
 

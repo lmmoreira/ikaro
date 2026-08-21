@@ -89,6 +89,50 @@ describe('checkBffTypesLiveInModuleFiles', () => {
     ]);
   });
 
+  it('flags a schema const declared inside a controller method, not just top-level', () => {
+    const project = fixtureProject({
+      [CONTROLLER_FILE]: `
+        import { z } from 'zod';
+        export class DemoController {
+          create(): void {
+            const CreateDemoBodySchema = z.object({ name: z.string() });
+            void CreateDemoBodySchema;
+          }
+        }
+      `,
+    });
+    const result = checkBffTypesLiveInModuleFiles(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        rule: 'bff-controller-inline-type',
+        message: expect.stringContaining('CreateDemoBodySchema'),
+      }),
+    ]);
+  });
+
+  it('flags a response interface declared inside a controller method, not just top-level', () => {
+    const project = fixtureProject({
+      [CONTROLLER_FILE]: `
+        export class DemoController {
+          get(): unknown {
+            interface NestedDemoResponse { id: string }
+            const value: NestedDemoResponse = { id: '1' };
+            return value;
+          }
+        }
+      `,
+    });
+    const result = checkBffTypesLiveInModuleFiles(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        rule: 'bff-controller-inline-type',
+        message: expect.stringContaining('NestedDemoResponse'),
+      }),
+    ]);
+  });
+
   it('does not flag a non-controller file (e.g. the .schemas.ts sibling itself)', () => {
     const project = fixtureProject({
       'apps/bff/src/features/demo/demo.schemas.ts': `

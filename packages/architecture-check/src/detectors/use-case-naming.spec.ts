@@ -155,6 +155,43 @@ describe('checkUseCaseInputNaming', () => {
     expect(result.findings).toHaveLength(0);
   });
 
+  it('flags an inline anonymous object type written directly in the execute() signature', () => {
+    const project = fixtureProject({
+      [FILE]: `
+        export class GetDemoUseCase {
+          async execute(input: { id: string }): Promise<void> { return; }
+        }
+      `,
+    });
+    const result = checkUseCaseInputNaming(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        rule: 'use-case-input-naming',
+        message: expect.stringContaining('inline/anonymous'),
+      }),
+    ]);
+  });
+
+  it('flags an inline intersection type written directly in the execute() signature', () => {
+    const project = fixtureProject({
+      [FILE]: `
+        export interface GetDemoDto { id: string }
+        export class GetDemoUseCase {
+          async execute(input: GetDemoDto & { tenantId: string }): Promise<void> { return; }
+        }
+      `,
+    });
+    const result = checkUseCaseInputNaming(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        rule: 'use-case-input-naming',
+        message: expect.stringContaining('inline/anonymous'),
+      }),
+    ]);
+  });
+
   it('flags execute() taking an HTTP Dto type directly', () => {
     const project = fixtureProject({
       [FILE]: `
