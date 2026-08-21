@@ -137,10 +137,13 @@ function resolveBareTypeAlias(typeRef: TypeReferenceNode): TypeReferenceNode | u
 
 // Walks a bounded chain of bare aliases (`type A = B; type B = CDto;`) and returns the first
 // name in the chain ending in "Dto" — the starting type's own name if it's a direct Dto
-// reference, or a resolved alias target's name otherwise.
+// reference, or a resolved alias target's name otherwise. `<=` (not `<`): MAX_ALIAS_DEPTH
+// bounds the number of *resolution hops*, not the number of names checked — with `<`, the
+// name reached by the final permitted hop was resolved but never itself checked, silently
+// missing a chain exactly MAX_ALIAS_DEPTH aliases deep (PR #399 review, Codex).
 function resolvesToDtoName(typeRef: TypeReferenceNode): string | undefined {
   let current: TypeReferenceNode | undefined = typeRef;
-  for (let depth = 0; current && depth < MAX_ALIAS_DEPTH; depth++) {
+  for (let depth = 0; current && depth <= MAX_ALIAS_DEPTH; depth++) {
     const name = current.getTypeName().getText();
     if (name.endsWith('Dto')) return name;
     current = resolveBareTypeAlias(current);

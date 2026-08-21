@@ -220,6 +220,30 @@ describe('checkUseCaseInputNaming', () => {
     ]);
   });
 
+  it('flags a Dto reached through a 3-hop chain of bare aliases', () => {
+    // Regression fixture (PR #399 review, Codex): the off-by-one used `depth < MAX_ALIAS_DEPTH`,
+    // which resolved this chain's final hop to GetDemoDto but exited before checking its name.
+    const project = fixtureProject({
+      [FILE]: `
+        export interface GetDemoDto { id: string }
+        export type TransportShape = GetDemoDto;
+        export type AppShape = TransportShape;
+        export type GetDemoUseCaseInput = AppShape;
+        export class GetDemoUseCase {
+          async execute(input: GetDemoUseCaseInput): Promise<void> { return; }
+        }
+      `,
+    });
+    const result = checkUseCaseInputNaming(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        rule: 'use-case-input-naming',
+        message: expect.stringContaining('GetDemoDto'),
+      }),
+    ]);
+  });
+
   it('passes when the Input type extends the Dto via a real interface declaration', () => {
     const project = fixtureProject({
       [FILE]: `
