@@ -1,4 +1,12 @@
-import { ClassDeclaration, MethodDeclaration, Node, Project, SourceFile, SyntaxKind, TypeNode } from 'ts-morph';
+import {
+  ClassDeclaration,
+  MethodDeclaration,
+  Node,
+  Project,
+  SourceFile,
+  SyntaxKind,
+  TypeNode,
+} from 'ts-morph';
 import type { Finding, ScanResult } from '../model';
 import { sourceLine } from '../project';
 
@@ -21,7 +29,10 @@ interface UseCaseTarget {
 function findUseCaseTargets(project: Project): UseCaseTarget[] {
   const targets: UseCaseTarget[] = [];
   for (const sourceFile of project.getSourceFiles()) {
-    if (!USE_CASE_FILE.test(sourceFile.getFilePath()) || sourceFile.getBaseName().endsWith('.spec.ts')) {
+    if (
+      !USE_CASE_FILE.test(sourceFile.getFilePath()) ||
+      sourceFile.getBaseName().endsWith('.spec.ts')
+    ) {
       continue;
     }
     // getDescendantsOfKind, not getClasses(): the latter only returns top-level class

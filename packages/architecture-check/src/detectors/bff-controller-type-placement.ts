@@ -9,11 +9,7 @@ export interface BffInlineTypeException {
   name: string;
 }
 
-function isExempt(
-  filePath: string,
-  name: string,
-  exceptions: BffInlineTypeException[],
-): boolean {
+function isExempt(filePath: string, name: string, exceptions: BffInlineTypeException[]): boolean {
   return exceptions.some(
     (exception) => exception.name === name && filePath.endsWith(exception.path),
   );

@@ -185,9 +185,7 @@ describe('checkUseCaseInputNaming', () => {
     });
     const result = checkUseCaseInputNaming(project);
     expectScannedTargets(result, 1);
-    expect(result.findings).toEqual([
-      expect.objectContaining({ rule: 'use-case-input-naming' }),
-    ]);
+    expect(result.findings).toEqual([expect.objectContaining({ rule: 'use-case-input-naming' })]);
   });
 
   it('does not scan an abstract base class', () => {
