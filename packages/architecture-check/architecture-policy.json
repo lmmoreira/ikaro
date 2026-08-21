@@ -440,6 +440,24 @@
       "suffixes": []
     }
   ],
+  "voConstructionValidationRegistry": [
+    {
+      "ownerClass": "TenantSettings",
+      "ownerFile": "apps/backend/src/contexts/platform/domain/value-objects/tenant-settings.vo.ts",
+      "propertyPath": "businessInfo.email",
+      "requiredVo": "Email",
+      "requiredVoFile": "apps/backend/src/shared/value-objects/email.vo.ts",
+      "validatorFile": "apps/backend/src/contexts/platform/domain/value-objects/validators/business-info.validator.ts"
+    },
+    {
+      "ownerClass": "TenantSettings",
+      "ownerFile": "apps/backend/src/contexts/platform/domain/value-objects/tenant-settings.vo.ts",
+      "propertyPath": "notification.fromEmail",
+      "requiredVo": "Email",
+      "requiredVoFile": "apps/backend/src/shared/value-objects/email.vo.ts",
+      "validatorFile": "apps/backend/src/contexts/platform/domain/value-objects/validators/notification-settings.validator.ts"
+    }
+  ],
   "testDataHarnessRegistrations": [
     {
       "file": "apps/backend/src/test/integration-global-setup.ts",

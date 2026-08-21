@@ -20,6 +20,8 @@ export {
   checkUnsafeUseExisting,
 } from './detectors/di-alias';
 export { checkValueObjectCreateNeverThrowsBareError } from './detectors/vo-bare-error';
+export { checkPrimitiveFieldsValidatedAtConstruction } from './detectors/vo-construction-validation';
+export type { ConstructionValidationTarget } from './detectors/vo-construction-validation';
 export type { ExternalSideEffectPort } from './detectors/transactional-io';
 export { mergeScanResults } from './model';
 export type { Finding, ScanResult } from './model';

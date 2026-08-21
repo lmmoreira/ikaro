@@ -1,6 +1,7 @@
 import { countrySpec } from '@ikaro/i18n';
 import { Address, type AddressProps } from '../../../../shared/value-objects/address';
 import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
+import { Email } from '../../../../shared/value-objects/email.vo';
 import type { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
 import type {
   BusinessInfo,
@@ -144,7 +145,12 @@ export class TenantSettings {
       businessInfo: TenantSettings.normalizeBusinessInfo(props.businessInfo, resolvedCountryCode),
     };
     TenantSettings.validate(normalizedProps);
-    return new TenantSettings(normalizedProps);
+    // Runs strictly after validate() succeeds: BusinessInfoValidator/NotificationSettingsValidator
+    // already confirmed the raw format via Email.isValid() and throw their own typed error codes
+    // (SETTINGS_BUSINESS_EMAIL_INVALID / SETTINGS_NOTIFICATION_EMAIL_INVALID) on a bad value — an
+    // already-valid email can never fail Email.create() here, so this step only ever normalizes
+    // (lowercase/trim), never changes what error a caller sees for invalid input.
+    return new TenantSettings(TenantSettings.normalizeValidatedEmails(normalizedProps));
   }
 
   static reconstitute(props: TenantSettingsProps): TenantSettings {
@@ -197,5 +203,22 @@ export class TenantSettings {
     if (address == null) return null;
     const normalizedAddress = Address.create(address, countryCode.spec.address);
     return normalizedAddress.toJSON();
+  }
+
+  private static normalizeValidatedEmails(props: TenantSettingsProps): TenantSettingsProps {
+    return {
+      ...props,
+      businessInfo:
+        props.businessInfo?.email == null
+          ? props.businessInfo
+          : { ...props.businessInfo, email: Email.create(props.businessInfo.email).address },
+      notification:
+        props.notification?.fromEmail == null
+          ? props.notification
+          : {
+              ...props.notification,
+              fromEmail: Email.create(props.notification.fromEmail).address,
+            },
+    };
   }
 }
