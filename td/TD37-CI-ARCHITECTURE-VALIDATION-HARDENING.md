@@ -339,7 +339,7 @@ Builds on Story 3's harness.
 
 ---
 
-### Story 8 — `ts-morph` suite, part 3: DI/module wiring 🔴
+### Story 8 — `ts-morph` suite, part 3: DI/module wiring 🔴 ✅ Done
 
 - **`@Global()` module ↔ `exports` pairing**: resolve injections and module exports. A global module must export its externally consumed tokens, but it may retain internal providers; do not require every provider to be exported.
 - **Unsafe class `useExisting` detector**: flag a provider array where a class appears both as a bare entry (or explicit `{ provide: SomeClass, useClass: SomeClass }`) and as a `useExisting` target. Permit safe token-to-token aliases such as `TRIGGER_BUS -> EVENT_BUS`.
