@@ -34,7 +34,8 @@ git diff origin/main...HEAD --name-only | grep "^apps/web/"
 
 2. Pass this file list to the Explore agent as its explicit scope — the agent greps and reads **only those files**, not the full directory tree.
 3. **BE-4 is retired** — full-codebase missing-builder coverage (entities, events, commands, primary-key `uuidv7()` defaults, and the test-data-harness registration map) is now enforced mechanically by `pnpm architecture-check`'s `test-builder-coverage`, `entity-builder-pk-uuidv7-default`, and `test-harness-registration` detectors (TD37-S07) — no LLM audit step needed for it, in `--pr` mode or otherwise. `scripts/pre-pr.sh`'s own diff-scoped BE-4 check (Step 1, check 28) is unrelated and still runs — it's a fast, already-mechanical, PR-diff-only check, not the audit-prompt version being retired here.
-4. All other checks (BE-1, BE-2, BE-3, BE-5, BE-6, BE-7, BFF-1–4, WEB-1–11) run normally but scoped to the changed file list.
+4. **BE-1 is also retired** — full-codebase, aggregate-props-typed-as-primitive-when-a-VO-exists coverage is now enforced mechanically by `pnpm architecture-check`'s `aggregate-primitive-vo` detector, against the closed, reviewed registry in `packages/architecture-check/architecture-policy.json`'s `aggregateValueObjectRegistry` (TD37-S09) — no LLM audit step needed for it, in `--pr` mode or otherwise.
+5. All other checks (BE-2, BE-3, BE-5, BE-6, BE-7, BFF-1–4, WEB-1–11) run normally but scoped to the changed file list.
 
 If the `git diff` for a layer returns zero files, skip that layer entirely and report `(no changed files in this layer)`.
 
@@ -46,7 +47,7 @@ Spawn three Explore agents in parallel, one per layer. Give each agent the full 
 
 | Agent | Scope | Checks to pass |
 |---|---|---|
-| Backend | `apps/backend/src/` (full) or changed files list (--pr) | Backend checks section (BE-1 through BE-7; BE-4 retired — see PR mode note above) |
+| Backend | `apps/backend/src/` (full) or changed files list (--pr) | Backend checks section (BE-1 through BE-7; BE-1 and BE-4 retired — see PR mode note above) |
 | BFF | `apps/bff/src/` (full) or changed files list (--pr) | BFF checks section (BFF-1 through BFF-4) |
 | Web | `apps/web/` (full) or changed files list (--pr) | Web checks section (WEB-1 through WEB-11) |
 
@@ -56,17 +57,9 @@ If `$ARGUMENTS` restricts to a single layer or a specific context path, spawn on
 
 ## Backend checks (scope: `apps/backend/src/`)
 
-### BE-1. Aggregate props typed as plain primitives when a shared VO exists
+### BE-1. RETIRED — mechanized by `pnpm architecture-check` (TD37-S09)
 
-Shared VOs and the primitive they replace:
-- `Email` → `email: string`
-- `PhoneNumber` → `phone: string`
-- `Slug` → `slug: string`
-- `Timezone` → `timezone: string`
-- `TimeOfDay` → fields named `open`, `close`, `opens_at`, `closes_at` typed as `string` inside business_hours-like structures
-- `HexColor` → fields named `color`, `primary_color`, `accent_color` typed as `string`
-
-How to find them: look for `Props` interfaces inside `*/domain/*.aggregate.ts` files. Report any field that matches a known VO candidate but is typed as `string` or `number`.
+This used to check for aggregate `Props` fields typed as a plain primitive when a shared VO already exists for that exact concept. It's now enforced mechanically, full-codebase, on every CI run — no LLM audit step needed. Skip this check; do not re-add it here. See `packages/architecture-check/src/detectors/aggregate-primitive-vo.ts` and its closed registry, `architecture-policy.json`'s `aggregateValueObjectRegistry`.
 
 ### BE-2. Duplicated `isValidXxx` / inline validation functions outside `src/shared/value-objects/`
 
@@ -209,10 +202,6 @@ Grep `apps/web/features/customer/` for exported functions/components with "Booki
 ## Bad-Smell Audit Report — <scope>
 
 ### Backend
-
-#### BE-1. Aggregate props typed as plain primitives
-- [ ] src/contexts/X/domain/X.aggregate.ts:42 — `email: string` should be `email: Email`
-...
 
 #### BE-2. Duplicated isValidXxx / inline validation
 (none found)

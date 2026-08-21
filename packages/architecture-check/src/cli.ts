@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Project } from 'ts-morph';
 import {
+  checkAggregatePropsUseSharedValueObjects,
   checkEntityBuilderPrimaryKeyDefaults,
   checkErrorMapperCoverage,
   checkGlobalModuleExportPairing,
@@ -16,6 +17,7 @@ import {
   checkUnsafeUseExisting,
   checkValueObjectCreateNeverThrowsBareError,
   mergeScanResults,
+  type AggregateValueObjectConcept,
   type ErrorMapperException,
   type ExternalSideEffectPort,
   type TestDataHarnessRegistration,
@@ -26,9 +28,16 @@ const root = resolve(__dirname, '../../..');
 const policy = JSON.parse(
   readFileSync(resolve(root, 'packages/architecture-check/architecture-policy.json'), 'utf8'),
 ) as {
-  exceptions?: Array<{ rule: string; class?: string; context?: string; path?: string }>;
+  exceptions?: Array<{
+    rule: string;
+    class?: string;
+    context?: string;
+    path?: string;
+    property?: string;
+  }>;
   externalSideEffectPorts?: ExternalSideEffectPort[];
   testDataHarnessRegistrations?: TestDataHarnessRegistration[];
+  aggregateValueObjectRegistry?: AggregateValueObjectConcept[];
   projects?: string[];
 };
 const projectPaths = policy.projects ?? [];
@@ -74,6 +83,20 @@ const testDataHarnessRegistrations = policy.testDataHarnessRegistrations;
 if (!testDataHarnessRegistrations?.length) {
   throw new Error('The architecture policy must register at least one test-data-harness file.');
 }
+const aggregateValueObjectRegistry = policy.aggregateValueObjectRegistry;
+if (!aggregateValueObjectRegistry?.length) {
+  throw new Error(
+    'The architecture policy must register at least one aggregate value-object concept.',
+  );
+}
+const aggregatePrimitiveVoExemptions = (policy.exceptions ?? [])
+  .filter(
+    (exception): exception is { rule: string; path: string; property: string } =>
+      exception.rule === 'aggregate-primitive-vo' &&
+      Boolean(exception.path) &&
+      Boolean(exception.property),
+  )
+  .map((exception) => ({ path: exception.path, property: exception.property }));
 
 const results = [
   checkTransactionalIo(backend, externalSideEffectPorts),
@@ -93,6 +116,11 @@ const results = [
   checkEntityBuilderPrimaryKeyDefaults(backend),
   checkTestDataHarnessRegistrations(backend, testDataHarnessRegistrations),
   checkNoJestFnForRepositoryOrPortMocks(backend),
+  checkAggregatePropsUseSharedValueObjects(
+    backend,
+    aggregateValueObjectRegistry,
+    aggregatePrimitiveVoExemptions,
+  ),
 ];
 const zeroTargetResults = results.filter((result) => result.scannedTargets === 0);
 const findings = results.flatMap((result) => result.findings);
