@@ -390,6 +390,56 @@
       ]
     }
   ],
+  "aggregateValueObjectRegistry": [
+    {
+      "requiredType": "Email",
+      "voFile": "apps/backend/src/shared/value-objects/email.vo.ts",
+      "exactNames": ["email"],
+      "suffixes": ["Email"]
+    },
+    {
+      "requiredType": "PhoneNumber",
+      "voFile": "apps/backend/src/shared/value-objects/phone-number.vo.ts",
+      "exactNames": ["phone"],
+      "suffixes": ["Phone", "PhoneNumber"]
+    },
+    {
+      "requiredType": "Address",
+      "voFile": "apps/backend/src/shared/value-objects/address.ts",
+      "exactNames": ["address"],
+      "suffixes": ["Address"]
+    },
+    {
+      "requiredType": "Slug",
+      "voFile": "apps/backend/src/shared/value-objects/slug.vo.ts",
+      "exactNames": ["slug"],
+      "suffixes": ["Slug"]
+    },
+    {
+      "requiredType": "HexColor",
+      "voFile": "apps/backend/src/shared/value-objects/hex-color.vo.ts",
+      "exactNames": ["color"],
+      "suffixes": ["Color"]
+    },
+    {
+      "requiredType": "Money",
+      "voFile": "apps/backend/src/shared/value-objects/money.ts",
+      "exactNames": ["price", "totalPrice", "totalActualPrice", "discountAmount"],
+      "suffixes": []
+    },
+    {
+      "requiredType": "TimeOfDay",
+      "voFile": "apps/backend/src/shared/value-objects/time-of-day.vo.ts",
+      "exactNames": ["startTime", "endTime"],
+      "suffixes": []
+    },
+    {
+      "requiredType": "Timezone",
+      "voFile": "apps/backend/src/shared/value-objects/timezone.vo.ts",
+      "exactNames": ["timezone"],
+      "suffixes": []
+    }
+  ],
   "testDataHarnessRegistrations": [
     {
       "file": "apps/backend/src/test/integration-global-setup.ts",

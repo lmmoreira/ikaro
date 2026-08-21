@@ -1,3 +1,8 @@
+export { checkAggregatePropsUseSharedValueObjects } from './detectors/aggregate-primitive-vo';
+export type {
+  AggregatePrimitiveVoExemption,
+  AggregateValueObjectConcept,
+} from './detectors/aggregate-primitive-vo';
 export { checkEntityBuilderPrimaryKeyDefaults } from './detectors/entity-builder-pk-default';
 export { checkErrorMapperCoverage } from './detectors/error-mappers';
 export type { ErrorMapperException } from './detectors/error-mappers';
