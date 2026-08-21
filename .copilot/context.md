@@ -473,6 +473,7 @@ Pinned Terraform skills live in `.claude/skills/`; refresh them by re-vendoring 
 | Command | File |
 |---|---|
 | `/bad-smell-audit [backend\|bff\|web]` | `.claude/commands/bad-smell-audit.md` |
+| `/create-td <problem description \| TDNN + description>` | `.claude/commands/create-td.md` |
 | `/discovery-to-milestone <discovery-doc-path>` | `.claude/commands/discovery-to-milestone.md` |
 | `/docs-audit [UC-XXX\|M0X\|actor/slug\|doc-path]` | `.claude/commands/docs-audit.md` |
 | `/mark-done M0X-SYY` | `.claude/commands/mark-done.md` |
