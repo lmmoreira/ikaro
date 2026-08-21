@@ -125,6 +125,8 @@ graph TD
 
 Sequencing is a design decision, not something to bury inside 30 story blocks the user has to reverse-engineer the ordering from — wait for explicit confirmation or adjustment before Step 4.
 
+**A wave is a sequencing guarantee, not a concurrency-safety one** — two stories in the same wave can still depend on each other (S02→S03 above, both in Wave 1) or touch the same files; a wave only promises neither is blocked by an *earlier* wave. If the user wants to run stories from this milestone concurrently later, `/run-batch` applies its own stricter independence + non-overlapping-file check at run time — don't imply same-wave membership already makes a pair batch-safe.
+
 ---
 
 ## Step 4 — Draft each story

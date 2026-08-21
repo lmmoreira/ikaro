@@ -1,11 +1,13 @@
 ---
 name: story-discovery
-description: Run a structured pre-implementation discovery session for a story or TD. Checks doc clarity, completeness, consistency, dependency artifacts, and - for frontend stories - alignment with the validated UX prototype, before any code is written. Ends by asking how the user wants to set up the working environment (worktree vs direct branch).
+description: Run a structured pre-implementation discovery session for a story or TD. Checks doc clarity, completeness, consistency, dependency artifacts, alignment with the validated UX prototype (frontend stories), and locks in the architectural pattern and a concrete test/e2e coverage plan - asking the user as many questions as needed to resolve every open decision before any code is written. Ends by asking how the user wants to set up the working environment (worktree vs direct branch).
 metadata:
   short-description: Pre-implementation story discovery
 ---
 
-Run a structured pre-implementation discovery session for a story or TD. Checks doc clarity, completeness, consistency, dependency artifacts, and — for frontend stories — alignment with the validated UX prototype, before any code is written. Ends by asking how the user wants to set up the working environment (worktree vs direct branch).
+Run a structured pre-implementation discovery session for a story or TD. Checks doc clarity, completeness, consistency, dependency artifacts, alignment with the validated UX prototype (frontend stories), and locks in the architectural pattern and a concrete test/e2e coverage plan — asking the user as many questions as needed to resolve every open decision before any code is written. Ends by asking how the user wants to set up the working environment (worktree vs direct branch).
+
+This session is the one deep, front-loaded decision point in the workflow (CLAUDE.md §9): once it returns READY, the entire rest of the implementation — commit, push, `/pre-pr`, PR, CI-fix, bot-fix — runs autonomously with no further per-step permission asks. That's only safe if every pattern choice, test-strategy decision, and business-rule ambiguity gets resolved here, not deferred to implementation time.
 
 > **HARD RULE — NO CODE CHANGES:** This skill only reads code and updates documentation files (`.md` plan and doc files). It NEVER writes or modifies any `.ts`, `.js`, or any source/test/config file. If a gap requires a code change (e.g. enriching an event payload, adding a method to an aggregate), flag it as a recommendation in the readiness verdict and let the user decide when and how to handle it — do NOT make the change.
 
@@ -193,6 +195,12 @@ Check the story's *proposed design*, not just its documentation completeness, ag
 - **No improvisation:** if the story cites a specific reference (a library, an existing pattern, a named example), does the design actually use it — or does it describe a bespoke alternative presented as equivalent?
 - **Mounting complexity:** does the story's own description already need multiple stacked safeguards/exceptions/special-cases to work — a sign a structurally simpler approach might need none of it? Before accepting the design as-is, check whether an existing port/adapter/pattern (grep `infrastructure/cross-context/`, `docs/AGENT_PATTERNS.md`'s numbered patterns, or a similar existing use case) already solves this without the extra machinery.
 
+### 4q. Pattern & test-strategy lock-in
+- **Architectural pattern:** does the story's design name the concrete pattern it uses (strategy, factory, builder, plain composition, etc.) and why — or explicitly state that no named pattern applies? A story that's silent on this pushes an undocumented judgment call into implementation time; surface it as a question in Step 6 instead.
+- **Test/e2e coverage plan:** does the story name concrete test scenarios — the specific unit cases, integration flows, and (for frontend stories) e2e/Playwright scenarios — rather than a vague "at least one integration test"? A vague coverage statement here becomes an implementation-time judgment call instead of a discovery-time decision.
+- **Business-rule ambiguity:** does anything in the story's description leave a business rule underspecified (a threshold, an edge case, a precedence between two rules)? Surface each as a question in Step 6 rather than letting the implementation step infer one.
+- **Ripple effects:** does this story's change plausibly affect another existing flow, screen, or use case not explicitly listed in its scope? If so, name it as a RISK — either fold it into this story's scope or explicitly note it's out of scope and why.
+
 ### 4p. Stale-reference sweep anticipation (Definition of Done)
 If this story replaces or removes an existing flow/mechanism (an auth pattern, a data model assumption, a transport layer, a dead endpoint) — does the story's own scope explicitly include grepping `docs/*.md`, other milestones' `plan/*_IMPLEMENTATION_DETAILS_*.md`, `.claude/commands/**`, `.claude/skills/**`, and `scripts/**` for stale references to the old version? If the story is silent on this, flag it now — `docs/DEFINITION_OF_DONE.md` makes this mandatory, and catching the gap here is cheaper than at milestone close-out (M13 precedent: 18 such findings across 8 files, found only when the milestone closed).
 
@@ -337,6 +345,8 @@ Do not start implementation until all blockers are cleared.
 ```
 
 If NOT READY, stop here. Do not proceed to Step 9.
+
+A ✅ READY verdict is the single authorization for the rest of the implementation workflow (CLAUDE.md §9) — commit, push, `/pre-pr`, PR, CI-fix, and bot-fix all proceed autonomously from here with no further per-step asks; only the final merge review and any stuck condition come back to the user.
 
 ---
 
