@@ -391,6 +391,12 @@ This is the one your own docs already flag as a **known, currently-unfixed gap**
 
 **Mechanism**: scan all web transport-boundary modules: `features/**/api/**`, root `features/**/api.ts`/`api.server.ts`, and shared API/type modules. If `@ikaro/types` exports a same-named type, use the selected type checker to compare both directions (including nullability and JSON transport compatibility). An identical duplicate name is also a finding unless it is in a documented exception; differently named semantic duplicates remain review territory.
 
+**Story-discovery addition (2026-08-22):** three design decisions locked in, since the TD text above leaves each ambiguous enough to become an implementation-time guess otherwise:
+- **Scan surface = the `@ikaro/types` root-barrel import surface only** — resolve it via `packages/types/src/index.ts`'s `getExportedDeclarations()` (what `import { X } from '@ikaro/types'` actually resolves to), not every exported interface/type across `packages/types/src/**`. `media.ts` and `protocol/*` are deliberately out of scope: neither is re-exported from `index.ts` today, so a web file can't actually collide with them via a plain `@ikaro/types` import.
+- **Detector shape is new to this package**: every existing `packages/architecture-check/src/detectors/*.ts` check takes one `ts-morph` `Project`. This one needs two (`web`, already loaded via `apps/web/tsconfig.json`; and `packages/types`, already loaded via `packages/types/tsconfig.json` — both already registered in `architecture-policy.json`'s `projects` list). Cross-project `Type.isAssignableTo` doesn't work across two independent `ts-morph` Programs, so the algorithm is: independently extract a normalized `{propertyName → baseTypeText, optional, nullable}` signature per matching declaration in each project, then diff the two signatures (not a live structural-assignability check).
+- **Comparison algorithm**: a field present on one side and missing on the other → drift finding (mirrors `bad-smell-audit` `WEB-9`'s own `id`-vs-`entryId` example). Same field, different base type text (with `null`/`undefined` stripped before the text compare) → drift finding. Same field where one side allows `null`/`undefined` and the other doesn't → **also** a drift finding, same severity as a type-text mismatch (a value that can genuinely be absent over JSON but is typed non-nullable on one side is a real runtime risk, not a cosmetic variance to wave through). Identical on every field → flagged as an avoidable duplicate ("should import from `@ikaro/types` instead"), not as drift.
+- New exception-registry rule id for `architecture-policy.json`'s `exceptions` array: `ikaro-types-drift`, using the same `{rule, path, name, rationale, owner, reviewBy}` shape as the existing `bff-controller-inline-type` entries.
+
 **What it catches**: exactly the `LoyaltyEntryItem`/`LoyaltyRedemptionItem` class of drift, on every PR, regardless of which files that PR touches.
 **What it does NOT catch**: which side is *correct* when they differ (per TD09, sometimes `@ikaro/types` is the stale one) — the check only flags the mismatch; a human still decides the fix direction.
 
@@ -398,6 +404,7 @@ This is the one your own docs already flag as a **known, currently-unfixed gap**
 - [ ] Shared runner scans web and workspace types without relying on backend-only dependencies
 - [ ] Full-codebase (not diff-scoped) check passes against `main` with zero unreviewed duplicate/mismatch findings
 - [ ] `scripts/pre-pr.sh`'s existing diff-scoped `WEB-7`/`WEB-9`-adjacent checks can stay as a fast local pre-check, but this becomes the authoritative full-codebase gate
+- [ ] `bad-smell-audit.md`'s `WEB-9` entry and CLAUDE.md's anti-pattern table `WEB-9` row are updated to note the check is now CI-enforced by this detector (mirroring Story 7A's `IEventBus`/`ITransactionManager` precedent), so a future `bad-smell-audit` run doesn't manually redo what's now mechanically enforced on every PR
 
 ---
 
