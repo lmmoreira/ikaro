@@ -7,6 +7,7 @@ import {
   checkEntityBuilderPrimaryKeyDefaults,
   checkErrorMapperCoverage,
   checkGlobalModuleExportPairing,
+  checkIkaroTypesDrift,
   checkNoJestFnForRepositoryOrPortMocks,
   checkPrimitiveFieldsValidatedAtConstruction,
   checkPrototypeChainSafety,
@@ -26,6 +27,7 @@ import {
   type ConstructionValidationTarget,
   type ErrorMapperException,
   type ExternalSideEffectPort,
+  type IkaroTypesDriftException,
   type TestDataHarnessRegistration,
 } from './index';
 import { loadProject } from './project';
@@ -68,6 +70,7 @@ function requireProject(tsconfigPath: string): Project {
 const backend = requireProject('apps/backend/tsconfig.json');
 const bff = requireProject('apps/bff/tsconfig.json');
 const web = requireProject('apps/web/tsconfig.json');
+const types = requireProject('packages/types/tsconfig.json');
 const intentionalErrorMapperGaps: ErrorMapperException[] = (policy.exceptions ?? [])
   .filter(
     (exception): exception is { rule: string; class: string; path: string } =>
@@ -119,6 +122,12 @@ const bffInlineTypeExceptions: BffInlineTypeException[] = (policy.exceptions ?? 
       Boolean(exception.name),
   )
   .map((exception) => ({ path: exception.path, name: exception.name }));
+const ikaroTypesDriftExceptions: IkaroTypesDriftException[] = (policy.exceptions ?? [])
+  .filter(
+    (exception): exception is { rule: string; path: string; name: string } =>
+      exception.rule === 'ikaro-types-drift' && Boolean(exception.path) && Boolean(exception.name),
+  )
+  .map((exception) => ({ path: exception.path, name: exception.name }));
 
 const results = [
   checkTransactionalIo(backend, externalSideEffectPorts),
@@ -147,6 +156,7 @@ const results = [
   checkUseCaseResultNaming(backend),
   checkUseCaseInputNaming(backend),
   checkBffTypesLiveInModuleFiles(bff, bffInlineTypeExceptions),
+  checkIkaroTypesDrift(web, types, ikaroTypesDriftExceptions),
 ];
 const zeroTargetResults = results.filter((result) => result.scannedTargets === 0);
 const findings = results.flatMap((result) => result.findings);

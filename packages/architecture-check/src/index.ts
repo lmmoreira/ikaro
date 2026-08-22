@@ -8,6 +8,8 @@ export type {
 export { checkEntityBuilderPrimaryKeyDefaults } from './detectors/entity-builder-pk-default';
 export { checkErrorMapperCoverage } from './detectors/error-mappers';
 export type { ErrorMapperException } from './detectors/error-mappers';
+export { checkIkaroTypesDrift } from './detectors/ikaro-types-drift';
+export type { IkaroTypesDriftException } from './detectors/ikaro-types-drift';
 export { checkNoJestFnForRepositoryOrPortMocks } from './detectors/jest-fn-port-mock';
 export { checkPrototypeChainSafety } from './detectors/prototype-chain';
 export { checkSharedValueObjectErrorMapperCoverage } from './detectors/shared-vo-error-mapping';

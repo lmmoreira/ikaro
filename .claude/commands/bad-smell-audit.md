@@ -176,6 +176,8 @@ Grep `apps/web/` for `fetch(` calls. Every BFF/backend call must go through one 
 
 ### WEB-9. Local type/interface drifted or duplicated vs. `@ikaro/types`
 
+**Now CI-enforced** by `packages/architecture-check`'s `ikaro-types-drift` detector (TD37 Story 11, `pnpm architecture-check`) — a full-codebase, non-diff-scoped `ts-morph` check that runs on every PR. It scans the same web transport-boundary modules against `@ikaro/types`' root-barrel export surface and diffs both directions (missing/extra fields, type-text mismatches, nullability mismatches), so this manual check no longer needs to be re-run by an LLM audit. This section is retained as the human-readable definition of the rule, not as a check you still need to perform by hand.
+
 For interfaces/types declared in `apps/web/features/**/api/**` or `apps/web/shared/lib/api/**`, grep `@ikaro/types` (`packages/types/src/*.dto.ts`) for an export of the same name. If one exists, compare fields:
 - **Identical shape** → flag as an avoidable duplicate that should import from `@ikaro/types` instead.
 - **Different shape under the same name** → flag as drift, not just duplication — this is a real correctness risk (the local type silently shadows the canonical one at compile time). Report the exact field-level mismatch (e.g. `id` vs `entryId`, a field present on one side and missing on the other).
