@@ -66,11 +66,23 @@ function isClassType(type: Type): boolean {
   return Boolean(type.getSymbol()?.getDeclarations().some(Node.isClassDeclaration));
 }
 
+function hasIndexSignature(type: Type): boolean {
+  return Boolean(type.getStringIndexType() || type.getNumberIndexType());
+}
+
 // An object shape worth recursing into structurally (a plain interface/type-literal/array
 // element), not a class/VO instance — mirrors aggregate-primitive-vo.ts's identical distinction:
 // a class-typed field is treated as an opaque leaf (compared by name only), never walked.
 function isRecursablePlainShape(type: Type): boolean {
   return type.isObject() && !type.isArray() && !isClassType(type);
+}
+
+// getProperties() returns no named PropertySignature symbols for a Record<K, V>/index-signature
+// type (CodeRabbit, PR #402) — only a genuinely finite, named-property object is safe to compare
+// field-by-field. Anything else (primitive, union, array, class, or an index-signature/Record
+// shape) must be compared as a single opaque signature instead — see compareShapes.
+function isFinitePropertyObject(type: Type): boolean {
+  return isRecursablePlainShape(type) && !hasIndexSignature(type);
 }
 
 function propertyDeclaration(symbol: TsMorphSymbol): PropertySignature | undefined {
@@ -89,15 +101,26 @@ function stripImportPaths(text: string): string {
   return text.replace(/import\([^)]*\)\./g, '').trim();
 }
 
+// A depth/cycle cutoff must never collapse to a constant marker: two DIFFERENT shapes hitting
+// the same cutoff would then normalize to the same text and silently compare as identical —
+// exactly backwards for a drift detector (Codex, PR #402). Falling back to the type's own text
+// keeps the cutoff distinguishing: for a named type it degrades to the same name-based comparison
+// already accepted at the leaf level, and for an anonymous nested object literal, TypeScript's
+// own type-to-string already prints the full remaining structure, so real drift below the cutoff
+// still surfaces in practice.
+function cutoffSignature(type: Type): string {
+  return stripImportPaths(type.getText());
+}
+
 function baseTypeSignature(type: Type, depth: number, seen: ReadonlySet<unknown>): string {
-  if (depth > MAX_WALK_DEPTH) return '<max-depth>';
+  if (depth > MAX_WALK_DEPTH) return cutoffSignature(type);
   if (type.isArray()) {
     const element = type.getArrayElementType();
     return element ? `Array<${unionSignature(element, depth + 1, seen)}>` : 'Array<unknown>';
   }
   if (isRecursablePlainShape(type)) {
     const identity: unknown = type.getSymbol() ?? type;
-    if (seen.has(identity)) return '<cycle>';
+    if (seen.has(identity)) return cutoffSignature(type);
     return objectSignature(type, depth, new Set([...seen, identity]));
   }
   return stripImportPaths(type.getText());
@@ -124,9 +147,28 @@ function objectSignature(type: Type, depth: number, seen: ReadonlySet<unknown>):
       const base = unionSignature(propertyType, depth + 1, seen);
       return `${symbol.getName()}${mayBeAbsent ? '?' : ''}: ${base}${mayBeNull ? ' | null' : ''}`;
     })
-    .filter((entry): entry is string => entry !== undefined)
-    .sort();
-  return `{ ${entries.join('; ')} }`;
+    .filter((entry): entry is string => entry !== undefined);
+
+  // getProperties() never returns a Record<K, V>/index-signature member (CodeRabbit, PR #402) —
+  // without this, a nested `Record<string, string>` field and a `Record<string, number>` field
+  // both normalize to the same empty `{ }` shape and silently pass as identical.
+  const stringIndex = type.getStringIndexType();
+  if (stringIndex) entries.push(`[string]: ${unionSignature(stringIndex, depth + 1, seen)}`);
+  const numberIndex = type.getNumberIndexType();
+  if (numberIndex) entries.push(`[number]: ${unionSignature(numberIndex, depth + 1, seen)}`);
+
+  return `{ ${entries.sort().join('; ')} }`;
+}
+
+// The single normalized signature for an ENTIRE type (not one property) — used to compare a
+// top-level declaration that isn't a finite named-property object: a primitive/union/array alias,
+// or a Record<K, V>/index-signature type. Mirrors a property entry's shape (base text plus its own
+// nullable/undefined suffixes) without a field name prefix.
+function wholeTypeSignature(type: Type): string {
+  const mayBeUndefined = includesUndefined(type);
+  const mayBeNull = includesNull(type);
+  const base = unionSignature(type, 0, new Set());
+  return `${base}${mayBeNull ? ' | null' : ''}${mayBeUndefined ? ' | undefined' : ''}`;
 }
 
 function fieldSignatures(type: Type): Map<string, FieldSignature> {
@@ -154,7 +196,22 @@ function describeAbsence(field: FieldSignature): string {
 
 // Compares both directions at once: a field present on exactly one side is caught by iterating
 // the union of both key sets, not just one side's keys.
+//
+// Only a finite, named-property object on BOTH sides gets the per-field diff below —
+// fieldSignatures() is built from getProperties(), which returns nothing for a primitive, a
+// union, an array, or a Record<K, V>/index-signature type (CodeRabbit, PR #402): two such types
+// would otherwise both resolve to zero fields and silently compare as an identical duplicate no
+// matter how different they actually are (e.g. `type Foo = number` vs `type Foo = boolean`, or a
+// same-named `Record<string, string>` vs `Record<string, number>` type alias). Those cases fall
+// through to a single whole-type signature comparison instead.
 function compareShapes(webType: Type, typesType: Type): string[] {
+  if (!isFinitePropertyObject(webType) || !isFinitePropertyObject(typesType)) {
+    const webSignature = wholeTypeSignature(webType);
+    const typesSignature = wholeTypeSignature(typesType);
+    if (webSignature === typesSignature) return [];
+    return [`type mismatch: web has "${webSignature}", @ikaro/types has "${typesSignature}"`];
+  }
+
   const webFields = fieldSignatures(webType);
   const typesFields = fieldSignatures(typesType);
   const messages: string[] = [];

@@ -5,11 +5,20 @@ const TYPES_INDEX = 'packages/types/src/index.ts';
 const TYPES_DTO = 'packages/types/src/demo.dto.ts';
 const WEB_API_FILE = 'apps/web/features/demo/api.ts';
 
-function typesProjectWith(dtoBody: string) {
+function typesProjectWith(dtoBody: string): ReturnType<typeof fixtureProject> {
   return fixtureProject({
     [TYPES_INDEX]: `export * from './demo.dto';`,
     [TYPES_DTO]: dtoBody,
   });
+}
+
+// Builds `{ level: { level: ... leafType ... } }` nested `depth` levels deep, to exercise the
+// detector's depth-cutoff path (packages/architecture-check/src/detectors/ikaro-types-drift.ts's
+// MAX_WALK_DEPTH) without hand-typing dozens of nesting levels.
+function nestedObjectType(depth: number, leafType: string): string {
+  let type = leafType;
+  for (let i = 0; i < depth; i++) type = `{ level: ${type} }`;
+  return type;
 }
 
 describe('checkIkaroTypesDrift', () => {
@@ -188,6 +197,111 @@ describe('checkIkaroTypesDrift', () => {
     expect(result.findings).toEqual([
       expect.objectContaining({
         message: expect.stringContaining('extra field "extra"'),
+      }),
+    ]);
+  });
+
+  // PR #402 review (CodeRabbit): getProperties() returns nothing for a Record<K, V>/index-signature
+  // type, so a nested Record field with a different value type would previously normalize to the
+  // same empty "{ }" shape on both sides and silently pass.
+  it('flags a nested Record field whose value type differs from @ikaro/types', () => {
+    const webProject = fixtureProject({
+      [WEB_API_FILE]: `export interface DemoResponse { id: string; metadata: Record<string, string> }`,
+    });
+    const typesProject = typesProjectWith(
+      `export interface DemoResponse { id: string; metadata: Record<string, number> }`,
+    );
+
+    const result = checkIkaroTypesDrift(webProject, typesProject);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        message: expect.stringContaining('field "metadata" type mismatch'),
+      }),
+    ]);
+  });
+
+  it('does not flag a nested Record field with an identical value type', () => {
+    const webProject = fixtureProject({
+      [WEB_API_FILE]: `export interface DemoResponse { id: string; metadata: Record<string, string> }`,
+    });
+    const typesProject = typesProjectWith(
+      `export interface DemoResponse { id: string; metadata: Record<string, string> }`,
+    );
+
+    const result = checkIkaroTypesDrift(webProject, typesProject);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        message: expect.stringContaining('import it from "@ikaro/types"'),
+      }),
+    ]);
+  });
+
+  // PR #402 review (Codex + CodeRabbit): a top-level declaration that isn't a finite named-property
+  // object (a primitive/union/array/Record alias) has zero properties on both sides via
+  // fieldSignatures() alone, so it previously always compared as an identical duplicate regardless
+  // of its actual — possibly completely different — shape.
+  it('flags a root-level primitive type alias that drifted from @ikaro/types', () => {
+    const webProject = fixtureProject({
+      [WEB_API_FILE]: `export type DemoAlias = string;`,
+    });
+    const typesProject = typesProjectWith(`export type DemoAlias = number;`);
+
+    const result = checkIkaroTypesDrift(webProject, typesProject);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        message: expect.stringContaining('"DemoAlias" has drifted from @ikaro/types\' "DemoAlias"'),
+      }),
+    ]);
+  });
+
+  it('flags a root-level union type alias that drifted from @ikaro/types', () => {
+    const webProject = fixtureProject({
+      [WEB_API_FILE]: `export type DemoUnion = 'A' | 'B';`,
+    });
+    const typesProject = typesProjectWith(`export type DemoUnion = 'A' | 'C';`);
+
+    const result = checkIkaroTypesDrift(webProject, typesProject);
+    expect(result.findings).toHaveLength(1);
+  });
+
+  it('flags a root-level Record type alias that drifted from @ikaro/types', () => {
+    const webProject = fixtureProject({
+      [WEB_API_FILE]: `export type DemoMap = Record<string, string>;`,
+    });
+    const typesProject = typesProjectWith(`export type DemoMap = Record<string, number>;`);
+
+    const result = checkIkaroTypesDrift(webProject, typesProject);
+    expect(result.findings).toHaveLength(1);
+  });
+
+  it('does not flag an identical root-level primitive type alias', () => {
+    const webProject = fixtureProject({
+      [WEB_API_FILE]: `export type DemoAlias = string;`,
+    });
+    const typesProject = typesProjectWith(`export type DemoAlias = string;`);
+
+    const result = checkIkaroTypesDrift(webProject, typesProject);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        message: expect.stringContaining('import it from "@ikaro/types"'),
+      }),
+    ]);
+  });
+
+  // Codex (PR #402): the depth cutoff previously returned a constant "<max-depth>" marker for
+  // every shape beyond it, so two DIFFERENT deeply-nested shapes silently compared as identical.
+  it('still catches a mismatch nested deeper than the walk-depth cutoff', () => {
+    const webProject = fixtureProject({
+      [WEB_API_FILE]: `export interface DeepDemo { id: string; nested: ${nestedObjectType(10, 'string')} }`,
+    });
+    const typesProject = typesProjectWith(
+      `export interface DeepDemo { id: string; nested: ${nestedObjectType(10, 'number')} }`,
+    );
+
+    const result = checkIkaroTypesDrift(webProject, typesProject);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        message: expect.stringContaining('field "nested" type mismatch'),
       }),
     ]);
   });
