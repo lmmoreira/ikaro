@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hotsite — Layout (com Lead Form) — AutoWash Pro</title>
+  <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
+  <style>
+    .module-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.875rem 1rem; border-bottom: 1px solid var(--ba-secondary); }
+    .module-row:last-child { border-bottom: none; }
+    .module-row.new-row { background: #f0fdf4; }
+    .module-drag { cursor: grab; opacity: 0.35; }
+    .module-name { flex: 1; font-size: 0.9375rem; font-weight: 600; color: var(--ba-text); }
+    .module-configure { font-size: 0.8125rem; font-weight: 600; color: var(--ba-primary); text-decoration: none; }
+    .toggle-switch { width: 2.75rem; height: 1.5rem; border-radius: 9999px; background: #d1d5db; position: relative; cursor: pointer; flex-shrink: 0; border: none; padding: 0; }
+    .toggle-switch.on { background: var(--ba-primary); }
+    .toggle-knob { position: absolute; top: 2px; left: 2px; width: 1.25rem; height: 1.25rem; border-radius: 9999px; background: white; transition: transform 0.15s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    .toggle-switch.on .toggle-knob { transform: translateX(1.25rem); }
+    .new-badge { font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; background: #dcfce7; color: #15803d; padding: 0.125rem 0.4375rem; border-radius: 4px; margin-left: 0.5rem; }
+  </style>
+</head>
+<body>
+
+  <!--
+    DISCOVERY PROTOTYPE — NOT a modification of the real file.
+
+    This is an ILLUSTRATIVE copy of only the "Layout" tab panel from the real,
+    already-shipped plan/journey/manager/prototypes/hotsite/01-hotsite-editor.html,
+    showing the ONE new row a real implementation would add: "Formulário de contato"
+    (LEAD_FORM), same module-row/toggle-switch/module-configure markup as the other
+    8 existing module types — nothing else on that page changes.
+
+    Per this discovery's own HARD RULE, this file does NOT edit plan/journey/ —
+    every other "Configurar" link below points directly at the REAL, already-built
+    file for that module (relative path into plan/journey/), reusing real, validated
+    screens instead of re-mocking them. Only the new "Formulário de contato" row
+    points into this discovery's own prototype folder.
+
+    Real file this mirrors: plan/journey/manager/prototypes/hotsite/01-hotsite-editor.html
+    (Layout tab, .editor-panel#panel-layout — see that file's own module-row list).
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo de discovery — cópia ilustrativa da aba "Layout" do editor real, com 1 linha nova destacada
+  </div>
+
+  <div class="dashboard-topbar">
+    <div class="topbar-brand"><div class="topbar-logo-mark">A</div><span class="topbar-tenant-name">AutoWash Pro</span></div>
+    <h1 class="topbar-page-title">Hotsite — Layout</h1>
+  </div>
+
+  <main class="dashboard-body" style="max-width:42rem;margin:0 auto;">
+    <p style="opacity:0.65;margin-bottom:1rem;font-size:0.875rem;">Aba <strong>Layout</strong> do editor real (<a href="../../../../plan/journey/manager/prototypes/hotsite/01-hotsite-editor.html">01-hotsite-editor.html</a>) — Branding e SEO omitidos aqui, sem alteração.</p>
+
+    <div class="section-card" style="padding:0;overflow:hidden;">
+      <div class="module-row">
+        <span class="module-drag">⠿</span><span class="module-name">Hero</span>
+        <a href="../../../../plan/journey/manager/prototypes/hotsite/01d-module-config-hero.html" class="module-configure">Configurar</a>
+        <button class="toggle-switch on"><span class="toggle-knob"></span></button>
+      </div>
+      <div class="module-row">
+        <span class="module-drag">⠿</span><span class="module-name">Lista de serviços</span>
+        <a href="#" class="module-configure">Configurar</a>
+        <button class="toggle-switch on"><span class="toggle-knob"></span></button>
+      </div>
+      <div class="module-row">
+        <span class="module-drag">⠿</span><span class="module-name">Galeria</span>
+        <a href="#" class="module-configure">Configurar</a>
+        <button class="toggle-switch on"><span class="toggle-knob"></span></button>
+      </div>
+      <div class="module-row">
+        <span class="module-drag">⠿</span><span class="module-name">Chamada para agendamento</span>
+        <a href="#" class="module-configure">Configurar</a>
+        <button class="toggle-switch on"><span class="toggle-knob"></span></button>
+      </div>
+      <div class="module-row">
+        <span class="module-drag">⠿</span><span class="module-name">Depoimentos</span>
+        <a href="#" class="module-configure">Configurar</a>
+        <button class="toggle-switch on"><span class="toggle-knob"></span></button>
+      </div>
+      <div class="module-row">
+        <span class="module-drag">⠿</span><span class="module-name">Sobre</span>
+        <a href="#" class="module-configure">Configurar</a>
+        <button class="toggle-switch"><span class="toggle-knob"></span></button>
+      </div>
+      <div class="module-row">
+        <span class="module-drag">⠿</span><span class="module-name">Contato</span>
+        <a href="#" class="module-configure">Configurar</a>
+        <button class="toggle-switch on"><span class="toggle-knob"></span></button>
+      </div>
+      <div class="module-row">
+        <span class="module-drag">⠿</span><span class="module-name">Rodapé</span>
+        <a href="#" class="module-configure">Configurar</a>
+        <button class="toggle-switch on"><span class="toggle-knob"></span></button>
+      </div>
+      <div class="module-row">
+        <span class="module-drag">⠿</span><span class="module-name">Chatbot</span>
+        <a href="../../../../plan/journey/manager/prototypes/hotsite/01e-module-config-chatbot.html" class="module-configure">Configurar</a>
+        <button class="toggle-switch on"><span class="toggle-knob"></span></button>
+      </div>
+      <!-- ── NEW ROW — this discovery's addition ── -->
+      <div class="module-row new-row">
+        <span class="module-drag">⠿</span>
+        <span class="module-name">Formulário de contato<span class="new-badge">novo</span></span>
+        <a href="manager-01-lead-form-config.html" class="module-configure">Configurar</a>
+        <button class="toggle-switch on"><span class="toggle-knob"></span></button>
+      </div>
+    </div>
+    <p class="form-hint" style="margin-top:0.75rem;">"Formulário de contato" (LEAD_FORM) segue o mesmo drill-down de "Configurar" que todo módulo já tem — 10º tipo de módulo, mesmo tratamento que o Chatbot recebeu como 9º.</p>
+  </main>
+
+</body>
+</html>
