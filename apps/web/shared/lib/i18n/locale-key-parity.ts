@@ -38,7 +38,7 @@ export function diffLocaleKeys(a: LocaleTree, b: LocaleTree): LocaleKeyParityDif
   const aPaths = collectKeyPaths(a, '');
   const bPaths = collectKeyPaths(b, '');
   return {
-    onlyInA: [...aPaths].filter((path) => !bPaths.has(path)).sort(),
-    onlyInB: [...bPaths].filter((path) => !aPaths.has(path)).sort(),
+    onlyInA: [...aPaths].filter((path) => !bPaths.has(path)).sort((x, y) => x.localeCompare(y)),
+    onlyInB: [...bPaths].filter((path) => !aPaths.has(path)).sort((x, y) => x.localeCompare(y)),
   };
 }
