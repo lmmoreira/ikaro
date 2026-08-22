@@ -5,7 +5,7 @@ import {
   TenantStatusFilter,
 } from '../ports/tenant-repository.port';
 
-export interface GetTenantsDto {
+export interface GetTenantsUseCaseInput {
   ids?: string[];
   status?: TenantStatusFilter;
   name?: string;
@@ -31,8 +31,8 @@ export interface GetTenantsUseCaseResult {
 export class GetTenantsUseCase {
   constructor(@Inject(TENANT_REPOSITORY) private readonly tenantRepo: ITenantRepository) {}
 
-  async execute(dto: GetTenantsDto = {}): Promise<GetTenantsUseCaseResult> {
-    const tenants = await this.tenantRepo.findMany(dto);
+  async execute(input: GetTenantsUseCaseInput = {}): Promise<GetTenantsUseCaseResult> {
+    const tenants = await this.tenantRepo.findMany(input);
     return {
       items: tenants.map((t) => ({
         id: t.id,

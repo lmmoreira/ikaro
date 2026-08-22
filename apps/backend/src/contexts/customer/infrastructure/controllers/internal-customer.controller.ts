@@ -8,6 +8,7 @@ import {
   GetCustomerTenantsSchema,
 } from '../../application/dtos/get-customer-tenants.dto';
 import {
+  FindOrCreateCustomerUseCaseInput,
   FindOrCreateCustomerUseCaseResult,
   FindOrCreateCustomerUseCase,
 } from '../../application/use-cases/find-or-create-customer.use-case';
@@ -39,6 +40,12 @@ export class InternalCustomerController {
   findOrCreate(
     @Body(new ZodValidationPipe(FindOrCreateCustomerSchema)) dto: FindOrCreateCustomerDto,
   ): Promise<FindOrCreateCustomerUseCaseResult> {
-    return this.findOrCreateCustomer.execute(dto);
+    const input: FindOrCreateCustomerUseCaseInput = {
+      tenantId: dto.tenantId,
+      googleOAuthId: dto.googleOAuthId,
+      email: dto.email,
+      name: dto.name,
+    };
+    return this.findOrCreateCustomer.execute(input);
   }
 }

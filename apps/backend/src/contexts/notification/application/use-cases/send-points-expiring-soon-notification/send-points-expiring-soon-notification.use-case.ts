@@ -32,7 +32,14 @@ import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.POINTS_EXPIRING_SOON;
 
-export type SendPointsExpiringSoonNotificationUseCaseInput = SendPointsExpiringSoonNotificationDto;
+export interface SendPointsExpiringSoonNotificationUseCaseInput {
+  tenantId: SendPointsExpiringSoonNotificationDto['tenantId'];
+  eventId: SendPointsExpiringSoonNotificationDto['eventId'];
+  correlationId: SendPointsExpiringSoonNotificationDto['correlationId'];
+  customerId: SendPointsExpiringSoonNotificationDto['customerId'];
+  pointsExpiringSoon: SendPointsExpiringSoonNotificationDto['pointsExpiringSoon'];
+  earliestExpiresAt: SendPointsExpiringSoonNotificationDto['earliestExpiresAt'];
+}
 
 export interface SendPointsExpiringSoonNotificationUseCaseResult {
   emailSent: boolean;

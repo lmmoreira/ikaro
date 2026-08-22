@@ -10,7 +10,7 @@ import {
 } from '../../domain/errors/booking-domain.error';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
-export type CancelBookingAsCustomerInput = {
+export type CancelBookingAsCustomerUseCaseInput = {
   bookingId: string;
   tenantId: string;
   customerId: string;
@@ -31,7 +31,7 @@ export class CancelBookingAsCustomerUseCase {
   ) {}
 
   async execute(
-    input: CancelBookingAsCustomerInput,
+    input: CancelBookingAsCustomerUseCaseInput,
   ): Promise<CancelBookingAsCustomerUseCaseResult> {
     const { tenantId, customerId, correlationId } = input;
 

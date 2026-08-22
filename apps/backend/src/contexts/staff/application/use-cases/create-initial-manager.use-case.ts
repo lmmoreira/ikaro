@@ -7,7 +7,7 @@ import {
 import { Staff } from '../../domain/staff.aggregate';
 import { IStaffRepository, STAFF_REPOSITORY } from '../ports/staff-repository.port';
 
-export interface CreateInitialManagerDto {
+export interface CreateInitialManagerUseCaseInput {
   tenantId: string;
   eventId: string;
   adminEmail: string;
@@ -33,8 +33,10 @@ export class CreateInitialManagerUseCase {
   // the inbox check adds the same eventId-based guarantee every other consumer has, and catches
   // the (should-be-impossible, since both writes commit in the same transaction) case where an
   // event was marked processed but the staff row can't be found.
-  async execute(dto: CreateInitialManagerDto): Promise<CreateInitialManagerUseCaseResult> {
-    const { tenantId, eventId, adminEmail, correlationId } = dto;
+  async execute(
+    input: CreateInitialManagerUseCaseInput,
+  ): Promise<CreateInitialManagerUseCaseResult> {
+    const { tenantId, eventId, adminEmail, correlationId } = input;
 
     const existing = await this.staffRepo.findByTenantAndEmail(tenantId, adminEmail);
     if (existing) return { staffId: existing.id };

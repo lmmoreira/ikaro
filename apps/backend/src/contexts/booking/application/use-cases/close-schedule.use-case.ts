@@ -11,7 +11,7 @@ import {
 } from '../ports/schedule-closure-repository.port';
 import { CloseScheduleDto } from '../dtos/close-schedule.dto';
 
-export type CloseScheduleInput = CloseScheduleDto & {
+export type CloseScheduleUseCaseInput = CloseScheduleDto & {
   tenantId: string;
   createdBy: string;
 };
@@ -35,7 +35,7 @@ export class CloseScheduleUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(input: CloseScheduleInput): Promise<CloseScheduleUseCaseResult> {
+  async execute(input: CloseScheduleUseCaseInput): Promise<CloseScheduleUseCaseResult> {
     const { tenantId, createdBy } = input;
 
     const closure = ScheduleClosure.close(

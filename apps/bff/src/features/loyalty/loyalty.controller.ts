@@ -1,5 +1,4 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
-import { z } from 'zod';
 import {
   CustomerLoyaltyBalanceResponse,
   CustomerProfileResponse,
@@ -18,6 +17,7 @@ import {
   BackendLoyaltyEntriesResponse,
   BackendLoyaltyRedemptionsResponse,
   RedeemPointsResponse,
+  Pagination,
 } from './loyalty.types';
 import {
   toCustomerLoyaltyEntry,
@@ -26,28 +26,16 @@ import {
   toStaffLoyaltyEntry,
   toStaffLoyaltyRedemption,
 } from './loyalty.mapper';
+import {
+  PaginationQuery,
+  PaginationSchema,
+  RedeemPointsBody,
+  RedeemPointsSchema,
+} from './loyalty.schemas';
 
-const PaginationSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-});
-
-type PaginationQuery = z.infer<typeof PaginationSchema>;
-
-const RedeemPointsSchema = z.object({
-  customerId: z.uuid(),
-  pointsToRedeem: z.number().int().min(1),
-  notes: z.string().optional().nullable(),
-  bookingId: z.uuid().optional().nullable(),
-});
-
-type RedeemPointsBody = z.infer<typeof RedeemPointsSchema>;
-
-type Pagination = {
-  readonly page: number;
-  readonly limit: number;
-  readonly total: number;
-};
+// Request Zod schemas moved to loyalty.schemas.ts — re-exported here so existing
+// imports of these symbols from this file keep working unchanged.
+export * from './loyalty.schemas';
 
 function toPaginatedResponse<TSource, TResult>(
   payload: { readonly pagination: Pagination },

@@ -131,15 +131,17 @@ This also means: when a customer switches tenants, their `sub` CHANGES (differen
 When a customer logs in via a hotsite for the first time, they don't have a `Customer` row yet. The BFF calls `POST /internal/customers`, which runs `FindOrCreateCustomerUseCase`:
 
 ```typescript
-async execute(dto: FindOrCreateCustomerDto): Promise<FindOrCreateCustomerResult> {
-  const existing = await this.customerRepo.findByTenantAndOAuthId(dto.tenantId, dto.googleOAuthId);
+async execute(input: FindOrCreateCustomerUseCaseInput): Promise<FindOrCreateCustomerUseCaseResult> {
+  const existing = await this.customerRepo.findByTenantAndOAuthId(input.tenantId, input.googleOAuthId);
   if (existing) return { customerId: existing.id, created: false };
 
-  const customer = Customer.create(dto.tenantId, dto.googleOAuthId, dto.email, dto.name);
+  const customer = Customer.create(input.tenantId, input.googleOAuthId, input.email, input.name);
   await this.customerRepo.save(customer);
   return { customerId: customer.id, created: true };
 }
 ```
+
+The controller (`internal-customer.controller.ts`) validates the HTTP body with `FindOrCreateCustomerSchema`/`FindOrCreateCustomerDto`, then constructs `FindOrCreateCustomerUseCaseInput` explicitly field-by-field before calling `execute()` — the use case never takes the HTTP DTO directly (TD37-S10).
 
 This is **idempotent**: calling it multiple times with the same `(tenantId, googleOAuthId)` always returns the same `customerId`. The response includes `created: boolean` so the BFF knows whether a new Customer was created (useful for analytics or welcome flows).
 

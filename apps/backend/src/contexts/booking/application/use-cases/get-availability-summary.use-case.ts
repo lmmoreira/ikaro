@@ -22,7 +22,7 @@ import {
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { GetAvailabilitySummaryDto } from '../dtos/get-availability-summary.dto';
 
-export type GetAvailabilitySummaryInput = GetAvailabilitySummaryDto & {
+export type GetAvailabilitySummaryUseCaseInput = GetAvailabilitySummaryDto & {
   tenantId: string;
   businessHours: BusinessHours;
   slotGranularityMinutes: 15 | 30 | 60;
@@ -49,7 +49,9 @@ export class GetAvailabilitySummaryUseCase {
     private readonly availabilityService: AvailabilityService,
   ) {}
 
-  async execute(input: GetAvailabilitySummaryInput): Promise<GetAvailabilitySummaryUseCaseResult> {
+  async execute(
+    input: GetAvailabilitySummaryUseCaseInput,
+  ): Promise<GetAvailabilitySummaryUseCaseResult> {
     const {
       tenantId,
       businessHours,
@@ -100,7 +102,7 @@ export class GetAvailabilitySummaryUseCase {
   }
 
   private buildDaySummaries(
-    input: GetAvailabilitySummaryInput,
+    input: GetAvailabilitySummaryUseCaseInput,
     ctx: {
       services: Awaited<ReturnType<IServiceRepository['findByIds']>>;
       closures: Awaited<ReturnType<IScheduleClosureRepository['findByTenantAndDateRange']>>;

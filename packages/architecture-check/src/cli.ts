@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import type { Project } from 'ts-morph';
 import {
   checkAggregatePropsUseSharedValueObjects,
+  checkBffTypesLiveInModuleFiles,
   checkEntityBuilderPrimaryKeyDefaults,
   checkErrorMapperCoverage,
   checkGlobalModuleExportPairing,
@@ -16,9 +17,12 @@ import {
   checkTransactionalIo,
   checkTransactionalSaves,
   checkUnsafeUseExisting,
+  checkUseCaseInputNaming,
+  checkUseCaseResultNaming,
   checkValueObjectCreateNeverThrowsBareError,
   mergeScanResults,
   type AggregateValueObjectConcept,
+  type BffInlineTypeException,
   type ConstructionValidationTarget,
   type ErrorMapperException,
   type ExternalSideEffectPort,
@@ -36,6 +40,7 @@ const policy = JSON.parse(
     context?: string;
     path?: string;
     property?: string;
+    name?: string;
   }>;
   externalSideEffectPorts?: ExternalSideEffectPort[];
   testDataHarnessRegistrations?: TestDataHarnessRegistration[];
@@ -106,6 +111,14 @@ if (!voConstructionValidationRegistry?.length) {
     'The architecture policy must register at least one VO construction-validation target.',
   );
 }
+const bffInlineTypeExceptions: BffInlineTypeException[] = (policy.exceptions ?? [])
+  .filter(
+    (exception): exception is { rule: string; path: string; name: string } =>
+      exception.rule === 'bff-controller-inline-type' &&
+      Boolean(exception.path) &&
+      Boolean(exception.name),
+  )
+  .map((exception) => ({ path: exception.path, name: exception.name }));
 
 const results = [
   checkTransactionalIo(backend, externalSideEffectPorts),
@@ -131,6 +144,9 @@ const results = [
     aggregatePrimitiveVoExemptions,
   ),
   checkPrimitiveFieldsValidatedAtConstruction(backend, voConstructionValidationRegistry),
+  checkUseCaseResultNaming(backend),
+  checkUseCaseInputNaming(backend),
+  checkBffTypesLiveInModuleFiles(bff, bffInlineTypeExceptions),
 ];
 const zeroTargetResults = results.filter((result) => result.scannedTargets === 0);
 const findings = results.flatMap((result) => result.findings);

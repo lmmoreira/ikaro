@@ -4,10 +4,14 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
 import { Customer } from '../../domain/customer.aggregate';
-import { FindOrCreateCustomerDto } from '../dtos/find-or-create-customer.dto';
 import { CUSTOMER_REPOSITORY, ICustomerRepository } from '../ports/customer-repository.port';
 
-export type FindOrCreateCustomerUseCaseInput = FindOrCreateCustomerDto;
+export interface FindOrCreateCustomerUseCaseInput {
+  tenantId: string;
+  googleOAuthId: string;
+  email: string;
+  name: string;
+}
 
 export interface FindOrCreateCustomerUseCaseResult {
   customerId: string;

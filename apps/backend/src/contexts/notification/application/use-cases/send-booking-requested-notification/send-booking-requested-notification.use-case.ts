@@ -7,6 +7,7 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../../shared/ports/transaction-manager.port';
 import { SendBookingRequestedNotificationDto } from '../../dtos/send-booking-requested-notification.dto';
+import { BaseContactNotificationDto } from '../../dtos/base-contact-notification.dto';
 import {
   INotificationDispatcher,
   NOTIFICATION_DISPATCHER,
@@ -32,7 +33,12 @@ import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.p
 import { DEFAULT_LOCALE } from '../../../domain/notification-locale.constants';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
-export type SendBookingRequestedNotificationUseCaseInput = SendBookingRequestedNotificationDto;
+export interface SendBookingRequestedNotificationUseCaseInput extends BaseContactNotificationDto {
+  scheduledAt: SendBookingRequestedNotificationDto['scheduledAt'];
+  totalPrice: SendBookingRequestedNotificationDto['totalPrice'];
+  lines: SendBookingRequestedNotificationDto['lines'];
+  pickupAddress: SendBookingRequestedNotificationDto['pickupAddress'];
+}
 
 export interface SendBookingRequestedNotificationUseCaseResult {
   adminEmailSent: boolean;

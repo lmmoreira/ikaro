@@ -11,7 +11,7 @@ import { BookingStatus } from '../../domain/booking.aggregate';
 import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
 import { RejectBookingDto } from '../dtos/reject-booking.dto';
 
-export type RejectBookingInput = RejectBookingDto & {
+export type RejectBookingUseCaseInput = RejectBookingDto & {
   bookingId: string;
   tenantId: string;
   staffId: string;
@@ -31,7 +31,7 @@ export class RejectBookingUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(input: RejectBookingInput): Promise<RejectBookingUseCaseResult> {
+  async execute(input: RejectBookingUseCaseInput): Promise<RejectBookingUseCaseResult> {
     const { tenantId, staffId, correlationId } = input;
 
     const booking = await this.bookingRepo.findById(input.bookingId, tenantId);

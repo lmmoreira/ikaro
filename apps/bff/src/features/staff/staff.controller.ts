@@ -10,7 +10,6 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { z } from 'zod';
 import {
   ActivateStaffResponse,
   DeactivateStaffResponse,
@@ -28,22 +27,16 @@ import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { toStaffListResponse } from './staff.mapper';
 import { StaffItemListResponse } from './staff.types';
+import {
+  InviteStaffBody,
+  InviteStaffBodySchema,
+  UpdateStaffBody,
+  UpdateStaffBodySchema,
+} from './staff.schemas';
 
-const InviteStaffBodySchema = z.object({
-  email: z.email(),
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
-  role: z.enum(['MANAGER', 'STAFF']),
-});
-
-type InviteStaffBody = z.infer<typeof InviteStaffBodySchema>;
-
-const UpdateStaffBodySchema = z.object({
-  name: z.string().min(1),
-  role: z.enum(['MANAGER', 'STAFF']),
-});
-
-type UpdateStaffBody = z.infer<typeof UpdateStaffBodySchema>;
+// Request Zod schemas moved to staff.schemas.ts — re-exported here so existing
+// imports of these symbols from this file keep working unchanged.
+export * from './staff.schemas';
 
 @Controller('staff')
 @Roles('MANAGER')

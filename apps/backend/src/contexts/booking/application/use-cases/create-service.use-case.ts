@@ -9,7 +9,7 @@ import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-reposit
 import { CreateServiceDto } from '../dtos/create-service.dto';
 import { Service } from '../../domain/service.aggregate';
 
-export type CreateServiceInput = CreateServiceDto & {
+export type CreateServiceUseCaseInput = CreateServiceDto & {
   tenantId: string;
   currency: string;
   locale: string;
@@ -35,7 +35,7 @@ export class CreateServiceUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(input: CreateServiceInput): Promise<CreateServiceUseCaseResult> {
+  async execute(input: CreateServiceUseCaseInput): Promise<CreateServiceUseCaseResult> {
     const { tenantId, currency, locale } = input;
     const price = Money.from(input.priceAmount, currency);
 

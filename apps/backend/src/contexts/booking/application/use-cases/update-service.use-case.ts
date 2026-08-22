@@ -9,7 +9,7 @@ import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-pl
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { UpdateServiceDto } from '../dtos/update-service.dto';
 
-export type UpdateServiceInput = UpdateServiceDto & {
+export type UpdateServiceUseCaseInput = UpdateServiceDto & {
   id: string;
   tenantId: string;
   currency: string;
@@ -36,7 +36,7 @@ export class UpdateServiceUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(input: UpdateServiceInput): Promise<UpdateServiceUseCaseResult> {
+  async execute(input: UpdateServiceUseCaseInput): Promise<UpdateServiceUseCaseResult> {
     const { id, tenantId, currency, locale } = input;
     const service = await this.serviceRepo.findById(id, tenantId);
     if (!service) throw new ServiceNotFoundError(id);

@@ -3,7 +3,7 @@ import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-reposit
 import { ListBookingsDto } from '../dtos/list-bookings.dto';
 import { Booking } from '../../domain/booking.aggregate';
 
-export type ListBookingsInput = ListBookingsDto & {
+export type ListBookingsUseCaseInput = ListBookingsDto & {
   tenantId: string;
   customerId?: string;
   cancellationWindowHours: number;
@@ -43,7 +43,7 @@ export interface ListBookingsUseCaseResult {
 export class ListBookingsUseCase {
   constructor(@Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository) {}
 
-  async execute(input: ListBookingsInput): Promise<ListBookingsUseCaseResult> {
+  async execute(input: ListBookingsUseCaseInput): Promise<ListBookingsUseCaseResult> {
     const { tenantId, customerId, cancellationWindowHours } = input;
 
     const { items, total } = await this.bookingRepo.findAllByTenantPaginated(tenantId, {

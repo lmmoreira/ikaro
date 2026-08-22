@@ -1,4 +1,6 @@
 export { checkAggregatePropsUseSharedValueObjects } from './detectors/aggregate-primitive-vo';
+export { checkBffTypesLiveInModuleFiles } from './detectors/bff-controller-type-placement';
+export type { BffInlineTypeException } from './detectors/bff-controller-type-placement';
 export type {
   AggregatePrimitiveVoExemption,
   AggregateValueObjectConcept,
@@ -22,6 +24,7 @@ export {
 export { checkValueObjectCreateNeverThrowsBareError } from './detectors/vo-bare-error';
 export { checkPrimitiveFieldsValidatedAtConstruction } from './detectors/vo-construction-validation';
 export type { ConstructionValidationTarget } from './detectors/vo-construction-validation';
+export { checkUseCaseInputNaming, checkUseCaseResultNaming } from './detectors/use-case-naming';
 export type { ExternalSideEffectPort } from './detectors/transactional-io';
 export { mergeScanResults } from './model';
 export type { Finding, ScanResult } from './model';

@@ -7,6 +7,7 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../../shared/ports/transaction-manager.port';
 import { SendBookingCancelledNotificationDto } from '../../dtos/send-booking-cancelled-notification.dto';
+import { BaseContactNotificationDto } from '../../dtos/base-contact-notification.dto';
 import {
   INotificationDispatcher,
   NOTIFICATION_DISPATCHER,
@@ -32,7 +33,14 @@ import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.p
 import { DEFAULT_LOCALE } from '../../../domain/notification-locale.constants';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
-export type SendBookingCancelledNotificationUseCaseInput = SendBookingCancelledNotificationDto;
+export interface SendBookingCancelledNotificationUseCaseInput extends BaseContactNotificationDto {
+  cancelledBy: SendBookingCancelledNotificationDto['cancelledBy'];
+  isBusiness: SendBookingCancelledNotificationDto['isBusiness'];
+  reason: SendBookingCancelledNotificationDto['reason'];
+  scheduledAt: SendBookingCancelledNotificationDto['scheduledAt'];
+  lineSummary: SendBookingCancelledNotificationDto['lineSummary'];
+  totalPrice: SendBookingCancelledNotificationDto['totalPrice'];
+}
 
 export interface SendBookingCancelledNotificationUseCaseResult {
   customerEmailSent: boolean;
