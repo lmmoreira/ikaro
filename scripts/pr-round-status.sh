@@ -93,8 +93,12 @@ while true; do
     COMMENTS_JSON=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json comments 2>/dev/null || echo '{"comments":[]}')
 
     if [ "$WAIT_CODEX" -eq 1 ]; then
+      # The exact preamble wording isn't a stable contract — observed drifting between rounds
+      # (backticks added around /pr-review, "4-agent" -> "4-perspective") on the same PR in the
+      # same session, which silently hung a literal-substring match forever. Tolerate an optional
+      # backtick around /pr-review instead of requiring it verbatim either way.
       CODEX_URL=$(printf '%s' "$COMMENTS_JSON" | jq -r --arg since "$SINCE" '
-        [.comments[] | select(.createdAt >= $since) | select(.body | test("Automated review via /pr-review — Codex"))]
+        [.comments[] | select(.createdAt >= $since) | select(.body | test("Automated review via `?/pr-review`? — Codex"))]
         | sort_by(.createdAt) | last | .url // empty')
     fi
 
