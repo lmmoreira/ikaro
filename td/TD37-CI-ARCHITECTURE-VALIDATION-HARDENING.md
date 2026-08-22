@@ -401,7 +401,7 @@ This is the one your own docs already flag as a **known, currently-unfixed gap**
 
 ---
 
-### Story 12 — Generalize i18n key-parity checks beyond `errors.json` 🟡
+### Story 12 — Generalize i18n key-parity checks beyond `errors.json` 🟡 ✅ Done
 
 `apps/web/shared/lib/i18n/error-codes-exhaustiveness.spec.ts` already proves this exact test pattern works and is already CI-enforced — it's the strongest existing precedent for this whole TD. `notifications.json` and `web.json` have the identical mandatory rule ("always add the key to both locales in the same commit") with **no equivalent spec**.
 

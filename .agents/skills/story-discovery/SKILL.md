@@ -1,11 +1,13 @@
 ---
 name: story-discovery
-description: Run a structured pre-implementation discovery session for a story or TD. Checks doc clarity, completeness, consistency, dependency artifacts, and - for frontend stories - alignment with the validated UX prototype, before any code is written. Ends by asking how the user wants to set up the working environment (worktree vs direct branch).
+description: Run a structured pre-implementation discovery session for a story or TD. Checks doc clarity, completeness, consistency, dependency artifacts, alignment with the validated UX prototype (frontend stories), and locks in the architectural pattern and a concrete test/e2e coverage plan - asking the user as many questions as needed to resolve every open decision before any code is written. Ends by asking how the user wants to set up the working environment (worktree vs direct branch).
 metadata:
   short-description: Pre-implementation story discovery
 ---
 
-Run a structured pre-implementation discovery session for a story or TD. Checks doc clarity, completeness, consistency, dependency artifacts, and — for frontend stories — alignment with the validated UX prototype, before any code is written. Ends by asking how the user wants to set up the working environment (worktree vs direct branch).
+Run a structured pre-implementation discovery session for a story or TD. Checks doc clarity, completeness, consistency, dependency artifacts, alignment with the validated UX prototype (frontend stories), and locks in the architectural pattern and a concrete test/e2e coverage plan — asking the user as many questions as needed to resolve every open decision before any code is written. Ends by asking how the user wants to set up the working environment (worktree vs direct branch).
+
+This session is the one deep, front-loaded decision point in the workflow (CLAUDE.md §9): once it returns READY, the entire rest of the implementation — commit, push, `/pre-pr`, PR, CI-fix, bot-fix — runs autonomously with no further per-step permission asks. That's only safe if every pattern choice, test-strategy decision, and business-rule ambiguity gets resolved here, not deferred to implementation time.
 
 > **HARD RULE — NO CODE CHANGES:** This skill only reads code and updates documentation files (`.md` plan and doc files). It NEVER writes or modifies any `.ts`, `.js`, or any source/test/config file. If a gap requires a code change (e.g. enriching an event payload, adding a method to an aggregate), flag it as a recommendation in the readiness verdict and let the user decide when and how to handle it — do NOT make the change.
 
@@ -56,6 +58,7 @@ Extract these fields from the story block:
 - BFF endpoint spec (method, path, auth, response)
 - Acceptance criteria (all checkboxes)
 - Dependencies (story IDs) — note their status (Done / Pending)
+- **Files to create/modify** — if listed, verify each modified-file path actually exists (same Explore-agent discipline as the dependency-symbol check below); flag a missing declared path as a **RISK**, not silently
 - **Prototype references** — every `plan/journey/...` path listed under a "Prototype references:", "Prototype reference:", or milestone-level "Journey prototype:" line
 - Any mention of: new DB migration/entity, new i18n keys, new env vars, new Pub/Sub topics, feature flags
 
@@ -198,6 +201,12 @@ If this story replaces or removes an existing flow/mechanism (an auth pattern, a
 
 **Inverse case — journey GAP-status drift:** if this story's own `Prototype references` point at a `plan/journey/<actor>/<slug>.md` that currently marks the relevant screen/flow `❓ GAP`, does the story's scope include flipping that status in the same commit? A full `/docs-audit` sweep (2026-08-04) found this exact pattern in *every actor's* journeys (28 findings) — `dev-notes.md` consistently got updated when a gap shipped, the parent journey `.md`'s mermaid/Prototype table consistently didn't. Flag as **RISK** if the story is silent on it.
 
+### 4q. Pattern & test-strategy lock-in
+- **Architectural pattern:** does the story's design name the concrete pattern it uses (strategy, factory, builder, plain composition, etc.) and why — or explicitly state that no named pattern applies? A story that's silent on this pushes an undocumented judgment call into implementation time; surface it as a question in Step 6 instead.
+- **Test/e2e coverage plan:** does the story name concrete test scenarios — the specific unit cases, integration flows, and (for frontend stories) e2e/Playwright scenarios — rather than a vague "at least one integration test"? A vague coverage statement here becomes an implementation-time judgment call instead of a discovery-time decision.
+- **Business-rule ambiguity:** does anything in the story's description leave a business rule underspecified (a threshold, an edge case, a precedence between two rules)? Surface each as a question in Step 6 rather than letting the implementation step infer one.
+- **Ripple effects:** does this story's change plausibly affect another existing flow, screen, or use case not explicitly listed in its scope? If so, name it as a RISK — either fold it into this story's scope or explicitly note it's out of scope and why.
+
 ---
 
 ## Step 5 — Print findings
@@ -295,7 +304,9 @@ For EACH doc change, apply §0 permission protocol:
 
 If the user says no to a change, note it and proceed with the current docs.
 
-**Worktree note:** any doc edit written in this step lands in the main checkout, uncommitted. If Step 9 below results in `EnterWorktree` being called, the new worktree branches fresh from `origin/main` — it does **not** carry forward uncommitted changes sitting in the main checkout. A Step-7 doc edit made before entering a worktree is silently orphaned unless reapplied inside the worktree (confirmed in M17-S32, 2026-07-19: `docs/24-BFF_ARCHITECTURE.md` had to be rewritten a second time after `EnterWorktree`). If the user picks worktree in Step 9, redo any Step-7 doc edits inside the worktree before writing story code — or defer them to Step 9 entirely and make them from inside the worktree in the first place. **This isn't limited to Step 7** — the same trap applies to any plan-file doc edit made in the main checkout at any point before `EnterWorktree` is called, including drafting the story itself (M18-S02, 2026-07-28: the *entire* initial story draft was written to the main checkout before story-discovery even started; it landed on `origin/main` only because the user separately committed and pushed it directly — the PR branch itself still forked before that push and missed a later refinement, caught only when a cross-tool PR review flagged what looked like a code/spec mismatch).
+**Once all approved Step-7 edits are written, commit and push them to `main` together** — list the files, ask before the commit and again before the push (§0's gates apply as normal), same as any other commit. Do this before Step 9's worktree decision. This is the default specifically to prevent the orphaned-edit trap described in the Worktree note below: `EnterWorktree`'s default `fresh` base ref branches from `origin/main`, so committed-and-pushed Step-7 edits are already present in a freshly created worktree, with nothing to reapply. If the user declines the commit or the push, the edit stays uncommitted in the main checkout — follow the Worktree note's fallback guidance instead.
+
+**Worktree note:** Step-7 edits are committed and pushed to `main` immediately (above) specifically so the trap below doesn't happen. But if a push was declined, or a doc edit lands in the main checkout some other way (see the M18-S02 case below), it's real: `EnterWorktree`'s new worktree branches fresh from `origin/main`, and does **not** carry forward uncommitted — or committed-but-unpushed — changes sitting in the main checkout. An edit left in that state is silently orphaned unless reapplied inside the worktree (confirmed in M17-S32, 2026-07-19 — before this commit-and-push default existed — `docs/24-BFF_ARCHITECTURE.md` had to be rewritten a second time after `EnterWorktree`). If the edit is committed but unpushed in the main checkout, don't retype the content — cherry-pick that exact commit into the worktree (`git log` to find the SHA, `git cherry-pick <sha>`), then remove the stray commit from the main checkout (`git reset --hard origin/main` — destructive, confirm with the user first per the git safety protocol) so a later routine push from there can never publish a duplicate or divergent version. If the edit is uncommitted, redo it inside the worktree and discard the orphaned uncommitted copy per the note below instead — or defer either case to Step 9 entirely and make the edit from inside the worktree in the first place. **This isn't limited to Step 7** — the same trap applies to any plan-file doc edit made in the main checkout at any point before `EnterWorktree` is called and pushed, including drafting the story itself (M18-S02, 2026-07-28: the *entire* initial story draft was written to the main checkout before story-discovery even started; it landed on `origin/main` only because the user separately committed and pushed it directly — the PR branch itself still forked before that push and missed a later refinement, caught only when a cross-tool PR review flagged what looked like a code/spec mismatch).
 
 **Once the edit is reapplied inside the worktree, discard the orphaned uncommitted copy left in the main checkout** (`git checkout -- <path>` / `git restore <path>`) — don't just leave it sitting there. An orphaned uncommitted doc edit has no owner and no expiration; anyone who later runs a routine commit in the main checkout can sweep it up and push it to `main` by mistake, creating a merge conflict with the worktree branch's own (by then further-diverged) version of the same file when the branch is later merged back. (M18-S05 precedent, 2026-07-31: the initial story draft was correctly reapplied inside the worktree per this same note, but the leftover copy in the main checkout was never discarded; it was later committed directly to `main` as `[chore] doc s05`, conflicting with the worktree branch's substantially-rewritten version of the same section when merging `origin/main` before opening the PR.)
 
@@ -336,6 +347,8 @@ Do not start implementation until all blockers are cleared.
 
 If NOT READY, stop here. Do not proceed to Step 9.
 
+A ✅ READY verdict is the single authorization for the rest of the implementation workflow (CLAUDE.md §9) — commit, push, `/pre-pr`, PR, CI-fix, and bot-fix all proceed autonomously from here with no further per-step asks; only the final merge review and any stuck condition come back to the user.
+
 ---
 
 ## Step 9 — Working environment setup
@@ -360,12 +373,13 @@ Wait for reply, then:
 **If worktree:**
 - Use the `EnterWorktree` tool with branch name `feat/<story-id-lowercase>-<short-description>` (e.g. `feat/m09-s04-booking-reschedule`).
 - After `EnterWorktree` completes, confirm the worktree path and branch to the user.
-- Remind: after the PR is merged, clean up with:
+- Cleanup is automatic, not a reminder to the user: CLAUDE.md §9 Step 11 (mark-done) removes the worktree immediately afterward, no permission needed —
   ```bash
   git worktree remove .claude/worktrees/<name> --force
   git branch -D <branch-name>
+  git fetch --prune origin
   ```
-  Then verify with `git worktree list` and `ls .claude/worktrees/`.
+  Then verify with `git worktree list` and `ls .claude/worktrees/` — don't trust a success message alone.
 
 **If direct branch:**
 - Output the branch creation command for the user to run (per §9 Step 1 of CLAUDE.md):
@@ -377,5 +391,8 @@ Wait for reply, then:
 Either way, end with:
 ```
 Ready. Next: implement per §9 Step 2 — write all files from the story spec.
-Remember: before every `git commit`, list the files and ask "Anything else to add before I commit?" (§0).
+This READY verdict already authorizes the rest of the chain (§9 Steps 3–9) —
+commit, push, /pre-pr, PR, CI-fix, and bot-fix all proceed autonomously from
+here with no further per-step asks. I'll come back to you only for the merge
+review (§9 Step 10) or a stuck condition.
 ```

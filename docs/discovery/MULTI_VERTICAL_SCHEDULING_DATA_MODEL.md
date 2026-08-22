@@ -51,19 +51,183 @@ One row per resource type, all under the same tenant. `ref_id` is only ever set 
 
 ### `booking.service_booking_intake_schema` / `booking.booking_attendees`
 
-`service_booking_intake_schema` is a versioned service-owned definition of booking questions, consent text/version, participant rules and typed field markers such as `PICKUP_ADDRESS`. `booking_attendees` is an optional child table: `id, tenant_id, booking_id, name, customer_id NULL, is_minor`. It is used only when the service requires named attendees; the responsible booking customer remains separate. The booking stores immutable `intake_schema_version` and `intake_answers JSONB` snapshots, while operational values stay typed on booking records (for example, pickup address, participant count and consent timestamp/version).
+A versioned, service-owned definition of booking questions, consent text/version, participant rules and typed field markers such as `PICKUP_ADDRESS`. A new version supersedes, never edits, the previous one, so a past booking's snapshot always resolves against the exact form it was submitted under (`CAND-43` A1).
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL |
+| service_id | UUID | NOT NULL — FK (tenant_id, service_id) → `services` |
+| version | INT | NOT NULL — monotonically increasing per service |
+| questions | JSONB | NOT NULL — ordered `[{ fieldKey, label, type, required }]`; `type` covers generic input shapes (`FREE_TEXT`, `NAMED_ATTENDEES`) and business-specific typed markers the booking layer projects into an already-typed column — `PICKUP_ADDRESS` doesn't add a new column, it drives `bookings.pickup_address`, which already exists for car wash's "leva e traz" (`docs/13-DATABASE_SCHEMA.md:227`); this discovery generalizes that mechanism to any service, not just car wash |
+| consent_text | TEXT | NOT NULL |
+| consent_version | INT | NOT NULL |
+| requires_named_attendees | BOOLEAN | NOT NULL DEFAULT false |
+| participant_count_required | BOOLEAN | NOT NULL DEFAULT false |
+| is_active | BOOLEAN | NOT NULL DEFAULT true |
+| created_at | TIMESTAMPTZ | DEFAULT now() |
+| **UNIQUE** | (tenant_id, service_id, version) | |
+| **UNIQUE** | (tenant_id, service_id) WHERE is_active | At most one active schema version per service |
+
+`booking_attendees` is an optional child table, populated only when `requires_named_attendees = true`: `id, tenant_id, booking_id, name, customer_id NULL, is_minor` — FK `(tenant_id, booking_id)` → `bookings`. The responsible booking customer stays on `bookings` itself, distinct from attendees (domain doc §6b — "enabling a guardian to book for a minor without introducing family-account management").
+
+**Example data — Sala de reunião's intake form** (`public-11-reserva-por-tempo.html` → `public-12-intake-e-confirmacao.html`):
+
+`service_booking_intake_schema`:
+
+| id | service_id | version | consent_version | requires_named_attendees | participant_count_required | is_active |
+|---|---|---|---|---|---|---|
+| intake_sala_reuniao_v1 | svc_sala_reuniao | 1 | 1 | true | true | true |
+
+`questions` for this row: a `PARTICIPANT_COUNT` field (min 1, max 8 — "Sala Aurora comporta até 8 pessoas"), a `NAMED_ATTENDEES` field ("Participantes nomeados") and a `FREE_TEXT` field ("Necessidades de acesso"). This tenant requires *both* a count and named attendees on this one service — the domain doc's "only a count, or named rows" describes the range a service can configure, not that every service must pick exactly one end of it.
+
+**Example data — the booking this schema produced:** Ana Costa books Sala Aurora, 2026-08-18 10:00–12:00 (`public-11`'s own displayed slot/price, R$ 100,00). Her `bookings` row snapshots `intake_schema_version = 1` and `intake_answers = {"accessNeeds": null}`; 6 people attend, but only 2 needed individual lobby/badge access, so only 2 attendee rows exist — both names come straight from `public-12`'s own form hint (`placeholder="Ex.: Marina Lopes, João Silva"`):
+
+| id | booking_id | name | customer_id | is_minor |
+|---|---|---|---|---|
+| att_1 | book_ana_sala_aurora_0818 | Marina Lopes | null | false |
+| att_2 | book_ana_sala_aurora_0818 | João Silva | null | false |
+
+Neither attendee has a `customer_id` — they're guests of Ana Costa's booking, not separate `Customer` rows; `is_minor` exists for the domain doc §6b A2 case (a guardian booking for a minor), unused here.
 
 ### `booking.recurring_booking_schedules` / assignments / exceptions
 
-Private appointment/reservation recurrence is distinct from `recurring_enrollments`. `recurring_booking_schedules` owns tenant/customer/service, recurrence JSONB, `starts_on`/`ends_on`, `ACTIVE|PAUSED|CANCELLED` status, policy snapshots, `assignment_policy FIXED_ASSIGNMENT|RESOLVE_PER_OCCURRENCE`, and `created_by_staff_id`.
+Private appointment/reservation recurrence is distinct from `recurring_enrollments` (session family).
 
-`recurring_booking_schedule_resource_assignments` is the durable child assignment record: `tenant_id, recurring_schedule_id, requirement_id NULL, resource_id, resource_type, required_quantity_position NULL, assigned_at`; it uses composite FKs and an FK to `(tenant_id, resource_id, resource_type)`. It is mandatory for `FIXED_ASSIGNMENT`; `RESOLVE_PER_OCCURRENCE` retains the eligible requirement/pool only and resolves distinct resources during each materialization. Customer/staff-selected resources default to fixed; automatic/fungible services may use either policy.
+`recurring_booking_schedules`:
 
-`recurring_booking_schedule_exceptions` persists skip/reschedule-one exceptions with occurrence start, replacement booking reference nullable, actor, reason and timestamps. Generated ordinary bookings link through nullable `recurring_schedule_id` and have a unique `(tenant_id, recurring_schedule_id, occurrence_start)` generation key. They retain their independent lifecycle, quote/audit/no-show history. A schedule is a standing availability commitment, so availability checks evaluate its future pattern directly as they do for class templates.
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL |
+| customer_id | UUID | NOT NULL — no FK, cross-context; guest bookings are never eligible (domain doc §6b) |
+| service_id | UUID | NOT NULL — FK (tenant_id, service_id) → `services` |
+| recurrence | JSONB | NOT NULL — e.g. `{ "frequency": "WEEKLY", "daysOfWeek": ["TUE"], "startTime": "10:00", "durationMinutes": 120 }` |
+| starts_on / ends_on | DATE | NOT NULL / NULLABLE — open-ended when `ends_on` is null |
+| status | VARCHAR(20) | NOT NULL DEFAULT 'ACTIVE' — CHECK IN (`ACTIVE`, `PAUSED`, `CANCELLED`) |
+| assignment_policy | VARCHAR(30) | NOT NULL — CHECK IN (`FIXED_ASSIGNMENT`, `RESOLVE_PER_OCCURRENCE`) |
+| created_by_staff_id | UUID | NULLABLE — no FK, cross-context; same `<action>_by` audit pattern used elsewhere in this doc, set when staff creates it for the customer |
+| created_at / updated_at | TIMESTAMPTZ | DEFAULT now() |
+| **UNIQUE** | (tenant_id, id) | Composite FK target for the two child tables below |
+| **INDEX** | (tenant_id, customer_id, status) | |
+| **INDEX** | (tenant_id, service_id, status) | |
+
+`recurring_booking_schedule_resource_assignments` — the durable child assignment record:
+
+| Column | Type | Constraints |
+|---|---|---|
+| tenant_id | UUID | NOT NULL |
+| recurring_schedule_id | UUID | NOT NULL — FK (tenant_id, recurring_schedule_id) → `recurring_booking_schedules` |
+| requirement_id | UUID | NULLABLE — FK (tenant_id, requirement_id) → `service_resource_requirements`, when the service declares one |
+| resource_id | UUID | NOT NULL — FK (tenant_id, resource_id, resource_type) → `resources` |
+| resource_type | VARCHAR(20) | NOT NULL |
+| required_quantity_position | INT | NULLABLE — set only for a fungible `requiredQuantity > 1` requirement, disambiguating which unit this row fills |
+| assigned_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
+| **PK** | (tenant_id, recurring_schedule_id, resource_id) | |
+
+Mandatory for `FIXED_ASSIGNMENT`; `RESOLVE_PER_OCCURRENCE` retains the eligible requirement/pool only and resolves distinct resources during each materialization instead of persisting a row here. Customer/staff-selected resources default to fixed; automatic/fungible services may use either policy.
+
+`recurring_booking_schedule_exceptions`:
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL |
+| recurring_schedule_id | UUID | NOT NULL — FK (tenant_id, recurring_schedule_id) → `recurring_booking_schedules` |
+| occurrence_start | TIMESTAMPTZ | NOT NULL — the pattern-computed occurrence this exception applies to |
+| kind | VARCHAR(20) | NOT NULL — CHECK IN (`SKIPPED`, `RESCHEDULED`) |
+| replacement_booking_id | UUID | NULLABLE — FK (tenant_id, replacement_booking_id) → `bookings`; set iff `kind = 'RESCHEDULED'` |
+| actor_type / actor_id | VARCHAR(20) / UUID | NOT NULL / NULLABLE — customer or staff |
+| reason | VARCHAR(255) | NULLABLE |
+| created_at | TIMESTAMPTZ | DEFAULT now() |
+| **UNIQUE** | (tenant_id, recurring_schedule_id, occurrence_start) | One exception per skipped/rescheduled occurrence |
+| **CHECK** | `(kind = 'RESCHEDULED') = (replacement_booking_id IS NOT NULL)` | |
+
+Generated ordinary bookings link through nullable `recurring_schedule_id` on `bookings` and have a unique `(tenant_id, recurring_schedule_id, occurrence_start)` generation key there too — the same idempotency shape `class_session_bookings.series_id` already uses for the session family. They retain their independent lifecycle, quote/audit/no-show history. A schedule is a standing availability commitment, so availability checks evaluate its future pattern directly, the same way they do for class templates.
+
+**Example data — Ana Costa's standing Sala Aurora reservation** (`customer-09-reserva-recorrente.html`: "Toda terça, 10:00–12:00"):
+
+`recurring_booking_schedules`:
+
+| id | customer_id | service_id | recurrence | starts_on | ends_on | status | assignment_policy |
+|---|---|---|---|---|---|---|---|
+| rbs_ana_sala_aurora | cust_ana | svc_sala_reuniao | `{"frequency":"WEEKLY","daysOfWeek":["TUE"],"startTime":"10:00","durationMinutes":120}` | 2026-08-05 | null | ACTIVE | FIXED_ASSIGNMENT |
+
+`recurring_booking_schedule_resource_assignments`:
+
+| recurring_schedule_id | resource_id | resource_type |
+|---|---|---|
+| rbs_ana_sala_aurora | res_room_aurora | ROOM |
+
+Locked to Sala Aurora specifically — every occurrence the screen shows ("19 de agosto," "26 de agosto") stays in the same room, which is what `FIXED_ASSIGNMENT` means in practice: the customer picked one meeting room, not "whichever is free that Tuesday."
+
+`recurring_booking_schedule_exceptions` — the screen's own two actions ("Pular esta ocorrência" / "Reagendar esta ocorrência") are alternatives for the *same* occurrence, not both applied at once. Ana choosing to skip Aug 19 outright ("A sala será liberada... Sua recorrência continua normalmente na semana seguinte") looks like this:
+
+| id | occurrence_start | kind | replacement_booking_id | actor_type | reason |
+|---|---|---|---|---|---|
+| exc_1 | 2026-08-19T10:00 | SKIPPED | null | CUSTOMER | null |
+
+Had she chosen "Reagendar" to the screen's first alternative ("Qua, 20 ago · 10:00–12:00 · Sala Aurora") instead, the same row would look like this:
+
+| id | occurrence_start | kind | replacement_booking_id | actor_type | reason |
+|---|---|---|---|---|---|
+| exc_1_alt | 2026-08-19T10:00 | RESCHEDULED | book_ana_sala_aurora_0820 | CUSTOMER | null |
+
+— `book_ana_sala_aurora_0820` being the new one-off booking for that replacement slot. The screen's *second* alternative ("Qui, 21 ago · 14:00–16:00 · Sala Horizonte") would assign a different room for that one occurrence only; the standing schedule's own `FIXED_ASSIGNMENT` to Sala Aurora is unaffected either way, since a reschedule replaces one occurrence's booking, not the schedule's own resource assignment.
 
 ### `booking.availability_alerts`
 
-An expiring intent only: `id, tenant_id, service_id, customer_id NOT NULL, preferred_resource_id NULL, criteria_type ONE_TIME_RANGE|WEEKLY_PREFERENCE, timezone, acceptable_start_at/acceptable_end_at NULL, weekdays JSONB NULL, local_start_time/local_end_time NULL, duration_minutes NULL, participant_count NULL, status ACTIVE|NOTIFIED|CANCELLED|EXPIRED, expires_at`. A CHECK makes exactly one criteria representation valid: absolute timestamps for `ONE_TIME_RANGE`, weekday/time preferences for `WEEKLY_PREFERENCE`. Notification history is `availability_alert_notification_attempts` with `alert_id`, a normalized matching-window range, channel, attempted_at/outcome and unique `(tenant_id, alert_id, matching_window, channel)`. It creates no occupancy and never becomes a booking automatically. An authenticated customer is required, so there is no guest email identity column.
+An expiring intent only — it creates no occupancy and never becomes a booking automatically.
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL |
+| service_id | UUID | NOT NULL — FK (tenant_id, service_id) → `services` |
+| customer_id | UUID | NOT NULL — no FK, cross-context; an authenticated customer is required, so there is no guest email identity column (`CAND-46` A1) |
+| preferred_resource_id | UUID | NULLABLE — FK (tenant_id, preferred_resource_id) → `resources` |
+| criteria_type | VARCHAR(20) | NOT NULL — CHECK IN (`ONE_TIME_RANGE`, `WEEKLY_PREFERENCE`) |
+| timezone | VARCHAR(50) | NOT NULL |
+| acceptable_start_at / acceptable_end_at | TIMESTAMPTZ | NULLABLE — set iff `criteria_type = 'ONE_TIME_RANGE'` |
+| weekdays | JSONB | NULLABLE — e.g. `["MON","WED"]`; set iff `criteria_type = 'WEEKLY_PREFERENCE'` |
+| local_start_time / local_end_time | TIME | NULLABLE — set iff `criteria_type = 'WEEKLY_PREFERENCE'` |
+| duration_minutes | INT | NULLABLE CHECK `> 0` when set |
+| participant_count | INT | NULLABLE CHECK `> 0` when set |
+| status | VARCHAR(20) | NOT NULL DEFAULT 'ACTIVE' — CHECK IN (`ACTIVE`, `NOTIFIED`, `CANCELLED`, `EXPIRED`) |
+| expires_at | TIMESTAMPTZ | NOT NULL |
+| created_at | TIMESTAMPTZ | DEFAULT now() |
+| **CHECK** | exactly one criteria representation: `(criteria_type='ONE_TIME_RANGE' AND acceptable_start_at IS NOT NULL AND acceptable_end_at IS NOT NULL AND weekdays IS NULL AND local_start_time IS NULL AND local_end_time IS NULL) OR (criteria_type='WEEKLY_PREFERENCE' AND weekdays IS NOT NULL AND local_start_time IS NOT NULL AND local_end_time IS NOT NULL AND acceptable_start_at IS NULL AND acceptable_end_at IS NULL)` | |
+| **INDEX** | (tenant_id, service_id, status) | Matched by the release-time scan that looks for alerts a newly-freed slot could satisfy |
+
+`availability_alert_notification_attempts` — the notification history:
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL |
+| alert_id | UUID | NOT NULL — FK (tenant_id, alert_id) → `availability_alerts` |
+| matching_window | TSTZRANGE | NOT NULL — the normalized concrete window that satisfied the alert |
+| channel | VARCHAR(20) | NOT NULL — CHECK IN (`EMAIL`, `IN_APP`) |
+| attempted_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
+| outcome | VARCHAR(20) | NOT NULL — e.g. `SENT`, `FAILED` |
+| **UNIQUE** | (tenant_id, alert_id, matching_window, channel) | One notification per alert per matching window per channel — the dedup key `CAND-46` A2 relies on |
+
+**Example data — two alerts, one of each `criteria_type`:**
+
+| id | service_id | customer_id | criteria_type | acceptable_start_at | acceptable_end_at | weekdays | local_start_time | local_end_time | duration_minutes | status | expires_at |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| alert_ana_sala | svc_sala_reuniao | cust_ana | ONE_TIME_RANGE | 2026-08-20T10:00-03:00 | 2026-08-20T14:00-03:00 | null | null | null | 120 | ACTIVE | 2026-08-20T23:59-03:00 |
+| alert_marcos_pilates | svc_pilates | cust_marcos | WEEKLY_PREFERENCE | null | null | `["MON","WED"]` | 08:00 | 09:00 | 60 | ACTIVE | 2026-09-30T23:59-03:00 |
+
+`alert_ana_sala` is `public-12-availability-alert.html`'s own worked screen: Ana looked for a Sala de reunião slot on 2026-08-20 between 10:00 and 14:00, needing a 2-hour block ("Duração: 2 horas"), and left without reserving anything ("Nenhum horário foi reservado"). `alert_marcos_pilates` reuses `cust_marcos` — already waitlisted on `sess_pilates_0804` (`class_session_bookings` example above) — for a *different*, forward-looking intent: rather than waiting on that one specific Monday session, he wants to hear about any future Monday/Wednesday 08:00 Pilates opening, matching `tpl_pilates_estudio1`'s own recurrence pattern.
+
+**Example data — a match found for `alert_marcos_pilates`:**
+
+| id | alert_id | matching_window | channel | outcome |
+|---|---|---|---|---|
+| att_1 | alert_marcos_pilates | `[2026-08-31T08:00-03:00, 2026-08-31T09:00-03:00)` | EMAIL | SENT |
+
+A Monday session two weeks out opens up (a cancellation, say) and matches Marcos's weekday/time preference; the system sends exactly one email for that specific window. A *different* Monday session opening the same week would be a different `matching_window` and get its own row — but the same window can never notify him twice, which is why the unique key includes `matching_window`, not just `alert_id`.
 
 ### `booking.service_resource_requirements` / `booking.service_resource_requirement_pool`
 
@@ -107,6 +271,23 @@ Today's car wash is the degenerate case: one row, `resource_type='LOCATION'`, `s
 | req_3 | res_equip_pedras | Kit de Pedras Quentes |
 
 `req_1`'s pool restricts the STAFF slot to the two massage therapists specifically — not every `STAFF` resource at Vitta Studio (Camila, Ana, Bruno, João, Fábio are all `STAFF` too, but none are eligible here). `req_2` is a genuine fungible pool of two rooms: the slot is available if *either* is free, and the customer never learns which one was assigned.
+
+**Example data — Sala de reunião** (a single-resource-type fungible pool, contrasting with Massagem Relaxante's 3-way bundle above): `public-11-reserva-por-tempo.html` never asks the customer to pick a room, and `customer-09-reserva-recorrente.html`'s reschedule flow offers "Sala Horizonte" as an alternative to "Sala Aurora" — both signs of `AUTO_FUNGIBLE_POOL`, not `CUSTOMER_CHOICE`:
+
+`service_resource_requirements`:
+
+| id | service_id | resource_type | selection_mode |
+|---|---|---|---|
+| req_sala_1 | svc_sala_reuniao | ROOM | AUTO_FUNGIBLE_POOL |
+
+`service_resource_requirement_pool`:
+
+| requirement_id | resource_id | (name, for reference) |
+|---|---|---|
+| req_sala_1 | res_room_aurora | Sala Aurora |
+| req_sala_1 | res_room_horizonte | Sala Horizonte |
+
+Unlike Massagem Relaxante's bundle, this is the whole requirement — one `ROOM` slot, two interchangeable candidates. Whichever room availability resolves to becomes a `booking_line_resource_assignments` row (see the worked example further below); a reschedule can land on the *other* pool member without changing anything about this requirement itself.
 
 ### `booking.service_legs` / `booking.service_leg_resource_requirements` / `booking.service_leg_resource_requirement_pool`
 
@@ -297,6 +478,15 @@ Snapshotted straight from `tpl_pilates_estudio1`'s slots at generation time. CAN
 
 `booking_line_resource_assignments` is the immutable business/audit record for an appointment/reservation's resolved resources: `id, tenant_id, booking_line_id, resource_id, resource_type, leg_index NULL, quantity_position NULL, resource_name_at_assignment, assigned_at`. It has composite FKs to `booking_lines` and `(tenant_id, resource_id, resource_type)`, and a null-safe unique key `(tenant_id, booking_line_id, resource_id, COALESCE(leg_index, -1), COALESCE(quantity_position, -1))`. It is retained with the booking and supports BI such as resource utilization and professional history.
 
+**Example data:**
+
+| id | booking_line_id | resource_id | resource_type | leg_index | quantity_position | resource_name_at_assignment |
+|---|---|---|---|---|---|---|
+| assign_corte_bruna_camila | line_corte_bruna | res_staff_camila | STAFF | null | null | Camila Duarte |
+| assign_ana_sala_aurora_0818 | line_ana_sala_aurora_0818 | res_room_aurora | ROOM | null | null | Sala Aurora |
+
+`assign_corte_bruna_camila` is Bruna's `Corte + Escova` booking line, Tuesday 2026-08-05 14:00–14:45 — the exact window `resource_occupancy`'s `occ_3` example below locks, and the row that example's own `booking_line_resource_assignment_id` column has referenced by ID since §2's opening. `assign_ana_sala_aurora_0818` is the ROOM the fungible pool above resolved to for Ana's 2026-08-18 10:00–12:00 booking. `resource_name_at_assignment` is the immutable display snapshot in both cases: if `res_staff_camila.name` or `res_room_aurora.name` were edited later, these rows would still read "Camila Duarte"/"Sala Aurora" — the same snapshot discipline `class_session_bookings.service_name_at_booking` already applies to `Service` renames.
+
 `resource_occupancy` is the separate short-lived locking mechanism. It references the durable assignment for appointment rows and `class_session_resources` for class rows; after its window has elapsed it can be safely garbage-collected without erasing the business assignment.
 
 **The single physical mechanism that makes cross-family resource exclusivity (CAND-31, model 13) DB-enforceable.** See §5 for why this table has to exist and why it has to be shared by both families rather than split per-family.
@@ -328,8 +518,11 @@ Snapshotted straight from `tpl_pilates_estudio1`'s slots at generation time. CAN
 | occ_1 | res_staff_camila | CLASS_SESSION | null | sess_pilates_0804 | 2026-08-04T08:00 | 2026-08-04T09:00 | COMMITTED |
 | occ_2 | res_room_estudio1 | CLASS_SESSION | null | sess_pilates_0804 | 2026-08-04T08:00 | 2026-08-04T09:00 | COMMITTED |
 | occ_3 | res_staff_camila | BOOKING_LINE | assign_corte_bruna_camila | null | 2026-08-05T14:00 | 2026-08-05T14:45 | COMMITTED |
+| occ_4 | res_room_aurora | BOOKING_LINE | assign_ana_sala_aurora_0818 | null | 2026-08-18T10:00 | 2026-08-18T12:00 | HOLD |
 
 `occ_1` and `occ_3` both reference `res_staff_camila`, but at non-overlapping times (Monday 08:00–09:00 vs. Tuesday 14:00–14:45), so no constraint violation. If a haircut request landed right on top of her Pilates class — say Monday 08:00–08:30 — a fourth row here would collide with `occ_1` on the shared GIST exclusion constraint and get rejected at the DB level, regardless of which family (`BOOKING_LINE` vs. `CLASS_SESSION`) is asking. This is the Camila Duarte scenario from domain doc §6, made concrete and DB-enforced.
+
+`occ_4` is the one row here showing `lock_state = 'HOLD'` rather than `COMMITTED` — Sala de reunião is `MANUAL_APPROVAL` (§10 below), so `public-13-pending-approval.html`'s own displayed copy ("A Sala Aurora fica indisponível para outras pessoas até **10:30**") is this row's `hold_expires_at` made visible to the customer: booked at 10:00, held until 10:30. If nobody approves it by then, an expiry worker cancels the hold and releases `res_room_aurora` for that window — exactly what the screen's third numbered step promises ("Se não houver resposta até 10:30, liberamos o horário").
 
 ### `booking.class_session_bookings`
 
@@ -404,6 +597,39 @@ Snapshotted straight from `tpl_pilates_estudio1`'s slots at generation time. CAN
 
 **The four `+`-marked fixes above share one root cause, worth stating explicitly rather than leaving as four unrelated fixes:** this whole table switched to a compact one-line-per-table format instead of the fully-worked-out shape §2's earlier tables get (dedicated table, explicit `INDEX` rows, worked example) — and every skipped index lived in exactly the tables that got the compact treatment. The compactness wasn't a neutral formatting choice; it's what let these slip through. See §6 item 26.
 
+**Example data — `class_session_booking_attendees`, the two named people inside `sb_3`'s guest group** (`class_session_bookings` example above):
+
+| id | class_session_booking_id | name | customer_id | attendance |
+|---|---|---|---|---|
+| att_sb3_1 | sb_3 | Ana | null | null |
+| att_sb3_2 | sb_3 | Bia | null | null |
+
+`sb_3.quantity = 2` equals this row count, aggregate-enforced. `attendance` stays `null` until `staff-02b-fechar-turma.html` closes the session — a mixed outcome (one `PRESENT`, one `NO_SHOW`) is exactly why attendance lives here and not on the parent `class_session_bookings` row.
+
+**Example data — `guest_class_booking_email_verifications`, the same `sb_3` guest group:**
+
+| id | class_session_booking_id | token_hash | expires_at | verified_at |
+|---|---|---|---|---|
+| ver_sb3 | sb_3 | sha256:8f2a… | 2026-08-03T12:30-03:00 | 2026-08-03T12:11-03:00 |
+
+`sb_3` is already `PENDING_APPROVAL`, not `PENDING_EMAIL_VERIFICATION` — that earlier status only exists before `verified_at` is set, which this row shows happened about 19 minutes before the token's own expiry. Only the hash is ever stored; the raw one-time token that was actually emailed to the guest never touches the database.
+
+**Example data — `guest_class_trial_redemptions`, a solo guest trial on a different session** (`tpl_crossfit_fabio`, not `sess_pilates_0804` — that one's already full):
+
+| normalized_email | class_session_booking_id | approved_at |
+|---|---|---|
+| diego.martins@email.com | sb_diego_crossfit | 2026-08-06T18:04-03:00 |
+
+Diego Martins books a solo (`quantity = 1`) CrossFit trial and it confirms — `GUEST_TRIAL`, consuming this tenant's one-per-email free trial for `diego.martins@email.com` for good. A second solo trial attempt from the same email, for any service, at any future date, is rejected by this table's own `PRIMARY KEY (tenant_id, normalized_email)` before it ever reaches capacity logic.
+
+**Example data — `class_schedule_template_exceptions`, a bounded CrossFit cancellation:**
+
+| id | template_id | starts_on | ends_on | kind | created_by |
+|---|---|---|---|---|---|
+| tpl_exc_1 | tpl_crossfit_fabio | 2026-09-15 | 2026-09-19 | CANCELLED | staff_fabio_id |
+
+Fábio takes a week off; every CrossFit occurrence `tpl_crossfit_fabio` would otherwise generate in that window is skipped at generation time — the generator never creates them, so there's nothing for a manager to cancel one-by-one afterward. Outside that window, generation resumes exactly as before; `tpl_crossfit_fabio.valid_until` (2026-09-30) is unaffected. Occurrences that were *already* materialized before this exception was created are a different problem — see `future_commitment_exceptions` in §10.
+
 `class_access_contracts` are eligibility records, not online-payment records. Their successful creation/payment is outside this discovery. A customer session booking is either contract-backed with a matching active contract on the session date, or—when the service allows it—pay-per-class and paid in person at close-out. Guest bookings use the configured guest policy and are paid in person when payment is due.
 
 **Worked example — mixed-modality contract, added 2026-08-21 to ground Preset F ("Estúdio Misto," `MULTI_VERTICAL_SCHEDULING_ONBOARDING_PRESETS.md`).** A studio owner offering Pilates + CrossFit sells `cust_roberta` a single contract covering both, unmodified — `eligibleServiceIds` is already an array:
@@ -424,6 +650,7 @@ Pricing/tiering for a bundle like this is out of scope, same as every other paym
 | `platform.tenants.settings.booking` | `+ classCancellationWindowHours INT` — non-negative tenant setting, distinct from private-appointment `cancellationWindowHours`; enforced for customer cancellation of a confirmed one-off class reservation. `+ classSkipWindowHours INT` (2026-08-21) — same shape, enforced by `CAND-27` when skipping a single recurring-enrollment occurrence; deliberately separate from `classCancellationWindowHours` (see §6 item 22). `+ classAllowsReschedule BOOLEAN NOT NULL DEFAULT false`, `+ classRescheduleWindowDays INT NULLABLE`, `+ classMaxReschedulesPerCycle INT NULLABLE` (2026-08-21) — "reposição" config governing `CAND-38`; `classMaxReschedulesPerCycle` unlimited when null (see §6 item 21). |
 | `booking.schedule_closures` | `+ resource_id UUID NULLABLE` (FK when set). No constraint trap — today's overlap rule is already app-enforced, not a DB unique, so it extends cleanly to resource scope. |
 | `booking.schedule_openings` | `+ resource_id UUID NULLABLE` (FK when set). **Constraint trap:** today's `UNIQUE(tenant_id, date)` silently stops enforcing "one opening per date" once `resource_id` is nullable — Postgres treats `NULL ≠ NULL`, so two tenant-wide openings for the same date would no longer collide. Replace with `UNIQUE(tenant_id, date) WHERE resource_id IS NULL` **and** `UNIQUE(tenant_id, resource_id, date) WHERE resource_id IS NOT NULL`. |
+| `booking.bookings` | `+ intake_schema_version INT NULLABLE`, `+ intake_answers JSONB NULLABLE` — immutable snapshot pair, both null or both set together (`CHECK (intake_schema_version IS NULL) = (intake_answers IS NULL)`); `+ participant_count INT NULLABLE CHECK > 0 when set`, `+ consent_accepted_at TIMESTAMPTZ NULLABLE`, `+ consent_version INT NULLABLE`. **Not new:** `pickup_address JSONB` and `services.requires_pickup_address` already exist in the live schema (`docs/13-DATABASE_SCHEMA.md:227`/`:207`) — a `PICKUP_ADDRESS`-typed intake question (§2 above) projects its answer into that existing column rather than adding a duplicate one. |
 | `loyalty.loyalty_entries` (different context — see §6 item 2, correction in §6 item 24) | `booking_id` **and** `booking_line_id` → both NULLABLE (both are NOT NULL today — the original entry here only widened `booking_line_id`, an oversight caught 2026-08-21: `docs/13-DATABASE_SCHEMA.md`'s real schema has `booking_id UUID NOT NULL` too, and the worked example below always needed both null together), `+ class_session_booking_id UUID NULLABLE`, `+ CHECK CHK_loyalty_entries_source_exclusive: (booking_id IS NOT NULL AND booking_line_id IS NOT NULL AND class_session_booking_id IS NULL) OR (booking_id IS NULL AND booking_line_id IS NULL AND class_session_booking_id IS NOT NULL)`, `+ UNIQUE(tenant_id, class_session_booking_id) WHERE class_session_booking_id IS NOT NULL` (the existing `UNIQUE(tenant_id, booking_line_id)` idempotency constraint needs no change — Postgres already permits multiple NULLs under a plain UNIQUE, so it keeps enforcing uniqueness only among non-null values). |
 | `booking.booking_lines` | `+ UNIQUE(tenant_id, line_id)` — today only `PRIMARY KEY (line_id)` exists; required so `resource_occupancy.booking_line_id`'s composite FK `(tenant_id, booking_line_id)` is expressible against the real schema. |
 
@@ -435,10 +662,21 @@ Pricing/tiering for a bundle like this is out of scope, same as every other paym
 | svc_massagem_relaxante | Massagem Relaxante | APPOINTMENT | 15 | null | null | null |
 | svc_pilates | Aula de Pilates | SESSION | null | #2563eb | true | true |
 | svc_jornada_spa | Jornada Spa Vitta | APPOINTMENT | null | null | null | null |
+| svc_sala_reuniao | Sala de reunião | APPOINTMENT | null | null | null | null |
 
 The three `class_catalog_*` columns are meaningless (left `null`) on APPOINTMENT services — same pattern as `buffer_after_minutes` being `null` on legged services above: a column that only applies to one branch, not enforced by a `CHECK` for the same app-enforced-not-DB-enforced reason already established for this table.
 
-`svc_pilates` has `buffer_after_minutes = null` because SESSION-model services don't use it at all — turnover lives on the template's own resources instead. `svc_jornada_spa` is also `null`, but for a different reason: it's legged, so per-leg `transition_gap_after_minutes` plus per-resource `turnover_minutes` do this job there instead (§7 of the domain doc).
+`svc_pilates` has `buffer_after_minutes = null` because SESSION-model services don't use it at all — turnover lives on the template's own resources instead. `svc_jornada_spa` is also `null`, but for a different reason: it's legged, so per-leg `transition_gap_after_minutes` plus per-resource `turnover_minutes` do this job there instead (§7 of the domain doc). `svc_sala_reuniao` is `null` for yet a third reason: it's a variable-duration `CUSTOMER_SELECTED` service — buffer/turnover isn't meaningless there, it's just declared through different columns, shown next.
+
+**Example data — `services`, the variable-duration/pricing columns §3's text above describes but the table above doesn't have room for** (`public-11-reserva-por-tempo.html`'s own displayed limits and price):
+
+| id | duration_policy | duration_min_minutes | duration_max_minutes | duration_increment_minutes | pricing_policy | pricing_increment_minutes | price_per_increment_amount | minimum_charge_amount |
+|---|---|---|---|---|---|---|---|---|
+| svc_sala_reuniao | CUSTOMER_SELECTED | 60 | 480 | 30 | PER_TIME_INCREMENT | 60 | 50.00 | null |
+
+**Fixed 2026-08-22 — `pricing_increment_minutes` is a genuinely separate column from `duration_increment_minutes`, not a reuse of it.** An earlier version of this row priced Ana's booking off the 30-minute *booking-selection* increment ("blocos de 30 minutos," the granularity she can pick a start/duration in) and got the arithmetic wrong trying to make it match the screen's real total. The screen's own two numbers are at two different granularities: booking selection is in 30-minute blocks ("1 a 8 horas, em blocos de 30 minutos"), but pricing is explicitly hourly ("R$ 50 por hora"). These don't have to be the same number, and here they aren't. `pricing_policy = PER_TIME_INCREMENT` bills `price_per_increment_amount` per `pricing_increment_minutes`, rounding a partial increment **up** — the only rounding rule that can never let a customer pay for less time than they actually held the resource. Ana's 2 hours (120 min) = `120 ÷ 60 = 2` pricing increments × R$ 50,00 = **R$ 100,00**, exactly matching `public-11`'s displayed total. A hypothetical 2h30 booking would round up to 3 pricing increments (R$ 150,00), not prorate to 2.5.
+
+`minimum_charge_amount`, when set, is a floor applied *after* this calculation, for a service where even the shortest bookable interval must clear some baseline (e.g. a cleaning fee) — unused here since `null`.
 
 **Example data — `schedule_closures`:**
 
@@ -457,6 +695,14 @@ The three `class_catalog_*` columns are meaningless (left `null`) on APPOINTMENT
 | open_2 | 2026-08-16 | null | **rejected** by `UNIQUE(tenant_id, date) WHERE resource_id IS NULL` — a second tenant-wide opening for the same date |
 | open_3 | 2026-08-16 | res_staff_ana | inserted — Ana specifically also opens that Sunday; doesn't collide with `open_1` since `resource_id` differs |
 
+**Example data — `bookings`, the new intake/consent columns** (Ana Costa's Sala de reunião booking, from §2's `service_booking_intake_schema` example above):
+
+| id | service_id | customer_id | intake_schema_version | participant_count | consent_accepted_at | consent_version |
+|---|---|---|---|---|---|---|
+| book_ana_sala_aurora_0818 | svc_sala_reuniao | cust_ana | 1 | 6 | 2026-08-18T09:50-03:00 | 1 |
+
+`intake_answers` (not shown — a JSONB blob) holds `{"accessNeeds": null}`, the one field on `public-12`'s form with no dedicated typed column of its own. `pickup_address` stays `null` here — Sala de reunião isn't a mobile/pickup service; a car-wash "leva e traz" booking would populate that already-existing column instead, through this exact same intake mechanism.
+
 **Example data — `loyalty.loyalty_entries`:**
 
 | id | booking_id | booking_line_id | class_session_booking_id | service_id | points |
@@ -471,10 +717,10 @@ The three `class_catalog_*` columns are meaningless (left `null`) on APPOINTMENT
 ## 4. Migration ordering (expand/contract)
 
 1. **Expand:** create `resources`, service/model fields, all requirement/leg tables, contract/attendee/trial/exception tables, session tables, and `resource_occupancy` with every composite FK and index; add `UNIQUE(tenant_id, line_id)` to the existing `booking_lines` table, required by `resource_occupancy`'s composite FK to it. Do not drop the current tenant-wide booking exclusion yet.
-2. **Backfill:** create one active `LOCATION` resource per tenant; add the default LOCATION requirement to each existing APPOINTMENT service; materialize resource-occupancy assignment rows for every existing BookingLine, using that location and the existing `scheduled_end_at` window. Approved rows are `lock_state='COMMITTED'`.
-3. **Dual-read/write deployment:** new booking writes populate occupancy snapshots; approval/generation/override paths use the shared occupancy exclusion constraint and advisory resource locks. Availability reads occupancy, tenant/resource schedules, and future template patterns.
+2. **Backfill:** create one active `LOCATION` resource per tenant; add the default LOCATION requirement to each existing APPOINTMENT service; materialize resource-occupancy assignment rows for every existing **`APPROVED` BookingLine whose booking has a future `scheduled_end_at`**, using that location and the existing window. **Scope corrected 2026-08-22** — the original wording ("every existing BookingLine") didn't say approved-only or future-only; `resource_occupancy` exists purely to protect *future* availability (§9's own retention policy trickle-deletes anything past its window), so backfilling a `PENDING`/`REJECTED`/`CANCELLED`/`COMPLETED` or already-past BookingLine would create rows with no business purpose that the very next GC sweep would just delete — churn with no benefit, and `PENDING`/`REJECTED`/`CANCELLED` rows have no correct `lock_state` to backfill anyway (only `HOLD`/`COMMITTED` exist). Backfilled rows are `lock_state='COMMITTED'`.
+3. **Dual-read/write deployment:** new booking writes populate occupancy snapshots; approval/generation/override paths use the shared occupancy exclusion constraint and advisory resource locks. Availability reads occupancy, tenant/resource schedules, and future template **and recurring-schedule** patterns (§6 item 32).
 4. **Validate:** verify every existing approved booking has a locked LOCATION occupancy row and that no resource assignment is missing or cross-tenant before changing the old invariant.
-5. **Contract:** drop `EX_booking_bookings_approved_slot` only after the new invariant is live and backfilled. Leaving it in place would wrongly block simultaneous bookings in separate resources.
+5. **Contract:** drop `EX_booking_bookings_approved_slot` only after the new invariant is live and backfilled. Leaving it in place would wrongly block simultaneous bookings in separate resources. **Rollout ordering added 2026-08-22, closing a gap found on review: the old, whole-tenant `EX_booking_bookings_approved_slot` is still enforced through the end of step 4** — it blocks *any* two `APPROVED` bookings that overlap in time, tenant-wide, regardless of resource. A tenant that's already been given more than one concurrently-bookable resource (i.e. any `Service.resourceRequirements` configuration beyond the single-`LOCATION`/`NONE` degenerate default) during this window would see the new, resource-scoped availability check correctly show two different resources as simultaneously free, then have the second approval rejected by the still-live old constraint — a raw DB-constraint error surfacing to a legitimate customer/staff action, not a graceful "someone else booked it first." **Feature-gate multi-resource configuration (`CAND-06`/`07`/`08` producing anything beyond the LOCATION-only default) behind this step completing**, per-tenant if rollout is staged; do not expose it to any tenant still inside the steps 1–4 window.
 6. Expand `schedule_closures` / `schedule_openings` with composite `resource_id` FKs and replace the opening unique constraint with the two partial unique indexes.
 7. Expand `loyalty.loyalty_entries` with the session-booking reference only after the session-booking completion event path is live. No cross-context DB FK is introduced. **Widen both `booking_id` and `booking_line_id` to NULLABLE together** — corrected 2026-08-21, the original version of this step only mentioned `booking_line_id`, but `docs/13-DATABASE_SCHEMA.md`'s real schema has `booking_id UUID NOT NULL` too; widening only one leaves the other still blocking every class-session-completion insert. Add `CHK_loyalty_entries_source_exclusive` in the same migration (§2 above).
 8. **`tenants.settings.booking.autoApproveEnabled` (§5's "Approval workflow" note) needs no migration at all** — it already exists in the live JSONB settings blob (`docs/21-TENANTS_SETTINGS_SCHEMA.md`, currently unread by any use case); this discovery only adds the application logic that reads it. Listed here explicitly so it isn't mistaken for a missing migration step.
@@ -500,7 +746,7 @@ This works today because there's exactly one thing to protect: the whole tenant,
 
 `resource_occupancy` is the fix: both families insert into it and one shared GIST exclusion constraint protects both. Its appointment row refers to the immutable `booking_line_resource_assignments` business record; the two tables intentionally have different retention roles, not competing ownership. A manual-approval appointment inserts `lock_state='HOLD'` with its snapshotted expiry; approval atomically converts it to `COMMITTED`, while expiry cancels and releases it. Class sessions insert `COMMITTED` at generation. Cancelling a session or moving its resources replaces/releases the affected rows in the same transaction.
 
-This still leaves exactly one case with no row-level DB backstop: an appointment booked against a resource's **not-yet-materialized** future template occurrence. Pattern evaluation remains necessary, but is not safe on its own under concurrent template edits/booking approvals. Every template create/edit/deactivate, appointment approval, generator write, and session-resource override acquires transaction-scoped advisory locks for its resources in canonical `resource_id` order. That serializes the read-check/write boundary for the future-pattern case while the exclusion constraint protects materialized occurrences.
+This still leaves exactly one case with no row-level DB backstop: an appointment booked against a resource's **not-yet-materialized** future template — or, added 2026-08-22, **recurring-schedule** — occurrence. Pattern evaluation remains necessary, but is not safe on its own under concurrent template/schedule edits and booking approvals. Every template create/edit/deactivate, **recurring-schedule create/edit/pause/end**, appointment approval, generator write, and session-resource override acquires transaction-scoped advisory locks for its resources in canonical `resource_id` order. That serializes the read-check/write boundary for the future-pattern case while the exclusion constraint protects materialized occurrences. See §6 item 32 — this parity was missing until a review pass caught that `recurring_booking_schedules` (§2 above) is structurally the same "future pattern, not yet materialized" case `ClassScheduleTemplate` already solves here, but had never been wired into this mechanism.
 
 ---
 
@@ -561,6 +807,16 @@ The notes below record issues found in earlier drafts. They are retained for des
 25. **Fields the newly-added `CAND-22b`/`CAND-38`/`CAND-39`/`CAND-40`/manager-02's catalog panel actually need, that had no column anywhere — 2026-08-21.** Found by tracing each new/promoted prototype's own data needs back to this schema, not just checking the use-case text: `services.class_catalog_color`/`class_catalog_allows_drop_in`/`class_catalog_allows_series` (manager-02's "Catálogo de aulas" panel, `docs/discovery/.../prototype/dev-notes.md` item 33 — `description` needed no new column, it already exists on the real table); `class_session_bookings.created_by_staff_id` and `recurring_enrollments.created_by_staff_id` (`CAND-40`'s audit trail, same `<action>_by` pattern `bookings.approved_by` already established); `class_session_bookings.service_id` and `recurring_enrollments.service_id` (`CAND-39`'s "list matrículas for this class type," denormalized for the same query-convenience reason `class_sessions.service_id` already is, item 16 above). None of these needed new tables — every one slots into a table this discovery already created or was already modifying. §7's own "final decisions" summary was left saying "no customer pay-per-session path" when `CAND-22b` is exactly that — a direct, un-caught contradiction with the document's own stated conclusions, fixed in §7 below.
 26. **Engineering-design pass, 2026-08-21 — the compact table format used for contract/attendee/trial/exception tables skipped indexing rigor the earlier `class_sessions`/`class_session_bookings`-style tables got, and it showed.** Three FK-adjacent lookups had no supporting index: `class_access_contracts` (a customer's contract *history* — the `EXCLUDE` constraint is partial, `WHERE status='ACTIVE'` only, so it cannot serve this), `class_session_booking_attendees` (roster/close-out reads — Postgres never auto-indexes FK columns), and `guest_class_booking_email_verifications` (the verification-link click looks up by `token_hash`, not by booking, and had no index for either). All three fixed above. Broader design assessment (normalization, hot-path concurrency, retention) carried out separately in §9, below §8's events.
 27. **Retention strategy resolved, 2026-08-21 — split by table, not a blanket policy.** `resource_occupancy` reuses the exact `OutboxRelayService.gc()` trickle-delete pattern already live for `shared.outbox`/`shared.inbox` (`docs/13-DATABASE_SCHEMA.md`) — it's pure locking mechanism with no business value once its window has elapsed, the closer analog to outbox/inbox than it first looked. `class_session_bookings`/`class_session_booking_attendees` get the opposite answer — no deletion job, ever; they're the business record this platform's own stated BI-layer ambition (`CLAUDE.md` § Project Facts) depends on, and the only appropriate tool if size ever becomes a real problem is time-based partitioning, which keeps every row queryable. Full reasoning in §9.
+28. **PM/engineering review pass, 2026-08-22 — `CAND-32` was found to directly contradict `CAND-47`/`CAND-56`'s "never silently invalidate a future commitment" philosophy for the identical trigger (a template change affecting an already-materialized future session).** `CAND-32` step 4 auto-cancels affected sessions with no manager decision point; `CAND-47`/`56` require an explicit manager worklist resolution for the same scenario, and `CAND-03` already followed that pattern correctly — `CAND-32` was the one outlier. Resolved by narrowing `CAND-47`'s precondition to explicitly exclude a `CAND-32`-initiated range cancellation: the manager's own act of choosing to cancel a date range already *is* the explicit, audited resolution (`ClassSessionCancelled` + notification), just a bulk one rather than one worklist item per session. `CAND-47`/`56` remain the answer for a change nobody explicitly reviewed per-session (resource deactivation, hours reduction, a side effect of an unrelated edit).
+29. **Coverage gap re-opened and re-closed, 2026-08-22 — §8's own audit (originally dated 2026-08-07) went stale the moment `CAND-38`, `45`–`47`, and `51`–`56` were added on 2026-08-21.** Every one of those candidates names a new event in its "Events Triggered" field; none had a concrete envelope until this pass added `RecurringBookingScheduleCreated`/`Paused`/`Ended`, `AvailabilityAlertCreated`/`Updated`/`Cancelled`/`Expired`/`Matched`, `FutureCommitmentExceptionRaised`/`Resolved`/`Dismissed`, `TenantSchedulingBootstrapped`, `ResourceReactivated`, and `InPersonPaymentRecorded`/`Reversed` to §8. A discovery-stage audit dated at a point in time doesn't stay true once new candidates are added afterward — worth remembering for any future addition to this document too.
+30. **Duplicate use case found and resolved, 2026-08-22 — `CAND-55` was the same feature as `CAND-38` ("reposição"/make-up for a skipped recurring occurrence), drafted twice with a direct contradiction between them** (`CAND-55` claimed a new `MakeUpReservationCreated` event was needed; `CAND-38` correctly says no new event type is needed, reusing existing booking-lifecycle events). `CAND-38` is schema-grounded and screen-grounded; `CAND-55` was the vaguer, later restatement. `CAND-55` is now a "superseded by `CAND-38`" stub, same pattern as `CAND-15b` → `CAND-37`. Separately, `CAND-54` (in-person payment) was clarified as an elaboration of `CAND-37` step 2, not a competing spec — the two were never contradictory, just under-cross-referenced.
+31. **Missing manager-facing config use cases found and added, 2026-08-22.** `CAND-43` (customer submits intake answers) had no manager-facing candidate that ever authors a `service_booking_intake_schema` in the first place — the same shape of gap `CAND-10b` already exists to close for guest-access policy. More broadly, `services`' own approval-mode/hold-duration, cancellation/reschedule-window, minimum-notice/maximum-advance, and variable-duration/pricing-policy columns (§3) had no configuring use case at all, unlike `CAND-06`/`08`/`09`/`10` for resource requirements, legs, buffer, and booking model. Added `CAND-09b` (booking-intake schema) and `CAND-09c` (appointment service policy) in the use-cases doc.
+32. **Structural gap found and closed, 2026-08-22 — `recurring_booking_schedules` (§2 above) was never wired into the same cross-family-exclusivity mechanism `ClassScheduleTemplate` already has.** This is the identical shape of problem the domain doc's §6 "Cross-family resource exclusivity" section already solved once for templates: a standing future pattern that isn't yet materialized into individual rows still has to be evaluated directly by availability computation, or a not-yet-generated conflict slips through. `CAND-29` (availability computation), `CAND-31` (overlap rejection), `CAND-11` A2, and this document's own §5 advisory-lock list all only ever mentioned `ClassScheduleTemplate` — never `RecurringBookingSchedule` — despite the domain doc's §6b explicitly saying a private recurring schedule "blocks its future pattern beyond the materialisation horizon" the same way. Concretely, without this fix, nothing stopped a different customer from booking Sala Aurora on a future Tuesday 10:00–12:00 that Ana Costa's standing reservation already claims, as long as it's beyond the occupancy backstop and not yet materialized. Fixed in the use-cases doc (`CAND-29` new step 5, `CAND-31`'s precondition, `CAND-11` A2) and here in §5.
+33. **Product decision made, 2026-08-22 — a recurring-schedule-generated occurrence auto-confirms regardless of the service's own approval policy.** Grounded in a real inconsistency found while building the Sala Aurora worked example: the one-off booking flow (`public-11`→`12`→`13`) is `MANUAL_APPROVAL` with a 30-minute hold, but `customer-09-reserva-recorrente.html`'s recurring-booking screen shows every generated occurrence as already "Confirmada," with no pending/hold state at all. Resolved in `CAND-45`: the standing schedule itself was already vetted for conflicts once, at creation; re-running a manual-approval hold-and-review cycle on every single generated occurrence would contradict the entire point of a "standing commitment," and doesn't match what the prototype actually shows. `MANUAL_APPROVAL` still governs genuinely one-off bookings of the same service.
+34. **Self-authored arithmetic bug found and fixed, 2026-08-22 — the variable-duration pricing example conflated the booking-selection increment with the pricing increment.** An earlier version of the `services` variable-duration example (added the same review pass that introduced `svc_sala_reuniao`) priced Ana's 2-hour Sala Aurora booking off `duration_increment_minutes = 30` (the 30-minute booking-selection granularity, "blocos de 30 minutos") while the prototype's actual price is hourly ("R$ 50 por hora") — two different granularities the schema only had one column for. Fixed by adding a distinct `pricing_increment_minutes` column and an explicit round-up rule for a partial increment (never round down — a customer never pays for less time than they held the resource).
+35. **Migration-ordering gaps found and closed, 2026-08-22.** (a) The backfill step's original "every existing BookingLine" wording didn't scope to `APPROVED`-only/future-only, risking backfilled `resource_occupancy` rows for historical bookings that would just be garbage-collected on the very next retention sweep, and had no valid `lock_state` to assign to a `PENDING`/`REJECTED`/`CANCELLED` row in the first place. (b) A more serious gap: the old, whole-tenant `EX_booking_bookings_approved_slot` constraint stays live through the entire dual-write window (steps 1–4) — during that window, a tenant already using more than one concurrently-bookable resource would see the new resource-scoped availability check correctly report two different resources as simultaneously free, then have the second approval rejected by the still-active old constraint at the DB layer, surfacing as a raw error to a legitimate concurrent booking. Fixed by feature-gating any multi-resource `Service.resourceRequirements` configuration behind step 5 (Contract) actually completing.
+36. **Two mechanisms for the same fact, reconciled 2026-08-22.** A `PICKUP_ADDRESS`-typed intake-schema question (§2 above) and the legacy `services.requires_pickup_address` boolean (already live for car wash, `docs/13-DATABASE_SCHEMA.md:207`) both express "this service needs a pickup address," and nothing said which one is authoritative. Resolved: `requires_pickup_address` stays the single source of truth that `bookings.pickup_address` population is validated against; declaring a `PICKUP_ADDRESS` question in a service's intake schema (via the new `CAND-09b`) sets that boolean in the same transaction rather than existing as a second, independently-driftable switch.
+37. **Noted, not fixed, 2026-08-22 — every example date in this document (including ones added in this same review pass) is consistently one calendar day off from the real Gregorian calendar for 2026** (e.g. 2026-08-04 is called "Monday" throughout §2/§5; it's actually a Tuesday). The offset is uniform, so no example is internally inconsistent with any other — the mechanisms, constraints, and capacity arithmetic are all unaffected. Left as-is rather than mass-edited: correcting dozens of dates across an already-large document carries real risk of introducing a *new*, non-uniform inconsistency for a purely cosmetic problem. Worth a cleanup pass only if these specific dates are ever reused as real test fixtures.
 
 ---
 
@@ -570,14 +826,17 @@ The notes below record issues found in earlier drafts. They are retained for des
 - `Resource.maxCapacity` is now an optional physical ceiling for capacity-bearing resources. Template/session capacity cannot exceed the lowest applicable ceiling.
 - SESSION services use service-scoped eligible resource pools and fixed template picks. They never carry APPOINTMENT `resourceRequirements` or `legs`.
 - The class family has no ad-hoc session creation and no online billing. **Corrected 2026-08-21 — this bullet used to also claim "no customer pay-per-session path," which now directly contradicts `CAND-22b` below; that was never updated when `CAND-22b` was added, a real internal contradiction caught on re-review, not just a wording gap.** Customer access is through one active, non-overlapping, service-scoped contract (`CAND-22`/`CAND-26`), **or**, when the tenant allows non-member traffic on that service, a pay-per-class booking with no contract at all (`CAND-22b`) — subject to the same `trial_slots` capacity-protection gate a guest goes through. Configured guest trials/drop-ins remain the fully-anonymous third path.
-- Capacity, guest verification/approval, attendee-level attendance, cancellation ranges, and future-template concurrency are all resolved above. Candidate domain events are formalized in §8 below. There are no remaining schema-level open questions that block promotion into milestone planning.
+- Capacity, guest verification/approval, attendee-level attendance, cancellation ranges, and future-template concurrency are all resolved above. Candidate domain events are formalized in §8 below. There are no remaining **schema-level** open questions that block promotion into milestone planning. **Caveat added 2026-08-22:** this claim was never false about the *schema* — it was, however, read as covering more than it does. A PM/engineering review pass the same day found real **use-case-level** gaps this sentence doesn't speak to at all: a use-case contradiction (`CAND-32` vs. `CAND-47`/`56`, §6 item 28), a stale event-coverage audit (§6 item 29), a duplicate use case (§6 item 30), and missing manager-facing config use cases (§6 item 31) — all now fixed, but the fact that they existed means "ready to promote" needs a use-case-level pass too, not just a schema-level one, before the next milestone actually starts.
 - **Added 2026-08-21:** per-session non-member capacity (`trial_slots`/`reserved_non_member_count`, replacing the earlier global `guest_approval_mode`), a real contract-less pay-per-class path (`CAND-22b`), fixed-slot make-up (`rescheduled_from_id`, `CAND-38`), and a dedicated `classSkipWindowHours` for `CAND-27`.
+- **Added 2026-08-22:** `recurring_booking_schedules` wired into the same cross-family-exclusivity mechanism `ClassScheduleTemplate` already has (§6 item 32); recurring-schedule occurrences auto-confirm regardless of the service's approval policy (§6 item 33); a corrected variable-duration pricing model with a distinct pricing increment (§6 item 34); two migration-ordering fixes — backfill scope and old-constraint rollout sequencing (§6 item 35); and `requires_pickup_address` confirmed as the single source of truth behind the new intake-schema mechanism (§6 item 36).
 
 ---
 
 ## 8. Candidate Domain Events
 
 > Added to close a coverage gap found during a pre-promotion audit (2026-08-07): every candidate event referenced across this discovery set (`ClassSessionCancelled`, `ClassSessionBookingConfirmed`/`Cancelled`/`Waitlisted`/`Completed`, `WaitlistPromoted`, plus CAND-33's "candidate guest-verification/guest-reservation events" and CAND-35's "candidate contract-created/cancelled events") was named in a CAND's "Events Triggered" field but never given a concrete envelope/payload, unlike every event in `docs/03-DOMAIN_EVENTS.md`. Follows that file's mandatory envelope (`eventId`, `tenantId`, `occurredAt`, `correlationId`, `eventName`, `eventVersion`, `data`) exactly — only the `data` shape is shown below, per that doc's own convention. All are Booking Context events (item 11 above already flags that `ClassSession`/`ClassSessionBooking` becoming outbox-draining `AggregateRoot`s is the real architectural commitment this implies).
+>
+> **Extended 2026-08-22 — this same gap had silently reopened.** CAND-38, 45–47, and 51–56 were all added on 2026-08-21, two weeks after this section's own audit date, and every one of them names a new candidate event in its "Events Triggered" field — none of which had a concrete envelope until now. The events below close that out. (`CAND-55`'s claimed `MakeUpReservationCreated` event is *not* included — see `CAND-55`'s own entry: it's superseded by `CAND-38`, which correctly needs no new event type.)
 
 #### **ClassSessionCancelled**
 - **Trigger:** `CAND-15` (single session cancelled with existing bookings) or `CAND-32` (date-range/from-date template cancellation, once per affected session)
@@ -711,6 +970,207 @@ The notes below record issues found in earlier drafts. They are retained for des
   }
   ```
 
+#### **RecurringBookingScheduleCreated**
+- **Trigger:** `CAND-45` (customer or staff confirms a recurring pattern)
+- **State change:** `RecurringBookingSchedule` row created, `status = ACTIVE`
+- **Data:**
+  ```
+  {
+    recurringScheduleId: string
+    customerId:          string
+    serviceId:           string
+    resourceIds:         string[]
+    assignmentPolicy:    "FIXED_ASSIGNMENT" | "RESOLVE_PER_OCCURRENCE"
+    recurrence:          object   // same shape as recurring_booking_schedules.recurrence
+    startsOn:            Date
+  }
+  ```
+
+#### **RecurringBookingSchedulePaused**
+- **Trigger:** `CAND-45` A2 (customer pauses the schedule)
+- **State change:** `RecurringBookingSchedule.status → PAUSED`; no further occurrences generated until resumed
+- **Data:**
+  ```
+  {
+    recurringScheduleId: string
+    customerId:          string
+    serviceId:           string
+  }
+  ```
+
+#### **RecurringBookingScheduleEnded**
+- **Trigger:** `CAND-45` A2 (customer ends the schedule entirely)
+- **State change:** `RecurringBookingSchedule.status → CANCELLED`; future materialized occurrences cancelled, releasing their resource occupancy
+- **Data:**
+  ```
+  {
+    recurringScheduleId: string
+    customerId:          string
+    serviceId:           string
+    cancelledBookingIds: string[]   // future occurrences cancelled as a result
+  }
+  ```
+
+#### **AvailabilityAlertCreated**
+- **Trigger:** `CAND-46`
+- **State change:** `availability_alerts` row created, `status = ACTIVE`
+- **Data:**
+  ```
+  {
+    alertId:      string
+    customerId:   string
+    serviceId:    string
+    criteriaType: "ONE_TIME_RANGE" | "WEEKLY_PREFERENCE"
+    expiresAt:    ISO8601
+  }
+  ```
+
+#### **AvailabilityAlertUpdated**
+- **Trigger:** `CAND-53` (customer edits criteria or expiry)
+- **State change:** `availability_alerts` row's criteria/expiry columns updated in place
+- **Data:**
+  ```
+  {
+    alertId:    string
+    customerId: string
+    serviceId:  string
+  }
+  ```
+
+#### **AvailabilityAlertCancelled**
+- **Trigger:** `CAND-46` A2 (customer withdraws before a match) or `CAND-53` (explicit cancel)
+- **State change:** `availability_alerts.status → CANCELLED`
+- **Data:**
+  ```
+  {
+    alertId:    string
+    customerId: string
+    serviceId:  string
+  }
+  ```
+
+#### **AvailabilityAlertExpired**
+- **Trigger:** System, `expires_at` has passed with no match
+- **State change:** `availability_alerts.status → EXPIRED`
+- **Data:**
+  ```
+  {
+    alertId:    string
+    customerId: string
+    serviceId:  string
+  }
+  ```
+
+#### **AvailabilityAlertMatched**
+- **Trigger:** `CAND-46` step 3 (a released slot matches an `ACTIVE` alert's criteria) — consumed by Notification Context to send the deduplicated email/in-app message; corresponds to CAND-46/53's own "...notified" event
+- **State change:** `availability_alerts.status → NOTIFIED`; one `availability_alert_notification_attempts` row inserted for the matching window (§2 above)
+- **Data:**
+  ```
+  {
+    alertId:            string
+    customerId:         string
+    serviceId:          string
+    matchingWindowStart: ISO8601
+    matchingWindowEnd:   ISO8601
+    resourceId:          string | null   // set when the alert had a preferredResourceId
+  }
+  ```
+
+#### **FutureCommitmentExceptionRaised**
+- **Trigger:** `CAND-47` (a resource/hours/template/schedule change affects a future commitment nobody explicitly reviewed per-session — excludes a `CAND-32` range cancellation, see that candidate's note)
+- **State change:** `future_commitment_exceptions` row created, `status = OPEN`
+- **Data:**
+  ```
+  {
+    exceptionId:  string
+    sourceType:   string
+    sourceId:     string
+    affectedType: string
+    affectedId:   string
+    ownerStaffId: string | null
+  }
+  ```
+
+#### **FutureCommitmentExceptionResolved**
+- **Trigger:** `CAND-56` (manager keeps, reassigns, reschedules, or cancels)
+- **State change:** `future_commitment_exceptions.status → RESOLVED`
+- **Data:**
+  ```
+  {
+    exceptionId:      string
+    resolutionType:   string
+    resolvedByStaffId: string
+    affectedType:      string
+    affectedId:        string
+  }
+  ```
+
+#### **FutureCommitmentExceptionDismissed**
+- **Trigger:** `CAND-56` A2 (manager dismisses a genuinely resolved/non-impacting item)
+- **State change:** `future_commitment_exceptions.status → DISMISSED`
+- **Data:**
+  ```
+  {
+    exceptionId:       string
+    resolvedByStaffId: string
+    resolutionReason:  string
+  }
+  ```
+
+#### **TenantSchedulingBootstrapped**
+- **Trigger:** `CAND-51` (preset bootstrap commits)
+- **State change:** Tenant's initial `Resource`/`Service` graph (and, for SESSION presets, first `ClassScheduleTemplate`s) created in one transaction
+- **Data:**
+  ```
+  {
+    tenantId:    string
+    presetId:    string
+    serviceIds:  string[]
+    resourceIds: string[]
+  }
+  ```
+
+#### **ResourceReactivated**
+- **Trigger:** `CAND-52`
+- **State change:** `Resource.isActive → true`
+- **Data:**
+  ```
+  {
+    resourceId:         string
+    resourceType:       string
+    reactivatedByStaffId: string
+  }
+  ```
+
+#### **InPersonPaymentRecorded**
+- **Trigger:** `CAND-37` step 2 / `CAND-54` (staff records a payable attendee's in-person payment at close-out)
+- **State change:** `class_session_payments` row created
+- **Data:**
+  ```
+  {
+    paymentId:            string
+    classSessionBookingId: string
+    amount:                number
+    currency:              "BRL"
+    method:                string
+    collectedByStaffId:    string
+  }
+  ```
+
+#### **InPersonPaymentReversed**
+- **Trigger:** `CAND-54` (a correction/reversal, never an overwrite of the original record)
+- **State change:** New `class_session_payments` row inserted with `reversal_of_payment_id` set; the original row is untouched
+- **Data:**
+  ```
+  {
+    paymentId:            string
+    reversalOfPaymentId:  string
+    classSessionBookingId: string
+    amount:                number
+    correctionReason:      string
+  }
+  ```
+
 ---
 
 ## 9. Engineering design assessment — is this a solid schema?
@@ -762,3 +1222,69 @@ The following are complete persistence contracts to carry into implementation; t
 | `future_commitment_exceptions` | `id, tenant_id, source_type, source_id, affected_type, affected_id, status OPEN|RESOLVED|DISMISSED, owner_staff_id NULL, resolution_type NULL, resolution_reason NULL, resolved_by_staff_id NULL, resolved_at NULL, notification_outcome NULL`; source/affected lookup indexes and an idempotency unique key for the same unresolved impact. |
 
 **Capacity invariant, finalized:** `reserved_count` counts `CONFIRMED`, `PENDING_APPROVAL` and `PROMOTION_PENDING`; `reserved_non_member_count` counts those capacity-holding states for verified guests and authenticated customers without a qualifying contract. Every guarded update and cleanup worker uses both definitions.
+
+### Example data for §10
+
+**`services` approval policy** — Sala de reunião, grounded in `public-13-pending-approval.html`'s own displayed hold ("indisponível... até **10:30**" on a 10:00 booking):
+
+| service_id | default_approval_mode | manual_hold_minutes |
+|---|---|---|
+| svc_sala_reuniao | MANUAL_APPROVAL | 30 |
+
+Ana's booking (`book_ana_sala_aurora_0818`, §3 above) snapshots this effective mode/duration at submission time — the same row already carrying `occ_4`'s `HOLD` / `hold_expires_at = 10:30` in `resource_occupancy`. A service left `null` here just inherits whatever the tenant default is; nothing about this table forces every appointment service to declare its own value.
+
+**`class_session_bookings` waitlist/offer fields, `class_session_booking_transitions`, and `class_session_payments`** — continuing Marcos Tanaka's story from `sb_4` (waitlisted on `sess_pilates_0804`, `class_session_bookings` example in §2): Fernanda cancels her confirmed spot (`sb_1`) the day before the class, freeing a seat.
+
+`class_session_bookings.sb_4`, before and after the offer:
+
+| state | status | waitlist_access_intent | offer_offered_at | offer_expires_at | offer_responded_at | offer_response |
+|---|---|---|---|---|---|---|
+| offered | PROMOTION_PENDING | IN_PERSON | 2026-08-03T09:00-03:00 | 2026-08-03T11:00-03:00 | null | null |
+| accepted | CONFIRMED | IN_PERSON | 2026-08-03T09:00-03:00 | 2026-08-03T11:00-03:00 | 2026-08-03T09:45-03:00 | ACCEPTED |
+
+Marcos has no active contract, so his `waitlist_access_intent` is `IN_PERSON`, not `CONTRACT` — the same pay-per-class path `CAND-22b` gives a fresh booking, now reached via promotion instead. `class_session_booking_transitions` records both hops on `sb_4`:
+
+| id | from_status | to_status | reason | actor_type | actor_id | occurred_at |
+|---|---|---|---|---|---|---|
+| trans_1 | WAITLISTED | PROMOTION_PENDING | CAPACITY_FREED | SYSTEM | null | 2026-08-03T09:00-03:00 |
+| trans_2 | PROMOTION_PENDING | CONFIRMED | OFFER_ACCEPTED | CUSTOMER | cust_marcos | 2026-08-03T09:45-03:00 |
+
+Marcos pays in person right after the class, matching `sb_4`'s own `total_price_at_booking_amount = 60.00`:
+
+| id | class_session_booking_id | amount | currency | method | collected_by_staff_id | collected_at |
+|---|---|---|---|---|---|---|
+| pay_1 | sb_4 | 60.00 | BRL | PIX | staff_camila_id | 2026-08-04T09:05-03:00 |
+
+**`booking_quote_revisions` and `class_session_booking_attendees` removal fields** — a new example, since neither existing group example (Pilates' `sb_1`–`sb_4`, already at capacity; the guest group `sb_3`, not eligible for `CAND-49`) fits: Patrícia Nunes, a contract-backed CrossFit customer, books `quantity = 2` (herself plus a friend) on a roomy CrossFit session (`sess_crossfit_0811`, capacity 20 — no conflict with the Pilates capacity math established elsewhere), then her friend drops out before the cutoff.
+
+`class_session_bookings.sb_patricia` (CrossFit, `Aula de CrossFit`, contract-backed):
+
+| state | quantity | total_price_at_booking_amount |
+|---|---|---|
+| initial | 2 | 160.00 |
+| after removal | 1 | 80.00 |
+
+`class_session_booking_attendees`, showing the removal fields §10 adds:
+
+| id | class_session_booking_id | name | removed_at | removed_by_actor_type | removed_by_actor_id | removal_reason |
+|---|---|---|---|---|---|---|
+| att_patricia_1 | sb_patricia | Patrícia Nunes | null | null | null | null |
+| att_patricia_2 | sb_patricia | Letícia Alves | 2026-08-11T14:00-03:00 | CUSTOMER | cust_patricia | Amiga não poderá comparecer |
+
+`booking_quote_revisions` records the price change this produces:
+
+| id | class_session_booking_id | revision_no | amount | currency | reason | actor_type | occurred_at |
+|---|---|---|---|---|---|---|---|
+| rev_1 | sb_patricia | 1 | 160.00 | BRL | INITIAL | CUSTOMER | 2026-08-10T09:00-03:00 |
+| rev_2 | sb_patricia | 2 | 80.00 | BRL | ATTENDEE_REMOVED | CUSTOMER | 2026-08-11T14:00-03:00 |
+
+Removing `att_patricia_2` and inserting `rev_2` happen in the same transaction as the active-attendee-count-must-equal-`quantity` invariant this table's own row states — `quantity` drops to 1 exactly when the active attendee count does, never as two separately-committed steps.
+
+**`future_commitment_exceptions`** — Fábio's week-off cancellation (`class_schedule_template_exceptions`'s `tpl_exc_1`, §2 above) only stops *future* generation; a CrossFit session already materialized inside that window (`sess_crossfit_0917`, Thursday 2026-09-17, already carrying real bookings) needs its own resolution:
+
+| state | status | owner_staff_id | resolution_type | resolved_by_staff_id | resolved_at | notification_outcome |
+|---|---|---|---|---|---|---|
+| raised | OPEN | staff_fabio_id | null | null | null | null |
+| resolved | RESOLVED | staff_fabio_id | SESSION_CANCELLED | staff_fabio_id | 2026-08-25T10:00-03:00 | NOTIFIED |
+
+(`id = fce_1`, `source_type = TEMPLATE_EXCEPTION`, `source_id = tpl_exc_1`, `affected_type = CLASS_SESSION`, `affected_id = sess_crossfit_0917` throughout.) CAND-47 raises it the moment the template exception is saved — the system never silently cancels `sess_crossfit_0917` itself. CAND-56 is what actually resolves it: here, the manager chooses to cancel the one affected session and notify its bookings' customers, each producing its own `ClassSessionCancelled` (§8) independent of this row.

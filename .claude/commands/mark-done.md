@@ -58,6 +58,14 @@ Argument: `$ARGUMENTS` — the story ID to mark done (e.g. `M03-S06`).
    Commit: <hash>
    ```
 
+8a. **If a worktree was used for this story, clean it up now — no need to ask** (CLAUDE.md §9 Step 11 authorizes this automatically as part of the same chain the story's READY verdict already authorized). If this session is currently inside that worktree, use `ExitWorktree` with `action: "remove"`. If already back in the main checkout with the worktree directory still present, remove it directly:
+   ```bash
+   git worktree remove .claude/worktrees/<name> --force
+   git branch -D <branch-name>
+   git fetch --prune origin
+   ```
+   Either way, verify the removal actually took with `git worktree list` — don't trust a success/error message alone (`ExitWorktree` can report it couldn't verify worktree state, e.g. after a branch rename mid-session; re-invoke with `discard_changes: true` once you've independently confirmed via `git status`/`git log origin/main..HEAD` that nothing is lost).
+
 9. Check whether ALL stories in the milestone plan file are now marked `✅ Done`. If yes, remind the agent:
    > "All stories in <milestone> are done. Per §9 Step 12, create both wrap-up files before reporting milestone complete:
    > - `plan/<milestone>_IMPLEMENTATION_DETAILS_IA.md` — token-efficient reference for AI agents: artifacts table, gotchas, version facts, structural decisions. No prose, no tutorials.

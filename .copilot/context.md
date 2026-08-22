@@ -5,7 +5,7 @@
 **Symlinked as:** `CLAUDE.md`, `gemini.md`, `AGENTS.md`
 **Audience:** Any AI coding agent
 **Rule:** Read this file first. Then use §10 to load only the docs you need.
-**Last updated:** 2026-08-04
+**Last updated:** 2026-08-22
 
 ---
 
@@ -311,7 +311,7 @@ gh pr create --title "feat(<context>): <description> (M0X-SYY)" \
   --repo lmmoreira/ikaro
 ```
 
-**5. Monitor CI; triage bot reviews** — `gh pr checks <PR-number> --repo lmmoreira/ikaro`; fetch inline comments (`gh api repos/lmmoreira/ikaro/pulls/<PR-number>/comments`) and reviews (`.../reviews`). Fix and push again; repeat until CI is green and bot review has no unresolved findings.
+**5. Monitor CI; triage bot reviews** — run `/pr-land` (full mechanics: `.claude/commands/pr-land.md`). It posts the CodeRabbit trigger and dispatches Codex (round 1, from `/pre-pr`), then loops: wait for every in-scope actor of the round (CI + Codex always, CodeRabbit round 1 only) to finish, pool every finding together, apply all fixes as **one commit + one push**, re-dispatch Codex only for the next round. Never react to a single actor mid-round — a fix based on Codex's result while CI is still running (or vice versa) wastes a round. Repeat until CI is green and Codex reports 0 unresolved Critical/Important.
 
 **Bot-finding discipline (mandatory, every finding, every round — this is what keeps the loop from becoming blind vibe-coding):**
 1. Read the comment.
@@ -320,6 +320,7 @@ gh pr create --title "feat(<context>): <description> (M0X-SYY)" \
 4. Only if it survives both checks — actually relevant, actually applicable — apply the fix.
 5. If it doesn't survive, reply on the thread explaining why it's not being applied — never silent-ignore.
 6. If relevance genuinely can't be determined either way, that's a stuck condition (below) — escalate, don't guess.
+7. If a finding needs a business or design decision (a naming/scope choice, a UX tradeoff, "should this even work this way") rather than a pure code-correctness question — escalate immediately, regardless of round number. This is not usual bot-fix work; it's a decision only the user can make.
 
 Also: severity labels (`Critical`) are not evidence on their own — verify against framework source (`node_modules/.pnpm/...`) when the claim is about third-party behavior. Check which commit range the review actually covers first (stated in the review body) — local commits since then may have already fixed some findings; cross-check each finding against the *current* file content, not the diff shown in the review. CodeRabbit's own pre-merge "Description check" and "Docstring Coverage" checks are calibrated to CodeRabbit's generic defaults, not this repo's conventions — expect both ⚠️ on every PR; not actionable, don't chase them.
 
@@ -329,8 +330,9 @@ Also: severity labels (`Critical`) are not evidence on their own — verify agai
 
 **Stuck conditions — escalate to the user, never force through:**
 1. A CI/test failure that doesn't resolve within a reasonable number of genuine fix attempts, or whose only apparent fix would be a workaround the "no workarounds" rule (§7) forbids.
-2. A bot finding whose relevance can't be confidently determined either way (bot-finding discipline step 6 above).
+2. A bot finding whose relevance can't be confidently determined either way (bot-finding discipline step 6 above), or one that needs a business/design decision (step 7 above) — the latter escalates immediately, not gated on round count.
 3. A failed or un-runnable live-verification check on an infra-touching story (item 6 above).
+4. `/pr-land` reaches round 5 with Codex still reporting ≥1 unresolved Critical or Important finding (Minor-only doesn't count). Describe what's recurring across rounds and what's been tried — don't attempt a 6th round unprompted.
 
 When stuck, stop and describe the specific blocker — don't keep iterating to force a green check, and don't silently drop the finding either.
 
@@ -342,6 +344,8 @@ Always delete the local branch with `-D` (not `-d` — squash merges aren't reco
 
 ### Step 11 — Mark done
 `/mark-done M0X-SYY` — the last-mile check, not just bookkeeping: independently re-verifies AC evidence and that any Critical/Important `/pr-review`/bot finding on the merged PR was actually resolved, opening a bug-fix TD via `/create-td` for any real gap rather than silently marking done — then updates the plan file, commits to main, alerts if milestone complete. (TD stories: no separate command — see `mark-done.md`'s note on marking a TD story done directly in its own feature branch.)
+
+**If a worktree was used, clean it up immediately after — no need to ask:** `git worktree remove .claude/worktrees/<name> --force`, delete the local branch(es) with `-D`, prune the stale remote-tracking ref (`git fetch --prune origin`). Verify the removal actually took with `git worktree list` — don't trust a success message alone.
 
 ### Step 12 — Milestone complete?
 If all stories are `✅ Done`: create `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA.md` + `_DEVELOPER.md`; add IA file to §10. Also do the stale-documentation sweep described in `/mark-done`'s milestone-complete reminder — a safety net for any story that skipped `docs/DEFINITION_OF_DONE.md`'s stale-reference-sweep item.
@@ -479,6 +483,7 @@ Pinned Terraform skills live in `.claude/skills/`; refresh them by re-vendoring 
 | `/docs-audit [UC-XXX\|M0X\|actor/slug\|doc-path]` | `.claude/commands/docs-audit.md` |
 | `/mark-done M0X-SYY` | `.claude/commands/mark-done.md` |
 | `/pre-pr` | `.claude/commands/pre-pr.md` |
+| `/pr-land [PR#]` | `.claude/commands/pr-land.md` |
 | `/pr-review [PR#]` | `.claude/commands/pr-review.md` |
 | `/run-batch [M0X \| M0X-SYY/TDNN ...]` | `.claude/commands/run-batch.md` |
 | `/story-discovery M0X-SYY` | `.claude/commands/story-discovery.md` |

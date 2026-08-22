@@ -1,13 +1,15 @@
 ---
 name: pre-pr
-description: Run the pre-PR checklist against the current branch. This is the mandatory gate - run it once when the story implementation is complete. If a PR is already open for this branch, this skill exits immediately. Once it opens the PR, dispatches Codex /pr-review in the background and verifies it started.
+description: Run the pre-PR checklist against the current branch. This is the mandatory gate - run it once when the story implementation is complete. If a PR is already open for this branch, this skill exits immediately. Once it opens the PR, posts the CodeRabbit review trigger, dispatches Codex /pr-review in the background, verifies it started, then hands off to /pr-land.
 metadata:
   short-description: Run the mandatory pre-PR checklist
 ---
 
 Run the pre-PR checklist against the current branch. This is the mandatory gate — run it **once** when the story implementation is complete. If a PR is already open for this branch, this skill exits immediately.
 
-> **AGENT RULE:** Never invoke this skill autonomously. Ask the user: *"I believe the story is complete — may I run /pre-pr?"* Wait for explicit yes before starting.
+> **AGENT RULE:** Runs automatically once local implementation self-verification (type-check, lint, tests) is clean — no separate permission prompt to start it. This was already authorized when `/story-discovery` returned READY for this story (CLAUDE.md §9's autonomous implementation chain).
+
+> **STUCK-CONDITION RULE (applies to every step below, not just Step 4):** "Fix it and re-run" has an implicit bound — if the same failure survives a couple of genuine fix attempts, or the only apparent fix would be a workaround CLAUDE.md §7 forbids, stop and escalate to the user as a stuck condition (CLAUDE.md §9) rather than continuing to iterate.
 
 ---
 
@@ -24,11 +26,7 @@ If a PR exists → print its number and URL, then **stop**:
 ```bash
 git status --short
 ```
-If there are staged or modified files → list all of them and apply the commit gate:
-
-*"Here are the files I'm about to commit: [list]. Anything else to add before I commit?"*
-
-Wait for explicit yes, then commit with specific file names (never `git add -A`). Follow the commit format from CLAUDE.md §9.
+If there are staged or modified files → list all of them for visibility, then commit with specific file names (never `git add -A`) — no permission prompt needed, this is already covered by the chain-wide authorization from story-discovery's READY verdict (CLAUDE.md §9). Follow the commit format from CLAUDE.md §9.
 
 ---
 
@@ -179,6 +177,8 @@ or:
 Blocked: fix failures before opening the PR.
 ```
 
+If a failure survives a couple of genuine fix attempts, or the only apparent fix would be a workaround CLAUDE.md §7 forbids, stop and escalate to the user as a stuck condition (CLAUDE.md §9) rather than continuing to iterate.
+
 ---
 
 ## Final — Verdict and PR gate
@@ -199,18 +199,25 @@ Step 4   integration tests   ✅  X suites, Y tests
 Total issues: 0
 ```
 
-**If all steps pass**, ask the user:
-> "All pre-PR checks passed — shall I open the PR now?"
-
-Wait for explicit yes before running `gh pr create` (per CLAUDE.md §9 Step 8).
+**If all steps pass**, proceed directly to `gh pr create` (per CLAUDE.md §9) — no permission prompt; this was authorized when `/story-discovery` returned READY. State that all checks passed and the PR is being opened, then open it.
 
 **If any step failed**, list the blocking issues and stop. Do not open the PR.
 
 ---
 
-## Step 5 — Dispatch cross-tool review (mandatory, once the PR exists)
+## Step 5 — Trigger CodeRabbit, dispatch Codex, hand off (mandatory, once the PR exists)
 
-Once `gh pr create` succeeds and you have the PR number, dispatch `/pr-review` to Codex. Do not merely state that it was dispatched: start the process with a closed stdin, capture its PID and log, then verify it actually started before reporting success. `/pr-review` handles review, verification, and posting its own mandatory PR comment.
+**5a. Trigger CodeRabbit's full review.** This repo's CodeRabbit config skips automatic review on this OSS repo ("manual review required") — its own auto-posted summary comment says so. Post the trigger comment right after `gh pr create` succeeds:
+
+```bash
+gh pr comment <N> --repo lmmoreira/ikaro --body "@coderabbitai review"
+```
+
+This is a one-time trigger for round 1 only — `/pr-land` never re-posts it on later rounds.
+
+**5b. Dispatch `/pr-review` to Codex.** First capture the round-1 timestamp `/pr-land` needs to distinguish this round's comments from anything later: `since=$(date -u +%Y-%m-%dT%H:%M:%SZ)`. Then dispatch. Do not merely state that it was dispatched: start the process with a closed stdin, capture its PID and log, then verify it actually started before reporting success. `/pr-review` handles review, verification, and posting its own mandatory PR comment.
+
+**Worktree gotcha:** if this session is in a worktree (`EnterWorktree`), `codex exec` is hard-blocked by the worktree-isolation guard no matter how it's invoked (backgrounded or not, `dangerouslyDisableSandbox` doesn't help). Delegate the exact command below to a freshly spawned `Agent` call instead (no `fork`, no `isolation` — a plain new agent isn't pinned to the parent's worktree) and have it report back the PID/log.
 
 ```bash
 review_log="/tmp/pr-<N>-codex-review.log"
@@ -228,4 +235,8 @@ else
 fi
 ```
 
-Tell the user the PR is open and that Codex review was **verified started** (include its PID/log). Do not wait for completion before considering pre-pr complete. If it exits before the two-second verification, report the launch failure; never claim a review was dispatched.
+Pass `$since` to `/pr-land` along with the PR number when handing off (Step 5c) — it's round 1's waiting timestamp for `scripts/pr-round-status.sh`.
+
+Tell the user the PR is open, the CodeRabbit trigger was posted, and Codex review was **verified started** (include its PID/log). Do not wait for completion before considering pre-pr complete. If Codex exits before the two-second verification, report the launch failure; never claim a review was dispatched.
+
+**5c. Hand off to `/pr-land`.** This is where `/pre-pr`'s own scope ends — round 1's CI, CodeRabbit, and Codex results are collected and triaged by `/pr-land`, not here. Invoke it with the PR number.
