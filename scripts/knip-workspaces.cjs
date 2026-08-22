@@ -38,6 +38,7 @@
 module.exports = [
   {
     dir: '.',
+    plugins: { pnpm: true },
     entry: ['scripts/**/*.cjs'],
     project: ['scripts/**/*.cjs'],
   },

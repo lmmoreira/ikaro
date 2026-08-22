@@ -53,6 +53,16 @@ test('registry covers every real pnpm workspace exactly once, plus the root scri
   assert.equal(new Set(configured).size, configured.length);
 });
 
+test('root workspace explicitly enables the pnpm plugin', () => {
+  const rootWorkspace = workspaces.find((workspace) => workspace.dir === '.');
+  assert.ok(rootWorkspace, 'root workspace entry (".") is missing');
+  assert.equal(
+    rootWorkspace.plugins?.pnpm,
+    true,
+    "root workspace must set plugins.pnpm explicitly, per this story's locked design decision — not rely on knip's own auto-detection",
+  );
+});
+
 test('every configured entry/project glob matches at least one real file in its workspace', () => {
   for (const { dir, entry = [], project = [] } of workspaces) {
     for (const pattern of [...entry, ...project]) {

@@ -106,8 +106,14 @@ jobs:
           # package.json/source-file names — on a fork PR those names are
           # contributor-controlled. Break any literal triple-backtick run
           # before embedding so it can't close the summary's own code fence
-          # early and inject arbitrary rendered Markdown after it.
-          break_fences() { sed 's/```/`` `/g' "$1"; }
+          # early and inject arbitrary rendered Markdown after it. The
+          # backtick character is built via printf (not typed literally) so
+          # shellcheck/actionlint can't mistake it for command substitution
+          # (SC2016).
+          backtick=$(printf '\140')
+          fence="${backtick}${backtick}${backtick}"
+          broken_fence="${backtick}${backtick} ${backtick}"
+          break_fences() { sed "s/${fence}/${broken_fence}/g" "$1"; }
           {
             echo '### knip — default mode (unused dependencies + dead exports)'
             echo '```'
