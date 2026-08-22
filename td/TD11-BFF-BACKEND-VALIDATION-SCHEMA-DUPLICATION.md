@@ -49,6 +49,7 @@ The `ZodValidationPipe` mechanism duplication (see Problem) does **not** carry t
 
 - [x] `ZodValidationPipe` has exactly one implementation, in `@ikaro/nestjs-http`, imported by both `apps/backend` and `apps/bff`
 - [x] Tenant settings, hotsite content, booking, and customer-profile schemas have exactly one source of truth for business rules (min/max, regex, enums), imported by both `apps/backend` and `apps/bff`
+  - ⚠️ No longer true for tenant-settings wrapper schemas — see Status drift note, 2026-08-22
 - [x] `sonar.cpd.exclusions` entry for `tenant-settings.controller.ts` either removed (if duplication is gone for real) or corrected to the current `apps/bff/src/features/platform/...` path (if this TD is only partially picked up) — removed; SonarCloud Analysis passed clean on PR #147 with no exclusion in place
 - [x] New shared package builds correctly in both apps' Docker images; a no-op `docker run` boot smoke test (per TD06) passes for both — verified via PR #147's Trivy Image Scan (backend/bff/web) and Playwright E2E checks
 - [x] No behavior change to either endpoint's validation (same accept/reject decisions as before, verified by existing test suites) — except `businessInfo.phone`/`.email`/`socialLinks.whatsapp` gaining format validation for the first time, which is a deliberate bug fix, not a regression
