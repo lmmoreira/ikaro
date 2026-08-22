@@ -61,6 +61,7 @@ jobs:
   knip:
     name: Unused dependencies + dead exports (report-only)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -101,14 +102,20 @@ jobs:
           default_status=${PIPESTATUS[0]}
           pnpm knip:production 2>&1 | tee knip-production-report.txt
           production_status=${PIPESTATUS[0]}
+          # Report content is knip's own output over this repo's real
+          # package.json/source-file names — on a fork PR those names are
+          # contributor-controlled. Break any literal triple-backtick run
+          # before embedding so it can't close the summary's own code fence
+          # early and inject arbitrary rendered Markdown after it.
+          break_fences() { sed 's/```/`` `/g' "$1"; }
           {
             echo '### knip — default mode (unused dependencies + dead exports)'
             echo '```'
-            cat knip-default-report.txt
+            break_fences knip-default-report.txt
             echo '```'
             echo '### knip — production + strict mode (backend/bff/web only)'
             echo '```'
-            cat knip-production-report.txt
+            break_fences knip-production-report.txt
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           if [ "$default_status" -ne 0 ] || [ "$production_status" -ne 0 ]; then

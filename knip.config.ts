@@ -30,13 +30,25 @@ const exceptions = policy.exceptions ?? [];
 // allowlisted knip findings live in architecture-policy.json's `exceptions`
 // array, not a second, parallel knip.jsonc allowlist (TD37-S13
 // story-discovery addition, 2026-08-22).
-function ignoreDependenciesFor(dir: string): string[] {
+function namedExceptionsFor(rule: string, dir: string): string[] {
   return exceptions
-    .filter((exception) => exception.rule === 'knip-unused-dependency' && exception.path === dir)
+    .filter((exception) => exception.rule === rule && exception.path === dir)
     .map((exception) => exception.name)
     .filter((name): name is string => Boolean(name));
 }
 
+// knip's own `ignoreIssues` (unlike `ignoreDependencies`/`ignoreUnresolved`,
+// which take specific names) has no per-symbol-name granularity — it can
+// only suppress an entire issue TYPE for an entire FILE. So a
+// `knip-unused-export`/`knip-unused-file` exception's `name` field (when
+// present) is illustrative documentation of which export it was written
+// for, not something this code reads — it suppresses every unused-export
+// (or unused-file) finding in that one file, not just the named one. Keep
+// these exceptions narrow (one already-fully-reviewed file at a time) and
+// re-validate on every `reviewBy`, since a NEW dead export added later to an
+// already-exempted file will not be caught (Codex round-2 finding, TD37-S13
+// — confirmed empirically: repo-root-relative `path` keys work correctly
+// against a real finding, 2026-08-22).
 const ignoreIssues: NonNullable<KnipConfiguration['ignoreIssues']> = {};
 for (const exception of exceptions) {
   if (exception.rule === 'knip-unused-export' && exception.path) {
@@ -53,7 +65,8 @@ for (const { dir, entry, project, plugins } of workspaceRegistry) {
     ...(entry ? { entry } : {}),
     ...(project ? { project } : {}),
     ...(plugins ?? {}),
-    ignoreDependencies: ignoreDependenciesFor(dir),
+    ignoreDependencies: namedExceptionsFor('knip-unused-dependency', dir),
+    ignoreUnresolved: namedExceptionsFor('knip-unresolved-import', dir),
   };
 }
 

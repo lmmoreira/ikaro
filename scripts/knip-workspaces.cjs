@@ -63,7 +63,7 @@ module.exports = [
     dir: 'apps/web',
     plugins: { next: true, playwright: true, vitest: true },
     entry: ['e2e/**/*.spec.ts', 'e2e/helpers/**/*.ts'],
-    project: ['**/*.{ts,tsx}!'],
+    project: ['**/*.{ts,tsx,js,mjs,cjs}!'],
   },
   {
     dir: 'packages/architecture-check',

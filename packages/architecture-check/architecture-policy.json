@@ -566,6 +566,14 @@
       "reviewBy": "2027-02-22"
     },
     {
+      "rule": "knip-unresolved-import",
+      "path": "packages/config",
+      "name": "next",
+      "rationale": "tsconfig.nextjs.json's `compilerOptions.plugins: [{ name: \"next\" }]` is a TypeScript-language-service plugin declaration (editor/tsc IntelliSense only), not a runtime import — knip's unresolved-import check misreads the plugin `name` field as a module specifier. packages/config has no dependency on next itself; the real consumer (apps/web) already declares it.",
+      "owner": "architecture-check",
+      "reviewBy": "2027-02-22"
+    },
+    {
       "rule": "error-mapper-coverage",
       "class": "EmailDeliveryException",
       "path": "apps/backend/src/contexts/notification/domain/errors/notification-domain.error.ts",
