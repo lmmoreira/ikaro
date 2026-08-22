@@ -6,6 +6,7 @@ import {
   Symbol as TsMorphSymbol,
   Type,
   TypeAliasDeclaration,
+  TypeFormatFlags,
 } from 'ts-morph';
 import type { Finding, ScanResult } from '../model';
 import { sourceLine } from '../project';
@@ -24,15 +25,26 @@ interface FieldSignature {
 // Web transport-boundary modules only (CLAUDE.md's own documented anti-pattern location list):
 // feature api directories/files and shared API modules. Deliberately excludes component prop
 // types, page/layout files, and anything under apps/web/app/** — those aren't the wire contract.
+//
+// `features/.+/api/` (not `features/[^/]+/api/`, Codex, PR #402): a sub-feature can nest its own
+// api/ directory more than one segment below features/ — e.g.
+// apps/web/features/platform/hotsite/api/chatbot.ts — and the single-segment version silently
+// excluded every file under it from the "full-codebase" scan this detector exists to be.
 const WEB_TRANSPORT_FILE_PATTERNS: RegExp[] = [
-  /\/apps\/web\/features\/[^/]+\/api\/.+\.ts$/,
+  /\/apps\/web\/features\/.+\/api\/.+\.ts$/,
   /\/apps\/web\/features\/[^/]+\/api\.server\.ts$/,
   /\/apps\/web\/features\/[^/]+\/api\.ts$/,
   /\/apps\/web\/shared\/lib\/api\/.+\.ts$/,
   /\/apps\/web\/shared\/types\/.+\.ts$/,
 ];
 
-const MAX_WALK_DEPTH = 8;
+// Purely a pathological-input safety valve, not a realistic ceiling: the seen-set cycle guard
+// already terminates the only case that can recurse forever (a genuinely self-referential named
+// type), so this only bounds a non-cyclic but absurdly deep generic type chain — something no
+// real transport DTO in this codebase approaches. Kept high (not removed) so the cutoff fallback
+// below still degrades gracefully instead of the stack ever overflowing (Codex, PR #402: raised
+// from 8, which a legitimately-nested-but-ordinary DTO could plausibly have reached).
+const MAX_WALK_DEPTH = 50;
 
 function isWebTransportFile(filePath: string): boolean {
   return (
@@ -70,11 +82,23 @@ function hasIndexSignature(type: Type): boolean {
   return Boolean(type.getStringIndexType() || type.getNumberIndexType());
 }
 
+// A function type is an object type with a call signature and (typically) zero named
+// properties — getProperties() sees it as an empty object, so two DIFFERENT function types
+// (different params/return) would otherwise both normalize to the same "{ }" shape and compare
+// as identical (Codex, PR #402). Excluding it here routes it to baseTypeSignature's leaf
+// fallback instead, which compares its full signature text (e.g. "() => string" vs
+// "() => number") — a real transport DTO never has a callable field, but a colliding type alias
+// could still be shaped this way.
+function isCallableType(type: Type): boolean {
+  return type.getCallSignatures().length > 0;
+}
+
 // An object shape worth recursing into structurally (a plain interface/type-literal/array
-// element), not a class/VO instance — mirrors aggregate-primitive-vo.ts's identical distinction:
-// a class-typed field is treated as an opaque leaf (compared by name only), never walked.
+// element), not a class/VO instance or a function — mirrors aggregate-primitive-vo.ts's
+// identical distinction: a class-typed field is treated as an opaque leaf (compared by name
+// only), never walked.
 function isRecursablePlainShape(type: Type): boolean {
-  return type.isObject() && !type.isArray() && !isClassType(type);
+  return type.isObject() && !type.isArray() && !isClassType(type) && !isCallableType(type);
 }
 
 // getProperties() returns no named PropertySignature symbols for a Record<K, V>/index-signature
@@ -92,13 +116,26 @@ function propertyDeclaration(symbol: TsMorphSymbol): PropertySignature | undefin
 // Two independent ts-morph Projects (web, @ikaro/types) never share a single TypeChecker, so
 // there is no cross-project Type.isAssignableTo to lean on. Instead each side's shape is reduced
 // independently to the same normalized textual signature, and the two signatures are diffed as
-// plain strings/booleans. import("/abs/path").Foo noise (which differs by project root and would
-// otherwise make every nested named-type reference look like a mismatch) is stripped before
-// comparing — this is a name-based comparison for nested types, consistent with the detector's
-// own top-level rule ("An identical duplicate name is also a finding... differently named
-// semantic duplicates remain review territory").
-function stripImportPaths(text: string): string {
-  return text.replace(/import\([^)]*\)\./g, '').trim();
+// plain strings/booleans.
+//
+// TypeFormatFlags.InTypeAlias is not optional here: TypeScript's own printer, given a `type X =
+// ...` alias's resolved Type, defaults to printing the alias's OWN NAME (e.g. "DemoCallback")
+// rather than its expansion — confirmed empirically (PR #402 round-2 fix), not assumed. Without
+// the flag, two same-named colliding type aliases with genuinely different bodies (a function
+// signature, a Record value type, anything not already decomposed by the union/object-property
+// paths below) would both print their own identical name and silently compare as identical no
+// matter how different their real shapes are — the exact bug this detector exists to catch.
+// import("/abs/path").Foo noise (which differs by project root and would otherwise make every
+// nested named-type reference look like a mismatch) is stripped afterward — this is a name-based
+// comparison for a genuinely nested named type (an interface/class reference, which carries no
+// alias symbol and is unaffected by the flag above), consistent with the detector's own top-level
+// rule ("An identical duplicate name is also a finding... differently named semantic duplicates
+// remain review territory").
+function printType(type: Type): string {
+  return type
+    .getText(undefined, TypeFormatFlags.InTypeAlias)
+    .replace(/import\([^)]*\)\./g, '')
+    .trim();
 }
 
 // A depth/cycle cutoff must never collapse to a constant marker: two DIFFERENT shapes hitting
@@ -109,7 +146,7 @@ function stripImportPaths(text: string): string {
 // own type-to-string already prints the full remaining structure, so real drift below the cutoff
 // still surfaces in practice.
 function cutoffSignature(type: Type): string {
-  return stripImportPaths(type.getText());
+  return printType(type);
 }
 
 function baseTypeSignature(type: Type, depth: number, seen: ReadonlySet<unknown>): string {
@@ -123,7 +160,7 @@ function baseTypeSignature(type: Type, depth: number, seen: ReadonlySet<unknown>
     if (seen.has(identity)) return cutoffSignature(type);
     return objectSignature(type, depth, new Set([...seen, identity]));
   }
-  return stripImportPaths(type.getText());
+  return printType(type);
 }
 
 function unionSignature(type: Type, depth: number, seen: ReadonlySet<unknown>): string {
