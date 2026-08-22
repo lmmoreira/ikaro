@@ -16,6 +16,8 @@ This is the other half of the pipeline `/discovery-to-milestone` closes: that sk
 
 > **HARD RULE — WHERE OUTPUT LIVES:** Only `docs/discovery/<NAME>/` — the main doc, proportionally-sized companions, and `docs/discovery/<NAME>/prototype/`. This skill **never** writes into `plan/journey/` (that boundary is `/discovery-to-milestone`'s Step 2c, gated by CLAUDE.md §15's hard stop — a discovery-stage prototype is explicitly pre-milestone, and §15 ties `plan/journey/` writes to "a real or imminent milestone") and **never** writes into any canonical `docs/*.md` file outside `docs/discovery/` (a discovery doc is pre-canonical by definition — promoting it is `/discovery-to-milestone`'s job, not this skill's). It also never writes `.ts`/`.js`/source/test/config files — same boundary `/discovery-to-milestone` and `/create-td` already hold. Mode B may `git mv` files that already exist under `docs/discovery/` to restructure them, but this rule applies identically to Mode B's output — restructuring never means relocating anything into `plan/journey/`.
 
+> **HARD RULE — MODE B NEVER LOSES CONTENT:** Restructuring is additive and corrective, never destructive. The default operation on existing prose is **append**, not **replace** — a new critique finding (PM/DB/UX pass) or gap-fill becomes a new dated entry in the historical-decisions log, the same way `MULTI_VERTICAL_SCHEDULING.md`'s own §9 already accumulates "Resolved"/"Superseded (date)" entries rather than deleting earlier ones. A **replace** happens only for a fact Step 0's currency check *confirmed* stale against real code — and even then, using the exact old→new pattern `/docs-audit`'s own Step 5 resolution flow already uses, stated explicitly, never a silent rewrite. Every file, every `CAND-XX`, every historical-decision item, every data-model table/field, every prototype screen that exists before this skill touches anything must be accounted for after — relocated, explicitly merged with a stated reason, or explicitly flagged as a proposed drop for the user to confirm. "I reorganized it" is never sufficient justification for something that's simply gone. Step 0's inventory and Step 6's reconciliation manifest (below) exist specifically to make this checkable, not just asserted.
+
 > **AGENT RULE:** Never invoke this skill autonomously. Confirm with the user first — for Mode A: *"Start a discovery for `<idea>`? I'll ground it in the real codebase, then interview you across a couple of rounds before drafting anything."* For Mode B: *"Restructure `<existing files>` into a canonical `docs/discovery/<NAME>/` folder? I'll re-check everything against current Ikaro and re-evaluate the prototype first, then ask about anything genuinely unresolved before restructuring."* Wait for explicit yes either way.
 
 Argument: `$ARGUMENTS` — determines the mode:
@@ -39,7 +41,7 @@ Present a short grounding summary before asking anything — *"Today, hotsite mo
 
 ### Mode B — restructure an existing, out-of-pattern discovery
 
-1. **Inventory everything that already exists** for this discovery — every file matching its name(s) under `docs/discovery/` (however scattered — flat files, a partial folder, whatever shape it's currently in), its own prototype folder if one exists, and — check explicitly — whether any of its content already landed ahead of order in `plan/journey/` (search for the discovery's own name/keywords across `plan/journey/**/*.md` and any promotion-status note; `plan/journey/README.md`'s own "Known exception" notes are exactly where this gets flagged when it happens). Build a complete map before touching anything.
+1. **Build a literal, itemized manifest of everything that already exists** for this discovery — not a summary. Every file matching its name(s) under `docs/discovery/` (however scattered), every distinct `CAND-XX` in it, every numbered item in its historical-decisions/resolved-questions section (if one exists), every table/aggregate named in its data model, every screen file in its prototype folder if one exists — and, checked explicitly, whether any of its content already landed ahead of order in `plan/journey/` (search for the discovery's own name/keywords across `plan/journey/**/*.md` and any promotion-status note; `plan/journey/README.md`'s own "Known exception" notes are exactly where this gets flagged when it happens). This manifest is the baseline the HARD RULE above and Step 6's reconciliation check both hold the final output accountable to — build it complete before touching anything, not as an afterthought.
 2. **Re-check against current Ikaro** — spawn an Explore agent to verify every "today's model" claim in the existing docs against the actual current code (identical discipline to `/discovery-to-milestone`'s Step 0 item 2 — a discovery reasoning from a premise that's since shipped-and-changed is worse than a fresh one). **If the existing main doc has its own "resolved decisions" / "historical questions" section** (a mature, iterated discovery usually does), also verify every companion doc still reflects those *final* resolutions, not an earlier superseded draft — the same companion-doc-supersession check `/discovery-to-milestone`'s Step 0 item 3 performs, run here instead, before restructuring compounds any staleness found.
 3. Confirm the new canonical slug/name with the user (don't assume — the existing name may itself need to change, e.g. a discovery that grew broader than its original working title).
 
@@ -144,6 +146,22 @@ Build (Mode A: from scratch; Mode B: continue what already exists, don't restart
 
 **Self-dry-run before presenting anything:** does this discovery doc set actually match what `/discovery-to-milestone` expects — resolved-decisions section present, CAND-format use cases with real alt-flow completeness, a data model that survived the database-expert critique pass, a prototype with full state coverage and a template-compliant `dev-notes.md`, an explicit Non-Goals section? Fix gaps now.
 
+**Mode B only — reconciliation manifest, mandatory before Step 7:** walk Step 0's itemized manifest line by line against the restructured output and produce an explicit before/after table — every original file, `CAND-XX`, historical-decision item, data-model table/field, and prototype screen, mapped to exactly where it landed:
+
+```
+## Reconciliation manifest — <old name(s)> → docs/discovery/<new-slug>/
+
+| Original | Status | Destination / reason |
+|---|---|---|
+| MULTI_VERTICAL_SCHEDULING.md §9 items 1-27 | Preserved verbatim | <new-slug>.md § Historical decisions |
+| CAND-01 .. CAND-56 | Preserved, +2 new from gap analysis | <new-slug>_USECASES.md |
+| MULTI_VERTICAL_SCHEDULING_ONBOARDING_PRESETS.md | Preserved as its own companion | <new-slug>_ONBOARDING_PRESETS.md |
+| plan/journey/customer/prototypes/reservar-aula/*.html | Relocated (per your answer to Step 1's question) | docs/discovery/<new-slug>/prototype/customer-reservar-aula-*.html |
+| <anything genuinely proposed for removal> | ⚠️ Proposed drop — needs your explicit confirmation | <why> |
+```
+
+Every row must resolve to "Preserved," "Merged" (with the merge target named), or "⚠️ Proposed drop" — nothing silently absent from the table. A `⚠️ Proposed drop` row is its own explicit question, answered before Step 7, never bundled into the general write-gate yes.
+
 ---
 
 ## Step 7 — Write / restructure, gated
@@ -151,7 +169,7 @@ Build (Mode A: from scratch; Mode B: continue what already exists, don't restart
 Everything from Steps 1-6 is drafted in conversation first, never written to disk incrementally per-step. Apply the doc/config gate (CLAUDE.md §0): summarise the complete folder contents once and ask.
 
 - **Mode A:** *"May I now create `docs/discovery/<slug>/` with this content?"*
-- **Mode B:** *"May I now restructure `<existing paths>` into `docs/discovery/<new-slug>/` — moving `<old paths>` via `git mv`, applying `<N>` content fixes found during re-validation, and `<resolving/leaving>` the `plan/journey/` content per your earlier answer?"* Use `git mv` for anything that already exists and is only relocating/renaming, not delete-and-recreate — this preserves file history.
+- **Mode B:** present the reconciliation manifest alongside the ask: *"May I now restructure `<existing paths>` into `docs/discovery/<new-slug>/` per the reconciliation manifest above — moving `<old paths>` via `git mv`, applying `<N>` content fixes found during re-validation, and `<resolving/leaving>` the `plan/journey/` content per your earlier answer? Every item is accounted for as Preserved/Merged/Drop, above."* Use `git mv` for anything that already exists and is only relocating/renaming, not delete-and-recreate — this preserves file history as a second, independent safety net behind the manifest itself.
 
 Write only after an explicit yes either way. Do not ask per-file.
 
