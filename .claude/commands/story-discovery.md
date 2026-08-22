@@ -373,12 +373,13 @@ Wait for reply, then:
 **If worktree:**
 - Use the `EnterWorktree` tool with branch name `feat/<story-id-lowercase>-<short-description>` (e.g. `feat/m09-s04-booking-reschedule`).
 - After `EnterWorktree` completes, confirm the worktree path and branch to the user.
-- Remind: after the PR is merged, clean up with:
+- Cleanup is automatic, not a reminder to the user: CLAUDE.md §9 Step 11 (mark-done) removes the worktree immediately afterward, no permission needed —
   ```bash
   git worktree remove .claude/worktrees/<name> --force
   git branch -D <branch-name>
+  git fetch --prune origin
   ```
-  Then verify with `git worktree list` and `ls .claude/worktrees/`.
+  Then verify with `git worktree list` and `ls .claude/worktrees/` — don't trust a success message alone.
 
 **If direct branch:**
 - Output the branch creation command for the user to run (per §9 Step 1 of CLAUDE.md):
