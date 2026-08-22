@@ -424,7 +424,7 @@ This is the one your own docs already flag as a **known, currently-unfixed gap**
 
 ---
 
-### Story 13 — `knip`: unused dependencies + dead exports 🟡
+### Story 13 — `knip`: unused dependencies + dead exports 🟡 ✅ Done
 
 **New dependency**: `knip` (dev-only). Replaces the manual grep sweep that already found 3 real cases once (#78 — `express`, `jsonwebtoken`, `ms`) and covers `ts-prune`'s dead-export use case in the same tool, chosen specifically because it's the actively-maintained option built for pnpm workspaces (unlike `depcheck`, which has slower maintenance and known monorepo false-positive issues).
 
