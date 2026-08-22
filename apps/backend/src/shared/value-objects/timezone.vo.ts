@@ -1,4 +1,5 @@
 import { TimezoneErrorCode } from '@ikaro/types/protocol/errors';
+import { isValidTimezone } from '@ikaro/validation';
 import { DomainErrorShape } from '../domain/domain-error-shape';
 
 export class TimezoneValidationError extends Error implements DomainErrorShape {
@@ -16,12 +17,7 @@ export class Timezone {
   private constructor(private readonly _value: string) {}
 
   static isValid(tz: string): boolean {
-    try {
-      Intl.DateTimeFormat(undefined, { timeZone: tz });
-      return true;
-    } catch {
-      return false;
-    }
+    return isValidTimezone(tz);
   }
 
   static create(tz: string): Timezone {

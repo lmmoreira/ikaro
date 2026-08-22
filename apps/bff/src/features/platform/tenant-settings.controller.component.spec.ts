@@ -216,15 +216,51 @@ describe('TenantSettingsController (component)', () => {
     it('PATCH /v1/tenants/settings → forwards the backend error status (e.g. 422 invalid field)', async () => {
       setupActiveGuardMock(httpService);
       backendHttpService.patch.mockRejectedValueOnce(
-        new HttpException({ status: 422, detail: 'invalid timezone' }, 422),
+        new HttpException({ status: 422, detail: 'invalid field' }, 422),
       );
+
+      const res = await request(app.getHttpServer())
+        .patch('/v1/tenants/settings')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send({ settings: { businessHours: { timezone: 'America/Sao_Paulo' } } });
+
+      expect(res.status).toBe(422);
+    });
+
+    it('PATCH /v1/tenants/settings → 400 for a non-IANA timezone string', async () => {
+      setupActiveGuardMock(httpService);
 
       const res = await request(app.getHttpServer())
         .patch('/v1/tenants/settings')
         .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
         .send({ settings: { businessHours: { timezone: 'Not/AZone' } } });
 
-      expect(res.status).toBe(422);
+      expect(res.status).toBe(400);
+      expect(backendHttpService.patch).not.toHaveBeenCalled();
+    });
+
+    it('PATCH /v1/tenants/settings → 400 when notificationMinPoints exceeds the shared upper bound', async () => {
+      setupActiveGuardMock(httpService);
+
+      const res = await request(app.getHttpServer())
+        .patch('/v1/tenants/settings')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send({ settings: { loyalty: { notificationMinPoints: 10001 } } });
+
+      expect(res.status).toBe(400);
+      expect(backendHttpService.patch).not.toHaveBeenCalled();
+    });
+
+    it('PATCH /v1/tenants/settings → 400 when pointsPerCurrencyUnit is not an integer', async () => {
+      setupActiveGuardMock(httpService);
+
+      const res = await request(app.getHttpServer())
+        .patch('/v1/tenants/settings')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send({ settings: { loyalty: { pointsPerCurrencyUnit: 1.5 } } });
+
+      expect(res.status).toBe(400);
+      expect(backendHttpService.patch).not.toHaveBeenCalled();
     });
   });
 });

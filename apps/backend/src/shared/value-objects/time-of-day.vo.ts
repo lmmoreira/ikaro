@@ -1,7 +1,7 @@
 import { TimeOfDayErrorCode } from '@ikaro/types/protocol/errors';
+import { isValidTimeOfDay } from '@ikaro/validation';
 import { DomainErrorShape } from '../domain/domain-error-shape';
 
-const HHMM_PATTERN = /^\d{2}:\d{2}$/;
 const HHMMSS_PATTERN = /^\d{2}:\d{2}:\d{2}$/;
 
 // PostgreSQL TIME columns return HH:MM:SS; normalise to HH:MM before validation.
@@ -24,10 +24,7 @@ export class TimeOfDay {
   private constructor(private readonly _value: string) {}
 
   static isValid(time: string): boolean {
-    const hhmm = normalise(time);
-    if (!HHMM_PATTERN.test(hhmm)) return false;
-    const [hh, mm] = hhmm.split(':').map(Number) as [number, number];
-    return hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59;
+    return isValidTimeOfDay(normalise(time));
   }
 
   static create(time: string): TimeOfDay {
