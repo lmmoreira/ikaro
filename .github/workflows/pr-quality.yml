@@ -58,6 +58,85 @@ jobs:
         continue-on-error: true
         run: pnpm dep-cruise
 
+  knip:
+    name: Unused dependencies + dead exports (report-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 11.1.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm knip:test
+
+      # Default mode (unused deps + dead exports across every workspace) and
+      # --production --strict (restricted to apps/backend, apps/bff, apps/web
+      # — the only real deployed services, CLAUDE.md §1) are both real
+      # findings: the latter is what actually replicates the #79 anti-pattern
+      # (a package imported in production code but declared only under
+      # devDependencies), verified empirically during TD37-S13's
+      # story-discovery/implementation, 2026-08-22.
+      - name: Run knip (report-only)
+        continue-on-error: true
+        run: |
+          # `continue-on-error: true` already keeps the JOB non-blocking —
+          # don't also swallow the two commands' own exit codes with `|| true`,
+          # or a real tool crash (bad config, missing binary, failed install)
+          # reports identically to "found real findings" with no visible
+          # signal. `set +e` (not `|| true`) is what's needed here: GitHub
+          # Actions' default `bash -eo pipefail` would otherwise abort this
+          # script after knip's first non-zero exit, skipping knip:production
+          # and the step-summary write entirely.
+          set +e
+          pnpm knip 2>&1 | tee knip-default-report.txt
+          default_status=${PIPESTATUS[0]}
+          pnpm knip:production 2>&1 | tee knip-production-report.txt
+          production_status=${PIPESTATUS[0]}
+          # Report content is knip's own output over this repo's real
+          # package.json/source-file names — on a fork PR those names are
+          # contributor-controlled. Break any literal triple-backtick run
+          # before embedding so it can't close the summary's own code fence
+          # early and inject arbitrary rendered Markdown after it. Building
+          # the backtick character via printf (not typing it literally)
+          # avoids a ShellCheck SC2016 false positive on the sed script.
+          backtick=$(printf '\140')
+          fence="${backtick}${backtick}${backtick}"
+          broken_fence="${backtick}${backtick} ${backtick}"
+          break_fences() { sed "s/${fence}/${broken_fence}/g" "$1"; }
+          {
+            echo '### knip — default mode (unused dependencies + dead exports)'
+            echo '```'
+            break_fences knip-default-report.txt
+            echo '```'
+            echo '### knip — production + strict mode (backend/bff/web only)'
+            echo '```'
+            break_fences knip-production-report.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$default_status" -ne 0 ] || [ "$production_status" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Upload knip reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: knip-reports
+          path: |
+            knip-default-report.txt
+            knip-production-report.txt
+          retention-days: 7
+
   no-infra-app-mix:
     name: No infra + app mix
     runs-on: ubuntu-latest
