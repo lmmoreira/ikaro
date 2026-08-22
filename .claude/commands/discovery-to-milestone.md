@@ -1,6 +1,6 @@
 ---
 name: discovery-to-milestone
-description: Promote a mature docs/discovery/ doc set into canonical documentation, then draft a dependency-sequenced milestone of stories ready for /story-discovery. Phase A promotes discovery content into docs/04-USE_CASES.md, docs/02-DOMAIN_MODEL.md, docs/03-DOMAIN_EVENTS.md, docs/13-DATABASE_SCHEMA.md, docs/14-API_CONTRACTS.md, and other canonical docs, plus the real plan/journey/ prototype structure (per CLAUDE.md §15). Phase B sequences the promoted use cases into dependency-ordered waves and drafts each story with real file paths, inline context, and pre-decided architectural choices, in the exact format /story-discovery parses. Never writes code.
+description: Promote a mature docs/discovery/ doc set into canonical documentation, then draft a dependency-sequenced milestone of stories ready for /story-discovery. Phase A promotes discovery content into docs/04-USE_CASES.md, docs/02-DOMAIN_MODEL.md, docs/03-DOMAIN_EVENTS.md, docs/13-DATABASE_SCHEMA.md, docs/14-API_CONTRACTS.md, and other canonical docs, plus the real plan/journey/ prototype structure (per CLAUDE.md §15). Phase B sequences the promoted use cases into dependency-ordered waves, proactively works out milestone-level design/aggregate/database/performance/test-strategy decisions no single story can see on its own, and drafts each story with real file paths, inline context, and pre-decided architectural choices, in the exact format /story-discovery parses. Never writes code.
 metadata:
   short-description: Promote discovery docs into a sequenced milestone
 ---
@@ -27,6 +27,8 @@ Argument: `$ARGUMENTS` — path to a discovery doc or folder, e.g. `docs/discove
 ## Step 1 — Batched open-questions round
 
 Every discovery doc worth promoting has an explicit "Open Questions / Risks" section (or equivalent) — that's the whole point of a discovery-stage doc. Collect every such question, plus anything Step 0's staleness check surfaced, into one list.
+
+**Also proactively add your own — don't limit this step to harvesting what's already written down.** A gap the discovery doc's own analysis didn't surface is still a gap. Step 3b names the specific categories worth actively hunting for once more context is available (design patterns, aggregates, database/schema, performance, test strategy) — some of that hunting belongs here too if it surfaces this early.
 
 Tag each:
 - **BLOCKER** — no story in the affected area can be sequenced until this is answered (e.g. a question that changes which aggregates exist, or a state-machine shape).
@@ -94,7 +96,9 @@ Do not self-verify Phase A's output. Dispatch `/docs-audit` scoped to exactly wh
 
 ---
 
-## Step 3 — Phase B: Propose the wave-sequenced dependency graph
+## Step 3 — Phase B: Propose the wave-sequenced dependency graph, milestone-level design & test strategy
+
+### 3a. Group stories and sequence waves
 
 Group the now-canonical UC-XXX entries into candidate stories — a single UC commonly splits into a backend story, a BFF story, and a frontend story, matching how existing milestones are already structured. Do not default to one story per UC; size each story the way existing `plan/M0X-*.md` stories are sized (a `Complexity` field's worth of work, not a whole vertical slice).
 
@@ -103,15 +107,31 @@ Sequence into waves:
 - Backend/BFF-only stories in an early wave before any frontend story that depends on them — CLAUDE.md §10's existing rule, applied at milestone scope instead of restated per-story.
 - Respect every dependency the Decisions log's answers implied (e.g. a BLOCKER answer that changes which aggregate owns a field changes which story must land first).
 
-Render the waves as a mermaid dependency graph (this repo's existing convention in `plan/journey/` files) and present it for user sign-off **before** drafting any story body:
+**A wave is a sequencing guarantee, not a concurrency-safety one** — two stories in the same wave can still depend on each other (e.g. S02→S03 both in Wave 1) or touch the same files; a wave only promises neither is blocked by an *earlier* wave. If the user wants to run stories from this milestone concurrently later, `/run-batch` applies its own stricter independence + non-overlapping-file check at run time — don't imply same-wave membership already makes a pair batch-safe.
+
+### 3b. Milestone-level design, performance, aggregate & database strategy (proactive)
+
+Scoped to what no single story can decide on its own, because it cuts across all of them — and proactive, not just reactive to what the discovery doc already flagged. `/story-discovery`'s 4q (and this skill's own Step 5 dry-run of it) already forces each *individual* story to name its own pattern and test plan; this is the milestone-wide equivalent, catching what per-story review structurally can't see:
+
+- **Shared architectural pattern(s):** if multiple stories in this milestone will repeat the same kind of decision (e.g., every new resource type follows the same Strategy/Factory shape), decide it once here and record it as a Decisions log entry every relevant story cites — don't leave N stories to each independently reinvent or diverge on the same pattern.
+- **Aggregate design consistency:** do the new/modified aggregates this milestone introduces have boundaries consistent with `docs/02-DOMAIN_MODEL.md`'s existing conventions? Is every cross-aggregate invariant assigned to the right aggregate — not split across two, forcing an unsafe two-phase update? Does any pair of stories in this milestone assume two separate aggregates must stay consistent within one transaction — a sign the aggregate boundary itself is wrong, not an implementation detail to patch around later?
+- **Database/schema consistency:** do new tables/columns follow CLAUDE.md §2's multi-tenancy invariants (`tenant_id` first in every composite index, composite FKs)? Is the migration ordering across the wave sequence actually safe (expand/contract, no story assuming a column exists before its owning migration's wave lands)? Are indexes actually planned for the query patterns the promoted UCs imply — not left for a later story to discover under load?
+- **Performance/scalability from the aggregate load, not just one query:** does this milestone's overall shape — several stories reading/writing the same table, a new cross-context read pattern repeated across stories — create a load nobody sees from any single story's own test-coverage check? Name the concrete risk (N+1, missing index, unbounded result set at aggregate scale) and its mitigation now.
+- **Milestone-level integration/E2E test plan:** name the "golden path" scenario(s) that span multiple stories in this milestone (e.g., "customer books a class → gets waitlisted → promoted → sees it in minha-conta"), and which story is responsible for actually implementing that spanning test. Every individual story's test plan can be airtight and the seams between them can still go untested — this decides where that coverage lives.
+- **Proactively hunt for what the discovery doc itself didn't raise** — a missing edge case, an unconsidered performance implication, an aggregate boundary question, an integration seam. Don't limit this to harvesting Step 1's already-stated Open Questions; now that everything is promoted into canonical docs, actively look for something new the discovery doc's own analysis didn't surface.
+
+Not everything here will have a clean answer, especially for a genuinely large discovery — tag exactly like Step 1 does: **BLOCKER** (must resolve before any story in the affected area is drafted) or **DEFERRABLE** (state an explicit default, carry it into the relevant stories' acceptance criteria as something to revisit, never silently baked in). Every resolved item here — whether decided immediately or via that BLOCKER/DEFERRABLE tagging — joins the same running Decisions log Step 1 started, so Step 4's "bake in pre-decisions" rule picks it up exactly like any other decision.
+
+Render 3a and 3b together as one combined proposal — a mermaid dependency graph (this repo's existing convention in `plan/journey/` files) plus the milestone-level strategy findings — presented for sign-off **before** drafting any story body:
 
 ```
 ## Proposed milestone — M<N>-<NAME>
 
-### Wave 0 — Migration safety
+### Wave sequence
+#### Wave 0 — Migration safety
 - S01: Resource backfill migration (backend)
 
-### Wave 1 — Resource management
+#### Wave 1 — Resource management
 - S02: Resource aggregate + repository (backend) — depends on S01
 - S03: Resource CRUD BFF endpoints — depends on S02
 ...
@@ -121,11 +141,15 @@ graph TD
   S01 --> S02 --> S03
   ...
 ​```
+
+### Milestone-level design & test strategy
+- [BLOCKER] ...
+- [DEFERRABLE] ...
+- Shared pattern: <e.g. "all resource subtypes use Strategy, per Decisions log #4">
+- Spanning E2E test: <scenario> — owned by <story ID>
 ```
 
-Sequencing is a design decision, not something to bury inside 30 story blocks the user has to reverse-engineer the ordering from — wait for explicit confirmation or adjustment before Step 4.
-
-**A wave is a sequencing guarantee, not a concurrency-safety one** — two stories in the same wave can still depend on each other (S02→S03 above, both in Wave 1) or touch the same files; a wave only promises neither is blocked by an *earlier* wave. If the user wants to run stories from this milestone concurrently later, `/run-batch` applies its own stricter independence + non-overlapping-file check at run time — don't imply same-wave membership already makes a pair batch-safe.
+Sequencing and cross-cutting strategy are both design decisions, not something to bury inside 30 story blocks the user has to reverse-engineer — wait for explicit confirmation or adjustment before Step 4.
 
 ---
 
@@ -170,6 +194,9 @@ Fix anything catchable now. This is the same "shift left" principle applied thro
 
 ### Phase B milestone
 <full wave-sequenced story list, dependency graph>
+
+### Milestone-level design & test strategy
+<shared patterns decided, aggregate/database consistency findings, performance risks + mitigations, spanning E2E test ownership — from Step 3b>
 
 ### Self-dry-run findings
 <anything Step 5 caught and fixed, or flagged as a known open item for that story's own /story-discovery pass>
