@@ -213,9 +213,9 @@ Total issues: 0
 gh pr comment <N> --repo lmmoreira/ikaro --body "@coderabbitai review"
 ```
 
-This is a one-time trigger for round 1 only — `/pr-land` (Step 5b) never re-posts it on later rounds.
+This is a one-time trigger for round 1 only — `/pr-land` never re-posts it on later rounds.
 
-**5b. Dispatch `/pr-review` to Codex.** Do not merely state that it was dispatched: start the process with a closed stdin, capture its PID and log, then verify it actually started before reporting success. `/pr-review` handles review, verification, and posting its own mandatory PR comment.
+**5b. Dispatch `/pr-review` to Codex.** First capture the round-1 timestamp `/pr-land` needs to distinguish this round's comments from anything later: `since=$(date -u +%Y-%m-%dT%H:%M:%SZ)`. Then dispatch. Do not merely state that it was dispatched: start the process with a closed stdin, capture its PID and log, then verify it actually started before reporting success. `/pr-review` handles review, verification, and posting its own mandatory PR comment.
 
 **Worktree gotcha:** if this session is in a worktree (`EnterWorktree`), `codex exec` is hard-blocked by the worktree-isolation guard no matter how it's invoked (backgrounded or not, `dangerouslyDisableSandbox` doesn't help). Delegate the exact command below to a freshly spawned `Agent` call instead (no `fork`, no `isolation` — a plain new agent isn't pinned to the parent's worktree) and have it report back the PID/log.
 
@@ -234,6 +234,8 @@ else
   exit 1
 fi
 ```
+
+Pass `$since` to `/pr-land` along with the PR number when handing off (Step 5c) — it's round 1's waiting timestamp for `scripts/pr-round-status.sh`.
 
 Tell the user the PR is open, the CodeRabbit trigger was posted, and Codex review was **verified started** (include its PID/log). Do not wait for completion before considering pre-pr complete. If Codex exits before the two-second verification, report the launch failure; never claim a review was dispatched.
 

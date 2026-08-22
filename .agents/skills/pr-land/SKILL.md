@@ -36,6 +36,8 @@ Track two numbers for the life of this PR:
 - **round** — starts at 1 (the round `/pre-pr` already opened: CI from the initial push, CodeRabbit's round-1 trigger, Codex's round-1 dispatch).
 - **consecutive rounds with Critical/Important still open** — used for the Step 5 escalation.
 
+Also capture, right before dispatching Codex for the current round, an ISO8601 timestamp: `since=$(date -u +%Y-%m-%dT%H:%M:%SZ)`. This is what tells `scripts/pr-round-status.sh` which comment belongs to *this* round versus a stale one from an earlier round.
+
 ---
 
 ## Step 1 — Wait for every in-scope actor of the current round
@@ -45,32 +47,23 @@ In-scope actors:
 - **Codex** — always, for the dispatch that started this round.
 - **CodeRabbit** — **round 1 only**, from `/pre-pr`'s `@coderabbitai review` trigger. Never re-triggered in later rounds (per explicit instruction — Codex is re-dispatched every round, CodeRabbit is not).
 
-Poll until all in-scope actors reach a terminal state. If in a worktree, delegate this poll to a fresh `Agent` per the gotcha above.
+Use `scripts/pr-round-status.sh` for this — it blocks until every actor you ask it to wait for reaches a terminal state (a CodeRabbit rate-limit notice counts as terminal, same as an actual review), then prints one result per actor:
 
 ```bash
-# CI — poll until nothing is pending
-gh pr checks <N> --repo lmmoreira/ikaro
+# Round 1 (CI + Codex + CodeRabbit all in scope)
+bash scripts/pr-round-status.sh <N> --wait-codex --wait-coderabbit --since "$since"
+
+# Round 2+ (CodeRabbit never re-triggered)
+bash scripts/pr-round-status.sh <N> --wait-codex --since "$since"
 ```
 
-```bash
-# Codex — poll PR comments for a new comment authored after this round's dispatch time,
-# matching the /pr-review report marker ("PR Review — #<N>")
-gh pr view <N> --repo lmmoreira/ikaro --json comments
-```
-
-```bash
-# CodeRabbit (round 1 only) — poll for any coderabbitai comment posted after the trigger.
-# A rate-limit notice ("CodeRabbit reached its review limit...") IS a terminal response —
-# treat it exactly like a completed review with zero findings and move on. Do not wait
-# for an actual review that a rate-limit notice already says will not arrive.
-gh pr view <N> --repo lmmoreira/ikaro --json comments
-```
-
-Do not proceed to Step 2 until every in-scope actor for this round has responded.
+This is a plain script-file invocation, not raw compound bash — it runs directly even inside a worktree, no subagent delegation needed (unlike the `codex exec` dispatch itself — see the gotcha above). Do not proceed to Step 2 until it exits.
 
 ---
 
 ## Step 2 — Pool every finding from this round
+
+Step 1's script prints a URL/pointer per actor (which CI checks failed, the Codex comment URL, the CodeRabbit comment URL) — fetch each one's full content now (`gh api repos/lmmoreira/ikaro/pulls/<N>/comments`, the failing job's logs, SonarCloud's own issue API) before triaging; the script only tells you *that* something arrived, not what it says.
 
 Collect, in one list, from every actor that responded in Step 1:
 - Every failing CI check (diagnose via the live source — SonarCloud's own issue API per `docs/ANTI_PATTERNS.md`'s SonarCloud row, never from a stale log or a guess from the diff; other checks via their job logs).
