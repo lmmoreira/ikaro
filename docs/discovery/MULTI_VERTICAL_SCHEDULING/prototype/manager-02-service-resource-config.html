@@ -29,6 +29,15 @@
     .form-actions { display: flex; gap: 0.75rem; margin-top: 2rem; }
     .form-actions .btn-primary { flex: 1; text-align: center; padding: 0.875rem; }
     .form-actions .btn-secondary { flex: 0 0 auto; padding: 0.875rem 1.25rem; }
+    /* Canonical service-detail composition: form left, sticky decision pane right;
+       mobile retains the in-flow actions. Mirrors plan/journey/staff/servicos/03. */
+    .detail-layout { display: block; }
+    .detail-aside { display: none; }
+    @media (min-width: 1024px) {
+      .detail-layout { display: grid; grid-template-columns: minmax(0, 1fr) 22rem; gap: 1.5rem; align-items: start; }
+      .detail-aside { display: block; position: sticky; top: 1.5rem; }
+      .form-actions { display: none !important; }
+    }
     .leg-card { border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); padding: 1rem; margin-bottom: 0.75rem; }
     .leg-order-badge { display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: #2563eb; color: white; font-size: 0.75rem; font-weight: 700; }
     /* Compact eligibility picker — replaces the full eligible+ineligible checklist with
@@ -202,7 +211,9 @@
     </aside>
 
     <main class="main-content">
-      <div class="dashboard-body" style="max-width:38rem;">
+      <div class="dashboard-body">
+        <div class="detail-layout">
+        <div class="detail-main" style="max-width:38rem;">
 
         <!-- Existing fields, unchanged — collapsed for brevity, same as today's service-edit form -->
         <div class="form-group">
@@ -261,6 +272,99 @@
               cada nova turma (CAND-10, CAND-11).
             </p>
             <a href="manager-06-criar-turma.html" class="btn-primary" style="display:inline-block;">Configurar turma →</a>
+          </div>
+
+          <!--
+            Added 2026-08-21: fields that feed GET /v1/class-types (the customer-facing
+            class catalog). Previously these had no manager screen at all — the catalog
+            endpoint was documented on the customer side (reservar-aula/00-lista-aulas.html)
+            but the data had nowhere to come from on the manager side.
+            Fields: description (catalog card subtitle), color (color bar), allowsDropIn,
+            allowsSeries. BFF: PATCH /services/{id} — same endpoint, new fields.
+          -->
+          <div style="margin-top:1.25rem;">
+            <p class="section-divider" style="margin-top:0;">Catálogo de aulas (visível para o cliente)</p>
+
+            <div class="form-group">
+              <label class="form-label">Descrição curta</label>
+              <textarea class="form-input" rows="2"
+                style="resize:vertical;"
+                placeholder="Ex.: Aula em grupo com foco em força e postura. Ideal para iniciantes e intermediários.">Aula em grupo com foco em força e postura. Camila Torres conduz cada turma com atenção individual.</textarea>
+              <p class="form-hint">Aparece como subtítulo no cartão da aula na área do cliente. Máximo 120 caracteres.</p>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Cor de identificação</label>
+              <div style="display:flex;align-items:center;gap:0.875rem;flex-wrap:wrap;">
+                <!-- Swatches -->
+                <button onclick="selectColor(this,'#2563eb')" title="Azul"
+                  style="width:2rem;height:2rem;border-radius:9999px;background:#2563eb;
+                         border:3px solid #1d4ed8;cursor:pointer;flex-shrink:0;"></button>
+                <button onclick="selectColor(this,'#7c3aed')" title="Roxo"
+                  style="width:2rem;height:2rem;border-radius:9999px;background:#7c3aed;
+                         border:3px solid var(--ba-secondary);cursor:pointer;flex-shrink:0;"></button>
+                <button onclick="selectColor(this,'#0891b2')" title="Ciano"
+                  style="width:2rem;height:2rem;border-radius:9999px;background:#0891b2;
+                         border:3px solid var(--ba-secondary);cursor:pointer;flex-shrink:0;"></button>
+                <button onclick="selectColor(this,'#059669')" title="Verde"
+                  style="width:2rem;height:2rem;border-radius:9999px;background:#059669;
+                         border:3px solid var(--ba-secondary);cursor:pointer;flex-shrink:0;"></button>
+                <button onclick="selectColor(this,'#d97706')" title="Âmbar"
+                  style="width:2rem;height:2rem;border-radius:9999px;background:#d97706;
+                         border:3px solid var(--ba-secondary);cursor:pointer;flex-shrink:0;"></button>
+                <button onclick="selectColor(this,'#dc2626')" title="Vermelho"
+                  style="width:2rem;height:2rem;border-radius:9999px;background:#dc2626;
+                         border:3px solid var(--ba-secondary);cursor:pointer;flex-shrink:0;"></button>
+                <button onclick="selectColor(this,'#db2777')" title="Rosa"
+                  style="width:2rem;height:2rem;border-radius:9999px;background:#db2777;
+                         border:3px solid var(--ba-secondary);cursor:pointer;flex-shrink:0;"></button>
+                <!-- Preview -->
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-left:0.5rem;">
+                  <div id="color-preview-bar"
+                    style="width:0.25rem;height:2.5rem;border-radius:4px;background:#2563eb;flex-shrink:0;"></div>
+                  <span style="font-size:0.8125rem;opacity:0.5;" id="color-preview-label">Azul — Pilates em Grupo</span>
+                </div>
+              </div>
+              <p class="form-hint" style="margin-top:0.5rem;">
+                Exibida como barra lateral no cartão da aula. Escolha uma cor distinta por modalidade
+                para o cliente diferenciar rapidamente.
+              </p>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Tipos de reserva disponíveis para o cliente</label>
+              <div style="display:flex;flex-direction:column;gap:0.625rem;">
+                <label style="display:flex;align-items:flex-start;gap:0.75rem;
+                               padding:0.75rem;border:1.5px solid #bfdbfe;
+                               border-radius:var(--ba-radius);background:#eff6ff;cursor:pointer;">
+                  <input type="checkbox" checked style="margin-top:0.125rem;flex-shrink:0;">
+                  <div>
+                    <div style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">Aula avulsa (drop-in)</div>
+                    <div style="font-size:0.8125rem;opacity:0.6;margin-top:0.125rem;">
+                      O cliente reserva uma sessão específica sem compromisso recorrente.
+                      Ideal para experimentar ou quando a agenda é variável.
+                    </div>
+                  </div>
+                </label>
+                <label style="display:flex;align-items:flex-start;gap:0.75rem;
+                               padding:0.75rem;border:1.5px solid #ddd6fe;
+                               border-radius:var(--ba-radius);background:#f5f3ff;cursor:pointer;">
+                  <input type="checkbox" checked style="margin-top:0.125rem;flex-shrink:0;">
+                  <div>
+                    <div style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">Sequência de aulas (série)</div>
+                    <div style="font-size:0.8125rem;opacity:0.6;margin-top:0.125rem;">
+                      O cliente monta um pacote recorrente (ex.: seg + qua por 8 semanas),
+                      ocupando a mesma vaga toda semana.
+                    </div>
+                  </div>
+                </label>
+              </div>
+              <p class="form-hint" style="margin-top:0.5rem;">
+                Se apenas uma opção estiver marcada, o cliente vai direto ao fluxo correspondente
+                (sem tela de escolha). Se ambas, vê a bifurcação "Avulsa / Sequência" primeiro
+                (<code>allowsDropIn &amp;&amp; allowsSeries → 00-tipo-reserva</code>).
+              </p>
+            </div>
           </div>
 
           <!--
@@ -665,7 +769,16 @@
           <a href="#" class="btn-secondary">Cancelar</a>
           <a href="#" class="btn-primary">Salvar</a>
         </div>
-
+        </div><!-- /detail-main -->
+        <aside class="detail-aside" aria-label="Resumo e ações do serviço">
+          <div class="card" style="padding:1.25rem;">
+            <a href="manager-01-resources-list.html" class="btn-primary" style="display:block;text-align:center;padding:.75rem;margin-bottom:.625rem;">Salvar alterações</a>
+            <a href="manager-01-resources-list.html" class="btn-secondary" style="display:block;text-align:center;padding:.75rem;">Cancelar</a>
+            <hr style="border:none;border-top:1px solid #fecaca;margin:1rem 0;">
+            <a href="manager-13-service-booking-policies.html" style="display:block;text-align:center;font-size:.875rem;color:#2563eb;text-decoration:none;font-weight:600;">Ver políticas de reserva →</a>
+          </div>
+        </aside>
+        </div><!-- /detail-layout -->
       </div>
     </main>
   </div>
@@ -745,6 +858,20 @@
 
     function openSheet() { document.getElementById('manager-sheet').classList.add('open'); document.getElementById('sheet-backdrop').classList.add('open'); }
     function closeSheet() { document.getElementById('manager-sheet').classList.remove('open'); document.getElementById('sheet-backdrop').classList.remove('open'); }
+
+    var colorLabels = {
+      '#2563eb': 'Azul', '#7c3aed': 'Roxo', '#0891b2': 'Ciano',
+      '#059669': 'Verde', '#d97706': 'Âmbar', '#dc2626': 'Vermelho', '#db2777': 'Rosa'
+    };
+    function selectColor(btn, hex) {
+      document.querySelectorAll('[onclick^="selectColor"]').forEach(function(b) {
+        b.style.borderColor = 'var(--ba-secondary)';
+      });
+      btn.style.borderColor = hex;
+      document.getElementById('color-preview-bar').style.background = hex;
+      document.getElementById('color-preview-label').textContent =
+        (colorLabels[hex] || hex) + ' — Pilates em Grupo';
+    }
   </script>
 
 </body>

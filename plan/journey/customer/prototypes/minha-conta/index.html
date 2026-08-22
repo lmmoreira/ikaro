@@ -104,6 +104,51 @@
     </li>
   </ul>
 
+  <h2>Minhas Turmas — nova jornada (GAP)</h2>
+  <p style="font-size:0.875rem;opacity:.65;margin:0.25rem 0 0.75rem;line-height:1.6;">
+    Cobre o ciclo pós-inscrição: ver matrículas ativas, acompanhar fila de espera,
+    pular sessões pontuais e cancelar a matrícula. Telas referenciadas como
+    <code>/my-account/turmas</code> — rota ainda não existe no app.
+  </p>
+  <ul>
+    <li>
+      <a href="06-minhas-turmas.html">Tela 6 — Minhas Turmas (lista de matrículas + fila de espera)</a>
+      <span class="tag tag-gap">GAP: /my-account/turmas · nova rota</span>
+    </li>
+    <li>
+      <a href="07-turma-detail.html">Tela 7 — Detalhe da matrícula (turma fixa sem prazo)</a>
+      <span class="tag tag-gap">GAP: /my-account/turmas/[enrollmentId]</span>
+    </li>
+    <li>
+      <a href="07b-turma-waitlist.html">Tela 7b — Fila de espera (enrollment.status = WAITLIST)</a>
+      <span class="tag tag-gap">GAP: mesmo route, estado diferente · requer status WAITLIST no Enrollment</span>
+    </li>
+    <li>
+      <a href="08-pular-sessao.html">Tela 8 — Pular uma sessão específica (com motivo opcional)</a>
+      <span class="tag tag-gap">GAP: /my-account/turmas/[id]/pular · POST skip-session</span>
+    </li>
+    <li>
+      <a href="08-pular-sessao-confirmado.html">Tela 8 (sucesso) — Sessão marcada como "Pulou"</a>
+      <span class="tag tag-gap">GAP: estado pós-confirmação · notifica fila automaticamente</span>
+    </li>
+    <li>
+      <a href="08b-cancelar-matricula.html">Tela 8b — Cancelar matrícula (confirmação explícita)</a>
+      <span class="tag tag-gap">GAP: /my-account/turmas/[id]/cancelar · DELETE enrollment</span>
+    </li>
+    <li>
+      <a href="07d-waitlist-promovida.html">Tela 7d — Detalhe pós-promoção (WAITLIST → ACTIVE)</a>
+      <span class="tag tag-gap">GAP: banner dismissível · enrollment.promotedAt &lt; 24h · chegada via e-mail</span>
+    </li>
+    <li>
+      <a href="08c-skip-error.html">Tela 8c — Erro ao pular sessão (rede/5xx)</a>
+      <span class="tag tag-gap">GAP: unhappy path · "Tentar novamente" re-habilita botão</span>
+    </li>
+    <li>
+      <a href="08d-cancelar-matricula-error.html">Tela 8d — Erro ao cancelar matrícula (rede/5xx)</a>
+      <span class="tag tag-gap">GAP: unhappy path · checkbox resetado · "Tentar novamente"</span>
+    </li>
+  </ul>
+
   <h2>Estados alternativos (unhappy paths)</h2>
   <ul>
     <li>
@@ -133,6 +178,11 @@
       <li>O sheet de confirmação de cancelamento fornece contexto suficiente antes de confirmar?</li>
       <li>O form de resposta ao admin (UC-005 A2) na tela INFO_SOLICITADO é compreensível?</li>
       <li>O detalhe CONCLUÍDO mostra preço cotado vs. cobrado de forma legível?</li>
+      <li>A separação entre "Turmas" e "Agendamentos" como tabs distintas faz sentido para o cliente, ou gera confusão sobre onde procurar o quê?</li>
+      <li>O badge de posição na fila ("3ª na fila") na lista de turmas é suficiente, ou o cliente precisa de mais contexto logo ali?</li>
+      <li>"Pular sessão" é uma ação que o cliente vai entender sem explicação, ou precisa de um nome diferente?</li>
+      <li>A distinção entre "pular sessão" (pontual) e "cancelar matrícula" (permanente) está clara o suficiente nas telas — especialmente no detalhe?</li>
+      <li>O checkbox de confirmação explícita no cancelamento de matrícula é necessário, ou a página de confirmação já é suficiente como freio?</li>
     </ul>
     <br>
     <strong>Links</strong><br>

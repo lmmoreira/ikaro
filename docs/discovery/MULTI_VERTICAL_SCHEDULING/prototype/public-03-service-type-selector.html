@@ -24,11 +24,16 @@
     See ../../MULTI_VERTICAL_SCHEDULING.md (§2 taxonomy model #6 — multi-service
     concurrent timetables) and ../../MULTI_VERTICAL_SCHEDULING_USECASES.md (CAND-21).
 
-    This is the hotsite entry point for Vitta Studio — a single tenant running THREE
-    different booking models side by side: Hair Styling (appointment, per-staff choice),
-    Pilates (session, capacity 4), CrossFit (session, capacity 20). Selecting a card
-    routes into the model appropriate for that service — same component
-    (ClassSessionList) reused for both Pilates and CrossFit, filtered by serviceId.
+    This is the canonical booking entry point for Vitta Studio's hotsite. The customer
+    first chooses WHAT they want to book; only then do we expose the scheduling model.
+    Vitta can run different models side by side: Hair Styling (appointment, per-staff
+    choice), Pilates/CrossFit (session, capacity), a room (variable-duration exclusive
+    reservation), and composed services. Selecting a card routes into the appropriate
+    model while retaining the selected serviceId.
+
+    A staff profile/calendar is a deliberate deep link, for example from a professional's
+    profile or campaign. It is not the generic hotsite starting point: a generic customer
+    must select a service before choosing its eligible professional.
 
     Today's hotsite (plan/journey/shared/hotsite.html) has one BookingCtaModule that
     always leads into the SAME single-resource flow — this screen is the new fork point.
@@ -59,7 +64,7 @@
     <ul style="display: flex; flex-direction: column; gap: 0.75rem; list-style: none; padding: 0;">
 
       <li>
-        <a class="card type-card" href="public-02-class-session-picker.html">
+        <a class="card type-card" href="public-02b-class-agenda.html">
           <div class="type-icon">
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
@@ -80,7 +85,7 @@
       <!-- Same ClassSessionList component as Pilates, filtered by serviceId=svc_crossfit —
            taxonomy model #6: independent timetable, independent capacity, running concurrently. -->
       <li>
-        <a class="card type-card" href="public-02-class-session-picker.html">
+        <a class="card type-card" href="public-02b-class-agenda.html">
           <div class="type-icon">
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M6.5 6.5l11 11M4 4l3 3M17 17l3 3M2.5 8.5l3-3M18.5 21.5l3-3M20 4l-3 3M4 20l3-3"/>
@@ -134,7 +139,7 @@
 
       <!-- Sequential multi-stage — model #8, added on review to close the CAND-19 gap -->
       <li>
-        <a class="card type-card" href="public-05-multi-leg-itinerary.html">
+        <a class="card type-card" href="public-14-appointment-availability.html?service=journey">
           <div class="type-icon">
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>
@@ -144,6 +149,22 @@
             <p class="type-name">Jornada Spa Vitta</p>
             <p class="type-meta">Sauna → Massagem → Relaxamento — R$ 260,00, 105 min no total</p>
             <p class="type-next">Próximo horário: hoje, 13:00</p>
+          </div>
+        </a>
+      </li>
+
+      <!-- Variable-duration exclusive reservation — model #10. -->
+      <li>
+        <a class="card type-card" href="public-11-reserva-por-tempo.html">
+          <div class="type-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/>
+            </svg>
+          </div>
+          <div style="flex:1;">
+            <p class="type-name">Sala Aurora</p>
+            <p class="type-meta">Sala exclusiva por tempo — R$ 50,00 por hora, mínimo de 1 hora</p>
+            <p class="type-next">Disponível hoje a partir das 10:00</p>
           </div>
         </a>
       </li>

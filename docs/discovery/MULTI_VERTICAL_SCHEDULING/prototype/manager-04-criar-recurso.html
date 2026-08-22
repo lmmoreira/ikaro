@@ -27,6 +27,8 @@
     .form-actions { display: flex; gap: 0.75rem; margin-top: 2rem; }
     .form-actions .btn-primary { flex: 1; text-align: center; padding: 0.875rem; }
     .form-actions .btn-secondary { flex: 0 0 auto; padding: 0.875rem 1.25rem; }
+    .detail-layout { display:block; }.detail-aside { display:none; }
+    @media (min-width:1024px) { .detail-layout { display:grid;grid-template-columns:minmax(0,1fr) 22rem;gap:1.5rem;align-items:start; }.detail-aside { display:block;position:sticky;top:1.5rem; }.form-actions { display:none!important; } }
   </style>
 </head>
 <body>
@@ -130,7 +132,7 @@
     </aside>
 
     <main class="main-content">
-      <div class="dashboard-body" style="max-width:32rem;">
+      <div class="dashboard-body"><div class="detail-layout"><div class="detail-main" style="max-width:32rem;">
 
         <div class="form-group">
           <label class="form-label">Tipo de recurso</label>
@@ -242,7 +244,7 @@
           <a href="manager-01-resources-list.html" class="btn-primary" id="submit-btn">Criar recurso</a>
         </div>
 
-      </div>
+      </div><aside class="detail-aside" aria-label="Ações do recurso"><div class="card" style="padding:1.25rem;"><a href="manager-01-resources-list.html" class="btn-primary" style="display:block;text-align:center;padding:.75rem;margin-bottom:.625rem;">Criar recurso</a><a href="manager-01-resources-list.html" class="btn-secondary" style="display:block;text-align:center;padding:.75rem;">Cancelar</a></div></aside></div></div>
     </main>
   </div>
 
@@ -282,8 +284,7 @@
         <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         Sair
       </a>
-    </div>
-  </div>
+        </div>
 
   <script>
     function selectResourceType(type) {

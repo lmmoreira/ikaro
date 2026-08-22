@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Escolha a aula — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    /* ── Class cards ── */
+    .class-card {
+      display: flex; align-items: flex-start; gap: 1rem;
+      background: white; border: 1px solid var(--ba-secondary);
+      border-radius: var(--ba-radius); padding: 1rem;
+      box-shadow: var(--ba-shadow); margin-bottom: 0.75rem;
+      text-decoration: none; color: var(--ba-text);
+      transition: border-color 0.12s, box-shadow 0.12s;
+    }
+    .class-card:hover { border-color: var(--ba-primary); box-shadow: 0 2px 8px rgba(37,99,235,0.1); }
+
+    .class-color-bar {
+      width: 0.25rem; border-radius: 4px; flex-shrink: 0; align-self: stretch;
+    }
+    .class-body { flex: 1; min-width: 0; }
+    .class-name { font-weight: 700; font-size: 0.9375rem; color: var(--ba-text); margin-bottom: 0.25rem; }
+    .class-meta { font-size: 0.8125rem; opacity: 0.6; color: var(--ba-text); line-height: 1.5; }
+
+    .class-badges { display: flex; gap: 0.375rem; flex-wrap: wrap; margin-top: 0.5rem; }
+    .badge {
+      font-size: 0.6875rem; font-weight: 700; padding: 0.1875rem 0.5rem;
+      border-radius: 4px; white-space: nowrap;
+    }
+    .badge-dropin  { background: #dbeafe; color: #1d4ed8; }
+    .badge-serie   { background: #ede9fe; color: #6d28d9; }
+    .badge-vagas   { background: #dcfce7; color: #15803d; }
+    .badge-poucas  { background: #fef3c7; color: #92400e; }
+    .badge-lotada  { background: #fee2e2; color: #dc2626; }
+
+    .class-arrow { flex-shrink: 0; opacity: 0.25; align-self: center; }
+
+    /* ── Filters ── */
+    .filter-row {
+      display: flex; gap: 0.5rem; margin-bottom: 1.25rem;
+      overflow-x: auto; padding-bottom: 0.25rem;
+      scrollbar-width: none; -webkit-overflow-scrolling: touch;
+    }
+    .filter-row::-webkit-scrollbar { display: none; }
+  </style>
+</head>
+<body>
+
+  <!--
+    COMPONENT: ClassCatalogPage (novo — sem equivalente no app atual)
+    PAGE:      /{slug}/aulas  (GAP — rota nova)
+    ENTRY:     1. "Novo → Reservar aula" no customer-dashboard.html
+               2. Seção de aulas no hotsite (futuro)
+    DATA:      GET /v1/class-types  → ClassType[]: { id, name, description, durationMinutes,
+                 instructorName, color, allowsDropIn, allowsSeries, totalSpots, availableSpots }
+    EXIT:      Clica numa aula → /{slug}/aulas/[classTypeId]/reservar
+               Se allowsDropIn && allowsSeries → 00-tipo-reserva.html
+               Se apenas um tipo → vai direto para 01-dropin.html ou 02b-serie-dias.html
+    AUTH:      JWT cookie (CUSTOMER). Visitante sem login: redireciona para /{slug}/login.
+  -->
+
+  <!-- Prototype banner -->
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;
+               font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo · catálogo de aulas · entrada do fluxo "Reservar aula"
+  </div>
+
+  <!-- BRAND BAR -->
+  <div style="background:white;border-bottom:1px solid var(--ba-secondary);
+              padding:0.625rem 1.5rem;display:flex;align-items:center;justify-content:space-between;
+              position:sticky;top:0;z-index:10;">
+    <div style="display:flex;align-items:center;gap:0.625rem;">
+      <a href="../../../shared/customer-dashboard.html" style="display:flex;align-items:center;color:var(--ba-text);opacity:0.6;text-decoration:none;flex-shrink:0;" aria-label="Voltar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </a>
+      <div style="width:1.875rem;height:1.875rem;border-radius:0.375rem;background:var(--ba-primary);
+                  color:white;display:flex;align-items:center;justify-content:center;
+                  font-weight:700;font-size:0.8125rem;">V</div>
+      <span style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">Vitta Studio</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8125rem;color:var(--ba-text);">
+      <div class="auth-avatar">FL</div>
+      <span style="opacity:0.65;">Fernanda Lima</span>
+    </div>
+  </div>
+
+  <div class="step-container">
+
+    <h2 style="font-size:1.375rem;font-weight:800;color:var(--ba-text);margin-bottom:0.375rem;">
+      Qual aula você quer?
+    </h2>
+    <p style="font-size:0.9375rem;opacity:.6;color:var(--ba-text);margin-bottom:1.25rem;">
+      Escolha uma das aulas disponíveis no estúdio.
+    </p>
+
+    <!-- Filtros rápidos -->
+    <div class="filter-row">
+      <button class="filter-tab active">Todas</button>
+      <button class="filter-tab">Avulsa</button>
+      <button class="filter-tab">Sequência</button>
+      <button class="filter-tab">Com vagas</button>
+    </div>
+
+    <!-- Pilates em Grupo — aceita drop-in e série, vagas ok -->
+    <a href="00-tipo-reserva.html" class="class-card">
+      <div class="class-color-bar" style="background:#2563eb;"></div>
+      <div class="class-body">
+        <div class="class-name">Pilates em Grupo</div>
+        <div class="class-meta">Camila Torres · 50 min · Sala 1</div>
+        <div class="class-meta">Seg, Qua e Sex · 07:00 e 09:00</div>
+        <div class="class-badges">
+          <span class="badge badge-dropin">Avulsa</span>
+          <span class="badge badge-serie">Sequência</span>
+          <span class="badge badge-vagas">Vagas disponíveis</span>
+        </div>
+      </div>
+      <svg class="class-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m9 18 6-6-6-6"/>
+      </svg>
+    </a>
+
+    <!-- Pilates Solo — só série, vagas ok -->
+    <a href="02b-serie-dias.html" class="class-card">
+      <div class="class-color-bar" style="background:#7c3aed;"></div>
+      <div class="class-body">
+        <div class="class-name">Pilates Solo</div>
+        <div class="class-meta">Camila Torres · 50 min · Sala 2</div>
+        <div class="class-meta">Seg, Qua e Sex · 08:00</div>
+        <div class="class-badges">
+          <span class="badge badge-serie">Sequência</span>
+          <span class="badge badge-poucas">Últimas vagas</span>
+        </div>
+      </div>
+      <svg class="class-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m9 18 6-6-6-6"/>
+      </svg>
+    </a>
+
+    <!-- Yoga — só drop-in, vagas ok -->
+    <a href="01-dropin.html" class="class-card">
+      <div class="class-color-bar" style="background:#0891b2;"></div>
+      <div class="class-body">
+        <div class="class-name">Yoga</div>
+        <div class="class-meta">Rafael Duarte · 60 min · Sala 3</div>
+        <div class="class-meta">Ter e Qui · 07:00 e 18:30</div>
+        <div class="class-badges">
+          <span class="badge badge-dropin">Avulsa</span>
+          <span class="badge badge-vagas">Vagas disponíveis</span>
+        </div>
+      </div>
+      <svg class="class-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m9 18 6-6-6-6"/>
+      </svg>
+    </a>
+
+    <!-- Funcional — drop-in, lotada -->
+    <a href="01-dropin.html" class="class-card" style="opacity:0.7;">
+      <div class="class-color-bar" style="background:#d97706;"></div>
+      <div class="class-body">
+        <div class="class-name">Funcional</div>
+        <div class="class-meta">Bruno Alves · 45 min · Sala 1</div>
+        <div class="class-meta">Seg e Qua · 06:00</div>
+        <div class="class-badges">
+          <span class="badge badge-dropin">Avulsa</span>
+          <span class="badge badge-lotada">Lotada — lista de espera</span>
+        </div>
+      </div>
+      <svg class="class-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m9 18 6-6-6-6"/>
+      </svg>
+    </a>
+
+  </div>
+
+</body>
+</html>

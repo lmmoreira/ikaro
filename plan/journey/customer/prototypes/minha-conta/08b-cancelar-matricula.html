@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cancelar matrícula — Pilates Solo</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    .bottom-nav { display: none !important; }
+    .detail-layout { display: block; }
+    .detail-aside  { display: none; }
+    .form-actions {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
+      background: white; border-top: 1px solid var(--ba-secondary);
+      padding: 0.75rem 1rem; box-shadow: 0 -2px 8px rgba(0,0,0,.06);
+      display: flex; gap: 0.75rem;
+    }
+    @media (min-width: 1024px) {
+      .topbar-brand { display: flex !important; }
+      .topbar-user-name { display: inline !important; }
+      .detail-layout { display: grid; grid-template-columns: 1fr 22rem; gap: 1.5rem; align-items: start; }
+      .detail-aside  { display: block; position: sticky; top: 1.5rem; }
+      .form-actions  { display: none !important; }
+    }
+
+    .consequence-row {
+      display: flex; align-items: flex-start; gap: 0.625rem;
+      padding: 0.5rem 0; border-bottom: 1px solid var(--ba-secondary);
+      font-size: 0.875rem; color: var(--ba-text); line-height: 1.5;
+    }
+    .consequence-row:last-child { border-bottom: none; }
+    .consequence-icon { flex-shrink: 0; margin-top: 0.125rem; }
+  </style>
+</head>
+<body>
+
+  <!--
+    COMPONENT: CancelarMatriculaPage
+    PAGE:       apps/web/app/[slug]/my-account/turmas/[enrollmentId]/cancelar/page.tsx  (GAP)
+    DISTINÇÃO CRÍTICA: cancelar matrícula ≠ cancelar agendamento avulso.
+      - Cancela a *participação recorrente* (Enrollment), não uma sessão específica
+      - Sessões já realizadas: intactas no histórico
+      - Sessões futuras confirmadas: canceladas automaticamente
+      - Sem reembolso automático — política do tenant
+    ACTION:
+      DELETE /v1/enrollments/:id
+        Body: { reason? }
+        → status muda para CANCELLED
+        → sessões futuras com status ENROLLED → CANCELLED
+        → se havia fila de espera: notifica o 1º da fila para a próxima sessão
+      Requer confirmação explícita (checkbox ou digitação) — ação irreversível
+  -->
+
+  <!-- Prototype banner -->
+  <div style="background:#fee2e2;border-bottom:1px solid #fca5a5;padding:0.375rem 1rem;
+               font-size:0.8125rem;text-align:center;color:#991b1b;">
+    Protótipo · cancelar matrícula (ação irreversível)
+  </div>
+
+  <!-- TOP BAR -->
+  <div class="dashboard-topbar">
+    <a href="07-turma-detail.html"
+       style="display:flex;align-items:center;gap:0.375rem;color:var(--ba-text);
+              text-decoration:none;font-size:0.875rem;font-weight:500;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m15 18-6-6 6-6"/>
+      </svg>
+      Pilates Solo
+    </a>
+    <div style="margin-left:auto;">
+      <div class="list-avatar" style="width:2rem;height:2rem;font-size:0.8125rem;">MF</div>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+    <main class="main-content" style="padding-bottom:6rem;">
+      <div class="dashboard-body">
+        <div class="detail-layout">
+
+          <!-- COLUNA PRINCIPAL -->
+          <div>
+            <h1 style="font-size:1.125rem;font-weight:800;color:#991b1b;margin:0 0 0.25rem;">
+              Cancelar matrícula
+            </h1>
+            <p style="font-size:0.875rem;opacity:.55;color:var(--ba-text);margin:0 0 1.5rem;">
+              Essa ação encerra sua participação na turma. Não pode ser desfeita.
+            </p>
+
+            <!-- Resumo da turma -->
+            <div class="card" style="margin-bottom:1.5rem;">
+              <div style="display:flex;align-items:center;gap:0.875rem;padding:1rem;">
+                <div style="width:0.25rem;background:#2563eb;border-radius:4px;align-self:stretch;flex-shrink:0;"></div>
+                <div>
+                  <div style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">Pilates Solo</div>
+                  <div style="font-size:0.8125rem;opacity:.55;color:var(--ba-text);margin-top:0.125rem;">
+                    Seg, Qua e Sex · 08:00 · Sala 1
+                  </div>
+                  <div style="font-size:0.8125rem;opacity:.55;color:var(--ba-text);">
+                    Ativa desde 12 mai 2026 · 38 sessões realizadas
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- O que será cancelado -->
+            <h2 style="font-size:0.9375rem;font-weight:700;color:var(--ba-text);margin:0 0 0.75rem;">
+              O que será cancelado
+            </h2>
+            <div class="card" style="padding:0.25rem 1rem;margin-bottom:1.5rem;">
+              <div class="consequence-row">
+                <svg class="consequence-icon" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                     stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/>
+                </svg>
+                <span>Todas as suas <strong>próximas sessões confirmadas</strong> (a partir de hoje)</span>
+              </div>
+              <div class="consequence-row">
+                <svg class="consequence-icon" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                     stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/>
+                </svg>
+                <span>Sua vaga na turma</span>
+              </div>
+            </div>
+
+            <!-- O que não muda -->
+            <h2 style="font-size:0.9375rem;font-weight:700;color:var(--ba-text);margin:0 0 0.75rem;">
+              O que não muda
+            </h2>
+            <div class="card" style="padding:0.25rem 1rem;margin-bottom:1.5rem;">
+              <div class="consequence-row">
+                <svg class="consequence-icon" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                     stroke="#15803d" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                <span>Seu <strong>histórico de sessões</strong> realizadas permanece visível</span>
+              </div>
+              <div class="consequence-row">
+                <svg class="consequence-icon" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                     stroke="#15803d" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                <span>Seus <strong>pontos de fidelidade</strong> acumulados</span>
+              </div>
+              <div class="consequence-row">
+                <svg class="consequence-icon" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                     stroke="#15803d" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                <span>Seus outros agendamentos e matrículas</span>
+              </div>
+            </div>
+
+            <!-- Aviso de reembolso -->
+            <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:var(--ba-radius);
+                         padding:0.875rem 1rem;margin-bottom:1.5rem;
+                         display:flex;align-items:flex-start;gap:0.625rem;">
+              <svg style="flex-shrink:0;margin-top:0.125rem;" width="15" height="15" viewBox="0 0 24 24"
+                   fill="none" stroke="#d97706" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+              <p style="font-size:0.8125rem;color:#92400e;margin:0;line-height:1.5;">
+                Questões sobre cobrança ou reembolso devem ser tratadas diretamente com o estúdio.
+              </p>
+            </div>
+
+            <!-- Confirmação explícita -->
+            <div style="margin-bottom:1.5rem;">
+              <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
+                <input type="checkbox" id="confirm-check"
+                       style="margin-top:0.1875rem;accent-color:#dc2626;width:1rem;height:1rem;flex-shrink:0;">
+                <span style="font-size:0.875rem;color:var(--ba-text);line-height:1.5;">
+                  Entendo que estou cancelando minha matrícula em <strong>Pilates Solo</strong> e que essa ação não pode ser desfeita.
+                </span>
+              </label>
+            </div>
+
+            <!-- Motivo (opcional) -->
+            <div style="margin-bottom:1.5rem;">
+              <label class="form-label">Motivo do cancelamento <span style="opacity:.45;font-weight:400;">(opcional)</span></label>
+              <select class="form-input">
+                <option value="">Prefiro não informar</option>
+                <option>Mudança de horário</option>
+                <option>Questão financeira</option>
+                <option>Mudança de cidade</option>
+                <option>Saúde</option>
+                <option>Outro</option>
+              </select>
+            </div>
+
+            <!-- Form actions — mobile -->
+            <div class="form-actions">
+              <a href="07-turma-detail.html" class="btn-secondary" style="flex:1;text-align:center;">
+                Voltar
+              </a>
+              <a href="06-minhas-turmas.html"
+                 style="flex:1;text-align:center;display:flex;align-items:center;justify-content:center;
+                        background:#dc2626;color:white;border-radius:var(--ba-radius);
+                        font-weight:600;font-size:0.9375rem;text-decoration:none;padding:0.625rem 1rem;">
+                Cancelar matrícula
+              </a>
+            </div>
+          </div>
+
+          <!-- ASIDE DESKTOP -->
+          <div class="detail-aside">
+            <div class="card" style="padding:1.25rem;border:1px solid #fecaca;">
+              <p style="font-size:0.8125rem;font-weight:700;color:#991b1b;margin:0 0 0.75rem;
+                         text-transform:uppercase;letter-spacing:0.05em;">
+                Confirmação
+              </p>
+              <p style="font-size:0.875rem;color:var(--ba-text);margin:0 0 1rem;line-height:1.5;opacity:.7;">
+                Você está cancelando a matrícula em <strong>Pilates Solo</strong>. Esta ação encerra todas as sessões futuras.
+              </p>
+              <a href="06-minhas-turmas.html"
+                 style="display:block;text-align:center;padding:0.625rem 1rem;margin-bottom:0.625rem;
+                        background:#dc2626;color:white;border-radius:var(--ba-radius);
+                        font-weight:600;font-size:0.9375rem;text-decoration:none;">
+                Cancelar matrícula
+              </a>
+              <a href="07-turma-detail.html"
+                 class="btn-secondary"
+                 style="display:block;text-align:center;">
+                Voltar
+              </a>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </main>
+  </div>
+
+</body>
+</html>

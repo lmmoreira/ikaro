@@ -1,0 +1,147 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reagendar aula — Pilates</title>
+  <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
+  <style>
+    .slot-row { display: flex; width:100%; text-align:left; align-items: center; gap: 0.75rem; padding: 0.75rem 0; border:0; border-bottom: 1px solid var(--ba-secondary); background:transparent; cursor: pointer; font:inherit; }
+    .slot-row:last-child { border-bottom: none; }
+    .slot-row:hover { background: var(--ba-secondary); margin: 0 -1.25rem; padding: 0.75rem 1.25rem; border-radius: var(--ba-radius); border-bottom: none; }
+    .slot-time { font-weight: 600; font-size: 0.9375rem; color: var(--ba-text); min-width: 5rem; }
+    .slot-meta { font-size: 0.8125rem; opacity: 0.55; }
+    .slot-vagas { font-size: 0.8125rem; font-weight: 600; color: #15803d; margin-left: auto; flex-shrink: 0; }
+    .slot-vagas.few { color: #d97706; }
+    .day-header { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: rgba(17,24,39,0.4); padding: 0.875rem 0 0.25rem; }
+    .info-banner { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--ba-radius); padding: 0.75rem 1rem; margin-bottom: 1.25rem; font-size: 0.8125rem; color: #1d4ed8; }
+  </style>
+</head>
+<body>
+
+  <!-- DISCOVERY PROTOTYPE — customer-04d: fluxo de reagendamento (turma fixa) -->
+  <!-- Ponto de entrada: "Reagendar" em customer-04a ou customer-04b -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — 04d · Reagendar aula (turma fixa) · <strong>Escolha de horário de reposição</strong>
+  </div>
+
+  <div class="dashboard-topbar">
+    <a href="customer-04b-turma-fixa-sem-prazo.html" style="display:flex;align-items:center;gap:0.375rem;color:var(--ba-text);text-decoration:none;font-size:0.9375rem;font-weight:500;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      <span style="font-weight:600;">Recorrência</span>
+    </a>
+    <div style="margin-left:auto;">
+      <div class="list-avatar" style="width:2rem;height:2rem;font-size:0.8125rem;">FL</div>
+    </div>
+  </div>
+
+  <div class="step-container" style="max-width:34rem;">
+
+    <h1 style="font-size:1.25rem;font-weight:700;margin-bottom:0.25rem;color:var(--ba-text);">
+      Reagendar aula de Pilates
+    </h1>
+    <p style="font-size:0.8125rem;opacity:0.55;margin-bottom:1.25rem;">Aula original: segunda, 11 de agosto · 08h–09h</p>
+
+    <!-- Contexto da janela de reposição -->
+    <div class="info-banner">
+      Escolha qualquer aula de Pilates disponível até <strong>25 de agosto</strong>. A aula cancelada será registrada como reagendada.
+    </div>
+
+    <!-- Slots disponíveis agrupados por dia -->
+    <div class="card" style="padding:0 1.25rem;margin-bottom:1.25rem;">
+
+      <p class="day-header">Quarta, 13 de agosto</p>
+      <button type="button" class="slot-row" onclick="confirmSlot('Quarta, 13 de agosto · 07h–08h')" aria-label="Quarta, 13 de agosto, 07h às 08h, 3 vagas disponíveis">
+        <div>
+          <p class="slot-time">07h–08h</p>
+          <p class="slot-meta">Pilates Solo · Ana Lima</p>
+        </div>
+        <span class="slot-vagas">3 vagas</span>
+      </button>
+      <button type="button" class="slot-row" onclick="confirmSlot('Quarta, 13 de agosto · 10h–11h')" aria-label="Quarta, 13 de agosto, 10h às 11h, 5 vagas disponíveis">
+        <div>
+          <p class="slot-time">10h–11h</p>
+          <p class="slot-meta">Pilates Solo · Carla Melo</p>
+        </div>
+        <span class="slot-vagas">5 vagas</span>
+      </button>
+
+      <p class="day-header">Sexta, 15 de agosto</p>
+      <button type="button" class="slot-row" onclick="confirmSlot('Sexta, 15 de agosto · 08h–09h')" aria-label="Sexta, 15 de agosto, 08h às 09h, 1 vaga disponível">
+        <div>
+          <p class="slot-time">08h–09h</p>
+          <p class="slot-meta">Pilates Solo · Ana Lima</p>
+        </div>
+        <span class="slot-vagas few">1 vaga</span>
+      </button>
+      <button type="button" class="slot-row" onclick="confirmSlot('Sexta, 15 de agosto · 10h–11h')" aria-label="Sexta, 15 de agosto, 10h às 11h, 4 vagas disponíveis">
+        <div>
+          <p class="slot-time">10h–11h</p>
+          <p class="slot-meta">Pilates Solo · Carla Melo</p>
+        </div>
+        <span class="slot-vagas">4 vagas</span>
+      </button>
+
+      <p class="day-header">Segunda, 18 de agosto</p>
+      <button type="button" class="slot-row" onclick="confirmSlot('Segunda, 18 de agosto · 08h–09h')" aria-label="Segunda, 18 de agosto, 08h às 09h, 2 vagas disponíveis">
+        <div>
+          <p class="slot-time">08h–09h</p>
+          <p class="slot-meta">Pilates Solo · Ana Lima · sua turma habitual</p>
+        </div>
+        <span class="slot-vagas">2 vagas</span>
+      </button>
+
+      <p class="day-header">Quarta, 20 de agosto</p>
+      <button type="button" class="slot-row" onclick="confirmSlot('Quarta, 20 de agosto · 07h–08h')" aria-label="Quarta, 20 de agosto, 07h às 08h, 6 vagas disponíveis">
+        <div>
+          <p class="slot-time">07h–08h</p>
+          <p class="slot-meta">Pilates Solo · Carla Melo</p>
+        </div>
+        <span class="slot-vagas">6 vagas</span>
+      </button>
+
+    </div>
+
+  </div>
+
+  <!-- Confirmation bottom sheet -->
+  <div id="confirm-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:30;" onclick="document.getElementById('confirm-backdrop').style.display='none'"></div>
+  <div id="confirm-sheet" style="display:none;position:fixed;bottom:0;left:0;right:0;background:white;border-radius:1rem 1rem 0 0;z-index:40;padding:1.25rem 1.5rem 2rem;">
+    <div style="width:2.5rem;height:0.25rem;background:rgba(17,24,39,0.15);border-radius:99px;margin:0 auto 1rem;"></div>
+    <h3 style="font-size:1rem;font-weight:700;margin-bottom:0.25rem;">Confirmar reagendamento?</h3>
+    <p id="confirm-slot-label" style="font-size:0.8125rem;opacity:0.6;margin-bottom:1.25rem;"></p>
+    <p style="font-size:0.8125rem;margin-bottom:1.25rem;">A aula de <strong>segunda, 11 de agosto</strong> será cancelada e substituída por esta. Você receberá um e-mail de confirmação.</p>
+    <button class="btn-primary" style="width:100%;margin-bottom:0.75rem;" type="button" onclick="showSuccess()">Confirmar reagendamento</button>
+    <button onclick="document.getElementById('confirm-backdrop').style.display='none';document.getElementById('confirm-sheet').style.display='none'" style="width:100%;padding:0.75rem;font-size:0.9375rem;background:none;border:1px solid var(--ba-secondary);border-radius:var(--ba-radius);cursor:pointer;">Escolher outro horário</button>
+  </div>
+
+  <!-- Success state (inline, after confirm) -->
+  <div id="success-state" style="display:none;position:fixed;inset:0;background:white;z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;padding:2rem;text-align:center;">
+    <div style="width:4rem;height:4rem;background:#dcfce7;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:1.25rem;">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <h2 style="font-size:1.25rem;font-weight:700;margin-bottom:0.5rem;">Aula reagendada!</h2>
+    <p id="success-label" style="font-size:0.9375rem;opacity:0.6;margin-bottom:1.75rem;"></p>
+    <a href="customer-04b-turma-fixa-sem-prazo.html" class="btn-primary" style="display:inline-block;">Ver recorrência</a>
+  </div>
+
+  <script>
+    function confirmSlot(label) {
+      document.getElementById('confirm-slot-label').textContent = label;
+      document.getElementById('confirm-backdrop').style.display = 'block';
+      document.getElementById('confirm-sheet').style.display = 'block';
+    }
+    function showSuccess() {
+      const label = document.getElementById('confirm-slot-label').textContent;
+      document.getElementById('success-label').textContent = label;
+      document.getElementById('confirm-backdrop').style.display = 'none';
+      document.getElementById('confirm-sheet').style.display = 'none';
+      const success = document.getElementById('success-state');
+      success.style.display = 'flex';
+    }
+  </script>
+
+</body>
+</html>
+

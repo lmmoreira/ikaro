@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Turmas — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
+  <style>
+    .topbar-create-btn { display: none; }
+    @media (min-width: 1024px) { .topbar-create-btn { display: inline-flex; align-items: center; gap: 0.375rem; } }
+    .fab { position: fixed; bottom: 5rem; right: 1.5rem; width: 3.5rem; height: 3.5rem;
+           background: #2563eb; color: white; border-radius: 9999px; display: flex;
+           align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(37,99,235,0.35);
+           text-decoration: none; font-size: 1.5rem; font-weight: 300; }
+    @media (min-width: 1024px) { .fab { display: none; } }
+
+    /* Accordion list */
+    .tipo-section { border-bottom: 1px solid var(--ba-secondary); }
+    .tipo-section:last-child { border-bottom: none; }
+    .tipo-header { display: flex; align-items: center; gap: 0.75rem; padding: 0.9375rem 1rem;
+                   cursor: pointer; user-select: none; }
+    .tipo-header:hover { background: var(--ba-secondary); }
+    .tipo-chevron { color: #6b7280; flex-shrink: 0; }
+    .tipo-name { font-weight: 700; font-size: 0.9375rem; color: var(--ba-text); flex: 1; }
+    .tipo-count { font-size: 0.8125rem; color: #6b7280; }
+    .tipo-add-link { font-size: 0.8125rem; font-weight: 600; color: #2563eb; text-decoration: none;
+                     white-space: nowrap; padding: 0.25rem 0.5rem; }
+
+    .recorr-list { background: #f9fafb; border-top: 1px solid var(--ba-secondary); }
+    .recorr-item { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.875rem 1rem 0.875rem 2rem;
+                   border-bottom: 1px solid var(--ba-secondary); }
+    .recorr-item:last-of-type { border-bottom: none; }
+    .recorr-body { flex: 1; min-width: 0; }
+    .recorr-rule { font-size: 0.875rem; font-weight: 600; color: var(--ba-text); margin-bottom: 0.25rem; }
+    .recorr-meta { font-size: 0.8125rem; color: #6b7280; }
+    .recorr-actions { display: flex; gap: 0.75rem; align-items: center; flex-shrink: 0; padding-top: 0.125rem; }
+    .action-link { font-size: 0.8125rem; font-weight: 600; color: #2563eb; text-decoration: none; white-space: nowrap; }
+    .action-edit { color: #6b7280; }
+
+    .recorr-add { padding: 0.625rem 1rem 0.625rem 2rem; }
+    .recorr-add a { font-size: 0.8125rem; color: #6b7280; text-decoration: none;
+                    display: inline-flex; align-items: center; gap: 0.25rem; }
+    .recorr-add a:hover { color: #2563eb; }
+
+    .tipo-collapsed .recorr-list { display: none; }
+    .tipo-collapsed .tipo-chevron svg { transform: rotate(-90deg); }
+  </style>
+</head>
+<body>
+
+  <!--
+    DISCOVERY PROTOTYPE — manager: lista de turmas agrupadas por tipo de aula.
+    Substitui manager-03-class-templates.html (lista plana).
+
+    UX decisions:
+    - Agrupamento por tipo (Pilates, CrossFit, Yoga) com accordion
+    - Recorrência descrita em linguagem direta ("Todos os dias", "Seg, Qua e Sex")
+    - "+ Tipo de aula" como ação principal; "+ horário" dentro de cada tipo
+    - Sem exibição de alunos/vagas reservadas — essa tela é configuração, não operação
+    - "Ver sessões" → manager-sessoes.html (a criar); "Editar" → manager-editar-horario.html (a criar)
+    - "Definir staff" → manager-definir-staff.html
+
+    CANDs relacionados: CAND-11 (criar template), CAND-12 (listar templates), CAND-13 (editar template)
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — redimensione para ver mobile (&lt;1024px) e desktop (≥1024px)
+  </div>
+
+  <div class="dashboard-topbar">
+    <div class="topbar-brand">
+      <div class="sidebar-logo" style="width:1.75rem;height:1.75rem;font-size:0.8125rem;">V</div>
+      <span style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">Vitta Studio</span>
+    </div>
+    <h1 class="topbar-page-title">Turmas</h1>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
+      <a href="manager-nova-aula.html" class="btn-primary topbar-create-btn"
+         style="font-size:0.8125rem;padding:0.5rem 0.875rem;">
+        + Tipo de aula
+      </a>
+      <a href="../../../../plan/journey/shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">V</div>
+        <div><p class="sidebar-tenant-name">Vitta Studio</p><p class="sidebar-tenant-slug">@vittastudio</p></div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top:0.5rem;">
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Agenda
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Horários
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          Serviços
+        </a>
+        <a class="sidebar-nav-item active" href="manager-turmas-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
+          Turmas
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          Fidelidade
+        </a>
+      </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Equipe
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Configurações
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          Hotsite
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
+        <a class="sidebar-logout" href="../../../../plan/journey/shared/staff-login.html" title="Sair">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </a>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="dashboard-body" style="padding:0;">
+
+        <div class="card" style="padding:0;overflow:hidden;">
+
+          <!-- PILATES — expandido -->
+          <div class="tipo-section">
+            <div class="tipo-header">
+              <svg class="tipo-chevron" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              <span class="tipo-name">Pilates</span>
+              <span class="tipo-count">2 horários · 4 vagas · 50 min</span>
+              <a href="manager-adicionar-horario.html" class="tipo-add-link">+ horário</a>
+            </div>
+            <div class="recorr-list">
+              <div class="recorr-item">
+                <div class="recorr-body">
+                  <div class="recorr-rule">Todos os dias · 06:00 às 19:00 · a cada 1h</div>
+                  <div class="recorr-meta">Recurso padrão: Estúdio 1 · início 01/07/2026</div>
+                </div>
+                <div class="recorr-actions">
+                  <a href="#" class="action-link">Ver sessões</a>
+                  <a href="manager-definir-staff.html" class="action-link">Staff</a>
+                  <a href="#" class="action-link action-edit">Editar</a>
+                </div>
+              </div>
+              <div class="recorr-item">
+                <div class="recorr-body">
+                  <div class="recorr-rule">Seg, Qua e Sex · 08:00</div>
+                  <div class="recorr-meta">Recurso padrão: Estúdio 2 · início 04/08/2026</div>
+                </div>
+                <div class="recorr-actions">
+                  <a href="#" class="action-link">Ver sessões</a>
+                  <a href="manager-definir-staff.html" class="action-link">Staff</a>
+                  <a href="#" class="action-link action-edit">Editar</a>
+                </div>
+              </div>
+              <div class="recorr-add">
+                <a href="manager-adicionar-horario.html">
+                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Adicionar horário de Pilates
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- CROSSFIT — expandido -->
+          <div class="tipo-section">
+            <div class="tipo-header">
+              <svg class="tipo-chevron" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              <span class="tipo-name">CrossFit</span>
+              <span class="tipo-count">2 horários · 20 vagas · 60 min</span>
+              <a href="manager-adicionar-horario.html" class="tipo-add-link">+ horário</a>
+            </div>
+            <div class="recorr-list">
+              <div class="recorr-item">
+                <div class="recorr-body">
+                  <div class="recorr-rule">Ter e Qui · 07:00</div>
+                  <div class="recorr-meta">Recurso padrão: Área CrossFit · início 01/07/2026</div>
+                </div>
+                <div class="recorr-actions">
+                  <a href="#" class="action-link">Ver sessões</a>
+                  <a href="manager-definir-staff.html" class="action-link">Staff</a>
+                  <a href="#" class="action-link action-edit">Editar</a>
+                </div>
+              </div>
+              <div class="recorr-item">
+                <div class="recorr-body">
+                  <div class="recorr-rule">Seg, Qua e Sex · 19:00 · até 30/09/2026</div>
+                  <div class="recorr-meta">Recurso padrão: Área CrossFit · turma de 6 semanas</div>
+                </div>
+                <div class="recorr-actions">
+                  <a href="#" class="action-link">Ver sessões</a>
+                  <a href="manager-definir-staff.html" class="action-link">Staff</a>
+                  <a href="#" class="action-link action-edit">Editar</a>
+                </div>
+              </div>
+              <div class="recorr-add">
+                <a href="manager-adicionar-horario.html">
+                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Adicionar horário de CrossFit
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- YOGA — colapsado -->
+          <div class="tipo-section tipo-collapsed">
+            <div class="tipo-header">
+              <svg class="tipo-chevron" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              <span class="tipo-name">Yoga</span>
+              <span class="tipo-count">1 horário · 8 vagas · 60 min</span>
+              <a href="manager-adicionar-horario.html" class="tipo-add-link">+ horário</a>
+            </div>
+            <div class="recorr-list">
+              <div class="recorr-item">
+                <div class="recorr-body">
+                  <div class="recorr-rule">Qua e Sex · 18:00</div>
+                  <div class="recorr-meta">Recurso padrão: Estúdio 1 · início 01/08/2026</div>
+                </div>
+                <div class="recorr-actions">
+                  <a href="#" class="action-link">Ver sessões</a>
+                  <a href="manager-definir-staff.html" class="action-link">Staff</a>
+                  <a href="#" class="action-link action-edit">Editar</a>
+                </div>
+              </div>
+              <div class="recorr-add">
+                <a href="manager-adicionar-horario.html">
+                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Adicionar horário de Yoga
+                </a>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <a href="manager-nova-aula.html" class="fab" title="Novo tipo de aula">+</a>
+
+  <nav class="bottom-nav">
+    <a class="bottom-nav-item" href="#">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Agenda
+    </a>
+    <a class="bottom-nav-item" href="#">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Horários
+    </a>
+    <a class="bottom-nav-item" href="#">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      Serviços
+    </a>
+    <a class="bottom-nav-item active" href="manager-turmas-list.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
+      Turmas
+    </a>
+  </nav>
+
+</body>
+</html>

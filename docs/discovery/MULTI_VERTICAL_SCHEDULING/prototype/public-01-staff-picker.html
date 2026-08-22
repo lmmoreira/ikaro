@@ -26,17 +26,17 @@
   <!--
     DISCOVERY PROTOTYPE — illustrative only, NOT a plan/journey/ prototype.
     See ../../MULTI_VERTICAL_SCHEDULING.md (§5 Appointment-Style Deep Dive)
-    and ../../MULTI_VERTICAL_SCHEDULING_USECASES.md (CAND-16, CAND-17b).
-    Corrected on review (2026-07-29): the "any available" card below was originally
-    mislabeled CAND-17 — CAND-17 is scoped to ROOM/EQUIPMENT fungible pools only, not
-    STAFF. The real match is CAND-17b (added on the same review), though note this
-    screen shows it as one radio option alongside named choices (still within a
-    CUSTOMER_CHOICE picker) rather than CAND-17b's "no picker shown at all" flow —
-    a hybrid worth resolving if this direction gets built for real.
+    and ../../MULTI_VERTICAL_SCHEDULING_USECASES.md (CAND-16).
+    UX-review update (2026-08-21): the "any available" card once shown here — a hybrid
+    that put CAND-17b (system-assigned) inside this CUSTOMER_CHOICE picker as a radio
+    option, contradicting CAND-17b's own "no picker shown at all" flow — is gone from
+    this screen; only the two named CUSTOMER_CHOICE cards remain below, matching
+    "Corte + Escova"'s actual resourceRequirements. CAND-17b now lives on its own,
+    correctly picker-less, at public-07-auto-staff.html.
 
-    Represents taxonomy model #2 (per-staff exclusive, customer-chosen) and #3
-    (per-staff exclusive, system-assigned) — Vitta Studio's "Corte + Escova" service
-    has resourceRequirements = [{ type: STAFF, selectionMode: CUSTOMER_CHOICE }].
+    Represents taxonomy model #2 (per-staff exclusive, customer-chosen) — Vitta Studio's
+    "Corte + Escova" service has resourceRequirements = [{ type: STAFF, selectionMode:
+    CUSTOMER_CHOICE }].
 
     This is a NEW step inserted into today's guest booking flow, between
     "01-service-selection" and "02-calendar-slot" (see guest/prototypes/book-a-service/).

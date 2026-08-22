@@ -10,19 +10,38 @@ Full model: `../MULTI_VERTICAL_SCHEDULING.md`. Full candidate use-case list: `..
 - **Invented:** the tenant "Vitta Studio" and all its data (staff names, service names, prices, capacities, session times). Chosen so one resource (Camila Duarte) can plausibly be both a hair stylist (1:1) and a Pilates instructor (capacity 4) — the concrete instance of discovery §2 model #13.
 - **New nav items, not in today's IA:** "Recursos" (manager-only, like Equipe/Configurações/Hotsite) and "Turmas" (staff+manager, like Serviços).
 
+## Canonical public information architecture
+
+For a hotsite with multiple bookable services, the only generic booking entry is the
+**service catalogue** (`public-03`). The selected `serviceId` determines the next step:
+
+| Service configuration | Next customer step |
+|---|---|
+| Appointment + `CUSTOMER_CHOICE` staff | Staff picker (`public-01`), then availability |
+| Appointment + automatic/fungible staff or resource | Availability directly (`public-07` / `public-09`) |
+| Session | Agenda (`public-02b`) pre-filtered by service, then session access (`public-06`) |
+| Bundle or multi-leg journey | Its availability/itinerary step (`public-04` / `public-05`) |
+| Variable-duration reservation | Date, start time, duration and participants (`public-11`) |
+
+`public-01`, `public-02b`, `public-07` through `public-11` are therefore steps after
+service selection, not sibling hotsite starts. A public professional profile/calendar may
+deep-link to that professional's eligible services; it must still require service selection
+before an actual booking slot is confirmed. “No availability” can offer an alert; it is an
+alternative state, never a primary entry point.
+
 ## Components referenced (all GAP — none exist today)
 
 | Component | Screen(s) | BFF call sketched |
 |---|---|---|
 | `StaffPickerStep` | public-01 | `GET /resources?type=STAFF&serviceId=` |
-| `ClassSessionList` / `ClassSessionCard` | public-02, public-03 | `GET /class-sessions?serviceId=&from=&to=` |
-| `BundleSlotPicker` | public-04 | `GET /schedule/availability?serviceId=` (intersection across resources + across services) |
+| `ClassSessionList` / `ClassSessionCard` | public-02b (public-02 retained only as an older representative step) | `GET /class-sessions?serviceId=&from=&to=` |
+| `AppointmentAvailabilityStep` | public-14, after public-01/public-04/public-07/public-09 | `GET /schedule/availability?serviceId=&selectedResourceIds=`; intersects every required resource/pool and is reused for fixed appointments, bundles, auto-assignment and fungible pools |
 | `MultiLegItineraryReview` | public-05 | `POST /bookings` (leg chain in body) |
 | `RecurringEnrollmentToggle` | customer-01 | `POST /recurring-enrollments` |
 | `RecurringEnrollmentManager` | customer-03, 04, 05, 06 | `GET .../occurrences`, `DELETE .../occurrences/{id}`, `DELETE /recurring-enrollments/{id}` |
 | `MyAgendaList` | staff-01 | `GET /bookings?resourceId=&date=today` |
 | `ClassSessionRoster` | staff-02 | `GET /class-sessions/{id}/bookings` |
-| `ClassSessionCloseOut` | staff-02b | `POST /class-sessions/{id}/close` (body: `noShowBookingIds[]`) |
+| `ClassSessionCloseOut` | staff-02b | `POST /class-sessions/{id}/close` (body: `noShowAttendeeIds[]`) |
 | `SessionCapacityOverrideForm` | staff-03 | `PATCH /class-sessions/{id}` |
 | `ResourceList` | manager-01 | `GET /resources` |
 | `ServiceResourceConfigSection` | manager-02 | `PATCH /services/{id}` (new fields only) |
@@ -37,13 +56,71 @@ Full model: `../MULTI_VERTICAL_SCHEDULING.md`. Full candidate use-case list: `..
 | `ClassAccessContractForm` | manager-07 | `POST/DELETE /class-access-contracts` |
 | `ResourceScheduleControls` | manager-08 | resource hours/opening/closure/deactivation + template cancellation scope |
 | `ClassTemplateEditForm` | manager-11 | `PATCH /class-templates/{id}` |
+| `EnrollmentList` | manager-09 | `GET /v1/class-types/{id}/enrollments?status=ACTIVE,WAITLIST&type=SERIES,DROP_IN` |
+| `WaitlistRow` (manual promote) | manager-09 | `POST /v1/enrollments/{id}/promote` |
+| `AdminEnrollmentForm` | manager-09b | `POST /v1/enrollments` (body: `{ classTypeId, customerId, type, sessionId?, slotIds?, startsAt?, createdByStaff: true }`) |
+| `ServiceCatalogConfigSection` | manager-02 (SESSION panel) | `PATCH /services/{id}` — new fields: `color`, `description`, `allowsDropIn`, `allowsSeries` |
+| `VariableDurationReservationStep` | public-11 | `GET /schedule/availability?serviceId=&startsAt=&durationMinutes=&participantCount=` |
+| `BookingIntakeStep` | public-12-intake | `GET /services/{id}/booking-intake-schema`; answers submitted with booking request |
+| `ManualApprovalHoldState` | public-13 | booking response includes `holdExpiresAt`; status read/poll or email deep link |
+| `AvailabilityAlertForm` | public-12-availability-alert | authenticated `POST /availability-alerts`; unauthenticated visitors are routed to login/account creation |
+| `WaitlistOfferDecision` | customer-08 | `POST /class-session-bookings/{id}/waitlist-offer/accept|decline` |
+| `RecurringPrivateReservationManager` | customer-09 | `POST/PATCH /recurring-booking-schedules`, occurrence skip/reschedule/pause/end actions |
+| `CommitmentExceptionWorklist` | manager-12 | `GET /scheduling-exceptions`; explicit keep/reassign/reschedule/cancel commands |
+| `GroupAttendeeEditor` | customer-10 | `PATCH /class-session-bookings/{id}/attendees`; released seats trigger waitlist offer |
+| `ServiceBookingPolicyForm` | manager-13 | `PATCH /services/{id}/booking-policy` |
+
+## UX baseline after product-maturity and consistency review
+
+The representative screens cover the canonical high-risk decisions, not only happy-path scheduling: bootstrap preset choice/review; fixed and variable duration; fixed/fungible/bundled/legged resources; capacity and non-member threshold; verified guest flow; waitlist offer acceptance; manual-approval holds; versioned intake and named attendees; recurrence for classes and private reservations; availability alerts; staff/manager exception detection and resolution; and attendance/no-show. They remain discovery artefacts: placeholder links and component-only manager/staff navigation are explicitly not proof of a validated route map.
+
+### Shell and action-pane conformance
+
+Discovery prototypes reuse the real system's layout contracts, not just its color tokens:
+
+- **Public booking:** tenant-branded, single-column step shell; the primary action follows the selected time/summary and does not use a dashboard action pane.
+- **Customer account:** canonical customer shell. Account roots have desktop tabs/mobile navigation; account details retain the shell with a back route.
+- **Staff/manager lists, calendars, dashboards and rosters:** full-width operational views; a right pane would hide the primary scanning task and is not used.
+- **Staff/manager create, edit, approval and policy forms:** canonical `detail-layout`: editable information in the left main pane; a `22rem` sticky `detail-aside` on desktop for primary/secondary actions and only decision-critical warnings. It must not repeat the page title, selected entity, or a generic “Resumo.” Mobile hides the aside and restores in-flow actions.
+
+`manager-02-service-resource-config.html` and `manager-13-service-booking-policies.html` are the reference implementations for the last pattern. Do not introduce a new one-column manager form for a decision-heavy screen when the canonical service forms already supply this composition.
+
+The following UX rules are non-negotiable in implementation:
+
+- Every asynchronous write rechecks availability/capacity and displays a recoverable stale-result state.
+- A manual approval hold must visibly show its expiry and never imply confirmation.
+- A waitlist offer must show its exact deadline, explicit accept and decline actions, group quantity, and the consequence of expiry. Waitlists and alerts require an authenticated customer; public visitors see a clear login/account-creation boundary before either action.
+- Resource changes must show suggested alternatives but require a manager's explicit decision before a customer-facing change.
+- Every status uses text/icon as well as colour; drawers/sheets must manage keyboard focus and escape/backdrop dismissal.
+- Intake asks only fields configured by the service and shows why required; typed values such as address remain one coherent form experience.
+
+## Promotion readiness
+
+This folder is now UX-complete as a discovery artefact, but it is **not yet implementation-ready by itself**: it is deliberately outside `plan/journey/`, and its screens do not yet all have journey route tables, real BFF contracts, all validation/error/empty/loading variants, or a cross-actor navigation audit. Promotion must create formal journeys after a clean docs audit; these screens are the validated visual source, not a shortcut around that workflow.
+
+### Finalized journey rules to carry into formal journeys
+
+- A public full-session/no-availability state preserves the selected session or alert criteria through login/account creation, then returns the authenticated customer to join the waitlist or create the alert.
+- Waitlist promotion is an account action, never a dismissible automatic-success banner: offer deadline, accept, decline and expired states are mandatory.
+- The customer class read model is a projection of `RecurringEnrollment` and individual `ClassSessionBooking` records; it cannot use mutable `EnrollmentSession` lifecycle values as its source of truth.
+- Contract-less authenticated drop-ins need their own confirmed/pending-approval/waitlist branch; series remain contract-only.
+- Waitlists are authenticated, single-seat customer intent: the selected contract or pay-per-class path is stored before promotion and revalidated on offer acceptance. Anonymous guests and guest groups never enter the waitlist.
+- A first-free guest trial is a solo booking only. A guest group has named attendees but is always payable in person; one contact email cannot grant a group a free entitlement.
+- Appointment no-show remains deferred. Class attendee attendance/no-show remains in scope because it is necessary for class close-out.
+- Guest class-email verification needs a real token landing, expiry/restart and post-verification-full state before implementation.
+- Manager/staff screens are component explorations until a formal cross-role route map replaces the discovery-only dead navigation links.
+- `ROUTE_MAP.md` is that cross-role navigation authority. It prevents arbitrary cross-role links during promotion and declares which existing navigation labels are outside this discovery.
+- Availability must carry the selected service, date, duration and chosen-resource context to intake/review; no generic final form may display another service's terms, fields or price.
+- A login return preserves the customer's selected context only. It never claims a seat or time is held; availability is rechecked after authentication.
+- Customer screens use one of two shells only: an account root uses canonical tabs plus mobile bottom navigation; an account detail uses a back header inside the same customer layout. Public booking continuation stays tenant-branded.
+- Prototype-only state switchers belong on the discovery index or an explicitly labelled review control, never in a screen intended as a direct customer UI reference.
 
 ## Cross-links to real, existing prototypes
 
 Two screens deliberately hand off into the **real** `guest/prototypes/book-a-service/` files rather than inventing new ones, to show the existing components are reused, not replaced:
 
 - `public-01-staff-picker.html` → `02-calendar-slot.html` (same `SlotPicker`, now called with a `resourceId`)
-- `public-02-class-session-picker.html` → `04-confirmation.html` (same confirmation screen, different summary content)
+- `public-02b-class-agenda.html` → `public-06-class-access.html` (agenda-first session selection, then the contract/guest access state)
 
 ## Review findings (2026-07-29) and what got fixed
 
@@ -98,6 +175,22 @@ A full pass cross-checking prototypes against all 31 candidates found:
 30. **`slot_index`/`requirement_index` removed as premature abstractions, then swept for staleness across every doc (2026-08-05).** Asked directly whether grouping by `resource_type` alone would work instead of a stored ordering column — checked every worked example across all four affected tables (`service_resource_requirements`, `service_leg_resource_requirements`, `service_class_resource_pool`, `class_schedule_template_slots`) and found none ever need two resources of the same type in one bundle/leg/slot-set; the one justification that had seemed to require it (a template needing two `ROOM` slots) was a misremembered citation of an already-different, already-resolved case (model #6's two-templates answer). Removed the column from all four tables plus `class_session_resources`; `resource_type` (4 fixed values) is the natural key instead. Display order doesn't need a stored column either — Postgres gives no row-order guarantee regardless, so a fixed `ORDER BY CASE resource_type` or an application-side priority list achieves the same result more simply. Followed by a full sweep for anything else this session's corrections had left stale: found and fixed the domain doc's §8 aggregate-deltas table (still listing `ClassSessionBooking`'s old 3-state enum instead of the current 5-state one, and missing `Service.classResourceSlots` entirely), and CAND-24/CAND-25 in the use-cases doc (still describing `waitlistPosition` as an assigned/stored/shiftable field after the domain doc had already been corrected to describe it as derived). `(slot 0)`/`(slot 1)` labels removed from `manager-02`'s Aula de Pilates checklist example.
 
 31. **Business-maturity review found two real bugs `public-03` had never been cross-checked for, plus one duplicated-and-incompletely-copied fix — fixed (2026-08-05).** `public-03-service-type-selector.html` is the one screen never mentioned across items 1–30 above — it was written early and never revisited once the other screens' data solidified. Found: (a) its "Corte e Coloração" tile linked to `public-01-staff-picker.html`, which actually shows a differently-named service, "Corte + Escova" — renamed the tile to match; (b) its Pilates tile said "a partir de R$ 45,00 por aula," contradicting every `class_session_bookings` worked example (`MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §2, `sb_1`–`sb_4`), which price Pilates flat at R$ 60,00 — corrected the number; (c) all three service tiles (Corte + Escova, Pilates, CrossFit) used "a partir de" (starting from) framing that nothing in the domain model backs — `Service.price` has no range/tier concept anywhere in this discovery — so all three were changed to flat pricing copy. Separately: `customer-04-gerenciar-recorrencia.html` shows two upcoming occurrences, each with its own "Pular esta semana" link; the fix in item 5 above (wiring the link to `customer-05-ocorrencia-pulada.html`) was applied to the first occurrence's link only — the second, identical link was still `href="#"`. Wired to the same target; this prototype demonstrates the skip mechanism once, not a distinct "after" state per week.
+
+32. **Enrollment management (manager side) had zero representation — closed 2026-08-21.** After building the full customer-side "Reservar Aula" flow (`plan/journey/customer/prototypes/reservar-aula/`), the `Enrollment` entity had no manager-facing screen at all. `staff-02-session-roster.html` shows who's in ONE session; nothing showed who holds an ongoing series subscription across sessions. Added `manager-09-matriculas.html` (enrollment list per class type — 4 tabs: Séries ativas / Avulsas / Fila de espera / Histórico; with inline cancel and manual-promote-from-waitlist actions) and `manager-09b-nova-matricula.html` (admin manually enrolls a customer who called — same data shape as customer POST, adds `createdByStaff: true`).
+
+33. **Catalog config fields missing from manager-02 — closed 2026-08-21.** `GET /v1/class-types` (the customer class catalog endpoint documented in `reservar-aula/dev-notes.md`) returns `color`, `description`, `allowsDropIn`, `allowsSeries`. None of these had a manager edit screen — the customer catalog worked as a prototype but would have had no real data source. Added a "Catálogo de aulas" sub-section to `manager-02`'s SESSION panel (visible only when bookingModel = SESSION): color swatch picker (7 options, live preview bar), description textarea (max 120 chars), and two checkboxes for `allowsDropIn`/`allowsSeries` with routing-impact hints. BFF: same `PATCH /services/{id}` endpoint, new fields.
+
+34. **Manager-side class-config and daily-operation screens promoted from `ux-handoff/` into this folder — 2026-08-21.** Sessions on 10/08 and 12/08 built a 3-step class-config flow (`manager-turmas-list.html` list → `manager-nova-aula.html` create type → `manager-adicionar-horario.html` add recurring schedule → `manager-definir-staff.html` optional staff assignment) plus three daily-operation screens (`manager-dashboard.html`, `manager-agenda-dia.html`, `manager-roster-dia.html`). These lived only in a separate `ux-handoff/` folder alongside their own rationale doc until today; moved into this canonical prototype folder so the whole discovery set lives in one place, with the rationale doc relocated to `ux-handoff-notes/README.md` (full per-screen "why," richer than this file's terse style) rather than duplicated here. `manager-turmas-list.html` supersedes `manager-03-class-templates.html` (flat list doesn't scale — see the accordion-by-type rationale in `ux-handoff-notes/README.md` §6); `manager-nova-aula.html` + `manager-adicionar-horario.html` together supersede `manager-06-criar-turma.html`, splitting single-step creation into type-then-schedule. `manager-06-criar-turma.html` and `manager-03-class-templates.html` are kept in this folder for reference (linked from `index.html`, marked superseded) rather than deleted, since `manager-06b-criar-turma-conflito.html`'s CAND-11 A2 conflict-error state has no equivalent built yet on the new 2-step flow. `manager-definir-staff.html`'s per-day/per-slot staff granularity needs no new schema — it's UI sugar over creating multiple `ClassScheduleTemplate` rows (model #6, `MULTI_VERTICAL_SCHEDULING.md` §6), each with its own single resource pick, not a new staff-assignment entity.
+
+35. **Customer-side "Minhas Turmas" (post-enrollment management) and "Reservar Aula" (new enrollment) flows promoted into `plan/journey/` rather than this discovery folder — 2026-08-21.** Unlike every other screen in this folder, these two flows already reached implementation-grade rigor (route tables, BFF request/response contracts, GAP tags) matching `plan/journey/`'s own dev-notes convention rather than this folder's "illustrative only, one representative screen" bar (see the note at the top of `index.html`). See `plan/journey/customer/prototypes/reservar-aula/dev-notes.md` and the "Minhas Turmas" section added to `plan/journey/customer/prototypes/minha-conta/dev-notes.md`.
+
+36. **Not yet reconciled: the `ClassType`/`Enrollment` naming used by items 32/33 above and by both `plan/journey/` flows (item 35) doesn't map 1:1 onto this discovery's own aggregates.** `ClassType` is really a merged read-model over `Service` + `ClassScheduleTemplate` + a next-session projection; `Enrollment` conflates `ClassSessionBooking` (one-off) and `RecurringEnrollment` (standing) into one flat shape, and neither `manager-09`'s nor `reservar-aula`'s sketched endpoints check the `ClassAccessContract` precondition `CAND-22`/`CAND-26` require (now `CAND-22b` too, see item 38 below). Deliberately left unreconciled — this is still discovery-stage, and the real reconciliation belongs to `/discovery-to-milestone` story drafting, not a doc-only pass. Full breakdown: the "Open questions / gaps" sections of `plan/journey/customer/reservar-aula.md` and `plan/journey/customer/minha-conta.md`.
+
+37. **CAND↔prototype tag audit, 2026-08-21 — five mislabeled/untagged screens found and fixed.** A full cross-reference of every `CAND-XX` mentioned across this folder against the then-current candidate catalogue turned up: `staff-02b-fechar-turma.html` tagged with `CAND-15b`, which that very doc marks "**Superseded by `CAND-37`**" — fixed. `manager-roster-dia.html`'s internal comment cited `CAND-21`/`CAND-22` (browse-sessions / book-a-session) for marking attendance and promoting the waitlist — neither number was ever close; corrected to `CAND-37`/`CAND-25`. `staff-03-session-capacity-override.html` was untagged despite `CAND-14` describing it exactly. `manager-09-matriculas.html`/`manager-09b-nova-matricula.html` were untagged "GAP" even though `CAND-39`/`CAND-40` (item 32 above) were written directly from them — tagged now. `manager-01-resources-list.html` had no CAND at all — Group A (`CAND-01`–`05`) covers every resource *mutation* but never the list view, the same gap `CAND-13b` closed for sessions; added `CAND-41` to close it.
+
+38. **Business-logic review found a real product gap disguised as a documentation contradiction — fixed 2026-08-21.** `CAND-22` A2 said a contract-less authenticated customer gets "directed to the guest path"; `CAND-33` A2 said that exact path is blocked for an authenticated customer. Both can't be true, and chasing the contradiction surfaced the actual missing concept: an ordinary, common pattern — a logged-in customer who pays per class, no membership ("cliente avulso cadastrado") — had no representation at all, only `ClassAccessContract` (membership) or anonymous `GUEST`. Added `CAND-22b`: same `trialSlots` capacity-protection gate a guest goes through, no email re-verification (already authenticated), and unlike a guest, real loyalty points on attendance. `public-06-class-access.html`'s existing "logado sem contrato" state already matches this shape in the UX — the use case just hadn't been written down correctly yet. Full resolution: `MULTI_VERTICAL_SCHEDULING_USECASES.md` `CAND-22`/`CAND-22b`/`CAND-33`, `MULTI_VERTICAL_SCHEDULING.md` §6/§9 item 19, `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §2/§6 item 23.
+
+39. **Full product-maturity pass, 2026-08-21 — two more real findings, both fixed.** (a) Every appointment-style booking (`CAND-16`–`CAND-19`: hairdresser, dentist bundle, spa journey) inherits car wash's manual-approval `Booking` workflow with no product decision ever questioning whether that fits salon/spa/gym norms — it doesn't; instant confirmation is the market expectation there. Root-caused to a genuinely lucky find: `docs/21-TENANTS_SETTINGS_SCHEMA.md`'s `tenants.settings.booking.autoApproveEnabled` already exists in the real, shipped settings UI, explicitly marked **"Reserved — post-MVP only... no booking use case reads it yet."** This discovery is that use case — wired up in `MULTI_VERTICAL_SCHEDULING.md` §5/§9 item 20 and `MULTI_VERTICAL_SCHEDULING_USECASES.md`'s Group D header note, no new schema needed. (b) `public-07-auto-staff.html` already showed "Reserva confirmada" *before* the Confirmar button — a real, isolated UX bug (checked every other appointment-family screen; none of the rest have it) that happened to be exactly the symptom (a) explains: the prototype assumed instant confirmation without that ever being a stated decision. Copy fixed to "Profissional atribuída," phrased honestly about what's actually determined at that point in the flow. Separately, `ONBOARDING_PRESETS.md`'s own already-flagged open question ("6 presets may be too many") resolved: keep 6 labels for onboarding recognition, but B/C and D/E each collapse into one real wizard-flow shape underneath — no duplicated logic, no lost brand recognition.
 
 ## What this prototype still deliberately does NOT cover
 

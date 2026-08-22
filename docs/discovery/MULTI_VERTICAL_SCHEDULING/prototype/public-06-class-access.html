@@ -5,39 +5,297 @@
   <title>Acesso à turma — Vitta Studio</title>
   <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
   <style>
-    .mode { display:flex; gap:.5rem; margin:1rem 0 1.5rem; } .mode button { flex:1; padding:.625rem; background:white; border:1px solid var(--ba-secondary); border-radius:var(--ba-radius); font:inherit; cursor:pointer; }
+    .mode { display:flex; gap:.5rem; margin:1rem 0 1.5rem; }
+    .mode button { flex:1; padding:.625rem; background:white; border:1px solid var(--ba-secondary); border-radius:var(--ba-radius); font:inherit; cursor:pointer; }
     .mode button.active { border:2px solid var(--ba-primary); color:var(--ba-primary); font-weight:700; }
-    .state { display:none; } .state.active { display:block; } .form-group { margin-bottom:1rem; } .notice { padding:.875rem 1rem; border-radius:var(--ba-radius); font-size:.875rem; margin:1rem 0; }
+    .state { display:none; }
+    .state.active { display:block; }
+    .form-group { margin-bottom:1rem; }
+    .notice { padding:.875rem 1rem; border-radius:var(--ba-radius); font-size:.875rem; margin:1rem 0; }
+    .explore-link { display:flex; align-items:center; justify-content:space-between; padding:1rem; background:white; border:1px solid var(--ba-secondary); border-radius:var(--ba-radius); text-decoration:none; color:var(--ba-text); }
+    .explore-link:hover { border-color:var(--ba-primary); }
+    .explore-title { font-weight:600; font-size:.9375rem; }
+    .explore-sub { font-size:.8125rem; opacity:.6; margin-top:.125rem; }
+    .chevron { opacity:.35; flex-shrink:0; }
   </style>
 </head>
 <body>
-  <!-- CAND-22, CAND-23, CAND-33, CAND-24. This replaces reuse of the generic booking confirmation for SESSION services. -->
-  <div style="background:white;border-bottom:1px solid var(--ba-secondary);padding:.75rem 1.5rem;display:flex;justify-content:space-between;align-items:center;"><strong>Vitta Studio</strong><a href="../../../../plan/journey/shared/login.html" style="color:var(--ba-primary);font-weight:600;text-decoration:none;">Entrar</a></div>
+
+  <!-- CAND-22, CAND-23, CAND-33, CAND-24.
+       Three login states:
+       - contract: logged in with active contract → one-tap confirm, no tabs
+       - nocontract: logged in without contract → guest path only, fields pre-filled
+       - out: logged out → two tabs (client / try it) -->
+
+  <div style="background:white;border-bottom:1px solid var(--ba-secondary);padding:.75rem 1.5rem;display:flex;justify-content:space-between;align-items:center;">
+    <strong>Vitta Studio</strong>
+    <span id="topbar-right"></span>
+  </div>
+
+  <!-- PROTOTYPE CONTROL -->
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:.5rem 1.5rem;font-size:.8125rem;color:#92400e;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
+    <strong>Protótipo:</strong> estado de login →
+    <button onclick="setLogin('contract')"   id="lbtn-contract"   style="padding:.25rem .625rem;border-radius:9999px;border:1px solid #d97706;font-size:.75rem;font-weight:600;cursor:pointer;">Com contrato</button>
+    <button onclick="setLogin('nocontract')" id="lbtn-nocontract" style="padding:.25rem .625rem;border-radius:9999px;border:1px solid #d97706;font-size:.75rem;font-weight:600;cursor:pointer;">Sem contrato</button>
+    <button onclick="setLogin('out')"        id="lbtn-out"        style="padding:.25rem .625rem;border-radius:9999px;border:1px solid #d97706;font-size:.75rem;font-weight:600;cursor:pointer;">Deslogada</button>
+  </div>
+
   <main class="step-container">
     <p class="step-indicator">Pilates · Seg, 04 ago · 08:00–09:00 · Estúdio 1</p>
-    <h1 style="font-size:1.5rem;">Reserve sua vaga</h1>
-    <div class="mode" role="tablist" aria-label="Tipo de acesso">
-      <button class="active" onclick="showState('customer',this)" role="tab" aria-selected="true">Sou cliente</button>
-      <button onclick="showState('guest',this)" role="tab" aria-selected="false">Quero experimentar</button>
-    </div>
-    <section id="customer" class="state active">
-      <div class="card selected"><p style="font-weight:700;">Seu contrato Pilates está ativo</p><p style="font-size:.875rem;opacity:.7;margin-top:.25rem;">Válido até 31 de agosto · esta reserva usa 1 vaga do grupo, sem pagamento por aula.</p></div>
-      <div class="notice" style="background:#eff6ff;color:#1d4ed8;">Você reserva uma vaga para si. Grupos são permitidos apenas para convidados.</div>
-      <div class="nav-buttons"><a class="btn-secondary" href="public-02-class-session-picker.html">Voltar</a><a class="btn-primary" href="customer-01-session-confirmed-optin.html">Confirmar 1 vaga</a></div>
-      <p style="font-size:.75rem;opacity:.6;margin-top:1rem;">Sem contrato elegível? Você ainda pode reservar como convidado avulso — veja a aba "Quero experimentar".</p>
-    </section>
-    <section id="guest" class="state">
-      <div class="notice" style="background:#fef3c7;color:#92400e;">Primeira aula gratuita por e-mail no Vitta Studio. Depois, o pagamento é feito presencialmente no encerramento da turma. Esta turma exige aprovação da equipe.</div>
-      <div class="form-group"><label class="form-label">Seu e-mail</label><input class="form-input" type="email" value="ana@email.com"></div>
-      <div class="form-group"><label class="form-label">Seu nome</label><input class="form-input" value="Ana Costa"></div>
-      <div id="guest-list">
-        <div class="form-group"><label class="form-label">Convidada 2</label><input class="form-input" value="Bia Santos"><p style="font-size:.75rem;opacity:.6;margin-top:.3rem;">Cada vaga tem uma pessoa identificada. Você pode adicionar até 2 vagas restantes.</p></div>
-        <div id="add-guest-row"><button type="button" onclick="addGuest()" style="width:100%;padding:.625rem;background:white;border:1px dashed var(--ba-secondary);border-radius:var(--ba-radius);color:var(--ba-primary);font-weight:600;font:inherit;cursor:pointer;">+ Adicionar convidado</button></div>
+
+    <!-- ── VIEW A: logada com contrato ── -->
+    <div id="view-contract" style="display:none;">
+      <div style="display:flex;align-items:center;gap:.625rem;margin-bottom:1.25rem;">
+        <div style="width:2rem;height:2rem;border-radius:9999px;background:#dcfce7;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div>
+          <div style="font-weight:700;font-size:.9375rem;">Fernanda Lima</div>
+          <div style="font-size:.8125rem;opacity:.6;">Contrato Pilates ativo · válido até 31 de agosto</div>
+        </div>
       </div>
-      <div class="nav-buttons"><a class="btn-secondary" href="public-02-class-session-picker.html">Voltar</a><a class="btn-primary" href="#verified" onclick="showVerified()">Enviar link de verificação</a></div>
-      <div id="verified" class="notice" style="display:none;background:#eff6ff;color:#1d4ed8;">E-mail verificado. As 2 vagas agora estão <strong>aguardando aprovação</strong>; a equipe aprova ou recusa as duas em uma única decisão. Se a turma lotar antes da verificação, sua solicitação entra na fila sem reservar vagas.</div>
-    </section>
+
+      <div class="card" style="margin-bottom:1.25rem;">
+        <p style="font-size:.75rem;font-weight:600;opacity:.6;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem;">Turma selecionada</p>
+        <p style="font-weight:600;font-size:1rem;">Pilates Solo</p>
+        <p style="font-size:.875rem;color:var(--ba-primary);margin-top:.25rem;">Segunda, 04 de agosto · 08:00–09:00</p>
+        <p style="font-size:.875rem;opacity:.65;margin-top:.25rem;">Estúdio 1 · com Camila Duarte · 2 vagas restantes</p>
+      </div>
+
+      <div class="nav-buttons">
+        <a class="btn-secondary" href="public-02b-class-agenda.html">Voltar</a>
+        <a class="btn-primary" href="customer-01-session-confirmed-optin.html">Confirmar vaga</a>
+      </div>
+    </div>
+
+    <!-- ── VIEW B: logada sem contrato ── -->
+    <div id="view-nocontract" style="display:none;">
+      <div style="display:flex;align-items:center;gap:.625rem;margin-bottom:1rem;">
+        <div style="width:2rem;height:2rem;border-radius:9999px;background:var(--ba-secondary);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:700;font-size:.8125rem;color:var(--ba-primary);">FL</div>
+        <div>
+          <div style="font-weight:700;font-size:.9375rem;">Fernanda Lima</div>
+          <div style="font-size:.8125rem;color:#d97706;font-weight:600;">Sem contrato ativo para Pilates</div>
+        </div>
+      </div>
+
+      <div class="notice" style="background:#fef3c7;color:#92400e;">Você não tem um contrato elegível para esta turma. Ainda assim, pode solicitar uma vaga como visitante — primeira aula gratuita.</div>
+
+      <div id="nocontract-form">
+        <div class="form-group" style="margin-top:1rem;"><label class="form-label">Seu nome</label><input class="form-input" value="Fernanda Lima" readonly style="opacity:.65;background:#f9fafb;"></div>
+        <div class="form-group"><label class="form-label">Seu e-mail</label><input class="form-input" value="fernanda@email.com" readonly style="opacity:.65;background:#f9fafb;"></div>
+        <div class="nav-buttons">
+          <a class="btn-secondary" href="public-02b-class-agenda.html">Voltar</a>
+          <button class="btn-primary" type="button" onclick="showRequestSent('nocontract')">Solicitar vaga</button>
+        </div>
+      </div>
+
+      <div id="nocontract-verified" style="display:none;"></div>
+    </div>
+
+    <!-- ── VIEW C: deslogada — duas abas ── -->
+    <div id="view-out" style="display:none;">
+      <h1 style="font-size:1.5rem;margin-bottom:.25rem;">Reserve sua vaga</h1>
+      <div class="mode" role="tablist">
+        <button class="active" onclick="showTab('customer',this)" role="tab" aria-selected="true">Sou cliente</button>
+        <button onclick="showTab('guest',this)" role="tab" aria-selected="false">Quero experimentar</button>
+      </div>
+
+      <section id="customer" class="state active">
+        <div class="notice" style="background:#eff6ff;color:#1d4ed8;">Entre na sua conta para confirmar com seu contrato.</div>
+        <div class="nav-buttons">
+          <a class="btn-secondary" href="public-02b-class-agenda.html">Voltar</a>
+          <a class="btn-primary" href="../../../../plan/journey/shared/login.html">Entrar</a>
+        </div>
+      </section>
+
+      <section id="guest" class="state">
+        <div id="guest-form">
+          <div class="notice" style="background:#fef3c7;color:#92400e;">Primeira aula gratuita por e-mail no Vitta Studio. Depois, o pagamento é feito presencialmente. Esta turma exige aprovação da equipe.</div>
+          <div class="form-group"><label class="form-label" for="guest-email">Seu e-mail</label><input id="guest-email" class="form-input" type="email" value="ana@email.com"></div>
+          <div class="form-group"><label class="form-label" for="guest-name">Seu nome</label><input id="guest-name" class="form-input" value="Ana Costa"></div>
+          <div id="guest-list">
+            <div class="form-group">
+              <label class="form-label">Convidada 2</label>
+              <input class="form-input" value="Bia Santos">
+              <p style="font-size:.75rem;opacity:.6;margin-top:.3rem;">Cada vaga tem uma pessoa identificada. Você pode adicionar até 2 vagas restantes.</p>
+            </div>
+            <div id="add-guest-row">
+              <button type="button" onclick="addGuest()" style="width:100%;padding:.625rem;background:white;border:1px dashed var(--ba-secondary);border-radius:var(--ba-radius);color:var(--ba-primary);font-weight:600;font:inherit;cursor:pointer;">+ Adicionar convidado</button>
+            </div>
+          </div>
+          <div class="nav-buttons">
+            <a class="btn-secondary" href="public-02b-class-agenda.html">Voltar</a>
+            <button class="btn-primary" type="button" onclick="showVerificationSent()">Enviar link de verificação</button>
+          </div>
+        </div>
+        <div id="guest-verified" style="display:none;"></div>
+      </section>
+    </div>
+
   </main>
-  <script>function showState(id,button){document.querySelectorAll('.state').forEach(e=>e.classList.remove('active'));document.querySelectorAll('.mode button').forEach(e=>{e.classList.remove('active');e.setAttribute('aria-selected','false')});document.getElementById(id).classList.add('active');button.classList.add('active');button.setAttribute('aria-selected','true')}function showVerified(){document.getElementById('verified').style.display='block'}function addGuest(){const group=document.getElementById('guest-list');const idx=group.querySelectorAll('.form-group').length+2;const div=document.createElement('div');div.className='form-group';div.innerHTML='<label class="form-label">Convidada '+idx+'</label><input class="form-input" placeholder="Nome da convidada">';group.insertBefore(div,document.getElementById('add-guest-row'))}</script>
+
+  <script>
+    // ── Shared explore links HTML ──
+    const exploreHTML = `
+      <div style="display:flex;flex-direction:column;gap:.75rem;margin-bottom:1.5rem;">
+        <a class="explore-link" href="../../../../plan/journey/customer/prototypes/minha-conta/06-minhas-turmas.html">
+          <div><div class="explore-title">Minhas Turmas</div><div class="explore-sub">Veja sua matrícula e próximas sessões</div></div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+        <a class="explore-link" href="public-02b-class-agenda.html">
+          <div><div class="explore-title">Outras turmas</div><div class="explore-sub">Veja horários e vagas disponíveis</div></div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+        <a class="explore-link" href="public-06b-business-profile.html">
+          <div><div class="explore-title">O estúdio</div><div class="explore-sub">Espaço, localização e horários</div></div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+        <a class="explore-link" href="public-06b-business-profile.html#team">
+          <div><div class="explore-title">A equipe</div><div class="explore-sub">Conheça quem vai te atender</div></div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+      </div>
+      <div style="display:flex;justify-content:center;padding-bottom:2rem;">
+        <a href="#" style="display:flex;align-items:center;gap:.375rem;color:var(--ba-primary);text-decoration:none;font-size:.875rem;font-weight:600;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+          @vittastudio
+        </a>
+      </div>`;
+
+    // ── Outcome state HTML builders ──
+    function verificationSentHTML() {
+      return `<div class="card" style="margin-top:1rem;background:#eff6ff"><h2 style="font-size:1.25rem">Confira seu e-mail</h2><p style="font-size:.875rem;opacity:.72;margin-top:.5rem">Enviamos um link de verificação para o seu e-mail. Ele é válido por 15 minutos e não reserva vagas.</p><p style="font-size:.8125rem;opacity:.65;margin-top:.75rem">Ao abrir o link, verificaremos novamente a disponibilidade e a necessidade de aprovação.</p><div class="nav-buttons"><a class="btn-secondary" href="public-16-guest-verification-expired.html">Ver estado expirado</a><a class="btn-primary" href="public-06c-guest-verified.html">Simular link verificado</a></div></div>`;
+    }
+    function confirmedHTML(names) {
+      return `
+        <div style="text-align:center;padding:1.5rem 0 1rem;">
+          <div style="width:3.5rem;height:3.5rem;border-radius:9999px;background:#dcfce7;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h2 style="font-size:1.25rem;font-weight:700;margin-bottom:.375rem;">Vaga confirmada!</h2>
+          <p style="font-size:.875rem;opacity:.65;">${names} Te esperamos na segunda.</p>
+        </div>
+        <div class="card" style="margin-bottom:1rem;">
+          <p style="font-size:.75rem;font-weight:600;opacity:.6;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem;">Sua reserva</p>
+          <p style="font-weight:600;font-size:1rem;">Pilates Solo</p>
+          <p style="font-size:.875rem;color:var(--ba-primary);margin-top:.25rem;">Segunda, 04 de agosto · 08:00–09:00</p>
+          <p style="font-size:.875rem;opacity:.65;margin-top:.25rem;">Estúdio 1 · com Camila Duarte</p>
+        </div>
+        <p style="font-size:.8125rem;opacity:.55;text-align:center;margin-bottom:1.5rem;">Você também recebe um e-mail com essas informações.</p>
+        ${exploreHTML}`;
+    }
+
+    function pendingHTML(names) {
+      return `
+        <div style="text-align:center;padding:1.5rem 0 1rem;">
+          <div style="width:3.5rem;height:3.5rem;border-radius:9999px;background:#fef3c7;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <h2 style="font-size:1.25rem;font-weight:700;margin-bottom:.375rem;">Solicitação recebida</h2>
+          <p style="font-size:.875rem;opacity:.65;">A equipe vai analisar e você recebe a resposta por e-mail.</p>
+        </div>
+        <div class="card" style="margin-bottom:1rem;">
+          <p style="font-size:.75rem;font-weight:600;opacity:.6;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem;">Sua solicitação</p>
+          <p style="font-weight:600;font-size:1rem;">Pilates Solo</p>
+          <p style="font-size:.875rem;color:var(--ba-primary);margin-top:.25rem;">Segunda, 04 de agosto · 08:00–09:00</p>
+          <p style="font-size:.875rem;opacity:.65;margin-top:.25rem;">Estúdio 1 · com Camila Duarte</p>
+          <div style="border-top:1px solid var(--ba-secondary);margin-top:.875rem;padding-top:.875rem;font-size:.8125rem;opacity:.6;">${names}</div>
+        </div>
+        <div class="notice" style="background:#eff6ff;color:#1d4ed8;font-size:.8125rem;margin-bottom:1.5rem;">A equipe aprova ou recusa todas as vagas em uma única decisão. Se aprovadas, você recebe a confirmação por e-mail.</div>
+        ${exploreHTML}`;
+    }
+
+    // ── Prototype path toggle (confirmed vs pending) ──
+    let currentPathControl = null;
+
+    function showRequestSent(context) {
+      const target = context === 'nocontract' ? 'nocontract-verified' : 'guest-verified';
+      const form = context === 'nocontract' ? 'nocontract-form' : 'guest-form';
+      document.getElementById(form).style.display = 'none';
+      document.getElementById(target).innerHTML = `<div class="card" style="margin-top:1rem;background:#eff6ff"><h2 style="font-size:1.25rem">Solicitação recebida</h2><p style="font-size:.875rem;opacity:.72;margin-top:.5rem">Vamos confirmar elegibilidade, disponibilidade e, se necessário, aprovação da equipe. Você recebe o resultado por e-mail e na sua conta.</p></div>`;
+      document.getElementById(target).style.display = 'block';
+    }
+
+    function showVerificationSent() {
+      document.getElementById('guest-form').style.display = 'none';
+      document.getElementById('guest-verified').innerHTML = verificationSentHTML();
+      document.getElementById('guest-verified').style.display = 'block';
+      window.scrollTo({top:0, behavior:'smooth'});
+    }
+
+    function showVerifiedState(context) {
+      // inject path toggle + default to confirmed
+      const toggleHTML = `
+        <div style="background:#fef3c7;border:1px solid #d97706;border-radius:var(--ba-radius);padding:.625rem 1rem;margin-bottom:1.25rem;font-size:.8125rem;color:#92400e;">
+          <strong>Protótipo:</strong> resultado →
+          <button onclick="switchPath('${context}','confirmed')" id="pbtn-confirmed-${context}" style="margin-left:.5rem;padding:.25rem .625rem;border-radius:9999px;border:1px solid #d97706;font-size:.75rem;font-weight:600;cursor:pointer;">✓ Confirmada</button>
+          <button onclick="switchPath('${context}','pending')"   id="pbtn-pending-${context}"   style="margin-left:.375rem;padding:.25rem .625rem;border-radius:9999px;border:1px solid #d97706;font-size:.75rem;font-weight:600;cursor:pointer;">⏳ Aguardando</button>
+        </div>
+        <div id="pathcontent-${context}"></div>`;
+
+      if (context === 'guest') {
+        document.getElementById('guest-form').style.display = 'none';
+        document.getElementById('guest-verified').innerHTML = toggleHTML;
+        document.getElementById('guest-verified').style.display = 'block';
+      } else {
+        document.getElementById('nocontract-form').style.display = 'none';
+        document.getElementById('nocontract-verified').innerHTML = toggleHTML;
+        document.getElementById('nocontract-verified').style.display = 'block';
+      }
+      switchPath(context, 'confirmed');
+      window.scrollTo({top:0, behavior:'smooth'});
+    }
+
+    function switchPath(context, path) {
+      const names = context === 'guest' ? 'Ana Costa + Bia Santos · 2 vagas · primeira aula gratuita' : 'Fernanda Lima · 1 vaga · primeira aula gratuita';
+      const nameConfirm = context === 'guest' ? 'Você e Bia estão dentro.' : 'Você está dentro.';
+      document.getElementById('pathcontent-' + context).innerHTML = path === 'confirmed' ? confirmedHTML(nameConfirm) : pendingHTML(names);
+
+      ['confirmed','pending'].forEach(p => {
+        const btn = document.getElementById('pbtn-' + p + '-' + context);
+        if (!btn) return;
+        btn.style.background = p === path ? (p === 'confirmed' ? '#16a34a' : '#d97706') : 'white';
+        btn.style.color = p === path ? 'white' : '#92400e';
+      });
+    }
+
+    // ── Login state switcher ──
+    function setLogin(state) {
+      ['contract','nocontract','out'].forEach(s => {
+        document.getElementById('view-' + s).style.display = s === state ? 'block' : 'none';
+        const btn = document.getElementById('lbtn-' + s);
+        btn.style.background = s === state ? 'var(--ba-primary)' : 'white';
+        btn.style.color = s === state ? 'white' : '#92400e';
+      });
+      const topbar = document.getElementById('topbar-right');
+      if (state === 'contract' || state === 'nocontract') {
+        topbar.innerHTML = '<span style="font-size:.875rem;font-weight:600;color:var(--ba-text);">Fernanda Lima</span>';
+      } else {
+        topbar.innerHTML = '<a href="../../../../plan/journey/shared/login.html" style="color:var(--ba-primary);font-weight:600;text-decoration:none;font-size:.875rem;">Entrar</a>';
+      }
+      window.scrollTo({top:0, behavior:'smooth'});
+    }
+
+    function showTab(id, button) {
+      document.querySelectorAll('.state').forEach(e => e.classList.remove('active'));
+      document.querySelectorAll('.mode button').forEach(e => { e.classList.remove('active'); e.setAttribute('aria-selected','false'); });
+      document.getElementById(id).classList.add('active');
+      button.classList.add('active');
+      button.setAttribute('aria-selected','true');
+    }
+
+    function addGuest() {
+      const group = document.getElementById('guest-list');
+      const idx = group.querySelectorAll('.form-group').length + 2;
+      const div = document.createElement('div');
+      div.className = 'form-group';
+      const inputId = 'guest-name-' + idx;
+      div.innerHTML = '<label class="form-label" for="' + inputId + '">Convidada ' + idx + '</label><input id="' + inputId + '" class="form-input" name="guest-' + idx + '" placeholder="Nome da convidada">';
+      group.insertBefore(div, document.getElementById('add-guest-row'));
+    }
+
+    // Init: logada com contrato
+    setLogin('contract');
+  </script>
 </body>
 </html>

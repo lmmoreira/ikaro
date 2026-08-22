@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agenda de turmas — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
+  <style>
+    /* Day strip */
+    .day-strip { display:flex; gap:.375rem; overflow-x:auto; padding:.875rem 1.5rem; background:white; border-bottom:1px solid var(--ba-secondary); scrollbar-width:none; }
+    .day-strip::-webkit-scrollbar { display:none; }
+    .day-pill { flex-shrink:0; display:flex; flex-direction:column; align-items:center; padding:.5rem .875rem; border-radius:var(--ba-radius); border:1.5px solid var(--ba-secondary); cursor:pointer; background:white; font:inherit; gap:.125rem; }
+    .day-pill .wd { font-size:.6875rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; opacity:.5; }
+    .day-pill .dt { font-size:1rem; font-weight:700; color:var(--ba-text); }
+    .day-pill.active { border-color:var(--ba-primary); background:var(--ba-primary); }
+    .day-pill.active .wd, .day-pill.active .dt { color:white; opacity:1; }
+    .day-pill.has-classes .dt::after { content:''; display:block; width:.375rem; height:.375rem; border-radius:9999px; background:var(--ba-primary); margin:.2rem auto 0; }
+    .day-pill.active.has-classes .dt::after { background:rgba(255,255,255,.7); }
+
+    /* Filters */
+    .filters { display:flex; gap:.5rem; padding:.75rem 1.5rem; overflow-x:auto; scrollbar-width:none; }
+    .filters::-webkit-scrollbar { display:none; }
+    .filter-chip { flex-shrink:0; padding:.375rem .875rem; border-radius:9999px; border:1.5px solid var(--ba-secondary); background:white; font:inherit; font-size:.8125rem; font-weight:600; color:var(--ba-text); cursor:pointer; }
+    .filter-chip.active { border-color:var(--ba-primary); background:#eff6ff; color:var(--ba-primary); }
+
+    /* Session cards */
+    .agenda-list { padding:1rem 1.5rem; display:flex; flex-direction:column; gap:.75rem; }
+    .session-card { padding:1rem; cursor:pointer; }
+    .session-card:hover { border-color:var(--ba-primary); }
+    .session-time { font-size:1.125rem; font-weight:700; color:var(--ba-text); }
+    .session-name { font-size:.9375rem; font-weight:600; color:var(--ba-text); margin-top:.125rem; }
+    .session-meta { font-size:.8125rem; opacity:.6; margin-top:.25rem; }
+    .session-footer { display:flex; align-items:center; justify-content:space-between; margin-top:.875rem; padding-top:.875rem; border-top:1px solid var(--ba-secondary); }
+    .capacity-bar-track { flex:1; height:.3125rem; border-radius:9999px; background:var(--ba-secondary); overflow:hidden; margin-right:.75rem; }
+    .capacity-bar-fill { height:100%; border-radius:9999px; background:var(--ba-primary); }
+    .capacity-bar-fill.full { background:#dc2626; }
+    .capacity-label { font-size:.8125rem; font-weight:600; white-space:nowrap; }
+    .capacity-label.open { color:#15803d; }
+    .capacity-label.full { color:#dc2626; }
+
+    /* Empty state */
+    .empty-state { padding:3rem 1.5rem; text-align:center; opacity:.5; }
+    .empty-state p { font-size:.9375rem; margin-top:.5rem; }
+  </style>
+</head>
+<body>
+
+  <!-- DISCOVERY PROTOTYPE — agenda de turmas por dia. Nova tela que substitui public-02
+       como ponto de entrada pra sessões. Mostra todas as modalidades do estúdio filtráveis
+       por dia, modalidade e instrutora. Clicável → public-06-class-access.html.
+       Ver ONBOARDING_PRESETS.md §5 (fluxo de estúdio de turmas). -->
+
+  <div style="background:white;border-bottom:1px solid var(--ba-secondary);padding:.625rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+    <div style="display:flex;align-items:center;gap:.625rem;">
+      <div style="width:1.875rem;height:1.875rem;border-radius:.375rem;background:var(--ba-primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8125rem;">V</div>
+      <span style="font-weight:700;font-size:.9375rem;color:var(--ba-text);">Vitta Studio</span>
+    </div>
+    <a href="../../../../plan/journey/shared/login.html" style="font-size:.875rem;font-weight:500;color:var(--ba-primary);text-decoration:none;">Entrar</a>
+  </div>
+
+  <!-- Day strip -->
+  <div class="day-strip" id="day-strip">
+    <button class="day-pill has-classes" data-day="0" onclick="selectDay(0)"><span class="wd">Seg</span><span class="dt">04</span></button>
+    <button class="day-pill" data-day="1" onclick="selectDay(1)"><span class="wd">Ter</span><span class="dt">05</span></button>
+    <button class="day-pill has-classes active" data-day="2" onclick="selectDay(2)"><span class="wd">Qua</span><span class="dt">06</span></button>
+    <button class="day-pill has-classes" data-day="3" onclick="selectDay(3)"><span class="wd">Qui</span><span class="dt">07</span></button>
+    <button class="day-pill has-classes" data-day="4" onclick="selectDay(4)"><span class="wd">Sex</span><span class="dt">08</span></button>
+    <button class="day-pill" data-day="5" onclick="selectDay(5)"><span class="wd">Sáb</span><span class="dt">09</span></button>
+    <button class="day-pill" data-day="6" onclick="selectDay(6)"><span class="wd">Dom</span><span class="dt">10</span></button>
+    <button class="day-pill has-classes" data-day="7" onclick="selectDay(7)"><span class="wd">Seg</span><span class="dt">11</span></button>
+    <button class="day-pill has-classes" data-day="8" onclick="selectDay(8)"><span class="wd">Qua</span><span class="dt">13</span></button>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters" id="filters">
+    <button class="filter-chip active" data-filter="all" onclick="setFilter('all',this)">Todas</button>
+    <button class="filter-chip" data-filter="pilates" onclick="setFilter('pilates',this)">Pilates</button>
+    <button class="filter-chip" data-filter="yoga" onclick="setFilter('yoga',this)">Yoga</button>
+    <button class="filter-chip" data-filter="camila" onclick="setFilter('camila',this)">Camila Duarte</button>
+    <button class="filter-chip" data-filter="ana" onclick="setFilter('ana',this)">Ana Beatriz</button>
+    <button class="filter-chip" data-filter="renata" onclick="setFilter('renata',this)">Renata Souza</button>
+  </div>
+
+  <!-- Session list -->
+  <div class="agenda-list" id="agenda-list"></div>
+
+  <script>
+    const sessions = {
+      0: [ // seg 04
+        { time:'08:00–09:00', name:'Pilates Solo', instructor:'Camila Duarte', room:'Estúdio 1', reserved:2, capacity:4, tags:['pilates','camila'], href:'public-06-class-access.html' },
+        { time:'18:00–19:00', name:'Pilates Solo', instructor:'Ana Beatriz', room:'Estúdio 2', reserved:4, capacity:4, tags:['pilates','ana'], href:'public-10-waitlist.html' },
+      ],
+      1: [], // ter 05 — sem aulas
+      2: [ // qua 06
+        { time:'07:00–08:00', name:'Yoga Manhã', instructor:'Renata Souza', room:'Estúdio 2', reserved:3, capacity:8, tags:['yoga','renata'], href:'public-06-class-access.html' },
+        { time:'08:00–09:00', name:'Pilates Solo', instructor:'Camila Duarte', room:'Estúdio 1', reserved:1, capacity:4, tags:['pilates','camila'], href:'public-06-class-access.html' },
+        { time:'19:00–20:00', name:'Pilates Bola', instructor:'Ana Beatriz', room:'Estúdio 1', reserved:2, capacity:6, tags:['pilates','ana'], href:'public-06-class-access.html' },
+      ],
+      3: [ // qui 07
+        { time:'07:00–08:00', name:'Yoga Manhã', instructor:'Renata Souza', room:'Estúdio 2', reserved:5, capacity:8, tags:['yoga','renata'], href:'public-06-class-access.html' },
+        { time:'09:00–10:00', name:'Pilates Bola', instructor:'Camila Duarte', room:'Estúdio 1', reserved:3, capacity:6, tags:['pilates','camila'], href:'public-06-class-access.html' },
+      ],
+      4: [ // sex 08
+        { time:'08:00–09:00', name:'Pilates Solo', instructor:'Ana Beatriz', room:'Estúdio 2', reserved:2, capacity:4, tags:['pilates','ana'], href:'public-06-class-access.html' },
+        { time:'17:00–18:00', name:'Yoga Tarde', instructor:'Renata Souza', room:'Estúdio 1', reserved:1, capacity:8, tags:['yoga','renata'], href:'public-06-class-access.html' },
+      ],
+      5: [], // sáb 09
+      6: [], // dom 10
+      7: [ // seg 11
+        { time:'08:00–09:00', name:'Pilates Solo', instructor:'Camila Duarte', room:'Estúdio 1', reserved:0, capacity:4, tags:['pilates','camila'], href:'public-06-class-access.html' },
+        { time:'18:00–19:00', name:'Pilates Solo', instructor:'Ana Beatriz', room:'Estúdio 2', reserved:1, capacity:4, tags:['pilates','ana'], href:'public-06-class-access.html' },
+      ],
+      8: [ // qua 13
+        { time:'07:00–08:00', name:'Yoga Manhã', instructor:'Renata Souza', room:'Estúdio 2', reserved:2, capacity:8, tags:['yoga','renata'], href:'public-06-class-access.html' },
+        { time:'08:00–09:00', name:'Pilates Solo', instructor:'Camila Duarte', room:'Estúdio 1', reserved:3, capacity:4, tags:['pilates','camila'], href:'public-06-class-access.html' },
+      ],
+    };
+
+    let currentDay = 2;
+    let currentFilter = 'all';
+
+    function selectDay(day) {
+      currentDay = day;
+      document.querySelectorAll('.day-pill').forEach(p => p.classList.remove('active'));
+      document.querySelector('[data-day="'+day+'"]').classList.add('active');
+      render();
+    }
+
+    function setFilter(filter, btn) {
+      currentFilter = filter;
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      render();
+    }
+
+    function render() {
+      const list = document.getElementById('agenda-list');
+      const all = sessions[currentDay] || [];
+      const filtered = currentFilter === 'all' ? all : all.filter(s => s.tags.includes(currentFilter));
+
+      if (filtered.length === 0) {
+        list.innerHTML = '<div class="empty-state"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto;display:block;opacity:.4"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><p>'+(all.length === 0 ? 'Nenhuma aula neste dia.' : 'Nenhuma aula com esse filtro neste dia.')+'</p></div>';
+        return;
+      }
+
+      list.innerHTML = filtered.map(s => {
+        const full = s.reserved >= s.capacity;
+        const pct = Math.round((s.reserved / s.capacity) * 100);
+        const remaining = s.capacity - s.reserved;
+        return '<a href="'+s.href+'" style="text-decoration:none;display:block;"><div class="card session-card"><div style="display:flex;justify-content:space-between;align-items:flex-start;"><div><div class="session-time">'+s.time+'</div><div class="session-name">'+s.name+'</div><div class="session-meta">'+s.instructor+' · '+s.room+'</div></div>'+(full ? '<span class="status-badge status-cancelled">Lotada</span>' : '')+'</div><div class="session-footer"><div class="capacity-bar-track"><div class="capacity-bar-fill'+(full?' full':'')+'" style="width:'+pct+'%"></div></div><span class="capacity-label '+(full?'full':'open')+'">'+(full ? 'Lista de espera' : remaining+' vaga'+(remaining>1?'s':''))+'</span></div></div></a>';
+      }).join('');
+    }
+
+    render();
+  </script>
+
+</body>
+</html>

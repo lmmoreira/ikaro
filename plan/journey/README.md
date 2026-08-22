@@ -6,6 +6,10 @@ A **journey** documents one cohesive sequence of screens/actions a specific acto
 
 A **prototype** is a folder of static HTML files that makes the journey clickable in a browser. It uses the real `--ba-*` branding tokens and serves as the handoff spec from UX validation to React implementation.
 
+> ⚠️ **Known exception (2026-08-21):** `customer/prototypes/reservar-aula/` and the Turmas addition to `customer/prototypes/minha-conta/` (screens `06-minhas-turmas.html` through `08d-cancelar-matricula-error.html`) reached implementation-grade rigor during a discovery merge (`docs/discovery/MULTI_VERTICAL_SCHEDULING.md`'s promotion-status note) and were placed here ahead of the normal `/discovery-to-milestone` order, since the folder's own convention (this file, above) is for content already tied to a real or imminent milestone. Every route in both is tagged `❓ GAP` in its journey `.md` and `dev-notes.md`. Treat this as tracked debt, not precedent — before adding more speculative content here ahead of a milestone, check `docs/discovery/MULTI_VERTICAL_SCHEDULING.md`'s promotion-status note first.
+>
+> **The wholly-new files/folders above are self-evident GAP. The real risk is four already-shipped files this merge *modified* to add Turmas navigation** — each now mixes real, live content with new GAP content in the same file, marked inline `(GAP)` at the exact insertion point but easy to miss on a skim: `customer/prototypes/minha-conta/01-minha-conta.html` (shipped `M13-S27`), `minha-conta/index.html`, `minha-conta/dev-notes.md`, and — the one to be most careful with, since it's shared infrastructure used by every journey, not Turmas-specific — `shared/customer-dashboard.html`. Milestone drafting must re-review these four line-by-line, not just the wholly-new folders. Full list and rationale: the domain doc's promotion-status note.
+
 ---
 
 ## Folder structure

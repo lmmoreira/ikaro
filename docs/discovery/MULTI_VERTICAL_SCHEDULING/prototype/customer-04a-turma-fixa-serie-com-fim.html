@@ -1,0 +1,191 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerenciar recorrência — Turma fixa, série com fim</title>
+  <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
+  <style>
+    .occurrence-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.875rem 0; border-bottom: 1px solid var(--ba-secondary); }
+    .occurrence-row:last-child { border-bottom: none; }
+    .occurrence-date { font-weight: 600; font-size: 0.9375rem; color: var(--ba-text); }
+    .occurrence-meta { font-size: 0.8125rem; opacity: 0.55; margin-top: 0.125rem; }
+    .occurrence-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 0.375rem; flex-shrink: 0; }
+    .action-link { font-size: 0.8125rem; font-weight: 600; text-decoration: none; }
+    .action-cancel { color: #dc2626; }
+    .action-reschedule { color: var(--ba-primary); }
+    .occurrence-row.skipped .occurrence-date,
+    .occurrence-row.skipped .occurrence-meta { opacity: 0.4; text-decoration: line-through; }
+    .progress-bar-track { height: 6px; background: var(--ba-secondary); border-radius: 99px; margin-bottom: 0.375rem; }
+    .progress-bar-fill  { height: 100%; background: var(--ba-primary); border-radius: 99px; width: 20%; }
+    .rescheduled-tag { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; font-weight: 600; color: #15803d; background: #dcfce7; padding: 0.125rem 0.5rem; border-radius: 4px; margin-top: 0.25rem; }
+  </style>
+</head>
+<body>
+
+  <!-- DISCOVERY PROTOTYPE — customer-04a: turma fixa, série com fim (ex: plano de 10 semanas de Pilates) -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — 04a · Turma fixa, série com fim · <strong>Modelo: turma fixa</strong>
+  </div>
+
+  <div class="dashboard-topbar">
+    <a href="customer-03-minha-conta-agendamentos.html" style="display:flex;align-items:center;gap:0.375rem;color:var(--ba-text);text-decoration:none;font-size:0.9375rem;font-weight:500;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      <span style="font-weight:600;">Agendamentos</span>
+    </a>
+    <div style="margin-left:auto;">
+      <div class="list-avatar" style="width:2rem;height:2rem;font-size:0.8125rem;">FL</div>
+    </div>
+  </div>
+
+  <div class="step-container" style="max-width:34rem;">
+
+    <h2 style="font-size:1.25rem;font-weight:700;margin-bottom:0.25rem;color:var(--ba-text);">
+      Pilates — Turma das 08h
+    </h2>
+    <p style="font-size:0.8125rem;opacity:0.55;margin-bottom:1.25rem;">Toda segunda · Studio Forma</p>
+
+    <!-- Progress: 2 de 10 aulas concluídas -->
+    <div class="card" style="padding:1rem 1.25rem;margin-bottom:1.25rem;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:0.5rem;">
+        <span style="font-size:0.875rem;font-weight:600;">Progresso do plano</span>
+        <span style="font-size:0.8125rem;opacity:0.55;">2 de 10 aulas</span>
+      </div>
+      <div class="progress-bar-track"><div class="progress-bar-fill"></div></div>
+      <p style="font-size:0.75rem;opacity:0.5;margin-top:0.375rem;">8 aulas restantes</p>
+    </div>
+
+    <!-- Próximas ocorrências -->
+    <div class="card" style="padding:0 1.25rem;margin-bottom:1.25rem;">
+
+      <!-- Ocorrência reagendada (estado ilustrativo) -->
+      <div class="occurrence-row skipped">
+        <div style="flex:1;">
+          <p class="occurrence-date">Segunda, 4 de agosto</p>
+          <div class="rescheduled-tag">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.12-4.51"/></svg>
+            Reagendada · Sex, 8 ago, 10h
+          </div>
+        </div>
+      </div>
+
+      <!-- Confirmadas com ações -->
+      <div class="occurrence-row">
+        <div style="flex:1;">
+          <p class="occurrence-date">Segunda, 11 de agosto</p>
+          <p class="occurrence-meta">08:00–09:00 · Confirmada</p>
+        </div>
+        <div class="occurrence-actions">
+          <a href="customer-04d-reagendada.html" class="action-link action-reschedule">Reagendar</a>
+          <a href="#" class="action-link action-cancel" onclick="confirmCancel(this, 'Segunda, 11 de agosto'); return false;">Cancelar</a>
+        </div>
+      </div>
+
+      <div class="occurrence-row">
+        <div style="flex:1;">
+          <p class="occurrence-date">Segunda, 18 de agosto</p>
+          <p class="occurrence-meta">08:00–09:00 · Confirmada</p>
+        </div>
+        <div class="occurrence-actions">
+          <a href="customer-04d-reagendada.html" class="action-link action-reschedule">Reagendar</a>
+          <a href="#" class="action-link action-cancel" onclick="confirmCancel(this, 'Segunda, 18 de agosto'); return false;">Cancelar</a>
+        </div>
+      </div>
+
+      <!-- Fila de espera — sem ação de reagendamento -->
+      <div class="occurrence-row">
+        <div style="flex:1;">
+          <p class="occurrence-date">Segunda, 25 de agosto</p>
+          <p class="occurrence-meta">08:00–09:00 · Na fila de espera</p>
+        </div>
+      </div>
+
+      <!-- Ver restantes (colapsado) -->
+      <div style="padding:0.75rem 0;text-align:center;">
+        <button onclick="toggleRest()" id="toggle-btn" style="font-size:0.8125rem;font-weight:600;color:var(--ba-primary);background:none;border:none;cursor:pointer;">
+          Ver as 5 aulas restantes ▾
+        </button>
+      </div>
+
+      <div id="rest-rows" style="display:none;">
+        <div class="occurrence-row">
+          <div style="flex:1;"><p class="occurrence-date">Segunda, 1 de setembro</p><p class="occurrence-meta">08:00–09:00 · Confirmada</p></div>
+          <div class="occurrence-actions">
+            <a href="customer-04d-reagendada.html" class="action-link action-reschedule">Reagendar</a>
+            <a href="#" class="action-link action-cancel" onclick="confirmCancel(this,'Segunda, 1 de setembro');return false;">Cancelar</a>
+          </div>
+        </div>
+        <div class="occurrence-row">
+          <div style="flex:1;"><p class="occurrence-date">Segunda, 8 de setembro</p><p class="occurrence-meta">08:00–09:00 · Confirmada</p></div>
+          <div class="occurrence-actions">
+            <a href="customer-04d-reagendada.html" class="action-link action-reschedule">Reagendar</a>
+            <a href="#" class="action-link action-cancel" onclick="confirmCancel(this,'Segunda, 8 de setembro');return false;">Cancelar</a>
+          </div>
+        </div>
+        <div class="occurrence-row">
+          <div style="flex:1;"><p class="occurrence-date">Segunda, 15 de setembro</p><p class="occurrence-meta">08:00–09:00 · Confirmada</p></div>
+          <div class="occurrence-actions">
+            <a href="customer-04d-reagendada.html" class="action-link action-reschedule">Reagendar</a>
+            <a href="#" class="action-link action-cancel" onclick="confirmCancel(this,'Segunda, 15 de setembro');return false;">Cancelar</a>
+          </div>
+        </div>
+        <div class="occurrence-row">
+          <div style="flex:1;"><p class="occurrence-date">Segunda, 22 de setembro</p><p class="occurrence-meta">08:00–09:00 · Confirmada</p></div>
+          <div class="occurrence-actions">
+            <a href="customer-04d-reagendada.html" class="action-link action-reschedule">Reagendar</a>
+            <a href="#" class="action-link action-cancel" onclick="confirmCancel(this,'Segunda, 22 de setembro');return false;">Cancelar</a>
+          </div>
+        </div>
+        <div class="occurrence-row">
+          <div style="flex:1;"><p class="occurrence-date">Segunda, 29 de setembro</p><p class="occurrence-meta">08:00–09:00 · Confirmada</p></div>
+          <div class="occurrence-actions">
+            <a href="customer-04d-reagendada.html" class="action-link action-reschedule">Reagendar</a>
+            <a href="#" class="action-link action-cancel" onclick="confirmCancel(this,'Segunda, 29 de setembro');return false;">Cancelar</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inline cancel confirmation -->
+    <div id="cancel-inline" style="display:none;background:#fef2f2;border:1px solid #fca5a5;border-radius:var(--ba-radius);padding:0.875rem;margin-bottom:1rem;font-size:0.8125rem;">
+      <strong id="cancel-label">Cancelar essa aula?</strong>
+      <p style="margin:0.25rem 0 0.625rem;opacity:0.75;">Você ainda tem direito a reagendar essa aula em até 15 dias.</p>
+      <div style="display:flex;gap:0.5rem;">
+        <button class="btn-danger" style="padding:0.4375rem 0.875rem;font-size:0.8125rem;" onclick="window.location.href='customer-04a-turma-fixa-serie-com-fim.html'">Confirmar cancelamento</button>
+        <button onclick="document.getElementById('cancel-inline').style.display='none'" style="padding:0.4375rem 0.875rem;font-size:0.8125rem;background:none;border:1px solid var(--ba-secondary);border-radius:var(--ba-radius);cursor:pointer;">Voltar</button>
+      </div>
+    </div>
+
+    <!-- Cancelar série inteira -->
+    <button class="btn-danger" style="width:100%;" onclick="document.getElementById('cancel-series').style.display='block'">
+      Cancelar série inteira
+    </button>
+    <p style="font-size:0.75rem;opacity:0.5;margin-top:0.5rem;">Cancela todas as aulas restantes. As aulas já concluídas ficam no histórico.</p>
+
+    <div id="cancel-series" style="display:none;margin-top:0.75rem;background:#fef2f2;border:1px solid #fca5a5;border-radius:var(--ba-radius);padding:0.875rem;font-size:0.8125rem;">
+      <strong>Cancelar toda a série?</strong>
+      <p style="margin:0.25rem 0 0.625rem;opacity:0.75;">As 8 aulas restantes (11 de agosto a 29 de setembro) serão canceladas. Aulas já realizadas continuam no histórico. Essa ação não pode ser desfeita.</p>
+      <button class="btn-danger" style="padding:0.5rem 1rem;font-size:0.8125rem;" onclick="window.location.href='customer-06-recorrencia-cancelada.html'">Confirmar cancelamento</button>
+    </div>
+
+  </div>
+
+  <script>
+    function toggleRest() {
+      const rows = document.getElementById('rest-rows');
+      const btn = document.getElementById('toggle-btn');
+      const isHidden = rows.style.display === 'none';
+      rows.style.display = isHidden ? 'block' : 'none';
+      btn.textContent = isHidden ? 'Ocultar ▴' : 'Ver as 5 aulas restantes ▾';
+    }
+    function confirmCancel(el, label) {
+      document.getElementById('cancel-label').textContent = 'Cancelar a aula de ' + label + '?';
+      document.getElementById('cancel-inline').style.display = 'block';
+      document.getElementById('cancel-inline').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  </script>
+
+</body>
+</html>
+

@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Roster — Pilates 08h — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
+  <style>
+    /* ── Session header card ── */
+    .session-header {
+      background: white;
+      border: 1px solid var(--ba-secondary);
+      border-radius: var(--ba-radius);
+      padding: 1rem 1.25rem;
+      margin-bottom: 1rem;
+      box-shadow: var(--ba-shadow);
+    }
+    .session-title { font-size: 1.0625rem; font-weight: 700; color: var(--ba-text); margin-bottom: 0.25rem; }
+    .session-meta  { font-size: 0.8125rem; color: #6b7280; display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
+    .session-meta-item { display: flex; align-items: center; gap: 0.3125rem; }
+    .session-meta-item svg { opacity: 0.5; flex-shrink: 0; }
+
+    /* Capacity pill */
+    .cap-pill {
+      display: inline-flex; align-items: center; gap: 0.375rem;
+      font-size: 0.8125rem; font-weight: 600;
+      padding: 0.25rem 0.625rem; border-radius: 9999px;
+      margin-top: 0.75rem;
+    }
+    .cap-ok   { background: #dcfce7; color: #15803d; }
+    .cap-full { background: #fef3c7; color: #92400e; }
+    .cap-dot  { width: 0.5rem; height: 0.5rem; border-radius: 9999px; }
+    .cap-ok .cap-dot   { background: #16a34a; }
+    .cap-full .cap-dot { background: #d97706; }
+
+    /* ── Section label ── */
+    .roster-section-label {
+      font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: #9ca3af;
+      padding: 0.875rem 0 0.5rem;
+    }
+
+    /* ── Roster row ── */
+    .roster-card {
+      background: white;
+      border: 1px solid var(--ba-secondary);
+      border-radius: var(--ba-radius);
+      padding: 0.875rem 1rem;
+      margin-bottom: 0.5rem;
+      box-shadow: var(--ba-shadow);
+      display: flex; align-items: center; gap: 0.875rem;
+    }
+    .roster-card.checked-in { border-left: 3px solid #16a34a; }
+    .roster-card.absent     { border-left: 3px solid #dc2626; opacity: 0.7; }
+
+    .roster-info { flex: 1; min-width: 0; }
+    .roster-name { font-weight: 600; font-size: 0.9375rem; color: var(--ba-text); margin-bottom: 0.25rem; }
+    .roster-tags { display: flex; flex-wrap: wrap; gap: 0.375rem; }
+
+    .type-tag {
+      font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase; padding: 0.125rem 0.4375rem; border-radius: 4px;
+    }
+    .tag-fixa       { background: #dbeafe; color: #1d4ed8; }
+    .tag-dropin     { background: #f3e8ff; color: #7e22ce; }
+    .tag-reagendada { background: #fef3c7; color: #92400e; }
+
+    /* Check-in toggle button */
+    .checkin-btn {
+      flex-shrink: 0; border: none; cursor: pointer;
+      width: 2.5rem; height: 2.5rem; border-radius: 9999px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.12s;
+      font-family: var(--ba-body-font);
+    }
+    .checkin-btn.pending {
+      background: #f3f4f6; color: #9ca3af;
+    }
+    .checkin-btn.pending:hover { background: #dcfce7; color: #16a34a; }
+    .checkin-btn.present {
+      background: #dcfce7; color: #16a34a;
+    }
+    .checkin-btn.absent-btn {
+      background: #fee2e2; color: #dc2626;
+    }
+
+    /* ── Waitlist row ── */
+    .waitlist-card {
+      background: white;
+      border: 1px solid var(--ba-secondary);
+      border-radius: var(--ba-radius);
+      padding: 0.875rem 1rem;
+      margin-bottom: 0.5rem;
+      display: flex; align-items: center; gap: 0.875rem;
+      opacity: 0.85;
+    }
+    .waitlist-pos {
+      width: 1.75rem; height: 1.75rem; border-radius: 9999px;
+      background: #f3f4f6; color: #6b7280;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 700; flex-shrink: 0;
+    }
+    .waitlist-info { flex: 1; min-width: 0; }
+    .waitlist-name { font-weight: 600; font-size: 0.9375rem; color: var(--ba-text); margin-bottom: 0.25rem; }
+    .waitlist-meta { font-size: 0.8125rem; color: #6b7280; }
+    .promote-btn {
+      flex-shrink: 0; font-size: 0.8125rem; font-weight: 600;
+      color: #2563eb; background: none; border: none; cursor: pointer;
+      padding: 0.375rem 0; font-family: var(--ba-body-font);
+      white-space: nowrap;
+    }
+
+    /* ── Add drop-in row ── */
+    .add-dropin-btn {
+      display: flex; align-items: center; gap: 0.625rem;
+      width: 100%; padding: 0.75rem 1rem;
+      background: none; border: 1.5px dashed #d1d5db;
+      border-radius: var(--ba-radius); cursor: pointer;
+      font-size: 0.9375rem; color: #6b7280;
+      font-family: var(--ba-body-font); margin-top: 0.25rem;
+      transition: border-color 0.12s, color 0.12s;
+    }
+    .add-dropin-btn:hover { border-color: #2563eb; color: #2563eb; }
+
+    /* ── Mark all bar (sticky, mobile) ── */
+    .mark-all-bar {
+      position: fixed; bottom: 3.75rem; left: 0; right: 0; z-index: 20;
+      background: white; border-top: 1px solid var(--ba-secondary);
+      padding: 0.625rem 1rem;
+      display: flex; gap: 0.625rem; align-items: center;
+      box-shadow: 0 -2px 8px rgba(0,0,0,.06);
+    }
+    .mark-all-bar span {
+      font-size: 0.8125rem; color: #6b7280; margin-right: auto;
+    }
+    .mark-all-btn {
+      font-size: 0.8125rem; font-weight: 600; color: #2563eb;
+      background: none; border: 1px solid #bfdbfe; border-radius: var(--ba-radius);
+      padding: 0.375rem 0.75rem; cursor: pointer; font-family: var(--ba-body-font);
+    }
+    @media (min-width: 1024px) {
+      .mark-all-bar { display: none; }
+    }
+
+    /* ── Desktop: mark-all inline ── */
+    .desktop-actions {
+      display: none;
+      justify-content: flex-end; gap: 0.625rem; margin-bottom: 0.75rem;
+    }
+    @media (min-width: 1024px) {
+      .desktop-actions { display: flex; }
+    }
+  </style>
+</head>
+<body>
+
+  <!--
+    DISCOVERY PROTOTYPE — manager: gestão do roster de uma sessão específica.
+
+    Contexto:
+    - Acessado a partir de "Ver sessões" na manager-turmas-list.html → lista de sessões → esta tela
+    - Tela operacional: usada no dia da aula para confirmar presença e gerenciar vagas
+
+    UX decisions:
+    - Header com data/hora/staff/recurso para contextualização rápida
+    - Presença como ação primária: botão circular à direita de cada aluno (toque = presente/pendente)
+    - Ausente via long-press ou menu (não exposto neste protótipo; marcado em estado pré-configurado)
+    - Fila de espera separada com ação "Promover" (mover para confirmados se houver vaga)
+    - "Marcar todos presentes" como ação rápida — casos de turmas pequeníssimas (pilates 4 vagas)
+    - "+ Drop-in" no final da lista de confirmados — entrada avulsa no dia
+    - Sem edição de dados do aluno (separação de concerns: dados ficam no perfil)
+    - Badge de tipo (turma fixa / drop-in / reagendada) para o gerente saber origem da vaga
+
+    Próximas telas: manager-sessoes.html (lista de sessões de uma recorrência)
+    CANDs: CAND-37 (marcar presença/fechar sessão), CAND-25 (promoção automática da fila) —
+    corrigido 2026-08-21, estava CAND-21/CAND-22 (números errados: CAND-21 é "browse sessions",
+    CAND-22 é "book into a session" — nenhum dos dois é presença ou fila)
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — redimensione para ver mobile (&lt;1024px) e desktop (≥1024px)
+  </div>
+
+  <div class="dashboard-topbar">
+    <a href="manager-turmas-list.html" style="display:flex;align-items:center;gap:0.375rem;color:var(--ba-text);text-decoration:none;font-size:0.9375rem;font-weight:500;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      <span style="font-weight:600;">Turmas</span>
+    </a>
+    <h1 class="topbar-page-title">Roster · 12 ago</h1>
+    <div style="margin-left:auto;">
+      <a href="../../../../plan/journey/shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">V</div>
+        <div><p class="sidebar-tenant-name">Vitta Studio</p><p class="sidebar-tenant-slug">@vittastudio</p></div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top:0.5rem;">
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Agenda
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Horários
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          Serviços
+        </a>
+        <a class="sidebar-nav-item active" href="manager-turmas-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
+          Turmas
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          Fidelidade
+        </a>
+      </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Equipe
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Configurações
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          Hotsite
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
+        <a class="sidebar-logout" href="../../../../plan/journey/shared/staff-login.html" title="Sair">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </a>
+      </div>
+    </aside>
+
+    <main class="main-content" style="padding-bottom:8rem;">
+      <div class="dashboard-body">
+
+        <!-- Session context header -->
+        <div class="session-header">
+          <div class="session-title">Pilates — Turma das 08h</div>
+          <div class="session-meta">
+            <span class="session-meta-item">
+              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Ter, 12 ago · 08:00–08:50
+            </span>
+            <span class="session-meta-item">
+              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              Estúdio 1
+            </span>
+            <span class="session-meta-item">
+              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              Carlos M.
+            </span>
+          </div>
+          <div class="cap-pill cap-full">
+            <span class="cap-dot"></span>
+            4 de 4 vagas · 1 na fila
+          </div>
+        </div>
+
+        <!-- Desktop: mark-all action -->
+        <div class="desktop-actions">
+          <button class="mark-all-btn" style="font-size:0.8125rem;font-weight:600;color:#2563eb;background:none;border:1px solid #bfdbfe;border-radius:var(--ba-radius);padding:0.375rem 0.875rem;cursor:pointer;">
+            Marcar todos presentes
+          </button>
+        </div>
+
+        <!-- Confirmados -->
+        <div class="roster-section-label">Confirmados · 4</div>
+
+        <!-- Aluno 1: presente -->
+        <div class="roster-card checked-in">
+          <div class="list-avatar" style="flex-shrink:0;width:2.25rem;height:2.25rem;font-size:0.875rem;">FL</div>
+          <div class="roster-info">
+            <div class="roster-name">Fernanda Lima</div>
+            <div class="roster-tags">
+              <span class="type-tag tag-fixa">Turma fixa</span>
+              <span class="status-badge status-approved">Presente</span>
+            </div>
+          </div>
+          <button class="checkin-btn present" title="Desmarcar presença" onclick="toggleCheckin(this)">
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>
+        </div>
+
+        <!-- Aluno 2: pendente -->
+        <div class="roster-card">
+          <div class="list-avatar list-avatar-2" style="flex-shrink:0;width:2.25rem;height:2.25rem;font-size:0.875rem;">RM</div>
+          <div class="roster-info">
+            <div class="roster-name">Rafael Monteiro</div>
+            <div class="roster-tags">
+              <span class="type-tag tag-fixa">Turma fixa</span>
+              <span class="status-badge status-pending">Pendente</span>
+            </div>
+          </div>
+          <button class="checkin-btn pending" title="Marcar como presente" onclick="toggleCheckin(this)">
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>
+        </div>
+
+        <!-- Aluno 3: drop-in -->
+        <div class="roster-card">
+          <div class="list-avatar list-avatar-3" style="flex-shrink:0;width:2.25rem;height:2.25rem;font-size:0.875rem;">CS</div>
+          <div class="roster-info">
+            <div class="roster-name">Camila Santos</div>
+            <div class="roster-tags">
+              <span class="type-tag tag-dropin">Drop-in</span>
+              <span class="status-badge status-pending">Pendente</span>
+            </div>
+          </div>
+          <button class="checkin-btn pending" title="Marcar como presente" onclick="toggleCheckin(this)">
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>
+        </div>
+
+        <!-- Aluno 4: reagendada -->
+        <div class="roster-card">
+          <div class="list-avatar list-avatar-4" style="flex-shrink:0;width:2.25rem;height:2.25rem;font-size:0.875rem;">JO</div>
+          <div class="roster-info">
+            <div class="roster-name">Juliana Oliveira</div>
+            <div class="roster-tags">
+              <span class="type-tag tag-reagendada">Reagendada</span>
+              <span class="status-badge status-pending">Pendente</span>
+            </div>
+          </div>
+          <button class="checkin-btn pending" title="Marcar como presente" onclick="toggleCheckin(this)">
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>
+        </div>
+
+        <!-- Botão adicionar drop-in (desabilitado: turma cheia) -->
+        <button class="add-dropin-btn" disabled style="opacity:0.4;cursor:not-allowed;">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Turma cheia — adicionar drop-in indisponível
+        </button>
+
+        <!-- Fila de espera -->
+        <div class="roster-section-label" style="margin-top:0.5rem;">Fila de espera · 1</div>
+
+        <div class="waitlist-card">
+          <div class="waitlist-pos">1</div>
+          <div class="list-avatar list-avatar-5" style="flex-shrink:0;width:2.25rem;height:2.25rem;font-size:0.875rem;">BN</div>
+          <div class="waitlist-info">
+            <div class="waitlist-name">Bruno Nascimento</div>
+            <div class="waitlist-meta">Na fila desde 09 ago · Turma fixa</div>
+          </div>
+          <button class="promote-btn" title="Mover para confirmados">Promover</button>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Mobile: mark-all sticky bar -->
+  <div class="mark-all-bar">
+    <span>1 de 4 presentes</span>
+    <button class="mark-all-btn">Marcar todos presentes</button>
+  </div>
+
+  <nav class="bottom-nav">
+    <a class="bottom-nav-item" href="#">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Agenda
+    </a>
+    <a class="bottom-nav-item" href="#">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Horários
+    </a>
+    <a class="bottom-nav-item" href="#">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      Serviços
+    </a>
+    <a class="bottom-nav-item active" href="manager-turmas-list.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
+      Turmas
+    </a>
+  </nav>
+
+  <script>
+    function toggleCheckin(btn) {
+      const card = btn.closest('.roster-card');
+      const badge = card.querySelector('.status-badge');
+      if (btn.classList.contains('pending')) {
+        btn.classList.remove('pending');
+        btn.classList.add('present');
+        card.classList.add('checked-in');
+        badge.className = 'status-badge status-approved';
+        badge.textContent = 'Presente';
+      } else {
+        btn.classList.remove('present');
+        btn.classList.add('pending');
+        card.classList.remove('checked-in');
+        badge.className = 'status-badge status-pending';
+        badge.textContent = 'Pendente';
+      }
+      updateCounter();
+    }
+
+    function updateCounter() {
+      const total = document.querySelectorAll('.roster-card').length;
+      const present = document.querySelectorAll('.roster-card.checked-in').length;
+      const bar = document.querySelector('.mark-all-bar span');
+      if (bar) bar.textContent = present + ' de ' + total + ' presentes';
+    }
+  </script>
+
+</body>
+</html>

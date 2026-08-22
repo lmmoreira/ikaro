@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Como você quer reservar? — Pilates em Grupo</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    .type-card {
+      display: block; text-decoration: none; color: var(--ba-text);
+      border: 2px solid var(--ba-secondary); border-radius: var(--ba-radius);
+      padding: 1.25rem 1.25rem 1.25rem 1rem;
+      background: white; box-shadow: var(--ba-shadow);
+      display: flex; align-items: flex-start; gap: 1rem;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      margin-bottom: 0.75rem;
+    }
+    .type-card:hover { border-color: var(--ba-primary); box-shadow: 0 2px 8px rgba(37,99,235,0.12); }
+    .type-icon {
+      width: 2.75rem; height: 2.75rem; border-radius: 0.5rem;
+      background: var(--ba-secondary); display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0; color: var(--ba-primary);
+    }
+    .type-title { font-weight: 700; font-size: 1rem; color: var(--ba-text); margin-bottom: 0.25rem; }
+    .type-desc { font-size: 0.875rem; opacity: 0.6; color: var(--ba-text); line-height: 1.5; }
+    .type-arrow {
+      margin-left: auto; flex-shrink: 0; opacity: 0.3; align-self: center;
+    }
+    .class-ctx {
+      background: var(--ba-secondary); border-radius: var(--ba-radius);
+      padding: 0.75rem 1rem; margin-bottom: 1.75rem;
+      display: flex; align-items: center; gap: 0.75rem;
+    }
+    .class-ctx-icon {
+      width: 2.25rem; height: 2.25rem; background: var(--ba-primary);
+      border-radius: 0.375rem; display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!--
+    COMPONENT: TipoReservaStep
+    CONTEXT:   Aparece APENAS quando classType.allowsDropIn && classType.allowsSeries.
+               Se apenas um tipo é permitido, o fluxo pula esta tela e vai direto
+               para 01-dropin.html ou 02b-serie-dias.html.
+    ENTRY:     /{slug}/aulas/[classTypeId]/reservar  (GAP — rota nova)
+    DATA:      classType: { name, instructorName, durationMinutes, allowsDropIn, allowsSeries }
+  -->
+
+  <!-- Prototype banner -->
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;
+               font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo · bifurcação drop-in / série · aparece quando a aula aceita os dois tipos
+  </div>
+
+  <!-- BRAND BAR -->
+  <div style="background:white;border-bottom:1px solid var(--ba-secondary);
+              padding:0.625rem 1.5rem;display:flex;align-items:center;justify-content:space-between;
+              position:sticky;top:0;z-index:10;">
+    <div style="display:flex;align-items:center;gap:0.625rem;min-width:0;">
+      <a href="00-lista-aulas.html" style="display:flex;align-items:center;color:var(--ba-text);opacity:0.6;text-decoration:none;flex-shrink:0;" aria-label="Voltar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </a>
+      <span style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Pilates em Grupo</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8125rem;color:var(--ba-text);flex-shrink:0;">
+      <div class="auth-avatar">FL</div>
+      <span style="opacity:0.65;">Fernanda Lima</span>
+    </div>
+  </div>
+
+  <div class="step-container">
+
+    <!-- Class context -->
+    <div class="class-ctx">
+      <div class="class-ctx-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 6.1H3M21 12.1H3M15.1 18H3"/>
+        </svg>
+      </div>
+      <div>
+        <div style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">Pilates em Grupo</div>
+        <div style="font-size:0.8125rem;opacity:.6;color:var(--ba-text);">Camila Torres · 50 min</div>
+      </div>
+    </div>
+
+    <h2 style="font-size:1.375rem;font-weight:800;color:var(--ba-text);margin-bottom:0.375rem;">
+      Como você quer reservar?
+    </h2>
+    <p style="font-size:0.9375rem;opacity:.6;color:var(--ba-text);margin-bottom:1.5rem;">
+      Escolha se prefere uma aula específica ou montar uma sequência.
+    </p>
+
+    <!-- Drop-in option -->
+    <a href="01-dropin.html" class="type-card">
+      <div class="type-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+          <path d="M8 14h.01M12 14h.01M16 14h.01"/>
+        </svg>
+      </div>
+      <div style="flex:1;">
+        <div class="type-title">Aula avulsa</div>
+        <div class="type-desc">Reserve uma sessão específica. Boa opção para experimentar ou quando sua agenda é variável.</div>
+      </div>
+      <svg class="type-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m9 18 6-6-6-6"/>
+      </svg>
+    </a>
+
+    <!-- Series option -->
+    <a href="02b-serie-dias.html" class="type-card">
+      <div class="type-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+          <path d="m15 5 4 4"/>
+        </svg>
+      </div>
+      <div style="flex:1;">
+        <div class="type-title">Sequência de aulas</div>
+        <div class="type-desc">Escolha os dias da semana e monte sua sequência. Ideal para manter uma rotina.</div>
+      </div>
+      <svg class="type-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m9 18 6-6-6-6"/>
+      </svg>
+    </a>
+
+  </div>
+
+</body>
+</html>

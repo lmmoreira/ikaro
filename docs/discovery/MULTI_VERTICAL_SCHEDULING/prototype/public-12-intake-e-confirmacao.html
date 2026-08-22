@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Dados da reserva — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
+  <style>
+    .field { margin:1rem 0; }
+    .field label { display:block;font-size:.75rem;font-weight:700;margin-bottom:.375rem;text-transform:uppercase;letter-spacing:.05em; }
+    .hint { font-size:.8125rem;opacity:.68;margin-top:.35rem; }
+    .notice { padding:.875rem;background:#eff6ff;border-radius:var(--ba-radius);font-size:.875rem;color:#1d4ed8; }
+  </style>
+</head>
+<body>
+  <header style="background:white;border-bottom:1px solid var(--ba-secondary);padding:.75rem 1.5rem"><strong>Vitta Studio</strong></header>
+  <main class="step-container">
+    <p class="step-indicator" id="booking-context">Resumo da reserva</p>
+    <h1 style="font-size:1.5rem">Complete os dados da reserva</h1>
+    <p style="opacity:.7">Estes campos dependem do serviço escolhido. O que você enviar fica registrado com a versão atual do formulário.</p>
+    <form id="intake-form">
+      <div class="field"><label for="responsible">Responsável pela reserva</label><input id="responsible" class="form-input" autocomplete="name" required></div>
+      <div class="field"><label for="attendees">Participantes nomeados <span aria-hidden="true">(se solicitado)</span></label><textarea id="attendees" class="form-input" rows="3" placeholder="Ex.: Marina Lopes, João Silva"></textarea><p class="hint">O responsável pode ser diferente das pessoas participantes.</p></div>
+      <div class="field"><label for="access">Necessidades de acesso <span aria-hidden="true">(opcional)</span></label><textarea id="access" class="form-input" rows="2" placeholder="Ex.: acesso sem escadas"></textarea></div>
+      <label style="display:flex;gap:.625rem;align-items:flex-start;font-size:.875rem"><input id="terms" type="checkbox" required> <span>Li e aceito os termos de uso aplicáveis a esta reserva.</span></label>
+      <div class="notice" style="margin-top:1rem"><strong id="summary-title">Resumo</strong><br><span id="summary-text">Revise os dados antes de confirmar.</span><br><span style="opacity:.8">Ao confirmar, verificamos a disponibilidade outra vez e registramos o valor e as regras vigentes.</span></div>
+      <div class="nav-buttons"><a class="btn-secondary" href="public-14-appointment-availability.html">Voltar</a><button id="submit" class="btn-primary" type="submit" disabled>Confirmar solicitação</button></div>
+    </form>
+  </main>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const service = params.get('service') || 'serviço selecionado';
+    const date = params.get('date') || 'data selecionada';
+    const time = params.get('time') || 'horário selecionado';
+    const duration = params.get('duration');
+    document.getElementById('booking-context').textContent = `${service.replaceAll('-', ' ')} · ${date} · ${time}`;
+    document.getElementById('summary-text').textContent = `${service.replaceAll('-', ' ')}${duration ? ` · ${duration} min` : ''} · ${date} às ${time}`;
+    const form = document.getElementById('intake-form');
+    const submit = document.getElementById('submit');
+    form.addEventListener('input', () => { submit.disabled = !form.checkValidity(); });
+    form.addEventListener('submit', event => { event.preventDefault(); window.location.href = 'public-13-pending-approval.html'; });
+  </script>
+</body>
+</html>

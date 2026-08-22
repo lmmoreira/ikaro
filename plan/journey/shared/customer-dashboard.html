@@ -3,177 +3,219 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Minha conta — BeloAuto</title>
-  <link rel="stylesheet" href="tokens.css">
+  <title>Início — Vitta Studio</title>
+  <link rel="stylesheet" href="./tokens.css">
   <style>
     details summary { list-style: none; }
     details summary::-webkit-details-marker { display: none; }
 
-    /* ── Section labels ─────────────────────────── */
-    .section-label {
-      font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em;
-      text-transform: uppercase; color: rgba(17,24,39,0.4);
-      margin-bottom: 0.625rem; margin-top: 0;
-    }
-
-    /* ── Summary stat cards ─────────────────────── */
-    .stat-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.75rem;
-      margin-bottom: 1.25rem;
-    }
-    .stat-card {
-      display: flex; align-items: center; gap: 0.75rem;
-      padding: 0.875rem; border: 1px solid var(--ba-secondary);
-      border-radius: var(--ba-radius); box-shadow: var(--ba-shadow);
-      background: white;
-    }
-    .stat-icon {
-      width: 2.25rem; height: 2.25rem; border-radius: var(--ba-radius);
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-    }
-    .stat-label { font-size: 0.6875rem; font-weight: 600; opacity: 0.5; color: var(--ba-text); }
-    .stat-value { font-size: 1.1875rem; font-weight: 700; color: var(--ba-text); line-height: 1.2; }
-
-    /* ── Booking list items ─────────────────────── */
-    .booking-item {
-      display: flex; align-items: center; gap: 0.75rem;
-      padding: 0.875rem 0;
-      border-bottom: 1px solid var(--ba-secondary);
-    }
-    .booking-item:last-child { border-bottom: none; }
-    .booking-item-icon {
-      width: 2.125rem; height: 2.125rem; border-radius: var(--ba-radius);
-      background: var(--ba-secondary);
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-    }
-    .booking-item-info { flex: 1; min-width: 0; }
-    .booking-item-name {
-      font-weight: 600; font-size: 0.9375rem; color: var(--ba-text);
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .booking-item-meta { font-size: 0.8125rem; opacity: 0.55; color: var(--ba-text); margin-top: 0.125rem; }
-
-    /* ── Customer tab nav — desktop only ────────── */
+    /* ── Customer tab nav — desktop only ── */
     .customer-nav {
-      display: none;
-      background: white;
+      display: none; background: white;
       border-bottom: 1px solid var(--ba-secondary);
-      padding: 0 1.5rem;
-      position: sticky;
-      top: 3.375rem; /* below topbar */
-      z-index: 5;
+      padding: 0 1.5rem; position: sticky; top: 3.375rem; z-index: 5;
     }
     .customer-nav-item {
       display: inline-flex; align-items: center; gap: 0.375rem;
-      padding: 0.75rem 1rem;
-      font-size: 0.875rem; font-weight: 500;
+      padding: 0.75rem 1rem; font-size: 0.875rem; font-weight: 500;
       color: var(--ba-text); text-decoration: none;
-      border-bottom: 2px solid transparent;
-      opacity: 0.5;
-      transition: opacity 0.12s, border-color 0.12s;
+      border-bottom: 2px solid transparent; opacity: 0.5;
     }
-    .customer-nav-item.active {
-      color: var(--ba-primary);
-      border-bottom-color: var(--ba-primary);
-      opacity: 1;
+    .customer-nav-item.active { color: var(--ba-primary); border-bottom-color: var(--ba-primary); opacity: 1; }
+
+    /* ── Stat cards ── */
+    .stat-grid {
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.625rem; margin-bottom: 1.25rem;
+    }
+    .stat-card {
+      background: white; border: 1px solid var(--ba-secondary);
+      border-radius: var(--ba-radius); padding: 0.875rem 0.75rem;
+      box-shadow: var(--ba-shadow); display: flex; flex-direction: column; gap: 0.25rem;
+    }
+    .stat-icon { width: 1.5rem; height: 1.5rem; margin-bottom: 0.25rem; opacity: 0.7; }
+    .stat-label { font-size: 0.6875rem; font-weight: 600; opacity: 0.5; color: var(--ba-text); }
+    .stat-value { font-size: 1.1875rem; font-weight: 800; color: var(--ba-text); line-height: 1.2; }
+
+    /* ── List items ── */
+    .list-item {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.8125rem 0; border-bottom: 1px solid var(--ba-secondary);
+    }
+    .list-item:last-child { border-bottom: none; }
+    .list-item-icon {
+      width: 2.125rem; height: 2.125rem; border-radius: var(--ba-radius);
+      background: var(--ba-secondary); display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0;
+    }
+    .list-item-info { flex: 1; min-width: 0; }
+    .list-item-name {
+      font-weight: 600; font-size: 0.9375rem; color: var(--ba-text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .list-item-meta { font-size: 0.8125rem; opacity: 0.55; color: var(--ba-text); margin-top: 0.125rem; }
+
+    /* ── Section header with "Ver tudo" ── */
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 0.625rem;
+    }
+    .section-label {
+      font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em;
+      text-transform: uppercase; color: rgba(17,24,39,0.4); margin: 0;
+    }
+    .section-link {
+      font-size: 0.8125rem; font-weight: 600;
+      color: var(--ba-primary); text-decoration: none;
     }
 
-    /* ── Desktop overrides ──────────────────────── */
+    /* ── FAB "Novo" — mobile ── */
+    .fab {
+      position: fixed; bottom: 5.5rem; right: 1.25rem; z-index: 25;
+      width: 3.25rem; height: 3.25rem; border-radius: 9999px;
+      background: var(--ba-primary); color: white;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 14px rgba(37,99,235,.40);
+      border: none; cursor: pointer; font-family: var(--ba-body-font);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .fab:hover { transform: scale(1.05); box-shadow: 0 6px 18px rgba(37,99,235,.50); }
+    .fab:active { transform: scale(0.97); }
+
+    /* ── Desktop overrides ── */
     @media (min-width: 1024px) {
-      .topbar-brand { display: flex !important; }
-      .desktop-only { display: inline-flex !important; }
-      .mobile-only  { display: none !important; }
-      .customer-nav { display: flex; }
+      .topbar-brand  { display: flex !important; }
+      .desktop-only  { display: inline-flex !important; }
+      .mobile-only   { display: none !important; }
+      .customer-nav  { display: flex; }
       .topbar-user-name { display: inline !important; }
+      .fab { display: none !important; }
     }
   </style>
 </head>
 <body>
 
   <!--
-    PAGE (GAP): apps/web/app/[slug]/minha-conta/page.tsx  (Início tab)
-    ROUTE:      /{slug}/minha-conta
-    AUTH:       JWT cookie required (CUSTOMER). Redirect → /{slug}/login if missing.
-
-    MOBILE  (<1024px): topbar + scrollable content + 3-tab bottom nav
-    DESKTOP (≥1024px): topbar + horizontal tab nav + content (no sidebar — customer area)
+    PAGE: apps/web/app/[slug]/my-account/page.tsx  (aba Início)
+    ROUTE: /{slug}/my-account
+    SCENARIO: tenant com APPOINTMENT + CLASS habilitados (Vitta Studio)
 
     DATA:
-      GET /v1/customers/me            → name, email, defaultAddress
-      GET /v1/bookings?limit=5        → upcoming bookings preview
-      GET /v1/loyalty/balance         → current_points + next expiry  (UC-016)
+      GET /v1/customers/me          → name, email
+      GET /v1/bookings?limit=3      → próximos agendamentos
+      GET /v1/enrollments?active=true&limit=3 → turmas ativas + próxima sessão (GAP — endpoint novo)
+      GET /v1/loyalty/balance       → pontos + expiração
 
-    ENTRY POINTS:
-      1. "Minha conta" in hotsite-logged-in.html nav
-      2. "Ver meus agendamentos" CTA after booking confirmation
-      3. Avatar ▾ dropdown on any logged-in hotsite page
+    TENANT CONFIG (drives module visibility):
+      tenant.features.scheduling = true   → mostra seção Agendamentos + opção "Novo agendamento"
+      tenant.features.classes    = true   → mostra seção Turmas + opção "Reservar aula"
+      tenant.features.loyalty    = true   → mostra stat de pontos
   -->
 
   <!-- Prototype banner -->
-  <div style="
-    background: #fef3c7; border-bottom: 1px solid #d97706;
-    padding: 0.375rem 1rem; font-size: 0.8125rem;
-    text-align: center; color: #92400e;
-  ">
-    Protótipo — redimensione para ver mobile (&lt;1024px) e desktop (≥1024px) &nbsp;|&nbsp;
-    <a href="../customer/prototypes/minha-conta/index.html" style="color: #92400e; font-weight: 600;">
-      → Protótipo completo (Agendamentos)
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;
+               font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo · Início pós-login · tenant com agendamento + turmas (Vitta Studio) &nbsp;|&nbsp;
+    <a href="../customer/prototypes/minha-conta/index.html" style="color:#92400e;font-weight:600;">
+      → Protótipo Minha Conta
     </a>
   </div>
 
-  <!-- ═══════════════════════════════════════════════
-       TOP BAR
-       ═══════════════════════════════════════════════ -->
+  <!-- TOP BAR -->
   <div class="dashboard-topbar">
-
     <div class="topbar-brand">
-      <div class="topbar-logo-mark">B</div>
-      <span class="topbar-tenant-name">BeloAuto</span>
+      <div class="topbar-logo-mark">V</div>
+      <span class="topbar-tenant-name">Vitta Studio</span>
     </div>
 
-    <div style="margin-left: auto; display: flex; align-items: center; gap: 0.75rem;">
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
 
-      <a href="../customer/prototypes/book-a-service/01-service-selection.html"
-         class="btn-primary desktop-only"
-         style="display: none; font-size: 0.8125rem; padding: 0.4375rem 0.875rem;
-                align-items: center; gap: 0.375rem; white-space: nowrap;">
-        + Novo agendamento
-      </a>
-
-      <div style="position: relative;">
+      <!-- Desktop: "Novo" dropdown -->
+      <div class="desktop-only" style="display:none;position:relative;">
         <details>
-          <summary style="
-            display: flex; align-items: center; gap: 0.5rem; cursor: pointer;
-            color: var(--ba-text); font-size: 0.875rem; font-weight: 500; padding: 0;
-          ">
-            <div class="list-avatar" style="width: 2rem; height: 2rem; font-size: 0.8125rem; flex-shrink: 0;">JS</div>
-            <span class="topbar-user-name" style="display: none; font-weight: 600;">João Silva</span>
+          <summary class="btn-primary"
+                   style="display:flex;align-items:center;gap:0.375rem;cursor:pointer;
+                          font-size:0.8125rem;padding:0.4375rem 0.875rem;list-style:none;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Novo
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="6 9 12 15 18 9"/>
             </svg>
           </summary>
-          <div style="
-            position: absolute; right: 0; top: calc(100% + 0.5rem);
-            background: white; border: 1px solid var(--ba-secondary);
-            border-radius: var(--ba-radius); box-shadow: 0 4px 12px rgba(0,0,0,0.12);
-            min-width: 12rem; overflow: hidden; z-index: 50;
-          ">
-            <div style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--ba-secondary);">
-              <p style="font-size: 0.875rem; font-weight: 600; color: var(--ba-text); margin: 0;">João Silva</p>
-              <p style="font-size: 0.8125rem; opacity: 0.5; color: var(--ba-text); margin: 0.125rem 0 0;">joao@email.com</p>
+          <div style="position:absolute;right:0;top:calc(100% + 0.5rem);background:white;
+                      border:1px solid var(--ba-secondary);border-radius:var(--ba-radius);
+                      box-shadow:0 4px 12px rgba(0,0,0,.12);min-width:13rem;overflow:hidden;z-index:50;">
+            <!-- tenant.features.scheduling → show -->
+            <a href="../customer/prototypes/book-a-service/01-service-selection.html"
+               style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem 1rem;
+                      font-size:0.875rem;color:var(--ba-text);text-decoration:none;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:.5;">
+                <rect x="3" y="4" width="18" height="18" rx="2"/>
+                <path d="M16 2v4M8 2v4M3 10h18"/>
+              </svg>
+              Novo agendamento
+            </a>
+            <!-- tenant.features.classes → show. GAP (2026-08-21) — /aulas route doesn't exist yet,
+                 see docs/discovery/MULTI_VERTICAL_SCHEDULING.md's promotion-status note. Kept
+                 unopacified/clickable (unlike the "future" quotes item below) because it links to
+                 a real, complete discovery-grade prototype (reservar-aula/), not a placeholder. -->
+            <a href="../customer/prototypes/reservar-aula/00-lista-aulas.html"
+               style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem 1rem;
+                      font-size:0.875rem;color:var(--ba-text);text-decoration:none;
+                      border-top:1px solid var(--ba-secondary);">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:.5;">
+                <path d="M17 6.1H3M21 12.1H3M15.1 18H3"/>
+              </svg>
+              Reservar aula <span style="font-size:.6875rem;opacity:.5;margin-left:.25rem;">(GAP)</span>
+            </a>
+          </div>
+        </details>
+      </div>
+
+      <!-- Avatar dropdown -->
+      <div style="position:relative;">
+        <details>
+          <summary style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;
+                          color:var(--ba-text);font-size:0.875rem;font-weight:500;padding:0;">
+            <div class="list-avatar" style="width:2rem;height:2rem;font-size:0.8125rem;flex-shrink:0;">MF</div>
+            <span class="topbar-user-name" style="display:none;font-weight:600;">Maria Fernanda</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </summary>
+          <div style="position:absolute;right:0;top:calc(100% + 0.5rem);background:white;
+                      border:1px solid var(--ba-secondary);border-radius:var(--ba-radius);
+                      box-shadow:0 4px 12px rgba(0,0,0,.12);min-width:13rem;overflow:hidden;z-index:50;">
+            <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--ba-secondary);">
+              <p style="font-size:0.875rem;font-weight:600;color:var(--ba-text);margin:0;">Maria Fernanda</p>
+              <p style="font-size:0.8125rem;opacity:.5;color:var(--ba-text);margin:0.125rem 0 0;">maria@email.com</p>
             </div>
             <a href="hotsite-logged-in.html"
-               style="display: flex; align-items: center; gap: 0.625rem; padding: 0.625rem 1rem;
-                      font-size: 0.875rem; color: var(--ba-text); text-decoration: none; opacity: 0.65;">
-              ← Site BeloAuto
+               style="display:flex;align-items:center;gap:0.625rem;padding:0.625rem 1rem;
+                      font-size:0.875rem;color:var(--ba-text);text-decoration:none;opacity:.65;">
+              ← Site Vitta Studio
             </a>
-            <hr style="border: none; border-top: 1px solid var(--ba-secondary); margin: 0;">
+            <!-- UC-023 — só para clientes com 2+ empresas -->
+            <a href="../customer/prototypes/minha-conta/05-trocar-empresa.html"
+               style="display:flex;align-items:center;gap:0.625rem;padding:0.625rem 1rem;
+                      font-size:0.875rem;color:var(--ba-text);text-decoration:none;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+                <path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+              </svg>
+              Trocar empresa
+            </a>
+            <hr style="border:none;border-top:1px solid var(--ba-secondary);margin:0;">
             <a href="hotsite.html"
-               style="display: flex; align-items: center; gap: 0.625rem; padding: 0.625rem 1rem;
-                      font-size: 0.875rem; color: #dc2626; text-decoration: none; font-weight: 500;">
+               style="display:flex;padding:0.625rem 1rem;font-size:0.875rem;
+                      color:#dc2626;text-decoration:none;font-weight:500;">
               Sair
             </a>
           </div>
@@ -183,150 +225,148 @@
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════
-       CUSTOMER TAB NAV — desktop only (≥1024px)
-       ═══════════════════════════════════════════════ -->
+  <!-- CUSTOMER TAB NAV — desktop -->
   <div class="customer-nav">
-    <a class="customer-nav-item active" href="customer-dashboard.html">
-      🏠 Início
-    </a>
-    <a class="customer-nav-item" href="../customer/prototypes/minha-conta/01-minha-conta.html">
-      📅 Agendamentos
-    </a>
-    <a class="customer-nav-item" href="../customer/prototypes/minha-conta/04-fidelidade.html">
-      ⭐ Fidelidade
-    </a>
+    <a class="customer-nav-item active" href="customer-dashboard.html">Início</a>
+    <a class="customer-nav-item" href="../customer/prototypes/minha-conta/01-minha-conta.html">Agendamentos</a>
+    <a class="customer-nav-item" href="../customer/prototypes/minha-conta/06-minhas-turmas.html">Turmas</a>
+    <a class="customer-nav-item" href="../customer/prototypes/minha-conta/04-fidelidade.html">Fidelidade</a>
   </div>
 
-  <!-- ═══════════════════════════════════════════════
-       MAIN CONTENT
-       ═══════════════════════════════════════════════ -->
+  <!-- MAIN CONTENT -->
   <div class="dashboard-layout">
     <main class="main-content">
       <div class="dashboard-body">
 
-        <!-- Greeting -->
-        <h1 style="font-size: 1.25rem; font-weight: 700; color: var(--ba-text); margin-bottom: 0.125rem;">
-          Olá, João Silva
+        <!-- Saudação -->
+        <h1 style="font-size:1.25rem;font-weight:700;color:var(--ba-text);margin-bottom:1.25rem;">
+          Olá, Maria Fernanda
         </h1>
-        <p style="font-size: 0.875rem; opacity: 0.5; color: var(--ba-text); margin-bottom: 1.25rem;">
-          joao@email.com
-        </p>
 
-        <!-- Stat cards -->
+        <!-- Stats — só mostrar módulos ativos no tenant -->
         <div class="stat-grid">
 
-          <div class="stat-card">
-            <div class="stat-icon" style="background: #fef3c7;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="#f59e0b" stroke="none">
+          <!-- tenant.features.loyalty → show -->
+          <a href="../customer/prototypes/minha-conta/04-fidelidade.html" style="text-decoration:none;">
+            <div class="stat-card">
+              <svg class="stat-icon" viewBox="0 0 24 24" fill="#f59e0b" stroke="none">
                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
               </svg>
+              <div class="stat-label">Pontos</div>
+              <div class="stat-value">120 pts</div>
             </div>
-            <div>
-              <p class="stat-label">Pontos</p>
-              <p class="stat-value">120 pts</p>
-            </div>
-          </div>
+          </a>
 
-          <div class="stat-card">
-            <div class="stat-icon" style="background: var(--ba-secondary);">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ba-primary)"
-                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <!-- tenant.features.scheduling → show -->
+          <a href="../customer/prototypes/minha-conta/01-minha-conta.html" style="text-decoration:none;">
+            <div class="stat-card">
+              <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="var(--ba-primary)" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="4" width="18" height="18" rx="2"/>
-                <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
-                <line x1="3" y1="10" x2="21" y2="10"/>
+                <path d="M16 2v4M8 2v4M3 10h18"/>
+              </svg>
+              <div class="stat-label">Agendamentos</div>
+              <div class="stat-value">3</div>
+            </div>
+          </a>
+
+          <!-- tenant.features.classes → show -->
+          <a href="../customer/prototypes/minha-conta/06-minhas-turmas.html" style="text-decoration:none;">
+            <div class="stat-card">
+              <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 6.1H3M21 12.1H3M15.1 18H3"/>
+              </svg>
+              <div class="stat-label">Turmas</div>
+              <div class="stat-value">2 ativas</div>
+            </div>
+          </a>
+
+        </div>
+
+        <!-- ── PRÓXIMAS TURMAS (tenant.features.classes) ──────────── -->
+        <div class="section-header" style="margin-top:0.25rem;">
+          <p class="section-label">Turmas — próximas sessões</p>
+          <a href="../customer/prototypes/minha-conta/06-minhas-turmas.html" class="section-link">Ver tudo</a>
+        </div>
+        <div class="card" style="padding:0 1rem;margin-bottom:1.5rem;">
+
+          <div class="list-item">
+            <div class="list-item-icon" style="background:#ede9fe;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7c3aed"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 6.1H3M21 12.1H3M15.1 18H3"/>
               </svg>
             </div>
-            <div>
-              <p class="stat-label">Agendamentos</p>
-              <p class="stat-value">5 total</p>
+            <div class="list-item-info">
+              <p class="list-item-name">Pilates Solo</p>
+              <p class="list-item-meta">Amanhã · Seg, 18 ago · 08:00</p>
             </div>
+            <a href="../customer/prototypes/minha-conta/07-turma-detail.html" style="text-decoration:none;">
+              <span class="status-badge status-approved">Confirmada</span>
+            </a>
+          </div>
+
+          <div class="list-item">
+            <div class="list-item-icon" style="background:#ede9fe;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7c3aed"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 6.1H3M21 12.1H3M15.1 18H3"/>
+              </svg>
+            </div>
+            <div class="list-item-info">
+              <p class="list-item-name">Pilates em Grupo</p>
+              <p class="list-item-meta">Qua, 20 ago · 09:00</p>
+            </div>
+            <a href="../customer/prototypes/minha-conta/07-turma-detail.html" style="text-decoration:none;">
+              <span class="status-badge status-approved">Confirmada</span>
+            </a>
           </div>
 
         </div>
 
-        <!-- "Novo agendamento" CTA — mobile only -->
-        <a href="../customer/prototypes/book-a-service/01-service-selection.html"
-           class="btn-primary mobile-only"
-           style="display: block; text-align: center; margin-bottom: 1.75rem;">
-          + Novo agendamento
-        </a>
-
-        <!-- ── Upcoming / pending bookings ────────── -->
-        <p class="section-label">Próximos agendamentos</p>
-        <div class="card" style="padding: 0 1rem; margin-bottom: 1.75rem;">
-
-          <div class="booking-item">
-            <div class="booking-item-icon">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ba-primary)"
-                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2"/>
-                <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
-                <line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
-            </div>
-            <div class="booking-item-info">
-              <p class="booking-item-name">Lavagem Completa Detalhada</p>
-              <p class="booking-item-meta">Sáb, 20 jun · 10h00 · R$ 180,00</p>
-            </div>
-            <span class="status-badge status-approved">Aprovado</span>
-          </div>
-
-          <div class="booking-item">
-            <div class="booking-item-icon">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ba-primary)"
-                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2"/>
-                <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
-                <line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
-            </div>
-            <div class="booking-item-info">
-              <p class="booking-item-name">Polimento Completo</p>
-              <p class="booking-item-meta">Qua, 25 jun · a definir · R$ 350,00</p>
-            </div>
-            <span class="status-badge status-info">Info pedida</span>
-          </div>
-
+        <!-- ── PRÓXIMOS AGENDAMENTOS (tenant.features.scheduling) ─── -->
+        <div class="section-header">
+          <p class="section-label">Próximos agendamentos</p>
+          <a href="../customer/prototypes/minha-conta/01-minha-conta.html" class="section-link">Ver tudo</a>
         </div>
+        <div class="card" style="padding:0 1rem;">
 
-        <!-- ── See all ─────────────────────────────── -->
-        <a href="../customer/prototypes/minha-conta/01-minha-conta.html"
-           style="display: block; text-align: center; font-size: 0.875rem; font-weight: 600;
-                  color: var(--ba-primary); text-decoration: none; margin-bottom: 1.75rem;">
-          Ver todos os agendamentos →
-        </a>
-
-        <!-- ── Booking history ──────────────────────── -->
-        <p class="section-label">Histórico recente</p>
-        <div class="card" style="padding: 0 1rem;">
-
-          <div class="booking-item">
-            <div class="booking-item-icon" style="background: #f0fdf4;">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16a34a"
-                   stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
+          <div class="list-item">
+            <div class="list-item-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ba-primary)"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2"/>
+                <path d="M16 2v4M8 2v4M3 10h18"/>
               </svg>
             </div>
-            <div class="booking-item-info">
-              <p class="booking-item-name">Cristalização de Pintura</p>
-              <p class="booking-item-meta">Qui, 05 jun · 09h00 · +20 pts</p>
+            <div class="list-item-info">
+              <p class="list-item-name">Avaliação postural</p>
+              <p class="list-item-meta">Sex, 22 ago · 10:00 · R$ 120,00</p>
             </div>
-            <span class="status-badge status-completed">Concluído</span>
+            <a href="../customer/prototypes/minha-conta/02-agendamento-detail.html" style="text-decoration:none;">
+              <span class="status-badge status-approved">Aprovado</span>
+            </a>
           </div>
 
-          <div class="booking-item">
-            <div class="booking-item-icon" style="background: #fef2f2;">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#dc2626"
-                   stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          <div class="list-item">
+            <div class="list-item-icon" style="background:#dbeafe;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 8v4M12 16h.01"/>
               </svg>
             </div>
-            <div class="booking-item-info">
-              <p class="booking-item-name">Lavagem Simples</p>
-              <p class="booking-item-meta">Qui, 15 mai · 11h00</p>
+            <div class="list-item-info">
+              <p class="list-item-name">Massagem relaxante</p>
+              <p class="list-item-meta">Ter, 26 ago · a definir · R$ 180,00</p>
+              <p style="font-size:0.75rem;color:#1d4ed8;margin-top:0.125rem;font-weight:500;">
+                Admin precisa de informações
+              </p>
             </div>
-            <span class="status-badge status-cancelled">Cancelado</span>
+            <a href="../customer/prototypes/minha-conta/02b-agendamento-info-requested.html" style="text-decoration:none;">
+              <span class="status-badge status-info">Info pedida</span>
+            </a>
           </div>
 
         </div>
@@ -335,11 +375,59 @@
     </main>
   </div>
 
-  <!-- ═══════════════════════════════════════════════
-       BOTTOM NAV — mobile only (hidden ≥1024px via tokens.css)
-       ═══════════════════════════════════════════════ -->
-  <nav class="bottom-nav">
+  <!-- FAB "Novo" — mobile only -->
+  <button class="fab mobile-only" onclick="document.getElementById('novo-sheet-backdrop').classList.add('open');document.getElementById('novo-sheet').classList.add('open');">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white"
+         stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+  </button>
 
+  <!-- Bottom sheet "Novo" -->
+  <div id="novo-sheet-backdrop" class="sheet-backdrop"
+       onclick="document.getElementById('novo-sheet-backdrop').classList.remove('open');document.getElementById('novo-sheet').classList.remove('open');"></div>
+  <div id="novo-sheet" class="bottom-sheet">
+    <div class="bottom-sheet-handle"></div>
+    <div class="bottom-sheet-label">O que você quer fazer?</div>
+
+    <!-- tenant.features.scheduling → show -->
+    <a href="../customer/prototypes/book-a-service/01-service-selection.html"
+       class="bottom-sheet-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2"/>
+        <path d="M16 2v4M8 2v4M3 10h18"/>
+      </svg>
+      Novo agendamento
+    </a>
+
+    <!-- tenant.features.classes → show. GAP (2026-08-21) — see the desktop dropdown's identical note above -->
+    <a href="../customer/prototypes/reservar-aula/00-lista-aulas.html"
+       class="bottom-sheet-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 6.1H3M21 12.1H3M15.1 18H3"/>
+      </svg>
+      Reservar aula <span style="font-size:.6875rem;opacity:.5;margin-left:.25rem;">(GAP)</span>
+    </a>
+
+    <!-- tenant.features.quotes → show (future) -->
+    <a href="#" class="bottom-sheet-item" style="opacity:.4;pointer-events:none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+      </svg>
+      Novo orçamento
+      <span style="margin-left:auto;font-size:0.6875rem;background:#f1f5f9;color:#64748b;
+                   padding:0.125rem 0.375rem;border-radius:4px;font-weight:700;">Em breve</span>
+    </a>
+
+    <div style="height:0.75rem;"></div>
+  </div>
+
+  <!-- BOTTOM NAV — mobile -->
+  <nav class="bottom-nav">
     <a class="bottom-nav-item active" href="customer-dashboard.html">
       <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -348,17 +436,24 @@
       </svg>
       Início
     </a>
-
+    <!-- tenant.features.scheduling → show -->
     <a class="bottom-nav-item" href="../customer/prototypes/minha-conta/01-minha-conta.html">
       <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="4" width="18" height="18" rx="2"/>
-        <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
-        <line x1="3" y1="10" x2="21" y2="10"/>
+        <path d="M16 2v4M8 2v4M3 10h18"/>
       </svg>
       Agendamentos
     </a>
-
+    <!-- tenant.features.classes → show -->
+    <a class="bottom-nav-item" href="../customer/prototypes/minha-conta/06-minhas-turmas.html">
+      <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 6.1H3M21 12.1H3M15.1 18H3"/>
+      </svg>
+      Turmas
+    </a>
+    <!-- tenant.features.loyalty → show -->
     <a class="bottom-nav-item" href="../customer/prototypes/minha-conta/04-fidelidade.html">
       <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -366,7 +461,6 @@
       </svg>
       Fidelidade
     </a>
-
   </nav>
 
 </body>

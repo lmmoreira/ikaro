@@ -37,47 +37,72 @@
     prototype — no <code>/docs-audit</code>, no mandatory unhappy-path variants, no
     dev-notes handoff spec at that depth. One representative screen per concept, reusing
     the real <code>--ba-*</code> tokens and dashboard shell so it reads authentically, but
-    built to answer "what direction are we heading," not to be implementation-ready.
+    built to validate the product direction. Newer screens below add the decision-complete
+    reservation lifecycle; promotion to a formal <code>plan/journey/</code> handoff still
+    requires its own audit and journey workflow.
   </div>
 
   <div class="note" style="background:#fef3c7;color:#92400e;">
-    <strong>Reviewed 2026-07-29</strong> against the 31 candidate use cases: found and
+    <strong>Continuously reviewed</strong> against the candidate use cases: found and
     fixed a systemic actor mislabel (CAND-06–15 wrongly said MANAGER-only), two mislabeled
     CAND citations, and one missing use case (CAND-17b). Four screens below were added to
     close coverage gaps that had zero prior representation: bundles, multi-leg/spa,
     recurring enrollment, and session capacity-override.
   </div>
 
-  <h2>Public (guest/customer)</h2>
+  <h2>Jornada pública canônica</h2>
+  <div class="note">
+    <strong>Hotsite → serviço → modelo de agendamento → dados/confirmação.</strong>
+    <a href="public-03-service-type-selector.html">“O que você gostaria de agendar?”</a>
+    é o ponto de entrada padrão para um negócio com mais de um serviço. A partir dele:
+    atendimento individual vai para profissional (quando a escolha é configurada), turma
+    vai para agenda de turmas filtrada pelo serviço, e sala/locação vai para data, horário
+    e duração. As telas abaixo que começam em profissional, agenda ou horário são
+    <strong>etapas internas ou deep links de demonstração</strong>, não portas concorrentes.
+  </div>
+
+  <h2>Public (guest/customer) — entry and representative steps</h2>
   <ul>
     <li>
-      <a href="public-01-staff-picker.html">Escolha o profissional</a>
-      <span class="tag tag-actor">Hair Styling — model #2/#3</span>
+      <a href="public-03-service-type-selector.html">1. O que você gostaria de agendar?</a>
+      <span class="tag tag-actor">Canonical hotsite entry — service first</span>
     </li>
     <li>
-      <a href="public-02-class-session-picker.html">Escolha a turma de Pilates</a>
-      <span class="tag tag-actor">Pilates — model #5/#12</span>
+      <a href="public-01-staff-picker.html">2a. Escolha o profissional</a>
+      <span class="tag tag-actor">After a customer-chosen appointment service; profile deep link is also allowed</span>
     </li>
     <li>
-      <a href="public-03-service-type-selector.html">O que você gostaria de agendar?</a>
-      <span class="tag tag-actor">Gym entry point — model #6</span>
+      <a href="public-02b-class-agenda.html">2b. Agenda de turmas</a>
+      <span class="tag tag-actor">After a session service; can broaden to all classes only when customer chooses “see all”</span>
     </li>
     <li>
-      <a href="public-04-bundle-booking.html">Escolha o horário — Massagem Relaxante</a>
+      <a href="public-04-bundle-booking.html">2c. Escolha o horário — Massagem Relaxante</a>
       <span class="tag tag-actor">Bundle — model #7 (added on review)</span>
     </li>
     <li>
-      <a href="public-05-multi-leg-itinerary.html">Revisar sua jornada — Jornada Spa</a>
+      <a href="public-05-multi-leg-itinerary.html">2d. Revisar sua jornada — Jornada Spa</a>
       <span class="tag tag-actor">Multi-leg — model #8 (added on review)</span>
     </li>
     <li>
-      <a href="public-06-class-access.html">Acesso à turma — contrato ou convidado</a>
-      <span class="tag tag-actor">CAND-22, 23, 24, 33</span>
+      <a href="public-11-reserva-por-tempo.html">2e. Reservar sala por tempo</a>
+      <span class="tag tag-actor">After a variable-duration reservation service</span>
     </li>
-    <li><a href="public-07-auto-staff.html">Horário com profissional automático</a> <span class="tag tag-actor">CAND-17b</span></li>
-    <li><a href="public-08-staff-calendar.html">Agenda pública do profissional</a> <span class="tag tag-actor">CAND-20</span></li>
+    <li>
+      <a href="public-06-class-access.html">3. Acesso à turma — contrato ou convidado</a>
+      <span class="tag tag-actor">CAND-22, 22b, 23, 24, 33 — "logado sem contrato" state already matches CAND-22b's shape</span>
+    </li>
+    <li><a href="public-07-auto-staff.html">Horário com profissional automático</a> <span class="tag tag-actor">CAND-17b — copy corrigida 2026-08-21 (dizia "confirmada" antes do clique em Confirmar)</span></li>
+    <li><a href="public-08-staff-calendar.html">Perfil público do profissional</a> <span class="tag tag-actor">CAND-20 — service selection before availability</span></li>
     <li><a href="public-09-fungible-resource.html">Horário com recurso fungível</a> <span class="tag tag-actor">CAND-17</span></li>
-    <li><a href="public-10-waitlist.html">Fila de espera e promoção automática</a> <span class="tag tag-actor">CAND-24, 25</span></li>
+    <li><a href="public-10-waitlist.html">Fila de espera e oferta temporária</a> <span class="tag tag-actor">CAND-24, 25</span></li>
+    <li><a href="customer-08-waitlist-offer.html">Oferta de vaga — confirmar ou recusar</a> <span class="tag tag-actor">CAND-25 — PROMOTION_PENDING</span></li>
+    <li><a href="customer-08b-waitlist-confirmed.html">Oferta aceita — reserva pontual confirmada</a> <span class="tag tag-actor">CAND-25 — confirmação, sem criar recorrência</span></li>
+    <li><a href="public-12-intake-e-confirmacao.html">Dados e participantes da reserva</a> <span class="tag tag-actor">CAND-43 — intake versionado</span></li>
+    <li><a href="public-13-pending-approval.html">Solicitação com horário protegido</a> <span class="tag tag-actor">CAND-42 — hold manual</span></li>
+    <li><a href="public-12-availability-alert.html">Aviso de disponibilidade</a> <span class="tag tag-actor">CAND-46</span></li>
+    <li><a href="public-15-login-required.html">Login necessário para fila/alerta</a> <span class="tag tag-actor">CAND-24/46 — retorno ao contexto</span></li>
+    <li><a href="public-16-guest-verification-expired.html">Verificação de guest expirada</a> <span class="tag tag-actor">CAND-33 — reinício ou login para fila</span></li>
+    <li><a href="public-06c-guest-verified.html">Verificação de guest concluída</a> <span class="tag tag-actor">CAND-33 — rechecagem antes da solicitação</span></li>
   </ul>
 
   <h2>Recurring enrollment — a navigable before/after sequence (Customer, authenticated)</h2>
@@ -93,6 +118,8 @@
     <li><a href="customer-04-gerenciar-recorrencia.html">4. Gerenciar — antes</a> <span class="tag tag-actor">CAND-27, before</span></li>
     <li><a href="customer-05-ocorrencia-pulada.html">5. Ocorrência pulada — depois</a> <span class="tag tag-actor">CAND-27, after</span></li>
     <li><a href="customer-06-recorrencia-cancelada.html">6. Recorrência cancelada — final</a> <span class="tag tag-actor">CAND-28</span></li>
+    <li><a href="customer-09-reserva-recorrente.html">Reserva recorrente privada</a> <span class="tag tag-actor">CAND-45 — sala/consulta/quadra</span></li>
+    <li><a href="customer-10-editar-grupo.html">Editar participantes de um grupo</a> <span class="tag tag-actor">CAND-49</span></li>
   </ul>
 
   <h2>Staff console</h2>
@@ -107,11 +134,11 @@
     </li>
     <li>
       <a href="staff-02b-fechar-turma.html">Turma — fechar (marcar presença)</a>
-      <span class="tag tag-actor">CAND-15b, CAND-25b — domain interview 2026-08-05</span>
+      <span class="tag tag-actor">CAND-37 (CAND-15b superseded, kept for numbering continuity)</span>
     </li>
     <li>
       <a href="staff-03-session-capacity-override.html">Editar turma — capacidade/sala</a>
-      <span class="tag tag-actor">STAFF — capacity override (added on review)</span>
+      <span class="tag tag-actor">CAND-14</span>
     </li>
     <li>
       <a href="staff-04-turmas-proximas.html">Turmas — próximos dias (lista)</a>
@@ -145,7 +172,7 @@
   <ul>
     <li>
       <a href="manager-01-resources-list.html">Recursos</a>
-      <span class="tag tag-actor">NEW nav section</span>
+      <span class="tag tag-actor">CAND-41 — NEW nav section</span>
     </li>
     <li>
       <a href="manager-04-criar-recurso.html">Novo recurso</a>
@@ -156,16 +183,16 @@
       <span class="tag tag-actor">Extends today's service edit form</span>
     </li>
     <li>
-      <a href="manager-03-class-templates.html">Turmas — lista</a>
-      <span class="tag tag-actor">NEW nav section</span>
+      <a href="manager-03-class-templates.html">Turmas — lista (superseded, kept for reference)</a>
+      <span class="tag tag-actor">Superseded 2026-08-21 by manager-turmas-list.html below</span>
     </li>
     <li>
-      <a href="manager-06-criar-turma.html">Nova turma</a>
-      <span class="tag tag-actor">CAND-11, split out of manager-03 on review</span>
+      <a href="manager-06-criar-turma.html">Nova turma (superseded, kept for reference)</a>
+      <span class="tag tag-actor">Superseded 2026-08-21 — split into manager-nova-aula.html + manager-adicionar-horario.html below</span>
     </li>
     <li>
       <a href="manager-06b-criar-turma-conflito.html">Nova turma — conflito com agendamento existente</a>
-      <span class="tag tag-actor">CAND-11 alt. A2, cross-family exclusivity</span>
+      <span class="tag tag-actor">CAND-11 alt. A2, cross-family exclusivity — no equivalent yet on the new 2-step flow</span>
     </li>
     <li>
       <a href="manager-07-class-contract.html">Contrato de aulas</a>
@@ -177,14 +204,84 @@
     </li>
     <li><a href="manager-11-edit-template.html">Editar padrão de turma</a> <span class="tag tag-actor">CAND-12</span></li>
     <li>
-      <a href="customer-07-class-access.html">Meu acesso às aulas</a>
-      <span class="tag tag-actor">Contrato, recorrência e cancelar reserva</span>
+      <a href="customer-07-class-access.html">Meu acesso às aulas (superseded, kept for reference)</a>
+      <span class="tag tag-actor">Superseded 2026-08-21 by plan/journey/customer/prototypes/minha-conta/06-minhas-turmas.html and its detail/skip/cancel/waitlist screens — same scope, materially more complete (per-enrollment history, waitlist state, skip vs. cancel distinction)</span>
+    </li>
+    <li>
+      <a href="manager-09-matriculas.html">Matrículas — lista por turma</a>
+      <span class="tag tag-actor">CAND-39 — 2026-08-21, após customer reservar-aula flow</span>
+    </li>
+    <li>
+      <a href="manager-09b-nova-matricula.html">Nova matrícula manual (pelo manager)</a>
+      <span class="tag tag-actor">CAND-40 — matrícula via telefone / admin</span>
+    </li>
+    <li>
+      <a href="manager-12-exception-worklist.html">Compromissos a resolver</a>
+      <span class="tag tag-actor">CAND-47/56 — identificar, depois resolver explicitamente</span>
+    </li>
+    <li>
+      <a href="manager-13-service-booking-policies.html">Políticas de reserva por serviço</a>
+      <span class="tag tag-actor">CAND-42–46 — defaults do tenant com override</span>
+    </li>
+    <li>
+      <a href="manager-14-onboarding-preset.html">Onboarding — preset, perguntas e revisão</a>
+      <span class="tag tag-actor">CAND-51 — bootstrap recuperável</span>
+    </li>
+  </ul>
+
+  <div class="note" style="background:#dcfce7;color:#166534;margin-top:1rem;">
+    <strong>Catálogo de aulas fechado (2026-08-21):</strong>
+    Os campos <code>color</code>, <code>allowsDropIn</code>, <code>allowsSeries</code> e
+    <code>description</code> agora estão em <code>manager-02-service-resource-config.html</code>
+    dentro do painel "Turma com capacidade" (SESSION model). Alimentam
+    <code>GET /v1/class-types</code> usado pelo catálogo do cliente
+    (<code>reservar-aula/00-lista-aulas.html</code>).
+  </div>
+
+  <h2>Manager console — configuração de turmas (sessões 10/08 e 12/08, promovido 2026-08-21)</h2>
+  <p style="font-size:0.875rem;">
+    Substitui o fluxo plano <code>manager-03</code>/<code>manager-06</code> acima por um cadastro
+    em 3 passos, mais as telas de operação diária (agenda + roster). Rationale completo:
+    <a href="ux-handoff-notes/README.md">ux-handoff-notes/README.md</a>.
+  </p>
+  <ul>
+    <li>
+      <a href="manager-turmas-list.html">Turmas — lista agrupada por tipo (accordion)</a>
+      <span class="tag tag-actor">CAND-11/12/13 — substitui manager-03</span>
+    </li>
+    <li>
+      <a href="manager-nova-aula.html">Criar tipo de aula</a>
+      <span class="tag tag-actor">Passo 1/3 — substitui parte de manager-06</span>
+    </li>
+    <li>
+      <a href="manager-adicionar-horario.html">Adicionar horário recorrente</a>
+      <span class="tag tag-actor">Passo 2/3 — substitui parte de manager-06</span>
+    </li>
+    <li>
+      <a href="manager-definir-staff.html">Definir staff (padrão, por dia, ou por horário)</a>
+      <span class="tag tag-actor">Passo 3/3, opcional — granularidade nova, sem CAND ainda</span>
+    </li>
+    <li>
+      <a href="manager-dashboard.html">Dashboard inicial (pendências, agenda resumida, KPIs)</a>
+      <span class="tag tag-actor">Tela inicial pós-login — nova nav section "Início"</span>
+    </li>
+    <li>
+      <a href="manager-agenda-dia.html">Agenda do dia (aulas + appointments, navegação semanal)</a>
+      <span class="tag tag-actor">CAND-13b, versão operação-diária</span>
+    </li>
+    <li>
+      <a href="manager-roster-dia.html">Roster de uma sessão (check-in, fila, drop-in)</a>
+      <span class="tag tag-actor">CAND-21, CAND-22 — detalhe a partir da agenda do dia</span>
     </li>
   </ul>
 
   <hr>
   <p style="font-size: 0.875rem;">
-    Handoff notes: <a href="dev-notes.md">dev-notes.md</a>.
+    Handoff notes: <a href="dev-notes.md">dev-notes.md</a>,
+    <a href="ROUTE_MAP.md">ROUTE_MAP.md</a>,
+    <a href="ux-handoff-notes/README.md">ux-handoff-notes/README.md</a>,
+    <a href="ux-handoff-notes/RECORRENCIA_HANDOFF.md">ux-handoff-notes/RECORRENCIA_HANDOFF.md</a>.
+    Onboarding preset discovery: <a href="../../MULTI_VERTICAL_SCHEDULING_ONBOARDING_PRESETS.md">MULTI_VERTICAL_SCHEDULING_ONBOARDING_PRESETS.md</a>.
   </p>
 </body>
 </html>
