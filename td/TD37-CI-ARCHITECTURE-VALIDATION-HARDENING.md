@@ -385,7 +385,7 @@ Use a closed, reviewed registry mapping each aggregate's persisted private prope
 
 ---
 
-### Story 11 — `ts-morph`: `@ikaro/types` drift detector, full-codebase (WEB-9) 🔴
+### Story 11 — `ts-morph`: `@ikaro/types` drift detector, full-codebase (WEB-9) 🔴 ✅ Done
 
 This is the one your own docs already flag as a **known, currently-unfixed gap**: `scripts/pre-pr.sh`'s version of this check is diff-scoped (only files changed in the current PR), which is "exactly how `LoyaltyEntryItem`/`LoyaltyRedemptionItem` drifted undetected" (TD31, items 2.1/2.2) — nobody had touched those files in the PR that would have caught it. `bad-smell-audit`'s `WEB-9` covers the full codebase today, but only when an LLM agent is explicitly asked to run it — not on every PR.
 
@@ -401,10 +401,10 @@ This is the one your own docs already flag as a **known, currently-unfixed gap**
 **What it does NOT catch**: which side is *correct* when they differ (per TD09, sometimes `@ikaro/types` is the stale one) — the check only flags the mismatch; a human still decides the fix direction.
 
 **Acceptance criteria**:
-- [ ] Shared runner scans web and workspace types without relying on backend-only dependencies
-- [ ] Full-codebase (not diff-scoped) check passes against `main` with zero unreviewed duplicate/mismatch findings
-- [ ] `scripts/pre-pr.sh`'s existing diff-scoped `WEB-7`/`WEB-9`-adjacent checks can stay as a fast local pre-check, but this becomes the authoritative full-codebase gate
-- [ ] `bad-smell-audit.md`'s `WEB-9` entry and CLAUDE.md's anti-pattern table `WEB-9` row are updated to note the check is now CI-enforced by this detector (mirroring Story 7A's `IEventBus`/`ITransactionManager` precedent), so a future `bad-smell-audit` run doesn't manually redo what's now mechanically enforced on every PR
+- [x] Shared runner scans web and workspace types without relying on backend-only dependencies
+- [x] Full-codebase (not diff-scoped) check passes against `main` with zero unreviewed duplicate/mismatch findings
+- [x] `scripts/pre-pr.sh`'s existing diff-scoped `WEB-7`/`WEB-9`-adjacent checks can stay as a fast local pre-check, but this becomes the authoritative full-codebase gate
+- [x] `bad-smell-audit.md`'s `WEB-9` entry and CLAUDE.md's anti-pattern table `WEB-9` row are updated to note the check is now CI-enforced by this detector (mirroring Story 7A's `IEventBus`/`ITransactionManager` precedent), so a future `bad-smell-audit` run doesn't manually redo what's now mechanically enforced on every PR
 
 ---
 
