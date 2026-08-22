@@ -106,10 +106,9 @@ jobs:
           # package.json/source-file names — on a fork PR those names are
           # contributor-controlled. Break any literal triple-backtick run
           # before embedding so it can't close the summary's own code fence
-          # early and inject arbitrary rendered Markdown after it. The
-          # backtick character is built via printf (not typed literally) so
-          # shellcheck/actionlint can't mistake it for command substitution
-          # (SC2016).
+          # early and inject arbitrary rendered Markdown after it. Building
+          # the backtick character via printf (not typing it literally)
+          # avoids a ShellCheck SC2016 false positive on the sed script.
           backtick=$(printf '\140')
           fence="${backtick}${backtick}${backtick}"
           broken_fence="${backtick}${backtick} ${backtick}"
