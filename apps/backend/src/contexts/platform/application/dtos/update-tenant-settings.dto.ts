@@ -1,13 +1,7 @@
 import { z } from 'zod';
-import { PlatformErrorCode } from '@ikaro/types/protocol/errors';
 import {
-  BookingSettingsSchema,
-  BusinessHoursSettingsSchema,
-  BusinessInfoSettingsSchema,
-  ChatbotSettingsSchema,
   LocalizationSettingsFieldsSchema,
-  LoyaltySettingsSchema,
-  NotificationSettingsSchema,
+  buildUpdateTenantSettingsSchema,
 } from '@ikaro/validation';
 import { CountryCodeSchema } from './country-code.schema';
 
@@ -19,22 +13,6 @@ const LocalizationSchema = LocalizationSettingsFieldsSchema.extend({
   countryCode: CountryCodeSchema,
 }).partial();
 
-export const UpdateTenantSettingsSchema = z.object({
-  settings: z
-    .object({
-      loyalty: LoyaltySettingsSchema.optional(),
-      booking: BookingSettingsSchema.optional(),
-      businessHours: BusinessHoursSettingsSchema.optional(),
-      notification: NotificationSettingsSchema.optional(),
-      localization: LocalizationSchema.optional(),
-      businessInfo: BusinessInfoSettingsSchema.optional(),
-      chatbot: ChatbotSettingsSchema.optional(),
-    })
-    .strict()
-    .refine((settings) => Object.values(settings).some((value) => value !== undefined), {
-      error: 'at least one settings field must be provided',
-      params: { code: PlatformErrorCode.SETTINGS_UPDATE_EMPTY },
-    }),
-});
+export const UpdateTenantSettingsSchema = buildUpdateTenantSettingsSchema(LocalizationSchema);
 
 export type UpdateTenantSettingsDto = z.infer<typeof UpdateTenantSettingsSchema>;

@@ -142,3 +142,31 @@ export const ChatbotSettingsSchema = z
   })
   .partial()
   .strict();
+
+/**
+ * Full `PATCH /tenants/settings` body composition, shared by both apps. Takes the caller's own
+ * `localization` schema as a parameter — the one category that isn't fully shareable (backend
+ * layers a semantic `CountryCode.isValid` check on `LocalizationSettingsFieldsSchema`, BFF stays
+ * format-only; see that schema's docstring). Every other category is identical across apps and
+ * composed here directly, so neither app duplicates the object shape/`.strict()`/empty-update
+ * `.refine()` — the exact wrapper-level duplication this migration exists to remove.
+ */
+export function buildUpdateTenantSettingsSchema<T extends z.ZodTypeAny>(localizationSchema: T) {
+  return z.object({
+    settings: z
+      .object({
+        loyalty: LoyaltySettingsSchema.optional(),
+        booking: BookingSettingsSchema.optional(),
+        businessHours: BusinessHoursSettingsSchema.optional(),
+        notification: NotificationSettingsSchema.optional(),
+        localization: localizationSchema.optional(),
+        businessInfo: BusinessInfoSettingsSchema.optional(),
+        chatbot: ChatbotSettingsSchema.optional(),
+      })
+      .strict()
+      .refine((settings) => Object.values(settings).some((value) => value !== undefined), {
+        error: 'at least one settings field must be provided',
+        params: { code: PlatformErrorCode.SETTINGS_UPDATE_EMPTY },
+      }),
+  });
+}

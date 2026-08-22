@@ -1,14 +1,9 @@
 import { z } from 'zod';
-import { CountryCodeErrorCode, PlatformErrorCode } from '@ikaro/types';
+import { CountryCodeErrorCode } from '@ikaro/types';
 import {
-  BookingSettingsSchema,
-  BusinessHoursSettingsSchema,
-  BusinessInfoSettingsSchema,
-  ChatbotSettingsSchema,
   COUNTRY_CODE_FORMAT_PATTERN,
   LocalizationSettingsFieldsSchema,
-  LoyaltySettingsSchema,
-  NotificationSettingsSchema,
+  buildUpdateTenantSettingsSchema,
 } from '@ikaro/validation';
 
 // Request Zod schema and its inferred body type — split out of tenant-settings.controller.ts
@@ -26,22 +21,6 @@ const LocalizationSchema = LocalizationSettingsFieldsSchema.extend({
   }),
 }).partial();
 
-export const UpdateTenantSettingsBodySchema = z.object({
-  settings: z
-    .object({
-      loyalty: LoyaltySettingsSchema.optional(),
-      booking: BookingSettingsSchema.optional(),
-      businessHours: BusinessHoursSettingsSchema.optional(),
-      notification: NotificationSettingsSchema.optional(),
-      localization: LocalizationSchema.optional(),
-      businessInfo: BusinessInfoSettingsSchema.optional(),
-      chatbot: ChatbotSettingsSchema.optional(),
-    })
-    .strict()
-    .refine((settings) => Object.values(settings).some((value) => value !== undefined), {
-      error: 'at least one settings field must be provided',
-      params: { code: PlatformErrorCode.SETTINGS_UPDATE_EMPTY },
-    }),
-});
+export const UpdateTenantSettingsBodySchema = buildUpdateTenantSettingsSchema(LocalizationSchema);
 
 export type UpdateTenantSettingsBody = z.infer<typeof UpdateTenantSettingsBodySchema>;
