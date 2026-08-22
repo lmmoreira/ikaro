@@ -405,12 +405,15 @@ This is the one your own docs already flag as a **known, currently-unfixed gap**
 
 `apps/web/shared/lib/i18n/error-codes-exhaustiveness.spec.ts` already proves this exact test pattern works and is already CI-enforced — it's the strongest existing precedent for this whole TD. `notifications.json` and `web.json` have the identical mandatory rule ("always add the key to both locales in the same commit") with **no equivalent spec**.
 
-**Mechanism**: retain the existing error-code-catalogue exhaustiveness assertions, then add a small reusable helper that checks recursive locale-key parity in both directions. Apply it to `errors.json`, `notifications.json`, `web.json`, and `email-tables.json`, which is loaded by backend localization too.
+**Mechanism**: retain the existing error-code-catalogue exhaustiveness assertions, then add a small reusable helper that checks recursive locale-key parity in both directions. Apply it to `errors.json`, `notifications.json`, `web.json`, and `email-tables.json`, which is loaded by backend localization too. Lives in `apps/web/shared/lib/i18n/` alongside the existing precedent (new `locale-key-parity.ts` helper + `locale-key-parity.spec.ts` unit tests + `locale-family-key-parity.spec.ts` applying it to all four families) — already runs inside the required `pnpm --filter @ikaro/web test:cov` CI job, no new CI step needed. `error-codes-exhaustiveness.spec.ts` itself stays untouched.
+
+**Story-discovery addition (2026-08-22):** also close the analogous catalog-vs-locale gap on the backend side — `NOTIFICATION_TEMPLATE_KEY_MAPPING` (`notification/domain/notification-template-key.mapping.ts`) has no check that every `{eventName, recipientType}` entry has a matching `notifications.json` key in both locales (the same class of gap `errors.json`'s catalog check already closes for error codes), nor the reverse (an orphaned JSON entry with no mapping). This must live in the backend, extending the existing `notification-template-key.mapping.spec.ts` — not in `apps/web`, since the mapping is backend-only domain data and `apps/web` must never import `apps/backend/src/**` (mirrors the BFF→backend import ban already enforced by TD37 Story 1's `dependency-cruiser` config). Read the locale JSON files the way `docs/ENGINEERING_RULES.md`'s "Static locale/config files in workspace packages" section documents (`require.resolve('@ikaro/i18n/package.json')` + `readFileSync`), independently of the web-side helper.
 
 **Acceptance criteria**:
 - [ ] Existing error-code-catalogue coverage is preserved
 - [ ] Shared helper is applied to all four locale JSON families
 - [ ] Zero current violations
+- [ ] `notification-template-key.mapping.spec.ts` (backend) asserts every `NOTIFICATION_TEMPLATE_KEY_MAPPING` entry has a corresponding `notifications.json` key (`{eventName}.{recipientType}.subject`/`.body`) in both `pt-BR` and `en`, and that every `notifications.json` entry maps back to a mapping entry (no orphans)
 
 ---
 
