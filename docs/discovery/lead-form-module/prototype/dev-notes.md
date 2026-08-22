@@ -1,6 +1,6 @@
 # Dev Notes — Lead Form Hotsite Module (discovery prototype)
 
-**Status:** Discovery-stage, illustrative — same convention as `MULTI_VERTICAL_SCHEDULING`'s own discovery prototype. Lighter than a `plan/journey/` prototype: full state coverage is applied only to the two genuinely novel/high-risk screens (public submission form, manager question builder); the remaining screens (list/detail/export/settings) cover the happy path plus their single most important alternate state. Purpose is to validate direction and surface IA/data-model questions, not to be implementation-ready as-is.
+**Status:** Discovery-stage, illustrative — same convention as `multivertical-booking`'s own discovery prototype. Lighter than a `plan/journey/` prototype: full state coverage is applied only to the two genuinely novel/high-risk screens (public submission form, manager question builder); the remaining screens (list/detail/export/settings) cover the happy path plus their single most important alternate state. Purpose is to validate direction and surface IA/data-model questions, not to be implementation-ready as-is.
 
 Full domain model, data model, and CAND-01..08 use cases: `../lead-form-module.md`.
 
@@ -15,7 +15,7 @@ Full domain model, data model, and CAND-01..08 use cases: `../lead-form-module.m
 
 ## Coverage scope (why some screens are lighter)
 
-Per this discovery's own UX-lens finding: the public submission form and the manager question-builder are the two places where real product/UX risk lives (bot abuse, validation completeness, a non-technical manager configuring up to 20 questions unsupervised). Every meaningful state for those two is prototyped as its own clickable screen. The list/detail/export/settings screens are comparatively low-risk, standard dashboard CRUD patterns already well-established elsewhere in this codebase (`manager-09-matriculas.html`, `manager-13-service-booking-policies.html` in the `MULTI_VERTICAL_SCHEDULING` discovery) — only their single most useful alternate state (empty list) is prototyped; export's two minor alternate states (empty month, purged month) are documented as inline HTML comments in `manager-04-leads-export.html` rather than separate screens, since they're small copy/disabled-state changes on the same layout, not a distinct interaction.
+Per this discovery's own UX-lens finding: the public submission form and the manager question-builder are the two places where real product/UX risk lives (bot abuse, validation completeness, a non-technical manager configuring up to 20 questions unsupervised). Every meaningful state for those two is prototyped as its own clickable screen. The list/detail/export/settings screens are comparatively low-risk, standard dashboard CRUD patterns already well-established elsewhere in this codebase (`manager-09-matriculas.html`, `manager-13-service-booking-policies.html` in the `multivertical-booking` discovery) — only their single most useful alternate state (empty list) is prototyped; export's two minor alternate states (empty month, purged month) are documented as inline HTML comments in `manager-04-leads-export.html` rather than separate screens, since they're small copy/disabled-state changes on the same layout, not a distinct interaction.
 
 ## File map (all GAP — nothing here exists today)
 

@@ -97,17 +97,15 @@
   <!--
     PAGE: apps/web/app/[slug]/my-account/page.tsx  (aba Início)
     ROUTE: /{slug}/my-account
-    SCENARIO: tenant com APPOINTMENT + CLASS habilitados (Vitta Studio)
+    SCENARIO: tenant com APPOINTMENT habilitado (Vitta Studio)
 
     DATA:
       GET /v1/customers/me          → name, email
       GET /v1/bookings?limit=3      → próximos agendamentos
-      GET /v1/enrollments?active=true&limit=3 → turmas ativas + próxima sessão (GAP — endpoint novo)
       GET /v1/loyalty/balance       → pontos + expiração
 
     TENANT CONFIG (drives module visibility):
       tenant.features.scheduling = true   → mostra seção Agendamentos + opção "Novo agendamento"
-      tenant.features.classes    = true   → mostra seção Turmas + opção "Reservar aula"
       tenant.features.loyalty    = true   → mostra stat de pontos
   -->
 
@@ -158,20 +156,6 @@
                 <path d="M16 2v4M8 2v4M3 10h18"/>
               </svg>
               Novo agendamento
-            </a>
-            <!-- tenant.features.classes → show. GAP (2026-08-21) — /aulas route doesn't exist yet,
-                 see docs/discovery/MULTI_VERTICAL_SCHEDULING.md's promotion-status note. Kept
-                 unopacified/clickable (unlike the "future" quotes item below) because it links to
-                 a real, complete discovery-grade prototype (reservar-aula/), not a placeholder. -->
-            <a href="../customer/prototypes/reservar-aula/00-lista-aulas.html"
-               style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem 1rem;
-                      font-size:0.875rem;color:var(--ba-text);text-decoration:none;
-                      border-top:1px solid var(--ba-secondary);">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:.5;">
-                <path d="M17 6.1H3M21 12.1H3M15.1 18H3"/>
-              </svg>
-              Reservar aula <span style="font-size:.6875rem;opacity:.5;margin-left:.25rem;">(GAP)</span>
             </a>
           </div>
         </details>
@@ -229,7 +213,6 @@
   <div class="customer-nav">
     <a class="customer-nav-item active" href="customer-dashboard.html">Início</a>
     <a class="customer-nav-item" href="../customer/prototypes/minha-conta/01-minha-conta.html">Agendamentos</a>
-    <a class="customer-nav-item" href="../customer/prototypes/minha-conta/06-minhas-turmas.html">Turmas</a>
     <a class="customer-nav-item" href="../customer/prototypes/minha-conta/04-fidelidade.html">Fidelidade</a>
   </div>
 
@@ -269,59 +252,6 @@
               <div class="stat-value">3</div>
             </div>
           </a>
-
-          <!-- tenant.features.classes → show -->
-          <a href="../customer/prototypes/minha-conta/06-minhas-turmas.html" style="text-decoration:none;">
-            <div class="stat-card">
-              <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"
-                   stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17 6.1H3M21 12.1H3M15.1 18H3"/>
-              </svg>
-              <div class="stat-label">Turmas</div>
-              <div class="stat-value">2 ativas</div>
-            </div>
-          </a>
-
-        </div>
-
-        <!-- ── PRÓXIMAS TURMAS (tenant.features.classes) ──────────── -->
-        <div class="section-header" style="margin-top:0.25rem;">
-          <p class="section-label">Turmas — próximas sessões</p>
-          <a href="../customer/prototypes/minha-conta/06-minhas-turmas.html" class="section-link">Ver tudo</a>
-        </div>
-        <div class="card" style="padding:0 1rem;margin-bottom:1.5rem;">
-
-          <div class="list-item">
-            <div class="list-item-icon" style="background:#ede9fe;">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7c3aed"
-                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17 6.1H3M21 12.1H3M15.1 18H3"/>
-              </svg>
-            </div>
-            <div class="list-item-info">
-              <p class="list-item-name">Pilates Solo</p>
-              <p class="list-item-meta">Amanhã · Seg, 18 ago · 08:00</p>
-            </div>
-            <a href="../customer/prototypes/minha-conta/07-turma-detail.html" style="text-decoration:none;">
-              <span class="status-badge status-approved">Confirmada</span>
-            </a>
-          </div>
-
-          <div class="list-item">
-            <div class="list-item-icon" style="background:#ede9fe;">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7c3aed"
-                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17 6.1H3M21 12.1H3M15.1 18H3"/>
-              </svg>
-            </div>
-            <div class="list-item-info">
-              <p class="list-item-name">Pilates em Grupo</p>
-              <p class="list-item-meta">Qua, 20 ago · 09:00</p>
-            </div>
-            <a href="../customer/prototypes/minha-conta/07-turma-detail.html" style="text-decoration:none;">
-              <span class="status-badge status-approved">Confirmada</span>
-            </a>
-          </div>
 
         </div>
 
@@ -401,16 +331,6 @@
       Novo agendamento
     </a>
 
-    <!-- tenant.features.classes → show. GAP (2026-08-21) — see the desktop dropdown's identical note above -->
-    <a href="../customer/prototypes/reservar-aula/00-lista-aulas.html"
-       class="bottom-sheet-item">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-           stroke-linecap="round" stroke-linejoin="round">
-        <path d="M17 6.1H3M21 12.1H3M15.1 18H3"/>
-      </svg>
-      Reservar aula <span style="font-size:.6875rem;opacity:.5;margin-left:.25rem;">(GAP)</span>
-    </a>
-
     <!-- tenant.features.quotes → show (future) -->
     <a href="#" class="bottom-sheet-item" style="opacity:.4;pointer-events:none;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -444,14 +364,6 @@
         <path d="M16 2v4M8 2v4M3 10h18"/>
       </svg>
       Agendamentos
-    </a>
-    <!-- tenant.features.classes → show -->
-    <a class="bottom-nav-item" href="../customer/prototypes/minha-conta/06-minhas-turmas.html">
-      <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M17 6.1H3M21 12.1H3M15.1 18H3"/>
-      </svg>
-      Turmas
     </a>
     <!-- tenant.features.loyalty → show -->
     <a class="bottom-nav-item" href="../customer/prototypes/minha-conta/04-fidelidade.html">

@@ -13,7 +13,7 @@ A new hotsite module, `LEAD_FORM`, that lets a manager configure up to 20 custom
 
 ## 2. Why this doesn't duplicate an existing feature
 
-Checked against `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`'s module library and `docs/discovery/` (only `MULTI_VERTICAL_SCHEDULING` exists there today — no overlap). Every existing hotsite module is either admin-authored content (HERO, ABOUT, TESTIMONIALS) or a live read from another context (SERVICE_LIST from Booking). None accept and persist visitor-submitted data through a **hotsite module** — though guest booking (UC-001) already establishes the underlying pattern of an anonymous public write with mandatory contact fields, which is the closest real precedent this design leans on (see §4).
+Checked against `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`'s module library and `docs/discovery/` (only `multivertical-booking` exists there today — no overlap). Every existing hotsite module is either admin-authored content (HERO, ABOUT, TESTIMONIALS) or a live read from another context (SERVICE_LIST from Booking). None accept and persist visitor-submitted data through a **hotsite module** — though guest booking (UC-001) already establishes the underlying pattern of an anonymous public write with mandatory contact fields, which is the closest real precedent this design leans on (see §4).
 
 The closest *structural* precedent is `CONTACT`: its module data carries only display preferences, with real values living outside the manifest. `LEAD_FORM` follows the same split, but goes one step further for cost/caching reasons — see §5.
 
@@ -200,7 +200,7 @@ Platform-wide, single Ikaro Cloudflare account (not per-tenant, per the "we alre
   2. Turnstile + submit, same as CAND-03 steps 3–8.
   3. Backend sets `customerId` on the submission from the JWT `sub`.
 - **Alternative Flows:**
-  - **A1: `audienceMode === 'CUSTOMER_ONLY'` and visitor is NOT authenticated** → redirected to a login-required state (reusing the existing `public-15-login-required.html` UX pattern from `MULTI_VERTICAL_SCHEDULING`, not a new invention) with a link to `../../../shared/login.html`-equivalent; after login, returns to `/[slug]/lead-form`.
+  - **A1: `audienceMode === 'CUSTOMER_ONLY'` and visitor is NOT authenticated** → redirected to a login-required state (reusing the existing `public-15-login-required.html` UX pattern from `multivertical-booking`, not a new invention) with a link to `../../../shared/login.html`-equivalent; after login, returns to `/[slug]/lead-form`.
   - **A2–A5:** same as CAND-03 A1–A4.
 - **Postconditions:** `LeadFormSubmission` persisted with `customerId` set.
 - **Events Triggered:** `LeadFormSubmissionReceived` (`data.customerId` set).

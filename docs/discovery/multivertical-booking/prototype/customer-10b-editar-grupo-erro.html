@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Editar participantes — Erro — Vitta Studio</title><link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css"><style>.person{display:flex;justify-content:space-between;gap:1rem;padding:.875rem 0;border-bottom:1px solid var(--ba-secondary)}.person:last-child{border:0}.state{display:none;margin-top:1rem}.state:target{display:block}</style></head><body>
+<!--
+  DISCOVERY PROTOTYPE -- illustrative only, NOT a plan/journey/ prototype.
+  Error-state sibling of customer-10-editar-grupo.html.
+  CAND-49 (Customer Edits a Group Reservation's Attendees):
+  - Precondition: "...has at least one attendee remaining after the requested removal."
+    Panel #last-attendee below shows the block when Bia was already removed earlier and Ana
+    (the only remaining attendee) tries to remove herself too.
+  - Alt flow: "Inside the cutoff, customer must contact staff; staff may resolve it through
+    the audited exception path." Panel #cutoff shows that second, independent block.
+  See ../multivertical-booking_USECASES.md CAND-49.
+-->
+<div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:.375rem 1rem;font-size:.8125rem;text-align:center;color:#92400e;">
+  Protótipo — CAND-49 — remoção bloqueada (dois cenários abaixo)
+</div>
+<header style="background:white;border-bottom:1px solid var(--ba-secondary);padding:.75rem 1.5rem"><strong>Vitta Studio</strong></header>
+<main class="step-container">
+  <p class="step-indicator">Pilates · Seg, 18 ago · 18:00</p>
+  <h1 style="font-size:1.5rem">Quem vai participar?</h1>
+  <p style="opacity:.7">Até 4 horas antes da turma você pode apenas remover participantes. Para adicionar ou substituir alguém, fale com a equipe.</p>
+
+  <div class="card">
+    <div class="person">
+      <div><strong>Ana Costa</strong><p style="font-size:.8125rem;opacity:.65;margin-top:.2rem">Responsável pela reserva · única participante restante</p></div>
+      <a class="btn-secondary" style="color:#b91c1c" href="#last-attendee">Remover</a>
+    </div>
+  </div>
+
+  <section id="last-attendee" class="card state" style="background:#fef2f2;border-color:#fca5a5">
+    <h2 style="font-size:1.1rem;color:#dc2626">Não é possível remover o último participante</h2>
+    <p style="font-size:.875rem;color:#dc2626;margin-top:.4rem">Bia Santos já foi removida anteriormente. Ana Costa é a única participante restante nesta reserva — pelo menos um participante deve permanecer. Para cancelar completamente, cancele a reserva inteira em vez de remover a última pessoa.</p>
+    <div class="nav-buttons">
+      <a class="btn-secondary" href="customer-10-editar-grupo.html">Voltar</a>
+      <a class="btn-danger" href="customer-06-recorrencia-cancelada.html">Cancelar a reserva inteira</a>
+    </div>
+  </section>
+
+  <div class="card" style="margin-top:1rem">
+    <strong>Alterações indisponíveis (fora do prazo)</strong>
+    <p style="font-size:.875rem;opacity:.7;margin-top:.4rem">Esta turma começa em menos de 4 horas — o prazo de edição por conta própria já passou.</p>
+    <a href="#cutoff" style="font-size:.875rem">Ver o que fazer agora →</a>
+  </div>
+
+  <section id="cutoff" class="card state" style="background:#fffbeb;border-color:#fde68a">
+    <h2 style="font-size:1.1rem">Fora do prazo de edição</h2>
+    <p style="font-size:.875rem;opacity:.75;margin-top:.4rem">Depois do prazo, a remoção de participantes deixa de ser self-service. Fale com a equipe — eles resolvem o pedido sem ultrapassar a capacidade da turma, pelo mesmo caminho auditado usado para outras exceções.</p>
+    <div class="nav-buttons"><a class="btn-secondary" href="customer-10-editar-grupo.html">Voltar</a></div>
+  </section>
+</main>
+</body></html>

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Editar turma recorrente — Erro — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
+  <style>
+    .form-group { margin-bottom: 1rem; }
+    .form-input.error { border-color: #ef4444; background: #fef2f2; }
+    .form-error { font-size: 0.8125rem; color: #dc2626; margin-top: 0.375rem; display: flex; align-items: center; gap: 0.25rem; }
+
+    .form-actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
+    .form-actions .btn-primary { flex: 1; text-align: center; padding: 0.875rem; }
+    .detail-layout { display: block; }
+    .detail-aside  { display: none; }
+    @media (min-width: 1024px) {
+      .detail-layout { display: grid; grid-template-columns: 1fr 22rem; gap: 1.5rem; align-items: start; }
+      .detail-aside  { display: block; position: sticky; top: 1.5rem; }
+      .form-actions  { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <!--
+    DISCOVERY PROTOTYPE -- illustrative only, NOT a plan/journey/ prototype.
+    Error-state sibling of manager-11-edit-template.html.
+
+    Grounds CAND-12 (Manager Edits or Deactivates a Template) combined with CAND-14
+    A1's capacity rule, restated for the template-level edit: "New capacity <
+    current reservedCount -> System rejects the edit. Staff must explicitly resolve
+    reservations before reducing capacity; confirmed/pending guests are never
+    silently demoted or cancelled." manager-11's own base screen already warns
+    "Não pode exceder a capacidade física do Estúdio 1" (a ceiling check) -- this
+    variant shows the OTHER direction: lowering capacity below what's already
+    reserved right now.
+
+    See ../multivertical-booking_USECASES.md CAND-12, CAND-14 A1.
+
+    Added as part of the targeted state-coverage backfill (2026-08-22) -- see
+    ../multivertical-booking.md §9 for the dated entry.
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — CAND-12 / CAND-14 A1 — nova capacidade abaixo das vagas já reservadas
+  </div>
+
+  <div class="dashboard-topbar">
+    <a href="manager-03-class-templates.html" style="display:flex;align-items:center;gap:0.375rem;color:var(--ba-text);text-decoration:none;font-size:0.9375rem;font-weight:500;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      <span style="font-weight:600;">Turmas recorrentes</span>
+    </a>
+    <h1 class="topbar-page-title">Editar turma recorrente</h1>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
+      <a href="../../../../plan/journey/shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">V</div>
+        <div><p class="sidebar-tenant-name">Vitta Studio</p><p class="sidebar-tenant-slug">@vittastudio</p></div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top:0.5rem;">
+        <a class="sidebar-nav-item" href="#">Agenda</a>
+        <a class="sidebar-nav-item" href="manager-05-visao-geral.html">Horários</a>
+        <a class="sidebar-nav-item" href="manager-02-service-resource-config.html">Serviços</a>
+        <a class="sidebar-nav-item active" href="staff-04-turmas-proximas.html">Turmas</a>
+        <a class="sidebar-nav-item" href="#">Fidelidade</a>
+      </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item" href="manager-01-resources-list.html">Recursos</a>
+        <a class="sidebar-nav-item" href="#">Equipe</a>
+        <a class="sidebar-nav-item" href="#">Configurações</a>
+        <a class="sidebar-nav-item" href="#">Hotsite</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
+        <a class="sidebar-logout" href="../../../../plan/journey/shared/staff-login.html" title="Sair">Sair</a>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="dashboard-body">
+        <div class="detail-layout">
+        <div>
+
+        <h1 style="font-size:1.25rem;margin:0 0 1rem;">Pilates · Seg / Qua / Sex</h1>
+
+        <div class="form-group">
+          <label class="form-label">Horário futuro</label>
+          <input class="form-input" type="time" value="08:00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Capacidade futura</label>
+          <input class="form-input error" type="number" value="2">
+          <p class="form-error">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Esta turma já tem 4 vagas reservadas (confirmadas + pendentes). Não é possível reduzir a capacidade para 2 sem antes resolver essas reservas — nenhum aluno confirmado ou pendente é rebaixado ou cancelado automaticamente.
+          </p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Vigência</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
+            <div>
+              <label class="form-label">Data de início</label>
+              <input class="form-input" type="date" value="2026-08-04">
+            </div>
+            <div>
+              <label class="form-label">Data de término (opcional)</label>
+              <input class="form-input" type="date" aria-label="Data de término">
+            </div>
+          </div>
+        </div>
+        <div class="card" style="background:#eff6ff">
+          <strong>O que muda</strong>
+          <p style="font-size:.8125rem;color:#1d4ed8;margin-top:.25rem">A regra passa a valer apenas para ocorrências futuras ainda não materializadas. Use "cancelar" para sessões futuras que já existem.</p>
+        </div>
+
+        <div class="form-actions">
+          <a class="btn-secondary" href="manager-03-class-templates.html">Voltar</a>
+          <button class="btn-primary" style="opacity:0.5;pointer-events:none;" disabled>Salvar padrão futuro</button>
+        </div>
+
+        </div><!-- /form col -->
+        <div class="detail-aside">
+          <div class="card" style="padding:1.25rem;">
+            <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:var(--ba-radius);padding:0.75rem;margin-bottom:1rem;font-size:0.8125rem;color:#dc2626;">
+              Capacidade bloqueada: 4 vagas já reservadas, novo valor é 2. Aumente a capacidade ou resolva as reservas existentes primeiro (por exemplo, cancelando manualmente em Matrículas).
+            </div>
+            <button class="btn-primary" style="display:block;width:100%;text-align:center;padding:0.75rem;margin-bottom:0.625rem;opacity:0.5;pointer-events:none;" disabled>
+              Salvar padrão futuro
+            </button>
+            <a href="manager-03-class-templates.html" class="btn-secondary" style="display:block;text-align:center;padding:0.75rem;">
+              Voltar
+            </a>
+          </div>
+        </div><!-- /aside -->
+        </div><!-- /detail-layout -->
+      </div>
+    </main>
+  </div>
+
+  <nav class="bottom-nav">
+    <a class="bottom-nav-item" href="#">Agenda</a>
+    <a class="bottom-nav-item" href="manager-05-visao-geral.html">Horários</a>
+    <a class="bottom-nav-item" href="manager-02-service-resource-config.html">Serviços</a>
+    <a class="bottom-nav-item active" href="staff-04-turmas-proximas.html">Turmas</a>
+  </nav>
+
+</body>
+</html>
