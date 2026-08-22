@@ -390,6 +390,7 @@ Mechanically: discovery for every story in the batch runs first, sequentially, i
 | Observability | `docs/10-OBSERVABILITY_STRATEGY.md` |
 | Implementing a milestone story | Load `plan/<M0X>-<NAME>_IMPLEMENTATION_DETAILS_IA.md` for that milestone (`ls plan/*_IMPLEMENTATION_DETAILS_IA.md` to list). Special cases: `plan/M115-PRODUCTION-READINESS_IMPLEMENTATION_DETAILS_IA.md`, `td/TD02-LOCALIZATION.md` |
 | New journey or prototype | `plan/journey/README.md` |
+| Starting a new discovery from an idea | `/create-discovery` — see `.claude/commands/create-discovery.md` |
 | Promoting a `docs/discovery/` doc into a milestone | `/discovery-to-milestone` — see `.claude/commands/discovery-to-milestone.md` |
 | Creating or standardizing a TD | `/create-td` — see `.claude/commands/create-td.md` |
 
@@ -478,6 +479,7 @@ Pinned Terraform skills live in `.claude/skills/`; refresh them by re-vendoring 
 | Command | File |
 |---|---|
 | `/bad-smell-audit [backend\|bff\|web]` | `.claude/commands/bad-smell-audit.md` |
+| `/create-discovery <idea \| brief \| slug>` | `.claude/commands/create-discovery.md` |
 | `/create-td <problem description \| TDNN + description>` | `.claude/commands/create-td.md` |
 | `/discovery-to-milestone <discovery-doc-path>` | `.claude/commands/discovery-to-milestone.md` |
 | `/docs-audit [UC-XXX\|M0X\|actor/slug\|doc-path]` | `.claude/commands/docs-audit.md` |
