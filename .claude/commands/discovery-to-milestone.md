@@ -151,8 +151,8 @@ For every story in the confirmed wave sequence, write a `### M<N>-S<NN> — <tit
 
 ## Step 5 — Self-dry-run `/story-discovery`'s own checklist
 
-For each drafted story, mentally run `/story-discovery`'s Step 4 checklist (4a–4p) against it before presenting anything to the user:
-- Doc validity, UC completeness, state-machine consistency, event envelope completeness, multi-tenancy invariants, test-coverage readability, cross-context data access, API contract completeness, configuration/settings, conflicts with project standards, journey/prototype alignment, infrastructure/environment, i18n keys, migration/entity registration, engineering discipline (4o), stale-reference-sweep anticipation (4p).
+For each drafted story, mentally run `/story-discovery`'s Step 4 checklist (4a–4q) against it before presenting anything to the user:
+- Doc validity, UC completeness, state-machine consistency, event envelope completeness, multi-tenancy invariants, test-coverage readability, cross-context data access, API contract completeness, configuration/settings, conflicts with project standards, journey/prototype alignment, infrastructure/environment, i18n keys, migration/entity registration, engineering discipline (4o), stale-reference-sweep anticipation (4p), pattern & test-strategy lock-in (4q) — architectural pattern, concrete test/e2e coverage plan, and business-rule ambiguity all need to be resolved here too, not left for `/story-discovery` to catch, since a READY verdict now authorizes the entire autonomous implementation chain with no further per-step checkpoint (CLAUDE.md §9).
 
 Fix anything catchable now. This is the same "shift left" principle applied throughout this repo's other gates — a gap caught here costs nothing; the same gap caught during a real `/story-discovery` run costs a round-trip.
 

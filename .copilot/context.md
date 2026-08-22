@@ -341,7 +341,7 @@ This is now the primary point where implementation-time surprises get caught, no
 Always delete the local branch with `-D` (not `-d` — squash merges aren't recognized as fully merged).
 
 ### Step 11 — Mark done
-`/mark-done M0X-SYY` — updates plan file, commits to main, alerts if milestone complete. (TD stories: no separate command — see `mark-done.md`'s note on marking a TD story done directly in its own feature branch.)
+`/mark-done M0X-SYY` — the last-mile check, not just bookkeeping: independently re-verifies AC evidence and that any Critical/Important `/pr-review`/bot finding on the merged PR was actually resolved, opening a bug-fix TD via `/create-td` for any real gap rather than silently marking done — then updates the plan file, commits to main, alerts if milestone complete. (TD stories: no separate command — see `mark-done.md`'s note on marking a TD story done directly in its own feature branch.)
 
 ### Step 12 — Milestone complete?
 If all stories are `✅ Done`: create `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA.md` + `_DEVELOPER.md`; add IA file to §10. Also do the stale-documentation sweep described in `/mark-done`'s milestone-complete reminder — a safety net for any story that skipped `docs/DEFINITION_OF_DONE.md`'s stale-reference-sweep item.
@@ -387,6 +387,7 @@ Mechanically: discovery for every story in the batch runs first, sequentially, i
 | Implementing a milestone story | Load `plan/<M0X>-<NAME>_IMPLEMENTATION_DETAILS_IA.md` for that milestone (`ls plan/*_IMPLEMENTATION_DETAILS_IA.md` to list). Special cases: `plan/M115-PRODUCTION-READINESS_IMPLEMENTATION_DETAILS_IA.md`, `td/TD02-LOCALIZATION.md` |
 | New journey or prototype | `plan/journey/README.md` |
 | Promoting a `docs/discovery/` doc into a milestone | `/discovery-to-milestone` — see `.claude/commands/discovery-to-milestone.md` |
+| Creating or standardizing a TD | `/create-td` — see `.claude/commands/create-td.md` |
 
 **Anti-patterns reference:** `docs/ANTI_PATTERNS.md` — full table; loaded automatically by `/pre-pr`.
 **Never load:** `docs/archive/` (superseded) · `plan/*_DEVELOPER.md` (written for humans, not agents).
