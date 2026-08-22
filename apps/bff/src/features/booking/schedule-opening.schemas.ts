@@ -3,7 +3,7 @@ import { DATE_ONLY_PATTERN } from '@ikaro/validation';
 
 // Request Zod schemas and their inferred body/query types — split out of
 // schedule-opening.controller.ts so request-side shapes never live inline in the controller
-// (TD37-S10, mirrors booking/bookings.schemas.ts's existing split).
+// (mirrors booking/bookings.schemas.ts's existing split).
 export const CreateOpeningBodySchema = z.object({
   date: z.string().regex(DATE_ONLY_PATTERN, 'date must be YYYY-MM-DD'),
   startTime: z.string().regex(/^\d{2}:\d{2}$/, 'startTime must be HH:MM'),

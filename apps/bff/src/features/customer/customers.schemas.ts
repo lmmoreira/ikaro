@@ -4,7 +4,7 @@ import { AddressSchema, isValidPhoneNumber } from '@ikaro/validation';
 
 // Request Zod schemas and their inferred body/query types — split out of
 // customers.controller.ts so request-side shapes never live inline in the controller
-// (TD37-S10, mirrors booking/bookings.schemas.ts's existing split).
+// (mirrors booking/bookings.schemas.ts's existing split).
 export const UpdateCustomerProfileBodySchema = z.object({
   name: z.string().min(1).optional(),
   phone: z

@@ -9,7 +9,7 @@ import { ALLOWED_IMAGE_CONTENT_TYPES, GenericErrorCode, PlatformErrorCode } from
 
 // Request Zod schemas and their inferred body types — split out of
 // hotsite-admin.controller.ts so request-side shapes never live inline in the controller
-// (TD37-S10, mirrors booking/bookings.schemas.ts's existing split).
+// (mirrors booking/bookings.schemas.ts's existing split).
 export const UpdateHotsiteContentBodySchema = z
   .object({
     branding: HotsiteBrandingSchema.optional(),

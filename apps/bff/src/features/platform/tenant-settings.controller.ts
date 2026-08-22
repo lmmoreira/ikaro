@@ -8,7 +8,7 @@ import {
   UpdateTenantSettingsBodySchema,
 } from './tenant-settings.schemas';
 
-// Request Zod schema moved to tenant-settings.schemas.ts (TD37-S10) — re-exported here so
+// Request Zod schema moved to tenant-settings.schemas.ts — re-exported here so
 // existing imports of these symbols from this file (e.g. address-schema-code-reuse.spec.ts)
 // keep working unchanged.
 export * from './tenant-settings.schemas';

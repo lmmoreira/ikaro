@@ -20,7 +20,7 @@ import {
   ListOpeningsQuerySchema,
 } from './schedule-opening.schemas';
 
-// Request Zod schemas moved to schedule-opening.schemas.ts (TD37-S10) — re-exported here so
+// Request Zod schemas moved to schedule-opening.schemas.ts — re-exported here so
 // existing imports of these symbols from this file keep working unchanged.
 export * from './schedule-opening.schemas';
 

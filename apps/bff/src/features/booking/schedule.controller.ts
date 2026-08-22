@@ -20,7 +20,7 @@ import {
   ListClosuresQuerySchema,
 } from './schedule.schemas';
 
-// Request Zod schemas moved to schedule.schemas.ts (TD37-S10) — re-exported here so existing
+// Request Zod schemas moved to schedule.schemas.ts — re-exported here so existing
 // imports of these symbols from this file keep working unchanged.
 export * from './schedule.schemas';
 

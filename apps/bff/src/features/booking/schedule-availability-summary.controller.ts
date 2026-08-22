@@ -9,7 +9,7 @@ import {
   GetAvailabilitySummaryQuerySchema,
 } from './schedule-availability-summary.schemas';
 
-// Request Zod schema moved to schedule-availability-summary.schemas.ts (TD37-S10) —
+// Request Zod schema moved to schedule-availability-summary.schemas.ts —
 // re-exported here so existing imports of these symbols from this file keep working unchanged.
 export * from './schedule-availability-summary.schemas';
 

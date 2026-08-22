@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // Request Zod schemas and their inferred body/query types — split out of loyalty.controller.ts
-// so request-side shapes never live inline in the controller (TD37-S10, mirrors
+// so request-side shapes never live inline in the controller (mirrors
 // booking/bookings.schemas.ts's existing split).
 export const PaginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),

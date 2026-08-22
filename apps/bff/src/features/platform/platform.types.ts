@@ -19,8 +19,7 @@ export type BackendHotsiteManifestResponse = HotsiteResponse & {
 export type BackendTenantByIdResponse = TenantInfoResponse & { settings: TenantSettings };
 
 // Outbound payload the BFF sends to the backend's chatbot endpoint — not a client-facing
-// request nor response shape, but still can't live inline in platform.public.controller.ts
-// (TD37-S10).
+// request nor response shape, but still can't live inline in platform.public.controller.ts.
 export interface BackendSendChatMessageBody {
   sessionId?: string;
   systemPrompt: string;

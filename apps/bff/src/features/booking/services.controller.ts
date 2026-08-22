@@ -22,7 +22,7 @@ import {
   UpdateServiceBodySchema,
 } from './services.schemas';
 
-// Request Zod schemas moved to services.schemas.ts (TD37-S10) — re-exported here so existing
+// Request Zod schemas moved to services.schemas.ts — re-exported here so existing
 // imports of these symbols from this file keep working unchanged.
 export * from './services.schemas';
 

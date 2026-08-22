@@ -33,7 +33,7 @@ import {
   RedeemPointsSchema,
 } from './loyalty.schemas';
 
-// Request Zod schemas moved to loyalty.schemas.ts (TD37-S10) — re-exported here so existing
+// Request Zod schemas moved to loyalty.schemas.ts — re-exported here so existing
 // imports of these symbols from this file keep working unchanged.
 export * from './loyalty.schemas';
 

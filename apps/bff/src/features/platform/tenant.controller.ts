@@ -5,7 +5,7 @@ import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { RenameTenantBody, RenameTenantBodySchema } from './tenant.schemas';
 
-// Request Zod schema moved to tenant.schemas.ts (TD37-S10) — re-exported here so existing
+// Request Zod schema moved to tenant.schemas.ts — re-exported here so existing
 // imports of these symbols from this file keep working unchanged.
 export * from './tenant.schemas';
 

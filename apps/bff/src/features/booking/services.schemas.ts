@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // Request Zod schemas and their inferred body types — split out of services.controller.ts so
-// request-side shapes never live inline in the controller (TD37-S10, mirrors
+// request-side shapes never live inline in the controller (mirrors
 // booking/bookings.schemas.ts's existing split).
 export const CreateServiceBodySchema = z.object({
   name: z.string().min(1),

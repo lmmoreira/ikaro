@@ -34,7 +34,7 @@ import {
   UpdateStaffBodySchema,
 } from './staff.schemas';
 
-// Request Zod schemas moved to staff.schemas.ts (TD37-S10) — re-exported here so existing
+// Request Zod schemas moved to staff.schemas.ts — re-exported here so existing
 // imports of these symbols from this file keep working unchanged.
 export * from './staff.schemas';
 

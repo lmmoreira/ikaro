@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { DATE_ONLY_PATTERN } from '@ikaro/validation';
 
 // Request Zod schemas and their inferred body/query types — split out of schedule.controller.ts
-// so request-side shapes never live inline in the controller (TD37-S10, mirrors
+// so request-side shapes never live inline in the controller (mirrors
 // booking/bookings.schemas.ts's existing split).
 export const CreateClosureBodySchema = z.object({
   date: z.string().regex(DATE_ONLY_PATTERN, 'date must be YYYY-MM-DD'),

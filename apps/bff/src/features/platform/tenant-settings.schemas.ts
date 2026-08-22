@@ -8,7 +8,7 @@ import {
 } from '@ikaro/validation';
 
 // Request Zod schema and its inferred body type — split out of tenant-settings.controller.ts
-// so request-side shapes never live inline in the controller (TD37-S10, mirrors
+// so request-side shapes never live inline in the controller (mirrors
 // booking/bookings.schemas.ts's existing split).
 const HHMM_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const timeOfDayField = (): z.ZodString =>

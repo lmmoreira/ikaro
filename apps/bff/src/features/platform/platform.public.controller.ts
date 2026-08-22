@@ -27,7 +27,7 @@ import { buildSystemPrompt } from './chatbot.mapper';
 import { BackendHotsiteManifestResponse, BackendSendChatMessageBody } from './platform.types';
 import { ChatbotMessageBody, ChatbotMessageBodySchema } from './platform.public.schemas';
 
-// Request Zod schema moved to platform.public.schemas.ts (TD37-S10) — re-exported here so
+// Request Zod schema moved to platform.public.schemas.ts — re-exported here so
 // existing imports of these symbols from this file keep working unchanged.
 export * from './platform.public.schemas';
 

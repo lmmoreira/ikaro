@@ -24,7 +24,7 @@ import {
   UpdateCustomerProfileBodySchema,
 } from './customers.schemas';
 
-// Request Zod schemas moved to customers.schemas.ts (TD37-S10) — re-exported here so existing
+// Request Zod schemas moved to customers.schemas.ts — re-exported here so existing
 // imports of these symbols from this file (e.g. address-schema-code-reuse.spec.ts) keep
 // working unchanged.
 export * from './customers.schemas';

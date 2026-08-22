@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // Request Zod schema and its inferred body type — split out of platform.public.controller.ts
-// so request-side shapes never live inline in the controller (TD37-S10, mirrors
+// so request-side shapes never live inline in the controller (mirrors
 // booking/bookings.schemas.ts's existing split).
 //
 // `maxMessageLengthChars` (default 1000) is an Ikaro-only override (docs/21-TENANTS_SETTINGS_SCHEMA.md

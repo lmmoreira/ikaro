@@ -6,7 +6,7 @@ import { withPublicTenant } from '../../shared/http/public-tenant';
 import { AvailabilityResponse } from './schedule.types';
 import { GetAvailabilityQuery, GetAvailabilityQuerySchema } from './schedule-availability.schemas';
 
-// Request Zod schema moved to schedule-availability.schemas.ts (TD37-S10) — re-exported here so
+// Request Zod schema moved to schedule-availability.schemas.ts — re-exported here so
 // existing imports of these symbols from this file keep working unchanged.
 export * from './schedule-availability.schemas';
 
