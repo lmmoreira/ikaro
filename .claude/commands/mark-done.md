@@ -1,6 +1,6 @@
 ---
 name: mark-done
-description: Mark a story as done in its milestone plan file and commit the change to main.
+description: Mark a story as done in its milestone plan file and commit the change to main. The last-mile check that acceptance criteria were truly met and no Critical/Important review finding was left unresolved - opens a bug-fix TD for any real gap found rather than silently marking done.
 metadata:
   short-description: Mark a story done in the milestone plan
 ---
@@ -9,7 +9,7 @@ Mark a story as done in its milestone plan file and commit the change to main.
 
 Argument: `$ARGUMENTS` — the story ID to mark done (e.g. `M03-S06`).
 
-**TD stories** (`TDxx Story N`) are not covered by this command — `$ARGUMENTS` only parses `M0X-SYY` milestone syntax, and Step 6 requires being on `main`. Mark a TD story done by appending ` ✅ Done` directly to its existing story heading in the `td/TDxx-*.md` file — **check that TD's own heading level first, don't assume one**: existing TDs mix `### Story N —` (three `#` — TD01, TD-18-19-20, TD-21, TD31, TD37) and `#### Story N —` (four `#` — TD23, TD30). New TDs drafted via `/create-td` standardize on three `#` going forward, but an existing TD keeps whatever level it already uses. Bundle the change into the same feature-branch commit as the story's implementation — not as a separate post-merge `main` commit. See TD23 Stories 4-7 for precedent.
+**TD stories** (`TDxx Story N`) are not covered by this command — `$ARGUMENTS` only parses `M0X-SYY` milestone syntax, and Step 6 requires being on `main`. The same Step 4 audit discipline below (AC evidence, bot/review-finding resolution, bug-fix-TD-on-gap) still applies — only the mechanics of *where* `✅ Done` gets written differ. Mark a TD story done by appending ` ✅ Done` directly to its existing story heading in the `td/TDxx-*.md` file — **check that TD's own heading level first, don't assume one**: existing TDs mix `### Story N —` (three `#` — TD01, TD-18-19-20, TD-21, TD31, TD37) and `#### Story N —` (four `#` — TD23, TD30). New TDs drafted via `/create-td` standardize on three `#` going forward, but an existing TD keeps whatever level it already uses. Bundle the change into the same feature-branch commit as the story's implementation — not as a separate post-merge `main` commit. See TD23 Stories 4-7 for precedent.
 
 **Single-scope TDs** (no `Story N —` subdivision at all, just one `## Status` block for the whole TD — e.g. TD27) don't have a heading to append `✅ Done` to. Update the `- **State**:` line in that `## Status` block instead (e.g. `**State**: ✅ Done — implemented and merged via PR #<N> (<date>)`). Same bundling preference applies (into the feature-branch commit, not a separate post-merge commit) — only fall back to a standalone `main` commit if the branch is already merged and gone, as happened with TD27 (PR #185, 2026-07-22).
 
@@ -25,15 +25,19 @@ Argument: `$ARGUMENTS` — the story ID to mark done (e.g. `M03-S06`).
    - If the line already ends with `✅ Done`, report "Already marked done — nothing to do." and stop.
    - If the story ID is not found, report the error and stop.
 
-4. **Before marking any milestone or TD story done:** independently audit every stated Acceptance Criterion against the repository and concrete verification evidence (for example, targeted tests, lint/type-check output, CI results, or an inspected live resource). A pre-existing `✅ Done` label, implementation claim, or green-looking diff is not evidence. Report the criterion-by-criterion evidence before changing the status. If any criterion is partial or unverified, stop and report the gap; never mark the story done with a silently-unmet criterion.
+4. **Before marking any milestone or TD story done:** independently audit every stated Acceptance Criterion against the repository and concrete verification evidence (for example, targeted tests, lint/type-check output, CI results, or an inspected live resource). A pre-existing `✅ Done` label, implementation claim, or green-looking diff is not evidence. Report the criterion-by-criterion evidence before changing the status.
 
-   For any `devops`/infra AC line describing *live* cloud state (an org policy, an IAM binding, an enabled API, a provisioned account, a DNS record — as opposed to a Terraform resource merely existing in committed code), confirm it was actually executed and verified — a runbook step that was written about but never run does not satisfy its AC. If any such line's live execution can't be confirmed right now, stop and ask the user whether to (a) execute/verify it now before marking done, or (b) mark the story done anyway, with that specific AC line annotated as an open follow-up — never mark done with a silently-unmet AC line.
+   **Also verify the bot/review chain actually resolved, not just merged.** Pull the merged PR's review comments (`gh api repos/lmmoreira/ikaro/pulls/<PR>/comments` and `.../reviews`) and confirm every Critical or Important finding — from `/pr-review`, CodeRabbit, or Codex — either has a visible fixing commit afterward or an explicit, reasoned dismissal in the thread. A PR that merged past an unaddressed Critical/Important finding is exactly as much a silently-unmet gap as an unverified AC line — treat it identically. Minor findings don't gate this.
 
-   If (b) is chosen, the only permitted extra edit beyond Step 5's heading change is a single line appended directly below that AC's own checkbox, in the form `  - ⚠️ Not verified as of <date> — <one-line reason>`; nothing else in the file changes. Before writing it, apply the doc/config gate explicitly: summarise the exact line you intend to add and ask *"May I now update `<path>`?"* — the earlier (a)/(b) choice is not itself that permission.
+   For any `devops`/infra AC line describing *live* cloud state (an org policy, an IAM binding, an enabled API, a provisioned account, a DNS record — as opposed to a Terraform resource merely existing in committed code), confirm it was actually executed and verified — a runbook step that was written about but never run does not satisfy its AC.
+
+   **If any AC line is partial/unverified, a devops live-state check can't be confirmed, or a Critical/Important review finding is unresolved — never mark the story done with the gap left silent.** Resolve it one of two ways:
+   - **Trivial** — fix it immediately as a follow-up commit, verify it, then mark done with no annotation needed.
+   - **Not trivial** — open a bug-fix TD via `/create-td` describing the specific gap (not a vague catch-all), then mark done with a single line appended directly below the affected AC checkbox (or directly below the story heading, for a review-finding gap with no single AC line): `  - ⚠️ <gap description> — tracked in <new TD ID>, <date>`. Before writing that line, apply the doc/config gate explicitly: summarise the exact line you intend to add and ask *"May I now update `<path>`?"* — choosing this resolution path is not itself that permission. Nothing else in the file changes beyond this line and the `✅ Done` heading edit itself.
 
    (M17-S14 precedent, 2026-07-17: S07 was marked ✅ Done while its own "project-level org-policy exceptions" AC line had never been executed — surfaced only during a later story's implementation, well after the fact.)
 
-5. Append ` ✅ Done` to the end of that heading line. Do not change any other content, except the single follow-up annotation Step 4 may have added under an unverified AC line.
+5. Append ` ✅ Done` to the end of that heading line. Do not change any other content, except the single follow-up annotation Step 4 may have added (under the affected AC checkbox, or under the story heading for a review-finding gap).
 
 6. Verify the current branch is `main`. If not, warn the user:
    > "You are on branch `<branch>`. This commit should go to main. Switch to main first, or confirm you want to commit here."
