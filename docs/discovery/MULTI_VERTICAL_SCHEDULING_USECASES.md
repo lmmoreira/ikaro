@@ -171,6 +171,43 @@ CAND-XX: [Name]
 - **Postconditions:** Availability calculations for this service use `max(service.bufferAfterMinutes, resource.turnoverMinutes)`.
 - **Events Triggered:** None.
 
+### **CAND-09b: Manager Configures a Service's Booking-Intake Schema**
+
+> Added 2026-08-22, closing a coverage gap found during a data-model review: `CAND-43` (customer submits intake answers) and `service_booking_intake_schema` (`MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §2) both assume a schema already exists, but nothing ever covered a manager *authoring* one — the same gap `CAND-10b` already exists to close for guest-access policy, recurring here for a different field set.
+
+- **Actor:** Staff (STAFF or MANAGER)
+- **Preconditions:** Service exists, `bookingModel = APPOINTMENT`.
+- **Trigger:** Manager sets up or edits the service's booking-review questions (e.g. a dentist wants a health-history question; a mobile groomer wants a pickup address).
+- **Main Flow:**
+  1. Manager adds one or more questions (free text, a named-attendees list, or a typed marker such as pickup address) and marks each required or optional.
+  2. Manager sets whether the service requires a participant count, named attendees, both, or neither.
+  3. Manager writes/updates the consent text customers must accept.
+  4. System publishes a new `service_booking_intake_schema` version — `is_active = true` on the new row, `is_active = false` on the previous one. The previous version is never edited in place.
+- **Alternative Flows:**
+  - **A1: Service already has bookings in flight against the current version** → Existing bookings keep their already-snapshotted `intake_schema_version`/`intake_answers`; only new bookings see the new version (`CAND-43` A1).
+  - **A2: Manager adds a `PICKUP_ADDRESS`-typed question** → System also sets `services.requires_pickup_address = true` in the same transaction. The legacy boolean (already live for car wash, `docs/13-DATABASE_SCHEMA.md:207`) stays the single source of truth for whether `bookings.pickup_address` must be populated; the intake schema is the presentation/collection layer on top of it, not a second, independent switch — see `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §6 item 36.
+- **Postconditions:** The service has exactly one active intake schema version; `CAND-43` renders it.
+- **Events Triggered:** None (config-only, same as `CAND-06`).
+
+### **CAND-09c: Manager Configures an Appointment Service's Booking Policy**
+
+> Added 2026-08-22, closing a coverage gap found during a data-model review: `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §3 declares `default_approval_mode`/`manual_hold_minutes`, cancellation/reschedule windows, minimum notice, maximum advance, recurrence eligibility, availability-alert eligibility, and (for `durationPolicy = CUSTOMER_SELECTED` services) duration/pricing policy — all consumed by several CANDs (`CAND-16`–`19`, `23b`, `42`, `44`, `45`, `46`) — but no candidate ever covered a manager actually setting them, unlike `CAND-06`/`08`/`09`/`10` for resource requirements, legs, buffer, and booking model.
+
+- **Actor:** Staff (STAFF or MANAGER)
+- **Preconditions:** Service exists, `bookingModel = APPOINTMENT`.
+- **Trigger:** Manager edits the service's booking policy.
+- **Main Flow:**
+  1. Manager sets approval mode (`AUTO_CONFIRM`/`MANUAL_APPROVAL`, inheriting the tenant default when left blank) and, if `MANUAL_APPROVAL`, the hold duration.
+  2. Manager sets the cancellation window, minimum notice, and maximum advance (all inheriting tenant defaults when left blank).
+  3. Manager toggles whether the service allows recurring private reservations (`CAND-45`) and availability alerts (`CAND-46`).
+  4. If the service has `durationPolicy = CUSTOMER_SELECTED` (`CAND-42`), manager also sets minimum/maximum/increment duration, the per-increment price, and optional minimum charge.
+  5. System saves the policy on `Service`; every subsequent booking snapshots the effective values at submission time (unchanged existing principle).
+- **Alternative Flows:**
+  - **A1: Manager reduces the cancellation window or approval hold below a value already relied on by an in-flight booking** → No retroactive effect; only bookings created after the change use the new values.
+  - **A2: Manager sets `durationPolicy = CUSTOMER_SELECTED` without a `pricingPolicy`** → System blocks save; a variable-duration service must declare how it prices (§6b of the discovery doc: "a simple per-increment rate plus optional minimum charge").
+- **Postconditions:** The service has a complete, self-contained booking policy; no field silently falls back to an undocumented default.
+- **Events Triggered:** None (config-only, same as `CAND-06`).
+
 ### **CAND-10: Manager Chooses a Service's Booking Model at Creation**
 
 - **Actor:** Staff (STAFF or MANAGER)
@@ -222,7 +259,7 @@ CAND-XX: [Name]
   5. System (async) begins generating `ClassSession` rows on the rolling horizon (CAND-13).
 - **Alternative Flows:**
   - **A1: Chosen resources are already committed to an overlapping template** → System blocks: e.g. the same room can't host two recurring classes at the same time.
-  - **A2: A chosen resource already has an `APPROVED` appointment-style `Booking` matching the new template's recurrence pattern** (e.g. Camila already has a standing Tuesday 08:00 haircut booked before this template is created) → System blocks creation, listing the conflicting booking(s); manager must resolve (reschedule the booking or pick a different resource/time) before the template can be created. This is a bounded, finite scan — only bookings up to `tenants.settings.booking.maxBookingAdvanceDays` out can exist yet, not an unbounded future.
+  - **A2: A chosen resource already has an `APPROVED` appointment-style `Booking` matching the new template's recurrence pattern** (e.g. Camila already has a standing Tuesday 08:00 haircut booked before this template is created) → System blocks creation, listing the conflicting booking(s); manager must resolve (reschedule the booking or pick a different resource/time) before the template can be created. This is a bounded, finite scan — only bookings up to `tenants.settings.booking.maxBookingAdvanceDays` out can exist yet, not an unbounded future. **Extended 2026-08-22:** the same check also evaluates every active `RecurringBookingSchedule` (`CAND-45`) on the chosen resource(s) by its recurrence rule directly, the same unbounded way `CAND-29` step 4 already does for `ClassScheduleTemplate` — a standing private reservation is a real future commitment regardless of whether `maxBookingAdvanceDays` has materialized it into an individual `Booking` yet. See `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §6 item 32.
   - **A3: Requested `capacity` exceeds the lowest `maxCapacity` ceiling among the template's chosen `ROOM`/capacity-bearing `EQUIPMENT` resources** (per `MULTI_VERTICAL_SCHEDULING.md` §9 item 8 — `LOCATION`/`ROOM` and capacity-bearing `EQUIPMENT` may define a physical ceiling) → System blocks creation; manager must lower capacity or pick a higher-ceiling resource. `STAFF` resources never carry a `maxCapacity` (see CAND-04's precondition on `manager-04`), so only room/equipment ceilings are checked.
 - **Postconditions:** Template active; sessions begin appearing on the booking calendar.
 - **Events Triggered:** None.
@@ -639,13 +676,16 @@ CAND-XX: [Name]
   2. For a bundle, a slot is available only if **every** required resource is simultaneously free.
   3. For `AUTO_FUNGIBLE_POOL`, a slot is available if **any** pool member is free (union, not intersection).
   4. "Free" also excludes any `ClassScheduleTemplate` (discovery §6) for that resource where `isActive = true`, the candidate date falls within `[validFrom, validUntil]` (open-ended if `null`), **and** the recurrence rule produces an occurrence at the candidate time — checked against the template's rule directly, not against materialized `ClassSession` rows, since a not-yet-generated future occurrence is still a real commitment. A candidate date outside `[validFrom, validUntil]`, or against a deactivated template, is never blocked by this step — only its already-materialized `ClassSession` rows (if any) still count via steps 1–3.
+  5. **Added 2026-08-22, closing a gap found during a data-model review:** "Free" also excludes any active `RecurringBookingSchedule` (`CAND-45`) on that resource whose recurrence rule produces an occurrence at the candidate time — evaluated directly against the schedule's own rule, exactly like step 4 does for `ClassScheduleTemplate`. Without this step, a standing private reservation (e.g. Ana Costa's weekly Tuesday 10:00 Sala Aurora booking, `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §2) would be invisible to this port for any not-yet-materialized future occurrence — the exact race this port was built to close for the class-template case, left open for the newer private-recurrence case. See `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §6 item 32.
 - **Alternative Flows:**
   - **A1: No active resource of the required type exists for the service** (e.g. every eligible `STAFF` resource was deactivated) → Query returns zero available slots, same shape as today's "no availability" result; not an error.
-  - **A2: A `resourceId` in the query doesn't belong to the querying tenant** → Excluded by the mandatory `tenantId` scoping in step 1; never reaches steps 2–4. Structural guard, not a runtime branch — restated here because `CAND-31` (the highest-risk consumer of this port) depends on it holding.
+  - **A2: A `resourceId` in the query doesn't belong to the querying tenant** → Excluded by the mandatory `tenantId` scoping in step 1; never reaches steps 2–5. Structural guard, not a runtime branch — restated here because `CAND-31` (the highest-risk consumer of this port) depends on it holding.
 - **Postconditions:** Extends today's `AvailabilityService` (`availability.service.ts`) rather than replacing it.
 - **Events Triggered:** None (read path).
 
 > **Cross-family example:** Camila Duarte is both a hairdressing `STAFF` resource (APPOINTMENT) and the instructor on a Pilates `ClassScheduleTemplate` (SESSION) recurring Mon/Wed/Fri 08:00. A haircut request for her at Monday 08:00 must be rejected even 80 days out, before any `ClassSession` row for that date exists — step 4 evaluates her template's recurrence rule directly against the candidate time, rather than waiting for a materialized session to "claim" it first.
+>
+> **Cross-family example, private recurrence (added 2026-08-22):** Ana Costa holds a standing Tuesday 10:00–12:00 Sala Aurora reservation (`RecurringBookingSchedule`, `FIXED_ASSIGNMENT`). A different customer requesting Sala Aurora for a Tuesday 10 weeks out — long before that occurrence would ever be materialized — must see it as unavailable. Step 5 is what makes that hold, the same way step 4 does for Camila's Pilates template.
 
 ### **CAND-30: System Applies Resource Turnover and Leg Transition Gaps**
 
@@ -665,10 +705,10 @@ CAND-XX: [Name]
 > Broadened on review (2026-08-04): originally scoped only to two APPOINTMENT-style services sharing a resource (the X-ray-machine case). The same mechanism has to cover a resource shared *across* families too — an APPOINTMENT-style service and a SESSION-style `ClassScheduleTemplate` on the same resource (Camila Duarte: hairdressing + Pilates) is the model-13 flagship scenario this discovery is built around, and it was previously ungoverned by this candidate. See `MULTI_VERTICAL_SCHEDULING.md` §6 "Cross-family resource exclusivity" for the full reasoning.
 
 - **Actor:** System
-- **Preconditions:** Two different bookable things share the same resource — either two APPOINTMENT-style services (e.g. one X-ray machine used by two different appointment types), or one APPOINTMENT-style service and one SESSION-style `ClassScheduleTemplate` (e.g. Camila Duarte as both a hairdressing resource and a Pilates instructor).
-- **Trigger:** A booking or session-generation attempt would overlap an already-committed window on the shared resource, regardless of which side created that commitment.
+- **Preconditions:** Two different bookable things share the same resource — either two APPOINTMENT-style services (e.g. one X-ray machine used by two different appointment types), one APPOINTMENT-style service and one SESSION-style `ClassScheduleTemplate` (e.g. Camila Duarte as both a hairdressing resource and a Pilates instructor), **or one APPOINTMENT-style service and an active `RecurringBookingSchedule`** (e.g. Ana Costa's standing Tuesday Sala Aurora reservation blocking a new one-off request for the same window — added 2026-08-22, see `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §6 item 32).
+- **Trigger:** A booking, session-generation, or recurring-schedule-creation attempt would overlap an already-committed window on the shared resource, regardless of which side created that commitment.
 - **Main Flow:**
-  1. Availability computation for the new request is scoped to `tenantId` + the shared `resourceId`, same as `CAND-29` step 1, and includes existing approved bookings, materialized sessions, **and active template recurrence patterns** against that *shared resource*, regardless of which service or family created the commitment (`CAND-29` step 4, `CAND-11` alt A2, `CAND-13` alt A2).
+  1. Availability computation for the new request is scoped to `tenantId` + the shared `resourceId`, same as `CAND-29` step 1, and includes existing approved bookings, materialized sessions, **and active template and recurring-schedule recurrence patterns** against that *shared resource*, regardless of which service or family created the commitment (`CAND-29` steps 4–5, `CAND-11` alt A2, `CAND-13` alt A2).
   2. Overlapping candidate slots/occurrences are excluded or blocked.
 - **Alternative Flows:**
   - **A1: The two windows are adjacent, not overlapping** (e.g. one ends exactly when the other starts, ignoring buffer/turnover which `CAND-30` already accounts for separately) → Not a conflict; both are allowed. This candidate rejects genuine overlap, not back-to-back scheduling.
@@ -699,6 +739,8 @@ CAND-XX: [Name]
   - **A2: An existing `ClassScheduleTemplateException` already overlaps part of the requested range** → System extends/merges the existing exception rather than creating a second overlapping one, keeping one persistent record per template instead of a fragmented history.
 - **Postconditions:** Earlier/history sessions remain intact; no affected future occurrence can be regenerated.
 - **Events Triggered:** `ClassSessionCancelled` per cancelled session, through the transactional outbox.
+
+> **Resolved 2026-08-22 — this candidate's step 4 does NOT also raise a `CAND-47` future-commitment-exception worklist entry, and that's deliberate, not an oversight.** A prior review pass flagged step 4's automatic cancellation as apparently contradicting `CAND-47`/`CAND-56`'s "no future commitment is silently moved or invalidated" philosophy — both describe the same underlying scenario (a template change affecting an already-materialized future session). The two are reconciled, not merged: a manager choosing "cancel this date range" *is itself* the explicit, audited resolution `CAND-56` requires — it's just a bulk one instead of one worklist item per session, and it's recorded via `ClassSessionCancelled` + customer notification, not silently. `CAND-47`'s worklist exists for the other case — a change *nobody explicitly reviewed per-session* (a resource deactivation, an hours reduction, a side effect of an unrelated config edit) — see `CAND-47`'s precondition, updated in the same pass to state this exclusion explicitly. Forcing this flow's manager to additionally resolve N individual worklist items after already choosing a bulk cancellation would be pure duplicate work, not additional safety.
 
 ### **CAND-33: Guest Verifies Email Before Requesting a Class Seat**
 
@@ -884,7 +926,7 @@ CAND-XX: [Name]
 - **Actor:** Authenticated customer, or Staff acting on their behalf.
 - **Preconditions:** Service enables recurrence; guest bookings are not eligible.
 - **Trigger:** Customer or staff confirms a supported weekly/private recurrence pattern.
-- **Main Flow:** System creates an active standing `RecurringBookingSchedule` with `FIXED_ASSIGNMENT` when customer/staff selected a resource, or `RESOLVE_PER_OCCURRENCE` for an eligible automatic/fungible service. It blocks the future recurrence pattern and materializes normal linked bookings through the service's rolling horizon (90-day default).
+- **Main Flow:** System creates an active standing `RecurringBookingSchedule` with `FIXED_ASSIGNMENT` when customer/staff selected a resource, or `RESOLVE_PER_OCCURRENCE` for an eligible automatic/fungible service. It blocks the future recurrence pattern and materializes normal linked bookings through the service's rolling horizon (90-day default). **Resolved 2026-08-22:** every materialized occurrence auto-confirms as `APPROVED`, regardless of the service's own `default_approval_mode` — the standing schedule itself was already vetted for conflicts once, at creation (A1 below); re-running `MANUAL_APPROVAL`'s hold-and-review cycle on every single generated occurrence would contradict the entire point of a "standing commitment" and doesn't match `customer-09-reserva-recorrente.html`'s own prototype, which shows every generated occurrence as already "Confirmada." `MANUAL_APPROVAL` still governs a genuinely one-off booking of the same service (`CAND-16`–`19`) — only recurring-schedule-generated occurrences bypass it. See `MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §6 item 33.
 - **Alternative Flows:**
   - **A1: A future pattern conflicts at creation** → Creation is blocked; no partial schedule exists.
   - **A2: Customer skips/reschedules one occurrence, pauses, or ends** → A persistent exception preserves history and prevents unwanted regeneration.
@@ -907,8 +949,8 @@ CAND-XX: [Name]
 ### **CAND-47: System Identifies and Queues a Future Commitment Exception**
 
 - **Actor:** System.
-- **Preconditions:** A future materialized booking/session or standing recurrence is affected by a committed resource, hours, closure, template, or schedule change.
-- **Trigger:** A resource is deactivated, closed/maintained, its hours shrink, or a template/schedule change affects a future commitment.
+- **Preconditions:** A future materialized booking/session or standing recurrence is affected by a committed resource, hours, closure, template, or schedule change — **excluding** a template date-range/from-date cancellation the manager explicitly initiated via `CAND-32`, whose own step 4 is already that change's explicit, audited resolution (clarified 2026-08-22, see `CAND-32`'s note). This candidate covers a change *nobody explicitly reviewed per-session*: a resource deactivation, an hours reduction, or a side effect of an otherwise-unrelated config edit.
+- **Trigger:** A resource is deactivated, closed/maintained, its hours shrink, or a template/schedule change (other than a `CAND-32` range cancellation) affects a future commitment.
 - **Main Flow:** System creates one idempotent manager-owned worklist entry per affected commitment, records the impact/deadline, and calculates eligible resource/time alternatives. It never changes the booking itself.
 - **Alternative Flows:**
   - **A1: The same unresolved impact already has an open worklist entry** → Update/reuse that entry; never create duplicate manager work.
@@ -967,9 +1009,13 @@ Appointment no-show, associated financial policy, and booking-state changes are 
 - **Main Flow:** Customer views active alerts, edits matching criteria or expiry, or cancels an alert. System expires alerts automatically and sends at most one deduplicated notification per matching availability window.
 - **Alternative Flows:** An alert already notified or expired remains visible as history but cannot be edited/reactivated; customer creates a new alert instead.
 - **Postconditions:** Alerts remain non-reserving customer intent; every notification attempt is auditable.
-- **Events Triggered:** Candidate availability-alert-updated/cancelled/expired events.
+- **Events Triggered:** `AvailabilityAlertUpdated`/`AvailabilityAlertCancelled`/`AvailabilityAlertExpired` (`MULTI_VERTICAL_SCHEDULING_DATA_MODEL.md` §8).
+
+> **Deliberate non-goal, confirmed 2026-08-22:** an alert is never auto-cancelled just because the customer's underlying need happened to be met through a different channel (e.g. a waitlist promotion for one specific session, while the customer's alert covers a broader weekly preference). The two are independent intents by design — a promoted customer may still want to hear about other matching openings — and correlating them would require guessing whether a specific promotion actually satisfies a customer's broader alert criteria, which is exactly the kind of speculative machinery this discovery avoids elsewhere. The customer cancels manually via this candidate when an alert is no longer wanted.
 
 ### **CAND-54: Staff Records an In-Person Payment at Session Close-Out**
+
+> **Relationship to `CAND-37` clarified 2026-08-22:** this is not a competing spec — it elaborates `CAND-37` step 2 ("Staff records an append-only in-person payment for each payable guest or pay-per-class customer reservation") with the detail `CAND-37` deliberately left at summary level: the correction/reversal shape (`class_session_payments.reversal_of_payment_id`/`correction_reason`, §10 of the data model doc). `CAND-37`'s close-out flow is still the trigger; this candidate is what happens inside its payment step, not a second, independent payment path.
 
 - **Actor:** Staff (STAFF or MANAGER).
 - **Preconditions:** A payable guest or pay-per-class customer attended the session.
@@ -979,15 +1025,9 @@ Appointment no-show, associated financial policy, and booking-state changes are 
 - **Postconditions:** Attendance and the minimal operational payment record are independently auditable. Online payment, invoicing and reconciliation remain out of scope.
 - **Events Triggered:** Candidate in-person-payment-recorded/reversed event.
 
-### **CAND-55: Customer Uses a Make-Up Reservation**
+### **CAND-55: Reserved — Superseded by CAND-38**
 
-- **Actor:** Authenticated customer with an eligible skipped recurring occurrence.
-- **Preconditions:** Qualifying contract remains active for the replacement date; tenant make-up window and calendar-month cap allow it.
-- **Trigger:** Customer selects “Reagendar reposição” for a skipped recurring occurrence.
-- **Main Flow:** Customer selects an eligible same-service session. System consumes the original occurrence's entitlement, creates a one-off replacement booking linked to it, and applies ordinary capacity/waitlist rules.
-- **Alternative Flows:** If the replacement is full, the one-seat customer may waitlist using the original entitlement intent; a later contract expiry or cap/window violation blocks confirmation and leaves the skipped original unchanged.
-- **Postconditions:** The original remains skipped; the replacement is independently auditable and may itself be waitlisted.
-- **Events Triggered:** Candidate make-up-reservation-created event, plus normal booking/waitlist events.
+> **Resolved 2026-08-22.** This candidate and `CAND-38` ("Customer Reschedules a Skipped Fixed-Class Occurrence to a Replacement Slot") describe the identical feature — "reposição"/make-up for a skipped recurring-enrollment occurrence — drafted twice under two numbers, at two different detail levels, with a direct contradiction between them: this entry claimed a new `MakeUpReservationCreated` event was needed, while `CAND-38` explicitly states "no new event type — reuses the existing `ClassSessionBookingCancelled`/`ClassSessionBookingConfirmed`/`Waitlisted`." `CAND-38` is the authoritative version — it's schema-grounded (`rescheduled_from_id`, `classAllowsReschedule`/`classRescheduleWindowDays`/`classMaxReschedulesPerCycle`), ties to a real prototype screen (`customer-04d-reagendada.html`), and its "no new event" answer is correct: the replacement booking's confirmation/waitlisting already publishes its own normal event, and the original's cancellation already publishes `ClassSessionBookingCancelled` with `reason: ENROLLMENT_OCCURRENCE_SKIPPED`. Retained here only for numbering continuity, same pattern as `CAND-15b` → `CAND-37`. Do not implement from this entry.
 
 ### **CAND-56: Manager Resolves a Future Commitment Exception**
 
