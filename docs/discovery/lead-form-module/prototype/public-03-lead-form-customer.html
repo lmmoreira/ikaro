@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Formulário de contato — cliente logado — AutoWash Pro</title>
+  <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
+  <style>
+    .q-block { margin: 1.25rem 0; }
+    .q-label { font-weight: 600; color: var(--ba-text); margin-bottom: 0.5rem; display:block; }
+    .q-required { color: #dc2626; margin-left: 0.125rem; }
+    .q-option { display:flex; align-items:center; gap:0.5rem; padding:0.5rem 0; font-size:0.9375rem; color:var(--ba-text); }
+    .prefilled-note { font-size:0.75rem; color:var(--ba-primary); margin-top:0.25rem; }
+  </style>
+</head>
+<body>
+
+  <!--
+    DISCOVERY PROTOTYPE — CAND-04 main flow. Same page as public-02-lead-form.html,
+    but the visitor is an authenticated Customer: name/email/phone are pre-filled
+    from the Customer profile (editable), and customerId is linked server-side from
+    the JWT sub — not shown to the visitor as a separate field.
+    BFF CALL: same GET /public/platform/lead-form/:slug, but authenticated request
+    also resolves GET /customers/me server-side to pre-fill the three fields.
+  -->
+
+  <div style="background:white;border-bottom:1px solid var(--ba-secondary);padding:0.625rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+    <div style="display:flex;align-items:center;gap:0.625rem;">
+      <div style="width:1.875rem;height:1.875rem;border-radius:0.375rem;background:var(--ba-primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8125rem;">A</div>
+      <span style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">AutoWash Pro</span>
+    </div>
+    <div style="position:relative;">
+      <details>
+        <summary class="auth-avatar" style="list-style:none;cursor:pointer;">MF</summary>
+        <div style="position:absolute;right:0;top:2.25rem;background:white;border:1px solid var(--ba-secondary);border-radius:var(--ba-radius);box-shadow:var(--ba-shadow);min-width:9rem;padding:0.375rem;">
+          <a href="../../../../plan/journey/shared/hotsite-logged-in.html" style="display:block;padding:0.5rem 0.625rem;font-size:0.875rem;color:var(--ba-text);text-decoration:none;">Minha conta</a>
+          <a href="../../../../plan/journey/shared/login.html" style="display:block;padding:0.5rem 0.625rem;font-size:0.875rem;color:var(--ba-text);text-decoration:none;">Sair</a>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <main class="step-container">
+    <h1 style="font-size:1.5rem;font-weight:700;color:var(--ba-text);margin-bottom:0.375rem;">Quer um orçamento personalizado?</h1>
+    <p style="opacity:0.65;margin-bottom:1.75rem;">Responda as perguntas abaixo — nossa equipe entra em contato em até 1 dia útil.</p>
+
+    <div class="card" style="padding:1.5rem;">
+      <h2 style="font-size:1rem;font-weight:700;margin-bottom:0.25rem;color:var(--ba-text);">Seus dados</h2>
+      <p class="prefilled-note" style="margin-bottom:0.875rem;">Preenchido com os dados da sua conta — você pode editar se precisar.</p>
+
+      <div class="q-block">
+        <label class="form-label" for="name">Nome<span class="q-required">*</span></label>
+        <input id="name" class="form-input" value="Maria Fernanda Costa">
+      </div>
+      <div class="q-block">
+        <label class="form-label" for="email">E-mail<span class="q-required">*</span></label>
+        <input id="email" type="email" class="form-input" value="maria.fernanda@email.com">
+      </div>
+      <div class="q-block">
+        <label class="form-label" for="phone">Telefone<span class="q-required">*</span></label>
+        <input id="phone" class="form-input" value="(11) 97777-1234">
+      </div>
+
+      <hr style="border:none;border-top:1px solid var(--ba-secondary);margin:1.5rem 0;">
+      <h2 style="font-size:1rem;font-weight:700;margin-bottom:0.5rem;color:var(--ba-text);">Sobre o que você precisa</h2>
+
+      <div class="q-block">
+        <span class="q-label">Qual serviço te interessa?<span class="q-required">*</span></span>
+        <label class="q-option"><input type="radio" name="q1" checked> Lavagem completa</label>
+        <label class="q-option"><input type="radio" name="q1"> Enceramento</label>
+        <label class="q-option"><input type="radio" name="q1"> Higienização interna</label>
+      </div>
+
+      <div class="turnstile-box" style="border:1px dashed var(--ba-secondary);border-radius:var(--ba-radius);padding:1rem;background:#fafafa;display:flex;align-items:center;gap:0.75rem;margin:1.5rem 0;">
+        <div style="width:2rem;height:2rem;border-radius:4px;background:#f3f4f6;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.75rem;">✓</div>
+        <p style="font-size:0.875rem;font-weight:600;color:var(--ba-text);">Verificação de segurança concluída</p>
+      </div>
+
+      <a href="public-02f-lead-form-success.html" class="btn-primary" style="display:block;text-align:center;width:100%;">Enviar</a>
+    </div>
+  </main>
+
+</body>
+</html>
