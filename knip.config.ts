@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { KnipConfig, KnipConfiguration } from 'knip';
+import workspaceRegistryImport from './scripts/knip-workspaces.cjs';
 
 interface WorkspaceRegistryEntry {
   dir: string;
@@ -18,8 +19,7 @@ interface PolicyException {
   reviewBy: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports -- .cjs registry shared with scripts/knip-config.spec.cjs
-const workspaceRegistry: WorkspaceRegistryEntry[] = require('./scripts/knip-workspaces.cjs');
+const workspaceRegistry: WorkspaceRegistryEntry[] = workspaceRegistryImport;
 
 const policy: { exceptions?: PolicyException[] } = JSON.parse(
   readFileSync(join(__dirname, 'packages/architecture-check/architecture-policy.json'), 'utf8'),

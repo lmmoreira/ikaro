@@ -88,8 +88,19 @@ jobs:
       - name: Run knip (report-only)
         continue-on-error: true
         run: |
-          { pnpm knip || true; } | tee knip-default-report.txt
-          { pnpm knip:production || true; } | tee knip-production-report.txt
+          # `continue-on-error: true` already keeps the JOB non-blocking —
+          # don't also swallow the two commands' own exit codes with `|| true`,
+          # or a real tool crash (bad config, missing binary, failed install)
+          # reports identically to "found real findings" with no visible
+          # signal. `set +e` (not `|| true`) is what's needed here: GitHub
+          # Actions' default `bash -eo pipefail` would otherwise abort this
+          # script after knip's first non-zero exit, skipping knip:production
+          # and the step-summary write entirely.
+          set +e
+          pnpm knip 2>&1 | tee knip-default-report.txt
+          default_status=${PIPESTATUS[0]}
+          pnpm knip:production 2>&1 | tee knip-production-report.txt
+          production_status=${PIPESTATUS[0]}
           {
             echo '### knip — default mode (unused dependencies + dead exports)'
             echo '```'
@@ -100,6 +111,9 @@ jobs:
             cat knip-production-report.txt
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$default_status" -ne 0 ] || [ "$production_status" -ne 0 ]; then
+            exit 1
+          fi
 
       - name: Upload knip reports
         if: always()

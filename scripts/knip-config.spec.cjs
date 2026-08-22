@@ -19,18 +19,11 @@ function discoverRealPnpmWorkspaces() {
   );
 }
 
-// Strips a glob's magic suffix (globstar/brace/bracket segments and the
-// production `!` marker) down to its longest static directory prefix, so
-// "src/contexts/**/infrastructure/migrations/*.ts!" -> "src/contexts".
-function staticPrefixOf(pattern) {
-  const withoutProductionSuffix = pattern.endsWith('!') ? pattern.slice(0, -1) : pattern;
-  const segments = withoutProductionSuffix.split('/');
-  const staticSegments = [];
-  for (const segment of segments) {
-    if (/[*{}[\]]/.test(segment)) break;
-    staticSegments.push(segment);
-  }
-  return staticSegments.join('/');
+// Strips the production `!` marker knip reads as a suffix on the pattern
+// itself (see scripts/knip-workspaces.cjs's own header comment), so
+// "src/main.ts!" globs correctly as "src/main.ts".
+function withoutProductionSuffix(pattern) {
+  return pattern.endsWith('!') ? pattern.slice(0, -1) : pattern;
 }
 
 test('registry covers every real pnpm workspace exactly once, plus the root scripts entry', () => {
@@ -40,16 +33,14 @@ test('registry covers every real pnpm workspace exactly once, plus the root scri
   assert.equal(new Set(configured).size, configured.length);
 });
 
-test('every configured entry/project glob resolves to a real path under its workspace', () => {
+test('every configured entry/project glob matches at least one real file in its workspace', () => {
   for (const { dir, entry = [], project = [] } of workspaces) {
     for (const pattern of [...entry, ...project]) {
-      // An empty static prefix (e.g. "**/*.{ts,tsx}!") means "scan the whole
-      // workspace" — valid on its own, resolves to the workspace dir itself.
-      const prefix = staticPrefixOf(pattern);
-      const resolved = path.join(root, dir, prefix);
+      const glob = withoutProductionSuffix(pattern);
+      const matches = fs.globSync(glob, { cwd: path.join(root, dir) });
       assert.ok(
-        fs.existsSync(resolved),
-        `${dir}: entry/project pattern's static prefix does not exist: ${pattern} -> ${resolved}`,
+        matches.length > 0,
+        `${dir}: entry/project pattern matches zero files: ${pattern} (glob: ${glob})`,
       );
     }
   }
