@@ -1,23 +1,9 @@
 import { z } from 'zod';
 import { PlatformErrorCode, TimeOfDayErrorCode, TimezoneErrorCode } from '@ikaro/types';
 import { PartialAddressSchema } from './address';
+import { isValidTimeOfDay, isValidTimezone } from './date';
 import { isValidEmail } from './email';
 import { isValidPhoneNumber } from './phone';
-
-const HHMM_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
-
-export function isValidTimeOfDay(value: string): boolean {
-  return HHMM_REGEX.test(value);
-}
-
-export function isValidTimezone(value: string): boolean {
-  try {
-    Intl.DateTimeFormat(undefined, { timeZone: value });
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 const timeOfDayField = (): z.ZodString =>
   z.string().refine(isValidTimeOfDay, {
