@@ -558,6 +558,14 @@
   ],
   "exceptions": [
     {
+      "rule": "knip-unused-dependency",
+      "path": ".",
+      "name": "dependency-cruiser",
+      "rationale": "Invoked by scripts/dep-cruise.cjs via spawnSync against the resolved node_modules/dependency-cruiser/bin/dependency-cruise.mjs binary path, never through a JS import/require('dependency-cruiser') statement — knip's dependency-usage graph can only trace the latter.",
+      "owner": "architecture-check",
+      "reviewBy": "2027-02-22"
+    },
+    {
       "rule": "error-mapper-coverage",
       "class": "EmailDeliveryException",
       "path": "apps/backend/src/contexts/notification/domain/errors/notification-domain.error.ts",
