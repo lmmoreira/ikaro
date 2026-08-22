@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leads — AutoWash Pro</title>
+  <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
+  <style>
+    .lead-row { display:flex; align-items:center; gap:0.875rem; padding:0.875rem 0; border-bottom:1px solid var(--ba-secondary); text-decoration:none; color:inherit; }
+    .lead-row:last-child { border-bottom:none; }
+    .lead-info { flex:1; min-width:0; }
+    .lead-name { font-weight:700; font-size:0.9375rem; color:var(--ba-text); }
+    .lead-meta { font-size:0.8125rem; opacity:0.55; color:var(--ba-text); margin-top:0.125rem; }
+    .pagination { display:flex; align-items:center; justify-content:center; gap:0.5rem; margin-top:1.25rem; }
+    .page-btn { padding:0.375rem 0.75rem; border:1px solid var(--ba-secondary); border-radius:var(--ba-radius); background:white; font-size:0.8125rem; cursor:pointer; }
+    .page-btn.active { background:#2563eb; color:white; border-color:#2563eb; }
+  </style>
+</head>
+<body>
+
+  <!--
+    DISCOVERY PROTOTYPE — CAND-05 main flow. New top-level sidebar item "Leads",
+    own dedicated screen (not nested inside hotsite editing), same shell contract
+    as every other staff/manager list page.
+
+    COMPONENT (GAP): LeadFormSubmissionsList
+    FILE: apps/web/app/dashboard/leads/page.tsx (GAP)
+    BFF CALL: GET /v1/tenants/lead-form/submissions?page=&pageSize= (STAFF|MANAGER)
+      Response: { items: [{id,name,email,phone,submittedAt}], page, pageSize, total }
+  -->
+
+  <div class="dashboard-topbar">
+    <div class="topbar-brand"><div class="topbar-logo-mark">A</div><span class="topbar-tenant-name">AutoWash Pro</span></div>
+    <h1 class="topbar-page-title">Leads</h1>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
+      <a href="manager-04-leads-export.html" class="btn-secondary topbar-create-btn" style="display:none;font-size:0.8125rem;padding:0.5rem 0.875rem;">Exportar CSV</a>
+      <a href="../../../../plan/journey/shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+      <span class="topbar-date">21 de agosto de 2026</span>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">A</div>
+        <div><p class="sidebar-tenant-name">AutoWash Pro</p><p class="sidebar-tenant-slug">@autowash-pro</p></div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top:0.5rem;">
+        <a class="sidebar-nav-item" href="../../../../plan/journey/staff/prototypes/agenda/00-agenda.html">Agenda</a>
+        <a class="sidebar-nav-item" href="../../../../plan/journey/staff/prototypes/horarios/00-schedule.html">Horários</a>
+        <a class="sidebar-nav-item" href="../../../../plan/journey/staff/prototypes/servicos/01-servicos-list.html">Serviços</a>
+        <a class="sidebar-nav-item" href="../../../../plan/journey/staff/prototypes/fidelidade/00-customer-search.html">Fidelidade</a>
+        <a class="sidebar-nav-item active" href="manager-02-leads-submissions-list.html">Leads</a>
+      </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item" href="../../../../plan/journey/manager/prototypes/equipe/01-team-list.html">Equipe</a>
+        <a class="sidebar-nav-item" href="../../../../plan/journey/manager/prototypes/configuracoes/01-settings-form.html">Configurações</a>
+        <a class="sidebar-nav-item" href="manager-00-hotsite-layout-tab-with-lead-form.html">Hotsite</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
+        <a class="sidebar-logout" href="../../../../plan/journey/shared/staff-login.html" title="Sair">Sair</a>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="dashboard-body">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+          <p style="opacity:0.6;font-size:0.875rem;">42 envios recebidos</p>
+          <a href="manager-04-leads-export.html" class="btn-secondary" style="font-size:0.8125rem;padding:0.5rem 0.875rem;">Exportar CSV</a>
+        </div>
+
+        <div class="card" style="padding:0 1rem;">
+          <a href="manager-03-leads-submission-detail.html" class="lead-row">
+            <div class="list-avatar">CM</div>
+            <div class="lead-info">
+              <p class="lead-name">Carlos Mendes</p>
+              <p class="lead-meta">carlos.mendes@email.com · (11) 98888-7777</p>
+            </div>
+            <p style="font-size:0.75rem;opacity:0.45;white-space:nowrap;">21 ago, 14:32</p>
+          </a>
+          <a href="manager-03-leads-submission-detail.html" class="lead-row">
+            <div class="list-avatar list-avatar-2">MF</div>
+            <div class="lead-info">
+              <p class="lead-name">Maria Fernanda Costa</p>
+              <p class="lead-meta">maria.fernanda@email.com · (11) 97777-1234</p>
+            </div>
+            <p style="font-size:0.75rem;opacity:0.45;white-space:nowrap;">21 ago, 09:15</p>
+          </a>
+          <a href="manager-03-leads-submission-detail.html" class="lead-row">
+            <div class="list-avatar list-avatar-3">RS</div>
+            <div class="lead-info">
+              <p class="lead-name">Roberta Salave</p>
+              <p class="lead-meta">roberta.s@email.com · (11) 96666-4321</p>
+            </div>
+            <p style="font-size:0.75rem;opacity:0.45;white-space:nowrap;">20 ago, 18:02</p>
+          </a>
+          <a href="manager-03-leads-submission-detail.html" class="lead-row">
+            <div class="list-avatar list-avatar-4">JT</div>
+            <div class="lead-info">
+              <p class="lead-name">Juliana Tavares</p>
+              <p class="lead-meta">juliana.t@email.com · (11) 95555-8888</p>
+            </div>
+            <p style="font-size:0.75rem;opacity:0.45;white-space:nowrap;">20 ago, 11:47</p>
+          </a>
+        </div>
+
+        <div class="pagination">
+          <button class="page-btn" disabled style="opacity:0.4;">‹</button>
+          <button class="page-btn active">1</button>
+          <button class="page-btn">2</button>
+          <button class="page-btn">3</button>
+          <button class="page-btn">›</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <nav class="bottom-nav">
+    <a href="#" class="bottom-nav-item">Agenda</a>
+    <a href="#" class="bottom-nav-item">Horários</a>
+    <a href="manager-02-leads-submissions-list.html" class="bottom-nav-item active">Leads</a>
+    <a href="#" class="bottom-nav-item">Mais</a>
+  </nav>
+
+</body>
+</html>

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configurar Formulário de contato — AutoWash Pro</title>
+  <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
+  <style>
+    .form-group { margin-bottom: 1.25rem; }
+    .form-hint { font-size: 0.8125rem; opacity: 0.5; color: var(--ba-text); margin-top: 0.375rem; }
+    .pill-options { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .pill-option { padding: 0.5rem 0.875rem; border-radius: 9999px; border: 1.5px solid var(--ba-secondary); background: white; font-size: 0.8125rem; font-weight: 600; cursor: pointer; }
+    .pill-option.selected { background: var(--ba-primary); color: white; border-color: var(--ba-primary); }
+    .form-actions {
+      position: fixed; bottom: 3.75rem; left: 0; right: 0; z-index: 20;
+      background: white; border-top: 1px solid var(--ba-secondary);
+      padding: 0.75rem 1rem; box-shadow: 0 -2px 8px rgba(0,0,0,.06);
+      display: flex; gap: 0.75rem;
+    }
+    .form-actions .btn-primary { flex: 1; text-align: center; padding: 0.875rem; }
+    .form-actions .btn-secondary { flex: 0 0 auto; padding: 0.875rem 1.25rem; }
+    .detail-layout { display: block; }
+    .detail-aside  { display: none; }
+    @media (min-width: 1024px) {
+      .detail-layout { display: grid; grid-template-columns: 1fr 22rem; gap: 1.5rem; align-items: start; }
+      .detail-aside  { display: block; position: sticky; top: 1.5rem; }
+      .form-actions  { display: none !important; }
+    }
+    .settings-elsewhere-note {
+      background: #fef3c7; border: 1px solid #fde68a; color: #92400e; border-radius: var(--ba-radius);
+      padding: 0.875rem 1rem; font-size: 0.8125rem; line-height: 1.6; margin-bottom: 1.5rem;
+    }
+
+    /* ── Inline question editor — everything happens on THIS page, no navigation ── */
+    .q-list { border: 1px solid var(--ba-secondary); border-radius: var(--ba-radius); overflow: hidden; }
+    .q-card { border-bottom: 1px solid var(--ba-secondary); }
+    .q-card:last-child { border-bottom: none; }
+    .q-card > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 0.75rem; padding: 0.875rem 1rem; }
+    .q-card > summary::-webkit-details-marker { display: none; }
+    .q-type-badge { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; padding: 0.1875rem 0.5rem; border-radius: 4px; white-space: nowrap; }
+    .q-type-text { background: #dbeafe; color: #1d4ed8; }
+    .q-type-single { background: #ede9fe; color: #6d28d9; }
+    .q-type-multi { background: #dcfce7; color: #15803d; }
+    .q-summary-label { flex: 1; font-weight: 600; color: var(--ba-text); font-size: 0.9375rem; }
+    .q-summary-meta { font-size: 0.75rem; opacity: 0.5; }
+    .q-chevron { opacity: 0.4; transition: transform 0.15s; }
+    .q-card[open] .q-chevron { transform: rotate(90deg); }
+    .q-edit-body { padding: 0 1rem 1.125rem; }
+    .q-option-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; align-items: center; }
+    .q-option-remove { background: none; border: none; color: #dc2626; cursor: pointer; font-size: 0.875rem; padding: 0.25rem; flex-shrink: 0; }
+    .q-remove-question { font-size: 0.8125rem; color: #dc2626; background: none; border: none; cursor: pointer; padding: 0; font-weight: 600; margin-top: 0.5rem; }
+    .add-question-card { border: 1.5px dashed var(--ba-secondary); border-radius: var(--ba-radius); }
+    .add-question-card > summary { list-style: none; cursor: pointer; padding: 0.875rem 1rem; color: var(--ba-primary); font-weight: 600; font-size: 0.9375rem; }
+    .add-question-card > summary::-webkit-details-marker { display: none; }
+    .add-question-body { padding: 0 1rem 1.125rem; }
+    .template-chip { padding: 0.375rem 0.75rem; border-radius: 9999px; border: 1px solid var(--ba-secondary); background: white; font-size: 0.75rem; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <!--
+    DISCOVERY PROTOTYPE — reuses the real per-module drill-down shell established by
+    plan/journey/manager/prototypes/hotsite/01e-module-config-chatbot.html (topbar
+    back-link, sidebar, detail-layout/detail-aside, pill-options, settings-elsewhere-note
+    — all copied conventions, not reinvented). Entry point: manager-00-hotsite-layout-tab-with-lead-form.html
+    ("Formulário de contato" row → Configurar), same as every other module's drill-down.
+
+    Correction from initial draft: question add/edit/remove is now fully INLINE on this
+    same page (expand/collapse <details> cards) — no separate screen or navigation away,
+    matching how a manager actually wants to build a list of up to 20 questions.
+
+    COMPONENT (GAP): LeadFormConfigPanel
+    FILE: apps/web/features/platform/components/hotsite/modules/LeadFormConfigPanel.tsx (GAP)
+    PROPS: data: LeadFormModuleData & { questions, audienceMode } — same ModuleConfigPanelProps
+           shared contract every other module panel (Hero, Chatbot, ...) already uses.
+    BFF CALL: PATCH /v1/tenants/hotsite (teaser fields — existing pattern)
+    BFF CALL: GET/PATCH /v1/tenants/lead-form/config (audienceMode + questions[])
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — Configurar módulo: Formulário de contato (10º tipo de módulo — mesmo drill-down do Hero/Chatbot)
+  </div>
+
+  <div class="dashboard-topbar">
+    <a href="manager-00-hotsite-layout-tab-with-lead-form.html" style="display:flex;align-items:center;gap:0.375rem;color:var(--ba-text);text-decoration:none;font-size:0.9375rem;font-weight:500;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      <span class="topbar-brand" style="font-weight:600;">Hotsite</span>
+    </a>
+    <h1 class="topbar-page-title">Configurar: Formulário de contato</h1>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
+      <a href="../../../../plan/journey/shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+      <span class="topbar-date">22 de agosto de 2026</span>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">A</div>
+        <div><p class="sidebar-tenant-name">AutoWash Pro</p><p class="sidebar-tenant-slug">@autowash-pro</p></div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top:0.5rem;">
+        <a class="sidebar-nav-item" href="../../../../plan/journey/staff/prototypes/agenda/00-agenda.html">Agenda</a>
+        <a class="sidebar-nav-item" href="../../../../plan/journey/staff/prototypes/horarios/00-schedule.html">Horários</a>
+        <a class="sidebar-nav-item" href="../../../../plan/journey/staff/prototypes/servicos/01-servicos-list.html">Serviços</a>
+        <a class="sidebar-nav-item" href="../../../../plan/journey/staff/prototypes/fidelidade/00-customer-search.html">Fidelidade</a>
+        <a class="sidebar-nav-item" href="manager-02-leads-submissions-list.html">Leads</a>
+      </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item" href="../../../../plan/journey/manager/prototypes/equipe/01-team-list.html">Equipe</a>
+        <a class="sidebar-nav-item" href="../../../../plan/journey/manager/prototypes/configuracoes/01-settings-form.html">Configurações</a>
+        <a class="sidebar-nav-item active" href="manager-00-hotsite-layout-tab-with-lead-form.html">Hotsite</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
+        <a class="sidebar-logout" href="../../../../plan/journey/shared/staff-login.html" title="Sair">Sair</a>
+      </div>
+    </aside>
+
+    <main class="main-content" style="padding-bottom:9rem;">
+      <div class="dashboard-body">
+        <div class="detail-layout"><div>
+
+        <div class="settings-elsewhere-note">
+          <strong>Retenção e limites de envio não ficam aqui.</strong>
+          Por quanto tempo guardamos os envios (<code>settings.leadForm.retentionMonths</code>) fica num
+          painel separado, junto das demais configurações do tenant — mesmo tratamento que os limites de
+          custo do Chatbot recebem. Ver <a href="manager-05-leads-retention-settings.html">Configurações → Leads</a>.
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Quem pode responder</label>
+          <div class="pill-options">
+            <button type="button" class="pill-option selected" onclick="selectPill(this)">Visitantes e clientes logados</button>
+            <button type="button" class="pill-option" onclick="selectPill(this)">Somente clientes logados</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="title">Título de destaque (no hotsite)</label>
+          <input id="title" type="text" class="form-input" value="Quer um orçamento personalizado?">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="subtitle">Subtítulo</label>
+          <input id="subtitle" type="text" class="form-input" value="Responda 3 perguntinhas rápidas e nossa equipe entra em contato com uma proposta sob medida.">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="cta">Texto do botão</label>
+          <input id="cta" type="text" class="form-input" value="Preencher formulário">
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--ba-secondary);margin:1.5rem 0;">
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">
+          <label class="form-label" style="margin-bottom:0;">Perguntas</label>
+          <span style="font-size:0.8125rem;opacity:0.55;">3 de 20</span>
+        </div>
+        <p class="form-hint" style="margin-top:0;margin-bottom:0.75rem;">Nome, e-mail e telefone já são sempre pedidos. Clique numa pergunta para editar — tudo acontece nesta mesma tela.</p>
+
+        <div class="q-list">
+          <details class="q-card">
+            <summary>
+              <span class="q-type-badge q-type-single">Escolha única</span>
+              <span class="q-summary-label">Qual serviço te interessa?</span>
+              <span class="q-summary-meta">obrigatória</span>
+              <svg class="q-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </summary>
+            <div class="q-edit-body">
+              <div class="form-group"><label class="form-label">Pergunta</label><input type="text" class="form-input" value="Qual serviço te interessa?"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem;">
+                <div><label class="form-label">Tipo</label><select class="form-input"><option>Texto livre</option><option selected>Escolha única</option><option>Múltipla escolha</option></select></div>
+                <div><label class="form-label">Obrigatória?</label><select class="form-input"><option>Não</option><option selected>Sim</option></select></div>
+              </div>
+              <label class="form-label">Opções</label>
+              <div class="q-option-row"><input type="text" class="form-input" value="Lavagem completa"><button class="q-option-remove" title="Remover opção">✕</button></div>
+              <div class="q-option-row"><input type="text" class="form-input" value="Enceramento"><button class="q-option-remove" title="Remover opção">✕</button></div>
+              <div class="q-option-row"><input type="text" class="form-input" value="Higienização interna"><button class="q-option-remove" title="Remover opção">✕</button></div>
+              <button type="button" class="btn-secondary" style="padding:0.375rem 0.75rem;font-size:0.8125rem;">+ Adicionar opção</button>
+              <div><button type="button" class="q-remove-question">Remover pergunta</button></div>
+            </div>
+          </details>
+
+          <details class="q-card">
+            <summary>
+              <span class="q-type-badge q-type-multi">Múltipla escolha</span>
+              <span class="q-summary-label">Melhores dias para contato</span>
+              <span class="q-summary-meta">opcional</span>
+              <svg class="q-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </summary>
+            <div class="q-edit-body">
+              <div class="form-group"><label class="form-label">Pergunta</label><input type="text" class="form-input" value="Melhores dias para contato"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem;">
+                <div><label class="form-label">Tipo</label><select class="form-input"><option>Texto livre</option><option>Escolha única</option><option selected>Múltipla escolha</option></select></div>
+                <div><label class="form-label">Obrigatória?</label><select class="form-input"><option selected>Não</option><option>Sim</option></select></div>
+              </div>
+              <label class="form-label">Opções</label>
+              <div class="q-option-row"><input type="text" class="form-input" value="Manhã"><button class="q-option-remove" title="Remover opção">✕</button></div>
+              <div class="q-option-row"><input type="text" class="form-input" value="Tarde"><button class="q-option-remove" title="Remover opção">✕</button></div>
+              <div class="q-option-row"><input type="text" class="form-input" value="Fim de semana"><button class="q-option-remove" title="Remover opção">✕</button></div>
+              <button type="button" class="btn-secondary" style="padding:0.375rem 0.75rem;font-size:0.8125rem;">+ Adicionar opção</button>
+              <div><button type="button" class="q-remove-question">Remover pergunta</button></div>
+            </div>
+          </details>
+
+          <details class="q-card">
+            <summary>
+              <span class="q-type-badge q-type-text">Texto livre</span>
+              <span class="q-summary-label">Algo mais que devemos saber?</span>
+              <span class="q-summary-meta">opcional</span>
+              <svg class="q-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </summary>
+            <div class="q-edit-body">
+              <div class="form-group" style="margin-bottom:1rem;"><label class="form-label">Pergunta</label><input type="text" class="form-input" value="Algo mais que devemos saber?"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+                <div><label class="form-label">Tipo</label><select class="form-input"><option selected>Texto livre</option><option>Escolha única</option><option>Múltipla escolha</option></select></div>
+                <div><label class="form-label">Obrigatória?</label><select class="form-input"><option selected>Não</option><option>Sim</option></select></div>
+              </div>
+              <div><button type="button" class="q-remove-question" style="margin-top:0.75rem;">Remover pergunta</button></div>
+            </div>
+          </details>
+        </div>
+
+        <details class="add-question-card" style="margin-top:0.75rem;">
+          <summary>+ Adicionar pergunta</summary>
+          <div class="add-question-body">
+            <p class="form-hint" style="margin-top:0;margin-bottom:0.75rem;">Modelos prontos (opcional — editáveis depois de adicionar):</p>
+            <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;">
+              <button type="button" class="template-chip">Melhor horário para contato</button>
+              <button type="button" class="template-chip">Como conheceu a AutoWash Pro?</button>
+              <button type="button" class="template-chip">Qual modelo de carro?</button>
+            </div>
+            <div class="form-group"><label class="form-label">Ou escreva sua própria pergunta</label><input type="text" class="form-input" placeholder="Digite a pergunta"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem;">
+              <div><label class="form-label">Tipo</label><select class="form-input"><option selected>Texto livre</option><option>Escolha única</option><option>Múltipla escolha</option></select></div>
+              <div><label class="form-label">Obrigatória?</label><select class="form-input"><option selected>Não</option><option>Sim</option></select></div>
+            </div>
+            <button type="button" class="btn-primary" style="padding:0.5rem 1rem;font-size:0.875rem;">Adicionar à lista</button>
+          </div>
+        </details>
+
+        <div class="form-actions">
+          <a href="manager-00-hotsite-layout-tab-with-lead-form.html" class="btn-secondary">Cancelar</a>
+          <a href="manager-00-hotsite-layout-tab-with-lead-form.html" class="btn-primary">Aplicar</a>
+        </div>
+
+        </div><!-- /form col -->
+        <div class="detail-aside">
+          <div class="card" style="padding:1.25rem;">
+            <p style="font-size:0.75rem;opacity:0.5;color:var(--ba-text);line-height:1.5;margin-bottom:1rem;">
+              Configurando: <strong>Formulário de contato</strong><br>
+              Editar ou remover uma pergunta não afeta respostas já recebidas — cada envio guarda sua própria cópia da pergunta.
+            </p>
+            <a href="manager-00-hotsite-layout-tab-with-lead-form.html" class="btn-primary" style="display:block;text-align:center;padding:0.75rem;margin-bottom:0.625rem;">Aplicar</a>
+            <a href="manager-00-hotsite-layout-tab-with-lead-form.html" class="btn-secondary" style="display:block;text-align:center;padding:0.75rem;">Cancelar</a>
+          </div>
+        </div>
+        </div><!-- /detail-layout -->
+      </div>
+    </main>
+  </div>
+
+  <nav class="bottom-nav">
+    <a href="../../../../plan/journey/staff/prototypes/agenda/00-agenda.html" class="bottom-nav-item">Agenda</a>
+    <a href="../../../../plan/journey/staff/prototypes/horarios/00-schedule.html" class="bottom-nav-item">Horários</a>
+    <a href="manager-02-leads-submissions-list.html" class="bottom-nav-item">Leads</a>
+    <a href="manager-00-hotsite-layout-tab-with-lead-form.html" class="bottom-nav-item active">Hotsite</a>
+  </nav>
+
+  <script>
+    function selectPill(btn) {
+      const group = btn.parentElement;
+      group.querySelectorAll('.pill-option').forEach(el => el.classList.remove('selected'));
+      btn.classList.add('selected');
+    }
+  </script>
+
+</body>
+</html>
