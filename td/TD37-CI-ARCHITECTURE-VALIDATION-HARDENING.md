@@ -369,7 +369,7 @@ Use a closed, reviewed registry mapping each aggregate's persisted private prope
 
 ---
 
-### Story 10 — `ts-morph`: naming-convention checks 🟡
+### Story 10 — `ts-morph`: naming-convention checks 🟡 ✅ Done
 
 - Use case result type is named `{UseCaseClassName}Result`, never `*Info`/`*Dto`/raw `T[]`; first migrate the current baseline violations and state their scope.
 - Distinguish application `UseCaseNameInput` types from HTTP `{Action}Dto` schemas; do not conflate the two documented contracts.
