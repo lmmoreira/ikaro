@@ -58,6 +58,7 @@ Extract these fields from the story block:
 - BFF endpoint spec (method, path, auth, response)
 - Acceptance criteria (all checkboxes)
 - Dependencies (story IDs) — note their status (Done / Pending)
+- **Files to create/modify** — if listed, verify each modified-file path actually exists (same Explore-agent discipline as the dependency-symbol check below); flag a missing declared path as a **RISK**, not silently
 - **Prototype references** — every `plan/journey/...` path listed under a "Prototype references:", "Prototype reference:", or milestone-level "Journey prototype:" line
 - Any mention of: new DB migration/entity, new i18n keys, new env vars, new Pub/Sub topics, feature flags
 
@@ -195,16 +196,16 @@ Check the story's *proposed design*, not just its documentation completeness, ag
 - **No improvisation:** if the story cites a specific reference (a library, an existing pattern, a named example), does the design actually use it — or does it describe a bespoke alternative presented as equivalent?
 - **Mounting complexity:** does the story's own description already need multiple stacked safeguards/exceptions/special-cases to work — a sign a structurally simpler approach might need none of it? Before accepting the design as-is, check whether an existing port/adapter/pattern (grep `infrastructure/cross-context/`, `docs/AGENT_PATTERNS.md`'s numbered patterns, or a similar existing use case) already solves this without the extra machinery.
 
+### 4p. Stale-reference sweep anticipation (Definition of Done)
+If this story replaces or removes an existing flow/mechanism (an auth pattern, a data model assumption, a transport layer, a dead endpoint) — does the story's own scope explicitly include grepping `docs/*.md`, other milestones' `plan/*_IMPLEMENTATION_DETAILS_*.md`, `.claude/commands/**`, `.claude/skills/**`, and `scripts/**` for stale references to the old version? If the story is silent on this, flag it now — `docs/DEFINITION_OF_DONE.md` makes this mandatory, and catching the gap here is cheaper than at milestone close-out (M13 precedent: 18 such findings across 8 files, found only when the milestone closed).
+
+**Inverse case — journey GAP-status drift:** if this story's own `Prototype references` point at a `plan/journey/<actor>/<slug>.md` that currently marks the relevant screen/flow `❓ GAP`, does the story's scope include flipping that status in the same commit? A full `/docs-audit` sweep (2026-08-04) found this exact pattern in *every actor's* journeys (28 findings) — `dev-notes.md` consistently got updated when a gap shipped, the parent journey `.md`'s mermaid/Prototype table consistently didn't. Flag as **RISK** if the story is silent on it.
+
 ### 4q. Pattern & test-strategy lock-in
 - **Architectural pattern:** does the story's design name the concrete pattern it uses (strategy, factory, builder, plain composition, etc.) and why — or explicitly state that no named pattern applies? A story that's silent on this pushes an undocumented judgment call into implementation time; surface it as a question in Step 6 instead.
 - **Test/e2e coverage plan:** does the story name concrete test scenarios — the specific unit cases, integration flows, and (for frontend stories) e2e/Playwright scenarios — rather than a vague "at least one integration test"? A vague coverage statement here becomes an implementation-time judgment call instead of a discovery-time decision.
 - **Business-rule ambiguity:** does anything in the story's description leave a business rule underspecified (a threshold, an edge case, a precedence between two rules)? Surface each as a question in Step 6 rather than letting the implementation step infer one.
 - **Ripple effects:** does this story's change plausibly affect another existing flow, screen, or use case not explicitly listed in its scope? If so, name it as a RISK — either fold it into this story's scope or explicitly note it's out of scope and why.
-
-### 4p. Stale-reference sweep anticipation (Definition of Done)
-If this story replaces or removes an existing flow/mechanism (an auth pattern, a data model assumption, a transport layer, a dead endpoint) — does the story's own scope explicitly include grepping `docs/*.md`, other milestones' `plan/*_IMPLEMENTATION_DETAILS_*.md`, `.claude/commands/**`, `.claude/skills/**`, and `scripts/**` for stale references to the old version? If the story is silent on this, flag it now — `docs/DEFINITION_OF_DONE.md` makes this mandatory, and catching the gap here is cheaper than at milestone close-out (M13 precedent: 18 such findings across 8 files, found only when the milestone closed).
-
-**Inverse case — journey GAP-status drift:** if this story's own `Prototype references` point at a `plan/journey/<actor>/<slug>.md` that currently marks the relevant screen/flow `❓ GAP`, does the story's scope include flipping that status in the same commit? A full `/docs-audit` sweep (2026-08-04) found this exact pattern in *every actor's* journeys (28 findings) — `dev-notes.md` consistently got updated when a gap shipped, the parent journey `.md`'s mermaid/Prototype table consistently didn't. Flag as **RISK** if the story is silent on it.
 
 ---
 
@@ -389,5 +390,8 @@ Wait for reply, then:
 Either way, end with:
 ```
 Ready. Next: implement per §9 Step 2 — write all files from the story spec.
-Remember: before every `git commit`, list the files and ask "Anything else to add before I commit?" (§0).
+This READY verdict already authorizes the rest of the chain (§9 Steps 3–9) —
+commit, push, /pre-pr, PR, CI-fix, and bot-fix all proceed autonomously from
+here with no further per-step asks. I'll come back to you only for the merge
+review (§9 Step 10) or a stuck condition.
 ```

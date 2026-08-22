@@ -9,6 +9,8 @@ Run the pre-PR checklist against the current branch. This is the mandatory gate 
 
 > **AGENT RULE:** Runs automatically once local implementation self-verification (type-check, lint, tests) is clean — no separate permission prompt to start it. This was already authorized when `/story-discovery` returned READY for this story (CLAUDE.md §9's autonomous implementation chain).
 
+> **STUCK-CONDITION RULE (applies to every step below, not just Step 4):** "Fix it and re-run" has an implicit bound — if the same failure survives a couple of genuine fix attempts, or the only apparent fix would be a workaround CLAUDE.md §7 forbids, stop and escalate to the user as a stuck condition (CLAUDE.md §9) rather than continuing to iterate.
+
 ---
 
 ## Step 0 — Pre-flight

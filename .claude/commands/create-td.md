@@ -18,8 +18,8 @@ Argument: `$ARGUMENTS` — either:
 ## Step 0 — Resolve mode and number
 
 **Append mode** — `$ARGUMENTS` names an existing `td/TDNN-*.md`:
-- Read the file in full. Confirm it's a multi-story TD (has `### Story N —` headings) — a single-scope TD (one `## Status` block, no story subdivision, e.g. TD27) can't receive an appended story; if the user wants to add scope to one of those, ask whether to convert it to multi-story first (rename the existing single scope as "Story 0", renumber) rather than silently restructuring it.
-- Determine the next story number (`N+1` after the highest existing `### Story N —`).
+- Read the file in full. Confirm it's a multi-story TD (has `Story N —` headings — check which level this specific file actually uses: existing TDs mix `###` (TD01, TD-18-19-20, TD-21, TD31, TD37) and `####` (TD23, TD30); match the file's own existing level, never force three `#` onto a TD that already uses four). A single-scope TD (one `## Status` block, no story subdivision, e.g. TD27) can't receive an appended story; if the user wants to add scope to one of those, ask whether to convert it to multi-story first (rename the existing single scope as "Story 0", renumber) rather than silently restructuring it.
+- Determine the next story number (`N+1` after the highest existing `Story N —` heading, at whatever level this file uses).
 
 **New-TD mode** — otherwise:
 - Determine the next available TD number: `ls td/TD*.md | grep -oE 'TD[0-9]+' | sort -t'D' -k2 -n -u | tail -1`, then increment. Skip any number already claimed by a combined file (e.g. `TD-18-19-20-BAD-SMELL-VIOLAVIONS.md`, `TD-21-...`).
@@ -104,9 +104,15 @@ This is the actual standardization: every story below carries the same structure
 
 <description — the prose explaining the mechanism, same depth as an existing TD story>
 
+<For a story that's a straightforward backend/BFF change (not architecture/CI/infra tooling), also include:>
+**Backend use case steps**: <numbered list, if this story adds/changes a use case>
+**BFF endpoint spec**: <method, path, auth, response — if this story adds/changes an endpoint>
+
 **Acceptance criteria**:
 - [ ] ...
 ```
+
+New TDs standardize on three `#` for `Story N —` headings going forward (matching the majority existing convention — TD01, TD-18-19-20, TD-21, TD31, TD37); an existing TD being appended to (Step 0's append mode) keeps whatever level it already uses instead.
 
 **Confidence marker** (optional, adopt only if this TD's own scope benefits from it — TD37's own convention, not mandatory for every TD): 🔴 proven recurring failure / 🟡 documented-but-unenforced rule / ⚪ exploratory, ships non-blocking first.
 

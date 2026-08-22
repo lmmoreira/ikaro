@@ -479,5 +479,5 @@ Pinned Terraform skills live in `.claude/skills/`; refresh them by re-vendoring 
 | `/mark-done M0X-SYY` | `.claude/commands/mark-done.md` |
 | `/pre-pr` | `.claude/commands/pre-pr.md` |
 | `/pr-review [PR#]` | `.claude/commands/pr-review.md` |
-| `/run-batch [M0X \| M0X-SYY M0X-SYY ...]` | `.claude/commands/run-batch.md` |
+| `/run-batch [M0X \| M0X-SYY/TDNN ...]` | `.claude/commands/run-batch.md` |
 | `/story-discovery M0X-SYY` | `.claude/commands/story-discovery.md` |
