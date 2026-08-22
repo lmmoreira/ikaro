@@ -49,10 +49,27 @@ function findUseCaseTargets(project: Project): UseCaseTarget[] {
   return targets;
 }
 
-type ReturnShape = { kind: 'void' } | { kind: 'anonymous' } | { kind: 'named'; name: string };
+type ReturnShape =
+  | { kind: 'void' }
+  | { kind: 'anonymous' }
+  | { kind: 'primitive'; text: string }
+  | { kind: 'named'; name: string };
+
+const PRIMITIVE_KEYWORD_KINDS = new Set([
+  SyntaxKind.StringKeyword,
+  SyntaxKind.NumberKeyword,
+  SyntaxKind.BooleanKeyword,
+  SyntaxKind.BigIntKeyword,
+  SyntaxKind.SymbolKeyword,
+  SyntaxKind.AnyKeyword,
+  SyntaxKind.UnknownKeyword,
+  SyntaxKind.ObjectKeyword,
+]);
 
 // Recurses through `T[]`/`Array<T>` wrapping so a Result type returned as a list
-// (`Promise<XxxResult[]>`) is checked against the same base name as a singular result.
+// (`Promise<XxxResult[]>`) is checked against the same base name as a singular result — and
+// so a raw primitive array (`Promise<string[]>`) is caught too, not just a raw primitive on
+// its own (`Promise<string>`). Both are the literal "raw T[]" case the naming rule prohibits.
 function classifyTypeNode(node: TypeNode): ReturnShape | undefined {
   if (Node.isArrayTypeNode(node)) return classifyTypeNode(node.getElementTypeNode());
   if (Node.isTypeReference(node)) {
@@ -65,6 +82,8 @@ function classifyTypeNode(node: TypeNode): ReturnShape | undefined {
   }
   if (Node.isTypeLiteral(node)) return { kind: 'anonymous' };
   if (node.getText() === 'void') return { kind: 'void' };
+  if (PRIMITIVE_KEYWORD_KINDS.has(node.getKind()))
+    return { kind: 'primitive', text: node.getText() };
   return undefined;
 }
 
@@ -99,6 +118,16 @@ export function checkUseCaseResultNaming(project: Project): ScanResult {
         file: sourceFile.getFilePath(),
         line,
         message: `${className}.execute() returns an inline/anonymous type instead of a named "${expected}". Use case result types must be a named "{ClassName}Result" type declared in the use case file — never a raw/inline shape (docs/CODE_STANDARDS.md § Naming conventions).`,
+      });
+      continue;
+    }
+
+    if (shape.kind === 'primitive') {
+      findings.push({
+        rule: 'use-case-result-naming',
+        file: sourceFile.getFilePath(),
+        line,
+        message: `${className}.execute() returns a raw "${shape.text}" (or an array of it) instead of a named "${expected}". Use case result types must be a named "{ClassName}Result" type — never a bare primitive or a raw array of primitives (docs/CODE_STANDARDS.md § Naming conventions).`,
       });
       continue;
     }

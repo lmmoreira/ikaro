@@ -83,6 +83,60 @@ describe('checkUseCaseResultNaming', () => {
     ]);
   });
 
+  it('flags a raw primitive array return type', () => {
+    const project = fixtureProject({
+      [FILE]: `
+        export class GetDemoUseCase {
+          async execute(): Promise<string[]> { return []; }
+        }
+      `,
+    });
+    const result = checkUseCaseResultNaming(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        rule: 'use-case-result-naming',
+        message: expect.stringContaining('string'),
+      }),
+    ]);
+  });
+
+  it('flags a raw primitive Array<T> return type', () => {
+    const project = fixtureProject({
+      [FILE]: `
+        export class GetDemoUseCase {
+          async execute(): Promise<Array<string>> { return []; }
+        }
+      `,
+    });
+    const result = checkUseCaseResultNaming(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        rule: 'use-case-result-naming',
+        message: expect.stringContaining('string'),
+      }),
+    ]);
+  });
+
+  it('flags a bare primitive return type', () => {
+    const project = fixtureProject({
+      [FILE]: `
+        export class GetDemoUseCase {
+          async execute(): Promise<number> { return 1; }
+        }
+      `,
+    });
+    const result = checkUseCaseResultNaming(project);
+    expectScannedTargets(result, 1);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        rule: 'use-case-result-naming',
+        message: expect.stringContaining('number'),
+      }),
+    ]);
+  });
+
   it('flags an inline/anonymous return shape', () => {
     const project = fixtureProject({
       [FILE]: `
