@@ -41,9 +41,14 @@ test('every configured package resolves to a real workspace directory', () => {
     assert.ok(packageJson.scripts?.build, `${pkg.name}: package.json has no "build" script`);
     assert.ok(packageJson.main, `${pkg.name}: package.json has no "main" field`);
     assert.ok(packageJson.types, `${pkg.name}: package.json has no "types" field`);
-    assert.ok(
-      Array.isArray(packageJson.files) && packageJson.files.includes('dist'),
-      `${pkg.name}: package.json "files" must include "dist" so \`pnpm pack\` ships only the built artifact, not source`,
+    // Exact match, not `.includes('dist')` — a loose check would pass for
+    // ["dist", "src"] just as easily, silently missing an accidental
+    // source-directory publication (CodeRabbit finding, PR #405).
+    const expectedFiles = pkg.name === '@ikaro/i18n' ? ['dist', 'locales'] : ['dist'];
+    assert.deepEqual(
+      [...(packageJson.files ?? [])].sort(),
+      [...expectedFiles].sort(),
+      `${pkg.name}: package.json "files" must match the publish allowlist exactly (${JSON.stringify(expectedFiles)})`,
     );
   }
 });
