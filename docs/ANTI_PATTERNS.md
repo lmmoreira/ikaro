@@ -8,7 +8,7 @@
 | Event missing `tenantId` in envelope | Can't isolate per tenant | Include in every event |
 | Hardcoded `48`, `180`, `7` for business rules | Breaks per-tenant config | Read from `tenants.settings` |
 | `@ts-ignore`, `any`, `eslint-disable` | Defeats static analysis | Fix the type/lint error |
-| `.skip()` / `.only()` in tests | Hides failures in CI | Remove before commit |
+| `.skip()` / `.only()` in tests | Hides failures in CI | Remove before commit. CI-enforced by `jest/no-disabled-tests`/`jest/no-focused-tests` (backend, bff, `packages/*`) and `vitest/no-disabled-tests`/`vitest/no-focused-tests` (web) (TD37-S15) |
 | Synchronous call from Loyalty → Booking | Tight coupling | Subscribe to `BookingCompleted` event |
 | `new XRepository()` inside a service | Untestable | Inject via DI |
 | Same template body for all tenants | Breaks branding | Templates are per-tenant aggregates |

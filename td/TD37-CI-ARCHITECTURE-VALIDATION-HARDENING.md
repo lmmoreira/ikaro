@@ -471,12 +471,19 @@ This is the one your own docs already flag as a **known, currently-unfixed gap**
 
 ### Story 15 — No `.skip()`/`.only()` in tests 🟡
 
-**New dependencies**: `eslint-plugin-jest` (`apps/backend`, `apps/bff`) + `@vitest/eslint-plugin` (`apps/web` — matching that app's actual test runner, not Jest).
+**New dependencies**: `eslint-plugin-jest@29.16.1` (`apps/backend`, `apps/bff`, and all 8 test-bearing `packages/*` — see below) + `@vitest/eslint-plugin@1.6.27` (`apps/web` — matching that app's actual test runner, not Jest). Both confirmed compatible with this repo's ESLint 10.
+
+**Story-discovery addition (2026-08-23):** five decisions locked in, since the TD text above leaves each ambiguous enough to become an implementation-time guess otherwise:
+- **Rules are scoped narrowly, not the plugins' full recommended sets.** Only `jest/no-disabled-tests` + `jest/no-focused-tests` (backend, bff, packages/*) and `vitest/no-disabled-tests` + `vitest/no-focused-tests` (web), each restricted to `**/*.spec.ts`/`**/*.spec.tsx`/`**/*.integration.spec.ts` files — matches this story's exact scope ("no skip/only"), not a broader jest/vitest lint-style adoption.
+- **Ships directly as `error`, no report-only warning phase.** Confirmed empirically: zero `.skip()`/`.only()` violations exist repo-wide today (`grep -rnE "it\.skip\(|test\.skip\(|describe\.skip\(|it\.only\(|test\.only\(|describe\.only\(|^xit\(|^xdescribe\("` across `apps/*/src`, `apps/web`, `packages/*` — zero hits). Mirrors Story 5's `default-param-last` precedent: a zero baseline ships as `error` immediately, no burn-in needed.
+- **`packages/*` scope resolved as: give all 8 test-bearing packages (`types`, `validation`, `http-utils`, `env-validation`, `nestjs-http`, `observability`, `infra-scripts`, `architecture-check`) a real, first `eslint.config.js` inheriting `@ikaro/config/eslint-base` (the same base every app already uses — not a new per-package ruleset decision) plus a `"lint"` script, wired into the existing recursive `pnpm -r run lint` (no new CI step needed). `config` and `i18n` have no test files and are excluded — nothing for the new rules to scan. Verified empirically before locking this in: running the shared base config against all 8 packages surfaces only 7 pre-existing violations, not a landmine — 1 real fix (`packages/nestjs-http/src/zod-validation.pipe.spec.ts:53`, `z.string().email()` → `z.email()`, Zod v4 deprecation) and 6 `console.log` calls in `packages/infra-scripts` that are a CLI tool's legitimate output, exempted the same way `apps/backend/eslint.config.js` already exempts this exact package (M17-S18 precedent). Both fixes/exemptions ship in this story alongside the new packages' lint configs.
+- **`scripts/pre-pr.sh` check #16 (`.skip()`/`.only()`, diff-scoped grep) is deleted**, not kept alongside the new rule — unlike Story 11's WEB-9 precedent (which kept its diff-scoped pre-check as a fast local complement), this rule's enforcement cost is low enough (`pnpm lint`, not a slower full audit) that a second, narrower mechanism for the identical rule isn't worth maintaining.
+- **No new `.eslint.spec.ts` fixture files.** `jest/no-disabled-tests`/`jest/no-focused-tests`/`vitest/no-disabled-tests`/`vitest/no-focused-tests` are off-the-shelf plugin rules, already tested upstream by their own authors — unlike Stories 2/4's hand-written `no-restricted-imports`/`no-restricted-syntax` selectors (which do have fixture specs, e.g. `apps/backend/src/eslint/restricted-imports-syntax.eslint.spec.ts`, because nothing else proves a bespoke regex/selector actually matches), this needs no bespoke proof. Matches Story 5's precedent: no fixture spec exists for its ESLint-core rules either.
 
 **Acceptance criteria**:
-- [ ] `no-disabled-tests`/`no-focused-tests` (or Vitest's equivalents) enabled in each app's ESLint config
-- [ ] Scope is honest: either apps only, or an explicit root/static target also scans `packages/*`; recursive `pnpm lint` alone does not currently lint packages without lint scripts
-- [ ] Existing changed-file `scripts/pre-pr.sh` behavior is retained or deliberately replaced without duplicate/conflicting enforcement
+- [ ] `no-disabled-tests`/`no-focused-tests` (or Vitest's equivalents) enabled in each app's ESLint config, and in all 8 test-bearing `packages/*` via their new `eslint.config.js` + `"lint"` script
+- [ ] Scope is honest: `packages/*` is explicitly in scope (not silently excluded) — recursive `pnpm lint` now actually lints every workspace that has tests
+- [ ] `scripts/pre-pr.sh`'s existing changed-file check #16 is removed, since the new ESLint rule supersedes it (full-codebase, not diff-scoped) rather than duplicating it
 
 ---
 
