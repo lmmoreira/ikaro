@@ -5,6 +5,9 @@
   "description": "Shared TypeScript types and DTOs",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "typesVersions": {
     "*": {
       "protocol/errors": [

@@ -137,6 +137,84 @@ jobs:
             knip-production-report.txt
           retention-days: 7
 
+  attw-check:
+    name: packages/* publish-shape validation (report-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 11.1.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm attw-check:test
+
+      # attw-check (arethetypeswrong against each packed/built package) and
+      # attw-check:runtime (a packed-artifact require() smoke test — attw
+      # alone doesn't execute the package, so it can't by itself reproduce
+      # the #77 Node native type-stripping / `pnpm deploy --prod` runtime
+      # failure) are both real findings for the 7 packages/* workspaces
+      # that ship compiled runtime code (TD37-S14).
+      - name: Run attw-check + attw-check:runtime (report-only)
+        continue-on-error: true
+        run: |
+          # `continue-on-error: true` already keeps the JOB non-blocking —
+          # don't also swallow the two commands' own exit codes with `|| true`,
+          # or a real tool crash (bad config, missing binary, failed install)
+          # reports identically to "found real findings" with no visible
+          # signal. `set +e` (not `|| true`) is what's needed here: GitHub
+          # Actions' default `bash -eo pipefail` would otherwise abort this
+          # script after the first non-zero exit, skipping the second command
+          # and the step-summary write entirely.
+          set +e
+          pnpm attw-check 2>&1 | tee attw-check-report.txt
+          attw_status=${PIPESTATUS[0]}
+          pnpm attw-check:runtime 2>&1 | tee attw-runtime-smoke-report.txt
+          runtime_status=${PIPESTATUS[0]}
+          # Report content is these tools' own output over this repo's real
+          # package.json/source-file names — on a fork PR those names are
+          # contributor-controlled. Break any literal triple-backtick run
+          # before embedding so it can't close the summary's own code fence
+          # early and inject arbitrary rendered Markdown after it. Building
+          # the backtick character via printf (not typing it literally)
+          # avoids a ShellCheck SC2016 false positive on the sed script.
+          backtick=$(printf '\140')
+          fence="${backtick}${backtick}${backtick}"
+          broken_fence="${backtick}${backtick} ${backtick}"
+          break_fences() { sed "s/${fence}/${broken_fence}/g" "$1"; }
+          {
+            echo '### attw-check — arethetypeswrong against each packed package'
+            echo '```'
+            break_fences attw-check-report.txt
+            echo '```'
+            echo '### attw-check:runtime — packed-artifact require() smoke test'
+            echo '```'
+            break_fences attw-runtime-smoke-report.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$attw_status" -ne 0 ] || [ "$runtime_status" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Upload attw-check reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: attw-check-reports
+          path: |
+            attw-check-report.txt
+            attw-runtime-smoke-report.txt
+          retention-days: 7
+
   no-infra-app-mix:
     name: No infra + app mix
     runs-on: ubuntu-latest

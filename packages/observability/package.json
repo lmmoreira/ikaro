@@ -5,6 +5,9 @@
   "description": "Shared structured JSON logger base for backend and bff",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "type-check": "tsc --noEmit",
