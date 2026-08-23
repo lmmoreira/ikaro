@@ -451,7 +451,7 @@ This is the one your own docs already flag as a **known, currently-unfixed gap**
 
 ---
 
-### Story 14 — `arethetypeswrong`: `packages/*` publish-shape validation 🟡
+### Story 14 — `arethetypeswrong`: `packages/*` publish-shape validation 🟡 ✅ Done
 
 **New dependency**: `@arethetypeswrong/cli` (dev-only; command `attw`). It validates built package type/package metadata, but does not by itself reproduce the #77 Node native type-stripping / `pnpm deploy --prod` runtime failure. Pair it with a packed-artifact runtime import smoke test that mirrors production consumption.
 
