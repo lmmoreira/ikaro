@@ -5,6 +5,9 @@
   "description": "Shared Zod business-rule validation schemas for backend and bff — never consumed by apps/web",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "type-check": "tsc --noEmit",

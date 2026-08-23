@@ -33,13 +33,17 @@
     "dep-cruise:test": "node --test scripts/dependency-cruiser-config.spec.cjs",
     "knip": "knip",
     "knip:production": "knip --production --strict -W apps/backend -W apps/bff -W apps/web",
-    "knip:test": "node --test scripts/knip-config.spec.cjs"
+    "knip:test": "node --test scripts/knip-config.spec.cjs",
+    "attw-check": "node scripts/attw-check.cjs",
+    "attw-check:runtime": "node scripts/attw-runtime-smoke.cjs",
+    "attw-check:test": "node --test scripts/attw-check-config.spec.cjs"
   },
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
     "dependency-cruiser": "18.1.1",
     "eslint": "^10.6.0",
     "knip": "^6.32.2",
