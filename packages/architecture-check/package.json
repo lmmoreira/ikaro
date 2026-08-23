@@ -8,6 +8,7 @@
   "scripts": {
     "build": "tsc",
     "type-check": "tsc --noEmit",
+    "lint": "eslint \"src/**/*.ts\" --no-error-on-unmatched-pattern",
     "test": "jest",
     "test:cov": "jest --coverage",
     "check": "tsc -p tsconfig.json && node dist/cli.js"
@@ -20,6 +21,7 @@
     "@ikaro/config": "workspace:*",
     "@types/jest": "^30.0.0",
     "@types/node": "^25.9.4",
+    "eslint-plugin-jest": "^29.16.1",
     "jest": "^30.4.2",
     "ts-jest": "^29.4.11"
   }

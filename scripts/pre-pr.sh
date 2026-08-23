@@ -127,10 +127,10 @@ grep_into_tmp "$(echo "$ts_prod" | grep -vE 'shared/lib/i18n/resolve-error-messa
   "console\.(log|error|warn)\("
 run_check "17. No console.log/error/warn in production"
 
-# 16. No .skip() / .only() in tests
-grep_into_tmp "$ts_tests" \
-  "it\.skip\(|test\.skip\(|describe\.skip\(|it\.only\(|test\.only\(|describe\.only\(|^xit\(|^xdescribe\("
-run_check "16. No .skip() / .only() in tests"
+# 16. No .skip() / .only() in tests — retired (TD37-S15): superseded by ESLint's
+# jest/no-disabled-tests, jest/no-focused-tests (backend, bff, packages/*) and
+# vitest/no-disabled-tests, vitest/no-focused-tests (web), enforced full-codebase via `pnpm
+# lint` rather than diff-scoped here.
 
 # 11. No new XxxEntity() / entity+use-case factories in tests
 grep_into_tmp "$ts_tests" \

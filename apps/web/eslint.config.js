@@ -1,6 +1,7 @@
 const baseConfig = require('@ikaro/config/eslint-base');
 const reactHooks = require('eslint-plugin-react-hooks');
 const jsxA11y = require('eslint-plugin-jsx-a11y');
+const vitestPlugin = require('@vitest/eslint-plugin');
 const architecturePolicy = require('../../packages/architecture-check/architecture-policy.json');
 
 // `ignores` entries are glob patterns, not literal paths — a Next.js dynamic-route folder like
@@ -178,6 +179,18 @@ module.exports = [
     rules: {
       'max-lines-per-function': ['error', { max: 200, skipBlankLines: true, skipComments: true }],
       'max-lines': ['error', { max: 250, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  // TD37-S15: no .skip()/.only() — a skipped test hides a real regression behind a green CI
+  // run, and a focused describe/it silently stops every sibling test in the file from running
+  // at all. Scoped to spec files only; zero baseline violations confirmed repo-wide before this
+  // shipped directly as `error` (docs/ANTI_PATTERNS.md, docs/08-TESTING_STRATEGY.md).
+  {
+    files: ['**/*.spec.ts', '**/*.spec.tsx'],
+    plugins: { vitest: vitestPlugin },
+    rules: {
+      'vitest/no-disabled-tests': 'error',
+      'vitest/no-focused-tests': 'error',
     },
   },
 ];

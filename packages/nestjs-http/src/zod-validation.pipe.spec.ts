@@ -50,7 +50,7 @@ describe('ZodValidationPipe', () => {
   });
 
   it('works with @Query-bound schemas the same way as @Body-bound ones', () => {
-    const queryPipe = new ZodValidationPipe(z.object({ email: z.string().email() }));
+    const queryPipe = new ZodValidationPipe(z.object({ email: z.email() }));
     expect.assertions(2);
     try {
       queryPipe.transform({ email: 'invalid' });
