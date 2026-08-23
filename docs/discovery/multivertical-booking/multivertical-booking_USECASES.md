@@ -22,7 +22,7 @@ CAND-XX: [Name]
 ### **CAND-01: Manager Creates a Resource**
 
 - **Actor:** Staff (MANAGER role)
-- **Preconditions:** Tenant has at least one active `Service` using `bookingModel = APPOINTMENT` with a non-`LOCATION` resource requirement (otherwise there's nothing to attach a resource to).
+- **Preconditions:** None beyond an active tenant. **Corrected 2026-08-23** (`multivertical-booking.md` §9 item 32) — this previously required a `Service` already configured with a non-`LOCATION` resource requirement, which is circular: `CAND-06` (configuring that requirement) has its own A1 blocking save until a resource of the chosen type already exists. A manager creates resources proactively, independent of any specific service — `CAND-06` is what later wires a `Service` to reference one. `CAND-51` (preset bootstrap) is the one path that creates both together atomically and never hit this; this fix is what makes the standalone flow work the same way for a tenant adding resources after bootstrap.
 - **Trigger:** Manager clicks "Add Resource" in dashboard settings.
 - **Main Flow:**
   1. Manager selects resource type: `STAFF` (picks an existing `Staff` row to wrap), `ROOM`, or `EQUIPMENT`.
@@ -200,7 +200,7 @@ CAND-XX: [Name]
 - **Main Flow:**
   1. Manager sets approval mode (`AUTO_CONFIRM`/`MANUAL_APPROVAL`, inheriting the tenant default when left blank) and, if `MANUAL_APPROVAL`, the hold duration.
   2. Manager sets the cancellation window, minimum notice, and maximum advance (all inheriting tenant defaults when left blank).
-  3. Manager toggles whether the service allows recurring private reservations (`CAND-45`) and availability alerts (`CAND-46`).
+  3. Manager toggles whether the service allows recurring private reservations (`CAND-45`) and availability alerts (`CAND-46`). **Interaction to surface to the manager (confirmed intentional, `multivertical-booking.md` §9 item 29):** enabling recurrence on a `MANUAL_APPROVAL` service means every occurrence a customer's `RecurringBookingSchedule` later generates on it auto-confirms without review — only the schedule's own resource-conflict check applies (`CAND-45` A1). A one-off booking of the same service still goes through `MANUAL_APPROVAL` normally. This is deliberate (recurrence trades per-occurrence review for a faster standing commitment), but the manager should understand the tradeoff before turning both on for the same service.
   4. If the service has `durationPolicy = CUSTOMER_SELECTED` (`CAND-42`), manager also sets minimum/maximum/increment duration, the per-increment price, and optional minimum charge.
   5. System saves the policy on `Service`; every subsequent booking snapshots the effective values at submission time (unchanged existing principle).
 - **Alternative Flows** (see `manager-13b-service-booking-policies-erro.html` for A2):

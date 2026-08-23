@@ -42,12 +42,16 @@
     deliberate extension so there's an actual entry point into closing out attendance,
     not just the roster screen existing in isolation with nothing pointing at it.
 
-    NOTE (added on UX review): every card below links to staff-02-session-roster.html
+    NOTE (added on UX review): every card below links to manager-roster-dia.html
     regardless of which session was clicked — that file is a single representative/
     parameterized roster template, not a real per-session mock. In the real
     implementation each card's link carries a session ID and the roster page renders
     that session's actual data; building out several more full roster mocks here was
     judged out of scope for a discovery-stage fix pass.
+
+    Retargeted 2026-08-23: previously linked to staff-02-session-roster.html,
+    now superseded by manager-roster-dia.html (merged the two screens' capabilities into
+    one canonical roster — see that file's own header comment for the full reconciliation).
 
     COMPONENT (GAP): UpcomingClassSessionsList
     BFF CALL (GAP): GET /class-sessions?scope=mine|all&from=today&days=14
@@ -130,7 +134,7 @@
           <span class="day-group-count">1 turma</span>
         </div>
 
-        <a href="staff-02-session-roster.html" class="turma-card">
+        <a href="manager-roster-dia.html" class="turma-card">
           <div class="booking-card">
             <div class="booking-card-header">
               <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;">P</div>
@@ -158,7 +162,7 @@
           <span class="day-group-count">2 turmas</span>
         </div>
 
-        <a href="staff-02-session-roster.html" class="turma-card">
+        <a href="manager-roster-dia.html" class="turma-card">
           <div class="booking-card">
             <div class="booking-card-header">
               <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;">P</div>
@@ -174,7 +178,7 @@
 
         <!-- The newly-created template's first generated occurrence — answers
              "where is the new turma": right here, tagged, reachable without typing a URL. -->
-        <a href="staff-02-session-roster.html" class="turma-card">
+        <a href="manager-roster-dia.html" class="turma-card">
           <div class="booking-card" style="border-left:3px solid #16a34a;">
             <div class="booking-card-header">
               <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;">P</div>
@@ -192,7 +196,7 @@
              STAFF (mine) vs MANAGER (all) scope difference from CAND-13b. Two rows now,
              matching manager-03's two active CrossFit templates (Bruno + Fábio) — added
              on review, the second template had no corresponding occurrence here. -->
-        <a href="staff-02-session-roster.html" class="turma-card all-only">
+        <a href="manager-roster-dia.html" class="turma-card all-only">
           <div class="booking-card">
             <div class="booking-card-header">
               <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#7c3aed;">C</div>
@@ -206,7 +210,7 @@
           </div>
         </a>
 
-        <a href="staff-02-session-roster.html" class="turma-card all-only">
+        <a href="manager-roster-dia.html" class="turma-card all-only">
           <div class="booking-card">
             <div class="booking-card-header">
               <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#0d9488;">C</div>

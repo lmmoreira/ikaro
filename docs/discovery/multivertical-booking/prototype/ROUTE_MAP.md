@@ -52,8 +52,8 @@ must not be presented as a parallel public route.
 |---|---|---|
 | My appointments | `staff-01-my-agenda.html` | Booking detail actions remain within agenda flow |
 | My resource availability | `staff-05-horarios-recurso.html` | Manager changes resource policy/configuration |
-| Upcoming classes | `staff-04-turmas-proximas.html` | Class detail → `staff-02-session-roster.html` |
-| Class roster / waitlist visibility | `staff-02-session-roster.html` | Capacity/sala override → `staff-03-session-capacity-override.html` |
+| Upcoming classes | `staff-04-turmas-proximas.html` | Class detail → `manager-roster-dia.html` |
+| Class roster / waitlist visibility | `manager-roster-dia.html` | Capacity/sala override → `staff-03-session-capacity-override.html` |
 | Attendance and in-person collection | `staff-02b-fechar-turma.html` | Close-out is session-scoped |
 | Resolve non-member approval | `staff-06-guest-approval.html` | One group decision with audit trail |
 
@@ -67,7 +67,7 @@ enrollment administration, tenant configuration and exception worklist are manag
 | Start-of-day overview | `manager-dashboard.html` | Day agenda → `manager-agenda-dia.html` |
 | First-time tenant setup | `manager-14-onboarding-preset.html` | Preset choice → minimum questions → editable review; CAND-51 bootstrap |
 | Combined resources/day view | `manager-05-visao-geral.html` | Resource day management → `manager-08-schedule-controls.html` |
-| Session roster | `manager-agenda-dia.html` | `manager-roster-dia.html` |
+| Session roster | `manager-agenda-dia.html` | `manager-roster-dia.html` — same route STAFF uses for "Class roster" above, not a separate manager-only screen (reconciled 2026-08-23, see that file's header comment) |
 | Create/manage resources | `manager-01-resources-list.html` | Create → `manager-04-criar-recurso.html`; schedule → `manager-08-schedule-controls.html` |
 | Configure appointment/service model and policy | `manager-02-service-resource-config.html` | Service policy → `manager-13-service-booking-policies.html` |
 | Manage classes | `manager-turmas-list.html` | Create type → `manager-nova-aula.html` → `manager-adicionar-horario.html` → optional `manager-definir-staff.html` |

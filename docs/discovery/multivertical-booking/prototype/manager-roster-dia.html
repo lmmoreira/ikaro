@@ -110,6 +110,21 @@
       white-space: nowrap;
     }
 
+    /* ── Approval-pending row (merged in from staff-02-session-roster.html, 2026-08-23) ──
+       Deliberately a separate class from .roster-card so the check-in counter script
+       (which queries .roster-card) never counts a not-yet-approved group toward "presentes". */
+    .approval-card {
+      background: white;
+      border: 1px solid var(--ba-secondary);
+      border-left: 3px solid #d97706;
+      border-radius: var(--ba-radius);
+      padding: 0.875rem 1rem;
+      margin-bottom: 0.5rem;
+      box-shadow: var(--ba-shadow);
+      display: flex; align-items: center; gap: 0.875rem;
+    }
+    .tag-guest { background: #fef3c7; color: #92400e; }
+
     /* ── Add drop-in row ── */
     .add-dropin-btn {
       display: flex; align-items: center; gap: 0.625rem;
@@ -155,13 +170,44 @@
 <body>
 
   <!--
-    DISCOVERY PROTOTYPE — manager: gestão do roster de uma sessão específica.
+    DISCOVERY PROTOTYPE — roster de uma sessão específica. Tela compartilhada STAFF+MANAGER.
 
     Contexto:
     - Acessado a partir de "Ver sessões" na manager-turmas-list.html → lista de sessões → esta tela
+    - Também o destino real de staff-04-turmas-proximas.html (ambos os atores gerenciam o
+      mesmo roster do dia — ver nota de reconciliação abaixo)
     - Tela operacional: usada no dia da aula para confirmar presença e gerenciar vagas
 
-    UX decisions:
+    RECONCILIAÇÃO (2026-08-23) — esta tela agora é a canônica, substituindo
+    staff-02-session-roster.html (mantida apenas como referência histórica, não editada).
+    As duas telas cobriam o mesmo trabalho ("gerenciar o roster desta sessão hoje") com
+    conjuntos de capacidades parcialmente sobrepostos e nunca reconciliados — encontrado
+    numa revisão de descoberta de quatro lentes (2026-08-23). Esta versão funde as duas:
+    - Mantido desta tela (já era superior): check-in ao vivo por aluno, "Marcar todos
+      presentes", "+ Drop-in", "Promover" manual da fila (CAND-25, staff-triggered — ver
+      CAND-39 na _USECASES.md).
+    - Trazido de staff-02-session-roster.html: "Editar turma" (→ capacity override),
+      "Cancelar turma" (reveal-and-confirm, CAND-15) e o link "Revisar" para uma
+      reserva de grupo convidado aguardando aprovação (CAND-34).
+    - Dados do exemplo trocados para o worked example canônico já usado em
+      multivertical-booking_DATA_MODEL.md §2 (sess_pilates_0804: Fernanda Lima, Roberta
+      Dias, Ana Costa · Bia Santos, Marcos Tanaka — Seg 04/08/2026) em vez do dataset
+      próprio que esta tela tinha antes (Ter 12/08, Rafael/Camila Santos/Juliana/Bruno) —
+      evita manter dois exemplos numericamente distintos da mesma tela em paralelo.
+    - staff-02-session-roster.html também descrevia a fila como "promovida automaticamente"
+      (CAND-25) — esse era o modelo antigo, superado em 2026-08-21 pelo fluxo de oferta
+      PROMOTION_PENDING com aceite explícito (multivertical-booking.md §9 item 15/24).
+      Superseder a tela resolve essa desatualização também, em vez de corrigi-la num
+      arquivo que deixará de ser a referência viva.
+    - Nem todo link de volta a staff-02-session-roster.html no restante da pasta foi
+      reapontado — apenas o ponto de entrada real (staff-04-turmas-proximas.html) e os
+      documentos de navegação (ROUTE_MAP.md, index.html, dev-notes.md), mesmo padrão já
+      usado quando manager-03-class-templates.html foi superada por manager-turmas-list.html.
+    - Em produção esta rota é a mesma para os dois atores; o chrome de navegação (sidebar/
+      bottom-nav) varia por role no app real — este mock estático mostra apenas o chrome
+      de manager como representativo, não uma decisão de que só manager acessa esta tela.
+
+    UX decisions (originais, mantidas):
     - Header com data/hora/staff/recurso para contextualização rápida
     - Presença como ação primária: botão circular à direita de cada aluno (toque = presente/pendente)
     - Ausente via long-press ou menu (não exposto neste protótipo; marcado em estado pré-configurado)
@@ -171,10 +217,11 @@
     - Sem edição de dados do aluno (separação de concerns: dados ficam no perfil)
     - Badge de tipo (turma fixa / drop-in / reagendada) para o gerente saber origem da vaga
 
-    Próximas telas: manager-sessoes.html (lista de sessões de uma recorrência)
-    CANDs: CAND-37 (marcar presença/fechar sessão), CAND-25 (promoção automática da fila) —
-    corrigido 2026-08-21, estava CAND-21/CAND-22 (números errados: CAND-21 é "browse sessions",
-    CAND-22 é "book into a session" — nenhum dos dois é presença ou fila)
+    Próximas telas: staff-02b-fechar-turma.html (encerramento formal + pagamento, após o
+    horário da sessão — esta tela é a operação "ao vivo", não substitui o close-out)
+    CANDs: CAND-13b (lista → esta tela), CAND-14 (editar turma), CAND-15 (cancelar turma),
+    CAND-25 (promover fila, staff-triggered), CAND-34 (revisar grupo convidado pendente),
+    CAND-37 (fechamento formal, tela seguinte)
   -->
 
   <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
@@ -186,7 +233,7 @@
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       <span style="font-weight:600;">Turmas</span>
     </a>
-    <h1 class="topbar-page-title">Roster · 12 ago</h1>
+    <h1 class="topbar-page-title">Roster · 04 ago</h1>
     <div style="margin-left:auto;">
       <a href="../../../../plan/journey/shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
     </div>
@@ -253,7 +300,7 @@
           <div class="session-meta">
             <span class="session-meta-item">
               <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              Ter, 12 ago · 08:00–08:50
+              Seg, 04 ago · 08:00–09:00
             </span>
             <span class="session-meta-item">
               <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -261,7 +308,7 @@
             </span>
             <span class="session-meta-item">
               <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              Carlos M.
+              Camila Duarte
             </span>
           </div>
           <div class="cap-pill cap-full">
@@ -278,7 +325,7 @@
         </div>
 
         <!-- Confirmados -->
-        <div class="roster-section-label">Confirmados · 4</div>
+        <div class="roster-section-label">Confirmados · 2</div>
 
         <!-- Aluno 1: presente -->
         <div class="roster-card checked-in">
@@ -295,43 +342,13 @@
           </button>
         </div>
 
-        <!-- Aluno 2: pendente -->
+        <!-- Aluno 2: pendente (matrícula recorrente ativa — série enroll_roberta) -->
         <div class="roster-card">
-          <div class="list-avatar list-avatar-2" style="flex-shrink:0;width:2.25rem;height:2.25rem;font-size:0.875rem;">RM</div>
+          <div class="list-avatar list-avatar-2" style="flex-shrink:0;width:2.25rem;height:2.25rem;font-size:0.875rem;">RD</div>
           <div class="roster-info">
-            <div class="roster-name">Rafael Monteiro</div>
+            <div class="roster-name">Roberta Dias</div>
             <div class="roster-tags">
               <span class="type-tag tag-fixa">Turma fixa</span>
-              <span class="status-badge status-pending">Pendente</span>
-            </div>
-          </div>
-          <button class="checkin-btn pending" title="Marcar como presente" onclick="toggleCheckin(this)">
-            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          </button>
-        </div>
-
-        <!-- Aluno 3: drop-in -->
-        <div class="roster-card">
-          <div class="list-avatar list-avatar-3" style="flex-shrink:0;width:2.25rem;height:2.25rem;font-size:0.875rem;">CS</div>
-          <div class="roster-info">
-            <div class="roster-name">Camila Santos</div>
-            <div class="roster-tags">
-              <span class="type-tag tag-dropin">Drop-in</span>
-              <span class="status-badge status-pending">Pendente</span>
-            </div>
-          </div>
-          <button class="checkin-btn pending" title="Marcar como presente" onclick="toggleCheckin(this)">
-            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          </button>
-        </div>
-
-        <!-- Aluno 4: reagendada -->
-        <div class="roster-card">
-          <div class="list-avatar list-avatar-4" style="flex-shrink:0;width:2.25rem;height:2.25rem;font-size:0.875rem;">JO</div>
-          <div class="roster-info">
-            <div class="roster-name">Juliana Oliveira</div>
-            <div class="roster-tags">
-              <span class="type-tag tag-reagendada">Reagendada</span>
               <span class="status-badge status-pending">Pendente</span>
             </div>
           </div>
@@ -346,17 +363,58 @@
           Turma cheia — adicionar drop-in indisponível
         </button>
 
+        <!-- Aguardando aprovação — trazido de staff-02-session-roster.html (CAND-34).
+             Grupo convidado: 1 reserva, 2 vagas nomeadas; reservedNonMemberCount já
+             ultrapassa o trialSlots desta turma, por isso está PENDING_APPROVAL mesmo
+             havendo vaga geral. Card com classe própria (.approval-card, não .roster-card)
+             para não entrar na contagem de check-in — ver nota no <style>. -->
+        <div class="roster-section-label" style="margin-top:0.5rem;">Aguardando aprovação · 1</div>
+        <div class="approval-card">
+          <div class="list-avatar" style="flex-shrink:0;width:2.25rem;height:2.25rem;font-size:0.875rem;background:#0891b2;">AB</div>
+          <div class="roster-info">
+            <div class="roster-name">Ana Costa · Bia Santos</div>
+            <div class="roster-tags">
+              <span class="type-tag tag-guest">Grupo convidado</span>
+            </div>
+            <p style="font-size:0.75rem;color:#6b7280;margin-top:0.25rem;">1 reserva, 2 vagas nomeadas · e-mail verificado · aprovação pendente</p>
+          </div>
+          <a href="staff-06-guest-approval.html" style="flex-shrink:0;font-size:0.8125rem;font-weight:600;color:#2563eb;text-decoration:none;white-space:nowrap;">Revisar</a>
+        </div>
+
         <!-- Fila de espera -->
         <div class="roster-section-label" style="margin-top:0.5rem;">Fila de espera · 1</div>
 
         <div class="waitlist-card">
           <div class="waitlist-pos">1</div>
-          <div class="list-avatar list-avatar-5" style="flex-shrink:0;width:2.25rem;height:2.25rem;font-size:0.875rem;">BN</div>
+          <div class="list-avatar list-avatar-5" style="flex-shrink:0;width:2.25rem;height:2.25rem;font-size:0.875rem;">MT</div>
           <div class="waitlist-info">
-            <div class="waitlist-name">Bruno Nascimento</div>
-            <div class="waitlist-meta">Na fila desde 09 ago · Turma fixa</div>
+            <div class="waitlist-name">Marcos Tanaka</div>
+            <div class="waitlist-meta">Na fila desde 30 jul · Avulso (pagamento presencial)</div>
           </div>
-          <button class="promote-btn" title="Mover para confirmados">Promover</button>
+          <button class="promote-btn" title="Mover para confirmados (CAND-25, staff-triggered)">Promover</button>
+        </div>
+
+        <!--
+          Editar/Cancelar turma — trazido de staff-02-session-roster.html (CAND-14, CAND-15).
+          Mesmo padrão reveal-and-confirm; nenhuma política de reembolso é implicada
+          (pagamento de convidado é presencial, no encerramento).
+        -->
+        <div id="cancel-actions" style="display:flex;gap:0.75rem;margin-top:1.25rem;">
+          <a href="staff-03-session-capacity-override.html" class="btn-secondary" style="flex:1;text-align:center;">Editar turma</a>
+          <button type="button" class="btn-danger" style="flex:1;text-align:center;" onclick="document.getElementById('cancel-actions').style.display='none';document.getElementById('cancel-hint').style.display='none';document.getElementById('cancel-confirm').style.display='block';">Cancelar turma</button>
+        </div>
+        <p id="cancel-hint" style="font-size:0.75rem;opacity:0.5;margin-top:0.5rem;">
+          Ao cancelar, clientes afetados são notificados. Não há reembolso/crédito: convidados pagam presencialmente apenas no encerramento.
+        </p>
+        <div id="cancel-confirm" class="card" style="display:none;margin-top:0.75rem;background:#fef2f2;border-color:#fecaca;">
+          <p style="font-weight:700;color:#991b1b;">Cancelar esta turma?</p>
+          <p style="font-size:0.8125rem;color:#991b1b;margin-top:0.375rem;">
+            2 reservas confirmadas, 1 pendente de aprovação e 1 na fila de espera serão notificadas. Não há reembolso/crédito automático — convidados pagam presencialmente apenas no encerramento, então nada é cobrado indevidamente.
+          </p>
+          <div style="display:flex;gap:0.75rem;margin-top:0.75rem;">
+            <button type="button" class="btn-secondary" style="flex:1;" onclick="document.getElementById('cancel-confirm').style.display='none';document.getElementById('cancel-actions').style.display='flex';document.getElementById('cancel-hint').style.display='block';">Voltar</button>
+            <a href="manager-08-schedule-controls.html" class="btn-danger" style="flex:1;text-align:center;">Confirmar cancelamento</a>
+          </div>
         </div>
 
       </div>
@@ -365,7 +423,7 @@
 
   <!-- Mobile: mark-all sticky bar -->
   <div class="mark-all-bar">
-    <span>1 de 4 presentes</span>
+    <span>1 de 2 presentes</span>
     <button class="mark-all-btn">Marcar todos presentes</button>
   </div>
 
