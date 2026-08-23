@@ -469,7 +469,7 @@ This is the one your own docs already flag as a **known, currently-unfixed gap**
 
 ---
 
-### Story 15 — No `.skip()`/`.only()` in tests 🟡
+### Story 15 — No `.skip()`/`.only()` in tests 🟡 ✅ Done
 
 **New dependencies**: `eslint-plugin-jest@29.16.1` (`apps/backend`, `apps/bff`, and all 8 test-bearing `packages/*` — see below) + `@vitest/eslint-plugin@1.6.27` (`apps/web` — matching that app's actual test runner, not Jest). Both confirmed compatible with this repo's ESLint 10.
 
