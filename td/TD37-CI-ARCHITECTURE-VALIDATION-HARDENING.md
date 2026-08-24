@@ -487,7 +487,7 @@ This is the one your own docs already flag as a **known, currently-unfixed gap**
 
 ---
 
-### Story 16 — Ban unrestricted `eslint-disable` 🟡
+### Story 16 — Ban unrestricted `eslint-disable` ✅ Done
 
 **New dependency**: `@eslint-community/eslint-plugin-eslint-comments` (the actively-maintained community fork — the original `eslint-plugin-eslint-comments` package has slower maintenance, not worth adopting the less-maintained one for a new dependency).
 
