@@ -63,40 +63,25 @@ export function SwitchTenantClient({
   const currentTenant = tenants.find((tenant) => tenant.slug === currentTenantSlug);
 
   return (
-    <main
-      className="flex min-h-screen items-center justify-center px-6 py-16"
-      style={{ backgroundColor: 'var(--ba-background)' }}
-    >
+    <main className="flex min-h-screen items-center justify-center bg-gray-50 px-6 py-16">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           {currentTenant && (
             <div className="mb-3 flex flex-col items-center gap-2">
               <TenantAvatar name={currentTenant.name} size="sm" />
-              <p className="text-sm font-bold" style={{ color: 'var(--ba-text)' }}>
-                {currentTenant.name}
-              </p>
+              <p className="text-sm font-bold text-gray-900">{currentTenant.name}</p>
             </div>
           )}
-          <h1
-            data-testid="switch-tenant-heading"
-            className="text-xl font-bold"
-            style={{ color: 'var(--ba-text)' }}
-          >
+          <h1 data-testid="switch-tenant-heading" className="text-xl font-bold text-gray-900">
             {t('switchTenantHeading')}
           </h1>
-          <p className="mt-1.5 text-sm opacity-60" style={{ color: 'var(--ba-text)' }}>
-            {t('switchTenantSubtitle')}
-          </p>
+          <p className="mt-1.5 text-sm text-gray-500">{t('switchTenantSubtitle')}</p>
         </div>
 
         {fetchState === 'loading' && (
           <div className="flex flex-col gap-3" data-testid="switch-tenant-loading">
             {[0, 1].map((i) => (
-              <div
-                key={i}
-                className="h-[4.5rem] animate-pulse"
-                style={{ backgroundColor: 'var(--ba-secondary)', borderRadius: 'var(--ba-radius)' }}
-              />
+              <div key={i} className="h-[4.5rem] animate-pulse rounded-xl bg-gray-200" />
             ))}
           </div>
         )}
@@ -150,8 +135,7 @@ export function SwitchTenantClient({
                 router.back();
               }
             }}
-            className="cursor-pointer text-sm font-medium"
-            style={{ color: 'var(--ba-primary)' }}
+            className="cursor-pointer text-sm font-medium text-indigo-600"
           >
             {t('switchTenantBack')}
           </button>
