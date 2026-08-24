@@ -16,10 +16,9 @@ jest.mock('undici', () => ({
   interceptors: { retry: (...args: unknown[]) => mockRetryInterceptor(...args) },
 }));
 
-/* eslint-disable @typescript-eslint/no-require-imports -- must load after jest.mock above */
 const creditsClientModule =
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- load the module after jest.mock('undici') so module initialization uses the mocked transport
   require('./openrouter-credits.client') as typeof import('./openrouter-credits.client');
-/* eslint-enable @typescript-eslint/no-require-imports */
 const { OpenRouterCreditsClient } = creditsClientModule;
 
 function makeConfigService(overrides: Record<string, unknown> = {}): ConfigService {

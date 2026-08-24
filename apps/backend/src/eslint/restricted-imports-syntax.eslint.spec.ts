@@ -5,7 +5,7 @@ const backendRoot = resolve(__dirname, '../..');
 // Load the actual CommonJS flat config rather than duplicating its rules in this spec — see
 // persistence-boundary.eslint.spec.ts for why (Linter.verify() runs the same config array
 // without Jest's dynamic-import gap).
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- load the real CommonJS flat config in this ESLint regression test
 const productionConfig = require(resolve(backendRoot, 'eslint.config.js')) as Linter.Config[];
 
 describe('TD37-S04 restricted imports/syntax', () => {
@@ -18,6 +18,63 @@ describe('TD37-S04 restricted imports/syntax', () => {
   function ruleIds(messages: Linter.LintMessage[]) {
     return messages.map((message) => message.ruleId).filter(Boolean);
   }
+
+  describe('ESLint suppression policy (TD37-S16)', () => {
+    it('rejects bare and block-level disable directives', () => {
+      const messages = lint(
+        `
+          /* eslint-disable */
+          console.log('diagnostic');
+        `,
+        'src/shared/example.ts',
+      );
+
+      expect(messages).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            ruleId: '@eslint-community/eslint-comments/no-unlimited-disable',
+          }),
+        ]),
+      );
+
+      const blockMessages = lint(
+        `
+          /* eslint-disable no-console */
+          console.log('diagnostic');
+        `,
+        'src/shared/example.ts',
+      );
+
+      expect(blockMessages).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            ruleId: '@eslint-community/eslint-comments/no-use',
+          }),
+        ]),
+      );
+    });
+
+    it('allows a rule-specific, justified single-line suppression', () => {
+      const messages = lint(
+        `
+          // eslint-disable-next-line no-console -- intentional diagnostic output in this fixture
+          console.log('diagnostic');
+        `,
+        'src/shared/example.ts',
+      );
+
+      expect(messages).not.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            ruleId: expect.stringContaining('@eslint-community/eslint-comments/'),
+          }),
+        ]),
+      );
+      expect(messages).not.toEqual(
+        expect.arrayContaining([expect.objectContaining({ ruleId: 'no-console' })]),
+      );
+    });
+  });
 
   describe('tier collision regression (TD37-S04 restructure)', () => {
     it('an application-layer file gets every broader-tier restriction simultaneously', () => {

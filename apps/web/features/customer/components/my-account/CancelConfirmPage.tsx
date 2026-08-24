@@ -26,21 +26,31 @@ export function CancelConfirmPage({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const topbarStatus = useCustomerTopbarStatus();
+  const setBookingStatus = topbarStatus?.setBookingStatus;
+  const setBackHrefOverride = topbarStatus?.setBackHrefOverride;
+  const setBackLabelOverride = topbarStatus?.setBackLabelOverride;
 
   const serviceNames = booking.lines.map((line) => line.serviceName).join(', ');
   const scheduledAt = booking.scheduledAt === null ? null : new Date(booking.scheduledAt);
 
   useEffect(() => {
-    topbarStatus?.setBookingStatus(booking.status);
-    topbarStatus?.setBackHrefOverride(`/${tenantSlug}/my-account/bookings/${booking.bookingId}`);
-    topbarStatus?.setBackLabelOverride(t('backToBooking'));
+    setBookingStatus?.(booking.status);
+    setBackHrefOverride?.(`/${tenantSlug}/my-account/bookings/${booking.bookingId}`);
+    setBackLabelOverride?.(t('backToBooking'));
     return () => {
-      topbarStatus?.setBookingStatus(null);
-      topbarStatus?.setBackHrefOverride(null);
-      topbarStatus?.setBackLabelOverride(null);
+      setBookingStatus?.(null);
+      setBackHrefOverride?.(null);
+      setBackLabelOverride?.(null);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [booking.bookingId, booking.status, tenantSlug]);
+  }, [
+    booking.bookingId,
+    booking.status,
+    setBackHrefOverride,
+    setBackLabelOverride,
+    setBookingStatus,
+    t,
+    tenantSlug,
+  ]);
 
   async function handleConfirm(): Promise<void> {
     setIsSubmitting(true);

@@ -1,6 +1,7 @@
 // @ts-check
 const tsParser = require('@typescript-eslint/parser');
 const tsPlugin = require('@typescript-eslint/eslint-plugin');
+const eslintCommentsPlugin = require('@eslint-community/eslint-plugin-eslint-comments');
 const prettierPlugin = require('eslint-plugin-prettier');
 const prettierConfig = require('eslint-config-prettier');
 
@@ -43,6 +44,7 @@ const config = [
     },
     plugins: {
       '@typescript-eslint': tsPlugin,
+      '@eslint-community/eslint-comments': eslintCommentsPlugin,
       prettier: prettierPlugin,
     },
     rules: {
@@ -58,6 +60,15 @@ const config = [
       // exceptions needed. Faster feedback than waiting for the SonarCloud CI stage.
       'default-param-last': 'error',
       'no-restricted-syntax': ['error', ZOD_UUID_SELECTOR, ZOD_EMAIL_SELECTOR],
+      // ESLint suppressions are allowed only for one line, one named rule, with a
+      // concrete justification. File/block disables and enable directives are forbidden
+      // (TD37-S16; docs/CODE_STANDARDS.md).
+      '@eslint-community/eslint-comments/no-use': [
+        'error',
+        { allow: ['eslint-disable-line', 'eslint-disable-next-line'] },
+      ],
+      '@eslint-community/eslint-comments/no-unlimited-disable': 'error',
+      '@eslint-community/eslint-comments/require-description': 'error',
     },
   },
 ];

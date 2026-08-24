@@ -86,36 +86,11 @@ describe('CronLoyaltyController (integration)', () => {
           .build(),
       );
 
-    // TEMP DIAGNOSTIC (2026-08-05, CI-only flake investigation — remove before merge)
-    const preRows = await ds.query(
-      'SELECT tenant_id, customer_id, current_points FROM loyalty.loyalty_balances WHERE tenant_id = $1',
-      [tenantId],
-    );
-    // eslint-disable-next-line no-console
-    console.log('[DIAG] pre-request rows for tenant', tenantId, JSON.stringify(preRows));
-    const globalExpiredCount = await ds.query(
-      `SELECT count(*)::int AS n FROM loyalty.loyalty_entries WHERE expires_at <= now()`,
-    );
-    // eslint-disable-next-line no-console
-    console.log(
-      '[DIAG] global expired entries at request time',
-      JSON.stringify(globalExpiredCount),
-    );
-
     await request(app.getHttpServer()).post('/cron/loyalty-expiry').expect(200);
-
-    const postRows = await ds.query(
-      'SELECT tenant_id, customer_id, current_points FROM loyalty.loyalty_balances WHERE tenant_id = $1',
-      [tenantId],
-    );
-    // eslint-disable-next-line no-console
-    console.log('[DIAG] post-request rows for tenant', tenantId, JSON.stringify(postRows));
 
     const balance = await ds
       .getRepository(LoyaltyBalanceEntity)
       .findOne({ where: { tenantId, customerId: CUSTOMER_ID } });
-    // eslint-disable-next-line no-console
-    console.log('[DIAG] findOne result', JSON.stringify(balance));
     expect(balance?.currentPoints).toBe(70);
 
     const log = await ds
