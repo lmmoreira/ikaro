@@ -503,9 +503,11 @@ This is the one your own docs already flag as a **known, currently-unfixed gap**
 
 ---
 
-### Story 17 — Exploratory, non-blocking: tenant_id-missing query-builder detector ⚪
+### Story 17 — Exploratory, non-blocking: tenant_id-missing query-builder detector ⚪ Deferred — not pursued
 
-This is a useful **narrow heuristic**, not a security guarantee. It targets one dangerous class of missing tenant predicate but has both false-negative and false-positive risk. Tenant isolation remains protected primarily by database constraints and integration tests.
+**Decision (2026-08-24):** Do not implement this detector as part of TD37. The heuristic would cover only one TypeORM query style, would require non-trivial query-chain analysis and a maintained exemption inventory, and would remain report-only. Database constraints and tenant-isolation integration tests provide stronger protection. Reconsider only if a future baseline audit demonstrates recurring, actionable regressions that justify the maintenance cost.
+
+This was considered as a useful **narrow heuristic**, not a security guarantee. It targets one dangerous class of missing tenant predicate but has both false-negative and false-positive risk. Tenant isolation remains protected primarily by database constraints and integration tests.
 
 **Mechanism**: scan every repository method for `createQueryBuilder()`/`.where()`/`.andWhere()` chains with no `tenantId`/`tenant_id` reference anywhere in the chain. Emit an artifact containing scanned query-builder chains, exemption matches, and coverage. It deliberately does not claim to cover repository `.find({ where: ... })` and similar APIs.
 
@@ -656,7 +658,7 @@ Named here deliberately, with why, so it's a decision rather than a silent gap:
 2. **Phase 2 — promote to blocking.** Only after verifying zero (or fully triaged/exempted) findings against the current codebase over a burn-in period.
 3. **Phase 3 — add to required checks.** Only after Phase 2 has been green on `main` for a period — never add to `required_status_checks` in the same change that introduces the workflow.
 
-Story 17 (tenant_id detector) is explicitly capped at Phase 1 for the duration of this TD — promoting it to blocking is a separate, deliberate future decision, not an automatic next step.
+Story 17 is deferred and is not part of TD37's implementation or rollout.
 
 ---
 
@@ -671,7 +673,6 @@ Story 17 (tenant_id detector) is explicitly capped at Phase 1 for the duration o
 | Semantic architecture runner (Stories 3, 6–12) | Shared CLI/test harness selected in Story 0 | No if integrated in the existing test gate; otherwise a Phase-1 report-only CI job |
 | `knip` (Story 13) | New script | Yes (Phase 1 non-blocking) |
 | `arethetypeswrong` (Story 14) | New script, scoped to `packages/*` | Yes (Phase 1 non-blocking) |
-| Tenant-id detector (Story 17) | New script | Yes, permanently non-blocking for this TD's duration |
 | `HotsiteModuleType` unification + lead/lag detector (Story 21) | Real code change (packages/validation, apps/backend) + shared CLI/test harness (same runner as Stories 3, 6–12) | No new CI step for the detector; the unification is a normal PR |
 | `pnpm architecture-check` in `ci:fast` (Story 22) | Root `ci:fast` script + pre-push hook | No — wires the existing dedicated CI job's own script earlier, doesn't add a new one |
 
@@ -686,7 +687,7 @@ Story 17 (tenant_id detector) is explicitly capped at Phase 1 for the duration o
 - **Wave 4 — semantic architecture suite:** Stories 6–10, each as a separate small PR with fixtures. Story 7A depends on Story 7's `ts-morph` test-hygiene harness and additionally needs the `InMemoryCachePort` double built first — sequence it after Story 7.
 - **Wave 5 — known contract/data-harness gaps:** Stories 11 and 12, then Story 7 if it was not completed in Wave 4.
 - **Wave 6 — package hygiene:** Stories 13 and 14.
-- **Wave 7 — exploratory:** Story 17 alone, then Story 18 after its compatibility spike.
+- **Wave 7 — optional:** Story 18 after its compatibility spike.
 - **Wave 8 — mature rollout:** Story 19 after all selected blocking detectors have completed report-only burn-in.
 - **Wave 9 — closes the local/CI drift gap:** Story 21 (independent, can land any time after Wave 4's runner exists — the unification half needs no detector infrastructure at all and could ship first on its own if useful), then Story 22 (independent of Story 21 — wires the already-existing CLI regardless of which detectors it currently runs).
 
@@ -698,7 +699,7 @@ Story 17 (tenant_id detector) is explicitly capped at Phase 1 for the duration o
 - [ ] All Wave 1–6 stories implemented, passing against `main`, and correctly wired per the "Where Each Check Runs" table
 - [ ] Every new blocking CI step followed the 3-phase rollout (report-only → blocking → required-check) — no check skips straight to required
 - [ ] Story 19 completed before any architecture validation job is added to branch protection as a required check
-- [ ] Story 17 shipped and explicitly capped at report-only, with its go/no-go decision documented separately from this TD's closure
+- [x] Story 17 was evaluated and deferred; no detector, CI job, or production-code change is required
 - [ ] Retired manual bad-smell-audit checks (BE-1, BE-4, WEB-9 once their mechanical equivalents ship) so the same rule isn't checked twice by two different mechanisms
 - [ ] `docs/ANTI_PATTERNS.md` updated to note, per row addressed here, that it's now CI-enforced (not just documented) — so a future reader doesn't re-litigate whether it needs an agent to remember it
 - [ ] This TD's own "Out of Scope" table double-checked against `docs/ANTI_PATTERNS.md` one more time before closure, in case a new incident since 2026-07-27 changed the calculus on any row
