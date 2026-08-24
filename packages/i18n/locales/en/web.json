@@ -535,7 +535,8 @@
           "ABOUT": "About",
           "CONTACT": "Contact",
           "FOOTER": "Footer",
-          "CHATBOT": "Chatbot"
+          "CHATBOT": "Chatbot",
+          "LEAD_FORM": "Lead form"
         },
         "configShell": {
           "backLabel": "Back",
@@ -771,6 +772,10 @@
             "accentColorLabel": "Accent color",
             "accentColorPrimary": "Primary color",
             "accentColorSecondary": "Secondary color"
+          },
+          "leadForm": {
+            "comingSoonTitle": "Configuration coming soon",
+            "comingSoonBody": "Configuration for this module (title, subtitle, button, and background image) will be available in a future update."
           }
         }
       },

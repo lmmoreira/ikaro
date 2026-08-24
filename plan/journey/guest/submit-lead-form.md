@@ -38,7 +38,7 @@ Not drawn as a separate node: a module disabled between teaser render and page l
 
 | Page / Route | Component | Story | Status |
 |---|---|---|---|
-| Hotsite teaser section | `LeadFormModule` | — | ❌ Gap |
+| Hotsite teaser section | `LeadFormModule` | M20-S07 | ✅ Done |
 | `/[slug]/lead-form` | `LeadFormPage` | — | ❌ Gap |
 
 ## Open questions / gaps

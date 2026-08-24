@@ -183,6 +183,34 @@ describe('buildHotsiteModuleRenderPlan', () => {
     expect(plan[1].bgVariant).toBe('alt');
     expect(plan[2].bgVariant).toBe('default');
   });
+
+  it('parses a LEAD_FORM module and excludes it from the alternating-background rotation (M20-S07)', () => {
+    const leadFormData = { title: 'Fale com a gente', ctaLabel: 'Preencher formulário' };
+    const layout = [
+      makeLayoutItem({ type: 'LEAD_FORM', data: leadFormData }),
+      makeLayoutItem({
+        type: 'ABOUT',
+        data: { title: 'Sobre nós', body: 'Conteúdo válido', imagePosition: 'left' },
+      }),
+      makeLayoutItem({
+        type: 'TESTIMONIALS',
+        data: { items: [], layout: 'grid' },
+      }),
+    ];
+
+    const plan = buildHotsiteModuleRenderPlan(layout, true);
+
+    expect(plan).toHaveLength(3);
+    expect(plan[0]).toEqual({
+      parsed: { type: 'LEAD_FORM', data: leadFormData },
+      bgVariant: 'default',
+    });
+    // Same non-participating treatment as BOOKING_CTA/CHATBOT above — LEAD_FORM manages its own
+    // section background via bgStyle, so it's excluded from the rotation but still advances the
+    // underlying altIndex counter.
+    expect(plan[1].bgVariant).toBe('alt');
+    expect(plan[2].bgVariant).toBe('default');
+  });
 });
 
 describe('shouldSkipDivider', () => {
@@ -215,5 +243,12 @@ describe('shouldSkipDivider', () => {
 
   it('renders the divider between two ordinary modules later in the layout', () => {
     expect(shouldSkipDivider(3, 'TESTIMONIALS', 'GALLERY')).toBe(false);
+  });
+
+  // LEAD_FORM gets a normal, full-width section (unlike CHATBOT's fixed-position bubble/inline
+  // widget), so it participates in the normal divider rhythm like BOOKING_CTA (M20-S07).
+  it('renders the divider around a LEAD_FORM module like any ordinary module', () => {
+    expect(shouldSkipDivider(2, 'LEAD_FORM', 'ABOUT')).toBe(false);
+    expect(shouldSkipDivider(3, 'CONTACT', 'LEAD_FORM')).toBe(false);
   });
 });

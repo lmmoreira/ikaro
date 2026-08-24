@@ -144,6 +144,22 @@ export interface ChatbotModuleData {
   welcomeMessage?: string;
 }
 
+// Teaser-only — see docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md § LEAD_FORM for why the manager-
+// authored question catalog (up to 20 questions) stays out of this manifest-embedded shape and is
+// fetched separately, only when a visitor actually reaches /[slug]/lead-form. Deliberately
+// excludes audienceMode/questions, which live behind their own endpoints, not the cached manifest.
+export interface LeadFormModuleData {
+  title: string;
+  subtitle?: string;
+  eyebrow?: string;
+  ctaLabel: string;
+  variant?: 'centered' | 'left-aligned';
+  // Nullable — see HeroModuleData.backgroundImageUrl's comment above for why.
+  backgroundImageUrl?: string | null;
+  backgroundImagePosition?: HorizontalPosition;
+  bgStyle?: 'primary' | 'background';
+}
+
 // ─── BFF response types ───────────────────────────────────────────────────────
 
 export interface HotsiteModuleResponse {

@@ -9,6 +9,7 @@ import type {
   FooterModuleData,
   GalleryModuleData,
   HeroModuleData,
+  LeadFormModuleData,
   ServiceListModuleData,
   TestimonialsModuleData,
 } from '@ikaro/types';
@@ -49,6 +50,9 @@ vi.mock('@/shells/hotsite/components/Footer', () => ({
 vi.mock('@/shells/hotsite/components/ChatbotWidget', () => ({
   ChatbotWidget: () => <div data-testid="chatbot-module" />,
 }));
+vi.mock('@/shells/hotsite/components/LeadFormModule', () => ({
+  LeadFormModule: () => <div data-testid="lead-form-module" />,
+}));
 
 const baseCtx = {
   tenantSlug: 'lavacar-bh',
@@ -81,6 +85,7 @@ describe('renderHotsitePreviewModule', () => {
     ['ABOUT', 'about-module', {} as AboutModuleData],
     ['FOOTER', 'footer-module', {} as FooterModuleData],
     ['CHATBOT', 'chatbot-module', {} as ChatbotModuleData],
+    ['LEAD_FORM', 'lead-form-module', {} as LeadFormModuleData],
   ] as const)('renders the %s module for a %s plan item', (type, testId, data) => {
     const result = renderHotsitePreviewModule(
       planItem({ type, data } as HotsiteModuleParsed),
