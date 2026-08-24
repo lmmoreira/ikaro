@@ -113,7 +113,7 @@ BFF: new `apps/bff/src/features/platform/lead-form.controller.ts` + `lead-form.s
 
 ---
 
-### M20-S02 — `LeadFormSubmission` aggregate + submission use case + rate-limit caps
+### M20-S02 — `LeadFormSubmission` aggregate + submission use case + rate-limit caps ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** L
