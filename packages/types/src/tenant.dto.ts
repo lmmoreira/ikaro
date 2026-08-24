@@ -135,3 +135,40 @@ export interface RenameTenantResponse {
 export interface ChatbotCapStatusResponse {
   dailyCapReachedToday: boolean;
 }
+
+// M20-S01 — consolidated admin config for the LEAD_FORM hotsite module (UC-037,
+// docs/14-API_CONTRACTS.md § Lead Form Admin Config). Teaser fields (HotsiteConfig's layout[]
+// entry) and audienceMode/questions (LeadFormConfig) are merged into one response/request shape
+// — see docs/02-DOMAIN_MODEL.md § LeadFormConfig "Cross-aggregate save" for why they're saved
+// atomically despite living in two separate aggregates.
+export type LeadFormAudienceMode = 'GUEST_AND_CUSTOMER' | 'CUSTOMER_ONLY';
+export type LeadFormQuestionType = 'TEXT' | 'SINGLE_CHOICE' | 'MULTIPLE_CHOICE';
+
+export interface LeadFormQuestion {
+  id: string;
+  label: string;
+  type: LeadFormQuestionType;
+  required: boolean;
+  options?: string[];
+  order: number;
+}
+
+export interface LeadFormConfigResponse {
+  title: string;
+  subtitle?: string;
+  eyebrow?: string;
+  ctaLabel: string;
+  variant?: 'centered' | 'left-aligned';
+  backgroundImageUrl?: string | null;
+  backgroundImagePosition?: 'left' | 'center' | 'right';
+  bgStyle?: 'primary' | 'background';
+  audienceMode: LeadFormAudienceMode;
+  questions: LeadFormQuestion[];
+}
+
+export type UpdateLeadFormConfigRequest = Partial<LeadFormConfigResponse>;
+
+// UC-041 (Trigger) — nav-gating read powering the dashboard's gated "Leads" sidebar item.
+export interface LeadFormStatusResponse {
+  enabled: boolean;
+}

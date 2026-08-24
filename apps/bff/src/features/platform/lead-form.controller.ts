@@ -1,0 +1,36 @@
+import { Body, Controller, Get, HttpCode, HttpStatus, Patch } from '@nestjs/common';
+import { LeadFormConfigResponse, LeadFormStatusResponse } from '@ikaro/types';
+import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { Roles } from '../../shared/decorators/roles.decorator';
+import { BackendHttpService } from '../../shared/http/backend-http.service';
+import { UpdateLeadFormConfigBody, UpdateLeadFormConfigBodySchema } from './lead-form.schemas';
+
+// Request Zod schema moved to lead-form.schemas.ts — re-exported here so any existing import
+// of these symbols from this file keeps working unchanged (mirrors tenant-settings.controller.ts).
+export * from './lead-form.schemas';
+
+@Controller('tenants/lead-form')
+export class LeadFormController {
+  constructor(private readonly backendHttp: BackendHttpService) {}
+
+  @Get('config')
+  @Roles('MANAGER')
+  getConfig(): Promise<LeadFormConfigResponse> {
+    return this.backendHttp.get<LeadFormConfigResponse>('/tenants/lead-form/config');
+  }
+
+  @Patch('config')
+  @HttpCode(HttpStatus.OK)
+  @Roles('MANAGER')
+  updateConfig(
+    @Body(new ZodValidationPipe(UpdateLeadFormConfigBodySchema)) body: UpdateLeadFormConfigBody,
+  ): Promise<LeadFormConfigResponse> {
+    return this.backendHttp.patch<LeadFormConfigResponse>('/tenants/lead-form/config', body);
+  }
+
+  @Get('status')
+  @Roles('STAFF', 'MANAGER')
+  getStatus(): Promise<LeadFormStatusResponse> {
+    return this.backendHttp.get<LeadFormStatusResponse>('/tenants/lead-form/status');
+  }
+}

@@ -18,7 +18,8 @@ export type HotsiteModuleType =
   | 'ABOUT'
   | 'CONTACT'
   | 'FOOTER'
-  | 'CHATBOT';
+  | 'CHATBOT'
+  | 'LEAD_FORM';
 
 // Shared by HeroModuleData/BookingCtaModuleData's backgroundImagePosition, contentPositionX, and
 // contentPositionY fields — SonarCloud (S4323) flags a union type repeated verbatim across
@@ -141,6 +142,30 @@ export interface ChatbotModuleData {
   welcomeMessage?: string;
 }
 
+// Mirrors packages/types/src/hotsite.ts's LeadFormModuleData (S07) — teaser-only fields; the
+// question catalog and audienceMode deliberately never appear here, since they live behind
+// S01's own dedicated endpoints, not the cached manifest (docs/15 § LEAD_FORM).
+export interface LeadFormModuleData {
+  title: string;
+  subtitle?: string;
+  eyebrow?: string;
+  ctaLabel: string;
+  variant?: 'centered' | 'left-aligned';
+  backgroundImageUrl?: string | null;
+  backgroundImagePosition?: HorizontalPosition;
+  bgStyle?: 'primary' | 'background';
+}
+
+// Default when no LEAD_FORM entry exists in HotsiteConfig.layout[] yet (every tenant, until the
+// first manager save via UpdateLeadFormModuleUseCase) — mirrors BOOKING_CTA's own minimal default
+// (apps/web/features/platform/hotsite/default-layout.ts), since this is the same shape family and
+// shares its two required fields. Locked in during M20-S01 story-discovery, 2026-08-24 — there is
+// no server-side "materialize on read" mechanism (materializeLayout() is a web-only, client-side
+// helper that never persists). Colocated with the type it defaults, like DEFAULT_HOTSITE_BRANDING/
+// DEFAULT_HOTSITE_SEO in hotsite-config.aggregate.ts — shared by two use cases (Get/Update), so it
+// doesn't belong inside either one specifically.
+export const DEFAULT_LEAD_FORM_MODULE_DATA: LeadFormModuleData = { title: '', ctaLabel: '' };
+
 export type HotsiteModuleData =
   | HeroModuleData
   | ServiceListModuleData
@@ -150,7 +175,8 @@ export type HotsiteModuleData =
   | AboutModuleData
   | ContactModuleData
   | FooterModuleData
-  | ChatbotModuleData;
+  | ChatbotModuleData
+  | LeadFormModuleData;
 
 export interface HotsiteModule {
   type: HotsiteModuleType;

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { BackendHttpModule } from '../../shared/http/backend-http.module';
 import { HotsiteAdminController } from './hotsite-admin.controller';
+import { LeadFormController } from './lead-form.controller';
 import { PlatformPublicController } from './platform.public.controller';
 import { TenantController } from './tenant.controller';
 import { TenantSettingsController } from './tenant-settings.controller';
@@ -10,6 +11,7 @@ import { TenantSettingsController } from './tenant-settings.controller';
   controllers: [
     PlatformPublicController,
     HotsiteAdminController,
+    LeadFormController,
     TenantController,
     TenantSettingsController,
   ],

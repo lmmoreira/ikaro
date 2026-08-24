@@ -34,6 +34,7 @@ import { ChatbotMessageEntity } from '../contexts/platform/infrastructure/entiti
 import { ChatbotProviderBalanceEntity } from '../contexts/platform/infrastructure/entities/chatbot-provider-balance.entity';
 import { ChatbotSessionEntity } from '../contexts/platform/infrastructure/entities/chatbot-session.entity';
 import { HotsiteConfigEntity } from '../contexts/platform/infrastructure/entities/hotsite-config.entity';
+import { LeadFormConfigEntity } from '../contexts/platform/infrastructure/entities/lead-form-config.entity';
 import { TenantEntity } from '../contexts/platform/infrastructure/entities/tenant.entity';
 import { BootstrapSchemas1700000000000 } from '../contexts/platform/infrastructure/migrations/1700000000000-BootstrapSchemas';
 import { CreatePlatformTenants1716500000001 } from '../contexts/platform/infrastructure/migrations/1716500000001-CreatePlatformTenants';
@@ -44,6 +45,7 @@ import { CreateChatbotTables1748400000010 } from '../contexts/platform/infrastru
 import { AddCostUsdToChatbotMessages1748400000011 } from '../contexts/platform/infrastructure/migrations/1748400000011-AddCostUsdToChatbotMessages';
 import { AddHealthColumnsToChatbotProviderBalance1748400000012 } from '../contexts/platform/infrastructure/migrations/1748400000012-AddHealthColumnsToChatbotProviderBalance';
 import { AddStartedAtIndexToChatbotSessions1748400000013 } from '../contexts/platform/infrastructure/migrations/1748400000013-AddStartedAtIndexToChatbotSessions';
+import { CreatePlatformLeadFormConfigs1748500000002 } from '../contexts/platform/infrastructure/migrations/1748500000002-CreatePlatformLeadFormConfigs';
 import { StaffEntity } from '../contexts/staff/infrastructure/entities/staff.entity';
 import { CreateStaffStaff1716600000002 } from '../contexts/staff/infrastructure/migrations/1716600000002-CreateStaffStaff';
 import { AddNameToStaff1716600000003 } from '../contexts/staff/infrastructure/migrations/1716600000003-AddNameToStaff';
@@ -82,6 +84,7 @@ export default async function globalSetup(): Promise<void> {
     entities: [
       TenantEntity,
       HotsiteConfigEntity,
+      LeadFormConfigEntity,
       ServiceEntity,
       ScheduleClosureEntity,
       ScheduleOpeningEntity,
@@ -133,6 +136,7 @@ export default async function globalSetup(): Promise<void> {
       AddCostUsdToChatbotMessages1748400000011,
       AddHealthColumnsToChatbotProviderBalance1748400000012,
       AddStartedAtIndexToChatbotSessions1748400000013,
+      CreatePlatformLeadFormConfigs1748500000002,
     ],
     synchronize: false,
     migrationsRun: false,

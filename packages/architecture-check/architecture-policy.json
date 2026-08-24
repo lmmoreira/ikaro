@@ -471,6 +471,7 @@
       "entities": [
         "TenantEntity",
         "HotsiteConfigEntity",
+        "LeadFormConfigEntity",
         "ServiceEntity",
         "ScheduleClosureEntity",
         "ScheduleOpeningEntity",
@@ -548,6 +549,7 @@
       "entities": [
         "TenantEntity",
         "HotsiteConfigEntity",
+        "LeadFormConfigEntity",
         "InboxRecordEntity",
         "ChatbotSessionEntity",
         "ChatbotMessageEntity",
