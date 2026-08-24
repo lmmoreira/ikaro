@@ -535,7 +535,8 @@
           "ABOUT": "Sobre",
           "CONTACT": "Contato",
           "FOOTER": "Rodapé",
-          "CHATBOT": "Chatbot"
+          "CHATBOT": "Chatbot",
+          "LEAD_FORM": "Formulário de leads"
         },
         "configShell": {
           "backLabel": "Voltar",
@@ -771,6 +772,10 @@
             "accentColorLabel": "Cor de destaque",
             "accentColorPrimary": "Cor primária",
             "accentColorSecondary": "Cor secundária"
+          },
+          "leadForm": {
+            "comingSoonTitle": "Configuração em breve",
+            "comingSoonBody": "A configuração deste módulo (título, subtítulo, botão e imagem de fundo) estará disponível em uma atualização futura."
           }
         }
       },

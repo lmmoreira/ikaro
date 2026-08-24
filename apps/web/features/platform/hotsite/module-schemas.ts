@@ -9,6 +9,7 @@ import type {
   GalleryModuleData,
   HeroModuleData,
   HotsiteModuleType,
+  LeadFormModuleData,
   ServiceListModuleData,
   Testimonial,
   TestimonialsModuleData,
@@ -144,6 +145,18 @@ export const ChatbotModuleDataSchema = z.object({
   welcomeMessage: z.string().optional(),
 }) satisfies z.ZodType<ChatbotModuleData>;
 
+// Mirrors LeadFormModuleData (packages/types/src/hotsite.ts) — keep in sync when that type changes.
+export const LeadFormModuleDataSchema = z.object({
+  title: z.string(),
+  subtitle: z.string().optional(),
+  eyebrow: z.string().optional(),
+  ctaLabel: z.string(),
+  variant: z.enum(['centered', 'left-aligned']).optional(),
+  backgroundImageUrl: z.string().nullable().optional(),
+  backgroundImagePosition: z.enum(['left', 'center', 'right']).optional(),
+  bgStyle: z.enum(['primary', 'background']).optional(),
+}) satisfies z.ZodType<LeadFormModuleData>;
+
 const MODULE_DATA_SCHEMAS: Partial<Record<HotsiteModuleType, z.ZodType>> = {
   HERO: HeroModuleDataSchema,
   SERVICE_LIST: ServiceListModuleDataSchema,
@@ -154,6 +167,7 @@ const MODULE_DATA_SCHEMAS: Partial<Record<HotsiteModuleType, z.ZodType>> = {
   CONTACT: ContactModuleDataSchema,
   FOOTER: FooterModuleDataSchema,
   CHATBOT: ChatbotModuleDataSchema,
+  LEAD_FORM: LeadFormModuleDataSchema,
 };
 
 // Module types without a registered schema render unvalidated until their story (M12-S05+) adds one.

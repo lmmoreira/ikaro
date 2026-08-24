@@ -8,6 +8,7 @@ import { AboutModule } from '@/shells/hotsite/components/AboutModule';
 import { ContactModule } from '@/shells/hotsite/components/ContactModule';
 import { Footer } from '@/shells/hotsite/components/Footer';
 import { ChatbotWidget } from '@/shells/hotsite/components/ChatbotWidget';
+import { LeadFormModule } from '@/shells/hotsite/components/LeadFormModule';
 import type { PreviewSupplementaryData } from './useHotsitePreviewData';
 
 export function renderHotsitePreviewModule(
@@ -89,6 +90,9 @@ export function renderHotsitePreviewModule(
         tenantName={data.tenantName}
       />
     );
+  }
+  if (parsed.type === 'LEAD_FORM') {
+    return <LeadFormModule key={key} data={parsed.data} slug={tenantSlug} />;
   }
   return null;
 }
