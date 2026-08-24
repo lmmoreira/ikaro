@@ -133,6 +133,7 @@
   "PLATFORM_CHATBOT_PROVIDER_UNAVAILABLE": "The chat assistant could not respond right now. Please try again shortly.",
   "PLATFORM_CHATBOT_MESSAGE_TOO_LONG": "Your message is too long. Please shorten it and try again.",
   "PLATFORM_CHATBOT_SESSION_NOT_FOUND": "This conversation could not be found.",
+  "PLATFORM_LEAD_FORM_DAILY_CAP_REACHED": "This form's daily submission limit has been reached. Please try again tomorrow.",
   "GENERIC_FIELD_REQUIRED": "This field is required.",
   "GENERIC_VALUE_TOO_SHORT": "This value must be at least {minimum} characters.",
   "GENERIC_VALUE_TOO_LONG": "This value must be at most {maximum} characters.",

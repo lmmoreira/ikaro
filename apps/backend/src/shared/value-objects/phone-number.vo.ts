@@ -30,6 +30,10 @@ export class PhoneNumber {
     return new PhoneNumber(phone);
   }
 
+  static reconstitute(phone: string): PhoneNumber {
+    return new PhoneNumber(phone);
+  }
+
   get value(): string {
     return this._value;
   }

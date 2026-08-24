@@ -487,7 +487,8 @@
         "OutboxEventEntity",
         "ChatbotSessionEntity",
         "ChatbotMessageEntity",
-        "ChatbotProviderBalanceEntity"
+        "ChatbotProviderBalanceEntity",
+        "LeadFormSubmissionEntity"
       ],
       "rationale": "General-purpose raw DataSource for integration specs that assert directly against tables. Intentionally omits NotificationTemplateEntity: every spec using this helper reads notification templates through InMemoryNotificationTemplateRepository, never this DataSource."
     },
@@ -672,6 +673,14 @@
       "rationale": "TD37-S05: a domain aggregate with many small, cohesive methods naturally exceeds the 250-line file cap even after extracting every type/mapper that could safely move out (booking.types.ts) — splitting Booking's remaining methods across files to satisfy the metric would fragment one cohesive domain concept, not reduce real complexity (max-lines-per-function still applies and is enforced/fixed on this file).",
       "owner": "booking",
       "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "aggregate-primitive-vo",
+      "path": "apps/backend/src/contexts/platform/domain/lead-form-submission.aggregate.ts",
+      "property": "ipAddress",
+      "rationale": "M20-S02: naming-heuristic false positive — the registry's `Address` concept matches any property name ending in the literal suffix 'Address', but LeadFormSubmission.ipAddress is a network IP address (abuse-investigation trail / rate-limit key, VARCHAR(45), docs/13-DATABASE_SCHEMA.md), not a postal address (street/city/state/zipCode). The same real-world concept already exists elsewhere in this codebase as a plain string with no VO — ChatbotSession.clientIp (chatbot-session.aggregate.ts) — which only avoided this same flag because its property name doesn't happen to end in 'Address'.",
+      "owner": "platform",
+      "reviewBy": "2027-08-24"
     }
   ],
   "projects": [

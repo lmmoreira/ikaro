@@ -1,4 +1,5 @@
 import {
+  addMonthsUTC,
   endOfDayUTC,
   getUtcWeekDayName,
   localDateTimeToUTCIso,
@@ -98,5 +99,22 @@ describe('utcDateToLocalDate', () => {
 
   it('returns a YYYY-MM-DD string', () => {
     expect(utcDateToLocalDate(new Date('2026-06-01T12:00:00Z'), TZ)).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+describe('addMonthsUTC', () => {
+  it('adds whole months, preserving day/time', () => {
+    const result = addMonthsUTC(new Date('2026-01-15T10:30:00.000Z'), 6);
+    expect(result.toISOString()).toBe('2026-07-15T10:30:00.000Z');
+  });
+
+  it('rolls over the year when the month count crosses a year boundary', () => {
+    const result = addMonthsUTC(new Date('2026-08-01T00:00:00.000Z'), 6);
+    expect(result.toISOString()).toBe('2027-02-01T00:00:00.000Z');
+  });
+
+  it('clamps to the shorter month instead of overflowing (Jan 31 + 1 month => Feb 28)', () => {
+    const result = addMonthsUTC(new Date('2026-01-31T00:00:00.000Z'), 1);
+    expect(result.toISOString()).toBe('2026-02-28T00:00:00.000Z');
   });
 });

@@ -66,3 +66,13 @@ export function startOfDayUTC(date: string): string {
 export function endOfDayUTC(date: string): string {
   return `${date}T23:59:59.999Z`;
 }
+
+/**
+ * Adds `months` calendar months to a Date, clamping to the shorter month's last day where
+ * needed (e.g. Jan 31 + 1 month => Feb 28, not the overflow a plain `Date.setMonth()` call would
+ * produce by spilling into March). Use for month-based expiry windows computed once at insert
+ * time (e.g. LeadFormSubmission.expiresAt from the tenant's retentionMonths).
+ */
+export function addMonthsUTC(date: Date, months: number): Date {
+  return DateTime.fromJSDate(date, { zone: 'utc' }).plus({ months }).toJSDate();
+}

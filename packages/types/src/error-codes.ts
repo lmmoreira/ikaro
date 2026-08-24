@@ -148,6 +148,10 @@ export const PlatformErrorCode = {
   CHATBOT_MESSAGE_TOO_LONG: 'PLATFORM_CHATBOT_MESSAGE_TOO_LONG',
   // docs/14-API_CONTRACTS.md Chatbot Widget: "404 — ... sessionId doesn't belong to this tenant".
   CHATBOT_SESSION_NOT_FOUND: 'PLATFORM_CHATBOT_SESSION_NOT_FOUND',
+  // M20-S02 — Lead Form submission rate-limit (docs/21-TENANTS_SETTINGS_SCHEMA.md §8). Covers
+  // both the tenant-wide daily cap and the per-IP daily cap — same "come back tomorrow" outcome
+  // from the submitter's perspective, matching CHATBOT_DAILY_CAP_REACHED's own grouping.
+  LEAD_FORM_DAILY_CAP_REACHED: 'PLATFORM_LEAD_FORM_DAILY_CAP_REACHED',
 } as const;
 export type PlatformErrorCode = (typeof PlatformErrorCode)[keyof typeof PlatformErrorCode];
 
