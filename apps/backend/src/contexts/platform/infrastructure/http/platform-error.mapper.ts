@@ -19,6 +19,7 @@ import {
   ChatbotProviderUnavailableError,
   ChatbotSessionNotFoundError,
 } from '../../domain/errors/chatbot-domain.error';
+import { LeadFormQuestionLabelRequiredError } from '../../domain/errors/lead-form-domain.error';
 
 export function mapPlatformError(err: unknown): never {
   mapSharedAddressError(err);
@@ -50,6 +51,9 @@ export function mapPlatformError(err: unknown): never {
   }
   if (err instanceof ChatbotProviderUnavailableError) {
     throw throwProblemDetail(HttpStatus.SERVICE_UNAVAILABLE, err.code, err.message, err.field);
+  }
+  if (err instanceof LeadFormQuestionLabelRequiredError) {
+    throw throwProblemDetail(HttpStatus.BAD_REQUEST, err.code, err.message, err.field);
   }
   if (err instanceof PlatformDomainError) {
     throw throwProblemDetail(HttpStatus.BAD_REQUEST, err.code, err.message, err.field);

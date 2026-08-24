@@ -3,6 +3,7 @@ export * from './hotsite-config.builder';
 export * from './tenant-settings-props.builder';
 export * from './tenant-entity.builder';
 export * from './hotsite-config-entity.builder';
+export * from './lead-form-config.builder';
 export * from './tenant-provisioned-event.builder';
 export * from './chatbot-session.builder';
 export * from './chatbot-message.builder';

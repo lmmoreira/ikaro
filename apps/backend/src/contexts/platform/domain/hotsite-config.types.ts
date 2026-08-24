@@ -18,7 +18,8 @@ export type HotsiteModuleType =
   | 'ABOUT'
   | 'CONTACT'
   | 'FOOTER'
-  | 'CHATBOT';
+  | 'CHATBOT'
+  | 'LEAD_FORM';
 
 // Shared by HeroModuleData/BookingCtaModuleData's backgroundImagePosition, contentPositionX, and
 // contentPositionY fields — SonarCloud (S4323) flags a union type repeated verbatim across
@@ -141,6 +142,20 @@ export interface ChatbotModuleData {
   welcomeMessage?: string;
 }
 
+// Mirrors packages/types/src/hotsite.ts's LeadFormModuleData (S07) — teaser-only fields; the
+// question catalog and audienceMode deliberately never appear here, since they live behind
+// S01's own dedicated endpoints, not the cached manifest (docs/15 § LEAD_FORM).
+export interface LeadFormModuleData {
+  title: string;
+  subtitle?: string;
+  eyebrow?: string;
+  ctaLabel: string;
+  variant?: 'centered' | 'left-aligned';
+  backgroundImageUrl?: string | null;
+  backgroundImagePosition?: HorizontalPosition;
+  bgStyle?: 'primary' | 'background';
+}
+
 export type HotsiteModuleData =
   | HeroModuleData
   | ServiceListModuleData
@@ -150,7 +165,8 @@ export type HotsiteModuleData =
   | AboutModuleData
   | ContactModuleData
   | FooterModuleData
-  | ChatbotModuleData;
+  | ChatbotModuleData
+  | LeadFormModuleData;
 
 export interface HotsiteModule {
   type: HotsiteModuleType;

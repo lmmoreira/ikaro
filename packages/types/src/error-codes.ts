@@ -148,6 +148,9 @@ export const PlatformErrorCode = {
   CHATBOT_MESSAGE_TOO_LONG: 'PLATFORM_CHATBOT_MESSAGE_TOO_LONG',
   // docs/14-API_CONTRACTS.md Chatbot Widget: "404 — ... sessionId doesn't belong to this tenant".
   CHATBOT_SESSION_NOT_FOUND: 'PLATFORM_CHATBOT_SESSION_NOT_FOUND',
+  // LeadFormConfig.updateQuestions() bounds (UC-037 A1/A2, docs/02-DOMAIN_MODEL.md § LeadFormConfig).
+  LEAD_FORM_QUESTION_LIMIT_REACHED: 'PLATFORM_LEAD_FORM_QUESTION_LIMIT_REACHED',
+  LEAD_FORM_QUESTION_OPTIONS_INVALID: 'PLATFORM_LEAD_FORM_QUESTION_OPTIONS_INVALID',
 } as const;
 export type PlatformErrorCode = (typeof PlatformErrorCode)[keyof typeof PlatformErrorCode];
 
