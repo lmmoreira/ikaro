@@ -946,7 +946,11 @@ One per visitor submission (`docs/04-USE_CASES.md` UC-039/UC-040). Independent a
 **Properties:**
 ```
 LeadFormSubmission {
-  submissionId: UUID v7
+  id:           UUID v7           -- bare `id`, matching every other aggregate root's own convention
+                                   -- (Booking, ChatbotSession, ChatbotMessage, NotificationLog, ...).
+                                   -- `submissionId` is used only as the event-payload/API-response
+                                   -- DTO field name (docs/03-DOMAIN_EVENTS.md, docs/14-API_CONTRACTS.md),
+                                   -- mapped from this field, not a second internal property.
   tenantId:     TenantId
   customerId:   UUID | null   -- UUID-only cross-context reference to Customer, no FK (per docs/ANTI_PATTERNS.md's
                                -- "cross-schema DB FK between contexts" row). Set whenever the submitter was
