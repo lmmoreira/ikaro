@@ -1,19 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { LeadFormModuleData } from '../../domain/hotsite-config.aggregate';
+import {
+  DEFAULT_LEAD_FORM_MODULE_DATA,
+  LeadFormModuleData,
+} from '../../domain/hotsite-config.aggregate';
 import { LeadFormAudienceMode, LeadFormQuestion } from '../../domain/lead-form-config.aggregate';
 import { HotsiteContentReader } from '../services/hotsite-content-reader.service';
 import {
   ILeadFormConfigRepository,
   LEAD_FORM_CONFIG_REPOSITORY,
 } from '../ports/lead-form-config-repository.port';
-
-// Default teaser data when no LEAD_FORM entry exists in HotsiteConfig.layout[] yet (every
-// tenant, until the first manager save via UpdateLeadFormModuleUseCase) — mirrors BOOKING_CTA's
-// own minimal default (apps/web/features/platform/hotsite/default-layout.ts), since
-// LeadFormModuleData is the same shape family and shares its two required fields. Locked in
-// during M20-S01 story-discovery, 2026-08-24 — there is no server-side "materialize on read"
-// mechanism (materializeLayout() is a web-only, client-side helper that never persists).
-export const DEFAULT_LEAD_FORM_MODULE_DATA: LeadFormModuleData = { title: '', ctaLabel: '' };
 
 export interface GetLeadFormConfigUseCaseInput {
   tenantId: string;

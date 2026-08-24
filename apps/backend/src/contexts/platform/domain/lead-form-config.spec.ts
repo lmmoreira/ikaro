@@ -1,5 +1,6 @@
 import { LeadFormConfig } from './lead-form-config.aggregate';
 import {
+  LeadFormQuestionDuplicateIdError,
   LeadFormQuestionLabelRequiredError,
   LeadFormQuestionLimitReachedError,
   LeadFormQuestionOptionsInvalidError,
@@ -89,6 +90,24 @@ describe('LeadFormConfig', () => {
       const question = makeQuestion({ type: 'TEXT', options: undefined });
 
       expect(() => config.updateQuestions([question])).not.toThrow();
+    });
+  });
+
+  describe('updateQuestions() — duplicate id', () => {
+    it('rejects two questions sharing the same id', () => {
+      const config = LeadFormConfig.create(TENANT_ID);
+      const questionA = makeQuestion({ id: 'dup-id', order: 0 });
+      const questionB = makeQuestion({ id: 'dup-id', order: 1 });
+
+      expect(() => config.updateQuestions([questionA, questionB])).toThrow(
+        LeadFormQuestionDuplicateIdError,
+      );
+    });
+
+    it('accepts questions with distinct ids', () => {
+      const config = LeadFormConfig.create(TENANT_ID);
+
+      expect(() => config.updateQuestions(makeQuestions(2))).not.toThrow();
     });
   });
 

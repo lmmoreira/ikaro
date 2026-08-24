@@ -1,5 +1,6 @@
 import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import {
+  LeadFormQuestionDuplicateIdError,
   LeadFormQuestionLabelRequiredError,
   LeadFormQuestionLimitReachedError,
   LeadFormQuestionOptionsInvalidError,
@@ -77,6 +78,13 @@ export class LeadFormConfig extends AggregateRoot {
   /** Validates the whole array on every call (UC-037 A1/A2/A3) and replaces it atomically. */
   updateQuestions(questions: LeadFormQuestion[]): void {
     if (questions.length > MAX_QUESTIONS) throw new LeadFormQuestionLimitReachedError();
+    // Defensive integrity check — the frontend assigns each question's id client-side (no
+    // per-question backend round-trip while editing), so nothing else guarantees uniqueness.
+    const seenIds = new Set<string>();
+    for (const question of questions) {
+      if (seenIds.has(question.id)) throw new LeadFormQuestionDuplicateIdError(question.id);
+      seenIds.add(question.id);
+    }
     questions.forEach((question, index) => {
       if (!question.label.trim()) throw new LeadFormQuestionLabelRequiredError(index);
       if (CHOICE_TYPES.has(question.type)) {

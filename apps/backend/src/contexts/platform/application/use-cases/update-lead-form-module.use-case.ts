@@ -6,6 +6,7 @@ import {
 } from '../../../../shared/ports/transaction-manager.port';
 import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import {
+  DEFAULT_LEAD_FORM_MODULE_DATA,
   HotsiteBranding,
   HotsiteConfig,
   HotsiteModule,
@@ -36,10 +37,7 @@ import {
   LEAD_FORM_CONFIG_REPOSITORY,
 } from '../ports/lead-form-config-repository.port';
 import { ITenantRepository, TENANT_REPOSITORY } from '../ports/tenant-repository.port';
-import {
-  DEFAULT_LEAD_FORM_MODULE_DATA,
-  GetLeadFormConfigUseCaseResult,
-} from './get-lead-form-config.use-case';
+import { GetLeadFormConfigUseCaseResult } from './get-lead-form-config.use-case';
 
 export interface UpdateLeadFormModuleUseCaseInput {
   tenantId: string;

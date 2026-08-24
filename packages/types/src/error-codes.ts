@@ -151,6 +151,8 @@ export const PlatformErrorCode = {
   // LeadFormConfig.updateQuestions() bounds (UC-037 A1/A2, docs/02-DOMAIN_MODEL.md § LeadFormConfig).
   LEAD_FORM_QUESTION_LIMIT_REACHED: 'PLATFORM_LEAD_FORM_QUESTION_LIMIT_REACHED',
   LEAD_FORM_QUESTION_OPTIONS_INVALID: 'PLATFORM_LEAD_FORM_QUESTION_OPTIONS_INVALID',
+  // Defensive integrity check — two questions sharing the same client-assigned id in one save.
+  LEAD_FORM_QUESTION_DUPLICATE_ID: 'PLATFORM_LEAD_FORM_QUESTION_DUPLICATE_ID',
 } as const;
 export type PlatformErrorCode = (typeof PlatformErrorCode)[keyof typeof PlatformErrorCode];
 

@@ -156,6 +156,16 @@ export interface LeadFormModuleData {
   bgStyle?: 'primary' | 'background';
 }
 
+// Default when no LEAD_FORM entry exists in HotsiteConfig.layout[] yet (every tenant, until the
+// first manager save via UpdateLeadFormModuleUseCase) — mirrors BOOKING_CTA's own minimal default
+// (apps/web/features/platform/hotsite/default-layout.ts), since this is the same shape family and
+// shares its two required fields. Locked in during M20-S01 story-discovery, 2026-08-24 — there is
+// no server-side "materialize on read" mechanism (materializeLayout() is a web-only, client-side
+// helper that never persists). Colocated with the type it defaults, like DEFAULT_HOTSITE_BRANDING/
+// DEFAULT_HOTSITE_SEO in hotsite-config.aggregate.ts — shared by two use cases (Get/Update), so it
+// doesn't belong inside either one specifically.
+export const DEFAULT_LEAD_FORM_MODULE_DATA: LeadFormModuleData = { title: '', ctaLabel: '' };
+
 export type HotsiteModuleData =
   | HeroModuleData
   | ServiceListModuleData

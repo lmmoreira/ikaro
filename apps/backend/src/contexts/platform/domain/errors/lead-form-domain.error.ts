@@ -26,6 +26,20 @@ export class LeadFormQuestionOptionsInvalidError extends PlatformDomainError {
 }
 
 /**
+ * Two questions sharing the same `id` within one save — the frontend assigns each new question's
+ * `id` client-side (no per-question backend round-trip while editing; the id itself has no
+ * security/lookup significance, docs/13-DATABASE_SCHEMA.md's lead_form_answers.question_id is
+ * "informational; matching is by question_label, not this"), so this is a defensive integrity
+ * check against a frontend bug, not a security boundary.
+ */
+export class LeadFormQuestionDuplicateIdError extends PlatformDomainError {
+  constructor(id: string) {
+    super(`Duplicate question id: ${id}`, PlatformErrorCode.LEAD_FORM_QUESTION_DUPLICATE_ID);
+    this.name = 'LeadFormQuestionDuplicateIdError';
+  }
+}
+
+/**
  * UC-037 A3 — an empty question label. Deliberately does NOT extend PlatformDomainError: its
  * `code` belongs to the shared GenericErrorCode namespace (no VO backs a plain non-empty-string
  * rule), not PlatformErrorCode — forcing a fake platform-origin code would misrepresent the type
