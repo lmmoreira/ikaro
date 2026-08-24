@@ -32,7 +32,7 @@ export default async function SwitchTenantPage(): Promise<React.JSX.Element> {
   return (
     <div style={brandingStyles}>
       <NextIntlClientProvider locale={locale} messages={messages}>
-        <SwitchTenantClient currentTenantSlug={tenantSlug} />
+        <SwitchTenantClient currentTenantSlug={tenantSlug} branding={manifest.branding} />
       </NextIntlClientProvider>
     </div>
   );

@@ -89,7 +89,10 @@ describe('LoyaltyHistoryRow', () => {
         title={<span>title</span>}
         meta={<span>meta</span>}
         points={<span>points</span>}
-        link={<a href="/booking/1">Ver agendamento</a>}
+        link={
+          // eslint-disable-next-line @next/next/no-html-link-for-pages -- fixture supplies the link node consumed by the presentational component
+          <a href="/booking/1">Ver agendamento</a>
+        }
       />,
     );
 

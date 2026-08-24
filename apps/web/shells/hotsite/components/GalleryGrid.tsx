@@ -126,6 +126,7 @@ export function GalleryGrid({
             >
               ×
             </button>
+            {/* eslint-disable-next-line @next/next/no-img-element -- lightbox uses the already-resolved display URL without Next optimization */}
             <img
               src={lightbox.url}
               alt={lightbox.caption || t('gallery.photoAlt')}

@@ -1,4 +1,5 @@
 const baseConfig = require('@ikaro/config/eslint-base');
+const nextPlugin = require('@next/eslint-plugin-next');
 const reactHooks = require('eslint-plugin-react-hooks');
 const jsxA11y = require('eslint-plugin-jsx-a11y');
 const vitestPlugin = require('@vitest/eslint-plugin');
@@ -98,6 +99,13 @@ module.exports = [
   {
     files: ['**/*.ts', '**/*.tsx'],
     ...jsxA11y.flatConfigs.recommended,
+  },
+  {
+    files: ['**/*.ts', '**/*.tsx'],
+    plugins: { '@next/next': nextPlugin },
+    rules: Object.fromEntries(
+      Object.keys(nextPlugin.configs.recommended.rules).map((ruleName) => [ruleName, 'error']),
+    ),
   },
   // Exported component functions must declare an explicit return type — see
   // docs/CODE_STANDARDS.md. Next.js App Router special files (page/layout/loading/error/

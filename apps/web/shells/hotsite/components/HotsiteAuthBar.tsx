@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
+import Link from 'next/link';
 import type { SessionResponse } from '@ikaro/types';
 import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 import { HotsiteAuthBarDropdown } from './HotsiteAuthBarDropdown';
@@ -137,7 +138,7 @@ export function HotsiteAuthBar({
             className="flex items-center gap-3 border-l pl-3"
             style={{ borderColor: 'rgba(17,24,39,0.12)' }}
           >
-            <a
+            <Link
               href="/dashboard"
               data-testid="hotsite-staff-authenticated-link"
               className="flex items-center gap-1.5 text-[0.8125rem] font-medium no-underline"
@@ -145,7 +146,7 @@ export function HotsiteAuthBar({
             >
               {BriefcaseIcon}
               {displayName || t('staffArea')}
-            </a>
+            </Link>
             <a
               href={`${getPublicEnv('NEXT_PUBLIC_BFF_URL')}/auth/logout?tenantSlug=${slug}`}
               data-testid="hotsite-staff-logout-link"

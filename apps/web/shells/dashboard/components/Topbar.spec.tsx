@@ -410,7 +410,10 @@ describe('Topbar', () => {
       <Topbar
         tenantName="Lavacar BH"
         userName="Ana"
-        action={<a href="/dashboard/services/new">+ Criar serviço</a>}
+        action={
+          // eslint-disable-next-line @next/next/no-html-link-for-pages -- fixture supplies the action node consumed by the presentational component
+          <a href="/dashboard/services/new">+ Criar serviço</a>
+        }
       />,
     );
 

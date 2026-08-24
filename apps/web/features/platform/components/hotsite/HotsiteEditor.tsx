@@ -213,8 +213,8 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
   }
 
   function handleConfigure(type: HotsiteModuleType): void {
-    const module = draft.layout.find((m) => m.type === type);
-    setView({ view: 'module-config', type, localData: module?.data ?? {} });
+    const selectedModule = draft.layout.find((m) => m.type === type);
+    setView({ view: 'module-config', type, localData: selectedModule?.data ?? {} });
   }
 
   function handleLocalDataChange(localData: Record<string, unknown>): void {

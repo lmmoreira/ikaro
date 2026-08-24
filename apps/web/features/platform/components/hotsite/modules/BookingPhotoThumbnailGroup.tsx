@@ -30,6 +30,7 @@ export function BookingPhotoThumbnailGroup({
           onClick={() => onPick(index)}
           className="group relative overflow-hidden rounded-md border border-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
         >
+          {/* eslint-disable-next-line @next/next/no-img-element -- signed booking-photo URLs are rendered as native thumbnails */}
           <img
             src={url}
             alt=""
