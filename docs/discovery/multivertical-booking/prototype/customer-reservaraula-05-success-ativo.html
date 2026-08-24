@@ -34,8 +34,8 @@
 
   <!--
     COMPONENT: EnrollmentSuccessView
-    STATE:     enrollment.status = ACTIVE
-    ENTRY:     Após POST /v1/enrollments retornar 201 com status ACTIVE.
+    STATE:     enrollment.status = CONFIRMED
+    ENTRY:     Após POST /v1/enrollments retornar 201 com status CONFIRMED.
                Serve tanto para drop-in quanto para série — o conteúdo do detail-list muda
                conforme o tipo (drop-in mostra a sessão única; série mostra o padrão de dias).
     EXIT:      "Ver minhas turmas" → /{slug}/my-account/turmas (tela 06)
@@ -44,7 +44,7 @@
   <!-- Prototype banner -->
   <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;
                font-size:0.8125rem;text-align:center;color:#92400e;">
-    Protótipo · sucesso · enrollment.status = ACTIVE (drop-in: Seg 18 ago · 07:00)
+    Protótipo · sucesso · enrollment.status = CONFIRMED (drop-in: Seg 18 ago · 07:00)
   </div>
 
   <!-- BRAND BAR -->

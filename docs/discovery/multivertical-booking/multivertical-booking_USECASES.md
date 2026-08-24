@@ -288,14 +288,15 @@ CAND-XX: [Name]
 
 - **Actor:** System (scheduled job — same shape as the existing loyalty-expiry cron)
 - **Preconditions:** At least one active `ClassScheduleTemplate` exists.
-- **Trigger:** Rolling-horizon generation job runs (frequency/window TBD — open question, discovery doc §9).
+- **Trigger:** An idempotent rolling-horizon generation job runs every 15 minutes. The platform default horizon is 90 days; a service may configure a shorter horizon.
 - **Main Flow:**
   1. For each active template, system computes the next occurrence(s) within the horizon not yet materialized.
   2. System creates a `ClassSession` per occurrence, snapshotting `resourceIds`/`capacity`/`trialSlots` from the template at generation time.
   3. Idempotency: a `(templateId, startTime)` uniqueness check prevents double-generation on retry.
 - **Alternative Flows:**
-  - **A1: A resource is closed or outside its current hours for that occurrence** → Session is not generated. Existing materialized sessions remain explicit commitments when a later schedule change makes them exceptional.
-  - **A2: A resource has an overlapping approved appointment** → Session generation is rejected by the shared occupancy constraint; manager resolves the already-existing commitment rather than creating an impossible session.
+  - **A1: The worker fails or misses a run** → The next run recomputes the complete target horizon, skips already-materialized `(templateId, startTime)` keys, retries safely and records an operational failure/metric. No duplicate session is created.
+  - **A2: A resource is closed or outside its current hours for that occurrence** → Session is not generated. Existing materialized sessions remain explicit commitments when a later schedule change makes them exceptional.
+  - **A3: A resource has an overlapping approved appointment** → Session generation is rejected by the shared occupancy constraint; manager resolves the already-existing commitment rather than creating an impossible session.
 - **Postconditions:** `ClassSession` rows exist far enough ahead for customers to book into.
 - **Events Triggered:** None.
 
@@ -358,7 +359,7 @@ CAND-XX: [Name]
   3. System transitions every active (`PENDING_APPROVAL`, `CONFIRMED`, or `WAITLISTED`) `ClassSessionBooking` referencing it to `CANCELLED`.
   4. System publishes `ClassSessionCancelled` for Notification Context to inform affected customers.
 - **Alternative Flows:**
-  - **A1: Financial treatment** → No refund/credit workflow exists in this discovery: guest payment is in person at close-out, and a closed-out session is not subsequently cancelled.
+  - **A1: Financial treatment** → No refund/credit workflow exists in this discovery: Ikaro does not process payments, and a closed-out session is not subsequently cancelled. Any manually reported charge is handled outside this discovery.
 - **Postconditions:** Session and its bookings cancelled; customers notified.
 - **Events Triggered:** `ClassSessionCancelled` (candidate event — not yet in `docs/03-DOMAIN_EVENTS.md`).
 
@@ -368,7 +369,7 @@ CAND-XX: [Name]
 
 > **Superseded by CAND-37.** Retained only for numbering continuity; CAND-37 is the authoritative attendee-level attendance and in-person-payment flow.
 
-> Historical rationale only. The final model is: parent reservations close as `CLOSED`; individual attendee rows carry `PRESENT`/`NO_SHOW`; close-out is staff-triggered and includes due in-person guest payment. See CAND-37.
+> Historical rationale only. The final model is: parent reservations close as `CLOSED`; individual attendee rows carry `PRESENT`/`NO_SHOW`; close-out is staff-triggered and records a manual charge outcome when the attendee is payable. See CAND-37.
 
 - **Actor:** Staff (STAFF or MANAGER)
 - **Preconditions:** `ClassSession.endTime` has passed; `status = SCHEDULED`.
@@ -377,7 +378,7 @@ CAND-XX: [Name]
   1. Roster shows every named attendee from an active reservation pre-marked as attended by default.
   2. Staff flags individual attendee exceptions; a guest group can have mixed attendance.
   3. Staff clicks a single close-out action (e.g. "Fechar turma").
-  4. System records attendee `PRESENT`/`NO_SHOW`, closes each parent reservation, and records any due in-person guest payment atomically.
+  4. System records attendee `PRESENT`/`NO_SHOW`, closes each parent reservation, and records the required manual charge outcome for any payable attendee atomically.
   5. System publishes `ClassSessionBookingCompleted` only for eligible attended contract customers.
 - **Alternative Flows:**
   - **A1: Staff never closes out the session** → Session remains `AWAITING_ATTENDANCE` as a visible Turmas task; the system never guesses attendance.
@@ -524,7 +525,7 @@ CAND-XX: [Name]
   1. Customer confirms — no email verification step, unlike `CAND-33`: they're already an authenticated session, their contact details are already on file.
   2. System applies the identical `trialSlots`/`reservedNonMemberCount` check `CAND-33` uses (§6 "Guest trials and payment" of the domain doc) — a contract-less customer counts as non-member traffic for capacity-protection purposes, same as a guest. Below the threshold → `CONFIRMED`; at/above it → `PENDING_APPROVAL` (`CAND-34`).
   3. `ClassSessionBooking` is created with `type = CUSTOMER`, `contractId = null`, `paymentSource = IN_PERSON` — relaxes the previously-absolute "a CUSTOMER reservation always has a contract" invariant (`multivertical-booking_DATA_MODEL.md` §2, `class_session_bookings`, see that doc's §6 item 23 for the exact constraint change).
-  4. Payment is collected in person at close-out, same as a guest drop-in — no online billing, consistent with the rest of this discovery.
+  4. No payment is processed by Ikaro. If the customer is payable, staff records the externally reported outcome (`PAID`, `UNPAID` or `WAIVED`) at close-out, with amount/method when known.
 - **Alternative Flows:**
   - **A1: `guest_access_enabled = false`** → Not offered; customer is told to arrange a contract. A service that wants members-only stays members-only for everyone, not just anonymous visitors.
   - **A2: Session fills / trial-slots threshold reached** → Same branches as `CAND-22` A1 / `CAND-33` step 3 respectively.
@@ -540,7 +541,7 @@ CAND-XX: [Name]
 - **Main Flow:**
   1. Guest sets quantity (bounded by remaining capacity) and gives a name for every attendee.
   2. After email verification, system atomically checks remaining ≥ quantity, creates one named-attendee guest reservation, and increments `reservedCount` by N when it enters `PENDING_APPROVAL` or `CONFIRMED`.
-  3. A group reservation is always `paymentSource = IN_PERSON`. `FIRST_FREE_PER_EMAIL` is deliberately a solo-guest benefit only; one contact email cannot grant a free class to unnamed additional attendees.
+  3. A group reservation is always `paymentSource = IN_PERSON` to indicate external/manual settlement intent. `FIRST_FREE_PER_EMAIL` is deliberately a solo-guest benefit only; one contact email cannot grant a free class to unnamed additional attendees.
 - **Alternative Flows:**
   - **A1: Requested quantity exceeds remaining capacity** → System caps the selectable quantity in the UI to what's left; never offers an invalid N.
   - **A2: Guest selects one attendee and has an unused first-free entitlement** → The resulting solo reservation uses `GUEST_TRIAL`; otherwise it is payable in person.
@@ -804,21 +805,21 @@ CAND-XX: [Name]
 - **Postconditions:** No unapproved guest seat persists into attendance.
 - **Events Triggered:** `ClassSessionBookingCancelled` as applicable.
 
-### **CAND-37: Staff Closes a Session With Individual Attendance and In-Person Payment**
+### **CAND-37: Staff Closes a Session With Individual Attendance and Optional Manual Charge Record**
 
 - **Actor:** Staff (STAFF or MANAGER)
 - **Preconditions:** Session has ended and is `AWAITING_ATTENDANCE`.
 - **Trigger:** Staff opens the session's roster after `ClassSession.endTime` has passed, to review attendance and record close-out.
 - **Main Flow:**
   1. Roster defaults every attendee to PRESENT; staff flags individual NO_SHOW exceptions.
-  2. Staff records an append-only in-person payment for each payable guest or pay-per-class customer reservation; contract and approved-free-trial reservations have no payment due.
+  2. For a payable reservation, staff records an append-only manual charge record with amount, method and outcome (`PAID`, `UNPAID` or `WAIVED`). Ikaro does not process the charge. Contract and approved-free-trial reservations do not require a charge record.
   3. System closes attendee rows and parent reservations atomically, then marks the session `CLOSED`.
-  4. Eligible customer attendance publishes the candidate completion event for loyalty; notifications use the booking contact snapshot.
+  4. Eligible customer attendance publishes the candidate completion event for loyalty; a no-show attendee publishes the no-show event instead and earns no points. Notifications use the booking contact snapshot.
 - **Alternative Flows:**
   - **A1: Staff attempts to close a session that is already `CLOSED`** → System blocks; a session cannot be closed twice (prevents double-recording payment or double-publishing the completion event).
   - **A2: Staff attempts to close before `endTime` has actually passed** → System blocks; close-out is only available once the session has ended, matching the precondition above.
 - **Postconditions:** Attendance is never inferred by a timer. A session that reaches end time stays visibly `AWAITING_ATTENDANCE` until this action occurs.
-- **Events Triggered:** `ClassSessionBookingCompleted` for eligible customer attendance.
+- **Events Triggered:** `ClassSessionBookingCompleted` for eligible customer attendance; attendee-level `ClassSessionBookingNoShow` for no-show outcomes.
 
 ### **CAND-38: Customer Reschedules a Skipped Fixed-Class Occurrence to a Replacement Slot**
 
@@ -964,9 +965,21 @@ CAND-XX: [Name]
 - **Postconditions:** Existing commitments are never silently invalidated or automatically moved; CAND-56 is the only resolution flow.
 - **Events Triggered:** Candidate future-commitment-exception-raised event.
 
-### **CAND-48: Reserved — Appointment No-Show Is Deferred**
+### **CAND-48: Staff or Manager Marks an Appointment as No-Show**
 
-Appointment no-show, associated financial policy, and booking-state changes are deliberately outside this discovery. Session attendee no-show remains covered by class close-out because it is required to finish a class roster.
+- **Actor:** Staff (STAFF or MANAGER)
+- **Preconditions:** The appointment's scheduled end time has passed; the booking is not already terminal.
+- **Trigger:** Staff or manager closes the appointment outcome and confirms that the customer did not attend.
+- **Main Flow:**
+  1. System transitions the appointment to terminal `NO_SHOW` and appends an auditable status transition.
+  2. System publishes `BookingNoShow` through the transactional outbox.
+  3. Notification Context sends an email using the booking contact snapshot and retries delivery independently if needed.
+- **Alternative Flows:**
+  - **A1: Appointment has not ended** → System blocks the action.
+  - **A2: Booking is already terminal** → System rejects the change as stale; a manager correction follows the correction flow instead.
+  - **A3: Manager corrects a mistaken no-show** → System appends a correction transition with actor, reason and timestamp, then emits the appropriate resulting event. Loyalty is awarded only if the resulting state is `COMPLETED`.
+- **Postconditions:** No loyalty points are awarded for `NO_SHOW`; no completion event is emitted for the no-show outcome.
+- **Events Triggered:** `BookingNoShow`, or the correction/resulting completion event.
 
 ### **CAND-49: Customer Edits a Group Reservation's Attendees**
 
@@ -1048,20 +1061,20 @@ Appointment no-show, associated financial policy, and booking-state changes are 
 
 > **Deliberate non-goal, confirmed 2026-08-22:** an alert is never auto-cancelled just because the customer's underlying need happened to be met through a different channel (e.g. a waitlist promotion for one specific session, while the customer's alert covers a broader weekly preference). The two are independent intents by design — a promoted customer may still want to hear about other matching openings — and correlating them would require guessing whether a specific promotion actually satisfies a customer's broader alert criteria, which is exactly the kind of speculative machinery this discovery avoids elsewhere. The customer cancels manually via this candidate when an alert is no longer wanted.
 
-### **CAND-54: Staff Records an In-Person Payment at Session Close-Out**
+### **CAND-54: Staff Records a Manually Reported Charge at Session Close-Out**
 
-> **Relationship to `CAND-37` clarified 2026-08-22:** this is not a competing spec — it elaborates `CAND-37` step 2 ("Staff records an append-only in-person payment for each payable guest or pay-per-class customer reservation") with the detail `CAND-37` deliberately left at summary level: the correction/reversal shape (`class_session_payments.reversal_of_payment_id`/`correction_reason`, §10 of the data model doc). `CAND-37`'s close-out flow is still the trigger; this candidate is what happens inside its payment step, not a second, independent payment path.
+> **Relationship to `CAND-37` clarified 2026-08-24:** this is not payment processing. It elaborates the manual operational record inside `CAND-37`: staff records the reported amount, method, outcome and any correction/reversal reason. Ikaro does not charge the customer, integrate a gateway, settle funds, issue refunds or reconcile accounts.
 
 - **Actor:** Staff (STAFF or MANAGER).
-- **Preconditions:** A payable guest or pay-per-class customer attended the session.
+- **Preconditions:** A payable guest or pay-per-class customer attended the session; any charge happened outside Ikaro.
 - **Trigger:** Staff closes the class roster and sees a payable attendee reservation.
 - **Main Flow:**
-  1. Staff records amount, payment method, collector, and time for a payable attendee.
+  1. Staff records the externally reported amount, method, outcome (`PAID`, `UNPAID` or `WAIVED`), collector and time for a payable attendee.
   2. If a correction is needed, staff never overwrites the original record — system creates an audited reversal/correction entry instead.
 - **Alternative Flows:**
   - **A1: A contract or solo free-trial reservation** → No payment-due action; nothing to record.
   - **A2: A duplicate collection attempt** → Blocked by the booking/method policy, unless it is an explicit reversal/correction.
-- **Postconditions:** Attendance and the minimal operational payment record are independently auditable. Online payment, invoicing and reconciliation remain out of scope.
+- **Postconditions:** Attendance and the minimal operational charge record are independently auditable. Payment processing, invoicing and reconciliation remain out of scope.
 - **Events Triggered:** Candidate in-person-payment-recorded/reversed event.
 
 ### **CAND-55: Reserved — Superseded by CAND-38**

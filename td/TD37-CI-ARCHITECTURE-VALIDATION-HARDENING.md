@@ -487,22 +487,27 @@ This is the one your own docs already flag as a **known, currently-unfixed gap**
 
 ---
 
-### Story 16 — Ban unrestricted `eslint-disable` 🟡
+### Story 16 — Ban unrestricted `eslint-disable` ✅ Done
 
 **New dependency**: `@eslint-community/eslint-plugin-eslint-comments` (the actively-maintained community fork — the original `eslint-plugin-eslint-comments` package has slower maintenance, not worth adopting the less-maintained one for a new dependency).
 
-Resolve the policy contradiction before implementation: `docs/CODE_STANDARDS.md` currently prohibits all `// eslint-disable`, while this story originally allowed a rule-scoped form. The preferred policy is no disables; if an exceptional scoped disable is approved, it must be in Story 0's exception registry with rationale, owner, and expiry.
+**Story-discovery decision (2026-08-24):** the policy is scoped-only, not blanket permission. File- and block-level suppressions are forbidden. A rule-specific `eslint-disable-next-line`/`eslint-disable-line` is allowed only at the smallest possible scope, with the exact rule and a concrete justification. Every existing suppression must still undergo root-cause triage: fix the underlying issue when a clean alternative exists; retain a suppression only when the constraint is genuine, and record recurring or architectural exceptions in Story 0's `architecture-policy.json` registry with rationale, owner, and review/expiry date. The current baseline is 17 directives (16 single-line suppressions and one rule-specific block-level suppression), all in `apps/backend`/`apps/web`; there are no bare all-rules `eslint-disable` directives. The block-level case is not grandfathered in — it must be refactored, removed, or replaced by a reviewed smallest-scope exception after the underlying loading-order constraint is checked.
 
 **Acceptance criteria**:
-- [ ] Documentation and lint policy agree on whether any scoped disable is allowed
-- [ ] Chosen ESLint-comments rules enforce the documented policy across the same scope as Story 15
-- [ ] Existing disables are removed or recorded as time-bounded exceptions
+- [ ] Documentation and lint policy agree: file/block-level suppressions are rejected; only smallest-scope, rule-specific suppressions with concrete justification may remain
+- [ ] ESLint enforcement covers the same scope as Story 15: `apps/backend`, `apps/bff`, `apps/web`, and all eight test-bearing `packages/*` workspaces
+- [ ] Every existing suppression is triaged for a root-cause fix; no suppression is retained merely by converting its syntax
+- [ ] Existing suppressions are removed when a clean alternative exists, or recorded as reviewed, time-bounded exceptions when the constraint is genuine
+- [ ] The existing block-level suppression in `openrouter-credits.client.spec.ts` is removed, refactored, or reduced to the smallest justified scope after testing the module-loading alternative
+- [ ] A regression check proves broad/file/block-level suppressions fail while an approved, rule-specific single-line suppression with a justification passes
 
 ---
 
-### Story 17 — Exploratory, non-blocking: tenant_id-missing query-builder detector ⚪
+### Story 17 — Exploratory, non-blocking: tenant_id-missing query-builder detector ⚪ Deferred — not pursued
 
-This is a useful **narrow heuristic**, not a security guarantee. It targets one dangerous class of missing tenant predicate but has both false-negative and false-positive risk. Tenant isolation remains protected primarily by database constraints and integration tests.
+**Decision (2026-08-24):** Do not implement this detector as part of TD37. The heuristic would cover only one TypeORM query style, would require non-trivial query-chain analysis and a maintained exemption inventory, and would remain report-only. Database constraints and tenant-isolation integration tests provide stronger protection. Reconsider only if a future baseline audit demonstrates recurring, actionable regressions that justify the maintenance cost.
+
+This was considered as a useful **narrow heuristic**, not a security guarantee. It targets one dangerous class of missing tenant predicate but has both false-negative and false-positive risk. Tenant isolation remains protected primarily by database constraints and integration tests.
 
 **Mechanism**: scan every repository method for `createQueryBuilder()`/`.where()`/`.andWhere()` chains with no `tenantId`/`tenant_id` reference anywhere in the chain. Emit an artifact containing scanned query-builder chains, exemption matches, and coverage. It deliberately does not claim to cover repository `.find({ where: ... })` and similar APIs.
 
@@ -555,6 +560,61 @@ Generalizes a gap found during Story 9 discovery (2026-08-21): a field can corre
 
 ---
 
+### Story 21 — Unify the two avoidable `HotsiteModuleType` copies; detector for the one that can't be unified yet 🔴
+
+During M20-S01 (2026-08-24), `'LEAD_FORM'` was added to the shared `HotsiteModuleType` union in `packages/types/src/enums.ts` while a second, independent copy of the same conceptual enum already existed in `apps/backend/src/contexts/platform/domain/hotsite-config.types.ts` and a third in `packages/validation/src/hotsite.ts`'s `HotsiteModuleSchema` Zod enum. The shared-package copy broke `apps/web`'s exhaustive `Record<HotsiteModuleType,...>` maps and had to be reverted mid-session — caught only because a human was watching type-check output, not by any bot or CI gate.
+
+**Discovery-time correction (2026-08-24):** the first draft of this story treated all 3 copies as permanently independent and proposed only a parity-*detector*. That's the wrong root fix for 2 of the 3 copies. Today, all 3 copies list the exact same 9 base members; the backend mirror and the validation schema additionally both carry `'LEAD_FORM'` as a 10th member, in identical order — they are, right now, byte-for-byte identical to each other. There is no legitimate reason for these two to be separate files: neither has any consumer the other doesn't, and nothing about backend vs. BFF/validation gives either a reason to diverge from the other. The *only* copy with a real, deliberate reason to lag is `packages/types/src/enums.ts` — it feeds `apps/web`'s exhaustive `Record<HotsiteModuleType,...>` maps, and `LEAD_FORM`'s web-side rollout is intentionally deferred to a later story (per `plan/M20-LEAD-FORM-MODULE.md`). Perpetually parity-checking a duplication that has no reason to exist is treating a symptom; the two avoidable copies should be collapsed, and the detector should only cover the one relationship that's genuinely allowed to diverge.
+
+**Part A — Unify the backend mirror and the validation schema (real code change, done as part of this story):**
+- `packages/validation/src/hotsite.ts` becomes the single source: export a canonical `as const` tuple (e.g. `HOTSITE_MODULE_TYPES = ['HERO', 'SERVICE_LIST', 'GALLERY', 'TESTIMONIALS', 'BOOKING_CTA', 'ABOUT', 'CONTACT', 'FOOTER', 'CHATBOT', 'LEAD_FORM'] as const`), derive both `HotsiteModuleSchema`'s `type: z.enum(HOTSITE_MODULE_TYPES)` and an exported `export type HotsiteModuleType = (typeof HOTSITE_MODULE_TYPES)[number]` from it.
+- `apps/backend/src/contexts/platform/domain/hotsite-config.types.ts` drops its own `HotsiteModuleType` union entirely and instead does a **type-only** import: `import type { HotsiteModuleType } from '@ikaro/validation'`. A type-only import is erased at compile time, so this adds no runtime dependency on `zod` (or any framework) to the domain layer — but it *is* a new import direction (domain → `@ikaro/validation`) that doesn't exist elsewhere in the codebase today (`@ikaro/validation` is currently only imported from `application/dtos/*`, never from `domain/`). **Confirm this against `packages/architecture-check`'s `dependency-cruiser` rules (Story 1) and the domain-layer "zero framework deps" rule during this story's own `/story-discovery`** — if the type-only import is disallowed by the existing context-dependency matrix, the fallback is re-exporting the type through `packages/types` instead (see Part B's note on why the *value list* can't live there, but a type-only re-export naming a `@ikaro/validation`-sourced type might still be acceptable — a genuine design choice for discovery to lock in, not something to assume here).
+- `apps/backend/src/contexts/platform/domain/hotsite-config.aggregate.ts`'s existing `export *` from `hotsite-config.types.ts` keeps re-exporting `HotsiteModuleType` under the same name, so no call site elsewhere in backend needs to change its own import path.
+
+**Part B — Detector for the one relationship that's still allowed to diverge:** a `ts-morph` detector reads a `closedEnumRegistry` array from `architecture-policy.json`. Each entry names a conceptual enum, its canonical (unified) source, and the web-facing copy it's allowed to lead ahead of:
+```json
+{
+  "name": "HotsiteModuleType",
+  "canonical": { "path": "packages/validation/src/hotsite.ts", "kind": "constArray", "exportName": "HOTSITE_MODULE_TYPES" },
+  "mayLeadAhead": { "path": "packages/types/src/enums.ts", "kind": "union", "exportName": "HotsiteModuleType" },
+  "rationale": "LEAD_FORM's apps/web rollout is deferred to a later story; packages/types/src/enums.ts must never gain a member the canonical source lacks, but may legitimately lag behind it until that story lands.",
+  "owner": "...", "reviewBy": "..."
+}
+```
+Extract each side's literal string-member set (`constArray` walks the array literal; `union` walks a `TypeAliasDeclaration`'s union members). The rule is **superset-only, not equality**: every member of `mayLeadAhead` must exist in `canonical` (nothing web-facing may exist that the canonical source doesn't know about — this direction is a real bug, not a deferred rollout); the reverse (canonical having a member `mayLeadAhead` lacks) is allowed and expected while the rollout is pending, and produces no finding. Note why this is not the same shape as Story 9's `aggregateValueObjectRegistry`/Story 11's `ikaro-types-drift` (both of those check pure duplication/mismatch, not a deliberately-allowed one-directional lead).
+
+**What it catches**: `packages/types/src/enums.ts`'s `HotsiteModuleType` gaining a member the canonical `@ikaro/validation` source doesn't have (an actual reversed-direction bug), and — for any *other* registry entry that doesn't have a deliberate lead/lag relationship — plain 2-way divergence between exactly 2 registered copies (the general case, once Part A leaves this codebase with only one still-legitimately-split enum family).
+**What it does NOT catch**: enums not yet added to the registry, or a genuinely-independent third copy this registry shape doesn't yet model (opt-in, closed-list — same posture as every other TD37 registry).
+
+**Acceptance criteria**:
+- [ ] `packages/validation/src/hotsite.ts` exports the single canonical `HOTSITE_MODULE_TYPES` tuple + derived `HotsiteModuleType` type; its own `HotsiteModuleSchema.type` field derives from it instead of a separately-typed-out array
+- [ ] `apps/backend/src/contexts/platform/domain/hotsite-config.types.ts`'s own `HotsiteModuleType` union is deleted; the type-only import direction (from `@ikaro/validation`, or the `@ikaro/types` re-export fallback) is confirmed against `dependency-cruiser`'s rules during `/story-discovery`, not assumed
+- [ ] Every existing call site re-exported via `hotsite-config.aggregate.ts`'s `export *` continues to resolve `HotsiteModuleType` without an import-path change
+- [ ] Detector flags a deliberately-introduced reversed-direction fixture (`mayLeadAhead` has a member `canonical` lacks) and a same-direction fixture that's still a plain 2-way divergence for a non-lead/lag registry entry; passes when the registered relationship holds
+- [ ] `closedEnumRegistry` seeded with the `HotsiteModuleType` entry above, reflecting the post-unification 2-copy reality (not the pre-unification 3-copy one)
+- [ ] Detector registered in `cli.ts` alongside the existing check list (near `checkIkaroTypesDrift(...)`)
+- [ ] Report-only (Phase 1) on first merge, per this TD's 3-phase rollout convention — promote to blocking only after a clean/triaged run
+- [ ] Permanent valid/invalid/zero-target fixtures, per `detectorContract`
+
+---
+
+### Story 22 — Wire `pnpm architecture-check` into `ci:fast` / pre-push 🔴
+
+`pnpm architecture-check` exists as a root `package.json` script and runs in its own dedicated GitHub Actions job ("Architecture validation"), but is absent from `ci:fast` (`package.json:27`) and from `scripts/pre-pr.sh` — confirmed by grep during M20-S01's retrospective (2026-08-24). This is precisely the "Local vs. CI drift" risk this TD's own Trade-offs section already names: a detector violation (e.g. the `test-harness-registration` gap hit during M20-S01 itself) is invisible locally and only surfaces after `git push`, in a separate CI job, well after `/pre-pr` has already reported clean. The fix isn't a new rule — it's running the existing rule earlier, at the same point `ci:fast` already runs lint and type-check.
+
+**Mechanism**: add `pnpm architecture-check` as a conjunct in the root `ci:fast` script (`package.json:27`), so it runs on every `git push` (the pre-push hook already invokes `ci:fast`) and inside `/pre-pr`'s own Step 1/Step 2 window, before a PR is ever opened.
+
+**What it catches**: any of Stories 3–21's detector findings, surfaced at push time instead of first appearing in a separate CI job minutes after a PR opens.
+**What it does NOT catch**: nothing new — this is a scheduling change, not a new rule. `architecture-check` runs full-codebase (not diff-scoped) already; expect it to add measurable wall-clock time to `ci:fast`.
+
+**Acceptance criteria**:
+- [ ] `pnpm architecture-check` runs as part of `pnpm ci:fast`
+- [ ] A deliberately-introduced violation (e.g. an unregistered test-harness entity) fails locally at `git push` time, before any PR exists
+- [ ] Measured added wall-clock time to `ci:fast` reported in the story's own PR description
+- [ ] The existing standalone "Architecture validation" CI job is left in place unchanged — it stays the authoritative CI gate; this story only adds an earlier, redundant local signal
+
+---
+
 ### Separate follow-up candidate — CodeQL security analysis ⚪
 
 CodeQL complements this TD's architecture checks by tracking security-relevant data flow in TypeScript. It does not replace Snyk (dependencies), Gitleaks (secrets), Trivy (images), Sonar, or the architecture runner. Assess GitHub Code Security availability and, if available, introduce `javascript-typescript` with a report-only security-and-quality baseline in a dedicated security-hardening TD so it does not delay the architectural work above.
@@ -598,7 +658,7 @@ Named here deliberately, with why, so it's a decision rather than a silent gap:
 2. **Phase 2 — promote to blocking.** Only after verifying zero (or fully triaged/exempted) findings against the current codebase over a burn-in period.
 3. **Phase 3 — add to required checks.** Only after Phase 2 has been green on `main` for a period — never add to `required_status_checks` in the same change that introduces the workflow.
 
-Story 17 (tenant_id detector) is explicitly capped at Phase 1 for the duration of this TD — promoting it to blocking is a separate, deliberate future decision, not an automatic next step.
+Story 17 is deferred and is not part of TD37's implementation or rollout.
 
 ---
 
@@ -613,7 +673,8 @@ Story 17 (tenant_id detector) is explicitly capped at Phase 1 for the duration o
 | Semantic architecture runner (Stories 3, 6–12) | Shared CLI/test harness selected in Story 0 | No if integrated in the existing test gate; otherwise a Phase-1 report-only CI job |
 | `knip` (Story 13) | New script | Yes (Phase 1 non-blocking) |
 | `arethetypeswrong` (Story 14) | New script, scoped to `packages/*` | Yes (Phase 1 non-blocking) |
-| Tenant-id detector (Story 17) | New script | Yes, permanently non-blocking for this TD's duration |
+| `HotsiteModuleType` unification + lead/lag detector (Story 21) | Real code change (packages/validation, apps/backend) + shared CLI/test harness (same runner as Stories 3, 6–12) | No new CI step for the detector; the unification is a normal PR |
+| `pnpm architecture-check` in `ci:fast` (Story 22) | Root `ci:fast` script + pre-push hook | No — wires the existing dedicated CI job's own script earlier, doesn't add a new one |
 
 ---
 
@@ -626,8 +687,9 @@ Story 17 (tenant_id detector) is explicitly capped at Phase 1 for the duration o
 - **Wave 4 — semantic architecture suite:** Stories 6–10, each as a separate small PR with fixtures. Story 7A depends on Story 7's `ts-morph` test-hygiene harness and additionally needs the `InMemoryCachePort` double built first — sequence it after Story 7.
 - **Wave 5 — known contract/data-harness gaps:** Stories 11 and 12, then Story 7 if it was not completed in Wave 4.
 - **Wave 6 — package hygiene:** Stories 13 and 14.
-- **Wave 7 — exploratory:** Story 17 alone, then Story 18 after its compatibility spike.
+- **Wave 7 — optional:** Story 18 after its compatibility spike.
 - **Wave 8 — mature rollout:** Story 19 after all selected blocking detectors have completed report-only burn-in.
+- **Wave 9 — closes the local/CI drift gap:** Story 21 (independent, can land any time after Wave 4's runner exists — the unification half needs no detector infrastructure at all and could ship first on its own if useful), then Story 22 (independent of Story 21 — wires the already-existing CLI regardless of which detectors it currently runs).
 
 ---
 
@@ -637,7 +699,7 @@ Story 17 (tenant_id detector) is explicitly capped at Phase 1 for the duration o
 - [ ] All Wave 1–6 stories implemented, passing against `main`, and correctly wired per the "Where Each Check Runs" table
 - [ ] Every new blocking CI step followed the 3-phase rollout (report-only → blocking → required-check) — no check skips straight to required
 - [ ] Story 19 completed before any architecture validation job is added to branch protection as a required check
-- [ ] Story 17 shipped and explicitly capped at report-only, with its go/no-go decision documented separately from this TD's closure
+- [x] Story 17 was evaluated and deferred; no detector, CI job, or production-code change is required
 - [ ] Retired manual bad-smell-audit checks (BE-1, BE-4, WEB-9 once their mechanical equivalents ship) so the same rule isn't checked twice by two different mechanisms
 - [ ] `docs/ANTI_PATTERNS.md` updated to note, per row addressed here, that it's now CI-enforced (not just documented) — so a future reader doesn't re-litigate whether it needs an agent to remember it
 - [ ] This TD's own "Out of Scope" table double-checked against `docs/ANTI_PATTERNS.md` one more time before closure, in case a new incident since 2026-07-27 changed the calculus on any row

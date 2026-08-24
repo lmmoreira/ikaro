@@ -36,9 +36,9 @@ flowchart TD
     SerieConfirm --> PostEnrollSerie(("POST /v1/enrollments<br/>type: SERIES"))
 
     PostEnroll -->|"status: ACTIVE"| Success["❓ GAP: .../reservar/sucesso<br/>Vaga confirmada (04-success-ativo)"]
-    PostEnroll -->|"status: WAITLIST"| Waitlist["❓ GAP: mesma rota<br/>Na fila (04b-success-waitlist)"]
+    PostEnroll -->|"status: WAITLISTED / PROMOTION_PENDING"| Waitlist["❓ GAP: mesma rota<br/>Na fila/oferta (04b-success-waitlist)"]
     PostEnrollSerie -->|"status: ACTIVE"| Success
-    PostEnrollSerie -->|"status: WAITLIST"| Waitlist
+    PostEnrollSerie -->|"status: WAITLISTED / PROMOTION_PENDING"| Waitlist
 
     Success -->|"'Ver minhas turmas'"| MinhasTurmas["❓ GAP: /{slug}/my-account/turmas<br/>Minhas Turmas (journey: minha-conta.md)"]
     Waitlist -->|"'Ver minhas turmas'"| MinhasTurmas
@@ -73,13 +73,13 @@ Full request/response shapes: `plan/journey/customer/prototypes/reservar-aula/de
 ## Open questions / gaps
 
 - [ ] **No story/milestone exists for any route in this journey.** This whole flow needs to go through `/discovery-to-milestone` before implementation — see the promotion-status note in `docs/discovery/multivertical-booking.md`.
-- [ ] **`EnrollmentCreated.status` (`ACTIVE | WAITLIST`) in `reservar-aula/dev-notes.md` is obsolete.** The BFF projection must expose canonical `CONFIRMED | PENDING_APPROVAL | WAITLISTED | PROMOTION_PENDING | CANCELLED` occurrence state and separate recurring intent.
-- [ ] **`trial_slots`/`reserved_non_member_count` must be represented in BFF contracts** for authenticated pay-per-class customers, not only guests.
+- [x] **`EnrollmentCreated.status` is canonicalized.** The BFF projection exposes `CONFIRMED | PENDING_APPROVAL | WAITLISTED | PROMOTION_PENDING | CANCELLED` occurrence state and separates recurring intent.
+- [x] **`trial_slots`/`reserved_non_member_count` are part of the availability/access contract** for authenticated pay-per-class customers as well as guests.
 - [ ] Reposição/`classSkipWindowHours` (`CAND-38`, `CAND-27`) belong to `minha-conta.md`'s Turmas section (managing an *existing* enrollment), not here — this journey only covers creating a new one.
-- [ ] **`dev-notes.md`'s `ClassType` has no matching aggregate in `multivertical-booking.md`.** It's really a merged read-model over `Service` (`color`/`description`/`allowsDropIn`/`allowsSeries` — see the next item) + `ClassScheduleTemplate` (recurrence → the formatted `schedule` string) + a next-session projection (`totalSpots`/`availableSpots`) + a BFF-derived `instructorName` (resolved from the template's `resourceIds`, not a stored field). None of this is wrong as a prototype simplification, but it needs an explicit BFF-mapper design pass, not a literal 1:1 endpoint, before a story is written.
-- [ ] **`color`/`description`/`allowsDropIn`/`allowsSeries` are documented as added to `services` in `dev-notes.md` item 33, but were never added to `multivertical-booking_DATA_MODEL.md`'s own `services` row (§3).** Reconcile before promotion.
-- [ ] **`POST /v1/enrollments` never checks for an active `ClassAccessContract`, and never branches on not having one.** Resolved conceptually 2026-08-21: a contract-less authenticated customer isn't blocked — they get `CAND-22b` (pay-per-class, `paymentSource: IN_PERSON`, no contract, still earns loyalty, gated by the same `trialSlots` check a guest gets). This flow's own BFF sketch needs a real branch for that case before promotion, it doesn't have one yet.
-- [ ] **`type: SERIES` returns one flat `EnrollmentCreated`, but a series enrollment is canonically two-tier**: one `RecurringEnrollment` row plus a separately-generated `ClassSessionBooking` per matching upcoming occurrence (`CAND-26` step 3). The response shape doesn't represent that structure.
+- [x] **`ClassType` is explicitly a BFF read model, not an aggregate.** It is mapped from `Service`, `ClassScheduleTemplate`, the next-session projection and resolved resource display data; it must not become a literal persistence endpoint or aggregate.
+- [x] **Catalog fields are documented in the schema companion.** `color`/`description`/`allowsDropIn`/`allowsSeries` belong to the SESSION service catalog contract.
+- [x] **Contract-less authenticated customers use `CAND-22b`.** The BFF contract branches between contract-backed access and pay-per-class access; no payment is processed by Ikaro.
+- [x] **Series responses expose separate recurring intent and occurrence state.** The read model represents one `RecurringEnrollment` plus its generated `ClassSessionBooking` occurrences; it does not persist a generic Enrollment aggregate.
 
 ## Prototype
 
@@ -97,7 +97,7 @@ Folder: `customer/prototypes/reservar-aula/`
 | `customer-reservaraula-03b-serie-dias.html` | Montagem de série (slots + data + preview) | — | ❓ GAP |
 | `customer-reservaraula-04-serie-confirmar.html` | Confirmação série | — | ❓ GAP |
 | `customer-reservaraula-05-success-ativo.html` | Sucesso — vaga garantida (ACTIVE) | — | ❓ GAP |
-| `customer-reservaraula-05b-success-waitlist.html` | Sucesso — na fila (WAITLIST) | — | ❓ GAP |
+| `customer-reservaraula-05b-success-waitlist.html` | Sucesso — na fila/oferta (`WAITLISTED`/`PROMOTION_PENDING`) | — | ❓ GAP |
 | `dev-notes.md` | Implementation handoff (routes, BFF contracts, types) | — | ✅ Criado |
 
 ## Discovery reconciliation — required before implementation

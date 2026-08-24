@@ -1,0 +1,81 @@
+# BFF — Lead Form (M20-S01)
+# UC-037: Manager configures the lead form module
+# UC-041 (Trigger): status endpoint powers the dashboard's gated "Leads" nav item
+# GET config/PATCH config require a manager JWT; status is available to staff and managers.
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run seed
+#   4. pnpm --filter @ikaro/backend run dev  (port 3001)
+#   5. pnpm --filter @ikaro/bff run dev      (port 3002)
+#   6. ENABLE_DEV_AUTH=true in apps/bff/.env.local
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@managerToken = {{managerLogin.response.body.accessToken}}
+@staffToken   = {{staffLogin.response.body.accessToken}}
+
+###
+# @name managerLogin
+POST {{bffUrl}}/v1/auth/dev-login
+Content-Type: application/json
+
+{ "email": "admin@lavacar.com.br", "tenantSlug": "{{tenantSlug}}", "type": "staff" }
+
+###
+# @name staffLogin
+POST {{bffUrl}}/v1/auth/dev-login
+Content-Type: application/json
+
+{ "email": "funcionario@lavacar.com.br", "tenantSlug": "{{tenantSlug}}", "type": "staff" }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Manager gets current lead form config (default shape for a tenant with no row yet)
+GET {{bffUrl}}/v1/tenants/lead-form/config
+Authorization: Bearer {{managerToken}}
+
+###
+
+### Consolidated save — teaser + audienceMode + questions in one atomic request
+PATCH {{bffUrl}}/v1/tenants/lead-form/config
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "title": "Fale com a gente",
+  "ctaLabel": "Preencher formulário",
+  "audienceMode": "GUEST_AND_CUSTOMER",
+  "questions": [
+    {
+      "id": "01234567-0000-7000-8000-000000000101",
+      "label": "Qual serviço te interessa?",
+      "type": "SINGLE_CHOICE",
+      "required": true,
+      "options": ["Lavagem simples", "Lavagem completa", "Enceramento"],
+      "order": 0
+    }
+  ]
+}
+
+###
+
+### Staff reads the nav-gating status
+GET {{bffUrl}}/v1/tenants/lead-form/status
+Authorization: Bearer {{staffToken}}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FAILURE PATHS
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Staff forbidden from editing config → 403
+PATCH {{bffUrl}}/v1/tenants/lead-form/config
+Authorization: Bearer {{staffToken}}
+Content-Type: application/json
+
+{ "title": "Fale com a gente" }

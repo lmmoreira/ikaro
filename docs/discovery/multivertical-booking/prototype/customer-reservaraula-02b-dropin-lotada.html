@@ -43,7 +43,8 @@
     Mesmo componente que 01-dropin.html, mas com session.availableSpots = 0.
     O botão muda de "Próximo" para "Entrar na lista de espera".
     Na confirmação (02-dropin-confirmar.html), o resumo indica "Lista de espera".
-    O resultado final é enrollment.status = WAITLIST (→ 04b-success-waitlist.html).
+    O resultado inicial é enrollment.status = WAITLISTED (→ 04b-success-waitlist.html); uma vaga futura cria PROMOTION_PENDING e exige aceite.
+    Se uma vaga abrir depois, a promoção cria PROMOTION_PENDING e exige aceite explícito.
   -->
 
   <!-- Prototype banner -->

@@ -471,6 +471,7 @@
       "entities": [
         "TenantEntity",
         "HotsiteConfigEntity",
+        "LeadFormConfigEntity",
         "ServiceEntity",
         "ScheduleClosureEntity",
         "ScheduleOpeningEntity",
@@ -548,6 +549,7 @@
       "entities": [
         "TenantEntity",
         "HotsiteConfigEntity",
+        "LeadFormConfigEntity",
         "InboxRecordEntity",
         "ChatbotSessionEntity",
         "ChatbotMessageEntity",
@@ -671,6 +673,78 @@
       "path": "apps/backend/src/contexts/booking/domain/booking.aggregate.ts",
       "rationale": "TD37-S05: a domain aggregate with many small, cohesive methods naturally exceeds the 250-line file cap even after extracting every type/mapper that could safely move out (booking.types.ts) — splitting Booking's remaining methods across files to satisfy the metric would fragment one cohesive domain concept, not reduce real complexity (max-lines-per-function still applies and is enforced/fixed on this file).",
       "owner": "booking",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/backend/src/contexts/platform/infrastructure/llm/openrouter-credits.client.spec.ts",
+      "name": "@typescript-eslint/no-require-imports",
+      "rationale": "The test must load the client after jest.mock('undici') so module-level transport initialization uses the mocked implementation; a static import would load it before the mock setup.",
+      "owner": "platform",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/backend/src/contexts/platform/infrastructure/llm/openrouter-llm.adapter.spec.ts",
+      "name": "@typescript-eslint/no-require-imports",
+      "rationale": "The test must load the adapter after jest.mock('undici') so module-level transport initialization uses the mocked implementation; a static import would load it before the mock setup.",
+      "owner": "platform",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/backend/src/eslint/persistence-boundary.eslint.spec.ts",
+      "name": "@typescript-eslint/no-require-imports",
+      "rationale": "The regression test loads the real CommonJS ESLint configuration dynamically so it can execute the production config rather than duplicate its rules.",
+      "owner": "architecture-check",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/backend/src/eslint/restricted-imports-syntax.eslint.spec.ts",
+      "name": "@typescript-eslint/no-require-imports",
+      "rationale": "The regression test loads the real CommonJS ESLint configuration dynamically so it can execute the production config rather than duplicate its rules.",
+      "owner": "architecture-check",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/backend/src/shared/utils/fetch-and-parse-json.spec.ts",
+      "name": "@typescript-eslint/no-require-imports",
+      "rationale": "The test must load the module after jest.mock('undici') so module-level dispatcher construction uses the mocked transport; a static import would load it before the mock setup.",
+      "owner": "shared-infrastructure",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/shared/lib/eslint/restricted-syntax.eslint.spec.ts",
+      "name": "@typescript-eslint/no-require-imports",
+      "rationale": "The regression test loads the real CommonJS ESLint configuration dynamically so it can execute the production config rather than duplicate its rules.",
+      "owner": "architecture-check",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/shared/lib/i18n/resolve-error-message.ts",
+      "name": "no-console:missing-placeholder",
+      "rationale": "Development-only placeholder mismatch and unknown-error warnings are deliberate observability signals for translation/catalog drift; replacing them with a user-facing logger would hide the local diagnostic signal.",
+      "owner": "web",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/shared/lib/i18n/resolve-error-message.ts",
+      "name": "no-console:extra-param",
+      "rationale": "Development-only placeholder mismatch and unknown-error warnings are deliberate observability signals for translation/catalog drift; replacing them with a user-facing logger would hide the local diagnostic signal.",
+      "owner": "web",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/shared/lib/i18n/resolve-error-message.ts",
+      "name": "no-console:unknown-code",
+      "rationale": "Development-only placeholder mismatch and unknown-error warnings are deliberate observability signals for translation/catalog drift; replacing them with a user-facing logger would hide the local diagnostic signal.",
+      "owner": "web",
       "reviewBy": "2026-11-30"
     }
   ],

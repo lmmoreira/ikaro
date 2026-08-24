@@ -51,12 +51,12 @@
   <!--
     COMPONENT: TurmaWaitlistPage
     PAGE:       apps/web/app/[slug]/my-account/turmas/[enrollmentId]/page.tsx
-                estado: enrollment.status = "WAITLIST"  (GAP — novo status)
+                estado: enrollment.status = "WAITLISTED" ou "PROMOTION_PENDING"
     DATA:
-      GET /v1/enrollments/:id  → enrollment com status WAITLIST + waitlistPosition
+      GET /v1/enrollments/:id  → enrollment com status WAITLISTED/PROMOTION_PENDING + waitlistPosition + offerExpiresAt (quando aplicável)
     ACTIONS:
       DELETE /v1/waitlist/:waitlistEntryId  → sair da fila
-    NOTA: quando uma vaga abre, o sistema promove automaticamente e envia email.
+    NOTA: quando uma vaga abre, o sistema cria uma oferta PROMOTION_PENDING e envia email; o cliente precisa aceitar antes do prazo.
           Esta tela existe para o cliente consultar a posição e sair da fila se quiser.
   -->
 

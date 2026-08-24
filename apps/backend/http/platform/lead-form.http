@@ -1,0 +1,152 @@
+# Platform — Lead Form (M20-S01): LeadFormConfig aggregate + consolidated admin config endpoint
+# UC-037: Manager configures the lead form module
+# UC-041 (Trigger): status endpoint powers the dashboard's gated "Leads" nav item
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run seed
+#   4. pnpm --filter @ikaro/backend run dev
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@baseUrl = {{backendUrl}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Get current lead form config (default shape for a tenant with no row yet)
+GET {{baseUrl}}/tenants/lead-form/config
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+###
+
+### Consolidated save — teaser + audienceMode + questions in one atomic request
+PATCH {{baseUrl}}/tenants/lead-form/config
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "title": "Fale com a gente",
+  "ctaLabel": "Preencher formulário",
+  "audienceMode": "GUEST_AND_CUSTOMER",
+  "questions": [
+    {
+      "id": "01234567-0000-7000-8000-000000000101",
+      "label": "Qual serviço te interessa?",
+      "type": "SINGLE_CHOICE",
+      "required": true,
+      "options": ["Lavagem simples", "Lavagem completa", "Enceramento"],
+      "order": 0
+    }
+  ]
+}
+
+###
+
+### Status — nav-gating read (STAFF can also read)
+GET {{baseUrl}}/tenants/lead-form/status
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FAILURE PATHS
+# ─────────────────────────────────────────────────────────────────────────────
+
+### STAFF forbidden from editing config → 403
+PATCH {{baseUrl}}/tenants/lead-form/config
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+Content-Type: application/json
+
+{
+  "title": "Fale com a gente"
+}
+
+###
+
+### 21 questions → 400 PLATFORM_LEAD_FORM_QUESTION_LIMIT_REACHED
+PATCH {{baseUrl}}/tenants/lead-form/config
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "questions": [
+    { "id": "01234567-0000-7000-8000-000000000101", "label": "Q1", "type": "TEXT", "required": false, "order": 0 },
+    { "id": "01234567-0000-7000-8000-000000000102", "label": "Q2", "type": "TEXT", "required": false, "order": 1 },
+    { "id": "01234567-0000-7000-8000-000000000103", "label": "Q3", "type": "TEXT", "required": false, "order": 2 },
+    { "id": "01234567-0000-7000-8000-000000000104", "label": "Q4", "type": "TEXT", "required": false, "order": 3 },
+    { "id": "01234567-0000-7000-8000-000000000105", "label": "Q5", "type": "TEXT", "required": false, "order": 4 },
+    { "id": "01234567-0000-7000-8000-000000000106", "label": "Q6", "type": "TEXT", "required": false, "order": 5 },
+    { "id": "01234567-0000-7000-8000-000000000107", "label": "Q7", "type": "TEXT", "required": false, "order": 6 },
+    { "id": "01234567-0000-7000-8000-000000000108", "label": "Q8", "type": "TEXT", "required": false, "order": 7 },
+    { "id": "01234567-0000-7000-8000-000000000109", "label": "Q9", "type": "TEXT", "required": false, "order": 8 },
+    { "id": "01234567-0000-7000-8000-00000000010a", "label": "Q10", "type": "TEXT", "required": false, "order": 9 },
+    { "id": "01234567-0000-7000-8000-00000000010b", "label": "Q11", "type": "TEXT", "required": false, "order": 10 },
+    { "id": "01234567-0000-7000-8000-00000000010c", "label": "Q12", "type": "TEXT", "required": false, "order": 11 },
+    { "id": "01234567-0000-7000-8000-00000000010d", "label": "Q13", "type": "TEXT", "required": false, "order": 12 },
+    { "id": "01234567-0000-7000-8000-00000000010e", "label": "Q14", "type": "TEXT", "required": false, "order": 13 },
+    { "id": "01234567-0000-7000-8000-00000000010f", "label": "Q15", "type": "TEXT", "required": false, "order": 14 },
+    { "id": "01234567-0000-7000-8000-000000000110", "label": "Q16", "type": "TEXT", "required": false, "order": 15 },
+    { "id": "01234567-0000-7000-8000-000000000111", "label": "Q17", "type": "TEXT", "required": false, "order": 16 },
+    { "id": "01234567-0000-7000-8000-000000000112", "label": "Q18", "type": "TEXT", "required": false, "order": 17 },
+    { "id": "01234567-0000-7000-8000-000000000113", "label": "Q19", "type": "TEXT", "required": false, "order": 18 },
+    { "id": "01234567-0000-7000-8000-000000000114", "label": "Q20", "type": "TEXT", "required": false, "order": 19 },
+    { "id": "01234567-0000-7000-8000-000000000115", "label": "Q21", "type": "TEXT", "required": false, "order": 20 }
+  ]
+}
+
+###
+
+### Choice question with only 1 option → 400 PLATFORM_LEAD_FORM_QUESTION_OPTIONS_INVALID
+PATCH {{baseUrl}}/tenants/lead-form/config
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "questions": [
+    {
+      "id": "01234567-0000-7000-8000-000000000101",
+      "label": "Qual serviço te interessa?",
+      "type": "SINGLE_CHOICE",
+      "required": true,
+      "options": ["Lavagem simples"],
+      "order": 0
+    }
+  ]
+}
+
+###
+
+### Empty question label → 400 GENERIC_FIELD_REQUIRED
+PATCH {{baseUrl}}/tenants/lead-form/config
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "questions": [
+    { "id": "01234567-0000-7000-8000-000000000101", "label": "", "type": "TEXT", "required": false, "order": 0 }
+  ]
+}

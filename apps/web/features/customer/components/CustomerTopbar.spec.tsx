@@ -123,20 +123,21 @@ describe('CustomerTopbar', () => {
     readonly label: string;
   }): React.JSX.Element {
     const status = useCustomerTopbarStatus();
+    const setBackHrefOverride = status?.setBackHrefOverride;
+    const setBackLabelOverride = status?.setBackLabelOverride;
     useEffect(() => {
-      status?.setBackHrefOverride(href);
-      status?.setBackLabelOverride(label);
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+      setBackHrefOverride?.(href);
+      setBackLabelOverride?.(label);
+    }, [href, label, setBackHrefOverride, setBackLabelOverride]);
     return <></>;
   }
 
   function BookingStatusSetter(): React.JSX.Element {
     const status = useCustomerTopbarStatus();
+    const setBookingStatus = status?.setBookingStatus;
     useEffect(() => {
-      status?.setBookingStatus('APPROVED');
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+      setBookingStatus?.('APPROVED');
+    }, [setBookingStatus]);
     return <></>;
   }
 

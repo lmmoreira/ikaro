@@ -5,7 +5,7 @@ const backendRoot = resolve(__dirname, '../..');
 // Load the actual CommonJS flat config rather than duplicating its rules in this spec. ESLint's
 // higher-level config loader uses dynamic import, which Jest's normal unit-test command does not
 // enable; Linter executes the same config array without that test-runtime dependency.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- load the real CommonJS flat config in this ESLint regression test
 const productionConfig = require(resolve(backendRoot, 'eslint.config.js')) as Linter.Config[];
 
 describe('TD37-S02 persistence boundary', () => {

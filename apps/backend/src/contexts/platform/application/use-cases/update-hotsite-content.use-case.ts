@@ -65,7 +65,13 @@ export class UpdateHotsiteContentUseCase {
         tenantId,
       );
 
-    const deletions = this.computeDeletions(oldPaths, branding, layout, seo, tenantId);
+    const deletions = this.imagePromotionService.computeDeletions(
+      oldPaths,
+      branding,
+      layout,
+      seo,
+      tenantId,
+    );
 
     await this.txManager.run(async () => {
       // Locked and re-read here, not before the transaction — carouselDays vs.
@@ -86,14 +92,18 @@ export class UpdateHotsiteContentUseCase {
       );
     });
 
-    // Symmetric with GetHotsiteContentUseCase/HotsiteContentReader.readResolved: stored fields
-    // are raw storage paths, not displayable URLs. Without this, the frontend receives a raw
-    // path here (unlike the resolved URL it gets from GET) and falls back to reconstructing one
-    // client-side — a reconstruction that only happens to match `getPublicUrl()`'s real
-    // `base/bucket/path` shape when the environment's public base URL bakes the bucket name in,
-    // which local dev's `.env` does but staging's Terraform-provisioned base URL deliberately
-    // does not (host-only, to allow a future custom-domain/CDN swap) — so the reopened editor
-    // silently shows a broken image after any Publish in staging/prod.
+    return this.buildResult(config);
+  }
+
+  // Symmetric with GetHotsiteContentUseCase/HotsiteContentReader.readResolved: stored fields
+  // are raw storage paths, not displayable URLs. Without this, the frontend receives a raw
+  // path here (unlike the resolved URL it gets from GET) and falls back to reconstructing one
+  // client-side — a reconstruction that only happens to match `getPublicUrl()`'s real
+  // `base/bucket/path` shape when the environment's public base URL bakes the bucket name in,
+  // which local dev's `.env` does but staging's Terraform-provisioned base URL deliberately
+  // does not (host-only, to allow a future custom-domain/CDN swap) — so the reopened editor
+  // silently shows a broken image after any Publish in staging/prod.
+  private buildResult(config: HotsiteConfig): UpdateHotsiteContentUseCaseResult {
     const resolved = this.imageUrlResolver.resolve(
       config.branding,
       config.layout,
@@ -118,18 +128,6 @@ export class UpdateHotsiteContentUseCase {
       layout: dto.layout ? this.toDomainLayout(dto.layout) : config.layout,
       seo: dto.seo ? { ...config.seo, ...dto.seo } : config.seo,
     };
-  }
-
-  private computeDeletions(
-    oldPaths: string[],
-    branding: HotsiteBranding,
-    layout: HotsiteModule[],
-    seo: HotsiteSeo,
-    tenantId: string,
-  ): string[] {
-    const newPaths = this.imagePathsService.collect(branding, layout, seo);
-    const tenantPrefix = `tenants/${tenantId}/`;
-    return oldPaths.filter((path) => !newPaths.includes(path) && path.startsWith(tenantPrefix));
   }
 
   private toDomainLayout(layout: UpdateHotsiteContentDto['layout']): HotsiteModule[] {
