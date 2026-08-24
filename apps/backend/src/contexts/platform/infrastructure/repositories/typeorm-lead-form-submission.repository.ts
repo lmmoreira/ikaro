@@ -4,7 +4,6 @@ import { Between, Repository } from 'typeorm';
 import { drainDomainEvents } from '../../../../shared/infrastructure/outbox/drain-domain-events';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
-import { endOfDayUTC, startOfDayUTC } from '../../../../shared/utils/calendar-date';
 import { ILeadFormSubmissionRepository } from '../../application/ports/lead-form-submission-repository.port';
 import { LeadFormSubmission } from '../../domain/lead-form-submission.aggregate';
 import { LeadFormSubmissionEntity } from '../entities/lead-form-submission.entity';
@@ -32,22 +31,20 @@ export class TypeOrmLeadFormSubmissionRepository implements ILeadFormSubmissionR
     await drainDomainEvents(submission, this.outboxPublisher);
   }
 
-  async countByTenantAndDate(tenantId: string, date: string): Promise<number> {
+  async countByTenantAndDate(tenantId: string, from: Date, to: Date): Promise<number> {
     return this.repo.count({
-      where: {
-        tenantId,
-        submittedAt: Between(new Date(startOfDayUTC(date)), new Date(endOfDayUTC(date))),
-      },
+      where: { tenantId, submittedAt: Between(from, to) },
     });
   }
 
-  async countByTenantIpAndDate(tenantId: string, ipAddress: string, date: string): Promise<number> {
+  async countByTenantIpAndDate(
+    tenantId: string,
+    ipAddress: string,
+    from: Date,
+    to: Date,
+  ): Promise<number> {
     return this.repo.count({
-      where: {
-        tenantId,
-        ipAddress,
-        submittedAt: Between(new Date(startOfDayUTC(date)), new Date(endOfDayUTC(date))),
-      },
+      where: { tenantId, ipAddress, submittedAt: Between(from, to) },
     });
   }
 

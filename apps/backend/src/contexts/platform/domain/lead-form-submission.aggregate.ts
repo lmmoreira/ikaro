@@ -53,7 +53,15 @@ export class LeadFormSubmission extends AggregateRoot {
 
   private constructor(props: LeadFormSubmissionProps) {
     super();
-    this.props = props;
+    // Deep-clone `answers` here (not just the outer array) so `this.props` is never aliased to
+    // caller-owned objects — a shallow `[...answers]` copy still shares each element's own
+    // object/array references, so a caller mutating an answer's `answerValue` (a string OR a
+    // string[] for MULTIPLE_CHOICE) after create()/reconstitute() would otherwise corrupt the
+    // aggregate's own "full snapshot" invariant (PR #417 review finding, M20-S02;
+    // docs/02-DOMAIN_MODEL.md § LeadFormSubmission). Covers both create() and reconstitute()
+    // uniformly since both funnel through this constructor. Same pattern TenantSettings'
+    // businessHours getter already uses (structuredClone) for a nested mutable prop.
+    this.props = { ...props, answers: structuredClone(props.answers) };
   }
 
   get id(): string {
@@ -75,7 +83,9 @@ export class LeadFormSubmission extends AggregateRoot {
     return this.props.phone;
   }
   get answers(): LeadFormAnswer[] {
-    return [...this.props.answers];
+    // Fresh deep clone on every access — a caller mutating a previously returned answer must
+    // never corrupt the aggregate's own stored state or a later read (PR #417 review finding).
+    return structuredClone(this.props.answers);
   }
   get submittedAt(): Date {
     return this.props.submittedAt;
@@ -117,7 +127,7 @@ export class LeadFormSubmission extends AggregateRoot {
       name: normalizedName,
       email: emailVo,
       phone: phoneVo,
-      answers: [...answers],
+      answers,
       submittedAt,
       expiresAt,
       ipAddress,

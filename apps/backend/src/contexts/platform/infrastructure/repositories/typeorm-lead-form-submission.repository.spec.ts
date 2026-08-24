@@ -1,4 +1,4 @@
-import { EntityManager, Repository } from 'typeorm';
+import { Between, EntityManager, Repository } from 'typeorm';
 import { runWithEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { LeadFormSubmissionBuilder } from '../../../../test/builders/platform/lead-form-submission.builder';
@@ -92,32 +92,36 @@ describe('TypeOrmLeadFormSubmissionRepository', () => {
   });
 
   describe('countByTenantAndDate', () => {
-    it('counts scoped by tenant and the UTC day range for the given date', async () => {
+    it('counts scoped by tenant, filtered by the given real UTC instant range', async () => {
       mockRepo.count.mockResolvedValue(3);
+      const from = new Date('2026-06-01T00:00:00.000Z');
+      const to = new Date('2026-06-01T23:59:59.999Z');
 
-      const result = await repo.countByTenantAndDate('tenant-id-1', '2026-06-01');
+      const result = await repo.countByTenantAndDate('tenant-id-1', from, to);
 
       expect(result).toBe(3);
-      expect(mockRepo.count).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({ tenantId: 'tenant-id-1' }),
-        }),
-      );
+      expect(mockRepo.count).toHaveBeenCalledWith({
+        where: { tenantId: 'tenant-id-1', submittedAt: Between(from, to) },
+      });
     });
   });
 
   describe('countByTenantIpAndDate', () => {
-    it('counts scoped by tenant, ip and the UTC day range for the given date', async () => {
+    it('counts scoped by tenant, ip, filtered by the given real UTC instant range', async () => {
       mockRepo.count.mockResolvedValue(1);
+      const from = new Date('2026-06-01T00:00:00.000Z');
+      const to = new Date('2026-06-01T23:59:59.999Z');
 
-      const result = await repo.countByTenantIpAndDate('tenant-id-1', '203.0.113.10', '2026-06-01');
+      const result = await repo.countByTenantIpAndDate('tenant-id-1', '203.0.113.10', from, to);
 
       expect(result).toBe(1);
-      expect(mockRepo.count).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({ tenantId: 'tenant-id-1', ipAddress: '203.0.113.10' }),
-        }),
-      );
+      expect(mockRepo.count).toHaveBeenCalledWith({
+        where: {
+          tenantId: 'tenant-id-1',
+          ipAddress: '203.0.113.10',
+          submittedAt: Between(from, to),
+        },
+      });
     });
   });
 });

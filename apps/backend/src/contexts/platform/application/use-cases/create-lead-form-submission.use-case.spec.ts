@@ -1,6 +1,7 @@
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryTenantSettingsPort } from '../../../../test/infrastructure/in-memory-tenant-settings.port';
 import { InMemoryLeadFormSubmissionRepository } from '../../../../test/repositories/platform/in-memory-lead-form-submission.repository';
+import { localDayBoundsUTC } from '../../../../shared/utils/calendar-date';
 import { LeadFormDailyCapReachedError } from '../../domain/errors/lead-form-domain.error';
 import { LeadFormAnswer } from '../../domain/lead-form-submission.aggregate';
 import { TenantSettings } from '../../domain/value-objects/tenant-settings.vo';
@@ -97,7 +98,8 @@ describe('CreateLeadFormSubmissionUseCase', () => {
     await useCase.execute(baseInput());
     await expect(useCase.execute(baseInput())).rejects.toBeInstanceOf(LeadFormDailyCapReachedError);
 
-    const count = await repo.countByTenantAndDate(TENANT_A, new Date().toISOString().slice(0, 10));
+    const { start, end } = localDayBoundsUTC(new Date(), 'America/Sao_Paulo');
+    const count = await repo.countByTenantAndDate(TENANT_A, start, end);
     expect(count).toBe(1);
   });
 

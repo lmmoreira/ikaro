@@ -7,7 +7,7 @@ import {
   ITenantSettingsPort,
   TENANT_SETTINGS_PORT,
 } from '../../../../shared/ports/tenant-settings.port';
-import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
+import { localDayBoundsUTC } from '../../../../shared/utils/calendar-date';
 import type { LeadFormSettings } from '../../../../shared/value-objects/tenant-settings-data';
 import {
   DEFAULT_LEAD_FORM_RETENTION_MONTHS,
@@ -50,13 +50,16 @@ export class CreateLeadFormSubmissionUseCase {
   ): Promise<CreateLeadFormSubmissionUseCaseResult> {
     const settings = await this.settingsPort.getSettings(input.tenantId);
     const leadFormSettings = settings.leadForm;
-    // Bucketed in the tenant's own local calendar day (same mechanism Chatbot's own daily caps
-    // use — chatbot-session-resolution.helpers.ts's checkNewSessionVolumeCaps), not a bare UTC
-    // day, so a submission near local midnight counts against the correct day from the
-    // submitter's own perspective.
-    const date = utcDateToLocalDate(new Date(), settings.businessHours.timezone);
+    // Bucketed in the tenant's own local calendar day (same intent as Chatbot's own daily caps —
+    // chatbot-session-resolution.helpers.ts's checkNewSessionVolumeCaps), so a submission near
+    // local midnight counts against the correct day from the submitter's own perspective. Passes
+    // real UTC instant boundaries through to the repository rather than a bare date string
+    // re-interpreted as a UTC day — see localDayBoundsUTC()'s own doc comment (PR #417 review
+    // finding, M20-S02: the earlier version derived a *local* date via utcDateToLocalDate() but
+    // the repository then queried it as a *UTC* day, miscounting submissions near local midnight).
+    const { start, end } = localDayBoundsUTC(new Date(), settings.businessHours.timezone);
 
-    await this.enforceVolumeCaps(input.tenantId, input.ipAddress, date, leadFormSettings);
+    await this.enforceVolumeCaps(input.tenantId, input.ipAddress, start, end, leadFormSettings);
 
     const retentionMonths = leadFormSettings?.retentionMonths ?? DEFAULT_LEAD_FORM_RETENTION_MONTHS;
 
@@ -83,16 +86,17 @@ export class CreateLeadFormSubmissionUseCase {
   private async enforceVolumeCaps(
     tenantId: string,
     ipAddress: string,
-    date: string,
+    from: Date,
+    to: Date,
     leadFormSettings: LeadFormSettings | undefined,
   ): Promise<void> {
     const maxPerDay = leadFormSettings?.maxSubmissionsPerDay ?? DEFAULT_MAX_SUBMISSIONS_PER_DAY;
-    const dailyCount = await this.repo.countByTenantAndDate(tenantId, date);
+    const dailyCount = await this.repo.countByTenantAndDate(tenantId, from, to);
     if (dailyCount >= maxPerDay) throw new LeadFormDailyCapReachedError();
 
     const maxPerIpPerDay =
       leadFormSettings?.maxSubmissionsPerIpPerDay ?? DEFAULT_MAX_SUBMISSIONS_PER_IP_PER_DAY;
-    const ipDailyCount = await this.repo.countByTenantIpAndDate(tenantId, ipAddress, date);
+    const ipDailyCount = await this.repo.countByTenantIpAndDate(tenantId, ipAddress, from, to);
     if (ipDailyCount >= maxPerIpPerDay) throw new LeadFormDailyCapReachedError();
   }
 }

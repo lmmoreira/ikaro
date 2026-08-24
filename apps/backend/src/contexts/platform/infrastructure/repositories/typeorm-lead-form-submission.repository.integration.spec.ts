@@ -10,8 +10,9 @@ import { OutboxPublisher } from '../../../../shared/infrastructure/outbox/outbox
 import { OutboxRelayService } from '../../../../shared/infrastructure/outbox/outbox-relay.service';
 import { TypeOrmOutboxRepository } from '../../../../shared/infrastructure/outbox/typeorm-outbox.repository';
 import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typeorm-transaction-manager';
-import { todayUTC } from '../../../../shared/utils/calendar-date';
+import { localDayBoundsUTC } from '../../../../shared/utils/calendar-date';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
+import { LeadFormSubmissionBuilder } from '../../../../test/builders/platform/lead-form-submission.builder';
 import { LeadFormSubmission } from '../../domain/lead-form-submission.aggregate';
 import { TenantEntity } from '../entities/tenant.entity';
 import { LeadFormSubmissionEntity } from '../entities/lead-form-submission.entity';
@@ -169,35 +170,79 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
   describe('countByTenantAndDate / countByTenantIpAndDate — tenant isolation (CLAUDE.md §2)', () => {
     it('Tenant B submissions never count against Tenant A cap, and vice versa', async () => {
       const repo = makeRepo(new InMemoryEventBus());
-      const date = todayUTC();
+      const { start, end } = localDayBoundsUTC(new Date(), 'UTC');
       const sharedIp = '198.51.100.20';
 
       await txManager.run(() => repo.save(buildSubmission(TENANT_A, { ipAddress: sharedIp })));
       await txManager.run(() => repo.save(buildSubmission(TENANT_A, { ipAddress: sharedIp })));
       await txManager.run(() => repo.save(buildSubmission(TENANT_B, { ipAddress: sharedIp })));
 
-      const countA = await repo.countByTenantAndDate(TENANT_A, date);
-      const countB = await repo.countByTenantAndDate(TENANT_B, date);
+      const countA = await repo.countByTenantAndDate(TENANT_A, start, end);
+      const countB = await repo.countByTenantAndDate(TENANT_B, start, end);
       expect(countA).toBe(2);
       expect(countB).toBe(1);
 
-      const ipCountA = await repo.countByTenantIpAndDate(TENANT_A, sharedIp, date);
-      const ipCountB = await repo.countByTenantIpAndDate(TENANT_B, sharedIp, date);
+      const ipCountA = await repo.countByTenantIpAndDate(TENANT_A, sharedIp, start, end);
+      const ipCountB = await repo.countByTenantIpAndDate(TENANT_B, sharedIp, start, end);
       expect(ipCountA).toBe(2);
       expect(ipCountB).toBe(1);
     });
 
-    it('countByTenantAndDate only counts rows submitted on the given UTC calendar day', async () => {
+    it('countByTenantAndDate only counts rows submitted within the given instant range', async () => {
       const repo = makeRepo(new InMemoryEventBus());
       const submission = buildSubmission(TENANT_A);
       await txManager.run(() => repo.save(submission));
 
-      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-      const countYesterday = await repo.countByTenantAndDate(TENANT_A, yesterday);
-      const countToday = await repo.countByTenantAndDate(TENANT_A, todayUTC());
+      const { start: todayStart, end: todayEnd } = localDayBoundsUTC(new Date(), 'UTC');
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const { start: yesterdayStart, end: yesterdayEnd } = localDayBoundsUTC(yesterday, 'UTC');
+
+      const countYesterday = await repo.countByTenantAndDate(
+        TENANT_A,
+        yesterdayStart,
+        yesterdayEnd,
+      );
+      const countToday = await repo.countByTenantAndDate(TENANT_A, todayStart, todayEnd);
 
       expect(countYesterday).toBe(0);
       expect(countToday).toBe(1);
+    });
+
+    it('correctly buckets a submission near local midnight for a non-UTC tenant, against a real Postgres timestamptz column (PR #417 review finding)', async () => {
+      const repo = makeRepo(new InMemoryEventBus());
+      // 2026-08-25T01:00:00Z is 2026-08-24T22:00:00 local (America/Sao_Paulo, UTC-3) — still local
+      // Aug 24. A bare UTC-day window for the same instant would NOT contain it — the exact bug
+      // localDayBoundsUTC()/the use case's own real-instant-boundaries fix closes.
+      const submittedAt = new Date('2026-08-25T01:00:00.000Z');
+      const submission = new LeadFormSubmissionBuilder()
+        .withTenantId(TENANT_A)
+        .withSubmittedAt(submittedAt)
+        .build();
+      await txManager.run(() => repo.save(submission));
+
+      const localBounds = localDayBoundsUTC(submittedAt, 'America/Sao_Paulo');
+      const countLocalDay = await repo.countByTenantAndDate(
+        TENANT_A,
+        localBounds.start,
+        localBounds.end,
+      );
+      expect(countLocalDay).toBe(1);
+
+      // The old (buggy) implementation resolved the *local* date string ("2026-08-24") and then
+      // queried a bare UTC-day window for that same literal string (2026-08-24T00:00:00Z through
+      // 2026-08-24T23:59:59.999Z) — which does NOT contain this instant (2026-08-25T01:00:00Z),
+      // so the old logic would have silently missed this submission when checking the local-day
+      // cap. Asserting against that exact window proves this specific bug class is closed.
+      const oldBuggyUtcDayBounds = {
+        start: new Date('2026-08-24T00:00:00.000Z'),
+        end: new Date('2026-08-24T23:59:59.999Z'),
+      };
+      const countUnderOldBuggyLogic = await repo.countByTenantAndDate(
+        TENANT_A,
+        oldBuggyUtcDayBounds.start,
+        oldBuggyUtcDayBounds.end,
+      );
+      expect(countUnderOldBuggyLogic).toBe(0);
     });
   });
 });

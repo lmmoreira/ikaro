@@ -116,6 +116,48 @@ describe('LeadFormSubmission', () => {
       expect(submission.answers).toHaveLength(1);
     });
 
+    it('deep-snapshots each answer — mutating the caller-owned array or a nested answer object after create() does not affect the aggregate (PR #417 review finding)', () => {
+      const callerAnswers: LeadFormAnswer[] = [
+        {
+          questionId: 'q1',
+          questionLabel: 'Como você nos conheceu?',
+          questionType: 'MULTIPLE_CHOICE',
+          answerValue: ['Instagram'],
+        },
+      ];
+      const submission = LeadFormSubmission.create(baseParams({ answers: callerAnswers }));
+
+      // Mutate the caller's own array, a nested answer object, and a nested answerValue array —
+      // all AFTER create() already returned. A shallow `[...answers]` copy would still alias
+      // every element (and its own answerValue array) to these same caller-owned objects.
+      callerAnswers[0].questionLabel = 'mutated-after-create';
+      (callerAnswers[0].answerValue as string[]).push('Facebook');
+      callerAnswers.push({
+        questionId: 'q2',
+        questionLabel: 'injected',
+        questionType: 'TEXT',
+        answerValue: 'x',
+      });
+
+      expect(submission.answers).toEqual([
+        {
+          questionId: 'q1',
+          questionLabel: 'Como você nos conheceu?',
+          questionType: 'MULTIPLE_CHOICE',
+          answerValue: ['Instagram'],
+        },
+      ]);
+    });
+
+    it('answers getter returns a fresh deep copy on every access — mutating a previously returned answer does not corrupt a later read', () => {
+      const submission = LeadFormSubmission.create(baseParams());
+      const firstRead = submission.answers;
+      firstRead[0].answerValue = 'mutated-via-getter';
+
+      const secondRead = submission.answers;
+      expect(secondRead[0].answerValue).toBe('Instagram');
+    });
+
     it('computes expiresAt from the given retentionMonths, correct for each call independently', () => {
       const submissionA = LeadFormSubmission.create(baseParams({ retentionMonths: 6 }));
       const submissionB = LeadFormSubmission.create(baseParams({ retentionMonths: 12 }));

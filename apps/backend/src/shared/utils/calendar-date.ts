@@ -76,3 +76,22 @@ export function endOfDayUTC(date: string): string {
 export function addMonthsUTC(date: Date, months: number): Date {
   return DateTime.fromJSDate(date, { zone: 'utc' }).plus({ months }).toJSDate();
 }
+
+/**
+ * Returns the [start, end] UTC instant boundaries of "today" in the given IANA timezone, as of
+ * `now`. Use this for a per-tenant local-calendar-day range query against a UTC-stored timestamp
+ * column (e.g. a daily submission-cap COUNT) — resolving a local date via `utcDateToLocalDate()`
+ * and then re-interpreting that YYYY-MM-DD string as a *UTC* day via `startOfDayUTC()`/
+ * `endOfDayUTC()` silently miscounts rows near local midnight for any non-UTC timezone (PR #417
+ * review finding, M20-S02, 2026-08-24): a submission at 22:00 local (America/Sao_Paulo, UTC-3) on
+ * Aug 24 lands at 01:00 UTC on Aug 25 — outside a UTC-day-24 window even though it's still local
+ * Aug 24. Passing real UTC instant boundaries end-to-end (this function) avoids the round-trip
+ * through an ambiguous bare date string entirely.
+ */
+export function localDayBoundsUTC(now: Date, timezone: string): { start: Date; end: Date } {
+  const zoned = DateTime.fromJSDate(now, { zone: 'utc' }).setZone(timezone);
+  return {
+    start: zoned.startOf('day').toUTC().toJSDate(),
+    end: zoned.endOf('day').toUTC().toJSDate(),
+  };
+}
