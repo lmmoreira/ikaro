@@ -35,8 +35,8 @@
   <!--
     COMPONENT: DropInConfirmStep
     ACTION:    POST /v1/enrollments { type: 'DROP_IN', sessionId, classTypeId }
-               201 → enrollment.status = ACTIVE → 04-success-ativo.html
-               201 + status = WAITLIST → 04b-success-waitlist.html  (race condition: vaga foi tomada)
+               201 → enrollment.status = CONFIRMED → 04-success-ativo.html
+               201 + status = WAITLISTED → 04b-success-waitlist.html  (race condition: vaga foi tomada)
     NOTE:      Se o cliente veio da tela 01b (lotada), este mesmo resumo aparece mas com
                o badge "Lista de espera" e o botão "Confirmar entrada na fila".
   -->
