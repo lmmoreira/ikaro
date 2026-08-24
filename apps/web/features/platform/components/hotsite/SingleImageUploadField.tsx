@@ -192,6 +192,7 @@ export function SingleImageUploadField({
         className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-gray-200 bg-gray-50 px-6 py-8 text-center transition hover:border-blue-300 hover:bg-blue-50/50"
       >
         {displaySrc && status !== 'uploading' && (
+          /* eslint-disable-next-line @next/next/no-img-element -- preview may be a local object URL or signed storage URL */
           <img
             src={displaySrc}
             alt=""

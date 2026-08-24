@@ -1,6 +1,7 @@
 'use client';
 
 import { ChevronDown } from 'lucide-react';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { fetchCustomerTenants } from '@/features/auth/api';
@@ -58,22 +59,22 @@ export function HotsiteAuthBarDropdown({
           borderRadius: 'var(--ba-radius)',
         }}
       >
-        <a
+        <Link
           href={`/${slug}/my-account`}
           className="block px-4 py-2.5 text-sm font-medium"
           style={{ color: 'var(--ba-text)' }}
         >
           {t('myAccount')}
-        </a>
+        </Link>
         {hasMultipleTenants && (
-          <a
+          <Link
             href="/switch-tenant"
             data-testid="hotsite-switch-tenant-link"
             className="block px-4 py-2.5 text-sm font-medium"
             style={{ color: 'var(--ba-text)' }}
           >
             {t('switchTenant')}
-          </a>
+          </Link>
         )}
         <hr style={{ borderColor: 'var(--ba-background)' }} />
         <a

@@ -127,6 +127,7 @@ export function MarkCompleteBookingPage({
               </p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {booking.beforeServicePhotoUrls.map((url, index) => (
+                  /* eslint-disable-next-line @next/next/no-img-element -- signed storage URLs are rendered as native thumbnails */
                   <img
                     key={`${url}-${index}`}
                     src={url}

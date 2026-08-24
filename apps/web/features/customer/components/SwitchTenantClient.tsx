@@ -4,19 +4,21 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type React from 'react';
-import type { TenantOption } from '@ikaro/types';
+import type { HotsiteBrandingResponse, TenantOption } from '@ikaro/types';
 import { fetchCustomerTenants, switchTenant } from '@/features/auth/api';
 import { ErrorAlert } from '@/features/booking/components/public/ErrorAlert';
 import { TenantAvatar, TenantOptionRow } from './TenantOptionRow';
 
 interface SwitchTenantClientProps {
   readonly currentTenantSlug: string | null;
+  readonly branding?: HotsiteBrandingResponse;
 }
 
 type FetchState = 'loading' | 'loaded' | 'error';
 
 export function SwitchTenantClient({
   currentTenantSlug,
+  branding,
 }: SwitchTenantClientProps): React.JSX.Element {
   const t = useTranslations('auth');
   const router = useRouter();
@@ -61,18 +63,24 @@ export function SwitchTenantClient({
   }
 
   const currentTenant = tenants.find((tenant) => tenant.slug === currentTenantSlug);
+  const backgroundColor = branding?.backgroundColor ?? '#f9fafb';
+  const textColor = branding?.textColor ?? '#111827';
+  const secondaryColor = branding?.secondaryColor ?? '#e5e7eb';
+  const primaryColor = branding?.primaryColor ?? '#4f46e5';
+  const borderRadius = branding?.borderRadius === 'pill' ? '9999px' : '8px';
+  const resolvedBorderRadius = branding?.borderRadius === 'sharp' ? '0px' : borderRadius;
 
   return (
     <main
       className="flex min-h-screen items-center justify-center px-6 py-16"
-      style={{ backgroundColor: 'var(--ba-background)' }}
+      style={{ backgroundColor }}
     >
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           {currentTenant && (
             <div className="mb-3 flex flex-col items-center gap-2">
               <TenantAvatar name={currentTenant.name} size="sm" />
-              <p className="text-sm font-bold" style={{ color: 'var(--ba-text)' }}>
+              <p className="text-sm font-bold" style={{ color: textColor }}>
                 {currentTenant.name}
               </p>
             </div>
@@ -80,11 +88,11 @@ export function SwitchTenantClient({
           <h1
             data-testid="switch-tenant-heading"
             className="text-xl font-bold"
-            style={{ color: 'var(--ba-text)' }}
+            style={{ color: textColor }}
           >
             {t('switchTenantHeading')}
           </h1>
-          <p className="mt-1.5 text-sm opacity-60" style={{ color: 'var(--ba-text)' }}>
+          <p className="mt-1.5 text-sm opacity-60" style={{ color: textColor }}>
             {t('switchTenantSubtitle')}
           </p>
         </div>
@@ -95,7 +103,7 @@ export function SwitchTenantClient({
               <div
                 key={i}
                 className="h-[4.5rem] animate-pulse"
-                style={{ backgroundColor: 'var(--ba-secondary)', borderRadius: 'var(--ba-radius)' }}
+                style={{ backgroundColor: secondaryColor, borderRadius: resolvedBorderRadius }}
               />
             ))}
           </div>
@@ -144,13 +152,14 @@ export function SwitchTenantClient({
               // to land (the tenant they're already authenticated against), so go there directly
               // instead of relying on history.
               if (currentTenantSlug) {
+                // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- hard reload avoids stale authenticated hotsite back-forward cache
                 globalThis.location.href = `/${currentTenantSlug}`;
               } else {
                 router.back();
               }
             }}
             className="cursor-pointer text-sm font-medium"
-            style={{ color: 'var(--ba-primary)' }}
+            style={{ color: primaryColor }}
           >
             {t('switchTenantBack')}
           </button>

@@ -143,6 +143,7 @@ export function GalleryImageManager({
         <div data-testid="gallery-grid" className="mb-3 grid grid-cols-3 gap-3">
           {images.map((image, index) => (
             <div key={`${image.url}-${index}`} className="rounded-md border border-gray-200 p-2">
+              {/* eslint-disable-next-line @next/next/no-img-element -- gallery previews use resolved signed URLs and native load events */}
               <img
                 src={displayUrl(image)}
                 alt=""

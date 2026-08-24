@@ -112,14 +112,14 @@ export function buildHotsiteModuleRenderPlan(
   const items: HotsiteModuleRenderPlanItem[] = [];
   let altIndex = 0;
 
-  for (const module of layout) {
-    if (!module.enabled) continue;
+  for (const layoutModule of layout) {
+    if (!layoutModule.enabled) continue;
 
-    const parsed = tryParseModule(module);
+    const parsed = tryParseModule(layoutModule);
     if (parsed === null) continue;
 
     const isAlt = alternateSectionBg && altIndex % 2 === 1;
-    const participates = !NON_ALTERNATING_TYPES.has(module.type);
+    const participates = !NON_ALTERNATING_TYPES.has(layoutModule.type);
     altIndex++;
 
     items.push({ parsed, bgVariant: participates && isAlt ? 'alt' : 'default' });
