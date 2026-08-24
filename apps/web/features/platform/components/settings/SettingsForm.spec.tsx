@@ -78,6 +78,7 @@ function buildTenant(): TenantSettingsResponse {
       },
       notification: { fromEmail: null },
       chatbot: { knowledgeText: 'Aceitamos Pix e cartão.' },
+      leadForm: { retentionMonths: 6, maxSubmissionsPerDay: 100, maxSubmissionsPerIpPerDay: 3 },
     },
   };
 }

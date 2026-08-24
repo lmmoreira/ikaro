@@ -64,6 +64,7 @@ function buildTenant(overrides?: Partial<TenantSettingsResponse>): TenantSetting
       },
       notification: { fromEmail: null },
       chatbot: { knowledgeText: '' },
+      leadForm: { retentionMonths: 6, maxSubmissionsPerDay: 100, maxSubmissionsPerIpPerDay: 3 },
     },
     ...overrides,
   };

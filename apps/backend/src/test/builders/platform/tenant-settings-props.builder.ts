@@ -2,6 +2,7 @@ import {
   BookingSettings,
   BusinessInfo,
   ChatbotSettings,
+  LeadFormSettings,
   LocalizationSettings,
   LoyaltySettings,
   NotificationSettings,
@@ -73,6 +74,11 @@ export class TenantSettingsPropsBuilder {
 
   withChatbot(overrides: Partial<ChatbotSettings>): this {
     this.props.chatbot = { knowledgeText: '', ...this.props.chatbot, ...overrides };
+    return this;
+  }
+
+  withLeadForm(overrides: Partial<LeadFormSettings>): this {
+    this.props.leadForm = { ...this.props.leadForm, ...overrides };
     return this;
   }
 

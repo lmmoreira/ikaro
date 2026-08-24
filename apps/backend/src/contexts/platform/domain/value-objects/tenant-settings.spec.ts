@@ -8,6 +8,19 @@ import { TenantSettings } from './tenant-settings.vo';
 import { TenantSettingsPropsBuilder } from '../../../../test/builders/platform';
 
 describe('TenantSettings', () => {
+  describe('reconstitute()', () => {
+    it('backfills leadForm defaults for a tenant created before M20-S03', () => {
+      const legacyProps = new TenantSettingsPropsBuilder().build();
+      delete (legacyProps as Partial<typeof legacyProps>).leadForm;
+
+      expect(TenantSettings.reconstitute(legacyProps).leadForm).toEqual({
+        retentionMonths: 6,
+        maxSubmissionsPerDay: 100,
+        maxSubmissionsPerIpPerDay: 3,
+      });
+    });
+  });
+
   describe('default()', () => {
     it('returns settings with all default values', () => {
       const settings = TenantSettings.default();
@@ -37,6 +50,11 @@ describe('TenantSettings', () => {
         socialLinks: null,
       });
       expect(settings.chatbot).toEqual({ knowledgeText: '' });
+      expect(settings.leadForm).toEqual({
+        retentionMonths: 6,
+        maxSubmissionsPerDay: 100,
+        maxSubmissionsPerIpPerDay: 3,
+      });
     });
 
     it('accepts a custom timezone', () => {

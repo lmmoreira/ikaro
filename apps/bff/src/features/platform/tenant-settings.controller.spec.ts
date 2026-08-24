@@ -45,6 +45,11 @@ const settingsResponse: TenantSettingsResponse = {
     chatbot: {
       knowledgeText: '',
     },
+    leadForm: {
+      retentionMonths: 6,
+      maxSubmissionsPerDay: 100,
+      maxSubmissionsPerIpPerDay: 3,
+    },
   },
 };
 
@@ -114,6 +119,21 @@ describe('TenantSettingsController', () => {
   });
 
   describe('UpdateTenantSettingsBodySchema', () => {
+    it('accepts partial leadForm settings', () => {
+      const result = UpdateTenantSettingsBodySchema.safeParse({
+        settings: { leadForm: { maxSubmissionsPerDay: 250 } },
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it('rejects leadForm settings outside their documented bounds', () => {
+      const result = UpdateTenantSettingsBodySchema.safeParse({
+        settings: { leadForm: { maxSubmissionsPerIpPerDay: 101 } },
+      });
+
+      expect(result.success).toBe(false);
+    });
     it('rejects an empty settings object (no-op update)', () => {
       const result = UpdateTenantSettingsBodySchema.safeParse({ settings: {} });
 

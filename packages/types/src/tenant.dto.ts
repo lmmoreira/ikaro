@@ -80,6 +80,12 @@ export interface TenantChatbotSettings {
   knowledgeText: string;
 }
 
+export interface TenantLeadFormSettings {
+  retentionMonths: number;
+  maxSubmissionsPerDay: number;
+  maxSubmissionsPerIpPerDay: number;
+}
+
 export interface TenantSettings {
   loyalty: TenantLoyaltySettings;
   booking: TenantBookingSettings;
@@ -94,6 +100,7 @@ export interface TenantSettings {
   // getter's result, which always resolves knowledgeText (defaulting to '' for any tenant whose
   // stored settings predate M19-S04). The response genuinely can never omit this field.
   chatbot: TenantChatbotSettings;
+  leadForm: TenantLeadFormSettings;
 }
 
 export interface TenantSettingsResponse {
@@ -117,6 +124,7 @@ export interface UpdateTenantSettingsRequest {
       socialLinks?: Partial<TenantSocialLinks> | null;
     };
     chatbot?: Partial<TenantChatbotSettings>;
+    leadForm?: Partial<TenantLeadFormSettings>;
   };
 }
 

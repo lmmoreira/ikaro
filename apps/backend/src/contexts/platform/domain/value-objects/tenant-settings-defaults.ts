@@ -3,6 +3,7 @@ import type {
   BookingSettings,
   BusinessInfo,
   ChatbotSettings,
+  LeadFormSettings,
   LoyaltySettings,
   NotificationSettings,
 } from '../../../../shared/value-objects/tenant-settings-data';
@@ -35,6 +36,12 @@ export const DEFAULT_BUSINESS_INFO_SETTINGS: BusinessInfo = {
 };
 
 export const DEFAULT_CHATBOT_SETTINGS: ChatbotSettings = { knowledgeText: '' };
+
+export const DEFAULT_LEAD_FORM_SETTINGS: LeadFormSettings = {
+  retentionMonths: 6,
+  maxSubmissionsPerDay: 100,
+  maxSubmissionsPerIpPerDay: 3,
+};
 
 export function buildDefaultBusinessHours(timezone: string): BusinessHours {
   return {

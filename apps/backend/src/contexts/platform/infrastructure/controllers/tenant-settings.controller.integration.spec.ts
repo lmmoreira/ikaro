@@ -77,6 +77,11 @@ describe('TenantSettingsController (integration)', () => {
     expect(body.settings.loyalty).toBeDefined();
     expect(body.settings.booking).toBeDefined();
     expect(body.settings.chatbot).toEqual({ knowledgeText: '' });
+    expect(body.settings.leadForm).toEqual({
+      retentionMonths: 6,
+      maxSubmissionsPerDay: 100,
+      maxSubmissionsPerIpPerDay: 3,
+    });
   });
 
   it('returns 200 on GET when X-Actor-Role is STAFF', async () => {

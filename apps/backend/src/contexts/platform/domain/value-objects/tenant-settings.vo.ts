@@ -7,6 +7,7 @@ import type {
   BusinessInfo,
   BookingSettings,
   ChatbotSettings,
+  LeadFormSettings,
   LocalizationSettings,
   LoyaltySettings,
   NotificationSettings,
@@ -17,6 +18,7 @@ import { BookingSettingsValidator } from './validators/booking-settings.validato
 import { BusinessHoursValidator } from './validators/business-hours.validator';
 import { BusinessInfoValidator } from './validators/business-info.validator';
 import { ChatbotSettingsValidator } from './validators/chatbot-settings.validator';
+import { LeadFormSettingsValidator } from './validators/lead-form-settings.validator';
 import { LocalizationSettingsValidator } from './validators/localization-settings.validator';
 import { LoyaltySettingsValidator } from './validators/loyalty-settings.validator';
 import { NotificationSettingsValidator } from './validators/notification-settings.validator';
@@ -25,6 +27,7 @@ import {
   DEFAULT_BOOKING_SETTINGS,
   DEFAULT_BUSINESS_INFO_SETTINGS,
   DEFAULT_CHATBOT_SETTINGS,
+  DEFAULT_LEAD_FORM_SETTINGS,
   DEFAULT_LOYALTY_SETTINGS,
   DEFAULT_NOTIFICATION_SETTINGS,
   buildDefaultBusinessHours,
@@ -35,6 +38,7 @@ export type {
   BookingSettings,
   BusinessInfo,
   ChatbotSettings,
+  LeadFormSettings,
   LocalizationSettings,
   LoyaltySettings,
   NotificationSettings,
@@ -102,6 +106,10 @@ export class TenantSettings {
     return { knowledgeText: '', ...this.props.chatbot };
   }
 
+  get leadForm(): LeadFormSettings {
+    return { ...this.props.leadForm };
+  }
+
   toJSON(): TenantSettingsProps {
     const clone = structuredClone(this.props);
     return {
@@ -131,6 +139,7 @@ export class TenantSettings {
       notification: DEFAULT_NOTIFICATION_SETTINGS,
       businessInfo: DEFAULT_BUSINESS_INFO_SETTINGS,
       chatbot: DEFAULT_CHATBOT_SETTINGS,
+      leadForm: DEFAULT_LEAD_FORM_SETTINGS,
     });
   }
 
@@ -156,6 +165,7 @@ export class TenantSettings {
   static reconstitute(props: TenantSettingsProps): TenantSettings {
     return new TenantSettings({
       ...props,
+      leadForm: props.leadForm ?? DEFAULT_LEAD_FORM_SETTINGS,
       booking: {
         ...props.booking,
         welcomeStaffScreenDays: props.booking.welcomeStaffScreenDays ?? 14,
@@ -171,6 +181,7 @@ export class TenantSettings {
     NotificationSettingsValidator.validate(props.notification);
     BusinessInfoValidator.validate(props.businessInfo);
     ChatbotSettingsValidator.validate(props.chatbot);
+    LeadFormSettingsValidator.validate(props.leadForm);
   }
 
   private static normalizeBusinessInfo(

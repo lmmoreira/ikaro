@@ -129,6 +129,14 @@ export const ChatbotSettingsSchema = z
   .partial()
   .strict();
 
+export const LeadFormSettingsSchema = z
+  .object({
+    retentionMonths: z.number().int().min(1).max(24),
+    maxSubmissionsPerDay: z.number().int().min(1).max(1000),
+    maxSubmissionsPerIpPerDay: z.number().int().min(1).max(100),
+  })
+  .partial();
+
 /**
  * Full `PATCH /tenants/settings` body composition, shared by both apps. Takes the caller's own
  * `localization` schema as a parameter — the one category that isn't fully shareable (backend
@@ -148,6 +156,7 @@ export function buildUpdateTenantSettingsSchema<T extends z.ZodTypeAny>(localiza
         localization: localizationSchema.optional(),
         businessInfo: BusinessInfoSettingsSchema.optional(),
         chatbot: ChatbotSettingsSchema.optional(),
+        leadForm: LeadFormSettingsSchema.optional(),
       })
       .strict()
       .refine((settings) => Object.values(settings).some((value) => value !== undefined), {
