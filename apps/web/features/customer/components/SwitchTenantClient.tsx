@@ -4,8 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type React from 'react';
-import type { TenantOption } from '@ikaro/types';
-import type { HotsiteBrandingResponse } from '@ikaro/types';
+import type { HotsiteBrandingResponse, TenantOption } from '@ikaro/types';
 import { fetchCustomerTenants, switchTenant } from '@/features/auth/api';
 import { ErrorAlert } from '@/features/booking/components/public/ErrorAlert';
 import { TenantAvatar, TenantOptionRow } from './TenantOptionRow';
@@ -68,12 +67,8 @@ export function SwitchTenantClient({
   const textColor = branding?.textColor ?? '#111827';
   const secondaryColor = branding?.secondaryColor ?? '#e5e7eb';
   const primaryColor = branding?.primaryColor ?? '#4f46e5';
-  const borderRadius =
-    branding?.borderRadius === 'pill'
-      ? '9999px'
-      : branding?.borderRadius === 'sharp'
-        ? '0px'
-        : '8px';
+  const borderRadius = branding?.borderRadius === 'pill' ? '9999px' : '8px';
+  const resolvedBorderRadius = branding?.borderRadius === 'sharp' ? '0px' : borderRadius;
 
   return (
     <main
@@ -108,7 +103,7 @@ export function SwitchTenantClient({
               <div
                 key={i}
                 className="h-[4.5rem] animate-pulse"
-                style={{ backgroundColor: secondaryColor, borderRadius }}
+                style={{ backgroundColor: secondaryColor, borderRadius: resolvedBorderRadius }}
               />
             ))}
           </div>
