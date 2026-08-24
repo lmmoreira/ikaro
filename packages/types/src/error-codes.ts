@@ -153,6 +153,10 @@ export const PlatformErrorCode = {
   LEAD_FORM_QUESTION_OPTIONS_INVALID: 'PLATFORM_LEAD_FORM_QUESTION_OPTIONS_INVALID',
   // Defensive integrity check — two questions sharing the same client-assigned id in one save.
   LEAD_FORM_QUESTION_DUPLICATE_ID: 'PLATFORM_LEAD_FORM_QUESTION_DUPLICATE_ID',
+  // M20-S02 — Lead Form submission rate-limit (docs/21-TENANTS_SETTINGS_SCHEMA.md §8). Covers
+  // both the tenant-wide daily cap and the per-IP daily cap — same "come back tomorrow" outcome
+  // from the submitter's perspective, matching CHATBOT_DAILY_CAP_REACHED's own grouping.
+  LEAD_FORM_DAILY_CAP_REACHED: 'PLATFORM_LEAD_FORM_DAILY_CAP_REACHED',
 } as const;
 export type PlatformErrorCode = (typeof PlatformErrorCode)[keyof typeof PlatformErrorCode];
 

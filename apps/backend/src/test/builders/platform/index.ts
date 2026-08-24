@@ -13,3 +13,6 @@ export * from './chatbot-session-entity.builder';
 export * from './chatbot-message-entity.builder';
 export * from './chatbot-provider-balance-entity.builder';
 export * from './fake-llm-provider.builder';
+export * from './lead-form-submission.builder';
+export * from './lead-form-submission-entity.builder';
+export * from './lead-form-submission-received-event.builder';
