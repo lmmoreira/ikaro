@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { deepMerge } from '../../../../shared/utils/deep-merge';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
@@ -43,11 +44,6 @@ export interface UpdateLeadFormModuleUseCaseInput {
 
 export type UpdateLeadFormModuleUseCaseResult = GetLeadFormConfigUseCaseResult;
 
-type TeaserPatch = Omit<
-  UpdateLeadFormModuleUseCaseInput,
-  'tenantId' | 'audienceMode' | 'questions'
->;
-
 /**
  * Cross-aggregate save, one transaction (docs/02-DOMAIN_MODEL.md § LeadFormConfig
  * "Cross-aggregate save") — writes HotsiteConfig's own layout[] entry (teaser fields) and
@@ -86,7 +82,7 @@ export class UpdateLeadFormModuleUseCase {
     const existingModule = hotsiteConfig.layout.find((module) => module.type === 'LEAD_FORM');
     const existingData =
       (existingModule?.data as LeadFormModuleData | undefined) ?? DEFAULT_LEAD_FORM_MODULE_DATA;
-    const mergedData = this.mergeTeaser(existingData, teaserPatch);
+    const mergedData = deepMerge(existingData, teaserPatch as Partial<LeadFormModuleData>);
 
     const newModule: HotsiteModule = {
       type: 'LEAD_FORM',
@@ -120,21 +116,5 @@ export class UpdateLeadFormModuleUseCase {
       audienceMode: leadFormConfig.audienceMode,
       questions: leadFormConfig.questions,
     };
-  }
-
-  private mergeTeaser(existing: LeadFormModuleData, patch: TeaserPatch): LeadFormModuleData {
-    const merged: LeadFormModuleData = { ...existing };
-    if (patch.title !== undefined) merged.title = patch.title;
-    if (patch.subtitle !== undefined) merged.subtitle = patch.subtitle;
-    if (patch.eyebrow !== undefined) merged.eyebrow = patch.eyebrow;
-    if (patch.ctaLabel !== undefined) merged.ctaLabel = patch.ctaLabel;
-    if (patch.variant !== undefined) merged.variant = patch.variant;
-    if (patch.backgroundImageUrl !== undefined)
-      merged.backgroundImageUrl = patch.backgroundImageUrl;
-    if (patch.backgroundImagePosition !== undefined) {
-      merged.backgroundImagePosition = patch.backgroundImagePosition;
-    }
-    if (patch.bgStyle !== undefined) merged.bgStyle = patch.bgStyle;
-    return merged;
   }
 }

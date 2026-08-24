@@ -1,31 +1,15 @@
-import { LeadFormConfig, LeadFormQuestion } from './lead-form-config.aggregate';
+import { LeadFormConfig } from './lead-form-config.aggregate';
 import {
   LeadFormQuestionLabelRequiredError,
   LeadFormQuestionLimitReachedError,
   LeadFormQuestionOptionsInvalidError,
 } from './errors/lead-form-domain.error';
+import {
+  makeLeadFormQuestion as makeQuestion,
+  makeLeadFormQuestions as makeQuestions,
+} from '../../../test/builders/platform/lead-form-config.builder';
 
 const TENANT_ID = '01234567-0000-7000-8000-000000000001';
-
-function makeQuestion(overrides: Partial<LeadFormQuestion> = {}): LeadFormQuestion {
-  return {
-    id: '01234567-0000-7000-8000-000000000101',
-    label: 'Qual serviço te interessa?',
-    type: 'TEXT',
-    required: false,
-    order: 0,
-    ...overrides,
-  };
-}
-
-function makeQuestions(count: number): LeadFormQuestion[] {
-  return Array.from({ length: count }, (_, i) =>
-    makeQuestion({
-      id: `01234567-0000-7000-8000-0000000001${String(i).padStart(2, '0')}`,
-      order: i,
-    }),
-  );
-}
 
 describe('LeadFormConfig', () => {
   describe('create()', () => {

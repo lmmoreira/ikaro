@@ -19,17 +19,17 @@ const LeadFormQuestionSchema = z.object({
 // backgroundImagePosition, same as every other module's teaser data.
 export const UpdateLeadFormConfigSchema = z
   .object({
-    title: z.string(),
-    subtitle: z.string(),
-    eyebrow: z.string(),
-    ctaLabel: z.string(),
-    variant: z.enum(['centered', 'left-aligned']),
-    backgroundImageUrl: z.string().nullable(),
-    backgroundImagePosition: z.enum(['left', 'center', 'right']),
-    bgStyle: z.enum(['primary', 'background']),
-    audienceMode: z.enum(['GUEST_AND_CUSTOMER', 'CUSTOMER_ONLY']),
-    questions: z.array(LeadFormQuestionSchema),
+    title: z.string().optional(),
+    subtitle: z.string().optional(),
+    eyebrow: z.string().optional(),
+    ctaLabel: z.string().optional(),
+    variant: z.enum(['centered', 'left-aligned']).optional(),
+    backgroundImageUrl: z.string().nullable().optional(),
+    backgroundImagePosition: z.enum(['left', 'center', 'right']).optional(),
+    bgStyle: z.enum(['primary', 'background']).optional(),
+    audienceMode: z.enum(['GUEST_AND_CUSTOMER', 'CUSTOMER_ONLY']).optional(),
+    questions: z.array(LeadFormQuestionSchema).optional(),
   })
-  .partial();
+  .default({});
 
 export type UpdateLeadFormConfigDto = z.infer<typeof UpdateLeadFormConfigSchema>;

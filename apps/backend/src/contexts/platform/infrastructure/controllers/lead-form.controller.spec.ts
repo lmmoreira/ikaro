@@ -5,6 +5,7 @@ import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/p
 import { InMemoryLeadFormConfigRepository } from '../../../../test/repositories/platform/in-memory-lead-form-config.repository';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
 import { HotsiteConfigBuilder } from '../../../../test/builders/platform/hotsite-config.builder';
+import { makeLeadFormQuestions } from '../../../../test/builders/platform/lead-form-config.builder';
 import { TenantBuilder } from '../../../../test/builders/platform/tenant.builder';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { TRANSACTION_MANAGER } from '../../../../shared/ports/transaction-manager.port';
@@ -94,13 +95,7 @@ describe('LeadFormController', () => {
       await hotsiteConfigRepo.save(new HotsiteConfigBuilder().withTenantId(tenant.id).build());
       requestContext.tenantId = tenant.id;
 
-      const tooMany = Array.from({ length: 21 }, (_, i) => ({
-        id: `01234567-0000-7000-8000-0000000001${String(i).padStart(2, '0')}`,
-        label: `Q${i}`,
-        type: 'TEXT' as const,
-        required: false,
-        order: i,
-      }));
+      const tooMany = makeLeadFormQuestions(21);
 
       expect.assertions(2);
       try {

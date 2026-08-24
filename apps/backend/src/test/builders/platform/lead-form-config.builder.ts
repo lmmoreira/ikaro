@@ -6,6 +6,29 @@ import {
 
 const DEFAULT_TENANT_ID = '01234567-0000-7000-8000-000000000001';
 
+/** Shared test fixture for a single LeadFormQuestion — avoids re-declaring this shape per spec file. */
+export function makeLeadFormQuestion(overrides: Partial<LeadFormQuestion> = {}): LeadFormQuestion {
+  return {
+    id: '01234567-0000-7000-8000-000000000101',
+    label: 'Qual serviço te interessa?',
+    type: 'TEXT',
+    required: false,
+    order: 0,
+    ...overrides,
+  };
+}
+
+/** Shared test fixture for N questions — used by every spec asserting the 20-question bound. */
+export function makeLeadFormQuestions(count: number): LeadFormQuestion[] {
+  return Array.from({ length: count }, (_, i) =>
+    makeLeadFormQuestion({
+      id: `01234567-0000-7000-8000-0000000001${String(i).padStart(2, '0')}`,
+      label: `Question ${i}`,
+      order: i,
+    }),
+  );
+}
+
 export class LeadFormConfigBuilder {
   private tenantId = DEFAULT_TENANT_ID;
   private audienceMode: LeadFormAudienceMode = 'GUEST_AND_CUSTOMER';

@@ -5,6 +5,7 @@ import {
   HotsiteConfigEntityBuilder,
   TenantEntityBuilder,
 } from '../../../../test/builders/platform';
+import { makeLeadFormQuestions as makeQuestions } from '../../../../test/builders/platform/lead-form-config.builder';
 import { HotsiteConfigEntity } from '../entities/hotsite-config.entity';
 import { LeadFormConfigEntity } from '../entities/lead-form-config.entity';
 import { TenantEntity } from '../entities/tenant.entity';
@@ -12,16 +13,6 @@ import { createPlatformIntegrationApp } from '../../../../test/utils/platform-in
 
 const TENANT_A = 'e2d3e4f5-0000-0000-0000-000000000001';
 const TENANT_NO_LEAD_FORM = 'e2d3e4f5-0000-0000-0000-000000000002';
-
-function makeQuestions(count: number) {
-  return Array.from({ length: count }, (_, i) => ({
-    id: `e2d3e4f5-0000-7000-8000-0000000001${String(i).padStart(2, '0')}`,
-    label: `Q${i}`,
-    type: 'TEXT' as const,
-    required: false,
-    order: i,
-  }));
-}
 
 describe('LeadFormController (integration)', () => {
   let app: INestApplication;

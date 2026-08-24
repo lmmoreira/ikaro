@@ -3,6 +3,7 @@ import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/p
 import { InMemoryLeadFormConfigRepository } from '../../../../test/repositories/platform/in-memory-lead-form-config.repository';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
 import { HotsiteConfigBuilder } from '../../../../test/builders/platform/hotsite-config.builder';
+import { makeLeadFormQuestions as makeQuestions } from '../../../../test/builders/platform/lead-form-config.builder';
 import { TenantBuilder } from '../../../../test/builders/platform/tenant.builder';
 import {
   HotsiteNotFoundError,
@@ -13,16 +14,6 @@ import { LeadFormQuestionLimitReachedError } from '../../domain/errors/lead-form
 import { UpdateLeadFormModuleUseCase } from './update-lead-form-module.use-case';
 
 const TENANT_ID = '01234567-0000-7000-8000-000000000001';
-
-function makeQuestions(count: number) {
-  return Array.from({ length: count }, (_, i) => ({
-    id: `01234567-0000-7000-8000-0000000001${String(i).padStart(2, '0')}`,
-    label: `Question ${i}`,
-    type: 'TEXT' as const,
-    required: false,
-    order: i,
-  }));
-}
 
 describe('UpdateLeadFormModuleUseCase', () => {
   let hotsiteConfigRepo: InMemoryHotsiteConfigRepository;
