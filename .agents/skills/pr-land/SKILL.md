@@ -23,19 +23,21 @@ If this session is running inside a worktree (via `EnterWorktree`), what actuall
 
 **Fix:** never combine backgrounding with `&&`/`if`/`$!`-capture in one call. Split into two separate, minimal Bash tool calls instead — no subagent needed:
 
-Call 1 — dispatch, its own tool call, nothing else in it:
+For the Claude runtime, Call 1 — dispatch, its own tool call, nothing else in it:
 ```bash
 nohup codex exec -C <main-repo-absolute-path> "<prompt>" </dev/null >/tmp/<log-name>.log 2>&1 &
 ```
 Compute `<main-repo-absolute-path>` yourself (strip `/.claude/worktrees/<name>` off the current cwd) and inline it as a literal string — no `$(pwd)` or other substitution in this call.
 
-Call 2 — verify, its own separate tool call (no `sleep`/`if` combined with it):
+For the Claude runtime, Call 2 — verify, its own separate tool call (no `sleep`/`if` combined with it):
 ```bash
 pgrep -af "codex exec.*<distinguishing prompt text>"
 ```
 A matching process line confirms it started. Bash tool shell state (including `$!`) does not persist between calls anyway, so `kill -0 "$review_pid"` from a prior call was never going to work as a follow-up step — `pgrep` is the state-independent replacement.
 
-Do **not** call `ExitWorktree` to work around this — that tool is reserved for when the user explicitly asks to exit, and isn't needed now that the two-call split works directly.
+Do **not** call `ExitWorktree` to work around this — that tool is reserved for when the user explicitly asks to exit.
+
+**Codex runtime dispatch:** do not use the detached `nohup ... &` flow above. Start `codex exec` as a persistent terminal session with the prompt as its argument, retain the returned session ID, and poll it with `write_stdin`. The returned session ID and initial `thread.started` event are the launch evidence. Do not claim the reviewer started if the session is not returned or exits before emitting `thread.started`.
 
 This applies to every Codex dispatch below, whenever the session is in a worktree. `scripts/pr-round-status.sh` (Step 1) is unaffected — it's already a plain script-file invocation, not compound bash, so it always ran fine from a worktree.
 

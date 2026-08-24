@@ -215,17 +215,22 @@ gh pr comment <N> --repo lmmoreira/ikaro --body "@coderabbitai review"
 
 This is a one-time trigger for round 1 only — `/pr-land` never re-posts it on later rounds.
 
-**5b. Dispatch `/pr-review` to Codex.** First capture the round-1 timestamp `/pr-land` needs to distinguish this round's comments from anything later: `since=$(date -u +%Y-%m-%dT%H:%M:%SZ)`. Then dispatch. Do not merely state that it was dispatched: start the process with a closed stdin, capture its PID and log, then verify it actually started before reporting success. `/pr-review` handles review, verification, and posting its own mandatory PR comment.
+**5b. Dispatch `/pr-review` to Codex.** First capture the round-1 timestamp `/pr-land` needs to distinguish this round's comments from anything later: `since=$(date -u +%Y-%m-%dT%H:%M:%SZ)`. Then dispatch. Do not merely state that it was dispatched: verify that the reviewer actually started before reporting success. `/pr-review` handles review, verification, and posting its own mandatory PR comment.
+
+**Runtime-specific dispatch:**
+
+- **Claude runtime:** use the existing detached process flow below (`nohup`, closed stdin, log, PID verification).
+- **Codex runtime:** do not use `nohup ... &`. Start `codex exec` as a persistent terminal session with the prompt as its argument, retain the returned session ID, and poll that session with `write_stdin`. The returned session ID and initial `thread.started` event are the launch evidence. Do not claim success if the terminal session is not returned or the process exits before emitting `thread.started`.
 
 **Worktree gotcha:** if this session is in a worktree (`EnterWorktree`), the block that used to be attributed to `codex exec` itself is actually a structural complexity guard on the Bash tool: a single compound command (`&&` chains, variable assignment + backgrounding + `if/kill -0` verification all in one call) gets refused with "too complex to verify that it stays inside the worktree" — regardless of whether the path it targets is inside or outside the worktree. Confirmed empirically (2026-08-23, probing with a disposable worktree): plain `codex exec`, backgrounded `codex exec &`, and `codex exec -C <path outside the worktree>` all run with **zero** blocking as long as each is its own simple, single-statement Bash call — no `&&`, no `if`, no capturing `$!` for a later call (Bash tool shell state doesn't persist between calls anyway). Spawning a fresh `Agent` to route around this is unnecessary and doesn't reliably help (a plain new agent is not actually exempt from the parent session's worktree pinning, contrary to earlier guidance here) — just split the dispatch into two separate, minimal Bash tool calls in this same session:
 
-Call 1 — dispatch (its own tool call, nothing else in it):
+For the Claude runtime, Call 1 — dispatch (its own tool call, nothing else in it):
 ```bash
 nohup codex exec -C <main-repo-absolute-path> "Run the pr-review skill (.agents/skills/pr-review/SKILL.md) against GitHub PR #<N> on lmmoreira/ikaro." </dev/null >/tmp/pr-<N>-codex-review.log 2>&1 &
 ```
 Compute `<main-repo-absolute-path>` yourself from the current worktree's cwd (strip the `/.claude/worktrees/<name>` suffix) and substitute it as a literal string — don't use `$(pwd)` or any other substitution inside this call.
 
-Call 2 — verify, as its own separate tool call (no `sleep`/`if` combined with it):
+For the Claude runtime, Call 2 — verify, as its own separate tool call (no `sleep`/`if` combined with it):
 ```bash
 pgrep -af "codex exec.*PR #<N>"
 ```
@@ -233,6 +238,6 @@ A matching process line confirms it started; no match means it exited immediatel
 
 Pass `$since` to `/pr-land` along with the PR number when handing off (Step 5c) — it's round 1's waiting timestamp for `scripts/pr-round-status.sh`.
 
-Tell the user the PR is open, the CodeRabbit trigger was posted, and Codex review was **verified started** (include its PID/log). Do not wait for completion before considering pre-pr complete. If Codex exits before the two-second verification, report the launch failure; never claim a review was dispatched.
+Tell the user the PR is open, the CodeRabbit trigger was posted, and Codex review was **verified started** (include the PID/log for Claude, or session ID/thread ID for Codex). Do not wait for completion before considering pre-pr complete. If Codex exits before the relevant launch verification, report the launch failure; never claim a review was dispatched.
 
 **5c. Hand off to `/pr-land`.** This is where `/pre-pr`'s own scope ends — round 1's CI, CodeRabbit, and Codex results are collected and triaged by `/pr-land`, not here. Invoke it with the PR number.
