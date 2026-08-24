@@ -12,6 +12,7 @@ import { CHATBOT_SESSION_REPOSITORY } from './application/ports/chatbot-session-
 import { FRONTEND_REVALIDATION_PORT } from './application/ports/frontend-revalidation.port';
 import { HOTSITE_CONFIG_REPOSITORY } from './application/ports/hotsite-config-repository.port';
 import { LEAD_FORM_CONFIG_REPOSITORY } from './application/ports/lead-form-config-repository.port';
+import { LEAD_FORM_SUBMISSION_REPOSITORY } from './application/ports/lead-form-submission-repository.port';
 import {
   ANTHROPIC_LLM_PROVIDER,
   FAKE_LLM_PROVIDER,
@@ -37,6 +38,7 @@ import { GetChatbotCapStatusUseCase } from './application/use-cases/get-chatbot-
 import { GetChatbotStatusUseCase } from './application/use-cases/get-chatbot-status.use-case';
 import { GetHotsiteContentUseCase } from './application/use-cases/get-hotsite-content.use-case';
 import { GetHotsiteManifestUseCase } from './application/use-cases/get-hotsite-manifest.use-case';
+import { CreateLeadFormSubmissionUseCase } from './application/use-cases/create-lead-form-submission.use-case';
 import { GetLeadFormConfigUseCase } from './application/use-cases/get-lead-form-config.use-case';
 import { GetLeadFormStatusUseCase } from './application/use-cases/get-lead-form-status.use-case';
 import { UpdateLeadFormModuleUseCase } from './application/use-cases/update-lead-form-module.use-case';
@@ -56,6 +58,7 @@ import { ChatbotProviderBalanceEntity } from './infrastructure/entities/chatbot-
 import { ChatbotSessionEntity } from './infrastructure/entities/chatbot-session.entity';
 import { HotsiteConfigEntity } from './infrastructure/entities/hotsite-config.entity';
 import { LeadFormConfigEntity } from './infrastructure/entities/lead-form-config.entity';
+import { LeadFormSubmissionEntity } from './infrastructure/entities/lead-form-submission.entity';
 import { TenantEntity } from './infrastructure/entities/tenant.entity';
 import { FrontendRevalidationAdapter } from './infrastructure/adapters/frontend-revalidation.adapter';
 import { PlatformTenantSettingsAdapter } from './infrastructure/cross-context/platform-tenant-settings.adapter';
@@ -83,6 +86,7 @@ import { TypeOrmChatbotProviderBalanceRepository } from './infrastructure/reposi
 import { TypeOrmChatbotSessionRepository } from './infrastructure/repositories/typeorm-chatbot-session.repository';
 import { TypeOrmHotsiteConfigRepository } from './infrastructure/repositories/typeorm-hotsite-config.repository';
 import { TypeOrmLeadFormConfigRepository } from './infrastructure/repositories/typeorm-lead-form-config.repository';
+import { TypeOrmLeadFormSubmissionRepository } from './infrastructure/repositories/typeorm-lead-form-submission.repository';
 import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-tenant.repository';
 
 @Module({
@@ -94,6 +98,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
       ChatbotSessionEntity,
       ChatbotMessageEntity,
       ChatbotProviderBalanceEntity,
+      LeadFormSubmissionEntity,
     ]),
     ApplicationConfigModule,
     RequestModule,
@@ -123,6 +128,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
       provide: CHATBOT_PROVIDER_BALANCE_REPOSITORY,
       useClass: TypeOrmChatbotProviderBalanceRepository,
     },
+    { provide: LEAD_FORM_SUBMISSION_REPOSITORY, useClass: TypeOrmLeadFormSubmissionRepository },
     { provide: TENANT_SETTINGS_PORT, useClass: PlatformTenantSettingsAdapter },
     { provide: OPENROUTER_LLM_PROVIDER, useClass: OpenRouterLlmAdapter },
     { provide: ANTHROPIC_LLM_PROVIDER, useClass: AnthropicLlmAdapter },
@@ -166,6 +172,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     OpenRouterCreditsClient,
     ChatbotRetentionPurgeJob,
     ChatbotRetentionPurgeTriggerHandler,
+    CreateLeadFormSubmissionUseCase,
     GetChatbotCapStatusUseCase,
     GetChatbotStatusUseCase,
     GetHotsiteContentUseCase,

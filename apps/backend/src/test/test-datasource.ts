@@ -16,6 +16,7 @@ import { ChatbotProviderBalanceEntity } from '../contexts/platform/infrastructur
 import { ChatbotSessionEntity } from '../contexts/platform/infrastructure/entities/chatbot-session.entity';
 import { HotsiteConfigEntity } from '../contexts/platform/infrastructure/entities/hotsite-config.entity';
 import { LeadFormConfigEntity } from '../contexts/platform/infrastructure/entities/lead-form-config.entity';
+import { LeadFormSubmissionEntity } from '../contexts/platform/infrastructure/entities/lead-form-submission.entity';
 import { TenantEntity } from '../contexts/platform/infrastructure/entities/tenant.entity';
 import { StaffEntity } from '../contexts/staff/infrastructure/entities/staff.entity';
 import { InboxRecordEntity } from '../shared/infrastructure/inbox/inbox-record.entity';
@@ -58,6 +59,7 @@ export async function createTestDataSource(): Promise<DataSource> {
       ChatbotSessionEntity,
       ChatbotMessageEntity,
       ChatbotProviderBalanceEntity,
+      LeadFormSubmissionEntity,
     ],
     synchronize: false,
     migrationsRun: false,

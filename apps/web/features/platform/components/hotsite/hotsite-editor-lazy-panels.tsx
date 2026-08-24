@@ -42,6 +42,13 @@ export const MODULE_CONFIG_PANELS: Record<
   CHATBOT: dynamic(() => import('./modules/ChatbotConfigPanel').then((m) => m.ChatbotConfigPanel), {
     ssr: false,
   }),
+  // Minimal placeholder — see LeadFormConfigPanel.tsx's own comment. M20-S08 replaces it with the
+  // real field-editing form; this entry only exists to satisfy this Record's compile-time
+  // exhaustiveness check for the LEAD_FORM module type added by M20-S07.
+  LEAD_FORM: dynamic(
+    () => import('./modules/LeadFormConfigPanel').then((m) => m.LeadFormConfigPanel),
+    { ssr: false },
+  ),
 };
 
 // Lazy-loaded for the same reason as the module config panels above: the M12 public hotsite

@@ -31,4 +31,5 @@ export type HotsiteModuleType =
   | 'ABOUT'
   | 'CONTACT'
   | 'FOOTER'
-  | 'CHATBOT';
+  | 'CHATBOT'
+  | 'LEAD_FORM';

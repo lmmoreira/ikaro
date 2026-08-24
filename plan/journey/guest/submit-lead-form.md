@@ -3,7 +3,7 @@
 **Actor(s):** GUEST
 **Goal:** Submit interest via a tenant's lead-capture form (`LEAD_FORM` hotsite module) without authenticating, or get routed to login when the manager restricted the form to logged-in customers only
 **UCs covered:** UC-038, UC-039, UC-040 (A1 branch)
-**Status:** Draft — nothing built yet. Promoted from `docs/discovery/lead-form-module/lead-form-module.md` via `/discovery-to-milestone` (2026-08-23) for milestone `M20-LEAD-FORM-MODULE`.
+**Status:** Partially built — the hotsite teaser section (`LeadFormModule`, M20-S07) is done; the dedicated `/[slug]/lead-form` page and submission flow below are still a gap (M20-S09). Promoted from `docs/discovery/lead-form-module/lead-form-module.md` via `/discovery-to-milestone` (2026-08-23) for milestone `M20-LEAD-FORM-MODULE`.
 
 ## Flow
 
@@ -38,12 +38,12 @@ Not drawn as a separate node: a module disabled between teaser render and page l
 
 | Page / Route | Component | Story | Status |
 |---|---|---|---|
-| Hotsite teaser section | `LeadFormModule` | — | ❌ Gap |
+| Hotsite teaser section | `LeadFormModule` | M20-S07 | ✅ Done |
 | `/[slug]/lead-form` | `LeadFormPage` | — | ❌ Gap |
 
 ## Open questions / gaps
 
-- [ ] Milestone/story: not yet assigned — run `/story-discovery M20-Sxx` per `plan/M20-LEAD-FORM-MODULE.md`.
+- [ ] Milestone/story for the remaining `/[slug]/lead-form` page: `M20-S09` (`plan/M20-LEAD-FORM-MODULE.md`) — run `/story-discovery M20-S09` when picking it up. The hotsite teaser section above is already done (`M20-S07`).
 - [x] The login-required gate screen has no prior canonical `plan/journey/` precedent to reuse — verified during promotion that only a discovery-stage mockup existed (`docs/discovery/multivertical-booking/prototype/public-15-login-required.html`, itself unpromoted). `01g-login-required.html` here is this milestone's own, real, first promoted instance of this pattern.
 - [ ] What happens after login from `01g-login-required.html` is covered by `customer/submit-lead-form.md`, not repeated here — this journey ends at the handoff to login.
 

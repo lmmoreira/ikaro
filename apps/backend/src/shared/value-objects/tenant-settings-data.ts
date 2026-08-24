@@ -76,6 +76,19 @@ export interface ChatbotSettings {
   llmModel?: string;
 }
 
+// Minimal stub added by M20-S02 — just enough for CreateLeadFormSubmissionUseCase's own
+// `?? DEFAULT_X` optional-chained read to type-check standalone, since M20-S03 (which formally
+// owns this settings category — validator, DTO wiring, TenantSettings.default() entry, all three
+// fields becoming required there) isn't a hard dependency of S02 and may not have landed yet.
+// Unlike `chatbot` above, these three fields are normal, tenant-editable settings, not an
+// Ikaro-only deviation (docs/21-TENANTS_SETTINGS_SCHEMA.md §8) — kept optional here only because
+// a tenant provisioned before S03 backfills them won't have a `leadForm` key at all yet.
+export interface LeadFormSettings {
+  retentionMonths?: number;
+  maxSubmissionsPerDay?: number;
+  maxSubmissionsPerIpPerDay?: number;
+}
+
 export interface TenantSettingsData {
   loyalty: LoyaltySettings;
   booking: BookingSettings;
@@ -84,4 +97,5 @@ export interface TenantSettingsData {
   notification?: NotificationSettings;
   businessInfo?: BusinessInfo;
   chatbot?: ChatbotSettings;
+  leadForm?: LeadFormSettings;
 }

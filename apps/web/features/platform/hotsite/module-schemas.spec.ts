@@ -6,6 +6,7 @@ import {
   ContactModuleDataSchema,
   GalleryModuleDataSchema,
   HeroModuleDataSchema,
+  LeadFormModuleDataSchema,
   ServiceListModuleDataSchema,
   TestimonialsModuleDataSchema,
   isValidModuleData,
@@ -564,6 +565,61 @@ describe('ChatbotModuleDataSchema', () => {
   });
 });
 
+const validLeadFormData = {
+  title: 'Fale com a gente',
+  ctaLabel: 'Preencher formulário',
+};
+
+describe('LeadFormModuleDataSchema', () => {
+  it('accepts the minimal required fields', () => {
+    expect(LeadFormModuleDataSchema.safeParse(validLeadFormData).success).toBe(true);
+  });
+
+  it('accepts all optional fields set', () => {
+    const result = LeadFormModuleDataSchema.safeParse({
+      ...validLeadFormData,
+      subtitle: 'Nossa equipe entra em contato em até 1 dia útil',
+      eyebrow: 'Orçamento personalizado',
+      variant: 'left-aligned',
+      backgroundImageUrl: 'https://storage.example.com/lead-form.jpg',
+      backgroundImagePosition: 'left',
+      bgStyle: 'background',
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts an explicit null for backgroundImageUrl', () => {
+    const result = LeadFormModuleDataSchema.safeParse({
+      ...validLeadFormData,
+      backgroundImageUrl: null,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects missing required fields', () => {
+    const result = LeadFormModuleDataSchema.safeParse({ ctaLabel: 'Preencher formulário' });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects an invalid variant', () => {
+    const result = LeadFormModuleDataSchema.safeParse({
+      ...validLeadFormData,
+      variant: 'floating',
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects an invalid bgStyle', () => {
+    const result = LeadFormModuleDataSchema.safeParse({ ...validLeadFormData, bgStyle: 'accent' });
+
+    expect(result.success).toBe(false);
+  });
+});
+
 describe('isValidModuleData', () => {
   it('returns true for valid HERO data', () => {
     expect(isValidModuleData('HERO', validHeroData)).toBe(true);
@@ -635,5 +691,13 @@ describe('isValidModuleData', () => {
 
   it('returns false for invalid CHATBOT data', () => {
     expect(isValidModuleData('CHATBOT', { variant: 'floating' })).toBe(false);
+  });
+
+  it('returns true for valid LEAD_FORM data', () => {
+    expect(isValidModuleData('LEAD_FORM', validLeadFormData)).toBe(true);
+  });
+
+  it('returns false for invalid LEAD_FORM data', () => {
+    expect(isValidModuleData('LEAD_FORM', { ctaLabel: 'Preencher formulário' })).toBe(false);
   });
 });

@@ -10,6 +10,7 @@ import { Footer } from '@/shells/hotsite/components/Footer';
 import { GalleryModule } from '@/shells/hotsite/components/GalleryModule';
 import { HeroModule } from '@/shells/hotsite/components/HeroModule';
 import { HotsiteAuthBar } from '@/shells/hotsite/components/HotsiteAuthBar';
+import { LeadFormModule } from '@/shells/hotsite/components/LeadFormModule';
 import { ServiceListModule } from '@/shells/hotsite/components/ServiceListModule';
 import { TestimonialsModule } from '@/shells/hotsite/components/TestimonialsModule';
 import { Unavailable } from '@/shells/hotsite/components/Unavailable';
@@ -139,6 +140,8 @@ export default async function HotsitePage({ params }: HotsitePageProps) {
               tenantName={displayName}
             />
           );
+        } else if (parsed.type === 'LEAD_FORM') {
+          moduleEl = <LeadFormModule key={key} data={parsed.data} slug={slug} />;
         }
 
         return moduleEl ? (

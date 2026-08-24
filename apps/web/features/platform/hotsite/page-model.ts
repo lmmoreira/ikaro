@@ -9,6 +9,7 @@ import type {
   HotsiteManifestResponse,
   HotsiteModuleResponse,
   HotsiteModuleType,
+  LeadFormModuleData,
   ServiceListModuleData,
   TestimonialsModuleData,
 } from '@ikaro/types';
@@ -20,6 +21,7 @@ import {
   FooterModuleDataSchema,
   GalleryModuleDataSchema,
   HeroModuleDataSchema,
+  LeadFormModuleDataSchema,
   ServiceListModuleDataSchema,
   TestimonialsModuleDataSchema,
 } from './module-schemas';
@@ -35,7 +37,8 @@ export type HotsiteModuleParsed =
   | { readonly type: 'ABOUT'; readonly data: AboutModuleData }
   | { readonly type: 'CONTACT'; readonly data: ContactModuleData }
   | { readonly type: 'FOOTER'; readonly data: FooterModuleData }
-  | { readonly type: 'CHATBOT'; readonly data: ChatbotModuleData };
+  | { readonly type: 'CHATBOT'; readonly data: ChatbotModuleData }
+  | { readonly type: 'LEAD_FORM'; readonly data: LeadFormModuleData };
 
 export interface HotsiteModuleRenderPlanItem {
   readonly parsed: HotsiteModuleParsed;
@@ -45,11 +48,14 @@ export interface HotsiteModuleRenderPlanItem {
 // CHATBOT included: the bubble variant is a fixed-position floating element with its own
 // self-contained background (not a full-width section), and the inline variant uses a fixed
 // var(--ba-background), same reasoning as HERO/BOOKING_CTA/FOOTER's own self-contained treatment.
+// LEAD_FORM included for the same reason as BOOKING_CTA: it manages its own section background
+// via bgStyle (primary/background), same shape family, same self-contained treatment (M20-S07).
 const NON_ALTERNATING_TYPES: ReadonlySet<HotsiteModuleType> = new Set([
   'HERO',
   'BOOKING_CTA',
   'FOOTER',
   'CHATBOT',
+  'LEAD_FORM',
 ]);
 
 const MODULE_SCHEMAS = {
@@ -62,6 +68,7 @@ const MODULE_SCHEMAS = {
   CONTACT: ContactModuleDataSchema,
   FOOTER: FooterModuleDataSchema,
   CHATBOT: ChatbotModuleDataSchema,
+  LEAD_FORM: LeadFormModuleDataSchema,
 } satisfies Record<
   HotsiteModuleType,
   { safeParse(data: unknown): { success: boolean; data?: unknown } }

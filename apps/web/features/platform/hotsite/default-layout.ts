@@ -2,7 +2,7 @@ import type { HotsiteModuleResponse, HotsiteModuleType } from '@ikaro/types';
 
 // Canonical order for module types absent from a tenant's saved layout (packages/types/src/enums.ts).
 // Exported so manifest-schema.ts can validate a pasted layout's `type` values against this same
-// list, rather than re-declaring the 9 literals a second time.
+// list, rather than re-declaring the 10 literals a second time.
 export const MODULE_ORDER: readonly HotsiteModuleType[] = [
   'HERO',
   'SERVICE_LIST',
@@ -13,6 +13,7 @@ export const MODULE_ORDER: readonly HotsiteModuleType[] = [
   'CONTACT',
   'FOOTER',
   'CHATBOT',
+  'LEAD_FORM',
 ];
 
 // Minimal data satisfying each module data type's required fields (module-schemas.ts) — used
@@ -36,11 +37,14 @@ const DEFAULT_MODULE_DATA: Partial<Record<HotsiteModuleType, Record<string, unkn
   // Every ChatbotModuleData field is optional (packages/types/src/hotsite.ts) — {} is already a
   // minimal valid value, unlike every other type above.
   CHATBOT: {},
+  // LeadFormModuleData has two required fields (title, ctaLabel), same as BookingCtaModuleData —
+  // {} would fail LeadFormModuleDataSchema validation, unlike CHATBOT above.
+  LEAD_FORM: { title: '', ctaLabel: '' },
 };
 
 // Appends any module type missing from `existing` (disabled, with minimal default data) — never
 // reorders what's already there, so a tenant's saved custom order is preserved. Ensures
-// LayoutTab always has a row for all 9 module types regardless of what was actually saved.
+// LayoutTab always has a row for all 10 module types regardless of what was actually saved.
 export function materializeLayout(
   existing: readonly HotsiteModuleResponse[],
 ): HotsiteModuleResponse[] {

@@ -49,7 +49,7 @@ describe('ManifestTab', () => {
     expect(onApply).toHaveBeenCalledTimes(1);
     const applied = onApply.mock.calls[0][0] as ManifestDraft;
     expect(applied.branding.primaryColor).toBe('#F5A800');
-    expect(applied.layout).toHaveLength(9);
+    expect(applied.layout).toHaveLength(10);
   });
 
   it('shows an inline error and does not call onApply when the JSON is invalid', async () => {
