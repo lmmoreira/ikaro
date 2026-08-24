@@ -520,13 +520,21 @@ This was considered as a useful **narrow heuristic**, not a security guarantee. 
 
 ---
 
-### Story 18 — Optional/bonus: adopt `eslint-config-next` / `@next/eslint-plugin-next` ⚪
+### Story 18 — Optional/bonus: enforce Next.js frontend best practices with `@next/eslint-plugin-next` ⚪
 
-Not sourced from `docs/ANTI_PATTERNS.md` directly — found while verifying `apps/web/eslint.config.js`. The app runs Next.js 16 with **zero** Next-specific linting today (only `eslint-plugin-react-hooks` + `eslint-plugin-jsx-a11y`). Image/link/script best-practice rules (the exact category `<Image fill>` without `sizes` — #72 — falls into) get no static checking at all right now.
+Not sourced from `docs/ANTI_PATTERNS.md` directly — found while verifying `apps/web/eslint.config.js`. The app runs Next.js 16 with **zero** Next-specific linting today (only `eslint-plugin-react-hooks` + `eslint-plugin-jsx-a11y`). This leaves statically detectable framework misuse — such as raw `<img>` elements, invalid internal navigation patterns, unsafe script usage, and invalid Client Component patterns — without a CI enforcement mechanism.
+
+Use `@next/eslint-plugin-next` directly in the existing flat config rather than spreading `eslint-config-next`, because the web app already configures React and React Hooks rules and must avoid duplicate or conflicting configuration. The existing root `ci:fast` → `pnpm lint` gate is the enforcement point; `next build` does not need to invoke ESLint a second time.
+
+The standard Next plugin does **not** detect `<Image fill>` without `sizes`. That remains outside this story unless a separate custom detector is explicitly added later.
 
 **Acceptance criteria**:
-- [ ] Pin and validate compatibility with this repository's ESLint 10 and Next 16 flat-config setup; document exact config import and ordering
-- [ ] Establish a violation baseline and ship report-only first; promotion to blocking is a separate decision after burn-in
+- [ ] Pin and validate `@next/eslint-plugin-next` compatibility with this repository's ESLint 10 and Next 16 flat-config setup; document the exact plugin registration, rule import, and config ordering
+- [ ] Enable the selected Next.js recommended rules for `apps/web`, with objectively harmful framework misuse configured as blocking ESLint errors
+- [ ] Establish and review the current violation baseline; fix valid findings or record narrowly scoped, rule-specific exceptions with concrete justification
+- [ ] `pnpm lint` fails on a deliberately invalid Next.js fixture and passes on the corrected version, proving the existing CI gate blocks the bad practice
+- [ ] CI enforcement is blocking through the existing `pnpm lint` step; no duplicate ESLint invocation is added to `next build`
+- [ ] `<Image fill>`/`sizes` enforcement is explicitly documented as out of scope for this story
 
 ### Story 19 — Mature-flow promotion: blocking and required architecture checks 🔴
 

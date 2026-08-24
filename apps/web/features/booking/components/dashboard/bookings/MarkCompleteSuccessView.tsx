@@ -86,6 +86,7 @@ export function MarkCompleteSuccessView({
           </p>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {completedBookingForDisplay.afterServicePhotoUrls.map((url, index) => (
+              /* eslint-disable-next-line @next/next/no-img-element -- signed storage URLs are rendered as native thumbnails */
               <img
                 key={`${url}-${index}`}
                 src={url}
@@ -105,6 +106,7 @@ export function MarkCompleteSuccessView({
           </p>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {beforePhotos.map((url, index) => (
+              /* eslint-disable-next-line @next/next/no-img-element -- signed storage URLs are rendered as native thumbnails */
               <img
                 key={`${url}-${index}`}
                 src={url}

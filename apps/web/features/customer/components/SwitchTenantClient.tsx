@@ -144,6 +144,7 @@ export function SwitchTenantClient({
               // to land (the tenant they're already authenticated against), so go there directly
               // instead of relying on history.
               if (currentTenantSlug) {
+                // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- hard reload avoids stale authenticated hotsite back-forward cache
                 globalThis.location.href = `/${currentTenantSlug}`;
               } else {
                 router.back();

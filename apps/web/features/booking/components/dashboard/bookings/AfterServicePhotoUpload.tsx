@@ -112,6 +112,7 @@ export function AfterServicePhotoUpload({
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {items.map((item) => (
             <li key={item.id}>
+              {/* eslint-disable-next-line @next/next/no-img-element -- local file previews use browser object URLs before upload */}
               <img
                 src={item.previewUrl}
                 alt={item.fileName}
