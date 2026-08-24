@@ -746,6 +746,94 @@
       "rationale": "Development-only placeholder mismatch and unknown-error warnings are deliberate observability signals for translation/catalog drift; replacing them with a user-facing logger would hide the local diagnostic signal.",
       "owner": "web",
       "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/features/booking/components/PhotoTile.tsx",
+      "name": "@next/next/no-img-element",
+      "rationale": "Booking photo previews render authenticated or signed runtime URLs that are not stable image-source props for next/image optimization; the native element is intentionally limited to this preview boundary.",
+      "owner": "web",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/features/booking/components/dashboard/bookings/AfterServicePhotoUpload.tsx",
+      "name": "@next/next/no-img-element",
+      "rationale": "Booking photo previews render authenticated or signed runtime URLs that are not stable image-source props for next/image optimization; the native element is intentionally limited to this preview boundary.",
+      "owner": "web",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/features/booking/components/dashboard/bookings/MarkCompleteBookingPage.tsx",
+      "name": "@next/next/no-img-element",
+      "rationale": "Booking photo previews render authenticated or signed runtime URLs that are not stable image-source props for next/image optimization; the native element is intentionally limited to this preview boundary.",
+      "owner": "web",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/features/booking/components/dashboard/bookings/MarkCompleteSuccessView.tsx",
+      "name": "@next/next/no-img-element",
+      "rationale": "Booking photo previews render authenticated or signed runtime URLs that are not stable image-source props for next/image optimization; the native element is intentionally limited to this preview boundary.",
+      "owner": "web",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/features/booking/components/public/PhotoUpload.tsx",
+      "name": "@next/next/no-img-element",
+      "rationale": "Booking photo previews render authenticated or signed runtime URLs that are not stable image-source props for next/image optimization; the native element is intentionally limited to this preview boundary.",
+      "owner": "web",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/features/customer/components/my-account/CustomerPhotoUpload.tsx",
+      "name": "@next/next/no-img-element",
+      "rationale": "Customer photo previews render authenticated or signed runtime URLs that are not stable image-source props for next/image optimization; the native element is intentionally limited to this preview boundary.",
+      "owner": "web",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/features/platform/components/hotsite/SingleImageUploadField.tsx",
+      "name": "@next/next/no-img-element",
+      "rationale": "Hotsite editor previews render local object URLs or runtime-signed asset URLs before publication; the native element is intentionally limited to this preview boundary.",
+      "owner": "web",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/features/platform/components/hotsite/modules/BookingPhotoThumbnailGroup.tsx",
+      "name": "@next/next/no-img-element",
+      "rationale": "Hotsite editor previews render local object URLs or runtime-signed asset URLs before publication; the native element is intentionally limited to this preview boundary.",
+      "owner": "web",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/features/platform/components/hotsite/modules/GalleryImageManager.tsx",
+      "name": "@next/next/no-img-element",
+      "rationale": "Hotsite editor previews render local object URLs or runtime-signed asset URLs before publication; the native element is intentionally limited to this preview boundary.",
+      "owner": "web",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/shells/hotsite/components/GalleryGrid.tsx",
+      "name": "@next/next/no-img-element",
+      "rationale": "Published gallery images use runtime asset URLs whose optimization contract is owned by the hotsite storage boundary; the native element is intentionally limited to this gallery rendering boundary.",
+      "owner": "web",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/shells/hotsite/components/GalleryGrid.spec.tsx",
+      "name": "@next/next/no-img-element",
+      "rationale": "This fixture intentionally renders the gallery's native runtime-image boundary so the component test exercises the same published gallery markup as production.",
+      "owner": "web",
+      "reviewBy": "2026-11-30"
     }
   ],
   "projects": [

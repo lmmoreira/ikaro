@@ -5,18 +5,21 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type React from 'react';
 import type { TenantOption } from '@ikaro/types';
+import type { HotsiteBrandingResponse } from '@ikaro/types';
 import { fetchCustomerTenants, switchTenant } from '@/features/auth/api';
 import { ErrorAlert } from '@/features/booking/components/public/ErrorAlert';
 import { TenantAvatar, TenantOptionRow } from './TenantOptionRow';
 
 interface SwitchTenantClientProps {
   readonly currentTenantSlug: string | null;
+  readonly branding?: HotsiteBrandingResponse;
 }
 
 type FetchState = 'loading' | 'loaded' | 'error';
 
 export function SwitchTenantClient({
   currentTenantSlug,
+  branding,
 }: SwitchTenantClientProps): React.JSX.Element {
   const t = useTranslations('auth');
   const router = useRouter();
@@ -61,27 +64,52 @@ export function SwitchTenantClient({
   }
 
   const currentTenant = tenants.find((tenant) => tenant.slug === currentTenantSlug);
+  const backgroundColor = branding?.backgroundColor ?? '#f9fafb';
+  const textColor = branding?.textColor ?? '#111827';
+  const secondaryColor = branding?.secondaryColor ?? '#e5e7eb';
+  const primaryColor = branding?.primaryColor ?? '#4f46e5';
+  const borderRadius =
+    branding?.borderRadius === 'pill'
+      ? '9999px'
+      : branding?.borderRadius === 'sharp'
+        ? '0px'
+        : '8px';
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-50 px-6 py-16">
+    <main
+      className="flex min-h-screen items-center justify-center px-6 py-16"
+      style={{ backgroundColor }}
+    >
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           {currentTenant && (
             <div className="mb-3 flex flex-col items-center gap-2">
               <TenantAvatar name={currentTenant.name} size="sm" />
-              <p className="text-sm font-bold text-gray-900">{currentTenant.name}</p>
+              <p className="text-sm font-bold" style={{ color: textColor }}>
+                {currentTenant.name}
+              </p>
             </div>
           )}
-          <h1 data-testid="switch-tenant-heading" className="text-xl font-bold text-gray-900">
+          <h1
+            data-testid="switch-tenant-heading"
+            className="text-xl font-bold"
+            style={{ color: textColor }}
+          >
             {t('switchTenantHeading')}
           </h1>
-          <p className="mt-1.5 text-sm text-gray-500">{t('switchTenantSubtitle')}</p>
+          <p className="mt-1.5 text-sm opacity-60" style={{ color: textColor }}>
+            {t('switchTenantSubtitle')}
+          </p>
         </div>
 
         {fetchState === 'loading' && (
           <div className="flex flex-col gap-3" data-testid="switch-tenant-loading">
             {[0, 1].map((i) => (
-              <div key={i} className="h-[4.5rem] animate-pulse rounded-xl bg-gray-200" />
+              <div
+                key={i}
+                className="h-[4.5rem] animate-pulse"
+                style={{ backgroundColor: secondaryColor, borderRadius }}
+              />
             ))}
           </div>
         )}
@@ -135,7 +163,8 @@ export function SwitchTenantClient({
                 router.back();
               }
             }}
-            className="cursor-pointer text-sm font-medium text-indigo-600"
+            className="cursor-pointer text-sm font-medium"
+            style={{ color: primaryColor }}
           >
             {t('switchTenantBack')}
           </button>
