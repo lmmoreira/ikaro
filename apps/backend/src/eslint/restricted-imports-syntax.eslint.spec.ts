@@ -74,6 +74,40 @@ describe('TD37-S04 restricted imports/syntax', () => {
         expect.arrayContaining([expect.objectContaining({ ruleId: 'no-console' })]),
       );
     });
+
+    it('rejects multiple rules in one single-line suppression', () => {
+      const messages = lint(
+        `
+          // eslint-disable-next-line no-console, eqeqeq -- two independent diagnostics
+          console.log('diagnostic');
+        `,
+        'src/shared/example.ts',
+      );
+
+      expect(messages).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ ruleId: 'ikaro-eslint-comments/single-rule' }),
+        ]),
+      );
+    });
+
+    it('rejects a single-line suppression without a description', () => {
+      const messages = lint(
+        `
+          // eslint-disable-next-line no-console
+          console.log('diagnostic');
+        `,
+        'src/shared/example.ts',
+      );
+
+      expect(messages).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            ruleId: '@eslint-community/eslint-comments/require-description',
+          }),
+        ]),
+      );
+    });
   });
 
   describe('tier collision regression (TD37-S04 restructure)', () => {

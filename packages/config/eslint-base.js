@@ -5,6 +5,44 @@ const eslintCommentsPlugin = require('@eslint-community/eslint-plugin-eslint-com
 const prettierPlugin = require('eslint-plugin-prettier');
 const prettierConfig = require('eslint-config-prettier');
 
+const singleRuleSuppressionRule = {
+  meta: {
+    type: 'problem',
+    docs: {
+      description: 'require ESLint line suppressions to name exactly one rule',
+    },
+    schema: [],
+    messages: {
+      singleRule: 'ESLint suppressions must name exactly one rule.',
+    },
+  },
+  create(context) {
+    return {
+      Program() {
+        for (const comment of context.sourceCode.getAllComments()) {
+          const match = comment.value
+            .trim()
+            .match(/^eslint-disable-(?:next-line|line)\b([\s\S]*)$/);
+
+          if (!match) {
+            continue;
+          }
+
+          const rulesPart = match[1].split(/\s+--\s+/, 1)[0].trim();
+          const ruleNames = rulesPart
+            .split(',')
+            .map((ruleName) => ruleName.trim())
+            .filter(Boolean);
+
+          if (ruleNames.length !== 1) {
+            context.report({ node: null, messageId: 'singleRule', loc: comment.loc });
+          }
+        }
+      },
+    };
+  },
+};
+
 // z.string().uuid()/.email() are deprecated in Zod v4 (SonarCloud S1874) and
 // z.string().uuid() rejects non-RFC-4122 test UUIDs — use z.uuid()/z.email() directly
 // (docs/ANTI_PATTERNS.md). `:has()` finds a z.string() call anywhere in the callee chain rather
@@ -55,6 +93,8 @@ const config = [
       '@typescript-eslint/no-require-imports': 'error',
       'no-console': 'error',
       'prettier/prettier': 'error',
+      // The upstream eslint-comments plugin has no rule for comma-separated directives.
+      'ikaro-eslint-comments/single-rule': 'error',
       // docs/CODE_STANDARDS.md's default-parameter rule (SonarCloud S1788) — zero baseline
       // violations repo-wide (TD37-S05, 2026-08-17), ships as error immediately with no
       // exceptions needed. Faster feedback than waiting for the SonarCloud CI stage.
@@ -72,6 +112,10 @@ const config = [
     },
   },
 ];
+
+config[1].plugins['ikaro-eslint-comments'] = {
+  rules: { 'single-rule': singleRuleSuppressionRule },
+};
 
 module.exports = config;
 // Array spread (`...baseConfig`) only iterates numeric indices, so attaching named properties
