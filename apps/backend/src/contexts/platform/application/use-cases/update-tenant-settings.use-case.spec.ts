@@ -57,21 +57,36 @@ describe('UpdateTenantSettingsUseCase', () => {
     expect(result.settings.loyalty.expiryDays).toBe(180);
   });
 
-  it('merges partial leadForm settings without wiping the other fields', async () => {
-    const tenant = new TenantBuilder().build();
-    await tenantRepo.save(tenant);
+  it.each([
+    [
+      'retentionMonths',
+      { retentionMonths: 12 },
+      { retentionMonths: 12, maxSubmissionsPerDay: 100, maxSubmissionsPerIpPerDay: 3 },
+    ],
+    [
+      'maxSubmissionsPerDay',
+      { maxSubmissionsPerDay: 250 },
+      { retentionMonths: 6, maxSubmissionsPerDay: 250, maxSubmissionsPerIpPerDay: 3 },
+    ],
+    [
+      'maxSubmissionsPerIpPerDay',
+      { maxSubmissionsPerIpPerDay: 25 },
+      { retentionMonths: 6, maxSubmissionsPerDay: 100, maxSubmissionsPerIpPerDay: 25 },
+    ],
+  ])(
+    'merges a partial leadForm %s update without wiping sibling fields',
+    async (_field, update, expected) => {
+      const tenant = new TenantBuilder().build();
+      await tenantRepo.save(tenant);
 
-    const result = await useCase.execute({
-      tenantId: tenant.id,
-      settings: { leadForm: { maxSubmissionsPerDay: 250 } },
-    });
+      const result = await useCase.execute({
+        tenantId: tenant.id,
+        settings: { leadForm: update },
+      });
 
-    expect(result.settings.leadForm).toEqual({
-      retentionMonths: 6,
-      maxSubmissionsPerDay: 250,
-      maxSubmissionsPerIpPerDay: 3,
-    });
-  });
+      expect(result.settings.leadForm).toEqual(expected);
+    },
+  );
 
   it('updates businessHours timezone and keeps existing day hours', async () => {
     const tenant = new TenantBuilder().build();
