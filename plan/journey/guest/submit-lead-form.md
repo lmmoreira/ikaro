@@ -43,7 +43,7 @@ Not drawn as a separate node: a module disabled between teaser render and page l
 
 ## Open questions / gaps
 
-- [ ] Milestone/story: not yet assigned — run `/story-discovery M20-Sxx` per `plan/M20-LEAD-FORM-MODULE.md`.
+- [ ] Milestone/story for the remaining `/[slug]/lead-form` page: `M20-S09` (`plan/M20-LEAD-FORM-MODULE.md`) — run `/story-discovery M20-S09` when picking it up. The hotsite teaser section above is already done (`M20-S07`).
 - [x] The login-required gate screen has no prior canonical `plan/journey/` precedent to reuse — verified during promotion that only a discovery-stage mockup existed (`docs/discovery/multivertical-booking/prototype/public-15-login-required.html`, itself unpromoted). `01g-login-required.html` here is this milestone's own, real, first promoted instance of this pattern.
 - [ ] What happens after login from `01g-login-required.html` is covered by `customer/submit-lead-form.md`, not repeated here — this journey ends at the handoff to login.
 
