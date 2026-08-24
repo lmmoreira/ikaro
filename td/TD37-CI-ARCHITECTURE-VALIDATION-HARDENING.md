@@ -491,12 +491,15 @@ This is the one your own docs already flag as a **known, currently-unfixed gap**
 
 **New dependency**: `@eslint-community/eslint-plugin-eslint-comments` (the actively-maintained community fork — the original `eslint-plugin-eslint-comments` package has slower maintenance, not worth adopting the less-maintained one for a new dependency).
 
-Resolve the policy contradiction before implementation: `docs/CODE_STANDARDS.md` currently prohibits all `// eslint-disable`, while this story originally allowed a rule-scoped form. The preferred policy is no disables; if an exceptional scoped disable is approved, it must be in Story 0's exception registry with rationale, owner, and expiry.
+**Story-discovery decision (2026-08-24):** the policy is scoped-only, not blanket permission. File- and block-level suppressions are forbidden. A rule-specific `eslint-disable-next-line`/`eslint-disable-line` is allowed only at the smallest possible scope, with the exact rule and a concrete justification. Every existing suppression must still undergo root-cause triage: fix the underlying issue when a clean alternative exists; retain a suppression only when the constraint is genuine, and record recurring or architectural exceptions in Story 0's `architecture-policy.json` registry with rationale, owner, and review/expiry date. The current baseline is 17 directives (16 single-line suppressions and one rule-specific block-level suppression), all in `apps/backend`/`apps/web`; there are no bare all-rules `eslint-disable` directives. The block-level case is not grandfathered in — it must be refactored, removed, or replaced by a reviewed smallest-scope exception after the underlying loading-order constraint is checked.
 
 **Acceptance criteria**:
-- [ ] Documentation and lint policy agree on whether any scoped disable is allowed
-- [ ] Chosen ESLint-comments rules enforce the documented policy across the same scope as Story 15
-- [ ] Existing disables are removed or recorded as time-bounded exceptions
+- [ ] Documentation and lint policy agree: file/block-level suppressions are rejected; only smallest-scope, rule-specific suppressions with concrete justification may remain
+- [ ] ESLint enforcement covers the same scope as Story 15: `apps/backend`, `apps/bff`, `apps/web`, and all eight test-bearing `packages/*` workspaces
+- [ ] Every existing suppression is triaged for a root-cause fix; no suppression is retained merely by converting its syntax
+- [ ] Existing suppressions are removed when a clean alternative exists, or recorded as reviewed, time-bounded exceptions when the constraint is genuine
+- [ ] The existing block-level suppression in `openrouter-credits.client.spec.ts` is removed, refactored, or reduced to the smallest justified scope after testing the module-loading alternative
+- [ ] A regression check proves broad/file/block-level suppressions fail while an approved, rule-specific single-line suppression with a justification passes
 
 ---
 
