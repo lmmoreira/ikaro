@@ -54,6 +54,7 @@ const mockSettings: TenantSettings = {
     socialLinks: null,
   },
   chatbot: { knowledgeText: 'Aceitamos cartão e Pix.' },
+  leadForm: { retentionMonths: 6, maxSubmissionsPerDay: 100, maxSubmissionsPerIpPerDay: 3 },
 };
 
 const mockTenantById: BackendTenantByIdResponse = {
