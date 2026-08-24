@@ -30,7 +30,7 @@ jest.mock('undici', () => ({
 // construction — and thus `new Agent(...)` — before those mocks exist. require() runs at this
 // exact line instead, after they're initialized.
 type FetchAndParseJsonModule = typeof import('./fetch-and-parse-json');
-// eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate, see comment above
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- load the module after jest.mock('undici') so module initialization uses the mocked transport
 const { fetchAndParseJson }: FetchAndParseJsonModule = require('./fetch-and-parse-json');
 
 const schema = z.object({ value: z.number() });
