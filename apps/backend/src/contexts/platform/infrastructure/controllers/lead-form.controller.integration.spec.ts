@@ -13,6 +13,7 @@ import { createPlatformIntegrationApp } from '../../../../test/utils/platform-in
 
 const TENANT_A = 'e2d3e4f5-0000-0000-0000-000000000001';
 const TENANT_NO_LEAD_FORM = 'e2d3e4f5-0000-0000-0000-000000000002';
+const TENANT_STATUS_TRANSITION = 'e2d3e4f5-0000-0000-0000-000000000003';
 
 describe('LeadFormController (integration)', () => {
   let app: INestApplication;
@@ -39,6 +40,18 @@ describe('LeadFormController (integration)', () => {
     await ds
       .getRepository(HotsiteConfigEntity)
       .save(new HotsiteConfigEntityBuilder().withTenantId(TENANT_NO_LEAD_FORM).build());
+
+    await ds
+      .getRepository(TenantEntity)
+      .save(
+        new TenantEntityBuilder()
+          .withId(TENANT_STATUS_TRANSITION)
+          .withSlug('lead-form-ctrl-tenant-c')
+          .build(),
+      );
+    await ds
+      .getRepository(HotsiteConfigEntity)
+      .save(new HotsiteConfigEntityBuilder().withTenantId(TENANT_STATUS_TRANSITION).build());
   });
 
   afterAll(async () => {
@@ -47,11 +60,13 @@ describe('LeadFormController (integration)', () => {
 
   describe('GET /tenants/lead-form/config', () => {
     it('returns 403 when X-Actor-Role is STAFF', async () => {
-      await request(app.getHttpServer())
+      const { body } = await request(app.getHttpServer())
         .get('/tenants/lead-form/config')
         .set('X-Tenant-ID', TENANT_A)
         .set('X-Actor-Role', 'STAFF')
         .expect(403);
+
+      expect(body.status).toBe(403);
     });
 
     it('returns the { title: "", ctaLabel: "" } default when no LEAD_FORM entry exists yet', async () => {
@@ -70,12 +85,14 @@ describe('LeadFormController (integration)', () => {
 
   describe('PATCH /tenants/lead-form/config', () => {
     it('returns 403 when X-Actor-Role is STAFF', async () => {
-      await request(app.getHttpServer())
+      const { body } = await request(app.getHttpServer())
         .patch('/tenants/lead-form/config')
         .set('X-Tenant-ID', TENANT_A)
         .set('X-Actor-Role', 'STAFF')
         .send({ title: 'Fale com a gente' })
         .expect(403);
+
+      expect(body.status).toBe(403);
     });
 
     it('saves teaser fields and questions atomically for a MANAGER', async () => {
@@ -138,6 +155,47 @@ describe('LeadFormController (integration)', () => {
         .expect(200);
 
       expect(body).toEqual({ enabled: false });
+    });
+
+    it('returns { enabled: true } after the module is enabled via PATCH /v1/tenants/hotsite', async () => {
+      const before = await request(app.getHttpServer())
+        .get('/tenants/lead-form/status')
+        .set('X-Tenant-ID', TENANT_STATUS_TRANSITION)
+        .set('X-Actor-Role', 'MANAGER')
+        .expect(200);
+      expect(before.body).toEqual({ enabled: false });
+
+      await request(app.getHttpServer())
+        .patch('/tenants/hotsite')
+        .set('X-Tenant-ID', TENANT_STATUS_TRANSITION)
+        .set('X-Actor-Role', 'MANAGER')
+        .send({
+          layout: [
+            {
+              type: 'HERO',
+              enabled: true,
+              data: {
+                variant: 'centered',
+                title: 'Cuidado completo para o seu carro',
+                ctaLabel: 'Agendar agora',
+                ctaTarget: 'booking-form',
+              },
+            },
+            {
+              type: 'LEAD_FORM',
+              enabled: true,
+              data: { title: 'Fale com a gente', ctaLabel: 'Preencher formulário' },
+            },
+          ],
+        })
+        .expect(200);
+
+      const after = await request(app.getHttpServer())
+        .get('/tenants/lead-form/status')
+        .set('X-Tenant-ID', TENANT_STATUS_TRANSITION)
+        .set('X-Actor-Role', 'MANAGER')
+        .expect(200);
+      expect(after.body).toEqual({ enabled: true });
     });
   });
 });

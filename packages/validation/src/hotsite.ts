@@ -82,6 +82,13 @@ export const HotsiteModuleSchema = z.object({
     'CONTACT',
     'FOOTER',
     'CHATBOT',
+    // Backend/BFF-only addition (M20-S01) — required for the LEAD_FORM module's `enabled` toggle
+    // to work at all via this existing generic endpoint (docs/02-DOMAIN_MODEL.md § LeadFormConfig
+    // "Cross-aggregate save": enabled stays owned by HotsiteConfig.updateContent(), same as every
+    // other module). Safe to add here without S07: this schema has no apps/web consumer (verified
+    // via grep), unlike packages/types/src/enums.ts's HotsiteModuleType, so it doesn't force any
+    // web-side exhaustive Record<HotsiteModuleType, ...> map to gain a real entry.
+    'LEAD_FORM',
   ]),
   enabled: z.boolean(),
   data: z.record(z.string(), z.unknown()),

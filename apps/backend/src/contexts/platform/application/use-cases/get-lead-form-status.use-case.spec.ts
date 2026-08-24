@@ -5,6 +5,7 @@ import { HotsiteModule } from '../../domain/hotsite-config.aggregate';
 import { GetLeadFormStatusUseCase } from './get-lead-form-status.use-case';
 
 const TENANT_ID = '01234567-0000-7000-8000-000000000001';
+const OTHER_TENANT_ID = '01234567-0000-7000-8000-000000000002';
 
 describe('GetLeadFormStatusUseCase', () => {
   let hotsiteConfigRepo: InMemoryHotsiteConfigRepository;
@@ -57,5 +58,21 @@ describe('GetLeadFormStatusUseCase', () => {
     const result = await useCase.execute({ tenantId: TENANT_ID });
 
     expect(result).toEqual({ enabled: true });
+  });
+
+  it("tenant isolation — does not leak tenant A's enabled flag when read as tenant B", async () => {
+    const leadFormModule: HotsiteModule = {
+      type: 'LEAD_FORM',
+      enabled: true,
+      data: { title: 'Tenant A only', ctaLabel: 'Preencher formulário' },
+    };
+    const hotsiteConfig = new HotsiteConfigBuilder()
+      .withTenantId(TENANT_ID)
+      .buildWithContent(undefined, [leadFormModule]);
+    await hotsiteConfigRepo.save(hotsiteConfig);
+
+    await expect(useCase.execute({ tenantId: OTHER_TENANT_ID })).rejects.toThrow(
+      HotsiteNotFoundError,
+    );
   });
 });

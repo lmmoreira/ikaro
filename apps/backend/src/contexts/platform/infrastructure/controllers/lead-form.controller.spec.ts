@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
+import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/platform/in-memory-hotsite-config.repository';
 import { InMemoryLeadFormConfigRepository } from '../../../../test/repositories/platform/in-memory-lead-form-config.repository';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
@@ -9,9 +10,14 @@ import { makeLeadFormQuestions } from '../../../../test/builders/platform/lead-f
 import { TenantBuilder } from '../../../../test/builders/platform/tenant.builder';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { TRANSACTION_MANAGER } from '../../../../shared/ports/transaction-manager.port';
+import { STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import { HOTSITE_CONFIG_REPOSITORY } from '../../application/ports/hotsite-config-repository.port';
 import { LEAD_FORM_CONFIG_REPOSITORY } from '../../application/ports/lead-form-config-repository.port';
 import { TENANT_REPOSITORY } from '../../application/ports/tenant-repository.port';
+import { HotsiteContentReader } from '../../application/services/hotsite-content-reader.service';
+import { HotsiteImagePromotionService } from '../../application/services/hotsite-image-promotion.service';
+import { HotsiteImagePathsService } from '../../domain/services/hotsite-image-paths.service';
+import { HotsiteImageUrlResolver } from '../../domain/services/hotsite-image-url-resolver.service';
 import { GetLeadFormConfigUseCase } from '../../application/use-cases/get-lead-form-config.use-case';
 import { GetLeadFormStatusUseCase } from '../../application/use-cases/get-lead-form-status.use-case';
 import { UpdateLeadFormModuleUseCase } from '../../application/use-cases/update-lead-form-module.use-case';
@@ -38,6 +44,11 @@ describe('LeadFormController', () => {
         { provide: LEAD_FORM_CONFIG_REPOSITORY, useValue: new InMemoryLeadFormConfigRepository() },
         { provide: TENANT_REPOSITORY, useValue: tenantRepo },
         { provide: TRANSACTION_MANAGER, useValue: new InMemoryTransactionManager() },
+        { provide: STORAGE_SERVICE, useValue: new InMemoryStorageService() },
+        HotsiteContentReader,
+        HotsiteImagePathsService,
+        HotsiteImagePromotionService,
+        HotsiteImageUrlResolver,
         { provide: RequestContext, useValue: requestContext },
       ],
     }).compile();

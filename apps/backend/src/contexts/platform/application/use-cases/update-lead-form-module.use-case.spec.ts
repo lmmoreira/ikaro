@@ -1,4 +1,5 @@
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
+import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/platform/in-memory-hotsite-config.repository';
 import { InMemoryLeadFormConfigRepository } from '../../../../test/repositories/platform/in-memory-lead-form-config.repository';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
@@ -11,6 +12,9 @@ import {
 } from '../../domain/errors/platform-domain.error';
 import { HotsiteModule } from '../../domain/hotsite-config.aggregate';
 import { LeadFormQuestionLimitReachedError } from '../../domain/errors/lead-form-domain.error';
+import { HotsiteImagePathsService } from '../../domain/services/hotsite-image-paths.service';
+import { HotsiteImageUrlResolver } from '../../domain/services/hotsite-image-url-resolver.service';
+import { HotsiteImagePromotionService } from '../services/hotsite-image-promotion.service';
 import { UpdateLeadFormModuleUseCase } from './update-lead-form-module.use-case';
 
 const TENANT_ID = '01234567-0000-7000-8000-000000000001';
@@ -27,11 +31,16 @@ describe('UpdateLeadFormModuleUseCase', () => {
     leadFormConfigRepo = new InMemoryLeadFormConfigRepository();
     tenantRepo = new InMemoryTenantRepository();
     txManager = new InMemoryTransactionManager();
+    const imagePathsService = new HotsiteImagePathsService();
     useCase = new UpdateLeadFormModuleUseCase(
       hotsiteConfigRepo,
       leadFormConfigRepo,
       tenantRepo,
       txManager,
+      imagePathsService,
+      new HotsiteImagePromotionService(new InMemoryStorageService(), imagePathsService),
+      new HotsiteImageUrlResolver(),
+      new InMemoryStorageService(),
     );
     await tenantRepo.save(new TenantBuilder().withId(TENANT_ID).build());
   });

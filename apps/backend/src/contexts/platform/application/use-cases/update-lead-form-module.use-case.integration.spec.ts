@@ -1,9 +1,13 @@
 import { DataSource } from 'typeorm';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
+import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typeorm-transaction-manager';
 import { TenantBuilder } from '../../../../test/builders/platform';
 import { HotsiteConfig } from '../../domain/hotsite-config.aggregate';
+import { HotsiteImagePathsService } from '../../domain/services/hotsite-image-paths.service';
+import { HotsiteImageUrlResolver } from '../../domain/services/hotsite-image-url-resolver.service';
+import { HotsiteImagePromotionService } from '../services/hotsite-image-promotion.service';
 import { HotsiteConfigEntity } from '../../infrastructure/entities/hotsite-config.entity';
 import { LeadFormConfigEntity } from '../../infrastructure/entities/lead-form-config.entity';
 import { TenantEntity } from '../../infrastructure/entities/tenant.entity';
@@ -55,11 +59,16 @@ describe('UpdateLeadFormModuleUseCase (integration — real Postgres cross-aggre
     await hotsiteConfigRepo.save(HotsiteConfig.create(tenant.id));
 
     const txManager = new TypeOrmTransactionManager(dataSource);
+    const imagePathsService = new HotsiteImagePathsService();
     const useCase = new UpdateLeadFormModuleUseCase(
       hotsiteConfigRepo,
       leadFormConfigRepo,
       tenantRepo,
       txManager,
+      imagePathsService,
+      new HotsiteImagePromotionService(new InMemoryStorageService(), imagePathsService),
+      new HotsiteImageUrlResolver(),
+      new InMemoryStorageService(),
     );
 
     await useCase.execute({
@@ -83,11 +92,16 @@ describe('UpdateLeadFormModuleUseCase (integration — real Postgres cross-aggre
     await hotsiteConfigRepo.save(HotsiteConfig.create(tenant.id));
 
     const txManager = new TypeOrmTransactionManager(dataSource);
+    const imagePathsService = new HotsiteImagePathsService();
     const failingUseCase = new UpdateLeadFormModuleUseCase(
       hotsiteConfigRepo,
       new ThrowingLeadFormConfigRepository(),
       tenantRepo,
       txManager,
+      imagePathsService,
+      new HotsiteImagePromotionService(new InMemoryStorageService(), imagePathsService),
+      new HotsiteImageUrlResolver(),
+      new InMemoryStorageService(),
     );
 
     await expect(

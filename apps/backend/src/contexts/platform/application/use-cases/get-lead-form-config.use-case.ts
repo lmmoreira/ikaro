@@ -1,11 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { LeadFormModuleData } from '../../domain/hotsite-config.aggregate';
-import { HotsiteNotFoundError } from '../../domain/errors/platform-domain.error';
 import { LeadFormAudienceMode, LeadFormQuestion } from '../../domain/lead-form-config.aggregate';
-import {
-  HOTSITE_CONFIG_REPOSITORY,
-  IHotsiteConfigRepository,
-} from '../ports/hotsite-config-repository.port';
+import { HotsiteContentReader } from '../services/hotsite-content-reader.service';
 import {
   ILeadFormConfigRepository,
   LEAD_FORM_CONFIG_REPOSITORY,
@@ -31,18 +27,21 @@ export interface GetLeadFormConfigUseCaseResult extends LeadFormModuleData {
 @Injectable()
 export class GetLeadFormConfigUseCase {
   constructor(
-    @Inject(HOTSITE_CONFIG_REPOSITORY)
-    private readonly hotsiteConfigRepo: IHotsiteConfigRepository,
+    private readonly hotsiteContentReader: HotsiteContentReader,
     @Inject(LEAD_FORM_CONFIG_REPOSITORY)
     private readonly leadFormConfigRepo: ILeadFormConfigRepository,
   ) {}
 
   async execute(input: GetLeadFormConfigUseCaseInput): Promise<GetLeadFormConfigUseCaseResult> {
     const { tenantId } = input;
-    const hotsiteConfig = await this.hotsiteConfigRepo.findByTenantId(tenantId);
-    if (!hotsiteConfig) throw new HotsiteNotFoundError(tenantId);
+    // readResolved() resolves every stored image path (including this module's own
+    // backgroundImageUrl) to a permanent public URL — symmetric with
+    // UpdateLeadFormModuleUseCase's own resolution on the write side, same reasoning as
+    // GetHotsiteContentUseCase (docs/ENGINEERING_RULES.md: a raw storage path here would show a
+    // broken image once the environment's public base URL doesn't bake the bucket name in).
+    const content = await this.hotsiteContentReader.readResolved(tenantId);
 
-    const leadFormModule = hotsiteConfig.layout.find((module) => module.type === 'LEAD_FORM');
+    const leadFormModule = content.layout.find((module) => module.type === 'LEAD_FORM');
     const teaser =
       (leadFormModule?.data as LeadFormModuleData | undefined) ?? DEFAULT_LEAD_FORM_MODULE_DATA;
 
