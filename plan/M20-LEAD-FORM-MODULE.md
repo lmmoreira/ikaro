@@ -152,7 +152,7 @@ No HTTP surface in this story — `CreateLeadFormSubmissionUseCase` is consumed 
 
 ---
 
-### M20-S03 — Tenant-settings `leadForm.{retentionMonths,maxSubmissionsPerDay,maxSubmissionsPerIpPerDay}`
+### M20-S03 — Tenant-settings `leadForm.{retentionMonths,maxSubmissionsPerDay,maxSubmissionsPerIpPerDay}` ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** S
@@ -168,6 +168,7 @@ No new endpoint — this extends the existing `PATCH`/`GET /v1/tenants/settings`
 **Acceptance Criteria:**
 - [ ] `LeadFormSettingsValidator` rejects each field's out-of-bounds values (0 and 25 for `retentionMonths`; 0 and 1001 for `maxSubmissionsPerDay`; 0 and 101 for `maxSubmissionsPerIpPerDay`) and accepts each field's boundary values (1 and 24; 1 and 1000; 1 and 100)
 - [ ] `PATCH /v1/tenants/settings` with any single one of the three fields (partial update) saves correctly without requiring the other two
+  - ⚠️ Out-of-range request-boundary values still map to generic `VALUE_OUT_OF_RANGE` instead of field-specific lead-form error codes — tracked in M20-S04, 2026-08-24.
 - [ ] A newly-provisioned tenant's row has `settings.leadForm === { retentionMonths: 6, maxSubmissionsPerDay: 100, maxSubmissionsPerIpPerDay: 3 }`
 - [ ] `GET /v1/tenants/settings` includes all three `leadForm` fields in its response shape
 - [ ] Coverage ≥80% on changed code; `tsc --noEmit`, lint, full test suite green
@@ -186,6 +187,8 @@ No new endpoint — this extends the existing `PATCH`/`GET /v1/tenants/settings`
 **Description:**
 Create `LeadFormRetentionPurgeJob` (`application/jobs/lead-form-retention-purge.job.ts`), mirroring `ChatbotRetentionPurgeJob`'s shape exactly: `run(now: Date = new Date())` deletes every `platform.lead_form_submissions` row where `expires_at < now`, using the `(tenant_id, expires_at)` index — cross-tenant scan, no per-tenant loop needed (matches how `ExpirePointsJob`/`ChatbotRetentionPurgeJob` both already work). No-op, idempotent when nothing is expired.
 
+**Carry-over from M20-S03:** While extending the tenant-settings validation coverage for this story, ensure out-of-range `leadForm` values sent through `PATCH /v1/tenants/settings` preserve the documented field-specific error codes (`PLATFORM_SETTINGS_LEAD_FORM_*_INVALID`) instead of the generic `VALUE_OUT_OF_RANGE` produced by native shared-schema range checks.
+
 **Forward-looking coupling note (no action needed in this story — S12 lands after this one and depends on it):** S12 introduces a `platform.lead_form_answers` child table FK'd to this table with no `ON DELETE CASCADE` (deliberately, matching this same job's own no-cascade precedent). Once S12 merges, **this job must be extended** (in S12's own scope, not retroactively here) to delete the corresponding `lead_form_answers` rows before (or atomically with) deleting their parent `lead_form_submissions` rows — otherwise every purge run after S12 lands will throw FK-violation errors on the first expired row that still has child answers. This story ships correctly on its own; the gap only exists once S12's table exists, and S12 is responsible for closing it.
 
 Create `CronLeadFormController` (`infrastructure/controllers/cron-lead-form.controller.ts`) — `POST /cron/lead-form-retention`, `InternalApiGuard`-protected, `X-Internal-Key` header, publishes the `CRON_LEAD_FORM_RETENTION_TRIGGER` name (add to `cron-trigger-names.constants.ts` alongside the existing trigger names) and returns `{ ok: true }` once published, not once the job finishes — same convention as every other cron endpoint.
@@ -195,6 +198,7 @@ Terraform: add `google_cloud_scheduler_job.lead_form_retention` to `infra/terraf
 **Acceptance Criteria:**
 - [ ] Job deletes exactly the expired rows, across every tenant, in one pass; a fixture with rows both before and after the cutoff proves only the expired ones are removed
 - [ ] Job is a genuine no-op (no error, no side effect) when nothing is expired
+- [ ] Lead-form tenant-settings range failures return the documented field-specific error codes at the request boundary, with regression coverage for all three fields
 - [ ] `POST /cron/lead-form-retention` requires `X-Internal-Key`; missing/wrong key → `401`/`403`
 - [ ] `.http` block for the cron endpoint
 - [ ] Terraform `terraform plan` clean against the modified `scheduler` module (live-verification gate — this story touches Pub/Sub + Cloud Scheduler, per CLAUDE.md §7's cross-layer deployment invariants)
