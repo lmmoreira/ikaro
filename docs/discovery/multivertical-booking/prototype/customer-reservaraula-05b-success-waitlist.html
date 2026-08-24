@@ -40,9 +40,9 @@
 <body>
 
   <!--
-    COMPONENT: EnrollmentSuccessView — estado WAITLIST
-    STATE:     enrollment.status = WAITLIST
-    ENTRY:     POST /v1/enrollments retornou 201 com status WAITLIST
+    COMPONENT: EnrollmentSuccessView — estado WAITLISTED
+    STATE:     enrollment.status = WAITLISTED ou PROMOTION_PENDING
+    ENTRY:     POST /v1/enrollments retornou 201 com estado de fila
                (sessão estava lotada, ou ficou lotada entre a tela de confirmação e o submit)
     EXIT:      "Ver minhas turmas" → /{slug}/my-account/turmas (tela 06-minhas-turmas → 07b-turma-waitlist)
     NOTE:      O campo enrollment.waitlistPosition vem na response do POST.
@@ -51,7 +51,7 @@
   <!-- Prototype banner -->
   <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;
                font-size:0.8125rem;text-align:center;color:#92400e;">
-    Protótipo · resultado · enrollment.status = WAITLIST · posição 3 na fila
+    Protótipo · resultado · enrollment.status = WAITLISTED · posição 3 na fila (promoção futura exige aceite)
   </div>
 
   <!-- BRAND BAR -->

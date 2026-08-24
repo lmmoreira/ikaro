@@ -20,8 +20,8 @@ Status: **discovery completo — GAP, não implementado**
 | `customer-reservaraula-03-dropin-confirmar.html` | `/{slug}/aulas/[classTypeId]/reservar/avulsa/confirmar` | `DropInConfirmPage` |
 | `customer-reservaraula-03b-serie-dias.html` | `/{slug}/aulas/[classTypeId]/reservar/serie` | `SeriesBuilderPage` |
 | `customer-reservaraula-04-serie-confirmar.html` | `/{slug}/aulas/[classTypeId]/reservar/serie/confirmar` | `SeriesConfirmPage` |
-| `customer-reservaraula-05-success-ativo.html` | `/{slug}/aulas/[classTypeId]/reservar/sucesso` | `EnrollmentSuccessPage` |
-| `customer-reservaraula-05b-success-waitlist.html` | mesma rota — status WAITLIST | `EnrollmentSuccessPage` (estado fila) |
+| `customer-reservaraula-05-success-ativo.html` | `/{slug}/aulas/[classTypeId]/reservar/sucesso` | `EnrollmentSuccessPage` (`CONFIRMED`) |
+| `customer-reservaraula-05b-success-waitlist.html` | mesma rota — `WAITLISTED`/`PROMOTION_PENDING` | `EnrollmentSuccessPage` (fila/oferta) |
 
 ## Auth guard
 
@@ -59,7 +59,7 @@ GET /v1/class-types
 Authorization: Bearer <JWT>
 ```
 
-Retorna os `ClassType` ativos do tenant do JWT. O tenant é inferido pelo slug da rota (ou pelo JWT — decidir na implementação qual é a fonte de verdade).
+Retorna o read model `ClassType` derivado de `Service`/templates/sessões. O tenant é sempre derivado do JWT/request context no BFF/backend; o slug serve para branding/rota e não substitui a fronteira de tenant.
 
 **Response:**
 ```ts
@@ -179,23 +179,24 @@ interface EnrollmentCreated {
   id: string;
   classTypeId: string;
   type: 'DROP_IN' | 'SERIES';
-  status: 'ACTIVE' | 'WAITLIST';  // WAITLIST se sessão/vaga lotada
+  status: 'CONFIRMED' | 'WAITLISTED' | 'PROMOTION_PENDING' | 'PENDING_APPROVAL';
   enrolledAt: string;
   // DROP_IN
   session?: { startsAt: string; endsAt: string; location: string; instructorName: string; };
   // SERIES
   slots?: RecurringSlot[];
   nextSessionAt?: string;
-  // WAITLIST
+  // WAITLIST / OFFER
   waitlistPosition?: number;  // derivado, não armazenado
+  offerExpiresAt?: string;
 }
 ```
 
 **Roteamento pós-POST:**
 ```ts
-if (enrollment.status === 'ACTIVE') {
+if (enrollment.status === 'CONFIRMED') {
   redirect('/aulas/[classTypeId]/reservar/sucesso?enrollmentId=...');
-} else if (enrollment.status === 'WAITLIST') {
+} else if (enrollment.status === 'WAITLISTED' || enrollment.status === 'PROMOTION_PENDING') {
   redirect('/aulas/[classTypeId]/reservar/sucesso?enrollmentId=...&waitlist=true');
 }
 ```
@@ -205,21 +206,19 @@ Raro mas possível (race condition). Mostrar mensagem "Esta sessão acabou de lo
 
 ---
 
-## Estado do Enrollment
+## Estado do read model de matrícula
 
 ```
-ACTIVE    — vaga confirmada, sessões geradas
-WAITLIST  — na fila, aguardando promoção
-CANCELLED — cancelado pelo cliente ou pelo admin
+CONFIRMED          — vaga confirmada
+WAITLISTED         — na fila, sem capacidade reservada
+PROMOTION_PENDING  — oferta aceita? não: oferta aberta, com capacidade reservada até `offerExpiresAt`
+PENDING_APPROVAL   — aguarda decisão da equipe
+CANCELLED          — cancelado, recusado ou oferta expirada
 ```
 
-A transição `WAITLIST → ACTIVE` é feita pelo backend automaticamente quando uma vaga abre (alguém cancela ou pula uma sessão). O backend:
-1. Encontra o primeiro `WAITLIST` da fila para aquele `classTypeId` / sessão
-2. Muda `status` para `ACTIVE`
-3. Seta `enrollment.promotedAt = now()`
-4. Dispara e-mail com link direto para `/{slug}/my-account/turmas/[enrollmentId]`
+A transição `WAITLISTED → PROMOTION_PENDING` cria uma oferta explícita quando uma vaga abre. O cliente deve aceitar antes do menor prazo entre a configuração do tenant (padrão 24h, máximo 48h) e o início da sessão. Ao aceitar, o backend revalida elegibilidade e muda para `CONFIRMED`; ao recusar ou expirar, libera a capacidade e oferece ao próximo cliente compatível.
 
-O banner de promoção na tela `07d-waitlist-promovida.html` é mostrado enquanto `promotedAt < 24h atrás` — checado no client após GET do enrollment.
+O detalhe da matrícula mostra prazo, quantidade de lugares, aceitar/recusar e estados de expiração. O prazo e o estado vêm do backend; não são calculados apenas no client.
 
 ---
 

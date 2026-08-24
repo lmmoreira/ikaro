@@ -11,6 +11,7 @@ import { CHATBOT_PROVIDER_BALANCE_REPOSITORY } from './application/ports/chatbot
 import { CHATBOT_SESSION_REPOSITORY } from './application/ports/chatbot-session-repository.port';
 import { FRONTEND_REVALIDATION_PORT } from './application/ports/frontend-revalidation.port';
 import { HOTSITE_CONFIG_REPOSITORY } from './application/ports/hotsite-config-repository.port';
+import { LEAD_FORM_CONFIG_REPOSITORY } from './application/ports/lead-form-config-repository.port';
 import { LEAD_FORM_SUBMISSION_REPOSITORY } from './application/ports/lead-form-submission-repository.port';
 import {
   ANTHROPIC_LLM_PROVIDER,
@@ -38,6 +39,9 @@ import { GetChatbotStatusUseCase } from './application/use-cases/get-chatbot-sta
 import { GetHotsiteContentUseCase } from './application/use-cases/get-hotsite-content.use-case';
 import { GetHotsiteManifestUseCase } from './application/use-cases/get-hotsite-manifest.use-case';
 import { CreateLeadFormSubmissionUseCase } from './application/use-cases/create-lead-form-submission.use-case';
+import { GetLeadFormConfigUseCase } from './application/use-cases/get-lead-form-config.use-case';
+import { GetLeadFormStatusUseCase } from './application/use-cases/get-lead-form-status.use-case';
+import { UpdateLeadFormModuleUseCase } from './application/use-cases/update-lead-form-module.use-case';
 import { GetTenantByIdUseCase } from './application/use-cases/get-tenant-by-id.use-case';
 import { GetTenantBySlugUseCase } from './application/use-cases/get-tenant-by-slug.use-case';
 import { GetTenantsUseCase } from './application/use-cases/get-tenants.use-case';
@@ -53,6 +57,7 @@ import { ChatbotMessageEntity } from './infrastructure/entities/chatbot-message.
 import { ChatbotProviderBalanceEntity } from './infrastructure/entities/chatbot-provider-balance.entity';
 import { ChatbotSessionEntity } from './infrastructure/entities/chatbot-session.entity';
 import { HotsiteConfigEntity } from './infrastructure/entities/hotsite-config.entity';
+import { LeadFormConfigEntity } from './infrastructure/entities/lead-form-config.entity';
 import { LeadFormSubmissionEntity } from './infrastructure/entities/lead-form-submission.entity';
 import { TenantEntity } from './infrastructure/entities/tenant.entity';
 import { FrontendRevalidationAdapter } from './infrastructure/adapters/frontend-revalidation.adapter';
@@ -70,6 +75,7 @@ import { ChatbotBalancePollTriggerHandler } from './infrastructure/events/chatbo
 import { ChatbotRetentionPurgeTriggerHandler } from './infrastructure/events/chatbot-retention-purge-trigger.handler';
 import { HotsiteAdminController } from './infrastructure/controllers/hotsite-admin.controller';
 import { HotsiteController } from './infrastructure/controllers/hotsite.controller';
+import { LeadFormController } from './infrastructure/controllers/lead-form.controller';
 import { InternalTenantController } from './infrastructure/controllers/internal-tenant.controller';
 import { InternalTenantReadController } from './infrastructure/controllers/internal-tenant-read.controller';
 import { TenantController } from './infrastructure/controllers/tenant.controller';
@@ -79,6 +85,7 @@ import { TypeOrmChatbotMessageRepository } from './infrastructure/repositories/t
 import { TypeOrmChatbotProviderBalanceRepository } from './infrastructure/repositories/typeorm-chatbot-provider-balance.repository';
 import { TypeOrmChatbotSessionRepository } from './infrastructure/repositories/typeorm-chatbot-session.repository';
 import { TypeOrmHotsiteConfigRepository } from './infrastructure/repositories/typeorm-hotsite-config.repository';
+import { TypeOrmLeadFormConfigRepository } from './infrastructure/repositories/typeorm-lead-form-config.repository';
 import { TypeOrmLeadFormSubmissionRepository } from './infrastructure/repositories/typeorm-lead-form-submission.repository';
 import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-tenant.repository';
 
@@ -87,6 +94,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     TypeOrmModule.forFeature([
       TenantEntity,
       HotsiteConfigEntity,
+      LeadFormConfigEntity,
       ChatbotSessionEntity,
       ChatbotMessageEntity,
       ChatbotProviderBalanceEntity,
@@ -102,6 +110,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     CronChatbotController,
     HotsiteAdminController,
     HotsiteController,
+    LeadFormController,
     InternalTenantController,
     InternalTenantReadController,
     TenantController,
@@ -112,6 +121,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     CachingTenantRepository,
     { provide: TENANT_REPOSITORY, useClass: CachingTenantRepository },
     { provide: HOTSITE_CONFIG_REPOSITORY, useClass: TypeOrmHotsiteConfigRepository },
+    { provide: LEAD_FORM_CONFIG_REPOSITORY, useClass: TypeOrmLeadFormConfigRepository },
     { provide: CHATBOT_SESSION_REPOSITORY, useClass: TypeOrmChatbotSessionRepository },
     { provide: CHATBOT_MESSAGE_REPOSITORY, useClass: TypeOrmChatbotMessageRepository },
     {
@@ -167,6 +177,9 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     GetChatbotStatusUseCase,
     GetHotsiteContentUseCase,
     GetHotsiteManifestUseCase,
+    GetLeadFormConfigUseCase,
+    GetLeadFormStatusUseCase,
+    UpdateLeadFormModuleUseCase,
     GetTenantByIdUseCase,
     GetTenantBySlugUseCase,
     GetTenantsUseCase,

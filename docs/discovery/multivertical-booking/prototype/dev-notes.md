@@ -56,8 +56,8 @@ alternative state, never a primary entry point.
 | `ClassAccessContractForm` | manager-07 | `POST/DELETE /class-access-contracts` |
 | `ResourceScheduleControls` | manager-08 | resource hours/opening/closure/deactivation + template cancellation scope |
 | `ClassTemplateEditForm` | manager-11 | `PATCH /class-templates/{id}` |
-| `EnrollmentList` | manager-09 | `GET /v1/class-types/{id}/enrollments?status=ACTIVE,WAITLIST&type=SERIES,DROP_IN` |
-| `WaitlistRow` (manual promote) | manager-09 | `POST /v1/enrollments/{id}/promote` |
+| `EnrollmentList` | manager-09 | `GET /v1/class-types/{id}/enrollments?status=CONFIRMED,WAITLISTED,PROMOTION_PENDING&type=SERIES,DROP_IN` |
+| `WaitlistRow` (manual offer) | manager-09 | `POST /v1/enrollments/{id}/promote` (creates `PROMOTION_PENDING`, never silently confirms) |
 | `AdminEnrollmentForm` | manager-09b | `POST /v1/enrollments` (body: `{ classTypeId, customerId, type, sessionId?, slotIds?, startsAt?, createdByStaff: true }`) |
 | `ServiceCatalogConfigSection` | manager-02 (SESSION panel) | `PATCH /services/{id}` — new fields: `color`, `description`, `allowsDropIn`, `allowsSeries` |
 | `VariableDurationReservationStep` | public-11 | `GET /schedule/availability?serviceId=&startsAt=&durationMinutes=&participantCount=` |
@@ -106,7 +106,7 @@ This folder is now UX-complete as a discovery artefact, but it is **not yet impl
 - Contract-less authenticated drop-ins need their own confirmed/pending-approval/waitlist branch; series remain contract-only.
 - Waitlists are authenticated, single-seat customer intent: the selected contract or pay-per-class path is stored before promotion and revalidated on offer acceptance. Anonymous guests and guest groups never enter the waitlist.
 - A first-free guest trial is a solo booking only. A guest group has named attendees but is always payable in person; one contact email cannot grant a group a free entitlement.
-- Appointment no-show remains deferred. Class attendee attendance/no-show remains in scope because it is necessary for class close-out.
+- Appointment no-show is now in scope as terminal `NO_SHOW` after the scheduled end time. STAFF and MANAGER may mark it; MANAGER may correct it with an audit transition. Class attendee attendance/no-show remains per attendee during class close-out.
 - Guest class-email verification needs a real token landing, expiry/restart and post-verification-full state before implementation.
 - Manager/staff screens are component explorations until a formal cross-role route map replaces the discovery-only dead navigation links.
 - `ROUTE_MAP.md` is that cross-role navigation authority. It prevents arbitrary cross-role links during promotion and declares which existing navigation labels are outside this discovery.
@@ -200,7 +200,7 @@ A full pass cross-checking prototypes against all 31 candidates found:
 
 - **Systematic empty/loading state coverage** — still not built. The 2026-08-22 backfill (below) added error/validation states for the highest-value write-interaction screens only; pure read-views and bespoke loading mockups remain a documented, deliberate gap for `/discovery-to-milestone`'s real implementation-grade prototypes to close.
 - A full "Serviços" or "Horários" list screen — sidebar/bottom-nav items not central to this discovery point to `#` placeholders.
-- Session-cancellation refund policy (staff-02) — still an open question, surfaced visibly on purpose (see discovery doc §9), not answered here.
+- Session-cancellation refunds/credits — Ikaro does not process payments. Future session cancellation cancels reservations and notifies customers; manually reported charges, refunds and credits are outside this discovery.
 - Credit-passes and time-based memberships — explicitly deferred; see `multivertical-booking.md` §11's extension-point note for why today's shape needs no rework to receive either, once that story is actually scoped.
 
 ## Mode B restructuring — targeted state-coverage backfill (2026-08-22)

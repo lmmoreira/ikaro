@@ -53,16 +53,15 @@
                O e-mail usa o link direto para esta página.
 
     MUDANÇAS em relação a 07-turma-detail.html:
-      - enrollment.status mudou de WAITLIST → ACTIVE (backend atualiza automaticamente
-        quando notifica o 1º da fila)
-      - Banner de promoção visível (dismissível)
-      - Badge da matrícula muda de "Fila de espera" para "Ativa"
-      - Sessões futuras agora aparecem como "Confirmada" (não mais "Lista de espera")
+      - enrollment.status mudou de WAITLISTED → PROMOTION_PENDING
+      - Banner de oferta visível com prazo e ações aceitar/recusar
+      - Badge da matrícula mostra "Oferta disponível"
+      - Sessões futuras só aparecem como "Confirmada" depois do aceite
 
     DATA:
-      GET /v1/enrollments/:id  → enrollment.status = ACTIVE  (era WAITLIST)
-      enrollment.promotedAt   → timestamp da promoção (usado para mostrar o banner)
-    O banner é mostrado enquanto promotedAt < 24h atrás. Após isso, detalhe normal.
+      GET /v1/enrollments/:id  → enrollment.status = PROMOTION_PENDING
+      enrollment.offerExpiresAt → prazo calculado pelo backend
+    O estado é mantido pelo backend até aceite, recusa ou expiração.
   -->
 
   <!-- Prototype banner -->

@@ -345,7 +345,7 @@ A tela de "Minha Conta" existente cobre agendamentos pontuais. Turmas têm compo
 
 ## 15. `07b-turma-waitlist.html` — Fila de espera (13/08/2026)
 
-**O que é:** mesmo route que o detalhe de matrícula, estado diferente quando `enrollment.status = WAITLIST`.
+**O que é:** mesma rota que o detalhe de matrícula, com estado `WAITLISTED` ou `PROMOTION_PENDING`; a segunda variante mostra uma oferta explícita com prazo e ações de aceitar/recusar.
 
 **Decisões de UX:**
 - **Posição em destaque visual (círculo âmbar com número):** a informação principal é "você é a 3ª". Tudo mais é contexto.

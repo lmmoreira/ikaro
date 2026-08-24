@@ -48,7 +48,7 @@ Spawn three Explore agents in parallel, one per layer. Give each agent the full 
 | Agent | Scope | Checks to pass |
 |---|---|---|
 | Backend | `apps/backend/src/` (full) or changed files list (--pr) | Backend checks section (BE-1 through BE-7; BE-1 and BE-4 retired — see PR mode note above) |
-| BFF | `apps/bff/src/` (full) or changed files list (--pr) | BFF checks section (BFF-1 through BFF-4) |
+| BFF | `apps/bff/src/` (full) or changed files list (--pr) | BFF checks section (BFF-1 through BFF-5) |
 | Web | `apps/web/` (full) or changed files list (--pr) | Web checks section (WEB-1 through WEB-11) |
 
 If `$ARGUMENTS` restricts to a single layer or a specific context path, spawn only the relevant agent.
@@ -131,6 +131,16 @@ Note: only applies to existing public controllers serving hotsite content — no
 ### BFF-4. Cross-app boundary violation
 
 Grep `apps/bff/src/` for `import` statements whose resolved path points into `apps/backend/src/contexts/`. The BFF must call the backend via HTTP or through service ports — never by importing backend context modules directly.
+
+### BFF-5. New BFF Zod schema structurally identical to a new backend DTO schema (same PR)
+
+For each new or changed `*.schemas.ts`/`*.schema.ts` file under `apps/bff/src/features/**` in this PR, find the backend DTO it validates against (same feature/module, typically `apps/backend/src/contexts/<domain>/application/dtos/*.dto.ts`, or the DTO's own class-validator/Zod shape if the backend uses one). Compare field-by-field: if every field name, type, and optionality matches with **no BFF-specific deviation** (no extra field, no different validation rule, no per-app default), flag it as an avoidable duplicate that belongs in `packages/validation/src/<domain>.ts` instead, imported by both apps.
+
+If the two schemas differ (even in one field), that's a deliberate per-app customization, not the smell — do not flag it. Only flag true 1:1 duplication.
+
+Fix pattern: extract to `packages/validation/src/<domain>.ts` as a single shared schema, following the direct-reuse pattern already used for `HotsiteModuleSchema` and `UpdateLeadFormConfigSchema`; import it from both `apps/backend` and `apps/bff` instead of maintaining two copies. Use a builder function (e.g. `buildUpdateTenantSettingsSchema`) instead of direct reuse only when a genuine per-app deviation exists.
+
+(M20-S01 precedent, 2026-08-24: `apps/backend/src/contexts/platform/application/dtos/update-lead-form-config.dto.ts` and `apps/bff/src/features/platform/lead-form.schemas.ts` were shipped as two independently-hand-written, field-for-field identical Zod schemas across 3 bot-review rounds — none of Codex, CodeRabbit, or this audit's then-current checklist caught it. Found only by the user asking directly whether the duplication was correct.)
 
 ---
 
@@ -233,6 +243,9 @@ Grep `apps/web/features/customer/` for exported functions/components with "Booki
 ...
 
 #### BFF-4. Cross-app boundary violation
+(none found)
+
+#### BFF-5. BFF schema structurally identical to a new backend DTO schema
 (none found)
 
 ### Web

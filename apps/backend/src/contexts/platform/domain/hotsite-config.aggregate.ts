@@ -62,6 +62,7 @@ const MODULE_TYPES: ReadonlySet<HotsiteModuleType> = new Set([
   'CONTACT',
   'FOOTER',
   'CHATBOT',
+  'LEAD_FORM',
 ]);
 
 type ModuleDataValidator = (data: HotsiteModuleData, ctx: LayoutValidationContext) => void;

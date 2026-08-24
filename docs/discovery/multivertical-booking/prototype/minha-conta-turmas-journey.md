@@ -14,14 +14,14 @@ flowchart TD
 
     MinhaConta["/{slug}/my-account<br/>Minha Conta (real, shipped)"] -->|"Tab 'Turmas' (nav)"| MinhasTurmas["❓ GAP: /{slug}/my-account/turmas<br/>Minhas Turmas (customer-minhasturmas-01-lista)"]
     MinhasTurmas -->|"Clica card ativo"| TurmaDetail
-    MinhasTurmas -->|"Clica card em fila"| TurmaWaitlist["❓ GAP: mesma rota, status WAITLIST<br/>Fila de espera (customer-minhasturmas-02b-detail-waitlist)"]
+    MinhasTurmas -->|"Clica card em fila"| TurmaWaitlist["❓ GAP: mesma rota, status WAITLISTED/PROMOTION_PENDING<br/>Fila/oferta (customer-minhasturmas-02b-detail-waitlist)"]
     MinhasTurmas -->|"'Ver agenda de turmas'"| Catalog["❓ GAP: /{slug}/aulas<br/>(journey: reservar-aula-journey.md)"]
 
     TurmaDetail["❓ GAP: /{slug}/my-account/turmas/[id]<br/>Detalhe (customer-minhasturmas-02-detail)"] -->|"tipo série"| TurmaSerieDetail["❓ GAP: mesma rota, variante série<br/>(customer-minhasturmas-02c-detail-serie)"]
     TurmaDetail -->|"'Pular' (sessão futura)"| PularSessao
     TurmaDetail -->|"'Cancelar matrícula'"| CancelarMatricula
 
-    TurmaWaitlist -.->|"e-mail: vaga promovida<br/>(sistema, automático)"| Promovida["❓ GAP: banner por 24h no detalhe<br/>(customer-minhasturmas-02d-detail-promovida)"]
+    TurmaWaitlist -.->|"e-mail: oferta de vaga<br/>(aceite explícito)"| Promovida["❓ GAP: oferta com prazo no detalhe<br/>(customer-minhasturmas-02d-detail-promovida)"]
     Promovida --> TurmaDetail
 
     PularSessao["❓ GAP: .../pular<br/>Pular sessão (customer-minhasturmas-03-pular-sessao)"] -->|"Confirma"| PularOk(("PATCH /v1/enrollments/:id/skip-session"))
@@ -46,7 +46,7 @@ flowchart TD
 
 | Call | When | Roles |
 |---|---|---|
-| `GET /v1/enrollments?status=ACTIVE,WAITLIST` | Minhas Turmas — page load | CUSTOMER (filtered to own enrollments) |
+| `GET /v1/enrollments?status=CONFIRMED,WAITLISTED,PROMOTION_PENDING` | Minhas Turmas — page load | CUSTOMER (filtered to own enrollments) |
 | `GET /v1/enrollments/:id` | Detalhe da matrícula | CUSTOMER (ownership enforced — 404 if `customerId ≠ JWT.sub`) |
 | `PATCH /v1/enrollments/:id/skip-session` | Pular sessão (`{ sessionId, reason?: string }`) | CUSTOMER |
 | `DELETE /v1/enrollments/:id` | Cancelar matrícula (soft delete → CANCELLED) | CUSTOMER |
@@ -57,7 +57,7 @@ flowchart TD
 |---|---|---|---|
 | `customer-minhasturmas-01-lista.html` | Minhas Turmas — lista de matrículas | CAND-25/27/28 | ❓ GAP |
 | `customer-minhasturmas-02-detail.html` | Detalhe da matrícula (turma fixa) | CAND-27 | ❓ GAP |
-| `customer-minhasturmas-02b-detail-waitlist.html` | Detalhe — status WAITLIST | CAND-24/25 | ❓ GAP |
+| `customer-minhasturmas-02b-detail-waitlist.html` | Detalhe — status WAITLISTED/PROMOTION_PENDING | CAND-24/25 | ❓ GAP |
 | `customer-minhasturmas-02c-detail-serie.html` | Detalhe — variante série com fim | CAND-27 | ❓ GAP |
 | `customer-minhasturmas-02d-detail-promovida.html` | Detalhe — banner pós-promoção (24h) | CAND-25 | ❓ GAP |
 | `customer-minhasturmas-03-pular-sessao.html` | Pular sessão — form | CAND-27 | ❓ GAP |
@@ -66,16 +66,16 @@ flowchart TD
 | `customer-minhasturmas-04-cancelar.html` | Cancelar matrícula — confirmação | CAND-28 | ❓ GAP |
 | `customer-minhasturmas-04b-cancelar-erro.html` | Cancelar matrícula — erro | CAND-28 | ❓ GAP |
 
-## Open questions / gaps (extracted verbatim, all still open)
+## Open questions / implementation gaps
 
 - [ ] **No story/milestone exists for any of these routes.** Needs `/discovery-to-milestone` before implementation.
-- [x] **Waitlist promotion:** automatic, no accept step — resolved, `multivertical-booking.md` §9 item 15/16 (waitlist promotion now requires acceptance, `PROMOTION_PENDING`).
+- [x] **Waitlist promotion:** explicit `PROMOTION_PENDING` offer with accept/decline/expiry — resolved, `multivertical-booking.md` promotion-finalization rules.
 - [x] **Skip-session minimum-notice window:** dedicated `classSkipWindowHours`, separate from `classCancellationWindowHours` — resolved 2026-08-21, `CAND-27` A3.
 - [ ] **Reposição (`CAND-38`) has a discovery-stage prototype screen** (`customer-04d-reagendada.html`, this same `prototype/` folder) — not built to `plan/journey/`'s implementation-grade bar. Needs its own prototype pass (linked from `customer-minhasturmas-03-pular-sessao.html`) once promoted.
-- [ ] **The 24h banner window** (`customer-minhasturmas-02d-detail-promovida.html`, "shown while `promotedAt < 24h atrás`") is checked client-side on the enrollment's own GET response — confirm this is sufficient or needs a dedicated "unseen promotion" flag server-side.
-- [ ] **The original `EnrollmentSession` interface (`UPCOMING|SKIPPED|ATTENDED|NO_SHOW`), sketched in the original `dev-notes.md` before this restructuring, has no equivalent in the canonical model and needs replacing, not reconciling** — canonically, a recurring occurrence is its own `ClassSessionBooking` row (`seriesId` set, own `status`), and attendance lives on `ClassSessionAttendee.attendance` (`PRESENT|NO_SHOW`). "Pulou" is derived at display time (`status=CANCELLED AND seriesId≠null`), not a stored enum value.
+- [x] **Promotion offer deadline:** returned by the backend as `offerExpiresAt`; the client does not derive the offer state from a local 24-hour calculation. A separate unread flag is deferred; the active offer remains visible until accepted, declined or expired.
+- [x] **The original `EnrollmentSession` interface is superseded** — canonically, a recurring occurrence is its own `ClassSessionBooking` row (`seriesId` set, own `status`), and attendance lives on `ClassSessionAttendee.attendance` (`PRESENT|NO_SHOW`). "Pulou" is derived at display time (`status=CANCELLED AND seriesId≠null`), not a stored enum value. The implementation story must remove the obsolete interface rather than reconcile it.
 - [ ] **The original "Pular sessão — lógica" sketch ("Backend marca `session.status = SKIPPED`") predates and doesn't reflect either 2026-08-21 decision**: no mention of the `classSkipWindowHours` notice check (`CAND-27` A3), and no mention of the `CAND-38` reschedule alternative. Needs a rewrite once this journey is promoted, not just a schema update.
-- [ ] Same `ClassType`/`Enrollment` naming reconciliation flagged in `reservar-aula-journey.md`'s open questions applies here too (`classType` field on `CustomerEnrollment`, the `type: DROP_IN | SERIES` split) — one fix, shared by both journeys.
+- [x] **Naming reconciliation:** canonical persistence/domain names are `Service`, `ClassScheduleTemplate`, `ClassSessionBooking` and `RecurringEnrollment`; `ClassType`/`Enrollment` may remain read-model labels only and must not become aggregates.
 
 ## Discovery reconciliation — required before implementation
 

@@ -1,8 +1,47 @@
 // @ts-check
 const tsParser = require('@typescript-eslint/parser');
 const tsPlugin = require('@typescript-eslint/eslint-plugin');
+const eslintCommentsPlugin = require('@eslint-community/eslint-plugin-eslint-comments');
 const prettierPlugin = require('eslint-plugin-prettier');
 const prettierConfig = require('eslint-config-prettier');
+
+const singleRuleSuppressionRule = {
+  meta: {
+    type: 'problem',
+    docs: {
+      description: 'require ESLint line suppressions to name exactly one rule',
+    },
+    schema: [],
+    messages: {
+      singleRule: 'ESLint suppressions must name exactly one rule.',
+    },
+  },
+  create(context) {
+    return {
+      Program() {
+        for (const comment of context.sourceCode.getAllComments()) {
+          const match = comment.value
+            .trim()
+            .match(/^eslint-disable-(?:next-line|line)\b([\s\S]*)$/);
+
+          if (!match) {
+            continue;
+          }
+
+          const rulesPart = match[1].split(/\s+--\s+/, 1)[0].trim();
+          const ruleNames = rulesPart
+            .split(',')
+            .map((ruleName) => ruleName.trim())
+            .filter(Boolean);
+
+          if (ruleNames.length !== 1) {
+            context.report({ node: null, messageId: 'singleRule', loc: comment.loc });
+          }
+        }
+      },
+    };
+  },
+};
 
 // z.string().uuid()/.email() are deprecated in Zod v4 (SonarCloud S1874) and
 // z.string().uuid() rejects non-RFC-4122 test UUIDs — use z.uuid()/z.email() directly
@@ -43,6 +82,7 @@ const config = [
     },
     plugins: {
       '@typescript-eslint': tsPlugin,
+      '@eslint-community/eslint-comments': eslintCommentsPlugin,
       prettier: prettierPlugin,
     },
     rules: {
@@ -53,14 +93,29 @@ const config = [
       '@typescript-eslint/no-require-imports': 'error',
       'no-console': 'error',
       'prettier/prettier': 'error',
+      // The upstream eslint-comments plugin has no rule for comma-separated directives.
+      'ikaro-eslint-comments/single-rule': 'error',
       // docs/CODE_STANDARDS.md's default-parameter rule (SonarCloud S1788) — zero baseline
       // violations repo-wide (TD37-S05, 2026-08-17), ships as error immediately with no
       // exceptions needed. Faster feedback than waiting for the SonarCloud CI stage.
       'default-param-last': 'error',
       'no-restricted-syntax': ['error', ZOD_UUID_SELECTOR, ZOD_EMAIL_SELECTOR],
+      // ESLint suppressions are allowed only for one line, one named rule, with a
+      // concrete justification. File/block disables and enable directives are forbidden
+      // (TD37-S16; docs/CODE_STANDARDS.md).
+      '@eslint-community/eslint-comments/no-use': [
+        'error',
+        { allow: ['eslint-disable-line', 'eslint-disable-next-line'] },
+      ],
+      '@eslint-community/eslint-comments/no-unlimited-disable': 'error',
+      '@eslint-community/eslint-comments/require-description': 'error',
     },
   },
 ];
+
+config[1].plugins['ikaro-eslint-comments'] = {
+  rules: { 'single-rule': singleRuleSuppressionRule },
+};
 
 module.exports = config;
 // Array spread (`...baseConfig`) only iterates numeric indices, so attaching named properties

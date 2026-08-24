@@ -125,7 +125,7 @@
 
     The customer flow introduces Enrollment as a first-class entity:
       enrollment.type   = DROP_IN | SERIES
-      enrollment.status = ACTIVE | WAITLIST | CANCELLED
+      enrollment.status = CONFIRMED | WAITLISTED | PROMOTION_PENDING | CANCELLED
 
     staff-02-session-roster.html shows who's in ONE session (session-level, per-day).
     This screen answers the question that staff-02 cannot: "who is enrolled in
@@ -142,8 +142,8 @@
       DropInRosterByDay    — drop-in bookings grouped by session date
 
     BFF CALLS (GAP):
-      GET /v1/class-types/:id/enrollments?status=ACTIVE&type=SERIES
-      GET /v1/class-types/:id/enrollments?status=WAITLIST
+      GET /v1/class-types/:id/enrollments?status=CONFIRMED&type=SERIES
+      GET /v1/class-types/:id/enrollments?status=WAITLISTED,PROMOTION_PENDING
       GET /v1/class-types/:id/sessions/:sessionId/bookings?type=DROP_IN
       POST /v1/enrollments/:id/promote          ← manager manual promote from waitlist
       DELETE /v1/enrollments/:id                ← manager cancel (same endpoint as customer)
@@ -531,7 +531,7 @@
           <div style="padding:0.875rem 1rem;background:var(--ba-secondary);border-radius:var(--ba-radius);
                       font-size:0.8125rem;line-height:1.55;opacity:0.75;color:var(--ba-text);">
             Avulsas não geram fila de espera recorrente. Se a sessão lotar, o cliente vai para a fila
-            apenas daquela data (enrollment.status = WAITLIST para drop-in).
+            apenas daquela data (enrollment.status = WAITLISTED/PROMOTION_PENDING para drop-in).
           </div>
         </div>
 
@@ -599,7 +599,7 @@
           <div style="margin-top:1rem;padding:0.875rem 1rem;background:#fef3c7;
                       border-radius:var(--ba-radius);font-size:0.8125rem;line-height:1.55;color:#92400e;">
             <strong>Promoção automática:</strong> quando alguém cancela ou pula uma sessão, o sistema
-            notifica o 1º da fila por e-mail com link direto para confirmar a vaga (enrollment.promotedAt).
+            cria uma oferta para o 1º cliente compatível por e-mail com prazo para aceitar a vaga (enrollment.offerExpiresAt).
             A vaga fica reservada por 24h antes de passar para o próximo.
           </div>
         </div>

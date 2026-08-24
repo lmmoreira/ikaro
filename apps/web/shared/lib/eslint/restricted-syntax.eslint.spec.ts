@@ -5,7 +5,7 @@ const webRoot = resolve(__dirname, '../../..');
 // Load the actual CommonJS flat config rather than duplicating its rules in this spec — mirrors
 // apps/backend/src/eslint/persistence-boundary.eslint.spec.ts (Linter.verify() runs the same
 // config array without Jest/Vitest's dynamic-import gap).
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- load the real CommonJS flat config in this ESLint regression test
 const productionConfig = require(resolve(webRoot, 'eslint.config.js')) as Linter.Config[];
 
 describe('TD37-S04 restricted syntax (web)', () => {

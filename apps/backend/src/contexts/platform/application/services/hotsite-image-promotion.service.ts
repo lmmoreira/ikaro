@@ -103,6 +103,25 @@ export class HotsiteImagePromotionService {
   }
 
   /**
+   * A `tenants/<tenantId>/...` path present before the write but absent from the new state is a
+   * now-superseded permanent object — safe to delete. Never touches paths outside this tenant's
+   * own prefix (e.g. a shared/default asset). Shared by every use case that mutates
+   * branding/layout/seo (UpdateHotsiteContentUseCase, UpdateLeadFormModuleUseCase) — extracted
+   * here once a second call site needed it.
+   */
+  computeDeletions(
+    oldPaths: string[],
+    branding: HotsiteBranding,
+    layout: HotsiteModule[],
+    seo: HotsiteSeo,
+    tenantId: string,
+  ): string[] {
+    const newPaths = this.imagePathsService.collect(branding, layout, seo);
+    const tenantPrefix = `tenants/${tenantId}/`;
+    return oldPaths.filter((path) => !newPaths.includes(path) && path.startsWith(tenantPrefix));
+  }
+
+  /**
    * Actual copy+delete — call via scheduleAfterCommit(), only after the config row is saved.
    * Best-effort per file: each operation catches its own error (never rethrows), so running them
    * concurrently is safe — there's no shared state and no ordering dependency between files.
