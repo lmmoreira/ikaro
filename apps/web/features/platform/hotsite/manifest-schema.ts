@@ -81,7 +81,7 @@ type LayoutModuleEnvelope = z.infer<typeof LayoutModuleEnvelopeSchema>;
 // `type` membership and uniqueness are checked here (not left to the backend) because an unknown
 // or duplicate type breaks the *client* immediately once Aplicar merges it into `draft` —
 // LayoutTab/ModuleConfigShell key their rows and dnd-kit ids by `type`, and
-// HotsiteEditor.MODULE_CONFIG_PANELS[type] would be undefined for anything outside the known 9.
+// HotsiteEditor.MODULE_CONFIG_PANELS[type] would be undefined for anything outside the known 10.
 function validateLayoutModules(
   layout: readonly LayoutModuleEnvelope[],
 ): ManifestParseErrorReason | null {
