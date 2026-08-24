@@ -65,15 +65,16 @@ interface HotsiteBranding {
 
 ## Module types (`hotsite-config.aggregate.ts` layout)
 
-`HERO | SERVICE_LIST | GALLERY | BOOKING_CTA | TESTIMONIALS | ABOUT | CONTACT | FOOTER | CHATBOT` — 9 types (`FOOTER` added `M13-S36`, `CHATBOT` added 2026-08-08 via `/discovery-to-milestone`). Order in the JSONB array determines render order on the public hotsite. Each module has `enabled: boolean` plus its own config shape (see `HeroModuleData`, etc. in the aggregate file).
+`HERO | SERVICE_LIST | GALLERY | BOOKING_CTA | TESTIMONIALS | ABOUT | CONTACT | FOOTER | CHATBOT | LEAD_FORM` — 10 types (`FOOTER` added `M13-S36`, `CHATBOT` added 2026-08-08, `LEAD_FORM` added 2026-08-23, both via `/discovery-to-milestone`). Order in the JSONB array determines render order on the public hotsite. Each module has `enabled: boolean` plus its own config shape (see `HeroModuleData`, etc. in the aggregate file).
 
-**Per-module config — only HERO and CHATBOT are prototyped:**
+**Per-module config — only HERO, CHATBOT, and LEAD_FORM are prototyped:**
 - HERO (`01d-module-config-hero.html`), representative example: title, subtitle, layout (centered/left), CTA target, optional background image. **Shipped** — `HeroConfigPanel.tsx` and the other 6 original panels (`SERVICE_LIST`, `GALLERY`, `BOOKING_CTA`, `TESTIMONIALS`, `ABOUT`, `CONTACT`, plus `FOOTER`) all built directly from the real types in `M13-S36`, without individual prototype screens (an explicit `M13-S36` decision).
 - CHATBOT (`01e-module-config-chatbot.html`), the 9th type, added 2026-08-08: `variant` (`'bubble' | 'inline'`), `accentColor` (`'primary' | 'secondary'`), `botName`, `welcomeMessage` — see `packages/types/src/hotsite.ts` `ChatbotModuleData` (`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT). **Shipped `M19-S12`** — `ChatbotConfigPanel.tsx`. Two things this panel needs that no other module's panel does:
   1. A standing (non-dismissible) info note disclosing that availability depends on Ikaro-managed AI provider credits (`.availability-note` in the prototype screen).
   2. A conditional red banner when `GET /v1/tenants/chatbot/cap-status` returns `dailyCapReachedToday: true` (UC-027 A5) — the only module config screen that shows this.
+- LEAD_FORM (`../lead-form/01-config.html`), the 10th type, added 2026-08-23 for `M20-LEAD-FORM-MODULE`: `title`/`subtitle`/`ctaLabel`/`variant`/`bgStyle` (teaser fields, same shape every module's config gets) plus `audienceMode` and up to 20 inline-edited `questions[]` — the latter two are **not** part of `LeadFormModuleData` (kept out of the cached manifest, see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § LEAD_FORM), fetched/saved via the separate `GET`/`PATCH /v1/tenants/lead-form/config` endpoints, not `PATCH /v1/tenants/hotsite`. ❌ Gap — full detail: `../lead-form/dev-notes.md`.
 
-`default-layout.ts`'s `MODULE_ORDER`/`DEFAULT_MODULE_DATA` were updated in the same story to include `'CHATBOT'` — without that, the Layout tab never materializes a row for it and the Manifesto tab rejects a pasted `CHATBOT` module.
+`default-layout.ts`'s `MODULE_ORDER`/`DEFAULT_MODULE_DATA` were updated in the same story to include `'CHATBOT'` — without that, the Layout tab never materializes a row for it and the Manifesto tab rejects a pasted `CHATBOT` module. The same update will be needed for `'LEAD_FORM'` when `M20-LEAD-FORM-MODULE`'s config story ships.
 
 ---
 

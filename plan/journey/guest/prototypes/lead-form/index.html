@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Protótipo — GUEST: Responder o Formulário de Contato</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    body { padding: 2rem; }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+    p { margin-bottom: 1rem; font-size: 0.9375rem; }
+    ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; margin: 1.25rem 0; }
+    li { display: flex; align-items: center; gap: 0.75rem; }
+    li a { color: var(--ba-primary); font-weight: 500; }
+    .tag { font-size: 0.75rem; font-weight: 600; padding: 0.125rem 0.5rem; border-radius: 4px; white-space: nowrap; }
+    .tag-red { background: #fee2e2; color: #dc2626; }
+    .note { background: var(--ba-secondary); border-radius: var(--ba-radius); padding: 1rem 1.25rem; margin-top: 1.5rem; font-size: 0.875rem; line-height: 1.6; }
+    hr { border: none; border-top: 1px solid var(--ba-secondary); margin: 1.25rem 0; }
+  </style>
+</head>
+<body>
+  <h1>Protótipo — GUEST: Responder o Formulário de Contato</h1>
+  <p>
+    Visitante não-autenticado responde o formulário de captação de leads do módulo <code>LEAD_FORM</code>
+    (UC-039). <strong>Status: Gap — nada foi construído ainda.</strong> Promovido de
+    <code>docs/discovery/lead-form-module/lead-form-module.md</code> via <code>/discovery-to-milestone</code>
+    (2026-08-23) para o milestone <code>M20-LEAD-FORM-MODULE</code> — ver <code>dev-notes.md</code>.
+  </p>
+  <p>
+    A entrada desta jornada é o próprio hotsite (seção "lead-form-teaser", mesmo tratamento que
+    BookingCtaModule) → <a href="../../../shared/hotsite.html">shared/hotsite.html</a>. Sem tela
+    dedicada aqui além da própria teaser section já embutida no mockup compartilhado.
+  </p>
+
+  <ul>
+    <li>
+      <a href="01-form.html">Passo 1 — Formulário (nome/e-mail/telefone + perguntas)</a>
+      <span class="tag tag-red">GAP: LeadFormPage — sem story ainda</span>
+    </li>
+  </ul>
+
+  <hr>
+
+  <h2 style="font-size: 1.125rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--ba-text)">
+    Estados alternativos (unhappy paths)
+  </h2>
+  <p>
+    Cada tela abaixo é uma <strong>variante</strong> da mesma página, mostrando um estado de
+    carregamento, erro ou sucesso. Nenhuma é uma rota nova.
+  </p>
+
+  <ul>
+    <li>
+      <a href="01b-loading.html">Passo 1b — Carregando o catálogo de perguntas</a>
+      <span class="tag tag-red">GAP</span>
+    </li>
+    <li>
+      <a href="01c-validation-error.html">Passo 1c — Erro de validação (campo obrigatório/e-mail inválido)</a>
+      <span class="tag tag-red">GAP — UC-039 A3/A4</span>
+    </li>
+    <li>
+      <a href="01d-captcha-error.html">Passo 1d — Verificação de segurança expirou</a>
+      <span class="tag tag-red">GAP — UC-039 A1</span>
+    </li>
+    <li>
+      <a href="01e-rate-limited.html">Passo 1e — Limite de envios atingido (429)</a>
+      <span class="tag tag-red">GAP — UC-039 A2</span>
+    </li>
+    <li>
+      <a href="01h-submitting.html">Passo 1h — Enviando (formulário bloqueado, aguardando resposta)</a>
+      <span class="tag tag-red">GAP</span>
+    </li>
+    <li>
+      <a href="01i-submission-error.html">Passo 1i — Erro genérico ao enviar (rede/5xx, não é um código conhecido)</a>
+      <span class="tag tag-red">GAP</span>
+    </li>
+    <li>
+      <a href="01f-success.html">Passo 1f — Envio recebido com sucesso</a>
+      <span class="tag tag-red">GAP</span>
+    </li>
+    <li>
+      <a href="01g-login-required.html">Passo 1g — Login exigido (audienceMode = CUSTOMER_ONLY)</a>
+      <span class="tag tag-red">GAP — UC-040 A1</span>
+    </li>
+  </ul>
+
+  <hr>
+
+  <div class="note">
+    <strong>O que este protótipo valida:</strong><br>
+    ✅ O formulário fica claro sobre quais campos são obrigatórios vs. opcionais?<br>
+    ✅ O erro de validação mostra o formulário completo, não só a seção com erro?<br>
+    ✅ O widget Turnstile se encaixa naturalmente no fluxo sem parecer um obstáculo extra?<br>
+    ✅ A tela de login exigido explica claramente por que o login é necessário e como voltar?<br>
+    ✅ Tokens de branding (<code>--ba-*</code>) são os mesmos que o hotsite usa?<br>
+    <br>
+    <strong>Início do protótipo</strong> (seleção de ator) →
+    <a href="../../../shared/entry.html">shared/entry.html</a><br>
+    <strong>Ver também:</strong> jornada CUSTOMER (variante autenticada/pré-preenchida) →
+    <a href="../../../customer/prototypes/lead-form/index.html">customer/prototypes/lead-form/</a><br>
+    <strong>Ver também:</strong> jornada MANAGER — configurar o módulo →
+    <a href="../../../manager/prototypes/lead-form/index.html">manager/prototypes/lead-form/</a><br>
+    <strong>Dev notes</strong> (componentes, API, validações, máquina de estados) → <a href="dev-notes.md">dev-notes.md</a>
+  </div>
+</body>
+</html>

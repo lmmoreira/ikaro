@@ -38,6 +38,15 @@
     .cta-banner h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem; color: var(--ba-text); }
     .cta-banner p  { opacity: 0.7; margin-bottom: 1.5rem; color: var(--ba-text); }
 
+    .lead-form-teaser {
+      background: var(--ba-primary);
+      color: var(--ba-hero-text);
+      text-align: center;
+      padding: 3rem 1.5rem;
+    }
+    .lead-form-teaser h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem; }
+    .lead-form-teaser p  { opacity: 0.9; margin-bottom: 1.5rem; max-width: 34rem; margin-left: auto; margin-right: auto; }
+
     footer {
       background: var(--ba-text);
       color: #9ca3af;
@@ -176,6 +185,21 @@
     <p>Escolha o serviço, data e horário. Leva menos de 2 minutos.</p>
     <a class="btn-primary" href="../customer/prototypes/book-a-service/01-service-selection.html">
       Agendar agora
+    </a>
+  </section>
+
+  <!--
+    LEAD_FORM MODULE — teaser section (LeadFormModule.tsx, GAP — see M20-S07, mirrors
+    BookingCtaModule.tsx exactly). Authenticated variant links straight to the pre-filled
+    customer form (customer/prototypes/lead-form/01-form-prefilled.html) — no login redirect,
+    same "logged-in skips the auth hop" pattern the Agendar CTA above already uses.
+  -->
+  <section class="lead-form-teaser" id="lead-form">
+    <h2>Quer um orçamento personalizado?</h2>
+    <p>Conte o que você precisa e nossa equipe entra em contato em até 1 dia útil.</p>
+    <a class="btn-primary" href="../customer/prototypes/lead-form/01-form-prefilled.html"
+       style="background: white; color: var(--ba-primary); border-color: white;">
+      Falar com a gente
     </a>
   </section>
 

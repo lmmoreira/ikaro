@@ -172,6 +172,7 @@ Module components consume these via inline `style` (e.g. `backgroundColor: 'var(
 | `ABOUT` | Business / team story | Manifest |
 | `CONTACT` | Address, phone, social, map | Tenant settings |
 | `CHATBOT` | AI-assisted FAQ widget, scoped to the tenant's own business data | Booking context (live services) + tenant settings (`knowledgeText`), assembled BFF-side — never in the manifest, see § CHATBOT below |
+| `LEAD_FORM` | Lead-capture form (manager-authored questions), teaser only in the manifest | Live question catalog fetched separately at `/[slug]/lead-form`, see § LEAD_FORM below |
 
 The `FOOTER` is always rendered automatically from tenant settings — it is **not** part of the `layout` array.
 
@@ -189,7 +190,8 @@ type HotsiteModuleType =
   | 'ABOUT'
   | 'CONTACT'
   | 'FOOTER'
-  | 'CHATBOT';
+  | 'CHATBOT'
+  | 'LEAD_FORM';
 
 interface HotsiteModule {
   type: HotsiteModuleType;
@@ -398,6 +400,29 @@ Same split as `ContactModuleData`, made explicit: `ChatbotModuleData` only carri
 
 Full design rationale, cost model, and the ten-layer cap/abuse-prevention design: `docs/discovery/CHATBOT/CHATBOT.md`.
 
+### LEAD_FORM
+
+```typescript
+interface LeadFormModuleData {
+  title: string;                          // e.g. "Fale com a gente"
+  subtitle?: string;
+  eyebrow?: string;
+  ctaLabel: string;                       // e.g. "Preencher formulário"
+  variant?: 'centered' | 'left-aligned';  // default 'centered' — mirrors BookingCtaModuleData
+  backgroundImageUrl?: string | null;
+  backgroundImagePosition?: 'left' | 'center' | 'right';
+  bgStyle?: 'primary' | 'background';     // default 'primary'
+}
+```
+
+**Why the module data stays this small:** the manifest is public and cached 5 minutes (`Cache-Control: public, max-age=300`, §2 above). Embedding up to 20 questions (each with up to 10 options) would bloat every cached manifest fetch for the vast majority of visitors who never open the form — the same reasoning `SERVICE_LIST` already applies (display preferences only in the manifest; `services` fetched live via `fetchServices()`). The full question catalog is fetched only when a visitor actually reaches `/[slug]/lead-form` (`GET /public/platform/lead-form/:slug`, `docs/14-API_CONTRACTS.md` § Lead Form Widget).
+
+**Placement:** `LEAD_FORM` is a normal entry in the `layout` array, reordered by the admin like every other module — not a special-cased widget.
+
+**Disabled-module handling at the dedicated page:** unlike `CHATBOT` (whose availability is always live/uncached), `/[slug]/lead-form` checks the manifest's `layout` array directly for a `LEAD_FORM` module with `enabled: true` and renders the existing `<Unavailable/>` component when absent/disabled. This is genuinely new logic added by this module — no prior hotsite module had a dedicated page that checked its own `enabled` flag this way (`/[slug]/booking` only checks `manifest.isPublished`, never `BOOKING_CTA.enabled`).
+
+Full design rationale, domain model, and use cases: `docs/discovery/lead-form-module/lead-form-module.md`, `docs/04-USE_CASES.md` UC-037–UC-043.
+
 ---
 
 ## 5. Next.js Routing & SSR Strategy
@@ -602,7 +627,7 @@ Add an `else if (parsed.type === 'XXX')` branch (importing the new module's comp
 
 **5. Add the admin configuration form**
 
-Add a form panel for the new module inside the hotsite editor (UC-027, `apps/web/app/dashboard/settings/hotsite/`). The form must allow the admin to fill in all `data` fields and toggle `enabled`.
+Add a form panel for the new module inside the hotsite editor (UC-027, `apps/web/app/dashboard/hotsite/`). The form must allow the admin to fill in all `data` fields and toggle `enabled`.
 
 **6. Update this document**
 

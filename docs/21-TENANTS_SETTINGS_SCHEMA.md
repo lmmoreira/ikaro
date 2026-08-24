@@ -24,11 +24,12 @@ The `tenants.settings` column is a JSONB field that stores per-tenant configurat
   "notification": { ... },
   "localization": { ... },
   "businessInfo": { ... },
-  "chatbot": { ... }
+  "chatbot": { ... },
+  "leadForm": { ... }
 }
 ```
 
-> **`chatbot` is the first category that deviates from this doc's own default-at-creation rule (§ Defaults below) — only its `knowledgeText` field is written into every tenant's row at creation; its other fields are deliberately absent unless Ikaro explicitly overrides one. See §7 below for the full rationale.
+> **`chatbot` is the first category that deviates from this doc's own default-at-creation rule (§ Defaults below) — only its `knowledgeText` field is written into every tenant's row at creation; its other fields are deliberately absent unless Ikaro explicitly overrides one. See §7 below for the full rationale. `leadForm` (§8) does NOT follow this deviation — all three of its fields (`retentionMonths`, `maxSubmissionsPerDay`, `maxSubmissionsPerIpPerDay`) are genuinely per-tenant and follow the normal default-at-creation rule; see §8 for why Chatbot's reasoning doesn't transfer.
 
 ---
 
@@ -364,6 +365,27 @@ Configuration for the `CHATBOT` hotsite module (`docs/15-HOTSITE_DYNAMIC_ARCHITE
 
 ---
 
+### **8. Lead Form Settings** (`settings.leadForm`)
+
+Configuration for the `LEAD_FORM` hotsite module (`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § LEAD_FORM) — a manager-configurable lead-capture form. Full design rationale: `docs/discovery/lead-form-module/lead-form-module.md`.
+
+**Not a `chatbot`-style deviation — all three fields are genuinely per-tenant, all default-at-creation, all `UC-042`-editable.** An earlier draft of this section copied `chatbot`'s "platform-wide code constant" treatment for the two volume caps, reasoning by surface resemblance to Chatbot's own caps rather than by the actual underlying justification. That reasoning doesn't transfer: Chatbot's caps exist to protect **Ikaro's own LLM provider spend** — a real, shared platform-wide financial exposure that genuinely justifies keeping them uniform and Ikaro-controlled. A lead-form submission costs Ikaro nothing; `maxSubmissionsPerDay`/`maxSubmissionsPerIpPerDay` are pure **abuse/bot protection**, with no platform-wide cost to protect — so there's no reason to deny an individual tenant control over their own limit. This also directly avoids a real risk a platform-wide default would create: Brazilian mobile carriers commonly use CGNAT, where many unrelated visitors share one public IP — a hardcoded `maxSubmissionsPerIpPerDay: 3` with no tenant override would risk falsely blocking legitimate guests on any tenant with real mobile traffic, with no way for that tenant to raise their own limit.
+
+| Key | Type | Default | Tenant-editable via UC-042 form? | Description |
+|-----|------|---------|---|-------------|
+| `retentionMonths` | integer | 6 | **Yes** — bounds 1-24 | How long a submission is kept before the daily retention cron (UC-043) purges it. Applies only to future submissions — an already-stored row's `expiresAt` was computed once, at insert time, from whatever `retentionMonths` the tenant had *then* |
+| `maxSubmissionsPerDay` | integer | 100 | **Yes** — bounds 1-1000 | Tenant-wide daily submission cap (abuse protection, not cost protection — see above) |
+| `maxSubmissionsPerIpPerDay` | integer | 3 | **Yes** — bounds 1-100 | Per-visitor daily cap. Raise this if a tenant's real traffic pattern (e.g. a mobile-heavy audience behind CGNAT) is triggering false positives |
+
+**Validation Rules:**
+- `retentionMonths`, when present, must be an integer 1-24 — `400 PLATFORM_SETTINGS_LEAD_FORM_RETENTION_MONTHS_INVALID` otherwise (`LeadFormSettingsValidator`, mirrors `BookingSettingsValidator`'s per-field dedicated-code pattern)
+- `maxSubmissionsPerDay`, when present, must be an integer 1-1000 — `400 PLATFORM_SETTINGS_LEAD_FORM_MAX_SUBMISSIONS_PER_DAY_INVALID` otherwise
+- `maxSubmissionsPerIpPerDay`, when present, must be an integer 1-100 — `400 PLATFORM_SETTINGS_LEAD_FORM_MAX_SUBMISSIONS_PER_IP_PER_DAY_INVALID` otherwise
+
+**Usage:** `retentionMonths` read by `LeadFormSubmission.create()` at insert time (UC-039/UC-040) and by the daily retention purge (UC-043). `maxSubmissionsPerDay`/`maxSubmissionsPerIpPerDay` read by the backend's pre-insert cap check (UC-039/UC-040 step 6) via the normal `tenant.settings.leadForm.X` read — no `?? DEFAULT_X` fallback needed since, unlike `chatbot`'s caps, every tenant's row genuinely has these written at creation (§ Defaults below). The count-query mechanism itself still mirrors `chatbot`'s `maxConversationsPerDay`/`maxConversationsPerIpPerDay` check (`chatbot-session-resolution.helpers.ts`'s `checkNewSessionVolumeCaps`) — only the *resolution* (per-tenant value vs. code constant) differs, not the enforcement pattern.
+
+---
+
 ## Complete Settings Example
 
 ```json
@@ -424,11 +446,16 @@ Configuration for the `CHATBOT` hotsite module (`docs/15-HOTSITE_DYNAMIC_ARCHITE
   },
   "chatbot": {
     "knowledgeText": "Trabalhamos apenas com agendamento — não atendemos por ordem de chegada. Aceitamos Pix, cartão de débito e crédito."
+  },
+  "leadForm": {
+    "retentionMonths": 6,
+    "maxSubmissionsPerDay": 100,
+    "maxSubmissionsPerIpPerDay": 3
   }
 }
 ```
 
-Note: this example tenant has no `chatbot` override fields set (`maxConversationsPerDay`, `llmProvider`, etc.) — that's the common case. See §7 above for what a tenant *with* an explicit Ikaro-granted override looks like.
+Note: this example tenant has no `chatbot` override fields set (`maxConversationsPerDay`, `llmProvider`, etc.) — those genuinely stay absent unless Ikaro grants an override (§7). `leadForm`'s three fields, by contrast, are always present with their tenant's own value (defaulted at creation, editable via UC-042) — not an override pattern at all. See §7/§8 above for the full contrast.
 
 ---
 
@@ -482,11 +509,18 @@ When a developer provisions a new tenant (UC-024), if settings are not provided,
   },
   "chatbot": {
     "knowledgeText": ""
+  },
+  "leadForm": {
+    "retentionMonths": 6,
+    "maxSubmissionsPerDay": 100,
+    "maxSubmissionsPerIpPerDay": 3
   }
 }
 ```
 
 **`chatbot` only gets `knowledgeText: ""` written here — none of its other fields (the 8 caps, `llmProvider`, `llmModel`) are written into a new tenant's row.** This is the deviation §7 explains: those fields are resolved `tenant.settings.chatbot?.X ?? DEFAULT_X` at read time, with `DEFAULT_X` a code constant, not a per-tenant database value copied at creation.
+
+**`leadForm` gets all three fields written here, in full — no deviation.** Unlike `chatbot`'s caps, `maxSubmissionsPerDay`/`maxSubmissionsPerIpPerDay` are genuinely per-tenant (abuse protection, not shared-cost protection — §8 explains why Chatbot's reasoning doesn't transfer) and are read directly as `tenant.settings.leadForm.X`, no `?? DEFAULT_X` fallback.
 
 ---
 

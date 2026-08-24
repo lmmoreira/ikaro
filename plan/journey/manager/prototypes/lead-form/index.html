@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Protótipo — MANAGER: Configurar o Formulário de Contato</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    body { padding: 2rem; }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+    p { margin-bottom: 1rem; font-size: 0.9375rem; }
+    ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; margin: 1.25rem 0; }
+    li { display: flex; align-items: center; gap: 0.75rem; }
+    li a { color: var(--ba-primary); font-weight: 500; }
+    .tag { font-size: 0.75rem; font-weight: 600; padding: 0.125rem 0.5rem; border-radius: 4px; white-space: nowrap; }
+    .tag-red { background: #fee2e2; color: #dc2626; }
+    .note { background: var(--ba-secondary); border-radius: var(--ba-radius); padding: 1rem 1.25rem; margin-top: 1.5rem; font-size: 0.875rem; line-height: 1.6; }
+    hr { border: none; border-top: 1px solid var(--ba-secondary); margin: 1.25rem 0; }
+  </style>
+</head>
+<body>
+  <h1>Protótipo — MANAGER: Configurar o Formulário de Contato</h1>
+  <p>
+    Gerente configura o módulo <code>LEAD_FORM</code> (10º tipo de módulo) — audiência, cópia do
+    teaser e até 20 perguntas, tudo editado inline (UC-037). <strong>Status: Gap — nada foi
+    construído ainda.</strong> Promovido de <code>docs/discovery/lead-form-module/lead-form-module.md</code>
+    via <code>/discovery-to-milestone</code> (2026-08-23) para o milestone <code>M20-LEAD-FORM-MODULE</code>.
+  </p>
+  <p>
+    Entrada: <a href="../hotsite/01-hotsite-editor.html">manager/prototypes/hotsite/01-hotsite-editor.html</a>
+    (aba Layout, linha "Formulário de contato" → Configurar) — arquivo real já atualizado com a nova linha.
+  </p>
+
+  <ul>
+    <li>
+      <a href="01-config.html">Tela 1 — Configuração (audiência, teaser, perguntas inline)</a>
+      <span class="tag tag-red">GAP: LeadFormConfigPanel — sem story ainda</span>
+    </li>
+  </ul>
+
+  <hr>
+
+  <h2 style="font-size: 1.125rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--ba-text)">
+    Estados alternativos (unhappy paths)
+  </h2>
+  <ul>
+    <li>
+      <a href="01b-config-max-questions.html">Tela 1b — Limite de 20 perguntas atingido (UC-037 A1)</a>
+      <span class="tag tag-red">GAP</span>
+    </li>
+    <li>
+      <a href="01c-config-validation-error.html">Tela 1c — Pergunta com menos de 2 opções (UC-037 A2)</a>
+      <span class="tag tag-red">GAP</span>
+    </li>
+    <li>
+      <a href="01d-remove-question-confirm.html">Tela 1d — Confirmar remoção de pergunta com respostas já recebidas</a>
+      <span class="tag tag-red">GAP</span>
+    </li>
+  </ul>
+
+  <hr>
+
+  <div class="note">
+    <strong>O que este protótipo valida:</strong><br>
+    ✅ Editar perguntas inline (sem navegar para outra tela) escala bem até 20 perguntas?<br>
+    ✅ A nota "retenção e limites não ficam aqui" evita confusão sobre onde editar cada coisa?<br>
+    ✅ O aviso de limite de 20 perguntas é claro sobre como liberar espaço (remover uma existente)?<br>
+    ✅ O novo item "Leads" na navegação principal (visível a STAFF e MANAGER) fica claro que é
+    diferente de "Somente Gerente"?<br>
+    <br>
+    <strong>Início do protótipo</strong> (seleção de ator) →
+    <a href="../../../shared/entry.html">shared/entry.html</a><br>
+    <strong>Ver também:</strong> jornada MANAGER — ver envios recebidos →
+    <a href="../leads/index.html">manager/prototypes/leads/</a><br>
+    <strong>Ver também:</strong> jornada GUEST — responder o formulário →
+    <a href="../../../guest/prototypes/lead-form/index.html">guest/prototypes/lead-form/</a><br>
+    <strong>Dev notes</strong> (componentes, API, validações) → <a href="dev-notes.md">dev-notes.md</a>
+  </div>
+</body>
+</html>

@@ -547,6 +547,22 @@ Customer clicks "Cancel"
 
 ---
 
+#### **LeadFormSubmissionReceived**
+- **Trigger:** A visitor (guest or logged-in customer) submits the `LEAD_FORM` hotsite module's public form (`docs/04-USE_CASES.md` UC-039/UC-040)
+- **State change:** `platform.lead_form_submissions` row created
+- **Data:**
+  ```json
+  {
+    "submissionId": "uuid-v7",
+    "customerId":   "uuid-v7 | null"
+  }
+  ```
+  (`tenantId`/`eventId`/`occurredAt`/`correlationId` are the envelope's own fields, not part of `data`. Deliberately thin — the submitted content itself, e.g. name/email/answers, is never carried in the event payload, matching how other PII-bearing events in this codebase keep bulk content out of the envelope and readable only via the aggregate's own row.)
+- **Consumers:** none yet (MVP) — kept anyway because every state-changing action in this codebase publishes its own event for the audit trail and future hooks (a notification/webhook consumer to the manager is the obvious fast-follow, explicitly deferred — `docs/discovery/lead-form-module/lead-form-module.md` §9 Non-Goals).
+- **Outbox note:** `LeadFormSubmission`'s repository must join the transactional-outbox pattern (`shared.outbox`, TD24-S02) to actually deliver this event — currently only `Booking`/`Staff`/`Tenant` repositories drain `clearDomainEvents()` into the outbox; this is a 4th, following the exact same pattern (not something a `Repository.save()` gets automatically without that wiring).
+
+---
+
 ## Event Publishing & Consumption
 
 - **Transport:** technology-agnostic `IEventBus` port. Local dev: GCP Pub/Sub Emulator (Docker). Production: GCP Pub/Sub (managed). Swappable to SQS/Kafka via a new adapter — domain code never changes.

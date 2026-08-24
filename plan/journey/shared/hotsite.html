@@ -38,6 +38,15 @@
     .cta-banner h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem; color: var(--ba-text); }
     .cta-banner p  { opacity: 0.7; margin-bottom: 1.5rem; color: var(--ba-text); }
 
+    .lead-form-teaser {
+      background: var(--ba-primary);
+      color: var(--ba-hero-text);
+      text-align: center;
+      padding: 3rem 1.5rem;
+    }
+    .lead-form-teaser h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem; }
+    .lead-form-teaser p  { opacity: 0.9; margin-bottom: 1.5rem; max-width: 34rem; margin-left: auto; margin-right: auto; }
+
     footer {
       background: var(--ba-text);
       color: #9ca3af;
@@ -167,6 +176,24 @@
     <p>Escolha o serviço, data e horário. Leva menos de 2 minutos.</p>
     <a class="btn-primary" href="../guest/prototypes/book-a-service/01-service-selection.html">
       Agendar agora
+    </a>
+  </section>
+
+  <!--
+    LEAD_FORM MODULE — teaser section (LeadFormModule.tsx, GAP — see M20-S07, mirrors
+    BookingCtaModule.tsx exactly, same as the cta-banner section above). Renders only when
+    GET /public/platform/manifest/:slug includes a LEAD_FORM entry with enabled: true (UC-038).
+    Title/subtitle/CTA label below are tenant-authored teaser content, configured via UC-037's
+    admin config panel (M20-S08) — not fixed copy. Links to the dedicated /[slug]/lead-form page
+    (M20-S09), not an inline widget/bubble — unlike CHATBOT, this module is a full page, not a
+    floating overlay, so it gets its own section like every other full-page module.
+  -->
+  <section class="lead-form-teaser" id="lead-form">
+    <h2>Quer um orçamento personalizado?</h2>
+    <p>Conte o que você precisa e nossa equipe entra em contato em até 1 dia útil.</p>
+    <a class="btn-primary" href="../guest/prototypes/lead-form/01-form.html"
+       style="background: white; color: var(--ba-primary); border-color: white;">
+      Falar com a gente
     </a>
   </section>
 

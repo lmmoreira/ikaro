@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Protótipo — MANAGER/STAFF: Ver Leads Recebidos</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    body { padding: 2rem; }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+    p { margin-bottom: 1rem; font-size: 0.9375rem; }
+    ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; margin: 1.25rem 0; }
+    li { display: flex; align-items: center; gap: 0.75rem; }
+    li a { color: var(--ba-primary); font-weight: 500; }
+    .tag { font-size: 0.75rem; font-weight: 600; padding: 0.125rem 0.5rem; border-radius: 4px; white-space: nowrap; }
+    .tag-red { background: #fee2e2; color: #dc2626; }
+    .note { background: var(--ba-secondary); border-radius: var(--ba-radius); padding: 1rem 1.25rem; margin-top: 1.5rem; font-size: 0.875rem; line-height: 1.6; }
+    hr { border: none; border-top: 1px solid var(--ba-secondary); margin: 1.25rem 0; }
+  </style>
+</head>
+<body>
+  <h1>Protótipo — MANAGER/STAFF: Ver Leads Recebidos</h1>
+  <p>
+    Staff ou gerente revisa os envios do formulário de contato numa tela própria (UC-041).
+    <strong>Status: Gap — nada foi construído ainda.</strong> Promovido de
+    <code>docs/discovery/lead-form-module/lead-form-module.md</code> via
+    <code>/discovery-to-milestone</code> (2026-08-23) para o milestone <code>M20-LEAD-FORM-MODULE</code>.
+  </p>
+
+  <ul>
+    <li>
+      <a href="01-submissions-list.html">Tela 1 — Lista paginada</a>
+      <span class="tag tag-red">GAP: LeadFormSubmissionsList — sem story ainda</span>
+    </li>
+    <li>
+      <a href="02-submission-detail.html">Tela 2 — Detalhe (somente leitura)</a>
+      <span class="tag tag-red">GAP: LeadFormSubmissionDetail — sem story ainda</span>
+    </li>
+  </ul>
+
+  <hr>
+
+  <h2 style="font-size: 1.125rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--ba-text)">
+    Estados alternativos
+  </h2>
+  <ul>
+    <li>
+      <a href="01b-submissions-empty.html">Tela 1b — Nenhum envio ainda (UC-041 A1)</a>
+      <span class="tag tag-red">GAP</span>
+    </li>
+    <li>
+      <a href="01c-search-no-results.html">Tela 1c — Nenhum resultado para a busca/filtros/intervalo (UC-041 A3)</a>
+      <span class="tag tag-red">GAP — M20-S12/S13</span>
+    </li>
+    <li>
+      <a href="01d-advanced-filters.html">Tela 1d — Busca avançada (filtros por pergunta+resposta) + intervalo de datas (UC-041 step 4-5, A4-A5)</a>
+      <span class="tag tag-red">GAP — M20-S12/S13</span>
+    </li>
+  </ul>
+
+  <hr>
+
+  <div class="note">
+    <strong>Sem exportação CSV neste protótipo</strong> — removida do escopo deste milestone por
+    completo, não apenas adiada (ver <code>dev-notes.md</code>). A tela "Exportar CSV" da discovery original
+    (<code>manager-04-leads-export.html</code>) não foi promovida. <strong>A busca + intervalo de
+    datas (Telas 1 e 1d) são a substituta real</strong> — adicionadas após a promoção inicial
+    (2026-08-23, M20-S12/S13), quando ficou claro que sem exportação o gerente ainda precisa de
+    uma forma de achar um lead específico — inclusive combinando várias perguntas ao mesmo tempo
+    (ex.: "estado civil = casado" E "mora em São Paulo") ou restringindo por período (ex.: leads
+    de 1 a 15 de agosto), o que a caixa de busca simples sozinha não consegue fazer corretamente.
+    O intervalo de datas é independente da busca — funciona sozinho ou combinado com qualquer um
+    dos dois modos de busca.<br>
+    <br>
+    <strong>O que este protótipo valida:</strong><br>
+    ✅ A lista comunica bem quem enviou e quando, sem precisar abrir o detalhe?<br>
+    ✅ A busca simples comunica claramente o que ela pesquisa (nome, e-mail, perguntas e respostas)?<br>
+    ✅ A busca avançada deixa claro que os filtros são combinados com "E", não "OU"?<br>
+    ✅ O intervalo de datas fica claro como um filtro independente, não um terceiro modo de busca?<br>
+    ✅ O estado "nenhum resultado" se distingue claramente de "nenhum envio ainda"?<br>
+    ✅ O detalhe deixa claro que é somente leitura e por que (retenção automática)?<br>
+    ✅ O item "Leads" na navegação principal fica claro que não é "Somente Gerente"?<br>
+    <br>
+    <strong>Início do protótipo</strong> (seleção de ator) →
+    <a href="../../../shared/entry.html">shared/entry.html</a><br>
+    <strong>Ver também:</strong> jornada MANAGER — configurar o módulo →
+    <a href="../lead-form/index.html">manager/prototypes/lead-form/</a><br>
+    <strong>Dev notes</strong> (componentes, API) → <a href="dev-notes.md">dev-notes.md</a>
+  </div>
+</body>
+</html>

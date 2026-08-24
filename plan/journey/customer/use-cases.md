@@ -13,6 +13,7 @@ Source: `docs/04-USE_CASES.md`. Working checklist for journeys in this folder �
 | UC-016 | View Customer Loyalty Metrics (own data) | Admin-viewing-any-customer variant lives in `staff/use-cases.md`; balance summary covered in `minha-conta.md`; full breakdown TBD | `customer/minha-conta.md` |
 | UC-019 | Customer Receives Booking Reminder (Day Before) | ⚠️ Email-only, no dashboard page — likely N/A for journey mapping | _TBD_ |
 | UC-020 | Customer Receives Booking Reminder (Day Of) | ⚠️ Email-only, no dashboard page — likely N/A for journey mapping | _TBD_ |
+| UC-040 | Logged-In Customer Submits the Lead Form | Same page/component as `guest/submit-lead-form.md`, prefilled from profile. Draft — promoted 2026-08-23 for `M20-LEAD-FORM-MODULE`, no story assigned. | `submit-lead-form.md` |
 
 ## Entry point
 

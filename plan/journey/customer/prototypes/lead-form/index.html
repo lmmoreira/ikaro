@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Protótipo — CUSTOMER: Responder o Formulário de Contato</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    body { padding: 2rem; }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+    p { margin-bottom: 1rem; font-size: 0.9375rem; }
+    ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; margin: 1.25rem 0; }
+    li { display: flex; align-items: center; gap: 0.75rem; }
+    li a { color: var(--ba-primary); font-weight: 500; }
+    .tag { font-size: 0.75rem; font-weight: 600; padding: 0.125rem 0.5rem; border-radius: 4px; white-space: nowrap; }
+    .tag-red { background: #fee2e2; color: #dc2626; }
+    .note { background: var(--ba-secondary); border-radius: var(--ba-radius); padding: 1rem 1.25rem; margin-top: 1.5rem; font-size: 0.875rem; line-height: 1.6; }
+    hr { border: none; border-top: 1px solid var(--ba-secondary); margin: 1.25rem 0; }
+  </style>
+</head>
+<body>
+  <h1>Protótipo — CUSTOMER: Responder o Formulário de Contato</h1>
+  <p>
+    Cliente autenticado responde o mesmo formulário do módulo <code>LEAD_FORM</code>, com
+    nome/e-mail/telefone pré-preenchidos a partir do perfil (UC-040). <strong>Status: Gap — nada
+    foi construído ainda.</strong> Promovido de <code>docs/discovery/lead-form-module/lead-form-module.md</code>
+    via <code>/discovery-to-milestone</code> (2026-08-23) para o milestone <code>M20-LEAD-FORM-MODULE</code>.
+  </p>
+
+  <ul>
+    <li>
+      <a href="01-form-prefilled.html">Passo 1 — Formulário pré-preenchido</a>
+      <span class="tag tag-red">GAP: LeadFormPage — mesmo componente do fluxo GUEST</span>
+    </li>
+    <li>
+      <a href="01b-success.html">Passo 1b — Envio recebido com sucesso (auth bar autenticada)</a>
+      <span class="tag tag-red">GAP</span>
+    </li>
+  </ul>
+
+  <hr>
+
+  <div class="note">
+    <strong>Carregando, erro de validação, captcha e limite atingido são idênticos ao fluxo GUEST</strong>
+    — não duplicados aqui. Ver
+    <a href="../../../guest/prototypes/lead-form/index.html">guest/prototypes/lead-form/</a>. A tela
+    de <strong>sucesso é duplicada aqui</strong> (<code>01b-success.html</code>), não porque o conteúdo
+    difere, mas porque a barra de autenticação difere — a versão GUEST mostra "Entrar", que estaria
+    errada para um cliente já logado.<br>
+    <br>
+    <strong>O que este protótipo valida:</strong><br>
+    ✅ A nota "preenchido com os dados da sua conta" comunica claramente que os campos são editáveis?<br>
+    ✅ O avatar/dropdown no topo segue o mesmo padrão de outras telas autenticadas do hotsite?<br>
+    <br>
+    <strong>Início do protótipo</strong> (seleção de ator) →
+    <a href="../../../shared/entry.html">shared/entry.html</a><br>
+    <strong>Ver também:</strong> jornada GUEST (não-autenticado, inclui o gate de login) →
+    <a href="../../../guest/prototypes/lead-form/index.html">guest/prototypes/lead-form/</a><br>
+    <strong>Dev notes</strong> → <a href="dev-notes.md">dev-notes.md</a>
+  </div>
+</body>
+</html>

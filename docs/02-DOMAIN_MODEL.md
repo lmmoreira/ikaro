@@ -771,6 +771,8 @@ Staff  → Notification: StaffInvited → invitation email
 - `ChatbotSession` (root) — one chat widget conversation; tracks cap-enforcement state
 - `ChatbotMessage` (root) — one turn (visitor question or bot answer) within a `ChatbotSession`
 - `ChatbotProviderBalance` (root) — single-row-per-provider prepaid balance, upserted by a periodic poll
+- `LeadFormConfig` (root) — one per tenant; owns `audienceMode` and the question catalog (UC-037)
+- `LeadFormSubmission` (root) — one per visitor submission to a tenant's lead form (UC-039/UC-040)
 - Staff lifecycle (create/deactivate) — Platform use cases operate on the `Staff` aggregate owned by the Staff Context
 
 **Notes:**
@@ -779,6 +781,7 @@ Staff  → Notification: StaffInvited → invitation email
 
 **Published Events:**
 - `TenantProvisioned` — consumed by Staff Context (creates first MANAGER staff row + publishes `StaffInvited`)
+- `LeadFormSubmissionReceived` — no consumers yet (MVP); kept for the audit trail and an obvious fast-follow (notification/webhook consumer)
 
 ---
 
@@ -901,6 +904,76 @@ ChatbotProviderBalance {
 - A corresponding health-write method (S06's own call on exact signature) — both persisted via a **partial-column upsert only** (`docs/13-DATABASE_SCHEMA.md`'s "Write discipline" note), never a full-row replace, so the two independent writers can never clobber each other's columns.
 
 **Availability rule (UC-034 condition c):** the provider is unhealthy only if `lastFailureAt` is more recent than `lastSuccessAt` **and** within `CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES` (default `5`) of now — a half-open/circuit-breaker cooldown, not a permanent trip, so a single transient failure can't leave the widget dark forever (`available: false` means the widget never renders at all, so without a cooldown no visitor could ever produce the success that would clear it).
+
+---
+
+#### **Aggregate: LeadFormConfig** (Root Entity)
+One per tenant — owns the question catalog and audience gating for the `LEAD_FORM` hotsite module (`docs/04-USE_CASES.md` UC-037, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § LEAD_FORM). Promoted from `docs/discovery/lead-form-module/lead-form-module.md`, kept as the permanent design rationale.
+
+**Properties:**
+```
+LeadFormConfig {
+  tenantId:      TenantId          -- PK, also FK to platform.tenants, UNIQUE (one row per tenant)
+  audienceMode:  'GUEST_AND_CUSTOMER' | 'CUSTOMER_ONLY'   -- default 'GUEST_AND_CUSTOMER'
+  questions:     LeadFormQuestion[]  -- ≤20 entries, ordered
+  updatedAt:     DateTime
+}
+
+LeadFormQuestion {
+  id:        UUID
+  label:     String
+  type:      'TEXT' | 'SINGLE_CHOICE' | 'MULTIPLE_CHOICE'
+  required:  Boolean
+  options?:  String[]   -- 2-10 entries, only for SINGLE_CHOICE/MULTIPLE_CHOICE
+  order:     Integer
+}
+```
+
+**Why JSONB, not a child table:** the question catalog is always read and written as one atomic unit by exactly one actor (the manager editing the form) — never queried or joined per-question. Same justification `hotsite_configs.layout` already uses for its own module array.
+
+**Key methods:**
+- `static create(tenantId)` → default `audienceMode: 'GUEST_AND_CUSTOMER'`, empty `questions`.
+- `updateQuestions(questions)` → validates the whole array (≤20 entries, each non-empty label, choice-type questions have 2-10 options) and replaces it atomically. Publishes no event (config change, matches how other module config edits behave).
+- `updateAudienceMode(mode)` → replaces `audienceMode`.
+
+**Cross-aggregate save, one transaction (UC-037, `docs/14-API_CONTRACTS.md` § Lead Form Admin Config):** the manager's config drill-down screen edits both this aggregate (`audienceMode`/`questions`) and `HotsiteConfig`'s own `layout[]` entry for this module (teaser fields — title/subtitle/ctaLabel/etc., the same shape every other module's teaser data uses) as one user-facing save action. `UpdateLeadFormModuleUseCase` writes both aggregates inside a single `txManager.run()` block — a deliberate exception to "one aggregate per transaction," justified because both aggregates live in the same bounded context (Platform) and one real user action requires them to save atomically; this is not a precedent for casually spanning transactions across contexts. The module's `enabled` flag is not part of this use case — it stays owned entirely by `HotsiteConfig`'s existing `updateContent()`, toggled inline on the hotsite editor's Layout tab like every other module.
+
+---
+
+#### **Aggregate: LeadFormSubmission** (Root Entity)
+One per visitor submission (`docs/04-USE_CASES.md` UC-039/UC-040). Independent aggregate from `LeadFormConfig` — deliberately never transactionally consistent with it (DB-expert-reviewed boundary, see below).
+
+**Properties:**
+```
+LeadFormSubmission {
+  submissionId: UUID v7
+  tenantId:     TenantId
+  customerId:   UUID | null   -- UUID-only cross-context reference to Customer, no FK (per docs/ANTI_PATTERNS.md's
+                               -- "cross-schema DB FK between contexts" row). Set whenever the submitter was
+                               -- authenticated, in either audience mode.
+  name:         String
+  email:        Email          -- validated via the existing Email VO
+  phone:        PhoneNumber    -- validated via the existing PhoneNumber VO
+  answers:      LeadFormAnswer[]  -- full snapshot, see below
+  submittedAt:  DateTime
+  expiresAt:    DateTime       -- computed once at insert time, see below
+  ipAddress:    String         -- abuse-investigation trail, also the rate-limit key
+}
+
+LeadFormAnswer {
+  questionId:     UUID
+  questionLabel:  String    -- snapshotted, not looked up live
+  questionType:   'TEXT' | 'SINGLE_CHOICE' | 'MULTIPLE_CHOICE'
+  answerValue:    String | String[]
+}
+```
+
+**Aggregate-boundary note (DB-expert pass, deliberate — not an oversight):** `LeadFormSubmission.answers` snapshots the full `{questionId, questionLabel, questionType, answerValue}` at submission time, not just `{questionId, value}` — the exact same reasoning `BookingLine.priceAtBooking`/`serviceNameAtBooking` already exists for above. Without the snapshot, a manager editing a question's label or deleting it later would silently corrupt how old submissions render. Same reasoning applies to `expiresAt`: computed **once, at insert time**, from whatever `retentionMonths` the tenant had *then* — never recomputed live — matching `docs/21-TENANTS_SETTINGS_SCHEMA.md`'s own "settings changes apply to future only" rule.
+
+**Search index is a repository-level concern, not an aggregate property (added post-promotion, UC-041 search, M20-S12/S13):** `TypeOrmLeadFormSubmissionRepository.save()` derives one `platform.lead_form_answers` row per question from `answers[]` (flattening a `MULTIPLE_CHOICE`'s array into one row per selected option) and writes both tables in the same transaction. `lead_form_answers` is **not** a second aggregate — it has no independent lifecycle, no identity meaningful outside its parent submission, and no domain behavior; it exists purely so UC-041 can filter by a specific question's answer (and AND several such filters together), which the JSONB snapshot alone can't do without ambiguity. See `docs/13-DATABASE_SCHEMA.md` § `platform.lead_form_answers` for the full shape and why a flattened single-text-column search (the originally-drafted design) was replaced with this instead.
+
+**Key methods:**
+- `static create(props)` → validates required fields via `Email`/`PhoneNumber` VOs, snapshots `answers`, computes `expiresAt` from the tenant's current `retentionMonths`. Publishes `LeadFormSubmissionReceived`.
 
 ---
 

@@ -239,6 +239,24 @@ The `CHATBOT` hotsite module's own endpoints — never part of the cached manife
   - `503` — LLM provider call failed (timeout, upstream error, insufficient credits) — widget shows the interrupted state, phone/WhatsApp fallback offered
   - `404` — tenant slug not found, or `sessionId` doesn't belong to this tenant
 
+### **Lead Form Widget (Public — UC-038, UC-039, UC-040)**
+The `LEAD_FORM` hotsite module's own endpoints — extends the existing `platform.public.controller.ts` (`.public.controller.ts` under `public/`, `docs/24-BFF_ARCHITECTURE.md`), never part of the cached manifest, since the question catalog and submission are live/write data, not static per-tenant data. Full design: `docs/discovery/lead-form-module/lead-form-module.md`.
+
+- `GET /public/platform/lead-form/:slug`
+  - **Public** — `X-Tenant-Slug` header required (same convention as the Chatbot Widget above)
+  - **Response:** `200 OK` — `{ "audienceMode": "GUEST_AND_CUSTOMER" | "CUSTOMER_ONLY", "questions": [{ "id", "label", "type", "required", "options"? }] }` — `options` present only for `SINGLE_CHOICE`/`MULTIPLE_CHOICE`
+  - `404` — tenant slug not found, or the `LEAD_FORM` module isn't `enabled` in the tenant's layout
+
+- `POST /public/platform/lead-form/:slug/submissions`
+  - **Public** — `X-Tenant-Slug` header required
+  - **Request body:** `{ "name": "string", "email": "string", "phone": "string", "answers": [{ "questionId": "uuid", "value": "string | string[]" }], "turnstileToken": "string" }`
+  - **Response `200 OK`:** `{ "submissionId": "uuid-v7" }`
+  - BFF verifies `turnstileToken` via Cloudflare `siteverify` before forwarding to the backend
+  - `400` — missing/invalid `name`/`email`/`phone` (`EMAIL_FORMAT_INVALID`/`PHONE_FORMAT_INVALID`/`GENERIC_FIELD_REQUIRED`), a `required: true` question left unanswered, **or** Turnstile verification failed/expired
+  - `401` — `audienceMode === 'CUSTOMER_ONLY'` and the request carries no authenticated customer session (`AUTH_UNAUTHORIZED`)
+  - `429 PLATFORM_LEAD_FORM_DAILY_CAP_REACHED` — tenant-wide or per-IP daily submission cap reached, enforced backend-side via `lead_form_submissions` count queries (mirrors `POST /public/platform/chatbot/messages`'s cap-enforcement pattern exactly — never a BFF-layer check)
+  - `404` — tenant slug not found, or the `LEAD_FORM` module isn't `enabled`
+
 ### **Tenant Settings (Admin — UC-026)**
 First documented entry for this route — it existed and was implemented (`M13-S31`) before it had a dedicated API contract entry; see `docs/04-USE_CASES.md` UC-026 and `docs/21-TENANTS_SETTINGS_SCHEMA.md` for the full field-level rules this section doesn't repeat.
 
@@ -247,6 +265,11 @@ First documented entry for this route — it existed and was implemented (`M13-S
   - Request body is validated against a `.strict()` schema with a fixed category key list on both the BFF (`UpdateTenantSettingsBodySchema`, `apps/bff/src/features/platform/tenant-settings.schemas.ts`) and backend DTO layers (`UpdateTenantSettingsSchema`, `apps/backend/src/contexts/platform/application/dtos/update-tenant-settings.dto.ts`) — an unrecognized top-level key under `settings` is rejected as `400`, not silently ignored. `chatbot` is a category in that fixed list (added by this milestone) alongside the six pre-existing ones.
   - `chatbot.knowledgeText` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §7): optional string, no hardcoded length bound at the Zod layer — the resolved `maxKnowledgeTextLength` cap (default 4000, or a tenant's own Ikaro-granted override) is enforced solely by the domain-layer `ChatbotSettingsValidator`, `400 PLATFORM_SETTINGS_CHATBOT_KNOWLEDGE_TEXT_TOO_LONG` if exceeded (a static Zod max would make an above-4000 override unenforceable, since Zod would reject the request before the domain layer's resolved check ever ran — decided during M19-S04 `/story-discovery`, 2026-08-11). This is the **only** tenant-editable field in the `chatbot` settings category; the 8 volume/cost caps and `llmProvider`/`llmModel` are never accepted in this body — a request including any of them is rejected `400` (not silently stripped), same as any other unrecognized key under `chatbot`, since `chatbot` accepts only `knowledgeText` at the Zod layer (see `docs/discovery/CHATBOT/CHATBOT.md` §5 for why these stay Ikaro-only overrides)
 - `400 PLATFORM_SETTINGS_UPDATE_EMPTY` — body has no recognized fields at all
+- `leadForm` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §8, UC-042): `leadForm` is a category in the fixed key list (added by M20) alongside the seven pre-existing ones. **All three fields are tenant-editable — unlike `chatbot`, this category has no Ikaro-only deviation** (these caps are abuse protection, not shared-cost protection, so there's no reason to deny a tenant control over their own value):
+  - `retentionMonths`: integer 1-24, default 6 — `400 PLATFORM_SETTINGS_LEAD_FORM_RETENTION_MONTHS_INVALID` if out of range
+  - `maxSubmissionsPerDay`: integer 1-1000, default 100 — `400 PLATFORM_SETTINGS_LEAD_FORM_MAX_SUBMISSIONS_PER_DAY_INVALID` if out of range
+  - `maxSubmissionsPerIpPerDay`: integer 1-100, default 3 — `400 PLATFORM_SETTINGS_LEAD_FORM_MAX_SUBMISSIONS_PER_IP_PER_DAY_INVALID` if out of range. Raising this is the documented mitigation for a tenant seeing false-positive blocks from legitimate visitors sharing one carrier-assigned IP (common on Brazilian mobile networks)
+  - All three validated by the domain-layer `LeadFormSettingsValidator` (mirrors `BookingSettingsValidator`'s per-field dedicated-code pattern)
 
 ### **Hotsite Admin Management (Admin — UC-027, M12-S02)**
 Lets a `MANAGER` configure branding, layout modules, and publish status. Mirrors the public manifest's `branding`/`layout`/`isPublished` shape, but `GET` always returns the full draft state regardless of publish status — unlike the public endpoint, which stubs `layout: []` and `business` (all fields `null`) when `isPublished: false` (see §1 above).
@@ -268,6 +291,36 @@ Powers the red banner on the `CHATBOT` module's own config screen only (not show
 - `GET /v1/tenants/chatbot/cap-status` → `200 { dailyCapReachedToday: boolean }` — `MANAGER` only (matches Hotsite Admin Management's all-MANAGER convention, since this reads out inside `/dashboard/hotsite`)
   - Reuses the identical per-tenant daily-cap `COUNT` query `POST /public/platform/chatbot/messages` already runs for cap enforcement (`docs/13-DATABASE_SCHEMA.md`'s `platform.chatbot_sessions` index on `(tenant_id, conversation_date)`) — not a new counting mechanism
   - Deliberately narrow: only reports the daily-cap condition. Concurrency cap, platform-wide spend breaker, and provider balance floor are not surfaced here — they stay covered by the visitor-facing "not available" state only, since they aren't specific to or actionable by one tenant
+
+### **Lead Form Admin Config (Admin — UC-037)**
+
+**One endpoint, one transaction, for the whole config drill-down screen.** The teaser fields (`title`/`subtitle`/`eyebrow`/`ctaLabel`/`variant`/`backgroundImageUrl`/`backgroundImagePosition`/`bgStyle`) live in `HotsiteConfig`'s `layout[]` entry for this module (same as every other module type), while `audienceMode`/`questions[]` live in the separate `LeadFormConfig` aggregate (deliberately — see `docs/13-DATABASE_SCHEMA.md` § `platform.lead_form_configs` for why: embedding up to 20 questions in the publicly-cached manifest would bloat it for every visitor who never opens the form). That split is correct and stays — but the manager's own save action (one "Aplicar" button on one screen) must be atomic, not two independent REST calls with no shared transaction. `GET`/`PATCH /v1/tenants/lead-form/config` is that single, consolidated endpoint: internally, `PATCH` writes both `HotsiteConfig`'s layout entry and `LeadFormConfig` inside one `txManager.run()` block — an implementer must not "simplify" this back into two calls (client-orchestrated) or two backend calls with no shared transaction; that was the original, defective design this replaced.
+
+**The module's `enabled` on/off toggle is the one field that stays *outside* this endpoint** — it's toggled inline on the hotsite editor's Layout tab, via the existing generic `PATCH /v1/tenants/hotsite` (`layout[].enabled`), exactly like every other module type. It was never part of the two-call problem above (the list-screen toggle was already a single call) and moving it here would be the one genuine departure from how every other module's enabled state works.
+
+- `GET /v1/tenants/lead-form/config` → `200 { title, subtitle, eyebrow, ctaLabel, variant, backgroundImageUrl, backgroundImagePosition, bgStyle, audienceMode, questions: [{id,label,type,required,options?,order}] }` — `MANAGER` only. Teaser fields resolved from `HotsiteConfig`'s current layout entry, `audienceMode`/`questions` from `LeadFormConfig` — one read, two sources, merged before responding
+- `PATCH /v1/tenants/lead-form/config` → body `{ title?, subtitle?, eyebrow?, ctaLabel?, variant?, backgroundImageUrl?, backgroundImagePosition?, bgStyle?, audienceMode?, questions? }` (partial update, any subset); `200` returns the same merged shape `GET` returns — `MANAGER` only, `STAFF` gets `403`
+  - `400 PLATFORM_LEAD_FORM_QUESTION_LIMIT_REACHED` — more than 20 questions
+  - `400 PLATFORM_LEAD_FORM_QUESTION_OPTIONS_INVALID` — a `SINGLE_CHOICE`/`MULTIPLE_CHOICE` question with < 2 or > 10 options
+  - `400 GENERIC_FIELD_REQUIRED` — a question with an empty `label`
+  - Standard hotsite-layout validation (hex colors, known enum values, etc. — see Hotsite Admin Management above) applies to the teaser fields the same way it would via the generic endpoint
+
+### **Lead Form Status (Admin, nav-gating — UC-041)**
+Powers the dashboard's "Leads" sidebar item, which is **gated**, not always shown — a tenant that has never enabled the `LEAD_FORM` module gets no nav item pointing at a screen that would be permanently empty. Deliberately separate from `GET /v1/tenants/lead-form/config` above (which is `MANAGER`-only and returns far more than a boolean) because both `STAFF` and `MANAGER` need to know whether to render this nav item — mirrors `GET /public/platform/chatbot/status`'s own shape, admin-side instead of public-side.
+
+- `GET /v1/tenants/lead-form/status` → `200 { enabled: boolean }` — `STAFF`\|`MANAGER`. Reads the `LEAD_FORM` module's `enabled` flag from `HotsiteConfig`'s layout array only — no `audienceMode`/`questions` exposed. Called server-side by the dashboard shell layout on every dashboard page load (cheap, single boolean) to decide whether to render the "Leads" item for `Sidebar`/`BottomNav`/`ManagerSheet`
+
+### **Leads Submissions (Admin — UC-041)**
+
+- `GET /v1/tenants/lead-form/submissions?page=&pageSize=&search=&filters=&submittedFrom=&submittedTo=` → `200 { items: [{id, name, email, phone, submittedAt}], page, pageSize, total }` — `STAFF`\|`MANAGER`, ordered `submittedAt DESC`
+  - `search` (optional, M20-S12) — **basic** free-text search: case-insensitive partial match against `name`, `email`, or any `platform.lead_form_answers` row's `question_label`/`answer_value` for that submission (`docs/13-DATABASE_SCHEMA.md`). **Minimum 3 characters** — shorter terms yield no trigrams for the backing `pg_trgm` GIN index to use (verified against PostgreSQL's own `pgtrgm` docs: "a pattern with no extractable trigrams will degenerate to a full scan"), so the BFF rejects a 1-2 character `search` with `400 GENERIC_VALUE_TOO_SHORT` rather than silently running an expensive unindexed scan. `search` and `filters` are mutually exclusive in one request — pass one or the other, never both (the UI's basic/advanced modes are alternatives, not combinable in M20).
+  - `filters` (optional, M20-S12) — **advanced**, structured, ANDed per-question search: a URL-encoded JSON array, `[{"questionLabel": "Qual seu estado civil?", "value": "casado"}, {"questionLabel": "Onde você mora?", "value": "São Paulo"}]`. Each entry becomes one `EXISTS (... WHERE question_label = :questionLabel AND answer_value ILIKE '%'||:value||'%')`, ANDed together — matches only a submission satisfying *every* filter. `questionLabel` matches by **exact equality** (populated from a dropdown — see the filter-options endpoint below — never free-typed), `value` by the same 3-character-minimum partial match as `search`. Capped at 5 filters per request (`400 GENERIC_VALUE_OUT_OF_RANGE` beyond that) — a deliberate small bound, not a real usage limit, purely to keep one request's `EXISTS` chain bounded.
+  - `submittedFrom`/`submittedTo` (optional, M20-S12) — a **date range**, each `YYYY-MM-DD`, expressed in the tenant's own `settings.businessHours.timezone`, both inclusive from the caller's perspective. Orthogonal to `search`/`filters` — combines with either (or neither) via `AND`, never a third mutually-exclusive mode; "leads from Aug 1–15" works standalone or narrowed further by a search term. Resolved server-side to a half-open UTC instant range `[submittedFrom's tenant-local midnight, day-after-submittedTo's tenant-local midnight)` via `localDateTimeToUTCIso()` (`apps/backend/src/shared/utils/calendar-date.ts` — the same real utility Chatbot's own tenant-timezone-aware `conversationDate` bucketing uses, not the UTC-naive `todayUTC()`/`startOfDayUTC()` pair that exists only for the platform-wide, not-tenant-scoped spend breaker). `submittedFrom > submittedTo` (when both given) → `400 GENERIC_VALUE_OUT_OF_RANGE`. Uses the existing `(tenant_id, submitted_at DESC)` index directly — no new index needed.
+  - Empty/omitted `search`/`filters`/`submittedFrom`/`submittedTo` behaves exactly as before this addition. A result set of zero matches is `200 { items: [], total: 0 }`, never `404`.
+- `GET /v1/tenants/lead-form/submissions/filter-options` → `200 { questionLabels: string[] }` — `STAFF`\|`MANAGER`. Distinct `question_label` values ever recorded for this tenant in `platform.lead_form_answers`, alphabetically ordered — **includes labels from questions since edited or removed from the live `LeadFormConfig`** (decided explicitly during design: a manager can still filter by an old question's answers even after changing the live form, since the filter matches the submission's own snapshot, not the current config). Powers the advanced filter's "pergunta" dropdown; not paginated (bounded by how many distinct questions a tenant has ever asked, not by submission volume).
+- `GET /v1/tenants/lead-form/submissions/:id` → `200 { id, name, email, phone, answers: [{questionLabel, questionType, answerValue}], submittedAt }` — `STAFF`\|`MANAGER`
+  - `404` — submission doesn't exist in this tenant
+- **Not implemented:** no CSV export endpoint — removed from this milestone's scope entirely (see `plan/M20-LEAD-FORM-MODULE.md` Non-Goals for the accepted-risk note this implies alongside UC-043's retention purge). Do not assume `GET .../submissions/export` exists.
 
 ### **Hotsite Image Upload (Admin — UC-027, M12-S02 + M12-S10; tmp/ staging — TD22)**
 Generates a GCS signed **upload** URL for hotsite images (logo, hero/CTA backgrounds, gallery, about photos). Reuses the same `IStorageService`/`GcsSignedUrlAdapter` and upload constraints introduced for booking attachments in M115-S01 (15-minute *upload*-URL expiry, content-type lock, 10 MB cap) — no new upload mechanics.
@@ -1053,6 +1106,31 @@ resource "google_cloud_scheduler_job" "chatbot_balance_poll" {
   time_zone = "UTC"
   pubsub_target {
     topic_name = google_pubsub_topic.cron_chatbot_balance_poll.id
+    data       = base64encode("{}")
+  }
+}
+```
+
+---
+
+### `POST /cron/lead-form-retention` — Publish the daily lead-form-retention trigger (UC-043)
+
+Same shape as `POST /cron/loyalty-expiry` above — local/manual trigger path only, `InternalApiGuard`-protected, not the endpoint Cloud Scheduler calls in prod (Scheduler publishes to the `ikaro-cron-lead-form-retention` Pub/Sub topic directly). The trigger handler deletes every `lead_form_submissions` row where `expires_at < now()`, using the `(tenant_id, expires_at)` index.
+
+**Request headers:** `X-Internal-Key` required.
+
+**Request body:** none
+
+**Response `200 OK`:** `{ "ok": true }` — returned once the trigger is published, not once the purge job finishes.
+
+**GCP Cloud Scheduler resource (Terraform — `modules/scheduler`):**
+```hcl
+resource "google_cloud_scheduler_job" "lead_form_retention" {
+  name      = "lead-form-retention"
+  schedule  = "0 3 * * *"
+  time_zone = "UTC"
+  pubsub_target {
+    topic_name = google_pubsub_topic.cron_lead_form_retention.id
     data       = base64encode("{}")
   }
 }

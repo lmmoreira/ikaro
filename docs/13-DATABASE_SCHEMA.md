@@ -145,6 +145,64 @@ Single-row-per-provider, platform-wide, not tenant-scoped. Two independent write
 
 **Provider health resolution (UC-034 condition c):** the resolved provider is "failing a health check" only if `last_failure_at` is more recent than `last_success_at` **and** that failure happened within the last `CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES` (env var, default `5`) — a half-open/circuit-breaker cooldown, not a permanent trip. Without the cooldown, a single transient failure would take the widget dark forever: `available: false` means the widget never renders at all (UC-034 A1), so no visitor could ever attempt the message that would produce a new success to clear it. Once the cooldown elapses, the widget optimistically shows as available again, giving the next real visitor's attempt the chance to either confirm recovery (writes a fresh `last_success_at`) or restart the cooldown (writes a fresh `last_failure_at`). A cap/volume rejection (daily/IP/concurrency/message/length/spend/balance) must never be recorded here — only the actual `provider.complete()` call failing counts (see S05's `send-chat-message.use-case.ts` — the cap checks throw before that call is ever reached, so structurally can't land in its `catch` block).
 
+### `platform.lead_form_configs`
+
+One row per tenant — question catalog + audience gating for the `LEAD_FORM` hotsite module (`docs/04-USE_CASES.md` UC-037). Promoted from `docs/discovery/lead-form-module/lead-form-module.md`.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| tenant_id | UUID | PRIMARY KEY, FK → `platform.tenants(id)`, UNIQUE |
+| audience_mode | VARCHAR(20) | NOT NULL DEFAULT `'GUEST_AND_CUSTOMER'` — `'GUEST_AND_CUSTOMER'` \| `'CUSTOMER_ONLY'` |
+| questions | JSONB | NOT NULL DEFAULT `'[]'` — array, ≤20 entries, `{id, label, type, required, options?, order}` |
+| updated_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
+
+**Why JSONB, not a child table:** the question catalog is always read and written as one atomic unit by exactly one actor (the manager editing the form) — never queried or joined per-question, same justification `hotsite_configs.layout` already uses. Bounds are small and fixed (20 questions × 10 options, worst case a few KB) — safe to fetch on every `/[slug]/lead-form` page load with no pagination concerns.
+
+### `platform.lead_form_submissions`
+
+One row per visitor submission (`docs/04-USE_CASES.md` UC-039/UC-040).
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | UUID | PRIMARY KEY (uuidv7) |
+| tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
+| customer_id | UUID | NULLABLE — UUID-only cross-context reference to Customer, no FK (`docs/ANTI_PATTERNS.md`'s "cross-schema DB FK between contexts" row). Set whenever the submitter was authenticated, in either audience mode |
+| name | VARCHAR | NOT NULL |
+| email | VARCHAR | NOT NULL — validated via the existing `Email` VO |
+| phone | VARCHAR | NOT NULL — validated via the existing `PhoneNumber` VO |
+| answers | JSONB | NOT NULL — array of `{questionId, questionLabel, questionType, answerValue}` (full snapshot — see `docs/02-DOMAIN_MODEL.md` § `LeadFormSubmission` for why) |
+| submitted_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
+| expires_at | TIMESTAMP WITH TIME ZONE | NOT NULL — computed once at insert from the tenant's `retentionMonths` at that moment, never recomputed live |
+| ip_address | VARCHAR(45) | NOT NULL — abuse-investigation trail, also the rate-limit key (same `VARCHAR(45)` sizing as `chatbot_sessions.client_ip` — IPv4/IPv6) |
+| **UNIQUE** | (tenant_id, id) | Composite FK target for `lead_form_answers` (M20-S12) — same discipline as `chatbot_messages` → `chatbot_sessions` and `booking_lines` → `bookings`. **Required, not optional**: Postgres rejects a composite FK whose referenced columns have no unique constraint/index — this must land in the same migration that first creates the table (S02), not be added later, so `lead_form_answers`'s FK (S12) has something to reference |
+| **INDEX** | (tenant_id, submitted_at DESC) | Paginated Leads Submissions list (UC-041), the tenant-daily-cap `COUNT` query (mirrors `chatbot_sessions`'s `(tenant_id, conversation_date)` layer-1 cap index), and UC-041's `submittedFrom`/`submittedTo` date-range filter (M20-S12, `docs/14-API_CONTRACTS.md`) — a plain range scan on `submitted_at` already served by this same index, no new index needed |
+| **INDEX** | (tenant_id, ip_address, submitted_at) | Per-IP-daily-cap `COUNT` query (mirrors `chatbot_sessions`'s `(tenant_id, client_ip, conversation_date)` layer-2 cap index) |
+| **INDEX** | (tenant_id, expires_at) | Daily retention purge (UC-043) — `WHERE tenant_id = ? AND expires_at < now()` |
+
+### `platform.lead_form_answers`
+
+One row per **question** per submission (not one row per submission) — a denormalized search index derived from `lead_form_submissions.answers`, maintained by the same repository/transaction, never a domain aggregate of its own. Exists specifically to support UC-041's structured search (M20-S12/S13): filtering by *this specific question's* answer, and ANDing several such filters together ("estado civil = casado" AND "mora em São Paulo"), which a single flattened text blob cannot do correctly (it can't attribute a matched term to a specific question, so it can't AND two question-scoped conditions without false positives). The `lead_form_submissions.answers` JSONB column is unaffected and stays the sole source for the detail view (UC-041 main flow) — this table is write-once, read-only-for-search, never rendered directly.
+
+**Retention purge ordering (M20-S04, extended by M20-S12):** this table has **no `ON DELETE CASCADE`** on its FK to `lead_form_submissions` — deliberately, matching the real, already-established precedent `chatbot_messages`/`chatbot_sessions` uses (`ChatbotRetentionPurgeJob` deletes the child table first, the parent second, in the same transaction; no cascade). `LeadFormRetentionPurgeJob` (UC-043) must do the same: delete every `lead_form_answers` row for the expiring submissions **before** deleting the `lead_form_submissions` rows themselves, in one transaction — otherwise the daily purge throws an FK-violation error on any submission that has at least one answered question, which in practice is nearly all of them.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | UUID | PRIMARY KEY (uuidv7) |
+| tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
+| submission_id | UUID | NOT NULL — composite FK `(tenant_id, submission_id)` → `platform.lead_form_submissions(tenant_id, id)`, tenant-safe (blocks cross-tenant reference at the DB level, same discipline as `chatbot_messages` → `chatbot_sessions`). Requires `lead_form_submissions`'s own `UNIQUE (tenant_id, id)` above to exist first |
+| question_id | UUID | NOT NULL — the question's `id` at submission time (informational; matching is by `question_label`, not this, since a question can be edited/removed after submission — see below) |
+| question_label | TEXT | NOT NULL — snapshotted, not looked up live (same reasoning as the JSONB snapshot) |
+| answer_value | TEXT | NOT NULL — one row per **selected option** for `MULTIPLE_CHOICE` (2 selected options → 2 rows, same `question_id`/`question_label`), one row for `TEXT`/`SINGLE_CHOICE`. Always a scalar string — the array-flattening happens once, at write time, so every row here is trivially `ILIKE`-able |
+| **INDEX** | (tenant_id, submission_id, question_label) | The advanced filter's per-question `EXISTS` lookup — `question_label` matched by **exact equality** (the manager picks it from a dropdown, never types it — see `docs/14-API_CONTRACTS.md`), so a plain B-tree is the right and faster tool here, not trigram |
+| **INDEX** | (tenant_id, question_label) | The `filter-options` endpoint's `SELECT DISTINCT question_label ... ORDER BY question_label` — the `(tenant_id, submission_id, question_label)` index above doesn't serve this well (`submission_id` sits between `tenant_id` and `question_label`, so it isn't sorted by label within one tenant); this dedicated index is |
+| **INDEX (GIN)** | `answer_value gin_trgm_ops` | Partial/substring match on the answer text — both the basic free-text search box and every advanced filter's value side. Requires `CREATE EXTENSION IF NOT EXISTS pg_trgm` (this repo already has a precedent for extension-creating migrations: `btree_gist`, `apps/backend/src/contexts/booking/infrastructure/migrations/1748000000014-CreateBookingBookings.ts`). **Verified against the PostgreSQL docs (`pgtrgm.html`), not assumed:** a GIN index with `gin_trgm_ops` genuinely accelerates `LIKE`/`ILIKE` with a leading wildcard ("the search string need not be left-anchored," documented since PG 9.1) — a plain B-tree cannot do this at all, since a leading `%` has no fixed prefix to seek on. One real limitation from the same docs: "a pattern with no extractable trigrams will degenerate to a full scan" — a search term under 3 characters yields no trigrams, so the API/UI enforces a 3-character minimum before firing a search (see `docs/14-API_CONTRACTS.md`) |
+| **INDEX (GIN)** | `question_label gin_trgm_ops` | Same mechanism, for the **basic** free-text search box only (which also matches partially against question labels, unlike the advanced filter's exact-match dropdown) |
+
+**Basic search** (the single search box), always `tenant_id`-scoped on both sides of the query, never left implicit via the FK alone (per `CLAUDE.md` §2 invariant 2 — "every query filters `tenant_id`, no exceptions"):
+`name ILIKE '%term%' OR email ILIKE '%term%' OR EXISTS (SELECT 1 FROM lead_form_answers a WHERE a.tenant_id = s.tenant_id AND a.submission_id = s.id AND (a.question_label ILIKE '%term%' OR a.answer_value ILIKE '%term%'))`.
+
+**Advanced search** (structured, ANDed filters — e.g. "estado civil contém casado" AND "mora contém São Paulo"), same explicit `tenant_id` scoping: one `EXISTS (SELECT 1 FROM lead_form_answers a WHERE a.tenant_id = s.tenant_id AND a.submission_id = s.id AND a.question_label = :label AND a.answer_value ILIKE '%' || :value || '%')` per filter row, ANDed in the outer `WHERE`.
+
 ---
 
 ## Schema: `customer`

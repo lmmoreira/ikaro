@@ -791,6 +791,139 @@ Promoted from `docs/discovery/CHATBOT/CHATBOT.md` (discovery doc kept as the per
 
 ---
 
+## Lead Form Use Cases
+
+Promoted from `docs/discovery/lead-form-module/lead-form-module.md` (M20). A new `LEAD_FORM` hotsite module lets a manager configure up to 20 custom questions which guests and/or logged-in customers answer on a dedicated page — a genuine lead-capture tool (name/email/phone mandatory on every submission), protected by Cloudflare Turnstile + per-IP/per-tenant rate limits. Full domain/data-model rationale: the discovery doc (kept as the permanent *why*, not archived).
+
+### **UC-037: Manager Configures the Lead Form Module**
+
+- **Actor:** Staff member with `MANAGER` role
+- **Preconditions:** Manager is authenticated and on the hotsite editor (`/dashboard/hotsite`).
+- **Trigger:** Manager opens the `LEAD_FORM` module's config panel (adds it to the layout, or edits an existing one).
+- **Main Flow:**
+   1. Manager toggles the module `enabled` flag — same inline toggle every other module's Layout-tab row already has, via the existing `PATCH /v1/tenants/hotsite`, not part of this UC's own save action (step 5).
+   2. Manager opens the drill-down config panel and sets teaser copy (title, subtitle, CTA label).
+   3. Manager sets `audienceMode`: "Visitantes e clientes" (`GUEST_AND_CUSTOMER`) or "Somente clientes logados" (`CUSTOMER_ONLY`).
+   4. Manager adds a question inline, on the same page (expandable card — never a separate screen per question): picks a type (free text / single-choice / multiple-choice), types a label, marks required or not, and — for choice types — adds 2–10 options. A small constants-file catalog of starter question templates (e.g. "Qual serviço te interessa?") is offered as a starting point; every question stays freely editable.
+   5. Manager repeats step 4 up to 20 questions, reordering as needed.
+   6. Manager clicks "Aplicar" once — `PATCH /v1/tenants/lead-form/config`, a single request carrying teaser fields + `audienceMode` + `questions`, saved atomically in one backend transaction (spanning `HotsiteConfig`'s layout entry and `LeadFormConfig` — see `docs/02-DOMAIN_MODEL.md` § `LeadFormConfig` "Cross-aggregate save"). Not two independent REST calls — an earlier draft of this design had the teaser save and the audience/questions save as two separate, unsynchronized requests, which could leave the manager's edit half-applied on a partial failure; that design was replaced.
+- **Alternative Flows:**
+   - **A1: 20-question cap reached** → "Adicionar pergunta" disabled with an inline note; existing questions can still be edited/removed. `400 PLATFORM_LEAD_FORM_QUESTION_LIMIT_REACHED` if bypassed client-side.
+   - **A2: Choice-type question with < 2 or > 10 options** → blocked on save: "Adicione entre 2 e 10 opções." `400 PLATFORM_LEAD_FORM_QUESTION_OPTIONS_INVALID`.
+   - **A3: Empty question label** → blocked on save: "Informe o texto da pergunta." `400 GENERIC_FIELD_REQUIRED` (`field: questions[n].label` — a plain required-string check with no dedicated VO behind it, same category as `AddressErrorCode.FIELD_REQUIRED` reused across address fields).
+   - **A4: Manager removes a question that already has submissions** → allowed; a confirmation dialog explains existing submissions keep their own snapshot of the question (`docs/02-DOMAIN_MODEL.md` § `LeadFormSubmission`) and won't be affected.
+   - **A5: Manager disables the module entirely** → teaser stops rendering on the hotsite; `/[slug]/lead-form` checks the manifest's `layout` array for a `LEAD_FORM` module with `enabled: true` and renders the existing `<Unavailable/>` component when absent/disabled — **new logic**, not a reuse of an existing "disabled module → dedicated page unavailable" precedent (none existed prior to this milestone; verified against `apps/web/app/[slug]/booking/page.tsx`, which only checks `!manifest.isPublished`, never per-module `enabled`). Existing submissions and config are preserved, not deleted.
+- **Postconditions:** `lead_form_configs` row reflects the new config; teaser section in `hotsite_configs.layout` updated.
+- **Events Triggered:** none (config change, matches how other module config edits behave).
+
+### **UC-038: Visitor Sees the Lead Form Teaser on the Hotsite**
+
+- **Actor:** Guest | Customer
+- **Preconditions:** `LEAD_FORM` module `enabled: true` in the tenant's manifest `layout`.
+- **Trigger:** Visitor scrolls to the module's position in page order.
+- **Main Flow:**
+   1. `LeadFormModule` server component renders the teaser (title/subtitle/CTA), branded via `var(--ba-*)`, same shape as `BookingCtaModule` (`apps/web/shells/hotsite/components/BookingCtaModule.tsx`).
+   2. Visitor clicks the CTA → navigates to `/[slug]/lead-form`.
+- **Alternative Flows:**
+   - **A1: Module `enabled: false`** → not rendered in the layout loop (filtered upstream in `buildHotsiteModuleRenderPlan`, `apps/web/features/platform/hotsite/page-model.ts`), same generic behavior as any disabled module.
+- **Postconditions:** none (read-only render).
+- **Events Triggered:** none.
+
+### **UC-039: Guest Submits the Lead Form**
+
+- **Actor:** Guest
+- **Preconditions:** `audienceMode === 'GUEST_AND_CUSTOMER'`. Tenant hasn't exceeded `maxSubmissionsPerDay`. Visitor's IP hasn't exceeded `maxSubmissionsPerIpPerDay`.
+- **Trigger:** Guest navigates to `/[slug]/lead-form` (directly or via the teaser CTA).
+- **Main Flow:**
+   1. Page fetches the live question catalog: `GET /public/platform/lead-form/:slug`.
+   2. Guest fills mandatory name, email, phone, and any questions marked `required` (others optional).
+   3. Guest completes the Turnstile challenge (widget auto-renders).
+   4. Guest clicks "Enviar". Client sends `{ name, email, phone, answers[], turnstileToken }` to `POST /public/platform/lead-form/:slug/submissions`.
+   5. BFF verifies `turnstileToken` via Cloudflare `siteverify` — server-side, pre-auth layer, consistent with where other public-form validation already lives.
+   6. Backend validates required fields + `Email`/`PhoneNumber` VOs, then — before creating the row — checks `maxSubmissionsPerDay`/`maxSubmissionsPerIpPerDay` via repository count queries against `lead_form_submissions` (mirrors Chatbot's `checkNewSessionVolumeCaps`/`countByTenantAndDate`/`countByTenantIpAndDate` pattern exactly — this enforcement lives in the **backend**, not the BFF, correcting the discovery doc's original sketch).
+   7. Backend creates `LeadFormSubmission`, snapshotting each answer's `{questionId, questionLabel, questionType, answerValue}`, computes `expiresAt` from the tenant's current `retentionMonths`.
+   8. `LeadFormSubmissionReceived` published.
+   9. Guest sees a success confirmation.
+- **Alternative Flows:**
+   - **A1: Turnstile challenge fails/expires** → inline error, "Verificação de segurança expirou, tente novamente"; form data preserved.
+   - **A2: Rate limit exceeded (tenant-wide or per-IP)** → `429 PLATFORM_LEAD_FORM_DAILY_CAP_REACHED`, friendly message: "Muitas solicitações no momento, tente novamente mais tarde." — one code covers both layers, same grouping rationale as `CHATBOT_DAILY_CAP_REACHED`.
+   - **A3: Required question left blank** → inline validation, full form re-shown with the error highlighted (never just the errored section). `400 GENERIC_FIELD_REQUIRED`.
+   - **A4: Invalid email/phone format** → `400 EMAIL_FORMAT_INVALID` / `400 PHONE_FORMAT_INVALID` (reuses the existing VOs' own codes — never a bespoke code for the identical rule), same as guest booking's A1.
+   - **A5: `audienceMode === 'CUSTOMER_ONLY'`** → this flow doesn't apply; see UC-040 A1.
+   - **A6: Module was disabled between teaser render and page load** → "unavailable" state (see UC-037 A5), no form shown.
+- **Postconditions:** `LeadFormSubmission` persisted, scoped to tenant, `customerId: null`.
+- **Events Triggered:** `LeadFormSubmissionReceived` (`data.customerId: null`).
+
+### **UC-040: Logged-In Customer Submits the Lead Form**
+
+- **Actor:** Customer
+- **Preconditions:** Customer authenticated (JWT `role: CUSTOMER`). Same rate-limit preconditions as UC-039.
+- **Trigger:** Customer navigates to `/[slug]/lead-form`.
+- **Main Flow:**
+   1. Same as UC-039 steps 1–2, except name/email/phone are **pre-filled from the `Customer` profile** (editable) — visible autofill, not a hidden field.
+   2. Turnstile + submit, same as UC-039 steps 3–8.
+   3. Backend sets `customerId` on the submission from the JWT `sub`.
+- **Alternative Flows:**
+   - **A1: `audienceMode === 'CUSTOMER_ONLY'` and visitor is NOT authenticated** → redirected to a login-required gate screen (`plan/journey/guest/prototypes/lead-form/`, newly built by this milestone — no existing canonical `plan/journey/` precedent for this gate screen existed prior) with a link into the existing customer login flow (`plan/journey/customer/prototypes/login/00-login.html`); after login, returns to `/[slug]/lead-form`. `401 AUTH_UNAUTHORIZED`.
+   - **A2–A5:** same as UC-039 A1–A4.
+- **Postconditions:** `LeadFormSubmission` persisted with `customerId` set.
+- **Events Triggered:** `LeadFormSubmissionReceived` (`data.customerId` set).
+
+### **UC-041: Staff/Manager Views Leads Submissions**
+
+- **Actor:** STAFF | MANAGER
+- **Preconditions:** Authenticated staff/manager session.
+- **Trigger:** Clicks "Leads" in the sidebar — a top-level nav item (`MAIN_NAV_KEYS`, `apps/web/shells/dashboard/components/Sidebar.tsx`), visible to both roles when shown, own dedicated screen (not nested inside hotsite editing), mirroring how Agenda/bookings get their own screen. **Gated, not unconditional**: only rendered when `GET /v1/tenants/lead-form/status` reports `enabled: true` for this tenant (fetched server-side in the dashboard shell layout) — a tenant that has never enabled the `LEAD_FORM` module never sees this item, since it would otherwise point at a screen that's permanently empty (unlike the always-on Agenda/Loyalty items, which are core capabilities every tenant uses).
+- **Main Flow:**
+   1. `GET /v1/tenants/lead-form/submissions?page=&pageSize=` — paginated, ordered `submitted_at DESC`.
+   2. List renders one row per submission: name, email, phone.
+   3. Staff/manager optionally types (≥3 characters) into a **basic** search box; `GET .../submissions?page=&pageSize=&search=` — matches partially, case-insensitively, across name, email, and any question's label/answer, OR-ed together (M20-S12).
+   4. Staff/manager optionally opens **advanced filters** instead and adds one or more rows, each picking a question from a dropdown (populated by `GET .../submissions/filter-options`, which includes questions from past submissions even if since edited/removed from the live form) and typing a value to match (≥3 characters); `GET .../submissions?page=&pageSize=&filters=` — every filter row must match (AND), each scoped to its own specific question — e.g. "estado civil contém casado" AND "mora contém São Paulo" returns only submissions matching both, never a submission that merely contains both words somewhere unrelated (M20-S12/S13).
+   5. Staff/manager optionally sets a **date range** ("De" / "Até"), independent of and combinable with either search mode above — `GET .../submissions?page=&pageSize=&submittedFrom=&submittedTo=`. Interpreted in the tenant's own timezone (`settings.businessHours.timezone`), both dates inclusive — "leads from Aug 1–15" (M20-S12/S13).
+   6. Staff/manager clicks a row → `GET /v1/tenants/lead-form/submissions/:id` → detail view: full name/email/phone + every question label + submitted answer, in question order, plus `submittedAt`.
+- **Alternative Flows:**
+   - **A1: No submissions yet** → empty state with a short explainer and a link back to the module config (if not yet enabled).
+   - **A2: A submission's `answers` snapshot references a question no longer in the current config** → renders fine regardless, since the snapshot is self-contained (no live lookup needed) — this is also why the advanced filter's question dropdown includes historical, now-removed questions (A4).
+   - **A3: Search/filters/date range yield no matches** → distinct empty state from A1 ("nenhum resultado para esta busca", not "nenhum envio ainda") — the module may well have real submissions, just none matching the current criteria.
+   - **A4: Advanced filter's question dropdown includes a question no longer in the live `LeadFormConfig`** → selectable and searchable like any other; matches by the snapshotted `questionLabel` text, never a live lookup against the current config (see `docs/13-DATABASE_SCHEMA.md` § `platform.lead_form_answers`).
+   - **A5: `submittedFrom` is after `submittedTo`** → `400`, rejected before the query runs.
+- **Postconditions:** none (read-only).
+- **Events Triggered:** none.
+- **Not implemented:** CSV export — removed from this milestone's scope entirely, not merely deferred behind a smaller replacement. This is a real, accepted trade-off, not an oversight: `UC-043`'s daily retention purge is unconditional and permanent (no export, no backup, no bulk-download path exists before a submission is deleted at the end of its retention window). A manager who wants to preserve lead data long-term today has only the read-only detail view, one submission at a time.
+
+### **UC-042: Manager Configures Lead Form Settings**
+
+- **Actor:** Staff member with `MANAGER` role
+- **Preconditions:** Manager on the tenant settings page (`/dashboard/settings`, UC-026 pattern).
+- **Trigger:** Manager edits any field in the "Formulário de contato" settings section.
+- **Main Flow:**
+   1. Manager sets "Retenção de leads" — 1–24 months (default shown: 6).
+   2. Manager optionally sets "Limite de envios por dia" — 1–1000 (default shown: 100) — a tenant-wide daily cap, abuse protection, not cost protection (this platform incurs no per-submission cost, unlike Chatbot's LLM-call caps, so there's no reason to keep this Ikaro-only).
+   3. Manager optionally sets "Limite por visitante por dia" — 1–100 (default shown: 3) — raise this if legitimate visitors are being falsely blocked (e.g. a tenant with heavy mobile traffic behind carrier-shared IPs).
+   4. `PATCH /v1/tenants/settings` (existing endpoint, extended with `leadForm.retentionMonths`/`leadForm.maxSubmissionsPerDay`/`leadForm.maxSubmissionsPerIpPerDay` — any subset, partial update).
+   5. Each field validated against its own bound by `LeadFormSettingsValidator` (mirrors `BookingSettingsValidator`'s per-field dedicated-code pattern); persisted.
+- **Alternative Flows:**
+   - **A1: `retentionMonths` outside 1–24** → `400 PLATFORM_SETTINGS_LEAD_FORM_RETENTION_MONTHS_INVALID`.
+   - **A2: `maxSubmissionsPerDay` outside 1–1000** → `400 PLATFORM_SETTINGS_LEAD_FORM_MAX_SUBMISSIONS_PER_DAY_INVALID`.
+   - **A3: `maxSubmissionsPerIpPerDay` outside 1–100** → `400 PLATFORM_SETTINGS_LEAD_FORM_MAX_SUBMISSIONS_PER_IP_PER_DAY_INVALID`.
+- **Postconditions:** `settings.leadForm.{retentionMonths,maxSubmissionsPerDay,maxSubmissionsPerIpPerDay}` updated (whichever were included). `retentionMonths` affects only **future** submissions' `expiresAt` — already-stored submissions keep the `expiresAt` computed at their own insert time. The two caps take effect on the *next* submission attempt after saving — no retroactive effect on already-accepted submissions.
+- **Events Triggered:** none.
+
+### **UC-043: System Purges Expired Lead Form Submissions**
+
+- **Actor:** System (Cloud Scheduler cron)
+- **Preconditions:** none — runs daily regardless of tenant activity.
+- **Trigger:** GCP Cloud Scheduler → `ikaro-cron-lead-form-retention` Pub/Sub topic (mirrors `ikaro-cron-loyalty-expiry`), daily.
+- **Main Flow:**
+   1. Handler deletes every `lead_form_submissions` row where `expires_at < now()`, using the `(tenant_id, expires_at)` index.
+   2. `POST /cron/lead-form-retention` provides the same trigger locally/manually (M17-S03 precedent).
+- **Alternative Flows:**
+   - **A1: No expired rows** → no-op, idempotent.
+- **Postconditions:** expired submissions permanently removed.
+- **Events Triggered:** none (matches `ExpirePointsJob`'s own "no event on expiry" precedent).
+
+---
+
 ## Admin Reminders & Notifications
 
 ### **UC-018: Admin Receives Daily Schedule Reminder**
@@ -1267,3 +1400,10 @@ Promoted from `docs/discovery/CHATBOT/CHATBOT.md` (discovery doc kept as the per
 | UC-034 | Guest checks chatbot availability | Guest | Read-only: `{ available: boolean }` |
 | UC-035 | System purges expired chatbot conversations | System (cron) | Daily — deletes `chatbot_messages`/`chatbot_sessions` rows past 180-day retention |
 | UC-036 | System polls LLM provider balance | System (cron) | Every 15-30 min — upserts `chatbot_provider_balance` row |
+| UC-037 | Manager configures the lead form module | MANAGER staff | `lead_form_configs` upserted |
+| UC-038 | Visitor sees the lead form teaser | Guest \| Customer | Read-only render |
+| UC-039 | Guest submits the lead form | Guest | `lead_form_submissions` row created (`customerId: null`); `LeadFormSubmissionReceived` |
+| UC-040 | Logged-in customer submits the lead form | Customer | `lead_form_submissions` row created (`customerId` set); `LeadFormSubmissionReceived` |
+| UC-041 | Staff/manager views leads submissions | STAFF \| MANAGER | Read-only |
+| UC-042 | Manager configures the lead form retention window | MANAGER staff | `settings.leadForm.retentionMonths` updated |
+| UC-043 | System purges expired lead form submissions | System (cron) | Daily — deletes `lead_form_submissions` rows past retention |

@@ -713,6 +713,8 @@ For MVP: All deployed as single service, but code organized as separate modules 
 - `Tenant` — name, slug, settings JSONB, is_active
 - `HotsiteConfig` — branding, layout modules, publish flag
 - `ChatbotSession` / `ChatbotMessage` / `ChatbotProviderBalance` — chat widget conversation log + cost/cap tracking (thin persistence records, not rich aggregates — same treatment as `NotificationLog`)
+- `LeadFormConfig` — one per tenant; question catalog + audience gating for the `LEAD_FORM` hotsite module (M20)
+- `LeadFormSubmission` — one per visitor submission to a tenant's lead form (M20)
 
 **Responsibilities:**
 - Provision new tenants (developer CLI in MVP; no super-admin UI)
@@ -721,12 +723,14 @@ For MVP: All deployed as single service, but code organized as separate modules 
 - Allow MANAGER-role staff to invite new staff members (UC-025) and deactivate existing ones (UC-028)
 - Validate that `slug` is globally unique on create
 - Answer public hotsite visitors' FAQ-style questions via an LLM-backed chatbot widget, scoped to the tenant's own business data — informational only (UC-033/UC-034)
+- Let a MANAGER configure a lead-capture form (up to 20 custom questions) on the hotsite, and let guests/logged-in customers submit it, protected by Cloudflare Turnstile + per-IP/per-tenant rate limits (UC-037–UC-043)
 
-**Database:** `tenants` + `hotsite_configs` + `chatbot_sessions` + `chatbot_messages` + `chatbot_provider_balance` tables (see `docs/13-DATABASE_SCHEMA.md`)
+**Database:** `tenants` + `hotsite_configs` + `chatbot_sessions` + `chatbot_messages` + `chatbot_provider_balance` + `lead_form_configs` + `lead_form_submissions` tables (see `docs/13-DATABASE_SCHEMA.md`)
 
 **Published Events:**
 - `StaffInvited` → consumed by Notification (sends invitation/welcome email to new staff member's Google email)
 - `StaffDeactivated` → no consumers in MVP
+- `LeadFormSubmissionReceived` → no consumers in MVP (kept for audit trail; a notification/webhook consumer is an explicitly deferred fast-follow)
 
 **Consumed Events:** none — Platform is the source for its own data. The chatbot flow reads live services/prices from Booking context via BFF orchestration (`BackendHttpService.getForPublic('/services', tenantId)`), not an event or an in-process port — see `docs/discovery/CHATBOT/CHATBOT.md` §6 for why a Platform→Booking port was considered and rejected.
 
@@ -738,6 +742,7 @@ For MVP: All deployed as single service, but code organized as separate modules 
 - `Tenant` itself is NOT scoped by `tenant_id` (it IS the tenant).
 - `HotsiteConfig` is scoped by `tenant_id`.
 - `ChatbotSession`/`ChatbotMessage` are scoped by `tenant_id`, with a composite FK `(tenant_id, session_id)` on `chatbot_messages` blocking cross-tenant references at the DB level. `ChatbotProviderBalance` is platform-wide, not tenant-scoped (one row per provider, shared across all tenants).
+- `LeadFormConfig`/`LeadFormSubmission` are scoped by `tenant_id`. `LeadFormSubmission.customerId` is a UUID-only cross-context reference (no FK), matching the `docs/ANTI_PATTERNS.md` "cross-schema DB FK between contexts" rule.
 - Staff invite/deactivate use cases are scoped to the actor's `tenant_id` — a MANAGER can only manage staff in their own tenant.
 
 **Tech Stack:**
