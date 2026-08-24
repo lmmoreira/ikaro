@@ -257,7 +257,7 @@ BFF: same two endpoints added to S01's `lead-form.controller.ts` (BFF side), `ST
 
 ---
 
-### M20-S07 — `LEAD_FORM` module type + teaser component + `page.tsx` registration (UC-038)
+### M20-S07 — `LEAD_FORM` module type + teaser component + `page.tsx` registration (UC-038) ✅ Done
 
 **Agent:** `frontend-ts`
 **Complexity:** S
