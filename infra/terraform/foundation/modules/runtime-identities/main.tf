@@ -26,7 +26,10 @@ locals {
     backend = ["db-password", "jwt-secret", "internal-api-key", "platform-admin-key", "hotsite-revalidate-secret", "brevo-smtp-key", "openrouter-api-key", "anthropic-api-key", "openai-api-key", "openrouter-management-api-key"]
     # TD38: web-internal-key is the shared secret checked by WebOnlyGuard (bff reads it to
     # verify) and sent by web on every BFF call (web reads it to send) — both sides need it.
-    bff     = ["jwt-secret", "internal-api-key", "google-oauth-client-id", "google-oauth-client-secret", "web-internal-key"]
+    # turnstile-secret-key (M20-S05 PR2/3): container landed in PR #424 (envs/* only, same
+    # safe-row shape as openrouter-management-api-key above) — BFF-only, TurnstileService's
+    # server-side siteverify call.
+    bff     = ["jwt-secret", "internal-api-key", "google-oauth-client-id", "google-oauth-client-secret", "web-internal-key", "turnstile-secret-key"]
     web     = ["jwt-secret", "hotsite-revalidate-secret", "web-internal-key"]
     migrate = ["db-migrator-password"]
   }
