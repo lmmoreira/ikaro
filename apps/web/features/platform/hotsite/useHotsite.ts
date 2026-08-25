@@ -3,14 +3,17 @@ import {
   featureBookingPhoto,
   generateHotsiteImageSignedUrl,
   getChatbotCapStatus,
+  getLeadFormConfig,
   getHotsiteConfig,
   publishHotsite,
   unpublishHotsite,
   updateHotsiteConfig,
+  updateLeadFormConfig,
   type FeatureBookingPhotoRequest,
   type HotsiteImageSignedUrlRequest,
   type UpdateHotsiteRequest,
 } from '@/features/platform/api/tenant-settings';
+import type { UpdateLeadFormConfigRequest } from '@ikaro/types';
 import { useTenant } from '@/providers/tenant-provider';
 
 export function useHotsiteConfig() {
@@ -70,5 +73,25 @@ export function useChatbotCapStatus() {
   return useQuery({
     queryKey: ['chatbot-cap-status', tenantId],
     queryFn: getChatbotCapStatus,
+  });
+}
+
+export function useLeadFormConfig() {
+  const { tenantId } = useTenant();
+  return useQuery({
+    queryKey: ['lead-form-config', tenantId],
+    queryFn: getLeadFormConfig,
+  });
+}
+
+export function useUpdateLeadFormConfig() {
+  const queryClient = useQueryClient();
+  const { tenantId } = useTenant();
+  return useMutation({
+    mutationFn: (body: UpdateLeadFormConfigRequest) => updateLeadFormConfig(body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lead-form-config', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['hotsite', tenantId] });
+    },
   });
 }

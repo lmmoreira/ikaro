@@ -1,24 +1,238 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  type DragEndEvent,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { Button } from '@/shared/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/shared/components/ui/alert-dialog';
+import { useLeadFormConfig } from '@/features/platform/hotsite/useHotsite';
+import {
+  readModuleData,
+  writeModuleData,
+  type ModuleConfigPanelProps,
+} from './module-config-panel.types';
+import { LeadFormSortableQuestion, type AdminQuestion } from './LeadFormSortableQuestion';
+type LeadFormDraft = Record<string, unknown> & {
+  title: string;
+  subtitle?: string;
+  eyebrow?: string;
+  ctaLabel: string;
+  variant?: 'centered' | 'left-aligned';
+  backgroundImageUrl?: string | null;
+  backgroundImagePosition?: 'left' | 'center' | 'right';
+  bgStyle?: 'primary' | 'background';
+  audienceMode: 'GUEST_AND_CUSTOMER' | 'CUSTOMER_ONLY';
+  questions: AdminQuestion[];
+};
 
-// Minimal placeholder, not the real config panel — M20-S07 only registers the LEAD_FORM module
-// type (title/subtitle/eyebrow/ctaLabel/variant/backgroundImageUrl/backgroundImagePosition/
-// bgStyle field editing is M20-S08's scope). Still required in the same commit as the module type:
-// MODULE_CONFIG_PANELS (hotsite-editor-lazy-panels.tsx) is a non-partial
-// Record<HotsiteModuleType, ...> by design, so every module type needs a real entry here the
-// moment it's added to HotsiteModuleType, or the app fails to compile. M20-S08 replaces this
-// file's body with the real field-editing form.
-export function LeadFormConfigPanel(): React.JSX.Element {
+function normalizeQuestions(questions: readonly AdminQuestion[]): AdminQuestion[] {
+  return questions.map((question, order) => ({ ...question, order }));
+}
+
+function newQuestion(): AdminQuestion {
+  return { id: globalThis.crypto.randomUUID(), label: '', type: 'TEXT', required: false, order: 0 };
+}
+
+export function LeadFormConfigPanel({ data, onChange }: ModuleConfigPanelProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage.layout.panels.leadForm');
+  const base = readModuleData<Partial<LeadFormDraft>>(data);
+  const config = useLeadFormConfig();
+  const initialized = useRef(false);
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<LeadFormDraft>(() => ({
+    title: base.title ?? '',
+    subtitle: base.subtitle,
+    eyebrow: base.eyebrow,
+    ctaLabel: base.ctaLabel ?? '',
+    variant: base.variant ?? 'centered',
+    backgroundImageUrl: base.backgroundImageUrl,
+    backgroundImagePosition: base.backgroundImagePosition ?? 'center',
+    bgStyle: base.bgStyle ?? 'background',
+    audienceMode: base.audienceMode ?? 'GUEST_AND_CUSTOMER',
+    questions: base.questions ?? [],
+  }));
+
+  useEffect(() => {
+    if (!config.data || initialized.current) return;
+    initialized.current = true;
+    const next = {
+      ...config.data,
+      questions: normalizeQuestions(config.data.questions),
+    } as LeadFormDraft;
+    setDraft(next);
+    onChange(writeModuleData(next));
+  }, [config.data, onChange]);
+
+  function update(patch: Partial<LeadFormDraft>): void {
+    const next = { ...draft, ...patch };
+    setDraft(next);
+    onChange(writeModuleData(next));
+  }
+
+  function removeQuestion(question: AdminQuestion): void {
+    if (question.hasSubmissions) {
+      setConfirmRemoveId(question.id);
+      return;
+    }
+    update({
+      questions: normalizeQuestions(draft.questions.filter((item) => item.id !== question.id)),
+    });
+  }
+
+  function confirmRemove(): void {
+    if (!confirmRemoveId) return;
+    update({
+      questions: normalizeQuestions(
+        draft.questions.filter((question) => question.id !== confirmRemoveId),
+      ),
+    });
+    setConfirmRemoveId(null);
+  }
+
+  function handleDragEnd({ active, over }: DragEndEvent): void {
+    if (!over || active.id === over.id) return;
+    const oldIndex = draft.questions.findIndex((question) => question.id === active.id);
+    const newIndex = draft.questions.findIndex((question) => question.id === over.id);
+    update({ questions: normalizeQuestions(arrayMove(draft.questions, oldIndex, newIndex)) });
+  }
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  if (config.isLoading) return <p>{t('loading')}</p>;
+  if (config.isError) return <p role="alert">{t('loadError')}</p>;
 
   return (
-    <div
-      className="rounded-md border border-dashed border-gray-300 bg-gray-50 p-4"
-      data-testid="lead-form-config-panel-placeholder"
-    >
-      <p className="text-sm font-semibold text-gray-900">{t('comingSoonTitle')}</p>
-      <p className="mt-1 text-sm text-gray-600">{t('comingSoonBody')}</p>
+    <div className="space-y-6" data-testid="lead-form-config-panel">
+      <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-4">
+        <h2 className="text-base font-semibold text-gray-900">{t('teaser.title')}</h2>
+        <label className="block text-sm font-semibold">
+          {t('teaser.titleLabel')}
+          <input
+            value={draft.title}
+            onChange={(event) => update({ title: event.target.value })}
+            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+          />
+        </label>
+        <label className="block text-sm font-semibold">
+          {t('teaser.subtitleLabel')}
+          <textarea
+            value={draft.subtitle ?? ''}
+            onChange={(event) => update({ subtitle: event.target.value })}
+            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+          />
+        </label>
+        <label className="block text-sm font-semibold">
+          {t('teaser.ctaLabel')}
+          <input
+            value={draft.ctaLabel}
+            onChange={(event) => update({ ctaLabel: event.target.value })}
+            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+          />
+        </label>
+      </div>
+      <div className="space-y-3">
+        <h2 className="text-base font-semibold text-gray-900">{t('audience.title')}</h2>
+        <select
+          aria-label={t('audience.label')}
+          value={draft.audienceMode}
+          onChange={(event) =>
+            update({ audienceMode: event.target.value as LeadFormDraft['audienceMode'] })
+          }
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+        >
+          <option value="GUEST_AND_CUSTOMER">{t('audience.guestAndCustomer')}</option>
+          <option value="CUSTOMER_ONLY">{t('audience.customerOnly')}</option>
+        </select>
+      </div>
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold text-gray-900">{t('questions.title')}</h2>
+          <span className="text-sm text-gray-500">
+            {t('questions.counter', { count: draft.questions.length })}
+          </span>
+        </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext
+            items={draft.questions.map((question) => question.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-3">
+              {draft.questions.map((question, index) => (
+                <LeadFormSortableQuestion
+                  key={question.id}
+                  question={question}
+                  index={index}
+                  onChange={(next) =>
+                    update({
+                      questions: draft.questions.map((item) =>
+                        item.id === question.id ? next : item,
+                      ),
+                    })
+                  }
+                  onRemove={() => removeQuestion(question)}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={draft.questions.length >= 20}
+          onClick={() =>
+            update({ questions: normalizeQuestions([...draft.questions, newQuestion()]) })
+          }
+        >
+          {t('questions.add')}
+        </Button>
+        {draft.questions.length >= 20 && (
+          <p className="text-sm text-amber-700">{t('questions.limit')}</p>
+        )}
+      </div>
+      <AlertDialog
+        open={confirmRemoveId !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmRemoveId(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('question.confirmTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('question.confirmDescription')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('question.confirmCancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRemove}>
+              {t('question.confirmRemove')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

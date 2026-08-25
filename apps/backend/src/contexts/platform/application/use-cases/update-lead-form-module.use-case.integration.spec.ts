@@ -2,6 +2,7 @@ import { DataSource } from 'typeorm';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
+import { InMemoryLeadFormSubmissionRepository } from '../../../../test/repositories/platform/in-memory-lead-form-submission.repository';
 import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typeorm-transaction-manager';
 import { TenantBuilder } from '../../../../test/builders/platform';
 import { HotsiteConfig } from '../../domain/hotsite-config.aggregate';
@@ -63,6 +64,7 @@ describe('UpdateLeadFormModuleUseCase (integration — real Postgres cross-aggre
     const useCase = new UpdateLeadFormModuleUseCase(
       hotsiteConfigRepo,
       leadFormConfigRepo,
+      new InMemoryLeadFormSubmissionRepository(),
       tenantRepo,
       txManager,
       imagePathsService,
@@ -96,6 +98,7 @@ describe('UpdateLeadFormModuleUseCase (integration — real Postgres cross-aggre
     const failingUseCase = new UpdateLeadFormModuleUseCase(
       hotsiteConfigRepo,
       new ThrowingLeadFormConfigRepository(),
+      new InMemoryLeadFormSubmissionRepository(),
       tenantRepo,
       txManager,
       imagePathsService,

@@ -48,6 +48,26 @@ export class TypeOrmLeadFormSubmissionRepository implements ILeadFormSubmissionR
     });
   }
 
+  async findQuestionIdsWithSubmissions(
+    tenantId: string,
+    questionIds: readonly string[],
+  ): Promise<readonly string[]> {
+    if (questionIds.length === 0) return [];
+
+    const rows = (await this.repo.query(
+      `
+        SELECT DISTINCT answer ->> 'questionId' AS "questionId"
+        FROM platform.lead_form_submissions AS submission
+        CROSS JOIN LATERAL jsonb_array_elements(submission.answers) AS answer
+        WHERE submission.tenant_id = $1
+          AND answer ->> 'questionId' = ANY($2::text[])
+      `,
+      [tenantId, questionIds],
+    )) as Array<{ questionId: string }>;
+
+    return rows.map((row) => row.questionId);
+  }
+
   async deleteExpired(now: Date): Promise<number> {
     const manager = getActiveEntityManager();
     const result = await (manager ?? this.repo.manager)

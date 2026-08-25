@@ -12,6 +12,8 @@ import type {
   RenameTenantRequest,
   RenameTenantResponse,
   ChatbotCapStatusResponse,
+  LeadFormConfigResponse,
+  UpdateLeadFormConfigRequest,
 } from '@ikaro/types';
 import { bffClient } from '@/shared/lib/api/bff-client';
 export {
@@ -132,6 +134,18 @@ export async function deleteHotsiteImage(filePath: string): Promise<void> {
 // docs/14-API_CONTRACTS.md § Chatbot Cap Status.
 export async function getChatbotCapStatus(): Promise<ChatbotCapStatusResponse> {
   const res = await bffClient.get<ChatbotCapStatusResponse>('/tenants/chatbot/cap-status');
+  return res.data;
+}
+
+export async function getLeadFormConfig(): Promise<LeadFormConfigResponse> {
+  const res = await bffClient.get<LeadFormConfigResponse>('/tenants/lead-form/config');
+  return res.data;
+}
+
+export async function updateLeadFormConfig(
+  body: UpdateLeadFormConfigRequest,
+): Promise<LeadFormConfigResponse> {
+  const res = await bffClient.patch<LeadFormConfigResponse>('/tenants/lead-form/config', body);
   return res.data;
 }
 

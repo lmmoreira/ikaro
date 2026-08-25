@@ -2,6 +2,7 @@ import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-m
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/platform/in-memory-hotsite-config.repository';
 import { InMemoryLeadFormConfigRepository } from '../../../../test/repositories/platform/in-memory-lead-form-config.repository';
+import { InMemoryLeadFormSubmissionRepository } from '../../../../test/repositories/platform/in-memory-lead-form-submission.repository';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
 import { HotsiteConfigBuilder } from '../../../../test/builders/platform/hotsite-config.builder';
 import { makeLeadFormQuestions as makeQuestions } from '../../../../test/builders/platform/lead-form-config.builder';
@@ -22,6 +23,7 @@ const TENANT_ID = '01234567-0000-7000-8000-000000000001';
 describe('UpdateLeadFormModuleUseCase', () => {
   let hotsiteConfigRepo: InMemoryHotsiteConfigRepository;
   let leadFormConfigRepo: InMemoryLeadFormConfigRepository;
+  let leadFormSubmissionRepo: InMemoryLeadFormSubmissionRepository;
   let tenantRepo: InMemoryTenantRepository;
   let txManager: InMemoryTransactionManager;
   let useCase: UpdateLeadFormModuleUseCase;
@@ -29,12 +31,14 @@ describe('UpdateLeadFormModuleUseCase', () => {
   beforeEach(async () => {
     hotsiteConfigRepo = new InMemoryHotsiteConfigRepository();
     leadFormConfigRepo = new InMemoryLeadFormConfigRepository();
+    leadFormSubmissionRepo = new InMemoryLeadFormSubmissionRepository();
     tenantRepo = new InMemoryTenantRepository();
     txManager = new InMemoryTransactionManager();
     const imagePathsService = new HotsiteImagePathsService();
     useCase = new UpdateLeadFormModuleUseCase(
       hotsiteConfigRepo,
       leadFormConfigRepo,
+      leadFormSubmissionRepo,
       tenantRepo,
       txManager,
       imagePathsService,

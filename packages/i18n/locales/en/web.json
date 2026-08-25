@@ -774,8 +774,52 @@
             "accentColorSecondary": "Secondary color"
           },
           "leadForm": {
-            "comingSoonTitle": "Configuration coming soon",
-            "comingSoonBody": "Configuration for this module (title, subtitle, button, and background image) will be available in a future update."
+            "loading": "Loading configuration...",
+            "loadError": "We couldn't load the configuration. Try again.",
+            "teaser": {
+              "title": "Teaser copy",
+              "titleLabel": "Title",
+              "subtitleLabel": "Subtitle",
+              "ctaLabel": "Button text"
+            },
+            "audience": {
+              "title": "Who can respond",
+              "label": "Audience",
+              "guestAndCustomer": "Visitors and customers",
+              "customerOnly": "Logged-in customers only"
+            },
+            "questions": {
+              "title": "Questions",
+              "counter": "{count} of 20",
+              "add": "+ Add question",
+              "limit": "You reached the 20-question limit. Remove an existing question to add another."
+            },
+            "question": {
+              "dragLabel": "Reorder question {index}",
+              "untitled": "Question {index}",
+              "hasSubmissions": "Has responses",
+              "label": "Question",
+              "type": "Type",
+              "required": "Required answer",
+              "options": "Options",
+              "optionLabel": "Option {index}",
+              "addOption": "+ Add option",
+              "removeOption": "Remove option",
+              "remove": "Remove question",
+              "confirmTitle": "Remove question?",
+              "confirmDescription": "Existing answers will be preserved as a snapshot and will not be changed.",
+              "confirmCancel": "Cancel",
+              "confirmRemove": "Remove",
+              "types": {
+                "TEXT": "Free text",
+                "SINGLE_CHOICE": "Single choice",
+                "MULTIPLE_CHOICE": "Multiple choice"
+              }
+            },
+            "validation": {
+              "questionLabel": "Enter the question text.",
+              "options": "Add between 2 and 10 options."
+            }
           }
         }
       },

@@ -4,6 +4,7 @@ import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-m
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/platform/in-memory-hotsite-config.repository';
 import { InMemoryLeadFormConfigRepository } from '../../../../test/repositories/platform/in-memory-lead-form-config.repository';
+import { InMemoryLeadFormSubmissionRepository } from '../../../../test/repositories/platform/in-memory-lead-form-submission.repository';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
 import { HotsiteConfigBuilder } from '../../../../test/builders/platform/hotsite-config.builder';
 import { makeLeadFormQuestions } from '../../../../test/builders/platform/lead-form-config.builder';
@@ -13,6 +14,7 @@ import { TRANSACTION_MANAGER } from '../../../../shared/ports/transaction-manage
 import { STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import { HOTSITE_CONFIG_REPOSITORY } from '../../application/ports/hotsite-config-repository.port';
 import { LEAD_FORM_CONFIG_REPOSITORY } from '../../application/ports/lead-form-config-repository.port';
+import { LEAD_FORM_SUBMISSION_REPOSITORY } from '../../application/ports/lead-form-submission-repository.port';
 import { TENANT_REPOSITORY } from '../../application/ports/tenant-repository.port';
 import { HotsiteContentReader } from '../../application/services/hotsite-content-reader.service';
 import { HotsiteImagePromotionService } from '../../application/services/hotsite-image-promotion.service';
@@ -42,6 +44,10 @@ describe('LeadFormController', () => {
         GetLeadFormStatusUseCase,
         { provide: HOTSITE_CONFIG_REPOSITORY, useValue: hotsiteConfigRepo },
         { provide: LEAD_FORM_CONFIG_REPOSITORY, useValue: new InMemoryLeadFormConfigRepository() },
+        {
+          provide: LEAD_FORM_SUBMISSION_REPOSITORY,
+          useValue: new InMemoryLeadFormSubmissionRepository(),
+        },
         { provide: TENANT_REPOSITORY, useValue: tenantRepo },
         { provide: TRANSACTION_MANAGER, useValue: new InMemoryTransactionManager() },
         { provide: STORAGE_SERVICE, useValue: new InMemoryStorageService() },

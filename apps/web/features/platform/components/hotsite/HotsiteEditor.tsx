@@ -10,7 +10,6 @@ import type {
 } from '@ikaro/types';
 import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
 import { useTenant } from '@/providers/tenant-provider';
-import { ModuleConfigShell } from '@/features/platform/components/hotsite/modules/ModuleConfigShell';
 import {
   HotsiteEditorMainView,
   type ActionBanner,
@@ -22,49 +21,31 @@ import type { ManifestDraft } from '@/features/platform/hotsite/manifest-schema'
 import {
   useUpdateHotsiteConfig,
   usePublishHotsite,
+  useUpdateLeadFormConfig,
   useUnpublishHotsite,
 } from '@/features/platform/hotsite/useHotsite';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { useHotsiteEditorTopbarOverride } from '@/features/platform/hotsite/useHotsiteEditorTopbarOverride';
-import { MODULE_CONFIG_PANELS, HotsitePreview } from './hotsite-editor-lazy-panels';
+import { HotsitePreview } from './hotsite-editor-lazy-panels';
+import {
+  extractLeadFormConfig,
+  applyModuleConfig,
+  cancelModuleConfig,
+  configureModule,
+  confirmDiscard,
+  executeUnpublish,
+  mergeLocalDataIntoLayout,
+  ModuleConfigView,
+  stripLeadFormConfig,
+  updateEditorDraft,
+  updateModuleLocalData,
+  type EditorView,
+  type LeadFormConfigDraft,
+} from './hotsite-editor-views';
 
 interface HotsiteEditorProps {
   readonly initial: HotsiteAdminContentResponse;
-}
-
-type EditorView =
-  | { readonly view: 'tabs' }
-  | { readonly view: 'preview' }
-  | {
-      readonly view: 'module-config';
-      readonly type: HotsiteModuleType;
-      readonly localData: Record<string, unknown>;
-    }
-  | {
-      readonly view: 'module-config-preview';
-      readonly type: HotsiteModuleType;
-      readonly localData: Record<string, unknown>;
-    };
-
-function mergeLocalDataIntoLayout(
-  layout: HotsiteAdminContentResponse['layout'],
-  type: HotsiteModuleType,
-  localData: Record<string, unknown>,
-): HotsiteAdminContentResponse['layout'] {
-  return layout.map((m) => (m.type === type ? { ...m, data: localData } : m));
-}
-
-// Structural comparison only — this data is always plain JSON coming straight out of the config
-// panels (no functions/dates), so JSON.stringify is sufficient. If a panel ever rebuilds an
-// unchanged object with different key insertion order, this reports a false "dirty" (an
-// unnecessary discard-confirm prompt) but never a false "clean" — the safe direction to be wrong
-// in, since it never silently discards a real edit.
-function isModuleDataDirty(
-  committed: Record<string, unknown>,
-  local: Record<string, unknown>,
-): boolean {
-  return JSON.stringify(committed) !== JSON.stringify(local);
 }
 
 export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Element {
@@ -90,9 +71,12 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const { tenantId, tenantSlug } = useTenant();
   const updateConfig = useUpdateHotsiteConfig();
+  const updateLeadFormConfig = useUpdateLeadFormConfig();
   const publishHotsite = usePublishHotsite();
   const unpublishHotsite = useUnpublishHotsite();
-  const isPublishing = updateConfig.isPending || publishHotsite.isPending;
+  const isPublishing =
+    updateConfig.isPending || updateLeadFormConfig.isPending || publishHotsite.isPending;
+  const [leadFormConfigDraft, setLeadFormConfigDraft] = useState<LeadFormConfigDraft | null>(null);
   const topbarStatus = useDashboardTopbarStatus();
   const setOnBackOverride = topbarStatus?.setOnBackOverride;
   const setBackLabelOverride = topbarStatus?.setBackLabelOverride;
@@ -129,36 +113,27 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
     setPageTitleOverride,
   });
 
-  // Any edit here invalidates the "this is already live" claim a publish/unpublish success
-  // banner makes — without clearing it, the banner from a previous publish keeps showing while
-  // the admin makes further, still-unsaved changes, making it look like those are live too.
-  function setBranding(branding: HotsiteBrandingResponse): void {
-    setDraft((current) => ({ ...current, branding }));
-    setActionBanner(null);
-  }
-
-  function setLayout(layout: HotsiteAdminContentResponse['layout']): void {
-    setDraft((current) => ({ ...current, layout }));
-    setActionBanner(null);
-  }
-
-  function setSeo(seo: HotsiteSeoResponse): void {
-    setDraft((current) => ({ ...current, seo }));
-    setActionBanner(null);
-  }
-
-  function handleManifestApply(next: ManifestDraft): void {
-    setDraft((current) => ({ ...current, ...next }));
-    setActionBanner(null);
-  }
+  const clearBanner = (): void => setActionBanner(null);
+  const setBranding = (branding: HotsiteBrandingResponse): void =>
+    updateEditorDraft(setDraft, clearBanner, (current) => ({ ...current, branding }));
+  const setLayout = (layout: HotsiteAdminContentResponse['layout']): void =>
+    updateEditorDraft(setDraft, clearBanner, (current) => ({ ...current, layout }));
+  const setSeo = (seo: HotsiteSeoResponse): void =>
+    updateEditorDraft(setDraft, clearBanner, (current) => ({ ...current, seo }));
+  const handleManifestApply = (next: ManifestDraft): void =>
+    updateEditorDraft(setDraft, clearBanner, (current) => ({ ...current, ...next }));
 
   // `contentOverride` lets Publish be triggered from the module-config-preview screen (Part 2
   // below), where the visually-displayed content is `draft` merged with an in-progress module
   // edit that hasn't gone through "Aplicar" yet — submitting exactly what's shown in one call,
   // rather than a separate "apply, then publish" step. The ordinary tabs -> Preview -> Publish
   // path passes no override and behaves exactly as before.
-  async function handlePublish(contentOverride?: HotsiteAdminContentResponse): Promise<void> {
+  async function handlePublish(
+    contentOverride?: HotsiteAdminContentResponse,
+    leadFormOverride?: LeadFormConfigDraft,
+  ): Promise<void> {
     const content = contentOverride ?? draft;
+    const leadFormConfig = leadFormOverride ?? leadFormConfigDraft;
     try {
       const stripped = stripResolvedImageUrls(
         content.branding,
@@ -182,6 +157,14 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
         ...updated,
         layout: materializeLayout(updated.layout),
       }));
+      if (leadFormConfig) {
+        const leadFormModule = stripped.layout.find((module) => module.type === 'LEAD_FORM');
+        const leadFormData = (leadFormModule?.data ?? {}) as Record<string, unknown>;
+        await updateLeadFormConfig.mutateAsync({
+          ...stripLeadFormConfig(leadFormData),
+          ...leadFormConfig,
+        });
+      }
       await publishHotsite.mutateAsync();
       setView({ view: 'tabs' });
       setActionBanner({ kind: 'publish', status: 'success' });
@@ -198,71 +181,57 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
     globalThis.scrollTo?.({ top: 0, behavior: 'smooth' });
   }
 
-  async function handleUnpublish(): Promise<void> {
-    try {
-      await unpublishHotsite.mutateAsync();
-      setActionBanner({ kind: 'unpublish', status: 'success' });
-    } catch (err) {
-      setActionBanner({
-        kind: 'unpublish',
-        status: 'error',
-        message: resolveErrorMessageFromApiError(err, locale),
-      });
-    }
-    globalThis.scrollTo?.({ top: 0, behavior: 'smooth' });
-  }
+  const handleUnpublish = (): Promise<void> =>
+    executeUnpublish(
+      unpublishHotsite,
+      locale,
+      () => setActionBanner({ kind: 'unpublish', status: 'success' }),
+      (message) => setActionBanner({ kind: 'unpublish', status: 'error', message }),
+    );
 
-  function handleConfigure(type: HotsiteModuleType): void {
-    const selectedModule = draft.layout.find((m) => m.type === type);
-    setView({ view: 'module-config', type, localData: selectedModule?.data ?? {} });
-  }
+  const handleConfigure = (type: HotsiteModuleType): void =>
+    configureModule(draft, type, leadFormConfigDraft, setView);
 
-  function handleLocalDataChange(localData: Record<string, unknown>): void {
-    setView((current) => (current.view === 'module-config' ? { ...current, localData } : current));
-  }
+  const handleLocalDataChange = (localData: Record<string, unknown>): void =>
+    updateModuleLocalData(setView, localData);
 
-  function handleApply(): void {
-    if (view.view !== 'module-config') return;
-    const { type, localData } = view;
-    setDraft((current) => ({
-      ...current,
-      layout: mergeLocalDataIntoLayout(current.layout, type, localData),
-    }));
-    setActionBanner(null);
-    setView({ view: 'tabs' });
-  }
+  const handleApply = (): void =>
+    applyModuleConfig(
+      view,
+      setLeadFormConfigDraft,
+      (type, data) =>
+        setDraft((current) => ({
+          ...current,
+          layout: mergeLocalDataIntoLayout(current.layout, type, data),
+        })),
+      () => setActionBanner(null),
+      () => setView({ view: 'tabs' }),
+    );
 
   // Only discards immediately when there's nothing to lose. Otherwise opens the discard-confirm
   // dialog instead of navigating away silently — the actual discard happens in
   // handleConfirmDiscardConfig below, once the admin confirms.
   function requestCancelConfig(): void {
-    if (view.view !== 'module-config') return;
-    const committedData = draft.layout.find((m) => m.type === view.type)?.data ?? {};
-    if (isModuleDataDirty(committedData, view.localData)) {
-      setDiscardConfirmOpen(true);
-    } else {
+    cancelModuleConfig(
+      view,
+      draft,
+      () => setDiscardConfirmOpen(true),
+      () => setView({ view: 'tabs' }),
+    );
+  }
+
+  const handleConfirmDiscardConfig = (): void =>
+    confirmDiscard(() => {
+      setDiscardConfirmOpen(false);
       setView({ view: 'tabs' });
-    }
-  }
-
-  function handleConfirmDiscardConfig(): void {
-    setDiscardConfirmOpen(false);
-    setView({ view: 'tabs' });
-  }
-
-  function handleCancelDiscardConfig(): void {
-    setDiscardConfirmOpen(false);
-  }
+    });
+  const handleCancelDiscardConfig = (): void => confirmDiscard(() => setDiscardConfirmOpen(false));
 
   if (view.view === 'module-config') {
-    const Panel = MODULE_CONFIG_PANELS[view.type];
-    // Defensive only — unreachable today (manifest-schema.ts's MODULE_TYPE_SET, derived from
-    // MODULE_ORDER, already rejects any module type without a panel entry before a view for it
-    // can be set), kept for the same "never crash on a missing map entry" discipline as
-    // default-layout.ts's `?? {}` fallback.
-    if (!Panel) return <></>;
     return (
-      <ModuleConfigShell
+      <ModuleConfigView
+        type={view.type}
+        localData={view.localData}
         moduleLabel={t(`layout.modules.${view.type}`)}
         onBack={requestCancelConfig}
         onApply={handleApply}
@@ -272,9 +241,8 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
         discardConfirmOpen={discardConfirmOpen}
         onConfirmDiscard={handleConfirmDiscardConfig}
         onCancelDiscard={handleCancelDiscardConfig}
-      >
-        <Panel data={view.localData} onChange={handleLocalDataChange} />
-      </ModuleConfigShell>
+        onChange={handleLocalDataChange}
+      />
     );
   }
 
@@ -286,7 +254,14 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
     return (
       <HotsitePreview
         draft={previewDraft}
-        onPublish={() => handlePublish(previewDraft)}
+        onPublish={() =>
+          handlePublish(
+            previewDraft,
+            view.type === 'LEAD_FORM'
+              ? (extractLeadFormConfig(view.localData) ?? undefined)
+              : undefined,
+          )
+        }
         isPublishing={isPublishing}
       />
     );

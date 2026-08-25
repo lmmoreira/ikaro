@@ -774,8 +774,52 @@
             "accentColorSecondary": "Cor secundária"
           },
           "leadForm": {
-            "comingSoonTitle": "Configuração em breve",
-            "comingSoonBody": "A configuração deste módulo (título, subtítulo, botão e imagem de fundo) estará disponível em uma atualização futura."
+            "loading": "Carregando configuração...",
+            "loadError": "Não foi possível carregar a configuração. Tente novamente.",
+            "teaser": {
+              "title": "Texto do teaser",
+              "titleLabel": "Título",
+              "subtitleLabel": "Subtítulo",
+              "ctaLabel": "Texto do botão"
+            },
+            "audience": {
+              "title": "Quem pode responder",
+              "label": "Público",
+              "guestAndCustomer": "Visitantes e clientes",
+              "customerOnly": "Somente clientes logados"
+            },
+            "questions": {
+              "title": "Perguntas",
+              "counter": "{count} de 20",
+              "add": "+ Adicionar pergunta",
+              "limit": "Você atingiu o limite de 20 perguntas. Remova uma pergunta existente para adicionar outra."
+            },
+            "question": {
+              "dragLabel": "Reordenar pergunta {index}",
+              "untitled": "Pergunta {index}",
+              "hasSubmissions": "Tem respostas",
+              "label": "Pergunta",
+              "type": "Tipo",
+              "required": "Resposta obrigatória",
+              "options": "Opções",
+              "optionLabel": "Opção {index}",
+              "addOption": "+ Adicionar opção",
+              "removeOption": "Remover opção",
+              "remove": "Remover pergunta",
+              "confirmTitle": "Remover pergunta?",
+              "confirmDescription": "As respostas já recebidas serão preservadas como um snapshot e não serão alteradas.",
+              "confirmCancel": "Cancelar",
+              "confirmRemove": "Remover",
+              "types": {
+                "TEXT": "Texto livre",
+                "SINGLE_CHOICE": "Escolha única",
+                "MULTIPLE_CHOICE": "Múltipla escolha"
+              }
+            },
+            "validation": {
+              "questionLabel": "Informe o texto da pergunta.",
+              "options": "Adicione entre 2 e 10 opções."
+            }
           }
         }
       },

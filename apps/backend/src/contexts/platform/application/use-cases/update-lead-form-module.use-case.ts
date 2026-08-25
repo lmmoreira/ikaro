@@ -36,6 +36,10 @@ import {
   ILeadFormConfigRepository,
   LEAD_FORM_CONFIG_REPOSITORY,
 } from '../ports/lead-form-config-repository.port';
+import {
+  ILeadFormSubmissionRepository,
+  LEAD_FORM_SUBMISSION_REPOSITORY,
+} from '../ports/lead-form-submission-repository.port';
 import { ITenantRepository, TENANT_REPOSITORY } from '../ports/tenant-repository.port';
 import { GetLeadFormConfigUseCaseResult } from './get-lead-form-config.use-case';
 
@@ -74,6 +78,8 @@ export class UpdateLeadFormModuleUseCase {
     private readonly hotsiteConfigRepo: IHotsiteConfigRepository,
     @Inject(LEAD_FORM_CONFIG_REPOSITORY)
     private readonly leadFormConfigRepo: ILeadFormConfigRepository,
+    @Inject(LEAD_FORM_SUBMISSION_REPOSITORY)
+    private readonly leadFormSubmissionRepo: ILeadFormSubmissionRepository,
     @Inject(TENANT_REPOSITORY) private readonly tenantRepo: ITenantRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     private readonly imagePathsService: HotsiteImagePathsService,
@@ -188,10 +194,10 @@ export class UpdateLeadFormModuleUseCase {
 
   // Symmetric with GetLeadFormConfigUseCase/UpdateHotsiteContentUseCase: stored fields are raw
   // storage paths, not displayable URLs.
-  private buildResult(
+  private async buildResult(
     hotsiteConfig: HotsiteConfig,
     leadFormConfig: LeadFormConfig,
-  ): UpdateLeadFormModuleUseCaseResult {
+  ): Promise<UpdateLeadFormModuleUseCaseResult> {
     const resolved = this.imageUrlResolver.resolve(
       hotsiteConfig.branding,
       hotsiteConfig.layout,
@@ -201,10 +207,20 @@ export class UpdateLeadFormModuleUseCase {
     const resolvedModule = resolved.layout.find((module) => module.type === 'LEAD_FORM');
     const resolvedData = resolvedModule?.data as LeadFormModuleData;
 
+    const questionIdsWithSubmissions = new Set(
+      await this.leadFormSubmissionRepo.findQuestionIdsWithSubmissions(
+        leadFormConfig.tenantId,
+        leadFormConfig.questions.map((question) => question.id),
+      ),
+    );
+
     return {
       ...resolvedData,
       audienceMode: leadFormConfig.audienceMode,
-      questions: leadFormConfig.questions,
+      questions: leadFormConfig.questions.map((question) => ({
+        ...question,
+        hasSubmissions: questionIdsWithSubmissions.has(question.id),
+      })),
     };
   }
 }

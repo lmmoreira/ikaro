@@ -161,6 +161,10 @@ export interface LeadFormQuestion {
   order: number;
 }
 
+export interface LeadFormAdminQuestion extends LeadFormQuestion {
+  hasSubmissions: boolean;
+}
+
 export interface LeadFormConfigResponse {
   title: string;
   subtitle?: string;
@@ -171,10 +175,12 @@ export interface LeadFormConfigResponse {
   backgroundImagePosition?: 'left' | 'center' | 'right';
   bgStyle?: 'primary' | 'background';
   audienceMode: LeadFormAudienceMode;
-  questions: LeadFormQuestion[];
+  questions: LeadFormAdminQuestion[];
 }
 
-export type UpdateLeadFormConfigRequest = Partial<LeadFormConfigResponse>;
+export type UpdateLeadFormConfigRequest = Omit<Partial<LeadFormConfigResponse>, 'questions'> & {
+  questions?: LeadFormQuestion[];
+};
 
 // UC-041 (Trigger) — nav-gating read powering the dashboard's gated "Leads" sidebar item.
 export interface LeadFormStatusResponse {

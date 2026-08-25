@@ -9,6 +9,10 @@ import {
   ILeadFormConfigRepository,
   LEAD_FORM_CONFIG_REPOSITORY,
 } from '../ports/lead-form-config-repository.port';
+import {
+  ILeadFormSubmissionRepository,
+  LEAD_FORM_SUBMISSION_REPOSITORY,
+} from '../ports/lead-form-submission-repository.port';
 
 export interface GetLeadFormConfigUseCaseInput {
   tenantId: string;
@@ -16,7 +20,7 @@ export interface GetLeadFormConfigUseCaseInput {
 
 export interface GetLeadFormConfigUseCaseResult extends LeadFormModuleData {
   audienceMode: LeadFormAudienceMode;
-  questions: LeadFormQuestion[];
+  questions: Array<LeadFormQuestion & { hasSubmissions: boolean }>;
 }
 
 @Injectable()
@@ -25,6 +29,8 @@ export class GetLeadFormConfigUseCase {
     private readonly hotsiteContentReader: HotsiteContentReader,
     @Inject(LEAD_FORM_CONFIG_REPOSITORY)
     private readonly leadFormConfigRepo: ILeadFormConfigRepository,
+    @Inject(LEAD_FORM_SUBMISSION_REPOSITORY)
+    private readonly leadFormSubmissionRepo: ILeadFormSubmissionRepository,
   ) {}
 
   async execute(input: GetLeadFormConfigUseCaseInput): Promise<GetLeadFormConfigUseCaseResult> {
@@ -41,11 +47,21 @@ export class GetLeadFormConfigUseCase {
       (leadFormModule?.data as LeadFormModuleData | undefined) ?? DEFAULT_LEAD_FORM_MODULE_DATA;
 
     const leadFormConfig = await this.leadFormConfigRepo.findByTenantId(tenantId);
+    const questions = leadFormConfig?.questions ?? [];
+    const questionIdsWithSubmissions = new Set(
+      await this.leadFormSubmissionRepo.findQuestionIdsWithSubmissions(
+        tenantId,
+        questions.map((question) => question.id),
+      ),
+    );
 
     return {
       ...teaser,
       audienceMode: leadFormConfig?.audienceMode ?? 'GUEST_AND_CUSTOMER',
-      questions: leadFormConfig?.questions ?? [],
+      questions: questions.map((question) => ({
+        ...question,
+        hasSubmissions: questionIdsWithSubmissions.has(question.id),
+      })),
     };
   }
 }
