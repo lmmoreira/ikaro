@@ -1,6 +1,6 @@
 import type { HotsiteModuleType } from './enums';
 import type { Money } from './money';
-import type { TenantInfoResponse } from './tenant.dto';
+import type { LeadFormAudienceMode, LeadFormQuestion, TenantInfoResponse } from './tenant.dto';
 
 export type { HotsiteModuleType };
 
@@ -341,4 +341,20 @@ export interface HotsiteChatbotStatusResponse {
 export interface HotsiteChatbotMessageResponse {
   sessionId: string;
   reply: string;
+}
+
+// ─── Lead Form widget (Public — UC-038, UC-039, UC-040, M20-S05) ───────────────
+
+export interface HotsiteLeadFormConfigResponse {
+  audienceMode: LeadFormAudienceMode;
+  questions: LeadFormQuestion[];
+}
+
+export interface HotsiteLeadFormAnswerRequest {
+  questionId: string;
+  value: string | string[];
+}
+
+export interface HotsiteLeadFormSubmissionResponse {
+  submissionId: string;
 }

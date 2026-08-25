@@ -41,6 +41,7 @@ import { GetHotsiteContentUseCase } from './application/use-cases/get-hotsite-co
 import { GetHotsiteManifestUseCase } from './application/use-cases/get-hotsite-manifest.use-case';
 import { CreateLeadFormSubmissionUseCase } from './application/use-cases/create-lead-form-submission.use-case';
 import { GetLeadFormConfigUseCase } from './application/use-cases/get-lead-form-config.use-case';
+import { GetLeadFormPublicConfigUseCase } from './application/use-cases/get-lead-form-public-config.use-case';
 import { GetLeadFormStatusUseCase } from './application/use-cases/get-lead-form-status.use-case';
 import { UpdateLeadFormModuleUseCase } from './application/use-cases/update-lead-form-module.use-case';
 import { GetTenantByIdUseCase } from './application/use-cases/get-tenant-by-id.use-case';
@@ -79,6 +80,7 @@ import { LeadFormRetentionPurgeTriggerHandler } from './infrastructure/events/le
 import { HotsiteAdminController } from './infrastructure/controllers/hotsite-admin.controller';
 import { HotsiteController } from './infrastructure/controllers/hotsite.controller';
 import { LeadFormController } from './infrastructure/controllers/lead-form.controller';
+import { LeadFormPublicController } from './infrastructure/controllers/lead-form-public.controller';
 import { InternalTenantController } from './infrastructure/controllers/internal-tenant.controller';
 import { InternalTenantReadController } from './infrastructure/controllers/internal-tenant-read.controller';
 import { TenantController } from './infrastructure/controllers/tenant.controller';
@@ -115,6 +117,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     HotsiteAdminController,
     HotsiteController,
     LeadFormController,
+    LeadFormPublicController,
     InternalTenantController,
     InternalTenantReadController,
     TenantController,
@@ -184,6 +187,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     GetHotsiteContentUseCase,
     GetHotsiteManifestUseCase,
     GetLeadFormConfigUseCase,
+    GetLeadFormPublicConfigUseCase,
     GetLeadFormStatusUseCase,
     UpdateLeadFormModuleUseCase,
     GetTenantByIdUseCase,

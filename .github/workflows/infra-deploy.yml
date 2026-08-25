@@ -360,6 +360,9 @@ jobs:
           TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
           TF_VAR_brevo_smtp_login: ${{ secrets.BREVO_SMTP_LOGIN }}
           TF_VAR_notification_email: ${{ vars.NOTIFICATION_EMAIL }}
+          # Not a secret (Cloudflare account ID) — same TF_VAR_* injection pattern as
+          # iam_admin_user/notification_email above, by the user's preference.
+          TF_VAR_cloudflare_account_id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           # Genuine credential (Cloudflare API token) — Terraform's own
           # `sensitive = true` on this variable redacts it from *rendered*
           # plan output (terraform show, CLI text) and GitHub also masks
@@ -700,6 +703,7 @@ jobs:
           TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
           TF_VAR_brevo_smtp_login: ${{ secrets.BREVO_SMTP_LOGIN }}
           TF_VAR_notification_email: ${{ vars.NOTIFICATION_EMAIL }}
+          TF_VAR_cloudflare_account_id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           terraform init -input=false -lockfile=readonly
@@ -839,6 +843,7 @@ jobs:
           TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
           TF_VAR_brevo_smtp_login: ${{ secrets.BREVO_SMTP_LOGIN }}
           TF_VAR_notification_email: ${{ vars.NOTIFICATION_EMAIL }}
+          TF_VAR_cloudflare_account_id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           trap 'rm -f tfplan' EXIT
@@ -1013,6 +1018,7 @@ jobs:
           TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
           TF_VAR_brevo_smtp_login: ${{ secrets.BREVO_SMTP_LOGIN }}
           TF_VAR_notification_email: ${{ vars.NOTIFICATION_EMAIL }}
+          TF_VAR_cloudflare_account_id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           terraform init -input=false -lockfile=readonly

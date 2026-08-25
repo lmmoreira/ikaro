@@ -17,6 +17,7 @@ export function stubPublicEnv(values: Partial<Record<PublicEnvKey, string>>): vo
     NEXT_PUBLIC_BFF_URL: '',
     NEXT_PUBLIC_SITE_URL: '',
     NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL: '',
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: '',
     ...values,
   };
 }

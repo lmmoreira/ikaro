@@ -358,6 +358,7 @@ module "cloudrun_web" {
     BFF_UPSTREAM_URL                   = "${module.cloudrun_bff.service_uri}/v1"
     NEXT_PUBLIC_SITE_URL               = var.web_real_uri
     NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL = module.storage.public_base_url
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY     = var.turnstile_site_key
 
     # TD38: BFF only accepts calls carrying a valid Google ID token now — web mints one and
     # attaches it on every server-side call (route.ts, bff-server.ts).

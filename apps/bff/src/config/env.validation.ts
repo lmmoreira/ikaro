@@ -43,6 +43,18 @@ export const schema = z.object({
   // TD38: app-layer defense-in-depth companion to the Cloud Run IAM lockdown — checked by
   // WebOnlyGuard against the X-Web-Internal-Key header ikaro-web sends on every call.
   WEB_INTERNAL_KEY: z.string().min(32, 'WEB_INTERNAL_KEY must be at least 32 characters'),
+  // M20-S05 — Cloudflare Turnstile siteverify secret (TurnstileService). Deliberately optional,
+  // not required: ConfigModule.forRoot()'s own validate() step only promotes SCHEMA-DECLARED keys
+  // from a loaded .env file into process.env (assignVariablesToProcess() runs on the *validated*
+  // config, not the raw parsed one) — an undeclared key is invisible to ConfigService.getOrThrow()
+  // for a local .env-file value, even though the same undeclared-key read works fine once a real
+  // OS-level env var exists (e.g. a Cloud Run secret_env_vars-injected value), which is what the
+  // infra "safe secret rollout" precedent (infra/terraform/README.md) was actually verified
+  // against. Declaring it here, but optional, gets both: local .env-file values now reach
+  // process.env correctly, and a staging/prod deploy before the real Terraform secret exists still
+  // boots cleanly (a required field here would crash startup instead) — TurnstileService's own
+  // getOrThrow() still fails loudly, scoped to just that one endpoint, if it's ever read unset.
+  TURNSTILE_SECRET_KEY: z.string().optional(),
 });
 
 const validatedSchema = schema.superRefine((data, ctx) => {

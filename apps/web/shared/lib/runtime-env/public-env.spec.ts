@@ -42,15 +42,17 @@ describe('getPublicEnv — client side (window present)', () => {
 });
 
 describe('getServerPublicEnv', () => {
-  it('returns all three keys from process.env', () => {
+  it('returns all four keys from process.env', () => {
     process.env.NEXT_PUBLIC_BFF_URL = 'https://bff.example.com/v1';
     process.env.NEXT_PUBLIC_SITE_URL = 'https://example.com';
     process.env.NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL = 'https://storage.example.com/bucket';
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = '1x00000000000000000000AA';
 
     expect(getServerPublicEnv()).toEqual({
       NEXT_PUBLIC_BFF_URL: 'https://bff.example.com/v1',
       NEXT_PUBLIC_SITE_URL: 'https://example.com',
       NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL: 'https://storage.example.com/bucket',
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: '1x00000000000000000000AA',
     });
   });
 
@@ -58,11 +60,13 @@ describe('getServerPublicEnv', () => {
     delete process.env.NEXT_PUBLIC_BFF_URL;
     delete process.env.NEXT_PUBLIC_SITE_URL;
     delete process.env.NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL;
+    delete process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
     expect(getServerPublicEnv()).toEqual({
       NEXT_PUBLIC_BFF_URL: '',
       NEXT_PUBLIC_SITE_URL: '',
       NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL: '',
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: '',
     });
   });
 });

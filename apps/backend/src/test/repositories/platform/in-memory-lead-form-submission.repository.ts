@@ -9,6 +9,10 @@ export class InMemoryLeadFormSubmissionRepository implements ILeadFormSubmission
     submission.clearDomainEvents();
   }
 
+  all(): LeadFormSubmission[] {
+    return [...this.store.values()];
+  }
+
   async countByTenantAndDate(tenantId: string, from: Date, to: Date): Promise<number> {
     return [...this.store.values()].filter(
       (s) =>
