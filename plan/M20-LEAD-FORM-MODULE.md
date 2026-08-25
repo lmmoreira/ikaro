@@ -213,7 +213,7 @@ Create `CronLeadFormController` (`infrastructure/controllers/cron-lead-form.cont
 
 ---
 
-### M20-S05 — Public lead-form BFF endpoints + Cloudflare Turnstile
+### M20-S05 — Public lead-form BFF endpoints + Cloudflare Turnstile ✅ Done
 
 **Agent:** `bff-ts` (this story's own discovery, 2026-08-25, found it also needs real `backend-ts` work — see "Backend surface" below; S02 explicitly deferred all HTTP wiring here, unlike Chatbot's equivalent split where S05/S06 (`backend-ts`) pre-built the bare route before the BFF story existed)
 **Complexity:** M
