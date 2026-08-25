@@ -29,7 +29,7 @@ variable "brevo_smtp_login" {
 }
 
 variable "cloudflare_account_id" {
-  description = "Cloudflare account ID (M20-S05) — plain, non-secret identifier (same treatment as cloudflare_zone_id/project_number), required by the cloudflare_turnstile_widget resource below (Turnstile widgets are account-scoped, not zone-scoped, unlike the DNS/ruleset resources in modules/edge). Discover via: the account's Overview page sidebar in the Cloudflare dashboard, or `cloudflare account list`."
+  description = "Cloudflare account ID (M20-S05) — plain, non-secret identifier, required by the cloudflare_turnstile_widget resource below (Turnstile widgets are account-scoped, not zone-scoped, unlike the DNS/ruleset resources in modules/edge). Not sensitive, but sourced from the vars.CLOUDFLARE_ACCOUNT_ID GitHub Actions repository variable (injected as TF_VAR_cloudflare_account_id in infra-deploy.yml) rather than committed to terraform.tfvars — same TF_VAR_* injection pattern as iam_admin_user/notification_email, by the user's preference. Discover via: the account's Overview page sidebar in the Cloudflare dashboard, or `cloudflare account list`."
   type        = string
 }
 
