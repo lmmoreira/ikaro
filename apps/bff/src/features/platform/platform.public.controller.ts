@@ -191,8 +191,7 @@ export class PlatformPublicController {
       // hotsite — PR #423 review, CodeRabbit: @Public() bypasses TenantGuard, so nothing else
       // checks this). Any mismatch is treated as an anonymous guest, never rejected outright —
       // a customer of tenant A visiting tenant B's site is a normal, benign scenario.
-      const customerId =
-        user && user.role === 'CUSTOMER' && user.tenantId === tenantId ? user.sub : null;
+      const customerId = user?.role === 'CUSTOMER' && user.tenantId === tenantId ? user.sub : null;
 
       const backendBody: BackendSubmitLeadFormBody = {
         name: body.name,

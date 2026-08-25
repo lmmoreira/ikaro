@@ -1,3 +1,4 @@
+import { HttpService } from '@nestjs/axios';
 import { HttpException, INestApplication } from '@nestjs/common';
 import * as jwt from 'jsonwebtoken';
 import {
@@ -477,8 +478,25 @@ describe('PlatformPublicController (component)', () => {
       expect(res.status).toBe(400);
     });
 
+    // AC (M20-S05): this negative path must exercise Cloudflare's real siteverify endpoint with
+    // the documented always-fail test secret — not a mocked HTTP response. httpService is
+    // globally mocked for the whole component-test app (component-test.helpers.ts), so this test
+    // delegates that one mocked call through to a real HttpService instance instead, forcing the
+    // request body's secret to the always-fail value regardless of which secret the app's own
+    // TURNSTILE_SECRET_KEY env resolves to — the same real-network contract
+    // turnstile.service.spec.ts already proves for TurnstileService in isolation, exercised here
+    // at the controller level (PR #423 review round 3, Codex: the prior version mocked
+    // httpService.post directly, never exercising Cloudflare's real API for the "backend never
+    // invoked" guarantee specifically).
     it('returns 400 when Turnstile verification fails, never reaching the backend', async () => {
-      httpService.post.mockReturnValueOnce(makeObservableResponse({ success: false }));
+      const realHttp = new HttpService();
+      httpService.post.mockImplementationOnce((url, body, config) =>
+        realHttp.post(
+          url,
+          { ...(body as Record<string, unknown>), secret: '2x0000000000000000000000000000000AA' },
+          config,
+        ),
+      );
 
       const res = await request(app.getHttpServer())
         .post('/v1/public/platform/lead-form/lavacar-bh/submissions')
@@ -489,7 +507,7 @@ describe('PlatformPublicController (component)', () => {
       expect(res.body).toMatchObject({ code: 'BFF_TURNSTILE_VERIFICATION_FAILED' });
       expect(backendHttpService.get).not.toHaveBeenCalled();
       expect(backendHttpService.postForPublic).not.toHaveBeenCalled();
-    });
+    }, 15_000);
 
     it('submits as a guest (no Authorization header) — customerId: null forwarded', async () => {
       mockTurnstileSuccess();
