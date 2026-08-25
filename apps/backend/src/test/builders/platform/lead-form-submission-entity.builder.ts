@@ -2,6 +2,8 @@ import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { LeadFormAnswer } from '../../../contexts/platform/domain/lead-form-submission.aggregate';
 import { LeadFormSubmissionEntity } from '../../../contexts/platform/infrastructure/entities/lead-form-submission.entity';
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 export class LeadFormSubmissionEntityBuilder {
   private id = uuidv7();
   private tenantId = 'tenant-id-1';
@@ -11,7 +13,10 @@ export class LeadFormSubmissionEntityBuilder {
   private phone = '+5511912345678';
   private answers: LeadFormAnswer[] = [];
   private submittedAt = new Date('2026-01-01T00:00:00Z');
-  private expiresAt = new Date('2026-07-01T00:00:00Z');
+  // Computed relative to construction time — see lead-form-submission.builder.ts's identical
+  // comment for why a fixed calendar date here would eventually contaminate a shared test DB
+  // once LeadFormRetentionPurgeJob (M20-S04) exists.
+  private expiresAt = new Date(Date.now() + 180 * DAY_MS);
   private ipAddress = '203.0.113.10';
 
   withId(id: string): this {

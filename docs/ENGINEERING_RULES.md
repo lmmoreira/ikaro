@@ -620,6 +620,16 @@ Building a new `CachingXxxRepository` (wrapping a `TypeOrmXxxRepository` behind 
 
 Unique inline tenant UUID for any `it()` sensitive to aggregate counts. Never reuse `TENANT_A`/`TENANT_B` for count assertions — cross-test contamination.
 
+### Shared test-builder date defaults
+
+A shared test builder's default field representing a point in time (`expiresAt`, `startedAt`, `lastMessageAt`, …) must be computed relative to `Date.now()` at construction time, never a hardcoded calendar-date literal. A hardcoded date is only safe for as long as real calendar time stays behind it — it silently drifts from "safely far in the future" into "already expired" as the codebase ages, with no error anywhere, until something actually queries for staleness. In this codebase that "something" is a global, cross-tenant retention-purge job (`ChatbotRetentionPurgeJob`, `LeadFormRetentionPurgeJob`) that scans the *entire* shared integration-test Postgres instance with no per-file/per-tenant boundary — so a leftover row from any other spec file that used a builder's stale default is a legitimate purge candidate, and an integration test asserting an *exact* deleted-row count will intermittently fail depending on file execution order and how much real time has passed since the builder was written.
+
+Confirmed to recur twice with the identical root cause and symptom:
+- `ChatbotSessionEntityBuilder`'s hardcoded `startedAt`/`lastMessageAt` caused `ChatbotRetentionPurgeJob`'s own integration spec to sweep up a leftover row from `tenant-settings.controller.integration.spec.ts` — worked around locally in that one call site (`recentSession()`, forcing both fields to "now") rather than fixed at the builder itself, so the underlying defect was left in place for the next builder to repeat.
+- `LeadFormSubmissionBuilder`'s hardcoded `expiresAt` (`2026-07-01`) caused the identical failure for `LeadFormRetentionPurgeJob`'s own integration spec once real calendar time passed that date (M20-S04 precedent, 2026-08-25 — caught in CI, not locally, since the contaminating row came from a *different* spec file than the one being debugged).
+
+**Fix, both times:** compute the default relative to construction time (e.g. `new Date(Date.now() + 180 * DAY_MS)`), not a literal ISO string. **Also harden any test asserting an exact global count from a job with no tenant/file boundary** — prefer row-level existence/non-existence assertions for the fixtures the test itself created, with the count assertion relaxed to a lower bound (`toBeGreaterThanOrEqual`) rather than an exact `toBe`, since the test can never assume it's the only source of rows in the shared database.
+
 ### Integration app helpers — mandatory default overrides
 
 Every integration app helper that imports a module with a network-calling adapter must default-override that adapter's token with an in-memory stub **before** the caller's overrides run (caller wins):
@@ -665,7 +675,13 @@ Use `createNotificationIntegrationApp()`; suppress unrelated handlers; drain pro
 
 ### Migration / entity registration
 
-Every new migration class and TypeORM entity must be added to `src/test/integration-global-setup.ts` (and to any context-specific helper like `notification-integration-app.ts`) in the **same commit** as the migration file. Skipping causes silent failures — unit tests pass but integration tests error on the first DB query.
+Every new migration class and TypeORM entity must be added to `src/test/integration-global-setup.ts` (and to any context-specific helper like `notification-integration-app.ts`) in the **same commit** as the migration file. Skipping causes silent failures — unit tests pass but integration tests error on the first DB query. This applies to a migration that only adds an index, not just one that creates a table — `pnpm architecture-check`'s `test-harness-registration` detector catches a missing entry either way.
+
+### Standalone index for a cross-tenant system job
+
+`docs/13-DATABASE_SCHEMA.md`'s Indexing Strategy rule ("every index MUST start with `tenant_id`") has one narrow, explicit exception: a system-triggered job that deletes/scans across **every tenant in one pass, with no `tenant_id` predicate at all** — a daily retention purge (`ChatbotRetentionPurgeJob`, `LeadFormRetentionPurgeJob`), matching `ExpirePointsJob`'s own precedent. A `(tenant_id, X)` composite index can't be seeked by a query that never filters on `tenant_id` — Postgres has to fall back to a full index/table scan regardless of how well `X` alone would narrow the search, which degrades as the table grows.
+
+When drafting a new job of this shape, check the table's existing indexes for a **standalone** index on the job's own filter column, not just a composite one that happens to include it as a trailing column. Confirmed to be missed twice in a row before being caught by review: `chatbot_messages.IDX_chatbot_messages_created_at` (added after the fact by `AddStartedAtIndexToChatbotSessions`, M19-S07) and `lead_form_submissions.IDX_platform_lead_form_submissions_expires_at` (added after the fact in M20-S04, 2026-08-25, Codex review finding on PR #422 — the story's own draft named only the pre-existing `(tenant_id, expires_at)` composite index, by habit, without checking whether the job's actual query could seek it). When a new story's job description says "mirror `<X>RetentionPurgeJob`'s shape exactly," that includes checking whether `<X>`'s table needed this same standalone-index fix — not just copying the job/handler/controller file shapes.
 
 `packages/architecture-check/architecture-policy.json`'s `testDataHarnessRegistrations` section is the machine-checked source of truth for this — one entry per file that declares a TypeORM `entities:`/`migrations:` array (`integration-global-setup.ts` plus the 6 `src/test/utils/*-integration-app.ts`/`test-datasource.ts` helpers). `integration-global-setup.ts` is declared `"complete"` and must carry every production entity/migration; the rest are `"partial"` with an explicit, intentional `entities` subset. Adding a new entity to one of the partial helpers' code array without updating its matching policy entry (or vice versa) is flagged as drift by `pnpm architecture-check`'s `test-harness-registration` detector (TD37-S07) — update both in the same commit, not just the code.
 

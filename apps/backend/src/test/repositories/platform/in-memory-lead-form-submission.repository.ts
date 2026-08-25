@@ -36,4 +36,12 @@ export class InMemoryLeadFormSubmissionRepository implements ILeadFormSubmission
         s.submittedAt.getTime() <= to.getTime(),
     ).length;
   }
+
+  async deleteExpired(now: Date): Promise<number> {
+    const expired = [...this.store.values()].filter((s) => s.expiresAt.getTime() < now.getTime());
+    for (const submission of expired) {
+      this.store.delete(submission.id);
+    }
+    return expired.length;
+  }
 }

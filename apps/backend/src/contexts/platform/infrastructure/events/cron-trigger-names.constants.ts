@@ -6,3 +6,6 @@
 // cron-trigger-names.constants.ts).
 export const CRON_CHATBOT_RETENTION_PURGE_TRIGGER = 'cron-chatbot-retention-purge';
 export const CRON_CHATBOT_BALANCE_POLL_TRIGGER = 'cron-chatbot-balance-poll';
+// M20-S04 (UC-043): shared by CronLeadFormController (publisher) and
+// LeadFormRetentionPurgeTriggerHandler (subscriber).
+export const CRON_LEAD_FORM_RETENTION_TRIGGER = 'cron-lead-form-retention';

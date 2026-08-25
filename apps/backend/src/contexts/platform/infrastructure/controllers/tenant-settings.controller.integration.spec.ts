@@ -185,6 +185,25 @@ describe('TenantSettingsController (integration)', () => {
     expect(body.status).toBe(400);
   });
 
+  it('returns 400 with the dedicated field-specific code for an out-of-range leadForm.retentionMonths (M20-S04 boundary regression)', async () => {
+    const { body } = await request(app.getHttpServer())
+      .patch('/tenants/settings')
+      .set('X-Tenant-ID', tenantId)
+      .set('X-Actor-Role', 'MANAGER')
+      .send({ settings: { leadForm: { retentionMonths: 25 } } })
+      .expect(400);
+
+    // Proves the real request-boundary response, not just the shared Zod schema in isolation —
+    // this is the exact bug M20-S04 fixed: a plain .int().min().max() here would return the
+    // generic GENERIC_VALUE_OUT_OF_RANGE code instead (Codex review finding, PR #422).
+    expect(body.violations).toEqual([
+      expect.objectContaining({
+        field: 'settings.leadForm.retentionMonths',
+        code: 'PLATFORM_SETTINGS_LEAD_FORM_RETENTION_MONTHS_INVALID',
+      }),
+    ]);
+  });
+
   it('returns 200 and persists a partial loyalty update', async () => {
     const { body } = await request(app.getHttpServer())
       .patch('/tenants/settings')

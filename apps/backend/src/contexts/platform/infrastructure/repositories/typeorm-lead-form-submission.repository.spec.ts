@@ -6,6 +6,27 @@ import { LeadFormSubmission } from '../../domain/lead-form-submission.aggregate'
 import { LeadFormSubmissionEntity } from '../entities/lead-form-submission.entity';
 import { TypeOrmLeadFormSubmissionRepository } from './typeorm-lead-form-submission.repository';
 
+// Chainable delete-query-builder fake — each method returns the same object except the
+// terminal execute() call, matching TypeORM's own fluent DeleteQueryBuilder API surface
+// (mirrors typeorm-chatbot-message.repository.spec.ts's own deleteOlderThan coverage).
+function makeDeleteQueryBuilder(affected: number): {
+  delete: jest.Mock;
+  from: jest.Mock;
+  where: jest.Mock;
+  execute: jest.Mock;
+} {
+  const qb = {
+    delete: jest.fn(),
+    from: jest.fn(),
+    where: jest.fn(),
+    execute: jest.fn().mockResolvedValue({ affected }),
+  };
+  qb.delete.mockReturnValue(qb);
+  qb.from.mockReturnValue(qb);
+  qb.where.mockReturnValue(qb);
+  return qb;
+}
+
 describe('TypeOrmLeadFormSubmissionRepository', () => {
   let mockRepo: jest.Mocked<Repository<LeadFormSubmissionEntity>>;
   let outboxPublisher: InMemoryEventBus;
@@ -15,6 +36,7 @@ describe('TypeOrmLeadFormSubmissionRepository', () => {
     mockRepo = {
       save: jest.fn(),
       count: jest.fn(),
+      manager: { createQueryBuilder: jest.fn() },
     } as unknown as jest.Mocked<Repository<LeadFormSubmissionEntity>>;
     outboxPublisher = new InMemoryEventBus();
     repo = new TypeOrmLeadFormSubmissionRepository(mockRepo, outboxPublisher);
@@ -122,6 +144,42 @@ describe('TypeOrmLeadFormSubmissionRepository', () => {
           submittedAt: Between(from, to),
         },
       });
+    });
+  });
+
+  describe('deleteExpired', () => {
+    const now = new Date('2026-08-25T03:00:00.000Z');
+
+    it('deletes via repo.manager.createQueryBuilder() when no transaction is active', async () => {
+      const qb = makeDeleteQueryBuilder(4);
+      (mockRepo.manager.createQueryBuilder as jest.Mock).mockReturnValue(qb);
+
+      const result = await repo.deleteExpired(now);
+
+      expect(qb.from).toHaveBeenCalledWith(LeadFormSubmissionEntity);
+      expect(qb.where).toHaveBeenCalledWith('expires_at < :now', { now });
+      expect(result).toBe(4);
+    });
+
+    it('returns 0 when execute() reports no affected rows', async () => {
+      const qb = makeDeleteQueryBuilder(0);
+      qb.execute.mockResolvedValue({ affected: null });
+      (mockRepo.manager.createQueryBuilder as jest.Mock).mockReturnValue(qb);
+
+      expect(await repo.deleteExpired(now)).toBe(0);
+    });
+
+    it('uses the active EntityManager when inside a transaction', async () => {
+      const qb = makeDeleteQueryBuilder(2);
+      const mockManager = {
+        createQueryBuilder: jest.fn().mockReturnValue(qb),
+      } as unknown as EntityManager;
+
+      const result = await runWithEntityManager(mockManager, () => repo.deleteExpired(now));
+
+      expect(mockManager.createQueryBuilder).toHaveBeenCalled();
+      expect(mockRepo.manager.createQueryBuilder).not.toHaveBeenCalled();
+      expect(result).toBe(2);
     });
   });
 });
