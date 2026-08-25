@@ -387,7 +387,7 @@ module "cloudrun_web" {
     BFF_UPSTREAM_URL                   = "https://bff.${local.root_domain}/v1"
     NEXT_PUBLIC_SITE_URL               = "https://${local.root_domain}"
     NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL = module.storage.public_base_url
-    NEXT_PUBLIC_TURNSTILE_SITE_KEY     = var.turnstile_site_key
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY     = cloudflare_turnstile_widget.lead_form.sitekey
   }
 
   # apps/web/middleware.ts verifies the access_token cookie's HS256 signature
@@ -412,26 +412,29 @@ module "cloudrun_web" {
   }
 }
 
-# M20-S05 — secondary guard, not the primary protection: var.turnstile_site_key has no default in
-# this env (variables.tf), so `plan`/`apply` already fails closed with "No value for required
-# variable" if TF_VAR_turnstile_site_key (sourced from the vars.TURNSTILE_SITE_KEY GitHub Actions
-# repository variable — see variables.tf's own docstring) is never set. This `check` additionally
-# catches the case where someone *does* supply a value but it happens to be one of Cloudflare's
-# documented test sitekeys (e.g. copy-pasted from staging's tfvars as a placeholder) — Cloudflare's
-# own guidance is that test credentials must never reach production
-# (https://developers.cloudflare.com/turnstile/tutorials/excluding-turnstile-from-e2e-tests/).
-# PR #423 review (Codex round 2): an earlier version of this comment argued a warning-only check
-# was the only feasible guard because dropping the default would break every PR's prod plan —
-# that traded away real protection for CI convenience and was rejected; the required-variable fix
-# above is the actual root-cause fix.
-check "turnstile_site_key_not_test_default" {
-  assert {
-    condition = !contains(
-      ["1x00000000000000000000AA", "2x00000000000000000000AB"],
-      var.turnstile_site_key
-    )
-    error_message = "var.turnstile_site_key is still set to one of Cloudflare's documented test sitekeys — replace it with the real sitekey from Ikaro's own Cloudflare Turnstile widget registration (terraform.tfvars) before this protects real production traffic."
-  }
+# M20-S05 — the Turnstile widget itself is Terraform-managed (unlike TURNSTILE_SECRET_KEY,
+# which stays out-of-band per modules/secrets' own "containers only, no values via Terraform"
+# rule, M17 §2 — the sitekey isn't a secret at all, so that rule never applied to it). Creating
+# the widget here means the sitekey can never be empty, a placeholder, or one of Cloudflare's
+# documented test values (1x00000000000000000000AA / 2x00000000000000000000AB) by construction —
+# Cloudflare's own API always returns a real, account-scoped sitekey for a real widget. This
+# replaces an earlier design (PR #423 rounds 2-4) that sourced the sitekey from a plain
+# `var.turnstile_site_key` Terraform variable (first with a test-key default, then required with
+# no default, guarded by a non-blocking `check` block) — that design still depended on a human
+# supplying the real value out-of-band (terraform.tfvars or a GitHub Actions variable), and a
+# gap was found live: an unset GitHub Actions variable resolves to an empty string, which the
+# no-default variable accepted as "a value was provided," silently passing CI with an empty
+# sitekey. Provisioning the widget in Terraform removes that whole human-input step, not just
+# patches around its failure modes (round-5 finding, 2026-08-25).
+#
+# mode = "managed" — Cloudflare's standard interactive checkbox widget (matches the lead form's
+# own UX expectation of a visible, real challenge for guests/customers), not "non-interactive" or
+# "invisible".
+resource "cloudflare_turnstile_widget" "lead_form" {
+  account_id = var.cloudflare_account_id
+  name       = "ikaro-lead-form-${var.environment}"
+  mode       = "managed"
+  domains    = [local.root_domain, "www.${local.root_domain}"]
 }
 
 # Global external ALB + serverless NEGs + Cloudflare DNS (M17-S22, D5/D11) —

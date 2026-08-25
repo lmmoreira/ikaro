@@ -28,8 +28,13 @@ variable "brevo_smtp_login" {
   default     = ""
 }
 
+variable "cloudflare_account_id" {
+  description = "Cloudflare account ID (M20-S05) — plain, non-secret identifier (same treatment as cloudflare_zone_id/project_number), required by the cloudflare_turnstile_widget resource below (Turnstile widgets are account-scoped, not zone-scoped, unlike the DNS/ruleset resources in modules/edge). Discover via: the account's Overview page sidebar in the Cloudflare dashboard, or `cloudflare account list`."
+  type        = string
+}
+
 variable "cloudflare_api_token" {
-  description = "Cloudflare API token (S09 — scoped Zone:DNS:Edit + Zone:Cache Purge for ikaro.online only, never a Global API Key). A genuine secret — never committed: gitignored local.auto.tfvars / TF_VAR_cloudflare_api_token locally, the CLOUDFLARE_API_TOKEN GitHub Secret in the pipeline (S23/S24)."
+  description = "Cloudflare API token (S09 — scoped Zone:DNS:Edit + Zone:Cache Purge for ikaro.online only, never a Global API Key). A genuine secret — never committed: gitignored local.auto.tfvars / TF_VAR_cloudflare_api_token locally, the CLOUDFLARE_API_TOKEN GitHub Secret in the pipeline (S23/S24). M20-S05: this token also needs the Account > Turnstile > Edit permission added for the cloudflare_turnstile_widget resource below to be creatable — the original S09 scoping predates Turnstile and doesn't include it by default; add the permission to the existing token in the Cloudflare dashboard rather than minting a second token."
   type        = string
   sensitive   = true
 }
@@ -140,7 +145,3 @@ variable "region" {
   default     = "southamerica-east1"
 }
 
-variable "turnstile_site_key" {
-  description = "Cloudflare Turnstile site key (M20-S05) — not a secret, deliberately public/embedded client-side (apps/web reads it via NEXT_PUBLIC_TURNSTILE_SITE_KEY through the runtime-env mechanism, TD29), so it lives as a plain Terraform variable rather than in modules/secrets. No default in prod (unlike staging) — Cloudflare's own guidance is that test credentials must never reach production (https://developers.cloudflare.com/turnstile/tutorials/excluding-turnstile-from-e2e-tests/), so a `terraform plan`/`apply` here fails closed until a real value is supplied — never silently falls back to a test key that would make the production widget's CAPTCHA fake. Supplied via the `vars.TURNSTILE_SITE_KEY` GitHub Actions repository variable, injected as `TF_VAR_turnstile_site_key` in every prod Terraform step in infra-deploy.yml (same TF_VAR_* injection pattern as iam_admin_user/notification_email) — deliberately not committed to terraform.tfvars even though it isn't a secret, so a local `terraform plan` without that env var also fails closed the same way CI does. The matching secret (TURNSTILE_SECRET_KEY, BFF-only, used for siteverify) is provisioned separately via modules/secrets — see this story's own \"Devops PR sequence\" note in plan/M20-LEAD-FORM-MODULE.md."
-  type        = string
-}
