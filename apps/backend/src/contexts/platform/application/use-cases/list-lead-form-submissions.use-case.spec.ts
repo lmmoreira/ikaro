@@ -61,6 +61,30 @@ describe('ListLeadFormSubmissionsUseCase', () => {
     ]);
   });
 
+  it('breaks a submittedAt tie deterministically by id DESC (Codex review finding, PR #428 round 2)', async () => {
+    const tiedAt = new Date('2026-01-01T12:00:00.000Z');
+    await submissionRepo.save(
+      new LeadFormSubmissionBuilder()
+        .withId('01234567-0000-7000-8000-000000000001')
+        .withTenantId(TENANT_ID)
+        .withName('Tied A')
+        .withSubmittedAt(tiedAt)
+        .build(),
+    );
+    await submissionRepo.save(
+      new LeadFormSubmissionBuilder()
+        .withId('01234567-0000-7000-8000-000000000002')
+        .withTenantId(TENANT_ID)
+        .withName('Tied B')
+        .withSubmittedAt(tiedAt)
+        .build(),
+    );
+
+    const result = await useCase.execute({ tenantId: TENANT_ID, page: 1, pageSize: 20 });
+
+    expect(result.items.map((i) => i.name)).toEqual(['Tied B', 'Tied A']);
+  });
+
   it("tenant isolation — never returns tenant A's submissions when listing as tenant B", async () => {
     await submissionRepo.save(new LeadFormSubmissionBuilder().withTenantId(TENANT_ID).build());
 
