@@ -338,6 +338,10 @@ module "cloudrun_bff" {
     # of environment — wired here so prod's Terraform stays consistent with the shared app
     # code, even though prod's own ingress lockdown (Story B) is not part of this change.
     WEB_INTERNAL_KEY = module.secrets.secret_ids["web-internal-key"]
+    # M20-S05 PR3/3: TurnstileService's server-side siteverify call. Container (PR1, #424) and
+    # Foundation accessor grant (PR2, #425) both already landed — same safe-row shape as
+    # OPENROUTER_MANAGEMENT_API_KEY's own PR3 (M19-S08).
+    TURNSTILE_SECRET_KEY = module.secrets.secret_ids["turnstile-secret-key"]
   }
 }
 
