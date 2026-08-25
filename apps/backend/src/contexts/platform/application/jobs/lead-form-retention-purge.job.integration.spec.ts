@@ -86,7 +86,11 @@ describe('LeadFormRetentionPurgeJob (integration)', () => {
 
     const result = await job.run(NOW);
 
-    expect(result.submissionsDeleted).toBe(2);
+    // >= 2, not toBe(2): this job scans every row in the shared integration DB across every
+    // tenant (UC-043, by design — no tenant filter), so an unrelated leftover expired row from
+    // another spec file is a legitimate possibility, not a bug in this test. The row-level
+    // assertions below are what actually prove selective deletion for this test's own fixtures.
+    expect(result.submissionsDeleted).toBeGreaterThanOrEqual(2);
     expect(await entityRepo.findOne({ where: { id: expiredA.id } })).toBeNull();
     expect(await entityRepo.findOne({ where: { id: expiredB.id } })).toBeNull();
     expect(await entityRepo.findOne({ where: { id: keptA.id } })).not.toBeNull();
@@ -99,12 +103,17 @@ describe('LeadFormRetentionPurgeJob (integration)', () => {
       .build();
     await tenantRepo.save(tenant);
 
-    await submissionRepo.save(buildSubmission(tenant.id, BEFORE_CUTOFF));
+    const expired = buildSubmission(tenant.id, BEFORE_CUTOFF);
+    await submissionRepo.save(expired);
 
     const firstRun = await job.run(NOW);
     const secondRun = await job.run(NOW);
 
-    expect(firstRun.submissionsDeleted).toBe(1);
+    // >= 1, same reasoning as the test above; secondRun is safely toBe(0) — the first run
+    // already swept everything expired as of NOW, so nothing new can be expired for the
+    // second run within the same test.
+    expect(firstRun.submissionsDeleted).toBeGreaterThanOrEqual(1);
+    expect(await entityRepo.findOne({ where: { id: expired.id } })).toBeNull();
     expect(secondRun.submissionsDeleted).toBe(0);
   });
 });

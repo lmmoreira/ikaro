@@ -915,7 +915,7 @@ Promoted from `docs/discovery/lead-form-module/lead-form-module.md` (M20). A new
 - **Preconditions:** none — runs daily regardless of tenant activity.
 - **Trigger:** GCP Cloud Scheduler → `ikaro-cron-lead-form-retention` Pub/Sub topic (mirrors `ikaro-cron-loyalty-expiry`), daily.
 - **Main Flow:**
-   1. Handler deletes every `lead_form_submissions` row where `expires_at < now()`, using the `(tenant_id, expires_at)` index.
+   1. Handler deletes every `lead_form_submissions` row where `expires_at < now()`, a cross-tenant scan using the standalone `(expires_at)` index (not the `(tenant_id, expires_at)` composite, which this unscoped query can't seek).
    2. `POST /cron/lead-form-retention` provides the same trigger locally/manually (M17-S03 precedent).
 - **Alternative Flows:**
    - **A1: No expired rows** → no-op, idempotent.

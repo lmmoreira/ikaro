@@ -1115,7 +1115,7 @@ resource "google_cloud_scheduler_job" "chatbot_balance_poll" {
 
 ### `POST /cron/lead-form-retention` — Publish the daily lead-form-retention trigger (UC-043)
 
-Same shape as `POST /cron/loyalty-expiry` above — local/manual trigger path only, `InternalApiGuard`-protected, not the endpoint Cloud Scheduler calls in prod (Scheduler publishes to the `ikaro-cron-lead-form-retention` Pub/Sub topic directly). The trigger handler deletes every `lead_form_submissions` row where `expires_at < now()`, using the `(tenant_id, expires_at)` index.
+Same shape as `POST /cron/loyalty-expiry` above — local/manual trigger path only, `InternalApiGuard`-protected, not the endpoint Cloud Scheduler calls in prod (Scheduler publishes to the `ikaro-cron-lead-form-retention` Pub/Sub topic directly). The trigger handler deletes every `lead_form_submissions` row where `expires_at < now()`, a cross-tenant scan using the standalone `(expires_at)` index (not the `(tenant_id, expires_at)` composite, which this unscoped query can't seek — `docs/13-DATABASE_SCHEMA.md`).
 
 **Request headers:** `X-Internal-Key` required.
 

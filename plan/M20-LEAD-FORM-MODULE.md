@@ -185,7 +185,9 @@ No new endpoint — this extends the existing `PATCH`/`GET /v1/tenants/settings`
 **Docs to load:** `docs/04-USE_CASES.md` UC-043, `docs/14-API_CONTRACTS.md` § `POST /cron/lead-form-retention`, the real precedent: `apps/backend/src/contexts/platform/application/jobs/chatbot-retention-purge.job.ts` + `apps/backend/src/contexts/platform/infrastructure/controllers/cron-chatbot.controller.ts`
 
 **Description:**
-Create `LeadFormRetentionPurgeJob` (`application/jobs/lead-form-retention-purge.job.ts`), mirroring `ChatbotRetentionPurgeJob`'s shape exactly: `run(now: Date = new Date())` deletes every `platform.lead_form_submissions` row where `expires_at < now`, using the `(tenant_id, expires_at)` index — cross-tenant scan, no per-tenant loop needed (matches how `ExpirePointsJob`/`ChatbotRetentionPurgeJob` both already work). No-op, idempotent when nothing is expired.
+Create `LeadFormRetentionPurgeJob` (`application/jobs/lead-form-retention-purge.job.ts`), mirroring `ChatbotRetentionPurgeJob`'s shape exactly: `run(now: Date = new Date())` deletes every `platform.lead_form_submissions` row where `expires_at < now` — cross-tenant scan, no per-tenant loop needed (matches how `ExpirePointsJob`/`ChatbotRetentionPurgeJob` both already work). No-op, idempotent when nothing is expired.
+
+**Index correction (Codex review finding, PR #422):** the composite `(tenant_id, expires_at)` index (S02) is led by `tenant_id`, so it cannot be seeked by this unscoped, cross-tenant query — mirrors the exact gap `AddStartedAtIndexToChatbotSessions` (M19-S07) already fixed for `chatbot_sessions`/`ChatbotRetentionPurgeJob`. This story adds a standalone `(expires_at)` index via a new migration, mirroring `chatbot_messages.IDX_chatbot_messages_created_at`.
 
 **Carry-over from M20-S03:** While extending the tenant-settings validation coverage for this story, ensure out-of-range `leadForm` values sent through `PATCH /v1/tenants/settings` preserve the documented field-specific error codes (`PLATFORM_SETTINGS_LEAD_FORM_*_INVALID`) instead of the generic `VALUE_OUT_OF_RANGE` produced by native shared-schema range checks.
 
