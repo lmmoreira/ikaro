@@ -30,15 +30,22 @@ describe('TurnstileService', () => {
     );
   });
 
-  it('returns false when Cloudflare siteverify responds with success: false', async () => {
-    const http = makeHttp();
-    http.post.mockReturnValue(of({ data: { success: false } } as AxiosResponse));
-    const service = new TurnstileService(http as unknown as HttpService, makeConfigService());
+  // AC (M20-S05): this negative path must use Cloudflare's real, permanently-valid always-fail
+  // test secret against the real siteverify endpoint — not a mocked HTTP response — so this test
+  // is the one place a genuine network call is intentional (PR #423 review, Codex: the original
+  // version mocked this the same as the success case, which doesn't actually exercise Cloudflare's
+  // real API contract).
+  it('returns false when Cloudflare siteverify genuinely rejects the always-fail test secret', async () => {
+    const realHttp = new HttpService();
+    const service = new TurnstileService(
+      realHttp,
+      makeConfigService('2x0000000000000000000000000000000AA'),
+    );
 
-    const result = await service.verify('invalid-token', '203.0.113.10');
+    const result = await service.verify('any-response-token', '203.0.113.10');
 
     expect(result).toBe(false);
-  });
+  }, 15_000);
 
   it('returns false (fails closed) on a network/timeout error, never throwing', async () => {
     const http = makeHttp();

@@ -412,6 +412,25 @@ module "cloudrun_web" {
   }
 }
 
+# M20-S05 — non-blocking guardrail (CodeRabbit PR #423 review): var.turnstile_site_key's own
+# default is Cloudflare's documented always-pass test sitekey — safe for a not-yet-launched
+# module, but silently defeats real Turnstile protection if a real prod apply never overrides it.
+# A hard `validation` block on the variable (or dropping its default) would fail this exact
+# default on every `terraform plan`, including CI's own plan-only check, which has no override for
+# it today — that would require provisioning a new TF_VAR_turnstile_site_key GitHub Actions
+# variable with a real Cloudflare key nobody has yet. A `check` block instead only emits a
+# non-fatal warning on `plan`/`apply`, so it stays a loud, visible signal for whoever actually
+# deploys this without silently blocking CI or every other PR's prod plan in the meantime.
+check "turnstile_site_key_not_test_default" {
+  assert {
+    condition = !contains(
+      ["1x00000000000000000000AA", "2x00000000000000000000AB"],
+      var.turnstile_site_key
+    )
+    error_message = "var.turnstile_site_key is still set to one of Cloudflare's documented test sitekeys — replace it with the real sitekey from Ikaro's own Cloudflare Turnstile widget registration (terraform.tfvars) before this protects real production traffic."
+  }
+}
+
 # Global external ALB + serverless NEGs + Cloudflare DNS (M17-S22, D5/D11) —
 # prod only. Depends on the bff/web Cloud Run services' *names* (for the
 # NEGs), not their *.run.app URIs — ingress on both flipped to

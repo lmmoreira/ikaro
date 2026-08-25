@@ -30,7 +30,11 @@ import { withPublicTenant } from '../../shared/http/public-tenant';
 import { TenantInfoResponse } from '../../shared/types/backend-responses';
 import { getBusinessContext, getServicesContext } from './chatbot-context';
 import { buildSystemPrompt } from './chatbot.mapper';
-import { BackendHotsiteManifestResponse, BackendSendChatMessageBody } from './platform.types';
+import {
+  BackendHotsiteManifestResponse,
+  BackendSendChatMessageBody,
+  BackendSubmitLeadFormBody,
+} from './platform.types';
 import {
   ChatbotMessageBody,
   ChatbotMessageBodySchema,
@@ -38,15 +42,6 @@ import {
   SubmitLeadFormBodySchema,
 } from './platform.public.schemas';
 import { TurnstileService } from './turnstile.service';
-
-interface BackendSubmitLeadFormBody {
-  name: string;
-  email: string;
-  phone: string;
-  answers: SubmitLeadFormBody['answers'];
-  customerId: string | null;
-  ipAddress: string;
-}
 
 // Request Zod schema moved to platform.public.schemas.ts — re-exported here so
 // existing imports of these symbols from this file keep working unchanged.
@@ -190,12 +185,21 @@ export class PlatformPublicController {
     const user = decodeUserJwt(authHeader, this.jwtSecret);
 
     return withPublicTenant(this.backendHttp, tenantSlug, (tenantId) => {
+      // A decoded JWT is only trusted as this submission's customer identity when it's both a
+      // genuine CUSTOMER token (never STAFF/MANAGER — PR #423 review, Codex) and scoped to the
+      // *resolved* tenant (never a customer of a different tenant browsing this one's public
+      // hotsite — PR #423 review, CodeRabbit: @Public() bypasses TenantGuard, so nothing else
+      // checks this). Any mismatch is treated as an anonymous guest, never rejected outright —
+      // a customer of tenant A visiting tenant B's site is a normal, benign scenario.
+      const customerId =
+        user && user.role === 'CUSTOMER' && user.tenantId === tenantId ? user.sub : null;
+
       const backendBody: BackendSubmitLeadFormBody = {
         name: body.name,
         email: body.email,
         phone: body.phone,
         answers: body.answers,
-        customerId: user?.sub ?? null,
+        customerId,
         ipAddress,
       };
       return this.backendHttp.postForPublic<HotsiteLeadFormSubmissionResponse>(

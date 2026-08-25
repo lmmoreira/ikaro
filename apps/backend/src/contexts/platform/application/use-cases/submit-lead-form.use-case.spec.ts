@@ -194,4 +194,25 @@ describe('SubmitLeadFormUseCase', () => {
       correlationId: input.correlationId,
     });
   });
+
+  it('tenant isolation — each collaborator is called with the same tenantId it was given, never a mixed-up one', async () => {
+    const TENANT_B = '01234567-0000-7000-8000-000000000002';
+    const getConfig = makeGetConfig({ audienceMode: 'GUEST_AND_CUSTOMER', questions: [] });
+    const createSubmission = makeCreateSubmission();
+    const useCase = new SubmitLeadFormUseCase(getConfig, createSubmission);
+
+    await useCase.execute(baseInput({ tenantId: TENANT_ID, answers: [] }));
+    await useCase.execute(baseInput({ tenantId: TENANT_B, answers: [] }));
+
+    expect(getConfig.execute).toHaveBeenNthCalledWith(1, { tenantId: TENANT_ID });
+    expect(getConfig.execute).toHaveBeenNthCalledWith(2, { tenantId: TENANT_B });
+    expect(createSubmission.execute).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ tenantId: TENANT_ID }),
+    );
+    expect(createSubmission.execute).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ tenantId: TENANT_B }),
+    );
+  });
 });

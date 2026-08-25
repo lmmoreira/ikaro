@@ -442,6 +442,19 @@ describe('PlatformPublicController (component)', () => {
 
       expect(res.status).toBe(404);
     });
+
+    it('returns 404 when the slug does not resolve to a tenant', async () => {
+      backendHttpService.get.mockRejectedValueOnce(
+        new HttpException({ title: 'Not Found', status: 404 }, 404),
+      );
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/public/platform/lead-form/unknown-slug')
+        .set('X-Tenant-Slug', 'unknown-slug');
+
+      expect(res.status).toBe(404);
+      expect(backendHttpService.getForPublic).not.toHaveBeenCalled();
+    });
   });
 
   describe('POST /v1/public/platform/lead-form/:slug/submissions (public, M20-S05)', () => {

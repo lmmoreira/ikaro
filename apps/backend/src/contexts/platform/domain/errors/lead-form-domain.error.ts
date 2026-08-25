@@ -97,14 +97,14 @@ export class LeadFormDailyCapReachedError extends PlatformDomainError {
 /**
  * M20-S05 — the public GET/POST lead-form endpoints throw this when the `LEAD_FORM` module has
  * no `HotsiteConfig.layout[]` entry yet, or has one with `enabled: false`. Mapped to 404
- * (docs/14-API_CONTRACTS.md § Lead Form Widget).
+ * (docs/14-API_CONTRACTS.md § Lead Form Widget). Deliberately takes no `tenantId` param — unlike
+ * `TenantNotFoundError`/`HotsiteNotFoundError`, this error is reachable from a fully anonymous
+ * public caller, and `mapPlatformError` forwards `err.message` to the response body verbatim, so
+ * nothing internal-only belongs in it (PR #423 review, CodeRabbit: don't leak tenant UUIDs).
  */
 export class LeadFormNotEnabledError extends PlatformDomainError {
-  constructor(tenantId: string) {
-    super(
-      `Lead form module is not enabled for tenant '${tenantId}'`,
-      PlatformErrorCode.LEAD_FORM_NOT_ENABLED,
-    );
+  constructor() {
+    super('Lead form is not available', PlatformErrorCode.LEAD_FORM_NOT_ENABLED);
     this.name = 'LeadFormNotEnabledError';
   }
 }

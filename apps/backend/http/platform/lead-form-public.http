@@ -13,10 +13,13 @@
 #
 # REST Client environment: select "local" in VS Code status bar
 # These are the bare, guest-reachable routes ChatbotController already established — no
-# /public/ prefix (that convention is BFF-only) and no actor headers, matching a real guest
-# request forwarded by the BFF's publicHeaders() (X-Tenant-ID + X-Internal-Key only).
+# /public/ prefix (that convention is BFF-only). InternalApiGuard is a *global* APP_GUARD
+# (apps/backend/src/app.module.ts) — every route needs X-Internal-Key regardless of audience,
+# matching a real guest request forwarded by the BFF's publicHeaders() (X-Tenant-ID +
+# X-Internal-Key only, no actor headers).
 
 @baseUrl = {{backendUrl}}
+@internalKey = {{$dotenv INTERNAL_API_KEY}}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH
@@ -25,12 +28,14 @@
 ### Get the live question catalog
 GET {{baseUrl}}/platform/lead-form/config
 X-Tenant-ID: {{tenantId}}
+X-Internal-Key: {{internalKey}}
 
 ###
 
 ### Submit as a guest (customerId: null)
 POST {{baseUrl}}/platform/lead-form/submissions
 X-Tenant-ID: {{tenantId}}
+X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 
 {
@@ -52,6 +57,7 @@ Content-Type: application/json
 ### Submit as an authenticated customer (customerId set)
 POST {{baseUrl}}/platform/lead-form/submissions
 X-Tenant-ID: {{tenantId}}
+X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 
 {
@@ -77,12 +83,14 @@ Content-Type: application/json
 ### Module not enabled / no LEAD_FORM layout entry → 404 PLATFORM_LEAD_FORM_NOT_ENABLED
 GET {{baseUrl}}/platform/lead-form/config
 X-Tenant-ID: {{tenantIdWithoutLeadForm}}
+X-Internal-Key: {{internalKey}}
 
 ###
 
 ### CUSTOMER_ONLY audienceMode + no customerId → 401 AUTH_UNAUTHORIZED
 POST {{baseUrl}}/platform/lead-form/submissions
 X-Tenant-ID: {{tenantIdCustomerOnly}}
+X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 
 {
@@ -99,6 +107,7 @@ Content-Type: application/json
 ### Answer references a questionId not in the current catalog → 400 GENERIC_VALUE_INVALID
 POST {{baseUrl}}/platform/lead-form/submissions
 X-Tenant-ID: {{tenantId}}
+X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 
 {
@@ -120,6 +129,7 @@ Content-Type: application/json
 ### Required question left unanswered → 400 GENERIC_FIELD_REQUIRED
 POST {{baseUrl}}/platform/lead-form/submissions
 X-Tenant-ID: {{tenantId}}
+X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 
 {
@@ -130,5 +140,11 @@ Content-Type: application/json
   "customerId": null,
   "ipAddress": "203.0.113.50"
 }
+
+###
+
+### Missing X-Internal-Key → 401 (global InternalApiGuard)
+GET {{baseUrl}}/platform/lead-form/config
+X-Tenant-ID: {{tenantId}}
 
 ###

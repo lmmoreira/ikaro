@@ -555,6 +555,66 @@ describe('PlatformPublicController', () => {
       );
     });
 
+    it('treats a JWT scoped to a different tenant as anonymous — never forwards its sub as customerId (PR #423 review, CodeRabbit)', async () => {
+      const secret = 'a'.repeat(64);
+      const token = jwt.sign(
+        {
+          sub: 'customer-from-tenant-b',
+          tenantId: 'a-different-tenant-uuid',
+          tenantSlug: 'other-tenant',
+          tenantName: 'Other Tenant',
+          userName: null,
+          role: 'CUSTOMER',
+          locale: 'pt-BR',
+        },
+        secret,
+      );
+      const backendHttp = makeSubmitBackendHttp();
+      const controller = new PlatformPublicController(
+        backendHttp,
+        makeTurnstileService(),
+        makeConfigService(secret),
+      );
+
+      await controller.submitLeadForm('lavacar-bh', `Bearer ${token}`, body, mockReq);
+
+      expect(backendHttp.postForPublic).toHaveBeenCalledWith(
+        '/platform/lead-form/submissions',
+        expect.objectContaining({ customerId: null }),
+        'tenant-uuid',
+      );
+    });
+
+    it('treats a non-CUSTOMER JWT (STAFF/MANAGER) as anonymous — never forwards its sub as customerId (PR #423 review, Codex)', async () => {
+      const secret = 'a'.repeat(64);
+      const token = jwt.sign(
+        {
+          sub: 'manager-uuid',
+          tenantId: 'tenant-uuid',
+          tenantSlug: 'lavacar-bh',
+          tenantName: 'Lavacar BH',
+          userName: null,
+          role: 'MANAGER',
+          locale: 'pt-BR',
+        },
+        secret,
+      );
+      const backendHttp = makeSubmitBackendHttp();
+      const controller = new PlatformPublicController(
+        backendHttp,
+        makeTurnstileService(),
+        makeConfigService(secret),
+      );
+
+      await controller.submitLeadForm('lavacar-bh', `Bearer ${token}`, body, mockReq);
+
+      expect(backendHttp.postForPublic).toHaveBeenCalledWith(
+        '/platform/lead-form/submissions',
+        expect.objectContaining({ customerId: null }),
+        'tenant-uuid',
+      );
+    });
+
     it('never calls an actor-header-forwarding method (get without slug resolution, patch/delete)', async () => {
       const backendHttp = makeSubmitBackendHttp();
       const controller = new PlatformPublicController(

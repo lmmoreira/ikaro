@@ -193,7 +193,7 @@ describe('mapPlatformError', () => {
   });
 
   it('maps LeadFormNotEnabledError to 404 with code', () => {
-    const err = call(new LeadFormNotEnabledError('tenant-1'));
+    const err = call(new LeadFormNotEnabledError());
     expect(err.getStatus()).toBe(HttpStatus.NOT_FOUND);
     expect(err.getResponse()).toMatchObject({ code: PlatformErrorCode.LEAD_FORM_NOT_ENABLED });
   });

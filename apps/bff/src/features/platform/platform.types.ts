@@ -6,6 +6,7 @@ import {
   TenantSettings,
 } from '@ikaro/types';
 import { TenantInfoResponse } from '../../shared/types/backend-responses';
+import { SubmitLeadFormBody } from './platform.public.schemas';
 
 export type BackendHotsiteManifestResponse = HotsiteResponse & {
   business: HotsiteBusinessInfoResponse;
@@ -25,4 +26,17 @@ export interface BackendSendChatMessageBody {
   systemPrompt: string;
   message: string;
   clientIp: string;
+}
+
+// Outbound payload the BFF sends to the backend's lead-form submission endpoint (M20-S05) — same
+// "not a client-facing shape, still can't live inline" reasoning as BackendSendChatMessageBody
+// above. customerId/ipAddress are BFF-computed (decoded JWT / trusted client IP), never part of
+// the public request body (SubmitLeadFormBody).
+export interface BackendSubmitLeadFormBody {
+  name: string;
+  email: string;
+  phone: string;
+  answers: SubmitLeadFormBody['answers'];
+  customerId: string | null;
+  ipAddress: string;
 }

@@ -41,7 +41,7 @@ export class GetLeadFormPublicConfigUseCase {
     const hotsiteConfig = await this.hotsiteConfigRepo.findByTenantId(tenantId);
     const leadFormModule = hotsiteConfig?.layout.find((module) => module.type === 'LEAD_FORM');
     if (!leadFormModule?.enabled) {
-      throw new LeadFormNotEnabledError(tenantId);
+      throw new LeadFormNotEnabledError();
     }
 
     const leadFormConfig = await this.leadFormConfigRepo.findByTenantId(tenantId);

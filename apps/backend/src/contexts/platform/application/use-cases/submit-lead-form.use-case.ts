@@ -29,8 +29,10 @@ export interface SubmitLeadFormUseCaseInput {
 
 export type SubmitLeadFormUseCaseResult = CreateLeadFormSubmissionUseCaseResult;
 
+// An array with only blank-string entries (e.g. ["  "]) must count as unanswered too, not just
+// an empty array — PR #423 review, CodeRabbit.
 function isAnswerEmpty(value: string | string[]): boolean {
-  if (Array.isArray(value)) return value.length === 0;
+  if (Array.isArray(value)) return !value.some((entry) => entry.trim().length > 0);
   return value.trim().length === 0;
 }
 

@@ -209,6 +209,10 @@ jobs:
           INTERNAL_API_KEY: 'test-internal-key-test-internal-key'
           WEB_INTERNAL_KEY: 'test-web-internal-key-test-web-internal!!'
           ENABLE_DEV_AUTH: 'true'
+          # Cloudflare's own permanently-valid always-pass test secret (M20-S05) — TurnstileService
+          # reads this via ConfigService.getOrThrow(), which needs it present in the real process
+          # env before ConfigModule.forRoot() validates (see the comment above this env: block).
+          TURNSTILE_SECRET_KEY: '1x0000000000000000000000000000000AA'
 
   e2e:
     name: Playwright E2E
