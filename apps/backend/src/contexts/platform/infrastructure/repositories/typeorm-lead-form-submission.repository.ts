@@ -48,6 +48,17 @@ export class TypeOrmLeadFormSubmissionRepository implements ILeadFormSubmissionR
     });
   }
 
+  async deleteExpired(now: Date): Promise<number> {
+    const manager = getActiveEntityManager();
+    const result = await (manager ?? this.repo.manager)
+      .createQueryBuilder()
+      .delete()
+      .from(LeadFormSubmissionEntity)
+      .where('expires_at < :now', { now })
+      .execute();
+    return result.affected ?? 0;
+  }
+
   private toEntity(submission: LeadFormSubmission): LeadFormSubmissionEntity {
     const entity = new LeadFormSubmissionEntity();
     entity.id = submission.id;

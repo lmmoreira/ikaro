@@ -20,4 +20,8 @@ export interface ILeadFormSubmissionRepository {
     from: Date,
     to: Date,
   ): Promise<number>;
+  /** UC-043 daily retention purge: deletes every row whose `expires_at` is strictly before
+   * `now`, across every tenant in one pass, using the `(tenant_id, expires_at)` index. Returns
+   * the number of rows actually deleted. */
+  deleteExpired(now: Date): Promise<number>;
 }

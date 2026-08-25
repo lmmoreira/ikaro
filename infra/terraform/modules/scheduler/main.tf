@@ -42,6 +42,10 @@ locals {
       topic_key = "cron-chatbot-balance-poll"
       schedule  = "*/15 * * * *"
     }
+    ikaro-cron-lead-form-retention = {
+      topic_key = "cron-lead-form-retention"
+      schedule  = "0 3 * * *"
+    }
   }
 }
 
