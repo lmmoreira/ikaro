@@ -178,7 +178,7 @@ No new endpoint — this extends the existing `PATCH`/`GET /v1/tenants/settings`
 
 ---
 
-### M20-S04 — Retention-purge cron (UC-043)
+### M20-S04 — Retention-purge cron (UC-043) ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** S
