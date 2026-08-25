@@ -414,10 +414,11 @@ module "cloudrun_web" {
 
 # M20-S05 — secondary guard, not the primary protection: var.turnstile_site_key has no default in
 # this env (variables.tf), so `plan`/`apply` already fails closed with "No value for required
-# variable" if terraform.tfvars never sets a real one. This `check` additionally catches the case
-# where someone *does* supply a value but it happens to be one of Cloudflare's documented test
-# sitekeys (e.g. copy-pasted from staging's tfvars as a placeholder) — Cloudflare's own guidance
-# is that test credentials must never reach production
+# variable" if TF_VAR_turnstile_site_key (sourced from the vars.TURNSTILE_SITE_KEY GitHub Actions
+# repository variable — see variables.tf's own docstring) is never set. This `check` additionally
+# catches the case where someone *does* supply a value but it happens to be one of Cloudflare's
+# documented test sitekeys (e.g. copy-pasted from staging's tfvars as a placeholder) — Cloudflare's
+# own guidance is that test credentials must never reach production
 # (https://developers.cloudflare.com/turnstile/tutorials/excluding-turnstile-from-e2e-tests/).
 # PR #423 review (Codex round 2): an earlier version of this comment argued a warning-only check
 # was the only feasible guard because dropping the default would break every PR's prod plan —

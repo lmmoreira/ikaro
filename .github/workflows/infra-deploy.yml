@@ -360,6 +360,12 @@ jobs:
           TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
           TF_VAR_brevo_smtp_login: ${{ secrets.BREVO_SMTP_LOGIN }}
           TF_VAR_notification_email: ${{ vars.NOTIFICATION_EMAIL }}
+          # Not a secret (Cloudflare Turnstile sitekey — deliberately public,
+          # embedded client-side via NEXT_PUBLIC_TURNSTILE_SITE_KEY) — a plain
+          # repo variable, same as iam_admin_user/notification_email above.
+          # No default in prod's variables.tf (unlike staging): a real value
+          # must be set here before this plan can even run.
+          TF_VAR_turnstile_site_key: ${{ vars.TURNSTILE_SITE_KEY }}
           # Genuine credential (Cloudflare API token) — Terraform's own
           # `sensitive = true` on this variable redacts it from *rendered*
           # plan output (terraform show, CLI text) and GitHub also masks
@@ -700,6 +706,7 @@ jobs:
           TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
           TF_VAR_brevo_smtp_login: ${{ secrets.BREVO_SMTP_LOGIN }}
           TF_VAR_notification_email: ${{ vars.NOTIFICATION_EMAIL }}
+          TF_VAR_turnstile_site_key: ${{ vars.TURNSTILE_SITE_KEY }}
           TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           terraform init -input=false -lockfile=readonly
@@ -839,6 +846,7 @@ jobs:
           TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
           TF_VAR_brevo_smtp_login: ${{ secrets.BREVO_SMTP_LOGIN }}
           TF_VAR_notification_email: ${{ vars.NOTIFICATION_EMAIL }}
+          TF_VAR_turnstile_site_key: ${{ vars.TURNSTILE_SITE_KEY }}
           TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           trap 'rm -f tfplan' EXIT
@@ -1013,6 +1021,7 @@ jobs:
           TF_VAR_iam_admin_user: ${{ vars.IAM_ADMIN_USER }}
           TF_VAR_brevo_smtp_login: ${{ secrets.BREVO_SMTP_LOGIN }}
           TF_VAR_notification_email: ${{ vars.NOTIFICATION_EMAIL }}
+          TF_VAR_turnstile_site_key: ${{ vars.TURNSTILE_SITE_KEY }}
           TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           terraform init -input=false -lockfile=readonly
