@@ -139,3 +139,9 @@ variable "region" {
   type        = string
   default     = "southamerica-east1"
 }
+
+variable "turnstile_site_key" {
+  description = "Cloudflare Turnstile site key (M20-S05) — not a secret, deliberately public/embedded client-side (apps/web reads it via NEXT_PUBLIC_TURNSTILE_SITE_KEY through the runtime-env mechanism, TD29), so it lives as a plain Terraform variable rather than in modules/secrets. Defaults to Cloudflare's own permanently-valid, publicly-documented always-pass test sitekey — safe to leave as-is for a not-yet-launched module, but must be replaced with the real sitekey from Ikaro's own Cloudflare Turnstile widget registration (paste into terraform.tfvars) before this actually protects real traffic. The matching secret (TURNSTILE_SECRET_KEY, BFF-only, used for siteverify) is provisioned separately via modules/secrets — see this story's own \"Devops PR sequence\" note in plan/M20-LEAD-FORM-MODULE.md."
+  type        = string
+  default     = "1x00000000000000000000AA"
+}

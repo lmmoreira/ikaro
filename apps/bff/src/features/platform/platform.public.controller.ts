@@ -10,22 +10,43 @@ import {
   Post,
   Req,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
+  BffErrorCode,
   HotsiteChatbotMessageResponse,
   HotsiteChatbotStatusResponse,
+  HotsiteLeadFormConfigResponse,
+  HotsiteLeadFormSubmissionResponse,
   HotsiteManifestResponse,
   HotsiteSitemapEntryListResponse,
 } from '@ikaro/types';
 import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { decodeUserJwt } from '../../shared/auth/decode-user-jwt';
 import { Public } from '../../shared/decorators/public.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { ClientIpRequest, getClientIp } from '../../shared/http/client-ip';
+import { throwProblemDetail } from '../../shared/http/problem-detail';
 import { withPublicTenant } from '../../shared/http/public-tenant';
 import { TenantInfoResponse } from '../../shared/types/backend-responses';
 import { getBusinessContext, getServicesContext } from './chatbot-context';
 import { buildSystemPrompt } from './chatbot.mapper';
 import { BackendHotsiteManifestResponse, BackendSendChatMessageBody } from './platform.types';
-import { ChatbotMessageBody, ChatbotMessageBodySchema } from './platform.public.schemas';
+import {
+  ChatbotMessageBody,
+  ChatbotMessageBodySchema,
+  SubmitLeadFormBody,
+  SubmitLeadFormBodySchema,
+} from './platform.public.schemas';
+import { TurnstileService } from './turnstile.service';
+
+interface BackendSubmitLeadFormBody {
+  name: string;
+  email: string;
+  phone: string;
+  answers: SubmitLeadFormBody['answers'];
+  customerId: string | null;
+  ipAddress: string;
+}
 
 // Request Zod schema moved to platform.public.schemas.ts — re-exported here so
 // existing imports of these symbols from this file keep working unchanged.
@@ -40,7 +61,15 @@ export const CHATBOT_MESSAGE_TIMEOUT_MS = 12_000;
 
 @Controller('public/platform')
 export class PlatformPublicController {
-  constructor(private readonly backendHttp: BackendHttpService) {}
+  private readonly jwtSecret: string;
+
+  constructor(
+    private readonly backendHttp: BackendHttpService,
+    private readonly turnstileService: TurnstileService,
+    private readonly config: ConfigService,
+  ) {
+    this.jwtSecret = this.config.getOrThrow<string>('JWT_SECRET');
+  }
 
   @Get('manifest/:slug')
   @Public()
@@ -116,6 +145,63 @@ export class PlatformPublicController {
         backendBody,
         tenantId,
         CHATBOT_MESSAGE_TIMEOUT_MS,
+      );
+    });
+  }
+
+  @Get('lead-form/:slug')
+  @Public()
+  getLeadFormConfig(
+    @Headers('x-tenant-slug') tenantSlug: string | undefined,
+  ): Promise<HotsiteLeadFormConfigResponse> {
+    return withPublicTenant(this.backendHttp, tenantSlug, (tenantId) =>
+      this.backendHttp.getForPublic<HotsiteLeadFormConfigResponse>(
+        '/platform/lead-form/config',
+        tenantId,
+      ),
+    );
+  }
+
+  @Post('lead-form/:slug/submissions')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  async submitLeadForm(
+    @Headers('x-tenant-slug') tenantSlug: string | undefined,
+    @Headers('authorization') authHeader: string | undefined,
+    @Body(new ZodValidationPipe(SubmitLeadFormBodySchema)) body: SubmitLeadFormBody,
+    @Req() req: ClientIpRequest,
+  ): Promise<HotsiteLeadFormSubmissionResponse> {
+    const ipAddress = getClientIp(req);
+
+    // Verified before the tenant is even resolved — never reaches the backend on a
+    // failed/expired token (docs/14-API_CONTRACTS.md § Lead Form Widget).
+    const verified = await this.turnstileService.verify(body.turnstileToken, ipAddress);
+    if (!verified) {
+      throw throwProblemDetail(
+        HttpStatus.BAD_REQUEST,
+        BffErrorCode.TURNSTILE_VERIFICATION_FAILED,
+        'Turnstile verification failed or expired',
+      );
+    }
+
+    // Read-only identification, not an auth requirement — this route stays @Public(). The
+    // CUSTOMER_ONLY gate lives entirely backend-side (SubmitLeadFormUseCase), which already
+    // re-reads LeadFormConfig for answer enrichment.
+    const user = decodeUserJwt(authHeader, this.jwtSecret);
+
+    return withPublicTenant(this.backendHttp, tenantSlug, (tenantId) => {
+      const backendBody: BackendSubmitLeadFormBody = {
+        name: body.name,
+        email: body.email,
+        phone: body.phone,
+        answers: body.answers,
+        customerId: user?.sub ?? null,
+        ipAddress,
+      };
+      return this.backendHttp.postForPublic<HotsiteLeadFormSubmissionResponse>(
+        '/platform/lead-form/submissions',
+        backendBody,
+        tenantId,
       );
     });
   }

@@ -163,6 +163,9 @@ export const PlatformErrorCode = {
   // both the tenant-wide daily cap and the per-IP daily cap — same "come back tomorrow" outcome
   // from the submitter's perspective, matching CHATBOT_DAILY_CAP_REACHED's own grouping.
   LEAD_FORM_DAILY_CAP_REACHED: 'PLATFORM_LEAD_FORM_DAILY_CAP_REACHED',
+  // M20-S05 — the public GET/POST lead-form endpoints 404 when the LEAD_FORM module is absent or
+  // disabled in the tenant's hotsite layout (docs/14-API_CONTRACTS.md § Lead Form Widget).
+  LEAD_FORM_NOT_ENABLED: 'PLATFORM_LEAD_FORM_NOT_ENABLED',
 } as const;
 export type PlatformErrorCode = (typeof PlatformErrorCode)[keyof typeof PlatformErrorCode];
 
@@ -242,6 +245,9 @@ export const BffErrorCode = {
   // errors) — distinguishing them in the response would tell a forger which part of their
   // attempt failed.
   OAUTH_STATE_INVALID: 'BFF_OAUTH_STATE_INVALID',
+  // M20-S05 — Cloudflare Turnstile `siteverify` rejected/expired the submitted token on the
+  // public lead-form submission endpoint. Checked before the tenant is even resolved.
+  TURNSTILE_VERIFICATION_FAILED: 'BFF_TURNSTILE_VERIFICATION_FAILED',
 } as const;
 export type BffErrorCode = (typeof BffErrorCode)[keyof typeof BffErrorCode];
 

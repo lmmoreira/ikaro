@@ -1,4 +1,4 @@
-import { GenericErrorCode, PlatformErrorCode } from '@ikaro/types/protocol/errors';
+import { AuthErrorCode, GenericErrorCode, PlatformErrorCode } from '@ikaro/types/protocol/errors';
 import { DomainErrorShape } from '../../../../shared/domain/domain-error-shape';
 import { PlatformDomainError } from './platform-domain.error';
 
@@ -91,5 +91,80 @@ export class LeadFormDailyCapReachedError extends PlatformDomainError {
       PlatformErrorCode.LEAD_FORM_DAILY_CAP_REACHED,
     );
     this.name = 'LeadFormDailyCapReachedError';
+  }
+}
+
+/**
+ * M20-S05 — the public GET/POST lead-form endpoints throw this when the `LEAD_FORM` module has
+ * no `HotsiteConfig.layout[]` entry yet, or has one with `enabled: false`. Mapped to 404
+ * (docs/14-API_CONTRACTS.md § Lead Form Widget).
+ */
+export class LeadFormNotEnabledError extends PlatformDomainError {
+  constructor(tenantId: string) {
+    super(
+      `Lead form module is not enabled for tenant '${tenantId}'`,
+      PlatformErrorCode.LEAD_FORM_NOT_ENABLED,
+    );
+    this.name = 'LeadFormNotEnabledError';
+  }
+}
+
+/**
+ * M20-S05 — `audienceMode === 'CUSTOMER_ONLY'` and the submission carries no authenticated
+ * customer identity (UC-040 A1). Deliberately does NOT extend `PlatformDomainError` (whose `code`
+ * is typed `PlatformErrorCode` only) — this reuses the *existing* `AuthErrorCode.UNAUTHORIZED`
+ * (the same code `JwtAuthGuard` already throws elsewhere) rather than minting a new platform
+ * error code for what is, semantically, an auth-boundary condition, not a business rule.
+ */
+export class LeadFormCustomerOnlyError extends Error implements DomainErrorShape {
+  readonly code: AuthErrorCode;
+
+  constructor() {
+    super('This form requires a logged-in customer');
+    Object.setPrototypeOf(this, new.target.prototype);
+    this.name = 'LeadFormCustomerOnlyError';
+    this.code = AuthErrorCode.UNAUTHORIZED;
+  }
+}
+
+/**
+ * M20-S05 — a submitted answer's `questionId` doesn't match any question in the tenant's current
+ * `LeadFormConfig.questions` catalog (e.g. a stale client cache after a manager edit). Rejects
+ * the whole submission rather than silently dropping the answer — decided during story-discovery,
+ * 2026-08-25. No dedicated VO backs this rule, so it reuses the closed `GenericErrorCode` set
+ * (docs/ENGINEERING_RULES.md § Single source of truth for a validation rule's code).
+ */
+export class LeadFormAnswerQuestionInvalidError extends Error implements DomainErrorShape {
+  readonly code: GenericErrorCode;
+  readonly field: string;
+
+  constructor(answerIndex: number) {
+    super(`Answer ${answerIndex} references an unknown question`);
+    Object.setPrototypeOf(this, new.target.prototype);
+    this.name = 'LeadFormAnswerQuestionInvalidError';
+    this.code = GenericErrorCode.VALUE_INVALID;
+    this.field = `answers[${answerIndex}].questionId`;
+  }
+}
+
+/**
+ * M20-S05 — a question marked `required: true` in the tenant's current catalog has no matching,
+ * non-empty answer in the submission. Identified by the catalog's own question `id`, not an
+ * `answers[]` array index — a missing required answer has no position in that array to point to
+ * (unlike `LeadFormAnswerQuestionInvalidError`, which references a real submitted element). Same
+ * `GENERIC_FIELD_REQUIRED` code `LeadFormQuestionLabelRequiredError`/
+ * `LeadFormSubmissionNameRequiredError` already use for a plain required-value rule with no VO
+ * behind it.
+ */
+export class LeadFormAnswerRequiredError extends Error implements DomainErrorShape {
+  readonly code: GenericErrorCode;
+  readonly field: string;
+
+  constructor(questionId: string) {
+    super(`Question '${questionId}' requires an answer`);
+    Object.setPrototypeOf(this, new.target.prototype);
+    this.name = 'LeadFormAnswerRequiredError';
+    this.code = GenericErrorCode.FIELD_REQUIRED;
+    this.field = `answers.${questionId}`;
   }
 }

@@ -31,6 +31,13 @@ import {
   ChatbotProviderUnavailableError,
   ChatbotSessionNotFoundError,
 } from '../../domain/errors/chatbot-domain.error';
+import {
+  LeadFormAnswerQuestionInvalidError,
+  LeadFormAnswerRequiredError,
+  LeadFormCustomerOnlyError,
+  LeadFormDailyCapReachedError,
+  LeadFormNotEnabledError,
+} from '../../domain/errors/lead-form-domain.error';
 import { mapPlatformError } from './platform-error.mapper';
 
 function call(err: unknown): HttpException {
@@ -181,6 +188,44 @@ describe('mapPlatformError', () => {
     const err = call(new ChatbotSessionNotFoundError('session-1'));
     expect(err.getStatus()).toBe(HttpStatus.NOT_FOUND);
     expect(err.getResponse()).toMatchObject({ code: PlatformErrorCode.CHATBOT_SESSION_NOT_FOUND });
+  });
+
+  it('maps LeadFormNotEnabledError to 404 with code', () => {
+    const err = call(new LeadFormNotEnabledError('tenant-1'));
+    expect(err.getStatus()).toBe(HttpStatus.NOT_FOUND);
+    expect(err.getResponse()).toMatchObject({ code: PlatformErrorCode.LEAD_FORM_NOT_ENABLED });
+  });
+
+  it('maps LeadFormCustomerOnlyError to 401 with the existing AUTH_UNAUTHORIZED code, not a new one', () => {
+    const err = call(new LeadFormCustomerOnlyError());
+    expect(err.getStatus()).toBe(HttpStatus.UNAUTHORIZED);
+    expect(err.getResponse()).toMatchObject({ code: 'AUTH_UNAUTHORIZED' });
+  });
+
+  it('maps LeadFormDailyCapReachedError to 429 with code — the first HTTP consumer of this M20-S02 error', () => {
+    const err = call(new LeadFormDailyCapReachedError());
+    expect(err.getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
+    expect(err.getResponse()).toMatchObject({
+      code: PlatformErrorCode.LEAD_FORM_DAILY_CAP_REACHED,
+    });
+  });
+
+  it('maps LeadFormAnswerQuestionInvalidError to 400 with code and field', () => {
+    const err = call(new LeadFormAnswerQuestionInvalidError(0));
+    expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(err.getResponse()).toMatchObject({
+      code: 'GENERIC_VALUE_INVALID',
+      field: 'answers[0].questionId',
+    });
+  });
+
+  it('maps LeadFormAnswerRequiredError to 400 with code and field', () => {
+    const err = call(new LeadFormAnswerRequiredError('question-1'));
+    expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(err.getResponse()).toMatchObject({
+      code: 'GENERIC_FIELD_REQUIRED',
+      field: 'answers.question-1',
+    });
   });
 
   it('re-throws plain Error instances unchanged', () => {

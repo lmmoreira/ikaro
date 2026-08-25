@@ -108,3 +108,81 @@ X-Tenant-Slug: no-such-tenant-slug
 {
   "message": "Oi"
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Lead form widget (M20-S05 — UC-038, UC-039, UC-040)
+# Use Cloudflare's always-pass test token for turnstileToken in local dev/CI
+# ("XXXX.DUMMY.TOKEN.XXXX" — Cloudflare's documented dummy value that always passes siteverify
+# when paired with the always-pass secret key already set as TURNSTILE_SECRET_KEY).
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Get the live question catalog for the hotsite page
+GET {{bffUrl}}/v1/public/platform/lead-form/{{tenantSlug}}
+X-Tenant-Slug: {{tenantSlug}}
+
+###
+
+### Submit as a guest (no Authorization header)
+POST {{bffUrl}}/v1/public/platform/lead-form/{{tenantSlug}}/submissions
+Content-Type: application/json
+X-Tenant-Slug: {{tenantSlug}}
+
+{
+  "name": "Maria Silva",
+  "email": "maria.silva@example.com",
+  "phone": "+5511987654321",
+  "answers": [
+    {
+      "questionId": "01234567-0000-7000-8000-000000000101",
+      "value": "Lavagem completa"
+    }
+  ],
+  "turnstileToken": "XXXX.DUMMY.TOKEN.XXXX"
+}
+
+###
+
+### Submit as an authenticated customer (Authorization header carries the session JWT)
+POST {{bffUrl}}/v1/public/platform/lead-form/{{tenantSlug}}/submissions
+Content-Type: application/json
+X-Tenant-Slug: {{tenantSlug}}
+Authorization: Bearer {{customerToken}}
+
+{
+  "name": "João Pereira",
+  "email": "joao.pereira@example.com",
+  "phone": "+5511912345678",
+  "answers": [
+    {
+      "questionId": "01234567-0000-7000-8000-000000000101",
+      "value": "Enceramento"
+    }
+  ],
+  "turnstileToken": "XXXX.DUMMY.TOKEN.XXXX"
+}
+
+###
+
+### 404 — Unknown tenant slug on lead-form config
+GET {{bffUrl}}/v1/public/platform/lead-form/no-such-tenant-slug
+X-Tenant-Slug: no-such-tenant-slug
+
+###
+
+### 400 — Missing X-Tenant-Slug on lead-form config
+GET {{bffUrl}}/v1/public/platform/lead-form/{{tenantSlug}}
+
+###
+
+### 400 — Turnstile verification failed (always-fail test secret configured server-side)
+POST {{bffUrl}}/v1/public/platform/lead-form/{{tenantSlug}}/submissions
+Content-Type: application/json
+X-Tenant-Slug: {{tenantSlug}}
+
+{
+  "name": "Maria Silva",
+  "email": "maria.silva@example.com",
+  "phone": "+5511987654321",
+  "answers": [],
+  "turnstileToken": "invalid-token"
+}

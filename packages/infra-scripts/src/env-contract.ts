@@ -91,6 +91,12 @@ const BFF_EXEMPT_KEYS: readonly string[] = [
   'OTEL_TRACES_SAMPLER_ARG',
   'OTEL_SDK_DISABLED',
   'SERVICE_NAME',
+  // M20-S05 — TURNSTILE_SECRET_KEY is declared in env.validation.ts (optional) so a local .env
+  // file value reaches process.env at all (ConfigModule only promotes schema-declared keys — see
+  // that file's own comment), but its Terraform secret_env_vars wiring is a separate, later PR
+  // (this story's own "Devops PR sequence" — the safe 3-PR row) — remove this exemption once that
+  // PR lands.
+  'TURNSTILE_SECRET_KEY',
 ];
 
 // Empty today — every key in apps/web's PUBLIC_ENV_KEYS is expected to be a

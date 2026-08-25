@@ -387,6 +387,7 @@ module "cloudrun_web" {
     BFF_UPSTREAM_URL                   = "https://bff.${local.root_domain}/v1"
     NEXT_PUBLIC_SITE_URL               = "https://${local.root_domain}"
     NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL = module.storage.public_base_url
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY     = var.turnstile_site_key
   }
 
   # apps/web/middleware.ts verifies the access_token cookie's HS256 signature

@@ -1,0 +1,134 @@
+# Platform — Lead Form Public (M20-S05): guest-reachable question catalog + submission endpoints
+# UC-038: Visitor sees the lead form teaser on the hotsite
+# UC-039: Guest submits the lead form
+# UC-040: Logged-in customer submits the lead form
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run seed
+#   4. pnpm --filter @ikaro/backend run dev
+#   5. Enable the LEAD_FORM module for {{tenantId}} first (see lead-form.http) — otherwise every
+#      request below 404s (PLATFORM_LEAD_FORM_NOT_ENABLED).
+#
+# REST Client environment: select "local" in VS Code status bar
+# These are the bare, guest-reachable routes ChatbotController already established — no
+# /public/ prefix (that convention is BFF-only) and no actor headers, matching a real guest
+# request forwarded by the BFF's publicHeaders() (X-Tenant-ID + X-Internal-Key only).
+
+@baseUrl = {{backendUrl}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Get the live question catalog
+GET {{baseUrl}}/platform/lead-form/config
+X-Tenant-ID: {{tenantId}}
+
+###
+
+### Submit as a guest (customerId: null)
+POST {{baseUrl}}/platform/lead-form/submissions
+X-Tenant-ID: {{tenantId}}
+Content-Type: application/json
+
+{
+  "name": "Maria Silva",
+  "email": "maria.silva@example.com",
+  "phone": "+5511987654321",
+  "answers": [
+    {
+      "questionId": "01234567-0000-7000-8000-000000000101",
+      "value": "Lavagem completa"
+    }
+  ],
+  "customerId": null,
+  "ipAddress": "203.0.113.10"
+}
+
+###
+
+### Submit as an authenticated customer (customerId set)
+POST {{baseUrl}}/platform/lead-form/submissions
+X-Tenant-ID: {{tenantId}}
+Content-Type: application/json
+
+{
+  "name": "João Pereira",
+  "email": "joao.pereira@example.com",
+  "phone": "+5511912345678",
+  "answers": [
+    {
+      "questionId": "01234567-0000-7000-8000-000000000101",
+      "value": "Enceramento"
+    }
+  ],
+  "customerId": "{{customerId}}",
+  "ipAddress": "203.0.113.20"
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FAILURE PATHS
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Module not enabled / no LEAD_FORM layout entry → 404 PLATFORM_LEAD_FORM_NOT_ENABLED
+GET {{baseUrl}}/platform/lead-form/config
+X-Tenant-ID: {{tenantIdWithoutLeadForm}}
+
+###
+
+### CUSTOMER_ONLY audienceMode + no customerId → 401 AUTH_UNAUTHORIZED
+POST {{baseUrl}}/platform/lead-form/submissions
+X-Tenant-ID: {{tenantIdCustomerOnly}}
+Content-Type: application/json
+
+{
+  "name": "Guest Visitor",
+  "email": "guest@example.com",
+  "phone": "+5511900000000",
+  "answers": [],
+  "customerId": null,
+  "ipAddress": "203.0.113.30"
+}
+
+###
+
+### Answer references a questionId not in the current catalog → 400 GENERIC_VALUE_INVALID
+POST {{baseUrl}}/platform/lead-form/submissions
+X-Tenant-ID: {{tenantId}}
+Content-Type: application/json
+
+{
+  "name": "Maria Silva",
+  "email": "maria.silva@example.com",
+  "phone": "+5511987654321",
+  "answers": [
+    {
+      "questionId": "01234567-0000-7000-8000-000000009999",
+      "value": "some stale answer"
+    }
+  ],
+  "customerId": null,
+  "ipAddress": "203.0.113.40"
+}
+
+###
+
+### Required question left unanswered → 400 GENERIC_FIELD_REQUIRED
+POST {{baseUrl}}/platform/lead-form/submissions
+X-Tenant-ID: {{tenantId}}
+Content-Type: application/json
+
+{
+  "name": "Maria Silva",
+  "email": "maria.silva@example.com",
+  "phone": "+5511987654321",
+  "answers": [],
+  "customerId": null,
+  "ipAddress": "203.0.113.50"
+}
+
+###

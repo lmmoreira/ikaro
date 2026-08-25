@@ -18,3 +18,24 @@ export const ChatbotMessageBodySchema = z.object({
 });
 
 export type ChatbotMessageBody = z.infer<typeof ChatbotMessageBodySchema>;
+
+// M20-S05 — outer shape/sanity bounds only, mirrors ChatbotMessageBodySchema's own split: VO
+// validation (Email/PhoneNumber format, name required) and the answers[]/required-question
+// business rules all happen backend-side, against the tenant's live LeadFormConfig catalog
+// (SubmitLeadFormUseCase) — never duplicated here.
+export const SubmitLeadFormBodySchema = z.object({
+  name: z.string().min(1).max(200),
+  email: z.string().min(1).max(320),
+  phone: z.string().min(1).max(30),
+  answers: z
+    .array(
+      z.object({
+        questionId: z.uuid(),
+        value: z.union([z.string(), z.array(z.string())]),
+      }),
+    )
+    .max(20),
+  turnstileToken: z.string().min(1),
+});
+
+export type SubmitLeadFormBody = z.infer<typeof SubmitLeadFormBodySchema>;
