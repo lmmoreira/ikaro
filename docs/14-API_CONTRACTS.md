@@ -240,22 +240,24 @@ The `CHATBOT` hotsite module's own endpoints — never part of the cached manife
   - `404` — tenant slug not found, or `sessionId` doesn't belong to this tenant
 
 ### **Lead Form Widget (Public — UC-038, UC-039, UC-040)**
-The `LEAD_FORM` hotsite module's own endpoints — extends the existing `platform.public.controller.ts` (`.public.controller.ts` under `public/`, `docs/24-BFF_ARCHITECTURE.md`), never part of the cached manifest, since the question catalog and submission are live/write data, not static per-tenant data. Full design: `docs/discovery/lead-form-module/lead-form-module.md`.
+The `LEAD_FORM` hotsite module's own endpoints — extends the existing `platform.public.controller.ts` (`.public.controller.ts` under `public/`, `docs/24-BFF_ARCHITECTURE.md`), never part of the cached manifest, since the question catalog and submission are live/write data, not static per-tenant data. Full design: `docs/discovery/lead-form-module/lead-form-module.md`. Backend surface: a new bare, guest-reachable `platform/lead-form` controller (mirrors `platform/chatbot`'s `ChatbotController` shape exactly — no `/public/` prefix, that convention is BFF-only) — resolved during M20-S05's own story-discovery, 2026-08-25, since M20-S02 deferred all HTTP wiring to S05.
 
 - `GET /public/platform/lead-form/:slug`
   - **Public** — `X-Tenant-Slug` header required (same convention as the Chatbot Widget above)
   - **Response:** `200 OK` — `{ "audienceMode": "GUEST_AND_CUSTOMER" | "CUSTOMER_ONLY", "questions": [{ "id", "label", "type", "required", "options"? }] }` — `options` present only for `SINGLE_CHOICE`/`MULTIPLE_CHOICE`
-  - `404` — tenant slug not found, or the `LEAD_FORM` module isn't `enabled` in the tenant's layout
+  - `404` — tenant slug not found (`withPublicTenant`), or the `LEAD_FORM` module isn't `enabled` in the tenant's layout (backend `LeadFormNotEnabledError`, `PLATFORM_LEAD_FORM_NOT_ENABLED`)
 
 - `POST /public/platform/lead-form/:slug/submissions`
-  - **Public** — `X-Tenant-Slug` header required
+  - **Public** — `X-Tenant-Slug` header required. Route stays `@Public()` even for an authenticated customer — see the 401 row below for how customer identity is resolved without a guard
   - **Request body:** `{ "name": "string", "email": "string", "phone": "string", "answers": [{ "questionId": "uuid", "value": "string | string[]" }], "turnstileToken": "string" }`
   - **Response `200 OK`:** `{ "submissionId": "uuid-v7" }`
-  - BFF verifies `turnstileToken` via Cloudflare `siteverify` before forwarding to the backend
-  - `400` — missing/invalid `name`/`email`/`phone` (`EMAIL_FORMAT_INVALID`/`PHONE_FORMAT_INVALID`/`GENERIC_FIELD_REQUIRED`), a `required: true` question left unanswered, **or** Turnstile verification failed/expired
-  - `401` — `audienceMode === 'CUSTOMER_ONLY'` and the request carries no authenticated customer session (`AUTH_UNAUTHORIZED`)
+  - BFF verifies `turnstileToken` via Cloudflare `siteverify` before resolving the tenant or calling the backend
+  - BFF optionally decodes a customer session from the `Authorization: Bearer <jwt>` header via the existing `decodeUserJwt()` helper (`apps/bff/src/shared/auth/decode-user-jwt.ts` — the established pattern for a `@Public()` route that needs to identify an authenticated user manually, already used by the attachment-upload flow) and forwards `customerId: user?.sub ?? null` to the backend — this is identification only, never an auth requirement at the BFF layer
+  - `400` — missing/invalid `name`/`email`/`phone` (`EMAIL_FORMAT_INVALID`/`PHONE_FORMAT_INVALID`/`GENERIC_FIELD_REQUIRED`), a `required: true` question left unanswered (`GENERIC_FIELD_REQUIRED`), an answer referencing a `questionId` not in the tenant's current question catalog (`GENERIC_VALUE_INVALID` — whole submission rejected, not silently dropped), **or** Turnstile verification failed/expired (`BFF_TURNSTILE_VERIFICATION_FAILED`)
+  - `401 AUTH_UNAUTHORIZED` — `audienceMode === 'CUSTOMER_ONLY'` and no customer session was decoded. Thrown **backend-side**, inside `SubmitLeadFormUseCase` (which already reads `LeadFormConfig` once for answer enrichment below, so this reuses that same read rather than costing a second BFF→backend round-trip) — the error's `code` is the existing `AuthErrorCode.UNAUTHORIZED`, not a new code
   - `429 PLATFORM_LEAD_FORM_DAILY_CAP_REACHED` — tenant-wide or per-IP daily submission cap reached, enforced backend-side via `lead_form_submissions` count queries (mirrors `POST /public/platform/chatbot/messages`'s cap-enforcement pattern exactly — never a BFF-layer check)
   - `404` — tenant slug not found, or the `LEAD_FORM` module isn't `enabled`
+  - Every answer that passes validation is enriched backend-side from the tenant's own live question catalog into the full `{questionId, questionLabel, questionType, answerValue}` snapshot shape `LeadFormSubmission.create()` requires — the backend is the only trusted source for `questionLabel`/`questionType`, client-supplied values for those fields are never used even if present
 
 ### **Tenant Settings (Admin — UC-026)**
 First documented entry for this route — it existed and was implemented (`M13-S31`) before it had a dedicated API contract entry; see `docs/04-USE_CASES.md` UC-026 and `docs/21-TENANTS_SETTINGS_SCHEMA.md` for the full field-level rules this section doesn't repeat.
