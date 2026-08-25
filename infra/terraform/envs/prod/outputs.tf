@@ -27,3 +27,9 @@ output "edge_lb_ip_address" {
   description = "Static external IPv4 address of the Global external ALB (S22) — the IP Cloudflare's proxied A records point at. Operator-facing: direct-to-LB-IP testing (S22/S36 acceptance criteria) and SSL Labs / cert-issuance troubleshooting. Empty until S37 flips enable_edge=true (TD30, 2026-07-22) — same try()-fallback pattern as staging's deferred database output."
   value       = try(module.edge[0].lb_ip_address, "")
 }
+
+output "turnstile_secret" {
+  description = "Cloudflare Turnstile secret key (M20-S05 PR3 prerequisite) — the sensitive counterpart to cloudflare_turnstile_widget.site's own public sitekey (already wired automatically into NEXT_PUBLIC_TURNSTILE_SITE_KEY, no manual step). modules/secrets' own \"containers only, no values via Terraform\" rule (M17 §2) means this value can never be written into Secret Manager by Terraform — this output exists solely so an operator can populate the real turnstile-secret-key version safely, without ever typing or pasting the value by hand: `terraform output -raw turnstile_secret | gcloud secrets versions add turnstile-secret-key --project=ikaro-prod --data-file=-`."
+  value       = cloudflare_turnstile_widget.site.secret
+  sensitive   = true
+}
