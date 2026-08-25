@@ -22,6 +22,7 @@ describe('LeadFormRetentionPurgeJob', () => {
   });
 
   it('is a no-op when nothing is expired', async () => {
+    const submittedAt = new Date('2026-01-01T12:00:00.000Z'); // LeadFormSubmissionBuilder's default
     const submission = new LeadFormSubmissionBuilder()
       .withTenantId(TENANT_A)
       .withExpiresAt(AFTER_CUTOFF)
@@ -31,6 +32,15 @@ describe('LeadFormRetentionPurgeJob', () => {
     const result = await job.run(NOW);
 
     expect(result).toEqual({ submissionsDeleted: 0 });
+    // Persistence check, not just the reported count (Codex review finding, PR #422) — a
+    // no-op could report 0 while still incorrectly deleting the row.
+    expect(
+      await submissionRepo.countByTenantAndDate(
+        TENANT_A,
+        new Date(submittedAt.getTime() - 1000),
+        new Date(submittedAt.getTime() + 1000),
+      ),
+    ).toBe(1);
   });
 
   it('deletes only submissions past their own expiresAt, keeping ones that have not expired yet', async () => {

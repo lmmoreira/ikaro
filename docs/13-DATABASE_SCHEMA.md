@@ -649,7 +649,7 @@ Every event/command consumer — the 16 domain-event handlers and `create-initia
 
 ## Indexing Strategy
 
-Every index **MUST** start with `tenant_id` to ensure query plans use tenant isolation first:
+Every index **MUST** start with `tenant_id` to ensure query plans use tenant isolation first, **except** a standalone index that exists specifically to support a system-triggered, cross-tenant retention-purge job's own unscoped scan (`chatbot_messages.IDX_chatbot_messages_created_at`/`ChatbotRetentionPurgeJob`; `lead_form_submissions.IDX_platform_lead_form_submissions_expires_at`/`LeadFormRetentionPurgeJob`, M20-S04) — these jobs deliberately delete across every tenant in one pass (no tenant_id predicate, matching `ExpirePointsJob`'s own precedent), so a tenant_id-leading composite index can't be seeked for that query; per-tenant queries on the same column continue to use their own composite index as normal (Codex review finding, PR #422 — documented here to avoid future confusion, not itself a new pattern):
 
 ```sql
 -- Booking context
