@@ -1,22 +1,10 @@
 import { z } from 'zod';
+import { LeadFormSubmissionFieldsSchema } from '@ikaro/validation';
 
-// Outer sanity bounds only — VO validation (Email/PhoneNumber format, name required) happens
-// domain-side in LeadFormSubmission.create() (SendChatMessageSchema's own precedent for this
-// split: a static Zod ceiling here must never be the actual business rule). answers[].questionId
-// existence and required-question completeness are re-validated against the tenant's live
-// LeadFormConfig catalog inside SubmitLeadFormUseCase, not here — this schema only checks shape.
-export const SubmitLeadFormSchema = z.object({
-  name: z.string().min(1).max(200),
-  email: z.string().min(1).max(320),
-  phone: z.string().min(1).max(30),
-  answers: z
-    .array(
-      z.object({
-        questionId: z.uuid(),
-        value: z.union([z.string(), z.array(z.string())]),
-      }),
-    )
-    .max(20),
+// name/email/phone/answers shape is shared with the BFF's own SubmitLeadFormBodySchema — see
+// LeadFormSubmissionFieldsSchema's own docstring in @ikaro/validation for why this is a single
+// source of truth rather than a duplicated schema (M20-S05 PR #423 review discussion).
+export const SubmitLeadFormSchema = LeadFormSubmissionFieldsSchema.extend({
   // Resolved by the BFF from an optionally-decoded JWT (decodeUserJwt) — null for a guest.
   customerId: z.string().nullable(),
   // Real visitor IP as resolved by the BFF (getClientIp()) — the backend only ever sees the BFF's

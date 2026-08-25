@@ -42,7 +42,6 @@ import { CreateLeadFormSubmissionUseCase } from './application/use-cases/create-
 import { GetLeadFormConfigUseCase } from './application/use-cases/get-lead-form-config.use-case';
 import { GetLeadFormPublicConfigUseCase } from './application/use-cases/get-lead-form-public-config.use-case';
 import { GetLeadFormStatusUseCase } from './application/use-cases/get-lead-form-status.use-case';
-import { SubmitLeadFormUseCase } from './application/use-cases/submit-lead-form.use-case';
 import { UpdateLeadFormModuleUseCase } from './application/use-cases/update-lead-form-module.use-case';
 import { GetTenantByIdUseCase } from './application/use-cases/get-tenant-by-id.use-case';
 import { GetTenantBySlugUseCase } from './application/use-cases/get-tenant-by-slug.use-case';
@@ -184,7 +183,6 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     GetLeadFormConfigUseCase,
     GetLeadFormPublicConfigUseCase,
     GetLeadFormStatusUseCase,
-    SubmitLeadFormUseCase,
     UpdateLeadFormModuleUseCase,
     GetTenantByIdUseCase,
     GetTenantBySlugUseCase,

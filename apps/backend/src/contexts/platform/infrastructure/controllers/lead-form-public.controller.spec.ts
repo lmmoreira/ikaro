@@ -18,7 +18,6 @@ import { LEAD_FORM_CONFIG_REPOSITORY } from '../../application/ports/lead-form-c
 import { LEAD_FORM_SUBMISSION_REPOSITORY } from '../../application/ports/lead-form-submission-repository.port';
 import { CreateLeadFormSubmissionUseCase } from '../../application/use-cases/create-lead-form-submission.use-case';
 import { GetLeadFormPublicConfigUseCase } from '../../application/use-cases/get-lead-form-public-config.use-case';
-import { SubmitLeadFormUseCase } from '../../application/use-cases/submit-lead-form.use-case';
 import { HotsiteModule } from '../../domain/hotsite-config.aggregate';
 import { LeadFormPublicController } from './lead-form-public.controller';
 
@@ -50,7 +49,6 @@ describe('LeadFormPublicController', () => {
       controllers: [LeadFormPublicController],
       providers: [
         GetLeadFormPublicConfigUseCase,
-        SubmitLeadFormUseCase,
         CreateLeadFormSubmissionUseCase,
         { provide: HOTSITE_CONFIG_REPOSITORY, useValue: hotsiteConfigRepo },
         { provide: LEAD_FORM_CONFIG_REPOSITORY, useValue: leadFormConfigRepo },

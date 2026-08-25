@@ -6,13 +6,13 @@ import {
   SubmitLeadFormSchema,
 } from '../../application/dtos/submit-lead-form.dto';
 import {
+  CreateLeadFormSubmissionUseCase,
+  CreateLeadFormSubmissionUseCaseResult,
+} from '../../application/use-cases/create-lead-form-submission.use-case';
+import {
   GetLeadFormPublicConfigUseCase,
   GetLeadFormPublicConfigUseCaseResult,
 } from '../../application/use-cases/get-lead-form-public-config.use-case';
-import {
-  SubmitLeadFormUseCase,
-  SubmitLeadFormUseCaseResult,
-} from '../../application/use-cases/submit-lead-form.use-case';
 import { mapPlatformError } from '../http/platform-error.mapper';
 
 // Bare route, no `/public/` prefix — that convention is BFF-only (`.public.controller.ts`).
@@ -25,7 +25,7 @@ export class LeadFormPublicController {
   constructor(
     private readonly requestContext: RequestContext,
     private readonly getLeadFormPublicConfig: GetLeadFormPublicConfigUseCase,
-    private readonly submitLeadForm: SubmitLeadFormUseCase,
+    private readonly createLeadFormSubmission: CreateLeadFormSubmissionUseCase,
   ) {}
 
   @Get('config')
@@ -40,9 +40,9 @@ export class LeadFormPublicController {
   @HttpCode(HttpStatus.OK)
   submit(
     @Body(new ZodValidationPipe(SubmitLeadFormSchema)) body: SubmitLeadFormDto,
-  ): Promise<SubmitLeadFormUseCaseResult> {
+  ): Promise<CreateLeadFormSubmissionUseCaseResult> {
     const { tenantId, correlationId } = this.requestContext;
-    return this.submitLeadForm
+    return this.createLeadFormSubmission
       .execute({ tenantId, correlationId, ...body })
       .catch(mapPlatformError);
   }

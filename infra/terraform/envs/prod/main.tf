@@ -412,15 +412,17 @@ module "cloudrun_web" {
   }
 }
 
-# M20-S05 — non-blocking guardrail (CodeRabbit PR #423 review): var.turnstile_site_key's own
-# default is Cloudflare's documented always-pass test sitekey — safe for a not-yet-launched
-# module, but silently defeats real Turnstile protection if a real prod apply never overrides it.
-# A hard `validation` block on the variable (or dropping its default) would fail this exact
-# default on every `terraform plan`, including CI's own plan-only check, which has no override for
-# it today — that would require provisioning a new TF_VAR_turnstile_site_key GitHub Actions
-# variable with a real Cloudflare key nobody has yet. A `check` block instead only emits a
-# non-fatal warning on `plan`/`apply`, so it stays a loud, visible signal for whoever actually
-# deploys this without silently blocking CI or every other PR's prod plan in the meantime.
+# M20-S05 — secondary guard, not the primary protection: var.turnstile_site_key has no default in
+# this env (variables.tf), so `plan`/`apply` already fails closed with "No value for required
+# variable" if terraform.tfvars never sets a real one. This `check` additionally catches the case
+# where someone *does* supply a value but it happens to be one of Cloudflare's documented test
+# sitekeys (e.g. copy-pasted from staging's tfvars as a placeholder) — Cloudflare's own guidance
+# is that test credentials must never reach production
+# (https://developers.cloudflare.com/turnstile/tutorials/excluding-turnstile-from-e2e-tests/).
+# PR #423 review (Codex round 2): an earlier version of this comment argued a warning-only check
+# was the only feasible guard because dropping the default would break every PR's prod plan —
+# that traded away real protection for CI convenience and was rejected; the required-variable fix
+# above is the actual root-cause fix.
 check "turnstile_site_key_not_test_default" {
   assert {
     condition = !contains(

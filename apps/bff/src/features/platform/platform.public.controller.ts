@@ -180,7 +180,7 @@ export class PlatformPublicController {
     }
 
     // Read-only identification, not an auth requirement — this route stays @Public(). The
-    // CUSTOMER_ONLY gate lives entirely backend-side (SubmitLeadFormUseCase), which already
+    // CUSTOMER_ONLY gate lives entirely backend-side (CreateLeadFormSubmissionUseCase), which already
     // re-reads LeadFormConfig for answer enrichment.
     const user = decodeUserJwt(authHeader, this.jwtSecret);
 
