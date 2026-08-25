@@ -69,9 +69,13 @@ export class TypeOrmLeadFormSubmissionRepository implements ILeadFormSubmissionR
     page: number,
     pageSize: number,
   ): Promise<PaginatedLeadFormSubmissions> {
+    // `id` (uuidv7, monotonically increasing) is a deterministic secondary sort key — two
+    // submissions sharing the exact same submittedAt (plausible under concurrent traffic) would
+    // otherwise have an undefined relative order across LIMIT/OFFSET page boundaries (CodeRabbit
+    // review finding, PR #428).
     const [entities, total] = await this.repo.findAndCount({
       where: { tenantId },
-      order: { submittedAt: 'DESC' },
+      order: { submittedAt: 'DESC', id: 'DESC' },
       take: pageSize,
       skip: (page - 1) * pageSize,
     });

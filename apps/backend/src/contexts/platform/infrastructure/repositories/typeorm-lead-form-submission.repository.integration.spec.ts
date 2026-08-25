@@ -273,6 +273,44 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
       expect(page2.items[0].name).toBe('Lead 0');
     });
 
+    it('breaks a submittedAt tie deterministically by id DESC, keeping page boundaries stable across fetches (CodeRabbit review finding, PR #428)', async () => {
+      const repo = makeRepo(new InMemoryEventBus());
+      const tiedAt = new Date(Date.UTC(2026, 0, 1, 12, 0, 0));
+      // Two submissions sharing the exact same submittedAt — plausible under concurrent traffic.
+      // Without a secondary sort key, a plain ORDER BY submitted_at DESC leaves their relative
+      // order across LIMIT/OFFSET undefined by Postgres.
+      await txManager.run(() =>
+        repo.save(
+          new LeadFormSubmissionBuilder()
+            .withId('01234567-0000-7000-8000-000000000001')
+            .withTenantId(TENANT_A)
+            .withName('Tied A')
+            .withSubmittedAt(tiedAt)
+            .build(),
+        ),
+      );
+      await txManager.run(() =>
+        repo.save(
+          new LeadFormSubmissionBuilder()
+            .withId('01234567-0000-7000-8000-000000000002')
+            .withTenantId(TENANT_A)
+            .withName('Tied B')
+            .withSubmittedAt(tiedAt)
+            .build(),
+        ),
+      );
+
+      // id DESC → the higher UUID ('...002') sorts first.
+      const page1 = await repo.findByTenantPaginated(TENANT_A, 1, 1);
+      expect(page1.items[0].name).toBe('Tied B');
+      const page2 = await repo.findByTenantPaginated(TENANT_A, 2, 1);
+      expect(page2.items[0].name).toBe('Tied A');
+
+      // Re-fetching the same pages returns the identical order — no flapping across calls.
+      const page1Again = await repo.findByTenantPaginated(TENANT_A, 1, 1);
+      expect(page1Again.items[0].name).toBe('Tied B');
+    });
+
     it("findByTenantPaginated never returns another tenant's rows", async () => {
       const repo = makeRepo(new InMemoryEventBus());
       await txManager.run(() => repo.save(buildSubmission(TENANT_A)));
