@@ -290,6 +290,7 @@ BFF: same two endpoints added to S01's `lead-form.controller.ts` (BFF side), `ST
 **Acceptance Criteria:**
 - [ ] List is correctly paginated and ordered; a fixture with >1 page proves `page`/`pageSize`/`total` are all correct
 - [ ] Detail returns the full `answers` array with `questionLabel`/`questionType`/`answerValue` from the submission's own snapshot — a test proves this renders correctly even after the *config's* question catalog has since changed (no live lookup against `lead_form_configs`)
+- [ ] Tenant isolation: a submission created for Tenant A returns `404` when queried via `GET .../submissions/:id` by a caller authenticated for Tenant B; Tenant B's paginated list never includes Tenant A's submissions (added during story-discovery, 2026-08-25 — the description's own "404 if the ID doesn't belong to this tenant" prose had no matching checkbox)
 - [ ] `STAFF` can read both endpoints (not `403`) — this is a read, not a config edit
 - [ ] `.http` blocks for both endpoints
 - [ ] Coverage ≥80% on changed code; `tsc --noEmit`, lint, full test suite green
@@ -335,28 +336,29 @@ Follow `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § 7's checklist exactly, for t
 **Agent:** `frontend-ts`
 **Complexity:** M
 **Docs to load:** `docs/04-USE_CASES.md` UC-037, `docs/14-API_CONTRACTS.md` § Lead Form Admin Config, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`
-**Prototype reference:** `plan/journey/manager/prototypes/lead-form/` (`01-config.html`, `01b-config-max-questions.html`, `01c-config-validation-error.html`)
+**Prototype reference:** `plan/journey/manager/prototypes/lead-form/` (`01-config.html`, `01b-config-max-questions.html`, `01c-config-validation-error.html`, `01d-remove-question-confirm.html`)
 
 **Description:**
-`apps/web/features/platform/components/hotsite/modules/LeadFormConfigPanel.tsx` — same `ModuleConfigPanelProps` contract every other module panel (Hero, Chatbot, ...) already implements. Clicking "Aplicar" fires **one** request: S01's consolidated `PATCH /v1/tenants/lead-form/config`, carrying teaser fields (title/subtitle/ctaLabel/variant/bgStyle) **and** `audienceMode`/`questions[]` together in a single body, saved atomically in one backend transaction (see `docs/02-DOMAIN_MODEL.md` § `LeadFormConfig` "Cross-aggregate save"). This is not client-side orchestration of two calls — an earlier draft of this panel made two independent, unsynchronized REST calls (teaser via `PATCH /v1/tenants/hotsite`, audience/questions via S01's endpoint), which could leave the manager's edit half-applied on a partial failure; that design was replaced before implementation. The module's `enabled` toggle is a separate, pre-existing control (the same inline toggle every other module's Layout-tab row already has) that still goes through `PATCH /v1/tenants/hotsite` on its own — it's not part of this panel's "Aplicar" action.
+`apps/web/features/platform/components/hotsite/modules/LeadFormConfigPanel.tsx` — same `ModuleConfigPanelProps` contract every other module panel (Hero, Chatbot, ...) already implements. "Aplicar" keeps the existing hotsite-editor meaning: it commits the panel edit to the editor's temporary local draft and makes no network request. When the manager later clicks "Publicar", the lead-form teaser fields (title/subtitle/ctaLabel/variant/bgStyle) and `audienceMode`/`questions[]` are sent together through S01's consolidated `PATCH /v1/tenants/lead-form/config`, saved atomically in one backend transaction (see `docs/02-DOMAIN_MODEL.md` § `LeadFormConfig` "Cross-aggregate save"). The request is one lead-form configuration save, not a client-side orchestration of separate teaser and audience/questions calls. An earlier draft of this panel made two independent, unsynchronized REST calls (teaser via `PATCH /v1/tenants/hotsite`, audience/questions via S01's endpoint), which could leave the manager's edit half-applied on a partial failure; that design was replaced before implementation. The module's `enabled` toggle is a separate, pre-existing control (the same inline toggle every other module's Layout-tab row already has) that still goes through `PATCH /v1/tenants/hotsite` on its own — it's not part of this panel's "Aplicar" action.
 
-Inline question builder: expandable `<details>` cards, add/edit/remove entirely on the same page (no per-question navigation), per the prototype exactly — including the 20-question-cap disabled state and the per-question options-count validation error, both already fully designed in `01b`/`01c`.
+Inline question builder: expandable `<details>` cards, add/edit/remove and accessible drag-and-drop reordering entirely on the same page (no per-question navigation), per the prototype exactly — including the 20-question-cap disabled state and the per-question options-count validation error, both already fully designed in `01b`/`01c`. Reordering should reuse the existing `@dnd-kit` pattern from the hotsite Layout tab, including keyboard support.
 
-New route: `apps/web/app/dashboard/hotsite/lead-form/page.tsx`, reached from the hotsite editor's Layout tab (already updated in the prototype; the real `HotsiteEditor`'s Layout tab component needs the equivalent real-code row — grep the component `01-hotsite-editor.html`'s real counterpart maps to).
+The panel remains an in-place `HotsiteEditor` module-config view; no new `/dashboard/hotsite/lead-form` route is created. The hotsite editor's Layout tab row is the entry point.
 
 **Backend HTTP surface:** none new — reuses S01's consolidated `GET`/`PATCH /v1/tenants/lead-form/config` and the existing `PATCH /v1/tenants/hotsite` (only for the separate `enabled` toggle).
 
 **Acceptance Criteria:**
-- [ ] Manager can set `audienceMode`, edit teaser fields, and add/edit/remove up to 20 questions, then save all of it with one "Aplicar" click — one network request, not two
+- [ ] Manager can set `audienceMode`, edit teaser fields, and add/edit/remove/reorder up to 20 questions, then click "Aplicar" to keep the complete edit in the temporary editor draft
+- [ ] On "Publicar", teaser fields, `audienceMode`, and `questions[]` are sent through one consolidated lead-form config request; the backend persists them atomically in one transaction
 - [ ] The `enabled` toggle saves independently of "Aplicar" and does not require the rest of the form to be valid
 - [ ] 20-question cap disables "Adicionar pergunta" with the inline explainer from the prototype
 - [ ] A choice-type question with <2 or >10 options blocks save with the inline error from the prototype, expanded `<details>` card, every other question shown normally
-- [ ] Removing a question that already has submissions shows the confirmation dialog explaining the snapshot behavior — test fixture seeds a real submission (via the shared `LeadFormSubmissionBuilder` from S02, referencing the question being removed) so this is a genuine behavioral assertion, not just a static render of the dialog copy
+- [ ] Questions returned by the manager config read include `hasSubmissions`, calculated by one tenant-scoped lookup; removing a question with submissions shows the confirmation dialog explaining the snapshot behavior — test fixture seeds a real submission (via the shared `LeadFormSubmissionBuilder` from S02, referencing the question being removed) so this is a genuine behavioral assertion, not just a static render of the dialog copy
 - [ ] Every visible string localized (`useTranslations()`, both `pt-BR` and `en` keys added in this commit)
 - [ ] Component + Vitest unit test + React Testing Library test
 - [ ] Coverage ≥80% on changed code; `tsc --noEmit`, lint, full test suite green
 
-**Dependencies:** S01 (consolidated config endpoint), S07 (module type registration this panel's props depend on).
+**Dependencies:** S01 (consolidated config endpoint and manager config response), S07 (module type registration this panel's props depend on).
 
 ---
 

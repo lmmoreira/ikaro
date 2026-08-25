@@ -26,8 +26,9 @@ flowchart TD
     RemoveConfirm -- "Cancelar" --> Config
     RemovedInline --> Config
 
-    Config --> Apply(("Clica 'Aplicar'<br/>(UMA chamada — teaser + audiência + perguntas juntos)"))
-    Apply --> Validate{"PATCH /v1/tenants/lead-form/config<br/>válido? (transação única)"}
+    Config --> Apply(("Clica 'Aplicar'<br/>(mantém no rascunho local)"))
+    Apply --> Publish(("Clica 'Publicar'<br/>(uma chamada de configuração do lead form)"))
+    Publish --> Validate{"PATCH /v1/tenants/lead-form/config<br/>válido? (transação única)"}
     Validate -- "não — opções insuficientes" --> ValError["erro de validação<br/>(01c-config-validation-error) |UC-037 A2|"]
     Validate -- "sim" --> Back["volta para 01-hotsite-editor.html"]
 
@@ -48,7 +49,7 @@ Not drawn as a separate node (small, same-page state per README's "minor conditi
 
 - [ ] Milestone/story: not yet assigned — run `/story-discovery M20-Sxx` per `plan/M20-LEAD-FORM-MODULE.md`.
 - [x] Retention window and daily/per-IP submission caps (`settings.leadForm.{retentionMonths,maxSubmissionsPerDay,maxSubmissionsPerIpPerDay}`, UC-042) are **not** configured here — all three live on the existing tenant settings page (`manager/prototypes/configuracoes/01e-lead-form-section.html`). All three are normal tenant-editable settings (post-review redesign 2026-08-24 corrected the two caps away from an Ikaro-only deviation Chatbot's cost caps use — Lead Form submissions have no equivalent Ikaro cost exposure). No new screen for any of it in this journey.
-- [ ] Mobile bottom-nav growing from 4 icons + "Mais" to 5 + "Mais" (adding "Leads") is flagged but not resolved — see `manager/prototypes/lead-form/dev-notes.md`.
+- [x] Mobile navigation keeps the existing icons unchanged; "Leads" is placed inside the existing "Mais" sheet.
 
 ## Prototype
 
@@ -57,7 +58,7 @@ Folder: `manager/prototypes/lead-form/`
 | File | Screen | UC | Status |
 |---|---|---|---|
 | `index.html` | Navigation hub | — | ✅ Criado |
-| `01-config.html` | Configuração (audiência, teaser, perguntas inline) | UC-037 | ✅ Criado |
+| `01-config.html` | Configuração (audiência, teaser, perguntas inline e reordenação) | UC-037 | ✅ Criado |
 | `01b-config-max-questions.html` | Limite de 20 perguntas atingido | UC-037 A1 | ✅ Criado |
 | `01c-config-validation-error.html` | Pergunta com menos de 2 opções | UC-037 A2 | ✅ Criado |
 | `01d-remove-question-confirm.html` | Confirmação ao remover pergunta com respostas já recebidas | UC-037 A4 | ✅ Criado |
