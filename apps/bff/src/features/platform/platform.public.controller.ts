@@ -13,6 +13,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import {
   BffErrorCode,
+  GenericErrorCode,
   HotsiteChatbotMessageResponse,
   HotsiteChatbotStatusResponse,
   HotsiteLeadFormConfigResponse,
@@ -146,9 +147,17 @@ export class PlatformPublicController {
 
   @Get('lead-form/:slug')
   @Public()
-  getLeadFormConfig(
+  async getLeadFormConfig(
+    @Param('slug') pathSlug: string,
     @Headers('x-tenant-slug') tenantSlug: string | undefined,
   ): Promise<HotsiteLeadFormConfigResponse> {
+    // async, unlike this method's earlier plain-function shape: assertSlugMatchesTenantHeader's
+    // throw must become a rejected Promise even when called directly (as this file's own unit
+    // spec does, bypassing Nest's request pipeline) — a synchronous throw from a non-async
+    // method escapes an `expect(...).rejects` assertion entirely (found live while adding the
+    // mismatch test, PR #423 review round 6). Nest's own HTTP pipeline already catches both
+    // shapes uniformly, so this only mattered for direct unit-test calls, not real requests.
+    this.assertSlugMatchesTenantHeader(pathSlug, tenantSlug);
     return withPublicTenant(this.backendHttp, tenantSlug, (tenantId) =>
       this.backendHttp.getForPublic<HotsiteLeadFormConfigResponse>(
         '/platform/lead-form/config',
@@ -161,6 +170,7 @@ export class PlatformPublicController {
   @Public()
   @HttpCode(HttpStatus.OK)
   async submitLeadForm(
+    @Param('slug') pathSlug: string,
     @Headers('x-tenant-slug') tenantSlug: string | undefined,
     @Headers('authorization') authHeader: string | undefined,
     @Body(new ZodValidationPipe(SubmitLeadFormBodySchema)) body: SubmitLeadFormBody,
@@ -178,6 +188,8 @@ export class PlatformPublicController {
         'Turnstile verification failed or expired',
       );
     }
+
+    this.assertSlugMatchesTenantHeader(pathSlug, tenantSlug);
 
     // Read-only identification, not an auth requirement — this route stays @Public(). The
     // CUSTOMER_ONLY gate lives entirely backend-side (CreateLeadFormSubmissionUseCase), which already
@@ -207,5 +219,32 @@ export class PlatformPublicController {
         tenantId,
       );
     });
+  }
+
+  // The lead-form routes carry the tenant slug in both the URL path (:slug, matching
+  // getManifest's own path-slug convention) and the X-Tenant-Slug header (the documented,
+  // authoritative resolver — docs/14-API_CONTRACTS.md § Lead Form Widget, same convention as
+  // Chatbot). Without this check, the header alone drove resolution and the path segment was
+  // silently ignored: a request to /lead-form/tenant-a with X-Tenant-Slug: tenant-b resolved
+  // against tenant B while the URL visually named tenant A (PR #423 review round 6, Codex).
+  // Rejecting a mismatch here — before any backend call — closes that ambiguity for both
+  // routes without requiring a second backend round-trip to validate the path slug on its own.
+  // GenericErrorCode.VALUE_INVALID (400), not a 404: this is a malformed/self-inconsistent
+  // request (two different caller-supplied identifiers disagree), not "tenant doesn't exist" —
+  // the header's own tenant may well be valid. A missing header entirely is still handled by
+  // withPublicTenant's existing 400 (unchanged, this check is skipped when tenantSlug is
+  // undefined so that behavior isn't touched). PlatformErrorCode.TENANT_NOT_FOUND was
+  // considered and rejected: it's a backend-only code — throwProblemDetail's BffThrowableCode
+  // union deliberately excludes it (TD23 Story 11), so a BFF site can't throw a code from a
+  // namespace it doesn't own.
+  private assertSlugMatchesTenantHeader(pathSlug: string, tenantSlug: string | undefined): void {
+    if (tenantSlug !== undefined && pathSlug !== tenantSlug) {
+      throw throwProblemDetail(
+        HttpStatus.BAD_REQUEST,
+        GenericErrorCode.VALUE_INVALID,
+        'URL slug does not match the X-Tenant-Slug header',
+        'slug',
+      );
+    }
   }
 }

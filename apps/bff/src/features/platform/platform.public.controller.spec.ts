@@ -428,7 +428,7 @@ describe('PlatformPublicController', () => {
         makeConfigService(),
       );
 
-      const result = await controller.getLeadFormConfig('lavacar-bh');
+      const result = await controller.getLeadFormConfig('lavacar-bh', 'lavacar-bh');
 
       expect(backendHttp.get).toHaveBeenCalledWith('/internal/tenants/by-slug/lavacar-bh');
       expect(backendHttp.getForPublic).toHaveBeenCalledWith(
@@ -446,7 +446,7 @@ describe('PlatformPublicController', () => {
         makeConfigService(),
       );
 
-      await expect(controller.getLeadFormConfig(undefined)).rejects.toThrow();
+      await expect(controller.getLeadFormConfig('lavacar-bh', undefined)).rejects.toThrow();
       expect(backendHttp.getForPublic).not.toHaveBeenCalled();
     });
 
@@ -461,7 +461,20 @@ describe('PlatformPublicController', () => {
         makeConfigService(),
       );
 
-      await expect(controller.getLeadFormConfig('lavacar-bh')).rejects.toThrow('404');
+      await expect(controller.getLeadFormConfig('lavacar-bh', 'lavacar-bh')).rejects.toThrow('404');
+    });
+
+    it('rejects with 400 when the URL slug does not match the X-Tenant-Slug header (PR #423 review round 6, Codex)', async () => {
+      const backendHttp = makeBackendHttp();
+      const controller = new PlatformPublicController(
+        backendHttp,
+        makeTurnstileService(),
+        makeConfigService(),
+      );
+
+      await expect(controller.getLeadFormConfig('tenant-a', 'tenant-b')).rejects.toThrow();
+      expect(backendHttp.get).not.toHaveBeenCalled();
+      expect(backendHttp.getForPublic).not.toHaveBeenCalled();
     });
   });
 
@@ -492,7 +505,7 @@ describe('PlatformPublicController', () => {
       );
 
       await expect(
-        controller.submitLeadForm('lavacar-bh', undefined, body, mockReq),
+        controller.submitLeadForm('lavacar-bh', 'lavacar-bh', undefined, body, mockReq),
       ).rejects.toThrow();
 
       expect(verify).toHaveBeenCalledWith('valid-token', '203.0.113.10');
@@ -508,7 +521,13 @@ describe('PlatformPublicController', () => {
         makeConfigService(),
       );
 
-      const result = await controller.submitLeadForm('lavacar-bh', undefined, body, mockReq);
+      const result = await controller.submitLeadForm(
+        'lavacar-bh',
+        'lavacar-bh',
+        undefined,
+        body,
+        mockReq,
+      );
 
       expect(backendHttp.postForPublic).toHaveBeenCalledWith(
         '/platform/lead-form/submissions',
@@ -546,7 +565,7 @@ describe('PlatformPublicController', () => {
         makeConfigService(secret),
       );
 
-      await controller.submitLeadForm('lavacar-bh', `Bearer ${token}`, body, mockReq);
+      await controller.submitLeadForm('lavacar-bh', 'lavacar-bh', `Bearer ${token}`, body, mockReq);
 
       expect(backendHttp.postForPublic).toHaveBeenCalledWith(
         '/platform/lead-form/submissions',
@@ -576,7 +595,7 @@ describe('PlatformPublicController', () => {
         makeConfigService(secret),
       );
 
-      await controller.submitLeadForm('lavacar-bh', `Bearer ${token}`, body, mockReq);
+      await controller.submitLeadForm('lavacar-bh', 'lavacar-bh', `Bearer ${token}`, body, mockReq);
 
       expect(backendHttp.postForPublic).toHaveBeenCalledWith(
         '/platform/lead-form/submissions',
@@ -606,7 +625,7 @@ describe('PlatformPublicController', () => {
         makeConfigService(secret),
       );
 
-      await controller.submitLeadForm('lavacar-bh', `Bearer ${token}`, body, mockReq);
+      await controller.submitLeadForm('lavacar-bh', 'lavacar-bh', `Bearer ${token}`, body, mockReq);
 
       expect(backendHttp.postForPublic).toHaveBeenCalledWith(
         '/platform/lead-form/submissions',
@@ -623,7 +642,7 @@ describe('PlatformPublicController', () => {
         makeConfigService(),
       );
 
-      await controller.submitLeadForm('lavacar-bh', undefined, body, mockReq);
+      await controller.submitLeadForm('lavacar-bh', 'lavacar-bh', undefined, body, mockReq);
 
       expect(backendHttp.patch).not.toHaveBeenCalled();
       expect(backendHttp.delete).not.toHaveBeenCalled();
@@ -639,8 +658,27 @@ describe('PlatformPublicController', () => {
       );
 
       await expect(
-        controller.submitLeadForm('lavacar-bh', undefined, body, mockReq),
+        controller.submitLeadForm('lavacar-bh', 'lavacar-bh', undefined, body, mockReq),
       ).rejects.toThrow('429');
+    });
+
+    it('rejects with 400 when the URL slug does not match the X-Tenant-Slug header, after Turnstile but before resolving the tenant (PR #423 review round 6, Codex)', async () => {
+      const backendHttp = makeSubmitBackendHttp();
+      const verify = jest.fn().mockResolvedValue(true);
+      const controller = new PlatformPublicController(
+        backendHttp,
+        makeTurnstileService(verify),
+        makeConfigService(),
+      );
+
+      await expect(
+        controller.submitLeadForm('tenant-a', 'tenant-b', undefined, body, mockReq),
+      ).rejects.toThrow();
+      // Turnstile's own ordering guarantee (verified before the tenant is even resolved) still
+      // holds — this check only ever runs after a genuinely valid token, never as a way to skip it.
+      expect(verify).toHaveBeenCalled();
+      expect(backendHttp.get).not.toHaveBeenCalled();
+      expect(backendHttp.postForPublic).not.toHaveBeenCalled();
     });
   });
 });
