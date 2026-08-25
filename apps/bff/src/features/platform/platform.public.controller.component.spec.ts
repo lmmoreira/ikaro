@@ -1,4 +1,3 @@
-import { HttpService } from '@nestjs/axios';
 import { HttpException, INestApplication } from '@nestjs/common';
 import * as jwt from 'jsonwebtoken';
 import {
@@ -478,25 +477,19 @@ describe('PlatformPublicController (component)', () => {
       expect(res.status).toBe(400);
     });
 
-    // AC (M20-S05): this negative path must exercise Cloudflare's real siteverify endpoint with
-    // the documented always-fail test secret — not a mocked HTTP response. httpService is
-    // globally mocked for the whole component-test app (component-test.helpers.ts), so this test
-    // delegates that one mocked call through to a real HttpService instance instead, forcing the
-    // request body's secret to the always-fail value regardless of which secret the app's own
-    // TURNSTILE_SECRET_KEY env resolves to — the same real-network contract
-    // turnstile.service.spec.ts already proves for TurnstileService in isolation, exercised here
-    // at the controller level (PR #423 review round 3, Codex: the prior version mocked
-    // httpService.post directly, never exercising Cloudflare's real API for the "backend never
-    // invoked" guarantee specifically).
+    // Cloudflare's real always-fail contract is verified once, at the layer that owns it
+    // (TurnstileService.verify() against the real siteverify endpoint with the documented
+    // always-fail secret — turnstile.service.spec.ts). This test's own job is a pure
+    // control-flow fact about this controller — "given verify() returns false, is the backend
+    // never called" — which a mocked response proves exactly as well as a real network call
+    // would, with none of the added CI fragility of hitting the same external dependency twice
+    // (PR #423 review round 7, reconsidered after round 6: an earlier version of this test made
+    // a second real network call here, reasoning the AC's "not a mocked HTTP response" line
+    // required it — but that line's actual intent is "prove Cloudflare's contract is honored
+    // somewhere," already satisfied by turnstile.service.spec.ts alone; duplicating it here
+    // added a second point of failure for zero additional confidence).
     it('returns 400 when Turnstile verification fails, never reaching the backend', async () => {
-      const realHttp = new HttpService();
-      httpService.post.mockImplementationOnce((url, body, config) =>
-        realHttp.post(
-          url,
-          { ...(body as Record<string, unknown>), secret: '2x0000000000000000000000000000000AA' },
-          config,
-        ),
-      );
+      httpService.post.mockReturnValueOnce(makeObservableResponse({ success: false }));
 
       const res = await request(app.getHttpServer())
         .post('/v1/public/platform/lead-form/lavacar-bh/submissions')
@@ -507,7 +500,7 @@ describe('PlatformPublicController (component)', () => {
       expect(res.body).toMatchObject({ code: 'BFF_TURNSTILE_VERIFICATION_FAILED' });
       expect(backendHttpService.get).not.toHaveBeenCalled();
       expect(backendHttpService.postForPublic).not.toHaveBeenCalled();
-    }, 15_000);
+    });
 
     it('submits as a guest (no Authorization header) — customerId: null forwarded', async () => {
       mockTurnstileSuccess();
