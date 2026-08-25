@@ -1,7 +1,9 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import {
   AddressErrorCode,
+  AuthErrorCode,
   CountryCodeErrorCode,
+  GenericErrorCode,
   HexColorErrorCode,
   PlatformErrorCode,
   SeoErrorCode,
@@ -199,7 +201,7 @@ describe('mapPlatformError', () => {
   it('maps LeadFormCustomerOnlyError to 401 with the existing AUTH_UNAUTHORIZED code, not a new one', () => {
     const err = call(new LeadFormCustomerOnlyError());
     expect(err.getStatus()).toBe(HttpStatus.UNAUTHORIZED);
-    expect(err.getResponse()).toMatchObject({ code: 'AUTH_UNAUTHORIZED' });
+    expect(err.getResponse()).toMatchObject({ code: AuthErrorCode.UNAUTHORIZED });
   });
 
   it('maps LeadFormDailyCapReachedError to 429 with code — the first HTTP consumer of this M20-S02 error', () => {
@@ -214,7 +216,7 @@ describe('mapPlatformError', () => {
     const err = call(new LeadFormAnswerQuestionInvalidError(0));
     expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
     expect(err.getResponse()).toMatchObject({
-      code: 'GENERIC_VALUE_INVALID',
+      code: GenericErrorCode.VALUE_INVALID,
       field: 'answers[0].questionId',
     });
   });
@@ -223,7 +225,7 @@ describe('mapPlatformError', () => {
     const err = call(new LeadFormAnswerRequiredError('question-1'));
     expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
     expect(err.getResponse()).toMatchObject({
-      code: 'GENERIC_FIELD_REQUIRED',
+      code: GenericErrorCode.FIELD_REQUIRED,
       field: 'answers.question-1',
     });
   });
