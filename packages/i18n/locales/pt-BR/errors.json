@@ -141,6 +141,7 @@
   "PLATFORM_LEAD_FORM_QUESTION_DUPLICATE_ID": "Ocorreu um erro ao salvar as perguntas. Tente novamente.",
   "PLATFORM_LEAD_FORM_DAILY_CAP_REACHED": "O limite diário de envios deste formulário foi atingido. Tente novamente amanhã.",
   "PLATFORM_LEAD_FORM_NOT_ENABLED": "Este formulário não está disponível no momento.",
+  "PLATFORM_LEAD_FORM_SUBMISSION_NOT_FOUND": "Este envio não foi encontrado.",
   "GENERIC_FIELD_REQUIRED": "Este campo é obrigatório.",
   "GENERIC_VALUE_TOO_SHORT": "Este valor deve ter no mínimo {minimum} caracteres.",
   "GENERIC_VALUE_TOO_LONG": "Este valor deve ter no máximo {maximum} caracteres.",

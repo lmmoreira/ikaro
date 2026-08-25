@@ -168,3 +168,19 @@ export class LeadFormAnswerRequiredError extends Error implements DomainErrorSha
     this.field = `answers.${questionId}`;
   }
 }
+
+/**
+ * M20-S06 — `GET .../submissions/:id` when the id doesn't exist or belongs to a different
+ * tenant. Deliberately takes no distinguishing message detail beyond the id (mirrors
+ * `ChatbotSessionNotFoundError`'s own "not found for this tenant" shape) — the "404, not 403"
+ * cross-tenant-probing convention `GetBookingByIdUseCase` already establishes.
+ */
+export class LeadFormSubmissionNotFoundError extends PlatformDomainError {
+  constructor(submissionId: string) {
+    super(
+      `Lead form submission '${submissionId}' not found for this tenant`,
+      PlatformErrorCode.LEAD_FORM_SUBMISSION_NOT_FOUND,
+    );
+    this.name = 'LeadFormSubmissionNotFoundError';
+  }
+}

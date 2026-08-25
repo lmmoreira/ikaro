@@ -180,3 +180,36 @@ export type UpdateLeadFormConfigRequest = Partial<LeadFormConfigResponse>;
 export interface LeadFormStatusResponse {
   enabled: boolean;
 }
+
+// M20-S06 — UC-041 main flow steps 1-2/6 (docs/14-API_CONTRACTS.md § Leads Submissions (Admin)).
+// search/filters/submittedFrom/submittedTo (M20-S12/S13) are out of this story's scope.
+export interface LeadFormSubmissionListItem {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  submittedAt: string;
+}
+
+export interface LeadFormSubmissionsListResponse {
+  items: LeadFormSubmissionListItem[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+// answerValue is a snapshot, not a live lookup — see docs/02-DOMAIN_MODEL.md § LeadFormSubmission.
+export interface LeadFormSubmissionAnswer {
+  questionLabel: string;
+  questionType: LeadFormQuestionType;
+  answerValue: string | string[];
+}
+
+export interface LeadFormSubmissionDetailResponse {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  answers: LeadFormSubmissionAnswer[];
+  submittedAt: string;
+}

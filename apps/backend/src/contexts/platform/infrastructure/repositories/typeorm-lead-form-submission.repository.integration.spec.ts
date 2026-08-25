@@ -245,4 +245,53 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
       expect(countUnderOldBuggyLogic).toBe(0);
     });
   });
+
+  describe('findByTenantPaginated / findById (M20-S06)', () => {
+    it('paginates real rows ordered submittedAt DESC and round-trips email/phone via reconstitute', async () => {
+      const repo = makeRepo(new InMemoryEventBus());
+      for (let i = 0; i < 3; i++) {
+        await txManager.run(() =>
+          repo.save(
+            new LeadFormSubmissionBuilder()
+              .withTenantId(TENANT_A)
+              .withName(`Lead ${i}`)
+              .withSubmittedAt(new Date(Date.UTC(2026, 0, 1, 0, 0, i)))
+              .build(),
+          ),
+        );
+      }
+
+      const page1 = await repo.findByTenantPaginated(TENANT_A, 1, 2);
+      expect(page1.total).toBe(3);
+      expect(page1.items).toHaveLength(2);
+      expect(page1.items[0].name).toBe('Lead 2');
+      expect(page1.items[0].email.address).toBe('lead@example.com');
+      expect(page1.items[0].phone.value).toBe('+5511912345678');
+
+      const page2 = await repo.findByTenantPaginated(TENANT_A, 2, 2);
+      expect(page2.items).toHaveLength(1);
+      expect(page2.items[0].name).toBe('Lead 0');
+    });
+
+    it("findByTenantPaginated never returns another tenant's rows", async () => {
+      const repo = makeRepo(new InMemoryEventBus());
+      await txManager.run(() => repo.save(buildSubmission(TENANT_A)));
+      await txManager.run(() => repo.save(buildSubmission(TENANT_B)));
+
+      const { items, total } = await repo.findByTenantPaginated(TENANT_B, 1, 20);
+      expect(total).toBe(1);
+      expect(items[0].tenantId).toBe(TENANT_B);
+    });
+
+    it('findById returns null for an id belonging to a different tenant', async () => {
+      const repo = makeRepo(new InMemoryEventBus());
+      const submission = buildSubmission(TENANT_A);
+      await txManager.run(() => repo.save(submission));
+
+      expect(await repo.findById(submission.id, TENANT_B)).toBeNull();
+      const found = await repo.findById(submission.id, TENANT_A);
+      expect(found).not.toBeNull();
+      expect(found!.id).toBe(submission.id);
+    });
+  });
 });

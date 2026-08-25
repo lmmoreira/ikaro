@@ -44,4 +44,21 @@ export class InMemoryLeadFormSubmissionRepository implements ILeadFormSubmission
     }
     return expired.length;
   }
+
+  async findByTenantPaginated(
+    tenantId: string,
+    page: number,
+    pageSize: number,
+  ): Promise<{ items: LeadFormSubmission[]; total: number }> {
+    const all = [...this.store.values()]
+      .filter((s) => s.tenantId === tenantId)
+      .sort((a, b) => b.submittedAt.getTime() - a.submittedAt.getTime());
+    const start = (page - 1) * pageSize;
+    return { items: all.slice(start, start + pageSize), total: all.length };
+  }
+
+  async findById(id: string, tenantId: string): Promise<LeadFormSubmission | null> {
+    const submission = this.store.get(id);
+    return submission && submission.tenantId === tenantId ? submission : null;
+  }
 }

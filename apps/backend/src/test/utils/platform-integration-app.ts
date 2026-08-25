@@ -21,6 +21,7 @@ import { ChatbotProviderBalanceEntity } from '../../contexts/platform/infrastruc
 import { ChatbotSessionEntity } from '../../contexts/platform/infrastructure/entities/chatbot-session.entity';
 import { HotsiteConfigEntity } from '../../contexts/platform/infrastructure/entities/hotsite-config.entity';
 import { LeadFormConfigEntity } from '../../contexts/platform/infrastructure/entities/lead-form-config.entity';
+import { LeadFormSubmissionEntity } from '../../contexts/platform/infrastructure/entities/lead-form-submission.entity';
 import { TenantEntity } from '../../contexts/platform/infrastructure/entities/tenant.entity';
 import { PlatformModule } from '../../contexts/platform/platform.module';
 import { InMemoryEventBus } from '../infrastructure/in-memory-event-bus';
@@ -60,6 +61,7 @@ export async function createPlatformIntegrationApp(
           TenantEntity,
           HotsiteConfigEntity,
           LeadFormConfigEntity,
+          LeadFormSubmissionEntity,
           InboxRecordEntity,
           ChatbotSessionEntity,
           ChatbotMessageEntity,

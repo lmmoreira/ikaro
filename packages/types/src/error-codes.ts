@@ -166,6 +166,9 @@ export const PlatformErrorCode = {
   // M20-S05 — the public GET/POST lead-form endpoints 404 when the LEAD_FORM module is absent or
   // disabled in the tenant's hotsite layout (docs/14-API_CONTRACTS.md § Lead Form Widget).
   LEAD_FORM_NOT_ENABLED: 'PLATFORM_LEAD_FORM_NOT_ENABLED',
+  // M20-S06 — GET .../submissions/:id when the id doesn't exist or belongs to a different tenant
+  // (docs/14-API_CONTRACTS.md § Leads Submissions (Admin)).
+  LEAD_FORM_SUBMISSION_NOT_FOUND: 'PLATFORM_LEAD_FORM_SUBMISSION_NOT_FOUND',
 } as const;
 export type PlatformErrorCode = (typeof PlatformErrorCode)[keyof typeof PlatformErrorCode];
 

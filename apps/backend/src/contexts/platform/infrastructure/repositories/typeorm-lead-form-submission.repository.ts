@@ -4,7 +4,12 @@ import { Between, Repository } from 'typeorm';
 import { drainDomainEvents } from '../../../../shared/infrastructure/outbox/drain-domain-events';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
-import { ILeadFormSubmissionRepository } from '../../application/ports/lead-form-submission-repository.port';
+import { Email } from '../../../../shared/value-objects/email.vo';
+import { PhoneNumber } from '../../../../shared/value-objects/phone-number.vo';
+import {
+  ILeadFormSubmissionRepository,
+  PaginatedLeadFormSubmissions,
+} from '../../application/ports/lead-form-submission-repository.port';
 import { LeadFormSubmission } from '../../domain/lead-form-submission.aggregate';
 import { LeadFormSubmissionEntity } from '../entities/lead-form-submission.entity';
 
@@ -57,6 +62,40 @@ export class TypeOrmLeadFormSubmissionRepository implements ILeadFormSubmissionR
       .where('expires_at < :now', { now })
       .execute();
     return result.affected ?? 0;
+  }
+
+  async findByTenantPaginated(
+    tenantId: string,
+    page: number,
+    pageSize: number,
+  ): Promise<PaginatedLeadFormSubmissions> {
+    const [entities, total] = await this.repo.findAndCount({
+      where: { tenantId },
+      order: { submittedAt: 'DESC' },
+      take: pageSize,
+      skip: (page - 1) * pageSize,
+    });
+    return { items: entities.map((e) => this.toDomain(e)), total };
+  }
+
+  async findById(id: string, tenantId: string): Promise<LeadFormSubmission | null> {
+    const entity = await this.repo.findOne({ where: { id, tenantId } });
+    return entity ? this.toDomain(entity) : null;
+  }
+
+  private toDomain(entity: LeadFormSubmissionEntity): LeadFormSubmission {
+    return LeadFormSubmission.reconstitute({
+      id: entity.id,
+      tenantId: entity.tenantId,
+      customerId: entity.customerId,
+      name: entity.name,
+      email: Email.reconstitute(entity.email),
+      phone: PhoneNumber.reconstitute(entity.phone),
+      answers: entity.answers,
+      submittedAt: entity.submittedAt,
+      expiresAt: entity.expiresAt,
+      ipAddress: entity.ipAddress,
+    });
   }
 
   private toEntity(submission: LeadFormSubmission): LeadFormSubmissionEntity {
