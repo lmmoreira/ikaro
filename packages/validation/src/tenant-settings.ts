@@ -129,11 +129,41 @@ export const ChatbotSettingsSchema = z
   .partial()
   .strict();
 
+// Plain `.int().min().max()` would fail at this Zod boundary with the generic
+// GenericErrorCode.VALUE_OUT_OF_RANGE bucket (see zod-violation.ts's `too_small`/`too_big`
+// branches), before LeadFormSettingsValidator's own dedicated per-field codes ever run in the
+// backend's domain layer — since both layers enforce the identical range, the boundary schema
+// always wins and the domain codes were unreachable for any out-of-range request (M20-S04
+// carry-over from M20-S03). `.refine()` + `params.code` reuses the same dedicated code the
+// domain validator already throws, the same way `SocialLinksSettingsSchema.whatsapp` and
+// `BusinessInfoSettingsSchema.email`/`.phone` reuse their own VO's code.
+const leadFormIntegerRangeField = (
+  minimum: number,
+  maximum: number,
+  code: PlatformErrorCode,
+): z.ZodNumber =>
+  z.number().refine((value) => Number.isInteger(value) && value >= minimum && value <= maximum, {
+    error: `must be an integer between ${minimum} and ${maximum}`,
+    params: { code },
+  });
+
 export const LeadFormSettingsSchema = z
   .object({
-    retentionMonths: z.number().int().min(1).max(24),
-    maxSubmissionsPerDay: z.number().int().min(1).max(1000),
-    maxSubmissionsPerIpPerDay: z.number().int().min(1).max(100),
+    retentionMonths: leadFormIntegerRangeField(
+      1,
+      24,
+      PlatformErrorCode.SETTINGS_LEAD_FORM_RETENTION_MONTHS_INVALID,
+    ),
+    maxSubmissionsPerDay: leadFormIntegerRangeField(
+      1,
+      1000,
+      PlatformErrorCode.SETTINGS_LEAD_FORM_MAX_SUBMISSIONS_PER_DAY_INVALID,
+    ),
+    maxSubmissionsPerIpPerDay: leadFormIntegerRangeField(
+      1,
+      100,
+      PlatformErrorCode.SETTINGS_LEAD_FORM_MAX_SUBMISSIONS_PER_IP_PER_DAY_INVALID,
+    ),
   })
   .partial();
 

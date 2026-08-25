@@ -177,7 +177,8 @@ One row per visitor submission (`docs/04-USE_CASES.md` UC-039/UC-040).
 | **UNIQUE** | (tenant_id, id) | Composite FK target for `lead_form_answers` (M20-S12) — same discipline as `chatbot_messages` → `chatbot_sessions` and `booking_lines` → `bookings`. **Required, not optional**: Postgres rejects a composite FK whose referenced columns have no unique constraint/index — this must land in the same migration that first creates the table (S02), not be added later, so `lead_form_answers`'s FK (S12) has something to reference |
 | **INDEX** | (tenant_id, submitted_at DESC) | Paginated Leads Submissions list (UC-041), the tenant-daily-cap `COUNT` query (mirrors `chatbot_sessions`'s `(tenant_id, conversation_date)` layer-1 cap index), and UC-041's `submittedFrom`/`submittedTo` date-range filter (M20-S12, `docs/14-API_CONTRACTS.md`) — a plain range scan on `submitted_at` already served by this same index, no new index needed |
 | **INDEX** | (tenant_id, ip_address, submitted_at) | Per-IP-daily-cap `COUNT` query (mirrors `chatbot_sessions`'s `(tenant_id, client_ip, conversation_date)` layer-2 cap index) |
-| **INDEX** | (tenant_id, expires_at) | Daily retention purge (UC-043) — `WHERE tenant_id = ? AND expires_at < now()` |
+| **INDEX** | (tenant_id, expires_at) | Per-tenant `expires_at` range queries — not the retention purge itself (see standalone index below); this composite serves any future tenant-scoped expiry lookup |
+| **INDEX** | (expires_at) | Standalone, added M20-S04 (Codex review finding, PR #422): `LeadFormRetentionPurgeJob`'s daily purge (UC-043) is an unscoped cross-tenant `WHERE expires_at < now()` — matching `ExpirePointsJob`/`ChatbotRetentionPurgeJob`'s own precedent, no per-tenant loop — so it cannot seek the composite index above (led by `tenant_id`, which this query never filters on). Mirrors `chatbot_messages.IDX_chatbot_messages_created_at` |
 
 ### `platform.lead_form_answers`
 
@@ -648,7 +649,7 @@ Every event/command consumer — the 16 domain-event handlers and `create-initia
 
 ## Indexing Strategy
 
-Every index **MUST** start with `tenant_id` to ensure query plans use tenant isolation first:
+Every index **MUST** start with `tenant_id` to ensure query plans use tenant isolation first, **except** a standalone index that exists specifically to support a system-triggered, cross-tenant retention-purge job's own unscoped scan (`chatbot_messages.IDX_chatbot_messages_created_at`/`ChatbotRetentionPurgeJob`; `lead_form_submissions.IDX_platform_lead_form_submissions_expires_at`/`LeadFormRetentionPurgeJob`, M20-S04) — these jobs deliberately delete across every tenant in one pass (no tenant_id predicate, matching `ExpirePointsJob`'s own precedent), so a tenant_id-leading composite index can't be seeked for that query; per-tenant queries on the same column continue to use their own composite index as normal (Codex review finding, PR #422 — documented here to avoid future confusion, not itself a new pattern):
 
 ```sql
 -- Booking context

@@ -1,0 +1,20 @@
+# Platform — Cron Lead Form Retention Purge Trigger
+# M20-S04: publishes the cron-lead-form-retention trigger, dispatched to
+# LeadFormRetentionPurgeTriggerHandler. In production, Cloud Scheduler publishes the same trigger
+# directly to Pub/Sub daily at 03:00 UTC — this endpoint is the local/manual trigger path only,
+# protected by the global InternalApiGuard (X-Internal-Key), not PubSubPushGuard.
+# Response is { ok: true } once the trigger is published — it does not wait for the job to
+# finish. Requires the Pub/Sub emulator running (pnpm infra:up).
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run dev
+
+@baseUrl = {{backendUrl}}
+
+### POST /cron/lead-form-retention — publish the daily lead-form-retention purge trigger
+POST {{baseUrl}}/cron/lead-form-retention
+X-Internal-Key: {{internalKey}}
+
+###

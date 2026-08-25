@@ -103,6 +103,12 @@
     ]
   },
   {
+    "event": "cron-lead-form-retention",
+    "consumers": [
+      "lead-form-retention-purge"
+    ]
+  },
+  {
     "event": "cron-loyalty-expiry",
     "consumers": [
       "loyalty-expire-points"

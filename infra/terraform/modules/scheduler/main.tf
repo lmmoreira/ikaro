@@ -4,12 +4,14 @@
 # Hand-authored, not scanner-derived: unlike modules/pubsub's topics/subs
 # (which come from the code's own subscribe()/registerTrigger() call sites),
 # Scheduler jobs — cadence + which topic to hit — aren't discoverable by
-# scanning the backend. Adding a 5th cron trigger in code means adding its
-# job here by hand too.
+# scanning the backend. Adding a new cron trigger in code means adding its
+# job here by hand too (not a fixed count — see locals.jobs below for the
+# current list; a stale hardcoded count here has drifted before, Codex
+# review finding, PR #422).
 #
 # Pub/Sub-target jobs have no service-account field (HTTP targets only) —
 # the publish is performed by the built-in Cloud Scheduler service agent,
-# granted pubsub.publisher on the 4 cron topics below. No custom Scheduler SA.
+# granted pubsub.publisher on each cron topic below. No custom Scheduler SA.
 locals {
   # Loyalty's two concerns keep their pre-existing, independent cadences
   # (pre-M17 docs) — merging them onto one schedule would silently regress
@@ -41,6 +43,10 @@ locals {
     ikaro-cron-chatbot-balance-poll = {
       topic_key = "cron-chatbot-balance-poll"
       schedule  = "*/15 * * * *"
+    }
+    ikaro-cron-lead-form-retention = {
+      topic_key = "cron-lead-form-retention"
+      schedule  = "0 3 * * *"
     }
   }
 }
