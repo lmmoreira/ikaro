@@ -29,6 +29,10 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
   let txManager: TypeOrmTransactionManager;
   const TENANT_A = uuidv7();
   const TENANT_B = uuidv7();
+  // question_id is a UUID column (matches every question's real id, client-generated via
+  // crypto.randomUUID() on the admin panel) — not an arbitrary string.
+  const QUESTION_ID = uuidv7();
+  const OTHER_QUESTION_ID = uuidv7();
 
   beforeAll(async () => {
     dataSource = await createTestDataSource();
@@ -78,7 +82,12 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
       email: `lead-${uuidv7()}@example.com`,
       phone: '+5511912345678',
       answers: [
-        { questionId: 'q1', questionLabel: 'Origem', questionType: 'TEXT', answerValue: 'Google' },
+        {
+          questionId: QUESTION_ID,
+          questionLabel: 'Origem',
+          questionType: 'TEXT',
+          answerValue: 'Google',
+        },
       ],
       ipAddress: overrides.ipAddress ?? '203.0.113.10',
       retentionMonths: 6,
@@ -109,7 +118,7 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
         `,
         [TENANT_A, submission.id],
       ),
-    ).resolves.toEqual([{ question_id: 'q1' }]);
+    ).resolves.toEqual([{ question_id: QUESTION_ID }]);
   });
 
   it('looks up submitted question IDs through the tenant-scoped reference index', async () => {
@@ -117,10 +126,12 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
     await txManager.run(() => repo.save(buildSubmission(TENANT_A)));
     await txManager.run(() => repo.save(buildSubmission(TENANT_B)));
 
-    await expect(repo.findQuestionIdsWithSubmissions(TENANT_A, ['q1', 'q2'])).resolves.toEqual([
-      'q1',
-    ]);
-    await expect(repo.findQuestionIdsWithSubmissions(TENANT_A, ['q2'])).resolves.toEqual([]);
+    await expect(
+      repo.findQuestionIdsWithSubmissions(TENANT_A, [QUESTION_ID, OTHER_QUESTION_ID]),
+    ).resolves.toEqual([QUESTION_ID]);
+    await expect(
+      repo.findQuestionIdsWithSubmissions(TENANT_A, [OTHER_QUESTION_ID]),
+    ).resolves.toEqual([]);
   });
 
   it('drains the domain event into shared.outbox in the same transaction as the insert', async () => {

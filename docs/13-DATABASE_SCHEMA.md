@@ -192,7 +192,7 @@ without expanding every retained JSONB answer array. It is not a replacement for
 |--------|------|-------------|
 | tenant_id | UUID | NOT NULL — first column of the composite PK/FK; tenant-safe reference boundary |
 | submission_id | UUID | NOT NULL — composite FK `(tenant_id, submission_id)` → `platform.lead_form_submissions(tenant_id, id)`, `ON DELETE CASCADE` so retention purge cannot orphan projection rows |
-| question_id | TEXT | NOT NULL — snapshotted question ID; text preserves the original JSONB snapshot exactly |
+| question_id | UUID | NOT NULL — snapshotted question ID, extracted from the JSONB `answers` array at write time (`submission.answers[].questionId`, always a real UUID — client-generated via `crypto.randomUUID()` on the admin panel, validated by `LeadFormQuestionSchema`'s `z.uuid()`). Matches every other ID column in this schema; not a foreign key to `lead_form_configs`' own question catalog, since a question can be edited/removed after submission |
 | **PRIMARY KEY** | (tenant_id, submission_id, question_id) | One row per question per submission, deduplicated even if malformed historical JSON has duplicate entries |
 | **INDEX** | (tenant_id, question_id) | UC-037's `hasSubmissions` lookup: `SELECT DISTINCT question_id ... WHERE tenant_id = ? AND question_id = ANY(?)` |
 

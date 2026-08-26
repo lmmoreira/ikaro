@@ -24,7 +24,7 @@ export class CreateLeadFormSubmissionQuestionRefs1748500000004 implements Migrat
       CREATE TABLE "platform"."lead_form_submission_question_refs" (
         "tenant_id" UUID NOT NULL,
         "submission_id" UUID NOT NULL,
-        "question_id" TEXT NOT NULL,
+        "question_id" UUID NOT NULL,
         CONSTRAINT "PK_platform_lead_form_submission_question_refs"
           PRIMARY KEY ("tenant_id", "submission_id", "question_id"),
         CONSTRAINT "FK_platform_lead_form_submission_question_refs_submission"

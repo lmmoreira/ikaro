@@ -64,7 +64,7 @@ export class TypeOrmLeadFormSubmissionRepository implements ILeadFormSubmissionR
       `
         SELECT DISTINCT question_id AS "questionId"
         FROM platform.lead_form_submission_question_refs
-        WHERE tenant_id = $1 AND question_id = ANY($2::text[])
+        WHERE tenant_id = $1 AND question_id = ANY($2::uuid[])
       `,
       [tenantId, questionIds],
     )) as Array<{ questionId: string }>;
@@ -131,7 +131,7 @@ export class TypeOrmLeadFormSubmissionRepository implements ILeadFormSubmissionR
       `
         INSERT INTO platform.lead_form_submission_question_refs
           (tenant_id, submission_id, question_id)
-        SELECT $1, $2, question_id FROM unnest($3::text[]) AS question_id
+        SELECT $1, $2, question_id FROM unnest($3::uuid[]) AS question_id
         ON CONFLICT DO NOTHING
       `,
       [submission.tenantId, submission.id, questionIds],
