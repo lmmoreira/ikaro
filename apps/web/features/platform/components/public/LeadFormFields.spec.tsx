@@ -30,6 +30,7 @@ function baseProps() {
     fieldErrors: { questions: {} },
     showValidationBanner: false,
     isCaptchaError: false,
+    isTurnstileVerified: false,
     isSubmitting: false,
     turnstileKey: 0,
     onTurnstileVerify: vi.fn(),
@@ -68,6 +69,14 @@ describe('LeadFormFields', () => {
   it('shows the prefilled note when showPrefilledNote is true', () => {
     renderWithIntl(<LeadFormFields {...baseProps()} showPrefilledNote />);
     expect(screen.getByText(/Preenchido com os dados da sua conta/)).toBeInTheDocument();
+  });
+
+  it('shows a pending status until isTurnstileVerified is true, never claiming verification early', () => {
+    const { rerender } = renderWithIntl(<LeadFormFields {...baseProps()} />);
+    expect(screen.getByText('Verificando segurança...')).toBeInTheDocument();
+
+    rerender(<LeadFormFields {...baseProps()} isTurnstileVerified />);
+    expect(screen.getByText('Verificação de segurança concluída')).toBeInTheDocument();
   });
 
   it('calls onSubmit when the submit button is clicked', async () => {

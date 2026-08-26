@@ -225,6 +225,7 @@ export function LeadFormWidget({ slug, title, subtitle }: LeadFormWidgetProps): 
       fieldErrors={fieldErrors}
       showValidationBanner={phase === 'validation-error'}
       isCaptchaError={phase === 'captcha-error'}
+      isTurnstileVerified={!!turnstileToken}
       isSubmitting={phase === 'submitting'}
       turnstileKey={turnstileKey}
       onTurnstileVerify={setTurnstileToken}

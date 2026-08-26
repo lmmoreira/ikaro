@@ -246,6 +246,7 @@
       "submittingButton": "Sending...",
       "retryButton": "Try again",
       "backToSiteButton": "Back to site",
+      "turnstilePendingTitle": "Verifying security...",
       "turnstileVerifiedTitle": "Security check completed",
       "turnstileRedoTitle": "Redo the security check",
       "validationBanner": "Fix the highlighted fields below before submitting.",

@@ -1,6 +1,7 @@
 import { useTranslations } from 'next-intl';
 import type { LeadFormQuestion } from '@ikaro/types';
 import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
+import { ContactField } from './ContactField';
 import { LeadFormQuestionField } from './LeadFormQuestionField';
 import { TurnstileWidget } from './TurnstileWidget';
 
@@ -36,6 +37,7 @@ interface LeadFormFieldsProps {
   readonly fieldErrors: LeadFormFieldErrors;
   readonly showValidationBanner: boolean;
   readonly isCaptchaError: boolean;
+  readonly isTurnstileVerified: boolean;
   readonly isSubmitting: boolean;
   readonly turnstileKey: number;
   readonly onTurnstileVerify: (token: string) => void;
@@ -63,6 +65,7 @@ export function LeadFormFields({
   fieldErrors,
   showValidationBanner,
   isCaptchaError,
+  isTurnstileVerified,
   isSubmitting,
   turnstileKey,
   onTurnstileVerify,
@@ -77,6 +80,13 @@ export function LeadFormFields({
     submitButtonLabel = t('leadForm.submittingButton');
   } else if (isCaptchaError) {
     submitButtonLabel = t('leadForm.retryButton');
+  }
+
+  let turnstileStatusLabel = t('leadForm.turnstilePendingTitle');
+  if (isCaptchaError) {
+    turnstileStatusLabel = t('leadForm.turnstileRedoTitle');
+  } else if (isTurnstileVerified) {
+    turnstileStatusLabel = t('leadForm.turnstileVerifiedTitle');
   }
 
   return (
@@ -118,6 +128,7 @@ export function LeadFormFields({
             e.preventDefault();
             onSubmit();
           }}
+          noValidate
         >
           <fieldset
             disabled={isSubmitting}
@@ -195,11 +206,7 @@ export function LeadFormFields({
                 onExpire={onTurnstileExpire}
                 onError={onTurnstileError}
               />
-              <p className="text-sm font-semibold">
-                {isCaptchaError
-                  ? t('leadForm.turnstileRedoTitle')
-                  : t('leadForm.turnstileVerifiedTitle')}
-              </p>
+              <p className="text-sm font-semibold">{turnstileStatusLabel}</p>
             </div>
 
             <button
@@ -215,55 +222,5 @@ export function LeadFormFields({
         </form>
       </div>
     </main>
-  );
-}
-
-interface ContactFieldProps {
-  readonly htmlId: string;
-  readonly testId: string;
-  readonly errorTestId: string;
-  readonly label: string;
-  readonly placeholder: string;
-  readonly value: string;
-  readonly error?: string;
-  readonly type?: string;
-  readonly onChange: (value: string) => void;
-}
-
-// testId/errorTestId are passed as literal strings from each call site above (one per fixed
-// contact field), never derived by template literal — E2E-3 requires a static data-testid, with
-// any per-instance data encoded in a separate data-* attribute instead.
-function ContactField({
-  htmlId,
-  testId,
-  errorTestId,
-  label,
-  placeholder,
-  value,
-  error,
-  type,
-  onChange,
-}: ContactFieldProps): React.JSX.Element {
-  return (
-    <div className="mb-5">
-      <label className="mb-2 block font-medium" htmlFor={htmlId}>
-        {label} <span className="text-red-600">*</span>
-      </label>
-      <input
-        id={htmlId}
-        type={type ?? 'text'}
-        data-testid={testId}
-        className="w-full border px-3 py-2"
-        style={{ borderRadius: 'var(--ba-radius)' }}
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      />
-      {error && (
-        <p className="mt-1.5 text-sm text-red-600" data-testid={errorTestId}>
-          {error}
-        </p>
-      )}
-    </div>
   );
 }

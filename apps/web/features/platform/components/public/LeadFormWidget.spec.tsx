@@ -150,6 +150,27 @@ describe('LeadFormWidget — guest happy path (GUEST_AND_CUSTOMER)', () => {
     expect(submitLeadFormClient).not.toHaveBeenCalled();
   });
 
+  // The <input type="email"> plus a custom validate() means the <form> must carry noValidate —
+  // without it, the browser's own constraint validation can swallow the submit event before this
+  // component's handler ever runs, so the localized emailRequired error never renders (Codex
+  // finding, PR #433 round 7). jsdom doesn't implement submit-blocking constraint validation the
+  // way a real browser does, so this test can't reproduce that interception directly — it does
+  // confirm the custom validator itself still owns and rejects a syntactically invalid email.
+  it('shows a field-level error for a syntactically invalid email typed into the form', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" />);
+
+    await screen.findByTestId('lead-form-name');
+    await user.type(screen.getByTestId('lead-form-name'), 'Carlos Mendes');
+    await user.type(screen.getByTestId('lead-form-email'), 'not-an-email');
+    await user.type(screen.getByTestId('lead-form-phone'), '+5511988887777');
+    await user.click(screen.getByTestId('turnstile-mock-verify'));
+    await user.click(screen.getByTestId('lead-form-submit'));
+
+    expect(screen.getByTestId('lead-form-email-error')).toBeInTheDocument();
+    expect(submitLeadFormClient).not.toHaveBeenCalled();
+  });
+
   it('clears a verified token when the widget reports it expired, requiring re-verification before submit', async () => {
     const user = userEvent.setup();
     renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" />);
