@@ -32,6 +32,7 @@ import { SettingsNotificationSection } from './SettingsNotificationSection';
 import { SettingsHoursSection } from './SettingsHoursSection';
 import { SettingsContactSection } from './SettingsContactSection';
 import { SettingsChatbotSection } from './SettingsChatbotSection';
+import { SettingsLeadFormSection } from './SettingsLeadFormSection';
 import { SettingsLocalizationSection } from './SettingsLocalizationSection';
 import { SettingsDesktopActions, SettingsMobileActionBar } from './SettingsFormActions';
 
@@ -260,6 +261,12 @@ export function SettingsForm({
             knowledgeText={values.knowledgeText}
             knowledgeTextError={fieldErrors.knowledgeText}
             onChange={(value) => setField('knowledgeText', value)}
+          />
+
+          <SettingsLeadFormSection
+            values={values}
+            fieldErrors={fieldErrors}
+            onFieldChange={setField}
           />
 
           <SettingsLocalizationSection

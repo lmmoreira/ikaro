@@ -47,6 +47,9 @@ function baseValues(): SettingsFormValues {
     notificationFromEmail: '',
     socialLinks: { whatsapp: '', instagram: '', facebook: '' },
     knowledgeText: '',
+    retentionMonths: '6',
+    maxSubmissionsPerDay: '100',
+    maxSubmissionsPerIpPerDay: '3',
   };
 }
 

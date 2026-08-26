@@ -66,6 +66,9 @@ export interface SettingsFormValues {
   readonly notificationFromEmail: string;
   readonly socialLinks: SettingsSocialLinksValues;
   readonly knowledgeText: string;
+  readonly retentionMonths: string;
+  readonly maxSubmissionsPerDay: string;
+  readonly maxSubmissionsPerIpPerDay: string;
 }
 
 export interface SettingsFormErrors {
@@ -92,6 +95,9 @@ export interface SettingsFormErrors {
   notificationFromEmail?: string;
   socialLinksWhatsapp?: string;
   knowledgeText?: string;
+  retentionMonths?: string;
+  maxSubmissionsPerDay?: string;
+  maxSubmissionsPerIpPerDay?: string;
   submit?: string;
 }
 
@@ -184,5 +190,8 @@ export function toSettingsFormValues(tenant: TenantSettingsResponse): SettingsFo
       facebook: socialLinks?.facebook ?? '',
     },
     knowledgeText: settings.chatbot.knowledgeText,
+    retentionMonths: String(settings.leadForm.retentionMonths),
+    maxSubmissionsPerDay: String(settings.leadForm.maxSubmissionsPerDay),
+    maxSubmissionsPerIpPerDay: String(settings.leadForm.maxSubmissionsPerIpPerDay),
   };
 }

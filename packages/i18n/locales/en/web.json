@@ -810,7 +810,8 @@
         "notification": "Notifications",
         "hours": "Business hours",
         "contact": "Contact",
-        "chatbot": "Chatbot"
+        "chatbot": "Chatbot",
+        "leadForm": "Contact form"
       },
       "nameLabel": "Business name *",
       "slugLabel": "Slug (site address)",
@@ -884,6 +885,15 @@
       "chatbotKnowledgeTextHint": "Policies, frequently asked questions, and notes the assistant should know — services and prices are already included automatically, no need to repeat them here.",
       "chatbotKnowledgeTextPlaceholder": "E.g.: We accept Pix and card payments. We don't do dry cleaning. Street parking is available nearby. Priority service for Gold loyalty customers...",
       "chatbotCapsElsewhereNote": "Volume/cost limits (conversations per day, messages per conversation, etc.) and the AI provider don't appear in this form — they're fixed platform defaults, adjustable only by Ikaro directly in the database when needed.",
+      "leadFormSectionSub": "Submission retention and abuse-protection limits",
+      "leadFormRetentionLabel": "Lead retention",
+      "leadFormRetentionHint": "Between 1 and 24 months. Submissions older than this are automatically deleted every day. Applies only to future submissions — already-received submissions keep the retention they had when submitted.",
+      "monthsSuffix": "months",
+      "leadFormMaxSubmissionsPerDayLabel": "Daily submission limit",
+      "leadFormMaxSubmissionsPerDayHint": "Between 1 and 1000. Protects against abuse — total submissions accepted per day, across all visitors.",
+      "leadFormMaxSubmissionsPerIpPerDayLabel": "Per-visitor daily limit",
+      "leadFormMaxSubmissionsPerIpPerDayHint": "Between 1 and 100. Maximum submissions accepted from the same IP address per day. If legitimate visitors are being falsely blocked (common with mobile internet, where multiple phones share the same IP), raise this value.",
+      "perDaySuffix": "/ day",
       "submit": "Save settings",
       "actionHint": "Settings affect new bookings. Business hours and timezone take effect immediately.",
       "successTitle": "Settings saved!",
@@ -914,7 +924,10 @@
         "addressStateInvalid": "Invalid state — use the 2-letter code (e.g. MG).",
         "addressZipCodeRequired": "Enter the ZIP code.",
         "addressZipCodeInvalid": "Invalid ZIP code. Use the format 00000-000.",
-        "renamePartialFailure": "Settings were saved, but the business name could not be updated: {reason}"
+        "renamePartialFailure": "Settings were saved, but the business name could not be updated: {reason}",
+        "leadFormRetentionMonthsInvalid": "Retention must be between 1 and 24 months.",
+        "leadFormMaxSubmissionsPerDayInvalid": "The daily submission limit must be between 1 and 1000.",
+        "leadFormMaxSubmissionsPerIpPerDayInvalid": "The per-IP daily submission limit must be between 1 and 100."
       }
     },
     "servicesPage": {
