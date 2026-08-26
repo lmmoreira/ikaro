@@ -22,8 +22,19 @@
 #                     before dispatching Codex for this round, e.g.:
 #                       since=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 #
+# Also always queries SonarCloud's live issues API directly (independent of
+# whatever `gh pr checks` shows for Sonar this round) and prints any open
+# issues. This repo's Sonar analysis job is dependency-gated behind the other
+# test jobs in the same workflow — if an unrelated job fails, Sonar gets
+# skipped for that commit rather than re-run, so a real, still-open issue can
+# sit unflagged in `gh pr checks` for round after round until some round
+# happens to have every gating job green. The live issues API is keyed by PR
+# number, not by commit, so it stays accurate regardless (M20-S08 PR #429
+# precedent, 2026-08-26: two Sonar issues from the first commit went
+# unflagged for 3 rounds this way).
+#
 # Exit code reflects CI only (0 = all CI checks passed, 1 = at least one
-# failed) — Codex/CodeRabbit findings are information for the caller to
+# failed) — Codex/CodeRabbit/Sonar findings are information for the caller to
 # triage, not a script failure. Polls every 30s with no total timeout
 # (same blocking design as the script it replaces); Ctrl-C to abort.
 #
@@ -37,6 +48,8 @@
 set -uo pipefail
 
 REPO="lmmoreira/ikaro"
+SONAR_PROJECT="lmmoreira_ikaro"
+SONAR_ORG="lmmoreira"
 POLL_INTERVAL=30
 
 PR_NUMBER=""
@@ -134,6 +147,25 @@ if [ "$WAIT_CODEX" -eq 1 ]; then
 fi
 if [ "$WAIT_CODERABBIT" -eq 1 ]; then
   echo "CodeRabbit: ${CODERABBIT_URL}"
+fi
+
+# Always checked, every call — not gated on a Sonar check-run appearing in
+# $CI_OUTPUT this round (see the header comment on why that can't be trusted
+# alone). Server-side status filters are unreliable when scoped to a pull
+# request — a CLOSED/FIXED issue can still come back regardless of the filter
+# combination (confirmed live against PR #356, 2026-08-11; same root cause as
+# this repo's own "Fail on any new SonarCloud issue" CI step). Fetch
+# unfiltered and filter client-side on issueStatus, the authoritative
+# current-state field.
+SONAR_RESULT=$(curl -sf "https://sonarcloud.io/api/issues/search?componentKeys=${SONAR_PROJECT}&pullRequest=${PR_NUMBER}&ps=50&organization=${SONAR_ORG}" 2>/dev/null || echo '{"issues":[]}')
+SONAR_OPEN=$(printf '%s' "$SONAR_RESULT" | jq '[.issues[]? | select(.issueStatus == "OPEN" or .issueStatus == "CONFIRMED")]' 2>/dev/null || echo '[]')
+SONAR_COUNT=$(printf '%s' "$SONAR_OPEN" | jq 'length' 2>/dev/null || echo 0)
+
+if [ "$SONAR_COUNT" -gt 0 ] 2>/dev/null; then
+  echo "❌ ${SONAR_COUNT} open SonarCloud issue(s) on PR #${PR_NUMBER}:"
+  printf '%s' "$SONAR_OPEN" | jq -r '.[] | "  [\(.severity)] \(.rule): \(.message) — \(.component | split(":")[1]):\(.line // "?")"'
+else
+  echo "✅ No open SonarCloud issues on PR #${PR_NUMBER}."
 fi
 
 [ "$CI_FAILED" -eq 0 ]
