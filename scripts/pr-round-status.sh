@@ -133,7 +133,12 @@ while true; do
     # PR #433's actual review payload; a bare-string match against "coderabbitai" here silently
     # never matches anything (round-2 finding, PR #433: this exact mismatch was caught only by
     # testing the fix's own jq filter against real data before trusting it).
-    REVIEWS_JSON=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/reviews" 2>/dev/null || echo '[]')
+    # --paginate: this endpoint defaults to 30 results/page (max 100) — without it, a PR that
+    # accumulates more than 30 reviews would silently drop the newest one off the first page and
+    # this script could wait forever despite a real review already existing (round-6 finding, PR
+    # #433). gh api --paginate concatenates array-shaped pages into one combined array, so the jq
+    # filter below needs no change.
+    REVIEWS_JSON=$(gh api --paginate "repos/${REPO}/pulls/${PR_NUMBER}/reviews" 2>/dev/null || echo '[]')
     CODERABBIT_URL=$(printf '%s' "$REVIEWS_JSON" | jq -r --arg since "$SINCE" '
       [.[] | select(.submitted_at >= $since) | select(.user.login == "coderabbitai[bot]")]
       | sort_by(.submitted_at) | last | .html_url // empty')
