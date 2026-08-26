@@ -32,6 +32,7 @@ import {
   cancelModuleConfig,
   configureModule,
   executeUnpublish,
+  hasInvalidLeadFormQuestion,
   mergeLocalDataIntoLayout,
   ModuleConfigView,
   updateEditorDraft,
@@ -206,17 +207,28 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
       ...draft,
       layout: mergeLocalDataIntoLayout(draft.layout, view.type, view.localData),
     };
+    const leadFormConfig =
+      view.type === 'LEAD_FORM' ? extractLeadFormConfig(view.localData) : undefined;
+    // Publishing straight from this preview skips applyModuleConfig's own gate (the "Aplicar"
+    // path), so an invalid lead-form config must be re-checked here — otherwise this is the one
+    // path that can send it to the backend unvalidated (CodeRabbit finding, PR #429).
+    const leadFormInvalid =
+      view.type === 'LEAD_FORM' && (!leadFormConfig || hasInvalidLeadFormQuestion(leadFormConfig));
     return (
       <HotsitePreview
         draft={previewDraft}
-        onPublish={() =>
-          handlePublish(
-            previewDraft,
-            view.type === 'LEAD_FORM'
-              ? (extractLeadFormConfig(view.localData) ?? undefined)
-              : undefined,
-          )
-        }
+        onPublish={() => {
+          if (leadFormInvalid) {
+            setActionBanner({
+              kind: 'publish',
+              status: 'error',
+              message: t('layout.panels.leadForm.validation.publishBlocked'),
+            });
+            setView({ view: 'tabs' });
+            return;
+          }
+          handlePublish(previewDraft, leadFormConfig ?? undefined);
+        }}
         isPublishing={isPublishing}
       />
     );

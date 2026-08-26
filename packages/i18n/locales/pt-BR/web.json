@@ -824,7 +824,8 @@
             },
             "validation": {
               "questionLabel": "Informe o texto da pergunta.",
-              "options": "Adicione entre 2 e 10 opções."
+              "options": "Adicione entre 2 e 10 opções.",
+              "publishBlocked": "Corrija as perguntas inválidas antes de publicar."
             }
           }
         }

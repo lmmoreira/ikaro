@@ -11,8 +11,11 @@ import {
   updateHotsiteConfig,
 } from './helpers/hotsite';
 import {
+  getLeadFormConfig,
   getTenantSettings,
+  toLeadFormUpdateRequest,
   toUpdateRequest as toSettingsUpdateRequest,
+  updateLeadFormConfig,
   updateTenantSettings,
 } from './helpers/platform';
 
@@ -104,11 +107,13 @@ const HERO_PNG_BUFFER = makeSolidPng(1604, 494);
 test.describe.serial('hotsite editor (MANAGER)', () => {
   let original: HotsiteAdminContentResponse;
   let originalSettings: Awaited<ReturnType<typeof getTenantSettings>>;
+  let originalLeadForm: Awaited<ReturnType<typeof getLeadFormConfig>>;
 
   test.beforeEach(async ({ page }) => {
     await loginAsStaff(page, MANAGER_EMAIL, MANAGER_TENANT_SLUG);
     original = await getHotsiteConfig(page);
     originalSettings = await getTenantSettings(page);
+    originalLeadForm = await getLeadFormConfig(page);
   });
 
   test.afterEach(async ({ page }) => {
@@ -125,6 +130,10 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
       await unpublishHotsite(page);
     }
     await updateTenantSettings(page, toSettingsUpdateRequest(originalSettings.settings));
+    // LeadFormConfig is a separate aggregate from HotsiteConfig (audienceMode/questions, not
+    // part of layout[].data) — updateHotsiteConfig's restore above doesn't touch it, so it needs
+    // its own restore or a test that mutates it leaks state into every later run.
+    await updateLeadFormConfig(page, toLeadFormUpdateRequest(originalLeadForm));
   });
 
   test('loads with the Branding tab active by default, pre-filled with the tenant current values', async ({
@@ -1119,6 +1128,86 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.locator(configureButton('CHATBOT')).click();
 
     await expect(page.getByTestId('chatbot-cap-reached-banner')).toHaveCount(0);
+  });
+
+  // M20-S08 — the same "manager configures a module, publishes, reload persists" pattern every
+  // other module type above already has. Deliberately does not cover a guest's own submission
+  // or reordering questions via drag-and-drop: the full config→submit→list→detail journey is
+  // M20-S10's own spanning golden-path E2E (needs M20-S09's public page, which doesn't exist
+  // yet), and drag-reorder has no E2E precedent anywhere in this file — handleDragEnd's own
+  // arrayMove logic is already covered at the Vitest layer.
+  test('configures LEAD_FORM (teaser, audience mode, a question), publishes, and the changes survive a reload', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'Layout' }).click();
+
+    await page.locator(layoutToggle('LEAD_FORM')).click();
+    await page.locator(configureButton('LEAD_FORM')).click();
+    await expect(page.getByTestId('lead-form-config-panel')).toBeVisible();
+
+    await page.getByLabel('Título', { exact: true }).fill('Fale com a nossa equipe');
+    await page.getByLabel('Subtítulo').fill('Responda algumas perguntas rápidas');
+    await page.getByLabel('Texto do botão').fill('Quero conversar');
+    await page.getByLabel('Público').selectOption('CUSTOMER_ONLY');
+
+    await page.getByRole('button', { name: '+ Adicionar pergunta' }).click();
+    await page.getByLabel('Pergunta', { exact: true }).fill('Qual serviço você procura?');
+
+    await page.getByTestId('module-config-apply-desktop').click();
+
+    await expect(page.locator(layoutToggle('LEAD_FORM'))).toHaveAttribute('aria-checked', 'true');
+
+    await page.getByTestId('hotsite-publish-desktop').click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+
+    await page.reload();
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await expect(page.locator(layoutToggle('LEAD_FORM'))).toHaveAttribute('aria-checked', 'true');
+    await page.locator(configureButton('LEAD_FORM')).click();
+
+    await expect(page.getByLabel('Título', { exact: true })).toHaveValue('Fale com a nossa equipe');
+    await expect(page.getByLabel('Subtítulo')).toHaveValue('Responda algumas perguntas rápidas');
+    await expect(page.getByLabel('Texto do botão')).toHaveValue('Quero conversar');
+    await expect(page.getByLabel('Público')).toHaveValue('CUSTOMER_ONLY');
+    await expect(page.getByLabel('Pergunta', { exact: true })).toHaveValue(
+      'Qual serviço você procura?',
+    );
+  });
+
+  // Both PLATFORM_LEAD_FORM_QUESTION_OPTIONS_INVALID (docs/14-API_CONTRACTS.md) and this
+  // client-side check exist for the same rule — this proves they agree, same rationale as the
+  // branding-color and SEO-title tests above. Also exercises the module-config-preview -> Publish
+  // path specifically (not Aplicar), which is the one path that skipped this validation until a
+  // PR #429 review fix — Aplicar's own gate already has Vitest coverage in
+  // hotsite-editor-views.spec.tsx.
+  test('an invalid lead-form question blocks Publish from the module-config preview and shows the error banner', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'Layout' }).click();
+
+    await page.locator(layoutToggle('LEAD_FORM')).click();
+    await page.locator(configureButton('LEAD_FORM')).click();
+    await expect(page.getByTestId('lead-form-config-panel')).toBeVisible();
+
+    await page.getByRole('button', { name: '+ Adicionar pergunta' }).click();
+    await page.getByLabel('Pergunta', { exact: true }).fill('Qual serviço você procura?');
+    await page.getByLabel('Tipo').selectOption('SINGLE_CHOICE');
+    await page.getByRole('button', { name: '+ Adicionar opção' }).click();
+    await page.getByLabel('Opção 1').fill('Somente uma opção');
+
+    await page.getByTestId('module-config-preview-desktop').click();
+    await page.getByTestId('hotsite-preview-publish-desktop').click();
+
+    await expect(page.getByTestId('hotsite-action-error-banner')).toContainText(
+      'Corrija as perguntas inválidas antes de publicar.',
+    );
+    // Back on the main tabs view (not still on the preview/module-config screen), and the earlier
+    // enable-toggle click is untouched by the blocked-publish path — this only short-circuits
+    // handlePublish, it never reverts draft.layout.
+    await expect(page.getByRole('tablist')).toBeVisible();
+    await expect(page.locator(layoutToggle('LEAD_FORM'))).toHaveAttribute('aria-checked', 'true');
   });
 });
 
