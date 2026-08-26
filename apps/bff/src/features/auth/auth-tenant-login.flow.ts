@@ -147,6 +147,7 @@ export async function handleTenantLogin(
   tenantSlug: string,
   res: Response,
   frontendUrl: string,
+  returnTo?: string,
 ): Promise<void> {
   const tenantInfo = await findTenantBySlug(backendHttp, tenantSlug);
 
@@ -168,5 +169,5 @@ export async function handleTenantLogin(
   const token = issueCustomerToken(jwtIssuer, customerId, tenantInfo, profile.name);
   res.cookie(SESSION_COOKIE_NAME, token, JWT_COOKIE_OPTIONS);
   authLoginLogger.log('Customer login', { tenantId: tenantInfo.id, customerId });
-  res.redirect(`${frontendUrl}/${tenantInfo.slug}`);
+  res.redirect(`${frontendUrl}${returnTo ?? `/${tenantInfo.slug}`}`);
 }

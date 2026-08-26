@@ -30,6 +30,18 @@ describe('buildGoogleOAuthUrl', () => {
     ).toBe('https://bff.example.com/v1/auth/google?tenantSlug=lavacar+bh&type=staff');
   });
 
+  it('adds returnTo when provided (M20-S09)', () => {
+    expect(
+      buildGoogleOAuthUrl({
+        bffUrl: 'https://bff.example.com/v1',
+        tenantSlug: 'lavacar-bh',
+        returnTo: '/lavacar-bh/lead-form',
+      }),
+    ).toBe(
+      'https://bff.example.com/v1/auth/google?tenantSlug=lavacar-bh&returnTo=%2Flavacar-bh%2Flead-form',
+    );
+  });
+
   it('throws when the BFF base URL is missing', () => {
     delete process.env.NEXT_PUBLIC_BFF_URL;
 

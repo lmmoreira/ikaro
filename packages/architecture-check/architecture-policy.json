@@ -651,6 +651,13 @@
     },
     {
       "rule": "raw-fetch-web",
+      "path": "apps/web/features/platform/hotsite/api/lead-form.ts",
+      "rationale": "submitLeadFormClient() calls /api/platform/lead-form/submissions, this app's own Route Handler, not the BFF directly — that route reads the session cookie server-side and forwards it as Authorization: Bearer for a logged-in customer submission (UC-040), mirroring createCustomerAttachmentSignedUrl()'s exact reasoning (TD31 Story 7 pattern, M20-S09 story-discovery).",
+      "owner": "web",
+      "reviewBy": "2026-09-30"
+    },
+    {
+      "rule": "raw-fetch-web",
       "path": "apps/web/features/booking/api/public.ts",
       "rationale": "createAttachmentSignedUrl()/createGuestAttachmentSignedUrl() call /api/bookings/attachments/signed-url, this app's own Route Handler, not the BFF directly — the route deliberately ignores any leftover cookie when a guestToken is present in the body; routing through bffClient's generic gateway would transparently forward whatever cookie the browser has and risk misattributing the upload (TD31 Story 7, 2026-07-31).",
       "owner": "web",

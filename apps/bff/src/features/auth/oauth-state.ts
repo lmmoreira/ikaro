@@ -4,9 +4,18 @@ export function isValidSlug(value: string): boolean {
   return !!value && SLUG_REGEX.test(value);
 }
 
+// Open-redirect guard for the optional post-login returnTo path (M20-S09) — must be a relative
+// path scoped to the requesting tenant's own slug, never an absolute URL, a protocol-relative
+// `//host/...`, or a path under a different tenant. Requires the exact `/${tenantSlug}/` prefix,
+// not just "contains the slug somewhere".
+export function isValidReturnTo(value: string, tenantSlug: string): boolean {
+  return !!value && !!tenantSlug && value.startsWith(`/${tenantSlug}/`);
+}
+
 export interface OAuthState {
   loginType?: 'staff';
   tenantSlug?: string;
+  returnTo?: string;
 }
 
 // Signed via OAuthStateService (M17-S32) — the JWT payload carrying the routing data plus a

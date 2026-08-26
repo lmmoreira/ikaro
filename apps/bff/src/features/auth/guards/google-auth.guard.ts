@@ -21,7 +21,8 @@ export class GoogleAuthGuard extends AuthGuard('google') {
     const res = context.switchToHttp().getResponse<Response>();
     const tenantSlug = req.query['tenantSlug'] as string | undefined;
     const type = req.query['type'] === 'staff' ? 'staff' : 'customer';
-    const { state, nonce } = this.oauthState.encodeOAuthState(type, tenantSlug);
+    const returnTo = req.query['returnTo'] as string | undefined;
+    const { state, nonce } = this.oauthState.encodeOAuthState(type, tenantSlug, returnTo);
     res.cookie(OAUTH_NONCE_COOKIE_NAME, nonce, OAUTH_NONCE_COOKIE_OPTIONS);
     return { state };
   }

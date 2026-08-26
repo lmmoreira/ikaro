@@ -346,6 +346,11 @@ jobs:
           BFF_UPSTREAM_URL: 'http://localhost:3002/v1'
           NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL: 'http://localhost:4443/ikaro-local-public'
           NEXT_PUBLIC_SITE_URL: 'http://localhost:3000'
+          # Cloudflare's always-pass Turnstile test sitekey (M20-S09) — pairs with
+          # TURNSTILE_SECRET_KEY above, which is already set to the matching always-pass test
+          # secret. The real widget script runs against this dummy sitekey and always renders a
+          # passable challenge; never mock/stub the widget itself.
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: '1x00000000000000000000AA'
         run: |
           set -e
 

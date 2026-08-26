@@ -49,6 +49,26 @@ describe('GoogleAuthGuard', () => {
       const payload = jwtService.verify<OAuthStatePayload>(opts.state);
       expect(payload.tenantSlug).toBeUndefined();
     });
+
+    it('signs a state carrying returnTo when scoped to the given tenantSlug (M20-S09)', () => {
+      const opts = guard.getAuthenticateOptions(
+        makeExecutionContext({
+          query: { tenantSlug: 'lavacar-bh', returnTo: '/lavacar-bh/lead-form' },
+        }),
+      ) as { state: string };
+      const payload = jwtService.verify<OAuthStatePayload>(opts.state);
+      expect(payload.returnTo).toBe('/lavacar-bh/lead-form');
+    });
+
+    it('drops a returnTo scoped to a different tenant than tenantSlug (open-redirect attempt)', () => {
+      const opts = guard.getAuthenticateOptions(
+        makeExecutionContext({
+          query: { tenantSlug: 'lavacar-bh', returnTo: '/other-tenant/lead-form' },
+        }),
+      ) as { state: string };
+      const payload = jwtService.verify<OAuthStatePayload>(opts.state);
+      expect(payload.returnTo).toBeUndefined();
+    });
   });
 
   describe('getAuthenticateOptions() — staff login', () => {
