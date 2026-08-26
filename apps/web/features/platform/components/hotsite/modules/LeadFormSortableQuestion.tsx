@@ -47,8 +47,20 @@ export function LeadFormSortableQuestion({
   // `open` starts in sync with `invalid` (a freshly added/invalid question is expanded by
   // default) but is then user-controlled — deriving it straight from `invalid` on every render
   // would force the <details> shut the moment the admin's first keystroke makes the question
-  // valid, discarding their own edit context mid-typing.
+  // valid, discarding their own edit context mid-typing. The reverse direction (valid ->
+  // invalid, e.g. removing an option down to 1 while open, then manually collapsing) has no such
+  // downside: force it back open so the inline error text isn't hidden inside a collapsed card
+  // (Codex review finding, M20-S08 PR #429, 2026-08-26) — a collapsed invalid card still gets a
+  // red border, but only the expanded body carries the specific validation message. Adjusted
+  // during render (React's own documented pattern for "state derived from a changing prop"),
+  // not a useEffect — react-hooks/set-state-in-effect correctly flags a setState-in-effect here
+  // as a needless extra render pass.
   const [open, setOpen] = useState(invalid);
+  const [prevInvalid, setPrevInvalid] = useState(invalid);
+  if (invalid !== prevInvalid) {
+    setPrevInvalid(invalid);
+    if (invalid) setOpen(true);
+  }
   const style = { transform: CSS.Transform.toString(transform), transition };
 
   function update(patch: Partial<AdminQuestion>): void {
