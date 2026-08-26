@@ -780,6 +780,8 @@
               "title": "Teaser copy",
               "titleLabel": "Title",
               "subtitleLabel": "Subtitle",
+              "eyebrowLabel": "Eyebrow text (optional)",
+              "eyebrowPlaceholder": "Get in touch",
               "ctaLabel": "Button text",
               "variantLabel": "Layout",
               "variantCentered": "Centered",

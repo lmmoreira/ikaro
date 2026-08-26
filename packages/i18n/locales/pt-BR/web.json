@@ -780,6 +780,8 @@
               "title": "Texto do teaser",
               "titleLabel": "Título",
               "subtitleLabel": "Subtítulo",
+              "eyebrowLabel": "Texto de destaque (opcional)",
+              "eyebrowPlaceholder": "Fale conosco",
               "ctaLabel": "Texto do botão",
               "variantLabel": "Layout",
               "variantCentered": "Centralizado",

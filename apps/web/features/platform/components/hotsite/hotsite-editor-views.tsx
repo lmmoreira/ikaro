@@ -112,15 +112,42 @@ export function updateEditorDraft(
   clearBanner();
 }
 
+// Folds a LEAD_FORM module's teaser data (layout[].data — never carries audienceMode/questions,
+// see docs/02-DOMAIN_MODEL.md § LeadFormConfig "Cross-aggregate save") and its separate
+// LeadFormConfig portion (audienceMode/questions) into the one merged shape the panel's own
+// `data` prop actually is — the same merge configureModule already does for the initial
+// `localData`, reused here so the dirty-check's two sides are built the identical way.
+function mergeLeadFormBaseline(
+  layoutData: Record<string, unknown>,
+  leadFormPortion: LeadFormConfigDraft | null,
+): Record<string, unknown> {
+  return leadFormPortion ? { ...layoutData, ...leadFormPortion } : layoutData;
+}
+
 export function cancelModuleConfig(
   view: EditorView,
   draft: HotsiteAdminContentResponse,
+  leadFormConfigBaseline: LeadFormConfigDraft | null,
   onConfirmRequired: () => void,
   onCancel: () => void,
 ): void {
   if (view.view !== 'module-config') return;
-  const committed = draft.layout.find((module) => module.type === view.type)?.data ?? {};
-  if (isModuleDataDirty(committed, view.localData)) onConfirmRequired();
+  const layoutData = draft.layout.find((module) => module.type === view.type)?.data ?? {};
+  const isLeadForm = view.type === 'LEAD_FORM';
+  const committed = isLeadForm
+    ? mergeLeadFormBaseline(layoutData, leadFormConfigBaseline)
+    : layoutData;
+  // localData's own LeadFormConfig portion is re-derived through the same extract/strip helpers
+  // "Aplicar" uses, discarding hasSubmissions (a read-only annotation, present on localData but
+  // never on the baseline above) so it can never itself cause a false "dirty" — not comparing raw
+  // localData directly.
+  const current = isLeadForm
+    ? mergeLeadFormBaseline(
+        stripLeadFormConfig(view.localData),
+        extractLeadFormConfig(view.localData),
+      )
+    : view.localData;
+  if (isModuleDataDirty(committed, current)) onConfirmRequired();
   else onCancel();
 }
 

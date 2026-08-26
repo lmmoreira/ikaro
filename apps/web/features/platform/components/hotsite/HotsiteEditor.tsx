@@ -18,6 +18,7 @@ import {
 import { materializeLayout } from '@/features/platform/hotsite/default-layout';
 import type { ManifestDraft } from '@/features/platform/hotsite/manifest-schema';
 import {
+  useLeadFormConfig,
   useUpdateHotsiteConfig,
   usePublishHotsite,
   useUnpublishHotsite,
@@ -72,6 +73,19 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
   const unpublishHotsite = useUnpublishHotsite();
   const isPublishing = updateConfig.isPending || publishHotsite.isPending;
   const [leadFormConfigDraft, setLeadFormConfigDraft] = useState<LeadFormConfigDraft | null>(null);
+  const leadFormConfig = useLeadFormConfig();
+  // The dirty-check baseline for LEAD_FORM: the same shape LeadFormConfigPanel's own draft
+  // converges to once its GET fetch resolves (audienceMode/questions, sans hasSubmissions — a
+  // read-only annotation, never something the manager edits). Without this, cancelModuleConfig's
+  // committed value (draft.layout[].data alone, which never carries audienceMode/questions — see
+  // docs/02-DOMAIN_MODEL.md § LeadFormConfig "Cross-aggregate save") can never equal the panel's
+  // own localData once it syncs, so the discard-confirm dialog showed unconditionally, even with
+  // zero real edits (found live, 2026-08-26).
+  const leadFormConfigBaseline =
+    leadFormConfigDraft ??
+    (leadFormConfig.data
+      ? extractLeadFormConfig(leadFormConfig.data as unknown as Record<string, unknown>)
+      : null);
   const topbarStatus = useDashboardTopbarStatus();
   const setOnBackOverride = topbarStatus?.setOnBackOverride;
   const setBackLabelOverride = topbarStatus?.setBackLabelOverride;
@@ -169,6 +183,7 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
     cancelModuleConfig(
       view,
       draft,
+      leadFormConfigBaseline,
       () => setDiscardConfirmOpen(true),
       () => setView({ view: 'tabs' }),
     );

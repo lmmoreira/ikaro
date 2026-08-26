@@ -39,6 +39,9 @@ describe('LeadFormTeaserFields', () => {
     await user.type(screen.getByLabelText('Título'), 'a');
     expect(onChange).toHaveBeenCalledWith({ title: 'a' });
 
+    await user.type(screen.getByLabelText('Texto de destaque (opcional)'), 'a');
+    expect(onChange).toHaveBeenCalledWith({ eyebrow: 'a' });
+
     await user.click(screen.getByRole('radio', { name: 'Alinhado à esquerda' }));
     expect(onChange).toHaveBeenCalledWith({ variant: 'left-aligned' });
 

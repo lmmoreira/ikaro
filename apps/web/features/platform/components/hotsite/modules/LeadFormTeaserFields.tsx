@@ -7,6 +7,7 @@ import { ConfigTextField } from './ConfigTextField';
 export type LeadFormTeaserDraft = {
   title: string;
   subtitle?: string;
+  eyebrow?: string;
   ctaLabel: string;
   variant?: 'centered' | 'left-aligned';
   bgStyle?: 'primary' | 'background';
@@ -24,8 +25,7 @@ export function LeadFormTeaserFields({
   const t = useTranslations('dashboard.hotsitePage.layout.panels.leadForm');
 
   return (
-    <div className="space-y-5 rounded-lg border border-gray-200 bg-white p-4">
-      <h2 className="text-base font-semibold text-gray-900">{t('teaser.title')}</h2>
+    <div className="space-y-5">
       <ConfigTextField
         id="lead-form-teaser-title"
         label={t('teaser.titleLabel')}
@@ -51,6 +51,13 @@ export function LeadFormTeaserFields({
         label={t('teaser.ctaLabel')}
         value={draft.ctaLabel}
         onChange={(ctaLabel) => onChange({ ctaLabel })}
+      />
+      <ConfigTextField
+        id="lead-form-teaser-eyebrow"
+        label={t('teaser.eyebrowLabel')}
+        placeholder={t('teaser.eyebrowPlaceholder')}
+        value={draft.eyebrow ?? ''}
+        onChange={(eyebrow) => onChange({ eyebrow })}
       />
       <PillSelect
         label={t('teaser.variantLabel')}
