@@ -51,8 +51,12 @@ FROM node@sha256:76789712cd1ae89a1225eac9077010d68987a423588042dac30446f502f1858
 
 WORKDIR /app
 
-# Remove npm — unused in production runner, eliminates npm's bundled CVEs
-RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
+# The pinned node:22-alpine digest predates a fixed Alpine package (libssl3/libcrypto3
+# 3.5.8-r0, CVE-2026-14456) that Alpine's 3.24 repo already publishes — no newer base
+# image digest exists upstream yet, so patch OS packages explicitly rather than wait.
+# Also removes npm — unused in production runner, eliminates npm's bundled CVEs.
+RUN apk upgrade --no-cache libssl3 libcrypto3 \
+    && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 # Copy prod node_modules + package.json from pnpm deploy
 COPY --from=builder /standalone .
