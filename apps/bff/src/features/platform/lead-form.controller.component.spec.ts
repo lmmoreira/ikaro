@@ -82,22 +82,6 @@ describe('LeadFormController (component)', () => {
       expect(res.status).toBe(403);
     });
 
-    it('PATCH /v1/tenants/lead-form/config → 403 for STAFF role', async () => {
-      const res = await request(app.getHttpServer())
-        .patch('/v1/tenants/lead-form/config')
-        .set('Authorization', `Bearer ${makeStaffJwt(jwtService)}`)
-        .send({ title: 'Fale com a gente' });
-      expect(res.status).toBe(403);
-    });
-
-    it('PATCH /v1/tenants/lead-form/config → 403 for CUSTOMER role', async () => {
-      const res = await request(app.getHttpServer())
-        .patch('/v1/tenants/lead-form/config')
-        .set('Authorization', `Bearer ${makeCustomerJwt(jwtService)}`)
-        .send({ title: 'Fale com a gente' });
-      expect(res.status).toBe(403);
-    });
-
     it('GET /v1/tenants/lead-form/status → 200 for STAFF role', async () => {
       setupActiveGuardMock(httpService);
       backendHttpService.get.mockResolvedValueOnce({ enabled: true });
@@ -126,23 +110,8 @@ describe('LeadFormController (component)', () => {
     });
   });
 
-  describe('updateConfig', () => {
-    it('PATCH /v1/tenants/lead-form/config → 200 for MANAGER role, proxies to backend unchanged', async () => {
-      setupActiveGuardMock(httpService);
-      backendHttpService.patch.mockResolvedValueOnce(configResponse);
-
-      const res = await request(app.getHttpServer())
-        .patch('/v1/tenants/lead-form/config')
-        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
-        .send({ title: 'Fale com a gente' });
-
-      expect(res.status).toBe(200);
-      expect(res.body).toEqual(configResponse);
-      expect(backendHttpService.patch).toHaveBeenCalledWith('/tenants/lead-form/config', {
-        title: 'Fale com a gente',
-      });
-    });
-  });
+  // Config writes moved to PATCH /v1/tenants/hotsite as of M20-S08 — see
+  // hotsite-admin.controller.component.spec.ts's own "audienceMode/questions" coverage.
 
   describe('listSubmissions', () => {
     it('GET /v1/tenants/lead-form/submissions → 200 for STAFF role, proxies query params to backend', async () => {

@@ -20,7 +20,6 @@ import type { ManifestDraft } from '@/features/platform/hotsite/manifest-schema'
 import {
   useUpdateHotsiteConfig,
   usePublishHotsite,
-  useUpdateLeadFormConfig,
   useUnpublishHotsite,
 } from '@/features/platform/hotsite/useHotsite';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
@@ -69,11 +68,9 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const { tenantId, tenantSlug } = useTenant();
   const updateConfig = useUpdateHotsiteConfig();
-  const updateLeadFormConfig = useUpdateLeadFormConfig();
   const publishHotsite = usePublishHotsite();
   const unpublishHotsite = useUnpublishHotsite();
-  const isPublishing =
-    updateConfig.isPending || updateLeadFormConfig.isPending || publishHotsite.isPending;
+  const isPublishing = updateConfig.isPending || publishHotsite.isPending;
   const [leadFormConfigDraft, setLeadFormConfigDraft] = useState<LeadFormConfigDraft | null>(null);
   const topbarStatus = useDashboardTopbarStatus();
   const setOnBackOverride = topbarStatus?.setOnBackOverride;
@@ -131,7 +128,6 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
       tenantId,
       locale,
       updateConfig,
-      updateLeadFormConfig,
       publishHotsite,
       setDraft,
       onTabs: () => setView({ view: 'tabs' }),

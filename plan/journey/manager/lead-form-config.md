@@ -28,7 +28,7 @@ flowchart TD
 
     Config --> Apply(("Clica 'Aplicar'<br/>(mantém no rascunho local)"))
     Apply --> Publish(("Clica 'Publicar'<br/>(uma chamada de configuração do lead form)"))
-    Publish --> Validate{"PATCH /v1/tenants/lead-form/config<br/>válido? (transação única)"}
+    Publish --> Validate{"PATCH /v1/tenants/hotsite<br/>válido? (transação única)"}
     Validate -- "não — opções insuficientes" --> ValError["erro de validação<br/>(01c-config-validation-error) |UC-037 A2|"]
     Validate -- "sim" --> Back["volta para 01-hotsite-editor.html"]
 

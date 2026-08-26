@@ -8,12 +8,10 @@ import {
   publishHotsite,
   unpublishHotsite,
   updateHotsiteConfig,
-  updateLeadFormConfig,
   type FeatureBookingPhotoRequest,
   type HotsiteImageSignedUrlRequest,
   type UpdateHotsiteRequest,
 } from '@/features/platform/api/tenant-settings';
-import type { UpdateLeadFormConfigRequest } from '@ikaro/types';
 import { useTenant } from '@/providers/tenant-provider';
 
 export function useHotsiteConfig() {
@@ -29,7 +27,14 @@ export function useUpdateHotsiteConfig() {
   const { tenantId } = useTenant();
   return useMutation({
     mutationFn: (body: UpdateHotsiteRequest) => updateHotsiteConfig(body),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hotsite', tenantId] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hotsite', tenantId] });
+      // Cheap and harmless when the request carried no audienceMode/questions — invalidating an
+      // unaffected query just marks it stale, refetched on next read. Covers the LEAD_FORM
+      // config panel, which reads a separate aggregate this same request can also write to
+      // (folded in at M20-S08 — see UpdateHotsiteRequest's own audienceMode/questions fields).
+      queryClient.invalidateQueries({ queryKey: ['lead-form-config', tenantId] });
+    },
   });
 }
 
@@ -81,17 +86,5 @@ export function useLeadFormConfig() {
   return useQuery({
     queryKey: ['lead-form-config', tenantId],
     queryFn: getLeadFormConfig,
-  });
-}
-
-export function useUpdateLeadFormConfig() {
-  const queryClient = useQueryClient();
-  const { tenantId } = useTenant();
-  return useMutation({
-    mutationFn: (body: UpdateLeadFormConfigRequest) => updateLeadFormConfig(body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['lead-form-config', tenantId] });
-      queryClient.invalidateQueries({ queryKey: ['hotsite', tenantId] });
-    },
   });
 }

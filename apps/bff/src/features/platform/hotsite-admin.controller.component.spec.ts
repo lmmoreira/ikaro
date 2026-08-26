@@ -169,6 +169,57 @@ describe('HotsiteAdminController (component)', () => {
 
       expect(res.status).toBe(409);
     });
+
+    // M20-S08 — audienceMode/questions write LeadFormConfig via this same consolidated endpoint
+    // (previously a separate PATCH /v1/tenants/lead-form/config; see
+    // lead-form.controller.component.spec.ts's own note on why that coverage moved here).
+    it('PATCH /v1/tenants/hotsite → 200, forwards audienceMode/questions alongside layout', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.patch.mockResolvedValueOnce(contentResponse);
+      const body = {
+        layout: [{ type: 'LEAD_FORM', enabled: true, data: { title: 'Fale com a gente' } }],
+        audienceMode: 'CUSTOMER_ONLY',
+        questions: [
+          {
+            id: '00000000-0000-4000-8000-000000000001',
+            label: 'Qual serviço você procura?',
+            type: 'TEXT',
+            required: true,
+            order: 0,
+          },
+        ],
+      };
+
+      const res = await request(app.getHttpServer())
+        .patch('/v1/tenants/hotsite')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send(body);
+
+      expect(res.status).toBe(200);
+      expect(backendHttpService.patch).toHaveBeenCalledWith('/tenants/hotsite', body);
+    });
+
+    it('PATCH /v1/tenants/hotsite → 400 when a question has an invalid type enum value', async () => {
+      setupActiveGuardMock(httpService);
+
+      const res = await request(app.getHttpServer())
+        .patch('/v1/tenants/hotsite')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send({
+          questions: [
+            {
+              id: '00000000-0000-4000-8000-000000000001',
+              label: 'x',
+              type: 'NOT_A_REAL_TYPE',
+              required: true,
+              order: 0,
+            },
+          ],
+        });
+
+      expect(res.status).toBe(400);
+      expect(backendHttpService.patch).not.toHaveBeenCalled();
+    });
   });
 
   describe('publish', () => {

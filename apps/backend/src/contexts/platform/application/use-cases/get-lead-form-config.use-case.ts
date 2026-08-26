@@ -37,7 +37,7 @@ export class GetLeadFormConfigUseCase {
     const { tenantId } = input;
     // readResolved() resolves every stored image path (including this module's own
     // backgroundImageUrl) to a permanent public URL — symmetric with
-    // UpdateLeadFormModuleUseCase's own resolution on the write side, same reasoning as
+    // UpdateHotsiteContentUseCase's own resolution on the write side, same reasoning as
     // GetHotsiteContentUseCase (docs/ENGINEERING_RULES.md: a raw storage path here would show a
     // broken image once the environment's public base URL doesn't bake the bucket name in).
     const content = await this.hotsiteContentReader.readResolved(tenantId);

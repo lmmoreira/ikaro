@@ -94,18 +94,19 @@ export const HotsiteModuleSchema = z.object({
   data: z.record(z.string(), z.unknown()),
 });
 
-// M20-S01 — shared by the backend (update-lead-form-config.dto.ts) and BFF
-// (lead-form.schemas.ts); both need the identical shape with no per-app deviation, so this lives
-// here directly rather than duplicated (mirrors HotsiteModuleSchema's own direct-reuse pattern
-// above, not buildUpdateTenantSettingsSchema's per-app-customization pattern in tenant-settings.ts
-// — there's no field here that differs between backend and BFF).
+// M20-S01 — shared by the backend (update-hotsite-content.dto.ts) and BFF
+// (hotsite-admin.schemas.ts) as part of the consolidated hotsite-content update schema; both need
+// the identical shape with no per-app deviation, so this lives here directly rather than
+// duplicated (mirrors HotsiteModuleSchema's own direct-reuse pattern above, not
+// buildUpdateTenantSettingsSchema's per-app-customization pattern in tenant-settings.ts — there's
+// no field here that differs between backend and BFF).
 //
 // Question-level bounds (≤20 entries, 2-10 options for choice types, non-empty label, unique id)
 // are deliberately NOT re-validated here — LeadFormConfig.updateQuestions() is this rule's sole
 // owner (docs/ENGINEERING_RULES.md § Single source of truth for a validation rule's code). A
 // second Zod-side check here risks emitting a different code for the identical violation
 // depending on which layer catches it first.
-const LeadFormQuestionSchema = z.object({
+export const LeadFormQuestionSchema = z.object({
   id: z.uuid(),
   label: z.string(),
   type: z.enum(['TEXT', 'SINGLE_CHOICE', 'MULTIPLE_CHOICE']),
@@ -113,6 +114,8 @@ const LeadFormQuestionSchema = z.object({
   options: z.array(z.string()).optional(),
   order: z.number().int(),
 });
+
+export const LeadFormAudienceModeSchema = z.enum(['GUEST_AND_CUSTOMER', 'CUSTOMER_ONLY']);
 
 // Teaser fields mirror BookingCtaModuleData's own shape family (docs/15-HOTSITE_DYNAMIC_
 // ARCHITECTURE.md § LEAD_FORM) — standard hotsite-layout enum validation for variant/bgStyle/
@@ -136,21 +139,3 @@ export const HotsiteSeoSchema = z
     ogImageUrl: z.string().regex(HOTSITE_LOGO_URL_REGEX, HOTSITE_OG_IMAGE_URL_MESSAGE),
   })
   .partial();
-
-export const UpdateLeadFormConfigSchema = z
-  .object({
-    branding: HotsiteBrandingSchema.optional(),
-    layout: z.array(HotsiteModuleSchema).optional(),
-    seo: HotsiteSeoSchema.optional(),
-    title: z.string().optional(),
-    subtitle: z.string().optional(),
-    eyebrow: z.string().optional(),
-    ctaLabel: z.string().optional(),
-    variant: z.enum(['centered', 'left-aligned']).optional(),
-    backgroundImageUrl: z.string().nullable().optional(),
-    backgroundImagePosition: z.enum(['left', 'center', 'right']).optional(),
-    bgStyle: z.enum(['primary', 'background']).optional(),
-    audienceMode: z.enum(['GUEST_AND_CUSTOMER', 'CUSTOMER_ONLY']).optional(),
-    questions: z.array(LeadFormQuestionSchema).optional(),
-  })
-  .default({});

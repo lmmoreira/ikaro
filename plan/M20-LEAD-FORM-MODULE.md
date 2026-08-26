@@ -67,6 +67,8 @@ graph TD
 
 ### M20-S01 — `LeadFormConfig` aggregate + consolidated admin config endpoint + status endpoint ✅ Done
 
+**Post-implementation addendum, M20-S08 (2026-08-26):** the write side of this story's own consolidated endpoint — `PATCH /v1/tenants/lead-form/config` — was itself folded into the pre-existing generic `PATCH /v1/tenants/hotsite` as two additional optional fields (`audienceMode?`, `questions?`), removing `UpdateLeadFormModuleUseCase` (which had near-completely duplicated `UpdateHotsiteContentUseCase`'s own image-promotion/persist logic just to accept `branding`/`layout`/`seo` a second time). `GET /v1/tenants/lead-form/config` is unchanged — it stays its own endpoint (a genuinely distinct read shape: the `hasSubmissions` computation, merging two aggregates into one config-panel-shaped response). Every `PATCH /v1/tenants/lead-form/config` reference below this line describes the *original* design and is superseded — see `docs/14-API_CONTRACTS.md` § Lead Form Admin Config and § Hotsite Admin Management for the current contract.
+
 **Agent:** `backend-ts`
 **Complexity:** M
 **Docs to load:** `docs/02-DOMAIN_MODEL.md` § Platform Context (`LeadFormConfig`, "Cross-aggregate save, one transaction"), `docs/13-DATABASE_SCHEMA.md` § `platform.lead_form_configs`, `docs/14-API_CONTRACTS.md` § Lead Form Admin Config + § Lead Form Status, `docs/04-USE_CASES.md` UC-037, UC-041 (Trigger — status endpoint consumer), `docs/AGENT_PATTERNS.md` Pattern #1 (port+adapter), `docs/24-BFF_ARCHITECTURE.md` § Module & Controller Naming Conventions
