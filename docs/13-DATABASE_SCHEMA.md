@@ -155,6 +155,7 @@ One row per tenant — question catalog + audience gating for the `LEAD_FORM` ho
 | audience_mode | VARCHAR(20) | NOT NULL DEFAULT `'GUEST_AND_CUSTOMER'` — `'GUEST_AND_CUSTOMER'` \| `'CUSTOMER_ONLY'` |
 | questions | JSONB | NOT NULL DEFAULT `'[]'` — array, ≤20 entries, `{id, label, type, required, options?, order}` |
 | updated_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
+| version | INTEGER | NOT NULL DEFAULT 1 — optimistic-locking column, added by `1748500000005-AddVersionToLeadFormConfigs.ts` (mirrors `hotsite_configs.version`; Codex review, M20-S08 PR #429, 2026-08-26 — this aggregate is written in the same transaction as `hotsite_configs` and had no concurrency guard at all) |
 
 **Why JSONB, not a child table:** the question catalog is always read and written as one atomic unit by exactly one actor (the manager editing the form) — never queried or joined per-question, same justification `hotsite_configs.layout` already uses. Bounds are small and fixed (20 questions × 10 options, worst case a few KB) — safe to fetch on every `/[slug]/lead-form` page load with no pagination concerns.
 
