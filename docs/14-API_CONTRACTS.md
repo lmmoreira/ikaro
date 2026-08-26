@@ -342,7 +342,7 @@ Generates a GCS signed **upload** URL for hotsite images (logo, hero/CTA backgro
     "purpose":     "branding"
   }
   ```
-  `purpose`: one of `branding | hero | gallery | about | booking-cta | testimonials | seo-og-image` (M18-S03) — groups uploaded assets by what they're for; also encoded into the staging path so promotion can rebuild the permanent path without a second lookup.
+  `purpose`: one of `branding | hero | gallery | about | booking-cta | testimonials | seo-og-image | lead-form` (M18-S03, extended M20-S08) — groups uploaded assets by what they're for; also encoded into the staging path so promotion can rebuild the permanent path without a second lookup.
 
 - **Response (201 Created):**
   ```json

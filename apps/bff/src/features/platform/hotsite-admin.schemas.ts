@@ -50,6 +50,7 @@ export const GenerateHotsiteImageSignedUrlBodySchema = z.object({
     'booking-cta',
     'testimonials',
     'seo-og-image',
+    'lead-form',
   ]),
 });
 

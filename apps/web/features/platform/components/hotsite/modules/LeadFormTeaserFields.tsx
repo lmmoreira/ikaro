@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { PillSelect } from '@/shared/components/ui/pill-select';
+import { SingleImageUploadField } from '../SingleImageUploadField';
 import { ConfigTextField } from './ConfigTextField';
 
 export type LeadFormTeaserDraft = {
@@ -10,6 +11,8 @@ export type LeadFormTeaserDraft = {
   eyebrow?: string;
   ctaLabel: string;
   variant?: 'centered' | 'left-aligned';
+  backgroundImageUrl?: string | null;
+  backgroundImagePosition?: 'left' | 'center' | 'right';
   bgStyle?: 'primary' | 'background';
 };
 
@@ -79,6 +82,33 @@ export function LeadFormTeaserFields({
           { value: 'background', label: t('teaser.bgStyleBackground') },
         ]}
       />
+      <SingleImageUploadField
+        id="lead-form-teaser-background-image"
+        value={draft.backgroundImageUrl ?? ''}
+        onChange={(backgroundImageUrl) => onChange({ backgroundImageUrl })}
+        purpose="lead-form"
+        previewSize="large"
+        label={t('teaser.backgroundImageLabel')}
+        clickToAddLabel={t('teaser.backgroundImageClickToAdd')}
+        formatHintLabel={t('teaser.backgroundImageFormatHint')}
+        uploadingLabel={t('teaser.backgroundImageUploading')}
+        uploadErrorLabel={t('teaser.backgroundImageUploadError')}
+        lowResolutionErrorLabel={t('teaser.backgroundImageLowResolutionError')}
+        removeLabel={t('teaser.backgroundImageRemove')}
+      />
+      {draft.backgroundImageUrl && (
+        <PillSelect
+          label={t('teaser.backgroundImagePositionLabel')}
+          value={draft.backgroundImagePosition ?? 'center'}
+          onChange={(backgroundImagePosition) => onChange({ backgroundImagePosition })}
+          testId="lead-form-teaser-background-image-position"
+          options={[
+            { value: 'left', label: t('teaser.backgroundImagePositionLeft') },
+            { value: 'center', label: t('teaser.backgroundImagePositionCenter') },
+            { value: 'right', label: t('teaser.backgroundImagePositionRight') },
+          ]}
+        />
+      )}
     </div>
   );
 }

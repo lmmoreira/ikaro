@@ -788,7 +788,18 @@
               "variantLeftAligned": "Alinhado à esquerda",
               "bgStyleLabel": "Estilo de fundo",
               "bgStylePrimary": "Cor primária",
-              "bgStyleBackground": "Cor de fundo"
+              "bgStyleBackground": "Cor de fundo",
+              "backgroundImageLabel": "Imagem de fundo (opcional)",
+              "backgroundImageClickToAdd": "Arraste uma imagem ou clique para enviar",
+              "backgroundImageFormatHint": "Sem imagem → fundo sólido com a cor primária",
+              "backgroundImageUploading": "Enviando...",
+              "backgroundImageUploadError": "Não foi possível enviar a imagem. Tente novamente.",
+              "backgroundImageLowResolutionError": "Imagem com resolução muito baixa para uma imagem de fundo. Envie uma versão menos panorâmica ou com mais detalhe vertical.",
+              "backgroundImageRemove": "Remover imagem",
+              "backgroundImagePositionLabel": "Ponto focal da imagem",
+              "backgroundImagePositionLeft": "Esquerda",
+              "backgroundImagePositionCenter": "Centro",
+              "backgroundImagePositionRight": "Direita"
             },
             "audience": {
               "title": "Quem pode responder",

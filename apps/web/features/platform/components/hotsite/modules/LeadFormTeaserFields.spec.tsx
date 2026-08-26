@@ -5,6 +5,11 @@ import userEvent from '@testing-library/user-event';
 import { renderWithIntl } from '@/test-utils';
 import { LeadFormTeaserFields } from './LeadFormTeaserFields';
 
+vi.mock('@/features/platform/api/tenant-settings', () => ({
+  generateHotsiteImageSignedUrl: vi.fn(),
+  deleteHotsiteImage: vi.fn(),
+}));
+
 describe('LeadFormTeaserFields', () => {
   it('renders the draft values, defaulting variant and bgStyle when unset', () => {
     renderWithIntl(
@@ -47,5 +52,53 @@ describe('LeadFormTeaserFields', () => {
 
     await user.click(screen.getByRole('radio', { name: 'Cor primária' }));
     expect(onChange).toHaveBeenCalledWith({ bgStyle: 'primary' });
+  });
+
+  describe('background image focal point (M18-S04/S05 treatment, applied here in M20-S08)', () => {
+    it('does not render the focal-point picker when no background image is set', () => {
+      renderWithIntl(
+        <LeadFormTeaserFields draft={{ title: '', ctaLabel: '' }} onChange={vi.fn()} />,
+      );
+
+      expect(
+        screen.queryByTestId('lead-form-teaser-background-image-position-center'),
+      ).not.toBeInTheDocument();
+    });
+
+    it('renders the focal-point picker when a background image is set', () => {
+      renderWithIntl(
+        <LeadFormTeaserFields
+          draft={{
+            title: '',
+            ctaLabel: '',
+            backgroundImageUrl: 'tenants/t/hotsite/lead-form/x/y.webp',
+          }}
+          onChange={vi.fn()}
+        />,
+      );
+
+      expect(
+        screen.getByTestId('lead-form-teaser-background-image-position-center'),
+      ).toBeInTheDocument();
+    });
+
+    it('changing the focal-point pill calls onChange with only that field updated', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      renderWithIntl(
+        <LeadFormTeaserFields
+          draft={{
+            title: '',
+            ctaLabel: '',
+            backgroundImageUrl: 'tenants/t/hotsite/lead-form/x/y.webp',
+          }}
+          onChange={onChange}
+        />,
+      );
+
+      await user.click(screen.getByTestId('lead-form-teaser-background-image-position-right'));
+
+      expect(onChange).toHaveBeenCalledWith({ backgroundImagePosition: 'right' });
+    });
   });
 });
