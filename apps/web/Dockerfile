@@ -1,6 +1,6 @@
 # ─── Stage 1: Build ──────────────────────────────────────────────────────────
 # node:22-alpine
-FROM node@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS builder
+FROM node@sha256:76789712cd1ae89a1225eac9077010d68987a423588042dac30446f502f1858c AS builder
 
 RUN npm install -g pnpm@11.1.1 --ignore-scripts --no-audit --no-fund
 
@@ -22,9 +22,14 @@ RUN pnpm --filter @ikaro/web build \
 
 # ─── Stage 2: Run ────────────────────────────────────────────────────────────
 # node:22-alpine
-FROM node@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS runner
+FROM node@sha256:76789712cd1ae89a1225eac9077010d68987a423588042dac30446f502f1858c AS runner
 
 WORKDIR /app
+
+# The pinned node:22-alpine digest predates a fixed Alpine package (libssl3/libcrypto3
+# 3.5.8-r0, CVE-2026-14456) that Alpine's 3.24 repo already publishes — no newer base
+# image digest exists upstream yet, so patch OS packages explicitly rather than wait.
+RUN apk upgrade --no-cache libssl3 libcrypto3
 
 RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx \
     && addgroup --system --gid 1001 nodejs \
