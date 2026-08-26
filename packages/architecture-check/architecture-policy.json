@@ -551,12 +551,13 @@
         "TenantEntity",
         "HotsiteConfigEntity",
         "LeadFormConfigEntity",
+        "LeadFormSubmissionEntity",
         "InboxRecordEntity",
         "ChatbotSessionEntity",
         "ChatbotMessageEntity",
         "ChatbotProviderBalanceEntity"
       ],
-      "rationale": "Platform context integration app — scoped to platform's own aggregates."
+      "rationale": "Platform context integration app — scoped to platform's own aggregates. LeadFormSubmissionEntity added M20-S06 for the new admin submissions list/detail controller integration tests."
     }
   ],
   "exceptions": [

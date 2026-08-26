@@ -2,8 +2,26 @@ import { LeadFormSubmission } from '../../domain/lead-form-submission.aggregate'
 
 export const LEAD_FORM_SUBMISSION_REPOSITORY = Symbol('ILeadFormSubmissionRepository');
 
+export interface PaginatedLeadFormSubmissions {
+  items: LeadFormSubmission[];
+  total: number;
+}
+
 export interface ILeadFormSubmissionRepository {
   save(submission: LeadFormSubmission): Promise<void>;
+  /** UC-041 main flow step 1 — paginated admin list, ordered `submittedAt DESC`, seeking the
+   * `(tenant_id, submitted_at DESC)` index (mirrors `TypeOrmLoyaltyEntryRepository`'s own
+   * `findAndCount`/`take`/`skip` pagination precedent). `page` is 1-indexed. */
+  findByTenantPaginated(
+    tenantId: string,
+    page: number,
+    pageSize: number,
+  ): Promise<PaginatedLeadFormSubmissions>;
+  /** UC-041 main flow step 6 — tenant-scoped lookup for the detail view. Returns `null` (never
+   * throws) for a nonexistent id OR one belonging to a different tenant — the same "404, not 403"
+   * cross-tenant-probing shape `GetBookingByIdUseCase` already establishes; the use case throws
+   * `LeadFormSubmissionNotFoundError` on a `null` result. */
+  findById(id: string, tenantId: string): Promise<LeadFormSubmission | null>;
   /** Rate-limit cap layer 1 (tenant-wide daily count), counted against the
    * `(tenant_id, submitted_at DESC)` index. `from`/`to` are real UTC instant boundaries —
    * resolve them via `localDayBoundsUTC()` (shared/utils/calendar-date.ts) for the tenant's own

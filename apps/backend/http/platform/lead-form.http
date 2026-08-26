@@ -1,6 +1,7 @@
 # Platform — Lead Form (M20-S01): LeadFormConfig aggregate + consolidated admin config endpoint
 # UC-037: Manager configures the lead form module
 # UC-041 (Trigger): status endpoint powers the dashboard's gated "Leads" nav item
+# UC-041 (M20-S06): admin submissions read — paginated list + read-only detail
 #
 # Prerequisites:
 #   1. pnpm infra:up
@@ -53,6 +54,24 @@ Content-Type: application/json
 
 ### Status — nav-gating read (STAFF can also read)
 GET {{baseUrl}}/tenants/lead-form/status
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+###
+
+### List submissions — paginated, ordered submittedAt DESC (STAFF can also read)
+GET {{baseUrl}}/tenants/lead-form/submissions?page=1&pageSize=20
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+###
+
+### Submission detail — full answers snapshot (STAFF can also read)
+GET {{baseUrl}}/tenants/lead-form/submissions/01234567-0000-7000-8000-000000000201
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{staffId}}
 X-Actor-Type: STAFF
@@ -150,3 +169,12 @@ Content-Type: application/json
     { "id": "01234567-0000-7000-8000-000000000101", "label": "", "type": "TEXT", "required": false, "order": 0 }
   ]
 }
+
+###
+
+### Submission detail for an unknown id → 404 PLATFORM_LEAD_FORM_SUBMISSION_NOT_FOUND
+GET {{baseUrl}}/tenants/lead-form/submissions/01234567-0000-7000-8000-000000000999
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER

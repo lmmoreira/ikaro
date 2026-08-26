@@ -26,6 +26,7 @@ import {
   LeadFormDailyCapReachedError,
   LeadFormNotEnabledError,
   LeadFormQuestionLabelRequiredError,
+  LeadFormSubmissionNotFoundError,
 } from '../../domain/errors/lead-form-domain.error';
 
 // M20-S05 — split out of mapPlatformError to stay under the 40-line function cap. Returns
@@ -66,7 +67,8 @@ export function mapPlatformError(err: unknown): never {
   if (
     err instanceof TenantNotFoundError ||
     err instanceof HotsiteNotFoundError ||
-    err instanceof ChatbotSessionNotFoundError
+    err instanceof ChatbotSessionNotFoundError ||
+    err instanceof LeadFormSubmissionNotFoundError
   ) {
     throw throwProblemDetail(HttpStatus.NOT_FOUND, err.code, err.message, err.field);
   }

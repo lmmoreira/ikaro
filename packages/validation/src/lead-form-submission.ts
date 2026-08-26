@@ -27,3 +27,12 @@ export const LeadFormSubmissionFieldsSchema = z.object({
   phone: z.string().min(1).max(30),
   answers: z.array(LeadFormSubmissionAnswerSchema).max(20),
 });
+
+// M20-S06 — shared by the backend (list-lead-form-submissions.dto.ts) and BFF
+// (lead-form.schemas.ts) admin submissions-list query params. Same "BFF schema silently drifts
+// from backend DTO" pattern the two schemas above already solve — found by /bad-smell-audit
+// (BFF-5) rather than authored duplicated from the start.
+export const ListLeadFormSubmissionsSchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
