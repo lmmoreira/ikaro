@@ -92,6 +92,18 @@ Apply `Partial<>` at the level where the schema actually stops requiring all fie
 
 ---
 
+## Schema-level enforcement of "never persisted here" invariants
+
+A documented invariant that field X must never appear inside field Y (a comment, a doc row, a naming convention) is not actually enforced unless something validates it at the request boundary. A doc comment plus a client-side "strip before sending" helper is a UI courtesy for the legitimate client, not an API contract — a direct API call, a future caller, or a bug in the client-side strip logic all bypass it silently.
+
+This bites hardest when Y's own schema is an unconstrained record (`z.record(z.string(), z.unknown())`), which many module/module-data-shaped fields are, since per-type shape isn't statically derivable from a generic array element. If X's field names are also real, recognized fields somewhere else in the same request body, nothing stops a caller from embedding them inside Y instead of at the top level.
+
+**M20-S08 precedent (2026-08-26):** `HotsiteModuleSchema.data` accepts any record for every module type. Once `audienceMode`/`questions` became real top-level fields on `PATCH /v1/tenants/hotsite` (folded in from a former separate endpoint), a caller could embed those same key names inside a `LEAD_FORM` module's own `data` in the `layout[]` array — bypassing `LeadFormConfig`'s own validation (the 20-question cap included) and landing the values in `HotsiteConfig.layout[]`, which feeds the public-cached manifest. The frontend's `stripLeadFormConfig()` helper only protects the real web client, not the API boundary. Fixed with an explicit Zod `.refine()` on `HotsiteModuleSchema`, scoped to `type === 'LEAD_FORM'`, rejecting `audienceMode`/`questions` inside `data` — not a blanket tightening of the generic record, which would break every other module type's legitimately-unconstrained `data`. See `packages/validation/src/hotsite.ts`.
+
+When adding a new field to a generic sibling endpoint that a per-type sub-schema could also plausibly accept, check whether the sub-schema's own record type needs the same scoped `.refine()` — the invariant is only real once something rejects the violation, not just documents it.
+
+---
+
 ## Transactions
 
 Every `save()` in every use case must be wrapped in `ITransactionManager.run()` — including single-aggregate writes. TypeORM's `save()` is a merge (internal SELECT + UPDATE/INSERT); without a transaction those two DB ops are not atomic.
@@ -184,6 +196,19 @@ await manager
 ```
 
 **`orUpdate()`'s `overwrite`/`conflictTarget` arrays take real DB column names (snake_case, matching `@Column({ name: ... })`), not entity property names.** Unlike `.values()`, which translates entity properties to columns via metadata, `orUpdate()` passes each array entry straight through `this.escape(column)` with no translation — confirmed by reading `EntityManager.upsert()`'s own implementation, which explicitly maps `conflictPaths`/columns to `col.databaseName` *before* calling `orUpdate()`. Passing a property name here (e.g. `lastSuccessAt` instead of `last_success_at`) silently generates SQL referencing a column that doesn't exist under that name — verify the exact SQL a new `orUpdate()` call produces against a real database (integration test), not just that it type-checks. (M19-S06 precedent, 2026-08-13: `TypeOrmChatbotProviderBalanceRepository.recordCallOutcome()` needed exactly this — two concurrent calls could write out of chronological order, and a plain `EXCLUDED`-based overwrite would let the older one clobber a newer timestamp.)
+
+---
+
+## Migration backfills
+
+A migration backfilling a newly-derived table doesn't automatically need batching/resumability machinery — scale the safety engineering to the actual, checkable risk, not a reflexive "any full-table backfill is production-risky" default. Two things to check before deciding a backfill needs defensive machinery:
+
+1. **Could the source table hold meaningful data yet?** A table introduced earlier in the *same* milestone, with no live traffic path to it (no public-facing endpoint/UI has shipped that writes to it), has nothing real to backfill regardless of how the `INSERT ... SELECT` is written.
+2. **Is the destination table a derived lookup/cache, or the record of truth?** If it's a derived index (rebuilt going forward by the same code path that maintains it for new rows), a missing backfilled row is a self-correcting gap, not a data-loss risk — the source data it was derived from is untouched.
+
+If both hold, the simplest fix is usually to drop the backfill entirely, not make it resumable.
+
+**M20-S08 precedent (2026-08-26):** a new `lead_form_submission_question_refs` migration shipped with an unbounded `INSERT ... SELECT ... jsonb_array_elements(...)` full-table backfill across every retained `lead_form_submissions` row — conflicting with this milestone's own explicitly stated Wave-1 "no risky backfill" assumption (`plan/M20-LEAD-FORM-MODULE.md`). `lead_form_submissions` was itself brand-new earlier in the same milestone, and no public-facing submission page had shipped yet at this migration's deploy point (a later story) — so there was realistically nothing to backfill. The destination table is a pure lookup index (`hasSubmissions` computation), not the source of truth — the submission's own immutable answer snapshot lives untouched in `lead_form_submissions.answers` regardless. Removed the backfill INSERT entirely rather than build batching for a target that's realistically empty.
 
 ---
 
