@@ -81,14 +81,15 @@ The real `SettingsForm.tsx` has 7 sections, not the 5 this file originally descr
 | **Notificações** (missing from the original draft entirely) | notificationFromEmail |
 | Horário | timezone + per-day open/close/closed |
 | Contato | phone, email, **structured address** (zipCode with ViaCEP lookup, number, street, complement, neighborhood, city, state — not one free-text line as originally drafted), **social links** (whatsapp, instagram, facebook) |
-| **Chatbot** (❌ GAP — not yet built, added 2026-08-08) | `chatbot.knowledgeText` only — see below |
+| **Chatbot** (✅ shipped — added 2026-08-08, built by the M19 chatbot milestone) | `chatbot.knowledgeText` only — see below |
+| **Formulário de contato** (❌ GAP — not yet built, added 2026-08-25, M20-S11) | `leadForm.{retentionMonths,maxSubmissionsPerDay,maxSubmissionsPerIpPerDay}` — see below |
 | **Localização** (missing from the original draft entirely) | countryCode, currency, language — all read-only, set at tenant creation |
 
-Bold fields (excluding Chatbot, tracked separately below) were entirely absent from this doc and the prototype screen before the 2026-07-31 sync.
+Bold fields (excluding Chatbot/Lead Form, tracked separately below) were entirely absent from this doc and the prototype screen before the 2026-07-31 sync. Section render order in `SettingsForm.tsx` matches this table's order top to bottom.
 
 ---
 
-## Chatbot section (❌ GAP — not yet built)
+## Chatbot section (✅ shipped)
 
 Promoted from `docs/discovery/CHATBOT/CHATBOT.md` §5/§6 via `/discovery-to-milestone` (2026-08-08).
 Prototyped in `01d-chatbot-section.html` against the full, current 7-section form (not an excerpt).
@@ -119,6 +120,33 @@ interface UpdateTenantSettingsDto {
 through this endpoint even if present in the request body (see
 `docs/discovery/CHATBOT/CHATBOT.md` §5 for the full rationale, `docs/21-TENANTS_SETTINGS_SCHEMA.md`
 §7 for the complete field list).
+
+---
+
+## Formulário de contato (Lead Form) section (❌ GAP — not yet built)
+
+Promoted from `docs/discovery/lead-form-module/lead-form-module.md` via `/discovery-to-milestone`
+(M20). Prototyped in `01e-lead-form-section.html` as an excerpt against the full, current
+8-section form (not a standalone screen) — see that file's own comment block for the excerpt note.
+
+**Fields:** all 3 tenant-editable, unlike Chatbot's caps (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §8 —
+these are genuinely per-tenant abuse-protection knobs, not a shared platform-cost concern):
+
+| Field | Rule | Default | Suffix |
+|---|---|---|---|
+| `leadForm.retentionMonths` | integer 1-24 | 6 | "meses" |
+| `leadForm.maxSubmissionsPerDay` | integer 1-1000 | 100 | "/ dia" |
+| `leadForm.maxSubmissionsPerIpPerDay` | integer 1-100 | 3 | "/ dia" |
+
+**BFF call:** part of the existing `PATCH /v1/tenants/settings` call — no new endpoint (schema
+already extended by M20-S03 in `@ikaro/validation`'s `LeadFormSettingsSchema`).
+
+**Validation:** each field has its own dedicated `400` error code, already present in both locale
+files: `PLATFORM_SETTINGS_LEAD_FORM_RETENTION_MONTHS_INVALID`,
+`PLATFORM_SETTINGS_LEAD_FORM_MAX_SUBMISSIONS_PER_DAY_INVALID`,
+`PLATFORM_SETTINGS_LEAD_FORM_MAX_SUBMISSIONS_PER_IP_PER_DAY_INVALID`. Unlike `chatbot.knowledgeText`,
+all 3 bounds are fully client-checkable — validated client-side the same way as
+`cancellationWindowHours` etc., not via a server-round-trip error mapping.
 
 ---
 
