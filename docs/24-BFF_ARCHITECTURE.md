@@ -634,6 +634,23 @@ Two distinct guards, one per route: `GoogleAuthGuard` (`/auth/google`) only sets
 
 See `plan/M17-CLOUD-DEPLOY.md` § M17-S32.
 
+### OAuth state `returnTo` — post-login redirect target (M20-S09)
+
+Every customer login link in the app (`HotsiteAuthBar`, `/[slug]/login`) redirects post-login to the tenant's hotsite home (`handleTenantLogin`'s hardcoded `${frontendUrl}/${tenantInfo.slug}`) — there was no way to return the customer to the page they were on before being sent to log in. UC-040 A1 (a `CUSTOMER_ONLY` lead-form gated behind login) needs exactly that, so the state JWT's routing payload gains one more optional field rather than inventing a parallel mechanism:
+
+```typescript
+// oauth-state.ts
+export interface OAuthState {
+  loginType?: 'staff';
+  tenantSlug?: string;
+  returnTo?: string;   // relative path, e.g. "/autowash-pro/lead-form"
+}
+```
+
+**Validation (open-redirect prevention):** `isValidReturnTo(returnTo, tenantSlug)` requires the path to start with `/${tenantSlug}/` exactly — never an absolute URL, a protocol-relative `//host/...`, or a path under a different tenant's slug. `encodeOAuthState(type, tenantSlug?, returnTo?)` applies this the same way it already discards an invalid `tenantSlug` (silently omits the field rather than throwing — a malformed `returnTo` degrades to the existing hotsite-home fallback, it never fails the login). Re-validated again on decode for defense in depth, even though the signature already protects the payload from tampering.
+
+**Threading:** `GoogleAuthGuard.getAuthenticateOptions()` reads `req.query['returnTo']` (set by the web app's `buildGoogleOAuthUrl({ tenantSlug, returnTo })` when a caller supplies one, e.g. the lead-form login-required gate linking to `/[slug]/login?returnTo=/[slug]/lead-form`) alongside the existing `tenantSlug`/`type` query params, and passes it into `encodeOAuthState`. `GoogleStrategy.validate()` decodes it back out via `decodeOAuthState()` and carries it on `GoogleProfile.returnTo` through to `AuthControllerFlowService.handleGoogleCallback()`, which forwards it into `handleTenantLogin(..., returnTo)`. `handleTenantLogin` redirects to `${frontendUrl}${returnTo}` when present, falling back to the original `${frontendUrl}/${tenantInfo.slug}` otherwise. The staff login flow (`handleStaffLogin`) is untouched — `returnTo` only ever applies to the customer flow.
+
 ---
 
 ## References
