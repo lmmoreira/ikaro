@@ -13,6 +13,7 @@ import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typ
 import { localDayBoundsUTC } from '../../../../shared/utils/calendar-date';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { LeadFormSubmissionBuilder } from '../../../../test/builders/platform/lead-form-submission.builder';
+import { LeadFormSubmissionEntityBuilder } from '../../../../test/builders/platform/lead-form-submission-entity.builder';
 import { LeadFormSubmission } from '../../domain/lead-form-submission.aggregate';
 import { TenantEntity } from '../entities/tenant.entity';
 import { LeadFormSubmissionEntity } from '../entities/lead-form-submission.entity';
@@ -196,6 +197,54 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
     )) as Array<{ column_name: string; ordinal_position: number }>;
 
     expect(rows.map((r) => r.column_name)).toEqual(['tenant_id', 'id']);
+  });
+
+  // Migration 1748500000004's own backfill INSERT — proves it actually catches a submission that
+  // predates this migration (e.g. written by the already-shipped M20-S02/S05/S06 public submission
+  // endpoint before this table existed), the exact gap a round of review caught this migration
+  // shipping without (Codex review finding, M20-S08 PR #429, 2026-08-26).
+  it("backfills a pre-existing submission's question refs, matching the migration's own INSERT", async () => {
+    // Bypasses TypeOrmLeadFormSubmissionRepository.save() entirely (a raw entity insert, like
+    // LeadFormSubmissionEntityBuilder's other call sites) — persistQuestionRefs() never runs, so
+    // this simulates a submission that already existed when the migration's backfill last ran.
+    const preExisting = new LeadFormSubmissionEntityBuilder()
+      .withTenantId(TENANT_A)
+      .withAnswers([
+        {
+          questionId: QUESTION_ID,
+          questionLabel: 'Origem',
+          questionType: 'TEXT',
+          answerValue: 'Indicação',
+        },
+      ])
+      .build();
+    await entityRepo.save(preExisting);
+
+    await expect(
+      dataSource.query(
+        `SELECT question_id FROM platform.lead_form_submission_question_refs WHERE submission_id = $1`,
+        [preExisting.id],
+      ),
+    ).resolves.toEqual([]);
+
+    // Same statement as the migration's own up() — kept in sync deliberately, not imported,
+    // since a migration file must stay a frozen historical record of what actually ran.
+    await dataSource.query(`
+      INSERT INTO "platform"."lead_form_submission_question_refs"
+        ("tenant_id", "submission_id", "question_id")
+      SELECT submission."tenant_id", submission."id", (answer ->> 'questionId')::uuid
+      FROM "platform"."lead_form_submissions" AS submission
+      CROSS JOIN LATERAL jsonb_array_elements(submission."answers") AS answer
+      WHERE answer ? 'questionId' AND answer ->> 'questionId' IS NOT NULL
+      ON CONFLICT DO NOTHING
+    `);
+
+    await expect(
+      dataSource.query(
+        `SELECT question_id FROM platform.lead_form_submission_question_refs WHERE submission_id = $1`,
+        [preExisting.id],
+      ),
+    ).resolves.toEqual([{ question_id: QUESTION_ID }]);
   });
 
   describe('countByTenantAndDate / countByTenantIpAndDate — tenant isolation (CLAUDE.md §2)', () => {

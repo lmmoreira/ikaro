@@ -6,17 +6,18 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * decide whether a question has historical answers; they must not expand every retained JSONB
  * array for a tenant on each GET/PATCH.
  *
- * No backfill INSERT — deliberately, matching this milestone's own Wave-1 "no risky backfill"
- * assumption (plan/M20-LEAD-FORM-MODULE.md). `lead_form_submissions` is itself a brand-new table
- * introduced earlier in this same milestone, and no public submission UI exists yet at this
- * migration's deploy point (M20-S09, the guest-facing page, ships later) — so there is nothing of
- * consequence to backfill in practice. A row this table doesn't yet have simply means
- * `hasSubmissions` under-reports for that one question until a fresh submission references it
- * going forward; the original answer snapshot in `lead_form_submissions.answers` is untouched
- * either way, since this table is a derived lookup index, never the source of truth (Codex review
- * finding, M20-S08 PR #429, 2026-08-26 — an earlier unbounded `INSERT ... SELECT
- * jsonb_array_elements(...)` full-table backfill was removed here rather than made
- * batched/resumable, since there was realistically nothing for it to backfill).
+ * Backfills existing submissions. An earlier version of this migration shipped with no backfill,
+ * reasoning that no public submission UI existed yet at deploy time — that reasoning was wrong:
+ * the public submission endpoint (`lead-form-public.controller.ts`) shipped in an earlier,
+ * already-merged story (M20-S02/S05/S06), so real submissions can already exist via direct API
+ * calls even without M20-S09's dedicated page. Without a backfill, a pre-existing submission has
+ * answers in `lead_form_submissions.answers` but no row here, so `GetLeadFormConfigUseCase`
+ * reports `hasSubmissions: false` and a manager can remove that question without the required
+ * confirmation dialog (UC-037 A4) — a real correctness gap, not just a cosmetic one (Codex review
+ * finding, M20-S08 PR #429, 2026-08-26, correcting the earlier, incorrect removal). A plain
+ * one-shot backfill (not batched/resumable) is the right amount of engineering here: this table's
+ * real row count at this stage of the feature's rollout is small, so the "unbounded backfill"
+ * risk this migration originally tried to avoid was more theoretical than actual.
  */
 export class CreateLeadFormSubmissionQuestionRefs1748500000004 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -36,6 +37,15 @@ export class CreateLeadFormSubmissionQuestionRefs1748500000004 implements Migrat
     await queryRunner.query(`
       CREATE INDEX "IDX_platform_lead_form_submission_question_refs_tenant_question"
         ON "platform"."lead_form_submission_question_refs" ("tenant_id", "question_id")
+    `);
+    await queryRunner.query(`
+      INSERT INTO "platform"."lead_form_submission_question_refs"
+        ("tenant_id", "submission_id", "question_id")
+      SELECT submission."tenant_id", submission."id", (answer ->> 'questionId')::uuid
+      FROM "platform"."lead_form_submissions" AS submission
+      CROSS JOIN LATERAL jsonb_array_elements(submission."answers") AS answer
+      WHERE answer ? 'questionId' AND answer ->> 'questionId' IS NOT NULL
+      ON CONFLICT DO NOTHING
     `);
   }
 

@@ -74,7 +74,7 @@ interface HotsiteBranding {
   2. A conditional red banner when `GET /v1/tenants/chatbot/cap-status` returns `dailyCapReachedToday: true` (UC-027 A5) — the only module config screen that shows this.
 - LEAD_FORM (`../lead-form/01-config.html`), the 10th type, added 2026-08-23 for `M20-LEAD-FORM-MODULE`: `title`/`subtitle`/`ctaLabel`/`variant`/`bgStyle` (teaser fields, same shape every module's config gets) plus `audienceMode` and up to 20 inline-edited `questions[]` — the latter two are **not** part of `LeadFormModuleData` (kept out of the cached manifest, see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § LEAD_FORM). **Shipped `M20-S08`** — `LeadFormConfigPanel.tsx`. All fields (teaser + `audienceMode` + `questions[]`) save together through the single consolidated `PATCH /v1/tenants/hotsite` (folded in at M20-S08 — see `../lead-form/dev-notes.md` and `docs/02-DOMAIN_MODEL.md` § `LeadFormConfig` "Cross-aggregate save"); the config-only `GET /v1/tenants/lead-form/config` stays separate.
 
-`default-layout.ts`'s `MODULE_ORDER`/`DEFAULT_MODULE_DATA` were updated in the same story to include `'CHATBOT'` — without that, the Layout tab never materializes a row for it and the Manifesto tab rejects a pasted `CHATBOT` module. The same update will be needed for `'LEAD_FORM'` when `M20-LEAD-FORM-MODULE`'s config story ships.
+`default-layout.ts`'s `MODULE_ORDER`/`DEFAULT_MODULE_DATA` were updated in the same story to include `'CHATBOT'` — without that, the Layout tab never materializes a row for it and the Manifesto tab rejects a pasted `CHATBOT` module. The same update was made for `'LEAD_FORM'` in `M20-S08`.
 
 ---
 
