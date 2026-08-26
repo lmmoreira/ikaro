@@ -31,7 +31,6 @@ import {
   applyModuleConfig,
   cancelModuleConfig,
   configureModule,
-  confirmDiscard,
   executeUnpublish,
   mergeLocalDataIntoLayout,
   ModuleConfigView,
@@ -177,12 +176,11 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
     );
   }
 
-  const handleConfirmDiscardConfig = (): void =>
-    confirmDiscard(() => {
-      setDiscardConfirmOpen(false);
-      setView({ view: 'tabs' });
-    });
-  const handleCancelDiscardConfig = (): void => confirmDiscard(() => setDiscardConfirmOpen(false));
+  const handleConfirmDiscardConfig = (): void => {
+    setDiscardConfirmOpen(false);
+    setView({ view: 'tabs' });
+  };
+  const handleCancelDiscardConfig = (): void => setDiscardConfirmOpen(false);
 
   if (view.view === 'module-config') {
     return (

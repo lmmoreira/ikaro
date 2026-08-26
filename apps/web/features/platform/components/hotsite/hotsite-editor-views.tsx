@@ -8,6 +8,7 @@ import type {
 import { ModuleConfigShell } from '@/features/platform/components/hotsite/modules/ModuleConfigShell';
 import { MODULE_CONFIG_PANELS, HotsitePreview } from './hotsite-editor-lazy-panels';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
+import { hasQuestionValidationError } from './modules/LeadFormSortableQuestion';
 
 export type EditorView =
   | { readonly view: 'tabs' }
@@ -62,12 +63,7 @@ export function stripLeadFormConfig(data: Record<string, unknown>): Record<strin
   return next;
 }
 export function hasInvalidLeadFormQuestion(config: LeadFormConfigDraft): boolean {
-  return config.questions.some(
-    (question) =>
-      question.label.trim() === '' ||
-      (['SINGLE_CHOICE', 'MULTIPLE_CHOICE'].includes(question.type) &&
-        ((question.options?.length ?? 0) < 2 || (question.options?.length ?? 0) > 10)),
-  );
+  return config.questions.some(hasQuestionValidationError);
 }
 
 export async function executeUnpublish(
@@ -126,10 +122,6 @@ export function cancelModuleConfig(
   const committed = draft.layout.find((module) => module.type === view.type)?.data ?? {};
   if (isModuleDataDirty(committed, view.localData)) onConfirmRequired();
   else onCancel();
-}
-
-export function confirmDiscard(onClose: () => void): void {
-  onClose();
 }
 
 export function updateModuleLocalData(

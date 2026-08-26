@@ -180,6 +180,22 @@ One row per visitor submission (`docs/04-USE_CASES.md` UC-039/UC-040).
 | **INDEX** | (tenant_id, expires_at) | Per-tenant `expires_at` range queries — not the retention purge itself (see standalone index below); this composite serves any future tenant-scoped expiry lookup |
 | **INDEX** | (expires_at) | Standalone, added M20-S04 (Codex review finding, PR #422): `LeadFormRetentionPurgeJob`'s daily purge (UC-043) is an unscoped cross-tenant `WHERE expires_at < now()` — matching `ExpirePointsJob`/`ChatbotRetentionPurgeJob`'s own precedent, no per-tenant loop — so it cannot seek the composite index above (led by `tenant_id`, which this query never filters on). Mirrors `chatbot_messages.IDX_chatbot_messages_created_at` |
 
+### `platform.lead_form_submission_question_refs`
+
+One row per distinct question represented in a submission snapshot. This is a narrow, write-once
+projection maintained by `TypeOrmLeadFormSubmissionRepository` in the same transaction as
+`lead_form_submissions`; it lets UC-037 determine `hasSubmissions` through an indexed lookup
+without expanding every retained JSONB answer array. It is not a replacement for M20-S12's richer
+`lead_form_answers` search projection: it intentionally contains only the identity needed here.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| tenant_id | UUID | NOT NULL — first column of the composite PK/FK; tenant-safe reference boundary |
+| submission_id | UUID | NOT NULL — composite FK `(tenant_id, submission_id)` → `platform.lead_form_submissions(tenant_id, id)`, `ON DELETE CASCADE` so retention purge cannot orphan projection rows |
+| question_id | TEXT | NOT NULL — snapshotted question ID; text preserves the original JSONB snapshot exactly |
+| **PRIMARY KEY** | (tenant_id, submission_id, question_id) | One row per question per submission, deduplicated even if malformed historical JSON has duplicate entries |
+| **INDEX** | (tenant_id, question_id) | UC-037's `hasSubmissions` lookup: `SELECT DISTINCT question_id ... WHERE tenant_id = ? AND question_id = ANY(?)` |
+
 ### `platform.lead_form_answers`
 
 One row per **question** per submission (not one row per submission) — a denormalized search index derived from `lead_form_submissions.answers`, maintained by the same repository/transaction, never a domain aggregate of its own. Exists specifically to support UC-041's structured search (M20-S12/S13): filtering by *this specific question's* answer, and ANDing several such filters together ("estado civil = casado" AND "mora em São Paulo"), which a single flattened text blob cannot do correctly (it can't attribute a matched term to a specific question, so it can't AND two question-scoped conditions without false positives). The `lead_form_submissions.answers` JSONB column is unaffected and stays the sole source for the detail view (UC-041 main flow) — this table is write-once, read-only-for-search, never rendered directly.

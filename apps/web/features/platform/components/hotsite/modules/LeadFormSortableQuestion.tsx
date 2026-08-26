@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -43,6 +44,11 @@ export function LeadFormSortableQuestion({
   });
   const options = question.options ?? [];
   const invalid = hasQuestionValidationError(question);
+  // `open` starts in sync with `invalid` (a freshly added/invalid question is expanded by
+  // default) but is then user-controlled — deriving it straight from `invalid` on every render
+  // would force the <details> shut the moment the admin's first keystroke makes the question
+  // valid, discarding their own edit context mid-typing.
+  const [open, setOpen] = useState(invalid);
   const style = { transform: CSS.Transform.toString(transform), transition };
 
   function update(patch: Partial<AdminQuestion>): void {
@@ -57,7 +63,8 @@ export function LeadFormSortableQuestion({
     <details
       ref={setNodeRef}
       style={style}
-      open={invalid}
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
       className={`rounded-lg border bg-white ${invalid ? 'border-red-300' : 'border-gray-200'}`}
       data-testid="lead-form-question"
       data-question-index={index}
