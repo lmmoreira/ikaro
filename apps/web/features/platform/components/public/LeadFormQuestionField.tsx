@@ -31,7 +31,8 @@ export function LeadFormQuestionField({
 
       {question.type === 'TEXT' && (
         <textarea
-          data-testid={`lead-form-question-${question.id}`}
+          data-testid="lead-form-question"
+          data-question-id={question.id}
           aria-labelledby={labelId}
           className="w-full border px-3 py-2"
           style={{ borderRadius: 'var(--ba-radius)' }}
@@ -47,7 +48,9 @@ export function LeadFormQuestionField({
             <input
               type="radio"
               name={`lead-form-question-${question.id}`}
-              data-testid={`lead-form-question-${question.id}-${option}`}
+              data-testid="lead-form-question-option"
+              data-question-id={question.id}
+              data-option-value={option}
               checked={value === option}
               onChange={() => onChange(option)}
             />
@@ -60,7 +63,9 @@ export function LeadFormQuestionField({
           <label className="flex items-center gap-2 py-1 text-sm" key={option}>
             <input
               type="checkbox"
-              data-testid={`lead-form-question-${question.id}-${option}`}
+              data-testid="lead-form-question-option"
+              data-question-id={question.id}
+              data-option-value={option}
               checked={selected.includes(option)}
               onChange={() =>
                 onChange(
@@ -77,7 +82,8 @@ export function LeadFormQuestionField({
       {error && (
         <p
           className="mt-1.5 text-sm text-red-600"
-          data-testid={`lead-form-question-${question.id}-error`}
+          data-testid="lead-form-question-error"
+          data-question-id={question.id}
         >
           {error}
         </p>

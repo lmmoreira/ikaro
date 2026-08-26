@@ -113,13 +113,19 @@ export function LeadFormFields({
       >
         <h2 className="mb-4 text-base font-bold">{t('leadForm.yourInfoHeading')}</h2>
         {showPrefilledNote && (
-          <p className="mb-3.5 text-xs" style={{ color: 'var(--ba-primary)' }}>
+          <p
+            className="mb-3.5 text-xs"
+            style={{ color: 'var(--ba-primary)' }}
+            data-testid="lead-form-prefilled-note"
+          >
             {t('leadForm.prefilledNote')}
           </p>
         )}
 
         <ContactField
-          id="name"
+          htmlId="lead-form-name"
+          testId="lead-form-name"
+          errorTestId="lead-form-name-error"
           label={t('leadForm.nameLabel')}
           placeholder={t('leadForm.namePlaceholder')}
           value={name}
@@ -127,7 +133,9 @@ export function LeadFormFields({
           onChange={onNameChange}
         />
         <ContactField
-          id="email"
+          htmlId="lead-form-email"
+          testId="lead-form-email"
+          errorTestId="lead-form-email-error"
           type="email"
           label={t('leadForm.emailLabel')}
           placeholder={t('leadForm.emailPlaceholder')}
@@ -136,7 +144,9 @@ export function LeadFormFields({
           onChange={onEmailChange}
         />
         <ContactField
-          id="phone"
+          htmlId="lead-form-phone"
+          testId="lead-form-phone"
+          errorTestId="lead-form-phone-error"
           label={t('leadForm.phoneLabel')}
           placeholder={t('leadForm.phonePlaceholder')}
           value={phone}
@@ -195,7 +205,9 @@ export function LeadFormFields({
 }
 
 interface ContactFieldProps {
-  readonly id: string;
+  readonly htmlId: string;
+  readonly testId: string;
+  readonly errorTestId: string;
   readonly label: string;
   readonly placeholder: string;
   readonly value: string;
@@ -204,8 +216,13 @@ interface ContactFieldProps {
   readonly onChange: (value: string) => void;
 }
 
+// testId/errorTestId are passed as literal strings from each call site above (one per fixed
+// contact field), never derived by template literal — E2E-3 requires a static data-testid, with
+// any per-instance data encoded in a separate data-* attribute instead.
 function ContactField({
-  id,
+  htmlId,
+  testId,
+  errorTestId,
   label,
   placeholder,
   value,
@@ -215,13 +232,13 @@ function ContactField({
 }: ContactFieldProps): React.JSX.Element {
   return (
     <div className="mb-5">
-      <label className="mb-2 block font-medium" htmlFor={`lead-form-${id}`}>
+      <label className="mb-2 block font-medium" htmlFor={htmlId}>
         {label} <span className="text-red-600">*</span>
       </label>
       <input
-        id={`lead-form-${id}`}
+        id={htmlId}
         type={type ?? 'text'}
-        data-testid={`lead-form-${id}`}
+        data-testid={testId}
         className="w-full border px-3 py-2"
         style={{ borderRadius: 'var(--ba-radius)' }}
         placeholder={placeholder}
@@ -229,7 +246,7 @@ function ContactField({
         onChange={(e) => onChange(e.target.value)}
       />
       {error && (
-        <p className="mt-1.5 text-sm text-red-600" data-testid={`lead-form-${id}-error`}>
+        <p className="mt-1.5 text-sm text-red-600" data-testid={errorTestId}>
           {error}
         </p>
       )}

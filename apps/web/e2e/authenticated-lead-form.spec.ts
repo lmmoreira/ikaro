@@ -86,10 +86,12 @@ test.describe.serial('lead-form public page (authenticated CUSTOMER) — M20-S09
     await expect(page.getByTestId('lead-form-name')).toHaveValue(new RegExp('.+'), {
       timeout: 10_000,
     });
-    await expect(page.getByText(/Preenchido com os dados da sua conta/)).toBeVisible();
+    await expect(page.getByTestId('lead-form-prefilled-note')).toBeVisible();
 
     await page.getByTestId('lead-form-phone').fill('+5511999998888');
-    await page.getByTestId(`lead-form-question-${QUESTION_ID}`).fill('Enceramento completo');
+    await page
+      .locator(`[data-testid="lead-form-question"][data-question-id="${QUESTION_ID}"]`)
+      .fill('Enceramento completo');
 
     const turnstileFrame = page.frameLocator('iframe[src*="challenges.cloudflare.com"]');
     await expect(turnstileFrame.locator('body')).toBeVisible({ timeout: 15_000 });

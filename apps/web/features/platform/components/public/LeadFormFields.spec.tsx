@@ -44,7 +44,7 @@ describe('LeadFormFields', () => {
     renderWithIntl(<LeadFormFields {...baseProps()} />);
 
     expect(screen.getByTestId('lead-form-name')).toBeInTheDocument();
-    expect(screen.getByTestId('lead-form-question-q1')).toBeInTheDocument();
+    expect(screen.getByTestId('lead-form-question')).toBeInTheDocument();
     expect(screen.getByTestId('lead-form-submit')).toHaveTextContent('Enviar');
   });
 

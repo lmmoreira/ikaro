@@ -122,7 +122,7 @@ describe('LeadFormWidget — guest happy path (GUEST_AND_CUSTOMER)', () => {
     renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" />);
 
     await fillContactFields(user);
-    await user.type(screen.getByTestId('lead-form-question-q1'), 'Lavagem completa');
+    await user.type(screen.getByTestId('lead-form-question'), 'Lavagem completa');
     await user.click(screen.getByTestId('turnstile-mock-verify'));
     await user.click(screen.getByTestId('lead-form-submit'));
 
@@ -146,7 +146,7 @@ describe('LeadFormWidget — guest happy path (GUEST_AND_CUSTOMER)', () => {
 
     expect(screen.getByTestId('lead-form-validation-banner')).toBeInTheDocument();
     expect(screen.getByTestId('lead-form-name-error')).toBeInTheDocument();
-    expect(screen.getByTestId('lead-form-question-q1-error')).toBeInTheDocument();
+    expect(screen.getByTestId('lead-form-question-error')).toBeInTheDocument();
     expect(submitLeadFormClient).not.toHaveBeenCalled();
   });
 
@@ -155,7 +155,7 @@ describe('LeadFormWidget — guest happy path (GUEST_AND_CUSTOMER)', () => {
     renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" />);
 
     await fillContactFields(user);
-    await user.type(screen.getByTestId('lead-form-question-q1'), 'Lavagem completa');
+    await user.type(screen.getByTestId('lead-form-question'), 'Lavagem completa');
     await user.click(screen.getByTestId('turnstile-mock-verify'));
     await user.click(screen.getByTestId('turnstile-mock-expire'));
     await user.click(screen.getByTestId('lead-form-submit'));
@@ -169,7 +169,7 @@ describe('LeadFormWidget — guest happy path (GUEST_AND_CUSTOMER)', () => {
     renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" />);
 
     await fillContactFields(user);
-    await user.type(screen.getByTestId('lead-form-question-q1'), 'Lavagem completa');
+    await user.type(screen.getByTestId('lead-form-question'), 'Lavagem completa');
     await user.click(screen.getByTestId('lead-form-submit'));
 
     expect(screen.getByTestId('lead-form-captcha-banner')).toBeInTheDocument();
@@ -187,7 +187,7 @@ describe('LeadFormWidget — guest happy path (GUEST_AND_CUSTOMER)', () => {
     renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" />);
 
     await fillContactFields(user);
-    await user.type(screen.getByTestId('lead-form-question-q1'), 'Lavagem completa');
+    await user.type(screen.getByTestId('lead-form-question'), 'Lavagem completa');
     await user.click(screen.getByTestId('turnstile-mock-verify'));
     await user.click(screen.getByTestId('lead-form-submit'));
 
@@ -206,7 +206,7 @@ describe('LeadFormWidget — guest happy path (GUEST_AND_CUSTOMER)', () => {
     renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" />);
 
     await fillContactFields(user);
-    await user.type(screen.getByTestId('lead-form-question-q1'), 'Lavagem completa');
+    await user.type(screen.getByTestId('lead-form-question'), 'Lavagem completa');
     await user.click(screen.getByTestId('turnstile-mock-verify'));
     await user.click(screen.getByTestId('lead-form-submit'));
 
@@ -225,7 +225,7 @@ describe('LeadFormWidget — guest happy path (GUEST_AND_CUSTOMER)', () => {
     renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" />);
 
     await fillContactFields(user);
-    await user.type(screen.getByTestId('lead-form-question-q1'), 'Lavagem completa');
+    await user.type(screen.getByTestId('lead-form-question'), 'Lavagem completa');
     await user.click(screen.getByTestId('turnstile-mock-verify'));
     await user.click(screen.getByTestId('lead-form-submit'));
 
@@ -239,7 +239,7 @@ describe('LeadFormWidget — guest happy path (GUEST_AND_CUSTOMER)', () => {
     renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" />);
 
     await fillContactFields(user);
-    await user.type(screen.getByTestId('lead-form-question-q1'), 'Lavagem completa');
+    await user.type(screen.getByTestId('lead-form-question'), 'Lavagem completa');
     await user.click(screen.getByTestId('turnstile-mock-verify'));
     await user.click(screen.getByTestId('lead-form-submit'));
 

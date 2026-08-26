@@ -101,10 +101,18 @@ test.describe.serial('lead-form public page (GUEST) — M20-S09', () => {
     await page.getByTestId('lead-form-phone').fill('+5511988887777');
 
     await page
-      .getByTestId(`lead-form-question-${QUESTION_TEXT_ID}`)
+      .locator(`[data-testid="lead-form-question"][data-question-id="${QUESTION_TEXT_ID}"]`)
       .fill('Preciso de uma lavagem completa');
-    await page.getByTestId(`lead-form-question-${QUESTION_SINGLE_ID}-SUV`).check();
-    await page.getByTestId(`lead-form-question-${QUESTION_MULTI_ID}-Manhã`).check();
+    await page
+      .locator(
+        `[data-testid="lead-form-question-option"][data-question-id="${QUESTION_SINGLE_ID}"][data-option-value="SUV"]`,
+      )
+      .check();
+    await page
+      .locator(
+        `[data-testid="lead-form-question-option"][data-question-id="${QUESTION_MULTI_ID}"][data-option-value="Manhã"]`,
+      )
+      .check();
 
     // Real Turnstile widget script, running against Cloudflare's always-pass test sitekey
     // (NEXT_PUBLIC_TURNSTILE_SITE_KEY, pr-tests.yml) — never mocked/stubbed.
