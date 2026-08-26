@@ -16,8 +16,14 @@ describe('LeadFormTeaserFields', () => {
 
     expect(screen.getByDisplayValue('Fale com a gente')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Quero conversar')).toBeInTheDocument();
-    expect(screen.getByLabelText('Layout')).toHaveValue('centered');
-    expect(screen.getByLabelText('Estilo de fundo')).toHaveValue('background');
+    expect(screen.getByRole('radio', { name: 'Centralizado' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    expect(screen.getByRole('radio', { name: 'Cor de fundo' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
   });
 
   it('reports each field edit via onChange', async () => {
@@ -33,10 +39,10 @@ describe('LeadFormTeaserFields', () => {
     await user.type(screen.getByLabelText('Título'), 'a');
     expect(onChange).toHaveBeenCalledWith({ title: 'a' });
 
-    await user.selectOptions(screen.getByLabelText('Layout'), 'left-aligned');
+    await user.click(screen.getByRole('radio', { name: 'Alinhado à esquerda' }));
     expect(onChange).toHaveBeenCalledWith({ variant: 'left-aligned' });
 
-    await user.selectOptions(screen.getByLabelText('Estilo de fundo'), 'primary');
+    await user.click(screen.getByRole('radio', { name: 'Cor primária' }));
     expect(onChange).toHaveBeenCalledWith({ bgStyle: 'primary' });
   });
 });

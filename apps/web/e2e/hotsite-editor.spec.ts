@@ -1149,7 +1149,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.getByLabel('Título', { exact: true }).fill('Fale com a nossa equipe');
     await page.getByLabel('Subtítulo').fill('Responda algumas perguntas rápidas');
     await page.getByLabel('Texto do botão').fill('Quero conversar');
-    await page.getByLabel('Público').selectOption('CUSTOMER_ONLY');
+    await page.getByRole('radio', { name: 'Somente clientes logados' }).click();
 
     await page.getByRole('button', { name: '+ Adicionar pergunta' }).click();
     await page.getByLabel('Pergunta', { exact: true }).fill('Qual serviço você procura?');
@@ -1169,7 +1169,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await expect(page.getByLabel('Título', { exact: true })).toHaveValue('Fale com a nossa equipe');
     await expect(page.getByLabel('Subtítulo')).toHaveValue('Responda algumas perguntas rápidas');
     await expect(page.getByLabel('Texto do botão')).toHaveValue('Quero conversar');
-    await expect(page.getByLabel('Público')).toHaveValue('CUSTOMER_ONLY');
+    await expect(page.getByRole('radio', { name: 'Somente clientes logados' })).toBeChecked();
     await expect(page.getByLabel('Pergunta', { exact: true })).toHaveValue(
       'Qual serviço você procura?',
     );

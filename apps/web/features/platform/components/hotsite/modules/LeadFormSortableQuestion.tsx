@@ -99,31 +99,35 @@ export function LeadFormSortableQuestion({
         )}
       </summary>
       <div className="space-y-4 border-t border-gray-100 p-4">
-        <label
-          htmlFor={`lead-question-label-${question.id}`}
-          className="block text-sm font-semibold"
-        >
-          {t('question.label')}
+        <div>
+          <label
+            htmlFor={`lead-question-label-${question.id}`}
+            className="mb-1.5 block text-sm font-semibold text-gray-900"
+          >
+            {t('question.label')}
+          </label>
           <input
             id={`lead-question-label-${question.id}`}
             value={question.label}
             onChange={(event) => update({ label: event.target.value })}
-            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
           />
-        </label>
+        </div>
         {invalid && question.label.trim() === '' && (
           <p className="text-sm text-red-600">{t('validation.questionLabel')}</p>
         )}
-        <label
-          htmlFor={`lead-question-type-${question.id}`}
-          className="block text-sm font-semibold"
-        >
-          {t('question.type')}
+        <div>
+          <label
+            htmlFor={`lead-question-type-${question.id}`}
+            className="mb-1.5 block text-sm font-semibold text-gray-900"
+          >
+            {t('question.type')}
+          </label>
           <select
             id={`lead-question-type-${question.id}`}
             value={question.type}
             onChange={(event) => changeType(event.target.value as LeadFormQuestionType)}
-            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
           >
             {QUESTION_TYPES.map((type) => (
               <option key={type} value={type}>
@@ -131,7 +135,7 @@ export function LeadFormSortableQuestion({
               </option>
             ))}
           </select>
-        </label>
+        </div>
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"

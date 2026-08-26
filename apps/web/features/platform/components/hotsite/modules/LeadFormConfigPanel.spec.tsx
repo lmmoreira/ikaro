@@ -116,7 +116,10 @@ describe('LeadFormConfigPanel', () => {
 
     expect(screen.getByDisplayValue('Rascunho aplicado')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Pergunta no rascunho')).toBeInTheDocument();
-    expect(screen.getByLabelText('Público')).toHaveValue('CUSTOMER_ONLY');
+    expect(screen.getByRole('radio', { name: 'Somente clientes logados' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
   });
 
   it('adds an editable starter question', async () => {
@@ -131,27 +134,6 @@ describe('LeadFormConfigPanel', () => {
     await user.click(screen.getByRole('button', { name: 'Melhor horário para contato' }));
 
     expect(screen.getByDisplayValue('Melhor horário para contato')).toBeInTheDocument();
-  });
-
-  it('edits the teaser variant and background style', async () => {
-    const user = userEvent.setup();
-    const onChange = vi.fn();
-    mockUseLeadFormConfig.mockReturnValue({
-      data: { title: '', ctaLabel: '', audienceMode: 'GUEST_AND_CUSTOMER', questions: [] },
-      isLoading: false,
-      isError: false,
-    } as unknown as ReturnType<typeof useLeadFormConfig>);
-    renderWithIntl(<LeadFormConfigPanel data={{}} onChange={onChange} />);
-
-    expect(screen.getByLabelText('Layout')).toHaveValue('centered');
-    expect(screen.getByLabelText('Estilo de fundo')).toHaveValue('background');
-
-    await user.selectOptions(screen.getByLabelText('Layout'), 'left-aligned');
-    await user.selectOptions(screen.getByLabelText('Estilo de fundo'), 'primary');
-
-    expect(screen.getByLabelText('Layout')).toHaveValue('left-aligned');
-    expect(screen.getByLabelText('Estilo de fundo')).toHaveValue('primary');
-    expect(onChange).toHaveBeenCalled();
   });
 
   it('removes an unsubmitted question immediately and confirms submitted removal', async () => {

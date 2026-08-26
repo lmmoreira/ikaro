@@ -28,6 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/shared/components/ui/alert-dialog';
+import { PillSelect } from '@/shared/components/ui/pill-select';
 import { useLeadFormConfig } from '@/features/platform/hotsite/useHotsite';
 import {
   readModuleData,
@@ -140,20 +141,16 @@ export function LeadFormConfigPanel({ data, onChange }: ModuleConfigPanelProps):
   return (
     <div className="space-y-6" data-testid="lead-form-config-panel">
       <LeadFormTeaserFields draft={draft} onChange={update} />
-      <div className="space-y-3">
-        <h2 className="text-base font-semibold text-gray-900">{t('audience.title')}</h2>
-        <select
-          aria-label={t('audience.label')}
-          value={draft.audienceMode}
-          onChange={(event) =>
-            update({ audienceMode: event.target.value as LeadFormDraft['audienceMode'] })
-          }
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-        >
-          <option value="GUEST_AND_CUSTOMER">{t('audience.guestAndCustomer')}</option>
-          <option value="CUSTOMER_ONLY">{t('audience.customerOnly')}</option>
-        </select>
-      </div>
+      <PillSelect
+        label={t('audience.title')}
+        value={draft.audienceMode}
+        onChange={(audienceMode) => update({ audienceMode })}
+        testId="lead-form-audience-mode"
+        options={[
+          { value: 'GUEST_AND_CUSTOMER', label: t('audience.guestAndCustomer') },
+          { value: 'CUSTOMER_ONLY', label: t('audience.customerOnly') },
+        ]}
+      />
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold text-gray-900">{t('questions.title')}</h2>
