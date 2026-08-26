@@ -95,6 +95,20 @@ describe('POST /api/platform/lead-form/submissions', () => {
     expect(response.status).toBe(200);
   });
 
+  it('returns 400 without calling the BFF when the slug query param is missing', async () => {
+    fetchSpy.mockResolvedValue(new Response(null, { status: 200 }));
+
+    const response = await POST(
+      new NextRequest('http://localhost/api/platform/lead-form/submissions', {
+        method: 'POST',
+        body: JSON.stringify(SUBMISSION_BODY),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it('returns 502 when the upstream fetch throws', async () => {
     mockCookieGet.mockReturnValue(undefined);
     fetchSpy.mockRejectedValue(new Error('connection refused'));

@@ -11,6 +11,10 @@ import { SESSION_COOKIE_NAME } from '@/features/auth/session-cookie';
 // fall back to an anonymous (guest) call otherwise.
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const slug = request.nextUrl.searchParams.get('slug');
+  if (!slug) {
+    return NextResponse.json({ message: 'slug query param is required' }, { status: 400 });
+  }
+
   const body = await request.text();
   const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
 
@@ -21,7 +25,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
-            ...(slug ? { 'X-Tenant-Slug': slug } : {}),
+            'X-Tenant-Slug': slug,
           },
           body,
         })
@@ -29,7 +33,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            ...(slug ? { 'X-Tenant-Slug': slug } : {}),
+            'X-Tenant-Slug': slug,
           },
           body,
         });

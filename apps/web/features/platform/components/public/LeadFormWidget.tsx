@@ -9,7 +9,7 @@ import {
   fetchLeadFormConfigClient,
   submitLeadFormClient,
 } from '@/features/platform/hotsite/api/lead-form';
-import { LeadFormFields, type LeadFormFieldErrors } from './LeadFormFields';
+import { LeadFormFields, type LeadFormAnswers, type LeadFormFieldErrors } from './LeadFormFields';
 import { LeadFormLoginRequiredGate } from './LeadFormLoginRequiredGate';
 import { LeadFormSkeleton } from './LeadFormSkeleton';
 import { LeadFormSuccess } from './LeadFormSuccess';
@@ -20,8 +20,6 @@ interface LeadFormWidgetProps {
   readonly title: string;
   readonly subtitle?: string;
 }
-
-type Answers = Record<string, string | string[]>;
 
 type SubmitPhase =
   | 'idle'
@@ -57,7 +55,7 @@ export function LeadFormWidget({ slug, title, subtitle }: LeadFormWidgetProps): 
   const email = emailOverride ?? customerProfile?.email ?? '';
   const phone = phoneOverride ?? customerProfile?.phone ?? '';
 
-  const [answers, setAnswers] = useState<Answers>({});
+  const [answers, setAnswers] = useState<LeadFormAnswers>({});
   const [fieldErrors, setFieldErrors] = useState<LeadFormFieldErrors>({ questions: {} });
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileKey, setTurnstileKey] = useState(0);
@@ -130,18 +128,20 @@ export function LeadFormWidget({ slug, title, subtitle }: LeadFormWidgetProps): 
 
   function validate(): LeadFormFieldErrors | null {
     if (!config) return null;
-    const errors: LeadFormFieldErrors = { questions: {} };
-
-    if (!name.trim()) errors.name = t('leadForm.nameRequired');
-    if (!EMAIL_SCHEMA.safeParse(email).success) errors.email = t('leadForm.emailRequired');
-    if (!phone.trim()) errors.phone = t('leadForm.phoneRequired');
-
+    const questionErrors: Record<string, string> = {};
     for (const question of config.questions) {
       if (question.required && isAnswerBlank(answers[question.id])) {
-        errors.questions[question.id] =
+        questionErrors[question.id] =
           question.type === 'TEXT' ? t('leadForm.questionRequired') : t('leadForm.selectOption');
       }
     }
+
+    const errors: LeadFormFieldErrors = {
+      name: name.trim() ? undefined : t('leadForm.nameRequired'),
+      email: EMAIL_SCHEMA.safeParse(email).success ? undefined : t('leadForm.emailRequired'),
+      phone: phone.trim() ? undefined : t('leadForm.phoneRequired'),
+      questions: questionErrors,
+    };
 
     const hasErrors =
       !!errors.name || !!errors.email || !!errors.phone || Object.keys(errors.questions).length > 0;

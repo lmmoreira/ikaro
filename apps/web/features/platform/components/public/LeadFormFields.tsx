@@ -5,13 +5,13 @@ import { LeadFormQuestionField } from './LeadFormQuestionField';
 import { TurnstileWidget } from './TurnstileWidget';
 
 export interface LeadFormFieldErrors {
-  name?: string;
-  email?: string;
-  phone?: string;
-  questions: Record<string, string>;
+  readonly name?: string;
+  readonly email?: string;
+  readonly phone?: string;
+  readonly questions: Record<string, string>;
 }
 
-type Answers = Record<string, string | string[]>;
+export type LeadFormAnswers = Record<string, string | string[]>;
 
 const btnStyle: React.CSSProperties = {
   backgroundColor: 'var(--ba-btn-bg)',
@@ -31,7 +31,7 @@ interface LeadFormFieldsProps {
   readonly onEmailChange: (value: string) => void;
   readonly onPhoneChange: (value: string) => void;
   readonly showPrefilledNote: boolean;
-  readonly answers: Answers;
+  readonly answers: LeadFormAnswers;
   readonly onAnswerChange: (questionId: string, value: string | string[]) => void;
   readonly fieldErrors: LeadFormFieldErrors;
   readonly showValidationBanner: boolean;
