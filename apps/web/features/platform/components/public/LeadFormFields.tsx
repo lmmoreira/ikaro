@@ -102,104 +102,110 @@ export function LeadFormFields({
         </div>
       )}
 
-      <fieldset
-        disabled={isSubmitting}
-        className="border-0 disabled:opacity-55"
-        style={{
-          backgroundColor: 'var(--ba-secondary)',
-          borderRadius: 'var(--ba-radius)',
-          padding: '1.5rem',
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSubmit();
         }}
       >
-        <h2 className="mb-4 text-base font-bold">{t('leadForm.yourInfoHeading')}</h2>
-        {showPrefilledNote && (
-          <p
-            className="mb-3.5 text-xs"
-            style={{ color: 'var(--ba-primary)' }}
-            data-testid="lead-form-prefilled-note"
-          >
-            {t('leadForm.prefilledNote')}
-          </p>
-        )}
-
-        <ContactField
-          htmlId="lead-form-name"
-          testId="lead-form-name"
-          errorTestId="lead-form-name-error"
-          label={t('leadForm.nameLabel')}
-          placeholder={t('leadForm.namePlaceholder')}
-          value={name}
-          error={fieldErrors.name}
-          onChange={onNameChange}
-        />
-        <ContactField
-          htmlId="lead-form-email"
-          testId="lead-form-email"
-          errorTestId="lead-form-email-error"
-          type="email"
-          label={t('leadForm.emailLabel')}
-          placeholder={t('leadForm.emailPlaceholder')}
-          value={email}
-          error={fieldErrors.email}
-          onChange={onEmailChange}
-        />
-        <ContactField
-          htmlId="lead-form-phone"
-          testId="lead-form-phone"
-          errorTestId="lead-form-phone-error"
-          label={t('leadForm.phoneLabel')}
-          placeholder={t('leadForm.phonePlaceholder')}
-          value={phone}
-          error={fieldErrors.phone}
-          onChange={onPhoneChange}
-        />
-
-        <hr className="my-6" style={{ borderColor: 'var(--ba-secondary)' }} />
-        <h2 className="mb-4 text-base font-bold">{t('leadForm.aboutHeading')}</h2>
-
-        {questions.map((question) => (
-          <LeadFormQuestionField
-            key={question.id}
-            question={question}
-            value={answers[question.id]}
-            error={fieldErrors.questions[question.id]}
-            onChange={(value) => onAnswerChange(question.id, value)}
-          />
-        ))}
-
-        <div
-          className="my-6 flex items-center gap-3 border border-dashed p-4"
-          style={{ borderRadius: 'var(--ba-radius)', borderColor: 'var(--ba-secondary)' }}
-        >
-          <TurnstileWidget
-            key={turnstileKey}
-            siteKey={getPublicEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY')}
-            onVerify={onTurnstileVerify}
-            onExpire={onTurnstileExpire}
-            onError={onTurnstileError}
-          />
-          <p className="text-sm font-semibold">
-            {isCaptchaError
-              ? t('leadForm.turnstileRedoTitle')
-              : t('leadForm.turnstileVerifiedTitle')}
-          </p>
-        </div>
-
-        <button
-          type="button"
-          data-testid="lead-form-submit"
+        <fieldset
           disabled={isSubmitting}
-          onClick={onSubmit}
-          style={btnStyle}
-          className="w-full border-2 px-8 py-3 text-center font-semibold transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
+          className="border-0 disabled:opacity-55"
+          style={{
+            backgroundColor: 'var(--ba-secondary)',
+            borderRadius: 'var(--ba-radius)',
+            padding: '1.5rem',
+          }}
         >
-          {isSubmitting
-            ? t('leadForm.submittingButton')
-            : isCaptchaError
-              ? t('leadForm.retryButton')
-              : t('leadForm.submitButton')}
-        </button>
-      </fieldset>
+          <h2 className="mb-4 text-base font-bold">{t('leadForm.yourInfoHeading')}</h2>
+          {showPrefilledNote && (
+            <p
+              className="mb-3.5 text-xs"
+              style={{ color: 'var(--ba-primary)' }}
+              data-testid="lead-form-prefilled-note"
+            >
+              {t('leadForm.prefilledNote')}
+            </p>
+          )}
+
+          <ContactField
+            htmlId="lead-form-name"
+            testId="lead-form-name"
+            errorTestId="lead-form-name-error"
+            label={t('leadForm.nameLabel')}
+            placeholder={t('leadForm.namePlaceholder')}
+            value={name}
+            error={fieldErrors.name}
+            onChange={onNameChange}
+          />
+          <ContactField
+            htmlId="lead-form-email"
+            testId="lead-form-email"
+            errorTestId="lead-form-email-error"
+            type="email"
+            label={t('leadForm.emailLabel')}
+            placeholder={t('leadForm.emailPlaceholder')}
+            value={email}
+            error={fieldErrors.email}
+            onChange={onEmailChange}
+          />
+          <ContactField
+            htmlId="lead-form-phone"
+            testId="lead-form-phone"
+            errorTestId="lead-form-phone-error"
+            label={t('leadForm.phoneLabel')}
+            placeholder={t('leadForm.phonePlaceholder')}
+            value={phone}
+            error={fieldErrors.phone}
+            onChange={onPhoneChange}
+          />
+
+          <hr className="my-6" style={{ borderColor: 'var(--ba-secondary)' }} />
+          <h2 className="mb-4 text-base font-bold">{t('leadForm.aboutHeading')}</h2>
+
+          {questions.map((question) => (
+            <LeadFormQuestionField
+              key={question.id}
+              question={question}
+              value={answers[question.id]}
+              error={fieldErrors.questions[question.id]}
+              onChange={(value) => onAnswerChange(question.id, value)}
+            />
+          ))}
+
+          <div
+            className="my-6 flex items-center gap-3 border border-dashed p-4"
+            style={{ borderRadius: 'var(--ba-radius)', borderColor: 'var(--ba-secondary)' }}
+          >
+            <TurnstileWidget
+              key={turnstileKey}
+              siteKey={getPublicEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY')}
+              onVerify={onTurnstileVerify}
+              onExpire={onTurnstileExpire}
+              onError={onTurnstileError}
+            />
+            <p className="text-sm font-semibold">
+              {isCaptchaError
+                ? t('leadForm.turnstileRedoTitle')
+                : t('leadForm.turnstileVerifiedTitle')}
+            </p>
+          </div>
+
+          <button
+            type="submit"
+            data-testid="lead-form-submit"
+            disabled={isSubmitting}
+            style={btnStyle}
+            className="w-full border-2 px-8 py-3 text-center font-semibold transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {isSubmitting
+              ? t('leadForm.submittingButton')
+              : isCaptchaError
+                ? t('leadForm.retryButton')
+                : t('leadForm.submitButton')}
+          </button>
+        </fieldset>
+      </form>
     </div>
   );
 }

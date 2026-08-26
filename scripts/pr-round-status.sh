@@ -102,24 +102,34 @@ while true; do
 
   CODEX_URL=""
   CODERABBIT_URL=""
-  if [ "$WAIT_CODEX" -eq 1 ] || [ "$WAIT_CODERABBIT" -eq 1 ]; then
+  if [ "$WAIT_CODEX" -eq 1 ]; then
     COMMENTS_JSON=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json comments 2>/dev/null || echo '{"comments":[]}')
+    # The exact preamble wording isn't a stable contract — observed drifting between rounds
+    # (backticks added around /pr-review, "4-agent" -> "4-perspective") on the same PR in the
+    # same session, which silently hung a literal-substring match forever. Tolerate an optional
+    # backtick around /pr-review instead of requiring it verbatim either way.
+    CODEX_URL=$(printf '%s' "$COMMENTS_JSON" | jq -r --arg since "$SINCE" '
+      [.comments[] | select(.createdAt >= $since) | select(.body | test("Automated review via `?/pr-review`? — Codex"))]
+      | sort_by(.createdAt) | last | .url // empty')
+  fi
 
-    if [ "$WAIT_CODEX" -eq 1 ]; then
-      # The exact preamble wording isn't a stable contract — observed drifting between rounds
-      # (backticks added around /pr-review, "4-agent" -> "4-perspective") on the same PR in the
-      # same session, which silently hung a literal-substring match forever. Tolerate an optional
-      # backtick around /pr-review instead of requiring it verbatim either way.
-      CODEX_URL=$(printf '%s' "$COMMENTS_JSON" | jq -r --arg since "$SINCE" '
-        [.comments[] | select(.createdAt >= $since) | select(.body | test("Automated review via `?/pr-review`? — Codex"))]
-        | sort_by(.createdAt) | last | .url // empty')
-    fi
-
-    if [ "$WAIT_CODERABBIT" -eq 1 ]; then
-      CODERABBIT_URL=$(printf '%s' "$COMMENTS_JSON" | jq -r --arg since "$SINCE" '
-        [.comments[] | select(.createdAt >= $since) | select(.author.login == "coderabbitai")]
-        | sort_by(.createdAt) | last | .url // empty')
-    fi
+  if [ "$WAIT_CODERABBIT" -eq 1 ]; then
+    # CodeRabbit's actual findings-bearing review is a PR *review* object (state: COMMENTED),
+    # never a plain issue comment — gh pr view --json comments structurally cannot see it, only
+    # CodeRabbit's own bookkeeping issue-comments (the walkthrough-stack summary and the "review
+    # command invocation received" ack, both posted within seconds of the @coderabbitai review
+    # trigger, well before the real review lands minutes later). Querying --json comments here
+    # silently hung this script forever on PR #433 (2026-08-26) even after the real review had
+    # already posted, because it was checking the wrong API surface entirely — not a timing
+    # issue, a structural one. --json reviews is the correct surface; its timestamp field is
+    # submittedAt, not createdAt.
+    # Review objects carry no .url field (only .id) — build the real, fetchable
+    # #pullrequestreview-<id> anchor GitHub uses for review permalinks.
+    REVIEWS_JSON=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json reviews 2>/dev/null || echo '{"reviews":[]}')
+    CODERABBIT_URL=$(printf '%s' "$REVIEWS_JSON" | jq -r --arg since "$SINCE" --arg repo "$REPO" --arg pr "$PR_NUMBER" '
+      [.reviews[] | select(.submittedAt >= $since) | select(.author.login == "coderabbitai")]
+      | sort_by(.submittedAt) | last
+      | if . then "https://github.com/\($repo)/pull/\($pr)#pullrequestreview-\(.id)" else empty end')
   fi
 
   ALL_DONE=1

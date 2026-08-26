@@ -4,12 +4,29 @@ export function isValidSlug(value: string): boolean {
   return !!value && SLUG_REGEX.test(value);
 }
 
-// Open-redirect guard for the optional post-login returnTo path (M20-S09) — must be a relative
-// path scoped to the requesting tenant's own slug, never an absolute URL, a protocol-relative
-// `//host/...`, or a path under a different tenant. Requires the exact `/${tenantSlug}/` prefix,
-// not just "contains the slug somewhere".
+// Dummy origin returnTo is resolved against — never dereferenced, only used so the WHATWG URL
+// parser normalizes dot-segments/percent-encoded traversal and exposes any origin change (an
+// absolute URL or protocol-relative `//host/...` input) via a mismatched .origin.
+const RETURN_TO_BASE = 'https://return-to.invalid';
+
+// Open-redirect / path-traversal guard for the optional post-login returnTo path (M20-S09) —
+// must be a relative path scoped to the requesting tenant's own slug. A raw `startsWith` check
+// on the unparsed string is bypassable by a dot-segment or percent-encoded traversal
+// (`/tenant/../other-tenant/...`, `/tenant/%2e%2e/other-tenant/...`) that still starts with the
+// right prefix literally but resolves to a different tenant's path once the browser (or any URL
+// parser) normalizes it (PR #433 review, CodeRabbit). Parsing via the URL constructor and
+// checking the *normalized* pathname closes both: the WHATWG URL spec's path state explicitly
+// treats a percent-encoded ".."-equivalent the same as a literal one when removing dot-segments,
+// and an origin change flags an absolute/protocol-relative bypass attempt.
 export function isValidReturnTo(value: string, tenantSlug: string): boolean {
-  return !!value && !!tenantSlug && value.startsWith(`/${tenantSlug}/`);
+  if (!value || !tenantSlug) return false;
+  let parsed: URL;
+  try {
+    parsed = new URL(value, RETURN_TO_BASE);
+  } catch {
+    return false;
+  }
+  return parsed.origin === RETURN_TO_BASE && parsed.pathname.startsWith(`/${tenantSlug}/`);
 }
 
 export interface OAuthState {

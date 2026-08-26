@@ -91,8 +91,16 @@ test.describe.serial('lead-form public page (GUEST) — M20-S09', () => {
   });
 
   test('guest fills the form (one of each question type), completes Turnstile, and submits successfully', async ({
-    page,
+    browser,
   }) => {
+    // A fresh, cookie-free context — the fixture's own `page` carries the staff session
+    // loginAsStaff() set up in beforeEach, which would make this "guest" test actually exercise
+    // an authenticated-staff visit instead (PR #433 review, CodeRabbit + confirmed by the real
+    // CI failure: the widget correctly branched on session state, but this test's own claim of
+    // testing the guest path was never true).
+    const guestContext = await browser.newContext();
+    const page = await guestContext.newPage();
+
     await page.goto(`/${MANAGER_TENANT_SLUG}/lead-form`);
 
     await expect(page.getByTestId('lead-form-name')).toBeVisible();
@@ -122,11 +130,16 @@ test.describe.serial('lead-form public page (GUEST) — M20-S09', () => {
     await page.getByTestId('lead-form-submit').click();
 
     await expect(page.getByTestId('lead-form-success')).toBeVisible({ timeout: 15_000 });
+
+    await guestContext.close();
   });
 
   test('shows a validation error and preserves the entered data when a required field is left blank', async ({
-    page,
+    browser,
   }) => {
+    const guestContext = await browser.newContext();
+    const page = await guestContext.newPage();
+
     await page.goto(`/${MANAGER_TENANT_SLUG}/lead-form`);
 
     await page.getByTestId('lead-form-name').fill('Fernanda Alves');
@@ -135,6 +148,8 @@ test.describe.serial('lead-form public page (GUEST) — M20-S09', () => {
     await expect(page.getByTestId('lead-form-validation-banner')).toBeVisible();
     await expect(page.getByTestId('lead-form-email-error')).toBeVisible();
     await expect(page.getByTestId('lead-form-name')).toHaveValue('Fernanda Alves');
+
+    await guestContext.close();
   });
 
   test('a module disabled between teaser render and page load resolves to the Unavailable state', async ({
@@ -195,12 +210,13 @@ test.describe.serial('lead-form public page (CUSTOMER_ONLY gate) — M20-S09', (
   });
 
   test('an unauthenticated visitor is gated with a link into login carrying a returnTo back to this page', async ({
-    page,
-    context,
+    browser,
   }) => {
-    // Clears the staff session set up during fixture setup — this test is about an
-    // unauthenticated visitor, not the manager who configured the module.
-    await context.clearCookies();
+    // A fresh, cookie-free context — clearing cookies on the fixture's own context/page would
+    // also wipe the staff session afterEach needs to restore the tenant's config, failing
+    // cleanup with 401 (PR #433 review, CodeRabbit + confirmed by the real CI failure).
+    const guestContext = await browser.newContext();
+    const page = await guestContext.newPage();
 
     await page.goto(`/${MANAGER_TENANT_SLUG}/lead-form`);
 
@@ -210,5 +226,7 @@ test.describe.serial('lead-form public page (CUSTOMER_ONLY gate) — M20-S09', (
       'href',
       `/${MANAGER_TENANT_SLUG}/login?returnTo=${encodeURIComponent(`/${MANAGER_TENANT_SLUG}/lead-form`)}`,
     );
+
+    await guestContext.close();
   });
 });

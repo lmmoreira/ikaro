@@ -69,6 +69,19 @@ describe('GoogleAuthGuard', () => {
       const payload = jwtService.verify<OAuthStatePayload>(opts.state);
       expect(payload.returnTo).toBeUndefined();
     });
+
+    it('drops returnTo when Express parses a repeated query param as an array (PR #433 review)', () => {
+      const opts = guard.getAuthenticateOptions(
+        makeExecutionContext({
+          query: {
+            tenantSlug: 'lavacar-bh',
+            returnTo: ['/lavacar-bh/a', '/lavacar-bh/b'] as unknown as string,
+          },
+        }),
+      ) as { state: string };
+      const payload = jwtService.verify<OAuthStatePayload>(opts.state);
+      expect(payload.returnTo).toBeUndefined();
+    });
   });
 
   describe('getAuthenticateOptions() — staff login', () => {

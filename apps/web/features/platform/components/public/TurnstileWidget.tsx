@@ -42,15 +42,34 @@ export function TurnstileWidget({
   const widgetIdRef = useRef<string | null>(null);
   const [scriptLoaded, setScriptLoaded] = useState(false);
 
+  // LeadFormFields.tsx passes inline arrow functions for onExpire/onError, so their identity
+  // changes on every parent re-render (e.g. every keystroke in a contact field). Reading the
+  // latest callback through a ref — updated on every render, but never a dependency itself —
+  // keeps renderWidget's own identity (and the effect below) stable across those re-renders.
+  // Without this, the effect removed and recreated the real Turnstile widget on every parent
+  // re-render, including mid-verification (PR #433 review, CodeRabbit — the direct cause of the
+  // widget's iframe never settling into a visible state in real-browser E2E runs).
+  const onVerifyRef = useRef(onVerify);
+  const onExpireRef = useRef(onExpire);
+  const onErrorRef = useRef(onError);
+  // Committed in an effect, not assigned directly during render (React 19's
+  // react-hooks/refs rule) — a render can run without committing under concurrent
+  // rendering, so mutating a ref's value inline in the function body is unsafe.
+  useEffect(() => {
+    onVerifyRef.current = onVerify;
+    onExpireRef.current = onExpire;
+    onErrorRef.current = onError;
+  });
+
   const renderWidget = useCallback(() => {
     if (!containerRef.current || !window.turnstile) return;
     widgetIdRef.current = window.turnstile.render(containerRef.current, {
       sitekey: siteKey,
-      callback: onVerify,
-      'expired-callback': onExpire,
-      'error-callback': onError,
+      callback: (token) => onVerifyRef.current(token),
+      'expired-callback': () => onExpireRef.current(),
+      'error-callback': () => onErrorRef.current(),
     });
-  }, [siteKey, onVerify, onExpire, onError]);
+  }, [siteKey]);
 
   useEffect(() => {
     if (!scriptLoaded) return;

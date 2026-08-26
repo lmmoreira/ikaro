@@ -43,4 +43,16 @@ describe('isValidReturnTo()', () => {
   it('returns false for a path that merely contains the slug, not prefixed by it', () => {
     expect(isValidReturnTo('/other/lavacar-bh/lead-form', 'lavacar-bh')).toBe(false);
   });
+
+  it('returns false for a literal dot-segment traversal out of the tenant path (PR #433 review)', () => {
+    expect(isValidReturnTo('/lavacar-bh/../other-tenant/lead-form', 'lavacar-bh')).toBe(false);
+  });
+
+  it('returns false for a percent-encoded dot-segment traversal (PR #433 review)', () => {
+    expect(isValidReturnTo('/lavacar-bh/%2e%2e/other-tenant/lead-form', 'lavacar-bh')).toBe(false);
+  });
+
+  it('returns false for a malformed URL that the URL constructor cannot parse', () => {
+    expect(isValidReturnTo('http://[::1', 'lavacar-bh')).toBe(false);
+  });
 });

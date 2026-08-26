@@ -60,6 +60,7 @@ export function LeadFormWidget({ slug, title, subtitle }: LeadFormWidgetProps): 
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileKey, setTurnstileKey] = useState(0);
   const [phase, setPhase] = useState<SubmitPhase>('idle');
+  const [configRequestVersion, setConfigRequestVersion] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -73,7 +74,12 @@ export function LeadFormWidget({ slug, title, subtitle }: LeadFormWidgetProps): 
     return () => {
       active = false;
     };
-  }, [slug]);
+    // configRequestVersion has no value of its own — bumping it (the terminal card's onRetry
+    // below) is the only way to re-run this effect and fetch again after a config-fetch failure,
+    // since the effect otherwise only depends on slug, which never changes for a mounted retry
+    // (PR #433 review, CodeRabbit: retrying used to just clear config and get stuck in the
+    // loading skeleton forever, since nothing re-triggered the fetch).
+  }, [slug, configRequestVersion]);
 
   useEffect(() => {
     let active = true;
@@ -160,7 +166,10 @@ export function LeadFormWidget({ slug, title, subtitle }: LeadFormWidgetProps): 
         body={t('leadForm.submissionErrorBody')}
         slug={slug}
         retryLabel={t('leadForm.retryButton')}
-        onRetry={() => setConfig(undefined)}
+        onRetry={() => {
+          setConfig(undefined);
+          setConfigRequestVersion((version) => version + 1);
+        }}
       />
     );
   }

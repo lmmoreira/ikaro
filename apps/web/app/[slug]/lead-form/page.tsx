@@ -5,7 +5,7 @@ import { LeadFormWidget } from '@/features/platform/components/public/LeadFormWi
 import { HotsiteAuthBar } from '@/shells/hotsite/components/HotsiteAuthBar';
 import { Unavailable } from '@/shells/hotsite/components/Unavailable';
 import { buildHotsiteMetadata } from '@/features/platform/hotsite/seo';
-import { LeadFormModuleDataSchema } from '@/features/platform/hotsite/module-schemas';
+import { resolveLeadFormModule } from '@/features/platform/hotsite/lead-form-module';
 import { resolveHotsiteDisplayName } from '@/features/platform/hotsite/page-model';
 
 export const revalidate = 300;
@@ -18,14 +18,11 @@ export async function generateMetadata({ params }: LeadFormPageProps): Promise<M
   const { slug } = await params;
   const manifest = await fetchManifest(slug);
   const tHotsite = await getTranslations('hotsite');
-
-  const leadFormModule = manifest.layout.find((m) => m.type === 'LEAD_FORM');
-  const parsed = LeadFormModuleDataSchema.safeParse(leadFormModule?.data);
-  const available = !!leadFormModule?.enabled && parsed.success;
+  const { available, data } = resolveLeadFormModule(manifest);
 
   return {
     ...(await buildHotsiteMetadata({ manifest, slug, path: '/lead-form' })),
-    title: available ? parsed.data.title : `${tHotsite('unavailable.label')} — Ikaro`,
+    title: available && data ? data.title : `${tHotsite('unavailable.label')} — Ikaro`,
     robots: { index: false, follow: false },
   };
 }
@@ -38,11 +35,9 @@ export async function generateMetadata({ params }: LeadFormPageProps): Promise<M
 export default async function LeadFormPage({ params }: LeadFormPageProps) {
   const { slug } = await params;
   const manifest = await fetchManifest(slug);
+  const { available, data } = resolveLeadFormModule(manifest);
 
-  const leadFormModule = manifest.layout.find((m) => m.type === 'LEAD_FORM');
-  const parsed = LeadFormModuleDataSchema.safeParse(leadFormModule?.data);
-
-  if (!leadFormModule?.enabled || !parsed.success) {
+  if (!available || !data) {
     return <Unavailable />;
   }
 
@@ -51,7 +46,7 @@ export default async function LeadFormPage({ params }: LeadFormPageProps) {
   return (
     <>
       <HotsiteAuthBar slug={slug} logoUrl={manifest.branding.logoUrl} tenantName={displayName} />
-      <LeadFormWidget slug={slug} title={parsed.data.title} subtitle={parsed.data.subtitle} />
+      <LeadFormWidget slug={slug} title={data.title} subtitle={data.subtitle} />
     </>
   );
 }
