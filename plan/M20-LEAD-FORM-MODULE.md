@@ -424,7 +424,7 @@ Empty state (`01b-submissions-empty.html`) links back to S08's config panel when
 
 ---
 
-### M20-S11 — Tenant settings form — Lead Form section, all 3 fields (UC-042)
+### M20-S11 — Tenant settings form — Lead Form section, all 3 fields (UC-042) ✅ Done
 
 **Agent:** `frontend-ts`
 **Complexity:** S
