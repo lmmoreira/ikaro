@@ -78,6 +78,35 @@ Content-Type: application/json
 
 ###
 
+### Lead form config — teaser + audienceMode + questions in one atomic request (M20-S08; moved
+### here from the removed PATCH /v1/tenants/lead-form/config)
+PATCH {{bffUrl}}/v1/tenants/hotsite
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "layout": [
+    {
+      "type": "LEAD_FORM",
+      "enabled": true,
+      "data": { "title": "Fale com a gente", "ctaLabel": "Preencher formulário" }
+    }
+  ],
+  "audienceMode": "GUEST_AND_CUSTOMER",
+  "questions": [
+    {
+      "id": "01234567-0000-7000-8000-000000000101",
+      "label": "Qual serviço te interessa?",
+      "type": "SINGLE_CHOICE",
+      "required": true,
+      "options": ["Lavagem simples", "Lavagem completa", "Enceramento"],
+      "order": 0
+    }
+  ]
+}
+
+###
+
 ### Publish the hotsite
 POST {{bffUrl}}/v1/tenants/hotsite/publish
 Authorization: Bearer {{managerToken}}

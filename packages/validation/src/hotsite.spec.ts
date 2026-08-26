@@ -1,4 +1,4 @@
-import { HexColorErrorCode, SeoErrorCode } from '@ikaro/types';
+import { GenericErrorCode, HexColorErrorCode, SeoErrorCode } from '@ikaro/types';
 import {
   HotsiteBrandingSchema,
   HotsiteModuleSchema,
@@ -92,6 +92,53 @@ describe('HotsiteModuleSchema', () => {
   it('accepts a CHATBOT module (M19-S11)', () => {
     expect(
       HotsiteModuleSchema.safeParse({ type: 'CHATBOT', enabled: true, data: {} }).success,
+    ).toBe(true);
+  });
+
+  // M20-S08 — audienceMode/questions must never reach layout[].data; that blob feeds the
+  // public-cached manifest, while these two fields belong to LeadFormConfig (a separate table).
+  it('accepts a LEAD_FORM module with only teaser fields', () => {
+    expect(
+      HotsiteModuleSchema.safeParse({
+        type: 'LEAD_FORM',
+        enabled: true,
+        data: { title: 'Fale com a gente', ctaLabel: 'Enviar' },
+      }).success,
+    ).toBe(true);
+  });
+
+  it('rejects a LEAD_FORM module whose data includes audienceMode', () => {
+    const result = HotsiteModuleSchema.safeParse({
+      type: 'LEAD_FORM',
+      enabled: true,
+      data: { title: 'Fale com a gente', audienceMode: 'CUSTOMER_ONLY' },
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues[0] as unknown as { params?: { code?: string } };
+      expect(issue.params?.code).toBe(GenericErrorCode.VALUE_INVALID);
+    }
+  });
+
+  it('rejects a LEAD_FORM module whose data includes questions', () => {
+    expect(
+      HotsiteModuleSchema.safeParse({
+        type: 'LEAD_FORM',
+        enabled: true,
+        data: { title: 'Fale com a gente', questions: [] },
+      }).success,
+    ).toBe(false);
+  });
+
+  it('accepts a non-LEAD_FORM module whose data happens to include a key named audienceMode', () => {
+    // The restriction is scoped to type === 'LEAD_FORM' — other module types keep their own
+    // fully-generic data record untouched by this check.
+    expect(
+      HotsiteModuleSchema.safeParse({
+        type: 'HERO',
+        enabled: true,
+        data: { audienceMode: 'whatever' },
+      }).success,
     ).toBe(true);
   });
 });

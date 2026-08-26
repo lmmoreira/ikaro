@@ -780,7 +780,13 @@
               "title": "Teaser copy",
               "titleLabel": "Title",
               "subtitleLabel": "Subtitle",
-              "ctaLabel": "Button text"
+              "ctaLabel": "Button text",
+              "variantLabel": "Layout",
+              "variantCentered": "Centered",
+              "variantLeftAligned": "Left-aligned",
+              "bgStyleLabel": "Background style",
+              "bgStylePrimary": "Primary color",
+              "bgStyleBackground": "Background color"
             },
             "audience": {
               "title": "Who can respond",
