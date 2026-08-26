@@ -52,7 +52,6 @@ describe('CronLoyaltyController (integration)', () => {
     await ds.getRepository(LoyaltyBalanceEntity).delete({ tenantId });
   });
 
-  const CUSTOMER_ID = 'cccccccc-0000-7000-8000-000000000020';
   const past = (): Date => new Date(Date.now() - 24 * 60 * 60 * 1000);
   const future = (): Date => new Date(Date.now() + 180 * 24 * 60 * 60 * 1000);
 
@@ -69,9 +68,10 @@ describe('CronLoyaltyController (integration)', () => {
   });
 
   it('decrements balance and inserts balance_expiry_log row via the trigger dispatch', async () => {
+    const customerId = uuidv7();
     const entryEntity = new LoyaltyEntryEntityBuilder()
       .withTenantId(tenantId)
-      .withCustomerId(CUSTOMER_ID)
+      .withCustomerId(customerId)
       .withPoints(30)
       .withExpiresAt(past())
       .build();
@@ -81,7 +81,7 @@ describe('CronLoyaltyController (integration)', () => {
       .save(
         new LoyaltyBalanceEntityBuilder()
           .withTenantId(tenantId)
-          .withCustomerId(CUSTOMER_ID)
+          .withCustomerId(customerId)
           .withCurrentPoints(100)
           .build(),
       );
@@ -90,7 +90,7 @@ describe('CronLoyaltyController (integration)', () => {
 
     const balance = await ds
       .getRepository(LoyaltyBalanceEntity)
-      .findOne({ where: { tenantId, customerId: CUSTOMER_ID } });
+      .findOne({ where: { tenantId, customerId } });
     expect(balance?.currentPoints).toBe(70);
 
     const log = await ds
@@ -100,9 +100,10 @@ describe('CronLoyaltyController (integration)', () => {
   });
 
   it('is idempotent — calling the endpoint twice does not double-decrement (ExpirePointsJob per-entry dedup)', async () => {
+    const customerId = uuidv7();
     const entryEntity = new LoyaltyEntryEntityBuilder()
       .withTenantId(tenantId)
-      .withCustomerId(CUSTOMER_ID)
+      .withCustomerId(customerId)
       .withPoints(20)
       .withExpiresAt(past())
       .build();
@@ -112,7 +113,7 @@ describe('CronLoyaltyController (integration)', () => {
       .save(
         new LoyaltyBalanceEntityBuilder()
           .withTenantId(tenantId)
-          .withCustomerId(CUSTOMER_ID)
+          .withCustomerId(customerId)
           .withCurrentPoints(80)
           .build(),
       );
@@ -122,17 +123,18 @@ describe('CronLoyaltyController (integration)', () => {
 
     const balance = await ds
       .getRepository(LoyaltyBalanceEntity)
-      .findOne({ where: { tenantId, customerId: CUSTOMER_ID } });
+      .findOne({ where: { tenantId, customerId } });
     expect(balance?.currentPoints).toBe(60);
   });
 
   it('does not process future entries', async () => {
+    const customerId = uuidv7();
     await ds
       .getRepository(LoyaltyEntryEntity)
       .save(
         new LoyaltyEntryEntityBuilder()
           .withTenantId(tenantId)
-          .withCustomerId(CUSTOMER_ID)
+          .withCustomerId(customerId)
           .withPoints(15)
           .withExpiresAt(future())
           .build(),
@@ -142,7 +144,7 @@ describe('CronLoyaltyController (integration)', () => {
       .save(
         new LoyaltyBalanceEntityBuilder()
           .withTenantId(tenantId)
-          .withCustomerId(CUSTOMER_ID)
+          .withCustomerId(customerId)
           .withCurrentPoints(50)
           .build(),
       );
@@ -151,7 +153,7 @@ describe('CronLoyaltyController (integration)', () => {
 
     const balance = await ds
       .getRepository(LoyaltyBalanceEntity)
-      .findOne({ where: { tenantId, customerId: CUSTOMER_ID } });
+      .findOne({ where: { tenantId, customerId } });
     expect(balance?.currentPoints).toBe(50);
   });
 
