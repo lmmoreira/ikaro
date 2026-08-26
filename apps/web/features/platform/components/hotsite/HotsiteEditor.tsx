@@ -16,7 +16,6 @@ import {
   type EditorTab,
 } from '@/features/platform/components/hotsite/HotsiteEditorMainView';
 import { materializeLayout } from '@/features/platform/hotsite/default-layout';
-import { stripResolvedImageUrls } from '@/features/platform/hotsite/strip-resolved-image-urls';
 import type { ManifestDraft } from '@/features/platform/hotsite/manifest-schema';
 import {
   useUpdateHotsiteConfig,
@@ -24,7 +23,6 @@ import {
   useUpdateLeadFormConfig,
   useUnpublishHotsite,
 } from '@/features/platform/hotsite/useHotsite';
-import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { useHotsiteEditorTopbarOverride } from '@/features/platform/hotsite/useHotsiteEditorTopbarOverride';
 import { HotsitePreview } from './hotsite-editor-lazy-panels';
@@ -37,12 +35,12 @@ import {
   executeUnpublish,
   mergeLocalDataIntoLayout,
   ModuleConfigView,
-  stripLeadFormConfig,
   updateEditorDraft,
   updateModuleLocalData,
   type EditorView,
   type LeadFormConfigDraft,
 } from './hotsite-editor-views';
+import { executeHotsitePublish } from './hotsite-editor-publish';
 
 interface HotsiteEditorProps {
   readonly initial: HotsiteAdminContentResponse;
@@ -123,63 +121,22 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
   const handleManifestApply = (next: ManifestDraft): void =>
     updateEditorDraft(setDraft, clearBanner, (current) => ({ ...current, ...next }));
 
-  // `contentOverride` lets Publish be triggered from the module-config-preview screen (Part 2
-  // below), where the visually-displayed content is `draft` merged with an in-progress module
-  // edit that hasn't gone through "Aplicar" yet — submitting exactly what's shown in one call,
-  // rather than a separate "apply, then publish" step. The ordinary tabs -> Preview -> Publish
-  // path passes no override and behaves exactly as before.
-  async function handlePublish(
+  const handlePublish = (
     contentOverride?: HotsiteAdminContentResponse,
     leadFormOverride?: LeadFormConfigDraft,
-  ): Promise<void> {
-    const content = contentOverride ?? draft;
-    const leadFormConfig = leadFormOverride ?? leadFormConfigDraft;
-    try {
-      const stripped = stripResolvedImageUrls(
-        content.branding,
-        content.layout,
-        content.seo,
-        tenantId,
-      );
-      const updated = await updateConfig.mutateAsync({
-        branding: stripped.branding,
-        layout: stripped.layout,
-        seo: stripped.seo,
-      });
-      // The PATCH response reflects any tmp/ -> permanent path promotion that just happened
-      // server-side (UpdateHotsiteContentUseCase rewrites the stored reference and returns it).
-      // Merge it back into `draft` — otherwise a still-unsaved tmp/ reference sits in local state
-      // forever, and a *later* save resubmits it even though its tmp/ object was already deleted
-      // by this promotion, failing with HotsiteImageNotUploadedError (see
-      // td/TD22-ORPHANED-UPLOAD-CLEANUP.md).
-      setDraft((current) => ({
-        ...current,
-        ...updated,
-        layout: materializeLayout(updated.layout),
-      }));
-      if (leadFormConfig) {
-        const leadFormModule = stripped.layout.find((module) => module.type === 'LEAD_FORM');
-        const leadFormData = (leadFormModule?.data ?? {}) as Record<string, unknown>;
-        await updateLeadFormConfig.mutateAsync({
-          ...stripLeadFormConfig(leadFormData),
-          ...leadFormConfig,
-        });
-      }
-      await publishHotsite.mutateAsync();
-      setView({ view: 'tabs' });
-      setActionBanner({ kind: 'publish', status: 'success' });
-    } catch (err) {
-      // The banner only renders in the tabs view — switch back on failure too, or a publish
-      // triggered from Preview leaves the admin stuck there with no visible error feedback.
-      setView({ view: 'tabs' });
-      setActionBanner({
-        kind: 'publish',
-        status: 'error',
-        message: resolveErrorMessageFromApiError(err, locale),
-      });
-    }
-    globalThis.scrollTo?.({ top: 0, behavior: 'smooth' });
-  }
+  ): Promise<void> =>
+    executeHotsitePublish({
+      content: contentOverride ?? draft,
+      leadFormConfig: leadFormOverride ?? leadFormConfigDraft,
+      tenantId,
+      locale,
+      updateConfig,
+      updateLeadFormConfig,
+      publishHotsite,
+      setDraft,
+      onTabs: () => setView({ view: 'tabs' }),
+      onBanner: setActionBanner,
+    });
 
   const handleUnpublish = (): Promise<void> =>
     executeUnpublish(

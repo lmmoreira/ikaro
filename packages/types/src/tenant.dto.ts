@@ -1,3 +1,9 @@
+import type {
+  HotsiteAdminContentResponse,
+  HotsiteBrandingResponse,
+  HotsiteSeoResponse,
+} from './hotsite';
+
 export interface TenantInfoResponse {
   id: string;
   name: string;
@@ -179,6 +185,9 @@ export interface LeadFormConfigResponse {
 }
 
 export type UpdateLeadFormConfigRequest = Omit<Partial<LeadFormConfigResponse>, 'questions'> & {
+  branding?: Partial<HotsiteBrandingResponse>;
+  layout?: HotsiteAdminContentResponse['layout'];
+  seo?: Partial<HotsiteSeoResponse>;
   questions?: LeadFormQuestion[];
 };
 

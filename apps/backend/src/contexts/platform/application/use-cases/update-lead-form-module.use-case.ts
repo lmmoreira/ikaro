@@ -45,6 +45,9 @@ import { GetLeadFormConfigUseCaseResult } from './get-lead-form-config.use-case'
 
 export interface UpdateLeadFormModuleUseCaseInput {
   tenantId: string;
+  branding?: Partial<HotsiteBranding>;
+  layout?: HotsiteModule[];
+  seo?: Partial<HotsiteSeo>;
   title?: string;
   subtitle?: string;
   eyebrow?: string;
@@ -61,7 +64,7 @@ export type UpdateLeadFormModuleUseCaseResult = GetLeadFormConfigUseCaseResult;
 
 type TeaserPatch = Omit<
   UpdateLeadFormModuleUseCaseInput,
-  'tenantId' | 'audienceMode' | 'questions'
+  'tenantId' | 'branding' | 'layout' | 'seo' | 'audienceMode' | 'questions'
 >;
 
 /**
@@ -91,45 +94,44 @@ export class UpdateLeadFormModuleUseCase {
   async execute(
     input: UpdateLeadFormModuleUseCaseInput,
   ): Promise<UpdateLeadFormModuleUseCaseResult> {
-    const { tenantId, audienceMode, questions, ...teaserPatch } = input;
-
+    const { tenantId, branding, layout, seo, audienceMode, questions, ...teaserPatch } = input;
     const hotsiteConfig = await this.hotsiteConfigRepo.findByTenantId(tenantId);
     if (!hotsiteConfig) throw new HotsiteNotFoundError(tenantId);
-
     const leadFormConfig =
       (await this.leadFormConfigRepo.findByTenantId(tenantId)) ?? LeadFormConfig.create(tenantId);
 
-    // Domain mutations happen before txManager.run() opens (docs/ENGINEERING_RULES.md §
-    // Transactions "Scope rule") — a validation failure here (e.g. >20 questions) never opens a
-    // transaction at all, so neither aggregate's save() is ever reached.
     if (audienceMode !== undefined) leadFormConfig.updateAudienceMode(audienceMode);
     if (questions !== undefined) leadFormConfig.updateQuestions(questions);
 
-    const mergedLayout = this.mergeLayout(hotsiteConfig.layout, teaserPatch);
-    const { branding, layout, seo, promotions, deletions } = await this.planImagePromotion(
+    const mergedLayout = this.mergeLayout(layout ?? hotsiteConfig.layout, teaserPatch);
+    const mergedBranding = branding
+      ? { ...hotsiteConfig.branding, ...branding }
+      : hotsiteConfig.branding;
+    const mergedSeo = seo ? { ...hotsiteConfig.seo, ...seo } : hotsiteConfig.seo;
+    const {
+      branding: promotedBranding,
+      layout: promotedLayout,
+      seo: promotedSeo,
+      promotions,
+      deletions,
+    } = await this.planImagePromotion(
       hotsiteConfig,
+      mergedBranding,
       mergedLayout,
+      mergedSeo,
       tenantId,
     );
 
-    await this.txManager.run(async () => {
-      // Locked and re-read here, not before the transaction — carouselDays vs.
-      // maxBookingAdvanceDays is a cross-aggregate invariant validated by
-      // HotsiteConfig.updateContent() against every module already present in the layout, not
-      // just LEAD_FORM (mirrors UpdateHotsiteContentUseCase's identical technique).
-      const tenant = await this.tenantRepo.findByIdForUpdate(tenantId);
-      if (!tenant) throw new TenantNotFoundError(tenantId);
-
-      hotsiteConfig.updateContent(branding, layout, seo, {
-        maxBookingAdvanceDays: tenant.settings.booking.maxBookingAdvanceDays,
-      });
-
-      await this.hotsiteConfigRepo.save(hotsiteConfig);
-      await this.leadFormConfigRepo.save(leadFormConfig);
-      await this.txManager.scheduleAfterCommit(() =>
-        this.imagePromotionService.executeImagePromotion(promotions, deletions),
-      );
-    });
+    await this.persist(
+      tenantId,
+      hotsiteConfig,
+      leadFormConfig,
+      promotedBranding,
+      promotedLayout,
+      promotedSeo,
+      promotions,
+      deletions,
+    );
 
     return this.buildResult(hotsiteConfig, leadFormConfig);
   }
@@ -142,7 +144,9 @@ export class UpdateLeadFormModuleUseCase {
    */
   private async planImagePromotion(
     hotsiteConfig: HotsiteConfig,
+    sourceBranding: HotsiteBranding,
     mergedLayout: HotsiteModule[],
+    sourceSeo: HotsiteSeo,
     tenantId: string,
   ): Promise<{
     branding: HotsiteBranding;
@@ -158,9 +162,9 @@ export class UpdateLeadFormModuleUseCase {
     );
     const { branding, layout, seo, promotions } =
       await this.imagePromotionService.prepareImagePromotion(
-        hotsiteConfig.branding,
+        sourceBranding,
         mergedLayout,
-        hotsiteConfig.seo,
+        sourceSeo,
         tenantId,
       );
     const deletions = this.imagePromotionService.computeDeletions(
@@ -171,6 +175,30 @@ export class UpdateLeadFormModuleUseCase {
       tenantId,
     );
     return { branding, layout, seo, promotions, deletions };
+  }
+
+  private async persist(
+    tenantId: string,
+    hotsiteConfig: HotsiteConfig,
+    leadFormConfig: LeadFormConfig,
+    branding: HotsiteBranding,
+    layout: HotsiteModule[],
+    seo: HotsiteSeo,
+    promotions: ImagePromotionOperation[],
+    deletions: string[],
+  ): Promise<void> {
+    await this.txManager.run(async () => {
+      const tenant = await this.tenantRepo.findByIdForUpdate(tenantId);
+      if (!tenant) throw new TenantNotFoundError(tenantId);
+      hotsiteConfig.updateContent(branding, layout, seo, {
+        maxBookingAdvanceDays: tenant.settings.booking.maxBookingAdvanceDays,
+      });
+      await this.hotsiteConfigRepo.save(hotsiteConfig);
+      await this.leadFormConfigRepo.save(leadFormConfig);
+      await this.txManager.scheduleAfterCommit(() =>
+        this.imagePromotionService.executeImagePromotion(promotions, deletions),
+      );
+    });
   }
 
   /** Merges the incoming teaser patch onto the existing LEAD_FORM layout entry, preserving `enabled`. */

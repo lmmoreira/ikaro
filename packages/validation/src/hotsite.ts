@@ -117,21 +117,6 @@ const LeadFormQuestionSchema = z.object({
 // Teaser fields mirror BookingCtaModuleData's own shape family (docs/15-HOTSITE_DYNAMIC_
 // ARCHITECTURE.md § LEAD_FORM) — standard hotsite-layout enum validation for variant/bgStyle/
 // backgroundImagePosition, same as every other module's teaser data.
-export const UpdateLeadFormConfigSchema = z
-  .object({
-    title: z.string().optional(),
-    subtitle: z.string().optional(),
-    eyebrow: z.string().optional(),
-    ctaLabel: z.string().optional(),
-    variant: z.enum(['centered', 'left-aligned']).optional(),
-    backgroundImageUrl: z.string().nullable().optional(),
-    backgroundImagePosition: z.enum(['left', 'center', 'right']).optional(),
-    bgStyle: z.enum(['primary', 'background']).optional(),
-    audienceMode: z.enum(['GUEST_AND_CUSTOMER', 'CUSTOMER_ONLY']).optional(),
-    questions: z.array(LeadFormQuestionSchema).optional(),
-  })
-  .default({});
-
 export const HotsiteSeoSchema = z
   .object({
     title: z
@@ -151,3 +136,21 @@ export const HotsiteSeoSchema = z
     ogImageUrl: z.string().regex(HOTSITE_LOGO_URL_REGEX, HOTSITE_OG_IMAGE_URL_MESSAGE),
   })
   .partial();
+
+export const UpdateLeadFormConfigSchema = z
+  .object({
+    branding: HotsiteBrandingSchema.optional(),
+    layout: z.array(HotsiteModuleSchema).optional(),
+    seo: HotsiteSeoSchema.optional(),
+    title: z.string().optional(),
+    subtitle: z.string().optional(),
+    eyebrow: z.string().optional(),
+    ctaLabel: z.string().optional(),
+    variant: z.enum(['centered', 'left-aligned']).optional(),
+    backgroundImageUrl: z.string().nullable().optional(),
+    backgroundImagePosition: z.enum(['left', 'center', 'right']).optional(),
+    bgStyle: z.enum(['primary', 'background']).optional(),
+    audienceMode: z.enum(['GUEST_AND_CUSTOMER', 'CUSTOMER_ONLY']).optional(),
+    questions: z.array(LeadFormQuestionSchema).optional(),
+  })
+  .default({});
