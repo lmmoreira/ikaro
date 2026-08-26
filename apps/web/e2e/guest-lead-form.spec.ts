@@ -123,9 +123,15 @@ test.describe.serial('lead-form public page (GUEST) — M20-S09', () => {
       .check();
 
     // Real Turnstile widget script, running against Cloudflare's always-pass test sitekey
-    // (NEXT_PUBLIC_TURNSTILE_SITE_KEY, pr-tests.yml) — never mocked/stubbed.
-    const turnstileFrame = page.frameLocator('iframe[src*="challenges.cloudflare.com"]');
-    await expect(turnstileFrame.locator('body')).toBeVisible({ timeout: 15_000 });
+    // (NEXT_PUBLIC_TURNSTILE_SITE_KEY, pr-tests.yml) — never mocked/stubbed. This test sitekey
+    // auto-verifies without ever rendering an interactive challenge iframe: it injects a dummy
+    // token straight into its own hidden `cf-turnstile-response` input the moment
+    // `turnstile.render()` resolves, so an `iframe[src*="challenges.cloudflare.com"]` never
+    // appears (confirmed via local headed/trace debugging, M20-S09 PR #433 round 4). Wait on the
+    // hidden input Cloudflare's own client documents for this exact non-JS-fallback purpose.
+    await expect(page.locator('input[name="cf-turnstile-response"]')).toHaveValue(/.+/, {
+      timeout: 15_000,
+    });
 
     await page.getByTestId('lead-form-submit').click();
 

@@ -288,6 +288,24 @@ describe('LeadFormWidget — CUSTOMER_ONLY audience', () => {
     expect(screen.getByText(/Preenchido com os dados da sua conta/)).toBeInTheDocument();
   });
 
+  // A brand-new customer with no phone on file yet — UC-040 main flow ("visible, editable
+  // autofill"). E2E-only coverage of this exact scenario hits a pre-existing, unrelated gate
+  // (InformationCompletionPrompt, app/[slug]/layout.tsx) that blocks any authenticated customer
+  // missing phone/address on every hotsite route, so the real E2E test completes the profile
+  // first instead (M20-S09 PR #433 round 4 decision) — this component-level test is what actually
+  // proves the phone field starts empty and editable when the profile has none.
+  it('leaves the phone field empty and editable when the customer profile has no phone yet', async () => {
+    mockConfig(configCustomerOnly);
+    vi.mocked(getHotsiteCustomerProfile).mockResolvedValue({ ...CUSTOMER_PROFILE, phone: null });
+
+    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('lead-form-name')).toHaveValue('Maria Fernanda Costa');
+    });
+    expect(screen.getByTestId('lead-form-phone')).toHaveValue('');
+  });
+
   it('lets the authenticated customer edit a prefilled field', async () => {
     const user = userEvent.setup();
     mockConfig(configCustomerOnly);
