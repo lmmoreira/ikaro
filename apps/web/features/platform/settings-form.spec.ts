@@ -108,6 +108,9 @@ describe('toSettingsFormValues', () => {
     expect(values.loyaltyNotificationMinPoints).toBe('10');
     expect(values.notificationFromEmail).toBe('');
     expect(values.socialLinks).toEqual({ whatsapp: '', instagram: '', facebook: '' });
+    expect(values.retentionMonths).toBe('6');
+    expect(values.maxSubmissionsPerDay).toBe('100');
+    expect(values.maxSubmissionsPerIpPerDay).toBe('3');
   });
 
   it('defaults welcomeStaffScreenDays to 14 when absent (matches backend reconstitute())', () => {
@@ -193,6 +196,11 @@ describe('validateSettingsForm', () => {
     expect(normalized?.settings.businessHours?.monday).toEqual({ open: '08:00', close: '18:00' });
     expect(normalized?.settings.businessInfo?.phone).toBe('+5531999999999');
     expect(normalized?.settings.notification).toEqual({ fromEmail: null });
+    expect(normalized?.settings.leadForm).toEqual({
+      retentionMonths: 6,
+      maxSubmissionsPerDay: 100,
+      maxSubmissionsPerIpPerDay: 3,
+    });
   });
 
   it('rejects an empty name', () => {
@@ -543,6 +551,58 @@ describe('validateSettingsForm', () => {
 
       expect(errors.notificationFromEmail).toBe('errors.notificationFromEmailInvalid');
       expect(normalized).toBeNull();
+    });
+  });
+
+  describe('leadForm fields', () => {
+    it('normalizes all three fields at their defaults', () => {
+      const { errors, normalized } = validateSettingsForm(validValues(), BR, t);
+
+      expect(errors).toEqual({});
+      expect(normalized?.settings.leadForm).toEqual({
+        retentionMonths: 6,
+        maxSubmissionsPerDay: 100,
+        maxSubmissionsPerIpPerDay: 3,
+      });
+    });
+
+    it('rejects retentionMonths outside 1-24, independently of the other two fields', () => {
+      const { errors, normalized } = validateSettingsForm(
+        validValues({ retentionMonths: '25' }),
+        BR,
+        t,
+      );
+
+      expect(errors.retentionMonths).toBe('errors.leadFormRetentionMonthsInvalid');
+      expect(errors.maxSubmissionsPerDay).toBeUndefined();
+      expect(errors.maxSubmissionsPerIpPerDay).toBeUndefined();
+      expect(normalized).toBeNull();
+
+      expect(
+        validateSettingsForm(validValues({ retentionMonths: '0' }), BR, t).errors.retentionMonths,
+      ).toBe('errors.leadFormRetentionMonthsInvalid');
+    });
+
+    it('rejects maxSubmissionsPerDay outside 1-1000', () => {
+      const over = validateSettingsForm(validValues({ maxSubmissionsPerDay: '1001' }), BR, t);
+      expect(over.errors.maxSubmissionsPerDay).toBe('errors.leadFormMaxSubmissionsPerDayInvalid');
+      expect(over.normalized).toBeNull();
+
+      const under = validateSettingsForm(validValues({ maxSubmissionsPerDay: '0' }), BR, t);
+      expect(under.errors.maxSubmissionsPerDay).toBe('errors.leadFormMaxSubmissionsPerDayInvalid');
+    });
+
+    it('rejects maxSubmissionsPerIpPerDay outside 1-100', () => {
+      const over = validateSettingsForm(validValues({ maxSubmissionsPerIpPerDay: '101' }), BR, t);
+      expect(over.errors.maxSubmissionsPerIpPerDay).toBe(
+        'errors.leadFormMaxSubmissionsPerIpPerDayInvalid',
+      );
+      expect(over.normalized).toBeNull();
+
+      const under = validateSettingsForm(validValues({ maxSubmissionsPerIpPerDay: '0' }), BR, t);
+      expect(under.errors.maxSubmissionsPerIpPerDay).toBe(
+        'errors.leadFormMaxSubmissionsPerIpPerDayInvalid',
+      );
     });
   });
 

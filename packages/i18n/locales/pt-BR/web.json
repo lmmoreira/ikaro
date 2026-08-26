@@ -860,7 +860,8 @@
         "notification": "Notificações",
         "hours": "Horário de funcionamento",
         "contact": "Contato",
-        "chatbot": "Chatbot"
+        "chatbot": "Chatbot",
+        "leadForm": "Formulário de contato"
       },
       "nameLabel": "Nome do estabelecimento *",
       "slugLabel": "Slug (endereço do site)",
@@ -934,6 +935,15 @@
       "chatbotKnowledgeTextHint": "Políticas, perguntas frequentes e observações que o assistente deve conhecer — os serviços e preços já são incluídos automaticamente, não é preciso repeti-los aqui.",
       "chatbotKnowledgeTextPlaceholder": "Ex: Aceitamos pagamento por Pix e cartão. Não fazemos lavagem a seco. Vagas de estacionamento disponíveis na rua. Atendimento prioritário para clientes de fidelidade Ouro...",
       "chatbotCapsElsewhereNote": "Os limites de volume/custo (conversas por dia, mensagens por conversa, etc.) e o provedor de IA não aparecem neste formulário — são padrões fixos da plataforma, ajustáveis apenas pela Ikaro diretamente no banco de dados quando necessário.",
+      "leadFormSectionSub": "Retenção de envios e limites de proteção contra abuso",
+      "leadFormRetentionLabel": "Retenção de leads",
+      "leadFormRetentionHint": "Entre 1 e 24 meses. Envios mais antigos que isso são excluídos automaticamente todo dia. Afeta apenas envios futuros — envios já recebidos mantêm o prazo que tinham quando foram enviados.",
+      "monthsSuffix": "meses",
+      "leadFormMaxSubmissionsPerDayLabel": "Limite de envios por dia",
+      "leadFormMaxSubmissionsPerDayHint": "Entre 1 e 1000. Protege contra abuso — total de envios aceitos por dia, somando todos os visitantes.",
+      "leadFormMaxSubmissionsPerIpPerDayLabel": "Limite por visitante por dia",
+      "leadFormMaxSubmissionsPerIpPerDayHint": "Entre 1 e 100. Máximo de envios aceitos do mesmo endereço IP por dia. Se visitantes legítimos estiverem sendo bloqueados por engano (comum com internet móvel, onde vários celulares compartilham o mesmo IP), aumente este valor.",
+      "perDaySuffix": "/ dia",
       "submit": "Salvar configurações",
       "actionHint": "As configurações afetam novos agendamentos. Horários de funcionamento e fuso entram em vigor imediatamente.",
       "successTitle": "Configurações salvas!",
@@ -964,7 +974,10 @@
         "addressStateInvalid": "UF inválida — use a sigla de 2 letras (ex: MG).",
         "addressZipCodeRequired": "Informe o CEP.",
         "addressZipCodeInvalid": "CEP inválido. Use o formato 00000-000.",
-        "renamePartialFailure": "As configurações foram salvas, mas não foi possível renomear o estabelecimento: {reason}"
+        "renamePartialFailure": "As configurações foram salvas, mas não foi possível renomear o estabelecimento: {reason}",
+        "leadFormRetentionMonthsInvalid": "A retenção deve estar entre 1 e 24 meses.",
+        "leadFormMaxSubmissionsPerDayInvalid": "O limite diário de envios deve estar entre 1 e 1000.",
+        "leadFormMaxSubmissionsPerIpPerDayInvalid": "O limite diário de envios por IP deve estar entre 1 e 100."
       }
     },
     "servicesPage": {

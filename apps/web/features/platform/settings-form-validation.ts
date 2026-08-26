@@ -38,6 +38,9 @@ export const SettingsFormSchema = z.object({
   pointsPerCurrencyUnit: z.number().int().min(0).max(10000),
   email: z.email().nullable(),
   notificationFromEmail: z.email().nullable(),
+  retentionMonths: z.number().int().min(1).max(24),
+  maxSubmissionsPerDay: z.number().int().min(1).max(1000),
+  maxSubmissionsPerIpPerDay: z.number().int().min(1).max(100),
 });
 
 type SchemaField = keyof z.infer<typeof SettingsFormSchema>;
@@ -56,6 +59,9 @@ const FIELD_ERROR_KEYS: Record<SchemaField, string> = {
   pointsPerCurrencyUnit: 'errors.pointsMax',
   email: 'errors.emailInvalid',
   notificationFromEmail: 'errors.notificationFromEmailInvalid',
+  retentionMonths: 'errors.leadFormRetentionMonthsInvalid',
+  maxSubmissionsPerDay: 'errors.leadFormMaxSubmissionsPerDayInvalid',
+  maxSubmissionsPerIpPerDay: 'errors.leadFormMaxSubmissionsPerIpPerDayInvalid',
 };
 
 function buildValidationCandidate(values: SettingsFormValues) {
@@ -73,6 +79,9 @@ function buildValidationCandidate(values: SettingsFormValues) {
     pointsPerCurrencyUnit: parseIntStrict(values.pointsPerCurrencyUnit),
     email: trimmedOrNull(values.email),
     notificationFromEmail: trimmedOrNull(values.notificationFromEmail),
+    retentionMonths: parseIntStrict(values.retentionMonths),
+    maxSubmissionsPerDay: parseIntStrict(values.maxSubmissionsPerDay),
+    maxSubmissionsPerIpPerDay: parseIntStrict(values.maxSubmissionsPerIpPerDay),
   };
 }
 
@@ -118,6 +127,11 @@ function buildNormalizedSettings(
       businessInfo: buildBusinessInfo(phone, parsed.email, address, socialLinks),
       notification: { fromEmail: parsed.notificationFromEmail },
       chatbot: { knowledgeText: values.knowledgeText },
+      leadForm: {
+        retentionMonths: parsed.retentionMonths,
+        maxSubmissionsPerDay: parsed.maxSubmissionsPerDay,
+        maxSubmissionsPerIpPerDay: parsed.maxSubmissionsPerIpPerDay,
+      },
     },
   };
 }

@@ -424,7 +424,7 @@ Empty state (`01b-submissions-empty.html`) links back to S08's config panel when
 
 ---
 
-### M20-S11 — Tenant settings form — Lead Form section, all 3 fields (UC-042)
+### M20-S11 — Tenant settings form — Lead Form section, all 3 fields (UC-042) ✅ Done
 
 **Agent:** `frontend-ts`
 **Complexity:** S
@@ -434,7 +434,18 @@ Empty state (`01b-submissions-empty.html`) links back to S08's config panel when
 **Description:**
 Add a "Formulário de contato" section to the existing `apps/web/features/platform/components/settings/SettingsForm.tsx` — three fields, same visual treatment the Chatbot section's fields got: `retentionMonths` (integer 1-24, default 6, suffix "meses"), `maxSubmissionsPerDay` (integer 1-1000, default 100, "limite de envios por dia"), `maxSubmissionsPerIpPerDay` (integer 1-100, default 3, "limite por visitante por dia" — with a short inline hint that a tenant seeing false-positive blocks from legitimate shared-IP traffic, e.g. mobile carriers, should raise this). No client-side length/complexity beyond each field's own numeric bound; the server's three dedicated error codes are the real backstop.
 
+**Pattern (locked in at story-discovery, 2026-08-26):** new `SettingsLeadFormSection.tsx`, mirroring `SettingsBookingSection.tsx`'s multi-field props shape (`values: SettingsFormValues`, `fieldErrors: SettingsFormErrors`, `onFieldChange`) — not `SettingsChatbotSection.tsx`'s narrower 3-discrete-prop shape, which only fits a single-field section. Each of the 3 fields uses the existing `SuffixNumberField` primitive (`SettingsFormFields.tsx`), same as `cancellationWindowHours`/`serviceBufferMinutes` etc. Client-side validation is added to `SettingsFormSchema`/`FIELD_ERROR_KEYS` in `settings-form-validation.ts` with the same bounds (1-24, 1-1000, 1-100) and locally-translated error messages — the same fully-client-checked pattern as every other numeric booking/loyalty field, not the server-round-trip mapping `knowledgeText` uses (that field deliberately has no client bound). New `SettingsFormValues` fields: `retentionMonths`, `maxSubmissionsPerDay`, `maxSubmissionsPerIpPerDay` (strings, like every other numeric field), read from `settings.leadForm.*` in `toSettingsFormValues`, written to `settings.leadForm` in `buildNormalizedSettings`.
+
+**Section placement:** immediately after `SettingsChatbotSection`, before `SettingsLocalizationSection`, in `SettingsForm.tsx`'s render order (both Chatbot and Lead Form are module-config additions bolted on after the original 6 sections; Localização stays last as the read-only section).
+
+**Subtitle handling:** the prototype's `section-card-sub` text ("Retenção de envios e limites de proteção contra abuso") has no equivalent prop on the shared `SectionCard` (title + children only — no other section uses a subtitle). Render it as a plain descriptive paragraph inside the section body instead of extending `SectionCard` (which every other section also uses).
+
 **Backend HTTP surface:** none new — reuses the existing `GET`/`PATCH /v1/tenants/settings`, extended by S03.
+
+**Test plan (locked in at story-discovery):**
+- `settings-form.spec.ts`: `toSettingsFormValues` maps `leadForm.*` correctly; `validateSettingsForm` — valid values normalize into `settings.leadForm`; each of the 3 fields rejected out-of-range (below min, above max) with its own `FIELD_ERROR_KEYS` message, independently of the other two
+- `SettingsLeadFormSection.spec.tsx`: renders all 3 fields with current/default values; calls `onFieldChange` per field; shows inline error instead of hint when present; renders each suffix
+- No new `SettingsForm.spec.tsx` integration test needed — no other section gets one either; each section's own spec covers its own render/behavior
 
 **Acceptance Criteria:**
 - [ ] All three fields render with their current values (or defaults 6/100/3 for a tenant with no override), each saves correctly via the existing `PATCH /v1/tenants/settings` (partial update — saving one field doesn't require the other two to be valid/present)
@@ -443,6 +454,8 @@ Add a "Formulário de contato" section to the existing `apps/web/features/platfo
 - [ ] Coverage ≥80% on changed code; `tsc --noEmit`, lint, full test suite green
 
 **Dependencies:** S03 (backend/BFF settings extension).
+
+**Also in scope (story-discovery finding, 2026-08-26):** `plan/journey/manager/prototypes/configuracoes/dev-notes.md` is stale — it still marks the Chatbot section "❌ GAP — not yet built" even though `SettingsChatbotSection.tsx` already shipped, and has no Lead Form entry. Fix both in the same commit (see doc update already applied at story-discovery time — flip Chatbot to shipped, add a Lead Form section write-up mirroring Chatbot's).
 
 ---
 
