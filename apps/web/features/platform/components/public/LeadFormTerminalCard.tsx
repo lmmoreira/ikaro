@@ -29,41 +29,46 @@ export function LeadFormTerminalCard({
 }: LeadFormTerminalCardProps): React.JSX.Element {
   const t = useTranslations('hotsite');
   return (
-    <div className="mx-auto max-w-2xl px-6 py-12" style={{ color: 'var(--ba-text)' }}>
-      <div
-        className="p-10 text-center"
-        style={{ backgroundColor: 'var(--ba-secondary)', borderRadius: 'var(--ba-radius)' }}
-        data-testid="lead-form-terminal-card"
-      >
+    <main
+      className="min-h-screen"
+      style={{ backgroundColor: 'var(--ba-background)', color: 'var(--ba-text)' }}
+    >
+      <div className="mx-auto max-w-2xl px-6 py-12">
         <div
-          className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-2xl text-red-600"
-          aria-hidden="true"
+          className="p-10 text-center"
+          style={{ backgroundColor: 'var(--ba-secondary)', borderRadius: 'var(--ba-radius)' }}
+          data-testid="lead-form-terminal-card"
         >
-          {icon}
-        </div>
-        <h1 className="mb-2 text-xl font-bold">{title}</h1>
-        <p className="mx-auto mb-6 max-w-md leading-relaxed opacity-65">{body}</p>
-        <div className="flex flex-wrap justify-center gap-3">
-          {onRetry && retryLabel && (
-            <button
-              type="button"
-              onClick={onRetry}
-              style={btnStyle}
-              data-testid="lead-form-retry"
-              className="border-2 px-6 py-3 font-semibold"
-            >
-              {retryLabel}
-            </button>
-          )}
-          <a
-            href={`/${slug}`}
-            className="border px-6 py-3"
-            style={{ borderRadius: 'var(--ba-radius)', borderColor: 'var(--ba-secondary)' }}
+          <div
+            className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-2xl text-red-600"
+            aria-hidden="true"
           >
-            {t('leadForm.backToSiteButton')}
-          </a>
+            {icon}
+          </div>
+          <h1 className="mb-2 text-xl font-bold">{title}</h1>
+          <p className="mx-auto mb-6 max-w-md leading-relaxed opacity-65">{body}</p>
+          <div className="flex flex-wrap justify-center gap-3">
+            {onRetry && retryLabel && (
+              <button
+                type="button"
+                onClick={onRetry}
+                style={btnStyle}
+                data-testid="lead-form-retry"
+                className="cursor-pointer border-2 px-6 py-3 font-semibold"
+              >
+                {retryLabel}
+              </button>
+            )}
+            <a
+              href={`/${slug}`}
+              className="border px-6 py-3"
+              style={{ borderRadius: 'var(--ba-radius)', borderColor: 'var(--ba-secondary)' }}
+            >
+              {t('leadForm.backToSiteButton')}
+            </a>
+          </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
