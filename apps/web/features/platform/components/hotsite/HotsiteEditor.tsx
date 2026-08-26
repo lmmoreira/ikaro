@@ -132,6 +132,7 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
       setDraft,
       onTabs: () => setView({ view: 'tabs' }),
       onBanner: setActionBanner,
+      onLeadFormPublished: () => setLeadFormConfigDraft(null),
     });
 
   const handleUnpublish = (): Promise<void> =>

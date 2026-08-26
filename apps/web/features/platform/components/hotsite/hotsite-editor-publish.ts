@@ -33,13 +33,22 @@ type PublishArgs = {
   readonly setDraft: SetDraft;
   readonly onTabs: () => void;
   readonly onBanner: (banner: ActionBanner) => void;
+  // Called once a publish actually commits — clears the editor's own leadFormConfigDraft state
+  // (HotsiteEditor.tsx). Without this, that draft is write-once-but-never-cleared: a later,
+  // unrelated publish (branding/SEO/layout, no lead-form edit involved) keeps re-sending the same
+  // now-stale snapshot on every subsequent Publicar for the rest of the session, silently
+  // overwriting any change another manager/session made to LeadFormConfig in the meantime (Codex
+  // review finding, M20-S08 PR #429, 2026-08-26). Invoked unconditionally — a no-op when no
+  // lead-form edit was ever applied this session, since the draft is already null.
+  readonly onLeadFormPublished: () => void;
 };
 
 export async function executeHotsitePublish(args: PublishArgs): Promise<void> {
-  const { locale, publishHotsite, onTabs, onBanner } = args;
+  const { locale, publishHotsite, onTabs, onBanner, onLeadFormPublished } = args;
   try {
     await persistDraft(args);
     await publishHotsite.mutateAsync();
+    onLeadFormPublished();
     onTabs();
     onBanner({ kind: 'publish', status: 'success' });
   } catch (error) {
@@ -80,7 +89,7 @@ async function persistDraft({
     branding: stripped.branding,
     layout,
     seo: stripped.seo,
-    ...(leadFormConfig ?? {}),
+    ...leadFormConfig,
   });
 
   setDraft((current) => ({ ...current, ...updated, layout: materializeLayout(updated.layout) }));

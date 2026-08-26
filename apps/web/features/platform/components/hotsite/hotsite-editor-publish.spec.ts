@@ -28,6 +28,7 @@ describe('executeHotsitePublish', () => {
     const setDraft = vi.fn();
     const onTabs = vi.fn();
     const onBanner = vi.fn();
+    const onLeadFormPublished = vi.fn();
 
     await executeHotsitePublish({
       content,
@@ -39,6 +40,7 @@ describe('executeHotsitePublish', () => {
       setDraft,
       onTabs,
       onBanner,
+      onLeadFormPublished,
     });
 
     expect(updateConfig.mutateAsync).toHaveBeenCalledTimes(1);
@@ -53,6 +55,9 @@ describe('executeHotsitePublish', () => {
     );
     expect(publishHotsite.mutateAsync).toHaveBeenCalledOnce();
     expect(onBanner).toHaveBeenCalledWith({ kind: 'publish', status: 'success' });
+    // Clears HotsiteEditor's leadFormConfigDraft so a later, unrelated publish doesn't keep
+    // re-sending this now-stale snapshot (M20-S08 PR #429 Codex review finding, 2026-08-26).
+    expect(onLeadFormPublished).toHaveBeenCalledOnce();
   });
 
   it('omits audienceMode/questions entirely when publishing a non-LEAD_FORM edit', async () => {
@@ -61,6 +66,7 @@ describe('executeHotsitePublish', () => {
     const setDraft = vi.fn();
     const onTabs = vi.fn();
     const onBanner = vi.fn();
+    const onLeadFormPublished = vi.fn();
 
     await executeHotsitePublish({
       content,
@@ -72,6 +78,7 @@ describe('executeHotsitePublish', () => {
       setDraft,
       onTabs,
       onBanner,
+      onLeadFormPublished,
     });
 
     const [body] = updateConfig.mutateAsync.mock.calls[0]!;
@@ -80,5 +87,8 @@ describe('executeHotsitePublish', () => {
     // No lead-form config, so the LEAD_FORM layout entry passes through untouched (still
     // carrying whatever draft.layout already had, unstripped).
     expect(body.layout).toBe(content.layout);
+    // Called unconditionally, even for a publish with no lead-form edit involved — a no-op on the
+    // HotsiteEditor side since leadFormConfigDraft is already null in that case.
+    expect(onLeadFormPublished).toHaveBeenCalledOnce();
   });
 });
