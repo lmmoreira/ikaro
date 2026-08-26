@@ -47,7 +47,7 @@ describe('LeadFormConfigPanel', () => {
       data: undefined,
       isLoading: true,
       isError: false,
-    } as ReturnType<typeof useLeadFormConfig>);
+    } as unknown as ReturnType<typeof useLeadFormConfig>);
 
     renderWithIntl(<LeadFormConfigPanel data={{}} onChange={vi.fn()} />);
 
@@ -59,7 +59,7 @@ describe('LeadFormConfigPanel', () => {
       data: undefined,
       isLoading: false,
       isError: true,
-    } as ReturnType<typeof useLeadFormConfig>);
+    } as unknown as ReturnType<typeof useLeadFormConfig>);
     renderWithIntl(<LeadFormConfigPanel data={{}} onChange={vi.fn()} />);
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Não foi possível carregar a configuração. Tente novamente.',
@@ -80,6 +80,57 @@ describe('LeadFormConfigPanel', () => {
     await user.type(questionInput, 'Qual serviço?');
     expect(onChange).toHaveBeenCalled();
     expect(questionInput).toHaveValue('Qual serviço?');
+  });
+
+  it('preserves an applied local draft when the panel is reopened before publish', () => {
+    mockUseLeadFormConfig.mockReturnValue({
+      data: {
+        title: 'Configuração publicada',
+        ctaLabel: 'Publicar',
+        audienceMode: 'GUEST_AND_CUSTOMER',
+        questions: [],
+      },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useLeadFormConfig>);
+
+    renderWithIntl(
+      <LeadFormConfigPanel
+        data={{
+          title: 'Rascunho aplicado',
+          ctaLabel: 'Salvar depois',
+          audienceMode: 'CUSTOMER_ONLY',
+          questions: [
+            {
+              id: 'draft-question',
+              label: 'Pergunta no rascunho',
+              type: 'TEXT',
+              required: false,
+              order: 0,
+            },
+          ],
+        }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByDisplayValue('Rascunho aplicado')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Pergunta no rascunho')).toBeInTheDocument();
+    expect(screen.getByLabelText('Público')).toHaveValue('CUSTOMER_ONLY');
+  });
+
+  it('adds an editable starter question', async () => {
+    const user = userEvent.setup();
+    mockUseLeadFormConfig.mockReturnValue({
+      data: { title: '', ctaLabel: '', audienceMode: 'GUEST_AND_CUSTOMER', questions: [] },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useLeadFormConfig>);
+    renderWithIntl(<LeadFormConfigPanel data={{}} onChange={vi.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: 'Melhor horário para contato' }));
+
+    expect(screen.getByDisplayValue('Melhor horário para contato')).toBeInTheDocument();
   });
 
   it('removes an unsubmitted question immediately and confirms submitted removal', async () => {
@@ -111,7 +162,7 @@ describe('LeadFormConfigPanel', () => {
       },
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useLeadFormConfig>);
+    } as unknown as ReturnType<typeof useLeadFormConfig>);
     renderWithIntl(<LeadFormConfigPanel data={{}} onChange={onChange} />);
     const removeButtons = screen.getAllByRole('button', { name: 'Remover pergunta' });
     await user.click(removeButtons[0]);

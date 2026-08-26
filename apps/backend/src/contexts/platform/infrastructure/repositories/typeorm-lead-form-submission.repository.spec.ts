@@ -198,6 +198,10 @@ describe('TypeOrmLeadFormSubmissionRepository', () => {
         'tenant-id-1',
         ['question-1', 'question-2'],
       ]);
+      expect(mockRepo.query).toHaveBeenCalledWith(
+        expect.stringContaining('lead_form_submission_question_refs'),
+        ['tenant-id-1', ['question-1', 'question-2']],
+      );
     });
 
     it('does not query when there are no question IDs', async () => {

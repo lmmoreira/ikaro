@@ -56,11 +56,17 @@ function newQuestion(): AdminQuestion {
   return { id: globalThis.crypto.randomUUID(), label: '', type: 'TEXT', required: false, order: 0 };
 }
 
+function starterQuestion(label: string): AdminQuestion {
+  return { ...newQuestion(), label };
+}
+
 export function LeadFormConfigPanel({ data, onChange }: ModuleConfigPanelProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage.layout.panels.leadForm');
   const base = readModuleData<Partial<LeadFormDraft>>(data);
   const config = useLeadFormConfig();
-  const initialized = useRef(false);
+  // `audienceMode`/`questions` only exist in the editor-owned temporary draft. When the panel is
+  // reopened after Aplicar, that draft must win over the cached pre-publish GET response.
+  const initialized = useRef(base.audienceMode !== undefined || base.questions !== undefined);
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const [draft, setDraft] = useState<LeadFormDraft>(() => ({
     title: base.title ?? '',
@@ -90,6 +96,10 @@ export function LeadFormConfigPanel({ data, onChange }: ModuleConfigPanelProps):
     const next = { ...draft, ...patch };
     setDraft(next);
     onChange(writeModuleData(next));
+  }
+
+  function addQuestion(question = newQuestion()): void {
+    update({ questions: normalizeQuestions([...draft.questions, question]) });
   }
 
   function removeQuestion(question: AdminQuestion): void {
@@ -204,12 +214,27 @@ export function LeadFormConfigPanel({ data, onChange }: ModuleConfigPanelProps):
           type="button"
           variant="outline"
           disabled={draft.questions.length >= 20}
-          onClick={() =>
-            update({ questions: normalizeQuestions([...draft.questions, newQuestion()]) })
-          }
+          onClick={() => addQuestion()}
         >
           {t('questions.add')}
         </Button>
+        <div className="space-y-2">
+          <p className="text-sm text-gray-500">{t('questions.startersHint')}</p>
+          <div className="flex flex-wrap gap-2">
+            {(['bestContactTime', 'howDidYouHear', 'carModel'] as const).map((key) => (
+              <Button
+                key={key}
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={draft.questions.length >= 20}
+                onClick={() => addQuestion(starterQuestion(t(`questions.starters.${key}`)))}
+              >
+                {t(`questions.starters.${key}`)}
+              </Button>
+            ))}
+          </div>
+        </div>
         {draft.questions.length >= 20 && (
           <p className="text-sm text-amber-700">{t('questions.limit')}</p>
         )}

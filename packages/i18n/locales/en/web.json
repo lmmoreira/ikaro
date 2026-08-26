@@ -792,7 +792,13 @@
               "title": "Questions",
               "counter": "{count} of 20",
               "add": "+ Add question",
-              "limit": "You reached the 20-question limit. Remove an existing question to add another."
+              "limit": "You reached the 20-question limit. Remove an existing question to add another.",
+              "startersHint": "Starter templates (optional — editable after adding):",
+              "starters": {
+                "bestContactTime": "Best time to contact",
+                "howDidYouHear": "How did you hear about us?",
+                "carModel": "What is your car model?"
+              }
             },
             "question": {
               "dragLabel": "Reorder question {index}",

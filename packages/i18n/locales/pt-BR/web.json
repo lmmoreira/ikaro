@@ -792,7 +792,13 @@
               "title": "Perguntas",
               "counter": "{count} de 20",
               "add": "+ Adicionar pergunta",
-              "limit": "Você atingiu o limite de 20 perguntas. Remova uma pergunta existente para adicionar outra."
+              "limit": "Você atingiu o limite de 20 perguntas. Remova uma pergunta existente para adicionar outra.",
+              "startersHint": "Modelos prontos (opcional — editáveis depois de adicionar):",
+              "starters": {
+                "bestContactTime": "Melhor horário para contato",
+                "howDidYouHear": "Como conheceu a empresa?",
+                "carModel": "Qual modelo de carro?"
+              }
             },
             "question": {
               "dragLabel": "Reordenar pergunta {index}",

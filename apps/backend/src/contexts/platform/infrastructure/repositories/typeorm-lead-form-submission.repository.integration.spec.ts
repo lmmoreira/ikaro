@@ -101,6 +101,26 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
     expect(found!.answers).toEqual(submission.answers);
     expect(found!.ipAddress).toBe('203.0.113.10');
     expect(found!.customerId).toBeNull();
+    await expect(
+      dataSource.query(
+        `
+          SELECT question_id FROM platform.lead_form_submission_question_refs
+          WHERE tenant_id = $1 AND submission_id = $2
+        `,
+        [TENANT_A, submission.id],
+      ),
+    ).resolves.toEqual([{ question_id: 'q1' }]);
+  });
+
+  it('looks up submitted question IDs through the tenant-scoped reference index', async () => {
+    const repo = makeRepo(new InMemoryEventBus());
+    await txManager.run(() => repo.save(buildSubmission(TENANT_A)));
+    await txManager.run(() => repo.save(buildSubmission(TENANT_B)));
+
+    await expect(repo.findQuestionIdsWithSubmissions(TENANT_A, ['q1', 'q2'])).resolves.toEqual([
+      'q1',
+    ]);
+    await expect(repo.findQuestionIdsWithSubmissions(TENANT_A, ['q2'])).resolves.toEqual([]);
   });
 
   it('drains the domain event into shared.outbox in the same transaction as the insert', async () => {

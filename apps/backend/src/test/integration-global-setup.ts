@@ -49,6 +49,7 @@ import { AddStartedAtIndexToChatbotSessions1748400000013 } from '../contexts/pla
 import { CreateLeadFormSubmissions1748400000014 } from '../contexts/platform/infrastructure/migrations/1748400000014-CreateLeadFormSubmissions';
 import { CreatePlatformLeadFormConfigs1748500000002 } from '../contexts/platform/infrastructure/migrations/1748500000002-CreatePlatformLeadFormConfigs';
 import { AddExpiresAtIndexToLeadFormSubmissions1748500000003 } from '../contexts/platform/infrastructure/migrations/1748500000003-AddExpiresAtIndexToLeadFormSubmissions';
+import { CreateLeadFormSubmissionQuestionRefs1748500000004 } from '../contexts/platform/infrastructure/migrations/1748500000004-CreateLeadFormSubmissionQuestionRefs';
 import { StaffEntity } from '../contexts/staff/infrastructure/entities/staff.entity';
 import { CreateStaffStaff1716600000002 } from '../contexts/staff/infrastructure/migrations/1716600000002-CreateStaffStaff';
 import { AddNameToStaff1716600000003 } from '../contexts/staff/infrastructure/migrations/1716600000003-AddNameToStaff';
@@ -143,6 +144,7 @@ export default async function globalSetup(): Promise<void> {
       CreateLeadFormSubmissions1748400000014,
       CreatePlatformLeadFormConfigs1748500000002,
       AddExpiresAtIndexToLeadFormSubmissions1748500000003,
+      CreateLeadFormSubmissionQuestionRefs1748500000004,
     ],
     synchronize: false,
     migrationsRun: false,
