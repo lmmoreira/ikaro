@@ -62,6 +62,14 @@ export interface UpdateLeadFormModuleUseCaseInput {
 
 export type UpdateLeadFormModuleUseCaseResult = GetLeadFormConfigUseCaseResult;
 
+interface ImagePromotionPlan {
+  branding: HotsiteBranding;
+  layout: HotsiteModule[];
+  seo: HotsiteSeo;
+  promotions: ImagePromotionOperation[];
+  deletions: string[];
+}
+
 type TeaserPatch = Omit<
   UpdateLeadFormModuleUseCaseInput,
   'tenantId' | 'branding' | 'layout' | 'seo' | 'audienceMode' | 'questions'
@@ -108,13 +116,7 @@ export class UpdateLeadFormModuleUseCase {
       ? { ...hotsiteConfig.branding, ...branding }
       : hotsiteConfig.branding;
     const mergedSeo = seo ? { ...hotsiteConfig.seo, ...seo } : hotsiteConfig.seo;
-    const {
-      branding: promotedBranding,
-      layout: promotedLayout,
-      seo: promotedSeo,
-      promotions,
-      deletions,
-    } = await this.planImagePromotion(
+    const promotion = await this.planImagePromotion(
       hotsiteConfig,
       mergedBranding,
       mergedLayout,
@@ -122,16 +124,7 @@ export class UpdateLeadFormModuleUseCase {
       tenantId,
     );
 
-    await this.persist(
-      tenantId,
-      hotsiteConfig,
-      leadFormConfig,
-      promotedBranding,
-      promotedLayout,
-      promotedSeo,
-      promotions,
-      deletions,
-    );
+    await this.persist(tenantId, hotsiteConfig, leadFormConfig, promotion);
 
     return this.buildResult(hotsiteConfig, leadFormConfig);
   }
@@ -148,13 +141,7 @@ export class UpdateLeadFormModuleUseCase {
     mergedLayout: HotsiteModule[],
     sourceSeo: HotsiteSeo,
     tenantId: string,
-  ): Promise<{
-    branding: HotsiteBranding;
-    layout: HotsiteModule[];
-    seo: HotsiteSeo;
-    promotions: ImagePromotionOperation[];
-    deletions: string[];
-  }> {
+  ): Promise<ImagePromotionPlan> {
     const oldPaths = this.imagePathsService.collect(
       hotsiteConfig.branding,
       hotsiteConfig.layout,
@@ -181,22 +168,18 @@ export class UpdateLeadFormModuleUseCase {
     tenantId: string,
     hotsiteConfig: HotsiteConfig,
     leadFormConfig: LeadFormConfig,
-    branding: HotsiteBranding,
-    layout: HotsiteModule[],
-    seo: HotsiteSeo,
-    promotions: ImagePromotionOperation[],
-    deletions: string[],
+    promotion: ImagePromotionPlan,
   ): Promise<void> {
     await this.txManager.run(async () => {
       const tenant = await this.tenantRepo.findByIdForUpdate(tenantId);
       if (!tenant) throw new TenantNotFoundError(tenantId);
-      hotsiteConfig.updateContent(branding, layout, seo, {
+      hotsiteConfig.updateContent(promotion.branding, promotion.layout, promotion.seo, {
         maxBookingAdvanceDays: tenant.settings.booking.maxBookingAdvanceDays,
       });
       await this.hotsiteConfigRepo.save(hotsiteConfig);
       await this.leadFormConfigRepo.save(leadFormConfig);
       await this.txManager.scheduleAfterCommit(() =>
-        this.imagePromotionService.executeImagePromotion(promotions, deletions),
+        this.imagePromotionService.executeImagePromotion(promotion.promotions, promotion.deletions),
       );
     });
   }

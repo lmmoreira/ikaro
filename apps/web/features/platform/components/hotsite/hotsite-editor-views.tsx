@@ -140,7 +140,7 @@ export function configureModule(
   const selected = draft.layout.find((module) => module.type === type);
   const localData =
     type === 'LEAD_FORM' && leadFormConfigDraft
-      ? { ...(selected?.data ?? {}), ...leadFormConfigDraft }
+      ? { ...selected?.data, ...leadFormConfigDraft }
       : (selected?.data ?? {});
   onConfigure({ view: 'module-config', type, localData });
 }
