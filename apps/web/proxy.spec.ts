@@ -369,6 +369,35 @@ describe('proxy', () => {
       );
     });
 
+    // Turnstile loads its script from and renders its challenge inside an iframe from
+    // challenges.cloudflare.com — without both allowances the widget silently never renders (PR
+    // #433 review round 2: this exact gap made the real Playwright E2E run's Turnstile iframe
+    // never appear, even though nothing else in the request/response chain was broken).
+    it('allows Cloudflare Turnstile on the /[slug]/lead-form route', async () => {
+      vi.stubEnv('NODE_ENV', 'production');
+      const response = await proxy(makeRequest('/lavacar-beloauto/lead-form'));
+      const csp = response.headers.get('Content-Security-Policy') ?? '';
+
+      expect(csp).toContain("script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com");
+      expect(csp).toContain(
+        "connect-src 'self' https://viacep.com.br https://challenges.cloudflare.com",
+      );
+      // /[slug]/lead-form is also a hotsite route, so it keeps the Maps frame-src allowance
+      // alongside Turnstile's — this asserts the exact directive (not a bare substring match
+      // elsewhere in the header) contains both origins together.
+      expect(csp).toContain(
+        'frame-src https://maps.google.com https://www.google.com https://challenges.cloudflare.com; frame-ancestors',
+      );
+    });
+
+    it('does not allow Cloudflare Turnstile on other hotsite routes', async () => {
+      vi.stubEnv('NODE_ENV', 'production');
+      const response = await proxy(makeRequest('/lavacar-beloauto/booking'));
+      const csp = response.headers.get('Content-Security-Policy') ?? '';
+
+      expect(csp).not.toContain('challenges.cloudflare.com');
+    });
+
     it('does not relax frame-src for other /dashboard routes', async () => {
       vi.stubEnv('NODE_ENV', 'production');
       const response = await proxy(makeRequest('/dashboard/settings', validManagerToken));

@@ -307,13 +307,26 @@ describe('LeadFormWidget — CUSTOMER_ONLY audience', () => {
 });
 
 describe('LeadFormWidget — config fetch failure', () => {
-  it('shows a terminal error card and allows retrying the config fetch', async () => {
-    mockConfig(new Error('network error'));
+  it('shows a terminal error card, and retrying actually re-fetches and exits the loading state on success', async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchLeadFormConfigClient).mockRejectedValueOnce(new Error('network error'));
     vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(null);
 
     renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" />);
 
     const card = await screen.findByTestId('lead-form-terminal-card');
     expect(card).toHaveTextContent('Não foi possível enviar');
+
+    // The exact round-1 regression this guards against: clicking retry cleared `config` but
+    // never re-ran the fetch effect (config never depended on anything a retry could change),
+    // so the visitor was stuck on the loading skeleton forever — this assertion fails if that
+    // regresses, unlike the original version of this test, which only checked the first failure
+    // and would have stayed green through that exact bug (PR #433 review round 2).
+    vi.mocked(fetchLeadFormConfigClient).mockResolvedValueOnce(CONFIG_GUEST);
+    await user.click(screen.getByTestId('lead-form-retry'));
+
+    await screen.findByTestId('lead-form-name');
+    expect(screen.queryByTestId('lead-form-terminal-card')).not.toBeInTheDocument();
+    expect(fetchLeadFormConfigClient).toHaveBeenCalledTimes(2);
   });
 });

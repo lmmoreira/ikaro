@@ -48,6 +48,18 @@ function needsMapsFrameSrc(pathname: string): boolean {
   );
 }
 
+// Cloudflare Turnstile (M20-S09) loads its script from and renders its challenge inside an
+// iframe from challenges.cloudflare.com — without both script-src and frame-src allowing that
+// origin, the widget silently never renders (no console error visible to a casual check; caught
+// only by a real-browser Playwright run, PR #433 review round 2). Scoped to /[slug]/lead-form
+// specifically, not every hotsite route — narrower than needsMapsFrameSrc's Contact-module
+// allowance, since Turnstile has exactly one consumer today. Widen this the same way
+// needsMapsFrameSrc was widened for the dashboard hotsite editor if/when TD08 AUD-040
+// (guest-booking CAPTCHA) reuses the same widget.
+function needsTurnstileSrc(pathname: string): boolean {
+  return isHotsiteRoute(pathname) && pathname.split('/')[2] === 'lead-form';
+}
+
 // scheme+host+port only — CSP source expressions don't need (or want) the path.
 function originOf(rawUrl: string | undefined): string | null {
   if (!rawUrl) return null;
@@ -65,17 +77,34 @@ function originOf(rawUrl: string | undefined): string | null {
 // hotsite home page is deliberately ISR/CDN-cached (docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md) —
 // so a nonce would either go stale against cached HTML or require auditing every route's
 // rendering mode. 'unsafe-inline' on script-src is a blanket, verified-working baseline instead.
+// The Maps embed URL (ContactModule.tsx) requests https://maps.google.com/maps?...&output=embed,
+// which 302-redirects to https://www.google.com/maps/embed?... — CSP frame-src is checked
+// against every hop of a navigation/redirect chain, so both origins must be allowed or the final
+// navigation is silently blocked ("This content is blocked" in the browser).
+function buildFrameSrc(allowMapsFrame: boolean, allowTurnstile: boolean): string[] {
+  const allowed = [
+    allowMapsFrame && 'https://maps.google.com',
+    allowMapsFrame && 'https://www.google.com',
+    allowTurnstile && 'https://challenges.cloudflare.com',
+  ].filter((v): v is string => Boolean(v));
+  return allowed.length > 0 ? allowed : ["'none'"];
+}
+
 function buildContentSecurityPolicy(pathname: string): string {
   const isDev = process.env.NODE_ENV !== 'production';
   const allowMapsFrame = needsMapsFrameSrc(pathname);
+  const allowTurnstile = needsTurnstileSrc(pathname);
   const bffOrigin = originOf(getPublicEnv('NEXT_PUBLIC_BFF_URL'));
   // Public hotsite images and private signed booking-photo URLs are served from the same
   // GCS/S3-compatible backend, so one origin (no path) covers both.
   const storageOrigin = originOf(getPublicEnv('NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL'));
 
-  const scriptSrc = ["'self'", "'unsafe-inline'", isDev && "'unsafe-eval'"].filter(
-    (v): v is string => Boolean(v),
-  );
+  const scriptSrc = [
+    "'self'",
+    "'unsafe-inline'",
+    isDev && "'unsafe-eval'",
+    allowTurnstile && 'https://challenges.cloudflare.com',
+  ].filter((v): v is string => Boolean(v));
   const imgSrc = ["'self'", 'blob:', storageOrigin].filter((v): v is string => Boolean(v));
   // Booking/after-service photo uploads PUT directly to a signed storage URL from the browser
   // (PhotoUpload.tsx, AfterServicePhotoUpload.tsx) — connect-src needs the same storage origin
@@ -88,15 +117,10 @@ function buildContentSecurityPolicy(pathname: string): string {
     bffOrigin,
     storageOrigin,
     'https://viacep.com.br',
+    allowTurnstile && 'https://challenges.cloudflare.com',
     isDev && 'ws://localhost:*',
   ].filter((v): v is string => Boolean(v));
-  // The embed URL (ContactModule.tsx) requests https://maps.google.com/maps?...&output=embed,
-  // which 302-redirects to https://www.google.com/maps/embed?... — CSP frame-src is checked
-  // against every hop of a navigation/redirect chain, so both origins must be allowed or the
-  // final navigation is silently blocked ("This content is blocked" in the browser).
-  const frameSrc = allowMapsFrame
-    ? ['https://maps.google.com', 'https://www.google.com']
-    : ["'none'"];
+  const frameSrc = buildFrameSrc(allowMapsFrame, allowTurnstile);
 
   return [
     `default-src 'self'`,
