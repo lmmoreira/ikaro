@@ -169,5 +169,6 @@ export async function handleTenantLogin(
   const token = issueCustomerToken(jwtIssuer, customerId, tenantInfo, profile.name);
   res.cookie(SESSION_COOKIE_NAME, token, JWT_COOKIE_OPTIONS);
   authLoginLogger.log('Customer login', { tenantId: tenantInfo.id, customerId });
-  res.redirect(`${frontendUrl}${returnTo ?? `/${tenantInfo.slug}`}`);
+  const redirectPath = returnTo ?? `/${tenantInfo.slug}`;
+  res.redirect(`${frontendUrl}${redirectPath}`);
 }

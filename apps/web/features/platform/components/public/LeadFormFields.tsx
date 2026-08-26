@@ -72,6 +72,13 @@ export function LeadFormFields({
 }: LeadFormFieldsProps): React.JSX.Element {
   const t = useTranslations('hotsite');
 
+  let submitButtonLabel = t('leadForm.submitButton');
+  if (isSubmitting) {
+    submitButtonLabel = t('leadForm.submittingButton');
+  } else if (isCaptchaError) {
+    submitButtonLabel = t('leadForm.retryButton');
+  }
+
   return (
     <div className="mx-auto max-w-2xl px-6 py-12" style={{ color: 'var(--ba-text)' }}>
       <h1 className="mb-1.5 text-2xl font-bold">{title}</h1>
@@ -198,11 +205,7 @@ export function LeadFormFields({
             style={btnStyle}
             className="w-full border-2 px-8 py-3 text-center font-semibold transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {isSubmitting
-              ? t('leadForm.submittingButton')
-              : isCaptchaError
-                ? t('leadForm.retryButton')
-                : t('leadForm.submitButton')}
+            {submitButtonLabel}
           </button>
         </fieldset>
       </form>

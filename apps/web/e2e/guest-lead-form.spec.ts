@@ -79,6 +79,8 @@ test.describe.serial('lead-form public page (GUEST) — M20-S09', () => {
 
   test.afterEach(async ({ page }) => {
     await updateLeadFormConfig(page, {
+      title: originalLeadForm.title,
+      ctaLabel: originalLeadForm.ctaLabel,
       audienceMode: originalLeadForm.audienceMode,
       questions: originalLeadForm.questions,
     });

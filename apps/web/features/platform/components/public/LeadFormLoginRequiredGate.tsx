@@ -20,6 +20,7 @@ export function LeadFormLoginRequiredGate({
   slug,
 }: LeadFormLoginRequiredGateProps): React.JSX.Element {
   const t = useTranslations('hotsite');
+  const returnTo = `/${slug}/lead-form`;
 
   return (
     <div className="mx-auto max-w-lg px-6 py-12" data-testid="lead-form-login-required">
@@ -55,7 +56,7 @@ export function LeadFormLoginRequiredGate({
           {t('leadForm.backToSiteButton')}
         </Link>
         <Link
-          href={`/${slug}/login?returnTo=${encodeURIComponent(`/${slug}/lead-form`)}`}
+          href={`/${slug}/login?returnTo=${encodeURIComponent(returnTo)}`}
           data-testid="lead-form-login-required-cta"
           className="border-2 px-8 py-3 font-semibold transition-all hover:opacity-90"
           style={primaryBtnStyle}
