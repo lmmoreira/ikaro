@@ -141,6 +141,7 @@
   "PLATFORM_LEAD_FORM_QUESTION_DUPLICATE_ID": "Something went wrong saving the questions. Please try again.",
   "PLATFORM_LEAD_FORM_DAILY_CAP_REACHED": "This form's daily submission limit has been reached. Please try again tomorrow.",
   "PLATFORM_LEAD_FORM_NOT_ENABLED": "This form isn't available right now.",
+  "PLATFORM_LEAD_FORM_SUBMISSION_NOT_FOUND": "This submission could not be found.",
   "GENERIC_FIELD_REQUIRED": "This field is required.",
   "GENERIC_VALUE_TOO_SHORT": "This value must be at least {minimum} characters.",
   "GENERIC_VALUE_TOO_LONG": "This value must be at most {maximum} characters.",

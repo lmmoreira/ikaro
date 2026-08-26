@@ -8,6 +8,7 @@ import { InMemoryLeadFormSubmissionRepository } from '../../../../test/repositor
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
 import { HotsiteConfigBuilder } from '../../../../test/builders/platform/hotsite-config.builder';
 import { makeLeadFormQuestions } from '../../../../test/builders/platform/lead-form-config.builder';
+import { LeadFormSubmissionBuilder } from '../../../../test/builders/platform/lead-form-submission.builder';
 import { TenantBuilder } from '../../../../test/builders/platform/tenant.builder';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { TRANSACTION_MANAGER } from '../../../../shared/ports/transaction-manager.port';
@@ -22,6 +23,8 @@ import { HotsiteImagePathsService } from '../../domain/services/hotsite-image-pa
 import { HotsiteImageUrlResolver } from '../../domain/services/hotsite-image-url-resolver.service';
 import { GetLeadFormConfigUseCase } from '../../application/use-cases/get-lead-form-config.use-case';
 import { GetLeadFormStatusUseCase } from '../../application/use-cases/get-lead-form-status.use-case';
+import { GetLeadFormSubmissionUseCase } from '../../application/use-cases/get-lead-form-submission.use-case';
+import { ListLeadFormSubmissionsUseCase } from '../../application/use-cases/list-lead-form-submissions.use-case';
 import { UpdateLeadFormModuleUseCase } from '../../application/use-cases/update-lead-form-module.use-case';
 import { LeadFormController } from './lead-form.controller';
 
@@ -29,11 +32,13 @@ describe('LeadFormController', () => {
   let controller: LeadFormController;
   let hotsiteConfigRepo: InMemoryHotsiteConfigRepository;
   let tenantRepo: InMemoryTenantRepository;
+  let submissionRepo: InMemoryLeadFormSubmissionRepository;
   let requestContext: { tenantId: string };
 
   beforeEach(async () => {
     hotsiteConfigRepo = new InMemoryHotsiteConfigRepository();
     tenantRepo = new InMemoryTenantRepository();
+    submissionRepo = new InMemoryLeadFormSubmissionRepository();
     requestContext = { tenantId: '' };
 
     const moduleRef = await Test.createTestingModule({
@@ -42,12 +47,11 @@ describe('LeadFormController', () => {
         GetLeadFormConfigUseCase,
         UpdateLeadFormModuleUseCase,
         GetLeadFormStatusUseCase,
+        ListLeadFormSubmissionsUseCase,
+        GetLeadFormSubmissionUseCase,
         { provide: HOTSITE_CONFIG_REPOSITORY, useValue: hotsiteConfigRepo },
         { provide: LEAD_FORM_CONFIG_REPOSITORY, useValue: new InMemoryLeadFormConfigRepository() },
-        {
-          provide: LEAD_FORM_SUBMISSION_REPOSITORY,
-          useValue: new InMemoryLeadFormSubmissionRepository(),
-        },
+        { provide: LEAD_FORM_SUBMISSION_REPOSITORY, useValue: submissionRepo },
         { provide: TENANT_REPOSITORY, useValue: tenantRepo },
         { provide: TRANSACTION_MANAGER, useValue: new InMemoryTransactionManager() },
         { provide: STORAGE_SERVICE, useValue: new InMemoryStorageService() },
@@ -134,6 +138,57 @@ describe('LeadFormController', () => {
       const result = await controller.getStatus();
 
       expect(result).toEqual({ enabled: false });
+    });
+  });
+
+  describe('listSubmissions', () => {
+    it('delegates to the use case with the resolved tenantId and query params', async () => {
+      const tenant = new TenantBuilder().withSlug('ctrl-lead-form-list-01').build();
+      await tenantRepo.save(tenant);
+      requestContext.tenantId = tenant.id;
+      await submissionRepo.save(
+        new LeadFormSubmissionBuilder().withTenantId(tenant.id).withName('Maria Silva').build(),
+      );
+
+      const result = await controller.listSubmissions({ page: 1, pageSize: 20 });
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].name).toBe('Maria Silva');
+      expect(result.page).toBe(1);
+      expect(result.pageSize).toBe(20);
+      expect(result.total).toBe(1);
+    });
+  });
+
+  describe('getSubmission', () => {
+    it('delegates to the use case with the resolved tenantId and id param', async () => {
+      const tenant = new TenantBuilder().withSlug('ctrl-lead-form-detail-01').build();
+      await tenantRepo.save(tenant);
+      requestContext.tenantId = tenant.id;
+      const submission = new LeadFormSubmissionBuilder()
+        .withTenantId(tenant.id)
+        .withName('Maria Silva')
+        .build();
+      await submissionRepo.save(submission);
+
+      const result = await controller.getSubmission(submission.id);
+
+      expect(result.id).toBe(submission.id);
+      expect(result.name).toBe('Maria Silva');
+    });
+
+    it('maps LeadFormSubmissionNotFoundError to 404 HttpException', async () => {
+      const tenant = new TenantBuilder().withSlug('ctrl-lead-form-detail-02').build();
+      await tenantRepo.save(tenant);
+      requestContext.tenantId = tenant.id;
+
+      expect.assertions(2);
+      try {
+        await controller.getSubmission('01234567-0000-7000-8000-000000000099');
+      } catch (err) {
+        expect(err).toBeInstanceOf(HttpException);
+        expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+      }
     });
   });
 });

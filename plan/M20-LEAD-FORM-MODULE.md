@@ -276,7 +276,7 @@ Also close `TD08` AUD-040 in spirit (not formally, since AUD-040 targets guest b
 
 ---
 
-### M20-S06 — Admin submissions read (list + detail)
+### M20-S06 — Admin submissions read (list + detail) ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** S

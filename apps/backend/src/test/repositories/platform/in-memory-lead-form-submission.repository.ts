@@ -59,4 +59,24 @@ export class InMemoryLeadFormSubmissionRepository implements ILeadFormSubmission
     }
     return expired.length;
   }
+
+  async findByTenantPaginated(
+    tenantId: string,
+    page: number,
+    pageSize: number,
+  ): Promise<{ items: LeadFormSubmission[]; total: number }> {
+    // Mirrors TypeOrmLeadFormSubmissionRepository's submittedAt DESC, id DESC ordering — a tied
+    // submittedAt must break the same deterministic way in tests using this fake as it does
+    // against the real DB (Codex review finding, PR #428 round 2).
+    const all = [...this.store.values()]
+      .filter((s) => s.tenantId === tenantId)
+      .sort((a, b) => b.submittedAt.getTime() - a.submittedAt.getTime() || (a.id < b.id ? 1 : -1));
+    const start = (page - 1) * pageSize;
+    return { items: all.slice(start, start + pageSize), total: all.length };
+  }
+
+  async findById(id: string, tenantId: string): Promise<LeadFormSubmission | null> {
+    const submission = this.store.get(id);
+    return submission && submission.tenantId === tenantId ? submission : null;
+  }
 }

@@ -1,7 +1,8 @@
 # BFF — Lead Form (M20-S01)
 # UC-037: Manager configures the lead form module
 # UC-041 (Trigger): status endpoint powers the dashboard's gated "Leads" nav item
-# GET config/PATCH config require a manager JWT; status is available to staff and managers.
+# UC-041 (M20-S06): admin submissions read — paginated list + read-only detail
+# GET config/PATCH config require a manager JWT; status and submissions are available to staff and managers.
 #
 # Prerequisites:
 #   1. pnpm infra:up
@@ -69,6 +70,18 @@ Authorization: Bearer {{staffToken}}
 
 ###
 
+### Staff lists submissions — paginated, ordered submittedAt DESC
+GET {{bffUrl}}/v1/tenants/lead-form/submissions?page=1&pageSize=20
+Authorization: Bearer {{staffToken}}
+
+###
+
+### Staff reads submission detail — full answers snapshot
+GET {{bffUrl}}/v1/tenants/lead-form/submissions/01234567-0000-7000-8000-000000000201
+Authorization: Bearer {{staffToken}}
+
+###
+
 # ─────────────────────────────────────────────────────────────────────────────
 # FAILURE PATHS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -79,3 +92,9 @@ Authorization: Bearer {{staffToken}}
 Content-Type: application/json
 
 { "title": "Fale com a gente" }
+
+###
+
+### Submission detail for an unknown id → 404 PLATFORM_LEAD_FORM_SUBMISSION_NOT_FOUND
+GET {{bffUrl}}/v1/tenants/lead-form/submissions/01234567-0000-7000-8000-000000000999
+Authorization: Bearer {{managerToken}}
