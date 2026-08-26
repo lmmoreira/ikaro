@@ -57,10 +57,11 @@ Also capture, right before dispatching Codex for the current round, an ISO8601 t
 
 In-scope actors:
 - **CI** — always.
+- **SonarCloud** — always, every round, via the script's own live issues-API check below — **not** via whether a Sonar check-run happens to appear in `gh pr checks` this round. This repo's Sonar analysis job is dependency-gated behind the other test jobs in the same workflow: if an unrelated job fails, Sonar gets *skipped* for that commit rather than re-run, so a real, still-open issue can sit unflagged in `gh pr checks` for round after round until some round happens to have every gating job green (M20-S08 PR #429 precedent, 2026-08-26 — two Sonar issues from the very first commit went unflagged for 3 rounds this way, caught only because the user asked directly). The script queries SonarCloud's issues API directly, keyed by PR number rather than by commit, so it stays accurate regardless of whether Sonar's own check-run executed this round.
 - **Codex** — always, for the dispatch that started this round.
 - **CodeRabbit** — **round 1 only**, from `/pre-pr`'s `@coderabbitai review` trigger. Never re-triggered in later rounds (per explicit instruction — Codex is re-dispatched every round, CodeRabbit is not).
 
-Use `scripts/pr-round-status.sh` for this — it blocks until every actor you ask it to wait for reaches a terminal state (a CodeRabbit rate-limit notice counts as terminal, same as an actual review), then prints one result per actor:
+Use `scripts/pr-round-status.sh` for this — it blocks until every actor you ask it to wait for reaches a terminal state (a CodeRabbit rate-limit notice counts as terminal, same as an actual review), then prints one result per actor, including an unconditional SonarCloud open-issues line (no flag needed — it always runs):
 
 ```bash
 # Round 1 (CI + Codex + CodeRabbit all in scope)
@@ -76,10 +77,11 @@ This is a plain script-file invocation, not raw compound bash — it runs direct
 
 ## Step 2 — Pool every finding from this round
 
-Step 1's script prints a URL/pointer per actor (which CI checks failed, the Codex comment URL, the CodeRabbit comment URL) — fetch each one's full content now (`gh api repos/lmmoreira/ikaro/pulls/<N>/comments`, the failing job's logs, SonarCloud's own issue API) before triaging; the script only tells you *that* something arrived, not what it says.
+Step 1's script prints a URL/pointer per actor (which CI checks failed, the Codex comment URL, the CodeRabbit comment URL, the SonarCloud open-issues list) — fetch each one's full content now (`gh api repos/lmmoreira/ikaro/pulls/<N>/comments`, the failing job's logs) before triaging; the script only tells you *that* something arrived, not the full detail behind a CI job failure or a comment body.
 
 Collect, in one list, from every actor that responded in Step 1:
-- Every failing CI check (diagnose via the live source — SonarCloud's own issue API per `docs/ANTI_PATTERNS.md`'s SonarCloud row, never from a stale log or a guess from the diff; other checks via their job logs).
+- Every failing CI check (diagnose via its job log; never from a stale log or a guess from the diff).
+- **Every open SonarCloud issue from the script's live issues-API output — always pool this, unconditionally, every round, regardless of whether `gh pr checks` shows a Sonar row at all this round** (see Step 1's SonarCloud bullet for why the check-run status alone can't be trusted). Never rely on the `sonarqubecloud[bot]` PR comment's "Quality Gate Passed" headline either — a passing gate can still carry real new issues that block this repo's own separate "Fail on any new SonarCloud issue" CI step; the live issues list is the only source of truth (`docs/ANTI_PATTERNS.md`'s SonarCloud row).
 - Every Codex finding (Critical/Important/Minor) from this round's review comment.
 - Round 1 only: every CodeRabbit finding (if it posted an actual review rather than a rate-limit notice).
 
@@ -102,7 +104,7 @@ For every finding in the pooled list:
 
 If Step 3 produced any real fixes: apply all of them together, then **one commit** covering every fix from this round, **one push**. This triggers CI again automatically. Round += 1. Re-dispatch Codex only (never CodeRabbit) for the new commit, then return to Step 1.
 
-If Step 3 produced zero real fixes (CI green, Codex reports 0 Critical/Important — Minor findings replied-to-and-declined are fine, round 1's CodeRabbit findings all triaged) — the loop is done. Report readiness and hand back to CLAUDE.md §9 Step 10 (the merge ask). Do not merge from this skill.
+If Step 3 produced zero real fixes (CI green, SonarCloud 0 open issues, Codex reports 0 Critical/Important — Minor findings replied-to-and-declined are fine, round 1's CodeRabbit findings all triaged) — the loop is done. Report readiness and hand back to CLAUDE.md §9 Step 10 (the merge ask). Do not merge from this skill.
 
 ---
 
@@ -117,8 +119,8 @@ If, after 5 rounds, Codex's most recent review still reports **≥1 unresolved C
 ```
 ## /pr-land — PR #<N> — round <K>
 
-Waited for: CI ✅ / ❌ <check>, Codex ✅, CodeRabbit (round 1 only) ✅/skipped
-Pooled findings: <count> (CI: X, Codex: Y, CodeRabbit: Z)
+Waited for: CI ✅ / ❌ <check>, SonarCloud ✅ / ❌ <count> open, Codex ✅, CodeRabbit (round 1 only) ✅/skipped
+Pooled findings: <count> (CI: X, SonarCloud: S, Codex: Y, CodeRabbit: Z)
 Applied: <count> fixes → one commit <sha>, pushed
 Declined (with reason): <count>
 Escalated: <count> (business/design or undeterminable)
@@ -132,6 +134,7 @@ or, when clean:
 ## /pr-land — PR #<N> — resolved after <K> round(s)
 
 CI: ✅ all green
+SonarCloud: ✅ 0 open issues (live issues-API check)
 Codex: ✅ 0 Critical/Important (N Minor noted, replied)
 CodeRabbit: ✅ triaged in round 1
 
