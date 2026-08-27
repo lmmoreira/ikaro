@@ -291,7 +291,7 @@ describe('LeadFormController (integration)', () => {
         .withName('Detail Lead')
         .withAnswers([
           {
-            questionId: 'q1',
+            questionId: 'e2d3e4f5-0000-0000-0000-00000000a001',
             questionLabel: 'Como conheceu a loja?',
             questionType: 'SINGLE_CHOICE',
             answerValue: 'Instagram',
