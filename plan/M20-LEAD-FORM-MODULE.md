@@ -333,7 +333,7 @@ Follow `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § 7's checklist exactly, for t
 
 ---
 
-### M20-S08 — Manager config panel — single atomic save (UC-037)
+### M20-S08 — Manager config panel — single atomic save (UC-037) ✅ Done
 
 **Agent:** `frontend-ts`
 **Complexity:** M
