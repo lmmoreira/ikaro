@@ -9,6 +9,11 @@ import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-s
 
 interface LeadFormSubmissionDetailProps {
   readonly submission: LeadFormSubmissionDetailResponse;
+  // The list's own query string (search/filters/date-range/page) at the moment this row was
+  // clicked, e.g. "?search=carlos&page=2" — forwarded through the row link's ?returnTo= param so
+  // "back" restores the exact list state (mode included) instead of always landing on the bare,
+  // unfiltered basic view (M20-S13 story feedback, 2026-08-27).
+  readonly backQuery?: string;
 }
 
 function formatAnswerValue(value: string | readonly string[]): string {
@@ -19,6 +24,7 @@ function formatAnswerValue(value: string | readonly string[]): string {
 // the only deletion path).
 export function LeadFormSubmissionDetail({
   submission,
+  backQuery,
 }: LeadFormSubmissionDetailProps): React.JSX.Element {
   const t = useTranslations('dashboard.leadsPage');
   const dashboardT = useTranslations('dashboard');
@@ -29,7 +35,7 @@ export function LeadFormSubmissionDetail({
   const setPageTitleOverride = topbarStatus?.setPageTitleOverride;
 
   useEffect(() => {
-    setBackHrefOverride?.('/dashboard/leads');
+    setBackHrefOverride?.(`/dashboard/leads${backQuery ?? ''}`);
     setBackLabelOverride?.(dashboardT('nav.leads'));
     setPageTitleOverride?.(submission.name);
 
@@ -40,6 +46,7 @@ export function LeadFormSubmissionDetail({
     };
   }, [
     submission.name,
+    backQuery,
     dashboardT,
     setBackHrefOverride,
     setBackLabelOverride,

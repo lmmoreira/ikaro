@@ -231,10 +231,28 @@ describe('LeadFormController (integration)', () => {
       expect(body.items[0].name).toBe('Lead 7');
     });
 
-    it('?search= under 3 chars → 400 GENERIC_VALUE_TOO_SHORT (M20-S12)', async () => {
+    // No 3-character minimum (reversed M20-S12 decision, M20-S13 story feedback, 2026-08-27) —
+    // a 1-2 char search still runs (an un-indexed full scan, cheap at this feature's real
+    // per-tenant volume caps), rather than being rejected outright. A real short search (an age,
+    // a single-choice answer) must actually work, not just "not 400."
+    it('?search= with a 2 char term still matches over the real HTTP + DB path (M20-S13)', async () => {
+      // '24' is a unique substring across the "Lead 0".."Lead 24" fixture set — a single digit
+      // (e.g. '7') would ambiguously match both "Lead 7" and "Lead 17".
       const { body } = await request(app.getHttpServer())
         .get('/tenants/lead-form/submissions')
-        .query({ search: 'ab' })
+        .query({ search: '24' })
+        .set('X-Tenant-ID', TENANT_SUBMISSIONS)
+        .set('X-Actor-Role', 'STAFF')
+        .expect(200);
+
+      expect(body.items).toHaveLength(1);
+      expect(body.items[0].name).toBe('Lead 24');
+    });
+
+    it('?search= empty string → 400 GENERIC_VALUE_TOO_SHORT (M20-S13)', async () => {
+      const { body } = await request(app.getHttpServer())
+        .get('/tenants/lead-form/submissions')
+        .query({ search: '' })
         .set('X-Tenant-ID', TENANT_SUBMISSIONS)
         .set('X-Actor-Role', 'STAFF')
         .expect(400);

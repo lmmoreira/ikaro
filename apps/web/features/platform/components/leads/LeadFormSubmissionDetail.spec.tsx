@@ -93,4 +93,18 @@ describe('LeadFormSubmissionDetail', () => {
     expect(setBackLabelOverride).toHaveBeenLastCalledWith(null);
     expect(setPageTitleOverride).toHaveBeenLastCalledWith(null);
   });
+
+  it('restores the exact list query (mode included) on the back link when backQuery is set', () => {
+    renderWithIntl(
+      <LeadFormSubmissionDetail submission={buildSubmission()} backQuery="?search=carlos" />,
+    );
+
+    expect(setBackHrefOverride).toHaveBeenCalledWith('/dashboard/leads?search=carlos');
+  });
+
+  it('falls back to the bare unfiltered list when backQuery is absent', () => {
+    renderWithIntl(<LeadFormSubmissionDetail submission={buildSubmission()} />);
+
+    expect(setBackHrefOverride).toHaveBeenCalledWith('/dashboard/leads');
+  });
 });

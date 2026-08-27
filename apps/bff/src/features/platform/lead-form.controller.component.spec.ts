@@ -156,12 +156,32 @@ describe('LeadFormController (component)', () => {
       });
     });
 
-    it('GET .../submissions?search= → 400 GENERIC_VALUE_TOO_SHORT for a search term under 3 chars', async () => {
+    // No 3-character minimum (reversed M20-S12 decision, M20-S13 story feedback, 2026-08-27) —
+    // a short but real search term (an age, a single-choice answer) must still be forwarded, not
+    // rejected outright.
+    it('GET .../submissions?search= → 200, forwards a 1-2 char search term unchanged', async () => {
       setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce(listResponse);
 
       const res = await request(app.getHttpServer())
         .get('/v1/tenants/lead-form/submissions')
         .query({ page: 1, pageSize: 20, search: 'ab' })
+        .set('Authorization', `Bearer ${makeStaffJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+      expect(backendHttpService.get).toHaveBeenCalledWith('/tenants/lead-form/submissions', {
+        page: 1,
+        pageSize: 20,
+        search: 'ab',
+      });
+    });
+
+    it('GET .../submissions?search= → 400 GENERIC_VALUE_TOO_SHORT for an empty search term', async () => {
+      setupActiveGuardMock(httpService);
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/tenants/lead-form/submissions')
+        .query({ page: 1, pageSize: 20, search: '' })
         .set('Authorization', `Bearer ${makeStaffJwt(jwtService)}`);
 
       expect(res.status).toBe(400);

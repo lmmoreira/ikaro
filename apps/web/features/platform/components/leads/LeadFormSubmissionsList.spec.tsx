@@ -1,9 +1,14 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { screen, within } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import type { LeadFormSubmissionListItem } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
+import type { LeadFormSearchQuery } from '@/features/platform/model/lead-form-search';
 import { LeadFormSubmissionsList } from './LeadFormSubmissionsList';
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
 
 function buildItem(overrides?: Partial<LeadFormSubmissionListItem>): LeadFormSubmissionListItem {
   return {
@@ -16,13 +21,25 @@ function buildItem(overrides?: Partial<LeadFormSubmissionListItem>): LeadFormSub
   };
 }
 
+const NO_QUERY: LeadFormSearchQuery = {};
+
 describe('LeadFormSubmissionsList', () => {
-  it('renders the empty state with a CTA back to the hotsite editor when total is 0', () => {
-    renderWithIntl(<LeadFormSubmissionsList items={[]} page={1} pageSize={20} total={0} />);
+  it('renders the "no submissions ever" empty state (no active query) without a search panel', () => {
+    renderWithIntl(
+      <LeadFormSubmissionsList
+        items={[]}
+        page={1}
+        pageSize={20}
+        total={0}
+        searchQuery={NO_QUERY}
+        filterOptionLabels={[]}
+      />,
+    );
 
     expect(screen.getByText('Nenhum envio ainda')).toBeInTheDocument();
     const cta = screen.getByText('Configurar o Lead Form').closest('a');
     expect(cta).toHaveAttribute('href', '/dashboard/hotsite');
+    expect(screen.queryByTestId('leads-search-panel')).not.toBeInTheDocument();
   });
 
   it('renders one row per submission with name, email, phone, and a link to the detail page', () => {
@@ -30,7 +47,16 @@ describe('LeadFormSubmissionsList', () => {
       buildItem({ id: 'sub-1', name: 'Carlos Mendes' }),
       buildItem({ id: 'sub-2', name: 'Maria Fernanda Costa', email: 'maria@email.com' }),
     ];
-    renderWithIntl(<LeadFormSubmissionsList items={items} page={1} pageSize={20} total={2} />);
+    renderWithIntl(
+      <LeadFormSubmissionsList
+        items={items}
+        page={1}
+        pageSize={20}
+        total={2}
+        searchQuery={NO_QUERY}
+        filterOptionLabels={[]}
+      />,
+    );
 
     expect(screen.getByText('Carlos Mendes')).toBeInTheDocument();
     expect(screen.getByText('Maria Fernanda Costa')).toBeInTheDocument();
@@ -38,9 +64,31 @@ describe('LeadFormSubmissionsList', () => {
     expect(row).toHaveAttribute('href', '/dashboard/leads/sub-1');
   });
 
+  it('renders the search panel above the list', () => {
+    renderWithIntl(
+      <LeadFormSubmissionsList
+        items={[buildItem()]}
+        page={1}
+        pageSize={20}
+        total={1}
+        searchQuery={NO_QUERY}
+        filterOptionLabels={[]}
+      />,
+    );
+
+    expect(screen.getByTestId('leads-search-panel')).toBeInTheDocument();
+  });
+
   it('renders the pluralized total count', () => {
     renderWithIntl(
-      <LeadFormSubmissionsList items={[buildItem()]} page={1} pageSize={20} total={42} />,
+      <LeadFormSubmissionsList
+        items={[buildItem()]}
+        page={1}
+        pageSize={20}
+        total={42}
+        searchQuery={NO_QUERY}
+        filterOptionLabels={[]}
+      />,
     );
 
     expect(screen.getByTestId('leads-total-count')).toHaveTextContent('42 envios recebidos');
@@ -48,7 +96,14 @@ describe('LeadFormSubmissionsList', () => {
 
   it('uses the singular form for exactly one submission', () => {
     renderWithIntl(
-      <LeadFormSubmissionsList items={[buildItem()]} page={1} pageSize={20} total={1} />,
+      <LeadFormSubmissionsList
+        items={[buildItem()]}
+        page={1}
+        pageSize={20}
+        total={1}
+        searchQuery={NO_QUERY}
+        filterOptionLabels={[]}
+      />,
     );
 
     expect(screen.getByTestId('leads-total-count')).toHaveTextContent('1 envio recebido');
@@ -56,7 +111,14 @@ describe('LeadFormSubmissionsList', () => {
 
   it('does not render pagination controls when everything fits on one page', () => {
     renderWithIntl(
-      <LeadFormSubmissionsList items={[buildItem()]} page={1} pageSize={20} total={1} />,
+      <LeadFormSubmissionsList
+        items={[buildItem()]}
+        page={1}
+        pageSize={20}
+        total={1}
+        searchQuery={NO_QUERY}
+        filterOptionLabels={[]}
+      />,
     );
 
     expect(screen.queryByLabelText('Paginação')).not.toBeInTheDocument();
@@ -64,7 +126,16 @@ describe('LeadFormSubmissionsList', () => {
 
   it('renders numbered pagination links and disables prev/next at the boundaries', () => {
     const items = Array.from({ length: 20 }, (_, i) => buildItem({ id: `sub-${i}` }));
-    renderWithIntl(<LeadFormSubmissionsList items={items} page={1} pageSize={20} total={45} />);
+    renderWithIntl(
+      <LeadFormSubmissionsList
+        items={items}
+        page={1}
+        pageSize={20}
+        total={45}
+        searchQuery={NO_QUERY}
+        filterOptionLabels={[]}
+      />,
+    );
 
     expect(screen.getByText('1')).toHaveAttribute('aria-current', 'page');
     expect(screen.getByText('2')).toHaveAttribute('href', '/dashboard/leads?page=2');
@@ -75,17 +146,89 @@ describe('LeadFormSubmissionsList', () => {
 
   it('links page 1 without a query string', () => {
     const items = Array.from({ length: 20 }, (_, i) => buildItem({ id: `sub-${i}` }));
-    renderWithIntl(<LeadFormSubmissionsList items={items} page={2} pageSize={20} total={45} />);
+    renderWithIntl(
+      <LeadFormSubmissionsList
+        items={items}
+        page={2}
+        pageSize={20}
+        total={45}
+        searchQuery={NO_QUERY}
+        filterOptionLabels={[]}
+      />,
+    );
 
     expect(screen.getByText('1')).toHaveAttribute('href', '/dashboard/leads');
     expect(screen.getByLabelText('Página anterior')).toHaveAttribute('href', '/dashboard/leads');
+  });
+
+  it('preserves the active search term in pagination links', () => {
+    const items = Array.from({ length: 20 }, (_, i) => buildItem({ id: `sub-${i}` }));
+    renderWithIntl(
+      <LeadFormSubmissionsList
+        items={items}
+        page={1}
+        pageSize={20}
+        total={45}
+        searchQuery={{ search: 'carlos' }}
+        filterOptionLabels={[]}
+      />,
+    );
+
+    expect(screen.getByText('2')).toHaveAttribute('href', '/dashboard/leads?search=carlos&page=2');
+  });
+
+  it("carries the current list query through to each row link, for the detail page's own back link", () => {
+    const items = [buildItem({ id: 'sub-1' })];
+    renderWithIntl(
+      <LeadFormSubmissionsList
+        items={items}
+        page={2}
+        pageSize={20}
+        total={30}
+        searchQuery={{ search: 'carlos' }}
+        filterOptionLabels={[]}
+      />,
+    );
+
+    const row = screen.getByTestId('lead-submission-row');
+    expect(row).toHaveAttribute(
+      'href',
+      `/dashboard/leads/sub-1?returnTo=${encodeURIComponent('?search=carlos&page=2')}`,
+    );
+  });
+
+  it('does not append returnTo to row links when no query is active', () => {
+    renderWithIntl(
+      <LeadFormSubmissionsList
+        items={[buildItem({ id: 'sub-1' })]}
+        page={1}
+        pageSize={20}
+        total={1}
+        searchQuery={NO_QUERY}
+        filterOptionLabels={[]}
+      />,
+    );
+
+    expect(screen.getByTestId('lead-submission-row')).toHaveAttribute(
+      'href',
+      '/dashboard/leads/sub-1',
+    );
   });
 
   it('renders a bounded window with ellipses instead of one link per page for a large total', () => {
     // 24 months retention x up to 1,000 submissions/day can produce hundreds of pages — the
     // rendered link count must stay bounded regardless of totalPages (Codex PR #435 review).
     const items = Array.from({ length: 20 }, (_, i) => buildItem({ id: `sub-${i}` }));
-    renderWithIntl(<LeadFormSubmissionsList items={items} page={25} pageSize={20} total={900} />);
+    renderWithIntl(
+      <LeadFormSubmissionsList
+        items={items}
+        page={25}
+        pageSize={20}
+        total={900}
+        searchQuery={NO_QUERY}
+        filterOptionLabels={[]}
+      />,
+    );
 
     // totalPages = 45; window around page 25 = {1, 23, 24, 25, 26, 27, 45} + 2 ellipses.
     expect(screen.getByText('1')).toBeInTheDocument();
@@ -102,10 +245,150 @@ describe('LeadFormSubmissionsList', () => {
 
   it('formats submittedAt using the tenant formatting context', () => {
     renderWithIntl(
-      <LeadFormSubmissionsList items={[buildItem()]} page={1} pageSize={20} total={1} />,
+      <LeadFormSubmissionsList
+        items={[buildItem()]}
+        page={1}
+        pageSize={20}
+        total={1}
+        searchQuery={NO_QUERY}
+        filterOptionLabels={[]}
+      />,
     );
 
     // Default pt-BR formatting context: America/Sao_Paulo, DD/MM/YYYY, 24h.
     expect(screen.getByText(/21\/08\/2026, 11:32/)).toBeInTheDocument();
+  });
+
+  describe('zero-match state (UC-041 A3)', () => {
+    it('shows the distinct "no results" copy for a basic search term, not the "no submissions" state', () => {
+      renderWithIntl(
+        <LeadFormSubmissionsList
+          items={[]}
+          page={1}
+          pageSize={20}
+          total={0}
+          searchQuery={{ search: 'joao@gmail' }}
+          filterOptionLabels={[]}
+        />,
+      );
+
+      expect(screen.getByTestId('leads-no-results')).toHaveTextContent(
+        'Nenhum resultado para "joao@gmail"',
+      );
+      expect(screen.queryByText('Nenhum envio ainda')).not.toBeInTheDocument();
+      expect(screen.getByTestId('leads-search-panel')).toBeInTheDocument();
+    });
+
+    it('shows the generic filters copy for a zero-match advanced search', () => {
+      renderWithIntl(
+        <LeadFormSubmissionsList
+          items={[]}
+          page={1}
+          pageSize={20}
+          total={0}
+          searchQuery={{
+            filters: [{ questionLabel: 'Estado civil', value: 'casado' }],
+            mode: 'advanced',
+          }}
+          filterOptionLabels={['Estado civil']}
+        />,
+      );
+
+      expect(screen.getByTestId('leads-no-results')).toHaveTextContent(
+        'Nenhum resultado para os filtros aplicados',
+      );
+    });
+
+    it('shows the generic date-range copy when only a date range is active with no term', () => {
+      renderWithIntl(
+        <LeadFormSubmissionsList
+          items={[]}
+          page={1}
+          pageSize={20}
+          total={0}
+          searchQuery={{ submittedFrom: '2026-08-01', submittedTo: '2026-08-15' }}
+          filterOptionLabels={[]}
+        />,
+      );
+
+      expect(screen.getByTestId('leads-no-results')).toHaveTextContent(
+        'Nenhum resultado para o período selecionado',
+      );
+    });
+
+    it('"Limpar busca" links back to the fully unfiltered list', () => {
+      renderWithIntl(
+        <LeadFormSubmissionsList
+          items={[]}
+          page={1}
+          pageSize={20}
+          total={0}
+          searchQuery={{ search: 'joao@gmail' }}
+          filterOptionLabels={[]}
+        />,
+      );
+
+      const clearLink = screen.getByText('Limpar busca').closest('a');
+      expect(clearLink).toHaveAttribute('href', '/dashboard/leads');
+    });
+
+    // This plain <Link> isn't routed through LeadFormSearchPanel's own handleClearAdvanced() —
+    // a bare `/dashboard/leads` here silently dropped back to basic mode as a side effect of
+    // clearing the zero-match filters (Codex PR #436 round 6 finding, 2026-08-27).
+    it('"Limpar filtros" stays in advanced mode instead of dropping back to a bare basic-mode link', () => {
+      renderWithIntl(
+        <LeadFormSubmissionsList
+          items={[]}
+          page={1}
+          pageSize={20}
+          total={0}
+          searchQuery={{
+            filters: [{ questionLabel: 'Estado civil', value: 'casado' }],
+            mode: 'advanced',
+          }}
+          filterOptionLabels={['Estado civil']}
+        />,
+      );
+
+      // "Limpar filtros" also labels the still-rendered advanced panel's own clear button —
+      // scope to the no-results card so this asserts the plain <Link>, not that button.
+      const clearLink = within(screen.getByTestId('leads-no-results'))
+        .getByText('Limpar filtros')
+        .closest('a');
+      expect(clearLink).toHaveAttribute('href', '/dashboard/leads?mode=advanced');
+    });
+
+    // "Limpar busca" is a plain <Link>, not wired through LeadFormSearchPanel's own clear
+    // handlers — clicking it triggers a real navigation (simulated here via rerender with the
+    // post-navigation props), and the panel must not keep showing the stale search term
+    // afterwards just because router.push is a soft navigation that doesn't remount a client
+    // component on its own (Codex PR #436 round 3 finding, 2026-08-27). The panel's key, derived
+    // from the resolved query, forces a fresh mount whenever that query actually changes.
+    it("resets the search panel's stale input after navigating away from a zero-match query", () => {
+      const { rerender } = renderWithIntl(
+        <LeadFormSubmissionsList
+          items={[]}
+          page={1}
+          pageSize={20}
+          total={0}
+          searchQuery={{ search: 'joao@gmail' }}
+          filterOptionLabels={[]}
+        />,
+      );
+      expect(screen.getByTestId('leads-search-input')).toHaveValue('joao@gmail');
+
+      rerender(
+        <LeadFormSubmissionsList
+          items={[buildItem()]}
+          page={1}
+          pageSize={20}
+          total={1}
+          searchQuery={NO_QUERY}
+          filterOptionLabels={[]}
+        />,
+      );
+
+      expect(screen.getByTestId('leads-search-input')).toHaveValue('');
+    });
   });
 });

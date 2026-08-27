@@ -658,8 +658,8 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
     });
 
     // A literal '%'/'_' in the search term is also a LIKE wildcard to Postgres — unescaped,
-    // '%%%' would match every row against a real DB, silently defeating both the 3-character
-    // trigram guard and tenant-scoped result sizing (Codex review finding, PR #434 round 3).
+    // '%%%' would match every row against a real DB, silently defeating tenant-scoped result
+    // sizing (Codex review finding, PR #434 round 3).
     it('a wildcard-only search term ("%%%") matches literally, not everything, against real Postgres', async () => {
       const repo = makeRepo(new InMemoryEventBus());
       await txManager.run(() => repo.save(buildSubmission(TENANT_A)));

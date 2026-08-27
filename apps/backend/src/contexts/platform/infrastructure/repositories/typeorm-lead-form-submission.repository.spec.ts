@@ -335,7 +335,7 @@ describe('TypeOrmLeadFormSubmissionRepository', () => {
     });
 
     // A literal `%`/`_`/`\` in the caller's own search term is also a LIKE/ILIKE wildcard to
-    // Postgres — unescaped, `%%%` would pass the 3-character length guard while matching
+    // Postgres — unescaped, `%%%` would pass the schema's non-empty length check while matching
     // everything and using no trigram index (Codex review finding, PR #434 round 3).
     it('escapes literal %, _, and \\ in search before wrapping it as a contains-pattern', async () => {
       const qb = makeSelectQueryBuilder([], 0);

@@ -36,11 +36,15 @@ export const LeadFormSubmissionFieldsSchema = z.object({
 });
 
 // M20-S12 — advanced-filter entry, one per question. `questionLabel` is dropdown-sourced (never
-// free-typed — see the filter-options endpoint), so it only needs non-empty; `value` shares the
-// same 3-character minimum as `search` (docs/14-API_CONTRACTS.md § Leads Submissions).
+// free-typed — see the filter-options endpoint), so it only needs non-empty; `value` only needs
+// non-empty too (M20-S13 story feedback, 2026-08-27 — see ListLeadFormSubmissionsSchema below for
+// why the earlier 3-character minimum was dropped). `.trim()` before `.min(1)` so a
+// whitespace-only value (e.g. "  ") isn't accepted as non-empty — the UI's own isSearchTermValid
+// already trims before treating a value as active; the API contract must match, not accept a
+// request the UI itself would never send (Codex PR #436 round 3 finding, 2026-08-27).
 export const LeadFormSubmissionFilterEntrySchema = z.object({
   questionLabel: z.string().min(1),
-  value: z.string().min(3),
+  value: z.string().trim().min(1),
 });
 
 // `filters` arrives as a URL-encoded JSON array string (query params are always strings) — parse
@@ -71,19 +75,42 @@ const LeadFormSubmissionFiltersQuerySchema = z
 // (BFF-5) rather than authored duplicated from the start.
 //
 // M20-S12 adds `search`/`filters` (mutually exclusive — UC-041 steps 3-4) and
-// `submittedFrom`/`submittedTo` (orthogonal date range — UC-041 step 5). `search` and each
-// `filters[].value` share the same 3-character minimum, backed by the `pg_trgm` GIN index's own
-// "no extractable trigrams below 3 chars" limitation (docs/13-DATABASE_SCHEMA.md §
-// platform.lead_form_answers) — a plain Zod `.min()` derives GENERIC_VALUE_TOO_SHORT automatically
-// (zod-violation.ts), no bespoke code needed. `filters` capped at 5 entries derives
-// GENERIC_VALUE_OUT_OF_RANGE the same way. The two cross-field rules below have no VO behind them
-// either, so each reuses GenericErrorCode via `.refine()` + `params.code`, mirroring
-// tenant-settings.ts's `buildUpdateTenantSettingsSchema` empty-update `.refine()`.
+// `submittedFrom`/`submittedTo` (orthogonal date range — UC-041 step 5). `filters` capped at 5
+// entries derives GENERIC_VALUE_OUT_OF_RANGE via a plain Zod `.max()` (zod-violation.ts), no
+// bespoke code needed. The two cross-field rules below have no VO behind them either, so each
+// reuses GenericErrorCode via `.refine()` + `params.code`, mirroring tenant-settings.ts's
+// `buildUpdateTenantSettingsSchema` empty-update `.refine()`.
+//
+// `search`/`filters[].value` only require non-empty — NOT a 3-character minimum. The original
+// M20-S12 design rejected anything under 3 characters because `pg_trgm`'s GIN index can't
+// accelerate a pattern with no extractable trigram (verified against PostgreSQL's own pgtrgm
+// docs) — that part is still true. What changed is the cost estimate of accepting the fallback
+// scan anyway (M20-S13 story feedback, 2026-08-27, revised twice: an initial "tens of thousands
+// of rows" estimate conflated realistic typical volume with this system's own configured
+// ceiling, corrected after a live query-plan review — TypeOrmLeadFormSubmissionRepository's
+// `applySearch()` correlates its per-question `EXISTS` on `(tenant_id, submission_id)`, which
+// `lead_form_answers`'s own `(tenant_id, submission_id, question_label)` index covers, so
+// finding one submission's own ≤20 answer rows is an indexed lookup — only the ILIKE against
+// those few rows (plus name/email on the outer row) is unindexed. The real unindexed cost
+// therefore scales with a tenant's own submission count (bounded by its own
+// maxSubmissionsPerDay×retentionMonths caps, up to ~730,000 at the system's absolute configured
+// ceiling), not the cross-submission answer-row total (up to ~14.6M at that same ceiling, since
+// each submission contributes up to 20 rows) — a bot-review round correctly caught the first
+// estimate's imprecision but then overstated the fix by citing the larger, wrong bound too.
+// At the real (submission-count) ceiling this is tens of millions of short string comparisons,
+// estimated — not benchmarked — at low single-digit seconds, for a tenant that would have to
+// deliberately sustain the maximum caps for the full 24-month retention window to hit it.
+// Rejecting a real short search (an age, "25") outright was judged the worse trade-off against
+// that bounded, unlikely worst case — confirmed with the user after presenting the corrected
+// numbers).
 export const ListLeadFormSubmissionsSchema = z
   .object({
     page: z.coerce.number().int().min(1).default(1),
     pageSize: z.coerce.number().int().min(1).max(100).default(20),
-    search: z.string().min(3).optional(),
+    // .trim() before .min(1) — see LeadFormSubmissionFilterEntrySchema's own comment above for
+    // why a whitespace-only value must not pass as non-empty (Codex PR #436 round 3 finding,
+    // 2026-08-27).
+    search: z.string().trim().min(1).optional(),
     filters: LeadFormSubmissionFiltersQuerySchema.optional(),
     submittedFrom: z.iso.date().optional(),
     submittedTo: z.iso.date().optional(),

@@ -48,7 +48,7 @@ X-Actor-Role: STAFF
 
 ###
 
-### List submissions — basic search (M20-S12, min 3 chars)
+### List submissions — basic search (M20-S12, min 1 char as of M20-S13)
 GET {{baseUrl}}/tenants/lead-form/submissions?page=1&pageSize=20&search=casado
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{staffId}}
@@ -97,8 +97,8 @@ X-Actor-Role: STAFF
 # FAILURE PATHS
 # ─────────────────────────────────────────────────────────────────────────────
 
-### search under 3 chars → 400 GENERIC_VALUE_TOO_SHORT (M20-S12)
-GET {{baseUrl}}/tenants/lead-form/submissions?search=ab
+### empty search → 400 GENERIC_VALUE_TOO_SHORT (M20-S13 — no minimum length beyond non-empty)
+GET {{baseUrl}}/tenants/lead-form/submissions?search=
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{staffId}}
 X-Actor-Type: STAFF

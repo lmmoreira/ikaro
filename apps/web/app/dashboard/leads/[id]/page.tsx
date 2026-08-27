@@ -9,6 +9,7 @@ import type { LeadFormSubmissionDetailResponse } from '@ikaro/types';
 
 interface LeadDetailRouteProps {
   readonly params: Promise<{ id: string }>;
+  readonly searchParams: Promise<{ returnTo?: string }>;
 }
 
 async function loadSubmission(
@@ -27,10 +28,12 @@ async function loadSubmission(
 
 export default async function LeadDetailPage({
   params,
+  searchParams,
 }: LeadDetailRouteProps): Promise<React.JSX.Element> {
   const { id } = await params;
+  const { returnTo } = await searchParams;
   const token = await getAccessToken();
   const submission = await loadSubmission(token, id);
 
-  return <LeadFormSubmissionDetail submission={submission} />;
+  return <LeadFormSubmissionDetail submission={submission} backQuery={returnTo} />;
 }
