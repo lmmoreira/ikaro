@@ -623,6 +623,36 @@ Extract each side's literal string-member set (`constArray` walks the array lite
 
 ---
 
+### Story 23 — ESLint rules for E2E-1/E2E-2/E2E-3 (`pre-pr.sh` checks bypassable after PR creation) 🔴
+
+`pre-pr.sh`'s own skill text is explicit: *"If a PR is already open for this branch, this skill exits immediately."* That means every custom check in the script — including the three E2E quality checks below — runs **once**, before a PR is first created, and never again. Once a PR is open, `/pr-land`'s round loop only re-runs `ci:fast` (ESLint + `tsc --noEmit` + unit tests) plus Codex/CodeRabbit review on each new commit — never `pre-pr.sh` itself. A check that's a bespoke grep (not an ESLint rule) is therefore invisible to every commit added during a PR's own bot-fix round loop, not just to commits on a different branch.
+
+**Proven, not hypothetical (🔴):** M20-S08 (PR #429, 22 commits across its own bot-fix round loop, merged 2026-08-27T00:07:57Z) shipped `apps/web/e2e/hotsite-editor.spec.ts` test coverage for the new `LeadFormSortableQuestion` component using `getByLabel(`/`getByText(` — a direct violation of E2E-1, which has existed since commit `814e4d9c3` (M13-S41, 2026-06-18), two months earlier. The rule was not new; the violating code was. It sat on `main` undetected until M20-S12's own story-discovery/merge work found it the next day (2026-08-27), confirmed via `find apps/web/e2e -name "*.spec.ts" | xargs grep -nE "getByLabel\(|getByText\("` returning a real hit against `main`. Most likely mechanism: the violating test code was added in one of PR #429's later round-loop commits, after its one-time `pre-pr.sh` gate had already passed — `ci:fast` alone can't catch it, since E2E-1/2/3 are grep checks, not ESLint rules.
+
+This is the same class of gap TD37 already exists to close (Story 4's own opening line: "the exact mechanism you already use for the `EVENT_BUS`/OTel bans") — a `.md`-adjacent, easily-bypassed script check migrated into a deterministic, always-on ESLint rule.
+
+**Mechanism** — same "zero new dependency" `no-restricted-syntax`/custom-selector approach as Story 4, with the two scope splits `scripts/pre-pr.sh` itself already uses (confirmed by reading its exact implementation, not assumed):
+
+| Rule | Current `pre-pr.sh` check | Scope |
+|---|---|---|
+| Ban `getByLabel(`/`getByText(` calls | E2E-1 (`grep -E "getByLabel\(\|getByText\("`, whole-directory scan, not diff-scoped) | `apps/web/e2e/**/*.spec.ts` |
+| Ban a `data-testid` JSX attribute string value containing an ISO date (`YYYY-MM-DD`) | E2E-2 (`grep 'data-testid="[^"]*[0-9]{4}-[0-9]{2}-[0-9]{2}[^"]*"'`, diff-scoped to changed `.tsx` files) | `apps/web/**/*.tsx` (component definition sites, where `data-testid` values are authored — not the e2e specs that consume them) |
+| Ban a template-literal expression as a `data-testid` JSX attribute value (`data-testid={\`...\`}`) | E2E-3 (`grep 'data-testid=\{\`'`, diff-scoped to changed `.tsx` files) | `apps/web/**/*.tsx` |
+
+E2E-1 is a plain `CallExpression` selector (`callee.property.name` matching `getByLabel`/`getByText`), identical in shape to Story 4's existing rules. E2E-2/E2E-3 target a JSX attribute's value (`JSXAttribute` with `name.name === 'data-testid'`) rather than a call expression — closer to Story 4's `as React.CSSProperties` rule (which also matches on a syntactic shape, not a call) than to its `CallExpression`-based rules; confirm the exact selector during this story's own `/story-discovery` rather than assuming one shape covers all three.
+
+**What it catches**: exactly the PR #429 incident — a violation introduced anywhere in a PR's lifecycle (initial commit or a later bot-fix-round commit) fails `ci:fast` on that same push, before the PR can ever reach a green state, closing the gap `pre-pr.sh`'s one-time-only execution left open.
+**What it does NOT catch**: `pre-pr.sh`'s other custom checks (BE-2/3/5/7, WEB-1/4/5/6/7, etc.) have the identical one-time-execution exposure — this story only closes it for E2E-1/2/3. Whether the remaining `pre-pr.sh` checks deserve the same treatment is a separate, later scoping decision, not assumed here.
+
+**Acceptance criteria**:
+- [ ] All 3 rules added to `apps/web/eslint.config.js`, each citing "E2E-1"/"E2E-2"/"E2E-3" and this TD/story in its error message (not a bare rule name)
+- [ ] Zero current violations on `main` at implementation time (re-verify — this story's own discovery predates a real fix landing, so the count may already be zero by the time this is picked up)
+- [ ] A fixture PR introducing each of the 3 violations fails at `ci:fast`/push time, not just at a later, separate `pre-pr.sh` invocation
+- [ ] `scripts/pre-pr.sh`'s E2E-1/E2E-2/E2E-3 checks (lines ~269-286) are removed once the ESLint rules cover the identical scope — no duplicate enforcement of the same rule in two places
+- [ ] `docs/08-TESTING_STRATEGY.md`/wherever E2E-1/2/3 are documented for humans is updated to point at the ESLint rule instead of the script check
+
+---
+
 ### Separate follow-up candidate — CodeQL security analysis ⚪
 
 CodeQL complements this TD's architecture checks by tracking security-relevant data flow in TypeScript. It does not replace Snyk (dependencies), Gitleaks (secrets), Trivy (images), Sonar, or the architecture runner. Assess GitHub Code Security availability and, if available, introduce `javascript-typescript` with a report-only security-and-quality baseline in a dedicated security-hardening TD so it does not delay the architectural work above.
