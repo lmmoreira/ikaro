@@ -346,6 +346,16 @@ jobs:
           BFF_UPSTREAM_URL: 'http://localhost:3002/v1'
           NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL: 'http://localhost:4443/ikaro-local-public'
           NEXT_PUBLIC_SITE_URL: 'http://localhost:3000'
+          # Cloudflare's always-pass Turnstile test sitekey + matching secret (M20-S09) — this is
+          # a separate job/step's env block from the one at line ~215 (BFF unit/component tests);
+          # the real BFF process this step starts needs its own TURNSTILE_SECRET_KEY or
+          # TurnstileService.verify() fails closed (getOrThrow throws, caught, returns false),
+          # rejecting every real E2E submission with BFF_TURNSTILE_VERIFICATION_FAILED (PR #433
+          # review round 1 — Codex + CodeRabbit both caught this the earlier comment here
+          # incorrectly claimed was "already set"). The real widget script runs against this
+          # dummy sitekey and always renders a passable challenge; never mock/stub the widget.
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: '1x00000000000000000000AA'
+          TURNSTILE_SECRET_KEY: '1x0000000000000000000000000000000AA'
         run: |
           set -e
 

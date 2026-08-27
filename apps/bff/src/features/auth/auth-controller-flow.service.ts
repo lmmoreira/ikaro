@@ -63,6 +63,7 @@ export class AuthControllerFlowService {
         profile.tenantSlug,
         res,
         frontendUrl,
+        profile.returnTo,
       );
       return;
     }

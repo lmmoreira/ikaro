@@ -42,4 +42,28 @@ describe('LeadFormSubmissionFieldsSchema', () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it('rejects an answer string value over 2000 chars', () => {
+    const result = LeadFormSubmissionAnswerSchema.safeParse({
+      questionId: VALID.answers[0].questionId,
+      value: 'x'.repeat(2001),
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects an answer array with more than 50 options', () => {
+    const result = LeadFormSubmissionAnswerSchema.safeParse({
+      questionId: VALID.answers[0].questionId,
+      value: Array.from({ length: 51 }, (_, i) => `option-${i}`),
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects an answer array element over 2000 chars', () => {
+    const result = LeadFormSubmissionAnswerSchema.safeParse({
+      questionId: VALID.answers[0].questionId,
+      value: ['a', 'x'.repeat(2001)],
+    });
+    expect(result.success).toBe(false);
+  });
 });

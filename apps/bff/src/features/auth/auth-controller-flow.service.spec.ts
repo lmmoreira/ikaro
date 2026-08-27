@@ -112,6 +112,26 @@ describe('AuthControllerFlowService', () => {
       expect(res.redirect).toHaveBeenCalledWith('http://localhost:3000/lavacar-bh');
     });
 
+    it('redirects to returnTo instead of the hotsite home when the profile carries one (M20-S09)', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockResolvedValue({
+          id: TENANT_ID_A,
+          slug: 'lavacar-bh',
+          name: 'Lavacar BH',
+        }),
+        post: jest.fn().mockResolvedValue({ customerId: CUSTOMER_ID_A, created: true }),
+      });
+      const service = makeService(backendHttp);
+      const res = makeRes();
+
+      await service.handleGoogleCallback(
+        { ...customerProfile, returnTo: '/lavacar-bh/lead-form' },
+        res,
+      );
+
+      expect(res.redirect).toHaveBeenCalledWith('http://localhost:3000/lavacar-bh/lead-form');
+    });
+
     it('logs "Customer login" with tenantId and customerId', async () => {
       const backendHttp = makeBackendHttp({
         get: jest.fn().mockResolvedValue({

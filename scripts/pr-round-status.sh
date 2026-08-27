@@ -104,20 +104,58 @@ while true; do
   CODERABBIT_URL=""
   if [ "$WAIT_CODEX" -eq 1 ] || [ "$WAIT_CODERABBIT" -eq 1 ]; then
     COMMENTS_JSON=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json comments 2>/dev/null || echo '{"comments":[]}')
+  fi
 
-    if [ "$WAIT_CODEX" -eq 1 ]; then
-      # The exact preamble wording isn't a stable contract — observed drifting between rounds
-      # (backticks added around /pr-review, "4-agent" -> "4-perspective") on the same PR in the
-      # same session, which silently hung a literal-substring match forever. Tolerate an optional
-      # backtick around /pr-review instead of requiring it verbatim either way.
-      CODEX_URL=$(printf '%s' "$COMMENTS_JSON" | jq -r --arg since "$SINCE" '
-        [.comments[] | select(.createdAt >= $since) | select(.body | test("Automated review via `?/pr-review`? — Codex"))]
-        | sort_by(.createdAt) | last | .url // empty')
-    fi
+  if [ "$WAIT_CODEX" -eq 1 ]; then
+    # The exact preamble wording isn't a stable contract — observed drifting between rounds
+    # (backticks added around /pr-review, "4-agent" -> "4-perspective") on the same PR in the
+    # same session, which silently hung a literal-substring match forever. Tolerate an optional
+    # backtick around /pr-review instead of requiring it verbatim either way.
+    CODEX_URL=$(printf '%s' "$COMMENTS_JSON" | jq -r --arg since "$SINCE" '
+      [.comments[] | select(.createdAt >= $since) | select(.body | test("Automated review via `?/pr-review`? — Codex"))]
+      | sort_by(.createdAt) | last | .url // empty')
+  fi
 
-    if [ "$WAIT_CODERABBIT" -eq 1 ]; then
+  if [ "$WAIT_CODERABBIT" -eq 1 ]; then
+    # CodeRabbit's actual findings-bearing review is a PR *review* object (state: COMMENTED),
+    # never a plain issue comment — gh pr view --json comments structurally cannot see it, only
+    # CodeRabbit's own bookkeeping issue-comments (the walkthrough-stack summary and the "review
+    # command invocation received" ack, both posted within seconds of the @coderabbitai review
+    # trigger, well before the real review lands minutes later). Querying --json comments here
+    # silently hung this script forever on PR #433 (2026-08-26) even after the real review had
+    # already posted, because it was checking the wrong API surface entirely — not a timing
+    # issue, a structural one. The REST reviews endpoint is the correct surface for a real
+    # review: it has both a numeric id and a ready-made html_url (unlike `gh pr view --json
+    # reviews`, whose .id is a GraphQL node id like "PRR_kwDO..." that does not match GitHub's
+    # numeric #pullrequestreview-<id> anchor — round-2 finding, PR #433).
+    # The REST API's user.login is "coderabbitai[bot]" (the raw GitHub App slug), not the
+    # "coderabbitai" GraphQL normalizes it to elsewhere in this script — verified live against
+    # PR #433's actual review payload; a bare-string match against "coderabbitai" here silently
+    # never matches anything (round-2 finding, PR #433: this exact mismatch was caught only by
+    # testing the fix's own jq filter against real data before trusting it).
+    # --paginate: this endpoint defaults to 30 results/page (max 100) — without it, a PR that
+    # accumulates more than 30 reviews would silently drop the newest one off the first page and
+    # this script could wait forever despite a real review already existing (round-6 finding, PR
+    # #433). gh api --paginate concatenates array-shaped pages into one combined array, so the jq
+    # filter below needs no change.
+    REVIEWS_JSON=$(gh api --paginate "repos/${REPO}/pulls/${PR_NUMBER}/reviews" 2>/dev/null || echo '[]')
+    CODERABBIT_URL=$(printf '%s' "$REVIEWS_JSON" | jq -r --arg since "$SINCE" '
+      [.[] | select(.submitted_at >= $since) | select(.user.login == "coderabbitai[bot]")]
+      | sort_by(.submitted_at) | last | .html_url // empty')
+
+    # Fallback: a rate-limited CodeRabbit run posts only a plain issue comment, never a review
+    # (the script's own contract above promises this counts as terminal too — round-2 finding,
+    # PR #433: fixing the review-detection path above accidentally dropped this case entirely).
+    # Exclude the two always-posted bookkeeping acks (the walkthrough-stack summary and the
+    # "review command received" reply, both fired within seconds of the trigger, identified by
+    # their own literal auto-generated-comment markers) so a genuine rate-limit notice — or
+    # anything else CodeRabbit might post as a plain comment — is the only thing that satisfies
+    # this fallback.
+    if [ -z "$CODERABBIT_URL" ]; then
       CODERABBIT_URL=$(printf '%s' "$COMMENTS_JSON" | jq -r --arg since "$SINCE" '
-        [.comments[] | select(.createdAt >= $since) | select(.author.login == "coderabbitai")]
+        [.comments[] | select(.createdAt >= $since) | select(.author.login == "coderabbitai")
+         | select(.body | test("auto-generated comment: summarize by coderabbit\\.ai") | not)
+         | select(.body | test("auto-generated reply by CodeRabbit") | not)]
         | sort_by(.createdAt) | last | .url // empty')
     fi
   fi
