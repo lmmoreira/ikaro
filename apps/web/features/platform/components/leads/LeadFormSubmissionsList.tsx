@@ -35,6 +35,37 @@ function buildPageHref(query: LeadFormSearchQuery, page: number): string {
   return `/dashboard/leads${buildLeadsSearchQuery({ ...query, page })}`;
 }
 
+interface NoResultsCopy {
+  readonly title: string;
+  readonly body: string;
+  readonly clearLabel: string;
+}
+
+// Extracted from the component body — a nested ternary drove the title alone (SonarCloud S3358,
+// PR #436 round 7 finding), and pulling all three isAdvancedMode-driven strings out together
+// (not just the flagged one) is what brings the component's own Cognitive Complexity back under
+// the S3776 threshold the same round flagged (18 vs. 15 allowed).
+function resolveNoResultsCopy(
+  t: ReturnType<typeof useTranslations>,
+  isAdvancedMode: boolean,
+  search: string | undefined,
+): NoResultsCopy {
+  if (isAdvancedMode) {
+    return {
+      title: t('filtersNoResultsTitle'),
+      body: t('filtersNoResultsBody'),
+      clearLabel: t('filtersNoResultsClear'),
+    };
+  }
+  return {
+    title: search
+      ? t('searchNoResultsTitleWithTerm', { term: search })
+      : t('searchNoResultsTitleGeneric'),
+    body: t('searchNoResultsBody'),
+    clearLabel: t('searchNoResultsClear'),
+  };
+}
+
 const PAGE_WINDOW_DELTA = 2;
 
 type PageWindowEntry =
@@ -114,6 +145,7 @@ export function LeadFormSubmissionsList({
   const clearHref = isAdvancedMode
     ? `/dashboard/leads${buildLeadsSearchQuery({ mode: 'advanced' })}`
     : '/dashboard/leads';
+  const noResultsCopy = resolveNoResultsCopy(t, isAdvancedMode, searchQuery.search);
 
   return (
     <div className="space-y-4">
@@ -138,21 +170,13 @@ export function LeadFormSubmissionsList({
 
       {total === 0 ? (
         <Card className="mx-auto max-w-md space-y-3 p-8 text-center" data-testid="leads-no-results">
-          <p className="text-base font-bold text-gray-900">
-            {isAdvancedMode
-              ? t('filtersNoResultsTitle')
-              : searchQuery.search
-                ? t('searchNoResultsTitleWithTerm', { term: searchQuery.search })
-                : t('searchNoResultsTitleGeneric')}
-          </p>
-          <p className="text-sm text-gray-500">
-            {isAdvancedMode ? t('filtersNoResultsBody') : t('searchNoResultsBody')}
-          </p>
+          <p className="text-base font-bold text-gray-900">{noResultsCopy.title}</p>
+          <p className="text-sm text-gray-500">{noResultsCopy.body}</p>
           <Link
             href={clearHref}
             className="inline-block rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
           >
-            {isAdvancedMode ? t('filtersNoResultsClear') : t('searchNoResultsClear')}
+            {noResultsCopy.clearLabel}
           </Link>
         </Card>
       ) : (

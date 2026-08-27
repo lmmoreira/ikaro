@@ -54,6 +54,18 @@ function toLocalISODate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+// Extracted from the component body (SonarCloud S3358 — nested ternary, PR #436 round 7 finding).
+function resolveDateRangeLabel(
+  value: LeadFormDateRangeValue,
+  placeholder: string,
+  formatDateLong: (date: Date) => string,
+): string {
+  if (!value.from) return placeholder;
+  const from = formatDateLong(toDisplayDate(value.from));
+  if (!value.to) return from;
+  return `${from} – ${formatDateLong(toDisplayDate(value.to))}`;
+}
+
 // Picking a range via react-day-picker's own range mode already keeps `from` <= `to` — clicking
 // a day before the current `from` restarts the range with that day as the new `from`, so no
 // extra clamp/validation is needed here (docs/M20-LEAD-FORM-MODULE.md M20-S13 story-discovery).
@@ -84,11 +96,7 @@ export function LeadFormDateRangeControl({
     });
   }
 
-  const label = value.from
-    ? value.to
-      ? `${formatDateLong(toDisplayDate(value.from))} – ${formatDateLong(toDisplayDate(value.to))}`
-      : formatDateLong(toDisplayDate(value.from))
-    : placeholder;
+  const label = resolveDateRangeLabel(value, placeholder, formatDateLong);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
