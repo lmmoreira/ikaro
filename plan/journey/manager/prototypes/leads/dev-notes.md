@@ -21,7 +21,7 @@ A new top-level sidebar item "Leads" — a simple paginated list (name/email/pho
 - **Basic** (`01-submissions-list.html`'s search box): one free-text term, matches partially across name, email, and any question's label/answer, OR-ed together. Good enough for "find Carlos."
 - **Advanced** (`01d-advanced-filters.html`): one or more question+value filter rows, ANDed — e.g. "estado civil contém casado" AND "mora contém São Paulo" returns only submissions matching *both*. The basic mode's single flattened match can't do this correctly (it can't tell which question a matched term came from, so two OR-ed terms would also match a submission where each term appears in an unrelated field) — that's the whole reason advanced mode exists as a separate thing, not just a bigger search box.
 
-**Button-driven, not live/debounced (M20-S13 story-discovery, 2026-08-27 — overrides an earlier debounced draft):** typing into the search box, editing a filter row, or picking a date range does nothing by itself. Basic mode shares one "Aplicar"/"Limpar" pair between the search box and the date range; advanced mode shares one "Aplicar filtros"/"Limpar filtros" pair between the filter rows and the date range (neither is live-typed in that mode either). "Aplicar" is disabled while the search box (or any active filter row's value) holds 1-2 characters. "Limpar"/"Limpar filtros" reset that mode's own inputs + the date range, without leaving the current mode. The "Busca avançada"/"Voltar para busca simples" toggle is the only action that drops the *other* mode's active query — it never touches the date range.
+**Button-driven, not live/debounced (M20-S13 story-discovery, 2026-08-27 — overrides an earlier debounced draft):** typing into the search box, editing a filter row, or picking a date range does nothing by itself. Basic mode shares one "Aplicar"/"Limpar" pair between the search box and the date range; advanced mode shares one "Aplicar filtros"/"Limpar filtros" pair between the filter rows and the date range (neither is live-typed in that mode either). No 3-character minimum (M20-S13 implementation, 2026-08-27, reversing S12's original design — see BFF calls below): any non-empty search/filter value works, so "Aplicar"/"Aplicar filtros" have no disabled state to guard against beyond an empty box. "Limpar"/"Limpar filtros" reset that mode's own inputs + the date range, without leaving the current mode. The "Busca avançada"/"Voltar para busca simples" toggle is the only action that drops the *other* mode's active query — it never touches the date range.
 
 Backed by a new `platform.lead_form_answers` child table — one row per question per submission, written once alongside the JSONB snapshot at insert time (`docs/13-DATABASE_SCHEMA.md`), never a live/derived query. An earlier draft of this design used a single flattened `search_text` column instead; replaced once it became clear a flattened blob can't support the advanced (ANDed, per-question) case at all.
 
@@ -69,22 +69,26 @@ A submission whose `answers` snapshot references a question no longer in the cur
 ```
 GET /v1/tenants/lead-form/submissions?page=&pageSize=&search=|filters=&submittedFrom=&submittedTo=   STAFF|MANAGER, ordered submittedAt DESC
   Response: { items: [{id,name,email,phone,submittedAt}], page, pageSize, total }
-  search (M20-S12/S13, BASIC): optional, case-insensitive partial match (>= 3 chars) against
+  search (M20-S12/S13, BASIC): optional, non-empty, case-insensitive partial match against
     name, email, or any question label/answer, OR-ed. Button-driven client-side (M20-S13
     story-discovery, 2026-08-27) — fires only on an explicit "Aplicar" click, never live/
-    debounced; "Aplicar" is disabled below 3 chars.
+    debounced. No minimum length beyond non-empty (revised M20-S13 implementation, 2026-08-27
+    — see below).
   filters (M20-S12/S13, ADVANCED): optional, URL-encoded JSON array,
     [{"questionLabel":"...","value":"..."}], max 5 entries. Each entry ANDed — every filter
     must match. questionLabel matches by EXACT equality (dropdown-sourced); value by the
-    same >= 3-char partial match as search. Mutually exclusive with search — never send both.
+    same non-empty-only rule as search. Mutually exclusive with search — never send both.
   submittedFrom/submittedTo (M20-S12/S13, DATE RANGE): optional, YYYY-MM-DD, tenant-local
     calendar dates, both inclusive from the caller's view. ORTHOGONAL to search/filters —
     combines via AND with either, or stands alone. Resolved server-side to a half-open UTC
     range via localDateTimeToUTCIso() using the tenant's businessHours.timezone. submittedFrom
     after submittedTo -> 400 before the query runs.
-  All omitted -> unfiltered, unchanged from before this addition. A search/filter value under
-  3 chars is rejected 400 before the query runs (pg_trgm needs an extractable trigram —
-  verified against PostgreSQL's own docs, not assumed).
+  All omitted -> unfiltered, unchanged from before this addition. An EMPTY search/filter value
+  is rejected 400 before the query runs. No 3-character minimum (M20-S12's original design,
+  reversed during M20-S13 implementation, 2026-08-27): pg_trgm genuinely can't accelerate a
+  pattern under 3 chars, but at this feature's real per-tenant volume caps (tens of thousands
+  of rows at most), an occasional un-indexed full scan for a short term (an age, "25") is cheap
+  enough not to matter, and rejecting it outright made real short answers unsearchable.
 GET /v1/tenants/lead-form/submissions/filter-options   STAFF|MANAGER
   Response: { questionLabels: string[] }
   Distinct question labels ever recorded for this tenant — includes labels from questions

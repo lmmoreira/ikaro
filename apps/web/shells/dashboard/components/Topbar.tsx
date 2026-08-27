@@ -78,7 +78,7 @@ export function Topbar({ tenantName, userName, action }: TopbarProps): React.JSX
               <span>{effectiveBackLabel}</span>
             </button>
           ) : (
-            <Link href={backHref!} className={backLinkClassName}>
+            <Link href={backHref!} data-testid="topbar-back-button" className={backLinkClassName}>
               <ChevronLeft className="h-5 w-5" />
               <span>{effectiveBackLabel}</span>
             </Link>

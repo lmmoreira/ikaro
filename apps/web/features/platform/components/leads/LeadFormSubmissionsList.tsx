@@ -99,6 +99,12 @@ export function LeadFormSubmissionsList({
 
   const isAdvancedMode = Boolean(searchQuery.filters && searchQuery.filters.length > 0);
 
+  // Carries the exact current list state (mode included) through to the detail page's own
+  // "back" link (LeadFormSubmissionDetail), instead of it always returning to the bare,
+  // unfiltered basic view (M20-S13 story feedback, 2026-08-27).
+  const currentListQuery = buildLeadsSearchQuery({ ...searchQuery, page });
+  const returnToParam = currentListQuery ? `?returnTo=${encodeURIComponent(currentListQuery)}` : '';
+
   return (
     <div className="space-y-4">
       <LeadFormSearchPanel
@@ -139,7 +145,7 @@ export function LeadFormSubmissionsList({
               {items.map((item) => (
                 <Link
                   key={item.id}
-                  href={`/dashboard/leads/${item.id}`}
+                  href={`/dashboard/leads/${item.id}${returnToParam}`}
                   data-testid="lead-submission-row"
                   data-submission-id={item.id}
                   className="flex items-center gap-3 px-4 py-3.5 hover:bg-slate-50"

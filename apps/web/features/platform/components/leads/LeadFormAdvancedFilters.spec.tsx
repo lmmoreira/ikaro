@@ -8,7 +8,7 @@ import { LeadFormAdvancedFilters } from './LeadFormAdvancedFilters';
 
 const LABELS = {
   questionPlaceholder: 'Selecione uma pergunta...',
-  valuePlaceholder: 'Contém... (mín. 3 caracteres)',
+  valuePlaceholder: 'Contém...',
   removeRowLabel: 'Remover filtro',
   addRowLabel: '+ Adicionar filtro',
   andLabel: 'E',
@@ -59,34 +59,6 @@ describe('LeadFormAdvancedFilters', () => {
     await user.type(screen.getByTestId('leads-filter-row-value'), 'c');
 
     expect(handleChange).toHaveBeenCalledWith([{ ...row, value: 'c' }]);
-  });
-
-  it('marks a 1-2 character value as invalid via aria-invalid', () => {
-    const row = { ...createEmptyFilterRow(), value: 'ab' };
-    renderWithIntl(
-      <LeadFormAdvancedFilters
-        rows={[row]}
-        filterOptionLabels={[]}
-        onChange={vi.fn()}
-        {...LABELS}
-      />,
-    );
-
-    expect(screen.getByTestId('leads-filter-row-value')).toHaveAttribute('aria-invalid', 'true');
-  });
-
-  it('does not mark an empty value as invalid', () => {
-    const row = createEmptyFilterRow();
-    renderWithIntl(
-      <LeadFormAdvancedFilters
-        rows={[row]}
-        filterOptionLabels={[]}
-        onChange={vi.fn()}
-        {...LABELS}
-      />,
-    );
-
-    expect(screen.getByTestId('leads-filter-row-value')).toHaveAttribute('aria-invalid', 'false');
   });
 
   it('adds a new empty row when "+ Adicionar filtro" is clicked', async () => {

@@ -36,11 +36,12 @@ export const LeadFormSubmissionFieldsSchema = z.object({
 });
 
 // M20-S12 — advanced-filter entry, one per question. `questionLabel` is dropdown-sourced (never
-// free-typed — see the filter-options endpoint), so it only needs non-empty; `value` shares the
-// same 3-character minimum as `search` (docs/14-API_CONTRACTS.md § Leads Submissions).
+// free-typed — see the filter-options endpoint), so it only needs non-empty; `value` only needs
+// non-empty too (M20-S13 story feedback, 2026-08-27 — see ListLeadFormSubmissionsSchema below for
+// why the earlier 3-character minimum was dropped).
 export const LeadFormSubmissionFilterEntrySchema = z.object({
   questionLabel: z.string().min(1),
-  value: z.string().min(3),
+  value: z.string().min(1),
 });
 
 // `filters` arrives as a URL-encoded JSON array string (query params are always strings) — parse
@@ -71,19 +72,28 @@ const LeadFormSubmissionFiltersQuerySchema = z
 // (BFF-5) rather than authored duplicated from the start.
 //
 // M20-S12 adds `search`/`filters` (mutually exclusive — UC-041 steps 3-4) and
-// `submittedFrom`/`submittedTo` (orthogonal date range — UC-041 step 5). `search` and each
-// `filters[].value` share the same 3-character minimum, backed by the `pg_trgm` GIN index's own
-// "no extractable trigrams below 3 chars" limitation (docs/13-DATABASE_SCHEMA.md §
-// platform.lead_form_answers) — a plain Zod `.min()` derives GENERIC_VALUE_TOO_SHORT automatically
-// (zod-violation.ts), no bespoke code needed. `filters` capped at 5 entries derives
-// GENERIC_VALUE_OUT_OF_RANGE the same way. The two cross-field rules below have no VO behind them
-// either, so each reuses GenericErrorCode via `.refine()` + `params.code`, mirroring
-// tenant-settings.ts's `buildUpdateTenantSettingsSchema` empty-update `.refine()`.
+// `submittedFrom`/`submittedTo` (orthogonal date range — UC-041 step 5). `filters` capped at 5
+// entries derives GENERIC_VALUE_OUT_OF_RANGE via a plain Zod `.max()` (zod-violation.ts), no
+// bespoke code needed. The two cross-field rules below have no VO behind them either, so each
+// reuses GenericErrorCode via `.refine()` + `params.code`, mirroring tenant-settings.ts's
+// `buildUpdateTenantSettingsSchema` empty-update `.refine()`.
+//
+// `search`/`filters[].value` only require non-empty — NOT a 3-character minimum. The original
+// M20-S12 design rejected anything under 3 characters because `pg_trgm`'s GIN index can't
+// accelerate a pattern with no extractable trigram (verified against PostgreSQL's own pgtrgm
+// docs). That reasoning about the *index* was correct, but the *conclusion* (reject the request
+// outright) over-weighted it without checking this feature's actual data volume: this milestone's
+// discovery already caps realistic per-tenant submission counts at roughly 3,100/month, so even a
+// worst-case multi-year retention window keeps a tenant's `lead_form_answers` rows in the tens of
+// thousands, not millions — a full sequential scan at that scale is fast enough to not matter,
+// and rejecting a real search like an age ("25") or a short single-choice answer was a genuine
+// usability regression with no real performance benefit at this scale (M20-S13 story feedback,
+// 2026-08-27 — reverses the M20-S12 AC bullet requiring the 3-character minimum).
 export const ListLeadFormSubmissionsSchema = z
   .object({
     page: z.coerce.number().int().min(1).default(1),
     pageSize: z.coerce.number().int().min(1).max(100).default(20),
-    search: z.string().min(3).optional(),
+    search: z.string().min(1).optional(),
     filters: LeadFormSubmissionFiltersQuerySchema.optional(),
     submittedFrom: z.iso.date().optional(),
     submittedTo: z.iso.date().optional(),

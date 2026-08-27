@@ -61,8 +61,6 @@ export function LeadFormSearchPanel({
     );
   }
 
-  const searchInvalid = searchTerm.trim().length > 0 && !isSearchTermValid(searchTerm);
-
   function handleApplyBasic(): void {
     navigate({ search: isSearchTermValid(searchTerm) ? searchTerm.trim() : undefined });
   }
@@ -75,9 +73,6 @@ export function LeadFormSearchPanel({
 
   const activeFilterRows = filterRows.filter(
     (row) => row.questionLabel && isSearchTermValid(row.value),
-  );
-  const filtersInvalid = filterRows.some(
-    (row) => row.value.trim().length > 0 && !isSearchTermValid(row.value),
   );
 
   function handleApplyAdvanced(): void {
@@ -135,7 +130,6 @@ export function LeadFormSearchPanel({
               onChange={(event) => setSearchTerm(event.target.value)}
               placeholder={t('searchPlaceholder')}
               aria-label={t('searchPlaceholder')}
-              aria-invalid={searchInvalid}
               data-testid="leads-search-input"
               className="h-10 w-full rounded-md border border-gray-200 bg-white pl-9 pr-3 text-sm outline-none focus:border-blue-500"
             />
@@ -167,12 +161,7 @@ export function LeadFormSearchPanel({
         />
         {mode === 'basic' ? (
           <>
-            <Button
-              type="button"
-              onClick={handleApplyBasic}
-              disabled={searchInvalid}
-              data-testid="leads-search-apply"
-            >
+            <Button type="button" onClick={handleApplyBasic} data-testid="leads-search-apply">
               {t('searchApply')}
             </Button>
             <Button
@@ -186,12 +175,7 @@ export function LeadFormSearchPanel({
           </>
         ) : (
           <>
-            <Button
-              type="button"
-              onClick={handleApplyAdvanced}
-              disabled={filtersInvalid}
-              data-testid="leads-filters-apply"
-            >
+            <Button type="button" onClick={handleApplyAdvanced} data-testid="leads-filters-apply">
               {t('advancedFiltersApply')}
             </Button>
             <Button

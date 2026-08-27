@@ -7,7 +7,6 @@ import { Button } from '@/shared/components/ui/button';
 import { Calendar } from '@/shared/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
-import { toISODateInTimezone } from '@/shared/lib/formatting/date-utils';
 
 export interface LeadFormDateRangeValue {
   readonly from?: string;
@@ -20,8 +19,39 @@ interface LeadFormDateRangeControlProps {
   readonly placeholder: string;
 }
 
-function toDate(isoDate: string): Date {
+// Parsed as LOCAL time (not UTC) deliberately — fed back into <Calendar selected=. react-day-
+// picker's own range-extension logic (addToRange) compares it against the LOCAL-midnight Date
+// objects it constructs internally for each day cell; parsing this one as UTC instead corrupts
+// that comparison the moment the runtime's local offset is non-zero (confirmed via a real CI
+// failure — a second click meant to extend an existing range instead shifted `from` by a day).
+// Only for feeding the Calendar's `selected` prop — use toDisplayDate for the label below, which
+// has the opposite requirement.
+function toLocalDate(isoDate: string): Date {
   return new Date(`${isoDate}T00:00:00`);
+}
+
+// Parsed as UTC deliberately — formatDateLong pins `timeZone: 'UTC'` internally, so this must be
+// fed a UTC-midnight Date to round-trip correctly regardless of the runtime's local offset (a
+// local-midnight Date, like toLocalDate above, displays the wrong day here for a runtime with a
+// positive UTC offset — confirmed empirically under TZ=Asia/Tokyo). Only for the label; using
+// this for the Calendar's `selected` prop instead would reintroduce the addToRange bug above.
+function toDisplayDate(isoDate: string): Date {
+  return new Date(`${isoDate}T00:00:00Z`);
+}
+
+// react-day-picker constructs each day cell's Date at LOCAL midnight in the JS runtime's own
+// timezone — reading it back out via the SAME local getters (not re-interpreting it through a
+// different timezone, e.g. the tenant's business timezone) is what keeps "the calendar day the
+// user visually clicked" stable regardless of what timezone the runtime happens to be in.
+// Converting through a different timezone here previously shifted the selected day by one
+// whenever the runtime's local timezone differed from the tenant's (confirmed via a real CI
+// failure, GitHub's UTC runners vs. America/Sao_Paulo: midnight UTC on the 10th become the 9th
+// once reinterpreted as Sao Paulo time) — this is a real correctness bug, not just a test issue.
+function toLocalISODate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 // Picking a range via react-day-picker's own range mode already keeps `from` <= `to` — clicking
@@ -32,11 +62,11 @@ export function LeadFormDateRangeControl({
   onChange,
   placeholder,
 }: LeadFormDateRangeControlProps): React.JSX.Element {
-  const { timezone, formatDateLong } = useFormatting();
+  const { formatDateLong } = useFormatting();
   const [open, setOpen] = useState(false);
 
   const selectedRange: DateRange | undefined = value.from
-    ? { from: toDate(value.from), to: value.to ? toDate(value.to) : undefined }
+    ? { from: toLocalDate(value.from), to: value.to ? toLocalDate(value.to) : undefined }
     : undefined;
 
   function handleSelect(range: DateRange | undefined): void {
@@ -49,15 +79,15 @@ export function LeadFormDateRangeControl({
     // click extend it, so this relies on the Popover's own click-outside/Escape dismissal
     // instead of auto-closing here.
     onChange({
-      from: toISODateInTimezone(range.from, timezone),
-      to: range.to ? toISODateInTimezone(range.to, timezone) : undefined,
+      from: toLocalISODate(range.from),
+      to: range.to ? toLocalISODate(range.to) : undefined,
     });
   }
 
   const label = value.from
     ? value.to
-      ? `${formatDateLong(toDate(value.from))} – ${formatDateLong(toDate(value.to))}`
-      : formatDateLong(toDate(value.from))
+      ? `${formatDateLong(toDisplayDate(value.from))} – ${formatDateLong(toDisplayDate(value.to))}`
+      : formatDateLong(toDisplayDate(value.from))
     : placeholder;
 
   return (

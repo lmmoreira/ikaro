@@ -14,13 +14,16 @@ export interface LeadFormSearchQuery {
   readonly submittedTo?: string;
 }
 
-// Matches the backend's pg_trgm-driven minimum (docs/14-API_CONTRACTS.md § Leads Submissions) —
-// a client-side mirror of the backend rule, not the source of truth for it.
-export const MIN_SEARCH_TERM_LENGTH = 3;
 export const MAX_FILTER_ROWS = 5;
 
+// Non-empty is the only requirement (docs/14-API_CONTRACTS.md § Leads Submissions) — no
+// 3-character minimum. The backend's pg_trgm index genuinely can't accelerate a pattern under 3
+// characters, but at this feature's real per-tenant volume caps an occasional un-indexed full
+// scan is cheap enough not to matter, and rejecting a short-but-real term (an age, "25") was a
+// usability regression with no real performance benefit at this scale (M20-S13 implementation,
+// 2026-08-27, reversing the story's own original 3-character-minimum design).
 export function isSearchTermValid(term: string): boolean {
-  return term.trim().length >= MIN_SEARCH_TERM_LENGTH;
+  return term.trim().length > 0;
 }
 
 // A stable client-only `id` per row is needed for React list keys — an advanced-filter row has

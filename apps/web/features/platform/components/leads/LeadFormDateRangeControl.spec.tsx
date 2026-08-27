@@ -12,6 +12,24 @@ function clickDay(isoDate: string): void {
   fireEvent.click(cell);
 }
 
+// The component renders no `month`/`defaultMonth` prop, so react-day-picker defaults to
+// today's real month + the next one (numberOfMonths={2}). A hardcoded calendar date would
+// silently stop being visible in that window once real time moves past it — computing relative
+// to Date.now() instead is the same fix this repo already applies to test-builder date defaults
+// (CLAUDE.md § Shared test-builder date defaults). +10 days is always within the 2-month
+// forward window regardless of today's day-of-month.
+// Local-getter-only, matching the component's own toLocalISODate — `.toISOString()` would
+// reinterpret the local day through UTC, the exact bug this test exists to catch (a real CI
+// failure showed this shifting the reported day by one on GitHub's UTC runners).
+function isoDateDaysFromNow(days: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 // A real caller (LeadFormSearchPanel) keeps `value` in state and re-renders with the previous
 // selection fed back in — required for react-day-picker's range mode to extend an existing
 // range on a second click rather than starting a fresh one every time.
@@ -81,11 +99,13 @@ describe('LeadFormDateRangeControl', () => {
     // the first click alone is already a valid {from, to} pair (see addToRange.js). A second
     // click on a later day then extends `to`, but only because ControlledHarness feeds the
     // first click's result back in as `value` before the second click runs.
-    clickDay('2026-08-10');
-    expect(handleChange).toHaveBeenLastCalledWith({ from: '2026-08-10', to: '2026-08-10' });
+    const firstDay = isoDateDaysFromNow(3);
+    const secondDay = isoDateDaysFromNow(10);
+    clickDay(firstDay);
+    expect(handleChange).toHaveBeenLastCalledWith({ from: firstDay, to: firstDay });
 
-    clickDay('2026-08-15');
-    expect(handleChange).toHaveBeenLastCalledWith({ from: '2026-08-10', to: '2026-08-15' });
+    clickDay(secondDay);
+    expect(handleChange).toHaveBeenLastCalledWith({ from: firstDay, to: secondDay });
   });
 
   it('renders two months so a cross-month range is selectable in one open', async () => {

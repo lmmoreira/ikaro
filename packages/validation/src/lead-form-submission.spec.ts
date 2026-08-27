@@ -79,12 +79,19 @@ describe('ListLeadFormSubmissionsSchema (M20-S12)', () => {
     }
   });
 
-  it('accepts a valid search term (>= 3 chars)', () => {
+  it('accepts a valid search term', () => {
     expect(ListLeadFormSubmissionsSchema.safeParse({ search: 'casado' }).success).toBe(true);
   });
 
-  it('rejects a search term under 3 chars', () => {
-    const result = ListLeadFormSubmissionsSchema.safeParse({ search: 'ab' });
+  // No 3-character minimum (reversed M20-S12 decision, M20-S13 story feedback, 2026-08-27) — a
+  // short but real search term (e.g. an age, "25") must not be rejected outright.
+  it('accepts a 1-2 character search term', () => {
+    expect(ListLeadFormSubmissionsSchema.safeParse({ search: 'ab' }).success).toBe(true);
+    expect(ListLeadFormSubmissionsSchema.safeParse({ search: '2' }).success).toBe(true);
+  });
+
+  it('rejects an empty search term', () => {
+    const result = ListLeadFormSubmissionsSchema.safeParse({ search: '' });
     expect(result.success).toBe(false);
   });
 
@@ -103,9 +110,16 @@ describe('ListLeadFormSubmissionsSchema (M20-S12)', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects a filters entry with a value under 3 chars', () => {
+  it('accepts a filters entry with a 1-2 character value', () => {
     const result = ListLeadFormSubmissionsSchema.safeParse({
-      filters: JSON.stringify([{ questionLabel: 'Estado civil', value: 'ab' }]),
+      filters: JSON.stringify([{ questionLabel: 'Idade', value: '25' }]),
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a filters entry with an empty value', () => {
+    const result = ListLeadFormSubmissionsSchema.safeParse({
+      filters: JSON.stringify([{ questionLabel: 'Estado civil', value: '' }]),
     });
     expect(result.success).toBe(false);
   });

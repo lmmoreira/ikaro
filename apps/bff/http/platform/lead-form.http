@@ -56,7 +56,7 @@ Authorization: Bearer {{staffToken}}
 
 ###
 
-### Staff lists submissions — basic search (M20-S12, min 3 chars)
+### Staff lists submissions — basic search (M20-S12, min 1 char as of M20-S13)
 GET {{bffUrl}}/v1/tenants/lead-form/submissions?page=1&pageSize=20&search=casado
 Authorization: Bearer {{staffToken}}
 
@@ -90,8 +90,8 @@ Authorization: Bearer {{staffToken}}
 # FAILURE PATHS
 # ─────────────────────────────────────────────────────────────────────────────
 
-### search under 3 chars → 400 GENERIC_VALUE_TOO_SHORT (M20-S12)
-GET {{bffUrl}}/v1/tenants/lead-form/submissions?search=ab
+### empty search → 400 GENERIC_VALUE_TOO_SHORT (M20-S13 — no minimum length beyond non-empty)
+GET {{bffUrl}}/v1/tenants/lead-form/submissions?search=
 Authorization: Bearer {{staffToken}}
 
 ###

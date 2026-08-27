@@ -2,16 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { buildLeadsSearchQuery, isSearchTermValid, parseLeadFormFilters } from './lead-form-search';
 
 describe('isSearchTermValid', () => {
-  it('rejects a term under 3 characters (trimmed)', () => {
+  it('rejects an empty term (trimmed)', () => {
     expect(isSearchTermValid('')).toBe(false);
-    expect(isSearchTermValid('a')).toBe(false);
-    expect(isSearchTermValid('ab')).toBe(false);
-    expect(isSearchTermValid('  ab  ')).toBe(false);
+    expect(isSearchTermValid('   ')).toBe(false);
   });
 
-  it('accepts a term of 3 or more characters (trimmed)', () => {
+  // No 3-character minimum (M20-S13 implementation, 2026-08-27) — a short but real term (an
+  // age, a single-choice answer) must be searchable.
+  it('accepts any non-empty term, including 1-2 characters', () => {
+    expect(isSearchTermValid('a')).toBe(true);
+    expect(isSearchTermValid('ab')).toBe(true);
+    expect(isSearchTermValid('  ab  ')).toBe(true);
     expect(isSearchTermValid('abc')).toBe(true);
-    expect(isSearchTermValid('  abc  ')).toBe(true);
   });
 });
 

@@ -41,22 +41,25 @@ describe('LeadFormSearchPanel', () => {
     expect(screen.getByTestId('leads-search-input')).toHaveValue('carlos');
   });
 
-  it('disables "Aplicar" while the search term is 1-2 characters', async () => {
+  // No 3-character minimum (M20-S13 implementation, 2026-08-27) — "Aplicar" has no disabled
+  // state to guard against beyond an empty box.
+  it('enables "Aplicar" for a 1-2 character search term', async () => {
     const user = userEvent.setup();
     renderWithIntl(<LeadFormSearchPanel filterOptionLabels={[]} />);
 
     await user.type(screen.getByTestId('leads-search-input'), 'ab');
 
-    expect(screen.getByTestId('leads-search-apply')).toBeDisabled();
+    expect(screen.getByTestId('leads-search-apply')).toBeEnabled();
   });
 
-  it('enables "Aplicar" once the search term reaches 3 characters', async () => {
+  it('navigates with a 1-2 character search term on "Aplicar"', async () => {
     const user = userEvent.setup();
     renderWithIntl(<LeadFormSearchPanel filterOptionLabels={[]} />);
 
-    await user.type(screen.getByTestId('leads-search-input'), 'abc');
+    await user.type(screen.getByTestId('leads-search-input'), 'ab');
+    await user.click(screen.getByTestId('leads-search-apply'));
 
-    expect(screen.getByTestId('leads-search-apply')).toBeEnabled();
+    expect(routerPush).toHaveBeenCalledWith('/dashboard/leads?search=ab');
   });
 
   it('enables "Aplicar" for an empty search box (equivalent to no search active)', () => {
@@ -156,8 +159,9 @@ describe('LeadFormSearchPanel', () => {
     expect(routerPush).toHaveBeenCalledWith(`/dashboard/leads?${expectedQuery}`);
   });
 
-  it('disables "Aplicar filtros" while any row holds a 1-2 character value', async () => {
-    const user = userEvent.setup();
+  // No 3-character minimum (M20-S13 implementation, 2026-08-27) — "Aplicar filtros" has no
+  // disabled state to guard against beyond every row being empty.
+  it('enables "Aplicar filtros" while a row holds a 1-2 character value', () => {
     renderWithIntl(
       <LeadFormSearchPanel
         initialFilters={[{ questionLabel: 'Estado civil', value: 'ca' }]}
@@ -165,9 +169,6 @@ describe('LeadFormSearchPanel', () => {
       />,
     );
 
-    expect(screen.getByTestId('leads-filters-apply')).toBeDisabled();
-    await user.clear(screen.getByTestId('leads-filter-row-value'));
-    await user.type(screen.getByTestId('leads-filter-row-value'), 'casado');
     expect(screen.getByTestId('leads-filters-apply')).toBeEnabled();
   });
 

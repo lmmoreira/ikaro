@@ -59,10 +59,18 @@ async function submitGuestLead(browser: Browser, input: GuestLeadInput): Promise
   await context.close();
 }
 
+// Local-getter-only — `.toISOString()` reinterprets the local day through UTC, which shifted
+// the clicked-cell date by one day whenever the runner's local timezone offset was non-zero
+// (found via a real CI failure in LeadFormDateRangeControl.spec.tsx's own version of this
+// helper; the calendar widget itself constructs day cells via local Date semantics, so the
+// string driving `[data-day=...]` must match using the same local getters, not a UTC round-trip).
 function isoDateDaysFromNow(days: number): string {
   const date = new Date();
   date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 test.describe.serial('leads search — M20-S13', () => {
@@ -148,14 +156,20 @@ test.describe.serial('leads search — M20-S13', () => {
     await expect(row).toContainText('Fernanda Alves');
   });
 
-  test('a 1-2 character term leaves "Aplicar" disabled and does not navigate', async ({ page }) => {
+  // No 3-character minimum (M20-S13 implementation, 2026-08-27) — a short but real term (an
+  // age, a single-choice answer) must actually be searchable, end to end.
+  test('a 1-2 character search term still finds a match', async ({ page }) => {
     await loginAsStaff(page, MANAGER_EMAIL, MANAGER_TENANT_SLUG);
     await page.goto('/dashboard/leads');
 
-    await page.getByTestId('leads-search-input').fill('ab');
+    // 'ri' is unique to the "Ricardo Souza" fixture (name and city both contain it) — the
+    // "Fernanda Alves" fixture matches neither.
+    await page.getByTestId('leads-search-input').fill('ri');
+    await page.getByTestId('leads-search-apply').click();
 
-    await expect(page.getByTestId('leads-search-apply')).toBeDisabled();
-    await expect(page).toHaveURL(/\/dashboard\/leads$/);
+    const rows = page.getByTestId('lead-submission-row');
+    await expect(rows).toHaveCount(1, { timeout: 15_000 });
+    await expect(rows.first()).toContainText('Ricardo Souza');
   });
 
   test('a search with no matches shows the distinct no-results state, and "Limpar busca" returns to the unfiltered list', async ({
@@ -229,5 +243,23 @@ test.describe.serial('leads search — M20-S13', () => {
     await page.getByTestId('leads-search-apply').click();
 
     await expect(page.getByTestId('leads-no-results')).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('opening a submission and clicking back restores the active search, not the bare unfiltered list', async ({
+    page,
+  }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, MANAGER_TENANT_SLUG);
+    await page.goto('/dashboard/leads');
+
+    await page.getByTestId('leads-search-input').fill('Fernanda');
+    await page.getByTestId('leads-search-apply').click();
+    await expect(page).toHaveURL(/search=Fernanda/);
+
+    await page.getByTestId('lead-submission-row').first().click();
+    await expect(page).toHaveURL(/\/dashboard\/leads\/[^/?]+\?returnTo=/);
+
+    await page.getByTestId('topbar-back-button').click();
+    await expect(page).toHaveURL(/search=Fernanda/);
+    await expect(page.getByTestId('leads-search-input')).toHaveValue('Fernanda');
   });
 });

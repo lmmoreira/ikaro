@@ -177,6 +177,44 @@ describe('LeadFormSubmissionsList', () => {
     expect(screen.getByText('2')).toHaveAttribute('href', '/dashboard/leads?search=carlos&page=2');
   });
 
+  it("carries the current list query through to each row link, for the detail page's own back link", () => {
+    const items = [buildItem({ id: 'sub-1' })];
+    renderWithIntl(
+      <LeadFormSubmissionsList
+        items={items}
+        page={2}
+        pageSize={20}
+        total={30}
+        searchQuery={{ search: 'carlos' }}
+        filterOptionLabels={[]}
+      />,
+    );
+
+    const row = screen.getByTestId('lead-submission-row');
+    expect(row).toHaveAttribute(
+      'href',
+      `/dashboard/leads/sub-1?returnTo=${encodeURIComponent('?search=carlos&page=2')}`,
+    );
+  });
+
+  it('does not append returnTo to row links when no query is active', () => {
+    renderWithIntl(
+      <LeadFormSubmissionsList
+        items={[buildItem({ id: 'sub-1' })]}
+        page={1}
+        pageSize={20}
+        total={1}
+        searchQuery={NO_QUERY}
+        filterOptionLabels={[]}
+      />,
+    );
+
+    expect(screen.getByTestId('lead-submission-row')).toHaveAttribute(
+      'href',
+      '/dashboard/leads/sub-1',
+    );
+  });
+
   it('renders a bounded window with ellipses instead of one link per page for a large total', () => {
     // 24 months retention x up to 1,000 submissions/day can produce hundreds of pages — the
     // rendered link count must stay bounded regardless of totalPages (Codex PR #435 review).
