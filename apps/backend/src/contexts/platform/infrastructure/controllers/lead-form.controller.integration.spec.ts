@@ -218,6 +218,68 @@ describe('LeadFormController (integration)', () => {
       expect(body.items).toEqual([]);
       expect(body.total).toBe(0);
     });
+
+    it('?search= matches against name over the real HTTP + DB path (M20-S12)', async () => {
+      const { body } = await request(app.getHttpServer())
+        .get('/tenants/lead-form/submissions')
+        .query({ search: 'Lead 7' })
+        .set('X-Tenant-ID', TENANT_SUBMISSIONS)
+        .set('X-Actor-Role', 'STAFF')
+        .expect(200);
+
+      expect(body.items).toHaveLength(1);
+      expect(body.items[0].name).toBe('Lead 7');
+    });
+
+    it('?search= under 3 chars → 400 GENERIC_VALUE_TOO_SHORT (M20-S12)', async () => {
+      const { body } = await request(app.getHttpServer())
+        .get('/tenants/lead-form/submissions')
+        .query({ search: 'ab' })
+        .set('X-Tenant-ID', TENANT_SUBMISSIONS)
+        .set('X-Actor-Role', 'STAFF')
+        .expect(400);
+
+      expect(body.violations).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ field: 'search', code: 'GENERIC_VALUE_TOO_SHORT' }),
+        ]),
+      );
+    });
+
+    it('?search=&filters= together → 400 GENERIC_VALUE_INVALID (M20-S12)', async () => {
+      const { body } = await request(app.getHttpServer())
+        .get('/tenants/lead-form/submissions')
+        .query({
+          search: 'casado',
+          filters: JSON.stringify([{ questionLabel: 'Estado civil', value: 'casado' }]),
+        })
+        .set('X-Tenant-ID', TENANT_SUBMISSIONS)
+        .set('X-Actor-Role', 'STAFF')
+        .expect(400);
+
+      expect(body.violations).toEqual(
+        expect.arrayContaining([expect.objectContaining({ code: 'GENERIC_VALUE_INVALID' })]),
+      );
+    });
+  });
+
+  describe('GET /tenants/lead-form/submissions/filter-options (M20-S12)', () => {
+    it('returns 200, not captured by the :id route (real Nest route-ordering proof)', async () => {
+      const { body } = await request(app.getHttpServer())
+        .get('/tenants/lead-form/submissions/filter-options')
+        .set('X-Tenant-ID', TENANT_SUBMISSIONS)
+        .set('X-Actor-Role', 'STAFF')
+        .expect(200);
+
+      expect(body).toEqual({ questionLabels: expect.any(Array) });
+    });
+
+    it('returns 403 when no X-Actor-Role header is present', async () => {
+      await request(app.getHttpServer())
+        .get('/tenants/lead-form/submissions/filter-options')
+        .set('X-Tenant-ID', TENANT_SUBMISSIONS)
+        .expect(403);
+    });
   });
 
   describe('GET /tenants/lead-form/submissions/:id', () => {

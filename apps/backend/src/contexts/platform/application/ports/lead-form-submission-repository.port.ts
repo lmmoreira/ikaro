@@ -7,16 +7,38 @@ export interface PaginatedLeadFormSubmissions {
   total: number;
 }
 
+// M20-S12 — UC-041 steps 3-5. `search` (basic) and `filters` (advanced) are mutually exclusive
+// (enforced at the Zod boundary, packages/validation/src/lead-form-submission.ts — the repository
+// itself doesn't re-validate this). `submittedFrom`/`submittedTo` are already-resolved UTC instant
+// boundaries (half-open `[from, to)`, tenant-local calendar days converted by the use case via
+// `localDateTimeToUTCIso` — same "resolve to real Date boundaries at the use-case layer, not
+// inside the adapter" discipline `countByTenantAndDate`'s own docstring above already establishes).
+export interface LeadFormSubmissionSearchOptions {
+  search?: string;
+  filters?: { questionLabel: string; value: string }[];
+  submittedFrom?: Date;
+  submittedTo?: Date;
+}
+
 export interface ILeadFormSubmissionRepository {
   save(submission: LeadFormSubmission): Promise<void>;
-  /** UC-041 main flow step 1 — paginated admin list, ordered `submittedAt DESC`, seeking the
+  /** UC-041 main flow steps 1, 3-5 — paginated admin list, ordered `submittedAt DESC`, seeking the
    * `(tenant_id, submitted_at DESC)` index (mirrors `TypeOrmLoyaltyEntryRepository`'s own
-   * `findAndCount`/`take`/`skip` pagination precedent). `page` is 1-indexed. */
+   * `findAndCount`/`take`/`skip` pagination precedent). `page` is 1-indexed. `options` (M20-S12)
+   * layers optional basic search / advanced filters / date range on top of the same paginated
+   * query — see `LeadFormSubmissionSearchOptions`. */
   findByTenantPaginated(
     tenantId: string,
     page: number,
     pageSize: number,
+    options?: LeadFormSubmissionSearchOptions,
   ): Promise<PaginatedLeadFormSubmissions>;
+  /** UC-041 step 4's filter dropdown (M20-S12) — every distinct `question_label` this tenant has
+   * ever recorded in `platform.lead_form_answers`, alphabetically ordered, via the
+   * `(tenant_id, question_label)` index. Deliberately includes labels from questions since edited
+   * or removed from the live `LeadFormConfig` — the filter matches a submission's own snapshot,
+   * not the current config. */
+  findDistinctQuestionLabels(tenantId: string): Promise<string[]>;
   /** UC-041 main flow step 6 — tenant-scoped lookup for the detail view. Returns `null` (never
    * throws) for a nonexistent id OR one belonging to a different tenant — the same "404, not 403"
    * cross-tenant-probing shape `GetBookingByIdUseCase` already establishes; the use case throws
@@ -46,6 +68,11 @@ export interface ILeadFormSubmissionRepository {
    * `now`, across every tenant in one pass (no tenant_id predicate — matches
    * ExpirePointsJob/ChatbotRetentionPurgeJob's own cross-tenant precedent), using the
    * standalone `(expires_at)` index — the `(tenant_id, expires_at)` composite index can't be
-   * seeked by this unscoped query. Returns the number of rows actually deleted. */
+   * seeked by this unscoped query. Returns the number of rows actually deleted. Also deletes each
+   * expiring submission's `platform.lead_form_answers` rows first (M20-S12) — that table has no
+   * `ON DELETE CASCADE` (deliberately, matching `chatbot_messages`/`chatbot_sessions`), and both
+   * tables are owned by this same repository (unlike Chatbot's separate message/session repos), so
+   * the child-then-parent delete is one repository method rather than two job-level calls;
+   * `LeadFormRetentionPurgeJob` itself is unchanged. */
   deleteExpired(now: Date): Promise<number>;
 }

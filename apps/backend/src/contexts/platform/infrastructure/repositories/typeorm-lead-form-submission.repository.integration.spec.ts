@@ -56,6 +56,14 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
   });
 
   beforeEach(async () => {
+    // lead_form_answers first (M20-S12) — no ON DELETE CASCADE on its FK to
+    // lead_form_submissions (deliberately, mirroring chatbot_messages/chatbot_sessions), so a raw
+    // delete of the parent row without this would violate the FK, same as
+    // LeadFormRetentionPurgeJob's own child-then-parent ordering.
+    await dataSource.query(
+      `DELETE FROM "platform"."lead_form_answers" WHERE "tenant_id" = ANY($1)`,
+      [[TENANT_A, TENANT_B]],
+    );
     await entityRepo.delete({ tenantId: TENANT_A });
     await entityRepo.delete({ tenantId: TENANT_B });
     await outboxRepo.delete({ tenantId: TENANT_A });
@@ -410,6 +418,364 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
       const found = await repo.findById(submission.id, TENANT_A);
       expect(found).not.toBeNull();
       expect(found!.id).toBe(submission.id);
+    });
+  });
+
+  describe('lead_form_answers — persisted rows (M20-S12)', () => {
+    it('gets exactly one row per selected option for MULTIPLE_CHOICE, each independently queryable', async () => {
+      const repo = makeRepo(new InMemoryEventBus());
+      const submission = LeadFormSubmission.create({
+        tenantId: TENANT_A,
+        customerId: null,
+        name: 'Maria Silva',
+        email: `lead-${uuidv7()}@example.com`,
+        phone: '+5511912345678',
+        answers: [
+          {
+            questionId: QUESTION_ID,
+            questionLabel: 'Serviços de interesse',
+            questionType: 'MULTIPLE_CHOICE',
+            answerValue: ['Lavagem', 'Enceramento'],
+          },
+        ],
+        ipAddress: '203.0.113.10',
+        retentionMonths: 6,
+        correlationId: `corr-${uuidv7()}`,
+      });
+
+      await txManager.run(() => repo.save(submission));
+
+      const rows = (await dataSource.query(
+        `
+          SELECT question_label, answer_value FROM "platform"."lead_form_answers"
+          WHERE submission_id = $1 ORDER BY answer_value
+        `,
+        [submission.id],
+      )) as Array<{ question_label: string; answer_value: string }>;
+      expect(rows).toEqual([
+        { question_label: 'Serviços de interesse', answer_value: 'Enceramento' },
+        { question_label: 'Serviços de interesse', answer_value: 'Lavagem' },
+      ]);
+    });
+
+    it('gets one row for a TEXT/SINGLE_CHOICE answer (scalar, not flattened)', async () => {
+      const repo = makeRepo(new InMemoryEventBus());
+      const submission = buildSubmission(TENANT_A);
+
+      await txManager.run(() => repo.save(submission));
+
+      const rows = (await dataSource.query(
+        `SELECT answer_value FROM "platform"."lead_form_answers" WHERE submission_id = $1`,
+        [submission.id],
+      )) as Array<{ answer_value: string }>;
+      expect(rows).toEqual([{ answer_value: 'Google' }]);
+    });
+  });
+
+  describe('findByTenantPaginated — search/filters/date range (M20-S12)', () => {
+    function buildWithAnswer(
+      tenantId: string,
+      name: string,
+      questionLabel: string,
+      answerValue: string,
+    ) {
+      return LeadFormSubmission.create({
+        tenantId,
+        customerId: null,
+        name,
+        email: `lead-${uuidv7()}@example.com`,
+        phone: '+5511912345678',
+        answers: [{ questionId: QUESTION_ID, questionLabel, questionType: 'TEXT', answerValue }],
+        ipAddress: '203.0.113.10',
+        retentionMonths: 6,
+        correlationId: `corr-${uuidv7()}`,
+      });
+    }
+
+    it('basic search matches partially/case-insensitively against name', async () => {
+      const repo = makeRepo(new InMemoryEventBus());
+      await txManager.run(() => repo.save(buildSubmission(TENANT_A)));
+
+      const { items } = await repo.findByTenantPaginated(TENANT_A, 1, 20, { search: 'maria' });
+      expect(items).toHaveLength(1);
+    });
+
+    it('basic search matches partially/case-insensitively against email', async () => {
+      const repo = makeRepo(new InMemoryEventBus());
+      const submission = LeadFormSubmission.create({
+        tenantId: TENANT_A,
+        customerId: null,
+        name: 'Someone',
+        email: 'unique-marker-search@example.com',
+        phone: '+5511912345678',
+        answers: [],
+        ipAddress: '203.0.113.10',
+        retentionMonths: 6,
+        correlationId: `corr-${uuidv7()}`,
+      });
+      await txManager.run(() => repo.save(submission));
+
+      const { items } = await repo.findByTenantPaginated(TENANT_A, 1, 20, {
+        search: 'unique-marker',
+      });
+      expect(items).toHaveLength(1);
+    });
+
+    it('basic search matches partially/case-insensitively against a question label', async () => {
+      const repo = makeRepo(new InMemoryEventBus());
+      await txManager.run(() =>
+        repo.save(buildWithAnswer(TENANT_A, 'Someone', 'Estado civil', 'Casado')),
+      );
+
+      const { items } = await repo.findByTenantPaginated(TENANT_A, 1, 20, { search: 'civil' });
+      expect(items).toHaveLength(1);
+    });
+
+    it('basic search matches partially/case-insensitively against an answer value', async () => {
+      const repo = makeRepo(new InMemoryEventBus());
+      await txManager.run(() =>
+        repo.save(buildWithAnswer(TENANT_A, 'Someone', 'Estado civil', 'Casado')),
+      );
+
+      const { items } = await repo.findByTenantPaginated(TENANT_A, 1, 20, { search: 'casado' });
+      expect(items).toHaveLength(1);
+    });
+
+    it('advanced filters with 2 entries returns only submissions matching both (excludes the false-positive one-match case)', async () => {
+      const repo = makeRepo(new InMemoryEventBus());
+      const matchesBoth = LeadFormSubmission.create({
+        tenantId: TENANT_A,
+        customerId: null,
+        name: 'Matches Both',
+        email: `lead-${uuidv7()}@example.com`,
+        phone: '+5511912345678',
+        answers: [
+          {
+            questionId: QUESTION_ID,
+            questionLabel: 'Estado civil',
+            questionType: 'TEXT',
+            answerValue: 'Casado',
+          },
+          {
+            questionId: OTHER_QUESTION_ID,
+            questionLabel: 'Onde mora',
+            questionType: 'TEXT',
+            answerValue: 'Sao Paulo',
+          },
+        ],
+        ipAddress: '203.0.113.10',
+        retentionMonths: 6,
+        correlationId: `corr-${uuidv7()}`,
+      });
+      const matchesOnlyOne = buildWithAnswer(
+        TENANT_A,
+        'Matches Only One',
+        'Estado civil',
+        'Casado',
+      );
+      await txManager.run(() => repo.save(matchesBoth));
+      await txManager.run(() => repo.save(matchesOnlyOne));
+
+      const { items } = await repo.findByTenantPaginated(TENANT_A, 1, 20, {
+        filters: [
+          { questionLabel: 'Estado civil', value: 'casado' },
+          { questionLabel: 'Onde mora', value: 'paulo' },
+        ],
+      });
+
+      expect(items).toHaveLength(1);
+      expect(items[0].name).toBe('Matches Both');
+    });
+
+    it('submittedFrom/submittedTo filters against real UTC instant boundaries', async () => {
+      const repo = makeRepo(new InMemoryEventBus());
+      const inRange = new LeadFormSubmissionBuilder()
+        .withTenantId(TENANT_A)
+        .withName('In Range')
+        .withSubmittedAt(new Date('2026-03-15T12:00:00.000Z'))
+        .build();
+      const outOfRange = new LeadFormSubmissionBuilder()
+        .withTenantId(TENANT_A)
+        .withName('Out Of Range')
+        .withSubmittedAt(new Date('2026-05-01T12:00:00.000Z'))
+        .build();
+      await txManager.run(() => repo.save(inRange));
+      await txManager.run(() => repo.save(outOfRange));
+
+      const { items } = await repo.findByTenantPaginated(TENANT_A, 1, 20, {
+        submittedFrom: new Date('2026-03-01T00:00:00.000Z'),
+        submittedTo: new Date('2026-04-01T00:00:00.000Z'),
+      });
+
+      expect(items.map((i) => i.name)).toEqual(['In Range']);
+    });
+
+    it('date range combines with search via AND', async () => {
+      const repo = makeRepo(new InMemoryEventBus());
+      const inRangeMatch = new LeadFormSubmissionBuilder()
+        .withTenantId(TENANT_A)
+        .withName('Carlos In Range')
+        .withSubmittedAt(new Date('2026-03-15T12:00:00.000Z'))
+        .build();
+      const outOfRangeMatch = new LeadFormSubmissionBuilder()
+        .withTenantId(TENANT_A)
+        .withName('Carlos Out Of Range')
+        .withSubmittedAt(new Date('2026-05-01T12:00:00.000Z'))
+        .build();
+      await txManager.run(() => repo.save(inRangeMatch));
+      await txManager.run(() => repo.save(outOfRangeMatch));
+
+      const { items } = await repo.findByTenantPaginated(TENANT_A, 1, 20, {
+        search: 'carlos',
+        submittedFrom: new Date('2026-03-01T00:00:00.000Z'),
+        submittedTo: new Date('2026-04-01T00:00:00.000Z'),
+      });
+
+      expect(items.map((i) => i.name)).toEqual(['Carlos In Range']);
+    });
+
+    it('date range combines with filters via AND', async () => {
+      const repo = makeRepo(new InMemoryEventBus());
+      const sameAnswer = [
+        {
+          questionId: QUESTION_ID,
+          questionLabel: 'Estado civil',
+          questionType: 'TEXT' as const,
+          answerValue: 'Casado',
+        },
+      ];
+      const targetInstant = new Date('2026-03-15T12:00:00.000Z');
+      const inRangeMatch = new LeadFormSubmissionBuilder()
+        .withTenantId(TENANT_A)
+        .withName('In Range')
+        .withAnswers(sameAnswer)
+        .withSubmittedAt(targetInstant)
+        .build();
+      const outOfRangeMatch = new LeadFormSubmissionBuilder()
+        .withTenantId(TENANT_A)
+        .withName('Out Of Range')
+        .withAnswers(sameAnswer)
+        .withSubmittedAt(new Date('2026-05-01T12:00:00.000Z'))
+        .build();
+      await txManager.run(() => repo.save(inRangeMatch));
+      await txManager.run(() => repo.save(outOfRangeMatch));
+
+      const { items } = await repo.findByTenantPaginated(TENANT_A, 1, 20, {
+        filters: [{ questionLabel: 'Estado civil', value: 'casado' }],
+        submittedFrom: new Date(targetInstant.getTime() - 1000),
+        submittedTo: new Date(targetInstant.getTime() + 1000),
+      });
+
+      expect(items.map((i) => i.name)).toEqual(['In Range']);
+    });
+
+    it('zero matches returns an empty items array with total 0', async () => {
+      const repo = makeRepo(new InMemoryEventBus());
+      await txManager.run(() => repo.save(buildSubmission(TENANT_A)));
+
+      const { items, total } = await repo.findByTenantPaginated(TENANT_A, 1, 20, {
+        search: 'nonexistent-term-zzz',
+      });
+
+      expect(items).toEqual([]);
+      expect(total).toBe(0);
+    });
+  });
+
+  describe('findDistinctQuestionLabels (M20-S12)', () => {
+    it('returns distinct, alphabetically-ordered labels, including one from a since-removed question', async () => {
+      const repo = makeRepo(new InMemoryEventBus());
+      await txManager.run(() =>
+        repo.save(buildWithAnswerForLabels(TENANT_A, 'Estado civil', 'Casado')),
+      );
+      await txManager.run(() =>
+        repo.save(buildWithAnswerForLabels(TENANT_A, 'Onde mora', 'Sao Paulo')),
+      );
+      // Same label as the first submission — proves DISTINCT, not a raw row dump.
+      await txManager.run(() =>
+        repo.save(buildWithAnswerForLabels(TENANT_A, 'Estado civil', 'Solteiro')),
+      );
+
+      const labels = await repo.findDistinctQuestionLabels(TENANT_A);
+
+      expect(labels).toEqual(['Estado civil', 'Onde mora']);
+    });
+
+    it("never returns another tenant's labels", async () => {
+      const repo = makeRepo(new InMemoryEventBus());
+      await txManager.run(() =>
+        repo.save(buildWithAnswerForLabels(TENANT_B, 'Tenant B Only Label', 'x')),
+      );
+
+      const labels = await repo.findDistinctQuestionLabels(TENANT_A);
+
+      expect(labels).not.toContain('Tenant B Only Label');
+    });
+
+    function buildWithAnswerForLabels(
+      tenantId: string,
+      questionLabel: string,
+      answerValue: string,
+    ) {
+      return LeadFormSubmission.create({
+        tenantId,
+        customerId: null,
+        name: 'Someone',
+        email: `lead-${uuidv7()}@example.com`,
+        phone: '+5511912345678',
+        answers: [{ questionId: QUESTION_ID, questionLabel, questionType: 'TEXT', answerValue }],
+        ipAddress: '203.0.113.10',
+        retentionMonths: 6,
+        correlationId: `corr-${uuidv7()}`,
+      });
+    }
+  });
+
+  describe('lead_form_answers indexes (M20-S12) — structural verification, not EXPLAIN-plan assertions', () => {
+    it('has the (tenant_id, question_label) B-tree index', async () => {
+      const rows = (await dataSource.query(
+        `
+          SELECT indexname FROM pg_indexes
+          WHERE schemaname = 'platform' AND tablename = 'lead_form_answers'
+            AND indexname = 'IDX_platform_lead_form_answers_tenant_label'
+        `,
+      )) as Array<{ indexname: string }>;
+      expect(rows).toHaveLength(1);
+    });
+
+    it('has the (tenant_id, submission_id, question_label) B-tree index', async () => {
+      const rows = (await dataSource.query(
+        `
+          SELECT indexname FROM pg_indexes
+          WHERE schemaname = 'platform' AND tablename = 'lead_form_answers'
+            AND indexname = 'IDX_platform_lead_form_answers_tenant_submission_label'
+        `,
+      )) as Array<{ indexname: string }>;
+      expect(rows).toHaveLength(1);
+    });
+
+    it('has GIN trigram indexes on answer_value and question_label', async () => {
+      const rows = (await dataSource.query(
+        `
+          SELECT indexname FROM pg_indexes
+          WHERE schemaname = 'platform' AND tablename = 'lead_form_answers'
+            AND indexname IN (
+              'IDX_platform_lead_form_answers_value_trgm',
+              'IDX_platform_lead_form_answers_label_trgm'
+            )
+        `,
+      )) as Array<{ indexname: string }>;
+      expect(rows.map((r) => r.indexname).sort()).toEqual([
+        'IDX_platform_lead_form_answers_label_trgm',
+        'IDX_platform_lead_form_answers_value_trgm',
+      ]);
+    });
+
+    it('has the pg_trgm extension installed', async () => {
+      const rows = (await dataSource.query(
+        `SELECT extname FROM pg_extension WHERE extname = 'pg_trgm'`,
+      )) as Array<{ extname: string }>;
+      expect(rows).toHaveLength(1);
     });
   });
 });

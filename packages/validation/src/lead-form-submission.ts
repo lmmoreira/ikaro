@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { GenericErrorCode } from '@ikaro/types';
 
 // Shared by the backend (submit-lead-form.dto.ts) and BFF (platform.public.schemas.ts) — both
 // need the identical outer-sanity-bounds shape for the fields a submitter actually types, so this
@@ -34,11 +35,70 @@ export const LeadFormSubmissionFieldsSchema = z.object({
   answers: z.array(LeadFormSubmissionAnswerSchema).max(20),
 });
 
+// M20-S12 — advanced-filter entry, one per question. `questionLabel` is dropdown-sourced (never
+// free-typed — see the filter-options endpoint), so it only needs non-empty; `value` shares the
+// same 3-character minimum as `search` (docs/14-API_CONTRACTS.md § Leads Submissions).
+export const LeadFormSubmissionFilterEntrySchema = z.object({
+  questionLabel: z.string().min(1),
+  value: z.string().min(3),
+});
+
+// `filters` arrives as a URL-encoded JSON array string (query params are always strings) — parse
+// then validate its shape. A malformed JSON string surfaces as GENERIC_FORMAT_INVALID rather than
+// an uncaught exception; `payload.issues.push` is the documented Zod v4 low-level API `.transform()`
+// exposes for this (the public `ctx.addIssue()` wrapper is only available inside `.superRefine()`/
+// `.check()`, per zod/v4/core/api.d.ts's `$RefinementCtx`).
+const LeadFormSubmissionFiltersQuerySchema = z
+  .string()
+  .transform((val, ctx) => {
+    try {
+      return JSON.parse(val) as unknown;
+    } catch {
+      ctx.issues.push({
+        code: 'custom',
+        input: val,
+        message: 'filters must be a valid JSON array',
+        params: { code: GenericErrorCode.FORMAT_INVALID },
+      });
+      return z.NEVER;
+    }
+  })
+  .pipe(z.array(LeadFormSubmissionFilterEntrySchema).max(5));
+
 // M20-S06 — shared by the backend (list-lead-form-submissions.dto.ts) and BFF
 // (lead-form.schemas.ts) admin submissions-list query params. Same "BFF schema silently drifts
 // from backend DTO" pattern the two schemas above already solve — found by /bad-smell-audit
 // (BFF-5) rather than authored duplicated from the start.
-export const ListLeadFormSubmissionsSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(20),
-});
+//
+// M20-S12 adds `search`/`filters` (mutually exclusive — UC-041 steps 3-4) and
+// `submittedFrom`/`submittedTo` (orthogonal date range — UC-041 step 5). `search` and each
+// `filters[].value` share the same 3-character minimum, backed by the `pg_trgm` GIN index's own
+// "no extractable trigrams below 3 chars" limitation (docs/13-DATABASE_SCHEMA.md §
+// platform.lead_form_answers) — a plain Zod `.min()` derives GENERIC_VALUE_TOO_SHORT automatically
+// (zod-violation.ts), no bespoke code needed. `filters` capped at 5 entries derives
+// GENERIC_VALUE_OUT_OF_RANGE the same way. The two cross-field rules below have no VO behind them
+// either, so each reuses GenericErrorCode via `.refine()` + `params.code`, mirroring
+// tenant-settings.ts's `buildUpdateTenantSettingsSchema` empty-update `.refine()`.
+export const ListLeadFormSubmissionsSchema = z
+  .object({
+    page: z.coerce.number().int().min(1).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(20),
+    search: z.string().min(3).optional(),
+    filters: LeadFormSubmissionFiltersQuerySchema.optional(),
+    submittedFrom: z.iso.date().optional(),
+    submittedTo: z.iso.date().optional(),
+  })
+  .refine((data) => !(data.search !== undefined && data.filters !== undefined), {
+    error: 'search and filters are mutually exclusive',
+    params: { code: GenericErrorCode.VALUE_INVALID },
+  })
+  .refine(
+    (data) =>
+      data.submittedFrom === undefined ||
+      data.submittedTo === undefined ||
+      data.submittedFrom <= data.submittedTo,
+    {
+      error: 'submittedFrom must not be after submittedTo',
+      params: { code: GenericErrorCode.VALUE_OUT_OF_RANGE },
+    },
+  );

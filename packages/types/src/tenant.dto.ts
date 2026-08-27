@@ -186,7 +186,8 @@ export interface LeadFormStatusResponse {
 }
 
 // M20-S06 — UC-041 main flow steps 1-2/6 (docs/14-API_CONTRACTS.md § Leads Submissions (Admin)).
-// search/filters/submittedFrom/submittedTo (M20-S12/S13) are out of this story's scope.
+// The response shape is unchanged by M20-S12's search/filters/submittedFrom/submittedTo —
+// those are request query params only (ListLeadFormSubmissionsSchema, @ikaro/validation).
 export interface LeadFormSubmissionListItem {
   id: string;
   name: string;
@@ -200,6 +201,13 @@ export interface LeadFormSubmissionsListResponse {
   page: number;
   pageSize: number;
   total: number;
+}
+
+// M20-S12 — GET /v1/tenants/lead-form/submissions/filter-options. Powers UC-041's advanced-filter
+// question dropdown; includes labels from questions since edited/removed from the live
+// LeadFormConfig (docs/13-DATABASE_SCHEMA.md § platform.lead_form_answers).
+export interface LeadFormFilterOptionsResponse {
+  questionLabels: string[];
 }
 
 // answerValue is a snapshot, not a live lookup — see docs/02-DOMAIN_MODEL.md § LeadFormSubmission.

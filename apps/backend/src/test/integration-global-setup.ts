@@ -34,6 +34,7 @@ import { ChatbotMessageEntity } from '../contexts/platform/infrastructure/entiti
 import { ChatbotProviderBalanceEntity } from '../contexts/platform/infrastructure/entities/chatbot-provider-balance.entity';
 import { ChatbotSessionEntity } from '../contexts/platform/infrastructure/entities/chatbot-session.entity';
 import { HotsiteConfigEntity } from '../contexts/platform/infrastructure/entities/hotsite-config.entity';
+import { LeadFormAnswerEntity } from '../contexts/platform/infrastructure/entities/lead-form-answer.entity';
 import { LeadFormConfigEntity } from '../contexts/platform/infrastructure/entities/lead-form-config.entity';
 import { LeadFormSubmissionEntity } from '../contexts/platform/infrastructure/entities/lead-form-submission.entity';
 import { TenantEntity } from '../contexts/platform/infrastructure/entities/tenant.entity';
@@ -51,6 +52,7 @@ import { CreatePlatformLeadFormConfigs1748500000002 } from '../contexts/platform
 import { AddExpiresAtIndexToLeadFormSubmissions1748500000003 } from '../contexts/platform/infrastructure/migrations/1748500000003-AddExpiresAtIndexToLeadFormSubmissions';
 import { CreateLeadFormSubmissionQuestionRefs1748500000004 } from '../contexts/platform/infrastructure/migrations/1748500000004-CreateLeadFormSubmissionQuestionRefs';
 import { AddVersionToLeadFormConfigs1748500000005 } from '../contexts/platform/infrastructure/migrations/1748500000005-AddVersionToLeadFormConfigs';
+import { CreateLeadFormAnswers1748500000006 } from '../contexts/platform/infrastructure/migrations/1748500000006-CreateLeadFormAnswers';
 import { StaffEntity } from '../contexts/staff/infrastructure/entities/staff.entity';
 import { CreateStaffStaff1716600000002 } from '../contexts/staff/infrastructure/migrations/1716600000002-CreateStaffStaff';
 import { AddNameToStaff1716600000003 } from '../contexts/staff/infrastructure/migrations/1716600000003-AddNameToStaff';
@@ -109,6 +111,7 @@ export default async function globalSetup(): Promise<void> {
       ChatbotMessageEntity,
       ChatbotProviderBalanceEntity,
       LeadFormSubmissionEntity,
+      LeadFormAnswerEntity,
     ],
     migrations: [
       BootstrapSchemas1700000000000,
@@ -147,6 +150,7 @@ export default async function globalSetup(): Promise<void> {
       AddExpiresAtIndexToLeadFormSubmissions1748500000003,
       CreateLeadFormSubmissionQuestionRefs1748500000004,
       AddVersionToLeadFormConfigs1748500000005,
+      CreateLeadFormAnswers1748500000006,
     ],
     synchronize: false,
     migrationsRun: false,

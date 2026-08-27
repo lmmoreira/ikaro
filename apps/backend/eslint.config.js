@@ -139,6 +139,7 @@ const PERSISTENCE_BYPASS_IGNORES = [
   'src/contexts/platform/infrastructure/migrations/1748400000014-CreateLeadFormSubmissions.ts',
   'src/contexts/platform/infrastructure/migrations/1748500000002-CreatePlatformLeadFormConfigs.ts',
   'src/contexts/platform/infrastructure/migrations/1748500000003-AddExpiresAtIndexToLeadFormSubmissions.ts',
+  'src/contexts/platform/infrastructure/migrations/1748500000006-CreateLeadFormAnswers.ts',
   'src/contexts/platform/infrastructure/repositories/typeorm-chatbot-message.repository.ts',
   'src/contexts/platform/infrastructure/repositories/typeorm-chatbot-provider-balance.repository.ts',
   'src/contexts/platform/infrastructure/repositories/typeorm-chatbot-session.repository.ts',

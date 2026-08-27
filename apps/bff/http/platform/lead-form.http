@@ -3,6 +3,8 @@
 #   /v1/tenants/hotsite as of M20-S08; see hotsite-admin.http's own "Lead form config" block.
 # UC-041 (Trigger): status endpoint powers the dashboard's gated "Leads" nav item
 # UC-041 (M20-S06): admin submissions read — paginated list + read-only detail
+# UC-041 (M20-S12): search/filters/date range on the list, plus filter-options for the
+#   advanced-filter dropdown
 # status and submissions are available to staff and managers.
 #
 # Prerequisites:
@@ -54,6 +56,30 @@ Authorization: Bearer {{staffToken}}
 
 ###
 
+### Staff lists submissions — basic search (M20-S12, min 3 chars)
+GET {{bffUrl}}/v1/tenants/lead-form/submissions?page=1&pageSize=20&search=casado
+Authorization: Bearer {{staffToken}}
+
+###
+
+### Staff lists submissions — advanced filters, ANDed (M20-S12, JSON-encoded array, max 5 entries)
+GET {{bffUrl}}/v1/tenants/lead-form/submissions?page=1&pageSize=20&filters=%5B%7B%22questionLabel%22%3A%22Estado%20civil%22%2C%22value%22%3A%22casado%22%7D%5D
+Authorization: Bearer {{staffToken}}
+
+###
+
+### Staff lists submissions — date range, orthogonal to search/filters (M20-S12)
+GET {{bffUrl}}/v1/tenants/lead-form/submissions?page=1&pageSize=20&submittedFrom=2026-01-01&submittedTo=2026-01-31
+Authorization: Bearer {{staffToken}}
+
+###
+
+### Staff reads filter-options — distinct question labels for the advanced-filter dropdown (M20-S12)
+GET {{bffUrl}}/v1/tenants/lead-form/submissions/filter-options
+Authorization: Bearer {{staffToken}}
+
+###
+
 ### Staff reads submission detail — full answers snapshot
 GET {{bffUrl}}/v1/tenants/lead-form/submissions/01234567-0000-7000-8000-000000000201
 Authorization: Bearer {{staffToken}}
@@ -63,6 +89,24 @@ Authorization: Bearer {{staffToken}}
 # ─────────────────────────────────────────────────────────────────────────────
 # FAILURE PATHS
 # ─────────────────────────────────────────────────────────────────────────────
+
+### search under 3 chars → 400 GENERIC_VALUE_TOO_SHORT (M20-S12)
+GET {{bffUrl}}/v1/tenants/lead-form/submissions?search=ab
+Authorization: Bearer {{staffToken}}
+
+###
+
+### search and filters both present → 400 GENERIC_VALUE_INVALID (M20-S12)
+GET {{bffUrl}}/v1/tenants/lead-form/submissions?search=casado&filters=%5B%7B%22questionLabel%22%3A%22Estado%20civil%22%2C%22value%22%3A%22casado%22%7D%5D
+Authorization: Bearer {{staffToken}}
+
+###
+
+### submittedFrom after submittedTo → 400 GENERIC_VALUE_OUT_OF_RANGE (M20-S12)
+GET {{bffUrl}}/v1/tenants/lead-form/submissions?submittedFrom=2026-02-01&submittedTo=2026-01-01
+Authorization: Bearer {{staffToken}}
+
+###
 
 ### Submission detail for an unknown id → 404 PLATFORM_LEAD_FORM_SUBMISSION_NOT_FOUND
 GET {{bffUrl}}/v1/tenants/lead-form/submissions/01234567-0000-7000-8000-000000000999

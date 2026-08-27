@@ -137,6 +137,121 @@ describe('LeadFormController (component)', () => {
         .set('Authorization', `Bearer ${makeCustomerJwt(jwtService)}`);
       expect(res.status).toBe(403);
     });
+
+    it('GET .../submissions?search= → 200, forwards the search term unchanged', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce(listResponse);
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/tenants/lead-form/submissions')
+        .query({ page: 1, pageSize: 20, search: 'casado' })
+        .set('Authorization', `Bearer ${makeStaffJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+      expect(backendHttpService.get).toHaveBeenCalledWith('/tenants/lead-form/submissions', {
+        page: 1,
+        pageSize: 20,
+        search: 'casado',
+      });
+    });
+
+    it('GET .../submissions?search= → 400 GENERIC_VALUE_TOO_SHORT for a search term under 3 chars', async () => {
+      setupActiveGuardMock(httpService);
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/tenants/lead-form/submissions')
+        .query({ page: 1, pageSize: 20, search: 'ab' })
+        .set('Authorization', `Bearer ${makeStaffJwt(jwtService)}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body.violations).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ field: 'search', code: 'GENERIC_VALUE_TOO_SHORT' }),
+        ]),
+      );
+    });
+
+    it('GET .../submissions?filters= → 200, round-trips the JSON-encoded array to the backend unchanged', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce(listResponse);
+      const filters = [{ questionLabel: 'Estado civil', value: 'casado' }];
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/tenants/lead-form/submissions')
+        .query({ page: 1, pageSize: 20, filters: JSON.stringify(filters) })
+        .set('Authorization', `Bearer ${makeStaffJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+      expect(backendHttpService.get).toHaveBeenCalledWith('/tenants/lead-form/submissions', {
+        page: 1,
+        pageSize: 20,
+        filters: JSON.stringify(filters),
+      });
+    });
+
+    it('GET .../submissions?search=&filters= → 400 GENERIC_VALUE_INVALID when both are present', async () => {
+      setupActiveGuardMock(httpService);
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/tenants/lead-form/submissions')
+        .query({
+          page: 1,
+          pageSize: 20,
+          search: 'casado',
+          filters: JSON.stringify([{ questionLabel: 'Estado civil', value: 'casado' }]),
+        })
+        .set('Authorization', `Bearer ${makeStaffJwt(jwtService)}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body.violations).toEqual(
+        expect.arrayContaining([expect.objectContaining({ code: 'GENERIC_VALUE_INVALID' })]),
+      );
+    });
+
+    it('GET .../submissions?submittedFrom=&submittedTo= → 400 GENERIC_VALUE_OUT_OF_RANGE when From is after To', async () => {
+      setupActiveGuardMock(httpService);
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/tenants/lead-form/submissions')
+        .query({
+          page: 1,
+          pageSize: 20,
+          submittedFrom: '2026-02-01',
+          submittedTo: '2026-01-01',
+        })
+        .set('Authorization', `Bearer ${makeStaffJwt(jwtService)}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body.violations).toEqual(
+        expect.arrayContaining([expect.objectContaining({ code: 'GENERIC_VALUE_OUT_OF_RANGE' })]),
+      );
+    });
+  });
+
+  describe('getFilterOptions', () => {
+    it('GET /v1/tenants/lead-form/submissions/filter-options → 200 for STAFF role, not captured by the :id route', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce({
+        questionLabels: ['Estado civil', 'Onde mora'],
+      });
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/tenants/lead-form/submissions/filter-options')
+        .set('Authorization', `Bearer ${makeStaffJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ questionLabels: ['Estado civil', 'Onde mora'] });
+      expect(backendHttpService.get).toHaveBeenCalledWith(
+        '/tenants/lead-form/submissions/filter-options',
+      );
+    });
+
+    it('GET /v1/tenants/lead-form/submissions/filter-options → 403 for CUSTOMER role', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/v1/tenants/lead-form/submissions/filter-options')
+        .set('Authorization', `Bearer ${makeCustomerJwt(jwtService)}`);
+      expect(res.status).toBe(403);
+    });
   });
 
   describe('getSubmission', () => {

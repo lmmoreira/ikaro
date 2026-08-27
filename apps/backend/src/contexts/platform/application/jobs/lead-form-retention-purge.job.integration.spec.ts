@@ -116,4 +116,38 @@ describe('LeadFormRetentionPurgeJob (integration)', () => {
     expect(await entityRepo.findOne({ where: { id: expired.id } })).toBeNull();
     expect(secondRun.submissionsDeleted).toBe(0);
   });
+
+  // M20-S12: platform.lead_form_answers has no ON DELETE CASCADE — before this story amended
+  // deleteExpired(), this purge threw an FK-violation error on any expired submission with at
+  // least one answered question.
+  it('deletes an expired submission with answer rows without an FK-violation error, removing both parent and child rows', async () => {
+    const tenant = new TenantBuilder()
+      .withName('Lead Form Retention Answers')
+      .withSlug('lead-form-retention-answers')
+      .build();
+    await tenantRepo.save(tenant);
+
+    const expired = new LeadFormSubmissionBuilder()
+      .withTenantId(tenant.id)
+      .withExpiresAt(BEFORE_CUTOFF)
+      .withAnswers([
+        {
+          questionId: '01234567-0000-7000-8000-000000000101',
+          questionLabel: 'Estado civil',
+          questionType: 'TEXT',
+          answerValue: 'Casado',
+        },
+      ])
+      .build();
+    await submissionRepo.save(expired);
+
+    await expect(job.run(NOW)).resolves.not.toThrow();
+
+    expect(await entityRepo.findOne({ where: { id: expired.id } })).toBeNull();
+    const remainingAnswers = (await dataSource.query(
+      'SELECT 1 FROM "platform"."lead_form_answers" WHERE "submission_id" = $1',
+      [expired.id],
+    )) as unknown[];
+    expect(remainingAnswers).toHaveLength(0);
+  });
 });
