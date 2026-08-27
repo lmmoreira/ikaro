@@ -11,10 +11,10 @@ vi.mock('./DashboardShell', () => ({
     leadFormEnabled,
     children,
   }: {
-    tenantName: string;
-    role: string;
-    leadFormEnabled: boolean;
-    children: React.ReactNode;
+    readonly tenantName: string;
+    readonly role: string;
+    readonly leadFormEnabled: boolean;
+    readonly children: React.ReactNode;
   }) => (
     <div
       data-testid="dashboard-shell"

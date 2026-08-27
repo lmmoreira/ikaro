@@ -14,12 +14,12 @@ vi.mock('./DashboardShell', () => ({
     topbarAction,
     children,
   }: {
-    tenantName: string;
-    userName: string | null;
-    role: string;
-    leadFormEnabled: boolean;
-    topbarAction: React.ReactNode;
-    children: React.ReactNode;
+    readonly tenantName: string;
+    readonly userName: string | null;
+    readonly role: string;
+    readonly leadFormEnabled: boolean;
+    readonly topbarAction: React.ReactNode;
+    readonly children: React.ReactNode;
   }) => (
     <div
       data-testid="dashboard-shell"
