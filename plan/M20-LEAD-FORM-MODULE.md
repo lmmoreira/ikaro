@@ -422,7 +422,7 @@ The panel remains an in-place `HotsiteEditor` module-config view; no new `/dashb
 
 ---
 
-### M20-S10 — Admin Leads list/detail + gated sidebar nav (UC-041)
+### M20-S10 — Admin Leads list/detail + gated sidebar nav (UC-041) ✅ Done
 
 **Agent:** `frontend-ts` (+ a small, contained backend + BFF field addition — see "Guest vs. customer indicator" below)
 **Complexity:** M
