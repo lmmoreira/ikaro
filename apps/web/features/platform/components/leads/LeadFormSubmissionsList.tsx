@@ -7,16 +7,32 @@ import type { LeadFormSubmissionListItem } from '@ikaro/types';
 import { Card } from '@/shared/components/ui/card';
 import { getInitials } from '@/shared/utils/initials';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
+import {
+  buildLeadsSearchQuery,
+  type LeadFormSearchQuery,
+} from '@/features/platform/model/lead-form-search';
+import { LeadFormSearchPanel } from './LeadFormSearchPanel';
 
 interface LeadFormSubmissionsListProps {
   readonly items: readonly LeadFormSubmissionListItem[];
   readonly page: number;
   readonly pageSize: number;
   readonly total: number;
+  readonly searchQuery: LeadFormSearchQuery;
+  readonly filterOptionLabels: readonly string[];
 }
 
-function buildPageHref(page: number): string {
-  return page <= 1 ? '/dashboard/leads' : `/dashboard/leads?page=${page}`;
+function hasActiveQuery(query: LeadFormSearchQuery): boolean {
+  return Boolean(
+    query.search ||
+    (query.filters && query.filters.length > 0) ||
+    query.submittedFrom ||
+    query.submittedTo,
+  );
+}
+
+function buildPageHref(query: LeadFormSearchQuery, page: number): string {
+  return `/dashboard/leads${buildLeadsSearchQuery({ ...query, page })}`;
 }
 
 const PAGE_WINDOW_DELTA = 2;
@@ -49,19 +65,24 @@ function buildPageWindow(current: number, total: number): readonly PageWindowEnt
   return result;
 }
 
-// page.tsx re-fetches server-side via URL navigation (Link href="?page=N") — no client-side
-// pagination state needed.
+// page.tsx re-fetches server-side via URL navigation (search panel's Aplicar/Limpar, or a
+// pagination Link) — no client-side list-fetching state needed here.
 export function LeadFormSubmissionsList({
   items,
   page,
   pageSize,
   total,
+  searchQuery,
+  filterOptionLabels,
 }: LeadFormSubmissionsListProps): React.JSX.Element {
   const t = useTranslations('dashboard.leadsPage');
   const { formatDate, formatTime } = useFormatting();
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const queryActive = hasActiveQuery(searchQuery);
 
-  if (total === 0) {
+  // Zero submissions ever (UC-041 A1) — distinct from a zero-match search/filter/date-range
+  // result (A3, below): nothing to search yet, so the search panel doesn't render either.
+  if (total === 0 && !queryActive) {
     return (
       <Card className="mx-auto max-w-md space-y-3 p-8 text-center">
         <p className="text-base font-bold text-gray-900">{t('emptyTitle')}</p>
@@ -76,92 +97,126 @@ export function LeadFormSubmissionsList({
     );
   }
 
+  const isAdvancedMode = Boolean(searchQuery.filters && searchQuery.filters.length > 0);
+
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-500" data-testid="leads-total-count">
-        {t('totalCount', { count: total })}
-      </p>
+      <LeadFormSearchPanel
+        initialSearch={searchQuery.search}
+        initialFilters={searchQuery.filters}
+        initialFrom={searchQuery.submittedFrom}
+        initialTo={searchQuery.submittedTo}
+        filterOptionLabels={filterOptionLabels}
+      />
 
-      <Card className="overflow-hidden">
-        <div className="divide-y divide-border">
-          {items.map((item) => (
-            <Link
-              key={item.id}
-              href={`/dashboard/leads/${item.id}`}
-              data-testid="lead-submission-row"
-              data-submission-id={item.id}
-              className="flex items-center gap-3 px-4 py-3.5 hover:bg-slate-50"
-            >
-              <span
-                aria-hidden="true"
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-600"
-              >
-                {getInitials(item.name)}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-gray-900">{item.name}</p>
-                <p className="truncate text-sm text-gray-500">
-                  {item.email} · {item.phone}
-                </p>
-              </div>
-              <p className="shrink-0 text-xs text-gray-400">
-                {formatDate(new Date(item.submittedAt))}, {formatTime(new Date(item.submittedAt))}
-              </p>
-            </Link>
-          ))}
-        </div>
-      </Card>
-
-      {totalPages > 1 && (
-        <nav
-          className="flex items-center justify-center gap-2"
-          aria-label={t('paginationAriaLabel')}
-        >
+      {total === 0 ? (
+        <Card className="mx-auto max-w-md space-y-3 p-8 text-center" data-testid="leads-no-results">
+          <p className="text-base font-bold text-gray-900">
+            {isAdvancedMode
+              ? t('filtersNoResultsTitle')
+              : searchQuery.search
+                ? t('searchNoResultsTitleWithTerm', { term: searchQuery.search })
+                : t('searchNoResultsTitleGeneric')}
+          </p>
+          <p className="text-sm text-gray-500">
+            {isAdvancedMode ? t('filtersNoResultsBody') : t('searchNoResultsBody')}
+          </p>
           <Link
-            href={buildPageHref(page - 1)}
-            aria-disabled={page <= 1}
-            aria-label={t('previousPage')}
-            className={
-              page <= 1
-                ? 'pointer-events-none rounded-md border px-3 py-1.5 text-sm opacity-40'
-                : 'rounded-md border px-3 py-1.5 text-sm hover:bg-slate-50'
-            }
+            href="/dashboard/leads"
+            className="inline-block rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
           >
-            <ChevronLeft className="h-4 w-4" />
+            {isAdvancedMode ? t('filtersNoResultsClear') : t('searchNoResultsClear')}
           </Link>
-          {buildPageWindow(page, totalPages).map((entry) =>
-            entry.type === 'ellipsis' ? (
-              <span key={entry.key} aria-hidden="true" className="px-1.5 text-sm text-gray-400">
-                …
-              </span>
-            ) : (
+        </Card>
+      ) : (
+        <>
+          <p className="text-sm text-gray-500" data-testid="leads-total-count">
+            {t('totalCount', { count: total })}
+          </p>
+
+          <Card className="overflow-hidden">
+            <div className="divide-y divide-border">
+              {items.map((item) => (
+                <Link
+                  key={item.id}
+                  href={`/dashboard/leads/${item.id}`}
+                  data-testid="lead-submission-row"
+                  data-submission-id={item.id}
+                  className="flex items-center gap-3 px-4 py-3.5 hover:bg-slate-50"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-600"
+                  >
+                    {getInitials(item.name)}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-gray-900">{item.name}</p>
+                    <p className="truncate text-sm text-gray-500">
+                      {item.email} · {item.phone}
+                    </p>
+                  </div>
+                  <p className="shrink-0 text-xs text-gray-400">
+                    {formatDate(new Date(item.submittedAt))},{' '}
+                    {formatTime(new Date(item.submittedAt))}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          </Card>
+
+          {totalPages > 1 && (
+            <nav
+              className="flex items-center justify-center gap-2"
+              aria-label={t('paginationAriaLabel')}
+            >
               <Link
-                key={entry.value}
-                href={buildPageHref(entry.value)}
-                aria-current={entry.value === page ? 'page' : undefined}
+                href={buildPageHref(searchQuery, page - 1)}
+                aria-disabled={page <= 1}
+                aria-label={t('previousPage')}
                 className={
-                  entry.value === page
-                    ? 'rounded-md border border-blue-600 bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white'
+                  page <= 1
+                    ? 'pointer-events-none rounded-md border px-3 py-1.5 text-sm opacity-40'
                     : 'rounded-md border px-3 py-1.5 text-sm hover:bg-slate-50'
                 }
               >
-                {entry.value}
+                <ChevronLeft className="h-4 w-4" />
               </Link>
-            ),
+              {buildPageWindow(page, totalPages).map((entry) =>
+                entry.type === 'ellipsis' ? (
+                  <span key={entry.key} aria-hidden="true" className="px-1.5 text-sm text-gray-400">
+                    …
+                  </span>
+                ) : (
+                  <Link
+                    key={entry.value}
+                    href={buildPageHref(searchQuery, entry.value)}
+                    aria-current={entry.value === page ? 'page' : undefined}
+                    className={
+                      entry.value === page
+                        ? 'rounded-md border border-blue-600 bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white'
+                        : 'rounded-md border px-3 py-1.5 text-sm hover:bg-slate-50'
+                    }
+                  >
+                    {entry.value}
+                  </Link>
+                ),
+              )}
+              <Link
+                href={buildPageHref(searchQuery, page + 1)}
+                aria-disabled={page >= totalPages}
+                aria-label={t('nextPage')}
+                className={
+                  page >= totalPages
+                    ? 'pointer-events-none rounded-md border px-3 py-1.5 text-sm opacity-40'
+                    : 'rounded-md border px-3 py-1.5 text-sm hover:bg-slate-50'
+                }
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Link>
+            </nav>
           )}
-          <Link
-            href={buildPageHref(page + 1)}
-            aria-disabled={page >= totalPages}
-            aria-label={t('nextPage')}
-            className={
-              page >= totalPages
-                ? 'pointer-events-none rounded-md border px-3 py-1.5 text-sm opacity-40'
-                : 'rounded-md border px-3 py-1.5 text-sm hover:bg-slate-50'
-            }
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Link>
-        </nav>
+        </>
       )}
     </div>
   );

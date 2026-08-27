@@ -3,7 +3,7 @@
 **Journey:** MANAGER/STAFF — View Leads Submissions
 **UCs:** UC-041
 **Prototype:** `manager/prototypes/leads/`
-**Status:** ✅ Done (base list/detail + gated nav, M20-S10) — search (basic/advanced/date-range, below) still ❌ Gap, tracked by M20-S12/S13. Promoted from `docs/discovery/lead-form-module/prototype/` (M20 milestone, `docs/04-USE_CASES.md` UC-041).
+**Status:** ✅ Done — base list/detail + gated nav (M20-S10), search backend/BFF (M20-S12), search frontend UI (M20-S13, basic/advanced/date-range, button-driven — see below). Promoted from `docs/discovery/lead-form-module/prototype/` (M20 milestone, `docs/04-USE_CASES.md` UC-041).
 
 ---
 
@@ -20,6 +20,8 @@ A new top-level sidebar item "Leads" — a simple paginated list (name/email/pho
 **Search is the real replacement (M20-S12/S13, added post-promotion 2026-08-23) — two modes, mutually exclusive:**
 - **Basic** (`01-submissions-list.html`'s search box): one free-text term, matches partially across name, email, and any question's label/answer, OR-ed together. Good enough for "find Carlos."
 - **Advanced** (`01d-advanced-filters.html`): one or more question+value filter rows, ANDed — e.g. "estado civil contém casado" AND "mora contém São Paulo" returns only submissions matching *both*. The basic mode's single flattened match can't do this correctly (it can't tell which question a matched term came from, so two OR-ed terms would also match a submission where each term appears in an unrelated field) — that's the whole reason advanced mode exists as a separate thing, not just a bigger search box.
+
+**Button-driven, not live/debounced (M20-S13 story-discovery, 2026-08-27 — overrides an earlier debounced draft):** typing into the search box, editing a filter row, or picking a date range does nothing by itself. Basic mode shares one "Aplicar"/"Limpar" pair between the search box and the date range; advanced mode shares one "Aplicar filtros"/"Limpar filtros" pair between the filter rows and the date range (neither is live-typed in that mode either). "Aplicar" is disabled while the search box (or any active filter row's value) holds 1-2 characters. "Limpar"/"Limpar filtros" reset that mode's own inputs + the date range, without leaving the current mode. The "Busca avançada"/"Voltar para busca simples" toggle is the only action that drops the *other* mode's active query — it never touches the date range.
 
 Backed by a new `platform.lead_form_answers` child table — one row per question per submission, written once alongside the JSONB snapshot at insert time (`docs/13-DATABASE_SCHEMA.md`), never a live/derived query. An earlier draft of this design used a single flattened `search_text` column instead; replaced once it became clear a flattened blob can't support the advanced (ANDed, per-question) case at all.
 
@@ -38,9 +40,13 @@ Backed by a new `platform.lead_form_answers` child table — one row per questio
 | `apps/web/shells/dashboard/components/Sidebar.tsx` | ✅ Done (extend) | Adds "Leads" to `MAIN_NAV_KEYS` when `leadFormEnabled` |
 | `apps/web/shells/dashboard/components/BottomNav.tsx` | ✅ Done (extend) | "Mais" trigger now also shows for STAFF when `leadFormEnabled` |
 | `apps/web/shells/dashboard/components/MoreSheet.tsx` | ✅ Done (renamed from `ManagerSheet.tsx`) | Header-less "Leads" item for either role when enabled, manager-only section unchanged |
-| `apps/web/features/platform/components/leads/LeadFormSubmissionsList.tsx` | ✅ Done | Paginated list component |
+| `apps/web/features/platform/components/leads/LeadFormSubmissionsList.tsx` | ✅ Done | Paginated list component; renders the search panel + distinct no-results state (M20-S13) |
 | `apps/web/features/platform/components/leads/LeadFormSubmissionDetail.tsx` | ✅ Done | Read-only detail component |
-| `apps/web/features/platform/api/lead-form-submissions.server.ts` | ✅ Done | Server-side `listLeadFormSubmissions`/`getLeadFormSubmission` |
+| `apps/web/features/platform/components/leads/LeadFormSearchPanel.tsx` | ✅ Done (M20-S13) | Basic/advanced mode orchestrator — Aplicar/Limpar, URL navigation |
+| `apps/web/features/platform/components/leads/LeadFormAdvancedFilters.tsx` | ✅ Done (M20-S13) | Repeatable question+value filter rows |
+| `apps/web/features/platform/components/leads/LeadFormDateRangeControl.tsx` | ✅ Done (M20-S13) | shadcn `Popover`+`Calendar` (range mode) date-range picker |
+| `apps/web/features/platform/model/lead-form-search.ts` | ✅ Done (M20-S13) | Pure query-shape helpers (build/parse the `?search=`/`?filters=`/`?submittedFrom=`/`?submittedTo=` query) |
+| `apps/web/features/platform/api/lead-form-submissions.server.ts` | ✅ Done | Server-side `listLeadFormSubmissions`/`getLeadFormSubmission`/`getLeadFormFilterOptions` (M20-S13 extends the first, adds the third) |
 
 ---
 
@@ -64,8 +70,9 @@ A submission whose `answers` snapshot references a question no longer in the cur
 GET /v1/tenants/lead-form/submissions?page=&pageSize=&search=|filters=&submittedFrom=&submittedTo=   STAFF|MANAGER, ordered submittedAt DESC
   Response: { items: [{id,name,email,phone,submittedAt}], page, pageSize, total }
   search (M20-S12/S13, BASIC): optional, case-insensitive partial match (>= 3 chars) against
-    name, email, or any question label/answer, OR-ed. Debounce client-side — never one
-    request per keystroke.
+    name, email, or any question label/answer, OR-ed. Button-driven client-side (M20-S13
+    story-discovery, 2026-08-27) — fires only on an explicit "Aplicar" click, never live/
+    debounced; "Aplicar" is disabled below 3 chars.
   filters (M20-S12/S13, ADVANCED): optional, URL-encoded JSON array,
     [{"questionLabel":"...","value":"..."}], max 5 entries. Each entry ANDed — every filter
     must match. questionLabel matches by EXACT equality (dropdown-sourced); value by the

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
 import {
+  getLeadFormFilterOptions,
   getLeadFormSubmission,
   LeadFormSubmissionFetchError,
   listLeadFormSubmissions,
@@ -49,6 +50,101 @@ describe('listLeadFormSubmissions (server)', () => {
 
     await expect(listLeadFormSubmissions('token-123')).rejects.toThrow(
       'Failed to fetch lead form submissions (500)',
+    );
+  });
+
+  it('forwards a search term', async () => {
+    vi.mocked(bffServerFetch).mockResolvedValue(
+      new Response(JSON.stringify({ items: [], page: 1, pageSize: 20, total: 0 }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    await listLeadFormSubmissions('token-123', { search: 'carlos' });
+
+    expect(bffServerFetch).toHaveBeenCalledWith(
+      'token-123',
+      '/tenants/lead-form/submissions?search=carlos',
+    );
+  });
+
+  it('forwards filters as a JSON-encoded array query param', async () => {
+    vi.mocked(bffServerFetch).mockResolvedValue(
+      new Response(JSON.stringify({ items: [], page: 1, pageSize: 20, total: 0 }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    const filters = [{ questionLabel: 'Estado civil', value: 'casado' }];
+
+    await listLeadFormSubmissions('token-123', { filters });
+
+    const expectedQuery = new URLSearchParams({ filters: JSON.stringify(filters) }).toString();
+    expect(bffServerFetch).toHaveBeenCalledWith(
+      'token-123',
+      `/tenants/lead-form/submissions?${expectedQuery}`,
+    );
+  });
+
+  it('omits an empty filters array', async () => {
+    vi.mocked(bffServerFetch).mockResolvedValue(
+      new Response(JSON.stringify({ items: [], page: 1, pageSize: 20, total: 0 }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    await listLeadFormSubmissions('token-123', { filters: [] });
+
+    expect(bffServerFetch).toHaveBeenCalledWith('token-123', '/tenants/lead-form/submissions');
+  });
+
+  it('forwards submittedFrom/submittedTo', async () => {
+    vi.mocked(bffServerFetch).mockResolvedValue(
+      new Response(JSON.stringify({ items: [], page: 1, pageSize: 20, total: 0 }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    await listLeadFormSubmissions('token-123', {
+      submittedFrom: '2026-08-01',
+      submittedTo: '2026-08-15',
+    });
+
+    expect(bffServerFetch).toHaveBeenCalledWith(
+      'token-123',
+      '/tenants/lead-form/submissions?submittedFrom=2026-08-01&submittedTo=2026-08-15',
+    );
+  });
+});
+
+describe('getLeadFormFilterOptions (server)', () => {
+  beforeEach(() => vi.mocked(bffServerFetch).mockReset());
+
+  it('calls GET /tenants/lead-form/submissions/filter-options and returns the question labels', async () => {
+    vi.mocked(bffServerFetch).mockResolvedValue(
+      new Response(JSON.stringify({ questionLabels: ['Estado civil', 'Onde você mora?'] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    const result = await getLeadFormFilterOptions('token-123');
+
+    expect(bffServerFetch).toHaveBeenCalledWith(
+      'token-123',
+      '/tenants/lead-form/submissions/filter-options',
+    );
+    expect(result.questionLabels).toEqual(['Estado civil', 'Onde você mora?']);
+  });
+
+  it('throws on a non-2xx response', async () => {
+    vi.mocked(bffServerFetch).mockResolvedValue(new Response(null, { status: 500 }));
+
+    await expect(getLeadFormFilterOptions('token-123')).rejects.toThrow(
+      'Failed to fetch lead form filter options (500)',
     );
   });
 });

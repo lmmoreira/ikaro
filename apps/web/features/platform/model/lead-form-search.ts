@@ -1,0 +1,88 @@
+// UC-041 steps 3-5 (M20-S13) — pure query-shape helpers shared by the search panel (Aplicar/
+// Limpar/mode toggle navigation) and the submissions list's own pagination links, so paging
+// through a filtered result set preserves the active search/filters/date range.
+
+export interface LeadFormSearchFilterEntry {
+  readonly questionLabel: string;
+  readonly value: string;
+}
+
+export interface LeadFormSearchQuery {
+  readonly search?: string;
+  readonly filters?: readonly LeadFormSearchFilterEntry[];
+  readonly submittedFrom?: string;
+  readonly submittedTo?: string;
+}
+
+// Matches the backend's pg_trgm-driven minimum (docs/14-API_CONTRACTS.md § Leads Submissions) —
+// a client-side mirror of the backend rule, not the source of truth for it.
+export const MIN_SEARCH_TERM_LENGTH = 3;
+export const MAX_FILTER_ROWS = 5;
+
+export function isSearchTermValid(term: string): boolean {
+  return term.trim().length >= MIN_SEARCH_TERM_LENGTH;
+}
+
+// A stable client-only `id` per row is needed for React list keys — an advanced-filter row has
+// no natural identity of its own (two rows can share the same, still-empty questionLabel/value
+// while being edited), and the array index shifts on every add/remove (SonarCloud S6479, the
+// same array-index-as-key smell LeadFormSubmissionsList's own pagination window already avoids).
+// `id` is UI-local only — stripped before a row is sent as part of a `filters` request.
+export interface LeadFormEditableFilterRow extends LeadFormSearchFilterEntry {
+  readonly id: string;
+}
+
+export function createEmptyFilterRow(): LeadFormEditableFilterRow {
+  return { id: crypto.randomUUID(), questionLabel: '', value: '' };
+}
+
+export function toEditableFilterRows(
+  entries: readonly LeadFormSearchFilterEntry[] | undefined,
+): LeadFormEditableFilterRow[] {
+  if (!entries || entries.length === 0) return [createEmptyFilterRow()];
+  return entries.map((entry) => ({ id: crypto.randomUUID(), ...entry }));
+}
+
+// Parses the `filters` query param (a URL-encoded JSON array string) back into a typed array
+// for pre-filling the advanced-filter UI on load (a direct link, a back-navigation). A
+// hand-edited or stale URL that doesn't parse/match the expected shape fails open to
+// "no filters" rather than crashing the page — the BFF/backend independently re-validate on
+// the actual request.
+export function parseLeadFormFilters(
+  raw: string | undefined,
+): LeadFormSearchFilterEntry[] | undefined {
+  if (!raw) return undefined;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return undefined;
+    const entries = parsed.filter(
+      (entry): entry is LeadFormSearchFilterEntry =>
+        typeof entry === 'object' &&
+        entry !== null &&
+        typeof (entry as Record<string, unknown>).questionLabel === 'string' &&
+        typeof (entry as Record<string, unknown>).value === 'string',
+    );
+    return entries.length > 0 ? entries : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+interface BuildLeadsSearchQueryParams extends LeadFormSearchQuery {
+  readonly page?: number;
+}
+
+// Builds the `/dashboard/leads` query string for a given filter state. `page` is omitted
+// whenever it's the default (1) so plain unfiltered/first-page links stay clean.
+export function buildLeadsSearchQuery(params: BuildLeadsSearchQueryParams): string {
+  const query = new URLSearchParams();
+  if (params.search) query.set('search', params.search);
+  if (params.filters && params.filters.length > 0) {
+    query.set('filters', JSON.stringify(params.filters));
+  }
+  if (params.submittedFrom) query.set('submittedFrom', params.submittedFrom);
+  if (params.submittedTo) query.set('submittedTo', params.submittedTo);
+  if (params.page !== undefined && params.page > 1) query.set('page', String(params.page));
+  const queryString = query.toString();
+  return queryString ? `?${queryString}` : '';
+}
