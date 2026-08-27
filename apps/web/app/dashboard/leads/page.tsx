@@ -59,15 +59,22 @@ export default async function LeadsPage({
       submittedFrom,
       submittedTo,
     }),
-    // Only advanced mode's own dropdown ever renders these — fetching them for every basic-mode
-    // render (initial load, every page of pagination) was pure waste, repeating a tenant-scoped
-    // `SELECT DISTINCT question_label` scan of `lead_form_answers` no caller was going to use
-    // (Codex PR #436 round 4 finding, 2026-08-27). A transient failure still must not take down
-    // the whole list — the advanced-filter dropdown just renders with no options instead
-    // (CodeRabbit PR #436 round 1 finding, 2026-08-27).
-    mode === 'advanced'
-      ? getLeadFormFilterOptions(token).catch(() => ({ questionLabels: [] }))
-      : Promise.resolve({ questionLabels: [] }),
+    // Fetched unconditionally, even in basic mode — tried gating this on `mode === 'advanced'`
+    // (Codex PR #436 round 4 finding: wasteful to run on every basic-mode render for a dropdown
+    // only advanced mode shows), but that reintroduced a worse bug: toggleMode() flips the local
+    // `mode` state to 'advanced' optimistically, before the router.push() navigation this fetch
+    // depends on has resolved, so the advanced dropdown briefly rendered with zero options until
+    // the panel's key-based remount caught up — confirmed live as a round-5 CI failure
+    // (leads-search.spec.ts's "2 ANDed advanced filters" test, timing out on an option that
+    // hadn't loaded yet). The query itself isn't the unbounded scan the finding assumed: it's
+    // `WHERE tenant_id = $1` on the same `(tenant_id, submission_id, question_label)` index
+    // `applySearch()` already relies on (see ListLeadFormSubmissionsSchema's own doc comment), so
+    // it's bounded by this one tenant's own answer-row count, and DISTINCT further caps the
+    // *result* to that tenant's own distinct-question-label count — realistically a handful to a
+    // few dozen labels over a tenant's whole history, not an unbounded list. A transient failure
+    // still must not take down the whole list — the advanced-filter dropdown just renders with no
+    // options instead (CodeRabbit PR #436 round 1 finding, 2026-08-27).
+    getLeadFormFilterOptions(token).catch(() => ({ questionLabels: [] })),
   ]);
 
   return (
