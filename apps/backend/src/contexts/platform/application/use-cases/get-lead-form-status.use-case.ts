@@ -13,7 +13,11 @@ export interface GetLeadFormStatusUseCaseResult {
   enabled: boolean;
 }
 
-/** Nav-gating read (UC-041 Trigger) — thin read of HotsiteConfig's own layout[].enabled flag. */
+/**
+ * Nav-gating read (UC-041 Trigger) — polled once per dashboard page load, so this goes through
+ * IHotsiteConfigRepository.isModuleEnabled(), a narrow projection CachingHotsiteConfigRepository
+ * caches independently of the full aggregate (M20-S10 follow-up).
+ */
 @Injectable()
 export class GetLeadFormStatusUseCase {
   constructor(
@@ -23,9 +27,8 @@ export class GetLeadFormStatusUseCase {
 
   async execute(input: GetLeadFormStatusUseCaseInput): Promise<GetLeadFormStatusUseCaseResult> {
     const { tenantId } = input;
-    const hotsiteConfig = await this.hotsiteConfigRepo.findByTenantId(tenantId);
-    if (!hotsiteConfig) throw new HotsiteNotFoundError(tenantId);
-    const leadFormModule = hotsiteConfig.layout.find((module) => module.type === 'LEAD_FORM');
-    return { enabled: leadFormModule?.enabled ?? false };
+    const enabled = await this.hotsiteConfigRepo.isModuleEnabled(tenantId, 'LEAD_FORM');
+    if (enabled === null) throw new HotsiteNotFoundError(tenantId);
+    return { enabled };
   }
 }

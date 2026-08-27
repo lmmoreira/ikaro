@@ -21,21 +21,29 @@ function buildPageHref(page: number): string {
 
 const PAGE_WINDOW_DELTA = 2;
 
+type PageWindowEntry =
+  | { readonly type: 'page'; readonly value: number }
+  | { readonly type: 'ellipsis'; readonly key: string };
+
 // Bounded page-number window (max ~9 entries: first, last, up to 5 around current, 2 ellipses) —
 // renders the same DOM size regardless of totalPages. Without this, a tenant retaining up to
 // 24 months of submissions at up to 1,000/day rendered one link per page, unbounded (Codex PR
-// #435 review).
-function buildPageWindow(current: number, total: number): readonly (number | 'ellipsis')[] {
+// #435 review). Each ellipsis carries a key derived from the page number right after it (a
+// window has at most 2 ellipses, each preceding a distinct page, so this is always unique —
+// avoids the array-index-as-key smell, SonarCloud S6479).
+function buildPageWindow(current: number, total: number): readonly PageWindowEntry[] {
   const pages = new Set<number>([1, total]);
   for (let p = current - PAGE_WINDOW_DELTA; p <= current + PAGE_WINDOW_DELTA; p++) {
     if (p >= 1 && p <= total) pages.add(p);
   }
   const sorted = Array.from(pages).sort((a, b) => a - b);
-  const result: (number | 'ellipsis')[] = [];
+  const result: PageWindowEntry[] = [];
   let previous = 0;
   for (const p of sorted) {
-    if (previous !== 0 && p - previous > 1) result.push('ellipsis');
-    result.push(p);
+    if (previous !== 0 && p - previous > 1) {
+      result.push({ type: 'ellipsis', key: `ellipsis-before-${p}` });
+    }
+    result.push({ type: 'page', value: p });
     previous = p;
   }
   return result;
@@ -121,27 +129,23 @@ export function LeadFormSubmissionsList({
           >
             <ChevronLeft className="h-4 w-4" />
           </Link>
-          {buildPageWindow(page, totalPages).map((entry, index) =>
-            entry === 'ellipsis' ? (
-              <span
-                key={`ellipsis-${index}`}
-                aria-hidden="true"
-                className="px-1.5 text-sm text-gray-400"
-              >
+          {buildPageWindow(page, totalPages).map((entry) =>
+            entry.type === 'ellipsis' ? (
+              <span key={entry.key} aria-hidden="true" className="px-1.5 text-sm text-gray-400">
                 …
               </span>
             ) : (
               <Link
-                key={entry}
-                href={buildPageHref(entry)}
-                aria-current={entry === page ? 'page' : undefined}
+                key={entry.value}
+                href={buildPageHref(entry.value)}
+                aria-current={entry.value === page ? 'page' : undefined}
                 className={
-                  entry === page
+                  entry.value === page
                     ? 'rounded-md border border-blue-600 bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white'
                     : 'rounded-md border px-3 py-1.5 text-sm hover:bg-slate-50'
                 }
               >
-                {entry}
+                {entry.value}
               </Link>
             ),
           )}

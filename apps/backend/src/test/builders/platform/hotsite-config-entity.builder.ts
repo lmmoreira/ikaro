@@ -26,6 +26,7 @@ export class HotsiteConfigEntityBuilder {
   private tenantId = 'tenant-id-1';
   private isPublished = false;
   private branding: HotsiteBranding = { ...DEFAULT_HOTSITE_BRANDING };
+  private layout: HotsiteModule[] = DEFAULT_LAYOUT;
   private seo: HotsiteSeo = { ...DEFAULT_HOTSITE_SEO };
   private version = 1;
   private readonly updatedAt = new Date('2026-01-01T00:00:00Z');
@@ -50,6 +51,11 @@ export class HotsiteConfigEntityBuilder {
     return this;
   }
 
+  withLayout(layout: HotsiteModule[]): this {
+    this.layout = layout;
+    return this;
+  }
+
   withSeo(seo: HotsiteSeo): this {
     this.seo = seo;
     return this;
@@ -65,7 +71,7 @@ export class HotsiteConfigEntityBuilder {
     e.id = this.id;
     e.tenantId = this.tenantId;
     e.branding = this.branding;
-    e.layout = DEFAULT_LAYOUT;
+    e.layout = this.layout;
     e.seo = this.seo;
     e.isPublished = this.isPublished;
     e.updatedAt = this.updatedAt;
