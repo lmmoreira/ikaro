@@ -495,7 +495,7 @@ Add a "Formulário de contato" section to the existing `apps/web/features/platfo
 
 ---
 
-### M20-S12 — Leads search: schema + backend + BFF (UC-041)
+### M20-S12 — Leads search: schema + backend + BFF (UC-041) ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** L (bumped from an earlier S/M draft — this story's scope grew during the post-review redesign to also amend S04's retention job, see below)
