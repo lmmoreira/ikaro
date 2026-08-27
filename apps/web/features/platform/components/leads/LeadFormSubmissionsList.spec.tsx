@@ -81,6 +81,25 @@ describe('LeadFormSubmissionsList', () => {
     expect(screen.getByLabelText('Página anterior')).toHaveAttribute('href', '/dashboard/leads');
   });
 
+  it('renders a bounded window with ellipses instead of one link per page for a large total', () => {
+    // 24 months retention x up to 1,000 submissions/day can produce hundreds of pages — the
+    // rendered link count must stay bounded regardless of totalPages (Codex PR #435 review).
+    const items = Array.from({ length: 20 }, (_, i) => buildItem({ id: `sub-${i}` }));
+    renderWithIntl(<LeadFormSubmissionsList items={items} page={25} pageSize={20} total={900} />);
+
+    // totalPages = 45; window around page 25 = {1, 23, 24, 25, 26, 27, 45} + 2 ellipses.
+    expect(screen.getByText('1')).toBeInTheDocument();
+    expect(screen.getByText('23')).toBeInTheDocument();
+    expect(screen.getByText('24')).toBeInTheDocument();
+    expect(screen.getByText('25')).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByText('26')).toBeInTheDocument();
+    expect(screen.getByText('27')).toBeInTheDocument();
+    expect(screen.getByText('45')).toBeInTheDocument();
+    expect(screen.queryByText('2')).not.toBeInTheDocument();
+    expect(screen.queryByText('44')).not.toBeInTheDocument();
+    expect(screen.getAllByText('…')).toHaveLength(2);
+  });
+
   it('formats submittedAt using the tenant formatting context', () => {
     renderWithIntl(
       <LeadFormSubmissionsList items={[buildItem()]} page={1} pageSize={20} total={1} />,

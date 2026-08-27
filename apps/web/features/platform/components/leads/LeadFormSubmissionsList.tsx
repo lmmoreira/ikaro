@@ -19,6 +19,28 @@ function buildPageHref(page: number): string {
   return page <= 1 ? '/dashboard/leads' : `/dashboard/leads?page=${page}`;
 }
 
+const PAGE_WINDOW_DELTA = 2;
+
+// Bounded page-number window (max ~9 entries: first, last, up to 5 around current, 2 ellipses) —
+// renders the same DOM size regardless of totalPages. Without this, a tenant retaining up to
+// 24 months of submissions at up to 1,000/day rendered one link per page, unbounded (Codex PR
+// #435 review).
+function buildPageWindow(current: number, total: number): readonly (number | 'ellipsis')[] {
+  const pages = new Set<number>([1, total]);
+  for (let p = current - PAGE_WINDOW_DELTA; p <= current + PAGE_WINDOW_DELTA; p++) {
+    if (p >= 1 && p <= total) pages.add(p);
+  }
+  const sorted = Array.from(pages).sort((a, b) => a - b);
+  const result: (number | 'ellipsis')[] = [];
+  let previous = 0;
+  for (const p of sorted) {
+    if (previous !== 0 && p - previous > 1) result.push('ellipsis');
+    result.push(p);
+    previous = p;
+  }
+  return result;
+}
+
 // page.tsx re-fetches server-side via URL navigation (Link href="?page=N") — no client-side
 // pagination state needed.
 export function LeadFormSubmissionsList({
@@ -99,20 +121,30 @@ export function LeadFormSubmissionsList({
           >
             <ChevronLeft className="h-4 w-4" />
           </Link>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNumber) => (
-            <Link
-              key={pageNumber}
-              href={buildPageHref(pageNumber)}
-              aria-current={pageNumber === page ? 'page' : undefined}
-              className={
-                pageNumber === page
-                  ? 'rounded-md border border-blue-600 bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white'
-                  : 'rounded-md border px-3 py-1.5 text-sm hover:bg-slate-50'
-              }
-            >
-              {pageNumber}
-            </Link>
-          ))}
+          {buildPageWindow(page, totalPages).map((entry, index) =>
+            entry === 'ellipsis' ? (
+              <span
+                key={`ellipsis-${index}`}
+                aria-hidden="true"
+                className="px-1.5 text-sm text-gray-400"
+              >
+                …
+              </span>
+            ) : (
+              <Link
+                key={entry}
+                href={buildPageHref(entry)}
+                aria-current={entry === page ? 'page' : undefined}
+                className={
+                  entry === page
+                    ? 'rounded-md border border-blue-600 bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white'
+                    : 'rounded-md border px-3 py-1.5 text-sm hover:bg-slate-50'
+                }
+              >
+                {entry}
+              </Link>
+            ),
+          )}
           <Link
             href={buildPageHref(page + 1)}
             aria-disabled={page >= totalPages}
