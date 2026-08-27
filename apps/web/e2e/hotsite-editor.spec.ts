@@ -1146,13 +1146,13 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.locator(configureButton('LEAD_FORM')).click();
     await expect(page.getByTestId('lead-form-config-panel')).toBeVisible();
 
-    await page.getByLabel('Título', { exact: true }).fill('Fale com a nossa equipe');
-    await page.getByLabel('Subtítulo').fill('Responda algumas perguntas rápidas');
-    await page.getByLabel('Texto do botão').fill('Quero conversar');
+    await page.locator('#lead-form-teaser-title').fill('Fale com a nossa equipe');
+    await page.locator('#lead-form-teaser-subtitle').fill('Responda algumas perguntas rápidas');
+    await page.locator('#lead-form-teaser-cta').fill('Quero conversar');
     await page.getByRole('radio', { name: 'Somente clientes logados' }).click();
 
     await page.getByRole('button', { name: '+ Adicionar pergunta' }).click();
-    await page.getByLabel('Pergunta', { exact: true }).fill('Qual serviço você procura?');
+    await page.getByTestId('lead-form-question-label').fill('Qual serviço você procura?');
 
     await page.getByTestId('module-config-apply-desktop').click();
 
@@ -1166,11 +1166,13 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await expect(page.locator(layoutToggle('LEAD_FORM'))).toHaveAttribute('aria-checked', 'true');
     await page.locator(configureButton('LEAD_FORM')).click();
 
-    await expect(page.getByLabel('Título', { exact: true })).toHaveValue('Fale com a nossa equipe');
-    await expect(page.getByLabel('Subtítulo')).toHaveValue('Responda algumas perguntas rápidas');
-    await expect(page.getByLabel('Texto do botão')).toHaveValue('Quero conversar');
+    await expect(page.locator('#lead-form-teaser-title')).toHaveValue('Fale com a nossa equipe');
+    await expect(page.locator('#lead-form-teaser-subtitle')).toHaveValue(
+      'Responda algumas perguntas rápidas',
+    );
+    await expect(page.locator('#lead-form-teaser-cta')).toHaveValue('Quero conversar');
     await expect(page.getByRole('radio', { name: 'Somente clientes logados' })).toBeChecked();
-    await expect(page.getByLabel('Pergunta', { exact: true })).toHaveValue(
+    await expect(page.getByTestId('lead-form-question-label')).toHaveValue(
       'Qual serviço você procura?',
     );
   });
@@ -1192,10 +1194,14 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await expect(page.getByTestId('lead-form-config-panel')).toBeVisible();
 
     await page.getByRole('button', { name: '+ Adicionar pergunta' }).click();
-    await page.getByLabel('Pergunta', { exact: true }).fill('Qual serviço você procura?');
-    await page.getByLabel('Tipo').selectOption('SINGLE_CHOICE');
+    await page.getByTestId('lead-form-question-label').fill('Qual serviço você procura?');
+    await page.getByTestId('lead-form-question-type').selectOption('SINGLE_CHOICE');
     await page.getByRole('button', { name: '+ Adicionar opção' }).click();
-    await page.getByLabel('Opção 1').fill('Somente uma opção');
+    // E2E-3: static data-testid + a separate data-option-index attribute, not a template-literal
+    // testid — matches LeadFormQuestionField's own established data-option-* convention.
+    await page
+      .locator('[data-testid="lead-form-question-option-input"][data-option-index="0"]')
+      .fill('Somente uma opção');
 
     await page.getByTestId('module-config-preview-desktop').click();
     await page.getByTestId('hotsite-preview-publish-desktop').click();

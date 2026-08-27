@@ -108,6 +108,7 @@ export function LeadFormSortableQuestion({
           </label>
           <input
             id={`lead-question-label-${question.id}`}
+            data-testid="lead-form-question-label"
             value={question.label}
             onChange={(event) => update({ label: event.target.value })}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
@@ -125,6 +126,7 @@ export function LeadFormSortableQuestion({
           </label>
           <select
             id={`lead-question-type-${question.id}`}
+            data-testid="lead-form-question-type"
             value={question.type}
             onChange={(event) => changeType(event.target.value as LeadFormQuestionType)}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
@@ -152,6 +154,8 @@ export function LeadFormSortableQuestion({
                 <input
                   value={option}
                   aria-label={t('question.optionLabel', { index: optionIndex + 1 })}
+                  data-testid="lead-form-question-option-input"
+                  data-option-index={optionIndex}
                   onChange={(event) => {
                     const next = [...options];
                     next[optionIndex] = event.target.value;
