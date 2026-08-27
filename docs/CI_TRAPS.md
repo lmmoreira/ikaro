@@ -314,6 +314,16 @@ Runs automatically on `git push`. Fix these before re-pushing.
 
 ---
 
+## `pre-pr.sh`'s custom checks only run once — never re-verified during a PR's own bot-fix round loop
+
+`/pre-pr`'s own skill text is explicit: *"If a PR is already open for this branch, this skill exits immediately."* That means `pre-pr.sh` — including every one of its bespoke grep checks (E2E-1/2/3, BE-2/3/5/7, WEB-1/4/5/6/7, etc., none of which are ESLint rules or `tsc` errors) — runs **once**, before a PR is first created, and never again for that PR. Once the PR is open, `/pr-land`'s round loop only re-runs `ci:fast` (ESLint + `tsc --noEmit` + unit tests) plus Codex/CodeRabbit review on each new commit. A `pre-pr.sh`-only check has no gate re-checking it for any commit added during the bot-fix loop.
+
+**Proven, not hypothetical:** PR #429 (M20-S08, 22 commits across its own bot-fix round loop, merged 2026-08-27) shipped a real E2E-1 violation (`getByLabel(`/`getByText(` in `apps/web/e2e/hotsite-editor.spec.ts`) — a rule that had existed since M13-S41 (2026-06-18), two months earlier. It sat on `main` undetected until M20-S12's own work found it the next day. Most likely mechanism: the violating test code was added in a later round-loop commit, after the PR's one-time `pre-pr.sh` gate had already passed.
+
+**What this means in practice:** "pre-pr already passed" is only true as of the commit that triggered it — never assume it still covers whatever the bot-fix loop has added since. If you add or change code that a `pre-pr.sh`-only check (not `ci:fast`, not an ESLint rule) would have caught, re-run the relevant check by hand before pushing. `td/TD37-CI-ARCHITECTURE-VALIDATION-HARDENING.md` Story 23 proposes migrating E2E-1/2/3 to real ESLint rules (closing this gap structurally for those three); the underlying trap applies to every other `pre-pr.sh`-only check until each gets the same treatment.
+
+---
+
 ## SonarCloud CPD (Duplicated Lines %) > 3% on new code
 
 SonarCloud gates on ≤ 3% duplicated lines on **new code**. A private method duplicated across two use cases easily pushes past this threshold.
