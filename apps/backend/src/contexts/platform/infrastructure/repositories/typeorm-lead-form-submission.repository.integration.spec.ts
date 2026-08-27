@@ -12,10 +12,12 @@ import { TypeOrmOutboxRepository } from '../../../../shared/infrastructure/outbo
 import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typeorm-transaction-manager';
 import { localDayBoundsUTC } from '../../../../shared/utils/calendar-date';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
+import { LeadFormConfigEntityBuilder } from '../../../../test/builders/platform/lead-form-config-entity.builder';
 import { LeadFormSubmissionBuilder } from '../../../../test/builders/platform/lead-form-submission.builder';
 import { LeadFormSubmissionEntityBuilder } from '../../../../test/builders/platform/lead-form-submission-entity.builder';
 import { LeadFormSubmission } from '../../domain/lead-form-submission.aggregate';
 import { TenantEntity } from '../entities/tenant.entity';
+import { LeadFormConfigEntity } from '../entities/lead-form-config.entity';
 import { LeadFormSubmissionEntity } from '../entities/lead-form-submission.entity';
 import { TypeOrmLeadFormSubmissionRepository } from './typeorm-lead-form-submission.repository';
 
@@ -62,6 +64,8 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
     await entityRepo.delete({ tenantId: TENANT_B });
     await outboxRepo.delete({ tenantId: TENANT_A });
     await outboxRepo.delete({ tenantId: TENANT_B });
+    await dataSource.getRepository(LeadFormConfigEntity).delete({ tenantId: TENANT_A });
+    await dataSource.getRepository(LeadFormConfigEntity).delete({ tenantId: TENANT_B });
   });
 
   function makeRepo(eventBus: InMemoryEventBus, inlineDispatchEnabled = false) {
@@ -671,6 +675,22 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
 
   describe('findDistinctQuestionLabels (M20-S12)', () => {
     it('returns distinct, alphabetically-ordered labels, including one from a since-removed question', async () => {
+      const configRepo = dataSource.getRepository(LeadFormConfigEntity);
+      // Both questions live in the config at submission time — 'Estado civil' is the one that
+      // gets removed afterward, proving findDistinctQuestionLabels reads its own snapshot
+      // (lead_form_answers.question_label), not the current live LeadFormConfig (Codex review
+      // finding, PR #434 round 6: the previous version of this test never created a live config
+      // at all, so it couldn't actually prove the "since-removed question" claim in its own name).
+      await configRepo.save(
+        new LeadFormConfigEntityBuilder()
+          .withTenantId(TENANT_A)
+          .withQuestions([
+            { id: QUESTION_ID, label: 'Estado civil', type: 'TEXT', required: false, order: 0 },
+            { id: OTHER_QUESTION_ID, label: 'Onde mora', type: 'TEXT', required: false, order: 1 },
+          ])
+          .build(),
+      );
+
       const repo = makeRepo(new InMemoryEventBus());
       await txManager.run(() =>
         repo.save(buildWithAnswerForLabels(TENANT_A, 'Estado civil', 'Casado')),
@@ -681,6 +701,16 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
       // Same label as the first submission — proves DISTINCT, not a raw row dump.
       await txManager.run(() =>
         repo.save(buildWithAnswerForLabels(TENANT_A, 'Estado civil', 'Solteiro')),
+      );
+
+      // Manager edits the live config afterward and removes 'Estado civil' entirely.
+      await configRepo.save(
+        new LeadFormConfigEntityBuilder()
+          .withTenantId(TENANT_A)
+          .withQuestions([
+            { id: OTHER_QUESTION_ID, label: 'Onde mora', type: 'TEXT', required: false, order: 0 },
+          ])
+          .build(),
       );
 
       const labels = await repo.findDistinctQuestionLabels(TENANT_A);
