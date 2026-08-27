@@ -56,14 +56,8 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
   });
 
   beforeEach(async () => {
-    // lead_form_answers first (M20-S12) — no ON DELETE CASCADE on its FK to
-    // lead_form_submissions (deliberately, mirroring chatbot_messages/chatbot_sessions), so a raw
-    // delete of the parent row without this would violate the FK, same as
-    // LeadFormRetentionPurgeJob's own child-then-parent ordering.
-    await dataSource.query(
-      `DELETE FROM "platform"."lead_form_answers" WHERE "tenant_id" = ANY($1)`,
-      [[TENANT_A, TENANT_B]],
-    );
+    // lead_form_answers' FK carries ON DELETE CASCADE (M20-S12) — deleting the parent
+    // lead_form_submissions rows below removes the matching answer rows automatically.
     await entityRepo.delete({ tenantId: TENANT_A });
     await entityRepo.delete({ tenantId: TENANT_B });
     await outboxRepo.delete({ tenantId: TENANT_A });

@@ -68,11 +68,8 @@ export interface ILeadFormSubmissionRepository {
    * `now`, across every tenant in one pass (no tenant_id predicate — matches
    * ExpirePointsJob/ChatbotRetentionPurgeJob's own cross-tenant precedent), using the
    * standalone `(expires_at)` index — the `(tenant_id, expires_at)` composite index can't be
-   * seeked by this unscoped query. Returns the number of rows actually deleted. Also deletes each
-   * expiring submission's `platform.lead_form_answers` rows first (M20-S12) — that table has no
-   * `ON DELETE CASCADE` (deliberately, matching `chatbot_messages`/`chatbot_sessions`), and both
-   * tables are owned by this same repository (unlike Chatbot's separate message/session repos), so
-   * the child-then-parent delete is one repository method rather than two job-level calls;
-   * `LeadFormRetentionPurgeJob` itself is unchanged. */
+   * seeked by this unscoped query. Returns the number of rows actually deleted.
+   * `platform.lead_form_answers`' FK carries `ON DELETE CASCADE` (M20-S12) — Postgres removes
+   * each expiring submission's answer rows automatically, no separate child delete needed. */
   deleteExpired(now: Date): Promise<number>;
 }

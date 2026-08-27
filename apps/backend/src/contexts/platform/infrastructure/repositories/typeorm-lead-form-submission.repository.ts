@@ -78,22 +78,8 @@ export class TypeOrmLeadFormSubmissionRepository implements ILeadFormSubmissionR
     const manager = getActiveEntityManager();
     const executor = manager ?? this.repo.manager;
 
-    // Child rows first (M20-S12) — no ON DELETE CASCADE on lead_form_answers (deliberately,
-    // matching chatbot_messages/chatbot_sessions' own no-cascade precedent), so the parent delete
-    // below would otherwise throw an FK-violation error on any expiring submission that has at
-    // least one answered question. A single correlated statement, not a candidate-list-then-loop
-    // (same reasoning ChatbotRetentionPurgeJob's own docstring gives for its sessionRepo delete).
-    await executor.query(
-      `
-        DELETE FROM "platform"."lead_form_answers" a
-        USING "platform"."lead_form_submissions" s
-        WHERE a."tenant_id" = s."tenant_id"
-          AND a."submission_id" = s."id"
-          AND s."expires_at" < $1
-      `,
-      [now],
-    );
-
+    // lead_form_answers' FK carries ON DELETE CASCADE (M20-S12) — Postgres removes the matching
+    // answer rows for each expiring submission, no separate child delete needed here.
     const result = await executor
       .createQueryBuilder()
       .delete()

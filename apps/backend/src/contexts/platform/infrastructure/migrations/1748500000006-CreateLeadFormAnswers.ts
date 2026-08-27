@@ -6,10 +6,12 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * `string[]` flattened to one row per selected option). Never a domain aggregate of its own;
  * `lead_form_submissions.answers` stays the sole source for the detail view.
  *
- * No `ON DELETE CASCADE` on the FK to `lead_form_submissions` — deliberately, mirroring
- * `chatbot_messages`/`chatbot_sessions`' own no-cascade precedent. `LeadFormRetentionPurgeJob`
- * (M20-S04, amended by this story) deletes this table's rows for an expiring submission before
- * deleting the parent row, in the same transaction.
+ * `ON DELETE CASCADE` on the FK to `lead_form_submissions` — unlike `chatbot_messages`/
+ * `chatbot_sessions`' own no-cascade precedent, this table's rows have no lifecycle independent
+ * of their parent submission (no separate age-based retention of their own), so cascade is a
+ * genuine simplification here rather than the functionally-inert no-op it would be for chatbot's
+ * own already-decoupled, message-age-driven retention. `LeadFormRetentionPurgeJob` only needs to
+ * delete the parent `lead_form_submissions` row; Postgres removes the matching answer rows.
  *
  * Backfills existing submissions — the public submission endpoint has been live since an earlier,
  * already-merged story (M20-S02/S05/S06), so real submissions can already exist via direct API
@@ -32,6 +34,7 @@ export class CreateLeadFormAnswers1748500000006 implements MigrationInterface {
         CONSTRAINT "FK_platform_lead_form_answers_submission"
           FOREIGN KEY ("tenant_id", "submission_id")
           REFERENCES "platform"."lead_form_submissions" ("tenant_id", "id")
+          ON DELETE CASCADE
       )
     `);
 

@@ -14,11 +14,9 @@ export interface LeadFormRetentionPurgeJobResult {
 
 // UC-043: deletes every platform.lead_form_submissions row whose expires_at (computed once per
 // submission at insert time from the tenant's retentionMonths at that moment) is now in the
-// past, across every tenant in one pass. Since M20-S12, deleteExpired() also deletes each
-// expiring submission's platform.lead_form_answers rows first (no ON DELETE CASCADE there,
-// deliberately) — this job's own code stays a single repository call, unlike
-// ChatbotRetentionPurgeJob's two separate repo calls, because both tables are owned by the same
-// TypeOrmLeadFormSubmissionRepository rather than two independent repositories.
+// past, across every tenant in one pass. platform.lead_form_answers' FK carries ON DELETE CASCADE
+// (M20-S12) — Postgres removes each expiring submission's answer rows automatically, so this
+// job's own code stays a single repository call with no separate child-table cleanup.
 @Injectable()
 export class LeadFormRetentionPurgeJob {
   constructor(

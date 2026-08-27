@@ -237,28 +237,6 @@ describe('TypeOrmLeadFormSubmissionRepository', () => {
       expect(result).toBe(4);
     });
 
-    // M20-S12: lead_form_answers has no ON DELETE CASCADE — the child rows for an expiring
-    // submission must be deleted first, in the same executor (manager or repo.manager), before
-    // the parent delete below runs.
-    it('deletes lead_form_answers rows for expiring submissions before deleting the parent rows', async () => {
-      const qb = makeDeleteQueryBuilder(4);
-      (mockRepo.manager.createQueryBuilder as jest.Mock).mockReturnValue(qb);
-
-      await repo.deleteExpired(now);
-
-      expect(mockRepo.manager.query).toHaveBeenCalledWith(
-        expect.stringContaining('lead_form_answers'),
-        [now],
-      );
-      expect(mockRepo.manager.query).toHaveBeenCalledWith(
-        expect.stringContaining('lead_form_submissions'),
-        [now],
-      );
-      // Both deletes ran: the child rows via the raw query above, the parent row via the
-      // existing createQueryBuilder delete (already asserted in the sibling test above).
-      expect(qb.execute).toHaveBeenCalled();
-    });
-
     it('returns 0 when execute() reports no affected rows', async () => {
       const qb = makeDeleteQueryBuilder(0);
       qb.execute.mockResolvedValue({ affected: null });
@@ -271,15 +249,12 @@ describe('TypeOrmLeadFormSubmissionRepository', () => {
       const qb = makeDeleteQueryBuilder(2);
       const mockManager = {
         createQueryBuilder: jest.fn().mockReturnValue(qb),
-        query: jest.fn().mockResolvedValue(undefined),
       } as unknown as EntityManager;
 
       const result = await runWithEntityManager(mockManager, () => repo.deleteExpired(now));
 
       expect(mockManager.createQueryBuilder).toHaveBeenCalled();
-      expect(mockManager.query).toHaveBeenCalled();
       expect(mockRepo.manager.createQueryBuilder).not.toHaveBeenCalled();
-      expect(mockRepo.manager.query).not.toHaveBeenCalled();
       expect(result).toBe(2);
     });
   });

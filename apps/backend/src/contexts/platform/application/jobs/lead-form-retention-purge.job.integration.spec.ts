@@ -117,9 +117,8 @@ describe('LeadFormRetentionPurgeJob (integration)', () => {
     expect(secondRun.submissionsDeleted).toBe(0);
   });
 
-  // M20-S12: platform.lead_form_answers has no ON DELETE CASCADE — before this story amended
-  // deleteExpired(), this purge threw an FK-violation error on any expired submission with at
-  // least one answered question.
+  // M20-S12: platform.lead_form_answers' FK carries ON DELETE CASCADE — proves the parent delete
+  // below removes an expired submission's answer rows too, with no FK-violation error.
   it('deletes an expired submission with answer rows without an FK-violation error, removing both parent and child rows', async () => {
     const tenant = new TenantBuilder()
       .withName('Lead Form Retention Answers')
