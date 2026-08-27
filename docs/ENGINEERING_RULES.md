@@ -755,3 +755,54 @@ const timezone = isValidTimezone(manifest.localization.timezone)
 ```
 
 `isValidTimezone` is in `lib/formatting/locale-validators.ts`. The same pattern applies to any manifest field whose DB-level validity is enforced only by `create()`, not `reconstitute()`.
+
+---
+
+## Cloudflare Turnstile's test sitekey never renders an interactive iframe
+
+**Cloudflare's "always passes visible" test sitekey (`1x00000000000000000000AA` — the only sitekey this repo ever configures) auto-verifies without rendering an interactive challenge iframe at all.** The real widget script runs against it and calls `turnstile.render()` normally, but instead of loading a visible `<iframe src="https://challenges.cloudflare.com/...">`, it writes a dummy token straight into its own hidden `<input type="hidden" name="cf-turnstile-response">` the moment `render()` resolves. An E2E assertion built around `page.frameLocator('iframe[src*="challenges.cloudflare.com"]')` will time out waiting for an element the test key was never going to produce — no matter how correct the surrounding app code is.
+
+**Confirmed empirically (M20-S09 PR #433, 2026-08-26):** the same "guest completes Turnstile" E2E assertion failed identically across three consecutive review rounds. The first two fix attempts were both real, correct, necessary bugs — a `TurnstileWidget` lifecycle bug that recreated the real widget on every parent re-render, and a completely missing CSP allowance for `challenges.cloudflare.com` that would have broken the feature in production for every real visitor — but neither one was ever going to make an iframe appear, because the test key doesn't produce one. The actual root cause was only found by instrumenting the live test with `page.evaluate()` to dump the widget's real DOM and `window.turnstile`'s state, which showed a fully-rendered, fully-verified widget with zero `<iframe>` elements anywhere in the tree.
+
+**Fix:** wait on the hidden input Cloudflare's own client exposes for this exact non-JS-fallback purpose, not on iframe rendering:
+
+```ts
+// BAD — the test sitekey never renders this
+const turnstileFrame = page.frameLocator('iframe[src*="challenges.cloudflare.com"]');
+await expect(turnstileFrame.locator('body')).toBeVisible({ timeout: 15_000 });
+
+// GOOD — this is what the test sitekey actually produces
+await expect(page.locator('input[name="cf-turnstile-response"]')).toHaveValue(/.+/, {
+  timeout: 15_000,
+});
+```
+
+If a future story adds a *second*, differently-configured Turnstile widget (a real production sitekey exercised against a different environment), re-verify this assumption for that specific sitekey before reusing the hidden-input wait — this behavior is a documented property of the test key, not necessarily every key.
+
+---
+
+## Hotsite full-page components must explicitly paint `--ba-background`
+
+**`app/[slug]/layout.tsx`'s `applyBranding()` only defines `--ba-*` CSS custom properties on the root element — it never sets an actual `background-color`.** Every existing full-page hotsite view (`/[slug]/login`, `/[slug]/booking`'s `BookingForm`, `InformationCompletionPrompt`, `Unavailable`, `SubmitInfoForm`/`SubmitInfoSuccessView`, the chatbot panel) independently wraps its own content in a `min-h-screen` element that explicitly sets `backgroundColor: 'var(--ba-background)'` — the branding variables are consumed, not inherited as an actual paint. A component that only sets `color: 'var(--ba-text)'` and skips the background falls through to the browser's default white background regardless of the tenant's actual branding.
+
+**Confirmed via live manual testing (M20-S09 PR #433, 2026-08-26):** all 5 lead-form states (skeleton, form, login-required gate, terminal/error card, success) shipped without this, and passed every automated check — type-check, lint, `pnpm architecture-check`, and jsdom-based axe-core accessibility tests (41/41 green) — because none of them compute real rendered color contrast. The bug was invisible in CI and only surfaced when the user tested against a real dark-themed tenant (white `--ba-text`, near-black `--ba-background`): white text on the browser's default white background, completely unreadable, for every one of the 5 states.
+
+**Fix — the established pattern, copy it exactly:**
+
+```tsx
+// BAD — text color is branded, but nothing paints an actual background
+<div className="mx-auto max-w-2xl px-6 py-12" style={{ color: 'var(--ba-text)' }}>
+  ...
+</div>
+
+// GOOD — matches every other full-page hotsite view
+<main className="min-h-screen" style={{ backgroundColor: 'var(--ba-background)', color: 'var(--ba-text)' }}>
+  <div className="mx-auto max-w-2xl px-6 py-12">
+    ...
+  </div>
+</main>
+```
+
+A secondary trap in the same incident: a component with a *fixed*, non-branded accent background (e.g. a hardcoded `bg-blue-50` info callout) must pair it with a *fixed* text color (`text-blue-900`), never `--ba-text` — a dark-themed tenant's white text is invisible against a background that never changes with branding. This is the same fixed-bg/fixed-text pairing this codebase's validation/captcha banners already use (`text-red-800` on `bg-red-50`, `text-amber-800` on `bg-amber-50`) — the inconsistency was in the one component that didn't follow its own siblings' pattern.
+
+**Since jsdom-based axe-core cannot catch this class of bug, don't treat a green component-test suite as proof a new full-page view is visually correct — this is exactly the class of defect the Local verification gate (CLAUDE.md §0) exists to catch, and is worth a real-browser check against at least one dark-themed and one light-themed tenant before considering a new public-facing page done.**
