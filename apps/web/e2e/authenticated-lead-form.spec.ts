@@ -10,7 +10,11 @@ import {
   unpublishHotsite,
   updateHotsiteConfig,
 } from './helpers/hotsite';
-import { getLeadFormConfig, updateLeadFormConfig } from './helpers/platform';
+import {
+  getLeadFormConfig,
+  toLeadFormUpdateRequest,
+  updateLeadFormConfig,
+} from './helpers/platform';
 
 // autospa-premium: same shared-tenant convention as guest-lead-form.spec.ts/chatbot-widget.spec.ts.
 const MANAGER_EMAIL = 'admin@autospa.com.br';
@@ -60,10 +64,7 @@ test.describe.serial('lead-form public page (authenticated CUSTOMER) — M20-S09
     const context = await browser.newContext();
     const page = await context.newPage();
     await loginAsStaff(page, MANAGER_EMAIL, MANAGER_TENANT_SLUG);
-    await updateLeadFormConfig(page, {
-      audienceMode: originalLeadForm.audienceMode,
-      questions: originalLeadForm.questions,
-    });
+    await updateLeadFormConfig(page, toLeadFormUpdateRequest(originalLeadForm));
     await updateHotsiteConfig(page, toUpdateRequest(originalHotsite));
     if (originalHotsite.isPublished) {
       await publishHotsite(page);

@@ -43,7 +43,10 @@ POST /public/platform/lead-form/:slug/submissions
   429 on rate-limit breach (maxSubmissionsPerDay / maxSubmissionsPerIpPerDay).
 
 GET   /v1/tenants/lead-form/config              (MANAGER)
-PATCH /v1/tenants/lead-form/config              (MANAGER)
+PATCH /v1/tenants/lead-form/config              (MANAGER) — SUPERSEDED at implementation (M20-S08):
+  folded into the existing PATCH /v1/tenants/hotsite as two optional extra fields
+  (audienceMode?, questions?) instead of its own endpoint; see docs/14-API_CONTRACTS.md
+  § Hotsite Admin Management for the current contract. GET stays its own endpoint as proposed.
 GET   /v1/tenants/lead-form/submissions?page=&pageSize=   (STAFF|MANAGER)
 GET   /v1/tenants/lead-form/submissions/:id                (STAFF|MANAGER)
 GET   /v1/tenants/lead-form/submissions/export?year=&month= (MANAGER)  — CSV stream

@@ -5,6 +5,7 @@ import { mapSharedVoError } from '../../../../shared/http/vo-validation-error.ma
 import {
   HotsiteConfigConcurrentModificationError,
   HotsiteNotFoundError,
+  LeadFormConfigConcurrentModificationError,
   PlatformDomainError,
   SlugAlreadyTakenError,
   TenantInactiveError,
@@ -60,7 +61,8 @@ export function mapPlatformError(err: unknown): never {
   if (
     err instanceof SlugAlreadyTakenError ||
     err instanceof TenantInactiveError ||
-    err instanceof HotsiteConfigConcurrentModificationError
+    err instanceof HotsiteConfigConcurrentModificationError ||
+    err instanceof LeadFormConfigConcurrentModificationError
   ) {
     throw throwProblemDetail(HttpStatus.CONFLICT, err.code, err.message, err.field);
   }

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { HexColorErrorCode, SeoErrorCode } from '@ikaro/types';
+import { GenericErrorCode, HexColorErrorCode, SeoErrorCode } from '@ikaro/types';
 
 export const HEX_COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/;
 
@@ -71,41 +71,60 @@ export const HotsiteBrandingSchema = z
   })
   .partial();
 
-export const HotsiteModuleSchema = z.object({
-  type: z.enum([
-    'HERO',
-    'SERVICE_LIST',
-    'GALLERY',
-    'TESTIMONIALS',
-    'BOOKING_CTA',
-    'ABOUT',
-    'CONTACT',
-    'FOOTER',
-    'CHATBOT',
-    // Backend/BFF-only addition (M20-S01) — required for the LEAD_FORM module's `enabled` toggle
-    // to work at all via this existing generic endpoint (docs/02-DOMAIN_MODEL.md § LeadFormConfig
-    // "Cross-aggregate save": enabled stays owned by HotsiteConfig.updateContent(), same as every
-    // other module). Safe to add here without S07: this schema has no apps/web consumer (verified
-    // via grep), unlike packages/types/src/enums.ts's HotsiteModuleType, so it doesn't force any
-    // web-side exhaustive Record<HotsiteModuleType, ...> map to gain a real entry.
-    'LEAD_FORM',
-  ]),
-  enabled: z.boolean(),
-  data: z.record(z.string(), z.unknown()),
-});
+export const HotsiteModuleSchema = z
+  .object({
+    type: z.enum([
+      'HERO',
+      'SERVICE_LIST',
+      'GALLERY',
+      'TESTIMONIALS',
+      'BOOKING_CTA',
+      'ABOUT',
+      'CONTACT',
+      'FOOTER',
+      'CHATBOT',
+      // Backend/BFF-only addition (M20-S01) — required for the LEAD_FORM module's `enabled` toggle
+      // to work at all via this existing generic endpoint (docs/02-DOMAIN_MODEL.md § LeadFormConfig
+      // "Cross-aggregate save": enabled stays owned by HotsiteConfig.updateContent(), same as every
+      // other module). Safe to add here without S07: this schema has no apps/web consumer (verified
+      // via grep), unlike packages/types/src/enums.ts's HotsiteModuleType, so it doesn't force any
+      // web-side exhaustive Record<HotsiteModuleType, ...> map to gain a real entry.
+      'LEAD_FORM',
+    ]),
+    enabled: z.boolean(),
+    data: z.record(z.string(), z.unknown()),
+  })
+  .refine(
+    (module) =>
+      module.type !== 'LEAD_FORM' ||
+      (!('audienceMode' in module.data) && !('questions' in module.data)),
+    {
+      // audienceMode/questions live in LeadFormConfig, never in HotsiteConfig.layout[] — that blob
+      // feeds the public-cached manifest (docs/02-DOMAIN_MODEL.md § LeadFormConfig "Cross-aggregate
+      // save"). Without this check, `data`'s otherwise-unconstrained z.record() would let a caller
+      // smuggle both fields into the cached layout entry directly, bypassing LeadFormConfig's own
+      // validation (the 20-question cap included) entirely (M20-S08 PR #429 Codex review finding,
+      // 2026-08-26 — the frontend's stripLeadFormConfig() is a UI courtesy, not an API boundary).
+      error:
+        "a LEAD_FORM module's own data must not include audienceMode or questions — send them as top-level fields on PATCH /v1/tenants/hotsite instead",
+      params: { code: GenericErrorCode.VALUE_INVALID },
+      path: ['data'],
+    },
+  );
 
-// M20-S01 — shared by the backend (update-lead-form-config.dto.ts) and BFF
-// (lead-form.schemas.ts); both need the identical shape with no per-app deviation, so this lives
-// here directly rather than duplicated (mirrors HotsiteModuleSchema's own direct-reuse pattern
-// above, not buildUpdateTenantSettingsSchema's per-app-customization pattern in tenant-settings.ts
-// — there's no field here that differs between backend and BFF).
+// M20-S01 — shared by the backend (update-hotsite-content.dto.ts) and BFF
+// (hotsite-admin.schemas.ts) as part of the consolidated hotsite-content update schema; both need
+// the identical shape with no per-app deviation, so this lives here directly rather than
+// duplicated (mirrors HotsiteModuleSchema's own direct-reuse pattern above, not
+// buildUpdateTenantSettingsSchema's per-app-customization pattern in tenant-settings.ts — there's
+// no field here that differs between backend and BFF).
 //
 // Question-level bounds (≤20 entries, 2-10 options for choice types, non-empty label, unique id)
 // are deliberately NOT re-validated here — LeadFormConfig.updateQuestions() is this rule's sole
 // owner (docs/ENGINEERING_RULES.md § Single source of truth for a validation rule's code). A
 // second Zod-side check here risks emitting a different code for the identical violation
 // depending on which layer catches it first.
-const LeadFormQuestionSchema = z.object({
+export const LeadFormQuestionSchema = z.object({
   id: z.uuid(),
   label: z.string(),
   type: z.enum(['TEXT', 'SINGLE_CHOICE', 'MULTIPLE_CHOICE']),
@@ -114,24 +133,11 @@ const LeadFormQuestionSchema = z.object({
   order: z.number().int(),
 });
 
+export const LeadFormAudienceModeSchema = z.enum(['GUEST_AND_CUSTOMER', 'CUSTOMER_ONLY']);
+
 // Teaser fields mirror BookingCtaModuleData's own shape family (docs/15-HOTSITE_DYNAMIC_
 // ARCHITECTURE.md § LEAD_FORM) — standard hotsite-layout enum validation for variant/bgStyle/
 // backgroundImagePosition, same as every other module's teaser data.
-export const UpdateLeadFormConfigSchema = z
-  .object({
-    title: z.string().optional(),
-    subtitle: z.string().optional(),
-    eyebrow: z.string().optional(),
-    ctaLabel: z.string().optional(),
-    variant: z.enum(['centered', 'left-aligned']).optional(),
-    backgroundImageUrl: z.string().nullable().optional(),
-    backgroundImagePosition: z.enum(['left', 'center', 'right']).optional(),
-    bgStyle: z.enum(['primary', 'background']).optional(),
-    audienceMode: z.enum(['GUEST_AND_CUSTOMER', 'CUSTOMER_ONLY']).optional(),
-    questions: z.array(LeadFormQuestionSchema).optional(),
-  })
-  .default({});
-
 export const HotsiteSeoSchema = z
   .object({
     title: z

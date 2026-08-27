@@ -1,8 +1,9 @@
-# BFF — Lead Form (M20-S01)
-# UC-037: Manager configures the lead form module
+# BFF — Lead Form (M20-S01): read-only config here (GET, manager JWT)
+# UC-037: Manager configures the lead form module — config WRITES moved to PATCH
+#   /v1/tenants/hotsite as of M20-S08; see hotsite-admin.http's own "Lead form config" block.
 # UC-041 (Trigger): status endpoint powers the dashboard's gated "Leads" nav item
 # UC-041 (M20-S06): admin submissions read — paginated list + read-only detail
-# GET config/PATCH config require a manager JWT; status and submissions are available to staff and managers.
+# status and submissions are available to staff and managers.
 #
 # Prerequisites:
 #   1. pnpm infra:up
@@ -41,29 +42,6 @@ Authorization: Bearer {{managerToken}}
 
 ###
 
-### Consolidated save — teaser + audienceMode + questions in one atomic request
-PATCH {{bffUrl}}/v1/tenants/lead-form/config
-Authorization: Bearer {{managerToken}}
-Content-Type: application/json
-
-{
-  "title": "Fale com a gente",
-  "ctaLabel": "Preencher formulário",
-  "audienceMode": "GUEST_AND_CUSTOMER",
-  "questions": [
-    {
-      "id": "01234567-0000-7000-8000-000000000101",
-      "label": "Qual serviço te interessa?",
-      "type": "SINGLE_CHOICE",
-      "required": true,
-      "options": ["Lavagem simples", "Lavagem completa", "Enceramento"],
-      "order": 0
-    }
-  ]
-}
-
-###
-
 ### Staff reads the nav-gating status
 GET {{bffUrl}}/v1/tenants/lead-form/status
 Authorization: Bearer {{staffToken}}
@@ -85,15 +63,6 @@ Authorization: Bearer {{staffToken}}
 # ─────────────────────────────────────────────────────────────────────────────
 # FAILURE PATHS
 # ─────────────────────────────────────────────────────────────────────────────
-
-### Staff forbidden from editing config → 403
-PATCH {{bffUrl}}/v1/tenants/lead-form/config
-Authorization: Bearer {{staffToken}}
-Content-Type: application/json
-
-{ "title": "Fale com a gente" }
-
-###
 
 ### Submission detail for an unknown id → 404 PLATFORM_LEAD_FORM_SUBMISSION_NOT_FOUND
 GET {{bffUrl}}/v1/tenants/lead-form/submissions/01234567-0000-7000-8000-000000000999

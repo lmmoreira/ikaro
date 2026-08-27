@@ -3,6 +3,7 @@ import {
   featureBookingPhoto,
   generateHotsiteImageSignedUrl,
   getChatbotCapStatus,
+  getLeadFormConfig,
   getHotsiteConfig,
   publishHotsite,
   unpublishHotsite,
@@ -26,7 +27,14 @@ export function useUpdateHotsiteConfig() {
   const { tenantId } = useTenant();
   return useMutation({
     mutationFn: (body: UpdateHotsiteRequest) => updateHotsiteConfig(body),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hotsite', tenantId] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hotsite', tenantId] });
+      // Cheap and harmless when the request carried no audienceMode/questions — invalidating an
+      // unaffected query just marks it stale, refetched on next read. Covers the LEAD_FORM
+      // config panel, which reads a separate aggregate this same request can also write to
+      // (folded in at M20-S08 — see UpdateHotsiteRequest's own audienceMode/questions fields).
+      queryClient.invalidateQueries({ queryKey: ['lead-form-config', tenantId] });
+    },
   });
 }
 
@@ -70,5 +78,13 @@ export function useChatbotCapStatus() {
   return useQuery({
     queryKey: ['chatbot-cap-status', tenantId],
     queryFn: getChatbotCapStatus,
+  });
+}
+
+export function useLeadFormConfig() {
+  const { tenantId } = useTenant();
+  return useQuery({
+    queryKey: ['lead-form-config', tenantId],
+    queryFn: getLeadFormConfig,
   });
 }

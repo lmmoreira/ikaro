@@ -92,6 +92,18 @@ Apply `Partial<>` at the level where the schema actually stops requiring all fie
 
 ---
 
+## Schema-level enforcement of "never persisted here" invariants
+
+A documented invariant that field X must never appear inside field Y (a comment, a doc row, a naming convention) is not actually enforced unless something validates it at the request boundary. A doc comment plus a client-side "strip before sending" helper is a UI courtesy for the legitimate client, not an API contract — a direct API call, a future caller, or a bug in the client-side strip logic all bypass it silently.
+
+This bites hardest when Y's own schema is an unconstrained record (`z.record(z.string(), z.unknown())`), which many module/module-data-shaped fields are, since per-type shape isn't statically derivable from a generic array element. If X's field names are also real, recognized fields somewhere else in the same request body, nothing stops a caller from embedding them inside Y instead of at the top level.
+
+**M20-S08 precedent (2026-08-26):** `HotsiteModuleSchema.data` accepts any record for every module type. Once `audienceMode`/`questions` became real top-level fields on `PATCH /v1/tenants/hotsite` (folded in from a former separate endpoint), a caller could embed those same key names inside a `LEAD_FORM` module's own `data` in the `layout[]` array — bypassing `LeadFormConfig`'s own validation (the 20-question cap included) and landing the values in `HotsiteConfig.layout[]`, which feeds the public-cached manifest. The frontend's `stripLeadFormConfig()` helper only protects the real web client, not the API boundary. Fixed with an explicit Zod `.refine()` on `HotsiteModuleSchema`, scoped to `type === 'LEAD_FORM'`, rejecting `audienceMode`/`questions` inside `data` — not a blanket tightening of the generic record, which would break every other module type's legitimately-unconstrained `data`. See `packages/validation/src/hotsite.ts`.
+
+When adding a new field to a generic sibling endpoint that a per-type sub-schema could also plausibly accept, check whether the sub-schema's own record type needs the same scoped `.refine()` — the invariant is only real once something rejects the violation, not just documents it.
+
+---
+
 ## Transactions
 
 Every `save()` in every use case must be wrapped in `ITransactionManager.run()` — including single-aggregate writes. TypeORM's `save()` is a merge (internal SELECT + UPDATE/INSERT); without a transaction those two DB ops are not atomic.
@@ -184,6 +196,16 @@ await manager
 ```
 
 **`orUpdate()`'s `overwrite`/`conflictTarget` arrays take real DB column names (snake_case, matching `@Column({ name: ... })`), not entity property names.** Unlike `.values()`, which translates entity properties to columns via metadata, `orUpdate()` passes each array entry straight through `this.escape(column)` with no translation — confirmed by reading `EntityManager.upsert()`'s own implementation, which explicitly maps `conflictPaths`/columns to `col.databaseName` *before* calling `orUpdate()`. Passing a property name here (e.g. `lastSuccessAt` instead of `last_success_at`) silently generates SQL referencing a column that doesn't exist under that name — verify the exact SQL a new `orUpdate()` call produces against a real database (integration test), not just that it type-checks. (M19-S06 precedent, 2026-08-13: `TypeOrmChatbotProviderBalanceRepository.recordCallOutcome()` needed exactly this — two concurrent calls could write out of chronological order, and a plain `EXCLUDED`-based overwrite would let the older one clobber a newer timestamp.)
+
+---
+
+## Migration backfills
+
+A migration backfilling a newly-derived table doesn't automatically need batching/resumability machinery — scale the safety engineering to the actual, checkable risk, not a reflexive "any full-table backfill is production-risky" default. But "could the source table hold meaningful data yet" must be checked against the right signal — **whether the underlying endpoint/controller that writes to it has already merged to `main`, not whether a dedicated front-end page for it has shipped.** A backend endpoint is a live, callable traffic path the moment it merges and deploys — a direct API call, a smoke test, or another integration can reach it long before any UI page is built to call it naturally. Check `git log origin/main -- <the controller file>`, not the story-dependency graph's page-shipping milestone.
+
+If the source genuinely has no reachable endpoint yet, the destination being a derived lookup/cache (rebuilt going forward by the same code path that maintains it for new rows, not the record of truth) means a missing backfilled row is a self-correcting gap, not a data-loss risk — dropping the backfill is fine. Once real data could exist, backfill it: if the expected row count is still small at this stage of the feature's rollout, a plain one-shot `INSERT ... SELECT` is proportionate — building batching/resumability for a "production scale" that doesn't exist yet is its own form of over-engineering. Re-assess as the feature matures and real volume grows.
+
+**M20-S08 precedent (2026-08-26) — this exact lesson was tested and reversed within the same PR:** a new `lead_form_submission_question_refs` migration originally shipped with an unbounded `INSERT ... SELECT ... jsonb_array_elements(...)` backfill. Round 1: removed it, reasoning "no public-facing submission *page* had shipped yet" (M20-S09, the guest-facing page, ships later) — checked against the wrong signal. Round 2 (Codex review): correctly caught that the public submission *endpoint* (`lead-form-public.controller.ts`) had already merged in an earlier story (M20-S02/S05/S06), so real submissions could already exist via direct API calls — verified with `git log origin/main -- .../lead-form-public.controller.ts`, confirming it. Without the backfill, a pre-existing submission would have answers in `lead_form_submissions.answers` but no row in this derived table, so `GetLeadFormConfigUseCase` would report `hasSubmissions: false` and a manager could remove that question without the required confirmation dialog (UC-037 A4) — a real correctness gap. Backfill restored, with the correct UUID cast this time.
 
 ---
 

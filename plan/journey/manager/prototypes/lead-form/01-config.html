@@ -68,23 +68,26 @@
     cards) — no separate screen or navigation away, matching how a manager actually wants to
     build a list of up to 20 questions.
 
-    COMPONENT (GAP): LeadFormConfigPanel
-    FILE: apps/web/features/platform/components/hotsite/modules/LeadFormConfigPanel.tsx (GAP)
+    COMPONENT: LeadFormConfigPanel — Shipped M20-S08
+    FILE: apps/web/features/platform/components/hotsite/modules/LeadFormConfigPanel.tsx
     PROPS: data: LeadFormModuleData & { questions, audienceMode } — same ModuleConfigPanelProps
            shared contract every other module panel (Hero, Chatbot, ...) already uses.
 
     "Aplicar" below is ONE request, not two (post-review redesign, 2026-08-24): teaser fields
     (title/subtitle/ctaLabel/variant/bgStyle) AND audienceMode+questions[] all go in a single
-    PATCH /v1/tenants/lead-form/config body, saved atomically in one backend transaction
-    spanning HotsiteConfig's layout entry and LeadFormConfig (docs/02-DOMAIN_MODEL.md §
-    LeadFormConfig "Cross-aggregate save"). An earlier draft of this screen made two
-    independent, unsynchronized calls (teaser via PATCH /v1/tenants/hotsite, audience/questions
-    via this endpoint) — replaced because a partial failure could leave the manager's edit
-    half-applied.
-    BFF CALL: GET/PATCH /v1/tenants/lead-form/config (teaser fields + audienceMode + questions[])
+    PATCH /v1/tenants/hotsite body (folded into the existing hotsite-content endpoint at
+    M20-S08 — audienceMode/questions are two optional extra fields on it, not a separate
+    endpoint), saved atomically in one backend transaction spanning HotsiteConfig's layout
+    entry and LeadFormConfig (docs/02-DOMAIN_MODEL.md § LeadFormConfig "Cross-aggregate
+    save"). An earlier draft of this screen made two independent, unsynchronized calls
+    (teaser via PATCH /v1/tenants/hotsite, audience/questions via a separate
+    PATCH /v1/tenants/lead-form/config) — replaced because a partial failure could leave the
+    manager's edit half-applied; that separate endpoint no longer exists.
+    BFF CALL: GET /v1/tenants/lead-form/config (read-only) + PATCH /v1/tenants/hotsite
+              (teaser fields + audienceMode + questions[], one consolidated write)
     The module's `enabled` toggle (not shown on this screen — lives on the Layout tab row
-    itself, ../hotsite/01-hotsite-editor.html) is separate: still PATCH /v1/tenants/hotsite,
-    on its own, independent of "Aplicar" here.
+    itself, ../hotsite/01-hotsite-editor.html) goes through this same PATCH /v1/tenants/hotsite
+    endpoint too, but as its own separate action, independent of "Aplicar" here.
   -->
 
   <div class="dashboard-topbar">

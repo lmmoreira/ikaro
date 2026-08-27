@@ -157,7 +157,7 @@ export interface LeadFormModuleData {
 }
 
 // Default when no LEAD_FORM entry exists in HotsiteConfig.layout[] yet (every tenant, until the
-// first manager save via UpdateLeadFormModuleUseCase) — mirrors BOOKING_CTA's own minimal default
+// first manager save via UpdateHotsiteContentUseCase) — mirrors BOOKING_CTA's own minimal default
 // (apps/web/features/platform/hotsite/default-layout.ts), since this is the same shape family and
 // shares its two required fields. Locked in during M20-S01 story-discovery, 2026-08-24 — there is
 // no server-side "materialize on read" mechanism (materializeLayout() is a web-only, client-side

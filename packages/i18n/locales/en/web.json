@@ -813,8 +813,78 @@
             "accentColorSecondary": "Secondary color"
           },
           "leadForm": {
-            "comingSoonTitle": "Configuration coming soon",
-            "comingSoonBody": "Configuration for this module (title, subtitle, button, and background image) will be available in a future update."
+            "loading": "Loading configuration...",
+            "loadError": "We couldn't load the configuration. Try again.",
+            "teaser": {
+              "title": "Teaser copy",
+              "titleLabel": "Title",
+              "subtitleLabel": "Subtitle",
+              "eyebrowLabel": "Eyebrow text (optional)",
+              "eyebrowPlaceholder": "Get in touch",
+              "ctaLabel": "Button text",
+              "variantLabel": "Layout",
+              "variantCentered": "Centered",
+              "variantLeftAligned": "Left-aligned",
+              "bgStyleLabel": "Background style",
+              "bgStylePrimary": "Primary color",
+              "bgStyleBackground": "Background color",
+              "backgroundImageLabel": "Background image (optional)",
+              "backgroundImageClickToAdd": "Drag an image or click to upload",
+              "backgroundImageFormatHint": "No image → solid background using the primary color",
+              "backgroundImageUploading": "Uploading...",
+              "backgroundImageUploadError": "Could not upload the image. Try again.",
+              "backgroundImageLowResolutionError": "Image resolution is too low for a background image. Upload a less panoramic version, or one with more vertical detail.",
+              "backgroundImageRemove": "Remove image",
+              "backgroundImagePositionLabel": "Image focal point",
+              "backgroundImagePositionLeft": "Left",
+              "backgroundImagePositionCenter": "Center",
+              "backgroundImagePositionRight": "Right"
+            },
+            "audience": {
+              "title": "Who can respond",
+              "label": "Audience",
+              "guestAndCustomer": "Visitors and customers",
+              "customerOnly": "Logged-in customers only"
+            },
+            "questions": {
+              "title": "Questions",
+              "counter": "{count} of 20",
+              "add": "+ Add question",
+              "limit": "You reached the 20-question limit. Remove an existing question to add another.",
+              "startersHint": "Starter templates (optional — editable after adding):",
+              "starters": {
+                "bestContactTime": "Best time to contact",
+                "howDidYouHear": "How did you hear about us?",
+                "carModel": "What is your car model?"
+              }
+            },
+            "question": {
+              "dragLabel": "Reorder question {index}",
+              "untitled": "Question {index}",
+              "hasSubmissions": "Has responses",
+              "label": "Question",
+              "type": "Type",
+              "required": "Required answer",
+              "options": "Options",
+              "optionLabel": "Option {index}",
+              "addOption": "+ Add option",
+              "removeOption": "Remove option",
+              "remove": "Remove question",
+              "confirmTitle": "Remove question?",
+              "confirmDescription": "Existing answers will be preserved as a snapshot and will not be changed.",
+              "confirmCancel": "Cancel",
+              "confirmRemove": "Remove",
+              "types": {
+                "TEXT": "Free text",
+                "SINGLE_CHOICE": "Single choice",
+                "MULTIPLE_CHOICE": "Multiple choice"
+              }
+            },
+            "validation": {
+              "questionLabel": "Enter the question text.",
+              "options": "Add between 2 and 10 options.",
+              "publishBlocked": "Fix the invalid questions before publishing."
+            }
           }
         }
       },

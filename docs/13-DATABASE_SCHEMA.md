@@ -155,6 +155,7 @@ One row per tenant — question catalog + audience gating for the `LEAD_FORM` ho
 | audience_mode | VARCHAR(20) | NOT NULL DEFAULT `'GUEST_AND_CUSTOMER'` — `'GUEST_AND_CUSTOMER'` \| `'CUSTOMER_ONLY'` |
 | questions | JSONB | NOT NULL DEFAULT `'[]'` — array, ≤20 entries, `{id, label, type, required, options?, order}` |
 | updated_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
+| version | INTEGER | NOT NULL DEFAULT 1 — optimistic-locking column, added by `1748500000005-AddVersionToLeadFormConfigs.ts` (mirrors `hotsite_configs.version`; Codex review, M20-S08 PR #429, 2026-08-26 — this aggregate is written in the same transaction as `hotsite_configs` and had no concurrency guard at all) |
 
 **Why JSONB, not a child table:** the question catalog is always read and written as one atomic unit by exactly one actor (the manager editing the form) — never queried or joined per-question, same justification `hotsite_configs.layout` already uses. Bounds are small and fixed (20 questions × 10 options, worst case a few KB) — safe to fetch on every `/[slug]/lead-form` page load with no pagination concerns.
 
@@ -179,6 +180,22 @@ One row per visitor submission (`docs/04-USE_CASES.md` UC-039/UC-040).
 | **INDEX** | (tenant_id, ip_address, submitted_at) | Per-IP-daily-cap `COUNT` query (mirrors `chatbot_sessions`'s `(tenant_id, client_ip, conversation_date)` layer-2 cap index) |
 | **INDEX** | (tenant_id, expires_at) | Per-tenant `expires_at` range queries — not the retention purge itself (see standalone index below); this composite serves any future tenant-scoped expiry lookup |
 | **INDEX** | (expires_at) | Standalone, added M20-S04 (Codex review finding, PR #422): `LeadFormRetentionPurgeJob`'s daily purge (UC-043) is an unscoped cross-tenant `WHERE expires_at < now()` — matching `ExpirePointsJob`/`ChatbotRetentionPurgeJob`'s own precedent, no per-tenant loop — so it cannot seek the composite index above (led by `tenant_id`, which this query never filters on). Mirrors `chatbot_messages.IDX_chatbot_messages_created_at` |
+
+### `platform.lead_form_submission_question_refs`
+
+One row per distinct question represented in a submission snapshot. This is a narrow, write-once
+projection maintained by `TypeOrmLeadFormSubmissionRepository` in the same transaction as
+`lead_form_submissions`; it lets UC-037 determine `hasSubmissions` through an indexed lookup
+without expanding every retained JSONB answer array. It is not a replacement for M20-S12's richer
+`lead_form_answers` search projection: it intentionally contains only the identity needed here.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| tenant_id | UUID | NOT NULL — first column of the composite PK/FK; tenant-safe reference boundary |
+| submission_id | UUID | NOT NULL — composite FK `(tenant_id, submission_id)` → `platform.lead_form_submissions(tenant_id, id)`, `ON DELETE CASCADE` so retention purge cannot orphan projection rows |
+| question_id | UUID | NOT NULL — snapshotted question ID, extracted from the JSONB `answers` array at write time (`submission.answers[].questionId`, always a real UUID — client-generated via `crypto.randomUUID()` on the admin panel, validated by `LeadFormQuestionSchema`'s `z.uuid()`). Matches every other ID column in this schema; not a foreign key to `lead_form_configs`' own question catalog, since a question can be edited/removed after submission |
+| **PRIMARY KEY** | (tenant_id, submission_id, question_id) | One row per question per submission, deduplicated even if malformed historical JSON has duplicate entries |
+| **INDEX** | (tenant_id, question_id) | UC-037's `hasSubmissions` lookup: `SELECT DISTINCT question_id ... WHERE tenant_id = ? AND question_id = ANY(?)` |
 
 ### `platform.lead_form_answers`
 

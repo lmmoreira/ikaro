@@ -4,7 +4,8 @@ import { z } from 'zod';
 // need the identical outer-sanity-bounds shape for the fields a submitter actually types, so this
 // lives here directly rather than duplicated (M20-S05 PR #423 review discussion, 2026-08-25:
 // caught as the exact same "BFF schema silently drifts from backend DTO on shared fields" pattern
-// UpdateLeadFormConfigSchema above already solved for the admin-config side of this same feature).
+// hotsite.ts's own LeadFormQuestionSchema/LeadFormAudienceModeSchema already solved for the
+// admin-config side of this same feature).
 //
 // VO validation (Email/PhoneNumber format, name required) happens domain-side in
 // LeadFormSubmission.create() — this schema only checks shape. answers[].questionId existence and

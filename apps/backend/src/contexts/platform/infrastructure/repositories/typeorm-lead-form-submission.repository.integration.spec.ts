@@ -13,6 +13,7 @@ import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typ
 import { localDayBoundsUTC } from '../../../../shared/utils/calendar-date';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { LeadFormSubmissionBuilder } from '../../../../test/builders/platform/lead-form-submission.builder';
+import { LeadFormSubmissionEntityBuilder } from '../../../../test/builders/platform/lead-form-submission-entity.builder';
 import { LeadFormSubmission } from '../../domain/lead-form-submission.aggregate';
 import { TenantEntity } from '../entities/tenant.entity';
 import { LeadFormSubmissionEntity } from '../entities/lead-form-submission.entity';
@@ -29,6 +30,10 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
   let txManager: TypeOrmTransactionManager;
   const TENANT_A = uuidv7();
   const TENANT_B = uuidv7();
+  // question_id is a UUID column (matches every question's real id, client-generated via
+  // crypto.randomUUID() on the admin panel) — not an arbitrary string.
+  const QUESTION_ID = uuidv7();
+  const OTHER_QUESTION_ID = uuidv7();
 
   beforeAll(async () => {
     dataSource = await createTestDataSource();
@@ -78,7 +83,12 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
       email: `lead-${uuidv7()}@example.com`,
       phone: '+5511912345678',
       answers: [
-        { questionId: 'q1', questionLabel: 'Origem', questionType: 'TEXT', answerValue: 'Google' },
+        {
+          questionId: QUESTION_ID,
+          questionLabel: 'Origem',
+          questionType: 'TEXT',
+          answerValue: 'Google',
+        },
       ],
       ipAddress: overrides.ipAddress ?? '203.0.113.10',
       retentionMonths: 6,
@@ -101,6 +111,28 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
     expect(found!.answers).toEqual(submission.answers);
     expect(found!.ipAddress).toBe('203.0.113.10');
     expect(found!.customerId).toBeNull();
+    await expect(
+      dataSource.query(
+        `
+          SELECT question_id FROM platform.lead_form_submission_question_refs
+          WHERE tenant_id = $1 AND submission_id = $2
+        `,
+        [TENANT_A, submission.id],
+      ),
+    ).resolves.toEqual([{ question_id: QUESTION_ID }]);
+  });
+
+  it('looks up submitted question IDs through the tenant-scoped reference index', async () => {
+    const repo = makeRepo(new InMemoryEventBus());
+    await txManager.run(() => repo.save(buildSubmission(TENANT_A)));
+    await txManager.run(() => repo.save(buildSubmission(TENANT_B)));
+
+    await expect(
+      repo.findQuestionIdsWithSubmissions(TENANT_A, [QUESTION_ID, OTHER_QUESTION_ID]),
+    ).resolves.toEqual([QUESTION_ID]);
+    await expect(
+      repo.findQuestionIdsWithSubmissions(TENANT_A, [OTHER_QUESTION_ID]),
+    ).resolves.toEqual([]);
   });
 
   it('drains the domain event into shared.outbox in the same transaction as the insert', async () => {
@@ -165,6 +197,54 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
     )) as Array<{ column_name: string; ordinal_position: number }>;
 
     expect(rows.map((r) => r.column_name)).toEqual(['tenant_id', 'id']);
+  });
+
+  // Migration 1748500000004's own backfill INSERT — proves it actually catches a submission that
+  // predates this migration (e.g. written by the already-shipped M20-S02/S05/S06 public submission
+  // endpoint before this table existed), the exact gap a round of review caught this migration
+  // shipping without (Codex review finding, M20-S08 PR #429, 2026-08-26).
+  it("backfills a pre-existing submission's question refs, matching the migration's own INSERT", async () => {
+    // Bypasses TypeOrmLeadFormSubmissionRepository.save() entirely (a raw entity insert, like
+    // LeadFormSubmissionEntityBuilder's other call sites) — persistQuestionRefs() never runs, so
+    // this simulates a submission that already existed when the migration's backfill last ran.
+    const preExisting = new LeadFormSubmissionEntityBuilder()
+      .withTenantId(TENANT_A)
+      .withAnswers([
+        {
+          questionId: QUESTION_ID,
+          questionLabel: 'Origem',
+          questionType: 'TEXT',
+          answerValue: 'Indicação',
+        },
+      ])
+      .build();
+    await entityRepo.save(preExisting);
+
+    await expect(
+      dataSource.query(
+        `SELECT question_id FROM platform.lead_form_submission_question_refs WHERE submission_id = $1`,
+        [preExisting.id],
+      ),
+    ).resolves.toEqual([]);
+
+    // Same statement as the migration's own up() — kept in sync deliberately, not imported,
+    // since a migration file must stay a frozen historical record of what actually ran.
+    await dataSource.query(`
+      INSERT INTO "platform"."lead_form_submission_question_refs"
+        ("tenant_id", "submission_id", "question_id")
+      SELECT submission."tenant_id", submission."id", (answer ->> 'questionId')::uuid
+      FROM "platform"."lead_form_submissions" AS submission
+      CROSS JOIN LATERAL jsonb_array_elements(submission."answers") AS answer
+      WHERE answer ? 'questionId' AND answer ->> 'questionId' IS NOT NULL
+      ON CONFLICT DO NOTHING
+    `);
+
+    await expect(
+      dataSource.query(
+        `SELECT question_id FROM platform.lead_form_submission_question_refs WHERE submission_id = $1`,
+        [preExisting.id],
+      ),
+    ).resolves.toEqual([{ question_id: QUESTION_ID }]);
   });
 
   describe('countByTenantAndDate / countByTenantIpAndDate — tenant isolation (CLAUDE.md §2)', () => {

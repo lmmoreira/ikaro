@@ -31,6 +31,8 @@ export interface LeadFormConfigProps {
   audienceMode: LeadFormAudienceMode;
   questions: LeadFormQuestion[];
   updatedAt: Date;
+  /** Undefined for a not-yet-persisted aggregate (mirrors HotsiteConfig.version) — set on load, bumped via markPersisted() after a successful save. */
+  version?: number;
 }
 
 export class LeadFormConfig extends AggregateRoot {
@@ -57,6 +59,10 @@ export class LeadFormConfig extends AggregateRoot {
     return this.props.updatedAt;
   }
 
+  get version(): number | undefined {
+    return this.props.version;
+  }
+
   static create(tenantId: string): LeadFormConfig {
     return new LeadFormConfig({
       tenantId,
@@ -68,6 +74,11 @@ export class LeadFormConfig extends AggregateRoot {
 
   static reconstitute(props: LeadFormConfigProps): LeadFormConfig {
     return new LeadFormConfig(props);
+  }
+
+  /** Called by the repository right after a successful save — never call directly. */
+  markPersisted(version: number): void {
+    this.props.version = version;
   }
 
   updateAudienceMode(mode: LeadFormAudienceMode): void {

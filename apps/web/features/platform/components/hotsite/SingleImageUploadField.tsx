@@ -26,15 +26,17 @@ const TARGET_ASPECT_RATIO: Partial<Record<HotsiteImagePurpose, number>> = {
   'seo-og-image': 1200 / 630,
 };
 
-// Minimum post-compression stored height (M18-S04; extended to 'booking-cta' in M18-S05 — same
-// wide-banner mobile-crop treatment, same threshold) — only purposes rendered at the same 21:9
-// mobile aspect ratio get an entry, mirroring TARGET_ASPECT_RATIO's own "only purposes with a
-// real requirement get one" precedent. Sized to cover a 21:9 mobile crop (needs ~502px at a
-// typical 390px/3x-DPR phone) with at most a mild ~1.1x upscale — see
+// Minimum post-compression stored height (M18-S04; extended to 'booking-cta' in M18-S05, then to
+// 'lead-form' in M20-S08 — same wide-banner mobile-crop treatment, same threshold, since the
+// LEAD_FORM teaser is the same CTA-banner shape family as BOOKING_CTA) — only purposes rendered at
+// the same 21:9 mobile aspect ratio get an entry, mirroring TARGET_ASPECT_RATIO's own "only
+// purposes with a real requirement get one" precedent. Sized to cover a 21:9 mobile crop (needs
+// ~502px at a typical 390px/3x-DPR phone) with at most a mild ~1.1x upscale — see
 // plan/M18-BOOKING-IMPROVEMENTS.md M18-S04 for the derivation.
 const MINIMUM_STORED_HEIGHT: Partial<Record<HotsiteImagePurpose, number>> = {
   hero: 450,
   'booking-cta': 450,
+  'lead-form': 450,
 };
 
 interface SingleImageUploadFieldProps {

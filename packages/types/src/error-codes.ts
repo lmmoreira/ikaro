@@ -169,6 +169,10 @@ export const PlatformErrorCode = {
   // M20-S06 — GET .../submissions/:id when the id doesn't exist or belongs to a different tenant
   // (docs/14-API_CONTRACTS.md § Leads Submissions (Admin)).
   LEAD_FORM_SUBMISSION_NOT_FOUND: 'PLATFORM_LEAD_FORM_SUBMISSION_NOT_FOUND',
+  // M20-S08 — mirrors HOTSITE_CONCURRENT_MODIFICATION's own version-guarded UPDATE (same gap,
+  // caught the same way, on the sibling aggregate PATCH /v1/tenants/hotsite now also writes in
+  // the same transaction; Codex review, PR #429).
+  LEAD_FORM_CONFIG_CONCURRENT_MODIFICATION: 'PLATFORM_LEAD_FORM_CONFIG_CONCURRENT_MODIFICATION',
 } as const;
 export type PlatformErrorCode = (typeof PlatformErrorCode)[keyof typeof PlatformErrorCode];
 

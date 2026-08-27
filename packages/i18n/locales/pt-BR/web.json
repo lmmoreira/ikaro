@@ -813,8 +813,78 @@
             "accentColorSecondary": "Cor secundária"
           },
           "leadForm": {
-            "comingSoonTitle": "Configuração em breve",
-            "comingSoonBody": "A configuração deste módulo (título, subtítulo, botão e imagem de fundo) estará disponível em uma atualização futura."
+            "loading": "Carregando configuração...",
+            "loadError": "Não foi possível carregar a configuração. Tente novamente.",
+            "teaser": {
+              "title": "Texto do teaser",
+              "titleLabel": "Título",
+              "subtitleLabel": "Subtítulo",
+              "eyebrowLabel": "Texto de destaque (opcional)",
+              "eyebrowPlaceholder": "Fale conosco",
+              "ctaLabel": "Texto do botão",
+              "variantLabel": "Layout",
+              "variantCentered": "Centralizado",
+              "variantLeftAligned": "Alinhado à esquerda",
+              "bgStyleLabel": "Estilo de fundo",
+              "bgStylePrimary": "Cor primária",
+              "bgStyleBackground": "Cor de fundo",
+              "backgroundImageLabel": "Imagem de fundo (opcional)",
+              "backgroundImageClickToAdd": "Arraste uma imagem ou clique para enviar",
+              "backgroundImageFormatHint": "Sem imagem → fundo sólido com a cor primária",
+              "backgroundImageUploading": "Enviando...",
+              "backgroundImageUploadError": "Não foi possível enviar a imagem. Tente novamente.",
+              "backgroundImageLowResolutionError": "Imagem com resolução muito baixa para uma imagem de fundo. Envie uma versão menos panorâmica ou com mais detalhe vertical.",
+              "backgroundImageRemove": "Remover imagem",
+              "backgroundImagePositionLabel": "Ponto focal da imagem",
+              "backgroundImagePositionLeft": "Esquerda",
+              "backgroundImagePositionCenter": "Centro",
+              "backgroundImagePositionRight": "Direita"
+            },
+            "audience": {
+              "title": "Quem pode responder",
+              "label": "Público",
+              "guestAndCustomer": "Visitantes e clientes",
+              "customerOnly": "Somente clientes logados"
+            },
+            "questions": {
+              "title": "Perguntas",
+              "counter": "{count} de 20",
+              "add": "+ Adicionar pergunta",
+              "limit": "Você atingiu o limite de 20 perguntas. Remova uma pergunta existente para adicionar outra.",
+              "startersHint": "Modelos prontos (opcional — editáveis depois de adicionar):",
+              "starters": {
+                "bestContactTime": "Melhor horário para contato",
+                "howDidYouHear": "Como conheceu a empresa?",
+                "carModel": "Qual modelo de carro?"
+              }
+            },
+            "question": {
+              "dragLabel": "Reordenar pergunta {index}",
+              "untitled": "Pergunta {index}",
+              "hasSubmissions": "Tem respostas",
+              "label": "Pergunta",
+              "type": "Tipo",
+              "required": "Resposta obrigatória",
+              "options": "Opções",
+              "optionLabel": "Opção {index}",
+              "addOption": "+ Adicionar opção",
+              "removeOption": "Remover opção",
+              "remove": "Remover pergunta",
+              "confirmTitle": "Remover pergunta?",
+              "confirmDescription": "As respostas já recebidas serão preservadas como um snapshot e não serão alteradas.",
+              "confirmCancel": "Cancelar",
+              "confirmRemove": "Remover",
+              "types": {
+                "TEXT": "Texto livre",
+                "SINGLE_CHOICE": "Escolha única",
+                "MULTIPLE_CHOICE": "Múltipla escolha"
+              }
+            },
+            "validation": {
+              "questionLabel": "Informe o texto da pergunta.",
+              "options": "Adicione entre 2 e 10 opções.",
+              "publishBlocked": "Corrija as perguntas inválidas antes de publicar."
+            }
           }
         }
       },

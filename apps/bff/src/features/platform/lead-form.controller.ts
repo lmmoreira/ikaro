@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import {
   LeadFormConfigResponse,
   LeadFormStatusResponse,
@@ -11,14 +11,16 @@ import { BackendHttpService } from '../../shared/http/backend-http.service';
 import {
   ListLeadFormSubmissionsQuery,
   ListLeadFormSubmissionsQuerySchema,
-  UpdateLeadFormConfigBody,
-  UpdateLeadFormConfigBodySchema,
 } from './lead-form.schemas';
 
 // Request Zod schema moved to lead-form.schemas.ts — re-exported here so any existing import
 // of these symbols from this file keeps working unchanged (mirrors tenant-settings.controller.ts).
 export * from './lead-form.schemas';
 
+// Config writes go through PATCH /v1/tenants/hotsite (hotsite-admin.controller.ts) as of
+// M20-S08 — audienceMode/questions are optional fields on that consolidated endpoint, not a
+// separate PATCH here. This controller stays read-only for config (GET), and owns
+// submissions/status, which have no equivalent on the hotsite endpoint.
 @Controller('tenants/lead-form')
 export class LeadFormController {
   constructor(private readonly backendHttp: BackendHttpService) {}
@@ -27,15 +29,6 @@ export class LeadFormController {
   @Roles('MANAGER')
   getConfig(): Promise<LeadFormConfigResponse> {
     return this.backendHttp.get<LeadFormConfigResponse>('/tenants/lead-form/config');
-  }
-
-  @Patch('config')
-  @HttpCode(HttpStatus.OK)
-  @Roles('MANAGER')
-  updateConfig(
-    @Body(new ZodValidationPipe(UpdateLeadFormConfigBodySchema)) body: UpdateLeadFormConfigBody,
-  ): Promise<LeadFormConfigResponse> {
-    return this.backendHttp.patch<LeadFormConfigResponse>('/tenants/lead-form/config', body);
   }
 
   @Get('status')

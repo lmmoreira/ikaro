@@ -9,7 +9,11 @@ import {
   unpublishHotsite,
   updateHotsiteConfig,
 } from './helpers/hotsite';
-import { getLeadFormConfig, updateLeadFormConfig } from './helpers/platform';
+import {
+  getLeadFormConfig,
+  toLeadFormUpdateRequest,
+  updateLeadFormConfig,
+} from './helpers/platform';
 
 // autospa-premium: same shared-tenant convention as chatbot-widget.spec.ts/hotsite-editor.spec.ts
 // (this file also mutates its hotsite-config row).
@@ -69,8 +73,6 @@ test.describe.serial('lead-form public page (GUEST) — M20-S09', () => {
       ],
     });
     await updateLeadFormConfig(page, {
-      title: 'Quer um orçamento personalizado?',
-      ctaLabel: 'Preencher formulário',
       audienceMode: 'GUEST_AND_CUSTOMER',
       questions: fixtureQuestions(),
     });
@@ -78,12 +80,7 @@ test.describe.serial('lead-form public page (GUEST) — M20-S09', () => {
   });
 
   test.afterEach(async ({ page }) => {
-    await updateLeadFormConfig(page, {
-      title: originalLeadForm.title,
-      ctaLabel: originalLeadForm.ctaLabel,
-      audienceMode: originalLeadForm.audienceMode,
-      questions: originalLeadForm.questions,
-    });
+    await updateLeadFormConfig(page, toLeadFormUpdateRequest(originalLeadForm));
     await updateHotsiteConfig(page, toUpdateRequest(originalHotsite));
     if (originalHotsite.isPublished) {
       await publishHotsite(page);
@@ -205,10 +202,7 @@ test.describe.serial('lead-form public page (CUSTOMER_ONLY gate) — M20-S09', (
   });
 
   test.afterEach(async ({ page }) => {
-    await updateLeadFormConfig(page, {
-      audienceMode: originalLeadForm.audienceMode,
-      questions: originalLeadForm.questions,
-    });
+    await updateLeadFormConfig(page, toLeadFormUpdateRequest(originalLeadForm));
     await updateHotsiteConfig(page, toUpdateRequest(originalHotsite));
     if (originalHotsite.isPublished) {
       await publishHotsite(page);

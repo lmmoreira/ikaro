@@ -105,9 +105,9 @@ export class HotsiteImagePromotionService {
   /**
    * A `tenants/<tenantId>/...` path present before the write but absent from the new state is a
    * now-superseded permanent object — safe to delete. Never touches paths outside this tenant's
-   * own prefix (e.g. a shared/default asset). Shared by every use case that mutates
-   * branding/layout/seo (UpdateHotsiteContentUseCase, UpdateLeadFormModuleUseCase) — extracted
-   * here once a second call site needed it.
+   * own prefix (e.g. a shared/default asset). UpdateHotsiteContentUseCase's own image-promotion
+   * step is the sole caller — also covers the LEAD_FORM module's own teaser image, folded into
+   * that same use case at M20-S08 (previously a separate UpdateLeadFormModuleUseCase call site).
    */
   computeDeletions(
     oldPaths: string[],

@@ -3,7 +3,7 @@
 **Actor(s):** MANAGER
 **Goal:** Configure the `LEAD_FORM` hotsite module — who can respond, teaser copy, and up to 20 custom questions — entirely inline on one screen
 **UCs covered:** UC-037
-**Status:** Draft — nothing built yet. Promoted from `docs/discovery/lead-form-module/lead-form-module.md` via `/discovery-to-milestone` (2026-08-23) for milestone `M20-LEAD-FORM-MODULE`.
+**Status:** Shipped in M20-S08. Promoted from `docs/discovery/lead-form-module/lead-form-module.md` via `/discovery-to-milestone` (2026-08-23) for milestone `M20-LEAD-FORM-MODULE`.
 
 ## Flow
 
@@ -28,7 +28,7 @@ flowchart TD
 
     Config --> Apply(("Clica 'Aplicar'<br/>(mantém no rascunho local)"))
     Apply --> Publish(("Clica 'Publicar'<br/>(uma chamada de configuração do lead form)"))
-    Publish --> Validate{"PATCH /v1/tenants/lead-form/config<br/>válido? (transação única)"}
+    Publish --> Validate{"PATCH /v1/tenants/hotsite<br/>válido? (transação única)"}
     Validate -- "não — opções insuficientes" --> ValError["erro de validação<br/>(01c-config-validation-error) |UC-037 A2|"]
     Validate -- "sim" --> Back["volta para 01-hotsite-editor.html"]
 
@@ -42,12 +42,12 @@ Not drawn as a separate node (small, same-page state per README's "minor conditi
 
 | Page / Route | Component | Story | Status |
 |---|---|---|---|
-| `/dashboard/hotsite` (Layout tab, new row) | Real, already-shipped `01-hotsite-editor.html` — updated with the `LEAD_FORM` row | — | ✅ Prototype updated (real code: ❌ Gap) |
-| Lead Form config drill-down | `LeadFormConfigPanel` | — | ❌ Gap |
+| `/dashboard/hotsite` (Layout tab, new row) | `HotsiteEditorMainView` | M20-S08 | ✅ Shipped |
+| Lead Form config drill-down | `LeadFormConfigPanel` | M20-S08 | ✅ Shipped |
 
 ## Open questions / gaps
 
-- [ ] Milestone/story: not yet assigned — run `/story-discovery M20-Sxx` per `plan/M20-LEAD-FORM-MODULE.md`.
+- [x] M20-S08 implements UC-037's manager configuration flow.
 - [x] Retention window and daily/per-IP submission caps (`settings.leadForm.{retentionMonths,maxSubmissionsPerDay,maxSubmissionsPerIpPerDay}`, UC-042) are **not** configured here — all three live on the existing tenant settings page (`manager/prototypes/configuracoes/01e-lead-form-section.html`). All three are normal tenant-editable settings (post-review redesign 2026-08-24 corrected the two caps away from an Ikaro-only deviation Chatbot's cost caps use — Lead Form submissions have no equivalent Ikaro cost exposure). No new screen for any of it in this journey.
 - [x] Mobile navigation keeps the existing icons unchanged; "Leads" is placed inside the existing "Mais" sheet.
 

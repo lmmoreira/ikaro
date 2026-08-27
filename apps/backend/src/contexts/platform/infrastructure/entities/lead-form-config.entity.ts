@@ -1,4 +1,4 @@
-import { Column, Entity, PrimaryColumn } from 'typeorm';
+import { Column, Entity, PrimaryColumn, VersionColumn } from 'typeorm';
 import { LeadFormAudienceMode, LeadFormQuestion } from '../../domain/lead-form-config.aggregate';
 
 @Entity('lead_form_configs', { schema: 'platform' })
@@ -14,4 +14,7 @@ export class LeadFormConfigEntity {
 
   @Column({ name: 'updated_at', type: 'timestamptz' })
   updatedAt!: Date;
+
+  @VersionColumn({ name: 'version', default: 1 })
+  version!: number;
 }

@@ -38,6 +38,10 @@ export interface ILeadFormSubmissionRepository {
     from: Date,
     to: Date,
   ): Promise<number>;
+  findQuestionIdsWithSubmissions(
+    tenantId: string,
+    questionIds: readonly string[],
+  ): Promise<readonly string[]>;
   /** UC-043 daily retention purge: deletes every row whose `expires_at` is strictly before
    * `now`, across every tenant in one pass (no tenant_id predicate — matches
    * ExpirePointsJob/ChatbotRetentionPurgeJob's own cross-tenant precedent), using the

@@ -1,8 +1,8 @@
 import type { APIResponse, Page } from '@playwright/test';
-import type { LeadFormConfigResponse, UpdateLeadFormConfigRequest } from '@ikaro/types';
+import type { LeadFormAudienceMode, LeadFormConfigResponse, LeadFormQuestion } from '@ikaro/types';
 import { BFF_URL, WEB_INTERNAL_KEY } from '../auth/shared';
 
-async function readLeadFormConfig(
+async function readLeadFormConfigResponse(
   res: APIResponse,
   action: string,
 ): Promise<LeadFormConfigResponse> {
@@ -16,20 +16,44 @@ export async function getLeadFormConfig(page: Page): Promise<LeadFormConfigRespo
   const res = await page.request.get(`${BFF_URL}/tenants/lead-form/config`, {
     headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
   });
-  return readLeadFormConfig(res, 'get lead-form config');
+  return readLeadFormConfigResponse(res, 'get lead-form config');
 }
 
-// audienceMode/questions live in LeadFormConfig (docs/02-DOMAIN_MODEL.md § LeadFormConfig
-// "Cross-aggregate save"), saved atomically with the teaser fields through this one consolidated
-// endpoint — the module's own enabled toggle stays out of scope here (see helpers/hotsite's
-// updateHotsiteConfig for that, mirroring chatbot-widget.spec.ts's identical split).
+export interface UpdateLeadFormConfigBody {
+  readonly audienceMode: LeadFormAudienceMode;
+  readonly questions: readonly LeadFormQuestion[];
+}
+
+// Writes go through PATCH /v1/tenants/hotsite as of M20-S08 — audienceMode/questions are
+// optional fields on that consolidated endpoint (see UpdateHotsiteContentUseCase's own header
+// comment on the backend), not a separate PATCH /tenants/lead-form/config anymore. Named for
+// what it does (restore lead-form config), not the literal route, to keep the test file's own
+// call sites unchanged.
 export async function updateLeadFormConfig(
   page: Page,
-  body: UpdateLeadFormConfigRequest,
-): Promise<LeadFormConfigResponse> {
-  const res = await page.request.patch(`${BFF_URL}/tenants/lead-form/config`, {
+  body: UpdateLeadFormConfigBody,
+): Promise<void> {
+  const res = await page.request.patch(`${BFF_URL}/tenants/hotsite`, {
     data: body,
     headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
   });
-  return readLeadFormConfig(res, 'update lead-form config');
+  if (!res.ok()) {
+    throw new Error(`update lead-form config failed: ${res.status()} ${await res.text()}`);
+  }
+}
+
+// audienceMode/questions -> PATCH body, used to restore a tenant's lead-form config to its
+// pre-test state in afterEach — same rationale as helpers/hotsite/hotsite-api.ts's own
+// toUpdateRequest. Only these two fields: teaser fields live on HotsiteConfig's own layout
+// entry and are already restored by that helper's toUpdateRequest/updateHotsiteConfig pair, so
+// restoring them again here would be redundant.
+export function toUpdateRequest(config: LeadFormConfigResponse): UpdateLeadFormConfigBody {
+  return {
+    audienceMode: config.audienceMode,
+    questions: config.questions.map((question): LeadFormQuestion => {
+      const next = { ...(question as LeadFormQuestion & { hasSubmissions?: boolean }) };
+      delete next.hasSubmissions;
+      return next;
+    }),
+  };
 }

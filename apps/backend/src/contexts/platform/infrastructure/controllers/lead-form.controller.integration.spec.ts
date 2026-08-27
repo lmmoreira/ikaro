@@ -5,10 +5,8 @@ import {
   HotsiteConfigEntityBuilder,
   TenantEntityBuilder,
 } from '../../../../test/builders/platform';
-import { makeLeadFormQuestions as makeQuestions } from '../../../../test/builders/platform/lead-form-config.builder';
 import { LeadFormSubmissionEntityBuilder } from '../../../../test/builders/platform/lead-form-submission-entity.builder';
 import { HotsiteConfigEntity } from '../entities/hotsite-config.entity';
-import { LeadFormConfigEntity } from '../entities/lead-form-config.entity';
 import { LeadFormSubmissionEntity } from '../entities/lead-form-submission.entity';
 import { TenantEntity } from '../entities/tenant.entity';
 import { createPlatformIntegrationApp } from '../../../../test/utils/platform-integration-app';
@@ -114,58 +112,8 @@ describe('LeadFormController (integration)', () => {
     });
   });
 
-  describe('PATCH /tenants/lead-form/config', () => {
-    it('returns 403 when X-Actor-Role is STAFF', async () => {
-      const { body } = await request(app.getHttpServer())
-        .patch('/tenants/lead-form/config')
-        .set('X-Tenant-ID', TENANT_A)
-        .set('X-Actor-Role', 'STAFF')
-        .send({ title: 'Fale com a gente' })
-        .expect(403);
-
-      expect(body.status).toBe(403);
-    });
-
-    it('saves teaser fields and questions atomically for a MANAGER', async () => {
-      const { body } = await request(app.getHttpServer())
-        .patch('/tenants/lead-form/config')
-        .set('X-Tenant-ID', TENANT_A)
-        .set('X-Actor-Role', 'MANAGER')
-        .send({
-          title: 'Fale com a gente',
-          ctaLabel: 'Preencher formulário',
-          audienceMode: 'CUSTOMER_ONLY',
-          questions: makeQuestions(1),
-        })
-        .expect(200);
-
-      expect(body.title).toBe('Fale com a gente');
-      expect(body.audienceMode).toBe('CUSTOMER_ONLY');
-      expect(body.questions).toHaveLength(1);
-
-      const savedHotsiteConfig = await ds
-        .getRepository(HotsiteConfigEntity)
-        .findOneBy({ tenantId: TENANT_A });
-      const leadFormModule = savedHotsiteConfig!.layout.find((m) => m.type === 'LEAD_FORM');
-      expect((leadFormModule?.data as { title: string }).title).toBe('Fale com a gente');
-
-      const savedLeadFormConfig = await ds
-        .getRepository(LeadFormConfigEntity)
-        .findOneBy({ tenantId: TENANT_A });
-      expect(savedLeadFormConfig!.audienceMode).toBe('CUSTOMER_ONLY');
-    });
-
-    it('returns 400 PLATFORM_LEAD_FORM_QUESTION_LIMIT_REACHED for 21 questions', async () => {
-      const { body } = await request(app.getHttpServer())
-        .patch('/tenants/lead-form/config')
-        .set('X-Tenant-ID', TENANT_A)
-        .set('X-Actor-Role', 'MANAGER')
-        .send({ questions: makeQuestions(21) })
-        .expect(400);
-
-      expect(body.code).toBe('PLATFORM_LEAD_FORM_QUESTION_LIMIT_REACHED');
-    });
-  });
+  // Config writes moved to PATCH /tenants/hotsite as of M20-S08 — see
+  // hotsite-admin.controller.integration.spec.ts's own "audienceMode/questions" describe block.
 
   describe('GET /tenants/lead-form/status', () => {
     it('returns { enabled: false } for a tenant that has never enabled the module, readable by STAFF', async () => {

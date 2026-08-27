@@ -1,16 +1,25 @@
 import { DataSource } from 'typeorm';
 import { HotsiteConfigEntity } from '../entities/hotsite-config.entity';
+import { LeadFormConfigEntity } from '../entities/lead-form-config.entity';
 import { TenantEntity } from '../entities/tenant.entity';
 import { TypeOrmHotsiteConfigRepository } from './typeorm-hotsite-config.repository';
+import { TypeOrmLeadFormConfigRepository } from './typeorm-lead-form-config.repository';
 import { TypeOrmTenantRepository } from './typeorm-tenant.repository';
 import { CachingTenantRepository } from './caching-tenant.repository';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { runInNewTransaction } from '../../../../shared/infrastructure/run-in-new-transaction';
 import { InMemoryCachePort } from '../../../../test/infrastructure/in-memory-cache.port';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
-import { TenantBuilder, HotsiteConfigBuilder } from '../../../../test/builders/platform';
+import {
+  TenantBuilder,
+  HotsiteConfigBuilder,
+  LeadFormConfigBuilder,
+} from '../../../../test/builders/platform';
 import { DEFAULT_HOTSITE_BRANDING } from '../../domain/hotsite-config.aggregate';
-import { HotsiteConfigConcurrentModificationError } from '../../domain/errors/platform-domain.error';
+import {
+  HotsiteConfigConcurrentModificationError,
+  LeadFormConfigConcurrentModificationError,
+} from '../../domain/errors/platform-domain.error';
 import { Tenant } from '../../domain/tenant.aggregate';
 
 describe('Platform repositories (integration)', () => {
@@ -18,6 +27,7 @@ describe('Platform repositories (integration)', () => {
   let tenantRepo: CachingTenantRepository;
   let typeOrmTenantRepo: TypeOrmTenantRepository;
   let hotsiteRepo: TypeOrmHotsiteConfigRepository;
+  let leadFormConfigRepo: TypeOrmLeadFormConfigRepository;
   let cache: InMemoryCachePort;
 
   beforeAll(async () => {
@@ -29,6 +39,9 @@ describe('Platform repositories (integration)', () => {
     );
     tenantRepo = new CachingTenantRepository(typeOrmTenantRepo, cache);
     hotsiteRepo = new TypeOrmHotsiteConfigRepository(dataSource.getRepository(HotsiteConfigEntity));
+    leadFormConfigRepo = new TypeOrmLeadFormConfigRepository(
+      dataSource.getRepository(LeadFormConfigEntity),
+    );
   });
 
   afterAll(async () => {
@@ -243,5 +256,37 @@ describe('Platform repositories (integration)', () => {
     // The winning write (A) is the one actually persisted — B's stale write never landed.
     const current = await hotsiteRepo.findByTenantId(tenant.id);
     expect(current!.branding.primaryColor).toBe('#111111');
+  });
+
+  // Mirrors the HotsiteConfig test above — lead_form_configs had no version guard at all, so
+  // two concurrent PATCHes carrying audienceMode/questions would silently last-write-wins
+  // (Codex review, M20-S08 PR #429, 2026-08-26).
+  it('throws LeadFormConfigConcurrentModificationError when saving a stale loaded config', async () => {
+    const tenant = new TenantBuilder()
+      .withName('Lavacar Lead Form Concorrente')
+      .withSlug('lavacar-lead-form-concorrente')
+      .build();
+    await tenantRepo.save(tenant);
+
+    const config = new LeadFormConfigBuilder().withTenantId(tenant.id).build();
+    await leadFormConfigRepo.save(config);
+
+    const copyA = await leadFormConfigRepo.findByTenantId(tenant.id);
+    const copyB = await leadFormConfigRepo.findByTenantId(tenant.id);
+    expect(copyA).not.toBeNull();
+    expect(copyB).not.toBeNull();
+
+    copyA!.updateAudienceMode('CUSTOMER_ONLY');
+    copyB!.updateAudienceMode('GUEST_AND_CUSTOMER');
+
+    await leadFormConfigRepo.save(copyA!);
+
+    await expect(leadFormConfigRepo.save(copyB!)).rejects.toBeInstanceOf(
+      LeadFormConfigConcurrentModificationError,
+    );
+
+    // The winning write (A) is the one actually persisted — B's stale write never landed.
+    const current = await leadFormConfigRepo.findByTenantId(tenant.id);
+    expect(current!.audienceMode).toBe('CUSTOMER_ONLY');
   });
 });
