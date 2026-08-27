@@ -41,6 +41,7 @@ import { GetHotsiteContentUseCase } from './application/use-cases/get-hotsite-co
 import { GetHotsiteManifestUseCase } from './application/use-cases/get-hotsite-manifest.use-case';
 import { CreateLeadFormSubmissionUseCase } from './application/use-cases/create-lead-form-submission.use-case';
 import { GetLeadFormConfigUseCase } from './application/use-cases/get-lead-form-config.use-case';
+import { GetLeadFormFilterOptionsUseCase } from './application/use-cases/get-lead-form-filter-options.use-case';
 import { GetLeadFormPublicConfigUseCase } from './application/use-cases/get-lead-form-public-config.use-case';
 import { GetLeadFormStatusUseCase } from './application/use-cases/get-lead-form-status.use-case';
 import { GetLeadFormSubmissionUseCase } from './application/use-cases/get-lead-form-submission.use-case';
@@ -60,6 +61,7 @@ import { ChatbotMessageEntity } from './infrastructure/entities/chatbot-message.
 import { ChatbotProviderBalanceEntity } from './infrastructure/entities/chatbot-provider-balance.entity';
 import { ChatbotSessionEntity } from './infrastructure/entities/chatbot-session.entity';
 import { HotsiteConfigEntity } from './infrastructure/entities/hotsite-config.entity';
+import { LeadFormAnswerEntity } from './infrastructure/entities/lead-form-answer.entity';
 import { LeadFormConfigEntity } from './infrastructure/entities/lead-form-config.entity';
 import { LeadFormSubmissionEntity } from './infrastructure/entities/lead-form-submission.entity';
 import { TenantEntity } from './infrastructure/entities/tenant.entity';
@@ -106,6 +108,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
       ChatbotMessageEntity,
       ChatbotProviderBalanceEntity,
       LeadFormSubmissionEntity,
+      LeadFormAnswerEntity,
     ]),
     ApplicationConfigModule,
     RequestModule,
@@ -191,6 +194,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     GetHotsiteContentUseCase,
     GetHotsiteManifestUseCase,
     GetLeadFormConfigUseCase,
+    GetLeadFormFilterOptionsUseCase,
     GetLeadFormPublicConfigUseCase,
     GetLeadFormStatusUseCase,
     GetLeadFormSubmissionUseCase,

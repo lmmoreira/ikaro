@@ -1152,9 +1152,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.getByRole('radio', { name: 'Somente clientes logados' }).click();
 
     await page.getByRole('button', { name: '+ Adicionar pergunta' }).click();
-    await page
-      .locator('[data-testid="lead-form-question-label"]')
-      .fill('Qual serviço você procura?');
+    await page.getByTestId('lead-form-question-label').fill('Qual serviço você procura?');
 
     await page.getByTestId('module-config-apply-desktop').click();
 
@@ -1174,7 +1172,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     );
     await expect(page.locator('#lead-form-teaser-cta')).toHaveValue('Quero conversar');
     await expect(page.getByRole('radio', { name: 'Somente clientes logados' })).toBeChecked();
-    await expect(page.locator('[data-testid="lead-form-question-label"]')).toHaveValue(
+    await expect(page.getByTestId('lead-form-question-label')).toHaveValue(
       'Qual serviço você procura?',
     );
   });
@@ -1196,12 +1194,14 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await expect(page.getByTestId('lead-form-config-panel')).toBeVisible();
 
     await page.getByRole('button', { name: '+ Adicionar pergunta' }).click();
-    await page
-      .locator('[data-testid="lead-form-question-label"]')
-      .fill('Qual serviço você procura?');
-    await page.locator('[data-testid="lead-form-question-type"]').selectOption('SINGLE_CHOICE');
+    await page.getByTestId('lead-form-question-label').fill('Qual serviço você procura?');
+    await page.getByTestId('lead-form-question-type').selectOption('SINGLE_CHOICE');
     await page.getByRole('button', { name: '+ Adicionar opção' }).click();
-    await page.locator('[data-testid="lead-form-question-option"]').fill('Somente uma opção');
+    // E2E-1: static data-testid + a separate data-option-index attribute, not a template-literal
+    // testid — matches LeadFormQuestionField's own established data-option-* convention.
+    await page
+      .locator('[data-testid="lead-form-question-option-input"][data-option-index="0"]')
+      .fill('Somente uma opção');
 
     await page.getByTestId('module-config-preview-desktop').click();
     await page.getByTestId('hotsite-preview-publish-desktop').click();

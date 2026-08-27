@@ -12,6 +12,10 @@ import {
   GetLeadFormConfigUseCaseResult,
 } from '../../application/use-cases/get-lead-form-config.use-case';
 import {
+  GetLeadFormFilterOptionsUseCase,
+  GetLeadFormFilterOptionsUseCaseResult,
+} from '../../application/use-cases/get-lead-form-filter-options.use-case';
+import {
   GetLeadFormStatusUseCase,
   GetLeadFormStatusUseCaseResult,
 } from '../../application/use-cases/get-lead-form-status.use-case';
@@ -37,6 +41,7 @@ export class LeadFormController {
     private readonly getLeadFormStatus: GetLeadFormStatusUseCase,
     private readonly listLeadFormSubmissions: ListLeadFormSubmissionsUseCase,
     private readonly getLeadFormSubmission: GetLeadFormSubmissionUseCase,
+    private readonly getLeadFormFilterOptions: GetLeadFormFilterOptionsUseCase,
   ) {}
 
   @Get('config')
@@ -66,6 +71,17 @@ export class LeadFormController {
   ): Promise<ListLeadFormSubmissionsUseCaseResult> {
     return this.listLeadFormSubmissions
       .execute({ tenantId: this.requestContext.tenantId, ...query })
+      .catch(mapPlatformError);
+  }
+
+  // Declared before `submissions/:id` — Nest/Express match routes in declaration order, so a
+  // literal path after a `:id` param route would be captured as `id === 'filter-options'`.
+  @Get('submissions/filter-options')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(StaffOrManagerRoleGuard)
+  getFilterOptions(): Promise<GetLeadFormFilterOptionsUseCaseResult> {
+    return this.getLeadFormFilterOptions
+      .execute({ tenantId: this.requestContext.tenantId })
       .catch(mapPlatformError);
   }
 

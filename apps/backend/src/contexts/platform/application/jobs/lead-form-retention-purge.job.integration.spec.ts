@@ -116,4 +116,41 @@ describe('LeadFormRetentionPurgeJob (integration)', () => {
     expect(await entityRepo.findOne({ where: { id: expired.id } })).toBeNull();
     expect(secondRun.submissionsDeleted).toBe(0);
   });
+
+  // M20-S12: platform.lead_form_answers' FK carries ON DELETE CASCADE — proves the parent delete
+  // below removes an expired submission's answer rows too, with no FK-violation error.
+  it('deletes an expired submission with answer rows without an FK-violation error, removing both parent and child rows', async () => {
+    const tenant = new TenantBuilder()
+      .withName('Lead Form Retention Answers')
+      .withSlug('lead-form-retention-answers')
+      .build();
+    await tenantRepo.save(tenant);
+
+    const expired = new LeadFormSubmissionBuilder()
+      .withTenantId(tenant.id)
+      .withExpiresAt(BEFORE_CUTOFF)
+      .withAnswers([
+        {
+          questionId: '01234567-0000-7000-8000-000000000101',
+          questionLabel: 'Estado civil',
+          questionType: 'TEXT',
+          answerValue: 'Casado',
+        },
+      ])
+      .build();
+    await submissionRepo.save(expired);
+
+    // `job.run()` resolves to a result object, not a function — `.resolves.not.toThrow()` never
+    // meaningfully exercises that (CodeRabbit review finding, PR #434 round 1). Awaiting it
+    // directly proves the same "completes without rejecting" property: an FK-violation error
+    // would reject this promise and fail the test.
+    await job.run(NOW);
+
+    expect(await entityRepo.findOne({ where: { id: expired.id } })).toBeNull();
+    const remainingAnswers = (await dataSource.query(
+      'SELECT 1 FROM "platform"."lead_form_answers" WHERE "tenant_id" = $1 AND "submission_id" = $2',
+      [tenant.id, expired.id],
+    )) as unknown[];
+    expect(remainingAnswers).toHaveLength(0);
+  });
 });

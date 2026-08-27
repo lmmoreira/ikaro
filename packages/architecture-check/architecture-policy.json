@@ -489,7 +489,8 @@
         "ChatbotSessionEntity",
         "ChatbotMessageEntity",
         "ChatbotProviderBalanceEntity",
-        "LeadFormSubmissionEntity"
+        "LeadFormSubmissionEntity",
+        "LeadFormAnswerEntity"
       ],
       "rationale": "General-purpose raw DataSource for integration specs that assert directly against tables. Intentionally omits NotificationTemplateEntity: every spec using this helper reads notification templates through InMemoryNotificationTemplateRepository, never this DataSource."
     },
@@ -552,12 +553,13 @@
         "HotsiteConfigEntity",
         "LeadFormConfigEntity",
         "LeadFormSubmissionEntity",
+        "LeadFormAnswerEntity",
         "InboxRecordEntity",
         "ChatbotSessionEntity",
         "ChatbotMessageEntity",
         "ChatbotProviderBalanceEntity"
       ],
-      "rationale": "Platform context integration app — scoped to platform's own aggregates. LeadFormSubmissionEntity added M20-S06 for the new admin submissions list/detail controller integration tests."
+      "rationale": "Platform context integration app — scoped to platform's own aggregates. LeadFormSubmissionEntity added M20-S06 for the new admin submissions list/detail controller integration tests. LeadFormAnswerEntity added M20-S12 for the new search/filters/filter-options controller integration tests."
     }
   ],
   "exceptions": [

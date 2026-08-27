@@ -154,7 +154,7 @@ export function LeadFormSortableQuestion({
                 <input
                   value={option}
                   aria-label={t('question.optionLabel', { index: optionIndex + 1 })}
-                  data-testid="lead-form-question-option"
+                  data-testid="lead-form-question-option-input"
                   data-option-index={optionIndex}
                   onChange={(event) => {
                     const next = [...options];

@@ -16,3 +16,4 @@ export * from './fake-llm-provider.builder';
 export * from './lead-form-submission.builder';
 export * from './lead-form-submission-entity.builder';
 export * from './lead-form-submission-received-event.builder';
+export * from './lead-form-answer-entity.builder';

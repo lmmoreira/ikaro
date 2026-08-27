@@ -6,12 +6,14 @@ import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/p
 import { InMemoryLeadFormConfigRepository } from '../../../../test/repositories/platform/in-memory-lead-form-config.repository';
 import { InMemoryLeadFormSubmissionRepository } from '../../../../test/repositories/platform/in-memory-lead-form-submission.repository';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
+import { InMemoryTenantSettingsPort } from '../../../../test/infrastructure/in-memory-tenant-settings.port';
 import { HotsiteConfigBuilder } from '../../../../test/builders/platform/hotsite-config.builder';
 import { LeadFormSubmissionBuilder } from '../../../../test/builders/platform/lead-form-submission.builder';
 import { TenantBuilder } from '../../../../test/builders/platform/tenant.builder';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { TRANSACTION_MANAGER } from '../../../../shared/ports/transaction-manager.port';
 import { STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
+import { TENANT_SETTINGS_PORT } from '../../../../shared/ports/tenant-settings.port';
 import { HOTSITE_CONFIG_REPOSITORY } from '../../application/ports/hotsite-config-repository.port';
 import { LEAD_FORM_CONFIG_REPOSITORY } from '../../application/ports/lead-form-config-repository.port';
 import { LEAD_FORM_SUBMISSION_REPOSITORY } from '../../application/ports/lead-form-submission-repository.port';
@@ -21,6 +23,7 @@ import { HotsiteImagePromotionService } from '../../application/services/hotsite
 import { HotsiteImagePathsService } from '../../domain/services/hotsite-image-paths.service';
 import { HotsiteImageUrlResolver } from '../../domain/services/hotsite-image-url-resolver.service';
 import { GetLeadFormConfigUseCase } from '../../application/use-cases/get-lead-form-config.use-case';
+import { GetLeadFormFilterOptionsUseCase } from '../../application/use-cases/get-lead-form-filter-options.use-case';
 import { GetLeadFormStatusUseCase } from '../../application/use-cases/get-lead-form-status.use-case';
 import { GetLeadFormSubmissionUseCase } from '../../application/use-cases/get-lead-form-submission.use-case';
 import { ListLeadFormSubmissionsUseCase } from '../../application/use-cases/list-lead-form-submissions.use-case';
@@ -46,12 +49,14 @@ describe('LeadFormController', () => {
         GetLeadFormStatusUseCase,
         ListLeadFormSubmissionsUseCase,
         GetLeadFormSubmissionUseCase,
+        GetLeadFormFilterOptionsUseCase,
         { provide: HOTSITE_CONFIG_REPOSITORY, useValue: hotsiteConfigRepo },
         { provide: LEAD_FORM_CONFIG_REPOSITORY, useValue: new InMemoryLeadFormConfigRepository() },
         { provide: LEAD_FORM_SUBMISSION_REPOSITORY, useValue: submissionRepo },
         { provide: TENANT_REPOSITORY, useValue: tenantRepo },
         { provide: TRANSACTION_MANAGER, useValue: new InMemoryTransactionManager() },
         { provide: STORAGE_SERVICE, useValue: new InMemoryStorageService() },
+        { provide: TENANT_SETTINGS_PORT, useValue: new InMemoryTenantSettingsPort() },
         HotsiteContentReader,
         HotsiteImagePathsService,
         HotsiteImagePromotionService,
@@ -119,6 +124,60 @@ describe('LeadFormController', () => {
       expect(result.page).toBe(1);
       expect(result.pageSize).toBe(20);
       expect(result.total).toBe(1);
+    });
+
+    it('delegates search/filters/date-range query params through to the use case', async () => {
+      const tenant = new TenantBuilder().withSlug('ctrl-lead-form-list-02').build();
+      await tenantRepo.save(tenant);
+      requestContext.tenantId = tenant.id;
+      await submissionRepo.save(
+        new LeadFormSubmissionBuilder()
+          .withTenantId(tenant.id)
+          .withName('Carlos Souza')
+          .withAnswers([
+            {
+              questionId: '01234567-0000-7000-8000-000000000101',
+              questionLabel: 'Estado civil',
+              questionType: 'TEXT',
+              answerValue: 'Casado',
+            },
+          ])
+          .build(),
+      );
+
+      const result = await controller.listSubmissions({
+        page: 1,
+        pageSize: 20,
+        filters: [{ questionLabel: 'Estado civil', value: 'casado' }],
+      });
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].name).toBe('Carlos Souza');
+    });
+  });
+
+  describe('getFilterOptions', () => {
+    it('returns distinct question labels for the resolved tenant', async () => {
+      const tenant = new TenantBuilder().withSlug('ctrl-lead-form-filter-options-01').build();
+      await tenantRepo.save(tenant);
+      requestContext.tenantId = tenant.id;
+      await submissionRepo.save(
+        new LeadFormSubmissionBuilder()
+          .withTenantId(tenant.id)
+          .withAnswers([
+            {
+              questionId: '01234567-0000-7000-8000-000000000101',
+              questionLabel: 'Estado civil',
+              questionType: 'TEXT',
+              answerValue: 'Casado',
+            },
+          ])
+          .build(),
+      );
+
+      const result = await controller.getFilterOptions();
+
+      expect(result.questionLabels).toEqual(['Estado civil']);
     });
   });
 

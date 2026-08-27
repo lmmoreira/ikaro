@@ -1,6 +1,7 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import {
   LeadFormConfigResponse,
+  LeadFormFilterOptionsResponse,
   LeadFormStatusResponse,
   LeadFormSubmissionDetailResponse,
   LeadFormSubmissionsListResponse,
@@ -43,9 +44,26 @@ export class LeadFormController {
     @Query(new ZodValidationPipe(ListLeadFormSubmissionsQuerySchema))
     query: ListLeadFormSubmissionsQuery,
   ): Promise<LeadFormSubmissionsListResponse> {
-    return this.backendHttp.get<LeadFormSubmissionsListResponse>(
-      '/tenants/lead-form/submissions',
-      query,
+    // `filters` is a real array by the time the Zod pipe above has run (ListLeadFormSubmissionsSchema
+    // parses the wire's JSON-string query param into it) — the backend applies the identical shared
+    // schema and expects that same JSON-string shape back on its own wire, so it must be
+    // re-serialized here rather than forwarded as the parsed object (axios would otherwise encode an
+    // array param as bracket-notation query keys, not JSON, which the backend's z.string() step
+    // would reject outright).
+    const { filters, ...rest } = query;
+    return this.backendHttp.get<LeadFormSubmissionsListResponse>('/tenants/lead-form/submissions', {
+      ...rest,
+      ...(filters !== undefined ? { filters: JSON.stringify(filters) } : {}),
+    });
+  }
+
+  // Declared before `submissions/:id` — Nest matches routes in declaration order (same reasoning
+  // as the backend's own lead-form.controller.ts).
+  @Get('submissions/filter-options')
+  @Roles('STAFF', 'MANAGER')
+  getFilterOptions(): Promise<LeadFormFilterOptionsResponse> {
+    return this.backendHttp.get<LeadFormFilterOptionsResponse>(
+      '/tenants/lead-form/submissions/filter-options',
     );
   }
 
