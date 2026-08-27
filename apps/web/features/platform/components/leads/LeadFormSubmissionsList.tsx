@@ -105,6 +105,16 @@ export function LeadFormSubmissionsList({
   const currentListQuery = buildLeadsSearchQuery({ ...searchQuery, page });
   const returnToParam = currentListQuery ? `?returnTo=${encodeURIComponent(currentListQuery)}` : '';
 
+  // Mirrors handleClearAdvanced()/handleClearBasic()'s own destinations exactly (clear the
+  // active query + date range, but only basic mode's own clear drops mode itself) — this plain
+  // <Link> isn't routed through either panel handler, so it must reach the same URL by hand. A
+  // bare `/dashboard/leads` here for the advanced zero-results card silently switched the
+  // manager back to basic mode as a side effect of clearing, on top of dropping the date range
+  // (Codex PR #436 round 6 finding, 2026-08-27).
+  const clearHref = isAdvancedMode
+    ? `/dashboard/leads${buildLeadsSearchQuery({ mode: 'advanced' })}`
+    : '/dashboard/leads';
+
   return (
     <div className="space-y-4">
       {/* Keyed by the resolved query (page excluded, so paging alone never remounts this) —
@@ -139,7 +149,7 @@ export function LeadFormSubmissionsList({
             {isAdvancedMode ? t('filtersNoResultsBody') : t('searchNoResultsBody')}
           </p>
           <Link
-            href="/dashboard/leads"
+            href={clearHref}
             className="inline-block rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
           >
             {isAdvancedMode ? t('filtersNoResultsClear') : t('searchNoResultsClear')}

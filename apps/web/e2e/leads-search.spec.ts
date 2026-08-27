@@ -252,6 +252,15 @@ test.describe.serial('leads search — M20-S13', () => {
     await loginAsStaff(page, MANAGER_EMAIL, MANAGER_TENANT_SLUG);
     await page.goto('/dashboard/leads');
     await page.getByTestId('leads-mode-toggle').click();
+    // Mode-toggle navigation now always changes the URL (`?mode=advanced` — needed so the mode
+    // survives a later "Limpar filtros"/date-range-only apply, see LeadFormSearchPanel's own
+    // comment on toggleMode()), which remounts LeadFormSearchPanel via LeadFormSubmissionsList's
+    // query-keyed `key`. Interacting with the (pre-remount) Select before that navigation lands
+    // opens a dropdown that gets torn down mid-click once the remount replaces it — confirmed live
+    // in CI as "element was detached from the DOM, retrying" on the option click below. Waiting
+    // for the URL first ensures every following interaction targets the settled, post-remount
+    // instance (Codex PR #436 round 4/5 CI failures, 2026-08-27).
+    await expect(page).toHaveURL(/mode=advanced/);
 
     const questionSelects = page.getByTestId('leads-filter-row-question');
     const valueInputs = page.getByTestId('leads-filter-row-value');

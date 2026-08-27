@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { LeadFormSubmissionListItem } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
@@ -330,6 +330,32 @@ describe('LeadFormSubmissionsList', () => {
 
       const clearLink = screen.getByText('Limpar busca').closest('a');
       expect(clearLink).toHaveAttribute('href', '/dashboard/leads');
+    });
+
+    // This plain <Link> isn't routed through LeadFormSearchPanel's own handleClearAdvanced() —
+    // a bare `/dashboard/leads` here silently dropped back to basic mode as a side effect of
+    // clearing the zero-match filters (Codex PR #436 round 6 finding, 2026-08-27).
+    it('"Limpar filtros" stays in advanced mode instead of dropping back to a bare basic-mode link', () => {
+      renderWithIntl(
+        <LeadFormSubmissionsList
+          items={[]}
+          page={1}
+          pageSize={20}
+          total={0}
+          searchQuery={{
+            filters: [{ questionLabel: 'Estado civil', value: 'casado' }],
+            mode: 'advanced',
+          }}
+          filterOptionLabels={['Estado civil']}
+        />,
+      );
+
+      // "Limpar filtros" also labels the still-rendered advanced panel's own clear button —
+      // scope to the no-results card so this asserts the plain <Link>, not that button.
+      const clearLink = within(screen.getByTestId('leads-no-results'))
+        .getByText('Limpar filtros')
+        .closest('a');
+      expect(clearLink).toHaveAttribute('href', '/dashboard/leads?mode=advanced');
     });
 
     // "Limpar busca" is a plain <Link>, not wired through LeadFormSearchPanel's own clear

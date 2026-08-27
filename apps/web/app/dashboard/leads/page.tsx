@@ -66,14 +66,17 @@ export default async function LeadsPage({
     // depends on has resolved, so the advanced dropdown briefly rendered with zero options until
     // the panel's key-based remount caught up — confirmed live as a round-5 CI failure
     // (leads-search.spec.ts's "2 ANDed advanced filters" test, timing out on an option that
-    // hadn't loaded yet). The query itself isn't the unbounded scan the finding assumed: it's
-    // `WHERE tenant_id = $1` on the same `(tenant_id, submission_id, question_label)` index
-    // `applySearch()` already relies on (see ListLeadFormSubmissionsSchema's own doc comment), so
-    // it's bounded by this one tenant's own answer-row count, and DISTINCT further caps the
-    // *result* to that tenant's own distinct-question-label count — realistically a handful to a
-    // few dozen labels over a tenant's whole history, not an unbounded list. A transient failure
-    // still must not take down the whole list — the advanced-filter dropdown just renders with no
-    // options instead (CodeRabbit PR #436 round 1 finding, 2026-08-27).
+    // hadn't loaded yet). Round 6 re-raised this as a cost concern (up to ~730k submissions ×
+    // 20 answer rows at the system's absolute ceiling) — but `findDistinctQuestionLabels()`'s own
+    // query (`SELECT DISTINCT question_label FROM lead_form_answers WHERE tenant_id = $1 ORDER BY
+    // question_label`) maps directly onto `IDX_platform_lead_form_answers_tenant_label`
+    // (`(tenant_id, question_label)` — see `1748500000006-CreateLeadFormAnswers.ts`), a dedicated
+    // 2-column covering index built for exactly this shape: an index-only scan with the ORDER BY
+    // satisfied for free by the index's own sort order and DISTINCT resolved as a cheap adjacent-
+    // duplicate elimination over an already-sorted stream — it never touches the heap or needs a
+    // separate sort/hash step. A transient failure still must not take down the whole list — the
+    // advanced-filter dropdown just renders with no options instead (CodeRabbit PR #436 round 1
+    // finding, 2026-08-27).
     getLeadFormFilterOptions(token).catch(() => ({ questionLabels: [] })),
   ]);
 
