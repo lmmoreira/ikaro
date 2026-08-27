@@ -424,33 +424,27 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
   describe('lead_form_answers — persisted rows (M20-S12)', () => {
     it('gets exactly one row per selected option for MULTIPLE_CHOICE, each independently queryable', async () => {
       const repo = makeRepo(new InMemoryEventBus());
-      const submission = LeadFormSubmission.create({
-        tenantId: TENANT_A,
-        customerId: null,
-        name: 'Maria Silva',
-        email: `lead-${uuidv7()}@example.com`,
-        phone: '+5511912345678',
-        answers: [
+      const submission = new LeadFormSubmissionBuilder()
+        .withTenantId(TENANT_A)
+        .withName('Maria Silva')
+        .withAnswers([
           {
             questionId: QUESTION_ID,
             questionLabel: 'Serviços de interesse',
             questionType: 'MULTIPLE_CHOICE',
             answerValue: ['Lavagem', 'Enceramento'],
           },
-        ],
-        ipAddress: '203.0.113.10',
-        retentionMonths: 6,
-        correlationId: `corr-${uuidv7()}`,
-      });
+        ])
+        .build();
 
       await txManager.run(() => repo.save(submission));
 
       const rows = (await dataSource.query(
         `
           SELECT question_label, answer_value FROM "platform"."lead_form_answers"
-          WHERE submission_id = $1 ORDER BY answer_value
+          WHERE tenant_id = $1 AND submission_id = $2 ORDER BY answer_value
         `,
-        [submission.id],
+        [TENANT_A, submission.id],
       )) as Array<{ question_label: string; answer_value: string }>;
       expect(rows).toEqual([
         { question_label: 'Serviços de interesse', answer_value: 'Enceramento' },
@@ -465,8 +459,8 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
       await txManager.run(() => repo.save(submission));
 
       const rows = (await dataSource.query(
-        `SELECT answer_value FROM "platform"."lead_form_answers" WHERE submission_id = $1`,
-        [submission.id],
+        `SELECT answer_value FROM "platform"."lead_form_answers" WHERE tenant_id = $1 AND submission_id = $2`,
+        [TENANT_A, submission.id],
       )) as Array<{ answer_value: string }>;
       expect(rows).toEqual([{ answer_value: 'Google' }]);
     });
@@ -479,17 +473,13 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
       questionLabel: string,
       answerValue: string,
     ) {
-      return LeadFormSubmission.create({
-        tenantId,
-        customerId: null,
-        name,
-        email: `lead-${uuidv7()}@example.com`,
-        phone: '+5511912345678',
-        answers: [{ questionId: QUESTION_ID, questionLabel, questionType: 'TEXT', answerValue }],
-        ipAddress: '203.0.113.10',
-        retentionMonths: 6,
-        correlationId: `corr-${uuidv7()}`,
-      });
+      return new LeadFormSubmissionBuilder()
+        .withTenantId(tenantId)
+        .withName(name)
+        .withAnswers([
+          { questionId: QUESTION_ID, questionLabel, questionType: 'TEXT', answerValue },
+        ])
+        .build();
     }
 
     it('basic search matches partially/case-insensitively against name', async () => {
@@ -502,17 +492,11 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
 
     it('basic search matches partially/case-insensitively against email', async () => {
       const repo = makeRepo(new InMemoryEventBus());
-      const submission = LeadFormSubmission.create({
-        tenantId: TENANT_A,
-        customerId: null,
-        name: 'Someone',
-        email: 'unique-marker-search@example.com',
-        phone: '+5511912345678',
-        answers: [],
-        ipAddress: '203.0.113.10',
-        retentionMonths: 6,
-        correlationId: `corr-${uuidv7()}`,
-      });
+      const submission = new LeadFormSubmissionBuilder()
+        .withTenantId(TENANT_A)
+        .withName('Someone')
+        .withEmail('unique-marker-search@example.com')
+        .build();
       await txManager.run(() => repo.save(submission));
 
       const { items } = await repo.findByTenantPaginated(TENANT_A, 1, 20, {
@@ -543,13 +527,10 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
 
     it('advanced filters with 2 entries returns only submissions matching both (excludes the false-positive one-match case)', async () => {
       const repo = makeRepo(new InMemoryEventBus());
-      const matchesBoth = LeadFormSubmission.create({
-        tenantId: TENANT_A,
-        customerId: null,
-        name: 'Matches Both',
-        email: `lead-${uuidv7()}@example.com`,
-        phone: '+5511912345678',
-        answers: [
+      const matchesBoth = new LeadFormSubmissionBuilder()
+        .withTenantId(TENANT_A)
+        .withName('Matches Both')
+        .withAnswers([
           {
             questionId: QUESTION_ID,
             questionLabel: 'Estado civil',
@@ -562,11 +543,8 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
             questionType: 'TEXT',
             answerValue: 'Sao Paulo',
           },
-        ],
-        ipAddress: '203.0.113.10',
-        retentionMonths: 6,
-        correlationId: `corr-${uuidv7()}`,
-      });
+        ])
+        .build();
       const matchesOnlyOne = buildWithAnswer(
         TENANT_A,
         'Matches Only One',
@@ -717,17 +695,12 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
       questionLabel: string,
       answerValue: string,
     ) {
-      return LeadFormSubmission.create({
-        tenantId,
-        customerId: null,
-        name: 'Someone',
-        email: `lead-${uuidv7()}@example.com`,
-        phone: '+5511912345678',
-        answers: [{ questionId: QUESTION_ID, questionLabel, questionType: 'TEXT', answerValue }],
-        ipAddress: '203.0.113.10',
-        retentionMonths: 6,
-        correlationId: `corr-${uuidv7()}`,
-      });
+      return new LeadFormSubmissionBuilder()
+        .withTenantId(tenantId)
+        .withAnswers([
+          { questionId: QUESTION_ID, questionLabel, questionType: 'TEXT', answerValue },
+        ])
+        .build();
     }
   });
 

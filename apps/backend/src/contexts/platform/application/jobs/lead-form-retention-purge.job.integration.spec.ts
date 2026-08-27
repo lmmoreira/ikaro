@@ -141,7 +141,11 @@ describe('LeadFormRetentionPurgeJob (integration)', () => {
       .build();
     await submissionRepo.save(expired);
 
-    await expect(job.run(NOW)).resolves.not.toThrow();
+    // `job.run()` resolves to a result object, not a function — `.resolves.not.toThrow()` never
+    // meaningfully exercises that (Codex/CodeRabbit review finding, PR #434). Awaiting it directly
+    // proves the same "completes without rejecting" property: an FK-violation error would reject
+    // this promise and fail the test.
+    await job.run(NOW);
 
     expect(await entityRepo.findOne({ where: { id: expired.id } })).toBeNull();
     const remainingAnswers = (await dataSource.query(

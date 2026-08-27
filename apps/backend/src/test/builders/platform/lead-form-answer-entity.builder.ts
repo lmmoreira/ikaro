@@ -3,7 +3,7 @@ import { LeadFormAnswerEntity } from '../../../contexts/platform/infrastructure/
 
 export class LeadFormAnswerEntityBuilder {
   private id = uuidv7();
-  private tenantId = 'tenant-id-1';
+  private tenantId = uuidv7();
   private submissionId = uuidv7();
   private questionId = uuidv7();
   private questionLabel = 'Estado civil';

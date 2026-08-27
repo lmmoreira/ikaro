@@ -275,10 +275,12 @@ describe('LeadFormController (integration)', () => {
     });
 
     it('returns 403 when no X-Actor-Role header is present', async () => {
-      await request(app.getHttpServer())
+      const { body } = await request(app.getHttpServer())
         .get('/tenants/lead-form/submissions/filter-options')
         .set('X-Tenant-ID', TENANT_SUBMISSIONS)
         .expect(403);
+
+      expect(body.status).toBe(403);
     });
   });
 
