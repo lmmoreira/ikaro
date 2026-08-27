@@ -37,18 +37,27 @@ export default async function LeadsPage({
   } = await searchParams;
   const page = parsePage(pageParam);
   const filters = parseLeadFormFilters(filtersParam);
+  // search/filters are mutually exclusive per S12's backend contract — the real UI never sends
+  // both, but a hand-edited URL could. filters wins (matches LeadFormSearchPanel's own mode-init
+  // rule: a non-empty filters param already implies advanced mode) so this never forwards a
+  // request the BFF is guaranteed to reject with 400 (CodeRabbit PR #436 round 1 finding,
+  // 2026-08-27).
+  const resolvedSearch = filters ? undefined : search;
   const token = await getAccessToken();
 
   const [{ items, total }, filterOptions] = await Promise.all([
     listLeadFormSubmissions(token, {
       page,
       pageSize: PAGE_SIZE,
-      search,
+      search: resolvedSearch,
       filters,
       submittedFrom,
       submittedTo,
     }),
-    getLeadFormFilterOptions(token),
+    // A transient filter-options failure must not take down the whole list — the advanced-filter
+    // dropdown just renders with no options instead (CodeRabbit PR #436 round 1 finding,
+    // 2026-08-27).
+    getLeadFormFilterOptions(token).catch(() => ({ questionLabels: [] })),
   ]);
 
   return (
@@ -57,7 +66,7 @@ export default async function LeadsPage({
       page={page}
       pageSize={PAGE_SIZE}
       total={total}
-      searchQuery={{ search, filters, submittedFrom, submittedTo }}
+      searchQuery={{ search: resolvedSearch, filters, submittedFrom, submittedTo }}
       filterOptionLabels={filterOptions.questionLabels}
     />
   );

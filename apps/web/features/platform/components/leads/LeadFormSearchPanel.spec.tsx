@@ -107,6 +107,34 @@ describe('LeadFormSearchPanel', () => {
     expect(screen.getByTestId('leads-advanced-filters')).toBeInTheDocument();
   });
 
+  // router.push is a soft App Router navigation that keeps this client component mounted — its
+  // own useState doesn't get reset just because the URL/list moved on. Toggling modes must reset
+  // the local state too, not just the URL (Codex PR #436 round 1 finding, 2026-08-27).
+  it("clears the search box's own state after switching away and back to basic mode", async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<LeadFormSearchPanel initialSearch="carlos" filterOptionLabels={[]} />);
+
+    await user.click(screen.getByTestId('leads-mode-toggle'));
+    await user.click(screen.getByTestId('leads-mode-toggle'));
+
+    expect(screen.getByTestId('leads-search-input')).toHaveValue('');
+  });
+
+  it("clears the filter rows' own state after switching away and back to advanced mode", async () => {
+    const user = userEvent.setup();
+    renderWithIntl(
+      <LeadFormSearchPanel
+        initialFilters={[{ questionLabel: 'Estado civil', value: 'casado' }]}
+        filterOptionLabels={['Estado civil']}
+      />,
+    );
+
+    await user.click(screen.getByTestId('leads-mode-toggle'));
+    await user.click(screen.getByTestId('leads-mode-toggle'));
+
+    expect(screen.getByTestId('leads-filter-row-value')).toHaveValue('');
+  });
+
   it('switches back to basic mode and drops active filters from the URL', async () => {
     const user = userEvent.setup();
     renderWithIntl(
@@ -165,6 +193,42 @@ describe('LeadFormSearchPanel', () => {
     renderWithIntl(
       <LeadFormSearchPanel
         initialFilters={[{ questionLabel: 'Estado civil', value: 'ca' }]}
+        filterOptionLabels={['Estado civil']}
+      />,
+    );
+
+    expect(screen.getByTestId('leads-filters-apply')).toBeEnabled();
+  });
+
+  // A half-filled row (only one side populated) would otherwise be silently dropped from the
+  // request with no explanation for why the result doesn't match what was typed (Codex PR #436
+  // round 1 finding, 2026-08-27).
+  it('disables "Aplicar filtros" when a row has a value but no selected question', () => {
+    renderWithIntl(
+      <LeadFormSearchPanel
+        initialFilters={[{ questionLabel: '', value: 'casado' }]}
+        filterOptionLabels={['Estado civil']}
+      />,
+    );
+
+    expect(screen.getByTestId('leads-filters-apply')).toBeDisabled();
+  });
+
+  it('disables "Aplicar filtros" when a row has a selected question but no value', () => {
+    renderWithIntl(
+      <LeadFormSearchPanel
+        initialFilters={[{ questionLabel: 'Estado civil', value: '' }]}
+        filterOptionLabels={['Estado civil']}
+      />,
+    );
+
+    expect(screen.getByTestId('leads-filters-apply')).toBeDisabled();
+  });
+
+  it('enables "Aplicar filtros" when every row is either fully filled or fully empty', () => {
+    renderWithIntl(
+      <LeadFormSearchPanel
+        initialFilters={[{ questionLabel: 'Estado civil', value: 'casado' }]}
         filterOptionLabels={['Estado civil']}
       />,
     );

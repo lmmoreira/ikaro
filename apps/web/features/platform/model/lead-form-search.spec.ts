@@ -53,6 +53,27 @@ describe('parseLeadFormFilters', () => {
   it('returns undefined for an empty array', () => {
     expect(parseLeadFormFilters('[]')).toBeUndefined();
   });
+
+  // A hand-edited/stale URL could carry entries the backend's own bounds would reject outright
+  // (empty questionLabel/value, more than 5 entries) — listLeadFormSubmissions throws on a
+  // non-2xx response, so forwarding one of these would crash the whole page load instead of
+  // degrading gracefully (CodeRabbit PR #436 round 1 finding, 2026-08-27).
+  it('drops an entry with an empty questionLabel', () => {
+    const raw = JSON.stringify([{ questionLabel: '', value: 'casado' }]);
+    expect(parseLeadFormFilters(raw)).toBeUndefined();
+  });
+
+  it('drops an entry with an empty value', () => {
+    const raw = JSON.stringify([{ questionLabel: 'Estado civil', value: '' }]);
+    expect(parseLeadFormFilters(raw)).toBeUndefined();
+  });
+
+  it('caps the result at MAX_FILTER_ROWS entries', () => {
+    const raw = JSON.stringify(
+      Array.from({ length: 8 }, (_, i) => ({ questionLabel: `Q${i}`, value: `v${i}` })),
+    );
+    expect(parseLeadFormFilters(raw)).toHaveLength(5);
+  });
 });
 
 describe('buildLeadsSearchQuery', () => {

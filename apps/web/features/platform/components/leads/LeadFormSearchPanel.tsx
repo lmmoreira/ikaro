@@ -74,12 +74,27 @@ export function LeadFormSearchPanel({
   const activeFilterRows = filterRows.filter(
     (row) => row.questionLabel && isSearchTermValid(row.value),
   );
+  // A row with only one side filled in (a question picked but no value typed, or a value typed
+  // but no question picked) is ambiguous — silently dropping it from activeFilterRows above
+  // with no feedback would apply a filter set the manager didn't intend, with no explanation why
+  // the result doesn't match what they typed (Codex PR #436 round 1 finding, 2026-08-27). A row
+  // with neither side filled in is fine (simply not yet started).
+  const hasIncompleteRow = filterRows.some(
+    (row) => Boolean(row.questionLabel) !== isSearchTermValid(row.value),
+  );
 
   function handleApplyAdvanced(): void {
     navigate({
       filters:
         activeFilterRows.length > 0
-          ? activeFilterRows.map(({ questionLabel, value }) => ({ questionLabel, value }))
+          ? // .trim() matches handleApplyBasic's own searchTerm.trim() — sending an untrimmed
+            // value (e.g. "  casado  ") would search for that literal padded string instead of
+            // the trimmed one isSearchTermValid validated (CodeRabbit PR #436 round 1 finding,
+            // 2026-08-27).
+            activeFilterRows.map(({ questionLabel, value }) => ({
+              questionLabel,
+              value: value.trim(),
+            }))
           : undefined,
     });
   }
@@ -93,8 +108,17 @@ export function LeadFormSearchPanel({
   // Switching modes always drops the other mode's active query (never sends both `search` and
   // `filters`), but keeps the shared date range — matches S12's mutually-exclusive backend
   // contract. Harmless to navigate even when the other mode had nothing applied yet.
+  //
+  // Also resets both modes' own local state (searchTerm/filterRows), not just the URL — router.push
+  // is a soft App Router navigation that keeps this client component mounted, so its useState
+  // would otherwise still hold the stale value after the URL/list have already moved on (Codex
+  // PR #436 round 1 finding, 2026-08-27: re-entering basic mode after applying a search and
+  // switching away left the search box still showing the old term, even though nothing was
+  // actually applied anymore).
   function toggleMode(): void {
     setMode(mode === 'basic' ? 'advanced' : 'basic');
+    setSearchTerm('');
+    setFilterRows(toEditableFilterRows(undefined));
     router.push(
       `/dashboard/leads${buildLeadsSearchQuery({ submittedFrom: range.from, submittedTo: range.to })}`,
     );
@@ -175,7 +199,12 @@ export function LeadFormSearchPanel({
           </>
         ) : (
           <>
-            <Button type="button" onClick={handleApplyAdvanced} data-testid="leads-filters-apply">
+            <Button
+              type="button"
+              onClick={handleApplyAdvanced}
+              disabled={hasIncompleteRow}
+              data-testid="leads-filters-apply"
+            >
               {t('advancedFiltersApply')}
             </Button>
             <Button

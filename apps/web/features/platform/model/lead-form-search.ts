@@ -49,8 +49,12 @@ export function toEditableFilterRows(
 // Parses the `filters` query param (a URL-encoded JSON array string) back into a typed array
 // for pre-filling the advanced-filter UI on load (a direct link, a back-navigation). A
 // hand-edited or stale URL that doesn't parse/match the expected shape fails open to
-// "no filters" rather than crashing the page — the BFF/backend independently re-validate on
-// the actual request.
+// "no filters" rather than crashing the page — but it must fail open all the way to matching
+// the backend's own bounds (non-empty questionLabel/value, capped at MAX_FILTER_ROWS), not just
+// the outer JSON/type shape: `listLeadFormSubmissions` throws on a non-2xx response, so forwarding
+// an entry the backend is guaranteed to reject (an empty value, a 6th entry) would crash the
+// whole page load instead of degrading gracefully (CodeRabbit PR #436 round 1 finding,
+// 2026-08-27).
 export function parseLeadFormFilters(
   raw: string | undefined,
 ): LeadFormSearchFilterEntry[] | undefined {
@@ -58,13 +62,17 @@ export function parseLeadFormFilters(
   try {
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return undefined;
-    const entries = parsed.filter(
-      (entry): entry is LeadFormSearchFilterEntry =>
-        typeof entry === 'object' &&
-        entry !== null &&
-        typeof (entry as Record<string, unknown>).questionLabel === 'string' &&
-        typeof (entry as Record<string, unknown>).value === 'string',
-    );
+    const entries = parsed
+      .filter(
+        (entry): entry is LeadFormSearchFilterEntry =>
+          typeof entry === 'object' &&
+          entry !== null &&
+          typeof (entry as Record<string, unknown>).questionLabel === 'string' &&
+          typeof (entry as Record<string, unknown>).value === 'string' &&
+          (entry as LeadFormSearchFilterEntry).questionLabel.trim().length > 0 &&
+          isSearchTermValid((entry as LeadFormSearchFilterEntry).value),
+      )
+      .slice(0, MAX_FILTER_ROWS);
     return entries.length > 0 ? entries : undefined;
   } catch {
     return undefined;

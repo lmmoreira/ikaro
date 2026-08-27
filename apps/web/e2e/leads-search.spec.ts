@@ -11,8 +11,10 @@ import {
 } from './helpers/hotsite';
 import {
   getLeadFormConfig,
+  getTenantSettings,
   toLeadFormUpdateRequest,
   updateLeadFormConfig,
+  updateTenantSettings,
 } from './helpers/platform';
 
 // autospa-premium: same shared-tenant convention as leads-golden-path.spec.ts/guest-lead-form.spec.ts
@@ -22,8 +24,13 @@ const MANAGER_TENANT_SLUG = 'autospa-premium';
 
 const MARITAL_QUESTION_ID = randomUUID();
 const CITY_QUESTION_ID = randomUUID();
-const MARITAL_LABEL = 'Qual seu estado civil?';
-const CITY_LABEL = 'Onde você mora?';
+// Suffixed with the question's own random UUID so a re-run against this shared tenant never
+// collides with a prior run's leftover submissions (nothing deletes them after the test) — a
+// fixed label would otherwise let an old "casado"/"São Paulo" row silently satisfy the ANDed
+// advanced-filter assertion below alongside the new one, breaking its toHaveCount(1) expectation
+// (CodeRabbit PR #436 round 1 finding, 2026-08-27).
+const MARITAL_LABEL = `Qual seu estado civil? [${MARITAL_QUESTION_ID}]`;
+const CITY_LABEL = `Onde você mora? [${CITY_QUESTION_ID}]`;
 
 interface GuestLeadInput {
   readonly name: string;
@@ -76,6 +83,7 @@ function isoDateDaysFromNow(days: number): string {
 test.describe.serial('leads search — M20-S13', () => {
   let originalHotsite: HotsiteAdminContentResponse;
   let originalLeadForm: LeadFormConfigResponse;
+  let originalMaxSubmissionsPerIpPerDay: number;
 
   test.beforeAll(async ({ browser }) => {
     const context = await browser.newContext();
@@ -83,6 +91,19 @@ test.describe.serial('leads search — M20-S13', () => {
     await loginAsStaff(page, MANAGER_EMAIL, MANAGER_TENANT_SLUG);
     originalHotsite = await getHotsiteConfig(page);
     originalLeadForm = await getLeadFormConfig(page);
+
+    // autospa-premium is also used by guest-lead-form.spec.ts, authenticated-lead-form.spec.ts,
+    // and leads-golden-path.spec.ts, all submitting from the same CI runner's IP. CI runs with a
+    // single Playwright worker (playwright.config.ts), so those specs' own guest submissions
+    // land before this file's turn — the default per-IP cap (3/day, tenant-settings-defaults.ts)
+    // is easily already exhausted by the time this beforeAll runs, rejecting the very first
+    // submission below with no visible error beyond a timed-out "success" locator. Raised for
+    // the duration of this file, restored in afterAll (real CI failure, 2026-08-27).
+    const tenantSettings = await getTenantSettings(page);
+    originalMaxSubmissionsPerIpPerDay = tenantSettings.settings.leadForm.maxSubmissionsPerIpPerDay;
+    await updateTenantSettings(page, {
+      settings: { leadForm: { maxSubmissionsPerIpPerDay: 100 } },
+    });
 
     await updateHotsiteConfig(page, {
       ...toUpdateRequest(originalHotsite),
@@ -134,6 +155,9 @@ test.describe.serial('leads search — M20-S13', () => {
     const context = await browser.newContext();
     const page = await context.newPage();
     await loginAsStaff(page, MANAGER_EMAIL, MANAGER_TENANT_SLUG);
+    await updateTenantSettings(page, {
+      settings: { leadForm: { maxSubmissionsPerIpPerDay: originalMaxSubmissionsPerIpPerDay } },
+    });
     await updateLeadFormConfig(page, toLeadFormUpdateRequest(originalLeadForm));
     await updateHotsiteConfig(page, toUpdateRequest(originalHotsite));
     if (originalHotsite.isPublished) {
@@ -261,5 +285,25 @@ test.describe.serial('leads search — M20-S13', () => {
     await page.getByTestId('topbar-back-button').click();
     await expect(page).toHaveURL(/search=Fernanda/);
     await expect(page.getByTestId('leads-search-input')).toHaveValue('Fernanda');
+  });
+
+  // The real UI never sends both params (they're alternative modes), but a hand-edited URL
+  // could — the BFF's own schema rejects both together with 400. page.tsx resolves this
+  // client-side before the request is even made (filters wins), so a malformed direct link
+  // degrades to the advanced-mode result instead of crashing the whole page load (CodeRabbit +
+  // Codex PR #436 round 1 findings, 2026-08-27).
+  test('a URL with both search and filters does not crash the page — filters wins', async ({
+    page,
+  }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, MANAGER_TENANT_SLUG);
+    const filters = encodeURIComponent(
+      JSON.stringify([{ questionLabel: MARITAL_LABEL, value: 'casado' }]),
+    );
+    await page.goto(`/dashboard/leads?search=Fernanda&filters=${filters}`);
+
+    await expect(page.getByTestId('leads-advanced-filters')).toBeVisible();
+    const rows = page.getByTestId('lead-submission-row');
+    await expect(rows.first()).toBeVisible({ timeout: 15_000 });
+    await expect(rows).toHaveCount(2);
   });
 });
