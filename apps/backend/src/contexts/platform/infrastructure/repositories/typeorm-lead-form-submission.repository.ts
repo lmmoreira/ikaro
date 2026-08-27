@@ -30,6 +30,7 @@ export class TypeOrmLeadFormSubmissionRepository implements ILeadFormSubmissionR
     } else {
       await this.repo.save(entity);
     }
+    await this.persistQuestionRefs(submission, manager);
     // TD24-S02 pattern — this is the 4th aggregate to join the transactional-outbox pattern
     // (after Booking/Staff/Tenant): drains clearDomainEvents() into shared.outbox inside the
     // same ambient transaction as the row above (docs/03-DOMAIN_EVENTS.md § LeadFormSubmissionReceived).
@@ -51,6 +52,24 @@ export class TypeOrmLeadFormSubmissionRepository implements ILeadFormSubmissionR
     return this.repo.count({
       where: { tenantId, ipAddress, submittedAt: Between(from, to) },
     });
+  }
+
+  async findQuestionIdsWithSubmissions(
+    tenantId: string,
+    questionIds: readonly string[],
+  ): Promise<readonly string[]> {
+    if (questionIds.length === 0) return [];
+
+    const rows = (await this.repo.query(
+      `
+        SELECT DISTINCT question_id AS "questionId"
+        FROM platform.lead_form_submission_question_refs
+        WHERE tenant_id = $1 AND question_id = ANY($2::uuid[])
+      `,
+      [tenantId, questionIds],
+    )) as Array<{ questionId: string }>;
+
+    return rows.map((row) => row.questionId);
   }
 
   async deleteExpired(now: Date): Promise<number> {
@@ -100,6 +119,23 @@ export class TypeOrmLeadFormSubmissionRepository implements ILeadFormSubmissionR
       expiresAt: entity.expiresAt,
       ipAddress: entity.ipAddress,
     });
+  }
+
+  private async persistQuestionRefs(
+    submission: LeadFormSubmission,
+    manager: ReturnType<typeof getActiveEntityManager>,
+  ): Promise<void> {
+    const questionIds = [...new Set(submission.answers.map((answer) => answer.questionId))];
+    if (questionIds.length === 0) return;
+    await (manager ?? this.repo.manager).query(
+      `
+        INSERT INTO platform.lead_form_submission_question_refs
+          (tenant_id, submission_id, question_id)
+        SELECT $1, $2, question_id FROM unnest($3::uuid[]) AS question_id
+        ON CONFLICT DO NOTHING
+      `,
+      [submission.tenantId, submission.id, questionIds],
+    );
   }
 
   private toEntity(submission: LeadFormSubmission): LeadFormSubmissionEntity {

@@ -1,22 +1,8 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Param,
-  Patch,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Param, Query, UseGuards } from '@nestjs/common';
 import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
-import {
-  UpdateLeadFormConfigDto,
-  UpdateLeadFormConfigSchema,
-} from '../../application/dtos/update-lead-form-config.dto';
 import {
   ListLeadFormSubmissionsDto,
   ListLeadFormSubmissionsSchema,
@@ -37,18 +23,17 @@ import {
   ListLeadFormSubmissionsUseCase,
   ListLeadFormSubmissionsUseCaseResult,
 } from '../../application/use-cases/list-lead-form-submissions.use-case';
-import {
-  UpdateLeadFormModuleUseCase,
-  UpdateLeadFormModuleUseCaseResult,
-} from '../../application/use-cases/update-lead-form-module.use-case';
 import { mapPlatformError } from '../http/platform-error.mapper';
 
+// Config writes go through PATCH /v1/tenants/hotsite (UpdateHotsiteContentUseCase) as of
+// M20-S08 — audienceMode/questions are optional fields on that consolidated endpoint, not a
+// separate PATCH here. This controller stays read-only for config (GET), and owns
+// submissions/status, which have no equivalent on the hotsite endpoint.
 @Controller('tenants/lead-form')
 export class LeadFormController {
   constructor(
     private readonly requestContext: RequestContext,
     private readonly getLeadFormConfig: GetLeadFormConfigUseCase,
-    private readonly updateLeadFormModule: UpdateLeadFormModuleUseCase,
     private readonly getLeadFormStatus: GetLeadFormStatusUseCase,
     private readonly listLeadFormSubmissions: ListLeadFormSubmissionsUseCase,
     private readonly getLeadFormSubmission: GetLeadFormSubmissionUseCase,
@@ -60,17 +45,6 @@ export class LeadFormController {
   getConfig(): Promise<GetLeadFormConfigUseCaseResult> {
     return this.getLeadFormConfig
       .execute({ tenantId: this.requestContext.tenantId })
-      .catch(mapPlatformError);
-  }
-
-  @Patch('config')
-  @HttpCode(HttpStatus.OK)
-  @UseGuards(ManagerRoleGuard)
-  updateConfig(
-    @Body(new ZodValidationPipe(UpdateLeadFormConfigSchema)) body: UpdateLeadFormConfigDto,
-  ): Promise<UpdateLeadFormModuleUseCaseResult> {
-    return this.updateLeadFormModule
-      .execute({ tenantId: this.requestContext.tenantId, ...body })
       .catch(mapPlatformError);
   }
 

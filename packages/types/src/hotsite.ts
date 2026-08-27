@@ -284,7 +284,14 @@ export interface UnpublishHotsiteResponse {
 // own Zod enum in sync separately (packages/validation doesn't re-export this, since those are
 // runtime validators, not just a type).
 export type HotsiteImagePurpose =
-  'branding' | 'hero' | 'gallery' | 'about' | 'booking-cta' | 'testimonials' | 'seo-og-image';
+  | 'branding'
+  | 'hero'
+  | 'gallery'
+  | 'about'
+  | 'booking-cta'
+  | 'testimonials'
+  | 'seo-og-image'
+  | 'lead-form';
 
 export interface GenerateHotsiteImageSignedUrlResponse {
   signedUrl: string;

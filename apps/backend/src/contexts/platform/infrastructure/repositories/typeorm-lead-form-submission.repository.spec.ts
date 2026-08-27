@@ -36,6 +36,7 @@ describe('TypeOrmLeadFormSubmissionRepository', () => {
     mockRepo = {
       save: jest.fn(),
       count: jest.fn(),
+      query: jest.fn(),
       manager: { createQueryBuilder: jest.fn() },
     } as unknown as jest.Mocked<Repository<LeadFormSubmissionEntity>>;
     outboxPublisher = new InMemoryEventBus();
@@ -180,6 +181,32 @@ describe('TypeOrmLeadFormSubmissionRepository', () => {
       expect(mockManager.createQueryBuilder).toHaveBeenCalled();
       expect(mockRepo.manager.createQueryBuilder).not.toHaveBeenCalled();
       expect(result).toBe(2);
+    });
+  });
+
+  describe('findQuestionIdsWithSubmissions', () => {
+    it('returns distinct question IDs scoped to the tenant', async () => {
+      mockRepo.query.mockResolvedValue([{ questionId: 'question-1' }]);
+
+      const result = await repo.findQuestionIdsWithSubmissions('tenant-id-1', [
+        'question-1',
+        'question-2',
+      ]);
+
+      expect(result).toEqual(['question-1']);
+      expect(mockRepo.query).toHaveBeenCalledWith(expect.stringContaining('tenant_id = $1'), [
+        'tenant-id-1',
+        ['question-1', 'question-2'],
+      ]);
+      expect(mockRepo.query).toHaveBeenCalledWith(
+        expect.stringContaining('lead_form_submission_question_refs'),
+        ['tenant-id-1', ['question-1', 'question-2']],
+      );
+    });
+
+    it('does not query when there are no question IDs', async () => {
+      await expect(repo.findQuestionIdsWithSubmissions('tenant-id-1', [])).resolves.toEqual([]);
+      expect(mockRepo.query).not.toHaveBeenCalled();
     });
   });
 });

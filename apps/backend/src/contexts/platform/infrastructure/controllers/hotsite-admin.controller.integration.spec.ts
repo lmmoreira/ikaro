@@ -5,11 +5,13 @@ import {
   HotsiteConfigEntityBuilder,
   TenantEntityBuilder,
 } from '../../../../test/builders/platform';
+import { makeLeadFormQuestions } from '../../../../test/builders/platform/lead-form-config.builder';
 import { STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryFrontendRevalidationPort } from '../../../../test/infrastructure/in-memory-frontend-revalidation.port';
 import { FRONTEND_REVALIDATION_PORT } from '../../application/ports/frontend-revalidation.port';
 import { HotsiteConfigEntity } from '../entities/hotsite-config.entity';
+import { LeadFormConfigEntity } from '../entities/lead-form-config.entity';
 import { TenantEntity } from '../entities/tenant.entity';
 import { createPlatformIntegrationApp } from '../../../../test/utils/platform-integration-app';
 
@@ -278,6 +280,71 @@ describe('HotsiteAdminController (integration)', () => {
         .expect(400);
 
       expect(body.status).toBe(400);
+    });
+
+    // M20-S08 — audienceMode/questions fold LeadFormConfig's own write into this consolidated
+    // endpoint (previously a separate PATCH /tenants/lead-form/config; see
+    // lead-form.controller.integration.spec.ts's own note on why that describe block moved here).
+    it('saves the LEAD_FORM teaser (via layout[]) and audienceMode/questions atomically', async () => {
+      const { body } = await request(app.getHttpServer())
+        .patch('/tenants/hotsite')
+        .set('X-Tenant-ID', TENANT_A)
+        .set('X-Actor-Role', 'MANAGER')
+        .send({
+          layout: [
+            {
+              type: 'LEAD_FORM',
+              enabled: true,
+              data: { title: 'Fale com a gente', ctaLabel: 'Preencher formulário' },
+            },
+          ],
+          audienceMode: 'CUSTOMER_ONLY',
+          questions: makeLeadFormQuestions(1),
+        })
+        .expect(200);
+
+      const leadFormModule = body.layout.find((m: { type: string }) => m.type === 'LEAD_FORM');
+      expect(leadFormModule.data.title).toBe('Fale com a gente');
+      expect(leadFormModule.enabled).toBe(true);
+
+      const savedLeadFormConfig = await ds
+        .getRepository(LeadFormConfigEntity)
+        .findOneBy({ tenantId: TENANT_A });
+      expect(savedLeadFormConfig!.audienceMode).toBe('CUSTOMER_ONLY');
+      expect(savedLeadFormConfig!.questions).toHaveLength(1);
+
+      const { body: leadFormConfigBody } = await request(app.getHttpServer())
+        .get('/tenants/lead-form/config')
+        .set('X-Tenant-ID', TENANT_A)
+        .set('X-Actor-Role', 'MANAGER')
+        .expect(200);
+      expect(leadFormConfigBody.title).toBe('Fale com a gente');
+      expect(leadFormConfigBody.audienceMode).toBe('CUSTOMER_ONLY');
+    });
+
+    it('returns 400 PLATFORM_LEAD_FORM_QUESTION_LIMIT_REACHED for 21 questions', async () => {
+      const { body } = await request(app.getHttpServer())
+        .patch('/tenants/hotsite')
+        .set('X-Tenant-ID', TENANT_A)
+        .set('X-Actor-Role', 'MANAGER')
+        .send({ questions: makeLeadFormQuestions(21) })
+        .expect(400);
+
+      expect(body.code).toBe('PLATFORM_LEAD_FORM_QUESTION_LIMIT_REACHED');
+    });
+
+    it('does not touch LeadFormConfig when neither audienceMode nor questions is provided', async () => {
+      await request(app.getHttpServer())
+        .patch('/tenants/hotsite')
+        .set('X-Tenant-ID', TENANT_B)
+        .set('X-Actor-Role', 'MANAGER')
+        .send({ branding: { brandName: 'Acme' } })
+        .expect(200);
+
+      const savedLeadFormConfig = await ds
+        .getRepository(LeadFormConfigEntity)
+        .findOneBy({ tenantId: TENANT_B });
+      expect(savedLeadFormConfig).toBeNull();
     });
   });
 

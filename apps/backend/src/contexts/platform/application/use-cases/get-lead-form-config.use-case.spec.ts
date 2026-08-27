@@ -1,8 +1,10 @@
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/platform/in-memory-hotsite-config.repository';
 import { InMemoryLeadFormConfigRepository } from '../../../../test/repositories/platform/in-memory-lead-form-config.repository';
+import { InMemoryLeadFormSubmissionRepository } from '../../../../test/repositories/platform/in-memory-lead-form-submission.repository';
 import { HotsiteConfigBuilder } from '../../../../test/builders/platform/hotsite-config.builder';
 import { LeadFormConfigBuilder } from '../../../../test/builders/platform/lead-form-config.builder';
+import { LeadFormSubmissionBuilder } from '../../../../test/builders/platform/lead-form-submission.builder';
 import { HotsiteNotFoundError } from '../../domain/errors/platform-domain.error';
 import { HotsiteModule } from '../../domain/hotsite-config.aggregate';
 import { HotsiteImageUrlResolver } from '../../domain/services/hotsite-image-url-resolver.service';
@@ -15,17 +17,23 @@ const OTHER_TENANT_ID = '01234567-0000-7000-8000-000000000002';
 describe('GetLeadFormConfigUseCase', () => {
   let hotsiteConfigRepo: InMemoryHotsiteConfigRepository;
   let leadFormConfigRepo: InMemoryLeadFormConfigRepository;
+  let leadFormSubmissionRepo: InMemoryLeadFormSubmissionRepository;
   let useCase: GetLeadFormConfigUseCase;
 
   beforeEach(() => {
     hotsiteConfigRepo = new InMemoryHotsiteConfigRepository();
     leadFormConfigRepo = new InMemoryLeadFormConfigRepository();
+    leadFormSubmissionRepo = new InMemoryLeadFormSubmissionRepository();
     const hotsiteContentReader = new HotsiteContentReader(
       hotsiteConfigRepo,
       new InMemoryStorageService(),
       new HotsiteImageUrlResolver(),
     );
-    useCase = new GetLeadFormConfigUseCase(hotsiteContentReader, leadFormConfigRepo);
+    useCase = new GetLeadFormConfigUseCase(
+      hotsiteContentReader,
+      leadFormConfigRepo,
+      leadFormSubmissionRepo,
+    );
   });
 
   it('throws HotsiteNotFoundError when the tenant has no HotsiteConfig row', async () => {
@@ -73,6 +81,38 @@ describe('GetLeadFormConfigUseCase', () => {
     expect(result.title).toBe('Fale com a gente');
     expect(result.ctaLabel).toBe('Preencher formulário');
     expect(result.audienceMode).toBe('CUSTOMER_ONLY');
+    expect(result.questions).toEqual([]);
+  });
+
+  it('marks questions with tenant-scoped submissions for removal confirmation', async () => {
+    await hotsiteConfigRepo.save(new HotsiteConfigBuilder().withTenantId(TENANT_ID).build());
+    const question = {
+      id: 'question-1',
+      label: 'Origem',
+      type: 'TEXT' as const,
+      required: false,
+      order: 0,
+    };
+    await leadFormConfigRepo.save(
+      new LeadFormConfigBuilder().withTenantId(TENANT_ID).withQuestions([question]).build(),
+    );
+    await leadFormSubmissionRepo.save(
+      new LeadFormSubmissionBuilder()
+        .withTenantId(TENANT_ID)
+        .withAnswers([
+          {
+            questionId: question.id,
+            questionLabel: question.label,
+            questionType: question.type,
+            answerValue: 'Google',
+          },
+        ])
+        .build(),
+    );
+
+    const result = await useCase.execute({ tenantId: TENANT_ID });
+
+    expect(result.questions).toEqual([{ ...question, hasSubmissions: true }]);
   });
 
   it('tenant isolation — does not leak tenant A data when read as tenant B', async () => {

@@ -7,7 +7,6 @@ import { InMemoryLeadFormConfigRepository } from '../../../../test/repositories/
 import { InMemoryLeadFormSubmissionRepository } from '../../../../test/repositories/platform/in-memory-lead-form-submission.repository';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
 import { HotsiteConfigBuilder } from '../../../../test/builders/platform/hotsite-config.builder';
-import { makeLeadFormQuestions } from '../../../../test/builders/platform/lead-form-config.builder';
 import { LeadFormSubmissionBuilder } from '../../../../test/builders/platform/lead-form-submission.builder';
 import { TenantBuilder } from '../../../../test/builders/platform/tenant.builder';
 import { RequestContext } from '../../../../shared/request/request-context';
@@ -25,7 +24,6 @@ import { GetLeadFormConfigUseCase } from '../../application/use-cases/get-lead-f
 import { GetLeadFormStatusUseCase } from '../../application/use-cases/get-lead-form-status.use-case';
 import { GetLeadFormSubmissionUseCase } from '../../application/use-cases/get-lead-form-submission.use-case';
 import { ListLeadFormSubmissionsUseCase } from '../../application/use-cases/list-lead-form-submissions.use-case';
-import { UpdateLeadFormModuleUseCase } from '../../application/use-cases/update-lead-form-module.use-case';
 import { LeadFormController } from './lead-form.controller';
 
 describe('LeadFormController', () => {
@@ -45,7 +43,6 @@ describe('LeadFormController', () => {
       controllers: [LeadFormController],
       providers: [
         GetLeadFormConfigUseCase,
-        UpdateLeadFormModuleUseCase,
         GetLeadFormStatusUseCase,
         ListLeadFormSubmissionsUseCase,
         GetLeadFormSubmissionUseCase,
@@ -89,41 +86,6 @@ describe('LeadFormController', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(HttpException);
         expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
-      }
-    });
-  });
-
-  describe('updateConfig', () => {
-    it('saves teaser fields and questions atomically, returning the merged shape', async () => {
-      const tenant = new TenantBuilder().withSlug('ctrl-lead-form-patch-01').build();
-      await tenantRepo.save(tenant);
-      await hotsiteConfigRepo.save(new HotsiteConfigBuilder().withTenantId(tenant.id).build());
-      requestContext.tenantId = tenant.id;
-
-      const result = await controller.updateConfig({
-        title: 'Fale com a gente',
-        ctaLabel: 'Preencher formulário',
-        audienceMode: 'CUSTOMER_ONLY',
-      });
-
-      expect(result.title).toBe('Fale com a gente');
-      expect(result.audienceMode).toBe('CUSTOMER_ONLY');
-    });
-
-    it('maps LeadFormQuestionLimitReachedError to 400 HttpException', async () => {
-      const tenant = new TenantBuilder().withSlug('ctrl-lead-form-patch-02').build();
-      await tenantRepo.save(tenant);
-      await hotsiteConfigRepo.save(new HotsiteConfigBuilder().withTenantId(tenant.id).build());
-      requestContext.tenantId = tenant.id;
-
-      const tooMany = makeLeadFormQuestions(21);
-
-      expect.assertions(2);
-      try {
-        await controller.updateConfig({ questions: tooMany });
-      } catch (err) {
-        expect(err).toBeInstanceOf(HttpException);
-        expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
       }
     });
   });

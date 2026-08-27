@@ -37,6 +37,21 @@ export class InMemoryLeadFormSubmissionRepository implements ILeadFormSubmission
     ).length;
   }
 
+  async findQuestionIdsWithSubmissions(
+    tenantId: string,
+    questionIds: readonly string[],
+  ): Promise<readonly string[]> {
+    const ids = new Set(questionIds);
+    return [
+      ...new Set(
+        [...this.store.values()]
+          .filter((submission) => submission.tenantId === tenantId)
+          .flatMap((submission) => submission.answers.map((answer) => answer.questionId))
+          .filter((questionId) => ids.has(questionId)),
+      ),
+    ];
+  }
+
   async deleteExpired(now: Date): Promise<number> {
     const expired = [...this.store.values()].filter((s) => s.expiresAt.getTime() < now.getTime());
     for (const submission of expired) {

@@ -13,6 +13,7 @@ import {
   updateHotsiteConfig,
   publishHotsite,
   unpublishHotsite,
+  getLeadFormConfig,
 } from '@/features/platform/api/tenant-settings';
 import { fetchManifestClient } from '@/features/platform/api';
 import { fetchServicesClient } from '@/features/platform/hotsite/api/services';
@@ -27,6 +28,8 @@ vi.mock('@/features/platform/api/tenant-settings', () => ({
   generateHotsiteImageSignedUrl: vi.fn(),
   deleteHotsiteImage: vi.fn(),
   featureBookingPhoto: vi.fn(),
+  getLeadFormConfig: vi.fn(),
+  updateLeadFormConfig: vi.fn(),
 }));
 
 vi.mock('@/providers/tenant-provider', () => ({
@@ -50,6 +53,7 @@ const mockPublishHotsite = vi.mocked(publishHotsite);
 const mockUnpublishHotsite = vi.mocked(unpublishHotsite);
 const mockFetchManifestClient = vi.mocked(fetchManifestClient);
 const mockFetchServicesClient = vi.mocked(fetchServicesClient);
+const mockGetLeadFormConfig = vi.mocked(getLeadFormConfig);
 
 const INITIAL: HotsiteAdminContentResponse = {
   branding: {
@@ -138,6 +142,12 @@ describe('HotsiteEditor', () => {
     mockUnpublishHotsite.mockReset();
     mockFetchManifestClient.mockReset().mockResolvedValue(MANIFEST);
     mockFetchServicesClient.mockReset().mockResolvedValue([]);
+    mockGetLeadFormConfig.mockReset().mockResolvedValue({
+      title: '',
+      ctaLabel: '',
+      audienceMode: 'GUEST_AND_CUSTOMER',
+      questions: [],
+    });
   });
 
   afterEach(() => {
@@ -708,6 +718,36 @@ describe('HotsiteEditor', () => {
       const submittedBody = mockUpdateHotsiteConfig.mock.calls[0]![0];
       const submittedHero = submittedBody.layout?.find((m) => m.type === 'HERO');
       expect((submittedHero?.data as { title: string }).title).toBe('Publicado direto');
+      expect(screen.getByRole('tablist')).toBeInTheDocument();
+    });
+
+    it('blocks Publish from that preview when a lead-form question is invalid, and submits nothing', async () => {
+      const user = userEvent.setup();
+      renderEditor();
+
+      await user.click(screen.getByRole('tab', { name: 'Layout' }));
+      await user.click(
+        screen
+          .getAllByTestId('layout-row-configure')
+          .find((el) => el.dataset.moduleType === 'LEAD_FORM')!,
+      );
+      await screen.findByTestId('lead-form-config-panel');
+
+      // A freshly added question starts with an empty label, which
+      // hasInvalidLeadFormQuestion rejects — no need to type anything to reach the invalid state.
+      await user.click(screen.getByRole('button', { name: '+ Adicionar pergunta' }));
+      await user.click(screen.getByTestId('module-config-preview-desktop'));
+      await user.click(
+        await screen.findByTestId('hotsite-preview-publish-desktop', {}, { timeout: 5000 }),
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hotsite-action-error-banner')).toHaveTextContent(
+          'Corrija as perguntas inválidas antes de publicar.',
+        );
+      });
+      expect(mockUpdateHotsiteConfig).not.toHaveBeenCalled();
+      expect(mockPublishHotsite).not.toHaveBeenCalled();
       expect(screen.getByRole('tablist')).toBeInTheDocument();
     });
   });

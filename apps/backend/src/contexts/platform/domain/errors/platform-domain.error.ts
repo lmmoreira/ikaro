@@ -65,6 +65,16 @@ export class HotsiteConfigConcurrentModificationError extends PlatformDomainErro
   }
 }
 
+export class LeadFormConfigConcurrentModificationError extends PlatformDomainError {
+  constructor() {
+    super(
+      'This form configuration was changed by another request. Reload it and try again.',
+      PlatformErrorCode.LEAD_FORM_CONFIG_CONCURRENT_MODIFICATION,
+    );
+    this.name = 'LeadFormConfigConcurrentModificationError';
+  }
+}
+
 /** Thrown from both Tenant.create() and Tenant.updateName() — reused across 2 call sites. */
 export class TenantNameRequiredError extends PlatformDomainError {
   constructor() {

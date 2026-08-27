@@ -16,7 +16,7 @@ import { TypeOrmLeadFormConfigRepository } from '../../infrastructure/repositori
 import { TypeOrmTenantRepository } from '../../infrastructure/repositories/typeorm-tenant.repository';
 import { ILeadFormConfigRepository } from '../ports/lead-form-config-repository.port';
 import { LeadFormConfig } from '../../domain/lead-form-config.aggregate';
-import { UpdateLeadFormModuleUseCase } from './update-lead-form-module.use-case';
+import { UpdateHotsiteContentUseCase } from './update-hotsite-content.use-case';
 
 /** Forces a failure on the "second write" to prove the transaction genuinely wraps both saves. */
 class ThrowingLeadFormConfigRepository implements ILeadFormConfigRepository {
@@ -29,7 +29,7 @@ class ThrowingLeadFormConfigRepository implements ILeadFormConfigRepository {
   }
 }
 
-describe('UpdateLeadFormModuleUseCase (integration — real Postgres cross-aggregate transaction)', () => {
+describe('UpdateHotsiteContentUseCase (integration — real Postgres cross-aggregate transaction)', () => {
   let dataSource: DataSource;
   let tenantRepo: TypeOrmTenantRepository;
   let hotsiteConfigRepo: TypeOrmHotsiteConfigRepository;
@@ -53,14 +53,14 @@ describe('UpdateLeadFormModuleUseCase (integration — real Postgres cross-aggre
     await dataSource.destroy();
   });
 
-  it('writes both HotsiteConfig and LeadFormConfig in the same DB transaction', async () => {
+  it('writes both HotsiteConfig and LeadFormConfig in the same DB transaction when audienceMode/questions are present', async () => {
     const tenant = new TenantBuilder().withSlug('lead-form-tx-01').build();
     await tenantRepo.save(tenant);
     await hotsiteConfigRepo.save(HotsiteConfig.create(tenant.id));
 
     const txManager = new TypeOrmTransactionManager(dataSource);
     const imagePathsService = new HotsiteImagePathsService();
-    const useCase = new UpdateLeadFormModuleUseCase(
+    const useCase = new UpdateHotsiteContentUseCase(
       hotsiteConfigRepo,
       leadFormConfigRepo,
       tenantRepo,
@@ -73,8 +73,13 @@ describe('UpdateLeadFormModuleUseCase (integration — real Postgres cross-aggre
 
     await useCase.execute({
       tenantId: tenant.id,
-      title: 'Fale com a gente',
-      ctaLabel: 'Preencher formulário',
+      layout: [
+        {
+          type: 'LEAD_FORM',
+          enabled: false,
+          data: { title: 'Fale com a gente', ctaLabel: 'Preencher formulário' },
+        },
+      ],
       audienceMode: 'CUSTOMER_ONLY',
     });
 
@@ -93,7 +98,7 @@ describe('UpdateLeadFormModuleUseCase (integration — real Postgres cross-aggre
 
     const txManager = new TypeOrmTransactionManager(dataSource);
     const imagePathsService = new HotsiteImagePathsService();
-    const failingUseCase = new UpdateLeadFormModuleUseCase(
+    const failingUseCase = new UpdateHotsiteContentUseCase(
       hotsiteConfigRepo,
       new ThrowingLeadFormConfigRepository(),
       tenantRepo,
@@ -105,13 +110,44 @@ describe('UpdateLeadFormModuleUseCase (integration — real Postgres cross-aggre
     );
 
     await expect(
-      failingUseCase.execute({ tenantId: tenant.id, title: 'Should not persist' }),
+      failingUseCase.execute({
+        tenantId: tenant.id,
+        layout: [{ type: 'LEAD_FORM', enabled: false, data: { title: 'Should not persist' } }],
+        audienceMode: 'CUSTOMER_ONLY',
+      }),
     ).rejects.toThrow('forced failure on the second write');
 
     // Nothing committed — the failed LeadFormConfig write rolled back HotsiteConfig's own save too.
     const savedHotsiteConfig = await hotsiteConfigRepo.findByTenantId(tenant.id);
     const leadFormModule = savedHotsiteConfig!.layout.find((m) => m.type === 'LEAD_FORM');
     expect(leadFormModule).toBeUndefined();
+
+    const savedLeadFormConfig = await leadFormConfigRepo.findByTenantId(tenant.id);
+    expect(savedLeadFormConfig).toBeNull();
+  });
+
+  it('does not touch LeadFormConfig at all when neither audienceMode nor questions is provided', async () => {
+    const tenant = new TenantBuilder().withSlug('lead-form-tx-03').build();
+    await tenantRepo.save(tenant);
+    await hotsiteConfigRepo.save(HotsiteConfig.create(tenant.id));
+
+    const txManager = new TypeOrmTransactionManager(dataSource);
+    const imagePathsService = new HotsiteImagePathsService();
+    const useCase = new UpdateHotsiteContentUseCase(
+      hotsiteConfigRepo,
+      leadFormConfigRepo,
+      tenantRepo,
+      txManager,
+      imagePathsService,
+      new HotsiteImagePromotionService(new InMemoryStorageService(), imagePathsService),
+      new HotsiteImageUrlResolver(),
+      new InMemoryStorageService(),
+    );
+
+    await useCase.execute({
+      tenantId: tenant.id,
+      branding: { brandName: 'Acme' },
+    });
 
     const savedLeadFormConfig = await leadFormConfigRepo.findByTenantId(tenant.id);
     expect(savedLeadFormConfig).toBeNull();

@@ -69,12 +69,16 @@
     same page (expand/collapse <details> cards) — no separate screen or navigation away,
     matching how a manager actually wants to build a list of up to 20 questions.
 
-    COMPONENT (GAP): LeadFormConfigPanel
-    FILE: apps/web/features/platform/components/hotsite/modules/LeadFormConfigPanel.tsx (GAP)
+    COMPONENT: LeadFormConfigPanel — Shipped M20-S08
+    FILE: apps/web/features/platform/components/hotsite/modules/LeadFormConfigPanel.tsx
     PROPS: data: LeadFormModuleData & { questions, audienceMode } — same ModuleConfigPanelProps
            shared contract every other module panel (Hero, Chatbot, ...) already uses.
-    BFF CALL: PATCH /v1/tenants/hotsite (teaser fields — existing pattern)
-    BFF CALL: GET/PATCH /v1/tenants/lead-form/config (audienceMode + questions[])
+    BFF CALL: SUPERSEDED at implementation (M20-S08) — the two calls proposed here
+              (teaser via PATCH /v1/tenants/hotsite, audienceMode+questions via a separate
+              PATCH /v1/tenants/lead-form/config) were folded into ONE consolidated
+              PATCH /v1/tenants/hotsite, with audienceMode?/questions? as two optional extra
+              fields on it. GET /v1/tenants/lead-form/config stays its own endpoint (read-only).
+              See docs/14-API_CONTRACTS.md § Hotsite Admin Management for the current contract.
   -->
 
   <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">

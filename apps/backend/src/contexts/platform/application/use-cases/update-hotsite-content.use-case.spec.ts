@@ -1,7 +1,9 @@
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { HotsiteConfigBuilder, TenantBuilder } from '../../../../test/builders/platform';
+import { makeLeadFormQuestions } from '../../../../test/builders/platform/lead-form-config.builder';
 import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/platform/in-memory-hotsite-config.repository';
+import { InMemoryLeadFormConfigRepository } from '../../../../test/repositories/platform/in-memory-lead-form-config.repository';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
 import {
   HotsiteCarouselDaysExceedsMaxAdvanceError,
@@ -21,17 +23,20 @@ const TENANT_B = '10000000-0000-4000-8000-000000000002';
 
 describe('UpdateHotsiteContentUseCase', () => {
   let repo: InMemoryHotsiteConfigRepository;
+  let leadFormConfigRepo: InMemoryLeadFormConfigRepository;
   let tenantRepo: InMemoryTenantRepository;
   let storageService: InMemoryStorageService;
   let useCase: UpdateHotsiteContentUseCase;
 
   beforeEach(async () => {
     repo = new InMemoryHotsiteConfigRepository();
+    leadFormConfigRepo = new InMemoryLeadFormConfigRepository();
     tenantRepo = new InMemoryTenantRepository();
     storageService = new InMemoryStorageService();
     const imagePathsService = new HotsiteImagePathsService();
     useCase = new UpdateHotsiteContentUseCase(
       repo,
+      leadFormConfigRepo,
       tenantRepo,
       new InMemoryTransactionManager(),
       imagePathsService,
@@ -221,6 +226,59 @@ describe('UpdateHotsiteContentUseCase', () => {
     await expect(
       useCase.execute({ tenantId: TENANT_A, seo: { description: 'a'.repeat(159) } }),
     ).rejects.toBeInstanceOf(PlatformDomainError);
+  });
+
+  // Folded in at M20-S08 (previously a separate near-duplicate use case behind its own PATCH
+  // /v1/tenants/lead-form/config endpoint) — cross-aggregate transaction behavior itself is
+  // covered by the real-Postgres update-hotsite-content.use-case.integration.spec.ts.
+  describe('audienceMode/questions (LeadFormConfig)', () => {
+    it('does not touch LeadFormConfig when neither field is provided', async () => {
+      const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
+      await repo.save(config);
+
+      await useCase.execute({ tenantId: TENANT_A, branding: { primaryColor: '#FF5733' } });
+
+      expect(await leadFormConfigRepo.findByTenantId(TENANT_A)).toBeNull();
+    });
+
+    it('creates a new LeadFormConfig when audienceMode is provided and none exists yet', async () => {
+      const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
+      await repo.save(config);
+
+      await useCase.execute({ tenantId: TENANT_A, audienceMode: 'CUSTOMER_ONLY' });
+
+      const saved = await leadFormConfigRepo.findByTenantId(TENANT_A);
+      expect(saved!.audienceMode).toBe('CUSTOMER_ONLY');
+      expect(saved!.questions).toEqual([]);
+    });
+
+    it('updates questions on an existing LeadFormConfig without requiring audienceMode too', async () => {
+      const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
+      await repo.save(config);
+      await useCase.execute({ tenantId: TENANT_A, audienceMode: 'CUSTOMER_ONLY' });
+
+      const questions = makeLeadFormQuestions(2);
+      await useCase.execute({ tenantId: TENANT_A, questions });
+
+      const saved = await leadFormConfigRepo.findByTenantId(TENANT_A);
+      expect(saved!.audienceMode).toBe('CUSTOMER_ONLY');
+      expect(saved!.questions).toHaveLength(2);
+    });
+
+    it("never writes audienceMode/questions into layout[]'s LEAD_FORM entry itself", async () => {
+      const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
+      await repo.save(config);
+
+      const result = await useCase.execute({
+        tenantId: TENANT_A,
+        layout: [{ type: 'LEAD_FORM', enabled: true, data: { title: 'Fale com a gente' } }],
+        audienceMode: 'CUSTOMER_ONLY',
+        questions: makeLeadFormQuestions(1),
+      });
+
+      const leadFormModule = result.layout.find((m) => m.type === 'LEAD_FORM');
+      expect(leadFormModule!.data).toEqual({ title: 'Fale com a gente' });
+    });
   });
 
   // Field-level promotion/validation mechanics (tmp/ promotion, cross-tenant rejection, every
