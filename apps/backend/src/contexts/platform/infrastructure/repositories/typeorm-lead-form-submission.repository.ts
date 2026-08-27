@@ -4,6 +4,7 @@ import { Between, Repository, SelectQueryBuilder } from 'typeorm';
 import { drainDomainEvents } from '../../../../shared/infrastructure/outbox/drain-domain-events';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
+import { escapeLikePattern } from '../../../../shared/utils/escape-like-pattern';
 import { Email } from '../../../../shared/value-objects/email.vo';
 import { PhoneNumber } from '../../../../shared/value-objects/phone-number.vo';
 import {
@@ -33,9 +34,8 @@ export class TypeOrmLeadFormSubmissionRepository implements ILeadFormSubmissionR
     }
     await this.persistQuestionRefs(submission, manager);
     await this.persistAnswers(submission, manager);
-    // TD24-S02 pattern — this is the 4th aggregate to join the transactional-outbox pattern
-    // (after Booking/Staff/Tenant): drains clearDomainEvents() into shared.outbox inside the
-    // same ambient transaction as the row above (docs/03-DOMAIN_EVENTS.md § LeadFormSubmissionReceived).
+    // TD24-S02 pattern — 4th aggregate on the transactional-outbox pattern: drains events into
+    // shared.outbox inside the same ambient transaction as the row above (docs/03-DOMAIN_EVENTS.md).
     await drainDomainEvents(submission, this.outboxPublisher);
   }
 
@@ -165,7 +165,7 @@ export class TypeOrmLeadFormSubmissionRepository implements ILeadFormSubmissionR
             AND (a."question_label" ILIKE :search OR a."answer_value" ILIKE :search)
         )
       )`,
-      { search: `%${search}%` },
+      { search: `%${escapeLikePattern(search)}%` },
     );
   }
 
@@ -176,6 +176,7 @@ export class TypeOrmLeadFormSubmissionRepository implements ILeadFormSubmissionR
     filters?.forEach((filter, index) => {
       const labelParam = `filterLabel${index}`;
       const valueParam = `filterValue${index}`;
+      const escapedValue = `%${escapeLikePattern(filter.value)}%`;
       qb.andWhere(
         `EXISTS (
           SELECT 1 FROM "platform"."lead_form_answers" a
@@ -184,7 +185,7 @@ export class TypeOrmLeadFormSubmissionRepository implements ILeadFormSubmissionR
             AND a."question_label" = :${labelParam}
             AND a."answer_value" ILIKE :${valueParam}
         )`,
-        { [labelParam]: filter.questionLabel, [valueParam]: `%${filter.value}%` },
+        { [labelParam]: filter.questionLabel, [valueParam]: escapedValue },
       );
     });
   }

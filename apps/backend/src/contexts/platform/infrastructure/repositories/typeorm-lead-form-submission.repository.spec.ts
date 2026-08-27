@@ -359,6 +359,20 @@ describe('TypeOrmLeadFormSubmissionRepository', () => {
       });
     });
 
+    // A literal `%`/`_`/`\` in the caller's own search term is also a LIKE/ILIKE wildcard to
+    // Postgres — unescaped, `%%%` would pass the 3-character length guard while matching
+    // everything and using no trigram index (Codex review finding, PR #434 round 3).
+    it('escapes literal %, _, and \\ in search before wrapping it as a contains-pattern', async () => {
+      const qb = makeSelectQueryBuilder([], 0);
+      mockRepo.createQueryBuilder.mockReturnValue(qb as never);
+
+      await repo.findByTenantPaginated('tenant-id-1', 1, 20, { search: '%_\\test' });
+
+      expect(qb.andWhere).toHaveBeenCalledWith(expect.stringContaining('lead_form_answers'), {
+        search: '%\\%\\_\\\\test%',
+      });
+    });
+
     it('applies one EXISTS clause per filter entry, each independently parameterized', async () => {
       const qb = makeSelectQueryBuilder([], 0);
       mockRepo.createQueryBuilder.mockReturnValue(qb as never);

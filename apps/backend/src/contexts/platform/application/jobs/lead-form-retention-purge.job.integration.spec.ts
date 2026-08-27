@@ -142,15 +142,15 @@ describe('LeadFormRetentionPurgeJob (integration)', () => {
     await submissionRepo.save(expired);
 
     // `job.run()` resolves to a result object, not a function — `.resolves.not.toThrow()` never
-    // meaningfully exercises that (Codex/CodeRabbit review finding, PR #434). Awaiting it directly
-    // proves the same "completes without rejecting" property: an FK-violation error would reject
-    // this promise and fail the test.
+    // meaningfully exercises that (CodeRabbit review finding, PR #434 round 1). Awaiting it
+    // directly proves the same "completes without rejecting" property: an FK-violation error
+    // would reject this promise and fail the test.
     await job.run(NOW);
 
     expect(await entityRepo.findOne({ where: { id: expired.id } })).toBeNull();
     const remainingAnswers = (await dataSource.query(
-      'SELECT 1 FROM "platform"."lead_form_answers" WHERE "submission_id" = $1',
-      [expired.id],
+      'SELECT 1 FROM "platform"."lead_form_answers" WHERE "tenant_id" = $1 AND "submission_id" = $2',
+      [tenant.id, expired.id],
     )) as unknown[];
     expect(remainingAnswers).toHaveLength(0);
   });
