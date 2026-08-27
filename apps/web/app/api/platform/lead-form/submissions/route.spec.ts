@@ -118,16 +118,34 @@ describe('POST /api/platform/lead-form/submissions', () => {
     expect(response.status).toBe(502);
   });
 
-  it('returns 413 without calling the BFF when Content-Length exceeds the body cap', async () => {
+  it('returns 413 without calling the BFF when the actual body exceeds the byte cap', async () => {
     fetchSpy.mockResolvedValue(new Response(null, { status: 200 }));
+    const oversizedBody = JSON.stringify({ ...SUBMISSION_BODY, name: 'x'.repeat(64 * 1024 + 1) });
 
     const response = await POST(
       new NextRequest('http://localhost/api/platform/lead-form/submissions?slug=lavacar-beloauto', {
         method: 'POST',
-        body: JSON.stringify(SUBMISSION_BODY),
-        headers: { 'content-length': String(64 * 1024 + 1) },
+        body: oversizedBody,
       }),
     );
+
+    expect(response.status).toBe(413);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  // The limit is enforced by counting real bytes read from the stream, not by trusting the
+  // Content-Length header — this proves it still holds with no header at all, the exact gap a
+  // Content-Length-only check would miss (Codex finding, PR #433 round 11).
+  it('enforces the byte cap even when Content-Length is absent (e.g. chunked transfer)', async () => {
+    fetchSpy.mockResolvedValue(new Response(null, { status: 200 }));
+    const oversizedBody = JSON.stringify({ ...SUBMISSION_BODY, name: 'x'.repeat(64 * 1024 + 1) });
+    const request = new NextRequest(
+      'http://localhost/api/platform/lead-form/submissions?slug=lavacar-beloauto',
+      { method: 'POST', body: oversizedBody },
+    );
+    expect(request.headers.get('content-length')).toBeNull();
+
+    const response = await POST(request);
 
     expect(response.status).toBe(413);
     expect(fetchSpy).not.toHaveBeenCalled();
