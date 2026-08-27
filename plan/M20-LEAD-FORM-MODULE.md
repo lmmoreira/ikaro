@@ -364,7 +364,7 @@ The panel remains an in-place `HotsiteEditor` module-config view; no new `/dashb
 
 ---
 
-### M20-S09 — Public `/[slug]/lead-form` page — guest + customer (UC-039, UC-040)
+### M20-S09 — Public `/[slug]/lead-form` page — guest + customer (UC-039, UC-040) ✅ Done
 
 **Agent:** `frontend-ts` (+ a small, contained `apps/bff` auth extension — see "OAuth `returnTo`" below; deliberately kept in this story rather than split out, since nothing else needs it yet)
 **Complexity:** L
