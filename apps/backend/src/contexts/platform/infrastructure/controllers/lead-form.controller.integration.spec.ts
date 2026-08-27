@@ -251,6 +251,23 @@ describe('LeadFormController (integration)', () => {
           answerValue: 'Instagram',
         },
       ]);
+      expect(body.customerId).toBeNull();
+    });
+
+    it('returns the real customerId for a submission made by an authenticated customer', async () => {
+      const submission = new LeadFormSubmissionEntityBuilder()
+        .withTenantId(TENANT_SUBMISSIONS)
+        .withCustomerId('01234567-0000-7000-8000-00000000cafe')
+        .build();
+      await ds.getRepository(LeadFormSubmissionEntity).save(submission);
+
+      const { body } = await request(app.getHttpServer())
+        .get(`/tenants/lead-form/submissions/${submission.id}`)
+        .set('X-Tenant-ID', TENANT_SUBMISSIONS)
+        .set('X-Actor-Role', 'STAFF')
+        .expect(200);
+
+      expect(body.customerId).toBe('01234567-0000-7000-8000-00000000cafe');
     });
 
     it('returns 404 PLATFORM_LEAD_FORM_SUBMISSION_NOT_FOUND for an unknown id', async () => {

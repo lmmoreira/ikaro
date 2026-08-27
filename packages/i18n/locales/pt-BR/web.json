@@ -1353,11 +1353,26 @@
       "loadMoreEntries": "Carregar mais entradas",
       "loadMoreRedemptions": "Carregar mais resgates"
     },
+    "leadsPage": {
+      "emptyTitle": "Nenhum envio ainda",
+      "emptyBody": "Assim que um visitante responder o formulário no seu hotsite, ele aparece aqui.",
+      "emptyCta": "Configurar o Lead Form",
+      "totalCount": "{count, plural, one {# envio recebido} other {# envios recebidos}}",
+      "paginationAriaLabel": "Paginação",
+      "previousPage": "Página anterior",
+      "nextPage": "Próxima página",
+      "contactSectionTitle": "Contato",
+      "answersSectionTitle": "Respostas",
+      "submittedAtLabel": "Enviado em {date}, {time}",
+      "guestSubmitter": "visitante (não é cliente cadastrado)",
+      "customerSubmitter": "cliente cadastrado"
+    },
     "nav": {
       "bookings": "Agenda",
       "schedule": "Horários",
       "services": "Serviços",
       "loyalty": "Fidelidade",
+      "leads": "Leads",
       "team": "Equipe",
       "settings": "Configurações",
       "hotsite": "Hotsite",

@@ -79,6 +79,32 @@ describe('GetLeadFormSubmissionUseCase', () => {
         },
       ],
       submittedAt: submission.submittedAt.toISOString(),
+      customerId: null,
     });
+  });
+
+  it('returns customerId null for a guest submission and the real id for an authenticated customer submission', async () => {
+    const guestSubmission = new LeadFormSubmissionBuilder()
+      .withTenantId(TENANT_ID)
+      .withCustomerId(null)
+      .build();
+    const customerSubmission = new LeadFormSubmissionBuilder()
+      .withTenantId(TENANT_ID)
+      .withCustomerId('01234567-0000-7000-8000-00000000cafe')
+      .build();
+    await submissionRepo.save(guestSubmission);
+    await submissionRepo.save(customerSubmission);
+
+    const guestResult = await useCase.execute({
+      tenantId: TENANT_ID,
+      submissionId: guestSubmission.id,
+    });
+    const customerResult = await useCase.execute({
+      tenantId: TENANT_ID,
+      submissionId: customerSubmission.id,
+    });
+
+    expect(guestResult.customerId).toBeNull();
+    expect(customerResult.customerId).toBe('01234567-0000-7000-8000-00000000cafe');
   });
 });

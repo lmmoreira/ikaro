@@ -24,6 +24,9 @@ export interface GetLeadFormSubmissionUseCaseResult {
   phone: string;
   answers: LeadFormSubmissionAnswerResult[];
   submittedAt: string;
+  // Set when the submitter was an authenticated customer at submission time, null for a guest —
+  // powers the admin detail page's guest/customer indicator (M20-S10).
+  customerId: string | null;
 }
 
 /**
@@ -57,6 +60,7 @@ export class GetLeadFormSubmissionUseCase {
         answerValue: answer.answerValue,
       })),
       submittedAt: submission.submittedAt.toISOString(),
+      customerId: submission.customerId,
     };
   }
 }

@@ -49,7 +49,7 @@
 | Transport | `bff-client.ts` (axios, `withCredentials: true`), `bff-server.ts` (`bffServerFetch(token, path)`), `errors.ts` (`AuthError`/`ForbiddenError`/`ApiError`) | `shared/lib/api/` |
 | Transport | `QueryProvider` (`staleTime: 30_000`, `retry: 1`), `TenantProvider` (`useTenant()`) | `providers/` |
 | Middleware | `middleware.ts` — JWT decode (Edge-safe `atob`), STAFF/MANAGER guard on `/dashboard/**`, MANAGER-only on `/dashboard/{settings,team,hotsite}`, CUSTOMER+slug-match guard on `/{slug}/my-account/**`, CSP headers | `apps/web/middleware.ts` |
-| Dashboard shell | `DashboardShell`, `Sidebar`, `Topbar`, `BottomNav`, `ManagerSheet` | `shells/dashboard/components/` |
+| Dashboard shell | `DashboardShell`, `Sidebar`, `Topbar`, `BottomNav`, `ManagerSheet` (renamed `MoreSheet` in `M20-S10`) | `shells/dashboard/components/` |
 | Dashboard shell | `DashboardLayoutShell`, `DashboardSectionShell` (shared layout-composition helpers — **not used by every section**, see Gotchas) | `shells/dashboard/components/` |
 | Dashboard shell | `topbar-status-context.tsx` (`DashboardTopbarStatusProvider` — route-scoped chrome state: booking/service/staff-role status badge, back-href/back-label/onBack overrides) | `shells/dashboard/components/` |
 | Dashboard shell | `mobile-action-bar.ts` (`MOBILE_ACTION_BAR_CLEARANCE_CLASS`) | `shells/dashboard/utils/` |

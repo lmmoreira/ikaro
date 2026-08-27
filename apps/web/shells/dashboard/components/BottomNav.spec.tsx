@@ -37,7 +37,9 @@ describe('BottomNav', () => {
     ['loyalty detail routes', '/dashboard/loyalty/c-1'],
   ])('hides itself on %s', (_label, pathname) => {
     vi.mocked(usePathname).mockReturnValue(pathname);
-    const { container } = render(<BottomNav role={STAFF} onOpenSheet={vi.fn()} />);
+    const { container } = render(
+      <BottomNav role={STAFF} leadFormEnabled={false} onOpenSheet={vi.fn()} />,
+    );
 
     expect(container).toBeEmptyDOMElement();
   });
@@ -52,14 +54,16 @@ describe('BottomNav', () => {
     ],
   ])('hides itself on %s', (_label, pathname) => {
     vi.mocked(usePathname).mockReturnValue(pathname);
-    const { container } = render(<BottomNav role={MANAGER} onOpenSheet={vi.fn()} />);
+    const { container } = render(
+      <BottomNav role={MANAGER} leadFormEnabled={false} onOpenSheet={vi.fn()} />,
+    );
 
     expect(container).toBeEmptyDOMElement();
   });
 
   it('still renders on the team list page (FAB sits above the nav, no fixed bar)', () => {
     vi.mocked(usePathname).mockReturnValue('/dashboard/team');
-    render(<BottomNav role={MANAGER} onOpenSheet={vi.fn()} />);
+    render(<BottomNav role={MANAGER} leadFormEnabled={false} onOpenSheet={vi.fn()} />);
 
     expect(screen.getByText('Mais')).toBeInTheDocument();
   });
@@ -74,14 +78,14 @@ describe('BottomNav', () => {
     'still renders on %s (own action bar sits above it, not hidden behind it)',
     (_label, pathname) => {
       vi.mocked(usePathname).mockReturnValue(pathname);
-      render(<BottomNav role={MANAGER} onOpenSheet={vi.fn()} />);
+      render(<BottomNav role={MANAGER} leadFormEnabled={false} onOpenSheet={vi.fn()} />);
 
       expect(screen.getByText('Mais')).toBeInTheDocument();
     },
   );
 
-  it('renders the 4 core nav items for STAFF', () => {
-    render(<BottomNav role={STAFF} onOpenSheet={vi.fn()} />);
+  it('renders the 4 core nav items for STAFF, no "Mais" when leadFormEnabled is false', () => {
+    render(<BottomNav role={STAFF} leadFormEnabled={false} onOpenSheet={vi.fn()} />);
 
     expect(screen.getByText('Agenda')).toBeInTheDocument();
     expect(screen.getByText('Horários')).toBeInTheDocument();
@@ -90,15 +94,21 @@ describe('BottomNav', () => {
     expect(screen.queryByText('Mais')).not.toBeInTheDocument();
   });
 
-  it('renders a "Mais" button for MANAGER', () => {
-    render(<BottomNav role={MANAGER} onOpenSheet={vi.fn()} />);
+  it('renders a "Mais" button for STAFF once leadFormEnabled is true', () => {
+    render(<BottomNav role={STAFF} leadFormEnabled={true} onOpenSheet={vi.fn()} />);
+
+    expect(screen.getByText('Mais')).toBeInTheDocument();
+  });
+
+  it('renders a "Mais" button for MANAGER regardless of leadFormEnabled', () => {
+    render(<BottomNav role={MANAGER} leadFormEnabled={false} onOpenSheet={vi.fn()} />);
 
     expect(screen.getByText('Mais')).toBeInTheDocument();
   });
 
   it('calls onOpenSheet when "Mais" is clicked', async () => {
     const onOpenSheet = vi.fn();
-    render(<BottomNav role={MANAGER} onOpenSheet={onOpenSheet} />);
+    render(<BottomNav role={MANAGER} leadFormEnabled={false} onOpenSheet={onOpenSheet} />);
 
     await userEvent.click(screen.getByText('Mais'));
 
@@ -107,7 +117,7 @@ describe('BottomNav', () => {
 
   it('applies active class to the item matching the current pathname', () => {
     vi.mocked(usePathname).mockReturnValue('/dashboard/bookings');
-    render(<BottomNav role={STAFF} onOpenSheet={vi.fn()} />);
+    render(<BottomNav role={STAFF} leadFormEnabled={false} onOpenSheet={vi.fn()} />);
 
     const agendaLink = screen.getByText('Agenda').closest('a');
     expect(agendaLink?.className).toContain('text-blue-600');

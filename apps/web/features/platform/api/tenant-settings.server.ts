@@ -1,5 +1,9 @@
 import 'server-only';
-import type { HotsiteAdminContentResponse, TenantSettingsResponse } from '@ikaro/types';
+import type {
+  HotsiteAdminContentResponse,
+  LeadFormStatusResponse,
+  TenantSettingsResponse,
+} from '@ikaro/types';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
 
 // Server-side only — the editor must never pre-fill stale values after a save, same rationale
@@ -24,4 +28,13 @@ export async function fetchTenantSettingsFresh(token: string): Promise<TenantSet
   const res = await bffServerFetch(token, '/tenants/settings', { cache: 'no-store' });
   if (!res.ok) throw new Error(`Failed to fetch tenant settings (${res.status})`);
   return res.json() as Promise<TenantSettingsResponse>;
+}
+
+// Server-side, uncached — called on every dashboard page load (loadDashboardShellContext) to
+// gate the "Leads" nav item. A manager who just enabled the module should see it on the very
+// next navigation, not after a stale-cache delay (M20-S10).
+export async function fetchLeadFormStatus(token: string): Promise<LeadFormStatusResponse> {
+  const res = await bffServerFetch(token, '/tenants/lead-form/status', { cache: 'no-store' });
+  if (!res.ok) throw new Error(`Failed to fetch lead form status (${res.status})`);
+  return res.json() as Promise<LeadFormStatusResponse>;
 }
