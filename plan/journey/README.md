@@ -720,7 +720,7 @@ Sidebar, bottom-nav, and bottom-sheet items that point to another journey (e.g. 
 | GUEST — Submit Lead Form | `guest/submit-lead-form.md` | `guest/prototypes/lead-form/` | Reviewed |
 | CUSTOMER — Submit Lead Form | `customer/submit-lead-form.md` | `customer/prototypes/lead-form/` | Reviewed |
 | MANAGER — Configure the Lead Form Module | `manager/lead-form-config.md` | `manager/prototypes/lead-form/` | Draft |
-| MANAGER/STAFF — View Leads Submissions | `manager/lead-form-submissions.md` | `manager/prototypes/leads/` | Draft |
+| MANAGER/STAFF — View Leads Submissions | `manager/lead-form-submissions.md` | `manager/prototypes/leads/` | Reviewed |
 
 ---
 

@@ -12,6 +12,7 @@ export const PAGE_TITLE_KEYS: ReadonlyArray<[string, string]> = [
   ['/dashboard/schedule', 'nav.schedule'],
   ['/dashboard/services', 'nav.services'],
   ['/dashboard/loyalty', 'nav.loyalty'],
+  ['/dashboard/leads', 'nav.leads'],
   ['/dashboard/team', 'nav.team'],
   ['/dashboard/settings', 'nav.settings'],
   ['/dashboard/hotsite', 'nav.hotsite'],

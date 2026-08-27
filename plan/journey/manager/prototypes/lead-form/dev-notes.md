@@ -15,7 +15,7 @@ A per-module drill-down config panel for the new `LEAD_FORM` hotsite module (10t
 
 **"Aplicar" remains a temporary draft action:** it commits the panel's complete edit to the existing in-memory `HotsiteEditor` draft and makes no network request. When the manager clicks "Publicar", teaser fields (title/subtitle/ctaLabel/variant/bgStyle) and `audienceMode`/`questions[]` go in a single consolidated `PATCH /v1/tenants/hotsite` request (folded into the existing hotsite-content endpoint at M20-S08 — `audienceMode`/`questions` are two optional extra fields on it, not a separate endpoint), saved in one backend transaction spanning `HotsiteConfig`'s layout entry and `LeadFormConfig` (see `docs/02-DOMAIN_MODEL.md` § `LeadFormConfig` "Cross-aggregate save"). An earlier draft of this screen made two independent, unsynchronized calls — replaced because a partial failure could leave the manager's edit half-applied. The module's `enabled` toggle goes through this same `PATCH /v1/tenants/hotsite` endpoint too, but as a separate, pre-existing action on the Layout tab row itself (`../hotsite/01-hotsite-editor.html`) — not part of this panel's "Aplicar"/"Publicar" flow.
 
-**New sidebar/bottom-nav item:** "Leads" — added to `MAIN_NAV_KEYS` (visible to STAFF and MANAGER alike, same tier as Agenda/Horários/Serviços/Fidelidade), not under "Somente Gerente" (viewing submissions doesn't require MANAGER; editing the module config still does, enforced by the BFF's `@Roles('MANAGER')` on `PATCH /v1/tenants/hotsite`, not by nav visibility). **Gated, not unconditional (added during the post-review redesign):** the item only renders when `GET /v1/tenants/lead-form/status` reports `enabled: true` for this tenant — see `../leads/dev-notes.md` for the full mechanism (`apps/web/app/dashboard/layout.tsx` fetches it server-side).
+**New sidebar/bottom-nav item:** "Leads" — added to `MAIN_NAV_KEYS` (visible to STAFF and MANAGER alike, same tier as Agenda/Horários/Serviços/Fidelidade), not under "Somente Gerente" (viewing submissions doesn't require MANAGER; editing the module config still does, enforced by the BFF's `@Roles('MANAGER')` on `PATCH /v1/tenants/hotsite`, not by nav visibility). **Gated, not unconditional (added during the post-review redesign; shipped `M20-S10`):** the item only renders when `GET /v1/tenants/lead-form/status` reports `enabled: true` for this tenant — see `../leads/dev-notes.md` for the full mechanism (fetched via the shared `loadDashboardShellContext()`, `apps/web/shells/dashboard/model/dashboard-shell-context.ts` — there is no single shared `app/dashboard/layout.tsx` doing this; each top-level section owns its own `layout.tsx`).
 
 ---
 
@@ -25,8 +25,8 @@ A per-module drill-down config panel for the new `LEAD_FORM` hotsite module (10t
 |---|---|---|
 | `apps/web/app/dashboard/hotsite/page.tsx` + existing editor view | ✅ Existing | In-place manager config flow; no dedicated route |
 | `apps/web/features/platform/components/hotsite/modules/LeadFormConfigPanel.tsx` | ✅ Shipped M20-S08 | The panel component — same `ModuleConfigPanelProps` contract every other module panel (Hero, Chatbot, ...) already uses |
-| `apps/web/shells/dashboard/components/Sidebar.tsx` | ❌ Gap (S10) | Add "Leads" to the existing mobile "Mais" sheet, conditionally rendered on a `leadFormEnabled` prop |
-| `apps/web/app/dashboard/layout.tsx` | ❌ Gap (S10) | Fetches `GET /v1/tenants/lead-form/status` server-side — see `../leads/dev-notes.md` |
+| `apps/web/shells/dashboard/components/Sidebar.tsx` | ✅ Shipped M20-S10 | Adds "Leads" to `MAIN_NAV_KEYS`, conditionally rendered on a `leadFormEnabled` prop |
+| `apps/web/shells/dashboard/model/dashboard-shell-context.ts` | ✅ Shipped M20-S10 | `loadDashboardShellContext()` fetches `GET /v1/tenants/lead-form/status` server-side — see `../leads/dev-notes.md` |
 
 ---
 

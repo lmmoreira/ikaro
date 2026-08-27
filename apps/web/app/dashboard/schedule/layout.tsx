@@ -35,6 +35,7 @@ export default async function ScheduleLayout({
             tenantSlug={shell.tenantSlug}
             userName={shell.userName}
             role={shell.role}
+            leadFormEnabled={shell.leadFormEnabled}
           >
             {children}
           </DashboardShell>

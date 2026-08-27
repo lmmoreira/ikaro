@@ -65,6 +65,7 @@ export default async function ProtectedLayout({
               tenantSlug={shell.tenantSlug}
               userName={shell.userName}
               role={shell.role}
+              leadFormEnabled={shell.leadFormEnabled}
             >
               {children}
             </DashboardShell>

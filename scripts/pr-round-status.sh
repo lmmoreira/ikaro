@@ -102,6 +102,7 @@ while true; do
 
   CODEX_URL=""
   CODERABBIT_URL=""
+  CODERABBIT_STATUS_DESC=""
   if [ "$WAIT_CODEX" -eq 1 ] || [ "$WAIT_CODERABBIT" -eq 1 ]; then
     COMMENTS_JSON=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json comments 2>/dev/null || echo '{"comments":[]}')
   fi
@@ -158,12 +159,32 @@ while true; do
          | select(.body | test("auto-generated reply by CodeRabbit") | not)]
         | sort_by(.createdAt) | last | .url // empty')
     fi
+
+    # Second fallback: some rate-limited runs post *no* distinguishing plain comment at all —
+    # both of CodeRabbit's own comments are the two bookkeeping acks the block above deliberately
+    # excludes, so CODERABBIT_URL stays empty forever even though CodeRabbit genuinely finished
+    # (PR #435, 2026-08-27: confirmed live — zero qualifying comments/reviews, yet `gh pr checks`
+    # already showed a terminal `CodeRabbit  pass  ...  Review rate limited` row). That line comes
+    # from a legacy commit Status, not a Checks-API check-run — `gh pr view --json
+    # statusCheckRollup`'s StatusContext type drops the description field entirely (verified live:
+    # only context/state/startedAt/targetUrl come back), so the real source is the REST commit
+    # statuses endpoint below, keyed by the PR's own head SHA. Any terminal (non-pending) status
+    # entry for the "CodeRabbit" context counts — its description is only for the human-readable
+    # summary at the bottom, not part of the terminal-state decision itself.
+    if [ -z "$CODERABBIT_URL" ]; then
+      HEAD_SHA=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json headRefOid --jq '.headRefOid' 2>/dev/null || true)
+      if [ -n "$HEAD_SHA" ]; then
+        CODERABBIT_STATUS_DESC=$(gh api "repos/${REPO}/commits/${HEAD_SHA}/status" 2>/dev/null | jq -r '
+          [.statuses[]? | select(.context == "CodeRabbit") | select(.state != "pending")]
+          | sort_by(.updated_at) | last | .description // empty')
+      fi
+    fi
   fi
 
   ALL_DONE=1
   [ "$CI_PENDING" -eq 0 ] || ALL_DONE=0
   [ "$WAIT_CODEX" -eq 0 ] || [ -n "$CODEX_URL" ] || ALL_DONE=0
-  [ "$WAIT_CODERABBIT" -eq 0 ] || [ -n "$CODERABBIT_URL" ] || ALL_DONE=0
+  [ "$WAIT_CODERABBIT" -eq 0 ] || [ -n "$CODERABBIT_URL" ] || [ -n "$CODERABBIT_STATUS_DESC" ] || ALL_DONE=0
 
   [ "$ALL_DONE" -eq 1 ] && break
   sleep "$POLL_INTERVAL"
@@ -184,7 +205,13 @@ if [ "$WAIT_CODEX" -eq 1 ]; then
   echo "Codex review: ${CODEX_URL}"
 fi
 if [ "$WAIT_CODERABBIT" -eq 1 ]; then
-  echo "CodeRabbit: ${CODERABBIT_URL}"
+  if [ -n "$CODERABBIT_URL" ]; then
+    echo "CodeRabbit: ${CODERABBIT_URL}"
+  elif [ -n "$CODERABBIT_STATUS_DESC" ]; then
+    echo "CodeRabbit: ${CODERABBIT_STATUS_DESC} (no review/comment posted — confirmed via the commit status API)"
+  else
+    echo "CodeRabbit: (no response detected)"
+  fi
 fi
 
 # Always checked, every call — not gated on a Sonar check-run appearing in

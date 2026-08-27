@@ -109,6 +109,30 @@ describe('TypeOrmHotsiteConfigRepository', () => {
     });
   });
 
+  describe('isModuleEnabled', () => {
+    it('returns null when the tenant has no HotsiteConfig row', async () => {
+      mockRepo.findOne.mockResolvedValue(null);
+
+      expect(await repo.isModuleEnabled('unknown-tenant', 'LEAD_FORM')).toBeNull();
+    });
+
+    it("returns the layout entry's enabled flag when the module type is present", async () => {
+      const entity = new HotsiteConfigEntityBuilder()
+        .withLayout([{ type: 'LEAD_FORM', enabled: true, data: {} }])
+        .build();
+      mockRepo.findOne.mockResolvedValue(entity);
+
+      expect(await repo.isModuleEnabled('tenant-id-1', 'LEAD_FORM')).toBe(true);
+    });
+
+    it('returns false when the module type is absent from the layout', async () => {
+      const entity = new HotsiteConfigEntityBuilder().build();
+      mockRepo.findOne.mockResolvedValue(entity);
+
+      expect(await repo.isModuleEnabled('tenant-id-1', 'LEAD_FORM')).toBe(false);
+    });
+  });
+
   // Version-guarded (M18-S03 follow-up, Codex review PR #291) — mirrors
   // typeorm-booking.repository.spec.ts's `save` describe block exactly: insert when
   // config.version is undefined, guarded update (id + tenant_id + version) otherwise, throwing

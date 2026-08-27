@@ -1197,7 +1197,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.getByTestId('lead-form-question-label').fill('Qual serviço você procura?');
     await page.getByTestId('lead-form-question-type').selectOption('SINGLE_CHOICE');
     await page.getByRole('button', { name: '+ Adicionar opção' }).click();
-    // E2E-3: static data-testid + a separate data-option-index attribute, not a template-literal
+    // E2E-1: static data-testid + a separate data-option-index attribute, not a template-literal
     // testid — matches LeadFormQuestionField's own established data-option-* convention.
     await page
       .locator('[data-testid="lead-form-question-option-input"][data-option-index="0"]')

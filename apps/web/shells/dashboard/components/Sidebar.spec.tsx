@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearPublicEnv, stubPublicEnv } from '@/test-utils';
 import { Sidebar } from './Sidebar';
 
@@ -11,6 +11,7 @@ vi.mock('next-intl', () => ({
       'nav.schedule': 'Horários',
       'nav.services': 'Serviços',
       'nav.loyalty': 'Fidelidade',
+      'nav.leads': 'Leads',
       'nav.team': 'Equipe',
       'nav.settings': 'Configurações',
       'nav.hotsite': 'Hotsite',
@@ -46,6 +47,7 @@ describe('Sidebar', () => {
         tenantSlug="lavacar-bh"
         userName="Ana Pereira"
         role={STAFF}
+        leadFormEnabled={false}
       />,
     );
 
@@ -60,6 +62,7 @@ describe('Sidebar', () => {
         tenantSlug="lavacar-bh"
         userName="Carlos Gomes"
         role={STAFF}
+        leadFormEnabled={false}
       />,
     );
 
@@ -67,7 +70,15 @@ describe('Sidebar', () => {
   });
 
   it('renders the core nav items for all roles', () => {
-    render(<Sidebar tenantName="Lavacar BH" tenantSlug="lavacar-bh" userName="Ana" role={STAFF} />);
+    render(
+      <Sidebar
+        tenantName="Lavacar BH"
+        tenantSlug="lavacar-bh"
+        userName="Ana"
+        role={STAFF}
+        leadFormEnabled={false}
+      />,
+    );
 
     expect(screen.getByText('Agenda')).toBeInTheDocument();
     expect(screen.getByText('Horários')).toBeInTheDocument();
@@ -77,7 +88,13 @@ describe('Sidebar', () => {
 
   it('shows the manager-only section for MANAGER role', () => {
     render(
-      <Sidebar tenantName="Lavacar BH" tenantSlug="lavacar-bh" userName="Carlos" role={MANAGER} />,
+      <Sidebar
+        tenantName="Lavacar BH"
+        tenantSlug="lavacar-bh"
+        userName="Carlos"
+        role={MANAGER}
+        leadFormEnabled={false}
+      />,
     );
 
     expect(screen.getByText('Equipe')).toBeInTheDocument();
@@ -87,14 +104,30 @@ describe('Sidebar', () => {
   });
 
   it('hides the manager-only section for STAFF role', () => {
-    render(<Sidebar tenantName="Lavacar BH" tenantSlug="lavacar-bh" userName="Ana" role={STAFF} />);
+    render(
+      <Sidebar
+        tenantName="Lavacar BH"
+        tenantSlug="lavacar-bh"
+        userName="Ana"
+        role={STAFF}
+        leadFormEnabled={false}
+      />,
+    );
 
     expect(screen.queryByText('Equipe')).not.toBeInTheDocument();
     expect(screen.queryByText('Somente Gerente')).not.toBeInTheDocument();
   });
 
   it('shows the logout link pointing to the BFF logout route', () => {
-    render(<Sidebar tenantName="Lavacar BH" tenantSlug="lavacar-bh" userName="Ana" role={STAFF} />);
+    render(
+      <Sidebar
+        tenantName="Lavacar BH"
+        tenantSlug="lavacar-bh"
+        userName="Ana"
+        role={STAFF}
+        leadFormEnabled={false}
+      />,
+    );
 
     const logoutLink = screen.getByTitle('Sair');
     expect(logoutLink).toHaveAttribute(
@@ -105,7 +138,15 @@ describe('Sidebar', () => {
 
   it('applies active class to the item matching the current pathname', () => {
     vi.mocked(usePathname).mockReturnValue('/dashboard/services');
-    render(<Sidebar tenantName="Lavacar BH" tenantSlug="lavacar-bh" userName="Ana" role={STAFF} />);
+    render(
+      <Sidebar
+        tenantName="Lavacar BH"
+        tenantSlug="lavacar-bh"
+        userName="Ana"
+        role={STAFF}
+        leadFormEnabled={false}
+      />,
+    );
 
     const servicesLink = screen.getByText('Serviços').closest('a');
     expect(servicesLink?.className).toContain('bg-blue-600');
@@ -116,9 +157,69 @@ describe('Sidebar', () => {
 
   it('uses "?" as initials when userName is null', () => {
     render(
-      <Sidebar tenantName="Lavacar BH" tenantSlug="lavacar-bh" userName={null} role={STAFF} />,
+      <Sidebar
+        tenantName="Lavacar BH"
+        tenantSlug="lavacar-bh"
+        userName={null}
+        role={STAFF}
+        leadFormEnabled={false}
+      />,
     );
 
     expect(screen.getByText('?')).toBeInTheDocument();
+  });
+
+  it('hides "Leads" from the main nav for both roles when leadFormEnabled is false', () => {
+    const { rerender } = render(
+      <Sidebar
+        tenantName="Lavacar BH"
+        tenantSlug="lavacar-bh"
+        userName="Ana"
+        role={STAFF}
+        leadFormEnabled={false}
+      />,
+    );
+    expect(screen.queryByText('Leads')).not.toBeInTheDocument();
+
+    rerender(
+      <Sidebar
+        tenantName="Lavacar BH"
+        tenantSlug="lavacar-bh"
+        userName="Carlos"
+        role={MANAGER}
+        leadFormEnabled={false}
+      />,
+    );
+    expect(screen.queryByText('Leads')).not.toBeInTheDocument();
+  });
+
+  it('shows "Leads" in the main nav (not the manager-only section) for both roles when leadFormEnabled is true', () => {
+    const { rerender } = render(
+      <Sidebar
+        tenantName="Lavacar BH"
+        tenantSlug="lavacar-bh"
+        userName="Ana"
+        role={STAFF}
+        leadFormEnabled={true}
+      />,
+    );
+    expect(screen.getByText('Leads').closest('a')).toHaveAttribute('href', '/dashboard/leads');
+
+    rerender(
+      <Sidebar
+        tenantName="Lavacar BH"
+        tenantSlug="lavacar-bh"
+        userName="Carlos"
+        role={MANAGER}
+        leadFormEnabled={true}
+      />,
+    );
+    const leadsLink = screen.getByText('Leads').closest('a');
+    expect(leadsLink).toHaveAttribute('href', '/dashboard/leads');
+    // Still rendered inside the main nav, not the "Somente Gerente" section.
+    const managerOnlyLabel = screen.getByText('Somente Gerente');
+    expect(
+      managerOnlyLabel.compareDocumentPosition(leadsLink!) & Node.DOCUMENT_POSITION_PRECEDING,
+    ).toBeTruthy();
   });
 });

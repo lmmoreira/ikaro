@@ -224,4 +224,7 @@ export interface LeadFormSubmissionDetailResponse {
   phone: string;
   answers: LeadFormSubmissionAnswer[];
   submittedAt: string;
+  // Set when the submitter was an authenticated customer at submission time, null for a guest
+  // (M20-S10).
+  customerId: string | null;
 }

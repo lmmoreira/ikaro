@@ -3,7 +3,17 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Calendar, Clock, Wrench, Star, Users, Settings, Globe, LogOut } from 'lucide-react';
+import {
+  Calendar,
+  Clock,
+  Wrench,
+  Star,
+  FileText,
+  Users,
+  Settings,
+  Globe,
+  LogOut,
+} from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/shared/components/ui/avatar';
 import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 import { cn } from '@/shared/utils/cn';
@@ -14,6 +24,7 @@ interface SidebarProps {
   readonly tenantSlug: string;
   readonly userName: string | null;
   readonly role: 'STAFF' | 'MANAGER';
+  readonly leadFormEnabled: boolean;
 }
 
 const MAIN_NAV_KEYS = [
@@ -22,6 +33,8 @@ const MAIN_NAV_KEYS = [
   { href: '/dashboard/services', labelKey: 'nav.services', Icon: Wrench },
   { href: '/dashboard/loyalty', labelKey: 'nav.loyalty', Icon: Star },
 ] as const;
+
+const LEADS_NAV_ITEM = { href: '/dashboard/leads', labelKey: 'nav.leads', Icon: FileText } as const;
 
 const MANAGER_NAV_KEYS = [
   { href: '/dashboard/team', labelKey: 'nav.team', Icon: Users },
@@ -41,11 +54,13 @@ export function Sidebar({
   tenantSlug,
   userName,
   role,
+  leadFormEnabled,
 }: SidebarProps): React.JSX.Element {
   const t = useTranslations('dashboard');
   const pathname = usePathname();
   const initials = getInitials(userName);
   const logoutUrl = `${getPublicEnv('NEXT_PUBLIC_BFF_URL')}/auth/logout?tenantSlug=${tenantSlug}`;
+  const mainNavKeys = leadFormEnabled ? [...MAIN_NAV_KEYS, LEADS_NAV_ITEM] : MAIN_NAV_KEYS;
 
   return (
     <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col overflow-y-auto bg-[#111827] lg:flex">
@@ -62,8 +77,13 @@ export function Sidebar({
 
       {/* Main nav */}
       <nav className="mt-2 flex flex-col gap-0.5 px-2">
-        {MAIN_NAV_KEYS.map(({ href, labelKey, Icon }) => (
-          <Link key={href} href={href} className={navItemClass(pathname.startsWith(href))}>
+        {mainNavKeys.map(({ href, labelKey, Icon }) => (
+          <Link
+            key={href}
+            href={href}
+            data-testid={href === LEADS_NAV_ITEM.href ? 'sidebar-nav-leads' : undefined}
+            className={navItemClass(pathname.startsWith(href))}
+          >
             <Icon className="h-4 w-4 shrink-0" />
             {t(labelKey)}
           </Link>
