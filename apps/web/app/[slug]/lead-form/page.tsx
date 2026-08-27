@@ -46,7 +46,12 @@ export default async function LeadFormPage({ params }: LeadFormPageProps) {
   return (
     <>
       <HotsiteAuthBar slug={slug} logoUrl={manifest.branding.logoUrl} tenantName={displayName} />
-      <LeadFormWidget slug={slug} title={data.title} subtitle={data.subtitle} />
+      <LeadFormWidget
+        slug={slug}
+        title={data.title}
+        subtitle={data.subtitle}
+        phonePrefix={manifest.localization.phonePrefix}
+      />
     </>
   );
 }

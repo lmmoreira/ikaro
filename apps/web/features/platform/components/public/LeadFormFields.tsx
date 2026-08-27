@@ -2,6 +2,7 @@ import { useTranslations } from 'next-intl';
 import type { LeadFormQuestion } from '@ikaro/types';
 import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 import { ContactField } from './ContactField';
+import { LeadFormPhoneField } from './LeadFormPhoneField';
 import { LeadFormQuestionField } from './LeadFormQuestionField';
 import { TurnstileWidget } from './TurnstileWidget';
 
@@ -28,6 +29,7 @@ interface LeadFormFieldsProps {
   readonly name: string;
   readonly email: string;
   readonly phone: string;
+  readonly phonePrefix: string;
   readonly onNameChange: (value: string) => void;
   readonly onEmailChange: (value: string) => void;
   readonly onPhoneChange: (value: string) => void;
@@ -56,6 +58,7 @@ export function LeadFormFields({
   name,
   email,
   phone,
+  phonePrefix,
   onNameChange,
   onEmailChange,
   onPhoneChange,
@@ -171,13 +174,10 @@ export function LeadFormFields({
               error={fieldErrors.email}
               onChange={onEmailChange}
             />
-            <ContactField
-              htmlId="lead-form-phone"
-              testId="lead-form-phone"
-              errorTestId="lead-form-phone-error"
+            <LeadFormPhoneField
               label={t('leadForm.phoneLabel')}
-              placeholder={t('leadForm.phonePlaceholder')}
               value={phone}
+              phonePrefix={phonePrefix}
               error={fieldErrors.phone}
               onChange={onPhoneChange}
             />

@@ -3,12 +3,15 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { z } from 'zod';
+import { PlatformErrorCode } from '@ikaro/types';
 import type { CustomerProfileResponse, HotsiteLeadFormConfigResponse } from '@ikaro/types';
 import { getHotsiteCustomerProfile } from '@/features/platform/hotsite/api/customers';
 import {
   fetchLeadFormConfigClient,
   submitLeadFormClient,
 } from '@/features/platform/hotsite/api/lead-form';
+import { extractProblemDetailShape } from '@/shared/lib/api/errors';
+import { Unavailable } from '@/shells/hotsite/components/Unavailable';
 import { LeadFormFields, type LeadFormAnswers, type LeadFormFieldErrors } from './LeadFormFields';
 import { LeadFormLoginRequiredGate } from './LeadFormLoginRequiredGate';
 import { LeadFormSkeleton } from './LeadFormSkeleton';
@@ -19,6 +22,7 @@ interface LeadFormWidgetProps {
   readonly slug: string;
   readonly title: string;
   readonly subtitle?: string;
+  readonly phonePrefix: string;
 }
 
 type SubmitPhase =
@@ -41,7 +45,12 @@ function isAnswerBlank(value: string | string[] | undefined): boolean {
 // M20-S09). Contact fields are derived from an optional user-edited override layered over the
 // resolved customer profile, rather than synced via a useEffect setState — avoids the
 // cascading-render footgun a direct "prefill once profile resolves" effect would create.
-export function LeadFormWidget({ slug, title, subtitle }: LeadFormWidgetProps): React.JSX.Element {
+export function LeadFormWidget({
+  slug,
+  title,
+  subtitle,
+  phonePrefix,
+}: LeadFormWidgetProps): React.JSX.Element {
   const t = useTranslations('hotsite');
   const [config, setConfig] = useState<HotsiteLeadFormConfigResponse | null | undefined>(undefined);
   const [customerProfile, setCustomerProfile] = useState<
@@ -61,6 +70,7 @@ export function LeadFormWidget({ slug, title, subtitle }: LeadFormWidgetProps): 
   const [turnstileKey, setTurnstileKey] = useState(0);
   const [phase, setPhase] = useState<SubmitPhase>('idle');
   const [configRequestVersion, setConfigRequestVersion] = useState(0);
+  const [moduleUnavailable, setModuleUnavailable] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -68,8 +78,18 @@ export function LeadFormWidget({ slug, title, subtitle }: LeadFormWidgetProps): 
       .then((result) => {
         if (active) setConfig(result);
       })
-      .catch(() => {
-        if (active) setConfig(null);
+      .catch((err: unknown) => {
+        if (!active) return;
+        // The server-rendered page already checks the manifest's LEAD_FORM module state, but an
+        // ISR-cached page can still be stale by the time this live client fetch runs — the
+        // module may have been disabled in between. Route that specific case to the same
+        // <Unavailable/> the server-side check renders, not the generic submission-error card
+        // (Codex finding, PR #433 round 10).
+        if (extractProblemDetailShape(err)?.code === PlatformErrorCode.LEAD_FORM_NOT_ENABLED) {
+          setModuleUnavailable(true);
+          return;
+        }
+        setConfig(null);
       });
     return () => {
       active = false;
@@ -154,6 +174,10 @@ export function LeadFormWidget({ slug, title, subtitle }: LeadFormWidgetProps): 
     return hasErrors ? errors : null;
   }
 
+  if (moduleUnavailable) {
+    return <Unavailable />;
+  }
+
   if (config === undefined || customerProfile === undefined) {
     return <LeadFormSkeleton title={title} />;
   }
@@ -214,6 +238,7 @@ export function LeadFormWidget({ slug, title, subtitle }: LeadFormWidgetProps): 
       name={name}
       email={email}
       phone={phone}
+      phonePrefix={phonePrefix}
       onNameChange={setNameOverride}
       onEmailChange={setEmailOverride}
       onPhoneChange={setPhoneOverride}

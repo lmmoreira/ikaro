@@ -3,6 +3,7 @@ import { clearPublicEnv, renderWithIntl, stubPublicEnv } from '@/test-utils';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { PlatformErrorCode } from '@ikaro/types';
 import type { CustomerProfileResponse, HotsiteLeadFormConfigResponse } from '@ikaro/types';
 import { axe } from '@/axe-helper';
 import { getHotsiteCustomerProfile } from '@/features/platform/hotsite/api/customers';
@@ -10,6 +11,7 @@ import {
   fetchLeadFormConfigClient,
   submitLeadFormClient,
 } from '@/features/platform/hotsite/api/lead-form';
+import { ApiError } from '@/shared/lib/api/errors';
 import { LeadFormWidget } from './LeadFormWidget';
 
 vi.mock('@/features/platform/hotsite/api/customers', () => ({
@@ -77,7 +79,10 @@ async function fillContactFields(user: ReturnType<typeof userEvent.setup>) {
   await screen.findByTestId('lead-form-name');
   await user.type(screen.getByTestId('lead-form-name'), 'Carlos Mendes');
   await user.type(screen.getByTestId('lead-form-email'), 'carlos@example.com');
-  await user.type(screen.getByTestId('lead-form-phone'), '+5511988887777');
+  // Local digits only — the +55 prefix is a fixed adornment beside the input, never typed by
+  // the user (docs/CODE_STANDARDS.md § localization-driven fields); buildContactPhone derives
+  // the full +5511988887777 E.164 value from these digits.
+  await user.type(screen.getByTestId('lead-form-phone'), '11988887777');
 }
 
 beforeEach(() => {
@@ -96,7 +101,7 @@ describe('LeadFormWidget — loading', () => {
     mockConfig(new Promise(() => {}) as never);
     vi.mocked(getHotsiteCustomerProfile).mockReturnValue(new Promise(() => {}));
 
-    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" />);
+    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />);
 
     expect(screen.getByTestId('lead-form-loading')).toBeInTheDocument();
   });
@@ -109,7 +114,14 @@ describe('LeadFormWidget — guest happy path (GUEST_AND_CUSTOMER)', () => {
   });
 
   it('renders the form with the module title/subtitle once loaded', async () => {
-    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" subtitle="Responda!" />);
+    renderWithIntl(
+      <LeadFormWidget
+        slug={SLUG}
+        title="Quer um orçamento?"
+        phonePrefix="+55"
+        subtitle="Responda!"
+      />,
+    );
 
     await screen.findByTestId('lead-form-name');
     expect(screen.getByText('Quer um orçamento?')).toBeInTheDocument();
@@ -119,7 +131,7 @@ describe('LeadFormWidget — guest happy path (GUEST_AND_CUSTOMER)', () => {
   it('submits successfully end-to-end and shows the success view', async () => {
     const user = userEvent.setup();
     vi.mocked(submitLeadFormClient).mockResolvedValue({ ok: true, submissionId: 'sub-1' });
-    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" />);
+    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />);
 
     await fillContactFields(user);
     await user.type(screen.getByTestId('lead-form-question'), 'Lavagem completa');
@@ -138,7 +150,7 @@ describe('LeadFormWidget — guest happy path (GUEST_AND_CUSTOMER)', () => {
 
   it('blocks submission and shows the validation banner when a required field is blank', async () => {
     const user = userEvent.setup();
-    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" />);
+    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />);
 
     await screen.findByTestId('lead-form-name');
     await user.click(screen.getByTestId('turnstile-mock-verify'));
@@ -158,12 +170,12 @@ describe('LeadFormWidget — guest happy path (GUEST_AND_CUSTOMER)', () => {
   // confirm the custom validator itself still owns and rejects a syntactically invalid email.
   it('shows a field-level error for a syntactically invalid email typed into the form', async () => {
     const user = userEvent.setup();
-    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" />);
+    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />);
 
     await screen.findByTestId('lead-form-name');
     await user.type(screen.getByTestId('lead-form-name'), 'Carlos Mendes');
     await user.type(screen.getByTestId('lead-form-email'), 'not-an-email');
-    await user.type(screen.getByTestId('lead-form-phone'), '+5511988887777');
+    await user.type(screen.getByTestId('lead-form-phone'), '11988887777');
     await user.click(screen.getByTestId('turnstile-mock-verify'));
     await user.click(screen.getByTestId('lead-form-submit'));
 
@@ -173,7 +185,7 @@ describe('LeadFormWidget — guest happy path (GUEST_AND_CUSTOMER)', () => {
 
   it('clears a verified token when the widget reports it expired, requiring re-verification before submit', async () => {
     const user = userEvent.setup();
-    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" />);
+    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />);
 
     await fillContactFields(user);
     await user.type(screen.getByTestId('lead-form-question'), 'Lavagem completa');
@@ -187,7 +199,7 @@ describe('LeadFormWidget — guest happy path (GUEST_AND_CUSTOMER)', () => {
 
   it('shows a captcha-error banner (form still visible) when submitting without a turnstile token', async () => {
     const user = userEvent.setup();
-    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" />);
+    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />);
 
     await fillContactFields(user);
     await user.type(screen.getByTestId('lead-form-question'), 'Lavagem completa');
@@ -205,7 +217,7 @@ describe('LeadFormWidget — guest happy path (GUEST_AND_CUSTOMER)', () => {
       status: 429,
       code: 'PLATFORM_LEAD_FORM_DAILY_CAP_REACHED',
     });
-    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" />);
+    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />);
 
     await fillContactFields(user);
     await user.type(screen.getByTestId('lead-form-question'), 'Lavagem completa');
@@ -224,7 +236,7 @@ describe('LeadFormWidget — guest happy path (GUEST_AND_CUSTOMER)', () => {
       status: 400,
       code: 'BFF_TURNSTILE_VERIFICATION_FAILED',
     });
-    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" />);
+    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />);
 
     await fillContactFields(user);
     await user.type(screen.getByTestId('lead-form-question'), 'Lavagem completa');
@@ -243,7 +255,7 @@ describe('LeadFormWidget — guest happy path (GUEST_AND_CUSTOMER)', () => {
       code: 'EMAIL_FORMAT_INVALID',
       field: 'email',
     });
-    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" />);
+    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />);
 
     await fillContactFields(user);
     await user.type(screen.getByTestId('lead-form-question'), 'Lavagem completa');
@@ -257,7 +269,7 @@ describe('LeadFormWidget — guest happy path (GUEST_AND_CUSTOMER)', () => {
   it('shows the submission-error terminal card and lets the visitor retry back into the filled form', async () => {
     const user = userEvent.setup();
     vi.mocked(submitLeadFormClient).mockResolvedValue({ ok: false, status: 0 });
-    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" />);
+    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />);
 
     await fillContactFields(user);
     await user.type(screen.getByTestId('lead-form-question'), 'Lavagem completa');
@@ -273,7 +285,9 @@ describe('LeadFormWidget — guest happy path (GUEST_AND_CUSTOMER)', () => {
   });
 
   it('has no accessibility violations on the happy-path form', async () => {
-    const { container } = renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" />);
+    const { container } = renderWithIntl(
+      <LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />,
+    );
     await screen.findByTestId('lead-form-name');
     expect(await axe(container)).toHaveNoViolations();
   });
@@ -289,7 +303,7 @@ describe('LeadFormWidget — CUSTOMER_ONLY audience', () => {
     mockConfig(configCustomerOnly);
     vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(null);
 
-    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" />);
+    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />);
 
     expect(await screen.findByTestId('lead-form-login-required')).toBeInTheDocument();
     expect(screen.queryByTestId('lead-form-name')).not.toBeInTheDocument();
@@ -299,13 +313,15 @@ describe('LeadFormWidget — CUSTOMER_ONLY audience', () => {
     mockConfig(configCustomerOnly);
     vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(CUSTOMER_PROFILE);
 
-    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" />);
+    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />);
 
     await waitFor(() => {
       expect(screen.getByTestId('lead-form-name')).toHaveValue('Maria Fernanda Costa');
     });
     expect(screen.getByTestId('lead-form-email')).toHaveValue('maria.fernanda@email.com');
-    expect(screen.getByTestId('lead-form-phone')).toHaveValue('+5511977771234');
+    // Displayed masked/local, not the raw E.164 stored in state — matches ContactInfoFields'
+    // established phonePrefix display convention (docs/CODE_STANDARDS.md).
+    expect(screen.getByTestId('lead-form-phone')).toHaveValue('(11) 97777-1234');
     expect(screen.getByText(/Preenchido com os dados da sua conta/)).toBeInTheDocument();
   });
 
@@ -319,7 +335,7 @@ describe('LeadFormWidget — CUSTOMER_ONLY audience', () => {
     mockConfig(configCustomerOnly);
     vi.mocked(getHotsiteCustomerProfile).mockResolvedValue({ ...CUSTOMER_PROFILE, phone: null });
 
-    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" />);
+    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />);
 
     await waitFor(() => {
       expect(screen.getByTestId('lead-form-name')).toHaveValue('Maria Fernanda Costa');
@@ -332,7 +348,7 @@ describe('LeadFormWidget — CUSTOMER_ONLY audience', () => {
     mockConfig(configCustomerOnly);
     vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(CUSTOMER_PROFILE);
 
-    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" />);
+    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />);
 
     await waitFor(() => {
       expect(screen.getByTestId('lead-form-name')).toHaveValue('Maria Fernanda Costa');
@@ -351,7 +367,7 @@ describe('LeadFormWidget — config fetch failure', () => {
     vi.mocked(fetchLeadFormConfigClient).mockRejectedValueOnce(new Error('network error'));
     vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(null);
 
-    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" />);
+    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />);
 
     const card = await screen.findByTestId('lead-form-terminal-card');
     expect(card).toHaveTextContent('Não foi possível enviar');
@@ -367,5 +383,21 @@ describe('LeadFormWidget — config fetch failure', () => {
     await screen.findByTestId('lead-form-name');
     expect(screen.queryByTestId('lead-form-terminal-card')).not.toBeInTheDocument();
     expect(fetchLeadFormConfigClient).toHaveBeenCalledTimes(2);
+  });
+
+  // ISR-cached page can go stale between server render and this live client fetch — the module
+  // may have been disabled in that window. Must route to the same <Unavailable/> the server-side
+  // check renders, not the generic submission-error card (Codex finding, PR #433 round 10).
+  it('renders Unavailable, not a generic error card, when the config fetch reports the module is disabled', async () => {
+    vi.mocked(fetchLeadFormConfigClient).mockRejectedValueOnce(
+      new ApiError(404, 'not enabled', { code: PlatformErrorCode.LEAD_FORM_NOT_ENABLED }),
+    );
+    vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(null);
+
+    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />);
+
+    await screen.findByText('Em breve');
+    expect(screen.queryByTestId('lead-form-terminal-card')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('lead-form-name')).not.toBeInTheDocument();
   });
 });

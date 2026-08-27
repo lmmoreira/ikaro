@@ -232,7 +232,6 @@
       "phoneLabel": "Telefone",
       "namePlaceholder": "Seu nome completo",
       "emailPlaceholder": "voce@email.com",
-      "phonePlaceholder": "(11) 99999-9999",
       "nameRequired": "Informe seu nome.",
       "emailRequired": "Informe um e-mail válido.",
       "phoneRequired": "Informe um telefone válido.",

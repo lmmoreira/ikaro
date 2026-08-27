@@ -106,4 +106,34 @@ describe('LeadFormQuestionField', () => {
     );
     expect(error).toHaveTextContent('Selecione uma opção.');
   });
+
+  it('groups a SINGLE_CHOICE question in a fieldset/legend, not a bare labelled span', () => {
+    const { container } = renderWithIntl(
+      <LeadFormQuestionField
+        question={SINGLE_CHOICE_QUESTION}
+        value={undefined}
+        onChange={vi.fn()}
+      />,
+    );
+
+    const group = screen.getByRole('group');
+    expect(group.tagName).toBe('FIELDSET');
+    expect(container.querySelector('legend')).toHaveTextContent(SINGLE_CHOICE_QUESTION.label);
+  });
+
+  it("associates the group's error with the fieldset via aria-describedby", () => {
+    renderWithIntl(
+      <LeadFormQuestionField
+        question={SINGLE_CHOICE_QUESTION}
+        value={undefined}
+        error="Selecione uma opção."
+        onChange={vi.fn()}
+      />,
+    );
+
+    const group = screen.getByRole('group');
+    const errorId = group.getAttribute('aria-describedby');
+    expect(errorId).toBeTruthy();
+    expect(document.getElementById(errorId!)).toHaveTextContent('Selecione uma opção.');
+  });
 });

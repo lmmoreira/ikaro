@@ -3,6 +3,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { bffPublicFetch, bffServerFetch } from '@/shared/lib/api/bff-server';
 import { SESSION_COOKIE_NAME } from '@/features/auth/session-cookie';
 
+// Generous for this payload's actual shape (name/email/phone caps + up to 20 answers of up to
+// 2000 chars each + a Turnstile token) but small enough to reject an attacker forcing this
+// public, unauthenticated Route Handler to buffer an arbitrarily large body in memory before
+// BFF/backend validation ever runs (Codex finding, PR #433 round 10).
+const MAX_BODY_BYTES = 64 * 1024;
+
 // The lead-form submission (UC-039/UC-040) optionally carries the logged-in customer's identity
 // via Authorization: Bearer <jwt> (docs/14-API_CONTRACTS.md's decodeUserJwt() note) -- the JWT
 // lives in an httpOnly cookie, unreadable by client JS, so LeadFormWidget.tsx cannot attach it
@@ -13,6 +19,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const slug = request.nextUrl.searchParams.get('slug');
   if (!slug) {
     return NextResponse.json({ message: 'slug query param is required' }, { status: 400 });
+  }
+
+  const contentLength = Number(request.headers.get('content-length') ?? '0');
+  if (contentLength > MAX_BODY_BYTES) {
+    return NextResponse.json({ message: 'Payload too large' }, { status: 413 });
   }
 
   const body = await request.text();

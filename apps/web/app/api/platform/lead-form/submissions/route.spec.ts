@@ -118,6 +118,21 @@ describe('POST /api/platform/lead-form/submissions', () => {
     expect(response.status).toBe(502);
   });
 
+  it('returns 413 without calling the BFF when Content-Length exceeds the body cap', async () => {
+    fetchSpy.mockResolvedValue(new Response(null, { status: 200 }));
+
+    const response = await POST(
+      new NextRequest('http://localhost/api/platform/lead-form/submissions?slug=lavacar-beloauto', {
+        method: 'POST',
+        body: JSON.stringify(SUBMISSION_BODY),
+        headers: { 'content-length': String(64 * 1024 + 1) },
+      }),
+    );
+
+    expect(response.status).toBe(413);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it('passes through a non-2xx BFF response (e.g. rate limited)', async () => {
     mockCookieGet.mockReturnValue(undefined);
     fetchSpy.mockResolvedValue(

@@ -232,7 +232,6 @@
       "phoneLabel": "Phone",
       "namePlaceholder": "Your full name",
       "emailPlaceholder": "you@email.com",
-      "phonePlaceholder": "(11) 99999-9999",
       "nameRequired": "Enter your name.",
       "emailRequired": "Enter a valid email address.",
       "phoneRequired": "Enter a valid phone number.",

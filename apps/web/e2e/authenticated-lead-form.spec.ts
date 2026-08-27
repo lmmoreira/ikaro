@@ -97,7 +97,9 @@ test.describe.serial('lead-form public page (authenticated CUSTOMER) — M20-S09
       timeout: 10_000,
     });
     await expect(page.getByTestId('lead-form-prefilled-note')).toBeVisible();
-    await expect(page.getByTestId('lead-form-phone')).toHaveValue('+5511999999999');
+    // Displayed masked/local, not the raw E.164 completeCustomerProfile() stored — matches the
+    // booking flow's ContactInfoFields phone-display convention (docs/CODE_STANDARDS.md).
+    await expect(page.getByTestId('lead-form-phone')).toHaveValue('(11) 99999-9999');
 
     await page.getByTestId('lead-form-phone').fill('+5511999998888');
     await page

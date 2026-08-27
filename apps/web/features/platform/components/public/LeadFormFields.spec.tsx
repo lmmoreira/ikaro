@@ -21,6 +21,7 @@ function baseProps() {
     name: '',
     email: '',
     phone: '',
+    phonePrefix: '+55',
     onNameChange: vi.fn(),
     onEmailChange: vi.fn(),
     onPhoneChange: vi.fn(),

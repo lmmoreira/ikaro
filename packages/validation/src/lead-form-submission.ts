@@ -17,9 +17,14 @@ import { z } from 'zod';
 // - Backend adds `customerId`/`ipAddress` (resolved by the BFF from the decoded JWT / real
 //   client connection — the backend can't derive either from its own request object, since it
 //   only ever sees the BFF's own connection).
+// Generous but bounded — a free-text answer or a single choice option realistically never
+// approaches 2000 chars; MULTIPLE_CHOICE selections realistically never approach 50 options.
+// Without this, an unbounded string (or array of them) here is what makes the raw request body
+// itself unbounded, ahead of even reaching this schema (Codex finding, PR #433 round 10 — see
+// the web Route Handler's own Content-Length guard for the complementary fix at that boundary).
 export const LeadFormSubmissionAnswerSchema = z.object({
   questionId: z.uuid(),
-  value: z.union([z.string(), z.array(z.string())]),
+  value: z.union([z.string().max(2000), z.array(z.string().max(2000)).max(50)]),
 });
 
 export const LeadFormSubmissionFieldsSchema = z.object({
