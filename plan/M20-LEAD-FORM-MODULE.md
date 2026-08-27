@@ -546,7 +546,7 @@ New endpoint: `GET /v1/tenants/lead-form/submissions/filter-options` → `{ ques
 
 ---
 
-### M20-S13 — Leads search: frontend UI (UC-041)
+### M20-S13 — Leads search: frontend UI (UC-041) ✅ Done
 
 **Agent:** `frontend-ts`
 **Complexity:** S
