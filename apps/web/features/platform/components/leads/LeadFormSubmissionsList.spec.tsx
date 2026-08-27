@@ -328,5 +328,38 @@ describe('LeadFormSubmissionsList', () => {
       const clearLink = screen.getByText('Limpar busca').closest('a');
       expect(clearLink).toHaveAttribute('href', '/dashboard/leads');
     });
+
+    // "Limpar busca" is a plain <Link>, not wired through LeadFormSearchPanel's own clear
+    // handlers — clicking it triggers a real navigation (simulated here via rerender with the
+    // post-navigation props), and the panel must not keep showing the stale search term
+    // afterwards just because router.push is a soft navigation that doesn't remount a client
+    // component on its own (Codex PR #436 round 3 finding, 2026-08-27). The panel's key, derived
+    // from the resolved query, forces a fresh mount whenever that query actually changes.
+    it("resets the search panel's stale input after navigating away from a zero-match query", () => {
+      const { rerender } = renderWithIntl(
+        <LeadFormSubmissionsList
+          items={[]}
+          page={1}
+          pageSize={20}
+          total={0}
+          searchQuery={{ search: 'joao@gmail' }}
+          filterOptionLabels={[]}
+        />,
+      );
+      expect(screen.getByTestId('leads-search-input')).toHaveValue('joao@gmail');
+
+      rerender(
+        <LeadFormSubmissionsList
+          items={[buildItem()]}
+          page={1}
+          pageSize={20}
+          total={1}
+          searchQuery={NO_QUERY}
+          filterOptionLabels={[]}
+        />,
+      );
+
+      expect(screen.getByTestId('leads-search-input')).toHaveValue('');
+    });
   });
 });

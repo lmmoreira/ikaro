@@ -32,6 +32,16 @@ const CITY_QUESTION_ID = randomUUID();
 const MARITAL_LABEL = `Qual seu estado civil? [${MARITAL_QUESTION_ID}]`;
 const CITY_LABEL = `Onde você mora? [${CITY_QUESTION_ID}]`;
 
+// Names are suffixed the same way as the question labels above — a basic search matches by
+// name too (not just question-scoped, like the advanced filters), so a fixed "Ricardo Souza"
+// would let a prior run's leftover submission satisfy a name/substring search alongside the
+// current run's own, breaking a toHaveCount(1) expectation exactly like the labels did (found
+// live in CI after the label fix alone: "a 1-2 character search term" searching "ri" — a
+// substring of "Ricardo" — matched 2 rows, not 1, 2026-08-27).
+const RUN_ID = randomUUID().slice(0, 8);
+const FERNANDA_NAME = `Fernanda Alves ${RUN_ID}`;
+const RICARDO_NAME = `Ricardo Souza ${RUN_ID}`;
+
 interface GuestLeadInput {
   readonly name: string;
   readonly email: string;
@@ -133,7 +143,7 @@ test.describe.serial('leads search — M20-S13', () => {
 
     // Matches both filters (marital=casado AND city=São Paulo).
     await submitGuestLead(browser, {
-      name: 'Fernanda Alves',
+      name: FERNANDA_NAME,
       email: uniqueTestEmail('leads-search-both'),
       phone: '+5511988887777',
       marital: 'casado',
@@ -141,7 +151,7 @@ test.describe.serial('leads search — M20-S13', () => {
     });
     // Matches only the marital-status filter — proves the AND excludes a partial match.
     await submitGuestLead(browser, {
-      name: 'Ricardo Souza',
+      name: RICARDO_NAME,
       email: uniqueTestEmail('leads-search-partial'),
       phone: '+5511977776666',
       marital: 'casado',
@@ -172,12 +182,12 @@ test.describe.serial('leads search — M20-S13', () => {
     await loginAsStaff(page, MANAGER_EMAIL, MANAGER_TENANT_SLUG);
     await page.goto('/dashboard/leads');
 
-    await page.getByTestId('leads-search-input').fill('Fernanda');
+    await page.getByTestId('leads-search-input').fill(FERNANDA_NAME);
     await page.getByTestId('leads-search-apply').click();
 
     const row = page.getByTestId('lead-submission-row').first();
     await expect(row).toBeVisible({ timeout: 15_000 });
-    await expect(row).toContainText('Fernanda Alves');
+    await expect(row).toContainText(FERNANDA_NAME);
   });
 
   // No 3-character minimum (M20-S13 implementation, 2026-08-27) — a short but real term (an
@@ -186,14 +196,19 @@ test.describe.serial('leads search — M20-S13', () => {
     await loginAsStaff(page, MANAGER_EMAIL, MANAGER_TENANT_SLUG);
     await page.goto('/dashboard/leads');
 
-    // 'ri' is unique to the "Ricardo Souza" fixture (name and city both contain it) — the
-    // "Fernanda Alves" fixture matches neither.
-    await page.getByTestId('leads-search-input').fill('ri');
+    // A 2-char substring of this run's own RUN_ID (present in both fixtures' names) — vanishingly
+    // unlikely to also appear in a prior run's leftover data (a fresh random RUN_ID every run),
+    // unlike a fixed substring such as "ri" (part of "Ricardo"), which a prior run's own leftover
+    // "Ricardo Souza" entry also matched, breaking an exact-count assertion — found live in CI
+    // after fixing only the question labels the same way, 2026-08-27. Doesn't assert an exact
+    // row count for the same reason: only that this run's own fresh row is actually findable via
+    // a short term, regardless of how much other leftover data (never cleaned up) also matches.
+    await page.getByTestId('leads-search-input').fill(RUN_ID.slice(0, 2));
     await page.getByTestId('leads-search-apply').click();
 
-    const rows = page.getByTestId('lead-submission-row');
-    await expect(rows).toHaveCount(1, { timeout: 15_000 });
-    await expect(rows.first()).toContainText('Ricardo Souza');
+    await expect(
+      page.getByTestId('lead-submission-row').filter({ hasText: RICARDO_NAME }),
+    ).toBeVisible({ timeout: 15_000 });
   });
 
   test('a search with no matches shows the distinct no-results state, and "Limpar busca" returns to the unfiltered list', async ({
@@ -254,7 +269,7 @@ test.describe.serial('leads search — M20-S13', () => {
 
     const rows = page.getByTestId('lead-submission-row');
     await expect(rows).toHaveCount(1, { timeout: 15_000 });
-    await expect(rows.first()).toContainText('Fernanda Alves');
+    await expect(rows.first()).toContainText(FERNANDA_NAME);
   });
 
   test('a future date range excluding today narrows the list to zero results', async ({ page }) => {

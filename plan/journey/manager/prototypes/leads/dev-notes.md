@@ -86,9 +86,14 @@ GET /v1/tenants/lead-form/submissions?page=&pageSize=&search=|filters=&submitted
   All omitted -> unfiltered, unchanged from before this addition. An EMPTY search/filter value
   is rejected 400 before the query runs. No 3-character minimum (M20-S12's original design,
   reversed during M20-S13 implementation, 2026-08-27): pg_trgm genuinely can't accelerate a
-  pattern under 3 chars, but at this feature's real per-tenant volume caps (tens of thousands
-  of rows at most), an occasional un-indexed full scan for a short term (an age, "25") is cheap
-  enough not to matter, and rejecting it outright made real short answers unsearchable.
+  pattern under 3 chars, but the unindexed fallback isn't a flat scan of the whole answers
+  table -- the per-question match is an EXISTS correlated on (tenant_id, submission_id), which
+  IS indexed, so it only costs a short ILIKE over one submission's own <=20 answer rows. The
+  real bound scales with a tenant's own submission count (up to ~730,000 at this feature's
+  configured ceiling), not the much larger cross-submission answer-row total -- full reasoning
+  and the two rounds of estimate corrections behind it: packages/validation/src/
+  lead-form-submission.ts. Rejecting a real short search (an age, "25") outright was judged the
+  worse trade-off.
 GET /v1/tenants/lead-form/submissions/filter-options   STAFF|MANAGER
   Response: { questionLabels: string[] }
   Distinct question labels ever recorded for this tenant — includes labels from questions

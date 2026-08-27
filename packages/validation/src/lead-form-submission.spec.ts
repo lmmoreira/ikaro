@@ -95,6 +95,19 @@ describe('ListLeadFormSubmissionsSchema (M20-S12)', () => {
     expect(result.success).toBe(false);
   });
 
+  it('rejects a whitespace-only search term', () => {
+    const result = ListLeadFormSubmissionsSchema.safeParse({ search: '   ' });
+    expect(result.success).toBe(false);
+  });
+
+  it('trims a valid search term', () => {
+    const result = ListLeadFormSubmissionsSchema.safeParse({ search: '  casado  ' });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.search).toBe('casado');
+    }
+  });
+
   it('accepts a valid filters JSON array', () => {
     const result = ListLeadFormSubmissionsSchema.safeParse({
       filters: JSON.stringify([{ questionLabel: 'Estado civil', value: 'casado' }]),
@@ -120,6 +133,13 @@ describe('ListLeadFormSubmissionsSchema (M20-S12)', () => {
   it('rejects a filters entry with an empty value', () => {
     const result = ListLeadFormSubmissionsSchema.safeParse({
       filters: JSON.stringify([{ questionLabel: 'Estado civil', value: '' }]),
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a filters entry with a whitespace-only value', () => {
+    const result = ListLeadFormSubmissionsSchema.safeParse({
+      filters: JSON.stringify([{ questionLabel: 'Estado civil', value: '   ' }]),
     });
     expect(result.success).toBe(false);
   });

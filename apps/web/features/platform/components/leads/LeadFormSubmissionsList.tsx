@@ -107,7 +107,17 @@ export function LeadFormSubmissionsList({
 
   return (
     <div className="space-y-4">
+      {/* Keyed by the resolved query (page excluded, so paging alone never remounts this) —
+          router.push is a soft navigation that keeps a client component mounted, so any
+          navigation NOT routed through the panel's own handlers (e.g. the no-results card's
+          plain "Limpar busca"/"Limpar filtros" Link below) would otherwise leave its local
+          searchTerm/filterRows/range state stale even though the URL/list already moved on.
+          Remounting on every real query change resets that state for free, for every
+          navigation source uniformly, rather than chasing each one by hand (Codex PR #436
+          round 3 finding, 2026-08-27 — found after the mode-toggle case of this same bug was
+          already fixed by hand in round 2, missing this sibling case). */}
       <LeadFormSearchPanel
+        key={buildLeadsSearchQuery(searchQuery)}
         initialSearch={searchQuery.search}
         initialFilters={searchQuery.filters}
         initialFrom={searchQuery.submittedFrom}
