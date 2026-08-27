@@ -37,6 +37,7 @@ export function DashboardSectionShell({
               tenantSlug={shell.tenantSlug}
               userName={shell.userName}
               role={shell.role}
+              leadFormEnabled={shell.leadFormEnabled}
             >
               {children}
             </DashboardShell>

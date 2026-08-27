@@ -10,20 +10,23 @@ vi.mock('./DashboardShell', () => ({
     tenantName,
     userName,
     role: dashboardRole,
+    leadFormEnabled,
     topbarAction,
     children,
   }: {
-    tenantName: string;
-    userName: string | null;
-    role: string;
-    topbarAction: React.ReactNode;
-    children: React.ReactNode;
+    readonly tenantName: string;
+    readonly userName: string | null;
+    readonly role: string;
+    readonly leadFormEnabled: boolean;
+    readonly topbarAction: React.ReactNode;
+    readonly children: React.ReactNode;
   }) => (
     <div
       data-testid="dashboard-shell"
       data-tenant-name={tenantName}
       data-user-name={userName ?? ''}
       data-role={dashboardRole}
+      data-lead-form-enabled={String(leadFormEnabled)}
     >
       <div data-testid="topbar-action-slot">{topbarAction}</div>
       {children}
@@ -52,6 +55,7 @@ const SHELL: DashboardShellContext = {
     dateFormat: 'DD/MM/YYYY',
     timeFormat: '24h',
   },
+  leadFormEnabled: false,
 };
 
 describe('DashboardLayoutShell', () => {
@@ -76,6 +80,16 @@ describe('DashboardLayoutShell', () => {
     expect(dashboardShell).toHaveAttribute('data-tenant-name', 'Lavacar BH');
     expect(dashboardShell).toHaveAttribute('data-user-name', 'Ana Pereira');
     expect(dashboardShell).toHaveAttribute('data-role', 'MANAGER');
+  });
+
+  it('forwards leadFormEnabled from shell to DashboardShell', () => {
+    render(
+      <DashboardLayoutShell shell={{ ...SHELL, leadFormEnabled: true }}>
+        <p>children</p>
+      </DashboardLayoutShell>,
+    );
+
+    expect(screen.getByTestId('dashboard-shell')).toHaveAttribute('data-lead-form-enabled', 'true');
   });
 
   it('forwards topbarAction into the topbar action slot', () => {

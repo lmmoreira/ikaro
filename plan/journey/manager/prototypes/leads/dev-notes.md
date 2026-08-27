@@ -3,7 +3,7 @@
 **Journey:** MANAGER/STAFF — View Leads Submissions
 **UCs:** UC-041
 **Prototype:** `manager/prototypes/leads/`
-**Status:** ❌ Gap — nothing built yet. Promoted from `docs/discovery/lead-form-module/prototype/` (M20 milestone, `docs/04-USE_CASES.md` UC-041).
+**Status:** ✅ Done (base list/detail + gated nav, M20-S10) — search (basic/advanced/date-range, below) still ❌ Gap, tracked by M20-S12/S13. Promoted from `docs/discovery/lead-form-module/prototype/` (M20 milestone, `docs/04-USE_CASES.md` UC-041).
 
 ---
 
@@ -13,7 +13,7 @@
 
 A new top-level sidebar item "Leads" — a simple paginated list (name/email/phone, most-recent-first), click-through to a full read-only detail view. Own dedicated screen, not nested inside hotsite editing (mirrors how Bookings gets its own screen). Visible to STAFF and MANAGER alike (`MAIN_NAV_KEYS`, not the manager-only section) — viewing leads doesn't require MANAGER; only editing the module config (`manager/prototypes/lead-form/`) does.
 
-**Gated, not unconditional (added during the post-review redesign, 2026-08-24):** the "Leads" item only renders when the `LEAD_FORM` module is actually enabled for this tenant — `apps/web/app/dashboard/layout.tsx` fetches `GET /v1/tenants/lead-form/status` (`{ enabled: boolean }`, M20-S01) server-side and passes `leadFormEnabled` down through `DashboardShell` to `Sidebar.tsx`. A tenant that never turned the module on never sees this item, since it would otherwise point at a permanently empty screen — unlike Agenda/Fidelidade above it, which every tenant uses regardless of any module toggle.
+**Gated, not unconditional (added during the post-review redesign, 2026-08-24; implementation corrected during M20-S10 story-discovery, 2026-08-27):** the "Leads" item only renders when the `LEAD_FORM` module is actually enabled for this tenant. There is no single shared `app/dashboard/layout.tsx` doing this fetch (that file is a bare passthrough) — the shared `loadDashboardShellContext()` helper (`apps/web/shells/dashboard/model/dashboard-shell-context.ts`), called independently by every top-level section's own `layout.tsx`, fetches `GET /v1/tenants/lead-form/status` (`{ enabled: boolean }`, M20-S01) and adds `leadFormEnabled` to the shared shell context, threaded down through `DashboardShell` to `Sidebar.tsx`/`BottomNav.tsx`/`MoreSheet.tsx`. A tenant that never turned the module on never sees this item, since it would otherwise point at a permanently empty screen — unlike Agenda/Fidelidade above it, which every tenant uses regardless of any module toggle. On mobile, `MoreSheet` (renamed from `ManagerSheet`) also gained a header-less "Leads" entry so STAFF — who has no "Mais" overflow at all otherwise — can reach it too.
 
 **CSV export is removed from this milestone's scope entirely, not merely deferred** (see `plan/M20-LEAD-FORM-MODULE.md` Non-Goals: at current volume caps, a synchronous buffer-and-return export would have fully satisfied the requirement with no new infrastructure, but the decision made during the post-review redesign is to not build even that for M20 — a generic async report/export module is a legitimate future initiative once a second real export need exists, not something to build speculatively for one consumer). The discovery's own `manager-04-leads-export.html` mockup and its "Exportar CSV" buttons are **not** relocated here — this folder omits them entirely rather than promoting dead UI.
 
@@ -31,10 +31,16 @@ Backed by a new `platform.lead_form_answers` child table — one row per questio
 
 | File | Status | Role |
 |---|---|---|
-| `apps/web/app/dashboard/leads/page.tsx` | ❌ Gap | Submissions list |
-| `apps/web/app/dashboard/leads/[id]/page.tsx` | ❌ Gap | Submission detail |
-| `apps/web/shells/dashboard/components/Sidebar.tsx` | ❌ Gap (extend) | Add "Leads" to `MAIN_NAV_KEYS`, conditionally rendered on a new `leadFormEnabled` prop — same edit `manager/prototypes/lead-form/dev-notes.md` also names; one story, not two |
-| `apps/web/app/dashboard/layout.tsx` | ❌ Gap (extend) | Fetches `GET /v1/tenants/lead-form/status` server-side, passes `leadFormEnabled` down through `DashboardShell` → `Sidebar` |
+| `apps/web/app/dashboard/leads/page.tsx` | ✅ Done | Submissions list (no search yet — M20-S12/S13) |
+| `apps/web/app/dashboard/leads/[id]/page.tsx` | ✅ Done | Submission detail |
+| `apps/web/app/dashboard/leads/layout.tsx` | ✅ Done | New — uses `DashboardSectionShell`, same shape as `settings/layout.tsx`/`hotsite/layout.tsx` |
+| `apps/web/shells/dashboard/model/dashboard-shell-context.ts` | ✅ Done (extend) | `loadDashboardShellContext()` gains a parallel `GET /v1/tenants/lead-form/status` fetch; `DashboardShellContext` gains `leadFormEnabled: boolean` |
+| `apps/web/shells/dashboard/components/Sidebar.tsx` | ✅ Done (extend) | Adds "Leads" to `MAIN_NAV_KEYS` when `leadFormEnabled` |
+| `apps/web/shells/dashboard/components/BottomNav.tsx` | ✅ Done (extend) | "Mais" trigger now also shows for STAFF when `leadFormEnabled` |
+| `apps/web/shells/dashboard/components/MoreSheet.tsx` | ✅ Done (renamed from `ManagerSheet.tsx`) | Header-less "Leads" item for either role when enabled, manager-only section unchanged |
+| `apps/web/features/platform/components/leads/LeadFormSubmissionsList.tsx` | ✅ Done | Paginated list component |
+| `apps/web/features/platform/components/leads/LeadFormSubmissionDetail.tsx` | ✅ Done | Read-only detail component |
+| `apps/web/features/platform/api/lead-form-submissions.server.ts` | ✅ Done | Server-side `listLeadFormSubmissions`/`getLeadFormSubmission` |
 
 ---
 

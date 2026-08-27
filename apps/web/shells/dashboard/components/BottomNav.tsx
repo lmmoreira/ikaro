@@ -11,6 +11,7 @@ import { isTeamInviteRoute, matchTeamRoute } from '@/shells/dashboard/model/team
 
 interface BottomNavProps {
   readonly role: 'STAFF' | 'MANAGER';
+  readonly leadFormEnabled: boolean;
   readonly onOpenSheet: () => void;
 }
 
@@ -21,7 +22,11 @@ const NAV_ITEM_KEYS = [
   { href: '/dashboard/loyalty', labelKey: 'nav.loyalty', Icon: Star },
 ] as const;
 
-export function BottomNav({ role, onOpenSheet }: BottomNavProps): React.JSX.Element | null {
+export function BottomNav({
+  role,
+  leadFormEnabled,
+  onOpenSheet,
+}: BottomNavProps): React.JSX.Element | null {
   const t = useTranslations('dashboard');
   const pathname = usePathname();
   const isBookingDetail = matchBookingDetailRoute(pathname) !== null;
@@ -65,7 +70,7 @@ export function BottomNav({ role, onOpenSheet }: BottomNavProps): React.JSX.Elem
         );
       })}
 
-      {role === 'MANAGER' && (
+      {(role === 'MANAGER' || (role === 'STAFF' && leadFormEnabled)) && (
         <button
           type="button"
           onClick={onOpenSheet}

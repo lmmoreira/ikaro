@@ -1353,11 +1353,26 @@
       "loadMoreEntries": "Load more entries",
       "loadMoreRedemptions": "Load more redemptions"
     },
+    "leadsPage": {
+      "emptyTitle": "No submissions yet",
+      "emptyBody": "As soon as a visitor submits your hotsite's form, it appears here.",
+      "emptyCta": "Configure the Lead Form",
+      "totalCount": "{count, plural, one {# submission received} other {# submissions received}}",
+      "paginationAriaLabel": "Pagination",
+      "previousPage": "Previous page",
+      "nextPage": "Next page",
+      "contactSectionTitle": "Contact",
+      "answersSectionTitle": "Answers",
+      "submittedAtLabel": "Submitted on {date}, {time}",
+      "guestSubmitter": "guest (not a registered customer)",
+      "customerSubmitter": "registered customer"
+    },
     "nav": {
       "bookings": "Bookings",
       "schedule": "Schedule",
       "services": "Services",
       "loyalty": "Loyalty",
+      "leads": "Leads",
       "team": "Team",
       "settings": "Settings",
       "hotsite": "Hotsite",

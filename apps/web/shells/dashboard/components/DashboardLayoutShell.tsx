@@ -41,6 +41,7 @@ export function DashboardLayoutShell({
               tenantSlug={shell.tenantSlug}
               userName={shell.userName}
               role={shell.role}
+              leadFormEnabled={shell.leadFormEnabled}
               topbarAction={topbarAction ?? null}
             >
               {children}

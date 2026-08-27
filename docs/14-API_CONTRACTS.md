@@ -312,7 +312,7 @@ An earlier design (M20-S01–S08) gave this its own parallel `PATCH /v1/tenants/
 ### **Lead Form Status (Admin, nav-gating — UC-041)**
 Powers the dashboard's "Leads" sidebar item, which is **gated**, not always shown — a tenant that has never enabled the `LEAD_FORM` module gets no nav item pointing at a screen that would be permanently empty. Deliberately separate from `GET /v1/tenants/lead-form/config` above (which is `MANAGER`-only and returns far more than a boolean) because both `STAFF` and `MANAGER` need to know whether to render this nav item — mirrors `GET /public/platform/chatbot/status`'s own shape, admin-side instead of public-side.
 
-- `GET /v1/tenants/lead-form/status` → `200 { enabled: boolean }` — `STAFF`\|`MANAGER`. Reads the `LEAD_FORM` module's `enabled` flag from `HotsiteConfig`'s layout array only — no `audienceMode`/`questions` exposed. Called server-side by the dashboard shell layout on every dashboard page load (cheap, single boolean) to decide whether to render the "Leads" item for `Sidebar`/`BottomNav`/`ManagerSheet`
+- `GET /v1/tenants/lead-form/status` → `200 { enabled: boolean }` — `STAFF`\|`MANAGER`. Reads the `LEAD_FORM` module's `enabled` flag from `HotsiteConfig`'s layout array only — no `audienceMode`/`questions` exposed. Called server-side by `loadDashboardShellContext()` (`apps/web/shells/dashboard/model/dashboard-shell-context.ts`, called independently by every top-level dashboard section's own `layout.tsx` — there is no single shared layout) on every dashboard page load (cheap, single boolean) to decide whether to render the "Leads" item for `Sidebar`/`BottomNav`/`MoreSheet`
 
 ### **Leads Submissions (Admin — UC-041)**
 

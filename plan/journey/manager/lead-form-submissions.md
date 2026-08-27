@@ -3,9 +3,9 @@
 **Actor(s):** MANAGER, STAFF
 **Goal:** Review visitor submissions to the lead-capture form on a dedicated screen
 **UCs covered:** UC-041
-**Status:** Draft — nothing built yet. Promoted from `docs/discovery/lead-form-module/lead-form-module.md` via `/discovery-to-milestone` (2026-08-23) for milestone `M20-LEAD-FORM-MODULE`.
+**Status:** ✅ Done (base list/detail + gated nav, M20-S10) — search (basic/advanced/date-range) still Draft, tracked by M20-S12/S13. Promoted from `docs/discovery/lead-form-module/lead-form-module.md` via `/discovery-to-milestone` (2026-08-23) for milestone `M20-LEAD-FORM-MODULE`.
 
-**Gated, not unconditional (post-review redesign, 2026-08-24):** the "Leads" sidebar item only renders when `GET /v1/tenants/lead-form/status` reports `enabled: true` for this tenant (fetched server-side in `apps/web/app/dashboard/layout.tsx`, passed down through `DashboardShell` → `Sidebar`) — a tenant that never turned the module on never sees this item, since it would otherwise point at a permanently empty screen.
+**Gated, not unconditional (post-review redesign, 2026-08-24; implementation corrected during M20-S10 story-discovery, 2026-08-27):** the "Leads" sidebar item only renders when `GET /v1/tenants/lead-form/status` reports `enabled: true` for this tenant (fetched server-side by the shared `loadDashboardShellContext()`, `apps/web/shells/dashboard/model/dashboard-shell-context.ts` — called independently by every top-level dashboard section's own `layout.tsx`, since there is no single shared `app/dashboard/layout.tsx` — passed down through `DashboardShell` → `Sidebar`/`BottomNav`/`MoreSheet`) — a tenant that never turned the module on never sees this item, since it would otherwise point at a permanently empty screen.
 
 ## Flow
 
@@ -56,12 +56,12 @@ Not drawn as a separate node: a submission whose snapshot references a since-rem
 
 | Page / Route | Component | Story | Status |
 |---|---|---|---|
-| `/dashboard/leads` | `LeadFormSubmissionsList` | — | ❌ Gap |
-| `/dashboard/leads/[id]` | `LeadFormSubmissionDetail` | — | ❌ Gap |
+| `/dashboard/leads` | `LeadFormSubmissionsList` | M20-S10 | ✅ Done |
+| `/dashboard/leads/[id]` | `LeadFormSubmissionDetail` | M20-S10 | ✅ Done |
 
 ## Open questions / gaps
 
-- [ ] Milestone/story: not yet assigned — run `/story-discovery M20-Sxx` per `plan/M20-LEAD-FORM-MODULE.md`.
+- [x] Base list/detail + gated nav: `M20-S10`. Search (basic/advanced/date-range) still tracked by `M20-S12`/`M20-S13`.
 - [x] **No CSV export** — the discovery's original CAND-06 was removed from this milestone's scope entirely, not merely deferred (see `plan/M20-LEAD-FORM-MODULE.md` Non-Goals: current volume doesn't justify new export infrastructure, and a generic async report module is a future initiative once a second real consumer exists; UC-043's unconditional retention purge means there's no path to preserve a lead beyond its retention window besides the read-only detail view — an accepted risk, stated explicitly). Not a gap to fill later inside this journey — a deliberate scope decision. **Search (M20-S12/S13, added 2026-08-23) is the replacement capability** for finding a specific lead without export — see the Flow section above.
 
 ## Prototype

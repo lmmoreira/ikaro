@@ -94,6 +94,7 @@ describe('LeadFormController', () => {
         phone: '+5511912345678',
         answers: [{ questionLabel: 'Origem', questionType: 'TEXT', answerValue: 'Google' }],
         submittedAt: '2026-01-01T00:00:00.000Z',
+        customerId: null,
       };
       const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(detailResponse) });
       const controller = new LeadFormController(backendHttp);

@@ -40,6 +40,7 @@ export default async function LoyaltyLayout({
               tenantSlug={shell.tenantSlug}
               userName={shell.userName}
               role={shell.role}
+              leadFormEnabled={shell.leadFormEnabled}
             >
               {children}
             </DashboardShell>

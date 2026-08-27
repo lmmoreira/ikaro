@@ -86,6 +86,7 @@ import { InternalTenantController } from './infrastructure/controllers/internal-
 import { InternalTenantReadController } from './infrastructure/controllers/internal-tenant-read.controller';
 import { TenantController } from './infrastructure/controllers/tenant.controller';
 import { TenantSettingsController } from './infrastructure/controllers/tenant-settings.controller';
+import { CachingHotsiteConfigRepository } from './infrastructure/repositories/caching-hotsite-config.repository';
 import { CachingTenantRepository } from './infrastructure/repositories/caching-tenant.repository';
 import { TypeOrmChatbotMessageRepository } from './infrastructure/repositories/typeorm-chatbot-message.repository';
 import { TypeOrmChatbotProviderBalanceRepository } from './infrastructure/repositories/typeorm-chatbot-provider-balance.repository';
@@ -128,7 +129,9 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     TypeOrmTenantRepository,
     CachingTenantRepository,
     { provide: TENANT_REPOSITORY, useClass: CachingTenantRepository },
-    { provide: HOTSITE_CONFIG_REPOSITORY, useClass: TypeOrmHotsiteConfigRepository },
+    TypeOrmHotsiteConfigRepository,
+    CachingHotsiteConfigRepository,
+    { provide: HOTSITE_CONFIG_REPOSITORY, useClass: CachingHotsiteConfigRepository },
     { provide: LEAD_FORM_CONFIG_REPOSITORY, useClass: TypeOrmLeadFormConfigRepository },
     { provide: CHATBOT_SESSION_REPOSITORY, useClass: TypeOrmChatbotSessionRepository },
     { provide: CHATBOT_MESSAGE_REPOSITORY, useClass: TypeOrmChatbotMessageRepository },
