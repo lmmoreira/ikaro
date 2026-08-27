@@ -523,6 +523,7 @@ New endpoint: `GET /v1/tenants/lead-form/submissions/filter-options` → `{ ques
 - [ ] More than 5 `filters` entries rejected `400 GENERIC_VALUE_OUT_OF_RANGE`
 - [ ] `submittedFrom`/`submittedTo` correctly resolves tenant-local calendar-day boundaries to UTC, for a tenant whose timezone differs from UTC (e.g. `America/Sao_Paulo`, UTC-3) — a test with a submission timestamped just before/after the UTC-naive boundary but within/outside the correct tenant-local boundary proves the timezone conversion is actually applied, not skipped
 - [ ] `submittedFrom` after `submittedTo` rejected `400 GENERIC_VALUE_OUT_OF_RANGE`
+- [ ] `search` and `filters` both present in the same request rejected `400 GENERIC_VALUE_INVALID`, query never runs (story-discovery decision, 2026-08-27)
 - [ ] Date range combines correctly with `search` (AND) and with `filters` (AND) — one integration test per combination
 - [ ] Omitting `search`/`filters`/`submittedFrom`/`submittedTo` returns exactly the same result set/order as before this story (regression test against S06's existing pagination test)
 - [ ] Zero matches returns `200 { items: [], total: 0 }`, never `404`

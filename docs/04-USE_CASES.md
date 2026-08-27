@@ -887,6 +887,7 @@ Promoted from `docs/discovery/lead-form-module/lead-form-module.md` (M20). A new
    - **A3: Search/filters/date range yield no matches** → distinct empty state from A1 ("nenhum resultado para esta busca", not "nenhum envio ainda") — the module may well have real submissions, just none matching the current criteria.
    - **A4: Advanced filter's question dropdown includes a question no longer in the live `LeadFormConfig`** → selectable and searchable like any other; matches by the snapshotted `questionLabel` text, never a live lookup against the current config (see `docs/13-DATABASE_SCHEMA.md` § `platform.lead_form_answers`).
    - **A5: `submittedFrom` is after `submittedTo`** → `400`, rejected before the query runs.
+   - **A6: `search` and `filters` both provided in the same request** → `400 GENERIC_VALUE_INVALID`, rejected before the query runs (they are mutually exclusive — see `docs/14-API_CONTRACTS.md`).
 - **Postconditions:** none (read-only).
 - **Events Triggered:** none.
 - **Not implemented:** CSV export — removed from this milestone's scope entirely, not merely deferred behind a smaller replacement. This is a real, accepted trade-off, not an oversight: `UC-043`'s daily retention purge is unconditional and permanent (no export, no backup, no bulk-download path exists before a submission is deleted at the end of its retention window). A manager who wants to preserve lead data long-term today has only the read-only detail view, one submission at a time.
