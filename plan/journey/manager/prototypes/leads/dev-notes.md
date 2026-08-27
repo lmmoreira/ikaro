@@ -33,7 +33,7 @@ Backed by a new `platform.lead_form_answers` child table — one row per questio
 
 | File | Status | Role |
 |---|---|---|
-| `apps/web/app/dashboard/leads/page.tsx` | ✅ Done | Submissions list (no search yet — M20-S12/S13) |
+| `apps/web/app/dashboard/leads/page.tsx` | ✅ Done | Submissions list + basic/advanced search + date range (M20-S12/S13) |
 | `apps/web/app/dashboard/leads/[id]/page.tsx` | ✅ Done | Submission detail |
 | `apps/web/app/dashboard/leads/layout.tsx` | ✅ Done | New — uses `DashboardSectionShell`, same shape as `settings/layout.tsx`/`hotsite/layout.tsx` |
 | `apps/web/shells/dashboard/model/dashboard-shell-context.ts` | ✅ Done (extend) | `loadDashboardShellContext()` gains a parallel `GET /v1/tenants/lead-form/status` fetch; `DashboardShellContext` gains `leadFormEnabled: boolean` |

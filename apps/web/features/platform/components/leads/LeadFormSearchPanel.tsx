@@ -11,13 +11,15 @@ import {
   toEditableFilterRows,
   type LeadFormEditableFilterRow,
   type LeadFormSearchFilterEntry,
+  type LeadFormSearchMode,
 } from '@/features/platform/model/lead-form-search';
 import { LeadFormAdvancedFilters } from './LeadFormAdvancedFilters';
 import { LeadFormDateRangeControl, type LeadFormDateRangeValue } from './LeadFormDateRangeControl';
 
-export type LeadFormSearchMode = 'basic' | 'advanced';
+export type { LeadFormSearchMode };
 
 interface LeadFormSearchPanelProps {
+  readonly initialMode: LeadFormSearchMode;
   readonly initialSearch?: string;
   readonly initialFilters?: readonly LeadFormSearchFilterEntry[];
   readonly initialFrom?: string;
@@ -31,6 +33,7 @@ interface LeadFormSearchPanelProps {
 // state (search/filters/date range/page) lives in the URL — this component only ever pushes a
 // new `/dashboard/leads` query string; the server-rendered list re-fetches from it.
 export function LeadFormSearchPanel({
+  initialMode,
   initialSearch,
   initialFilters,
   initialFrom,
@@ -39,9 +42,7 @@ export function LeadFormSearchPanel({
 }: LeadFormSearchPanelProps): React.JSX.Element {
   const t = useTranslations('dashboard.leadsPage');
   const router = useRouter();
-  const [mode, setMode] = useState<LeadFormSearchMode>(
-    initialFilters && initialFilters.length > 0 ? 'advanced' : 'basic',
-  );
+  const [mode, setMode] = useState<LeadFormSearchMode>(initialMode);
   const [searchTerm, setSearchTerm] = useState(initialSearch ?? '');
   const [filterRows, setFilterRows] = useState<LeadFormEditableFilterRow[]>(() =>
     toEditableFilterRows(initialFilters),
@@ -49,6 +50,7 @@ export function LeadFormSearchPanel({
   const [range, setRange] = useState<LeadFormDateRangeValue>({ from: initialFrom, to: initialTo });
 
   function navigate(next: {
+    mode: LeadFormSearchMode;
     search?: string;
     filters?: readonly LeadFormSearchFilterEntry[];
   }): void {
@@ -62,7 +64,10 @@ export function LeadFormSearchPanel({
   }
 
   function handleApplyBasic(): void {
-    navigate({ search: isSearchTermValid(searchTerm) ? searchTerm.trim() : undefined });
+    navigate({
+      mode: 'basic',
+      search: isSearchTermValid(searchTerm) ? searchTerm.trim() : undefined,
+    });
   }
 
   function handleClearBasic(): void {
@@ -85,6 +90,7 @@ export function LeadFormSearchPanel({
 
   function handleApplyAdvanced(): void {
     navigate({
+      mode: 'advanced',
       filters:
         activeFilterRows.length > 0
           ? // .trim() matches handleApplyBasic's own searchTerm.trim() — sending an untrimmed
@@ -99,10 +105,16 @@ export function LeadFormSearchPanel({
     });
   }
 
+  // Stays in advanced mode (`mode=advanced` written explicitly, since clearing `filterRows`
+  // means the URL carries no `filters` for resolveSearchMode() to infer advanced from) — clearing
+  // the active filters is not the same action as leaving advanced mode altogether, which is what
+  // the mode toggle button below is for (Codex PR #436 round 4 finding, 2026-08-27: this used to
+  // hard-navigate to the bare `/dashboard/leads` basic-mode URL, silently switching modes as a
+  // side effect of clearing).
   function handleClearAdvanced(): void {
     setFilterRows(toEditableFilterRows(undefined));
     setRange({});
-    router.push('/dashboard/leads');
+    router.push(`/dashboard/leads${buildLeadsSearchQuery({ mode: 'advanced' })}`);
   }
 
   // Switching modes always drops the other mode's active query (never sends both `search` and
@@ -115,12 +127,25 @@ export function LeadFormSearchPanel({
   // PR #436 round 1 finding, 2026-08-27: re-entering basic mode after applying a search and
   // switching away left the search box still showing the old term, even though nothing was
   // actually applied anymore).
+  //
+  // The pushed URL always carries the NEW mode explicitly (via buildLeadsSearchQuery's own
+  // `mode` param) rather than relying on `filters` presence to imply it — switching to advanced
+  // with no filter rows active yet (the common case: the panel just opened) used to drop straight
+  // back to a bare, filters-less URL that resolveSearchMode() would read as basic once
+  // LeadFormSubmissionsList's key-based remount re-initialized this component from the server
+  // (Codex PR #436 round 4 finding, 2026-08-27 — the CI failure this predicted actually
+  // reproduced live in leads-search.spec.ts).
   function toggleMode(): void {
-    setMode(mode === 'basic' ? 'advanced' : 'basic');
+    const nextMode: LeadFormSearchMode = mode === 'basic' ? 'advanced' : 'basic';
+    setMode(nextMode);
     setSearchTerm('');
     setFilterRows(toEditableFilterRows(undefined));
     router.push(
-      `/dashboard/leads${buildLeadsSearchQuery({ submittedFrom: range.from, submittedTo: range.to })}`,
+      `/dashboard/leads${buildLeadsSearchQuery({
+        mode: nextMode,
+        submittedFrom: range.from,
+        submittedTo: range.to,
+      })}`,
     );
   }
 

@@ -7,11 +7,31 @@ export interface LeadFormSearchFilterEntry {
   readonly value: string;
 }
 
+export type LeadFormSearchMode = 'basic' | 'advanced';
+
 export interface LeadFormSearchQuery {
   readonly search?: string;
   readonly filters?: readonly LeadFormSearchFilterEntry[];
   readonly submittedFrom?: string;
   readonly submittedTo?: string;
+  readonly mode?: LeadFormSearchMode;
+}
+
+// A non-empty `filters` array always means advanced mode, regardless of `modeParam` — matches
+// the direct-link case (a hand-typed/bookmarked `?filters=...` URL with no `mode` param at all).
+// `modeParam` is only consulted when `filters` can't already answer the question — the case
+// `filters` alone can't cover: advanced mode with only a date range applied, or "Limpar filtros"
+// leaving zero active rows. Without an explicit `mode` param for that case, the panel remounts
+// (LeadFormSubmissionsList's `key`, keyed by the resolved query string) back into basic mode the
+// instant the URL no longer carries `filters` — losing the manager's chosen mode on their own
+// Aplicar/Limpar click, not just on an unrelated back-navigation (Codex PR #436 round 4 finding,
+// 2026-08-27; confirmed live by the CI failure it predicted in leads-search.spec.ts).
+export function resolveSearchMode(params: {
+  readonly filters?: readonly LeadFormSearchFilterEntry[];
+  readonly modeParam?: string;
+}): LeadFormSearchMode {
+  if (params.filters && params.filters.length > 0) return 'advanced';
+  return params.modeParam === 'advanced' ? 'advanced' : 'basic';
 }
 
 export const MAX_FILTER_ROWS = 5;
@@ -84,7 +104,13 @@ interface BuildLeadsSearchQueryParams extends LeadFormSearchQuery {
 }
 
 // Builds the `/dashboard/leads` query string for a given filter state. `page` is omitted
-// whenever it's the default (1) so plain unfiltered/first-page links stay clean.
+// whenever it's the default (1) so plain unfiltered/first-page links stay clean. `mode` is
+// likewise only ever written for 'advanced' — 'basic' is the default resolveSearchMode() falls
+// back to, so a plain/basic link stays just as clean as before `mode` existed. Redundant when
+// `filters` is already non-empty (that alone already resolves to 'advanced'), but writing it
+// unconditionally for 'advanced' is simpler than conditioning on `filters` here too, and it's
+// the ONLY signal for the filters-empty advanced states (Limpar filtros, a date-range-only
+// advanced search) resolveSearchMode()'s own doc comment explains.
 export function buildLeadsSearchQuery(params: BuildLeadsSearchQueryParams): string {
   const query = new URLSearchParams();
   if (params.search) query.set('search', params.search);
@@ -93,6 +119,7 @@ export function buildLeadsSearchQuery(params: BuildLeadsSearchQueryParams): stri
   }
   if (params.submittedFrom) query.set('submittedFrom', params.submittedFrom);
   if (params.submittedTo) query.set('submittedTo', params.submittedTo);
+  if (params.mode === 'advanced') query.set('mode', 'advanced');
   if (params.page !== undefined && params.page > 1) query.set('page', String(params.page));
   const queryString = query.toString();
   return queryString ? `?${queryString}` : '';

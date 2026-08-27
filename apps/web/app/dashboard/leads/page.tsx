@@ -3,7 +3,10 @@ import {
   getLeadFormFilterOptions,
   listLeadFormSubmissions,
 } from '@/features/platform/api/lead-form-submissions.server';
-import { parseLeadFormFilters } from '@/features/platform/model/lead-form-search';
+import {
+  parseLeadFormFilters,
+  resolveSearchMode,
+} from '@/features/platform/model/lead-form-search';
 import { LeadFormSubmissionsList } from '@/features/platform/components/leads/LeadFormSubmissionsList';
 
 const PAGE_SIZE = 20;
@@ -15,6 +18,7 @@ interface LeadsRouteProps {
     filters?: string;
     submittedFrom?: string;
     submittedTo?: string;
+    mode?: string;
   }>;
 }
 
@@ -34,14 +38,15 @@ export default async function LeadsPage({
     filters: filtersParam,
     submittedFrom,
     submittedTo,
+    mode: modeParam,
   } = await searchParams;
   const page = parsePage(pageParam);
   const filters = parseLeadFormFilters(filtersParam);
+  const mode = resolveSearchMode({ filters, modeParam });
   // search/filters are mutually exclusive per S12's backend contract — the real UI never sends
-  // both, but a hand-edited URL could. filters wins (matches LeadFormSearchPanel's own mode-init
-  // rule: a non-empty filters param already implies advanced mode) so this never forwards a
-  // request the BFF is guaranteed to reject with 400 (CodeRabbit PR #436 round 1 finding,
-  // 2026-08-27).
+  // both, but a hand-edited URL could. filters wins (matches resolveSearchMode()'s own rule: a
+  // non-empty filters param already implies advanced mode) so this never forwards a request the
+  // BFF is guaranteed to reject with 400 (CodeRabbit PR #436 round 1 finding, 2026-08-27).
   const resolvedSearch = filters ? undefined : search;
   const token = await getAccessToken();
 
@@ -54,10 +59,15 @@ export default async function LeadsPage({
       submittedFrom,
       submittedTo,
     }),
-    // A transient filter-options failure must not take down the whole list — the advanced-filter
-    // dropdown just renders with no options instead (CodeRabbit PR #436 round 1 finding,
-    // 2026-08-27).
-    getLeadFormFilterOptions(token).catch(() => ({ questionLabels: [] })),
+    // Only advanced mode's own dropdown ever renders these — fetching them for every basic-mode
+    // render (initial load, every page of pagination) was pure waste, repeating a tenant-scoped
+    // `SELECT DISTINCT question_label` scan of `lead_form_answers` no caller was going to use
+    // (Codex PR #436 round 4 finding, 2026-08-27). A transient failure still must not take down
+    // the whole list — the advanced-filter dropdown just renders with no options instead
+    // (CodeRabbit PR #436 round 1 finding, 2026-08-27).
+    mode === 'advanced'
+      ? getLeadFormFilterOptions(token).catch(() => ({ questionLabels: [] }))
+      : Promise.resolve({ questionLabels: [] }),
   ]);
 
   return (
@@ -66,7 +76,7 @@ export default async function LeadsPage({
       page={page}
       pageSize={PAGE_SIZE}
       total={total}
-      searchQuery={{ search: resolvedSearch, filters, submittedFrom, submittedTo }}
+      searchQuery={{ search: resolvedSearch, filters, submittedFrom, submittedTo, mode }}
       filterOptionLabels={filterOptions.questionLabels}
     />
   );

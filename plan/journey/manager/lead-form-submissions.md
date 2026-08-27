@@ -18,7 +18,7 @@ flowchart TD
     Empty --> ToConfig(("'Configurar o Lead Form'"))
     ToConfig --> ConfigJourney["manager/lead-form-config.md"]
 
-    Submissions --> TypeSearch(("Digita na busca básica (>= 3 caracteres)<br/>e clica 'Aplicar' (não é ao vivo)"))
+    Submissions --> TypeSearch(("Digita na busca básica (qualquer termo não-vazio)<br/>e clica 'Aplicar' (não é ao vivo)"))
     TypeSearch --> SearchQuery{"GET .../submissions?search= |UC-041 step 3|"}
     SearchQuery -- "sem resultados" --> NoResults["nenhum resultado para a busca<br/>(01c-search-no-results) |UC-041 A3|"]
     SearchQuery -- "com resultados" --> Submissions

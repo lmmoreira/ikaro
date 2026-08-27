@@ -241,7 +241,7 @@ test.describe.serial('leads search — M20-S13', () => {
     await expect(page).toHaveURL(/search=Fernanda/);
 
     await page.getByTestId('leads-mode-toggle').click();
-    await expect(page).toHaveURL(/\/dashboard\/leads$/);
+    await expect(page).toHaveURL(/\/dashboard\/leads\?mode=advanced$/);
     await expect(page.getByTestId('leads-advanced-filters')).toBeVisible();
 
     await page.getByTestId('leads-mode-toggle').click();

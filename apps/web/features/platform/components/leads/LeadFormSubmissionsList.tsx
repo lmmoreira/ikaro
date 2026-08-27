@@ -97,7 +97,7 @@ export function LeadFormSubmissionsList({
     );
   }
 
-  const isAdvancedMode = Boolean(searchQuery.filters && searchQuery.filters.length > 0);
+  const isAdvancedMode = searchQuery.mode === 'advanced';
 
   // Carries the exact current list state (mode included) through to the detail page's own
   // "back" link (LeadFormSubmissionDetail), instead of it always returning to the bare,
@@ -118,6 +118,7 @@ export function LeadFormSubmissionsList({
           already fixed by hand in round 2, missing this sibling case). */}
       <LeadFormSearchPanel
         key={buildLeadsSearchQuery(searchQuery)}
+        initialMode={searchQuery.mode ?? 'basic'}
         initialSearch={searchQuery.search}
         initialFilters={searchQuery.filters}
         initialFrom={searchQuery.submittedFrom}

@@ -17,15 +17,16 @@ describe('LeadFormSearchPanel', () => {
   });
 
   it('starts in basic mode with an empty search box by default', () => {
-    renderWithIntl(<LeadFormSearchPanel filterOptionLabels={[]} />);
+    renderWithIntl(<LeadFormSearchPanel initialMode="basic" filterOptionLabels={[]} />);
 
     expect(screen.getByTestId('leads-search-input')).toHaveValue('');
     expect(screen.queryByTestId('leads-advanced-filters')).not.toBeInTheDocument();
   });
 
-  it('starts in advanced mode when initialFilters is non-empty', () => {
+  it('starts in advanced mode when initialMode is "advanced"', () => {
     renderWithIntl(
       <LeadFormSearchPanel
+        initialMode="advanced"
         initialFilters={[{ questionLabel: 'Estado civil', value: 'casado' }]}
         filterOptionLabels={['Estado civil']}
       />,
@@ -35,8 +36,20 @@ describe('LeadFormSearchPanel', () => {
     expect(screen.queryByTestId('leads-search-input')).not.toBeInTheDocument();
   });
 
+  // The exact regression this fixes: advanced mode with no active filter rows at all — e.g. right
+  // after "Limpar filtros", or an advanced search applied with only a date range — used to be
+  // indistinguishable from basic mode once `initialFilters` was the only mode signal (Codex PR
+  // #436 round 4 finding, 2026-08-27; reproduced live as a Playwright CI failure).
+  it('starts in advanced mode when initialMode is "advanced" even with no active filters', () => {
+    renderWithIntl(<LeadFormSearchPanel initialMode="advanced" filterOptionLabels={[]} />);
+
+    expect(screen.getByTestId('leads-advanced-filters')).toBeInTheDocument();
+  });
+
   it('pre-fills the search box from initialSearch', () => {
-    renderWithIntl(<LeadFormSearchPanel initialSearch="carlos" filterOptionLabels={[]} />);
+    renderWithIntl(
+      <LeadFormSearchPanel initialMode="basic" initialSearch="carlos" filterOptionLabels={[]} />,
+    );
 
     expect(screen.getByTestId('leads-search-input')).toHaveValue('carlos');
   });
@@ -45,7 +58,7 @@ describe('LeadFormSearchPanel', () => {
   // state to guard against beyond an empty box.
   it('enables "Aplicar" for a 1-2 character search term', async () => {
     const user = userEvent.setup();
-    renderWithIntl(<LeadFormSearchPanel filterOptionLabels={[]} />);
+    renderWithIntl(<LeadFormSearchPanel initialMode="basic" filterOptionLabels={[]} />);
 
     await user.type(screen.getByTestId('leads-search-input'), 'ab');
 
@@ -54,7 +67,7 @@ describe('LeadFormSearchPanel', () => {
 
   it('navigates with a 1-2 character search term on "Aplicar"', async () => {
     const user = userEvent.setup();
-    renderWithIntl(<LeadFormSearchPanel filterOptionLabels={[]} />);
+    renderWithIntl(<LeadFormSearchPanel initialMode="basic" filterOptionLabels={[]} />);
 
     await user.type(screen.getByTestId('leads-search-input'), 'ab');
     await user.click(screen.getByTestId('leads-search-apply'));
@@ -63,14 +76,14 @@ describe('LeadFormSearchPanel', () => {
   });
 
   it('enables "Aplicar" for an empty search box (equivalent to no search active)', () => {
-    renderWithIntl(<LeadFormSearchPanel filterOptionLabels={[]} />);
+    renderWithIntl(<LeadFormSearchPanel initialMode="basic" filterOptionLabels={[]} />);
 
     expect(screen.getByTestId('leads-search-apply')).toBeEnabled();
   });
 
   it('navigates with the trimmed search term on "Aplicar"', async () => {
     const user = userEvent.setup();
-    renderWithIntl(<LeadFormSearchPanel filterOptionLabels={[]} />);
+    renderWithIntl(<LeadFormSearchPanel initialMode="basic" filterOptionLabels={[]} />);
 
     await user.type(screen.getByTestId('leads-search-input'), '  carlos  ');
     await user.click(screen.getByTestId('leads-search-apply'));
@@ -80,7 +93,9 @@ describe('LeadFormSearchPanel', () => {
 
   it('"Limpar" resets the search box and date range and navigates to the unfiltered list', async () => {
     const user = userEvent.setup();
-    renderWithIntl(<LeadFormSearchPanel initialSearch="carlos" filterOptionLabels={[]} />);
+    renderWithIntl(
+      <LeadFormSearchPanel initialMode="basic" initialSearch="carlos" filterOptionLabels={[]} />,
+    );
 
     await user.click(screen.getByTestId('leads-search-clear'));
 
@@ -90,20 +105,24 @@ describe('LeadFormSearchPanel', () => {
 
   it('"Limpar" stays in basic mode', async () => {
     const user = userEvent.setup();
-    renderWithIntl(<LeadFormSearchPanel initialSearch="carlos" filterOptionLabels={[]} />);
+    renderWithIntl(
+      <LeadFormSearchPanel initialMode="basic" initialSearch="carlos" filterOptionLabels={[]} />,
+    );
 
     await user.click(screen.getByTestId('leads-search-clear'));
 
     expect(screen.getByTestId('leads-search-input')).toBeInTheDocument();
   });
 
-  it('switches to advanced mode and drops an active search term from the URL', async () => {
+  it('switches to advanced mode, writes mode=advanced, and drops an active search term from the URL', async () => {
     const user = userEvent.setup();
-    renderWithIntl(<LeadFormSearchPanel initialSearch="carlos" filterOptionLabels={[]} />);
+    renderWithIntl(
+      <LeadFormSearchPanel initialMode="basic" initialSearch="carlos" filterOptionLabels={[]} />,
+    );
 
     await user.click(screen.getByTestId('leads-mode-toggle'));
 
-    expect(routerPush).toHaveBeenCalledWith('/dashboard/leads');
+    expect(routerPush).toHaveBeenCalledWith('/dashboard/leads?mode=advanced');
     expect(screen.getByTestId('leads-advanced-filters')).toBeInTheDocument();
   });
 
@@ -112,7 +131,9 @@ describe('LeadFormSearchPanel', () => {
   // the local state too, not just the URL (Codex PR #436 round 1 finding, 2026-08-27).
   it("clears the search box's own state after switching away and back to basic mode", async () => {
     const user = userEvent.setup();
-    renderWithIntl(<LeadFormSearchPanel initialSearch="carlos" filterOptionLabels={[]} />);
+    renderWithIntl(
+      <LeadFormSearchPanel initialMode="basic" initialSearch="carlos" filterOptionLabels={[]} />,
+    );
 
     await user.click(screen.getByTestId('leads-mode-toggle'));
     await user.click(screen.getByTestId('leads-mode-toggle'));
@@ -124,6 +145,7 @@ describe('LeadFormSearchPanel', () => {
     const user = userEvent.setup();
     renderWithIntl(
       <LeadFormSearchPanel
+        initialMode="advanced"
         initialFilters={[{ questionLabel: 'Estado civil', value: 'casado' }]}
         filterOptionLabels={['Estado civil']}
       />,
@@ -135,10 +157,11 @@ describe('LeadFormSearchPanel', () => {
     expect(screen.getByTestId('leads-filter-row-value')).toHaveValue('');
   });
 
-  it('switches back to basic mode and drops active filters from the URL', async () => {
+  it('switches back to basic mode (mode param omitted, the basic default) and drops active filters from the URL', async () => {
     const user = userEvent.setup();
     renderWithIntl(
       <LeadFormSearchPanel
+        initialMode="advanced"
         initialFilters={[{ questionLabel: 'Estado civil', value: 'casado' }]}
         filterOptionLabels={['Estado civil']}
       />,
@@ -154,6 +177,7 @@ describe('LeadFormSearchPanel', () => {
     const user = userEvent.setup();
     renderWithIntl(
       <LeadFormSearchPanel
+        initialMode="basic"
         initialSearch="carlos"
         initialFrom="2026-08-01"
         initialTo="2026-08-15"
@@ -164,14 +188,18 @@ describe('LeadFormSearchPanel', () => {
     await user.click(screen.getByTestId('leads-mode-toggle'));
 
     expect(routerPush).toHaveBeenCalledWith(
-      '/dashboard/leads?submittedFrom=2026-08-01&submittedTo=2026-08-15',
+      '/dashboard/leads?submittedFrom=2026-08-01&submittedTo=2026-08-15&mode=advanced',
     );
   });
 
   it('sends the correctly-shaped filters array on "Aplicar filtros"', async () => {
     const user = userEvent.setup();
     renderWithIntl(
-      <LeadFormSearchPanel filterOptionLabels={['Estado civil']} initialFilters={undefined} />,
+      <LeadFormSearchPanel
+        initialMode="basic"
+        filterOptionLabels={['Estado civil']}
+        initialFilters={undefined}
+      />,
     );
 
     await user.click(screen.getByTestId('leads-mode-toggle'));
@@ -183,7 +211,10 @@ describe('LeadFormSearchPanel', () => {
     await user.click(screen.getByTestId('leads-filters-apply'));
 
     const filters = [{ questionLabel: 'Estado civil', value: 'casado' }];
-    const expectedQuery = new URLSearchParams({ filters: JSON.stringify(filters) }).toString();
+    const expectedQuery = new URLSearchParams({
+      filters: JSON.stringify(filters),
+      mode: 'advanced',
+    }).toString();
     expect(routerPush).toHaveBeenCalledWith(`/dashboard/leads?${expectedQuery}`);
   });
 
@@ -192,6 +223,7 @@ describe('LeadFormSearchPanel', () => {
   it('enables "Aplicar filtros" while a row holds a 1-2 character value', () => {
     renderWithIntl(
       <LeadFormSearchPanel
+        initialMode="advanced"
         initialFilters={[{ questionLabel: 'Estado civil', value: 'ca' }]}
         filterOptionLabels={['Estado civil']}
       />,
@@ -206,6 +238,7 @@ describe('LeadFormSearchPanel', () => {
   it('disables "Aplicar filtros" when a row has a value but no selected question', () => {
     renderWithIntl(
       <LeadFormSearchPanel
+        initialMode="advanced"
         initialFilters={[{ questionLabel: '', value: 'casado' }]}
         filterOptionLabels={['Estado civil']}
       />,
@@ -217,6 +250,7 @@ describe('LeadFormSearchPanel', () => {
   it('disables "Aplicar filtros" when a row has a selected question but no value', () => {
     renderWithIntl(
       <LeadFormSearchPanel
+        initialMode="advanced"
         initialFilters={[{ questionLabel: 'Estado civil', value: '' }]}
         filterOptionLabels={['Estado civil']}
       />,
@@ -228,6 +262,7 @@ describe('LeadFormSearchPanel', () => {
   it('enables "Aplicar filtros" when every row is either fully filled or fully empty', () => {
     renderWithIntl(
       <LeadFormSearchPanel
+        initialMode="advanced"
         initialFilters={[{ questionLabel: 'Estado civil', value: 'casado' }]}
         filterOptionLabels={['Estado civil']}
       />,
@@ -236,10 +271,11 @@ describe('LeadFormSearchPanel', () => {
     expect(screen.getByTestId('leads-filters-apply')).toBeEnabled();
   });
 
-  it('"Limpar filtros" resets the rows and date range, stays in advanced mode', async () => {
+  it('"Limpar filtros" resets the rows and date range, and its own URL push stays in advanced mode', async () => {
     const user = userEvent.setup();
     renderWithIntl(
       <LeadFormSearchPanel
+        initialMode="advanced"
         initialFilters={[{ questionLabel: 'Estado civil', value: 'casado' }]}
         filterOptionLabels={['Estado civil']}
       />,
@@ -247,7 +283,7 @@ describe('LeadFormSearchPanel', () => {
 
     await user.click(screen.getByTestId('leads-filters-clear'));
 
-    expect(routerPush).toHaveBeenCalledWith('/dashboard/leads');
+    expect(routerPush).toHaveBeenCalledWith('/dashboard/leads?mode=advanced');
     expect(screen.getByTestId('leads-advanced-filters')).toBeInTheDocument();
     expect(screen.getByTestId('leads-filter-row-value')).toHaveValue('');
   });

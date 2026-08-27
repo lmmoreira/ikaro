@@ -286,7 +286,10 @@ describe('LeadFormSubmissionsList', () => {
           page={1}
           pageSize={20}
           total={0}
-          searchQuery={{ filters: [{ questionLabel: 'Estado civil', value: 'casado' }] }}
+          searchQuery={{
+            filters: [{ questionLabel: 'Estado civil', value: 'casado' }],
+            mode: 'advanced',
+          }}
           filterOptionLabels={['Estado civil']}
         />,
       );
