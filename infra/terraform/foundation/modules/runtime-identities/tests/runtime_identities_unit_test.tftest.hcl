@@ -35,7 +35,7 @@ run "runtime_identities_are_least_privilege_and_complete" {
   assert {
     condition = length(google_project_iam_member.runtime) == 6 && length(google_storage_bucket_iam_member.backend_object_admin) == 2 && sort(keys(google_secret_manager_secret_iam_member.accessor)) == sort([
       "backend-db-password", "backend-jwt-secret", "backend-internal-api-key", "backend-platform-admin-key", "backend-hotsite-revalidate-secret", "backend-brevo-smtp-key", "backend-openrouter-api-key", "backend-anthropic-api-key", "backend-openai-api-key", "backend-openrouter-management-api-key", "backend-turnstile-secret-key",
-      "bff-jwt-secret", "bff-internal-api-key", "bff-google-oauth-client-id", "bff-google-oauth-client-secret", "bff-web-internal-key", "bff-turnstile-secret-key",
+      "bff-jwt-secret", "bff-internal-api-key", "bff-google-oauth-client-id", "bff-google-oauth-client-secret", "bff-web-internal-key",
       "web-jwt-secret", "web-hotsite-revalidate-secret", "web-web-internal-key",
       "migrate-db-migrator-password",
     ])
