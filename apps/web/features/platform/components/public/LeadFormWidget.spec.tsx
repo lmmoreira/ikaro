@@ -217,6 +217,25 @@ describe('LeadFormWidget — guest happy path (GUEST_AND_CUSTOMER)', () => {
     expect(screen.getByTestId('lead-form-name')).toHaveValue('Carlos Mendes');
   });
 
+  // CodeRabbit round 1 (PR #440): onTurnstileVerify only set turnstileToken, never clearing
+  // phase — so a successful re-verification after the timeout's remount left the captcha-error
+  // banner visible with a now-valid token until the next submit click reset phase as a side
+  // effect. This proves the banner clears immediately on re-verification instead.
+  it('clears the captcha-error banner as soon as the remounted widget re-verifies successfully', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />);
+
+    await fillContactFields(user);
+    await user.type(screen.getByTestId('lead-form-question'), 'Lavagem completa');
+    await user.click(screen.getByTestId('turnstile-mock-load-timeout'));
+
+    expect(screen.getByTestId('lead-form-captcha-banner')).toBeInTheDocument();
+
+    await user.click(screen.getByTestId('turnstile-mock-verify'));
+
+    expect(screen.queryByTestId('lead-form-captcha-banner')).not.toBeInTheDocument();
+  });
+
   it('shows a captcha-error banner (form still visible) when submitting without a turnstile token', async () => {
     const user = userEvent.setup();
     renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />);
