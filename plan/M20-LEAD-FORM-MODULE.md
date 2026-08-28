@@ -32,6 +32,7 @@
 | M20-S11 | Tenant settings form — Lead Form section, all 3 fields (UC-042) |
 | M20-S12 | Leads search — schema + backend + BFF (UC-041, added post-promotion 2026-08-23) |
 | M20-S13 | Leads search — frontend UI (UC-041, added post-promotion 2026-08-23) |
+| M20-S14 | Move Cloudflare Turnstile verification from BFF to backend — fixes a live staging egress bug, no new infrastructure (added post-promotion 2026-08-27) |
 
 ```mermaid
 graph TD
@@ -53,6 +54,7 @@ graph TD
   S04 --> S12
   S10 --> S13
   S12 --> S13
+  S05 --> S14
 ```
 
 **Wave 0:** none — purely additive schema (new tables only; `tenants.settings` gains a new JSONB category via the existing generic mechanism, no column/migration on `tenants` itself).
@@ -60,6 +62,8 @@ graph TD
 **Wave 2** (S07–S11, S13): frontend, each depending only on the specific Wave-1 story(ies) it actually reads/writes through.
 
 **S12/S13 provenance:** added 2026-08-23, after the initial promotion/draft above, once a real replacement for the deferred CSV export (Non-Goals) was worked through — a manager needs *some* way to find a specific lead without export, and a search box is a small, self-contained addition (no new infrastructure, unlike the export module itself) rather than a reason to reconsider that deferral.
+
+**S14 provenance:** added 2026-08-27, after a live staging bug report (every lead-form submission failing Turnstile verification) was traced to S05's BFF-side implementation hitting a network-egress dead end, not an application bug. A network-infrastructure fix (Cloud NAT + an egress firewall rule) was drafted first as a standalone TD (`TD40`, since deleted), then superseded once investigation found the actual fix needs no new infrastructure at all — see S14 below for the full reasoning trail, kept here rather than in the deleted TD so it stays attached to the story that resolves it.
 
 **Post-review redesign, 2026-08-24 (PM/UX/Engineer three-lens review of S01–S13 above):** four product/architecture decisions were revisited and are reflected throughout the stories below, not just noted here — (1) CSV export dropped entirely, not deferred (Non-Goals, above); (2) the "Leads" sidebar item is now gated on the module's `enabled` state (S01 gains a `GET .../lead-form/status` endpoint, S10 consumes it, new S01→S10 edge above); (3) the manager's config save collapses from two independent REST calls (teaser via `PATCH /v1/tenants/hotsite`, audience+questions via S01's own endpoint) into one atomic transaction across both aggregates, still exposed as a single `PATCH /v1/tenants/lead-form/config` call (S01, S08); (4) `maxSubmissionsPerDay`/`maxSubmissionsPerIpPerDay` stop being an Ikaro-only platform-wide constant (that pattern was copied from Chatbot's caps by surface resemblance, without the reasoning underneath — Chatbot's caps protect Ikaro's own LLM cost exposure, a real shared financial cost; Lead Form submissions cost Ikaro nothing per-row, so there's no equivalent justification for keeping them out of tenant control) and become normal per-tenant settings, editable via UC-042/S03/S11 like `retentionMonths` already was. The same review also found and fixed a real schema bug (S12's `lead_form_answers` FK needs `lead_form_submissions` to have a `UNIQUE (tenant_id, id)` it never had — added to S02) and a real cascading-delete bug (S04's retention purge will start throwing FK violations once S12's child table exists unless S04 is extended to delete child rows first — noted in S04, scoped into S12).
 
@@ -582,6 +586,47 @@ Distinct empty state when search/filters/date-range yield zero matches (UC-041 A
 - [ ] Coverage ≥80% on changed code; `tsc --noEmit`, lint, full test suite green
 
 **Dependencies:** S10 (extends its list page), S12 (needs `search`/`filters`/`filter-options`/date-range params).
+
+---
+
+### M20-S14 — Move Cloudflare Turnstile verification from BFF to backend (fixes a live staging egress bug, no new infrastructure)
+
+**Agent:** `backend-ts` (also needs real `bff-ts` and `devops` work — removing the BFF's own Turnstile pre-check and moving the secret's Terraform wiring — same multi-surface shape S05 itself had)
+**Complexity:** M
+**Docs to load:** `docs/ENGINEERING_RULES.md` (Cloud Run egress / Cloud NAT precedents — this story adds a new one, read the existing entries first for style/placement), `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `infra/terraform/README.md` (secret-move sequencing), `apps/backend/src/contexts/platform/infrastructure/llm/openrouter-llm.adapter.ts` + `application/ports/llm-provider.port.ts` (the exact precedent this story's port/adapter mirrors), this file's own S05 section above (the implementation being relocated, not redesigned)
+
+**Discovered:** 2026-08-27, live staging bug report — a real lead-form submission returned `400 BFF_TURNSTILE_VERIFICATION_FAILED` on every attempt. Traced live (not from a hypothesis): `gcloud secrets versions access` confirmed staging's `turnstile-secret-key` correctly matches Cloudflare's documented test secret (ruled out a secret/sitekey mismatch); `gcloud compute routers list --project=ikaro-staging` returned zero routers, confirming no Cloud NAT exists; `gcloud run services describe ikaro-bff` confirmed `vpc-access-egress: all-traffic`. Root cause: `TurnstileService.verify()` (`apps/bff/src/features/platform/turnstile.service.ts`) calls `https://challenges.cloudflare.com/turnstile/v0/siteverify` — the BFF's first-ever raw outbound call to a non-Google third party. With `ALL_TRAFFIC` egress and no NAT, that call has no route to the internet; it exhausts its 8s timeout and is silently swallowed by the method's deliberate fail-closed `catch` block, indistinguishable at the application layer from a genuinely rejected token. The identical gap exists in `envs/prod/main.tf` (also `ALL_TRAFFIC`) but hasn't manifested yet — prod's edge is still `count = 0` (TD30's go-live gate).
+
+**Why not fix the network (investigated first, rejected — kept here for the record so it isn't re-derived and re-tried later):**
+- **Cloud NAT alone:** removes the only thing currently preventing the BFF from reaching the entire public internet. `modules/network/main.tf:4-6`'s own header comment states the BFF was deliberately designed with zero third-party egress capability ("the BFF only calls Google APIs via PGA + the backend"); a plain NAT converts "no route out" into "route to anywhere," a real blast-radius increase if the BFF (which fronts public, unauthenticated traffic) is ever compromised by an unrelated vuln.
+- **Cloud NAT + an egress firewall rule scoped to Cloudflare's published IP-CIDR ranges:** weaker than it first appears. A VPC firewall rule matches IP+port only, never hostname/SNI — Cloudflare's edge IP space fronts a huge number of unrelated third-party domains (anyone can put a domain behind Cloudflare for free in minutes), so "allow Cloudflare's ranges" is much closer to "allow most of the internet" than "allow `challenges.cloudflare.com` specifically." It's also operationally fragile: this exact bug class (a third party silently rotating something the fix depends on) is precisely what motivated looking for a better answer instead of shipping this.
+- **Cloud NGFW FQDN-based firewall objects, or GCP Secure Web Proxy:** the technically correct fix if the BFF genuinely needed its own third-party egress — real hostname/SNI-level restriction, immune to the third party's IP churn. Rejected anyway because both require Cloud NGFW Enterprise tier and/or a dedicated forward-proxy architecture (proxy subnet, routing Cloud Run's direct-VPC-egress traffic through it) — real new cost and infrastructure for a need that turns out not to exist once the pattern below is used instead.
+- **The actual fix needs zero new infrastructure.** `openrouter-llm.adapter.ts` already makes a raw third-party outbound call (`https://openrouter.ai/api/v1/chat/completions`) directly from the backend, which runs `vpc_egress = "PRIVATE_RANGES_ONLY"` (`envs/staging/main.tf:149`, `envs/prod/main.tf:170`). Under that egress mode, only RFC1918-private-destined traffic routes through the VPC — a call to any public host takes Cloud Run's own default internet path, entirely bypassing the VPC (and therefore its firewall/NAT, or lack thereof). This already works today, unconditionally, in both environments. Moving Turnstile verification into the backend, mirroring this exact existing pattern, eliminates the whole problem class with no new GCP resources.
+
+**Chosen approach:**
+1. **Backend:** new `ITurnstileVerifierPort` (`apps/backend/src/contexts/platform/application/ports/turnstile-verifier.port.ts`) + `CloudflareTurnstileAdapter` (`apps/backend/src/contexts/platform/infrastructure/turnstile/cloudflare-turnstile.adapter.ts`), same shape as `ILlmProvider`/`openrouter-llm.adapter.ts` — a single `verify(token: string, remoteIp: string): Promise<boolean>`, preserving `TurnstileService`'s exact fail-closed-on-any-error contract (network failure, timeout, or missing/misconfigured secret all return `false`, never throw) — this is a relocation, not a redesign.
+2. `CreateLeadFormSubmissionUseCase` calls the new port before persisting. Exact placement relative to the existing CUSTOMER_ONLY gate and answer-enrichment steps, and the exact new error type/code (a new backend error mapped to `400` in `platform-error.mapper.ts`, vs. reusing something existing) — decided during `/story-discovery`, not guessed here.
+3. **BFF:** delete `turnstile.service.ts`/`turnstile.service.spec.ts`; remove the pre-check step from `platform.public.controller.ts`'s submission handler. `turnstileToken` becomes a plain pass-through field in the request body to the backend, like every other submitted field.
+4. **Terraform (both `envs/staging` and `envs/prod`):** move `TURNSTILE_SECRET_KEY`'s `secret_env_vars` entry from `cloudrun_bff` to `cloudrun_backend`; move the accessor grant in `foundation/modules/runtime-identities/main.tf` from the BFF service account to the backend's.
+5. Move the `TURNSTILE_SECRET_KEY: z.string().optional()` schema entry in `env.validation.ts` from the BFF's config validation to the backend's.
+6. **Tests:** relocate `turnstile.service.spec.ts`'s 3 existing cases (success, rejected/expired token, missing-secret-fails-closed) into a new `cloudflare-turnstile.adapter.spec.ts`; update `platform.public.controller.component.spec.ts` to stop asserting the removed BFF-side check; extend `CreateLeadFormSubmissionUseCase`'s tests to cover all 3 cases at the new call site.
+7. **Documentation (explicitly part of this story's scope, not an afterthought):** add a new precedent entry to `.copilot/context.md` § Critical code invariants and a fuller write-up to `docs/ENGINEERING_RULES.md`, capturing the general lesson so nobody re-derives it under time pressure the next time a restrictively-egressing service seems to need a new outbound call:
+   - A Cloud Run service's `vpc_egress` mode determines whether its outbound calls to public destinations even reach the VPC's firewall/NAT layer at all. `PRIVATE_RANGES_ONLY` routes public-IP-destined traffic over Cloud Run's own default internet path, bypassing the VPC (and anything configured there) entirely; `ALL_TRAFFIC` forces every outbound call through the VPC, where it needs a real Cloud NAT to reach the internet at all.
+   - Before adding new network infrastructure (Cloud NAT, an egress firewall rule, a forward proxy) to let a restrictively-egressing service make a new third-party call, check whether a service with a more permissive egress mode already in this codebase can host the call instead — relocating the call is very often simpler and safer than widening the restrictive service's blast radius.
+   - An IP-CIDR-based egress firewall allow-list is a weak restriction against a shared-edge third party (Cloudflare, and similar CDN/edge providers) — its published IP ranges front a huge number of unrelated domains, so it's much closer to "allow most of the internet" than "allow this one hostname." A genuine hostname-level restriction needs Cloud NGFW FQDN-based firewall objects (Enterprise tier) or a forward proxy, not a plain IP-based rule.
+   - Cite this story (M20-S14) and the incident above as the precedent, mirroring the style of this file's other "M0X-SYY precedent" entries.
+   - Confirm during discovery whether `modules/network/main.tf:4-6`'s header comment needs any wording update — this fix restores/preserves its stated invariant ("the BFF only calls Google APIs via PGA + the backend") rather than changing it, so it likely needs no edit, but check rather than assume.
+
+**Acceptance Criteria:**
+- [ ] Backend owns Turnstile verification via `ITurnstileVerifierPort`/`CloudflareTurnstileAdapter`, called from `CreateLeadFormSubmissionUseCase`, with the exact same fail-closed-on-any-error contract `TurnstileService` has today
+- [ ] BFF's `TurnstileService` and its pre-check step are deleted; `turnstileToken` passes through unchanged in the submission request body
+- [ ] `TURNSTILE_SECRET_KEY` secret wiring (Terraform `secret_env_vars`, IAM accessor grant, `env.validation.ts` schema entry) moved from BFF to backend in both `staging` and `prod`; a real `terraform plan` on both roots shows only the expected move, zero unrelated drift (live-verification gate, `CLAUDE.md` §7)
+- [ ] Live regression check on staging: a real lead-form submission with a valid Turnstile token succeeds end-to-end after this story ships — the actual test for the original bug, not just a clean `terraform plan`
+- [ ] All 3 of `turnstile.service.spec.ts`'s existing cases (success, rejected/expired token, missing secret) relocated and passing against the new backend adapter/use-case
+- [ ] New precedent entry added to `.copilot/context.md` § Critical code invariants and a fuller write-up added to `docs/ENGINEERING_RULES.md`, per the Documentation step above — written so a future story considering "add a NAT/firewall rule to let the BFF reach a new third party" finds this first and checks the backend-relocation option before building new infrastructure
+- [ ] Coverage ≥80% on changed code; `tsc --noEmit`, lint, full test suite green on both `apps/backend` and `apps/bff`
+
+**Dependencies:** S05 (supersedes its BFF-side Turnstile implementation; does not change S05's API contract — `POST .../lead-form/:slug/submissions`'s request/response shape is unchanged, only where verification happens moves).
 
 ---
 
