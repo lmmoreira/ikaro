@@ -60,6 +60,7 @@ function LeadFormContent({
       )}
       <Link
         href={`/${slug}/lead-form`}
+        data-testid="lead-form-cta"
         style={btnStyle}
         className="inline-block border-2 px-8 py-3 font-semibold transition-all hover:bg-[var(--ba-btn-hover-bg)] hover:opacity-90"
       >

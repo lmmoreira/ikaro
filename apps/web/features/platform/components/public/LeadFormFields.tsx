@@ -45,6 +45,7 @@ interface LeadFormFieldsProps {
   readonly onTurnstileVerify: (token: string) => void;
   readonly onTurnstileExpire: () => void;
   readonly onTurnstileError: () => void;
+  readonly onTurnstileLoadTimeout: () => void;
   readonly onSubmit: () => void;
 }
 
@@ -74,6 +75,7 @@ export function LeadFormFields({
   onTurnstileVerify,
   onTurnstileExpire,
   onTurnstileError,
+  onTurnstileLoadTimeout,
   onSubmit,
 }: LeadFormFieldsProps): React.JSX.Element {
   const t = useTranslations('hotsite');
@@ -205,6 +207,7 @@ export function LeadFormFields({
                 onVerify={onTurnstileVerify}
                 onExpire={onTurnstileExpire}
                 onError={onTurnstileError}
+                onLoadTimeout={onTurnstileLoadTimeout}
               />
               <p className="text-sm font-semibold">{turnstileStatusLabel}</p>
             </div>

@@ -51,13 +51,16 @@ function needsMapsFrameSrc(pathname: string): boolean {
 // Cloudflare Turnstile (M20-S09) loads its script from and renders its challenge inside an
 // iframe from challenges.cloudflare.com — without both script-src and frame-src allowing that
 // origin, the widget silently never renders (no console error visible to a casual check; caught
-// only by a real-browser Playwright run, PR #433 review round 2). Scoped to /[slug]/lead-form
-// specifically, not every hotsite route — narrower than needsMapsFrameSrc's Contact-module
-// allowance, since Turnstile has exactly one consumer today. Widen this the same way
-// needsMapsFrameSrc was widened for the dashboard hotsite editor if/when TD08 AUD-040
-// (guest-booking CAPTCHA) reuses the same widget.
+// only by a real-browser Playwright run, PR #433 review round 2). Originally scoped to
+// /[slug]/lead-form only, which was itself a bug (M20-S15): CSP is a document-response header
+// the browser only re-reads on a fresh top-level navigation, never on a Next.js client-side
+// (next/link) transition — a guest who soft-navigates from the hotsite home page into
+// /lead-form keeps enforcing the home page's (Turnstile-less) CSP, so the widget silently never
+// renders. Scoped to the whole hotsite route tree instead, mirroring needsMapsFrameSrc's own
+// tree-wide scoping just above, so whichever hotsite page a guest's browser actually loaded
+// fresh already carries a CSP that permits Turnstile.
 function needsTurnstileSrc(pathname: string): boolean {
-  return isHotsiteRoute(pathname) && pathname.split('/')[2] === 'lead-form';
+  return isHotsiteRoute(pathname);
 }
 
 // scheme+host+port only — CSP source expressions don't need (or want) the path.

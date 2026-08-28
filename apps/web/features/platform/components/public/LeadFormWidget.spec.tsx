@@ -27,9 +27,11 @@ vi.mock('./TurnstileWidget', () => ({
   TurnstileWidget: ({
     onVerify,
     onExpire,
+    onLoadTimeout,
   }: {
     readonly onVerify: (token: string) => void;
     readonly onExpire: () => void;
+    readonly onLoadTimeout: () => void;
   }) => (
     <>
       <button type="button" data-testid="turnstile-mock-verify" onClick={() => onVerify('tok-1')}>
@@ -37,6 +39,9 @@ vi.mock('./TurnstileWidget', () => ({
       </button>
       <button type="button" data-testid="turnstile-mock-expire" onClick={onExpire}>
         mock-expire
+      </button>
+      <button type="button" data-testid="turnstile-mock-load-timeout" onClick={onLoadTimeout}>
+        mock-load-timeout
       </button>
     </>
   ),
@@ -195,6 +200,21 @@ describe('LeadFormWidget — guest happy path (GUEST_AND_CUSTOMER)', () => {
 
     expect(screen.getByTestId('lead-form-captcha-banner')).toBeInTheDocument();
     expect(submitLeadFormClient).not.toHaveBeenCalled();
+  });
+
+  // M20-S15: a script that never loads (CSP block, ad-blocker, edge issue, network flake)
+  // previously left the widget hung silently forever with no user-facing signal. onLoadTimeout
+  // reuses the same reset sequence as a server-rejected token, surfacing the existing retry UI.
+  it('shows the captcha-error retry banner when the Turnstile script never loads within the timeout', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />);
+
+    await fillContactFields(user);
+    await user.type(screen.getByTestId('lead-form-question'), 'Lavagem completa');
+    await user.click(screen.getByTestId('turnstile-mock-load-timeout'));
+
+    expect(screen.getByTestId('lead-form-captcha-banner')).toBeInTheDocument();
+    expect(screen.getByTestId('lead-form-name')).toHaveValue('Carlos Mendes');
   });
 
   it('shows a captcha-error banner (form still visible) when submitting without a turnstile token', async () => {

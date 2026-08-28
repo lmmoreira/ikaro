@@ -256,6 +256,13 @@ export function LeadFormWidget({
       onTurnstileVerify={setTurnstileToken}
       onTurnstileExpire={() => setTurnstileToken(null)}
       onTurnstileError={() => setTurnstileToken(null)}
+      onTurnstileLoadTimeout={() => {
+        // Same reset sequence handleSubmit's catch-branch already uses for a server-rejected
+        // token — reuses the existing retry UI/copy instead of a new state (M20-S15).
+        setTurnstileToken(null);
+        setTurnstileKey((k) => k + 1);
+        setPhase('captcha-error');
+      }}
       onSubmit={() => void handleSubmit()}
     />
   );
