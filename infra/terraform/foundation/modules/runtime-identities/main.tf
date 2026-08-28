@@ -23,12 +23,19 @@ locals {
     # openrouter-management-api-key (M19-S08 follow-up): the container landed in PR #370 (envs/*
     # only, per TD39 — this grant couldn't be in that same PR); granting it here unblocks the
     # Cloud Run revision update PR #370's own apply left failing on Permission denied.
-    backend = ["db-password", "jwt-secret", "internal-api-key", "platform-admin-key", "hotsite-revalidate-secret", "brevo-smtp-key", "openrouter-api-key", "anthropic-api-key", "openai-api-key", "openrouter-management-api-key"]
+    # turnstile-secret-key (M20-S14 PR1 of 3): Turnstile's siteverify call moved from the BFF to
+    # the backend (M20-S14 — the BFF's ALL_TRAFFIC egress has no Cloud NAT, so its outbound call
+    # to Cloudflare had no route out; the backend's PRIVATE_RANGES_ONLY egress already bypasses
+    # the VPC for public destinations, same as its existing OpenRouter calls). This grant lands
+    # first, deliberately ahead of M20-S14 PR2's app-code+envs/* change, so the backend's Cloud
+    # Run revision can resolve secret_key_ref the moment PR2 wires it in — never remove the
+    # matching grant from `bff` below until PR2 is confirmed live (PR3's job).
+    backend = ["db-password", "jwt-secret", "internal-api-key", "platform-admin-key", "hotsite-revalidate-secret", "brevo-smtp-key", "openrouter-api-key", "anthropic-api-key", "openai-api-key", "openrouter-management-api-key", "turnstile-secret-key"]
     # TD38: web-internal-key is the shared secret checked by WebOnlyGuard (bff reads it to
     # verify) and sent by web on every BFF call (web reads it to send) — both sides need it.
-    # turnstile-secret-key (M20-S05 PR2/3): container landed in PR #424 (envs/* only, same
-    # safe-row shape as openrouter-management-api-key above) — BFF-only, TurnstileService's
-    # server-side siteverify call.
+    # turnstile-secret-key: kept here temporarily during M20-S14's migration to the backend
+    # (see the `backend` list's comment above) — remove once M20-S14 PR2 is confirmed live
+    # (M20-S14 PR3's own job, not this PR).
     bff     = ["jwt-secret", "internal-api-key", "google-oauth-client-id", "google-oauth-client-secret", "web-internal-key", "turnstile-secret-key"]
     web     = ["jwt-secret", "hotsite-revalidate-secret", "web-internal-key"]
     migrate = ["db-migrator-password"]
