@@ -104,13 +104,19 @@ Private appointment/reservation recurrence is distinct from `recurring_enrollmen
 | service_id | UUID | NOT NULL — FK (tenant_id, service_id) → `services` |
 | recurrence | JSONB | NOT NULL — e.g. `{ "frequency": "WEEKLY", "daysOfWeek": ["TUE"], "startTime": "10:00", "durationMinutes": 120 }` |
 | starts_on / ends_on | DATE | NOT NULL / NULLABLE — open-ended when `ends_on` is null |
-| status | VARCHAR(20) | NOT NULL DEFAULT 'ACTIVE' — CHECK IN (`ACTIVE`, `PAUSED`, `CANCELLED`) |
+| status | VARCHAR(20) | NOT NULL — CHECK IN (`PENDING_APPROVAL`, `ACTIVE`, `PAUSED`, `CANCELLED`); no fixed default — set by application logic to `ACTIVE` (service `AUTO_CONFIRM`) or `PENDING_APPROVAL` (service `MANUAL_APPROVAL`) at creation. **Added `PENDING_APPROVAL` 2026-08-28, see §6 item 42.** |
 | assignment_policy | VARCHAR(30) | NOT NULL — CHECK IN (`FIXED_ASSIGNMENT`, `RESOLVE_PER_OCCURRENCE`) |
+| approval_hold_expires_at | TIMESTAMPTZ | NULLABLE — required iff `status = 'PENDING_APPROVAL'`; same hold-expiry mechanic as `resource_occupancy.hold_expires_at`. Added 2026-08-28, §6 item 42. |
+| approved_by_staff_id / approved_at | UUID / TIMESTAMPTZ | NULLABLE — no FK, cross-context; set when `CAND-45b` resolves a `PENDING_APPROVAL` request. Added 2026-08-28. |
+| cancellation_reason | VARCHAR(30) | NULLABLE — CHECK IN (`CUSTOMER_CANCELLED`, `APPROVAL_REJECTED`, `APPROVAL_EXPIRED`) when `status = 'CANCELLED'`; null otherwise. Added 2026-08-28. |
 | created_by_staff_id | UUID | NULLABLE — no FK, cross-context; same `<action>_by` audit pattern used elsewhere in this doc, set when staff creates it for the customer |
 | created_at / updated_at | TIMESTAMPTZ | DEFAULT now() |
 | **UNIQUE** | (tenant_id, id) | Composite FK target for the two child tables below |
+| **CHECK** | `(status = 'PENDING_APPROVAL') = (approval_hold_expires_at IS NOT NULL)` | Prevents a permanent pending request or an expiring non-pending one. Added 2026-08-28. |
 | **INDEX** | (tenant_id, customer_id, status) | |
 | **INDEX** | (tenant_id, service_id, status) | |
+| **INDEX** | (tenant_id, status, approval_hold_expires_at) | Feeds the schedule-approval expiry worker, same shape as `class_session_bookings`' offer-expiry index. Added 2026-08-28. |
+| **INVARIANT** | at most `MAX_ACTIVE_SCHEDULES_PER_RESOURCE = 50` active `FIXED_ASSIGNMENT` schedules reference any one resource (via `recurring_booking_schedule_resource_assignments`); at most `MAX_ACTIVE_RESOLVE_PER_OCCURRENCE_SCHEDULES_PER_SERVICE = 50` active `RESOLVE_PER_OCCURRENCE` schedules exist per service (no fixed resource to count against in advance) | App-enforced, not a DB constraint — cross-table count. `CAND-45` A4. Added 2026-08-28, see §6 item 43. |
 
 `recurring_booking_schedule_resource_assignments` — the durable child assignment record:
 
@@ -365,6 +371,7 @@ For `ServiceLeg[]` (domain doc §5). **Corrected from an earlier draft of this d
 | **UNIQUE** | (tenant_id, id) | |
 | **CHECK** | valid_until IS NULL OR valid_from IS NULL OR valid_until >= valid_from | |
 | **INDEX** | (tenant_id, service_id, is_active) | |
+| **INVARIANT** | at most `MAX_ACTIVE_TEMPLATES_PER_RESOURCE = 50` active templates reference any one resource (via `class_schedule_template_slots`) | App-enforced, not a DB constraint — cross-table count. `CAND-11` A4. Added 2026-08-28, see §6 item 43. |
 
 **Example data:**
 
@@ -720,7 +727,7 @@ The three `class_catalog_*` columns are meaningless (left `null`) on APPOINTMENT
 2. **Backfill:** create one active `LOCATION` resource per tenant; add the default LOCATION requirement to each existing APPOINTMENT service; materialize resource-occupancy assignment rows for every existing **`APPROVED` BookingLine whose booking has a future `scheduled_end_at`**, using that location and the existing window. **Scope corrected 2026-08-22** — the original wording ("every existing BookingLine") didn't say approved-only or future-only; `resource_occupancy` exists purely to protect *future* availability (§9's own retention policy trickle-deletes anything past its window), so backfilling a `PENDING`/`REJECTED`/`CANCELLED`/`COMPLETED` or already-past BookingLine would create rows with no business purpose that the very next GC sweep would just delete — churn with no benefit, and `PENDING`/`REJECTED`/`CANCELLED` rows have no correct `lock_state` to backfill anyway (only `HOLD`/`COMMITTED` exist). Backfilled rows are `lock_state='COMMITTED'`.
 3. **Dual-read/write deployment:** new booking writes populate occupancy snapshots; approval/generation/override paths use the shared occupancy exclusion constraint and advisory resource locks. Availability reads occupancy, tenant/resource schedules, and future template **and recurring-schedule** patterns (§6 item 32).
 4. **Validate:** verify every existing approved booking has a locked LOCATION occupancy row and that no resource assignment is missing or cross-tenant before changing the old invariant.
-5. **Contract:** drop `EX_booking_bookings_approved_slot` only after the new invariant is live and backfilled. Leaving it in place would wrongly block simultaneous bookings in separate resources. **Rollout ordering added 2026-08-22, closing a gap found on review: the old, whole-tenant `EX_booking_bookings_approved_slot` is still enforced through the end of step 4** — it blocks *any* two `APPROVED` bookings that overlap in time, tenant-wide, regardless of resource. A tenant that's already been given more than one concurrently-bookable resource (i.e. any `Service.resourceRequirements` configuration beyond the single-`LOCATION`/`NONE` degenerate default) during this window would see the new, resource-scoped availability check correctly show two different resources as simultaneously free, then have the second approval rejected by the still-live old constraint — a raw DB-constraint error surfacing to a legitimate customer/staff action, not a graceful "someone else booked it first." **Simplified 2026-08-23 (`multivertical-booking.md` §9 item 30):** do not expose multi-resource `Service` configuration (`CAND-06`/`07`/`08` producing anything beyond the LOCATION-only default) in the UI/API until this step completes for every tenant, then flip it on for everyone at once. No per-tenant staged/canary gate — this platform is pre-production and has no per-tenant feature-flag mechanism (flags are env-var/deployment-wide only, `CLAUDE.md` §1), so a staged rollout would be new, unscoped infrastructure work this discovery doesn't need to justify.
+5. **Contract:** drop `EX_booking_bookings_approved_slot` only after the new invariant is live and backfilled. Leaving it in place would wrongly block simultaneous bookings in separate resources. **Rollout ordering added 2026-08-22, closing a gap found on review: the old, whole-tenant `EX_booking_bookings_approved_slot` is still enforced through the end of step 4** — it blocks *any* two `APPROVED` bookings that overlap in time, tenant-wide, regardless of resource. A tenant that's already been given more than one concurrently-bookable resource (i.e. any `Service.resourceRequirements` configuration beyond the single-`LOCATION`/`NONE` degenerate default) during this window would see the new, resource-scoped availability check correctly show two different resources as simultaneously free, then have the second approval rejected by the still-live old constraint — a raw DB-constraint error surfacing to a legitimate customer/staff action, not a graceful "someone else booked it first." **Simplified 2026-08-23 (`multivertical-booking.md` §9 item 30):** do not expose multi-resource `Service` configuration (`CAND-06`/`07`/`08` producing anything beyond the LOCATION-only default) in the UI/API until this step completes for every tenant, then flip it on for everyone at once. No per-tenant staged/canary gate — this platform is pre-production and has no per-tenant feature-flag mechanism (flags are env-var/deployment-wide only, `CLAUDE.md` §1), so a staged rollout would be new, unscoped infrastructure work this discovery doesn't need to justify. **Re-verification requirement, added 2026-08-28:** "pre-production" is a snapshot of 2026-08-28 (confirmed then: prod has no database and no public edge yet, both still gated behind `M17-S37`/TD30 go-live), not a standing guarantee — immediately before executing this step, re-confirm zero production tenants exist (`M17-S37` still not done). If go-live has landed by the time this migration runs, this single-cutover plan is invalid and must be redesigned as a staged/per-tenant rollout before proceeding.
 6. Expand `schedule_closures` / `schedule_openings` with composite `resource_id` FKs and replace the opening unique constraint with the two partial unique indexes.
 7. Expand `loyalty.loyalty_entries` with the session-booking reference only after the session-booking completion event path is live. No cross-context DB FK is introduced. **Widen both `booking_id` and `booking_line_id` to NULLABLE together** — corrected 2026-08-21, the original version of this step only mentioned `booking_line_id`, but `docs/13-DATABASE_SCHEMA.md`'s real schema has `booking_id UUID NOT NULL` too; widening only one leaves the other still blocking every class-session-completion insert. Add `CHK_loyalty_entries_source_exclusive` in the same migration (§2 above).
 8. **`tenants.settings.booking.autoApproveEnabled` (§5's "Approval workflow" note) needs no migration at all** — it already exists in the live JSONB settings blob (`docs/21-TENANTS_SETTINGS_SCHEMA.md`, currently unread by any use case); this discovery only adds the application logic that reads it. Listed here explicitly so it isn't mistaken for a missing migration step.
@@ -820,7 +827,11 @@ The notes below record issues found in earlier drafts. They are retained for des
 38. **Superseded 2026-08-24 — Staff resource validation.** Historical concern: `resources` rows with `type = STAFF` deliberately have no cross-context DB FK. The BFF may populate the picker, but Booking performs the final same-tenant/existing/active/schedulable Staff validation through a narrow lookup adapter inside the use-case transaction boundary; Staff remains unaware of Booking and publishes `StaffDeactivated` for future-resource deactivation.
 39. **Superseded 2026-08-24 — recurrence hot-path sizing.** Historical concern: the risk remains a performance acceptance criterion, not an unresolved design choice. Tenant/service recurrence limits are explicit, the candidate query must use tenant-first indexes, and load tests must measure the indexed candidate set before any limit is increased or recurrence compilation/cache is introduced.
 40. **Resolved (2026-08-23):** `future_commitment_exceptions` uses `UNIQUE (tenant_id, source_type, source_id, affected_type, affected_id) WHERE status = 'OPEN'`; repeated triggers update the existing open row rather than duplicating manager work.
-41. **Superseding decision (2026-08-24):** historical items 38 and 39 are no longer open. Booking uses a narrow Staff lookup adapter for final same-tenant/existing/active/schedulable validation, while Staff remains unaware of Booking and publishes `StaffDeactivated` through the event bus. Recurrence limits are explicit platform/service safeguards, and availability must measure the indexed candidate set before limits are increased or a compiled/cache representation is introduced. This item is authoritative; the earlier concerns are retained only as historical provenance.
+41. **Superseding decision (2026-08-24):** historical items 38 and 39 are no longer open. Booking uses a narrow Staff lookup adapter for final same-tenant/existing/active/schedulable validation, while Staff remains unaware of Booking and publishes `StaffDeactivated` through the event bus. Recurrence limits are explicit platform/service safeguards, and availability must measure the indexed candidate set before limits are increased or a compiled/cache representation is introduced. This item is authoritative; the earlier concerns are retained only as historical provenance. **Caveat added 2026-08-28 — see item 43 below:** "explicit" was itself never backed by an actual number anywhere in this document until item 43; treat this item as the policy direction only, item 43 as the concrete values.
+
+42. **Resolved 2026-08-28 — `CAND-45`'s recurring-schedule approval bypass (`multivertical-booking.md` §9 items 29/32) closed via schedule-level approval.** `recurring_booking_schedules.status` gains `PENDING_APPROVAL`; a `MANUAL_APPROVAL`-service schedule request holds in that status (with `approval_hold_expires_at`, mirroring `resource_occupancy.hold_expires_at`) and generates no occurrences until `CAND-45b` resolves it. `AUTO_CONFIRM` services are unchanged. This closes the create-then-cancel loophole at its root — repeating it just re-triggers the same one-time review gate — without reintroducing per-occurrence review, which would have defeated the entire point of a standing commitment. See §2's `recurring_booking_schedules` table above for the exact column/constraint changes and `multivertical-booking_USECASES.md`'s `CAND-45`/`CAND-45b` for the flow.
+
+43. **Resolved 2026-08-28 — concrete recurrence-hot-path caps, closing the gap item 41 left open.** `MAX_ACTIVE_TEMPLATES_PER_RESOURCE = 50` (`class_schedule_templates`, via `class_schedule_template_slots`) and, for the private-recurrence side added 2026-08-22 (item 32 above), `MAX_ACTIVE_SCHEDULES_PER_RESOURCE = 50` for `FIXED_ASSIGNMENT` schedules (via `recurring_booking_schedule_resource_assignments`) and `MAX_ACTIVE_RESOLVE_PER_OCCURRENCE_SCHEDULES_PER_SERVICE = 50` for `RESOLVE_PER_OCCURRENCE` schedules (no fixed resource to count against in advance). All three are generous, conservative placeholders — chosen to be far above any realistic tenant's actual usage while still bounding the worst case — app-enforced at creation (`CAND-11` new alt flow, `CAND-45` new alt flow), and explicitly revisable after load testing per item 41's own already-stated principle, not fixed forever. See §2's `class_schedule_templates`/`recurring_booking_schedules` INVARIANT rows above.
 
 ---
 
@@ -833,6 +844,7 @@ The notes below record issues found in earlier drafts. They are retained for des
 - Capacity, guest verification/approval, attendee-level attendance, cancellation ranges, and future-template concurrency are all resolved above. Candidate domain events are formalized in §8 below. There are no remaining **schema-level** open questions that block promotion into milestone planning. **Caveat added 2026-08-22:** this claim was never false about the *schema* — it was, however, read as covering more than it does. A PM/engineering review pass the same day found real **use-case-level** gaps this sentence doesn't speak to at all: a use-case contradiction (`CAND-32` vs. `CAND-47`/`56`, §6 item 28), a stale event-coverage audit (§6 item 29), a duplicate use case (§6 item 30), and missing manager-facing config use cases (§6 item 31) — all now fixed, but the fact that they existed means "ready to promote" needs a use-case-level pass too, not just a schema-level one, before the next milestone actually starts.
 - **Added 2026-08-21:** per-session non-member capacity (`trial_slots`/`reserved_non_member_count`, replacing the earlier global `guest_approval_mode`), a real contract-less pay-per-class path (`CAND-22b`), fixed-slot make-up (`rescheduled_from_id`, `CAND-38`), and a dedicated `classSkipWindowHours` for `CAND-27`.
 - **Added 2026-08-22:** `recurring_booking_schedules` wired into the same cross-family-exclusivity mechanism `ClassScheduleTemplate` already has (§6 item 32); recurring-schedule occurrences auto-confirm regardless of the service's approval policy (§6 item 33); a corrected variable-duration pricing model with a distinct pricing increment (§6 item 34); two migration-ordering fixes — backfill scope and old-constraint rollout sequencing (§6 item 35); and `requires_pickup_address` confirmed as the single source of truth behind the new intake-schema mechanism (§6 item 36).
+- **Added 2026-08-28, grill-review pass:** the `CAND-45` approval-bypass tradeoff (item 33) is narrowed — schedule *creation* now requires one-time approval under `MANUAL_APPROVAL`, closing the create-then-cancel loophole item 29/32 found, while generated occurrences still auto-confirm exactly as item 33 already established (§6 item 42); concrete recurrence-hot-path caps replace the previously unstated "explicit limits" claim (§6 item 43); the LGPD/PII retention deferral (§11 of the domain doc) is corrected to stop asserting an existing policy that does not exist; and the milestone-sequencing map gains an explicit batch-safety note for Cluster 1/Cluster 2 (`multivertical-booking.md` §9 item 31).
 
 ---
 
@@ -975,8 +987,8 @@ The notes below record issues found in earlier drafts. They are retained for des
   ```
 
 #### **RecurringBookingScheduleCreated**
-- **Trigger:** `CAND-45` (customer or staff confirms a recurring pattern)
-- **State change:** `RecurringBookingSchedule` row created, `status = ACTIVE`
+- **Trigger:** `CAND-45` (customer or staff confirms a recurring pattern on an `AUTO_CONFIRM` service), or `CAND-45b` step approving a `PENDING_APPROVAL` request on a `MANUAL_APPROVAL` service. **Updated 2026-08-28 (§6 item 42):** no longer fires at raw row creation for a `MANUAL_APPROVAL` service — see `RecurringBookingScheduleApprovalRequested` below for that case.
+- **State change:** `RecurringBookingSchedule` row reaches `status = ACTIVE`; generation begins
 - **Data:**
   ```
   {
@@ -987,6 +999,36 @@ The notes below record issues found in earlier drafts. They are retained for des
     assignmentPolicy:    "FIXED_ASSIGNMENT" | "RESOLVE_PER_OCCURRENCE"
     recurrence:          object   // same shape as recurring_booking_schedules.recurrence
     startsOn:            Date
+  }
+  ```
+
+#### **RecurringBookingScheduleApprovalRequested**
+- **Trigger:** `CAND-45` (customer confirms a recurring pattern on a `MANUAL_APPROVAL` service) — added 2026-08-28, §6 item 42
+- **State change:** `RecurringBookingSchedule` row created, `status = PENDING_APPROVAL`, `approval_hold_expires_at` set. No occurrences generated. Consumed by Notification Context to alert staff, same role `BookingRequested` plays for a manual-approval appointment.
+- **Data:**
+  ```
+  {
+    recurringScheduleId: string
+    customerId:          string
+    serviceId:           string
+    resourceIds:         string[]
+    assignmentPolicy:    "FIXED_ASSIGNMENT" | "RESOLVE_PER_OCCURRENCE"
+    recurrence:          object
+    startsOn:            Date
+    approvalHoldExpiresAt: ISO8601
+  }
+  ```
+
+#### **RecurringBookingScheduleRejected**
+- **Trigger:** `CAND-45b` (staff rejects) or its hold-expiry worker (unresolved past `approval_hold_expires_at`) — added 2026-08-28, §6 item 42
+- **State change:** `RecurringBookingSchedule.status → CANCELLED`, `cancellation_reason = APPROVAL_REJECTED | APPROVAL_EXPIRED`
+- **Data:**
+  ```
+  {
+    recurringScheduleId: string
+    customerId:          string
+    serviceId:           string
+    reason:              "APPROVAL_REJECTED" | "APPROVAL_EXPIRED"
   }
   ```
 

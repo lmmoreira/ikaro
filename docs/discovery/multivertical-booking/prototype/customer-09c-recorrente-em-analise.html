@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Reserva recorrente — em análise — Vitta Studio</title><link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css"><style>.notice{background:#fffbeb;border:1px solid #fde68a;border-radius:var(--ba-radius);padding:1rem;margin-top:1rem}</style></head><body>
+<!--
+  DISCOVERY PROTOTYPE -- illustrative only, NOT a plan/journey/ prototype.
+  Added 2026-08-28, closing a prototype gap found on grill-review: customer-09-reserva-recorrente.html
+  only ever showed an already-ACTIVE, already-"Confirmada" recurring schedule -- it never depicted a
+  MANUAL_APPROVAL service's request step, because that branch didn't exist yet when it was built.
+  CAND-45 (System Manages a Recurring Private Reservation Schedule), MANUAL_APPROVAL branch:
+  the schedule itself is created PENDING_APPROVAL and generates no occurrences until CAND-45b
+  resolves it -- this is that PENDING_APPROVAL state, the recurring-schedule analog of
+  public-13-pending-approval.html (which shows the same wait for a single CAND-42 booking).
+  Sala de reunião (svc_sala_reuniao) is MANUAL_APPROVAL with a 30-minute hold, per
+  ../multivertical-booking_DATA_MODEL.md §10's own worked example -- reused here for continuity.
+  See ../multivertical-booking.md §9 item 32, ../multivertical-booking_DATA_MODEL.md §6 item 42,
+  ../multivertical-booking_USECASES.md CAND-45 and CAND-45b.
+-->
+<div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:.375rem 1rem;font-size:.8125rem;text-align:center;color:#92400e;">
+  Protótipo — CAND-45, branch MANUAL_APPROVAL — pedido de recorrência aguardando aprovação
+</div>
+<header style="background:white;border-bottom:1px solid var(--ba-secondary);padding:.75rem 1.5rem"><strong>Vitta Studio</strong></header>
+<main class="step-container">
+  <p class="step-indicator">Sala Aurora · nova reserva recorrente</p>
+  <h1 style="font-size:1.5rem">Estamos analisando seu pedido de recorrência</h1>
+  <p style="opacity:.7">Toda terça, 10:00–12:00. A Sala de reunião exige aprovação manual, então sua recorrência também passa por uma revisão — mas só uma vez para toda a série, não uma vez por semana.</p>
+
+  <div class="card" style="border-color:#fbbf24;background:#fffbeb">
+    <p class="step-indicator">Sala Aurora · toda terça · 10:00–12:00</p>
+    <h2 style="font-size:1.2rem">Ainda não geramos nenhuma reserva</h2>
+    <p style="margin-top:.75rem;line-height:1.55">Sua solicitação está reservada para análise. A Sala Aurora fica protegida nesse horário até <strong>09:30</strong>. Enviaremos a decisão por e-mail.</p>
+  </div>
+
+  <div class="card" style="margin-top:1rem">
+    <strong>O que acontece agora</strong>
+    <ol style="padding-left:1.25rem;font-size:.875rem;line-height:1.7">
+      <li>O negócio revisa seu pedido — uma decisão única para toda a recorrência, não uma por ocorrência.</li>
+      <li>Se aprovado, a recorrência fica ativa e as próximas reservas semanais são geradas automaticamente, sem nova aprovação a cada semana.</li>
+      <li>Se não houver resposta até 09:30, o pedido expira e nenhuma reserva é criada — você pode solicitar novamente quando quiser.</li>
+    </ol>
+  </div>
+
+  <div class="notice">
+    <strong>Uma reserva pontual é diferente</strong>
+    <p style="font-size:.875rem;margin-top:.375rem">Se você reservar a Sala Aurora uma única vez (sem recorrência), essa solicitação passa pela mesma aprovação manual — mas isoladamente, como sempre. É só a recorrência que reduz isso a uma decisão única.</p>
+  </div>
+
+  <div class="nav-buttons">
+    <a class="btn-primary" href="customer-03-minha-conta-agendamentos.html">Ver meus agendamentos</a>
+  </div>
+</main>
+</body></html>

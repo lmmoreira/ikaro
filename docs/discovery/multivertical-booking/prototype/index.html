@@ -68,8 +68,16 @@
       <span class="tag tag-actor">Canonical hotsite entry — service first</span>
     </li>
     <li>
+      <a href="public-14-appointment-availability.html">Passo de disponibilidade compartilhado (APPOINTMENT)</a>
+      <span class="tag tag-actor">CAND-16, 17, 17b, 18, 19 — added to catalog 2026-08-28 (docs-audit gap) — the shared AvailabilityCarousel+SlotPicker step every appointment flow below (2a–2e) extends; only the query/context changes</span>
+    </li>
+    <li>
       <a href="public-01-staff-picker.html">2a. Escolha o profissional</a>
       <span class="tag tag-actor">After a customer-chosen appointment service; profile deep link is also allowed</span>
+    </li>
+    <li>
+      <a href="public-02-class-session-picker.html">2b (pré). Escolha a turma de Pilates</a>
+      <span class="tag tag-actor">CAND-21, 22, 23, 24 — model #5/#12 — added to catalog 2026-08-28 (docs-audit gap) — one-service session list, narrower than 2b's broadened agenda below</span>
     </li>
     <li>
       <a href="public-02b-class-agenda.html">2b. Agenda de turmas</a>
@@ -90,6 +98,10 @@
     <li>
       <a href="public-06-class-access.html">3. Acesso à turma — contrato ou convidado</a>
       <span class="tag tag-actor">CAND-22, 22b, 23, 24, 33 — "logado sem contrato" state already matches CAND-22b's shape</span>
+    </li>
+    <li>
+      <a href="public-06b-business-profile.html">3b. Perfil do negócio (vitrine)</a>
+      <span class="tag tag-actor">Added to catalog 2026-08-28 (docs-audit gap) — logged-in-customer business profile, not the catalog; CTA leads to public-02b-class-agenda.html</span>
     </li>
     <li><a href="public-07-auto-staff.html">Horário com profissional automático</a> <span class="tag tag-actor">CAND-17b — copy corrigida 2026-08-21 (dizia "confirmada" antes do clique em Confirmar)</span></li>
     <li><a href="public-08-staff-calendar.html">Perfil público do profissional</a> <span class="tag tag-actor">CAND-20 — service selection before availability</span></li>
@@ -116,9 +128,14 @@
     <li><a href="customer-02-recorrencia-ativada.html">2. Recorrência ativada</a> <span class="tag tag-actor">CAND-26</span></li>
     <li><a href="customer-03-minha-conta-agendamentos.html">3. Surfaces in Meus Agendamentos</a> <span class="tag tag-actor">real shell reused</span></li>
     <li><a href="customer-04-gerenciar-recorrencia.html">4. Gerenciar — antes</a> <span class="tag tag-actor">CAND-27, before</span></li>
+    <li><a href="customer-04a-turma-fixa-serie-com-fim.html">4a. Gerenciar — turma fixa, série com fim</a> <span class="tag tag-actor">CAND-27 variant — added to catalog 2026-08-28 (docs-audit gap) — e.g. plano de 10 semanas de Pilates</span></li>
+    <li><a href="customer-04b-turma-fixa-sem-prazo.html">4b. Gerenciar — turma fixa, sem prazo final</a> <span class="tag tag-actor">CAND-27 variant — added to catalog 2026-08-28 (docs-audit gap) — e.g. mensalidade de Pilates</span></li>
+    <li><a href="customer-04c-dropin-sem-prazo.html">4c. Gerenciar — drop-in, sem prazo final</a> <span class="tag tag-actor">CAND-22/22b — added to catalog 2026-08-28 (docs-audit gap) — no RecurringEnrollment backing entity by design, see multivertical-booking_DATA_MODEL.md §6 item 24</span></li>
+    <li><a href="customer-04d-reagendada.html">4d. Reagendar aula (reposição)</a> <span class="tag tag-actor">CAND-38 — added to catalog 2026-08-28 (docs-audit gap) — already cited directly from CAND-38's own doc entry</span></li>
     <li><a href="customer-05-ocorrencia-pulada.html">5. Ocorrência pulada — depois</a> <span class="tag tag-actor">CAND-27, after</span></li>
     <li><a href="customer-06-recorrencia-cancelada.html">6. Recorrência cancelada — final</a> <span class="tag tag-actor">CAND-28</span></li>
     <li><a href="customer-09-reserva-recorrente.html">Reserva recorrente privada</a> <span class="tag tag-actor">CAND-45 — sala/consulta/quadra</span></li>
+    <li><a href="customer-09c-recorrente-em-analise.html">Reserva recorrente — em análise</a> <span class="tag tag-actor">CAND-45, branch MANUAL_APPROVAL — added 2026-08-28, closes a prototype gap: customer-09 only ever showed an already-active schedule</span></li>
     <li><a href="customer-10-editar-grupo.html">Editar participantes de um grupo</a> <span class="tag tag-actor">CAND-49</span></li>
   </ul>
 
@@ -151,6 +168,10 @@
     <li>
       <a href="staff-06-guest-approval.html">Aprovar convidadas</a>
       <span class="tag tag-actor">CAND-34 — uma decisão, nomes individuais</span>
+    </li>
+    <li>
+      <a href="staff-07-recurring-schedule-approval.html">Aprovar recorrência</a>
+      <span class="tag tag-actor">CAND-45b, added 2026-08-28 — closes the CAND-45 approval-bypass loophole, one decision for the whole standing request</span>
     </li>
   </ul>
 
