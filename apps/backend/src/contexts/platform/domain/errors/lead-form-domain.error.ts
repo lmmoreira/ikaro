@@ -170,6 +170,24 @@ export class LeadFormAnswerRequiredError extends Error implements DomainErrorSha
 }
 
 /**
+ * M20-S14 — the submission's `turnstileToken` failed (or expired against) Cloudflare's
+ * siteverify check, verified as the first step of `CreateLeadFormSubmissionUseCase.execute()`
+ * (relocated here from the BFF's own `TurnstileService` — see plan/M20-LEAD-FORM-MODULE.md
+ * § M20-S14 for why). Extends `PlatformDomainError` and needs no explicit branch in
+ * `platform-error.mapper.ts`: its generic `PlatformDomainError` catch-all already maps to 400,
+ * the exact status this error needs.
+ */
+export class LeadFormTurnstileVerificationFailedError extends PlatformDomainError {
+  constructor() {
+    super(
+      'Turnstile verification failed or expired',
+      PlatformErrorCode.LEAD_FORM_TURNSTILE_VERIFICATION_FAILED,
+    );
+    this.name = 'LeadFormTurnstileVerificationFailedError';
+  }
+}
+
+/**
  * M20-S06 — `GET .../submissions/:id` when the id doesn't exist or belongs to a different
  * tenant. Deliberately takes no distinguishing message detail beyond the id (mirrors
  * `ChatbotSessionNotFoundError`'s own "not found for this tenant" shape) — the "404, not 403"

@@ -263,7 +263,7 @@ export function LeadFormWidget({
 
 function resolveErrorPhase(result: { readonly code?: string }): SubmitPhase {
   if (result.code === 'PLATFORM_LEAD_FORM_DAILY_CAP_REACHED') return 'rate-limited';
-  if (result.code === 'BFF_TURNSTILE_VERIFICATION_FAILED') return 'captcha-error';
+  if (result.code === 'PLATFORM_LEAD_FORM_TURNSTILE_VERIFICATION_FAILED') return 'captcha-error';
   if (
     result.code === 'GENERIC_FIELD_REQUIRED' ||
     result.code === 'EMAIL_FORMAT_INVALID' ||

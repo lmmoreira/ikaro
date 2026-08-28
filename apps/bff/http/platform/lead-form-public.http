@@ -76,7 +76,9 @@ GET {{bffUrl}}/v1/public/platform/lead-form/{{tenantSlug}}
 
 ###
 
-### 400 — Turnstile verification failed (always-fail test secret configured server-side)
+### 400 — Turnstile verification failed (M20-S14: enforced backend-side now, not here — the BFF
+### just forwards turnstileToken unverified; relies on an always-fail test secret configured on
+### the backend)
 POST {{bffUrl}}/v1/public/platform/lead-form/{{tenantSlug}}/submissions
 Content-Type: application/json
 X-Tenant-Slug: {{tenantSlug}}

@@ -49,7 +49,8 @@ Content-Type: application/json
     }
   ],
   "customerId": null,
-  "ipAddress": "203.0.113.10"
+  "ipAddress": "203.0.113.10",
+  "turnstileToken": "XXXX.DUMMY.TOKEN.XXXX"
 }
 
 ###
@@ -71,7 +72,8 @@ Content-Type: application/json
     }
   ],
   "customerId": "{{customerId}}",
-  "ipAddress": "203.0.113.20"
+  "ipAddress": "203.0.113.20",
+  "turnstileToken": "XXXX.DUMMY.TOKEN.XXXX"
 }
 
 ###
@@ -99,7 +101,8 @@ Content-Type: application/json
   "phone": "+5511900000000",
   "answers": [],
   "customerId": null,
-  "ipAddress": "203.0.113.30"
+  "ipAddress": "203.0.113.30",
+  "turnstileToken": "XXXX.DUMMY.TOKEN.XXXX"
 }
 
 ###
@@ -121,7 +124,8 @@ Content-Type: application/json
     }
   ],
   "customerId": null,
-  "ipAddress": "203.0.113.40"
+  "ipAddress": "203.0.113.40",
+  "turnstileToken": "XXXX.DUMMY.TOKEN.XXXX"
 }
 
 ###
@@ -138,7 +142,28 @@ Content-Type: application/json
   "phone": "+5511987654321",
   "answers": [],
   "customerId": null,
-  "ipAddress": "203.0.113.50"
+  "ipAddress": "203.0.113.50",
+  "turnstileToken": "XXXX.DUMMY.TOKEN.XXXX"
+}
+
+###
+
+### Turnstile verification failed → 400 PLATFORM_LEAD_FORM_TURNSTILE_VERIFICATION_FAILED
+### (M20-S14 — verification moved here from the BFF; relies on an always-fail test secret
+### configured server-side, or simply an invalid/expired token in a real environment)
+POST {{baseUrl}}/platform/lead-form/submissions
+X-Tenant-ID: {{tenantId}}
+X-Internal-Key: {{internalKey}}
+Content-Type: application/json
+
+{
+  "name": "Maria Silva",
+  "email": "maria.silva@example.com",
+  "phone": "+5511987654321",
+  "answers": [],
+  "customerId": null,
+  "ipAddress": "203.0.113.60",
+  "turnstileToken": "invalid-token"
 }
 
 ###

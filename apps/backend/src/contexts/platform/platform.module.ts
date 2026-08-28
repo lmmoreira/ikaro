@@ -22,6 +22,7 @@ import {
   OPENROUTER_PROVIDER_NAME,
 } from './application/ports/llm-provider.port';
 import { TENANT_REPOSITORY } from './application/ports/tenant-repository.port';
+import { CLOUDFLARE_TURNSTILE_PROVIDER } from './application/ports/turnstile-verifier.port';
 import {
   LLM_PROVIDER_REGISTRY,
   LlmProviderRegistry,
@@ -72,6 +73,7 @@ import { FakeLlmAdapter } from './infrastructure/llm/fake-llm.adapter';
 import { OpenAiLlmAdapter } from './infrastructure/llm/openai-llm.adapter';
 import { OpenRouterCreditsClient } from './infrastructure/llm/openrouter-credits.client';
 import { OpenRouterLlmAdapter } from './infrastructure/llm/openrouter-llm.adapter';
+import { CloudflareTurnstileAdapter } from './infrastructure/turnstile/cloudflare-turnstile.adapter';
 import { HotsiteContentReader } from './application/services/hotsite-content-reader.service';
 import { HotsiteImagePromotionService } from './application/services/hotsite-image-promotion.service';
 import { ChatbotController } from './infrastructure/controllers/chatbot.controller';
@@ -148,6 +150,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     { provide: ANTHROPIC_LLM_PROVIDER, useClass: AnthropicLlmAdapter },
     { provide: OPENAI_LLM_PROVIDER, useClass: OpenAiLlmAdapter },
     { provide: FAKE_LLM_PROVIDER, useClass: FakeLlmAdapter },
+    { provide: CLOUDFLARE_TURNSTILE_PROVIDER, useClass: CloudflareTurnstileAdapter },
     {
       provide: LLM_PROVIDER_REGISTRY,
       useFactory: (

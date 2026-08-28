@@ -271,3 +271,11 @@ All 3 are required fields on `TenantSettings.default()` (unlike Chatbot's mostly
 ## Test Infrastructure
 
 See Artifacts table above. All lead-form-specific in-memory repos/builders live in `apps/backend/src/test/{repositories,builders}/platform/`, matching Chatbot's precedent, not the older per-context `src/test/infrastructure/` layout.
+
+---
+
+## Addendum — M20-S14 (added 2026-08-27, after this milestone's own wrap-up docs were first written)
+
+Cloudflare Turnstile verification for the public lead-form submission endpoint moved from the BFF to the backend — the BFF's `ALL_TRAFFIC` egress has no Cloud NAT, so its own outbound call to Cloudflare's `siteverify` endpoint had no route out, causing every staging submission to fail closed. The backend's `PRIVATE_RANGES_ONLY` egress already reaches third parties unconditionally (same as its existing OpenRouter/LLM adapters), so relocating the call needed no new infrastructure. Full investigation and reasoning: `plan/M20-LEAD-FORM-MODULE.md` § M20-S14; general lesson for future stories: `docs/ENGINEERING_RULES.md` § Cloud Run `vpc_egress` mode determines third-party outbound reachability.
+
+New artifacts: `ITurnstileVerifierPort` (`apps/backend/src/contexts/platform/application/ports/turnstile-verifier.port.ts`), `CloudflareTurnstileAdapter` (`apps/backend/src/contexts/platform/infrastructure/turnstile/cloudflare-turnstile.adapter.ts`), `LeadFormTurnstileVerificationFailedError` (`lead-form-domain.error.ts`). Removed: the BFF's `TurnstileService` and `BffErrorCode.TURNSTILE_VERIFICATION_FAILED` (replaced by `PlatformErrorCode.LEAD_FORM_TURNSTILE_VERIFICATION_FAILED`).

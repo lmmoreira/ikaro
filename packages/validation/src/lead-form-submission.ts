@@ -13,11 +13,15 @@ import { GenericErrorCode } from '@ikaro/types';
 // required-question completeness are re-validated against the tenant's live LeadFormConfig
 // catalog inside CreateLeadFormSubmissionUseCase, never here.
 //
-// Each app layer `.extend()`s this with its own fields that only IT can resolve:
-// - BFF adds `turnstileToken` (verified BFF-side, before the backend hop).
+// Each app layer `.extend()`s this with its own fields:
+// - BFF adds `turnstileToken` (the field the web client sends; verification itself moved
+//   backend-side in M20-S14 — see below).
 // - Backend adds `customerId`/`ipAddress` (resolved by the BFF from the decoded JWT / real
 //   client connection — the backend can't derive either from its own request object, since it
-//   only ever sees the BFF's own connection).
+//   only ever sees the BFF's own connection) and, since M20-S14, `turnstileToken` too — the BFF
+//   now forwards it unverified, and CreateLeadFormSubmissionUseCase verifies it as its first
+//   step (relocated from the BFF's own TurnstileService; see plan/M20-LEAD-FORM-MODULE.md
+//   § M20-S14 for why).
 // Generous but bounded — a free-text answer or a single choice option realistically never
 // approaches 2000 chars; MULTIPLE_CHOICE selections realistically never approach 50 options.
 // Without this, an unbounded string (or array of them) here is what makes the raw request body

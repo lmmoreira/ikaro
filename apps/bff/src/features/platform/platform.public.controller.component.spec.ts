@@ -5,7 +5,6 @@ import {
   MockBackendHttpService,
   MockHttpService,
   createTestApp,
-  makeObservableResponse,
   request,
 } from '../../test/component-test.helpers';
 import {
@@ -466,10 +465,6 @@ describe('PlatformPublicController (component)', () => {
       turnstileToken: 'valid-token',
     };
 
-    function mockTurnstileSuccess(): void {
-      httpService.post.mockReturnValueOnce(makeObservableResponse({ success: true }));
-    }
-
     it('returns 400 when X-Tenant-Slug header is missing', async () => {
       const res = await request(app.getHttpServer())
         .post('/v1/public/platform/lead-form/lavacar-bh/submissions')
@@ -477,33 +472,7 @@ describe('PlatformPublicController (component)', () => {
       expect(res.status).toBe(400);
     });
 
-    // Cloudflare's real always-fail contract is verified once, at the layer that owns it
-    // (TurnstileService.verify() against the real siteverify endpoint with the documented
-    // always-fail secret — turnstile.service.spec.ts). This test's own job is a pure
-    // control-flow fact about this controller — "given verify() returns false, is the backend
-    // never called" — which a mocked response proves exactly as well as a real network call
-    // would, with none of the added CI fragility of hitting the same external dependency twice
-    // (PR #423 review round 7, reconsidered after round 6: an earlier version of this test made
-    // a second real network call here, reasoning the AC's "not a mocked HTTP response" line
-    // required it — but that line's actual intent is "prove Cloudflare's contract is honored
-    // somewhere," already satisfied by turnstile.service.spec.ts alone; duplicating it here
-    // added a second point of failure for zero additional confidence).
-    it('returns 400 when Turnstile verification fails, never reaching the backend', async () => {
-      httpService.post.mockReturnValueOnce(makeObservableResponse({ success: false }));
-
-      const res = await request(app.getHttpServer())
-        .post('/v1/public/platform/lead-form/lavacar-bh/submissions')
-        .set('X-Tenant-Slug', 'lavacar-bh')
-        .send(submitBody);
-
-      expect(res.status).toBe(400);
-      expect(res.body).toMatchObject({ code: 'BFF_TURNSTILE_VERIFICATION_FAILED' });
-      expect(backendHttpService.get).not.toHaveBeenCalled();
-      expect(backendHttpService.postForPublic).not.toHaveBeenCalled();
-    });
-
-    it('submits as a guest (no Authorization header) — customerId: null forwarded', async () => {
-      mockTurnstileSuccess();
+    it('submits as a guest (no Authorization header) — customerId: null and turnstileToken forwarded unverified (M20-S14: verification moved to the backend)', async () => {
       const response: HotsiteLeadFormSubmissionResponse = { submissionId: 'submission-uuid' };
       backendHttpService.get.mockResolvedValueOnce(tenantInfo);
       backendHttpService.postForPublic = jest.fn().mockResolvedValueOnce(response);
@@ -517,13 +486,38 @@ describe('PlatformPublicController (component)', () => {
       expect(res.body).toEqual(response);
       expect(backendHttpService.postForPublic).toHaveBeenCalledWith(
         '/platform/lead-form/submissions',
-        expect.objectContaining({ customerId: null }),
+        expect.objectContaining({ customerId: null, turnstileToken: submitBody.turnstileToken }),
         tenantInfo.id,
+        expect.any(Number),
       );
+      // The BFF never calls Cloudflare's siteverify itself anymore (M20-S14).
+      expect(httpService.post).not.toHaveBeenCalled();
+    });
+
+    it('propagates 400 when the backend rejects Turnstile verification (M20-S14: enforced backend-side)', async () => {
+      backendHttpService.get.mockResolvedValueOnce(tenantInfo);
+      backendHttpService.postForPublic = jest.fn().mockRejectedValueOnce(
+        new HttpException(
+          {
+            type: 'about:blank',
+            title: 'Bad Request',
+            status: 400,
+            code: 'PLATFORM_LEAD_FORM_TURNSTILE_VERIFICATION_FAILED',
+          },
+          400,
+        ),
+      );
+
+      const res = await request(app.getHttpServer())
+        .post('/v1/public/platform/lead-form/lavacar-bh/submissions')
+        .set('X-Tenant-Slug', 'lavacar-bh')
+        .send(submitBody);
+
+      expect(res.status).toBe(400);
+      expect(res.body).toMatchObject({ code: 'PLATFORM_LEAD_FORM_TURNSTILE_VERIFICATION_FAILED' });
     });
 
     it('submits as an authenticated customer — customerId resolved from the Authorization header', async () => {
-      mockTurnstileSuccess();
       const response: HotsiteLeadFormSubmissionResponse = { submissionId: 'submission-uuid' };
       backendHttpService.get.mockResolvedValueOnce(tenantInfo);
       backendHttpService.postForPublic = jest.fn().mockResolvedValueOnce(response);
@@ -552,11 +546,11 @@ describe('PlatformPublicController (component)', () => {
         '/platform/lead-form/submissions',
         expect.objectContaining({ customerId: CUSTOMER_ID }),
         tenantInfo.id,
+        expect.any(Number),
       );
     });
 
     it('returns 404 when the slug does not resolve to a tenant', async () => {
-      mockTurnstileSuccess();
       backendHttpService.get.mockRejectedValueOnce(
         new HttpException({ title: 'Not Found', status: 404 }, 404),
       );
@@ -570,7 +564,6 @@ describe('PlatformPublicController (component)', () => {
     });
 
     it('propagates 429 when the backend rejects on the daily submission cap', async () => {
-      mockTurnstileSuccess();
       backendHttpService.get.mockResolvedValueOnce(tenantInfo);
       backendHttpService.postForPublic = jest.fn().mockRejectedValueOnce(
         new HttpException(
@@ -592,7 +585,6 @@ describe('PlatformPublicController (component)', () => {
     });
 
     it('propagates 401 when the backend rejects a CUSTOMER_ONLY submission with no customer session', async () => {
-      mockTurnstileSuccess();
       backendHttpService.get.mockResolvedValueOnce(tenantInfo);
       backendHttpService.postForPublic = jest
         .fn()

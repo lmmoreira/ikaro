@@ -234,7 +234,7 @@ describe('LeadFormWidget — guest happy path (GUEST_AND_CUSTOMER)', () => {
     vi.mocked(submitLeadFormClient).mockResolvedValue({
       ok: false,
       status: 400,
-      code: 'BFF_TURNSTILE_VERIFICATION_FAILED',
+      code: 'PLATFORM_LEAD_FORM_TURNSTILE_VERIFICATION_FAILED',
     });
     renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />);
 

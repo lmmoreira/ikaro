@@ -10,6 +10,9 @@ export const SubmitLeadFormSchema = LeadFormSubmissionFieldsSchema.extend({
   // Real visitor IP as resolved by the BFF (getClientIp()) — the backend only ever sees the BFF's
   // own connection, so this can't be derived from the backend's own request object.
   ipAddress: z.string().min(1),
+  // M20-S14 — forwarded unverified by the BFF; CreateLeadFormSubmissionUseCase verifies it via
+  // ITurnstileVerifierPort as its first step (relocated from the BFF's own TurnstileService).
+  turnstileToken: z.string().min(1),
 });
 
 export type SubmitLeadFormDto = z.infer<typeof SubmitLeadFormSchema>;

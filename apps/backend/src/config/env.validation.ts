@@ -96,6 +96,11 @@ export const schema = z.object({
   // own live API reference). Optional for the same reason: ChatbotBalancePollJob treats a
   // failed credits call as a safe no-op (log a warning, leave the stored balance unchanged).
   OPENROUTER_MANAGEMENT_API_KEY: z.string().optional(),
+  // M20-S14 — Cloudflare Turnstile verification, relocated here from the BFF (whose ALL_TRAFFIC
+  // egress has no Cloud NAT). Optional, same reasoning as OPENROUTER_API_KEY above:
+  // CloudflareTurnstileAdapter's own getOrThrow() is the only place a missing value actually
+  // surfaces (a scoped fail-closed `false`, not a boot crash).
+  TURNSTILE_SECRET_KEY: z.string().optional(),
   // Chatbot cost/abuse-prevention platform-wide backstops (M19-S05/S06) — deliberately env vars,
   // not tenants.settings fields (docs/discovery/CHATBOT/CHATBOT.md §8.9-8.10): no tenant can opt
   // out, and all three can be changed via a Terraform var update + apply (a new Cloud Run

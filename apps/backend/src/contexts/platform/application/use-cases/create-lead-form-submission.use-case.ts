@@ -19,6 +19,7 @@ import {
   LeadFormAnswerRequiredError,
   LeadFormCustomerOnlyError,
   LeadFormDailyCapReachedError,
+  LeadFormTurnstileVerificationFailedError,
 } from '../../domain/errors/lead-form-domain.error';
 import { LeadFormQuestion } from '../../domain/lead-form-config.aggregate';
 import { LeadFormAnswer, LeadFormSubmission } from '../../domain/lead-form-submission.aggregate';
@@ -26,6 +27,10 @@ import {
   ILeadFormSubmissionRepository,
   LEAD_FORM_SUBMISSION_REPOSITORY,
 } from '../ports/lead-form-submission-repository.port';
+import {
+  CLOUDFLARE_TURNSTILE_PROVIDER,
+  ITurnstileVerifierPort,
+} from '../ports/turnstile-verifier.port';
 import { GetLeadFormPublicConfigUseCase } from './get-lead-form-public-config.use-case';
 
 export interface CreateLeadFormSubmissionAnswerInput {
@@ -42,6 +47,7 @@ export interface CreateLeadFormSubmissionUseCaseInput {
   answers: CreateLeadFormSubmissionAnswerInput[];
   ipAddress: string;
   correlationId: string;
+  turnstileToken: string;
 }
 
 export interface CreateLeadFormSubmissionUseCaseResult {
@@ -75,12 +81,21 @@ export class CreateLeadFormSubmissionUseCase {
     private readonly repo: ILeadFormSubmissionRepository,
     @Inject(TENANT_SETTINGS_PORT) private readonly settingsPort: ITenantSettingsPort,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
+    @Inject(CLOUDFLARE_TURNSTILE_PROVIDER) private readonly turnstile: ITurnstileVerifierPort,
   ) {}
 
   async execute(
     input: CreateLeadFormSubmissionUseCaseInput,
   ): Promise<CreateLeadFormSubmissionUseCaseResult> {
     const { tenantId, customerId } = input;
+
+    // Relocated here from the BFF's own TurnstileService (M20-S14) — checked as the very first
+    // step, before the config is even read, so a bad/bot token triggers no other work. See
+    // plan/M20-LEAD-FORM-MODULE.md § M20-S14 for why this moved.
+    const verified = await this.turnstile.verify(input.turnstileToken, input.ipAddress);
+    if (!verified) {
+      throw new LeadFormTurnstileVerificationFailedError();
+    }
 
     // Throws LeadFormNotEnabledError (404) if the module is absent/disabled — the second check
     // of a fill session, re-verified here since a submission can arrive well after the page's own
