@@ -117,6 +117,15 @@ export function LeadFormDateRangeControl({
           selected={selectedRange}
           onSelect={handleSelect}
           numberOfMonths={2}
+          // Both months are already fully visible side by side, so the leading/trailing "outside"
+          // context days react-day-picker shows for a single-month view are redundant here — and
+          // near a month boundary, an outside day's date can collide with the *same* date rendered
+          // as a real day in the adjacent grid, giving two elements the identical data-day/aria-label
+          // (e.g. Aug 30 shown as a real day in the August grid and as a leading outside day in
+          // September's grid) — a real bug independent of any test, not just a locator-strictness
+          // issue (found via a genuine CI failure on PR #438, 2026-08-28, unrelated to that PR's
+          // own change — e2e/leads-search.spec.ts's `[data-day="..."] button` locator matched twice).
+          showOutsideDays={false}
         />
       </PopoverContent>
     </Popover>

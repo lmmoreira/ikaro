@@ -46,7 +46,7 @@
 |---|---|
 | `LeadFormController` (admin: config/status/submissions/filter-options) | `apps/bff/src/features/platform/lead-form.controller.ts` + `lead-form.schemas.ts` |
 | Public routes (`GET .../lead-form/:slug`, `POST .../submissions`) | added to `apps/bff/src/features/platform/platform.public.controller.ts` (no dedicated controller — one `.public.controller.ts` per module family) |
-| `TurnstileService` (`siteverify` call, before tenant resolution) | `apps/bff/src/features/platform/turnstile.service.ts` |
+| ~~`TurnstileService` (`siteverify` call, before tenant resolution)~~ — **removed in M20-S14**, see its own Addendum below | moved to `CloudflareTurnstileAdapter`, `apps/backend/src/contexts/platform/infrastructure/turnstile/cloudflare-turnstile.adapter.ts` |
 | OAuth `returnTo` extension (customer post-login redirect) | `apps/bff/src/features/auth/oauth-state.ts`, `oauth-state.service.ts`, `guards/google-auth.guard.ts`, `strategies/google.strategy.ts`, `auth-controller-flow.service.ts`, `auth-tenant-login.flow.ts` |
 
 ### Web — dashboard (admin)
