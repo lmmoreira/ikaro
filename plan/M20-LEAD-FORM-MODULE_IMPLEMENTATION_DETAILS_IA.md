@@ -46,7 +46,7 @@
 |---|---|
 | `LeadFormController` (admin: config/status/submissions/filter-options) | `apps/bff/src/features/platform/lead-form.controller.ts` + `lead-form.schemas.ts` |
 | Public routes (`GET .../lead-form/:slug`, `POST .../submissions`) | added to `apps/bff/src/features/platform/platform.public.controller.ts` (no dedicated controller — one `.public.controller.ts` per module family) |
-| `TurnstileService` (`siteverify` call, before tenant resolution) | `apps/bff/src/features/platform/turnstile.service.ts` |
+| ~~`TurnstileService` (`siteverify` call, before tenant resolution)~~ — **removed in M20-S14**, see its own Addendum below | moved to `CloudflareTurnstileAdapter`, `apps/backend/src/contexts/platform/infrastructure/turnstile/cloudflare-turnstile.adapter.ts` |
 | OAuth `returnTo` extension (customer post-login redirect) | `apps/bff/src/features/auth/oauth-state.ts`, `oauth-state.service.ts`, `guards/google-auth.guard.ts`, `strategies/google.strategy.ts`, `auth-controller-flow.service.ts`, `auth-tenant-login.flow.ts` |
 
 ### Web — dashboard (admin)
@@ -84,7 +84,7 @@
 |---|---|
 | `HotsiteModuleType` incl. `'LEAD_FORM'`, `LeadFormModuleData`, `HotsiteLeadFormConfigResponse` | `packages/types/src/hotsite.ts` |
 | `LeadFormAudienceMode`, `LeadFormQuestion`, `LeadFormConfigResponse`, `LeadFormStatusResponse`, `LeadFormSubmissionListItem`, `LeadFormFilterOptionsResponse`, `LeadFormSubmissionDetailResponse`, `TenantLeadFormSettings` | `packages/types/src/tenant.dto.ts` |
-| Error codes (10 `PLATFORM_LEAD_FORM_*`/`PLATFORM_SETTINGS_LEAD_FORM_*` + 1 `BFF_TURNSTILE_VERIFICATION_FAILED`) | `packages/types/src/error-codes.ts` |
+| Error codes (11 `PLATFORM_LEAD_FORM_*`/`PLATFORM_SETTINGS_LEAD_FORM_*`, incl. `PLATFORM_LEAD_FORM_TURNSTILE_VERIFICATION_FAILED` — was `BFF_TURNSTILE_VERIFICATION_FAILED` before M20-S14) | `packages/types/src/error-codes.ts` |
 | Shared Zod: `LeadFormSubmissionFieldsSchema`, `LeadFormSubmissionFilterEntrySchema`, `ListLeadFormSubmissionsSchema` (backend+BFF, one copy) | `packages/validation/src/lead-form-submission.ts` |
 | Backend/BFF `HotsiteModuleSchema` (own separate enum copy incl. `'LEAD_FORM'`) | `packages/validation/src/hotsite.ts` |
 | Backend-local module-type mirror (`HotsiteModuleType`, `LeadFormModuleData`, `MODULE_TYPES`) | `apps/backend/src/contexts/platform/domain/hotsite-config.types.ts`, `hotsite-config.aggregate.ts` |
@@ -215,7 +215,7 @@ The original S02 draft copied Chatbot's Ikaro-only-override pattern for `maxSubm
 | `PLATFORM_LEAD_FORM_SUBMISSION_NOT_FOUND` | 404 | admin detail read, wrong id or wrong tenant |
 | `PLATFORM_LEAD_FORM_CONFIG_CONCURRENT_MODIFICATION` | 409 | version-guarded UPDATE lost the race |
 | `AUTH_UNAUTHORIZED` (existing code, not new) | 401 | `CUSTOMER_ONLY` audience + no decoded JWT |
-| `BFF_TURNSTILE_VERIFICATION_FAILED` | 400 | `siteverify` rejected/expired token |
+| `PLATFORM_LEAD_FORM_TURNSTILE_VERIFICATION_FAILED` (was `BFF_TURNSTILE_VERIFICATION_FAILED` before M20-S14) | 400 | `siteverify` rejected/expired token |
 | `GENERIC_VALUE_TOO_SHORT` | 400 | empty `search`/filter `value` (never a char-count minimum) |
 | `GENERIC_VALUE_INVALID` | 400 | `search`+`filters` both present; unknown `questionId` in a submission |
 | `GENERIC_VALUE_OUT_OF_RANGE` | 400 | >5 `filters`; `submittedFrom > submittedTo` |
@@ -271,3 +271,11 @@ All 3 are required fields on `TenantSettings.default()` (unlike Chatbot's mostly
 ## Test Infrastructure
 
 See Artifacts table above. All lead-form-specific in-memory repos/builders live in `apps/backend/src/test/{repositories,builders}/platform/`, matching Chatbot's precedent, not the older per-context `src/test/infrastructure/` layout.
+
+---
+
+## Addendum — M20-S14 (added 2026-08-27, after this milestone's own wrap-up docs were first written)
+
+Cloudflare Turnstile verification for the public lead-form submission endpoint moved from the BFF to the backend — the BFF's `ALL_TRAFFIC` egress has no Cloud NAT, so its own outbound call to Cloudflare's `siteverify` endpoint had no route out, causing every staging submission to fail closed. The backend's `PRIVATE_RANGES_ONLY` egress already reaches third parties unconditionally (same as its existing OpenRouter/LLM adapters), so relocating the call needed no new infrastructure. Full investigation and reasoning: `plan/M20-LEAD-FORM-MODULE.md` § M20-S14; general lesson for future stories: `docs/ENGINEERING_RULES.md` § Cloud Run `vpc_egress` mode determines third-party outbound reachability.
+
+New artifacts: `ITurnstileVerifierPort` (`apps/backend/src/contexts/platform/application/ports/turnstile-verifier.port.ts`), `CloudflareTurnstileAdapter` (`apps/backend/src/contexts/platform/infrastructure/turnstile/cloudflare-turnstile.adapter.ts`), `LeadFormTurnstileVerificationFailedError` (`lead-form-domain.error.ts`). Removed: the BFF's `TurnstileService` and `BffErrorCode.TURNSTILE_VERIFICATION_FAILED` (replaced by `PlatformErrorCode.LEAD_FORM_TURNSTILE_VERIFICATION_FAILED`).

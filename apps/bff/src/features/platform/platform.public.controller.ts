@@ -12,7 +12,6 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
-  BffErrorCode,
   GenericErrorCode,
   HotsiteChatbotMessageResponse,
   HotsiteChatbotStatusResponse,
@@ -42,7 +41,6 @@ import {
   SubmitLeadFormBody,
   SubmitLeadFormBodySchema,
 } from './platform.public.schemas';
-import { TurnstileService } from './turnstile.service';
 
 // Request Zod schema moved to platform.public.schemas.ts — re-exported here so
 // existing imports of these symbols from this file keep working unchanged.
@@ -55,13 +53,18 @@ export * from './platform.public.schemas';
 // cut off here and reported as "unavailable" while the backend was still going to succeed.
 export const CHATBOT_MESSAGE_TIMEOUT_MS = 12_000;
 
+// M20-S14: the backend's own Turnstile siteverify call (relocated here from the BFF — see
+// plan/M20-LEAD-FORM-MODULE.md § M20-S14) can now take up to ~8s on top of this endpoint's
+// normal DB/enrichment work, the same coupled-timeout shape as CHATBOT_MESSAGE_TIMEOUT_MS above.
+// 15s gives comfortable headroom above that ceiling.
+export const LEAD_FORM_SUBMISSION_TIMEOUT_MS = 15_000;
+
 @Controller('public/platform')
 export class PlatformPublicController {
   private readonly jwtSecret: string;
 
   constructor(
     private readonly backendHttp: BackendHttpService,
-    private readonly turnstileService: TurnstileService,
     private readonly config: ConfigService,
   ) {
     this.jwtSecret = this.config.getOrThrow<string>('JWT_SECRET');
@@ -178,17 +181,6 @@ export class PlatformPublicController {
   ): Promise<HotsiteLeadFormSubmissionResponse> {
     const ipAddress = getClientIp(req);
 
-    // Verified before the tenant is even resolved — never reaches the backend on a
-    // failed/expired token (docs/14-API_CONTRACTS.md § Lead Form Widget).
-    const verified = await this.turnstileService.verify(body.turnstileToken, ipAddress);
-    if (!verified) {
-      throw throwProblemDetail(
-        HttpStatus.BAD_REQUEST,
-        BffErrorCode.TURNSTILE_VERIFICATION_FAILED,
-        'Turnstile verification failed or expired',
-      );
-    }
-
     this.assertSlugMatchesTenantHeader(pathSlug, tenantSlug);
 
     // Read-only identification, not an auth requirement — this route stays @Public(). The
@@ -212,11 +204,13 @@ export class PlatformPublicController {
         answers: body.answers,
         customerId,
         ipAddress,
+        turnstileToken: body.turnstileToken,
       };
       return this.backendHttp.postForPublic<HotsiteLeadFormSubmissionResponse>(
         '/platform/lead-form/submissions',
         backendBody,
         tenantId,
+        LEAD_FORM_SUBMISSION_TIMEOUT_MS,
       );
     });
   }

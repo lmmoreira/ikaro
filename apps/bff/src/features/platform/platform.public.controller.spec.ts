@@ -2,9 +2,12 @@ import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import { ClientIpRequest } from '../../shared/http/client-ip';
-import { CHATBOT_MESSAGE_TIMEOUT_MS, PlatformPublicController } from './platform.public.controller';
+import {
+  CHATBOT_MESSAGE_TIMEOUT_MS,
+  LEAD_FORM_SUBMISSION_TIMEOUT_MS,
+  PlatformPublicController,
+} from './platform.public.controller';
 import { BackendTenantByIdResponse } from './platform.types';
-import { TurnstileService } from './turnstile.service';
 import {
   HotsiteBookingSettingsResponse,
   HotsiteBusinessInfoResponse,
@@ -21,8 +24,6 @@ import {
 const JWT_SECRET = 'a'.repeat(64);
 const makeConfigService = (secret = JWT_SECRET) =>
   ({ getOrThrow: () => secret }) as unknown as ConfigService;
-const makeTurnstileService = (verify = jest.fn().mockResolvedValue(true)) =>
-  ({ verify }) as unknown as TurnstileService;
 
 const tenantInfo = { id: 'tenant-uuid', slug: 'lavacar-bh', name: 'Lavacar BH' };
 
@@ -127,11 +128,7 @@ describe('PlatformPublicController', () => {
         get: jest.fn().mockResolvedValue(tenantInfo),
         getForPublic: jest.fn().mockResolvedValue(hotsiteResponse),
       });
-      const controller = new PlatformPublicController(
-        backendHttp,
-        makeTurnstileService(),
-        makeConfigService(),
-      );
+      const controller = new PlatformPublicController(backendHttp, makeConfigService());
 
       const result = await controller.getManifest('lavacar-bh');
 
@@ -142,11 +139,7 @@ describe('PlatformPublicController', () => {
 
     it('propagates 404 when the slug does not resolve to a tenant', async () => {
       const backendHttp = makeBackendHttp({ get: jest.fn().mockRejectedValue(new Error('404')) });
-      const controller = new PlatformPublicController(
-        backendHttp,
-        makeTurnstileService(),
-        makeConfigService(),
-      );
+      const controller = new PlatformPublicController(backendHttp, makeConfigService());
 
       await expect(controller.getManifest('unknown-slug')).rejects.toThrow('404');
     });
@@ -156,11 +149,7 @@ describe('PlatformPublicController', () => {
         get: jest.fn().mockResolvedValue(tenantInfo),
         getForPublic: jest.fn().mockResolvedValue(unpublishedHotsiteResponse),
       });
-      const controller = new PlatformPublicController(
-        backendHttp,
-        makeTurnstileService(),
-        makeConfigService(),
-      );
+      const controller = new PlatformPublicController(backendHttp, makeConfigService());
 
       const result = await controller.getManifest('lavacar-bh');
 
@@ -174,11 +163,7 @@ describe('PlatformPublicController', () => {
         items: [{ slug: 'lavacar-bh', updatedAt: '2026-06-10T12:00:00.000Z' }],
       };
       const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(response) });
-      const controller = new PlatformPublicController(
-        backendHttp,
-        makeTurnstileService(),
-        makeConfigService(),
-      );
+      const controller = new PlatformPublicController(backendHttp, makeConfigService());
 
       const result = await controller.getPublishedHotsites();
 
@@ -194,11 +179,7 @@ describe('PlatformPublicController', () => {
         get: jest.fn().mockResolvedValue(tenantInfo),
         getForPublic: jest.fn().mockResolvedValue(response),
       });
-      const controller = new PlatformPublicController(
-        backendHttp,
-        makeTurnstileService(),
-        makeConfigService(),
-      );
+      const controller = new PlatformPublicController(backendHttp, makeConfigService());
 
       const result = await controller.getChatbotStatus('lavacar-bh');
 
@@ -212,11 +193,7 @@ describe('PlatformPublicController', () => {
 
     it('propagates the 400 X-Tenant-Slug-required error when the header is missing', async () => {
       const backendHttp = makeBackendHttp();
-      const controller = new PlatformPublicController(
-        backendHttp,
-        makeTurnstileService(),
-        makeConfigService(),
-      );
+      const controller = new PlatformPublicController(backendHttp, makeConfigService());
 
       await expect(controller.getChatbotStatus(undefined)).rejects.toThrow();
       expect(backendHttp.getForPublic).not.toHaveBeenCalled();
@@ -227,11 +204,7 @@ describe('PlatformPublicController', () => {
         get: jest.fn().mockResolvedValue(tenantInfo),
         getForPublic: jest.fn().mockResolvedValue({ available: true }),
       });
-      const controller = new PlatformPublicController(
-        backendHttp,
-        makeTurnstileService(),
-        makeConfigService(),
-      );
+      const controller = new PlatformPublicController(backendHttp, makeConfigService());
 
       await controller.getChatbotStatus('lavacar-bh');
 
@@ -319,11 +292,7 @@ describe('PlatformPublicController', () => {
 
     it('resolves tenant, assembles the system prompt, and forwards it with clientIp to the backend', async () => {
       const backendHttp = makeSendMessageBackendHttp();
-      const controller = new PlatformPublicController(
-        backendHttp,
-        makeTurnstileService(),
-        makeConfigService(),
-      );
+      const controller = new PlatformPublicController(backendHttp, makeConfigService());
 
       const result = await controller.sendChatbotMessage(
         'lavacar-bh',
@@ -351,11 +320,7 @@ describe('PlatformPublicController', () => {
 
     it('forwards an existing sessionId when provided', async () => {
       const backendHttp = makeSendMessageBackendHttp();
-      const controller = new PlatformPublicController(
-        backendHttp,
-        makeTurnstileService(),
-        makeConfigService(),
-      );
+      const controller = new PlatformPublicController(backendHttp, makeConfigService());
 
       await controller.sendChatbotMessage(
         'lavacar-bh',
@@ -373,11 +338,7 @@ describe('PlatformPublicController', () => {
 
     it('propagates the 400 X-Tenant-Slug-required error when the header is missing', async () => {
       const backendHttp = makeBackendHttp();
-      const controller = new PlatformPublicController(
-        backendHttp,
-        makeTurnstileService(),
-        makeConfigService(),
-      );
+      const controller = new PlatformPublicController(backendHttp, makeConfigService());
 
       await expect(
         controller.sendChatbotMessage(undefined, { message: 'Oi' }, mockReq),
@@ -387,11 +348,7 @@ describe('PlatformPublicController', () => {
 
     it('never calls an actor-header-forwarding method (post/patch/delete)', async () => {
       const backendHttp = makeSendMessageBackendHttp();
-      const controller = new PlatformPublicController(
-        backendHttp,
-        makeTurnstileService(),
-        makeConfigService(),
-      );
+      const controller = new PlatformPublicController(backendHttp, makeConfigService());
 
       await controller.sendChatbotMessage('lavacar-bh', { message: 'Oi' }, mockReq);
 
@@ -403,11 +360,7 @@ describe('PlatformPublicController', () => {
     it('propagates a 429/503 error thrown by the backend send-message call unchanged', async () => {
       const backendHttp = makeSendMessageBackendHttp();
       (backendHttp.postForPublic as jest.Mock).mockRejectedValue(new Error('429'));
-      const controller = new PlatformPublicController(
-        backendHttp,
-        makeTurnstileService(),
-        makeConfigService(),
-      );
+      const controller = new PlatformPublicController(backendHttp, makeConfigService());
 
       await expect(
         controller.sendChatbotMessage('lavacar-bh', { message: 'Oi' }, mockReq),
@@ -422,11 +375,7 @@ describe('PlatformPublicController', () => {
         get: jest.fn().mockResolvedValue(tenantInfo),
         getForPublic: jest.fn().mockResolvedValue(response),
       });
-      const controller = new PlatformPublicController(
-        backendHttp,
-        makeTurnstileService(),
-        makeConfigService(),
-      );
+      const controller = new PlatformPublicController(backendHttp, makeConfigService());
 
       const result = await controller.getLeadFormConfig('lavacar-bh', 'lavacar-bh');
 
@@ -440,11 +389,7 @@ describe('PlatformPublicController', () => {
 
     it('propagates the 400 X-Tenant-Slug-required error when the header is missing', async () => {
       const backendHttp = makeBackendHttp();
-      const controller = new PlatformPublicController(
-        backendHttp,
-        makeTurnstileService(),
-        makeConfigService(),
-      );
+      const controller = new PlatformPublicController(backendHttp, makeConfigService());
 
       await expect(controller.getLeadFormConfig('lavacar-bh', undefined)).rejects.toThrow();
       expect(backendHttp.getForPublic).not.toHaveBeenCalled();
@@ -455,22 +400,14 @@ describe('PlatformPublicController', () => {
         get: jest.fn().mockResolvedValue(tenantInfo),
         getForPublic: jest.fn().mockRejectedValue(new Error('404')),
       });
-      const controller = new PlatformPublicController(
-        backendHttp,
-        makeTurnstileService(),
-        makeConfigService(),
-      );
+      const controller = new PlatformPublicController(backendHttp, makeConfigService());
 
       await expect(controller.getLeadFormConfig('lavacar-bh', 'lavacar-bh')).rejects.toThrow('404');
     });
 
     it('rejects with 400 when the URL slug does not match the X-Tenant-Slug header (PR #423 review round 6, Codex)', async () => {
       const backendHttp = makeBackendHttp();
-      const controller = new PlatformPublicController(
-        backendHttp,
-        makeTurnstileService(),
-        makeConfigService(),
-      );
+      const controller = new PlatformPublicController(backendHttp, makeConfigService());
 
       await expect(controller.getLeadFormConfig('tenant-a', 'tenant-b')).rejects.toThrow();
       expect(backendHttp.get).not.toHaveBeenCalled();
@@ -495,31 +432,9 @@ describe('PlatformPublicController', () => {
       });
     }
 
-    it('verifies the Turnstile token before resolving the tenant or calling the backend', async () => {
+    it('forwards customerId: null, the resolved client IP, and the turnstileToken unverified for a guest (no Authorization header)', async () => {
       const backendHttp = makeSubmitBackendHttp();
-      const verify = jest.fn().mockResolvedValue(false);
-      const controller = new PlatformPublicController(
-        backendHttp,
-        makeTurnstileService(verify),
-        makeConfigService(),
-      );
-
-      await expect(
-        controller.submitLeadForm('lavacar-bh', 'lavacar-bh', undefined, body, mockReq),
-      ).rejects.toThrow();
-
-      expect(verify).toHaveBeenCalledWith('valid-token', '203.0.113.10');
-      expect(backendHttp.get).not.toHaveBeenCalled();
-      expect(backendHttp.postForPublic).not.toHaveBeenCalled();
-    });
-
-    it('forwards customerId: null and the resolved client IP for a guest (no Authorization header)', async () => {
-      const backendHttp = makeSubmitBackendHttp();
-      const controller = new PlatformPublicController(
-        backendHttp,
-        makeTurnstileService(),
-        makeConfigService(),
-      );
+      const controller = new PlatformPublicController(backendHttp, makeConfigService());
 
       const result = await controller.submitLeadForm(
         'lavacar-bh',
@@ -538,8 +453,10 @@ describe('PlatformPublicController', () => {
           answers: body.answers,
           customerId: null,
           ipAddress: '203.0.113.10',
+          turnstileToken: body.turnstileToken,
         }),
         'tenant-uuid',
+        LEAD_FORM_SUBMISSION_TIMEOUT_MS,
       );
       expect(result).toEqual({ submissionId: 'submission-uuid' });
     });
@@ -559,11 +476,7 @@ describe('PlatformPublicController', () => {
         secret,
       );
       const backendHttp = makeSubmitBackendHttp();
-      const controller = new PlatformPublicController(
-        backendHttp,
-        makeTurnstileService(),
-        makeConfigService(secret),
-      );
+      const controller = new PlatformPublicController(backendHttp, makeConfigService(secret));
 
       await controller.submitLeadForm('lavacar-bh', 'lavacar-bh', `Bearer ${token}`, body, mockReq);
 
@@ -571,6 +484,7 @@ describe('PlatformPublicController', () => {
         '/platform/lead-form/submissions',
         expect.objectContaining({ customerId: 'customer-uuid' }),
         'tenant-uuid',
+        LEAD_FORM_SUBMISSION_TIMEOUT_MS,
       );
     });
 
@@ -589,11 +503,7 @@ describe('PlatformPublicController', () => {
         secret,
       );
       const backendHttp = makeSubmitBackendHttp();
-      const controller = new PlatformPublicController(
-        backendHttp,
-        makeTurnstileService(),
-        makeConfigService(secret),
-      );
+      const controller = new PlatformPublicController(backendHttp, makeConfigService(secret));
 
       await controller.submitLeadForm('lavacar-bh', 'lavacar-bh', `Bearer ${token}`, body, mockReq);
 
@@ -601,6 +511,7 @@ describe('PlatformPublicController', () => {
         '/platform/lead-form/submissions',
         expect.objectContaining({ customerId: null }),
         'tenant-uuid',
+        LEAD_FORM_SUBMISSION_TIMEOUT_MS,
       );
     });
 
@@ -619,11 +530,7 @@ describe('PlatformPublicController', () => {
         secret,
       );
       const backendHttp = makeSubmitBackendHttp();
-      const controller = new PlatformPublicController(
-        backendHttp,
-        makeTurnstileService(),
-        makeConfigService(secret),
-      );
+      const controller = new PlatformPublicController(backendHttp, makeConfigService(secret));
 
       await controller.submitLeadForm('lavacar-bh', 'lavacar-bh', `Bearer ${token}`, body, mockReq);
 
@@ -631,16 +538,13 @@ describe('PlatformPublicController', () => {
         '/platform/lead-form/submissions',
         expect.objectContaining({ customerId: null }),
         'tenant-uuid',
+        LEAD_FORM_SUBMISSION_TIMEOUT_MS,
       );
     });
 
     it('never calls an actor-header-forwarding method (get without slug resolution, patch/delete)', async () => {
       const backendHttp = makeSubmitBackendHttp();
-      const controller = new PlatformPublicController(
-        backendHttp,
-        makeTurnstileService(),
-        makeConfigService(),
-      );
+      const controller = new PlatformPublicController(backendHttp, makeConfigService());
 
       await controller.submitLeadForm('lavacar-bh', 'lavacar-bh', undefined, body, mockReq);
 
@@ -651,32 +555,20 @@ describe('PlatformPublicController', () => {
     it('propagates a 401/404/429 error thrown by the backend submission call unchanged', async () => {
       const backendHttp = makeSubmitBackendHttp();
       (backendHttp.postForPublic as jest.Mock).mockRejectedValue(new Error('429'));
-      const controller = new PlatformPublicController(
-        backendHttp,
-        makeTurnstileService(),
-        makeConfigService(),
-      );
+      const controller = new PlatformPublicController(backendHttp, makeConfigService());
 
       await expect(
         controller.submitLeadForm('lavacar-bh', 'lavacar-bh', undefined, body, mockReq),
       ).rejects.toThrow('429');
     });
 
-    it('rejects with 400 when the URL slug does not match the X-Tenant-Slug header, after Turnstile but before resolving the tenant (PR #423 review round 6, Codex)', async () => {
+    it('rejects with 400 when the URL slug does not match the X-Tenant-Slug header, before resolving the tenant', async () => {
       const backendHttp = makeSubmitBackendHttp();
-      const verify = jest.fn().mockResolvedValue(true);
-      const controller = new PlatformPublicController(
-        backendHttp,
-        makeTurnstileService(verify),
-        makeConfigService(),
-      );
+      const controller = new PlatformPublicController(backendHttp, makeConfigService());
 
       await expect(
         controller.submitLeadForm('tenant-a', 'tenant-b', undefined, body, mockReq),
       ).rejects.toThrow();
-      // Turnstile's own ordering guarantee (verified before the tenant is even resolved) still
-      // holds — this check only ever runs after a genuinely valid token, never as a way to skip it.
-      expect(verify).toHaveBeenCalled();
       expect(backendHttp.get).not.toHaveBeenCalled();
       expect(backendHttp.postForPublic).not.toHaveBeenCalled();
     });

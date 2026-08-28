@@ -267,6 +267,10 @@ module "cloudrun_backend" {
     # SECRETS.md. Per TD39, the foundation SA accessor grant lands in a genuine follow-up PR
     # (can't be in the same PR as this envs/* change). Same bootstrap_mode caveat as above.
     OPENROUTER_MANAGEMENT_API_KEY = module.secrets.secret_ids["openrouter-management-api-key"]
+    # M20-S14 PR2 of 3: moved here from the BFF (whose ALL_TRAFFIC egress has no Cloud NAT, so
+    # its own outbound siteverify call had no route out). PR1 already granted this SA accessor
+    # rights on the existing secret container — see runtime-identities/main.tf's own comment.
+    TURNSTILE_SECRET_KEY = module.secrets.secret_ids["turnstile-secret-key"]
   }
 }
 
@@ -338,10 +342,6 @@ module "cloudrun_bff" {
     # of environment — wired here so prod's Terraform stays consistent with the shared app
     # code, even though prod's own ingress lockdown (Story B) is not part of this change.
     WEB_INTERNAL_KEY = module.secrets.secret_ids["web-internal-key"]
-    # M20-S05 PR3/3: TurnstileService's server-side siteverify call. Container (PR1, #424) and
-    # Foundation accessor grant (PR2, #425) both already landed — same safe-row shape as
-    # OPENROUTER_MANAGEMENT_API_KEY's own PR3 (M19-S08).
-    TURNSTILE_SECRET_KEY = module.secrets.secret_ids["turnstile-secret-key"]
   }
 }
 

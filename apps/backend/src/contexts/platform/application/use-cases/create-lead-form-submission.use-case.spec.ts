@@ -15,16 +15,28 @@ import {
   LeadFormCustomerOnlyError,
   LeadFormDailyCapReachedError,
   LeadFormNotEnabledError,
+  LeadFormTurnstileVerificationFailedError,
 } from '../../domain/errors/lead-form-domain.error';
 import { HotsiteModule } from '../../domain/hotsite-config.aggregate';
 import { LeadFormAudienceMode, LeadFormQuestion } from '../../domain/lead-form-config.aggregate';
 import { TenantSettings } from '../../domain/value-objects/tenant-settings.vo';
+import { ITurnstileVerifierPort } from '../ports/turnstile-verifier.port';
 import {
   CreateLeadFormSubmissionAnswerInput,
   CreateLeadFormSubmissionUseCase,
   CreateLeadFormSubmissionUseCaseInput,
 } from './create-lead-form-submission.use-case';
 import { GetLeadFormPublicConfigUseCase } from './get-lead-form-public-config.use-case';
+
+class FakeTurnstileVerifier implements ITurnstileVerifierPort {
+  result = true;
+  calls: { token: string; remoteIp: string }[] = [];
+
+  async verify(token: string, remoteIp: string): Promise<boolean> {
+    this.calls.push({ token, remoteIp });
+    return this.result;
+  }
+}
 
 const TENANT_A = '10000000-0000-4000-8000-000000000031';
 const TENANT_B = '10000000-0000-4000-8000-000000000032';
@@ -47,6 +59,7 @@ function baseInput(
     answers: ANSWERS,
     ipAddress: '203.0.113.10',
     correlationId: CORRELATION_ID,
+    turnstileToken: 'valid-turnstile-token',
     ...overrides,
   };
 }
@@ -67,6 +80,7 @@ describe('CreateLeadFormSubmissionUseCase', () => {
   let submissionRepo: InMemoryLeadFormSubmissionRepository;
   let settingsPort: InMemoryTenantSettingsPort;
   let txManager: InMemoryTransactionManager;
+  let turnstile: FakeTurnstileVerifier;
 
   beforeEach(() => {
     hotsiteConfigRepo = new InMemoryHotsiteConfigRepository();
@@ -74,6 +88,7 @@ describe('CreateLeadFormSubmissionUseCase', () => {
     submissionRepo = new InMemoryLeadFormSubmissionRepository();
     settingsPort = new InMemoryTenantSettingsPort();
     txManager = new InMemoryTransactionManager();
+    turnstile = new FakeTurnstileVerifier();
     const getLeadFormPublicConfig = new GetLeadFormPublicConfigUseCase(
       hotsiteConfigRepo,
       leadFormConfigRepo,
@@ -83,6 +98,7 @@ describe('CreateLeadFormSubmissionUseCase', () => {
       submissionRepo,
       settingsPort,
       txManager,
+      turnstile,
     );
   });
 
@@ -103,6 +119,35 @@ describe('CreateLeadFormSubmissionUseCase', () => {
         .build(),
     );
   }
+
+  describe('Turnstile verification (M20-S14)', () => {
+    it('throws LeadFormTurnstileVerificationFailedError when verification fails, before any other work happens', async () => {
+      turnstile.result = false;
+
+      await expect(useCase.execute(baseInput())).rejects.toThrow(
+        LeadFormTurnstileVerificationFailedError,
+      );
+      // Config/repo were never touched — verification runs before the config is even read.
+      expect(submissionRepo.all()).toHaveLength(0);
+    });
+
+    it('passes the token and IP address through to the verifier', async () => {
+      await enableLeadForm(TENANT_A);
+
+      await useCase.execute(baseInput({ turnstileToken: 'my-token', ipAddress: '198.51.100.1' }));
+
+      expect(turnstile.calls).toEqual([{ token: 'my-token', remoteIp: '198.51.100.1' }]);
+    });
+
+    it('succeeds and creates the submission when verification passes', async () => {
+      await enableLeadForm(TENANT_A);
+
+      const result = await useCase.execute(baseInput());
+
+      expect(result.submissionId).toBeDefined();
+      expect(turnstile.calls).toHaveLength(1);
+    });
+  });
 
   describe('module-enabled / catalog gate', () => {
     it('propagates LeadFormNotEnabledError when the module is absent/disabled', async () => {

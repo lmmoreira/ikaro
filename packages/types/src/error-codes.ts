@@ -173,6 +173,10 @@ export const PlatformErrorCode = {
   // caught the same way, on the sibling aggregate PATCH /v1/tenants/hotsite now also writes in
   // the same transaction; Codex review, PR #429).
   LEAD_FORM_CONFIG_CONCURRENT_MODIFICATION: 'PLATFORM_LEAD_FORM_CONFIG_CONCURRENT_MODIFICATION',
+  // M20-S14 — Cloudflare Turnstile verification relocated here from the BFF (whose ALL_TRAFFIC
+  // egress had no Cloud NAT, leaving its own outbound siteverify call with no route out).
+  // Replaces the former BFF-only BFF_TURNSTILE_VERIFICATION_FAILED, removed in this same change.
+  LEAD_FORM_TURNSTILE_VERIFICATION_FAILED: 'PLATFORM_LEAD_FORM_TURNSTILE_VERIFICATION_FAILED',
 } as const;
 export type PlatformErrorCode = (typeof PlatformErrorCode)[keyof typeof PlatformErrorCode];
 
@@ -252,9 +256,6 @@ export const BffErrorCode = {
   // errors) — distinguishing them in the response would tell a forger which part of their
   // attempt failed.
   OAUTH_STATE_INVALID: 'BFF_OAUTH_STATE_INVALID',
-  // M20-S05 — Cloudflare Turnstile `siteverify` rejected/expired the submitted token on the
-  // public lead-form submission endpoint. Checked before the tenant is even resolved.
-  TURNSTILE_VERIFICATION_FAILED: 'BFF_TURNSTILE_VERIFICATION_FAILED',
 } as const;
 export type BffErrorCode = (typeof BffErrorCode)[keyof typeof BffErrorCode];
 

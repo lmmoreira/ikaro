@@ -31,7 +31,8 @@ export interface BackendSendChatMessageBody {
 // Outbound payload the BFF sends to the backend's lead-form submission endpoint (M20-S05) — same
 // "not a client-facing shape, still can't live inline" reasoning as BackendSendChatMessageBody
 // above. customerId/ipAddress are BFF-computed (decoded JWT / trusted client IP), never part of
-// the public request body (SubmitLeadFormBody).
+// the public request body (SubmitLeadFormBody). turnstileToken passes through unchanged — M20-S14
+// moved verification itself to the backend, the BFF no longer checks it.
 export interface BackendSubmitLeadFormBody {
   name: string;
   email: string;
@@ -39,4 +40,5 @@ export interface BackendSubmitLeadFormBody {
   answers: SubmitLeadFormBody['answers'];
   customerId: string | null;
   ipAddress: string;
+  turnstileToken: string;
 }

@@ -19,6 +19,7 @@ import { LEAD_FORM_SUBMISSION_REPOSITORY } from '../../application/ports/lead-fo
 import { CreateLeadFormSubmissionUseCase } from '../../application/use-cases/create-lead-form-submission.use-case';
 import { GetLeadFormPublicConfigUseCase } from '../../application/use-cases/get-lead-form-public-config.use-case';
 import { HotsiteModule } from '../../domain/hotsite-config.aggregate';
+import { CLOUDFLARE_TURNSTILE_PROVIDER } from '../../application/ports/turnstile-verifier.port';
 import { LeadFormPublicController } from './lead-form-public.controller';
 
 const TENANT_ID = '01234567-0000-7000-8000-000000000001';
@@ -39,11 +40,13 @@ describe('LeadFormPublicController', () => {
   let hotsiteConfigRepo: InMemoryHotsiteConfigRepository;
   let leadFormConfigRepo: InMemoryLeadFormConfigRepository;
   let requestContext: { tenantId: string; correlationId: string };
+  let turnstile: { verify: jest.Mock };
 
   beforeEach(async () => {
     hotsiteConfigRepo = new InMemoryHotsiteConfigRepository();
     leadFormConfigRepo = new InMemoryLeadFormConfigRepository();
     requestContext = { tenantId: '', correlationId: 'corr-1' };
+    turnstile = { verify: jest.fn().mockResolvedValue(true) };
 
     const moduleRef = await Test.createTestingModule({
       controllers: [LeadFormPublicController],
@@ -59,6 +62,7 @@ describe('LeadFormPublicController', () => {
         { provide: TENANT_SETTINGS_PORT, useValue: new InMemoryTenantSettingsPort() },
         { provide: TRANSACTION_MANAGER, useValue: new InMemoryTransactionManager() },
         { provide: RequestContext, useValue: requestContext },
+        { provide: CLOUDFLARE_TURNSTILE_PROVIDER, useValue: turnstile },
       ],
     }).compile();
 
@@ -121,9 +125,32 @@ describe('LeadFormPublicController', () => {
         answers: [{ questionId: QUESTION_ID, value: 'Lavagem completa' }],
         customerId: null,
         ipAddress: '203.0.113.10',
+        turnstileToken: 'valid-turnstile-token',
       });
 
       expect(result.submissionId).toBeDefined();
+    });
+
+    it('maps a failed Turnstile verification to 400 HttpException (M20-S14)', async () => {
+      requestContext.tenantId = TENANT_ID;
+      await enableLeadForm(TENANT_ID);
+      turnstile.verify.mockResolvedValueOnce(false);
+
+      expect.assertions(2);
+      try {
+        await controller.submit({
+          name: 'Maria Silva',
+          email: 'maria.silva@example.com',
+          phone: '+5511987654321',
+          answers: [{ questionId: QUESTION_ID, value: 'Lavagem completa' }],
+          customerId: null,
+          ipAddress: '203.0.113.10',
+          turnstileToken: 'rejected-token',
+        });
+      } catch (err) {
+        expect(err).toBeInstanceOf(HttpException);
+        expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+      }
     });
 
     it('maps LeadFormNotEnabledError to 404 HttpException', async () => {
@@ -138,6 +165,7 @@ describe('LeadFormPublicController', () => {
           answers: [],
           customerId: null,
           ipAddress: '203.0.113.10',
+          turnstileToken: 'valid-turnstile-token',
         });
       } catch (err) {
         expect(err).toBeInstanceOf(HttpException);
@@ -158,6 +186,7 @@ describe('LeadFormPublicController', () => {
           answers: [],
           customerId: null,
           ipAddress: '203.0.113.10',
+          turnstileToken: 'valid-turnstile-token',
         });
       } catch (err) {
         expect(err).toBeInstanceOf(HttpException);
@@ -178,6 +207,7 @@ describe('LeadFormPublicController', () => {
           answers: [{ questionId: '01234567-0000-7000-8000-000000009999', value: 'x' }],
           customerId: null,
           ipAddress: '203.0.113.10',
+          turnstileToken: 'valid-turnstile-token',
         });
       } catch (err) {
         expect(err).toBeInstanceOf(HttpException);
@@ -198,6 +228,7 @@ describe('LeadFormPublicController', () => {
           answers: [],
           customerId: null,
           ipAddress: '203.0.113.10',
+          turnstileToken: 'valid-turnstile-token',
         });
       } catch (err) {
         expect(err).toBeInstanceOf(HttpException);
@@ -218,6 +249,7 @@ describe('LeadFormPublicController', () => {
           answers: [{ questionId: QUESTION_ID, value: 'x' }],
           customerId: null,
           ipAddress: '203.0.113.10',
+          turnstileToken: 'valid-turnstile-token',
         });
       } catch (err) {
         expect(err).toBeInstanceOf(HttpException);

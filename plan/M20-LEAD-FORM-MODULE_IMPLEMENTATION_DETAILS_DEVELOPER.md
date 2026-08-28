@@ -92,16 +92,18 @@ The enforcement mechanism itself *is* a direct mechanical copy of Chatbot's patt
 
 ## 5. Cloudflare Turnstile: The Codebase's First CAPTCHA Integration
 
-`POST /public/platform/lead-form/:slug/submissions` is a public, unauthenticated, form-submitting endpoint — exactly the surface a bot-driven abuse tool targets. Cloudflare Turnstile verification happens **before** anything else in the BFF handler: before tenant resolution, before the backend is ever called.
+> **Superseded by M20-S14 (2026-08-27):** the verification mechanism this section originally described lived in the BFF (`TurnstileService`, code `BFF_TURNSTILE_VERIFICATION_FAILED`) — it was relocated to the **backend** (`CloudflareTurnstileAdapter`, code `PLATFORM_LEAD_FORM_TURNSTILE_VERIFICATION_FAILED`) after a real staging incident: the BFF's `ALL_TRAFFIC` egress has no Cloud NAT, so its own outbound call to Cloudflare's `siteverify` had no route out, failing closed on every submission. The narrative below is left as-is as the historical record of the original design and the CAPTCHA-specific lessons it produced (still fully accurate — the test-sitekey trap, the one-widget-per-domain decision, and the secret-stays-manual rule are all unaffected by where verification runs); read it with the code sample understood as **the original location, not the current one**. Full incident + reasoning: `plan/M20-LEAD-FORM-MODULE.md` § M20-S14, `docs/ENGINEERING_RULES.md` § Cloud Run `vpc_egress` mode determines third-party outbound reachability.
+
+`POST /public/platform/lead-form/:slug/submissions` is a public, unauthenticated, form-submitting endpoint — exactly the surface a bot-driven abuse tool targets. Cloudflare Turnstile verification originally happened **before** anything else in the BFF handler: before tenant resolution, before the backend is ever called. (As of M20-S14, this same "before anything else" property now holds inside the backend instead — see the correction above.)
 
 ```ts
-// platform.public.controller.ts — order matters
+// platform.public.controller.ts — order matters (ORIGINAL M20-S05 design, superseded by M20-S14)
 const verified = await this.turnstileService.verify(body.turnstileToken);
 if (!verified) throw new BadRequestException({ code: BffErrorCode.TURNSTILE_VERIFICATION_FAILED });
 // only past this point: tenant resolution, JWT decode, backend call
 ```
 
-`TurnstileWidget.tsx` is a plain script wrapper (`<script src="https://challenges.cloudflare.com/turnstile/v0/api.js">` + `window.turnstile.render()`), not an npm package — deliberately, per the discovery doc's own guidance, since none is installed and none should be added for a single-widget integration.
+`TurnstileWidget.tsx` is a plain script wrapper (`<script src="https://challenges.cloudflare.com/turnstile/v0/api.js">` + `window.turnstile.render()`), not an npm package — deliberately, per the discovery doc's own guidance, since none is installed and none should be added for a single-widget integration. (This part is client-side and unaffected by M20-S14.)
 
 ### The test sitekey doesn't render a real challenge
 
