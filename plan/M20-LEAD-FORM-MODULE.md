@@ -648,7 +648,7 @@ Distinct empty state when search/filters/date-range yield zero matches (UC-041 A
 
 ---
 
-### M20-S15 — Fix Turnstile widget silently stuck on soft (client-side) navigation to `/[slug]/lead-form`
+### M20-S15 — Fix Turnstile widget silently stuck on soft (client-side) navigation to `/[slug]/lead-form` ✅ Done
 
 **Agent:** `web-ts`
 **Complexity:** S
