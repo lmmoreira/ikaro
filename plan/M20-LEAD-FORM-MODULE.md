@@ -591,7 +591,7 @@ Distinct empty state when search/filters/date-range yield zero matches (UC-041 A
 
 ---
 
-### M20-S14 — Move Cloudflare Turnstile verification from BFF to backend (fixes a live staging egress bug, no new infrastructure)
+### M20-S14 — Move Cloudflare Turnstile verification from BFF to backend (fixes a live staging egress bug, no new infrastructure) ✅ Done
 
 **Agent:** `backend-ts` (also needs real `bff-ts` and `devops` work — removing the BFF's own Turnstile pre-check and moving the secret's Terraform wiring — same multi-surface shape S05 itself had)
 **Complexity:** M
