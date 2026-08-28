@@ -414,7 +414,9 @@ Mechanically: discovery for every story in the batch runs first, sequentially, i
 | New journey or prototype | `plan/journey/README.md` |
 | Starting a new discovery from an idea | `/create-discovery` — see `.claude/commands/create-discovery.md` |
 | Promoting a `docs/discovery/` doc into a milestone | `/discovery-to-milestone` — see `.claude/commands/discovery-to-milestone.md` |
-| Creating or standardizing a TD | `/create-td` — see `.claude/commands/create-td.md` |
+| Creating a brand-new TD | `/create-td` — see `.claude/commands/create-td.md` |
+| Appending one new story to an already-existing TD or milestone (a live bug, a freshly spotted gap — no discovery doc, no new-container ceremony) | `/create-story` — see `.claude/commands/create-story.md` |
+| Drafting or parsing any story (TD or milestone) | `docs/STORY_SCHEMA.md` — canonical field set; `/create-td`, `/create-story`, `/discovery-to-milestone`, `/story-discovery`, `/run-batch` all reference it instead of restating their own copy |
 
 **Anti-patterns reference:** `docs/ANTI_PATTERNS.md` — full table; loaded automatically by `/pre-pr`.
 **Never load:** `docs/archive/` (superseded) · `plan/*_DEVELOPER.md` (written for humans, not agents).
@@ -502,7 +504,8 @@ Pinned Terraform skills live in `.claude/skills/`; refresh them by re-vendoring 
 |---|---|
 | `/bad-smell-audit [backend\|bff\|web]` | `.claude/commands/bad-smell-audit.md` |
 | `/create-discovery <idea \| brief \| slug>` | `.claude/commands/create-discovery.md` |
-| `/create-td <problem description \| TDNN + description>` | `.claude/commands/create-td.md` |
+| `/create-story <M0X \| TDNN + description>` | `.claude/commands/create-story.md` |
+| `/create-td <problem description>` | `.claude/commands/create-td.md` |
 | `/discovery-to-milestone <discovery-doc-path>` | `.claude/commands/discovery-to-milestone.md` |
 | `/docs-audit [UC-XXX\|M0X\|actor/slug\|doc-path]` | `.claude/commands/docs-audit.md` |
 | `/mark-done M0X-SYY` | `.claude/commands/mark-done.md` |

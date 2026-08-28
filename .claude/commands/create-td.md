@@ -1,27 +1,22 @@
 ---
 name: create-td
-description: Draft a new standalone TD (tech-debt) document, or add a new standardized story to an existing multi-story TD, using the same structured field set /story-discovery and /run-batch already parse for milestone stories (Docs to load, Dependencies, Files to create/modify, Agent target, Complexity) alongside the TD-specific narrative sections (Problem, Chosen approach, etc.) that don't apply to milestone stories. Never writes code.
+description: Draft a new standalone TD (tech-debt) document, using the canonical story schema (docs/STORY_SCHEMA.md) that /story-discovery and /run-batch already parse for milestone stories, alongside the TD-specific narrative sections (Problem, Chosen approach, etc.) that don't apply to milestone stories. To append a new story to an already-existing TD or milestone, use /create-story instead. Never writes code.
 metadata:
-  short-description: Standardize a new TD or TD story
+  short-description: Standardize a new TD
 ---
 
-Draft a new standalone TD (`td/TDNN-<NAME>.md`), or add a new story to an existing multi-story TD, in a single standardized shape — so a TD-originated story is exactly as parseable by `/story-discovery` and exactly as batchable by `/run-batch` as a `/discovery-to-milestone`-drafted milestone story, while keeping the narrative sections (Problem, Chosen approach, Method, Confidence key) that are specific to tech-debt work and don't apply to milestone stories.
+Draft a new standalone TD (`td/TDNN-<NAME>.md`), in a single standardized shape — so a TD-originated story is exactly as parseable by `/story-discovery` and exactly as batchable by `/run-batch` as a `/discovery-to-milestone`-drafted milestone story, while keeping the narrative sections (Problem, Chosen approach, Method, Confidence key) that are specific to tech-debt work and don't apply to milestone stories.
+
+> To add a story to a TD that already exists (or to an already-existing milestone), use `/create-story` instead — this skill only creates brand-new TDs.
 
 > **HARD RULE — NO CODE CHANGES:** This skill only reads code (to verify claims about "today's behavior") and writes `.md` files under `td/`. It never writes or modifies any `.ts`, `.js`, or source/test/config file, and it never runs `/story-discovery` itself — same boundary as `/discovery-to-milestone`.
 
-Argument: `$ARGUMENTS` — either:
-- A problem/evidence description for a **brand-new TD** (e.g. "the OTel batch processor silently drops spans under X condition, found in prod logs")
-- An existing TD ID plus a description, to **append a new story to that TD** (e.g. `TD37: add a story enforcing Y`)
+Argument: `$ARGUMENTS` — a problem/evidence description for a **brand-new TD** (e.g. "the OTel batch processor silently drops spans under X condition, found in prod logs").
 
 ---
 
-## Step 0 — Resolve mode and number
+## Step 0 — Resolve TD number
 
-**Append mode** — `$ARGUMENTS` names an existing `td/TDNN-*.md`:
-- Read the file in full. Confirm it's a multi-story TD (has `Story N —` headings — check which level this specific file actually uses: existing TDs mix `###` (TD01, TD-18-19-20, TD-21, TD31, TD37) and `####` (TD23, TD30); match the file's own existing level, never force three `#` onto a TD that already uses four). A single-scope TD (one `## Status` block, no story subdivision, e.g. TD27) can't receive an appended story; if the user wants to add scope to one of those, ask whether to convert it to multi-story first (rename the existing single scope as "Story 0", renumber) rather than silently restructuring it.
-- Determine the next story number (`N+1` after the highest existing `Story N —` heading, at whatever level this file uses).
-
-**New-TD mode** — otherwise:
 - Determine the next available TD number: `ls td/TD*.md | grep -oE 'TD[0-9]+' | sort -t'D' -k2 -n -u | tail -1`, then increment. Skip any number already claimed by a combined file (e.g. `TD-18-19-20-BAD-SMELL-VIOLAVIONS.md`, `TD-21-...`).
 - Derive a descriptive `<NAME>` from the problem statement, matching the existing convention exactly: all-caps, kebab-case, matches the file's own title (e.g. `TD37-CI-ARCHITECTURE-VALIDATION-HARDENING.md`).
 
@@ -89,30 +84,15 @@ If a chosen remediation approach is already decided (not left for `/story-discov
 
 ---
 
-## Step 5 — Draft each story using `/story-discovery`'s own parseable field set
+## Step 5 — Draft each story using the canonical story schema
 
-This is the actual standardization: every story below carries the same structured fields a `/discovery-to-milestone`-drafted milestone story gets (`story-discovery.md`'s Step 1 already extracts these), not prose-and-acceptance-criteria-only the way existing TD stories do today:
+This is the actual standardization: every story below carries the exact field set `docs/STORY_SCHEMA.md` defines — the same one `/story-discovery` parses and `/discovery-to-milestone` drafts to — not prose-and-acceptance-criteria-only the way existing pre-standardization TD stories (e.g. TD37) do today. **Load `docs/STORY_SCHEMA.md` now and draft to its skeleton exactly** — don't restate the field list here.
 
-```
-### Story <N> — <title> [optional confidence marker — see below] [status once known]
+TD-specific additions on top of the schema:
+- Add `## Chosen approach` / `## Problem` framing from Steps 1–4 above into the story's `Description` field rather than leaving it as a separate narrative section, unless the TD is single-scope (in which case those sections stay at the TD level, not per-story).
+- The optional confidence marker (🔴/🟡/⚪, see below) is a TD-only convention layered onto the schema's `[confidence marker]` header slot — not part of the schema itself.
 
-**Agent target**: <backend-ts | bff-ts | frontend-ts | web-ts | devops>
-**Complexity**: <S | M | L>
-**Docs to load**: <every doc path + § section this story actually needs>
-**Dependencies**: <other story IDs within this TD, or a cross-TD/cross-milestone story ID if genuinely applicable — none if foundational>
-**Files to create/modify**: <real paths — verify modified-file paths actually exist via Explore agent, same discipline `/discovery-to-milestone` Step 4 requires; never state one from memory>
-
-<description — the prose explaining the mechanism, same depth as an existing TD story>
-
-<For a story that's a straightforward backend/BFF change (not architecture/CI/infra tooling), also include:>
-**Backend use case steps**: <numbered list, if this story adds/changes a use case>
-**BFF endpoint spec**: <method, path, auth, response — if this story adds/changes an endpoint>
-
-**Acceptance criteria**:
-- [ ] ...
-```
-
-New TDs standardize on three `#` for `Story N —` headings going forward (matching the majority existing convention — TD01, TD-18-19-20, TD-21, TD31, TD37); an existing TD being appended to (Step 0's append mode) keeps whatever level it already uses instead.
+New TDs standardize on three `#` for `Story N —` headings going forward (matching the majority existing convention — TD01, TD-18-19-20, TD-21, TD31, TD37).
 
 **Confidence marker** (optional, adopt only if this TD's own scope benefits from it — TD37's own convention, not mandatory for every TD): 🔴 proven recurring failure / 🟡 documented-but-unenforced rule / ⚪ exploratory, ships non-blocking first.
 
@@ -144,7 +124,7 @@ For each drafted story, mentally run `/story-discovery`'s Step 4 checklist (4a�
 <anything Step 6 caught and fixed, or flagged as an open item for /story-discovery to resolve>
 ```
 
-Apply the doc/config gate: summarise, ask *"May I now create `td/TD<N>-<NAME>.md`?"* (or *"...append Story `<N>` to `td/TD<N>-<NAME>.md`?"* in append mode), write only after an explicit yes.
+Apply the doc/config gate: summarise, ask *"May I now create `td/TD<N>-<NAME>.md`?"*, write only after an explicit yes.
 
 ---
 

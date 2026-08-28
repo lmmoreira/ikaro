@@ -38,7 +38,7 @@ This is what makes a set of stories **batch-safe** — stricter than a milestone
 
 For every pair of candidate stories:
 1. **No dependency edge either direction** — neither names the other in its `Dependencies` field.
-2. **No overlapping files** — diff each story's `Files to create/modify` list (from `/discovery-to-milestone` Step 4, or read directly from the plan file). Any shared path disqualifies that pair from running together.
+2. **No overlapping files** — diff each story's `Files to create/modify` list (per `docs/STORY_SCHEMA.md`'s field, read directly from the plan file). Any shared path disqualifies that pair from running together.
 3. **No overlapping shared resource by name, even without a literal shared file** — flag (as a RISK, not a hard disqualifier) two stories that both modify the same aggregate/entity/shared module, since a field or migration added in one can silently invalidate the other's assumptions.
 4. **No two stories in the batch each adding a new DB migration.** This isn't caught by checks 1–2 — two migrations in separate parallel worktrees don't share a file or a declared dependency, but this repo's migration timestamps are global and sequential, so two worktrees generating one independently collide the moment either branch merges into the other's history. Disqualify the pair from running concurrently (not just flag as RISK) — serialize them, even inside an otherwise-eligible batch.
 
