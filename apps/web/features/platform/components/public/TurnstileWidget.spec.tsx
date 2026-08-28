@@ -3,9 +3,14 @@ import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TurnstileWidget } from './TurnstileWidget';
 
+// autoLoad toggles whether the mocked <Script> fires onLoad synchronously — true for every
+// existing test (script loads normally), false for the load-timeout tests below, which need
+// onLoad to never fire so the 10s timer in TurnstileWidget actually elapses.
+const { mockScriptState } = vi.hoisted(() => ({ mockScriptState: { autoLoad: true } }));
+
 vi.mock('next/script', () => ({
   default: ({ onLoad }: { onLoad?: () => void }) => {
-    onLoad?.();
+    if (mockScriptState.autoLoad) onLoad?.();
     return null;
   },
 }));
@@ -17,6 +22,7 @@ describe('TurnstileWidget', () => {
   beforeEach(() => {
     renderMock.mockClear();
     removeMock.mockClear();
+    mockScriptState.autoLoad = true;
     window.turnstile = { render: renderMock, remove: removeMock };
   });
 
@@ -35,6 +41,7 @@ describe('TurnstileWidget', () => {
         onVerify={onVerify}
         onExpire={onExpire}
         onError={onError}
+        onLoadTimeout={vi.fn()}
       />,
     );
 
@@ -56,6 +63,7 @@ describe('TurnstileWidget', () => {
         onVerify={onVerify}
         onExpire={onExpire}
         onError={onError}
+        onLoadTimeout={vi.fn()}
       />,
     );
 
@@ -86,6 +94,7 @@ describe('TurnstileWidget', () => {
         onVerify={() => {}}
         onExpire={() => {}}
         onError={() => {}}
+        onLoadTimeout={() => {}}
       />,
     );
     expect(renderMock).toHaveBeenCalledTimes(1);
@@ -96,6 +105,7 @@ describe('TurnstileWidget', () => {
         onVerify={() => {}}
         onExpire={() => {}}
         onError={() => {}}
+        onLoadTimeout={() => {}}
       />,
     );
 
@@ -110,6 +120,7 @@ describe('TurnstileWidget', () => {
         onVerify={vi.fn()}
         onExpire={vi.fn()}
         onError={vi.fn()}
+        onLoadTimeout={vi.fn()}
       />,
     );
     expect(renderMock).toHaveBeenCalledTimes(1);
@@ -120,6 +131,7 @@ describe('TurnstileWidget', () => {
         onVerify={vi.fn()}
         onExpire={vi.fn()}
         onError={vi.fn()}
+        onLoadTimeout={vi.fn()}
       />,
     );
 
@@ -134,11 +146,81 @@ describe('TurnstileWidget', () => {
         onVerify={vi.fn()}
         onExpire={vi.fn()}
         onError={vi.fn()}
+        onLoadTimeout={vi.fn()}
       />,
     );
 
     unmount();
 
     expect(removeMock).toHaveBeenCalledWith('widget-1');
+  });
+
+  // M20-S15: previously, a script that never loaded (CSP block, ad-blocker, edge issue, network
+  // flake) hung the widget silently forever — no user-facing signal. This is the direct
+  // regression test for that gap.
+  describe('load-timeout fallback', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('calls onLoadTimeout once the script has not loaded within 10s', () => {
+      mockScriptState.autoLoad = false;
+      const onLoadTimeout = vi.fn();
+
+      render(
+        <TurnstileWidget
+          siteKey="1x00000000000000000000AA"
+          onVerify={vi.fn()}
+          onExpire={vi.fn()}
+          onError={vi.fn()}
+          onLoadTimeout={onLoadTimeout}
+        />,
+      );
+
+      expect(onLoadTimeout).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(10_000);
+      expect(onLoadTimeout).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not call onLoadTimeout when the script loads successfully before the timeout', () => {
+      const onLoadTimeout = vi.fn();
+
+      render(
+        <TurnstileWidget
+          siteKey="1x00000000000000000000AA"
+          onVerify={vi.fn()}
+          onExpire={vi.fn()}
+          onError={vi.fn()}
+          onLoadTimeout={onLoadTimeout}
+        />,
+      );
+
+      vi.advanceTimersByTime(10_000);
+      expect(onLoadTimeout).not.toHaveBeenCalled();
+    });
+
+    it('clears the pending timer on unmount, so onLoadTimeout never fires after the widget is gone', () => {
+      mockScriptState.autoLoad = false;
+      const onLoadTimeout = vi.fn();
+
+      const { unmount } = render(
+        <TurnstileWidget
+          siteKey="1x00000000000000000000AA"
+          onVerify={vi.fn()}
+          onExpire={vi.fn()}
+          onError={vi.fn()}
+          onLoadTimeout={onLoadTimeout}
+        />,
+      );
+
+      unmount();
+      vi.advanceTimersByTime(10_000);
+
+      expect(onLoadTimeout).not.toHaveBeenCalled();
+    });
   });
 });

@@ -139,6 +139,33 @@ test.describe.serial('lead-form public page (GUEST) — M20-S09', () => {
     await guestContext.close();
   });
 
+  // M20-S15 regression test: CSP is a document-response header the browser only re-reads on a
+  // fresh top-level navigation, never on a Next.js client-side (next/link) transition. Every
+  // other test in this file uses page.goto() straight to /lead-form, which would never have
+  // caught this — the bug only manifested when a guest's browser first loaded a *different*
+  // hotsite page fresh (here, the home page) and then soft-navigated into /lead-form via the
+  // CTA link, carrying forward the home page's own CSP.
+  test('Turnstile still renders after a soft (client-side) navigation from the hotsite home page', async ({
+    browser,
+  }) => {
+    const guestContext = await browser.newContext();
+    const page = await guestContext.newPage();
+
+    await page.goto(`/${MANAGER_TENANT_SLUG}`);
+    await page.getByTestId('lead-form-cta').click();
+
+    await expect(page).toHaveURL(new RegExp(`/${MANAGER_TENANT_SLUG}/lead-form$`));
+    await expect(page.getByTestId('lead-form-name')).toBeVisible();
+
+    // Same wait as the main submission test above — the Turnstile test sitekey auto-verifies by
+    // writing a token into this hidden input the moment turnstile.render() resolves.
+    await expect(page.locator('input[name="cf-turnstile-response"]')).toHaveValue(/.+/, {
+      timeout: 15_000,
+    });
+
+    await guestContext.close();
+  });
+
   test('shows a validation error and preserves the entered data when a required field is left blank', async ({
     browser,
   }) => {

@@ -25,11 +25,17 @@ declare global {
 
 const TURNSTILE_SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
 
+// Real Turnstile script loads typically finish in 1-3s on a normal connection; 10s gives
+// generous headroom before treating a stuck load (CSP block, ad-blocker, edge issue, network
+// flake) as failed (M20-S15).
+const LOAD_TIMEOUT_MS = 10_000;
+
 interface TurnstileWidgetProps {
   readonly siteKey: string;
   readonly onVerify: (token: string) => void;
   readonly onExpire: () => void;
   readonly onError: () => void;
+  readonly onLoadTimeout: () => void;
 }
 
 export function TurnstileWidget({
@@ -37,6 +43,7 @@ export function TurnstileWidget({
   onVerify,
   onExpire,
   onError,
+  onLoadTimeout,
 }: TurnstileWidgetProps): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
@@ -52,6 +59,7 @@ export function TurnstileWidget({
   const onVerifyRef = useRef(onVerify);
   const onExpireRef = useRef(onExpire);
   const onErrorRef = useRef(onError);
+  const onLoadTimeoutRef = useRef(onLoadTimeout);
   // Committed in an effect, not assigned directly during render (React 19's
   // react-hooks/refs rule) — a render can run without committing under concurrent
   // rendering, so mutating a ref's value inline in the function body is unsafe.
@@ -59,6 +67,7 @@ export function TurnstileWidget({
     onVerifyRef.current = onVerify;
     onExpireRef.current = onExpire;
     onErrorRef.current = onError;
+    onLoadTimeoutRef.current = onLoadTimeout;
   });
 
   const renderWidget = useCallback(() => {
@@ -82,6 +91,17 @@ export function TurnstileWidget({
       }
     };
   }, [scriptLoaded, renderWidget]);
+
+  // If <Script>'s onLoad never fires (a CSP block, an ad-blocker, a Cloudflare edge issue, a
+  // network flake), the widget otherwise hangs silently forever with no user-facing signal
+  // (M20-S15 — this exact gap is what let the soft-navigation CSP bug go unnoticed). Cleared on
+  // successful load (scriptLoaded flips true, re-running this effect and skipping a new timer)
+  // and on unmount, so a slow-but-eventually-successful load never fires a false positive.
+  useEffect(() => {
+    if (scriptLoaded) return;
+    const timer = setTimeout(() => onLoadTimeoutRef.current(), LOAD_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [scriptLoaded]);
 
   return (
     <>

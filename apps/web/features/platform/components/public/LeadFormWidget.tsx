@@ -253,9 +253,23 @@ export function LeadFormWidget({
       isTurnstileVerified={!!turnstileToken}
       isSubmitting={phase === 'submitting'}
       turnstileKey={turnstileKey}
-      onTurnstileVerify={setTurnstileToken}
+      onTurnstileVerify={(token) => {
+        setTurnstileToken(token);
+        // A re-verification after the timeout/server-rejection remount must clear the
+        // captcha-error banner immediately, not leave it showing "redo verification" with a
+        // now-valid token until the next submit click resets phase as a side effect (M20-S15,
+        // CodeRabbit round 1). Only 'captcha-error' is cleared — any other phase is preserved.
+        setPhase((currentPhase) => (currentPhase === 'captcha-error' ? 'idle' : currentPhase));
+      }}
       onTurnstileExpire={() => setTurnstileToken(null)}
       onTurnstileError={() => setTurnstileToken(null)}
+      onTurnstileLoadTimeout={() => {
+        // Same reset sequence handleSubmit's catch-branch already uses for a server-rejected
+        // token — reuses the existing retry UI/copy instead of a new state (M20-S15).
+        setTurnstileToken(null);
+        setTurnstileKey((k) => k + 1);
+        setPhase('captcha-error');
+      }}
       onSubmit={() => void handleSubmit()}
     />
   );

@@ -37,6 +37,7 @@ function baseProps() {
     onTurnstileVerify: vi.fn(),
     onTurnstileExpire: vi.fn(),
     onTurnstileError: vi.fn(),
+    onTurnstileLoadTimeout: vi.fn(),
     onSubmit: vi.fn(),
   };
 }

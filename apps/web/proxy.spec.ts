@@ -390,12 +390,38 @@ describe('proxy', () => {
       );
     });
 
-    it('does not allow Cloudflare Turnstile on other hotsite routes', async () => {
+    // Widened in M20-S15: CSP is a document-response header the browser only re-reads on a
+    // fresh top-level navigation, never on a Next.js client-side (next/link) transition — a
+    // guest who soft-navigates from the hotsite home page into /lead-form was stuck enforcing
+    // whichever CSP the home page itself carried. Allowing Turnstile tree-wide (mirroring
+    // needsMapsFrameSrc's own scoping) guarantees whichever hotsite page loaded fresh already
+    // permits it, regardless of which page the guest then soft-navigates to.
+    it('also allows Cloudflare Turnstile on other hotsite routes, not just /lead-form', async () => {
       vi.stubEnv('NODE_ENV', 'production');
       const response = await proxy(makeRequest('/lavacar-beloauto/booking'));
       const csp = response.headers.get('Content-Security-Policy') ?? '';
 
-      expect(csp).not.toContain('challenges.cloudflare.com');
+      expect(csp).toContain("script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com");
+      expect(csp).toContain(
+        "connect-src 'self' https://viacep.com.br https://challenges.cloudflare.com",
+      );
+      expect(csp).toContain(
+        'frame-src https://maps.google.com https://www.google.com https://challenges.cloudflare.com; frame-ancestors',
+      );
+    });
+
+    it('does not allow Cloudflare Turnstile on /dashboard or /auth routes', async () => {
+      vi.stubEnv('NODE_ENV', 'production');
+
+      const dashboard = await proxy(makeRequest('/dashboard/settings', validManagerToken));
+      expect(dashboard.headers.get('Content-Security-Policy') ?? '').not.toContain(
+        'challenges.cloudflare.com',
+      );
+
+      const auth = await proxy(makeRequest('/auth/callback'));
+      expect(auth.headers.get('Content-Security-Policy') ?? '').not.toContain(
+        'challenges.cloudflare.com',
+      );
     });
 
     it('does not relax frame-src for other /dashboard routes', async () => {
@@ -444,8 +470,15 @@ describe('proxy', () => {
       const csp = response.headers.get('Content-Security-Policy') ?? '';
 
       // viacep.com.br is a fixed third-party origin (not env-configurable) — always present.
-      expect(csp).toContain("connect-src 'self' https://viacep.com.br");
-      expect(csp).not.toMatch(/connect-src 'self' https:\/\/viacep\.com\.br \S/);
+      // challenges.cloudflare.com is also always present on hotsite routes since M20-S15 widened
+      // Turnstile's CSP allowance tree-wide — this is the only other origin that can legitimately
+      // follow it here now that the BFF/storage origins are unset.
+      expect(csp).toContain(
+        "connect-src 'self' https://viacep.com.br https://challenges.cloudflare.com",
+      );
+      expect(csp).not.toMatch(
+        /connect-src 'self' https:\/\/viacep\.com\.br https:\/\/challenges\.cloudflare\.com \S/,
+      );
       expect(csp).toContain("img-src 'self' blob:");
     });
 
