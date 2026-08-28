@@ -839,7 +839,7 @@ Promoted from `docs/discovery/lead-form-module/lead-form-module.md` (M20). A new
    2. Guest fills mandatory name, email, phone, and any questions marked `required` (others optional).
    3. Guest completes the Turnstile challenge (widget auto-renders).
    4. Guest clicks "Enviar". Client sends `{ name, email, phone, answers[], turnstileToken }` to `POST /public/platform/lead-form/:slug/submissions`.
-   5. BFF verifies `turnstileToken` via Cloudflare `siteverify` — server-side, pre-auth layer, consistent with where other public-form validation already lives.
+   5. Backend verifies `turnstileToken` via Cloudflare `siteverify` — as the first step of submission processing, before any other validation (moved here from the BFF in M20-S14; the BFF's `ALL_TRAFFIC` egress has no Cloud NAT, so its own outbound `siteverify` call had no route out).
    6. Backend validates required fields + `Email`/`PhoneNumber` VOs, then — before creating the row — checks `maxSubmissionsPerDay`/`maxSubmissionsPerIpPerDay` via repository count queries against `lead_form_submissions` (mirrors Chatbot's `checkNewSessionVolumeCaps`/`countByTenantAndDate`/`countByTenantIpAndDate` pattern exactly — this enforcement lives in the **backend**, not the BFF, correcting the discovery doc's original sketch).
    7. Backend creates `LeadFormSubmission`, snapshotting each answer's `{questionId, questionLabel, questionType, answerValue}`, computes `expiresAt` from the tenant's current `retentionMonths`.
    8. `LeadFormSubmissionReceived` published.

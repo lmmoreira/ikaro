@@ -51,7 +51,9 @@ POST /public/platform/lead-form/:slug/submissions
   Header: X-Tenant-Slug: {slug}
   Body: { name, email, phone, answers: [{questionId, value}], turnstileToken }
   Response 200: { submissionId }
-  BFF verifies turnstileToken via Cloudflare siteverify BEFORE forwarding to backend.
+  Backend verifies turnstileToken via Cloudflare siteverify, as the first step of submission
+  processing (moved here from the BFF in M20-S14 — the BFF's ALL_TRAFFIC egress has no Cloud NAT,
+  so its own outbound siteverify call had no route out). The BFF now just forwards the token.
   400 — missing/invalid name/email/phone, unanswered required question, or Turnstile failed
   401 — CUSTOMER_ONLY + unauthenticated
   429 PLATFORM_LEAD_FORM_DAILY_CAP_REACHED — tenant-wide or per-IP daily cap

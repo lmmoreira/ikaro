@@ -19,7 +19,7 @@ The closest *structural* precedent is `CONTACT`: its module data carries only di
 
 ## 3. Cross-cutting infra this introduces
 
-**Cloudflare Turnstile is new to this codebase.** `td/TD08-AUDIT-REMEDIATION-BACKLOG.md` **AUD-040** already tracks an unresolved gap: the public guest-booking endpoint has no CAPTCHA/bot mitigation. This module is the first place Turnstile gets wired in — the same component should be reused to close AUD-040 later rather than building a second integration. Verification happens server-side in the BFF (`siteverify` call before the submission reaches the backend), consistent with where other public-form validation already lives; the widget itself is a plain script + `'use client'` wrapper, no heavy SDK needed.
+**Cloudflare Turnstile is new to this codebase.** `td/TD08-AUDIT-REMEDIATION-BACKLOG.md` **AUD-040** already tracks an unresolved gap: the public guest-booking endpoint has no CAPTCHA/bot mitigation. This module is the first place Turnstile gets wired in — the same component should be reused to close AUD-040 later rather than building a second integration. Verification happens server-side (originally in the BFF — `siteverify` call before the submission reaches the backend, consistent with where other public-form validation already lives; moved to the backend in M20-S14 after a real staging incident — the BFF's `ALL_TRAFFIC` egress has no Cloud NAT, so its own outbound `siteverify` call had no route out); the widget itself is a plain script + `'use client'` wrapper, no heavy SDK needed.
 
 **Two new tenant-settings caps follow the `CHATBOT` category's deviation pattern** (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §7) — see §6.
 
@@ -121,7 +121,7 @@ The two caps follow `settings.chatbot`'s deliberate deviation (`docs/21-TENANTS_
 ### Cloudflare Turnstile
 
 Platform-wide, single Ikaro Cloudflare account (not per-tenant, per the "we already have the keys" framing) — env vars, never a tenant-settings field, same rationale `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` already established for platform-protecting config that must change fast without a deploy touching tenant data:
-- `TURNSTILE_SECRET_KEY` — BFF-only, used in the server-side `siteverify` call
+- `TURNSTILE_SECRET_KEY` — used in the server-side `siteverify` call (originally BFF-only; moved to the backend in M20-S14, see §3 above)
 - `NEXT_PUBLIC_TURNSTILE_SITE_KEY` — public by Cloudflare's own design, baked into the Next.js build
 
 **Open verification item, flagged rather than silently assumed:** confirm the exact `NEXT_PUBLIC_*` env var wiring convention against `docs/22-TECH_STACK_DECISIONS.md`/existing `apps/web` env config before implementation — not verified during this discovery.
@@ -175,7 +175,7 @@ Platform-wide, single Ikaro Cloudflare account (not per-tenant, per the "we alre
   2. Guest fills mandatory name, email, phone, and any questions marked `required` (others optional).
   3. Guest completes the Turnstile challenge (widget auto-renders).
   4. Guest clicks "Enviar". Client sends `{ name, email, phone, answers[], turnstileToken }`.
-  5. BFF verifies `turnstileToken` via Cloudflare `siteverify`.
+  5. Turnstile verification via Cloudflare `siteverify` (originally at the BFF; moved to the backend in M20-S14, see §3 above).
   6. BFF checks `maxSubmissionsPerDay`/`maxSubmissionsPerIpPerDay` (IP from request).
   7. Backend validates required fields + `Email`/`PhoneNumber` VOs, creates `LeadFormSubmission` snapshotting each answer's question label/type, computes `expiresAt` from the tenant's current `retentionMonths`.
   8. `LeadFormSubmissionReceived` published.

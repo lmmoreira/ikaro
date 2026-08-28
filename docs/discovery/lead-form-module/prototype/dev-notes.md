@@ -39,7 +39,9 @@ GET  /public/platform/lead-form/:slug
 
 POST /public/platform/lead-form/:slug/submissions
   Body: { name, email, phone, answers: [{questionId, value}], turnstileToken }
-  BFF verifies turnstileToken via Cloudflare siteverify BEFORE forwarding to backend.
+  Turnstile verification via Cloudflare siteverify (originally at the BFF; moved to the backend
+  in M20-S14 — the BFF's ALL_TRAFFIC egress has no Cloud NAT, so its own outbound siteverify call
+  had no route out).
   429 on rate-limit breach (maxSubmissionsPerDay / maxSubmissionsPerIpPerDay).
 
 GET   /v1/tenants/lead-form/config              (MANAGER)
