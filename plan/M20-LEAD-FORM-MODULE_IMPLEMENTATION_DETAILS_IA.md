@@ -84,7 +84,7 @@
 |---|---|
 | `HotsiteModuleType` incl. `'LEAD_FORM'`, `LeadFormModuleData`, `HotsiteLeadFormConfigResponse` | `packages/types/src/hotsite.ts` |
 | `LeadFormAudienceMode`, `LeadFormQuestion`, `LeadFormConfigResponse`, `LeadFormStatusResponse`, `LeadFormSubmissionListItem`, `LeadFormFilterOptionsResponse`, `LeadFormSubmissionDetailResponse`, `TenantLeadFormSettings` | `packages/types/src/tenant.dto.ts` |
-| Error codes (10 `PLATFORM_LEAD_FORM_*`/`PLATFORM_SETTINGS_LEAD_FORM_*` + 1 `BFF_TURNSTILE_VERIFICATION_FAILED`) | `packages/types/src/error-codes.ts` |
+| Error codes (11 `PLATFORM_LEAD_FORM_*`/`PLATFORM_SETTINGS_LEAD_FORM_*`, incl. `PLATFORM_LEAD_FORM_TURNSTILE_VERIFICATION_FAILED` — was `BFF_TURNSTILE_VERIFICATION_FAILED` before M20-S14) | `packages/types/src/error-codes.ts` |
 | Shared Zod: `LeadFormSubmissionFieldsSchema`, `LeadFormSubmissionFilterEntrySchema`, `ListLeadFormSubmissionsSchema` (backend+BFF, one copy) | `packages/validation/src/lead-form-submission.ts` |
 | Backend/BFF `HotsiteModuleSchema` (own separate enum copy incl. `'LEAD_FORM'`) | `packages/validation/src/hotsite.ts` |
 | Backend-local module-type mirror (`HotsiteModuleType`, `LeadFormModuleData`, `MODULE_TYPES`) | `apps/backend/src/contexts/platform/domain/hotsite-config.types.ts`, `hotsite-config.aggregate.ts` |
@@ -215,7 +215,7 @@ The original S02 draft copied Chatbot's Ikaro-only-override pattern for `maxSubm
 | `PLATFORM_LEAD_FORM_SUBMISSION_NOT_FOUND` | 404 | admin detail read, wrong id or wrong tenant |
 | `PLATFORM_LEAD_FORM_CONFIG_CONCURRENT_MODIFICATION` | 409 | version-guarded UPDATE lost the race |
 | `AUTH_UNAUTHORIZED` (existing code, not new) | 401 | `CUSTOMER_ONLY` audience + no decoded JWT |
-| `BFF_TURNSTILE_VERIFICATION_FAILED` | 400 | `siteverify` rejected/expired token |
+| `PLATFORM_LEAD_FORM_TURNSTILE_VERIFICATION_FAILED` (was `BFF_TURNSTILE_VERIFICATION_FAILED` before M20-S14) | 400 | `siteverify` rejected/expired token |
 | `GENERIC_VALUE_TOO_SHORT` | 400 | empty `search`/filter `value` (never a char-count minimum) |
 | `GENERIC_VALUE_INVALID` | 400 | `search`+`filters` both present; unknown `questionId` in a submission |
 | `GENERIC_VALUE_OUT_OF_RANGE` | 400 | >5 `filters`; `submittedFrom > submittedTo` |

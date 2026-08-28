@@ -40,11 +40,15 @@ locals {
     # grant on a not-yet-existing secret 404s at plan time; wiring secret_env_vars before the
     # accessor grant exists would fail the backend's Cloud Run deploy).
     "openrouter-management-api-key",
-    # M20-S05: Cloudflare Turnstile secret key, BFF-only, used for server-side siteverify calls.
-    # Same safe-row shape as openrouter-management-api-key above — container only here, the BFF
-    # SA's accessor grant (foundation/**) and cloudrun_bff's secret_env_vars wiring land in 2
-    # follow-up PRs. TurnstileService.verify() already degrades safely if this secret is unset
-    # (fails closed, 400, never a crash) — that's what makes the safe row correct here.
+    # M20-S05: Cloudflare Turnstile secret key, used for server-side siteverify calls. Same
+    # safe-row shape as openrouter-management-api-key above — container only here. Originally
+    # BFF-only (BFF SA's accessor grant + cloudrun_bff's secret_env_vars wiring landed in 2
+    # follow-up PRs); M20-S14 moved the consumer to the backend (the BFF's ALL_TRAFFIC egress had
+    # no Cloud NAT, so its own siteverify call had no route out) — the backend SA now holds the
+    # accessor grant and cloudrun_backend holds the secret_env_vars wiring instead. Either way,
+    # the consuming adapter (CloudflareTurnstileAdapter.verify(), formerly TurnstileService.verify())
+    # already degrades safely if this secret is unset (fails closed, 400, never a crash) — that's
+    # what makes the safe row correct here.
     "turnstile-secret-key",
   ]
 
