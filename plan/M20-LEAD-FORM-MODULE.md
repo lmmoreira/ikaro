@@ -648,6 +648,46 @@ Distinct empty state when search/filters/date-range yield zero matches (UC-041 A
 
 ---
 
+### M20-S15 — Fix Turnstile widget silently stuck on soft (client-side) navigation to `/[slug]/lead-form`
+
+**Agent:** `web-ts`
+**Complexity:** S
+**Docs to load:** `docs/ENGINEERING_RULES.md` § Cloudflare Turnstile's test sitekey never renders an interactive iframe (adjacent Turnstile precedent, same file section this story adds to), this file's S05/S09 sections (original widget/CSP implementation)
+
+**Discovered:** 2026-08-28, user bug report — on a normal first visit, the lead-form page's Turnstile widget never appears and the page hangs indefinitely on "Verificando segurança...". A hard refresh (Ctrl+F5) fixes it every time.
+
+**Root cause (traced live in code, not hypothesized):** `apps/web/proxy.ts`'s `needsTurnstileSrc()` (lines 59-61) only adds `challenges.cloudflare.com` to `script-src`/`connect-src`/`frame-src` when the current pathname is exactly `/<slug>/lead-form`. CSP is a document-response header — the browser only re-reads and re-applies it on a fresh top-level navigation, never on a Next.js client-side (`next/link`) transition. The lead-form CTA (`LeadFormModule.tsx`) links to `/<slug>/lead-form` via a plain `<Link>` from the hotsite home page, which is a soft navigation: the browser keeps enforcing the *home page's* CSP (which excludes `challenges.cloudflare.com`) even after routing to `/lead-form`, silently blocking the Turnstile script/iframe with no console-visible error a casual check would catch. `TurnstileWidget.tsx`'s `onLoad` therefore never fires, `renderWidget()` never runs, and `LeadFormFields.tsx`'s `turnstileStatusLabel` stays on `t('leadForm.turnstilePendingTitle')` forever — there's no timeout/fallback state for a script that never loads. Ctrl+F5 forces a fresh top-level navigation straight to `/lead-form`, which re-runs the middleware for that exact pathname and gets the CSP that does allow Cloudflare, so it works. The existing code comment at `proxy.ts` lines 51-58 already flagged the general CSP-must-allow-both-script-src-and-frame-src risk (from PR #433 review) but scoped the allowance too narrowly, assuming users always land on `/lead-form` via a fresh document load — true for every existing E2E spec (`guest-lead-form.spec.ts` always uses `page.goto()`), never true for a real guest clicking the hotsite CTA.
+
+**Pattern:** plain composition / config widening — no named GoF pattern applies; this reuses two patterns already established elsewhere in the same files (`needsMapsFrameSrc`'s tree-wide CSP scoping, the existing `captcha-error` phase's retry-remount mechanism) rather than inventing new machinery.
+
+**Chosen approach (all open decisions locked in at `/story-discovery`, 2026-08-28):**
+1. **CSP fix (the actual root-cause fix):** widen `needsTurnstileSrc(pathname)` in `apps/web/proxy.ts` to `isHotsiteRoute(pathname)` — i.e. allow `challenges.cloudflare.com` on the whole hotsite route tree, not just `/lead-form` — mirroring `needsMapsFrameSrc`'s existing tree-wide scoping in the same file, rather than a single-page allowance. This guarantees whichever hotsite page a guest's browser actually loaded fresh already carries a CSP that permits Turnstile, regardless of which page they then soft-navigate to. Rewrite the lines 51-58 comment to state the soft-navigation mechanism explicitly (the previous "narrower than `needsMapsFrameSrc`, single consumer" reasoning is now the bug, not a feature) and update `proxy.spec.ts`'s existing CSP assertions accordingly.
+2. **Defense in depth — load-timeout fallback in `TurnstileWidget.tsx`:** today there is no time bound on `scriptLoaded`; if `<Script>`'s `onLoad` never fires for *any* reason (this bug, an ad-blocker, a Cloudflare edge issue, a network flake), the widget hangs silently forever with zero user-facing signal. Add a `useEffect`-driven timer, **locked in at 10 seconds** (real Turnstile script loads typically finish in 1-3s on a normal connection; 10s gives generous headroom before treating it as failed), that — if `scriptLoaded` is still `false` when it fires — calls a new `onLoadTimeout: () => void` prop instead of leaving the guest stuck. Clear the timer via the effect's cleanup function both on successful load (`scriptLoaded` becoming `true` re-runs the effect) and on unmount, so a slow-but-eventually-successful load never fires a false positive and no timer leaks.
+3. **Wiring (locked in):** `LeadFormWidget.tsx` passes a new `onTurnstileLoadTimeout` callback that mirrors the exact same reset sequence its `handleSubmit` catch-branch already uses for a server-rejected token — `setTurnstileToken(null); setTurnstileKey((k) => k + 1); setPhase('captcha-error');` — reusing the existing amber retry banner, `captchaErrorTitle`/`captchaErrorBody`/`turnstileRedoTitle` copy, and the `turnstileKey`-increment remount-to-retry mechanism. No new UI state or i18n keys. Thread it through `LeadFormFields.tsx`'s existing `onTurnstile*` prop group the same way `onTurnstileExpire`/`onTurnstileError` are threaded today, and pass it to `TurnstileWidget`'s new `onLoadTimeout` prop.
+4. **E2E test id (locked in):** add `data-testid="lead-form-cta"` to the CTA `<Link>` in `LeadFormModule.tsx` (`apps/web/shells/hotsite/components/LeadFormModule.tsx:61`), alongside the sibling `data-testid="lead-form-subtitle"` already on that component — needed for a reliable Playwright locator on the soft-navigation E2E scenario below.
+5. **`proxy.spec.ts` changes (locked in):** invert the existing `'does not allow Cloudflare Turnstile on other hotsite routes'` test (currently asserting the exact bug behavior — lines 393-399) to assert `challenges.cloudflare.com` IS now present in `script-src`/`connect-src`/`frame-src` for a non-`/lead-form` hotsite route (e.g. `/<slug>/booking`); add a new case confirming `/dashboard/*` and `/auth/*` routes still correctly exclude it (regression guard, since those stay outside `isHotsiteRoute()`).
+6. **E2E scenario (new, in `guest-lead-form.spec.ts` or a new spec):** starting from `page.goto('/<slug>')` (the hotsite home page, a fresh top-level load carrying the home page's CSP), click `page.getByTestId('lead-form-cta')` (a soft `next/link` navigation to `/lead-form`), then assert the Turnstile widget actually renders/verifies — this is the real regression test for the bug, since every existing lead-form E2E spec calls `page.goto('/<slug>/lead-form')` directly and would never have caught it.
+
+**Files to create/modify:**
+- Modify: `apps/web/proxy.ts` (+ `apps/web/proxy.spec.ts`)
+- Modify: `apps/web/features/platform/components/public/TurnstileWidget.tsx` (+ `TurnstileWidget.spec.tsx`)
+- Modify: `apps/web/features/platform/components/public/LeadFormFields.tsx` (+ `LeadFormFields.spec.tsx`), `apps/web/features/platform/components/public/LeadFormWidget.tsx` (+ `LeadFormWidget.spec.tsx`)
+- Modify: `apps/web/shells/hotsite/components/LeadFormModule.tsx` (add `data-testid="lead-form-cta"`)
+- Modify: `apps/web/e2e/guest-lead-form.spec.ts` (new soft-navigation scenario)
+
+**Acceptance Criteria:**
+- [ ] `needsTurnstileSrc()` allows `challenges.cloudflare.com` on every hotsite route, not just `/lead-form`; `proxy.ts`'s explanatory comment updated to state the soft-navigation/document-header mechanism
+- [ ] `proxy.spec.ts`'s `'does not allow Cloudflare Turnstile on other hotsite routes'` test inverted to assert the allowance IS present on a non-`/lead-form` hotsite route; new case added confirming `/dashboard` and `/auth` routes still exclude it
+- [ ] `TurnstileWidget` exposes an `onLoadTimeout` prop, fired once after 10s if `scriptLoaded` is still `false`; timer cleared on successful load and on unmount (no leaked timers, no false positive after a slow-but-eventually-successful load) — covered with `vi.useFakeTimers()`
+- [ ] `LeadFormWidget` wires `onTurnstileLoadTimeout` to the same `setTurnstileToken(null); setTurnstileKey((k) => k + 1); setPhase('captcha-error')` sequence the server-rejection path already uses — no new i18n keys, no new UI state
+- [ ] `LeadFormModule.tsx`'s CTA link has `data-testid="lead-form-cta"`
+- [ ] New E2E scenario: starting from the hotsite home page, clicking the lead-form CTA (soft navigation, not `page.goto()`) renders and verifies the Turnstile widget correctly
+- [ ] Coverage ≥80% on changed code; `tsc --noEmit`, lint, full test suite green on `apps/web`
+
+**Dependencies:** S05 (original CSP allowance), S09 (original `TurnstileWidget`/`LeadFormWidget` implementation) — refines both, changes no public contract.
+
+---
+
 ## Definition of Done (applies to every story above)
 
 Full checklist: `docs/DEFINITION_OF_DONE.md`. Every story runs the full `/story-discovery` → implementation → `/pre-pr` → PR chain per `CLAUDE.md` §9 — this file provides the pre-decided architecture/pattern/test-strategy inputs that skill's Step 4q otherwise has to derive from scratch; it does not replace that discovery pass.
