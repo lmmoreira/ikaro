@@ -490,13 +490,13 @@ await page.locator('[data-testid="input-name"]').fill('E2E Teste');
 
 ### E2E Selector Strategy (mandatory — all Playwright tests)
 
-> **Updated (`M13-S41`):** this section previously recommended `getByLabel`/`getByText` as a first-choice selector strategy. That guidance directly contradicted the "Translated strings" rule immediately above (which correctly forbids exactly that) and was walked back during `M13-S41` after four separate follow-up commits were needed to strip `getByLabel`/`getByText` usages that had crept in under the old guidance. It's corrected here to match what's actually enforced (`scripts/pre-pr.sh`'s E2E-1 check) and what every real spec in `apps/web/e2e/*.spec.ts` does today.
+> **Updated (`M13-S41`):** this section previously recommended `getByLabel`/`getByText` as a first-choice selector strategy. That guidance directly contradicted the "Translated strings" rule immediately above (which correctly forbids exactly that) and was walked back during `M13-S41` after four separate follow-up commits were needed to strip `getByLabel`/`getByText` usages that had crept in under the old guidance. It's corrected here to match what's actually enforced (`apps/web/eslint.config.js`'s E2E-1 `no-restricted-syntax` selector, TD37-S23) and what every real spec in `apps/web/e2e/*.spec.ts` does today.
 
 **Priority order — use the first that applies:**
 
 **1. `getByRole` where a stable ARIA role/name fits — `getByLabel`/`getByText` are forbidden**
 
-`getByRole` (e.g. `page.getByRole('tab', { name: 'Branding' })`) is used throughout the existing E2E suite and isn't blocked by tooling — in practice it's mostly used for widgets (tabs, dialogs) where the accessible name is also the visible label. **`getByLabel` and `getByText` are forbidden everywhere in `apps/web/e2e/*.spec.ts`**, with no exception — enforced mechanically by `scripts/pre-pr.sh`'s E2E-1 check, which blocks a PR outright if either appears. For anything else — form fields, dynamic content, action buttons, success/error states — use `data-testid` (below), not an accessibility selector matched against translatable copy.
+`getByRole` (e.g. `page.getByRole('tab', { name: 'Branding' })`) is used throughout the existing E2E suite and isn't blocked by tooling — in practice it's mostly used for widgets (tabs, dialogs) where the accessible name is also the visible label. **`getByLabel` and `getByText` are forbidden everywhere in `apps/web/e2e/*.spec.ts`**, with no exception — enforced mechanically by the E2E-1 ESLint rule (`apps/web/eslint.config.js`, TD37-S23), which fails `pnpm lint`/`ci:fast` on every push, not just once before a PR is first created. For anything else — form fields, dynamic content, action buttons, success/error states — use `data-testid` (below), not an accessibility selector matched against translatable copy.
 
 ```ts
 // ✅ used in this codebase's real specs (hotsite-editor.spec.ts)
@@ -520,7 +520,7 @@ page.locator('[data-testid="step-confirm"]') // action button
 
 **3. Never encode data into `data-testid`**
 
-Embed the data value in a separate `data-*` attribute. The testid is an identity, not a record key.
+Embed the data value in a separate `data-*` attribute. The testid is an identity, not a record key. Enforced mechanically on every component definition site (`apps/web/**/*.tsx`, excluding `.spec.tsx`) by two ESLint rules (`apps/web/eslint.config.js`, TD37-S23): **E2E-2** bans an ISO date (`YYYY-MM-DD`) embedded in a `data-testid` string literal; **E2E-3** bans any template-literal `data-testid` value.
 
 ```ts
 // ✅

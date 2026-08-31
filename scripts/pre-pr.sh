@@ -6,8 +6,10 @@
 # Covers: checks 1,5,6,7,11,12,14,15,16,17,18,22,23,24,25,26,27,28
 #         W1 (web vitest setup entrypoint)
 #         WEB-1/WEB-4/WEB-5/WEB-6/WEB-7
-#         E2E-1/E2E-2/E2E-3
 #         BE-2/BE-3/BE-4/BE-5/BE-7 (changed files only — bad-smell-audit covers full codebase)
+#
+# E2E-1/E2E-2/E2E-3 retired (TD37-S23) — now enforced full-codebase via ESLint
+# (apps/web/eslint.config.js's no-restricted-syntax E2E-1/E2E-2/E2E-3 selectors), not this script.
 #
 # Agent reasoning checks → pre-pr.md Step 3a
 # Structural full-codebase scan → pre-pr.md Step 3b (/bad-smell-audit per layer)
@@ -34,7 +36,6 @@ ts_modules=$(echo "$ts_prod" | grep -E '\.module\.ts$' || true)
 ts_use_cases=$(echo "$ts_prod" | grep -E '\.use-case\.ts$' || true)
 
 web_tsx_prod=$(echo "$ts_prod" | grep '^apps/web/' | grep -E '\.tsx$' || true)
-web_tsx_all=$(echo "$ts_all" | grep '^apps/web/' | grep -E '\.tsx$' || true)
 # Domain-slice component locations (post-TD-21 migration) — there is no flat apps/web/components/.
 web_component_re='^apps/web/(features/[^/]+/components/|shells/[^/]+/components/|shared/components/)'
 web_spec_tsx_added=$(echo "$added" | grep -E "$web_component_re" | grep -E '\.spec\.tsx$' || true)
@@ -260,32 +261,6 @@ elif echo "$changed" | grep -q 'packages/i18n/locales/pt-BR/web\.json'; then
     printf "pt-BR/web.json changed but en/web.json did not — both must be updated together\n" >> "$TMP"
 fi
 run_check "26. i18n locale files updated in sync (en + pt-BR)"
-
-# ── E2E quality checks ────────────────────────────────────────────────────────
-if [ -d "apps/web/e2e" ]; then
-
-printf "\n### E2E quality checks\n"
-
-# E2E-1. No getByLabel/getByText in e2e specs (breaks under i18n)
-> "$TMP"
-if find apps/web/e2e -name "*.spec.ts" | xargs grep -lnE \
-    "getByLabel\(|getByText\(" 2>/dev/null | grep -q .; then
-  find apps/web/e2e -name "*.spec.ts" \
-    | xargs grep -nE "getByLabel\(|getByText\(" 2>/dev/null >> "$TMP" || true
-fi
-run_check "E2E-1. No getByLabel/getByText in e2e/ — use data-testid"
-
-# E2E-2. No ISO date embedded in data-testid values
-grep_into_tmp "$web_tsx_all" \
-  'data-testid="[^"]*[0-9]{4}-[0-9]{2}-[0-9]{2}[^"]*"'
-run_check "E2E-2. No ISO date embedded in data-testid — use data-date attribute"
-
-# E2E-3. No template-literal data-testid
-grep_into_tmp "$web_tsx_all" \
-  'data-testid=\{`'
-run_check "E2E-3. No template-literal data-testid — encode data in separate data-* attribute"
-
-fi
 
 # ── Bad-Smell — Backend (changed files only) ─────────────────────────────────
 printf "\n### Bad-Smell — Backend (changed files; /bad-smell-audit covers full codebase)\n"

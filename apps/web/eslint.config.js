@@ -81,6 +81,47 @@ const CSS_PROPERTIES_BARE_SELECTOR = {
 // source of truth (CodeRabbit review, PR #375) — still repeated into this file's own blocks
 // below, because ESLint flat config replaces, not merges, a rule's options per matching file.
 const { ZOD_UUID_SELECTOR, ZOD_EMAIL_SELECTOR } = baseConfig;
+// TD37-S23: pre-pr.sh's E2E-1/E2E-2/E2E-3 checks (scripts/pre-pr.sh) ran once, before a PR was
+// first created, and never again — a violation introduced in a later bot-fix-round commit was
+// invisible to every gate after that (PR #429/M20-S08 shipped a real E2E-1 violation this way;
+// docs/CI_TRAPS.md). Migrated to ESLint so ci:fast (and every push) catches a violation, not just
+// the one pre-pr.sh run before a PR exists.
+// E2E-1 matches any xxx.getByLabel(...)/xxx.getByText(...) member call — both are forbidden in
+// e2e specs because they match against translatable copy, which breaks under i18n
+// (docs/08-TESTING_STRATEGY.md § E2E Selector Strategy).
+const E2E1_SELECTOR = {
+  selector: 'CallExpression[callee.property.name=/^(getByLabel|getByText)$/]',
+  message:
+    'E2E-1 (TD37-S23): getByLabel()/getByText() break under i18n — use a data-testid selector instead (docs/08-TESTING_STRATEGY.md § E2E Selector Strategy).',
+};
+// E2E-2 bans an ISO date (YYYY-MM-DD) embedded directly in a data-testid string literal — a
+// component change that shifts the rendered date silently breaks every e2e selector referencing
+// it. Scoped to component definition sites (**/*.tsx below), not the e2e specs that consume the
+// value — matches JSXAttribute value as a plain string Literal, the same shape the
+// pre-pr.sh grep matched.
+const E2E2_SELECTOR = {
+  selector:
+    "JSXAttribute[name.name='data-testid'][value.type='Literal'][value.value=/\\d{4}-\\d{2}-\\d{2}/]",
+  message:
+    'E2E-2 (TD37-S23): no ISO date embedded in data-testid — encode it in a separate data-date attribute instead (docs/08-TESTING_STRATEGY.md).',
+};
+// E2E-3 bans a template-literal data-testid value (computed or not) — a computed testid forces
+// every consuming e2e spec to reconstruct the same computation just to select the element.
+// Encode the dynamic part in a separate data-* attribute and keep data-testid static.
+const E2E3_SELECTOR = {
+  selector: "JSXAttribute[name.name='data-testid'] > JSXExpressionContainer > TemplateLiteral",
+  message:
+    'E2E-3 (TD37-S23): no template-literal data-testid — encode the dynamic part in a separate data-* attribute and keep data-testid static (docs/08-TESTING_STRATEGY.md).',
+};
+// E2E-2/E2E-3 join NON_FETCH_SELECTORS (not their own block) specifically so they inherit the
+// existing **/*.spec.ts/**/*.spec.tsx ignores below — their rationale (Playwright e2e-selector
+// stability) doesn't apply to a Vitest-only unit-test mock component (TD37-S23 discovery note:
+// apps/web/shells/hotsite/components/TestimonialsCarousel.spec.tsx's own template-literal
+// data-testid is exactly this case). A *separate* block scoped to **/*.tsx would silently
+// replace, not add to, this block's no-restricted-syntax entry for every .tsx file both blocks
+// match — ESLint flat config replaces same-rule-key options per file, it doesn't merge them (see
+// this file's own "Six rules share one block" comment below, and
+// apps/backend/eslint.config.js's TD24-S03 comment, for the same trap already documented twice).
 const NON_FETCH_SELECTORS = [
   LOCALE_LITERAL_SELECTOR,
   CSS_PROPERTIES_RETURN_SELECTOR,
@@ -88,6 +129,8 @@ const NON_FETCH_SELECTORS = [
   CSS_PROPERTIES_BARE_SELECTOR,
   ZOD_UUID_SELECTOR,
   ZOD_EMAIL_SELECTOR,
+  E2E2_SELECTOR,
+  E2E3_SELECTOR,
 ];
 
 module.exports = [
@@ -161,6 +204,16 @@ module.exports = [
     ignores: ['**/*.spec.ts', '**/*.spec.tsx'],
     rules: {
       'no-restricted-syntax': ['error', ...NON_FETCH_SELECTORS],
+    },
+  },
+  // TD37-S23: E2E-1 only — scoped to Playwright e2e specs themselves, which the two
+  // no-restricted-syntax blocks above deliberately ignore (**/*.spec.ts). A separate block is
+  // required here rather than folding this into NON_FETCH_SELECTORS: e2e specs are exactly the
+  // files those blocks exclude, so a rule meant to apply *only there* can't live in either.
+  {
+    files: ['e2e/**/*.spec.ts'],
+    rules: {
+      'no-restricted-syntax': ['error', E2E1_SELECTOR],
     },
   },
 
