@@ -1,5 +1,8 @@
-import { resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { Linter } from 'eslint';
+import { describe, expect, it } from 'vitest';
 
 const webRoot = resolve(__dirname, '../../..');
 // Load the actual CommonJS flat config rather than duplicating its rules in this spec — same
@@ -174,5 +177,86 @@ describe('TD37-S23 E2E quality checks (web)', () => {
 
       expect(e2eMessages(messages, 'E2E-3')).toHaveLength(1);
     });
+  });
+
+  // AC3 (TD37-S23): "A fixture PR introducing each of the 3 violations fails at ci:fast/push
+  // time, not just at a later, separate pre-pr.sh invocation." Linter.verify() above proves the
+  // selectors are correct, but only by calling ESLint's JS API in-process — it doesn't prove the
+  // real `pnpm lint` command (what ci:fast and the pre-push hook actually run) rejects a
+  // violation. Spawns the real CLI as a subprocess against on-disk fixture files, same approach
+  // as TD37-S18's eslint-next-plugin.eslint.spec.ts (Codex review, PR #450, round 4 — a manual
+  // git-push demonstration in the PR thread proved the mechanism once but left no permanent,
+  // CI-re-verified artifact).
+  describe('AC3: a real fixture violation fails the actual pnpm lint command', () => {
+    function runLint(): { status: number; output: string } {
+      try {
+        execFileSync('pnpm', ['lint'], { cwd: webRoot, stdio: 'pipe' });
+        return { status: 0, output: '' };
+      } catch (error) {
+        if (typeof error === 'object' && error !== null && 'status' in error) {
+          return {
+            status: typeof error.status === 'number' ? error.status : 1,
+            output: [
+              'stdout' in error && Buffer.isBuffer(error.stdout) ? error.stdout.toString() : '',
+              'stderr' in error && Buffer.isBuffer(error.stderr) ? error.stderr.toString() : '',
+            ].join('\n'),
+          };
+        }
+        return { status: 1, output: '' };
+      }
+    }
+
+    it('blocks a real E2E-1/E2E-2/E2E-3 violation via the actual pnpm lint command, then accepts the corrected fixtures', () => {
+      // E2E-1 needs apps/web/e2e/**/*.spec.ts; E2E-2/E2E-3 need apps/web/**/*.tsx (not
+      // *.spec.tsx) — two separate fixture locations, matching each rule's real scope.
+      const e2eDir = mkdtempSync(join(webRoot, 'e2e', 'e2e-quality-fixture-'));
+      const e2eFixture = join(e2eDir, 'fixture.spec.ts');
+      const tsxDir = mkdtempSync(join(webRoot, 'e2e-quality-fixture-'));
+      const tsxFixture = join(tsxDir, 'fixture.tsx');
+
+      try {
+        writeFileSync(
+          e2eFixture,
+          [
+            "import { test } from '@playwright/test';",
+            '',
+            "test('x', async ({ page }) => {",
+            "  await page.getByText('Salvar').click();",
+            '});',
+            '',
+          ].join('\n'),
+        );
+        writeFileSync(
+          tsxFixture,
+          'export function Row({ i }: { i: number }): React.JSX.Element {\n  return (\n    <>\n      <div data-testid="row-2026-08-31" />\n      <div data-testid={`row-${i}`} />\n    </>\n  );\n}\n',
+        );
+        const violating = runLint();
+        expect(violating.status).not.toBe(0);
+        expect(violating.output).toContain('E2E-1');
+        expect(violating.output).toContain('E2E-2');
+        expect(violating.output).toContain('E2E-3');
+
+        writeFileSync(
+          e2eFixture,
+          [
+            "import { test } from '@playwright/test';",
+            '',
+            "test('x', async ({ page }) => {",
+            "  await page.getByTestId('save-button').click();",
+            '});',
+            '',
+          ].join('\n'),
+        );
+        writeFileSync(
+          tsxFixture,
+          'export function Row({ i }: { i: number }): React.JSX.Element {\n  return (\n    <>\n      <div data-testid="row" data-date="2026-08-31" />\n      <div data-testid="row" data-index={i} />\n    </>\n  );\n}\n',
+        );
+        const fixed = runLint();
+        expect(fixed.status, fixed.output).toBe(0);
+      } finally {
+        rmSync(e2eDir, { recursive: true, force: true });
+        rmSync(tsxDir, { recursive: true, force: true });
+      }
+    }, 180_000);
   });
 });
