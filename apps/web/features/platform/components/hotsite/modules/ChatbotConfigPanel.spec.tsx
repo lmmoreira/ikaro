@@ -4,7 +4,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { ChatbotModuleData } from '@ikaro/types';
-import { renderWithIntl } from '@/test-utils';
+import { getPillOption, renderWithIntl } from '@/test-utils';
 import { getChatbotCapStatus } from '@/features/platform/api/tenant-settings';
 import { ChatbotConfigPanel } from './ChatbotConfigPanel';
 import { writeModuleData } from './module-config-panel.types';
@@ -20,12 +20,6 @@ vi.mock('@/providers/tenant-provider', () => ({
 const mockGetChatbotCapStatus = vi.mocked(getChatbotCapStatus);
 
 const CHATBOT: ChatbotModuleData = {};
-
-// PillSelect (TD37-S23, Codex review PR #450) shares one static data-testid per group,
-// disambiguated by a separate data-value attribute rather than a computed data-testid.
-function getPillOption(testId: string, value: string) {
-  return screen.getAllByTestId(testId).find((el) => el.dataset.value === value)!;
-}
 
 function renderPanel(data: ChatbotModuleData = CHATBOT, onChange = vi.fn()) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });

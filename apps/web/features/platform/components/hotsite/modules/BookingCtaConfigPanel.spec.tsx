@@ -3,7 +3,7 @@ import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { BookingCtaModuleData } from '@ikaro/types';
-import { renderWithIntl } from '@/test-utils';
+import { getPillOption, queryPillOption, renderWithIntl } from '@/test-utils';
 import { BookingCtaConfigPanel } from './BookingCtaConfigPanel';
 import { writeModuleData } from './module-config-panel.types';
 
@@ -13,18 +13,6 @@ vi.mock('@/features/platform/api/tenant-settings', () => ({
 }));
 
 const BOOKING_CTA: BookingCtaModuleData = { title: 'Pronto?', ctaLabel: 'Agendar' };
-
-// PillSelect (TD37-S23, Codex review PR #450) shares one static data-testid per group,
-// disambiguated by a separate data-value attribute rather than a computed data-testid — mirrors
-// the existing getAllByTestId(...).find((el) => el.dataset.X === ...) pattern already used
-// elsewhere in this codebase (e.g. LayoutTab.spec.tsx).
-function getPillOption(testId: string, value: string) {
-  return screen.getAllByTestId(testId).find((el) => el.dataset.value === value)!;
-}
-
-function queryPillOption(testId: string, value: string) {
-  return screen.queryAllByTestId(testId).find((el) => el.dataset.value === value) ?? null;
-}
 
 describe('BookingCtaConfigPanel', () => {
   it('renders current values', () => {

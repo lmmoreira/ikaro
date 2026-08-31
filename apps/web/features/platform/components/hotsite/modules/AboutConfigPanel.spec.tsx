@@ -3,7 +3,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { AboutModuleData } from '@ikaro/types';
-import { renderWithIntl } from '@/test-utils';
+import { getPillOption, renderWithIntl } from '@/test-utils';
 import { AboutConfigPanel } from './AboutConfigPanel';
 import { writeModuleData } from './module-config-panel.types';
 import { generateHotsiteImageSignedUrl } from '@/features/platform/api/tenant-settings';
@@ -44,11 +44,7 @@ describe('AboutConfigPanel', () => {
 
     renderWithIntl(<AboutConfigPanel data={writeModuleData(ABOUT)} onChange={onChange} />);
 
-    // PillSelect (TD37-S23, Codex review PR #450) shares one static data-testid per group,
-    // disambiguated by a separate data-value attribute rather than a computed data-testid.
-    await user.click(
-      screen.getAllByTestId('about-image-position').find((el) => el.dataset.value === 'right')!,
-    );
+    await user.click(getPillOption('about-image-position', 'right'));
 
     expect(onChange).toHaveBeenCalledWith(writeModuleData({ ...ABOUT, imagePosition: 'right' }));
   });

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import type { AbstractIntlMessages } from 'next-intl';
 import ptBRMessages from '@ikaro/i18n/locales/pt-BR/web.json';
@@ -81,4 +81,20 @@ export function renderWithIntl(
   }
 
   return render(ui, { wrapper: Wrapper });
+}
+
+// PillSelect (TD37-S23, Codex review PR #450) shares one static data-testid per option group,
+// disambiguated by a separate data-value attribute rather than a computed data-testid — every
+// PillSelect-consuming component spec needs the same lookup, so it lives here instead of being
+// redefined per file.
+export function getPillOption(testId: string, value: string): HTMLElement {
+  const match = screen.getAllByTestId(testId).find((el) => el.dataset.value === value);
+  if (!match) {
+    throw new Error(`No PillSelect option found for testId="${testId}" value="${value}"`);
+  }
+  return match;
+}
+
+export function queryPillOption(testId: string, value: string): HTMLElement | null {
+  return screen.queryAllByTestId(testId).find((el) => el.dataset.value === value) ?? null;
 }

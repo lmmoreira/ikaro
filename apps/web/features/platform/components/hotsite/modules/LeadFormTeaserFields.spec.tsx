@@ -2,23 +2,13 @@
 import { screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
-import { renderWithIntl } from '@/test-utils';
+import { getPillOption, queryPillOption, renderWithIntl } from '@/test-utils';
 import { LeadFormTeaserFields } from './LeadFormTeaserFields';
 
 vi.mock('@/features/platform/api/tenant-settings', () => ({
   generateHotsiteImageSignedUrl: vi.fn(),
   deleteHotsiteImage: vi.fn(),
 }));
-
-// PillSelect (TD37-S23, Codex review PR #450) shares one static data-testid per group,
-// disambiguated by a separate data-value attribute rather than a computed data-testid.
-function getPillOption(testId: string, value: string) {
-  return screen.getAllByTestId(testId).find((el) => el.dataset.value === value)!;
-}
-
-function queryPillOption(testId: string, value: string) {
-  return screen.queryAllByTestId(testId).find((el) => el.dataset.value === value) ?? null;
-}
 
 describe('LeadFormTeaserFields', () => {
   it('renders the draft values, defaulting variant and bgStyle when unset', () => {

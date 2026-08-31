@@ -2,7 +2,7 @@
 import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { GalleryModuleData } from '@ikaro/types';
-import { renderWithIntl } from '@/test-utils';
+import { getPillOption, queryPillOption, renderWithIntl } from '@/test-utils';
 import { GalleryConfigPanel } from './GalleryConfigPanel';
 import { writeModuleData } from './module-config-panel.types';
 
@@ -17,16 +17,6 @@ vi.mock('@/features/booking/api/booking', () => ({
 }));
 
 const GALLERY: GalleryModuleData = { images: [], layout: 'grid', maxVisible: 6 };
-
-// PillSelect (TD37-S23, Codex review PR #450) shares one static data-testid per group,
-// disambiguated by a separate data-value attribute rather than a computed data-testid.
-function getPillOption(testId: string, value: string) {
-  return screen.getAllByTestId(testId).find((el) => el.dataset.value === value)!;
-}
-
-function queryPillOption(testId: string, value: string) {
-  return screen.queryAllByTestId(testId).find((el) => el.dataset.value === value) ?? null;
-}
 
 const FIVE_IMAGES = Array.from({ length: 5 }, (_, i) => ({
   url: `https://storage.example.com/gallery/photo-${i}.jpg`,
