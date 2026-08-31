@@ -623,7 +623,7 @@ Extract each side's literal string-member set (`constArray` walks the array lite
 
 ---
 
-### Story 23 — ESLint rules for E2E-1/E2E-2/E2E-3 (`pre-pr.sh` checks bypassable after PR creation) 🔴
+### Story 23 — ESLint rules for E2E-1/E2E-2/E2E-3 (`pre-pr.sh` checks bypassable after PR creation) 🔴 ✅ Done
 
 `pre-pr.sh`'s own skill text is explicit: *"If a PR is already open for this branch, this skill exits immediately."* That means every custom check in the script — including the three E2E quality checks below — runs **once**, before a PR is first created, and never again. Once a PR is open, `/pr-land`'s round loop only re-runs `ci:fast` (ESLint + `tsc --noEmit` + unit tests) plus Codex/CodeRabbit review on each new commit — never `pre-pr.sh` itself. A check that's a bespoke grep (not an ESLint rule) is therefore invisible to every commit added during a PR's own bot-fix round loop, not just to commits on a different branch.
 
