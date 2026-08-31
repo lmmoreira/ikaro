@@ -88,14 +88,17 @@ const { ZOD_UUID_SELECTOR, ZOD_EMAIL_SELECTOR } = baseConfig;
 // the one pre-pr.sh run before a PR exists.
 // E2E-1 matches any xxx.getByLabel(...)/xxx.getByText(...) member call — both are forbidden in
 // e2e specs because they match against translatable copy, which breaks under i18n
-// (docs/08-TESTING_STRATEGY.md § E2E Selector Strategy). Matches both the dotted form
-// (page.getByText(...)) and computed-literal access (page['getByText'](...)) — same bypass
-// class already fixed for RAW_FETCH_SELECTOR above (window['fetch'](...), Codex review, PR #375,
-// round 2): a computed member's property is a Literal node with a `.value`, not an Identifier
-// with a `.name`, so callee.property.name alone never matches it (Codex review, PR #450).
+// (docs/08-TESTING_STRATEGY.md § E2E Selector Strategy). Matches the dotted form
+// (page.getByText(...)), computed-literal access (page['getByText'](...)) — same bypass class
+// already fixed for RAW_FETCH_SELECTOR above (window['fetch'](...), Codex review, PR #375, round
+// 2): a computed member's property is a Literal node with a `.value`, not an Identifier with a
+// `.name`, so callee.property.name alone never matches it — and a bare destructured call
+// (const { getByText } = page; getByText(...)), which the retired pre-pr.sh grep's plain
+// substring match still caught but a member-only selector doesn't (Codex review, PR #450, round
+// 2).
 const E2E1_SELECTOR = {
   selector:
-    "CallExpression:matches([callee.property.name=/^(getByLabel|getByText)$/], [callee.computed=true][callee.property.type='Literal'][callee.property.value=/^(getByLabel|getByText)$/])",
+    "CallExpression:matches([callee.property.name=/^(getByLabel|getByText)$/], [callee.computed=true][callee.property.type='Literal'][callee.property.value=/^(getByLabel|getByText)$/], [callee.type='Identifier'][callee.name=/^(getByLabel|getByText)$/])",
   message:
     'E2E-1 (TD37-S23): getByLabel()/getByText() break under i18n — use a data-testid selector instead (docs/08-TESTING_STRATEGY.md § E2E Selector Strategy).',
 };

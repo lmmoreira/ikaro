@@ -72,6 +72,15 @@ describe('TD37-S23 E2E quality checks (web)', () => {
 
       expect(e2eMessages(messages, 'E2E-1')).toHaveLength(1);
     });
+
+    it('rejects a bare destructured getByText(...) call (Codex review, PR #450, round 2 — the retired pre-pr.sh grep still caught this via plain substring match; a member-only AST selector did not)', () => {
+      const messages = lint(
+        "test('x', async ({ page }) => { const { getByText } = page; await getByText('Salvar').click(); });",
+        'e2e/guest-booking.spec.ts',
+      );
+
+      expect(e2eMessages(messages, 'E2E-1')).toHaveLength(1);
+    });
   });
 
   describe('E2E-2: no ISO date embedded in data-testid', () => {
