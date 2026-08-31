@@ -28,8 +28,8 @@ export default defineConfig({
       include: [
         'shared/lib/**',
         'shared/utils/**',
+        'shared/components/**',
         'app/**',
-        'components/**',
         'providers/**',
         'features/**',
       ],

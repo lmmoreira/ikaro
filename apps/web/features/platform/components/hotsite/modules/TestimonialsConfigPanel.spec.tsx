@@ -4,7 +4,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { TestimonialsModuleData } from '@ikaro/types';
-import { renderWithIntl } from '@/test-utils';
+import { getPillOption, renderWithIntl } from '@/test-utils';
 import { TestimonialsConfigPanel } from './TestimonialsConfigPanel';
 import { writeModuleData } from './module-config-panel.types';
 
@@ -146,7 +146,7 @@ describe('TestimonialsConfigPanel', () => {
       <TestimonialsConfigPanel data={writeModuleData(WITH_ITEM)} onChange={onChange} />,
     );
 
-    await user.click(screen.getByTestId('testimonial-rating-0-5'));
+    await user.click(getPillOption('testimonial-rating-0', '5'));
 
     expect(onChange).toHaveBeenCalledWith(
       writeModuleData({ ...WITH_ITEM, items: [{ ...WITH_ITEM.items[0], rating: 5 }] }),
@@ -184,7 +184,7 @@ describe('TestimonialsConfigPanel', () => {
       <TestimonialsConfigPanel data={writeModuleData(WITH_ITEM)} onChange={onChange} />,
     );
 
-    await user.click(screen.getByTestId('testimonials-layout-carousel'));
+    await user.click(getPillOption('testimonials-layout', 'carousel'));
 
     expect(onChange).toHaveBeenCalledWith(writeModuleData({ ...WITH_ITEM, layout: 'carousel' }));
   });

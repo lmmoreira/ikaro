@@ -454,7 +454,9 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     });
     await expect(page.getByTestId('single-image-upload-preview')).toBeVisible();
 
-    await page.locator('[data-testid="hero-background-image-position-right"]').click();
+    await page
+      .locator('[data-testid="hero-background-image-position"][data-value="right"]')
+      .click();
     await page.getByTestId('module-config-apply-desktop').click();
 
     await page.getByTestId('hotsite-publish-desktop').click();
@@ -465,7 +467,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.locator(configureButton('HERO')).click();
     await expect(page.getByTestId('single-image-upload-preview')).toBeVisible();
     await expect(
-      page.locator('[data-testid="hero-background-image-position-right"]'),
+      page.locator('[data-testid="hero-background-image-position"][data-value="right"]'),
     ).toHaveAttribute('aria-checked', 'true');
 
     await page.goto(`/${MANAGER_TENANT_SLUG}`);
@@ -497,9 +499,9 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
 
     // Explicit, not assumed from seed state — the X picker only renders for 'centered' (M18-S05
     // review finding, PR #295).
-    await page.locator('[data-testid="hero-variant-centered"]').click();
-    await page.locator('[data-testid="hero-content-position-x-right"]').click();
-    await page.locator('[data-testid="hero-content-position-y-top"]').click();
+    await page.locator('[data-testid="hero-variant"][data-value="centered"]').click();
+    await page.locator('[data-testid="hero-content-position-x"][data-value="right"]').click();
+    await page.locator('[data-testid="hero-content-position-y"][data-value="top"]').click();
     await page.getByTestId('module-config-apply-desktop').click();
 
     await page.getByTestId('hotsite-publish-desktop').click();
@@ -508,14 +510,12 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.reload();
     await page.getByRole('tab', { name: 'Layout' }).click();
     await page.locator(configureButton('HERO')).click();
-    await expect(page.locator('[data-testid="hero-content-position-x-right"]')).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
-    await expect(page.locator('[data-testid="hero-content-position-y-top"]')).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
+    await expect(
+      page.locator('[data-testid="hero-content-position-x"][data-value="right"]'),
+    ).toHaveAttribute('aria-checked', 'true');
+    await expect(
+      page.locator('[data-testid="hero-content-position-y"][data-value="top"]'),
+    ).toHaveAttribute('aria-checked', 'true');
 
     await page.goto(`/${MANAGER_TENANT_SLUG}`);
     const heroSection = page.locator('[data-variant="centered"]');
@@ -540,8 +540,10 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.locator('#booking-cta-title').fill('Agende seu horário');
     await page.locator('#booking-cta-cta-label').fill('Agendar agora');
 
-    await page.locator('[data-testid="booking-cta-content-position-x-right"]').click();
-    await page.locator('[data-testid="booking-cta-content-position-y-top"]').click();
+    await page
+      .locator('[data-testid="booking-cta-content-position-x"][data-value="right"]')
+      .click();
+    await page.locator('[data-testid="booking-cta-content-position-y"][data-value="top"]').click();
     await page.getByTestId('module-config-apply-desktop').click();
 
     await page.getByTestId('hotsite-publish-desktop').click();
@@ -551,10 +553,10 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.getByRole('tab', { name: 'Layout' }).click();
     await page.locator(configureButton('BOOKING_CTA')).click();
     await expect(
-      page.locator('[data-testid="booking-cta-content-position-x-right"]'),
+      page.locator('[data-testid="booking-cta-content-position-x"][data-value="right"]'),
     ).toHaveAttribute('aria-checked', 'true');
     await expect(
-      page.locator('[data-testid="booking-cta-content-position-y-top"]'),
+      page.locator('[data-testid="booking-cta-content-position-y"][data-value="top"]'),
     ).toHaveAttribute('aria-checked', 'true');
 
     await page.goto(`/${MANAGER_TENANT_SLUG}`);
@@ -585,7 +587,9 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     });
     await expect(page.getByTestId('single-image-upload-preview')).toBeVisible();
 
-    await page.locator('[data-testid="booking-cta-background-image-position-right"]').click();
+    await page
+      .locator('[data-testid="booking-cta-background-image-position"][data-value="right"]')
+      .click();
     await page.getByTestId('module-config-apply-desktop').click();
 
     await page.getByTestId('hotsite-publish-desktop').click();
@@ -596,7 +600,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.locator(configureButton('BOOKING_CTA')).click();
     await expect(page.getByTestId('single-image-upload-preview')).toBeVisible();
     await expect(
-      page.locator('[data-testid="booking-cta-background-image-position-right"]'),
+      page.locator('[data-testid="booking-cta-background-image-position"][data-value="right"]'),
     ).toHaveAttribute('aria-checked', 'true');
 
     await page.goto(`/${MANAGER_TENANT_SLUG}`);
@@ -646,7 +650,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     });
     await expect(page.getByTestId('gallery-image')).toHaveCount(2);
 
-    await page.getByTestId('gallery-layout-masonry').click();
+    await page.locator('[data-testid="gallery-layout"][data-value="masonry"]').click();
     await page.getByTestId('module-config-apply-desktop').click();
 
     await page.getByTestId('hotsite-publish-desktop').click();
@@ -685,10 +689,10 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     }
 
     // Exactly 5 images — "Destaque" must be selectable, not disabled.
-    const featuredPill = page.getByTestId('gallery-layout-featured');
+    const featuredPill = page.locator('[data-testid="gallery-layout"][data-value="featured"]');
     await expect(featuredPill).toBeEnabled();
     await featuredPill.click();
-    await page.getByTestId('gallery-featured-position-right').click();
+    await page.locator('[data-testid="gallery-featured-position"][data-value="right"]').click();
     await page.getByTestId('module-config-apply-desktop').click();
 
     await page.getByTestId('hotsite-publish-desktop').click();
@@ -831,14 +835,15 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.locator('#booking-cta-cta-label').fill('Agendar agora');
 
     // Default datePickerType is carousel — carouselDays is visible
-    await expect(page.getByTestId('booking-cta-date-picker-type-carousel')).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
+    await expect(
+      page.locator('[data-testid="booking-cta-date-picker-type"][data-value="carousel"]'),
+    ).toHaveAttribute('aria-checked', 'true');
     await page.locator('#booking-cta-carousel-days').fill('21');
 
     // Switching to calendar hides carouselDays
-    await page.getByTestId('booking-cta-date-picker-type-calendar').click();
+    await page
+      .locator('[data-testid="booking-cta-date-picker-type"][data-value="calendar"]')
+      .click();
     await expect(page.locator('#booking-cta-carousel-days')).toHaveCount(0);
 
     await page.getByTestId('module-config-apply-desktop').click();
@@ -849,16 +854,17 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.getByRole('tab', { name: 'Layout' }).click();
     await page.locator(configureButton('BOOKING_CTA')).click();
 
-    await expect(page.getByTestId('booking-cta-date-picker-type-calendar')).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
+    await expect(
+      page.locator('[data-testid="booking-cta-date-picker-type"][data-value="calendar"]'),
+    ).toHaveAttribute('aria-checked', 'true');
     await expect(page.locator('#booking-cta-carousel-days')).toHaveCount(0);
 
     // Switching back to carousel must reveal the *previously saved* carouselDays (21), not the
     // default (14) — proves the value actually persisted across the save/reload above, rather
     // than the mode toggle alone happening to look like it did.
-    await page.getByTestId('booking-cta-date-picker-type-carousel').click();
+    await page
+      .locator('[data-testid="booking-cta-date-picker-type"][data-value="carousel"]')
+      .click();
     await expect(page.locator('#booking-cta-carousel-days')).toHaveValue('21');
   });
 
@@ -1061,8 +1067,8 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
 
     await page.locator('#chatbot-bot-name').fill('Bot da AutoSpa');
     await page.locator('#chatbot-welcome-message').fill('Oi! Como posso ajudar você hoje?');
-    await page.getByTestId('chatbot-variant-inline').click();
-    await page.getByTestId('chatbot-accent-color-secondary').click();
+    await page.locator('[data-testid="chatbot-variant"][data-value="inline"]').click();
+    await page.locator('[data-testid="chatbot-accent-color"][data-value="secondary"]').click();
     await page.getByTestId('module-config-apply-desktop').click();
 
     await expect(page.locator(layoutToggle('CHATBOT'))).toHaveAttribute('aria-checked', 'true');
@@ -1079,14 +1085,12 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await expect(page.locator('#chatbot-welcome-message')).toHaveValue(
       'Oi! Como posso ajudar você hoje?',
     );
-    await expect(page.getByTestId('chatbot-variant-inline')).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
-    await expect(page.getByTestId('chatbot-accent-color-secondary')).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
+    await expect(
+      page.locator('[data-testid="chatbot-variant"][data-value="inline"]'),
+    ).toHaveAttribute('aria-checked', 'true');
+    await expect(
+      page.locator('[data-testid="chatbot-accent-color"][data-value="secondary"]'),
+    ).toHaveAttribute('aria-checked', 'true');
   });
 
   // M19-S12 — the cap-reached banner (UC-027 A5) is the only module-panel state sourced from a

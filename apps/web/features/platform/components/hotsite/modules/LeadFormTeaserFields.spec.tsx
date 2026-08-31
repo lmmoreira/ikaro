@@ -2,7 +2,7 @@
 import { screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
-import { renderWithIntl } from '@/test-utils';
+import { getPillOption, queryPillOption, renderWithIntl } from '@/test-utils';
 import { LeadFormTeaserFields } from './LeadFormTeaserFields';
 
 vi.mock('@/features/platform/api/tenant-settings', () => ({
@@ -61,7 +61,7 @@ describe('LeadFormTeaserFields', () => {
       );
 
       expect(
-        screen.queryByTestId('lead-form-teaser-background-image-position-center'),
+        queryPillOption('lead-form-teaser-background-image-position', 'center'),
       ).not.toBeInTheDocument();
     });
 
@@ -78,7 +78,7 @@ describe('LeadFormTeaserFields', () => {
       );
 
       expect(
-        screen.getByTestId('lead-form-teaser-background-image-position-center'),
+        getPillOption('lead-form-teaser-background-image-position', 'center'),
       ).toBeInTheDocument();
     });
 
@@ -96,7 +96,7 @@ describe('LeadFormTeaserFields', () => {
         />,
       );
 
-      await user.click(screen.getByTestId('lead-form-teaser-background-image-position-right'));
+      await user.click(getPillOption('lead-form-teaser-background-image-position', 'right'));
 
       expect(onChange).toHaveBeenCalledWith({ backgroundImagePosition: 'right' });
     });

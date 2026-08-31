@@ -3,7 +3,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { ServiceListModuleData } from '@ikaro/types';
-import { renderWithIntl } from '@/test-utils';
+import { getPillOption, renderWithIntl } from '@/test-utils';
 import { ServiceListConfigPanel } from './ServiceListConfigPanel';
 import { writeModuleData } from './module-config-panel.types';
 
@@ -16,7 +16,7 @@ describe('ServiceListConfigPanel', () => {
     );
 
     expect(screen.getByTestId('service-list-show-prices')).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByTestId('service-list-layout-grid')).toHaveAttribute('aria-checked', 'true');
+    expect(getPillOption('service-list-layout', 'grid')).toHaveAttribute('aria-checked', 'true');
   });
 
   it('toggling showPrices calls onChange with only that field flipped', async () => {
@@ -40,7 +40,7 @@ describe('ServiceListConfigPanel', () => {
       <ServiceListConfigPanel data={writeModuleData(SERVICE_LIST)} onChange={onChange} />,
     );
 
-    await user.click(screen.getByTestId('service-list-layout-list'));
+    await user.click(getPillOption('service-list-layout', 'list'));
 
     expect(onChange).toHaveBeenCalledWith(writeModuleData({ ...SERVICE_LIST, layout: 'list' }));
   });

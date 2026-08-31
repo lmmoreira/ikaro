@@ -320,7 +320,9 @@ Runs automatically on `git push`. Fix these before re-pushing.
 
 **Proven, not hypothetical:** PR #429 (M20-S08, 22 commits across its own bot-fix round loop, merged 2026-08-27) shipped a real E2E-1 violation (`getByLabel(`/`getByText(` in `apps/web/e2e/hotsite-editor.spec.ts`) — a rule that had existed since M13-S41 (2026-06-18), two months earlier. It sat on `main` undetected until M20-S12's own work found it the next day. Most likely mechanism: the violating test code was added in a later round-loop commit, after the PR's one-time `pre-pr.sh` gate had already passed.
 
-**What this means in practice:** "pre-pr already passed" is only true as of the commit that triggered it — never assume it still covers whatever the bot-fix loop has added since. If you add or change code that a `pre-pr.sh`-only check (not `ci:fast`, not an ESLint rule) would have caught, re-run the relevant check by hand before pushing. `td/TD37-CI-ARCHITECTURE-VALIDATION-HARDENING.md` Story 23 proposes migrating E2E-1/2/3 to real ESLint rules (closing this gap structurally for those three); the underlying trap applies to every other `pre-pr.sh`-only check until each gets the same treatment.
+**What this means in practice:** "pre-pr already passed" is only true as of the commit that triggered it — never assume it still covers whatever the bot-fix loop has added since. If you add or change code that a `pre-pr.sh`-only check (not `ci:fast`, not an ESLint rule) would have caught, re-run the relevant check by hand before pushing. The underlying trap applies to every remaining `pre-pr.sh`-only check until each gets the same treatment.
+
+**Resolved for E2E-1/E2E-2/E2E-3 (TD37-S23, 2026-08-31):** all three migrated from `pre-pr.sh` bespoke grep checks to real ESLint `no-restricted-syntax` selectors in `apps/web/eslint.config.js`, which run as part of `pnpm lint`/`ci:fast` on every push — including every bot-fix round-loop commit, not just the one `pre-pr.sh` run before a PR first opens. `scripts/pre-pr.sh`'s own E2E-1/E2E-2/E2E-3 checks were removed once the ESLint rules confirmed identical scope, so there's no longer a duplicate/stale check to fall out of sync.
 
 ---
 

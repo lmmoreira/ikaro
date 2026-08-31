@@ -3,7 +3,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { AboutModuleData } from '@ikaro/types';
-import { renderWithIntl } from '@/test-utils';
+import { getPillOption, renderWithIntl } from '@/test-utils';
 import { AboutConfigPanel } from './AboutConfigPanel';
 import { writeModuleData } from './module-config-panel.types';
 import { generateHotsiteImageSignedUrl } from '@/features/platform/api/tenant-settings';
@@ -44,7 +44,7 @@ describe('AboutConfigPanel', () => {
 
     renderWithIntl(<AboutConfigPanel data={writeModuleData(ABOUT)} onChange={onChange} />);
 
-    await user.click(screen.getByTestId('about-image-position-right'));
+    await user.click(getPillOption('about-image-position', 'right'));
 
     expect(onChange).toHaveBeenCalledWith(writeModuleData({ ...ABOUT, imagePosition: 'right' }));
   });

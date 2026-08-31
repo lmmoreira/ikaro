@@ -51,7 +51,8 @@ export function PillSelect<T extends string>({
             role="radio"
             aria-checked={option.value === value}
             disabled={option.disabled}
-            data-testid={testId ? `${testId}-${option.value}` : undefined}
+            data-testid={testId}
+            data-value={option.value}
             onClick={() => onChange(option.value)}
             className={`rounded-full border px-3.5 py-2 text-sm font-semibold transition-colors ${pillButtonClassName(option.value === value, option.disabled)}`}
           >

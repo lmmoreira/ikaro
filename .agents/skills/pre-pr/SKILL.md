@@ -37,7 +37,7 @@ Run:
 bash scripts/pre-pr.sh
 ```
 
-This covers: checks 1, 5, 6, 7, 11, 12, 14, 15, 17, 18, 22–27; W1; WEB-1/WEB-4/WEB-5/WEB-6/WEB-7; E2E-1/E2E-2/E2E-3; BE-2–BE-5/BE-7 (changed files only). Check 16 (`.skip()`/`.only()` in tests) was retired (TD37-S15) — now enforced full-codebase via ESLint (`jest/no-disabled-tests`/`jest/no-focused-tests`, `vitest/no-disabled-tests`/`vitest/no-focused-tests`) as part of `pnpm lint`, not this script.
+This covers: checks 1, 5, 6, 7, 11, 12, 14, 15, 17, 18, 22–27; W1; WEB-1/WEB-4/WEB-5/WEB-6/WEB-7; BE-2–BE-5/BE-7 (changed files only). Check 16 (`.skip()`/`.only()` in tests) was retired (TD37-S15) — now enforced full-codebase via ESLint (`jest/no-disabled-tests`/`jest/no-focused-tests`, `vitest/no-disabled-tests`/`vitest/no-focused-tests`) as part of `pnpm lint`, not this script. E2E-1/E2E-2/E2E-3 were likewise retired (TD37-S23) — now enforced via ESLint (`apps/web/eslint.config.js`'s `no-restricted-syntax` E2E-1/E2E-2/E2E-3 selectors) within each rule's configured scope (E2E-1: `apps/web/e2e/**/*.spec.ts`; E2E-2/E2E-3: `apps/web/**/*.tsx`, excluding `*.spec.tsx`) as part of `pnpm lint`, not this script.
 
 If the script exits with issues, fix them and re-run. Do not proceed to Step 2 with script failures outstanding.
 

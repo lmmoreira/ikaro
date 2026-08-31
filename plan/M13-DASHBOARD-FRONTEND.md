@@ -4119,6 +4119,8 @@ Use `vi.mock` for `fetch`. Do NOT test `page.tsx` — server component, Playwrig
 
 > **Implement this story first** — before M13-S01. Every other M13 story that builds a `page.tsx` route must add an E2E test file alongside it (`apps/web/e2e/<feature>.spec.ts`). This scaffolding must exist before those stories start.
 
+> **Superseded — the `getByLabel(/nome/i)`/`getByLabel(/telefone/i)` locators below are stale.** This story's own original guidance recommended `getByLabel`/`getByText` as a first-choice selector; that was walked back during this same story after four follow-up commits were needed to strip usages that had crept in under it (see `docs/08-TESTING_STRATEGY.md` § E2E Selector Strategy). `getByLabel`/`getByText` are now forbidden everywhere in `apps/web/e2e/*.spec.ts` with no exception, enforced by the E2E-1 ESLint rule (`apps/web/eslint.config.js`, TD37-S23). Use `data-testid` for form fields instead — the historical example below is left as-is for planning-doc accuracy, not as current guidance.
+
 **Goal:** Install Playwright in `apps/web`; write the first E2E test for the UC-001 guest booking golden path (M12-S07 already built the code — this adds the test). Establish the convention: every `app/**/page.tsx` route added in M13 ships with a Playwright test in the same story.
 
 **Convention for the rest of M13:**

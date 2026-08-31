@@ -4,7 +4,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { ChatbotModuleData } from '@ikaro/types';
-import { renderWithIntl } from '@/test-utils';
+import { getPillOption, renderWithIntl } from '@/test-utils';
 import { getChatbotCapStatus } from '@/features/platform/api/tenant-settings';
 import { ChatbotConfigPanel } from './ChatbotConfigPanel';
 import { writeModuleData } from './module-config-panel.types';
@@ -96,7 +96,7 @@ describe('ChatbotConfigPanel', () => {
 
     renderPanel(CHATBOT, onChange);
 
-    await user.click(screen.getByTestId('chatbot-variant-inline'));
+    await user.click(getPillOption('chatbot-variant', 'inline'));
 
     expect(onChange).toHaveBeenCalledWith(writeModuleData({ ...CHATBOT, variant: 'inline' }));
   });
@@ -108,7 +108,7 @@ describe('ChatbotConfigPanel', () => {
 
     renderPanel(CHATBOT, onChange);
 
-    await user.click(screen.getByTestId('chatbot-accent-color-secondary'));
+    await user.click(getPillOption('chatbot-accent-color', 'secondary'));
 
     expect(onChange).toHaveBeenCalledWith(
       writeModuleData({ ...CHATBOT, accentColor: 'secondary' }),
@@ -127,8 +127,8 @@ describe('ChatbotConfigPanel', () => {
 
     expect(screen.getByLabelText('Nome do assistente (opcional)')).toHaveValue('Beloa');
     expect(screen.getByLabelText('Mensagem de boas-vindas')).toHaveValue('Oi!');
-    expect(screen.getByTestId('chatbot-variant-inline')).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByTestId('chatbot-accent-color-secondary')).toHaveAttribute(
+    expect(getPillOption('chatbot-variant', 'inline')).toHaveAttribute('aria-checked', 'true');
+    expect(getPillOption('chatbot-accent-color', 'secondary')).toHaveAttribute(
       'aria-checked',
       'true',
     );
