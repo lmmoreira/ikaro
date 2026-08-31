@@ -40,9 +40,21 @@ describe('TD37-S23 E2E quality checks (web)', () => {
       );
     });
 
-    it('rejects page.getByText() in an e2e spec', () => {
+    // SonarCloud S5976: 3 near-identical "rejects getByText() via <form>" tests, differing only
+    // in the source string linted — parameterized into one.
+    it.each([
+      ['dotted member access', "await page.getByText('Salvar').click();"],
+      [
+        "computed-literal member access (Codex review, PR #450 — same bypass class already fixed for RAW_FETCH_SELECTOR's window['fetch']())",
+        "await page['getByText']('Salvar').click();",
+      ],
+      [
+        'a bare destructured call (Codex review, PR #450, round 2 — the retired pre-pr.sh grep still caught this via plain substring match; a member-only AST selector did not)',
+        "const { getByText } = page; await getByText('Salvar').click();",
+      ],
+    ])('rejects page.getByText() via %s', (_label, statement) => {
       const messages = lint(
-        "test('x', async ({ page }) => { await page.getByText('Salvar').click(); });",
+        `test('x', async ({ page }) => { ${statement} });`,
         'e2e/guest-booking.spec.ts',
       );
 
@@ -65,24 +77,6 @@ describe('TD37-S23 E2E quality checks (web)', () => {
       );
 
       expect(e2eMessages(messages, 'E2E-1')).toHaveLength(0);
-    });
-
-    it("rejects page['getByText'](...) computed-literal access (Codex review, PR #450 — same bypass class already fixed for RAW_FETCH_SELECTOR's window['fetch']())", () => {
-      const messages = lint(
-        "test('x', async ({ page }) => { await page['getByText']('Salvar').click(); });",
-        'e2e/guest-booking.spec.ts',
-      );
-
-      expect(e2eMessages(messages, 'E2E-1')).toHaveLength(1);
-    });
-
-    it('rejects a bare destructured getByText(...) call (Codex review, PR #450, round 2 — the retired pre-pr.sh grep still caught this via plain substring match; a member-only AST selector did not)', () => {
-      const messages = lint(
-        "test('x', async ({ page }) => { const { getByText } = page; await getByText('Salvar').click(); });",
-        'e2e/guest-booking.spec.ts',
-      );
-
-      expect(e2eMessages(messages, 'E2E-1')).toHaveLength(1);
     });
   });
 
