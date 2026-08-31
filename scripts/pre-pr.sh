@@ -8,8 +8,10 @@
 #         WEB-1/WEB-4/WEB-5/WEB-6/WEB-7
 #         BE-2/BE-3/BE-4/BE-5/BE-7 (changed files only — bad-smell-audit covers full codebase)
 #
-# E2E-1/E2E-2/E2E-3 retired (TD37-S23) — now enforced full-codebase via ESLint
-# (apps/web/eslint.config.js's no-restricted-syntax E2E-1/E2E-2/E2E-3 selectors), not this script.
+# E2E-1/E2E-2/E2E-3 retired (TD37-S23) — now enforced via ESLint (apps/web/eslint.config.js's
+# no-restricted-syntax E2E-1/E2E-2/E2E-3 selectors) within each rule's configured scope
+# (E2E-1: apps/web/e2e/**/*.spec.ts; E2E-2/E2E-3: apps/web/**/*.tsx, excluding *.spec.tsx), not
+# this script.
 #
 # Agent reasoning checks → pre-pr.md Step 3a
 # Structural full-codebase scan → pre-pr.md Step 3b (/bad-smell-audit per layer)

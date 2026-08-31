@@ -105,11 +105,14 @@ const E2E1_SELECTOR = {
 // E2E-2 bans an ISO date (YYYY-MM-DD) embedded directly in a data-testid string literal — a
 // component change that shifts the rendered date silently breaks every e2e selector referencing
 // it. Scoped to component definition sites (**/*.tsx below), not the e2e specs that consume the
-// value — matches JSXAttribute value as a plain string Literal, the same shape the
-// pre-pr.sh grep matched.
+// value. Matches both the plain string-literal JSX attribute form (data-testid="...") the
+// pre-pr.sh grep matched, and a string literal wrapped in a JSXExpressionContainer
+// (data-testid={'row-2026-08-31'}) — a different AST shape (value.type is JSXExpressionContainer,
+// not Literal, so the plain form alone missed it) that the original grep also never caught, but
+// is the same rule violation in substance (Codex review, PR #450, round 3).
 const E2E2_SELECTOR = {
   selector:
-    "JSXAttribute[name.name='data-testid'][value.type='Literal'][value.value=/\\d{4}-\\d{2}-\\d{2}/]",
+    "JSXAttribute[name.name='data-testid']:matches([value.type='Literal'][value.value=/\\d{4}-\\d{2}-\\d{2}/], [value.type='JSXExpressionContainer'][value.expression.type='Literal'][value.expression.value=/\\d{4}-\\d{2}-\\d{2}/])",
   message:
     'E2E-2 (TD37-S23): no ISO date embedded in data-testid — encode it in a separate data-date attribute instead (docs/08-TESTING_STRATEGY.md).',
 };

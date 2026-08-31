@@ -106,6 +106,15 @@ describe('TD37-S23 E2E quality checks (web)', () => {
       expect(e2eMessages(messages, 'E2E-2')).toHaveLength(0);
     });
 
+    it("rejects a JSXExpressionContainer-wrapped string literal containing an ISO date (data-testid={'row-2026-08-31'}) — a different AST shape than the plain string form; the retired pre-pr.sh grep didn't catch this either, but it's the same rule violation (Codex review, PR #450, round 3)", () => {
+      const messages = lint(
+        "export function Row() { return <div data-testid={'row-2026-08-31'} />; }",
+        'shared/components/Row.tsx',
+      );
+
+      expect(e2eMessages(messages, 'E2E-2')).toHaveLength(1);
+    });
+
     it('does not run E2E-2 inside a .spec.tsx file (Vitest-only mock, not a Playwright e2e concern)', () => {
       const messages = lint(
         'function Row() { return <div data-testid="row-2026-08-31" />; }',
