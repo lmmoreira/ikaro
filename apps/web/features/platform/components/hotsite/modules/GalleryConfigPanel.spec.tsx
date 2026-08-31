@@ -18,6 +18,16 @@ vi.mock('@/features/booking/api/booking', () => ({
 
 const GALLERY: GalleryModuleData = { images: [], layout: 'grid', maxVisible: 6 };
 
+// PillSelect (TD37-S23, Codex review PR #450) shares one static data-testid per group,
+// disambiguated by a separate data-value attribute rather than a computed data-testid.
+function getPillOption(testId: string, value: string) {
+  return screen.getAllByTestId(testId).find((el) => el.dataset.value === value)!;
+}
+
+function queryPillOption(testId: string, value: string) {
+  return screen.queryAllByTestId(testId).find((el) => el.dataset.value === value) ?? null;
+}
+
 const FIVE_IMAGES = Array.from({ length: 5 }, (_, i) => ({
   url: `https://storage.example.com/gallery/photo-${i}.jpg`,
   source: 'upload' as const,
@@ -28,7 +38,7 @@ describe('GalleryConfigPanel', () => {
     renderWithIntl(<GalleryConfigPanel data={writeModuleData(GALLERY)} onChange={vi.fn()} />);
 
     expect(screen.getByDisplayValue('6')).toBeInTheDocument();
-    expect(screen.getByTestId('gallery-layout-grid')).toHaveAttribute('aria-checked', 'true');
+    expect(getPillOption('gallery-layout', 'grid')).toHaveAttribute('aria-checked', 'true');
   });
 
   it('editing maxVisible calls onChange with the parsed number', () => {
@@ -69,7 +79,7 @@ describe('GalleryConfigPanel', () => {
 
     renderWithIntl(<GalleryConfigPanel data={writeModuleData(GALLERY)} onChange={onChange} />);
 
-    fireEvent.click(screen.getByTestId('gallery-layout-masonry'));
+    fireEvent.click(getPillOption('gallery-layout', 'masonry'));
 
     expect(onChange).toHaveBeenCalledWith(writeModuleData({ ...GALLERY, layout: 'masonry' }));
   });
@@ -78,7 +88,7 @@ describe('GalleryConfigPanel', () => {
     it('disables the "Destaque" pill and shows the "requires at least 5" hint below 5 images', () => {
       renderWithIntl(<GalleryConfigPanel data={writeModuleData(GALLERY)} onChange={vi.fn()} />);
 
-      expect(screen.getByTestId('gallery-layout-featured')).toBeDisabled();
+      expect(getPillOption('gallery-layout', 'featured')).toBeDisabled();
       expect(screen.getByText('O layout Destaque exige pelo menos 5 imagens.')).toBeInTheDocument();
     });
 
@@ -90,7 +100,7 @@ describe('GalleryConfigPanel', () => {
         />,
       );
 
-      expect(screen.getByTestId('gallery-layout-featured')).not.toBeDisabled();
+      expect(getPillOption('gallery-layout', 'featured')).not.toBeDisabled();
       expect(
         screen.queryByText('O layout Destaque exige pelo menos 5 imagens.'),
       ).not.toBeInTheDocument();
@@ -107,7 +117,7 @@ describe('GalleryConfigPanel', () => {
         />,
       );
 
-      expect(screen.getByTestId('gallery-layout-featured')).not.toBeDisabled();
+      expect(getPillOption('gallery-layout', 'featured')).not.toBeDisabled();
     });
 
     it('shows the "uses only the first 5" note once layout is "featured" with more than 5 images', () => {
@@ -161,7 +171,7 @@ describe('GalleryConfigPanel', () => {
       const onChange = vi.fn();
       renderWithIntl(<GalleryConfigPanel data={writeModuleData(GALLERY)} onChange={onChange} />);
 
-      fireEvent.click(screen.getByTestId('gallery-layout-featured'));
+      fireEvent.click(getPillOption('gallery-layout', 'featured'));
 
       expect(onChange).not.toHaveBeenCalled();
     });
@@ -174,7 +184,7 @@ describe('GalleryConfigPanel', () => {
         />,
       );
 
-      expect(screen.queryByTestId('gallery-featured-position-left')).not.toBeInTheDocument();
+      expect(queryPillOption('gallery-featured-position', 'left')).not.toBeInTheDocument();
     });
 
     // Removing images can leave layout: 'featured' persisted while it's actually rendering as the
@@ -193,7 +203,7 @@ describe('GalleryConfigPanel', () => {
         />,
       );
 
-      expect(screen.queryByTestId('gallery-featured-position-left')).not.toBeInTheDocument();
+      expect(queryPillOption('gallery-featured-position', 'left')).not.toBeInTheDocument();
     });
 
     it('renders the position pill, defaulting to "left", once layout is "featured"', () => {
@@ -204,7 +214,7 @@ describe('GalleryConfigPanel', () => {
         />,
       );
 
-      expect(screen.getByTestId('gallery-featured-position-left')).toHaveAttribute(
+      expect(getPillOption('gallery-featured-position', 'left')).toHaveAttribute(
         'aria-checked',
         'true',
       );
@@ -216,7 +226,7 @@ describe('GalleryConfigPanel', () => {
 
       renderWithIntl(<GalleryConfigPanel data={writeModuleData(data)} onChange={onChange} />);
 
-      fireEvent.click(screen.getByTestId('gallery-featured-position-right'));
+      fireEvent.click(getPillOption('gallery-featured-position', 'right'));
 
       expect(onChange).toHaveBeenCalledWith(
         writeModuleData({ ...data, featuredPosition: 'right' }),

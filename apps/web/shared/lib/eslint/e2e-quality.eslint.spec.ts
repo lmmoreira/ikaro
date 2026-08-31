@@ -63,6 +63,15 @@ describe('TD37-S23 E2E quality checks (web)', () => {
 
       expect(e2eMessages(messages, 'E2E-1')).toHaveLength(0);
     });
+
+    it("rejects page['getByText'](...) computed-literal access (Codex review, PR #450 — same bypass class already fixed for RAW_FETCH_SELECTOR's window['fetch']())", () => {
+      const messages = lint(
+        "test('x', async ({ page }) => { await page['getByText']('Salvar').click(); });",
+        'e2e/guest-booking.spec.ts',
+      );
+
+      expect(e2eMessages(messages, 'E2E-1')).toHaveLength(1);
+    });
   });
 
   describe('E2E-2: no ISO date embedded in data-testid', () => {
@@ -137,6 +146,15 @@ describe('TD37-S23 E2E quality checks (web)', () => {
       );
 
       expect(e2eMessages(messages, 'E2E-3')).toHaveLength(0);
+    });
+
+    it('rejects a template literal nested inside a conditional expression (Codex review, PR #450 — a direct-child selector missed this; caught a real production instance in PillSelect)', () => {
+      const messages = lint(
+        "export function Row({ cond, i }: { cond: boolean; i: number }) { return <div data-testid={cond ? `row-${i}` : 'row'} />; }",
+        'shared/components/Row.tsx',
+      );
+
+      expect(e2eMessages(messages, 'E2E-3')).toHaveLength(1);
     });
   });
 });

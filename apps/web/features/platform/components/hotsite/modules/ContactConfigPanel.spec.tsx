@@ -40,7 +40,13 @@ describe('ContactConfigPanel', () => {
 
     renderWithIntl(<ContactConfigPanel data={writeModuleData(CONTACT)} onChange={onChange} />);
 
-    await user.click(screen.getByTestId('contact-display-style-icon-cards'));
+    // PillSelect (TD37-S23, Codex review PR #450) shares one static data-testid per group,
+    // disambiguated by a separate data-value attribute rather than a computed data-testid.
+    await user.click(
+      screen
+        .getAllByTestId('contact-display-style')
+        .find((el) => el.dataset.value === 'icon-cards')!,
+    );
 
     expect(onChange).toHaveBeenCalledWith(
       writeModuleData({ ...CONTACT, displayStyle: 'icon-cards' }),

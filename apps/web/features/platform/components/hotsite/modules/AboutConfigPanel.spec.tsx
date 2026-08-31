@@ -44,7 +44,11 @@ describe('AboutConfigPanel', () => {
 
     renderWithIntl(<AboutConfigPanel data={writeModuleData(ABOUT)} onChange={onChange} />);
 
-    await user.click(screen.getByTestId('about-image-position-right'));
+    // PillSelect (TD37-S23, Codex review PR #450) shares one static data-testid per group,
+    // disambiguated by a separate data-value attribute rather than a computed data-testid.
+    await user.click(
+      screen.getAllByTestId('about-image-position').find((el) => el.dataset.value === 'right')!,
+    );
 
     expect(onChange).toHaveBeenCalledWith(writeModuleData({ ...ABOUT, imagePosition: 'right' }));
   });

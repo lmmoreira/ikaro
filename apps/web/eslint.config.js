@@ -88,9 +88,14 @@ const { ZOD_UUID_SELECTOR, ZOD_EMAIL_SELECTOR } = baseConfig;
 // the one pre-pr.sh run before a PR exists.
 // E2E-1 matches any xxx.getByLabel(...)/xxx.getByText(...) member call — both are forbidden in
 // e2e specs because they match against translatable copy, which breaks under i18n
-// (docs/08-TESTING_STRATEGY.md § E2E Selector Strategy).
+// (docs/08-TESTING_STRATEGY.md § E2E Selector Strategy). Matches both the dotted form
+// (page.getByText(...)) and computed-literal access (page['getByText'](...)) — same bypass
+// class already fixed for RAW_FETCH_SELECTOR above (window['fetch'](...), Codex review, PR #375,
+// round 2): a computed member's property is a Literal node with a `.value`, not an Identifier
+// with a `.name`, so callee.property.name alone never matches it (Codex review, PR #450).
 const E2E1_SELECTOR = {
-  selector: 'CallExpression[callee.property.name=/^(getByLabel|getByText)$/]',
+  selector:
+    "CallExpression:matches([callee.property.name=/^(getByLabel|getByText)$/], [callee.computed=true][callee.property.type='Literal'][callee.property.value=/^(getByLabel|getByText)$/])",
   message:
     'E2E-1 (TD37-S23): getByLabel()/getByText() break under i18n — use a data-testid selector instead (docs/08-TESTING_STRATEGY.md § E2E Selector Strategy).',
 };
@@ -107,9 +112,13 @@ const E2E2_SELECTOR = {
 };
 // E2E-3 bans a template-literal data-testid value (computed or not) — a computed testid forces
 // every consuming e2e spec to reconstruct the same computation just to select the element.
-// Encode the dynamic part in a separate data-* attribute and keep data-testid static.
+// Encode the dynamic part in a separate data-* attribute and keep data-testid static. Descendant
+// combinator (not a direct-child `>`) so a template literal nested inside a conditional/logical
+// expression — e.g. data-testid={condition ? `row-${date}` : 'row'} — is still caught; a
+// direct-child selector only matched a template literal as the JSXExpressionContainer's
+// immediate expression (Codex review, PR #450).
 const E2E3_SELECTOR = {
-  selector: "JSXAttribute[name.name='data-testid'] > JSXExpressionContainer > TemplateLiteral",
+  selector: "JSXAttribute[name.name='data-testid'] JSXExpressionContainer TemplateLiteral",
   message:
     'E2E-3 (TD37-S23): no template-literal data-testid — encode the dynamic part in a separate data-* attribute and keep data-testid static (docs/08-TESTING_STRATEGY.md).',
 };

@@ -146,7 +146,11 @@ describe('TestimonialsConfigPanel', () => {
       <TestimonialsConfigPanel data={writeModuleData(WITH_ITEM)} onChange={onChange} />,
     );
 
-    await user.click(screen.getByTestId('testimonial-rating-0-5'));
+    // PillSelect (TD37-S23, Codex review PR #450) shares one static data-testid per group,
+    // disambiguated by a separate data-value attribute rather than a computed data-testid.
+    await user.click(
+      screen.getAllByTestId('testimonial-rating-0').find((el) => el.dataset.value === '5')!,
+    );
 
     expect(onChange).toHaveBeenCalledWith(
       writeModuleData({ ...WITH_ITEM, items: [{ ...WITH_ITEM.items[0], rating: 5 }] }),
@@ -184,7 +188,11 @@ describe('TestimonialsConfigPanel', () => {
       <TestimonialsConfigPanel data={writeModuleData(WITH_ITEM)} onChange={onChange} />,
     );
 
-    await user.click(screen.getByTestId('testimonials-layout-carousel'));
+    // PillSelect (TD37-S23, Codex review PR #450) shares one static data-testid per group,
+    // disambiguated by a separate data-value attribute rather than a computed data-testid.
+    await user.click(
+      screen.getAllByTestId('testimonials-layout').find((el) => el.dataset.value === 'carousel')!,
+    );
 
     expect(onChange).toHaveBeenCalledWith(writeModuleData({ ...WITH_ITEM, layout: 'carousel' }));
   });

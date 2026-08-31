@@ -21,6 +21,12 @@ const mockGetChatbotCapStatus = vi.mocked(getChatbotCapStatus);
 
 const CHATBOT: ChatbotModuleData = {};
 
+// PillSelect (TD37-S23, Codex review PR #450) shares one static data-testid per group,
+// disambiguated by a separate data-value attribute rather than a computed data-testid.
+function getPillOption(testId: string, value: string) {
+  return screen.getAllByTestId(testId).find((el) => el.dataset.value === value)!;
+}
+
 function renderPanel(data: ChatbotModuleData = CHATBOT, onChange = vi.fn()) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return renderWithIntl(
@@ -96,7 +102,7 @@ describe('ChatbotConfigPanel', () => {
 
     renderPanel(CHATBOT, onChange);
 
-    await user.click(screen.getByTestId('chatbot-variant-inline'));
+    await user.click(getPillOption('chatbot-variant', 'inline'));
 
     expect(onChange).toHaveBeenCalledWith(writeModuleData({ ...CHATBOT, variant: 'inline' }));
   });
@@ -108,7 +114,7 @@ describe('ChatbotConfigPanel', () => {
 
     renderPanel(CHATBOT, onChange);
 
-    await user.click(screen.getByTestId('chatbot-accent-color-secondary'));
+    await user.click(getPillOption('chatbot-accent-color', 'secondary'));
 
     expect(onChange).toHaveBeenCalledWith(
       writeModuleData({ ...CHATBOT, accentColor: 'secondary' }),
@@ -127,8 +133,8 @@ describe('ChatbotConfigPanel', () => {
 
     expect(screen.getByLabelText('Nome do assistente (opcional)')).toHaveValue('Beloa');
     expect(screen.getByLabelText('Mensagem de boas-vindas')).toHaveValue('Oi!');
-    expect(screen.getByTestId('chatbot-variant-inline')).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByTestId('chatbot-accent-color-secondary')).toHaveAttribute(
+    expect(getPillOption('chatbot-variant', 'inline')).toHaveAttribute('aria-checked', 'true');
+    expect(getPillOption('chatbot-accent-color', 'secondary')).toHaveAttribute(
       'aria-checked',
       'true',
     );

@@ -9,6 +9,12 @@ import { writeModuleData } from './module-config-panel.types';
 
 const SERVICE_LIST: ServiceListModuleData = { showPrices: true, showPoints: true, layout: 'grid' };
 
+// PillSelect (TD37-S23, Codex review PR #450) shares one static data-testid per group,
+// disambiguated by a separate data-value attribute rather than a computed data-testid.
+function getPillOption(testId: string, value: string) {
+  return screen.getAllByTestId(testId).find((el) => el.dataset.value === value)!;
+}
+
 describe('ServiceListConfigPanel', () => {
   it('renders current values', () => {
     renderWithIntl(
@@ -16,7 +22,7 @@ describe('ServiceListConfigPanel', () => {
     );
 
     expect(screen.getByTestId('service-list-show-prices')).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByTestId('service-list-layout-grid')).toHaveAttribute('aria-checked', 'true');
+    expect(getPillOption('service-list-layout', 'grid')).toHaveAttribute('aria-checked', 'true');
   });
 
   it('toggling showPrices calls onChange with only that field flipped', async () => {
@@ -40,7 +46,7 @@ describe('ServiceListConfigPanel', () => {
       <ServiceListConfigPanel data={writeModuleData(SERVICE_LIST)} onChange={onChange} />,
     );
 
-    await user.click(screen.getByTestId('service-list-layout-list'));
+    await user.click(getPillOption('service-list-layout', 'list'));
 
     expect(onChange).toHaveBeenCalledWith(writeModuleData({ ...SERVICE_LIST, layout: 'list' }));
   });

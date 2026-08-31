@@ -587,8 +587,11 @@ describe('HotsiteEditor', () => {
         { type: 'SERVICE_LIST', testId: 'service-list-show-prices' },
         { type: 'GALLERY', testId: 'gallery-open-picker' },
         { type: 'TESTIMONIALS', testId: 'testimonials-add' },
-        { type: 'BOOKING_CTA', testId: 'booking-cta-variant-centered' },
-        { type: 'ABOUT', testId: 'about-image-position-left' },
+        // PillSelect (TD37-S23, Codex review PR #450) now shares one static data-testid per
+        // group (disambiguated by a separate data-value attribute) — this smoke check only
+        // needs to confirm the panel rendered something identifiable, not which option.
+        { type: 'BOOKING_CTA', testId: 'booking-cta-variant' },
+        { type: 'ABOUT', testId: 'about-image-position' },
         { type: 'CONTACT', testId: 'contact-show-address' },
         { type: 'FOOTER', testId: 'footer-show-whatsapp' },
       ];
@@ -599,7 +602,9 @@ describe('HotsiteEditor', () => {
             .getAllByTestId('layout-row-configure')
             .find((el) => el.dataset.moduleType === panel.type)!,
         );
-        expect(await screen.findByTestId(panel.testId)).toBeInTheDocument();
+        // findAllByTestId (not findByTestId) — a PillSelect group's options now share one static
+        // data-testid, so more than one match is expected for those two entries above.
+        expect((await screen.findAllByTestId(panel.testId)).length).toBeGreaterThan(0);
         await user.click(screen.getByTestId('module-config-cancel-desktop'));
         expect(await screen.findByRole('tablist')).toBeInTheDocument();
       }

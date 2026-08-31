@@ -14,6 +14,18 @@ vi.mock('@/features/platform/api/tenant-settings', () => ({
 
 const BOOKING_CTA: BookingCtaModuleData = { title: 'Pronto?', ctaLabel: 'Agendar' };
 
+// PillSelect (TD37-S23, Codex review PR #450) shares one static data-testid per group,
+// disambiguated by a separate data-value attribute rather than a computed data-testid — mirrors
+// the existing getAllByTestId(...).find((el) => el.dataset.X === ...) pattern already used
+// elsewhere in this codebase (e.g. LayoutTab.spec.tsx).
+function getPillOption(testId: string, value: string) {
+  return screen.getAllByTestId(testId).find((el) => el.dataset.value === value)!;
+}
+
+function queryPillOption(testId: string, value: string) {
+  return screen.queryAllByTestId(testId).find((el) => el.dataset.value === value) ?? null;
+}
+
 describe('BookingCtaConfigPanel', () => {
   it('renders current values', () => {
     renderWithIntl(
@@ -44,7 +56,7 @@ describe('BookingCtaConfigPanel', () => {
       <BookingCtaConfigPanel data={writeModuleData(BOOKING_CTA)} onChange={vi.fn()} />,
     );
 
-    expect(screen.getByTestId('booking-cta-date-picker-type-carousel')).toHaveAttribute(
+    expect(getPillOption('booking-cta-date-picker-type', 'carousel')).toHaveAttribute(
       'aria-checked',
       'true',
     );
@@ -70,7 +82,7 @@ describe('BookingCtaConfigPanel', () => {
       <BookingCtaConfigPanel data={writeModuleData(BOOKING_CTA)} onChange={onChange} />,
     );
 
-    await user.click(screen.getByTestId('booking-cta-date-picker-type-calendar'));
+    await user.click(getPillOption('booking-cta-date-picker-type', 'calendar'));
 
     expect(onChange).toHaveBeenLastCalledWith(
       writeModuleData({ ...BOOKING_CTA, datePickerType: 'calendar' }),
@@ -127,17 +139,17 @@ describe('BookingCtaConfigPanel', () => {
       <BookingCtaConfigPanel data={writeModuleData(BOOKING_CTA)} onChange={onChange} />,
     );
 
-    await user.click(screen.getByTestId('booking-cta-variant-left-aligned'));
+    await user.click(getPillOption('booking-cta-variant', 'left-aligned'));
     expect(onChange).toHaveBeenLastCalledWith(
       writeModuleData({ ...BOOKING_CTA, variant: 'left-aligned' }),
     );
 
-    await user.click(screen.getByTestId('booking-cta-bg-style-background'));
+    await user.click(getPillOption('booking-cta-bg-style', 'background'));
     expect(onChange).toHaveBeenLastCalledWith(
       writeModuleData({ ...BOOKING_CTA, bgStyle: 'background' }),
     );
 
-    await user.click(screen.getByTestId('booking-cta-right-panel-brand-card'));
+    await user.click(getPillOption('booking-cta-right-panel', 'brand-card'));
     expect(onChange).toHaveBeenLastCalledWith(
       writeModuleData({ ...BOOKING_CTA, rightPanel: 'brand-card' }),
     );
@@ -149,7 +161,7 @@ describe('BookingCtaConfigPanel', () => {
         <BookingCtaConfigPanel data={writeModuleData(BOOKING_CTA)} onChange={vi.fn()} />,
       );
 
-      expect(screen.getByTestId('booking-cta-content-position-y-center')).toBeInTheDocument();
+      expect(getPillOption('booking-cta-content-position-y', 'center')).toBeInTheDocument();
     });
 
     it('renders the X (horizontal) picker when variant defaults to "centered"', () => {
@@ -157,7 +169,7 @@ describe('BookingCtaConfigPanel', () => {
         <BookingCtaConfigPanel data={writeModuleData(BOOKING_CTA)} onChange={vi.fn()} />,
       );
 
-      expect(screen.getByTestId('booking-cta-content-position-x-center')).toBeInTheDocument();
+      expect(getPillOption('booking-cta-content-position-x', 'center')).toBeInTheDocument();
     });
 
     it('does not render the X (horizontal) picker when variant is "left-aligned"', () => {
@@ -168,8 +180,8 @@ describe('BookingCtaConfigPanel', () => {
         />,
       );
 
-      expect(screen.queryByTestId('booking-cta-content-position-x-center')).not.toBeInTheDocument();
-      expect(screen.getByTestId('booking-cta-content-position-y-center')).toBeInTheDocument();
+      expect(queryPillOption('booking-cta-content-position-x', 'center')).not.toBeInTheDocument();
+      expect(getPillOption('booking-cta-content-position-y', 'center')).toBeInTheDocument();
     });
 
     it('changing the X pill calls onChange with only contentPositionX updated', async () => {
@@ -180,7 +192,7 @@ describe('BookingCtaConfigPanel', () => {
         <BookingCtaConfigPanel data={writeModuleData(BOOKING_CTA)} onChange={onChange} />,
       );
 
-      await user.click(screen.getByTestId('booking-cta-content-position-x-right'));
+      await user.click(getPillOption('booking-cta-content-position-x', 'right'));
 
       expect(onChange).toHaveBeenCalledWith(
         writeModuleData({ ...BOOKING_CTA, contentPositionX: 'right' }),
@@ -195,7 +207,7 @@ describe('BookingCtaConfigPanel', () => {
         <BookingCtaConfigPanel data={writeModuleData(BOOKING_CTA)} onChange={onChange} />,
       );
 
-      await user.click(screen.getByTestId('booking-cta-content-position-y-bottom'));
+      await user.click(getPillOption('booking-cta-content-position-y', 'bottom'));
 
       expect(onChange).toHaveBeenCalledWith(
         writeModuleData({ ...BOOKING_CTA, contentPositionY: 'bottom' }),
@@ -209,7 +221,7 @@ describe('BookingCtaConfigPanel', () => {
 
       renderWithIntl(<BookingCtaConfigPanel data={writeModuleData(withX)} onChange={onChange} />);
 
-      await user.click(screen.getByTestId('booking-cta-variant-left-aligned'));
+      await user.click(getPillOption('booking-cta-variant', 'left-aligned'));
 
       expect(onChange).toHaveBeenCalledWith(writeModuleData({ ...withX, variant: 'left-aligned' }));
     });
@@ -222,7 +234,7 @@ describe('BookingCtaConfigPanel', () => {
       );
 
       expect(
-        screen.queryByTestId('booking-cta-background-image-position-center'),
+        queryPillOption('booking-cta-background-image-position', 'center'),
       ).not.toBeInTheDocument();
     });
 
@@ -237,9 +249,7 @@ describe('BookingCtaConfigPanel', () => {
         />,
       );
 
-      expect(
-        screen.getByTestId('booking-cta-background-image-position-center'),
-      ).toBeInTheDocument();
+      expect(getPillOption('booking-cta-background-image-position', 'center')).toBeInTheDocument();
     });
 
     it('changing the focal-point pill calls onChange with only that field updated', async () => {
@@ -254,7 +264,7 @@ describe('BookingCtaConfigPanel', () => {
         <BookingCtaConfigPanel data={writeModuleData(withImage)} onChange={onChange} />,
       );
 
-      await user.click(screen.getByTestId('booking-cta-background-image-position-right'));
+      await user.click(getPillOption('booking-cta-background-image-position', 'right'));
 
       expect(onChange).toHaveBeenCalledWith(
         writeModuleData({ ...withImage, backgroundImagePosition: 'right' }),

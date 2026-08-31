@@ -19,6 +19,18 @@ const HERO: HeroModuleData = {
   ctaTarget: 'booking-form',
 };
 
+// PillSelect (TD37-S23, Codex review PR #450) shares one static data-testid per group,
+// disambiguated by a separate data-value attribute rather than a computed data-testid — mirrors
+// the existing getAllByTestId(...).find((el) => el.dataset.X === ...) pattern already used
+// elsewhere in this codebase (e.g. LayoutTab.spec.tsx).
+function getPillOption(testId: string, value: string) {
+  return screen.getAllByTestId(testId).find((el) => el.dataset.value === value)!;
+}
+
+function queryPillOption(testId: string, value: string) {
+  return screen.queryAllByTestId(testId).find((el) => el.dataset.value === value) ?? null;
+}
+
 describe('HeroConfigPanel', () => {
   it('renders current values', () => {
     renderWithIntl(<HeroConfigPanel data={writeModuleData(HERO)} onChange={vi.fn()} />);
@@ -44,7 +56,7 @@ describe('HeroConfigPanel', () => {
 
     renderWithIntl(<HeroConfigPanel data={writeModuleData(HERO)} onChange={onChange} />);
 
-    await user.click(screen.getByTestId('hero-variant-left-aligned'));
+    await user.click(getPillOption('hero-variant', 'left-aligned'));
 
     expect(onChange).toHaveBeenCalledWith(writeModuleData({ ...HERO, variant: 'left-aligned' }));
   });
@@ -86,7 +98,7 @@ describe('HeroConfigPanel', () => {
       writeModuleData({ ...HERO, secondaryCtaTarget: 'contact' }),
     );
 
-    await user.click(screen.getByTestId('hero-right-panel-brand-card'));
+    await user.click(getPillOption('hero-right-panel', 'brand-card'));
     expect(onChange).toHaveBeenLastCalledWith(
       writeModuleData({ ...HERO, rightPanel: 'brand-card' }),
     );
@@ -96,13 +108,13 @@ describe('HeroConfigPanel', () => {
     it('always renders the Y (vertical) picker', () => {
       renderWithIntl(<HeroConfigPanel data={writeModuleData(HERO)} onChange={vi.fn()} />);
 
-      expect(screen.getByTestId('hero-content-position-y-center')).toBeInTheDocument();
+      expect(getPillOption('hero-content-position-y', 'center')).toBeInTheDocument();
     });
 
     it('renders the X (horizontal) picker when variant is "centered"', () => {
       renderWithIntl(<HeroConfigPanel data={writeModuleData(HERO)} onChange={vi.fn()} />);
 
-      expect(screen.getByTestId('hero-content-position-x-center')).toBeInTheDocument();
+      expect(getPillOption('hero-content-position-x', 'center')).toBeInTheDocument();
     });
 
     it('does not render the X (horizontal) picker when variant is "left-aligned"', () => {
@@ -113,8 +125,8 @@ describe('HeroConfigPanel', () => {
         />,
       );
 
-      expect(screen.queryByTestId('hero-content-position-x-center')).not.toBeInTheDocument();
-      expect(screen.getByTestId('hero-content-position-y-center')).toBeInTheDocument();
+      expect(queryPillOption('hero-content-position-x', 'center')).not.toBeInTheDocument();
+      expect(getPillOption('hero-content-position-y', 'center')).toBeInTheDocument();
     });
 
     it('changing the X pill calls onChange with only contentPositionX updated', async () => {
@@ -123,7 +135,7 @@ describe('HeroConfigPanel', () => {
 
       renderWithIntl(<HeroConfigPanel data={writeModuleData(HERO)} onChange={onChange} />);
 
-      await user.click(screen.getByTestId('hero-content-position-x-right'));
+      await user.click(getPillOption('hero-content-position-x', 'right'));
 
       expect(onChange).toHaveBeenCalledWith(
         writeModuleData({ ...HERO, contentPositionX: 'right' }),
@@ -136,7 +148,7 @@ describe('HeroConfigPanel', () => {
 
       renderWithIntl(<HeroConfigPanel data={writeModuleData(HERO)} onChange={onChange} />);
 
-      await user.click(screen.getByTestId('hero-content-position-y-bottom'));
+      await user.click(getPillOption('hero-content-position-y', 'bottom'));
 
       expect(onChange).toHaveBeenCalledWith(
         writeModuleData({ ...HERO, contentPositionY: 'bottom' }),
@@ -150,7 +162,7 @@ describe('HeroConfigPanel', () => {
 
       renderWithIntl(<HeroConfigPanel data={writeModuleData(withX)} onChange={onChange} />);
 
-      await user.click(screen.getByTestId('hero-variant-left-aligned'));
+      await user.click(getPillOption('hero-variant', 'left-aligned'));
 
       expect(onChange).toHaveBeenCalledWith(writeModuleData({ ...withX, variant: 'left-aligned' }));
     });
@@ -160,7 +172,7 @@ describe('HeroConfigPanel', () => {
     it('does not render the focal-point picker when no background image is set', () => {
       renderWithIntl(<HeroConfigPanel data={writeModuleData(HERO)} onChange={vi.fn()} />);
 
-      expect(screen.queryByTestId('hero-background-image-position-center')).not.toBeInTheDocument();
+      expect(queryPillOption('hero-background-image-position', 'center')).not.toBeInTheDocument();
     });
 
     it('renders the focal-point picker when a background image is set', () => {
@@ -171,7 +183,7 @@ describe('HeroConfigPanel', () => {
         />,
       );
 
-      expect(screen.getByTestId('hero-background-image-position-center')).toBeInTheDocument();
+      expect(getPillOption('hero-background-image-position', 'center')).toBeInTheDocument();
     });
 
     it('changing the focal-point pill calls onChange with only that field updated', async () => {
@@ -184,7 +196,7 @@ describe('HeroConfigPanel', () => {
 
       renderWithIntl(<HeroConfigPanel data={writeModuleData(withImage)} onChange={onChange} />);
 
-      await user.click(screen.getByTestId('hero-background-image-position-right'));
+      await user.click(getPillOption('hero-background-image-position', 'right'));
 
       expect(onChange).toHaveBeenCalledWith(
         writeModuleData({ ...withImage, backgroundImagePosition: 'right' }),

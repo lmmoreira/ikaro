@@ -10,6 +10,16 @@ vi.mock('@/features/platform/api/tenant-settings', () => ({
   deleteHotsiteImage: vi.fn(),
 }));
 
+// PillSelect (TD37-S23, Codex review PR #450) shares one static data-testid per group,
+// disambiguated by a separate data-value attribute rather than a computed data-testid.
+function getPillOption(testId: string, value: string) {
+  return screen.getAllByTestId(testId).find((el) => el.dataset.value === value)!;
+}
+
+function queryPillOption(testId: string, value: string) {
+  return screen.queryAllByTestId(testId).find((el) => el.dataset.value === value) ?? null;
+}
+
 describe('LeadFormTeaserFields', () => {
   it('renders the draft values, defaulting variant and bgStyle when unset', () => {
     renderWithIntl(
@@ -61,7 +71,7 @@ describe('LeadFormTeaserFields', () => {
       );
 
       expect(
-        screen.queryByTestId('lead-form-teaser-background-image-position-center'),
+        queryPillOption('lead-form-teaser-background-image-position', 'center'),
       ).not.toBeInTheDocument();
     });
 
@@ -78,7 +88,7 @@ describe('LeadFormTeaserFields', () => {
       );
 
       expect(
-        screen.getByTestId('lead-form-teaser-background-image-position-center'),
+        getPillOption('lead-form-teaser-background-image-position', 'center'),
       ).toBeInTheDocument();
     });
 
@@ -96,7 +106,7 @@ describe('LeadFormTeaserFields', () => {
         />,
       );
 
-      await user.click(screen.getByTestId('lead-form-teaser-background-image-position-right'));
+      await user.click(getPillOption('lead-form-teaser-background-image-position', 'right'));
 
       expect(onChange).toHaveBeenCalledWith({ backgroundImagePosition: 'right' });
     });
