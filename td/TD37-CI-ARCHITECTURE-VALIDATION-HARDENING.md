@@ -651,6 +651,15 @@ E2E-1 is a plain `CallExpression` selector (`callee.property.name` matching `get
 - [ ] `scripts/pre-pr.sh`'s E2E-1/E2E-2/E2E-3 checks (lines ~269-286) are removed once the ESLint rules cover the identical scope — no duplicate enforcement of the same rule in two places
 - [ ] `docs/08-TESTING_STRATEGY.md`/wherever E2E-1/2/3 are documented for humans is updated to point at the ESLint rule instead of the script check
 
+**Discovery note (TD37-S23, 2026-08-31):** baseline confirmed — E2E-1 and E2E-2 are zero violations repo-wide (full-codebase scan, not diff-scoped, unlike `pre-pr.sh`'s own E2E-2/E2E-3 checks). E2E-3's full-codebase scan found one hit outside any diff: `apps/web/shells/hotsite/components/TestimonialsCarousel.spec.tsx:9` (`data-testid={`item-${i}`}`) — a Vitest unit-test mock component consumed only by Testing Library within its own `.spec.tsx`, never by a Playwright e2e spec. Since the rationale behind E2E-2/E2E-3 (Playwright test-selector stability against computed/dynamic `data-testid` values) doesn't apply to Vitest-only mock code, E2E-2/E2E-3's scope excludes `**/*.spec.ts`/`**/*.spec.tsx` — mirroring the exemption Story 4's own `no-restricted-syntax` block already applies to its 6 selectors — rather than rewriting the test file. This resolves the one real baseline hit with zero source changes. E2E-1 stays scoped to `apps/web/e2e/**/*.spec.ts` only, unaffected by this exclusion (Playwright-selector-specific by definition).
+
+Selector shapes locked in:
+- E2E-1: `CallExpression[callee.property.name=/^(getByLabel|getByText)$/]`, files `apps/web/e2e/**/*.spec.ts`
+- E2E-2: `JSXAttribute[name.name='data-testid'][value.type='Literal'][value.value=/\d{4}-\d{2}-\d{2}/]`, files `apps/web/**/*.tsx`, ignores `**/*.spec.tsx`
+- E2E-3: `JSXAttribute[name.name='data-testid'] > JSXExpressionContainer > TemplateLiteral`, files `apps/web/**/*.tsx`, ignores `**/*.spec.tsx`
+
+Test coverage follows Story 4's exact harness precedent (`Linter.verify()` against the real `eslint.config.js`) in a new sibling spec file rather than extending `restricted-syntax.eslint.spec.ts` (that file's own `describe` is scoped to "TD37-S04"). Doc-sweep beyond this story's own AC #5: `scripts/pre-pr.sh`'s header comment (line 9) and `.claude/commands/pre-pr.md:40`'s "This covers" list both still cite E2E-1/E2E-2/E2E-3 after the block is deleted — updated alongside the script removal, matching the existing check-16-retirement note in the same `pre-pr.md` line. `docs/CI_TRAPS.md:319-323` (the incident narrative motivating this story) gets a resolution note.
+
 ---
 
 ### Separate follow-up candidate — CodeQL security analysis ⚪
