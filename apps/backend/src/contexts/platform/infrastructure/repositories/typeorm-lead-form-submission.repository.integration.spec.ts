@@ -3,7 +3,6 @@ import { TenantEntityBuilder } from '../../../../test/builders/platform/tenant-e
 import { makeConfigService } from '../../../../test/infrastructure/fake-config-service';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryInboxRepository } from '../../../../test/infrastructure/in-memory-inbox.repository';
-import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { RoutingInMemoryEventBus } from '../../../../test/infrastructure/routing-in-memory-event-bus';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
@@ -177,10 +176,7 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
   it('round-trips a saved submission through a real subscribed consumer (LeadFormSubmissionReceivedHandler)', async () => {
     const routingBus = new RoutingInMemoryEventBus();
     const handler = new LeadFormSubmissionReceivedHandler(
-      new LogLeadFormSubmissionReceivedUseCase(
-        new InMemoryInboxRepository(),
-        new InMemoryTransactionManager(),
-      ),
+      new LogLeadFormSubmissionReceivedUseCase(new InMemoryInboxRepository()),
       routingBus,
     );
     handler.onModuleInit();

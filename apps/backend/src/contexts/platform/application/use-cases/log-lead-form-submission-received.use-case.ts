@@ -1,9 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { IInboxRepository, INBOX_REPOSITORY } from '../../../../shared/ports/inbox.port';
-import {
-  ITransactionManager,
-  TRANSACTION_MANAGER,
-} from '../../../../shared/ports/transaction-manager.port';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 
 export interface LogLeadFormSubmissionReceivedUseCaseInput {
@@ -27,33 +23,34 @@ export class LogLeadFormSubmissionReceivedUseCase {
 
   private readonly logger = new AppLogger(LogLeadFormSubmissionReceivedUseCase.name);
 
-  constructor(
-    @Inject(INBOX_REPOSITORY) private readonly inboxRepo: IInboxRepository,
-    @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-  ) {}
+  constructor(@Inject(INBOX_REPOSITORY) private readonly inboxRepo: IInboxRepository) {}
 
-  // check-then-mark (docs/ENGINEERING_RULES.md § Event Handlers) — the log line has no DB
-  // constraint of its own to dedup against, but a race between two concurrent redeliveries costs
-  // at most one duplicate audit-log entry, never duplicate data; the heavier atomic-claim protocol
-  // is unnecessary machinery for that cost.
+  // Atomic claim (docs/ENGINEERING_RULES.md § Event Handlers), not check-then-mark — the log line
+  // has no DB constraint of its own, so two concurrent redeliveries could both pass a
+  // hasBeenProcessed check before either marked processed, producing a genuinely duplicate
+  // audit-log entry (round-2 Codex finding). tryClaim's INSERT ... ON CONFLICT DO NOTHING is
+  // atomic at the DB level, so only one concurrent caller ever gets true. No txManager.run()
+  // needed — tryClaim/unclaim are each already atomic single statements, unlike markProcessed
+  // in the check-then-mark pattern (which needs to share a transaction with a real DB write).
   async execute(input: LogLeadFormSubmissionReceivedUseCaseInput): Promise<void> {
     const { eventId, submissionId, tenantId, customerId, correlationId } = input;
 
-    const alreadyProcessed = await this.inboxRepo.hasBeenProcessed(
+    const claimed = await this.inboxRepo.tryClaim(
       eventId,
       LogLeadFormSubmissionReceivedUseCase.CONSUMER_NAME,
     );
-    if (alreadyProcessed) return;
+    if (!claimed) return;
 
-    this.logger.log('LeadFormSubmissionReceived received', {
-      submissionId,
-      tenantId,
-      customerId,
-      correlationId,
-    });
-
-    await this.txManager.run(() =>
-      this.inboxRepo.markProcessed(eventId, LogLeadFormSubmissionReceivedUseCase.CONSUMER_NAME),
-    );
+    try {
+      this.logger.log('LeadFormSubmissionReceived received', {
+        submissionId,
+        tenantId,
+        customerId,
+        correlationId,
+      });
+    } catch (err) {
+      await this.inboxRepo.unclaim(eventId, LogLeadFormSubmissionReceivedUseCase.CONSUMER_NAME);
+      throw err;
+    }
   }
 }

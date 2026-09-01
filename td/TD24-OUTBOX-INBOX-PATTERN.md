@@ -458,7 +458,7 @@ Nothing is rebound; no *observable* behavior changes (`EVENT_BUS` still resolves
 ## Acceptance Criteria (TD-level)
 
 - [ ] No application code calls Pub/Sub publish directly for domain events — `GcpPubSubEventBusAdapter.publish` is referenced only by `OutboxRelayService` (via `EVENT_BUS`, per D14); every aggregate repo and cron job depends on `OUTBOX_PUBLISHER` explicitly, not `EVENT_BUS`.
-- [ ] The 3 event-emitting aggregates' repositories drain domain events inside the save transaction; no use case contains a `clearDomainEvents()` publish loop (grep-verifiable).
+- [ ] The event-emitting aggregates' repositories (`Booking`, `Staff`, `Tenant`, and `LeadFormSubmission` as of M20-S16) drain domain events inside the save transaction; no use case contains a `clearDomainEvents()` publish loop (grep-verifiable).
 - [ ] `event-bus.module.ts`'s `EVENT_BUS`/`TRIGGER_BUS`/`PUSHABLE_EVENT_BUS` bindings have zero diff across S02/S03 (D14) — `EVENT_BUS` still resolves to `GcpPubSubEventBusAdapter` after the whole TD lands, exactly as before TD24 started.
 - [ ] A test proves: crash between commit and publish loses nothing (sweep delivers exactly one message).
 - [ ] A test proves: two concurrent publishes of the same business fact (same `dedup_key`) reach consumers as exactly one effect.
