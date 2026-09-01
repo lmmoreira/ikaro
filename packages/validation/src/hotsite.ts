@@ -76,8 +76,9 @@ export const HotsiteBrandingSchema = z
 // derive from this tuple instead of hand-duplicating it. packages/types/src/enums.ts's own
 // HotsiteModuleType stays a deliberately separate, web-facing copy (apps/web must never depend on
 // @ikaro/validation) — guarded by packages/architecture-check's closedEnumRegistry detector, which
-// allows that copy to lag behind this one (e.g. during a staged rollout like LEAD_FORM's, M20-S01
-// → M20-S07) but never lead ahead of it.
+// requires it to always exactly mirror this tuple. Add a new member to both files in the same
+// commit; a staged rollout across multiple PRs (as LEAD_FORM originally used, M20-S01 → M20-S07)
+// now fails the architecture gate.
 export const HOTSITE_MODULE_TYPES = [
   'HERO',
   'SERVICE_LIST',
