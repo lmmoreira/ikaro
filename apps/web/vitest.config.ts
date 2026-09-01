@@ -32,6 +32,15 @@ export default defineConfig({
         'app/**',
         'providers/**',
         'features/**',
+        // test-utils.tsx and __mocks__/** are real, normally-`import`ed modules (renderWithIntl,
+        // getPillOption, the next/image|next/link|next/font/google|client-only|server-only
+        // replacements below) — every spec that imports them already exercises real coverage for
+        // them, so they belong here rather than in sonar-project.properties' coverage.exclusions.
+        // vitest.setup.ts deliberately isn't listed: it loads via Vitest's own `setupFiles`
+        // mechanism (line 12), outside the per-spec-file module graph v8's coverage provider
+        // instruments — confirmed empirically, it produces zero lcov entries even when added here.
+        'test-utils.tsx',
+        '__mocks__/**',
       ],
       exclude: [
         '**/*.spec.*',
