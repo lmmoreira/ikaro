@@ -1,7 +1,7 @@
 import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { TimeOfDay } from '../../../shared/value-objects/time-of-day.vo';
-import type { BusinessHours } from '../../../shared/value-objects/business-hours.vo';
+import { DAYS_OF_WEEK, type BusinessHours } from '../../../shared/value-objects/business-hours.vo';
 import {
   ResourceAlreadyActiveError,
   ResourceMaxCapacityInvalidError,
@@ -10,16 +10,6 @@ import {
   ResourceWorkingHoursOutsideTenantHoursError,
 } from './errors/resource.error';
 import { ResourceType, ResourceWorkingHours } from './resource.types';
-
-const DAYS_OF_WEEK = [
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday',
-  'sunday',
-] as const;
 
 export interface ResourceProps {
   id: string;

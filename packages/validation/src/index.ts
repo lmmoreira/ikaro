@@ -1,4 +1,5 @@
 export * from './address';
+export * from './booking';
 export * from './chatbot';
 export * from './country-code';
 export * from './date';

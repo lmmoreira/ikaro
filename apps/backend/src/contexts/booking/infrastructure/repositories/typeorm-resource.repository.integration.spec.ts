@@ -1,6 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { ResourceBuilder } from '../../../../test/builders/booking/index';
+import { ResourceBuilder, ResourceEntityBuilder } from '../../../../test/builders/booking/index';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
 import { RESOURCE_REPOSITORY } from '../../application/ports/resource-repository.port';
 import { ResourceType } from '../../domain/resource.types';
@@ -92,32 +92,18 @@ describe('TypeOrmResourceRepository (integration)', () => {
     // LOCATION resources are backfilled (S02), not created through the aggregate's own
     // application-level rejection — this proves the DB constraint is the real authority,
     // independent of the app-level "LOCATION is never created through this use case" rule.
-    const first = new ResourceEntity();
-    first.id = '30000000-0000-4000-8000-000000000001';
-    first.tenantId = TENANT_ID;
-    first.type = ResourceType.LOCATION;
-    first.refId = null;
-    first.name = 'Unidade Única';
-    first.workingHours = null;
-    first.turnoverMinutes = 0;
-    first.maxCapacity = null;
-    first.isActive = true;
-    first.createdAt = new Date();
-    first.updatedAt = new Date();
+    const first = new ResourceEntityBuilder()
+      .withTenantId(TENANT_ID)
+      .withType(ResourceType.LOCATION)
+      .withName('Unidade Única')
+      .build();
     await ds.getRepository(ResourceEntity).save(first);
 
-    const second = new ResourceEntity();
-    second.id = '30000000-0000-4000-8000-000000000002';
-    second.tenantId = TENANT_ID;
-    second.type = ResourceType.LOCATION;
-    second.refId = null;
-    second.name = 'Unidade Única (duplicate)';
-    second.workingHours = null;
-    second.turnoverMinutes = 0;
-    second.maxCapacity = null;
-    second.isActive = true;
-    second.createdAt = new Date();
-    second.updatedAt = new Date();
+    const second = new ResourceEntityBuilder()
+      .withTenantId(TENANT_ID)
+      .withType(ResourceType.LOCATION)
+      .withName('Unidade Única (duplicate)')
+      .build();
 
     await expect(ds.getRepository(ResourceEntity).insert(second)).rejects.toThrow();
   });

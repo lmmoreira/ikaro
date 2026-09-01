@@ -15,8 +15,8 @@ export class ResourceEntityBuilder {
   private turnoverMinutes = 0;
   private maxCapacity: number | null = null;
   private isActive = true;
-  private createdAt = new Date('2026-01-01T00:00:00Z');
-  private updatedAt = new Date('2026-01-01T00:00:00Z');
+  private readonly createdAt = new Date('2026-01-01T00:00:00Z');
+  private readonly updatedAt = new Date('2026-01-01T00:00:00Z');
 
   withId(id: string): this {
     this.id = id;

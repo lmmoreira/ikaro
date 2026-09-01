@@ -41,7 +41,12 @@ export class CreateResourceUseCase {
   ) {}
 
   async execute(input: CreateResourceUseCaseInput): Promise<CreateResourceUseCaseResult> {
-    const { tenantId, type, refId, tenantBusinessHours } = input;
+    const { tenantId, refId, tenantBusinessHours } = input;
+    // input.type is the shared @ikaro/validation Zod schema's plain string-literal union
+    // ('STAFF' | 'ROOM' | 'EQUIPMENT') — TS string enums are nominally typed, so a validated
+    // literal needs this explicit bridge to the domain's ResourceType enum (same shape as
+    // UpdateHotsiteContentUseCase's toDomainLayout() DTO->domain bridge).
+    const type = input.type as ResourceType;
 
     if (type === ResourceType.STAFF && refId) {
       await this.assertStaffWrappable(refId, tenantId);
