@@ -122,6 +122,40 @@ describe('checkClosedEnumRegistry', () => {
       ]);
     });
 
+    it('flags a constArray missing the `as const` assertion (widened to string[])', () => {
+      const project = fixtureProject({
+        [CANONICAL_FILE]: `export const DEMO_TYPES = ['A'];`,
+        [MIRROR_FILE]: `export type DemoType = 'A';`,
+      });
+      const entry: ClosedEnumRegistryEntry = {
+        name: 'DemoType',
+        canonical: { path: CANONICAL_FILE, kind: 'constArray', exportName: 'DEMO_TYPES' },
+        mirror: { path: MIRROR_FILE, kind: 'union', exportName: 'DemoType' },
+      };
+      const result = checkClosedEnumRegistry([project], [entry]);
+      expectScannedTargets(result, 1);
+      expect(result.findings).toEqual([
+        expect.objectContaining({ message: expect.stringContaining('canonical source') }),
+      ]);
+    });
+
+    it('flags a constArray asserted to a non-const type (as string[], not as const)', () => {
+      const project = fixtureProject({
+        [CANONICAL_FILE]: `export const DEMO_TYPES = ['A'] as string[];`,
+        [MIRROR_FILE]: `export type DemoType = 'A';`,
+      });
+      const entry: ClosedEnumRegistryEntry = {
+        name: 'DemoType',
+        canonical: { path: CANONICAL_FILE, kind: 'constArray', exportName: 'DEMO_TYPES' },
+        mirror: { path: MIRROR_FILE, kind: 'union', exportName: 'DemoType' },
+      };
+      const result = checkClosedEnumRegistry([project], [entry]);
+      expectScannedTargets(result, 1);
+      expect(result.findings).toEqual([
+        expect.objectContaining({ message: expect.stringContaining('canonical source') }),
+      ]);
+    });
+
     it('flags a union widened to a bare string type', () => {
       const project = fixtureProject({
         [CANONICAL_FILE]: `export const DEMO_TYPES = ['A'] as const;`,

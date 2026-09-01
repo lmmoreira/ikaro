@@ -37,25 +37,31 @@ function findSourceFile(projects: Project[], path: string): SourceFile | undefin
 }
 
 // `HOTSITE_MODULE_TYPES = [...] as const` — the array literal sits inside an AsExpression, not
-// directly on the VariableDeclaration's initializer. Every element must be a string literal — a
+// directly on the VariableDeclaration's initializer. The `as const` itself is required, not
+// optional: without it, TypeScript widens the array to `string[]`, and the exported
+// `(typeof X)[number]` type collapses to plain `string` — no longer a closed enum at all, even
+// though today's concrete values still happen to be string literals. `as SomeOtherType` (a
+// non-const assertion) is rejected the same way. Every element must also be a string literal — a
 // non-literal element (a variable reference, a numeric/boolean literal) makes the array's real
-// member set unknowable, so the whole declaration is treated as unresolved rather than silently
-// filtering the offending element out (Codex + CodeRabbit, PR #456 round 1: silent filtering let a
-// malformed/widened declaration pass the registry's closed-enum guarantee with zero findings).
+// member set unknowable. Any of these makes the declaration unresolved rather than silently
+// filtering/accepting the offending shape (Codex + CodeRabbit, PR #456 round 1 + round 5: silent
+// filtering/acceptance let a malformed/widened declaration pass the registry's closed-enum
+// guarantee with zero findings).
 function constArrayMembers(
   sourceFile: SourceFile,
   exportName: string,
 ): { members: Set<string>; node: Node } | undefined {
   const declaration = sourceFile.getVariableDeclaration(exportName);
   if (!declaration) return undefined;
-  const rawInitializer = declaration.getInitializer();
-  const initializer =
-    rawInitializer && Node.isAsExpression(rawInitializer)
-      ? rawInitializer.getExpression()
-      : rawInitializer;
-  if (!initializer || !Node.isArrayLiteralExpression(initializer)) return undefined;
+  const initializer = declaration.getInitializer();
+  if (!initializer || !Node.isAsExpression(initializer)) return undefined;
+  const typeNode = initializer.getTypeNode();
+  if (!typeNode || typeNode.getText() !== 'const') return undefined;
 
-  const elements = initializer.getElements();
+  const arrayLiteral = initializer.getExpression();
+  if (!Node.isArrayLiteralExpression(arrayLiteral)) return undefined;
+
+  const elements = arrayLiteral.getElements();
   const stringLiterals = elements.filter(Node.isStringLiteral);
   if (stringLiterals.length !== elements.length) return undefined;
 
