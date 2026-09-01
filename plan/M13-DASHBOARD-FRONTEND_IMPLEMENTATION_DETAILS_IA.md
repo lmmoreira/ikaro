@@ -1,5 +1,7 @@
 # M13 — Dashboard Frontend: Implementation Details (AI Agent Reference)
 
+> ⚠️ **Stale paths:** this doc predates TD-21's BFF domain-slice migration — any `apps/bff/src/<flat-name>/` path here is now `apps/bff/src/features/<domain>/`. See `docs/REPOSITORY_STRUCTURE.md` for the current layout.
+
 > Token-efficient reference. No prose. Load only when working on M14+ tasks that touch the staff/manager dashboard (`apps/web/app/dashboard/**`), the customer account area (`apps/web/app/[slug]/my-account/**`), the hotsite editor (`apps/web/app/dashboard/hotsite/**`), the BFF's booking/service/loyalty/staff/platform modules, or the Playwright E2E suite.
 
 ---

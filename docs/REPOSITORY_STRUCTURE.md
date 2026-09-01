@@ -22,7 +22,8 @@
 │   ├── i18n/             # shared locale files + formatting helpers
 │   ├── infra-scripts/    # shared infra/tooling scripts
 │   ├── nestjs-http/      # shared NestJS HTTP module helpers (backend + bff)
-│   └── validation/       # shared validation primitives (e.g. phone/email format checks)
+│   ├── validation/       # shared validation primitives (e.g. phone/email format checks)
+│   └── architecture-check/ # full-codebase static architecture validation (contextDependencyMatrix, VO registry, max-lines exceptions)
 ├── infra/
 │   └── terraform/        # GCP resources (Cloud Run, Cloud SQL, Pub/Sub, Secret Manager) — modules/, envs/{staging,prod}/, foundation/; see infra/terraform/README.md
 ├── .github/workflows/    # CI/CD pipeline YAML files
@@ -50,6 +51,7 @@ apps/backend/src/
 │   ├── notification/
 │   ├── platform/
 │   └── staff/
+├── eslint/            # local ESLint rule specs (persistence-boundary, restricted-imports-syntax)
 ├── health/
 ├── shared/
 └── test/
@@ -72,13 +74,15 @@ Cross-cutting concerns ONLY. Domain objects, use cases, and repositories are NEV
 apps/backend/src/shared/
 ├── ports/            # IEventBus, IRepository<T> — no barrel index.ts (ESLint enforced)
 ├── domain/           # AggregateRoot, DomainEvent, ValueObject base classes — no barrel index.ts
-├── value-objects/    # Email, PhoneNumber, Address, HexColor, Timezone, TimeOfDay, Slug
+├── value-objects/    # Email, PhoneNumber, Address, HexColor, Timezone, TimeOfDay, Slug, CountryCode, SeoTitle, SeoDescription
 ├── utils/            # deepMerge, startOfDayUTC, endOfDayUTC, todayUTC, localDateTimeToUTCIso,
 │                     # utcDateToLocalDate, utcDateToLocalHHMM, getUtcWeekDayName
 ├── request/          # RequestContext (request-scoped), RequestInterceptor
 ├── observability/    # Logger, OTel tracer, structured log helpers
 ├── http/             # Pagination DTOs, RFC 9457 ProblemDetail base type
 ├── guards/           # role guards used by more than one context
+├── decorators/       # cross-cutting decorators (e.g. @Public())
+├── filters/          # cross-cutting exception filters (RFC 9457 error filter)
 ├── infrastructure/   # transaction manager, typeorm helpers, cross-cutting adapters
 └── database/         # data-source.ts, seed.ts
 ```

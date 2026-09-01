@@ -1,5 +1,7 @@
 # M03 — Authentication Implementation Details (AI Agents)
 
+> ⚠️ **Stale paths:** this doc predates TD-21's BFF domain-slice migration — any `apps/bff/src/<flat-name>/` path here is now `apps/bff/src/features/<domain>/`. See `docs/REPOSITORY_STRUCTURE.md` for the current layout.
+
 **Audience:** AI coding agents working on M04+  
 **Purpose:** Avoid re-learning what M03 solved. Load when touching auth, OAuth, JWT, BFF guards, customer/staff login, or tenant switching.  
 **Companion:** Always read `CLAUDE.md` first. Load this file for any M04+ work that touches the auth layer or BFF.

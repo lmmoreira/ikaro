@@ -277,9 +277,9 @@ Owned by: **Booking Context** (`src/contexts/booking/`)
 | tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
 | name | VARCHAR(255) | NOT NULL |
 | description | TEXT | |
-| price | DECIMAL(12,2) | NOT NULL |
-| duration_mins | INT | NOT NULL |
-| points_value | INT | NOT NULL DEFAULT 1 |
+| price_amount | NUMERIC(10,2) | NOT NULL |
+| duration_minutes | INTEGER | NOT NULL |
+| loyalty_points_value | INTEGER | NOT NULL DEFAULT 0 |
 | requires_pickup_address | BOOLEAN | NOT NULL DEFAULT false |
 | is_active | BOOLEAN | NOT NULL DEFAULT true |
 | created_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
@@ -301,6 +301,7 @@ A booking is the parent of one or more `booking_lines`. All service-level detail
 | contact_phone | VARCHAR(30) | NOT NULL |
 | contact_address | JSONB | NULLABLE — `{ street, number, complement?, neighborhood, city, state, zipCode }` — optional general address |
 | pickup_address | JSONB | NULLABLE — same shape as `contact_address` — non-null when any line has `requires_pickup_address_at_booking = true` |
+| notes | TEXT | NULLABLE |
 | scheduled_at | TIMESTAMPTZ | NOT NULL |
 | scheduled_end_at | TIMESTAMPTZ | NOT NULL — `scheduled_at + total_duration_mins`; the range endpoint the exclusion constraint below checks against |
 | total_duration_mins | INTEGER | NOT NULL — denormalised SUM of `booking_lines.duration_mins_at_booking` |
@@ -316,7 +317,6 @@ A booking is the parent of one or more `booking_lines`. All service-level detail
 | info_requested_by | UUID | NULLABLE — no FK (cross-context ref to `staff.staff`) |
 | info_response_message | TEXT | NULLABLE — customer's reply notes (UC-005) |
 | info_submitted_at | TIMESTAMPTZ | NULLABLE |
-| info_submitted_by | UUID | NULLABLE — customerId who submitted the response; null for guests (cross-context ref) |
 | approved_at | TIMESTAMPTZ | NULLABLE |
 | approved_by | UUID | NULLABLE — no FK (cross-context ref to `staff.staff`) |
 | completed_at | TIMESTAMPTZ | NULLABLE |

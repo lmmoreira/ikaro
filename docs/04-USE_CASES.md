@@ -1158,7 +1158,7 @@ Returns:
 - **Actor:** STAFF | MANAGER
 - **Endpoint:** `POST /recurring-booking-schedules/:id/approve`, `POST /recurring-booking-schedules/:id/reject`
 - **Preconditions:** `RecurringBookingSchedule` exists, `status = PENDING_APPROVAL`.
-- **Trigger:** A request reaches `PENDING_APPROVAL` through UC-070 and appears in staff's approval queue (same surface as UC-034's guest-reservation queue, or the existing manual-approval-appointment queue).
+- **Trigger:** A request reaches `PENDING_APPROVAL` through UC-070 and appears in staff's approval queue (same surface as UC-098's guest-reservation queue, or the existing manual-approval-appointment queue).
 - **Main Flow:**
   1. Staff reviews the request: customer, service, recurrence pattern, and resolved/eligible resource(s).
   2. Staff approves or rejects in one action.

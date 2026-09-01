@@ -1,5 +1,7 @@
 # M12 — Hotsite Frontend: Implementation Details (AI Agent Reference)
 
+> ⚠️ **Stale paths:** this doc predates TD-21's BFF domain-slice migration — any `apps/bff/src/<flat-name>/` path here is now `apps/bff/src/features/<domain>/`. See `docs/REPOSITORY_STRUCTURE.md` for the current layout.
+
 > Token-efficient reference. No prose. Load only when working on M13+ tasks that touch the public hotsite (`apps/web/app/[slug]/**`), hotsite module components, the `HotsiteConfig` aggregate, branding/design tokens, or the booking form.
 
 ---

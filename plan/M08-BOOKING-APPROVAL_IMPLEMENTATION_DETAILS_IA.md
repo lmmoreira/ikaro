@@ -1,5 +1,7 @@
 # M08 — Booking Approval Workflow: Implementation Details (IA Reference)
 
+> ⚠️ **Stale paths:** this doc predates TD-21's BFF domain-slice migration — any `apps/bff/src/<flat-name>/` path here is now `apps/bff/src/features/<domain>/`. See `docs/REPOSITORY_STRUCTURE.md` for the current layout.
+
 **Milestone:** M08-BOOKING-APPROVAL  
 **Status:** ✅ All 6 stories done  
 **Depends on:** M07 (Booking aggregate, BookingLine, AvailabilityService, IBookingAvailabilityPort)  

@@ -1,5 +1,7 @@
 # M02 — Implementation Details for AI Agents
 
+> ⚠️ **Stale paths:** this doc predates TD-21's BFF domain-slice migration — any `apps/bff/src/<flat-name>/` path here is now `apps/bff/src/features/<domain>/`. See `docs/REPOSITORY_STRUCTURE.md` for the current layout.
+
 **Audience:** AI coding agents working on M03 and beyond.  
 **Purpose:** Avoid re-learning what M02 already solved. Read when touching the Platform context, TenantContext, TypeORM setup, or REST Client HTTP files.  
 **Companion:** Always read `CLAUDE.md` first. Then load this file when working on any M03+ story that touches tenants, auth, or settings.

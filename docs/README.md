@@ -20,7 +20,7 @@ This folder contains the foundational documentation for Ikaro, built on **Domain
 - **What:** All domain events with full payload definitions and flow diagrams.
 
 #### **04-USE_CASES.md**
-- **What:** 30 active use cases (UC-001 through UC-031, including UC-016b; UC-014 and UC-015 superseded).
+- **What:** All use cases, organized by bounded context and milestone (MVP through M21-M24 Multi-Vertical Scheduling). UC-014 and UC-015 are superseded by UC-021/UC-022 — see the doc's summary table for current numbering and status, not a hardcoded count here.
 
 #### **05-BOUNDED_CONTEXTS.md**
 - **What:** How the 6 contexts interact, communicate, and maintain isolation.

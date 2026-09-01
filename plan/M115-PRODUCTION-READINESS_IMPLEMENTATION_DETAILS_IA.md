@@ -1,5 +1,7 @@
 # M115 — Production Readiness: Implementation Details (IA Reference)
 
+> ⚠️ **Stale paths:** this doc predates TD-21's BFF domain-slice migration — any `apps/bff/src/<flat-name>/` path here is now `apps/bff/src/features/<domain>/`. See `docs/REPOSITORY_STRUCTURE.md` for the current layout.
+
 > Token-efficient reference for AI agents. No prose. Load when working on M116+ tasks that touch GCS upload, dev auth, internal API guard, or the contact* rename.
 
 ---

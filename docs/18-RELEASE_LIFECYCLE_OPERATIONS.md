@@ -9,7 +9,7 @@ This document provides a step-by-step operational guide for the entire lifecycle
 ## 1. Feature Lifecycle (The Standard Path)
 
 ### **Step 1: Local Development**
-1. **Branch:** Create a short-lived branch `feat/UC-xxx-description`.
+1. **Branch:** Create a short-lived branch `feat/M0X-SYY-<short-description>` (see CLAUDE.md §1).
 2. **Environment:** Run `pnpm infra:up` (`docker/docker-compose.yml`) for a local PostgreSQL, GCP Pub/Sub Emulator, GCS emulator, and Mailhog. No Prometheus/Grafana/Loki stack exists locally or otherwise (`package.json`'s `obs:up` script was removed 2026-08-04 — it pointed at a compose file that never existed). To see real traces locally, see `docs/10-OBSERVABILITY_STRATEGY.md` § Local Development Setup.
 3. **TDD:** Write a failing test in the `domain` or `application` layer.
 4. **Implement:** Write the minimal code to pass the test.
@@ -48,7 +48,7 @@ This document provides a step-by-step operational guide for the entire lifecycle
 
 When a critical bug is found in Production:
 
-1. **Branch:** `fix/HOTFIX-description` from `main`.
+1. **Branch:** `fix/<short-description>` from `main`.
 2. **Fix:** Implement the fix + a regression test.
 3. **Fast-Track PR:** PR requires "Emergency" label (prioritized review).
 4. **CI Bypass:** (NEVER allowed) All tests must still pass.

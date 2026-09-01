@@ -29,6 +29,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 | `eventName` | Routing & logging | PascalCase, matches the canonical name in this file |
 | `eventVersion` | Schema evolution | Integer; bump on breaking change (see §"Event Versioning") |
 | `data` | The payload below | Object; field names in camelCase |
+| `traceContext` | Optional OTel trace propagation | `Record<string, string>`; set by `OutboxPublisher.publish()` for distributed tracing — not business payload, omit from any `data` design |
 
 > **Multi-tenancy:** `tenantId` in the envelope is the authoritative tenant scope. The Notification Context running for Tenant A MUST discard any event whose envelope `tenantId` does not match Tenant A. Same rule for every other context.
 

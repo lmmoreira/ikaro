@@ -118,6 +118,8 @@ Notification Context subscribes:
 
 **Purpose:** The heart of Ikaro. Manages the complete booking lifecycle **for a specific tenant**.
 
+> ⚠️ **PLANNED, NOT YET BUILT:** every item tagged `(M21)` / `(M21 Cluster N)` below (the `Resource` aggregate, `ScheduleOpening`'s resource-scoping, and all Cluster 2–4 tables/events) belongs to the Multi-Vertical Scheduling epic and does not exist in code yet — see `plan/M21-MULTIVERTICAL-FOUNDATION.md` through `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`. Untagged content in this section is live MVP behavior.
+
 **Owned Aggregates:**
 - `Booking` (root) — a customer visit; parent of 1..N `BookingLine` child entities (tenant-scoped). The Booking aggregate enforces ≥1 line, snapshots line fields at request time, and computes `totalPrice` / `totalDurationMins` from its lines.
 - `Service` — type of car wash offered (tenant-scoped). Edits to a service NEVER retroactively affect past bookings — the `BookingLine` snapshot is the source of truth for an existing booking.
@@ -513,6 +515,8 @@ import { LoyaltyEntry } from '../domain/entities/loyalty-entry.entity';
 
 NestJS module files (`*.module.ts`) MUST NOT `imports:` or `providers:` any class from another context's module.
 
+> **Sanctioned exception — cross-context Port+Adapter:** a narrow, CI-governed exception to Rules 1 and 2 exists for same-process synchronous reads that don't fit the event/BFF patterns above — an `infrastructure/cross-context/*.adapter.ts` file importing a use case directly from another context. Every such import must be an exact-path entry in `packages/architecture-check/architecture-policy.json`'s `contextDependencyMatrix.permittedEdges` (with rationale, owner, review date) — an edge not in that allowlist is still forbidden. Grep `infrastructure/cross-context/` before adding a new port; extend an existing adapter rather than creating a duplicate. See `docs/ANTI_PATTERNS.md` and CLAUDE.md §7 Architecture.
+
 ---
 
 ### Rule 2 — Communication via Events or BFF Only
@@ -739,7 +743,6 @@ For MVP: All deployed as single service, but code organized as separate modules 
 - Provision new tenants (developer CLI in MVP; no super-admin UI)
 - Allow MANAGER-role staff to edit `tenants.settings` (UC-026)
 - Allow MANAGER-role staff to edit and publish the hotsite (UC-027)
-- Allow MANAGER-role staff to invite new staff members (UC-025) and deactivate existing ones (UC-028)
 - Validate that `slug` is globally unique on create
 - Answer public hotsite visitors' FAQ-style questions via an LLM-backed chatbot widget, scoped to the tenant's own business data — informational only (UC-033/UC-034)
 - Let a MANAGER configure a lead-capture form (up to 20 custom questions) on the hotsite, and let guests/logged-in customers submit it, protected by Cloudflare Turnstile + per-IP/per-tenant rate limits (UC-037–UC-043)
@@ -747,9 +750,9 @@ For MVP: All deployed as single service, but code organized as separate modules 
 **Database:** `tenants` + `hotsite_configs` + `chatbot_sessions` + `chatbot_messages` + `chatbot_provider_balance` + `lead_form_configs` + `lead_form_submissions` tables (see `docs/13-DATABASE_SCHEMA.md`)
 
 **Published Events:**
-- `StaffInvited` → consumed by Notification (sends invitation/welcome email to new staff member's Google email)
-- `StaffDeactivated` → consumed by **Booking Context** (UC-048, added M21 Cluster 1 — cascades to the wrapping `STAFF`-type `Resource`)
 - `LeadFormSubmissionReceived` → consumed by `audit-log` (a placeholder logging consumer, M20-S16); a real notification/webhook consumer to the manager is still an explicitly deferred fast-follow
+
+> Staff invite/deactivate (UC-025/UC-028) and their `StaffInvited`/`StaffDeactivated` events are owned by the **Staff Context** (§5), not Platform — Platform only hosts the tenant/hotsite/chatbot/lead-form aggregates listed above.
 
 **Consumed Events:** none — Platform is the source for its own data. The chatbot flow reads live services/prices from Booking context via BFF orchestration (`BackendHttpService.getForPublic('/services', tenantId)`), not an event or an in-process port — see `docs/discovery/CHATBOT/CHATBOT.md` §6 for why a Platform→Booking port was considered and rejected.
 

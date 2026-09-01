@@ -34,7 +34,7 @@
 | **Branch** | `main` · Trunk-Based Development · short-lived `feat/M0X-SYY-*` / `fix/*` branches |
 | **Commits** | Conventional Commits: `feat(booking):`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:` |
 | **Stack** | TypeScript strict · NestJS v11 backend + BFF · Next.js 16 + React 19 frontend · pnpm workspaces |
-| **DB** | PostgreSQL 17 · TypeORM v0.3+ · single shared schema · `tenant_id` everywhere · migrations via separate CI job (never auto at startup) |
+| **DB** | PostgreSQL 17 · TypeORM v1.0+ · shared-schema multi-tenancy (tenant_id-scoped rows, not schema-per-tenant; physically schema-per-context — see `docs/13-DATABASE_SCHEMA.md`) · `tenant_id` everywhere · migrations via separate CI job (never auto at startup) |
 | **Event bus** | GCP Pub/Sub (prod) · emulator (local) · behind `IEventBus` port |
 | **Auth** | Google OAuth 2.0 · JWT (`sub` = backend UUID, `tenantId`, `tenantSlug`, `tenantName`, `userName`, `role`, `locale`) · httpOnly cookie, not a client-readable token · BFF forwards `X-Actor-ID`/`X-Actor-Type`/`X-Actor-Role` to the backend |
 | **Storage** | GCS/S3-compatible · paths: `tenants/<tenant_id>/bookings/<booking_id>/<file>` |
@@ -70,7 +70,7 @@ Raise a doc bug if a UC appears to violate these — do not "make it work."
 
 | Context | Type | Aggregates |
 |---|---|---|
-| **Booking** | Core | `Booking`, `Service`, `ScheduleClosure` |
+| **Booking** | Core | `Booking`, `Service`, `ScheduleClosure`, `ScheduleOpening`, `Resource` (M21) |
 | **Customer** | Supporting | `Customer` (multi-tenant rows) |
 | **Staff** | Supporting | `Staff` (multi-tenant rows) |
 | **Loyalty** | Supporting | `LoyaltyEntry` (append-only), `LoyaltyBalance`, `LoyaltyRedemption` (append-only) |
@@ -119,7 +119,7 @@ COMPLETED / REJECTED / CANCELLED / NO_SHOW  (terminal)
 **Traps — don't implement these as written:**
 - UC-014 (customer login), UC-015 (staff login) — superseded by UC-021/UC-022
 - UC-017 (booking analytics) — future, out of MVP
-- UC-030 was superseded/renumbered as part of the M13 staff-lifecycle stories (UC-029 deactivate / UC-031 reactivate are the canonical pair) — check `docs/04-USE_CASES.md`'s table before citing a UC number in a story
+- UC-030 today means "Admin Edits Staff Member Profile" — a different concept from an earlier draft where UC-030 covered staff deactivate/reactivate; that pair now lives at UC-029 (deactivate) / UC-031 (reactivate). Don't confuse the two when citing UC-030 — check `docs/04-USE_CASES.md`'s table first.
 
 **Missing UCs (do not implement until documented):** Customer profile edit beyond phone-collection (UC-021 A3), audit log view, notification template management, failed-notification retry, manual admin loyalty-point redemption (`POST /v1/loyalty/redeem` exists and is implemented but has no UC — found via `/docs-audit` 2026-08-04, see `docs/04-USE_CASES.md` UC-016's note).
 
@@ -235,7 +235,7 @@ If a design keeps needing new safeguards or caveats as it's developed (e.g. "thi
 - Playwright specs are test cases only; reusable flows/helpers live in `apps/web/e2e/helpers/<feature>/**`. → Vitest config, mocks, axe testing, E2E helper/dev-login conventions: `docs/08-TESTING_STRATEGY.md`
 
 ### CI gates (block merge)
-ESLint + Prettier · `tsc --noEmit` · all tests · coverage ≥ 80% on changed code · SonarCloud GREEN · Snyk SCA · Gitleaks · Trivy · Checkov/Tfsec
+ESLint + Prettier · `tsc --noEmit` · all tests · coverage ≥ 80% on changed code · SonarCloud GREEN · Snyk SCA · Gitleaks · Trivy · Checkov
 
 When SonarCloud is failing, treat the live issue list/quality gate as the only source of truth — never fix from stale logs or guess from the diff (see `docs/ANTI_PATTERNS.md`'s SonarCloud row for the exact discipline and how to verify a fix actually moved the metric).
 
@@ -514,6 +514,7 @@ Pinned Terraform skills live in `.claude/skills/`; refresh them by re-vendoring 
 | `/create-td <problem description>` | `.claude/commands/create-td.md` |
 | `/discovery-to-milestone <discovery-doc-path>` | `.claude/commands/discovery-to-milestone.md` |
 | `/docs-audit [UC-XXX\|M0X\|actor/slug\|doc-path]` | `.claude/commands/docs-audit.md` |
+| `/grill-me` | `.claude/commands/grill-me.md` |
 | `/mark-done M0X-SYY` | `.claude/commands/mark-done.md` |
 | `/pre-pr` | `.claude/commands/pre-pr.md` |
 | `/pr-land [PR#]` | `.claude/commands/pr-land.md` |

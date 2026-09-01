@@ -29,6 +29,9 @@ Fields with domain validation → `src/shared/value-objects/` (never plain primi
 | IANA timezone | `Timezone` | `timezone.vo.ts` |
 | HH:MM time | `TimeOfDay` | `time-of-day.vo.ts` |
 | URL-safe slug | `Slug` | `slug.vo.ts` |
+| ISO country code | `CountryCode` | `country-code.vo.ts` |
+| SEO page title | `SeoTitle` | `seo-title.vo.ts` |
+| SEO meta description | `SeoDescription` | `seo-description.vo.ts` |
 
 Every VO must have a `.spec.ts` covering valid and invalid inputs. PhoneNumber format and normalisation boundary rules → `docs/CODE_STANDARDS.md`.
 

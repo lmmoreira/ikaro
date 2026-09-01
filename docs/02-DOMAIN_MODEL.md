@@ -1020,6 +1020,7 @@ LoyaltyRedemption {
   tenantId:        TenantId
   customerId:      CustomerId
   pointsRedeemed:  int                (positive)
+  pointsPerCurrencyUnit: int          (snapshot of the tenant's loyalty.pointsPerCurrencyUnit setting at redemption time)
   redeemedBy:      StaffId
   notes:           string?            (optional admin note)
   bookingId:       UUID?              (nullable — the booking the points were applied to)
@@ -1050,6 +1051,7 @@ NotificationTemplate {
   id: TemplateId
   tenantId: TenantId | null (null = platform-wide default template, used when no tenant override exists)
   triggerEvent: NotificationTemplateKey (e.g., "BOOKING_APPROVED" — which domain event/trigger this template renders for)
+  locale: string (default 'pt-BR' — TD02-S10)
   channel: 'EMAIL' | 'SMS' | 'WHATSAPP'
   subject: String (can include placeholders like {{customerName}})
   body: String (template with placeholders — plain/HTML depending on channel)

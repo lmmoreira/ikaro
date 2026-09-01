@@ -107,25 +107,31 @@ Each Bounded Context (e.g., Booking) follows the same internal structure to ensu
 
 ## Folder Structure (Pattern)
 
-Within the monorepo, each context will look like this:
+Within the monorepo, each context looks like this (verified against `apps/backend/src/contexts/booking/`):
 
 ```text
 src/contexts/booking/
-├── domain/                # Pure business logic
-│   ├── entities/
-│   ├── value-objects/
+├── domain/                # Pure business logic — flat, no entities/ subfolder
+│   ├── *.aggregate.ts     # booking.aggregate.ts, service.aggregate.ts, schedule-closure.aggregate.ts, ...
 │   ├── events/
-│   └── services/
+│   ├── commands/          # cron-emitted Command classes (distinct from DomainEvent)
+│   ├── errors/
+│   └── services/          # domain services, e.g. availability.service.ts
 ├── application/           # Orchestration
 │   ├── use-cases/
 │   ├── ports/             # Interfaces (Repositories, Clients)
+│   ├── services/          # application-level services
+│   ├── jobs/               # cron job classes
 │   └── dtos/
-└── infrastructure/        # External implementations
-    ├── adapters/
-    │   ├── persistence/   # Database impl
-    │   ├── clients/       # API/Email impl
-    │   └── controllers/   # REST API
-    └── module.config.ts   # NestJS Module definition
+├── infrastructure/        # External implementations — flat, no adapters/ wrapper
+│   ├── controllers/       # REST API
+│   ├── repositories/      # TypeORM repository adapters
+│   ├── entities/          # TypeORM entity classes
+│   ├── events/            # event/trigger handlers
+│   ├── http/              # <context>-error.mapper.ts
+│   ├── migrations/
+│   └── cross-context/     # sanctioned cross-context Port+Adapter (docs/05-BOUNDED_CONTEXTS.md § Rule 1)
+└── booking.module.ts      # NestJS Module definition — at the context root, not inside infrastructure/
 ```
 
 ---
