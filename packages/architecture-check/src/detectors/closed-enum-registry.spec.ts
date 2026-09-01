@@ -97,4 +97,60 @@ describe('checkClosedEnumRegistry', () => {
     const result = checkClosedEnumRegistry([fixtureProject({})], []);
     expectZeroTargets(result);
   });
+
+  // Codex + CodeRabbit, PR #456 round 1: silently filtering out non-string-literal members let a
+  // malformed/widened declaration pass the registry's closed-enum guarantee with zero findings —
+  // the parser must treat these as unresolved instead.
+  describe('malformed or widened declarations are unresolved, not silently filtered', () => {
+    it('flags a constArray containing a non-string-literal element', () => {
+      const project = fixtureProject({
+        [CANONICAL_FILE]: `export const DEMO_TYPES = ['A', 2, 'C'] as const;`,
+        [MAY_LEAD_AHEAD_FILE]: `export type DemoType = 'A';`,
+      });
+      const entry: ClosedEnumRegistryEntry = {
+        name: 'DemoType',
+        canonical: { path: CANONICAL_FILE, kind: 'constArray', exportName: 'DEMO_TYPES' },
+        mayLeadAhead: { path: MAY_LEAD_AHEAD_FILE, kind: 'union', exportName: 'DemoType' },
+      };
+      const result = checkClosedEnumRegistry([project], [entry]);
+      expectScannedTargets(result, 1);
+      expect(result.findings).toEqual([
+        expect.objectContaining({ message: expect.stringContaining('canonical source') }),
+      ]);
+    });
+
+    it('flags a union widened to a bare string type', () => {
+      const project = fixtureProject({
+        [CANONICAL_FILE]: `export const DEMO_TYPES = ['A'] as const;`,
+        [MAY_LEAD_AHEAD_FILE]: `export type DemoType = string;`,
+      });
+      const entry: ClosedEnumRegistryEntry = {
+        name: 'DemoType',
+        canonical: { path: CANONICAL_FILE, kind: 'constArray', exportName: 'DEMO_TYPES' },
+        mayLeadAhead: { path: MAY_LEAD_AHEAD_FILE, kind: 'union', exportName: 'DemoType' },
+      };
+      const result = checkClosedEnumRegistry([project], [entry]);
+      expectScannedTargets(result, 1);
+      expect(result.findings).toEqual([
+        expect.objectContaining({ message: expect.stringContaining('mayLeadAhead source') }),
+      ]);
+    });
+
+    it("flags a union widened by an unconstrained member (e.g. 'A' | string)", () => {
+      const project = fixtureProject({
+        [CANONICAL_FILE]: `export const DEMO_TYPES = ['A'] as const;`,
+        [MAY_LEAD_AHEAD_FILE]: `export type DemoType = 'A' | string;`,
+      });
+      const entry: ClosedEnumRegistryEntry = {
+        name: 'DemoType',
+        canonical: { path: CANONICAL_FILE, kind: 'constArray', exportName: 'DEMO_TYPES' },
+        mayLeadAhead: { path: MAY_LEAD_AHEAD_FILE, kind: 'union', exportName: 'DemoType' },
+      };
+      const result = checkClosedEnumRegistry([project], [entry]);
+      expectScannedTargets(result, 1);
+      expect(result.findings).toEqual([
+        expect.objectContaining({ message: expect.stringContaining('mayLeadAhead source') }),
+      ]);
+    });
+  });
 });

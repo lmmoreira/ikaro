@@ -36,7 +36,11 @@ function findSourceFile(projects: Project[], path: string): SourceFile | undefin
 }
 
 // `HOTSITE_MODULE_TYPES = [...] as const` — the array literal sits inside an AsExpression, not
-// directly on the VariableDeclaration's initializer.
+// directly on the VariableDeclaration's initializer. Every element must be a string literal — a
+// non-literal element (a variable reference, a numeric/boolean literal) makes the array's real
+// member set unknowable, so the whole declaration is treated as unresolved rather than silently
+// filtering the offending element out (Codex + CodeRabbit, PR #456 round 1: silent filtering let a
+// malformed/widened declaration pass the registry's closed-enum guarantee with zero findings).
 function constArrayMembers(
   sourceFile: SourceFile,
   exportName: string,
@@ -50,13 +54,17 @@ function constArrayMembers(
       : rawInitializer;
   if (!initializer || !Node.isArrayLiteralExpression(initializer)) return undefined;
 
-  const members = initializer
-    .getElements()
-    .filter(Node.isStringLiteral)
-    .map((element) => element.getLiteralValue());
+  const elements = initializer.getElements();
+  const stringLiterals = elements.filter(Node.isStringLiteral);
+  if (stringLiterals.length !== elements.length) return undefined;
+
+  const members = stringLiterals.map((element) => element.getLiteralValue());
   return { members: new Set(members), node: declaration };
 }
 
+// Same closed-only stance as constArrayMembers above: a union member that isn't itself a string
+// literal (a widening type like `string`, a numeric/boolean literal, a type reference) makes the
+// type's real member set unknowable — treated as unresolved, not silently dropped.
 function unionMembers(
   sourceFile: SourceFile,
   exportName: string,
@@ -66,12 +74,15 @@ function unionMembers(
   const typeNode = declaration.getTypeNode();
   if (!typeNode) return undefined;
 
-  const literalTypeNodes = Node.isUnionTypeNode(typeNode) ? typeNode.getTypeNodes() : [typeNode];
-  const members = literalTypeNodes
-    .filter(Node.isLiteralTypeNode)
-    .map((literalTypeNode) => literalTypeNode.getLiteral())
-    .filter(Node.isStringLiteral)
-    .map((literal) => literal.getLiteralValue());
+  const typeNodes = Node.isUnionTypeNode(typeNode) ? typeNode.getTypeNodes() : [typeNode];
+  const literalTypeNodes = typeNodes.filter(Node.isLiteralTypeNode);
+  if (literalTypeNodes.length !== typeNodes.length) return undefined;
+
+  const literals = literalTypeNodes.map((literalTypeNode) => literalTypeNode.getLiteral());
+  const stringLiterals = literals.filter(Node.isStringLiteral);
+  if (stringLiterals.length !== literals.length) return undefined;
+
+  const members = stringLiterals.map((literal) => literal.getLiteralValue());
   return { members: new Set(members), node: declaration };
 }
 
