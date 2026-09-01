@@ -428,9 +428,68 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
   Response shape: `{ "items": [ { ...above... }, ... ] }`. The frontend uses `requiresPickupAddress` to show/hide the address field as services are added to the basket.
 - `GET /services` -> List **all** services for the tenant, including `isActive: false` (STAFF|MANAGER). Returns `{ items: [...], total: number }` (`StaffServiceListResponse`) — each item uses `serviceId` (not `id`) and `price: { amount, currency }` (no `formatted`); see `StaffServiceResponse` in `service.dto.ts`. Lives on the bare `/services` path — see `docs/24-BFF_ARCHITECTURE.md` for why the public list moved to `/public/services` (`M13-S05`).
 - `GET /services/:id` -> Single service by id, active or inactive (STAFF|MANAGER). `StaffServiceResponse`. `404` if not found or wrong tenant.
-- `POST /services` -> Create service (STAFF|MANAGER). Body includes `requiresPickupAddress: boolean` (default `false`).
-- `PATCH /services/:id` -> Update service details/price/duration/`requiresPickupAddress` (STAFF|MANAGER).
+- `POST /services` -> Create service (STAFF|MANAGER). Body includes `requiresPickupAddress: boolean` (default `false`), and, from M21 Cluster 2, `bookingModel: 'APPOINTMENT'|'SESSION'` (UC-056, default `APPOINTMENT`).
+- `PATCH /services/:id` -> Update service details/price/duration/`requiresPickupAddress` (STAFF|MANAGER). From M21 Cluster 2, also accepts `bufferAfterMinutes` (UC-053).
 - `DELETE /services/:id` -> Deactivate service (STAFF|MANAGER). Returns `204 No Content`.
+
+### **Service Extensions — M21 Cluster 2 (UC-050–056)**
+
+> Auth: JWT + `MANAGER|STAFF` on every endpoint below (same as UC-012/013 — this stays a Service management surface, not the MANAGER-only Resource Management restriction M21 Cluster 1 introduced).
+
+- `PATCH /services/:id/resource-requirements` -> Set/replace a flat (non-legged) service's resource requirements (UC-050 create/edit, UC-051 for a bundle). Body:
+  ```json
+  {
+    "resourceRequirements": [
+      { "type": "STAFF", "selectionMode": "CUSTOMER_CHOICE", "resourcePoolIds": ["uuid", "uuid"], "requiredQuantity": 1 },
+      { "type": "EQUIPMENT", "selectionMode": "AUTO_ANY" }
+    ]
+  }
+  ```
+  - `200` on success
+  - `422` if no active resource of a chosen type exists (UC-050 A1)
+  - `409` if the service has `legs` set (UC-050 A2)
+
+- `PUT /services/:id/legs` -> Set/replace a service's sequential legs (UC-052). Clears `resourceRequirements`/`bufferAfterMinutes` on save. Body:
+  ```json
+  {
+    "legs": [
+      { "legIndex": 0, "name": "Sauna", "durationMinutes": 20, "resourceRequirements": [{ "type": "ROOM", "selectionMode": "AUTO_ANY" }], "transitionGapAfterMinutes": 10 },
+      { "legIndex": 1, "name": "Massagem", "durationMinutes": 50, "resourceRequirements": [{ "type": "STAFF", "selectionMode": "CUSTOMER_CHOICE" }, { "type": "ROOM", "selectionMode": "AUTO_ANY" }], "transitionGapAfterMinutes": 5 }
+    ]
+  }
+  ```
+  - `200` on success; response includes the computed total span
+  - `422` if fewer than 2 legs (UC-052 A1)
+
+- `POST /services/:id/intake-schema` -> Publish a new booking-intake schema version (UC-054). Body:
+  ```json
+  {
+    "questions": [{ "fieldKey": "accessNeeds", "label": "Necessidades de acesso", "type": "FREE_TEXT", "required": false }],
+    "consentText": "...", "requiresNamedAttendees": true, "participantCountRequired": true
+  }
+  ```
+  - `201` on success — new version `is_active = true`, previous version `is_active = false`
+
+- `PATCH /services/:id/booking-policy` -> Set an appointment service's booking policy (UC-055). Body:
+  ```json
+  {
+    "defaultApprovalMode": "MANUAL_APPROVAL", "manualHoldMinutes": 30,
+    "cancellationWindowHoursOverride": null, "rescheduleWindowHoursOverride": null,
+    "minBookingAdvanceHoursOverride": null, "maxBookingAdvanceDaysOverride": null,
+    "recurrenceEligible": true, "availabilityAlertEligible": true,
+    "durationPolicy": "CUSTOMER_SELECTED", "durationMinMinutes": 60, "durationMaxMinutes": 480, "durationIncrementMinutes": 30,
+    "pricingPolicy": "PER_TIME_INCREMENT", "pricingIncrementMinutes": 60, "pricePerIncrementAmount": 50.00
+  }
+  ```
+  - `200` on success
+  - `422` if `durationPolicy = CUSTOMER_SELECTED` with no `pricingPolicy` (UC-055 A2)
+
+- `GET /schedule/day-grid?date=` -> Combined multi-resource day grid (UC-057). MANAGER only.
+  ```json
+  { "date": "2026-08-04", "columns": [{ "resourceId": "uuid", "name": "Camila Duarte", "type": "STAFF", "blocks": [{ "startsAt": "...", "endsAt": "...", "kind": "BOOKING"|"CLASS_SESSION", "refId": "uuid" }] }] }
+  ```
+
+**`GET /schedule/availability` (UC-011) — extended by M21 Cluster 2 (UC-058, UC-059):** the existing endpoint's response is unchanged in shape; internally, once a queried service has non-default `resourceRequirements`/`legs`, the backend scopes the query to the relevant `resourceId(s)` via `IBookingAvailabilityPort` against `booking.resource_occupancy` instead of the whole tenant — see `docs/02-DOMAIN_MODEL.md`. No new query params for this cluster.
 
 ---
 
@@ -663,11 +722,17 @@ Requires JWT with `role: CUSTOMER`. Tenant resolved from JWT `tenantId` — no `
 **Cancel** (JWT + `CUSTOMER|MANAGER|STAFF` role required):
 - `PATCH /bookings/:id/cancel` → (UC-007, UC-008) Cancel a booking. The BFF dispatches to a different backend route depending on the caller's role: `CUSTOMER` → `cancel-customer` (no body), `MANAGER`/`STAFF` → `cancel-admin` (body: `{ reason?: string }`). Returns `200 { bookingId, status: 'CANCELLED' }`.
 
-### **Reschedule (UC-008)**
+### **Reschedule (UC-008, extended by M21 Cluster 3 UC-069)**
 - `PATCH /bookings/:id/reschedule`
-- **Body:** `{ "scheduledAt": "ISO8601", "adminNotes": "..." }`
-- **Validation:** New `scheduledAt + totalDurationMins` window must be free. Returns `409 slot-unavailable` if not.
-- **Event:** Publishes `BookingRescheduled` → Notification sends customer email.
+- **Body (UC-008, staff-only):** `{ "scheduledAt": "ISO8601", "adminNotes": "..." }`
+- **Body (UC-069, customer-initiated, M21 Cluster 3):** `{ "scheduledAt": "ISO8601", "resourceSelections": {...}, "durationMinutes": number }` — `resourceSelections`/`durationMinutes` only relevant for a bundle/leg/variable-duration service; validated and locked atomically before the original resource(s) are released.
+- **Validation:** New window must be free for every required resource. Returns `409 slot-unavailable` if not (UC-069 A1). A bundle/journey revalidates every resource/leg as one atomic change (UC-069 A2).
+- **Response, M21 Cluster 3 addition:** if the reschedule changes the price (e.g. a variable-duration service), a `booking_quote_revisions` row is recorded and the response includes `{ "quoteRevision": { "revisionNo": number, "amount": {...} } }`.
+- **Event:** Publishes `BookingRescheduled` (extended scope, see `docs/03-DOMAIN_EVENTS.md`) → Notification sends customer email.
+
+### **No-Show (UC-074, M21 Cluster 3)**
+- `POST /bookings/:id/no-show` -> Mark an appointment as a no-show (STAFF|MANAGER). `422` if the scheduled end time hasn't passed; `409` if already terminal.
+- `POST /bookings/:id/no-show/correct` -> Manager correction (append-only audit transition). Body: `{ "correctedStatus": "COMPLETED"|..., "reason": "..." }`. Loyalty is awarded only if `correctedStatus = COMPLETED`.
 
 ### **Information Workflow (UC-005)**
 See `PATCH /bookings/:id/submit-info` in the Booking Management section above.
@@ -763,48 +828,184 @@ Errors:
 - `400` — serviceId not found, inactive, or from wrong tenant
 - `422` — date is in the past
 
-### **Schedule Closures (UC-010a, UC-010b)**
-Auth: JWT + `MANAGER|STAFF` on all write endpoints.
+### **Schedule Closures (UC-010a, UC-010b, UC-010e)**
+Auth: JWT + `MANAGER|STAFF` on all write endpoints. **Exception (M21 Cluster 1):** a request body with `resourceId` set requires `MANAGER` specifically — `resourceId` omitted (tenant-wide, today's behavior) stays open to `MANAGER|STAFF`.
 
-- `GET /schedule/closures?from=YYYY-MM-DD&to=YYYY-MM-DD` → list closures in range (sorted by date ASC)
+- `GET /schedule/closures?from=YYYY-MM-DD&to=YYYY-MM-DD&resourceId=` → list closures in range (sorted by date ASC). `resourceId` optional — omit for tenant-wide only.
 - `POST /schedule/closures` → create closure (full-day or partial)
   ```json
   {
-    "date":      "2026-12-26",
-    "reason":    "HOLIDAY",
-    "startTime": "10:00",   // optional — omit for full-day
-    "endTime":   "12:00",   // optional — omit for full-day
-    "notes":     "..."      // optional
+    "date":       "2026-12-26",
+    "reason":     "HOLIDAY",
+    "startTime":  "10:00",   // optional — omit for full-day
+    "endTime":    "12:00",   // optional — omit for full-day
+    "resourceId": "uuid",    // optional (M21 Cluster 1) — omit for tenant-wide, matching today's behavior
+    "notes":      "..."      // optional
   }
   ```
   - `201` on success; response body includes the created closure `id`
   - `422` if date is in the past
-  - `409` if an overlapping closure already exists for that date
+  - `409` if an overlapping closure already exists for that `(date, resourceId)`
+  - `404` if `resourceId` is set and does not exist or belongs to another tenant (UC-010e)
 
 - `DELETE /schedule/closures/:id` → remove closure
   - `204` on success
   - `404` if not found or belongs to another tenant
 
-### **Schedule Openings (UC-010c, UC-010d)**
-Auth: JWT + `MANAGER|STAFF` on all write endpoints.
+### **Schedule Openings (UC-010c, UC-010d, UC-010f)**
+Auth: JWT + `MANAGER|STAFF` on all write endpoints. **Exception (M21 Cluster 1):** a request body with `resourceId` set requires `MANAGER` specifically — `resourceId` omitted (tenant-wide, today's behavior) stays open to `MANAGER|STAFF`.
 
-- `GET /schedule/openings?from=YYYY-MM-DD&to=YYYY-MM-DD` → list openings in range
+- `GET /schedule/openings?from=YYYY-MM-DD&to=YYYY-MM-DD&resourceId=` → list openings in range. `resourceId` optional — omit for tenant-wide only.
 - `POST /schedule/openings` → open a normally-closed day
   ```json
   {
-    "date":      "2026-12-28",
-    "startTime": "09:00",
-    "endTime":   "14:00",
-    "notes":     "..."   // optional
+    "date":       "2026-12-28",
+    "startTime":  "09:00",
+    "endTime":    "14:00",
+    "resourceId": "uuid",   // optional (M21 Cluster 1) — omit for tenant-wide, matching today's behavior
+    "notes":      "..."     // optional
   }
   ```
   - `201` on success
   - `422` if date is past OR day-of-week is already open in `businessHours`
-  - `409` if an opening already exists for that date
+  - `409` if an opening already exists for that `(date, resourceId)`
+  - `404` if `resourceId` is set and does not exist or belongs to another tenant (UC-010f)
 
 - `DELETE /schedule/openings/:id` → remove opening; day reverts to default-closed
   - `204` on success
   - `404` if not found or belongs to another tenant
+
+### **Resource Management (UC-044–UC-049)**
+
+> Introduced by M21 — Multi-Vertical Scheduling, Cluster 1 (Foundation).
+
+Auth: JWT + `MANAGER` only on every endpoint — a deliberate, self-consistent restriction distinct from every other Booking-context admin surface (`MANAGER|STAFF`), per the discovery's own review call (dev-notes.md item 1) with no existing precedent to derive it from.
+
+- `GET /resources?type=&isActive=` → list resources (UC-044). `type` optional — `LOCATION | STAFF | ROOM | EQUIPMENT`. `isActive` optional boolean.
+  ```json
+  { "items": [ { "id": "uuid", "type": "STAFF", "refId": "uuid", "name": "Camila Duarte", "workingHours": null, "turnoverMinutes": 15, "maxCapacity": null, "isActive": true } ] }
+  ```
+- `POST /resources` → create a resource (UC-045)
+  ```json
+  {
+    "type":            "STAFF",           // "STAFF" | "ROOM" | "EQUIPMENT" — never "LOCATION" (backfilled only)
+    "refId":           "uuid",            // required iff type = "STAFF" — an existing Staff id
+    "name":            "Camila Duarte",   // required for ROOM/EQUIPMENT; denormalized display name for STAFF too
+    "workingHours":    { "monday": { "open": "09:00", "close": "18:00" }, "...": "..." }, // optional — omit to inherit tenant hours
+    "turnoverMinutes": 15,                // optional, default 0
+    "maxCapacity":     null               // optional, ROOM/EQUIPMENT/LOCATION only
+  }
+  ```
+  - `201` on success
+  - `409` if `type = STAFF` and that staff member is already wrapped by a `Resource` (A1)
+  - `422` if no working hours are set and the tenant has no `businessHours` either (A2)
+- `PATCH /resources/:id` → edit working hours (UC-046). Body: `{ "workingHours": { ... } | null }` (`null` reverts to inheriting tenant hours).
+  - `200` on success
+  - `404` if not found or belongs to another tenant
+- `DELETE /resources/:id` → deactivate a resource (UC-047)
+  - `204` on success
+  - `404` if not found or belongs to another tenant
+- `POST /resources/:id/reactivate` → reactivate a deactivated resource (UC-049)
+  - `200` on success; publishes `ResourceReactivated`
+  - `404` if not found or belongs to another tenant
+  - `409` if already active
+
+### **Recurring Private Reservation Schedules — M21 Cluster 3 (UC-070, UC-071)**
+
+Auth: JWT + Customer (create/manage own) or STAFF|MANAGER (approve/reject, or create on a customer's behalf).
+
+- `POST /recurring-booking-schedules` → create (UC-070). Body: `{ "serviceId", "recurrence": {...}, "assignmentPolicy": "FIXED_ASSIGNMENT"|"RESOLVE_PER_OCCURRENCE", "resourceIds"?: string[], "startsOn", "endsOn"? }`
+  - `201` — `{ "status": "ACTIVE" }` (AUTO_CONFIRM) or `{ "status": "PENDING_APPROVAL", "approvalHoldExpiresAt": "..." }` (MANUAL_APPROVAL)
+  - `409` on a future-pattern conflict (A1) or at the `MAX_ACTIVE_*` cap (A4)
+- `GET /recurring-booking-schedules` → list the caller's own (Customer) or all for the tenant (STAFF|MANAGER, approval queue)
+- `PATCH /recurring-booking-schedules/:id/occurrences/:occurrenceStart` → skip or reschedule one occurrence (UC-070 A2). Body: `{ "action": "SKIP"|"RESCHEDULE", "replacementBookingId"? }`
+- `POST /recurring-booking-schedules/:id/pause` / `POST /recurring-booking-schedules/:id/end`
+- `POST /recurring-booking-schedules/:id/approve` / `POST /recurring-booking-schedules/:id/reject` → UC-071. STAFF|MANAGER only.
+  - `409` if already resolved (A1) or past `approvalHoldExpiresAt` (A2)
+
+### **Availability Alerts — M21 Cluster 3 (UC-072, UC-076)**
+
+Auth: JWT + Customer only — unauthenticated visitors are redirected to login (UC-072 A1).
+
+- `POST /availability-alerts` → create (UC-072). Body: `{ "serviceId", "preferredResourceId"?, "criteriaType": "ONE_TIME_RANGE"|"WEEKLY_PREFERENCE", "acceptableStartAt"?, "acceptableEndAt"?, "weekdays"?, "localStartTime"?, "localEndTime"?, "durationMinutes"?, "participantCount"? }`
+- `GET /availability-alerts` → list the caller's own (UC-076)
+- `PATCH /availability-alerts/:id` → edit criteria/expiry (UC-076)
+- `DELETE /availability-alerts/:id` → cancel (UC-076)
+
+### **Future Commitment Exceptions — M21 Cluster 3 (UC-077)**
+
+Auth: JWT + MANAGER only.
+
+- `GET /scheduling-exceptions?status=OPEN` → list open worklist items (UC-073's output)
+- `POST /scheduling-exceptions/:id/resolve` → Body: `{ "resolutionType": "KEEP"|"REASSIGN"|"RESCHEDULE"|"CANCEL", "reason"? }`
+- `POST /scheduling-exceptions/:id/dismiss` → Body: `{ "reason" }`
+
+### **Tenant Onboarding Bootstrap — M21 Cluster 3 (UC-075)**
+
+Auth: JWT + MANAGER only.
+
+- `POST /onboarding/bootstrap` → Body: `{ "presetId": "AUTO_ESTETICA"|"SALAO_BARBEARIA"|..., "answers": {...} }` (per-preset minimum-answer shape, see `docs/discovery/multivertical-booking/multivertical-booking_ONBOARDING_PRESETS.md`)
+  - `201` — generated configuration as an editable review; whole bootstrap rolls back atomically on any failure (A3)
+  - `422` on invalid minimum answers (A2)
+  - **M21 Cluster 4 completion:** for a SESSION preset (D/E/F), step 4 also creates the first `ClassScheduleTemplate`(s) — inert until this cluster ships (Cluster 3 alone only completes Presets A/B/C/G).
+
+---
+
+## 4b. Classes & Sessions — M21 Cluster 4
+
+> Auth: STAFF|MANAGER on every staff-facing endpoint below unless noted; Customer/Guest on the booking endpoints, matching UC-085–107's own actor fields.
+
+### **Session Templates (UC-078–080)**
+
+- `PATCH /services/:id/guest-access-policy` → Body: `{ "guestAccessEnabled": boolean, "guestTrialPolicy": "NONE"|"FIRST_FREE_PER_EMAIL" }` (UC-078)
+- `POST /class-schedule-templates` → Body: `{ "serviceId", "resourceIds": string[], "recurrence": {...}, "capacity": number, "trialSlots"?: number }`
+  - `201` on success
+  - `409` on resource conflict (A1/A2) or `MAX_ACTIVE_TEMPLATES_PER_RESOURCE` cap (A4)
+  - `422` if capacity exceeds a resource's `maxCapacity` ceiling (A3)
+- `PATCH /class-schedule-templates/:id` → edit (UC-080). `409` if new default capacity < an in-flight session's `reservedCount` (A2).
+- `DELETE /class-schedule-templates/:id` → deactivate (UC-080)
+- `POST /class-schedule-templates/:id/cancel-range` → Body: `{ "rangeStart": "date", "rangeEnd": "date"|null }` (UC-096). `422` if entirely in the past (A1).
+
+### **Sessions (UC-081–085, UC-101)**
+
+- `GET /class-sessions?scope=mine|all&from=&to=` → list (UC-082)
+- `GET /class-sessions?serviceId=&from=` → customer/guest browse (UC-085) — public/authenticated variant of the same read model
+- `PATCH /class-sessions/:id` → override capacity/resources (UC-083). `409` if new capacity < `reservedCount` (A1); `422` if it exceeds a resource ceiling (A2).
+- `POST /class-sessions/:id/cancel` → UC-084
+- `POST /class-sessions/:id/close` → Body: `{ "attendeeOutcomes": [{ "attendeeId", "attendance": "PRESENT"|"NO_SHOW" }] }` (UC-101). `409` if already `CLOSED` (A1); `422` if before `endTime` (A2).
+
+### **Class Session Bookings (UC-086–090, UC-097–098, UC-105)**
+
+- `POST /class-session-bookings` → create (UC-086 contract / UC-087 pay-per-class / UC-088 guest group). Body varies by path — see each UC's Main Flow.
+  - `201` — `CONFIRMED`, `PENDING_APPROVAL`, or falls through to waitlist per the trialSlots threshold
+  - `409` if session fills at write time (A1) or no qualifying contract (A2, UC-086)
+- `POST /class-session-bookings/guest-verification` → Body: `{ serviceId, sessionId, quantity, attendees: [{ name }], contactEmail, contactName, contactPhone }` (UC-097 step 1)
+- `POST /class-session-bookings/guest-verification/:token/confirm` → UC-097 step 2–3
+- `POST /class-session-bookings/:id/cancel` → UC-089. `422` inside the cancellation window (A1).
+- `POST /class-sessions/:id/waitlist` → UC-090. `409` on a duplicate entry (A1).
+- `POST /class-session-bookings/:id/approve` / `POST /class-session-bookings/:id/reject` → UC-098, STAFF|MANAGER
+- `PATCH /class-session-bookings/:id/attendees` → Body: `{ "removeAttendeeIds": string[], "reason" }` (UC-105). `422` if it would leave zero attendees (A2) or past cutoff (A3).
+- `POST /class-session-bookings/:id/waitlist-offer/accept` / `.../decline` → UC-091's offer acceptance
+
+### **Recurring Enrollments (UC-093–095, UC-102–104)**
+
+- `POST /recurring-enrollments` → Body: `{ "templateId", "startDate" }` (UC-093)
+- `PATCH /recurring-enrollments/:id/occurrences/:sessionId` → Body: `{ "action": "SKIP" }` (UC-094). `422` inside the skip window (A3) or if the occurrence already passed (A2).
+- `POST /recurring-enrollments/:id/occurrences/:sessionId/reschedule` → Body: `{ "replacementSessionId" }` (UC-102)
+- `POST /recurring-enrollments/:id/cancel` → UC-095
+- `GET /class-schedule-templates/:serviceId/enrollments?status=&type=` → UC-103, STAFF|MANAGER
+- `POST /class-session-bookings` / `POST /recurring-enrollments` with `createdByStaff: true` → UC-104, STAFF|MANAGER. `409` if the customer has no qualifying access (A1).
+
+### **Class Access Contracts (UC-099)**
+
+- `POST /class-access-contracts` → Body: `{ "customerId", "startsOn", "endsOn", "eligibleServiceIds": string[] }`
+  - `409` if an eligible service overlaps an existing active contract's period (A2)
+- `POST /class-access-contracts/:id/cancel` → UC-099 step 4
+
+### **Payments — In-Person Record (UC-107)**
+
+- `POST /class-session-bookings/:id/payment` → Body: `{ "amount"?, "method", "outcome": "PAID"|"UNPAID"|"WAIVED" }`
+- `POST /class-session-bookings/:id/payment/:paymentId/reverse` → Body: `{ "correctionReason" }`
 
 ---
 

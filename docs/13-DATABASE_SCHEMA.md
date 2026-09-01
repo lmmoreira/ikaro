@@ -375,6 +375,7 @@ One row per service unit. Snapshots from `booking.services` at request time — 
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY |
 | tenant_id | UUID | NOT NULL |
+| resource_id | UUID | NULLABLE — FK (tenant_id, resource_id) → `booking.resources`. `NULL` = tenant-wide (today's behavior, unchanged default); set = scoped to one resource. Added M21 Cluster 1. |
 | date | DATE | NOT NULL — calendar date (YYYY-MM-DD) in tenant timezone |
 | start_time | TIME | NULLABLE — null = full-day closure |
 | end_time | TIME | NULLABLE — null = full-day closure |
@@ -384,11 +385,13 @@ One row per service unit. Snapshots from `booking.services` at request time — 
 | created_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
 | **INDEX** | (tenant_id) | Tenant-scoped queries |
 | **INDEX** | (tenant_id, date) | Date lookup for availability |
+| **INDEX** | (tenant_id, resource_id, date) | Resource-scoped date lookup (M21 Cluster 1) |
 
 **Rules:**
 - `start_time` and `end_time` are either both null (full-day) or both set (partial window)
 - When both set: `end_time > start_time`
-- No overlapping `(tenant_id, date)` windows — enforced by the use case (not a DB unique constraint, since arbitrary time-range overlap cannot be expressed as a simple unique index)
+- No overlapping `(tenant_id, resource_id, date)` windows — enforced by the use case (not a DB unique constraint, since arbitrary time-range overlap cannot be expressed as a simple unique index). No constraint trap here: this rule was already app-enforced, not a DB unique, so it extends cleanly to resource scope (M21 Cluster 1).
+- A tenant-wide closure (`resource_id IS NULL`) blocks every resource; a resource-scoped closure blocks only that resource, even when a tenant-wide opening exists for the same date.
 
 ---
 
@@ -397,6 +400,7 @@ One row per service unit. Snapshots from `booking.services` at request time — 
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY |
 | tenant_id | UUID | NOT NULL |
+| resource_id | UUID | NULLABLE — FK (tenant_id, resource_id) → `booking.resources`. `NULL` = tenant-wide; set = scoped to one resource. Added M21 Cluster 1. |
 | date | DATE | NOT NULL — calendar date in tenant timezone |
 | start_time | TIME | NOT NULL — opening window start (HH:MM) |
 | end_time | TIME | NOT NULL — opening window end (HH:MM) |
@@ -404,12 +408,603 @@ One row per service unit. Snapshots from `booking.services` at request time — 
 | created_by | UUID | NOT NULL — staffId |
 | created_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
 | **INDEX** | (tenant_id) | Tenant-scoped queries |
-| **UNIQUE** | (tenant_id, date) | Only one opening override per date per tenant |
+| **UNIQUE** | (tenant_id, date) WHERE resource_id IS NULL | Only one tenant-wide opening override per date per tenant |
+| **UNIQUE** | (tenant_id, resource_id, date) WHERE resource_id IS NOT NULL | Only one resource-scoped opening override per date per resource |
+
+**Constraint trap fixed here (M21 Cluster 1):** the original plain `UNIQUE(tenant_id, date)` would silently stop enforcing "one opening per date" the moment `resource_id` became nullable — Postgres treats `NULL ≠ NULL`, so two tenant-wide openings for the same date would no longer collide under a naive `UNIQUE(tenant_id, resource_id, date)`. The two partial unique indexes above are the fix; a tenant-wide opening and a resource-scoped opening for the same date never collide with each other either way.
 
 **Rules:**
 - `end_time > start_time`
 - The day-of-week for `date` must be `null` in `businessHours` (enforced by use case, not DB)
 - A `ScheduleOpening` takes priority over `ScheduleClosure` and `businessHours` in the availability algorithm
+- A resource opening can make that resource available on one of its normally-off dates, but only within the tenant's own effective hours for that date — it never bypasses a tenant-wide closure or extends beyond a tenant opening/window
+
+---
+
+### `booking.resources`
+
+> Introduced by M21 — Multi-Vertical Scheduling, Cluster 1 (Foundation). See `docs/discovery/multivertical-booking/multivertical-booking_DATA_MODEL.md` §2 for the full worked-example rationale.
+
+Generic bookable unit. Every existing tenant receives one active `LOCATION` resource during the M21 backfill migration — see `Migrations` below.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
+| type | VARCHAR(20) | NOT NULL — CHECK IN ('LOCATION', 'STAFF', 'ROOM', 'EQUIPMENT') |
+| ref_id | UUID | NULLABLE — staffId when `type = 'STAFF'`; no FK (cross-context ref to `staff.staff`) |
+| name | VARCHAR(255) | NOT NULL |
+| working_hours | JSONB | NULLABLE — same per-weekday `{ open, close }` shape as `tenants.settings.businessHours`, without a `timezone` key (inherits the tenant's). `NULL` = inherits tenant hours. |
+| turnover_minutes | INT | NOT NULL DEFAULT 0 CHECK >= 0 |
+| max_capacity | INT | NULLABLE CHECK > 0 when set — physical ceiling for `LOCATION`/`ROOM` and genuinely capacity-bearing `EQUIPMENT`; null for `STAFF` |
+| is_active | BOOLEAN | NOT NULL DEFAULT true |
+| created_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
+| updated_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
+| **UNIQUE** | (tenant_id, id) | Composite FK target for `schedule_closures`/`schedule_openings` above, and for tables Cluster 2+ adds |
+| **UNIQUE** | (tenant_id, id, type) | Lets a future child pool/assignment row (Cluster 2+) prove the persisted `resource_type` matches the referenced resource |
+| **UNIQUE** | (tenant_id, ref_id) WHERE type='STAFF' AND ref_id IS NOT NULL | One `Resource` per `Staff` row, DB-enforced without a cross-schema FK |
+| **UNIQUE** | (tenant_id) WHERE type='LOCATION' AND is_active | Exactly one active default location resource per tenant |
+| **CHECK** | `(type = 'STAFF') = (ref_id IS NOT NULL)` | A staff wrapper must reference a Staff ID; every other resource type must not |
+| **INDEX** | (tenant_id, type, is_active) | Resource pickers filtered by type |
+
+**Rules:**
+- Every `working_hours` window must be a subset of the tenant's recurring `businessHours` window — application-enforced (aggregate/use-case validation), not a DB constraint.
+- Deactivating a resource (`is_active = false`) never retroactively affects an existing approved appointment or materialized session — it stops future scheduling only.
+- `Staff` remains unaware of `Resource` — Booking validates a referenced `STAFF`-type resource (same-tenant, existing, active, schedulable) through a narrow lookup adapter, and consumes `StaffDeactivated` (published by Staff Context) to cascade-deactivate the wrapping resource.
+
+---
+
+### `booking.services` — modified (M21 Cluster 2)
+
+> Introduced by M21 — Multi-Vertical Scheduling, Cluster 2 (Service extensions + availability/exclusivity engine). See `docs/02-DOMAIN_MODEL.md` § Booking Context (`Service` aggregate) for the domain rationale.
+
+| New column | Type | Constraints |
+|--------|------|-------------|
+| booking_model | VARCHAR(20) | NOT NULL DEFAULT 'APPOINTMENT' — CHECK IN ('APPOINTMENT', 'SESSION') |
+| buffer_after_minutes | INT | NULLABLE — null on legged or SESSION services |
+| default_approval_mode | VARCHAR(20) | NULLABLE — CHECK IN ('AUTO_CONFIRM', 'MANUAL_APPROVAL'); null inherits tenant `autoApproveEnabled` |
+| manual_hold_minutes | INT | NULLABLE — null inherits platform default (30) |
+| cancellation_window_hours_override | INT | NULLABLE — null inherits tenant `cancellationWindowHours` |
+| reschedule_window_hours_override | INT | NULLABLE — null inherits the same effective value as `cancellation_window_hours_override` |
+| min_booking_advance_hours_override | INT | NULLABLE — null inherits tenant `minBookingAdvanceHours` |
+| max_booking_advance_days_override | INT | NULLABLE — null inherits tenant `maxBookingAdvanceDays` |
+| recurrence_eligible | BOOLEAN | NOT NULL DEFAULT false |
+| availability_alert_eligible | BOOLEAN | NOT NULL DEFAULT false |
+| duration_policy | VARCHAR(20) | NOT NULL DEFAULT 'FIXED' — CHECK IN ('FIXED', 'CUSTOMER_SELECTED') |
+| duration_min_minutes | INT | NULLABLE CHECK > 0 — set iff `duration_policy = 'CUSTOMER_SELECTED'` |
+| duration_max_minutes | INT | NULLABLE CHECK >= duration_min_minutes — set iff `duration_policy = 'CUSTOMER_SELECTED'` |
+| duration_increment_minutes | INT | NULLABLE CHECK > 0 — set iff `duration_policy = 'CUSTOMER_SELECTED'` |
+| pricing_policy | VARCHAR(20) | NOT NULL DEFAULT 'FIXED' — CHECK IN ('FIXED', 'PER_TIME_INCREMENT') |
+| pricing_increment_minutes | INT | NULLABLE CHECK > 0 — set iff `pricing_policy = 'PER_TIME_INCREMENT'`; a genuinely separate granularity from `duration_increment_minutes` — booking selection and billing don't have to be the same number |
+| price_per_increment_amount | NUMERIC(10,2) | NULLABLE — set iff `pricing_policy = 'PER_TIME_INCREMENT'` |
+| minimum_charge_amount | NUMERIC(10,2) | NULLABLE — optional floor applied after the per-increment calculation, rounding a partial increment **up** |
+| **CHECK** | `(duration_policy = 'CUSTOMER_SELECTED') = (pricing_policy IS NOT NULL AND pricing_policy != 'FIXED' OR duration_policy = 'FIXED')` (app-enforced, not expressible as a single clean CHECK) | A variable-duration service must declare a non-default pricing policy in the same save — UC-055 A2 |
+| **INDEX** | (tenant_id, booking_model) | Filtering services by family |
+
+`bookingModel`, `resourceRequirements`, `legs`, and `classResourceSlots` (the array-shaped fields) are normalized into the child tables below, not stored as JSONB columns on `services` itself — matching this schema's existing normalization discipline (`docs/13`'s own convention, not JSONB-for-everything).
+
+### `booking.service_resource_requirements` / `booking.service_resource_requirement_pool`
+
+Normalizes `Service.resourceRequirements[]`. Today's car wash is the degenerate case: one row, `resource_type='LOCATION'`, `selection_mode='NONE'`, empty pool (unrestricted).
+
+| Table | Column | Type | Constraints |
+|---|---|---|---|
+| `service_resource_requirements` | id | UUID | PRIMARY KEY |
+| | tenant_id | UUID | NOT NULL |
+| | service_id | UUID | NOT NULL — FK (tenant_id, service_id) → `services` |
+| | resource_type | VARCHAR(20) | NOT NULL |
+| | selection_mode | VARCHAR(30) | NOT NULL — CHECK IN ('NONE', 'CUSTOMER_CHOICE', 'AUTO_ANY', 'AUTO_FUNGIBLE_POOL') |
+| | required_quantity | INT | NOT NULL DEFAULT 1 CHECK > 0 |
+| | **UNIQUE** | (tenant_id, service_id, resource_type) | `resource_type` (4 fixed values) is a sufficient natural key — no worked example ever needs two requirements of the same type in one bundle |
+| | **UNIQUE** | (tenant_id, id) | Composite FK target for `service_resource_requirement_pool` |
+| `service_resource_requirement_pool` | tenant_id | UUID | NOT NULL |
+| | requirement_id | UUID | NOT NULL — FK (tenant_id, requirement_id) → `service_resource_requirements` |
+| | resource_id | UUID | NOT NULL — FK (tenant_id, resource_id) → `resources` |
+| | **PK** | (tenant_id, requirement_id, resource_id) | |
+
+### `booking.service_legs` / `booking.service_leg_resource_requirements` / `booking.service_leg_resource_requirement_pool`
+
+For `ServiceLeg[]`. A leg needs the same one-to-many resource-requirement shape as a flat service (a single leg can require more than one resource at once — e.g. a massage leg needing both a therapist and a room), nested one level under the leg.
+
+| Table | Column | Type | Constraints |
+|---|---|---|---|
+| `service_legs` | id | UUID | PRIMARY KEY |
+| | tenant_id | UUID | NOT NULL |
+| | service_id | UUID | NOT NULL — FK (tenant_id, service_id) → `services` |
+| | leg_index | INT | NOT NULL — order within the itinerary |
+| | name | VARCHAR(255) | NOT NULL |
+| | duration_minutes | INT | NOT NULL CHECK > 0 |
+| | transition_gap_after_minutes | INT | NOT NULL DEFAULT 0 |
+| | **UNIQUE** | (tenant_id, service_id, leg_index) | |
+| | **UNIQUE** | (tenant_id, id) | Composite FK target for `service_leg_resource_requirements` |
+| `service_leg_resource_requirements` | id | UUID | PRIMARY KEY |
+| | tenant_id | UUID | NOT NULL |
+| | leg_id | UUID | NOT NULL — FK (tenant_id, leg_id) → `service_legs` |
+| | resource_type | VARCHAR(20) | NOT NULL |
+| | selection_mode | VARCHAR(30) | NOT NULL |
+| | required_quantity | INT | NOT NULL DEFAULT 1 CHECK > 0 |
+| | **UNIQUE** | (tenant_id, leg_id, resource_type) | No leg in any worked example ever needs two resources of the same type |
+| | **UNIQUE** | (tenant_id, id) | Composite FK target for `service_leg_resource_requirement_pool` |
+| `service_leg_resource_requirement_pool` | tenant_id | UUID | NOT NULL |
+| | requirement_id | UUID | NOT NULL — FK (tenant_id, requirement_id) → `service_leg_resource_requirements` |
+| | resource_id | UUID | NOT NULL — FK (tenant_id, resource_id) → `resources` |
+| | **PK** | (tenant_id, requirement_id, resource_id) | |
+
+### `booking.service_class_resource_pool`
+
+The eligible-resource pool for a SESSION-model service's slots (`Service.classResourceSlots`) — schema introduced here in Cluster 2 (populated by UC-056's SESSION branch), consumed by `ClassScheduleTemplate` once Cluster 4 ships. Declared **once per service**, shared by every template of that service — not scoped per-template, to avoid re-curating the same eligibility list separately for every template of one service.
+
+| Column | Type | Constraints |
+|---|---|---|
+| tenant_id | UUID | NOT NULL |
+| service_id | UUID | NOT NULL — FK (tenant_id, service_id) → `services` |
+| resource_type | VARCHAR(20) | NOT NULL — denormalized from `resources.type`, kept directly so the row is self-describing without a join when rendering the picker; also the natural key (no `slot_index`) |
+| resource_id | UUID | NOT NULL — FK (tenant_id, resource_id) → `resources` |
+| **PK** | (tenant_id, service_id, resource_type, resource_id) | |
+| **INDEX** | (tenant_id, service_id, resource_type) | Feeds the "who's eligible" picker |
+
+### `booking.service_booking_intake_schema` / `booking.booking_attendees`
+
+A versioned, service-owned definition of booking questions, consent text/version, and participant rules (UC-054). A new version supersedes, never edits, the previous one, so a past booking's snapshot always resolves against the exact form it was submitted under.
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL |
+| service_id | UUID | NOT NULL — FK (tenant_id, service_id) → `services` |
+| version | INT | NOT NULL — monotonically increasing per service |
+| questions | JSONB | NOT NULL — ordered `[{ fieldKey, label, type, required }]`; `type` covers generic input shapes (`FREE_TEXT`, `NAMED_ATTENDEES`) and typed markers like `PICKUP_ADDRESS`, which projects into the already-existing `services.requires_pickup_address` / `bookings.pickup_address` columns rather than adding a duplicate mechanism |
+| consent_text | TEXT | NOT NULL |
+| consent_version | INT | NOT NULL |
+| requires_named_attendees | BOOLEAN | NOT NULL DEFAULT false |
+| participant_count_required | BOOLEAN | NOT NULL DEFAULT false |
+| is_active | BOOLEAN | NOT NULL DEFAULT true |
+| created_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
+| **UNIQUE** | (tenant_id, service_id, version) | |
+| **UNIQUE** | (tenant_id, service_id) WHERE is_active | At most one active schema version per service |
+
+`booking_attendees` — optional child, populated only when `requires_named_attendees = true`:
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL |
+| booking_id | UUID | NOT NULL — FK (tenant_id, booking_id) → `bookings` |
+| name | VARCHAR(255) | NOT NULL |
+| customer_id | UUID | NULLABLE — set for a named attendee who is also a `Customer`; guests remain contact-only |
+| is_minor | BOOLEAN | NOT NULL DEFAULT false — the booker/responsible customer is distinct from attendees, enabling a guardian to book for a minor without family-account management |
+| **INDEX** | (tenant_id, booking_id) | |
+
+**Rules for `bookings`, added M21 Cluster 2:**
+- `+ intake_schema_version INT NULLABLE`, `+ intake_answers JSONB NULLABLE` — both null or both set together (`CHECK (intake_schema_version IS NULL) = (intake_answers IS NULL)`); immutable snapshot pair.
+- `+ participant_count INT NULLABLE CHECK > 0 when set`, `+ consent_accepted_at TIMESTAMPTZ NULLABLE`, `+ consent_version INT NULLABLE`.
+
+### `booking.booking_line_resource_assignments` and `booking.resource_occupancy`
+
+> The single physical mechanism that makes cross-family resource exclusivity (UC-060) DB-enforceable. See `docs/02-DOMAIN_MODEL.md`'s UC-060 note for why this has to be one shared table, not one per family. In Cluster 2, only the `BOOKING_LINE` source type is reachable — `CLASS_SESSION` activates once Cluster 4 ships `class_sessions`.
+
+`booking_line_resource_assignments` is the immutable business/audit record for an appointment's resolved resources:
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL |
+| booking_line_id | UUID | NOT NULL — FK (tenant_id, booking_line_id) → `booking_lines` (requires `booking_lines`' new `UNIQUE(tenant_id, line_id)`, added below) |
+| resource_id | UUID | NOT NULL — FK (tenant_id, resource_id) → `resources` |
+| resource_type | VARCHAR(20) | NOT NULL |
+| leg_index | INT | NULLABLE — null for flat (non-legged) services |
+| quantity_position | INT | NULLABLE — set only for a fungible `requiredQuantity > 1` requirement, disambiguating which unit this row fills |
+| resource_name_at_assignment | VARCHAR(255) | NOT NULL — immutable display snapshot, same discipline as `booking_lines.service_name_at_booking` |
+| assigned_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
+| **UNIQUE** | (tenant_id, booking_line_id, resource_id, COALESCE(leg_index, -1), COALESCE(quantity_position, -1)) | Null-safe uniqueness — Postgres treats `NULL ≠ NULL` |
+| **INDEX** | (tenant_id, resource_id) | Resource utilization / professional-history BI queries |
+
+`resource_occupancy` is the separate, short-lived locking mechanism — pure exclusivity lock, safely garbage-collectable after its window elapses (retention: 90 days past `ends_at`, trickle-deleted the same way `shared.outbox`/`shared.inbox` already are — see `docs/discovery/multivertical-booking/multivertical-booking_DATA_MODEL.md` §9 for the full retention rationale). It is not itself a business record.
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL |
+| resource_id | UUID | NOT NULL — FK (tenant_id, resource_id) → `resources` |
+| source_type | VARCHAR(20) | NOT NULL — CHECK IN ('BOOKING_LINE', 'CLASS_SESSION') |
+| booking_line_resource_assignment_id | UUID | NULLABLE — FK (tenant_id, booking_line_resource_assignment_id) → `booking_line_resource_assignments`; set iff `source_type = 'BOOKING_LINE'` |
+| leg_index | INT | NULLABLE — null for flat services |
+| class_session_id | UUID | NULLABLE — FK (tenant_id, class_session_id) → `class_sessions` (table added Cluster 4); set iff `source_type = 'CLASS_SESSION'`. Unreachable in Cluster 2/3. |
+| resource_name_at_assignment | VARCHAR(255) | NOT NULL — immutable display snapshot for either family |
+| starts_at / ends_at | TIMESTAMPTZ | NOT NULL — `ends_at` is the physical blocked end, including the effective service buffer / resource turnover (UC-059) |
+| lock_state | VARCHAR(20) | NOT NULL — `HOLD` or `COMMITTED`; a `HOLD` belongs to a pending manual-approval booking, `COMMITTED` lasts through the physical end window |
+| hold_expires_at | TIMESTAMPTZ | NULLABLE — required iff `lock_state = 'HOLD'` |
+| created_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
+| **CHECK** | `(source_type='BOOKING_LINE' AND booking_line_resource_assignment_id IS NOT NULL AND class_session_id IS NULL) OR (source_type='CLASS_SESSION' AND class_session_id IS NOT NULL AND booking_line_resource_assignment_id IS NULL)` | |
+| **CHECK** | `(lock_state = 'HOLD' AND hold_expires_at IS NOT NULL) OR (lock_state = 'COMMITTED' AND hold_expires_at IS NULL)` | Prevents a permanent hold or an expiring committed allocation |
+| **CHECK** | `ends_at > starts_at` | |
+| **EXCLUDE USING gist** | (tenant_id WITH =, resource_id WITH =, tstzrange(starts_at, ends_at, '[)') WITH &&) WHERE (lock_state IN ('HOLD','COMMITTED')) | The exclusivity guarantee itself — the one shared constraint every family's write path inserts into |
+| **INDEX** | (tenant_id, resource_id, starts_at) | |
+
+**Rules:**
+- Every manual-approval appointment inserts `lock_state='HOLD'` with its snapshotted expiry (`Service.manualHoldMinutes`); approval atomically converts it to `COMMITTED`, while expiry cancels and releases it. An `AUTO_CONFIRM` appointment inserts `COMMITTED` directly.
+- Every template create/edit/deactivate, appointment approval, and session-resource override acquires transaction-scoped advisory locks for its resources in canonical `resource_id` order — this serializes the read-check/write boundary for a not-yet-materialized future pattern (a `ClassScheduleTemplate` or `RecurringBookingSchedule` recurrence rule, Clusters 3–4), while the exclusion constraint above protects already-materialized occurrences. Not exercised in Cluster 2 alone (no recurring-pattern aggregate exists yet), but the mechanism ships now since it's part of the same shared design.
+
+**`booking.booking_lines` — modified (M21 Cluster 2):** `+ UNIQUE(tenant_id, line_id)` — today only `PRIMARY KEY (line_id)` exists; required so `resource_occupancy`/`booking_line_resource_assignments`' composite FKs to it are expressible.
+
+**Migration ordering (expand/contract), M21 Cluster 2:**
+1. **Expand:** create every table above, `UNIQUE(tenant_id, line_id)` on `booking_lines`, and every new `services` column, all with default values that leave every existing service as the flat/`NONE`/`LOCATION` degenerate case. Do not drop the current tenant-wide `EX_booking_bookings_approved_slot` exclusion yet.
+2. **Backfill:** insert the default `{ resource_type: 'LOCATION', selection_mode: 'NONE' }` requirement row for every existing APPOINTMENT service, referencing the Cluster 1 backfilled `LOCATION` resource.
+3. **Dual-read/write:** new booking writes populate `resource_occupancy`; availability reads it, plus tenant/resource schedules. The old whole-tenant exclusion constraint stays live through this window.
+4. **Validate:** confirm every existing approved booking has a locked `LOCATION` occupancy row and no resource assignment is missing or cross-tenant.
+5. **Contract:** drop `EX_booking_bookings_approved_slot` only after step 4 passes for every tenant, then enable multi-resource `Service.resourceRequirements` configuration for everyone at once — no per-tenant staged rollout (this platform is pre-production with no per-tenant feature-flag mechanism; **re-verify "no live tenants yet" immediately before executing this step**, not just at drafting time).
+
+---
+
+### `booking.recurring_booking_schedules` / assignments / exceptions (M21 Cluster 3)
+
+> Private appointment/reservation recurrence — distinct from `recurring_enrollments` (session family, Cluster 4). See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`.
+
+`recurring_booking_schedules`:
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL |
+| customer_id | UUID | NOT NULL — no FK, cross-context; guest bookings are never eligible |
+| service_id | UUID | NOT NULL — FK (tenant_id, service_id) → `services` |
+| recurrence | JSONB | NOT NULL |
+| starts_on / ends_on | DATE | NOT NULL / NULLABLE |
+| status | VARCHAR(20) | NOT NULL — CHECK IN ('PENDING_APPROVAL', 'ACTIVE', 'PAUSED', 'CANCELLED') |
+| assignment_policy | VARCHAR(30) | NOT NULL — CHECK IN ('FIXED_ASSIGNMENT', 'RESOLVE_PER_OCCURRENCE') |
+| approval_hold_expires_at | TIMESTAMPTZ | NULLABLE — required iff `status = 'PENDING_APPROVAL'` |
+| approved_by_staff_id / approved_at | UUID / TIMESTAMPTZ | NULLABLE — no FK, cross-context |
+| cancellation_reason | VARCHAR(30) | NULLABLE — CHECK IN ('CUSTOMER_CANCELLED', 'APPROVAL_REJECTED', 'APPROVAL_EXPIRED') when `status = 'CANCELLED'` |
+| created_by_staff_id | UUID | NULLABLE — no FK, cross-context; set when staff creates it for the customer |
+| created_at / updated_at | TIMESTAMPTZ | DEFAULT now() |
+| **UNIQUE** | (tenant_id, id) | Composite FK target for the two child tables below |
+| **CHECK** | `(status = 'PENDING_APPROVAL') = (approval_hold_expires_at IS NOT NULL)` | |
+| **INDEX** | (tenant_id, customer_id, status) | |
+| **INDEX** | (tenant_id, service_id, status) | |
+| **INDEX** | (tenant_id, status, approval_hold_expires_at) | Feeds the schedule-approval expiry worker |
+| **INVARIANT** | at most `MAX_ACTIVE_SCHEDULES_PER_RESOURCE = 50` active `FIXED_ASSIGNMENT` schedules reference any one resource; at most `MAX_ACTIVE_RESOLVE_PER_OCCURRENCE_SCHEDULES_PER_SERVICE = 50` active `RESOLVE_PER_OCCURRENCE` schedules per service | App-enforced, not a DB constraint |
+
+`recurring_booking_schedule_resource_assignments` — durable child assignment record, mandatory for `FIXED_ASSIGNMENT`:
+
+| Column | Type | Constraints |
+|---|---|---|
+| tenant_id | UUID | NOT NULL |
+| recurring_schedule_id | UUID | NOT NULL — FK (tenant_id, recurring_schedule_id) → `recurring_booking_schedules` |
+| requirement_id | UUID | NULLABLE — FK (tenant_id, requirement_id) → `service_resource_requirements` |
+| resource_id | UUID | NOT NULL — FK (tenant_id, resource_id, resource_type) → `resources` |
+| resource_type | VARCHAR(20) | NOT NULL |
+| required_quantity_position | INT | NULLABLE — set only for a fungible `requiredQuantity > 1` requirement |
+| assigned_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
+| **PK** | (tenant_id, recurring_schedule_id, resource_id) | |
+
+`recurring_booking_schedule_exceptions` — one exception per skipped/rescheduled occurrence:
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL |
+| recurring_schedule_id | UUID | NOT NULL — FK (tenant_id, recurring_schedule_id) → `recurring_booking_schedules` |
+| occurrence_start | TIMESTAMPTZ | NOT NULL |
+| kind | VARCHAR(20) | NOT NULL — CHECK IN ('SKIPPED', 'RESCHEDULED') |
+| replacement_booking_id | UUID | NULLABLE — FK (tenant_id, replacement_booking_id) → `bookings`; set iff `kind = 'RESCHEDULED'` |
+| actor_type / actor_id | VARCHAR(20) / UUID | NOT NULL / NULLABLE |
+| reason | VARCHAR(255) | NULLABLE |
+| created_at | TIMESTAMPTZ | DEFAULT now() |
+| **UNIQUE** | (tenant_id, recurring_schedule_id, occurrence_start) | |
+| **CHECK** | `(kind = 'RESCHEDULED') = (replacement_booking_id IS NOT NULL)` | |
+
+Generated ordinary bookings link through nullable `recurring_schedule_id` on `bookings`, unique `(tenant_id, recurring_schedule_id, occurrence_start)`.
+
+### `booking.availability_alerts` / `booking.availability_alert_notification_attempts` (M21 Cluster 3)
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL |
+| service_id | UUID | NOT NULL — FK (tenant_id, service_id) → `services` |
+| customer_id | UUID | NOT NULL — no FK, cross-context; authenticated required, no guest email identity column |
+| preferred_resource_id | UUID | NULLABLE — FK (tenant_id, preferred_resource_id) → `resources` |
+| criteria_type | VARCHAR(20) | NOT NULL — CHECK IN ('ONE_TIME_RANGE', 'WEEKLY_PREFERENCE') |
+| timezone | VARCHAR(50) | NOT NULL |
+| acceptable_start_at / acceptable_end_at | TIMESTAMPTZ | NULLABLE — set iff `criteria_type = 'ONE_TIME_RANGE'` |
+| weekdays | JSONB | NULLABLE — set iff `criteria_type = 'WEEKLY_PREFERENCE'` |
+| local_start_time / local_end_time | TIME | NULLABLE — set iff `criteria_type = 'WEEKLY_PREFERENCE'` |
+| duration_minutes | INT | NULLABLE CHECK > 0 |
+| participant_count | INT | NULLABLE CHECK > 0 |
+| status | VARCHAR(20) | NOT NULL DEFAULT 'ACTIVE' — CHECK IN ('ACTIVE', 'NOTIFIED', 'CANCELLED', 'EXPIRED') |
+| expires_at | TIMESTAMPTZ | NOT NULL |
+| created_at | TIMESTAMPTZ | DEFAULT now() |
+| **CHECK** | exactly one criteria representation populated | |
+| **INDEX** | (tenant_id, service_id, status) | Matched by the release-time scan |
+
+`availability_alert_notification_attempts`:
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL |
+| alert_id | UUID | NOT NULL — FK (tenant_id, alert_id) → `availability_alerts` |
+| matching_window | TSTZRANGE | NOT NULL |
+| channel | VARCHAR(20) | NOT NULL — CHECK IN ('EMAIL', 'IN_APP') |
+| attempted_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
+| outcome | VARCHAR(20) | NOT NULL |
+| **UNIQUE** | (tenant_id, alert_id, matching_window, channel) | One notification per alert per matching window per channel |
+
+### `booking.future_commitment_exceptions` (M21 Cluster 3)
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL |
+| source_type | VARCHAR(30) | NOT NULL |
+| source_id | UUID | NOT NULL |
+| affected_type | VARCHAR(20) | NOT NULL |
+| affected_id | UUID | NOT NULL |
+| status | VARCHAR(20) | NOT NULL DEFAULT 'OPEN' — CHECK IN ('OPEN', 'RESOLVED', 'DISMISSED') |
+| owner_staff_id | UUID | NULLABLE |
+| resolution_type | VARCHAR(20) | NULLABLE — CHECK IN ('KEEP', 'REASSIGN', 'RESCHEDULE', 'CANCEL') when set |
+| resolution_reason | TEXT | NULLABLE |
+| resolved_by_staff_id | UUID | NULLABLE |
+| resolved_at | TIMESTAMPTZ | NULLABLE |
+| notification_outcome | VARCHAR(30) | NULLABLE |
+| **INDEX** | (tenant_id, affected_type, affected_id) | |
+| **INDEX** | (tenant_id, owner_staff_id, status) | |
+| **UNIQUE** | (tenant_id, source_type, source_id, affected_type, affected_id) WHERE status = 'OPEN' | A repeat trigger for the same unresolved impact updates the existing open row instead of duplicating it |
+
+### `booking.booking_quote_revisions` (M21 Cluster 3)
+
+Append-only, source-exclusive across the two booking families (appointment reschedule now; class attendee removal once Cluster 4 ships).
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL |
+| booking_id | UUID | NULLABLE — FK (tenant_id, booking_id) → `bookings` |
+| class_session_booking_id | UUID | NULLABLE — FK (tenant_id, class_session_booking_id) → `class_session_bookings` (table added Cluster 4); unreachable until then |
+| revision_no | INT | NOT NULL |
+| amount | NUMERIC(10,2) | NOT NULL |
+| currency | VARCHAR(3) | NOT NULL DEFAULT 'BRL' |
+| reason | VARCHAR(30) | NOT NULL |
+| actor_type | VARCHAR(20) | NOT NULL |
+| actor_id | UUID | NULLABLE |
+| occurred_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
+| **CHECK** | `(booking_id IS NOT NULL AND class_session_booking_id IS NULL) OR (booking_id IS NULL AND class_session_booking_id IS NOT NULL)` | Source-exclusive |
+| **UNIQUE** | (tenant_id, booking_id, revision_no) WHERE booking_id IS NOT NULL | Partial revision sequence per source |
+| **UNIQUE** | (tenant_id, class_session_booking_id, revision_no) WHERE class_session_booking_id IS NOT NULL | |
+
+### `booking.bookings` — modified (M21 Cluster 3)
+
+| New column | Type | Constraints |
+|---|---|---|
+| recurring_schedule_id | UUID | NULLABLE — FK (tenant_id, recurring_schedule_id) → `recurring_booking_schedules` |
+| status (existing column) | — | CHECK IN list gains `'NO_SHOW'` — new terminal state, `APPROVED → NO_SHOW` (UC-074); correction transitions handled via an append-only status-transition audit record, same pattern as `class_session_booking_transitions` (Cluster 4) |
+| **UNIQUE** | (tenant_id, recurring_schedule_id, occurrence_start) WHERE recurring_schedule_id IS NOT NULL | Generation idempotency key — requires a denormalized `occurrence_start` column alongside `scheduled_at` for this constraint's own purpose, or reuses `scheduled_at` directly if generation is always exactly-once per `(schedule, occurrence)` |
+
+**Migration ordering (expand/contract), M21 Cluster 3:** straightforward expand — every table above is wholly new, and `bookings`' two changes (`recurring_schedule_id`, `NO_SHOW` in the status CHECK) are additive with no existing-row backfill required (no booking is retroactively a no-show). No contract phase needed.
+
+---
+
+### `booking.class_schedule_templates` / `booking.class_schedule_template_slots` (M21 Cluster 4)
+
+> Introduced by M21 — Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions). See `docs/02-DOMAIN_MODEL.md` § `ClassScheduleTemplate`.
+
+`class_schedule_templates`:
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL |
+| service_id | UUID | NOT NULL — FK (tenant_id, service_id) → `services` |
+| recurrence | JSONB | NOT NULL |
+| capacity | INT | NOT NULL CHECK > 0 |
+| trial_slots | INT | NOT NULL DEFAULT 0 CHECK (trial_slots >= 0 AND trial_slots <= capacity) |
+| valid_from | DATE | NULLABLE |
+| valid_until | DATE | NULLABLE |
+| is_active | BOOLEAN | NOT NULL DEFAULT true |
+| created_at / updated_at | TIMESTAMPTZ | DEFAULT now() |
+| **UNIQUE** | (tenant_id, id) | |
+| **CHECK** | valid_until IS NULL OR valid_from IS NULL OR valid_until >= valid_from | |
+| **INDEX** | (tenant_id, service_id, is_active) | |
+| **INVARIANT** | at most `MAX_ACTIVE_TEMPLATES_PER_RESOURCE = 50` active templates reference any one resource (via `class_schedule_template_slots`) | App-enforced |
+
+`class_schedule_template_slots` — the template's own resolved pick per slot, each `resource_id` must be a member of `service_class_resource_pool` for the same `(service_id, resource_type)` (app-enforced):
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL |
+| template_id | UUID | NOT NULL — FK (tenant_id, template_id) → `class_schedule_templates` |
+| resource_type | VARCHAR(20) | NOT NULL — denormalized from `resources.type`, also the natural key (no `slot_index`) |
+| resource_id | UUID | NOT NULL — FK (tenant_id, resource_id) → `resources` |
+| **UNIQUE** | (tenant_id, template_id, resource_type) | |
+
+### `booking.class_sessions` / `booking.class_session_resources` (M21 Cluster 4)
+
+`class_sessions`:
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL |
+| template_id | UUID | NOT NULL — FK (tenant_id, template_id) → `class_schedule_templates`; ad-hoc sessions out of scope |
+| service_id | UUID | NOT NULL — FK (tenant_id, service_id) → `services`; denormalized from the template |
+| start_time / end_time | TIMESTAMPTZ | NOT NULL — CHECK end_time > start_time |
+| capacity | INT | NOT NULL CHECK > 0 |
+| reserved_count | INT | NOT NULL DEFAULT 0 CHECK (reserved_count >= 0 AND reserved_count <= capacity) |
+| trial_slots | INT | NOT NULL DEFAULT 0 CHECK (trial_slots >= 0 AND trial_slots <= capacity) |
+| reserved_non_member_count | INT | NOT NULL DEFAULT 0 CHECK (reserved_non_member_count >= 0 AND reserved_non_member_count <= reserved_count) |
+| status | VARCHAR(30) | NOT NULL DEFAULT 'SCHEDULED' — CHECK IN ('SCHEDULED', 'AWAITING_ATTENDANCE', 'CANCELLED', 'CLOSED') |
+| version | INT | NOT NULL DEFAULT 1 — optimistic-lock guard, mirrors `bookings.version` |
+| created_at / updated_at | TIMESTAMPTZ | DEFAULT now() |
+| **UNIQUE** | (tenant_id, id) | |
+| **UNIQUE** | (tenant_id, template_id, start_time) | Generation idempotency key (UC-081) |
+| **INDEX** | (tenant_id, service_id, start_time) | |
+| **INDEX** | (tenant_id, status, start_time) | |
+
+`class_session_resources` — per-instance snapshot/override of the template's resolved slots (UC-083):
+
+| Column | Type | Constraints |
+|---|---|---|
+| tenant_id | UUID | NOT NULL |
+| class_session_id | UUID | NOT NULL — FK (tenant_id, class_session_id) → `class_sessions` |
+| resource_type | VARCHAR(20) | NOT NULL |
+| resource_id | UUID | NOT NULL — FK (tenant_id, resource_id) → `resources` |
+| **PK** | (tenant_id, class_session_id, resource_type) | |
+
+### `booking.class_session_bookings` / `booking.class_session_booking_attendees` (M21 Cluster 4)
+
+> See `docs/02-DOMAIN_MODEL.md` § `ClassSessionBooking` for the full property list — table below is the physical column mapping.
+
+`class_session_bookings`:
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL |
+| session_id | UUID | NOT NULL — FK (tenant_id, session_id) → `class_sessions` |
+| service_id | UUID | NOT NULL — denormalized from session_id |
+| type | VARCHAR(20) | NOT NULL — CHECK IN ('GUEST', 'CUSTOMER') |
+| customer_id | UUID | NULLABLE — no FK, cross-context; null iff guest |
+| created_by_staff_id | UUID | NULLABLE — no FK, cross-context |
+| contact_email / contact_name / contact_phone | VARCHAR(255) / VARCHAR(255) / VARCHAR(30) | NOT NULL — mirrors `bookings`' contact fields exactly |
+| quantity | INT | NOT NULL DEFAULT 1 CHECK > 0 |
+| status | VARCHAR(30) | NOT NULL — CHECK IN ('PENDING_EMAIL_VERIFICATION', 'PENDING_APPROVAL', 'CONFIRMED', 'WAITLISTED', 'PROMOTION_PENDING', 'CANCELLED', 'CLOSED') |
+| series_id | UUID | NULLABLE — FK (tenant_id, series_id) → `recurring_enrollments` |
+| contract_id | UUID | NULLABLE — FK (tenant_id, contract_id) → `class_access_contracts` |
+| payment_source | VARCHAR(20) | NOT NULL — CHECK IN ('CONTRACT', 'GUEST_TRIAL', 'IN_PERSON') |
+| waitlist_access_intent | VARCHAR(20) | NULLABLE — CHECK IN ('CONTRACT', 'IN_PERSON'); required iff `status IN ('WAITLISTED','PROMOTION_PENDING')` |
+| rescheduled_from_id | UUID | NULLABLE — FK (tenant_id, rescheduled_from_id) → `class_session_bookings` (self-referencing) |
+| service_name_at_booking | VARCHAR(255) | NOT NULL |
+| price_at_booking_amount | NUMERIC(10,2) | NOT NULL |
+| points_value_at_booking | INT | NOT NULL DEFAULT 0 |
+| offer_offered_at / offer_expires_at / offer_responded_at | TIMESTAMPTZ | NULLABLE |
+| offer_response | VARCHAR(20) | NULLABLE — CHECK IN ('ACCEPTED', 'DECLINED', 'EXPIRED') |
+| cancellation_reason | VARCHAR(30) | NULLABLE |
+| created_at / updated_at | TIMESTAMPTZ | DEFAULT now() |
+| **UNIQUE** | (tenant_id, id) | |
+| **UNIQUE** | (tenant_id, rescheduled_from_id) WHERE rescheduled_from_id IS NOT NULL | One replacement per skipped occurrence — no double make-up |
+| **CHECK** | one-seat CUSTOMER rows and a non-null `waitlist_access_intent` for `WAITLISTED`/`PROMOTION_PENDING` | |
+| **INDEX** | (tenant_id, session_id, status) | |
+| **INDEX** | (tenant_id, customer_id, status) | Minha Conta / recurring-enrollment listings |
+| **INDEX** | (tenant_id, status, offer_expires_at) | Feeds the offer-expiry worker (UC-106) |
+
+`class_session_booking_attendees`:
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL |
+| class_session_booking_id | UUID | NOT NULL — FK (tenant_id, class_session_booking_id) → `class_session_bookings` |
+| name | VARCHAR(255) | NOT NULL |
+| customer_id | UUID | NULLABLE |
+| attendance | VARCHAR(20) | NULLABLE — CHECK IN ('PRESENT', 'NO_SHOW') |
+| removed_at / removed_by_actor_type / removed_by_actor_id / removal_reason | TIMESTAMPTZ / VARCHAR(20) / UUID / TEXT | NULLABLE |
+| **INDEX** | (tenant_id, class_session_booking_id) WHERE removed_at IS NULL | Active-attendee roster reads |
+
+**Invariant, enforced app-side in the same transaction:** active attendee count on `class_session_booking_attendees` must equal the parent `class_session_bookings.quantity` (UC-105).
+
+### `booking.recurring_enrollments` (M21 Cluster 4)
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL |
+| customer_id | UUID | NOT NULL — no FK, cross-context |
+| template_id | UUID | NOT NULL — FK (tenant_id, template_id) → `class_schedule_templates` |
+| service_id | UUID | NOT NULL — denormalized from template_id |
+| start_date / end_date | DATE | NOT NULL / NULLABLE |
+| status | VARCHAR(20) | NOT NULL — CHECK IN ('ACTIVE', 'PAUSED', 'CANCELLED') |
+| created_by_staff_id | UUID | NULLABLE |
+| created_at / updated_at | TIMESTAMPTZ | DEFAULT now() |
+| **UNIQUE** | (tenant_id, id) | |
+| **INDEX** | (tenant_id, customer_id, status) | |
+| **INDEX** | (tenant_id, template_id, status) | |
+
+### `booking.class_access_contracts` (M21 Cluster 4)
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL |
+| customer_id | UUID | NOT NULL — no FK, cross-context |
+| starts_on / ends_on | DATE | NOT NULL |
+| status | VARCHAR(20) | NOT NULL — CHECK IN ('ACTIVE', 'CANCELLED', 'EXPIRED') |
+| eligible_service_ids | UUID[] | NOT NULL |
+| created_at / updated_at | TIMESTAMPTZ | DEFAULT now() |
+| **INDEX** | (tenant_id, customer_id, status) | Feeds the overlap check on create (UC-099 A2) — app-enforced, since array-overlap-across-rows isn't a simple DB constraint |
+
+### `booking.class_schedule_template_exceptions` (M21 Cluster 4)
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL |
+| template_id | UUID | NOT NULL — FK (tenant_id, template_id) → `class_schedule_templates` |
+| range_start | DATE | NOT NULL |
+| range_end | DATE | NULLABLE — null = "from this date forward" |
+| created_by_staff_id | UUID | NOT NULL |
+| created_at | TIMESTAMPTZ | DEFAULT now() |
+| **INDEX** | (tenant_id, template_id) | Consulted by the generation worker to skip excluded occurrences |
+
+### `booking.class_session_booking_transitions` / `booking.class_session_payments` (M21 Cluster 4)
+
+`class_session_booking_transitions` — append-only audit source for approval, cancellation, offer, and close-out decisions:
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL |
+| class_session_booking_id | UUID | NOT NULL — FK (tenant_id, class_session_booking_id) → `class_session_bookings` |
+| from_status / to_status | VARCHAR(30) | NOT NULL |
+| reason | VARCHAR(50) | NULLABLE |
+| actor_type | VARCHAR(20) | NOT NULL |
+| actor_id | UUID | NULLABLE |
+| occurred_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
+| correlation_id | UUID | NOT NULL |
+| **INDEX** | (tenant_id, class_session_booking_id, occurred_at) | |
+
+`class_session_payments` — manual operational record only, never a payment gateway:
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL |
+| class_session_booking_id | UUID | NOT NULL — FK (tenant_id, class_session_booking_id) → `class_session_bookings` |
+| amount | NUMERIC(10,2) | NULLABLE — required `> 0` only for `outcome = 'PAID'` |
+| currency | VARCHAR(3) | NOT NULL DEFAULT 'BRL' |
+| method | VARCHAR(30) | NULLABLE |
+| outcome | VARCHAR(20) | NOT NULL — CHECK IN ('PAID', 'UNPAID', 'WAIVED') |
+| collected_by_staff_id | UUID | NOT NULL |
+| collected_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
+| reversal_of_payment_id | UUID | NULLABLE — FK (tenant_id, reversal_of_payment_id) → `class_session_payments` (self-referencing); a correction never overwrites the original row |
+| correction_reason | TEXT | NULLABLE |
+| **INDEX** | (tenant_id, class_session_booking_id) | |
+
+### `booking.guest_class_booking_email_verifications` / `booking.guest_class_trial_redemptions` (M21 Cluster 4)
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL |
+| class_session_booking_id | UUID | NOT NULL — FK (tenant_id, class_session_booking_id) → `class_session_bookings` |
+| token_hash | VARCHAR(255) | NOT NULL |
+| expires_at | TIMESTAMPTZ | NOT NULL |
+| verified_at | TIMESTAMPTZ | NULLABLE |
+| **INDEX** | (tenant_id, token_hash) | The verification-link click looks up by token, not by booking |
+
+`guest_class_trial_redemptions` — tracks `FIRST_FREE_PER_EMAIL` consumption, tenant-wide per normalized email:
+
+| Column | Type | Constraints |
+|---|---|---|
+| tenant_id | UUID | NOT NULL |
+| normalized_email | VARCHAR(255) | NOT NULL |
+| class_session_booking_id | UUID | NOT NULL — FK (tenant_id, class_session_booking_id) → `class_session_bookings` |
+| redeemed_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
+| **UNIQUE** | (tenant_id, normalized_email) | One free trial per email per tenant, ever |
+
+**Migration ordering (expand/contract), M21 Cluster 4:** straightforward expand — every table above is wholly new, no existing table is modified except the additive FK targets already created in Cluster 2 (`resource_occupancy.class_session_id` becomes reachable once `class_sessions` exists) and Cluster 3 (`booking_quote_revisions.class_session_booking_id`). No contract phase, no backfill.
+
+**Retention (all tables in this section):** `class_session_bookings`/`class_session_booking_attendees`/`class_session_booking_transitions`/`class_session_payments`/`booking_quote_revisions` are the business/audit record — no deletion job, ever, matching this platform's own stated BI-layer direction (`CLAUDE.md` § Project Facts). If size ever becomes a real operational problem, the answer is time-based partitioning (by month, on `start_time`/`created_at`), not deletion — a decision for implementation time, not now.
 
 ---
 
@@ -425,19 +1020,23 @@ One immutable row per `BookingLine` completed for an authenticated customer. App
 | id | UUID | PRIMARY KEY |
 | tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
 | customer_id | UUID | NOT NULL — no FK (cross-context ref to `customer.customers`) |
-| booking_id | UUID | NOT NULL — no FK (cross-context ref to `booking.bookings`) |
-| booking_line_id | UUID | NOT NULL — no FK (cross-context ref to `booking.booking_lines`) |
+| booking_id | UUID | NULLABLE (widened by M21 Cluster 4 — see below) — no FK (cross-context ref to `booking.bookings`) |
+| booking_line_id | UUID | NULLABLE (widened by M21 Cluster 4) — no FK (cross-context ref to `booking.booking_lines`) |
+| class_session_booking_id | UUID | NULLABLE, added by M21 Cluster 4 — no FK (cross-context ref to `booking.class_session_bookings`) |
 | service_id | UUID | NOT NULL — no FK (cross-context ref to `booking.services`; denormalised for per-service queries) |
-| points | INT | NOT NULL, CHECK > 0 — = `booking_lines.points_value_at_booking` at completion |
+| points | INT | NOT NULL, CHECK > 0 — = `booking_lines.points_value_at_booking` (appointment) or `class_session_bookings.points_value_at_booking` (class), at completion |
 | earned_at | TIMESTAMP WITH TIME ZONE | NOT NULL, DEFAULT now() |
 | expires_at | TIMESTAMP WITH TIME ZONE | NOT NULL — `earned_at + tenants.settings.loyalty.expiryDays` |
-| **UNIQUE** | (tenant_id, booking_line_id) | Idempotency — replaying `BookingCompleted` is a no-op |
+| **UNIQUE** | (tenant_id, booking_line_id) | Idempotency — replaying `BookingCompleted` is a no-op. Postgres permits multiple NULLs under a plain UNIQUE, so this keeps enforcing uniqueness only among non-null values once the column is nullable. |
+| **UNIQUE** | (tenant_id, class_session_booking_id) WHERE class_session_booking_id IS NOT NULL | Added M21 Cluster 4 — idempotency for `ClassSessionBookingCompleted` |
+| **CHECK** | `CHK_loyalty_entries_source_exclusive`: `(booking_id IS NOT NULL AND booking_line_id IS NOT NULL AND class_session_booking_id IS NULL) OR (booking_id IS NULL AND booking_line_id IS NULL AND class_session_booking_id IS NOT NULL)` | Added M21 Cluster 4 — source-exclusive across the two booking families |
 | **INDEX** | (tenant_id, customer_id, expires_at) | Active balance query |
 | **INDEX** | (tenant_id, customer_id, service_id, expires_at) | Per-service breakdown |
 
 **Rules:**
 - INSERT only. No UPDATE, no DELETE.
 - `loyalty_balances.current_points` is the authoritative active balance — read from there, not from a SUM over entries.
+- **M21 Cluster 4 migration:** widen `booking_id` and `booking_line_id` to NULLABLE together (both, not just one — a migration touching only one would still block every class-session-completion insert), add `class_session_booking_id`, and add `CHK_loyalty_entries_source_exclusive` — only after the `ClassSessionBookingCompleted` event path is live. No cross-context DB FK is introduced.
 
 ---
 

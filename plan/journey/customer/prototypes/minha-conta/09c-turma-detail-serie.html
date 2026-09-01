@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pilates para Iniciantes — Minha Matrícula</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    details summary { list-style: none; }
+    details summary::-webkit-details-marker { display: none; }
+
+    .bottom-nav { display: none !important; }
+
+    .info-row {
+      display: flex; align-items: flex-start; gap: 0.75rem;
+      padding: 0.625rem 0; border-bottom: 1px solid var(--ba-secondary);
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-icon {
+      width: 1.5rem; height: 1.5rem; flex-shrink: 0; margin-top: 0.0625rem;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--ba-primary); opacity: 0.7;
+    }
+    .info-label { font-size: 0.75rem; opacity: 0.5; margin-bottom: 0.125rem; }
+    .info-value { font-size: 0.9375rem; font-weight: 600; color: var(--ba-text); }
+
+    .session-row {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.625rem 0; border-bottom: 1px solid var(--ba-secondary);
+    }
+    .session-row:last-child { border-bottom: none; }
+    .session-dot { width: 0.625rem; height: 0.625rem; border-radius: 50%; flex-shrink: 0; }
+    .session-date { font-size: 0.875rem; font-weight: 600; color: var(--ba-text); flex: 1; }
+    .session-status { font-size: 0.75rem; font-weight: 700; }
+    .status-confirmed { color: #15803d; }
+    .status-pending   { color: #92400e; }
+    .status-present   { color: #1d4ed8; }
+    .status-absent    { color: #dc2626; }
+
+    .detail-layout { display: block; }
+    .detail-aside  { display: none; }
+    @media (min-width: 1024px) {
+      .topbar-brand { display: flex !important; }
+      .topbar-user-name { display: inline !important; }
+      .detail-layout { display: grid; grid-template-columns: 1fr 22rem; gap: 1.5rem; align-items: start; }
+      .detail-aside  { display: block; position: sticky; top: 1.5rem; }
+    }
+
+    /* ── Progresso da série ── */
+    .progress-track {
+      height: 0.5rem; background: var(--ba-secondary);
+      border-radius: 99px; overflow: hidden; margin: 0.5rem 0 0.375rem;
+    }
+    .progress-fill {
+      height: 100%; border-radius: 99px;
+      background: #7c3aed;
+      width: 50%; /* 4 de 8 */
+    }
+
+    /* ── Sessão futura destacada (próxima) ── */
+    .session-row-next {
+      background: #f5f3ff; margin: 0 -1rem; padding: 0.625rem 1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!--
+    COMPONENT: TurmaSerieDetailPage
+    PAGE:       apps/web/app/[slug]/my-account/turmas/[enrollmentId]/page.tsx
+                mesmo route que 07-turma-detail.html — estado diferente quando
+                enrollment.seriesEndDate != null  (série com fim)
+    DIFERENÇAS em relação à turma fixa:
+      - Barra de progresso (sessões realizadas / total da série)
+      - "Termina em X" visível no header
+      - Quando chega na última sessão: banner de encerramento + CTA para nova turma
+    DATA:
+      enrollment.totalSessions: 8
+      enrollment.completedSessions: 4
+      enrollment.seriesEndDate: "2026-09-09"
+  -->
+
+  <!-- Prototype banner -->
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;
+               font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo · mostrando: série com fim (Pilates para Iniciantes · 4 de 8 sessões)
+  </div>
+
+  <!-- TOP BAR -->
+  <div class="dashboard-topbar">
+    <a href="08-turmas-lista.html"
+       style="display:flex;align-items:center;gap:0.375rem;color:var(--ba-text);
+              text-decoration:none;font-size:0.875rem;font-weight:500;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m15 18-6-6 6-6"/>
+      </svg>
+      Minhas Turmas
+    </a>
+    <div style="margin-left:auto;">
+      <div class="list-avatar" style="width:2rem;height:2rem;font-size:0.8125rem;">MF</div>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+    <main class="main-content" style="padding-bottom:2rem;">
+      <div class="dashboard-body">
+        <div class="detail-layout">
+
+          <!-- COLUNA PRINCIPAL -->
+          <div>
+
+            <!-- Header -->
+            <div style="display:flex;align-items:flex-start;gap:0.75rem;margin-bottom:1.5rem;">
+              <div style="width:0.25rem;background:#7c3aed;border-radius:4px;align-self:stretch;flex-shrink:0;"></div>
+              <div style="flex:1;">
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem;">
+                  <h1 style="font-size:1.25rem;font-weight:800;color:var(--ba-text);margin:0;">
+                    Pilates para Iniciantes
+                  </h1>
+                  <span style="display:inline-flex;align-items:center;font-size:0.6875rem;font-weight:700;
+                               padding:0.1875rem 0.5rem;border-radius:4px;background:#f5f3ff;color:#6d28d9;">
+                    Série
+                  </span>
+                </div>
+                <p style="font-size:0.875rem;opacity:.55;color:var(--ba-text);margin:0 0 0.75rem;">
+                  Começou em 08 jul 2026 · termina em 09 set 2026
+                </p>
+
+                <!-- Barra de progresso -->
+                <div style="display:flex;align-items:center;justify-content:space-between;
+                             font-size:0.8125rem;color:var(--ba-text);">
+                  <span style="font-weight:600;">4 de 8 sessões</span>
+                  <span style="opacity:.5;">4 restantes</span>
+                </div>
+                <div class="progress-track">
+                  <div class="progress-fill"></div>
+                </div>
+                <p style="font-size:0.75rem;opacity:.45;color:var(--ba-text);margin:0;">
+                  50% concluído
+                </p>
+              </div>
+            </div>
+
+            <!-- Informações da turma -->
+            <div class="card" style="padding:0.25rem 1rem;margin-bottom:1.25rem;">
+              <div class="info-row">
+                <div class="info-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                       stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+                  </svg>
+                </div>
+                <div>
+                  <div class="info-label">Horário</div>
+                  <div class="info-value">Terças · 19:00 – 19:50</div>
+                </div>
+              </div>
+              <div class="info-row">
+                <div class="info-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                       stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                  </svg>
+                </div>
+                <div>
+                  <div class="info-label">Instrutora</div>
+                  <div class="info-value">Ana Beatriz</div>
+                </div>
+              </div>
+              <div class="info-row">
+                <div class="info-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                       stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                  </svg>
+                </div>
+                <div>
+                  <div class="info-label">Local</div>
+                  <div class="info-value">Sala 2 · Vitta Studio</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Próximas sessões -->
+            <h2 style="font-size:0.9375rem;font-weight:700;color:var(--ba-text);margin:0 0 0.75rem;">
+              Próximas sessões
+            </h2>
+            <div class="card" style="padding:0 1rem;margin-bottom:1.25rem;">
+              <div class="session-row session-row-next">
+                <div class="session-dot" style="background:#7c3aed;"></div>
+                <div class="session-date">Ter, 19 ago · 19:00</div>
+                <span class="session-status status-confirmed">Confirmada</span>
+              </div>
+              <div class="session-row">
+                <div class="session-dot" style="background:#7c3aed;"></div>
+                <div class="session-date">Ter, 26 ago · 19:00</div>
+                <span class="session-status status-confirmed">Confirmada</span>
+              </div>
+              <div class="session-row">
+                <div class="session-dot" style="background:#7c3aed;"></div>
+                <div class="session-date">Ter, 02 set · 19:00</div>
+                <span class="session-status status-confirmed">Confirmada</span>
+              </div>
+              <div class="session-row">
+                <div class="session-dot" style="background:#7c3aed;"></div>
+                <div style="flex:1;">
+                  <div class="session-date" style="display:inline;">Ter, 09 set · 19:00</div>
+                  <span style="font-size:0.6875rem;font-weight:700;background:#f5f3ff;color:#6d28d9;
+                                padding:0.125rem 0.375rem;border-radius:3px;margin-left:0.375rem;">
+                    Última
+                  </span>
+                </div>
+                <span class="session-status status-confirmed">Confirmada</span>
+              </div>
+            </div>
+
+            <!-- Histórico -->
+            <h2 style="font-size:0.9375rem;font-weight:700;color:var(--ba-text);margin:0 0 0.75rem;">
+              Histórico
+            </h2>
+            <div class="card" style="padding:0 1rem;margin-bottom:1.5rem;">
+              <div class="session-row">
+                <div class="session-dot" style="background:#1d4ed8;"></div>
+                <div class="session-date">Ter, 12 ago · 19:00</div>
+                <span class="session-status status-present">Presente</span>
+              </div>
+              <div class="session-row">
+                <div class="session-dot" style="background:#1d4ed8;"></div>
+                <div class="session-date">Ter, 05 ago · 19:00</div>
+                <span class="session-status status-present">Presente</span>
+              </div>
+              <div class="session-row">
+                <div class="session-dot" style="background:#1d4ed8;"></div>
+                <div class="session-date">Ter, 29 jul · 19:00</div>
+                <span class="session-status status-present">Presente</span>
+              </div>
+              <div class="session-row">
+                <div class="session-dot" style="background:#1d4ed8;"></div>
+                <div class="session-date">Ter, 22 jul · 19:00</div>
+                <span class="session-status status-present">Presente</span>
+              </div>
+            </div>
+
+            <!-- Encerramento da série -->
+            <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:var(--ba-radius);
+                         padding:1rem;margin-bottom:1.5rem;">
+              <p style="font-size:0.875rem;font-weight:700;color:#5b21b6;margin:0 0 0.375rem;">
+                Esta série termina em 09 set
+              </p>
+              <p style="font-size:0.8125rem;color:#6d28d9;opacity:.8;margin:0 0 0.875rem;line-height:1.5;">
+                Após a última sessão, sua matrícula é encerrada automaticamente. Sem cobranças adicionais.
+              </p>
+              <a href="../../../guest/prototypes/book-a-class/01-class-agenda.html"
+                 style="display:inline-flex;align-items:center;gap:0.375rem;
+                        font-size:0.875rem;font-weight:600;color:#5b21b6;text-decoration:none;">
+                Ver outras turmas disponíveis
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m9 18 6-6-6-6"/>
+                </svg>
+              </a>
+            </div>
+
+            <!-- Cancelar -->
+            <div style="padding-top:0.75rem;border-top:1px solid var(--ba-secondary);">
+              <a href="11-cancelar-matricula.html"
+                 style="font-size:0.875rem;color:#dc2626;font-weight:500;text-decoration:none;">
+                Cancelar matrícula antecipadamente
+              </a>
+              <p style="font-size:0.8125rem;opacity:.5;color:var(--ba-text);margin:0.375rem 0 0;line-height:1.5;">
+                Cancela as sessões restantes. Sessões já realizadas não são afetadas.
+              </p>
+            </div>
+
+          </div>
+
+          <!-- ASIDE DESKTOP -->
+          <div class="detail-aside">
+            <div class="card" style="padding:1.25rem;">
+              <p style="font-size:0.8125rem;font-weight:700;color:var(--ba-text);margin:0 0 0.5rem;
+                         text-transform:uppercase;letter-spacing:0.05em;opacity:.5;">
+                Progresso da série
+              </p>
+              <div style="font-size:2rem;font-weight:900;color:#7c3aed;line-height:1;">4</div>
+              <div style="font-size:0.875rem;opacity:.55;margin-bottom:0.875rem;">de 8 sessões realizadas</div>
+              <div class="progress-track" style="margin-bottom:1rem;">
+                <div class="progress-fill"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:0.8125rem;
+                           color:var(--ba-text);margin-bottom:1.25rem;">
+                <span style="opacity:.55;">Início: 08 jul</span>
+                <span style="font-weight:600;color:#7c3aed;">Fim: 09 set</span>
+              </div>
+              <hr style="border:none;border-top:1px solid var(--ba-secondary);margin:0 0 1rem;">
+              <a href="../../../guest/prototypes/book-a-class/01-class-agenda.html"
+                 class="btn-secondary"
+                 style="display:block;text-align:center;font-size:0.875rem;">
+                Ver outras turmas
+              </a>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </main>
+  </div>
+
+</body>
+</html>

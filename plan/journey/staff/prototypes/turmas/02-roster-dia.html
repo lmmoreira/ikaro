@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Roster — Pilates 08h — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    /* ── Session header card ── */
+    .session-header {
+      background: white;
+      border: 1px solid var(--ba-secondary);
+      border-radius: var(--ba-radius);
+      padding: 1rem 1.25rem;
+      margin-bottom: 1rem;
+      box-shadow: var(--ba-shadow);
+    }
+    .session-title { font-size: 1.0625rem; font-weight: 700; color: var(--ba-text); margin-bottom: 0.25rem; }
+    .session-meta  { font-size: 0.8125rem; color: #6b7280; display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
+    .session-meta-item { display: flex; align-items: center; gap: 0.3125rem; }
+    .session-meta-item svg { opacity: 0.5; flex-shrink: 0; }
+
+    /* Capacity pill */
+    .cap-pill {
+      display: inline-flex; align-items: center; gap: 0.375rem;
+      font-size: 0.8125rem; font-weight: 600;
+      padding: 0.25rem 0.625rem; border-radius: 9999px;
+      margin-top: 0.75rem;
+    }
+    .cap-ok   { background: #dcfce7; color: #15803d; }
+    .cap-full { background: #fef3c7; color: #92400e; }
+    .cap-dot  { width: 0.5rem; height: 0.5rem; border-radius: 9999px; }
+    .cap-ok .cap-dot   { background: #16a34a; }
+    .cap-full .cap-dot { background: #d97706; }
+
+    /* ── Section label ── */
+    .roster-section-label {
+      font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: #9ca3af;
+      padding: 0.875rem 0 0.5rem;
+    }
+
+    /* ── Roster row ── */
+    .roster-card {
+      background: white;
+      border: 1px solid var(--ba-secondary);
+      border-radius: var(--ba-radius);
+      padding: 0.875rem 1rem;
+      margin-bottom: 0.5rem;
+      box-shadow: var(--ba-shadow);
+      display: flex; align-items: center; gap: 0.875rem;
+    }
+    .roster-card.checked-in { border-left: 3px solid #16a34a; }
+    .roster-card.absent     { border-left: 3px solid #dc2626; opacity: 0.7; }
+
+    .roster-info { flex: 1; min-width: 0; }
+    .roster-name { font-weight: 600; font-size: 0.9375rem; color: var(--ba-text); margin-bottom: 0.25rem; }
+    .roster-tags { display: flex; flex-wrap: wrap; gap: 0.375rem; }
+
+    .type-tag {
+      font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase; padding: 0.125rem 0.4375rem; border-radius: 4px;
+    }
+    .tag-fixa       { background: #dbeafe; color: #1d4ed8; }
+    .tag-dropin     { background: #f3e8ff; color: #7e22ce; }
+    .tag-reagendada { background: #fef3c7; color: #92400e; }
+
+    /* Check-in toggle button */
+    .checkin-btn {
+      flex-shrink: 0; border: none; cursor: pointer;
+      width: 2.5rem; height: 2.5rem; border-radius: 9999px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.12s;
+      font-family: var(--ba-body-font);
+    }
+    .checkin-btn.pending {
+      background: #f3f4f6; color: #9ca3af;
+    }
+    .checkin-btn.pending:hover { background: #dcfce7; color: #16a34a; }
+    .checkin-btn.present {
+      background: #dcfce7; color: #16a34a;
+    }
+    .checkin-btn.absent-btn {
+      background: #fee2e2; color: #dc2626;
+    }
+
+    /* ── Waitlist row ── */
+    .waitlist-card {
+      background: white;
+      border: 1px solid var(--ba-secondary);
+      border-radius: var(--ba-radius);
+      padding: 0.875rem 1rem;
+      margin-bottom: 0.5rem;
+      display: flex; align-items: center; gap: 0.875rem;
+      opacity: 0.85;
+    }
+    .waitlist-pos {
+      width: 1.75rem; height: 1.75rem; border-radius: 9999px;
+      background: #f3f4f6; color: #6b7280;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 700; flex-shrink: 0;
+    }
+    .waitlist-info { flex: 1; min-width: 0; }
+    .waitlist-name { font-weight: 600; font-size: 0.9375rem; color: var(--ba-text); margin-bottom: 0.25rem; }
+    .waitlist-meta { font-size: 0.8125rem; color: #6b7280; }
+    .promote-btn {
+      flex-shrink: 0; font-size: 0.8125rem; font-weight: 600;
+      color: #2563eb; background: none; border: none; cursor: pointer;
+      padding: 0.375rem 0; font-family: var(--ba-body-font);
+      white-space: nowrap;
+    }
+
+    /* ── Approval-pending row (merged in from staff-02-session-roster.html, 2026-08-23) ──
+       Deliberately a separate class from .roster-card so the check-in counter script
+       (which queries .roster-card) never counts a not-yet-approved group toward "presentes". */
+    .approval-card {
+      background: white;
+      border: 1px solid var(--ba-secondary);
+      border-left: 3px solid #d97706;
+      border-radius: var(--ba-radius);
+      padding: 0.875rem 1rem;
+      margin-bottom: 0.5rem;
+      box-shadow: var(--ba-shadow);
+      display: flex; align-items: center; gap: 0.875rem;
+    }
+    .tag-guest { background: #fef3c7; color: #92400e; }
+
+    /* ── Add drop-in row ── */
+    .add-dropin-btn {
+      display: flex; align-items: center; gap: 0.625rem;
+      width: 100%; padding: 0.75rem 1rem;
+      background: none; border: 1.5px dashed #d1d5db;
+      border-radius: var(--ba-radius); cursor: pointer;
+      font-size: 0.9375rem; color: #6b7280;
+      font-family: var(--ba-body-font); margin-top: 0.25rem;
+      transition: border-color 0.12s, color 0.12s;
+    }
+    .add-dropin-btn:hover { border-color: #2563eb; color: #2563eb; }
+
+    /* ── Mark all bar (sticky, mobile) ── */
+    .mark-all-bar {
+      position: fixed; bottom: 3.75rem; left: 0; right: 0; z-index: 20;
+      background: white; border-top: 1px solid var(--ba-secondary);
+      padding: 0.625rem 1rem;
+      display: flex; gap: 0.625rem; align-items: center;
+      box-shadow: 0 -2px 8px rgba(0,0,0,.06);
+    }
+    .mark-all-bar span {
+      font-size: 0.8125rem; color: #6b7280; margin-right: auto;
+    }
+    .mark-all-btn {
+      font-size: 0.8125rem; font-weight: 600; color: #2563eb;
+      background: none; border: 1px solid #bfdbfe; border-radius: var(--ba-radius);
+      padding: 0.375rem 0.75rem; cursor: pointer; font-family: var(--ba-body-font);
+    }
+    @media (min-width: 1024px) {
+      .mark-all-bar { display: none; }
+    }
+
+    /* ── Desktop: mark-all inline ── */
+    .desktop-actions {
+      display: none;
+      justify-content: flex-end; gap: 0.625rem; margin-bottom: 0.75rem;
+    }
+    @media (min-width: 1024px) {
+      .desktop-actions { display: flex; }
+    }
+  </style>
+</head>
+<body>
+
+  <!--
+    DISCOVERY PROTOTYPE — roster de uma sessão específica. Tela compartilhada STAFF+MANAGER.
+
+    Contexto:
+    - Acessado a partir de "Ver sessões" na manager-turmas-list.html → lista de sessões → esta tela
+    - Também o destino real de staff-04-turmas-proximas.html (ambos os atores gerenciam o
+      mesmo roster do dia — ver nota de reconciliação abaixo)
+    - Tela operacional: usada no dia da aula para confirmar presença e gerenciar vagas
+
+    RECONCILIAÇÃO (2026-08-23) — esta tela agora é a canônica, substituindo
+    staff-02-session-roster.html (mantida apenas como referência histórica, não editada).
+    As duas telas cobriam o mesmo trabalho ("gerenciar o roster desta sessão hoje") com
+    conjuntos de capacidades parcialmente sobrepostos e nunca reconciliados — encontrado
+    numa revisão de descoberta de quatro lentes (2026-08-23). Esta versão funde as duas:
+    - Mantido desta tela (já era superior): check-in ao vivo por aluno, "Marcar todos
+      presentes", "+ Drop-in", "Promover" manual da fila (CAND-25, staff-triggered — ver
+      CAND-39 na _USECASES.md).
+    - Trazido de staff-02-session-roster.html: "Editar turma" (→ capacity override),
+      "Cancelar turma" (reveal-and-confirm, CAND-15) e o link "Revisar" para uma
+      reserva de grupo convidado aguardando aprovação (CAND-34).
+    - Dados do exemplo trocados para o worked example canônico já usado em
+      multivertical-booking_DATA_MODEL.md §2 (sess_pilates_0804: Fernanda Lima, Roberta
+      Dias, Ana Costa · Bia Santos, Marcos Tanaka — Seg 04/08/2026) em vez do dataset
+      próprio que esta tela tinha antes (Ter 12/08, Rafael/Camila Santos/Juliana/Bruno) —
+      evita manter dois exemplos numericamente distintos da mesma tela em paralelo.
+    - staff-02-session-roster.html também descrevia a fila como "promovida automaticamente"
+      (CAND-25) — esse era o modelo antigo, superado em 2026-08-21 pelo fluxo de oferta
+      PROMOTION_PENDING com aceite explícito (multivertical-booking.md §9 item 15/24).
+      Superseder a tela resolve essa desatualização também, em vez de corrigi-la num
+      arquivo que deixará de ser a referência viva.
+    - Nem todo link de volta a staff-02-session-roster.html no restante da pasta foi
+      reapontado — apenas o ponto de entrada real (staff-04-turmas-proximas.html) e os
+      documentos de navegação (ROUTE_MAP.md, index.html, dev-notes.md), mesmo padrão já
+      usado quando manager-03-class-templates.html foi superada por manager-turmas-list.html.
+    - Em produção esta rota é a mesma para os dois atores; o chrome de navegação (sidebar/
+      bottom-nav) varia por role no app real — este mock estático mostra apenas o chrome
+      de manager como representativo, não uma decisão de que só manager acessa esta tela.
+
+    UX decisions (originais, mantidas):
+    - Header com data/hora/staff/recurso para contextualização rápida
+    - Presença como ação primária: botão circular à direita de cada aluno (toque = presente/pendente)
+    - Ausente via long-press ou menu (não exposto neste protótipo; marcado em estado pré-configurado)
+    - Fila de espera separada com ação "Promover" (mover para confirmados se houver vaga)
+    - "Marcar todos presentes" como ação rápida — casos de turmas pequeníssimas (pilates 4 vagas)
+    - "+ Drop-in" no final da lista de confirmados — entrada avulsa no dia
+    - Sem edição de dados do aluno (separação de concerns: dados ficam no perfil)
+    - Badge de tipo (turma fixa / drop-in / reagendada) para o gerente saber origem da vaga
+
+    Próximas telas: staff-02b-fechar-turma.html (encerramento formal + pagamento, após o
+    horário da sessão — esta tela é a operação "ao vivo", não substitui o close-out)
+    CANDs: CAND-13b (lista → esta tela), CAND-14 (editar turma), CAND-15 (cancelar turma),
+    CAND-25 (promover fila, staff-triggered), CAND-34 (revisar grupo convidado pendente),
+    CAND-37 (fechamento formal, tela seguinte)
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — redimensione para ver mobile (&lt;1024px) e desktop (≥1024px)
+  </div>
+
+  <div class="dashboard-topbar">
+    <a href="../../../manager/prototypes/turmas/01-turmas-list.html" style="display:flex;align-items:center;gap:0.375rem;color:var(--ba-text);text-decoration:none;font-size:0.9375rem;font-weight:500;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      <span style="font-weight:600;">Turmas</span>
+    </a>
+    <h1 class="topbar-page-title">Roster · 04 ago</h1>
+    <div style="margin-left:auto;">
+      <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">V</div>
+        <div><p class="sidebar-tenant-name">Vitta Studio</p><p class="sidebar-tenant-slug">@vittastudio</p></div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top:0.5rem;">
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Agenda
+        </a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Horários
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/equipe/01-team-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          Serviços
+        </a>
+        <a class="sidebar-nav-item active" href="../../../manager/prototypes/turmas/01-turmas-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
+          Turmas
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/configuracoes/01-settings-form.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          Fidelidade
+        </a>
+      </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Equipe
+        </a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/servicos/01-servicos-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Configurações
+        </a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/horarios/00-schedule.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          Hotsite
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
+        <a class="sidebar-logout" href="../../../shared/staff-login.html" title="Sair">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </a>
+      </div>
+    </aside>
+
+    <main class="main-content" style="padding-bottom:8rem;">
+      <div class="dashboard-body">
+
+        <!-- Session context header -->
+        <div class="session-header">
+          <div class="session-title">Pilates — Turma das 08h</div>
+          <div class="session-meta">
+            <span class="session-meta-item">
+              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Seg, 04 ago · 08:00–09:00
+            </span>
+            <span class="session-meta-item">
+              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              Estúdio 1
+            </span>
+            <span class="session-meta-item">
+              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              Camila Duarte
+            </span>
+          </div>
+          <div class="cap-pill cap-full">
+            <span class="cap-dot"></span>
+            4 de 4 vagas · 1 na fila
+          </div>
+        </div>
+
+        <!-- Desktop: mark-all action -->
+        <div class="desktop-actions">
+          <button class="mark-all-btn" style="font-size:0.8125rem;font-weight:600;color:#2563eb;background:none;border:1px solid #bfdbfe;border-radius:var(--ba-radius);padding:0.375rem 0.875rem;cursor:pointer;">
+            Marcar todos presentes
+          </button>
+        </div>
+
+        <!-- Confirmados -->
+        <div class="roster-section-label">Confirmados · 2</div>
+
+        <!-- Aluno 1: presente -->
+        <div class="roster-card checked-in">
+          <div class="list-avatar" style="flex-shrink:0;width:2.25rem;height:2.25rem;font-size:0.875rem;">FL</div>
+          <div class="roster-info">
+            <div class="roster-name">Fernanda Lima</div>
+            <div class="roster-tags">
+              <span class="type-tag tag-fixa">Turma fixa</span>
+              <span class="status-badge status-approved">Presente</span>
+            </div>
+          </div>
+          <button class="checkin-btn present" title="Desmarcar presença" onclick="toggleCheckin(this)">
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>
+        </div>
+
+        <!-- Aluno 2: pendente (matrícula recorrente ativa — série enroll_roberta) -->
+        <div class="roster-card">
+          <div class="list-avatar list-avatar-2" style="flex-shrink:0;width:2.25rem;height:2.25rem;font-size:0.875rem;">RD</div>
+          <div class="roster-info">
+            <div class="roster-name">Roberta Dias</div>
+            <div class="roster-tags">
+              <span class="type-tag tag-fixa">Turma fixa</span>
+              <span class="status-badge status-pending">Pendente</span>
+            </div>
+          </div>
+          <button class="checkin-btn pending" title="Marcar como presente" onclick="toggleCheckin(this)">
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>
+        </div>
+
+        <!-- Botão adicionar drop-in (desabilitado: turma cheia) -->
+        <button class="add-dropin-btn" disabled style="opacity:0.4;cursor:not-allowed;">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Turma cheia — adicionar drop-in indisponível
+        </button>
+
+        <!-- Aguardando aprovação — trazido de staff-02-session-roster.html (CAND-34).
+             Grupo convidado: 1 reserva, 2 vagas nomeadas; reservedNonMemberCount já
+             ultrapassa o trialSlots desta turma, por isso está PENDING_APPROVAL mesmo
+             havendo vaga geral. Card com classe própria (.approval-card, não .roster-card)
+             para não entrar na contagem de check-in — ver nota no <style>. -->
+        <div class="roster-section-label" style="margin-top:0.5rem;">Aguardando aprovação · 1</div>
+        <div class="approval-card">
+          <div class="list-avatar" style="flex-shrink:0;width:2.25rem;height:2.25rem;font-size:0.875rem;background:#0891b2;">AB</div>
+          <div class="roster-info">
+            <div class="roster-name">Ana Costa · Bia Santos</div>
+            <div class="roster-tags">
+              <span class="type-tag tag-guest">Grupo convidado</span>
+            </div>
+            <p style="font-size:0.75rem;color:#6b7280;margin-top:0.25rem;">1 reserva, 2 vagas nomeadas · e-mail verificado · aprovação pendente</p>
+          </div>
+          <a href="05-guest-approval.html" style="flex-shrink:0;font-size:0.8125rem;font-weight:600;color:#2563eb;text-decoration:none;white-space:nowrap;">Revisar</a>
+        </div>
+
+        <!-- Fila de espera -->
+        <div class="roster-section-label" style="margin-top:0.5rem;">Fila de espera · 1</div>
+
+        <div class="waitlist-card">
+          <div class="waitlist-pos">1</div>
+          <div class="list-avatar list-avatar-5" style="flex-shrink:0;width:2.25rem;height:2.25rem;font-size:0.875rem;">MT</div>
+          <div class="waitlist-info">
+            <div class="waitlist-name">Marcos Tanaka</div>
+            <div class="waitlist-meta">Na fila desde 30 jul · Avulso (pagamento presencial)</div>
+          </div>
+          <button class="promote-btn" title="Mover para confirmados (CAND-25, staff-triggered)">Promover</button>
+        </div>
+
+        <!--
+          Editar/Cancelar turma — trazido de staff-02-session-roster.html (CAND-14, CAND-15).
+          Mesmo padrão reveal-and-confirm; nenhuma política de reembolso é implicada
+          (pagamento de convidado é presencial, no encerramento).
+        -->
+        <div id="cancel-actions" style="display:flex;gap:0.75rem;margin-top:1.25rem;">
+          <a href="04-capacity-override.html" class="btn-secondary" style="flex:1;text-align:center;">Editar turma</a>
+          <button type="button" class="btn-danger" style="flex:1;text-align:center;" onclick="document.getElementById('cancel-actions').style.display='none';document.getElementById('cancel-hint').style.display='none';document.getElementById('cancel-confirm').style.display='block';">Cancelar turma</button>
+        </div>
+        <p id="cancel-hint" style="font-size:0.75rem;opacity:0.5;margin-top:0.5rem;">
+          Ao cancelar, clientes afetados são notificados. Não há reembolso/crédito: convidados pagam presencialmente apenas no encerramento.
+        </p>
+        <div id="cancel-confirm" class="card" style="display:none;margin-top:0.75rem;background:#fef2f2;border-color:#fecaca;">
+          <p style="font-weight:700;color:#991b1b;">Cancelar esta turma?</p>
+          <p style="font-size:0.8125rem;color:#991b1b;margin-top:0.375rem;">
+            2 reservas confirmadas, 1 pendente de aprovação e 1 na fila de espera serão notificadas. Não há reembolso/crédito automático — convidados pagam presencialmente apenas no encerramento, então nada é cobrado indevidamente.
+          </p>
+          <div style="display:flex;gap:0.75rem;margin-top:0.75rem;">
+            <button type="button" class="btn-secondary" style="flex:1;" onclick="document.getElementById('cancel-confirm').style.display='none';document.getElementById('cancel-actions').style.display='flex';document.getElementById('cancel-hint').style.display='block';">Voltar</button>
+            <a href="manager-08-schedule-controls.html" class="btn-danger" style="flex:1;text-align:center;">Confirmar cancelamento</a>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Mobile: mark-all sticky bar -->
+  <div class="mark-all-bar">
+    <span>1 de 2 presentes</span>
+    <button class="mark-all-btn">Marcar todos presentes</button>
+  </div>
+
+  <nav class="bottom-nav">
+    <a class="bottom-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Agenda
+    </a>
+    <a class="bottom-nav-item" href="../../../staff/prototypes/servicos/01-servicos-list.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Horários
+    </a>
+    <a class="bottom-nav-item" href="../../../staff/prototypes/servicos/01-servicos-list.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svgServiços</a>
+    <a class="bottom-nav-item active" href="../../../manager/prototypes/turmas/01-turmas-list.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
+      Turmas
+    </a>
+  </nav>
+
+  <script>
+    function toggleCheckin(btn) {
+      const card = btn.closest('.roster-card');
+      const badge = card.querySelector('.status-badge');
+      if (btn.classList.contains('pending')) {
+        btn.classList.remove('pending');
+        btn.classList.add('present');
+        card.classList.add('checked-in');
+        badge.className = 'status-badge status-approved';
+        badge.textContent = 'Presente';
+      } else {
+        btn.classList.remove('present');
+        btn.classList.add('pending');
+        card.classList.remove('checked-in');
+        badge.className = 'status-badge status-pending';
+        badge.textContent = 'Pendente';
+      }
+      updateCounter();
+    }
+
+    function updateCounter() {
+      const total = document.querySelectorAll('.roster-card').length;
+      const present = document.querySelectorAll('.roster-card.checked-in').length;
+      const bar = document.querySelector('.mark-all-bar span');
+      if (bar) bar.textContent = present + ' de ' + total + ' presentes';
+    }
+  </script>
+
+</body>
+</html>

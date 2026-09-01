@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Horários — Camila Duarte — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    /*
+      Copied from the REAL plan/journey/staff/prototypes/horarios/00-schedule-next.html —
+      week-nav, week-strip, day-header, schedule-grid, FAB — same classes, same shapes.
+      Not reinvented; only the data underneath is resource-scoped instead of tenant-wide.
+    */
+    .week-nav { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 1rem; background: white; border-bottom: 1px solid var(--ba-secondary); }
+    .week-nav-btn { display: flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: var(--ba-radius); border: 1.5px solid var(--ba-secondary); background: white; cursor: pointer; color: var(--ba-text); font-size: 1.125rem; text-decoration: none; line-height: 1; }
+    .week-nav-btn.disabled { opacity: 0.3; cursor: default; pointer-events: none; }
+    .week-nav-month { font-size: 0.875rem; font-weight: 600; color: var(--ba-text); }
+    .week-strip { display: flex; justify-content: space-evenly; padding: 0.875rem 0.5rem; background: white; border-bottom: 1px solid var(--ba-secondary); }
+    .week-day { display: flex; flex-direction: column; align-items: center; flex: 1; padding: 0.5rem 0.375rem; border-radius: var(--ba-radius); cursor: pointer; }
+    .week-day.selected { background: var(--ba-secondary); }
+    .week-day.closed { opacity: 0.4; }
+    .week-day-label { font-size: 0.625rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 0.25rem; }
+    .week-day-number { font-size: 1rem; font-weight: 700; line-height: 1; }
+    .week-day-dot { width: 5px; height: 5px; border-radius: 9999px; background: #16a34a; margin-top: 0.3rem; }
+    .week-day-dot.empty { background: transparent; }
+    .day-header { padding: 0.75rem 1rem 0.5rem; background: white; border-bottom: 1px solid var(--ba-secondary); }
+    .day-header-title { font-weight: 700; font-size: 0.9375rem; color: var(--ba-text); }
+    .day-header-meta { font-size: 0.8125rem; color: rgba(17,24,39,0.5); margin-top: 0.125rem; }
+    .schedule-grid { display: flex; flex-direction: column; background: white; }
+    .schedule-row { display: grid; grid-template-columns: 3.25rem 1fr; min-height: 3rem; border-bottom: 1px solid var(--ba-secondary); }
+    .schedule-time { font-size: 0.6875rem; color: rgba(17,24,39,0.35); padding: 0.5rem 0.5rem 0 0; text-align: right; align-self: start; font-variant-numeric: tabular-nums; }
+    .schedule-slot { border-left: 2px solid var(--ba-secondary); padding: 0.375rem 0.75rem; }
+    .schedule-slot.booking { background: var(--ba-secondary); border-left: 3px solid #2563eb; } /* fixed platform blue, not --ba-primary */
+    .schedule-slot.booking-cont { background: var(--ba-secondary); border-left: 3px solid #2563eb; }
+    .fab { position: fixed; bottom: 1.5rem; right: 1.5rem; display: flex; align-items: center; gap: 0.5rem; background: #2563eb; color: white; border: none; border-radius: 2rem; padding: 0.75rem 1.25rem; font-size: 0.9375rem; font-weight: 600; box-shadow: 0 4px 12px rgba(37,99,235,0.35); cursor: pointer; } /* fixed platform blue, not --ba-primary -- maps to a shadcn Button in production */
+    @media (max-width: 1023px) { .fab { bottom: 5rem; } }
+  </style>
+</head>
+<body>
+
+  <!--
+    DISCOVERY PROTOTYPE — illustrative only, NOT a plan/journey/ prototype. Added on
+    request (2026-07-29) to ground CAND-04 in the REAL existing screen instead of
+    inventing a new shape for it.
+
+    plan/journey/staff/prototypes/horarios/00-schedule-next.html is a per-TENANT week
+    timeline (every booking, all resources — because today there's only one implicit
+    resource). Its FAB "Bloquear período" is exactly where a tenant-wide ScheduleClosure
+    gets created today. This screen is that SAME structure, scoped to one Resource
+    (Camila Duarte) instead of the whole tenant — the grid shows only HER bookings, and
+    "Bloquear período" here creates a resourceId-scoped closure (CAND-04) instead of a
+    tenant-wide one. Reached from manager-01's "Horários" row action on her row.
+
+    NOTE this is NOT the same thing as CAND-02 (editing a resource's recurring
+    workingHours pattern, e.g. "Mon/Wed/Fri 9–5"). The real Horários screen has never
+    been a weekly-pattern settings form — it's a booking/closure timeline. CAND-02's
+    editor is a different, simpler settings screen this file doesn't represent; see
+    manager-04's "Usar horário padrão do negócio" toggle for that separate concept.
+
+    Resource schedule configuration remains MANAGER-only. Staff absence self-service
+    is separate future scope, not an implicit exception to resource administration.
+
+    COMPONENT (GAP): ManagerResourceScheduleGrid, extended with a resourceId prop
+    BFF CALL (GAP): GET /bookings?resourceId=res_staff_camila&from=2026-08-03&to=2026-08-09
+  -->
+
+  <div style="background: #fef3c7; border-bottom: 1px solid #d97706; padding: 0.375rem 1rem; font-size: 0.8125rem; text-align: center; color: #92400e;">
+    Protótipo — Horários de Camila Duarte, semana 03–09 ago
+  </div>
+
+  <div class="dashboard-topbar">
+    <a href="../../../manager/prototypes/resources/01-resources-list.html" style="display:flex;align-items:center;gap:0.375rem;color:var(--ba-text);text-decoration:none;font-size:0.9375rem;font-weight:500;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      <span style="font-weight:600;">Recursos</span>
+    </a>
+    <h1 class="topbar-page-title" style="font-weight: 700;">Horários — Camila Duarte</h1>
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 0.75rem;">
+      <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+      <span class="topbar-date">Hoje, 04 de agosto de 2026</span>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+    <!--
+      Reframed on UX-fix pass: this screen is a MANAGER drilling into one resource's
+      (Camila Duarte's) schedule from manager-01's "Horários" row action — CAND-01–05
+      (resource administration) are manager-only. It previously rendered as Camila's own
+      STAFF self-service view, which was a real, unresolved identity conflict: her own
+      back button then routed a STAFF viewer into the manager-only Recursos list. Now
+      shows the manager (Ana Pereira, same identity used on manager-07/08/11) as the
+      logged-in viewer, with the "Somente Gerente" section present like every other
+      manager screen. The grid content itself (Camila's bookings) is unchanged — only the
+      viewer identity is fixed.
+    -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">V</div>
+        <div><p class="sidebar-tenant-name">Vitta Studio</p><p class="sidebar-tenant-slug">@vittastudio</p></div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top:0.5rem;">
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Agenda
+        </a>
+        <a class="sidebar-nav-item" href="manager-05-visao-geral.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Horários
+        </a>
+        <a class="sidebar-nav-item" href="manager-02-service-resource-config.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          Serviços
+        </a>
+        <a class="sidebar-nav-item" href="staff-04-turmas-proximas.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
+          Turmas
+        </a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          Fidelidade
+        </a>
+      </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item active" href="../../../manager/prototypes/resources/01-resources-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Recursos
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/equipe/01-team-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Equipe
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/configuracoes/01-settings-form.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Configurações
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          Hotsite
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
+        <a class="sidebar-logout" href="../../../shared/staff-login.html" title="Sair">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </a>
+      </div>
+    </aside>
+
+    <main class="main-content" style="padding: 0; overflow: hidden;">
+
+      <div class="week-nav">
+        <button class="week-nav-btn disabled" title="Semana anterior">‹</button>
+        <span class="week-nav-month">agosto 2026</span>
+        <button class="week-nav-btn" title="Próxima semana">›</button>
+      </div>
+
+      <div class="week-strip">
+        <div class="week-day selected"><span class="week-day-label">Seg</span><span class="week-day-number">03</span><span class="week-day-dot"></span></div>
+        <div class="week-day"><span class="week-day-label">Ter</span><span class="week-day-number">04</span><span class="week-day-dot empty"></span></div>
+        <div class="week-day"><span class="week-day-label">Qua</span><span class="week-day-number">05</span><span class="week-day-dot"></span></div>
+        <div class="week-day"><span class="week-day-label">Qui</span><span class="week-day-number">06</span><span class="week-day-dot empty"></span></div>
+        <div class="week-day"><span class="week-day-label">Sex</span><span class="week-day-number">07</span><span class="week-day-dot"></span></div>
+        <div class="week-day"><span class="week-day-label">Sáb</span><span class="week-day-number">08</span><span class="week-day-dot empty"></span></div>
+        <div class="week-day closed"><span class="week-day-label">Dom</span><span class="week-day-number">09</span><span class="week-day-dot empty"></span></div>
+      </div>
+
+      <div class="day-header">
+        <p class="day-header-title">Segunda-feira, 03 de agosto de 2026</p>
+        <p class="day-header-meta">2 agendamentos — só de Camila Duarte, não do salão inteiro</p>
+      </div>
+
+      <div class="schedule-grid" style="overflow-y: auto; max-height: calc(100vh - 16rem);">
+        <div class="schedule-row"><span class="schedule-time">09:00</span><div class="schedule-slot"></div></div>
+        <div class="schedule-row"><span class="schedule-time">09:30</span><div class="schedule-slot"></div></div>
+
+        <!-- Fernanda Lima — Corte + Escova (50 min), from staff-01-my-agenda.html -->
+        <div class="schedule-row">
+          <span class="schedule-time">10:00</span>
+          <a href="../../../staff/prototypes/agenda/00-agenda.html" class="schedule-slot booking" style="text-decoration: none; display: block;">
+            <p style="font-weight: 600; font-size: 0.875rem; color: var(--ba-primary);">Fernanda Lima</p>
+            <p style="font-size: 0.75rem; color: var(--ba-text); opacity: 0.7; margin-top: 0.1rem;">Corte + Escova · 50 min</p>
+          </a>
+        </div>
+        <div class="schedule-row"><span class="schedule-time">10:30</span><div class="schedule-slot booking-cont"></div></div>
+
+        <div class="schedule-row"><span class="schedule-time">11:00</span><div class="schedule-slot"></div></div>
+        <div class="schedule-row"><span class="schedule-time">11:30</span><div class="schedule-slot"></div></div>
+        <div class="schedule-row"><span class="schedule-time">12:00</span><div class="schedule-slot"></div></div>
+        <div class="schedule-row"><span class="schedule-time">12:30</span><div class="schedule-slot"></div></div>
+        <div class="schedule-row"><span class="schedule-time">13:00</span><div class="schedule-slot"></div></div>
+        <div class="schedule-row"><span class="schedule-time">13:30</span><div class="schedule-slot"></div></div>
+
+        <!-- Roberta Dias — Coloração (90 min), from staff-01-my-agenda.html -->
+        <div class="schedule-row">
+          <span class="schedule-time">14:00</span>
+          <a href="../../../staff/prototypes/agenda/00-agenda.html" class="schedule-slot booking" style="text-decoration: none; display: block;">
+            <p style="font-weight: 600; font-size: 0.875rem; color: var(--ba-primary);">Roberta Dias</p>
+            <p style="font-size: 0.75rem; color: var(--ba-text); opacity: 0.7; margin-top: 0.1rem;">Coloração · 90 min</p>
+          </a>
+        </div>
+        <div class="schedule-row"><span class="schedule-time">14:30</span><div class="schedule-slot booking-cont"></div></div>
+        <div class="schedule-row"><span class="schedule-time">15:00</span><div class="schedule-slot booking-cont"></div></div>
+
+        <div class="schedule-row"><span class="schedule-time">15:30</span><div class="schedule-slot"></div></div>
+        <div class="schedule-row"><span class="schedule-time">16:00</span><div class="schedule-slot"></div></div>
+        <div class="schedule-row"><span class="schedule-time">16:30</span><div class="schedule-slot"></div></div>
+        <div class="schedule-row"><span class="schedule-time">17:00</span><div class="schedule-slot"></div></div>
+        <div class="schedule-row"><span class="schedule-time">17:30</span><div class="schedule-slot"></div></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Same inert <button>, same title, as the real screen — creates a resourceId-scoped
+       ScheduleClosure (CAND-04) instead of a tenant-wide one when this is built for real -->
+  <button class="fab" title="Bloquear período">
+    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    Bloquear período
+  </button>
+
+  <nav class="bottom-nav">
+    <a class="bottom-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Agenda
+    </a>
+    <a class="bottom-nav-item active" href="manager-05-visao-geral.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Horários
+    </a>
+    <a class="bottom-nav-item" href="manager-02-service-resource-config.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      Serviços
+    </a>
+    <a class="bottom-nav-item" href="staff-04-turmas-proximas.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
+      Turmas
+    </a>
+    <a class="bottom-nav-item" href="../../../staff/prototypes/fidelidade/00-customer-search.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      Fidelidade
+    </a>
+  </nav>
+
+</body>
+</html>

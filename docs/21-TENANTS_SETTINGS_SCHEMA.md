@@ -82,6 +82,11 @@ Controls booking lifecycle and rules.
 | `serviceBufferMinutes` | integer | 60 | 0 | 120 | Buffer time between service end and next booking (cleaning, prep time) |
 | `slotGranularityMinutes` | integer | 30 | 15 | 60 | Calendar slot unit in minutes. Valid values: 15, 30, 60. Controls granularity of available start times shown in UC-011. |
 | `welcomeStaffScreenDays` | integer | 14 | 1 | 90 | (`M13-S17`) Size of the configurable date window shown/filtered on the staff booking queue's day-strip navigator (`/dashboard/bookings`). |
+| `classCancellationWindowHours` | integer | — | 0 | 720 | (M21 Cluster 4, UC-089) Hours before a class session's start when a customer can still self-cancel a plain (non-recurring) booking. Deliberately separate from `cancellationWindowHours` — a studio/gym's late-cancel window for a class is commonly different, often shorter, than a private appointment's, and a capacity-constrained class with an active waitlist has a real cost a private 1:1 slot doesn't share. |
+| `classSkipWindowHours` | integer | — | 0 | 720 | (M21 Cluster 4, UC-094) Minimum notice to skip a single occurrence of a recurring enrollment — deliberately separate from `classCancellationWindowHours`; a studio's notice requirement for "skip this week, keep my slot" commonly differs from "cancel entirely." |
+| `classAllowsReschedule` | boolean | false | — | — | (M21 Cluster 4, UC-102) Whether a skipped recurring-enrollment occurrence may be rescheduled to a same-service replacement session ("reposição") instead of a plain skip. |
+| `classRescheduleWindowDays` | integer | — | 1 | 90 | (M21 Cluster 4) How far ahead a replacement session may be picked when `classAllowsReschedule = true`. |
+| `classMaxReschedulesPerCycle` | integer | null | 1 | — | (M21 Cluster 4) Optional cap on reschedules per cycle (a "cycle" is the calendar month containing the skipped occurrence, unless the service overrides it). `null`/unset = unlimited. |
 
 **Example:**
 ```json
@@ -93,7 +98,12 @@ Controls booking lifecycle and rules.
     "maxBookingAdvanceDays": 90,
     "serviceBufferMinutes": 60,
     "slotGranularityMinutes": 30,
-    "welcomeStaffScreenDays": 14
+    "welcomeStaffScreenDays": 14,
+    "classCancellationWindowHours": 24,
+    "classSkipWindowHours": 12,
+    "classAllowsReschedule": true,
+    "classRescheduleWindowDays": 14,
+    "classMaxReschedulesPerCycle": null
   }
 }
 ```
@@ -104,6 +114,9 @@ Controls booking lifecycle and rules.
 - `maxBookingAdvanceDays` must be ≥ 1
 - `minBookingAdvanceHours` / 24 must be < `maxBookingAdvanceDays`
 - `slotGranularityMinutes` must be one of: 15, 30, 60
+- `classCancellationWindowHours`/`classSkipWindowHours` must be 0–720 when set (M21 Cluster 4)
+- `classRescheduleWindowDays` must be ≥ 1 when `classAllowsReschedule = true` (M21 Cluster 4)
+- `classMaxReschedulesPerCycle`, when set, must be ≥ 1 (M21 Cluster 4)
 
 ---
 

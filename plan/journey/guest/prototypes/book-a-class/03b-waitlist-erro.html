@@ -1,0 +1,32 @@
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Fila de espera — Já inscrito — Vitta Studio</title><link rel="stylesheet" href="../../../shared/tokens.css"></head><body>
+<!--
+  DISCOVERY PROTOTYPE -- illustrative only, NOT a plan/journey/ prototype.
+  Error-state sibling of public-10-waitlist.html.
+  CAND-24 (Authenticated Customer Joins a Waitlist When a Session Is Full) alt A1:
+  "Customer already has a capacity-holding, WAITLISTED, or PROMOTION_PENDING booking on this
+  session -> Blocked, no duplicate entries." No "entrar na fila" action is offered here --
+  only a link back to the existing entry.
+  See ../multivertical-booking_USECASES.md CAND-24 alt. A1.
+-->
+<div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:.375rem 1rem;font-size:.8125rem;text-align:center;color:#92400e;">
+  Protótipo — CAND-24 alt. A1 — já existe uma entrada na fila para este grupo
+</div>
+<div style="background:white;border-bottom:1px solid var(--ba-secondary);padding:.75rem 1.5rem;display:flex;justify-content:space-between"><strong>Vitta Studio</strong><span style="font-size:.875rem">Ana Costa · Minha conta</span></div>
+<main class="step-container">
+  <p class="step-indicator">Pilates · Seg, 04 ago · 18:00</p>
+  <div class="card" style="border-color:#fbbf24">
+    <h1 style="font-size:1.25rem">Você já está na fila de espera</h1>
+    <p style="font-size:.875rem;opacity:.7;margin-top:.5rem">Seu grupo (Ana Costa + Bia Santos · 2 vagas) já tem uma solicitação registrada para esta turma — não é possível entrar na fila duas vezes com a mesma conta.</p>
+  </div>
+  <div class="card" style="margin-top:1rem">
+    <strong>Sua posição atual</strong>
+    <p style="font-size:.875rem;opacity:.7;margin-top:.25rem">#3 na fila — calculada a cada consulta pela ordem de chegada, não é um número fixo reservado para você.</p>
+  </div>
+  <div class="card" style="margin-top:1rem;background:#eff6ff">
+    <strong>O que fazer agora</strong>
+    <p style="font-size:.875rem;color:#1d4ed8;margin-top:.25rem">Acompanhe sua entrada existente — se aparecer uma oferta, ela chega por e-mail e na sua conta.</p>
+    <a class="btn-secondary" style="display:inline-block;margin-top:.75rem" href="../../../customer/prototypes/minha-conta/12-waitlist-offer.html">Ver minha entrada na fila</a>
+  </div>
+  <div class="nav-buttons"><a class="btn-primary" href="01-class-agenda.html">Ver outras turmas</a></div>
+</main>
+</body></html>

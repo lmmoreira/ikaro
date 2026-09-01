@@ -433,6 +433,44 @@ Used when `businessHours[dayOfWeek] = null` (e.g., Sunday is always closed) but 
 
 ---
 
+#### **UC-010e: MANAGER Creates a Resource-Scoped Schedule Closure**
+
+> Extends UC-010a's exact mechanism with an optional `resourceId` — see the `Resource` aggregate (Resource Management Use Cases, below). Introduced alongside `Resource` (M21 — Multi-Vertical Scheduling, Cluster 1/Foundation). Leaving `resourceId` unset behaves identically to UC-010a (tenant-wide) and stays open to STAFF|MANAGER; setting `resourceId` is deliberately **MANAGER-only** — the same restriction the discovery applies to every Resource Management use case below (dev-notes.md's own review call, no existing precedent to derive it from).
+
+- **Actor:** MANAGER (when `resourceId` is set) — STAFF | MANAGER still applies to the unscoped, tenant-wide case (UC-010a)
+- **Endpoint:** `POST /schedule/closures` (existing endpoint, `resourceId` is a new optional body field)
+- **Preconditions:** Resource exists and belongs to the tenant, when `resourceId` is provided.
+- **Trigger:** Admin creates a closure and selects a specific resource instead of leaving "whole business" selected (e.g. "Maria — day off").
+- **Main Flow:**
+  1. Admin selects date (+ optional time window) and reason, same as UC-010a.
+  2. Admin selects a specific resource instead of leaving the resource field blank.
+  3. System validates no overlapping closure exists for `(tenantId, resourceId, date)` and saves with `resourceId` set.
+- **Alternative Flows:**
+  - **A1: Resource left unselected** → Falls back to UC-010a's tenant-wide behavior, `resourceId = null`.
+  - **A2: An overlapping closure already exists for `(tenantId, resourceId, date)`** → `409 Conflict`, naming the conflicting closure.
+  - **A3: `resourceId` does not exist or belongs to another tenant** → `404 Not Found`.
+- **Postconditions:** The resource's calendar shows this window blocked; other resources at the same tenant are unaffected. A tenant-wide closure (`resourceId = null`) still blocks every resource, per the `Resource` aggregate's "everything" sentinel.
+- **Events Triggered:** None (mirrors UC-010a, which also publishes nothing).
+
+---
+
+#### **UC-010f: MANAGER Creates a Resource-Scoped Schedule Opening**
+
+> Extends UC-010c's exact mechanism with an optional `resourceId`, same relationship as UC-010e has to UC-010a. Introduced alongside `Resource` (M21 — Multi-Vertical Scheduling, Cluster 1/Foundation). Setting `resourceId` is **MANAGER-only**, same restriction as UC-010e.
+
+- **Actor:** MANAGER (when `resourceId` is set) — STAFF | MANAGER still applies to the unscoped, tenant-wide case (UC-010c)
+- **Endpoint:** `POST /schedule/openings` (existing endpoint, `resourceId` is a new optional body field)
+- **Preconditions:** Resource exists and belongs to the tenant, when `resourceId` is provided. The target day is inside the tenant's recurring business-hours window and is closed only in the resource's own `workingHours` (a resource never extends beyond the tenant's own effective hours).
+- **Trigger:** Admin opens a normally-closed day for one resource only (e.g. a stylist takes an extra Saturday).
+- **Main Flow:** Same as UC-010c, with `resourceId` set.
+- **Alternative Flows:**
+  - Same as UC-010c's (A1, A2).
+  - **A3: `resourceId` does not exist or belongs to another tenant** → `404 Not Found`.
+- **Postconditions:** Only that resource's calendar opens for the date, never outside the tenant's effective hours; the rest of the tenant is unaffected. **Constraint note:** `schedule_openings`' `UNIQUE(tenant_id, date)` is replaced by two partial unique indexes — `UNIQUE(tenant_id, date) WHERE resource_id IS NULL` and `UNIQUE(tenant_id, resource_id, date) WHERE resource_id IS NOT NULL` — so a tenant-wide opening and a resource-scoped opening for the same date no longer collide (see `docs/13-DATABASE_SCHEMA.md`).
+- **Events Triggered:** None.
+
+---
+
 ### **UC-011: Guest Views Real-Time Calendar Availability**
 
 - **Actor:** Guest (any user, authenticated or not)
@@ -566,6 +604,116 @@ Returns:
 
 ---
 
+## Resource Management Use Cases
+
+> Introduced by M21 — Multi-Vertical Scheduling, Cluster 1 (Foundation). `Resource` is a new aggregate in the Booking Context — see `docs/02-DOMAIN_MODEL.md` § Booking Context. Every existing tenant receives one active `LOCATION` resource during migration (M21-S0x's backfill story); `resourceId = null` on a closure/opening remains a separate "close/open the whole business" sentinel, not a legacy path. Resource-scoped closures/openings are UC-010e/UC-010f above.
+
+### **UC-044: MANAGER Views the Resource List**
+
+- **Actor:** MANAGER
+- **Endpoint:** `GET /resources?type=&isActive=`
+- **Preconditions:** None beyond an active tenant.
+- **Trigger:** Admin opens the Resources section in dashboard settings.
+- **Main Flow:**
+  1. System lists every `Resource` for the tenant, filterable by `type` (`LOCATION` | `STAFF` | `ROOM` | `EQUIPMENT`) and `isActive`.
+  2. Each row shows name, type, a working-hours summary, and active/inactive state.
+- **Alternative Flows:** None.
+- **Postconditions:** None (read operation).
+- **Events Triggered:** None.
+
+---
+
+### **UC-045: MANAGER Creates a Resource**
+
+- **Actor:** MANAGER
+- **Endpoint:** `POST /resources`
+- **Preconditions:** None beyond an active tenant.
+- **Trigger:** Admin clicks "Add Resource" in dashboard settings.
+- **Main Flow:**
+  1. Admin selects resource type: `STAFF` (picks an existing `Staff` row to wrap), `ROOM`, or `EQUIPMENT`. (`LOCATION` is never manually created — every tenant already has exactly one, created by the M21 backfill migration; see `docs/02-DOMAIN_MODEL.md` § Booking Context.)
+  2. For `ROOM`/`EQUIPMENT`, admin enters a display name.
+  3. Admin sets initial working hours (defaults to the tenant's `businessHours` if left blank); every window must be a subset of the tenant's recurring hours.
+  4. System creates the `Resource` row, `isActive = true`.
+- **Alternative Flows:**
+  - **A1: `STAFF` type, and that staff member is already wrapped by a `Resource`** → `409 Conflict` — one `Resource` per `Staff` row.
+  - **A2: No working hours set and the tenant has no `businessHours` either** → `422 Unprocessable` — a resource must have some schedule.
+- **Postconditions:** `Resource` exists, available for a `Service`'s resource requirements to reference (M21 Cluster 2).
+- **Events Triggered:** None (config-only, same as `ScheduleClosure`/`ScheduleOpening`).
+
+---
+
+### **UC-046: MANAGER Edits a Resource's Working Hours**
+
+- **Actor:** MANAGER
+- **Endpoint:** `PATCH /resources/:id`
+- **Preconditions:** Resource exists and belongs to the tenant.
+- **Trigger:** Admin edits the resource's schedule in dashboard settings.
+- **Main Flow:**
+  1. Admin opens the resource's schedule editor (same shape as the tenant `businessHours` editor).
+  2. Admin sets per-weekday open/close windows, or clears them to inherit the tenant's hours.
+  3. System validates (`open < close`, valid days, every window a subset of the tenant's recurring hours) and saves.
+- **Alternative Flows:**
+  - **A1: Existing approved appointments now fall outside the new hours** → System warns before saving; does not auto-cancel existing bookings.
+  - **A2: Resource not found or belongs to another tenant** → `404 Not Found`.
+- **Postconditions:** Future availability queries for this resource use the new hours; existing bookings untouched.
+- **Events Triggered:** None.
+
+---
+
+### **UC-047: MANAGER Deactivates a Resource**
+
+- **Actor:** MANAGER
+- **Endpoint:** `DELETE /resources/:id`
+- **Preconditions:** Resource exists, belongs to the tenant, and is active.
+- **Trigger:** Admin clicks "Deactivate" on a resource (e.g. a stylist leaves, equipment is retired).
+- **Main Flow:**
+  1. System shows future approved appointments and materialized sessions referencing this resource as explicit commitments (populated once Clusters 2–4 exist; empty for a Cluster-1-only tenant).
+  2. System sets `isActive = false` immediately for new scheduling and stops future generation using the resource.
+  3. Admin receives a resolution worklist for the existing commitments; none is silently cancelled or demoted.
+- **Alternative Flows:**
+  - **A1: Resource is part of an active class-schedule-template bundle** (Cluster 4) → System ends/deactivates that template for future generation and lists any materialized future sessions for resolution.
+  - **A2: Resource not found or belongs to another tenant** → `404 Not Found`.
+- **Postconditions:** Resource no longer offered for new bookings; existing history intact. Returns `204 No Content`.
+- **Events Triggered:** None.
+
+---
+
+### **UC-048: System Cascades a Staff Deactivation to the Wrapping STAFF Resource**
+
+> Closes a gap where `UC-029` (admin deactivates staff member) and this discovery's `Resource` wrapper were otherwise never wired together. This is `StaffDeactivated`'s first consumer — see `docs/03-DOMAIN_EVENTS.md` and `docs/05-BOUNDED_CONTEXTS.md`.
+
+- **Actor:** System
+- **Preconditions:** A `Staff` row is deactivated via `UC-029`, and a `Resource` row exists with `type = STAFF` and `refId` pointing at that staff member.
+- **Trigger:** `StaffDeactivated` event (published by `UC-029`), consumed by the Booking Context.
+- **Main Flow:**
+  1. System locates the `Resource` row with `refId = staffId` for the deactivated staff member.
+  2. System applies UC-047's exact effect to that `Resource`: `isActive = false` for new scheduling, future generation using it stops, and any active template bundle containing it is ended for future generation (UC-047 A1).
+  3. Existing approved appointments and materialized sessions referencing the resource remain explicit commitments — the manager gets the same resolution worklist UC-047 produces, never a silent cancellation.
+- **Alternative Flows:**
+  - **A1: No `Resource` row wraps this staff member** → No-op; nothing to cascade.
+- **Postconditions:** A deactivated staff member's wrapping resource is deactivated for new work in the same event-handling step as their `Staff` row, never left stale.
+- **Events Triggered:** None new — consumes `StaffDeactivated`; produces the same (lack of) events as UC-047.
+
+---
+
+### **UC-049: MANAGER Reactivates a Resource**
+
+- **Actor:** MANAGER
+- **Endpoint:** `POST /resources/:id/reactivate`
+- **Preconditions:** Resource exists, belongs to the tenant, and is inactive.
+- **Trigger:** Admin reactivates a previously deactivated resource.
+- **Main Flow:**
+  1. Admin reactivates the resource.
+  2. Admin confirms its working hours/eligibility are still correct (via UC-046 if changes are needed).
+  3. System sets `isActive = true` — available only for future availability calculations. It does not recreate cancelled sessions or silently alter existing commitments.
+- **Alternative Flows:**
+  - **A1: Working hours/eligible-service setup is incomplete** → Admin must complete it (UC-046) before the resource can be selected for new work.
+  - **A2: Resource not found, belongs to another tenant, or is already active** → `404 Not Found` / `409 Conflict`.
+- **Postconditions:** Future bookings may use the resource according to its current configuration.
+- **Events Triggered:** `ResourceReactivated`
+
+---
+
 ## Service Management Use Cases
 
 ### **UC-012: Admin Creates New Service**
@@ -616,6 +764,1062 @@ Returns:
 
 - **Postconditions:** Service updated. New bookings reflect all changes including `requiresPickupAddress`.
 - **Events Triggered:** None
+
+---
+
+## Service Extensions & Availability Engine Use Cases (M21 Cluster 2)
+
+> Introduced by M21 — Multi-Vertical Scheduling, Cluster 2 (Service extensions + availability/exclusivity engine). Depends on Cluster 1 (`Resource`). See `docs/02-DOMAIN_MODEL.md` § Booking Context (`Service` aggregate, `resource_occupancy`) and `docs/13-DATABASE_SCHEMA.md` for the full schema. UC-050–055 configure a `Service`; UC-056 chooses its booking model at creation; UC-057–060 are the availability/exclusivity engine both appointment and (eventually, Cluster 4) session bookings depend on.
+
+### **UC-050: STAFF | MANAGER Configures a Service's Resource Requirement**
+
+- **Actor:** STAFF | MANAGER
+- **Endpoint:** `PATCH /services/:id/resource-requirements`
+- **Preconditions:** Service exists, `bookingModel = APPOINTMENT`.
+- **Trigger:** Admin edits the service's "who/what is needed" setting.
+- **Main Flow:**
+  1. Admin picks resource type (`LOCATION` default / `STAFF` / `ROOM` / `EQUIPMENT`).
+  2. Admin picks selection mode: `NONE` (today's default), `CUSTOMER_CHOICE`, `AUTO_ANY`, or `AUTO_FUNGIBLE_POOL`.
+  3. If a pool restriction applies, admin picks which specific active resources are eligible.
+  4. System saves `resourceRequirements[0]`.
+- **Alternative Flows:**
+  - **A1: No active resources of the chosen type exist** → `422 Unprocessable` — blocks save until at least one exists.
+  - **A2: Service has `legs` set** → `409 Conflict` — a service is either flat-with-requirements or legged, not both (UC-052).
+- **Postconditions:** New bookings for this service are checked/locked against the configured resource(s).
+- **Events Triggered:** None.
+
+---
+
+### **UC-051: STAFF | MANAGER Configures a Bundled Resource Requirement**
+
+- **Actor:** STAFF | MANAGER
+- **Endpoint:** `PATCH /services/:id/resource-requirements` (same endpoint as UC-050 — a bundle is `resourceRequirements.length > 1`)
+- **Preconditions:** Service exists; at least two distinct resource types have active resources (e.g. staff + equipment for a dentist).
+- **Trigger:** Admin adds a second resource requirement to the same service.
+- **Main Flow:**
+  1. Admin adds a second `ResourceRequirement` entry (e.g. `EQUIPMENT`, `AUTO_ANY`).
+  2. System saves `resourceRequirements` as an array of ≥ 2 — every entry must be free for the same window; all get locked together.
+- **Alternative Flows:**
+  - **A1: Admin tries to combine a bundle with `legs`** → `409 Conflict` — see UC-052.
+- **Postconditions:** Booking this service now requires *all* listed resources free for the same window.
+- **Events Triggered:** None.
+
+---
+
+### **UC-052: STAFF | MANAGER Configures Service Legs (Sequential Multi-Stage)**
+
+- **Actor:** STAFF | MANAGER
+- **Endpoint:** `PUT /services/:id/legs`
+- **Preconditions:** Service exists, `bookingModel = APPOINTMENT`.
+- **Trigger:** Admin switches the service from "single resource" to "multi-stage journey."
+- **Main Flow:**
+  1. Admin adds ordered legs, each with a name, duration, one or more resource requirements, and a transition-gap-after.
+  2. System computes and displays the total appointment span (`sum(leg durations) + sum(transition gaps)`), distinct from total billable time.
+  3. System clears `resourceRequirements`/`bufferAfterMinutes` on the service (mutually exclusive with `legs`).
+- **Alternative Flows:**
+  - **A1: Fewer than 2 legs** → `422 Unprocessable` — a single leg is just the flat model (UC-050).
+- **Postconditions:** Booking this service locks every leg's resource(s) independently for that leg's own sub-window.
+- **Events Triggered:** None.
+
+---
+
+### **UC-053: STAFF | MANAGER Sets a Service's Buffer Override**
+
+- **Actor:** STAFF | MANAGER
+- **Endpoint:** `PATCH /services/:id` (existing endpoint, `bufferAfterMinutes` is a new field)
+- **Preconditions:** Service exists, `bookingModel = APPOINTMENT`, no `legs` set.
+- **Trigger:** Admin edits the service's cleanup/prep buffer.
+- **Main Flow:**
+  1. Field is pre-filled from the tenant's `serviceBufferMinutes` default at service-creation time.
+  2. Admin overrides with a service-specific value.
+  3. System saves `Service.bufferAfterMinutes`.
+- **Alternative Flows:**
+  - **A1: Service has `legs`** → Field disabled; legs use per-leg transition gaps and per-resource turnover instead (UC-059).
+- **Postconditions:** Availability calculations for this service use `max(service.bufferAfterMinutes, resource.turnoverMinutes)`.
+- **Events Triggered:** None.
+
+---
+
+### **UC-054: STAFF | MANAGER Configures a Service's Booking-Intake Schema**
+
+- **Actor:** STAFF | MANAGER
+- **Endpoint:** `POST /services/:id/intake-schema`
+- **Preconditions:** Service exists, `bookingModel = APPOINTMENT`.
+- **Trigger:** Admin sets up or edits the service's booking-review questions (e.g. a dentist wants a health-history question; a mobile groomer wants a pickup address).
+- **Main Flow:**
+  1. Admin adds one or more questions (free text, a named-attendees list, or a typed marker such as pickup address) and marks each required or optional.
+  2. Admin sets whether the service requires a participant count, named attendees, both, or neither.
+  3. Admin writes/updates the consent text customers must accept.
+  4. System publishes a new `service_booking_intake_schema` version — `is_active = true` on the new row, `is_active = false` on the previous one. The previous version is never edited in place.
+- **Alternative Flows:**
+  - **A1: Service already has bookings in flight against the current version** → Existing bookings keep their already-snapshotted `intakeSchemaVersion`/`intakeAnswers`; only new bookings see the new version.
+  - **A2: Admin adds a `PICKUP_ADDRESS`-typed question** → System also sets `services.requires_pickup_address = true` in the same transaction — the legacy boolean stays the single source of truth for whether `bookings.pickup_address` must be populated.
+- **Postconditions:** The service has exactly one active intake schema version.
+- **Events Triggered:** None.
+
+---
+
+### **UC-055: STAFF | MANAGER Configures an Appointment Service's Booking Policy**
+
+- **Actor:** STAFF | MANAGER
+- **Endpoint:** `PATCH /services/:id/booking-policy`
+- **Preconditions:** Service exists, `bookingModel = APPOINTMENT`.
+- **Trigger:** Admin edits the service's booking policy.
+- **Main Flow:**
+  1. Admin sets approval mode (`AUTO_CONFIRM`/`MANUAL_APPROVAL`, inheriting the tenant default when left blank) and, if `MANUAL_APPROVAL`, the hold duration.
+  2. Admin sets the cancellation window, minimum notice, and maximum advance (all inheriting tenant defaults when left blank).
+  3. Admin toggles whether the service allows recurring private reservations and availability alerts (Cluster 3).
+  4. If the service has `durationPolicy = CUSTOMER_SELECTED`, admin also sets minimum/maximum/increment duration, the per-increment price, and optional minimum charge.
+  5. System saves the policy on `Service`; every subsequent booking snapshots the effective values at submission time.
+- **Alternative Flows:**
+  - **A1: Admin reduces the cancellation window or approval hold below a value already relied on by an in-flight booking** → No retroactive effect; only bookings created after the change use the new values.
+  - **A2: Admin sets `durationPolicy = CUSTOMER_SELECTED` without a `pricingPolicy`** → `422 Unprocessable` — a variable-duration service must declare how it prices.
+- **Postconditions:** The service has a complete, self-contained booking policy; no field silently falls back to an undocumented default.
+- **Events Triggered:** None.
+
+---
+
+### **UC-056: STAFF | MANAGER Chooses a Service's Booking Model at Creation**
+
+- **Actor:** STAFF | MANAGER
+- **Endpoint:** `POST /services` (existing endpoint, `bookingModel` is a new field, default `APPOINTMENT`)
+- **Preconditions:** None beyond an active tenant.
+- **Trigger:** Admin creates a new service.
+- **Main Flow:**
+  1. Admin picks `APPOINTMENT` (a private appointment, today's default) or `SESSION` (a class with capacity).
+  2. If `APPOINTMENT`: proceeds to UC-050 (or UC-052 for legs).
+  3. If `SESSION`: admin declares this service's eligible resource pool per slot (`Service.classResourceSlots`) — same eligibility checklist as UC-050's flat case, just without a selection mode, since nothing resolves dynamically per booking. **Not actionable until Cluster 4 ships** `ClassScheduleTemplate` — the schema field exists from this cluster onward, but nothing consumes it yet; a SESSION service created in Cluster 2/3 has no way to actually be booked until then.
+- **Alternative Flows:**
+  - **A1: Admin tries to change `bookingModel` on a service with existing bookings** → `409 Conflict` — booking model is immutable once the service has history.
+- **Postconditions:** Service exists with a fixed `bookingModel`.
+- **Events Triggered:** None.
+
+---
+
+### **UC-057: MANAGER Views a Combined Multi-Resource Day Grid**
+
+- **Actor:** MANAGER (deliberately manager-only, like Equipe/Configurações/Hotsite/Recursos — a broader oversight surface than any single-resource view)
+- **Endpoint:** `GET /schedule/day-grid?date=`
+- **Preconditions:** Tenant has ≥ 2 active resources.
+- **Trigger:** Manager opens "Horários" (role-adaptive: a STAFF viewer gets their own resource's timeline — UC-010e/f's screen — a MANAGER viewer gets this grid instead).
+- **Main Flow:**
+  1. System shows a grid: columns = active resources (any type), rows = time slots for the selected day.
+  2. Each cell shows a booking/session if that resource is occupied then, reusing the same visual block as the single-resource timeline.
+  3. Manager clicks any cell to drill into that booking/session's detail.
+- **Alternative Flows:**
+  - **A1: Too many resources to fit on screen** → Horizontal scroll, plus a resource-type filter (Profissionais / Salas / Equipamentos) to narrow the visible columns.
+- **Postconditions:** None (read-only).
+- **Events Triggered:** None.
+
+---
+
+### **UC-058: System Computes Availability Scoped to a Resource or Bundle**
+
+- **Actor:** System
+- **Preconditions:** Service has `resourceRequirements` referencing one or more resources.
+- **Trigger:** Any availability query (extends UC-011) for a resource-scoped or bundled service.
+- **Main Flow:**
+  1. `IBookingAvailabilityPort` is queried with `tenantId` + `resourceId(s)` instead of `tenantId` alone (see `docs/02-DOMAIN_MODEL.md`).
+  2. For a bundle, a slot is available only if **every** required resource is simultaneously free (intersection).
+  3. For `AUTO_FUNGIBLE_POOL`, a slot is available if **any** pool member is free (union, not intersection).
+- **Alternative Flows:**
+  - **A1: No active resource of the required type exists for the service** → Query returns zero available slots, same shape as today's "no availability" result; not an error.
+  - **A2: A `resourceId` in the query doesn't belong to the querying tenant** → Excluded by the mandatory `tenantId` scoping in step 1; never reaches steps 2–3.
+- **Postconditions:** Extends today's `AvailabilityService` rather than replacing it.
+- **Events Triggered:** None (read path).
+- **Forward reference (not reachable in Cluster 2 alone):** once Cluster 3 ships `RecurringBookingSchedule`, "free" also excludes any active schedule whose recurrence rule produces an occurrence at the candidate time; once Cluster 4 ships `ClassScheduleTemplate`, the same applies to an active template's recurrence rule — both evaluated directly against the pattern, not against a materialized row, since a not-yet-generated future occurrence is still a real commitment.
+
+---
+
+### **UC-059: System Applies Resource Turnover and Leg Transition Gaps**
+
+- **Actor:** System
+- **Preconditions:** Resource has `turnoverMinutes > 0`, and/or the service has legs with `transitionGapAfterMinutes > 0`.
+- **Trigger:** Same availability computation as UC-058.
+- **Main Flow:**
+  1. For a flat service: effective gap before the next booking on a resource = `max(service.bufferAfterMinutes, resource.turnoverMinutes)`.
+  2. For a legged service: each leg's own resource turnover applies at that leg's resource; `transitionGapAfterMinutes` is added between legs regardless of resource turnover.
+- **Alternative Flows:**
+  - **A1: Resource has `turnoverMinutes = 0` and the service has no legs (or all gaps are 0)** → No extra gap beyond `service.bufferAfterMinutes`; behaves identically to today's single-number buffer model.
+- **Postconditions:** Candidate slots correctly reflect both cleanup time and customer transition time, without conflating the two.
+- **Events Triggered:** None.
+
+---
+
+### **UC-060: System Rejects Overlapping Bookings Across a Shared Resource — Same-Family (Cross-Family from Cluster 4)**
+
+- **Actor:** System
+- **Preconditions:** Two different APPOINTMENT-style services share the same resource (e.g. one piece of equipment used by two different appointment types). Cross-family (an APPOINTMENT service and a SESSION `ClassScheduleTemplate` sharing a resource) is not testable until Cluster 4 ships.
+- **Trigger:** A booking attempt would overlap an already-committed window on the shared resource.
+- **Main Flow:**
+  1. Availability computation for the new request is scoped to `tenantId` + the shared `resourceId`, same as UC-058 step 1, and includes existing approved bookings against that shared resource via `booking.resource_occupancy` (see `docs/13-DATABASE_SCHEMA.md`).
+  2. Overlapping candidate slots are excluded or blocked at both the query layer and, for a genuine race, the DB's shared GIST exclusion constraint.
+- **Alternative Flows:**
+  - **A1: The two windows are adjacent, not overlapping** (one ends exactly when the other starts, ignoring buffer/turnover which UC-059 already accounts for separately) → Not a conflict; both are allowed.
+  - **A2: The "conflicting" commitment belongs to the same booking being edited** → Excluded from the conflict check; a commitment never conflicts with itself.
+- **Postconditions:** A resource's exclusivity holds at the DB level, structurally, not just as a query-time check.
+- **Events Triggered:** None.
+
+---
+
+## Customer/Guest Appointment Booking & Extensions Use Cases (M21 Cluster 3)
+
+> Introduced by M21 — Multi-Vertical Scheduling, Cluster 3 (Customer/guest appointment booking + extensions). Depends on Cluster 1 (`Resource`) and Cluster 2 (`Service` extensions, availability engine). See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`/`AvailabilityAlert`/`FutureCommitmentException` and `docs/13-DATABASE_SCHEMA.md`. Approval throughout: every CAND below uses the service's effective approval policy (UC-055) — `AUTO_CONFIRM` creates `APPROVED`, `MANUAL_APPROVAL` creates capacity-holding `PENDING` with the snapshotted hold duration.
+
+### **UC-061: Customer Books With a Specific Chosen Staff Member**
+
+- **Actor:** Customer or Guest
+- **Endpoint:** `POST /bookings` (existing UC-001/002 endpoint; resource-scoped internally per UC-058)
+- **Preconditions:** Service has `resourceRequirements = [{ type: STAFF, selectionMode: CUSTOMER_CHOICE }]`.
+- **Trigger:** Customer selects the service and is prompted to choose a staff member.
+- **Main Flow:**
+  1. Customer sees the list of active `STAFF`-type resources offering this service.
+  2. Customer picks one; calendar shows **only that resource's** availability.
+  3. Customer picks a slot; remainder matches UC-001/UC-002.
+  4. System locks the chosen resource (not the whole tenant) for the booked window.
+- **Alternative Flows:**
+  - **A1: Chosen staff member has no availability in the visible range** → Customer picks a different staff member or a later date.
+- **Postconditions:** Booking exists with a resolved resource assignment for the chosen staff.
+- **Events Triggered:** `BookingRequested` (unchanged envelope, now implies a resource-scoped slot).
+
+---
+
+### **UC-062: Customer Books Auto-Assigned From a Fungible Resource Pool**
+
+- **Actor:** Customer or Guest
+- **Endpoint:** `POST /bookings`
+- **Preconditions:** Service has `resourceRequirements = [{ type: ROOM|EQUIPMENT, selectionMode: AUTO_FUNGIBLE_POOL }]`.
+- **Trigger:** Customer selects the service (e.g. "book a court").
+- **Main Flow:**
+  1. Calendar shows availability aggregated across the whole pool — a slot is open if **any** pool member is free.
+  2. Customer picks a slot; system auto-assigns whichever pool resource is free (no identity shown).
+  3. Remainder matches UC-001/UC-002.
+- **Alternative Flows:**
+  - **A1: All pool members already booked for that window** → Slot doesn't appear as available at all.
+- **Postconditions:** Booking locks one specific pool resource, invisibly to the customer.
+- **Events Triggered:** `BookingRequested`.
+
+---
+
+### **UC-063: Customer Books a Service Configured for System-Auto-Assigned Named Staff**
+
+- **Actor:** Customer or Guest
+- **Endpoint:** `POST /bookings`
+- **Preconditions:** Service has `resourceRequirements = [{ type: STAFF, selectionMode: AUTO_ANY }]`.
+- **Trigger:** Customer selects the service.
+- **Main Flow:**
+  1. Customer goes directly to the calendar/slot picker — no staff-selection step (unlike UC-061).
+  2. Availability is the union across every active `STAFF` resource offering this service.
+  3. Customer picks a slot and submits; system assigns whichever eligible staff member is free.
+  4. Confirmation reveals the assigned staff member's name (unlike UC-062, where no identity is shown).
+- **Alternative Flows:**
+  - **A1: More than one staff member is free for the chosen slot** → System selects the one with the least already-locked workload on that tenant-local day; `resourceId` is the stable tie-breaker.
+- **Postconditions:** Booking exists with a resolved resource assignment the customer did not choose.
+- **Events Triggered:** `BookingRequested`.
+
+---
+
+### **UC-064: Customer Books a Bundled-Resource Appointment**
+
+- **Actor:** Customer or Guest
+- **Endpoint:** `POST /bookings`
+- **Preconditions:** Service has `resourceRequirements.length >= 2` (e.g. dentist + chair).
+- **Trigger:** Customer selects the service.
+- **Main Flow:**
+  1. For each `CUSTOMER_CHOICE` requirement, customer picks (e.g. which dentist).
+  2. Calendar shows slots where **all** required resources are simultaneously free.
+  3. Customer books; system locks every resource in the bundle for the same window.
+- **Alternative Flows:**
+  - **A1: Chosen staff is free but the auto-assigned equipment isn't** → Slot doesn't appear as available (intersection, not union).
+  - **A2: A bundle member becomes unavailable between page load and submit (race)** → System re-validates the whole bundle atomically at submit time; `409 Conflict` — "part of this booking is no longer available."
+- **Postconditions:** Booking's resource assignments list every locked resource.
+- **Events Triggered:** `BookingRequested`.
+
+---
+
+### **UC-065: Customer Books a Multi-Leg Appointment**
+
+- **Actor:** Customer or Guest
+- **Endpoint:** `POST /bookings`
+- **Preconditions:** Service has `legs.length >= 2` (e.g. spa journey).
+- **Trigger:** Customer selects the service.
+- **Main Flow:**
+  1. Customer picks `CUSTOMER_CHOICE` resources per leg where applicable.
+  2. Calendar shows start times where the **entire chained itinerary** fits — every leg's resource(s) free at that leg's computed sub-window, honoring transition gaps.
+  3. Customer books; confirmation shows the full itinerary (per-leg time + resource(s)).
+- **Alternative Flows:**
+  - **A1: A middle leg's resource(s) become unavailable between page load and submit** → System re-validates the whole chain atomically at submit time; `409 Conflict` — "one part of this journey is no longer available."
+- **Postconditions:** One `BookingLine` with a full leg-assignment snapshot.
+- **Events Triggered:** `BookingRequested`.
+
+---
+
+### **UC-066: Customer Views a Specific Staff Member's Own Calendar**
+
+- **Actor:** Customer or Guest
+- **Endpoint:** `GET /resources/:id/availability`
+- **Preconditions:** Tenant has `STAFF`-type resources with `CUSTOMER_CHOICE` on at least one service.
+- **Trigger:** Customer browses a staff directory before booking.
+- **Main Flow:**
+  1. Customer picks a staff member from a directory/profile view.
+  2. System shows that resource's availability across every service they're eligible for.
+  3. Customer proceeds into UC-061 once a slot/service is chosen.
+- **Alternative Flows:**
+  - **A1: Staff member is inactive** → Not shown in the directory.
+- **Postconditions:** None (read-only browse).
+- **Events Triggered:** None.
+
+---
+
+### **UC-067: Customer Books a Variable-Duration Resource Reservation**
+
+- **Actor:** Customer or Guest
+- **Endpoint:** `POST /bookings` — body includes `startsAt`, `durationMinutes`, `participantCount`
+- **Preconditions:** APPOINTMENT service has `durationPolicy = CUSTOMER_SELECTED` and a resource/bundle requirement.
+- **Trigger:** Customer selects an eligible room, court, bay, desk, or equipment service.
+- **Main Flow:**
+  1. Customer chooses a start and duration within the service's minimum, maximum, and increment rules.
+  2. System validates the whole interval, required quantity, and participant limit.
+  3. System quotes the service-level per-increment price (`docs/13-DATABASE_SCHEMA.md`'s round-up rule), resolves every required resource atomically.
+  4. System creates the normal booking under its snapshotted approval policy.
+- **Alternative Flows:**
+  - **A1: Another booking takes any required resource before submission** → `409 Conflict`; customer keeps their chosen criteria and selects another compatible interval.
+  - **A2: Interval crosses midnight** → Allowed only when the full span is within the configured maximum and every required resource is open for its own occupied window. Hotel/accommodation stays out of scope.
+  - **A3: Fungible requirement has `requiredQuantity > 1`** → System assigns that many distinct eligible units in the same transaction or offers no slot; never partially creates a reservation.
+- **Postconditions:** The selected span is protected by normal occupancy; fixed-duration services remain unchanged.
+- **Events Triggered:** Existing appointment booking events, per the resulting `PENDING`/`APPROVED` state.
+
+---
+
+### **UC-068: Customer Submits Versioned Booking Intake and Attendees**
+
+- **Actor:** Customer or Guest
+- **Endpoint:** `POST /bookings` — body includes `intakeSchemaVersion`, `intakeAnswers`, optional named attendees
+- **Preconditions:** Service declares intake fields, participant/count rules, or both.
+- **Trigger:** Customer reaches booking review for a service with intake or attendee requirements.
+- **Main Flow:**
+  1. Customer completes the service's current intake schema (`GET /services/:id/intake-schema`).
+  2. System validates required answers, projects operational values (e.g. pickup address, participant count) into typed booking fields.
+  3. System snapshots schema version, answers, consent, and optional named attendees with the submitted booking.
+- **Alternative Flows:**
+  - **A1: The service form changes while the customer is completing it** → Submission validates against the displayed schema version; a removed/changed field never silently rewrites already-completed answers.
+  - **A2: A minor attends** → A responsible authenticated adult may be the booker; no family-account hierarchy implied.
+  - **A3: A required intake question or the consent checkbox is left unanswered** → `422 Unprocessable` — inline validation error naming the missing field(s).
+- **Postconditions:** Historical bookings remain readable under the form version used at submission.
+- **Events Triggered:** None beyond the resulting booking-request event.
+
+---
+
+### **UC-069: Customer Reschedules an Appointment or Reservation**
+
+- **Actor:** Customer, or audited staff acting for the customer
+- **Endpoint:** `PATCH /bookings/:id/reschedule` (existing UC-008 endpoint, extended — see `docs/14-API_CONTRACTS.md`)
+- **Preconditions:** Booking is eligible under its snapshotted per-service reschedule policy (`rescheduleWindowHoursOverride`, UC-055).
+- **Trigger:** Customer chooses "Reagendar" on an eligible future appointment/reservation.
+- **Main Flow:**
+  1. System validates and locks the replacement resource/span before releasing the original one.
+  2. System recalculates and displays the new quote.
+  3. System records an append-only `booking_quote_revisions` row and a link to the prior arrangement.
+  4. System notifies the customer after commit (`BookingRescheduled`, extended scope — see `docs/03-DOMAIN_EVENTS.md`).
+- **Alternative Flows:**
+  - **A1: Replacement is no longer available** → Original remains intact; customer selects another option.
+  - **A2: Bundle/journey** → Every resource/leg revalidated as one atomic change; no partial move possible.
+  - **A3: Staff policy override** → Staff records reason and actor, but never bypasses capacity, verification, or resource exclusivity.
+- **Postconditions:** Customer never loses the original slot merely because a replacement submit races.
+- **Events Triggered:** `BookingRescheduled`.
+
+---
+
+### **UC-070: Customer (or Staff) Manages a Recurring Private Reservation Schedule**
+
+- **Actor:** Authenticated customer, or Staff acting on their behalf
+- **Endpoint:** `POST /recurring-booking-schedules`, `PATCH /recurring-booking-schedules/:id` (skip/reschedule occurrence, pause, end)
+- **Preconditions:** Service enables recurrence (`recurrenceEligible`, UC-055); guest bookings are not eligible.
+- **Trigger:** Customer or staff confirms a supported weekly/private recurrence pattern.
+- **Main Flow:**
+  1. System resource-conflict-checks the proposed schedule with `FIXED_ASSIGNMENT` (customer/staff-selected resource) or `RESOLVE_PER_OCCURRENCE` (eligible automatic/fungible service).
+  2. Branches on the service's effective approval mode: `AUTO_CONFIRM` → `RecurringBookingSchedule` created `ACTIVE` directly, blocks the future pattern, and materializes normal linked bookings through the rolling horizon (90-day default) immediately. `MANUAL_APPROVAL` → created `PENDING_APPROVAL` with a snapshotted `approvalHoldExpiresAt`; **no occurrences generated yet** — staff resolves it once via UC-071; only on approval does it become `ACTIVE` and generation begin.
+  3. **Once `ACTIVE`:** every occurrence auto-confirms as `APPROVED` regardless of the service's own `defaultApprovalMode` — the standing schedule was already vetted once, at the point it became `ACTIVE`. `MANUAL_APPROVAL` still governs a genuinely one-off booking of the same service (UC-061–065) — only occurrences generated by an already-`ACTIVE` schedule bypass per-occurrence review.
+- **Alternative Flows:**
+  - **A1: A future pattern conflicts at creation** → `409 Conflict`; no partial schedule exists (checked before either branch above).
+  - **A2: Customer skips/reschedules one occurrence, pauses, or ends** → A persistent exception preserves history and prevents unwanted regeneration. Only applies once `ACTIVE`; a `PENDING_APPROVAL` request is withdrawn outright instead.
+  - **A3: A later resource/configuration change makes a commitment invalid** → UC-073 queues a manager exception; the system never silently double-books or moves the customer.
+  - **A4: The resource(s) are already at `MAX_ACTIVE_SCHEDULES_PER_RESOURCE`/`MAX_ACTIVE_RESOLVE_PER_OCCURRENCE_SCHEDULES_PER_SERVICE` (50 each)** → `409 Conflict`, same messaging as A1.
+  - **A5: `PENDING_APPROVAL` request reaches `approvalHoldExpiresAt` with no staff decision** → System auto-cancels it, `cancellationReason = APPROVAL_EXPIRED`, same mechanic as an expired manual-approval appointment hold. Customer is notified and may request again.
+- **Postconditions:** Recurrence is a standing commitment, not a best-effort reminder, once `ACTIVE`. A `PENDING_APPROVAL` request is not yet a commitment and blocks no one else's booking beyond the resource-conflict check already performed at request time.
+- **Events Triggered:** `RecurringBookingScheduleCreated` (`AUTO_CONFIRM`) or `RecurringBookingScheduleApprovalRequested` (`MANUAL_APPROVAL`) at creation; `RecurringBookingSchedulePaused`/`Ended`; ordinary booking events for each materialized occurrence.
+
+---
+
+### **UC-071: Staff Approves or Rejects a Recurring Schedule Request**
+
+> Closes a `MANUAL_APPROVAL` bypass loophole: without this UC, a customer could evade a service's review gate entirely by requesting a recurring schedule instead of a one-off booking (create, let one occurrence generate, cancel — repeatable at will).
+
+- **Actor:** STAFF | MANAGER
+- **Endpoint:** `POST /recurring-booking-schedules/:id/approve`, `POST /recurring-booking-schedules/:id/reject`
+- **Preconditions:** `RecurringBookingSchedule` exists, `status = PENDING_APPROVAL`.
+- **Trigger:** A request reaches `PENDING_APPROVAL` through UC-070 and appears in staff's approval queue (same surface as UC-034's guest-reservation queue, or the existing manual-approval-appointment queue).
+- **Main Flow:**
+  1. Staff reviews the request: customer, service, recurrence pattern, and resolved/eligible resource(s).
+  2. Staff approves or rejects in one action.
+  3. On approval: schedule transitions to `ACTIVE`, `approvedByStaffId`/`approvedAt` set, rolling-horizon generation begins (UC-070's `AUTO_CONFIRM` branch, from this point forward).
+  4. On rejection: schedule transitions to `CANCELLED`, `cancellationReason = APPROVAL_REJECTED`. No occurrences were ever generated, so nothing to release.
+- **Alternative Flows:**
+  - **A1: Request was already resolved by another staff member before this decision commits (race)** → Shown as already-resolved; this action becomes a no-op.
+  - **A2: `approvalHoldExpiresAt` passes before staff decides** → UC-070 A5's expiry worker resolves it first; this action is no longer available.
+- **Postconditions:** A request is never left in `PENDING_APPROVAL` past its hold deadline, and never becomes a standing commitment without an explicit staff decision (or expiry).
+- **Events Triggered:** `RecurringBookingScheduleCreated` (approval) or `RecurringBookingScheduleRejected` (rejection/expiry).
+
+---
+
+### **UC-072: Authenticated Customer Creates an Availability Alert**
+
+- **Actor:** Authenticated customer
+- **Endpoint:** `POST /availability-alerts`
+- **Preconditions:** Service permits alerts (`availabilityAlertEligible`, UC-055) and has availability criteria the customer can express.
+- **Trigger:** Customer sees no suitable appointment/reservation availability.
+- **Main Flow:**
+  1. Customer selects service, optional preferred resource, duration/participant criteria, and either a finite absolute range or a weekly local-time preference.
+  2. System stores an expiring alert attached to that customer without reserving anything.
+  3. When a released slot matches, system records one deduplicated email/in-app notification attempt for that alert/window.
+- **Alternative Flows:**
+  - **A1: Unauthenticated visitor** → Directed to login/account creation before an alert can be saved; chosen criteria return with them after authentication.
+  - **A2: Alert expires, is cancelled, or was already notified for the matching window** → No new notification is sent and no capacity is held.
+- **Postconditions:** Alert is an intent only; customer still books normally after notification.
+- **Events Triggered:** `AvailabilityAlertCreated`, later `AvailabilityAlertMatched`/`Expired`/`Cancelled`.
+
+---
+
+### **UC-073: System Identifies and Queues a Future Commitment Exception**
+
+- **Actor:** System
+- **Preconditions:** A future materialized booking or standing recurrence is affected by a committed resource, hours, closure, or schedule change — **excluding** a manager-initiated range cancellation (Cluster 4), whose own step is already that change's explicit, audited resolution. This covers a change *nobody explicitly reviewed per-session*: a resource deactivation, an hours reduction, or a side effect of an otherwise-unrelated config edit.
+- **Trigger:** A resource is deactivated, closed/maintained, its hours shrink, or a schedule change affects a future commitment.
+- **Main Flow:** System creates one idempotent manager-owned worklist entry per affected commitment, records the impact/deadline, and calculates eligible resource/time alternatives. It never changes the booking itself.
+- **Alternative Flows:**
+  - **A1: The same unresolved impact already has an open worklist entry** → Update/reuse that entry; never create duplicate manager work.
+  - **A2: No safe alternative exists** → The item remains open with an explicit "no compatible alternative" result; manager still chooses keep, contact/reschedule, or cancel in UC-077.
+- **Postconditions:** Existing commitments are never silently invalidated or automatically moved; UC-077 is the only resolution flow.
+- **Events Triggered:** `FutureCommitmentExceptionRaised`.
+
+---
+
+### **UC-074: Staff or Manager Marks an Appointment as No-Show**
+
+- **Actor:** STAFF | MANAGER
+- **Endpoint:** `POST /bookings/:id/no-show`
+- **Preconditions:** The appointment's scheduled end time has passed; the booking is not already terminal.
+- **Trigger:** Staff or manager closes the appointment outcome and confirms the customer did not attend.
+- **Main Flow:**
+  1. System transitions the appointment to terminal `NO_SHOW` and appends an auditable status transition.
+  2. System publishes `BookingNoShow` through the transactional outbox.
+  3. Notification Context sends an email using the booking contact snapshot, retrying delivery independently if needed.
+- **Alternative Flows:**
+  - **A1: Appointment has not ended** → `422 Unprocessable`.
+  - **A2: Booking is already terminal** → `409 Conflict` — a manager correction follows the correction flow instead.
+  - **A3: Manager corrects a mistaken no-show** → System appends a correction transition with actor, reason, and timestamp, then emits the appropriate resulting event. Loyalty is awarded only if the resulting state is `COMPLETED`.
+- **Postconditions:** No loyalty points are awarded for `NO_SHOW`; no completion event is emitted for the no-show outcome. **Changes CLAUDE.md §5's booking state machine** — see that file's own update alongside this promotion.
+- **Events Triggered:** `BookingNoShow`, or the correction/resulting completion event.
+
+---
+
+### **UC-075: System Bootstraps a New Tenant From a Preset**
+
+- **Actor:** Manager, during tenant onboarding
+- **Endpoint:** `POST /onboarding/bootstrap`
+- **Preconditions:** Tenant has no published scheduling configuration and the manager has supplied every minimum answer for a supported preset.
+- **Trigger:** Manager confirms a business preset and its minimum answers.
+- **Main Flow:**
+  1. System creates the tenant's default `LOCATION` resource (if the Cluster 1 backfill hasn't already run for this tenant — normally it has, since this UC only applies to a genuinely new tenant).
+  2. System creates services, resources/pools, and working hours in dependency order.
+  3. System creates service policies.
+  4. **Presets A/B/C/G only in this cluster** — a purely-appointment preset completes here. **SESSION presets (D/E/F) additionally create the first `ClassScheduleTemplate`(s) once Cluster 4 ships** — not actionable until then.
+  5. System shows the generated configuration as an editable review.
+- **Alternative Flows:**
+  - **A1: A mixed preset (e.g. Preset F, appointment + session)** → May create more than one service family in the same bootstrap; the session half is inert until Cluster 4 ships.
+  - **A2: Invalid minimum answers** → Returns to the relevant wizard step.
+  - **A3: Bootstrap failure at any point** → Rolls back the whole configuration; no partially configured tenant is ever published.
+- **Postconditions:** Tenant has at least one valid bookable-service configuration without requiring a circular resource/service setup.
+- **Events Triggered:** `TenantSchedulingBootstrapped` after the complete configuration commits.
+
+---
+
+### **UC-076: Customer Manages an Availability Alert**
+
+- **Actor:** Authenticated customer
+- **Endpoint:** `GET /availability-alerts`, `PATCH /availability-alerts/:id`, `DELETE /availability-alerts/:id`
+- **Preconditions:** Customer owns an active availability alert for the tenant.
+- **Trigger:** Customer opens "Meus avisos."
+- **Main Flow:**
+  1. Customer opens "Meus avisos" and views their active alerts.
+  2. Customer edits matching criteria or expiry, or cancels an alert.
+  3. System expires alerts automatically and sends at most one deduplicated notification per matching availability window.
+- **Alternative Flows:**
+  - **A1: Alert already notified or expired** → Remains visible as history but cannot be edited/reactivated; customer creates a new alert instead.
+- **Postconditions:** Alerts remain non-reserving customer intent; every notification attempt is auditable. An alert is never auto-cancelled just because the customer's underlying need was met through a different channel — independent intents by design.
+- **Events Triggered:** `AvailabilityAlertUpdated`/`AvailabilityAlertCancelled`/`AvailabilityAlertExpired`.
+
+---
+
+### **UC-077: Manager Resolves a Future Commitment Exception**
+
+- **Actor:** MANAGER
+- **Endpoint:** `GET /scheduling-exceptions`, `POST /scheduling-exceptions/:id/resolve`, `POST /scheduling-exceptions/:id/dismiss`
+- **Preconditions:** An open UC-073 worklist item exists and the manager can view the affected commitment.
+- **Trigger:** A resource/hours change affects a future booking.
+- **Main Flow:**
+  1. Manager reviews the impact and any safe alternatives on an open worklist item.
+  2. Manager explicitly chooses: keep, reassign, reschedule, or cancel.
+  3. System records the decision, actor, reason, and notification outcome after the chosen change commits.
+- **Alternative Flows:**
+  - **A1: A proposed reassignment/reschedule becomes unavailable at commit (race)** → Revalidated at commit time; if now unavailable, the worklist stays open and the original commitment remains intact.
+  - **A2: Item is genuinely resolved or non-impacting** → Manager may dismiss it with a reason, instead of choosing one of the four actions above.
+- **Postconditions:** No future commitment is silently moved or invalidated.
+- **Events Triggered:** `FutureCommitmentExceptionResolved`/`Dismissed` and any resulting booking event.
+
+---
+
+## Classes/Sessions Use Cases (M21 Cluster 4)
+
+> Introduced by M21 — Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions), the final and largest cluster. Depends on Clusters 1–3. See `docs/02-DOMAIN_MODEL.md` § `ClassScheduleTemplate`/`ClassSession`/`ClassSessionBooking`/`RecurringEnrollment`/`ClassAccessContract` and `docs/13-DATABASE_SCHEMA.md`. This cluster also completes UC-056's SESSION branch (`Service.classResourceSlots` becomes actionable) and UC-058's forward-referenced class-template availability check, and delivers UC-075's Presets D/E/F.
+
+### **UC-078: Staff/Manager Configures a Session Service's Guest Access Policy**
+
+- **Actor:** STAFF | MANAGER
+- **Endpoint:** `PATCH /services/:id/guest-access-policy`
+- **Preconditions:** Service exists, `bookingModel = SESSION`.
+- **Trigger:** Staff configures whether and how guests (non-contract customers) can book this SESSION service.
+- **Main Flow:**
+  1. Staff toggles `guestAccessEnabled` (default off — authenticated access via `ClassAccessContract` is the SESSION default).
+  2. Staff picks `guestTrialPolicy`: `NONE` or `FIRST_FREE_PER_EMAIL`.
+  3. System saves both fields on `Service`. Per-session non-member capacity (`trialSlots`) is configured per class-schedule-template instead (UC-079/UC-083).
+- **Alternative Flows:**
+  - **A1: Staff disables `guestAccessEnabled` with `PENDING_APPROVAL`/`PENDING_EMAIL_VERIFICATION` guest reservations already in flight** → Existing in-flight reservations are honored to their natural conclusion; only new guest requests are blocked going forward.
+- **Postconditions:** UC-097's guest-verification flow and UC-098's approval flow have a real, staff-set configuration to read.
+- **Events Triggered:** None.
+
+---
+
+### **UC-079: Staff/Manager Creates a Recurring Class Schedule Template**
+
+- **Actor:** STAFF | MANAGER
+- **Endpoint:** `POST /class-schedule-templates`
+- **Preconditions:** Service exists with `bookingModel = SESSION`.
+- **Trigger:** Staff sets up the class's recurring pattern.
+- **Main Flow:**
+  1. For each slot in the service's already-declared eligible pool (UC-056 step 3), staff picks exactly one resource — the picker only ever shows that pool's members.
+  2. Staff sets a recurrence rule (days of week, start time — duration comes from `Service.durationMinutes`).
+  3. Staff sets `capacity` and, when the service has `guestAccessEnabled`, `trialSlots` (default 0).
+  4. System creates the `ClassScheduleTemplate`, `isActive = true`.
+  5. System (async) begins generating `ClassSession` rows on the rolling horizon (UC-081).
+- **Alternative Flows:**
+  - **A1: Chosen resources already committed to an overlapping template** → `409 Conflict`.
+  - **A2: A chosen resource already has an `APPROVED` appointment `Booking` or active `RecurringBookingSchedule` matching the new recurrence** → `409 Conflict`, listing the conflicting commitment(s); staff must resolve before the template can be created.
+  - **A3: Requested `capacity` exceeds the lowest `maxCapacity` ceiling among the template's `ROOM`/capacity-bearing `EQUIPMENT` resources** → `422 Unprocessable`.
+  - **A4: A chosen resource already has `MAX_ACTIVE_TEMPLATES_PER_RESOURCE` (50) active templates** → `409 Conflict`, naming the resource.
+- **Postconditions:** Template active; sessions begin appearing on the booking calendar.
+- **Events Triggered:** None.
+
+---
+
+### **UC-080: Staff/Manager Edits or Deactivates a Template**
+
+- **Actor:** STAFF | MANAGER
+- **Endpoint:** `PATCH /class-schedule-templates/:id`, `DELETE /class-schedule-templates/:id`
+- **Preconditions:** Template exists.
+- **Trigger:** Staff changes the recurrence, resources, default capacity, or `trialSlots`, or turns the template off.
+- **Main Flow:**
+  1. Staff edits the template.
+  2. System applies the change only to future, not-yet-generated sessions — already-materialized sessions are untouched.
+  3. Deactivating stops future generation; existing future sessions remain bookable unless separately cancelled (UC-084).
+- **Alternative Flows:**
+  - **A1: Staff wants existing future sessions to also change** → Out of scope; edit each `ClassSession` individually (UC-083) or cancel and recreate.
+  - **A2: New default capacity is below the `reservedCount` of one of the template's own already-materialized, not-yet-started sessions** → `409 Conflict`; directs staff to resolve those sessions individually via UC-083 first.
+- **Postconditions:** Template reflects new config; historical/already-generated sessions unaffected.
+- **Events Triggered:** None.
+
+---
+
+### **UC-081: System Generates Upcoming Class Sessions**
+
+- **Actor:** System (scheduled job — same shape as the existing loyalty-expiry cron)
+- **Preconditions:** At least one active `ClassScheduleTemplate` exists.
+- **Trigger:** An idempotent rolling-horizon generation job runs every 15 minutes. Platform default horizon 90 days; a service may configure a shorter one.
+- **Main Flow:**
+  1. For each active template, system computes the next occurrence(s) within the horizon not yet materialized.
+  2. System creates a `ClassSession` per occurrence, snapshotting `resourceIds`/`capacity`/`trialSlots` from the template.
+  3. Idempotency: a `(templateId, startTime)` uniqueness check prevents double-generation on retry.
+- **Alternative Flows:**
+  - **A1: The worker fails or misses a run** → The next run recomputes the complete target horizon, skips already-materialized keys, retries safely, records an operational failure/metric. No duplicate session.
+  - **A2: A resource is closed or outside its hours for that occurrence** → Session is not generated.
+  - **A3: A resource has an overlapping approved appointment** → Rejected by the shared `resource_occupancy` constraint; staff resolves the existing commitment.
+- **Postconditions:** `ClassSession` rows exist far enough ahead for customers to book into.
+- **Events Triggered:** None.
+
+---
+
+### **UC-082: Staff/Manager Views a List of Upcoming Class Sessions**
+
+- **Actor:** STAFF | MANAGER
+- **Endpoint:** `GET /class-sessions?scope=mine|all&from=&to=`
+- **Preconditions:** At least one active template has generated future sessions.
+- **Trigger:** Staff opens "Turmas."
+- **Main Flow:**
+  1. System lists upcoming sessions grouped by day (today first), each showing service name, time, resources, and `capacity - reservedCount` remaining seats.
+  2. Defaults to "my turmas" for STAFF (sessions where one of their own `Resource`-wrapped rows is in `resourceIds`) vs. "all turmas" for MANAGER — same spirit as Agenda's queue scope.
+  3. Selecting a session opens its roster and applicable actions (UC-083, UC-084, UC-098, UC-101).
+  4. A secondary link leads to template CRUD (UC-079/080), a config action, not a daily one.
+- **Alternative Flows:**
+  - **A1: No upcoming sessions** → "Nenhuma turma nos próximos dias."
+- **Postconditions:** None (read-only).
+- **Events Triggered:** None.
+
+---
+
+### **UC-083: Staff/Manager Overrides a Single Session's Capacity or Resources**
+
+- **Actor:** STAFF | MANAGER
+- **Endpoint:** `PATCH /class-sessions/:id`
+- **Preconditions:** `ClassSession` exists, `status = SCHEDULED`.
+- **Trigger:** Staff needs a one-off change (e.g. instructor injury caps today's class lower, or swaps the room).
+- **Main Flow:**
+  1. Staff edits the session's `capacity`, `trialSlots`, and/or `resourceIds`.
+  2. System validates the new resource(s) are free for the window (if changed).
+  3. System saves — this instance only; the template is untouched.
+- **Alternative Flows:**
+  - **A1: New capacity < current `reservedCount`** → `409 Conflict` — confirmed/pending guests are never silently demoted or cancelled.
+  - **A2: New capacity exceeds the lowest `maxCapacity` ceiling among the session's resources** → `422 Unprocessable`.
+- **Postconditions:** This session reflects the override; future template-generated sessions unaffected.
+- **Events Triggered:** None.
+
+---
+
+### **UC-084: Staff/Manager Cancels a Class Session With Existing Bookings**
+
+- **Actor:** STAFF | MANAGER
+- **Endpoint:** `POST /class-sessions/:id/cancel`
+- **Preconditions:** `ClassSession` exists with >= 1 `ClassSessionBooking` in `CONFIRMED` or `WAITLISTED` status.
+- **Trigger:** Staff cancels a session (e.g. instructor unavailable, no substitute).
+- **Main Flow:**
+  1. Staff confirms cancellation.
+  2. System sets `ClassSession.status = CANCELLED`.
+  3. System transitions every active booking on it to `CANCELLED`.
+  4. System publishes `ClassSessionCancelled`.
+- **Alternative Flows:**
+  - **A1: Financial treatment** — no refund/credit workflow; Ikaro does not process payments.
+- **Postconditions:** Session and its bookings cancelled; customers notified.
+- **Events Triggered:** `ClassSessionCancelled`.
+
+---
+
+### **UC-085: Customer Browses Upcoming Sessions With Remaining Capacity**
+
+- **Actor:** Customer or Guest
+- **Endpoint:** `GET /class-sessions?serviceId=&from=`
+- **Preconditions:** Service has `bookingModel = SESSION` with an active template generating sessions.
+- **Trigger:** Customer selects a class-type service.
+- **Main Flow:**
+  1. System lists upcoming sessions, each showing `capacity - reservedCount` remaining spots.
+  2. Sessions at 0 remaining show "Full — join waitlist" instead of a book button.
+- **Alternative Flows:**
+  - **A1: No upcoming sessions in range** → "No upcoming classes."
+- **Postconditions:** None (read-only).
+- **Events Triggered:** None.
+
+---
+
+### **UC-086: Contract Customer Books Into a Session (Single Unit)**
+
+- **Actor:** Customer
+- **Endpoint:** `POST /class-session-bookings`
+- **Preconditions:** `ClassSession` exists, `reservedCount < capacity`, customer has an active `ClassAccessContract` covering the session's service/date.
+- **Trigger:** Customer clicks "Book" on a session with remaining capacity.
+- **Main Flow:**
+  1. Customer confirms contact details.
+  2. System atomically checks `reservedCount < capacity` and creates a one-seat `ClassSessionBooking(status=CONFIRMED)`.
+  3. Confirmation shown/sent.
+- **Alternative Flows:**
+  - **A1: Session fills between page load and submit (race)** → Falls through to UC-090 (waitlist) instead of failing outright.
+  - **A2: Customer has no active contract covering this session** → `409 Conflict`, directed to UC-087 (pay-per-class) if the service allows it, or told to arrange a contract otherwise.
+- **Postconditions:** `ClassSessionBooking` exists, `CONFIRMED`.
+- **Events Triggered:** `ClassSessionBookingConfirmed`.
+
+---
+
+### **UC-087: Authenticated Customer Without a Contract Books a Session Pay-Per-Class**
+
+- **Actor:** Customer (authenticated, no active contract for this service)
+- **Endpoint:** `POST /class-session-bookings`
+- **Preconditions:** Service has `bookingModel = SESSION` and `guestAccessEnabled = true`.
+- **Trigger:** Customer selects a session on a service they have no contract for, and the service allows non-member bookings.
+- **Main Flow:**
+  1. Customer confirms — no email verification (already authenticated).
+  2. System applies the same `trialSlots`/`reservedNonMemberCount` threshold check UC-097 uses. Below threshold → `CONFIRMED`; at/above → `PENDING_APPROVAL` (UC-098).
+  3. `ClassSessionBooking` created with `type = CUSTOMER`, `contractId = null`, `paymentSource = IN_PERSON`.
+  4. No payment processed by Ikaro; staff may record an externally reported outcome at close-out (UC-107).
+- **Alternative Flows:**
+  - **A1: `guestAccessEnabled = false`** → Not offered; customer told to arrange a contract.
+  - **A2: Session fills / trial-slots threshold reached** → Same branches as UC-086 A1 / UC-097 step 3.
+- **Postconditions:** `ClassSessionBooking` exists, owned by the real `customerId`, no contract required.
+- **Events Triggered:** `ClassSessionBookingConfirmed` or none yet (`PENDING_APPROVAL`).
+
+---
+
+### **UC-088: Verified Guest Books Multiple Named Units in One Action**
+
+- **Actor:** Guest
+- **Endpoint:** `POST /class-session-bookings` (guest path, after UC-097's email verification)
+- **Preconditions:** Guest path enabled; guest has verified email; `capacity - reservedCount >= requested quantity`.
+- **Trigger:** Guest requests N spots in one checkout.
+- **Main Flow:**
+  1. Guest sets quantity (bounded by remaining capacity) and names every attendee.
+  2. After verification, system atomically checks remaining >= quantity, creates one named-attendee guest reservation, increments `reservedCount` by N.
+  3. A group reservation is always `paymentSource = IN_PERSON`; `FIRST_FREE_PER_EMAIL` is a solo-guest benefit only.
+- **Alternative Flows:**
+  - **A1: Requested quantity exceeds remaining capacity** → UI caps the selectable quantity.
+  - **A2: Guest selects one attendee and has an unused first-free entitlement** → Resulting solo reservation uses `GUEST_TRIAL`.
+- **Postconditions:** One `ClassSessionBooking` row consuming N units.
+- **Events Triggered:** `ClassSessionBookingConfirmed` when confirmed; none until a `PENDING_APPROVAL` group is decided.
+
+---
+
+### **UC-089: Customer Cancels a Single (Non-Recurring) Class Session Booking**
+
+- **Actor:** Customer (guests ask staff to cancel)
+- **Endpoint:** `POST /class-session-bookings/:id/cancel`
+- **Preconditions:** `ClassSessionBooking` exists, `status = CONFIRMED`, `seriesId = null`. Time to `ClassSession.startTime` >= `tenants.settings.booking.classCancellationWindowHours`.
+- **Trigger:** Customer clicks "Cancelar" on an upcoming class booking (Minha Conta).
+- **Main Flow:**
+  1. System validates the cancellation window.
+  2. Customer confirms.
+  3. System transitions `CONFIRMED → CANCELLED`, frees `quantity` back to `ClassSession.reservedCount`.
+  4. System promotes the earliest-queued waitlisted booking, if any (UC-091).
+  5. System publishes `ClassSessionBookingCancelled`.
+- **Alternative Flows:**
+  - **A1: Inside the cancellation window** → `422 Unprocessable`.
+  - **A2: Booking is `WAITLISTED`, not `CONFIRMED`** → No time restriction; transitions straight to `CANCELLED`, no promotion triggered.
+  - **A3: Booking has `seriesId != null`** → Redirects to UC-094 (skip one occurrence) or UC-095 (cancel whole enrollment).
+  - **A4: Staff/manager cancels on the customer's behalf** → Same mechanism, from the session roster, same window check.
+- **Postconditions:** Booking `CANCELLED`; freed capacity offered to the waitlist if one exists.
+- **Events Triggered:** `ClassSessionBookingCancelled`.
+
+---
+
+### **UC-090: Authenticated Customer Joins a Waitlist When a Session Is Full**
+
+- **Actor:** Authenticated customer
+- **Endpoint:** `POST /class-sessions/:id/waitlist`
+- **Preconditions:** `ClassSession.reservedCount = capacity`; customer has selected a qualifying contract or the service-permitted pay-per-class path.
+- **Trigger:** Customer clicks "Join waitlist" on a full session.
+- **Main Flow:**
+  1. System shows one V1 choice: qualifying contract when one exists, or pay-per-class when permitted. One authenticated customer, one seat — guest groups never join a waitlist.
+  2. System creates `ClassSessionBooking(status=WAITLISTED, quantity=1)`, snapshots `waitlistAccessIntent`. Does not consume capacity.
+  3. Customer told their position (computed at read time from queue order, not stored).
+- **Alternative Flows:**
+  - **A1: Customer already has a capacity-holding/`WAITLISTED`/`PROMOTION_PENDING` booking on this session** → `409 Conflict`, no duplicate entries.
+  - **A2: No qualifying contract and pay-per-class disabled** → Unavailable; told to arrange a contract.
+  - **A3: Visitor is not authenticated** → Routed to login/account creation. No waitlist row created before authentication.
+- **Postconditions:** Waitlisted `ClassSessionBooking` exists.
+- **Events Triggered:** `ClassSessionBookingWaitlisted`.
+
+---
+
+### **UC-091: System Auto-Promotes the Next Waitlisted Customer**
+
+- **Actor:** System
+- **Preconditions:** Capacity is released on a future session with a non-empty waitlist.
+- **Trigger:** Any capacity-releasing change: cancellation/rejection, attendee removal, an expired offer, or a safe capacity increase.
+- **Main Flow:**
+  1. System calculates newly available capacity after the release.
+  2. System finds the earliest-queued `WAITLISTED` booking with `quantity <=` freed capacity.
+  3. Atomically reserves its seat and promotes it to `PROMOTION_PENDING`.
+  4. Sends an in-app and email offer with a tenant-configured deadline (default 24h, never later than session start).
+- **Alternative Flows:**
+  - **A1: Multiple seats released** → Continue offering entries in FIFO order while capacity remains.
+  - **A2: Customer declines or offer expires** → Release capacity, cancel the offer, repeat for the next fitting entry.
+- **Postconditions:** Waitlisted customer holds a time-bounded offer; acceptance becomes `CONFIRMED`.
+- **Events Triggered:** `WaitlistPromoted` (offer created), then `ClassSessionBookingConfirmed` when accepted.
+
+---
+
+### **UC-092: System Auto-Cancels Unpromoted Waitlist Entries When a Session Ends**
+
+- **Actor:** System
+- **Preconditions:** `ClassSession.endTime` has passed; >= 1 `ClassSessionBooking` on it is still `WAITLISTED`.
+- **Trigger:** Same time-based check as UC-081's generation job (or piggybacked onto it).
+- **Main Flow:** System finds every `WAITLISTED` booking on an ended session and transitions each to `CANCELLED`.
+- **Alternative Flows:**
+  - **A1: No `WAITLISTED` entries on the ended session** → No-op.
+- **Postconditions:** No `WAITLISTED` row persists past the session it was waiting on.
+- **Events Triggered:** None (routine cleanup).
+
+---
+
+### **UC-093: Customer Enrolls in a Recurring Weekly Session**
+
+- **Actor:** Customer
+- **Endpoint:** `POST /recurring-enrollments`
+- **Preconditions:** Customer has an active `ClassAccessContract` covering the template's service; template exists and is active. Enrollment cannot extend beyond the contract's end date.
+- **Trigger:** Customer opts into "book this every week" instead of a single session.
+- **Main Flow:**
+  1. Customer confirms enrollment start date.
+  2. System creates `RecurringEnrollment(status=ACTIVE)` ending on or before the contract end date.
+  3. For each upcoming matching session within the current horizon, system creates a `ClassSessionBooking(seriesId = enrollmentId)`, respecting capacity/waitlist per occurrence.
+  4. As new sessions materialize, the enrollment attaches a fresh booking to each.
+- **Alternative Flows:**
+  - **A1: A given occurrence is full** → That occurrence's booking is `WAITLISTED`; the enrollment stays `ACTIVE`.
+- **Postconditions:** Standing enrollment exists only for the qualifying-contract period; contract expiry/cancellation ends it.
+- **Events Triggered:** None on the enrollment itself; each generated booking triggers UC-086/090's events.
+
+---
+
+### **UC-094: Customer Cancels a Single Occurrence of a Recurring Enrollment**
+
+- **Actor:** Customer
+- **Endpoint:** `PATCH /recurring-enrollments/:id/occurrences/:sessionId` (action: SKIP)
+- **Preconditions:** `RecurringEnrollment` is `ACTIVE`; a booking with matching `seriesId` exists for the target occurrence; time to `ClassSession.startTime` >= `tenants.settings.booking.classSkipWindowHours`.
+- **Trigger:** Customer cancels just next week's class, keeping the standing enrollment.
+- **Main Flow:**
+  1. Customer picks the specific occurrence to skip.
+  2. System cancels only that booking; `RecurringEnrollment` stays `ACTIVE`.
+  3. Freed capacity triggers UC-091 if a waitlist exists.
+  4. Customer may instead reschedule to a same-modality replacement session (UC-102, "reposição") when the tenant allows it.
+- **Alternative Flows:**
+  - **A1: Target occurrence's booking is already `CANCELLED` or doesn't exist yet** → Nothing to skip.
+  - **A2: Target occurrence's `startTime` has already passed** → `422 Unprocessable`.
+  - **A3: Inside the skip window** → `422 Unprocessable`.
+- **Postconditions:** One occurrence skipped; series continues.
+- **Events Triggered:** Same as UC-089's cancellation.
+
+---
+
+### **UC-095: Customer Cancels an Entire Recurring Enrollment**
+
+- **Actor:** Customer
+- **Endpoint:** `POST /recurring-enrollments/:id/cancel`
+- **Preconditions:** `RecurringEnrollment` is `ACTIVE`.
+- **Trigger:** Customer stops the standing enrollment entirely.
+- **Main Flow:**
+  1. System sets `RecurringEnrollment.status = CANCELLED`.
+  2. Future bookings stop generating; already-existing future ones for materialized sessions are cancelled, freeing capacity, triggering UC-091 per session.
+- **Alternative Flows:**
+  - **A1: Enrollment already `CANCELLED`** → No-op, idempotent.
+- **Postconditions:** Enrollment and its future bookings cancelled.
+- **Events Triggered:** Same per-session cancellation events as UC-094, fired once per affected future session.
+
+---
+
+### **UC-096: Staff/Manager Cancels Template Occurrences for a Date Range or From a Date Forward**
+
+- **Actor:** STAFF | MANAGER
+- **Endpoint:** `POST /class-schedule-templates/:id/cancel-range`
+- **Preconditions:** Template exists; selected dates are future dates.
+- **Trigger:** Staff needs to cancel one holiday range or stop a timetable from a future date.
+- **Main Flow:**
+  1. Staff chooses a bounded date range or "from this date forward."
+  2. For a range, system creates a persistent `ClassScheduleTemplateException` so generation will not recreate those occurrences.
+  3. For "from" scope, system ends/deactivates the template at the preceding date.
+  4. System cancels every already-materialized affected future session, every active reservation on it, and its locked resource occupancy; customers notified.
+- **Alternative Flows:**
+  - **A1: Selected range/date is entirely in the past** → `422 Unprocessable`.
+  - **A2: An existing exception already overlaps part of the requested range** → System extends/merges the existing exception.
+- **Postconditions:** Earlier/history sessions intact; no affected future occurrence can be regenerated. This bulk cancellation is itself the explicit, audited resolution — it does **not** additionally raise a UC-073 worklist entry (see that UC's precondition).
+- **Events Triggered:** `ClassSessionCancelled` per cancelled session, through the transactional outbox.
+
+---
+
+### **UC-097: Guest Verifies Email Before Requesting a Class Seat**
+
+- **Actor:** Guest
+- **Endpoint:** `POST /class-session-bookings/guest-verification`, `POST /class-session-bookings/guest-verification/:token/confirm`
+- **Preconditions:** The SESSION service enables guest access.
+- **Trigger:** Guest enters contact details and one or more named attendees for a trial/drop-in.
+- **Main Flow:**
+  1. System stores a non-capacity-holding `PENDING_EMAIL_VERIFICATION` draft and emails a one-time verification link.
+  2. Guest verifies before token expiry.
+  3. System re-checks capacity and the non-member threshold atomically. `reservedNonMemberCount + quantity <= trialSlots` → `CONFIRMED`; overall capacity fits but threshold exceeded → `PENDING_APPROVAL`; otherwise no booking created, visitor offered login/account creation to join the waitlist.
+  4. `FIRST_FREE_PER_EMAIL` is consumed exactly when a solo reservation reaches `CONFIRMED`.
+- **Alternative Flows:**
+  - **A1: Verification token expires before confirmation** → Draft discarded; guest restarts. No capacity was ever held.
+  - **A2: An authenticated customer without a qualifying contract attempts this path** → Blocked, unconditionally — this flow is anonymous-only by construction. Directed to UC-087 instead.
+  - **A3: Capacity fills while the guest is completing verification** → Cannot become `WAITLISTED`; offered login/account creation, then UC-090.
+- **Postconditions:** Only verified guest requests can reserve capacity.
+- **Events Triggered:** None until confirmed/pending (see UC-086/098's events).
+
+---
+
+### **UC-098: Staff Approves or Rejects a Verified Guest Class Reservation**
+
+- **Actor:** STAFF | MANAGER
+- **Endpoint:** `POST /class-session-bookings/:id/approve`, `POST /class-session-bookings/:id/reject`
+- **Preconditions:** Reservation is `PENDING_APPROVAL` because its non-member group exceeded that session's `trialSlots` threshold while overall capacity still fit.
+- **Trigger:** A verified guest reservation reaches `PENDING_APPROVAL` and appears in the staff session roster's approval queue.
+- **Main Flow:**
+  1. Staff reviews the reservation and named attendees.
+  2. Staff approves or rejects in one action.
+  3. On approval: `FIRST_FREE_PER_EMAIL` consumed atomically only when solo and available; becomes `CONFIRMED` without changing already-reserved capacity.
+  4. On rejection: becomes `CANCELLED`, releases capacity, triggers UC-091.
+- **Alternative Flows:**
+  - **A1: Already resolved by another staff member (race)** → Shown as already-resolved; no-op.
+  - **A2: Session already started/ended before decision** → UC-100 auto-expires it first; this action no longer available.
+- **Postconditions:** A group above the session threshold is never silently approved.
+- **Events Triggered:** `ClassSessionBookingConfirmed` or `ClassSessionBookingCancelled`.
+
+---
+
+### **UC-099: Manager Creates or Cancels a Customer Class-Access Contract**
+
+- **Actor:** MANAGER
+- **Endpoint:** `POST /class-access-contracts`, `POST /class-access-contracts/:id/cancel`
+- **Preconditions:** Customer exists; selected services do not overlap an active eligibility period already granted to that customer.
+- **Trigger:** Manager sets up a new customer's session-service access, or ends an existing contract early.
+- **Main Flow:**
+  1. Manager selects customer, inclusive start/end dates, and eligible SESSION services.
+  2. System creates the contract. Grants booking eligibility, reserves no capacity.
+  3. An authenticated customer may book exactly one seat in any eligible session within the contract window.
+  4. If cancelled early, system cancels every future booking funded by it, ends dependent recurring enrollments, releases capacity.
+- **Alternative Flows:**
+  - **A1: Contract reaches its end date** → Expires it and ends dependent enrollments; a later contract never silently resumes.
+  - **A2: One or more selected services already has an active, overlapping eligibility period** → `409 Conflict`, naming the conflicting service(s) and contract.
+- **Postconditions:** One contract may cover several services; a customer may hold overlapping contracts only where eligibility does not overlap.
+- **Events Triggered:** Candidate contract-created/cancelled events; per-booking cancellation events for affected future reservations.
+
+---
+
+### **UC-100: System Expires Unresolved Guest Requests at Session Start**
+
+- **Actor:** System
+- **Preconditions:** A session has started and contains `PENDING_APPROVAL` guest reservations.
+- **Trigger:** Same time-based check as UC-081's generation job and UC-092's waitlist cleanup.
+- **Main Flow:** System cancels each unresolved guest reservation and attendee rows. Does not promote a waitlist after the class begins.
+- **Alternative Flows:**
+  - **A1: No `PENDING_APPROVAL` guest reservations exist** → No-op.
+- **Postconditions:** No unapproved guest seat persists into attendance.
+- **Events Triggered:** `ClassSessionBookingCancelled` as applicable.
+
+---
+
+### **UC-101: Staff Closes a Session With Individual Attendance and Optional Manual Charge Record**
+
+- **Actor:** STAFF | MANAGER
+- **Endpoint:** `POST /class-sessions/:id/close`
+- **Preconditions:** Session has ended and is `AWAITING_ATTENDANCE`.
+- **Trigger:** Staff opens the session's roster after `endTime` has passed.
+- **Main Flow:**
+  1. Roster defaults every attendee to `PRESENT`; staff flags individual `NO_SHOW` exceptions.
+  2. For a payable reservation, staff records an append-only manual charge record (amount, method, outcome). Contract and approved-free-trial reservations don't require one.
+  3. System closes attendee rows and parent reservations atomically, marks the session `CLOSED`.
+  4. Eligible attendance publishes `ClassSessionBookingCompleted`; a no-show attendee publishes `ClassSessionBookingNoShow` instead, earning no points.
+- **Alternative Flows:**
+  - **A1: Session already `CLOSED`** → `409 Conflict`.
+  - **A2: Attempted before `endTime` has passed** → `422 Unprocessable`.
+- **Postconditions:** Attendance never inferred by a timer. A session at end time stays visibly `AWAITING_ATTENDANCE` until this action occurs.
+- **Events Triggered:** `ClassSessionBookingCompleted` per eligible attendee; `ClassSessionBookingNoShow` per no-show.
+
+---
+
+### **UC-102: Customer Reschedules a Skipped Fixed-Class Occurrence to a Replacement Slot**
+
+- **Actor:** Customer
+- **Endpoint:** `POST /recurring-enrollments/:id/occurrences/:sessionId/reschedule`
+- **Preconditions:** `RecurringEnrollment` is `ACTIVE`; tenant has `classAllowsReschedule = true`; the skipped occurrence is within `classRescheduleWindowDays`; if `classMaxReschedulesPerCycle` is set, not already used for the current cycle.
+- **Trigger:** Immediately after skipping an occurrence (UC-094), customer chooses "Reagendar" instead of a plain skip.
+- **Main Flow:**
+  1. System lists available sessions of the same service within the reschedule window, grouped by day, with remaining capacity.
+  2. Customer picks a replacement session.
+  3. System atomically checks capacity on the replacement and creates a new one-off booking (`seriesId = null`, `rescheduledFromId` = the skipped occurrence's booking).
+  4. The original occurrence's booking is cancelled in the same transaction.
+- **Alternative Flows:**
+  - **A1: Replacement fills between page load and submit (race)** → Falls through to waitlist on the replacement; original is still cancelled.
+  - **A2: `classMaxReschedulesPerCycle` already reached** → Reschedule option not offered; customer can still plain-skip (UC-094).
+  - **A3: Customer lets the reschedule window lapse** → No further system-initiated action; original stays skipped, without a make-up.
+- **Postconditions:** Original occurrence cancelled; one new one-off booking exists, linked via `rescheduledFromId`.
+- **Events Triggered:** `ClassSessionBookingCancelled` (original) and `ClassSessionBookingConfirmed`/`Waitlisted` (replacement) — no new event type.
+
+---
+
+### **UC-103: Staff/Manager Views Enrollments for a Class Type**
+
+- **Actor:** STAFF | MANAGER
+- **Endpoint:** `GET /class-schedule-templates/:serviceId/enrollments?status=&type=`
+- **Preconditions:** Service has `bookingModel = SESSION`.
+- **Trigger:** Staff opens "Matrículas" for a class type.
+- **Main Flow:**
+  1. System lists `RecurringEnrollment`s and one-off `ClassSessionBooking`s for the class type, grouped into tabs: active series, one-off/drop-in, waitlist, history.
+  2. Staff can cancel an enrollment/booking inline, or manually promote a waitlisted entry (UC-091's mechanism, staff-triggered).
+- **Alternative Flows:**
+  - **A1: No enrollments exist yet** → Empty state per tab.
+- **Postconditions:** None for the list itself; inline actions trigger their underlying UC's postconditions/events.
+- **Events Triggered:** None directly.
+
+---
+
+### **UC-104: Staff Manually Creates an Enrollment on a Customer's Behalf**
+
+- **Actor:** STAFF | MANAGER
+- **Endpoint:** `POST /class-session-bookings` / `POST /recurring-enrollments` with `createdByStaff: true`
+- **Preconditions:** Customer exists and is eligible through a qualifying contract or the service's pay-per-class policy. Staff cannot bypass the same eligibility/capacity checks self-service applies.
+- **Trigger:** Staff creates a booking or enrollment on behalf of a customer (e.g. a phone request).
+- **Main Flow:**
+  1. Staff selects the customer, the class type, and either a specific session (one-off) or a recurring pattern (standing enrollment, contract-only).
+  2. System creates the booking/enrollment exactly as the customer-initiated path would, tagged `createdByStaff = true`.
+- **Alternative Flows:** Same as UC-086/093 (capacity fills → waitlist, etc.), plus:
+  - **A1: Staff selects a customer with no qualifying contract, and the service doesn't permit pay-per-class** → `409 Conflict`; staff directed to arrange a contract or enable pay-per-class first.
+  - **A2: The customer's own self-service action creates a competing booking/enrollment concurrently (race)** → Same atomic re-check as UC-086 A1 resolves it.
+- **Postconditions:** Same as UC-086/093.
+- **Events Triggered:** Same as UC-086/093.
+
+---
+
+### **UC-105: Customer Edits a Group Reservation's Attendees**
+
+- **Actor:** Authenticated booking customer
+- **Endpoint:** `PATCH /class-session-bookings/:id/attendees`
+- **Preconditions:** The customer's own SESSION booking has named attendees, is before its service cutoff, and has >= 1 attendee remaining after the requested removal.
+- **Trigger:** Customer opens their eligible group class reservation and selects "Editar participantes."
+- **Main Flow:**
+  1. Customer selects one or more named attendees to remove.
+  2. System records the removal actor, time, and reason.
+  3. System atomically reduces `quantity` and the quoted total, releasing freed seats.
+  4. System starts normal waitlist-offer promotion (UC-091) for the released seats.
+- **Alternative Flows:**
+  - **A1: Adding/replacing attendees, changing an anonymous guest group, or partially changing APPOINTMENT attendees** → Deferred; not supported.
+  - **A2: Would leave zero attendees** → `422 Unprocessable`.
+  - **A3: Past the service cutoff** → `422 Unprocessable`.
+- **Postconditions:** `quantity`/quote/attendee rows updated atomically; a `booking_quote_revisions` row records the price change.
+- **Events Triggered:** None new beyond the resulting waitlist-promotion events.
+
+---
+
+### **UC-106: System Expires a Waitlist Offer**
+
+- **Actor:** System
+- **Preconditions:** A `ClassSessionBooking` is `PROMOTION_PENDING` past its `offerExpiresAt`, or the session has started with an unresolved offer.
+- **Trigger:** An idempotent worker checks offer deadlines (same shape as UC-081's generation job) and always at session start.
+- **Main Flow:** System releases the held capacity, transitions the booking to `CANCELLED` with `cancellationReason = WAITLIST_OFFER_EXPIRED`(or `_AT_START`), notifies the customer, and promotes the next fitting waitlist entry where time remains (UC-091).
+- **Alternative Flows:**
+  - **A1: No `PROMOTION_PENDING` offers past deadline** → No-op.
+- **Postconditions:** No expired offer holds capacity indefinitely.
+- **Events Triggered:** `ClassSessionBookingCancelled`, then `WaitlistPromoted` if a next entry fits.
+
+---
+
+### **UC-107: Staff Records a Manually Reported Charge at Session Close-Out**
+
+> Elaborates the manual operational record inside UC-101 step 2 — not payment processing.
+
+- **Actor:** STAFF | MANAGER
+- **Endpoint:** `POST /class-session-bookings/:id/payment`, `POST /class-session-bookings/:id/payment/:paymentId/reverse`
+- **Preconditions:** A payable guest or pay-per-class customer attended the session; any charge happened outside Ikaro.
+- **Trigger:** Staff closes the class roster and sees a payable attendee reservation.
+- **Main Flow:**
+  1. Staff records the externally reported amount, method, outcome (`PAID`/`UNPAID`/`WAIVED`), collector, and time.
+  2. If a correction is needed, staff never overwrites the original — system creates an audited reversal/correction entry instead.
+- **Alternative Flows:**
+  - **A1: A contract or solo free-trial reservation** → No payment-due action.
+  - **A2: A duplicate collection attempt** → Blocked unless it's an explicit reversal/correction.
+- **Postconditions:** Attendance and the minimal operational charge record are independently auditable. Payment processing, invoicing, and reconciliation remain out of scope.
+- **Events Triggered:** `InPersonPaymentRecorded` / `InPersonPaymentReversed`.
 
 ---
 
@@ -1408,3 +2612,69 @@ Promoted from `docs/discovery/lead-form-module/lead-form-module.md` (M20). A new
 | UC-041 | Staff/manager views leads submissions | STAFF \| MANAGER | Read-only |
 | UC-042 | Manager configures the lead form retention window | MANAGER staff | `settings.leadForm.retentionMonths` updated |
 | UC-043 | System purges expired lead form submissions | System (cron) | Daily — deletes `lead_form_submissions` rows past retention |
+| UC-010e | Manager creates a resource-scoped schedule closure | MANAGER | `ScheduleClosure` created with `resourceId` set |
+| UC-010f | Manager creates a resource-scoped schedule opening | MANAGER | `ScheduleOpening` created with `resourceId` set |
+| UC-044 | Manager views the resource list | MANAGER | Read operation |
+| UC-045 | Manager creates a resource | MANAGER | `Resource` created |
+| UC-046 | Manager edits a resource's working hours | MANAGER | `Resource.workingHours` updated |
+| UC-047 | Manager deactivates a resource | MANAGER | `Resource.isActive = false`; resolution worklist for existing commitments |
+| UC-048 | System cascades a staff deactivation to the wrapping STAFF resource | System | Consumes `StaffDeactivated`; `Resource.isActive = false` |
+| UC-049 | Manager reactivates a resource | MANAGER | `Resource.isActive = true`; `ResourceReactivated` event |
+| UC-050 | Staff/manager configures a service's resource requirement | STAFF \| MANAGER | `Service.resourceRequirements[0]` set |
+| UC-051 | Staff/manager configures a bundled resource requirement | STAFF \| MANAGER | `Service.resourceRequirements` (≥2) set |
+| UC-052 | Staff/manager configures service legs | STAFF \| MANAGER | `Service.legs` set; `resourceRequirements`/`bufferAfterMinutes` cleared |
+| UC-053 | Staff/manager sets a service's buffer override | STAFF \| MANAGER | `Service.bufferAfterMinutes` updated |
+| UC-054 | Staff/manager configures a service's booking-intake schema | STAFF \| MANAGER | New `service_booking_intake_schema` version created |
+| UC-055 | Staff/manager configures an appointment service's booking policy | STAFF \| MANAGER | `Service` booking-policy fields updated |
+| UC-056 | Staff/manager chooses a service's booking model at creation | STAFF \| MANAGER | `Service.bookingModel` set (immutable once bookings exist) |
+| UC-057 | Manager views a combined multi-resource day grid | MANAGER | Read operation |
+| UC-058 | System computes availability scoped to a resource or bundle | System | Read path — extends `AvailabilityService` |
+| UC-059 | System applies resource turnover and leg transition gaps | System | Read path |
+| UC-060 | System rejects overlapping bookings across a shared resource | System | DB-enforced via `booking.resource_occupancy`'s shared exclusion constraint |
+| UC-061 | Customer books with a specific chosen staff member | Customer \| Guest | Booking with a resolved STAFF resource assignment |
+| UC-062 | Customer books auto-assigned from a fungible resource pool | Customer \| Guest | Booking locks one pool resource, invisibly |
+| UC-063 | Customer books a service with system-auto-assigned named staff | Customer \| Guest | Booking with a system-resolved STAFF assignment |
+| UC-064 | Customer books a bundled-resource appointment | Customer \| Guest | Booking locks every bundle resource |
+| UC-065 | Customer books a multi-leg appointment | Customer \| Guest | One `BookingLine` with a full leg-assignment snapshot |
+| UC-066 | Customer views a specific staff member's own calendar | Customer \| Guest | Read operation |
+| UC-067 | Customer books a variable-duration resource reservation | Customer \| Guest | Booking with customer-selected duration + per-increment quote |
+| UC-068 | Customer submits versioned booking intake and attendees | Customer \| Guest | `bookings.intakeSchemaVersion`/`intakeAnswers` snapshotted |
+| UC-069 | Customer reschedules an appointment or reservation | Customer | `BookingRescheduled`; `booking_quote_revisions` row on a price change |
+| UC-070 | Customer (or staff) manages a recurring private reservation schedule | Customer | `RecurringBookingSchedule` created `ACTIVE` or `PENDING_APPROVAL` |
+| UC-071 | Staff approves or rejects a recurring schedule request | STAFF \| MANAGER | `RecurringBookingSchedule.status` → `ACTIVE`\|`CANCELLED` |
+| UC-072 | Authenticated customer creates an availability alert | Customer | `AvailabilityAlert` created |
+| UC-073 | System identifies and queues a future commitment exception | System | `FutureCommitmentException` created |
+| UC-074 | Staff or manager marks an appointment as no-show | STAFF \| MANAGER | `Booking.status → NO_SHOW`; `BookingNoShow` event |
+| UC-075 | System bootstraps a new tenant from a preset | MANAGER | `TenantSchedulingBootstrapped`; initial Resource/Service graph |
+| UC-076 | Customer manages an availability alert | Customer | `AvailabilityAlert` updated/cancelled |
+| UC-077 | Manager resolves a future commitment exception | MANAGER | `FutureCommitmentException.status → RESOLVED`\|`DISMISSED` |
+| UC-078 | Staff/manager configures a session service's guest access policy | STAFF \| MANAGER | `Service.guestAccessEnabled`/`guestTrialPolicy` updated |
+| UC-079 | Staff/manager creates a recurring class schedule template | STAFF \| MANAGER | `ClassScheduleTemplate` created |
+| UC-080 | Staff/manager edits or deactivates a template | STAFF \| MANAGER | Template updated; future sessions only |
+| UC-081 | System generates upcoming class sessions | System | `ClassSession` rows materialized on rolling horizon |
+| UC-082 | Staff/manager views a list of upcoming class sessions | STAFF \| MANAGER | Read operation |
+| UC-083 | Staff/manager overrides a single session's capacity or resources | STAFF \| MANAGER | `ClassSession` instance override |
+| UC-084 | Staff/manager cancels a class session with existing bookings | STAFF \| MANAGER | `ClassSession.status → CANCELLED`; bookings cancelled |
+| UC-085 | Customer browses upcoming sessions with remaining capacity | Customer \| Guest | Read operation |
+| UC-086 | Contract customer books into a session | Customer | `ClassSessionBooking` created `CONFIRMED` |
+| UC-087 | Authenticated customer without a contract books pay-per-class | Customer | `ClassSessionBooking` created, no contract |
+| UC-088 | Verified guest books multiple named units in one action | Guest | One `ClassSessionBooking` consuming N units |
+| UC-089 | Customer cancels a single class session booking | Customer | `ClassSessionBooking.status → CANCELLED` |
+| UC-090 | Authenticated customer joins a waitlist when a session is full | Customer | `ClassSessionBooking(status=WAITLISTED)` |
+| UC-091 | System auto-promotes the next waitlisted customer | System | `ClassSessionBooking.status → PROMOTION_PENDING` |
+| UC-092 | System auto-cancels unpromoted waitlist entries when a session ends | System | Waitlisted bookings → `CANCELLED` |
+| UC-093 | Customer enrolls in a recurring weekly session | Customer | `RecurringEnrollment` created `ACTIVE` |
+| UC-094 | Customer cancels a single occurrence of a recurring enrollment | Customer | One occurrence's booking cancelled |
+| UC-095 | Customer cancels an entire recurring enrollment | Customer | `RecurringEnrollment.status → CANCELLED` |
+| UC-096 | Staff/manager cancels template occurrences for a date range | STAFF \| MANAGER | `ClassScheduleTemplateException` created; sessions cancelled |
+| UC-097 | Guest verifies email before requesting a class seat | Guest | `PENDING_EMAIL_VERIFICATION` → `CONFIRMED`\|`PENDING_APPROVAL` |
+| UC-098 | Staff approves or rejects a verified guest class reservation | STAFF \| MANAGER | `ClassSessionBooking.status → CONFIRMED`\|`CANCELLED` |
+| UC-099 | Manager creates or cancels a customer class-access contract | MANAGER | `ClassAccessContract` created/cancelled |
+| UC-100 | System expires unresolved guest requests at session start | System | `PENDING_APPROVAL` → `CANCELLED` |
+| UC-101 | Staff closes a session with individual attendance | STAFF \| MANAGER | `ClassSession.status → CLOSED`; attendee outcomes recorded |
+| UC-102 | Customer reschedules a skipped fixed-class occurrence | Customer | New one-off booking linked via `rescheduledFromId` |
+| UC-103 | Staff/manager views enrollments for a class type | STAFF \| MANAGER | Read operation |
+| UC-104 | Staff manually creates an enrollment on a customer's behalf | STAFF \| MANAGER | Same as UC-086/093, `createdByStaff = true` |
+| UC-105 | Customer edits a group reservation's attendees | Customer | Attendee removed; `quantity`/quote adjusted |
+| UC-106 | System expires a waitlist offer | System | `PROMOTION_PENDING` → `CANCELLED`; next entry promoted |
+| UC-107 | Staff records a manually reported charge at session close-out | STAFF \| MANAGER | `class_session_payments` row created |

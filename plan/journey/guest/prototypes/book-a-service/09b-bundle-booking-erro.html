@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reserva não confirmada — Massagem Relaxante</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    .staff-card { display: flex; align-items: center; gap: 0.875rem; padding: 0.875rem; cursor: pointer; }
+    .staff-avatar { width: 3rem; height: 3rem; border-radius: 9999px; flex-shrink: 0; background: var(--ba-primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; }
+    .staff-name { font-weight: 600; color: var(--ba-text); }
+    .staff-meta { font-size: 0.8125rem; opacity: 0.65; margin-top: 0.125rem; }
+  </style>
+</head>
+<body>
+
+  <!--
+    DISCOVERY PROTOTYPE — illustrative only, NOT a plan/journey/ prototype.
+    Error-state sibling of public-04-bundle-booking.html.
+    CAND-18 alt A2 — a bundle member becomes unavailable between page load and submit
+    (race). System re-validates the WHOLE bundle atomically at submit time and rejects
+    with "part of this booking is no longer available" — never a partial booking.
+    See ../../multivertical-booking_USECASES.md CAND-18, CAND-31.
+
+    Scenario: the customer picked Renata Souza + waited on this page while another
+    customer locked Sala de Terapia (Renata's room via the ROOM AUTO_ANY slot) for the
+    same window. At submit, the atomic bundle re-check fails on the room member.
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — CAND-18 alt. A2 — um membro do pacote ficou indisponível entre o carregamento e a confirmação
+  </div>
+
+  <div style="background:white;border-bottom:1px solid var(--ba-secondary);
+              padding:0.625rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+    <div style="display:flex;align-items:center;gap:0.625rem;">
+      <div style="width:1.875rem;height:1.875rem;border-radius:0.375rem;background:var(--ba-primary);
+                  color:white;display:flex;align-items:center;justify-content:center;
+                  font-weight:700;font-size:0.8125rem;">V</div>
+      <span style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">Vitta Studio</span>
+    </div>
+    <a href="../../../shared/login.html" style="display:flex;align-items:center;gap:0.375rem;
+       font-size:0.875rem;font-weight:500;color:var(--ba-primary);text-decoration:none;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+      </svg>
+      Entrar
+    </a>
+  </div>
+
+  <div class="step-container">
+    <p class="step-indicator">Massagem Relaxante — R$ 120,00 — 60 min</p>
+    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.375rem; color: var(--ba-text)">
+      Não foi possível confirmar
+    </h2>
+
+    <div class="card" style="border-color:#fca5a5;background:#fef2f2;padding:1.125rem;margin-bottom:1.25rem;">
+      <div style="display:flex;gap:0.625rem;align-items:flex-start;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:0.125rem;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div>
+          <p style="font-weight:700;color:#991b1b;">Parte desta reserva não está mais disponível</p>
+          <p style="font-size:0.8125rem;color:#991b1b;margin-top:0.375rem;">
+            Enquanto você revisava, <strong>Sala de Terapia</strong> foi reservada por outro cliente para 14:00–15:00.
+            Como esta reserva precisa de terapeuta <strong>e</strong> sala livres ao mesmo tempo, nada foi confirmado —
+            nenhuma reserva parcial foi criada.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <p style="font-size: 0.875rem; opacity: 0.7; margin-bottom: 1.25rem;">
+      Escolha novamente a terapeuta ou tente outro horário — a disponibilidade abaixo já reflete a mudança.
+    </p>
+
+    <ul style="display: flex; flex-direction: column; gap: 0.75rem; list-style: none; padding: 0; margin-bottom: 1.5rem;">
+      <li>
+        <label class="card selected staff-card">
+          <input type="radio" name="therapist" checked style="width:1.125rem;height:1.125rem;">
+          <div class="staff-avatar" style="background:#db2777;">RS</div>
+          <div style="flex:1;">
+            <p class="staff-name">Renata Souza</p>
+            <p class="staff-meta">Massagem terapêutica e relaxante</p>
+          </div>
+        </label>
+      </li>
+      <li>
+        <label class="card staff-card">
+          <input type="radio" name="therapist" style="width:1.125rem;height:1.125rem;">
+          <div class="staff-avatar" style="background:#c026d3;">MS</div>
+          <div style="flex:1;">
+            <p class="staff-name">Maria Santos</p>
+            <p class="staff-meta">Massagem relaxante e drenagem</p>
+          </div>
+        </label>
+      </li>
+    </ul>
+
+    <div class="nav-buttons">
+      <button class="btn-secondary" onclick="window.history.back()">Voltar</button>
+      <a class="btn-primary" href="public-14-appointment-availability.html?service=massage&amp;staff=renata">Ver outro horário</a>
+    </div>
+  </div>
+</body>
+</html>

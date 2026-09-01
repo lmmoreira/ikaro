@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Editar Serviço — Massagem Relaxante — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    .form-group { margin-bottom: 1.25rem; }
+    .form-label { display: block; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(17,24,39,0.45); margin-bottom: 0.375rem; }
+    .form-input { width: 100%; box-sizing: border-box; border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); padding: 0.6875rem 0.875rem; font-size: 0.9375rem; font-family: inherit; color: var(--ba-text); background: white; }
+    .form-hint { font-size: 0.8125rem; opacity: 0.5; color: var(--ba-text); margin-top: 0.375rem; }
+    .section-divider { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(17,24,39,0.35); margin: 1.75rem 0 0.75rem; }
+    .model-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .model-card { padding: 1rem; cursor: pointer; }
+    .model-card p.title { font-weight: 700; color: var(--ba-text); margin-bottom: 0.25rem; }
+    .model-card p.sub { font-size: 0.8125rem; opacity: 0.6; }
+    .radio-row { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); margin-bottom: 0.625rem; cursor: pointer; }
+    .radio-row.selected { border-color: #2563eb; border-width: 2px; } /* fixed platform blue, not --ba-primary */
+    .radio-row-title { font-weight: 600; font-size: 0.9375rem; color: var(--ba-text); }
+    .radio-row-sub { font-size: 0.8125rem; opacity: 0.55; margin-top: 0.125rem; }
+    .resource-check-row { border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); padding: 0.75rem; margin-bottom: 0.625rem; }
+    .resource-check-row.checked { border-color: #2563eb; border-width: 2px; } /* fixed platform blue, not --ba-primary */
+    .nested-selmode { margin: 0.625rem 0 0.125rem 1.875rem; padding-top: 0.625rem; border-top: 1px solid var(--ba-secondary); display: flex; flex-direction: column; gap: 0.5rem; }
+    .nested-selmode label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: var(--ba-text); cursor: pointer; }
+    .input-suffix-group { position: relative; }
+    .input-suffix { position: absolute; right: 0.875rem; top: 50%; transform: translateY(-50%); font-size: 0.8125rem; color: rgba(17,24,39,0.45); pointer-events: none; }
+    .input-with-suffix { padding-right: 3.5rem !important; }
+    .form-actions { display: flex; gap: 0.75rem; margin-top: 2rem; }
+    .form-actions .btn-primary { flex: 1; text-align: center; padding: 0.875rem; }
+    .form-actions .btn-secondary { flex: 0 0 auto; padding: 0.875rem 1.25rem; }
+    /* Canonical service-detail composition: form left, sticky decision pane right;
+       mobile retains the in-flow actions. Mirrors plan/journey/staff/servicos/03. */
+    .detail-layout { display: block; }
+    .detail-aside { display: none; }
+    @media (min-width: 1024px) {
+      .detail-layout { display: grid; grid-template-columns: minmax(0, 1fr) 22rem; gap: 1.5rem; align-items: start; }
+      .detail-aside { display: block; position: sticky; top: 1.5rem; }
+      .form-actions { display: none !important; }
+    }
+    .leg-card { border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); padding: 1rem; margin-bottom: 0.75rem; }
+    .leg-order-badge { display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: #2563eb; color: white; font-size: 0.75rem; font-weight: 700; }
+    /* Compact eligibility picker — replaces the full eligible+ineligible checklist with
+       chips for who's in the pool today + a single "add" select, same spirit as
+       manager-06's compact <select> pattern for the SESSION path. */
+    .eligible-count { font-size: 0.8125rem; font-weight: 600; color: var(--ba-text); margin-bottom: 0.5rem; }
+    .eligible-chip-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .eligible-chip { display: inline-flex; align-items: center; gap: 0.375rem; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 9999px; padding: 0.3125rem 0.5rem 0.3125rem 0.75rem; font-size: 0.8125rem; font-weight: 600; }
+    .chip-remove { background: none; border: none; color: #1d4ed8; opacity: 0.6; cursor: pointer; font-size: 0.9375rem; line-height: 1; padding: 0.125rem; }
+    .chip-remove:hover { opacity: 1; }
+    .eligible-add-select { margin-top: 0.625rem; }
+  </style>
+</head>
+<body>
+
+  <!--
+    DISCOVERY PROTOTYPE — illustrative only, NOT a plan/journey/ prototype.
+    See ../multivertical-booking.md (§5 Service.resourceRequirements/legs,
+    §7 buffer model) and ../multivertical-booking_USECASES.md
+    (CAND-06, CAND-07, CAND-09, CAND-10).
+
+    Extends TODAY'S existing "Editar Serviço" form (staff/prototypes/servicos/03-service-edit.html)
+    with a new "Configuração de agendamento" section below the existing price/duration
+    fields. Everything above the divider is unchanged from today.
+
+    Fixed on review (2026-07-29): the resource-type control below was originally
+    `type="radio"` (mutually exclusive) — that made it structurally impossible to
+    configure a bundle (CAND-07), even though the customer-facing bundle experience
+    already existed in public-04-bundle-booking.html with no config screen behind it.
+    Switched to checkboxes (multi-select) with a per-type nested selection-mode control,
+    and changed the edited service from "Corte + Escova" to "Massagem Relaxante" so this
+    screen is now literally the config that produces public-04's booking flow.
+
+    Fixed on review (2026-08-04): the "Turma com capacidade" card existed but did
+    nothing — clicking it changed no visible state, so the screen never actually showed
+    what CAND-10 step 3 means ("no resourceRequirements on the Service itself, hand off
+    to Turmas instead"). Both model cards now toggle real state via selectBookingModel()
+    below, swapping the resource-checklist section for a session-handoff card that links
+    to manager-06-criar-turma.html. Massagem Relaxante already has bookings in this
+    fictional tenant, so per CAND-10's alt. A1 (bookingModel is immutable once a service
+    has history) the toggle is explicitly labeled illustrative-only here — the real
+    switch only happens at service creation, not on an edit screen like this one.
+
+    Fixed on review (2026-08-04): "Equipamento" was the only one of the 3 resource
+    types with an unchecked box and no eligible-pool list — Profissional and Sala both
+    had real backing examples, Equipamento had none, even though CAND-07's dentist/gym
+    examples treat EQUIPMENT as a first-class bundle member, not an afterthought. Now
+    checked, with "Kit de Pedras Quentes" (manager-01) as its one eligible item, so
+    Massagem Relaxante is a genuine 3-way bundle (Profissional + Sala + Equipamento),
+    not capped at 2.
+
+    Added on request (2026-08-05): CAND-08 (legs CRUD) had zero prototype
+    representation anywhere — public-05-multi-leg-itinerary.html only ever showed the
+    CUSTOMER-facing itinerary review, never the manager-side screen that configures it.
+    Modeled as a second-level toggle nested inside "Agendamento" (legs are mutually
+    exclusive with resourceRequirements, per §5 of the discovery doc — not a 3rd
+    bookingModel value), same "illustrative toggle on one screen" trick already used
+    above for the top-level Agendamento/Turma switch. Massagem Relaxante itself isn't a
+    legged service, so the new legs panel uses Jornada Spa Vitta's real data
+    (public-05-multi-leg-itinerary.html) instead of pretending this one service is both
+    a bundle and a journey at once. Building it surfaced a real gap, written up in
+    multivertical-booking_DATA_MODEL.md §6 item 13: Jornada Spa Vitta's middle leg
+    (Massagem) actually locks TWO resources at once — Renata/Maria AND Sala de Terapia,
+    the same two resources Massagem Relaxante's own bundle above uses — not one, which
+    is all the domain doc's abstract ServiceLeg JSON example ever showed.
+
+    Fixed on review (2026-08-05): the "Turma com capacidade" panel had the whole
+    eligibility mechanism backwards — it said "each turma declares its own
+    instructor/room," implying a pool re-curated per ClassScheduleTemplate. Asked
+    directly whether a manually-added template even needs its own pool, given the
+    service already has one: it doesn't. No CAND ever populated a per-template pool
+    anyway, and re-curating "who can teach Pilates" separately for every template of
+    the same service was pure drift risk (a newly-qualified instructor would need
+    adding to each template individually). Corrected: the panel now shows the REAL
+    mechanism — a service-level eligibility checklist (Aula de Pilates: Camila/Ana,
+    Estúdio 1/2), declared once, that every template of that service (tpl_pilates_
+    estudio1, tpl_pilates_estudio2) picks one name from, same shape as CAND-06's
+    checklist above just without a selection-mode. See
+    multivertical-booking_DATA_MODEL.md §6 item 15 for the full correction.
+
+    Fixed on review (2026-08-05): every eligibility checklist on this screen was
+    checked against the actual full resource list in manager-01-resources-list.html --
+    and every single one was missing real resources, always the ones added to the
+    tenant AFTER that checklist was first written (Estúdio 2, Sala de Ioga, Juliana
+    Prado; the Massagem/Jornada Profissional lists were also missing Ana Beatriz).
+    An incomplete checklist is indistinguishable from a correct one unless it's
+    always the full set, checked or disabled-with-a-reason -- silently omitting a
+    resource looks identical to deliberately excluding it. All checklists now list
+    every STAFF (8) or ROOM (7) resource in the tenant; the 3 previously-plain-text
+    single-room leg tags were also converted to full checklists for the same reason
+    (a "single eligible" claim is only trustworthy if the other 6 were shown and
+    ruled out, not just omitted).
+
+    COMPONENT (GAP): ServiceResourceConfigSection, appended to ServiceForm
+    BFF CALL (GAP): PATCH /services/{id}
+      body: { bookingModel, resourceRequirements: [{ type, selectionMode }], bufferAfterMinutes }
+      body (legs mode): { bookingModel, legs: [{ name, durationMinutes, resourceRequirements: [{type, selectionMode}], transitionGapAfterMinutes }] }
+      body (session mode): { bookingModel, classResourceSlots: [{ type, eligibleResourceIds }] }
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — redimensione para ver mobile (&lt;1024px) e desktop (≥1024px)
+  </div>
+
+  <div class="dashboard-topbar">
+    <a href="../../../staff/prototypes/agenda/00-agenda.html" style="display:flex;align-items:center;gap:0.375rem;color:var(--ba-text);text-decoration:none;font-size:0.9375rem;font-weight:500;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      <span class="topbar-brand" style="font-weight:600;">Serviços</span>
+    </a>
+    <h1 class="topbar-page-title">Editar serviço — Massagem Relaxante</h1>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
+      <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+      <span class="topbar-date">Hoje, 04 de agosto de 2026</span>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">V</div>
+        <div><p class="sidebar-tenant-name">Vitta Studio</p><p class="sidebar-tenant-slug">@vittastudio</p></div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top:0.5rem;">
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/equipe/01-team-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Agenda
+        </a>
+        <a class="sidebar-nav-item" href="../horarios/08-visao-geral-manager.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Horários
+        </a>
+        <a class="sidebar-nav-item active" href="04-service-resource-config.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          Serviços
+        </a>
+        <a class="sidebar-nav-item" href="staff-04-turmas-proximas.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
+          Turmas
+        </a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          Fidelidade
+        </a>
+      </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/resources/01-resources-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Recursos
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/configuracoes/01-settings-form.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Equipe
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/equipe/01-team-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Configurações
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          Hotsite
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
+        <a class="sidebar-logout" href="../../../shared/staff-login.html" title="Sair">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </a>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="dashboard-body">
+        <div class="detail-layout">
+        <div class="detail-main" style="max-width:38rem;">
+
+        <!-- Existing fields, unchanged — collapsed for brevity, same as today's service-edit form -->
+        <div class="form-group">
+          <label class="form-label">Nome do serviço</label>
+          <input class="form-input" value="Massagem Relaxante" readonly style="opacity:0.7;">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+          <div class="form-group">
+            <label class="form-label">Preço</label>
+            <input class="form-input" value="R$ 120,00" readonly style="opacity:0.7;">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Duração</label>
+            <input class="form-input" value="60 min" readonly style="opacity:0.7;">
+          </div>
+        </div>
+
+        <p class="section-divider">Configuração de agendamento (novo)</p>
+
+        <div class="form-group">
+          <label class="form-label">Modelo de agendamento</label>
+          <div class="model-picker">
+            <div class="card model-card selected" id="model-appointment" onclick="selectBookingModel('appointment')">
+              <p class="title">Agendamento</p>
+              <p class="sub">Um cliente por vez, atendimento privado (corte, consulta, coleta)</p>
+            </div>
+            <div class="card model-card" id="model-session" onclick="selectBookingModel('session')">
+              <p class="title">Turma com capacidade</p>
+              <p class="sub">Vários clientes na mesma turma (Pilates, CrossFit)</p>
+            </div>
+          </div>
+          <p class="form-hint" id="model-hint">"Agendamento" selecionado — os campos abaixo aparecem. "Turma com capacidade" leva para a tela de Turmas em vez disso.</p>
+          <p class="form-hint" style="margin-top:0.375rem;color:#92400e;">
+            <strong>Ilustrativo apenas:</strong> Massagem Relaxante já tem agendamentos, então
+            na prática o modelo não pode mais ser trocado (CAND-10, alt. A1) — a troca real só
+            é possível ao <em>criar</em> um serviço novo.
+          </p>
+        </div>
+
+        <!--
+          Added on request (2026-08-04) — this screen only ever showed the Agendamento
+          side; nothing demonstrated what picking "Turma com capacidade" actually looks
+          like (CAND-10 step 3: a SESSION-model service sets no resourceRequirements of
+          its own — the manager is handed off to create a ClassScheduleTemplate instead,
+          which is manager-06-criar-turma.html). Toggled via the cards above so both
+          states are visible on the same screen without a separate file.
+        -->
+        <div class="form-group" id="session-handoff" style="display:none;">
+          <div class="card" style="padding:1.25rem;background:#eff6ff;border-color:#bfdbfe;">
+            <p style="font-weight:700;color:var(--ba-text);margin-bottom:0.375rem;">Turma com capacidade declara um pool elegível — não a escolha final</p>
+            <p style="font-size:0.875rem;opacity:0.75;line-height:1.5;margin-bottom:1rem;">
+              Um serviço do tipo Turma não define recursos fixos como Agendamento (acima) —
+              mas ainda declara, uma única vez aqui, quem/o que é elegível para cada posição
+              (instrutor, sala, opcionalmente equipamento). Cada turma recorrente
+              (ClassScheduleTemplate) escolhe UM nome dessa mesma lista, sem redeclará-la a
+              cada nova turma (CAND-10, CAND-11).
+            </p>
+            <a href="manager-06-criar-turma.html" class="btn-primary" style="display:inline-block;">Configurar turma →</a>
+          </div>
+
+          <!--
+            Added 2026-08-21: fields that feed GET /v1/class-types (the customer-facing
+            class catalog). Previously these had no manager screen at all — the catalog
+            endpoint was documented on the customer side (reservar-aula/00-lista-aulas.html)
+            but the data had nowhere to come from on the manager side.
+            Fields: description (catalog card subtitle), color (color bar), allowsDropIn,
+            allowsSeries. BFF: PATCH /services/{id} — same endpoint, new fields.
+          -->
+          <div style="margin-top:1.25rem;">
+            <p class="section-divider" style="margin-top:0;">Catálogo de aulas (visível para o cliente)</p>
+
+            <div class="form-group">
+              <label class="form-label">Descrição curta</label>
+              <textarea class="form-input" rows="2"
+                style="resize:vertical;"
+                placeholder="Ex.: Aula em grupo com foco em força e postura. Ideal para iniciantes e intermediários.">Aula em grupo com foco em força e postura. Camila Torres conduz cada turma com atenção individual.</textarea>
+              <p class="form-hint">Aparece como subtítulo no cartão da aula na área do cliente. Máximo 120 caracteres.</p>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Cor de identificação</label>
+              <div style="display:flex;align-items:center;gap:0.875rem;flex-wrap:wrap;">
+                <!-- Swatches -->
+                <button onclick="selectColor(this,'#2563eb')" title="Azul"
+                  style="width:2rem;height:2rem;border-radius:9999px;background:#2563eb;
+                         border:3px solid #1d4ed8;cursor:pointer;flex-shrink:0;"></button>
+                <button onclick="selectColor(this,'#7c3aed')" title="Roxo"
+                  style="width:2rem;height:2rem;border-radius:9999px;background:#7c3aed;
+                         border:3px solid var(--ba-secondary);cursor:pointer;flex-shrink:0;"></button>
+                <button onclick="selectColor(this,'#0891b2')" title="Ciano"
+                  style="width:2rem;height:2rem;border-radius:9999px;background:#0891b2;
+                         border:3px solid var(--ba-secondary);cursor:pointer;flex-shrink:0;"></button>
+                <button onclick="selectColor(this,'#059669')" title="Verde"
+                  style="width:2rem;height:2rem;border-radius:9999px;background:#059669;
+                         border:3px solid var(--ba-secondary);cursor:pointer;flex-shrink:0;"></button>
+                <button onclick="selectColor(this,'#d97706')" title="Âmbar"
+                  style="width:2rem;height:2rem;border-radius:9999px;background:#d97706;
+                         border:3px solid var(--ba-secondary);cursor:pointer;flex-shrink:0;"></button>
+                <button onclick="selectColor(this,'#dc2626')" title="Vermelho"
+                  style="width:2rem;height:2rem;border-radius:9999px;background:#dc2626;
+                         border:3px solid var(--ba-secondary);cursor:pointer;flex-shrink:0;"></button>
+                <button onclick="selectColor(this,'#db2777')" title="Rosa"
+                  style="width:2rem;height:2rem;border-radius:9999px;background:#db2777;
+                         border:3px solid var(--ba-secondary);cursor:pointer;flex-shrink:0;"></button>
+                <!-- Preview -->
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-left:0.5rem;">
+                  <div id="color-preview-bar"
+                    style="width:0.25rem;height:2.5rem;border-radius:4px;background:#2563eb;flex-shrink:0;"></div>
+                  <span style="font-size:0.8125rem;opacity:0.5;" id="color-preview-label">Azul — Pilates em Grupo</span>
+                </div>
+              </div>
+              <p class="form-hint" style="margin-top:0.5rem;">
+                Exibida como barra lateral no cartão da aula. Escolha uma cor distinta por modalidade
+                para o cliente diferenciar rapidamente.
+              </p>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Tipos de reserva disponíveis para o cliente</label>
+              <div style="display:flex;flex-direction:column;gap:0.625rem;">
+                <label style="display:flex;align-items:flex-start;gap:0.75rem;
+                               padding:0.75rem;border:1.5px solid #bfdbfe;
+                               border-radius:var(--ba-radius);background:#eff6ff;cursor:pointer;">
+                  <input type="checkbox" checked style="margin-top:0.125rem;flex-shrink:0;">
+                  <div>
+                    <div style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">Aula avulsa (drop-in)</div>
+                    <div style="font-size:0.8125rem;opacity:0.6;margin-top:0.125rem;">
+                      O cliente reserva uma sessão específica sem compromisso recorrente.
+                      Ideal para experimentar ou quando a agenda é variável.
+                    </div>
+                  </div>
+                </label>
+                <label style="display:flex;align-items:flex-start;gap:0.75rem;
+                               padding:0.75rem;border:1.5px solid #ddd6fe;
+                               border-radius:var(--ba-radius);background:#f5f3ff;cursor:pointer;">
+                  <input type="checkbox" checked style="margin-top:0.125rem;flex-shrink:0;">
+                  <div>
+                    <div style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">Sequência de aulas (série)</div>
+                    <div style="font-size:0.8125rem;opacity:0.6;margin-top:0.125rem;">
+                      O cliente monta um pacote recorrente (ex.: seg + qua por 8 semanas),
+                      ocupando a mesma vaga toda semana.
+                    </div>
+                  </div>
+                </label>
+              </div>
+              <p class="form-hint" style="margin-top:0.5rem;">
+                Se apenas uma opção estiver marcada, o cliente vai direto ao fluxo correspondente
+                (sem tela de escolha). Se ambas, vê a bifurcação "Avulsa / Sequência" primeiro
+                (<code>allowsDropIn &amp;&amp; allowsSeries → 00-tipo-reserva</code>).
+              </p>
+            </div>
+          </div>
+
+          <!--
+            Added on request (2026-08-05), correcting an earlier version of this panel
+            that got the whole mechanism backwards: it said "each turma declares its own
+            instructor/room," which turned out to be wrong on review — no CAND ever
+            described a template declaring its own pool, and per-template pools would
+            force re-adding a newly-qualified instructor to every template of the same
+            service separately. This checklist is the real "who's eligible" declaration
+            (CAND-10 step 3) — a service-level pool shared by every template of it, using
+            "Aula de Pilates" as the concrete example (Massagem Relaxante itself stays
+            APPOINTMENT-only; this whole panel is illustrative for the same reason the
+            flat/legs toggles above are). See
+            ../multivertical-booking_DATA_MODEL.md §6 item 15.
+          -->
+          <div class="form-group" style="margin-top:1rem;">
+            <label class="form-label">Exemplo: pool de "Aula de Pilates"</label>
+            <div class="resource-check-row checked">
+              <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
+                <input type="checkbox" checked disabled style="margin-top:0.1875rem;">
+                <div style="flex:1;">
+                  <div class="radio-row-title">Instrutor</div>
+                  <div class="radio-row-sub">Compartilhado por todas as turmas deste serviço</div>
+                </div>
+              </label>
+              <div class="nested-selmode">
+                <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quem é elegível?</label>
+                <label><input type="checkbox" disabled> Juliana Prado <span style="opacity:0.5;">— ainda sem serviço vinculado, não elegível</span></label>
+                <label><input type="checkbox" checked disabled> Camila Duarte</label>
+                <label><input type="checkbox" checked disabled> Ana Beatriz</label>
+                <label><input type="checkbox" disabled> Bruno Alves <span style="opacity:0.5;">— cabeleireiro e instrutor de CrossFit, não elegível</span></label>
+                <label><input type="checkbox" disabled> Renata Souza <span style="opacity:0.5;">— terapeuta de massagem, não elegível</span></label>
+                <label><input type="checkbox" disabled> Maria Santos <span style="opacity:0.5;">— terapeuta de massagem, não elegível</span></label>
+                <label><input type="checkbox" disabled> João Mendes <span style="opacity:0.5;">— instrutor de CrossFit, não elegível</span></label>
+                <label><input type="checkbox" disabled> Fábio Ramos <span style="opacity:0.5;">— instrutor de CrossFit, não elegível</span></label>
+              </div>
+            </div>
+            <div class="resource-check-row checked">
+              <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
+                <input type="checkbox" checked disabled style="margin-top:0.1875rem;">
+                <div style="flex:1;">
+                  <div class="radio-row-title">Sala</div>
+                  <div class="radio-row-sub">Compartilhado por todas as turmas deste serviço</div>
+                </div>
+              </label>
+              <div class="nested-selmode">
+                <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quais salas são elegíveis?</label>
+                <label><input type="checkbox" checked disabled> Estúdio 1</label>
+                <label><input type="checkbox" checked disabled> Estúdio 2</label>
+                <label><input type="checkbox" disabled> Sala de Terapia <span style="opacity:0.5;">— equipada para massagem, sem espaço para aula em grupo, não elegível</span></label>
+                <label><input type="checkbox" disabled> Sala de Sauna <span style="opacity:0.5;">— equipada para banho de vapor, sem mesa de massagem, lounge, ou espaço para aula em grupo, não elegível</span></label>
+                <label><input type="checkbox" disabled> Sala de Relaxamento <span style="opacity:0.5;">— lounge de relaxamento, sem mesa de massagem, estrutura de sauna, ou espaço para aula em grupo, não elegível</span></label>
+                <label><input type="checkbox" disabled> Área CrossFit <span style="opacity:0.5;">— espaço aberto de treino funcional, sem estrutura para tratamentos de spa ou aula de Pilates, não elegível</span></label>
+                <label><input type="checkbox" disabled> Sala de Ioga <span style="opacity:0.5;">— ainda sem serviço vinculado, não elegível</span></label>
+              </div>
+            </div>
+            <p class="form-hint">
+              Sem "como é escolhido" aqui — diferente do modo Agendamento acima, nada é
+              resolvido dinamicamente por reserva. <code>tpl_pilates_estudio1</code>
+              escolhe Camila + Estúdio 1 desta mesma lista; <code>tpl_pilates_estudio2</code>
+              escolhe Ana + Estúdio 2 — a lista em si nunca muda entre as duas
+              (<code>manager-06-criar-turma.html</code> só escolhe, nunca redeclara).
+            </p>
+          </div>
+        </div>
+
+        <div class="form-group" id="appointment-config">
+        <label class="form-label">Como este serviço usa recursos?</label>
+        <div class="model-picker">
+          <div class="card model-card selected" id="resmode-flat" onclick="selectResourceMode('flat')">
+            <p class="title">Recurso único ou pacote</p>
+            <p class="sub">Um ou mais recursos, todos livres na mesma janela (hoje, Massagem Relaxante)</p>
+          </div>
+          <div class="card model-card" id="resmode-legs" onclick="selectResourceMode('legs')">
+            <p class="title">Jornada com múltiplas etapas</p>
+            <p class="sub">Etapas ordenadas, cada uma com seu próprio recurso (ex. Jornada Spa Vitta)</p>
+          </div>
+        </div>
+        <p class="form-hint" id="resmode-hint">"Recurso único ou pacote" selecionado — a configuração abaixo é a de Massagem Relaxante. "Jornada com múltiplas etapas" mostra a tela de etapas (CAND-08), usando Jornada Spa Vitta como exemplo — mutuamente exclusivo com recursos/pacote (§5 do discovery).</p>
+
+        <div id="flat-resource-config">
+        <label class="form-label">Quais recursos este serviço precisa? (marque todos que se aplicam)</label>
+
+          <!-- Checkbox, not radio — a service can require MORE THAN ONE resource type
+               at once (CAND-07). Both boxes below are checked: Profissional AND Sala
+               must BOTH be free for the same window — not "one or the other". -->
+          <div class="resource-check-row checked">
+            <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
+              <input type="checkbox" checked style="margin-top:0.1875rem;">
+              <div style="flex:1;">
+                <div class="radio-row-title">Profissional</div>
+                <div class="radio-row-sub">Um membro da equipe realiza o atendimento</div>
+              </div>
+            </label>
+
+            <!--
+              Redesigned (fix pass): a full 8-row eligible+ineligible checklist per
+              resource type was the "spreadsheet, not a SaaS product" anti-pattern the
+              discovery doc's own §10 warns against — doesn't scale past a handful of
+              staff. Replaced with a compact chip list of who's eligible today + a
+              single "add" select, same spirit as manager-06's compact <select>
+              eligibility picker for the SESSION path. Checking "Profissional" still
+              means "not anyone on staff" — Camila/Bruno remain excluded by simply not
+              being in the chip list, not via a disabled row explaining why.
+            -->
+            <div class="nested-selmode">
+              <p class="eligible-count">Elegíveis (2)</p>
+              <div class="eligible-chip-row">
+                <span class="eligible-chip">Renata Souza <button type="button" class="chip-remove" aria-label="Remover Renata Souza">×</button></span>
+                <span class="eligible-chip">Maria Santos <button type="button" class="chip-remove" aria-label="Remover Maria Santos">×</button></span>
+              </div>
+              <select class="form-input eligible-add-select">
+                <option value="">+ Adicionar profissional elegível…</option>
+                <option>Juliana Prado</option>
+                <option>Camila Duarte</option>
+                <option>Ana Beatriz</option>
+                <option>Bruno Alves</option>
+                <option>João Mendes</option>
+                <option>Fábio Ramos</option>
+              </select>
+            </div>
+            <div class="nested-selmode" style="margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
+              <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Como é escolhido dentro do grupo elegível?</label>
+              <label><input type="radio" name="selmode-staff" checked> Cliente escolhe entre Renata e Maria (CAND-16)</label>
+              <label><input type="radio" name="selmode-staff"> Sistema atribui automaticamente entre as duas (CAND-17b)</label>
+            </div>
+          </div>
+
+          <div class="resource-check-row checked">
+            <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
+              <input type="checkbox" checked style="margin-top:0.1875rem;">
+              <div style="flex:1;">
+                <div class="radio-row-title">Sala</div>
+                <div class="radio-row-sub">Uma sala específica é reservada</div>
+              </div>
+            </label>
+
+            <!-- Same redesign as Profissional above — "massagem só pode acontecer na Sala 1 e 2" is now this chip list -->
+            <div class="nested-selmode">
+              <p class="eligible-count">Elegíveis (2)</p>
+              <div class="eligible-chip-row">
+                <span class="eligible-chip">Sala de Terapia <button type="button" class="chip-remove" aria-label="Remover Sala de Terapia">×</button></span>
+                <span class="eligible-chip">Sala de Relaxamento <button type="button" class="chip-remove" aria-label="Remover Sala de Relaxamento">×</button></span>
+              </div>
+              <select class="form-input eligible-add-select">
+                <option value="">+ Adicionar sala elegível…</option>
+                <option>Estúdio 1</option>
+                <option>Estúdio 2</option>
+                <option>Sala de Sauna</option>
+                <option>Área CrossFit</option>
+                <option>Sala de Ioga</option>
+              </select>
+            </div>
+            <div class="nested-selmode" style="margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
+              <label><input type="radio" name="selmode-room" checked> Sistema atribui automaticamente entre as duas elegíveis (CAND-17)</label>
+            </div>
+          </div>
+
+          <!-- Fixed on review (2026-08-04): this box was unchecked with no eligible list at
+               all — the only resource type on this screen with zero backing example, even
+               though CAND-07's own dentist/gym cases are precisely STAFF+EQUIPMENT or
+               STAFF+ROOM+EQUIPMENT bundles. Massagem Relaxante uses a hot-stone kit, so
+               this is now a genuine 3-way bundle: Profissional + Sala + Equipamento all
+               required together, not just the first two. -->
+          <div class="resource-check-row checked">
+            <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
+              <input type="checkbox" checked style="margin-top:0.1875rem;">
+              <div style="flex:1;">
+                <div class="radio-row-title">Equipamento</div>
+                <div class="radio-row-sub">Um equipamento específico é reservado</div>
+              </div>
+            </label>
+
+            <div class="nested-selmode">
+              <p class="eligible-count">Elegíveis (1)</p>
+              <div class="eligible-chip-row">
+                <span class="eligible-chip">Kit de Pedras Quentes <button type="button" class="chip-remove" aria-label="Remover Kit de Pedras Quentes">×</button></span>
+              </div>
+              <select class="form-input eligible-add-select">
+                <option value="">+ Adicionar equipamento elegível…</option>
+                <option>Kit Halteres (Rack 1)</option>
+                <option>Kit Halteres (Rack 2)</option>
+              </select>
+            </div>
+            <div class="nested-selmode" style="margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
+              <label><input type="radio" name="selmode-equip" checked> Sistema atribui automaticamente (única elegível)</label>
+            </div>
+          </div>
+
+          <p class="form-hint" style="margin-top:0.5rem;">
+            Nenhuma caixa marcada = modelo de hoje (o negócio inteiro é o recurso, ex.
+            car wash). Uma caixa marcada = recurso único (ex. Corte + Escova, só
+            Profissional). Duas ou mais marcadas = bundle — todas precisam estar livres
+            na mesma janela ao mesmo tempo (CAND-07, CAND-31); ver a experiência do
+            cliente em public-04-bundle-booking.html. <strong>Massagem Relaxante aqui marca
+            as três</strong> — Profissional, Sala <em>e</em> Equipamento precisam estar livres
+            juntos. Dentro de cada tipo marcado, a lista de elegíveis restringe o pool a um
+            grupo específico de profissionais/salas/equipamentos, não qualquer recurso
+            daquele tipo no tenant inteiro.
+          </p>
+
+        <div class="form-group" style="margin-top:1.25rem;">
+          <label class="form-label">Tempo de preparo após o serviço (buffer)</label>
+          <div class="input-suffix-group">
+            <input class="form-input input-with-suffix" type="number" min="0" value="10">
+            <span class="input-suffix">min</span>
+          </div>
+          <p class="form-hint">
+            Combina com o tempo mínimo de virada do próprio recurso — vale o maior dos
+            dois (ver §7 do discovery: <code>max(service.bufferAfterMinutes, resource.turnoverMinutes)</code>). Não
+            se aplica a Turma — cada template usa <code>resource.turnoverMinutes</code> direto (§7).
+          </p>
+        </div>
+        </div><!-- /#flat-resource-config -->
+
+        <div id="legs-resource-config" style="display:none;">
+          <div class="card" style="padding:1.25rem;background:#eff6ff;border-color:#bfdbfe;margin-bottom:1rem;">
+            <p style="font-weight:700;color:var(--ba-text);margin-bottom:0.375rem;">Exemplo: Jornada Spa Vitta</p>
+            <p style="font-size:0.875rem;opacity:0.75;line-height:1.5;">
+              Etapas ordenadas — cada uma com seu próprio recurso (ou recursos) e tempo de
+              transição até a próxima. Ao salvar um serviço como Jornada, os campos
+              "recursos" e "buffer" do modo anterior deixam de se aplicar (CAND-08,
+              mutuamente exclusivo com resourceRequirements — §5 do discovery). Ver a
+              experiência do cliente em public-05-multi-leg-itinerary.html.
+            </p>
+          </div>
+
+          <div class="leg-card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+              <span class="leg-order-badge">1</span>
+              <button type="button" class="btn-secondary" style="padding:0.25rem 0.625rem;font-size:0.8125rem;">Remover</button>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nome da etapa</label>
+              <input class="form-input" value="Sauna">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+              <div class="form-group">
+                <label class="form-label">Duração</label>
+                <div class="input-suffix-group"><input class="form-input input-with-suffix" type="number" min="1" value="20"><span class="input-suffix">min</span></div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Transição até a próxima etapa</label>
+                <div class="input-suffix-group"><input class="form-input input-with-suffix" type="number" min="0" value="10"><span class="input-suffix">min</span></div>
+              </div>
+            </div>
+            <label class="form-label">Recurso(s) necessário(s)</label>
+            <div class="resource-check-row checked">
+              <div class="radio-row-title">Sala</div>
+              <div class="nested-selmode" style="margin:0.5rem 0 0.125rem 0;padding-top:0;border-top:none;">
+                <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quais salas são elegíveis?</label>
+                <label><input type="checkbox" disabled> Estúdio 1 <span style="opacity:0.5;">— salão aberto de Pilates, sem privacidade/estrutura para massagem ou sauna, não elegível</span></label>
+                <label><input type="checkbox" disabled> Estúdio 2 <span style="opacity:0.5;">— salão aberto de Pilates, sem privacidade/estrutura para massagem ou sauna, não elegível</span></label>
+                <label><input type="checkbox" disabled> Sala de Terapia <span style="opacity:0.5;">— equipada para massagem, sem estrutura de sauna, lounge, ou espaço para aula em grupo, não elegível</span></label>
+                <label><input type="checkbox" checked> Sala de Sauna</label>
+                <label><input type="checkbox" disabled> Sala de Relaxamento <span style="opacity:0.5;">— lounge de relaxamento, sem mesa de massagem, estrutura de sauna, ou espaço para aula em grupo, não elegível</span></label>
+                <label><input type="checkbox" disabled> Área CrossFit <span style="opacity:0.5;">— espaço aberto de treino funcional, sem estrutura para tratamentos de spa ou aula de Pilates, não elegível</span></label>
+                <label><input type="checkbox" disabled> Sala de Ioga <span style="opacity:0.5;">— ainda sem serviço vinculado, não elegível</span></label>
+              </div>
+              <div class="nested-selmode" style="margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
+                <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Como é escolhido dentro do grupo elegível?</label>
+                <label><input type="radio" name="selmode-leg0-room" checked> Sistema atribui automaticamente (única elegível)</label>
+              </div>
+            </div>
+          </div>
+
+          <!-- This leg needs TWO resources at once, not one — the same two
+               Massagem Relaxante's own bundle above uses (Renata/Maria + Sala de
+               Terapia), deliberately, per public-05's own comment demonstrating
+               CAND-31 cross-service exclusivity from the other direction. See
+               multivertical-booking_DATA_MODEL.md §6 item 13. -->
+          <div class="leg-card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+              <span class="leg-order-badge">2</span>
+              <button type="button" class="btn-secondary" style="padding:0.25rem 0.625rem;font-size:0.8125rem;">Remover</button>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nome da etapa</label>
+              <input class="form-input" value="Massagem">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+              <div class="form-group">
+                <label class="form-label">Duração</label>
+                <div class="input-suffix-group"><input class="form-input input-with-suffix" type="number" min="1" value="50"><span class="input-suffix">min</span></div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Transição até a próxima etapa</label>
+                <div class="input-suffix-group"><input class="form-input input-with-suffix" type="number" min="0" value="5"><span class="input-suffix">min</span></div>
+              </div>
+            </div>
+            <label class="form-label">Recurso(s) necessário(s) — esta etapa precisa de dois ao mesmo tempo</label>
+
+            <!--
+              Fixed on review (2026-08-05), then completed same day: every leg's pool
+              here was originally just a text tag narrating an outcome ("cliente
+              escolhe entre Renata Souza e Maria Santos" / "única elegível: Sala de
+              X") instead of showing the actual eligible-pool checklist, unlike the
+              flat bundle case above and the SESSION checklist elsewhere on this page.
+              First fix only converted Profissional (a real 2-person choice) and left
+              the single-member Sala tags as plain text, on the theory that a pool of
+              one has nothing to check/uncheck -- but asked directly, that missed the
+              point: without seeing the FULL room list with the other 6 explicitly
+              ruled out, there's no way to tell "considered and excluded" from "never
+              checked at all" (the exact bug just found and fixed on the checklists
+              above -- Estúdio 2 and Sala de Ioga silently missing from lists that
+              predated them). All three Sala tags are now full 7-room checklists too.
+              Profissional's pool: same 2 real people as Massagem Relaxante's own pool
+              above -- coincidentally identical values, but this is Jornada Spa's own
+              separate service_leg_resource_requirement_pool row, not a shared
+              reference.
+            -->
+            <div class="resource-check-row checked" style="margin-bottom:0.625rem;">
+              <div class="radio-row-title">Profissional</div>
+              <div class="nested-selmode" style="margin:0.5rem 0 0.125rem 0;padding-top:0;border-top:none;">
+                <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quem é elegível?</label>
+                <label><input type="checkbox" disabled> Juliana Prado <span style="opacity:0.5;">— ainda sem serviço vinculado, não elegível</span></label>
+                <label><input type="checkbox" disabled> Camila Duarte <span style="opacity:0.5;">— cabeleireira, não elegível</span></label>
+                <label><input type="checkbox" disabled> Ana Beatriz <span style="opacity:0.5;">— instrutora de Pilates, não elegível</span></label>
+                <label><input type="checkbox" disabled> Bruno Alves <span style="opacity:0.5;">— cabeleireiro, não elegível</span></label>
+                <label><input type="checkbox" checked> Renata Souza</label>
+                <label><input type="checkbox" checked> Maria Santos</label>
+                <label><input type="checkbox" disabled> João Mendes <span style="opacity:0.5;">— instrutor de CrossFit, não elegível</span></label>
+                <label><input type="checkbox" disabled> Fábio Ramos <span style="opacity:0.5;">— instrutor de CrossFit, não elegível</span></label>
+              </div>
+              <div class="nested-selmode" style="margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
+                <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Como é escolhido dentro do grupo elegível?</label>
+                <label><input type="radio" name="selmode-leg1-staff" checked> Cliente escolhe entre Renata e Maria</label>
+                <label><input type="radio" name="selmode-leg1-staff"> Sistema atribui automaticamente entre as duas</label>
+              </div>
+            </div>
+
+            <div class="resource-check-row checked">
+              <div class="radio-row-title">Sala</div>
+              <div class="nested-selmode" style="margin:0.5rem 0 0.125rem 0;padding-top:0;border-top:none;">
+                <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quais salas são elegíveis?</label>
+                <label><input type="checkbox" disabled> Estúdio 1 <span style="opacity:0.5;">— salão aberto de Pilates, sem privacidade/estrutura para massagem ou sauna, não elegível</span></label>
+                <label><input type="checkbox" disabled> Estúdio 2 <span style="opacity:0.5;">— salão aberto de Pilates, sem privacidade/estrutura para massagem ou sauna, não elegível</span></label>
+                <label><input type="checkbox" checked> Sala de Terapia</label>
+                <label><input type="checkbox" disabled> Sala de Sauna <span style="opacity:0.5;">— equipada para banho de vapor, sem mesa de massagem, lounge, ou espaço para aula em grupo, não elegível</span></label>
+                <label><input type="checkbox" disabled> Sala de Relaxamento <span style="opacity:0.5;">— lounge de relaxamento, sem mesa de massagem, estrutura de sauna, ou espaço para aula em grupo, não elegível</span></label>
+                <label><input type="checkbox" disabled> Área CrossFit <span style="opacity:0.5;">— espaço aberto de treino funcional, sem estrutura para tratamentos de spa ou aula de Pilates, não elegível</span></label>
+                <label><input type="checkbox" disabled> Sala de Ioga <span style="opacity:0.5;">— ainda sem serviço vinculado, não elegível</span></label>
+              </div>
+              <div class="nested-selmode" style="margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
+                <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Como é escolhido dentro do grupo elegível?</label>
+                <label><input type="radio" name="selmode-leg1-room" checked> Sistema atribui automaticamente (única elegível)</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="leg-card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+              <span class="leg-order-badge">3</span>
+              <button type="button" class="btn-secondary" style="padding:0.25rem 0.625rem;font-size:0.8125rem;">Remover</button>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nome da etapa</label>
+              <input class="form-input" value="Sala de Relaxamento">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+              <div class="form-group">
+                <label class="form-label">Duração</label>
+                <div class="input-suffix-group"><input class="form-input input-with-suffix" type="number" min="1" value="20"><span class="input-suffix">min</span></div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Transição (não se aplica à última etapa)</label>
+                <div class="input-suffix-group"><input class="form-input input-with-suffix" type="number" min="0" value="0" disabled style="opacity:0.5;"><span class="input-suffix">min</span></div>
+              </div>
+            </div>
+            <label class="form-label">Recurso(s) necessário(s)</label>
+            <div class="resource-check-row checked">
+              <div class="radio-row-title">Sala</div>
+              <div class="nested-selmode" style="margin:0.5rem 0 0.125rem 0;padding-top:0;border-top:none;">
+                <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quais salas são elegíveis?</label>
+                <label><input type="checkbox" disabled> Estúdio 1 <span style="opacity:0.5;">— salão aberto de Pilates, sem privacidade/estrutura para massagem ou sauna, não elegível</span></label>
+                <label><input type="checkbox" disabled> Estúdio 2 <span style="opacity:0.5;">— salão aberto de Pilates, sem privacidade/estrutura para massagem ou sauna, não elegível</span></label>
+                <label><input type="checkbox" disabled> Sala de Terapia <span style="opacity:0.5;">— equipada para massagem, sem estrutura de sauna, lounge, ou espaço para aula em grupo, não elegível</span></label>
+                <label><input type="checkbox" disabled> Sala de Sauna <span style="opacity:0.5;">— equipada para banho de vapor, sem mesa de massagem, lounge, ou espaço para aula em grupo, não elegível</span></label>
+                <label><input type="checkbox" checked> Sala de Relaxamento</label>
+                <label><input type="checkbox" disabled> Área CrossFit <span style="opacity:0.5;">— espaço aberto de treino funcional, sem estrutura para tratamentos de spa ou aula de Pilates, não elegível</span></label>
+                <label><input type="checkbox" disabled> Sala de Ioga <span style="opacity:0.5;">— ainda sem serviço vinculado, não elegível</span></label>
+              </div>
+              <div class="nested-selmode" style="margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
+                <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Como é escolhido dentro do grupo elegível?</label>
+                <label><input type="radio" name="selmode-leg2-room" checked> Sistema atribui automaticamente (única elegível)</label>
+              </div>
+            </div>
+          </div>
+
+          <button type="button" class="btn-secondary" style="width:100%;margin-bottom:0.5rem;">+ Adicionar etapa</button>
+
+          <p class="form-hint" style="background:#f9fafb;padding:0.75rem;border-radius:var(--ba-radius);">
+            <strong>90 min</strong> de serviço + <strong>15 min</strong> de transição =
+            <strong>105 min</strong> reservados no total — calculado automaticamente a
+            partir das etapas acima (CAND-08 passo 2; mesmo total mostrado em
+            public-05-multi-leg-itinerary.html).
+          </p>
+        </div><!-- /#legs-resource-config -->
+        </div><!-- /#appointment-config -->
+
+        <div class="form-actions" id="appointment-form-actions">
+          <a href="#" class="btn-secondary">Cancelar</a>
+          <a href="#" class="btn-primary">Salvar</a>
+        </div>
+        </div><!-- /detail-main -->
+        <aside class="detail-aside" aria-label="Resumo e ações do serviço">
+          <div class="card" style="padding:1.25rem;">
+            <a href="../../../manager/prototypes/resources/01-resources-list.html" class="btn-primary" style="display:block;text-align:center;padding:.75rem;margin-bottom:.625rem;">Salvar alterações</a>
+            <a href="../../../manager/prototypes/resources/01-resources-list.html" class="btn-secondary" style="display:block;text-align:center;padding:.75rem;">Cancelar</a>
+            <hr style="border:none;border-top:1px solid #fecaca;margin:1rem 0;">
+            <a href="05-service-booking-policies.html" style="display:block;text-align:center;font-size:.875rem;color:#2563eb;text-decoration:none;font-weight:600;">Ver políticas de reserva →</a>
+          </div>
+        </aside>
+        </div><!-- /detail-layout -->
+      </div>
+    </main>
+  </div>
+
+  <nav class="bottom-nav">
+    <a class="bottom-nav-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Agenda
+    </a>
+    <a class="bottom-nav-item" href="../horarios/08-visao-geral-manager.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Horários
+    </a>
+    <a class="bottom-nav-item active" href="04-service-resource-config.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      Serviços
+    </a>
+    <a class="bottom-nav-item" href="../../../staff/prototypes/fidelidade/00-customer-search.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      Fidelidade
+    </a>
+    <button class="bottom-nav-item" onclick="openSheet()">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+      Mais
+    </button>
+  </nav>
+
+  <div class="sheet-backdrop" id="sheet-backdrop" onclick="closeSheet()"></div>
+  <div class="bottom-sheet" id="manager-sheet">
+    <div class="bottom-sheet-handle"></div>
+    <p class="bottom-sheet-label">Somente Gerente</p>
+    <a class="bottom-sheet-item" href="../../../manager/prototypes/resources/01-resources-list.html">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Recursos
+    </a>
+    <a class="bottom-sheet-item" href="../../../manager/prototypes/equipe/01-team-list.html">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Equipe
+    </a>
+    <a class="bottom-sheet-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+      Hotsite
+    </a>
+    <div style="padding:0.75rem 1.25rem;border-top:1px solid var(--ba-secondary);margin-top:0.25rem;">
+      <a href="../../../shared/staff-login.html" style="display:flex;align-items:center;gap:0.875rem;color:#dc2626;font-size:0.9375rem;font-weight:500;text-decoration:none;">
+        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sair
+      </a>
+    </div>
+  </div>
+
+  <script>
+    function selectBookingModel(model) {
+      var isSession = model === 'session';
+      document.getElementById('model-appointment').classList.toggle('selected', !isSession);
+      document.getElementById('model-session').classList.toggle('selected', isSession);
+      document.getElementById('appointment-config').style.display = isSession ? 'none' : '';
+      // Always keep Cancelar/Salvar visible — the session-handoff panel used to hide this
+      // row entirely, leaving the "Configurar turma →" link as the only way forward and no
+      // way to back out of this screen.
+      document.getElementById('session-handoff').style.display = isSession ? '' : 'none';
+      document.getElementById('model-hint').textContent = isSession
+        ? '"Turma com capacidade" selecionado — em vez dos campos de recurso, este serviço é configurado na tela de Turmas.'
+        : '"Agendamento" selecionado — os campos abaixo aparecem. "Turma com capacidade" leva para a tela de Turmas em vez disso.';
+    }
+
+    function selectResourceMode(mode) {
+      var isLegs = mode === 'legs';
+      document.getElementById('resmode-flat').classList.toggle('selected', !isLegs);
+      document.getElementById('resmode-legs').classList.toggle('selected', isLegs);
+      document.getElementById('flat-resource-config').style.display = isLegs ? 'none' : '';
+      document.getElementById('legs-resource-config').style.display = isLegs ? '' : 'none';
+      document.getElementById('resmode-hint').textContent = isLegs
+        ? '"Jornada com múltiplas etapas" selecionado — exemplo ilustrativo com os dados de Jornada Spa Vitta (CAND-08). Mutuamente exclusivo com recursos/pacote — ao salvar, resourceRequirements e o buffer do serviço deixam de se aplicar.'
+        : '"Recurso único ou pacote" selecionado — a configuração abaixo é a de Massagem Relaxante.';
+    }
+
+    function openSheet() { document.getElementById('manager-sheet').classList.add('open'); document.getElementById('sheet-backdrop').classList.add('open'); }
+    function closeSheet() { document.getElementById('manager-sheet').classList.remove('open'); document.getElementById('sheet-backdrop').classList.remove('open'); }
+
+    var colorLabels = {
+      '#2563eb': 'Azul', '#7c3aed': 'Roxo', '#0891b2': 'Ciano',
+      '#059669': 'Verde', '#d97706': 'Âmbar', '#dc2626': 'Vermelho', '#db2777': 'Rosa'
+    };
+    function selectColor(btn, hex) {
+      document.querySelectorAll('[onclick^="selectColor"]').forEach(function(b) {
+        b.style.borderColor = 'var(--ba-secondary)';
+      });
+      btn.style.borderColor = hex;
+      document.getElementById('color-preview-bar').style.background = hex;
+      document.getElementById('color-preview-label').textContent =
+        (colorLabels[hex] || hex) + ' — Pilates em Grupo';
+    }
+  </script>
+
+</body>
+</html>

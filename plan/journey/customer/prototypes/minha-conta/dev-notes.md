@@ -126,3 +126,68 @@ Reference shell: `plan/journey/shared/customer-dashboard.html`
 | `04-fidelidade.html` | `/{slug}/my-account/loyalty` | ✅ Done — M13-S29 |
 | `04b-fidelidade-empty.html` | same route — empty state (0 points) | ✅ Done — M13-S29 |
 | `05-trocar-empresa.html` | `/switch-tenant` (UC-023) | ✅ Done — M13-S14/S30 |
+
+---
+
+## ❓ GAP — M21 Cluster 3 extension (UC-070, UC-072, UC-076, not yet built)
+
+> Everything above is shipped. Everything below is new, unimplemented scope promoted from `docs/discovery/multivertical-booking/`. See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`/`AvailabilityAlert`, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules / Availability Alerts.
+
+**New prototype screens (relocated from the discovery folder):**
+
+| File | Screen | Production route (proposed) | Story |
+|---|---|---|---|
+| `06-reserva-recorrente.html` | Manage a standing recurring reservation | `/{slug}/my-account/recurring-reservations/[id]` | ❓ Gap |
+| `06b-reserva-recorrente-erro.html` | Future-pattern conflict at creation | same route | ❓ Gap |
+| `06c-recorrente-em-analise.html` | Recurring request pending manual approval | same route | ❓ Gap |
+| `07-availability-alert.html` | Create/manage an availability alert | `/{slug}/my-account/alerts` | ❓ Gap |
+
+**File map (❓ none exist yet):**
+
+| File | Status |
+|---|---|
+| `apps/web/features/booking/components/account/RecurringPrivateReservationManager.tsx` | ❓ Gap |
+| `apps/web/features/booking/components/account/AvailabilityAlertForm.tsx` | ❓ Gap |
+
+**BFF calls:**
+```
+GET/POST/PATCH  /recurring-booking-schedules[/:id]           -- UC-070
+POST            /recurring-booking-schedules/:id/pause|end    -- UC-070 A2
+POST/GET/PATCH/DELETE  /availability-alerts[/:id]              -- UC-072, UC-076
+```
+
+**Open questions / gaps:**
+- [ ] No story exists yet — needs `/story-discovery` once the M21 milestone file is drafted.
+- [ ] Nav placement (new top-level tab vs. folded into existing Agendamentos) is a UI decision for the implementing story.
+
+---
+
+## ❓ GAP — M21 Cluster 4 extension (UC-089–095, UC-102, not yet built)
+
+> Relocated from `docs/discovery/multivertical-booking/prototype/customer-minhasturmas-*.html` and `customer-08*.html` — already implementation-grade (route tables, BFF contracts) per `docs/discovery/multivertical-booking/minha-conta-turmas-journey.md`, which this section carries forward. See `docs/02-DOMAIN_MODEL.md` § `ClassSessionBooking`/`RecurringEnrollment`, `docs/14-API_CONTRACTS.md` § Classes & Sessions.
+
+**New prototype screens:**
+
+| File | Screen | Production route (proposed) |
+|---|---|---|
+| `08-turmas-lista.html` | Minhas Turmas — lista de matrículas | `/{slug}/my-account/turmas` |
+| `09-turma-detail.html` / `09b`/`09c`/`09d` | Detalhe da matrícula + variantes (série, waitlist, promovida) | `/{slug}/my-account/turmas/[id]` |
+| `10-pular-sessao.html` / `10b` / `10c` | Pular sessão + sucesso + erro | `/{slug}/my-account/turmas/[id]/pular` |
+| `11-cancelar-matricula.html` / `11b` | Cancelar matrícula + erro | `/{slug}/my-account/turmas/[id]/cancelar` |
+| `12-waitlist-offer.html` / `12b` | Aceitar/recusar oferta de vaga + confirmação | same route as `09b`, inline action |
+
+**File map (❓ none exist yet):**
+
+| File | Status |
+|---|---|
+| `apps/web/features/booking/components/account/MinhasTurmasPage.tsx` | ❓ Gap |
+| `apps/web/features/booking/components/account/TurmaDetailPage.tsx` | ❓ Gap |
+| `apps/web/features/booking/components/account/WaitlistOfferDecision.tsx` | ❓ Gap |
+
+**BFF calls:** see the Cluster 4 section of `../../minha-conta.md` above.
+
+**Important — read model reconciliation (carried forward from the discovery's own note, still unresolved):** the original prototype's `EnrollmentSession` interface is superseded — canonically, a recurring occurrence is its own `ClassSessionBooking` row (`seriesId` set, own `status`), and attendance lives on `ClassSessionAttendee.attendance`. "Pulou" is derived at display time (`status=CANCELLED AND seriesId!=null`), never a stored enum value. The implementing story must remove any obsolete interface rather than reconcile it.
+
+**Open questions / gaps:**
+- [ ] No story exists yet — needs `/story-discovery` once the M21 milestone file is drafted.
+- [ ] Reposição (UC-102) has no implementation-grade prototype screen — the discovery-stage `customer-04d-reagendada.html` was never promoted to this rigor; design fresh from `10-pular-sessao.html`'s existing "reagendar" link, not copy that screen as-is.

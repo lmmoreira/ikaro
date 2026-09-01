@@ -116,7 +116,7 @@ A single customer visit. A booking groups **one or more `BookingLine` entities**
 
 **Value Objects:**
 - `BookingId`, `BookingLineId` (UUIDs)
-- `BookingStatus` (PENDING, INFO_REQUESTED, APPROVED, REJECTED, COMPLETED, CANCELLED)
+- `BookingStatus` (PENDING, INFO_REQUESTED, APPROVED, REJECTED, COMPLETED, CANCELLED, NO_SHOW — the last added by M21 Cluster 3, not live until that milestone ships)
 - `BookingType` (GUEST, CUSTOMER)
 - `TimeSlot` (date, startTime, endTime)
 - `Money` (price, currency)
@@ -268,8 +268,150 @@ Service {
   isActive:               Boolean        (UC-013)
   createdAt:              DateTime
   updatedAt:              DateTime
+
+  -- Added M21 — Multi-Vertical Scheduling, Cluster 2 (Service extensions + availability engine).
+  -- Today's car wash is the degenerate case: bookingModel='APPOINTMENT', resourceRequirements=[{type:LOCATION, selectionMode:NONE}] —
+  -- no migration pain, existing services default straight into this (backfilled alongside the M21 Cluster 1 LOCATION resource).
+  bookingModel:           'APPOINTMENT' | 'SESSION'   -- NOT NULL DEFAULT 'APPOINTMENT'; immutable once the service has bookings (UC-056 A1)
+
+  -- APPOINTMENT only — mutually exclusive with legs (UC-052 A1):
+  resourceRequirements:   ResourceRequirement[]        -- flat (non-legged) requirement set; [] on a legged or SESSION service
+  bufferAfterMinutes:     int | null                   -- "extra cleanup this service needs, regardless of resource"; null on
+                                                        -- legged services (meaningless there — legs use per-leg transition gaps
+                                                        -- instead, UC-053 A1). Pre-filled from the tenant's serviceBufferMinutes
+                                                        -- default at creation, then a genuine per-service override (UC-053).
+
+  -- APPOINTMENT only — mutually exclusive with resourceRequirements/bufferAfterMinutes (UC-052):
+  legs:                   ServiceLeg[] | null           -- ordered sequential stages, each with its own resource requirement(s)
+
+  -- APPOINTMENT only — booking policy (UC-055). Every field null inherits the matching tenant
+  -- `settings.booking` default; every booking snapshots the *effective* value at submission time,
+  -- so a later policy edit never retroactively changes a submitted booking.
+  defaultApprovalMode:            'AUTO_CONFIRM' | 'MANUAL_APPROVAL' | null   -- null inherits tenant `autoApproveEnabled`
+  manualHoldMinutes:               int | null                                -- null inherits platform default (30 min)
+  cancellationWindowHoursOverride: int | null                                -- null inherits tenant `cancellationWindowHours`
+  rescheduleWindowHoursOverride:   int | null                                -- null inherits the same effective value as
+                                                                              -- cancellationWindowHoursOverride (no separate
+                                                                              -- tenant-level reschedule default exists today)
+  minBookingAdvanceHoursOverride:  int | null                                -- null inherits tenant `minBookingAdvanceHours`
+  maxBookingAdvanceDaysOverride:   int | null                                -- null inherits tenant `maxBookingAdvanceDays`
+  recurrenceEligible:              Boolean                                  -- default false; gates CAND-45 (Cluster 3)
+  availabilityAlertEligible:       Boolean                                  -- default false; gates CAND-46 (Cluster 3)
+
+  -- APPOINTMENT only — variable-duration reservation (UC-055 step 4, §6b of the discovery doc).
+  -- durationPolicy=FIXED is every existing service, unchanged; the four fields below are meaningless
+  -- (null) unless durationPolicy=CUSTOMER_SELECTED.
+  durationPolicy:              'FIXED' | 'CUSTOMER_SELECTED'   -- default FIXED
+  durationMinMinutes:          int | null                      -- set iff CUSTOMER_SELECTED
+  durationMaxMinutes:          int | null                      -- set iff CUSTOMER_SELECTED; >= durationMinMinutes
+  durationIncrementMinutes:    int | null                      -- set iff CUSTOMER_SELECTED — booking-selection granularity,
+                                                                -- independent of pricingIncrementMinutes below (UC-055 A2 note)
+  pricingPolicy:               'FIXED' | 'PER_TIME_INCREMENT'  -- default FIXED; PER_TIME_INCREMENT requires CUSTOMER_SELECTED
+  pricingIncrementMinutes:     int | null                      -- set iff PER_TIME_INCREMENT — billing granularity, a genuinely
+                                                                -- separate number from durationIncrementMinutes
+  pricePerIncrementAmount:     Money | null                    -- set iff PER_TIME_INCREMENT
+  minimumChargeAmount:         Money | null                    -- optional floor applied after the per-increment calculation
+
+  -- SESSION only — schema exists from Cluster 2 (populated by UC-056's SESSION branch), consumed by
+  -- ClassScheduleTemplate once Cluster 4 ships (CAND-11). Never set alongside resourceRequirements/legs.
+  classResourceSlots:     ClassResourceSlot[] | null
 }
 ```
+
+**New value objects (M21 Cluster 2):**
+
+```
+ResourceRequirement {
+  type:            ResourceType                                    -- LOCATION | STAFF | ROOM | EQUIPMENT
+  selectionMode:   'NONE' | 'CUSTOMER_CHOICE' | 'AUTO_ANY' | 'AUTO_FUNGIBLE_POOL'
+  resourcePoolIds: ResourceId[] | null                              -- optional restriction to a subset of active resources
+                                                                     -- of that type; unrestricted (every active resource of
+                                                                     -- that type is eligible) when null
+  requiredQuantity: int                                             -- default 1; allocate this many distinct eligible
+                                                                     -- resources atomically (variable-duration multi-unit case)
+}
+
+ServiceLeg {
+  legIndex:                     int
+  name:                         String
+  durationMinutes:              int
+  resourceRequirements:         ResourceRequirement[]   -- >= 1; a leg can need more than one resource at once
+  transitionGapAfterMinutes:    int                      -- customer transition time before the NEXT leg; not applied
+                                                          -- after the last leg. Independent of resource turnover.
+}
+
+ClassResourceSlot {
+  type:                ResourceType            -- also the key — no slotIndex; no worked example ever needs two slots
+                                                 -- of the same type on one service
+  eligibleResourceIds: ResourceId[]             -- the pool. Declared once per Service, shared by every
+                                                 -- ClassScheduleTemplate of it (Cluster 4) — each template picks exactly
+                                                 -- one resourceId per slot from this list, manually, at template-creation time.
+}
+```
+
+**New invariants (M21 Cluster 2, enforced by the aggregate):**
+- `bookingModel` is immutable once the service has any booking history (UC-056 A1).
+- `resourceRequirements`/`legs`/`classResourceSlots` are mutually exclusive: a flat APPOINTMENT service sets `resourceRequirements` (`legs = null`); a legged APPOINTMENT service sets `legs` (`resourceRequirements = []`, `bufferAfterMinutes = null`); a SESSION service sets `classResourceSlots` (`resourceRequirements = []`, `legs = null`).
+- A bundle (`resourceRequirements.length > 1`) requires every listed resource type to have at least one active `Resource` — UC-050 A1's precondition, structurally the same check `Resource.create()` doesn't need to make but `Service`'s resource-requirement config does.
+- `durationPolicy = CUSTOMER_SELECTED` requires a non-null `pricingPolicy` in the same save (UC-055 A2) — a variable-duration service must always declare how it prices.
+
+---
+
+#### **Aggregate: Resource** (Root Entity)
+
+> Introduced by M21 — Multi-Vertical Scheduling, Cluster 1 (Foundation). See `docs/discovery/multivertical-booking/multivertical-booking.md` §3 for full rationale.
+
+Generic bookable unit — the abstraction that lets availability be scoped to something narrower than "the whole tenant." Owned by the Booking Context (same context that already owns `ScheduleClosure`/`ScheduleOpening`) rather than by Staff Context, so scheduling concerns stay centralized.
+
+**Entities within:**
+- `Resource` (root)
+
+**Value Objects:**
+- `ResourceId` (UUID)
+- `ResourceType` enum: `LOCATION | STAFF | ROOM | EQUIPMENT`
+
+**Properties:**
+```
+Resource {
+  resourceId:      ResourceId
+  tenantId:        TenantId
+  type:            ResourceType
+  refId:           StaffId | null    -- set only when type = STAFF; wraps an existing Staff row by reference
+  name:            String            -- denormalized display name, independent of Staff.name
+  workingHours:    BusinessHours | null  -- same per-weekday shape as tenants.settings.businessHours,
+                                          -- without a timezone key (inherits the tenant's);
+                                          -- null = inherits tenant hours
+  turnoverMinutes: int               -- default 0; minutes this resource needs before its next booking,
+                                      -- regardless of which service ran (wired into availability in Cluster 2)
+  maxCapacity:     int | null        -- optional physical ceiling for LOCATION/ROOM and genuinely
+                                      -- capacity-bearing EQUIPMENT; never set for STAFF
+  isActive:        Boolean
+  createdAt:       DateTime
+  updatedAt:       DateTime
+}
+```
+
+**Three different relationships to existing data, by design:**
+- **`LOCATION`** — the degenerate default every tenant gets. Replaces today's implicit "whole tenant is the resource" behavior with an explicit row. Every existing tenant receives exactly one active `LOCATION` resource during the M21 backfill migration; there is no legacy `resourceId = null` path on a `Service`'s resource requirements (Cluster 2). `resourceId IS NULL` on a `ScheduleClosure`/`ScheduleOpening` remains its own, separate "close/open the whole business" sentinel — backfilling `LOCATION` does not retire it.
+- **`STAFF`** — *wraps* an existing `Staff` aggregate by reference (`refId = staffId`). Staff Context stays pure identity/permissions; scheduling data (working hours, turnover) lives on the `Resource` row, not on `Staff` itself. Mirrors the existing rule that Staff Context reads closures but never writes them.
+- **`ROOM` / `EQUIPMENT`** — no other context owns these; the `Resource` row *is* the aggregate.
+
+**Tenant boundary and resource schedule resolution:** the tenant calendar is a hard outer boundary, resolved first using the existing Three-Layer Schedule Resolution below. A resource can be available only inside that resulting tenant window — a resource opening never bypasses a tenant-wide closure or extends beyond a tenant opening/window; every `workingHours` window must be a subset of the tenant's recurring business-hours window. Changing resource hours, adding a resource-scoped closure, or deactivating a resource is a change to future availability only — already-approved appointments and already-materialized sessions (Clusters 3–4) remain explicit commitments even if they now fall outside the new default.
+
+**Invariants (enforced by the aggregate, not just the DB):**
+- `(type = 'STAFF') ⟺ (refId IS NOT NULL)` — a staff wrapper must reference a Staff ID; every other resource type must not.
+- One `Resource` per `Staff` row — a staff member cannot be wrapped twice.
+- Exactly one active `LOCATION` resource per tenant.
+- Every `workingHours` window is a subset of the tenant's recurring business-hours window.
+- `maxCapacity`, when set, is `> 0`; template/session capacity referencing this resource (Cluster 4) cannot exceed it.
+- Deactivating a `Resource` never silently cancels or demotes an existing approved appointment or materialized session — it stops future scheduling only and surfaces a resolution worklist (UC-047).
+
+**Key Methods:**
+- `Resource.create(tenantId, type, name, workingHours?, refId?, maxCapacity?)` — validates the `STAFF`⟺`refId` invariant and the working-hours subset invariant.
+- `updateWorkingHours(workingHours)` (UC-046)
+- `deactivate()` (UC-047) / `reactivate()` (UC-049, publishes `ResourceReactivated`)
+
+**Cross-context note:** a `STAFF`-type `Resource` has no DB-level FK to `staff.staff` (cross-schema) — Booking validates the referenced staff member (same-tenant, existing, active, schedulable) through a narrow lookup adapter at write time, and consumes the Staff Context's `StaffDeactivated` event to cascade-deactivate the wrapping resource (UC-048). Staff Context remains unaware of Booking.
 
 ---
 
@@ -288,6 +430,8 @@ Represents a period when the tenant's schedule is blocked — either a full day 
 ScheduleClosure {
   id:        ScheduleClosureId
   tenantId:  TenantId
+  resourceId: ResourceId | null  (null = tenant-wide, the "close the whole business" sentinel;
+                                  set = scoped to one Resource. Added by M21 Cluster 1.)
   date:      String (YYYY-MM-DD — calendar date in tenant timezone)
   startTime: String | null  (HH:MM, 24-hour — null = full-day closure)
   endTime:   String | null  (HH:MM, 24-hour — null = full-day closure)
@@ -307,10 +451,11 @@ ScheduleClosure {
 - `startTime` and `endTime` must both be null OR both be set (no half-specified range)
 - When set, `endTime > startTime` (zero-length or negative windows are invalid)
 - `startTime` and `endTime` must be valid HH:MM strings (00:00–23:59)
-- No two closures for the same `(tenantId, date)` may have overlapping time windows; this is enforced by the use case before persisting (the DB index alone cannot express arbitrary range overlap)
-- A full-day closure overlaps with every partial closure on the same date — creating a full-day closure when any partial closure already exists for that date, or vice versa, is a conflict
+- No two closures for the same `(tenantId, resourceId, date)` may have overlapping time windows; this is enforced by the use case before persisting (the DB index alone cannot express arbitrary range overlap). `resourceId = null` and a set `resourceId` are independent keys — a tenant-wide closure and a resource-scoped closure for the same date do not collide with each other at this layer (the resource-scoped one is simply redundant while the tenant-wide one is active).
+- A full-day closure overlaps with every partial closure on the same `(tenantId, resourceId)` and date — creating a full-day closure when any partial closure already exists for that date, or vice versa, is a conflict
+- **Resource scope, added M21 Cluster 1:** `resourceId = null` blocks every resource at the tenant (today's exact behavior, unchanged default). `resourceId` set blocks only that resource's calendar; a resource closure removes time from that resource even when a tenant-wide opening exists for the same date.
 
-**Factory:** `ScheduleClosure.close(tenantId, date, reason, createdBy, startTime?, endTime?, notes?)`
+**Factory:** `ScheduleClosure.close(tenantId, date, reason, createdBy, resourceId?, startTime?, endTime?, notes?)`
 
 ---
 
@@ -327,6 +472,7 @@ Represents an **exception** that opens the schedule on a day that `businessHours
 ScheduleOpening {
   id:        ScheduleOpeningId
   tenantId:  TenantId
+  resourceId: ResourceId | null  (null = tenant-wide; set = scoped to one Resource. Added by M21 Cluster 1.)
   date:      String (YYYY-MM-DD — calendar date in tenant timezone)
   startTime: String  (HH:MM, 24-hour — required; opening always has explicit hours)
   endTime:   String  (HH:MM, 24-hour — required)
@@ -341,9 +487,10 @@ ScheduleOpening {
 - `endTime > startTime`
 - `startTime` and `endTime` are valid HH:MM strings
 - The day-of-week derived from `date` must be closed in `businessHours` (cannot create an opening for an already-open day)
-- Only one `ScheduleOpening` per `(tenantId, date)` is allowed
+- Only one `ScheduleOpening` per `(tenantId, date)` when `resourceId IS NULL`, and only one per `(tenantId, resourceId, date)` when `resourceId` is set — a tenant-wide opening and a resource-scoped opening for the same date do not collide with each other (M21 Cluster 1; see `docs/13-DATABASE_SCHEMA.md` for the two-partial-unique-index DB fix this required, since a plain `NULL`-inclusive unique index stops enforcing "one per date" once `resourceId` becomes nullable)
+- A resource opening can make that resource available on one of its normally-off dates, but never outside the tenant's own effective hours for that date
 
-**Factory:** `ScheduleOpening.open(tenantId, date, startTime, endTime, createdBy, notes?)`
+**Factory:** `ScheduleOpening.open(tenantId, date, startTime, endTime, createdBy, resourceId?, notes?)`
 
 ---
 
@@ -390,6 +537,385 @@ interface BookedSlot {
 ```
 
 The real adapter (`TypeOrmBookingAvailabilityAdapter`) is implemented in M07 when the Booking aggregate exists. A stub returning `[]` is used in M06 — availability shows all slots as open until bookings exist.
+
+**Changed by M21 — Multi-Vertical Scheduling, Cluster 2 (Service extensions + availability/exclusivity engine).** Once a `Service.resourceRequirements`/`legs` can reference something other than the implicit whole tenant, `IBookingAvailabilityPort`'s real adapter moves from querying `bookings` directly to querying `booking.resource_occupancy` — the per-resource, per-window projection availability needs, since one booking's `scheduledAt`/`totalDurationMins` can no longer answer "is resource X free" once a booking can span a bundle or leg chain with a different sub-window per resource. `BookedSlot` changes shape accordingly:
+
+```typescript
+interface IBookingAvailabilityPort {
+  findOccupancyByTenantAndResource(tenantId: string, resourceIds: string[], from: string, to: string): Promise<ResourceOccupiedSlot[]>;
+}
+
+interface ResourceOccupiedSlot {
+  resourceId: string;
+  startsAt: Date;   // UTC
+  endsAt: Date;     // UTC — includes the effective service buffer / resource turnover (UC-059)
+}
+```
+
+`bookings`/`booking_lines` remain the source of truth for the booking itself (status, contact, price); `resource_occupancy` is a short-lived locking projection, safely garbage-collectable once its window elapses (see `docs/13-DATABASE_SCHEMA.md`).
+
+**UC-058 (`System Computes Availability Scoped to a Resource or Bundle`) — algorithm:**
+1. For a bundle (`resourceRequirements.length > 1`), a slot is available only if **every** required resource is simultaneously free (intersection).
+2. For `AUTO_FUNGIBLE_POOL`, a slot is available if **any** pool member is free (union, not intersection).
+3. A `resourceId` not belonging to the querying tenant is excluded by the mandatory `tenantId` scoping — structural guard, not a runtime branch.
+4. **Extended in Cluster 3** (once `RecurringBookingSchedule` exists) and **Cluster 4** (once `ClassScheduleTemplate` exists): "free" also excludes any active recurring pattern that would produce an occurrence at the candidate time, evaluated directly against the pattern's own recurrence rule rather than waiting for a materialized row — see UC-058's own entry in `docs/04-USE_CASES.md` for the forward reference. Not reachable in Cluster 2 alone, since neither aggregate exists yet.
+
+**UC-059 (`System Applies Resource Turnover and Leg Transition Gaps`):** effective gap before the next booking on a resource, for a flat (non-legged) service: `max(service.bufferAfterMinutes, resource.turnoverMinutes)`. For a legged service: each leg's resource turnover comes from that resource's own `turnoverMinutes`; `transitionGapAfterMinutes` is independent and additive to the appointment's total span.
+
+**UC-060 (`System Rejects Overlapping Bookings Across a Shared Resource`) — why `resource_occupancy` has to be one shared table, not one per family:** `bookings` today carries the only DB-level guarantee behind CLAUDE.md §2's "cross-row invariant → enforce at the DB layer" rule (`EX_booking_bookings_approved_slot`, `docs/13-DATABASE_SCHEMA.md`). That works today because there's exactly one thing to protect: the whole tenant, one row per booking. Once a booking can lock a *bundle* of resources or a different resource per *leg*, there's no longer one row per booking to key an exclusion constraint on — the granularity has to move to one row per resource-assignment. Postgres exclusion constraints cannot span two tables, so if appointment resource-locks and (once Cluster 4 ships) class-session resource-locks lived in separate tables, cross-family exclusivity (the Camila-Duarte-as-both-hairdresser-and-Pilates-instructor scenario, §3 above) could never be DB-enforced no matter how well either table were built individually. `booking.resource_occupancy` (see `docs/13-DATABASE_SCHEMA.md`) is the fix: one shared GIST exclusion constraint, keyed on `(tenant_id, resource_id, [starts_at, ends_at))`, protects every family that ever writes into it. In Cluster 2, only the `BOOKING_LINE` source type is reachable (`CLASS_SESSION` activates once Cluster 4 ships `ClassSession`) — same-family exclusivity (two APPOINTMENT services sharing a resource) is fully provable now; the cross-family case (model #13, this discovery's central premise) isn't testable until Cluster 4 exists alongside Clusters 2–3.
+
+---
+
+#### **Aggregate: RecurringBookingSchedule** (Root Entity)
+
+> Introduced by M21 — Multi-Vertical Scheduling, Cluster 3 (Customer/guest appointment booking + extensions). Private-appointment recurrence, distinct from `RecurringEnrollment` (session family, Cluster 4).
+
+Customer-only standing commitment: "every Tuesday 10:00–12:00, Sala Aurora." Blocks its future recurrence pattern beyond the materialization horizon and generates ordinary linked `Booking` rows through a rolling horizon (90-day service-configurable default).
+
+**Entities within:**
+- `RecurringBookingSchedule` (root)
+- `RecurringBookingScheduleResourceAssignment` (child — durable, mandatory for `FIXED_ASSIGNMENT`)
+- `RecurringBookingScheduleException` (child — one per skipped/rescheduled occurrence)
+
+**Properties:**
+```
+RecurringBookingSchedule {
+  id:                       RecurringBookingScheduleId
+  tenantId:                 TenantId
+  customerId:               CustomerId              -- guest bookings are never eligible
+  serviceId:                ServiceId
+  recurrence:               RecurrenceRule           -- e.g. { frequency: WEEKLY, daysOfWeek: [TUE], startTime: "10:00", durationMinutes: 120 }
+  startsOn / endsOn:        Date / Date | null       -- open-ended when endsOn is null
+  status:                   'PENDING_APPROVAL' | 'ACTIVE' | 'PAUSED' | 'CANCELLED'
+  assignmentPolicy:         'FIXED_ASSIGNMENT' | 'RESOLVE_PER_OCCURRENCE'
+  approvalHoldExpiresAt:    DateTime | null          -- required iff status = PENDING_APPROVAL
+  approvedByStaffId:        StaffId | null
+  approvedAt:               DateTime | null
+  cancellationReason:       'CUSTOMER_CANCELLED' | 'APPROVAL_REJECTED' | 'APPROVAL_EXPIRED' | null
+  createdByStaffId:         StaffId | null           -- set when staff creates it on the customer's behalf
+  createdAt / updatedAt:    DateTime
+}
+```
+
+**Invariants:**
+- Guest bookings are never eligible — customer-only, or staff acting on an authenticated customer's behalf.
+- Branches on the service's effective approval mode at creation (UC-070): `AUTO_CONFIRM` → created `ACTIVE` directly, generation begins immediately. `MANUAL_APPROVAL` → created `PENDING_APPROVAL` with a snapshotted `approvalHoldExpiresAt`; **no occurrences generate until staff resolves it** (UC-071) — this closes a create-then-cancel loophole that would otherwise let a customer bypass a `MANUAL_APPROVAL` service's review gate by requesting a recurring schedule instead of a one-off booking.
+- Once `ACTIVE`, every occurrence it materializes auto-confirms as `APPROVED` regardless of the service's `defaultApprovalMode` — the standing schedule itself was already vetted once, at the point it became `ACTIVE`; re-running a hold-and-review cycle on every generated occurrence would contradict the entire point of a standing commitment. A genuinely one-off booking of the same service is unaffected — `defaultApprovalMode` still governs it normally.
+- At most `MAX_ACTIVE_SCHEDULES_PER_RESOURCE = 50` active `FIXED_ASSIGNMENT` schedules per resource; at most `MAX_ACTIVE_RESOLVE_PER_OCCURRENCE_SCHEDULES_PER_SERVICE = 50` active `RESOLVE_PER_OCCURRENCE` schedules per service — app-enforced, generous conservative placeholders, revisable after load testing.
+- A future pattern conflict at creation blocks the whole request — no partial schedule ever exists (evaluated via the same advisory-lock protocol `docs/13-DATABASE_SCHEMA.md`'s `resource_occupancy` section describes for not-yet-materialized patterns).
+- Generated bookings link back via a nullable `recurringScheduleId` on `Booking`, with a unique `(tenantId, recurringScheduleId, occurrenceStart)` generation key — same idempotency shape `ClassSessionBooking.seriesId` uses for the session family (Cluster 4).
+
+**Key Methods:**
+- `RecurringBookingSchedule.request(customerId, serviceId, recurrence, assignmentPolicy, ...)` — resource-conflict-checks, then branches to `ACTIVE` or `PENDING_APPROVAL` per the service's effective approval mode.
+- `approve(staffId)` / `reject(staffId, reason)` (UC-071)
+- `skipOccurrence(occurrenceStart, actor, reason?)` / `rescheduleOccurrence(occurrenceStart, replacementBookingId, actor)` (UC-045 A2) — only once `ACTIVE`; a `PENDING_APPROVAL` request is withdrawn outright instead, since no standing commitment exists yet.
+- `pause()` / `end()`
+
+---
+
+#### **Aggregate: AvailabilityAlert** (Root Entity)
+
+> Introduced by M21 Cluster 3. An expiring intent only — creates no occupancy and never becomes a booking automatically. Authenticated-customer-only (waitlists/alerts are retention features, not anonymous lead capture).
+
+**Entities within:**
+- `AvailabilityAlert` (root)
+- `AvailabilityAlertNotificationAttempt` (child — notification history, deduplicated per matching window)
+
+**Properties:**
+```
+AvailabilityAlert {
+  id:                    AvailabilityAlertId
+  tenantId:              TenantId
+  serviceId:             ServiceId
+  customerId:            CustomerId              -- authenticated only, no guest email identity column
+  preferredResourceId:   ResourceId | null
+  criteriaType:          'ONE_TIME_RANGE' | 'WEEKLY_PREFERENCE'
+  timezone:              String
+  acceptableStartAt / acceptableEndAt: DateTime | null   -- set iff criteriaType = ONE_TIME_RANGE
+  weekdays:              Weekday[] | null                -- set iff criteriaType = WEEKLY_PREFERENCE
+  localStartTime / localEndTime: Time | null              -- set iff criteriaType = WEEKLY_PREFERENCE
+  durationMinutes:       int | null
+  participantCount:      int | null
+  status:                'ACTIVE' | 'NOTIFIED' | 'CANCELLED' | 'EXPIRED'
+  expiresAt:             DateTime
+  createdAt:             DateTime
+}
+```
+
+**Invariants:**
+- Exactly one criteria representation: `ONE_TIME_RANGE` sets `acceptableStartAt`/`acceptableEndAt` and nulls the weekly fields, or vice versa for `WEEKLY_PREFERENCE`.
+- Never auto-cancelled just because the customer's underlying need was met through a different channel (e.g. a waitlist promotion elsewhere) — an alert is an independent intent, not correlated with other capacity events.
+- An alert never reserves a resource and never auto-books; it only notifies (at most one deduplicated attempt per alert/matching-window).
+- Unauthenticated visitors are routed to login/account creation before an alert can be created; chosen criteria are preserved through that redirect.
+
+**Key Methods:**
+- `AvailabilityAlert.create(customerId, serviceId, criteria, expiresAt)` (UC-072)
+- `update(criteria)` / `cancel()` (UC-076/UC-053)
+- `recordNotificationAttempt(matchingWindow, channel, outcome)` — deduplicated on `(alertId, matchingWindow, channel)`.
+
+---
+
+#### **Aggregate: FutureCommitmentException** (Root Entity)
+
+> Introduced by M21 Cluster 3. A manager-owned worklist entry — never changes the affected booking/session itself. Covers a change *nobody explicitly reviewed per-session*: a resource deactivation, an hours reduction, or a side effect of an otherwise-unrelated config edit. **Excludes** a template date-range/from-date cancellation the manager explicitly initiated (Cluster 4's session-cancellation flow) — that flow's own step is already the explicit, audited resolution.
+
+**Properties:**
+```
+FutureCommitmentException {
+  id:                    FutureCommitmentExceptionId
+  tenantId:              TenantId
+  sourceType:            String                  -- e.g. RESOURCE_DEACTIVATION, HOURS_CHANGE, TEMPLATE_EXCEPTION
+  sourceId:              UUID
+  affectedType:          String                  -- e.g. BOOKING, CLASS_SESSION
+  affectedId:            UUID
+  status:                'OPEN' | 'RESOLVED' | 'DISMISSED'
+  ownerStaffId:          StaffId | null
+  resolutionType:        String | null           -- KEEP | REASSIGN | RESCHEDULE | CANCEL
+  resolutionReason:      String | null
+  resolvedByStaffId:     StaffId | null
+  resolvedAt:            DateTime | null
+  notificationOutcome:   String | null
+}
+```
+
+**Invariants:**
+- One idempotent entry per affected commitment — a repeated trigger for the same unresolved impact updates the existing open row rather than duplicating manager work (`UNIQUE (tenantId, sourceType, sourceId, affectedType, affectedId) WHERE status = 'OPEN'`).
+- A commitment is never silently moved or invalidated — this aggregate only ever records impact/alternatives; UC-077 is the sole resolution flow, and even there, the manager makes an explicit choice.
+- No safe alternative existing is a valid terminal state ("no compatible alternative"), not an error — the manager still explicitly keeps, reassigns, reschedules, cancels, or dismisses.
+
+**Key Methods:**
+- `FutureCommitmentException.raise(sourceType, sourceId, affectedType, affectedId, alternatives)` (UC-073)
+- `resolve(staffId, resolutionType, reason)` / `dismiss(staffId, reason)` (UC-077)
+
+---
+
+#### **Aggregate: ClassScheduleTemplate** (Root Entity)
+
+> Introduced by M21 — Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions). Session-style recurring pattern — the SESSION-family counterpart to `RecurringBookingSchedule`. Depends on `Service.classResourceSlots` (Cluster 2 schema).
+
+**Properties:**
+```
+ClassScheduleTemplate {
+  templateId:  ClassScheduleTemplateId
+  tenantId:    TenantId
+  serviceId:   ServiceId
+  resourceIds: ResourceId[]        -- the bundle this class always uses; each entry is one manual pick from
+                                    -- the matching-type entry in Service.classResourceSlots' pool
+  recurrence:  RecurrenceRule      -- e.g. weekly on [MON, WED, FRI] at 08:00; duration comes from Service.durationMinutes
+  capacity:    int
+  trialSlots:  int                 -- guest/non-member seats that auto-confirm before UC-098 manual approval; default 0
+  validFrom / validUntil: Date | null
+  isActive:    Boolean
+}
+```
+
+**Invariants:**
+- Each `resourceIds` entry must be a member of `Service.classResourceSlots` for that same `(serviceId, resourceType)` — app-enforced, not a DB constraint.
+- `capacity` cannot exceed the lowest `maxCapacity` ceiling among the template's `ROOM`/capacity-bearing `EQUIPMENT` resources (UC-079 A3).
+- At most `MAX_ACTIVE_TEMPLATES_PER_RESOURCE = 50` active templates reference any one resource (UC-079 A4).
+- A chosen resource must not already be committed to an overlapping template, an `APPROVED` appointment `Booking`, or an active `RecurringBookingSchedule` matching the new recurrence — evaluated via the same advisory-lock/recurrence-rule-direct-evaluation protocol as `RecurringBookingSchedule` (`docs/13-DATABASE_SCHEMA.md`).
+- Editing a template only affects future, not-yet-generated sessions — already-materialized `ClassSession` rows are untouched (snapshotted at generation time). Deactivating stops future generation only.
+- A new default `capacity` below any of the template's own already-materialized, not-yet-started sessions' `reservedCount` is blocked (UC-080 A2) — resolve those sessions individually first (UC-083).
+- **Two independent instances, never a fungible pool (model #6):** a studio running the same class twice in parallel (e.g. two Pilates rooms at the same hour) is two separate `ClassScheduleTemplate` rows, each with its own capacity/roster — never one template pointing at a `ROOM` pool, which would wrongly merge two independently-running classes into one.
+
+**Key Methods:**
+- `ClassScheduleTemplate.create(serviceId, resourceIds, recurrence, capacity, trialSlots)` (UC-079)
+- `update(...)` / `deactivate()` (UC-080)
+- `cancelRange(from, to?)` — creates a `ClassScheduleTemplateException` (UC-096)
+
+---
+
+#### **Aggregate: ClassSession** (Root Entity, event-emitting)
+
+Materialized occurrence, generated on a rolling horizon by an idempotent worker (UC-081). Capacity/resources overridable per-instance (UC-083).
+
+**Entities within:**
+- `ClassSession` (root)
+- `ClassSessionResource` (child — per-instance snapshot/override of the template's resolved slots)
+
+**Properties:**
+```
+ClassSession {
+  sessionId:    ClassSessionId
+  tenantId:     TenantId
+  templateId:   ClassScheduleTemplateId   -- always generated from a template; ad-hoc sessions are out of scope
+  serviceId:    ServiceId                 -- denormalized from the template, for service listing/filtering
+  startTime / endTime: DateTime
+  capacity:     int                       -- snapshot from template; admin can override per-instance
+  reservedCount: int                      -- CONFIRMED + capacity-holding PENDING_APPROVAL/PROMOTION_PENDING seats;
+                                          -- atomically maintained via a guarded UPDATE, never TypeORM's bare @VersionColumn
+  trialSlots:   int                       -- snapshot from template; admin can override per-instance
+  reservedNonMemberCount: int             -- verified-guest + contract-less-customer subset of reservedCount;
+                                          -- decides the UC-097/UC-087 auto/manual branch, never a second capacity ceiling
+  status:       'SCHEDULED' | 'AWAITING_ATTENDANCE' | 'CANCELLED' | 'CLOSED'
+  version:      int                       -- optimistic-lock guard for non-capacity concurrent edits (UC-083)
+}
+```
+
+**Invariants:**
+- `reservedCount <= capacity`, enforced by a guarded UPDATE (`WHERE reserved_count + :qty <= capacity`), not application-level read-then-write.
+- Generation is idempotent: a `(templateId, startTime)` uniqueness check prevents double-generation on retry.
+- A resource closed or outside its hours for a candidate occurrence blocks generation for that occurrence (UC-081 A2); an overlapping approved appointment is rejected by the shared `resource_occupancy` constraint (UC-081 A3).
+- Never regenerated once cancelled via a `ClassScheduleTemplateException` range.
+- Transitions to `AWAITING_ATTENDANCE` at `endTime`, remaining a visible Turmas task until staff closes it (UC-101) — attendance is never inferred by a timer, and a session cannot be closed twice.
+
+**Key Methods:**
+- `generateFromTemplate(template, startTime)` (UC-081, worker-only)
+- `overrideCapacityOrResources(capacity?, trialSlots?, resourceIds?)` (UC-083)
+- `cancel()` — publishes `ClassSessionCancelled` (UC-084, UC-096)
+- `close(attendeeOutcomes)` (UC-101)
+
+---
+
+#### **Aggregate: ClassSessionBooking** (Root Entity, event-emitting)
+
+The session-style equivalent of `Booking`. Reservation/contact and access/charge-intent snapshot; a full `AggregateRoot` with an outbox-aware repository, matching the existing `Booking` pattern.
+
+**Entities within:**
+- `ClassSessionBooking` (root)
+- `ClassSessionAttendee` (child — one immutable named seat per reservation)
+
+**Properties:**
+```
+ClassSessionBooking {
+  classSessionBookingId: ClassSessionBookingId
+  tenantId:     TenantId
+  sessionId:    ClassSessionId
+  serviceId:    ServiceId              -- denormalized from sessionId
+  type:         'GUEST' | 'CUSTOMER'   -- same BookingType enum as Booking
+  customerId:   CustomerId | null      -- null iff guest
+  createdByStaffId: StaffId | null     -- set when staff creates this on a customer's behalf (UC-104)
+  contactEmail / contactName / contactPhone: Email / String / Phone   -- mirrors Booking's contact fields exactly,
+                                                                        -- so this event stays self-contained (bounded-contexts Rule 4)
+  quantity:     int                    -- number of named attendee rows; contract customers always reserve 1;
+                                        -- verified guest/drop-in reservations may reserve a group
+  status:       'PENDING_EMAIL_VERIFICATION' | 'PENDING_APPROVAL' | 'CONFIRMED' | 'WAITLISTED' |
+                'PROMOTION_PENDING' | 'CANCELLED' | 'CLOSED'
+  seriesId:     RecurringEnrollmentId | null
+  contractId:   ClassAccessContractId | null
+  paymentSource: 'CONTRACT' | 'GUEST_TRIAL' | 'IN_PERSON'
+  waitlistAccessIntent: 'CONTRACT' | 'IN_PERSON' | null   -- populated only by a WAITLISTED/PROMOTION_PENDING entry;
+                                                            -- revalidated on offer acceptance
+  rescheduledFromId: ClassSessionBookingId | null   -- set when this is a "reposição" replacement (UC-102)
+
+  -- Snapshots, frozen at booking-request time. Same principle as BookingLine.
+  serviceNameAtBooking: String
+  priceAtBooking:       Money
+  pointsValueAtBooking: int
+
+  -- Waitlist/offer fields (finalized):
+  offerOfferedAt / offerExpiresAt / offerRespondedAt: DateTime | null
+  offerResponse: 'ACCEPTED' | 'DECLINED' | 'EXPIRED' | null
+  cancellationReason: String | null
+}
+
+ClassSessionAttendee {
+  attendeeId: ClassSessionAttendeeId
+  tenantId:   TenantId
+  classSessionBookingId: ClassSessionBookingId
+  name:       String
+  customerId: CustomerId | null       -- set for the contract holder; guests remain contact-only
+  attendance: 'PRESENT' | 'NO_SHOW' | null   -- null until the session is closed out
+  removedAt / removedByActorType / removedByActorId / removalReason: DateTime | String | UUID | String | null
+}
+```
+
+**Invariants:**
+- A `CUSTOMER` reservation with `contractId = null` and `paymentSource = IN_PERSON` is valid (UC-087) — the earlier "a CUSTOMER reservation always has a contract" assumption is relaxed.
+- `reservedCount`/`reservedNonMemberCount` are maintained by the *same* guarded update that creates/cancels this aggregate — never a separately-timed read-then-write.
+- `WAITLISTED`/`PROMOTION_PENDING` requires a non-null `waitlistAccessIntent`.
+- `FIRST_FREE_PER_EMAIL` applies only to a solo (`quantity = 1`) verified guest booking, consumed atomically exactly when that reservation reaches `CONFIRMED`.
+- Active attendee count must always equal `quantity`, enforced in the same transaction that changes either (UC-105).
+- No refund/credit workflow — Ikaro does not process payments; a closed-out session is not subsequently cancelled.
+
+**Key Methods:**
+- `requestSessionBooking(...)` (UC-086/087/088) — atomically checks `reservedCount < capacity`, branches CONFIRMED/PENDING_APPROVAL/WAITLISTED per the trialSlots threshold.
+- `cancel(actor, reason)` (UC-089) → triggers waitlist promotion.
+- `joinWaitlist(...)` (UC-090)
+- `promote()` → `PROMOTION_PENDING` with offer deadline (UC-091); `acceptOffer()` / `declineOffer()`.
+- `approve(staffId)` / `reject(staffId)` (UC-098)
+- `removeAttendees(attendeeIds, actor, reason)` (UC-105) → atomic quantity/quote/capacity adjustment + waitlist promotion.
+- `close(attendeeOutcomes)` (UC-101)
+
+---
+
+#### **Aggregate: RecurringEnrollment** (Root Entity)
+
+Customer-only standing link to a `ClassScheduleTemplate` — the SESSION-family counterpart to `RecurringBookingSchedule`. Generates a `ClassSessionBooking` per matching session as new occurrences materialize.
+
+**Properties:**
+```
+RecurringEnrollment {
+  enrollmentId: RecurringEnrollmentId
+  tenantId:     TenantId
+  customerId:   CustomerId
+  templateId:   ClassScheduleTemplateId
+  serviceId:    ServiceId              -- denormalized from templateId
+  startDate / endDate: Date / Date | null
+  status:       'ACTIVE' | 'PAUSED' | 'CANCELLED'
+  createdByStaffId: StaffId | null     -- set when staff creates it on the customer's behalf (UC-104)
+}
+```
+
+**Invariants:**
+- Customer-only, never guest; requires an active `ClassAccessContract` covering the template's service, and cannot extend beyond that contract's end date.
+- Ends automatically when the qualifying contract ends or is cancelled — a later contract never implicitly revives it; the customer opts in again.
+- Each upcoming matching session gets its own `ClassSessionBooking(seriesId = enrollmentId)`, respecting capacity/waitlist per occurrence independently — an enrollment is a *standing intent*, not a capacity guarantee.
+
+**Key Methods:**
+- `RecurringEnrollment.enroll(customerId, templateId, startDate)` (UC-093)
+- `skipOccurrence(sessionId)` (UC-094) / `reschedule(sessionId, replacementSessionId)` (UC-102)
+- `cancel()` (UC-095)
+
+---
+
+#### **Aggregate: ClassAccessContract** (Root Entity)
+
+Minimal, date-bounded eligibility record for selected SESSION services. Grants booking eligibility, not a reserved seat — each booking still claims exactly one real seat.
+
+**Properties:**
+```
+ClassAccessContract {
+  contractId:  ClassAccessContractId
+  tenantId:    TenantId
+  customerId:  CustomerId
+  startsOn / endsOn: Date   -- inclusive, tenant-local dates
+  status:      'ACTIVE' | 'CANCELLED' | 'EXPIRED'
+  eligibleServiceIds: ServiceId[]   -- one contract may cover several services
+}
+```
+
+**Invariants:**
+- Overlapping active contracts for the same customer are permitted only when their `eligibleServiceIds` do not overlap (UC-099 A2).
+- Cancelling a contract early cancels every future booking it funded and ends dependent recurring enrollments, releasing capacity.
+- Reaching `endsOn` expires the contract and ends dependent enrollments the same way — never a silent implicit resumption under a later contract.
+
+**Key Methods:**
+- `ClassAccessContract.create(customerId, startsOn, endsOn, eligibleServiceIds)` (UC-099)
+- `cancelEarly()` (UC-099 step 4)
+
+---
+
+#### **Aggregate: ClassScheduleTemplateException** (Root Entity)
+
+Persistent bounded cancellation range that prevents future generation from recreating cancelled occurrences (UC-096). A repeat trigger overlapping an existing exception extends/merges it rather than creating a fragmented second record (UC-096 A2).
+
+```
+ClassScheduleTemplateException {
+  id:          ClassScheduleTemplateExceptionId
+  tenantId:    TenantId
+  templateId:  ClassScheduleTemplateId
+  rangeStart / rangeEnd: Date | null   -- null rangeEnd = "from this date forward"
+  createdByStaffId: StaffId
+}
+```
+
+---
+
+**`Booking` — modified (M21 Cluster 3):**
+- `+ recurringScheduleId: RecurringBookingScheduleId | null` — set when generated by an active `RecurringBookingSchedule`; unique `(tenantId, recurringScheduleId, occurrenceStart)`.
+- `+` terminal status `NO_SHOW` added to the state machine: `APPROVED → COMPLETED | CANCELLED | NO_SHOW` (UC-074). A manager may correct a mistaken no-show with an append-only audit transition; loyalty is awarded only if the corrected resulting state is `COMPLETED`. **This changes CLAUDE.md §5's booking state machine — see that file's own update alongside this promotion.**
+- Reschedule (UC-069) now supports bundles/legs atomically, recalculates the quote, and records an append-only `BookingQuoteRevision` (new child-adjacent table, `docs/13-DATABASE_SCHEMA.md`) linking to the prior arrangement — extends the existing `BookingRescheduled` event's scope rather than introducing a new one.
 
 ---
 
@@ -624,6 +1150,9 @@ Domain events represent significant business occurrences that other contexts may
 | `BookingInfoSubmitted` | Customer / guest responds to an info request (INFO_REQUESTED → PENDING) | Notification Context |
 | `BookingCancelled` | Customer/admin cancels booking | Notification Context |
 | `BookingCompleted` | Staff marks booking complete | Notification Context, **Loyalty Context** (only Booking event Loyalty cares about) |
+| `ResourceReactivated` | Manager reactivates a deactivated `Resource` (UC-049) | None in MVP |
+
+> Booking Context also **consumes** `StaffDeactivated` (published by Staff Context) to cascade-deactivate a `STAFF`-type `Resource` (UC-048) — see `docs/05-BOUNDED_CONTEXTS.md`.
 
 ### **Loyalty Context Events**
 
@@ -637,7 +1166,7 @@ Domain events represent significant business occurrences that other contexts may
 | Event | Trigger | Consumers |
 |-------|---------|-----------|
 | `StaffInvited` | New staff member invited (UC-028) or first MANAGER created during tenant provisioning (M04-S06) | Notification Context (invitation email) |
-| `StaffDeactivated` | MANAGER deactivates a staff member (UC-029) | None in MVP |
+| `StaffDeactivated` | MANAGER deactivates a staff member (UC-029) | **Booking Context** (UC-048, cascades to the wrapping `STAFF`-type `Resource` — added M21 Cluster 1; first real consumer of this event) |
 
 ### **Notification Context Events**
 
@@ -694,20 +1223,21 @@ Lives in `src/shared/value-objects/money.ts`.
 - Overlaps with other slots: no
 
 ### **BookingStatus**
-Enum: `PENDING | INFO_REQUESTED | APPROVED | REJECTED | COMPLETED | CANCELLED`
+Enum: `PENDING | INFO_REQUESTED | APPROVED | REJECTED | COMPLETED | CANCELLED | NO_SHOW`
 
 **State machine (authoritative):**
 ```
 PENDING         -> INFO_REQUESTED | APPROVED | REJECTED | CANCELLED
 INFO_REQUESTED  -> PENDING (customer / guest responded)
                 |  APPROVED | REJECTED | CANCELLED  (admin acted on info offline)
-APPROVED        -> COMPLETED | CANCELLED
+APPROVED        -> COMPLETED | CANCELLED | NO_SHOW
 COMPLETED       -> (terminal)
 REJECTED        -> (terminal)
 CANCELLED       -> (terminal)
+NO_SHOW         -> (terminal)
 ```
 
-> `NO_SHOW` is a future state, not in MVP.
+> `NO_SHOW` is added by M21 — Multi-Vertical Scheduling, Cluster 3 (UC-074) — not live in the MVP until that milestone ships. See `docs/02-DOMAIN_MODEL.md` § Booking Context's own Cluster 3 modification note and `.copilot/context.md` §5 for the same state machine.
 
 ### **BookingType**
 Enum: `GUEST | CUSTOMER`

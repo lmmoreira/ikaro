@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Escolha data e horário — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+</head>
+<body>
+  <!--
+    DISCOVERY PROTOTYPE — the single availability step shared by appointment-like
+    services. Query/context changes the availability calculation; the interaction does
+    not. It extends the established AvailabilityCarousel + SlotPicker pattern in
+    plan/journey/guest/prototypes/book-a-service/02-calendar-slot.html.
+
+    Examples: customer-chosen staff passes selectedStaffId; AUTO_ANY passes no resource
+    id; a fungible pool passes the requirement/pool; a bundle intersects all required
+    resources; a journey returns feasible start slots across every leg. Assignment occurs
+    atomically only on booking submission, never as a promise while browsing a slot.
+  -->
+  <div style="background:white;border-bottom:1px solid var(--ba-secondary);padding:.625rem 1.5rem;display:flex;justify-content:space-between"><strong>Vitta Studio</strong><a href="../../../shared/login.html">Entrar</a></div>
+  <main class="step-container">
+    <p class="step-indicator">Massagem Relaxante · Renata Souza</p>
+    <h1 style="font-size:1.5rem">Escolha data e horário</h1>
+    <p style="font-size:.875rem;opacity:.7;margin:.5rem 0 1.25rem">Os horários já consideram todos os recursos necessários para este serviço.</p>
+    <div style="display:flex;gap:.5rem;overflow-x:auto;padding-bottom:.5rem">
+      <button class="day-pill unavailable" disabled><span>SEG</span><strong>04</strong></button>
+      <button class="day-pill available"><span>TER</span><strong>05</strong></button>
+      <button class="day-pill selected"><span>QUA</span><strong>06</strong></button>
+      <button class="day-pill available"><span>QUI</span><strong>07</strong></button>
+    </div>
+    <section style="margin-top:1.5rem"><p style="font-size:.875rem;opacity:.75;margin-bottom:.75rem">Horários disponíveis — Qua, 06 de agosto</p><div style="display:flex;gap:.5rem;flex-wrap:wrap"><button class="slot-btn">09:00</button><button class="slot-btn">10:00</button><button class="slot-btn selected">11:00</button><button class="slot-btn">16:00</button></div></section>
+    <div class="card" style="margin-top:1.25rem"><strong>11:00 · 60 min</strong><p style="font-size:.875rem;opacity:.7;margin-top:.3rem">Massagem Relaxante · R$ 120,00</p></div>
+    <div class="nav-buttons"><button class="btn-secondary" type="button" onclick="window.history.back()">Voltar</button><a class="btn-primary" href="public-12-intake-e-confirmacao.html?service=massagem-relaxante&amp;date=2026-08-06&amp;time=11:00&amp;duration=60">Próximo</a></div>
+  </main>
+</body>
+</html>

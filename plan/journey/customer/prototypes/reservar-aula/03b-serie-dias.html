@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monte sua sequência — Pilates em Grupo</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    .class-ctx {
+      background: var(--ba-secondary); border-radius: var(--ba-radius);
+      padding: 0.75rem 1rem; margin-bottom: 1.75rem;
+      display: flex; align-items: center; gap: 0.75rem;
+    }
+    .class-ctx-icon {
+      width: 2.25rem; height: 2.25rem; background: var(--ba-primary);
+      border-radius: 0.375rem; display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0;
+    }
+    .section-title {
+      font-size: 0.9375rem; font-weight: 700; color: var(--ba-text);
+      margin: 1.5rem 0 0.75rem;
+    }
+    .section-title:first-of-type { margin-top: 0; }
+
+    /* Slot options — day+time as selectable cards */
+    .slot-option {
+      display: flex; align-items: center; gap: 0.875rem;
+      border: 2px solid var(--ba-secondary); border-radius: var(--ba-radius);
+      padding: 0.875rem 1rem; background: white;
+      box-shadow: var(--ba-shadow); margin-bottom: 0.5rem;
+      cursor: pointer; transition: border-color 0.12s;
+    }
+    .slot-option:hover { border-color: var(--ba-primary); }
+    .slot-option.selected { border-color: var(--ba-primary); background: #eff6ff; }
+
+    .slot-check {
+      width: 1.125rem; height: 1.125rem; border-radius: 4px;
+      border: 2px solid var(--ba-secondary); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .slot-option.selected .slot-check {
+      background: var(--ba-primary); border-color: var(--ba-primary);
+    }
+    .slot-option:not(.selected) .slot-check svg { display: none; }
+
+    .slot-label { flex: 1; font-weight: 600; font-size: 0.9375rem; color: var(--ba-text); }
+    .slot-spots {
+      font-size: 0.75rem; font-weight: 700; padding: 0.1875rem 0.5rem;
+      border-radius: 4px; flex-shrink: 0;
+    }
+    .spots-ok  { background: #dcfce7; color: #15803d; }
+    .spots-few { background: #fef3c7; color: #92400e; }
+
+    /* Start date */
+    .date-input-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.5rem;
+    }
+    .date-field { display: flex; flex-direction: column; gap: 0.25rem; }
+
+    /* Sessions summary strip */
+    .sessions-strip {
+      background: var(--ba-secondary); border-radius: var(--ba-radius);
+      padding: 0.875rem 1rem; margin-top: 1.5rem;
+      display: flex; align-items: center; gap: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!--
+    COMPONENT: SerieDiasStep
+    PAGE:      /{slug}/aulas/[classTypeId]/reservar?type=series  (GAP)
+    DATA:      GET /v1/class-types/:id/recurring-slots
+               → RecurringSlot[]: { id, dayOfWeek, startsAt, endsAt, availableSpots }
+    ACTION (next step): POST /v1/enrollments
+               { type: 'SERIES', classTypeId, slotIds: string[], startsAt: date, sessionCount: number }
+  -->
+
+  <!-- Prototype banner -->
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;
+               font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo · série · 2 slots selecionados (Seg 09:00 + Qua 09:00)
+  </div>
+
+  <!-- BRAND BAR -->
+  <div style="background:white;border-bottom:1px solid var(--ba-secondary);
+              padding:0.625rem 1.5rem;display:flex;align-items:center;justify-content:space-between;
+              position:sticky;top:0;z-index:10;">
+    <div style="display:flex;align-items:center;gap:0.625rem;min-width:0;">
+      <a href="00-tipo-reserva.html" style="display:flex;align-items:center;color:var(--ba-text);opacity:0.6;text-decoration:none;flex-shrink:0;" aria-label="Voltar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </a>
+      <span style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Pilates em Grupo</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8125rem;color:var(--ba-text);flex-shrink:0;">
+      <div class="auth-avatar">FL</div>
+      <span style="opacity:0.65;">Fernanda Lima</span>
+    </div>
+  </div>
+
+  <div class="step-container">
+
+    <!-- Class context -->
+    <div class="class-ctx">
+      <div class="class-ctx-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 6.1H3M21 12.1H3M15.1 18H3"/>
+        </svg>
+      </div>
+      <div>
+        <div style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">Pilates em Grupo</div>
+        <div style="font-size:0.8125rem;opacity:.6;color:var(--ba-text);">Camila Torres · 50 min · Sequência de 8 aulas</div>
+      </div>
+    </div>
+
+    <p class="step-indicator">Passo 1 de 2</p>
+    <h2 style="font-size:1.375rem;font-weight:800;color:var(--ba-text);margin-bottom:0.375rem;">
+      Monte sua sequência
+    </h2>
+    <p style="font-size:0.9375rem;opacity:.6;color:var(--ba-text);margin-bottom:1.5rem;">
+      Escolha em quais dias e horários você quer praticar. Pode selecionar mais de um.
+    </p>
+
+    <!-- Slots disponíveis -->
+    <div class="section-title">Horários disponíveis</div>
+
+    <!-- Seg 07:00 -->
+    <div class="slot-option">
+      <div class="slot-check">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white"
+             stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 6 9 17l-5-5"/>
+        </svg>
+      </div>
+      <div class="slot-label">Segundas · 07:00 – 07:50</div>
+      <span class="slot-spots spots-ok">5 vagas</span>
+    </div>
+
+    <!-- Seg 09:00 — selected -->
+    <div class="slot-option selected">
+      <div class="slot-check">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white"
+             stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 6 9 17l-5-5"/>
+        </svg>
+      </div>
+      <div class="slot-label">Segundas · 09:00 – 09:50</div>
+      <span class="slot-spots spots-ok">6 vagas</span>
+    </div>
+
+    <!-- Qua 07:00 -->
+    <div class="slot-option">
+      <div class="slot-check">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white"
+             stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 6 9 17l-5-5"/>
+        </svg>
+      </div>
+      <div class="slot-label">Quartas · 07:00 – 07:50</div>
+      <span class="slot-spots spots-few">2 vagas</span>
+    </div>
+
+    <!-- Qua 09:00 — selected -->
+    <div class="slot-option selected">
+      <div class="slot-check">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white"
+             stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 6 9 17l-5-5"/>
+        </svg>
+      </div>
+      <div class="slot-label">Quartas · 09:00 – 09:50</div>
+      <span class="slot-spots spots-ok">4 vagas</span>
+    </div>
+
+    <!-- Sex 07:00 -->
+    <div class="slot-option">
+      <div class="slot-check">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white"
+             stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 6 9 17l-5-5"/>
+        </svg>
+      </div>
+      <div class="slot-label">Sextas · 07:00 – 07:50</div>
+      <span class="slot-spots spots-ok">3 vagas</span>
+    </div>
+
+    <!-- Data de início -->
+    <div class="section-title">Data de início</div>
+    <div class="date-field">
+      <label class="form-label">Quando você quer começar?</label>
+      <input type="date" class="form-input" value="2026-08-18">
+    </div>
+
+    <!-- Sessions summary -->
+    <div class="sessions-strip">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ba-primary)"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+        <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+      </svg>
+      <div style="font-size:0.875rem;color:var(--ba-text);line-height:1.5;">
+        <strong>8 aulas</strong> · Seg e Qua a partir de 18 ago · termina aprox. em 10 set
+      </div>
+    </div>
+
+    <!-- Nav -->
+    <div class="nav-buttons" style="margin-top:1.5rem;">
+      <a href="00-tipo-reserva.html" class="btn-secondary">Voltar</a>
+      <a href="04-serie-confirmar.html" class="btn-primary" style="flex:1;text-align:center;">
+        Próximo
+      </a>
+    </div>
+
+  </div>
+
+</body>
+</html>

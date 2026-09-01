@@ -393,3 +393,30 @@ export interface CompleteBookingResponse {
 - Lifecycle endpoints (`cancel`, `reschedule`, `complete`) — all implemented, `M13-S19`/`S20`, with `.http` coverage.
 - `MarkCompleteBookingPage` and `RescheduleBookingPage` are dedicated nested routes (`/dashboard/bookings/[id]/complete`, `/dashboard/bookings/[id]/reschedule`), not modals/sheets over `[id]`.
 - The reschedule flow reuses the UC-011 `AvailabilityCalendar` with duration frozen at the existing booking's `totalDurationMins` (no basket/duration recompute).
+
+---
+
+## ❓ GAP — M21 Cluster 3 extension (UC-071, UC-074, not yet built)
+
+> Everything above this line is shipped. Everything below is new, unimplemented scope. See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules.
+
+**New prototype screen:** `08-recurring-schedule-approval.html` (relocated from `staff-07-recurring-schedule-approval.html`) — mirrors `01-booking-detail.html`'s approve/reject shape, scoped to the whole standing schedule request rather than one booking.
+
+**File map (❓ none exist yet):**
+
+| File | Status |
+|---|---|
+| `apps/web/features/booking/components/dashboard/agenda/RecurringScheduleApprovalQueue.tsx` | ❓ Gap |
+| `03-booking-detail-approved.html`'s no-show action | ❓ Gap — extend existing `BookingDetailApproved` component, no new screen |
+
+**BFF calls:**
+```
+GET  /recurring-booking-schedules?status=PENDING_APPROVAL   -- UC-071 queue
+POST /recurring-booking-schedules/:id/approve|reject          -- UC-071
+POST /bookings/:id/no-show                                    -- UC-074
+POST /bookings/:id/no-show/correct                             -- UC-074 A3
+```
+
+**Open questions / gaps:**
+- [ ] No story exists yet — needs `/story-discovery` once the M21 milestone file is drafted.
+- [ ] Whether the recurring-schedule approval queue is a separate list or folds into `00-agenda.html`'s existing queue is a UI decision for the implementing story.

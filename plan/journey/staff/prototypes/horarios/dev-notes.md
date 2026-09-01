@@ -190,3 +190,59 @@ Add `apps/web/app/dashboard/schedule/page.tsx` to the dashboard sidebar nav unde
 2. **Booking block interaction** — clicking an approved booking navigates to `/dashboard/bookings/[id]`.
 3. **Warning banner** — UC-010a A4 is non-blocking: closure is created, then a warning banner shows if approved bookings exist in the window.
 4. **BFF `.http` coverage** — `apps/bff/http/schedule/*.http` exists for all closure/opening/availability endpoints.
+
+---
+
+## ❓ GAP — Resource-scoped extension (UC-010e, UC-010f — M21 Cluster 1, not yet built)
+
+> Added by the `/discovery-to-milestone` promotion of `docs/discovery/multivertical-booking/`. Everything above this line is shipped (`M13-S21`) and untouched. Everything below is new, unimplemented scope layered on top of the same `SchedulePage` — see `07-horarios-recurso.html` for the prototype screen (relocated from the discovery folder's `staff-05-horarios-recurso.html`).
+
+**What's new:** `resourceId` becomes an optional field on both `POST /schedule/closures` and `POST /schedule/openings` (existing endpoints — no new routes), plus a `resourceId` query filter on both `GET` list endpoints, and a resource picker at the top of `SchedulePage` so a MANAGER can view/manage one resource's own calendar instead of (or alongside) the tenant-wide one. See `docs/02-DOMAIN_MODEL.md` § Booking Context (`Resource` aggregate) and `docs/14-API_CONTRACTS.md` § Schedule Closures/Openings for the full contract.
+
+**Auth exception:** a request body with `resourceId` set requires `MANAGER` specifically (not `STAFF`) — the tenant-wide case (`resourceId` omitted) is unchanged, still `MANAGER|STAFF`. See `docs/14-API_CONTRACTS.md`.
+
+**File map (❓ none exist yet):**
+
+| File | Status |
+|---|---|
+| `apps/web/features/booking/components/dashboard/schedule/ResourcePicker.tsx` | ❓ Gap — new resource selector, likely a `<Select>` in `SchedulePage`'s header |
+| `SchedulePage.tsx` | Needs extending, not replacing — add `resourceId` to its query state and pass through to every BFF call |
+| `ClosureFormSheet.tsx` / `OpeningFormSheet.tsx` | Need extending — pass the currently-selected `resourceId` (if any) into the create request body |
+
+**BFF calls (extend existing, no new endpoints):**
+```
+GET /v1/schedule/closures?from=...&to=...&resourceId=       // resourceId optional
+GET /v1/schedule/openings?from=...&to=...&resourceId=       // resourceId optional
+POST /v1/schedule/closures   { ..., resourceId?: string }   // 404 if resourceId set and not found/cross-tenant
+POST /v1/schedule/openings   { ..., resourceId?: string }   // 404 if resourceId set and not found/cross-tenant
+GET /v1/resources?type=&isActive=                            // new (UC-044) — feeds ResourcePicker's options
+```
+
+**Known limitation, found during this promotion — not resolved here:** `07-horarios-recurso.html`'s own sidebar/bottom-nav still has "Horários" pointing at a Cluster-2/4 screen (`manager-05-visao-geral.html`, the combined multi-resource day grid) rather than back at this file, and "Serviços"/"Turmas" point at Cluster 2/4 screens (`manager-02-service-resource-config.html`, `staff-04-turmas-proximas.html`) not yet promoted. This mirrors the discovery's own documented caveat ("component explorations until a formal cross-role route map replaces the discovery-only dead navigation links" — `docs/discovery/multivertical-booking/prototype/dev-notes.md`). Leave as-is until those clusters are promoted; do not invent a placeholder destination.
+
+**Open questions / gaps:**
+- [ ] No story exists yet for this extension — needs `/story-discovery` once M21's milestone file is drafted (Cluster 1).
+- [ ] Whether the resource picker defaults to "tenant-wide" or the tenant's own `LOCATION` resource on first load is a UI detail for that story to decide, not fixed here.
+
+---
+
+## ❓ GAP — M21 Cluster 2: Manager multi-resource day grid (UC-057, not yet built)
+
+**File:** `08-visao-geral-manager.html` (relocated from `manager-05-visao-geral.html`). MANAGER-only variant of "Horários" — columns = active resources, rows = time slots.
+
+**File map (❓ none exist yet):**
+
+| File | Status |
+|---|---|
+| `apps/web/features/booking/components/dashboard/schedule/DayGridPage.tsx` | ❓ Gap |
+
+**BFF call:**
+```
+GET /v1/schedule/day-grid?date=YYYY-MM-DD
+  Header: Authorization: Bearer {jwt}   (MANAGER)
+  Response: { date, columns: [{ resourceId, name, type, blocks: [{ startsAt, endsAt, kind, refId }] }] }
+```
+
+**Open questions:**
+- [ ] No story exists yet — needs `/story-discovery` once the M21 milestone file is drafted.
+- [ ] Route-level relationship to `SchedulePage`/the resource-scoped extension above (separate page vs. a view toggle) is a UI decision for the implementing story.

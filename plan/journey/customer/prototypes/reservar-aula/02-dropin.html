@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Escolha a sessão — Pilates em Grupo</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    .class-ctx {
+      background: var(--ba-secondary); border-radius: var(--ba-radius);
+      padding: 0.75rem 1rem; margin-bottom: 1.75rem;
+      display: flex; align-items: center; gap: 0.75rem;
+    }
+    .class-ctx-icon {
+      width: 2.25rem; height: 2.25rem; background: var(--ba-primary);
+      border-radius: 0.375rem; display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0;
+    }
+
+    /* Session list */
+    .week-label {
+      font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.07em; opacity: 0.4; color: var(--ba-text);
+      margin: 1.25rem 0 0.5rem;
+    }
+    .week-label:first-of-type { margin-top: 0; }
+
+    .session-row {
+      display: flex; align-items: center; gap: 0.875rem;
+      border: 2px solid var(--ba-secondary); border-radius: var(--ba-radius);
+      padding: 0.875rem 1rem; background: white;
+      box-shadow: var(--ba-shadow); margin-bottom: 0.5rem;
+      cursor: pointer; transition: border-color 0.12s;
+    }
+    .session-row:hover { border-color: var(--ba-primary); }
+    .session-row.selected { border-color: var(--ba-primary); background: #eff6ff; }
+    .session-row.full { cursor: default; opacity: 0.6; }
+    .session-row.full:hover { border-color: var(--ba-secondary); }
+
+    .session-dot {
+      width: 0.5rem; height: 0.5rem; border-radius: 50%; flex-shrink: 0;
+      background: var(--ba-primary);
+    }
+    .session-row.selected .session-dot { background: var(--ba-primary); }
+    .session-row.full .session-dot { background: #9ca3af; }
+
+    .session-datetime {
+      flex: 1; font-weight: 600; font-size: 0.9375rem; color: var(--ba-text);
+    }
+    .session-time-sub { font-size: 0.8125rem; font-weight: 400; opacity: 0.55; }
+
+    .spots-badge {
+      font-size: 0.75rem; font-weight: 700; padding: 0.1875rem 0.5rem;
+      border-radius: 4px; white-space: nowrap; flex-shrink: 0;
+    }
+    .spots-ok   { background: #dcfce7; color: #15803d; }
+    .spots-few  { background: #fef3c7; color: #92400e; }
+    .spots-full { background: #fee2e2; color: #dc2626; }
+
+    .check-circle {
+      width: 1.25rem; height: 1.25rem; border-radius: 50%;
+      border: 2px solid var(--ba-primary); display: flex;
+      align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .session-row.selected .check-circle {
+      background: var(--ba-primary);
+    }
+    .session-row:not(.selected) .check-circle svg { display: none; }
+  </style>
+</head>
+<body>
+
+  <!--
+    COMPONENT: DropInSessionPicker
+    PAGE:      /{slug}/aulas/[classTypeId]/reservar?type=drop-in  (GAP)
+    DATA:      GET /v1/class-types/:id/sessions?from=today&to=today+14d
+               → Session[]: { id, startsAt, endsAt, availableSpots, totalSpots }
+    ENTRY:     Tela 0 (quando há bifurcação) ou direto (classType.allowsDropIn only)
+  -->
+
+  <!-- Prototype banner -->
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;
+               font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo · drop-in · sessão das 07:00 de segunda selecionada
+  </div>
+
+  <!-- BRAND BAR -->
+  <div style="background:white;border-bottom:1px solid var(--ba-secondary);
+              padding:0.625rem 1.5rem;display:flex;align-items:center;justify-content:space-between;
+              position:sticky;top:0;z-index:10;">
+    <div style="display:flex;align-items:center;gap:0.625rem;min-width:0;">
+      <a href="00-tipo-reserva.html" style="display:flex;align-items:center;color:var(--ba-text);opacity:0.6;text-decoration:none;flex-shrink:0;" aria-label="Voltar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </a>
+      <span style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Pilates em Grupo</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8125rem;color:var(--ba-text);flex-shrink:0;">
+      <div class="auth-avatar">FL</div>
+      <span style="opacity:0.65;">Fernanda Lima</span>
+    </div>
+  </div>
+
+  <div class="step-container">
+
+    <!-- Class context -->
+    <div class="class-ctx">
+      <div class="class-ctx-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 6.1H3M21 12.1H3M15.1 18H3"/>
+        </svg>
+      </div>
+      <div>
+        <div style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">Pilates em Grupo</div>
+        <div style="font-size:0.8125rem;opacity:.6;color:var(--ba-text);">Camila Torres · 50 min · Aula avulsa</div>
+      </div>
+    </div>
+
+    <p class="step-indicator">Passo 1 de 2</p>
+    <h2 style="font-size:1.375rem;font-weight:800;color:var(--ba-text);margin-bottom:0.375rem;">
+      Escolha a sessão
+    </h2>
+    <p style="font-size:0.9375rem;opacity:.6;color:var(--ba-text);margin-bottom:1.5rem;">
+      Próximas sessões disponíveis.
+    </p>
+
+    <!-- Esta semana -->
+    <div class="week-label">Esta semana</div>
+
+    <!-- Seg 18 ago 07:00 — selected -->
+    <div class="session-row selected">
+      <div class="session-dot"></div>
+      <div class="session-datetime">
+        Seg, 18 ago
+        <span class="session-time-sub"> · 07:00 – 07:50</span>
+      </div>
+      <span class="spots-badge spots-ok">5 vagas</span>
+      <div class="check-circle">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white"
+             stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 6 9 17l-5-5"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Seg 18 ago 09:00 -->
+    <div class="session-row">
+      <div class="session-dot"></div>
+      <div class="session-datetime">
+        Seg, 18 ago
+        <span class="session-time-sub"> · 09:00 – 09:50</span>
+      </div>
+      <span class="spots-badge spots-ok">6 vagas</span>
+      <div class="check-circle"></div>
+    </div>
+
+    <!-- Qua 20 ago 07:00 — lotada -->
+    <a href="02b-dropin-lotada.html" style="text-decoration:none;">
+      <div class="session-row full">
+        <div class="session-dot" style="background:#9ca3af;"></div>
+        <div class="session-datetime" style="color:var(--ba-text);">
+          Qua, 20 ago
+          <span class="session-time-sub"> · 07:00 – 07:50</span>
+        </div>
+        <span class="spots-badge spots-full">Lotada</span>
+      </div>
+    </a>
+
+    <!-- Qua 20 ago 09:00 -->
+    <div class="session-row">
+      <div class="session-dot"></div>
+      <div class="session-datetime">
+        Qua, 20 ago
+        <span class="session-time-sub"> · 09:00 – 09:50</span>
+      </div>
+      <span class="spots-badge spots-ok">4 vagas</span>
+      <div class="check-circle"></div>
+    </div>
+
+    <!-- Próxima semana -->
+    <div class="week-label">Próxima semana</div>
+
+    <!-- Seg 25 ago 07:00 -->
+    <div class="session-row">
+      <div class="session-dot"></div>
+      <div class="session-datetime">
+        Seg, 25 ago
+        <span class="session-time-sub"> · 07:00 – 07:50</span>
+      </div>
+      <span class="spots-badge spots-few">2 vagas</span>
+      <div class="check-circle"></div>
+    </div>
+
+    <!-- Seg 25 ago 09:00 -->
+    <div class="session-row">
+      <div class="session-dot"></div>
+      <div class="session-datetime">
+        Seg, 25 ago
+        <span class="session-time-sub"> · 09:00 – 09:50</span>
+      </div>
+      <span class="spots-badge spots-ok">7 vagas</span>
+      <div class="check-circle"></div>
+    </div>
+
+    <!-- Nav -->
+    <div class="nav-buttons" style="margin-top:2rem;">
+      <a href="00-tipo-reserva.html" class="btn-secondary">Voltar</a>
+      <a href="03-dropin-confirmar.html" class="btn-primary" style="flex:1;text-align:center;">
+        Próximo
+      </a>
+    </div>
+
+  </div>
+
+</body>
+</html>

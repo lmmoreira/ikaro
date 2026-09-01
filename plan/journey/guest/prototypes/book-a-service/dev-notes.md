@@ -207,3 +207,54 @@ The "Inline validation errors are plain `<p>` elements with no `role=\"alert\"`"
 ## No new files needed
 
 Every component for the guest path already exists (M12-S07), plus the 3 capabilities added since (auth-detection, calendar variant, i18n props — see Overview). This prototype is for UX review only.
+
+---
+
+## ❓ GAP — M21 Cluster 3 extension (UC-061–068, not yet built)
+
+> Everything above this line is shipped (`M12-S07`). Everything below is new, unimplemented scope promoted from `docs/discovery/multivertical-booking/`. See `docs/02-DOMAIN_MODEL.md` § `Service`/`Resource`, `docs/13-DATABASE_SCHEMA.md`, `docs/14-API_CONTRACTS.md` § Booking Lifecycle for the full contract.
+
+**New prototype screens (relocated from the discovery folder's `public-XX-*.html`):**
+
+| File | Screen | UC |
+|---|---|---|
+| `05-staff-picker.html` | Choose a specific staff member | UC-061 |
+| `06-auto-staff.html` | System-auto-assigned named staff (no picker shown) | UC-063 |
+| `07-fungible-resource.html` | Auto-assigned from a fungible pool (no identity shown) | UC-062 |
+| `08-staff-calendar.html` | Browse a specific staff member's own calendar | UC-066 |
+| `09-bundle-booking.html` / `09b-bundle-booking-erro.html` | Bundled-resource booking + race-condition error | UC-064 |
+| `10-multi-leg-itinerary.html` / `10b-multi-leg-itinerary-erro.html` | Multi-leg itinerary + race-condition error | UC-065 |
+| `11-appointment-availability.html` | Shared availability step reused by every resource-scoped/bundled/legged flow above | UC-058 (Cluster 2) |
+| `12-reserva-por-tempo.html` / `12b-reserva-por-tempo-erro.html` | Variable-duration reservation + unavailable error | UC-067 |
+| `13-intake-e-confirmacao.html` / `13b-intake-e-confirmacao-erro.html` | Versioned booking intake + missing-field error | UC-068 |
+| `14-pending-approval.html` | Manual-approval hold display (30-min countdown example) | Booking policy (UC-055) |
+| `15-login-required.html` | Auth boundary before a waitlist/alert action | UC-072 A1 |
+| `16-service-type-selector.html` | Multi-service-type catalogue entry point | Canonical IA entry, dev-notes.md §"Canonical public information architecture" |
+
+**File map (❓ none exist yet):**
+
+| File | Status |
+|---|---|
+| `apps/web/features/booking/components/guest/StaffPickerStep.tsx` | ❓ Gap |
+| `apps/web/features/booking/components/guest/AutoAssignedStaffSlotPicker.tsx` | ❓ Gap |
+| `apps/web/features/booking/components/guest/FungibleResourceSlotPicker.tsx` | ❓ Gap |
+| `apps/web/features/booking/components/guest/MultiLegItineraryReview.tsx` | ❓ Gap |
+| `apps/web/features/booking/components/guest/VariableDurationReservationStep.tsx` | ❓ Gap |
+| `apps/web/features/booking/components/guest/BookingIntakeStep.tsx` | ❓ Gap |
+| `apps/web/features/booking/components/guest/ManualApprovalHoldState.tsx` | ❓ Gap |
+
+**BFF calls (new/extended — see `docs/14-API_CONTRACTS.md`):**
+```
+GET  /resources/:id/availability                          -- UC-066
+GET  /schedule/availability?serviceId=&resourceId=         -- extended (UC-058), resource-scoped
+POST /bookings                                              -- extended body: resourceSelections, legSelections,
+                                                                startsAt/durationMinutes (variable-duration),
+                                                                intakeSchemaVersion/intakeAnswers, attendees
+GET  /services/:id/intake-schema                            -- feeds BookingIntakeStep
+```
+
+**Known limitation, found during this promotion:** `16-service-type-selector.html`'s "browse a class" link points at `public-02b-class-agenda.html` (Cluster 4, not yet promoted) — left as a documented gap.
+
+**Open questions / gaps:**
+- [ ] No story exists yet — needs `/story-discovery` once the M21 milestone file is drafted.
+- [ ] Reconciling `16-service-type-selector.html` with the existing single-service-type `ServiceSelectionStep` (does one replace the other, or does the existing step gain a resource-type branch?) is a UI/routing decision for the implementing story.

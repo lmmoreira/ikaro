@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nova aula — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    .detail-layout { display: block; }
+    .detail-aside  { display: none; }
+    @media (min-width: 1024px) {
+      .detail-layout { display: grid; grid-template-columns: 1fr 22rem; gap: 1.5rem; align-items: start; }
+      .detail-aside  { display: block; position: sticky; top: 1.5rem; }
+      .form-actions  { display: none !important; }
+    }
+    .form-actions {
+      position: fixed; bottom: 3.75rem; left: 0; right: 0; z-index: 20;
+      background: white; border-top: 1px solid var(--ba-secondary);
+      padding: 0.75rem 1rem; box-shadow: 0 -2px 8px rgba(0,0,0,.06);
+      display: flex; gap: 0.75rem;
+    }
+    @media (min-width: 1024px) { .form-actions { display: none !important; } }
+
+    .field-group { margin-bottom: 1.25rem; }
+    .field-label { display: block; font-size: 0.8125rem; font-weight: 600; color: var(--ba-text);
+                   margin-bottom: 0.375rem; }
+    .field-hint  { font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+    select, input[type=text] {
+      width: 100%; padding: 0.625rem 0.75rem; font-size: 0.9375rem;
+      border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius);
+      color: var(--ba-text); background: white; font-family: inherit;
+    }
+    select:focus, input[type=text]:focus {
+      outline: none; border-color: var(--ba-primary);
+    }
+  </style>
+</head>
+<body>
+
+  <!--
+    DISCOVERY PROTOTYPE — manager: criar novo tipo de aula (passo 1 do cadastro).
+
+    UX decisions:
+    - Form mínimo: apenas nome, duração e vagas
+    - Duração em select com opções comuns + "Personalizado" (abre input numérico)
+    - Vagas é número fixo por tipo — não varia por horário nem por sessão
+    - Após salvar, usuário volta para manager-turmas-list.html e pode adicionar horários
+    - Não mistura criação de horário aqui — fluxos separados (menos carga cognitiva)
+
+    Next screen: manager-turmas-list.html (após salvar)
+    Next screen: manager-adicionar-horario.html (após salvar, atalho opcional)
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — redimensione para ver mobile (&lt;1024px) e desktop (≥1024px)
+  </div>
+
+  <div class="dashboard-topbar">
+    <a href="01-turmas-list.html" style="display:flex;align-items:center;gap:0.375rem;color:var(--ba-text);text-decoration:none;font-size:0.9375rem;font-weight:500;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      <span style="font-weight:600;">Turmas</span>
+    </a>
+    <h1 class="topbar-page-title">Nova aula</h1>
+    <div style="margin-left:auto;">
+      <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">V</div>
+        <div><p class="sidebar-tenant-name">Vitta Studio</p><p class="sidebar-tenant-slug">@vittastudio</p></div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top:0.5rem;">
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Agenda
+        </a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Horários
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/equipe/01-team-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          Serviços
+        </a>
+        <a class="sidebar-nav-item active" href="01-turmas-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
+          Turmas
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/configuracoes/01-settings-form.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          Fidelidade
+        </a>
+      </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Equipe</a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/servicos/01-servicos-list.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configurações</a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/horarios/00-schedule.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Hotsite</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
+        <a class="sidebar-logout" href="../../../shared/staff-login.html" title="Sair">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </a>
+      </div>
+    </aside>
+
+    <main class="main-content" style="padding-bottom:9rem;">
+      <div class="dashboard-body">
+        <div class="detail-layout">
+
+          <!-- Formulário -->
+          <div>
+            <div class="field-group">
+              <label class="field-label">Nome da aula</label>
+              <input type="text" placeholder="ex: Pilates, CrossFit, Yoga">
+              <p class="field-hint">Este nome aparece para clientes ao reservar e no dashboard da equipe.</p>
+            </div>
+
+            <div class="row2">
+              <div class="field-group">
+                <label class="field-label">Duração padrão</label>
+                <select>
+                  <option value="">Selecione…</option>
+                  <option>30 min</option>
+                  <option>45 min</option>
+                  <option selected>50 min</option>
+                  <option>60 min</option>
+                  <option>75 min</option>
+                  <option>90 min</option>
+                  <option>Personalizado</option>
+                </select>
+                <p class="field-hint">Pode ser ajustada por horário ao adicionar uma recorrência.</p>
+              </div>
+              <div class="field-group">
+                <label class="field-label">Vagas por sessão</label>
+                <input type="text" placeholder="ex: 4">
+                <p class="field-hint">Número fixo para todas as sessões deste tipo.</p>
+              </div>
+            </div>
+
+            <!-- mobile actions -->
+            <div class="form-actions">
+              <a href="01-turmas-list.html" class="btn-secondary" style="flex:1;text-align:center;text-decoration:none;">Cancelar</a>
+              <a href="01-turmas-list.html" class="btn-primary" style="flex:1;text-align:center;text-decoration:none;">Criar aula</a>
+            </div>
+          </div>
+
+          <!-- Aside (desktop only) -->
+          <div class="detail-aside">
+            <div class="card" style="padding:1.25rem;">
+              <a href="01-turmas-list.html" class="btn-primary"
+                 style="display:block;text-align:center;text-decoration:none;margin-bottom:0.75rem;">
+                Criar aula
+              </a>
+              <a href="01-turmas-list.html" class="btn-secondary"
+                 style="display:block;text-align:center;text-decoration:none;">
+                Cancelar
+              </a>
+              <p style="font-size:0.75rem;color:#6b7280;margin-top:1rem;line-height:1.5;">
+                Após criar, você poderá adicionar os horários em que esta aula acontece.
+              </p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <nav class="bottom-nav">
+    <a class="bottom-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html"><svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Agenda</a>
+    <a class="bottom-nav-item" href="../../../staff/prototypes/horarios/00-schedule.html"><svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Horários</a>
+    <a class="bottom-nav-item" href="../../../staff/prototypes/servicos/01-servicos-list.html"><svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>Serviços</a>
+    <a class="bottom-nav-item active" href="01-turmas-list.html"><svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>Turmas</a>
+  </nav>
+
+</body>
+</html>

@@ -2,7 +2,7 @@
 
 **Actor(s):** STAFF | MANAGER  
 **Goal:** Review the daily booking queue, action each request — approve, reject, or request more information — and manage an approved booking through to completion, cancellation, or reschedule  
-**UCs covered:** UC-003, UC-004, UC-005, UC-008, UC-009 (incl. A6 — loyalty redemption during completion)  
+**UCs covered:** UC-003, UC-004, UC-005, UC-008, UC-009 (incl. A6 — loyalty redemption during completion) · UC-071, UC-074 (❓ Gap — M21 Cluster 3, recurring-schedule approval + appointment no-show)  
 **Status:** Draft
 
 > Note: the lifecycle screens referenced here were later implemented in M13-S19 and M13-S20; this document remains the prototype and journey reference.
@@ -132,4 +132,13 @@ Folder: `staff/prototypes/agenda/`
 | `05b-reschedule-conflict.html` | Reschedule Alt A2 — new slot became unavailable on confirm | UC-008 Alt A2 | — | ✅ Criado |
 | `05c-reschedule-success.html` | Reschedule confirmed inline state | UC-008 Alt A1 | — | ✅ Criado |
 
+| `08-recurring-schedule-approval.html` | Approve/reject a `RecurringBookingSchedule` request | UC-071 | — | ❓ Gap (M21 Cluster 3) |
+
 (Story numbers left as `—` above where they couldn't be confirmed against a specific milestone story — do not guess when citing these in a new story; check `git log` or ask.)
+
+## M21 — Multi-Vertical Scheduling, Cluster 3 extension (❓ Gap, not yet built)
+
+> Promoted from `docs/discovery/multivertical-booking/`. UC-071's approval queue mirrors this journey's existing manual-approval-appointment queue shape. UC-074 (no-show) extends `03-booking-detail-approved.html`'s existing Cancel/Complete/Reschedule action set with a new "Marcar não comparecimento" action — no new screen needed, same page. Full implementation-handoff detail lives in `dev-notes.md`'s own ❓ GAP section — not duplicated here.
+
+- [ ] No story exists yet — needs `/story-discovery` once the M21 milestone file is drafted.
+- [ ] Whether the recurring-schedule approval queue is a separate list or folds into the existing booking queue (`00-agenda.html`) is a UI decision for the implementing story.

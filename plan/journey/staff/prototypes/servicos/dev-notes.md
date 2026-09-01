@@ -147,3 +147,42 @@ Staff clicks "Desativar serviço" (danger zone button, ServiceEditStatusSection)
 ## Types
 
 `StaffServiceResponse` in `@ikaro/types` is the real shape used by `ServiceEditPage`/`ServiceDeactivatePage` — includes `serviceId`, `name`, `description`, `price` (`MoneyAmount`), `durationMinutes`, `loyaltyPointsValue`, `requiresPickupAddress`, `isActive`.
+
+---
+
+## ❓ GAP — M21 Cluster 2 extension (UC-050–056, not yet built)
+
+> Everything above this line is shipped (`M13-S22`–`S24`). Everything below is new, unimplemented scope promoted from `docs/discovery/multivertical-booking/`. See `docs/02-DOMAIN_MODEL.md` § Booking Context (`Service` aggregate) and `docs/14-API_CONTRACTS.md` § Service Extensions for the full contract.
+
+**New prototype screens (relocated from the discovery folder):**
+
+| File | Screen | UC |
+|---|---|---|
+| `04-service-resource-config.html` | Resource requirements, bundles, legs, buffer — one config section per model | UC-050, 051, 052, 053 |
+| `05-service-booking-policies.html` | Approval mode, hold, cancellation/reschedule windows, variable-duration/pricing | UC-055 |
+| `05b-service-booking-policies-erro.html` | Error — `CUSTOMER_SELECTED` duration without a pricing policy | UC-055 A2 |
+
+**File map (❓ none exist yet):**
+
+| File | Status |
+|---|---|
+| `apps/web/features/booking/components/dashboard/services/ServiceResourceConfigSection.tsx` | ❓ Gap |
+| `apps/web/features/booking/components/dashboard/services/ServiceLegsSection.tsx` | ❓ Gap |
+| `apps/web/features/booking/components/dashboard/services/ServiceBookingPolicyForm.tsx` | ❓ Gap |
+| `apps/web/features/booking/components/dashboard/services/ServiceIntakeSchemaForm.tsx` | ❓ Gap — **no discovery screen exists for this** (UC-054); design from the existing form patterns on this page, not from scratch |
+
+**BFF calls (new endpoints — see `docs/14-API_CONTRACTS.md` § Service Extensions for full request/response shapes):**
+```
+PATCH /v1/services/:id/resource-requirements   -- UC-050/051
+PUT   /v1/services/:id/legs                    -- UC-052
+PATCH /v1/services/:id                         -- UC-053 (bufferAfterMinutes, existing endpoint, new field)
+POST  /v1/services/:id/intake-schema           -- UC-054
+PATCH /v1/services/:id/booking-policy          -- UC-055
+POST  /v1/services                             -- UC-056 (bookingModel, existing endpoint, new field)
+```
+
+**Known limitation, found during this promotion:** `04-service-resource-config.html`'s SESSION-model handoff card links to `manager-06-criar-turma.html` (Cluster 4, not yet promoted) — left as a documented gap, not a placeholder guess.
+
+**Open questions / gaps:**
+- [ ] No story exists yet — needs `/story-discovery` once the M21 milestone file is drafted.
+- [ ] UC-054 (intake schema) has no prototype screen at all — the implementing story must design it from this page's existing form patterns.

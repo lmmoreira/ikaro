@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Definir staff — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    .topbar-save-btn { display: none; }
+    @media (min-width: 1024px) { .topbar-save-btn { display: inline-flex; } }
+    .save-fab {
+      position: fixed; bottom: 5rem; right: 1.5rem;
+      background: #2563eb; color: white; border-radius: 9999px;
+      padding: 0.75rem 1.25rem; font-size: 0.875rem; font-weight: 600;
+      text-decoration: none; box-shadow: 0 4px 12px rgba(37,99,235,0.35);
+      display: flex; align-items: center; gap: 0.375rem;
+    }
+    @media (min-width: 1024px) { .save-fab { display: none; } }
+
+    .context-bar {
+      background: #f9fafb; border: 1px solid var(--ba-secondary); border-radius: var(--ba-radius);
+      padding: 0.625rem 0.875rem; margin-bottom: 1.25rem; font-size: 0.875rem; color: #6b7280;
+    }
+    .context-bar strong { color: var(--ba-text); }
+
+    /* Bulk assign */
+    .bulk-row {
+      display: flex; align-items: center; gap: 0.75rem; padding: 0.875rem 0;
+      border-bottom: 1px solid var(--ba-secondary); margin-bottom: 0.25rem;
+    }
+    .bulk-label { font-size: 0.8125rem; color: #6b7280; flex: 1; }
+
+    /* Staff selector */
+    .staff-sel {
+      display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem;
+      border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius);
+      background: white; cursor: pointer; min-width: 10rem; font-size: 0.875rem;
+      color: var(--ba-text);
+    }
+    .staff-sel:hover { border-color: var(--ba-primary); }
+    .staff-sel.empty { color: #9ca3af; }
+    .staff-sel-name { flex: 1; }
+    .staff-sel svg { flex-shrink: 0; color: #6b7280; }
+
+    /* Day list */
+    .day-section { border-bottom: 1px solid var(--ba-secondary); }
+    .day-section:last-child { border-bottom: none; }
+    .day-row {
+      display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 0;
+    }
+    .day-name { font-size: 0.9375rem; font-weight: 600; color: var(--ba-text); width: 5.5rem; flex-shrink: 0; }
+    .day-sel-wrap { flex: 1; }
+    .per-hora-toggle {
+      display: flex; align-items: center; gap: 0.25rem; font-size: 0.8125rem;
+      color: #6b7280; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    }
+    .per-hora-toggle.open { color: #2563eb; }
+    .per-hora-toggle svg { transition: transform 0.15s; }
+    .per-hora-toggle.open svg { transform: rotate(180deg); }
+
+    /* Time sub-rows */
+    .time-list { background: #f9fafb; border-top: 1px solid var(--ba-secondary); padding: 0.5rem 0; }
+    .time-row {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.5rem 0 0.5rem 1.5rem;
+    }
+    .time-label { font-size: 0.8125rem; color: #6b7280; width: 3.5rem; flex-shrink: 0; }
+
+    .hint-text {
+      font-size: 0.75rem; color: #6b7280; line-height: 1.5;
+      padding: 0.75rem 0 0.25rem; border-top: 1px solid var(--ba-secondary); margin-top: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!--
+    DISCOVERY PROTOTYPE — manager: definir staff por dia e/ou horário (passo 3).
+
+    Contexto: chegou de manager-adicionar-horario.html após salvar um horário de Pilates
+    (Seg/Qua/Sex · 08:00, 09:00, 10:00).
+
+    UX decisions:
+    - Sem modo explícito: o usuário opera no nível que precisar
+    - "Aplicar a todos" no topo cobre o caso mais simples (um professor para tudo)
+    - Cada dia tem seu seletor: cobre o caso do box (um professor por dia, todos os horários)
+    - "Por horário" expande o dia e mostra seletores por slot: cobre misto (Sexta no exemplo)
+    - Expandir não afeta os outros dias — cada um é independente
+    - Staff definido aqui é o padrão recorrente; ajustes pontuais de sessão ficam em "Ver sessões"
+    - Selects mostram membros da equipe já cadastrados
+
+    Prev screen: manager-adicionar-horario.html
+    Next screen: manager-turmas-list.html (ao salvar)
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — redimensione para ver mobile (&lt;1024px) e desktop (≥1024px)
+  </div>
+
+  <div class="dashboard-topbar">
+    <a href="03-adicionar-horario.html" style="display:flex;align-items:center;gap:0.375rem;color:var(--ba-text);text-decoration:none;font-size:0.9375rem;font-weight:500;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      <span style="font-weight:600;">Pilates</span>
+    </a>
+    <h1 class="topbar-page-title">Definir staff</h1>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
+      <a href="01-turmas-list.html" class="btn-primary topbar-save-btn"
+         style="font-size:0.8125rem;padding:0.5rem 0.875rem;">
+        Salvar
+      </a>
+      <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">V</div>
+        <div><p class="sidebar-tenant-name">Vitta Studio</p><p class="sidebar-tenant-slug">@vittastudio</p></div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top:0.5rem;">
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Agenda</a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Horários</a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/equipe/01-team-list.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>Serviços</a>
+        <a class="sidebar-nav-item active" href="01-turmas-list.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>Turmas</a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/configuracoes/01-settings-form.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Fidelidade</a>
+      </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Equipe</a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/servicos/01-servicos-list.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configurações</a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/horarios/00-schedule.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Hotsite</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
+        <a class="sidebar-logout" href="../../../shared/staff-login.html" title="Sair">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </a>
+      </div>
+    </aside>
+
+    <main class="main-content" style="padding-bottom:7rem;">
+      <div class="dashboard-body">
+
+        <div class="context-bar">
+          <strong>Pilates</strong> · Seg, Qua e Sex · 08:00, 09:00, 10:00 · 50 min
+        </div>
+
+        <div class="card" style="padding:1rem 1.25rem;">
+
+          <!-- Bulk assign -->
+          <div class="bulk-row">
+            <span class="bulk-label">Aplicar o mesmo professor a todos os dias e horários</span>
+            <div class="staff-sel empty">
+              <span class="staff-sel-name">Nenhum</span>
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+          </div>
+
+          <!-- Segunda -->
+          <div class="day-section">
+            <div class="day-row">
+              <span class="day-name">Segunda</span>
+              <div class="day-sel-wrap">
+                <div class="staff-sel">
+                  <span class="staff-sel-name">Bruno Alves</span>
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+              </div>
+              <div class="per-hora-toggle">
+                <span>por horário</span>
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quarta -->
+          <div class="day-section">
+            <div class="day-row">
+              <span class="day-name">Quarta</span>
+              <div class="day-sel-wrap">
+                <div class="staff-sel">
+                  <span class="staff-sel-name">Fábio Ramos</span>
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+              </div>
+              <div class="per-hora-toggle">
+                <span>por horário</span>
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sexta — expandido por horário -->
+          <div class="day-section">
+            <div class="day-row">
+              <span class="day-name">Sexta</span>
+              <div class="day-sel-wrap">
+                <div class="staff-sel empty">
+                  <span class="staff-sel-name">Variado</span>
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+              </div>
+              <div class="per-hora-toggle open">
+                <span>por horário</span>
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+            </div>
+            <div class="time-list">
+              <div class="time-row">
+                <span class="time-label">08:00</span>
+                <div class="staff-sel" style="flex:1;">
+                  <span class="staff-sel-name">Camila Duarte</span>
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+              </div>
+              <div class="time-row">
+                <span class="time-label">09:00</span>
+                <div class="staff-sel" style="flex:1;">
+                  <span class="staff-sel-name">Ana Beatriz</span>
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+              </div>
+              <div class="time-row">
+                <span class="time-label">10:00</span>
+                <div class="staff-sel empty" style="flex:1;">
+                  <span class="staff-sel-name">Nenhum</span>
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p class="hint-text">
+            Definir um professor por dia cobre todos os horários daquele dia. Expanda "por horário" para atribuições diferentes dentro do mesmo dia. Ajustes pontuais de sessão ficam disponíveis em "Ver sessões".
+          </p>
+
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <a href="01-turmas-list.html" class="save-fab">
+    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    Salvar
+  </a>
+
+  <nav class="bottom-nav">
+    <a class="bottom-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html"><svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Agenda</a>
+    <a class="bottom-nav-item" href="../../../staff/prototypes/horarios/00-schedule.html"><svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Horários</a>
+    <a class="bottom-nav-item" href="../../../staff/prototypes/servicos/01-servicos-list.html"><svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>Serviços</a>
+    <a class="bottom-nav-item active" href="01-turmas-list.html"><svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>Turmas</a>
+  </nav>
+
+</body>
+</html>

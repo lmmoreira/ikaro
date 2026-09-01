@@ -11,6 +11,10 @@ Source: `docs/04-USE_CASES.md`. Working checklist for journeys in this folder �
 | UC-006 | Customer Views and Manages Bookings | | `customer/minha-conta.md` |
 | UC-007 | Customer Cancels Booking | | `customer/minha-conta.md` |
 | UC-016 | View Customer Loyalty Metrics (own data) | Admin-viewing-any-customer variant lives in `staff/use-cases.md`; balance summary covered in `minha-conta.md`; full breakdown TBD | `customer/minha-conta.md` |
+| UC-069 | Customer Reschedules an Appointment or Reservation | Promoted 2026-08-31 from `docs/discovery/multivertical-booking/` for `M21` (Cluster 3). Extends the existing `PATCH /bookings/:id/reschedule` endpoint. Draft — not yet shipped, no story assigned. | `customer/book-a-service.md` |
+| UC-070, UC-072, UC-076 | Recurring private reservation management + availability alerts | Same promotion. Draft — not yet shipped, no story assigned. | `customer/minha-conta.md` |
+| UC-085, UC-086, UC-087, UC-090, UC-093 | Browse/book/enroll into class sessions | Promoted 2026-08-31 from `docs/discovery/multivertical-booking/` for `M21` (Cluster 4). Draft — not yet shipped, no story assigned. | `customer/reservar-aula.md` |
+| UC-089, UC-091, UC-094, UC-095, UC-102 | Manage an existing class enrollment (cancel, skip, waitlist offer, reposição) | Same promotion. Draft — not yet shipped, no story assigned. | `customer/minha-conta.md` |
 | UC-019 | Customer Receives Booking Reminder (Day Before) | ⚠️ Email-only, no dashboard page — likely N/A for journey mapping | _TBD_ |
 | UC-020 | Customer Receives Booking Reminder (Day Of) | ⚠️ Email-only, no dashboard page — likely N/A for journey mapping | _TBD_ |
 | UC-040 | Logged-In Customer Submits the Lead Form | Same page/component as `guest/submit-lead-form.md`, prefilled from profile. Draft — promoted 2026-08-23 for `M20-LEAD-FORM-MODULE`, no story assigned. | `submit-lead-form.md` |

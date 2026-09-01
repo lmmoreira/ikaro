@@ -2,8 +2,8 @@
 
 **Actor(s):** STAFF | MANAGER  
 **Goal:** Create, edit, and deactivate services offered by the tenant  
-**UCs covered:** UC-012, UC-013  
-**Status:** Draft
+**UCs covered:** UC-012, UC-013 (shipped, `M13-S22`–`S24`) · UC-050, UC-051, UC-052, UC-053, UC-054, UC-055, UC-056 (❓ Gap — M21 Cluster 2, resource requirements/bundles/legs/buffer/intake-schema/booking-policy/booking-model extensions)  
+**Status:** Base CRUD done — M21 Cluster 2 extension not yet built, see the ❓ GAP section in `dev-notes.md`
 
 ## Flow
 
@@ -88,4 +88,15 @@ Folder: `staff/prototypes/servicos/`
 | `03-service-edit.html` | Edit service form + deactivate button | UC-013 | ✅ Criado |
 | `03b-deactivate-confirm.html` | Deactivation confirmation | UC-013 A1 | ✅ Criado |
 | `03c-service-edit-inactive.html` | Edit form, inactive-service variant — "Ativar" action (reactivation, shipped 2026-07-31) | UC-013 A4 | ✅ Criado |
+| `04-service-resource-config.html` | Resource requirements / bundles / legs / buffer config | UC-050–053 | ❓ Gap (M21 Cluster 2) |
+| `05-service-booking-policies.html` | Booking policy (approval, windows, variable duration/pricing) | UC-055 | ❓ Gap (M21 Cluster 2) |
+| `05b-service-booking-policies-erro.html` | Error — variable duration without pricing policy | UC-055 A2 | ❓ Gap (M21 Cluster 2) |
 | `dev-notes.md` | Implementation handoff | — | ✅ Criado |
+
+## M21 — Multi-Vertical Scheduling, Cluster 2 extension (❓ Gap, not yet built)
+
+> Promoted from `docs/discovery/multivertical-booking/`. Full implementation-handoff detail lives in `dev-notes.md`'s own ❓ GAP section — not duplicated here.
+
+- [ ] No story exists yet for this extension — needs `/story-discovery` once the M21 milestone file is drafted.
+- [ ] UC-054 (booking-intake schema) has no prototype screen — flagged in `dev-notes.md`.
+- [ ] UC-056's SESSION branch (declaring `classResourceSlots`) is schema-only in this cluster — not actionable until Cluster 4 ships `ClassScheduleTemplate`.

@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nova matrícula — Pilates em Grupo — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    .form-label { display: block; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em;
+                  text-transform: uppercase; color: rgba(17,24,39,0.45); margin-bottom: 0.375rem; }
+    .form-input { width: 100%; box-sizing: border-box; border: 1.5px solid var(--ba-secondary);
+                  border-radius: var(--ba-radius); padding: 0.6875rem 0.875rem; font-size: 0.9375rem;
+                  font-family: inherit; color: var(--ba-text); background: white; }
+    .form-input:focus { outline: none; border-color: #2563eb; }
+    .form-hint { font-size: 0.8125rem; opacity: 0.5; color: var(--ba-text); margin-top: 0.375rem; }
+    .form-group { margin-bottom: 1.125rem; }
+    .section-divider { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em;
+                       text-transform: uppercase; color: rgba(17,24,39,0.35);
+                       margin: 1.75rem 0 0.75rem; }
+    .type-card { padding: 1rem; cursor: pointer; border: 1.5px solid var(--ba-secondary);
+                 border-radius: var(--ba-radius); margin-bottom: 0.625rem; }
+    .type-card.selected { border-color: #2563eb; border-width: 2px; background: #eff6ff; }
+    .type-card p.title { font-weight: 700; color: var(--ba-text); margin-bottom: 0.25rem; }
+    .type-card p.sub   { font-size: 0.8125rem; opacity: 0.6; margin: 0; }
+    .panel { display: none; margin-top: 0.75rem; padding: 1rem;
+             background: var(--ba-secondary); border-radius: var(--ba-radius); }
+    .panel.active { display: block; }
+    .form-actions { display: flex; gap: 0.75rem; margin-top: 2rem; }
+    .form-actions .btn-primary  { flex: 1; text-align: center; padding: 0.875rem; }
+    .form-actions .btn-secondary { flex: 0 0 auto; padding: 0.875rem 1.25rem; }
+    .detail-layout { display: block; }
+    .detail-aside  { display: none; }
+    @media (min-width: 1024px) {
+      .detail-layout { display: grid; grid-template-columns: 1fr 22rem; gap: 1.5rem; align-items: start; }
+      .detail-aside  { display: block; position: sticky; top: 1.5rem; }
+      .form-actions  { display: none !important; }
+    }
+
+    /* Customer search result */
+    .customer-result {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.75rem; border: 1.5px solid #bfdbfe; border-radius: var(--ba-radius);
+      background: #eff6ff; margin-top: 0.5rem;
+    }
+    .customer-avatar {
+      width: 2rem; height: 2rem; border-radius: 9999px;
+      background: #2563eb; color: white; font-size: 0.75rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!--
+    DISCOVERY PROTOTYPE — illustrative only, NOT a plan/journey/ prototype.
+
+    Manager adds a customer manually — e.g. the customer called instead of using the app.
+    This mirrors the customer-side "Reservar Aula" flow (reservar-aula/) but with:
+      - Customer search/select instead of the customer being the logged-in user
+      - No payment gate (same as customer side — payments are external)
+      - Admin badge on the resulting enrollment (shown in manager-09 as "adicionada pelo admin")
+
+    DESIGN QUESTIONS:
+      - Is a simple name/email search enough, or does the manager need to create a new
+        customer record inline if the person isn't in the system yet?
+      - Should the manager see the same session/slot picker the customer sees, or a
+        simplified form (just pick the date)?
+      - What happens if the class is full — manager can override capacity, or they
+        must use the waitlist same as anyone else?
+
+    COMPONENT (GAP): AdminEnrollmentForm
+    BFF CALL (GAP): POST /v1/enrollments
+      body: { classTypeId, customerId, type: DROP_IN|SERIES, sessionId?, slotIds?, startsAt?,
+              createdByStaff: true }
+
+    Entry: manager-09-matriculas.html → "+ Nova matrícula"
+    Success: redirects back to manager-09-matriculas.html with new row visible
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;
+               font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo · nova matrícula manual pelo manager (GAP) · redimensione para ver mobile/desktop
+  </div>
+
+  <div class="dashboard-topbar">
+    <a href="06-matriculas.html"
+       style="display:flex;align-items:center;gap:0.375rem;color:var(--ba-text);
+              text-decoration:none;font-size:0.9375rem;font-weight:500;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+      <span style="font-weight:600;">Matrículas</span>
+    </a>
+    <h1 class="topbar-page-title">Nova matrícula — Pilates em Grupo</h1>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
+      <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+      <span class="topbar-date">Hoje, 21 de agosto de 2026</span>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">V</div>
+        <div>
+          <p class="sidebar-tenant-name">Vitta Studio</p>
+          <p class="sidebar-tenant-slug">@vittastudio</p>
+        </div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top:0.5rem;">
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          Agenda
+        </a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/horarios/08-visao-geral-manager.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          Horários
+        </a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/servicos/04-service-resource-config.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+          </svg>
+          Serviços
+        </a>
+        <a class="sidebar-nav-item active" href="../../../staff/prototypes/turmas/01-turmas-proximas.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+            <path d="M9 16l2 2 4-4"/>
+          </svg>
+          Turmas
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/equipe/01-team-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+          Fidelidade
+        </a>
+      </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item" href="../resources/01-resources-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+            <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+          </svg>
+          Recursos
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/configuracoes/01-settings-form.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          Equipe
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          Configurações
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="2" y1="12" x2="22" y2="12"/>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+          Hotsite
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div style="min-width:0;">
+          <p class="sidebar-user-name">Ana Pereira</p>
+          <span class="role-badge role-badge-manager">Gerente</span>
+        </div>
+        <a class="sidebar-logout" href="../../../shared/staff-login.html" title="Sair">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </a>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="dashboard-body">
+        <div class="detail-layout">
+          <div style="max-width:32rem;">
+
+            <!-- Context strip -->
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1.5rem;
+                        padding:0.75rem 1rem;background:var(--ba-secondary);border-radius:var(--ba-radius);">
+              <div style="width:0.25rem;height:2rem;background:#2563eb;border-radius:4px;flex-shrink:0;"></div>
+              <div>
+                <p style="font-size:0.875rem;font-weight:700;color:var(--ba-text);margin:0;">Pilates em Grupo</p>
+                <p style="font-size:0.8125rem;opacity:0.5;color:var(--ba-text);margin:0;">
+                  Camila Torres · Seg e Qua · 09:00 · 3 vagas disponíveis
+                </p>
+              </div>
+            </div>
+
+            <!-- Step 1: Customer -->
+            <p class="section-divider">1. Cliente</p>
+
+            <div class="form-group">
+              <label class="form-label">Buscar cliente</label>
+              <input class="form-input" type="text" placeholder="Nome ou e-mail..."
+                     oninput="searchCustomer(this.value)" autocomplete="off">
+              <p class="form-hint">Digite ao menos 3 caracteres para buscar na base de clientes do estúdio.</p>
+
+              <!-- Search result (simulated) -->
+              <div id="search-result" style="display:none;">
+                <div class="customer-result">
+                  <div class="customer-avatar">PC</div>
+                  <div style="flex:1;">
+                    <div style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">Paula Carvalho</div>
+                    <div style="font-size:0.8125rem;opacity:0.55;">paula.carvalho@email.com · última visita: 15 ago 2026</div>
+                  </div>
+                  <button onclick="selectCustomer()"
+                          style="font-size:0.8125rem;font-weight:700;color:#2563eb;background:none;border:none;
+                                 cursor:pointer;font-family:inherit;padding:0.25rem 0.5rem;">
+                    Selecionar
+                  </button>
+                </div>
+              </div>
+
+              <!-- Selected state -->
+              <div id="customer-selected" style="display:none;">
+                <div class="customer-result" style="border-color:#86efac;background:#f0fdf4;">
+                  <div class="customer-avatar" style="background:#16a34a;">PC</div>
+                  <div style="flex:1;">
+                    <div style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">Paula Carvalho</div>
+                    <div style="font-size:0.8125rem;opacity:0.55;">paula.carvalho@email.com</div>
+                  </div>
+                  <button onclick="clearCustomer()"
+                          style="font-size:0.8125rem;color:#6b7280;background:none;border:none;
+                                 cursor:pointer;font-family:inherit;padding:0.25rem 0.5rem;">
+                    Trocar
+                  </button>
+                </div>
+              </div>
+
+              <!-- New customer option -->
+              <p style="font-size:0.8125rem;margin-top:0.625rem;color:var(--ba-text);">
+                Não encontrou?
+                <a href="#" style="color:#2563eb;font-weight:600;">Cadastrar novo cliente</a>
+              </p>
+            </div>
+
+            <!-- Step 2: Type -->
+            <p class="section-divider">2. Tipo de matrícula</p>
+
+            <div class="type-card selected" id="type-serie" onclick="selectType('serie')">
+              <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
+                <input type="radio" name="enrollType" checked style="margin-top:0.1875rem;">
+                <div>
+                  <p class="title">Série de aulas</p>
+                  <p class="sub">Matrícula recorrente em dias e horários fixos. O cliente ocupa a vaga todas as semanas.</p>
+                </div>
+              </label>
+            </div>
+
+            <div class="type-card" id="type-avulsa" onclick="selectType('avulsa')">
+              <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
+                <input type="radio" name="enrollType" style="margin-top:0.1875rem;">
+                <div>
+                  <p class="title">Aula avulsa</p>
+                  <p class="sub">Reserva para uma única sessão. Não cria vínculo recorrente.</p>
+                </div>
+              </label>
+            </div>
+
+            <!-- Panel: Série -->
+            <div class="panel active" id="panel-serie">
+              <div class="form-group" style="margin-bottom:0.875rem;">
+                <label class="form-label">Horário</label>
+                <select class="form-input">
+                  <option>Seg e Qua · 09:00 – 09:50</option>
+                  <option>Seg e Qua · 07:00 – 07:50</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom:0.875rem;">
+                <label class="form-label">Data de início</label>
+                <input type="date" class="form-input" value="2026-08-25">
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">Quantidade de sessões</label>
+                <select class="form-input">
+                  <option>8 sessões (padrão)</option>
+                  <option>4 sessões</option>
+                  <option>12 sessões</option>
+                  <option>Contínuo (sem prazo)</option>
+                </select>
+                <p class="form-hint">Para Pilates em Grupo o pacote padrão é 8 sessões (4 semanas).</p>
+              </div>
+            </div>
+
+            <!-- Panel: Avulsa -->
+            <div class="panel" id="panel-avulsa">
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">Sessão</label>
+                <select class="form-input">
+                  <option>Seg, 25 ago 2026 · 09:00 — 3 vagas</option>
+                  <option>Qua, 27 ago 2026 · 09:00 — 5 vagas</option>
+                  <option>Seg, 01 set 2026 · 09:00 — 8 vagas</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Step 3: Note -->
+            <p class="section-divider">3. Observação interna (opcional)</p>
+            <div class="form-group">
+              <textarea class="form-input" rows="2"
+                        placeholder="Ex.: cliente ligou pedindo vaga, confirmou que vai pagar na recepção na primeira aula."></textarea>
+              <p class="form-hint">Visível apenas para equipe — não aparece para o cliente.</p>
+            </div>
+
+            <!-- Actions mobile -->
+            <div class="form-actions">
+              <a href="06-matriculas.html" class="btn-secondary">Cancelar</a>
+              <button class="btn-primary"
+                      onclick="alert('Matrícula criada!\nPaula Carvalho · Pilates em Grupo · Série · a partir de 25 ago 2026\nCliente será notificada por e-mail.');window.location.href='manager-09-matriculas.html';">
+                Confirmar matrícula
+              </button>
+            </div>
+
+          </div>
+
+          <!-- Aside desktop -->
+          <div class="detail-aside">
+            <div class="card" style="padding:1rem;margin-bottom:1rem;">
+              <div style="font-size:0.8125rem;font-weight:700;color:var(--ba-text);margin-bottom:0.875rem;">
+                Resumo
+              </div>
+              <div style="font-size:0.875rem;color:var(--ba-text);line-height:1.6;">
+                <div style="opacity:0.5;margin-bottom:0.125rem;">Turma</div>
+                <div style="font-weight:600;margin-bottom:0.75rem;">Pilates em Grupo</div>
+                <div style="opacity:0.5;margin-bottom:0.125rem;">Cliente</div>
+                <div style="font-weight:600;margin-bottom:0.75rem;" id="aside-customer">—</div>
+                <div style="opacity:0.5;margin-bottom:0.125rem;">Tipo</div>
+                <div style="font-weight:600;margin-bottom:0.75rem;" id="aside-type">Série de aulas</div>
+                <div style="opacity:0.5;margin-bottom:0.125rem;">Início</div>
+                <div style="font-weight:600;">Seg, 25 ago 2026</div>
+              </div>
+            </div>
+            <div style="padding:0.875rem 1rem;background:#fef3c7;border-radius:var(--ba-radius);
+                        font-size:0.8125rem;line-height:1.55;color:#92400e;">
+              O cliente receberá um e-mail de confirmação com os detalhes da matrícula.
+            </div>
+            <button onclick="alert('Matrícula criada!\nPaula Carvalho · Pilates em Grupo · Série · a partir de 25 ago 2026\nCliente será notificada por e-mail.');window.location.href='manager-09-matriculas.html';"
+                    class="btn-primary" style="width:100%;margin-top:1rem;padding:0.875rem;">
+              Confirmar matrícula
+            </button>
+            <a href="06-matriculas.html" class="btn-secondary"
+               style="display:block;width:100%;text-align:center;margin-top:0.625rem;padding:0.875rem;box-sizing:border-box;">
+              Cancelar
+            </a>
+          </div>
+
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Bottom nav (mobile) -->
+  <nav class="bottom-nav">
+    <a href="../../../staff/prototypes/agenda/00-agenda.html" class="bottom-nav-item">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2"/>
+        <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+      <span>Agenda</span>
+    </a>
+    <a href="../../../staff/prototypes/horarios/00-schedule.html" class="bottom-nav-item">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+      </svg>
+      <span>Horários</span>
+    </a>
+    <a href="../../../staff/prototypes/turmas/01-turmas-proximas.html" class="bottom-nav-item bottom-nav-item--active">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2"/>
+        <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+        <path d="M9 16l2 2 4-4"/>
+      </svg>
+      <span>Turmas</span>
+    </a>
+    <a href="../../../manager/prototypes/equipe/01-team-list.html" class="bottom-nav-item">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+      <span>Equipe</span>
+    </a>
+  </nav>
+
+  <script>
+    let searchTimer;
+    function searchCustomer(val) {
+      clearTimeout(searchTimer);
+      document.getElementById('search-result').style.display = 'none';
+      if (val.length < 3) return;
+      searchTimer = setTimeout(() => {
+        document.getElementById('search-result').style.display = 'block';
+      }, 400);
+    }
+    function selectCustomer() {
+      document.getElementById('search-result').style.display = 'none';
+      document.querySelector('input[type=text]').style.display = 'none';
+      document.querySelector('.form-hint').style.display = 'none';
+      document.getElementById('customer-selected').style.display = 'block';
+      document.getElementById('aside-customer').textContent = 'Paula Carvalho';
+    }
+    function clearCustomer() {
+      document.getElementById('customer-selected').style.display = 'none';
+      document.querySelector('input[type=text]').style.display = '';
+      document.querySelector('input[type=text]').value = '';
+      document.querySelector('.form-hint').style.display = '';
+      document.getElementById('aside-customer').textContent = '—';
+    }
+    function selectType(type) {
+      document.getElementById('type-serie').classList.toggle('selected', type === 'serie');
+      document.getElementById('type-avulsa').classList.toggle('selected', type === 'avulsa');
+      document.getElementById('panel-serie').classList.toggle('active', type === 'serie');
+      document.getElementById('panel-avulsa').classList.toggle('active', type === 'avulsa');
+      document.getElementById('aside-type').textContent = type === 'serie' ? 'Série de aulas' : 'Aula avulsa';
+    }
+  </script>
+</body>
+</html>
