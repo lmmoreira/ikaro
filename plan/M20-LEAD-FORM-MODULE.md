@@ -688,7 +688,7 @@ Distinct empty state when search/filters/date-range yield zero matches (UC-041 A
 
 ---
 
-### M20-S16 — Add a real `LeadFormSubmissionReceived` consumer + provision its missing Pub/Sub topic (fixes a live staging outbox-backlog alert)
+### M20-S16 — Add a real `LeadFormSubmissionReceived` consumer + provision its missing Pub/Sub topic (fixes a live staging outbox-backlog alert) ✅ Done
 
 **Agent:** backend-ts (also needs `devops` work — no Terraform *file* edits, but a manual Foundation apply dispatch; see PR sequence below)
 **Complexity:** S
