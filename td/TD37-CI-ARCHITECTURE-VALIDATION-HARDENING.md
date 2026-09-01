@@ -586,7 +586,7 @@ Generalizes a gap found during Story 9 discovery (2026-08-21): a field can corre
 
 ---
 
-### Story 21 — Unify the two avoidable `HotsiteModuleType` copies; detector for the one that can't be unified yet 🔴
+### Story 21 — Unify the two avoidable `HotsiteModuleType` copies; detector for the one that can't be unified yet 🔴 ✅ Done
 
 During M20-S01 (2026-08-24), `'LEAD_FORM'` was added to the shared `HotsiteModuleType` union in `packages/types/src/enums.ts` while a second, independent copy of the same conceptual enum already existed in `apps/backend/src/contexts/platform/domain/hotsite-config.types.ts` and a third in `packages/validation/src/hotsite.ts`'s `HotsiteModuleSchema` Zod enum. The shared-package copy broke `apps/web`'s exhaustive `Record<HotsiteModuleType,...>` maps and had to be reverted mid-session — caught only because a human was watching type-check output, not by any bot or CI gate.
 
