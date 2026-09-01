@@ -1069,7 +1069,7 @@ for (const { provide, useValue } of overrideProviders) {
 
 ### Dual-token override: `EVENT_BUS` + `OUTBOX_PUBLISHER` (TD24-S02)
 
-Since the 3 event-emitting aggregates' repositories now drain domain events through `OUTBOX_PUBLISHER` (not `EVENT_BUS`) inside `save()`, every integration app helper that imports `OutboxModule` (all 5 do, since `OutboxModule` is `@Global()` but must still be imported once into the test's module graph to be reachable) must override **both** tokens with the **same** bus instance:
+Since the event-emitting aggregates' repositories (`Booking`, `Staff`, `Tenant`, `LeadFormSubmission`) drain domain events through `OUTBOX_PUBLISHER` (not `EVENT_BUS`) inside `save()`, every integration app helper that imports `OutboxModule` (all 5 do, since `OutboxModule` is `@Global()` but must still be imported once into the test's module graph to be reachable) must override **both** tokens with the **same** bus instance:
 
 ```ts
 const routingBus = new RoutingInMemoryEventBus();

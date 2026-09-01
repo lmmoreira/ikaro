@@ -84,11 +84,14 @@ describe('LogLeadFormSubmissionReceivedUseCase', () => {
     expect(logSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('a second concurrent claim on the same eventId is a no-op (tryClaim is atomic)', async () => {
-    // Simulates two concurrent redeliveries racing on the same event — atomic-claim (unlike
-    // check-then-mark) guarantees only one caller's tryClaim() ever returns true, closing the
-    // round-2 Codex finding: two redeliveries could otherwise both pass a plain hasBeenProcessed
-    // check before either marked processed, producing a genuine duplicate log entry.
+  it('a repeated sequential tryClaim on the same eventId returns false the second time', async () => {
+    // Sequential, not concurrent — this only proves tryClaim's own no-op-on-repeat contract, not
+    // the atomic race guarantee itself. The real INSERT ... ON CONFLICT DO NOTHING atomicity that
+    // makes concurrent redelivery safe is proved against real Postgres only
+    // (InMemoryInboxRepository's own doc comment; TD24 D15 makes the same point about a
+    // synchronous Set never being able to demonstrate genuine concurrency) — this codebase has no
+    // separate concurrent-tryClaim integration test to point to yet, matching every other
+    // InMemoryInboxRepository consumer's own unit-level coverage.
     const logSpy = jest.spyOn(AppLogger.prototype, 'log').mockImplementation();
     logSpy.mockClear();
     const { inboxRepo } = makeUseCase();
