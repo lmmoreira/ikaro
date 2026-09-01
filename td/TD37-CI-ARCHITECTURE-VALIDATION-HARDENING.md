@@ -542,13 +542,15 @@ This story is deliberately scheduled after the detector waves have shipped and b
 
 **Acceptance criteria**:
 
-- [ ] The burn-in window is recorded in the PR/plan history, with the report-only job green on `main` and reviewed findings either at zero or explicitly resolved in the machine-readable exception registry.
-- [ ] Every detector has a permanent positive fixture, negative fixture, zero-target assertion, remediation message, and an owned exception entry where applicable.
-- [ ] The local command and CI command are byte-for-byte equivalent in behavior; a clean local run is reproduced from a clean CI checkout with `pnpm install --frozen-lockfile`.
-- [ ] The report-only `architecture-check` job is promoted to blocking by removing `continue-on-error: true`; the job still publishes actionable file/line output for any failure.
-- [ ] The blocking job is observed green on `main` for a second burn-in window before branch protection changes are made.
-- [ ] The repository's branch-protection configuration is updated in a separate, reviewable change to add the architecture check as a required status check; the workflow introduction and required-check promotion are never the same change.
-- [ ] A rollback procedure is documented: temporarily return the job to report-only only through an explicit reviewed change, with the reason and expiry recorded.
+- [x] The burn-in window is recorded in the PR/plan history, with the report-only job green on `main` and reviewed findings either at zero or explicitly resolved in the machine-readable exception registry.
+- [x] Every detector has a permanent positive fixture, negative fixture, zero-target assertion, remediation message, and an owned exception entry where applicable.
+- [x] The local command and CI command are byte-for-byte equivalent in behavior; a clean local run is reproduced from a clean CI checkout with `pnpm install --frozen-lockfile`.
+- [x] The report-only `architecture-check` job is promoted to blocking by removing `continue-on-error: true`; the job still publishes actionable file/line output for any failure.
+- [ ] The blocking job is observed green on `main` for a second burn-in window before branch protection changes are made. — **tracked as PR2, not yet started as of 2026-09-01** (needs the burn-in window to actually elapse)
+- [ ] The repository's branch-protection configuration is updated in a separate, reviewable change to add the architecture check as a required status check; the workflow introduction and required-check promotion are never the same change. — **tracked as PR2**
+- [x] A rollback procedure is documented: temporarily return the job to report-only only through an explicit reviewed change, with the reason and expiry recorded.
+
+**PR1 merged 2026-09-01** (PR #455, squash-merged as `06fea14b6e`): AC #1–4 and #7 above are done, verified against `main` post-merge, and confirmed clean through 2 rounds of Codex review (round 1 found 2 real Critical gaps — missing per-detector zero-target assertions for 4 detectors, and no subprocess-level proof a real violation fails the actual command — both fixed; round 1 triage also caught, independently of Codex, that `packages/architecture-check`'s own test suite wasn't running in any CI job at all, fixed in the same batch; round 2: 0 Critical/Important/Minor). AC #5/#6 remain open — this story is not yet fully done.
 
 **Discovery note (TD37-S19+S22 combined discovery, 2026-09-01):** Discovered together with Story 22 at the user's explicit request, since Story 22's local-signal design only makes full sense in sync with this story's CI-side promotion — see Story 22's own discovery note below for the rationale.
 
@@ -622,7 +624,7 @@ Extract each side's literal string-member set (`constArray` walks the array lite
 
 ---
 
-### Story 22 — Wire `pnpm architecture-check` into `ci:fast` / pre-push 🔴
+### Story 22 — Wire `pnpm architecture-check` into `ci:fast` / pre-push 🔴 ✅ Done
 
 `pnpm architecture-check` exists as a root `package.json` script and runs in its own dedicated GitHub Actions job ("Architecture validation"), but is absent from `ci:fast` (`package.json:27`) and from `scripts/pre-pr.sh` — confirmed by grep during M20-S01's retrospective (2026-08-24). This is precisely the "Local vs. CI drift" risk this TD's own Trade-offs section already names: a detector violation (e.g. the `test-harness-registration` gap hit during M20-S01 itself) is invisible locally and only surfaces after `git push`, in a separate CI job, well after `/pre-pr` has already reported clean. The fix isn't a new rule — it's running the existing rule earlier, at the same point `ci:fast` already runs lint and type-check.
 
@@ -632,9 +634,9 @@ Extract each side's literal string-member set (`constArray` walks the array lite
 **What it does NOT catch**: nothing new — this is a scheduling change, not a new rule. `architecture-check` runs full-codebase (not diff-scoped) already; expect it to add measurable wall-clock time to `ci:fast`.
 
 **Acceptance criteria**:
-- [ ] `pnpm architecture-check` runs as part of `pnpm ci:fast`
-- [ ] A deliberately-introduced violation (e.g. an unregistered test-harness entity) fails locally at `git push` time, before any PR exists
-- [ ] Measured added wall-clock time to `ci:fast` reported in the story's own PR description
+- [x] `pnpm architecture-check` runs as part of `pnpm ci:fast`
+- [x] A deliberately-introduced violation (e.g. an unregistered test-harness entity) fails locally at `git push` time, before any PR exists — proven end-to-end by `packages/architecture-check/src/cli-regression.spec.ts`, added during round-1 bot-fix (spawns the real `pnpm architecture-check` command against a real on-disk fixture, not just an in-process detector call)
+- [x] Measured added wall-clock time to `ci:fast` reported in the story's own PR description
 - [x] ~~The existing standalone "Architecture validation" CI job is left in place unchanged~~ — **superseded 2026-09-01**: this story is now delivered in the same PR as Story 19's AC #1–4/#7 (see that story's discovery note), which promotes the CI job to blocking in the same change. This is a deliberate improvement over the original plan, not a scope-creep accident: landing both together means local `ci:fast` and CI policy are never out of sync, closing the exact Phase-1/report-only conflict this story's own discovery first raised.
 
 **Discovery note (TD37-S22, 2026-09-01):** Bundled into the same PR as Story 19's AC #1–4/#7 (see Story 19 above) — landing both together means the CI job promotes from report-only to blocking in the exact same change that wires it into local `ci:fast`, so local and CI policy are never out of sync. Measured wall-clock addition to `ci:fast`: ~43s steady-state (checker's own `dist/` already built from a prior run) / ~65s cold (includes rebuilding the checker itself) — cut further by Story 19's `incremental: true` addition to `packages/architecture-check/tsconfig.json` (verified: ~5.7s → ~2.7s on the checker's own no-op rebuild). Placement locked in: inserted after `pnpm type-check`, before `pnpm --filter @ikaro/backend test:unit` — groups the two static-analysis steps together so a structural violation fails before ~85s of unit tests run. Live-verified today: `pnpm architecture-check` exits 0 with zero findings against current `main`, and `cli.ts`'s exit-code contract (`process.exitCode = 1` on any finding or zero-scanned-target result) confirms a deliberately-introduced fixture violation will genuinely fail the command, satisfying this story's own AC #2.
