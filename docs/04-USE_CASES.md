@@ -710,7 +710,7 @@ Returns:
   - **A1: Working hours/eligible-service setup is incomplete** → Admin must complete it (UC-046) before the resource can be selected for new work.
   - **A2: Resource not found, belongs to another tenant, or is already active** → `404 Not Found` / `409 Conflict`.
 - **Postconditions:** Future bookings may use the resource according to its current configuration.
-- **Events Triggered:** `ResourceReactivated`
+- **Events Triggered:** None (config-only, matching UC-045/046/047 — no consumer exists yet)
 
 ---
 
@@ -2619,7 +2619,7 @@ Promoted from `docs/discovery/lead-form-module/lead-form-module.md` (M20). A new
 | UC-046 | Manager edits a resource's working hours | MANAGER | `Resource.workingHours` updated |
 | UC-047 | Manager deactivates a resource | MANAGER | `Resource.isActive = false`; resolution worklist for existing commitments |
 | UC-048 | System cascades a staff deactivation to the wrapping STAFF resource | System | Consumes `StaffDeactivated`; `Resource.isActive = false` |
-| UC-049 | Manager reactivates a resource | MANAGER | `Resource.isActive = true`; `ResourceReactivated` event |
+| UC-049 | Manager reactivates a resource | MANAGER | `Resource.isActive = true` |
 | UC-050 | Staff/manager configures a service's resource requirement | STAFF \| MANAGER | `Service.resourceRequirements[0]` set |
 | UC-051 | Staff/manager configures a bundled resource requirement | STAFF \| MANAGER | `Service.resourceRequirements` (≥2) set |
 | UC-052 | Staff/manager configures service legs | STAFF \| MANAGER | `Service.legs` set; `resourceRequirements`/`bufferAfterMinutes` cleared |

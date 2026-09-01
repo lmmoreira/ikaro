@@ -409,7 +409,7 @@ Resource {
 **Key Methods:**
 - `Resource.create(tenantId, type, name, workingHours?, refId?, maxCapacity?)` — validates the `STAFF`⟺`refId` invariant and the working-hours subset invariant.
 - `updateWorkingHours(workingHours)` (UC-046)
-- `deactivate()` (UC-047) / `reactivate()` (UC-049, publishes `ResourceReactivated`)
+- `deactivate()` (UC-047) / `reactivate()` (UC-049)
 
 **Cross-context note:** a `STAFF`-type `Resource` has no DB-level FK to `staff.staff` (cross-schema) — Booking validates the referenced staff member (same-tenant, existing, active, schedulable) through a narrow lookup adapter at write time, and consumes the Staff Context's `StaffDeactivated` event to cascade-deactivate the wrapping resource (UC-048). Staff Context remains unaware of Booking.
 
@@ -1152,7 +1152,6 @@ Domain events represent significant business occurrences that other contexts may
 | `BookingInfoSubmitted` | Customer / guest responds to an info request (INFO_REQUESTED → PENDING) | Notification Context |
 | `BookingCancelled` | Customer/admin cancels booking | Notification Context |
 | `BookingCompleted` | Staff marks booking complete | Notification Context, **Loyalty Context** (only Booking event Loyalty cares about) |
-| `ResourceReactivated` | Manager reactivates a deactivated `Resource` (UC-049) | None in MVP |
 
 > Booking Context also **consumes** `StaffDeactivated` (published by Staff Context) to cascade-deactivate a `STAFF`-type `Resource` (UC-048) — see `docs/05-BOUNDED_CONTEXTS.md`.
 

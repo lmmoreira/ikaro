@@ -19,7 +19,7 @@ Source: `docs/04-USE_CASES.md`. Working checklist for journeys in this folder �
 | UC-045 | Manager Creates a Resource | Same promotion as UC-044. | `manager/resources.md` |
 | UC-046 | Manager Edits a Resource's Working Hours | Same promotion as UC-044. | `manager/resources.md` |
 | UC-047 | Manager Deactivates a Resource | Same promotion as UC-044. | `manager/resources.md` |
-| UC-049 | Manager Reactivates a Resource | Same promotion as UC-044. Publishes `ResourceReactivated`. | `manager/resources.md` |
+| UC-049 | Manager Reactivates a Resource | Same promotion as UC-044. | `manager/resources.md` |
 | UC-010e | Manager Creates a Resource-Scoped Schedule Closure | Same promotion as UC-044 — **MANAGER-only** extension of the existing STAFF\|MANAGER `UC-010a`. | `staff/horarios.md` (cross-listed — see `staff/use-cases.md`) |
 | UC-010f | Manager Creates a Resource-Scoped Schedule Opening | Same promotion as UC-044 — **MANAGER-only** extension of the existing STAFF\|MANAGER `UC-010c`. | `staff/horarios.md` (cross-listed — see `staff/use-cases.md`) |
 | UC-057 | Manager Views a Combined Multi-Resource Day Grid | Promoted 2026-08-31 from `docs/discovery/multivertical-booking/` for `M21` (Cluster 2). Deliberately manager-only, like Equipe/Configurações/Hotsite/Recursos. Draft — not yet shipped, no story assigned. | `staff/horarios.md` (cross-listed — see `staff/use-cases.md`) |

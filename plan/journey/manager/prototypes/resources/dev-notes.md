@@ -36,7 +36,7 @@ PATCH /v1/resources/:id
   Response 404: not found / cross-tenant
 
 DELETE /v1/resources/:id → 204   -- deactivate (UC-047)
-POST /v1/resources/:id/reactivate → 200: Resource   -- reactivate (UC-049), publishes ResourceReactivated
+POST /v1/resources/:id/reactivate → 200: Resource   -- reactivate (UC-049), no event published
 ```
 
 Error codes above are illustrative — the implementing story mints the real `BOOKING_*` codes per `docs/25-ERROR_CATALOG.md`'s 3-step checklist (code → both locale translations → typed constructor), not these placeholder names.
@@ -72,7 +72,7 @@ Lists every `Resource`, grouped by `type` (`LOCATION` first — always exactly o
 
 - **ResourceEditForm** (UC-046, working-hours only) — no discovery screen exists. Build from `staff/prototypes/horarios/`'s existing per-weekday hours editor pattern (tenant `businessHours` editor), not from scratch.
 - **Deactivate confirmation** (UC-047) — no discovery screen exists (flagged as a known gap by the discovery itself: "CAND-03... has zero entry points — not even a dead link"). Mirror `manager/prototypes/equipe/03-deactivate-confirm.html`'s shape: show the resource's future approved appointments/materialized sessions as explicit commitments (empty for a Cluster-1-only tenant — nothing populates this list until Clusters 2–4 land) before confirming.
-- **Reactivate confirmation** (UC-049) — no discovery screen exists. A simple confirm dialog; on 200, publishes `ResourceReactivated` (no consumer in MVP).
+- **Reactivate confirmation** (UC-049) — no discovery screen exists. A simple confirm dialog; on 200, no event published (`ResourceReactivated` descoped during M21-S01 story discovery, 2026-09-01 — no consumer exists yet).
 
 ## Known limitations
 

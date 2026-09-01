@@ -72,7 +72,7 @@ Notification Context subscribes:
 │  │             BookingInfoRequested, BookingInfoSubmitted,            │ │
 │  │             BookingCompleted, BookingCancelled, BookingRescheduled,│ │
 │  │             BookingReminderDue, BookingReminderDueToday,           │ │
-│  │             AdminDailyScheduleReminder, ResourceReactivated (M21)  │ │
+│  │             AdminDailyScheduleReminder                             │ │
 │  │  Consumes:  StaffDeactivated (Staff Context, M21)                  │ │
 │  └──────────┬──────────────────────────────────────────┬─────────────┘ │
 │             │ BookingCompleted only                    │ all events     │
@@ -150,7 +150,6 @@ Notification Context subscribes:
 - `BookingCancelled` → consumed by Notification
 - `BookingRescheduled` → consumed by Notification
 - Cron-emitted reminder events: `BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder` → all consumed by Notification
-- `ResourceReactivated` (M21 Cluster 1) → no consumers in MVP
 - `RecurringBookingScheduleCreated`/`ApprovalRequested`/`Rejected`/`Paused`/`Ended` (M21 Cluster 3) → consumed by Notification
 - `AvailabilityAlertCreated`/`Updated`/`Cancelled`/`Expired`/`Matched` (M21 Cluster 3) → `Matched` consumed by Notification; rest have no consumers in MVP
 - `FutureCommitmentExceptionRaised`/`Resolved`/`Dismissed` (M21 Cluster 3) → `Raised`/`Resolved` consumed by Notification

@@ -1177,6 +1177,9 @@ The notes below record issues found in earlier drafts. They are retained for des
   ```
 
 #### **ResourceReactivated**
+
+> **Descoped at implementation (M21-S01 story discovery, 2026-09-01):** removed from Cluster 1 scope — `Resource.reactivate()` publishes no event for now, since nothing consumes it and an event drained into the outbox with zero real subscribers gets no Pub/Sub topic from the auto-generated catalog (see `docs/ENGINEERING_RULES.md` § Aggregate domain events → outbox, M20-S16 precedent). Kept here as the historical candidate shape; revisit if/when a real consumer need emerges.
+
 - **Trigger:** `CAND-52`
 - **State change:** `Resource.isActive → true`
 - **Data:**

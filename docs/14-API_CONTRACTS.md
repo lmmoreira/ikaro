@@ -908,7 +908,7 @@ Auth: JWT + `MANAGER` only on every endpoint — a deliberate, self-consistent r
   - `204` on success
   - `404` if not found or belongs to another tenant
 - `POST /resources/:id/reactivate` → reactivate a deactivated resource (UC-049)
-  - `200` on success; publishes `ResourceReactivated`
+  - `200` on success
   - `404` if not found or belongs to another tenant
   - `409` if already active
 

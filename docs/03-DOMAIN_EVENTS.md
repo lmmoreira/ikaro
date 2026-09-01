@@ -351,24 +351,6 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 
 ---
 
-#### **ResourceReactivated**
-
-> Introduced by M21 — Multi-Vertical Scheduling, Cluster 1 (Foundation).
-
-- **Trigger:** Manager reactivates a previously deactivated `Resource` (UC-049)
-- **State change:** `Resource.isActive → true`
-- **Data:**
-  ```
-  {
-    resourceId:           string
-    resourceType:         "LOCATION" | "STAFF" | "ROOM" | "EQUIPMENT"
-    reactivatedByStaffId: string
-  }
-  ```
-- **Consumers:** None in MVP
-
----
-
 > **M21 — Multi-Vertical Scheduling, Cluster 3 (Customer/guest appointment booking + extensions).** The events below are new Booking Context events for `RecurringBookingSchedule`, `AvailabilityAlert`, `FutureCommitmentException`, tenant-preset bootstrap, and appointment no-show.
 
 #### **RecurringBookingScheduleCreated**
