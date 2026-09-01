@@ -4,6 +4,7 @@ import type { Project } from 'ts-morph';
 import {
   checkAggregatePropsUseSharedValueObjects,
   checkBffTypesLiveInModuleFiles,
+  checkClosedEnumRegistry,
   checkEntityBuilderPrimaryKeyDefaults,
   checkErrorMapperCoverage,
   checkGlobalModuleExportPairing,
@@ -24,6 +25,7 @@ import {
   mergeScanResults,
   type AggregateValueObjectConcept,
   type BffInlineTypeException,
+  type ClosedEnumRegistryEntry,
   type ConstructionValidationTarget,
   type ErrorMapperException,
   type ExternalSideEffectPort,
@@ -48,6 +50,7 @@ const policy = JSON.parse(
   testDataHarnessRegistrations?: TestDataHarnessRegistration[];
   aggregateValueObjectRegistry?: AggregateValueObjectConcept[];
   voConstructionValidationRegistry?: ConstructionValidationTarget[];
+  closedEnumRegistry?: ClosedEnumRegistryEntry[];
   projects?: string[];
 };
 const projectPaths = policy.projects ?? [];
@@ -71,6 +74,7 @@ const backend = requireProject('apps/backend/tsconfig.json');
 const bff = requireProject('apps/bff/tsconfig.json');
 const web = requireProject('apps/web/tsconfig.json');
 const types = requireProject('packages/types/tsconfig.json');
+const validation = requireProject('packages/validation/tsconfig.json');
 const intentionalErrorMapperGaps: ErrorMapperException[] = (policy.exceptions ?? [])
   .filter(
     (exception): exception is { rule: string; class: string; path: string } =>
@@ -128,6 +132,10 @@ const ikaroTypesDriftExceptions: IkaroTypesDriftException[] = (policy.exceptions
       exception.rule === 'ikaro-types-drift' && Boolean(exception.path) && Boolean(exception.name),
   )
   .map((exception) => ({ path: exception.path, name: exception.name }));
+const closedEnumRegistry = policy.closedEnumRegistry;
+if (!closedEnumRegistry?.length) {
+  throw new Error('The architecture policy must register at least one closed-enum registry entry.');
+}
 
 const results = [
   checkTransactionalIo(backend, externalSideEffectPorts),
@@ -157,6 +165,7 @@ const results = [
   checkUseCaseInputNaming(backend),
   checkBffTypesLiveInModuleFiles(bff, bffInlineTypeExceptions),
   checkIkaroTypesDrift(web, types, ikaroTypesDriftExceptions),
+  checkClosedEnumRegistry([validation, types], closedEnumRegistry),
 ];
 const zeroTargetResults = results.filter((result) => result.scannedTargets === 0);
 const findings = results.flatMap((result) => result.findings);

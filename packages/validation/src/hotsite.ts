@@ -71,26 +71,31 @@ export const HotsiteBrandingSchema = z
   })
   .partial();
 
+// Single canonical source for the HotsiteModuleType concept (TD37-S21) — the backend domain type
+// (apps/backend/.../hotsite-config.types.ts) and its aggregate's runtime MODULE_TYPES Set both
+// derive from this tuple instead of hand-duplicating it. packages/types/src/enums.ts's own
+// HotsiteModuleType stays a deliberately separate, web-facing copy (apps/web must never depend on
+// @ikaro/validation) — guarded by packages/architecture-check's closedEnumRegistry detector, which
+// allows that copy to lag behind this one (e.g. during a staged rollout like LEAD_FORM's, M20-S01
+// → M20-S07) but never lead ahead of it.
+export const HOTSITE_MODULE_TYPES = [
+  'HERO',
+  'SERVICE_LIST',
+  'GALLERY',
+  'TESTIMONIALS',
+  'BOOKING_CTA',
+  'ABOUT',
+  'CONTACT',
+  'FOOTER',
+  'CHATBOT',
+  'LEAD_FORM',
+] as const;
+
+export type HotsiteModuleType = (typeof HOTSITE_MODULE_TYPES)[number];
+
 export const HotsiteModuleSchema = z
   .object({
-    type: z.enum([
-      'HERO',
-      'SERVICE_LIST',
-      'GALLERY',
-      'TESTIMONIALS',
-      'BOOKING_CTA',
-      'ABOUT',
-      'CONTACT',
-      'FOOTER',
-      'CHATBOT',
-      // Backend/BFF-only addition (M20-S01) — required for the LEAD_FORM module's `enabled` toggle
-      // to work at all via this existing generic endpoint (docs/02-DOMAIN_MODEL.md § LeadFormConfig
-      // "Cross-aggregate save": enabled stays owned by HotsiteConfig.updateContent(), same as every
-      // other module). Safe to add here without S07: this schema has no apps/web consumer (verified
-      // via grep), unlike packages/types/src/enums.ts's HotsiteModuleType, so it doesn't force any
-      // web-side exhaustive Record<HotsiteModuleType, ...> map to gain a real entry.
-      'LEAD_FORM',
-    ]),
+    type: z.enum(HOTSITE_MODULE_TYPES),
     enabled: z.boolean(),
     data: z.record(z.string(), z.unknown()),
   })

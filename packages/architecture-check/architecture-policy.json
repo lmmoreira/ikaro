@@ -458,6 +458,24 @@
       "validatorFile": "apps/backend/src/contexts/platform/domain/value-objects/validators/notification-settings.validator.ts"
     }
   ],
+  "closedEnumRegistry": [
+    {
+      "name": "HotsiteModuleType",
+      "canonical": {
+        "path": "packages/validation/src/hotsite.ts",
+        "kind": "constArray",
+        "exportName": "HOTSITE_MODULE_TYPES"
+      },
+      "mayLeadAhead": {
+        "path": "packages/types/src/enums.ts",
+        "kind": "union",
+        "exportName": "HotsiteModuleType"
+      },
+      "rationale": "packages/types/src/enums.ts is web-consumable and must never gain a module type ahead of packages/validation's canonical, backend/BFF-only source. It historically lagged behind during LEAD_FORM's staged rollout (M20-S01 -> M20-S07, both sides caught up as of 2026-09-01) -- this entry is a permanent guardrail against the same staged-rollout gap recurring for the next module type, not a currently-open lag.",
+      "owner": "platform",
+      "reviewBy": "2027-03-01"
+    }
+  ],
   "testDataHarnessRegistrations": [
     {
       "file": "apps/backend/src/test/integration-global-setup.ts",

@@ -1,6 +1,12 @@
 export { checkAggregatePropsUseSharedValueObjects } from './detectors/aggregate-primitive-vo';
 export { checkBffTypesLiveInModuleFiles } from './detectors/bff-controller-type-placement';
 export type { BffInlineTypeException } from './detectors/bff-controller-type-placement';
+export { checkClosedEnumRegistry } from './detectors/closed-enum-registry';
+export type {
+  ClosedEnumMemberKind,
+  ClosedEnumRegistryEntry,
+  ClosedEnumSource,
+} from './detectors/closed-enum-registry';
 export type {
   AggregatePrimitiveVoExemption,
   AggregateValueObjectConcept,

@@ -1,3 +1,4 @@
+import { HOTSITE_MODULE_TYPES } from '@ikaro/validation';
 import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { HexColor } from '../../../shared/value-objects/hex-color.vo';
@@ -52,18 +53,12 @@ const SHADOW_STYLE_VALUES = ['none', 'subtle', 'strong'] as const;
 const HERO_BG_STYLE_VALUES = ['primary', 'background'] as const;
 const DIVIDER_STYLE_VALUES = ['none', 'gradient', 'solid'] as const;
 
-const MODULE_TYPES: ReadonlySet<HotsiteModuleType> = new Set([
-  'HERO',
-  'SERVICE_LIST',
-  'GALLERY',
-  'TESTIMONIALS',
-  'BOOKING_CTA',
-  'ABOUT',
-  'CONTACT',
-  'FOOTER',
-  'CHATBOT',
-  'LEAD_FORM',
-]);
+// Derived from @ikaro/validation's canonical HOTSITE_MODULE_TYPES tuple (TD37-S21) instead of a
+// hand-typed literal array — a real (non-type-only) import, confirmed safe: shared/value-objects/
+// (e.g. email.vo.ts) already does the identical thing in framework-free domain-adjacent code, and
+// @ikaro/validation's compiled dist/index.js already pulls in zod transitively the moment anything
+// is imported from it, independent of this call site.
+const MODULE_TYPES: ReadonlySet<HotsiteModuleType> = new Set(HOTSITE_MODULE_TYPES);
 
 type ModuleDataValidator = (data: HotsiteModuleData, ctx: LayoutValidationContext) => void;
 
