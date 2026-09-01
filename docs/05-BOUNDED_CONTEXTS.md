@@ -749,7 +749,7 @@ For MVP: All deployed as single service, but code organized as separate modules 
 **Published Events:**
 - `StaffInvited` → consumed by Notification (sends invitation/welcome email to new staff member's Google email)
 - `StaffDeactivated` → consumed by **Booking Context** (UC-048, added M21 Cluster 1 — cascades to the wrapping `STAFF`-type `Resource`)
-- `LeadFormSubmissionReceived` → no consumers in MVP (kept for audit trail; a notification/webhook consumer is an explicitly deferred fast-follow)
+- `LeadFormSubmissionReceived` → consumed by `audit-log` (a placeholder logging consumer, M20-S16); a real notification/webhook consumer to the manager is still an explicitly deferred fast-follow
 
 **Consumed Events:** none — Platform is the source for its own data. The chatbot flow reads live services/prices from Booking context via BFF orchestration (`BackendHttpService.getForPublic('/services', tenantId)`), not an event or an in-process port — see `docs/discovery/CHATBOT/CHATBOT.md` §6 for why a Platform→Booking port was considered and rejected.
 
