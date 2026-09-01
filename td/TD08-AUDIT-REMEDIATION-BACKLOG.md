@@ -96,7 +96,7 @@
 
 **Implemented notes**
 - `shared.outbox` (S01) — every aggregate-driven publish site writes an envelope row inside the same transaction as the state change, via `OUTBOX_PUBLISHER`/`IOutboxPublisher`; `OutboxRelayService`'s scheduled sweep (`SKIP LOCKED`, grace window) delivers unpublished rows to Pub/Sub, with an inline-dispatch fast path after commit.
-- The 3 event-emitting aggregates' repositories (`Booking`/`Staff`/`Tenant`) auto-drain domain events inside `save()` (S02) — no use case writes a publish loop anymore.
+- The event-emitting aggregates' repositories (`Booking`/`Staff`/`Tenant` as of S02, `LeadFormSubmission` added M20-S16) auto-drain domain events inside `save()` — no use case writes a publish loop anymore.
 - The 4 cron-published `Command` events + the loyalty re-emit (`ServicePointsEarned`, the exact §12.3 "worst case" this item called out) were migrated onto the same durable path, with deterministic `dedup_key`s for the crons and in-transaction publish for the loyalty re-emit (S03) — closing the crash-between-commit-and-publish window this item's audit finding described.
 - `shared.inbox` (S04) generalizes consumer-side idempotency (replacing the ad-hoc `processed_events` tables this item's finding referenced).
 

@@ -66,6 +66,12 @@
     ]
   },
   {
+    "event": "LeadFormSubmissionReceived",
+    "consumers": [
+      "audit-log"
+    ]
+  },
+  {
     "event": "PointsExpiringSoon",
     "consumers": [
       "notification"

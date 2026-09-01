@@ -1311,7 +1311,7 @@ Staff  → Notification: StaffInvited → invitation email
 
 **Published Events:**
 - `TenantProvisioned` — consumed by Staff Context (creates first MANAGER staff row + publishes `StaffInvited`)
-- `LeadFormSubmissionReceived` — no consumers yet (MVP); kept for the audit trail and an obvious fast-follow (notification/webhook consumer)
+- `LeadFormSubmissionReceived` — consumed by `audit-log` (a placeholder logging consumer, M20-S16); a real notification/webhook consumer to the manager is still an obvious, explicitly deferred fast-follow
 
 ---
 

@@ -47,6 +47,7 @@ import { GetLeadFormPublicConfigUseCase } from './application/use-cases/get-lead
 import { GetLeadFormStatusUseCase } from './application/use-cases/get-lead-form-status.use-case';
 import { GetLeadFormSubmissionUseCase } from './application/use-cases/get-lead-form-submission.use-case';
 import { ListLeadFormSubmissionsUseCase } from './application/use-cases/list-lead-form-submissions.use-case';
+import { LogLeadFormSubmissionReceivedUseCase } from './application/use-cases/log-lead-form-submission-received.use-case';
 import { GetTenantByIdUseCase } from './application/use-cases/get-tenant-by-id.use-case';
 import { GetTenantBySlugUseCase } from './application/use-cases/get-tenant-by-slug.use-case';
 import { GetTenantsUseCase } from './application/use-cases/get-tenants.use-case';
@@ -82,6 +83,7 @@ import { CronLeadFormController } from './infrastructure/controllers/cron-lead-f
 import { ChatbotBalancePollTriggerHandler } from './infrastructure/events/chatbot-balance-poll-trigger.handler';
 import { ChatbotRetentionPurgeTriggerHandler } from './infrastructure/events/chatbot-retention-purge-trigger.handler';
 import { LeadFormRetentionPurgeTriggerHandler } from './infrastructure/events/lead-form-retention-purge-trigger.handler';
+import { LeadFormSubmissionReceivedHandler } from './infrastructure/events/lead-form-submission-received.handler';
 import { HotsiteAdminController } from './infrastructure/controllers/hotsite-admin.controller';
 import { HotsiteController } from './infrastructure/controllers/hotsite.controller';
 import { LeadFormController } from './infrastructure/controllers/lead-form.controller';
@@ -191,6 +193,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     ChatbotRetentionPurgeTriggerHandler,
     LeadFormRetentionPurgeJob,
     LeadFormRetentionPurgeTriggerHandler,
+    LeadFormSubmissionReceivedHandler,
     CreateLeadFormSubmissionUseCase,
     GetChatbotCapStatusUseCase,
     GetChatbotStatusUseCase,
@@ -202,6 +205,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     GetLeadFormStatusUseCase,
     GetLeadFormSubmissionUseCase,
     ListLeadFormSubmissionsUseCase,
+    LogLeadFormSubmissionReceivedUseCase,
     GetTenantByIdUseCase,
     GetTenantBySlugUseCase,
     GetTenantsUseCase,

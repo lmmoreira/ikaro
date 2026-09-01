@@ -8,8 +8,8 @@ interface LeadFormSubmissionReceivedData extends Record<string, unknown> {
 // Deliberately thin (docs/03-DOMAIN_EVENTS.md § LeadFormSubmissionReceived) — the submitted
 // content itself (name/email/answers) is never carried in the event payload, matching how other
 // PII-bearing events in this codebase keep bulk content out of the envelope and readable only via
-// the aggregate's own row. No consumers yet (MVP) — kept for the audit trail and an obvious
-// fast-follow (a notification/webhook consumer to the manager).
+// the aggregate's own row. Consumed by `audit-log` (M20-S16, a placeholder logging consumer) — a
+// real notification/webhook consumer to the manager is still an obvious, deferred fast-follow.
 export class LeadFormSubmissionReceived extends DomainEvent<LeadFormSubmissionReceivedData> {
   readonly eventVersion = 1;
   readonly data: LeadFormSubmissionReceivedData;

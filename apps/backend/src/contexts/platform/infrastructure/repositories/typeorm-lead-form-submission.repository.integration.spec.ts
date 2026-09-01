@@ -3,19 +3,25 @@ import { TenantEntityBuilder } from '../../../../test/builders/platform/tenant-e
 import { makeConfigService } from '../../../../test/infrastructure/fake-config-service';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryInboxRepository } from '../../../../test/infrastructure/in-memory-inbox.repository';
+import { RoutingInMemoryEventBus } from '../../../../test/infrastructure/routing-in-memory-event-bus';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
+import { AppLogger } from '../../../../shared/observability/app-logger';
 import { OutboxEventEntity } from '../../../../shared/infrastructure/outbox/outbox-event.entity';
 import { OutboxPublisher } from '../../../../shared/infrastructure/outbox/outbox-publisher';
 import { OutboxRelayService } from '../../../../shared/infrastructure/outbox/outbox-relay.service';
 import { TypeOrmOutboxRepository } from '../../../../shared/infrastructure/outbox/typeorm-outbox.repository';
 import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typeorm-transaction-manager';
+import { IEventBus } from '../../../../shared/ports/event-bus.port';
 import { localDayBoundsUTC } from '../../../../shared/utils/calendar-date';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { LeadFormConfigEntityBuilder } from '../../../../test/builders/platform/lead-form-config-entity.builder';
 import { LeadFormSubmissionBuilder } from '../../../../test/builders/platform/lead-form-submission.builder';
 import { LeadFormSubmissionEntityBuilder } from '../../../../test/builders/platform/lead-form-submission-entity.builder';
 import { LeadFormSubmission } from '../../domain/lead-form-submission.aggregate';
+import { LeadFormSubmissionReceived } from '../../domain/events/lead-form-submission-received.event';
+import { LogLeadFormSubmissionReceivedUseCase } from '../../application/use-cases/log-lead-form-submission-received.use-case';
+import { LeadFormSubmissionReceivedHandler } from '../events/lead-form-submission-received.handler';
 import { TenantEntity } from '../entities/tenant.entity';
 import { LeadFormConfigEntity } from '../entities/lead-form-config.entity';
 import { LeadFormSubmissionEntity } from '../entities/lead-form-submission.entity';
@@ -68,7 +74,10 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
     await dataSource.getRepository(LeadFormConfigEntity).delete({ tenantId: TENANT_B });
   });
 
-  function makeRepo(eventBus: InMemoryEventBus, inlineDispatchEnabled = false) {
+  function makeRepo(
+    eventBus: IEventBus,
+    inlineDispatchEnabled = false,
+  ): TypeOrmLeadFormSubmissionRepository {
     const config = makeConfigService({ OUTBOX_INLINE_DISPATCH_ENABLED: inlineDispatchEnabled });
     const relay = new OutboxRelayService(
       typeOrmOutboxRepo,
@@ -156,6 +165,46 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
 
     const savedRow = await entityRepo.findOne({ where: { id: submission.id } });
     expect(savedRow).not.toBeNull();
+  });
+
+  // M20-S16: proves the outbox round-trips all the way through a real subscribed consumer, not
+  // just as far as the shared.outbox row (the gap that let LeadFormSubmissionReceived ship with
+  // no real topic — see docs/ENGINEERING_RULES.md § Aggregate domain events → outbox for the
+  // incident). RoutingInMemoryEventBus (unlike the plain InMemoryEventBus every other test in this
+  // file uses) actually dispatches to registered handlers, mirroring
+  // tenant-provisioned.handler.integration.spec.ts's own real-consumer proof.
+  it('round-trips a saved submission through a real subscribed consumer (LeadFormSubmissionReceivedHandler)', async () => {
+    const routingBus = new RoutingInMemoryEventBus();
+    const handler = new LeadFormSubmissionReceivedHandler(
+      new LogLeadFormSubmissionReceivedUseCase(new InMemoryInboxRepository()),
+      routingBus,
+    );
+    handler.onModuleInit();
+    const logSpy = jest.spyOn(AppLogger.prototype, 'log').mockImplementation();
+
+    // Inline dispatch enabled (unlike every other test above) so save() drives the relay's
+    // publish path synchronously — no separate sweep tick needed to reach the handler.
+    const repo = makeRepo(routingBus, true);
+    const submission = buildSubmission(TENANT_A);
+    const publishedEvent = submission.domainEvents[0]; // captured before save() clears it
+
+    await txManager.run(() => repo.save(submission));
+
+    expect(logSpy).toHaveBeenCalledWith(
+      'LeadFormSubmissionReceived received',
+      expect.objectContaining({
+        submissionId: submission.id,
+        tenantId: TENANT_A,
+        customerId: null,
+      }),
+    );
+    expect(logSpy).toHaveBeenCalledTimes(1);
+
+    // Redelivery (Pub/Sub is at-least-once) of the identical event must not produce a second
+    // audit-log effect — proves the handler's real inbox wiring, not just the mapped-fields spy
+    // coverage in log-lead-form-submission-received.use-case.spec.ts.
+    await handler.handle(publishedEvent as LeadFormSubmissionReceived);
+    expect(logSpy).toHaveBeenCalledTimes(1);
   });
 
   it('rolls back the outbox row together with the business write when the outer transaction throws', async () => {

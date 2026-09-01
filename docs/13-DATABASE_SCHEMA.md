@@ -1253,7 +1253,7 @@ await drainDomainEvents(booking, this.outboxPublisher); // 2. Insert outbox row,
 // inline on the happy path, or the scheduled sweep (SKIP LOCKED) if that fails/crashes.
 ```
 
-The 3 event-emitting aggregates (`Booking`, `Staff`, `Tenant`) get this transactionally-safe path automatically via their repositories — no use case writes a publish loop for them anymore. The 4 cron-published `Command` events (`BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder`, `PointsExpiringSoon`) publish through `OUTBOX_PUBLISHER` too, wrapped in a per-tenant-batch transaction (TD24-S03) — every publish site in the system now goes through the same durable path. A crash between the DB commit and the Pub/Sub publish no longer loses the event: the outbox row is durable, and the sweep delivers it on the next tick (worst case ~5 minutes later, `var.outbox_relay_schedule`).
+The event-emitting aggregates (`Booking`, `Staff`, `Tenant`, `LeadFormSubmission`) get this transactionally-safe path automatically via their repositories — no use case writes a publish loop for them anymore. The 4 cron-published `Command` events (`BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder`, `PointsExpiringSoon`) publish through `OUTBOX_PUBLISHER` too, wrapped in a per-tenant-batch transaction (TD24-S03) — every publish site in the system now goes through the same durable path. A crash between the DB commit and the Pub/Sub publish no longer loses the event: the outbox row is durable, and the sweep delivers it on the next tick (worst case ~5 minutes later, `var.outbox_relay_schedule`).
 
 ### Consume-side: shared inbox (TD24-S04)
 
