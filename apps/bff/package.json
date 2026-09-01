@@ -7,7 +7,7 @@
     "dev": "ts-node --swc -r tsconfig-paths/register -r ./src/tracing.ts src/main.ts",
     "build": "swc src -d dist --strip-leading-paths",
     "start": "node -r ./dist/tracing.js dist/main.js",
-    "lint": "eslint \"src/**/*.ts\" --no-error-on-unmatched-pattern",
+    "lint": "eslint \"src/**/*.ts\" --no-error-on-unmatched-pattern --cache --cache-location .eslintcache --cache-strategy content",
     "type-check": "tsc --noEmit",
     "format": "prettier --write \"src/**/*.ts\"",
     "test": "jest",

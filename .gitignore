@@ -17,6 +17,9 @@ out/
 # TypeScript
 *.tsbuildinfo
 
+# ESLint
+.eslintcache
+
 # Test coverage
 coverage/
 .nyc_output/

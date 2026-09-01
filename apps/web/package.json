@@ -7,7 +7,7 @@
     "dev": "next dev --port 3000",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint \"**/*.{ts,tsx}\" --no-error-on-unmatched-pattern",
+    "lint": "eslint \"**/*.{ts,tsx}\" --no-error-on-unmatched-pattern --cache --cache-location .eslintcache --cache-strategy content",
     "type-check": "tsc --noEmit",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "test": "vitest run",

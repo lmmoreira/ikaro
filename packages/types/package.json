@@ -47,7 +47,7 @@
   "scripts": {
     "build": "tsc",
     "type-check": "tsc --noEmit",
-    "lint": "eslint \"src/**/*.ts\" --no-error-on-unmatched-pattern",
+    "lint": "eslint \"src/**/*.ts\" --no-error-on-unmatched-pattern --cache --cache-location .eslintcache --cache-strategy content",
     "test": "jest",
     "test:cov": "jest --coverage"
   },
