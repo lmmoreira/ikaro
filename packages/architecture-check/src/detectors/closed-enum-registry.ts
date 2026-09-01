@@ -10,15 +10,16 @@ export interface ClosedEnumSource {
   exportName: string;
 }
 
-// `mayLeadAhead` names the copy `canonical` is allowed to lead ahead of (TD37-S21) — i.e. the
-// registered copy that may legitimately LAG BEHIND canonical (e.g. during a staged module-type
-// rollout), never the reverse. The field is named after the historical incident it guards against
-// (packages/types/src/enums.ts's HotsiteModuleType led ahead of the backend/validation copies
-// during M20-S01), not after what it's currently permitted to do.
+// `mirror` must always carry the exact same member set as `canonical` — a strict, bidirectional
+// equality check, not a one-directional lag allowance. A registered pair has no legitimate reason
+// to diverge in either direction: a new member must land in canonical and every mirror in the same
+// change, not across a staged, multi-PR rollout (packages/types/src/enums.ts's HotsiteModuleType
+// historically lagged behind during LEAD_FORM's rollout, M20-S01 -> M20-S07 — this registry closes
+// that exact gap going forward, it doesn't codify it as permitted).
 export interface ClosedEnumRegistryEntry {
   name: string;
   canonical: ClosedEnumSource;
-  mayLeadAhead: ClosedEnumSource;
+  mirror: ClosedEnumSource;
 }
 
 interface ResolvedMembers {
@@ -101,7 +102,7 @@ function resolveMembers(
 
 function unresolvedFinding(
   entryName: string,
-  side: 'canonical' | 'mayLeadAhead',
+  side: 'canonical' | 'mirror',
   source: ClosedEnumSource,
 ): Finding {
   return {
@@ -112,13 +113,11 @@ function unresolvedFinding(
   };
 }
 
-// Superset-only, not equality: every member of `mayLeadAhead` must already exist in `canonical` —
-// a web/downstream copy gaining a member the canonical source doesn't know about is a real drift
-// bug. The reverse (canonical having a member `mayLeadAhead` lacks) is allowed and produces no
-// finding — that's exactly what a staged rollout looks like mid-flight. This is deliberately not
-// the same shape as aggregate-primitive-vo's aggregateValueObjectRegistry or ikaro-types-drift
-// (both check pure duplication/mismatch in both directions); here one direction is permanently
-// allowed by design.
+// Strict bidirectional equality, not a one-directional lag allowance: a member present on either
+// side but not the other is a finding, regardless of direction. Mechanically distinct from
+// aggregate-primitive-vo's aggregateValueObjectRegistry (aggregate-prop-vs-VO typing) and
+// ikaro-types-drift (structural interface/type-alias field-shape diffing) — this detector extracts
+// and diffs literal string-member sets from a `constArray`/`union` declaration pair instead.
 export function checkClosedEnumRegistry(
   projects: Project[],
   registry: ClosedEnumRegistryEntry[],
@@ -135,22 +134,37 @@ export function checkClosedEnumRegistry(
       continue;
     }
 
-    const mayLeadAhead = resolveMembers(projects, entry.mayLeadAhead);
-    if (!mayLeadAhead) {
-      findings.push(unresolvedFinding(entry.name, 'mayLeadAhead', entry.mayLeadAhead));
+    const mirror = resolveMembers(projects, entry.mirror);
+    if (!mirror) {
+      findings.push(unresolvedFinding(entry.name, 'mirror', entry.mirror));
       continue;
     }
 
-    const extraMembers = [...mayLeadAhead.members]
+    const extraInMirror = [...mirror.members]
       .filter((member) => !canonical.members.has(member))
       .sort();
-    if (extraMembers.length === 0) continue;
+    const missingFromMirror = [...canonical.members]
+      .filter((member) => !mirror.members.has(member))
+      .sort();
+    if (extraInMirror.length === 0 && missingFromMirror.length === 0) continue;
+
+    const descriptions: string[] = [];
+    if (extraInMirror.length > 0) {
+      descriptions.push(
+        `has member(s) [${extraInMirror.join(', ')}] not present in canonical (${entry.canonical.path}'s "${entry.canonical.exportName}")`,
+      );
+    }
+    if (missingFromMirror.length > 0) {
+      descriptions.push(
+        `is missing member(s) [${missingFromMirror.join(', ')}] present in canonical (${entry.canonical.path}'s "${entry.canonical.exportName}")`,
+      );
+    }
 
     findings.push({
       rule: 'closed-enum-registry',
-      file: mayLeadAhead.file.getFilePath(),
-      line: sourceLine(mayLeadAhead.file, mayLeadAhead.node.getStart()),
-      message: `"${entry.name}" (${entry.mayLeadAhead.path}) has member(s) [${extraMembers.join(', ')}] not present in its canonical source (${entry.canonical.path}'s "${entry.canonical.exportName}") — a registered copy may lag behind its canonical source but must never lead ahead of it.`,
+      file: mirror.file.getFilePath(),
+      line: sourceLine(mirror.file, mirror.node.getStart()),
+      message: `"${entry.name}" (${entry.mirror.path}) ${descriptions.join('; and ')} — every registered mirror must match its canonical source exactly.`,
     });
   }
 

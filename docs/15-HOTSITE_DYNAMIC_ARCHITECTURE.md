@@ -179,7 +179,7 @@ The `FOOTER` is always rendered automatically from tenant settings — it is **n
 ### Module Type Union
 
 ```typescript
-// packages/types/src/hotsite.ts
+// packages/types/src/enums.ts — re-exported (not redeclared) from packages/types/src/hotsite.ts
 
 type HotsiteModuleType =
   | 'HERO'
@@ -596,7 +596,7 @@ Follow these steps in order. Every step is mandatory.
 
 Add the new module-type string to `HOTSITE_MODULE_TYPES` in `packages/validation/src/hotsite.ts` — the canonical source since TD37-S21. The backend domain type (`apps/backend/src/contexts/platform/domain/hotsite-config.types.ts`) and its `MODULE_TYPES` runtime Set both derive from it automatically; no separate backend edit needed.
 
-Then, separately, add the new member to `HotsiteModuleType` in `packages/types/src/enums.ts` — this is a deliberately independent, web-facing copy — never derived from `@ikaro/validation`, which `apps/web` must not depend on — guarded by `packages/architecture-check`'s `closedEnumRegistry` detector: it may lag behind the canonical source (e.g. during a staged rollout like `LEAD_FORM`'s) but must never gain a member the canonical source lacks. Add the TypeScript data-shape interface itself to `packages/types/src/hotsite.ts` (alongside the other `XxxModuleData` interfaces, which `HotsiteModuleType` is only re-exported from — not declared in). Keep the `data` shape flat — avoid deep nesting.
+In the **same commit**, also add the new member to `HotsiteModuleType` in `packages/types/src/enums.ts` — this is a deliberately independent, web-facing copy (never derived from `@ikaro/validation`, which `apps/web` must not depend on), but `packages/architecture-check`'s `closedEnumRegistry` detector requires it to always match the canonical source exactly, in both directions. Unlike `LEAD_FORM`'s original rollout (M20-S01 → M20-S07, staged across multiple PRs), a staged rollout for this enum is no longer supported — a member missing from either side fails `pnpm architecture-check`. Add the TypeScript data-shape interface itself to `packages/types/src/hotsite.ts` (alongside the other `XxxModuleData` interfaces, which `HotsiteModuleType` is only re-exported from — not declared in). Keep the `data` shape flat — avoid deep nesting.
 
 **2. Build the React component**
 

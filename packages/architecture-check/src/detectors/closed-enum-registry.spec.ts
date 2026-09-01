@@ -3,25 +3,25 @@ import { checkClosedEnumRegistry } from '../index';
 import { expectScannedTargets, expectZeroTargets, fixtureProject } from '../testing/fixtures';
 
 const CANONICAL_FILE = 'packages/validation/src/demo-enum.ts';
-const MAY_LEAD_AHEAD_FILE = 'packages/types/src/demo-enum.ts';
+const MIRROR_FILE = 'packages/types/src/demo-enum.ts';
 
 function registryFor(
   canonicalMembers: string[],
-  mayLeadAheadMembers: string[],
+  mirrorMembers: string[],
 ): { entry: ClosedEnumRegistryEntry; projects: ReturnType<typeof fixtureProject>[] } {
   const canonicalProject = fixtureProject({
     [CANONICAL_FILE]: `export const DEMO_TYPES = [${canonicalMembers.map((m) => `'${m}'`).join(', ')}] as const;`,
   });
-  const mayLeadAheadProject = fixtureProject({
-    [MAY_LEAD_AHEAD_FILE]: `export type DemoType = ${mayLeadAheadMembers.map((m) => `'${m}'`).join(' | ') || 'never'};`,
+  const mirrorProject = fixtureProject({
+    [MIRROR_FILE]: `export type DemoType = ${mirrorMembers.map((m) => `'${m}'`).join(' | ') || 'never'};`,
   });
   return {
     entry: {
       name: 'DemoType',
       canonical: { path: CANONICAL_FILE, kind: 'constArray', exportName: 'DEMO_TYPES' },
-      mayLeadAhead: { path: MAY_LEAD_AHEAD_FILE, kind: 'union', exportName: 'DemoType' },
+      mirror: { path: MIRROR_FILE, kind: 'union', exportName: 'DemoType' },
     },
-    projects: [canonicalProject, mayLeadAheadProject],
+    projects: [canonicalProject, mirrorProject],
   };
 }
 
@@ -33,34 +33,37 @@ describe('checkClosedEnumRegistry', () => {
     expect(result.findings).toHaveLength(0);
   });
 
-  it('allows the canonical source to lead ahead — no finding for a staged rollout mid-flight', () => {
+  it('flags the mirror falling behind canonical — strict equality, no allowed staged lag', () => {
     const { entry, projects } = registryFor(['A', 'B', 'C'], ['A', 'B']);
     const result = checkClosedEnumRegistry(projects, [entry]);
-    expectScannedTargets(result, 1);
-    expect(result.findings).toHaveLength(0);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        rule: 'closed-enum-registry',
+        message: expect.stringContaining('missing member(s) [C]'),
+      }),
+    ]);
   });
 
-  it('flags mayLeadAhead gaining a member the canonical source lacks — the real reversed-direction bug', () => {
+  it('flags the mirror gaining a member canonical lacks — the real reversed-direction bug', () => {
     const { entry, projects } = registryFor(['A', 'B'], ['A', 'B', 'C']);
     const result = checkClosedEnumRegistry(projects, [entry]);
     expect(result.findings).toEqual([
       expect.objectContaining({
         rule: 'closed-enum-registry',
-        message: expect.stringContaining('[C]'),
+        message: expect.stringContaining('member(s) [C] not present in canonical'),
       }),
     ]);
   });
 
-  it('flags a plain 2-way divergence for a registry entry with no deliberate lead/lag relationship', () => {
-    // Both sides diverge in both directions; only the mayLeadAhead-ahead direction is a finding —
-    // the detector never special-cases the seeded HotsiteModuleType entry, the rule is generic.
+  it('flags both an extra and a missing member in one finding when both sides diverge', () => {
     const { entry, projects } = registryFor(['A', 'B'], ['B', 'C']);
     const result = checkClosedEnumRegistry(projects, [entry]);
     expect(result.findings).toEqual([
       expect.objectContaining({
-        message: expect.stringContaining('[C]'),
+        message: expect.stringMatching(/member\(s\) \[C\] not present in canonical/),
       }),
     ]);
+    expect(result.findings[0].message).toMatch(/missing member\(s\) \[A\]/);
   });
 
   it('flags an unresolved canonical source instead of silently skipping the entry', () => {
@@ -78,17 +81,17 @@ describe('checkClosedEnumRegistry', () => {
     ]);
   });
 
-  it('flags an unresolved mayLeadAhead source instead of silently skipping the entry', () => {
+  it('flags an unresolved mirror source instead of silently skipping the entry', () => {
     const { entry, projects } = registryFor(['A'], ['A']);
     const brokenEntry: ClosedEnumRegistryEntry = {
       ...entry,
-      mayLeadAhead: { ...entry.mayLeadAhead, path: 'packages/types/src/does-not-exist.ts' },
+      mirror: { ...entry.mirror, path: 'packages/types/src/does-not-exist.ts' },
     };
     const result = checkClosedEnumRegistry(projects, [brokenEntry]);
     expectScannedTargets(result, 1);
     expect(result.findings).toEqual([
       expect.objectContaining({
-        message: expect.stringContaining('mayLeadAhead source'),
+        message: expect.stringContaining('mirror source'),
       }),
     ]);
   });
@@ -105,12 +108,12 @@ describe('checkClosedEnumRegistry', () => {
     it('flags a constArray containing a non-string-literal element', () => {
       const project = fixtureProject({
         [CANONICAL_FILE]: `export const DEMO_TYPES = ['A', 2, 'C'] as const;`,
-        [MAY_LEAD_AHEAD_FILE]: `export type DemoType = 'A';`,
+        [MIRROR_FILE]: `export type DemoType = 'A';`,
       });
       const entry: ClosedEnumRegistryEntry = {
         name: 'DemoType',
         canonical: { path: CANONICAL_FILE, kind: 'constArray', exportName: 'DEMO_TYPES' },
-        mayLeadAhead: { path: MAY_LEAD_AHEAD_FILE, kind: 'union', exportName: 'DemoType' },
+        mirror: { path: MIRROR_FILE, kind: 'union', exportName: 'DemoType' },
       };
       const result = checkClosedEnumRegistry([project], [entry]);
       expectScannedTargets(result, 1);
@@ -122,34 +125,34 @@ describe('checkClosedEnumRegistry', () => {
     it('flags a union widened to a bare string type', () => {
       const project = fixtureProject({
         [CANONICAL_FILE]: `export const DEMO_TYPES = ['A'] as const;`,
-        [MAY_LEAD_AHEAD_FILE]: `export type DemoType = string;`,
+        [MIRROR_FILE]: `export type DemoType = string;`,
       });
       const entry: ClosedEnumRegistryEntry = {
         name: 'DemoType',
         canonical: { path: CANONICAL_FILE, kind: 'constArray', exportName: 'DEMO_TYPES' },
-        mayLeadAhead: { path: MAY_LEAD_AHEAD_FILE, kind: 'union', exportName: 'DemoType' },
+        mirror: { path: MIRROR_FILE, kind: 'union', exportName: 'DemoType' },
       };
       const result = checkClosedEnumRegistry([project], [entry]);
       expectScannedTargets(result, 1);
       expect(result.findings).toEqual([
-        expect.objectContaining({ message: expect.stringContaining('mayLeadAhead source') }),
+        expect.objectContaining({ message: expect.stringContaining('mirror source') }),
       ]);
     });
 
     it("flags a union widened by an unconstrained member (e.g. 'A' | string)", () => {
       const project = fixtureProject({
         [CANONICAL_FILE]: `export const DEMO_TYPES = ['A'] as const;`,
-        [MAY_LEAD_AHEAD_FILE]: `export type DemoType = 'A' | string;`,
+        [MIRROR_FILE]: `export type DemoType = 'A' | string;`,
       });
       const entry: ClosedEnumRegistryEntry = {
         name: 'DemoType',
         canonical: { path: CANONICAL_FILE, kind: 'constArray', exportName: 'DEMO_TYPES' },
-        mayLeadAhead: { path: MAY_LEAD_AHEAD_FILE, kind: 'union', exportName: 'DemoType' },
+        mirror: { path: MIRROR_FILE, kind: 'union', exportName: 'DemoType' },
       };
       const result = checkClosedEnumRegistry([project], [entry]);
       expectScannedTargets(result, 1);
       expect(result.findings).toEqual([
-        expect.objectContaining({ message: expect.stringContaining('mayLeadAhead source') }),
+        expect.objectContaining({ message: expect.stringContaining('mirror source') }),
       ]);
     });
   });

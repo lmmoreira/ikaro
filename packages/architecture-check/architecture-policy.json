@@ -466,12 +466,12 @@
         "kind": "constArray",
         "exportName": "HOTSITE_MODULE_TYPES"
       },
-      "mayLeadAhead": {
+      "mirror": {
         "path": "packages/types/src/enums.ts",
         "kind": "union",
         "exportName": "HotsiteModuleType"
       },
-      "rationale": "packages/types/src/enums.ts is web-consumable and must never gain a module type ahead of packages/validation's canonical, backend/BFF-only source. It historically lagged behind during LEAD_FORM's staged rollout (M20-S01 -> M20-S07, both sides caught up as of 2026-09-01) -- this entry is a permanent guardrail against the same staged-rollout gap recurring for the next module type, not a currently-open lag.",
+      "rationale": "packages/types/src/enums.ts must always exactly mirror packages/validation's canonical, backend/BFF-only HOTSITE_MODULE_TYPES -- no permitted lag in either direction. It historically lagged behind during LEAD_FORM's staged rollout (M20-S01 -> M20-S07); this entry closes that exact gap going forward -- a new module type must land in both files in the same change.",
       "owner": "platform",
       "reviewBy": "2027-03-01"
     }
