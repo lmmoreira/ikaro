@@ -6,8 +6,6 @@ import { LogLeadFormSubmissionReceivedUseCase } from '../../application/use-case
 
 @Injectable()
 export class LeadFormSubmissionReceivedHandler implements OnModuleInit {
-  static readonly CONSUMER_NAME = 'audit-log';
-
   private readonly logger = new AppLogger(LeadFormSubmissionReceivedHandler.name);
 
   constructor(
@@ -19,13 +17,14 @@ export class LeadFormSubmissionReceivedHandler implements OnModuleInit {
     this.eventBus.subscribe<LeadFormSubmissionReceived>(
       LeadFormSubmissionReceived.name,
       (event) => this.handle(event),
-      LeadFormSubmissionReceivedHandler.CONSUMER_NAME,
+      LogLeadFormSubmissionReceivedUseCase.CONSUMER_NAME,
     );
   }
 
   async handle(event: LeadFormSubmissionReceived): Promise<void> {
     try {
       await this.logUseCase.execute({
+        eventId: event.eventId,
         submissionId: event.data.submissionId,
         tenantId: event.tenantId,
         customerId: event.data.customerId,

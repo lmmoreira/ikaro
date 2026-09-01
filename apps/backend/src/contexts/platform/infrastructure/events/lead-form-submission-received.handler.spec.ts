@@ -1,4 +1,6 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
+import { InMemoryInboxRepository } from '../../../../test/infrastructure/in-memory-inbox.repository';
+import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { LeadFormSubmissionReceivedEventBuilder } from '../../../../test/builders/platform';
 import { LogLeadFormSubmissionReceivedUseCase } from '../../application/use-cases/log-lead-form-submission-received.use-case';
 import { LeadFormSubmissionReceivedHandler } from './lead-form-submission-received.handler';
@@ -13,7 +15,10 @@ function makeHandler(): {
   eventBus: InMemoryEventBus;
 } {
   const eventBus = new InMemoryEventBus();
-  const useCase = new LogLeadFormSubmissionReceivedUseCase();
+  const useCase = new LogLeadFormSubmissionReceivedUseCase(
+    new InMemoryInboxRepository(),
+    new InMemoryTransactionManager(),
+  );
   const handler = new LeadFormSubmissionReceivedHandler(useCase, eventBus);
   return { handler, useCase, eventBus };
 }
@@ -33,6 +38,7 @@ describe('LeadFormSubmissionReceivedHandler', () => {
     await handler.handle(event);
 
     expect(executeSpy).toHaveBeenCalledWith({
+      eventId: event.eventId,
       submissionId: SUBMISSION_ID,
       tenantId: TENANT_ID,
       customerId: null,

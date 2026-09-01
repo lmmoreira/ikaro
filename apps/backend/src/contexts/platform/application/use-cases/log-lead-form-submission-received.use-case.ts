@@ -1,7 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { IInboxRepository, INBOX_REPOSITORY } from '../../../../shared/ports/inbox.port';
+import {
+  ITransactionManager,
+  TRANSACTION_MANAGER,
+} from '../../../../shared/ports/transaction-manager.port';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 
 export interface LogLeadFormSubmissionReceivedUseCaseInput {
+  eventId: string;
   submissionId: string;
   tenantId: string;
   customerId: string | null;
@@ -17,15 +23,37 @@ export interface LogLeadFormSubmissionReceivedUseCaseInput {
 // future story, not this class.
 @Injectable()
 export class LogLeadFormSubmissionReceivedUseCase {
+  static readonly CONSUMER_NAME = 'audit-log';
+
   private readonly logger = new AppLogger(LogLeadFormSubmissionReceivedUseCase.name);
 
+  constructor(
+    @Inject(INBOX_REPOSITORY) private readonly inboxRepo: IInboxRepository,
+    @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
+  ) {}
+
+  // check-then-mark (docs/ENGINEERING_RULES.md § Event Handlers) — the log line has no DB
+  // constraint of its own to dedup against, but a race between two concurrent redeliveries costs
+  // at most one duplicate audit-log entry, never duplicate data; the heavier atomic-claim protocol
+  // is unnecessary machinery for that cost.
   async execute(input: LogLeadFormSubmissionReceivedUseCaseInput): Promise<void> {
-    const { submissionId, tenantId, customerId, correlationId } = input;
+    const { eventId, submissionId, tenantId, customerId, correlationId } = input;
+
+    const alreadyProcessed = await this.inboxRepo.hasBeenProcessed(
+      eventId,
+      LogLeadFormSubmissionReceivedUseCase.CONSUMER_NAME,
+    );
+    if (alreadyProcessed) return;
+
     this.logger.log('LeadFormSubmissionReceived received', {
       submissionId,
       tenantId,
       customerId,
       correlationId,
     });
+
+    await this.txManager.run(() =>
+      this.inboxRepo.markProcessed(eventId, LogLeadFormSubmissionReceivedUseCase.CONSUMER_NAME),
+    );
   }
 }
