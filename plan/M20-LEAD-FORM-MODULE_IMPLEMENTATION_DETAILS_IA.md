@@ -27,6 +27,7 @@
 | `GetLeadFormSubmissionUseCase` (detail, incl. `customerId`) | `.../get-lead-form-submission.use-case.ts` |
 | `GetLeadFormFilterOptionsUseCase` (distinct question labels) | `.../get-lead-form-filter-options.use-case.ts` |
 | `LeadFormRetentionPurgeJob` (UC-043) | `apps/backend/src/contexts/platform/application/jobs/lead-form-retention-purge.job.ts` |
+| `LogLeadFormSubmissionReceivedUseCase` (placeholder `audit-log` consumer, S16 — see below and Structural Decisions) | `.../log-lead-form-submission-received.use-case.ts` |
 
 ### Backend — infrastructure
 
@@ -39,6 +40,7 @@
 | `TypeOrmLeadFormSubmissionRepository` (writes `lead_form_submissions` + `lead_form_submission_question_refs` + `lead_form_answers`, all one transaction; owns `applySearch()`/`applyFilters()`/`findDistinctQuestionLabels()`) | `.../typeorm-lead-form-submission.repository.ts` |
 | Entities | `lead-form-config.entity.ts`, `lead-form-submission.entity.ts`, `lead-form-answer.entity.ts` (all in `infrastructure/entities/`) |
 | Migrations (6, in order) | `1748400000014-CreateLeadFormSubmissions.ts`, `1748500000002-CreatePlatformLeadFormConfigs.ts`, `1748500000003-AddExpiresAtIndexToLeadFormSubmissions.ts`, `1748500000004-CreateLeadFormSubmissionQuestionRefs.ts`, `1748500000005-AddVersionToLeadFormConfigs.ts`, `1748500000006-CreateLeadFormAnswers.ts` — all in `apps/backend/src/contexts/platform/infrastructure/migrations/` |
+| `LeadFormSubmissionReceivedHandler` (S16 — subscribes `LeadFormSubmissionReceived`, calls `LogLeadFormSubmissionReceivedUseCase`) | `apps/backend/src/contexts/platform/infrastructure/events/lead-form-submission-received.handler.ts` |
 
 ### BFF
 
@@ -228,8 +230,11 @@ The original S02 draft copied Chatbot's Ikaro-only-override pattern for `maxSubm
 | Trigger | Topic | Schedule | Handler |
 |---|---|---|---|
 | Retention purge (UC-043) | `ikaro-cron-lead-form-retention` | daily `0 3 * * *` | `LeadFormRetentionPurgeTriggerHandler` → `LeadFormRetentionPurgeJob` |
+| Domain event (S16) | `ikaro-LeadFormSubmissionReceived` (subscription `-audit-log`) | — (event-driven, not cron) | `LeadFormSubmissionReceivedHandler` → `LogLeadFormSubmissionReceivedUseCase` |
 
 Local/manual trigger: `POST /cron/lead-form-retention` (`InternalApiGuard`). Job itself needs no S12 changes — `lead_form_answers`'/`lead_form_submission_question_refs`' `ON DELETE CASCADE` FKs mean deleting the parent `lead_form_submissions` row is enough.
+
+**S16 gap (2026-09-01):** `LeadFormSubmissionReceived` shipped in S02 (`docs/03-DOMAIN_EVENTS.md`) with "no consumers yet (MVP)" as a deliberate design choice — but `packages/infra-scripts/src/pubsub-catalog.ts` only discovers a topic from a real `eventBus.subscribe()` call site, so the topic was never provisioned. The outbox published this event on every real submission and failed permanently, unnoticed for ~4 days until it fired `Ikaro staging — outbox backlog age`. Fix: a placeholder `audit-log` handler purely to give the event a topic (see `docs/ENGINEERING_RULES.md` § Aggregate domain events → outbox for the generalized precedent). Any future milestone adding a "publish for audit trail, no real consumer yet" event needs a consumer — even a logger — in the same story, not a follow-up.
 
 ---
 
