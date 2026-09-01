@@ -352,8 +352,8 @@ ClassResourceSlot {
 **New invariants (M21 Cluster 2, enforced by the aggregate):**
 - `bookingModel` is immutable once the service has any booking history (UC-056 A1).
 - `resourceRequirements`/`legs`/`classResourceSlots` are mutually exclusive: a flat APPOINTMENT service sets `resourceRequirements` (`legs = null`); a legged APPOINTMENT service sets `legs` (`resourceRequirements = []`, `bufferAfterMinutes = null`); a SESSION service sets `classResourceSlots` (`resourceRequirements = []`, `legs = null`).
-- A bundle (`resourceRequirements.length > 1`) requires every listed resource type to have at least one active `Resource` — UC-050 A1's precondition, structurally the same check `Resource.create()` doesn't need to make but `Service`'s resource-requirement config does.
-- `durationPolicy = CUSTOMER_SELECTED` requires a non-null `pricingPolicy` in the same save (UC-055 A2) — a variable-duration service must always declare how it prices.
+- A bundle (`resourceRequirements.length > 1`) requires every listed resource type to have at least one active `Resource` — UC-051's own precondition (generalizing UC-050 A1's single-type error mechanism to the bundle case), structurally the same check `Resource.create()` doesn't need to make but `Service`'s resource-requirement config does.
+- `durationPolicy = CUSTOMER_SELECTED` requires a non-null, non-`FIXED` `pricingPolicy` in the same save (UC-055 A2) — since `pricingPolicy` defaults to `FIXED`, a plain non-null check would never actually reject anything; the service must explicitly declare a real pricing method (`PER_TIME_INCREMENT`) for a variable-duration slot, not silently stay on the default.
 
 ---
 

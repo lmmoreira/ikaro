@@ -60,8 +60,6 @@ graph TD
   S07 --> S14
   S01 --> S15
   S02 --> S15
-  S06 --> S15
-  S08 --> S15
   S11 --> S15
   S13 --> S15
   S06 --> S16
@@ -81,6 +79,8 @@ graph TD
 **Wave note (self-dry-run):** UC-084 ("Staff/Manager Cancels a Class Session With Existing Bookings") reads like a natural fit alongside UC-082/083 in S06, but its own precondition — "≥1 `ClassSessionBooking` in `CONFIRMED`/`WAITLISTED` status" — means it cannot exist until the `ClassSessionBooking` aggregate does (S07). Moved to S08, bundled with the booking-level cancellation story instead, since UC-084 step 3 ("System transitions every active booking on it to `CANCELLED`") is literally a bulk invocation of the same cancel mechanism UC-089 implements at the single-booking level — a real shared code path, not just a shared aggregate type.
 
 **Wave note (self-dry-run):** UC-092/UC-100/UC-106's own UC text explicitly says "same time-based check as UC-081's generation job (or piggybacked onto it)," which reads like they belong in S04. They were kept as a separate story (S10) instead, because all three require `ClassSessionBooking` rows to exist to have anything to check (an ended session's still-`WAITLISTED` entries, an unresolved `PENDING_APPROVAL` guest request, an expired `PROMOTION_PENDING` offer) — none of that exists until S07 ships. S10 reuses S04's cron-trigger *pattern* (same trigger-bus/`ITriggerBus` mechanism, same `CronBookingController`-style thin publisher), not its code.
+
+**Wave note (corrected during `/docs-audit`):** S15 (Manager Turmas frontend) originally depended on S06/S08 (session list/override, cancel/waitlist) — but `plan/journey/manager/turmas.md`'s own header scopes that journey to configuration only and explicitly delegates session-level daily operations to `staff/turmas.md`'s shared STAFF|MANAGER surface (S16); no manager-only session-management screen was ever promoted or prototyped. Removed S06/S08 from S15's dependencies and the mermaid graph — S15's wave stays 8 regardless (its remaining dependencies, S11 at wave 6 and S13 at wave 7, already put its floor at 8).
 
 **Likely-independent stories (preview — not authoritative):** S01, S02, and S03 touch disjoint aggregates/tables (`class_schedule_templates`+slots+exceptions vs. `class_access_contracts` vs. two new columns on the existing `services` table) with no `Dependencies:` edge between them — a candidate 3-way `/run-batch` group once M21/M22/M23 land. `/run-batch` re-derives this live at run time; this is a courtesy preview, not a green light.
 
@@ -287,7 +287,7 @@ Create the `ClassSession` aggregate (root, event-emitting) with its `ClassSessio
 
 **Backend use case steps:**
 1. **`GenerateClassSessionsJob`** (UC-081): for each active template, computes next occurrences in horizon, creates `ClassSession` + `ClassSessionResource` rows, skips already-materialized `(templateId, startTime)` keys, records an operational metric on partial failure (A1).
-2. **`ListClassSessionsUseCase`**: read-only, `findByTenant(tenantId, { serviceId?, from?, to? })` — used by both S06 (staff) and S17/S19 (customer/guest browse); this is the one shared read model both surfaces call, per `CLAUDE.md` §8's "duplicate read endpoints" anti-pattern.
+2. **`ListClassSessionsUseCase`** (UC-085): read-only, `findByTenant(tenantId, { serviceId?, from?, to? })` — used by both S06 (staff) and S17/S19 (customer/guest browse); this is the one shared read model both surfaces call, per `CLAUDE.md` §8's "duplicate read endpoints" anti-pattern.
 
 **Backend HTTP surface:** extend `cron-booking.controller.ts`-style pattern with a new `infrastructure/controllers/cron-class-sessions.controller.ts` — `POST /cron/class-sessions/generate`, publishing a new trigger via `ITriggerBus`; new `infrastructure/events/generate-class-sessions-trigger.handler.ts` subscribes and calls the job. `GET /class-sessions` — public/authenticated variant per `docs/14-API_CONTRACTS.md`.
 
@@ -334,19 +334,19 @@ Create the `ClassSession` aggregate (root, event-emitting) with its `ClassSessio
 **Agent:** `backend-ts`
 **Complexity:** S
 **Docs to load:** `docs/04-USE_CASES.md` UC-075 (steps 4/A1), `plan/journey/manager/onboarding.md`
-**Dependencies:** M24-S01 (`ClassScheduleTemplate` to create), M23's onboarding-bootstrap story (concept-level — extends `BootstrapTenantFromPresetUseCase`; verify its real name/path against the merged `plan/M23-*.md` file before starting)
+**Dependencies:** M24-S01 (`ClassScheduleTemplate` to create), M23-S10 (extends its `BootstrapTenantSchedulingUseCase` — real name confirmed against the merged `plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md`)
 **Pattern:** plain composition — extends an existing M23 use case.
 
 **Description:**
 Extend the tenant-onboarding bootstrap use case (built in M23 for Presets A/B/C/G) to additionally create the first `ClassScheduleTemplate`(s) for SESSION presets (D/E/F) and the SESSION half of mixed presets (e.g. Preset F). Per UC-075 A1, this is additive — the appointment half of a mixed preset is unaffected.
 
 **Backend use case steps:**
-1. Extend `BootstrapTenantFromPresetUseCase` (exact name TBD from M23): after the existing service/resource/policy creation steps, branch on preset type; for D/E/F, create the first `ClassScheduleTemplate`(s) per the preset's declared recurrence pattern (`docs/discovery/multivertical-booking/multivertical-booking_ONBOARDING_PRESETS.md` — read for the exact D/E/F recurrence defaults).
+1. Extend `BootstrapTenantSchedulingUseCase` (`apps/backend/src/contexts/booking/application/use-cases/bootstrap-tenant-scheduling.use-case.ts`, M23-S10): after the existing service/resource/policy creation steps, branch on preset type; for D/E/F, create the first `ClassScheduleTemplate`(s) per the preset's declared recurrence pattern (`docs/discovery/multivertical-booking/multivertical-booking_ONBOARDING_PRESETS.md` — read for the exact D/E/F recurrence defaults).
 2. Same rollback guarantee as the rest of UC-075 (A3): the whole bootstrap rolls back atomically if any step fails, including this new one.
 
 **Files to create/modify:**
-- `apps/backend/src/contexts/booking/application/use-cases/bootstrap-tenant-from-preset.use-case.ts` (modify — exact path TBD from M23; verify before starting)
-- `apps/backend/src/contexts/booking/application/use-cases/bootstrap-tenant-from-preset.use-case.spec.ts` (modify — add D/E/F cases)
+- `apps/backend/src/contexts/booking/application/use-cases/bootstrap-tenant-scheduling.use-case.ts` (modify — real M23-S10 path)
+- `apps/backend/src/contexts/booking/application/use-cases/bootstrap-tenant-scheduling.use-case.spec.ts` (modify — add D/E/F cases)
 
 **Acceptance criteria — product:**
 - [ ] Selecting a SESSION or mixed preset during onboarding produces a working `ClassScheduleTemplate`, immediately visible in the generated-configuration review.
@@ -779,12 +779,12 @@ Staff closes a session's roster after `endTime`, marks individual attendance, an
 **Agent:** `frontend-ts`
 **Complexity:** L
 **Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § 4b
-**Dependencies:** M24-S01, M24-S02, M24-S06, M24-S08, M24-S11, M24-S13
+**Dependencies:** M24-S01, M24-S02, M24-S11, M24-S13
 **Pattern:** plain composition — matches `apps/web/features/booking/components/dashboard/services/` shape.
 **Prototype references:** `plan/journey/manager/turmas.md`, `plan/journey/manager/prototypes/turmas/01-turmas-list.html` through `07b-nova-matricula-erro.html`, `dev-notes.md`.
 
 **Description:**
-Build the manager admin surface: template CRUD, session list/override/cancel, contracts, and matrículas (enrollments) view — following `plan/journey/manager/prototypes/turmas/` exactly. New MANAGER-only sidebar item "Turmas" (`Sidebar.tsx`'s `MANAGER_NAV_KEYS`).
+Build the manager admin surface: template CRUD, contracts, and matrículas (enrollments) view — following `plan/journey/manager/prototypes/turmas/` exactly. **Session list/override/cancel is deliberately out of scope here** — `plan/journey/manager/turmas.md`'s own header scopes this journey to configuration only (UC-079/080/096/099/103/104) and explicitly says session-level daily operations belong to `staff/turmas.md`'s shared STAFF|MANAGER surface (S16); no manager-only session-management screen was ever promoted or prototyped (`docs-audit` found `01-turmas-list.html`'s "Ver sessões"/"Editar" links were dead `#` placeholders with no destination screen — this correction removes that dangling scope rather than treating it as a gap to fill). A manager wanting to manage sessions day-to-day uses S16 directly, same as a staff member. New MANAGER-only sidebar item "Turmas" (`Sidebar.tsx`'s `MANAGER_NAV_KEYS`).
 
 **Files to create/modify:**
 - `apps/web/app/dashboard/turmas/page.tsx`, `new/page.tsx`, `[id]/page.tsx`, `[id]/matriculas/page.tsx` (new)

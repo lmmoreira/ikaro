@@ -53,7 +53,7 @@ Extend the existing `Service` aggregate (`apps/backend/src/contexts/booking/doma
 **Aggregate invariants (enforced in `Service`'s own methods, not just the DB):**
 - `bookingModel` is immutable once the service has any booking history (UC-056 A1) — the same "compare against current value, skip validation when unchanged" discipline `CLAUDE.md` §8's anti-pattern table already documents for other never-changing-once-set fields.
 - `resourceRequirements`/`legs`/`classResourceSlots` are mutually exclusive: setting one clears the other two in the same save (UC-052 step 3's "system clears `resourceRequirements`/`bufferAfterMinutes`" applies symmetrically — setting `resourceRequirements` clears `legs`, setting `classResourceSlots` clears both).
-- A bundle (`resourceRequirements.length > 1`) requires every listed resource type to have at least one active `Resource` (UC-050 A1) — validated via `IResourceRepository.findByTenant(tenantId, { type, isActive: true })` (M21-S01), not a new lookup path.
+- A bundle (`resourceRequirements.length > 1`) requires every listed resource type to have at least one active `Resource` (UC-051's own precondition, generalizing UC-050 A1's single-type error mechanism to the bundle case) — validated via `IResourceRepository.findByTenant(tenantId, { type, isActive: true })` (M21-S01), not a new lookup path.
 - Fewer than 2 legs on a `PUT .../legs` call is rejected (UC-052 A1) — a single leg is just the flat model.
 - `bufferAfterMinutes` is forced to `null` whenever `legs` is set (UC-053 A1) — legs use per-leg `transitionGapAfterMinutes` instead.
 

@@ -2,7 +2,7 @@
 
 **Actor(s):** STAFF | MANAGER  
 **Goal:** View upcoming class sessions, manage a session's roster (capacity override, guest approval, close-out with attendance and optional manual charge record)  
-**UCs covered:** UC-082 (list), UC-083 (capacity override), UC-091 (waitlist promotion, staff-triggered entry point), UC-098 (guest approval), UC-101 (close-out)  
+**UCs covered:** UC-082 (list), UC-083 (capacity override), UC-091 (waitlist promotion, staff-triggered entry point), UC-098 (guest approval), UC-101 (close-out), UC-107 (manual payment record at close-out)  
 **Status:** ❓ Gap — M21, Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions). No story assigned yet.
 
 > Promoted from `docs/discovery/multivertical-booking/multivertical-booking_USECASES.md` (CAND-13b, 14, 34, 37) via `/discovery-to-milestone`. Mirrors `staff/agenda.md`'s own shape for private appointments — a list first, then a detail/roster page per item. `manager-roster-dia.html` is the single canonical roster screen (superseding an earlier, independently-built `staff-02-session-roster.html` — see `docs/discovery/multivertical-booking/prototype/dev-notes.md` item 41 for the reconciliation rationale), despite its discovery-era "manager-" filename prefix; the actual actor is STAFF|MANAGER shared, so it lives here per this repo's staff-vs-manager folder convention (`plan/journey/README.md` § Why MANAGER, not ADMIN).

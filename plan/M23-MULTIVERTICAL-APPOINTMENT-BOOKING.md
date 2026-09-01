@@ -17,23 +17,25 @@
 | Wave | Story | Theme |
 |---|---|---|
 | 1 | M23-S01 | Resource resolution for booking creation — chosen/pool/auto-any/bundle/leg (UC-061–066) |
-| 1 | M23-S02 | Variable-duration reservations + versioned intake/attendees (UC-067, UC-068) |
-| 1 | M23-S03 | Reschedule extension — resource/bundle/leg-aware, quote revisions (UC-069) |
 | 1 | M23-S06 | `AvailabilityAlert` aggregate — backend CRUD + BFF (UC-072 create, UC-076 manage) |
 | 1 | M23-S08 | `FutureCommitmentException` aggregate — raise + resolve/dismiss, backend + BFF (UC-073, UC-077) |
 | 1 | M23-S09 | Appointment no-show terminal status + correction (UC-074) |
 | 1 | M23-S10 | Tenant onboarding bootstrap from preset — Presets A/B/C/G (UC-075) |
+| 2 | M23-S02 | Variable-duration reservations + versioned intake/attendees (UC-067, UC-068) |
+| 2 | M23-S03 | Reschedule extension — resource/bundle/leg-aware, quote revisions (UC-069) |
 | 2 | M23-S04 | `RecurringBookingSchedule` aggregate — create/skip/reschedule/pause/end, backend + BFF (UC-070, minus approval/generation) |
 | 2 | M23-S07 | Availability-alert matching worker (UC-072 step 3) |
-| 2 | M23-S11 | Guest/customer booking flow frontend — resource picker, bundle/leg, variable-duration, intake screens |
 | 2 | M23-S14 | Manager "Exceções de Agenda" worklist frontend (UC-073/077) |
 | 2 | M23-S15 | Manager onboarding wizard frontend (UC-075) |
 | 3 | M23-S05 | Recurring-schedule approval + rolling-horizon generation worker (UC-071) |
+| 3 | M23-S11 | Guest/customer booking flow frontend — resource picker, bundle/leg, variable-duration, intake screens |
 | 4 | M23-S12 | Customer "Minha Conta" extension — recurring reservations + availability alerts management |
 | 4 | M23-S13 | Staff Agenda extension — recurring-schedule approval queue (UC-071 UI) |
 
 ```mermaid
 graph TD
+  S01 --> S02
+  S01 --> S03
   S01 --> S04
   S01 --> S11
   S02 --> S11
@@ -49,9 +51,9 @@ graph TD
   S10 --> S15
 ```
 
-**Wave note (self-dry-run):** S12 (Minha Conta extension) needs both S04 (recurring CRUD) and S05 (approval + generation) BFF endpoints, plus S06/S07 (alerts CRUD + matching) — its dependency floor is `max(S04, S05, S06, S07)`'s wave, i.e. Wave 3 (S05) + 1 = **Wave 4**. S13 (staff approval-queue UI) only needs S05, so it's `Wave 3 + 1 = Wave 4` too, not Wave 3 in parallel with S05 itself.
+**Wave note (self-dry-run, corrected during `/docs-audit`):** S02 and S03 both call S01's `ResourceResolutionService` in their own description text (S02 for a variable-duration window, S03 for a reschedule's replacement window) — an audit found neither declared that as a `Dependencies:` edge, and both sat in Wave 1 alongside S01 itself. Fixed: both now depend on M23-S01 and sit in **Wave 2**. This cascades: S11 (guest/customer booking flow frontend) depends on S01, S02, **and** S03 — its floor is now `max(S01=1, S02=2, S03=2) + 1` = **Wave 3**, not Wave 2. S12 (Minha Conta extension) needs both S04 (recurring CRUD) and S05 (approval + generation) BFF endpoints, plus S06/S07 (alerts CRUD + matching) — its dependency floor is `max(S04, S05, S06, S07)`'s wave, i.e. Wave 3 (S05) + 1 = **Wave 4**. S13 (staff approval-queue UI) only needs S05, so it's `Wave 3 + 1 = Wave 4` too, not Wave 3 in parallel with S05 itself.
 
-**Likely-independent stories (preview — not authoritative):** S01/S02/S03 touch the same booking-creation/reschedule use cases but different methods (`RequestBookingUseCase`/`RequestAuthenticatedBookingUseCase` for S01/S02, `RescheduleBookingUseCase` for S03) — S03 shares no files with S01/S02 and has no `Dependencies:` edge to them. S06 and S08 and S09 and S10 share no files with each other or with S01–S03 (four independent new/small aggregates). `/run-batch` re-derives this live; this is a courtesy preview.
+**Likely-independent stories (preview — not authoritative):** S06, S08, S09, and S10 share no files with each other or with S01 (four independent new/small aggregates, all Wave 1) — a candidate `/run-batch` group. S02 and S03 touch different methods of the same booking-creation/reschedule use cases (`RequestBookingUseCase`/`RequestAuthenticatedBookingUseCase` for S02, `RescheduleBookingUseCase` for S03) and share no files with each other, but **both now have a real `Dependencies:` edge to S01** — not independent of S01, only of each other. `/run-batch` re-derives this live; this is a courtesy preview.
 
 ---
 
@@ -123,7 +125,7 @@ Extend `RequestBookingUseCase` and `RequestAuthenticatedBookingUseCase` (`apps/b
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** M
 **Docs to load:** `docs/04-USE_CASES.md` UC-067, UC-068, `docs/02-DOMAIN_MODEL.md` § `Service.durationPolicy`/`pricingPolicy` (M22), § `service_booking_intake_schema` (M22), `docs/13-DATABASE_SCHEMA.md` § `booking_attendees` (M22)
-**Dependencies:** M21-S01, M22 (`durationPolicy`, intake schema — same milestone-level dependency note as S01)
+**Dependencies:** M21-S01, M22 (`durationPolicy`, intake schema — same milestone-level dependency note as S01), M23-S01 (calls its `ResourceResolutionService` to resolve the variable-duration window's resource(s), doesn't duplicate resolution logic)
 **Pattern:** plain composition — additive request fields on the existing booking-creation use cases; no new pattern.
 
 **Description:**
@@ -177,7 +179,7 @@ Two independently-triggerable, additive extensions of `POST /bookings`, bundled 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** M
 **Docs to load:** `docs/04-USE_CASES.md` UC-069, `docs/14-API_CONTRACTS.md` § Reschedule (extended), `docs/13-DATABASE_SCHEMA.md` § `booking_quote_revisions`
-**Dependencies:** M21-S01, M22
+**Dependencies:** M21-S01, M22, M23-S01 (reuses its `ResourceResolutionService` to resolve the replacement resource(s)/window, doesn't duplicate resolution logic)
 **Pattern:** plain composition — extends the existing `RescheduleBookingUseCase`; no new pattern.
 
 **Description:**
