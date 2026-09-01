@@ -4,8 +4,17 @@ packages:
 overrides:
   '@grpc/grpc-js': '1.14.4'
   'form-data': '4.0.6'
-  'multer': '2.2.0'
-  '@nestjs/platform-express>multer': '2.2.0'
+  # multer@2.2.0 (originally pinned for SNYK-JS-MULTER-17342512) is itself
+  # now flagged for 4 HIGH-severity CVEs (SNYK-JS-MULTER-19432021/19432131/
+  # 19432134/19432136 — uncaught exception, 2x DoS, race condition), fixed
+  # in 2.3.0. No @nestjs/platform-express release (including the new 12.x
+  # major) declares multer >=2.3.0 yet — a stale-override case, not a fresh
+  # CVE (same pattern as the nanoid override below). Verified before
+  # bumping: 2.3.0's dependencies/engines are unchanged from 2.2.0 and its
+  # changelog is fixes/docs only, no breaking API changes. Remove once
+  # @nestjs/platform-express declares multer >=2.3.0 on its own.
+  'multer': '2.3.0'
+  '@nestjs/platform-express>multer': '2.3.0'
   '@opentelemetry/core': '2.8.0'
   # gcp-metadata@8.1.3 pins gaxios@7.1.3 exactly; 7.1.5 drops the rimraf dep
   # that carries the SNYK-JS-BRACEEXPANSION-17706650 chain. No upstream release
@@ -22,9 +31,6 @@ overrides:
   # unbounded intermediate arrays), fixed in 5.0.9 — bump alongside future
   # advisories rather than leaving this pinned to a stale patch.
   'brace-expansion': '5.0.9'
-  # Next 16.2.11 still resolves an older PostCSS release; pin the patched
-  # release until Next ships a version that pulls it transitively on its own.
-  'next>postcss': '8.5.23'
   # @google-cloud/storage 7.21.0 still resolves teeny-request/retry-request with
   # uuid<11.1.1. Keep these overrides until the storage package family updates.
   '@google-cloud/storage>teeny-request': '10.1.3'
@@ -46,17 +52,6 @@ overrides:
   # believed patched). Remove once a routine broader dependency refresh
   # naturally re-resolves this within the existing range.
   'nanoid': '3.3.18'
-  # Next 16.2.10/16.2.11 still pin sharp@^0.34.5 (GHSA-f88m-g3jw-g9cj, HIGH,
-  # libvips CVEs, fixed in 0.35.0) — Next's own 16.3.0 pre-release already
-  # bumps to sharp@^0.35.3, but 16.3.0 is still canary/preview only as of
-  # 2026-07-22, with no stable-release timeline in sight. Verified before
-  # overriding: 0.35.0's breaking changes (removed failOnError/
-  # paletteBitDepth/sharpen properties, install-script removal) don't touch
-  # anything Next's own image-optimizer.js actually calls (only
-  # resize/rotate/jpeg/png/webp/avif/toBuffer) — grepped Next's entire dist/
-  # for the removed property names, zero matches. Remove once Next ships a
-  # stable 16.3.0+ that declares sharp>=0.35 on its own.
-  'next>sharp': '0.35.0'
 allowBuilds:
   '@nestjs/core': true
   '@parcel/watcher': true
