@@ -1,0 +1,189 @@
+# Booking — Resource Management endpoints (M21-S01, UC-044–UC-049)
+# TenantContext populated from X-Tenant-ID / X-Actor-ID headers (set by BFF).
+# MANAGER-only on every route — a deliberate, self-consistent restriction distinct from
+# every other Booking-context admin surface (docs/14-API_CONTRACTS.md § Resource Management).
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run dev
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@baseUrl    = {{backendUrl}}
+@resourceId = {{createResource.response.body.id}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — list resources (UC-044)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### List all resources
+GET {{baseUrl}}/resources
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+###
+
+### List active ROOM resources only
+GET {{baseUrl}}/resources?type=ROOM&isActive=true
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — create a resource (UC-045)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Create a ROOM resource (inherits tenant hours)
+# @name createResource
+POST {{baseUrl}}/resources
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "type": "ROOM",
+  "name": "Estúdio 1",
+  "maxCapacity": 12
+}
+
+###
+
+### Create a STAFF resource wrapping an existing staff member
+POST {{baseUrl}}/resources
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "type": "STAFF",
+  "refId": "{{staffMemberId}}",
+  "name": "Camila Duarte",
+  "turnoverMinutes": 15
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — edit working hours (UC-046)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Update working hours
+PATCH {{baseUrl}}/resources/{{resourceId}}
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "workingHours": {
+    "monday": { "open": "09:00", "close": "18:00" },
+    "tuesday": { "open": "09:00", "close": "18:00" },
+    "wednesday": { "open": "09:00", "close": "18:00" },
+    "thursday": { "open": "09:00", "close": "18:00" },
+    "friday": { "open": "09:00", "close": "18:00" },
+    "saturday": null,
+    "sunday": null
+  }
+}
+
+###
+
+### Revert to inheriting tenant hours
+PATCH {{baseUrl}}/resources/{{resourceId}}
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "workingHours": null
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — deactivate / reactivate (UC-047, UC-049)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Deactivate a resource
+DELETE {{baseUrl}}/resources/{{resourceId}}
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+###
+
+### Reactivate a resource
+POST {{baseUrl}}/resources/{{resourceId}}/reactivate
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR CASES
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### 403 — STAFF role not allowed on Resource Management
+GET {{baseUrl}}/resources
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+###
+
+### 400 — LOCATION type rejected (Zod schema excludes it; backfill-only, S02)
+POST {{baseUrl}}/resources
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "type": "LOCATION",
+  "name": "Unidade Única"
+}
+
+###
+
+### 409 — Staff member already wrapped by another resource
+POST {{baseUrl}}/resources
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "type": "STAFF",
+  "refId": "{{staffMemberId}}",
+  "name": "Camila Duarte (duplicate wrap)"
+}
+
+###
+
+### 404 — Resource not found
+DELETE {{baseUrl}}/resources/00000000-0000-4000-8000-000000000099
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER

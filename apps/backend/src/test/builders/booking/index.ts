@@ -1,3 +1,5 @@
+export { ResourceBuilder } from './resource.builder';
+export { ResourceEntityBuilder } from './resource-entity.builder';
 export { ServiceBuilder } from './service.builder';
 export { ServiceEntityBuilder } from './service-entity.builder';
 export { ScheduleClosureBuilder } from './schedule-closure.builder';

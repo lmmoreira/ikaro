@@ -506,9 +506,11 @@
         "ScheduleOpeningEntity",
         "BookingEntity",
         "BookingLineEntity",
+        "ResourceEntity",
+        "StaffEntity",
         "InboxRecordEntity"
       ],
-      "rationale": "Booking context integration app — scoped to booking's own aggregates plus the platform/customer read dependencies it needs."
+      "rationale": "Booking context integration app — scoped to booking's own aggregates plus the platform/customer/staff read dependencies it needs. StaffEntity was added in M21-S01 for the StaffDeactivatedHandler cross-context integration test (UC-048), which needs a real Staff row to deactivate via DeactivateStaffUseCase."
     },
     {
       "file": "apps/backend/src/test/utils/customer-integration-app.ts",
