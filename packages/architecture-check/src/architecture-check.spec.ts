@@ -628,4 +628,26 @@ describe('architecture checks', () => {
     const result = checkTransactionalSaves(new Project({ useInMemoryFileSystem: true }));
     expectZeroTargets(result);
   });
+
+  it('fails the zero-target contract for transactional-io with an empty registry', () => {
+    const result = checkTransactionalIo(new Project({ useInMemoryFileSystem: true }), []);
+    expectZeroTargets(result);
+  });
+
+  it('fails the zero-target contract for error-mapper-coverage on an empty project', () => {
+    const result = checkErrorMapperCoverage(new Project({ useInMemoryFileSystem: true }), []);
+    expectZeroTargets(result);
+  });
+
+  it('fails the zero-target contract for error-prototype-chain on an empty project', () => {
+    const result = checkPrototypeChainSafety(new Project({ useInMemoryFileSystem: true }));
+    expectZeroTargets(result);
+  });
+
+  it('fails the zero-target contract for shared-vo-error-mapper-coverage on an empty project', () => {
+    const result = checkSharedValueObjectErrorMapperCoverage(
+      new Project({ useInMemoryFileSystem: true }),
+    );
+    expectZeroTargets(result);
+  });
 });

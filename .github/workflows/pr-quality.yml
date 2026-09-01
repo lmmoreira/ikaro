@@ -16,6 +16,7 @@ jobs:
   architecture-check:
     name: Architecture validation
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -31,6 +32,11 @@ jobs:
           cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile
+      # Gates the detector suite's own correctness (fixtures, zero-target contract) before
+      # this job's own scan runs against it — nothing else in CI executes these tests
+      # (packages/architecture-check is outside sonar-project.properties' sonar.sources, so
+      # it never rides along with the coverage-generation step the other shared packages use).
+      - run: pnpm --filter @ikaro/architecture-check test
       - run: pnpm architecture-check
 
   dependency-cruise:

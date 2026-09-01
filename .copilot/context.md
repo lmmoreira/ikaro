@@ -319,7 +319,7 @@ Co-Authored-By: Codex <noreply@openai.com>
 ```
 This is not optional — it's the record of who actually wrote the code, same as Claude's trailer, and matters for attribution/history independent of any tooling. (`/pre-pr` (§17), which dispatches `/pr-review` to the other tool once a PR is open, does *not* need this trailer for that decision — it already knows its own identity without detecting it.)
 
-**2. Push** — `ci:fast` (lint + type-check + unit tests) runs automatically and blocks if it fails. (`ci:local`, `pnpm ci:local` ~5 min Docker, is optional and only worth running first when touching Dockerfiles, infra, or integration-test paths.)
+**2. Push** — `ci:fast` (lint + type-check + architecture-check + unit tests) runs automatically and blocks if it fails. (`ci:local`, `pnpm ci:local` ~5 min Docker, is optional and only worth running first when touching Dockerfiles, infra, or integration-test paths.)
 
 **3. `/pre-pr`** — runs automatically once pushed (no permission prompt to start it): script, agent checks, bad-smell-audit, integration tests. Fix any failure and re-run; do not proceed until it reports zero issues across all steps.
 
