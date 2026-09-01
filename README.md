@@ -83,7 +83,7 @@ Each `.http` file covers the full scenario set for a resource: happy path, 4xx e
 These commands replicate the CI pipeline locally using only Docker — no tokens required.
 
 ```bash
-pnpm ci:fast    # ~15s — lint + prettier + type-check + unit tests
+pnpm ci:fast    # ~60s warm / ~90s cold — lint + prettier + type-check + architecture-check + unit tests
                 # Runs automatically on every git push (pre-push hook)
 
 pnpm ci:local   # ~5min — everything above + integration tests
