@@ -3,7 +3,7 @@
 **Actor(s):** MANAGER  
 **Goal:** Create, view, edit, deactivate, and reactivate the tenant's bookable `Resource` rows (`LOCATION`/`STAFF`/`ROOM`/`EQUIPMENT`) — the foundation the rest of M21's multi-vertical scheduling model builds on  
 **UCs covered:** UC-044, UC-045, UC-046, UC-047, UC-048, UC-049 (`docs/04-USE_CASES.md`)  
-**Status:** ❓ Gap — M21, Multi-Vertical Scheduling, Cluster 1 (Foundation). No story assigned yet.
+**Status:** 🟡 Partial — backend + BFF shipped in M21-S01 (`GET/POST/PATCH/DELETE /v1/resources`, `POST /v1/resources/:id/reactivate`, all live). Frontend pages below remain ❓ GAP — lands with M21-S04.
 
 > Promoted from `docs/discovery/multivertical-booking/multivertical-booking.md` via `/discovery-to-milestone`. See `docs/02-DOMAIN_MODEL.md` § Booking Context (`Resource` aggregate) for the full domain model and `docs/discovery/multivertical-booking/multivertical-booking_DATA_MODEL.md` §2 for the worked-example rationale this journey doesn't repeat.
 
@@ -75,6 +75,6 @@ Folder: `manager/prototypes/resources/` — relocated from `docs/discovery/multi
 
 ## Open questions / gaps
 
-- [ ] **No story exists yet.** Needs `/story-discovery` once the M21 milestone file is drafted.
+- [x] **Backend + BFF story shipped** — M21-S01 (`plan/M21-MULTIVERTICAL-FOUNDATION.md`). Frontend story (`M21-S04`) is drafted in the same plan file and still needs its own `/story-discovery` pass when picked up.
 - [ ] **Working-hours edit, deactivate, and reactivate confirmation screens are not prototyped** — the discovery's own prototype only ever built list + create (+ create-error). The implementing story must design these from the domain model (`docs/02-DOMAIN_MODEL.md`) and the existing `manager/equipe.md`/`staff/horarios.md` confirmation-dialog patterns (`RemoveClosureDialog`-style), not invent a new interaction shape.
 - [ ] **Nav placement** — "Recursos" is a new MANAGER-only sidebar item, same tier as "Equipe"/"Configurações"/"Hotsite" (per the discovery's own dev-notes item, "New nav items, not in today's IA"). Exact position in the sidebar order is a UI detail for the implementing story.

@@ -56,15 +56,15 @@ export class ResourceBuilder {
   }
 
   build(): Resource {
-    return Resource.create(
-      this.tenantId,
-      this.type,
-      this.name,
-      this.tenantBusinessHours,
-      this.workingHours,
-      this.refId,
-      this.maxCapacity,
-      this.turnoverMinutes,
-    );
+    return Resource.create({
+      tenantId: this.tenantId,
+      type: this.type,
+      name: this.name,
+      tenantBusinessHours: this.tenantBusinessHours,
+      workingHours: this.workingHours,
+      refId: this.refId,
+      maxCapacity: this.maxCapacity,
+      turnoverMinutes: this.turnoverMinutes,
+    });
   }
 }

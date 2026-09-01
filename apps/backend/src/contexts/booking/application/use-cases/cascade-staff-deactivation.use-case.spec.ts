@@ -6,6 +6,7 @@ import { ResourceType } from '../../domain/resource.types';
 import { CascadeStaffDeactivationUseCase } from './cascade-staff-deactivation.use-case';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
+const OTHER_TENANT_ID = '99999999-0000-7000-8000-000000000099';
 const STAFF_ID = '00000000-0000-7000-8000-000000000002';
 const EVENT_ID = '00000000-0000-7000-8000-000000000003';
 const CORRELATION_ID = '00000000-0000-7000-8000-000000000004';
@@ -86,6 +87,26 @@ describe('CascadeStaffDeactivationUseCase', () => {
 
     expect(result.cascaded).toBe(false);
     const stored = await repo.findById(resource.id, TENANT_ID);
+    expect(stored!.isActive).toBe(true);
+  });
+
+  it('does not cascade to a same-staffId Resource wrapped in another tenant', async () => {
+    const otherTenantResource = new ResourceBuilder()
+      .withTenantId(OTHER_TENANT_ID)
+      .withType(ResourceType.STAFF)
+      .withRefId(STAFF_ID)
+      .build();
+    await repo.save(otherTenantResource);
+
+    const result = await useCase.execute({
+      tenantId: TENANT_ID,
+      staffId: STAFF_ID,
+      eventId: EVENT_ID,
+      correlationId: CORRELATION_ID,
+    });
+
+    expect(result.cascaded).toBe(false);
+    const stored = await repo.findById(otherTenantResource.id, OTHER_TENANT_ID);
     expect(stored!.isActive).toBe(true);
   });
 });

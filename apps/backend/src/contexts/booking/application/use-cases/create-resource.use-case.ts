@@ -52,16 +52,16 @@ export class CreateResourceUseCase {
       await this.assertStaffWrappable(refId, tenantId);
     }
 
-    const resource = Resource.create(
+    const resource = Resource.create({
       tenantId,
       type,
-      input.name,
+      name: input.name,
       tenantBusinessHours,
-      input.workingHours ?? null,
-      refId ?? null,
-      input.maxCapacity ?? null,
-      input.turnoverMinutes,
-    );
+      workingHours: input.workingHours ?? null,
+      refId: refId ?? null,
+      maxCapacity: input.maxCapacity ?? null,
+      turnoverMinutes: input.turnoverMinutes,
+    });
 
     await this.txManager.run(async () => {
       await this.resourceRepo.save(resource);

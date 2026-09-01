@@ -55,6 +55,9 @@ describe('StaffDeactivatedHandler (integration)', () => {
       const found = await ds.getRepository(ResourceEntity).findOne({ where: { id: resource.id } });
       return found?.isActive === false;
     });
+
+    const found = await ds.getRepository(ResourceEntity).findOne({ where: { id: resource.id } });
+    expect(found!.isActive).toBe(false);
   });
 
   it('no-ops when no Resource wraps the deactivated staff member', async () => {

@@ -55,19 +55,23 @@ describe('ResourceController (integration)', () => {
     });
 
     it('returns 400 for type=LOCATION (Zod schema excludes it)', async () => {
-      await request(app.getHttpServer())
+      const { body } = await request(app.getHttpServer())
         .post('/resources')
         .set(actorHeaders(TENANT_A, MANAGER_ID))
         .send({ type: 'LOCATION', name: 'Unidade Única' })
         .expect(400);
+
+      expect(body.status).toBe(400);
     });
 
     it('returns 403 for STAFF role', async () => {
-      await request(app.getHttpServer())
+      const { body } = await request(app.getHttpServer())
         .post('/resources')
         .set(actorHeaders(TENANT_A, MANAGER_ID, 'STAFF'))
         .send({ type: 'ROOM', name: 'Estúdio 2' })
         .expect(403);
+
+      expect(body.status).toBe(403);
     });
   });
 
@@ -101,11 +105,13 @@ describe('ResourceController (integration)', () => {
       const entity = new ResourceEntityBuilder().withTenantId(TENANT_B).build();
       await ds.getRepository(ResourceEntity).save(entity);
 
-      await request(app.getHttpServer())
+      const { body } = await request(app.getHttpServer())
         .patch(`/resources/${entity.id}`)
         .set(actorHeaders(TENANT_A, MANAGER_ID))
         .send({ workingHours: null })
         .expect(404);
+
+      expect(body.status).toBe(404);
     });
   });
 
@@ -129,10 +135,12 @@ describe('ResourceController (integration)', () => {
       const entity = new ResourceEntityBuilder().withTenantId(TENANT_B).build();
       await ds.getRepository(ResourceEntity).save(entity);
 
-      await request(app.getHttpServer())
+      const { body } = await request(app.getHttpServer())
         .delete(`/resources/${entity.id}`)
         .set(actorHeaders(TENANT_A, MANAGER_ID))
         .expect(404);
+
+      expect(body.status).toBe(404);
     });
   });
 
@@ -155,10 +163,12 @@ describe('ResourceController (integration)', () => {
       const entity = new ResourceEntityBuilder().withTenantId(TENANT_A).withIsActive(true).build();
       await ds.getRepository(ResourceEntity).save(entity);
 
-      await request(app.getHttpServer())
+      const { body } = await request(app.getHttpServer())
         .post(`/resources/${entity.id}/reactivate`)
         .set(actorHeaders(TENANT_A, MANAGER_ID))
         .expect(409);
+
+      expect(body.status).toBe(409);
     });
   });
 

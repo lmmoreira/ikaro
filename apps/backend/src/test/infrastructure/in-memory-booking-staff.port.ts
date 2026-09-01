@@ -12,7 +12,7 @@ export class InMemoryBookingStaffPort implements IBookingStaffPort {
 
   async findActiveById(staffId: string, _tenantId: string): Promise<BookingStaffProfileDto | null> {
     const profile = this.store.get(staffId);
-    if (!profile || !profile.isActive) return null;
+    if (!profile?.isActive) return null;
     return profile;
   }
 }

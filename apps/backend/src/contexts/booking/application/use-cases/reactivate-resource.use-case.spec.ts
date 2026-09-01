@@ -8,6 +8,7 @@ import {
 import { ReactivateResourceUseCase } from './reactivate-resource.use-case';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
+const OTHER_TENANT_ID = '99999999-0000-7000-8000-000000000099';
 
 describe('ReactivateResourceUseCase', () => {
   let repo: InMemoryResourceRepository;
@@ -43,5 +44,17 @@ describe('ReactivateResourceUseCase', () => {
     await expect(
       useCase.execute({ id: '00000000-0000-4000-8000-000000000099', tenantId: TENANT_ID }),
     ).rejects.toThrow(ResourceNotFoundError);
+  });
+
+  it('throws ResourceNotFoundError for a cross-tenant resource id and leaves it inactive', async () => {
+    const resource = new ResourceBuilder().withTenantId(OTHER_TENANT_ID).build();
+    resource.deactivate();
+    await repo.save(resource);
+
+    await expect(useCase.execute({ id: resource.id, tenantId: TENANT_ID })).rejects.toThrow(
+      ResourceNotFoundError,
+    );
+    const stored = await repo.findById(resource.id, OTHER_TENANT_ID);
+    expect(stored!.isActive).toBe(false);
   });
 });

@@ -25,6 +25,17 @@ export interface ResourceProps {
   updatedAt: Date;
 }
 
+export interface CreateResourceOptions {
+  tenantId: string;
+  type: ResourceType;
+  name: string;
+  tenantBusinessHours: BusinessHours;
+  workingHours?: ResourceWorkingHours | null;
+  refId?: string | null;
+  maxCapacity?: number | null;
+  turnoverMinutes?: number;
+}
+
 export class Resource extends AggregateRoot {
   private readonly props: ResourceProps;
 
@@ -49,7 +60,7 @@ export class Resource extends AggregateRoot {
     return this.props.name;
   }
   get workingHours(): ResourceWorkingHours | null {
-    return this.props.workingHours;
+    return this.props.workingHours ? { ...this.props.workingHours } : null;
   }
   get turnoverMinutes(): number {
     return this.props.turnoverMinutes;
@@ -67,33 +78,29 @@ export class Resource extends AggregateRoot {
     return this.props.updatedAt;
   }
 
-  static create(
-    tenantId: string,
-    type: ResourceType,
-    name: string,
-    tenantBusinessHours: BusinessHours,
-    workingHours?: ResourceWorkingHours | null,
-    refId?: string | null,
-    maxCapacity?: number | null,
-    turnoverMinutes?: number,
-  ): Resource {
-    Resource.assertValid(
+  static create(options: CreateResourceOptions): Resource {
+    const {
+      tenantId,
       type,
-      refId ?? null,
-      workingHours ?? null,
+      name,
       tenantBusinessHours,
-      maxCapacity ?? null,
-    );
+      workingHours = null,
+      refId = null,
+      maxCapacity = null,
+      turnoverMinutes = 0,
+    } = options;
+
+    Resource.assertValid(type, refId, workingHours, tenantBusinessHours, maxCapacity);
     const now = new Date();
     return new Resource({
       id: uuidv7(),
       tenantId,
       type,
-      refId: type === ResourceType.STAFF ? (refId ?? null) : null,
+      refId: type === ResourceType.STAFF ? refId : null,
       name,
-      workingHours: workingHours ?? null,
-      turnoverMinutes: turnoverMinutes ?? 0,
-      maxCapacity: maxCapacity ?? null,
+      workingHours: workingHours ? { ...workingHours } : null,
+      turnoverMinutes,
+      maxCapacity,
       isActive: true,
       createdAt: now,
       updatedAt: now,
@@ -110,8 +117,13 @@ export class Resource extends AggregateRoot {
   ): void {
     if (workingHours !== null) {
       Resource.assertWorkingHoursSubsetOfTenant(workingHours, tenantBusinessHours);
+    } else if (Resource.isEmptyHours(tenantBusinessHours)) {
+      // Mirrors Resource.create()'s own ResourceNoWorkingHoursError check (UC-045 A2) — an
+      // existing resource must not be allowed to drift into the same unschedulable state
+      // create() already rejects (Codex/CodeRabbit finding, PR #457 round 1).
+      throw new ResourceNoWorkingHoursError();
     }
-    this.props.workingHours = workingHours;
+    this.props.workingHours = workingHours ? { ...workingHours } : null;
     this.props.updatedAt = new Date();
   }
 
