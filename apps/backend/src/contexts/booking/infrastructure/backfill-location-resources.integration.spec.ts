@@ -4,6 +4,7 @@ import { ResourceEntityBuilder } from '../../../test/builders/booking/index';
 import { TenantEntityBuilder } from '../../../test/builders/platform/tenant-entity.builder';
 import { createBookingIntegrationApp } from '../../../test/utils/booking-integration-app';
 import { TenantEntity } from '../../platform/infrastructure/entities/tenant.entity';
+import { TenantSettings } from '../../platform/domain/value-objects/tenant-settings.vo';
 import { ResourceEntity } from './entities/resource.entity';
 import { ResourceType } from '../domain/resource.types';
 import { BackfillLocationResources1748500000008 } from './migrations/1748500000008-BackfillLocationResources';
@@ -15,6 +16,7 @@ const TENANT_EMPTY = '00000000-1102-7000-8000-000000000001';
 const TENANT_INACTIVE = '00000000-1102-7000-8000-000000000002';
 const TENANT_ALREADY_HAS_LOCATION = '00000000-1102-7000-8000-000000000003';
 const TENANT_IDEMPOTENT = '00000000-1102-7000-8000-000000000004';
+const TENANT_EN = '00000000-1102-7000-8000-000000000005';
 
 describe('BackfillLocationResources1748500000008 (integration)', () => {
   let app: INestApplication;
@@ -25,31 +27,38 @@ describe('BackfillLocationResources1748500000008 (integration)', () => {
     ({ app, ds } = await createBookingIntegrationApp());
     migration = new BackfillLocationResources1748500000008();
 
-    await ds
-      .getRepository(TenantEntity)
-      .save([
-        new TenantEntityBuilder()
-          .withId(TENANT_EMPTY)
-          .withSlug('backfill-empty')
-          .withName('Tenant Sem Recursos')
-          .build(),
-        new TenantEntityBuilder()
-          .withId(TENANT_INACTIVE)
-          .withSlug('backfill-inactive')
-          .withName('Tenant Inativo')
-          .withIsActive(false)
-          .build(),
-        new TenantEntityBuilder()
-          .withId(TENANT_ALREADY_HAS_LOCATION)
-          .withSlug('backfill-has-location')
-          .withName('Tenant Com LOCATION')
-          .build(),
-        new TenantEntityBuilder()
-          .withId(TENANT_IDEMPOTENT)
-          .withSlug('backfill-idempotent')
-          .withName('Tenant Idempotente')
-          .build(),
-      ]);
+    await ds.getRepository(TenantEntity).save([
+      new TenantEntityBuilder()
+        .withId(TENANT_EMPTY)
+        .withSlug('backfill-empty')
+        .withName('Tenant Sem Recursos')
+        .build(),
+      new TenantEntityBuilder()
+        .withId(TENANT_INACTIVE)
+        .withSlug('backfill-inactive')
+        .withName('Tenant Inativo')
+        .withIsActive(false)
+        .build(),
+      new TenantEntityBuilder()
+        .withId(TENANT_ALREADY_HAS_LOCATION)
+        .withSlug('backfill-has-location')
+        .withName('Tenant Com LOCATION')
+        .build(),
+      new TenantEntityBuilder()
+        .withId(TENANT_IDEMPOTENT)
+        .withSlug('backfill-idempotent')
+        .withName('Tenant Idempotente')
+        .build(),
+      (() => {
+        const entity = new TenantEntityBuilder()
+          .withId(TENANT_EN)
+          .withSlug('backfill-en')
+          .withName('Ikaro Demo')
+          .build();
+        entity.settings = TenantSettings.default('America/New_York', 'US').toJSON();
+        return entity;
+      })(),
+    ]);
 
     // Defensive case: a tenant that somehow already has an active LOCATION resource
     // before the migration runs — the backfill must not create a second one.
@@ -70,10 +79,12 @@ describe('BackfillLocationResources1748500000008 (integration)', () => {
     await ds.getRepository(ResourceEntity).delete({ tenantId: TENANT_INACTIVE });
     await ds.getRepository(ResourceEntity).delete({ tenantId: TENANT_ALREADY_HAS_LOCATION });
     await ds.getRepository(ResourceEntity).delete({ tenantId: TENANT_IDEMPOTENT });
+    await ds.getRepository(ResourceEntity).delete({ tenantId: TENANT_EN });
     await ds.getRepository(TenantEntity).delete({ id: TENANT_EMPTY });
     await ds.getRepository(TenantEntity).delete({ id: TENANT_INACTIVE });
     await ds.getRepository(TenantEntity).delete({ id: TENANT_ALREADY_HAS_LOCATION });
     await ds.getRepository(TenantEntity).delete({ id: TENANT_IDEMPOTENT });
+    await ds.getRepository(TenantEntity).delete({ id: TENANT_EN });
     await app.close();
   });
 
@@ -109,7 +120,7 @@ describe('BackfillLocationResources1748500000008 (integration)', () => {
       tenantId: TENANT_EMPTY,
       type: ResourceType.LOCATION,
       refId: null,
-      name: 'Tenant Sem Recursos (unidade única)',
+      name: 'Localização Principal',
       workingHours: null,
       turnoverMinutes: 0,
       maxCapacity: null,
@@ -125,7 +136,18 @@ describe('BackfillLocationResources1748500000008 (integration)', () => {
       .find({ where: { tenantId: TENANT_INACTIVE, type: ResourceType.LOCATION } });
 
     expect(rows).toHaveLength(1);
-    expect(rows[0].name).toBe('Tenant Inativo (unidade única)');
+    expect(rows[0].name).toBe('Localização Principal');
+  });
+
+  it('names the resource "Main Location" for an en-locale tenant', async () => {
+    await runUp();
+
+    const rows = await ds
+      .getRepository(ResourceEntity)
+      .find({ where: { tenantId: TENANT_EN, type: ResourceType.LOCATION } });
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].name).toBe('Main Location');
   });
 
   it('skips a tenant that already has an active LOCATION resource (idempotency)', async () => {

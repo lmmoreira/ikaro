@@ -41,6 +41,13 @@ const IDS = {
   lineApproved: '00000000-0000-7000-8006-000000000003',
   lineCompleted: '00000000-0000-7000-8006-000000000001',
   loyaltyEntry: '00000000-0000-7000-8007-000000000001',
+
+  // M21-S02 part 2: local-dev tenants are seeded via raw SQL (not ProvisionTenantUseCase), so
+  // neither the backfill migration (runs before seeding) nor the going-forward
+  // TenantProvisionedHandler (no event published) creates their LOCATION resource — seeded here.
+  resourceLocationIkaro: '00000000-0000-7000-8008-000000000001',
+  resourceLocationA: '00000000-0000-7000-8008-000000000002',
+  resourceLocationB: '00000000-0000-7000-8008-000000000003',
 };
 
 // Matches TenantSettingsData exactly — camelCase keys, null for closed days
@@ -140,6 +147,7 @@ async function seed(): Promise<void> {
     await seedStaff(q);
     await seedCustomers(q);
     await seedServices(q);
+    await seedResources(q);
     await seedBookings(q);
     await seedNotificationTemplates(q);
 
@@ -318,6 +326,25 @@ async function seedServices(q: ReturnType<DataSource['createQueryRunner']>): Pro
       IDS.serviceCompleta,
       IDS.servicePolimento,
       IDS.serviceHigienizacao,
+      IDS.tenantIkaro,
+      IDS.tenantA,
+      IDS.tenantB,
+    ],
+  );
+}
+
+async function seedResources(q: ReturnType<DataSource['createQueryRunner']>): Promise<void> {
+  await q.query(
+    `INSERT INTO booking.resources
+      (id, tenant_id, type, ref_id, name, working_hours, turnover_minutes, max_capacity, is_active) VALUES
+      ($1, $4, 'LOCATION', NULL, 'Main Location',          NULL, 0, NULL, true),
+      ($2, $5, 'LOCATION', NULL, 'Localização Principal',  NULL, 0, NULL, true),
+      ($3, $6, 'LOCATION', NULL, 'Localização Principal',  NULL, 0, NULL, true)
+    ON CONFLICT (id) DO NOTHING`,
+    [
+      IDS.resourceLocationIkaro,
+      IDS.resourceLocationA,
+      IDS.resourceLocationB,
       IDS.tenantIkaro,
       IDS.tenantA,
       IDS.tenantB,

@@ -63,4 +63,16 @@ describe('BookingPlatformAdapter', () => {
       expect(revalidation.revalidatedSlugs).toEqual([]);
     });
   });
+
+  describe('getBusinessHoursAndLocale', () => {
+    it("returns the tenant's business hours and locale via GetTenantByIdUseCase", async () => {
+      const tenant = new TenantBuilder().build();
+      await repo.save(tenant);
+
+      const result = await adapter.getBusinessHoursAndLocale(tenant.id);
+
+      expect(result.locale).toBe('pt-BR');
+      expect(result.businessHours).toEqual(tenant.settings.businessHours);
+    });
+  });
 });

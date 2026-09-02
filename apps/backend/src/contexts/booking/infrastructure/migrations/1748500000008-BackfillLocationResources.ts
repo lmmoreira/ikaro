@@ -5,6 +5,9 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 // regardless of tenants.is_active. Idempotent via WHERE NOT EXISTS: skips any tenant that
 // already has an active LOCATION resource, so this migration is safe to re-run and never
 // violates UQ_booking_resources_tenant_location.
+// Locale-aware name (part 2, story discovery 2026-09-02): matches the two literal strings
+// CreateTenantLocationResourceUseCase uses for tenants provisioned going forward — see that
+// file's defaultLocationName().
 export class BackfillLocationResources1748500000008 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
@@ -16,7 +19,10 @@ export class BackfillLocationResources1748500000008 implements MigrationInterfac
         t."id",
         'LOCATION',
         NULL,
-        t."name" || ' (unidade única)',
+        CASE
+          WHEN t."settings"->'localization'->>'language' = 'en' THEN 'Main Location'
+          ELSE 'Localização Principal'
+        END,
         NULL,
         0,
         NULL,
