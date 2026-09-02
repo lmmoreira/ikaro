@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import type { ResourceWorkingHours } from '@ikaro/types';
 import {
@@ -75,10 +76,25 @@ export function ResourceWorkingHoursEditor({
   const days = toDayValues(value);
   const usesDefault = value === null;
 
-  function setDay(day: WeekDay, patch: Partial<DayValue>): void {
-    const next = { ...days, [day]: { ...days[day], ...patch } };
-    onChange(toWorkingHours(next));
-  }
+  // onChange is the raw useState setter from both callers (ResourceCreateForm,
+  // ResourceEditFormFields) — React guarantees it's referentially stable, so closing over it
+  // (instead of `days`, which is a fresh object every render) keeps setDay's own identity
+  // stable too, letting memo(WeekDayRow) actually skip re-rendering unrelated day rows on
+  // keystroke, per the shared component's own documented contract (Codex review, PR #459
+  // round 3). valueRef always holds the latest value so the patch merges correctly.
+  const valueRef = useRef(value);
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
+
+  const setDay = useCallback(
+    (day: WeekDay, patch: Partial<DayValue>): void => {
+      const currentDays = toDayValues(valueRef.current);
+      const next = { ...currentDays, [day]: { ...currentDays[day], ...patch } };
+      onChange(toWorkingHours(next));
+    },
+    [onChange],
+  );
 
   function copyMondayToWeekdays(): void {
     const monday = days.monday;
