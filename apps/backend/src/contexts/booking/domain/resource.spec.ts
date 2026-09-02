@@ -4,6 +4,7 @@ import {
 } from '../../../test/utils/business-hours-fixtures';
 import {
   ResourceAlreadyActiveError,
+  ResourceLocationCannotBeDeactivatedError,
   ResourceMaxCapacityInvalidError,
   ResourceNoWorkingHoursError,
   ResourceTypeRefIdMismatchError,
@@ -449,6 +450,22 @@ describe('Resource.deactivate() / reactivate()', () => {
     });
     resource.deactivate();
     expect(resource.isActive).toBe(false);
+  });
+
+  it('rejects deactivating a LOCATION resource', () => {
+    // Resource.create() itself has no LOCATION guard (that lives in CreateResourceUseCase,
+    // which is the only place a caller can reach type=LOCATION from) — constructing one
+    // directly here is how a real LOCATION row (created only by the M21-S02 backfill
+    // migration, then reconstitute()'d) is represented for this test.
+    const location = Resource.create({
+      tenantId: TENANT_ID,
+      type: ResourceType.LOCATION,
+      name: 'Lava Car BH (unidade única)',
+      tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+    });
+
+    expect(() => location.deactivate()).toThrow(ResourceLocationCannotBeDeactivatedError);
+    expect(location.isActive).toBe(true);
   });
 
   it('reactivates an inactive resource', () => {

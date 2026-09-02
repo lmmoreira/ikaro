@@ -78,7 +78,7 @@ describe('TypeOrmResourceRepository', () => {
 
       expect(result!.refId).toBe(STAFF_ID);
       expect(ormRepo.findOne).toHaveBeenCalledWith({
-        where: { refId: STAFF_ID, tenantId: TENANT_ID },
+        where: { refId: STAFF_ID, tenantId: TENANT_ID, type: ResourceType.STAFF },
       });
     });
   });

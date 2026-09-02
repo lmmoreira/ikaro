@@ -51,6 +51,7 @@
   "BOOKING_RESOURCE_STAFF_NOT_FOUND": "Profissional não encontrado ou inativo.",
   "BOOKING_RESOURCE_NOT_FOUND": "Recurso não encontrado.",
   "BOOKING_RESOURCE_ALREADY_ACTIVE": "Este recurso já está ativo.",
+  "BOOKING_RESOURCE_LOCATION_CANNOT_BE_DEACTIVATED": "Uma unidade não pode ser desativada — todo negócio deve sempre ter uma unidade ativa.",
   "ADDRESS_POSTAL_CODE_INVALID": "O CEP informado é inválido.",
   "ADDRESS_STATE_INVALID": "O estado informado é inválido.",
   "ADDRESS_NEIGHBORHOOD_REQUIRED": "O bairro é obrigatório.",

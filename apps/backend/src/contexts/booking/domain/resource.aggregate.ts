@@ -4,6 +4,7 @@ import { TimeOfDay } from '../../../shared/value-objects/time-of-day.vo';
 import { DAYS_OF_WEEK, type BusinessHours } from '../../../shared/value-objects/business-hours.vo';
 import {
   ResourceAlreadyActiveError,
+  ResourceLocationCannotBeDeactivatedError,
   ResourceMaxCapacityInvalidError,
   ResourceNoWorkingHoursError,
   ResourceTypeRefIdMismatchError,
@@ -130,6 +131,13 @@ export class Resource extends AggregateRoot {
   }
 
   deactivate(): void {
+    // A tenant must always retain exactly one active LOCATION resource — it's never manually
+    // created (only the M21-S02 backfill produces it) and, symmetrically, never manually
+    // deactivated either (docs/02-DOMAIN_MODEL.md § Resource: "Exactly one active LOCATION
+    // resource per tenant"; Codex round-6 finding, PR #457).
+    if (this.props.type === ResourceType.LOCATION) {
+      throw new ResourceLocationCannotBeDeactivatedError(this.props.id);
+    }
     this.props.isActive = false;
     this.props.updatedAt = new Date();
   }

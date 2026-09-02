@@ -34,7 +34,7 @@ export class StaffDeactivatedHandler implements OnModuleInit {
       this.logger.error(
         'StaffDeactivatedHandler failed — will nack for retry',
         err instanceof Error ? err.stack : String(err),
-        { tenantId: event.tenantId, correlationId: event.correlationId },
+        { tenantId: event.tenantId, correlationId: event.correlationId, eventId: event.eventId },
       );
       throw err;
     }

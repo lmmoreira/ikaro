@@ -91,3 +91,13 @@ export class ResourceAlreadyActiveError extends BookingDomainError {
     this.name = 'ResourceAlreadyActiveError';
   }
 }
+
+export class ResourceLocationCannotBeDeactivatedError extends BookingDomainError {
+  constructor(id: string) {
+    super(
+      `A tenant must always retain exactly one active LOCATION resource: ${id}`,
+      BookingErrorCode.RESOURCE_LOCATION_CANNOT_BE_DEACTIVATED,
+    );
+    this.name = 'ResourceLocationCannotBeDeactivatedError';
+  }
+}

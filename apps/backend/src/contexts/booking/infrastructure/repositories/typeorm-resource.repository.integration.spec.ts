@@ -107,4 +107,18 @@ describe('TypeOrmResourceRepository (integration)', () => {
 
     await expect(ds.getRepository(ResourceEntity).insert(second)).rejects.toThrow();
   });
+
+  it('enforces CHECK(type != STAFF OR max_capacity IS NULL) at the DB level', async () => {
+    // Resource.create() already rejects this app-side; this proves the DB CHECK is the real
+    // backstop, independent of the app-level rule — bypasses the aggregate the same way the
+    // LOCATION-uniqueness test above does (raw entity insert, not repo.save()).
+    const invalid = new ResourceEntityBuilder()
+      .withTenantId(TENANT_ID)
+      .withType(ResourceType.STAFF)
+      .withRefId('20000000-0000-4000-8000-000000000012')
+      .withMaxCapacity(5)
+      .build();
+
+    await expect(ds.getRepository(ResourceEntity).insert(invalid)).rejects.toThrow();
+  });
 });

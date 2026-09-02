@@ -8,6 +8,7 @@ import {
 } from '../../application/ports/resource-repository.port';
 import { Resource } from '../../domain/resource.aggregate';
 import { ResourceStaffAlreadyWrappedError } from '../../domain/errors/resource.error';
+import { ResourceType } from '../../domain/resource.types';
 import { ResourceEntity } from '../entities/resource.entity';
 
 // Matches the partial unique index name in the CreateBookingResources migration —
@@ -39,7 +40,13 @@ export class TypeOrmResourceRepository implements IResourceRepository {
   }
 
   async findByRefId(refId: string, tenantId: string): Promise<Resource | null> {
-    const entity = await this.repo.findOne({ where: { refId, tenantId } });
+    // Explicit type='STAFF' matches the partial unique index's own WHERE predicate — refId is
+    // only ever non-null on a STAFF row (CHK_booking_resources_type_ref_id), so this is
+    // defensive/index-matching explicitness, not a correctness fix (Codex round-6 finding, PR
+    // #457).
+    const entity = await this.repo.findOne({
+      where: { refId, tenantId, type: ResourceType.STAFF },
+    });
     return entity ? this.toDomain(entity) : null;
   }
 

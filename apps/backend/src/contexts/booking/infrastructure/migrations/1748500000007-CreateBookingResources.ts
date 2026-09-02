@@ -19,7 +19,9 @@ export class CreateBookingResources1748500000007 implements MigrationInterface {
         CONSTRAINT "UQ_booking_resources_tenant_id" UNIQUE ("tenant_id", "id"),
         CONSTRAINT "UQ_booking_resources_tenant_id_type" UNIQUE ("tenant_id", "id", "type"),
         CONSTRAINT "CHK_booking_resources_type_ref_id"
-          CHECK ((type = 'STAFF') = (ref_id IS NOT NULL))
+          CHECK ((type = 'STAFF') = (ref_id IS NOT NULL)),
+        CONSTRAINT "CHK_booking_resources_staff_no_max_capacity"
+          CHECK (type != 'STAFF' OR max_capacity IS NULL)
       )
     `);
     await queryRunner.query(`

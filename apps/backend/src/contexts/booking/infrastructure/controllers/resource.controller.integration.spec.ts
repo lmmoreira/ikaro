@@ -143,6 +143,25 @@ describe('ResourceController (integration)', () => {
 
       expect(body.status).toBe(404);
     });
+
+    it('returns 409 for a LOCATION resource — a tenant must always retain one active LOCATION', async () => {
+      const entity = new ResourceEntityBuilder()
+        .withTenantId(TENANT_B)
+        .withType(ResourceType.LOCATION)
+        .withRefId(null)
+        .build();
+      await ds.getRepository(ResourceEntity).save(entity);
+
+      const { body } = await request(app.getHttpServer())
+        .delete(`/resources/${entity.id}`)
+        .set(actorHeaders(TENANT_B, MANAGER_ID))
+        .expect(409);
+
+      expect(body.status).toBe(409);
+      expect(body.code).toBe('BOOKING_RESOURCE_LOCATION_CANNOT_BE_DEACTIVATED');
+      const found = await ds.getRepository(ResourceEntity).findOne({ where: { id: entity.id } });
+      expect(found!.isActive).toBe(true);
+    });
   });
 
   // ─── POST /resources/:id/reactivate ─────────────────────────────────────────

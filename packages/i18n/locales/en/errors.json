@@ -51,6 +51,7 @@
   "BOOKING_RESOURCE_STAFF_NOT_FOUND": "Staff member not found or inactive.",
   "BOOKING_RESOURCE_NOT_FOUND": "Resource not found.",
   "BOOKING_RESOURCE_ALREADY_ACTIVE": "This resource is already active.",
+  "BOOKING_RESOURCE_LOCATION_CANNOT_BE_DEACTIVATED": "A business location cannot be deactivated — every business must always have one active.",
   "ADDRESS_POSTAL_CODE_INVALID": "The postal code provided is invalid.",
   "ADDRESS_STATE_INVALID": "The state provided is invalid.",
   "ADDRESS_NEIGHBORHOOD_REQUIRED": "The neighborhood is required.",
