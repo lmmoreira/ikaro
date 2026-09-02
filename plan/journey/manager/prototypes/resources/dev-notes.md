@@ -31,9 +31,13 @@ POST /v1/resources
   Response 422: { code: 'BOOKING_RESOURCE_NO_WORKING_HOURS' }        -- CAND-01 A2
 
 PATCH /v1/resources/:id
-  Body: { workingHours: BusinessHours | null }
+  Body: every field independently optional (unsent = unchanged) —
+    { name?, type?, refId?: string | null, workingHours?: BusinessHours | null, turnoverMinutes?: number, maxCapacity?: number | null }
+    (broadened from working-hours-only in PR #457 round 9+; corrected here during M21-S04 story discovery, 2026-09-02)
   Response 200: Resource
-  Response 404: not found / cross-tenant
+  Response 404: not found / cross-tenant / (type→STAFF) target staff not found or inactive
+  Response 409: type=STAFF target already wrapped by a different Resource / type changing to-or-from LOCATION
+  Response 400/422: type changing away from STAFF without refId: null / no working hours anywhere after the update
 
 DELETE /v1/resources/:id → 204   -- deactivate (UC-047)
 POST /v1/resources/:id/reactivate → 200: Resource   -- reactivate (UC-049), no event published
@@ -70,7 +74,7 @@ Lists every `Resource`, grouped by `type` (`LOCATION` first — always exactly o
 
 ## Not yet prototyped (needed before implementation)
 
-- **ResourceEditForm** (UC-046, working-hours only) — no discovery screen exists. Build from `staff/prototypes/horarios/`'s existing per-weekday hours editor pattern (tenant `businessHours` editor), not from scratch.
+- **ResourceEditForm** (UC-046, every field editable — broadened from working-hours-only in PR #457 round 9+) — no discovery screen exists. Build the working-hours section from `apps/web/features/platform/components/settings/SettingsHoursSection.tsx`'s existing per-weekday hours editor (the tenant `businessHours` editor — same shape minus the timezone key; corrected during M21-S04 story discovery, 2026-09-02 — `staff/prototypes/horarios/` has no such editor to mirror), not from scratch.
 - **Deactivate confirmation** (UC-047) — no discovery screen exists (flagged as a known gap by the discovery itself: "CAND-03... has zero entry points — not even a dead link"). Mirror `manager/prototypes/equipe/03-deactivate-confirm.html`'s shape: show the resource's future approved appointments/materialized sessions as explicit commitments (empty for a Cluster-1-only tenant — nothing populates this list until Clusters 2–4 land) before confirming.
 - **Reactivate confirmation** (UC-049) — no discovery screen exists. A simple confirm dialog; on 200, no event published (`ResourceReactivated` descoped during M21-S01 story discovery, 2026-09-01 — no consumer exists yet).
 
