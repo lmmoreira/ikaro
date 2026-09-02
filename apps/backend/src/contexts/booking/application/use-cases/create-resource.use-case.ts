@@ -6,13 +6,9 @@ import {
 import type { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
 import { Resource } from '../../domain/resource.aggregate';
 import { ResourceType, ResourceWorkingHours } from '../../domain/resource.types';
-import {
-  ResourceStaffAlreadyWrappedError,
-  ResourceStaffNotFoundError,
-  ResourceTypeNotCreatableError,
-} from '../../domain/errors/resource.error';
+import { ResourceTypeNotCreatableError } from '../../domain/errors/resource.error';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
-import { BOOKING_STAFF_PORT, IBookingStaffPort } from '../ports/booking-staff.port';
+import { StaffWrapValidationService } from '../services/staff-wrap-validation.service';
 import { CreateResourceDto } from '../dtos/resource.dto';
 
 export type CreateResourceUseCaseInput = CreateResourceDto & {
@@ -37,7 +33,7 @@ export interface CreateResourceUseCaseResult {
 export class CreateResourceUseCase {
   constructor(
     @Inject(RESOURCE_REPOSITORY) private readonly resourceRepo: IResourceRepository,
-    @Inject(BOOKING_STAFF_PORT) private readonly staffPort: IBookingStaffPort,
+    private readonly staffWrapValidation: StaffWrapValidationService,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
@@ -66,7 +62,7 @@ export class CreateResourceUseCase {
     // between two independent admin actions on the same staff member; accepted as a documented
     // limitation rather than built out (Codex round-6 finding, PR #457).
     if (type === ResourceType.STAFF && refId) {
-      await this.assertStaffWrappable(refId, tenantId);
+      await this.staffWrapValidation.assertWrappable(refId, tenantId);
     }
 
     const resource = Resource.create({
@@ -85,14 +81,6 @@ export class CreateResourceUseCase {
     });
 
     return this.toResult(resource);
-  }
-
-  private async assertStaffWrappable(staffId: string, tenantId: string): Promise<void> {
-    const staff = await this.staffPort.findActiveById(staffId, tenantId);
-    if (!staff) throw new ResourceStaffNotFoundError(staffId);
-
-    const existing = await this.resourceRepo.findByRefId(staffId, tenantId);
-    if (existing) throw new ResourceStaffAlreadyWrappedError(staffId);
   }
 
   private toResult(resource: Resource): CreateResourceUseCaseResult {

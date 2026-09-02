@@ -902,9 +902,13 @@ Auth: JWT + `MANAGER` only on every endpoint — a deliberate, self-consistent r
   - `409` if `type = STAFF` and that staff member is already wrapped by a `Resource` (A1)
   - `422` if `type = LOCATION` — never manually created, only the M21-S02 backfill migration creates it
   - `422` if no working hours are set and the tenant has no `businessHours` either (A2)
-- `PATCH /resources/:id` → edit working hours (UC-046). Body: `{ "workingHours": { ... } | null }` (`null` reverts to inheriting tenant hours).
+- `PATCH /resources/:id` → edit a resource (UC-046). Body: every field independently optional (unsent = unchanged) — `{ "name"?, "type"?, "refId"?: "uuid" | null, "workingHours"?: { ... } | null, "turnoverMinutes"?, "maxCapacity"?: number | null }`. An empty body `{}` is valid and changes nothing.
   - `200` on success
-  - `404` if not found or belongs to another tenant
+  - `404` if not found, belongs to another tenant, or (when `type` is changing to `STAFF`) the target staff member is not found/inactive (mirrors `POST /resources`' A1 staff-lookup semantics — UC-045)
+  - `409` if `type = STAFF` and the target staff member is already wrapped by a *different* `Resource` — re-saving the same `refId` this resource already holds is not a conflict
+  - `409` if `type` is changing to or from `LOCATION` — a tenant's `LOCATION` resource can never change type, and no other resource can become `LOCATION`
+  - `400`/`422` if `type` is changing away from `STAFF` without the request also explicitly sending `refId: null`
+  - `422` if no working hours are set (after the update) and the tenant has no `businessHours` either
 - `DELETE /resources/:id` → deactivate a resource (UC-047)
   - `204` on success
   - `404` if not found or belongs to another tenant

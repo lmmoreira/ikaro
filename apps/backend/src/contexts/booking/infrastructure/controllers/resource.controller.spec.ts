@@ -5,10 +5,11 @@ import { InMemoryResourceRepository } from '../../../../test/repositories/bookin
 import { ResourceBuilder } from '../../../../test/builders/booking/index';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { CreateResourceUseCase } from '../../application/use-cases/create-resource.use-case';
-import { UpdateResourceWorkingHoursUseCase } from '../../application/use-cases/update-resource-working-hours.use-case';
+import { UpdateResourceUseCase } from '../../application/use-cases/update-resource.use-case';
 import { DeactivateResourceUseCase } from '../../application/use-cases/deactivate-resource.use-case';
 import { ReactivateResourceUseCase } from '../../application/use-cases/reactivate-resource.use-case';
 import { ListResourcesUseCase } from '../../application/use-cases/list-resources.use-case';
+import { StaffWrapValidationService } from '../../application/services/staff-wrap-validation.service';
 import { ResourceType } from '../../domain/resource.types';
 import { ResourceController } from './resource.controller';
 
@@ -24,10 +25,11 @@ describe('ResourceController', () => {
     staffPort = new InMemoryBookingStaffPort();
     const ctx = new RequestContextBuilder().withTenantId(TENANT_ID).build();
     const tx = new InMemoryTransactionManager();
+    const staffWrapValidation = new StaffWrapValidationService(staffPort, repo);
     controller = new ResourceController(
       ctx,
-      new CreateResourceUseCase(repo, staffPort, tx),
-      new UpdateResourceWorkingHoursUseCase(repo, tx),
+      new CreateResourceUseCase(repo, staffWrapValidation, tx),
+      new UpdateResourceUseCase(repo, staffWrapValidation, tx),
       new DeactivateResourceUseCase(repo, tx),
       new ReactivateResourceUseCase(repo, staffPort, tx),
       new ListResourcesUseCase(repo),
@@ -92,6 +94,48 @@ describe('ResourceController', () => {
       });
 
       expect(result.workingHours?.monday).toEqual({ open: '10:00', close: '16:00' });
+    });
+
+    it('updates name, turnoverMinutes, and maxCapacity without touching workingHours', async () => {
+      const resource = new ResourceBuilder().withTenantId(TENANT_ID).withName('Estúdio 1').build();
+      await repo.save(resource);
+
+      const result = await controller.update(resource.id, {
+        name: 'Estúdio 2',
+        turnoverMinutes: 20,
+        maxCapacity: 8,
+      });
+
+      expect(result.name).toBe('Estúdio 2');
+      expect(result.turnoverMinutes).toBe(20);
+      expect(result.maxCapacity).toBe(8);
+    });
+
+    it('corrects a mistaken type from ROOM to EQUIPMENT', async () => {
+      const resource = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await repo.save(resource);
+
+      const result = await controller.update(resource.id, { type: ResourceType.EQUIPMENT });
+
+      expect(result.type).toBe(ResourceType.EQUIPMENT);
+    });
+
+    it('maps ResourceLocationTypeImmutableError to 409 for a LOCATION resource', async () => {
+      const resource = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.LOCATION)
+        .build();
+      await repo.save(resource);
+
+      const err = await controller
+        .update(resource.id, { type: ResourceType.ROOM })
+        .catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(409);
     });
 
     it('maps ResourceNotFoundError to 404', async () => {

@@ -19,17 +19,17 @@ import {
   CreateResourceSchema,
   ListResourcesDto,
   ListResourcesSchema,
-  UpdateResourceWorkingHoursDto,
-  UpdateResourceWorkingHoursSchema,
+  UpdateResourceDto,
+  UpdateResourceSchema,
 } from '../../application/dtos/resource.dto';
 import {
   CreateResourceUseCase,
   CreateResourceUseCaseResult,
 } from '../../application/use-cases/create-resource.use-case';
 import {
-  UpdateResourceWorkingHoursUseCase,
-  UpdateResourceWorkingHoursUseCaseResult,
-} from '../../application/use-cases/update-resource-working-hours.use-case';
+  UpdateResourceUseCase,
+  UpdateResourceUseCaseResult,
+} from '../../application/use-cases/update-resource.use-case';
 import { DeactivateResourceUseCase } from '../../application/use-cases/deactivate-resource.use-case';
 import {
   ReactivateResourceUseCase,
@@ -47,7 +47,7 @@ export class ResourceController {
   constructor(
     private readonly ctx: RequestContext,
     private readonly createResource: CreateResourceUseCase,
-    private readonly updateWorkingHours: UpdateResourceWorkingHoursUseCase,
+    private readonly updateResource: UpdateResourceUseCase,
     private readonly deactivateResource: DeactivateResourceUseCase,
     private readonly reactivateResource: ReactivateResourceUseCase,
     private readonly listResources: ListResourcesUseCase,
@@ -75,11 +75,11 @@ export class ResourceController {
   @Patch(':id')
   update(
     @Param('id', CanonicalParseUUIDPipe) id: string,
-    @Body(new ZodValidationPipe(UpdateResourceWorkingHoursSchema))
-    body: UpdateResourceWorkingHoursDto,
-  ): Promise<UpdateResourceWorkingHoursUseCaseResult> {
+    @Body(new ZodValidationPipe(UpdateResourceSchema))
+    body: UpdateResourceDto,
+  ): Promise<UpdateResourceUseCaseResult> {
     const { tenantId, settings } = this.ctx;
-    return this.updateWorkingHours
+    return this.updateResource
       .execute({ ...body, id, tenantId, tenantBusinessHours: settings.businessHours })
       .catch(mapBookingError);
   }

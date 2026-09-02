@@ -101,3 +101,14 @@ export class ResourceLocationCannotBeDeactivatedError extends BookingDomainError
     this.name = 'ResourceLocationCannotBeDeactivatedError';
   }
 }
+
+export class ResourceLocationTypeImmutableError extends BookingDomainError {
+  constructor(id: string) {
+    super(
+      `A tenant's LOCATION resource can never change type, and no other resource can become LOCATION: ${id}`,
+      BookingErrorCode.RESOURCE_LOCATION_TYPE_IMMUTABLE,
+      'type',
+    );
+    this.name = 'ResourceLocationTypeImmutableError';
+  }
+}

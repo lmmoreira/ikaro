@@ -15,6 +15,7 @@ import {
   ResourceTypeRefIdMismatchError,
 } from '../../domain/errors/resource.error';
 import { ResourceType } from '../../domain/resource.types';
+import { StaffWrapValidationService } from '../services/staff-wrap-validation.service';
 import { CreateResourceUseCase } from './create-resource.use-case';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
@@ -28,7 +29,12 @@ describe('CreateResourceUseCase', () => {
   beforeEach(() => {
     repo = new InMemoryResourceRepository();
     staffPort = new InMemoryBookingStaffPort();
-    useCase = new CreateResourceUseCase(repo, staffPort, new InMemoryTransactionManager());
+    const staffWrapValidation = new StaffWrapValidationService(staffPort, repo);
+    useCase = new CreateResourceUseCase(
+      repo,
+      staffWrapValidation,
+      new InMemoryTransactionManager(),
+    );
   });
 
   it('creates a ROOM resource', async () => {

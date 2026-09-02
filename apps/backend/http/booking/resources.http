@@ -74,7 +74,7 @@ X-Actor-Role: MANAGER
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# HAPPY PATH — edit working hours (UC-046)
+# HAPPY PATH — edit a resource (UC-046) — every field independently optional
 # ─────────────────────────────────────────────────────────────────────────────
 
 ###
@@ -111,6 +111,68 @@ X-Actor-Role: MANAGER
 
 {
   "workingHours": null
+}
+
+###
+
+### Update name, turnoverMinutes, and maxCapacity
+PATCH {{baseUrl}}/resources/{{resourceId}}
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "name": "Estúdio 2",
+  "turnoverMinutes": 20,
+  "maxCapacity": 8
+}
+
+###
+
+### Correct a mistaken type (ROOM -> EQUIPMENT)
+PATCH {{baseUrl}}/resources/{{resourceId}}
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "type": "EQUIPMENT"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# UNHAPPY PATH — type immutability
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### 409 — a LOCATION resource's type can never change (set {{resourceId}} to a real LOCATION id)
+PATCH {{baseUrl}}/resources/{{resourceId}}
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "type": "ROOM"
+}
+
+###
+
+### 422 — no resource can become LOCATION
+PATCH {{baseUrl}}/resources/{{resourceId}}
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "type": "LOCATION"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

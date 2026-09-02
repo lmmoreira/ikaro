@@ -61,6 +61,25 @@ describe('ResourceController', () => {
         workingHours: null,
       });
     });
+
+    it('forwards name/type/maxCapacity changes to the backend unchanged (pure passthrough)', async () => {
+      const backendHttp = makeBackendHttp({
+        patch: jest.fn().mockResolvedValue(mockResource),
+      });
+      const controller = new ResourceController(backendHttp);
+
+      await controller.update(mockResource.id, {
+        name: 'Estúdio 2',
+        type: 'EQUIPMENT',
+        maxCapacity: 4,
+      });
+
+      expect(backendHttp.patch).toHaveBeenCalledWith(`/resources/${mockResource.id}`, {
+        name: 'Estúdio 2',
+        type: 'EQUIPMENT',
+        maxCapacity: 4,
+      });
+    });
   });
 
   describe('deactivate()', () => {

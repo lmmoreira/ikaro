@@ -1,11 +1,11 @@
 import { z } from 'zod';
-import { CreateResourceSchema, UpdateResourceWorkingHoursSchema } from '@ikaro/validation';
+import { CreateResourceSchema, UpdateResourceSchema } from '@ikaro/validation';
 import { ResourceType } from '../../domain/resource.types';
 
-export { CreateResourceSchema, UpdateResourceWorkingHoursSchema };
+export { CreateResourceSchema, UpdateResourceSchema };
 
 export type CreateResourceDto = z.infer<typeof CreateResourceSchema>;
-export type UpdateResourceWorkingHoursDto = z.infer<typeof UpdateResourceWorkingHoursSchema>;
+export type UpdateResourceDto = z.infer<typeof UpdateResourceSchema>;
 
 export const ListResourcesSchema = z.object({
   type: z

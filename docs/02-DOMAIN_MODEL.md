@@ -401,14 +401,14 @@ Resource {
 **Invariants (enforced by the aggregate, not just the DB):**
 - `(type = 'STAFF') ⟺ (refId IS NOT NULL)` — a staff wrapper must reference a Staff ID; every other resource type must not.
 - One `Resource` per `Staff` row — a staff member cannot be wrapped twice.
-- Exactly one active `LOCATION` resource per tenant.
+- Exactly one active `LOCATION` resource per tenant; a `LOCATION` resource's `type` can never change, and no other resource can become `LOCATION` — both creation and correction are backfill-only.
 - Every `workingHours` window is a subset of the tenant's recurring business-hours window.
-- `maxCapacity`, when set, is `> 0`; template/session capacity referencing this resource (Cluster 4) cannot exceed it.
+- `maxCapacity`, when set, is `> 0` and never set for `STAFF`; template/session capacity referencing this resource (Cluster 4) cannot exceed it.
 - Deactivating a `Resource` never silently cancels or demotes an existing approved appointment or materialized session — it stops future scheduling only and surfaces a resolution worklist (UC-047).
 
 **Key Methods:**
 - `Resource.create(tenantId, type, name, workingHours?, refId?, maxCapacity?)` — validates the `STAFF`⟺`refId` invariant and the working-hours subset invariant.
-- `updateWorkingHours(workingHours)` (UC-046)
+- `update(name, type, refId, workingHours, turnoverMinutes, maxCapacity)` (UC-046) — a manager can correct any field, including `type`/`refId`, without deactivate+recreate; re-runs the same invariants `create()` enforces, plus the `LOCATION`-type-immutability guard.
 - `deactivate()` (UC-047) / `reactivate()` (UC-049)
 
 **Cross-context note:** a `STAFF`-type `Resource` has no DB-level FK to `staff.staff` (cross-schema) — Booking validates the referenced staff member (same-tenant, existing, active, schedulable) through a narrow lookup adapter at write time, and consumes the Staff Context's `StaffDeactivated` event to cascade-deactivate the wrapping resource (UC-048). Staff Context remains unaware of Booking.

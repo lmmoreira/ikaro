@@ -5,6 +5,7 @@ import { DAYS_OF_WEEK, type BusinessHours } from '../../../shared/value-objects/
 import {
   ResourceAlreadyActiveError,
   ResourceLocationCannotBeDeactivatedError,
+  ResourceLocationTypeImmutableError,
   ResourceMaxCapacityInvalidError,
   ResourceNoWorkingHoursError,
   ResourceTypeRefIdMismatchError,
@@ -115,18 +116,39 @@ export class Resource extends AggregateRoot {
     return new Resource(props);
   }
 
-  updateWorkingHours(
+  // General field update, mirroring Service.update()'s own established shape (full resolved
+  // state as required positional args — the use case merges "changed vs. current" before
+  // calling this, the aggregate never guesses which fields the caller meant to leave alone).
+  // Originally scoped to workingHours only; broadened so a manager can correct any field —
+  // including type/refId — without deactivate+recreate (user decision, PR #457 round 9+).
+  update(
+    name: string,
+    type: ResourceType,
+    refId: string | null,
     workingHours: ResourceWorkingHours | null,
+    turnoverMinutes: number,
+    maxCapacity: number | null,
     tenantBusinessHours: BusinessHours,
   ): void {
-    if (workingHours !== null) {
-      Resource.assertWorkingHoursSubsetOfTenant(workingHours, tenantBusinessHours);
+    // Symmetric with deactivate()'s own LOCATION guard: a tenant's LOCATION resource can never
+    // stop being LOCATION (it would leave the tenant with zero active LOCATION resources), and
+    // no other resource can become LOCATION (LOCATION is exclusively backfill-created).
+    const typeChanging = type !== this.props.type;
+    if (
+      typeChanging &&
+      (type === ResourceType.LOCATION || this.props.type === ResourceType.LOCATION)
+    ) {
+      throw new ResourceLocationTypeImmutableError(this.props.id);
     }
-    // Mirrors Resource.create()'s own ResourceNoWorkingHoursError check (UC-045 A2) — an
-    // existing resource must not be allowed to drift into the same unschedulable state
-    // create() already rejects (Codex/CodeRabbit finding, PR #457 round 1).
-    Resource.assertHasSomeSchedule(workingHours, tenantBusinessHours);
+
+    Resource.assertValid(type, refId, workingHours, tenantBusinessHours, maxCapacity);
+
+    this.props.name = name;
+    this.props.type = type;
+    this.props.refId = type === ResourceType.STAFF ? refId : null;
     this.props.workingHours = Resource.cloneWorkingHours(workingHours);
+    this.props.turnoverMinutes = turnoverMinutes;
+    this.props.maxCapacity = maxCapacity;
     this.props.updatedAt = new Date();
   }
 

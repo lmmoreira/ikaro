@@ -19,8 +19,8 @@ import {
   CreateResourceBodySchema,
   ListResourcesQuery,
   ListResourcesQuerySchema,
-  UpdateResourceWorkingHoursBody,
-  UpdateResourceWorkingHoursBodySchema,
+  UpdateResourceBody,
+  UpdateResourceBodySchema,
 } from './resource.schemas';
 
 // Request Zod schemas moved to resource.schemas.ts — re-exported here so existing imports of
@@ -50,8 +50,8 @@ export class ResourceController {
   @Patch(':id')
   update(
     @Param('id', CanonicalParseUUIDPipe) id: string,
-    @Body(new ZodValidationPipe(UpdateResourceWorkingHoursBodySchema))
-    body: UpdateResourceWorkingHoursBody,
+    @Body(new ZodValidationPipe(UpdateResourceBodySchema))
+    body: UpdateResourceBody,
   ): Promise<ResourceResponse> {
     return this.backendHttp.patch<ResourceResponse>(`/resources/${id}`, body);
   }

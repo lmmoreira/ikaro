@@ -51,8 +51,21 @@ export const CreateResourceSchema = z
   })
   .strict();
 
-export const UpdateResourceWorkingHoursSchema = z
+// Every field independently optional (PATCH semantics) — a manager can correct any mistake
+// made at creation (including type/refId) rather than deactivate+recreate. `type` accepts all
+// 4 values for the same reason CreateResourceSchema does: rejecting/assigning LOCATION is a
+// domain-level 409 (ResourceLocationTypeImmutableError), not a transport-level 400. `.default({})`
+// lets an empty/omitted body through Zod (docs/CODE_STANDARDS.md's PATCH-all-optional-fields
+// rule) — the use case then has nothing to change and returns the resource as-is (user decision,
+// PR #457 round 9+, broadening this from workingHours-only).
+export const UpdateResourceSchema = z
   .object({
-    workingHours: WorkingHoursSchema.nullable(),
+    name: z.string().min(1).max(255).optional(),
+    type: ResourceTypeSchema.optional(),
+    refId: z.uuid().nullable().optional(),
+    workingHours: WorkingHoursSchema.nullable().optional(),
+    turnoverMinutes: z.number().int().min(0).optional(),
+    maxCapacity: z.number().int().positive().nullable().optional(),
   })
-  .strict();
+  .strict()
+  .default({});

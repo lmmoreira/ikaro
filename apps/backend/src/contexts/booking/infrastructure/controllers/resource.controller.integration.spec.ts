@@ -116,6 +116,59 @@ describe('ResourceController (integration)', () => {
 
       expect(body.status).toBe(404);
     });
+
+    it('updates name, type, and maxCapacity and returns 200', async () => {
+      const entity = new ResourceEntityBuilder()
+        .withTenantId(TENANT_A)
+        .withType(ResourceType.ROOM)
+        .withName('Estúdio 1')
+        .build();
+      await ds.getRepository(ResourceEntity).save(entity);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/resources/${entity.id}`)
+        .set(actorHeaders(TENANT_A, MANAGER_ID))
+        .send({ name: 'Estúdio 2', type: 'EQUIPMENT', maxCapacity: 4 })
+        .expect(200);
+
+      expect(body.name).toBe('Estúdio 2');
+      expect(body.type).toBe('EQUIPMENT');
+      expect(body.maxCapacity).toBe(4);
+    });
+
+    it('accepts an empty body and leaves the resource unchanged', async () => {
+      const entity = new ResourceEntityBuilder()
+        .withTenantId(TENANT_A)
+        .withName('Estúdio Inalterado')
+        .build();
+      await ds.getRepository(ResourceEntity).save(entity);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/resources/${entity.id}`)
+        .set(actorHeaders(TENANT_A, MANAGER_ID))
+        .send({})
+        .expect(200);
+
+      expect(body.name).toBe('Estúdio Inalterado');
+    });
+
+    it('returns 409 when changing a LOCATION resource away from type=LOCATION', async () => {
+      const entity = new ResourceEntityBuilder()
+        .withTenantId(TENANT_A)
+        .withType(ResourceType.LOCATION)
+        .withRefId(null)
+        .build();
+      await ds.getRepository(ResourceEntity).save(entity);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/resources/${entity.id}`)
+        .set(actorHeaders(TENANT_A, MANAGER_ID))
+        .send({ type: 'ROOM' })
+        .expect(409);
+
+      expect(body.status).toBe(409);
+      expect(body.code).toBe('BOOKING_RESOURCE_LOCATION_TYPE_IMMUTABLE');
+    });
   });
 
   // ─── DELETE /resources/:id ──────────────────────────────────────────────────

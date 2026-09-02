@@ -67,7 +67,7 @@ Authorization: Bearer {{managerToken}}
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# HAPPY PATH — edit working hours (UC-046)
+# HAPPY PATH — edit a resource (UC-046) — every field independently optional
 # ─────────────────────────────────────────────────────────────────────────────
 
 ###
@@ -87,6 +87,19 @@ Authorization: Bearer {{managerToken}}
     "saturday": null,
     "sunday": null
   }
+}
+
+###
+
+### Update name, type, and maxCapacity
+PATCH {{bffUrl}}/v1/resources/{{resourceId}}
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "name": "Estúdio 2",
+  "type": "EQUIPMENT",
+  "maxCapacity": 8
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

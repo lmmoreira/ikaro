@@ -204,6 +204,45 @@ describe('ResourceController (component)', () => {
       });
     });
 
+    it('MANAGER JWT → 200, forwards name/type/maxCapacity through real Zod validation', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.patch.mockResolvedValueOnce(mockResource);
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/resources/${RESOURCE_ID}`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send({ name: 'Estúdio 2', type: 'EQUIPMENT', maxCapacity: 4 });
+
+      expect(res.status).toBe(200);
+      expect(backendHttpService.patch).toHaveBeenCalledWith(`/resources/${RESOURCE_ID}`, {
+        name: 'Estúdio 2',
+        type: 'EQUIPMENT',
+        maxCapacity: 4,
+      });
+    });
+
+    it('returns 400 for an unknown field (strict schema)', async () => {
+      setupActiveGuardMock(httpService);
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/resources/${RESOURCE_ID}`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send({ notAField: 'x' });
+      expect(res.status).toBe(400);
+    });
+
+    it('MANAGER JWT with an empty body → 200 (all fields optional)', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.patch.mockResolvedValueOnce(mockResource);
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/resources/${RESOURCE_ID}`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send({});
+
+      expect(res.status).toBe(200);
+      expect(backendHttpService.patch).toHaveBeenCalledWith(`/resources/${RESOURCE_ID}`, {});
+    });
+
     it('propagates backend 404 as 404', async () => {
       setupActiveGuardMock(httpService);
       backendHttpService.patch.mockRejectedValueOnce(new HttpException('Not Found', 404));

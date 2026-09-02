@@ -1,3 +1,4 @@
+import type { BusinessHours } from '../../../shared/value-objects/business-hours.vo';
 import {
   EMPTY_BUSINESS_HOURS,
   FULL_WEEK_BUSINESS_HOURS,
@@ -5,13 +6,14 @@ import {
 import {
   ResourceAlreadyActiveError,
   ResourceLocationCannotBeDeactivatedError,
+  ResourceLocationTypeImmutableError,
   ResourceMaxCapacityInvalidError,
   ResourceNoWorkingHoursError,
   ResourceTypeRefIdMismatchError,
   ResourceWorkingHoursOutsideTenantHoursError,
 } from './errors/resource.error';
 import { Resource } from './resource.aggregate';
-import { ResourceType } from './resource.types';
+import { ResourceType, ResourceWorkingHours } from './resource.types';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
 const STAFF_ID = '00000000-0000-7000-8000-000000000002';
@@ -315,7 +317,25 @@ describe('Resource.create()', () => {
   });
 });
 
-describe('Resource.updateWorkingHours()', () => {
+describe('Resource.update()', () => {
+  // Mirrors UpdateResourceUseCase's own merge — keeps the workingHours-only tests below focused
+  // on the field they're actually testing, matching every other other field's current value.
+  function updateWorkingHours(
+    resource: Resource,
+    workingHours: ResourceWorkingHours | null,
+    tenantBusinessHours: BusinessHours,
+  ): void {
+    resource.update(
+      resource.name,
+      resource.type,
+      resource.refId,
+      workingHours,
+      resource.turnoverMinutes,
+      resource.maxCapacity,
+      tenantBusinessHours,
+    );
+  }
+
   it('updates working hours when valid', () => {
     const resource = Resource.create({
       tenantId: TENANT_ID,
@@ -323,7 +343,8 @@ describe('Resource.updateWorkingHours()', () => {
       name: 'Estúdio 1',
       tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
     });
-    resource.updateWorkingHours(
+    updateWorkingHours(
+      resource,
       {
         monday: { open: '10:00', close: '16:00' },
         tuesday: null,
@@ -354,7 +375,7 @@ describe('Resource.updateWorkingHours()', () => {
         sunday: null,
       },
     });
-    resource.updateWorkingHours(null, FULL_WEEK_BUSINESS_HOURS);
+    updateWorkingHours(resource, null, FULL_WEEK_BUSINESS_HOURS);
     expect(resource.workingHours).toBeNull();
   });
 
@@ -366,7 +387,8 @@ describe('Resource.updateWorkingHours()', () => {
       tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
     });
     expect(() =>
-      resource.updateWorkingHours(
+      updateWorkingHours(
+        resource,
         {
           monday: { open: '08:00', close: '18:00' },
           tuesday: null,
@@ -398,7 +420,7 @@ describe('Resource.updateWorkingHours()', () => {
       },
     });
 
-    expect(() => resource.updateWorkingHours(null, EMPTY_BUSINESS_HOURS)).toThrow(
+    expect(() => updateWorkingHours(resource, null, EMPTY_BUSINESS_HOURS)).toThrow(
       ResourceNoWorkingHoursError,
     );
     // Rejected update must not have mutated the existing, valid working hours.
@@ -423,7 +445,8 @@ describe('Resource.updateWorkingHours()', () => {
     });
 
     expect(() =>
-      resource.updateWorkingHours(
+      updateWorkingHours(
+        resource,
         {
           monday: null,
           tuesday: null,
@@ -437,6 +460,164 @@ describe('Resource.updateWorkingHours()', () => {
       ),
     ).toThrow(ResourceNoWorkingHoursError);
     expect(resource.workingHours?.monday).toEqual({ open: '10:00', close: '16:00' });
+  });
+
+  it('updates name, turnoverMinutes, and maxCapacity', () => {
+    const resource = Resource.create({
+      tenantId: TENANT_ID,
+      type: ResourceType.ROOM,
+      name: 'Estúdio 1',
+      tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+      maxCapacity: 5,
+    });
+
+    resource.update(
+      'Estúdio 2',
+      ResourceType.ROOM,
+      null,
+      resource.workingHours,
+      15,
+      10,
+      FULL_WEEK_BUSINESS_HOURS,
+    );
+
+    expect(resource.name).toBe('Estúdio 2');
+    expect(resource.turnoverMinutes).toBe(15);
+    expect(resource.maxCapacity).toBe(10);
+  });
+
+  it('corrects a mistaken type from ROOM to EQUIPMENT', () => {
+    const resource = Resource.create({
+      tenantId: TENANT_ID,
+      type: ResourceType.ROOM,
+      name: 'Estúdio 1',
+      tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+    });
+
+    resource.update(
+      resource.name,
+      ResourceType.EQUIPMENT,
+      null,
+      resource.workingHours,
+      resource.turnoverMinutes,
+      resource.maxCapacity,
+      FULL_WEEK_BUSINESS_HOURS,
+    );
+
+    expect(resource.type).toBe(ResourceType.EQUIPMENT);
+  });
+
+  it('clears maxCapacity and sets refId when changing type to STAFF', () => {
+    const resource = Resource.create({
+      tenantId: TENANT_ID,
+      type: ResourceType.ROOM,
+      name: 'Estúdio 1',
+      tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+      maxCapacity: 5,
+    });
+
+    resource.update(
+      'Camila Duarte',
+      ResourceType.STAFF,
+      STAFF_ID,
+      resource.workingHours,
+      resource.turnoverMinutes,
+      null,
+      FULL_WEEK_BUSINESS_HOURS,
+    );
+
+    expect(resource.type).toBe(ResourceType.STAFF);
+    expect(resource.refId).toBe(STAFF_ID);
+    expect(resource.maxCapacity).toBeNull();
+  });
+
+  it('rejects changing type away from STAFF while a refId is still set (STAFF/refId pairing)', () => {
+    const resource = Resource.create({
+      tenantId: TENANT_ID,
+      type: ResourceType.STAFF,
+      name: 'Camila Duarte',
+      tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+      refId: STAFF_ID,
+    });
+
+    expect(() =>
+      resource.update(
+        resource.name,
+        ResourceType.ROOM,
+        STAFF_ID,
+        resource.workingHours,
+        resource.turnoverMinutes,
+        resource.maxCapacity,
+        FULL_WEEK_BUSINESS_HOURS,
+      ),
+    ).toThrow(ResourceTypeRefIdMismatchError);
+  });
+
+  it('rejects changing type to LOCATION', () => {
+    // update()'s own LOCATION guard covers both directions uniformly — this is a different
+    // call path from CreateResourceUseCase's explicit ResourceTypeNotCreatableError check,
+    // which never runs during an update.
+    const resource = Resource.create({
+      tenantId: TENANT_ID,
+      type: ResourceType.ROOM,
+      name: 'Estúdio 1',
+      tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+    });
+
+    expect(() =>
+      resource.update(
+        resource.name,
+        ResourceType.LOCATION,
+        null,
+        resource.workingHours,
+        resource.turnoverMinutes,
+        resource.maxCapacity,
+        FULL_WEEK_BUSINESS_HOURS,
+      ),
+    ).toThrow(ResourceLocationTypeImmutableError);
+  });
+
+  it('rejects changing a LOCATION resource away from type=LOCATION', () => {
+    const location = Resource.create({
+      tenantId: TENANT_ID,
+      type: ResourceType.LOCATION,
+      name: 'Lava Car BH (unidade única)',
+      tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+    });
+
+    expect(() =>
+      location.update(
+        location.name,
+        ResourceType.ROOM,
+        null,
+        location.workingHours,
+        location.turnoverMinutes,
+        location.maxCapacity,
+        FULL_WEEK_BUSINESS_HOURS,
+      ),
+    ).toThrow(ResourceLocationTypeImmutableError);
+    expect(location.type).toBe(ResourceType.LOCATION);
+  });
+
+  it('allows updating a LOCATION resource’s other fields when type is not changing', () => {
+    const location = Resource.create({
+      tenantId: TENANT_ID,
+      type: ResourceType.LOCATION,
+      name: 'Lava Car BH (unidade única)',
+      tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+    });
+
+    location.update(
+      'Lava Car BH — Unidade Centro',
+      ResourceType.LOCATION,
+      null,
+      location.workingHours,
+      location.turnoverMinutes,
+      location.maxCapacity,
+      FULL_WEEK_BUSINESS_HOURS,
+    );
+
+    expect(location.name).toBe('Lava Car BH — Unidade Centro');
   });
 });
 
