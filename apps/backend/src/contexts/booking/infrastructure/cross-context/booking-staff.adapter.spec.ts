@@ -52,4 +52,11 @@ describe('BookingStaffAdapter', () => {
 
     expect(result).toBeNull();
   });
+
+  it('propagates an unexpected error instead of masking it as not-found', async () => {
+    const dbError = new Error('connection reset');
+    getStaffById.execute.mockRejectedValue(dbError);
+
+    await expect(adapter.findActiveById(STAFF_ID, TENANT_ID)).rejects.toBe(dbError);
+  });
 });

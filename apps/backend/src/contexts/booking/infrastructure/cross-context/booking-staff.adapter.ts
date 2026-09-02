@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { GetStaffByIdUseCase } from '../../../staff/application/use-cases/get-staff-by-id.use-case';
+import { StaffNotFoundError } from '../../../staff/domain/errors/staff-domain.error';
 import {
   BookingStaffProfileDto,
   IBookingStaffPort,
@@ -17,8 +18,13 @@ export class BookingStaffAdapter implements IBookingStaffPort {
       const staff = await this.getStaffById.execute({ staffId, tenantId });
       if (!staff.isActive) return null;
       return { id: staff.id, isActive: staff.isActive };
-    } catch {
-      return null;
+    } catch (err) {
+      // Only the expected not-found outcome collapses to null (a genuine "no such staff
+      // member" answer). A transient DB/infra failure must propagate for retry/500
+      // diagnosis, not silently masquerade as ResourceStaffNotFoundError (Codex round-3
+      // finding, PR #457).
+      if (err instanceof StaffNotFoundError) return null;
+      throw err;
     }
   }
 }
