@@ -1,3 +1,4 @@
+import type { HotsiteModuleType } from '@ikaro/validation';
 import { HexColor } from '../../../shared/value-objects/hex-color.vo';
 import { SeoTitle } from '../../../shared/value-objects/seo-title.vo';
 import { SeoDescription } from '../../../shared/value-objects/seo-description.vo';
@@ -9,17 +10,12 @@ import { SeoDescription } from '../../../shared/value-objects/seo-description.vo
 // via `export *` in hotsite-config.aggregate.ts so every existing import of these names keeps
 // resolving from that same path unchanged.
 
-export type HotsiteModuleType =
-  | 'HERO'
-  | 'SERVICE_LIST'
-  | 'GALLERY'
-  | 'TESTIMONIALS'
-  | 'BOOKING_CTA'
-  | 'ABOUT'
-  | 'CONTACT'
-  | 'FOOTER'
-  | 'CHATBOT'
-  | 'LEAD_FORM';
+// HotsiteModuleType itself is no longer declared here (TD37-S21) — @ikaro/validation's
+// HOTSITE_MODULE_TYPES tuple (packages/validation/src/hotsite.ts) is now the single canonical
+// source; this type-only import is erased at compile time, adding no runtime framework dependency
+// to the domain layer. Re-exported below so every existing `import { HotsiteModuleType } from
+// './hotsite-config.aggregate'` call site keeps resolving unchanged.
+export type { HotsiteModuleType };
 
 // Shared by HeroModuleData/BookingCtaModuleData's backgroundImagePosition, contentPositionX, and
 // contentPositionY fields — SonarCloud (S4323) flags a union type repeated verbatim across
