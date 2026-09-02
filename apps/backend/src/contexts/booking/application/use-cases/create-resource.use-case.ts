@@ -58,6 +58,13 @@ export class CreateResourceUseCase {
       throw new ResourceTypeNotCreatableError();
     }
 
+    // Known, accepted race: if the target staff member is deactivated in the narrow window
+    // between this check and the save below, CascadeStaffDeactivationUseCase's StaffDeactivated
+    // handler runs first, finds no wrapping Resource yet, and no-ops — nothing then corrects the
+    // resource this call is about to create as active. Closing this fully would need new
+    // cross-context machinery (a saga, a post-save re-check) for a same-sub-second collision
+    // between two independent admin actions on the same staff member; accepted as a documented
+    // limitation rather than built out (Codex round-6 finding, PR #457).
     if (type === ResourceType.STAFF && refId) {
       await this.assertStaffWrappable(refId, tenantId);
     }
