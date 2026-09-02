@@ -93,6 +93,30 @@ describe('Resource.create()', () => {
     expect(resource.maxCapacity).toBe(12);
   });
 
+  it('rejects maxCapacity set for type=STAFF', () => {
+    expect(() =>
+      Resource.create({
+        tenantId: TENANT_ID,
+        type: ResourceType.STAFF,
+        name: 'Camila Duarte',
+        tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+        refId: STAFF_ID,
+        maxCapacity: 1,
+      }),
+    ).toThrow(ResourceMaxCapacityInvalidError);
+  });
+
+  it('accepts a STAFF resource with no maxCapacity', () => {
+    const resource = Resource.create({
+      tenantId: TENANT_ID,
+      type: ResourceType.STAFF,
+      name: 'Camila Duarte',
+      tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+      refId: STAFF_ID,
+    });
+    expect(resource.maxCapacity).toBeNull();
+  });
+
   it('rejects a workingHours window outside the tenant business hours', () => {
     expect(() =>
       Resource.create({
@@ -161,6 +185,60 @@ describe('Resource.create()', () => {
         tenantBusinessHours: EMPTY_BUSINESS_HOURS,
       }),
     ).toThrow(ResourceNoWorkingHoursError);
+  });
+
+  it('rejects an explicit all-null-day workingHours object when tenant also has none', () => {
+    // A non-null object with every day set to null is a different value from `workingHours:
+    // null` but represents the same unschedulable state — assertWorkingHoursSubsetOfTenant()
+    // treats it as a no-op (nothing to validate), so it must not silently bypass this rule
+    // (Codex round-5 finding, PR #457).
+    expect(() =>
+      Resource.create({
+        tenantId: TENANT_ID,
+        type: ResourceType.ROOM,
+        name: 'Estúdio 1',
+        tenantBusinessHours: EMPTY_BUSINESS_HOURS,
+        workingHours: {
+          monday: null,
+          tuesday: null,
+          wednesday: null,
+          thursday: null,
+          friday: null,
+          saturday: null,
+          sunday: null,
+        },
+      }),
+    ).toThrow(ResourceNoWorkingHoursError);
+  });
+
+  it('accepts an all-null-day workingHours object when the tenant has its own hours', () => {
+    // Not the bug — an explicit all-closed override is only unschedulable when the tenant
+    // has nothing to fall back on either; here the tenant hours make it a deliberate (if
+    // unusual) fully-closed override, not an unschedulable resource.
+    const resource = Resource.create({
+      tenantId: TENANT_ID,
+      type: ResourceType.ROOM,
+      name: 'Estúdio 1',
+      tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+      workingHours: {
+        monday: null,
+        tuesday: null,
+        wednesday: null,
+        thursday: null,
+        friday: null,
+        saturday: null,
+        sunday: null,
+      },
+    });
+    expect(resource.workingHours).toEqual({
+      monday: null,
+      tuesday: null,
+      wednesday: null,
+      thursday: null,
+      friday: null,
+      saturday: null,
+      sunday: null,
+    });
   });
 
   it('does not expose the caller-owned workingHours object by reference', () => {
@@ -323,6 +401,40 @@ describe('Resource.updateWorkingHours()', () => {
       ResourceNoWorkingHoursError,
     );
     // Rejected update must not have mutated the existing, valid working hours.
+    expect(resource.workingHours?.monday).toEqual({ open: '10:00', close: '16:00' });
+  });
+
+  it('rejects updating to an explicit all-null-day workingHours object when the tenant also has none', () => {
+    const resource = Resource.create({
+      tenantId: TENANT_ID,
+      type: ResourceType.ROOM,
+      name: 'Estúdio 1',
+      tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+      workingHours: {
+        monday: { open: '10:00', close: '16:00' },
+        tuesday: null,
+        wednesday: null,
+        thursday: null,
+        friday: null,
+        saturday: null,
+        sunday: null,
+      },
+    });
+
+    expect(() =>
+      resource.updateWorkingHours(
+        {
+          monday: null,
+          tuesday: null,
+          wednesday: null,
+          thursday: null,
+          friday: null,
+          saturday: null,
+          sunday: null,
+        },
+        EMPTY_BUSINESS_HOURS,
+      ),
+    ).toThrow(ResourceNoWorkingHoursError);
     expect(resource.workingHours?.monday).toEqual({ open: '10:00', close: '16:00' });
   });
 });

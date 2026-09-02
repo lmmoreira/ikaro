@@ -41,7 +41,10 @@ export const CreateResourceSchema = z
   .object({
     type: ResourceTypeSchema,
     refId: z.uuid().optional(),
-    name: z.string().min(1),
+    // Matches booking.resources.name's VARCHAR(255) column (docs/13-DATABASE_SCHEMA.md) — without
+    // this, oversized input reaches persistence and can surface as a raw DB error instead of a
+    // clean validation response (Codex round-5 finding, PR #457).
+    name: z.string().min(1).max(255),
     workingHours: WorkingHoursSchema.nullable().optional(),
     turnoverMinutes: z.number().int().min(0).optional(),
     maxCapacity: z.number().int().positive().nullable().optional(),

@@ -106,13 +106,23 @@ describe('ResourceController (component)', () => {
       expect(res.status).toBe(403);
     });
 
-    it('returns 400 for type=LOCATION (Zod)', async () => {
+    it('forwards type=LOCATION to the backend and propagates its 422 (domain-level rejection, not a BFF-level Zod one)', async () => {
+      // LOCATION is a valid ResourceTypeSchema member — "never manually created" is a
+      // domain rule (ResourceTypeNotCreatableError -> 422), not a BFF transport-level 400
+      // (docs/14-API_CONTRACTS.md § Resource Management, Codex round-4 finding PR #457).
       setupActiveGuardMock(httpService);
+      backendHttpService.post.mockRejectedValueOnce(new HttpException('Unprocessable Entity', 422));
+
       const res = await request(app.getHttpServer())
         .post('/v1/resources')
         .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
         .send({ type: 'LOCATION', name: 'Unidade Única' });
-      expect(res.status).toBe(400);
+
+      expect(res.status).toBe(422);
+      expect(backendHttpService.post).toHaveBeenCalledWith('/resources', {
+        type: 'LOCATION',
+        name: 'Unidade Única',
+      });
     });
 
     it('returns 400 when name is missing (Zod)', async () => {

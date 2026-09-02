@@ -46,12 +46,12 @@ export class ResourceNoWorkingHoursError extends BookingDomainError {
 }
 
 export class ResourceMaxCapacityInvalidError extends BookingDomainError {
-  constructor() {
-    super(
-      'maxCapacity must be greater than 0 when set',
-      BookingErrorCode.RESOURCE_MAX_CAPACITY_INVALID,
-      'maxCapacity',
-    );
+  constructor(reason: 'must-be-positive' | 'must-be-null-for-staff' = 'must-be-positive') {
+    const message =
+      reason === 'must-be-null-for-staff'
+        ? 'maxCapacity must not be set for STAFF resources'
+        : 'maxCapacity must be greater than 0 when set';
+    super(message, BookingErrorCode.RESOURCE_MAX_CAPACITY_INVALID, 'maxCapacity');
     this.name = 'ResourceMaxCapacityInvalidError';
   }
 }

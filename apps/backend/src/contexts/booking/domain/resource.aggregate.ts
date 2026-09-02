@@ -120,12 +120,11 @@ export class Resource extends AggregateRoot {
   ): void {
     if (workingHours !== null) {
       Resource.assertWorkingHoursSubsetOfTenant(workingHours, tenantBusinessHours);
-    } else if (Resource.isEmptyHours(tenantBusinessHours)) {
-      // Mirrors Resource.create()'s own ResourceNoWorkingHoursError check (UC-045 A2) — an
-      // existing resource must not be allowed to drift into the same unschedulable state
-      // create() already rejects (Codex/CodeRabbit finding, PR #457 round 1).
-      throw new ResourceNoWorkingHoursError();
     }
+    // Mirrors Resource.create()'s own ResourceNoWorkingHoursError check (UC-045 A2) — an
+    // existing resource must not be allowed to drift into the same unschedulable state
+    // create() already rejects (Codex/CodeRabbit finding, PR #457 round 1).
+    Resource.assertHasSomeSchedule(workingHours, tenantBusinessHours);
     this.props.workingHours = Resource.cloneWorkingHours(workingHours);
     this.props.updatedAt = new Date();
   }
@@ -152,14 +151,19 @@ export class Resource extends AggregateRoot {
     if ((type === ResourceType.STAFF) !== hasRefId) {
       throw new ResourceTypeRefIdMismatchError();
     }
+    // maxCapacity is a physical ceiling for LOCATION/ROOM/EQUIPMENT only — never set for
+    // STAFF (docs/02-DOMAIN_MODEL.md § Resource, docs/13-DATABASE_SCHEMA.md § booking.resources,
+    // Codex round-5 finding, PR #457).
+    if (type === ResourceType.STAFF && maxCapacity !== null) {
+      throw new ResourceMaxCapacityInvalidError('must-be-null-for-staff');
+    }
     if (maxCapacity !== null && maxCapacity <= 0) {
       throw new ResourceMaxCapacityInvalidError();
     }
     if (workingHours !== null) {
       Resource.assertWorkingHoursSubsetOfTenant(workingHours, tenantBusinessHours);
-    } else if (Resource.isEmptyHours(tenantBusinessHours)) {
-      throw new ResourceNoWorkingHoursError();
     }
+    Resource.assertHasSomeSchedule(workingHours, tenantBusinessHours);
   }
 
   private static assertWorkingHoursSubsetOfTenant(
@@ -188,6 +192,21 @@ export class Resource extends AggregateRoot {
   // keys plus an extra `timezone` field, which is fine for a non-literal argument).
   private static isEmptyHours(hours: ResourceWorkingHours): boolean {
     return DAYS_OF_WEEK.every((day) => hours[day] === null);
+  }
+
+  // A non-null workingHours object with every day set to null (e.g. every DayHours explicitly
+  // closed) is not the same value as `workingHours === null`, but represents the identical
+  // unschedulable state — assertWorkingHoursSubsetOfTenant() is a silent no-op for it (nothing
+  // to validate against tenant hours), so without this check it bypassed the "no resource hours
+  // and no tenant hours either" rule entirely (Codex round-5 finding, PR #457).
+  private static assertHasSomeSchedule(
+    workingHours: ResourceWorkingHours | null,
+    tenantBusinessHours: BusinessHours,
+  ): void {
+    const resourceHasNoHours = workingHours === null || Resource.isEmptyHours(workingHours);
+    if (resourceHasNoHours && Resource.isEmptyHours(tenantBusinessHours)) {
+      throw new ResourceNoWorkingHoursError();
+    }
   }
 
   // A shallow `{ ...workingHours }` only copies the top-level 7 day keys — each day's
