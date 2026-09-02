@@ -655,7 +655,7 @@ Returns:
   2. Admin changes any combination of `name`, `type`, `refId`, `workingHours`, `turnoverMinutes`, `maxCapacity`.
   3. System validates the fully-resolved (current + changed) state exactly as it would at creation — `STAFF`⟺`refId` pairing, `maxCapacity` rules (`>0` when set, never set for `STAFF`), working-hours subset of tenant hours — and saves.
 - **Alternative Flows:**
-  - **A1: Existing approved appointments now fall outside the new hours** → System warns before saving; does not auto-cancel existing bookings.
+  - **A1: Existing approved appointments now fall outside the new hours** → System warns before saving; does not auto-cancel existing bookings. **Not reachable in M21-S01** — no `Service`/`Booking` references a `Resource` yet (`Service.resourceRequirements` is Cluster 2 work), so no approved appointment can exist to fall outside anything; `PATCH` saves directly with no impact check until Cluster 2 makes an appointment-to-resource reference possible (mirrors UC-047 step 1's identical "empty for a Cluster-1-only tenant" deferral).
   - **A2: Resource not found or belongs to another tenant** → `404 Not Found`.
   - **A3: `type` is changing to or from `LOCATION`** → `409 Conflict` — a tenant's `LOCATION` resource can never change type, and no other resource can become `LOCATION` (both are backfill-only, same invariant `DELETE` already enforces — UC-047).
   - **A4: `type` is changing to `STAFF`** → System re-runs UC-045's own staff-wrap validation (staff exists, active, not already wrapped by a *different* resource) against the new `refId`; re-saving the same `refId` this resource already holds is not a conflict.

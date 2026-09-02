@@ -902,7 +902,7 @@ Auth: JWT + `MANAGER` only on every endpoint — a deliberate, self-consistent r
   - `409` if `type = STAFF` and that staff member is already wrapped by a `Resource` (A1)
   - `422` if `type = LOCATION` — never manually created, only the M21-S02 backfill migration creates it
   - `422` if no working hours are set and the tenant has no `businessHours` either (A2)
-- `PATCH /resources/:id` → edit a resource (UC-046). Body: every field independently optional (unsent = unchanged) — `{ "name"?, "type"?, "refId"?: "uuid" | null, "workingHours"?: { ... } | null, "turnoverMinutes"?, "maxCapacity"?: number | null }`. An empty body `{}` is valid and changes nothing.
+- `PATCH /resources/:id` → edit a resource (UC-046). Body: every field independently optional (unsent = unchanged) — `{ "name"?, "type"?, "refId"?: "uuid" | null, "workingHours"?: { ... } | null, "turnoverMinutes"?, "maxCapacity"?: number | null }`. An empty body `{}` is valid and changes nothing. **UC-046 A1's "warn before saving hours that put existing appointments outside them" is not implemented in M21-S01 and saves directly** — no `Service`/`Booking` references a `Resource` yet (Cluster 2's `resourceRequirements` wiring), so no appointment can exist to check against; same Cluster-1-scope deferral as UC-047's own "empty worklist for a Cluster-1-only tenant" (`docs/04-USE_CASES.md`).
   - `200` on success
   - `404` if not found, belongs to another tenant, or (when `type` is changing to `STAFF`) the target staff member is not found/inactive (mirrors `POST /resources`' A1 staff-lookup semantics — UC-045)
   - `409` if `type = STAFF` and the target staff member is already wrapped by a *different* `Resource` — re-saving the same `refId` this resource already holds is not a conflict
