@@ -140,9 +140,15 @@ Create the `Resource` aggregate in `apps/backend/src/contexts/booking/domain/res
 **Description:**
 A pure-data migration (no schema change — S01's migration already created the table) that inserts one active `LOCATION` resource per existing tenant: `{ type: 'LOCATION', refId: null, name: '<tenant.name> (unidade única)', workingHours: null (inherits tenant hours), turnoverMinutes: 0, maxCapacity: null, isActive: true }`. Idempotent — safe to re-run (skip a tenant that already has an active `LOCATION` row, so this migration can be re-applied without violating the `UNIQUE (tenant_id) WHERE type='LOCATION' AND is_active` constraint). Runs as a normal migration in the same CI job as every other migration (`CLAUDE.md` §1 — "migrations via separate CI job, never auto at startup"), not a one-off script.
 
+**Locked in during story discovery (2026-09-02):**
+- Backfill applies to **every** tenant regardless of `is_active` — no active-only filter.
+- A tenant created *after* this migration deploys (before M22+/UC-075 wires tenant bootstrap into Booking) will have zero resources until then — confirmed accepted as out of scope for this story/milestone.
+- **Test strategy:** `backfill-location-resources.integration.spec.ts` uses `createBookingIntegrationApp()` (already registers both `TenantEntity` and `ResourceEntity` against the shared test DataSource) — seed N tenants via `TenantEntityBuilder`/direct entity save, invoke the migration's exported `up(queryRunner)` directly via `ds.createQueryRunner()` (not `dataSource.runMigrations()`, since the global integration setup already runs every migration up front against an empty `tenants` table), assert resulting `ResourceEntity` rows, then call `up()` again to verify idempotency. Supplement with a manual run against the local docker-compose dev DB to sanity-check against real current tenant data before opening the PR — not a CI-enforced step.
+- **`down()`:** unconditionally `DELETE FROM booking.resources WHERE type = 'LOCATION'` — every `LOCATION` row can only ever originate from this migration (S01's use cases reject `POST`/type-change to `LOCATION`), so no per-tenant-history qualifier is needed.
+
 **Files to create/modify:**
-- `apps/backend/src/contexts/booking/infrastructure/migrations/<timestamp>-BackfillLocationResources.ts` (new — data migration, `up()` inserts, `down()` deletes only the rows it created, identifiable by `type='LOCATION' AND ref_id IS NULL` for tenants that had zero resources before this migration ran)
-- `apps/backend/src/contexts/booking/infrastructure/migrations/backfill-location-resources.spec.ts` (new — or co-located test per this repo's migration-testing convention; verify the exact convention against a recent data-migration precedent before writing, e.g. `td/TD*` migrations that did a similar backfill)
+- `apps/backend/src/contexts/booking/infrastructure/migrations/1748500000008-BackfillLocationResources.ts` (new — data migration, `up()` inserts, `down()` unconditionally deletes every `type='LOCATION'` row — see locked-in decision above)
+- `apps/backend/src/contexts/booking/infrastructure/migrations/backfill-location-resources.integration.spec.ts` (new — `createBookingIntegrationApp()`-based integration test invoking the migration's `up(queryRunner)` directly — see Test strategy above)
 
 **Acceptance criteria — product:**
 - [ ] Every tenant that existed before this migration ran has exactly one active `LOCATION` resource after it.
@@ -151,7 +157,7 @@ A pure-data migration (no schema change — S01's migration already created the 
 **Acceptance criteria — technical:**
 - Unit: none — this is a data migration, not application logic.
 - Integration:
-  - [ ] Migration test seeds N tenants (including one with zero resources and, defensively, one that somehow already has an active `LOCATION` row) and asserts exactly one active `LOCATION` resource exists per tenant after running, and that re-running the migration is a no-op (idempotency)
+  - [ ] Migration test seeds N tenants (including one with zero resources and, defensively, one that somehow already has an active `LOCATION` row) via `TenantEntityBuilder`, invokes the migration's `up(queryRunner)` directly, and asserts exactly one active `LOCATION` resource exists per tenant after running, and that re-running `up()` is a no-op (idempotency)
 - Tenant isolation:
   - [ ] Each backfilled `LOCATION` resource's `tenant_id` matches the tenant it was generated for — no cross-tenant row
 - E2E: none — covered by the migration integration test
