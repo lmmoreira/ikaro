@@ -212,7 +212,7 @@ X-Actor-Role: STAFF
 
 ###
 
-### 400 — LOCATION type rejected (Zod schema excludes it; backfill-only, S02)
+### 422 — LOCATION type rejected (domain-level: never manually created, backfill-only, S02)
 POST {{baseUrl}}/resources
 Content-Type: application/json
 X-Tenant-ID: {{tenantId}}

@@ -130,7 +130,7 @@ Authorization: Bearer {{staffToken}}
 
 ###
 
-### 400 — LOCATION type rejected (Zod schema excludes it; backfill-only, S02)
+### 422 — LOCATION type rejected (domain-level: never manually created, backfill-only, S02)
 POST {{bffUrl}}/v1/resources
 Content-Type: application/json
 Authorization: Bearer {{managerToken}}

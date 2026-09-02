@@ -21,8 +21,8 @@ flowchart TD
     CreateCall -->|"409 já vinculado / 422 sem horário"| CreateErr["❓ GAP: mesma rota, erro<br/>(02b-criar-recurso-erro)"]
     CreateErr --> Create
 
-    List -->|"Clica um recurso"| EditHours["❓ GAP: .../resources/:id<br/>Editar horários (UC-046)"]
-    EditHours -->|"Salva"| EditCall(("PATCH /v1/resources/:id"))
+    List -->|"Clica um recurso"| EditResource["❓ GAP: .../resources/:id<br/>Editar recurso (UC-046)"]
+    EditResource -->|"Salva"| EditCall(("PATCH /v1/resources/:id"))
     EditCall --> List
 
     List -->|"Desativar"| Deactivate["❓ GAP: confirmação<br/>(UC-047)"]
@@ -45,7 +45,7 @@ flowchart TD
 |---|---|---|---|
 | `/dashboard/resources` | `ResourceListPage` | — | ❓ GAP |
 | `/dashboard/resources/new` | `ResourceCreateForm` | — | ❓ GAP |
-| `/dashboard/resources/:id` | `ResourceEditForm` (working hours only — type/name are immutable after creation) | — | ❓ GAP |
+| `/dashboard/resources/:id` | `ResourceEditForm` (every field editable — name, type, refId, working hours, turnover, capacity — broadened from working-hours-only in PR #457 round 9+) | — | ❓ GAP |
 
 ## BFF calls in this flow
 
@@ -53,7 +53,7 @@ flowchart TD
 |---|---|---|
 | `GET /v1/resources?type=&isActive=` | Lista de recursos — page load (UC-044) | MANAGER |
 | `POST /v1/resources` | Criar recurso (UC-045) | MANAGER |
-| `PATCH /v1/resources/:id` | Editar horários (UC-046) | MANAGER |
+| `PATCH /v1/resources/:id` | Editar recurso (UC-046) — every field independently optional | MANAGER |
 | `DELETE /v1/resources/:id` | Desativar (UC-047) | MANAGER |
 | `POST /v1/resources/:id/reactivate` | Reativar (UC-049) | MANAGER |
 

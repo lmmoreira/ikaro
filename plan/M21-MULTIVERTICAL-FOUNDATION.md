@@ -259,7 +259,7 @@ Working-hours edit (UC-046), deactivate confirmation (UC-047), and reactivate co
 - `apps/web/features/booking/components/dashboard/resources/ResourceEditForm.tsx` (+ `.spec.tsx`) (new)
 - `apps/web/features/booking/components/dashboard/resources/ResourceDeactivateConfirm.tsx` (+ `.spec.tsx`) (new)
 - `apps/web/features/booking/components/dashboard/resources/ResourceReactivateConfirm.tsx` (+ `.spec.tsx`) (new)
-- `apps/web/features/booking/api/resources.ts` (new — `bffClient`-based React Query hooks: `useResources`, `useCreateResource`, `useUpdateResourceWorkingHours`, `useDeactivateResource`, `useReactivateResource`)
+- `apps/web/features/booking/api/resources.ts` (new — `bffClient`-based React Query hooks: `useResources`, `useCreateResource`, `useUpdateResource` (renamed from `useUpdateResourceWorkingHours` — PATCH now edits every field, PR #457 round 9+), `useDeactivateResource`, `useReactivateResource`)
 - `apps/web/features/booking/types/resource.ts` (new — grep `@ikaro/types` first per `CLAUDE.md` §8's anti-pattern table; verify against the live BFF schema before inventing a duplicate shape)
 - `apps/web/shells/dashboard/components/Sidebar.tsx` (modify — add "Recursos" to `MANAGER_NAV_KEYS`)
 - `apps/web/shells/dashboard/components/BottomNav.tsx` (modify, if Resources needs a bottom-nav/MoreSheet entry on mobile — verify against `MoreSheet.tsx`'s existing MANAGER-item pattern at implementation time)

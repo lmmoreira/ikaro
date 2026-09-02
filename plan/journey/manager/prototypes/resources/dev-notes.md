@@ -13,7 +13,7 @@ Dashboard section for creating and managing the tenant's `Resource` rows (`LOCAT
 | `apps/web/app/dashboard/resources/[id]/page.tsx` | ❓ Gap |
 | `apps/web/features/booking/components/dashboard/resources/ResourceListPage.tsx` | ❓ Gap |
 | `apps/web/features/booking/components/dashboard/resources/ResourceCreateForm.tsx` | ❓ Gap |
-| `apps/web/features/booking/components/dashboard/resources/ResourceEditForm.tsx` | ❓ Gap (working hours only — type/name/refId are immutable after creation) |
+| `apps/web/features/booking/components/dashboard/resources/ResourceEditForm.tsx` | ❓ Gap (every field editable — name, type, refId, working hours, turnover, capacity — broadened from working-hours-only in PR #457 round 9+) |
 | `apps/bff/http/resources/*.http` | ❓ Gap |
 
 ## BFF calls (endpoints not yet implemented — contract per `docs/14-API_CONTRACTS.md`)

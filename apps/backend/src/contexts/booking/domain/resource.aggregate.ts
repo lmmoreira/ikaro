@@ -242,8 +242,8 @@ export class Resource extends AggregateRoot {
   // A shallow `{ ...workingHours }` only copies the top-level 7 day keys — each day's
   // `{ open, close }` sub-object stays shared by reference with the caller (on write) or the
   // stored props (on read), letting a caller mutate `resource.workingHours.monday.open` and
-  // silently corrupt validated state without going through updateWorkingHours() (Codex round-4
-  // finding, PR #457). Clone every level.
+  // silently corrupt validated state without going through update() (Codex round-4 finding,
+  // PR #457). Clone every level.
   private static cloneWorkingHours(
     workingHours: ResourceWorkingHours | null,
   ): ResourceWorkingHours | null {
