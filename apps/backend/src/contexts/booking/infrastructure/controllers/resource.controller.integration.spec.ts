@@ -82,7 +82,10 @@ describe('ResourceController (integration)', () => {
 
   describe('GET /resources/:id', () => {
     it('returns the resource', async () => {
-      const entity = new ResourceEntityBuilder().withTenantId(TENANT_A).withName('Estúdio 1').build();
+      const entity = new ResourceEntityBuilder()
+        .withTenantId(TENANT_A)
+        .withName('Estúdio 1')
+        .build();
       await ds.getRepository(ResourceEntity).save(entity);
 
       const { body } = await request(app.getHttpServer())

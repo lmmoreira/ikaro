@@ -67,9 +67,7 @@ export class ResourceController {
   }
 
   @Get(':id')
-  getOne(
-    @Param('id', CanonicalParseUUIDPipe) id: string,
-  ): Promise<GetResourceByIdUseCaseResult> {
+  getOne(@Param('id', CanonicalParseUUIDPipe) id: string): Promise<GetResourceByIdUseCaseResult> {
     const { tenantId } = this.ctx;
     return this.getResourceById.execute({ id, tenantId }).catch(mapBookingError);
   }

@@ -15,7 +15,10 @@ describe('GetResourceByIdUseCase', () => {
   });
 
   it('returns the resource when it exists', async () => {
-    const resource = new ResourceBuilder().withTenantId(TENANT_ID).withName('Camila Duarte').build();
+    const resource = new ResourceBuilder()
+      .withTenantId(TENANT_ID)
+      .withName('Camila Duarte')
+      .build();
     await repo.save(resource);
 
     const result = await useCase.execute({ id: resource.id, tenantId: TENANT_ID });
