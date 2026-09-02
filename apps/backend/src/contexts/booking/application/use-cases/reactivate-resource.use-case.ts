@@ -37,6 +37,13 @@ export class ReactivateResourceUseCase {
     // cascade deactivates the wrapper when Staff is deactivated, and reactivating the resource
     // alone (without the Staff row also being active again) would silently make an inactive
     // staff member schedulable again (Codex round-7 finding, PR #457).
+    //
+    // Same known, accepted race as CreateResourceUseCase's identical check (see its own comment):
+    // if the Staff row is deactivated in the narrow window between this check and the save
+    // below, StaffDeactivated's cascade handler runs first, finds the resource still inactive
+    // (this reactivation hasn't committed yet), no-ops, and this call then persists it as
+    // active anyway. Same product decision applies here — documented as an accepted limitation
+    // rather than built out with new cross-context machinery (Codex round-8 finding, PR #457).
     if (resource.type === ResourceType.STAFF && resource.refId) {
       const staff = await this.staffPort.findActiveById(resource.refId, input.tenantId);
       if (!staff) throw new ResourceStaffNotFoundError(resource.refId);
