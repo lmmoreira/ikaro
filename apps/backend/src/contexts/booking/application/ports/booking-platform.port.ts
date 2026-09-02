@@ -1,8 +1,15 @@
+import type { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
+
 export const BOOKING_PLATFORM_PORT = Symbol('IBookingPlatformPort');
 
 export interface ActiveTenantInfo {
   id: string;
   timezone: string;
+}
+
+export interface TenantBusinessHoursAndLocale {
+  businessHours: BusinessHours;
+  locale: string;
 }
 
 export interface IBookingPlatformPort {
@@ -11,4 +18,8 @@ export interface IBookingPlatformPort {
   // create/update/activate/deactivate commits, so the public booking page's cached services
   // list doesn't wait out the full ISR window to reflect the change.
   revalidatePublicPages(tenantId: string): Promise<void>;
+  // M21-S02 part 2: used by CreateTenantLocationResourceUseCase to build the tenant's default
+  // LOCATION resource at provisioning time — business hours for Resource.create()'s invariant,
+  // locale for the default name ("Localização Principal" / "Main Location").
+  getBusinessHoursAndLocale(tenantId: string): Promise<TenantBusinessHoursAndLocale>;
 }

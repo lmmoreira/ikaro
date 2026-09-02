@@ -13,6 +13,7 @@ import { BookingLineEntity } from '../../../booking/infrastructure/entities/book
 import { ServiceEntity } from '../../../booking/infrastructure/entities/service.entity';
 import { ScheduleClosureEntity } from '../../../booking/infrastructure/entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from '../../../booking/infrastructure/entities/schedule-opening.entity';
+import { ResourceEntity } from '../../../booking/infrastructure/entities/resource.entity';
 import { BookingModule } from '../../../booking/booking.module';
 import { CustomerEntity } from '../../../customer/infrastructure/entities/customer.entity';
 import { NotificationLogEntity } from '../entities/notification-log.entity';
@@ -26,6 +27,9 @@ import { ServicePointsEarned } from '../../../loyalty/domain/events/service-poin
 
 const PLATFORM_KEY = 'full-workflow-notif-key-xxxxxxxxxx';
 
+// M21-S02: ResourceEntity is required even though this test doesn't touch resources directly —
+// POST /internal/tenants below drives BookingModule's TenantProvisionedHandler, which always
+// queries booking.resources on every TenantProvisioned event.
 const BOOKING_ENTITIES = [
   BookingEntity,
   BookingLineEntity,
@@ -33,6 +37,7 @@ const BOOKING_ENTITIES = [
   ScheduleClosureEntity,
   ScheduleOpeningEntity,
   CustomerEntity,
+  ResourceEntity,
 ] as const;
 
 const LOYALTY_ENTITIES = [

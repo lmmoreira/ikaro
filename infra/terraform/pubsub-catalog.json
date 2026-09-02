@@ -98,6 +98,7 @@
   {
     "event": "TenantProvisioned",
     "consumers": [
+      "booking",
       "notification-template-seed",
       "staff"
     ]

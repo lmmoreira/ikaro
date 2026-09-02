@@ -7,7 +7,7 @@ import { uuidv7 } from '../../../shared/domain/uuid-v7';
 
 export class TenantEntityBuilder {
   private id = uuidv7();
-  private readonly name = 'BeloAuto';
+  private name = 'BeloAuto';
   private slug = 'beloauto';
   private isActive = true;
   private settings: TenantSettingsProps = TenantSettings.default().toJSON();
@@ -16,6 +16,11 @@ export class TenantEntityBuilder {
 
   withId(id: string): this {
     this.id = id;
+    return this;
+  }
+
+  withName(name: string): this {
+    this.name = name;
     return this;
   }
 

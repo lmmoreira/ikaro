@@ -9,6 +9,7 @@ import { GetTenantsUseCase } from '../../../platform/application/use-cases/get-t
 import {
   ActiveTenantInfo,
   IBookingPlatformPort,
+  TenantBusinessHoursAndLocale,
 } from '../../application/ports/booking-platform.port';
 
 @Injectable()
@@ -42,5 +43,13 @@ export class BookingPlatformAdapter implements IBookingPlatformPort {
       const message = err instanceof Error ? err.message : 'unknown error';
       this.logger.warn(`Hotsite revalidation skipped for tenant '${tenantId}': ${message}`);
     }
+  }
+
+  async getBusinessHoursAndLocale(tenantId: string): Promise<TenantBusinessHoursAndLocale> {
+    const tenant = await this.getTenantById.execute({ tenantId });
+    return {
+      businessHours: tenant.settings.businessHours,
+      locale: tenant.locale,
+    };
   }
 }
