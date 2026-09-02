@@ -500,6 +500,9 @@
       "inheritsTenantHours": "Inherits business hours",
       "deactivate": "Deactivate",
       "activate": "Reactivate",
+      "activating": "Reactivating...",
+      "activateSuccess": "Resource reactivated!",
+      "activateError": "Could not reactivate. Please try again.",
       "viewDetailsAriaLabel": "View details for {name}",
       "createTitle": "New resource",
       "typeLabel": "Resource type",
@@ -536,10 +539,6 @@
       "deactivateWarningReactivate": "Can be reactivated at any time",
       "deactivateConfirm": "Confirm deactivation",
       "deactivateError": "Could not deactivate. Please try again.",
-      "reactivateTitle": "Reactivate resource?",
-      "reactivateSubtitle": "{name} will become available for new bookings again.",
-      "reactivateConfirm": "Confirm reactivation",
-      "reactivateError": "Could not reactivate. Please try again.",
       "errors": {
         "nameRequired": "Enter a name.",
         "staffRequired": "Select a team member."

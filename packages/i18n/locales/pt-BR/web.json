@@ -500,6 +500,9 @@
       "inheritsTenantHours": "Herda do negócio",
       "deactivate": "Desativar",
       "activate": "Reativar",
+      "activating": "Reativando...",
+      "activateSuccess": "Recurso reativado!",
+      "activateError": "Não foi possível reativar. Tente novamente.",
       "viewDetailsAriaLabel": "Ver detalhes de {name}",
       "createTitle": "Novo recurso",
       "typeLabel": "Tipo de recurso",
@@ -536,10 +539,6 @@
       "deactivateWarningReactivate": "Pode ser reativado a qualquer momento",
       "deactivateConfirm": "Confirmar desativação",
       "deactivateError": "Não foi possível desativar. Tente novamente.",
-      "reactivateTitle": "Reativar recurso?",
-      "reactivateSubtitle": "{name} voltará a estar disponível para novos agendamentos.",
-      "reactivateConfirm": "Confirmar reativação",
-      "reactivateError": "Não foi possível reativar. Tente novamente.",
       "errors": {
         "nameRequired": "Informe o nome.",
         "staffRequired": "Selecione um profissional."

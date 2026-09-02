@@ -1,25 +1,32 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useResource } from '@/features/booking/hooks/useResources';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { ResourceDeactivateConfirm } from './ResourceDeactivateConfirm';
-import { ResourceReactivateConfirm } from './ResourceReactivateConfirm';
 
-interface ResourceDeactivateOrReactivateProps {
+interface ResourceDeactivatePageProps {
   readonly resourceId: string;
 }
 
-// One route (/dashboard/resources/:id/deactivate) serves both directions — a manager lands
-// here from either the list's "Desativar" or "Reativar" row action, and this component picks
-// the right confirmation screen from the resource's current state.
-export function ResourceDeactivateOrReactivate({
+// Reactivation has no dedicated screen — it's a one-click row action directly on
+// ResourceListPage (mirrors TeamListPage/MemberRow's own established precedent). This route
+// only ever serves an active resource; redirect away if reached for one that's already
+// inactive (e.g. a stale bookmark, or a race with another tab's own reactivate).
+export function ResourceDeactivatePage({
   resourceId,
-}: ResourceDeactivateOrReactivateProps): React.JSX.Element {
+}: ResourceDeactivatePageProps): React.JSX.Element {
   const commonT = useTranslations('common');
   const locale = useResolvedLocale();
+  const router = useRouter();
   const { data: resource, isLoading, isError, error } = useResource(resourceId);
+
+  useEffect(() => {
+    if (resource && !resource.isActive) router.replace('/dashboard/resources');
+  }, [resource, router]);
 
   if (isError) {
     return (
@@ -32,13 +39,9 @@ export function ResourceDeactivateOrReactivate({
     );
   }
 
-  if (isLoading || !resource) {
+  if (isLoading || !resource || !resource.isActive) {
     return <div className="px-4 py-10 text-center text-sm text-gray-500">{commonT('loading')}</div>;
   }
 
-  return resource.isActive ? (
-    <ResourceDeactivateConfirm resource={resource} />
-  ) : (
-    <ResourceReactivateConfirm resource={resource} />
-  );
+  return <ResourceDeactivateConfirm resource={resource} />;
 }

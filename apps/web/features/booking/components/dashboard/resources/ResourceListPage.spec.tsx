@@ -40,9 +40,11 @@ const RESOURCES: ResourceResponse[] = [
 ];
 
 const useResourcesMock = vi.fn();
+const reactivateMutateAsync = vi.fn();
 
 vi.mock('@/features/booking/hooks/useResources', () => ({
   useResources: () => useResourcesMock(),
+  useReactivateResource: () => ({ mutateAsync: reactivateMutateAsync, isPending: false }),
 }));
 
 describe('ResourceListPage', () => {
@@ -84,11 +86,16 @@ describe('ResourceListPage', () => {
     expect(locationRow!.querySelector('a[href$="/deactivate"]')).toBeNull();
   });
 
-  it('shows a Reativar action for an inactive resource', () => {
+  it('reactivates an inactive resource inline, with no navigation or confirmation screen', async () => {
+    const user = userEvent.setup();
+    reactivateMutateAsync.mockResolvedValue({ id: 'room-1', isActive: true });
     useResourcesMock.mockReturnValue({ data: { items: RESOURCES }, isLoading: false });
     renderWithIntl(<ResourceListPage />);
 
-    expect(screen.getByText('Reativar')).toBeInTheDocument();
+    await user.click(screen.getByTestId('resource-row-reactivate-button'));
+
+    expect(reactivateMutateAsync).toHaveBeenCalledWith('room-1');
+    expect(await screen.findByTestId('resource-row-reactivate-success')).toBeInTheDocument();
   });
 
   it('filters by type using the tabs', async () => {

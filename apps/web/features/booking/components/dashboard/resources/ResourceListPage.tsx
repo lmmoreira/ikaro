@@ -11,25 +11,12 @@ import { Card } from '@/shared/components/ui/card';
 import { cn } from '@/shared/utils/cn';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
+import { ResourceRow, TYPE_LABEL_KEYS } from './ResourceRow';
 
 type ResourceFilter = 'all' | 'LOCATION' | 'STAFF' | 'ROOM' | 'EQUIPMENT';
 type StatusFilter = 'all' | 'active' | 'inactive';
 
 const TYPE_ORDER: Record<ResourceType, number> = { LOCATION: 0, STAFF: 1, ROOM: 2, EQUIPMENT: 3 };
-
-const TYPE_BADGE_CLASSES: Record<ResourceType, string> = {
-  LOCATION: 'bg-sky-50 text-sky-700',
-  STAFF: 'bg-blue-50 text-blue-700',
-  ROOM: 'bg-purple-50 text-purple-700',
-  EQUIPMENT: 'bg-pink-50 text-pink-700',
-};
-
-const TYPE_LABEL_KEYS: Record<ResourceType, string> = {
-  LOCATION: 'typeLocation',
-  STAFF: 'typeStaff',
-  ROOM: 'typeRoom',
-  EQUIPMENT: 'typeEquipment',
-};
 
 // UC-044 lists LOCATION among the filterable types (docs/04-USE_CASES.md) — included here even
 // though a tenant only ever has exactly one, since it's still a valid, literal filter value the
@@ -80,66 +67,6 @@ function groupResourcesByType(
     }
   }
   return groups;
-}
-
-function workingHoursSummary(resource: ResourceResponse, inheritsLabel: string): string {
-  if (!resource.workingHours) return inheritsLabel;
-  const openDays = Object.values(resource.workingHours).filter(Boolean).length;
-  return `${openDays}/7`;
-}
-
-function ResourceRow({ resource }: { readonly resource: ResourceResponse }): React.JSX.Element {
-  const t = useTranslations('dashboard.resourcesPage');
-
-  return (
-    <div className="relative flex flex-wrap items-center gap-3 px-4 py-3.5">
-      <Link
-        href={`/dashboard/resources/${resource.id}`}
-        className="absolute inset-0 z-10"
-        aria-label={t('viewDetailsAriaLabel', { name: resource.name })}
-      />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-gray-900">{resource.name}</p>
-        <p className="truncate text-sm text-gray-500">
-          {workingHoursSummary(resource, t('inheritsTenantHours'))}
-        </p>
-      </div>
-      <span
-        className={cn(
-          'rounded-full px-2.5 py-1 text-xs font-semibold',
-          TYPE_BADGE_CLASSES[resource.type],
-        )}
-      >
-        {t(TYPE_LABEL_KEYS[resource.type])}
-      </span>
-      <span
-        className={cn(
-          'rounded-full px-2.5 py-1 text-xs font-semibold',
-          resource.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700',
-        )}
-      >
-        {resource.isActive ? t('statusActive') : t('statusInactive')}
-      </span>
-      {resource.isActive && resource.type !== 'LOCATION' && (
-        <Link
-          href={`/dashboard/resources/${resource.id}/deactivate`}
-          data-testid="resource-row-deactivate-link"
-          className="relative z-20 text-sm font-semibold text-red-600 hover:underline"
-        >
-          {t('deactivate')}
-        </Link>
-      )}
-      {!resource.isActive && (
-        <Link
-          href={`/dashboard/resources/${resource.id}/deactivate`}
-          data-testid="resource-row-reactivate-link"
-          className="relative z-20 text-sm font-semibold text-blue-600 hover:underline"
-        >
-          {t('activate')}
-        </Link>
-      )}
-    </div>
-  );
 }
 
 export function ResourceListPage(): React.JSX.Element {

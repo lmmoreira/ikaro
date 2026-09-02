@@ -20,7 +20,7 @@ Dashboard section for creating and managing the tenant's `Resource` rows (`LOCAT
 | `01-resources-list.html` | `/dashboard/resources` | `ResourceListPage` |
 | `02-criar-recurso.html` / `02b-criar-recurso-erro.html` | `/dashboard/resources/new` | `ResourceCreateForm` |
 | Not prototyped (built from `SettingsHoursSection.tsx`'s pattern) | `/dashboard/resources/[id]` | `ResourceEditForm` / `ResourceEditFormFields` |
-| Not prototyped (built from `equipe/03-deactivate-confirm.html`'s shape) | `/dashboard/resources/[id]/deactivate` | `ResourceDeactivateOrReactivate` (renders `ResourceDeactivateConfirm` or `ResourceReactivateConfirm` depending on current state) |
+| Not prototyped (built from `equipe/03-deactivate-confirm.html`'s shape) | `/dashboard/resources/[id]/deactivate` | `ResourceDeactivatePage` (deactivate only — redirects away if the resource is already inactive) |
 
 ## BFF calls (all ✅ shipped)
 
@@ -51,7 +51,7 @@ Real interactive type-switcher (`ResourceIdentityFields`) — selecting Sala or 
 |---|---|---|
 | `type` | 3-card selector: Profissional (STAFF) / Sala (ROOM) / Equipamento (EQUIPMENT) | required — `LOCATION` is never manually created |
 | `refId` (STAFF only) | `<Select>` of existing, not-yet-wrapped, active `Staff` rows (currently-selected staff stays visible-but-disabled if since deactivated) | required when `type = STAFF` |
-| `name` (ROOM/EQUIPMENT only; denormalized display name for STAFF too) | `<Input type="text">` | required |
+| `name` | `<Input type="text">` — for STAFF, auto-seeded from the picked staff member's own name but independently editable after (`Resource.name` is denormalized, per `docs/02-DOMAIN_MODEL.md` § Resource) | required for every type |
 | `workingHours` | per-weekday open/close editor (`ResourceWorkingHoursEditor`, shared `WeekDayRow` primitive with the tenant `businessHours` editor) | optional — blank inherits tenant hours; every window must be a subset of the tenant's own hours |
 | `turnoverMinutes` | `<Input type="number">` | optional, default 0, `>= 0` |
 | `maxCapacity` | `<Input type="number">` (hidden for STAFF — discarded on submit even if a stale value exists from a prior type selection) | optional, `> 0` when set |
@@ -64,9 +64,13 @@ Real interactive type-switcher (`ResourceIdentityFields`) — selecting Sala or 
 
 No discovery-stage prototype — built from `SettingsHoursSection.tsx`'s existing per-weekday hours editor pattern (same shape minus the timezone key, since a Resource always inherits the tenant's timezone). Every field is independently editable (broadened from working-hours-only in PR #457 round 9+). Split into an outer `ResourceEditForm` (fetch + topbar status + load-error state) and an inner `ResourceEditFormFields` (keyed by `resourceId`, initializes local form state directly from the loaded resource — no `useEffect` sync).
 
-## Component: ResourceDeactivateConfirm / ResourceReactivateConfirm (`/dashboard/resources/[id]/deactivate`, UC-047/UC-049)
+## Component: ResourceDeactivateConfirm (`/dashboard/resources/[id]/deactivate`, UC-047)
 
-No discovery-stage prototype — mirrors `manager/prototypes/equipe/03-deactivate-confirm.html`'s shape. Shows the resource's future approved appointments/materialized sessions as explicit commitments (empty for a Cluster-1-only tenant — nothing populates this list until Clusters 2–4 land). Reactivation is a simple confirm dialog; on success, no event is published (`ResourceReactivated` descoped during `M21-S01` story discovery — no consumer exists yet). Both screens share one route (`ResourceDeactivateOrReactivate` picks the confirm/reactivate variant based on the resource's current `isActive` state).
+No discovery-stage prototype — mirrors `manager/prototypes/equipe/03-deactivate-confirm.html`'s shape. Shows the resource's future approved appointments/materialized sessions as explicit commitments (empty for a Cluster-1-only tenant — nothing populates this list until Clusters 2–4 land). This route only ever serves an active resource — `ResourceDeactivatePage` redirects back to the list if reached for one that's already inactive.
+
+## Reactivation (UC-049) — inline row action, no dedicated screen
+
+Corrected during live manual testing (2026-09-02, superseding an earlier confirm-screen implementation) to mirror `TeamListPage`/`MemberRow`'s own established precedent: reactivating a resource is a one-click action directly on `ResourceListPage`'s inactive row (`ReactivateResourceAction`, in `ResourceRow.tsx`), not a navigation to a confirmation screen. On success, no event is published (`ResourceReactivated` descoped during `M21-S01` story discovery — no consumer exists yet).
 
 ## Known limitations
 

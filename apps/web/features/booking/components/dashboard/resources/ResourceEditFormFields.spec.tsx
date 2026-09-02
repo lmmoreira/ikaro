@@ -91,6 +91,21 @@ describe('ResourceEditFormFields', () => {
     expect(screen.getByTestId('resource-identity-name-input')).toHaveValue('Estúdio 1');
   });
 
+  it('shows the turnover and max-capacity explanatory hints, matching the create form', () => {
+    renderWithIntl(<ResourceEditFormFields resourceId="r-1" resource={ROOM_RESOURCE} />);
+
+    expect(
+      screen.getByText(
+        'Tempo mínimo antes da próxima reserva neste recurso, qualquer serviço — combina com o buffer do serviço, vale o maior dos dois.',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Opcional para recursos sem lotação. Quando informada, nenhuma turma pode ultrapassar este limite.',
+      ),
+    ).toBeInTheDocument();
+  });
+
   it('hides the type picker for a LOCATION resource and still allows editing its name', async () => {
     const user = userEvent.setup();
     mutateAsync.mockResolvedValue(LOCATION_RESOURCE);

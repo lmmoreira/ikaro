@@ -138,6 +138,7 @@ export function ResourceEditFormFields({
                 onChange={(event) => setTurnoverMinutes(event.target.value)}
                 className={INPUT_CLASS}
               />
+              <p className="mt-1.5 text-sm text-gray-500">{t('turnoverHint')}</p>
             </div>
 
             {(isLocation || type !== 'STAFF') && (
@@ -153,6 +154,7 @@ export function ResourceEditFormFields({
                   onChange={(event) => setMaxCapacity(event.target.value)}
                   className={INPUT_CLASS}
                 />
+                <p className="mt-1.5 text-sm text-gray-500">{t('maxCapacityHint')}</p>
               </div>
             )}
 

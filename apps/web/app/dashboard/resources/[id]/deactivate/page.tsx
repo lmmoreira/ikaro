@@ -1,4 +1,4 @@
-import { ResourceDeactivateOrReactivate } from '@/features/booking/components/dashboard/resources/ResourceDeactivateOrReactivate';
+import { ResourceDeactivatePage } from '@/features/booking/components/dashboard/resources/ResourceDeactivatePage';
 
 interface ResourceDeactivateRouteProps {
   readonly params: Promise<{ id: string }>;
@@ -8,5 +8,5 @@ export default async function ResourceDeactivateRoute({
   params,
 }: ResourceDeactivateRouteProps): Promise<React.JSX.Element> {
   const { id } = await params;
-  return <ResourceDeactivateOrReactivate resourceId={id} />;
+  return <ResourceDeactivatePage resourceId={id} />;
 }

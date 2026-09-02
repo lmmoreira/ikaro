@@ -27,15 +27,14 @@ flowchart TD
     Deactivate -->|"Confirma"| DeactivateCall(("DELETE /v1/resources/:id"))
     DeactivateCall --> List
 
-    List -->|"Reativar (recurso inativo)"| Reactivate["/dashboard/resources/:id/deactivate<br/>confirmação (ResourceReactivateConfirm, UC-049)"]
-    Reactivate -->|"Confirma"| ReactivateCall(("POST /v1/resources/:id/reactivate"))
+    List -->|"Reativar (recurso inativo)<br/>ação inline na linha, sem navegação"| ReactivateCall(("POST /v1/resources/:id/reactivate"))
     ReactivateCall --> List
 
     StaffDeactivated(("StaffDeactivated event<br/>(UC-029, outro contexto)")) -.->|"cascade, sem UI"| CascadeNote["Sistema desativa o Resource<br/>STAFF correspondente (UC-048)"]
     CascadeNote -.-> List
 ```
 
-The deactivate and reactivate confirmations share one route (`/dashboard/resources/:id/deactivate`) — `ResourceDeactivateOrReactivate` picks the right screen from the resource's current `isActive` state.
+Reactivation (UC-049) is a one-click row action directly on `ResourceListPage` (`ReactivateResourceAction`, in `ResourceRow.tsx`) — no confirmation screen, mirroring `manager/equipe.md`'s own established "Ativar" precedent for staff (UC-031). Corrected during live manual testing (2026-09-02), superseding an earlier confirm-screen implementation that shared the deactivate route via a now-deleted `ResourceDeactivateOrReactivate` wrapper. `/dashboard/resources/:id/deactivate` (`ResourceDeactivatePage`) now serves deactivation only, and redirects back to the list if reached for an already-inactive resource.
 
 `UC-048` (staff-deactivation cascade) has no dedicated screen — it's a system-triggered background effect of the existing `manager/equipe.md` deactivation flow (UC-029), surfacing only as the wrapped `Resource` showing "Inativo" the next time this list is viewed.
 
@@ -46,7 +45,7 @@ The deactivate and reactivate confirmations share one route (`/dashboard/resourc
 | `/dashboard/resources` | `ResourceListPage` | M21-S04 | ✅ Done |
 | `/dashboard/resources/new` | `ResourceCreateForm` | M21-S04 | ✅ Done |
 | `/dashboard/resources/:id` | `ResourceEditForm` (every field editable — name, type, refId, working hours, turnover, capacity — broadened from working-hours-only in PR #457 round 9+) | M21-S04 | ✅ Done |
-| `/dashboard/resources/:id/deactivate` | `ResourceDeactivateOrReactivate` (picks `ResourceDeactivateConfirm`/`ResourceReactivateConfirm` from the resource's current state — one route serves both directions) | M21-S04 | ✅ Done |
+| `/dashboard/resources/:id/deactivate` | `ResourceDeactivatePage` (deactivate only — reactivation is an inline row action on `ResourceListPage`, no route) | M21-S04 | ✅ Done |
 
 ## BFF calls in this flow
 
@@ -73,10 +72,10 @@ Folder: `manager/prototypes/resources/` — relocated from `docs/discovery/multi
 | `02b-criar-recurso-erro.html` | Criar recurso — erro (staff já vinculado / sem horário) | CAND-01 A1/A2 | ✅ Criado (inline error state) |
 | `dev-notes.md` | Implementation handoff (routes, BFF contracts, form fields) | — | ✅ Criado |
 
-**Working-hours edit, deactivate, and reactivate confirmation screens had no discovery-stage prototype** (the discovery's own prototype only ever built list + create + create-error — dev-notes flagged CAND-03/CAND-12 as having "zero entry points"). M21-S04 built them from existing precedents instead of inventing a new shape: `ResourceEditForm`'s working-hours section reuses `apps/web/features/platform/components/settings/SettingsHoursSection.tsx`'s per-weekday editor (extracted into the shared `WeekDayRow` component); `ResourceDeactivateConfirm`/`ResourceReactivateConfirm` mirror `manager/prototypes/equipe/03-deactivate-confirm.html`'s confirmation shape.
+**Working-hours edit and deactivate confirmation screens had no discovery-stage prototype** (the discovery's own prototype only ever built list + create + create-error — dev-notes flagged CAND-03/CAND-12 as having "zero entry points"). M21-S04 built them from existing precedents instead of inventing a new shape: `ResourceEditForm`'s working-hours section reuses `apps/web/features/platform/components/settings/SettingsHoursSection.tsx`'s per-weekday editor (extracted into the shared `WeekDayRow` component); `ResourceDeactivateConfirm` mirrors `manager/prototypes/equipe/03-deactivate-confirm.html`'s confirmation shape. Reactivation itself needed no new screen — it's the same inline row-action shape `manager/equipe.md`'s own "Ativar" precedent already established.
 
 ## Open questions / gaps
 
 - [x] **Backend + BFF story shipped** — M21-S01 (`plan/M21-MULTIVERTICAL-FOUNDATION.md`). `GET /v1/resources/:id` added in M21-S04.
-- [x] **Frontend story shipped** — M21-S04. Working-hours edit, deactivate, and reactivate confirmation screens (not covered by the discovery prototype) were designed from `SettingsHoursSection.tsx` and `manager/prototypes/equipe/03-deactivate-confirm.html` — see the Prototype section above.
+- [x] **Frontend story shipped** — M21-S04. Working-hours edit and deactivate confirmation screens (not covered by the discovery prototype) were designed from `SettingsHoursSection.tsx` and `manager/prototypes/equipe/03-deactivate-confirm.html`; reactivation is a one-click row action, no screen — see the Prototype section above.
 - [x] **Nav placement** — "Recursos" shipped as a new MANAGER-only sidebar item, same tier as "Equipe"/"Configurações"/"Hotsite" (`apps/web/shells/dashboard/components/Sidebar.tsx`'s `MANAGER_NAV_KEYS`).

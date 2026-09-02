@@ -36,11 +36,11 @@ test.describe('manager resource management flow', () => {
     const inactiveRow = getResourceRow(page, 'Recurso Teste');
     await expect(inactiveRow).toContainText('Inativo');
 
-    await inactiveRow.getByTestId('resource-row-reactivate-link').click();
-    await expect(page).toHaveURL(/\/dashboard\/resources\/.+\/deactivate/);
-    await page.getByTestId('resource-reactivate-confirm-submit').click();
-
+    // Reactivation is a one-click row action, no navigation — mirrors TeamListPage's own
+    // established precedent (reactivate has no dedicated confirmation screen).
+    await inactiveRow.getByTestId('resource-row-reactivate-button').click();
     await expect(page).toHaveURL('/dashboard/resources');
+
     const reactivatedRow = getResourceRow(page, 'Recurso Teste');
     await expect(reactivatedRow).toContainText('Ativo');
   });
