@@ -39,7 +39,7 @@ export function ResourceDeactivatePage({
     );
   }
 
-  if (isLoading || !resource || !resource.isActive) {
+  if (isLoading || !resource?.isActive) {
     return <div className="px-4 py-10 text-center text-sm text-gray-500">{commonT('loading')}</div>;
   }
 

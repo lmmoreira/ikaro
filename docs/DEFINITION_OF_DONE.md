@@ -10,6 +10,7 @@ Checked at the end of every story or TD, before `/pre-pr` runs (CLAUDE.md §9 St
 - [ ] Conventional Commit + PR description links the UC
 - [ ] If this story replaces or removes an existing flow/mechanism, the stale-reference sweep below is done
 - [ ] If this story ships something a `plan/journey/<actor>/<slug>.md` currently marks `❓ GAP` (a screen, a mermaid node, a Prototype-table row), that doc's status is flipped in the same commit — not just `dev-notes.md`. See "Journey GAP-status drift" below.
+- [ ] If this story's UI splits one conceptual flow across sibling files (e.g. a Create form and an Edit form for the same aggregate), the sibling files are diffed for structural asymmetry — actions, hints, and navigation present on one but silently missing from the other. See "Sibling-file structural parity" below.
 
 ---
 
@@ -44,3 +45,13 @@ This is the inverse trigger of the stale-reference sweep above: not a flow being
 If this story builds a screen or flow that journey doc already describes as a gap, flip its status (`❓ GAP` → `✅`) in the same commit, and update the Prototype table row if the actual filename differs from what was drafted.
 
 **Why this is a separate item from the stale-reference sweep above, not a duplicate:** a `/docs-audit` full sweep (2026-08-04) found this exact pattern in *every single actor's* journeys (guest, customer, staff, manager — 28 findings total) — a consistent, mechanical pattern, not scattered neglect. In every case, `dev-notes.md` had already been correctly updated to say the feature shipped; the journey `.md`'s own mermaid/Prototype-table status just never followed. The habit of updating `dev-notes.md` is evidently already enforced somewhere in practice — this item exists to make the journey `.md` itself get the same treatment, not to introduce a new habit from scratch.
+
+---
+
+## Sibling-file structural parity — when one flow is split across Create/Edit (or similar) sibling components
+
+When a create/edit form (or any other flow implemented as near-identical sibling files, e.g. a `ResourceCreateForm.tsx`/`ResourceEditFormFields.tsx` pair) is built, each file is often drafted independently or copy-pasted from the other early on — meaning a UI element added to *one* file after that split (a Cancel/back link, a hint paragraph, a topbar back-link override) can silently never make it to its sibling. Unit tests don't catch this on their own: each file's own spec only exercises what *that* file actually renders, and nothing asserts the two stay in sync.
+
+Before considering the story done, diff the sibling files' JSX structure side by side and confirm every user-facing affordance (cancel/back navigation, hint/help text, error-state handling, loading states) that exists on one exists on the other too, unless the difference is deliberate and documented as such.
+
+**M21-S04 precedent, 2026-09-02:** `ResourceEditFormFields.tsx` had a Cancelar link (desktop action pane + mobile bottom bar) and a topbar back-link override; `ResourceCreateForm.tsx` had neither. The same asymmetry existed for the turnover/max-capacity hint paragraphs (present on create, missing on edit — note the direction was reversed from the Cancelar gap, underscoring that this can drift either way once the two files diverge). Both gaps went undetected through 9 rounds of automated bot review and passed every existing unit test; found only via live manual testing.
