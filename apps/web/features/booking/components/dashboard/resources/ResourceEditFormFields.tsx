@@ -88,7 +88,7 @@ export function ResourceEditFormFields({
     try {
       // A STAFF resource can never carry a capacity (CHECK type != 'STAFF' OR max_capacity IS
       // NULL) — the field is hidden once type switches to STAFF, but its stale value must be
-      // discarded here too, not just visually hidden (Codex review finding, PR #459 round 2).
+      // discarded here too, not just visually hidden.
       const isStaffTarget = !isLocation && type === 'STAFF';
       const resolvedMaxCapacity = isStaffTarget
         ? null

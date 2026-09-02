@@ -76,7 +76,12 @@ export function ResourceReactivateConfirm({
             >
               {t('cancel')}
             </Button>
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
+            <Button
+              type="submit"
+              data-testid="resource-reactivate-confirm-submit"
+              className="w-full"
+              disabled={isSubmitting}
+            >
               {isSubmitting ? commonT('loading') : t('reactivateConfirm')}
             </Button>
           </div>

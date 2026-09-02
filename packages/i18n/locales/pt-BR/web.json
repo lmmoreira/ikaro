@@ -486,6 +486,8 @@
       "tabStaff": "Profissionais ({count})",
       "tabRoom": "Salas ({count})",
       "tabEquipment": "Equipamentos ({count})",
+      "tabActive": "Ativos ({count})",
+      "tabInactive": "Inativos ({count})",
       "empty": "Nenhum recurso encontrado.",
       "create": "Novo recurso",
       "typeLocation": "Local",

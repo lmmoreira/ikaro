@@ -19,16 +19,27 @@ interface ResourceDeactivateConfirmProps {
 interface DeactivateActionsProps {
   readonly isSubmitting: boolean;
   readonly className: string;
+  readonly submitTestId: string;
 }
 
-function DeactivateActions({ isSubmitting, className }: DeactivateActionsProps): React.JSX.Element {
+function DeactivateActions({
+  isSubmitting,
+  className,
+  submitTestId,
+}: DeactivateActionsProps): React.JSX.Element {
   const t = useTranslations('dashboard.resourcesPage');
   const commonT = useTranslations('common');
   const router = useRouter();
 
   return (
     <div className={className}>
-      <Button variant="destructive" type="submit" className="w-full" disabled={isSubmitting}>
+      <Button
+        variant="destructive"
+        type="submit"
+        data-testid={submitTestId}
+        className="w-full"
+        disabled={isSubmitting}
+      >
         {isSubmitting ? commonT('loading') : t('deactivateConfirm')}
       </Button>
       <Button
@@ -117,14 +128,22 @@ export function ResourceDeactivateConfirm({
               <Button asChild variant="outline" className="w-full">
                 <Link href="/dashboard/resources">{t('backToResources')}</Link>
               </Button>
-              <DeactivateActions isSubmitting={isSubmitting} className="space-y-4" />
+              <DeactivateActions
+                isSubmitting={isSubmitting}
+                className="space-y-4"
+                submitTestId="resource-deactivate-confirm-desktop"
+              />
             </CardContent>
           </Card>
         </aside>
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden">
-        <DeactivateActions isSubmitting={isSubmitting} className="grid grid-cols-2 gap-3" />
+        <DeactivateActions
+          isSubmitting={isSubmitting}
+          className="grid grid-cols-2 gap-3"
+          submitTestId="resource-deactivate-confirm-mobile"
+        />
       </div>
     </form>
   );

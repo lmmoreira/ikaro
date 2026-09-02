@@ -721,7 +721,7 @@ Sidebar, bottom-nav, and bottom-sheet items that point to another journey (e.g. 
 | CUSTOMER — Submit Lead Form | `customer/submit-lead-form.md` | `customer/prototypes/lead-form/` | Reviewed |
 | MANAGER — Configure the Lead Form Module | `manager/lead-form-config.md` | `manager/prototypes/lead-form/` | Draft |
 | MANAGER/STAFF — View Leads Submissions | `manager/lead-form-submissions.md` | `manager/prototypes/leads/` | Reviewed |
-| MANAGER — Recursos (Resource Management) | `manager/resources.md` | `manager/prototypes/resources/` | Draft (M21 Cluster 1) |
+| MANAGER — Recursos (Resource Management) | `manager/resources.md` | `manager/prototypes/resources/` | Reviewed |
 | MANAGER — Scheduling Exceptions (Future Commitment Worklist) | `manager/scheduling-exceptions.md` | `manager/prototypes/scheduling-exceptions/` | Draft (M21 Cluster 3) |
 | MANAGER — Onboarding Preset Wizard | `manager/onboarding.md` | `manager/prototypes/onboarding/` | Draft (M21 Cluster 3) |
 | CUSTOMER — Reservar Aula (Turmas) | `customer/reservar-aula.md` | `customer/prototypes/reservar-aula/` | Draft (M21 Cluster 4) |

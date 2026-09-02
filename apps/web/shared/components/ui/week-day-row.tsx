@@ -30,9 +30,9 @@ interface WeekDayRowProps {
 
 // Shared per-weekday open/close row — extracted from the tenant Settings hours editor
 // (originally SettingsFormAdvancedFields.tsx's DayRow, M13/TD37-S5A) once a second feature
-// (M21-S04's Resource working-hours editor) needed the identical shape. Per CLAUDE.md §11's
-// domain-slice rule, a component used by more than one domain slice belongs in shared/, not
-// re-imported cross-slice from whichever domain happened to build it first.
+// needed the identical shape. Per CLAUDE.md §11's domain-slice rule, a component used by
+// more than one domain slice belongs in shared/, not re-imported cross-slice from whichever
+// domain happened to build it first.
 //
 // Memoized + fed a stable `onChange` (setDay) so typing in an unrelated field doesn't
 // re-render all 7 day rows (14 TimePickers / 28 Radix Selects) on every keystroke.

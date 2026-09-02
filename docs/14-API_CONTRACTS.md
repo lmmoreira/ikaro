@@ -6,7 +6,7 @@ Ikaro follows a **RESTful API** standard using **JSON** for all payloads. All co
 
 **Error Response Standard:** [RFC 9457 Problem Details](https://tools.ietf.org/html/rfc9457) — see [25-ERROR_CATALOG.md](25-ERROR_CATALOG.md) for complete error reference.
 
-> ⚠️ **PLANNED, NOT YET BUILT:** every endpoint/param tagged `(M21)` / `(M21 Cluster N)` throughout this doc (Service Extensions §1, Recurring Reservations/Availability Alerts/Future Commitment Exceptions §4, Classes & Sessions §4b, and the M21-tagged extensions to Reschedule/Availability/Services) belongs to the Multi-Vertical Scheduling epic — none of it exists in code yet. See `plan/M21-MULTIVERTICAL-FOUNDATION.md` through `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`. **Exception: Resource Management §4 (UC-044–UC-049) shipped in M21-S01** — live backend/BFF endpoints, no frontend page yet (lands with M21-S04). Untagged content in this doc is live MVP behavior.
+> ⚠️ **PLANNED, NOT YET BUILT:** every endpoint/param tagged `(M21)` / `(M21 Cluster N)` throughout this doc (Service Extensions §1, Recurring Reservations/Availability Alerts/Future Commitment Exceptions §4, Classes & Sessions §4b, and the M21-tagged extensions to Reschedule/Availability/Services) belongs to the Multi-Vertical Scheduling epic — none of it exists in code yet. See `plan/M21-MULTIVERTICAL-FOUNDATION.md` through `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`. **Exception: Resource Management §4 (UC-044–UC-049) shipped in M21-S01 (backend/BFF) and M21-S04 (manager dashboard frontend)** — fully live. Untagged content in this doc is live MVP behavior.
 
 ---
 

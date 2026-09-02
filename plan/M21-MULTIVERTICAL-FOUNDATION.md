@@ -337,7 +337,7 @@ Working-hours edit (UC-046), deactivate confirmation (UC-047), and reactivate co
 - Tenant isolation: n/a — no tenant-data-shaping logic lives client-side beyond what `useTenant()` already scopes
 - E2E:
   - [ ] Playwright: manager creates a STAFF resource, sees it in the list, deactivates it, reactivates it — full round trip against the real BFF/backend
-  - [ ] Playwright: STAFF-role user does not see "Recursos" in the sidebar and gets a forbidden response if the route is hit directly
+  - [x] Playwright: STAFF-role user does not see "Recursos" in the sidebar and is redirected away if the route is hit directly — **corrected during PR #459 bot review (round 4):** "forbidden response" was imprecise; every other manager-only route (`/dashboard/settings`, `/dashboard/team`, `/dashboard/hotsite`) already redirects via `proxy.ts`'s shared `MANAGER_ONLY_ROUTES` guard rather than returning an HTTP 403, and Resources deliberately reuses that exact same mechanism for consistency
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 

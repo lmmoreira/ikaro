@@ -486,6 +486,8 @@
       "tabStaff": "Staff ({count})",
       "tabRoom": "Rooms ({count})",
       "tabEquipment": "Equipment ({count})",
+      "tabActive": "Active ({count})",
+      "tabInactive": "Inactive ({count})",
       "empty": "No resources found.",
       "create": "New resource",
       "typeLocation": "Location",

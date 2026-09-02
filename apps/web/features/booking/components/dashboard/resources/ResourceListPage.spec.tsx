@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { ResourceResponse } from '@ikaro/types';
@@ -79,6 +79,23 @@ describe('ResourceListPage', () => {
     renderWithIntl(<ResourceListPage />);
 
     await user.click(screen.getByRole('button', { name: /Salas/ }));
+
+    expect(screen.queryByText('Camila Duarte')).not.toBeInTheDocument();
+    expect(screen.getByText('Estúdio 1')).toBeInTheDocument();
+  });
+
+  it('filters by active/inactive status using the second tab row (UC-044)', async () => {
+    const user = userEvent.setup();
+    useResourcesMock.mockReturnValue({ data: { items: RESOURCES }, isLoading: false });
+    renderWithIntl(<ResourceListPage />);
+
+    const statusFilters = screen.getByTestId('resource-status-filters');
+    await user.click(within(statusFilters).getByRole('button', { name: /Ativos/ }));
+
+    expect(screen.getByText('Camila Duarte')).toBeInTheDocument();
+    expect(screen.queryByText('Estúdio 1')).not.toBeInTheDocument();
+
+    await user.click(within(statusFilters).getByRole('button', { name: /Inativos/ }));
 
     expect(screen.queryByText('Camila Duarte')).not.toBeInTheDocument();
     expect(screen.getByText('Estúdio 1')).toBeInTheDocument();

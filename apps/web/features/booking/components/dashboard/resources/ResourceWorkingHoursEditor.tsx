@@ -80,8 +80,8 @@ export function ResourceWorkingHoursEditor({
   // ResourceEditFormFields) — React guarantees it's referentially stable, so closing over it
   // (instead of `days`, which is a fresh object every render) keeps setDay's own identity
   // stable too, letting memo(WeekDayRow) actually skip re-rendering unrelated day rows on
-  // keystroke, per the shared component's own documented contract (Codex review, PR #459
-  // round 3). valueRef always holds the latest value so the patch merges correctly.
+  // keystroke, per the shared component's own documented contract. valueRef always holds the
+  // latest value so the patch merges correctly.
   const valueRef = useRef(value);
   useEffect(() => {
     valueRef.current = value;

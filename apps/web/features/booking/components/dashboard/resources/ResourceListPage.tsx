@@ -13,6 +13,7 @@ import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 
 type ResourceFilter = 'all' | 'STAFF' | 'ROOM' | 'EQUIPMENT';
+type StatusFilter = 'all' | 'active' | 'inactive';
 
 const TYPE_ORDER: Record<ResourceType, number> = { LOCATION: 0, STAFF: 1, ROOM: 2, EQUIPMENT: 3 };
 
@@ -35,6 +36,15 @@ const FILTERS: readonly { key: ResourceFilter; labelKey: string }[] = [
   { key: 'STAFF', labelKey: 'tabStaff' },
   { key: 'ROOM', labelKey: 'tabRoom' },
   { key: 'EQUIPMENT', labelKey: 'tabEquipment' },
+];
+
+// UC-044's main flow requires the list to be filterable by both type and isActive
+// (docs/04-USE_CASES.md) — a second, independent filter row, same shape as the type tabs
+// above. Mirrors TeamListPage's own active/inactive tab labels (tabActive/tabInactive).
+const STATUS_FILTERS: readonly { key: StatusFilter; labelKey: string }[] = [
+  { key: 'all', labelKey: 'tabAll' },
+  { key: 'active', labelKey: 'tabActive' },
+  { key: 'inactive', labelKey: 'tabInactive' },
 ];
 
 function buildFilterClass(active: boolean): string {
@@ -87,6 +97,7 @@ function ResourceRow({ resource }: { readonly resource: ResourceResponse }): Rea
       {resource.isActive && resource.type !== 'LOCATION' && (
         <Link
           href={`/dashboard/resources/${resource.id}/deactivate`}
+          data-testid="resource-row-deactivate-link"
           className="relative z-20 text-sm font-semibold text-red-600 hover:underline"
         >
           {t('deactivate')}
@@ -95,6 +106,7 @@ function ResourceRow({ resource }: { readonly resource: ResourceResponse }): Rea
       {!resource.isActive && (
         <Link
           href={`/dashboard/resources/${resource.id}/deactivate`}
+          data-testid="resource-row-reactivate-link"
           className="relative z-20 text-sm font-semibold text-blue-600 hover:underline"
         >
           {t('activate')}
@@ -110,6 +122,7 @@ export function ResourceListPage(): React.JSX.Element {
   const locale = useResolvedLocale();
   const { data, isLoading, isError, error } = useResources();
   const [filter, setFilter] = useState<ResourceFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
   const resources = useMemo(
     () => [...(data?.items ?? [])].sort((a, b) => TYPE_ORDER[a.type] - TYPE_ORDER[b.type]),
@@ -126,9 +139,23 @@ export function ResourceListPage(): React.JSX.Element {
     [resources],
   );
 
+  const statusCounts = useMemo(
+    () => ({
+      all: resources.length,
+      active: resources.filter((r) => r.isActive).length,
+      inactive: resources.filter((r) => !r.isActive).length,
+    }),
+    [resources],
+  );
+
   const filteredResources = useMemo(
-    () => (filter === 'all' ? resources : resources.filter((r) => r.type === filter)),
-    [filter, resources],
+    () =>
+      resources
+        .filter((r) => filter === 'all' || r.type === filter)
+        .filter(
+          (r) => statusFilter === 'all' || (statusFilter === 'active' ? r.isActive : !r.isActive),
+        ),
+    [filter, statusFilter, resources],
   );
 
   let cardContent: React.JSX.Element;
@@ -169,6 +196,23 @@ export function ResourceListPage(): React.JSX.Element {
             onClick={() => setFilter(key)}
           >
             {t(labelKey, { count: counts[key] })}
+          </button>
+        ))}
+      </div>
+
+      <div
+        data-testid="resource-status-filters"
+        className="flex flex-wrap items-center gap-2 px-4 pb-1"
+      >
+        {STATUS_FILTERS.map(({ key, labelKey }) => (
+          <button
+            key={key}
+            type="button"
+            className={buildFilterClass(statusFilter === key)}
+            aria-pressed={statusFilter === key}
+            onClick={() => setStatusFilter(key)}
+          >
+            {t(labelKey, { count: statusCounts[key] })}
           </button>
         ))}
       </div>

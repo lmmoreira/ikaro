@@ -49,7 +49,7 @@ export function ResourceIdentityFields({
   // Only active staff can be newly wrapped (S01's own domain rule) — but keep the currently
   // selected option visible (disabled) if it points at a since-deactivated staff member, so
   // editing an already-wrapped resource still shows its real current selection instead of
-  // silently falling back to a blank/first option (Codex review finding, PR #459).
+  // silently falling back to a blank/first option.
   const selectableStaffOptions = staffOptions.filter(
     (staff) => staff.isActive || staff.id === refId,
   );

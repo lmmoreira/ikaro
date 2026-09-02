@@ -28,17 +28,17 @@ test.describe('manager resource management flow', () => {
     await expect(row).toBeVisible();
     await expect(row).toContainText('Ativo');
 
-    await row.getByRole('link', { name: 'Desativar' }).click();
+    await row.getByTestId('resource-row-deactivate-link').click();
     await expect(page).toHaveURL(/\/dashboard\/resources\/.+\/deactivate/);
-    await page.getByRole('button', { name: 'Confirmar desativação' }).first().click();
+    await page.getByTestId('resource-deactivate-confirm-desktop').click();
 
     await expect(page).toHaveURL('/dashboard/resources');
     const inactiveRow = getResourceRow(page, 'Recurso Teste');
     await expect(inactiveRow).toContainText('Inativo');
 
-    await inactiveRow.getByRole('link', { name: 'Reativar' }).click();
+    await inactiveRow.getByTestId('resource-row-reactivate-link').click();
     await expect(page).toHaveURL(/\/dashboard\/resources\/.+\/deactivate/);
-    await page.getByRole('button', { name: 'Confirmar reativação' }).click();
+    await page.getByTestId('resource-reactivate-confirm-submit').click();
 
     await expect(page).toHaveURL('/dashboard/resources');
     const reactivatedRow = getResourceRow(page, 'Recurso Teste');
