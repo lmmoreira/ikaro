@@ -60,6 +60,28 @@ function buildFilterClass(active: boolean): string {
   );
 }
 
+interface ResourceTypeGroup {
+  readonly type: ResourceType;
+  readonly items: ResourceResponse[];
+}
+
+// filteredResources is already sorted by TYPE_ORDER, so consecutive same-type rows are always
+// adjacent — a single pass groups them without a second sort.
+function groupResourcesByType(
+  resources: readonly ResourceResponse[],
+): readonly ResourceTypeGroup[] {
+  const groups: ResourceTypeGroup[] = [];
+  for (const resource of resources) {
+    const lastGroup = groups.at(-1);
+    if (lastGroup?.type === resource.type) {
+      lastGroup.items.push(resource);
+    } else {
+      groups.push({ type: resource.type, items: [resource] });
+    }
+  }
+  return groups;
+}
+
 function workingHoursSummary(resource: ResourceResponse, inheritsLabel: string): string {
   if (!resource.workingHours) return inheritsLabel;
   const openDays = Object.values(resource.workingHours).filter(Boolean).length;
@@ -178,10 +200,23 @@ export function ResourceListPage(): React.JSX.Element {
       </div>
     );
   } else if (filteredResources.length > 0) {
+    const groups = groupResourcesByType(filteredResources);
     cardContent = (
-      <div className="divide-y divide-border">
-        {filteredResources.map((resource) => (
-          <ResourceRow key={resource.id} resource={resource} />
+      <div>
+        {groups.map((group) => (
+          <div key={group.type}>
+            <p
+              data-testid="resource-type-group-heading"
+              className="border-b border-border bg-slate-50 px-4 py-2 text-xs font-bold uppercase tracking-wide text-gray-500"
+            >
+              {t(TYPE_LABEL_KEYS[group.type])}
+            </p>
+            <div className="divide-y divide-border">
+              {group.items.map((resource) => (
+                <ResourceRow key={resource.id} resource={resource} />
+              ))}
+            </div>
+          </div>
         ))}
       </div>
     );

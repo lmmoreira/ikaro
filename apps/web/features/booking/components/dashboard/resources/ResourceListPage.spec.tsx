@@ -57,6 +57,24 @@ describe('ResourceListPage', () => {
     expect(screen.getByText('Inativo')).toBeInTheDocument();
   });
 
+  it('renders one type-group heading per type present, in TYPE_ORDER, not a flat undivided list', () => {
+    useResourcesMock.mockReturnValue({ data: { items: RESOURCES }, isLoading: false });
+    renderWithIntl(<ResourceListPage />);
+
+    const headings = screen.getAllByTestId('resource-type-group-heading');
+    expect(headings.map((heading) => heading.textContent)).toEqual([
+      'Local',
+      'Profissional',
+      'Sala',
+    ]);
+
+    // Each row must sit under its own type's heading, not just co-exist somewhere on the page —
+    // a flat list with headings sprinkled in the wrong place would still pass a presence-only
+    // assertion.
+    const staffHeading = headings[1]!;
+    expect(staffHeading.nextElementSibling?.textContent).toContain('Camila Duarte');
+  });
+
   it('never shows a Desativar action on the LOCATION row', () => {
     useResourcesMock.mockReturnValue({ data: { items: RESOURCES }, isLoading: false });
     renderWithIntl(<ResourceListPage />);

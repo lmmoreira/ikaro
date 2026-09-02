@@ -6,8 +6,9 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { ResourceResponse, ResourceType, ResourceWorkingHours } from '@ikaro/types';
 import { useResourceStaffOptions, useUpdateResource } from '@/features/booking/hooks/useResources';
+import { useTenantSettings } from '@/features/platform/hooks/useTenantSettings';
 import { ResourceIdentityFields } from './ResourceIdentityFields';
-import { ResourceWorkingHoursEditor } from './ResourceWorkingHoursEditor';
+import { ResourceWorkingHoursEditor, toResourceBusinessHours } from './ResourceWorkingHoursEditor';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { Button } from '@/shared/components/ui/button';
@@ -36,6 +37,7 @@ export function ResourceEditFormFields({
   const router = useRouter();
   const updateResourceMutation = useUpdateResource();
   const { data: staffOptionsData } = useResourceStaffOptions(resourceId);
+  const { data: tenantSettingsData } = useTenantSettings();
 
   const isLocation = resource.type === 'LOCATION';
 
@@ -57,14 +59,16 @@ export function ResourceEditFormFields({
   const isSubmitting = isSubmittingLocal || updateResourceMutation.isPending;
 
   const staffOptions = staffOptionsData?.items ?? [];
+  const tenantBusinessHours = tenantSettingsData
+    ? toResourceBusinessHours(tenantSettingsData.settings.businessHours)
+    : null;
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
 
     const errors: ResourceEditFormErrors = {};
     if (!isLocation && type === 'STAFF' && !refId) errors.refId = t('errors.staffRequired');
-    if (!isLocation && type !== 'STAFF' && !name.trim()) errors.name = t('errors.nameRequired');
-    if (isLocation && !name.trim()) errors.name = t('errors.nameRequired');
+    if (!name.trim()) errors.name = t('errors.nameRequired');
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       return;
@@ -84,9 +88,7 @@ export function ResourceEditFormFields({
       await updateResourceMutation.mutateAsync({
         id: resourceId,
         body: {
-          name: isStaffTarget
-            ? (staffOptions.find((s) => s.id === refId)?.name ?? name)
-            : name.trim(),
+          name: name.trim(),
           ...(isLocation ? {} : { type, refId: type === 'STAFF' ? refId : null }),
           workingHours,
           turnoverMinutes: Number(turnoverMinutes) || 0,
@@ -119,7 +121,11 @@ export function ResourceEditFormFields({
               refIdError={fieldErrors.refId}
             />
 
-            <ResourceWorkingHoursEditor value={workingHours} onChange={setWorkingHours} />
+            <ResourceWorkingHoursEditor
+              value={workingHours}
+              onChange={setWorkingHours}
+              tenantBusinessHours={tenantBusinessHours}
+            />
 
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-gray-900">

@@ -82,28 +82,58 @@ export function ResourceIdentityFields({
       )}
 
       {type === 'STAFF' ? (
-        <div>
-          <label className="mb-1.5 block text-sm font-semibold text-gray-900">
-            {t('staffLabel')}
-          </label>
-          <select
-            data-testid="resource-identity-staff-select"
-            value={refId}
-            onChange={(event) => onRefIdChange(event.target.value)}
-            aria-invalid={Boolean(refIdError)}
-            className={INPUT_CLASS}
-          >
-            <option value="">{t('staffPlaceholder')}</option>
-            {selectableStaffOptions.map((staff) => (
-              <option key={staff.id} value={staff.id} disabled={staff.isWrapped || !staff.isActive}>
-                {staff.name ?? staff.email}
-                {staff.isWrapped ? ` — ${t('staffAlreadyResource')}` : ''}
-              </option>
-            ))}
-          </select>
-          <p className="mt-1.5 text-sm text-gray-500">{t('staffHint')}</p>
-          {refIdError && <p className="mt-1.5 text-sm text-red-600">{refIdError}</p>}
-        </div>
+        <>
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-gray-900">
+              {t('staffLabel')}
+            </label>
+            <select
+              data-testid="resource-identity-staff-select"
+              value={refId}
+              onChange={(event) => {
+                const newRefId = event.target.value;
+                onRefIdChange(newRefId);
+                // Resource.name is denormalized, independent of Staff.name (docs/02-DOMAIN_MODEL.md)
+                // — seed it as a default from the picked staff member so the field never starts
+                // blank, but it stays independently editable below, not re-derived on every save.
+                const picked = staffOptions.find((staff) => staff.id === newRefId);
+                if (picked) onNameChange(picked.name ?? '');
+              }}
+              aria-invalid={Boolean(refIdError)}
+              className={INPUT_CLASS}
+            >
+              <option value="">{t('staffPlaceholder')}</option>
+              {selectableStaffOptions.map((staff) => (
+                <option
+                  key={staff.id}
+                  value={staff.id}
+                  disabled={staff.isWrapped || !staff.isActive}
+                >
+                  {staff.name ?? staff.email}
+                  {staff.isWrapped ? ` — ${t('staffAlreadyResource')}` : ''}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1.5 text-sm text-gray-500">{t('staffHint')}</p>
+            {refIdError && <p className="mt-1.5 text-sm text-red-600">{refIdError}</p>}
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-gray-900">
+              {t('staffNameLabel')}
+            </label>
+            <input
+              data-testid="resource-identity-name-input"
+              type="text"
+              value={name}
+              onChange={(event) => onNameChange(event.target.value)}
+              placeholder={t('staffNamePlaceholder')}
+              aria-invalid={Boolean(nameError)}
+              className={INPUT_CLASS}
+            />
+            {nameError && <p className="mt-1.5 text-sm text-red-600">{nameError}</p>}
+          </div>
+        </>
       ) : (
         <div>
           <label className="mb-1.5 block text-sm font-semibold text-gray-900">

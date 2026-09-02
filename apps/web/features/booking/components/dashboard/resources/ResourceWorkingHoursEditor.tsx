@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import type { ResourceWorkingHours } from '@ikaro/types';
+import type { ResourceWorkingHours, TenantBusinessHours } from '@ikaro/types';
 import { SwitchField } from '@/shared/components/ui/switch-field';
 import {
   WeekDayRow,
@@ -57,9 +57,32 @@ function toWorkingHours(days: Record<WeekDay, DayValue>): ResourceWorkingHours {
   };
 }
 
+// Drops `timezone` — a Resource's own workingHours has no timezone field, it always inherits
+// the tenant's. Used by both ResourceCreateForm and ResourceEditFormFields to feed this
+// component's tenantBusinessHours prop.
+export function toResourceBusinessHours(businessHours: TenantBusinessHours): ResourceWorkingHours {
+  return {
+    monday: businessHours.monday,
+    tuesday: businessHours.tuesday,
+    wednesday: businessHours.wednesday,
+    thursday: businessHours.thursday,
+    friday: businessHours.friday,
+    saturday: businessHours.saturday,
+    sunday: businessHours.sunday,
+  };
+}
+
 interface ResourceWorkingHoursEditorProps {
   readonly value: ResourceWorkingHours | null;
   readonly onChange: (value: ResourceWorkingHours | null) => void;
+  // The tenant's own current business hours — seeds the custom-hours form the moment the
+  // manager switches off "use default hours", so they start from a real, already-valid
+  // schedule they can tweak, instead of every day appearing closed (a real usability issue
+  // found via live manual testing, not just a design guess — every window a Resource sets
+  // must be a subset of these same hours, so they're also guaranteed not to violate that
+  // constraint on their own). Null only for the brief window before it's loaded, in which
+  // case the switch falls back to the previous all-closed starting point.
+  readonly tenantBusinessHours: ResourceWorkingHours | null;
 }
 
 // Per-weekday working-hours editor for a Resource — same shape as the tenant's own
@@ -70,11 +93,15 @@ interface ResourceWorkingHoursEditorProps {
 export function ResourceWorkingHoursEditor({
   value,
   onChange,
+  tenantBusinessHours,
 }: ResourceWorkingHoursEditorProps): React.JSX.Element {
   const t = useTranslations('dashboard.resourcesPage');
   const settingsT = useTranslations('dashboard.settingsPage');
   const { timeFormat } = useFormatting();
-  const days = toDayValues(value);
+  // Memoized so an unrelated parent re-render (e.g. typing in the name field) doesn't hand
+  // WeekDayRow a fresh `value` object reference every time — memo(WeekDayRow) checks all
+  // props, so a stable setDay alone (the earlier fix) wasn't enough on its own.
+  const days = useMemo(() => toDayValues(value), [value]);
   const usesDefault = value === null;
 
   // onChange is the raw useState setter from both callers (ResourceCreateForm,
@@ -110,7 +137,9 @@ export function ResourceWorkingHoursEditor({
     <div className="space-y-3">
       <SwitchField
         checked={usesDefault}
-        onChange={(checked) => onChange(checked ? null : toWorkingHours(days))}
+        onChange={(checked) =>
+          onChange(checked ? null : (tenantBusinessHours ?? toWorkingHours(days)))
+        }
         label={t('useDefaultHours')}
         hint={t('useDefaultHoursSub')}
         testId="resource-hours-inherit-toggle"
@@ -118,7 +147,8 @@ export function ResourceWorkingHoursEditor({
 
       {!usesDefault && (
         <div data-testid="resource-hours-custom" className="rounded-2xl border border-border p-3">
-          <p className="mb-1 text-sm font-semibold text-gray-900">{t('customHoursLabel')}</p>
+          <p className="text-sm font-semibold text-gray-900">{t('customHoursLabel')}</p>
+          <p className="mb-2 text-sm text-gray-500">{t('customHoursHint')}</p>
           {WEEK_DAYS.map((day) => (
             <WeekDayRow
               key={day}

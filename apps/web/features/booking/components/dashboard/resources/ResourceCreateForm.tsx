@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { ResourceType, ResourceWorkingHours } from '@ikaro/types';
 import { useCreateResource, useResourceStaffOptions } from '@/features/booking/hooks/useResources';
+import { useTenantSettings } from '@/features/platform/hooks/useTenantSettings';
 import { ResourceIdentityFields } from './ResourceIdentityFields';
-import { ResourceWorkingHoursEditor } from './ResourceWorkingHoursEditor';
+import { ResourceWorkingHoursEditor, toResourceBusinessHours } from './ResourceWorkingHoursEditor';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { Button } from '@/shared/components/ui/button';
@@ -27,6 +28,7 @@ export function ResourceCreateForm(): React.JSX.Element {
   const router = useRouter();
   const createResourceMutation = useCreateResource();
   const { data: staffOptionsData } = useResourceStaffOptions();
+  const { data: tenantSettingsData } = useTenantSettings();
 
   const [type, setType] = useState<Exclude<ResourceType, 'LOCATION'>>('STAFF');
   const [refId, setRefId] = useState<string>('');
@@ -40,13 +42,16 @@ export function ResourceCreateForm(): React.JSX.Element {
   const isSubmitting = isSubmittingLocal || createResourceMutation.isPending;
 
   const staffOptions = staffOptionsData?.items ?? [];
+  const tenantBusinessHours = tenantSettingsData
+    ? toResourceBusinessHours(tenantSettingsData.settings.businessHours)
+    : null;
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
 
     const errors: ResourceCreateFormErrors = {};
     if (type === 'STAFF' && !refId) errors.refId = t('errors.staffRequired');
-    if (type !== 'STAFF' && !name.trim()) errors.name = t('errors.nameRequired');
+    if (!name.trim()) errors.name = t('errors.nameRequired');
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       return;
@@ -64,8 +69,7 @@ export function ResourceCreateForm(): React.JSX.Element {
       await createResourceMutation.mutateAsync({
         type,
         refId: type === 'STAFF' ? refId : undefined,
-        name:
-          type === 'STAFF' ? (staffOptions.find((s) => s.id === refId)?.name ?? '') : name.trim(),
+        name: name.trim(),
         workingHours,
         turnoverMinutes: Number(turnoverMinutes) || 0,
         maxCapacity: resolvedMaxCapacity,
@@ -96,7 +100,11 @@ export function ResourceCreateForm(): React.JSX.Element {
               refIdError={fieldErrors.refId}
             />
 
-            <ResourceWorkingHoursEditor value={workingHours} onChange={setWorkingHours} />
+            <ResourceWorkingHoursEditor
+              value={workingHours}
+              onChange={setWorkingHours}
+              tenantBusinessHours={tenantBusinessHours}
+            />
 
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-gray-900">

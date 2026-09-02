@@ -20,6 +20,17 @@ const ROOM_RESOURCE: ResourceResponse = {
   isActive: true,
 };
 
+const STAFF_RESOURCE: ResourceResponse = {
+  id: 'staff-res-1',
+  type: 'STAFF',
+  refId: 's-1',
+  name: 'Camila (Manhãs)',
+  workingHours: null,
+  turnoverMinutes: 15,
+  maxCapacity: null,
+  isActive: true,
+};
+
 const LOCATION_RESOURCE: ResourceResponse = {
   id: 'loc-1',
   type: 'LOCATION',
@@ -48,6 +59,25 @@ vi.mock('@/features/booking/hooks/useResources', () => ({
           isWrapped: false,
         },
       ],
+    },
+  }),
+}));
+
+vi.mock('@/features/platform/hooks/useTenantSettings', () => ({
+  useTenantSettings: () => ({
+    data: {
+      settings: {
+        businessHours: {
+          timezone: 'America/Sao_Paulo',
+          monday: { open: '09:00', close: '18:00' },
+          tuesday: { open: '09:00', close: '18:00' },
+          wednesday: { open: '09:00', close: '18:00' },
+          thursday: { open: '09:00', close: '18:00' },
+          friday: { open: '09:00', close: '18:00' },
+          saturday: null,
+          sunday: null,
+        },
+      },
     },
   }),
 }));
@@ -106,6 +136,28 @@ describe('ResourceEditFormFields', () => {
       ),
     );
     expect(routerPush).toHaveBeenCalledWith('/dashboard/resources');
+  });
+
+  it("preserves a STAFF resource's own custom name when editing an unrelated field (Resource.name is independent of Staff.name)", async () => {
+    const user = userEvent.setup();
+    mutateAsync.mockResolvedValue(STAFF_RESOURCE);
+    renderWithIntl(<ResourceEditFormFields resourceId="staff-res-1" resource={STAFF_RESOURCE} />);
+
+    expect(screen.getByTestId('resource-identity-name-input')).toHaveValue('Camila (Manhãs)');
+
+    const turnoverInput = screen.getByDisplayValue('15');
+    await user.clear(turnoverInput);
+    await user.type(turnoverInput, '20');
+    await user.click(screen.getByTestId('resource-edit-save-desktop'));
+
+    await waitFor(() =>
+      expect(mutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'staff-res-1',
+          body: expect.objectContaining({ name: 'Camila (Manhãs)', turnoverMinutes: 20 }),
+        }),
+      ),
+    );
   });
 
   it('discards the existing maxCapacity when switching type from ROOM to STAFF', async () => {

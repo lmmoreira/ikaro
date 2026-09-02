@@ -30,6 +30,25 @@ vi.mock('@/features/booking/hooks/useResources', () => ({
   }),
 }));
 
+vi.mock('@/features/platform/hooks/useTenantSettings', () => ({
+  useTenantSettings: () => ({
+    data: {
+      settings: {
+        businessHours: {
+          timezone: 'America/Sao_Paulo',
+          monday: { open: '09:00', close: '18:00' },
+          tuesday: { open: '09:00', close: '18:00' },
+          wednesday: { open: '09:00', close: '18:00' },
+          thursday: { open: '09:00', close: '18:00' },
+          friday: { open: '09:00', close: '18:00' },
+          saturday: null,
+          sunday: null,
+        },
+      },
+    },
+  }),
+}));
+
 function getTypeOption(type: 'STAFF' | 'ROOM' | 'EQUIPMENT') {
   const found = screen
     .getAllByTestId('resource-identity-type-option')
@@ -63,6 +82,23 @@ describe('ResourceCreateForm', () => {
 
     expect(mutateAsync).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'STAFF', refId: 's-1', name: 'Camila Duarte' }),
+    );
+  });
+
+  it('lets a custom denormalized name override the seeded staff name (Resource.name is independent of Staff.name)', async () => {
+    const user = userEvent.setup();
+    mutateAsync.mockResolvedValue({ id: 'r-1' });
+    renderWithIntl(<ResourceCreateForm />);
+
+    await user.selectOptions(screen.getByTestId('resource-identity-staff-select'), 's-1');
+    const nameInput = screen.getByTestId('resource-identity-name-input');
+    expect(nameInput).toHaveValue('Camila Duarte');
+    await user.clear(nameInput);
+    await user.type(nameInput, 'Camila (Manhãs)');
+    await user.click(screen.getByTestId('resource-create-save-desktop'));
+
+    expect(mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'STAFF', refId: 's-1', name: 'Camila (Manhãs)' }),
     );
   });
 

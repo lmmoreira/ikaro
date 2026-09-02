@@ -42,6 +42,10 @@ vi.mock('@/features/booking/hooks/useResources', () => ({
   useResourceStaffOptions: () => ({ data: { items: [] } }),
 }));
 
+vi.mock('@/features/platform/hooks/useTenantSettings', () => ({
+  useTenantSettings: () => ({ data: undefined }),
+}));
+
 vi.mock('@/shells/dashboard/components/topbar-status-context', () => ({
   useDashboardTopbarStatus: () => null,
 }));
