@@ -6,7 +6,7 @@ Ikaro follows a **RESTful API** standard using **JSON** for all payloads. All co
 
 **Error Response Standard:** [RFC 9457 Problem Details](https://tools.ietf.org/html/rfc9457) — see [25-ERROR_CATALOG.md](25-ERROR_CATALOG.md) for complete error reference.
 
-> ⚠️ **PLANNED, NOT YET BUILT:** every endpoint/param tagged `(M21)` / `(M21 Cluster N)` throughout this doc (Resource Management §4, Service Extensions §1, Recurring Reservations/Availability Alerts/Future Commitment Exceptions §4, Classes & Sessions §4b, and the M21-tagged extensions to Reschedule/Availability/Services) belongs to the Multi-Vertical Scheduling epic — none of it exists in code yet. See `plan/M21-MULTIVERTICAL-FOUNDATION.md` through `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`. Untagged content in this doc is live MVP behavior.
+> ⚠️ **PLANNED, NOT YET BUILT:** every endpoint/param tagged `(M21)` / `(M21 Cluster N)` throughout this doc (Service Extensions §1, Recurring Reservations/Availability Alerts/Future Commitment Exceptions §4, Classes & Sessions §4b, and the M21-tagged extensions to Reschedule/Availability/Services) belongs to the Multi-Vertical Scheduling epic — none of it exists in code yet. See `plan/M21-MULTIVERTICAL-FOUNDATION.md` through `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`. **Exception: Resource Management §4 (UC-044–UC-049) shipped in M21-S01** — live backend/BFF endpoints, no frontend page yet (lands with M21-S04). Untagged content in this doc is live MVP behavior.
 
 ---
 
@@ -879,7 +879,7 @@ Auth: JWT + `MANAGER|STAFF` on all write endpoints. **Exception (M21 Cluster 1):
 
 ### **Resource Management (UC-044–UC-049)**
 
-> Introduced by M21 — Multi-Vertical Scheduling, Cluster 1 (Foundation).
+> Introduced by M21 — Multi-Vertical Scheduling, Cluster 1 (Foundation). **Shipped in M21-S01** (backend + BFF) — no frontend page yet, lands with M21-S04.
 
 Auth: JWT + `MANAGER` only on every endpoint — a deliberate, self-consistent restriction distinct from every other Booking-context admin surface (`MANAGER|STAFF`), per the discovery's own review call (dev-notes.md item 1) with no existing precedent to derive it from.
 
@@ -900,16 +900,22 @@ Auth: JWT + `MANAGER` only on every endpoint — a deliberate, self-consistent r
   ```
   - `201` on success
   - `409` if `type = STAFF` and that staff member is already wrapped by a `Resource` (A1)
+  - `422` if `type = LOCATION` — never manually created, only the M21-S02 backfill migration creates it
   - `422` if no working hours are set and the tenant has no `businessHours` either (A2)
-- `PATCH /resources/:id` → edit working hours (UC-046). Body: `{ "workingHours": { ... } | null }` (`null` reverts to inheriting tenant hours).
+- `PATCH /resources/:id` → edit a resource (UC-046). Body: every field independently optional (unsent = unchanged) — `{ "name"?, "type"?, "refId"?: "uuid" | null, "workingHours"?: { ... } | null, "turnoverMinutes"?, "maxCapacity"?: number | null }`. An empty body `{}` is valid and changes nothing. **UC-046 A1's "warn before saving hours that put existing appointments outside them" is not implemented in M21-S01 and saves directly** — no `Service`/`Booking` references a `Resource` yet (Cluster 2's `resourceRequirements` wiring), so no appointment can exist to check against; same Cluster-1-scope deferral as UC-047's own "empty worklist for a Cluster-1-only tenant" (`docs/04-USE_CASES.md`).
   - `200` on success
-  - `404` if not found or belongs to another tenant
+  - `404` if not found, belongs to another tenant, or (when `type` is changing to `STAFF`) the target staff member is not found/inactive (mirrors `POST /resources`' A1 staff-lookup semantics — UC-045)
+  - `409` if `type = STAFF` and the target staff member is already wrapped by a *different* `Resource` — re-saving the same `refId` this resource already holds is not a conflict
+  - `409` if `type` is changing to or from `LOCATION` — a tenant's `LOCATION` resource can never change type, and no other resource can become `LOCATION`
+  - `400`/`422` if `type` is changing away from `STAFF` without the request also explicitly sending `refId: null`
+  - `422` if no working hours are set (after the update) and the tenant has no `businessHours` either
 - `DELETE /resources/:id` → deactivate a resource (UC-047)
   - `204` on success
   - `404` if not found or belongs to another tenant
+  - `409` if `type = LOCATION` — a tenant must always retain exactly one active LOCATION resource
 - `POST /resources/:id/reactivate` → reactivate a deactivated resource (UC-049)
   - `200` on success
-  - `404` if not found or belongs to another tenant
+  - `404` if not found, belongs to another tenant, or (for a `type = STAFF` resource) the wrapped staff member is still inactive
   - `409` if already active
 
 ### **Recurring Private Reservation Schedules — M21 Cluster 3 (UC-070, UC-071)**

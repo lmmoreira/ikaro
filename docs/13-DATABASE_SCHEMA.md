@@ -445,6 +445,7 @@ Generic bookable unit. Every existing tenant receives one active `LOCATION` reso
 | **UNIQUE** | (tenant_id, ref_id) WHERE type='STAFF' AND ref_id IS NOT NULL | One `Resource` per `Staff` row, DB-enforced without a cross-schema FK |
 | **UNIQUE** | (tenant_id) WHERE type='LOCATION' AND is_active | Exactly one active default location resource per tenant |
 | **CHECK** | `(type = 'STAFF') = (ref_id IS NOT NULL)` | A staff wrapper must reference a Staff ID; every other resource type must not |
+| **CHECK** | `type != 'STAFF' OR max_capacity IS NULL` | `max_capacity` is a physical ceiling for LOCATION/ROOM/EQUIPMENT only — never set for STAFF |
 | **INDEX** | (tenant_id, type, is_active) | Resource pickers filtered by type |
 
 **Rules:**

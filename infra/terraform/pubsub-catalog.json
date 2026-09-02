@@ -84,6 +84,12 @@
     ]
   },
   {
+    "event": "StaffDeactivated",
+    "consumers": [
+      "cascade-staff-deactivation"
+    ]
+  },
+  {
     "event": "StaffInvited",
     "consumers": [
       "notification"

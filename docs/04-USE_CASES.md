@@ -642,20 +642,25 @@ Returns:
 
 ---
 
-### **UC-046: MANAGER Edits a Resource's Working Hours**
+### **UC-046: MANAGER Edits a Resource**
+
+> Originally scoped to working hours only; broadened so a manager can correct any mistake made at creation — including `type`/`refId` — without deactivate+recreate (user decision, PR #457 round 9+).
 
 - **Actor:** MANAGER
 - **Endpoint:** `PATCH /resources/:id`
 - **Preconditions:** Resource exists and belongs to the tenant.
-- **Trigger:** Admin edits the resource's schedule in dashboard settings.
+- **Trigger:** Admin edits the resource in dashboard settings, or corrects a data-entry mistake (wrong name, wrong type, wrong capacity).
 - **Main Flow:**
-  1. Admin opens the resource's schedule editor (same shape as the tenant `businessHours` editor).
-  2. Admin sets per-weekday open/close windows, or clears them to inherit the tenant's hours.
-  3. System validates (`open < close`, valid days, every window a subset of the tenant's recurring hours) and saves.
+  1. Admin opens the resource's edit form. Every field is independently editable and optional in the request — unsent fields keep their current value.
+  2. Admin changes any combination of `name`, `type`, `refId`, `workingHours`, `turnoverMinutes`, `maxCapacity`.
+  3. System validates the fully-resolved (current + changed) state exactly as it would at creation — `STAFF`⟺`refId` pairing, `maxCapacity` rules (`>0` when set, never set for `STAFF`), working-hours subset of tenant hours — and saves.
 - **Alternative Flows:**
-  - **A1: Existing approved appointments now fall outside the new hours** → System warns before saving; does not auto-cancel existing bookings.
+  - **A1: Existing approved appointments now fall outside the new hours** → System warns before saving; does not auto-cancel existing bookings. **Not reachable in M21-S01** — no `Service`/`Booking` references a `Resource` yet (`Service.resourceRequirements` is Cluster 2 work), so no approved appointment can exist to fall outside anything; `PATCH` saves directly with no impact check until Cluster 2 makes an appointment-to-resource reference possible (mirrors UC-047 step 1's identical "empty for a Cluster-1-only tenant" deferral).
   - **A2: Resource not found or belongs to another tenant** → `404 Not Found`.
-- **Postconditions:** Future availability queries for this resource use the new hours; existing bookings untouched.
+  - **A3: `type` is changing to or from `LOCATION`** → `409 Conflict` — a tenant's `LOCATION` resource can never change type, and no other resource can become `LOCATION` (both are backfill-only, same invariant `DELETE` already enforces — UC-047).
+  - **A4: `type` is changing to `STAFF`** → System re-runs UC-045's own staff-wrap validation (staff exists, active, not already wrapped by a *different* resource) against the new `refId`; re-saving the same `refId` this resource already holds is not a conflict.
+  - **A5: `type` is changing away from `STAFF` without clearing `refId`** → `400`/`422` (`STAFF`⟺`refId` pairing violated) — the request must explicitly send `refId: null` when moving away from `STAFF`.
+- **Postconditions:** Every changed field takes effect immediately for future availability queries and resource listings; existing bookings untouched.
 - **Events Triggered:** None.
 
 ---

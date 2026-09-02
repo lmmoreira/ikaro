@@ -37,6 +37,9 @@ import { TypeOrmStaffRepository } from './infrastructure/repositories/typeorm-st
     CreateInitialManagerUseCase,
     TenantProvisionedHandler,
   ],
-  exports: [GetStaffByIdUseCase, GetStaffUseCase],
+  // DeactivateStaffUseCase is exported alongside the two read use cases so the Booking
+  // context's StaffDeactivatedHandler integration test (M21-S01, UC-048) can trigger a real
+  // StaffDeactivated event end-to-end through the actual publish path, not a hand-built event.
+  exports: [GetStaffByIdUseCase, GetStaffUseCase, DeactivateStaffUseCase],
 })
 export class StaffModule {}

@@ -6,10 +6,13 @@ import { TransactionManagerModule } from '../../shared/infrastructure/transactio
 import { StorageModule } from '../../shared/infrastructure/storage.module';
 import { CustomerModule } from '../customer/customer.module';
 import { PlatformSettingsModule } from '../platform/platform-settings.module';
+import { StaffModule } from '../staff/staff.module';
 import { BOOKING_AVAILABILITY_PORT } from './application/ports/booking-availability.port';
 import { BOOKING_REPOSITORY } from './application/ports/booking-repository.port';
 import { BOOKING_CUSTOMER_PORT } from './application/ports/booking-customer.port';
 import { BOOKING_PLATFORM_PORT } from './application/ports/booking-platform.port';
+import { BOOKING_STAFF_PORT } from './application/ports/booking-staff.port';
+import { RESOURCE_REPOSITORY } from './application/ports/resource-repository.port';
 import { SCHEDULE_CLOSURE_REPOSITORY } from './application/ports/schedule-closure-repository.port';
 import { SCHEDULE_OPENING_REPOSITORY } from './application/ports/schedule-opening-repository.port';
 import { SERVICE_REPOSITORY } from './application/ports/service-repository.port';
@@ -17,8 +20,16 @@ import { AdminScheduleReminderJob } from './application/jobs/admin-schedule-remi
 import { BookingReminderJob } from './application/jobs/booking-reminder.job';
 import { BookingReminderTriggerHandler } from './infrastructure/events/booking-reminder-trigger.handler';
 import { AdminScheduleReminderTriggerHandler } from './infrastructure/events/admin-schedule-reminder-trigger.handler';
+import { StaffDeactivatedHandler } from './infrastructure/events/staff-deactivated.handler';
 import { CloseScheduleUseCase } from './application/use-cases/close-schedule.use-case';
 import { ActivateServiceUseCase } from './application/use-cases/activate-service.use-case';
+import { CreateResourceUseCase } from './application/use-cases/create-resource.use-case';
+import { UpdateResourceUseCase } from './application/use-cases/update-resource.use-case';
+import { StaffWrapValidationService } from './application/services/staff-wrap-validation.service';
+import { DeactivateResourceUseCase } from './application/use-cases/deactivate-resource.use-case';
+import { ReactivateResourceUseCase } from './application/use-cases/reactivate-resource.use-case';
+import { ListResourcesUseCase } from './application/use-cases/list-resources.use-case';
+import { CascadeStaffDeactivationUseCase } from './application/use-cases/cascade-staff-deactivation.use-case';
 import { CreateServiceUseCase } from './application/use-cases/create-service.use-case';
 import { RequestAuthenticatedBookingUseCase } from './application/use-cases/request-authenticated-booking.use-case';
 import { RequestBookingUseCase } from './application/use-cases/request-booking.use-case';
@@ -53,11 +64,14 @@ import { BookingLineEntity } from './infrastructure/entities/booking-line.entity
 import { ScheduleClosureEntity } from './infrastructure/entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from './infrastructure/entities/schedule-opening.entity';
 import { ServiceEntity } from './infrastructure/entities/service.entity';
+import { ResourceEntity } from './infrastructure/entities/resource.entity';
 import { BookingCustomerAdapter } from './infrastructure/cross-context/booking-customer.adapter';
+import { BookingStaffAdapter } from './infrastructure/cross-context/booking-staff.adapter';
 import { BookingController } from './infrastructure/controllers/booking.controller';
 import { BookingLifecycleController } from './infrastructure/controllers/booking-lifecycle.controller';
 import { BookingCompletionController } from './infrastructure/controllers/booking-completion.controller';
 import { CronBookingController } from './infrastructure/controllers/cron-booking.controller';
+import { ResourceController } from './infrastructure/controllers/resource.controller';
 import { ScheduleAvailabilityController } from './infrastructure/controllers/schedule-availability.controller';
 import { ScheduleAvailabilitySummaryController } from './infrastructure/controllers/schedule-availability-summary.controller';
 import { ScheduleClosureController } from './infrastructure/controllers/schedule-closure.controller';
@@ -68,6 +82,7 @@ import { TypeOrmBookingAvailabilityAdapter } from './infrastructure/cross-contex
 import { TypeOrmBookingRepository } from './infrastructure/repositories/typeorm-booking.repository';
 import { TypeOrmScheduleClosureRepository } from './infrastructure/repositories/typeorm-schedule-closure.repository';
 import { TypeOrmScheduleOpeningRepository } from './infrastructure/repositories/typeorm-schedule-opening.repository';
+import { TypeOrmResourceRepository } from './infrastructure/repositories/typeorm-resource.repository';
 import { CachingServiceRepository } from './infrastructure/repositories/caching-service.repository';
 import { TypeOrmServiceRepository } from './infrastructure/repositories/typeorm-service.repository';
 import { AvailabilityService } from './domain/services/availability.service';
@@ -81,6 +96,7 @@ import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cach
       ScheduleOpeningEntity,
       BookingEntity,
       BookingLineEntity,
+      ResourceEntity,
     ]),
     EventBusModule,
     RequestModule,
@@ -88,6 +104,7 @@ import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cach
     StorageModule,
     CustomerModule,
     PlatformSettingsModule,
+    StaffModule,
     SharedCacheModule,
   ],
   controllers: [
@@ -100,6 +117,7 @@ import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cach
     ScheduleOpeningController,
     ScheduleAvailabilityController,
     ScheduleAvailabilitySummaryController,
+    ResourceController,
     CronBookingController,
   ],
   providers: [
@@ -107,10 +125,12 @@ import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cach
     { provide: SERVICE_REPOSITORY, useClass: CachingServiceRepository },
     { provide: SCHEDULE_CLOSURE_REPOSITORY, useClass: TypeOrmScheduleClosureRepository },
     { provide: SCHEDULE_OPENING_REPOSITORY, useClass: TypeOrmScheduleOpeningRepository },
+    { provide: RESOURCE_REPOSITORY, useClass: TypeOrmResourceRepository },
     { provide: BOOKING_PLATFORM_PORT, useClass: BookingPlatformAdapter },
     { provide: BOOKING_AVAILABILITY_PORT, useClass: TypeOrmBookingAvailabilityAdapter },
     { provide: BOOKING_REPOSITORY, useClass: TypeOrmBookingRepository },
     { provide: BOOKING_CUSTOMER_PORT, useClass: BookingCustomerAdapter },
+    { provide: BOOKING_STAFF_PORT, useClass: BookingStaffAdapter },
     AvailabilityService,
     BookingReminderJob,
     AdminScheduleReminderJob,
@@ -146,6 +166,14 @@ import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cach
     RescheduleBookingUseCase,
     CompleteBookingUseCase,
     GenerateAttachmentSignedUrlUseCase,
+    CreateResourceUseCase,
+    UpdateResourceUseCase,
+    StaffWrapValidationService,
+    DeactivateResourceUseCase,
+    ReactivateResourceUseCase,
+    ListResourcesUseCase,
+    CascadeStaffDeactivationUseCase,
+    StaffDeactivatedHandler,
   ],
   exports: [GetBookingByIdUseCase, GetServicesUseCase],
 })
