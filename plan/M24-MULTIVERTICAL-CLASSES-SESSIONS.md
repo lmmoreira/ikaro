@@ -12,6 +12,7 @@
 - **Hotel/multi-day session models** — a `ClassSession` is a single bounded time window; no overnight/multi-day session support.
 - **Adding/replacing attendees mid-reservation, or partially changing an APPOINTMENT booking's attendees** — UC-105 A1 explicitly defers this; only removal is supported.
 - **A family-account/dependent hierarchy for minors** — UC-068's "a responsible authenticated adult may be the booker" note applies unchanged; no separate minor-account model.
+- **Dynamic per-day session duration ("span to closing time")** — a `ClassScheduleTemplate`'s occurrence duration always comes from the one `Service.durationMinutes` value, uniform across every day in its `recurrence` (see `docs/02-DOMAIN_MODEL.md` § `ClassScheduleTemplate`). A business whose hours vary by weekday and wants a full-day session on each (e.g. a coworking-style day pass, shorter Saturday) creates one template per distinct-hours weekday group instead — zero new machinery, reuses the existing "two independent instances" pattern. A `durationMode: FIXED | SPAN_TO_CLOSE`-style field is deliberately deferred until a real discovery pass validates a vertical that actually needs it — raised 2026-09-02 while reasoning through a hypothetical coworking/hot-desk vertical (not a discovered one; no such vertical is in scope for this milestone).
 
 ## Build order
 

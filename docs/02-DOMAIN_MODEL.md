@@ -701,7 +701,9 @@ ClassScheduleTemplate {
   serviceId:   ServiceId
   resourceIds: ResourceId[]        -- the bundle this class always uses; each entry is one manual pick from
                                     -- the matching-type entry in Service.classResourceSlots' pool
-  recurrence:  RecurrenceRule      -- e.g. weekly on [MON, WED, FRI] at 08:00; duration comes from Service.durationMinutes
+  recurrence:  RecurrenceRule      -- e.g. weekly on [MON, WED, FRI] at 08:00; duration comes from Service.durationMinutes.
+                                    -- daysOfWeek is a plain array with no upper bound below 7 — listing all 7 days is the
+                                    -- correct, supported way to express "every day" (no separate DAILY frequency value).
   capacity:    int
   trialSlots:  int                 -- guest/non-member seats that auto-confirm before UC-098 manual approval; default 0
   validFrom / validUntil: Date | null
@@ -711,6 +713,7 @@ ClassScheduleTemplate {
 
 **Invariants:**
 - Each `resourceIds` entry must be a member of `Service.classResourceSlots` for that same `(serviceId, resourceType)` — app-enforced, not a DB constraint.
+- A template's occurrence duration is uniform across every day in its own `recurrence` — it always comes from the one `Service.durationMinutes` value, never a per-weekday length. A business whose open hours vary by weekday (e.g. shorter Saturday) and wants each occurrence to span the full day must create one template per distinct-hours weekday group (same "two independent instances, never a fungible pool" pattern already used for two parallel same-time classes) — there is no dynamic "span to that day's closing time" duration mode (see `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md` Non-Goals).
 - `capacity` cannot exceed the lowest `maxCapacity` ceiling among the template's `ROOM`/capacity-bearing `EQUIPMENT` resources (UC-079 A3).
 - At most `MAX_ACTIVE_TEMPLATES_PER_RESOURCE = 50` active templates reference any one resource (UC-079 A4).
 - A chosen resource must not already be committed to an overlapping template, an `APPROVED` appointment `Booking`, or an active `RecurringBookingSchedule` matching the new recurrence — evaluated via the same advisory-lock/recurrence-rule-direct-evaluation protocol as `RecurringBookingSchedule` (`docs/13-DATABASE_SCHEMA.md`).
