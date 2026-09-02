@@ -11,6 +11,7 @@ import {
   ResourceNoWorkingHoursError,
   ResourceStaffAlreadyWrappedError,
   ResourceStaffNotFoundError,
+  ResourceTypeNotCreatableError,
   ResourceTypeRefIdMismatchError,
 } from '../../domain/errors/resource.error';
 import { ResourceType } from '../../domain/resource.types';
@@ -113,6 +114,17 @@ describe('CreateResourceUseCase', () => {
         tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
       }),
     ).rejects.toThrow(ResourceTypeRefIdMismatchError);
+  });
+
+  it('throws ResourceTypeNotCreatableError when type=LOCATION', async () => {
+    await expect(
+      useCase.execute({
+        tenantId: TENANT_ID,
+        type: ResourceType.LOCATION,
+        name: 'Unidade Única',
+        tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+      }),
+    ).rejects.toThrow(ResourceTypeNotCreatableError);
   });
 
   it('throws ResourceMaxCapacityInvalidError when maxCapacity <= 0', async () => {

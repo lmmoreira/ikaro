@@ -900,6 +900,7 @@ Auth: JWT + `MANAGER` only on every endpoint — a deliberate, self-consistent r
   ```
   - `201` on success
   - `409` if `type = STAFF` and that staff member is already wrapped by a `Resource` (A1)
+  - `422` if `type = LOCATION` — never manually created, only the M21-S02 backfill migration creates it
   - `422` if no working hours are set and the tenant has no `businessHours` either (A2)
 - `PATCH /resources/:id` → edit working hours (UC-046). Body: `{ "workingHours": { ... } | null }` (`null` reverts to inheriting tenant hours).
   - `200` on success

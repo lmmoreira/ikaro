@@ -45,6 +45,16 @@
         "owner": "booking"
       },
       {
+        "source": "apps/backend/src/contexts/booking/infrastructure/cross-context/booking-staff.adapter.ts",
+        "target": "staff",
+        "targetPaths": [
+          "apps/backend/src/contexts/staff/application/use-cases/get-staff-by-id.use-case.ts",
+          "apps/backend/src/contexts/staff/domain/errors/staff-domain.error.ts"
+        ],
+        "rationale": "Booking checks staff active/schedulable status through the existing cross-context adapter (M21-S01, Resource-STAFF-wrap validation).",
+        "owner": "booking"
+      },
+      {
         "source": "apps/backend/src/contexts/booking/infrastructure/cross-context/booking-platform.adapter.ts",
         "target": "platform",
         "targetPaths": [
@@ -135,6 +145,14 @@
         ],
         "rationale": "Staff reacts to the platform tenant-provisioned domain event.",
         "owner": "staff",
+        "reviewBy": "2026-09-30"
+      },
+      {
+        "source": "apps/backend/src/contexts/booking/infrastructure/events/staff-deactivated.handler.ts",
+        "target": "staff",
+        "targetPaths": ["apps/backend/src/contexts/staff/domain/events/staff-deactivated.event.ts"],
+        "rationale": "Booking reacts to the staff-deactivated domain event to cascade-deactivate the wrapping Resource (M21-S01, UC-048).",
+        "owner": "booking",
         "reviewBy": "2026-09-30"
       },
       {

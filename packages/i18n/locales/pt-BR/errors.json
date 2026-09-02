@@ -42,6 +42,7 @@
   "BOOKING_CLOSURE_TIME_RANGE_INCOMPLETE": "Informe o horário de início e término, ou deixe ambos em branco para um fechamento de dia inteiro.",
   "BOOKING_TIME_RANGE_FORMAT_INVALID": "O horário informado deve estar no formato HH:MM.",
   "BOOKING_TIME_RANGE_ORDER_INVALID": "O horário final deve ser depois do horário inicial.",
+  "BOOKING_RESOURCE_TYPE_NOT_CREATABLE": "Um recurso do tipo unidade não pode ser criado diretamente — todo negócio já possui um, criado automaticamente.",
   "BOOKING_RESOURCE_TYPE_REF_ID_MISMATCH": "Um recurso do tipo profissional deve referenciar um membro da equipe, e nenhum outro tipo pode.",
   "BOOKING_RESOURCE_WORKING_HOURS_OUTSIDE_TENANT_HOURS": "O horário de funcionamento do recurso deve estar dentro do horário do negócio.",
   "BOOKING_RESOURCE_NO_WORKING_HOURS": "Este recurso não tem horário de funcionamento e o negócio também não tem horário padrão.",

@@ -30,13 +30,16 @@ export const WorkingHoursSchema = z.object({
   sunday: DayHoursSchema,
 });
 
-// Never 'LOCATION' — every tenant's one LOCATION resource comes from the backfill migration
-// only (docs/14-API_CONTRACTS.md § Resource Management).
-export const CreatableResourceTypeSchema = z.enum(['STAFF', 'ROOM', 'EQUIPMENT']);
+// Accepts all 4 domain ResourceType values, including 'LOCATION' — the "never manually
+// created" rule (docs/14-API_CONTRACTS.md § Resource Management) is a domain-level 422
+// (ResourceTypeNotCreatableError), not a transport-level 400. Rejecting 'LOCATION' here
+// instead would surface a generic Zod 400 rather than the documented Problem Details 422
+// (Codex round-4 finding, PR #457).
+export const ResourceTypeSchema = z.enum(['LOCATION', 'STAFF', 'ROOM', 'EQUIPMENT']);
 
 export const CreateResourceSchema = z
   .object({
-    type: CreatableResourceTypeSchema,
+    type: ResourceTypeSchema,
     refId: z.uuid().optional(),
     name: z.string().min(1),
     workingHours: WorkingHoursSchema.nullable().optional(),

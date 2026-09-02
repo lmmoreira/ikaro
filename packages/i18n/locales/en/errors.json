@@ -42,6 +42,7 @@
   "BOOKING_CLOSURE_TIME_RANGE_INCOMPLETE": "Provide both a start and end time, or leave both blank for a full-day closure.",
   "BOOKING_TIME_RANGE_FORMAT_INVALID": "The time must be in HH:MM format.",
   "BOOKING_TIME_RANGE_ORDER_INVALID": "The end time must be after the start time.",
+  "BOOKING_RESOURCE_TYPE_NOT_CREATABLE": "A location resource cannot be created directly — every business already has one, created automatically.",
   "BOOKING_RESOURCE_TYPE_REF_ID_MISMATCH": "A staff resource must reference a staff member, and no other resource type may.",
   "BOOKING_RESOURCE_WORKING_HOURS_OUTSIDE_TENANT_HOURS": "The resource's working hours must fit within the business's own hours.",
   "BOOKING_RESOURCE_NO_WORKING_HOURS": "This resource has no working hours and the business has no default hours either.",

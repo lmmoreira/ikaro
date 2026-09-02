@@ -32,6 +32,7 @@ import {
   ResourceNotFoundError,
   ResourceStaffAlreadyWrappedError,
   ResourceStaffNotFoundError,
+  ResourceTypeNotCreatableError,
   ResourceWorkingHoursOutsideTenantHoursError,
   ScheduleAlreadyClosedError,
   ScheduleClosureNotFoundError,
@@ -103,7 +104,11 @@ const STATUS_BY_ERROR_GROUP: [BookingDomainErrorCtor[], HttpStatus][] = [
     HttpStatus.UNPROCESSABLE_ENTITY,
   ],
   [
-    [ResourceNoWorkingHoursError, ResourceWorkingHoursOutsideTenantHoursError],
+    [
+      ResourceNoWorkingHoursError,
+      ResourceWorkingHoursOutsideTenantHoursError,
+      ResourceTypeNotCreatableError,
+    ],
     HttpStatus.UNPROCESSABLE_ENTITY,
   ],
 ];

@@ -185,6 +185,55 @@ describe('Resource.create()', () => {
 
     expect(resource.workingHours?.monday).toEqual({ open: '10:00', close: '16:00' });
   });
+
+  it('does not let a caller mutate stored state through the constructor input day sub-object', () => {
+    const workingHours = {
+      monday: { open: '10:00', close: '16:00' },
+      tuesday: null,
+      wednesday: null,
+      thursday: null,
+      friday: null,
+      saturday: null,
+      sunday: null,
+    };
+    const resource = Resource.create({
+      tenantId: TENANT_ID,
+      type: ResourceType.ROOM,
+      name: 'Estúdio 1',
+      tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+      workingHours,
+    });
+
+    // Mutates the nested day object in place, rather than reassigning the top-level key — a
+    // shallow `{ ...workingHours }` copy shares this exact object by reference (Codex round-4
+    // finding, PR #457).
+    workingHours.monday.open = '00:00';
+
+    expect(resource.workingHours?.monday).toEqual({ open: '10:00', close: '16:00' });
+  });
+
+  it('does not let a caller mutate stored state through the workingHours getter return value', () => {
+    const resource = Resource.create({
+      tenantId: TENANT_ID,
+      type: ResourceType.ROOM,
+      name: 'Estúdio 1',
+      tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+      workingHours: {
+        monday: { open: '10:00', close: '16:00' },
+        tuesday: null,
+        wednesday: null,
+        thursday: null,
+        friday: null,
+        saturday: null,
+        sunday: null,
+      },
+    });
+
+    const firstRead = resource.workingHours;
+    if (firstRead?.monday) firstRead.monday.open = '00:00';
+
+    expect(resource.workingHours?.monday).toEqual({ open: '10:00', close: '16:00' });
+  });
 });
 
 describe('Resource.updateWorkingHours()', () => {
@@ -310,5 +359,37 @@ describe('Resource.deactivate() / reactivate()', () => {
       tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
     });
     expect(() => resource.reactivate()).toThrow(ResourceAlreadyActiveError);
+  });
+});
+
+describe('Resource.reconstitute()', () => {
+  it('does not let a caller mutate stored state through the reconstituted props object', () => {
+    const now = new Date('2026-01-01T00:00:00Z');
+    const props = {
+      id: '00000000-0000-7000-8000-000000000003',
+      tenantId: TENANT_ID,
+      type: ResourceType.ROOM,
+      refId: null,
+      name: 'Estúdio 1',
+      workingHours: {
+        monday: { open: '10:00', close: '16:00' },
+        tuesday: null,
+        wednesday: null,
+        thursday: null,
+        friday: null,
+        saturday: null,
+        sunday: null,
+      },
+      turnoverMinutes: 0,
+      maxCapacity: null,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const resource = Resource.reconstitute(props);
+    if (props.workingHours.monday) props.workingHours.monday.open = '00:00';
+
+    expect(resource.workingHours?.monday).toEqual({ open: '10:00', close: '16:00' });
   });
 });

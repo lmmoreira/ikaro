@@ -54,14 +54,15 @@ describe('ResourceController (integration)', () => {
       expect(body.items.some((r: { name: string }) => r.name === 'Máquina 1')).toBe(true);
     });
 
-    it('returns 400 for type=LOCATION (Zod schema excludes it)', async () => {
+    it('returns 422 for type=LOCATION (never manually created — backfill migration only)', async () => {
       const { body } = await request(app.getHttpServer())
         .post('/resources')
         .set(actorHeaders(TENANT_A, MANAGER_ID))
         .send({ type: 'LOCATION', name: 'Unidade Única' })
-        .expect(400);
+        .expect(422);
 
-      expect(body.status).toBe(400);
+      expect(body.status).toBe(422);
+      expect(body.code).toBe('BOOKING_RESOURCE_TYPE_NOT_CREATABLE');
     });
 
     it('returns 403 for STAFF role', async () => {

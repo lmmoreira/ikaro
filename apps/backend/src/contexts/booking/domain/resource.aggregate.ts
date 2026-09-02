@@ -41,7 +41,10 @@ export class Resource extends AggregateRoot {
 
   private constructor(props: ResourceProps) {
     super();
-    this.props = props;
+    // Clones workingHours here — the one place every entry point (create/reconstitute) passes
+    // through — so a caller can never retain a live reference into stored state, whether via a
+    // props object built by the repository mapper or one passed directly by a test.
+    this.props = { ...props, workingHours: Resource.cloneWorkingHours(props.workingHours) };
   }
 
   get id(): string {
@@ -60,7 +63,7 @@ export class Resource extends AggregateRoot {
     return this.props.name;
   }
   get workingHours(): ResourceWorkingHours | null {
-    return this.props.workingHours ? { ...this.props.workingHours } : null;
+    return Resource.cloneWorkingHours(this.props.workingHours);
   }
   get turnoverMinutes(): number {
     return this.props.turnoverMinutes;
@@ -98,7 +101,7 @@ export class Resource extends AggregateRoot {
       type,
       refId: type === ResourceType.STAFF ? refId : null,
       name,
-      workingHours: workingHours ? { ...workingHours } : null,
+      workingHours, // the constructor clones this — see private constructor
       turnoverMinutes,
       maxCapacity,
       isActive: true,
@@ -123,7 +126,7 @@ export class Resource extends AggregateRoot {
       // create() already rejects (Codex/CodeRabbit finding, PR #457 round 1).
       throw new ResourceNoWorkingHoursError();
     }
-    this.props.workingHours = workingHours ? { ...workingHours } : null;
+    this.props.workingHours = Resource.cloneWorkingHours(workingHours);
     this.props.updatedAt = new Date();
   }
 
@@ -185,5 +188,22 @@ export class Resource extends AggregateRoot {
   // keys plus an extra `timezone` field, which is fine for a non-literal argument).
   private static isEmptyHours(hours: ResourceWorkingHours): boolean {
     return DAYS_OF_WEEK.every((day) => hours[day] === null);
+  }
+
+  // A shallow `{ ...workingHours }` only copies the top-level 7 day keys — each day's
+  // `{ open, close }` sub-object stays shared by reference with the caller (on write) or the
+  // stored props (on read), letting a caller mutate `resource.workingHours.monday.open` and
+  // silently corrupt validated state without going through updateWorkingHours() (Codex round-4
+  // finding, PR #457). Clone every level.
+  private static cloneWorkingHours(
+    workingHours: ResourceWorkingHours | null,
+  ): ResourceWorkingHours | null {
+    if (workingHours === null) return null;
+    const cloned = {} as ResourceWorkingHours;
+    for (const day of DAYS_OF_WEEK) {
+      const dayHours = workingHours[day];
+      cloned[day] = dayHours ? { ...dayHours } : null;
+    }
+    return cloned;
   }
 }

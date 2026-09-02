@@ -1,6 +1,17 @@
 import { BookingErrorCode } from '@ikaro/types/protocol/errors';
 import { BookingDomainError } from './booking-domain-error.base';
 
+export class ResourceTypeNotCreatableError extends BookingDomainError {
+  constructor() {
+    super(
+      "type 'LOCATION' cannot be created directly — every tenant's one LOCATION resource comes from the backfill migration",
+      BookingErrorCode.RESOURCE_TYPE_NOT_CREATABLE,
+      'type',
+    );
+    this.name = 'ResourceTypeNotCreatableError';
+  }
+}
+
 export class ResourceTypeRefIdMismatchError extends BookingDomainError {
   constructor() {
     super(

@@ -9,6 +9,7 @@ import { ResourceType, ResourceWorkingHours } from '../../domain/resource.types'
 import {
   ResourceStaffAlreadyWrappedError,
   ResourceStaffNotFoundError,
+  ResourceTypeNotCreatableError,
 } from '../../domain/errors/resource.error';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { BOOKING_STAFF_PORT, IBookingStaffPort } from '../ports/booking-staff.port';
@@ -47,6 +48,15 @@ export class CreateResourceUseCase {
     // literal needs this explicit bridge to the domain's ResourceType enum (same shape as
     // UpdateHotsiteContentUseCase's toDomainLayout() DTO->domain bridge).
     const type = input.type as ResourceType;
+
+    // LOCATION is never manually created — every tenant's one LOCATION resource comes from
+    // the M21-S02 backfill migration only (docs/14-API_CONTRACTS.md § Resource Management,
+    // plan/M21-MULTIVERTICAL-FOUNDATION.md M21-S01). The schema accepts the value so this
+    // rejects with a domain-level 422, not a generic transport-level 400 (Codex round-4
+    // finding, PR #457).
+    if (type === ResourceType.LOCATION) {
+      throw new ResourceTypeNotCreatableError();
+    }
 
     if (type === ResourceType.STAFF && refId) {
       await this.assertStaffWrappable(refId, tenantId);
