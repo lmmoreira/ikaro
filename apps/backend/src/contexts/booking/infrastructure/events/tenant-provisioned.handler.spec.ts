@@ -6,13 +6,13 @@ import { InMemoryResourceRepository } from '../../../../test/repositories/bookin
 import { TenantProvisionedEventBuilder } from '../../../../test/builders/platform';
 import { ResourceType } from '../../domain/resource.types';
 import { CreateTenantLocationResourceUseCase } from '../../application/use-cases/create-tenant-location-resource.use-case';
-import { TenantProvisionedHandler } from './tenant-provisioned.handler';
+import { TenantProvisionedBookingHandler } from './tenant-provisioned.handler';
 
 const TENANT_ID = 'aaaaaaaa-0000-4000-8000-000000000011';
 const CORRELATION_ID = 'corr-booking-handler-test';
 
 function makeHandler(): {
-  handler: TenantProvisionedHandler;
+  handler: TenantProvisionedBookingHandler;
   repo: InMemoryResourceRepository;
   eventBus: InMemoryEventBus;
 } {
@@ -26,11 +26,11 @@ function makeHandler(): {
     inboxRepo,
     new InMemoryTransactionManager(),
   );
-  const handler = new TenantProvisionedHandler(useCase, eventBus);
+  const handler = new TenantProvisionedBookingHandler(useCase, eventBus);
   return { handler, repo, eventBus };
 }
 
-describe('TenantProvisionedHandler (booking)', () => {
+describe('TenantProvisionedBookingHandler (booking)', () => {
   it('delegates to CreateTenantLocationResourceUseCase and creates a LOCATION resource', async () => {
     const { handler, repo } = makeHandler();
 

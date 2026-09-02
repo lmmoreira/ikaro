@@ -5,10 +5,10 @@ import { TenantProvisioned } from '../../../platform/domain/events/tenant-provis
 import { CreateTenantLocationResourceUseCase } from '../../application/use-cases/create-tenant-location-resource.use-case';
 
 @Injectable()
-export class TenantProvisionedHandler implements OnModuleInit {
+export class TenantProvisionedBookingHandler implements OnModuleInit {
   static readonly CONSUMER_NAME = 'booking';
 
-  private readonly logger = new AppLogger(TenantProvisionedHandler.name);
+  private readonly logger = new AppLogger(TenantProvisionedBookingHandler.name);
 
   constructor(
     private readonly createTenantLocationResource: CreateTenantLocationResourceUseCase,
@@ -19,7 +19,7 @@ export class TenantProvisionedHandler implements OnModuleInit {
     this.eventBus.subscribe<TenantProvisioned>(
       TenantProvisioned.name,
       (event) => this.handle(event),
-      TenantProvisionedHandler.CONSUMER_NAME,
+      TenantProvisionedBookingHandler.CONSUMER_NAME,
     );
   }
 
@@ -36,7 +36,7 @@ export class TenantProvisionedHandler implements OnModuleInit {
       });
     } catch (err) {
       this.logger.error(
-        'TenantProvisionedHandler failed — will nack for retry',
+        'TenantProvisionedBookingHandler failed — will nack for retry',
         err instanceof Error ? err.stack : String(err),
         { tenantId: event.tenantId, correlationId: event.correlationId },
       );

@@ -21,7 +21,7 @@ import { BookingReminderJob } from './application/jobs/booking-reminder.job';
 import { BookingReminderTriggerHandler } from './infrastructure/events/booking-reminder-trigger.handler';
 import { AdminScheduleReminderTriggerHandler } from './infrastructure/events/admin-schedule-reminder-trigger.handler';
 import { StaffDeactivatedHandler } from './infrastructure/events/staff-deactivated.handler';
-import { TenantProvisionedHandler } from './infrastructure/events/tenant-provisioned.handler';
+import { TenantProvisionedBookingHandler } from './infrastructure/events/tenant-provisioned.handler';
 import { CreateTenantLocationResourceUseCase } from './application/use-cases/create-tenant-location-resource.use-case';
 import { CloseScheduleUseCase } from './application/use-cases/close-schedule.use-case';
 import { ActivateServiceUseCase } from './application/use-cases/activate-service.use-case';
@@ -177,7 +177,7 @@ import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cach
     CascadeStaffDeactivationUseCase,
     StaffDeactivatedHandler,
     CreateTenantLocationResourceUseCase,
-    TenantProvisionedHandler,
+    TenantProvisionedBookingHandler,
   ],
   exports: [GetBookingByIdUseCase, GetServicesUseCase],
 })
