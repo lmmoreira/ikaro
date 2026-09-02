@@ -49,3 +49,21 @@ export interface UpdateResourceRequest {
   turnoverMinutes?: number;
   maxCapacity?: number | null;
 }
+
+// Staff candidates for a STAFF-type resource's picker, pre-merged server-side (BFF composes
+// Staff + Resource reads and computes isWrapped) rather than in the browser — the BFF, not
+// apps/web, owns multi-read composition (docs/24-BFF_ARCHITECTURE.md § Web-facing composite
+// views).
+export interface ResourceStaffOptionItem {
+  id: string;
+  name: string | null;
+  email: string;
+  isActive: boolean;
+  // Already wrapped by a different Resource (excludeResourceId is never counted as a conflict
+  // against itself — same semantic as StaffWrapValidationService.assertWrappable's own param).
+  isWrapped: boolean;
+}
+
+export interface ResourceStaffOptionsResponse {
+  items: ResourceStaffOptionItem[];
+}

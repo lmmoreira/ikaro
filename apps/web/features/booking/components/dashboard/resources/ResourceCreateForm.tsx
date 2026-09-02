@@ -1,11 +1,10 @@
 'use client';
 
-import { useMemo, useState, type SubmitEvent } from 'react';
+import { useState, type SubmitEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { ResourceType, ResourceWorkingHours } from '@ikaro/types';
-import { useResources, useCreateResource } from '@/features/booking/hooks/useResources';
-import { useStaff } from '@/features/staff/hooks/useStaff';
+import { useCreateResource, useResourceStaffOptions } from '@/features/booking/hooks/useResources';
 import { ResourceIdentityFields } from './ResourceIdentityFields';
 import { ResourceWorkingHoursEditor } from './ResourceWorkingHoursEditor';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
@@ -27,8 +26,7 @@ export function ResourceCreateForm(): React.JSX.Element {
   const locale = useResolvedLocale();
   const router = useRouter();
   const createResourceMutation = useCreateResource();
-  const { data: staffData } = useStaff({ limit: 100 });
-  const { data: resourcesData } = useResources({ type: 'STAFF' });
+  const { data: staffOptionsData } = useResourceStaffOptions();
 
   const [type, setType] = useState<Exclude<ResourceType, 'LOCATION'>>('STAFF');
   const [refId, setRefId] = useState<string>('');
@@ -41,17 +39,7 @@ export function ResourceCreateForm(): React.JSX.Element {
 
   const isSubmitting = isSubmittingLocal || createResourceMutation.isPending;
 
-  const wrappedStaffIds = useMemo(
-    () =>
-      new Set(
-        (resourcesData?.items ?? [])
-          .map((r) => r.refId)
-          .filter((refId): refId is string => refId !== null),
-      ),
-    [resourcesData],
-  );
-
-  const staffOptions = staffData?.items ?? [];
+  const staffOptions = staffOptionsData?.items ?? [];
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -104,7 +92,6 @@ export function ResourceCreateForm(): React.JSX.Element {
               name={name}
               onNameChange={setName}
               staffOptions={staffOptions}
-              wrappedStaffIds={wrappedStaffIds}
               nameError={fieldErrors.name}
               refIdError={fieldErrors.refId}
             />

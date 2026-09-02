@@ -55,7 +55,15 @@ export class UpdateResourceUseCase {
     // Same known, accepted race as CreateResourceUseCase's identical check (see its own
     // comment) — documented as an accepted limitation rather than built out with new
     // cross-context machinery (Codex round-6/8 finding, PR #457).
-    if (type === ResourceType.STAFF && refId) {
+    //
+    // Only re-validated when refId is actually changing: the frontend always sends refId
+    // explicitly (PATCH semantics don't distinguish "unchanged" from "resent"), so gating on
+    // `refId !== resource.refId` — not just truthiness — is what lets an unrelated field edit
+    // (e.g. turnoverMinutes) succeed on a STAFF resource whose wrapped staff member has since
+    // been deactivated (UC-048's cascade already deactivated this resource itself; requiring
+    // the staff to still be active here would make every subsequent edit fail, not just ones
+    // that touch refId).
+    if (type === ResourceType.STAFF && refId && refId !== resource.refId) {
       await this.staffWrapValidation.assertWrappable(refId, input.tenantId, resource.id);
     }
 

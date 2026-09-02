@@ -87,6 +87,48 @@ describe('ResourceController (component)', () => {
     });
   });
 
+  // ─── GET /v1/resources/staff-options ──────────────────────────────────────
+
+  describe('GET /v1/resources/staff-options', () => {
+    const staffItems = [
+      { id: 'staff-1', name: 'Camila Duarte', email: 'camila@x.com', isActive: true },
+    ];
+    const staffResource: ResourceResponse = {
+      ...mockResource,
+      id: 'res-1',
+      type: 'STAFF',
+      refId: 'staff-1',
+    };
+
+    it('returns 401 without a token', async () => {
+      const res = await request(app.getHttpServer()).get('/v1/resources/staff-options');
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 403 for STAFF role', async () => {
+      setupActiveGuardMock(httpService);
+      const res = await request(app.getHttpServer())
+        .get('/v1/resources/staff-options')
+        .set('Authorization', `Bearer ${makeStaffJwt(jwtService)}`);
+      expect(res.status).toBe(403);
+    });
+
+    it('MANAGER JWT → 200, merges Staff + Resource backend reads into one response', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockImplementation((path: string) => {
+        if (path === '/staff') return Promise.resolve({ items: staffItems });
+        return Promise.resolve({ items: [staffResource] });
+      });
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/resources/staff-options')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.items).toEqual([expect.objectContaining({ id: 'staff-1', isWrapped: true })]);
+    });
+  });
+
   // ─── GET /v1/resources/:id ────────────────────────────────────────────────
 
   describe('GET /v1/resources/:id', () => {

@@ -4,6 +4,7 @@ import {
   createResource,
   deactivateResource,
   getResource,
+  getResourceStaffOptions,
   listResources,
   reactivateResource,
   updateResource,
@@ -25,6 +26,14 @@ export function useResource(id: string) {
     queryKey: ['resources', tenantId, id],
     queryFn: () => getResource(id),
     enabled: Boolean(id),
+  });
+}
+
+export function useResourceStaffOptions(excludeResourceId?: string) {
+  const { tenantId } = useTenant();
+  return useQuery({
+    queryKey: ['resources', tenantId, 'staff-options', excludeResourceId],
+    queryFn: () => getResourceStaffOptions(excludeResourceId),
   });
 }
 

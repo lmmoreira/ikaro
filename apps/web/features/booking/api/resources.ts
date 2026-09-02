@@ -2,6 +2,7 @@ import type {
   CreateResourceRequest,
   ResourceListResponse,
   ResourceResponse,
+  ResourceStaffOptionsResponse,
   UpdateResourceRequest,
 } from '@ikaro/types';
 import { bffClient } from '@/shared/lib/api/bff-client';
@@ -10,6 +11,7 @@ export type {
   CreateResourceRequest,
   ResourceListResponse,
   ResourceResponse,
+  ResourceStaffOptionsResponse,
   UpdateResourceRequest,
 };
 
@@ -25,6 +27,17 @@ export async function listResources(query?: ListResourcesQuery): Promise<Resourc
 
 export async function getResource(id: string): Promise<ResourceResponse> {
   const res = await bffClient.get<ResourceResponse>(`/resources/${id}`);
+  return res.data;
+}
+
+// Merges Staff + Resource reads server-side (docs/24-BFF_ARCHITECTURE.md § Web-facing
+// composite views) — the STAFF picker's data source; each item already carries isWrapped.
+export async function getResourceStaffOptions(
+  excludeResourceId?: string,
+): Promise<ResourceStaffOptionsResponse> {
+  const res = await bffClient.get<ResourceStaffOptionsResponse>('/resources/staff-options', {
+    params: excludeResourceId ? { excludeResourceId } : undefined,
+  });
   return res.data;
 }
 

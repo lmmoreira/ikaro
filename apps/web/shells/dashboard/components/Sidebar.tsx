@@ -100,7 +100,12 @@ export function Sidebar({
           </p>
           <nav className="flex flex-col gap-0.5 px-2">
             {MANAGER_NAV_KEYS.map(({ href, labelKey, Icon }) => (
-              <Link key={href} href={href} className={navItemClass(pathname.startsWith(href))}>
+              <Link
+                key={href}
+                href={href}
+                data-testid={href === '/dashboard/resources' ? 'sidebar-nav-resources' : undefined}
+                className={navItemClass(pathname.startsWith(href))}
+              >
                 <Icon className="h-4 w-4 shrink-0" />
                 {t(labelKey)}
               </Link>

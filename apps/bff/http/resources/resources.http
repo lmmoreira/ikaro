@@ -59,6 +59,24 @@ GET {{bffUrl}}/v1/resources/{{resourceId}}
 Authorization: Bearer {{managerToken}}
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — STAFF picker options for a Resource create/edit form (added M21-S04)
+# Merges Staff + Resource reads server-side (docs/24-BFF_ARCHITECTURE.md § Web-facing
+# composite views) — each item carries isWrapped so the picker can disable already-taken staff.
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Staff options for creating a new resource
+GET {{bffUrl}}/v1/resources/staff-options
+Authorization: Bearer {{managerToken}}
+
+###
+
+### Staff options when editing an existing resource — its own wrapped staff isn't marked as taken
+GET {{bffUrl}}/v1/resources/staff-options?excludeResourceId={{resourceId}}
+Authorization: Bearer {{managerToken}}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — create a resource (UC-045)
 # ─────────────────────────────────────────────────────────────────────────────
 

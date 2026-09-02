@@ -84,6 +84,18 @@ describe('ResourceListPage', () => {
     expect(screen.getByText('Estúdio 1')).toBeInTheDocument();
   });
 
+  it('filters by the LOCATION type tab (UC-044 lists LOCATION among the filterable types)', async () => {
+    const user = userEvent.setup();
+    useResourcesMock.mockReturnValue({ data: { items: RESOURCES }, isLoading: false });
+    renderWithIntl(<ResourceListPage />);
+
+    await user.click(screen.getByRole('button', { name: /Local/ }));
+
+    expect(screen.getByText('Localização Principal')).toBeInTheDocument();
+    expect(screen.queryByText('Camila Duarte')).not.toBeInTheDocument();
+    expect(screen.queryByText('Estúdio 1')).not.toBeInTheDocument();
+  });
+
   it('filters by active/inactive status using the second tab row (UC-044)', async () => {
     const user = userEvent.setup();
     useResourcesMock.mockReturnValue({ data: { items: RESOURCES }, isLoading: false });

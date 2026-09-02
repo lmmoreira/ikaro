@@ -38,12 +38,8 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/features/booking/hooks/useResources', () => ({
   useResource: (id: string) => useResourceMock(id),
-  useResources: () => ({ data: { items: [] } }),
   useUpdateResource: () => ({ mutateAsync, isPending: false }),
-}));
-
-vi.mock('@/features/staff/hooks/useStaff', () => ({
-  useStaff: () => ({ data: { items: [] } }),
+  useResourceStaffOptions: () => ({ data: { items: [] } }),
 }));
 
 vi.mock('@/shells/dashboard/components/topbar-status-context', () => ({

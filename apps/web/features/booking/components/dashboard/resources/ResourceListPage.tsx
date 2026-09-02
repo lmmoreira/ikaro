@@ -12,7 +12,7 @@ import { cn } from '@/shared/utils/cn';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 
-type ResourceFilter = 'all' | 'STAFF' | 'ROOM' | 'EQUIPMENT';
+type ResourceFilter = 'all' | 'LOCATION' | 'STAFF' | 'ROOM' | 'EQUIPMENT';
 type StatusFilter = 'all' | 'active' | 'inactive';
 
 const TYPE_ORDER: Record<ResourceType, number> = { LOCATION: 0, STAFF: 1, ROOM: 2, EQUIPMENT: 3 };
@@ -31,8 +31,12 @@ const TYPE_LABEL_KEYS: Record<ResourceType, string> = {
   EQUIPMENT: 'typeEquipment',
 };
 
+// UC-044 lists LOCATION among the filterable types (docs/04-USE_CASES.md) — included here even
+// though a tenant only ever has exactly one, since it's still a valid, literal filter value the
+// backend contract accepts (GET /resources?type=LOCATION).
 const FILTERS: readonly { key: ResourceFilter; labelKey: string }[] = [
   { key: 'all', labelKey: 'tabAll' },
+  { key: 'LOCATION', labelKey: 'tabLocation' },
   { key: 'STAFF', labelKey: 'tabStaff' },
   { key: 'ROOM', labelKey: 'tabRoom' },
   { key: 'EQUIPMENT', labelKey: 'tabEquipment' },
@@ -132,6 +136,7 @@ export function ResourceListPage(): React.JSX.Element {
   const counts = useMemo(
     () => ({
       all: resources.length,
+      LOCATION: resources.filter((r) => r.type === 'LOCATION').length,
       STAFF: resources.filter((r) => r.type === 'STAFF').length,
       ROOM: resources.filter((r) => r.type === 'ROOM').length,
       EQUIPMENT: resources.filter((r) => r.type === 'EQUIPMENT').length,

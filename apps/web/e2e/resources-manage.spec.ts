@@ -53,7 +53,7 @@ test.describe('resource management access control', () => {
     await loginAsStaff(page, 'funcionario@lavacar.com.br', 'lavacar-beloauto');
 
     await page.goto('/dashboard/bookings');
-    await expect(page.getByRole('link', { name: 'Recursos' })).not.toBeVisible();
+    await expect(page.getByTestId('sidebar-nav-resources')).not.toBeVisible();
 
     // Manager-only route — proxy.ts redirects STAFF back to /dashboard before the page ever
     // renders, matching every other manager-only section (Equipe/Configurações/Hotsite).

@@ -14,21 +14,16 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('@/features/booking/hooks/useResources', () => ({
-  useResources: () => ({ data: { items: [] } }),
   useCreateResource: () => ({ mutateAsync, isPending: false }),
-}));
-
-vi.mock('@/features/staff/hooks/useStaff', () => ({
-  useStaff: () => ({
+  useResourceStaffOptions: () => ({
     data: {
       items: [
         {
           id: 's-1',
           email: 'camila@acme.com',
           name: 'Camila Duarte',
-          role: 'STAFF',
           isActive: true,
-          createdAt: '',
+          isWrapped: false,
         },
       ],
     },

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import type { ResourceWorkingHours } from '@ikaro/types';
+import { SwitchField } from '@/shared/components/ui/switch-field';
 import {
   WeekDayRow,
   type DayHoursValue as DayValue,
@@ -107,24 +108,13 @@ export function ResourceWorkingHoursEditor({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3.5">
-        <div>
-          <p className="text-sm font-semibold text-gray-900">{t('useDefaultHours')}</p>
-          <p className="text-xs text-gray-500">{t('useDefaultHoursSub')}</p>
-        </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={usesDefault}
-          data-testid="resource-hours-inherit-toggle"
-          onClick={() => onChange(usesDefault ? toWorkingHours(days) : null)}
-          className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${usesDefault ? 'bg-blue-600' : 'bg-gray-300'}`}
-        >
-          <span
-            className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${usesDefault ? 'translate-x-[1.375rem]' : 'translate-x-0.5'}`}
-          />
-        </button>
-      </div>
+      <SwitchField
+        checked={usesDefault}
+        onChange={(checked) => onChange(checked ? null : toWorkingHours(days))}
+        label={t('useDefaultHours')}
+        hint={t('useDefaultHoursSub')}
+        testId="resource-hours-inherit-toggle"
+      />
 
       {!usesDefault && (
         <div data-testid="resource-hours-custom" className="rounded-2xl border border-border p-3">

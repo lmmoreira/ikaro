@@ -2,29 +2,13 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import type { StaffListItem } from '@ikaro/types';
+import type { ResourceStaffOptionItem } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
 import { ResourceIdentityFields } from './ResourceIdentityFields';
 
-const STAFF_OPTIONS: StaffListItem[] = [
-  {
-    id: 's-1',
-    email: 'camila@acme.com',
-    name: 'Camila Duarte',
-    role: 'STAFF',
-    isActive: true,
-    createdAt: '',
-    status: 'ACTIVE',
-  },
-  {
-    id: 's-2',
-    email: 'bruno@acme.com',
-    name: 'Bruno Alves',
-    role: 'STAFF',
-    isActive: true,
-    createdAt: '',
-    status: 'ACTIVE',
-  },
+const STAFF_OPTIONS: ResourceStaffOptionItem[] = [
+  { id: 's-1', email: 'camila@acme.com', name: 'Camila Duarte', isActive: true, isWrapped: false },
+  { id: 's-2', email: 'bruno@acme.com', name: 'Bruno Alves', isActive: true, isWrapped: false },
 ];
 
 function getTypeOption(type: 'STAFF' | 'ROOM' | 'EQUIPMENT') {
@@ -49,7 +33,6 @@ describe('ResourceIdentityFields', () => {
         name=""
         onNameChange={vi.fn()}
         staffOptions={STAFF_OPTIONS}
-        wrappedStaffIds={new Set()}
       />,
     );
 
@@ -68,7 +51,6 @@ describe('ResourceIdentityFields', () => {
         name=""
         onNameChange={vi.fn()}
         staffOptions={STAFF_OPTIONS}
-        wrappedStaffIds={new Set()}
       />,
     );
 
@@ -77,36 +59,9 @@ describe('ResourceIdentityFields', () => {
   });
 
   it('disables an already-wrapped staff option', () => {
-    renderWithIntl(
-      <ResourceIdentityFields
-        showTypePicker={false}
-        type="STAFF"
-        onTypeChange={vi.fn()}
-        refId=""
-        onRefIdChange={vi.fn()}
-        name=""
-        onNameChange={vi.fn()}
-        staffOptions={STAFF_OPTIONS}
-        wrappedStaffIds={new Set(['s-1'])}
-      />,
-    );
-
-    const option = screen.getByRole('option', { name: /Camila Duarte/ });
-    expect(option).toBeDisabled();
-  });
-
-  it('excludes an inactive (deactivated) staff member from selectable options', () => {
-    const staffOptions: StaffListItem[] = [
-      ...STAFF_OPTIONS,
-      {
-        id: 's-3',
-        email: 'ines@acme.com',
-        name: 'Inês Souza',
-        role: 'STAFF',
-        isActive: false,
-        createdAt: '',
-        status: 'DEACTIVATED',
-      },
+    const staffOptions: ResourceStaffOptionItem[] = [
+      { ...STAFF_OPTIONS[0]!, isWrapped: true },
+      STAFF_OPTIONS[1]!,
     ];
     renderWithIntl(
       <ResourceIdentityFields
@@ -118,7 +73,28 @@ describe('ResourceIdentityFields', () => {
         name=""
         onNameChange={vi.fn()}
         staffOptions={staffOptions}
-        wrappedStaffIds={new Set()}
+      />,
+    );
+
+    const option = screen.getByRole('option', { name: /Camila Duarte/ });
+    expect(option).toBeDisabled();
+  });
+
+  it('excludes an inactive (deactivated) staff member from selectable options', () => {
+    const staffOptions: ResourceStaffOptionItem[] = [
+      ...STAFF_OPTIONS,
+      { id: 's-3', email: 'ines@acme.com', name: 'Inês Souza', isActive: false, isWrapped: false },
+    ];
+    renderWithIntl(
+      <ResourceIdentityFields
+        showTypePicker={false}
+        type="STAFF"
+        onTypeChange={vi.fn()}
+        refId=""
+        onRefIdChange={vi.fn()}
+        name=""
+        onNameChange={vi.fn()}
+        staffOptions={staffOptions}
       />,
     );
 
@@ -126,17 +102,9 @@ describe('ResourceIdentityFields', () => {
   });
 
   it('keeps the currently-selected staff option visible (disabled) even if it has since been deactivated', () => {
-    const staffOptions: StaffListItem[] = [
+    const staffOptions: ResourceStaffOptionItem[] = [
       ...STAFF_OPTIONS,
-      {
-        id: 's-3',
-        email: 'ines@acme.com',
-        name: 'Inês Souza',
-        role: 'STAFF',
-        isActive: false,
-        createdAt: '',
-        status: 'DEACTIVATED',
-      },
+      { id: 's-3', email: 'ines@acme.com', name: 'Inês Souza', isActive: false, isWrapped: false },
     ];
     renderWithIntl(
       <ResourceIdentityFields
@@ -148,7 +116,6 @@ describe('ResourceIdentityFields', () => {
         name=""
         onNameChange={vi.fn()}
         staffOptions={staffOptions}
-        wrappedStaffIds={new Set()}
       />,
     );
 
@@ -167,7 +134,6 @@ describe('ResourceIdentityFields', () => {
         name=""
         onNameChange={vi.fn()}
         staffOptions={STAFF_OPTIONS}
-        wrappedStaffIds={new Set()}
       />,
     );
 
@@ -185,7 +151,6 @@ describe('ResourceIdentityFields', () => {
         name=""
         onNameChange={vi.fn()}
         staffOptions={STAFF_OPTIONS}
-        wrappedStaffIds={new Set()}
         nameError="Informe o nome."
       />,
     );

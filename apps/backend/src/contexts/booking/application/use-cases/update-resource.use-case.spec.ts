@@ -155,6 +155,26 @@ describe('UpdateResourceUseCase', () => {
     expect(result.refId).toBe(STAFF_ID);
   });
 
+  it('edits an unrelated field on a STAFF resource whose wrapped staff member has since been deactivated', async () => {
+    const resource = new ResourceBuilder()
+      .withTenantId(TENANT_ID)
+      .withType(ResourceType.STAFF)
+      .withRefId(STAFF_ID)
+      .build();
+    await repo.save(resource);
+    staffPort.setProfile(STAFF_ID, { id: STAFF_ID, isActive: false });
+
+    const result = await useCase.execute({
+      id: resource.id,
+      tenantId: TENANT_ID,
+      tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+      turnoverMinutes: 30,
+    });
+
+    expect(result.turnoverMinutes).toBe(30);
+    expect(result.refId).toBe(STAFF_ID);
+  });
+
   it('throws ResourceStaffAlreadyWrappedError when changing type to STAFF for a staff member already wrapped by a different resource', async () => {
     const resource = new ResourceBuilder()
       .withTenantId(TENANT_ID)

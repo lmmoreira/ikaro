@@ -9,6 +9,7 @@ import {
   useReactivateResource,
   useResource,
   useResources,
+  useResourceStaffOptions,
   useUpdateResource,
 } from './useResources';
 
@@ -61,6 +62,11 @@ vi.mock('@/features/booking/api/resources', () => ({
     isActive: true,
   }),
   deactivateResource: vi.fn().mockResolvedValue(undefined),
+  getResourceStaffOptions: vi.fn().mockResolvedValue({
+    items: [
+      { id: 's-1', name: 'Camila Duarte', email: 'camila@x.com', isActive: true, isWrapped: false },
+    ],
+  }),
   reactivateResource: vi.fn().mockResolvedValue({
     id: 'r-1',
     type: 'STAFF',
@@ -102,6 +108,16 @@ describe('useResource', () => {
     const { result } = renderHook(() => useResource('r-1'), { wrapper });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.id).toBe('r-1');
+  });
+});
+
+describe('useResourceStaffOptions', () => {
+  it('fetches merged staff options', async () => {
+    const { result } = renderHook(() => useResourceStaffOptions(), { wrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data?.items).toEqual([
+      expect.objectContaining({ id: 's-1', isWrapped: false }),
+    ]);
   });
 });
 

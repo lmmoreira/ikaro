@@ -483,6 +483,7 @@
     },
     "resourcesPage": {
       "tabAll": "Todos ({count})",
+      "tabLocation": "Local ({count})",
       "tabStaff": "Profissionais ({count})",
       "tabRoom": "Salas ({count})",
       "tabEquipment": "Equipamentos ({count})",

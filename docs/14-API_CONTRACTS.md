@@ -890,6 +890,11 @@ Auth: JWT + `MANAGER` only on every endpoint — a deliberate, self-consistent r
 - `GET /resources/:id` → get a single resource (added M21-S04, powers the edit page). Same response shape as one list item above.
   - `200` on success
   - `404` if not found or belongs to another tenant
+- `GET /resources/staff-options?excludeResourceId=` → **BFF-only, no backend route** (added M21-S04). Merges a `GET /staff` read with a `GET /resources?type=STAFF` read server-side and returns each staff member annotated with whether they're already wrapped by a *different* `Resource` — the STAFF-picker's underlying data source on the create/edit forms, kept out of `apps/web` per `docs/24-BFF_ARCHITECTURE.md` § Web-facing composite views. `excludeResourceId` (optional) excludes one resource from the wrap check — the resource currently being edited, so its own already-wrapped staff member isn't marked as taken.
+  ```json
+  { "items": [ { "id": "uuid", "name": "Camila Duarte", "email": "camila@lavacar.com.br", "isActive": true, "isWrapped": false } ] }
+  ```
+  - `200` on success
 - `POST /resources` → create a resource (UC-045)
   ```json
   {

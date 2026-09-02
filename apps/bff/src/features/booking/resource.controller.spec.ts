@@ -30,6 +30,54 @@ describe('ResourceController', () => {
     });
   });
 
+  describe('staffOptions()', () => {
+    const staffItems = [
+      { id: 'staff-1', name: 'Camila Duarte', email: 'camila@x.com', isActive: true },
+      { id: 'staff-2', name: 'Bruno Alves', email: 'bruno@x.com', isActive: true },
+    ];
+    const staffResource: ResourceResponse = {
+      ...mockResource,
+      id: 'res-1',
+      type: 'STAFF',
+      refId: 'staff-1',
+    };
+
+    it('merges Staff + Resource reads and marks a staff member already wrapped by another resource', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockImplementation((path: string) => {
+          if (path === '/staff') return Promise.resolve({ items: staffItems });
+          return Promise.resolve({ items: [staffResource] });
+        }),
+      });
+      const controller = new ResourceController(backendHttp);
+
+      const result = await controller.staffOptions({});
+
+      expect(backendHttp.get).toHaveBeenCalledWith('/staff', { limit: 100, offset: 0 });
+      expect(backendHttp.get).toHaveBeenCalledWith('/resources', { type: 'STAFF' });
+      expect(result.items).toEqual([
+        expect.objectContaining({ id: 'staff-1', isWrapped: true }),
+        expect.objectContaining({ id: 'staff-2', isWrapped: false }),
+      ]);
+    });
+
+    it('does not count the excluded resource id as a wrap conflict', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockImplementation((path: string) => {
+          if (path === '/staff') return Promise.resolve({ items: staffItems });
+          return Promise.resolve({ items: [staffResource] });
+        }),
+      });
+      const controller = new ResourceController(backendHttp);
+
+      const result = await controller.staffOptions({ excludeResourceId: 'res-1' });
+
+      expect(result.items.find((item) => item.id === 'staff-1')).toEqual(
+        expect.objectContaining({ isWrapped: false }),
+      );
+    });
+  });
+
   describe('getById()', () => {
     it('calls GET /resources/:id', async () => {
       const backendHttp = makeBackendHttp({

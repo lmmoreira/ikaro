@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import type { ResourceType, StaffListItem } from '@ikaro/types';
+import type { ResourceStaffOptionItem, ResourceType } from '@ikaro/types';
 import { cn } from '@/shared/utils/cn';
 
 const INPUT_CLASS =
@@ -23,8 +23,7 @@ interface ResourceIdentityFieldsProps {
   readonly onRefIdChange: (refId: string) => void;
   readonly name: string;
   readonly onNameChange: (name: string) => void;
-  readonly staffOptions: readonly StaffListItem[];
-  readonly wrappedStaffIds: ReadonlySet<string>;
+  readonly staffOptions: readonly ResourceStaffOptionItem[];
   readonly nameError?: string;
   readonly refIdError?: string;
 }
@@ -41,7 +40,6 @@ export function ResourceIdentityFields({
   name,
   onNameChange,
   staffOptions,
-  wrappedStaffIds,
   nameError,
   refIdError,
 }: ResourceIdentityFieldsProps): React.JSX.Element {
@@ -97,13 +95,9 @@ export function ResourceIdentityFields({
           >
             <option value="">{t('staffPlaceholder')}</option>
             {selectableStaffOptions.map((staff) => (
-              <option
-                key={staff.id}
-                value={staff.id}
-                disabled={wrappedStaffIds.has(staff.id) || !staff.isActive}
-              >
+              <option key={staff.id} value={staff.id} disabled={staff.isWrapped || !staff.isActive}>
                 {staff.name ?? staff.email}
-                {wrappedStaffIds.has(staff.id) ? ` — ${t('staffAlreadyResource')}` : ''}
+                {staff.isWrapped ? ` — ${t('staffAlreadyResource')}` : ''}
               </option>
             ))}
           </select>

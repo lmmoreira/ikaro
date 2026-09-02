@@ -16,6 +16,11 @@ export const ListResourcesQuerySchema = z.object({
   isActive: z.enum(['true', 'false']).optional(),
 });
 
+export const StaffOptionsQuerySchema = z.object({
+  excludeResourceId: z.uuid().optional(),
+});
+
 export type CreateResourceBody = z.infer<typeof CreateResourceBodySchema>;
 export type UpdateResourceBody = z.infer<typeof UpdateResourceBodySchema>;
 export type ListResourcesQuery = z.infer<typeof ListResourcesQuerySchema>;
+export type StaffOptionsQuery = z.infer<typeof StaffOptionsQuerySchema>;
