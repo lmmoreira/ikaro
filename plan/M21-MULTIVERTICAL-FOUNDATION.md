@@ -38,7 +38,7 @@ graph TD
 
 ---
 
-### M21-S01 — `Resource` aggregate + backend CRUD + BFF endpoints + `StaffDeactivated` cascade consumer
+### M21-S01 — `Resource` aggregate + backend CRUD + BFF endpoints + `StaffDeactivated` cascade consumer ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** L
