@@ -6,7 +6,14 @@ import { SESSION_COOKIE_NAME } from '@/features/auth/session-cookie';
 
 // Shared manager-only route list for /dashboard — M13-S31/S32 own this single edit;
 // M13-S35 (hotsite editor) reuses it. STAFF hitting these is sent back to the dashboard home.
-const MANAGER_ONLY_ROUTES = ['/dashboard/settings', '/dashboard/team', '/dashboard/hotsite'];
+// /dashboard/resources added M21-S04 (Resource Management is MANAGER-only, matching the
+// backend/BFF's own restriction — docs/14-API_CONTRACTS.md § Resource Management).
+const MANAGER_ONLY_ROUTES = [
+  '/dashboard/settings',
+  '/dashboard/team',
+  '/dashboard/hotsite',
+  '/dashboard/resources',
+];
 
 function isManagerOnlyRoute(pathname: string): boolean {
   return MANAGER_ONLY_ROUTES.some(

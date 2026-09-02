@@ -5,6 +5,7 @@ import { InMemoryResourceRepository } from '../../../../test/repositories/bookin
 import { ResourceBuilder } from '../../../../test/builders/booking/index';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { CreateResourceUseCase } from '../../application/use-cases/create-resource.use-case';
+import { GetResourceByIdUseCase } from '../../application/use-cases/get-resource-by-id.use-case';
 import { UpdateResourceUseCase } from '../../application/use-cases/update-resource.use-case';
 import { DeactivateResourceUseCase } from '../../application/use-cases/deactivate-resource.use-case';
 import { ReactivateResourceUseCase } from '../../application/use-cases/reactivate-resource.use-case';
@@ -29,6 +30,7 @@ describe('ResourceController', () => {
     controller = new ResourceController(
       ctx,
       new CreateResourceUseCase(repo, staffWrapValidation, tx),
+      new GetResourceByIdUseCase(repo),
       new UpdateResourceUseCase(repo, staffWrapValidation, tx),
       new DeactivateResourceUseCase(repo, tx),
       new ReactivateResourceUseCase(repo, staffPort, tx),
@@ -73,6 +75,38 @@ describe('ResourceController', () => {
 
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(409);
+    });
+  });
+
+  describe('getOne()', () => {
+    it('returns the resource', async () => {
+      const resource = new ResourceBuilder().withTenantId(TENANT_ID).withName('Estúdio 1').build();
+      await repo.save(resource);
+
+      const result = await controller.getOne(resource.id);
+      expect(result.id).toBe(resource.id);
+      expect(result.name).toBe('Estúdio 1');
+    });
+
+    it('maps ResourceNotFoundError to 404', async () => {
+      const err = await controller
+        .getOne('00000000-0000-7000-8000-000000000099')
+        .catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(404);
+    });
+
+    it('returns 404 for a cross-tenant resource id', async () => {
+      const resource = new ResourceBuilder()
+        .withTenantId('99999999-0000-7000-8000-000000000099')
+        .build();
+      await repo.save(resource);
+
+      const err = await controller.getOne(resource.id).catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(404);
     });
   });
 

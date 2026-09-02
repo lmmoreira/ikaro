@@ -87,6 +87,47 @@ describe('ResourceController (component)', () => {
     });
   });
 
+  // ─── GET /v1/resources/:id ────────────────────────────────────────────────
+
+  describe('GET /v1/resources/:id', () => {
+    it('returns 401 without a token', async () => {
+      const res = await request(app.getHttpServer()).get(`/v1/resources/${RESOURCE_ID}`);
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 403 for STAFF role', async () => {
+      setupActiveGuardMock(httpService);
+      const res = await request(app.getHttpServer())
+        .get(`/v1/resources/${RESOURCE_ID}`)
+        .set('Authorization', `Bearer ${makeStaffJwt(jwtService)}`);
+      expect(res.status).toBe(403);
+    });
+
+    it('MANAGER JWT → 200, calls GET /resources/:id on backend', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce(mockResource);
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/resources/${RESOURCE_ID}`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual(mockResource);
+      expect(backendHttpService.get).toHaveBeenCalledWith(`/resources/${RESOURCE_ID}`);
+    });
+
+    it('propagates backend 404 as 404', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockRejectedValueOnce(new HttpException('Not Found', 404));
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/resources/${RESOURCE_ID}`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+      expect(res.status).toBe(404);
+    });
+  });
+
   // ─── POST /v1/resources ───────────────────────────────────────────────────
 
   describe('POST /v1/resources', () => {

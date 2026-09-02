@@ -136,6 +136,20 @@ describe('proxy', () => {
     expect(response.headers.get('location')).toBeNull();
   });
 
+  it('redirects a STAFF token away from /dashboard/resources (manager-only)', async () => {
+    const response = await proxy(makeRequest('/dashboard/resources', validStaffToken));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe('http://localhost:3000/dashboard');
+  });
+
+  it('passes through /dashboard/resources with a valid MANAGER token', async () => {
+    const response = await proxy(makeRequest('/dashboard/resources', validManagerToken));
+
+    expect(response.status).not.toBe(307);
+    expect(response.headers.get('location')).toBeNull();
+  });
+
   it('redirects when the token has CUSTOMER role (customers cannot access dashboard)', async () => {
     const response = await proxy(makeRequest('/dashboard/bookings', customerToken));
 

@@ -24,6 +24,7 @@ import { StaffDeactivatedHandler } from './infrastructure/events/staff-deactivat
 import { CloseScheduleUseCase } from './application/use-cases/close-schedule.use-case';
 import { ActivateServiceUseCase } from './application/use-cases/activate-service.use-case';
 import { CreateResourceUseCase } from './application/use-cases/create-resource.use-case';
+import { GetResourceByIdUseCase } from './application/use-cases/get-resource-by-id.use-case';
 import { UpdateResourceUseCase } from './application/use-cases/update-resource.use-case';
 import { StaffWrapValidationService } from './application/services/staff-wrap-validation.service';
 import { DeactivateResourceUseCase } from './application/use-cases/deactivate-resource.use-case';
@@ -167,6 +168,7 @@ import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cach
     CompleteBookingUseCase,
     GenerateAttachmentSignedUrlUseCase,
     CreateResourceUseCase,
+    GetResourceByIdUseCase,
     UpdateResourceUseCase,
     StaffWrapValidationService,
     DeactivateResourceUseCase,

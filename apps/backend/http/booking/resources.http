@@ -36,6 +36,19 @@ X-Actor-Type: STAFF
 X-Actor-Role: MANAGER
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — get a single resource (UC-044/046, added M21-S04)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Get a single resource by id
+GET {{baseUrl}}/resources/{{resourceId}}
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+# ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — create a resource (UC-045)
 # ─────────────────────────────────────────────────────────────────────────────
 

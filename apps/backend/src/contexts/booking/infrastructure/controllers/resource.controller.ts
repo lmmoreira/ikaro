@@ -27,6 +27,10 @@ import {
   CreateResourceUseCaseResult,
 } from '../../application/use-cases/create-resource.use-case';
 import {
+  GetResourceByIdUseCase,
+  GetResourceByIdUseCaseResult,
+} from '../../application/use-cases/get-resource-by-id.use-case';
+import {
   UpdateResourceUseCase,
   UpdateResourceUseCaseResult,
 } from '../../application/use-cases/update-resource.use-case';
@@ -47,6 +51,7 @@ export class ResourceController {
   constructor(
     private readonly ctx: RequestContext,
     private readonly createResource: CreateResourceUseCase,
+    private readonly getResourceById: GetResourceByIdUseCase,
     private readonly updateResource: UpdateResourceUseCase,
     private readonly deactivateResource: DeactivateResourceUseCase,
     private readonly reactivateResource: ReactivateResourceUseCase,
@@ -59,6 +64,14 @@ export class ResourceController {
   ): Promise<ListResourcesUseCaseResult> {
     const { tenantId } = this.ctx;
     return this.listResources.execute({ ...query, tenantId }).catch(mapBookingError);
+  }
+
+  @Get(':id')
+  getOne(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+  ): Promise<GetResourceByIdUseCaseResult> {
+    const { tenantId } = this.ctx;
+    return this.getResourceById.execute({ id, tenantId }).catch(mapBookingError);
   }
 
   @Post()

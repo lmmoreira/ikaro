@@ -52,6 +52,7 @@ flowchart TD
 | Call | When | Roles |
 |---|---|---|
 | `GET /v1/resources?type=&isActive=` | Lista de recursos — page load (UC-044) | MANAGER |
+| `GET /v1/resources/:id` | Editar recurso — page load (added M21-S04, missed in S01) | MANAGER |
 | `POST /v1/resources` | Criar recurso (UC-045) | MANAGER |
 | `PATCH /v1/resources/:id` | Editar recurso (UC-046) — every field independently optional | MANAGER |
 | `DELETE /v1/resources/:id` | Desativar (UC-047) | MANAGER |

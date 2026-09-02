@@ -49,6 +49,16 @@ GET {{bffUrl}}/v1/resources?type=ROOM&isActive=true
 Authorization: Bearer {{managerToken}}
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — get a single resource (UC-044/046, added M21-S04)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Get a single resource by id
+GET {{bffUrl}}/v1/resources/{{resourceId}}
+Authorization: Bearer {{managerToken}}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — create a resource (UC-045)
 # ─────────────────────────────────────────────────────────────────────────────
 

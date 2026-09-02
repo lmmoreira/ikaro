@@ -30,6 +30,20 @@ describe('ResourceController', () => {
     });
   });
 
+  describe('getById()', () => {
+    it('calls GET /resources/:id', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockResolvedValue(mockResource),
+      });
+      const controller = new ResourceController(backendHttp);
+
+      const result = await controller.getById(mockResource.id);
+
+      expect(backendHttp.get).toHaveBeenCalledWith(`/resources/${mockResource.id}`);
+      expect(result.id).toBe(mockResource.id);
+    });
+  });
+
   describe('create()', () => {
     it('calls POST /resources and returns the created resource', async () => {
       const backendHttp = makeBackendHttp({

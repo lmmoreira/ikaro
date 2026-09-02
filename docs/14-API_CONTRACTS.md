@@ -879,7 +879,7 @@ Auth: JWT + `MANAGER|STAFF` on all write endpoints. **Exception (M21 Cluster 1):
 
 ### **Resource Management (UC-044–UC-049)**
 
-> Introduced by M21 — Multi-Vertical Scheduling, Cluster 1 (Foundation). **Shipped in M21-S01** (backend + BFF) — no frontend page yet, lands with M21-S04.
+> Introduced by M21 — Multi-Vertical Scheduling, Cluster 1 (Foundation). **Shipped in M21-S01** (backend + BFF); the `GET /resources/:id` single-item read below was added in M21-S04 (needed by the resource edit page — missed in S01, mirrors Staff's/Services' existing `GET /:id` pattern).
 
 Auth: JWT + `MANAGER` only on every endpoint — a deliberate, self-consistent restriction distinct from every other Booking-context admin surface (`MANAGER|STAFF`), per the discovery's own review call (dev-notes.md item 1) with no existing precedent to derive it from.
 
@@ -887,6 +887,9 @@ Auth: JWT + `MANAGER` only on every endpoint — a deliberate, self-consistent r
   ```json
   { "items": [ { "id": "uuid", "type": "STAFF", "refId": "uuid", "name": "Camila Duarte", "workingHours": null, "turnoverMinutes": 15, "maxCapacity": null, "isActive": true } ] }
   ```
+- `GET /resources/:id` → get a single resource (added M21-S04, powers the edit page). Same response shape as one list item above.
+  - `200` on success
+  - `404` if not found or belongs to another tenant
 - `POST /resources` → create a resource (UC-045)
   ```json
   {

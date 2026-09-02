@@ -9,6 +9,7 @@ import {
   Wrench,
   Star,
   FileText,
+  Boxes,
   Users,
   Settings,
   Globe,
@@ -37,6 +38,7 @@ const MAIN_NAV_KEYS = [
 const LEADS_NAV_ITEM = { href: '/dashboard/leads', labelKey: 'nav.leads', Icon: FileText } as const;
 
 const MANAGER_NAV_KEYS = [
+  { href: '/dashboard/resources', labelKey: 'nav.resources', Icon: Boxes },
   { href: '/dashboard/team', labelKey: 'nav.team', Icon: Users },
   { href: '/dashboard/settings', labelKey: 'nav.settings', Icon: Settings },
   { href: '/dashboard/hotsite', labelKey: 'nav.hotsite', Icon: Globe },

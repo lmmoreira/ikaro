@@ -39,6 +39,11 @@ export class ResourceController {
     return this.backendHttp.get<ResourceListResponse>('/resources', query);
   }
 
+  @Get(':id')
+  getById(@Param('id', CanonicalParseUUIDPipe) id: string): Promise<ResourceResponse> {
+    return this.backendHttp.get<ResourceResponse>(`/resources/${id}`);
+  }
+
   @Post()
   @HttpCode(HttpStatus.CREATED)
   create(

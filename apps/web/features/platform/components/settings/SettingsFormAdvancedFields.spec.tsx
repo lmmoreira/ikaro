@@ -5,12 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { countrySpec } from '@ikaro/i18n';
 import { renderWithIntl } from '@/test-utils';
-import {
-  DayRow,
-  PhoneField,
-  PostalCodeField,
-  addressSpecFieldLabel,
-} from './SettingsFormAdvancedFields';
+import { PhoneField, PostalCodeField, addressSpecFieldLabel } from './SettingsFormAdvancedFields';
 
 // PhoneField's displayed value is derived (formatPhoneForDisplay) from its `value` prop on every
 // render — a static vi.fn() onChange never feeds a new value back in, so React resets the DOM
@@ -101,48 +96,6 @@ describe('PostalCodeField', () => {
 
     await user.type(screen.getByTestId('settings-address-zip'), '3');
     expect(onChange).toHaveBeenCalledWith('3');
-  });
-});
-
-describe('DayRow', () => {
-  function baseDayRowProps() {
-    return {
-      day: 'monday' as const,
-      label: 'Segunda',
-      value: { open: '08:00', close: '18:00', closed: false },
-      timeFormat: '24h' as const,
-      closedLabel: 'Fechado',
-      opensAtLabel: 'Abre às',
-      closesAtLabel: 'Fecha às',
-      hourLabel: 'Hora',
-      minuteLabel: 'Minuto',
-      periodLabel: 'Período',
-      onChange: vi.fn(),
-    };
-  }
-
-  it('calls onChange when the closed checkbox is toggled', async () => {
-    const user = userEvent.setup();
-    const props = baseDayRowProps();
-    renderWithIntl(<DayRow {...props} />);
-
-    await user.click(screen.getByRole('checkbox', { name: /Fechado — Segunda/ }));
-    expect(props.onChange).toHaveBeenCalledWith('monday', { closed: true });
-  });
-
-  it('renders the copy-to-weekdays button only when both props are provided', () => {
-    const { rerender } = renderWithIntl(<DayRow {...baseDayRowProps()} />);
-    expect(screen.queryByTestId('day-copy-monday')).not.toBeInTheDocument();
-
-    const onCopyToWeekdays = vi.fn();
-    rerender(
-      <DayRow
-        {...baseDayRowProps()}
-        copyToWeekdaysLabel="Copiar para dias úteis"
-        onCopyToWeekdays={onCopyToWeekdays}
-      />,
-    );
-    expect(screen.getByTestId('day-copy-monday')).toHaveTextContent('Copiar para dias úteis');
   });
 });
 

@@ -9,6 +9,7 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => {
     const map: Record<string, string> = {
       'nav.leads': 'Leads',
+      'nav.resources': 'Recursos',
       'nav.team': 'Equipe',
       'nav.settings': 'Configurações',
       'nav.hotsite': 'Hotsite',
@@ -34,6 +35,7 @@ describe('MoreSheet', () => {
       />,
     );
 
+    expect(screen.getByText('Recursos')).toBeInTheDocument();
     expect(screen.getByText('Equipe')).toBeInTheDocument();
     expect(screen.getByText('Configurações')).toBeInTheDocument();
     expect(screen.getByText('Hotsite')).toBeInTheDocument();
@@ -68,6 +70,7 @@ describe('MoreSheet', () => {
     );
 
     expect(screen.getByText('Leads')).toBeInTheDocument();
+    expect(screen.queryByText('Recursos')).not.toBeInTheDocument();
     expect(screen.queryByText('Equipe')).not.toBeInTheDocument();
     expect(screen.queryByText('Configurações')).not.toBeInTheDocument();
     expect(screen.queryByText('Hotsite')).not.toBeInTheDocument();
