@@ -106,6 +106,7 @@ const PERSISTENCE_BYPASS_IGNORES = [
   'src/contexts/booking/infrastructure/migrations/1748000000013-CreateBookingScheduleOpenings.ts',
   'src/contexts/booking/infrastructure/migrations/1748000000014-CreateBookingBookings.ts',
   'src/contexts/booking/infrastructure/migrations/1748500000007-CreateBookingResources.ts',
+  'src/contexts/booking/infrastructure/migrations/1748500000008-BackfillLocationResources.ts',
   'src/contexts/platform/infrastructure/migrations/1748500000004-CreateLeadFormSubmissionQuestionRefs.ts',
   'src/contexts/platform/infrastructure/migrations/1748500000005-AddVersionToLeadFormConfigs.ts',
   'src/contexts/booking/infrastructure/repositories/typeorm-booking.repository.ts',

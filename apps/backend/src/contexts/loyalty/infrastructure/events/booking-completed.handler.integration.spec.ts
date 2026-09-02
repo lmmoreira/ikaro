@@ -17,6 +17,7 @@ import { BookingLineEntity } from '../../../booking/infrastructure/entities/book
 import { ServiceEntity } from '../../../booking/infrastructure/entities/service.entity';
 import { ScheduleClosureEntity } from '../../../booking/infrastructure/entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from '../../../booking/infrastructure/entities/schedule-opening.entity';
+import { ResourceEntity } from '../../../booking/infrastructure/entities/resource.entity';
 import { BookingModule } from '../../../booking/booking.module';
 import { CustomerEntity } from '../../../customer/infrastructure/entities/customer.entity';
 import { StaffEntity } from '../../../staff/infrastructure/entities/staff.entity';
@@ -30,6 +31,9 @@ import { BookingCompleted } from '../../../booking/domain/events/booking-complet
 
 const PLATFORM_KEY = 'discount-completion-integ-key-xxxxx';
 
+// M21-S02: ResourceEntity is required even though this test doesn't touch resources directly —
+// POST /internal/tenants below drives BookingModule's TenantProvisionedHandler, which always
+// queries booking.resources on every TenantProvisioned event.
 const BOOKING_ENTITIES = [
   BookingEntity,
   BookingLineEntity,
@@ -37,6 +41,7 @@ const BOOKING_ENTITIES = [
   ScheduleClosureEntity,
   ScheduleOpeningEntity,
   CustomerEntity,
+  ResourceEntity,
 ] as const;
 
 const LOYALTY_ENTITIES = [
