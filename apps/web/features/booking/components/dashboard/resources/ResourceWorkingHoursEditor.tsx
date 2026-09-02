@@ -21,25 +21,38 @@ const WEEK_DAYS: readonly WeekDay[] = [
 
 const DEFAULT_CLOSED_DAY: DayValue = { open: '09:00', close: '18:00', closed: true };
 
+function toDayValue(hours: { open: string; close: string } | null | undefined): DayValue {
+  return hours ? { open: hours.open, close: hours.close, closed: false } : DEFAULT_CLOSED_DAY;
+}
+
+// Built as an explicit object literal (not Object.fromEntries + a cast) so TypeScript checks
+// the result against ResourceWorkingHours's exact named-property shape directly — no `as`.
 function toDayValues(workingHours: ResourceWorkingHours | null): Record<WeekDay, DayValue> {
-  return Object.fromEntries(
-    WEEK_DAYS.map((day) => {
-      const hours = workingHours?.[day];
-      return [
-        day,
-        hours ? { open: hours.open, close: hours.close, closed: false } : DEFAULT_CLOSED_DAY,
-      ];
-    }),
-  ) as Record<WeekDay, DayValue>;
+  return {
+    monday: toDayValue(workingHours?.monday),
+    tuesday: toDayValue(workingHours?.tuesday),
+    wednesday: toDayValue(workingHours?.wednesday),
+    thursday: toDayValue(workingHours?.thursday),
+    friday: toDayValue(workingHours?.friday),
+    saturday: toDayValue(workingHours?.saturday),
+    sunday: toDayValue(workingHours?.sunday),
+  };
+}
+
+function toWorkingHoursEntry(value: DayValue): { open: string; close: string } | null {
+  return value.closed ? null : { open: value.open, close: value.close };
 }
 
 function toWorkingHours(days: Record<WeekDay, DayValue>): ResourceWorkingHours {
-  return Object.fromEntries(
-    WEEK_DAYS.map((day) => {
-      const value = days[day];
-      return [day, value.closed ? null : { open: value.open, close: value.close }];
-    }),
-  ) as unknown as ResourceWorkingHours;
+  return {
+    monday: toWorkingHoursEntry(days.monday),
+    tuesday: toWorkingHoursEntry(days.tuesday),
+    wednesday: toWorkingHoursEntry(days.wednesday),
+    thursday: toWorkingHoursEntry(days.thursday),
+    friday: toWorkingHoursEntry(days.friday),
+    saturday: toWorkingHoursEntry(days.saturday),
+    sunday: toWorkingHoursEntry(days.sunday),
+  };
 }
 
 interface ResourceWorkingHoursEditorProps {
