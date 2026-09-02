@@ -117,6 +117,21 @@ describe('ResourceCreateForm', () => {
     );
   });
 
+  it('surfaces a 422 no-working-hours error inline (UC-045 A2)', async () => {
+    const user = userEvent.setup();
+    mutateAsync.mockRejectedValue(
+      new ApiError(422, 'Unprocessable Entity', { code: 'BOOKING_RESOURCE_NO_WORKING_HOURS' }),
+    );
+    renderWithIntl(<ResourceCreateForm />);
+
+    await user.selectOptions(screen.getByTestId('resource-identity-staff-select'), 's-1');
+    await user.click(screen.getByTestId('resource-create-save-desktop'));
+
+    expect(await screen.findByTestId('resource-create-submit-error')).toHaveTextContent(
+      'Este recurso não tem horário de funcionamento e o negócio também não tem horário padrão.',
+    );
+  });
+
   it('discards a stale maxCapacity value when switching from ROOM back to STAFF', async () => {
     const user = userEvent.setup();
     mutateAsync.mockResolvedValue({ id: 'r-1' });
@@ -141,5 +156,15 @@ describe('ResourceCreateForm', () => {
     await user.click(screen.getByTestId('resource-create-save-desktop'));
 
     expect(mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('offers a Cancelar link back to the resources list on both the desktop and mobile action panes', () => {
+    renderWithIntl(<ResourceCreateForm />);
+
+    const cancelLinks = screen.getAllByRole('link', { name: 'Cancelar' });
+    expect(cancelLinks).toHaveLength(2);
+    for (const link of cancelLinks) {
+      expect(link).toHaveAttribute('href', '/dashboard/resources');
+    }
   });
 });

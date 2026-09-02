@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, type SubmitEvent } from 'react';
+import { useEffect, useState, type SubmitEvent } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { ResourceType, ResourceWorkingHours } from '@ikaro/types';
 import { useCreateResource, useResourceStaffOptions } from '@/features/booking/hooks/useResources';
 import { useTenantSettings } from '@/features/platform/hooks/useTenantSettings';
+import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
 import { ResourceIdentityFields } from './ResourceIdentityFields';
 import { ResourceWorkingHoursEditor, toResourceBusinessHours } from './ResourceWorkingHoursEditor';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
@@ -24,11 +26,25 @@ interface ResourceCreateFormErrors {
 
 export function ResourceCreateForm(): React.JSX.Element {
   const t = useTranslations('dashboard.resourcesPage');
+  const dashboardT = useTranslations('dashboard');
   const locale = useResolvedLocale();
   const router = useRouter();
   const createResourceMutation = useCreateResource();
   const { data: staffOptionsData } = useResourceStaffOptions();
   const { data: tenantSettingsData } = useTenantSettings();
+  const topbarStatus = useDashboardTopbarStatus();
+  const setBackHrefOverride = topbarStatus?.setBackHrefOverride;
+  const setBackLabelOverride = topbarStatus?.setBackLabelOverride;
+
+  useEffect(() => {
+    setBackHrefOverride?.('/dashboard/resources');
+    setBackLabelOverride?.(dashboardT('nav.resources'));
+
+    return () => {
+      setBackHrefOverride?.(null);
+      setBackLabelOverride?.(null);
+    };
+  }, [dashboardT, setBackHrefOverride, setBackLabelOverride]);
 
   const [type, setType] = useState<Exclude<ResourceType, 'LOCATION'>>('STAFF');
   const [refId, setRefId] = useState<string>('');
@@ -159,20 +175,28 @@ export function ResourceCreateForm(): React.JSX.Element {
               >
                 {t('createSubmit')}
               </Button>
+              <Button asChild variant="outline" className="w-full">
+                <Link href="/dashboard/resources">{t('cancel')}</Link>
+              </Button>
             </CardContent>
           </Card>
         </aside>
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden">
-        <Button
-          type="submit"
-          data-testid="resource-create-save-mobile"
-          className="w-full"
-          disabled={isSubmitting}
-        >
-          {t('createSubmit')}
-        </Button>
+        <div className="grid grid-cols-2 gap-3">
+          <Button asChild variant="outline" className="w-full">
+            <Link href="/dashboard/resources">{t('cancel')}</Link>
+          </Button>
+          <Button
+            type="submit"
+            data-testid="resource-create-save-mobile"
+            className="w-full"
+            disabled={isSubmitting}
+          >
+            {t('createSubmit')}
+          </Button>
+        </div>
       </div>
     </form>
   );
