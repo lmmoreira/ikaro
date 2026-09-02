@@ -29,7 +29,7 @@ describe('ResourceController', () => {
       new CreateResourceUseCase(repo, staffPort, tx),
       new UpdateResourceWorkingHoursUseCase(repo, tx),
       new DeactivateResourceUseCase(repo, tx),
-      new ReactivateResourceUseCase(repo, tx),
+      new ReactivateResourceUseCase(repo, staffPort, tx),
       new ListResourcesUseCase(repo),
     );
   });

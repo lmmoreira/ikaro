@@ -908,9 +908,10 @@ Auth: JWT + `MANAGER` only on every endpoint — a deliberate, self-consistent r
 - `DELETE /resources/:id` → deactivate a resource (UC-047)
   - `204` on success
   - `404` if not found or belongs to another tenant
+  - `409` if `type = LOCATION` — a tenant must always retain exactly one active LOCATION resource
 - `POST /resources/:id/reactivate` → reactivate a deactivated resource (UC-049)
   - `200` on success
-  - `404` if not found or belongs to another tenant
+  - `404` if not found, belongs to another tenant, or (for a `type = STAFF` resource) the wrapped staff member is still inactive
   - `409` if already active
 
 ### **Recurring Private Reservation Schedules — M21 Cluster 3 (UC-070, UC-071)**

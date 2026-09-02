@@ -1,22 +1,28 @@
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
+import { InMemoryBookingStaffPort } from '../../../../test/infrastructure/in-memory-booking-staff.port';
 import { ResourceBuilder } from '../../../../test/builders/booking/index';
 import {
   ResourceAlreadyActiveError,
   ResourceNotFoundError,
+  ResourceStaffNotFoundError,
 } from '../../domain/errors/resource.error';
+import { ResourceType } from '../../domain/resource.types';
 import { ReactivateResourceUseCase } from './reactivate-resource.use-case';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
 const OTHER_TENANT_ID = '99999999-0000-7000-8000-000000000099';
+const STAFF_ID = '00000000-0000-7000-8000-000000000002';
 
 describe('ReactivateResourceUseCase', () => {
   let repo: InMemoryResourceRepository;
+  let staffPort: InMemoryBookingStaffPort;
   let useCase: ReactivateResourceUseCase;
 
   beforeEach(() => {
     repo = new InMemoryResourceRepository();
-    useCase = new ReactivateResourceUseCase(repo, new InMemoryTransactionManager());
+    staffPort = new InMemoryBookingStaffPort();
+    useCase = new ReactivateResourceUseCase(repo, staffPort, new InMemoryTransactionManager());
   });
 
   it('reactivates an inactive resource', async () => {
@@ -29,6 +35,38 @@ describe('ReactivateResourceUseCase', () => {
     expect(result.isActive).toBe(true);
     const stored = await repo.findById(resource.id, TENANT_ID);
     expect(stored!.isActive).toBe(true);
+  });
+
+  it('reactivates a STAFF resource when the staff member is active', async () => {
+    const resource = new ResourceBuilder()
+      .withTenantId(TENANT_ID)
+      .withType(ResourceType.STAFF)
+      .withRefId(STAFF_ID)
+      .build();
+    resource.deactivate();
+    await repo.save(resource);
+    staffPort.setProfile(STAFF_ID, { id: STAFF_ID, isActive: true });
+
+    const result = await useCase.execute({ id: resource.id, tenantId: TENANT_ID });
+
+    expect(result.isActive).toBe(true);
+  });
+
+  it('throws ResourceStaffNotFoundError when reactivating a STAFF resource whose staff member is still inactive', async () => {
+    const resource = new ResourceBuilder()
+      .withTenantId(TENANT_ID)
+      .withType(ResourceType.STAFF)
+      .withRefId(STAFF_ID)
+      .build();
+    resource.deactivate();
+    await repo.save(resource);
+    staffPort.setProfile(STAFF_ID, { id: STAFF_ID, isActive: false });
+
+    await expect(useCase.execute({ id: resource.id, tenantId: TENANT_ID })).rejects.toThrow(
+      ResourceStaffNotFoundError,
+    );
+    const stored = await repo.findById(resource.id, TENANT_ID);
+    expect(stored!.isActive).toBe(false);
   });
 
   it('throws ResourceAlreadyActiveError on an already-active resource', async () => {

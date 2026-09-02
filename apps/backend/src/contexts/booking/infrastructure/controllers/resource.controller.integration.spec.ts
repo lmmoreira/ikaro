@@ -2,8 +2,10 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { ResourceEntityBuilder } from '../../../../test/builders/booking/index';
+import { StaffEntityBuilder } from '../../../../test/builders/staff';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
+import { StaffEntity } from '../../../staff/infrastructure/entities/staff.entity';
 import { ResourceEntity } from '../entities/resource.entity';
 import { ResourceType } from '../../domain/resource.types';
 
@@ -189,6 +191,33 @@ describe('ResourceController (integration)', () => {
         .expect(409);
 
       expect(body.status).toBe(409);
+    });
+
+    it('returns 404 for a STAFF resource whose staff member is still inactive', async () => {
+      const staff = new StaffEntityBuilder()
+        .withTenantId(TENANT_A)
+        .withEmail('ines@lavacar.com.br')
+        .withRole('STAFF')
+        .withIsActive(false)
+        .build();
+      await ds.getRepository(StaffEntity).save(staff);
+
+      const entity = new ResourceEntityBuilder()
+        .withTenantId(TENANT_A)
+        .withType(ResourceType.STAFF)
+        .withRefId(staff.id)
+        .withIsActive(false)
+        .build();
+      await ds.getRepository(ResourceEntity).save(entity);
+
+      const { body } = await request(app.getHttpServer())
+        .post(`/resources/${entity.id}/reactivate`)
+        .set(actorHeaders(TENANT_A, MANAGER_ID))
+        .expect(404);
+
+      expect(body.status).toBe(404);
+      const found = await ds.getRepository(ResourceEntity).findOne({ where: { id: entity.id } });
+      expect(found!.isActive).toBe(false);
     });
   });
 
