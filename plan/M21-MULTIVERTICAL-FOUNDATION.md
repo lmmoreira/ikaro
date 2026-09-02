@@ -129,7 +129,7 @@ Create the `Resource` aggregate in `apps/backend/src/contexts/booking/domain/res
 
 ---
 
-### M21-S02 — LOCATION backfill migration + going-forward TenantProvisioned handler
+### M21-S02 — LOCATION backfill migration + going-forward TenantProvisioned handler ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** M (raised from S — see "Locked in during story discovery, part 2" below)
