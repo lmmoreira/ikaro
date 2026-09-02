@@ -1,8 +1,9 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 import { ResourceEntityBuilder } from '../../../../test/builders/booking/index';
 import { Resource } from '../../domain/resource.aggregate';
+import { ResourceStaffAlreadyWrappedError } from '../../domain/errors/resource.error';
 import { ResourceType } from '../../domain/resource.types';
 import { ResourceEntity } from '../entities/resource.entity';
 import { TypeOrmResourceRepository } from './typeorm-resource.repository';
@@ -128,6 +129,61 @@ describe('TypeOrmResourceRepository', () => {
       expect(ormRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({ id: RESOURCE_ID, name: 'Máquina 1', turnoverMinutes: 5 }),
       );
+    });
+
+    it('translates a concurrent duplicate STAFF-wrap unique-index violation to ResourceStaffAlreadyWrappedError', async () => {
+      // App-level pre-check (CreateResourceUseCase) closes the common case; this proves the DB
+      // partial-unique-index is still the authoritative backstop for the rare concurrent race
+      // (mirrors typeorm-booking.repository.spec.ts's exclusion-violation mapping test).
+      ormRepo.save.mockRejectedValue(
+        new QueryFailedError(
+          'INSERT INTO booking.resources ...',
+          [],
+          Object.assign(new Error(), {
+            code: '23505',
+            constraint: 'UQ_booking_resources_tenant_ref_id',
+          }),
+        ),
+      );
+      const resource = Resource.reconstitute({
+        id: RESOURCE_ID,
+        tenantId: TENANT_ID,
+        type: ResourceType.STAFF,
+        refId: STAFF_ID,
+        name: 'Camila Duarte',
+        workingHours: null,
+        turnoverMinutes: 0,
+        maxCapacity: null,
+        isActive: true,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+        updatedAt: new Date('2026-01-01T00:00:00Z'),
+      });
+
+      await expect(repo.save(resource)).rejects.toBeInstanceOf(ResourceStaffAlreadyWrappedError);
+    });
+
+    it('rethrows an unrelated QueryFailedError unchanged', async () => {
+      const unrelatedError = new QueryFailedError(
+        'INSERT INTO booking.resources ...',
+        [],
+        Object.assign(new Error(), { code: '23505', constraint: 'some_other_constraint' }),
+      );
+      ormRepo.save.mockRejectedValue(unrelatedError);
+      const resource = Resource.reconstitute({
+        id: RESOURCE_ID,
+        tenantId: TENANT_ID,
+        type: ResourceType.ROOM,
+        refId: null,
+        name: 'Estúdio 1',
+        workingHours: null,
+        turnoverMinutes: 0,
+        maxCapacity: null,
+        isActive: true,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+        updatedAt: new Date('2026-01-01T00:00:00Z'),
+      });
+
+      await expect(repo.save(resource)).rejects.toBe(unrelatedError);
     });
   });
 });

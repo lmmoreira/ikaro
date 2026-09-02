@@ -1,13 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import {
   IResourceRepository,
   ListResourcesFilter,
 } from '../../application/ports/resource-repository.port';
 import { Resource } from '../../domain/resource.aggregate';
+import { ResourceStaffAlreadyWrappedError } from '../../domain/errors/resource.error';
 import { ResourceEntity } from '../entities/resource.entity';
+
+// Matches the partial unique index name in the CreateBookingResources migration —
+// UNIQUE (tenant_id, ref_id) WHERE type='STAFF' AND ref_id IS NOT NULL.
+const STAFF_REF_ID_UNIQUE_INDEX = 'UQ_booking_resources_tenant_ref_id';
 
 @Injectable()
 export class TypeOrmResourceRepository implements IResourceRepository {
@@ -41,11 +46,41 @@ export class TypeOrmResourceRepository implements IResourceRepository {
   async save(resource: Resource): Promise<void> {
     const entity = this.toEntity(resource);
     const manager = getActiveEntityManager();
-    if (manager) {
-      await manager.save(ResourceEntity, entity);
-    } else {
-      await this.repo.save(entity);
+    try {
+      if (manager) {
+        await manager.save(ResourceEntity, entity);
+      } else {
+        await this.repo.save(entity);
+      }
+    } catch (err) {
+      this.rethrowSaveError(err, resource);
     }
+  }
+
+  // The application-level pre-check in CreateResourceUseCase closes the common case; this is the
+  // DB-constraint-is-authoritative backstop for the rare concurrent-duplicate-wrap race (mirrors
+  // typeorm-booking.persistence-errors.ts's rethrowSaveError for EX_booking_bookings_approved_slot,
+  // and typeorm-staff.repository.ts's inline 23505 check for StaffAlreadyExistsError).
+  private rethrowSaveError(err: unknown, resource: Resource): never {
+    const driverError =
+      err instanceof QueryFailedError
+        ? (err as QueryFailedError & {
+            code?: string;
+            constraint?: string;
+            driverError?: { code?: string; constraint?: string };
+          })
+        : null;
+    const code = driverError?.driverError?.code ?? driverError?.code;
+    const constraint = driverError?.driverError?.constraint ?? driverError?.constraint;
+    if (
+      err instanceof QueryFailedError &&
+      code === '23505' &&
+      constraint === STAFF_REF_ID_UNIQUE_INDEX &&
+      resource.refId
+    ) {
+      throw new ResourceStaffAlreadyWrappedError(resource.refId);
+    }
+    throw err;
   }
 
   private toDomain(entity: ResourceEntity): Resource {
