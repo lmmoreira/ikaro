@@ -137,8 +137,13 @@ async function seed(): Promise<void> {
     )) as Array<{ exists: boolean }>;
 
     if (alreadySeeded[0]?.exists) {
-      process.stdout.write('✓ Database already seeded — skipping.\n');
-      await q.rollbackTransaction();
+      // M21-S02: seedResources() is idempotent (ON CONFLICT DO NOTHING) but was added after this
+      // sentinel check already existed — still run it here so a pre-existing local dev DB (seeded
+      // before this change) picks up its tenants' LOCATION resources on the next `pnpm seed`,
+      // instead of silently staying without them forever (CodeRabbit finding, PR #458).
+      await seedResources(q);
+      await q.commitTransaction();
+      process.stdout.write('✓ Database already seeded — backfilled any missing resources.\n');
       return;
     }
 

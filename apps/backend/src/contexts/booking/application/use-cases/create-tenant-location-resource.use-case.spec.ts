@@ -8,6 +8,7 @@ import { ResourceType } from '../../domain/resource.types';
 import { CreateTenantLocationResourceUseCase } from './create-tenant-location-resource.use-case';
 
 const TENANT_ID = 'aaaaaaaa-0000-4000-8000-000000000010';
+const OTHER_TENANT_ID = 'aaaaaaaa-0000-4000-8000-000000000020';
 const CORRELATION_ID = 'corr-create-tenant-location';
 const EVENT_ID = 'event-tenant-provisioned-location-1';
 
@@ -112,5 +113,25 @@ describe('CreateTenantLocationResourceUseCase', () => {
     const result = await useCase.execute(baseDto);
     const saved = await repo.findById(result.resourceId, TENANT_ID);
     expect(saved!.tenantId).toBe(TENANT_ID);
+  });
+
+  it('tenant isolation: an active LOCATION resource for another tenant does not block or affect this tenant', async () => {
+    const otherTenantResource = new ResourceBuilder()
+      .withTenantId(OTHER_TENANT_ID)
+      .withType(ResourceType.LOCATION)
+      .withRefId(null)
+      .build();
+    await repo.save(otherTenantResource);
+
+    const result = await useCase.execute(baseDto);
+
+    expect(result.resourceId).not.toBe(otherTenantResource.id);
+    const saved = await repo.findById(result.resourceId, TENANT_ID);
+    expect(saved!.tenantId).toBe(TENANT_ID);
+    const otherTenantResources = await repo.findByTenant(OTHER_TENANT_ID, {
+      type: ResourceType.LOCATION,
+    });
+    expect(otherTenantResources).toHaveLength(1);
+    expect(otherTenantResources[0].id).toBe(otherTenantResource.id);
   });
 });

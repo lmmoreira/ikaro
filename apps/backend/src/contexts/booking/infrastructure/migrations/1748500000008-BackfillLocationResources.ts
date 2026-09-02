@@ -37,8 +37,17 @@ export class BackfillLocationResources1748500000008 implements MigrationInterfac
     `);
   }
 
-  // Every LOCATION resource can only ever originate from this migration — S01's use cases
-  // reject POST/type-change to LOCATION (422/409) — so no per-tenant-history qualifier needed.
+  // DESTRUCTIVE beyond this migration's own inserts — accepted risk, decided explicitly
+  // (PR #458 review, 2026-09-02), not an oversight. Every LOCATION resource can only ever
+  // originate from this migration or CreateTenantLocationResourceUseCase (S01's use cases
+  // reject POST/type-change to LOCATION, 422/409), so there is no per-tenant-history
+  // qualifier that could distinguish "this migration's row" from "a row the going-forward
+  // handler created for a tenant provisioned after this deployed" or "a row a manager has
+  // since renamed via PATCH /resources/:id" — down() deletes all of them, live data included.
+  // Safe ONLY as an immediate emergency rollback run before any new tenant could have been
+  // provisioned (which would invoke the handler) and before any manager could have touched
+  // an existing LOCATION resource — never run this against a database that has been live for
+  // any meaningful window after this migration applied.
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`DELETE FROM "booking"."resources" WHERE "type" = 'LOCATION'`);
   }
