@@ -16,6 +16,7 @@ import { CreateBookingScheduleClosures1748000000012 } from '../contexts/booking/
 import { CreateBookingScheduleOpenings1748000000013 } from '../contexts/booking/infrastructure/migrations/1748000000013-CreateBookingScheduleOpenings';
 import { CreateBookingBookings1748000000014 } from '../contexts/booking/infrastructure/migrations/1748000000014-CreateBookingBookings';
 import { CreateBookingResources1748500000007 } from '../contexts/booking/infrastructure/migrations/1748500000007-CreateBookingResources';
+import { BackfillLocationResources1748500000008 } from '../contexts/booking/infrastructure/migrations/1748500000008-BackfillLocationResources';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { CreateCustomerCustomers1716600000001 } from '../contexts/customer/infrastructure/migrations/1716600000001-CreateCustomerCustomers';
 import { AddCustomerTenantOAuthUniqueConstraint1748000000002 } from '../contexts/customer/infrastructure/migrations/1748000000002-AddCustomerTenantOAuthUniqueConstraint';
@@ -155,6 +156,7 @@ export default async function globalSetup(): Promise<void> {
       AddVersionToLeadFormConfigs1748500000005,
       CreateLeadFormAnswers1748500000006,
       CreateBookingResources1748500000007,
+      BackfillLocationResources1748500000008,
     ],
     synchronize: false,
     migrationsRun: false,
