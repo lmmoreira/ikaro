@@ -63,9 +63,9 @@ export const WeekDayRow = memo(function WeekDayRow({
         hourAriaLabel={`${opensAtLabel} — ${hourLabel} — ${label}`}
         minuteAriaLabel={`${opensAtLabel} — ${minuteLabel} — ${label}`}
         periodAriaLabel={`${opensAtLabel} — ${periodLabel} — ${label}`}
-        hourTestId="week-day-row-open-hour"
-        minuteTestId="week-day-row-open-minute"
-        periodTestId="week-day-row-open-period"
+        hourTestId="settings-day-open-hour"
+        minuteTestId="settings-day-open-minute"
+        periodTestId="settings-day-open-period"
         dataRowKey={day}
       />
       <span aria-hidden="true" className="text-sm text-gray-400">
@@ -79,9 +79,9 @@ export const WeekDayRow = memo(function WeekDayRow({
         hourAriaLabel={`${closesAtLabel} — ${hourLabel} — ${label}`}
         minuteAriaLabel={`${closesAtLabel} — ${minuteLabel} — ${label}`}
         periodAriaLabel={`${closesAtLabel} — ${periodLabel} — ${label}`}
-        hourTestId="week-day-row-close-hour"
-        minuteTestId="week-day-row-close-minute"
-        periodTestId="week-day-row-close-period"
+        hourTestId="settings-day-close-hour"
+        minuteTestId="settings-day-close-minute"
+        periodTestId="settings-day-close-period"
         dataRowKey={day}
       />
 

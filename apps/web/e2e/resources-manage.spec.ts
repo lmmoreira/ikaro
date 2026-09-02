@@ -7,14 +7,16 @@ test.describe('manager resource management flow', () => {
   test('creates a STAFF resource, sees it in the list, deactivates it, reactivates it', async ({
     page,
   }) => {
+    // inviteStaff needs an authenticated MANAGER session on page.request (the tenant is derived
+    // from the caller's own JWT, not a body param) — login must happen first.
+    await loginAsStaff(page, 'admin@lavacar.com.br', 'lavacar-beloauto');
+
     const staff = await inviteStaff(page, {
       email: uniqueTestEmail('e2e-resource'),
       firstName: 'Recurso',
       lastName: 'Teste',
       role: 'STAFF',
     });
-
-    await loginAsStaff(page, 'admin@lavacar.com.br', 'lavacar-beloauto');
 
     await page.goto('/dashboard/resources/new');
     await page.locator('[data-testid="resource-identity-type-option"][data-type="STAFF"]').click();
@@ -55,7 +57,9 @@ test.describe('resource management access control', () => {
 
     // Manager-only route — proxy.ts redirects STAFF back to /dashboard before the page ever
     // renders, matching every other manager-only section (Equipe/Configurações/Hotsite).
+    // /dashboard itself then redirects to /dashboard/bookings (app/dashboard/page.tsx) — the
+    // real final landing page after the double redirect.
     await page.goto('/dashboard/resources');
-    await expect(page).toHaveURL('/dashboard');
+    await expect(page).toHaveURL('/dashboard/bookings');
   });
 });

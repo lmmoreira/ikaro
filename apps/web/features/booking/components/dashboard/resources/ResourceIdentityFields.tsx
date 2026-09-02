@@ -46,6 +46,13 @@ export function ResourceIdentityFields({
   refIdError,
 }: ResourceIdentityFieldsProps): React.JSX.Element {
   const t = useTranslations('dashboard.resourcesPage');
+  // Only active staff can be newly wrapped (S01's own domain rule) — but keep the currently
+  // selected option visible (disabled) if it points at a since-deactivated staff member, so
+  // editing an already-wrapped resource still shows its real current selection instead of
+  // silently falling back to a blank/first option (Codex review finding, PR #459).
+  const selectableStaffOptions = staffOptions.filter(
+    (staff) => staff.isActive || staff.id === refId,
+  );
 
   return (
     <>
@@ -89,8 +96,12 @@ export function ResourceIdentityFields({
             className={INPUT_CLASS}
           >
             <option value="">{t('staffPlaceholder')}</option>
-            {staffOptions.map((staff) => (
-              <option key={staff.id} value={staff.id} disabled={wrappedStaffIds.has(staff.id)}>
+            {selectableStaffOptions.map((staff) => (
+              <option
+                key={staff.id}
+                value={staff.id}
+                disabled={wrappedStaffIds.has(staff.id) || !staff.isActive}
+              >
                 {staff.name ?? staff.email}
                 {wrappedStaffIds.has(staff.id) ? ` — ${t('staffAlreadyResource')}` : ''}
               </option>

@@ -95,6 +95,67 @@ describe('ResourceIdentityFields', () => {
     expect(option).toBeDisabled();
   });
 
+  it('excludes an inactive (deactivated) staff member from selectable options', () => {
+    const staffOptions: StaffListItem[] = [
+      ...STAFF_OPTIONS,
+      {
+        id: 's-3',
+        email: 'ines@acme.com',
+        name: 'Inês Souza',
+        role: 'STAFF',
+        isActive: false,
+        createdAt: '',
+        status: 'DEACTIVATED',
+      },
+    ];
+    renderWithIntl(
+      <ResourceIdentityFields
+        showTypePicker={false}
+        type="STAFF"
+        onTypeChange={vi.fn()}
+        refId=""
+        onRefIdChange={vi.fn()}
+        name=""
+        onNameChange={vi.fn()}
+        staffOptions={staffOptions}
+        wrappedStaffIds={new Set()}
+      />,
+    );
+
+    expect(screen.queryByRole('option', { name: /Inês Souza/ })).not.toBeInTheDocument();
+  });
+
+  it('keeps the currently-selected staff option visible (disabled) even if it has since been deactivated', () => {
+    const staffOptions: StaffListItem[] = [
+      ...STAFF_OPTIONS,
+      {
+        id: 's-3',
+        email: 'ines@acme.com',
+        name: 'Inês Souza',
+        role: 'STAFF',
+        isActive: false,
+        createdAt: '',
+        status: 'DEACTIVATED',
+      },
+    ];
+    renderWithIntl(
+      <ResourceIdentityFields
+        showTypePicker={false}
+        type="STAFF"
+        onTypeChange={vi.fn()}
+        refId="s-3"
+        onRefIdChange={vi.fn()}
+        name=""
+        onNameChange={vi.fn()}
+        staffOptions={staffOptions}
+        wrappedStaffIds={new Set()}
+      />,
+    );
+
+    const option = screen.getByRole('option', { name: /Inês Souza/ });
+    expect(option).toBeDisabled();
+  });
+
   it('hides the type picker when showTypePicker is false', () => {
     renderWithIntl(
       <ResourceIdentityFields
