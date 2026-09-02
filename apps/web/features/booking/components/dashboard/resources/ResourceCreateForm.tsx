@@ -67,6 +67,12 @@ export function ResourceCreateForm(): React.JSX.Element {
 
     setIsSubmittingLocal(true);
     try {
+      // A STAFF resource can never carry a capacity (CHECK type != 'STAFF' OR max_capacity IS
+      // NULL) — the field is hidden once type switches to STAFF, but its stale value must be
+      // discarded here too, not just visually hidden (Codex review finding, PR #459 round 2).
+      const resolvedMaxCapacity =
+        type === 'STAFF' ? null : (maxCapacity && Number(maxCapacity)) || null;
+
       await createResourceMutation.mutateAsync({
         type,
         refId: type === 'STAFF' ? refId : undefined,
@@ -74,7 +80,7 @@ export function ResourceCreateForm(): React.JSX.Element {
           type === 'STAFF' ? (staffOptions.find((s) => s.id === refId)?.name ?? '') : name.trim(),
         workingHours,
         turnoverMinutes: Number(turnoverMinutes) || 0,
-        maxCapacity: maxCapacity ? Number(maxCapacity) : null,
+        maxCapacity: resolvedMaxCapacity,
       });
       router.push('/dashboard/resources');
     } catch (err) {
@@ -125,6 +131,7 @@ export function ResourceCreateForm(): React.JSX.Element {
                   {t('maxCapacityLabel')}
                 </label>
                 <input
+                  data-testid="resource-max-capacity-input"
                   type="number"
                   min={1}
                   value={maxCapacity}

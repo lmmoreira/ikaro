@@ -41,7 +41,20 @@ vi.mock('@/features/booking/hooks/useResources', () => ({
 }));
 
 vi.mock('@/features/staff/hooks/useStaff', () => ({
-  useStaff: () => ({ data: { items: [] } }),
+  useStaff: () => ({
+    data: {
+      items: [
+        {
+          id: 's-1',
+          email: 'camila@acme.com',
+          name: 'Camila Duarte',
+          role: 'STAFF',
+          isActive: true,
+          createdAt: '',
+        },
+      ],
+    },
+  }),
 }));
 
 beforeEach(() => vi.clearAllMocks());
@@ -98,5 +111,29 @@ describe('ResourceEditFormFields', () => {
       ),
     );
     expect(routerPush).toHaveBeenCalledWith('/dashboard/resources');
+  });
+
+  it('discards the existing maxCapacity when switching type from ROOM to STAFF', async () => {
+    const user = userEvent.setup();
+    mutateAsync.mockResolvedValue(ROOM_RESOURCE);
+    renderWithIntl(<ResourceEditFormFields resourceId="r-1" resource={ROOM_RESOURCE} />);
+
+    expect(screen.getByTestId('resource-max-capacity-input')).toHaveValue(12);
+
+    const found = screen
+      .getAllByTestId('resource-identity-type-option')
+      .find((el) => el.getAttribute('data-type') === 'STAFF');
+    await user.click(found!);
+    await user.selectOptions(screen.getByTestId('resource-identity-staff-select'), 's-1');
+    await user.click(screen.getByTestId('resource-edit-save-desktop'));
+
+    await waitFor(() =>
+      expect(mutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'r-1',
+          body: expect.objectContaining({ type: 'STAFF', maxCapacity: null }),
+        }),
+      ),
+    );
   });
 });

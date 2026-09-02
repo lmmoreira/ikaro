@@ -86,6 +86,22 @@ describe('ResourceCreateForm', () => {
     );
   });
 
+  it('discards a stale maxCapacity value when switching from ROOM back to STAFF', async () => {
+    const user = userEvent.setup();
+    mutateAsync.mockResolvedValue({ id: 'r-1' });
+    renderWithIntl(<ResourceCreateForm />);
+
+    await user.click(getTypeOption('ROOM'));
+    await user.type(screen.getByTestId('resource-max-capacity-input'), '12');
+    await user.click(getTypeOption('STAFF'));
+    await user.selectOptions(screen.getByTestId('resource-identity-staff-select'), 's-1');
+    await user.click(screen.getByTestId('resource-create-save-desktop'));
+
+    expect(mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'STAFF', maxCapacity: null }),
+    );
+  });
+
   it('requires a name for ROOM/EQUIPMENT types', async () => {
     const user = userEvent.setup();
     renderWithIntl(<ResourceCreateForm />);

@@ -9,6 +9,8 @@ import { useResources } from '@/features/booking/hooks/useResources';
 import { Button } from '@/shared/components/ui/button';
 import { Card } from '@/shared/components/ui/card';
 import { cn } from '@/shared/utils/cn';
+import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
+import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 
 type ResourceFilter = 'all' | 'STAFF' | 'ROOM' | 'EQUIPMENT';
 
@@ -104,7 +106,9 @@ function ResourceRow({ resource }: { readonly resource: ResourceResponse }): Rea
 
 export function ResourceListPage(): React.JSX.Element {
   const t = useTranslations('dashboard.resourcesPage');
-  const { data, isLoading } = useResources();
+  const commonT = useTranslations('common');
+  const locale = useResolvedLocale();
+  const { data, isLoading, isError, error } = useResources();
   const [filter, setFilter] = useState<ResourceFilter>('all');
 
   const resources = useMemo(
@@ -127,6 +131,32 @@ export function ResourceListPage(): React.JSX.Element {
     [filter, resources],
   );
 
+  let cardContent: React.JSX.Element;
+  if (isLoading) {
+    cardContent = (
+      <div className="px-4 py-10 text-center text-sm text-gray-500">{commonT('loading')}</div>
+    );
+  } else if (isError) {
+    cardContent = (
+      <div
+        data-testid="resource-list-error"
+        className="px-4 py-10 text-center text-sm text-red-600"
+      >
+        {resolveErrorMessageFromApiError(error, locale)}
+      </div>
+    );
+  } else if (filteredResources.length > 0) {
+    cardContent = (
+      <div className="divide-y divide-border">
+        {filteredResources.map((resource) => (
+          <ResourceRow key={resource.id} resource={resource} />
+        ))}
+      </div>
+    );
+  } else {
+    cardContent = <div className="px-4 py-10 text-center text-sm text-gray-500">{t('empty')}</div>;
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2 px-4 pb-1">
@@ -143,19 +173,7 @@ export function ResourceListPage(): React.JSX.Element {
         ))}
       </div>
 
-      <Card className="overflow-hidden">
-        {isLoading ? (
-          <div className="px-4 py-10 text-center text-sm text-gray-500">…</div>
-        ) : filteredResources.length > 0 ? (
-          <div className="divide-y divide-border">
-            {filteredResources.map((resource) => (
-              <ResourceRow key={resource.id} resource={resource} />
-            ))}
-          </div>
-        ) : (
-          <div className="px-4 py-10 text-center text-sm text-gray-500">{t('empty')}</div>
-        )}
-      </Card>
+      <Card className="overflow-hidden">{cardContent}</Card>
 
       <Button
         asChild

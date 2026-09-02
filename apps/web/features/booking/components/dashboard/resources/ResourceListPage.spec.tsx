@@ -90,4 +90,17 @@ describe('ResourceListPage', () => {
 
     expect(screen.getByText('Nenhum recurso encontrado.')).toBeInTheDocument();
   });
+
+  it('shows a distinct error state on fetch failure instead of the empty state', () => {
+    useResourcesMock.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: new Error('network down'),
+    });
+    renderWithIntl(<ResourceListPage />);
+
+    expect(screen.getByTestId('resource-list-error')).toBeInTheDocument();
+    expect(screen.queryByText('Nenhum recurso encontrado.')).not.toBeInTheDocument();
+  });
 });

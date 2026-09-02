@@ -45,4 +45,16 @@ describe('ResourceDeactivateOrReactivate', () => {
 
     expect(screen.getByText('Reativar recurso?')).toBeInTheDocument();
   });
+
+  it('shows a distinct error state on fetch failure instead of an infinite spinner', () => {
+    useResourceMock.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: new Error('network down'),
+    });
+    renderWithIntl(<ResourceDeactivateOrReactivate resourceId="r-1" />);
+
+    expect(screen.getByTestId('resource-deactivate-load-error')).toBeInTheDocument();
+  });
 });

@@ -87,4 +87,16 @@ describe('ResourceEditForm', () => {
       ),
     );
   });
+
+  it('shows a distinct error state on fetch failure instead of an infinite spinner', () => {
+    useResourceMock.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: new Error('network down'),
+    });
+    renderWithIntl(<ResourceEditForm resourceId="r-1" />);
+
+    expect(screen.getByTestId('resource-edit-load-error')).toBeInTheDocument();
+  });
 });
