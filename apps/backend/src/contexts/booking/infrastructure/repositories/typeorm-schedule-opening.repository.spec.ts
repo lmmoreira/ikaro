@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { ScheduleOpeningEntityBuilder } from '../../../../test/builders/booking/index';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
 import { ScheduleOpening } from '../../domain/schedule-opening.aggregate';
@@ -10,6 +10,7 @@ import { TypeOrmScheduleOpeningRepository } from './typeorm-schedule-opening.rep
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
 const STAFF_ID = '00000000-0000-7000-8000-000000000002';
 const OPENING_ID = '00000000-0000-7000-8000-000000000003';
+const RESOURCE_ID = '00000000-0000-7000-8000-000000000004';
 
 describe('TypeOrmScheduleOpeningRepository', () => {
   let repo: TypeOrmScheduleOpeningRepository;
@@ -107,6 +108,22 @@ describe('TypeOrmScheduleOpeningRepository', () => {
       expect(result).toBeInstanceOf(ScheduleOpening);
       expect(result!.date).toBe('2026-12-28');
     });
+
+    it('scopes to tenant-wide (resourceId IS NULL) when resourceId is omitted', async () => {
+      ormRepo.findOne.mockResolvedValue(null);
+      await repo.findByTenantAndDate(TENANT_ID, '2026-12-28');
+      expect(ormRepo.findOne).toHaveBeenCalledWith({
+        where: { tenantId: TENANT_ID, date: '2026-12-28', resourceId: IsNull() },
+      });
+    });
+
+    it('scopes to the given resourceId when provided', async () => {
+      ormRepo.findOne.mockResolvedValue(null);
+      await repo.findByTenantAndDate(TENANT_ID, '2026-12-28', RESOURCE_ID);
+      expect(ormRepo.findOne).toHaveBeenCalledWith({
+        where: { tenantId: TENANT_ID, date: '2026-12-28', resourceId: RESOURCE_ID },
+      });
+    });
   });
 
   describe('findByTenantAndDateRange', () => {
@@ -139,6 +156,7 @@ describe('TypeOrmScheduleOpeningRepository', () => {
       const opening = ScheduleOpening.reconstitute({
         id: OPENING_ID,
         tenantId: TENANT_ID,
+        resourceId: null,
         date: '2026-12-28',
         startTime: TimeOfDay.create('09:00'),
         endTime: TimeOfDay.create('14:00'),
@@ -166,6 +184,7 @@ describe('TypeOrmScheduleOpeningRepository', () => {
       const opening = ScheduleOpening.reconstitute({
         id: OPENING_ID,
         tenantId: TENANT_ID,
+        resourceId: null,
         date: '2026-12-28',
         startTime: TimeOfDay.create('09:00'),
         endTime: TimeOfDay.create('14:00'),
@@ -177,6 +196,27 @@ describe('TypeOrmScheduleOpeningRepository', () => {
       await repo.save(opening);
 
       expect(ormRepo.save).toHaveBeenCalledWith(expect.objectContaining({ notes: null }));
+    });
+
+    it('maps resourceId onto the entity', async () => {
+      ormRepo.save.mockResolvedValue(new ScheduleOpeningEntityBuilder().build());
+      const opening = ScheduleOpening.reconstitute({
+        id: OPENING_ID,
+        tenantId: TENANT_ID,
+        resourceId: RESOURCE_ID,
+        date: '2026-12-28',
+        startTime: TimeOfDay.create('09:00'),
+        endTime: TimeOfDay.create('14:00'),
+        notes: null,
+        createdBy: STAFF_ID,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+      });
+
+      await repo.save(opening);
+
+      expect(ormRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ resourceId: RESOURCE_ID }),
+      );
     });
   });
 

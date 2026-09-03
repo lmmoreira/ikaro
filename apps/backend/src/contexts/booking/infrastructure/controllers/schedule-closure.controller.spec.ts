@@ -2,7 +2,8 @@ import { HttpException } from '@nestjs/common';
 import { futureDate, pastDate } from '../../../../test/utils/date-helpers';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
-import { ScheduleClosureBuilder } from '../../../../test/builders/booking/index';
+import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
+import { ScheduleClosureBuilder, ResourceBuilder } from '../../../../test/builders/booking/index';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { ClosureReason } from '../../domain/schedule-closure.aggregate';
 import { CloseScheduleUseCase } from '../../application/use-cases/close-schedule.use-case';
@@ -15,18 +16,28 @@ const ACTOR_ID = '00000000-0000-7000-8000-000000000002';
 
 describe('ScheduleClosureController', () => {
   let repo: InMemoryScheduleClosureRepository;
+  let resourceRepo: InMemoryResourceRepository;
   let controller: ScheduleClosureController;
 
-  beforeEach(() => {
-    repo = new InMemoryScheduleClosureRepository();
-    const ctx = new RequestContextBuilder().withTenantId(TENANT_ID).withActorId(ACTOR_ID).build();
+  function buildController(actorRole: 'STAFF' | 'MANAGER' = 'STAFF'): ScheduleClosureController {
+    const ctx = new RequestContextBuilder()
+      .withTenantId(TENANT_ID)
+      .withActorId(ACTOR_ID)
+      .withActorRole(actorRole)
+      .build();
     const tx = new InMemoryTransactionManager();
-    controller = new ScheduleClosureController(
+    return new ScheduleClosureController(
       ctx,
-      new CloseScheduleUseCase(repo, tx),
+      new CloseScheduleUseCase(repo, resourceRepo, tx),
       new RemoveClosureUseCase(repo, tx),
       new ListClosuresUseCase(repo),
     );
+  }
+
+  beforeEach(() => {
+    repo = new InMemoryScheduleClosureRepository();
+    resourceRepo = new InMemoryResourceRepository();
+    controller = buildController();
   });
 
   describe('create()', () => {
@@ -111,6 +122,48 @@ describe('ScheduleClosureController', () => {
     it('returns empty list when no closures in range', async () => {
       const result = await controller.list({ from: '2026-11-01', to: '2026-11-30' });
       expect(result.items).toHaveLength(0);
+    });
+  });
+
+  describe('resourceId auth (M21 Cluster 1)', () => {
+    it('STAFF gets 403 when resourceId is set', async () => {
+      const staffController = buildController('STAFF');
+      const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
+      await resourceRepo.save(resource);
+
+      // create() throws synchronously for this path (throwProblemDetail, not a rejected
+      // promise) — wrap in an async invocation so .catch() has something to attach to.
+      const err = await (async () =>
+        staffController.create({
+          date: futureDate(5),
+          reason: ClosureReason.HOLIDAY,
+          resourceId: resource.id,
+        }))().catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(403);
+    });
+
+    it('MANAGER can create a resource-scoped closure', async () => {
+      const managerController = buildController('MANAGER');
+      const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
+      await resourceRepo.save(resource);
+
+      const result = await managerController.create({
+        date: futureDate(5),
+        reason: ClosureReason.HOLIDAY,
+        resourceId: resource.id,
+      });
+
+      expect(result.resourceId).toBe(resource.id);
+    });
+
+    it('STAFF can still create a tenant-wide closure (resourceId omitted)', async () => {
+      const result = await controller.create({
+        date: futureDate(5),
+        reason: ClosureReason.HOLIDAY,
+      });
+      expect(result.resourceId).toBeNull();
     });
   });
 });

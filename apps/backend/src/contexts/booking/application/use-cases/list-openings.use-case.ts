@@ -27,11 +27,13 @@ export class ListOpeningsUseCase {
       tenantId,
       input.from,
       input.to,
+      input.resourceId,
     );
 
     return {
       items: openings.map((o) => ({
         id: o.id,
+        resourceId: o.resourceId,
         date: o.date,
         startTime: o.startTime.value,
         endTime: o.endTime.value,

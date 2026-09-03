@@ -11,6 +11,7 @@ import { TimeOfDay } from '../../../shared/value-objects/time-of-day.vo';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
 const STAFF_ID = '00000000-0000-7000-8000-000000000002';
+const RESOURCE_ID = '00000000-0000-7000-8000-000000000003';
 
 describe('ScheduleOpening', () => {
   describe('open() factory', () => {
@@ -22,11 +23,13 @@ describe('ScheduleOpening', () => {
         '09:00',
         '14:00',
         STAFF_ID,
+        undefined,
         'Special event',
       );
 
       expect(opening.id).toBeDefined();
       expect(opening.tenantId).toBe(TENANT_ID);
+      expect(opening.resourceId).toBeNull();
       expect(opening.date).toBe(date);
       expect(opening.startTime).toBeInstanceOf(TimeOfDay);
       expect(opening.startTime.value).toBe('09:00');
@@ -49,6 +52,7 @@ describe('ScheduleOpening', () => {
         '09:00',
         '17:00',
         STAFF_ID,
+        undefined,
         '  trimmed  ',
       );
       expect(opening.notes).toBe('trimmed');
@@ -97,6 +101,29 @@ describe('ScheduleOpening', () => {
     });
   });
 
+  describe('resourceId (M21 Cluster 1)', () => {
+    it('defaults resourceId to null when omitted', () => {
+      const opening = ScheduleOpening.open(TENANT_ID, futureDate(), '09:00', '14:00', STAFF_ID);
+      expect(opening.resourceId).toBeNull();
+    });
+
+    it('stores resourceId when provided, without affecting other invariants', () => {
+      const opening = ScheduleOpening.open(
+        TENANT_ID,
+        futureDate(),
+        '09:00',
+        '14:00',
+        STAFF_ID,
+        RESOURCE_ID,
+        'notes',
+      );
+      expect(opening.resourceId).toBe(RESOURCE_ID);
+      expect(opening.startTime.value).toBe('09:00');
+      expect(opening.endTime.value).toBe('14:00');
+      expect(opening.notes).toBe('notes');
+    });
+  });
+
   describe('domain errors', () => {
     it('OpeningDateInPastError is instanceof BookingDomainError', () => {
       const err = new OpeningDateInPastError();
@@ -132,6 +159,7 @@ describe('ScheduleOpening', () => {
       const opening = ScheduleOpening.reconstitute({
         id: '00000000-0000-7000-8000-000000000099',
         tenantId: TENANT_ID,
+        resourceId: null,
         date: past,
         startTime: TimeOfDay.create('08:00'),
         endTime: TimeOfDay.create('12:00'),
@@ -143,6 +171,23 @@ describe('ScheduleOpening', () => {
       expect(opening.date).toBe(past);
       expect(opening.startTime.value).toBe('08:00');
       expect(opening.endTime.value).toBe('12:00');
+      expect(opening.resourceId).toBeNull();
+    });
+
+    it('restores a resource-scoped opening', () => {
+      const opening = ScheduleOpening.reconstitute({
+        id: '00000000-0000-7000-8000-000000000099',
+        tenantId: TENANT_ID,
+        resourceId: RESOURCE_ID,
+        date: '2020-01-01',
+        startTime: TimeOfDay.create('08:00'),
+        endTime: TimeOfDay.create('12:00'),
+        notes: null,
+        createdBy: STAFF_ID,
+        createdAt: new Date('2020-01-01T00:00:00Z'),
+      });
+
+      expect(opening.resourceId).toBe(RESOURCE_ID);
     });
   });
 });

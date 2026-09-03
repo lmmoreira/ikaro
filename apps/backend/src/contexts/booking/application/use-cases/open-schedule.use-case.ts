@@ -10,10 +10,12 @@ import {
   OpeningDateInPastError,
   ScheduleOpeningAlreadyExistsError,
 } from '../../domain/errors/booking-domain.error';
+import { ResourceNotFoundError } from '../../domain/errors/resource.error';
 import {
   IScheduleOpeningRepository,
   SCHEDULE_OPENING_REPOSITORY,
 } from '../ports/schedule-opening-repository.port';
+import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { getUtcWeekDayName, todayUTC } from '../../../../shared/utils/calendar-date';
 import { OpenScheduleDto } from '../dtos/open-schedule.dto';
 
@@ -25,6 +27,7 @@ export type OpenScheduleUseCaseInput = OpenScheduleDto & {
 
 export interface OpenScheduleUseCaseResult {
   id: string;
+  resourceId: string | null;
   date: string;
   startTime: string;
   endTime: string;
@@ -38,11 +41,13 @@ export class OpenScheduleUseCase {
   constructor(
     @Inject(SCHEDULE_OPENING_REPOSITORY)
     private readonly openingRepo: IScheduleOpeningRepository,
+    @Inject(RESOURCE_REPOSITORY)
+    private readonly resourceRepo: IResourceRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
   async execute(input: OpenScheduleUseCaseInput): Promise<OpenScheduleUseCaseResult> {
-    const { tenantId, createdBy, businessHours } = input;
+    const { tenantId, createdBy, businessHours, resourceId } = input;
 
     const today = todayUTC();
     if (input.date < today) throw new OpeningDateInPastError();
@@ -51,7 +56,12 @@ export class OpenScheduleUseCase {
       throw new DayAlreadyOpenInSettingsError(input.date);
     }
 
-    const existing = await this.openingRepo.findByTenantAndDate(tenantId, input.date);
+    if (resourceId != null) {
+      const resource = await this.resourceRepo.findById(resourceId, tenantId);
+      if (!resource) throw new ResourceNotFoundError(resourceId);
+    }
+
+    const existing = await this.openingRepo.findByTenantAndDate(tenantId, input.date, resourceId);
     if (existing) throw new ScheduleOpeningAlreadyExistsError(input.date);
 
     const opening = ScheduleOpening.open(
@@ -60,6 +70,7 @@ export class OpenScheduleUseCase {
       input.startTime,
       input.endTime,
       createdBy,
+      resourceId,
       input.notes,
     );
 
@@ -73,6 +84,7 @@ export class OpenScheduleUseCase {
   private toResult(opening: ScheduleOpening): OpenScheduleUseCaseResult {
     return {
       id: opening.id,
+      resourceId: opening.resourceId,
       date: opening.date,
       startTime: opening.startTime.value,
       endTime: opening.endTime.value,

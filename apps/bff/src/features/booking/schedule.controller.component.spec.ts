@@ -16,6 +16,7 @@ const CLOSURE_ID = '30000000-0000-4000-8000-000000000001';
 
 const mockClosure: ScheduleClosureResponse = {
   id: CLOSURE_ID,
+  resourceId: null,
   date: '2026-12-25',
   startTime: null,
   endTime: null,
@@ -222,6 +223,46 @@ describe('ScheduleController (component)', () => {
         .send({ date: '2026-12-25', reason: 'MAINTENANCE' });
 
       expect(res.status).toBe(409);
+    });
+
+    it('MANAGER JWT → 201, passes resourceId through to backend (M21 Cluster 1)', async () => {
+      setupActiveGuardMock(httpService);
+      const scoped = { ...mockClosure, resourceId: '30000000-0000-4000-8000-000000000002' };
+      backendHttpService.post.mockResolvedValueOnce(scoped);
+
+      const res = await request(app.getHttpServer())
+        .post('/v1/schedule/closures')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send({
+          date: '2026-12-25',
+          reason: 'HOLIDAY',
+          resourceId: '30000000-0000-4000-8000-000000000002',
+        });
+
+      expect(res.status).toBe(201);
+      expect(backendHttpService.post).toHaveBeenCalledWith(
+        '/schedule/closures',
+        expect.objectContaining({ resourceId: '30000000-0000-4000-8000-000000000002' }),
+      );
+      expect(res.body.resourceId).toBe('30000000-0000-4000-8000-000000000002');
+    });
+
+    it('propagates 403 from backend when STAFF sets resourceId (M21 Cluster 1)', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.post.mockRejectedValueOnce(
+        new HttpException({ title: 'Forbidden', status: 403 }, 403),
+      );
+
+      const res = await request(app.getHttpServer())
+        .post('/v1/schedule/closures')
+        .set('Authorization', `Bearer ${makeStaffJwt(jwtService)}`)
+        .send({
+          date: '2026-12-25',
+          reason: 'HOLIDAY',
+          resourceId: '30000000-0000-4000-8000-000000000002',
+        });
+
+      expect(res.status).toBe(403);
     });
   });
 

@@ -4,6 +4,7 @@ import { ScheduleController } from './schedule.controller';
 
 const mockClosure: ScheduleClosureResponse = {
   id: '00000000-0000-4000-8000-000000000001',
+  resourceId: null,
   date: '2026-12-25',
   startTime: null,
   endTime: null,
@@ -67,6 +68,26 @@ describe('ScheduleController', () => {
         '/schedule/closures',
         expect.objectContaining({ startTime: '10:00', endTime: '12:00' }),
       );
+    });
+
+    it('passes resourceId through to the backend (M21 Cluster 1)', async () => {
+      const scoped = { ...mockClosure, resourceId: '00000000-0000-4000-8000-000000000003' };
+      const backendHttp = makeBackendHttp({
+        post: jest.fn().mockResolvedValue(scoped),
+      });
+      const controller = new ScheduleController(backendHttp);
+
+      const result = await controller.create({
+        date: '2026-12-25',
+        reason: 'HOLIDAY',
+        resourceId: '00000000-0000-4000-8000-000000000003',
+      });
+
+      expect(backendHttp.post).toHaveBeenCalledWith(
+        '/schedule/closures',
+        expect.objectContaining({ resourceId: '00000000-0000-4000-8000-000000000003' }),
+      );
+      expect(result.resourceId).toBe('00000000-0000-4000-8000-000000000003');
     });
   });
 

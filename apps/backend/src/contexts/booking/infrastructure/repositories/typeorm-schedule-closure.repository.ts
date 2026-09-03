@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Repository } from 'typeorm';
+import { Between, IsNull, Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
 import { IScheduleClosureRepository } from '../../application/ports/schedule-closure-repository.port';
@@ -18,17 +18,22 @@ export class TypeOrmScheduleClosureRepository implements IScheduleClosureReposit
     tenantId: string,
     from: string,
     to: string,
+    resourceId?: string,
   ): Promise<ScheduleClosure[]> {
     const entities = await this.repo.find({
-      where: { tenantId, date: Between(from, to) },
+      where: { tenantId, date: Between(from, to), resourceId: resourceId ?? IsNull() },
       order: { date: 'ASC', startTime: 'ASC' },
     });
     return entities.map((e) => this.toDomain(e));
   }
 
-  async findByTenantAndDate(tenantId: string, date: string): Promise<ScheduleClosure[]> {
+  async findByTenantAndDate(
+    tenantId: string,
+    date: string,
+    resourceId?: string,
+  ): Promise<ScheduleClosure[]> {
     const entities = await this.repo.find({
-      where: { tenantId, date },
+      where: { tenantId, date, resourceId: resourceId ?? IsNull() },
       order: { startTime: 'ASC' },
     });
     return entities.map((e) => this.toDomain(e));
@@ -62,6 +67,7 @@ export class TypeOrmScheduleClosureRepository implements IScheduleClosureReposit
     return ScheduleClosure.reconstitute({
       id: entity.id,
       tenantId: entity.tenantId,
+      resourceId: entity.resourceId,
       date: entity.date,
       startTime: entity.startTime ? TimeOfDay.create(entity.startTime) : null,
       endTime: entity.endTime ? TimeOfDay.create(entity.endTime) : null,
@@ -76,6 +82,7 @@ export class TypeOrmScheduleClosureRepository implements IScheduleClosureReposit
     const entity = new ScheduleClosureEntity();
     entity.id = closure.id;
     entity.tenantId = closure.tenantId;
+    entity.resourceId = closure.resourceId;
     entity.date = closure.date;
     entity.startTime = closure.startTime?.value ?? null;
     entity.endTime = closure.endTime?.value ?? null;

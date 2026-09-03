@@ -1,11 +1,15 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import { ScheduleClosureEntityBuilder } from '../../../../test/builders/booking/index';
+import {
+  ScheduleClosureEntityBuilder,
+  ResourceEntityBuilder,
+} from '../../../../test/builders/booking/index';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
 import { futureDate, pastDate } from '../../../../test/utils/date-helpers';
 import { ScheduleClosureEntity } from '../entities/schedule-closure.entity';
+import { ResourceEntity } from '../entities/resource.entity';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000300';
 const TENANT_B = '10000000-0000-4000-8000-000000000301';
@@ -181,6 +185,81 @@ describe('ScheduleClosureController (integration)', () => {
         .expect(200);
 
       expect(body.items).toHaveLength(0);
+    });
+  });
+
+  // ─── resourceId (M21 Cluster 1) ──────────────────────────────────────────────
+
+  describe('resourceId (M21 Cluster 1)', () => {
+    const RESOURCE_TENANT = '10000000-0000-4000-8000-000000000303';
+
+    it('MANAGER creates a resource-scoped closure', async () => {
+      const resource = new ResourceEntityBuilder().withTenantId(RESOURCE_TENANT).build();
+      await ds.getRepository(ResourceEntity).save(resource);
+
+      const { body } = await request(app.getHttpServer())
+        .post('/schedule/closures')
+        .set(actorHeaders(RESOURCE_TENANT, MANAGER_ID))
+        .send({ date: futureDate(40), reason: 'HOLIDAY', resourceId: resource.id })
+        .expect(201);
+
+      expect(body.resourceId).toBe(resource.id);
+    });
+
+    it('returns 403 when STAFF sets resourceId', async () => {
+      const resource = new ResourceEntityBuilder().withTenantId(RESOURCE_TENANT).build();
+      await ds.getRepository(ResourceEntity).save(resource);
+
+      const { body } = await request(app.getHttpServer())
+        .post('/schedule/closures')
+        .set(actorHeaders(RESOURCE_TENANT, MANAGER_ID, 'STAFF'))
+        .send({ date: futureDate(41), reason: 'HOLIDAY', resourceId: resource.id })
+        .expect(403);
+
+      expect(body.status).toBe(403);
+    });
+
+    it('STAFF can still create a tenant-wide closure (resourceId omitted)', async () => {
+      const { body } = await request(app.getHttpServer())
+        .post('/schedule/closures')
+        .set(actorHeaders(RESOURCE_TENANT, MANAGER_ID, 'STAFF'))
+        .send({ date: futureDate(42), reason: 'HOLIDAY' })
+        .expect(201);
+
+      expect(body.resourceId).toBeNull();
+    });
+
+    it('returns 404 when resourceId belongs to another tenant', async () => {
+      const resource = new ResourceEntityBuilder().withTenantId(TENANT_B).build();
+      await ds.getRepository(ResourceEntity).save(resource);
+
+      const { body } = await request(app.getHttpServer())
+        .post('/schedule/closures')
+        .set(actorHeaders(RESOURCE_TENANT, MANAGER_ID))
+        .send({ date: futureDate(43), reason: 'HOLIDAY', resourceId: resource.id })
+        .expect(404);
+
+      expect(body.status).toBe(404);
+    });
+
+    it('a resource-scoped closure and a tenant-wide closure for the same date do not collide', async () => {
+      const resource = new ResourceEntityBuilder().withTenantId(RESOURCE_TENANT).build();
+      await ds.getRepository(ResourceEntity).save(resource);
+      const date = futureDate(44);
+
+      await request(app.getHttpServer())
+        .post('/schedule/closures')
+        .set(actorHeaders(RESOURCE_TENANT, MANAGER_ID))
+        .send({ date, reason: 'HOLIDAY' })
+        .expect(201);
+
+      const { body } = await request(app.getHttpServer())
+        .post('/schedule/closures')
+        .set(actorHeaders(RESOURCE_TENANT, MANAGER_ID))
+        .send({ date, reason: 'HOLIDAY', resourceId: resource.id })
+        .expect(201);
+
+      expect(body.resourceId).toBe(resource.id);
     });
   });
 });

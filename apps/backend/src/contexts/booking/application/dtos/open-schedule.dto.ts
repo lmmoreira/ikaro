@@ -14,6 +14,7 @@ export const OpenScheduleSchema = z
       error: 'endTime must be HH:MM',
       params: { code: TimeOfDayErrorCode.FORMAT_INVALID },
     }),
+    resourceId: z.uuid().optional(),
     notes: z.string().optional(),
   })
   .strict();
@@ -24,6 +25,7 @@ export const ListOpeningsSchema = z
   .object({
     from: z.string().regex(DATE_ONLY_PATTERN, 'from must be YYYY-MM-DD'),
     to: z.string().regex(DATE_ONLY_PATTERN, 'to must be YYYY-MM-DD'),
+    resourceId: z.uuid().optional(),
   })
   .strict();
 

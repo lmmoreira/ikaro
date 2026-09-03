@@ -1,7 +1,8 @@
 import { pastDate, nextWeekday } from '../../../../test/utils/date-helpers';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
-import { ScheduleOpeningBuilder } from '../../../../test/builders/booking/schedule-opening.builder';
+import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
+import { ScheduleOpeningBuilder, ResourceBuilder } from '../../../../test/builders/booking/index';
 import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
 import { OpenScheduleUseCase } from './open-schedule.use-case';
 import {
@@ -9,20 +10,24 @@ import {
   OpeningDateInPastError,
   ScheduleOpeningAlreadyExistsError,
 } from '../../domain/errors/booking-domain.error';
+import { ResourceNotFoundError } from '../../domain/errors/resource.error';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
 const ACTOR_ID = '00000000-0000-7000-8000-000000000002';
+const OTHER_TENANT_ID = '99999999-0000-7000-8000-000000000099';
 
 describe('OpenScheduleUseCase', () => {
   let repo: InMemoryScheduleOpeningRepository;
+  let resourceRepo: InMemoryResourceRepository;
   let useCase: OpenScheduleUseCase;
   let settings: TenantSettings;
 
   beforeEach(() => {
     repo = new InMemoryScheduleOpeningRepository();
+    resourceRepo = new InMemoryResourceRepository();
     settings = TenantSettings.default();
     const tx = new InMemoryTransactionManager();
-    useCase = new OpenScheduleUseCase(repo, tx);
+    useCase = new OpenScheduleUseCase(repo, resourceRepo, tx);
   });
 
   it('creates an opening for a normally-closed day', async () => {
@@ -115,5 +120,111 @@ describe('OpenScheduleUseCase', () => {
     });
 
     expect(result.notes).toBe('Special event');
+  });
+
+  describe('resourceId (M21 Cluster 1)', () => {
+    it('creates a resource-scoped opening when resourceId belongs to the tenant', async () => {
+      const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
+      await resourceRepo.save(resource);
+      const date = nextWeekday(0);
+
+      const result = await useCase.execute({
+        date,
+        startTime: '09:00',
+        endTime: '14:00',
+        resourceId: resource.id,
+        tenantId: TENANT_ID,
+        createdBy: ACTOR_ID,
+        businessHours: settings.businessHours,
+      });
+
+      expect(result.resourceId).toBe(resource.id);
+    });
+
+    it('throws ResourceNotFoundError when resourceId does not exist', async () => {
+      await expect(
+        useCase.execute({
+          date: nextWeekday(0),
+          startTime: '09:00',
+          endTime: '14:00',
+          resourceId: '00000000-0000-7000-8000-000000000099',
+          tenantId: TENANT_ID,
+          createdBy: ACTOR_ID,
+          businessHours: settings.businessHours,
+        }),
+      ).rejects.toThrow(ResourceNotFoundError);
+    });
+
+    it('throws ResourceNotFoundError when resourceId belongs to another tenant', async () => {
+      const resource = new ResourceBuilder().withTenantId(OTHER_TENANT_ID).build();
+      await resourceRepo.save(resource);
+
+      await expect(
+        useCase.execute({
+          date: nextWeekday(0),
+          startTime: '09:00',
+          endTime: '14:00',
+          resourceId: resource.id,
+          tenantId: TENANT_ID,
+          createdBy: ACTOR_ID,
+          businessHours: settings.businessHours,
+        }),
+      ).rejects.toThrow(ResourceNotFoundError);
+    });
+
+    it('a tenant-wide opening and a resource-scoped opening on the same date do not collide', async () => {
+      const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
+      await resourceRepo.save(resource);
+      const date = nextWeekday(0);
+
+      await useCase.execute({
+        date,
+        startTime: '09:00',
+        endTime: '14:00',
+        tenantId: TENANT_ID,
+        createdBy: ACTOR_ID,
+        businessHours: settings.businessHours,
+      });
+
+      const scoped = await useCase.execute({
+        date,
+        startTime: '09:00',
+        endTime: '14:00',
+        resourceId: resource.id,
+        tenantId: TENANT_ID,
+        createdBy: ACTOR_ID,
+        businessHours: settings.businessHours,
+      });
+
+      expect(scoped.id).toBeDefined();
+    });
+
+    it('two resource-scoped openings for the same resource/date still collide', async () => {
+      const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
+      await resourceRepo.save(resource);
+      const date = nextWeekday(0);
+
+      await useCase.execute({
+        date,
+        startTime: '09:00',
+        endTime: '14:00',
+        resourceId: resource.id,
+        tenantId: TENANT_ID,
+        createdBy: ACTOR_ID,
+        businessHours: settings.businessHours,
+      });
+
+      await expect(
+        useCase.execute({
+          date,
+          startTime: '10:00',
+          endTime: '12:00',
+          resourceId: resource.id,
+          tenantId: TENANT_ID,
+          createdBy: ACTOR_ID,
+          businessHours: settings.businessHours,
+        }),
+      ).rejects.toThrow(ScheduleOpeningAlreadyExistsError);
+    });
   });
 });

@@ -5,6 +5,7 @@ import {
 
 export class ScheduleClosureBuilder {
   private tenantId = '00000000-0000-7000-8000-000000000001';
+  private resourceId: string | undefined = undefined;
   private date: string = (() => {
     const d = new Date();
     d.setUTCDate(d.getUTCDate() + 7);
@@ -18,6 +19,11 @@ export class ScheduleClosureBuilder {
 
   withTenantId(tenantId: string): this {
     this.tenantId = tenantId;
+    return this;
+  }
+
+  withResourceId(resourceId: string): this {
+    this.resourceId = resourceId;
     return this;
   }
 
@@ -57,6 +63,7 @@ export class ScheduleClosureBuilder {
       this.date,
       this.reason,
       this.createdBy,
+      this.resourceId,
       this.startTime,
       this.endTime,
       this.notes,

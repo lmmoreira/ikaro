@@ -5,10 +5,12 @@ import {
 } from '../../../../shared/ports/transaction-manager.port';
 import { ScheduleClosure } from '../../domain/schedule-closure.aggregate';
 import { ScheduleAlreadyClosedError } from '../../domain/errors/booking-domain.error';
+import { ResourceNotFoundError } from '../../domain/errors/resource.error';
 import {
   IScheduleClosureRepository,
   SCHEDULE_CLOSURE_REPOSITORY,
 } from '../ports/schedule-closure-repository.port';
+import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { CloseScheduleDto } from '../dtos/close-schedule.dto';
 
 export type CloseScheduleUseCaseInput = CloseScheduleDto & {
@@ -18,6 +20,7 @@ export type CloseScheduleUseCaseInput = CloseScheduleDto & {
 
 export interface CloseScheduleUseCaseResult {
   id: string;
+  resourceId: string | null;
   date: string;
   startTime: string | null;
   endTime: string | null;
@@ -32,23 +35,31 @@ export class CloseScheduleUseCase {
   constructor(
     @Inject(SCHEDULE_CLOSURE_REPOSITORY)
     private readonly closureRepo: IScheduleClosureRepository,
+    @Inject(RESOURCE_REPOSITORY)
+    private readonly resourceRepo: IResourceRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
   async execute(input: CloseScheduleUseCaseInput): Promise<CloseScheduleUseCaseResult> {
-    const { tenantId, createdBy } = input;
+    const { tenantId, createdBy, resourceId } = input;
+
+    if (resourceId != null) {
+      const resource = await this.resourceRepo.findById(resourceId, tenantId);
+      if (!resource) throw new ResourceNotFoundError(resourceId);
+    }
 
     const closure = ScheduleClosure.close(
       tenantId,
       input.date,
       input.reason,
       createdBy,
+      resourceId,
       input.startTime,
       input.endTime,
       input.notes,
     );
 
-    const existing = await this.closureRepo.findByTenantAndDate(tenantId, input.date);
+    const existing = await this.closureRepo.findByTenantAndDate(tenantId, input.date, resourceId);
     if (existing.some((c) => c.overlaps(closure.startTime, closure.endTime))) {
       throw new ScheduleAlreadyClosedError(input.date);
     }
@@ -63,6 +74,7 @@ export class CloseScheduleUseCase {
   private toResult(closure: ScheduleClosure): CloseScheduleUseCaseResult {
     return {
       id: closure.id,
+      resourceId: closure.resourceId,
       date: closure.date,
       startTime: closure.startTime?.value ?? null,
       endTime: closure.endTime?.value ?? null,

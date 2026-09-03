@@ -1,5 +1,5 @@
 import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
-import { ScheduleOpeningBuilder } from '../../../../test/builders/booking/schedule-opening.builder';
+import { ScheduleOpeningBuilder } from '../../../../test/builders/booking/index';
 import { ListOpeningsUseCase } from './list-openings.use-case';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
@@ -55,5 +55,54 @@ describe('ListOpeningsUseCase', () => {
       tenantId: TENANT_ID,
     });
     expect(result.items).toHaveLength(0);
+  });
+
+  describe('resourceId (M21 Cluster 1)', () => {
+    const RESOURCE_ID = '00000000-0000-7000-8000-000000000003';
+
+    it('omitting resourceId returns only tenant-wide openings', async () => {
+      await repo.save(
+        new ScheduleOpeningBuilder().withTenantId(TENANT_ID).withDate('2026-12-28').build(),
+      );
+      await repo.save(
+        new ScheduleOpeningBuilder()
+          .withTenantId(TENANT_ID)
+          .withResourceId(RESOURCE_ID)
+          .withDate('2026-12-28')
+          .build(),
+      );
+
+      const result = await useCase.execute({
+        from: '2026-12-01',
+        to: '2026-12-31',
+        tenantId: TENANT_ID,
+      });
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].resourceId).toBeNull();
+    });
+
+    it("providing resourceId returns only that resource's openings", async () => {
+      await repo.save(
+        new ScheduleOpeningBuilder().withTenantId(TENANT_ID).withDate('2026-12-28').build(),
+      );
+      await repo.save(
+        new ScheduleOpeningBuilder()
+          .withTenantId(TENANT_ID)
+          .withResourceId(RESOURCE_ID)
+          .withDate('2026-12-21')
+          .build(),
+      );
+
+      const result = await useCase.execute({
+        from: '2026-12-01',
+        to: '2026-12-31',
+        tenantId: TENANT_ID,
+        resourceId: RESOURCE_ID,
+      });
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].resourceId).toBe(RESOURCE_ID);
+    });
   });
 });

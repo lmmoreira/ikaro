@@ -1,26 +1,31 @@
 import { futureDate, pastDate } from '../../../../test/utils/date-helpers';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
-import { ScheduleClosureBuilder } from '../../../../test/builders/booking/index';
+import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
+import { ScheduleClosureBuilder, ResourceBuilder } from '../../../../test/builders/booking/index';
 import {
   ClosureDateInPastError,
   ScheduleAlreadyClosedError,
 } from '../../domain/errors/booking-domain.error';
+import { ResourceNotFoundError } from '../../domain/errors/resource.error';
 import { ClosureReason } from '../../domain/schedule-closure.aggregate';
 import { CloseScheduleUseCase } from './close-schedule.use-case';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
 const ACTOR_ID = '00000000-0000-7000-8000-000000000002';
+const OTHER_TENANT_ID = '99999999-0000-7000-8000-000000000099';
 
 const ctx = { tenantId: TENANT_ID, createdBy: ACTOR_ID };
 
 describe('CloseScheduleUseCase', () => {
   let repo: InMemoryScheduleClosureRepository;
+  let resourceRepo: InMemoryResourceRepository;
   let useCase: CloseScheduleUseCase;
 
   beforeEach(() => {
     repo = new InMemoryScheduleClosureRepository();
-    useCase = new CloseScheduleUseCase(repo, new InMemoryTransactionManager());
+    resourceRepo = new InMemoryResourceRepository();
+    useCase = new CloseScheduleUseCase(repo, resourceRepo, new InMemoryTransactionManager());
   });
 
   it('creates a full-day closure and returns the result', async () => {
@@ -144,5 +149,79 @@ describe('CloseScheduleUseCase', () => {
 
     const result = await useCase.execute({ date, reason: ClosureReason.HOLIDAY, ...ctx });
     expect(result.id).toBeDefined();
+  });
+
+  describe('resourceId (M21 Cluster 1)', () => {
+    it('creates a resource-scoped closure when resourceId belongs to the tenant', async () => {
+      const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
+      await resourceRepo.save(resource);
+
+      const result = await useCase.execute({
+        date: futureDate(5),
+        reason: ClosureReason.HOLIDAY,
+        resourceId: resource.id,
+        ...ctx,
+      });
+
+      expect(result.resourceId).toBe(resource.id);
+    });
+
+    it('throws ResourceNotFoundError when resourceId does not exist', async () => {
+      await expect(
+        useCase.execute({
+          date: futureDate(5),
+          reason: ClosureReason.HOLIDAY,
+          resourceId: '00000000-0000-7000-8000-000000000099',
+          ...ctx,
+        }),
+      ).rejects.toThrow(ResourceNotFoundError);
+    });
+
+    it('throws ResourceNotFoundError when resourceId belongs to another tenant', async () => {
+      const resource = new ResourceBuilder().withTenantId(OTHER_TENANT_ID).build();
+      await resourceRepo.save(resource);
+
+      await expect(
+        useCase.execute({
+          date: futureDate(5),
+          reason: ClosureReason.HOLIDAY,
+          resourceId: resource.id,
+          ...ctx,
+        }),
+      ).rejects.toThrow(ResourceNotFoundError);
+    });
+
+    it('a resource-scoped closure and a tenant-wide closure on the same date do not collide', async () => {
+      const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
+      await resourceRepo.save(resource);
+      const date = futureDate(5);
+
+      await useCase.execute({ date, reason: ClosureReason.HOLIDAY, ...ctx });
+      const scoped = await useCase.execute({
+        date,
+        reason: ClosureReason.HOLIDAY,
+        resourceId: resource.id,
+        ...ctx,
+      });
+
+      expect(scoped.id).toBeDefined();
+    });
+
+    it('two resource-scoped closures for the same resource/date still collide', async () => {
+      const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
+      await resourceRepo.save(resource);
+      const date = futureDate(5);
+
+      await useCase.execute({
+        date,
+        reason: ClosureReason.HOLIDAY,
+        resourceId: resource.id,
+        ...ctx,
+      });
+
+      await expect(
+        useCase.execute({ date, reason: ClosureReason.HOLIDAY, resourceId: resource.id, ...ctx }),
+      ).rejects.toThrow(ScheduleAlreadyClosedError);
+    });
   });
 });

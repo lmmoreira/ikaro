@@ -5,6 +5,7 @@ import { ClosureReason, ScheduleClosure } from './schedule-closure.aggregate';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
 const STAFF_ID = '00000000-0000-7000-8000-000000000002';
+const RESOURCE_ID = '00000000-0000-7000-8000-000000000003';
 
 describe('ScheduleClosure.close() — full-day', () => {
   it('creates a full-day closure when no times provided', () => {
@@ -13,6 +14,7 @@ describe('ScheduleClosure.close() — full-day', () => {
 
     expect(closure.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
     expect(closure.tenantId).toBe(TENANT_ID);
+    expect(closure.resourceId).toBeNull();
     expect(closure.date).toBe(date);
     expect(closure.reason).toBe(ClosureReason.HOLIDAY);
     expect(closure.startTime).toBeNull();
@@ -29,6 +31,7 @@ describe('ScheduleClosure.close() — full-day', () => {
       futureDate(3),
       ClosureReason.MAINTENANCE,
       STAFF_ID,
+      undefined,
       undefined,
       undefined,
       '  Manutenção preventiva  ',
@@ -87,6 +90,7 @@ describe('ScheduleClosure.close() — partial-day', () => {
       futureDate(3),
       ClosureReason.MAINTENANCE,
       STAFF_ID,
+      undefined,
       '10:00',
       '12:00',
     );
@@ -99,7 +103,14 @@ describe('ScheduleClosure.close() — partial-day', () => {
 
   it('throws when only startTime is provided without endTime', () => {
     expect(() =>
-      ScheduleClosure.close(TENANT_ID, futureDate(), ClosureReason.MAINTENANCE, STAFF_ID, '10:00'),
+      ScheduleClosure.close(
+        TENANT_ID,
+        futureDate(),
+        ClosureReason.MAINTENANCE,
+        STAFF_ID,
+        undefined,
+        '10:00',
+      ),
     ).toThrow(BookingDomainError);
   });
 
@@ -110,6 +121,7 @@ describe('ScheduleClosure.close() — partial-day', () => {
         futureDate(),
         ClosureReason.MAINTENANCE,
         STAFF_ID,
+        undefined,
         undefined,
         '12:00',
       ),
@@ -123,6 +135,7 @@ describe('ScheduleClosure.close() — partial-day', () => {
         futureDate(),
         ClosureReason.MAINTENANCE,
         STAFF_ID,
+        undefined,
         '12:00',
         '10:00',
       ),
@@ -136,6 +149,7 @@ describe('ScheduleClosure.close() — partial-day', () => {
         futureDate(),
         ClosureReason.MAINTENANCE,
         STAFF_ID,
+        undefined,
         '10:00',
         '10:00',
       ),
@@ -149,6 +163,7 @@ describe('ScheduleClosure.close() — partial-day', () => {
         futureDate(),
         ClosureReason.MAINTENANCE,
         STAFF_ID,
+        undefined,
         '10',
         '12:00',
       ),
@@ -171,6 +186,7 @@ describe('ScheduleClosure.overlaps()', () => {
       date,
       ClosureReason.MAINTENANCE,
       STAFF_ID,
+      undefined,
       '10:00',
       '12:00',
     );
@@ -183,6 +199,7 @@ describe('ScheduleClosure.overlaps()', () => {
       date,
       ClosureReason.MAINTENANCE,
       STAFF_ID,
+      undefined,
       '10:00',
       '12:00',
     );
@@ -197,6 +214,7 @@ describe('ScheduleClosure.overlaps()', () => {
       date,
       ClosureReason.MAINTENANCE,
       STAFF_ID,
+      undefined,
       '10:00',
       '12:00',
     );
@@ -206,11 +224,37 @@ describe('ScheduleClosure.overlaps()', () => {
   });
 });
 
+describe('ScheduleClosure — resourceId (M21 Cluster 1)', () => {
+  it('defaults resourceId to null when omitted', () => {
+    const closure = ScheduleClosure.close(TENANT_ID, futureDate(), ClosureReason.HOLIDAY, STAFF_ID);
+    expect(closure.resourceId).toBeNull();
+  });
+
+  it('stores resourceId when provided, without affecting other invariants', () => {
+    const closure = ScheduleClosure.close(
+      TENANT_ID,
+      futureDate(),
+      ClosureReason.HOLIDAY,
+      STAFF_ID,
+      RESOURCE_ID,
+      '10:00',
+      '12:00',
+      'notes',
+    );
+    expect(closure.resourceId).toBe(RESOURCE_ID);
+    expect(closure.startTime!.value).toBe('10:00');
+    expect(closure.endTime!.value).toBe('12:00');
+    expect(closure.notes).toBe('notes');
+    expect(closure.isFullDay()).toBe(false);
+  });
+});
+
 describe('ScheduleClosure.reconstitute()', () => {
   it('reconstitutes full-day closure without validation', () => {
     const props = {
       id: '00000000-0000-7000-8000-000000000099',
       tenantId: TENANT_ID,
+      resourceId: null,
       date: '2020-01-01',
       startTime: null,
       endTime: null,
@@ -222,12 +266,14 @@ describe('ScheduleClosure.reconstitute()', () => {
     const closure = ScheduleClosure.reconstitute(props);
     expect(closure.isFullDay()).toBe(true);
     expect(closure.startTime).toBeNull();
+    expect(closure.resourceId).toBeNull();
   });
 
   it('reconstitutes partial closure from TimeOfDay VOs', () => {
     const props = {
       id: '00000000-0000-7000-8000-000000000099',
       tenantId: TENANT_ID,
+      resourceId: RESOURCE_ID,
       date: '2020-01-01',
       startTime: TimeOfDay.create('10:00'),
       endTime: TimeOfDay.create('12:00'),
@@ -240,5 +286,6 @@ describe('ScheduleClosure.reconstitute()', () => {
     expect(closure.isFullDay()).toBe(false);
     expect(closure.startTime!.value).toBe('10:00');
     expect(closure.endTime!.value).toBe('12:00');
+    expect(closure.resourceId).toBe(RESOURCE_ID);
   });
 });

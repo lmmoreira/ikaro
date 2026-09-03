@@ -13,6 +13,7 @@ import {
 export interface ScheduleOpeningProps {
   id: string;
   tenantId: string;
+  resourceId: string | null;
   date: string;
   startTime: TimeOfDay;
   endTime: TimeOfDay;
@@ -34,6 +35,9 @@ export class ScheduleOpening extends AggregateRoot {
   }
   get tenantId(): string {
     return this.props.tenantId;
+  }
+  get resourceId(): string | null {
+    return this.props.resourceId;
   }
   get date(): string {
     return this.props.date;
@@ -60,12 +64,14 @@ export class ScheduleOpening extends AggregateRoot {
     startTime: string,
     endTime: string,
     createdBy: string,
+    resourceId?: string,
     notes?: string,
   ): ScheduleOpening {
     ScheduleOpening.assertValid(tenantId, date, startTime, endTime, createdBy);
     return new ScheduleOpening({
       id: uuidv7(),
       tenantId,
+      resourceId: resourceId ?? null,
       date,
       startTime: TimeOfDay.create(startTime),
       endTime: TimeOfDay.create(endTime),
