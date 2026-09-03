@@ -172,37 +172,29 @@ describe('Topbar', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Recursos');
   });
 
-  it('renders the create title on the resource creation route', () => {
-    vi.mocked(usePathname).mockReturnValue('/dashboard/resources/new');
+  it.each([
+    ['the resource creation route', '/dashboard/resources/new', 'Voltar', 'Novo recurso'],
+    [
+      'the resource edit route (bare /:id)',
+      '/dashboard/resources/res-1',
+      'Recursos',
+      'Editar recurso',
+    ],
+    [
+      'the resource deactivate route',
+      '/dashboard/resources/res-1/deactivate',
+      'Recursos',
+      'Desativar recurso',
+    ],
+  ])('renders the correct title and back link on %s', (_label, pathname, backLinkName, title) => {
+    vi.mocked(usePathname).mockReturnValue(pathname);
     render(<Topbar tenantName="Lavacar BH" userName="Ana" />);
 
-    expect(screen.getByRole('link', { name: 'Voltar' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: backLinkName })).toHaveAttribute(
       'href',
       '/dashboard/resources',
     );
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Novo recurso');
-  });
-
-  it('renders the edit title on the resource edit route (bare /:id)', () => {
-    vi.mocked(usePathname).mockReturnValue('/dashboard/resources/res-1');
-    render(<Topbar tenantName="Lavacar BH" userName="Ana" />);
-
-    expect(screen.getByRole('link', { name: 'Recursos' })).toHaveAttribute(
-      'href',
-      '/dashboard/resources',
-    );
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Editar recurso');
-  });
-
-  it('renders the deactivate title on the resource deactivate route', () => {
-    vi.mocked(usePathname).mockReturnValue('/dashboard/resources/res-1/deactivate');
-    render(<Topbar tenantName="Lavacar BH" userName="Ana" />);
-
-    expect(screen.getByRole('link', { name: 'Recursos' })).toHaveAttribute(
-      'href',
-      '/dashboard/resources',
-    );
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Desativar recurso');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(title);
   });
 
   it('renders the create title on the service creation route', () => {
