@@ -58,15 +58,15 @@ export class ScheduleClosureBuilder {
   }
 
   build(): ScheduleClosure {
-    return ScheduleClosure.close(
-      this.tenantId,
-      this.date,
-      this.reason,
-      this.createdBy,
-      this.resourceId,
-      this.startTime,
-      this.endTime,
-      this.notes,
-    );
+    return ScheduleClosure.close({
+      tenantId: this.tenantId,
+      date: this.date,
+      reason: this.reason,
+      createdBy: this.createdBy,
+      resourceId: this.resourceId,
+      startTime: this.startTime,
+      endTime: this.endTime,
+      notes: this.notes,
+    });
   }
 }

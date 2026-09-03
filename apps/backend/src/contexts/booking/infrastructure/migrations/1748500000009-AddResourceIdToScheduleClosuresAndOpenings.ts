@@ -52,16 +52,27 @@ export class AddResourceIdToScheduleClosuresAndOpenings1748500000009 implements 
     `);
   }
 
+  // DESTRUCTIVE beyond a plain column drop — accepted risk, decided explicitly (PR #460
+  // review), not an oversight, mirroring BackfillLocationResources1748500000008's own
+  // documented precedent for this class of risk. The old schema's UNIQUE(tenant_id, date)
+  // can only be restored if at most one row exists per (tenant_id, date); this migration's
+  // own forward path lets a tenant-wide and one-or-more resource-scoped openings coexist for
+  // the same date, which is the intended, common-case state UC-010f creates — not an edge
+  // case. There is no data-preserving way to collapse those rows back into the old
+  // one-row-per-date shape, so down() deletes every resource-scoped opening
+  // (resource_id IS NOT NULL) before recreating the plain unique index. Safe ONLY as an
+  // immediate emergency rollback run before any resource-scoped opening could have been
+  // created in a live environment — never run this against a database that has been live for
+  // any meaningful window after this migration applied.
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
+      DELETE FROM "booking"."schedule_openings" WHERE "resource_id" IS NOT NULL
+    `);
     await queryRunner.query(`
       DROP INDEX IF EXISTS "booking"."UQ_booking_schedule_openings_tenant_resource_date"
     `);
     await queryRunner.query(`
       DROP INDEX IF EXISTS "booking"."UQ_booking_schedule_openings_tenant_date_no_resource"
-    `);
-    await queryRunner.query(`
-      CREATE UNIQUE INDEX IF NOT EXISTS "UQ_booking_schedule_openings_tenant_date"
-        ON "booking"."schedule_openings" ("tenant_id", "date")
     `);
     await queryRunner.query(`
       ALTER TABLE "booking"."schedule_openings"
@@ -70,6 +81,10 @@ export class AddResourceIdToScheduleClosuresAndOpenings1748500000009 implements 
     await queryRunner.query(`
       ALTER TABLE "booking"."schedule_openings"
         DROP COLUMN IF EXISTS "resource_id"
+    `);
+    await queryRunner.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS "UQ_booking_schedule_openings_tenant_date"
+        ON "booking"."schedule_openings" ("tenant_id", "date")
     `);
 
     await queryRunner.query(`

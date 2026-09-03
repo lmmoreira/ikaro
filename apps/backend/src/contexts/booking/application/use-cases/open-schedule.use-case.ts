@@ -52,27 +52,33 @@ export class OpenScheduleUseCase {
     const today = todayUTC();
     if (input.date < today) throw new OpeningDateInPastError();
 
-    if (businessHours[getUtcWeekDayName(input.date)] !== null) {
-      throw new DayAlreadyOpenInSettingsError(input.date);
-    }
+    const resource =
+      resourceId != null ? await this.resourceRepo.findById(resourceId, tenantId) : null;
+    if (resourceId != null && !resource) throw new ResourceNotFoundError(resourceId);
 
-    if (resourceId != null) {
-      const resource = await this.resourceRepo.findById(resourceId, tenantId);
-      if (!resource) throw new ResourceNotFoundError(resourceId);
+    // A resource with its own workingHours gates the "day closed" check against its own
+    // schedule, not the tenant's — a resource with workingHours: null inherits the tenant's
+    // businessHours instead (Resource's own documented inheritance rule, docs/02-DOMAIN_MODEL.md
+    // § Resource). Tenant-wide openings (resource === null) always use businessHours.
+    const weekday = getUtcWeekDayName(input.date);
+    const effectiveDayHours =
+      resource?.workingHours != null ? resource.workingHours[weekday] : businessHours[weekday];
+    if (effectiveDayHours !== null) {
+      throw new DayAlreadyOpenInSettingsError(input.date);
     }
 
     const existing = await this.openingRepo.findByTenantAndDate(tenantId, input.date, resourceId);
     if (existing) throw new ScheduleOpeningAlreadyExistsError(input.date);
 
-    const opening = ScheduleOpening.open(
+    const opening = ScheduleOpening.open({
       tenantId,
-      input.date,
-      input.startTime,
-      input.endTime,
+      date: input.date,
+      startTime: input.startTime,
+      endTime: input.endTime,
       createdBy,
       resourceId,
-      input.notes,
-    );
+      notes: input.notes,
+    });
 
     await this.txManager.run(async () => {
       await this.openingRepo.save(opening);

@@ -48,16 +48,16 @@ export class CloseScheduleUseCase {
       if (!resource) throw new ResourceNotFoundError(resourceId);
     }
 
-    const closure = ScheduleClosure.close(
+    const closure = ScheduleClosure.close({
       tenantId,
-      input.date,
-      input.reason,
+      date: input.date,
+      reason: input.reason,
       createdBy,
       resourceId,
-      input.startTime,
-      input.endTime,
-      input.notes,
-    );
+      startTime: input.startTime,
+      endTime: input.endTime,
+      notes: input.notes,
+    });
 
     const existing = await this.closureRepo.findByTenantAndDate(tenantId, input.date, resourceId);
     if (existing.some((c) => c.overlaps(closure.startTime, closure.endTime))) {

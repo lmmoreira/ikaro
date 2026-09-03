@@ -415,7 +415,7 @@ One row per service unit. Snapshots from `booking.services` at request time — 
 
 **Rules:**
 - `end_time > start_time`
-- The day-of-week for `date` must be `null` in `businessHours` (enforced by use case, not DB)
+- The day-of-week for `date` must be closed in the *effective* hours source (enforced by use case, not DB): for a tenant-wide opening (`resource_id IS NULL`), that source is `businessHours`; for a resource-scoped opening, it's the resource's own `working_hours[day]` when the resource has a non-null `working_hours`, falling back to the tenant's `businessHours[day]` when the resource's `working_hours` is `null` (inherits — matches `Resource`'s own documented inheritance rule). A resource can never be open on a day the tenant is closed (`Resource.create()`'s subset-of-tenant-hours validation already forbids that), so only the narrowing direction (resource closed on a day the tenant is open) is reachable in practice. (Corrected M21-S03, PR #460 round 1 — the original text here only mentioned `businessHours` unconditionally, contradicting UC-010f's own precondition text; Codex's review caught the drift.)
 - A `ScheduleOpening` takes priority over `ScheduleClosure` and `businessHours` in the availability algorithm
 - A resource opening can make that resource available on one of its normally-off dates, but only within the tenant's own effective hours for that date — it never bypasses a tenant-wide closure or extends beyond a tenant opening/window
 

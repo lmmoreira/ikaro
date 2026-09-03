@@ -22,6 +22,16 @@ export interface ScheduleOpeningProps {
   createdAt: Date;
 }
 
+export interface OpenScheduleInput {
+  tenantId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  createdBy: string;
+  resourceId?: string;
+  notes?: string;
+}
+
 export class ScheduleOpening extends AggregateRoot {
   private readonly props: ScheduleOpeningProps;
 
@@ -58,15 +68,8 @@ export class ScheduleOpening extends AggregateRoot {
     return this.props.createdAt;
   }
 
-  static open(
-    tenantId: string,
-    date: string,
-    startTime: string,
-    endTime: string,
-    createdBy: string,
-    resourceId?: string,
-    notes?: string,
-  ): ScheduleOpening {
+  static open(input: OpenScheduleInput): ScheduleOpening {
+    const { tenantId, date, startTime, endTime, createdBy, resourceId, notes } = input;
     ScheduleOpening.assertValid(tenantId, date, startTime, endTime, createdBy);
     return new ScheduleOpening({
       id: uuidv7(),

@@ -31,6 +31,17 @@ export interface ScheduleClosureProps {
   createdAt: Date;
 }
 
+export interface CloseScheduleInput {
+  tenantId: string;
+  date: string;
+  reason: ClosureReason;
+  createdBy: string;
+  resourceId?: string;
+  startTime?: string;
+  endTime?: string;
+  notes?: string;
+}
+
 export class ScheduleClosure extends AggregateRoot {
   private readonly props: ScheduleClosureProps;
 
@@ -83,16 +94,8 @@ export class ScheduleClosure extends AggregateRoot {
     return myStart.value < otherEnd.value && otherStart.value < myEnd.value;
   }
 
-  static close(
-    tenantId: string,
-    date: string,
-    reason: ClosureReason,
-    createdBy: string,
-    resourceId?: string,
-    startTime?: string,
-    endTime?: string,
-    notes?: string,
-  ): ScheduleClosure {
+  static close(input: CloseScheduleInput): ScheduleClosure {
+    const { tenantId, date, reason, createdBy, resourceId, startTime, endTime, notes } = input;
     ScheduleClosure.assertValid(tenantId, date, reason, createdBy, startTime, endTime);
     return new ScheduleClosure({
       id: uuidv7(),

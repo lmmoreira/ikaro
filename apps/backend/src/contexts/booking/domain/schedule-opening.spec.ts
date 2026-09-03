@@ -17,15 +17,14 @@ describe('ScheduleOpening', () => {
   describe('open() factory', () => {
     it('creates a valid opening with all fields', () => {
       const date = futureDate();
-      const opening = ScheduleOpening.open(
-        TENANT_ID,
+      const opening = ScheduleOpening.open({
+        tenantId: TENANT_ID,
         date,
-        '09:00',
-        '14:00',
-        STAFF_ID,
-        undefined,
-        'Special event',
-      );
+        startTime: '09:00',
+        endTime: '14:00',
+        createdBy: STAFF_ID,
+        notes: 'Special event',
+      });
 
       expect(opening.id).toBeDefined();
       expect(opening.tenantId).toBe(TENANT_ID);
@@ -41,82 +40,135 @@ describe('ScheduleOpening', () => {
     });
 
     it('creates a valid opening without notes', () => {
-      const opening = ScheduleOpening.open(TENANT_ID, futureDate(), '08:00', '18:00', STAFF_ID);
+      const opening = ScheduleOpening.open({
+        tenantId: TENANT_ID,
+        date: futureDate(),
+        startTime: '08:00',
+        endTime: '18:00',
+        createdBy: STAFF_ID,
+      });
       expect(opening.notes).toBeNull();
     });
 
     it('trims whitespace from notes', () => {
-      const opening = ScheduleOpening.open(
-        TENANT_ID,
-        futureDate(),
-        '09:00',
-        '17:00',
-        STAFF_ID,
-        undefined,
-        '  trimmed  ',
-      );
+      const opening = ScheduleOpening.open({
+        tenantId: TENANT_ID,
+        date: futureDate(),
+        startTime: '09:00',
+        endTime: '17:00',
+        createdBy: STAFF_ID,
+        notes: '  trimmed  ',
+      });
       expect(opening.notes).toBe('trimmed');
     });
 
     it('throws OpeningDateInPastError for a past date', () => {
-      expect(() => ScheduleOpening.open(TENANT_ID, pastDate(), '09:00', '14:00', STAFF_ID)).toThrow(
-        OpeningDateInPastError,
-      );
+      expect(() =>
+        ScheduleOpening.open({
+          tenantId: TENANT_ID,
+          date: pastDate(),
+          startTime: '09:00',
+          endTime: '14:00',
+          createdBy: STAFF_ID,
+        }),
+      ).toThrow(OpeningDateInPastError);
     });
 
     it('throws when endTime equals startTime', () => {
       expect(() =>
-        ScheduleOpening.open(TENANT_ID, futureDate(), '10:00', '10:00', STAFF_ID),
+        ScheduleOpening.open({
+          tenantId: TENANT_ID,
+          date: futureDate(),
+          startTime: '10:00',
+          endTime: '10:00',
+          createdBy: STAFF_ID,
+        }),
       ).toThrow(BookingDomainError);
     });
 
     it('throws when endTime is before startTime', () => {
       expect(() =>
-        ScheduleOpening.open(TENANT_ID, futureDate(), '14:00', '09:00', STAFF_ID),
+        ScheduleOpening.open({
+          tenantId: TENANT_ID,
+          date: futureDate(),
+          startTime: '14:00',
+          endTime: '09:00',
+          createdBy: STAFF_ID,
+        }),
       ).toThrow(BookingDomainError);
     });
 
     it('throws for invalid startTime format', () => {
       expect(() =>
-        ScheduleOpening.open(TENANT_ID, futureDate(), '9:00', '14:00', STAFF_ID),
+        ScheduleOpening.open({
+          tenantId: TENANT_ID,
+          date: futureDate(),
+          startTime: '9:00',
+          endTime: '14:00',
+          createdBy: STAFF_ID,
+        }),
       ).toThrow(BookingDomainError);
     });
 
     it('throws for invalid endTime format', () => {
       expect(() =>
-        ScheduleOpening.open(TENANT_ID, futureDate(), '09:00', '25:00', STAFF_ID),
+        ScheduleOpening.open({
+          tenantId: TENANT_ID,
+          date: futureDate(),
+          startTime: '09:00',
+          endTime: '25:00',
+          createdBy: STAFF_ID,
+        }),
       ).toThrow(BookingDomainError);
     });
 
     it('throws for missing tenantId', () => {
-      expect(() => ScheduleOpening.open('', futureDate(), '09:00', '14:00', STAFF_ID)).toThrow(
-        BookingDomainError,
-      );
+      expect(() =>
+        ScheduleOpening.open({
+          tenantId: '',
+          date: futureDate(),
+          startTime: '09:00',
+          endTime: '14:00',
+          createdBy: STAFF_ID,
+        }),
+      ).toThrow(BookingDomainError);
     });
 
     it('throws for missing createdBy', () => {
-      expect(() => ScheduleOpening.open(TENANT_ID, futureDate(), '09:00', '14:00', '')).toThrow(
-        BookingDomainError,
-      );
+      expect(() =>
+        ScheduleOpening.open({
+          tenantId: TENANT_ID,
+          date: futureDate(),
+          startTime: '09:00',
+          endTime: '14:00',
+          createdBy: '',
+        }),
+      ).toThrow(BookingDomainError);
     });
   });
 
   describe('resourceId (M21 Cluster 1)', () => {
     it('defaults resourceId to null when omitted', () => {
-      const opening = ScheduleOpening.open(TENANT_ID, futureDate(), '09:00', '14:00', STAFF_ID);
+      const opening = ScheduleOpening.open({
+        tenantId: TENANT_ID,
+        date: futureDate(),
+        startTime: '09:00',
+        endTime: '14:00',
+        createdBy: STAFF_ID,
+      });
       expect(opening.resourceId).toBeNull();
     });
 
     it('stores resourceId when provided, without affecting other invariants', () => {
-      const opening = ScheduleOpening.open(
-        TENANT_ID,
-        futureDate(),
-        '09:00',
-        '14:00',
-        STAFF_ID,
-        RESOURCE_ID,
-        'notes',
-      );
+      const opening = ScheduleOpening.open({
+        tenantId: TENANT_ID,
+        date: futureDate(),
+        startTime: '09:00',
+        endTime: '14:00',
+        createdBy: STAFF_ID,
+        resourceId: RESOURCE_ID,
+        notes: 'notes',
+      });
       expect(opening.resourceId).toBe(RESOURCE_ID);
       expect(opening.startTime.value).toBe('09:00');
       expect(opening.endTime.value).toBe('14:00');

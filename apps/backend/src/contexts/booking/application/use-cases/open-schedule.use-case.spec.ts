@@ -227,4 +227,76 @@ describe('OpenScheduleUseCase', () => {
       ).rejects.toThrow(ScheduleOpeningAlreadyExistsError);
     });
   });
+
+  describe('resource workingHours precedence (M21 Cluster 1, Codex PR #460 round-1 finding)', () => {
+    it("allows opening a day closed only in the resource's own workingHours, even though the tenant is open that day", async () => {
+      const monday = nextWeekday(1); // open in tenant businessHours by default
+      const resourceWorkingHours = {
+        ...settings.businessHours,
+        monday: null, // this resource specifically doesn't work Mondays
+      };
+      const resource = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withTenantBusinessHours(settings.businessHours)
+        .withWorkingHours(resourceWorkingHours)
+        .build();
+      await resourceRepo.save(resource);
+
+      const result = await useCase.execute({
+        date: monday,
+        startTime: '09:00',
+        endTime: '12:00',
+        resourceId: resource.id,
+        tenantId: TENANT_ID,
+        createdBy: ACTOR_ID,
+        businessHours: settings.businessHours,
+      });
+
+      expect(result.resourceId).toBe(resource.id);
+    });
+
+    it('rejects opening a day the resource is still open on, even for a resource with its own workingHours', async () => {
+      const monday = nextWeekday(1);
+      const resourceWorkingHours = {
+        ...settings.businessHours,
+        monday: { open: '09:00', close: '18:00' }, // this resource does work Mondays
+      };
+      const resource = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withTenantBusinessHours(settings.businessHours)
+        .withWorkingHours(resourceWorkingHours)
+        .build();
+      await resourceRepo.save(resource);
+
+      await expect(
+        useCase.execute({
+          date: monday,
+          startTime: '09:00',
+          endTime: '12:00',
+          resourceId: resource.id,
+          tenantId: TENANT_ID,
+          createdBy: ACTOR_ID,
+          businessHours: settings.businessHours,
+        }),
+      ).rejects.toThrow(DayAlreadyOpenInSettingsError);
+    });
+
+    it('falls back to tenant businessHours when the resource has no workingHours of its own', async () => {
+      const sunday = nextWeekday(0); // closed in tenant businessHours by default
+      const resource = new ResourceBuilder().withTenantId(TENANT_ID).build(); // workingHours: null
+      await resourceRepo.save(resource);
+
+      const result = await useCase.execute({
+        date: sunday,
+        startTime: '09:00',
+        endTime: '12:00',
+        resourceId: resource.id,
+        tenantId: TENANT_ID,
+        createdBy: ACTOR_ID,
+        businessHours: settings.businessHours,
+      });
+
+      expect(result.resourceId).toBe(resource.id);
+    });
+  });
 });

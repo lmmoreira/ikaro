@@ -49,14 +49,14 @@ export class ScheduleOpeningBuilder {
   }
 
   build(): ScheduleOpening {
-    return ScheduleOpening.open(
-      this.tenantId,
-      this.date,
-      this.startTime,
-      this.endTime,
-      this.createdBy,
-      this.resourceId,
-      this.notes,
-    );
+    return ScheduleOpening.open({
+      tenantId: this.tenantId,
+      date: this.date,
+      startTime: this.startTime,
+      endTime: this.endTime,
+      createdBy: this.createdBy,
+      resourceId: this.resourceId,
+      notes: this.notes,
+    });
   }
 }

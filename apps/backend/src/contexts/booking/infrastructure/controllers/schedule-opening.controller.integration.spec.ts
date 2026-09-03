@@ -333,5 +333,32 @@ describe('ScheduleOpeningController (integration)', () => {
         ),
       ).rejects.toThrow();
     });
+
+    it('two different resources each get their own opening for the same date without colliding', async () => {
+      const resourceA = new ResourceEntityBuilder().withTenantId(tenantAId).build();
+      const resourceB = new ResourceEntityBuilder().withTenantId(tenantAId).build();
+      await ds.getRepository(ResourceEntity).save(resourceA);
+      await ds.getRepository(ResourceEntity).save(resourceB);
+      const date = futureDate(301);
+      const openingRepo = ds.getRepository(ScheduleOpeningEntity);
+
+      await openingRepo.save(
+        new ScheduleOpeningEntityBuilder()
+          .withTenantId(tenantAId)
+          .withResourceId(resourceA.id)
+          .withDate(date)
+          .build(),
+      );
+
+      const savedB = await openingRepo.save(
+        new ScheduleOpeningEntityBuilder()
+          .withTenantId(tenantAId)
+          .withResourceId(resourceB.id)
+          .withDate(date)
+          .build(),
+      );
+
+      expect(savedB.resourceId).toBe(resourceB.id);
+    });
   });
 });
