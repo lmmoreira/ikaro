@@ -171,6 +171,36 @@ describe('ScheduleOpeningController (integration)', () => {
 
       expect(body.status).toBe(404);
     });
+
+    it('returns 409 when a resource-scoped opening depends on the tenant-wide opening being deleted (M21 Cluster 1, Codex PR #460 round-4 finding)', async () => {
+      const resource = new ResourceEntityBuilder().withTenantId(tenantAId).build();
+      await ds.getRepository(ResourceEntity).save(resource);
+      const date = nextWeekday(0, 11);
+
+      const { body: tenantWide } = await request(app.getHttpServer())
+        .post('/schedule/openings')
+        .set(actorHeaders(tenantAId, MANAGER_ID))
+        .send({ date, startTime: '09:00', endTime: '14:00' })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .post('/schedule/openings')
+        .set(actorHeaders(tenantAId, MANAGER_ID))
+        .send({ date, startTime: '09:00', endTime: '14:00', resourceId: resource.id })
+        .expect(201);
+
+      const { body } = await request(app.getHttpServer())
+        .delete(`/schedule/openings/${tenantWide.id}`)
+        .set(actorHeaders(tenantAId, MANAGER_ID))
+        .expect(409);
+
+      expect(body.status).toBe(409);
+
+      const stillThere = await ds
+        .getRepository(ScheduleOpeningEntity)
+        .findOne({ where: { id: tenantWide.id as string } });
+      expect(stillThere).not.toBeNull();
+    });
   });
 
   // ─── GET /schedule/openings ──────────────────────────────────────────────────

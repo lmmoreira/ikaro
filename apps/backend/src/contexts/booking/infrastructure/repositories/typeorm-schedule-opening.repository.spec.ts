@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { IsNull, Not, Repository } from 'typeorm';
 import { ScheduleOpeningEntityBuilder } from '../../../../test/builders/booking/index';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
 import { ScheduleOpening } from '../../domain/schedule-opening.aggregate';
@@ -25,6 +25,7 @@ describe('TypeOrmScheduleOpeningRepository', () => {
           useValue: {
             findOne: jest.fn(),
             find: jest.fn(),
+            exists: jest.fn(),
             save: jest.fn(),
             delete: jest.fn(),
           },
@@ -227,6 +228,27 @@ describe('TypeOrmScheduleOpeningRepository', () => {
       await repo.delete(OPENING_ID, TENANT_ID);
 
       expect(ormRepo.delete).toHaveBeenCalledWith({ id: OPENING_ID, tenantId: TENANT_ID });
+    });
+  });
+
+  describe('existsResourceScopedForDate', () => {
+    it('queries for any non-null resourceId on that tenant/date', async () => {
+      ormRepo.exists.mockResolvedValue(true);
+
+      const result = await repo.existsResourceScopedForDate(TENANT_ID, '2026-12-28');
+
+      expect(result).toBe(true);
+      expect(ormRepo.exists).toHaveBeenCalledWith({
+        where: { tenantId: TENANT_ID, date: '2026-12-28', resourceId: Not(IsNull()) },
+      });
+    });
+
+    it('returns false when no resource-scoped opening exists for that date', async () => {
+      ormRepo.exists.mockResolvedValue(false);
+
+      const result = await repo.existsResourceScopedForDate(TENANT_ID, '2026-12-28');
+
+      expect(result).toBe(false);
     });
   });
 });

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, IsNull, Repository } from 'typeorm';
+import { Between, IsNull, Not, Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
 import { IScheduleOpeningRepository } from '../../application/ports/schedule-opening-repository.port';
@@ -41,6 +41,10 @@ export class TypeOrmScheduleOpeningRepository implements IScheduleOpeningReposit
   async findById(id: string, tenantId: string): Promise<ScheduleOpening | null> {
     const entity = await this.repo.findOne({ where: { id, tenantId } });
     return entity ? this.toDomain(entity) : null;
+  }
+
+  async existsResourceScopedForDate(tenantId: string, date: string): Promise<boolean> {
+    return this.repo.exists({ where: { tenantId, date, resourceId: Not(IsNull()) } });
   }
 
   async save(opening: ScheduleOpening): Promise<void> {

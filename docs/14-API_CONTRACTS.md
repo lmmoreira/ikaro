@@ -876,6 +876,7 @@ Auth: JWT + `MANAGER|STAFF` on all write endpoints. **Exception (M21 Cluster 1):
 - `DELETE /schedule/openings/:id` → remove opening; day reverts to default-closed
   - `204` on success
   - `404` if not found or belongs to another tenant
+  - `409` if the opening is tenant-wide (`resourceId` unset) and one or more resource-scoped openings still depend on it for that date (`BOOKING_TENANT_OPENING_HAS_RESOURCE_DEPENDENTS` — M21 Cluster 1) — remove the resource-scoped openings first. Never applies when deleting a resource-scoped opening directly.
 
 ### **Resource Management (UC-044–UC-049)**
 

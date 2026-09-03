@@ -10,6 +10,7 @@
   "BOOKING_SCHEDULE_OPENING_NOT_FOUND": "Abertura de agenda não encontrada.",
   "BOOKING_OPENING_EXCEEDS_TENANT_WINDOW": "A janela de abertura do recurso não pode ultrapassar a abertura do negócio para essa data.",
   "BOOKING_TENANT_OPENING_REQUIRED": "Abra o negócio para essa data antes de abrir um recurso específico.",
+  "BOOKING_TENANT_OPENING_HAS_RESOURCE_DEPENDENTS": "Remova as aberturas específicas de recursos dessa data antes de remover a abertura geral do negócio.",
   "BOOKING_AVAILABILITY_DATE_IN_PAST": "Não é possível consultar disponibilidade para uma data no passado.",
   "BOOKING_AVAILABILITY_RANGE_INVALID": "O período consultado é inválido.",
   "BOOKING_NOT_FOUND": "Agendamento não encontrado.",

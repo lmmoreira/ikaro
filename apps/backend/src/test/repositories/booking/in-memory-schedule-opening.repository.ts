@@ -37,6 +37,12 @@ export class InMemoryScheduleOpeningRepository implements IScheduleOpeningReposi
     return this.store.find((o) => o.id === id && o.tenantId === tenantId) ?? null;
   }
 
+  async existsResourceScopedForDate(tenantId: string, date: string): Promise<boolean> {
+    return this.store.some(
+      (o) => o.tenantId === tenantId && o.date === date && o.resourceId !== null,
+    );
+  }
+
   async save(opening: ScheduleOpening): Promise<void> {
     const idx = this.store.findIndex((o) => o.id === opening.id);
     if (idx >= 0) {

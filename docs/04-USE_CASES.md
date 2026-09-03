@@ -428,6 +428,7 @@ Used when `businessHours[dayOfWeek] = null` (e.g., Sunday is always closed) but 
   3. The date reverts to its default closed state per `businessHours`.
 - **Alternative Flows:**
   - **A1: Opening not found or belongs to another tenant** → `404 Not Found`.
+  - **A2 (M21 Cluster 1): Opening is tenant-wide (`resourceId = null`) and one or more resource-scoped openings still depend on it for the same date** → `409 Conflict` (`BOOKING_TENANT_OPENING_HAS_RESOURCE_DEPENDENTS`) — the resource-scoped openings must be removed first. Never applies when deleting a resource-scoped opening directly.
 - **Postconditions:** Opening deleted.
 - **Events Triggered:** None.
 

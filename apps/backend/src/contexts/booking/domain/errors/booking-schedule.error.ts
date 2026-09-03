@@ -76,6 +76,16 @@ export class TenantOpeningRequiredError extends BookingDomainError {
   }
 }
 
+export class TenantOpeningHasResourceDependentsError extends BookingDomainError {
+  constructor(date: string) {
+    super(
+      `Cannot remove the tenant-wide opening for date ${date}: one or more resource-scoped openings depend on it`,
+      BookingErrorCode.TENANT_OPENING_HAS_RESOURCE_DEPENDENTS,
+    );
+    this.name = 'TenantOpeningHasResourceDependentsError';
+  }
+}
+
 export class AvailabilityDateInPastError extends BookingDomainError {
   constructor() {
     super('Cannot check availability for a past date', BookingErrorCode.AVAILABILITY_DATE_IN_PAST);
