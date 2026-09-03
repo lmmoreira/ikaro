@@ -272,7 +272,7 @@ Add an optional `resourceId: ResourceId | null` to both `ScheduleClosure` and `S
 
 ---
 
-### M21-S04 — Manager "Recursos" frontend
+### M21-S04 — Manager "Recursos" frontend ✅ Done
 
 **Agent:** `frontend-ts`
 **Complexity:** M
