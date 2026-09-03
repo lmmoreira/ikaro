@@ -660,6 +660,7 @@ Returns:
   - **A3: `type` is changing to or from `LOCATION`** → `409 Conflict` — a tenant's `LOCATION` resource can never change type, and no other resource can become `LOCATION` (both are backfill-only, same invariant `DELETE` already enforces — UC-047).
   - **A4: `type` is changing to `STAFF`** → System re-runs UC-045's own staff-wrap validation (staff exists, active, not already wrapped by a *different* resource) against the new `refId`; re-saving the same `refId` this resource already holds is not a conflict.
   - **A5: `type` is changing away from `STAFF` without clearing `refId`** → `400`/`422` (`STAFF`⟺`refId` pairing violated) — the request must explicitly send `refId: null` when moving away from `STAFF`.
+  - **A6: `workingHours` is set (non-null) while the resource's type is (or is being changed to) `LOCATION`** → `409 Conflict` — a `LOCATION` resource is the stand-in for "the whole tenant is the resource" and always inherits the tenant's own business hours; it can never carry a custom schedule (added during M21-S04 live review, 2026-09-02 — avoids a second, silently-diverging source of truth for the business's operating hours).
 - **Postconditions:** Every changed field takes effect immediately for future availability queries and resource listings; existing bookings untouched.
 - **Events Triggered:** None.
 

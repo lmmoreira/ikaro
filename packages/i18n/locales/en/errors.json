@@ -53,6 +53,7 @@
   "BOOKING_RESOURCE_ALREADY_ACTIVE": "This resource is already active.",
   "BOOKING_RESOURCE_LOCATION_CANNOT_BE_DEACTIVATED": "A business location cannot be deactivated — every business must always have one active.",
   "BOOKING_RESOURCE_LOCATION_TYPE_IMMUTABLE": "A business location's type cannot be changed, and no other resource can become a location.",
+  "BOOKING_RESOURCE_LOCATION_WORKING_HOURS_IMMUTABLE": "A business location always follows the business's own hours and cannot have a custom schedule.",
   "ADDRESS_POSTAL_CODE_INVALID": "The postal code provided is invalid.",
   "ADDRESS_STATE_INVALID": "The state provided is invalid.",
   "ADDRESS_NEIGHBORHOOD_REQUIRED": "The neighborhood is required.",

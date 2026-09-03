@@ -408,7 +408,7 @@ Resource {
 
 **Key Methods:**
 - `Resource.create(tenantId, type, name, workingHours?, refId?, maxCapacity?)` — validates the `STAFF`⟺`refId` invariant and the working-hours subset invariant.
-- `update(name, type, refId, workingHours, turnoverMinutes, maxCapacity)` (UC-046) — a manager can correct any field, including `type`/`refId`, without deactivate+recreate; re-runs the same invariants `create()` enforces, plus the `LOCATION`-type-immutability guard.
+- `update(name, type, refId, workingHours, turnoverMinutes, maxCapacity)` (UC-046) — a manager can correct any field, including `type`/`refId`, without deactivate+recreate; re-runs the same invariants `create()` enforces, plus the `LOCATION`-type-immutability guard and the `LOCATION`-workingHours-immutability guard (a `LOCATION` resource always inherits the tenant's business hours — `workingHours` must stay `null`).
 - `deactivate()` (UC-047) / `reactivate()` (UC-049)
 
 **Cross-context note:** a `STAFF`-type `Resource` has no DB-level FK to `staff.staff` (cross-schema) — Booking validates the referenced staff member (same-tenant, existing, active, schedulable) through a narrow lookup adapter at write time, and consumes the Staff Context's `StaffDeactivated` event to cascade-deactivate the wrapping resource (UC-048). Staff Context remains unaware of Booking.

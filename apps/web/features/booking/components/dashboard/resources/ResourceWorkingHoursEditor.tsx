@@ -83,6 +83,12 @@ interface ResourceWorkingHoursEditorProps {
   // constraint on their own). Null only for the brief window before it's loaded, in which
   // case the switch falls back to the previous all-closed starting point.
   readonly tenantBusinessHours: ResourceWorkingHours | null;
+  // A LOCATION resource always inherits the tenant's own business hours — it's the stand-in
+  // for "the whole tenant is the resource", so letting it carry a custom, narrower schedule
+  // would create a second, silently-diverging source of truth for "when are we open" (M21-S04
+  // live review, 2026-09-02). Backend rejects this too (ResourceLocationWorkingHoursImmutableError)
+  // — this prop only keeps the UI from ever attempting the rejected request.
+  readonly locked?: boolean;
 }
 
 // Per-weekday working-hours editor for a Resource — same shape as the tenant's own
@@ -94,6 +100,7 @@ export function ResourceWorkingHoursEditor({
   value,
   onChange,
   tenantBusinessHours,
+  locked = false,
 }: ResourceWorkingHoursEditorProps): React.JSX.Element {
   const t = useTranslations('dashboard.resourcesPage');
   const settingsT = useTranslations('dashboard.settingsPage');
@@ -131,6 +138,18 @@ export function ResourceWorkingHoursEditor({
       next[day] = { ...monday };
     }
     onChange(toWorkingHours(next));
+  }
+
+  if (locked) {
+    return (
+      <div
+        data-testid="resource-hours-locked"
+        className="rounded-2xl border border-border bg-gray-50 p-3"
+      >
+        <p className="text-sm font-semibold text-gray-900">{t('useDefaultHours')}</p>
+        <p className="text-sm text-gray-500">{t('locationHoursLockedHint')}</p>
+      </div>
+    );
   }
 
   return (

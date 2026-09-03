@@ -326,6 +326,7 @@ Working-hours edit (UC-046), deactivate confirmation (UC-047), and reactivate co
 - [x] Manager sees "Recursos" in the sidebar (MANAGER-only — STAFF never sees it).
 - [x] Manager can list resources grouped by type, create a new STAFF/ROOM/EQUIPMENT resource, edit working hours, deactivate, and reactivate — matching the prototype's flows.
 - [x] The `LOCATION` resource row never offers a "Desativar" action (S02 backfills exactly one; a tenant must always retain an always-active default).
+- [x] The `LOCATION` resource's working-hours editor is locked (no customize toggle) — it always inherits the tenant's own business hours, enforced at both UI and backend (`ResourceLocationWorkingHoursImmutableError`, 409). Added post-hoc during live review, 2026-09-02: nothing in the original discovery flagged that letting `LOCATION` diverge from the tenant's Settings-configured hours would create a second, silently-conflicting source of truth for "when are we open."
 - [x] All new UI copy is localized in both pt-BR and en in this same commit.
 
 **Acceptance criteria — technical:**

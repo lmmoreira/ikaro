@@ -85,12 +85,17 @@ export function ResourceEditFormFields({
         ? null
         : (maxCapacity && Number(maxCapacity)) || null;
 
+      // A LOCATION resource always inherits the tenant's business hours — the editor is locked
+      // (no customize toggle) for this type, but workingHours is still forced to null here too:
+      // it's the actual field the backend's own ResourceLocationWorkingHoursImmutableError guard
+      // enforces, not just a UI nicety (defense in depth, mirrors maxCapacity's isStaffTarget
+      // discard above).
       await updateResourceMutation.mutateAsync({
         id: resourceId,
         body: {
           name: name.trim(),
           ...(isLocation ? {} : { type, refId: type === 'STAFF' ? refId : null }),
-          workingHours,
+          workingHours: isLocation ? null : workingHours,
           turnoverMinutes: Number(turnoverMinutes) || 0,
           maxCapacity: resolvedMaxCapacity,
         },
@@ -125,6 +130,7 @@ export function ResourceEditFormFields({
               value={workingHours}
               onChange={setWorkingHours}
               tenantBusinessHours={tenantBusinessHours}
+              locked={isLocation}
             />
 
             <div>

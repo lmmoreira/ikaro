@@ -132,6 +132,26 @@ describe('ResourceEditFormFields', () => {
     expect(call.body).not.toHaveProperty('refId');
   });
 
+  it('locks the working-hours editor for a LOCATION resource and always sends workingHours: null (backend rejects a custom LOCATION schedule)', async () => {
+    const user = userEvent.setup();
+    mutateAsync.mockResolvedValue(LOCATION_RESOURCE);
+    renderWithIntl(<ResourceEditFormFields resourceId="loc-1" resource={LOCATION_RESOURCE} />);
+
+    expect(screen.getByTestId('resource-hours-locked')).toBeInTheDocument();
+    expect(screen.queryByTestId('resource-hours-inherit-toggle')).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId('resource-edit-save-desktop'));
+
+    await waitFor(() =>
+      expect(mutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'loc-1',
+          body: expect.objectContaining({ workingHours: null }),
+        }),
+      ),
+    );
+  });
+
   it('submits updated fields and redirects to the list', async () => {
     const user = userEvent.setup();
     mutateAsync.mockResolvedValue(ROOM_RESOURCE);

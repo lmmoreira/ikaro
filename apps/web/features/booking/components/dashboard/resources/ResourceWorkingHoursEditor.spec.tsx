@@ -110,4 +110,19 @@ describe('ResourceWorkingHoursEditor', () => {
 
     expect(onChange).toHaveBeenCalledWith(null);
   });
+
+  it('renders a locked, non-interactive summary instead of the toggle when locked (LOCATION resources)', () => {
+    renderWithIntl(
+      <ResourceWorkingHoursEditor
+        value={null}
+        onChange={vi.fn()}
+        tenantBusinessHours={TENANT_BUSINESS_HOURS}
+        locked
+      />,
+    );
+
+    expect(screen.getByTestId('resource-hours-locked')).toBeInTheDocument();
+    expect(screen.queryByTestId('resource-hours-inherit-toggle')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('resource-hours-custom')).not.toBeInTheDocument();
+  });
 });

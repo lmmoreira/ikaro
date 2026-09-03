@@ -5,6 +5,7 @@ import { ResourceBuilder } from '../../../../test/builders/booking/index';
 import { FULL_WEEK_BUSINESS_HOURS } from '../../../../test/utils/business-hours-fixtures';
 import {
   ResourceLocationTypeImmutableError,
+  ResourceLocationWorkingHoursImmutableError,
   ResourceNotFoundError,
   ResourceStaffAlreadyWrappedError,
   ResourceStaffNotFoundError,
@@ -327,6 +328,31 @@ describe('UpdateResourceUseCase', () => {
 
     expect(result.name).toBe('Lava Car BH — Unidade Centro');
     expect(result.type).toBe(ResourceType.LOCATION);
+  });
+
+  it('throws ResourceLocationWorkingHoursImmutableError when setting a custom schedule on a LOCATION resource', async () => {
+    const location = new ResourceBuilder()
+      .withTenantId(TENANT_ID)
+      .withType(ResourceType.LOCATION)
+      .build();
+    await repo.save(location);
+
+    await expect(
+      useCase.execute({
+        id: location.id,
+        tenantId: TENANT_ID,
+        tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+        workingHours: {
+          monday: { open: '10:00', close: '16:00' },
+          tuesday: null,
+          wednesday: null,
+          thursday: null,
+          friday: null,
+          saturday: null,
+          sunday: null,
+        },
+      }),
+    ).rejects.toThrow(ResourceLocationWorkingHoursImmutableError);
   });
 
   it('throws ResourceNotFoundError when the resource does not exist', async () => {

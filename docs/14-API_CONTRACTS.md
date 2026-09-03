@@ -915,6 +915,7 @@ Auth: JWT + `MANAGER` only on every endpoint — a deliberate, self-consistent r
   - `404` if not found, belongs to another tenant, or (when `type` is changing to `STAFF`) the target staff member is not found/inactive (mirrors `POST /resources`' A1 staff-lookup semantics — UC-045)
   - `409` if `type = STAFF` and the target staff member is already wrapped by a *different* `Resource` — re-saving the same `refId` this resource already holds is not a conflict
   - `409` if `type` is changing to or from `LOCATION` — a tenant's `LOCATION` resource can never change type, and no other resource can become `LOCATION`
+  - `409` if `workingHours` is set (non-null) while `type` is (or is being changed to) `LOCATION` — a `LOCATION` resource always inherits the tenant's business hours and can never carry a custom schedule
   - `400`/`422` if `type` is changing away from `STAFF` without the request also explicitly sending `refId: null`
   - `422` if no working hours are set (after the update) and the tenant has no `businessHours` either
 - `DELETE /resources/:id` → deactivate a resource (UC-047)

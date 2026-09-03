@@ -522,6 +522,7 @@
       "useDefaultHoursSub": "Follows the business's own operating hours",
       "customHoursLabel": "Custom hours",
       "customHoursHint": "Day-by-day editor, limited to the business's own hours.",
+      "locationHoursLockedHint": "This is the business's own location — its hours always follow the business's hours, set in Settings, and can't be customized here.",
       "turnoverLabel": "Turnover time",
       "turnoverHint": "Minimum time before the next booking on this resource, any service — combines with the service's own buffer, whichever is greater applies.",
       "maxCapacityLabel": "Maximum capacity",

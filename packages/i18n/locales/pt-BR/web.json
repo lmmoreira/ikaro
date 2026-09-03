@@ -522,6 +522,7 @@
       "useDefaultHoursSub": "Segue o mesmo horário de funcionamento do negócio",
       "customHoursLabel": "Horário personalizado",
       "customHoursHint": "Editor por dia da semana, limitado ao horário do negócio.",
+      "locationHoursLockedHint": "Esta é a unidade do negócio — o horário sempre acompanha o horário do negócio, definido em Configurações, e não pode ser personalizado aqui.",
       "turnoverLabel": "Tempo de virada (turnover)",
       "turnoverHint": "Tempo mínimo antes da próxima reserva neste recurso, qualquer serviço — combina com o buffer do serviço, vale o maior dos dois.",
       "maxCapacityLabel": "Capacidade máxima",

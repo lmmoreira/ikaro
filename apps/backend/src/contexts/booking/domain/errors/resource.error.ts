@@ -112,3 +112,14 @@ export class ResourceLocationTypeImmutableError extends BookingDomainError {
     this.name = 'ResourceLocationTypeImmutableError';
   }
 }
+
+export class ResourceLocationWorkingHoursImmutableError extends BookingDomainError {
+  constructor(id: string) {
+    super(
+      `A tenant's LOCATION resource always inherits the tenant's business hours and cannot have a custom schedule: ${id}`,
+      BookingErrorCode.RESOURCE_LOCATION_WORKING_HOURS_IMMUTABLE,
+      'workingHours',
+    );
+    this.name = 'ResourceLocationWorkingHoursImmutableError';
+  }
+}
