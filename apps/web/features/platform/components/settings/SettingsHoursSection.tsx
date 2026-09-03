@@ -2,9 +2,9 @@
 
 import { useTranslations } from 'next-intl';
 import { SectionCard } from '@/shared/components/ui/section-card';
+import { WeekDayRow } from '@/shared/components/ui/week-day-row';
 import { WEEK_DAYS, type DayHoursValue, type WeekDay } from '@/features/platform/settings-form';
 import { FieldError, INPUT_CLASS } from './SettingsFormFields';
-import { DayRow } from './SettingsFormAdvancedFields';
 
 interface SettingsHoursSectionProps {
   readonly timezone: string;
@@ -59,7 +59,7 @@ export function SettingsHoursSection({
       </div>
       <div>
         {WEEK_DAYS.map((day) => (
-          <DayRow
+          <WeekDayRow
             key={day}
             day={day}
             label={t(`daysOfWeek.${day}`)}

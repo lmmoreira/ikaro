@@ -12,6 +12,7 @@ vi.mock('next-intl', () => ({
       'nav.services': 'Serviços',
       'nav.loyalty': 'Fidelidade',
       'nav.leads': 'Leads',
+      'nav.resources': 'Recursos',
       'nav.team': 'Equipe',
       'nav.settings': 'Configurações',
       'nav.hotsite': 'Hotsite',
@@ -97,6 +98,7 @@ describe('Sidebar', () => {
       />,
     );
 
+    expect(screen.getByText('Recursos')).toBeInTheDocument();
     expect(screen.getByText('Equipe')).toBeInTheDocument();
     expect(screen.getByText('Configurações')).toBeInTheDocument();
     expect(screen.getByText('Hotsite')).toBeInTheDocument();
@@ -114,6 +116,7 @@ describe('Sidebar', () => {
       />,
     );
 
+    expect(screen.queryByText('Recursos')).not.toBeInTheDocument();
     expect(screen.queryByText('Equipe')).not.toBeInTheDocument();
     expect(screen.queryByText('Somente Gerente')).not.toBeInTheDocument();
   });

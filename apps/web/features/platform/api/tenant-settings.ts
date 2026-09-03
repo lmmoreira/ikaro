@@ -157,6 +157,15 @@ export async function updateTenantSettings(
   return res.data;
 }
 
+// Client-side read — the Settings *page* itself always uses the server-side
+// fetchTenantSettings/fetchTenantSettingsFresh (SSR-freshness after a save), but a lightweight
+// client-side consumer seeding a default from the tenant's current hours (e.g. a Resource's
+// working-hours editor) doesn't need that guarantee.
+export async function getTenantSettings(): Promise<TenantSettingsResponse> {
+  const res = await bffClient.get<TenantSettingsResponse>('/tenants/settings');
+  return res.data;
+}
+
 // Tenant rename is a separate endpoint — PATCH /tenants/settings has a strict schema
 // that rejects `name` (see M13-S31 discovery note in plan/M13-DASHBOARD-FRONTEND.md).
 export async function renameTenant(body: RenameTenantRequest): Promise<RenameTenantResponse> {

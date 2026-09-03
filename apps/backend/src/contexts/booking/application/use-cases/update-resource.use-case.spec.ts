@@ -5,6 +5,7 @@ import { ResourceBuilder } from '../../../../test/builders/booking/index';
 import { FULL_WEEK_BUSINESS_HOURS } from '../../../../test/utils/business-hours-fixtures';
 import {
   ResourceLocationTypeImmutableError,
+  ResourceLocationWorkingHoursImmutableError,
   ResourceNotFoundError,
   ResourceStaffAlreadyWrappedError,
   ResourceStaffNotFoundError,
@@ -152,6 +153,26 @@ describe('UpdateResourceUseCase', () => {
       name: 'Camila Duarte (atualizado)',
     });
 
+    expect(result.refId).toBe(STAFF_ID);
+  });
+
+  it('edits an unrelated field on a STAFF resource whose wrapped staff member has since been deactivated', async () => {
+    const resource = new ResourceBuilder()
+      .withTenantId(TENANT_ID)
+      .withType(ResourceType.STAFF)
+      .withRefId(STAFF_ID)
+      .build();
+    await repo.save(resource);
+    staffPort.setProfile(STAFF_ID, { id: STAFF_ID, isActive: false });
+
+    const result = await useCase.execute({
+      id: resource.id,
+      tenantId: TENANT_ID,
+      tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+      turnoverMinutes: 30,
+    });
+
+    expect(result.turnoverMinutes).toBe(30);
     expect(result.refId).toBe(STAFF_ID);
   });
 
@@ -307,6 +328,31 @@ describe('UpdateResourceUseCase', () => {
 
     expect(result.name).toBe('Lava Car BH — Unidade Centro');
     expect(result.type).toBe(ResourceType.LOCATION);
+  });
+
+  it('throws ResourceLocationWorkingHoursImmutableError when setting a custom schedule on a LOCATION resource', async () => {
+    const location = new ResourceBuilder()
+      .withTenantId(TENANT_ID)
+      .withType(ResourceType.LOCATION)
+      .build();
+    await repo.save(location);
+
+    await expect(
+      useCase.execute({
+        id: location.id,
+        tenantId: TENANT_ID,
+        tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+        workingHours: {
+          monday: { open: '10:00', close: '16:00' },
+          tuesday: null,
+          wednesday: null,
+          thursday: null,
+          friday: null,
+          saturday: null,
+          sunday: null,
+        },
+      }),
+    ).rejects.toThrow(ResourceLocationWorkingHoursImmutableError);
   });
 
   it('throws ResourceNotFoundError when the resource does not exist', async () => {

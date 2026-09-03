@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Calendar, Clock, Wrench, Star, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
 import { matchBookingDetailRoute } from '@/shells/dashboard/model/booking-route';
+import { isResourceCreateRoute, matchResourceRoute } from '@/shells/dashboard/model/resource-route';
 import { isServiceCreateRoute, matchServiceRoute } from '@/shells/dashboard/model/service-route';
 import { isTeamInviteRoute, matchTeamRoute } from '@/shells/dashboard/model/team-route';
 
@@ -33,6 +34,7 @@ export function BottomNav({
   const isServiceDetailAction = matchServiceRoute(pathname) !== null;
   const isLoyaltyDetail = /^\/dashboard\/loyalty\/[^/]+$/.test(pathname);
   const isTeamDetailRoute = matchTeamRoute(pathname) !== null;
+  const isResourceDetailRoute = matchResourceRoute(pathname) !== null;
 
   // /dashboard/settings and /dashboard/hotsite are deliberately NOT in this list (unlike the
   // drill-down routes above) — they're top-level sections with no topbar back arrow, so hiding
@@ -45,7 +47,9 @@ export function BottomNav({
     isServiceCreateRoute(pathname) ||
     isLoyaltyDetail ||
     isTeamInviteRoute(pathname) ||
-    isTeamDetailRoute
+    isTeamDetailRoute ||
+    isResourceCreateRoute(pathname) ||
+    isResourceDetailRoute
   )
     return null;
 

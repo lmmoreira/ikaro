@@ -7,6 +7,7 @@ import {
   ResourceAlreadyActiveError,
   ResourceLocationCannotBeDeactivatedError,
   ResourceLocationTypeImmutableError,
+  ResourceLocationWorkingHoursImmutableError,
   ResourceMaxCapacityInvalidError,
   ResourceNoWorkingHoursError,
   ResourceTypeRefIdMismatchError,
@@ -618,6 +619,58 @@ describe('Resource.update()', () => {
     );
 
     expect(location.name).toBe('Lava Car BH — Unidade Centro');
+  });
+
+  it('rejects setting a custom workingHours schedule on a LOCATION resource', () => {
+    const location = Resource.create({
+      tenantId: TENANT_ID,
+      type: ResourceType.LOCATION,
+      name: 'Lava Car BH (unidade única)',
+      tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+    });
+    const customHours: ResourceWorkingHours = {
+      monday: { open: '10:00', close: '16:00' },
+      tuesday: null,
+      wednesday: null,
+      thursday: null,
+      friday: null,
+      saturday: null,
+      sunday: null,
+    };
+
+    expect(() =>
+      location.update(
+        location.name,
+        ResourceType.LOCATION,
+        null,
+        customHours,
+        location.turnoverMinutes,
+        location.maxCapacity,
+        FULL_WEEK_BUSINESS_HOURS,
+      ),
+    ).toThrow(ResourceLocationWorkingHoursImmutableError);
+    expect(location.workingHours).toBeNull();
+  });
+
+  it('allows re-saving workingHours: null on a LOCATION resource (no-op, still inherits)', () => {
+    const location = Resource.create({
+      tenantId: TENANT_ID,
+      type: ResourceType.LOCATION,
+      name: 'Lava Car BH (unidade única)',
+      tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+    });
+
+    location.update(
+      location.name,
+      ResourceType.LOCATION,
+      null,
+      null,
+      location.turnoverMinutes,
+      location.maxCapacity,
+      FULL_WEEK_BUSINESS_HOURS,
+    );
+
+    expect(location.workingHours).toBeNull();
   });
 });
 

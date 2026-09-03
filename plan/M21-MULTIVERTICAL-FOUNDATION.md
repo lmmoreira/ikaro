@@ -286,7 +286,15 @@ Build the Resource Management dashboard pages from the already-relocated, discov
 
 Working-hours edit (UC-046), deactivate confirmation (UC-047), and reactivate confirmation (UC-049) have **no discovery-stage prototype** — per `plan/journey/manager/prototypes/resources/dev-notes.md`'s own flagged gap, design these from `apps/web/features/platform/components/settings/SettingsHoursSection.tsx`'s existing per-weekday hours editor (the tenant `businessHours` editor — same shape as `Resource.workingHours` minus the timezone key; **corrected during story discovery 2026-09-02** — `staff/prototypes/horarios/` has no built or prototyped weekday-hours editor to mirror, it's schedule-closure/opening screens) and `manager/prototypes/equipe/03-deactivate-confirm.html` (for the deactivate/reactivate confirmation shape), not from scratch.
 
+**Found during implementation (2026-09-02):** Resource Management shipped in S01 with no `GET /resources/:id` single-item read — every other admin CRUD surface in this codebase (Staff, Services) has one, S01 simply missed it. The edit page needs it to pre-fill the form, so a small backend+BFF addition (`GetResourceByIdUseCase`, `GET /resources/:id` on both the backend controller and the BFF controller, mirroring `service.controller.ts`'s/`staff.controller.ts`'s existing `getOne()`/`getById()` shape exactly) is included in this story despite the `frontend-ts` tag — confirmed with the user rather than worked around with a full-list-refetch in the frontend. `docs/14-API_CONTRACTS.md` § Resource Management and `plan/journey/manager/resources.md`'s BFF calls table updated to match.
+
 **Files to create/modify:**
+- `apps/backend/src/contexts/booking/application/use-cases/get-resource-by-id.use-case.ts` (+ `.spec.ts`) (new — see "Found during implementation" above)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/resource.controller.ts` (+ `.spec.ts`, `.integration.spec.ts`) (modify — add `GET :id`)
+- `apps/backend/src/contexts/booking/booking.module.ts` (modify — register `GetResourceByIdUseCase`)
+- `apps/backend/http/booking/resources.http` (modify — add `GET /resources/:id` example)
+- `apps/bff/src/features/booking/resource.controller.ts` (+ `.spec.ts`, `.component.spec.ts`) (modify — add `GET :id` passthrough)
+- `apps/bff/http/resources/resources.http` (modify — add `GET /v1/resources/:id` example)
 - `apps/web/app/dashboard/resources/layout.tsx` (new — mounts `DashboardShell` + locale/formatting/tenant providers, matching `team/layout.tsx`/`settings/layout.tsx`'s precedent; every `app/dashboard/<section>/` needs exactly one, applied to all nested routes automatically per `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` §5 — **added during story discovery 2026-09-02**, missing from the original file list)
 - `apps/web/app/dashboard/resources/page.tsx` (new)
 - `apps/web/app/dashboard/resources/new/page.tsx` (new)
@@ -296,32 +304,43 @@ Working-hours edit (UC-046), deactivate confirmation (UC-047), and reactivate co
 - `apps/web/features/booking/components/dashboard/resources/ResourceCreateForm.tsx` (+ `.spec.tsx`) (new)
 - `apps/web/features/booking/components/dashboard/resources/ResourceEditForm.tsx` (+ `.spec.tsx`) (new)
 - `apps/web/features/booking/components/dashboard/resources/ResourceDeactivateConfirm.tsx` (+ `.spec.tsx`) (new)
-- `apps/web/features/booking/components/dashboard/resources/ResourceReactivateConfirm.tsx` (+ `.spec.tsx`) (new)
+- ~~`apps/web/features/booking/components/dashboard/resources/ResourceReactivateConfirm.tsx` (+ `.spec.tsx`) (new)~~ — **corrected during live manual testing, 2026-09-02:** deleted. Reactivation shipped as a one-click row action on `ResourceListPage` instead of a confirmation screen, mirroring `manager/equipe.md`'s own "Ativar" precedent — see the corrected files list below.
 - `packages/types/src/resource.dto.ts` (new — `Resource`/`ResourceType`/`ResourceWorkingHours`/`ResourceListResponse`/`CreateResourceRequest`/`UpdateResourceRequest`, mirroring `apps/bff/src/features/booking/resource.types.ts`'s shape; exported via `packages/types/src/index.ts`, matching `schedule.dto.ts`/`staff.dto.ts`'s existing precedent for a shared booking-context response type. **Corrected during story discovery 2026-09-02** — the original plan proposed a local, CI-drift-detector-blind `apps/web/features/booking/types/resource.ts`; `@ikaro/types` had zero `Resource`-related exports at discovery time, an inconsistency with every sibling booking type)
 - `apps/web/features/booking/api/resources.ts` (new — `bffClient`-based fetcher functions only: `listResources`, `createResource`, `updateResource`, `deactivateResource`, `reactivateResource`, importing request/response types from `@ikaro/types`, matching `features/staff/api/staff.ts`'s / `features/booking/api/schedule.ts`'s existing split-file precedent)
 - `apps/web/features/booking/hooks/useResources.ts` (+ `.spec.tsx`) (new — React Query hooks: `useResources`, `useCreateResource`, `useUpdateResource` (renamed from `useUpdateResourceWorkingHours` — PATCH now edits every field, PR #457 round 9+), `useDeactivateResource`, `useReactivateResource`, wrapping `api/resources.ts`'s fetchers, matching `features/staff/hooks/useStaff.ts`'s precedent. **Corrected during story discovery 2026-09-02** — the original plan combined fetchers and hooks into one `api/resources.ts` file, deviating from the codebase's established split)
 - `apps/web/shells/dashboard/components/Sidebar.tsx` (modify — add "Recursos" to `MANAGER_NAV_KEYS`)
 - `apps/web/shells/dashboard/components/BottomNav.tsx` + `MoreSheet.tsx` (modify, if Resources needs a bottom-nav/MoreSheet entry on mobile — verify against both files' existing `MANAGER_SHEET_ITEM_KEYS`/MANAGER-item pattern at implementation time)
 - `packages/i18n/locales/pt-BR/web.json` + `.../en/web.json` (modify — dashboard UI copy lives under the top-level `"dashboard"` key in `web.json`, not a separate `dashboard.json`, confirmed against `dashboard.nav`/`dashboard.teamPage`'s real shape at implementation time; add a `dashboard.nav.resources` key alongside the existing `dashboard.nav` entries and a new `dashboard.resourcesPage` namespace mirroring `dashboard.teamPage`'s shape — no hardcoded visible text per `CLAUDE.md` §7 Testing)
+- `apps/web/proxy.ts` (+ `.spec.ts`) (modify — **found during implementation**: `/dashboard/resources` was missing from `MANAGER_ONLY_ROUTES`, the same server-side redirect gate `/dashboard/settings`/`/dashboard/team`/`/dashboard/hotsite` already get; without it, a STAFF user hitting the route directly would render the page shell — sidebar-hidden only — with API calls failing 403 client-side, inconsistent with every other manager-only section's soft-redirect-to-`/dashboard` behavior)
+
+**Additional implementation-time files (2026-09-02), not in the original list but needed to satisfy it:**
+- `apps/web/shells/dashboard/model/resource-route.ts` (+ `.spec.ts`) (new — mirrors `team-route.ts`; needed by `BottomNav.tsx`'s existing hide-on-drill-down-route logic, which already has a `matchTeamRoute`/`matchServiceRoute` equivalent for every other section)
+- `apps/web/features/booking/components/dashboard/resources/ResourceWorkingHoursEditor.tsx` (new — the per-weekday working-hours editor shared by create/edit forms)
+- `apps/web/features/booking/components/dashboard/resources/ResourceIdentityFields.tsx` (new — the type-picker + staff-picker-or-name-field block shared by create/edit forms, extracted to satisfy this repo's `max-lines-per-function`/`max-lines` ESLint rules)
+- `apps/web/features/booking/components/dashboard/resources/ResourceEditFormFields.tsx` (new — the inner edit-form component `ResourceEditForm.tsx` renders once `useResource()` resolves, keyed by `resourceId` so local form state initializes directly from the loaded resource instead of syncing via a `useEffect`, per `react-hooks/set-state-in-effect`)
+- ~~`apps/web/features/booking/components/dashboard/resources/ResourceDeactivateOrReactivate.tsx`~~ — **corrected during live manual testing, 2026-09-02** (user feedback: "I want [reactivate] to be really simple as we have in staff screen — we only do it on the grid"): replaced with `ResourceDeactivatePage.tsx` (deactivate-only; redirects away if the resource is already inactive) and a new `ResourceRow.tsx` (extracted from `ResourceListPage.tsx` to stay under the `max-lines` limit once it grew a `ReactivateResourceAction` inline mutation, mirroring `MemberRow.tsx`'s own established row-component split). `ResourceDeactivateOrReactivate`/`ResourceReactivateConfirm` and their spec files were deleted.
+- `apps/web/shared/components/ui/week-day-row.tsx` (+ `.spec.tsx`) (new — `DayRow` extracted from `apps/web/features/platform/components/settings/SettingsFormAdvancedFields.tsx` into `shared/` once a second domain slice (`booking`, this story) needed the identical per-weekday editor; per `CLAUDE.md` §11's domain-slice rule, a component used by more than one slice belongs in `shared/`, not cross-imported from whichever slice built it first. `SettingsFormAdvancedFields.tsx`/`SettingsHoursSection.tsx` updated to import from the new location; `DayRow`'s own test block moved to `week-day-row.spec.tsx`)
+- `apps/backend/src/contexts/booking/application/use-cases/get-resource-by-id.use-case.ts` (+ `.spec.ts`) (new), `apps/backend/src/contexts/booking/infrastructure/controllers/resource.controller.ts` (+ `.spec.ts`, `.integration.spec.ts`) (modify), `apps/backend/src/contexts/booking/booking.module.ts` (modify), `apps/backend/http/booking/resources.http` (modify), `apps/bff/src/features/booking/resource.controller.ts` (+ `.spec.ts`, `.component.spec.ts`) (modify), `apps/bff/http/resources/resources.http` (modify), `docs/14-API_CONTRACTS.md` § Resource Management (modify), `plan/journey/manager/resources.md` (modify) — the `GET /resources/:id` addition covered above under "Missing endpoint" (backend+BFF, mirrors Staff's/Services' existing `GET /:id`)
 
 **Acceptance criteria — product:**
-- [ ] Manager sees "Recursos" in the sidebar (MANAGER-only — STAFF never sees it).
-- [ ] Manager can list resources grouped by type, create a new STAFF/ROOM/EQUIPMENT resource, edit working hours, deactivate, and reactivate — matching the prototype's flows.
-- [ ] The `LOCATION` resource row never offers a "Desativar" action (S02 backfills exactly one; a tenant must always retain an always-active default).
-- [ ] All new UI copy is localized in both pt-BR and en in this same commit.
+- [x] Manager sees "Recursos" in the sidebar (MANAGER-only — STAFF never sees it).
+- [x] Manager can list resources grouped by type, create a new STAFF/ROOM/EQUIPMENT resource, edit working hours, deactivate, and reactivate — matching the prototype's flows.
+- [x] The `LOCATION` resource row never offers a "Desativar" action (S02 backfills exactly one; a tenant must always retain an always-active default).
+- [x] The `LOCATION` resource's working-hours editor is locked (no customize toggle) — it always inherits the tenant's own business hours, enforced at both UI and backend (`ResourceLocationWorkingHoursImmutableError`, 409). Added post-hoc during live review, 2026-09-02: nothing in the original discovery flagged that letting `LOCATION` diverge from the tenant's Settings-configured hours would create a second, silently-conflicting source of truth for "when are we open."
+- [x] All new UI copy is localized in both pt-BR and en in this same commit.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] `ResourceListPage` renders grouped-by-type with correct Ativo/Inativo badges (jsdom + Testing Library)
-  - [ ] `ResourceCreateForm` type-switcher swaps STAFF-picker ↔ name field, matches prototype interactivity
-  - [ ] `ResourceCreateForm` surfaces the 409/422 error states inline
+  - [x] `ResourceListPage` renders grouped-by-type with correct Ativo/Inativo badges (jsdom + Testing Library)
+  - [x] `ResourceCreateForm` type-switcher swaps STAFF-picker ↔ name field, matches prototype interactivity
+  - [x] `ResourceCreateForm` surfaces the 409/422 error states inline
 - Integration: n/a — no `.integration.spec.ts` tier for `apps/web` (Vitest jsdom/node only)
 - Tenant isolation: n/a — no tenant-data-shaping logic lives client-side beyond what `useTenant()` already scopes
 - E2E:
-  - [ ] Playwright: manager creates a STAFF resource, sees it in the list, deactivates it, reactivates it — full round trip against the real BFF/backend
-  - [ ] Playwright: STAFF-role user does not see "Recursos" in the sidebar and gets a forbidden response if the route is hit directly
-- [ ] Coverage ≥80% on changed code
-- [ ] `tsc --noEmit` clean, lint clean
+  - [x] Playwright: manager creates a STAFF resource, sees it in the list, deactivates it, reactivates it — full round trip against the real BFF/backend (`apps/web/e2e/resources-manage.spec.ts`, ran and passed in CI as of PR #459 round 5)
+  - [x] Playwright: STAFF-role user does not see "Recursos" in the sidebar and is redirected away if the route is hit directly — **corrected during PR #459 bot review (round 4):** "forbidden response" was imprecise; every other manager-only route (`/dashboard/settings`, `/dashboard/team`, `/dashboard/hotsite`) already redirects via `proxy.ts`'s shared `MANAGER_ONLY_ROUTES` guard rather than returning an HTTP 403, and Resources deliberately reuses that exact same mechanism for consistency
+- [x] Coverage ≥80% on changed code (86.1% new-code coverage, SonarCloud)
+- [x] `tsc --noEmit` clean, lint clean
 
 ---
 

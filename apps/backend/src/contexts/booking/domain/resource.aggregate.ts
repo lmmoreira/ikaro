@@ -6,6 +6,7 @@ import {
   ResourceAlreadyActiveError,
   ResourceLocationCannotBeDeactivatedError,
   ResourceLocationTypeImmutableError,
+  ResourceLocationWorkingHoursImmutableError,
   ResourceMaxCapacityInvalidError,
   ResourceNoWorkingHoursError,
   ResourceTypeRefIdMismatchError,
@@ -139,6 +140,16 @@ export class Resource extends AggregateRoot {
       (type === ResourceType.LOCATION || this.props.type === ResourceType.LOCATION)
     ) {
       throw new ResourceLocationTypeImmutableError(this.props.id);
+    }
+
+    // A LOCATION resource is the stand-in for "the whole tenant is the resource" — its schedule
+    // is the tenant's own business hours (Settings), not an independently editable one. Allowing
+    // a custom, narrower schedule here would create a second, silently-diverging source of truth
+    // for "when are we open" with no UI signal explaining the discrepancy (raised during M21-S04
+    // live review, 2026-09-02). STAFF/ROOM/EQUIPMENT keep full custom-schedule freedom — only
+    // LOCATION is locked to inherit (workingHours: null).
+    if (type === ResourceType.LOCATION && workingHours !== null) {
+      throw new ResourceLocationWorkingHoursImmutableError(this.props.id);
     }
 
     Resource.assertValid(type, refId, workingHours, tenantBusinessHours, maxCapacity);

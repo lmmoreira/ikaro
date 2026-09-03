@@ -6,7 +6,7 @@ Ikaro follows a **RESTful API** standard using **JSON** for all payloads. All co
 
 **Error Response Standard:** [RFC 9457 Problem Details](https://tools.ietf.org/html/rfc9457) — see [25-ERROR_CATALOG.md](25-ERROR_CATALOG.md) for complete error reference.
 
-> ⚠️ **PLANNED, NOT YET BUILT:** every endpoint/param tagged `(M21)` / `(M21 Cluster N)` throughout this doc (Service Extensions §1, Recurring Reservations/Availability Alerts/Future Commitment Exceptions §4, Classes & Sessions §4b, and the M21-tagged extensions to Reschedule/Availability/Services) belongs to the Multi-Vertical Scheduling epic — none of it exists in code yet. See `plan/M21-MULTIVERTICAL-FOUNDATION.md` through `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`. **Exception: Resource Management §4 (UC-044–UC-049) shipped in M21-S01** — live backend/BFF endpoints, no frontend page yet (lands with M21-S04). Untagged content in this doc is live MVP behavior.
+> ⚠️ **PLANNED, NOT YET BUILT:** every endpoint/param tagged `(M21)` / `(M21 Cluster N)` throughout this doc (Service Extensions §1, Recurring Reservations/Availability Alerts/Future Commitment Exceptions §4, Classes & Sessions §4b, and the M21-tagged extensions to Reschedule/Availability/Services) belongs to the Multi-Vertical Scheduling epic — none of it exists in code yet. See `plan/M21-MULTIVERTICAL-FOUNDATION.md` through `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`. **Exception: Resource Management §4 (UC-044–UC-049) shipped in M21-S01 (backend/BFF) and M21-S04 (manager dashboard frontend)** — fully live. Untagged content in this doc is live MVP behavior.
 
 ---
 
@@ -879,7 +879,7 @@ Auth: JWT + `MANAGER|STAFF` on all write endpoints. **Exception (M21 Cluster 1):
 
 ### **Resource Management (UC-044–UC-049)**
 
-> Introduced by M21 — Multi-Vertical Scheduling, Cluster 1 (Foundation). **Shipped in M21-S01** (backend + BFF) — no frontend page yet, lands with M21-S04.
+> Introduced by M21 — Multi-Vertical Scheduling, Cluster 1 (Foundation). **Shipped in M21-S01** (backend + BFF); the `GET /resources/:id` single-item read below was added in M21-S04 (needed by the resource edit page — missed in S01, mirrors Staff's/Services' existing `GET /:id` pattern).
 
 Auth: JWT + `MANAGER` only on every endpoint — a deliberate, self-consistent restriction distinct from every other Booking-context admin surface (`MANAGER|STAFF`), per the discovery's own review call (dev-notes.md item 1) with no existing precedent to derive it from.
 
@@ -887,6 +887,14 @@ Auth: JWT + `MANAGER` only on every endpoint — a deliberate, self-consistent r
   ```json
   { "items": [ { "id": "uuid", "type": "STAFF", "refId": "uuid", "name": "Camila Duarte", "workingHours": null, "turnoverMinutes": 15, "maxCapacity": null, "isActive": true } ] }
   ```
+- `GET /resources/:id` → get a single resource (added M21-S04, powers the edit page). Same response shape as one list item above.
+  - `200` on success
+  - `404` if not found or belongs to another tenant
+- `GET /resources/staff-options?excludeResourceId=` → **BFF-only, no backend route** (added M21-S04). Merges a `GET /staff` read with a `GET /resources?type=STAFF` read server-side and returns each staff member annotated with whether they're already wrapped by a *different* `Resource` — the STAFF-picker's underlying data source on the create/edit forms, kept out of `apps/web` per `docs/24-BFF_ARCHITECTURE.md` § Web-facing composite views. `excludeResourceId` (optional) excludes one resource from the wrap check — the resource currently being edited, so its own already-wrapped staff member isn't marked as taken.
+  ```json
+  { "items": [ { "id": "uuid", "name": "Camila Duarte", "email": "camila@lavacar.com.br", "isActive": true, "isWrapped": false } ] }
+  ```
+  - `200` on success
 - `POST /resources` → create a resource (UC-045)
   ```json
   {
@@ -907,6 +915,7 @@ Auth: JWT + `MANAGER` only on every endpoint — a deliberate, self-consistent r
   - `404` if not found, belongs to another tenant, or (when `type` is changing to `STAFF`) the target staff member is not found/inactive (mirrors `POST /resources`' A1 staff-lookup semantics — UC-045)
   - `409` if `type = STAFF` and the target staff member is already wrapped by a *different* `Resource` — re-saving the same `refId` this resource already holds is not a conflict
   - `409` if `type` is changing to or from `LOCATION` — a tenant's `LOCATION` resource can never change type, and no other resource can become `LOCATION`
+  - `409` if `workingHours` is set (non-null) while `type` is (or is being changed to) `LOCATION` — a `LOCATION` resource always inherits the tenant's business hours and can never carry a custom schedule
   - `400`/`422` if `type` is changing away from `STAFF` without the request also explicitly sending `refId: null`
   - `422` if no working hours are set (after the update) and the tenant has no `businessHours` either
 - `DELETE /resources/:id` → deactivate a resource (UC-047)

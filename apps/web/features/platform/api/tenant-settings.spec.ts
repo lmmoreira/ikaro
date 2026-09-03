@@ -8,6 +8,7 @@ import {
   generateHotsiteImageSignedUrl,
   getChatbotCapStatus,
   getHotsiteConfig,
+  getTenantSettings,
   publishHotsite,
   resolveTenantFormatting,
   resolveWelcomeStaffScreenDays,
@@ -260,6 +261,14 @@ describe('fetchTenantSettingsFresh', () => {
       'Failed to fetch tenant settings',
     );
     vi.unstubAllGlobals();
+  });
+});
+
+describe('getTenantSettings', () => {
+  it('calls GET /tenants/settings', async () => {
+    mock.onGet('/tenants/settings').reply(200, tenantSettingsResponse);
+    const res = await getTenantSettings();
+    expect(res).toEqual(tenantSettingsResponse);
   });
 });
 

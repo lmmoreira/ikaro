@@ -5,3 +5,4 @@ export { createInfoRequestedBooking } from './request-info-booking';
 export { createGuestInfoRequestedBooking } from './create-guest-info-requested-booking';
 export { mintGuestToken } from './mint-guest-token';
 export { submitGuestInfoDirectly } from './submit-guest-info-directly';
+export { getResourceRow } from './resource-locators';

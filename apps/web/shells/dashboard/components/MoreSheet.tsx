@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { Users, Settings, Globe, LogOut, FileText } from 'lucide-react';
+import { Boxes, Users, Settings, Globe, LogOut, FileText } from 'lucide-react';
 import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 import { cn } from '@/shared/utils/cn';
 
@@ -15,6 +15,7 @@ interface MoreSheetProps {
 }
 
 const MANAGER_SHEET_ITEM_KEYS = [
+  { href: '/dashboard/resources', labelKey: 'nav.resources', Icon: Boxes },
   { href: '/dashboard/team', labelKey: 'nav.team', Icon: Users },
   { href: '/dashboard/settings', labelKey: 'nav.settings', Icon: Settings },
   { href: '/dashboard/hotsite', labelKey: 'nav.hotsite', Icon: Globe },

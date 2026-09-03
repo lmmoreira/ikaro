@@ -52,6 +52,15 @@ describe('BottomNav', () => {
       'the team deactivate route (fixed action bar owns the bottom edge)',
       '/dashboard/team/staff-1/deactivate',
     ],
+    [
+      'the resource create route (fixed action bar owns the bottom edge)',
+      '/dashboard/resources/new',
+    ],
+    ['the resource detail route (fixed Save bar owns the bottom edge)', '/dashboard/resources/r-1'],
+    [
+      'the resource deactivate route (fixed action bar owns the bottom edge)',
+      '/dashboard/resources/r-1/deactivate',
+    ],
   ])('hides itself on %s', (_label, pathname) => {
     vi.mocked(usePathname).mockReturnValue(pathname);
     const { container } = render(
@@ -63,6 +72,13 @@ describe('BottomNav', () => {
 
   it('still renders on the team list page (FAB sits above the nav, no fixed bar)', () => {
     vi.mocked(usePathname).mockReturnValue('/dashboard/team');
+    render(<BottomNav role={MANAGER} leadFormEnabled={false} onOpenSheet={vi.fn()} />);
+
+    expect(screen.getByText('Mais')).toBeInTheDocument();
+  });
+
+  it('still renders on the resources list page (FAB sits above the nav, no fixed bar)', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/resources');
     render(<BottomNav role={MANAGER} leadFormEnabled={false} onOpenSheet={vi.fn()} />);
 
     expect(screen.getByText('Mais')).toBeInTheDocument();

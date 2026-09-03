@@ -22,6 +22,8 @@ export type ActorRole = (typeof ACTOR_ROLES)[number];
 
 export type ClosureReason = 'STAFF_DAY_OFF' | 'MAINTENANCE' | 'HOLIDAY';
 
+export type ResourceType = 'LOCATION' | 'STAFF' | 'ROOM' | 'EQUIPMENT';
+
 export type HotsiteModuleType =
   | 'HERO'
   | 'SERVICE_LIST'

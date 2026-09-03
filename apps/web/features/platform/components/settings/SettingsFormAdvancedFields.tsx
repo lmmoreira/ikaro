@@ -1,16 +1,10 @@
-import { memo } from 'react';
 import type { AddressSpec } from '@ikaro/i18n';
-import { TimePicker } from '@/shared/components/ui/time-picker';
 import {
   formatPhoneForDisplay,
   phonePlaceholder,
   sanitizePhoneInput,
 } from '@/shared/utils/phone-format';
-import type {
-  DayHoursValue,
-  SettingsAddressValues,
-  WeekDay,
-} from '@/features/platform/settings-form';
+import type { SettingsAddressValues } from '@/features/platform/settings-form';
 import { FieldError, INPUT_CLASS } from './SettingsFormFields';
 
 interface PhoneFieldProps {
@@ -126,98 +120,6 @@ export function PostalCodeField({
     </div>
   );
 }
-
-interface DayRowProps {
-  readonly day: WeekDay;
-  readonly label: string;
-  readonly value: DayHoursValue;
-  readonly timeFormat: '24h' | '12h';
-  readonly closedLabel: string;
-  readonly opensAtLabel: string;
-  readonly closesAtLabel: string;
-  readonly hourLabel: string;
-  readonly minuteLabel: string;
-  readonly periodLabel: string;
-  readonly copyToWeekdaysLabel?: string;
-  readonly onChange: (day: WeekDay, patch: Partial<DayHoursValue>) => void;
-  readonly onCopyToWeekdays?: () => void;
-}
-
-// Memoized + fed a stable `onChange` (setDay) so typing in an unrelated field doesn't
-// re-render all 7 day rows (14 TimePickers / 28 Radix Selects) on every keystroke.
-export const DayRow = memo(function DayRow({
-  day,
-  label,
-  value,
-  timeFormat,
-  closedLabel,
-  opensAtLabel,
-  closesAtLabel,
-  hourLabel,
-  minuteLabel,
-  periodLabel,
-  copyToWeekdaysLabel,
-  onChange,
-  onCopyToWeekdays,
-}: DayRowProps): React.JSX.Element {
-  return (
-    <div className="flex flex-wrap items-center gap-3 border-b border-gray-100 py-3 last:border-b-0">
-      <span className="w-24 shrink-0 text-sm font-semibold text-gray-900">{label}</span>
-
-      <TimePicker
-        value={value.open}
-        onChange={(open) => onChange(day, { open })}
-        timeFormat={timeFormat}
-        disabled={value.closed}
-        hourAriaLabel={`${opensAtLabel} — ${hourLabel} — ${label}`}
-        minuteAriaLabel={`${opensAtLabel} — ${minuteLabel} — ${label}`}
-        periodAriaLabel={`${opensAtLabel} — ${periodLabel} — ${label}`}
-        hourTestId="settings-day-open-hour"
-        minuteTestId="settings-day-open-minute"
-        periodTestId="settings-day-open-period"
-        dataRowKey={day}
-      />
-      <span aria-hidden="true" className="text-sm text-gray-400">
-        –
-      </span>
-      <TimePicker
-        value={value.close}
-        onChange={(close) => onChange(day, { close })}
-        timeFormat={timeFormat}
-        disabled={value.closed}
-        hourAriaLabel={`${closesAtLabel} — ${hourLabel} — ${label}`}
-        minuteAriaLabel={`${closesAtLabel} — ${minuteLabel} — ${label}`}
-        periodAriaLabel={`${closesAtLabel} — ${periodLabel} — ${label}`}
-        hourTestId="settings-day-close-hour"
-        minuteTestId="settings-day-close-minute"
-        periodTestId="settings-day-close-period"
-        dataRowKey={day}
-      />
-
-      <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-600">
-        <input
-          type="checkbox"
-          aria-label={`${closedLabel} — ${label}`}
-          checked={value.closed}
-          onChange={(event) => onChange(day, { closed: event.target.checked })}
-          className="h-4 w-4 rounded border-gray-300"
-        />
-        {closedLabel}
-      </label>
-
-      {onCopyToWeekdays && copyToWeekdaysLabel && (
-        <button
-          type="button"
-          data-testid="day-copy-monday"
-          onClick={onCopyToWeekdays}
-          className="ml-auto text-sm font-semibold text-blue-600 hover:underline"
-        >
-          {copyToWeekdaysLabel}
-        </button>
-      )}
-    </div>
-  );
-});
 
 export function addressSpecFieldLabel(
   addressSpec: AddressSpec,

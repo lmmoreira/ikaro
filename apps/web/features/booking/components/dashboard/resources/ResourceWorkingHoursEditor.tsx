@@ -1,0 +1,193 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useTranslations } from 'next-intl';
+import type { ResourceWorkingHours, TenantBusinessHours } from '@ikaro/types';
+import { SwitchField } from '@/shared/components/ui/switch-field';
+import {
+  WeekDayRow,
+  type DayHoursValue as DayValue,
+  type WeekDay,
+} from '@/shared/components/ui/week-day-row';
+import { useFormatting } from '@/shared/lib/formatting/use-formatting';
+
+const WEEK_DAYS: readonly WeekDay[] = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+];
+
+const DEFAULT_CLOSED_DAY: DayValue = { open: '09:00', close: '18:00', closed: true };
+
+function toDayValue(hours: { open: string; close: string } | null | undefined): DayValue {
+  return hours ? { open: hours.open, close: hours.close, closed: false } : DEFAULT_CLOSED_DAY;
+}
+
+// Built as an explicit object literal (not Object.fromEntries + a cast) so TypeScript checks
+// the result against ResourceWorkingHours's exact named-property shape directly — no `as`.
+function toDayValues(workingHours: ResourceWorkingHours | null): Record<WeekDay, DayValue> {
+  return {
+    monday: toDayValue(workingHours?.monday),
+    tuesday: toDayValue(workingHours?.tuesday),
+    wednesday: toDayValue(workingHours?.wednesday),
+    thursday: toDayValue(workingHours?.thursday),
+    friday: toDayValue(workingHours?.friday),
+    saturday: toDayValue(workingHours?.saturday),
+    sunday: toDayValue(workingHours?.sunday),
+  };
+}
+
+function toWorkingHoursEntry(value: DayValue): { open: string; close: string } | null {
+  return value.closed ? null : { open: value.open, close: value.close };
+}
+
+function toWorkingHours(days: Record<WeekDay, DayValue>): ResourceWorkingHours {
+  return {
+    monday: toWorkingHoursEntry(days.monday),
+    tuesday: toWorkingHoursEntry(days.tuesday),
+    wednesday: toWorkingHoursEntry(days.wednesday),
+    thursday: toWorkingHoursEntry(days.thursday),
+    friday: toWorkingHoursEntry(days.friday),
+    saturday: toWorkingHoursEntry(days.saturday),
+    sunday: toWorkingHoursEntry(days.sunday),
+  };
+}
+
+// Drops `timezone` — a Resource's own workingHours has no timezone field, it always inherits
+// the tenant's. Used by both ResourceCreateForm and ResourceEditFormFields to feed this
+// component's tenantBusinessHours prop.
+export function toResourceBusinessHours(businessHours: TenantBusinessHours): ResourceWorkingHours {
+  return {
+    monday: businessHours.monday,
+    tuesday: businessHours.tuesday,
+    wednesday: businessHours.wednesday,
+    thursday: businessHours.thursday,
+    friday: businessHours.friday,
+    saturday: businessHours.saturday,
+    sunday: businessHours.sunday,
+  };
+}
+
+interface ResourceWorkingHoursEditorProps {
+  readonly value: ResourceWorkingHours | null;
+  readonly onChange: (value: ResourceWorkingHours | null) => void;
+  // The tenant's own current business hours — seeds the custom-hours form the moment the
+  // manager switches off "use default hours", so they start from a real, already-valid
+  // schedule they can tweak, instead of every day appearing closed (a real usability issue
+  // found via live manual testing, not just a design guess — every window a Resource sets
+  // must be a subset of these same hours, so they're also guaranteed not to violate that
+  // constraint on their own). Null only for the brief window before it's loaded, in which
+  // case the switch falls back to the previous all-closed starting point.
+  readonly tenantBusinessHours: ResourceWorkingHours | null;
+  // A LOCATION resource always inherits the tenant's own business hours — it's the stand-in
+  // for "the whole tenant is the resource", so letting it carry a custom, narrower schedule
+  // would create a second, silently-diverging source of truth for "when are we open" (M21-S04
+  // live review, 2026-09-02). Backend rejects this too (ResourceLocationWorkingHoursImmutableError)
+  // — this prop only keeps the UI from ever attempting the rejected request.
+  readonly locked?: boolean;
+}
+
+// Per-weekday working-hours editor for a Resource — same shape as the tenant's own
+// businessHours editor (SettingsHoursSection.tsx) minus the timezone field (a Resource
+// always inherits the tenant's timezone). No discovery-stage prototype for this screen
+// (dev-notes.md's own flagged gap) — built from SettingsHoursSection's existing pattern,
+// reusing the shared DayRow/TimePicker primitives rather than from scratch.
+export function ResourceWorkingHoursEditor({
+  value,
+  onChange,
+  tenantBusinessHours,
+  locked = false,
+}: ResourceWorkingHoursEditorProps): React.JSX.Element {
+  const t = useTranslations('dashboard.resourcesPage');
+  const settingsT = useTranslations('dashboard.settingsPage');
+  const { timeFormat } = useFormatting();
+  // Memoized so an unrelated parent re-render (e.g. typing in the name field) doesn't hand
+  // WeekDayRow a fresh `value` object reference every time — memo(WeekDayRow) checks all
+  // props, so a stable setDay alone (the earlier fix) wasn't enough on its own.
+  const days = useMemo(() => toDayValues(value), [value]);
+  const usesDefault = value === null;
+
+  // onChange is the raw useState setter from both callers (ResourceCreateForm,
+  // ResourceEditFormFields) — React guarantees it's referentially stable, so closing over it
+  // (instead of `days`, which is a fresh object every render) keeps setDay's own identity
+  // stable too, letting memo(WeekDayRow) actually skip re-rendering unrelated day rows on
+  // keystroke, per the shared component's own documented contract. valueRef always holds the
+  // latest value so the patch merges correctly.
+  const valueRef = useRef(value);
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
+
+  const setDay = useCallback(
+    (day: WeekDay, patch: Partial<DayValue>): void => {
+      const currentDays = toDayValues(valueRef.current);
+      const next = { ...currentDays, [day]: { ...currentDays[day], ...patch } };
+      onChange(toWorkingHours(next));
+    },
+    [onChange],
+  );
+
+  function copyMondayToWeekdays(): void {
+    const monday = days.monday;
+    const next = { ...days };
+    for (const day of ['tuesday', 'wednesday', 'thursday', 'friday'] as const) {
+      next[day] = { ...monday };
+    }
+    onChange(toWorkingHours(next));
+  }
+
+  if (locked) {
+    return (
+      <div
+        data-testid="resource-hours-locked"
+        className="rounded-2xl border border-border bg-gray-50 p-3"
+      >
+        <p className="text-sm font-semibold text-gray-900">{t('useDefaultHours')}</p>
+        <p className="text-sm text-gray-500">{t('locationHoursLockedHint')}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <SwitchField
+        checked={usesDefault}
+        onChange={(checked) =>
+          onChange(checked ? null : (tenantBusinessHours ?? toWorkingHours(days)))
+        }
+        label={t('useDefaultHours')}
+        hint={t('useDefaultHoursSub')}
+        testId="resource-hours-inherit-toggle"
+      />
+
+      {!usesDefault && (
+        <div data-testid="resource-hours-custom" className="rounded-2xl border border-border p-3">
+          <p className="text-sm font-semibold text-gray-900">{t('customHoursLabel')}</p>
+          <p className="mb-2 text-sm text-gray-500">{t('customHoursHint')}</p>
+          {WEEK_DAYS.map((day) => (
+            <WeekDayRow
+              key={day}
+              day={day}
+              label={settingsT(`daysOfWeek.${day}`)}
+              value={days[day]}
+              timeFormat={timeFormat}
+              closedLabel={settingsT('closedLabel')}
+              opensAtLabel={settingsT('opensAt')}
+              closesAtLabel={settingsT('closesAt')}
+              hourLabel={settingsT('hourLabel')}
+              minuteLabel={settingsT('minuteLabel')}
+              periodLabel={settingsT('periodLabel')}
+              copyToWeekdaysLabel={day === 'monday' ? settingsT('copyToWeekdays') : undefined}
+              onChange={setDay}
+              onCopyToWeekdays={day === 'monday' ? copyMondayToWeekdays : undefined}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

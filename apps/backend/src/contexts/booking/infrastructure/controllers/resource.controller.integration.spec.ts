@@ -78,6 +78,50 @@ describe('ResourceController (integration)', () => {
     });
   });
 
+  // ─── GET /resources/:id ─────────────────────────────────────────────────────
+
+  describe('GET /resources/:id', () => {
+    it('returns the resource', async () => {
+      const entity = new ResourceEntityBuilder()
+        .withTenantId(TENANT_A)
+        .withName('Estúdio 1')
+        .build();
+      await ds.getRepository(ResourceEntity).save(entity);
+
+      const { body } = await request(app.getHttpServer())
+        .get(`/resources/${entity.id}`)
+        .set(actorHeaders(TENANT_A, MANAGER_ID))
+        .expect(200);
+
+      expect(body.id).toBe(entity.id);
+      expect(body.name).toBe('Estúdio 1');
+    });
+
+    it('returns 404 for a cross-tenant resource id', async () => {
+      const entity = new ResourceEntityBuilder().withTenantId(TENANT_B).build();
+      await ds.getRepository(ResourceEntity).save(entity);
+
+      const { body } = await request(app.getHttpServer())
+        .get(`/resources/${entity.id}`)
+        .set(actorHeaders(TENANT_A, MANAGER_ID))
+        .expect(404);
+
+      expect(body.status).toBe(404);
+    });
+
+    it('returns 403 for STAFF role', async () => {
+      const entity = new ResourceEntityBuilder().withTenantId(TENANT_A).build();
+      await ds.getRepository(ResourceEntity).save(entity);
+
+      const { body } = await request(app.getHttpServer())
+        .get(`/resources/${entity.id}`)
+        .set(actorHeaders(TENANT_A, MANAGER_ID, 'STAFF'))
+        .expect(403);
+
+      expect(body.status).toBe(403);
+    });
+  });
+
   // ─── PATCH /resources/:id ───────────────────────────────────────────────────
 
   describe('PATCH /resources/:id', () => {

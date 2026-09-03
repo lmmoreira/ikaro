@@ -1,5 +1,6 @@
 import { useTranslations } from 'next-intl';
 import { matchBookingDetailRoute } from './booking-route';
+import { isResourceCreateRoute, matchResourceRoute } from './resource-route';
 import { isServiceCreateRoute, matchServiceRoute } from './service-route';
 import { isTeamInviteRoute, matchTeamRoute } from './team-route';
 
@@ -16,6 +17,7 @@ export const PAGE_TITLE_KEYS: ReadonlyArray<[string, string]> = [
   ['/dashboard/team', 'nav.team'],
   ['/dashboard/settings', 'nav.settings'],
   ['/dashboard/hotsite', 'nav.hotsite'],
+  ['/dashboard/resources', 'nav.resources'],
 ];
 
 export interface TopbarRouteState {
@@ -34,6 +36,7 @@ interface TopbarRouteContext {
   readonly servicesT: ReturnType<typeof useTranslations>;
   readonly teamT: ReturnType<typeof useTranslations>;
   readonly bookingT: ReturnType<typeof useTranslations>;
+  readonly resourcesT: ReturnType<typeof useTranslations>;
   readonly returnTo: string | null;
 }
 
@@ -115,8 +118,47 @@ function resolveTeamTitleAndBackLink(ctx: TopbarRouteContext): TitleAndBackLink 
   return null;
 }
 
-function resolveServiceOrTeamTitleAndBackLink(ctx: TopbarRouteContext): TitleAndBackLink | null {
-  return resolveServiceTitleAndBackLink(ctx) ?? resolveTeamTitleAndBackLink(ctx);
+// Unlike services (edit lives at /:id/edit, its own dedicated title), a resource's edit route
+// is the bare /:id — ResourceEditForm.tsx already overrides the topbar title with the loaded
+// resource's own name once it arrives (setPageTitleOverride), same pattern as
+// StaffDetailPage/BookingDetailPage. This resolver's editPageTitle only covers the brief window
+// before that override lands (was falling back all the way to the generic default title before
+// this — M21-S04 live review, 2026-09-02).
+function resolveResourceTitleAndBackLink(ctx: TopbarRouteContext): TitleAndBackLink | null {
+  const { pathname, dashboardT, resourcesT } = ctx;
+
+  if (isResourceCreateRoute(pathname)) {
+    return {
+      pageTitle: resourcesT('createPageTitle'),
+      backHref: '/dashboard/resources',
+      backLabel: ctx.commonBackLabel,
+    };
+  }
+
+  const resourceRouteMatch = matchResourceRoute(pathname);
+  if (resourceRouteMatch?.action === 'edit') {
+    return {
+      pageTitle: resourcesT('editPageTitle'),
+      backHref: '/dashboard/resources',
+      backLabel: dashboardT('nav.resources'),
+    };
+  }
+  if (resourceRouteMatch?.action === 'deactivate') {
+    return {
+      pageTitle: resourcesT('deactivatePageTitle'),
+      backHref: '/dashboard/resources',
+      backLabel: dashboardT('nav.resources'),
+    };
+  }
+  return null;
+}
+
+function resolveSectionTitleAndBackLink(ctx: TopbarRouteContext): TitleAndBackLink | null {
+  return (
+    resolveServiceTitleAndBackLink(ctx) ??
+    resolveTeamTitleAndBackLink(ctx) ??
+    resolveResourceTitleAndBackLink(ctx)
+  );
 }
 
 function resolveTitleAndBackLink(ctx: TopbarRouteContext): TitleAndBackLink {
@@ -124,8 +166,8 @@ function resolveTitleAndBackLink(ctx: TopbarRouteContext): TitleAndBackLink {
   const bookingRouteMatch = matchBookingDetailRoute(pathname);
   if (bookingRouteMatch) return resolveBookingTitleAndBackLink(ctx, bookingRouteMatch);
 
-  const serviceOrTeamResult = resolveServiceOrTeamTitleAndBackLink(ctx);
-  if (serviceOrTeamResult) return serviceOrTeamResult;
+  const sectionResult = resolveSectionTitleAndBackLink(ctx);
+  if (sectionResult) return sectionResult;
 
   const pageTitleKey = PAGE_TITLE_KEYS.find(([path]) => pathname.startsWith(path))?.[1];
   return {

@@ -1,84 +1,79 @@
 # Dev Notes — MANAGER: Recursos (Resource Management)
 
+**Journey:** MANAGER — Recursos (Resource Management)
+**UCs:** UC-044 (list), UC-045 (create), UC-046 (edit), UC-047 (deactivate), UC-048 (staff-deactivation cascade), UC-049 (reactivate)
+**Prototype:** `manager/prototypes/resources/`
+**Status:** ✅ Done — backend/BFF `M21-S01`, dashboard frontend `M21-S04`
+
+---
+
 ## Overview
 
-Dashboard section for creating and managing the tenant's `Resource` rows (`LOCATION`/`STAFF`/`ROOM`/`EQUIPMENT`) — the M21 Multi-Vertical Scheduling Cluster 1 (Foundation) feature. Nothing here is built yet; this is a ❓ GAP journey, relocated from `docs/discovery/multivertical-booking/prototype/` (`manager-01-resources-list.html`, `manager-04-criar-recurso.html`, `manager-04b-criar-recurso-erro.html`).
+Dashboard section for creating and managing the tenant's `Resource` rows (`LOCATION`/`STAFF`/`ROOM`/`EQUIPMENT`) — the M21 Multi-Vertical Scheduling Cluster 1 (Foundation) feature. Fully shipped: backend/BFF endpoints (`M21-S01`), the historical `LOCATION` backfill + going-forward `TenantProvisioned` handler (`M21-S02`), and the manager dashboard UI (`M21-S04`, this document). Originally relocated from `docs/discovery/multivertical-booking/prototype/` (`manager-01-resources-list.html`, `manager-04-criar-recurso.html`, `manager-04b-criar-recurso-erro.html`).
 
-## File map (❓ none exist yet)
+---
 
-| File | Status |
-|---|---|
-| `apps/web/app/dashboard/resources/page.tsx` | ❓ Gap |
-| `apps/web/app/dashboard/resources/new/page.tsx` | ❓ Gap |
-| `apps/web/app/dashboard/resources/[id]/page.tsx` | ❓ Gap |
-| `apps/web/features/booking/components/dashboard/resources/ResourceListPage.tsx` | ❓ Gap |
-| `apps/web/features/booking/components/dashboard/resources/ResourceCreateForm.tsx` | ❓ Gap |
-| `apps/web/features/booking/components/dashboard/resources/ResourceEditForm.tsx` | ❓ Gap (every field editable — name, type, refId, working hours, turnover, capacity — broadened from working-hours-only in PR #457 round 9+) |
-| `apps/bff/http/resources/*.http` | ❓ Gap |
+## Routes (all ✅ shipped, no `[slug]` segment — dashboard is JWT/session-scoped)
 
-## BFF calls (endpoints not yet implemented — contract per `docs/14-API_CONTRACTS.md`)
+| Prototype file | Production route | Page component |
+|---|---|---|
+| `01-resources-list.html` | `/dashboard/resources` | `ResourceListPage` |
+| `02-criar-recurso.html` / `02b-criar-recurso-erro.html` | `/dashboard/resources/new` | `ResourceCreateForm` |
+| Not prototyped (built from `SettingsHoursSection.tsx`'s pattern) | `/dashboard/resources/[id]` | `ResourceEditForm` / `ResourceEditFormFields` |
+| Not prototyped (built from `equipe/03-deactivate-confirm.html`'s shape) | `/dashboard/resources/[id]/deactivate` | `ResourceDeactivatePage` (deactivate only — redirects away if the resource is already inactive) |
 
-```
-GET /v1/resources?type=&isActive=
-  Header: Authorization: Bearer {jwt}   (MANAGER)
-  Response: { items: Resource[] }
+## BFF calls (all ✅ shipped)
 
-POST /v1/resources
-  Header: Authorization: Bearer {jwt}   (MANAGER)
-  Body: { type: 'STAFF'|'ROOM'|'EQUIPMENT', refId?: string, name?: string, workingHours?: BusinessHours, turnoverMinutes?: number, maxCapacity?: number }
-  Response 201: Resource
-  Response 409: { code: 'BOOKING_RESOURCE_STAFF_ALREADY_WRAPPED' }   -- CAND-01 A1
-  Response 422: { code: 'BOOKING_RESOURCE_NO_WORKING_HOURS' }        -- CAND-01 A2
+| Action | Method + Path | Role guard | Request body | Success |
+|---|---|---|---|---|
+| List resources | `GET /v1/resources?type=&isActive=` | MANAGER | — | `ResourceListResponse` |
+| Get one resource | `GET /v1/resources/:id` | MANAGER | — | `ResourceResponse` (added during `M21-S04` — no prior single-resource read endpoint existed) |
+| Create resource | `POST /v1/resources` | MANAGER | `CreateResourceRequest` | `201` |
+| Edit resource | `PATCH /v1/resources/:id` | MANAGER | `UpdateResourceRequest` (every field independently optional) | `200` |
+| Deactivate resource | `DELETE /v1/resources/:id` | MANAGER | — | `204` |
+| Reactivate resource | `POST /v1/resources/:id/reactivate` | MANAGER | — | `200` |
 
-PATCH /v1/resources/:id
-  Body: every field independently optional (unsent = unchanged) —
-    { name?, type?, refId?: string | null, workingHours?: BusinessHours | null, turnoverMinutes?: number, maxCapacity?: number | null }
-    (broadened from working-hours-only in PR #457 round 9+; corrected here during M21-S04 story discovery, 2026-09-02)
-  Response 200: Resource
-  Response 404: not found / cross-tenant / (type→STAFF) target staff not found or inactive
-  Response 409: type=STAFF target already wrapped by a different Resource / type changing to-or-from LOCATION
-  Response 400/422: type changing away from STAFF without refId: null / no working hours anywhere after the update
-
-DELETE /v1/resources/:id → 204   -- deactivate (UC-047)
-POST /v1/resources/:id/reactivate → 200: Resource   -- reactivate (UC-049), no event published
-```
-
-Error codes above are illustrative — the implementing story mints the real `BOOKING_*` codes per `docs/25-ERROR_CATALOG.md`'s 3-step checklist (code → both locale translations → typed constructor), not these placeholder names.
+All endpoints exist (`apps/bff/src/features/booking/resource.controller.ts`; backend `apps/backend/src/contexts/booking/infrastructure/controllers/resource.controller.ts`). Full contract: `docs/14-API_CONTRACTS.md` § Resource Management.
 
 ## Screen: ResourceListPage (`/dashboard/resources`, UC-044)
 
-**File:** `01-resources-list.html` (prototype)
-
-Lists every `Resource`, grouped by `type` (`LOCATION` first — always exactly one, then `STAFF`, `ROOM`, `EQUIPMENT`), each row showing name, a working-hours summary ("Herda do negócio" when `workingHours = null`, otherwise the per-weekday summary), and an Ativo/Inativo badge. Inactive rows show a "Reativar" action instead of "Desativar"/"Horários" — same one-click-row-action pattern `manager/equipe.md`'s "Ativar" already established for `UC-031`.
+Lists every `Resource`, sorted by `type` (`LOCATION` first — always exactly one, then `STAFF`, `ROOM`, `EQUIPMENT`), each row showing name, a working-hours summary ("Herda do negócio" when `workingHours = null`, otherwise the per-weekday summary), and an Ativo/Inativo badge. Filterable by both `type` (Todos/Profissionais/Salas/Equipamentos tabs, matching the prototype) and `isActive` (Todos/Ativos/Inativos, added during PR #459 bot review to satisfy UC-044's main flow — no prototype coverage for this second filter dimension). Inactive rows show a "Reativar" action instead of "Desativar"/"Horários" — same one-click-row-action pattern `manager/equipe.md`'s "Ativar" already established for `UC-031`. `LOCATION` never offers a "Desativar" action (UC-047 doesn't cover deactivating a tenant's one default resource).
 
 **"+ Novo recurso"** — desktop topbar button + mobile FAB, same pair as `manager/equipe.md`'s "+ Convidar membro".
 
 ## Component: ResourceCreateForm (`/dashboard/resources/new`, UC-045)
 
-**File:** `02-criar-recurso.html` (prototype) — real interactive type-switcher already built in the discovery pass (dev-notes item 15: "selecting Sala or Equipamento now swaps the staff-picker for a display-name field").
+Real interactive type-switcher (`ResourceIdentityFields`) — selecting Sala or Equipamento swaps the staff-picker for a display-name field, matching the discovery-stage prototype.
 
 **Form fields:**
 
 | Field | Component | Validation |
 |---|---|---|
 | `type` | 3-card selector: Profissional (STAFF) / Sala (ROOM) / Equipamento (EQUIPMENT) | required — `LOCATION` is never manually created |
-| `refId` (STAFF only) | `<Select>` of existing, not-yet-wrapped `Staff` rows | required when `type = STAFF` |
-| `name` (ROOM/EQUIPMENT only; denormalized display name for STAFF too) | `<Input type="text">` | required |
-| `workingHours` | per-weekday open/close editor, same shape as tenant `businessHours` editor | optional — blank inherits tenant hours; every window must be a subset of the tenant's own hours |
+| `refId` (STAFF only) | `<Select>` of existing, not-yet-wrapped, active `Staff` rows (currently-selected staff stays visible-but-disabled if since deactivated) | required when `type = STAFF` |
+| `name` | `<Input type="text">` — for STAFF, auto-seeded from the picked staff member's own name but independently editable after (`Resource.name` is denormalized, per `docs/02-DOMAIN_MODEL.md` § Resource) | required for every type |
+| `workingHours` | per-weekday open/close editor (`ResourceWorkingHoursEditor`, shared `WeekDayRow` primitive with the tenant `businessHours` editor) | optional — blank inherits tenant hours; every window must be a subset of the tenant's own hours |
 | `turnoverMinutes` | `<Input type="number">` | optional, default 0, `>= 0` |
-| `maxCapacity` | `<Input type="number">` (ROOM/EQUIPMENT/LOCATION only, hidden for STAFF) | optional, `> 0` when set |
+| `maxCapacity` | `<Input type="number">` (hidden for STAFF — discarded on submit even if a stale value exists from a prior type selection) | optional, `> 0` when set |
 
-**Error messages (pt-BR, from CAND-01 alt flows):**
-- 409 staff already wrapped: "Este profissional já está vinculado a outro recurso."
-- 422 no working hours anywhere: "Defina um horário de funcionamento para este recurso ou configure o horário padrão do negócio primeiro."
+**Error messages (pt-BR, from UC-045 alt flows):** surfaced inline via the shared API-error resolver, not hardcoded per-code strings as originally drafted here.
+- 409 staff already wrapped → `BOOKING_RESOURCE_STAFF_ALREADY_WRAPPED`
+- 422 no working hours anywhere → `BOOKING_RESOURCE_NO_WORKING_HOURS`
 
-## Not yet prototyped (needed before implementation)
+## Component: ResourceEditForm / ResourceEditFormFields (`/dashboard/resources/[id]`, UC-046)
 
-- **ResourceEditForm** (UC-046, every field editable — broadened from working-hours-only in PR #457 round 9+) — no discovery screen exists. Build the working-hours section from `apps/web/features/platform/components/settings/SettingsHoursSection.tsx`'s existing per-weekday hours editor (the tenant `businessHours` editor — same shape minus the timezone key; corrected during M21-S04 story discovery, 2026-09-02 — `staff/prototypes/horarios/` has no such editor to mirror), not from scratch.
-- **Deactivate confirmation** (UC-047) — no discovery screen exists (flagged as a known gap by the discovery itself: "CAND-03... has zero entry points — not even a dead link"). Mirror `manager/prototypes/equipe/03-deactivate-confirm.html`'s shape: show the resource's future approved appointments/materialized sessions as explicit commitments (empty for a Cluster-1-only tenant — nothing populates this list until Clusters 2–4 land) before confirming.
-- **Reactivate confirmation** (UC-049) — no discovery screen exists. A simple confirm dialog; on 200, no event published (`ResourceReactivated` descoped during M21-S01 story discovery, 2026-09-01 — no consumer exists yet).
+No discovery-stage prototype — built from `SettingsHoursSection.tsx`'s existing per-weekday hours editor pattern (same shape minus the timezone key, since a Resource always inherits the tenant's timezone). Every field is independently editable (broadened from working-hours-only in PR #457 round 9+). Split into an outer `ResourceEditForm` (fetch + topbar status + load-error state) and an inner `ResourceEditFormFields` (keyed by `resourceId`, initializes local form state directly from the loaded resource — no `useEffect` sync).
+
+## Component: ResourceDeactivateConfirm (`/dashboard/resources/[id]/deactivate`, UC-047)
+
+No discovery-stage prototype — mirrors `manager/prototypes/equipe/03-deactivate-confirm.html`'s shape. Shows the resource's future approved appointments/materialized sessions as explicit commitments (empty for a Cluster-1-only tenant — nothing populates this list until Clusters 2–4 land). This route only ever serves an active resource — `ResourceDeactivatePage` redirects back to the list if reached for one that's already inactive.
+
+## Reactivation (UC-049) — inline row action, no dedicated screen
+
+Corrected during live manual testing (2026-09-02, superseding an earlier confirm-screen implementation) to mirror `TeamListPage`/`MemberRow`'s own established precedent: reactivating a resource is a one-click action directly on `ResourceListPage`'s inactive row (`ReactivateResourceAction`, in `ResourceRow.tsx`), not a navigation to a confirmation screen. On success, no event is published (`ResourceReactivated` descoped during `M21-S01` story discovery — no consumer exists yet).
 
 ## Known limitations
 
-- Cluster 2–4 features this journey will eventually integrate with (`Service.classResourceSlots` eligibility pools, `resource_occupancy`-based availability) do not exist yet — `01-resources-list.html`'s "Horários" and "Serviços" nav links point at not-yet-promoted screens. See `staff/prototypes/horarios/dev-notes.md`'s matching note.
-- `LOCATION` resources are never shown as editable/deactivatable in the discovery's own screens beyond the list row itself — the implementing story should decide whether the list even offers a "Desativar" action on the tenant's one `LOCATION` resource (probably not, since UC-047's A1/A2 don't cover this case and a tenant needs at least one always-active default resource).
+- Cluster 2–4 features this journey will eventually integrate with (`Service.classResourceSlots` eligibility pools, `resource_occupancy`-based availability) do not exist yet.
+- The STAFF picker (`ResourceCreateForm`/`ResourceEditFormFields`) fetches only the first 100 staff rows — the backend's own `GET /staff` hard-caps `limit` at 100 (`staff.controller.ts`), matching the Team page's own existing `fetchStaffList` precedent. No pagination/search UI exists anywhere in the codebase to build one from; worth a dedicated staff-search TD if team sizes ever realistically exceed 100.
+- The resource list itself has no pagination — `GET /resources` has no `limit`/`offset` params in its documented contract, and Resources (rooms/equipment/staff-wrappers/one location) is an inherently small, physically-bounded dataset by domain nature, unlike customer/booking-scale entities.
