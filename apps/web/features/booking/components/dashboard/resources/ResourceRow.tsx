@@ -91,6 +91,7 @@ export function ResourceRow({
     <div className="relative flex flex-wrap items-center gap-3 px-4 py-3.5">
       <Link
         href={`/dashboard/resources/${resource.id}`}
+        data-testid="resource-row-edit-link"
         className="absolute inset-0 z-10"
         aria-label={t('viewDetailsAriaLabel', { name: resource.name })}
       />

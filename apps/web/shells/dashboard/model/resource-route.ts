@@ -3,17 +3,22 @@ export interface ResourceRouteMatch {
   readonly action: 'edit' | 'deactivate';
 }
 
-// Mirrors team-route.ts's shape: the resource detail route has no /edit suffix, so a single
-// dynamic segment after /dashboard/resources collides structurally with the static /new
-// route (both are one path segment) — /new must be excluded explicitly here. The optional
-// /deactivate suffix is the one nested action route (serving both deactivate and reactivate).
+// Unlike services (edit lives at /:id/edit), a resource's edit screen is the bare /:id route —
+// so "new" would otherwise match this pattern as a resourceId. isResourceCreateRoute() must be
+// checked by the caller before this, same relationship as isServiceCreateRoute() to
+// matchServiceRoute() (see topbar-route.ts's resolveResourceTitleAndBackLink()).
 const RESOURCE_ROUTE = /^\/dashboard\/resources\/([^/]+)(?:\/(deactivate))?$/;
 
 export function matchResourceRoute(pathname: string): ResourceRouteMatch | null {
-  const match = RESOURCE_ROUTE.exec(pathname);
-  if (!match || match[1] === 'new') return null;
+  if (isResourceCreateRoute(pathname)) return null;
 
-  return { resourceId: match[1], action: match[2] === 'deactivate' ? 'deactivate' : 'edit' };
+  const match = RESOURCE_ROUTE.exec(pathname);
+  if (!match) return null;
+
+  return {
+    resourceId: match[1],
+    action: match[2] === 'deactivate' ? 'deactivate' : 'edit',
+  };
 }
 
 export function isResourceCreateRoute(pathname: string): boolean {

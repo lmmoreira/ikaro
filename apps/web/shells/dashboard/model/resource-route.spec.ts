@@ -2,37 +2,35 @@ import { describe, expect, it } from 'vitest';
 import { isResourceCreateRoute, matchResourceRoute } from './resource-route';
 
 describe('matchResourceRoute', () => {
-  it('matches a resource edit route', () => {
-    expect(matchResourceRoute('/dashboard/resources/r-1')).toEqual({
-      resourceId: 'r-1',
+  it('matches the edit route (bare /:id, no /edit suffix)', () => {
+    expect(matchResourceRoute('/dashboard/resources/res-1')).toEqual({
+      resourceId: 'res-1',
       action: 'edit',
     });
   });
 
-  it('matches a resource deactivate route', () => {
-    expect(matchResourceRoute('/dashboard/resources/r-1/deactivate')).toEqual({
-      resourceId: 'r-1',
+  it('matches deactivate routes', () => {
+    expect(matchResourceRoute('/dashboard/resources/res-1/deactivate')).toEqual({
+      resourceId: 'res-1',
       action: 'deactivate',
     });
   });
 
-  it('returns null for the new route (collides structurally with [id])', () => {
+  it('returns null for the list and create routes', () => {
+    expect(matchResourceRoute('/dashboard/resources')).toBeNull();
     expect(matchResourceRoute('/dashboard/resources/new')).toBeNull();
   });
 
-  it('returns null for the list route', () => {
-    expect(matchResourceRoute('/dashboard/resources')).toBeNull();
-  });
-
-  it('returns null for other paths', () => {
+  it('returns null for a different section entirely', () => {
     expect(matchResourceRoute('/dashboard/services')).toBeNull();
   });
 });
 
 describe('isResourceCreateRoute', () => {
-  it('returns true only for the exact new route', () => {
+  it('returns true only for the exact create route', () => {
     expect(isResourceCreateRoute('/dashboard/resources/new')).toBe(true);
     expect(isResourceCreateRoute('/dashboard/resources')).toBe(false);
-    expect(isResourceCreateRoute('/dashboard/resources/r-1')).toBe(false);
+    expect(isResourceCreateRoute('/dashboard/resources/res-1')).toBe(false);
+    expect(isResourceCreateRoute('/dashboard/resources/res-1/deactivate')).toBe(false);
   });
 });

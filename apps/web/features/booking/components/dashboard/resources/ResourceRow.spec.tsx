@@ -26,6 +26,15 @@ const ACTIVE_ROOM: ResourceResponse = {
 const INACTIVE_ROOM: ResourceResponse = { ...ACTIVE_ROOM, isActive: false };
 
 describe('ResourceRow', () => {
+  it("links the whole row to the resource's edit screen", () => {
+    renderWithIntl(<ResourceRow resource={ACTIVE_ROOM} />);
+
+    expect(screen.getByTestId('resource-row-edit-link')).toHaveAttribute(
+      'href',
+      '/dashboard/resources/room-1',
+    );
+  });
+
   it('shows a Desativar link for an active, non-LOCATION resource', () => {
     renderWithIntl(<ResourceRow resource={ACTIVE_ROOM} />);
 

@@ -6,37 +6,56 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { Topbar } from './Topbar';
 import { DashboardTopbarStatusProvider, useDashboardTopbarStatus } from './topbar-status-context';
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => {
-    const map: Record<string, string> = {
-      back: 'Voltar',
-      'nav.bookings': 'Agenda',
-      'nav.schedule': 'Horários',
-      'nav.services': 'Serviços',
-      'nav.loyalty': 'Fidelidade',
-      'nav.team': 'Equipe',
-      'nav.settings': 'Configurações',
-      'nav.hotsite': 'Hotsite',
-      createPageTitle: 'Criar serviço',
-      editPageTitle: 'Editar serviço',
-      deactivatePageTitle: 'Desativar serviço',
-      deactivateMemberPageTitle: 'Desativar membro',
-      statusActive: 'Ativo',
-      statusInactive: 'Inativo',
-      invite: 'Convidar membro',
-      roleManager: 'Gerente',
-      roleStaff: 'Equipe',
-      title: 'Detalhe do agendamento',
-      completeSheetTitle: 'Marcar concluído',
-      rescheduleSheetTitle: 'Reagendar',
-      statusPending: 'Pendente',
-      statusInfoRequested: 'Aguardando info',
-      statusApproved: 'Aprovado',
-      'topbar.todayPrefix': 'Hoje,',
-      'topbar.defaultTitle': 'Dashboard',
-    };
-    return map[key] ?? key;
+// Namespace-scoped (mirrors real next-intl) — a flat, namespace-blind map previously let two
+// different namespaces' same-named key (e.g. servicesT('createPageTitle') vs.
+// resourcesT('createPageTitle')) silently collide on one shared mocked value.
+const MESSAGES_BY_NAMESPACE: Record<string, Record<string, string>> = {
+  common: {
+    back: 'Voltar',
   },
+  dashboard: {
+    'nav.bookings': 'Agenda',
+    'nav.schedule': 'Horários',
+    'nav.services': 'Serviços',
+    'nav.loyalty': 'Fidelidade',
+    'nav.team': 'Equipe',
+    'nav.settings': 'Configurações',
+    'nav.hotsite': 'Hotsite',
+    'nav.resources': 'Recursos',
+    'topbar.todayPrefix': 'Hoje,',
+    'topbar.defaultTitle': 'Dashboard',
+  },
+  'dashboard.servicesPage': {
+    createPageTitle: 'Criar serviço',
+    editPageTitle: 'Editar serviço',
+    deactivatePageTitle: 'Desativar serviço',
+    statusActive: 'Ativo',
+    statusInactive: 'Inativo',
+  },
+  'dashboard.teamPage': {
+    deactivateMemberPageTitle: 'Desativar membro',
+    invite: 'Convidar membro',
+    roleManager: 'Gerente',
+    roleStaff: 'Equipe',
+  },
+  'dashboard.bookingDetail': {
+    title: 'Detalhe do agendamento',
+    completeSheetTitle: 'Marcar concluído',
+    rescheduleSheetTitle: 'Reagendar',
+    statusPending: 'Pendente',
+    statusInfoRequested: 'Aguardando info',
+    statusApproved: 'Aprovado',
+  },
+  'dashboard.resourcesPage': {
+    createPageTitle: 'Novo recurso',
+    editPageTitle: 'Editar recurso',
+    deactivatePageTitle: 'Desativar recurso',
+  },
+};
+
+vi.mock('next-intl', () => ({
+  useTranslations: (namespace: string) => (key: string) =>
+    MESSAGES_BY_NAMESPACE[namespace]?.[key] ?? key,
   useLocale: () => 'pt-BR',
 }));
 
@@ -144,6 +163,46 @@ describe('Topbar', () => {
     render(<Topbar tenantName="Lavacar BH" userName="Ana" />);
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Agenda');
+  });
+
+  it('renders "Recursos" as the page title on the resources list route', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/resources');
+    render(<Topbar tenantName="Lavacar BH" userName="Ana" />);
+
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Recursos');
+  });
+
+  it('renders the create title on the resource creation route', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/resources/new');
+    render(<Topbar tenantName="Lavacar BH" userName="Ana" />);
+
+    expect(screen.getByRole('link', { name: 'Voltar' })).toHaveAttribute(
+      'href',
+      '/dashboard/resources',
+    );
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Novo recurso');
+  });
+
+  it('renders the edit title on the resource edit route (bare /:id)', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/resources/res-1');
+    render(<Topbar tenantName="Lavacar BH" userName="Ana" />);
+
+    expect(screen.getByRole('link', { name: 'Recursos' })).toHaveAttribute(
+      'href',
+      '/dashboard/resources',
+    );
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Editar recurso');
+  });
+
+  it('renders the deactivate title on the resource deactivate route', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/resources/res-1/deactivate');
+    render(<Topbar tenantName="Lavacar BH" userName="Ana" />);
+
+    expect(screen.getByRole('link', { name: 'Recursos' })).toHaveAttribute(
+      'href',
+      '/dashboard/resources',
+    );
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Desativar recurso');
   });
 
   it('renders the create title on the service creation route', () => {
