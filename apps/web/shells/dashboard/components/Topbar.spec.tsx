@@ -158,18 +158,15 @@ describe('Topbar', () => {
     expect(screen.getByText('?')).toBeInTheDocument();
   });
 
-  it('renders the page title matching the current pathname', () => {
-    vi.mocked(usePathname).mockReturnValue('/dashboard/bookings');
+  it.each([
+    ['a recognised pathname', '/dashboard/bookings', 'Agenda'],
+    ['the resources list route', '/dashboard/resources', 'Recursos'],
+    ['an unrecognised pathname', '/dashboard/unknown', 'Dashboard'],
+  ])('renders the page title matching %s', (_label, pathname, title) => {
+    vi.mocked(usePathname).mockReturnValue(pathname);
     render(<Topbar tenantName="Lavacar BH" userName="Ana" />);
 
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Agenda');
-  });
-
-  it('renders "Recursos" as the page title on the resources list route', () => {
-    vi.mocked(usePathname).mockReturnValue('/dashboard/resources');
-    render(<Topbar tenantName="Lavacar BH" userName="Ana" />);
-
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Recursos');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(title);
   });
 
   it.each([
@@ -441,13 +438,6 @@ describe('Topbar', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Marcar aprovado' }));
 
     expect(screen.getByText('Aprovado')).toBeInTheDocument();
-  });
-
-  it('falls back to "Dashboard" for an unrecognised pathname', () => {
-    vi.mocked(usePathname).mockReturnValue('/dashboard/unknown');
-    render(<Topbar tenantName="Lavacar BH" userName="Ana" />);
-
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Dashboard');
   });
 
   it('renders first-letter logo mark from tenant name', () => {
