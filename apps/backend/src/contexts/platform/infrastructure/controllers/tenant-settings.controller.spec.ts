@@ -1,14 +1,12 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
-import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
 import { InMemoryChatbotSessionRepository } from '../../../../test/repositories/platform/in-memory-chatbot-session.repository';
 import { ChatbotSessionBuilder, TenantBuilder } from '../../../../test/builders/platform/index';
 import { todayInSaoPaulo } from '../../../../test/utils/chatbot-test-helpers';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { TRANSACTION_MANAGER } from '../../../../shared/ports/transaction-manager.port';
-import { TENANT_LOCK_PORT } from '../../../../shared/ports/tenant-lock.port';
 import { TENANT_REPOSITORY } from '../../application/ports/tenant-repository.port';
 import { CHATBOT_SESSION_REPOSITORY } from '../../application/ports/chatbot-session-repository.port';
 import { UpdateTenantSettingsUseCase } from '../../application/use-cases/update-tenant-settings.use-case';
@@ -43,7 +41,6 @@ describe('TenantSettingsController', () => {
         { provide: CHATBOT_SESSION_REPOSITORY, useValue: sessionRepo },
         { provide: RequestContext, useValue: tenantContext },
         { provide: TRANSACTION_MANAGER, useValue: new InMemoryTransactionManager() },
-        { provide: TENANT_LOCK_PORT, useValue: new InMemoryTenantLock() },
       ],
     }).compile();
 

@@ -11,7 +11,7 @@ import {
   IScheduleOpeningRepository,
   SCHEDULE_OPENING_REPOSITORY,
 } from '../ports/schedule-opening-repository.port';
-import { ITenantLockPort, TENANT_LOCK_PORT } from '../../../../shared/ports/tenant-lock.port';
+import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
 
 export type RemoveScheduleOpeningUseCaseInput = {
   id: string;

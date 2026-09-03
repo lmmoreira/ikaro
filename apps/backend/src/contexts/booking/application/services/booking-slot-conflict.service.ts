@@ -5,7 +5,7 @@ import {
   IBookingAvailabilityPort,
   BOOKING_AVAILABILITY_PORT,
 } from '../ports/booking-availability.port';
-import { ITenantLockPort, TENANT_LOCK_PORT } from '../../../../shared/ports/tenant-lock.port';
+import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
 
 @Injectable()
 export class BookingSlotConflictService {

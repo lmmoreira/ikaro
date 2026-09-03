@@ -3,6 +3,7 @@ import { InMemoryTenantRepository } from '../../../../test/repositories/platform
 import { TenantBuilder } from '../../../../test/builders/platform/index';
 import { GetTenantByIdUseCase } from '../../../platform/application/use-cases/get-tenant-by-id.use-case';
 import { GetTenantsUseCase } from '../../../platform/application/use-cases/get-tenants.use-case';
+import { GetTenantBusinessHoursForUpdateUseCase } from '../../../platform/application/use-cases/get-tenant-business-hours-for-update.use-case';
 import { BookingPlatformAdapter } from './booking-platform.adapter';
 
 describe('BookingPlatformAdapter', () => {
@@ -16,6 +17,7 @@ describe('BookingPlatformAdapter', () => {
     adapter = new BookingPlatformAdapter(
       new GetTenantsUseCase(repo),
       new GetTenantByIdUseCase(repo),
+      new GetTenantBusinessHoursForUpdateUseCase(repo),
       revalidation,
     );
   });
@@ -70,6 +72,18 @@ describe('BookingPlatformAdapter', () => {
       await repo.save(tenant);
 
       const result = await adapter.getBusinessHoursAndLocale(tenant.id);
+
+      expect(result.locale).toBe('pt-BR');
+      expect(result.businessHours).toEqual(tenant.settings.businessHours);
+    });
+  });
+
+  describe('getBusinessHoursAndLocaleForUpdate', () => {
+    it("returns the tenant's business hours and locale via the uncached, row-locking read", async () => {
+      const tenant = new TenantBuilder().build();
+      await repo.save(tenant);
+
+      const result = await adapter.getBusinessHoursAndLocaleForUpdate(tenant.id);
 
       expect(result.locale).toBe('pt-BR');
       expect(result.businessHours).toEqual(tenant.settings.businessHours);

@@ -535,10 +535,11 @@ describe('OpenScheduleUseCase', () => {
     });
   });
 
-  describe('tenant-settings advisory lock and fresh re-fetch (Codex PR #460 round-4/5 TOCTOU finding, closed round 7)', () => {
-    it('acquires the tenant-settings lock for a tenant-wide create', async () => {
+  describe('tenant-settings row-locked read and fresh re-fetch (Codex PR #460 round-4/5/7 TOCTOU finding)', () => {
+    it('reads via the row-locking getBusinessHoursAndLocaleForUpdate, not the cached getBusinessHoursAndLocale, for a tenant-wide create', async () => {
       const date = nextWeekday(0);
-      const lockSpy = jest.spyOn(tenantLock, 'lockTenantSettings');
+      const forUpdateSpy = jest.spyOn(platform, 'getBusinessHoursAndLocaleForUpdate');
+      const cachedSpy = jest.spyOn(platform, 'getBusinessHoursAndLocale');
 
       await useCase.execute({
         date,
@@ -549,10 +550,11 @@ describe('OpenScheduleUseCase', () => {
         businessHours: settings.businessHours,
       });
 
-      expect(lockSpy).toHaveBeenCalledWith(TENANT_ID);
+      expect(forUpdateSpy).toHaveBeenCalledWith(TENANT_ID);
+      expect(cachedSpy).not.toHaveBeenCalled();
     });
 
-    it('acquires the tenant-settings lock for a resource-scoped create', async () => {
+    it('reads via the row-locking getBusinessHoursAndLocaleForUpdate for a resource-scoped create', async () => {
       const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
       await resourceRepo.save(resource);
       const date = nextWeekday(0);
@@ -564,7 +566,7 @@ describe('OpenScheduleUseCase', () => {
         createdBy: ACTOR_ID,
         businessHours: settings.businessHours,
       });
-      const lockSpy = jest.spyOn(tenantLock, 'lockTenantSettings');
+      const forUpdateSpy = jest.spyOn(platform, 'getBusinessHoursAndLocaleForUpdate');
 
       await useCase.execute({
         date,
@@ -576,7 +578,7 @@ describe('OpenScheduleUseCase', () => {
         businessHours: settings.businessHours,
       });
 
-      expect(lockSpy).toHaveBeenCalledWith(TENANT_ID);
+      expect(forUpdateSpy).toHaveBeenCalledWith(TENANT_ID);
     });
 
     it('rejects using freshly-fetched businessHours even when the stale input snapshot would have allowed it', async () => {

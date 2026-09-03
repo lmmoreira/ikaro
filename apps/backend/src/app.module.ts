@@ -15,7 +15,6 @@ import { EventBusModule } from './shared/infrastructure/event-bus/event-bus.modu
 import { InboxModule } from './shared/infrastructure/inbox/inbox.module';
 import { OutboxModule } from './shared/infrastructure/outbox/outbox.module';
 import { TransactionManagerModule } from './shared/infrastructure/transaction-manager.module';
-import { TenantLockModule } from './shared/infrastructure/tenant-lock.module';
 import { InternalApiGuard } from './shared/guards/internal-api.guard';
 import { PubSubPushGuard } from './shared/guards/pubsub-push.guard';
 import { RequestInterceptor } from './shared/request/request.interceptor';
@@ -81,7 +80,6 @@ import {
     OutboxModule,
     InboxModule,
     TransactionManagerModule,
-    TenantLockModule,
     RequestModule,
     PlatformModule,
     BookingModule,

@@ -3,7 +3,7 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { ITenantLockPort, TENANT_LOCK_PORT } from '../../../../shared/ports/tenant-lock.port';
+import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
 import type { BusinessHours, DayHours } from '../../../../shared/value-objects/business-hours.vo';
 import { ScheduleOpening } from '../../domain/schedule-opening.aggregate';
 import { Resource } from '../../domain/resource.aggregate';
@@ -107,11 +107,13 @@ export class OpenScheduleUseCase {
   ): Promise<void> {
     const { tenantId, resourceId } = input;
 
-    // Serializes against a concurrent PATCH /tenants/settings before re-reading businessHours,
-    // so the check below can't observe a value that's about to be superseded (Codex PR #460
-    // round-4/5 finding — closed in round 7 rather than left as accepted risk).
-    await this.tenantLock.lockTenantSettings(tenantId);
-    const { businessHours } = await this.platform.getBusinessHoursAndLocale(tenantId);
+    // Row-locks the tenant (bypassing the read cache entirely) and serializes against a
+    // concurrent UpdateTenantSettingsUseCase write, so the check below can't observe a
+    // businessHours value that's about to be superseded (Codex PR #460 round-4/5/7 finding — an
+    // earlier advisory-lock design here still went through the cache regardless of lock
+    // ordering, so it didn't actually close this race; findByIdForUpdate's real Postgres row
+    // lock does).
+    const { businessHours } = await this.platform.getBusinessHoursAndLocaleForUpdate(tenantId);
 
     if (this.effectiveDayHours(resource, businessHours, weekday) !== null) {
       throw new DayAlreadyOpenInSettingsError(input.date);

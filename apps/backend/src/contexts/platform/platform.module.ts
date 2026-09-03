@@ -5,7 +5,6 @@ import { ApplicationConfigModule } from '../../shared/infrastructure/application
 import { StorageModule } from '../../shared/infrastructure/storage.module';
 import { RequestModule } from '../../shared/request/request.module';
 import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cache.module';
-import { TenantLockModule } from '../../shared/infrastructure/tenant-lock.module';
 import { TENANT_SETTINGS_PORT } from '../../shared/ports/tenant-settings.port';
 import { CHATBOT_MESSAGE_REPOSITORY } from './application/ports/chatbot-message-repository.port';
 import { CHATBOT_PROVIDER_BALANCE_REPOSITORY } from './application/ports/chatbot-provider-balance-repository.port';
@@ -119,7 +118,6 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     RequestModule,
     StorageModule,
     SharedCacheModule,
-    TenantLockModule,
   ],
   controllers: [
     ChatbotController,

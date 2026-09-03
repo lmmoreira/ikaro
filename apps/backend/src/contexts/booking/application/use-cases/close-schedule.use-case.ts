@@ -11,7 +11,7 @@ import {
   SCHEDULE_CLOSURE_REPOSITORY,
 } from '../ports/schedule-closure-repository.port';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
-import { ITenantLockPort, TENANT_LOCK_PORT } from '../../../../shared/ports/tenant-lock.port';
+import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
 import { CloseScheduleDto } from '../dtos/close-schedule.dto';
 
 export type CloseScheduleUseCaseInput = CloseScheduleDto & {
