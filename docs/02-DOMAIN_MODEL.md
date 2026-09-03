@@ -503,7 +503,7 @@ The availability algorithm resolves the effective operating window for any given
 3. businessHours   (lowest priority — the recurring weekly pattern)
 ```
 
-Resolution logic per date:
+Resolution logic per date, tenant-wide (no `resourceId`):
 ```
 if ScheduleOpening exists for (tenantId, date):
     effective_hours = { open: opening.startTime, close: opening.endTime }
@@ -516,6 +516,32 @@ else:
     effective_hours = businessHours[dayOfWeek]
     filter out any slots that overlap partial ScheduleClosures for this date
 ```
+
+**Resource-scoped resolution (M21 Cluster 1, `AvailabilityService.resolveEffectiveHours`, Codex PR #460 round-8 finding):** when a caller passes a `resourceId`, closures/openings for BOTH `resourceId = null` (tenant-wide) and `resourceId = <that resource>` are fetched and combined — a resource-scoped closure blocks that resource even on a day the tenant itself is open, and vice versa is never true (a resource can't be open when the tenant is closed). The day-closed check and the opening precedence both change:
+```
+effectiveDayHours = resource.workingHours != null
+    ? resource.workingHours[dayOfWeek]   ← the resource's own hours gate it, not the tenant's
+    : businessHours[dayOfWeek]           ← inherits tenant hours (workingHours: null)
+
+if effectiveDayHours is set:
+    effective_hours = effectiveDayHours  ← normally open; no ScheduleOpening can exist for this
+                                             day (create-time validation forbids it)
+    filter out slots overlapping partial closures (tenant-wide + resource-scoped, combined)
+else:
+    # normally closed — an opening is the only way to be available
+    applicableOpening =
+        resource.workingHours != null
+            ? resourceOpening                        ← a resource with its own hours can only be
+                                                          opened by ITS OWN opening, never a
+                                                          tenant-wide one (mirrors
+                                                          OpenScheduleUseCase's creation-time bound)
+            : (resourceOpening ?? tenantOpening)      ← inheriting the tenant's hours, a
+                                                          resource-scoped opening still wins if
+                                                          present, else the tenant-wide one applies
+    if applicableOpening: effective_hours = applicableOpening's window
+    else: return []
+```
+`resource` undefined/null (the tenant-wide call above) reduces to this same logic exactly — `effectiveDayHours` falls through to `businessHours[dayOfWeek]` and `applicableOpening` falls through to `tenantOpening`, byte-identical to the pre-M21 behavior.
 
 **`IBookingAvailabilityPort` (cross-context read port — Booking Context)**
 

@@ -3,6 +3,7 @@ import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure
 import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
 import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
+import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { ScheduleClosureBuilder } from '../../../../test/builders/booking/schedule-closure.builder';
 import { ServiceBuilder } from '../../../../test/builders/booking/service.builder';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
@@ -28,6 +29,7 @@ describe('ScheduleAvailabilityController', () => {
         serviceRepo,
         closureRepo,
         new InMemoryScheduleOpeningRepository(),
+        new InMemoryResourceRepository(),
         new InMemoryBookingAvailabilityPort(),
         new AvailabilityService(),
       ),

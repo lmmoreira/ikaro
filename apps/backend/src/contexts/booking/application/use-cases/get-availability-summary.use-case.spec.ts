@@ -2,12 +2,15 @@ import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure
 import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
 import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
+import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { ScheduleClosureBuilder } from '../../../../test/builders/booking/schedule-closure.builder';
 import { ScheduleOpeningBuilder } from '../../../../test/builders/booking/schedule-opening.builder';
 import { ServiceBuilder } from '../../../../test/builders/booking/service.builder';
+import { ResourceBuilder } from '../../../../test/builders/booking/resource.builder';
 import { addDays, nextWeekday } from '../../../../test/utils/date-helpers';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
+import { ResourceNotFoundError } from '../../domain/errors/resource.error';
 import { GetAvailabilitySummaryUseCase } from './get-availability-summary.use-case';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
@@ -20,6 +23,7 @@ describe('GetAvailabilitySummaryUseCase', () => {
   let serviceRepo: InMemoryServiceRepository;
   let closureRepo: InMemoryScheduleClosureRepository;
   let openingRepo: InMemoryScheduleOpeningRepository;
+  let resourceRepo: InMemoryResourceRepository;
   let useCase: GetAvailabilitySummaryUseCase;
   let settings: TenantSettings;
 
@@ -27,11 +31,13 @@ describe('GetAvailabilitySummaryUseCase', () => {
     serviceRepo = new InMemoryServiceRepository();
     closureRepo = new InMemoryScheduleClosureRepository();
     openingRepo = new InMemoryScheduleOpeningRepository();
+    resourceRepo = new InMemoryResourceRepository();
     settings = TenantSettings.default();
     useCase = new GetAvailabilitySummaryUseCase(
       serviceRepo,
       closureRepo,
       openingRepo,
+      resourceRepo,
       new InMemoryBookingAvailabilityPort(),
       new AvailabilityService(),
     );
@@ -219,5 +225,65 @@ describe('GetAvailabilitySummaryUseCase', () => {
     expect(result).toHaveLength(2);
     expect(result[0].available).toBe(false);
     expect(result[1].available).toBe(false);
+  });
+
+  describe('resourceId (M21 Cluster 1, Codex PR #460 round-8 finding)', () => {
+    it('throws ResourceNotFoundError when resourceId does not exist', async () => {
+      const service = new ServiceBuilder().withTenantId(TENANT_ID).build();
+      await serviceRepo.save(service);
+
+      await expect(
+        useCase.execute({
+          from: monday,
+          to: sunday,
+          serviceIds: [service.id],
+          resourceId: '00000000-0000-7000-8000-000000000099',
+          tenantId: TENANT_ID,
+          businessHours: settings.businessHours,
+          slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+          serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+          maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+        }),
+      ).rejects.toThrow(ResourceNotFoundError);
+    });
+
+    it('a resource-scoped full-day closure marks just that day unavailable for the resource, leaving the tenant-wide summary unaffected', async () => {
+      const service = new ServiceBuilder().withTenantId(TENANT_ID).build();
+      await serviceRepo.save(service);
+      const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
+      await resourceRepo.save(resource);
+      await closureRepo.save(
+        new ScheduleClosureBuilder()
+          .withTenantId(TENANT_ID)
+          .withResourceId(resource.id)
+          .withDate(monday)
+          .build(),
+      );
+
+      const scoped = await useCase.execute({
+        from: monday,
+        to: monday,
+        serviceIds: [service.id],
+        resourceId: resource.id,
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+        maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+      });
+      const tenantWide = await useCase.execute({
+        from: monday,
+        to: monday,
+        serviceIds: [service.id],
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+        maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+      });
+
+      expect(scoped[0].available).toBe(false);
+      expect(tenantWide[0].available).toBe(true);
+    });
   });
 });

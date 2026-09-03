@@ -528,6 +528,8 @@ for each candidate slot in effectiveHours at slotGranularityMinutes:
         → slot is available
 ```
 
+**Resource-scoped variant (M21 Cluster 1):** the resolution above is the tenant-wide case — UC-011's own Guest flow doesn't select a resource today, so this stays exactly what a Guest query resolves. `GET /schedule/availability(/summary)` also accepts an optional `resourceId` (staff/manager-facing use, e.g. checking one professional's calendar) that scopes the same three-layer resolution to that resource's own closures/openings/workingHours — see `docs/02-DOMAIN_MODEL.md` § Three-Layer Schedule Resolution for the full resource-aware precedence, not duplicated here to avoid the two copies drifting apart.
+
 1. Load `slotGranularityMinutes`, `serviceBufferMinutes`, business hours, and timezone from `tenants.settings`
 2. Compute `bookingDurationMins` from basket + buffer
 3. Compute `requiredSlots = CEIL(bookingDurationMins / slotGranularityMinutes)`

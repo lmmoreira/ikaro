@@ -786,9 +786,11 @@ Availability is a **two-phase API** — one call for calendar navigation, one fo
 Loads all data for the date range in 3 DB queries. Use for week/month calendar rendering.
 
 ```
-GET /v1/schedule/availability/summary?from=YYYY-MM-DD&to=YYYY-MM-DD&serviceIds=uuid1,uuid2
+GET /v1/schedule/availability/summary?from=YYYY-MM-DD&to=YYYY-MM-DD&serviceIds=uuid1,uuid2&resourceId=
 X-Tenant-Slug: lavacar-test
 ```
+
+`resourceId` optional (M21 Cluster 1, Codex PR #460 round-8 finding) — omit for tenant-wide availability (today's exact unchanged behavior). When set, scopes the calculation to that resource's own closures/openings/workingHours, combined with the tenant-wide ones (`docs/02-DOMAIN_MODEL.md` § Three-Layer Schedule Resolution). Cluster 2 (UC-058/UC-059, planned) will additionally derive this automatically from a queried service's `resourceRequirements` when the caller doesn't pass one explicitly — this explicit param is the foundation that later auto-derivation builds on, not a competing mechanism.
 
 Response `200`:
 ```json
@@ -801,6 +803,7 @@ Response `200`:
 
 Errors:
 - `400` — serviceId not found, inactive, or from wrong tenant
+- `404` — `resourceId` set and does not exist or belongs to another tenant
 - `422` — `from > to`, or range exceeds `maxBookingAdvanceDays` (default 90 days)
 
 Constraints: past dates return `{ available: false, slotCount: 0 }` without an error (for seamless calendar rendering).
@@ -810,9 +813,11 @@ Constraints: past dates return `{ available: false, slotCount: 0 }` without an e
 Called when user clicks a specific day. Returns full slot list with UTC timestamps.
 
 ```
-GET /v1/schedule/availability?date=YYYY-MM-DD&serviceIds=uuid1,uuid2
+GET /v1/schedule/availability?date=YYYY-MM-DD&serviceIds=uuid1,uuid2&resourceId=
 X-Tenant-Slug: lavacar-test
 ```
+
+`resourceId` optional (M21 Cluster 1, Codex PR #460 round-8 finding) — same meaning as Phase 1's `resourceId` above.
 
 Response `200`:
 ```json
@@ -828,6 +833,7 @@ Response `200`:
 
 Errors:
 - `400` — serviceId not found, inactive, or from wrong tenant
+- `404` — `resourceId` set and does not exist or belongs to another tenant
 - `422` — date is in the past
 
 ### **Schedule Closures (UC-010a, UC-010b, UC-010e)**

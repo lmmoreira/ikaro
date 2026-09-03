@@ -2,11 +2,13 @@ import { Inject, Injectable } from '@nestjs/common';
 import { todayUTC, utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
 import type { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
 import { AvailabilityService } from '../../domain/services/availability.service';
+import { Resource } from '../../domain/resource.aggregate';
 import {
   AvailabilityRangeInvalidError,
   BookingServiceNotActiveError,
   ServiceNotFoundError,
 } from '../../domain/errors/booking-domain.error';
+import { ResourceNotFoundError } from '../../domain/errors/resource.error';
 import {
   IBookingAvailabilityPort,
   BOOKING_AVAILABILITY_PORT,
@@ -19,6 +21,7 @@ import {
   IScheduleOpeningRepository,
   SCHEDULE_OPENING_REPOSITORY,
 } from '../ports/schedule-opening-repository.port';
+import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { GetAvailabilitySummaryDto } from '../dtos/get-availability-summary.dto';
 
@@ -44,6 +47,7 @@ export class GetAvailabilitySummaryUseCase {
     @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
     @Inject(SCHEDULE_CLOSURE_REPOSITORY) private readonly closureRepo: IScheduleClosureRepository,
     @Inject(SCHEDULE_OPENING_REPOSITORY) private readonly openingRepo: IScheduleOpeningRepository,
+    @Inject(RESOURCE_REPOSITORY) private readonly resourceRepo: IResourceRepository,
     @Inject(BOOKING_AVAILABILITY_PORT)
     private readonly bookingPort: IBookingAvailabilityPort,
     private readonly availabilityService: AvailabilityService,
@@ -62,22 +66,61 @@ export class GetAvailabilitySummaryUseCase {
 
     this.validateRange(input.from, input.to, maxBookingAdvanceDays);
     const services = await this.findAndValidateServices(input.serviceIds, tenantId);
-
-    const [closures, openings, bookings] = await Promise.all([
-      this.closureRepo.findByTenantAndDateRange(tenantId, input.from, input.to),
-      this.openingRepo.findByTenantAndDateRange(tenantId, input.from, input.to),
+    const [resource, scheduleRange, bookings] = await Promise.all([
+      this.findResource(tenantId, input.resourceId),
+      this.loadScheduleRange(tenantId, input.from, input.to, input.resourceId),
       this.bookingPort.findApprovedByTenantAndDateRange(tenantId, input.from, input.to),
     ]);
 
     return this.buildDaySummaries(input, {
       services,
-      closures,
-      openings,
+      resource,
+      ...scheduleRange,
       bookings,
       businessHours,
       slotGranularityMinutes,
       serviceBufferMinutes,
     });
+  }
+
+  private async findResource(
+    tenantId: string,
+    resourceId: string | undefined,
+  ): Promise<Resource | null> {
+    if (resourceId == null) return null;
+    const resource = await this.resourceRepo.findById(resourceId, tenantId);
+    if (!resource) throw new ResourceNotFoundError(resourceId);
+    return resource;
+  }
+
+  // Combines tenant-wide rows (always fetched) with resource-scoped rows (fetched only when
+  // resourceId is set) — both apply to a resource-scoped availability check (Codex PR #460
+  // round-8 finding).
+  private async loadScheduleRange(
+    tenantId: string,
+    from: string,
+    to: string,
+    resourceId: string | undefined,
+  ): Promise<{
+    closures: Awaited<ReturnType<IScheduleClosureRepository['findByTenantAndDateRange']>>;
+    tenantOpenings: Awaited<ReturnType<IScheduleOpeningRepository['findByTenantAndDateRange']>>;
+    resourceOpenings: Awaited<ReturnType<IScheduleOpeningRepository['findByTenantAndDateRange']>>;
+  }> {
+    const [tenantClosures, resourceClosures, tenantOpenings, resourceOpenings] = await Promise.all([
+      this.closureRepo.findByTenantAndDateRange(tenantId, from, to),
+      resourceId != null
+        ? this.closureRepo.findByTenantAndDateRange(tenantId, from, to, resourceId)
+        : Promise.resolve([]),
+      this.openingRepo.findByTenantAndDateRange(tenantId, from, to),
+      resourceId != null
+        ? this.openingRepo.findByTenantAndDateRange(tenantId, from, to, resourceId)
+        : Promise.resolve([]),
+    ]);
+    return {
+      closures: [...tenantClosures, ...resourceClosures],
+      tenantOpenings,
+      resourceOpenings,
+    };
   }
 
   private validateRange(from: string, to: string, maxBookingAdvanceDays: number): void {
@@ -105,8 +148,10 @@ export class GetAvailabilitySummaryUseCase {
     input: GetAvailabilitySummaryUseCaseInput,
     ctx: {
       services: Awaited<ReturnType<IServiceRepository['findByIds']>>;
+      resource: Resource | null;
       closures: Awaited<ReturnType<IScheduleClosureRepository['findByTenantAndDateRange']>>;
-      openings: Awaited<ReturnType<IScheduleOpeningRepository['findByTenantAndDateRange']>>;
+      tenantOpenings: Awaited<ReturnType<IScheduleOpeningRepository['findByTenantAndDateRange']>>;
+      resourceOpenings: Awaited<ReturnType<IScheduleOpeningRepository['findByTenantAndDateRange']>>;
       bookings: Awaited<ReturnType<IBookingAvailabilityPort['findApprovedByTenantAndDateRange']>>;
       businessHours: BusinessHours;
       slotGranularityMinutes: 15 | 30 | 60;
@@ -114,7 +159,6 @@ export class GetAvailabilitySummaryUseCase {
     },
   ): GetAvailabilitySummaryUseCaseResult {
     const today = todayUTC();
-    const tz = ctx.businessHours.timezone;
     const results: GetAvailabilitySummaryUseCaseResult = [];
 
     for (const date of this.dateRange(input.from, input.to)) {
@@ -122,28 +166,45 @@ export class GetAvailabilitySummaryUseCase {
         results.push({ date, available: false, slotCount: 0 });
         continue;
       }
-
-      const dayClosures = ctx.closures.filter((c) => c.date === date);
-      const dayOpening = ctx.openings.find((o) => o.date === date) ?? null;
-      const dayBookings = ctx.bookings.filter(
-        (b) => utcDateToLocalDate(b.scheduledAt, tz) === date,
-      );
-
-      const slots = this.availabilityService.calculate({
-        date,
-        services: ctx.services.map((s) => ({ durationMinutes: s.durationMinutes })),
-        businessHours: ctx.businessHours,
-        slotGranularityMinutes: ctx.slotGranularityMinutes,
-        serviceBufferMinutes: ctx.serviceBufferMinutes,
-        closures: dayClosures,
-        opening: dayOpening,
-        existingBookings: dayBookings,
-      });
-
+      const slots = this.calculateSlotsForDate(date, ctx);
       results.push({ date, available: slots.length > 0, slotCount: slots.length });
     }
 
     return results;
+  }
+
+  private calculateSlotsForDate(
+    date: string,
+    ctx: {
+      services: Awaited<ReturnType<IServiceRepository['findByIds']>>;
+      resource: Resource | null;
+      closures: Awaited<ReturnType<IScheduleClosureRepository['findByTenantAndDateRange']>>;
+      tenantOpenings: Awaited<ReturnType<IScheduleOpeningRepository['findByTenantAndDateRange']>>;
+      resourceOpenings: Awaited<ReturnType<IScheduleOpeningRepository['findByTenantAndDateRange']>>;
+      bookings: Awaited<ReturnType<IBookingAvailabilityPort['findApprovedByTenantAndDateRange']>>;
+      businessHours: BusinessHours;
+      slotGranularityMinutes: 15 | 30 | 60;
+      serviceBufferMinutes: number;
+    },
+  ) {
+    const tz = ctx.businessHours.timezone;
+    const dayClosures = ctx.closures.filter((c) => c.date === date);
+    const dayTenantOpening = ctx.tenantOpenings.find((o) => o.date === date) ?? null;
+    const dayResourceOpening = ctx.resourceOpenings.find((o) => o.date === date) ?? null;
+    const dayBookings = ctx.bookings.filter((b) => utcDateToLocalDate(b.scheduledAt, tz) === date);
+
+    return this.availabilityService.calculate({
+      date,
+      services: ctx.services.map((s) => ({ durationMinutes: s.durationMinutes })),
+      businessHours: ctx.businessHours,
+      resource: ctx.resource,
+      slotGranularityMinutes: ctx.slotGranularityMinutes,
+      serviceBufferMinutes: ctx.serviceBufferMinutes,
+      closures: dayClosures,
+      opening: dayTenantOpening,
+      resourceOpening: dayResourceOpening,
+      existingBookings: dayBookings,
+    });
   }
 
   private *dateRange(from: string, to: string): Generator<string> {
