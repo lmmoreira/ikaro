@@ -163,5 +163,21 @@ describe('ScheduleOpeningController', () => {
       });
       expect(result.resourceId).toBeNull();
     });
+
+    it('maps OpeningExceedsTenantWindowError to 422', async () => {
+      const managerController = buildController('MANAGER');
+      const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
+      await resourceRepo.save(resource);
+      const date = nextWeekday(0);
+
+      await managerController.create({ date, startTime: '09:00', endTime: '14:00' });
+
+      const err = await managerController
+        .create({ date, startTime: '08:00', endTime: '15:00', resourceId: resource.id })
+        .catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(422);
+    });
   });
 });

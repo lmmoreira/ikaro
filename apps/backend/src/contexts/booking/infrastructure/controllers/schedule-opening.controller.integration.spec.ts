@@ -295,6 +295,26 @@ describe('ScheduleOpeningController (integration)', () => {
 
       expect(body.status).toBe(404);
     });
+
+    it('returns 422 when a resource-scoped window extends beyond an existing tenant-wide opening', async () => {
+      const resource = new ResourceEntityBuilder().withTenantId(tenantAId).build();
+      await ds.getRepository(ResourceEntity).save(resource);
+      const date = nextWeekday(0, 9);
+
+      await request(app.getHttpServer())
+        .post('/schedule/openings')
+        .set(actorHeaders(tenantAId, MANAGER_ID))
+        .send({ date, startTime: '09:00', endTime: '14:00' })
+        .expect(201);
+
+      const { body } = await request(app.getHttpServer())
+        .post('/schedule/openings')
+        .set(actorHeaders(tenantAId, MANAGER_ID))
+        .send({ date, startTime: '08:00', endTime: '15:00', resourceId: resource.id })
+        .expect(422);
+
+      expect(body.status).toBe(422);
+    });
   });
 
   // ─── two-partial-index migration (M21 Cluster 1) ─────────────────────────────

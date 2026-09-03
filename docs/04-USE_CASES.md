@@ -460,13 +460,14 @@ Used when `businessHours[dayOfWeek] = null` (e.g., Sunday is always closed) but 
 
 - **Actor:** MANAGER (when `resourceId` is set) — STAFF | MANAGER still applies to the unscoped, tenant-wide case (UC-010c)
 - **Endpoint:** `POST /schedule/openings` (existing endpoint, `resourceId` is a new optional body field)
-- **Preconditions:** Resource exists and belongs to the tenant, when `resourceId` is provided. The target day is inside the tenant's recurring business-hours window and is closed only in the resource's own `workingHours` (a resource never extends beyond the tenant's own effective hours).
+- **Preconditions:** Resource exists and belongs to the tenant, when `resourceId` is provided. The target day is closed in the *effective* hours source for the scope being opened: the resource's own `workingHours[day]` when the resource has a non-null `workingHours`, falling back to the tenant's `businessHours[day]` when the resource inherits (`workingHours: null`) — see `docs/13-DATABASE_SCHEMA.md` § `booking.schedule_openings` Rules.
 - **Trigger:** Admin opens a normally-closed day for one resource only (e.g. a stylist takes an extra Saturday).
 - **Main Flow:** Same as UC-010c, with `resourceId` set.
 - **Alternative Flows:**
   - Same as UC-010c's (A1, A2).
   - **A3: `resourceId` does not exist or belongs to another tenant** → `404 Not Found`.
-- **Postconditions:** Only that resource's calendar opens for the date, never outside the tenant's effective hours; the rest of the tenant is unaffected. **Constraint note:** `schedule_openings`' `UNIQUE(tenant_id, date)` is replaced by two partial unique indexes — `UNIQUE(tenant_id, date) WHERE resource_id IS NULL` and `UNIQUE(tenant_id, resource_id, date) WHERE resource_id IS NOT NULL` — so a tenant-wide opening and a resource-scoped opening for the same date no longer collide (see `docs/13-DATABASE_SCHEMA.md`).
+  - **A4 (added M21-S03 round 2): the requested window extends beyond an existing tenant-wide opening for the same date** → `422 Unprocessable Entity` (`BOOKING_OPENING_EXCEEDS_TENANT_WINDOW`). Only checked when a tenant-wide opening already exists for that date — when none does, the resource's own window stands on its own (this is the primary way a resource-scoped opening extends availability beyond the tenant's default hours in the first place).
+- **Postconditions:** Only that resource's calendar opens for the date, and only within a coexisting tenant-wide opening's own window when one exists for that date (A4); the rest of the tenant is unaffected. **Constraint note:** `schedule_openings`' `UNIQUE(tenant_id, date)` is replaced by two partial unique indexes — `UNIQUE(tenant_id, date) WHERE resource_id IS NULL` and `UNIQUE(tenant_id, resource_id, date) WHERE resource_id IS NOT NULL` — so a tenant-wide opening and a resource-scoped opening for the same date no longer collide (see `docs/13-DATABASE_SCHEMA.md`).
 - **Events Triggered:** None.
 
 ---

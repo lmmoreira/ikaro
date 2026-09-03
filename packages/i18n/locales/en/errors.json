@@ -8,6 +8,7 @@
   "BOOKING_DAY_ALREADY_OPEN_IN_SETTINGS": "This day is already open in the business hours settings.",
   "BOOKING_SCHEDULE_OPENING_ALREADY_EXISTS": "A schedule opening already exists for this date.",
   "BOOKING_SCHEDULE_OPENING_NOT_FOUND": "Schedule opening not found.",
+  "BOOKING_OPENING_EXCEEDS_TENANT_WINDOW": "A resource's opening window cannot extend beyond the tenant's own opening for that date.",
   "BOOKING_AVAILABILITY_DATE_IN_PAST": "You cannot check availability for a past date.",
   "BOOKING_AVAILABILITY_RANGE_INVALID": "The requested date range is invalid.",
   "BOOKING_NOT_FOUND": "Booking not found.",

@@ -8,6 +8,7 @@ import { OpenScheduleUseCase } from './open-schedule.use-case';
 import {
   DayAlreadyOpenInSettingsError,
   OpeningDateInPastError,
+  OpeningExceedsTenantWindowError,
   ScheduleOpeningAlreadyExistsError,
 } from '../../domain/errors/booking-domain.error';
 import { ResourceNotFoundError } from '../../domain/errors/resource.error';
@@ -297,6 +298,95 @@ describe('OpenScheduleUseCase', () => {
       });
 
       expect(result.resourceId).toBe(resource.id);
+    });
+  });
+
+  describe('tenant-window bound (M21 Cluster 1, Codex PR #460 round-2 finding)', () => {
+    it('rejects a resource-scoped window that extends beyond an existing tenant-wide opening', async () => {
+      const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
+      await resourceRepo.save(resource);
+      const date = nextWeekday(0);
+
+      await useCase.execute({
+        date,
+        startTime: '09:00',
+        endTime: '18:00',
+        tenantId: TENANT_ID,
+        createdBy: ACTOR_ID,
+        businessHours: settings.businessHours,
+      });
+
+      await expect(
+        useCase.execute({
+          date,
+          startTime: '08:00', // before the tenant-wide window's start
+          endTime: '19:00', // after the tenant-wide window's end
+          resourceId: resource.id,
+          tenantId: TENANT_ID,
+          createdBy: ACTOR_ID,
+          businessHours: settings.businessHours,
+        }),
+      ).rejects.toThrow(OpeningExceedsTenantWindowError);
+    });
+
+    it('allows a resource-scoped window that is a strict subset of an existing tenant-wide opening', async () => {
+      const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
+      await resourceRepo.save(resource);
+      const date = nextWeekday(0);
+
+      await useCase.execute({
+        date,
+        startTime: '09:00',
+        endTime: '18:00',
+        tenantId: TENANT_ID,
+        createdBy: ACTOR_ID,
+        businessHours: settings.businessHours,
+      });
+
+      const scoped = await useCase.execute({
+        date,
+        startTime: '10:00',
+        endTime: '12:00',
+        resourceId: resource.id,
+        tenantId: TENANT_ID,
+        createdBy: ACTOR_ID,
+        businessHours: settings.businessHours,
+      });
+
+      expect(scoped.resourceId).toBe(resource.id);
+    });
+
+    it('allows an unbounded resource-scoped window when no tenant-wide opening exists for that date', async () => {
+      const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
+      await resourceRepo.save(resource);
+      const date = nextWeekday(0);
+
+      const scoped = await useCase.execute({
+        date,
+        startTime: '00:00',
+        endTime: '23:59',
+        resourceId: resource.id,
+        tenantId: TENANT_ID,
+        createdBy: ACTOR_ID,
+        businessHours: settings.businessHours,
+      });
+
+      expect(scoped.resourceId).toBe(resource.id);
+    });
+
+    it('does not bound a tenant-wide opening against anything (only resource-scoped ones are bounded)', async () => {
+      const date = nextWeekday(0);
+
+      const result = await useCase.execute({
+        date,
+        startTime: '00:00',
+        endTime: '23:59',
+        tenantId: TENANT_ID,
+        createdBy: ACTOR_ID,
+        businessHours: settings.businessHours,
+      });
+
+      expect(result.resourceId).toBeNull();
     });
   });
 });

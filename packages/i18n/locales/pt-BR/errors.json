@@ -8,6 +8,7 @@
   "BOOKING_DAY_ALREADY_OPEN_IN_SETTINGS": "Este dia já está aberto nas configurações de horário de funcionamento.",
   "BOOKING_SCHEDULE_OPENING_ALREADY_EXISTS": "Já existe uma abertura de agenda para esta data.",
   "BOOKING_SCHEDULE_OPENING_NOT_FOUND": "Abertura de agenda não encontrada.",
+  "BOOKING_OPENING_EXCEEDS_TENANT_WINDOW": "A janela de abertura do recurso não pode ultrapassar a abertura do negócio para essa data.",
   "BOOKING_AVAILABILITY_DATE_IN_PAST": "Não é possível consultar disponibilidade para uma data no passado.",
   "BOOKING_AVAILABILITY_RANGE_INVALID": "O período consultado é inválido.",
   "BOOKING_NOT_FOUND": "Agendamento não encontrado.",

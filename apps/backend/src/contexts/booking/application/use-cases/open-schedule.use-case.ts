@@ -8,6 +8,7 @@ import { ScheduleOpening } from '../../domain/schedule-opening.aggregate';
 import {
   DayAlreadyOpenInSettingsError,
   OpeningDateInPastError,
+  OpeningExceedsTenantWindowError,
   ScheduleOpeningAlreadyExistsError,
 } from '../../domain/errors/booking-domain.error';
 import { ResourceNotFoundError } from '../../domain/errors/resource.error';
@@ -69,6 +70,23 @@ export class OpenScheduleUseCase {
 
     const existing = await this.openingRepo.findByTenantAndDate(tenantId, input.date, resourceId);
     if (existing) throw new ScheduleOpeningAlreadyExistsError(input.date);
+
+    // A resource-scoped opening may never extend beyond a tenant-wide opening that already
+    // covers the same date (docs/13-DATABASE_SCHEMA.md § schedule_openings Rules: "never...
+    // extends beyond a tenant opening/window"). When no tenant-wide opening exists for this
+    // date, there is nothing to bound against — the resource's own window stands on its own,
+    // which is the primary way a resource-scoped opening extends availability beyond the
+    // tenant's default hours in the first place.
+    if (resourceId != null) {
+      const tenantWideOpening = await this.openingRepo.findByTenantAndDate(tenantId, input.date);
+      if (
+        tenantWideOpening &&
+        (input.startTime < tenantWideOpening.startTime.value ||
+          input.endTime > tenantWideOpening.endTime.value)
+      ) {
+        throw new OpeningExceedsTenantWindowError(input.date);
+      }
+    }
 
     const opening = ScheduleOpening.open({
       tenantId,

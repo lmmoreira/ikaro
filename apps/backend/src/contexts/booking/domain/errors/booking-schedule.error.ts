@@ -56,6 +56,16 @@ export class ScheduleOpeningNotFoundError extends BookingDomainError {
   }
 }
 
+export class OpeningExceedsTenantWindowError extends BookingDomainError {
+  constructor(date: string) {
+    super(
+      `Resource opening window exceeds the tenant's own opening window for date: ${date}`,
+      BookingErrorCode.OPENING_EXCEEDS_TENANT_WINDOW,
+    );
+    this.name = 'OpeningExceedsTenantWindowError';
+  }
+}
+
 export class AvailabilityDateInPastError extends BookingDomainError {
   constructor() {
     super('Cannot check availability for a past date', BookingErrorCode.AVAILABILITY_DATE_IN_PAST);
