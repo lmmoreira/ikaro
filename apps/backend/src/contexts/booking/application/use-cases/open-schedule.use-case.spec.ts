@@ -1,6 +1,7 @@
 import { pastDate, nextWeekday } from '../../../../test/utils/date-helpers';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
-import { InMemoryTenantDayLock } from '../../../../test/infrastructure/in-memory-tenant-day-lock';
+import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
+import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { ScheduleOpeningBuilder, ResourceBuilder } from '../../../../test/builders/booking/index';
@@ -22,17 +23,27 @@ const OTHER_TENANT_ID = '99999999-0000-7000-8000-000000000099';
 describe('OpenScheduleUseCase', () => {
   let repo: InMemoryScheduleOpeningRepository;
   let resourceRepo: InMemoryResourceRepository;
-  let tenantDayLock: InMemoryTenantDayLock;
+  let platform: InMemoryBookingPlatformPort;
+  let tenantLock: InMemoryTenantLock;
   let useCase: OpenScheduleUseCase;
   let settings: TenantSettings;
 
   beforeEach(() => {
     repo = new InMemoryScheduleOpeningRepository();
     resourceRepo = new InMemoryResourceRepository();
-    tenantDayLock = new InMemoryTenantDayLock();
+    platform = new InMemoryBookingPlatformPort();
+    tenantLock = new InMemoryTenantLock();
     settings = TenantSettings.default();
+    // The authoritative re-check inside the transaction re-fetches businessHours via this port
+    // (Codex PR #460 round-4/5 TOCTOU finding, closed in round 7) — seed it to match the
+    // `businessHours` snapshot every test below passes as input, so both checks agree unless a
+    // test deliberately seeds a different value to exercise the re-fetch itself.
+    platform.seedBusinessHoursAndLocale(TENANT_ID, {
+      businessHours: settings.businessHours,
+      locale: 'pt-BR',
+    });
     const tx = new InMemoryTransactionManager();
-    useCase = new OpenScheduleUseCase(repo, resourceRepo, tenantDayLock, tx);
+    useCase = new OpenScheduleUseCase(repo, resourceRepo, platform, tenantLock, tx);
   });
 
   it('creates an opening for a normally-closed day', async () => {
@@ -492,7 +503,7 @@ describe('OpenScheduleUseCase', () => {
         .withWorkingHours(resourceWorkingHours)
         .build();
       await resourceRepo.save(resource);
-      const lockSpy = jest.spyOn(tenantDayLock, 'lockTenantDay');
+      const lockSpy = jest.spyOn(tenantLock, 'lockTenantDay');
 
       await useCase.execute({
         date: monday,
@@ -509,7 +520,7 @@ describe('OpenScheduleUseCase', () => {
 
     it('does not acquire the lock when creating a tenant-wide opening', async () => {
       const date = nextWeekday(0);
-      const lockSpy = jest.spyOn(tenantDayLock, 'lockTenantDay');
+      const lockSpy = jest.spyOn(tenantLock, 'lockTenantDay');
 
       await useCase.execute({
         date,
@@ -521,6 +532,113 @@ describe('OpenScheduleUseCase', () => {
       });
 
       expect(lockSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('tenant-settings advisory lock and fresh re-fetch (Codex PR #460 round-4/5 TOCTOU finding, closed round 7)', () => {
+    it('acquires the tenant-settings lock for a tenant-wide create', async () => {
+      const date = nextWeekday(0);
+      const lockSpy = jest.spyOn(tenantLock, 'lockTenantSettings');
+
+      await useCase.execute({
+        date,
+        startTime: '09:00',
+        endTime: '14:00',
+        tenantId: TENANT_ID,
+        createdBy: ACTOR_ID,
+        businessHours: settings.businessHours,
+      });
+
+      expect(lockSpy).toHaveBeenCalledWith(TENANT_ID);
+    });
+
+    it('acquires the tenant-settings lock for a resource-scoped create', async () => {
+      const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
+      await resourceRepo.save(resource);
+      const date = nextWeekday(0);
+      await useCase.execute({
+        date,
+        startTime: '09:00',
+        endTime: '14:00',
+        tenantId: TENANT_ID,
+        createdBy: ACTOR_ID,
+        businessHours: settings.businessHours,
+      });
+      const lockSpy = jest.spyOn(tenantLock, 'lockTenantSettings');
+
+      await useCase.execute({
+        date,
+        startTime: '09:00',
+        endTime: '14:00',
+        resourceId: resource.id,
+        tenantId: TENANT_ID,
+        createdBy: ACTOR_ID,
+        businessHours: settings.businessHours,
+      });
+
+      expect(lockSpy).toHaveBeenCalledWith(TENANT_ID);
+    });
+
+    it('rejects using freshly-fetched businessHours even when the stale input snapshot would have allowed it', async () => {
+      const sunday = nextWeekday(0); // closed in the stale `settings.businessHours` snapshot below
+      // Simulates a concurrent PATCH /tenants/settings that opened Sunday between the request's
+      // own businessHours read and this use case's write — the stale `input.businessHours`
+      // passed below still says Sunday is closed (so the cheap pre-check passes), but the
+      // authoritative re-fetch under the lock must see the new, now-open value and reject.
+      platform.seedBusinessHoursAndLocale(TENANT_ID, {
+        businessHours: { ...settings.businessHours, sunday: { open: '09:00', close: '13:00' } },
+        locale: 'pt-BR',
+      });
+
+      await expect(
+        useCase.execute({
+          date: sunday,
+          startTime: '09:00',
+          endTime: '14:00',
+          tenantId: TENANT_ID,
+          createdBy: ACTOR_ID,
+          businessHours: settings.businessHours,
+        }),
+      ).rejects.toThrow(DayAlreadyOpenInSettingsError);
+    });
+
+    it('rejects a resource-scoped window using the freshly-fetched tenant window, not the stale input snapshot', async () => {
+      const monday = nextWeekday(1); // open for the tenant in both stale and fresh businessHours
+      // The resource's own workingHours (unaffected by the tenant-settings race — a Resource
+      // aggregate field, not Tenant settings) closes it specifically on Mondays, so both the
+      // pre-check and the authoritative re-check pass the day-closed gate and reach the
+      // window-bound check below.
+      const resourceWorkingHours = { ...settings.businessHours, monday: null };
+      const resource = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withTenantBusinessHours(settings.businessHours)
+        .withWorkingHours(resourceWorkingHours)
+        .build();
+      await resourceRepo.save(resource);
+      // Stale snapshot (passed as input) allows a wide 09:00-20:00 window; the fresh,
+      // authoritative re-fetch narrows it to 09:00-14:00 — a concurrent settings PATCH that
+      // shortened Monday's hours between the request's read and this write. The window-bound
+      // check must reject against the fresh value.
+      const staleBusinessHours = {
+        ...settings.businessHours,
+        monday: { open: '09:00', close: '20:00' },
+      };
+      platform.seedBusinessHoursAndLocale(TENANT_ID, {
+        businessHours: { ...settings.businessHours, monday: { open: '09:00', close: '14:00' } },
+        locale: 'pt-BR',
+      });
+
+      await expect(
+        useCase.execute({
+          date: monday,
+          startTime: '15:00',
+          endTime: '18:00',
+          resourceId: resource.id,
+          tenantId: TENANT_ID,
+          createdBy: ACTOR_ID,
+          businessHours: staleBusinessHours,
+        }),
+      ).rejects.toThrow(OpeningExceedsTenantWindowError);
     });
   });
 });

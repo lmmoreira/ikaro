@@ -1,5 +1,5 @@
 import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure/in-memory-booking-availability';
-import { InMemoryTenantDayLock } from '../../../../test/infrastructure/in-memory-tenant-day-lock';
+import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
@@ -40,7 +40,7 @@ describe('ApproveBookingUseCase', () => {
       availabilityPort = new InMemoryBookingAvailabilityPort();
       useCase = new ApproveBookingUseCase(
         bookingRepo,
-        new BookingSlotConflictService(availabilityPort, new InMemoryTenantDayLock()),
+        new BookingSlotConflictService(availabilityPort, new InMemoryTenantLock()),
         new InMemoryTransactionManager(),
       );
     });

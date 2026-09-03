@@ -1,6 +1,6 @@
 import { futureDate } from '../../../../test/utils/date-helpers';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
-import { InMemoryTenantDayLock } from '../../../../test/infrastructure/in-memory-tenant-day-lock';
+import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { ScheduleOpeningBuilder } from '../../../../test/builders/booking/index';
 import { RemoveScheduleOpeningUseCase } from './remove-schedule-opening.use-case';
@@ -14,14 +14,14 @@ const OTHER_TENANT_ID = '00000000-0000-7000-8000-000000000099';
 
 describe('RemoveScheduleOpeningUseCase', () => {
   let repo: InMemoryScheduleOpeningRepository;
-  let tenantDayLock: InMemoryTenantDayLock;
+  let tenantLock: InMemoryTenantLock;
   let useCase: RemoveScheduleOpeningUseCase;
 
   beforeEach(() => {
     repo = new InMemoryScheduleOpeningRepository();
-    tenantDayLock = new InMemoryTenantDayLock();
+    tenantLock = new InMemoryTenantLock();
     const tx = new InMemoryTransactionManager();
-    useCase = new RemoveScheduleOpeningUseCase(repo, tenantDayLock, tx);
+    useCase = new RemoveScheduleOpeningUseCase(repo, tenantLock, tx);
   });
 
   it('deletes an existing opening', async () => {
@@ -117,7 +117,7 @@ describe('RemoveScheduleOpeningUseCase', () => {
         .withDate(date)
         .build();
       await repo.save(tenantWide);
-      const lockSpy = jest.spyOn(tenantDayLock, 'lockTenantDay');
+      const lockSpy = jest.spyOn(tenantLock, 'lockTenantDay');
 
       await useCase.execute({ id: tenantWide.id, tenantId: TENANT_ID });
 
@@ -132,7 +132,7 @@ describe('RemoveScheduleOpeningUseCase', () => {
         .withDate(date)
         .build();
       await repo.save(scoped);
-      const lockSpy = jest.spyOn(tenantDayLock, 'lockTenantDay');
+      const lockSpy = jest.spyOn(tenantLock, 'lockTenantDay');
 
       await useCase.execute({ id: scoped.id, tenantId: TENANT_ID });
 

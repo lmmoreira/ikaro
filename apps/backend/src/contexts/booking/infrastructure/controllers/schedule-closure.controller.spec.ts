@@ -1,7 +1,7 @@
 import { HttpException } from '@nestjs/common';
 import { futureDate, pastDate } from '../../../../test/utils/date-helpers';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
-import { InMemoryTenantDayLock } from '../../../../test/infrastructure/in-memory-tenant-day-lock';
+import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { ScheduleClosureBuilder, ResourceBuilder } from '../../../../test/builders/booking/index';
@@ -29,7 +29,7 @@ describe('ScheduleClosureController', () => {
     const tx = new InMemoryTransactionManager();
     return new ScheduleClosureController(
       ctx,
-      new CloseScheduleUseCase(repo, resourceRepo, new InMemoryTenantDayLock(), tx),
+      new CloseScheduleUseCase(repo, resourceRepo, new InMemoryTenantLock(), tx),
       new RemoveClosureUseCase(repo, tx),
       new ListClosuresUseCase(repo),
     );

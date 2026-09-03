@@ -3,8 +3,10 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import type { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
+import { ITenantLockPort, TENANT_LOCK_PORT } from '../../../../shared/ports/tenant-lock.port';
+import type { BusinessHours, DayHours } from '../../../../shared/value-objects/business-hours.vo';
 import { ScheduleOpening } from '../../domain/schedule-opening.aggregate';
+import { Resource } from '../../domain/resource.aggregate';
 import {
   DayAlreadyOpenInSettingsError,
   OpeningDateInPastError,
@@ -18,7 +20,7 @@ import {
   SCHEDULE_OPENING_REPOSITORY,
 } from '../ports/schedule-opening-repository.port';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
-import { ITenantDayLockPort, TENANT_DAY_LOCK_PORT } from '../ports/tenant-day-lock.port';
+import { IBookingPlatformPort, BOOKING_PLATFORM_PORT } from '../ports/booking-platform.port';
 import {
   getUtcWeekDayName,
   todayUTC,
@@ -50,13 +52,15 @@ export class OpenScheduleUseCase {
     private readonly openingRepo: IScheduleOpeningRepository,
     @Inject(RESOURCE_REPOSITORY)
     private readonly resourceRepo: IResourceRepository,
-    @Inject(TENANT_DAY_LOCK_PORT)
-    private readonly tenantDayLock: ITenantDayLockPort,
+    @Inject(BOOKING_PLATFORM_PORT)
+    private readonly platform: IBookingPlatformPort,
+    @Inject(TENANT_LOCK_PORT)
+    private readonly tenantLock: ITenantLockPort,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
   async execute(input: OpenScheduleUseCaseInput): Promise<OpenScheduleUseCaseResult> {
-    const { tenantId, createdBy, businessHours, resourceId } = input;
+    const { tenantId, createdBy, resourceId } = input;
 
     const today = todayUTC();
     if (input.date < today) throw new OpeningDateInPastError();
@@ -65,14 +69,13 @@ export class OpenScheduleUseCase {
       resourceId != null ? await this.resourceRepo.findById(resourceId, tenantId) : null;
     if (resourceId != null && !resource) throw new ResourceNotFoundError(resourceId);
 
-    // A resource with its own workingHours gates the "day closed" check against its own
-    // schedule, not the tenant's — a resource with workingHours: null inherits the tenant's
-    // businessHours instead (Resource's own documented inheritance rule, docs/02-DOMAIN_MODEL.md
-    // § Resource). Tenant-wide openings (resource === null) always use businessHours.
     const weekday = getUtcWeekDayName(input.date);
-    const effectiveDayHours =
-      resource?.workingHours != null ? resource.workingHours[weekday] : businessHours[weekday];
-    if (effectiveDayHours !== null) {
+    // Fast, non-authoritative pre-check against the request's businessHours snapshot — fails
+    // fast for the common case without ever acquiring the settings lock. The authoritative
+    // check runs again below, inside the transaction, against a freshly-read value (Codex PR
+    // #460 round-4/5 TOCTOU finding — a concurrent PATCH /tenants/settings could otherwise
+    // leave this snapshot stale between the read and the write).
+    if (this.effectiveDayHours(resource, input.businessHours, weekday) !== null) {
       throw new DayAlreadyOpenInSettingsError(input.date);
     }
 
@@ -90,19 +93,50 @@ export class OpenScheduleUseCase {
     });
 
     await this.txManager.run(async () => {
-      if (resourceId != null) {
-        // Acquire the per-(tenant, date) advisory lock before re-checking the tenant-window
-        // bound, so a concurrent deletion of the prerequisite tenant-wide opening
-        // (RemoveScheduleOpeningUseCase, which takes the same lock) can't interleave between
-        // this check and the write below — whichever transaction wins the lock now fully
-        // determines what the other one sees (Codex PR #460 round-4 finding).
-        await this.tenantDayLock.lockTenantDay(tenantId, input.date);
-        await this.assertWithinTenantWindow(input, weekday);
-      }
+      await this.validateUnderLock(input, resource, weekday);
       await this.openingRepo.save(opening);
     });
 
     return this.toResult(opening);
+  }
+
+  private async validateUnderLock(
+    input: OpenScheduleUseCaseInput,
+    resource: Resource | null,
+    weekday: WeekDayName,
+  ): Promise<void> {
+    const { tenantId, resourceId } = input;
+
+    // Serializes against a concurrent PATCH /tenants/settings before re-reading businessHours,
+    // so the check below can't observe a value that's about to be superseded (Codex PR #460
+    // round-4/5 finding — closed in round 7 rather than left as accepted risk).
+    await this.tenantLock.lockTenantSettings(tenantId);
+    const { businessHours } = await this.platform.getBusinessHoursAndLocale(tenantId);
+
+    if (this.effectiveDayHours(resource, businessHours, weekday) !== null) {
+      throw new DayAlreadyOpenInSettingsError(input.date);
+    }
+
+    if (resourceId != null) {
+      // Acquire the per-(tenant, date) advisory lock before re-checking the tenant-window
+      // bound, so a concurrent deletion of the prerequisite tenant-wide opening
+      // (RemoveScheduleOpeningUseCase, which takes the same lock) can't interleave between
+      // this check and the write below (Codex PR #460 round-4 finding).
+      await this.tenantLock.lockTenantDay(tenantId, input.date);
+      await this.assertWithinTenantWindow(input, businessHours, weekday);
+    }
+  }
+
+  // A resource with its own workingHours gates the "day closed" check against its own
+  // schedule, not the tenant's — a resource with workingHours: null inherits the tenant's
+  // businessHours instead (Resource's own documented inheritance rule, docs/02-DOMAIN_MODEL.md
+  // § Resource). Tenant-wide openings (resource === null) always use businessHours.
+  private effectiveDayHours(
+    resource: Resource | null,
+    businessHours: BusinessHours,
+    weekday: WeekDayName,
+  ): DayHours {
+    return resource?.workingHours != null ? resource.workingHours[weekday] : businessHours[weekday];
   }
 
   // A resource-scoped opening's window must always fit inside something the tenant itself has
@@ -123,9 +157,10 @@ export class OpenScheduleUseCase {
   //    resource within it.
   private async assertWithinTenantWindow(
     input: OpenScheduleUseCaseInput,
+    businessHours: BusinessHours,
     weekday: WeekDayName,
   ): Promise<void> {
-    const tenantDayHours = input.businessHours[weekday];
+    const tenantDayHours = businessHours[weekday];
     let boundStart: string;
     let boundEnd: string;
     if (tenantDayHours !== null) {

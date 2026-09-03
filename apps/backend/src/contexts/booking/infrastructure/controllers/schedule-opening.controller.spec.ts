@@ -1,11 +1,13 @@
 import { HttpException } from '@nestjs/common';
 import { futureDate, nextWeekday, pastDate } from '../../../../test/utils/date-helpers';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
-import { InMemoryTenantDayLock } from '../../../../test/infrastructure/in-memory-tenant-day-lock';
+import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
+import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { ScheduleOpeningBuilder, ResourceBuilder } from '../../../../test/builders/booking/index';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
+import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
 import { OpenScheduleUseCase } from '../../application/use-cases/open-schedule.use-case';
 import { ListOpeningsUseCase } from '../../application/use-cases/list-openings.use-case';
 import { RemoveScheduleOpeningUseCase } from '../../application/use-cases/remove-schedule-opening.use-case';
@@ -26,11 +28,19 @@ describe('ScheduleOpeningController', () => {
       .withActorRole(actorRole)
       .build();
     const tx = new InMemoryTransactionManager();
-    const tenantDayLock = new InMemoryTenantDayLock();
+    const tenantLock = new InMemoryTenantLock();
+    // Matches RequestContextBuilder's own default settings, so the use case's authoritative
+    // re-fetch (Codex PR #460 round-4/5 TOCTOU finding) agrees with the businessHours the
+    // controller passes in from ctx.settings.
+    const platform = new InMemoryBookingPlatformPort();
+    platform.seedBusinessHoursAndLocale(TENANT_ID, {
+      businessHours: TenantSettings.default().businessHours,
+      locale: 'pt-BR',
+    });
     return new ScheduleOpeningController(
       ctx,
-      new OpenScheduleUseCase(repo, resourceRepo, tenantDayLock, tx),
-      new RemoveScheduleOpeningUseCase(repo, tenantDayLock, tx),
+      new OpenScheduleUseCase(repo, resourceRepo, platform, tenantLock, tx),
+      new RemoveScheduleOpeningUseCase(repo, tenantLock, tx),
       new ListOpeningsUseCase(repo),
     );
   }

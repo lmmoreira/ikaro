@@ -1,4 +1,5 @@
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
+import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
 import {
   TenantBuilder,
@@ -15,11 +16,17 @@ import { UpdateTenantSettingsUseCase } from './update-tenant-settings.use-case';
 
 describe('UpdateTenantSettingsUseCase', () => {
   let tenantRepo: InMemoryTenantRepository;
+  let tenantLock: InMemoryTenantLock;
   let useCase: UpdateTenantSettingsUseCase;
 
   beforeEach(() => {
     tenantRepo = new InMemoryTenantRepository();
-    useCase = new UpdateTenantSettingsUseCase(tenantRepo, new InMemoryTransactionManager());
+    tenantLock = new InMemoryTenantLock();
+    useCase = new UpdateTenantSettingsUseCase(
+      tenantRepo,
+      tenantLock,
+      new InMemoryTransactionManager(),
+    );
   });
 
   it('throws TenantNotFoundError when the tenant does not exist', async () => {
@@ -358,6 +365,18 @@ describe('UpdateTenantSettingsUseCase', () => {
       knowledgeText: 'texto',
       llmProvider: 'anthropic',
       maxConversationsPerDay: 100,
+    });
+  });
+
+  describe('tenant-settings advisory lock (Codex PR #460 round-4/5 TOCTOU finding, closed round 7)', () => {
+    it('acquires the tenant-settings lock before persisting, so a concurrent booking-context read (e.g. OpenScheduleUseCase) can never observe a half-applied update', async () => {
+      const tenant = new TenantBuilder().build();
+      await tenantRepo.save(tenant);
+      const lockSpy = jest.spyOn(tenantLock, 'lockTenantSettings');
+
+      await useCase.execute({ tenantId: tenant.id, settings: { loyalty: { expiryDays: 90 } } });
+
+      expect(lockSpy).toHaveBeenCalledWith(tenant.id);
     });
   });
 });

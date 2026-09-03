@@ -1,6 +1,6 @@
 import { futureDate, pastDate } from '../../../../test/utils/date-helpers';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
-import { InMemoryTenantDayLock } from '../../../../test/infrastructure/in-memory-tenant-day-lock';
+import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { ScheduleClosureBuilder, ResourceBuilder } from '../../../../test/builders/booking/index';
@@ -21,17 +21,17 @@ const ctx = { tenantId: TENANT_ID, createdBy: ACTOR_ID };
 describe('CloseScheduleUseCase', () => {
   let repo: InMemoryScheduleClosureRepository;
   let resourceRepo: InMemoryResourceRepository;
-  let tenantDayLock: InMemoryTenantDayLock;
+  let tenantLock: InMemoryTenantLock;
   let useCase: CloseScheduleUseCase;
 
   beforeEach(() => {
     repo = new InMemoryScheduleClosureRepository();
     resourceRepo = new InMemoryResourceRepository();
-    tenantDayLock = new InMemoryTenantDayLock();
+    tenantLock = new InMemoryTenantLock();
     useCase = new CloseScheduleUseCase(
       repo,
       resourceRepo,
-      tenantDayLock,
+      tenantLock,
       new InMemoryTransactionManager(),
     );
   });
@@ -236,7 +236,7 @@ describe('CloseScheduleUseCase', () => {
   describe('tenant-day advisory lock (M21 Cluster 1, Codex PR #460 round-4 finding)', () => {
     it('acquires the (tenantId, date) lock before checking for overlaps on a tenant-wide closure', async () => {
       const date = futureDate(5);
-      const lockSpy = jest.spyOn(tenantDayLock, 'lockTenantDay');
+      const lockSpy = jest.spyOn(tenantLock, 'lockTenantDay');
 
       await useCase.execute({ date, reason: ClosureReason.HOLIDAY, ...ctx });
 
@@ -247,7 +247,7 @@ describe('CloseScheduleUseCase', () => {
       const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
       await resourceRepo.save(resource);
       const date = futureDate(5);
-      const lockSpy = jest.spyOn(tenantDayLock, 'lockTenantDay');
+      const lockSpy = jest.spyOn(tenantLock, 'lockTenantDay');
 
       await useCase.execute({
         date,

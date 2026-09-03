@@ -1,7 +1,7 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure/in-memory-booking-availability';
-import { InMemoryTenantDayLock } from '../../../../test/infrastructure/in-memory-tenant-day-lock';
+import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
@@ -43,7 +43,7 @@ describe('RequestBookingUseCase', () => {
     const txManager = new InMemoryTransactionManager();
     useCase = new RequestBookingUseCase(
       serviceRepo,
-      new BookingSlotConflictService(availabilityPort, new InMemoryTenantDayLock()),
+      new BookingSlotConflictService(availabilityPort, new InMemoryTenantLock()),
       new PhotoExistenceService(storageService),
       bookingRepo,
       txManager,

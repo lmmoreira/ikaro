@@ -11,7 +11,7 @@ import {
   IScheduleOpeningRepository,
   SCHEDULE_OPENING_REPOSITORY,
 } from '../ports/schedule-opening-repository.port';
-import { ITenantDayLockPort, TENANT_DAY_LOCK_PORT } from '../ports/tenant-day-lock.port';
+import { ITenantLockPort, TENANT_LOCK_PORT } from '../../../../shared/ports/tenant-lock.port';
 
 export type RemoveScheduleOpeningUseCaseInput = {
   id: string;
@@ -23,8 +23,8 @@ export class RemoveScheduleOpeningUseCase {
   constructor(
     @Inject(SCHEDULE_OPENING_REPOSITORY)
     private readonly openingRepo: IScheduleOpeningRepository,
-    @Inject(TENANT_DAY_LOCK_PORT)
-    private readonly tenantDayLock: ITenantDayLockPort,
+    @Inject(TENANT_LOCK_PORT)
+    private readonly tenantLock: ITenantLockPort,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
@@ -43,7 +43,7 @@ export class RemoveScheduleOpeningUseCase {
       // before its own dependent-check, so a concurrent create can't slip a new dependent in
       // between this check and the delete below (Codex PR #460 round-4 finding).
       if (opening.resourceId === null) {
-        await this.tenantDayLock.lockTenantDay(tenantId, opening.date);
+        await this.tenantLock.lockTenantDay(tenantId, opening.date);
         const hasDependents = await this.openingRepo.existsResourceScopedForDate(
           tenantId,
           opening.date,
