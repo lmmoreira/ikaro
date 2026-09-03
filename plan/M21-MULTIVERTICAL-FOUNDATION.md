@@ -206,20 +206,23 @@ Two parts, closing the same invariant ("every tenant always has exactly one acti
 **Pattern:** plain composition — extends the existing `ScheduleClosure`/`ScheduleOpening` aggregates and their existing use cases; no new pattern.
 
 **Description:**
-Add an optional `resourceId: ResourceId | null` to both `ScheduleClosure` and `ScheduleOpening` (`null` = tenant-wide, today's exact unchanged behavior — the "everything" sentinel). Extend the existing `close-schedule.use-case.ts`/`open-schedule.use-case.ts` to accept and validate it (resource exists, belongs to the tenant, `404` otherwise), and extend the overlap-check queries in `list-closures`/`remove-closure`/`list-openings`/`remove-schedule-opening` use cases to scope by `(tenantId, resourceId, date)` instead of just `(tenantId, date)` when `resourceId` is set.
+Add an optional `resourceId: string | null` to both `ScheduleClosure` and `ScheduleOpening` (`null` = tenant-wide, today's exact unchanged behavior — the "everything" sentinel; plain string, not a VO — no `ResourceId` value-object class exists in the codebase, confirmed during story discovery). Extend the existing `close-schedule.use-case.ts`/`open-schedule.use-case.ts` to accept and validate it (resource exists, belongs to the tenant, `404` otherwise), and extend the overlap-check queries in `list-closures`/`list-openings` use cases to scope by `(tenantId, resourceId, date)` instead of just `(tenantId, date)` when `resourceId` is set. `remove-closure`/`remove-schedule-opening` need no query changes — see "Backend use case steps" below.
 
-**Constraint fix (required in the same migration, not a follow-up):** `booking.schedule_openings`' current `UNIQUE(tenant_id, date)` silently stops enforcing "one opening per date" the moment `resource_id` becomes nullable (Postgres treats `NULL ≠ NULL`). Replace with the two partial unique indexes from `docs/13-DATABASE_SCHEMA.md`: `UNIQUE(tenant_id, date) WHERE resource_id IS NULL` and `UNIQUE(tenant_id, resource_id, date) WHERE resource_id IS NOT NULL`.
+**Constraint fix (required in the same migration, not a follow-up):** `booking.schedule_openings`' current `UNIQUE(tenant_id, date)` silently stops enforcing "one opening per date" the moment `resource_id` becomes nullable (Postgres treats `NULL ≠ NULL`). Replace with the two partial unique indexes from `docs/13-DATABASE_SCHEMA.md`: `UNIQUE(tenant_id, date) WHERE resource_id IS NULL` and `UNIQUE(tenant_id, resource_id, date) WHERE resource_id IS NOT NULL`. The constraint being dropped is named `UQ_booking_schedule_openings_tenant_date` (from `CreateBookingScheduleOpenings1748000000013`).
 
-**Auth exception:** a request body with `resourceId` set requires `MANAGER` specifically (not `STAFF`) — matches the Resource Management restriction from S01. The existing tenant-wide case (`resourceId` omitted) stays `STAFF|MANAGER`, unchanged. Add this as a guard check inside the existing controller actions (role from `RequestContext`, branch on whether `resourceId` is present in the body), not a second route.
+**Entity decorator note (found during story discovery 2026-09-03):** `ScheduleOpeningEntity`'s current `@Unique(['tenantId', 'date'])` decorator cannot express the two partial unique indexes (TypeORM has no WHERE-clause decorator) — remove it and rely on the migration alone for the real constraint, matching `ResourceEntity`'s existing precedent (its own partial unique indexes are migration-only, undeclared on the entity class).
+
+**Auth exception:** a request body with `resourceId` set requires `MANAGER` specifically (not `STAFF`) — matches the Resource Management restriction from S01. The existing tenant-wide case (`resourceId` omitted) stays `STAFF|MANAGER`, unchanged. Add this as a guard check inside the existing controller actions (role from `RequestContext`, branch on whether `resourceId` is present in the body), not a second route. **DELETE stays STAFF|MANAGER unconditionally regardless of whether the target closure/opening is resource-scoped** (confirmed during story discovery 2026-09-03 — not symmetric with create's MANAGER-only restriction; DELETE requests carry no `resourceId`, and expanding delete authorization is out of scope for UC-010e/f, which only describe creation).
 
 **Backend use case steps:**
-1. **`CreateScheduleClosureUseCase`** (extend, UC-010e): accept optional `resourceId`; if set, validate via `IResourceRepository.findById(tenantId, resourceId)` (`404` if missing/cross-tenant), require `MANAGER`, scope the overlap check to `(tenantId, resourceId, date)`.
-2. **`CreateScheduleOpeningUseCase`** (extend, UC-010f): same shape, plus the two-partial-index migration described above.
-3. List/remove use cases: extend their query methods with an optional `resourceId` filter (`docs/14-API_CONTRACTS.md`'s `GET .../closures?...&resourceId=` / `.../openings?...&resourceId=`).
+1. **`CloseScheduleUseCase`** (extend, UC-010e — story originally misnamed this `CreateScheduleClosureUseCase`; the real class/file already matches the Files list below): accept optional `resourceId`; if set, validate via `IResourceRepository.findById(resourceId, tenantId)` — **note argument order: `id` first, `tenantId` second** (the story originally had this reversed) — throw the existing `ResourceNotFoundError` on `null` (already mapped to `404` in `booking-error.mapper.ts`, no new error code needed). Require `MANAGER` via an in-`create()`-method check on `this.ctx.actorRole`, mirroring `service.controller.ts`'s existing `const { actorRole } = this.tenantContext` pattern, throwing `throwProblemDetail(HttpStatus.FORBIDDEN, ...)` (mirrors `manager-role.guard.ts`). **The BFF needs no duplicate guard** — `BackendHttpService.call()` already forwards the backend's exact status/body verbatim on error, confirmed during discovery. Scope the overlap check (`closureRepo.findByTenantAndDate`) to `(tenantId, resourceId, date)`.
+2. **`OpenScheduleUseCase`** (extend, UC-010f — story originally misnamed this `CreateScheduleOpeningUseCase`): same shape as above; `openingRepo.findByTenantAndDate` gains a `resourceId` parameter, plus the two-partial-index migration described above.
+3. `ListClosuresUseCase`/`ListOpeningsUseCase`: extend their query methods with an optional `resourceId` filter (`docs/14-API_CONTRACTS.md`'s `GET .../closures?...&resourceId=` / `.../openings?...&resourceId=`).
+4. `RemoveClosureUseCase`/`RemoveScheduleOpeningUseCase`: **no code change needed** (corrected during story discovery 2026-09-03 — the story originally claimed these needed "overlap-check queries" extended; confirmed both are pure `findById(id, tenantId) → delete(id, tenantId)` with no date/overlap query at all). `resourceId` travels with the loaded aggregate automatically once the entity/aggregate mapping is extended.
 
 **Backend HTTP surface:** reuses the existing `POST /schedule/closures`, `DELETE /schedule/closures/:id`, `GET /schedule/closures`, and the equivalent `/schedule/openings` routes — `resourceId` is a new optional body/query field on each, not a new route.
 
-**BFF endpoint spec:** extend the existing `apps/bff/src/features/booking/schedule.controller.ts`/`schedule-opening.controller.ts` and their `.schemas.ts` files to pass through the new optional `resourceId` field — same routes, same guard split as today, plus the `MANAGER`-only branch when `resourceId` is present.
+**BFF endpoint spec:** extend the existing `apps/bff/src/features/booking/schedule.controller.ts`/`schedule-opening.controller.ts` and their `.schemas.ts` files to pass through the new optional `resourceId` field — same routes, same `@Roles('MANAGER', 'STAFF')` guard as today, **no additional BFF-side role branching** (confirmed during story discovery 2026-09-03: `BackendHttpService.call()` already forwards the backend's exact status/body verbatim, including its `403`, so the MANAGER-only-when-`resourceId`-present enforcement lives entirely in the backend controller).
 
 **New migration / i18n keys / env vars / feature flags:** new migration adding `resource_id UUID NULLABLE` (composite FK `(tenant_id, resource_id)` → `resources`) to both tables, plus the two-partial-index replacement on `schedule_openings`.
 
@@ -241,26 +244,31 @@ Add an optional `resourceId: ResourceId | null` to both `ScheduleClosure` and `S
 - `apps/backend/src/contexts/booking/infrastructure/controllers/schedule-closure.controller.ts` (+ `.spec.ts`, `.integration.spec.ts`) (modify)
 - `apps/backend/src/contexts/booking/infrastructure/controllers/schedule-opening.controller.ts` (+ `.spec.ts`, `.integration.spec.ts`) (modify)
 - `apps/backend/src/contexts/booking/infrastructure/migrations/<timestamp>-AddResourceIdToScheduleClosuresAndOpenings.ts` (new)
+- `apps/backend/src/test/integration-global-setup.ts` (modify — register the new migration class; `ScheduleClosureEntity`/`ScheduleOpeningEntity` are already registered. **Added during story discovery 2026-09-03**, missing from the original file list — mandatory per `docs/ENGINEERING_RULES.md` § Migration/entity registration)
+- `apps/backend/src/test/builders/booking/schedule-closure.builder.ts` (modify — **added during story discovery 2026-09-03**: `build()` calls `ScheduleClosure.close(...)` positionally; the documented factory inserts `resourceId` before `startTime`, so this call must be updated in the same commit or `startTime` silently shifts into the `resourceId` slot — both are `string | undefined`, `tsc` won't catch it)
+- `apps/backend/src/test/builders/booking/schedule-opening.builder.ts` (modify — same risk as above; `notes` would shift into `resourceId`)
+- `apps/backend/src/test/builders/booking/schedule-closure-entity.builder.ts` (modify — add `withResourceId()`; named-field assignment, additive/safe)
+- `apps/backend/src/test/builders/booking/schedule-opening-entity.builder.ts` (modify — same, additive/safe)
 - `apps/backend/http/booking/schedule-closures.http` (modify — add resourceId examples)
 - `apps/backend/http/booking/schedule-openings.http` (modify)
 - `apps/bff/src/features/booking/schedule.controller.ts` (+ `.spec.ts`, `.component.spec.ts`) (modify)
 - `apps/bff/src/features/booking/schedule.schemas.ts` (modify)
 - `apps/bff/src/features/booking/schedule-opening.controller.ts` (+ `.spec.ts`, `.component.spec.ts`) (modify)
 - `apps/bff/src/features/booking/schedule-opening.schemas.ts` (modify)
-- `apps/bff/http/booking/schedule-closures.http` (modify, if it exists as a separate BFF-side file — verify path at implementation time)
-- `apps/bff/http/booking/schedule-openings.http` (modify, same verification note)
+- `apps/bff/http/schedule/schedule-closures.http` (modify — **corrected during story discovery 2026-09-03**: actual directory is `apps/bff/http/schedule/`, not `apps/bff/http/booking/`)
+- `apps/bff/http/schedule/schedule-openings.http` (new — **corrected during story discovery 2026-09-03**: this file does not exist yet, confirmed; it's a net-new file, not a modify)
 
 **Acceptance criteria — product:**
 - [ ] Manager can create a closure/opening scoped to a specific resource; that resource's calendar reflects it, other resources at the same tenant are unaffected.
 - [ ] Leaving `resourceId` unset behaves byte-identically to today (UC-010a–d, unchanged) — **explicit non-regression AC**, not assumed: an existing STAFF|MANAGER tenant-wide closure/opening flow produces the same result before and after this story.
-- [ ] STAFF users can still create/remove tenant-wide closures/openings (unchanged); STAFF gets `403` only when `resourceId` is present in the request.
+- [ ] STAFF users can still create tenant-wide closures/openings (unchanged) and gets `403` only when `resourceId` is present in the `POST` body. STAFF can still remove *any* closure/opening (resource-scoped or tenant-wide) — `DELETE` carries no `resourceId` and its authorization is unconditionally unchanged (confirmed during story discovery 2026-09-03: not symmetric with create's MANAGER-only restriction, out of scope for UC-010e/f).
 - [ ] A tenant-wide opening and a resource-scoped opening for the same date never collide with each other; two tenant-wide (or two resource-scoped, same resource) openings for the same date still collide as before.
 
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] `ScheduleClosure`/`ScheduleOpening` validate `resourceId` presence doesn't change any other existing invariant
-  - [ ] `CreateScheduleClosureUseCase`/`CreateScheduleOpeningUseCase` reject a `resourceId` that doesn't belong to the tenant
-  - [ ] `CreateScheduleOpeningUseCase` rejects `resourceId` set by a STAFF-role actor with `403`
+  - [ ] `CloseScheduleUseCase`/`OpenScheduleUseCase` reject a `resourceId` that doesn't belong to the tenant
+  - [ ] The controller layer rejects `resourceId` set by a STAFF-role actor with `403` (in-controller check, not use-case level — see "Backend use case steps")
 - Integration:
   - [ ] A resource-scoped closure and a tenant-wide closure for the same date coexist without a false-positive overlap rejection
   - [ ] The two-partial-index migration: insert a tenant-wide opening and a resource-scoped opening for the same date successfully; insert a second tenant-wide opening for that date and assert it's rejected; insert a second resource-scoped opening for the same resource/date and assert it's rejected
