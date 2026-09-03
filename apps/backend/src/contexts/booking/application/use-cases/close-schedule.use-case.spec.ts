@@ -1,5 +1,6 @@
 import { futureDate, pastDate } from '../../../../test/utils/date-helpers';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
+import { InMemoryTenantDayLock } from '../../../../test/infrastructure/in-memory-tenant-day-lock';
 import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { ScheduleClosureBuilder, ResourceBuilder } from '../../../../test/builders/booking/index';
@@ -20,12 +21,19 @@ const ctx = { tenantId: TENANT_ID, createdBy: ACTOR_ID };
 describe('CloseScheduleUseCase', () => {
   let repo: InMemoryScheduleClosureRepository;
   let resourceRepo: InMemoryResourceRepository;
+  let tenantDayLock: InMemoryTenantDayLock;
   let useCase: CloseScheduleUseCase;
 
   beforeEach(() => {
     repo = new InMemoryScheduleClosureRepository();
     resourceRepo = new InMemoryResourceRepository();
-    useCase = new CloseScheduleUseCase(repo, resourceRepo, new InMemoryTransactionManager());
+    tenantDayLock = new InMemoryTenantDayLock();
+    useCase = new CloseScheduleUseCase(
+      repo,
+      resourceRepo,
+      tenantDayLock,
+      new InMemoryTransactionManager(),
+    );
   });
 
   it('creates a full-day closure and returns the result', async () => {
@@ -222,6 +230,33 @@ describe('CloseScheduleUseCase', () => {
       await expect(
         useCase.execute({ date, reason: ClosureReason.HOLIDAY, resourceId: resource.id, ...ctx }),
       ).rejects.toThrow(ScheduleAlreadyClosedError);
+    });
+  });
+
+  describe('tenant-day advisory lock (M21 Cluster 1, Codex PR #460 round-4 finding)', () => {
+    it('acquires the (tenantId, date) lock before checking for overlaps on a tenant-wide closure', async () => {
+      const date = futureDate(5);
+      const lockSpy = jest.spyOn(tenantDayLock, 'lockTenantDay');
+
+      await useCase.execute({ date, reason: ClosureReason.HOLIDAY, ...ctx });
+
+      expect(lockSpy).toHaveBeenCalledWith(TENANT_ID, date);
+    });
+
+    it('acquires the (tenantId, date) lock before checking for overlaps on a resource-scoped closure', async () => {
+      const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
+      await resourceRepo.save(resource);
+      const date = futureDate(5);
+      const lockSpy = jest.spyOn(tenantDayLock, 'lockTenantDay');
+
+      await useCase.execute({
+        date,
+        reason: ClosureReason.HOLIDAY,
+        resourceId: resource.id,
+        ...ctx,
+      });
+
+      expect(lockSpy).toHaveBeenCalledWith(TENANT_ID, date);
     });
   });
 });

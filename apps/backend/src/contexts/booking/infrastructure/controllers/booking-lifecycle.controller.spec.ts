@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure/in-memory-booking-availability';
+import { InMemoryTenantDayLock } from '../../../../test/infrastructure/in-memory-tenant-day-lock';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
@@ -48,7 +49,10 @@ describe('BookingLifecycleController', () => {
     const makeUseCases = (repo: InMemoryBookingRepository) => ({
       approveBooking: new ApproveBookingUseCase(
         repo,
-        new BookingSlotConflictService(new InMemoryBookingAvailabilityPort()),
+        new BookingSlotConflictService(
+          new InMemoryBookingAvailabilityPort(),
+          new InMemoryTenantDayLock(),
+        ),
         new InMemoryTransactionManager(),
       ),
       rejectBooking: new RejectBookingUseCase(repo, new InMemoryTransactionManager()),
@@ -150,7 +154,7 @@ describe('BookingLifecycleController', () => {
         staffCtx,
         new ApproveBookingUseCase(
           bookingRepoB,
-          new BookingSlotConflictService(conflictPort),
+          new BookingSlotConflictService(conflictPort, new InMemoryTenantDayLock()),
           new InMemoryTransactionManager(),
         ),
         new RejectBookingUseCase(bookingRepoB, new InMemoryTransactionManager()),

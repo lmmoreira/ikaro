@@ -1,5 +1,6 @@
 import { pastDate, nextWeekday } from '../../../../test/utils/date-helpers';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
+import { InMemoryTenantDayLock } from '../../../../test/infrastructure/in-memory-tenant-day-lock';
 import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { ScheduleOpeningBuilder, ResourceBuilder } from '../../../../test/builders/booking/index';
@@ -21,15 +22,17 @@ const OTHER_TENANT_ID = '99999999-0000-7000-8000-000000000099';
 describe('OpenScheduleUseCase', () => {
   let repo: InMemoryScheduleOpeningRepository;
   let resourceRepo: InMemoryResourceRepository;
+  let tenantDayLock: InMemoryTenantDayLock;
   let useCase: OpenScheduleUseCase;
   let settings: TenantSettings;
 
   beforeEach(() => {
     repo = new InMemoryScheduleOpeningRepository();
     resourceRepo = new InMemoryResourceRepository();
+    tenantDayLock = new InMemoryTenantDayLock();
     settings = TenantSettings.default();
     const tx = new InMemoryTransactionManager();
-    useCase = new OpenScheduleUseCase(repo, resourceRepo, tx);
+    useCase = new OpenScheduleUseCase(repo, resourceRepo, tenantDayLock, tx);
   });
 
   it('creates an opening for a normally-closed day', async () => {
@@ -473,6 +476,51 @@ describe('OpenScheduleUseCase', () => {
       });
 
       expect(result.resourceId).toBeNull();
+    });
+  });
+
+  describe('tenant-day advisory lock (M21 Cluster 1, Codex PR #460 round-4 TOCTOU finding)', () => {
+    it('acquires the (tenantId, date) lock before creating a resource-scoped opening', async () => {
+      const monday = nextWeekday(1); // open in tenant businessHours by default
+      const resourceWorkingHours = {
+        ...settings.businessHours,
+        monday: null, // this resource specifically doesn't work Mondays
+      };
+      const resource = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withTenantBusinessHours(settings.businessHours)
+        .withWorkingHours(resourceWorkingHours)
+        .build();
+      await resourceRepo.save(resource);
+      const lockSpy = jest.spyOn(tenantDayLock, 'lockTenantDay');
+
+      await useCase.execute({
+        date: monday,
+        startTime: '10:00',
+        endTime: '12:00',
+        resourceId: resource.id,
+        tenantId: TENANT_ID,
+        createdBy: ACTOR_ID,
+        businessHours: settings.businessHours,
+      });
+
+      expect(lockSpy).toHaveBeenCalledWith(TENANT_ID, monday);
+    });
+
+    it('does not acquire the lock when creating a tenant-wide opening', async () => {
+      const date = nextWeekday(0);
+      const lockSpy = jest.spyOn(tenantDayLock, 'lockTenantDay');
+
+      await useCase.execute({
+        date,
+        startTime: '09:00',
+        endTime: '14:00',
+        tenantId: TENANT_ID,
+        createdBy: ACTOR_ID,
+        businessHours: settings.businessHours,
+      });
+
+      expect(lockSpy).not.toHaveBeenCalled();
     });
   });
 });

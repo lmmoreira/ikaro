@@ -1,6 +1,7 @@
 import { HttpException } from '@nestjs/common';
 import { futureDate, nextWeekday, pastDate } from '../../../../test/utils/date-helpers';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
+import { InMemoryTenantDayLock } from '../../../../test/infrastructure/in-memory-tenant-day-lock';
 import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { ScheduleOpeningBuilder, ResourceBuilder } from '../../../../test/builders/booking/index';
@@ -25,10 +26,11 @@ describe('ScheduleOpeningController', () => {
       .withActorRole(actorRole)
       .build();
     const tx = new InMemoryTransactionManager();
+    const tenantDayLock = new InMemoryTenantDayLock();
     return new ScheduleOpeningController(
       ctx,
-      new OpenScheduleUseCase(repo, resourceRepo, tx),
-      new RemoveScheduleOpeningUseCase(repo, tx),
+      new OpenScheduleUseCase(repo, resourceRepo, tenantDayLock, tx),
+      new RemoveScheduleOpeningUseCase(repo, tenantDayLock, tx),
       new ListOpeningsUseCase(repo),
     );
   }

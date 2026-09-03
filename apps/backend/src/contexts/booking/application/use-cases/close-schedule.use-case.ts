@@ -11,6 +11,7 @@ import {
   SCHEDULE_CLOSURE_REPOSITORY,
 } from '../ports/schedule-closure-repository.port';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
+import { ITenantDayLockPort, TENANT_DAY_LOCK_PORT } from '../ports/tenant-day-lock.port';
 import { CloseScheduleDto } from '../dtos/close-schedule.dto';
 
 export type CloseScheduleUseCaseInput = CloseScheduleDto & {
@@ -37,6 +38,8 @@ export class CloseScheduleUseCase {
     private readonly closureRepo: IScheduleClosureRepository,
     @Inject(RESOURCE_REPOSITORY)
     private readonly resourceRepo: IResourceRepository,
+    @Inject(TENANT_DAY_LOCK_PORT)
+    private readonly tenantDayLock: ITenantDayLockPort,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
@@ -59,12 +62,20 @@ export class CloseScheduleUseCase {
       notes: input.notes,
     });
 
-    const existing = await this.closureRepo.findByTenantAndDate(tenantId, input.date, resourceId);
-    if (existing.some((c) => c.overlaps(closure.startTime, closure.endTime))) {
-      throw new ScheduleAlreadyClosedError(input.date);
-    }
-
     await this.txManager.run(async () => {
+      // Re-check the overlap invariant under the same per-(tenant, date) advisory lock
+      // OpenScheduleUseCase/RemoveScheduleOpeningUseCase use, so two concurrent closure creates
+      // for overlapping windows on the same date can't both pass the check before either
+      // commits (docs/13-DATABASE_SCHEMA.md § schedule_closures Rules — this overlap check has
+      // no DB constraint backing it, since arbitrary time-range overlap can't be expressed as a
+      // simple unique index).
+      await this.tenantDayLock.lockTenantDay(tenantId, input.date);
+
+      const existing = await this.closureRepo.findByTenantAndDate(tenantId, input.date, resourceId);
+      if (existing.some((c) => c.overlaps(closure.startTime, closure.endTime))) {
+        throw new ScheduleAlreadyClosedError(input.date);
+      }
+
       await this.closureRepo.save(closure);
     });
 

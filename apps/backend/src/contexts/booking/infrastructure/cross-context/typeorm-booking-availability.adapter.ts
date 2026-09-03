@@ -15,20 +15,6 @@ export class TypeOrmBookingAvailabilityAdapter implements IBookingAvailabilityPo
     private readonly repo: Repository<BookingEntity>,
   ) {}
 
-  async lockTenantDay(tenantId: string, date: string): Promise<void> {
-    const manager = getActiveEntityManager();
-    if (!manager) {
-      throw new Error('Booking slot lock requires an active transaction');
-    }
-
-    await manager.query(
-      `SELECT pg_advisory_xact_lock(
-         hashtextextended($1::text, 0::bigint)
-       )`,
-      [`${tenantId}:${date}`],
-    );
-  }
-
   async findApprovedByTenantAndDate(tenantId: string, date: string): Promise<BookedSlot[]> {
     return this.queryApproved(tenantId, startOfDayUTC(date), endOfDayUTC(date));
   }

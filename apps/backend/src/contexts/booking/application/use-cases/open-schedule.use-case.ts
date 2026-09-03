@@ -18,6 +18,7 @@ import {
   SCHEDULE_OPENING_REPOSITORY,
 } from '../ports/schedule-opening-repository.port';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
+import { ITenantDayLockPort, TENANT_DAY_LOCK_PORT } from '../ports/tenant-day-lock.port';
 import {
   getUtcWeekDayName,
   todayUTC,
@@ -49,6 +50,8 @@ export class OpenScheduleUseCase {
     private readonly openingRepo: IScheduleOpeningRepository,
     @Inject(RESOURCE_REPOSITORY)
     private readonly resourceRepo: IResourceRepository,
+    @Inject(TENANT_DAY_LOCK_PORT)
+    private readonly tenantDayLock: ITenantDayLockPort,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
@@ -76,10 +79,6 @@ export class OpenScheduleUseCase {
     const existing = await this.openingRepo.findByTenantAndDate(tenantId, input.date, resourceId);
     if (existing) throw new ScheduleOpeningAlreadyExistsError(input.date);
 
-    if (resourceId != null) {
-      await this.assertWithinTenantWindow(input, weekday);
-    }
-
     const opening = ScheduleOpening.open({
       tenantId,
       date: input.date,
@@ -91,6 +90,15 @@ export class OpenScheduleUseCase {
     });
 
     await this.txManager.run(async () => {
+      if (resourceId != null) {
+        // Acquire the per-(tenant, date) advisory lock before re-checking the tenant-window
+        // bound, so a concurrent deletion of the prerequisite tenant-wide opening
+        // (RemoveScheduleOpeningUseCase, which takes the same lock) can't interleave between
+        // this check and the write below — whichever transaction wins the lock now fully
+        // determines what the other one sees (Codex PR #460 round-4 finding).
+        await this.tenantDayLock.lockTenantDay(tenantId, input.date);
+        await this.assertWithinTenantWindow(input, weekday);
+      }
       await this.openingRepo.save(opening);
     });
 

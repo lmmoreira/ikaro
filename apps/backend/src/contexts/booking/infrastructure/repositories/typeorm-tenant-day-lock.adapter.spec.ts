@@ -1,0 +1,30 @@
+import { EntityManager } from 'typeorm';
+import { runWithEntityManager } from '../../../../shared/infrastructure/transaction-context';
+import { TypeOrmTenantDayLockAdapter } from './typeorm-tenant-day-lock.adapter';
+
+describe('TypeOrmTenantDayLockAdapter', () => {
+  let adapter: TypeOrmTenantDayLockAdapter;
+
+  beforeEach(() => {
+    adapter = new TypeOrmTenantDayLockAdapter();
+  });
+
+  it('uses a 64-bit advisory transaction lock per tenant/day', async () => {
+    const manager = { query: jest.fn().mockResolvedValue(undefined) } as unknown as EntityManager;
+
+    await runWithEntityManager(manager, () => adapter.lockTenantDay('tenant-1', '2026-06-01'));
+
+    expect(manager.query).toHaveBeenCalledWith(
+      `SELECT pg_advisory_xact_lock(
+         hashtextextended($1::text, 0::bigint)
+       )`,
+      ['tenant-1:2026-06-01'],
+    );
+  });
+
+  it('throws when lockTenantDay is called outside a transaction', async () => {
+    await expect(adapter.lockTenantDay('tenant-1', '2026-06-01')).rejects.toThrow(
+      'Tenant-day lock requires an active transaction',
+    );
+  });
+});

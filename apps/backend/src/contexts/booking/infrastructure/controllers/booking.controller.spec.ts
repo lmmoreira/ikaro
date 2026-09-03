@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure/in-memory-booking-availability';
+import { InMemoryTenantDayLock } from '../../../../test/infrastructure/in-memory-tenant-day-lock';
 import { InMemoryBookingCustomerPort } from '../../../../test/infrastructure/in-memory-booking-customer.port';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
@@ -58,7 +59,10 @@ describe('BookingController', () => {
     const makeUseCases = (repo: InMemoryBookingRepository) => ({
       requestBooking: new RequestBookingUseCase(
         serviceRepo,
-        new BookingSlotConflictService(new InMemoryBookingAvailabilityPort()),
+        new BookingSlotConflictService(
+          new InMemoryBookingAvailabilityPort(),
+          new InMemoryTenantDayLock(),
+        ),
         new PhotoExistenceService(storageService),
         repo,
         new InMemoryTransactionManager(),
@@ -66,7 +70,10 @@ describe('BookingController', () => {
       requestAuthenticatedBooking: new RequestAuthenticatedBookingUseCase(
         customerProfilePort,
         serviceRepo,
-        new BookingSlotConflictService(new InMemoryBookingAvailabilityPort()),
+        new BookingSlotConflictService(
+          new InMemoryBookingAvailabilityPort(),
+          new InMemoryTenantDayLock(),
+        ),
         new PhotoExistenceService(storageService),
         repo,
         new InMemoryTransactionManager(),
@@ -130,7 +137,7 @@ describe('BookingController', () => {
         ctx,
         new RequestBookingUseCase(
           serviceRepo,
-          new BookingSlotConflictService(conflictPort),
+          new BookingSlotConflictService(conflictPort, new InMemoryTenantDayLock()),
           new PhotoExistenceService(storageService),
           repoB,
           new InMemoryTransactionManager(),
@@ -138,7 +145,10 @@ describe('BookingController', () => {
         new RequestAuthenticatedBookingUseCase(
           new InMemoryBookingCustomerPort(),
           serviceRepo,
-          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort()),
+          new BookingSlotConflictService(
+            new InMemoryBookingAvailabilityPort(),
+            new InMemoryTenantDayLock(),
+          ),
           new PhotoExistenceService(storageService),
           repoB,
           new InMemoryTransactionManager(),
@@ -193,7 +203,10 @@ describe('BookingController', () => {
         ctx,
         new RequestBookingUseCase(
           serviceRepo,
-          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort()),
+          new BookingSlotConflictService(
+            new InMemoryBookingAvailabilityPort(),
+            new InMemoryTenantDayLock(),
+          ),
           new PhotoExistenceService(storageService),
           repoC,
           new InMemoryTransactionManager(),
@@ -201,7 +214,10 @@ describe('BookingController', () => {
         new RequestAuthenticatedBookingUseCase(
           noPhonePort,
           serviceRepo,
-          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort()),
+          new BookingSlotConflictService(
+            new InMemoryBookingAvailabilityPort(),
+            new InMemoryTenantDayLock(),
+          ),
           new PhotoExistenceService(storageService),
           repoC,
           new InMemoryTransactionManager(),
