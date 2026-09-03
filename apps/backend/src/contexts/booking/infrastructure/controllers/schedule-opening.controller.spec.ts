@@ -140,13 +140,16 @@ describe('ScheduleOpeningController', () => {
       expect((err as HttpException).getStatus()).toBe(403);
     });
 
-    it('MANAGER can create a resource-scoped opening', async () => {
+    it('MANAGER can create a resource-scoped opening when a tenant-wide opening already covers it', async () => {
       const managerController = buildController('MANAGER');
       const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
       await resourceRepo.save(resource);
+      const date = nextWeekday(0);
+
+      await managerController.create({ date, startTime: '09:00', endTime: '14:00' });
 
       const result = await managerController.create({
-        date: nextWeekday(0),
+        date,
         startTime: '09:00',
         endTime: '14:00',
         resourceId: resource.id,

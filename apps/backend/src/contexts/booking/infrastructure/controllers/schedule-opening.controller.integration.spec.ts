@@ -232,15 +232,22 @@ describe('ScheduleOpeningController (integration)', () => {
   // ─── resourceId (M21 Cluster 1) ──────────────────────────────────────────────
 
   describe('resourceId (M21 Cluster 1)', () => {
-    it('MANAGER creates a resource-scoped opening', async () => {
+    it('MANAGER creates a resource-scoped opening when a tenant-wide opening already covers it', async () => {
       const resource = new ResourceEntityBuilder().withTenantId(tenantAId).build();
       await ds.getRepository(ResourceEntity).save(resource);
+      const date = nextWeekday(0, 5);
+
+      await request(app.getHttpServer())
+        .post('/schedule/openings')
+        .set(actorHeaders(tenantAId, MANAGER_ID))
+        .send({ date, startTime: '09:00', endTime: '14:00' })
+        .expect(201);
 
       const { body } = await request(app.getHttpServer())
         .post('/schedule/openings')
         .set(actorHeaders(tenantAId, MANAGER_ID))
         .send({
-          date: nextWeekday(0, 5),
+          date,
           startTime: '09:00',
           endTime: '14:00',
           resourceId: resource.id,
@@ -311,6 +318,20 @@ describe('ScheduleOpeningController (integration)', () => {
         .post('/schedule/openings')
         .set(actorHeaders(tenantAId, MANAGER_ID))
         .send({ date, startTime: '08:00', endTime: '15:00', resourceId: resource.id })
+        .expect(422);
+
+      expect(body.status).toBe(422);
+    });
+
+    it('returns 422 when no tenant-wide opening exists yet for a date closed for the tenant (M21 Cluster 1, Codex PR #460 round-3 finding)', async () => {
+      const resource = new ResourceEntityBuilder().withTenantId(tenantAId).build();
+      await ds.getRepository(ResourceEntity).save(resource);
+      const date = nextWeekday(0, 10); // Sunday — closed for the tenant, no tenant-wide opening created
+
+      const { body } = await request(app.getHttpServer())
+        .post('/schedule/openings')
+        .set(actorHeaders(tenantAId, MANAGER_ID))
+        .send({ date, startTime: '09:00', endTime: '14:00', resourceId: resource.id })
         .expect(422);
 
       expect(body.status).toBe(422);

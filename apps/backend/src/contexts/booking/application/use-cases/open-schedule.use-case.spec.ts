@@ -10,6 +10,7 @@ import {
   OpeningDateInPastError,
   OpeningExceedsTenantWindowError,
   ScheduleOpeningAlreadyExistsError,
+  TenantOpeningRequiredError,
 } from '../../domain/errors/booking-domain.error';
 import { ResourceNotFoundError } from '../../domain/errors/resource.error';
 
@@ -124,10 +125,19 @@ describe('OpenScheduleUseCase', () => {
   });
 
   describe('resourceId (M21 Cluster 1)', () => {
-    it('creates a resource-scoped opening when resourceId belongs to the tenant', async () => {
+    it('creates a resource-scoped opening when resourceId belongs to the tenant and a tenant-wide opening already covers the window', async () => {
       const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
       await resourceRepo.save(resource);
       const date = nextWeekday(0);
+
+      await useCase.execute({
+        date,
+        startTime: '09:00',
+        endTime: '14:00',
+        tenantId: TENANT_ID,
+        createdBy: ACTOR_ID,
+        businessHours: settings.businessHours,
+      });
 
       const result = await useCase.execute({
         date,
@@ -204,6 +214,15 @@ describe('OpenScheduleUseCase', () => {
       const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
       await resourceRepo.save(resource);
       const date = nextWeekday(0);
+
+      await useCase.execute({
+        date,
+        startTime: '09:00',
+        endTime: '14:00',
+        tenantId: TENANT_ID,
+        createdBy: ACTOR_ID,
+        businessHours: settings.businessHours,
+      });
 
       await useCase.execute({
         date,
@@ -287,6 +306,18 @@ describe('OpenScheduleUseCase', () => {
       const resource = new ResourceBuilder().withTenantId(TENANT_ID).build(); // workingHours: null
       await resourceRepo.save(resource);
 
+      // Sunday is closed for the tenant, so a resource-scoped opening needs an explicit
+      // tenant-wide opening to bound against first (see the tenant-window-bound describe
+      // block below).
+      await useCase.execute({
+        date: sunday,
+        startTime: '09:00',
+        endTime: '12:00',
+        tenantId: TENANT_ID,
+        createdBy: ACTOR_ID,
+        businessHours: settings.businessHours,
+      });
+
       const result = await useCase.execute({
         date: sunday,
         startTime: '09:00',
@@ -356,22 +387,77 @@ describe('OpenScheduleUseCase', () => {
       expect(scoped.resourceId).toBe(resource.id);
     });
 
-    it('allows an unbounded resource-scoped window when no tenant-wide opening exists for that date', async () => {
+    it('throws TenantOpeningRequiredError when the day is closed for the tenant and no tenant-wide opening exists yet (M21 Cluster 1, Codex PR #460 round-3 finding)', async () => {
       const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
       await resourceRepo.save(resource);
-      const date = nextWeekday(0);
+      const date = nextWeekday(0); // Sunday — closed for the tenant, no implicit window to bound against
 
-      const scoped = await useCase.execute({
-        date,
-        startTime: '00:00',
-        endTime: '23:59',
+      await expect(
+        useCase.execute({
+          date,
+          startTime: '09:00',
+          endTime: '14:00',
+          resourceId: resource.id,
+          tenantId: TENANT_ID,
+          createdBy: ACTOR_ID,
+          businessHours: settings.businessHours,
+        }),
+      ).rejects.toThrow(TenantOpeningRequiredError);
+    });
+
+    it('does not require an explicit tenant-wide opening when the day is normally open for the tenant (round-1 scenario stays reachable)', async () => {
+      const monday = nextWeekday(1); // open in tenant businessHours by default
+      const resourceWorkingHours = {
+        ...settings.businessHours,
+        monday: null, // this resource specifically doesn't work Mondays
+      };
+      const resource = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withTenantBusinessHours(settings.businessHours)
+        .withWorkingHours(resourceWorkingHours)
+        .build();
+      await resourceRepo.save(resource);
+
+      // No tenant-wide opening created for this Monday — and none could be, since Monday is
+      // already open for the tenant (DayAlreadyOpenInSettingsError). The tenant's own
+      // businessHours window (09:00-18:00) is the implicit bound instead.
+      const result = await useCase.execute({
+        date: monday,
+        startTime: '10:00',
+        endTime: '12:00',
         resourceId: resource.id,
         tenantId: TENANT_ID,
         createdBy: ACTOR_ID,
         businessHours: settings.businessHours,
       });
 
-      expect(scoped.resourceId).toBe(resource.id);
+      expect(result.resourceId).toBe(resource.id);
+    });
+
+    it('rejects a resource-scoped window exceeding the tenant businessHours window on a day the tenant is normally open', async () => {
+      const monday = nextWeekday(1);
+      const resourceWorkingHours = {
+        ...settings.businessHours,
+        monday: null,
+      };
+      const resource = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withTenantBusinessHours(settings.businessHours)
+        .withWorkingHours(resourceWorkingHours)
+        .build();
+      await resourceRepo.save(resource);
+
+      await expect(
+        useCase.execute({
+          date: monday,
+          startTime: '08:00', // before businessHours.monday.open (09:00)
+          endTime: '12:00',
+          resourceId: resource.id,
+          tenantId: TENANT_ID,
+          createdBy: ACTOR_ID,
+          businessHours: settings.businessHours,
+        }),
+      ).rejects.toThrow(OpeningExceedsTenantWindowError);
     });
 
     it('does not bound a tenant-wide opening against anything (only resource-scoped ones are bounded)', async () => {

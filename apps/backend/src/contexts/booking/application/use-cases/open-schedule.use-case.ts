@@ -10,6 +10,7 @@ import {
   OpeningDateInPastError,
   OpeningExceedsTenantWindowError,
   ScheduleOpeningAlreadyExistsError,
+  TenantOpeningRequiredError,
 } from '../../domain/errors/booking-domain.error';
 import { ResourceNotFoundError } from '../../domain/errors/resource.error';
 import {
@@ -17,7 +18,11 @@ import {
   SCHEDULE_OPENING_REPOSITORY,
 } from '../ports/schedule-opening-repository.port';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
-import { getUtcWeekDayName, todayUTC } from '../../../../shared/utils/calendar-date';
+import {
+  getUtcWeekDayName,
+  todayUTC,
+  type WeekDayName,
+} from '../../../../shared/utils/calendar-date';
 import { OpenScheduleDto } from '../dtos/open-schedule.dto';
 
 export type OpenScheduleUseCaseInput = OpenScheduleDto & {
@@ -71,21 +76,8 @@ export class OpenScheduleUseCase {
     const existing = await this.openingRepo.findByTenantAndDate(tenantId, input.date, resourceId);
     if (existing) throw new ScheduleOpeningAlreadyExistsError(input.date);
 
-    // A resource-scoped opening may never extend beyond a tenant-wide opening that already
-    // covers the same date (docs/13-DATABASE_SCHEMA.md § schedule_openings Rules: "never...
-    // extends beyond a tenant opening/window"). When no tenant-wide opening exists for this
-    // date, there is nothing to bound against — the resource's own window stands on its own,
-    // which is the primary way a resource-scoped opening extends availability beyond the
-    // tenant's default hours in the first place.
     if (resourceId != null) {
-      const tenantWideOpening = await this.openingRepo.findByTenantAndDate(tenantId, input.date);
-      if (
-        tenantWideOpening &&
-        (input.startTime < tenantWideOpening.startTime.value ||
-          input.endTime > tenantWideOpening.endTime.value)
-      ) {
-        throw new OpeningExceedsTenantWindowError(input.date);
-      }
+      await this.assertWithinTenantWindow(input, weekday);
     }
 
     const opening = ScheduleOpening.open({
@@ -103,6 +95,46 @@ export class OpenScheduleUseCase {
     });
 
     return this.toResult(opening);
+  }
+
+  // A resource-scoped opening's window must always fit inside something the tenant itself has
+  // open for that date (docs/13-DATABASE_SCHEMA.md § schedule_openings Rules: "never... extends
+  // beyond a tenant opening/window"). What that "something" is depends on whether the day is
+  // normally open for the tenant:
+  //  - Normally open (businessHours[day] set): that window IS the bound — no explicit
+  //    tenant-wide opening row is needed, since the day is inherently open already. This is
+  //    what makes the round-1 scenario possible at all (a resource closed on a day the tenant
+  //    itself is open, e.g. one stylist's day off): execute()'s day-closed check already
+  //    required the *resource* to be closed for an opening to be attempted here, and
+  //    Resource.create()'s own subset-of-tenant-hours validation guarantees a resource can
+  //    never be open on a day the tenant is closed — so this branch and the one below never
+  //    actually conflict with each other.
+  //  - Normally closed (businessHours[day] is null): the tenant has no hours at all that date,
+  //    so an explicit tenant-wide opening must already exist to bound against — the
+  //    manager/staff must open the tenant level first for that date before opening a specific
+  //    resource within it.
+  private async assertWithinTenantWindow(
+    input: OpenScheduleUseCaseInput,
+    weekday: WeekDayName,
+  ): Promise<void> {
+    const tenantDayHours = input.businessHours[weekday];
+    let boundStart: string;
+    let boundEnd: string;
+    if (tenantDayHours !== null) {
+      boundStart = tenantDayHours.open;
+      boundEnd = tenantDayHours.close;
+    } else {
+      const tenantWideOpening = await this.openingRepo.findByTenantAndDate(
+        input.tenantId,
+        input.date,
+      );
+      if (!tenantWideOpening) throw new TenantOpeningRequiredError(input.date);
+      boundStart = tenantWideOpening.startTime.value;
+      boundEnd = tenantWideOpening.endTime.value;
+    }
+    if (input.startTime < boundStart || input.endTime > boundEnd) {
+      throw new OpeningExceedsTenantWindowError(input.date);
+    }
   }
 
   private toResult(opening: ScheduleOpening): OpenScheduleUseCaseResult {

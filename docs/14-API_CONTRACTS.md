@@ -869,7 +869,7 @@ Auth: JWT + `MANAGER|STAFF` on all write endpoints. **Exception (M21 Cluster 1):
   }
   ```
   - `201` on success
-  - `422` if date is past, OR day-of-week is already open in the effective hours source (tenant `businessHours` for a tenant-wide opening; the resource's own `workingHours[day]` when `resourceId` is set and the resource has a non-null `workingHours`, else falling back to `businessHours` — M21 Cluster 1), OR (`resourceId` set only) the requested window extends beyond an existing tenant-wide opening for the same date (`BOOKING_OPENING_EXCEEDS_TENANT_WINDOW`; no bound applies when no tenant-wide opening exists for that date)
+  - `422` if date is past, OR day-of-week is already open in the effective hours source (tenant `businessHours` for a tenant-wide opening; the resource's own `workingHours[day]` when `resourceId` is set and the resource has a non-null `workingHours`, else falling back to `businessHours` — M21 Cluster 1), OR (`resourceId` set only) the day is normally closed for the tenant and no tenant-wide opening exists yet for that date (`BOOKING_TENANT_OPENING_REQUIRED` — open the tenant level first), OR (`resourceId` set only) the requested window extends beyond the bounding tenant window for that date (`BOOKING_OPENING_EXCEEDS_TENANT_WINDOW` — the tenant's own `businessHours[day]` window when the day is normally open for the tenant, else the prerequisite tenant-wide opening's window)
   - `409` if an opening already exists for that `(date, resourceId)`
   - `404` if `resourceId` is set and does not exist or belongs to another tenant (UC-010f)
 

@@ -66,6 +66,16 @@ export class OpeningExceedsTenantWindowError extends BookingDomainError {
   }
 }
 
+export class TenantOpeningRequiredError extends BookingDomainError {
+  constructor(date: string) {
+    super(
+      `A tenant-wide opening must exist for date ${date} before a resource-scoped opening can be created for it`,
+      BookingErrorCode.TENANT_OPENING_REQUIRED,
+    );
+    this.name = 'TenantOpeningRequiredError';
+  }
+}
+
 export class AvailabilityDateInPastError extends BookingDomainError {
   constructor() {
     super('Cannot check availability for a past date', BookingErrorCode.AVAILABILITY_DATE_IN_PAST);
