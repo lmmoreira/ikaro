@@ -1,9 +1,10 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { IsNull, Not, Repository } from 'typeorm';
+import { IsNull, Not, QueryFailedError, Repository } from 'typeorm';
 import { ScheduleOpeningEntityBuilder } from '../../../../test/builders/booking/index';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
 import { ScheduleOpening } from '../../domain/schedule-opening.aggregate';
+import { ScheduleOpeningAlreadyExistsError } from '../../domain/errors/booking-domain.error';
 import { ScheduleOpeningEntity } from '../entities/schedule-opening.entity';
 import { TypeOrmScheduleOpeningRepository } from './typeorm-schedule-opening.repository';
 
@@ -218,6 +219,84 @@ describe('TypeOrmScheduleOpeningRepository', () => {
       expect(ormRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({ resourceId: RESOURCE_ID }),
       );
+    });
+
+    it('translates a concurrent duplicate tenant-wide unique-index violation to ScheduleOpeningAlreadyExistsError', async () => {
+      // OpenScheduleUseCase's pre-check closes the common case; the advisory lock only guards
+      // the tenant-window bound, not this plain duplicate check — this proves the DB partial
+      // unique index is still the authoritative backstop for the rare concurrent race (Codex
+      // PR #460 round-5 finding, mirrors typeorm-resource.repository.spec.ts's equivalent test).
+      ormRepo.save.mockRejectedValue(
+        new QueryFailedError(
+          'INSERT INTO booking.schedule_openings ...',
+          [],
+          Object.assign(new Error(), {
+            code: '23505',
+            constraint: 'UQ_booking_schedule_openings_tenant_date_no_resource',
+          }),
+        ),
+      );
+      const opening = ScheduleOpening.reconstitute({
+        id: OPENING_ID,
+        tenantId: TENANT_ID,
+        resourceId: null,
+        date: '2026-12-28',
+        startTime: TimeOfDay.create('09:00'),
+        endTime: TimeOfDay.create('14:00'),
+        notes: null,
+        createdBy: STAFF_ID,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+      });
+
+      await expect(repo.save(opening)).rejects.toBeInstanceOf(ScheduleOpeningAlreadyExistsError);
+    });
+
+    it('translates a concurrent duplicate resource-scoped unique-index violation to ScheduleOpeningAlreadyExistsError', async () => {
+      ormRepo.save.mockRejectedValue(
+        new QueryFailedError(
+          'INSERT INTO booking.schedule_openings ...',
+          [],
+          Object.assign(new Error(), {
+            code: '23505',
+            constraint: 'UQ_booking_schedule_openings_tenant_resource_date',
+          }),
+        ),
+      );
+      const opening = ScheduleOpening.reconstitute({
+        id: OPENING_ID,
+        tenantId: TENANT_ID,
+        resourceId: RESOURCE_ID,
+        date: '2026-12-28',
+        startTime: TimeOfDay.create('09:00'),
+        endTime: TimeOfDay.create('14:00'),
+        notes: null,
+        createdBy: STAFF_ID,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+      });
+
+      await expect(repo.save(opening)).rejects.toBeInstanceOf(ScheduleOpeningAlreadyExistsError);
+    });
+
+    it('rethrows an unrelated QueryFailedError unchanged', async () => {
+      const unrelatedError = new QueryFailedError(
+        'INSERT INTO booking.schedule_openings ...',
+        [],
+        Object.assign(new Error(), { code: '23505', constraint: 'some_other_constraint' }),
+      );
+      ormRepo.save.mockRejectedValue(unrelatedError);
+      const opening = ScheduleOpening.reconstitute({
+        id: OPENING_ID,
+        tenantId: TENANT_ID,
+        resourceId: null,
+        date: '2026-12-28',
+        startTime: TimeOfDay.create('09:00'),
+        endTime: TimeOfDay.create('14:00'),
+        notes: null,
+        createdBy: STAFF_ID,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+      });
+
+      await expect(repo.save(opening)).rejects.toBe(unrelatedError);
     });
   });
 

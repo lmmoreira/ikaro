@@ -455,7 +455,7 @@ ScheduleClosure {
 - A full-day closure overlaps with every partial closure on the same `(tenantId, resourceId)` and date — creating a full-day closure when any partial closure already exists for that date, or vice versa, is a conflict
 - **Resource scope, added M21 Cluster 1:** `resourceId = null` blocks every resource at the tenant (today's exact behavior, unchanged default). `resourceId` set blocks only that resource's calendar; a resource closure removes time from that resource even when a tenant-wide opening exists for the same date.
 
-**Factory:** `ScheduleClosure.close(tenantId, date, reason, createdBy, resourceId?, startTime?, endTime?, notes?)`
+**Factory:** `ScheduleClosure.close({ tenantId, date, reason, createdBy, resourceId?, startTime?, endTime?, notes? })` — a single input object, not positional args (M21-S03, PR #460 round 1 — SonarCloud S107 too-many-parameters fix, following `Resource.create()`'s existing precedent).
 
 ---
 
@@ -490,7 +490,7 @@ ScheduleOpening {
 - Only one `ScheduleOpening` per `(tenantId, date)` when `resourceId IS NULL`, and only one per `(tenantId, resourceId, date)` when `resourceId` is set — a tenant-wide opening and a resource-scoped opening for the same date do not collide with each other (M21 Cluster 1; see `docs/13-DATABASE_SCHEMA.md` for the two-partial-unique-index DB fix this required, since a plain `NULL`-inclusive unique index stops enforcing "one per date" once `resourceId` becomes nullable)
 - A resource opening can make that resource available on one of its normally-off dates, but never outside the tenant's own effective hours for that date
 
-**Factory:** `ScheduleOpening.open(tenantId, date, startTime, endTime, createdBy, resourceId?, notes?)`
+**Factory:** `ScheduleOpening.open({ tenantId, date, startTime, endTime, createdBy, resourceId?, notes? })` — a single input object, not positional args (M21-S03, PR #460 round 1 — same SonarCloud S107 fix as `ScheduleClosure.close()` above).
 
 ---
 
