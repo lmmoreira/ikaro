@@ -104,6 +104,8 @@ For every finding in the pooled list:
 
 If Step 3 produced any real fixes: apply all of them together, then **one commit** covering every fix from this round, **one push**. This triggers CI again automatically. Round += 1. Re-dispatch Codex only (never CodeRabbit) for the new commit, then return to Step 1.
 
+**Before committing, grep the round's own staged diff for self-referential process language and strip it from source comments and `describe()`/`it()` titles:** `git diff --cached | grep -inE 'PR #[0-9]+|Codex (PR|round)|round-[0-9]+'`. `docs/CODE_STANDARDS.md` already forbids task/ticket references in source comments — the rule doesn't need re-discovering, it needs self-applying while writing each round's own fix, not just when a bot catches it. (M21-S03 precedent, PR #460, 2026-09-04: "Codex PR #460 round-N finding" was written into source comments and `describe()` titles at least 15 separate times across many files over 9 rounds before a later round's Codex review caught the whole pattern as one batched Minor finding — the rule existed the entire time.)
+
 If Step 3 produced zero real fixes (CI green, SonarCloud 0 open issues, Codex reports 0 Critical/Important — Minor findings replied-to-and-declined are fine, round 1's CodeRabbit findings all triaged) — the loop is done. Report readiness and hand back to CLAUDE.md §9 Step 10 (the merge ask). Do not merge from this skill.
 
 ---
