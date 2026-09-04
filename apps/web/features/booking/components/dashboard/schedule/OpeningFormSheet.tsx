@@ -10,6 +10,7 @@ interface OpeningFormSheetProps {
   readonly todayKey: string;
   readonly timezone: string;
   readonly slotGranularityMinutes: 15 | 30 | 60;
+  readonly resourceId: string | null;
   readonly onClose: () => void;
   readonly onSubmit: (body: CreateOpeningRequest) => Promise<ScheduleOpening>;
 }
@@ -20,6 +21,7 @@ export function OpeningFormSheet({
   todayKey,
   timezone,
   slotGranularityMinutes,
+  resourceId,
   onClose,
   onSubmit,
 }: OpeningFormSheetProps): React.JSX.Element | null {
@@ -57,6 +59,7 @@ export function OpeningFormSheet({
         startTime,
         endTime,
         ...(notes.trim() ? { notes: notes.trim() } : {}),
+        ...(resourceId ? { resourceId } : {}),
       })}
     />
   );

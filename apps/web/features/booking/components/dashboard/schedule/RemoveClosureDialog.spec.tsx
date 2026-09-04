@@ -51,6 +51,7 @@ describe('RemoveClosureDialog', () => {
       endTime: '12:00',
       reason: 'MAINTENANCE' as const,
       notes: 'Preventive work',
+      resourceId: null,
     };
 
     renderWithIntl(

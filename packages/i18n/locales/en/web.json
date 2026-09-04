@@ -1363,6 +1363,8 @@
       "submitOpen": "Open day",
       "submitRemoveClosure": "Remove block",
       "submitRemoveOpening": "Remove opening",
+      "resourcePickerLabel": "Resource",
+      "resourcePickerAllBusiness": "Whole business",
       "errors": {
         "requiredDate": "Enter the date.",
         "pastDateClosure": "Choose today or a future date for blocks.",

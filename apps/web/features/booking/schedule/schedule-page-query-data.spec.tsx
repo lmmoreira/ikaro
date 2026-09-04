@@ -42,6 +42,7 @@ describe('useScheduleQueryData', () => {
         emptyClosures(),
         emptyOpenings(),
         emptyBookings(),
+        null,
       ),
     );
 
@@ -49,6 +50,7 @@ describe('useScheduleQueryData', () => {
       '2026-08-17',
       '2026-08-23',
       emptyClosures(),
+      undefined,
     );
     expect(scheduleHooks.useWeekBookings).toHaveBeenCalledWith(
       '2026-08-17',
@@ -65,6 +67,7 @@ describe('useScheduleQueryData', () => {
         emptyClosures(),
         emptyOpenings(),
         emptyBookings(),
+        null,
       ),
     );
 
@@ -72,16 +75,44 @@ describe('useScheduleQueryData', () => {
       '2026-08-24',
       '2026-08-30',
       undefined,
+      undefined,
     );
     expect(scheduleHooks.useScheduleOpenings).toHaveBeenCalledWith(
       '2026-08-24',
       '2026-08-30',
+      undefined,
       undefined,
     );
     expect(scheduleHooks.useWeekBookings).toHaveBeenCalledWith(
       '2026-08-24',
       '2026-08-30',
       undefined,
+    );
+  });
+
+  it('does not use the server-fetched initial data as a placeholder when a resource is selected, even on the initial week', () => {
+    renderHook(() =>
+      useScheduleQueryData(
+        '2026-08-17',
+        '2026-08-17',
+        emptyClosures(),
+        emptyOpenings(),
+        emptyBookings(),
+        'res-1',
+      ),
+    );
+
+    expect(scheduleHooks.useScheduleClosures).toHaveBeenCalledWith(
+      '2026-08-17',
+      '2026-08-23',
+      undefined,
+      'res-1',
+    );
+    expect(scheduleHooks.useScheduleOpenings).toHaveBeenCalledWith(
+      '2026-08-17',
+      '2026-08-23',
+      undefined,
+      'res-1',
     );
   });
 
@@ -93,6 +124,7 @@ describe('useScheduleQueryData', () => {
       endTime: null,
       reason: 'MAINTENANCE' as const,
       notes: null,
+      resourceId: null,
     };
     scheduleHooks.useScheduleClosures.mockReturnValue({ data: { items: [closure] } });
 
@@ -103,6 +135,7 @@ describe('useScheduleQueryData', () => {
         emptyClosures(),
         emptyOpenings(),
         emptyBookings(),
+        null,
       ),
     );
 

@@ -34,6 +34,14 @@ describe('useScheduleUiState', () => {
     expect(result.current.closureWarning).toBe('Aviso');
   });
 
+  it('initializes selectedResourceId as null and updates through its setter', () => {
+    const { result } = renderHook(() => useScheduleUiState('2026-08-20', '2026-08-17'));
+    expect(result.current.selectedResourceId).toBeNull();
+
+    act(() => result.current.setSelectedResourceId('res-1'));
+    expect(result.current.selectedResourceId).toBe('res-1');
+  });
+
   it('returns a statusFilterRef for the outside-click-close hook', () => {
     const { result } = renderHook(() => useScheduleUiState('2026-08-20', '2026-08-17'));
     expect(result.current.statusFilterRef).toHaveProperty('current');
@@ -46,6 +54,8 @@ function makeUi(overrides: Partial<ScheduleUiState> = {}): ScheduleUiState {
     setWeekStartKey: vi.fn(),
     selectedDateKey: '2026-08-17',
     setSelectedDateKey: vi.fn(),
+    selectedResourceId: null,
+    setSelectedResourceId: vi.fn(),
     closureSheetOpen: true,
     setClosureSheetOpen: vi.fn(),
     openingSheetOpen: true,

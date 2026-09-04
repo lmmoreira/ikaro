@@ -59,6 +59,7 @@ describe('OpeningFormSheet', () => {
         todayKey="2026-07-01"
         timezone="America/Sao_Paulo"
         slotGranularityMinutes={30}
+        resourceId={null}
         onClose={onClose}
         onSubmit={onSubmit}
       />,
@@ -97,6 +98,7 @@ describe('OpeningFormSheet', () => {
         todayKey="2026-07-01"
         timezone="America/Sao_Paulo"
         slotGranularityMinutes={30}
+        resourceId={null}
         onClose={vi.fn()}
         onSubmit={vi.fn().mockResolvedValue({ id: 'opening-1' })}
       />,
@@ -116,6 +118,7 @@ describe('OpeningFormSheet', () => {
         todayKey="2026-07-01"
         timezone="America/Sao_Paulo"
         slotGranularityMinutes={30}
+        resourceId={null}
         onClose={vi.fn()}
         onSubmit={vi.fn().mockResolvedValue({ id: 'opening-1' })}
       />,
@@ -133,11 +136,41 @@ describe('OpeningFormSheet', () => {
         todayKey="2026-07-01"
         timezone="America/Sao_Paulo"
         slotGranularityMinutes={30}
+        resourceId={null}
         onClose={vi.fn()}
         onSubmit={vi.fn().mockResolvedValue({ id: 'opening-2' })}
       />,
     );
 
     expect(screen.getByRole('button', { name: 'Data' })).toHaveTextContent(/12 de julho/i);
+  });
+
+  it('includes resourceId in the submitted body when set', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn().mockResolvedValue({ id: 'opening-1' });
+
+    const { container } = renderWithIntl(
+      <OpeningFormSheet
+        open
+        initialDate="2026-07-05"
+        todayKey="2026-07-01"
+        timezone="America/Sao_Paulo"
+        slotGranularityMinutes={30}
+        resourceId="res-1"
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    const [startTimeSelect, endTimeSelect] = getHiddenTimeSelects(container);
+    fireEvent.change(startTimeSelect, { target: { value: '09:00' } });
+    fireEvent.change(endTimeSelect, { target: { value: '14:00' } });
+    await user.click(screen.getByRole('button', { name: 'Abrir dia' }));
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ date: '2026-07-05', resourceId: 'res-1' }),
+      ),
+    );
   });
 });

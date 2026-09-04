@@ -193,36 +193,37 @@ Add `apps/web/app/dashboard/schedule/page.tsx` to the dashboard sidebar nav unde
 
 ---
 
-## ❓ GAP — Resource-scoped extension (UC-010e, UC-010f — M21 Cluster 1, not yet built)
+## ✅ Resource-scoped extension (UC-010e, UC-010f — M21 Cluster 1, shipped `M21-S05`)
 
-> Added by the `/discovery-to-milestone` promotion of `docs/discovery/multivertical-booking/`. Everything above this line is shipped (`M13-S21`) and untouched. Everything below is new, unimplemented scope layered on top of the same `SchedulePage` — see `07-horarios-recurso.html` for the prototype screen (relocated from the discovery folder's `staff-05-horarios-recurso.html`).
+> Added by the `/discovery-to-milestone` promotion of `docs/discovery/multivertical-booking/`, shipped by `M21-S05`. Everything above this line is shipped (`M13-S21`) and untouched. `07-horarios-recurso.html` (relocated from the discovery folder's `staff-05-horarios-recurso.html`) is discovery-only illustrative material, not a validated `plan/journey/` prototype — it grounded the resource-scoped-calendar *mechanism*, but the shipped UI followed this section's own picker description instead of that file's separate-page illustration (confirmed during `M21-S05` story discovery, 2026-09-04).
 
-**What's new:** `resourceId` becomes an optional field on both `POST /schedule/closures` and `POST /schedule/openings` (existing endpoints — no new routes), plus a `resourceId` query filter on both `GET` list endpoints, and a resource picker at the top of `SchedulePage` so a MANAGER can view/manage one resource's own calendar instead of (or alongside) the tenant-wide one. See `docs/02-DOMAIN_MODEL.md` § Booking Context (`Resource` aggregate) and `docs/14-API_CONTRACTS.md` § Schedule Closures/Openings for the full contract.
+**What shipped:** `resourceId` is now an optional field on both `POST /schedule/closures` and `POST /schedule/openings` (existing endpoints — no new routes), plus a `resourceId` query filter on both `GET` list endpoints, and an in-page `ResourcePicker` at the top of `SchedulePage` so a MANAGER can view/manage one resource's own calendar instead of the tenant-wide one, on the same `/dashboard/schedule` route (no new route). See `docs/02-DOMAIN_MODEL.md` § Booking Context (`Resource` aggregate) and `docs/14-API_CONTRACTS.md` § Schedule Closures/Openings for the full contract.
 
-**Auth exception:** a request body with `resourceId` set requires `MANAGER` specifically (not `STAFF`) — the tenant-wide case (`resourceId` omitted) is unchanged, still `MANAGER|STAFF`. See `docs/14-API_CONTRACTS.md`.
+**Auth exception:** a request body with `resourceId` set requires `MANAGER` specifically (not `STAFF`) — the tenant-wide case (`resourceId` omitted) is unchanged, still `MANAGER|STAFF`. `ResourcePicker` itself is not rendered at all for STAFF (hidden, not disabled) — it's gated on `role === 'MANAGER'`, sourced via the dashboard-wide `TenantProvider` (extended by `M21-S05` to carry `role`, since no client component in this feature previously needed it). See `docs/14-API_CONTRACTS.md`.
 
-**File map (❓ none exist yet):**
+**File map:**
 
 | File | Status |
 |---|---|
-| `apps/web/features/booking/components/dashboard/schedule/ResourcePicker.tsx` | ❓ Gap — new resource selector, likely a `<Select>` in `SchedulePage`'s header |
-| `SchedulePage.tsx` | Needs extending, not replacing — add `resourceId` to its query state and pass through to every BFF call |
-| `ClosureFormSheet.tsx` / `OpeningFormSheet.tsx` | Need extending — pass the currently-selected `resourceId` (if any) into the create request body |
+| `apps/web/features/booking/components/dashboard/schedule/ResourcePicker.tsx` | ✅ Done — native `<select>` in `SchedulePage`'s header, MANAGER-only, excludes the tenant's `LOCATION` resource |
+| `SchedulePage.tsx` | ✅ Extended — renders `ResourcePicker`, threads `resourceId` through the existing `useSchedulePageController`/`schedule-page-ui-state` composition |
+| `ClosureFormSheet.tsx` / `OpeningFormSheet.tsx` | ✅ Extended — pass the currently-selected `resourceId` (if any) into the create request body |
+| `apps/web/providers/tenant-provider.tsx` | ✅ Extended — `TenantState`/`TenantProvider` now also carry the actor's `role` (optional — the customer shell never sets it) |
+| `packages/types/src/schedule.dto.ts` | ✅ Extended — `resourceId` added to `ScheduleClosure`/`ScheduleOpening`/`CreateClosureRequest`/`CreateOpeningRequest` |
 
-**BFF calls (extend existing, no new endpoints):**
+**BFF calls (extended existing endpoints, no new routes):**
 ```
 GET /v1/schedule/closures?from=...&to=...&resourceId=       // resourceId optional
 GET /v1/schedule/openings?from=...&to=...&resourceId=       // resourceId optional
 POST /v1/schedule/closures   { ..., resourceId?: string }   // 404 if resourceId set and not found/cross-tenant
 POST /v1/schedule/openings   { ..., resourceId?: string }   // 404 if resourceId set and not found/cross-tenant
-GET /v1/resources?type=&isActive=                            // new (UC-044) — feeds ResourcePicker's options
+GET /v1/resources?type=&isActive=                            // UC-044 — feeds ResourcePicker's options
 ```
 
-**Known limitation, found during this promotion — not resolved here:** `07-horarios-recurso.html`'s own sidebar/bottom-nav still has "Horários" pointing at a Cluster-2/4 screen (`manager-05-visao-geral.html`, the combined multi-resource day grid) rather than back at this file, and "Serviços"/"Turmas" point at Cluster 2/4 screens (`manager-02-service-resource-config.html`, `staff-04-turmas-proximas.html`) not yet promoted. This mirrors the discovery's own documented caveat ("component explorations until a formal cross-role route map replaces the discovery-only dead navigation links" — `docs/discovery/multivertical-booking/prototype/dev-notes.md`). Leave as-is until those clusters are promoted; do not invent a placeholder destination.
+**Known limitation, found during the original promotion — still not resolved, and moot for the shipped design:** `07-horarios-recurso.html`'s own sidebar/bottom-nav still has "Horários" pointing at a Cluster-2/4 screen (`manager-05-visao-geral.html`, the combined multi-resource day grid) rather than back at this file, and "Serviços"/"Turmas" point at Cluster 2/4 screens (`manager-02-service-resource-config.html`, `staff-04-turmas-proximas.html`) not yet promoted. Since the shipped implementation never navigates to that illustrative screen at all (it's an in-page picker on the existing route, not a drill-down page), this stops applying to the real product — left as-is in the illustrative file until those clusters are promoted.
 
-**Open questions / gaps:**
-- [ ] No story exists yet for this extension — needs `/story-discovery` once M21's milestone file is drafted (Cluster 1).
-- [ ] Whether the resource picker defaults to "tenant-wide" or the tenant's own `LOCATION` resource on first load is a UI detail for that story to decide, not fixed here.
+**Resolved decisions (`M21-S05`):**
+- [x] The resource picker defaults to "Todo o negócio" (tenant-wide, `resourceId = null`) on first load — never the tenant's own `LOCATION` resource, which is excluded from the picker's options entirely (it's functionally redundant with the default).
 
 ---
 

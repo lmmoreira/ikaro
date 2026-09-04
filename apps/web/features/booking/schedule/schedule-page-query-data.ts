@@ -21,20 +21,25 @@ export function useScheduleQueryData(
   initialClosures: ScheduleClosureListResponse,
   initialOpenings: ScheduleOpeningListResponse,
   initialBookings: StaffBookingListResponse,
+  resourceId: string | null,
 ) {
   const weekEndKey = useMemo(() => getWeekEndKey(weekStartKey), [weekStartKey]);
   const weekDates = useMemo(() => getWeekDates(weekStartKey), [weekStartKey]);
-  const isInitialWeek = weekStartKey === initialWeekStartKey;
+  // The server always prefetches the tenant-wide (resourceId = null) scope, so its initial data
+  // is only a valid fallback for the initial week when no resource is selected.
+  const isInitialWeek = weekStartKey === initialWeekStartKey && resourceId == null;
 
   const { data: closures = initialClosures } = useScheduleClosures(
     weekStartKey,
     weekEndKey,
     isInitialWeek ? initialClosures : undefined,
+    resourceId ?? undefined,
   );
   const { data: openings = initialOpenings } = useScheduleOpenings(
     weekStartKey,
     weekEndKey,
     isInitialWeek ? initialOpenings : undefined,
+    resourceId ?? undefined,
   );
   const { data: bookings = initialBookings } = useWeekBookings(
     weekStartKey,

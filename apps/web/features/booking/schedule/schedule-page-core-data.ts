@@ -29,6 +29,7 @@ function useScheduleVisibleData(props: SchedulePageControllerInput, ui: Schedule
     initialClosures,
     initialOpenings,
     initialBookings,
+    ui.selectedResourceId,
   );
   const { selectedStatuses, setSelectedStatuses, viewMode, setViewMode } = useSchedulePreferences();
   const selectedStatusSet = useMemo(() => new Set(selectedStatuses), [selectedStatuses]);

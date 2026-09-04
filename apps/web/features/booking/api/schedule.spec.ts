@@ -17,8 +17,24 @@ afterEach(() => mock.reset());
 
 describe('listClosures', () => {
   it('calls GET /schedule/closures with date params', async () => {
-    mock.onGet('/schedule/closures').reply(200, { items: [] });
+    mock.onGet('/schedule/closures').reply((config) => {
+      expect(config.params).toEqual({ from: '2026-07-01', to: '2026-07-31' });
+      return [200, { items: [] }];
+    });
     const res = await listClosures('2026-07-01', '2026-07-31');
+    expect(res.items).toHaveLength(0);
+  });
+
+  it('includes resourceId in the query params when provided', async () => {
+    mock.onGet('/schedule/closures').reply((config) => {
+      expect(config.params).toEqual({
+        from: '2026-07-01',
+        to: '2026-07-31',
+        resourceId: 'res-1',
+      });
+      return [200, { items: [] }];
+    });
+    const res = await listClosures('2026-07-01', '2026-07-31', 'res-1');
     expect(res.items).toHaveLength(0);
   });
 });
@@ -50,8 +66,24 @@ describe('removeClosure', () => {
 
 describe('listOpenings', () => {
   it('calls GET /schedule/openings with date params', async () => {
-    mock.onGet('/schedule/openings').reply(200, { items: [] });
+    mock.onGet('/schedule/openings').reply((config) => {
+      expect(config.params).toEqual({ from: '2026-07-01', to: '2026-07-31' });
+      return [200, { items: [] }];
+    });
     const res = await listOpenings('2026-07-01', '2026-07-31');
+    expect(res.items).toHaveLength(0);
+  });
+
+  it('includes resourceId in the query params when provided', async () => {
+    mock.onGet('/schedule/openings').reply((config) => {
+      expect(config.params).toEqual({
+        from: '2026-07-01',
+        to: '2026-07-31',
+        resourceId: 'res-1',
+      });
+      return [200, { items: [] }];
+    });
+    const res = await listOpenings('2026-07-01', '2026-07-31', 'res-1');
     expect(res.items).toHaveLength(0);
   });
 });

@@ -12,10 +12,12 @@ import { cn } from '@/shared/utils/cn';
 import { WeekNav } from '@/shells/dashboard/components/WeekNav';
 import { toLocalDate } from '@/features/booking/schedule/schedule-timeline';
 import { useSchedulePageController } from '@/features/booking/schedule/useSchedulePageController';
+import { useTenant } from '@/providers/tenant-provider';
 import { ClosureFormSheet } from './ClosureFormSheet';
 import { OpeningFormSheet } from './OpeningFormSheet';
 import { RemoveClosureDialog } from './RemoveClosureDialog';
 import { RemoveOpeningDialog } from './RemoveOpeningDialog';
+import { ResourcePicker } from './ResourcePicker';
 import { ScheduleDayHeader } from './ScheduleDayHeader';
 import { ScheduleStatusFilterMenu } from './ScheduleStatusFilterMenu';
 import { ScheduleTimelineBoard } from './ScheduleTimelineBoard';
@@ -57,11 +59,16 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
     mutationHandlers,
     statusFilter,
   } = useSchedulePageController(props);
+  const { role } = useTenant();
 
   const isWeekView = scheduleViewMode === 'week';
 
   return (
     <div className="space-y-4 px-4 pb-8">
+      {role === 'MANAGER' && (
+        <ResourcePicker value={ui.selectedResourceId} onValueChange={ui.setSelectedResourceId} />
+      )}
+
       <WeekNav
         windowStart={toLocalDate(ui.weekStartKey)}
         windowDays={7}
@@ -158,6 +165,7 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
         todayKey={todayKey}
         timezone={businessHours.timezone}
         slotGranularityMinutes={slotGranularityMinutes}
+        resourceId={ui.selectedResourceId}
         onClose={() => ui.setClosureSheetOpen(false)}
         onSubmit={mutationHandlers.handleCreateClosure}
       />
@@ -169,6 +177,7 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
         todayKey={todayKey}
         timezone={businessHours.timezone}
         slotGranularityMinutes={slotGranularityMinutes}
+        resourceId={ui.selectedResourceId}
         onClose={() => ui.setOpeningSheetOpen(false)}
         onSubmit={mutationHandlers.handleCreateOpening}
       />

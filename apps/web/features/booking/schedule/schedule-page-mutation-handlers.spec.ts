@@ -15,6 +15,8 @@ function makeUi(overrides: Partial<ScheduleUiState> = {}): ScheduleUiState {
     setWeekStartKey: vi.fn(),
     selectedDateKey: '2026-08-17',
     setSelectedDateKey: vi.fn(),
+    selectedResourceId: null,
+    setSelectedResourceId: vi.fn(),
     closureSheetOpen: true,
     setClosureSheetOpen: vi.fn(),
     openingSheetOpen: true,

@@ -35,6 +35,7 @@ function makeClosure(overrides: Partial<ScheduleClosure> = {}): ScheduleClosure 
     endTime: null,
     reason: 'MAINTENANCE',
     notes: null,
+    resourceId: null,
     ...overrides,
   };
 }
@@ -114,6 +115,7 @@ describe('buildOpeningTimelineEvent', () => {
       startTime: '09:00',
       endTime: '13:00',
       notes: 'Plantão especial',
+      resourceId: null,
     };
     const event = buildOpeningTimelineEvent(opening);
     expect(event).toEqual({

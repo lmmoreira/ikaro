@@ -74,6 +74,30 @@ describe('useScheduleClosures', () => {
 
     await waitFor(() => expect(scheduleApi.listClosures).toHaveBeenCalledTimes(2));
   });
+
+  it('omits resourceId from the request when unset', async () => {
+    renderHook(() => useScheduleClosures('2026-07-01', '2026-07-31'), { wrapper });
+    await waitFor(() =>
+      expect(scheduleApi.listClosures).toHaveBeenCalledWith('2026-07-01', '2026-07-31', undefined),
+    );
+  });
+
+  it('passes resourceId through and refetches when it changes', async () => {
+    const { rerender } = renderHook(
+      ({ resourceId }) => useScheduleClosures('2026-07-01', '2026-07-31', undefined, resourceId),
+      { wrapper, initialProps: { resourceId: 'res-1' } },
+    );
+
+    await waitFor(() =>
+      expect(scheduleApi.listClosures).toHaveBeenCalledWith('2026-07-01', '2026-07-31', 'res-1'),
+    );
+
+    rerender({ resourceId: 'res-2' });
+
+    await waitFor(() =>
+      expect(scheduleApi.listClosures).toHaveBeenCalledWith('2026-07-01', '2026-07-31', 'res-2'),
+    );
+  });
 });
 
 describe('useCreateClosure', () => {
@@ -99,6 +123,22 @@ describe('useScheduleOpenings', () => {
     });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.items).toHaveLength(0);
+  });
+
+  it('omits resourceId from the request when unset', async () => {
+    renderHook(() => useScheduleOpenings('2026-07-01', '2026-07-31'), { wrapper });
+    await waitFor(() =>
+      expect(scheduleApi.listOpenings).toHaveBeenCalledWith('2026-07-01', '2026-07-31', undefined),
+    );
+  });
+
+  it('passes resourceId through to the request', async () => {
+    renderHook(() => useScheduleOpenings('2026-07-01', '2026-07-31', undefined, 'res-1'), {
+      wrapper,
+    });
+    await waitFor(() =>
+      expect(scheduleApi.listOpenings).toHaveBeenCalledWith('2026-07-01', '2026-07-31', 'res-1'),
+    );
   });
 });
 
