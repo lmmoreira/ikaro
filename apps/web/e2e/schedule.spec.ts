@@ -375,7 +375,9 @@ test.describe('schedule page coverage', () => {
     );
 
     await page.getByRole('button', { name: 'Bloquear período' }).click();
-    await page.getByRole('button', { name: 'Bloquear' }).click();
+    // Scoped to the dialog — the page-level "Bloquear período" FAB also matches an unscoped
+    // getByRole('button', { name: 'Bloquear' }) via Playwright's default substring matching.
+    await page.getByRole('dialog').getByRole('button', { name: 'Bloquear' }).click();
 
     const request = await requestPromise;
     const requestBody = request.postDataJSON() as Record<string, unknown>;

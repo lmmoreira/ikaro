@@ -129,7 +129,7 @@ flowchart TD
 
 ## M21 Cluster 2 addition — UC-057 (Manager multi-resource day grid, ❓ Gap)
 
-> "Horários" is role-adaptive: a STAFF viewer gets the resource-scoped timeline above (UC-010e/f); a MANAGER viewer gets this combined day grid instead — no new nav item, same "Horários" entry. Prototype: `08-visao-geral-manager.html` (relocated from `manager-05-visao-geral.html`). BFF: `GET /v1/schedule/day-grid?date=` (`docs/14-API_CONTRACTS.md`), MANAGER only.
+> "Horários" is role-adaptive: a STAFF viewer keeps the tenant-wide timeline above, unchanged (UC-010a–d — resource scoping stays MANAGER-only per `M21-S05`, the picker itself is never rendered for STAFF); a MANAGER viewer gets this combined day grid instead — no new nav item, same "Horários" entry. Prototype: `08-visao-geral-manager.html` (relocated from `manager-05-visao-geral.html`). BFF: `GET /v1/schedule/day-grid?date=` (`docs/14-API_CONTRACTS.md`), MANAGER only.
 
 - [ ] No story exists yet — needs `/story-discovery` once the M21 milestone file is drafted.
 - [ ] Whether Cluster 1's `07-horarios-recurso.html` and this grid share a route-level toggle or are fully separate pages is a UI/routing decision for the implementing story.

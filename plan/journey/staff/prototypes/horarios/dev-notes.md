@@ -212,7 +212,8 @@ Add `apps/web/app/dashboard/schedule/page.tsx` to the dashboard sidebar nav unde
 | `packages/types/src/schedule.dto.ts` | ✅ Extended — `resourceId` added to `ScheduleClosure`/`ScheduleOpening`/`CreateClosureRequest`/`CreateOpeningRequest` |
 
 **BFF calls (extended existing endpoints, no new routes):**
-```
+
+```text
 GET /v1/schedule/closures?from=...&to=...&resourceId=       // resourceId optional
 GET /v1/schedule/openings?from=...&to=...&resourceId=       // resourceId optional
 POST /v1/schedule/closures   { ..., resourceId?: string }   // 404 if resourceId set and not found/cross-tenant
