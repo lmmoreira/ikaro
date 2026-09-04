@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useMemo } from 'react';
+import type { StaffRole } from '@ikaro/types';
 
 interface TenantState {
   readonly tenantId: string;
@@ -8,7 +9,7 @@ interface TenantState {
   // Only the staff/manager dashboard shell (/dashboard/**) has a use for this today — the
   // customer shell (/{slug}/my-account/**) never passes it, so it stays optional rather than
   // inventing a CUSTOMER role value with no real consumer yet.
-  readonly role?: 'STAFF' | 'MANAGER';
+  readonly role?: StaffRole;
 }
 
 interface TenantProviderProps extends TenantState {
