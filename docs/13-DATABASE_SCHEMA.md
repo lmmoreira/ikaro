@@ -455,6 +455,7 @@ Generic bookable unit. Every existing tenant receives one active `LOCATION` reso
 - Every `working_hours` window must be a subset of the tenant's recurring `businessHours` window — application-enforced (aggregate/use-case validation), not a DB constraint.
 - Deactivating a resource (`is_active = false`) never retroactively affects an existing approved appointment or materialized session — it stops future scheduling only.
 - `Staff` remains unaware of `Resource` — Booking validates a referenced `STAFF`-type resource (same-tenant, existing, active, schedulable) through a narrow lookup adapter, and consumes `StaffDeactivated` (published by Staff Context) to cascade-deactivate the wrapping resource.
+- **Race closed via advisory lock (M21-S06):** the staff-wrap-vs-`StaffDeactivated` race — a `Resource` create/update/reactivate reading "staff is active" concurrently with `CascadeStaffDeactivationUseCase` reading "no wrapping resource yet" — is closed by all four use cases acquiring the same per-`(tenant_id, staff_id)` `pg_advisory_xact_lock` (`ITenantLockPort.lockTenantStaff`) before their respective check, inside the write transaction. Same mechanism as `schedule_openings`'/`schedule_closures`' own advisory-lock races above, keyed on `(tenant_id, staff_id)` instead of `(tenant_id, date)`.
 
 ---
 

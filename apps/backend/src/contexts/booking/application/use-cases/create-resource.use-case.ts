@@ -8,6 +8,7 @@ import { Resource } from '../../domain/resource.aggregate';
 import { ResourceType, ResourceWorkingHours } from '../../domain/resource.types';
 import { ResourceTypeNotCreatableError } from '../../domain/errors/resource.error';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
+import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
 import { StaffWrapValidationService } from '../services/staff-wrap-validation.service';
 import { CreateResourceDto } from '../dtos/resource.dto';
 
@@ -35,6 +36,7 @@ export class CreateResourceUseCase {
     @Inject(RESOURCE_REPOSITORY) private readonly resourceRepo: IResourceRepository,
     private readonly staffWrapValidation: StaffWrapValidationService,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
+    @Inject(TENANT_LOCK_PORT) private readonly tenantLock: ITenantLockPort,
   ) {}
 
   async execute(input: CreateResourceUseCaseInput): Promise<CreateResourceUseCaseResult> {
@@ -54,13 +56,11 @@ export class CreateResourceUseCase {
       throw new ResourceTypeNotCreatableError();
     }
 
-    // Known, accepted race: if the target staff member is deactivated in the narrow window
-    // between this check and the save below, CascadeStaffDeactivationUseCase's StaffDeactivated
-    // handler runs first, finds no wrapping Resource yet, and no-ops — nothing then corrects the
-    // resource this call is about to create as active. Closing this fully would need new
-    // cross-context machinery (a saga, a post-save re-check) for a same-sub-second collision
-    // between two independent admin actions on the same staff member; accepted as a documented
-    // limitation rather than built out (Codex round-6 finding, PR #457).
+    // Fast, non-authoritative pre-check — fails fast on the common case (no concurrent
+    // deactivation in flight). The authoritative re-check happens under the tenant-staff
+    // advisory lock inside the write transaction below, closing the race against a concurrent
+    // StaffDeactivated cascade (M21-S06, closing a gap accepted in M21-S01 — Codex round-6
+    // finding, PR #457).
     if (type === ResourceType.STAFF && refId) {
       await this.staffWrapValidation.assertWrappable(refId, tenantId);
     }
@@ -77,6 +77,13 @@ export class CreateResourceUseCase {
     });
 
     await this.txManager.run(async () => {
+      // Serializes against CascadeStaffDeactivationUseCase's own lockTenantStaff acquisition for
+      // the same (tenantId, refId): whichever side wins the lock fully determines what the other
+      // sees once it proceeds (M21-S06).
+      if (type === ResourceType.STAFF && refId) {
+        await this.tenantLock.lockTenantStaff(tenantId, refId);
+        await this.staffWrapValidation.assertWrappable(refId, tenantId);
+      }
       await this.resourceRepo.save(resource);
     });
 

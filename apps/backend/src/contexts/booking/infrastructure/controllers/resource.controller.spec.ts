@@ -1,6 +1,7 @@
 import { HttpException } from '@nestjs/common';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingStaffPort } from '../../../../test/infrastructure/in-memory-booking-staff.port';
+import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { ResourceBuilder } from '../../../../test/builders/booking/index';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
@@ -26,14 +27,15 @@ describe('ResourceController', () => {
     staffPort = new InMemoryBookingStaffPort();
     const ctx = new RequestContextBuilder().withTenantId(TENANT_ID).build();
     const tx = new InMemoryTransactionManager();
+    const tenantLock = new InMemoryTenantLock();
     const staffWrapValidation = new StaffWrapValidationService(staffPort, repo);
     controller = new ResourceController(
       ctx,
-      new CreateResourceUseCase(repo, staffWrapValidation, tx),
+      new CreateResourceUseCase(repo, staffWrapValidation, tx, tenantLock),
       new GetResourceByIdUseCase(repo),
-      new UpdateResourceUseCase(repo, staffWrapValidation, tx),
+      new UpdateResourceUseCase(repo, staffWrapValidation, tx, tenantLock),
       new DeactivateResourceUseCase(repo, tx),
-      new ReactivateResourceUseCase(repo, staffPort, tx),
+      new ReactivateResourceUseCase(repo, staffPort, tx, tenantLock),
       new ListResourcesUseCase(repo),
     );
   });

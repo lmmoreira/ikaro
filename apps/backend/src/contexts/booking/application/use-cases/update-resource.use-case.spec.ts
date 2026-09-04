@@ -1,5 +1,6 @@
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingStaffPort } from '../../../../test/infrastructure/in-memory-booking-staff.port';
+import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { ResourceBuilder } from '../../../../test/builders/booking/index';
 import { FULL_WEEK_BUSINESS_HOURS } from '../../../../test/utils/business-hours-fixtures';
@@ -23,16 +24,19 @@ const OTHER_STAFF_ID = '00000000-0000-7000-8000-000000000003';
 describe('UpdateResourceUseCase', () => {
   let repo: InMemoryResourceRepository;
   let staffPort: InMemoryBookingStaffPort;
+  let tenantLock: InMemoryTenantLock;
   let useCase: UpdateResourceUseCase;
 
   beforeEach(() => {
     repo = new InMemoryResourceRepository();
     staffPort = new InMemoryBookingStaffPort();
+    tenantLock = new InMemoryTenantLock();
     const staffWrapValidation = new StaffWrapValidationService(staffPort, repo);
     useCase = new UpdateResourceUseCase(
       repo,
       staffWrapValidation,
       new InMemoryTransactionManager(),
+      tenantLock,
     );
   });
 
@@ -402,5 +406,126 @@ describe('UpdateResourceUseCase', () => {
         },
       }),
     ).rejects.toThrow(ResourceWorkingHoursOutsideTenantHoursError);
+  });
+
+  describe('tenant-staff advisory lock (M21-S06)', () => {
+    it('acquires lockTenantStaff before the in-transaction re-check when refId is actually changing to a STAFF wrap', async () => {
+      const resource = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await repo.save(resource);
+      staffPort.setProfile(STAFF_ID, { id: STAFF_ID, isActive: true });
+      const lockSpy = jest.spyOn(tenantLock, 'lockTenantStaff');
+
+      await useCase.execute({
+        id: resource.id,
+        tenantId: TENANT_ID,
+        tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+        type: ResourceType.STAFF,
+        refId: STAFF_ID,
+      });
+
+      expect(lockSpy).toHaveBeenCalledWith(TENANT_ID, STAFF_ID);
+    });
+
+    it('rejects the update when the new staff wrap target is deactivated exactly at lock-acquisition time, even though the fast pre-check passed', async () => {
+      const resource = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await repo.save(resource);
+      staffPort.setProfile(STAFF_ID, { id: STAFF_ID, isActive: true });
+      jest.spyOn(tenantLock, 'lockTenantStaff').mockImplementation(async () => {
+        // Simulates a concurrent StaffDeactivated cascade committing and releasing the lock
+        // exactly as this call acquires it — proving the re-check under the lock is genuinely
+        // authoritative, not just present.
+        staffPort.setProfile(STAFF_ID, { id: STAFF_ID, isActive: false });
+      });
+
+      await expect(
+        useCase.execute({
+          id: resource.id,
+          tenantId: TENANT_ID,
+          tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+          type: ResourceType.STAFF,
+          refId: STAFF_ID,
+        }),
+      ).rejects.toThrow(ResourceStaffNotFoundError);
+      const stored = await repo.findById(resource.id, TENANT_ID);
+      expect(stored!.type).toBe(ResourceType.ROOM);
+    });
+
+    // refId staying unchanged (resent explicitly, or simply omitted) still needs to coordinate
+    // with a concurrent cascade for that same staff — unlike the "refId changing" case above, the
+    // resource keeps representing the SAME staff member throughout this edit, so a concurrent
+    // StaffDeactivated cascade's isActive write must not be silently clobbered.
+    it('acquires the lock when editing an unrelated field on a STAFF resource whose wrap is unchanged', async () => {
+      const resource = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.STAFF)
+        .withRefId(STAFF_ID)
+        .build();
+      await repo.save(resource);
+      staffPort.setProfile(STAFF_ID, { id: STAFF_ID, isActive: true });
+      const lockSpy = jest.spyOn(tenantLock, 'lockTenantStaff');
+
+      await useCase.execute({
+        id: resource.id,
+        tenantId: TENANT_ID,
+        tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+        name: 'Camila Duarte (atualizado)',
+      });
+
+      expect(lockSpy).toHaveBeenCalledWith(TENANT_ID, STAFF_ID);
+    });
+
+    it('does not clobber a concurrent cascade deactivation when editing an unrelated field on an unchanged STAFF wrap', async () => {
+      const resource = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.STAFF)
+        .withRefId(STAFF_ID)
+        .build();
+      await repo.save(resource);
+      staffPort.setProfile(STAFF_ID, { id: STAFF_ID, isActive: true });
+      jest.spyOn(tenantLock, 'lockTenantStaff').mockImplementation(async () => {
+        // Simulates CascadeStaffDeactivationUseCase committing and releasing the lock exactly as
+        // this call acquires it — proving the fresh re-read under the lock preserves the
+        // cascade's write instead of this call's own blind save clobbering it back to active.
+        const cascaded = (await repo.findById(resource.id, TENANT_ID))!;
+        cascaded.deactivate();
+        await repo.save(cascaded);
+      });
+
+      const result = await useCase.execute({
+        id: resource.id,
+        tenantId: TENANT_ID,
+        tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+        turnoverMinutes: 45,
+      });
+
+      expect(result.turnoverMinutes).toBe(45);
+      expect(result.isActive).toBe(false);
+      const stored = await repo.findById(resource.id, TENANT_ID);
+      expect(stored!.isActive).toBe(false);
+    });
+
+    it('does not acquire the lock for an unrelated field edit on a non-STAFF resource', async () => {
+      const resource = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await repo.save(resource);
+      const lockSpy = jest.spyOn(tenantLock, 'lockTenantStaff');
+
+      await useCase.execute({
+        id: resource.id,
+        tenantId: TENANT_ID,
+        tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+        turnoverMinutes: 15,
+      });
+
+      expect(lockSpy).not.toHaveBeenCalled();
+    });
   });
 });
