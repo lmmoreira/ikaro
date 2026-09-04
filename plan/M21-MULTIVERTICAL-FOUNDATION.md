@@ -197,7 +197,7 @@ Two parts, closing the same invariant ("every tenant always has exactly one acti
 
 ---
 
-### M21-S03 — Resource-scoped schedule closures/openings — backend + BFF
+### M21-S03 — Resource-scoped schedule closures/openings — backend + BFF ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** M
