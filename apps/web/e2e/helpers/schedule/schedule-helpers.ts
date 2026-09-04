@@ -54,7 +54,7 @@ export function weekDayIndex(dateKey: string): number {
   return Math.round((target.getTime() - start.getTime()) / 86_400_000);
 }
 
-function nextOpenDateKey(offsetDays = 7): string {
+export function nextOpenDateKey(offsetDays = 7): string {
   const date = new Date();
   date.setHours(12, 0, 0, 0);
   date.setDate(date.getDate() + offsetDays);
@@ -89,6 +89,7 @@ export async function createUniqueScheduleClosure(
     readonly startTime?: string;
     readonly endTime?: string;
     readonly notes?: string;
+    readonly resourceId?: string;
   },
   startOffset: number,
 ): Promise<{ readonly id: string; readonly dateKey: string }> {

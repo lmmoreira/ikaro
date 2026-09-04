@@ -52,6 +52,7 @@ describe('buildWeekDayInfo', () => {
       startTime: '10:00',
       endTime: '12:00',
       notes: null,
+      resourceId: null,
     };
     const info = buildWeekDayInfo(
       ['2026-08-17', '2026-08-18', '2026-08-19'],
@@ -80,6 +81,7 @@ describe('buildActiveDates', () => {
       startTime: '10:00',
       endTime: '12:00',
       notes: null,
+      resourceId: null,
     };
     const closure: ScheduleClosure = {
       id: 'closure-1',
@@ -88,6 +90,7 @@ describe('buildActiveDates', () => {
       endTime: null,
       reason: 'MAINTENANCE',
       notes: null,
+      resourceId: null,
     };
     const dates = buildActiveDates([booking], [opening], [closure], 'America/Sao_Paulo');
     expect(dates).toEqual(new Set(['2026-08-17', '2026-08-18', '2026-08-19']));
@@ -132,6 +135,7 @@ describe('resolveTimelineTitle', () => {
     startTime: '10:00',
     endTime: '12:00',
     notes: null,
+    resourceId: null,
   };
 
   it('prioritizes the special-opening title over the closed title', () => {

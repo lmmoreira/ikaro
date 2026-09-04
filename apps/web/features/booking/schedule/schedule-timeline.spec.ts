@@ -114,6 +114,7 @@ describe('buildTimelineEvents', () => {
       startTime: '10:00',
       endTime: '14:00',
       notes: null,
+      resourceId: null,
     };
     const result = buildTimelineEvents({
       selectedDateKey: '2026-08-18',
@@ -153,6 +154,7 @@ describe('buildTimelineEvents', () => {
       endTime: '09:30',
       reason: 'MAINTENANCE',
       notes: null,
+      resourceId: null,
     };
 
     const result = buildTimelineEvents({

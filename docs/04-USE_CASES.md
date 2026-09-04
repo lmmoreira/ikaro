@@ -912,7 +912,7 @@ Returns:
 - **Actor:** MANAGER (deliberately manager-only, like Equipe/Configurações/Hotsite/Recursos — a broader oversight surface than any single-resource view)
 - **Endpoint:** `GET /schedule/day-grid?date=`
 - **Preconditions:** Tenant has ≥ 2 active resources.
-- **Trigger:** Manager opens "Horários" (role-adaptive: a STAFF viewer gets their own resource's timeline — UC-010e/f's screen — a MANAGER viewer gets this grid instead).
+- **Trigger:** Manager opens "Horários" (role-adaptive: a STAFF viewer keeps the tenant-wide timeline unchanged — UC-010e/f's resource-scoped picker/view is deliberately MANAGER-only, never shown to STAFF, per M21-S05 — a MANAGER viewer gets this grid instead).
 - **Main Flow:**
   1. System shows a grid: columns = active resources (any type), rows = time slots for the selected day.
   2. Each cell shows a booking/session if that resource is occupied then, reusing the same visual block as the single-resource timeline.

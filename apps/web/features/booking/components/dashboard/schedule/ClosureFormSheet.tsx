@@ -11,6 +11,7 @@ interface ClosureFormSheetProps {
   readonly todayKey: string;
   readonly timezone: string;
   readonly slotGranularityMinutes: 15 | 30 | 60;
+  readonly resourceId: string | null;
   readonly onClose: () => void;
   readonly onSubmit: (body: CreateClosureRequest) => Promise<ScheduleClosure>;
 }
@@ -31,6 +32,7 @@ export function ClosureFormSheet({
   todayKey,
   timezone,
   slotGranularityMinutes,
+  resourceId,
   onClose,
   onSubmit,
 }: ClosureFormSheetProps): React.JSX.Element | null {
@@ -71,6 +73,7 @@ export function ClosureFormSheet({
         reason,
         ...(startTime && endTime ? { startTime, endTime } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
+        ...(resourceId ? { resourceId } : {}),
       })}
     >
       <label className="block space-y-2">

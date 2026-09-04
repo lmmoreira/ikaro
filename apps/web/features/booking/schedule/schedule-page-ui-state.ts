@@ -14,6 +14,7 @@ export function useScheduleUiState(
 ) {
   const [weekStartKey, setWeekStartKey] = useState(initialWeekStartKey);
   const [selectedDateKey, setSelectedDateKey] = useState(initialSelectedDateKey ?? todayKey);
+  const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
   const [closureSheetOpen, setClosureSheetOpen] = useState(false);
   const [openingSheetOpen, setOpeningSheetOpen] = useState(false);
   const [closureWarning, setClosureWarning] = useState<string | null>(null);
@@ -30,6 +31,8 @@ export function useScheduleUiState(
     setWeekStartKey,
     selectedDateKey,
     setSelectedDateKey,
+    selectedResourceId,
+    setSelectedResourceId,
     closureSheetOpen,
     setClosureSheetOpen,
     openingSheetOpen,

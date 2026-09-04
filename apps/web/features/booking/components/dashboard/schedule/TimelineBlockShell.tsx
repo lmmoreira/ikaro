@@ -9,6 +9,7 @@ interface TimelineBlockShellProps {
   readonly href?: string;
   readonly onClick?: () => void;
   readonly ariaLabel?: string;
+  readonly testId?: string;
   readonly icon?: ReactNode;
   readonly title: string;
   readonly subtitle: string;
@@ -25,6 +26,7 @@ export function TimelineBlockShell({
   href,
   onClick,
   ariaLabel,
+  testId,
   icon,
   title,
   subtitle,
@@ -58,14 +60,26 @@ export function TimelineBlockShell({
 
   if (href) {
     return (
-      <Link href={href} className={shellClassName} style={style} aria-label={ariaLabel}>
+      <Link
+        href={href}
+        className={shellClassName}
+        style={style}
+        aria-label={ariaLabel}
+        data-testid={testId}
+      >
         {content}
       </Link>
     );
   }
 
   return (
-    <button type="button" onClick={onClick} className={shellClassName} style={style}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={shellClassName}
+      style={style}
+      data-testid={testId}
+    >
       {content}
     </button>
   );

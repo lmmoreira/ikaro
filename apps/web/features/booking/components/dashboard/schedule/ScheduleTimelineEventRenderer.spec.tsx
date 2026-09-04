@@ -99,6 +99,7 @@ describe('renderTimelineEvent', () => {
     const props = baseProps();
 
     renderWithIntl(<Host event={event} props={props} />);
+    expect(screen.getByTestId('schedule-opening-block-opening-1')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Abertura especial/ }));
     expect(props.onOpeningClick).toHaveBeenCalledWith(opening);
   });
@@ -124,6 +125,7 @@ describe('renderTimelineEvent', () => {
     const props = baseProps();
 
     renderWithIntl(<Host event={event} props={props} />);
+    expect(screen.getByTestId('schedule-closure-block-closure-1')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Manutenção/ }));
     expect(screen.getByText('Dia inteiro')).toBeInTheDocument();
     expect(props.onClosureClick).toHaveBeenCalledWith(closure);

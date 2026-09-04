@@ -117,6 +117,7 @@ function renderOpeningTimelineEvent(
       compact={compact}
       className="z-10 border-emerald-200 bg-emerald-50 text-emerald-950 hover:bg-emerald-100"
       style={blockStyle}
+      testId={`schedule-opening-block-${event.opening.id}`}
       onClick={() => props.onOpeningClick(event.opening)}
       icon={<CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />}
       title={t('specialOpeningBadge')}
@@ -153,6 +154,7 @@ function renderClosureTimelineEvent(
         backgroundImage:
           'repeating-linear-gradient(135deg, rgba(148,163,184,0.18) 0, rgba(148,163,184,0.18) 8px, rgba(248,250,252,0.95) 8px, rgba(248,250,252,0.95) 16px)',
       }}
+      testId={`schedule-closure-block-${event.closure.id}`}
       onClick={() => props.onClosureClick(event.closure)}
       icon={<Lock className="mt-0.5 h-4 w-4 shrink-0 text-slate-600" />}
       title={getClosureReasonLabel(t, event.closure.reason)}

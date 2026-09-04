@@ -5,6 +5,7 @@ import {
   createUniqueScheduleOpening,
   createScheduleBooking,
   loginAsScheduleStaff,
+  nextOpenDateKey,
   removeScheduleClosure,
   removeScheduleOpening,
   scheduleRoute,
@@ -12,6 +13,7 @@ import {
   weekDayIndex,
 } from '@/e2e/helpers/schedule';
 import { uniqueTestEmail } from '@/e2e/helpers/auth';
+import { createResource, deactivateResource } from '@/e2e/helpers/booking';
 
 function installHydrationGuard(page: Page): string[] {
   const hydrationErrors: string[] = [];
@@ -308,5 +310,80 @@ test.describe('schedule page coverage', () => {
     await expect(
       page.locator(`[data-testid="week-day"][data-date="${booking.dateKey}"]`),
     ).toBeVisible();
+  });
+
+  test('manager scopes the calendar to a resource — a resource-scoped closure is visible only there, not on the tenant-wide view (M21-S05)', async ({
+    page,
+  }) => {
+    await loginAsScheduleStaff(page);
+
+    const resource = await createResource(page, {
+      type: 'ROOM',
+      name: uniqueLabel('E2E Sala'),
+    });
+
+    try {
+      const closure = await createUniqueScheduleClosure(
+        page,
+        { reason: 'MAINTENANCE', notes: 'E2E resource-scoped closure', resourceId: resource.id },
+        125,
+      );
+      const dateKey = closure.dateKey;
+
+      try {
+        await page.goto(scheduleRoute(dateKey));
+
+        // Locale-independent: matched by the closure's own id, not by any rendered text
+        // (docs/08-TESTING_STRATEGY.md § E2E Selector Strategy forbids matching translated copy —
+        // the block's title/subtitle are the translated reason label and time range).
+        const closureButton = page.getByTestId(`schedule-closure-block-${closure.id}`);
+
+        // Tenant-wide ("Todo o negócio") is the default — the resource-scoped closure must not
+        // block or appear on it.
+        await expect(page.getByTestId('resource-picker')).toHaveValue('');
+        await expect(closureButton).toHaveCount(0);
+
+        await page.getByTestId('resource-picker').selectOption(resource.id);
+        await expect(closureButton).toBeVisible();
+
+        await page.getByTestId('resource-picker').selectOption('');
+        await expect(closureButton).toHaveCount(0);
+      } finally {
+        await removeScheduleClosure(page, closure.id);
+      }
+    } finally {
+      await deactivateResource(page, resource.id);
+    }
+  });
+
+  test('creating a closure via the form omits resourceId when the picker is left on "Todo o negócio" (M21-S05 regression guard)', async ({
+    page,
+  }) => {
+    await loginAsScheduleStaff(page);
+
+    const dateKey = nextOpenDateKey(126);
+    await page.goto(scheduleRoute(dateKey));
+
+    await expect(page.getByTestId('resource-picker')).toHaveValue('');
+
+    const requestPromise = page.waitForRequest(
+      (request) => request.url().includes('/schedule/closures') && request.method() === 'POST',
+    );
+    const responsePromise = page.waitForResponse(
+      (res) => res.url().includes('/schedule/closures') && res.request().method() === 'POST',
+    );
+
+    await page.getByRole('button', { name: 'Bloquear período' }).click();
+    // Scoped to the dialog — the page-level "Bloquear período" FAB also matches an unscoped
+    // getByRole('button', { name: 'Bloquear' }) via Playwright's default substring matching.
+    await page.getByRole('dialog').getByRole('button', { name: 'Bloquear' }).click();
+
+    const request = await requestPromise;
+    const requestBody = request.postDataJSON() as Record<string, unknown>;
+    expect(requestBody).not.toHaveProperty('resourceId');
+
+    const response = await responsePromise;
+    const created = (await response.json()) as { readonly id: string };
+    await removeScheduleClosure(page, created.id);
   });
 });

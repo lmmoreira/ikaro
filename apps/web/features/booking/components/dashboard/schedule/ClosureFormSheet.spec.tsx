@@ -59,6 +59,7 @@ describe('ClosureFormSheet', () => {
         todayKey="2026-07-01"
         timezone="America/Sao_Paulo"
         slotGranularityMinutes={30}
+        resourceId={null}
         onClose={onClose}
         onSubmit={onSubmit}
       />,
@@ -99,6 +100,7 @@ describe('ClosureFormSheet', () => {
         todayKey="2026-07-01"
         timezone="America/Sao_Paulo"
         slotGranularityMinutes={30}
+        resourceId={null}
         onClose={vi.fn()}
         onSubmit={vi.fn().mockResolvedValue({ id: 'closure-1' })}
       />,
@@ -119,6 +121,7 @@ describe('ClosureFormSheet', () => {
         todayKey="2026-07-01"
         timezone="America/Sao_Paulo"
         slotGranularityMinutes={30}
+        resourceId={null}
         onClose={vi.fn()}
         onSubmit={vi.fn().mockResolvedValue({ id: 'closure-1' })}
       />,
@@ -140,6 +143,7 @@ describe('ClosureFormSheet', () => {
         todayKey="2026-07-01"
         timezone="America/Sao_Paulo"
         slotGranularityMinutes={30}
+        resourceId={null}
         onClose={vi.fn()}
         onSubmit={vi.fn().mockResolvedValue({ id: 'closure-1' })}
       />,
@@ -166,6 +170,7 @@ describe('ClosureFormSheet', () => {
         todayKey="2026-07-01"
         timezone="America/Sao_Paulo"
         slotGranularityMinutes={30}
+        resourceId={null}
         onClose={vi.fn()}
         onSubmit={vi.fn().mockResolvedValue({ id: 'closure-1' })}
       />,
@@ -183,11 +188,38 @@ describe('ClosureFormSheet', () => {
         todayKey="2026-07-01"
         timezone="America/Sao_Paulo"
         slotGranularityMinutes={30}
+        resourceId={null}
         onClose={vi.fn()}
         onSubmit={vi.fn().mockResolvedValue({ id: 'closure-2' })}
       />,
     );
 
     expect(screen.getByRole('button', { name: 'Data' })).toHaveTextContent(/11 de julho/i);
+  });
+
+  it('includes resourceId in the submitted body when set', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn().mockResolvedValue({ id: 'closure-1' });
+
+    renderWithIntl(
+      <ClosureFormSheet
+        open
+        initialDate="2026-07-04"
+        todayKey="2026-07-01"
+        timezone="America/Sao_Paulo"
+        slotGranularityMinutes={30}
+        resourceId="res-1"
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Bloquear' }));
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ date: '2026-07-04', resourceId: 'res-1' }),
+      ),
+    );
   });
 });

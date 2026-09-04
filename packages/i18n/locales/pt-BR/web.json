@@ -1363,6 +1363,8 @@
       "submitOpen": "Abrir dia",
       "submitRemoveClosure": "Remover bloqueio",
       "submitRemoveOpening": "Remover abertura",
+      "resourcePickerLabel": "Recurso",
+      "resourcePickerAllBusiness": "Todo o negócio",
       "errors": {
         "requiredDate": "Informe a data.",
         "pastDateClosure": "Escolha hoje ou uma data futura para bloquear.",

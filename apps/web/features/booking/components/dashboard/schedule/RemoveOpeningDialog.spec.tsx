@@ -50,6 +50,7 @@ describe('RemoveOpeningDialog', () => {
       startTime: '09:00',
       endTime: '14:00',
       notes: 'Horário especial',
+      resourceId: null,
     };
 
     renderWithIntl(

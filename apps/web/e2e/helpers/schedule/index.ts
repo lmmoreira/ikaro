@@ -10,6 +10,7 @@ export {
   removeScheduleOpening,
   uniqueLabel,
   createScheduleBooking,
+  nextOpenDateKey,
   scheduleRoute,
   weekDayIndex,
 } from './schedule-helpers';

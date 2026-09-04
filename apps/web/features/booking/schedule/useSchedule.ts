@@ -22,11 +22,12 @@ export function useScheduleClosures(
   from: string,
   to: string,
   initialData?: ScheduleClosureListResponse,
+  resourceId?: string,
 ) {
   const { tenantId } = useTenant();
   return useQuery({
-    queryKey: ['schedule', 'closures', tenantId, from, to],
-    queryFn: () => listClosures(from, to),
+    queryKey: ['schedule', 'closures', tenantId, from, to, resourceId ?? null],
+    queryFn: () => listClosures(from, to, resourceId),
     enabled: Boolean(from && to),
     initialData,
   });
@@ -56,11 +57,12 @@ export function useScheduleOpenings(
   from: string,
   to: string,
   initialData?: ScheduleOpeningListResponse,
+  resourceId?: string,
 ) {
   const { tenantId } = useTenant();
   return useQuery({
-    queryKey: ['schedule', 'openings', tenantId, from, to],
-    queryFn: () => listOpenings(from, to),
+    queryKey: ['schedule', 'openings', tenantId, from, to, resourceId ?? null],
+    queryFn: () => listOpenings(from, to, resourceId),
     enabled: Boolean(from && to),
     initialData,
   });
