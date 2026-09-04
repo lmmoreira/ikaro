@@ -1,5 +1,6 @@
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingStaffPort } from '../../../../test/infrastructure/in-memory-booking-staff.port';
+import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { ResourceBuilder } from '../../../../test/builders/booking/index';
 import {
@@ -24,16 +25,19 @@ const STAFF_ID = '00000000-0000-7000-8000-000000000002';
 describe('CreateResourceUseCase', () => {
   let repo: InMemoryResourceRepository;
   let staffPort: InMemoryBookingStaffPort;
+  let tenantLock: InMemoryTenantLock;
   let useCase: CreateResourceUseCase;
 
   beforeEach(() => {
     repo = new InMemoryResourceRepository();
     staffPort = new InMemoryBookingStaffPort();
+    tenantLock = new InMemoryTenantLock();
     const staffWrapValidation = new StaffWrapValidationService(staffPort, repo);
     useCase = new CreateResourceUseCase(
       repo,
       staffWrapValidation,
       new InMemoryTransactionManager(),
+      tenantLock,
     );
   });
 
@@ -177,5 +181,35 @@ describe('CreateResourceUseCase', () => {
     });
 
     expect(result.id).toBeDefined();
+  });
+
+  describe('tenant-staff advisory lock (M21-S06)', () => {
+    it('acquires lockTenantStaff before the in-transaction re-check when wrapping a staff member', async () => {
+      staffPort.setProfile(STAFF_ID, { id: STAFF_ID, isActive: true });
+      const lockSpy = jest.spyOn(tenantLock, 'lockTenantStaff');
+
+      await useCase.execute({
+        tenantId: TENANT_ID,
+        type: ResourceType.STAFF,
+        refId: STAFF_ID,
+        name: 'Camila Duarte',
+        tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+      });
+
+      expect(lockSpy).toHaveBeenCalledWith(TENANT_ID, STAFF_ID);
+    });
+
+    it('does not acquire the lock for a non-STAFF create', async () => {
+      const lockSpy = jest.spyOn(tenantLock, 'lockTenantStaff');
+
+      await useCase.execute({
+        tenantId: TENANT_ID,
+        type: ResourceType.ROOM,
+        name: 'Estúdio 1',
+        tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+      });
+
+      expect(lockSpy).not.toHaveBeenCalled();
+    });
   });
 });

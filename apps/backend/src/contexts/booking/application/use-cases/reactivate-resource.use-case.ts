@@ -10,6 +10,7 @@ import {
 import { ResourceType } from '../../domain/resource.types';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { BOOKING_STAFF_PORT, IBookingStaffPort } from '../ports/booking-staff.port';
+import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
 
 export interface ReactivateResourceUseCaseInput {
   id: string;
@@ -27,6 +28,7 @@ export class ReactivateResourceUseCase {
     @Inject(RESOURCE_REPOSITORY) private readonly resourceRepo: IResourceRepository,
     @Inject(BOOKING_STAFF_PORT) private readonly staffPort: IBookingStaffPort,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
+    @Inject(TENANT_LOCK_PORT) private readonly tenantLock: ITenantLockPort,
   ) {}
 
   async execute(input: ReactivateResourceUseCaseInput): Promise<ReactivateResourceUseCaseResult> {
@@ -38,15 +40,15 @@ export class ReactivateResourceUseCase {
     // alone (without the Staff row also being active again) would silently make an inactive
     // staff member schedulable again (Codex round-7 finding, PR #457).
     //
-    // Same known, accepted race as CreateResourceUseCase's identical check (see its own comment):
-    // if the Staff row is deactivated in the narrow window between this check and the save
-    // below, StaffDeactivated's cascade handler runs first, finds the resource still inactive
-    // (this reactivation hasn't committed yet), no-ops, and this call then persists it as
-    // active anyway. Same product decision applies here — documented as an accepted limitation
-    // rather than built out with new cross-context machinery (Codex round-8 finding, PR #457).
-    if (resource.type === ResourceType.STAFF && resource.refId) {
-      const staff = await this.staffPort.findActiveById(resource.refId, input.tenantId);
-      if (!staff) throw new ResourceStaffNotFoundError(resource.refId);
+    // Fast, non-authoritative pre-check — same reasoning as CreateResourceUseCase's identical
+    // check (see its own comment). The authoritative re-check happens under the tenant-staff
+    // advisory lock inside the write transaction below (M21-S06, closing a gap accepted in
+    // M21-S01 — Codex round-8 finding, PR #457). reactivate() below never touches refId, so this
+    // captured value stays valid for the in-transaction re-check too.
+    const staffRefId = resource.type === ResourceType.STAFF ? resource.refId : null;
+    if (staffRefId !== null) {
+      const staff = await this.staffPort.findActiveById(staffRefId, input.tenantId);
+      if (!staff) throw new ResourceStaffNotFoundError(staffRefId);
     }
 
     // Config-only, no event published — descoped during story discovery (2026-09-01): see
@@ -54,6 +56,14 @@ export class ReactivateResourceUseCase {
     resource.reactivate();
 
     await this.txManager.run(async () => {
+      // Serializes against CascadeStaffDeactivationUseCase's own lockTenantStaff acquisition for
+      // the same (tenantId, refId): whichever side wins the lock fully determines what the other
+      // sees once it proceeds (M21-S06).
+      if (staffRefId !== null) {
+        await this.tenantLock.lockTenantStaff(input.tenantId, staffRefId);
+        const staff = await this.staffPort.findActiveById(staffRefId, input.tenantId);
+        if (!staff) throw new ResourceStaffNotFoundError(staffRefId);
+      }
       await this.resourceRepo.save(resource);
     });
 

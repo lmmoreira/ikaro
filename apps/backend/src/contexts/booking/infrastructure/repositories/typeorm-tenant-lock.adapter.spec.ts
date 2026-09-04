@@ -9,7 +9,7 @@ describe('TypeOrmTenantLockAdapter', () => {
     adapter = new TypeOrmTenantLockAdapter();
   });
 
-  it('uses a 64-bit advisory transaction lock per tenant/day', async () => {
+  it('uses a 64-bit advisory transaction lock per tenant/day, namespaced', async () => {
     const manager = { query: jest.fn().mockResolvedValue(undefined) } as unknown as EntityManager;
 
     await runWithEntityManager(manager, () => adapter.lockTenantDay('tenant-1', '2026-06-01'));
@@ -18,12 +18,31 @@ describe('TypeOrmTenantLockAdapter', () => {
       `SELECT pg_advisory_xact_lock(
          hashtextextended($1::text, 0::bigint)
        )`,
-      ['tenant-1:2026-06-01'],
+      ['tenantday:tenant-1:2026-06-01'],
     );
   });
 
-  it('throws when called outside a transaction', async () => {
+  it('throws when lockTenantDay is called outside a transaction', async () => {
     await expect(adapter.lockTenantDay('tenant-1', '2026-06-01')).rejects.toThrow(
+      'Tenant lock requires an active transaction',
+    );
+  });
+
+  it('uses a 64-bit advisory transaction lock per tenant/staff, namespaced', async () => {
+    const manager = { query: jest.fn().mockResolvedValue(undefined) } as unknown as EntityManager;
+
+    await runWithEntityManager(manager, () => adapter.lockTenantStaff('tenant-1', 'staff-1'));
+
+    expect(manager.query).toHaveBeenCalledWith(
+      `SELECT pg_advisory_xact_lock(
+         hashtextextended($1::text, 0::bigint)
+       )`,
+      ['tenantstaff:tenant-1:staff-1'],
+    );
+  });
+
+  it('throws when lockTenantStaff is called outside a transaction', async () => {
+    await expect(adapter.lockTenantStaff('tenant-1', 'staff-1')).rejects.toThrow(
       'Tenant lock requires an active transaction',
     );
   });

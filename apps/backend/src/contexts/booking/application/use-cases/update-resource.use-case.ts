@@ -4,9 +4,11 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
 import type { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
+import { Resource } from '../../domain/resource.aggregate';
 import { ResourceType, ResourceWorkingHours } from '../../domain/resource.types';
 import { ResourceNotFoundError } from '../../domain/errors/resource.error';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
+import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
 import { StaffWrapValidationService } from '../services/staff-wrap-validation.service';
 import { UpdateResourceDto } from '../dtos/resource.dto';
 
@@ -34,6 +36,7 @@ export class UpdateResourceUseCase {
     @Inject(RESOURCE_REPOSITORY) private readonly resourceRepo: IResourceRepository,
     private readonly staffWrapValidation: StaffWrapValidationService,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
+    @Inject(TENANT_LOCK_PORT) private readonly tenantLock: ITenantLockPort,
   ) {}
 
   async execute(input: UpdateResourceUseCaseInput): Promise<UpdateResourceUseCaseResult> {
@@ -52,9 +55,10 @@ export class UpdateResourceUseCase {
     const turnoverMinutes = input.turnoverMinutes ?? resource.turnoverMinutes;
     const maxCapacity = input.maxCapacity !== undefined ? input.maxCapacity : resource.maxCapacity;
 
-    // Same known, accepted race as CreateResourceUseCase's identical check (see its own
-    // comment) — documented as an accepted limitation rather than built out with new
-    // cross-context machinery (Codex round-6/8 finding, PR #457).
+    // Fast, non-authoritative pre-check — same reasoning as CreateResourceUseCase's identical
+    // check (see its own comment). The authoritative re-check happens under the tenant-staff
+    // advisory lock inside the write transaction below (M21-S06, closing a gap accepted in
+    // M21-S01 — Codex round-6/8 finding, PR #457).
     //
     // Only re-validated when refId is actually changing: the frontend always sends refId
     // explicitly (PATCH semantics don't distinguish "unchanged" from "resent"), so gating on
@@ -63,8 +67,19 @@ export class UpdateResourceUseCase {
     // been deactivated (UC-048's cascade already deactivated this resource itself; requiring
     // the staff to still be active here would make every subsequent edit fail, not just ones
     // that touch refId).
-    if (type === ResourceType.STAFF && refId && refId !== resource.refId) {
-      await this.staffWrapValidation.assertWrappable(refId, input.tenantId, resource.id);
+    // Captured before resource.update() mutates resource.refId in place below — re-deriving this
+    // condition after the mutation would always read the new refId back on both sides and never
+    // detect a wrap change.
+    const previousRefId = resource.refId;
+    const staffWrapChangingTo =
+      type === ResourceType.STAFF && refId !== null && refId !== previousRefId ? refId : null;
+
+    if (staffWrapChangingTo !== null) {
+      await this.staffWrapValidation.assertWrappable(
+        staffWrapChangingTo,
+        input.tenantId,
+        resource.id,
+      );
     }
 
     resource.update(
@@ -78,9 +93,27 @@ export class UpdateResourceUseCase {
     );
 
     await this.txManager.run(async () => {
+      await this.validateUnderLock(input.tenantId, resource.id, staffWrapChangingTo);
       await this.resourceRepo.save(resource);
     });
 
+    return this.toResult(resource);
+  }
+
+  // Serializes against CascadeStaffDeactivationUseCase's own lockTenantStaff acquisition for the
+  // same (tenantId, refId): whichever side wins the lock fully determines what the other sees
+  // once it proceeds (M21-S06). No-op when refId isn't actually changing to a STAFF wrap.
+  private async validateUnderLock(
+    tenantId: string,
+    resourceId: string,
+    staffWrapChangingTo: string | null,
+  ): Promise<void> {
+    if (staffWrapChangingTo === null) return;
+    await this.tenantLock.lockTenantStaff(tenantId, staffWrapChangingTo);
+    await this.staffWrapValidation.assertWrappable(staffWrapChangingTo, tenantId, resourceId);
+  }
+
+  private toResult(resource: Resource): UpdateResourceUseCaseResult {
     return {
       id: resource.id,
       type: resource.type,

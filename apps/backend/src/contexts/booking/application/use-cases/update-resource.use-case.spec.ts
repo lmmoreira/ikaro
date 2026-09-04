@@ -1,5 +1,6 @@
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingStaffPort } from '../../../../test/infrastructure/in-memory-booking-staff.port';
+import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { ResourceBuilder } from '../../../../test/builders/booking/index';
 import { FULL_WEEK_BUSINESS_HOURS } from '../../../../test/utils/business-hours-fixtures';
@@ -23,16 +24,19 @@ const OTHER_STAFF_ID = '00000000-0000-7000-8000-000000000003';
 describe('UpdateResourceUseCase', () => {
   let repo: InMemoryResourceRepository;
   let staffPort: InMemoryBookingStaffPort;
+  let tenantLock: InMemoryTenantLock;
   let useCase: UpdateResourceUseCase;
 
   beforeEach(() => {
     repo = new InMemoryResourceRepository();
     staffPort = new InMemoryBookingStaffPort();
+    tenantLock = new InMemoryTenantLock();
     const staffWrapValidation = new StaffWrapValidationService(staffPort, repo);
     useCase = new UpdateResourceUseCase(
       repo,
       staffWrapValidation,
       new InMemoryTransactionManager(),
+      tenantLock,
     );
   });
 
@@ -402,5 +406,65 @@ describe('UpdateResourceUseCase', () => {
         },
       }),
     ).rejects.toThrow(ResourceWorkingHoursOutsideTenantHoursError);
+  });
+
+  describe('tenant-staff advisory lock (M21-S06)', () => {
+    it('acquires lockTenantStaff before the in-transaction re-check when refId is actually changing to a STAFF wrap', async () => {
+      const resource = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await repo.save(resource);
+      staffPort.setProfile(STAFF_ID, { id: STAFF_ID, isActive: true });
+      const lockSpy = jest.spyOn(tenantLock, 'lockTenantStaff');
+
+      await useCase.execute({
+        id: resource.id,
+        tenantId: TENANT_ID,
+        tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+        type: ResourceType.STAFF,
+        refId: STAFF_ID,
+      });
+
+      expect(lockSpy).toHaveBeenCalledWith(TENANT_ID, STAFF_ID);
+    });
+
+    it('does not acquire the lock when resending the same refId on an already-wrapped STAFF resource', async () => {
+      const resource = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.STAFF)
+        .withRefId(STAFF_ID)
+        .build();
+      await repo.save(resource);
+      staffPort.setProfile(STAFF_ID, { id: STAFF_ID, isActive: true });
+      const lockSpy = jest.spyOn(tenantLock, 'lockTenantStaff');
+
+      await useCase.execute({
+        id: resource.id,
+        tenantId: TENANT_ID,
+        tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+        name: 'Camila Duarte (atualizado)',
+      });
+
+      expect(lockSpy).not.toHaveBeenCalled();
+    });
+
+    it('does not acquire the lock for an unrelated field edit on a non-STAFF resource', async () => {
+      const resource = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await repo.save(resource);
+      const lockSpy = jest.spyOn(tenantLock, 'lockTenantStaff');
+
+      await useCase.execute({
+        id: resource.id,
+        tenantId: TENANT_ID,
+        tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+        turnoverMinutes: 15,
+      });
+
+      expect(lockSpy).not.toHaveBeenCalled();
+    });
   });
 });

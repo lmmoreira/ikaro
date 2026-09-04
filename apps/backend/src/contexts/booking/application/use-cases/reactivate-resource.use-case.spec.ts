@@ -1,6 +1,7 @@
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { InMemoryBookingStaffPort } from '../../../../test/infrastructure/in-memory-booking-staff.port';
+import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { ResourceBuilder } from '../../../../test/builders/booking/index';
 import {
   ResourceAlreadyActiveError,
@@ -17,12 +18,19 @@ const STAFF_ID = '00000000-0000-7000-8000-000000000002';
 describe('ReactivateResourceUseCase', () => {
   let repo: InMemoryResourceRepository;
   let staffPort: InMemoryBookingStaffPort;
+  let tenantLock: InMemoryTenantLock;
   let useCase: ReactivateResourceUseCase;
 
   beforeEach(() => {
     repo = new InMemoryResourceRepository();
     staffPort = new InMemoryBookingStaffPort();
-    useCase = new ReactivateResourceUseCase(repo, staffPort, new InMemoryTransactionManager());
+    tenantLock = new InMemoryTenantLock();
+    useCase = new ReactivateResourceUseCase(
+      repo,
+      staffPort,
+      new InMemoryTransactionManager(),
+      tenantLock,
+    );
   });
 
   it('reactivates an inactive resource', async () => {
@@ -94,5 +102,34 @@ describe('ReactivateResourceUseCase', () => {
     );
     const stored = await repo.findById(resource.id, OTHER_TENANT_ID);
     expect(stored!.isActive).toBe(false);
+  });
+
+  describe('tenant-staff advisory lock (M21-S06)', () => {
+    it('acquires lockTenantStaff before the in-transaction re-check when reactivating a STAFF resource', async () => {
+      const resource = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.STAFF)
+        .withRefId(STAFF_ID)
+        .build();
+      resource.deactivate();
+      await repo.save(resource);
+      staffPort.setProfile(STAFF_ID, { id: STAFF_ID, isActive: true });
+      const lockSpy = jest.spyOn(tenantLock, 'lockTenantStaff');
+
+      await useCase.execute({ id: resource.id, tenantId: TENANT_ID });
+
+      expect(lockSpy).toHaveBeenCalledWith(TENANT_ID, STAFF_ID);
+    });
+
+    it('does not acquire the lock when reactivating a non-STAFF resource', async () => {
+      const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
+      resource.deactivate();
+      await repo.save(resource);
+      const lockSpy = jest.spyOn(tenantLock, 'lockTenantStaff');
+
+      await useCase.execute({ id: resource.id, tenantId: TENANT_ID });
+
+      expect(lockSpy).not.toHaveBeenCalled();
+    });
   });
 });
