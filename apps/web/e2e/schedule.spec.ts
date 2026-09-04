@@ -323,14 +323,9 @@ test.describe('schedule page coverage', () => {
     });
 
     try {
-      // The closure's own `notes` (not the translated `reason` label) is the locale-independent
-      // text this test matches on below — the timeline block's subtitle is `closure.notes`
-      // verbatim (docs/08-TESTING_STRATEGY.md § E2E Selector Strategy forbids matching translated
-      // copy; no data-testid exists per-block, unlike the day-card container).
-      const closureNotes = uniqueLabel('E2E resource-scoped closure');
       const closure = await createUniqueScheduleClosure(
         page,
-        { reason: 'MAINTENANCE', notes: closureNotes, resourceId: resource.id },
+        { reason: 'MAINTENANCE', notes: 'E2E resource-scoped closure', resourceId: resource.id },
         125,
       );
       const dateKey = closure.dateKey;
@@ -338,11 +333,10 @@ test.describe('schedule page coverage', () => {
       try {
         await page.goto(scheduleRoute(dateKey));
 
-        const closureButton = page
-          .getByTestId('schedule-week-day-card')
-          .nth(weekDayIndex(dateKey))
-          .locator('button.absolute.overflow-hidden.rounded-xl')
-          .filter({ hasText: closureNotes });
+        // Locale-independent: matched by the closure's own id, not by any rendered text
+        // (docs/08-TESTING_STRATEGY.md § E2E Selector Strategy forbids matching translated copy —
+        // the block's title/subtitle are the translated reason label and time range).
+        const closureButton = page.getByTestId(`schedule-closure-block-${closure.id}`);
 
         // Tenant-wide ("Todo o negócio") is the default — the resource-scoped closure must not
         // block or appear on it.
@@ -350,7 +344,7 @@ test.describe('schedule page coverage', () => {
         await expect(closureButton).toHaveCount(0);
 
         await page.getByTestId('resource-picker').selectOption(resource.id);
-        await expect(closureButton.first()).toBeVisible();
+        await expect(closureButton).toBeVisible();
 
         await page.getByTestId('resource-picker').selectOption('');
         await expect(closureButton).toHaveCount(0);
