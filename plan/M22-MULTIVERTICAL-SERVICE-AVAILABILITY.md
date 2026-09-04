@@ -362,7 +362,7 @@ Add `GET /schedule/day-grid?date=` (MANAGER only): for every active `Resource` (
 **Complexity:** M
 **Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/14-API_CONTRACTS.md` § `GET /schedule/day-grid`, `docs/08-TESTING_STRATEGY.md`
 **Dependencies:** M22-S05 (day-grid BFF endpoint)
-**Pattern:** plain composition — "Horários" is role-adaptive per `plan/journey/staff/horarios.md`'s own note (a STAFF viewer gets the resource-scoped timeline from M21-S05; a MANAGER viewer gets this grid instead, same nav entry); no new pattern.
+**Pattern:** plain composition — "Horários" is role-adaptive per `plan/journey/staff/horarios.md`'s own note (a STAFF viewer keeps the tenant-wide timeline unchanged — M21-S05's `ResourcePicker`/resource-scoped view is MANAGER-only and was never shown to STAFF; a MANAGER viewer gets this grid instead of M21-S05's resource-scoped timeline, same nav entry); no new pattern.
 **Prototype references:** `plan/journey/staff/horarios.md` (M21 Cluster 2 addition section), `plan/journey/staff/prototypes/horarios/08-visao-geral-manager.html`, `dev-notes.md`
 
 **Description:**
@@ -377,7 +377,7 @@ Add the manager-only day-grid view to the existing "Horários" page (`apps/web/f
 **Acceptance criteria — product:**
 - [ ] Manager opening "Horários" sees the combined multi-resource grid for the selected day.
 - [ ] Manager can click any occupied block to drill into that booking's detail.
-- [ ] Staff opening "Horários" is unaffected — still sees M21-S05's resource-scoped timeline.
+- [ ] Staff opening "Horários" is unaffected — still sees the tenant-wide timeline unchanged (M21-S05's `ResourcePicker`/resource-scoped view was always MANAGER-only, never shown to STAFF).
 - [ ] A tenant-type filter (Profissionais/Salas/Equipamentos) narrows visible columns when there are too many resources to fit (UC-057 A1).
 
 **Acceptance criteria — technical:**
@@ -388,6 +388,6 @@ Add the manager-only day-grid view to the existing "Horários" page (`apps/web/f
 - Tenant isolation: n/a — client-side; server-side isolation already covered by S05
 - E2E:
   - [ ] Playwright: manager opens Horários, sees the grid, clicks a block, is taken to the booking detail
-  - [ ] Playwright: staff opens Horários, sees the resource-scoped timeline (M21-S05), not the grid
+  - [ ] Playwright: staff opens Horários, sees the tenant-wide timeline unchanged (no `ResourcePicker` — M21-S05's picker was always MANAGER-only), not the grid
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
