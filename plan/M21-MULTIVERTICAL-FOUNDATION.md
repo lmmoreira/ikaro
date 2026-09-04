@@ -391,7 +391,7 @@ Extend the existing, shipped `SchedulePage` (`apps/web/features/booking/componen
 
 ---
 
-### M21-S06 — Close the staff-wrap-vs-StaffDeactivated race with a tenant-staff advisory lock
+### M21-S06 — Close the staff-wrap-vs-StaffDeactivated race with a tenant-staff advisory lock ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** S
