@@ -357,30 +357,58 @@ Working-hours edit (UC-046), deactivate confirmation (UC-047), and reactivate co
 **Agent:** `frontend-ts`
 **Complexity:** M
 **Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/14-API_CONTRACTS.md` § Schedule Closures/Openings (M21 Cluster 1 extension), `docs/08-TESTING_STRATEGY.md`
-**Dependencies:** M21-S03 (BFF resourceId support), M21-S04 (`ResourcePicker` reuses S04's `useResources()` hook from `apps/web/features/booking/api/resources.ts` to populate its dropdown — found via this milestone's own mechanical supplying-endpoint check: nothing else in this milestone supplies a resource-list read for the frontend)
-**Pattern:** plain composition — extends the existing, shipped `SchedulePage` component; no new pattern.
-**Prototype references:** `plan/journey/staff/horarios.md` (M21 Cluster 1 extension section), `plan/journey/staff/prototypes/horarios/07-horarios-recurso.html`, `dev-notes.md`'s own ❓ GAP section
+**Dependencies:** M21-S03 (BFF `resourceId` support), M21-S04 (`ResourcePicker` reuses `useResources()` to populate its dropdown — the hook lives in `apps/web/features/booking/hooks/useResources.ts`, not `api/resources.ts` — `api/resources.ts` holds the plain fetch functions only; corrected during story discovery 2026-09-04. Found via this milestone's own mechanical supplying-endpoint check: nothing else in this milestone supplies a resource-list read for the frontend)
+**Pattern:** plain composition — extends the existing, shipped `SchedulePage` component tree; no new pattern. One shared-provider extension (`TenantProvider`) is part of this story — see Description.
+**Prototype references:** `plan/journey/staff/horarios.md` (M21 Cluster 1 extension section), `plan/journey/staff/prototypes/horarios/07-horarios-recurso.html`, `dev-notes.md`'s own ❓ GAP section. **`07-horarios-recurso.html` is explicitly self-labeled "DISCOVERY PROTOTYPE — illustrative only, NOT a plan/journey/ prototype"** and depicts a separate drill-down page reached from the Resources list — this is *not* what this story builds. The canonical, promoted spec (`horarios.md`'s own mermaid flow and Pages table, `dev-notes.md`'s GAP section) is authoritative and consistently describes one in-page picker on the existing `/dashboard/schedule` route — confirmed with the user during discovery.
 
 **Description:**
-Extend the existing, shipped `SchedulePage` (`apps/web/features/booking/components/dashboard/schedule/SchedulePage.tsx`, `M13-S21`) with a new `ResourcePicker` at the top — selecting a resource re-scopes every BFF call (`GET`/`POST /schedule/closures`, `.../openings`) to include `resourceId`, and re-renders the same calendar UI against that resource's own occupied windows instead of the tenant-wide view. Leaving the picker on "Todo o negócio" (default) preserves today's exact behavior — this is an additive extension of an already-well-tested component, not a rewrite.
+Extend the existing, shipped `SchedulePage` (`apps/web/features/booking/components/dashboard/schedule/SchedulePage.tsx`, `M13-S21`, since decomposed into ~15 files by `TD37-S5A`) with a new `ResourcePicker` at the top — selecting a resource re-scopes every BFF call (`GET`/`POST /schedule/closures`, `.../openings`) to include `resourceId`, and re-renders the same calendar UI (block, unblock, open a closed day, remove an opening — all of it, unchanged mechanics) against that resource's own occupied windows instead of the tenant-wide view. Leaving the picker on "Todo o negócio" (default) preserves today's exact behavior. This is an additive extension of an already-well-tested, already-decomposed component tree, not a rewrite — but the actual file surface is wider than a single-component change; see the corrected file list below (the original draft undercounted it against an older, pre-`TD37-S5A` mental model of `SchedulePage`).
+
+**Decisions locked in during story discovery (2026-09-04):**
+1. **In-page picker, same screen, confirmed** (not a separate route) — user: "we would reuse same screen, to block and unblock."
+2. **Role sourced via an extended `TenantProvider`, not prop-drilled through the controller chain.** No client component in this feature currently knows the actor's role — every prior role restriction was either whole-route gating (`apps/web/proxy.ts`) or shell-chrome-only (`DashboardShell`'s nav). Grepping confirmed `<TenantProvider>` is instantiated at exactly 4 call sites (`schedule/layout.tsx`, `loyalty/layout.tsx`, `bookings/layout.tsx`, `shells/dashboard/components/DashboardLayoutShell.tsx` — the last one shared by `resources/`, `team/`, `settings/`, `hotsite/`, `services/`), and **every one of them already computes `shell.role` for `DashboardShell`** without passing it into `TenantProvider`. Extend `TenantState`/`TenantProviderProps` (`apps/web/providers/tenant-provider.tsx`) with `role: 'STAFF' | 'MANAGER'`, sourced from `shell.role` at all 4 sites — a trivial, mechanical addition that also makes `role` available to every other dashboard section for free, not just this feature.
+3. **`ResourcePicker`'s options exclude the tenant's `LOCATION` resource** — user: "location should not be shown in picker." `resourceId = null` ("Todo o negócio") already represents the tenant/LOCATION scope; fetch `useResources({ isActive: true })` and filter out `type === 'LOCATION'` client-side (no server-side "exclude type" filter exists).
+4. **`ResourcePicker` (and any `resourceId`-scoped write action) is rendered only for `role === 'MANAGER'` — hidden entirely for STAFF, not merely disabled.** `GET /resources` and every `resourceId`-set write are MANAGER-only at the backend for *every* resource type today (M21-S03) — raised and explicitly kept as-is during discovery (a resource-type-based STAFF exception, e.g. letting STAFF block an EQUIPMENT resource, was considered and deferred to a possible future TD; out of scope here, no backend/BFF change in this story).
+5. **Generic error-code mapping already covers every new 404/409/422** (`BOOKING_TENANT_OPENING_REQUIRED`, `BOOKING_OPENING_EXCEEDS_TENANT_WINDOW`, `BOOKING_RESOURCE_NOT_FOUND`, etc.) — already translated in `packages/i18n/locales/{pt-BR,en}/errors.json`; `ClosureFormSheet`/`OpeningFormSheet` already route through the generic `resolveErrorMessageFromApiError()` helper via the shared `ScheduleDateTimeRangeSheet`. No new error-handling code needed beyond passing `resourceId` through the request body.
+6. **Mutation hooks (`useCreateClosure`/`useCreateOpening`) need zero signature changes** — `resourceId` flows transparently through the typed `CreateClosureRequest`/`CreateOpeningRequest` body once it's added to `@ikaro/types`. Only the **list/query** side needs explicit `resourceId` threading (GET query param, not a body): `useScheduleClosures`/`useScheduleOpenings` (`useSchedule.ts`) and everything that calls them.
 
 **Files to create/modify:**
-- `apps/web/features/booking/components/dashboard/schedule/SchedulePage.tsx` (modify — add `resourceId` to its query state, pass through to all BFF calls)
+- `apps/web/providers/tenant-provider.tsx` (modify — add `role: 'STAFF' | 'MANAGER'` to `TenantState`/`TenantProviderProps`, extend the `useMemo` value, update `useTenant()`'s return type)
+- `apps/web/providers/tenant-provider.spec.tsx` (modify)
+- `apps/web/app/dashboard/schedule/layout.tsx` (modify — pass `role={shell.role}` to `<TenantProvider>`)
+- `apps/web/app/dashboard/loyalty/layout.tsx` (modify — same; incidental fix, `shell.role` already computed there)
+- `apps/web/app/dashboard/bookings/layout.tsx` (modify — same)
+- `apps/web/shells/dashboard/components/DashboardLayoutShell.tsx` (modify — same; benefits `resources/`, `team/`, `settings/`, `hotsite/`, `services/` too)
+- `apps/web/features/booking/components/dashboard/schedule/SchedulePage.tsx` (modify — render `ResourcePicker` gated on `role === 'MANAGER'` from `useTenant()`, wire selected `resourceId` through the controller)
 - `apps/web/features/booking/components/dashboard/schedule/ResourcePicker.tsx` (+ `.spec.tsx`) (new)
-- `apps/web/features/booking/components/dashboard/schedule/ClosureFormSheet.tsx` (modify — pass the currently-selected `resourceId` into the create request body)
+- `apps/web/features/booking/components/dashboard/schedule/ClosureFormSheet.tsx` (modify — accept `resourceId`, pass into `buildRequest`)
 - `apps/web/features/booking/components/dashboard/schedule/OpeningFormSheet.tsx` (modify — same)
-- `apps/web/features/booking/api/schedule.ts` (modify — extend existing hooks with optional `resourceId` param; verify this file's exact name/location against `apps/web/features/booking/api/` at implementation time, per `M13-S21`'s own dev-notes)
+- `apps/web/features/booking/schedule/schedule-page-ui-state.ts` (modify — add `selectedResourceId`/`setSelectedResourceId` state, same home as the sheet-open/selected-date state already living here)
+- `apps/web/features/booking/schedule/schedule-page-query-data.ts` (modify — thread `resourceId` into the `useScheduleClosures`/`useScheduleOpenings` calls; gate the SSR `initialData` fallback on `resourceId` being unset — the server-fetched initial week data is always tenant-wide, so it must not be used as a stale fallback once a resource is selected)
+- `apps/web/features/booking/schedule/schedule-page-core-data.ts` (modify — pass `resourceId` through to `useScheduleQueryData`)
+- `apps/web/features/booking/schedule/useSchedulePageController.ts` (modify — thread `resourceId` state/setter into the controller result)
+- `apps/web/features/booking/schedule/useSchedule.ts` (modify — add optional `resourceId` param to `useScheduleClosures`/`useScheduleOpenings`, include in their query keys; no change to the mutation hooks)
+- `apps/web/features/booking/api/schedule.ts` (modify — add optional `resourceId` param to `listClosures`/`listOpenings`; no change to `createClosure`/`createOpening`)
+- `packages/types/src/schedule.dto.ts` (modify — add `resourceId: string | null` to `ScheduleClosure`/`ScheduleOpening`; `resourceId?: string` to `CreateClosureRequest`/`CreateOpeningRequest`. Found missing during discovery — the BFF-internal types already had it (M21-S03), the web-consumed `@ikaro/types` package didn't, per the "check `@ikaro/types` first" anti-pattern, CLAUDE.md §8)
 - `packages/i18n/locales/pt-BR/web.json` + `.../en/web.json` (modify — `ResourcePicker` copy under `dashboard.schedule`, same file as S04's `dashboard.nav`/`dashboard.resourcesPage` additions, not a separate `dashboard.json`)
+- `plan/journey/staff/horarios.md` (modify — flip the ❓ GAP status once shipped: status line, mermaid, Pages table row, BFF-calls table rows, the "M21 Cluster 1 extension" section)
+- `plan/journey/staff/prototypes/horarios/dev-notes.md` (modify — flip the ❓ GAP section once shipped)
+
+**Not needed (confirmed during discovery, no change):** `apps/web/app/dashboard/schedule/page.tsx` (SSR always prefetches tenant-wide only — `resourceId` is pure client-side selection, not URL/SSR-driven, matching the non-regression AC), `apps/web/features/booking/api/schedule.server.ts`, `apps/web/features/booking/schedule/schedule-page-mutation-handlers.ts` (resourceId flows via the typed body already), `apps/web/features/booking/schedule/schedule-page-controller-types.ts` (role now comes from `useTenant()`, not a prop), `apps/web/features/booking/components/dashboard/schedule/ScheduleDateTimeRangeSheet.tsx` (already generic over the caller's body type).
 
 **Acceptance criteria — product:**
-- [ ] Manager can pick a resource from a new selector on the Horários page; the calendar and closure/opening actions then scope to that resource.
+- [ ] Manager can pick a resource from a new selector on the Horários page; the calendar and closure/opening/removal actions then scope to that resource — same screen, same mechanics as the tenant-wide view.
+- [ ] The picker's resource list excludes the tenant's `LOCATION` resource — only `STAFF`/`ROOM`/`EQUIPMENT` active resources are selectable, alongside the "Todo o negócio" default.
 - [ ] Leaving the picker on the default ("Todo o negócio") produces byte-identical behavior to before this story — explicit non-regression AC, matching S03's own backend-side requirement.
-- [ ] STAFF users can still use the tenant-wide view unchanged; resource-scoped actions require MANAGER (S03's auth exception surfaces correctly in the UI — the picker itself, or the resulting write action, is hidden/disabled for STAFF).
+- [ ] STAFF users can still use the tenant-wide view unchanged; `ResourcePicker` and every `resourceId`-scoped write action are not rendered at all for STAFF (hidden, not disabled) — matches the backend's MANAGER-only-when-`resourceId`-is-set restriction, uniform across every resource type.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] `ResourcePicker` renders the tenant's active resources plus a "Todo o negócio" default option
+  - [ ] `ResourcePicker` renders the tenant's active `STAFF`/`ROOM`/`EQUIPMENT` resources plus a "Todo o negócio" default option; excludes `LOCATION`
+  - [ ] `ResourcePicker` is not rendered when `role !== 'MANAGER'`
   - [ ] `SchedulePage` passes the selected `resourceId` through to closure/opening creation and list queries
+  - [ ] `useScheduleClosures`/`useScheduleOpenings` include `resourceId` in their query key and omit it from the outgoing request when unset (regression guard for the "byte-identical default behavior" AC)
+  - [ ] `useTenant()` returns the decoded `role`
 - Integration: n/a — no `.integration.spec.ts` tier for `apps/web`
 - Tenant isolation: n/a — client-side; server-side isolation already covered by S03
 - E2E:
