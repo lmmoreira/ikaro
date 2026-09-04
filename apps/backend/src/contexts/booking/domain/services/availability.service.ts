@@ -20,9 +20,7 @@ export interface AvailabilityInput {
   businessHours: BusinessHours;
   // Optional/undefined = tenant-wide (today's exact unchanged behavior). When set, the
   // resource's own workingHours gates the day-closed check instead of businessHours, mirroring
-  // OpenScheduleUseCase's identical creation-time precedence (Codex PR #460 round-8 finding:
-  // resource-scoped closures/openings were persisted and listable but invisible to this
-  // calculator, since callers never passed a resourceId through in the first place).
+  // OpenScheduleUseCase's identical creation-time precedence.
   resource?: Resource | null;
   slotGranularityMinutes: 15 | 30 | 60;
   serviceBufferMinutes: number;
@@ -134,13 +132,10 @@ export class AvailabilityService {
     return slots;
   }
 
-  // Resource-aware precedence (Codex PR #460 round-9 finding). The tenant window is a hard
-  // outer boundary, resolved first, exactly as this method behaved pre-M21 — a resource opening
-  // can never bypass a tenant-wide closure or extend beyond the tenant's own window
-  // (docs/02-DOMAIN_MODEL.md § Tenant boundary and resource schedule resolution). The previous
-  // version let ANY applicable opening — tenant or resource-scoped — short-circuit past every
-  // closure check unconditionally, which broke that invariant for the new resource-scoped
-  // combinations this method exists to handle. `resource` undefined/null reduces to exactly the
+  // Resource-aware precedence. The tenant window is a hard outer boundary, resolved first,
+  // exactly as this method behaved pre-M21 — a resource opening can never bypass a tenant-wide
+  // closure or extend beyond the tenant's own window (docs/02-DOMAIN_MODEL.md § Tenant boundary
+  // and resource schedule resolution). `resource` undefined/null reduces to exactly the
   // pre-M21 single-scope computation (`resolveScopeWindow` applied once, tenant-wide) — both
   // existing tenant-wide "opening wins over closure" tests are unchanged by this refactor.
   private resolveEffectiveHours(

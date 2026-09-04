@@ -8,7 +8,7 @@ import {
   ClosureDateInPastError,
   ScheduleAlreadyClosedError,
 } from '../../domain/errors/booking-domain.error';
-import { ResourceNotFoundError } from '../../domain/errors/resource.error';
+import { ResourceNotActiveError, ResourceNotFoundError } from '../../domain/errors/resource.error';
 import { ClosureReason } from '../../domain/schedule-closure.aggregate';
 import { CloseScheduleUseCase } from './close-schedule.use-case';
 
@@ -199,6 +199,21 @@ describe('CloseScheduleUseCase', () => {
       ).rejects.toThrow(ResourceNotFoundError);
     });
 
+    it('throws ResourceNotActiveError when the resource is deactivated', async () => {
+      const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
+      resource.deactivate();
+      await resourceRepo.save(resource);
+
+      await expect(
+        useCase.execute({
+          date: futureDate(5),
+          reason: ClosureReason.HOLIDAY,
+          resourceId: resource.id,
+          ...ctx,
+        }),
+      ).rejects.toThrow(ResourceNotActiveError);
+    });
+
     it('a resource-scoped closure and a tenant-wide closure on the same date do not collide', async () => {
       const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
       await resourceRepo.save(resource);
@@ -233,7 +248,7 @@ describe('CloseScheduleUseCase', () => {
     });
   });
 
-  describe('tenant-day advisory lock (M21 Cluster 1, Codex PR #460 round-4 finding)', () => {
+  describe('tenant-day advisory lock (M21 Cluster 1)', () => {
     it('acquires the (tenantId, date) lock before checking for overlaps on a tenant-wide closure', async () => {
       const date = futureDate(5);
       const lockSpy = jest.spyOn(tenantLock, 'lockTenantDay');

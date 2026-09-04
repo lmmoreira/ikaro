@@ -41,7 +41,7 @@ export class RemoveScheduleOpeningUseCase {
       // schedule_openings Rules). Block the removal instead; the resource-scoped openings must
       // be removed first. The lock is the same (tenantId, date) key OpenScheduleUseCase takes
       // before its own dependent-check, so a concurrent create can't slip a new dependent in
-      // between this check and the delete below (Codex PR #460 round-4 finding).
+      // between this check and the delete below.
       if (opening.resourceId === null) {
         await this.tenantLock.lockTenantDay(tenantId, opening.date);
         const hasDependents = await this.openingRepo.existsResourceScopedForDate(

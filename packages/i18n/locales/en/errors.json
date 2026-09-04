@@ -53,6 +53,7 @@
   "BOOKING_RESOURCE_STAFF_ALREADY_WRAPPED": "This staff member is already linked to another resource.",
   "BOOKING_RESOURCE_STAFF_NOT_FOUND": "Staff member not found or inactive.",
   "BOOKING_RESOURCE_NOT_FOUND": "Resource not found.",
+  "BOOKING_RESOURCE_NOT_ACTIVE": "This resource is not active.",
   "BOOKING_RESOURCE_ALREADY_ACTIVE": "This resource is already active.",
   "BOOKING_RESOURCE_LOCATION_CANNOT_BE_DEACTIVATED": "A business location cannot be deactivated — every business must always have one active.",
   "BOOKING_RESOURCE_LOCATION_TYPE_IMMUTABLE": "A business location's type cannot be changed, and no other resource can become a location.",

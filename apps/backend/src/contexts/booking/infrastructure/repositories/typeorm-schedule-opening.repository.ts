@@ -73,8 +73,7 @@ export class TypeOrmScheduleOpeningRepository implements IScheduleOpeningReposit
   // slips past the advisory lock's coverage (the lock only guards the tenant-window bound, not
   // the plain duplicate check — see open-schedule.use-case.ts). Mirrors
   // typeorm-resource.repository.ts's rethrowSaveError for UQ_booking_resources_tenant_ref_id and
-  // typeorm-booking.persistence-errors.ts's rethrowSaveError for EX_booking_bookings_approved_slot
-  // (Codex PR #460 round-5 finding).
+  // typeorm-booking.persistence-errors.ts's rethrowSaveError for EX_booking_bookings_approved_slot.
   private rethrowSaveError(err: unknown, opening: ScheduleOpening): never {
     const driverError =
       err instanceof QueryFailedError

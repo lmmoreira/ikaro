@@ -361,7 +361,7 @@ describe('UpdateTenantSettingsUseCase', () => {
     });
   });
 
-  describe('row-locked read (Codex PR #460 round-4/5/7 TOCTOU finding)', () => {
+  describe('row-locked read', () => {
     it('reads and writes via findByIdForUpdate, not the cache-backed findById, so a concurrent booking-context read (e.g. OpenScheduleUseCase.getBusinessHoursAndLocaleForUpdate) can never observe a half-applied update', async () => {
       const tenant = new TenantBuilder().build();
       await tenantRepo.save(tenant);

@@ -19,9 +19,9 @@ export interface GetTenantBusinessHoursForUpdateUseCaseResult {
 // (pessimistic_write), so a caller validating against businessHours mid-transaction can't
 // observe a value a concurrent UpdateTenantSettingsUseCase (which takes the same row lock) is
 // about to overwrite — mirrors UpdateHotsiteContentUseCase's existing findByIdForUpdate usage
-// for the same class of cross-aggregate invariant (Codex PR #460 round-7 finding: the earlier
-// advisory-lock design here didn't protect against this, since the "fresh" read still went
-// through the cache regardless of lock ordering).
+// for the same class of cross-aggregate invariant. An earlier advisory-lock design here didn't
+// protect against this, since the "fresh" read still went through the cache regardless of lock
+// ordering.
 @Injectable()
 export class GetTenantBusinessHoursForUpdateUseCase {
   constructor(@Inject(TENANT_REPOSITORY) private readonly tenantRepo: ITenantRepository) {}

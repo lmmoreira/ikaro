@@ -14,7 +14,7 @@ import {
   ScheduleOpeningAlreadyExistsError,
   TenantOpeningRequiredError,
 } from '../../domain/errors/booking-domain.error';
-import { ResourceNotFoundError } from '../../domain/errors/resource.error';
+import { ResourceNotActiveError, ResourceNotFoundError } from '../../domain/errors/resource.error';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
 const ACTOR_ID = '00000000-0000-7000-8000-000000000002';
@@ -197,6 +197,24 @@ describe('OpenScheduleUseCase', () => {
       ).rejects.toThrow(ResourceNotFoundError);
     });
 
+    it('throws ResourceNotActiveError when the resource is deactivated', async () => {
+      const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
+      resource.deactivate();
+      await resourceRepo.save(resource);
+
+      await expect(
+        useCase.execute({
+          date: nextWeekday(0),
+          startTime: '09:00',
+          endTime: '14:00',
+          resourceId: resource.id,
+          tenantId: TENANT_ID,
+          createdBy: ACTOR_ID,
+          businessHours: settings.businessHours,
+        }),
+      ).rejects.toThrow(ResourceNotActiveError);
+    });
+
     it('a tenant-wide opening and a resource-scoped opening on the same date do not collide', async () => {
       const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
       await resourceRepo.save(resource);
@@ -262,7 +280,7 @@ describe('OpenScheduleUseCase', () => {
     });
   });
 
-  describe('resource workingHours precedence (M21 Cluster 1, Codex PR #460 round-1 finding)', () => {
+  describe('resource workingHours precedence (M21 Cluster 1)', () => {
     it("allows opening a day closed only in the resource's own workingHours, even though the tenant is open that day", async () => {
       const monday = nextWeekday(1); // open in tenant businessHours by default
       const resourceWorkingHours = {
@@ -346,7 +364,7 @@ describe('OpenScheduleUseCase', () => {
     });
   });
 
-  describe('tenant-window bound (M21 Cluster 1, Codex PR #460 round-2 finding)', () => {
+  describe('tenant-window bound (M21 Cluster 1)', () => {
     it('rejects a resource-scoped window that extends beyond an existing tenant-wide opening', async () => {
       const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
       await resourceRepo.save(resource);
@@ -490,7 +508,7 @@ describe('OpenScheduleUseCase', () => {
     });
   });
 
-  describe('tenant-day advisory lock (M21 Cluster 1, Codex PR #460 round-4 TOCTOU finding)', () => {
+  describe('tenant-day advisory lock (M21 Cluster 1)', () => {
     it('acquires the (tenantId, date) lock before creating a resource-scoped opening', async () => {
       const monday = nextWeekday(1); // open in tenant businessHours by default
       const resourceWorkingHours = {
@@ -535,7 +553,7 @@ describe('OpenScheduleUseCase', () => {
     });
   });
 
-  describe('tenant-settings row-locked read and fresh re-fetch (Codex PR #460 round-4/5/7 TOCTOU finding)', () => {
+  describe('tenant-settings row-locked read and fresh re-fetch', () => {
     it('reads via the row-locking getBusinessHoursAndLocaleForUpdate, not the cached getBusinessHoursAndLocale, for a tenant-wide create', async () => {
       const date = nextWeekday(0);
       const forUpdateSpy = jest.spyOn(platform, 'getBusinessHoursAndLocaleForUpdate');

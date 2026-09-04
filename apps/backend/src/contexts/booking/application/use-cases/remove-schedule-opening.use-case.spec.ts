@@ -55,7 +55,7 @@ describe('RemoveScheduleOpeningUseCase', () => {
     );
   });
 
-  describe('tenant-opening deletion cascade (M21 Cluster 1, Codex PR #460 round-4 finding)', () => {
+  describe('tenant-opening deletion cascade (M21 Cluster 1)', () => {
     const RESOURCE_ID = '00000000-0000-7000-8000-000000000003';
 
     it('throws TenantOpeningHasResourceDependentsError when a resource-scoped opening depends on it', async () => {

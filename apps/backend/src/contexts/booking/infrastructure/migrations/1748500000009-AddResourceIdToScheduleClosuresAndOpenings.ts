@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-// M21-S03 — adds an optional resource_id to schedule_closures/schedule_openings, scoping a
+// Adds an optional resource_id to schedule_closures/schedule_openings, scoping a
 // closure/opening to one Resource instead of the whole tenant. NULL = tenant-wide, today's
 // exact unchanged behavior — see docs/02-DOMAIN_MODEL.md § ScheduleClosure/ScheduleOpening.
 //
@@ -10,13 +10,13 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 // opening and a resource-scoped opening for the same date never collide with each other, while
 // two tenant-wide (or two same-resource) openings for the same date still do.
 //
-// Plain CREATE INDEX, not CONCURRENTLY (Codex PR #460 round-9 review, considered and rejected,
-// same reasoning as AddStartedAtIndexToChatbotSessions and AddExpiresAtIndexToLeadFormSubmissions):
-// CONCURRENTLY can't run inside a transaction, and this codebase's migrations all run under the
-// global migrationsTransactionMode "all" — changing that to accommodate one index build would
-// alter every migration's atomicity guarantees with no current real risk to mitigate. No
-// production traffic exists anywhere in this system yet (plan/M17-CLOUD-DEPLOY.md — go-live is
-// still a future wave), so the write-blocking lock a plain index build takes has no real cost to
+// Plain CREATE INDEX, not CONCURRENTLY (considered and rejected, same reasoning as
+// AddStartedAtIndexToChatbotSessions and AddExpiresAtIndexToLeadFormSubmissions): CONCURRENTLY
+// can't run inside a transaction, and this codebase's migrations all run under the global
+// migrationsTransactionMode "all" — changing that to accommodate one index build would alter
+// every migration's atomicity guarantees with no current real risk to mitigate. No production
+// traffic exists anywhere in this system yet (plan/M17-CLOUD-DEPLOY.md — go-live is still a
+// future wave), so the write-blocking lock a plain index build takes has no real cost to
 // mitigate here — an even stronger case than either precedent migration, which only argued their
 // own specific table was new this milestone. Revisit with CONCURRENTLY once real traffic exists.
 export class AddResourceIdToScheduleClosuresAndOpenings1748500000009 implements MigrationInterface {
@@ -62,9 +62,9 @@ export class AddResourceIdToScheduleClosuresAndOpenings1748500000009 implements 
     `);
   }
 
-  // DESTRUCTIVE beyond a plain column drop — accepted risk, decided explicitly (PR #460
-  // review), not an oversight, mirroring BackfillLocationResources1748500000008's own
-  // documented precedent for this class of risk. The old schema's UNIQUE(tenant_id, date)
+  // DESTRUCTIVE beyond a plain column drop — accepted risk, decided explicitly, not an
+  // oversight, mirroring BackfillLocationResources1748500000008's own documented precedent for
+  // this class of risk. The old schema's UNIQUE(tenant_id, date)
   // can only be restored if at most one row exists per (tenant_id, date); this migration's
   // own forward path lets a tenant-wide and one-or-more resource-scoped openings coexist for
   // the same date, which is the intended, common-case state UC-010f creates — not an edge

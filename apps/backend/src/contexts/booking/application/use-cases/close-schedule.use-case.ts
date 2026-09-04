@@ -5,7 +5,7 @@ import {
 } from '../../../../shared/ports/transaction-manager.port';
 import { ScheduleClosure } from '../../domain/schedule-closure.aggregate';
 import { ScheduleAlreadyClosedError } from '../../domain/errors/booking-domain.error';
-import { ResourceNotFoundError } from '../../domain/errors/resource.error';
+import { ResourceNotActiveError, ResourceNotFoundError } from '../../domain/errors/resource.error';
 import {
   IScheduleClosureRepository,
   SCHEDULE_CLOSURE_REPOSITORY,
@@ -49,6 +49,7 @@ export class CloseScheduleUseCase {
     if (resourceId != null) {
       const resource = await this.resourceRepo.findById(resourceId, tenantId);
       if (!resource) throw new ResourceNotFoundError(resourceId);
+      if (!resource.isActive) throw new ResourceNotActiveError(resourceId);
     }
 
     const closure = ScheduleClosure.close({

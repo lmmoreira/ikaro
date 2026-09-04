@@ -45,8 +45,7 @@ export class UpdateTenantSettingsUseCase {
       // TOCTOU race where a resource-scoped opening could be validated against a businessHours
       // value that's about to be superseded by this write. An earlier advisory-lock design here
       // didn't actually close this, since the "fresh" read it guarded still went through the
-      // cache regardless of lock ordering (Codex PR #460 round-4/5/7 finding — see
-      // docs/13-DATABASE_SCHEMA.md).
+      // cache regardless of lock ordering (see docs/13-DATABASE_SCHEMA.md).
       const tenant = await this.tenantRepo.findByIdForUpdate(tenantId);
       if (!tenant) throw new TenantNotFoundError(tenantId);
 

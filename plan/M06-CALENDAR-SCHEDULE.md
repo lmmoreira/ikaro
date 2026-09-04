@@ -378,6 +378,8 @@ INDEX (tenant_id)
 UNIQUE (tenant_id, date)   ← one opening per date per tenant
 ```
 
+> **Superseded by M21-S03:** the schema above and the port signatures below reflect M06's own original scope only. M21 Cluster 1 added a nullable `resource_id` column (see the factory note above), replaced the plain `UNIQUE (tenant_id, date)` with two partial unique indexes, and added an optional `resourceId` parameter to every repository method below. The current, accurate schema and port shape live in `docs/13-DATABASE_SCHEMA.md` § `schedule_openings`/`schedule_closures` and `docs/02-DOMAIN_MODEL.md` § ScheduleOpening/ScheduleClosure — this section is kept as the historical record of what M06 itself built, not a current reference.
+
 **Repository port `IScheduleOpeningRepository`:**
 - `findByTenantAndDate(tenantId, date): Promise<ScheduleOpening | null>`
 - `findByTenantAndDateRange(tenantId, from, to): Promise<ScheduleOpening[]>`

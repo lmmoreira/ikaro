@@ -25,7 +25,7 @@ export interface IBookingPlatformPort {
   // Must be called inside an active ITransactionManager.run() block. Row-locks the tenant
   // (pessimistic_write) and bypasses the read cache entirely, serializing against a concurrent
   // UpdateTenantSettingsUseCase write — the authoritative counterpart to
-  // getBusinessHoursAndLocale above for a caller validating businessHours mid-transaction
-  // (Codex PR #460 round-7 finding — the cached read above is not safe for that).
+  // getBusinessHoursAndLocale above for a caller validating businessHours mid-transaction —
+  // the cached read above is not safe for that.
   getBusinessHoursAndLocaleForUpdate(tenantId: string): Promise<TenantBusinessHoursAndLocale>;
 }

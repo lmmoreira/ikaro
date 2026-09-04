@@ -38,7 +38,7 @@ export class InMemoryBookingPlatformPort implements IBookingPlatformPort {
   // Kept as an independent method (not delegating to getBusinessHoursAndLocale above) so a spec
   // spying on one doesn't see calls from the other — this double has no real caching to
   // distinguish them, but the two are separate methods on the real port and tests assert on
-  // which one a caller used (Codex PR #460 round-7 finding).
+  // which one a caller used.
   async getBusinessHoursAndLocaleForUpdate(
     tenantId: string,
   ): Promise<TenantBusinessHoursAndLocale> {

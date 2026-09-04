@@ -53,6 +53,7 @@
   "BOOKING_RESOURCE_STAFF_ALREADY_WRAPPED": "Este profissional já está vinculado a outro recurso.",
   "BOOKING_RESOURCE_STAFF_NOT_FOUND": "Profissional não encontrado ou inativo.",
   "BOOKING_RESOURCE_NOT_FOUND": "Recurso não encontrado.",
+  "BOOKING_RESOURCE_NOT_ACTIVE": "Este recurso não está ativo.",
   "BOOKING_RESOURCE_ALREADY_ACTIVE": "Este recurso já está ativo.",
   "BOOKING_RESOURCE_LOCATION_CANNOT_BE_DEACTIVATED": "Uma unidade não pode ser desativada — todo negócio deve sempre ter uma unidade ativa.",
   "BOOKING_RESOURCE_LOCATION_TYPE_IMMUTABLE": "O tipo de uma unidade não pode ser alterado, e nenhum outro recurso pode se tornar uma unidade.",

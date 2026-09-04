@@ -8,7 +8,7 @@ import {
   BookingServiceNotActiveError,
   ServiceNotFoundError,
 } from '../../domain/errors/booking-domain.error';
-import { ResourceNotFoundError } from '../../domain/errors/resource.error';
+import { ResourceNotActiveError, ResourceNotFoundError } from '../../domain/errors/resource.error';
 import {
   IBookingAvailabilityPort,
   BOOKING_AVAILABILITY_PORT,
@@ -90,12 +90,12 @@ export class GetAvailabilitySummaryUseCase {
     if (resourceId == null) return null;
     const resource = await this.resourceRepo.findById(resourceId, tenantId);
     if (!resource) throw new ResourceNotFoundError(resourceId);
+    if (!resource.isActive) throw new ResourceNotActiveError(resourceId);
     return resource;
   }
 
   // Combines tenant-wide rows (always fetched) with resource-scoped rows (fetched only when
-  // resourceId is set) — both apply to a resource-scoped availability check (Codex PR #460
-  // round-8 finding).
+  // resourceId is set) — both apply to a resource-scoped availability check.
   private async loadScheduleRange(
     tenantId: string,
     from: string,

@@ -14,7 +14,7 @@ import {
   ScheduleOpeningAlreadyExistsError,
   TenantOpeningRequiredError,
 } from '../../domain/errors/booking-domain.error';
-import { ResourceNotFoundError } from '../../domain/errors/resource.error';
+import { ResourceNotActiveError, ResourceNotFoundError } from '../../domain/errors/resource.error';
 import {
   IScheduleOpeningRepository,
   SCHEDULE_OPENING_REPOSITORY,
@@ -68,13 +68,16 @@ export class OpenScheduleUseCase {
     const resource =
       resourceId != null ? await this.resourceRepo.findById(resourceId, tenantId) : null;
     if (resourceId != null && !resource) throw new ResourceNotFoundError(resourceId);
+    if (resourceId != null && resource && !resource.isActive) {
+      throw new ResourceNotActiveError(resourceId);
+    }
 
     const weekday = getUtcWeekDayName(input.date);
     // Fast, non-authoritative pre-check against the request's businessHours snapshot — fails
     // fast for the common case without ever acquiring the settings lock. The authoritative
-    // check runs again below, inside the transaction, against a freshly-read value (Codex PR
-    // #460 round-4/5 TOCTOU finding — a concurrent PATCH /tenants/settings could otherwise
-    // leave this snapshot stale between the read and the write).
+    // check runs again below, inside the transaction, against a freshly-read value — a
+    // concurrent PATCH /tenants/settings could otherwise leave this snapshot stale between the
+    // read and the write.
     if (this.effectiveDayHours(resource, input.businessHours, weekday) !== null) {
       throw new DayAlreadyOpenInSettingsError(input.date);
     }
@@ -109,10 +112,9 @@ export class OpenScheduleUseCase {
 
     // Row-locks the tenant (bypassing the read cache entirely) and serializes against a
     // concurrent UpdateTenantSettingsUseCase write, so the check below can't observe a
-    // businessHours value that's about to be superseded (Codex PR #460 round-4/5/7 finding — an
-    // earlier advisory-lock design here still went through the cache regardless of lock
-    // ordering, so it didn't actually close this race; findByIdForUpdate's real Postgres row
-    // lock does).
+    // businessHours value that's about to be superseded — an earlier advisory-lock design here
+    // still went through the cache regardless of lock ordering, so it didn't actually close
+    // this race; findByIdForUpdate's real Postgres row lock does.
     const { businessHours } = await this.platform.getBusinessHoursAndLocaleForUpdate(tenantId);
 
     if (this.effectiveDayHours(resource, businessHours, weekday) !== null) {
@@ -123,7 +125,7 @@ export class OpenScheduleUseCase {
       // Acquire the per-(tenant, date) advisory lock before re-checking the tenant-window
       // bound, so a concurrent deletion of the prerequisite tenant-wide opening
       // (RemoveScheduleOpeningUseCase, which takes the same lock) can't interleave between
-      // this check and the write below (Codex PR #460 round-4 finding).
+      // this check and the write below.
       await this.tenantLock.lockTenantDay(tenantId, input.date);
       await this.assertWithinTenantWindow(input, businessHours, weekday);
     }
@@ -147,9 +149,9 @@ export class OpenScheduleUseCase {
   // normally open for the tenant:
   //  - Normally open (businessHours[day] set): that window IS the bound — no explicit
   //    tenant-wide opening row is needed, since the day is inherently open already. This is
-  //    what makes the round-1 scenario possible at all (a resource closed on a day the tenant
-  //    itself is open, e.g. one stylist's day off): execute()'s day-closed check already
-  //    required the *resource* to be closed for an opening to be attempted here, and
+  //    what makes it possible at all for a resource to be closed on a day the tenant itself is
+  //    open (e.g. one stylist's day off): execute()'s day-closed check already required the
+  //    *resource* to be closed for an opening to be attempted here, and
   //    Resource.create()'s own subset-of-tenant-hours validation guarantees a resource can
   //    never be open on a day the tenant is closed — so this branch and the one below never
   //    actually conflict with each other.

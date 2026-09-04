@@ -10,7 +10,7 @@ import {
   BookingServiceNotActiveError,
   ServiceNotFoundError,
 } from '../../domain/errors/booking-domain.error';
-import { ResourceNotFoundError } from '../../domain/errors/resource.error';
+import { ResourceNotActiveError, ResourceNotFoundError } from '../../domain/errors/resource.error';
 import {
   IBookingAvailabilityPort,
   BOOKING_AVAILABILITY_PORT,
@@ -105,8 +105,7 @@ export class GetAvailabilityUseCase {
   }
 
   // Combines tenant-wide rows (always fetched) with resource-scoped rows (fetched only when
-  // resourceId is set) — both apply to a resource-scoped availability check (Codex PR #460
-  // round-8 finding: resource-scoped closures/openings were previously never queried at all).
+  // resourceId is set) — both apply to a resource-scoped availability check.
   private async loadScheduleContext(
     tenantId: string,
     date: string,
@@ -127,6 +126,7 @@ export class GetAvailabilityUseCase {
 
     const resource = await this.resourceRepo.findById(resourceId, tenantId);
     if (!resource) throw new ResourceNotFoundError(resourceId);
+    if (!resource.isActive) throw new ResourceNotActiveError(resourceId);
 
     const [tenantClosures, resourceClosures, tenantOpening, resourceOpening] = await Promise.all([
       this.closureRepo.findByTenantAndDate(tenantId, date),

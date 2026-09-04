@@ -85,6 +85,13 @@ export class ResourceNotFoundError extends BookingDomainError {
   }
 }
 
+export class ResourceNotActiveError extends BookingDomainError {
+  constructor(id: string) {
+    super(`Resource is not active: ${id}`, BookingErrorCode.RESOURCE_NOT_ACTIVE);
+    this.name = 'ResourceNotActiveError';
+  }
+}
+
 export class ResourceAlreadyActiveError extends BookingDomainError {
   constructor(id: string) {
     super(`Resource is already active: ${id}`, BookingErrorCode.RESOURCE_ALREADY_ACTIVE);

@@ -9,7 +9,7 @@ export const GetAvailabilitySummaryQuerySchema = z.object({
   to: z.string().regex(DATE_ONLY_PATTERN, 'to must be YYYY-MM-DD'),
   serviceIds: z.string().min(1, 'serviceIds is required'),
   // Optional — omit for tenant-wide availability (today's behavior, unchanged). Pass-through to
-  // the backend's own optional resourceId (M21 Cluster 1, Codex PR #460 round-8 finding).
+  // the backend's own optional resourceId.
   resourceId: z.uuid().optional(),
 });
 
