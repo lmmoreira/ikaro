@@ -134,10 +134,15 @@ export class AvailabilityService {
     return slots;
   }
 
-  // Resource-aware precedence (Codex PR #460 round-8 finding). `resource` undefined/null and
-  // `resourceOpening` undefined/null (a tenant-wide call) reduces to this method's exact
-  // pre-M21 behavior: the tenant-wide opening always wins when present, unconditionally, before
-  // businessHours is even consulted.
+  // Resource-aware precedence (Codex PR #460 round-9 finding). The tenant window is a hard
+  // outer boundary, resolved first, exactly as this method behaved pre-M21 — a resource opening
+  // can never bypass a tenant-wide closure or extend beyond the tenant's own window
+  // (docs/02-DOMAIN_MODEL.md § Tenant boundary and resource schedule resolution). The previous
+  // version let ANY applicable opening — tenant or resource-scoped — short-circuit past every
+  // closure check unconditionally, which broke that invariant for the new resource-scoped
+  // combinations this method exists to handle. `resource` undefined/null reduces to exactly the
+  // pre-M21 single-scope computation (`resolveScopeWindow` applied once, tenant-wide) — both
+  // existing tenant-wide "opening wins over closure" tests are unchanged by this refactor.
   private resolveEffectiveHours(
     date: string,
     businessHours: BusinessHours,
@@ -147,39 +152,73 @@ export class AvailabilityService {
     resourceOpening: ScheduleOpening | null | undefined,
   ): { open: string; close: string; partialClosures: ScheduleClosure[] } | null {
     const weekday = getUtcWeekDayName(date);
-    // A resource with its own workingHours gates the day-closed check against its own schedule,
-    // not the tenant's (Resource's own documented inheritance rule, docs/02-DOMAIN_MODEL.md §
-    // Resource) — mirrors OpenScheduleUseCase's identical effectiveDayHours computation.
-    const usesOwnHours = resource?.workingHours != null;
-    const effectiveDayHours: DayHours = usesOwnHours
-      ? resource!.workingHours![weekday]
-      : businessHours[weekday];
+    const tenantClosures = closures.filter((c) => c.resourceId === null);
 
-    // A resource using its own hours can never have a *tenant-wide* opening apply to it —
-    // write-time validation never lets that combination arise (OpenScheduleUseCase only bounds
-    // a resource-scoped opening against a tenant-wide one when the resource itself inherits
-    // tenant hours); its own resource-scoped opening is the only possible override. A
-    // tenant-inheriting or tenant-wide call still prefers a resource-scoped opening when one
-    // happens to be present, falling back to the tenant-wide opening otherwise.
-    const applicableOpening = usesOwnHours
-      ? (resourceOpening ?? null)
-      : (resourceOpening ?? tenantOpening);
-    if (applicableOpening) {
+    const tenantWindow = this.resolveScopeWindow(
+      businessHours[weekday],
+      tenantClosures,
+      tenantOpening,
+    );
+    if (!tenantWindow) return null;
+    if (!resource) return tenantWindow;
+
+    // A resource with its own workingHours gates against its own schedule, never the tenant's
+    // (Resource's own documented inheritance rule, docs/02-DOMAIN_MODEL.md § Resource) — mirrors
+    // OpenScheduleUseCase's identical effectiveDayHours computation. An inheriting resource's
+    // baseline is the tenant's own already-resolved window, so a tenant-wide opening on an
+    // otherwise-closed day is inherited automatically — no separate `?? tenantOpening` fallback
+    // is needed here the way the pre-fix version required.
+    const resourceClosures = closures.filter((c) => c.resourceId === resource.id);
+    const usesOwnHours = resource.workingHours != null;
+    const resourceDayHours: DayHours = usesOwnHours
+      ? resource.workingHours![weekday]
+      : { open: tenantWindow.open, close: tenantWindow.close };
+
+    const resourceWindow = this.resolveScopeWindow(
+      resourceDayHours,
+      resourceClosures,
+      resourceOpening ?? null,
+    );
+    if (!resourceWindow) return null;
+
+    // A resource-scoped window can never extend beyond the tenant's own window (same invariant).
+    const open = resourceWindow.open > tenantWindow.open ? resourceWindow.open : tenantWindow.open;
+    const close =
+      resourceWindow.close < tenantWindow.close ? resourceWindow.close : tenantWindow.close;
+    if (open >= close) return null;
+
+    return {
+      open,
+      close,
+      partialClosures: [...tenantWindow.partialClosures, ...resourceWindow.partialClosures],
+    };
+  }
+
+  // Single-scope resolution: opening beats a same-scope closure unconditionally (the "highest
+  // priority" layer of the Three-Layer Schedule Resolution), else a full-day closure blocks the
+  // whole day, else the day's hours apply with partial closures filtered out. Applied once for
+  // the tenant scope and, when a resource is given, once more for the resource scope — never
+  // mixing an opening/closure from one scope into the other's check.
+  private resolveScopeWindow(
+    dayHours: DayHours,
+    scopedClosures: ScheduleClosure[],
+    scopedOpening: ScheduleOpening | null,
+  ): { open: string; close: string; partialClosures: ScheduleClosure[] } | null {
+    if (scopedOpening) {
       return {
-        open: applicableOpening.startTime.value,
-        close: applicableOpening.endTime.value,
+        open: scopedOpening.startTime.value,
+        close: scopedOpening.endTime.value,
         partialClosures: [],
       };
     }
 
-    if (!effectiveDayHours) return null;
-
-    if (closures.some((c) => c.isFullDay())) return null;
+    if (!dayHours) return null;
+    if (scopedClosures.some((c) => c.isFullDay())) return null;
 
     return {
-      open: effectiveDayHours.open,
-      close: effectiveDayHours.close,
-      partialClosures: closures.filter((c) => !c.isFullDay()),
+      open: dayHours.open,
+      close: dayHours.close,
+      partialClosures: scopedClosures.filter((c) => !c.isFullDay()),
     };
   }
 

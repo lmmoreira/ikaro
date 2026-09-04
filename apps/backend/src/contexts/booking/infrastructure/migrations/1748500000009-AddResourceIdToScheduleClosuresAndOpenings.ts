@@ -9,6 +9,16 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 // (Postgres treats NULL <> NULL). Replaced with two partial unique indexes so a tenant-wide
 // opening and a resource-scoped opening for the same date never collide with each other, while
 // two tenant-wide (or two same-resource) openings for the same date still do.
+//
+// Plain CREATE INDEX, not CONCURRENTLY (Codex PR #460 round-9 review, considered and rejected,
+// same reasoning as AddStartedAtIndexToChatbotSessions and AddExpiresAtIndexToLeadFormSubmissions):
+// CONCURRENTLY can't run inside a transaction, and this codebase's migrations all run under the
+// global migrationsTransactionMode "all" — changing that to accommodate one index build would
+// alter every migration's atomicity guarantees with no current real risk to mitigate. No
+// production traffic exists anywhere in this system yet (plan/M17-CLOUD-DEPLOY.md — go-live is
+// still a future wave), so the write-blocking lock a plain index build takes has no real cost to
+// mitigate here — an even stronger case than either precedent migration, which only argued their
+// own specific table was new this milestone. Revisit with CONCURRENTLY once real traffic exists.
 export class AddResourceIdToScheduleClosuresAndOpenings1748500000009 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`

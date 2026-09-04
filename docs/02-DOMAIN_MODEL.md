@@ -517,31 +517,37 @@ else:
     filter out any slots that overlap partial ScheduleClosures for this date
 ```
 
-**Resource-scoped resolution (M21 Cluster 1, `AvailabilityService.resolveEffectiveHours`, Codex PR #460 round-8 finding):** when a caller passes a `resourceId`, closures/openings for BOTH `resourceId = null` (tenant-wide) and `resourceId = <that resource>` are fetched and combined — a resource-scoped closure blocks that resource even on a day the tenant itself is open, and vice versa is never true (a resource can't be open when the tenant is closed). The day-closed check and the opening precedence both change:
-```
-effectiveDayHours = resource.workingHours != null
-    ? resource.workingHours[dayOfWeek]   ← the resource's own hours gate it, not the tenant's
-    : businessHours[dayOfWeek]           ← inherits tenant hours (workingHours: null)
+**Resource-scoped resolution (M21 Cluster 1, `AvailabilityService.resolveEffectiveHours`, Codex PR #460 round-9 finding):** when a caller passes a `resourceId`, closures/openings for BOTH `resourceId = null` (tenant-wide) and `resourceId = <that resource>` are fetched and combined — a resource-scoped closure blocks that resource even on a day the tenant itself is open, and vice versa is never true (a resource can't be open when the tenant is closed). Resolution runs the single-scope algorithm above **twice** — once for the tenant, then once for the resource — never letting either scope's opening see the other scope's closures:
 
-if effectiveDayHours is set:
-    effective_hours = effectiveDayHours  ← normally open; no ScheduleOpening can exist for this
-                                             day (create-time validation forbids it)
-    filter out slots overlapping partial closures (tenant-wide + resource-scoped, combined)
-else:
-    # normally closed — an opening is the only way to be available
-    applicableOpening =
-        resource.workingHours != null
-            ? resourceOpening                        ← a resource with its own hours can only be
-                                                          opened by ITS OWN opening, never a
-                                                          tenant-wide one (mirrors
-                                                          OpenScheduleUseCase's creation-time bound)
-            : (resourceOpening ?? tenantOpening)      ← inheriting the tenant's hours, a
-                                                          resource-scoped opening still wins if
-                                                          present, else the tenant-wide one applies
-    if applicableOpening: effective_hours = applicableOpening's window
-    else: return []
 ```
-`resource` undefined/null (the tenant-wide call above) reduces to this same logic exactly — `effectiveDayHours` falls through to `businessHours[dayOfWeek]` and `applicableOpening` falls through to `tenantOpening`, byte-identical to the pre-M21 behavior.
+# Step 1 — tenant scope, using ONLY resourceId = null closures/opening. This is the exact
+# single-scope algorithm above, unchanged — a tenant-wide opening still wins over a tenant-wide
+# closure unconditionally within this step.
+tenantWindow = resolveScopeWindow(businessHours[dayOfWeek], tenantClosures, tenantOpening)
+if tenantWindow is null: return []   ← hard outer boundary; nothing below can override this
+
+if no resource requested: return tenantWindow   ← tenant-wide call, done (byte-identical to pre-M21)
+
+# Step 2 — resource scope, using ONLY resourceId = <that resource> closures/opening.
+resourceDayHours = resource.workingHours != null
+    ? resource.workingHours[dayOfWeek]        ← own hours gate it, not the tenant's; a tenant-wide
+                                                  opening can never reach this branch (mirrors
+                                                  OpenScheduleUseCase's creation-time bound)
+    : tenantWindow's own {open, close}         ← inherits the tenant's already-resolved window
+                                                  (including any tenant-wide opening), so no
+                                                  separate "?? tenantOpening" fallback is needed
+resourceWindow = resolveScopeWindow(resourceDayHours, resourceClosures, resourceOpening)
+if resourceWindow is null: return []   ← resource specifically closed (no resource-scoped opening
+                                          overrides it)
+
+# Step 3 — intersect: a resource-scoped window can never extend beyond the tenant's own window.
+open  = max(tenantWindow.open, resourceWindow.open)
+close = min(tenantWindow.close, resourceWindow.close)
+if open >= close: return []
+return { open, close, partialClosures: tenantWindow.partialClosures + resourceWindow.partialClosures }
+```
+
+where `resolveScopeWindow(dayHours, scopedClosures, scopedOpening)` is exactly the single-scope algorithm from the section above: opening wins over a same-scope closure unconditionally, else a full-day closure returns "closed," else the day's hours apply with same-scope partial closures filtered out.
 
 **`IBookingAvailabilityPort` (cross-context read port — Booking Context)**
 
