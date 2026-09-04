@@ -388,3 +388,69 @@ Extend the existing, shipped `SchedulePage` (`apps/web/features/booking/componen
   - [ ] Playwright: default "Todo o negócio" view still creates a tenant-wide closure exactly as before this story (regression guard)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
+
+---
+
+### M21-S06 — Close the staff-wrap-vs-StaffDeactivated race with a tenant-staff advisory lock
+
+**Agent:** `backend-ts`
+**Complexity:** S
+**Docs to load:** `docs/ENGINEERING_RULES.md` § Choosing a race-condition primitive, and where its lock port should live; `docs/ENGINEERING_RULES.md` § Transactions (Scope rule); `docs/02-DOMAIN_MODEL.md` § Resource (Cross-context note); `docs/04-USE_CASES.md` UC-045/UC-046/UC-048
+**Dependencies:** M21-S01 (closes a known-accepted-risk gap left open in that story)
+**Pattern:** reuses the existing `ITenantLockPort` advisory-lock pattern (no new named pattern) — mirrors `OpenScheduleUseCase`'s established fast-pre-check-outside / authoritative-re-check-under-lock-inside structure (M21-S03, PR #460 round 7 precedent).
+
+**Discovered:** 2026-09-04, in conversation following M21-S03's own race-condition work — the user recalled a known-accepted race from M21-S01 and asked whether it could now be closed using the same lock-port pattern.
+**Root cause:** `CreateResourceUseCase` (`create-resource.use-case.ts:58-64`) and `UpdateResourceUseCase` (`update-resource.use-case.ts:55-68`) both validate a `STAFF`-type resource's `refId` via `StaffWrapValidationService.assertWrappable()` **before** `txManager.run()` opens — a plain, non-transactional read. `CascadeStaffDeactivationUseCase` (`cascade-staff-deactivation.use-case.ts:39-44`) similarly performs its `resourceRepo.findByRefId()` lookup before its own `txManager.run()` block (which currently wraps only the final `save()`/`markProcessed()`). If a staff member is deactivated in the narrow window between one side's check and its write, the two sides can interleave so that a `Resource` gets created (or updated to wrap that staff member) as active, with `CascadeStaffDeactivationUseCase` having already run and found nothing to deactivate. Both existing call sites already carry an identical inline comment accepting this as a documented limitation, citing Codex round-6/8 findings on PR #457: "accepted as a documented limitation rather than built out." This story closes it instead, now that the exact primitive is already proven and available (`ITenantLockPort`, M21-S03).
+
+**Description:**
+Add `lockTenantStaff(tenantId: string, staffId: string): Promise<void>` to `ITenantLockPort`, implemented in `TypeOrmTenantLockAdapter` identically to the existing `lockTenantDay` (a `pg_advisory_xact_lock(hashtextextended($1::text, 0::bigint))` call, requiring an active transaction). Both methods' hashed key strings gain an explicit namespace prefix in this same change — `tenantday:${tenantId}:${date}` and `tenantstaff:${tenantId}:${staffId}` — so the two lock purposes can never theoretically collide in Postgres's single global 64-bit advisory-lock key space (neither purpose was namespaced before; this closes that gap for both, not just the new one).
+
+`ITenantLockPort` stays booking-local — no `shared/` promotion. All three racing call sites (`CreateResourceUseCase`, `UpdateResourceUseCase`, `CascadeStaffDeactivationUseCase`) already live in the Booking context; the Staff Context's own `Staff.deactivate()` write (UC-029) never needs to know this lock exists, preserving the existing event-driven boundary untouched (`docs/ENGINEERING_RULES.md` § Choosing a race-condition primitive — promote to `shared/` only once a *different context* needs the same primitive, which is not the case here).
+
+**Closing the race requires moving the authoritative check inside the transaction for all three use cases — adding the lock call alone, without relocating what it protects, would not close anything:**
+
+- `CreateResourceUseCase`: keep the existing `assertWrappable()` call outside `txManager.run()` as a fast, non-authoritative pre-check (unchanged, same UX as today — fails fast on the common case). Inside `txManager.run()`, before `resourceRepo.save()`: acquire `lockTenantStaff(tenantId, refId)`, then re-run `assertWrappable(refId, tenantId)` authoritatively. Only when `type === STAFF && refId` — a tenant-wide/non-STAFF create is unaffected, same conditional shape the existing pre-check already uses.
+- `UpdateResourceUseCase`: identical restructuring, gated the same way the existing check already is — `type === STAFF && refId && refId !== resource.refId` (an unrelated field edit on an already-wrapped resource, or a resend of the same `refId`, never touches the lock).
+- `CascadeStaffDeactivationUseCase`: widen the existing `txManager.run()` block to also contain the `resourceRepo.findByRefId()` lookup, with `lockTenantStaff(tenantId, staffId)` acquired first, inside that same block. The `isAlreadyProcessed()` idempotency check stays as an early return before the transaction opens (a separate, already-correct concern — unrelated to this race). This removes the current duplicated `markProcessed()` helper call in favor of one inline call per branch, now that both branches live inside the same transaction.
+
+`StaffWrapValidationService`'s cross-context read (`IBookingStaffPort.findActiveById()` → `BookingStaffAdapter` → `GetStaffByIdUseCase`, verified same-process, no network I/O) is safe to run inside `txManager.run()` — it doesn't violate the "no cross-service network I/O inside the block" rule, since Staff Context lives in the same NestJS process.
+
+**Out of scope:** the "same staff member wrapped by two different `Resource` rows" race is already closed at the DB level by the existing partial unique index on `(tenant_id, ref_id)` (`docs/13-DATABASE_SCHEMA.md` § `booking.resources`) — the strongest available primitive (exclusion/uniqueness constraint) already applies there. This story's lock only needs to protect the "staff active" fact, not resource-uniqueness, which needs no new work.
+
+**New migration / i18n keys / env vars / feature flags:** none.
+**Backend HTTP surface:** none — no new route; existing `POST /resources` and `PATCH /resources/:id` are unchanged at the HTTP layer.
+
+**Files to create/modify:**
+- `apps/backend/src/contexts/booking/application/ports/tenant-lock.port.ts` (modify — add `lockTenantStaff`)
+- `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-tenant-lock.adapter.ts` (modify — implement `lockTenantStaff`; add namespace prefix to both keys)
+- `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-tenant-lock.adapter.spec.ts` (modify)
+- `apps/backend/src/test/infrastructure/in-memory-tenant-lock.ts` (modify — add no-op `lockTenantStaff`)
+- `apps/backend/src/contexts/booking/application/use-cases/create-resource.use-case.ts` (modify)
+- `apps/backend/src/contexts/booking/application/use-cases/create-resource.use-case.spec.ts` (modify)
+- `apps/backend/src/contexts/booking/application/use-cases/update-resource.use-case.ts` (modify)
+- `apps/backend/src/contexts/booking/application/use-cases/update-resource.use-case.spec.ts` (modify)
+- `apps/backend/src/contexts/booking/application/use-cases/cascade-staff-deactivation.use-case.ts` (modify)
+- `apps/backend/src/contexts/booking/application/use-cases/cascade-staff-deactivation.use-case.spec.ts` (modify)
+- `docs/02-DOMAIN_MODEL.md` (modify — § Resource's Cross-context note, documenting the closed race)
+- `docs/13-DATABASE_SCHEMA.md` (modify — add a "Race closed via advisory lock" note under `booking.resources`, mirroring the existing `schedule_openings`/`schedule_closures` precedent bullets)
+
+**Acceptance criteria — product:**
+- [ ] Deactivating a staff member concurrently with an in-flight `POST /resources`/`PATCH /resources/:id` wrapping that same staff member never leaves an active `Resource` un-cascaded — one of the two operations always loses the race cleanly (either the create/update is rejected with `ResourceStaffNotFoundError`, or the cascade correctly finds and deactivates the just-created/updated resource).
+- [ ] No behavior change for the non-STAFF-wrap path, or for a STAFF-wrap create/update where no concurrent deactivation occurs — byte-identical to today.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] `CreateResourceUseCase` acquires `lockTenantStaff(tenantId, refId)` before its in-transaction re-check, only when `type === STAFF && refId`
+  - [ ] `CreateResourceUseCase` does not acquire the lock for a non-STAFF create
+  - [ ] `UpdateResourceUseCase` acquires the lock only when `refId` is actually changing to a STAFF wrap, matching its existing pre-check gating
+  - [ ] `CascadeStaffDeactivationUseCase` acquires `lockTenantStaff(tenantId, staffId)` before its `findByRefId()` lookup, inside the same transaction as the eventual save/no-op
+  - [ ] `CascadeStaffDeactivationUseCase`'s existing idempotency-skip and no-wrapping-resource no-op tests still pass against the restructured method
+  - [ ] `TypeOrmTenantLockAdapter.lockTenantStaff()` calls `pg_advisory_xact_lock` with the `tenantstaff:` namespaced key
+  - [ ] `TypeOrmTenantLockAdapter.lockTenantDay()`'s existing test updated for the `tenantday:` namespace prefix
+- Integration: none beyond the existing `.integration.spec.ts` suites' continued passing — this codebase's established precedent for advisory-lock races (`lockTenantDay`) verifies lock acquisition and ordering via unit-level spy assertions, not a literal two-connection interleaving integration test; this story follows the same, already-established rigor.
+- Tenant isolation: n/a — no new tenant-scoped query; `lockTenantStaff`'s key already includes `tenantId`.
+- E2E: none — covered by unit tests; no frontend/BFF surface changes.
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+
+---
