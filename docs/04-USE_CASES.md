@@ -428,6 +428,7 @@ Used when `businessHours[dayOfWeek] = null` (e.g., Sunday is always closed) but 
   3. The date reverts to its default closed state per `businessHours`.
 - **Alternative Flows:**
   - **A1: Opening not found or belongs to another tenant** → `404 Not Found`.
+  - **A2 (M21 Cluster 1): Opening is tenant-wide (`resourceId = null`) and one or more resource-scoped openings still depend on it for the same date** → `409 Conflict` (`BOOKING_TENANT_OPENING_HAS_RESOURCE_DEPENDENTS`) — the resource-scoped openings must be removed first. Never applies when deleting a resource-scoped opening directly.
 - **Postconditions:** Opening deleted.
 - **Events Triggered:** None.
 
@@ -460,13 +461,15 @@ Used when `businessHours[dayOfWeek] = null` (e.g., Sunday is always closed) but 
 
 - **Actor:** MANAGER (when `resourceId` is set) — STAFF | MANAGER still applies to the unscoped, tenant-wide case (UC-010c)
 - **Endpoint:** `POST /schedule/openings` (existing endpoint, `resourceId` is a new optional body field)
-- **Preconditions:** Resource exists and belongs to the tenant, when `resourceId` is provided. The target day is inside the tenant's recurring business-hours window and is closed only in the resource's own `workingHours` (a resource never extends beyond the tenant's own effective hours).
+- **Preconditions:** Resource exists and belongs to the tenant, when `resourceId` is provided. The target day is closed in the *effective* hours source for the scope being opened: the resource's own `workingHours[day]` when the resource has a non-null `workingHours`, falling back to the tenant's `businessHours[day]` when the resource inherits (`workingHours: null`) — see `docs/13-DATABASE_SCHEMA.md` § `booking.schedule_openings` Rules.
 - **Trigger:** Admin opens a normally-closed day for one resource only (e.g. a stylist takes an extra Saturday).
 - **Main Flow:** Same as UC-010c, with `resourceId` set.
 - **Alternative Flows:**
   - Same as UC-010c's (A1, A2).
   - **A3: `resourceId` does not exist or belongs to another tenant** → `404 Not Found`.
-- **Postconditions:** Only that resource's calendar opens for the date, never outside the tenant's effective hours; the rest of the tenant is unaffected. **Constraint note:** `schedule_openings`' `UNIQUE(tenant_id, date)` is replaced by two partial unique indexes — `UNIQUE(tenant_id, date) WHERE resource_id IS NULL` and `UNIQUE(tenant_id, resource_id, date) WHERE resource_id IS NOT NULL` — so a tenant-wide opening and a resource-scoped opening for the same date no longer collide (see `docs/13-DATABASE_SCHEMA.md`).
+  - **A4: the target day is normally closed for the tenant (`businessHours[day]` is `null`) and no tenant-wide opening exists yet for that date** → `422 Unprocessable Entity` (`BOOKING_TENANT_OPENING_REQUIRED`). The manager/staff must open the tenant level for that date first, then open the specific resource.
+  - **A5: the requested window extends beyond the bounding tenant window for the same date** → `422 Unprocessable Entity` (`BOOKING_OPENING_EXCEEDS_TENANT_WINDOW`). Which window bounds it depends on the tenant's own day state: when the day is normally *open* for the tenant (A4 doesn't apply), the bound is the tenant's own `businessHours[day]` window directly, no explicit opening row needed — this is the case whenever the resource is closed on a day the *tenant* is open (e.g. one stylist's day off). When the day is normally *closed* for the tenant (A4 applies first), the bound is that prerequisite tenant-wide opening's own window.
+- **Postconditions:** Only that resource's calendar opens for the date, and always within the bounding tenant window (A5); the rest of the tenant is unaffected. **Constraint note:** `schedule_openings`' `UNIQUE(tenant_id, date)` is replaced by two partial unique indexes — `UNIQUE(tenant_id, date) WHERE resource_id IS NULL` and `UNIQUE(tenant_id, resource_id, date) WHERE resource_id IS NOT NULL` — so a tenant-wide opening and a resource-scoped opening for the same date no longer collide (see `docs/13-DATABASE_SCHEMA.md`).
 - **Events Triggered:** None.
 
 ---
@@ -524,6 +527,8 @@ for each candidate slot in effectiveHours at slotGranularityMinutes:
     if not blockedByPartialClosure and not blockedByBooking:
         → slot is available
 ```
+
+**Resource-scoped variant (M21 Cluster 1):** the resolution above is the tenant-wide case — UC-011's own Guest flow doesn't select a resource today, so this stays exactly what a Guest query resolves. `GET /schedule/availability(/summary)` also accepts an optional `resourceId` (staff/manager-facing use, e.g. checking one professional's calendar) that scopes the same three-layer resolution to that resource's own closures/openings/workingHours — see `docs/02-DOMAIN_MODEL.md` § Three-Layer Schedule Resolution for the full resource-aware precedence, not duplicated here to avoid the two copies drifting apart.
 
 1. Load `slotGranularityMinutes`, `serviceBufferMinutes`, business hours, and timezone from `tenants.settings`
 2. Compute `bookingDurationMins` from basket + buffer

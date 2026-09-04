@@ -56,6 +56,36 @@ export class ScheduleOpeningNotFoundError extends BookingDomainError {
   }
 }
 
+export class OpeningExceedsTenantWindowError extends BookingDomainError {
+  constructor(date: string) {
+    super(
+      `Resource opening window exceeds the tenant's own opening window for date: ${date}`,
+      BookingErrorCode.OPENING_EXCEEDS_TENANT_WINDOW,
+    );
+    this.name = 'OpeningExceedsTenantWindowError';
+  }
+}
+
+export class TenantOpeningRequiredError extends BookingDomainError {
+  constructor(date: string) {
+    super(
+      `A tenant-wide opening must exist for date ${date} before a resource-scoped opening can be created for it`,
+      BookingErrorCode.TENANT_OPENING_REQUIRED,
+    );
+    this.name = 'TenantOpeningRequiredError';
+  }
+}
+
+export class TenantOpeningHasResourceDependentsError extends BookingDomainError {
+  constructor(date: string) {
+    super(
+      `Cannot remove the tenant-wide opening for date ${date}: one or more resource-scoped openings depend on it`,
+      BookingErrorCode.TENANT_OPENING_HAS_RESOURCE_DEPENDENTS,
+    );
+    this.name = 'TenantOpeningHasResourceDependentsError';
+  }
+}
+
 export class AvailabilityDateInPastError extends BookingDomainError {
   constructor() {
     super('Cannot check availability for a past date', BookingErrorCode.AVAILABILITY_DATE_IN_PAST);

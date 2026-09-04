@@ -24,7 +24,7 @@ Implement (or update) the `ScheduleClosure` aggregate with support for both **fu
 
 **Domain layer — `ScheduleClosure` aggregate:**
 - Properties: `id` (UUID v7), `tenantId`, `date` (YYYY-MM-DD), `startTime: string | null` (HH:MM), `endTime: string | null` (HH:MM), `reason` (`STAFF_DAY_OFF | MAINTENANCE | HOLIDAY`), `notes: string | null`, `createdBy` (staffId), `createdAt`
-- Factory: `ScheduleClosure.close(tenantId, date, reason, createdBy, startTime?, endTime?, notes?)`
+- Factory: `ScheduleClosure.close({ tenantId, date, reason, createdBy, resourceId?, startTime?, endTime?, notes? })` — a single input object, not positional args (M21-S03 refactor; `resourceId` added by M21 Cluster 1 — see `docs/02-DOMAIN_MODEL.md`)
 - Invariants:
   - `date` is not in the past (UTC date comparison)
   - `startTime` and `endTime` are both null or both set (never one without the other)
@@ -356,7 +356,7 @@ Implement the `ScheduleOpening` aggregate and its infrastructure. `ScheduleOpeni
 
 **Domain layer — `ScheduleOpening` aggregate:**
 - Properties: `id` (UUID v7), `tenantId`, `date` (YYYY-MM-DD), `startTime` (HH:MM, required), `endTime` (HH:MM, required), `notes: string | null`, `createdBy` (staffId), `createdAt`
-- Factory: `ScheduleOpening.open(tenantId, date, startTime, endTime, createdBy, notes?)`
+- Factory: `ScheduleOpening.open({ tenantId, date, startTime, endTime, createdBy, resourceId?, notes? })` — a single input object, not positional args (M21-S03 refactor; `resourceId` added by M21 Cluster 1 — see `docs/02-DOMAIN_MODEL.md`)
 - Invariants:
   - `date` is not in the past
   - `endTime > startTime` (HH:MM string comparison)
@@ -377,6 +377,8 @@ created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 INDEX (tenant_id)
 UNIQUE (tenant_id, date)   ← one opening per date per tenant
 ```
+
+> **Superseded by M21-S03:** the schema above and the port signatures below reflect M06's own original scope only. M21 Cluster 1 added a nullable `resource_id` column (see the factory note above), replaced the plain `UNIQUE (tenant_id, date)` with two partial unique indexes, and added an optional `resourceId` parameter to every repository method below. The current, accurate schema and port shape live in `docs/13-DATABASE_SCHEMA.md` § `schedule_openings`/`schedule_closures` and `docs/02-DOMAIN_MODEL.md` § ScheduleOpening/ScheduleClosure — this section is kept as the historical record of what M06 itself built, not a current reference.
 
 **Repository port `IScheduleOpeningRepository`:**
 - `findByTenantAndDate(tenantId, date): Promise<ScheduleOpening | null>`

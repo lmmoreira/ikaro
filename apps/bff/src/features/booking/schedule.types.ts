@@ -2,6 +2,7 @@ import { ClosureReason } from '@ikaro/types';
 
 export interface ScheduleClosureResponse {
   id: string;
+  resourceId: string | null;
   date: string;
   startTime: string | null;
   endTime: string | null;
@@ -17,6 +18,7 @@ export interface ScheduleClosureListResponse {
 
 export interface ScheduleOpeningResponse {
   id: string;
+  resourceId: string | null;
   date: string;
   startTime: string;
   endTime: string;

@@ -1,5 +1,6 @@
 import { ScheduleClosureBuilder } from '../../../../test/builders/booking/schedule-closure.builder';
 import { ScheduleOpeningBuilder } from '../../../../test/builders/booking/schedule-opening.builder';
+import { ResourceBuilder } from '../../../../test/builders/booking/resource.builder';
 import { nextWeekday } from '../../../../test/utils/date-helpers';
 import type { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
 import { BookedSlot } from '../booked-slot';
@@ -390,5 +391,208 @@ describe('AvailabilityService', () => {
     const withoutExtra = svc.calculate({ ...base, date: monday });
 
     expect(withClosures).toHaveLength(withoutExtra.length);
+  });
+
+  // ── Resource-aware precedence (Codex PR #460 round-8 finding) ──────────────
+
+  describe('resource-scoped availability', () => {
+    it('a resource-scoped full-day closure returns [] even though the tenant is open', () => {
+      const resource = new ResourceBuilder().withTenantId('tenant-1').build();
+      const closure = new ScheduleClosureBuilder()
+        .withTenantId('tenant-1')
+        .withResourceId(resource.id)
+        .withDate(monday)
+        .build();
+
+      const result = svc.calculate({
+        ...base,
+        date: monday,
+        resource,
+        closures: [closure],
+      });
+
+      expect(result).toHaveLength(0);
+    });
+
+    it('a resource with its own workingHours closed that day returns [] even though the tenant is open, absent a resource-scoped opening', () => {
+      const resource = new ResourceBuilder()
+        .withTenantId('tenant-1')
+        .withTenantBusinessHours(DEFAULT_HOURS)
+        .withWorkingHours({ ...DEFAULT_HOURS, monday: null })
+        .build();
+
+      const result = svc.calculate({ ...base, date: monday, resource });
+
+      expect(result).toHaveLength(0);
+    });
+
+    it('a resource-scoped opening opens a day the resource is normally closed on (own workingHours), independent of the tenant-wide opening', () => {
+      const resource = new ResourceBuilder()
+        .withTenantId('tenant-1')
+        .withTenantBusinessHours(DEFAULT_HOURS)
+        .withWorkingHours({ ...DEFAULT_HOURS, monday: null })
+        .build();
+      const resourceOpening = new ScheduleOpeningBuilder()
+        .withTenantId('tenant-1')
+        .withResourceId(resource.id)
+        .withDate(monday)
+        .withStartTime('10:00')
+        .withEndTime('12:00')
+        .build();
+
+      const result = svc.calculate({
+        ...base,
+        date: monday,
+        resource,
+        opening: null, // no tenant-wide opening — proves the resource-scoped one alone suffices
+        resourceOpening,
+        closures: [],
+      });
+
+      expect(result.length).toBeGreaterThan(0);
+      expect(result[0].startsAt).toBe(utcIso(monday, 10));
+    });
+
+    it('a tenant-wide opening does NOT open a resource that has its own workingHours saying closed', () => {
+      const resource = new ResourceBuilder()
+        .withTenantId('tenant-1')
+        .withTenantBusinessHours(DEFAULT_HOURS)
+        .withWorkingHours({ ...DEFAULT_HOURS, sunday: null })
+        .build();
+      const tenantOpening = new ScheduleOpeningBuilder()
+        .withTenantId('tenant-1')
+        .withDate(sunday)
+        .withStartTime('09:00')
+        .withEndTime('13:00')
+        .build();
+
+      const result = svc.calculate({
+        ...base,
+        date: sunday,
+        resource,
+        opening: tenantOpening,
+        closures: [],
+      });
+
+      expect(result).toHaveLength(0);
+    });
+
+    it('a resource inheriting tenant hours (workingHours: null) still uses the tenant-wide opening', () => {
+      const resource = new ResourceBuilder()
+        .withTenantId('tenant-1')
+        .withTenantBusinessHours(DEFAULT_HOURS)
+        .build(); // workingHours: null — inherits tenant hours
+      const tenantOpening = new ScheduleOpeningBuilder()
+        .withTenantId('tenant-1')
+        .withDate(sunday)
+        .withStartTime('09:00')
+        .withEndTime('13:00')
+        .build();
+
+      const result = svc.calculate({
+        ...base,
+        date: sunday,
+        resource,
+        opening: tenantOpening,
+        closures: [],
+      });
+
+      expect(result.length).toBeGreaterThan(0);
+      expect(result[0].startsAt).toBe(utcIso(sunday, 9));
+    });
+
+    // ── Tenant boundary as a hard outer limit (Codex PR #460 round-9 finding) ──────────────
+    // docs/02-DOMAIN_MODEL.md § Tenant boundary and resource schedule resolution: "a resource
+    // opening never bypasses a tenant-wide closure or extends beyond a tenant opening/window."
+
+    it('a resource-scoped opening does NOT bypass a tenant-wide full-day closure', () => {
+      const resource = new ResourceBuilder()
+        .withTenantId('tenant-1')
+        .withTenantBusinessHours(DEFAULT_HOURS)
+        .withWorkingHours({ ...DEFAULT_HOURS, monday: null })
+        .build();
+      const tenantClosure = new ScheduleClosureBuilder()
+        .withTenantId('tenant-1')
+        .withDate(monday)
+        .build(); // resourceId undefined → tenant-wide, full-day
+      const resourceOpening = new ScheduleOpeningBuilder()
+        .withTenantId('tenant-1')
+        .withResourceId(resource.id)
+        .withDate(monday)
+        .withStartTime('10:00')
+        .withEndTime('12:00')
+        .build();
+
+      const result = svc.calculate({
+        ...base,
+        date: monday,
+        resource,
+        opening: null,
+        resourceOpening,
+        closures: [tenantClosure],
+      });
+
+      expect(result).toHaveLength(0);
+    });
+
+    it('a resource-scoped opening still beats a resource-scoped full-day closure on the same date', () => {
+      const resource = new ResourceBuilder()
+        .withTenantId('tenant-1')
+        .withTenantBusinessHours(DEFAULT_HOURS)
+        .withWorkingHours({ ...DEFAULT_HOURS, monday: null })
+        .build();
+      const resourceClosure = new ScheduleClosureBuilder()
+        .withTenantId('tenant-1')
+        .withResourceId(resource.id)
+        .withDate(monday)
+        .build();
+      const resourceOpening = new ScheduleOpeningBuilder()
+        .withTenantId('tenant-1')
+        .withResourceId(resource.id)
+        .withDate(monday)
+        .withStartTime('10:00')
+        .withEndTime('12:00')
+        .build();
+
+      const result = svc.calculate({
+        ...base,
+        date: monday,
+        resource,
+        opening: null,
+        resourceOpening,
+        closures: [resourceClosure],
+      });
+
+      expect(result.length).toBeGreaterThan(0);
+      expect(result[0].startsAt).toBe(utcIso(monday, 10));
+    });
+
+    it("a resource-scoped opening is clipped to the tenant's own window, never extending beyond it", () => {
+      const resource = new ResourceBuilder()
+        .withTenantId('tenant-1')
+        .withTenantBusinessHours(DEFAULT_HOURS)
+        .withWorkingHours({ ...DEFAULT_HOURS, monday: null })
+        .build();
+      // Resource opening starts before the tenant's own 09:00 open time.
+      const resourceOpening = new ScheduleOpeningBuilder()
+        .withTenantId('tenant-1')
+        .withResourceId(resource.id)
+        .withDate(monday)
+        .withStartTime('07:00')
+        .withEndTime('10:00')
+        .build();
+
+      const result = svc.calculate({
+        ...base,
+        date: monday,
+        resource,
+        opening: null,
+        resourceOpening,
+        closures: [],
+      });
+
+      // Clipped to the tenant's 09:00 open — a slot starting at 07:00 or 08:00 must not appear.
+      expect(result.every((slot) => slot.startsAt >= utcIso(monday, 9))).toBe(true);
+    });
   });
 });

@@ -360,4 +360,18 @@ describe('UpdateTenantSettingsUseCase', () => {
       maxConversationsPerDay: 100,
     });
   });
+
+  describe('row-locked read', () => {
+    it('reads and writes via findByIdForUpdate, not the cache-backed findById, so a concurrent booking-context read (e.g. OpenScheduleUseCase.getBusinessHoursAndLocaleForUpdate) can never observe a half-applied update', async () => {
+      const tenant = new TenantBuilder().build();
+      await tenantRepo.save(tenant);
+      const findByIdForUpdateSpy = jest.spyOn(tenantRepo, 'findByIdForUpdate');
+      const findByIdSpy = jest.spyOn(tenantRepo, 'findById');
+
+      await useCase.execute({ tenantId: tenant.id, settings: { loyalty: { expiryDays: 90 } } });
+
+      expect(findByIdForUpdateSpy).toHaveBeenCalledWith(tenant.id);
+      expect(findByIdSpy).not.toHaveBeenCalled();
+    });
+  });
 });

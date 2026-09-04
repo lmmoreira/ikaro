@@ -6,22 +6,22 @@ const test = require('node:test');
 const root = path.resolve(__dirname, '..');
 const packages = require('./attw-packages.cjs');
 
-// Root package.json's own `postinstall` script is already the repo's
-// single source of truth for "which packages/* ship real runtime code, not
-// just types" (every app's Dockerfile independently builds the identical
-// subset before `pnpm deploy --prod`). Parsing it here — instead of
-// hand-maintaining a second copy of the same list — is what actually
-// detects drift between it and attw-packages.cjs's registry.
-function parsePostinstallPackageNames(postinstall) {
-  return [...postinstall.matchAll(/pnpm --filter (@ikaro\/[a-z0-9-]+) build/g)].map(
+// Root package.json's own `build:libs` script is already the repo's single source of truth
+// for "which packages/* ship real runtime code, not just types" (every app's Dockerfile
+// independently builds the identical subset before `pnpm deploy --prod`; `postinstall` and
+// `dev` both delegate to it rather than duplicating the chain). Parsing it here — instead of
+// hand-maintaining a second copy of the same list — is what actually detects drift between
+// it and attw-packages.cjs's registry.
+function parseBuildLibsPackageNames(buildLibs) {
+  return [...buildLibs.matchAll(/pnpm --filter (@ikaro\/[a-z0-9-]+) build/g)].map(
     (match) => match[1],
   );
 }
 
-test('registry matches root package.json postinstall exactly', () => {
+test('registry matches root package.json build:libs exactly', () => {
   const rootPackageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  const expected = parsePostinstallPackageNames(rootPackageJson.scripts.postinstall).sort();
-  assert.ok(expected.length > 0, 'could not parse any package name out of postinstall');
+  const expected = parseBuildLibsPackageNames(rootPackageJson.scripts['build:libs']).sort();
+  assert.ok(expected.length > 0, 'could not parse any package name out of build:libs');
   const configured = packages.map((pkg) => pkg.name).sort();
   assert.deepEqual(configured, expected);
   assert.equal(new Set(configured).size, configured.length);

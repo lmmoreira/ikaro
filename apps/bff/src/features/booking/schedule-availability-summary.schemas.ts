@@ -8,6 +8,9 @@ export const GetAvailabilitySummaryQuerySchema = z.object({
   from: z.string().regex(DATE_ONLY_PATTERN, 'from must be YYYY-MM-DD'),
   to: z.string().regex(DATE_ONLY_PATTERN, 'to must be YYYY-MM-DD'),
   serviceIds: z.string().min(1, 'serviceIds is required'),
+  // Optional — omit for tenant-wide availability (today's behavior, unchanged). Pass-through to
+  // the backend's own optional resourceId.
+  resourceId: z.uuid().optional(),
 });
 
 export type GetAvailabilitySummaryQuery = z.infer<typeof GetAvailabilitySummaryQuerySchema>;

@@ -8,6 +8,7 @@ import { CustomerModule } from '../customer/customer.module';
 import { PlatformSettingsModule } from '../platform/platform-settings.module';
 import { StaffModule } from '../staff/staff.module';
 import { BOOKING_AVAILABILITY_PORT } from './application/ports/booking-availability.port';
+import { TENANT_LOCK_PORT } from './application/ports/tenant-lock.port';
 import { BOOKING_REPOSITORY } from './application/ports/booking-repository.port';
 import { BOOKING_CUSTOMER_PORT } from './application/ports/booking-customer.port';
 import { BOOKING_PLATFORM_PORT } from './application/ports/booking-platform.port';
@@ -85,6 +86,7 @@ import { TypeOrmBookingAvailabilityAdapter } from './infrastructure/cross-contex
 import { TypeOrmBookingRepository } from './infrastructure/repositories/typeorm-booking.repository';
 import { TypeOrmScheduleClosureRepository } from './infrastructure/repositories/typeorm-schedule-closure.repository';
 import { TypeOrmScheduleOpeningRepository } from './infrastructure/repositories/typeorm-schedule-opening.repository';
+import { TypeOrmTenantLockAdapter } from './infrastructure/repositories/typeorm-tenant-lock.adapter';
 import { TypeOrmResourceRepository } from './infrastructure/repositories/typeorm-resource.repository';
 import { CachingServiceRepository } from './infrastructure/repositories/caching-service.repository';
 import { TypeOrmServiceRepository } from './infrastructure/repositories/typeorm-service.repository';
@@ -131,6 +133,7 @@ import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cach
     { provide: RESOURCE_REPOSITORY, useClass: TypeOrmResourceRepository },
     { provide: BOOKING_PLATFORM_PORT, useClass: BookingPlatformAdapter },
     { provide: BOOKING_AVAILABILITY_PORT, useClass: TypeOrmBookingAvailabilityAdapter },
+    { provide: TENANT_LOCK_PORT, useClass: TypeOrmTenantLockAdapter },
     { provide: BOOKING_REPOSITORY, useClass: TypeOrmBookingRepository },
     { provide: BOOKING_CUSTOMER_PORT, useClass: BookingCustomerAdapter },
     { provide: BOOKING_STAFF_PORT, useClass: BookingStaffAdapter },

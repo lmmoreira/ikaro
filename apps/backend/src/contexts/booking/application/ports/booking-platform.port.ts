@@ -22,4 +22,10 @@ export interface IBookingPlatformPort {
   // LOCATION resource at provisioning time — business hours for Resource.create()'s invariant,
   // locale for the default name ("Localização Principal" / "Main Location").
   getBusinessHoursAndLocale(tenantId: string): Promise<TenantBusinessHoursAndLocale>;
+  // Must be called inside an active ITransactionManager.run() block. Row-locks the tenant
+  // (pessimistic_write) and bypasses the read cache entirely, serializing against a concurrent
+  // UpdateTenantSettingsUseCase write — the authoritative counterpart to
+  // getBusinessHoursAndLocale above for a caller validating businessHours mid-transaction —
+  // the cached read above is not safe for that.
+  getBusinessHoursAndLocaleForUpdate(tenantId: string): Promise<TenantBusinessHoursAndLocale>;
 }

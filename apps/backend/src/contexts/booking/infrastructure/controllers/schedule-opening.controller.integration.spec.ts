@@ -1,12 +1,16 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import { ScheduleOpeningEntityBuilder } from '../../../../test/builders/booking/index';
+import {
+  ScheduleOpeningEntityBuilder,
+  ResourceEntityBuilder,
+} from '../../../../test/builders/booking/index';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
 import { futureDate, nextWeekday, pastDate } from '../../../../test/utils/date-helpers';
 import { PlatformModule } from '../../../platform/platform.module';
 import { ScheduleOpeningEntity } from '../entities/schedule-opening.entity';
+import { ResourceEntity } from '../entities/resource.entity';
 
 const TEST_KEY = 'opening-integ-test-key-opening-xxxx'; // 36 chars
 
@@ -167,6 +171,36 @@ describe('ScheduleOpeningController (integration)', () => {
 
       expect(body.status).toBe(404);
     });
+
+    it('returns 409 when a resource-scoped opening depends on the tenant-wide opening being deleted (M21 Cluster 1, Codex PR #460 round-4 finding)', async () => {
+      const resource = new ResourceEntityBuilder().withTenantId(tenantAId).build();
+      await ds.getRepository(ResourceEntity).save(resource);
+      const date = nextWeekday(0, 11);
+
+      const { body: tenantWide } = await request(app.getHttpServer())
+        .post('/schedule/openings')
+        .set(actorHeaders(tenantAId, MANAGER_ID))
+        .send({ date, startTime: '09:00', endTime: '14:00' })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .post('/schedule/openings')
+        .set(actorHeaders(tenantAId, MANAGER_ID))
+        .send({ date, startTime: '09:00', endTime: '14:00', resourceId: resource.id })
+        .expect(201);
+
+      const { body } = await request(app.getHttpServer())
+        .delete(`/schedule/openings/${tenantWide.id}`)
+        .set(actorHeaders(tenantAId, MANAGER_ID))
+        .expect(409);
+
+      expect(body.status).toBe(409);
+
+      const stillThere = await ds
+        .getRepository(ScheduleOpeningEntity)
+        .findOne({ where: { id: tenantWide.id as string } });
+      expect(stillThere).not.toBeNull();
+    });
   });
 
   // ─── GET /schedule/openings ──────────────────────────────────────────────────
@@ -222,6 +256,180 @@ describe('ScheduleOpeningController (integration)', () => {
       expect(
         body.items.every((i: { date: string }) => !['2026-10-05', '2026-10-19'].includes(i.date)),
       ).toBe(true);
+    });
+  });
+
+  // ─── resourceId (M21 Cluster 1) ──────────────────────────────────────────────
+
+  describe('resourceId (M21 Cluster 1)', () => {
+    it('MANAGER creates a resource-scoped opening when a tenant-wide opening already covers it', async () => {
+      const resource = new ResourceEntityBuilder().withTenantId(tenantAId).build();
+      await ds.getRepository(ResourceEntity).save(resource);
+      const date = nextWeekday(0, 5);
+
+      await request(app.getHttpServer())
+        .post('/schedule/openings')
+        .set(actorHeaders(tenantAId, MANAGER_ID))
+        .send({ date, startTime: '09:00', endTime: '14:00' })
+        .expect(201);
+
+      const { body } = await request(app.getHttpServer())
+        .post('/schedule/openings')
+        .set(actorHeaders(tenantAId, MANAGER_ID))
+        .send({
+          date,
+          startTime: '09:00',
+          endTime: '14:00',
+          resourceId: resource.id,
+        })
+        .expect(201);
+
+      expect(body.resourceId).toBe(resource.id);
+    });
+
+    it('returns 403 when STAFF sets resourceId', async () => {
+      const resource = new ResourceEntityBuilder().withTenantId(tenantAId).build();
+      await ds.getRepository(ResourceEntity).save(resource);
+
+      const { body } = await request(app.getHttpServer())
+        .post('/schedule/openings')
+        .set(actorHeaders(tenantAId, MANAGER_ID, 'STAFF'))
+        .send({
+          date: nextWeekday(0, 6),
+          startTime: '09:00',
+          endTime: '14:00',
+          resourceId: resource.id,
+        })
+        .expect(403);
+
+      expect(body.status).toBe(403);
+    });
+
+    it('STAFF can still create a tenant-wide opening (resourceId omitted)', async () => {
+      const { body } = await request(app.getHttpServer())
+        .post('/schedule/openings')
+        .set(actorHeaders(tenantAId, MANAGER_ID, 'STAFF'))
+        .send({ date: nextWeekday(0, 7), startTime: '09:00', endTime: '14:00' })
+        .expect(201);
+
+      expect(body.resourceId).toBeNull();
+    });
+
+    it('returns 404 when resourceId belongs to another tenant', async () => {
+      const resource = new ResourceEntityBuilder().withTenantId(tenantBId).build();
+      await ds.getRepository(ResourceEntity).save(resource);
+
+      const { body } = await request(app.getHttpServer())
+        .post('/schedule/openings')
+        .set(actorHeaders(tenantAId, MANAGER_ID))
+        .send({
+          date: nextWeekday(0, 8),
+          startTime: '09:00',
+          endTime: '14:00',
+          resourceId: resource.id,
+        })
+        .expect(404);
+
+      expect(body.status).toBe(404);
+    });
+
+    it('returns 422 when a resource-scoped window extends beyond an existing tenant-wide opening', async () => {
+      const resource = new ResourceEntityBuilder().withTenantId(tenantAId).build();
+      await ds.getRepository(ResourceEntity).save(resource);
+      const date = nextWeekday(0, 9);
+
+      await request(app.getHttpServer())
+        .post('/schedule/openings')
+        .set(actorHeaders(tenantAId, MANAGER_ID))
+        .send({ date, startTime: '09:00', endTime: '14:00' })
+        .expect(201);
+
+      const { body } = await request(app.getHttpServer())
+        .post('/schedule/openings')
+        .set(actorHeaders(tenantAId, MANAGER_ID))
+        .send({ date, startTime: '08:00', endTime: '15:00', resourceId: resource.id })
+        .expect(422);
+
+      expect(body.status).toBe(422);
+    });
+
+    it('returns 422 when no tenant-wide opening exists yet for a date closed for the tenant (M21 Cluster 1, Codex PR #460 round-3 finding)', async () => {
+      const resource = new ResourceEntityBuilder().withTenantId(tenantAId).build();
+      await ds.getRepository(ResourceEntity).save(resource);
+      const date = nextWeekday(0, 10); // Sunday — closed for the tenant, no tenant-wide opening created
+
+      const { body } = await request(app.getHttpServer())
+        .post('/schedule/openings')
+        .set(actorHeaders(tenantAId, MANAGER_ID))
+        .send({ date, startTime: '09:00', endTime: '14:00', resourceId: resource.id })
+        .expect(422);
+
+      expect(body.status).toBe(422);
+    });
+  });
+
+  // ─── two-partial-index migration (M21 Cluster 1) ─────────────────────────────
+
+  describe('two-partial-index migration (M21 Cluster 1)', () => {
+    it('a tenant-wide and a resource-scoped opening for the same date coexist; a second in either scope is rejected at the DB level', async () => {
+      const resource = new ResourceEntityBuilder().withTenantId(tenantAId).build();
+      await ds.getRepository(ResourceEntity).save(resource);
+      const date = futureDate(300);
+      const openingRepo = ds.getRepository(ScheduleOpeningEntity);
+
+      await openingRepo.save(
+        new ScheduleOpeningEntityBuilder().withTenantId(tenantAId).withDate(date).build(),
+      );
+      await openingRepo.save(
+        new ScheduleOpeningEntityBuilder()
+          .withTenantId(tenantAId)
+          .withResourceId(resource.id)
+          .withDate(date)
+          .build(),
+      );
+
+      await expect(
+        openingRepo.save(
+          new ScheduleOpeningEntityBuilder().withTenantId(tenantAId).withDate(date).build(),
+        ),
+      ).rejects.toThrow();
+
+      await expect(
+        openingRepo.save(
+          new ScheduleOpeningEntityBuilder()
+            .withTenantId(tenantAId)
+            .withResourceId(resource.id)
+            .withDate(date)
+            .build(),
+        ),
+      ).rejects.toThrow();
+    });
+
+    it('two different resources each get their own opening for the same date without colliding', async () => {
+      const resourceA = new ResourceEntityBuilder().withTenantId(tenantAId).build();
+      const resourceB = new ResourceEntityBuilder().withTenantId(tenantAId).build();
+      await ds.getRepository(ResourceEntity).save(resourceA);
+      await ds.getRepository(ResourceEntity).save(resourceB);
+      const date = futureDate(301);
+      const openingRepo = ds.getRepository(ScheduleOpeningEntity);
+
+      await openingRepo.save(
+        new ScheduleOpeningEntityBuilder()
+          .withTenantId(tenantAId)
+          .withResourceId(resourceA.id)
+          .withDate(date)
+          .build(),
+      );
+
+      const savedB = await openingRepo.save(
+        new ScheduleOpeningEntityBuilder()
+          .withTenantId(tenantAId)
+          .withResourceId(resourceB.id)
+          .withDate(date)
+          .build(),
+      );
+
+      expect(savedB.resourceId).toBe(resourceB.id);
     });
   });
 });

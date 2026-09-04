@@ -27,11 +27,13 @@ export class ListClosuresUseCase {
       tenantId,
       input.from,
       input.to,
+      input.resourceId,
     );
 
     return {
       items: closures.map((c) => ({
         id: c.id,
+        resourceId: c.resourceId,
         date: c.date,
         startTime: c.startTime?.value ?? null,
         endTime: c.endTime?.value ?? null,

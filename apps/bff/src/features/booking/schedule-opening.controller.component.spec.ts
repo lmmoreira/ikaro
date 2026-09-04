@@ -16,6 +16,7 @@ const OPENING_ID = '30000000-0000-4000-8000-000000000002';
 
 const mockOpening: ScheduleOpeningResponse = {
   id: OPENING_ID,
+  resourceId: null,
   date: '2026-12-28',
   startTime: '09:00',
   endTime: '14:00',
@@ -215,6 +216,48 @@ describe('ScheduleOpeningController (component)', () => {
         .send({ date: '2026-12-28', startTime: '09:00', endTime: '14:00' });
 
       expect(res.status).toBe(409);
+    });
+
+    it('MANAGER JWT → 201, passes resourceId through to backend (M21 Cluster 1)', async () => {
+      setupActiveGuardMock(httpService);
+      const scoped = { ...mockOpening, resourceId: '30000000-0000-4000-8000-000000000003' };
+      backendHttpService.post.mockResolvedValueOnce(scoped);
+
+      const res = await request(app.getHttpServer())
+        .post('/v1/schedule/openings')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send({
+          date: '2026-12-28',
+          startTime: '09:00',
+          endTime: '14:00',
+          resourceId: '30000000-0000-4000-8000-000000000003',
+        });
+
+      expect(res.status).toBe(201);
+      expect(backendHttpService.post).toHaveBeenCalledWith(
+        '/schedule/openings',
+        expect.objectContaining({ resourceId: '30000000-0000-4000-8000-000000000003' }),
+      );
+      expect(res.body.resourceId).toBe('30000000-0000-4000-8000-000000000003');
+    });
+
+    it('propagates 403 from backend when STAFF sets resourceId (M21 Cluster 1)', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.post.mockRejectedValueOnce(
+        new HttpException({ title: 'Forbidden', status: 403 }, 403),
+      );
+
+      const res = await request(app.getHttpServer())
+        .post('/v1/schedule/openings')
+        .set('Authorization', `Bearer ${makeStaffJwt(jwtService)}`)
+        .send({
+          date: '2026-12-28',
+          startTime: '09:00',
+          endTime: '14:00',
+          resourceId: '30000000-0000-4000-8000-000000000003',
+        });
+
+      expect(res.status).toBe(403);
     });
   });
 

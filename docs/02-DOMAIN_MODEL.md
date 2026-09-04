@@ -455,7 +455,7 @@ ScheduleClosure {
 - A full-day closure overlaps with every partial closure on the same `(tenantId, resourceId)` and date — creating a full-day closure when any partial closure already exists for that date, or vice versa, is a conflict
 - **Resource scope, added M21 Cluster 1:** `resourceId = null` blocks every resource at the tenant (today's exact behavior, unchanged default). `resourceId` set blocks only that resource's calendar; a resource closure removes time from that resource even when a tenant-wide opening exists for the same date.
 
-**Factory:** `ScheduleClosure.close(tenantId, date, reason, createdBy, resourceId?, startTime?, endTime?, notes?)`
+**Factory:** `ScheduleClosure.close({ tenantId, date, reason, createdBy, resourceId?, startTime?, endTime?, notes? })` — a single input object, not positional args (M21-S03, PR #460 round 1 — SonarCloud S107 too-many-parameters fix, following `Resource.create()`'s existing precedent).
 
 ---
 
@@ -490,7 +490,7 @@ ScheduleOpening {
 - Only one `ScheduleOpening` per `(tenantId, date)` when `resourceId IS NULL`, and only one per `(tenantId, resourceId, date)` when `resourceId` is set — a tenant-wide opening and a resource-scoped opening for the same date do not collide with each other (M21 Cluster 1; see `docs/13-DATABASE_SCHEMA.md` for the two-partial-unique-index DB fix this required, since a plain `NULL`-inclusive unique index stops enforcing "one per date" once `resourceId` becomes nullable)
 - A resource opening can make that resource available on one of its normally-off dates, but never outside the tenant's own effective hours for that date
 
-**Factory:** `ScheduleOpening.open(tenantId, date, startTime, endTime, createdBy, resourceId?, notes?)`
+**Factory:** `ScheduleOpening.open({ tenantId, date, startTime, endTime, createdBy, resourceId?, notes? })` — a single input object, not positional args (M21-S03, PR #460 round 1 — same SonarCloud S107 fix as `ScheduleClosure.close()` above).
 
 ---
 
@@ -503,7 +503,7 @@ The availability algorithm resolves the effective operating window for any given
 3. businessHours   (lowest priority — the recurring weekly pattern)
 ```
 
-Resolution logic per date:
+Resolution logic per date, tenant-wide (no `resourceId`):
 ```
 if ScheduleOpening exists for (tenantId, date):
     effective_hours = { open: opening.startTime, close: opening.endTime }
@@ -516,6 +516,38 @@ else:
     effective_hours = businessHours[dayOfWeek]
     filter out any slots that overlap partial ScheduleClosures for this date
 ```
+
+**Resource-scoped resolution (M21 Cluster 1, `AvailabilityService.resolveEffectiveHours`, Codex PR #460 round-9 finding):** when a caller passes a `resourceId`, closures/openings for BOTH `resourceId = null` (tenant-wide) and `resourceId = <that resource>` are fetched and combined — a resource-scoped closure blocks that resource even on a day the tenant itself is open, and vice versa is never true (a resource can't be open when the tenant is closed). Resolution runs the single-scope algorithm above **twice** — once for the tenant, then once for the resource — never letting either scope's opening see the other scope's closures:
+
+```
+# Step 1 — tenant scope, using ONLY resourceId = null closures/opening. This is the exact
+# single-scope algorithm above, unchanged — a tenant-wide opening still wins over a tenant-wide
+# closure unconditionally within this step.
+tenantWindow = resolveScopeWindow(businessHours[dayOfWeek], tenantClosures, tenantOpening)
+if tenantWindow is null: return []   ← hard outer boundary; nothing below can override this
+
+if no resource requested: return tenantWindow   ← tenant-wide call, done (byte-identical to pre-M21)
+
+# Step 2 — resource scope, using ONLY resourceId = <that resource> closures/opening.
+resourceDayHours = resource.workingHours != null
+    ? resource.workingHours[dayOfWeek]        ← own hours gate it, not the tenant's; a tenant-wide
+                                                  opening can never reach this branch (mirrors
+                                                  OpenScheduleUseCase's creation-time bound)
+    : tenantWindow's own {open, close}         ← inherits the tenant's already-resolved window
+                                                  (including any tenant-wide opening), so no
+                                                  separate "?? tenantOpening" fallback is needed
+resourceWindow = resolveScopeWindow(resourceDayHours, resourceClosures, resourceOpening)
+if resourceWindow is null: return []   ← resource specifically closed (no resource-scoped opening
+                                          overrides it)
+
+# Step 3 — intersect: a resource-scoped window can never extend beyond the tenant's own window.
+open  = max(tenantWindow.open, resourceWindow.open)
+close = min(tenantWindow.close, resourceWindow.close)
+if open >= close: return []
+return { open, close, partialClosures: tenantWindow.partialClosures + resourceWindow.partialClosures }
+```
+
+where `resolveScopeWindow(dayHours, scopedClosures, scopedOpening)` is exactly the single-scope algorithm from the section above: opening wins over a same-scope closure unconditionally, else a full-day closure returns "closed," else the day's hours apply with same-scope partial closures filtered out.
 
 **`IBookingAvailabilityPort` (cross-context read port — Booking Context)**
 

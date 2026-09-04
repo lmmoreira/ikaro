@@ -29,6 +29,7 @@ import {
   BookingSlotUnavailableError,
   ClosureDateInPastError,
   InvalidBookingTransitionError,
+  ResourceNotActiveError,
   ScheduleAlreadyClosedError,
   ScheduleClosureNotFoundError,
   ServiceDeactivatedError,
@@ -129,6 +130,12 @@ describe('mapBookingError', () => {
 
   it('maps ServiceDeactivatedError to 409', () => {
     const err = call(new ServiceDeactivatedError());
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+  });
+
+  it('maps ResourceNotActiveError to 409', () => {
+    const err = call(new ResourceNotActiveError('resource-1'));
     expect(err).toBeInstanceOf(HttpException);
     expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
   });

@@ -786,9 +786,11 @@ Availability is a **two-phase API** — one call for calendar navigation, one fo
 Loads all data for the date range in 3 DB queries. Use for week/month calendar rendering.
 
 ```
-GET /v1/schedule/availability/summary?from=YYYY-MM-DD&to=YYYY-MM-DD&serviceIds=uuid1,uuid2
+GET /v1/schedule/availability/summary?from=YYYY-MM-DD&to=YYYY-MM-DD&serviceIds=uuid1,uuid2&resourceId=
 X-Tenant-Slug: lavacar-test
 ```
+
+`resourceId` optional (M21 Cluster 1, Codex PR #460 round-8 finding) — omit for tenant-wide availability (today's exact unchanged behavior). When set, scopes the calculation to that resource's own closures/openings/workingHours, combined with the tenant-wide ones (`docs/02-DOMAIN_MODEL.md` § Three-Layer Schedule Resolution). Cluster 2 (UC-058/UC-059, planned) will additionally derive this automatically from a queried service's `resourceRequirements` when the caller doesn't pass one explicitly — this explicit param is the foundation that later auto-derivation builds on, not a competing mechanism.
 
 Response `200`:
 ```json
@@ -801,6 +803,7 @@ Response `200`:
 
 Errors:
 - `400` — serviceId not found, inactive, or from wrong tenant
+- `404` — `resourceId` set and does not exist or belongs to another tenant
 - `422` — `from > to`, or range exceeds `maxBookingAdvanceDays` (default 90 days)
 
 Constraints: past dates return `{ available: false, slotCount: 0 }` without an error (for seamless calendar rendering).
@@ -810,9 +813,11 @@ Constraints: past dates return `{ available: false, slotCount: 0 }` without an e
 Called when user clicks a specific day. Returns full slot list with UTC timestamps.
 
 ```
-GET /v1/schedule/availability?date=YYYY-MM-DD&serviceIds=uuid1,uuid2
+GET /v1/schedule/availability?date=YYYY-MM-DD&serviceIds=uuid1,uuid2&resourceId=
 X-Tenant-Slug: lavacar-test
 ```
+
+`resourceId` optional (M21 Cluster 1, Codex PR #460 round-8 finding) — same meaning as Phase 1's `resourceId` above.
 
 Response `200`:
 ```json
@@ -828,6 +833,7 @@ Response `200`:
 
 Errors:
 - `400` — serviceId not found, inactive, or from wrong tenant
+- `404` — `resourceId` set and does not exist or belongs to another tenant
 - `422` — date is in the past
 
 ### **Schedule Closures (UC-010a, UC-010b, UC-010e)**
@@ -869,13 +875,14 @@ Auth: JWT + `MANAGER|STAFF` on all write endpoints. **Exception (M21 Cluster 1):
   }
   ```
   - `201` on success
-  - `422` if date is past OR day-of-week is already open in `businessHours`
+  - `422` if date is past, OR day-of-week is already open in the effective hours source (tenant `businessHours` for a tenant-wide opening; the resource's own `workingHours[day]` when `resourceId` is set and the resource has a non-null `workingHours`, else falling back to `businessHours` — M21 Cluster 1), OR (`resourceId` set only) the day is normally closed for the tenant and no tenant-wide opening exists yet for that date (`BOOKING_TENANT_OPENING_REQUIRED` — open the tenant level first), OR (`resourceId` set only) the requested window extends beyond the bounding tenant window for that date (`BOOKING_OPENING_EXCEEDS_TENANT_WINDOW` — the tenant's own `businessHours[day]` window when the day is normally open for the tenant, else the prerequisite tenant-wide opening's window)
   - `409` if an opening already exists for that `(date, resourceId)`
   - `404` if `resourceId` is set and does not exist or belongs to another tenant (UC-010f)
 
 - `DELETE /schedule/openings/:id` → remove opening; day reverts to default-closed
   - `204` on success
   - `404` if not found or belongs to another tenant
+  - `409` if the opening is tenant-wide (`resourceId` unset) and one or more resource-scoped openings still depend on it for that date (`BOOKING_TENANT_OPENING_HAS_RESOURCE_DEPENDENTS` — M21 Cluster 1) — remove the resource-scoped openings first. Never applies when deleting a resource-scoped opening directly.
 
 ### **Resource Management (UC-044–UC-049)**
 

@@ -1,4 +1,5 @@
 import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure/in-memory-booking-availability';
+import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
@@ -32,7 +33,10 @@ describe('RescheduleBookingUseCase', () => {
     eventBus = new InMemoryEventBus();
     bookingRepo = new InMemoryBookingRepository(eventBus);
     availabilityPort = new InMemoryBookingAvailabilityPort();
-    const slotConflictService = new BookingSlotConflictService(availabilityPort);
+    const slotConflictService = new BookingSlotConflictService(
+      availabilityPort,
+      new InMemoryTenantLock(),
+    );
     useCase = new RescheduleBookingUseCase(
       bookingRepo,
       slotConflictService,

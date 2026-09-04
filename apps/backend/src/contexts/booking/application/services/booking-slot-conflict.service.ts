@@ -5,12 +5,15 @@ import {
   IBookingAvailabilityPort,
   BOOKING_AVAILABILITY_PORT,
 } from '../ports/booking-availability.port';
+import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
 
 @Injectable()
 export class BookingSlotConflictService {
   constructor(
     @Inject(BOOKING_AVAILABILITY_PORT)
     private readonly availabilityPort: IBookingAvailabilityPort,
+    @Inject(TENANT_LOCK_PORT)
+    private readonly tenantLock: ITenantLockPort,
   ) {}
 
   async assertSlotFree(
@@ -21,7 +24,7 @@ export class BookingSlotConflictService {
     excludeBookingId?: string,
   ): Promise<void> {
     const localDate = utcDateToLocalDate(scheduledAt, timezone);
-    await this.availabilityPort.lockTenantDay(tenantId, localDate);
+    await this.tenantLock.lockTenantDay(tenantId, localDate);
     const existing = await this.availabilityPort.findApprovedByTenantAndDate(tenantId, localDate);
     const slots = excludeBookingId ? existing.filter((s) => s.id !== excludeBookingId) : existing;
     const bookingEnd = scheduledAt.getTime() + totalDurationMins * 60_000;

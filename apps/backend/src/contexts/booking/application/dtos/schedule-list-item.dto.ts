@@ -1,5 +1,6 @@
 export interface ScheduleListItem {
   id: string;
+  resourceId: string | null;
   date: string;
   startTime: string | null;
   endTime: string | null;

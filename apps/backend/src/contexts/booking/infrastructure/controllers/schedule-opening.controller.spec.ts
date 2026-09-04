@@ -1,9 +1,13 @@
 import { HttpException } from '@nestjs/common';
 import { futureDate, nextWeekday, pastDate } from '../../../../test/utils/date-helpers';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
+import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
+import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
-import { ScheduleOpeningBuilder } from '../../../../test/builders/booking/schedule-opening.builder';
+import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
+import { ScheduleOpeningBuilder, ResourceBuilder } from '../../../../test/builders/booking/index';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
+import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
 import { OpenScheduleUseCase } from '../../application/use-cases/open-schedule.use-case';
 import { ListOpeningsUseCase } from '../../application/use-cases/list-openings.use-case';
 import { RemoveScheduleOpeningUseCase } from '../../application/use-cases/remove-schedule-opening.use-case';
@@ -14,18 +18,37 @@ const ACTOR_ID = '00000000-0000-7000-8000-000000000002';
 
 describe('ScheduleOpeningController', () => {
   let repo: InMemoryScheduleOpeningRepository;
+  let resourceRepo: InMemoryResourceRepository;
   let controller: ScheduleOpeningController;
+
+  function buildController(actorRole: 'STAFF' | 'MANAGER' = 'STAFF'): ScheduleOpeningController {
+    const ctx = new RequestContextBuilder()
+      .withTenantId(TENANT_ID)
+      .withActorId(ACTOR_ID)
+      .withActorRole(actorRole)
+      .build();
+    const tx = new InMemoryTransactionManager();
+    const tenantLock = new InMemoryTenantLock();
+    // Matches RequestContextBuilder's own default settings, so the use case's authoritative
+    // re-fetch (Codex PR #460 round-4/5 TOCTOU finding) agrees with the businessHours the
+    // controller passes in from ctx.settings.
+    const platform = new InMemoryBookingPlatformPort();
+    platform.seedBusinessHoursAndLocale(TENANT_ID, {
+      businessHours: TenantSettings.default().businessHours,
+      locale: 'pt-BR',
+    });
+    return new ScheduleOpeningController(
+      ctx,
+      new OpenScheduleUseCase(repo, resourceRepo, platform, tenantLock, tx),
+      new RemoveScheduleOpeningUseCase(repo, tenantLock, tx),
+      new ListOpeningsUseCase(repo),
+    );
+  }
 
   beforeEach(() => {
     repo = new InMemoryScheduleOpeningRepository();
-    const ctx = new RequestContextBuilder().withTenantId(TENANT_ID).withActorId(ACTOR_ID).build();
-    const tx = new InMemoryTransactionManager();
-    controller = new ScheduleOpeningController(
-      ctx,
-      new OpenScheduleUseCase(repo, tx),
-      new RemoveScheduleOpeningUseCase(repo, tx),
-      new ListOpeningsUseCase(repo),
-    );
+    resourceRepo = new InMemoryResourceRepository();
+    controller = buildController();
   });
 
   describe('create()', () => {
@@ -106,6 +129,70 @@ describe('ScheduleOpeningController', () => {
     it('returns empty list when no openings in range', async () => {
       const result = await controller.list({ from: '2026-11-01', to: '2026-11-30' });
       expect(result.items).toHaveLength(0);
+    });
+  });
+
+  describe('resourceId auth (M21 Cluster 1)', () => {
+    it('STAFF gets 403 when resourceId is set', async () => {
+      const staffController = buildController('STAFF');
+      const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
+      await resourceRepo.save(resource);
+
+      // create() throws synchronously for this path (throwProblemDetail, not a rejected
+      // promise) — wrap in an async invocation so .catch() has something to attach to.
+      const err = await (async () =>
+        staffController.create({
+          date: nextWeekday(0),
+          startTime: '09:00',
+          endTime: '14:00',
+          resourceId: resource.id,
+        }))().catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(403);
+    });
+
+    it('MANAGER can create a resource-scoped opening when a tenant-wide opening already covers it', async () => {
+      const managerController = buildController('MANAGER');
+      const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
+      await resourceRepo.save(resource);
+      const date = nextWeekday(0);
+
+      await managerController.create({ date, startTime: '09:00', endTime: '14:00' });
+
+      const result = await managerController.create({
+        date,
+        startTime: '09:00',
+        endTime: '14:00',
+        resourceId: resource.id,
+      });
+
+      expect(result.resourceId).toBe(resource.id);
+    });
+
+    it('STAFF can still create a tenant-wide opening (resourceId omitted)', async () => {
+      const result = await controller.create({
+        date: nextWeekday(0),
+        startTime: '09:00',
+        endTime: '14:00',
+      });
+      expect(result.resourceId).toBeNull();
+    });
+
+    it('maps OpeningExceedsTenantWindowError to 422', async () => {
+      const managerController = buildController('MANAGER');
+      const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
+      await resourceRepo.save(resource);
+      const date = nextWeekday(0);
+
+      await managerController.create({ date, startTime: '09:00', endTime: '14:00' });
+
+      const err = await managerController
+        .create({ date, startTime: '08:00', endTime: '15:00', resourceId: resource.id })
+        .catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(422);
     });
   });
 });

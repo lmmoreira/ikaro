@@ -7,6 +7,7 @@ import { DATE_ONLY_PATTERN } from '@ikaro/validation';
 export const CreateClosureBodySchema = z.object({
   date: z.string().regex(DATE_ONLY_PATTERN, 'date must be YYYY-MM-DD'),
   reason: z.enum(['STAFF_DAY_OFF', 'MAINTENANCE', 'HOLIDAY']),
+  resourceId: z.uuid().optional(),
   startTime: z
     .string()
     .regex(/^\d{2}:\d{2}$/, 'startTime must be HH:MM')
@@ -21,6 +22,7 @@ export const CreateClosureBodySchema = z.object({
 export const ListClosuresQuerySchema = z.object({
   from: z.string().regex(DATE_ONLY_PATTERN, 'from must be YYYY-MM-DD'),
   to: z.string().regex(DATE_ONLY_PATTERN, 'to must be YYYY-MM-DD'),
+  resourceId: z.uuid().optional(),
 });
 
 export type CreateClosureBody = z.infer<typeof CreateClosureBodySchema>;

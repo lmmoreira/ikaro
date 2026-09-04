@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure/in-memory-booking-availability';
+import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
@@ -42,7 +43,10 @@ describe('BookingCompletionController', () => {
       new CancelBookingAsAdminUseCase(bookingRepo, new InMemoryTransactionManager()),
       new RescheduleBookingUseCase(
         bookingRepo,
-        new BookingSlotConflictService(new InMemoryBookingAvailabilityPort()),
+        new BookingSlotConflictService(
+          new InMemoryBookingAvailabilityPort(),
+          new InMemoryTenantLock(),
+        ),
         new InMemoryTransactionManager(),
       ),
       new CompleteBookingUseCase(

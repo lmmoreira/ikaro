@@ -6,6 +6,7 @@ import {
 } from '../../../platform/application/ports/frontend-revalidation.port';
 import { GetTenantByIdUseCase } from '../../../platform/application/use-cases/get-tenant-by-id.use-case';
 import { GetTenantsUseCase } from '../../../platform/application/use-cases/get-tenants.use-case';
+import { GetTenantBusinessHoursForUpdateUseCase } from '../../../platform/application/use-cases/get-tenant-business-hours-for-update.use-case';
 import {
   ActiveTenantInfo,
   IBookingPlatformPort,
@@ -19,6 +20,7 @@ export class BookingPlatformAdapter implements IBookingPlatformPort {
   constructor(
     private readonly getTenants: GetTenantsUseCase,
     private readonly getTenantById: GetTenantByIdUseCase,
+    private readonly getTenantBusinessHoursForUpdate: GetTenantBusinessHoursForUpdateUseCase,
     @Inject(FRONTEND_REVALIDATION_PORT)
     private readonly frontendRevalidation: IFrontendRevalidationPort,
   ) {}
@@ -51,5 +53,11 @@ export class BookingPlatformAdapter implements IBookingPlatformPort {
       businessHours: tenant.settings.businessHours,
       locale: tenant.locale,
     };
+  }
+
+  async getBusinessHoursAndLocaleForUpdate(
+    tenantId: string,
+  ): Promise<TenantBusinessHoursAndLocale> {
+    return this.getTenantBusinessHoursForUpdate.execute({ tenantId });
   }
 }

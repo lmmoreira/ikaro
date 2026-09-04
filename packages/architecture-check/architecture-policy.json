@@ -60,10 +60,12 @@
         "targetPaths": [
           "apps/backend/src/contexts/platform/application/ports/frontend-revalidation.port.ts",
           "apps/backend/src/contexts/platform/application/use-cases/get-tenant-by-id.use-case.ts",
-          "apps/backend/src/contexts/platform/application/use-cases/get-tenants.use-case.ts"
+          "apps/backend/src/contexts/platform/application/use-cases/get-tenants.use-case.ts",
+          "apps/backend/src/contexts/platform/application/use-cases/get-tenant-business-hours-for-update.use-case.ts"
         ],
-        "rationale": "Booking uses platform settings through the existing cross-context adapter.",
-        "owner": "booking"
+        "rationale": "Booking uses platform settings through the existing cross-context adapter; get-tenant-business-hours-for-update.use-case.ts is OpenScheduleUseCase's row-locked, cache-bypassing read of tenant business hours (M21-S03, PR #460 round-7 fix for a stale-cache TOCTOU bug).",
+        "owner": "booking",
+        "reviewBy": "2026-09-30"
       },
       {
         "source": "apps/backend/src/contexts/loyalty/infrastructure/cross-context/loyalty-booking.adapter.ts",

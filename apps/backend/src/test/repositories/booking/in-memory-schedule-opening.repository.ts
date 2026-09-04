@@ -4,22 +4,43 @@ import { ScheduleOpening } from '../../../contexts/booking/domain/schedule-openi
 export class InMemoryScheduleOpeningRepository implements IScheduleOpeningRepository {
   private store: ScheduleOpening[] = [];
 
-  async findByTenantAndDate(tenantId: string, date: string): Promise<ScheduleOpening | null> {
-    return this.store.find((o) => o.tenantId === tenantId && o.date === date) ?? null;
+  async findByTenantAndDate(
+    tenantId: string,
+    date: string,
+    resourceId?: string,
+  ): Promise<ScheduleOpening | null> {
+    return (
+      this.store.find(
+        (o) => o.tenantId === tenantId && o.date === date && o.resourceId === (resourceId ?? null),
+      ) ?? null
+    );
   }
 
   async findByTenantAndDateRange(
     tenantId: string,
     from: string,
     to: string,
+    resourceId?: string,
   ): Promise<ScheduleOpening[]> {
     return this.store
-      .filter((o) => o.tenantId === tenantId && o.date >= from && o.date <= to)
+      .filter(
+        (o) =>
+          o.tenantId === tenantId &&
+          o.date >= from &&
+          o.date <= to &&
+          o.resourceId === (resourceId ?? null),
+      )
       .sort((a, b) => a.date.localeCompare(b.date));
   }
 
   async findById(id: string, tenantId: string): Promise<ScheduleOpening | null> {
     return this.store.find((o) => o.id === id && o.tenantId === tenantId) ?? null;
+  }
+
+  async existsResourceScopedForDate(tenantId: string, date: string): Promise<boolean> {
+    return this.store.some(
+      (o) => o.tenantId === tenantId && o.date === date && o.resourceId !== null,
+    );
   }
 
   async save(opening: ScheduleOpening): Promise<void> {
