@@ -323,9 +323,14 @@ test.describe('schedule page coverage', () => {
     });
 
     try {
+      // The closure's own `notes` (not the translated `reason` label) is the locale-independent
+      // text this test matches on below — the timeline block's subtitle is `closure.notes`
+      // verbatim (docs/08-TESTING_STRATEGY.md § E2E Selector Strategy forbids matching translated
+      // copy; no data-testid exists per-block, unlike the day-card container).
+      const closureNotes = uniqueLabel('E2E resource-scoped closure');
       const closure = await createUniqueScheduleClosure(
         page,
-        { reason: 'MAINTENANCE', notes: 'E2E resource-scoped closure', resourceId: resource.id },
+        { reason: 'MAINTENANCE', notes: closureNotes, resourceId: resource.id },
         125,
       );
       const dateKey = closure.dateKey;
@@ -337,7 +342,7 @@ test.describe('schedule page coverage', () => {
           .getByTestId('schedule-week-day-card')
           .nth(weekDayIndex(dateKey))
           .locator('button.absolute.overflow-hidden.rounded-xl')
-          .filter({ hasText: 'Manutenção' });
+          .filter({ hasText: closureNotes });
 
         // Tenant-wide ("Todo o negócio") is the default — the resource-scoped closure must not
         // block or appear on it.

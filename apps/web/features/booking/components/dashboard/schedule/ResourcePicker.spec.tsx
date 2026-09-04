@@ -94,12 +94,27 @@ describe('ResourcePicker', () => {
     expect(onValueChange).toHaveBeenCalledWith(null);
   });
 
-  it('renders only the default option while resources are still loading', () => {
-    useResourcesMock.mockReturnValue({ data: undefined });
+  it('disables the select and shows a loading placeholder while resources are still loading', () => {
+    useResourcesMock.mockReturnValue({ data: undefined, isLoading: true, isError: false });
     renderWithIntl(<ResourcePicker value={null} onValueChange={vi.fn()} />);
 
     const select = screen.getByTestId('resource-picker');
+    expect(select).toBeDisabled();
     const options = Array.from(select.querySelectorAll('option')).map((o) => o.textContent);
-    expect(options).toEqual(['Todo o negócio']);
+    expect(options).toEqual(['Carregando...']);
+  });
+
+  it('disables the select and shows a translated error, not raw backend text, on fetch failure', () => {
+    useResourcesMock.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: new Error('network down'),
+    });
+    renderWithIntl(<ResourcePicker value={null} onValueChange={vi.fn()} />);
+
+    expect(screen.getByTestId('resource-picker')).toBeDisabled();
+    expect(screen.getByTestId('resource-picker-error')).toBeInTheDocument();
+    expect(screen.queryByText('network down')).not.toBeInTheDocument();
   });
 });
