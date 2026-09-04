@@ -211,5 +211,28 @@ describe('CreateResourceUseCase', () => {
 
       expect(lockSpy).not.toHaveBeenCalled();
     });
+
+    it('rejects the create when the staff member is deactivated exactly at lock-acquisition time, even though the fast pre-check passed', async () => {
+      staffPort.setProfile(STAFF_ID, { id: STAFF_ID, isActive: true });
+      jest.spyOn(tenantLock, 'lockTenantStaff').mockImplementation(async () => {
+        // Simulates a concurrent StaffDeactivated cascade committing and releasing the lock
+        // exactly as this call acquires it — proving the re-check under the lock is genuinely
+        // authoritative, not just present.
+        staffPort.setProfile(STAFF_ID, { id: STAFF_ID, isActive: false });
+      });
+
+      await expect(
+        useCase.execute({
+          tenantId: TENANT_ID,
+          type: ResourceType.STAFF,
+          refId: STAFF_ID,
+          name: 'Camila Duarte',
+          tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+        }),
+      ).rejects.toThrow(ResourceStaffNotFoundError);
+
+      const stored = await repo.findByTenant(TENANT_ID, {});
+      expect(stored).toHaveLength(0);
+    });
   });
 });

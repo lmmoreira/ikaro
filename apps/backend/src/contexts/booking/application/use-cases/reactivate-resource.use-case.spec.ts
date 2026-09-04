@@ -131,5 +131,33 @@ describe('ReactivateResourceUseCase', () => {
 
       expect(lockSpy).not.toHaveBeenCalled();
     });
+
+    it('rejects the reactivation when the staff member is deactivated exactly at lock-acquisition time, even though the fast pre-check passed', async () => {
+      const resource = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.STAFF)
+        .withRefId(STAFF_ID)
+        .build();
+      resource.deactivate();
+      await repo.save(resource);
+      staffPort.setProfile(STAFF_ID, { id: STAFF_ID, isActive: true });
+      jest.spyOn(tenantLock, 'lockTenantStaff').mockImplementation(async () => {
+        // Simulates a concurrent StaffDeactivated cascade committing and releasing the lock
+        // exactly as this call acquires it — proving the re-check under the lock is genuinely
+        // authoritative, not just present.
+        staffPort.setProfile(STAFF_ID, { id: STAFF_ID, isActive: false });
+      });
+      const saveSpy = jest.spyOn(repo, 'save');
+
+      await expect(useCase.execute({ id: resource.id, tenantId: TENANT_ID })).rejects.toThrow(
+        ResourceStaffNotFoundError,
+      );
+      // InMemoryResourceRepository.findById() returns a live reference, so the pre-lock
+      // reactivate() call visibly mutates the stored object regardless of what happens next —
+      // the real TypeORM-backed repository has no such effect until save() actually runs, which
+      // never happens here. Assert on save() never being called, the behavior that actually
+      // matters, rather than on the in-memory double's reference-sharing artifact.
+      expect(saveSpy).not.toHaveBeenCalled();
+    });
   });
 });

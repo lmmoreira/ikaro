@@ -429,7 +429,38 @@ describe('UpdateResourceUseCase', () => {
       expect(lockSpy).toHaveBeenCalledWith(TENANT_ID, STAFF_ID);
     });
 
-    it('does not acquire the lock when resending the same refId on an already-wrapped STAFF resource', async () => {
+    it('rejects the update when the new staff wrap target is deactivated exactly at lock-acquisition time, even though the fast pre-check passed', async () => {
+      const resource = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await repo.save(resource);
+      staffPort.setProfile(STAFF_ID, { id: STAFF_ID, isActive: true });
+      jest.spyOn(tenantLock, 'lockTenantStaff').mockImplementation(async () => {
+        // Simulates a concurrent StaffDeactivated cascade committing and releasing the lock
+        // exactly as this call acquires it — proving the re-check under the lock is genuinely
+        // authoritative, not just present.
+        staffPort.setProfile(STAFF_ID, { id: STAFF_ID, isActive: false });
+      });
+
+      await expect(
+        useCase.execute({
+          id: resource.id,
+          tenantId: TENANT_ID,
+          tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+          type: ResourceType.STAFF,
+          refId: STAFF_ID,
+        }),
+      ).rejects.toThrow(ResourceStaffNotFoundError);
+      const stored = await repo.findById(resource.id, TENANT_ID);
+      expect(stored!.type).toBe(ResourceType.ROOM);
+    });
+
+    // refId staying unchanged (resent explicitly, or simply omitted) still needs to coordinate
+    // with a concurrent cascade for that same staff — unlike the "refId changing" case above, the
+    // resource keeps representing the SAME staff member throughout this edit, so a concurrent
+    // StaffDeactivated cascade's isActive write must not be silently clobbered.
+    it('acquires the lock when editing an unrelated field on a STAFF resource whose wrap is unchanged', async () => {
       const resource = new ResourceBuilder()
         .withTenantId(TENANT_ID)
         .withType(ResourceType.STAFF)
@@ -446,7 +477,37 @@ describe('UpdateResourceUseCase', () => {
         name: 'Camila Duarte (atualizado)',
       });
 
-      expect(lockSpy).not.toHaveBeenCalled();
+      expect(lockSpy).toHaveBeenCalledWith(TENANT_ID, STAFF_ID);
+    });
+
+    it('does not clobber a concurrent cascade deactivation when editing an unrelated field on an unchanged STAFF wrap', async () => {
+      const resource = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.STAFF)
+        .withRefId(STAFF_ID)
+        .build();
+      await repo.save(resource);
+      staffPort.setProfile(STAFF_ID, { id: STAFF_ID, isActive: true });
+      jest.spyOn(tenantLock, 'lockTenantStaff').mockImplementation(async () => {
+        // Simulates CascadeStaffDeactivationUseCase committing and releasing the lock exactly as
+        // this call acquires it — proving the fresh re-read under the lock preserves the
+        // cascade's write instead of this call's own blind save clobbering it back to active.
+        const cascaded = (await repo.findById(resource.id, TENANT_ID))!;
+        cascaded.deactivate();
+        await repo.save(cascaded);
+      });
+
+      const result = await useCase.execute({
+        id: resource.id,
+        tenantId: TENANT_ID,
+        tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+        turnoverMinutes: 45,
+      });
+
+      expect(result.turnoverMinutes).toBe(45);
+      expect(result.isActive).toBe(false);
+      const stored = await repo.findById(resource.id, TENANT_ID);
+      expect(stored!.isActive).toBe(false);
     });
 
     it('does not acquire the lock for an unrelated field edit on a non-STAFF resource', async () => {

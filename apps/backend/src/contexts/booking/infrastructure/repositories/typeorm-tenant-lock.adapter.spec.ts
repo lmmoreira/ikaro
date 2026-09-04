@@ -9,7 +9,7 @@ describe('TypeOrmTenantLockAdapter', () => {
     adapter = new TypeOrmTenantLockAdapter();
   });
 
-  it('uses a 64-bit advisory transaction lock per tenant/day, namespaced', async () => {
+  it('uses a 64-bit advisory transaction lock per tenant/day (key format unchanged for deploy-rollout compatibility)', async () => {
     const manager = { query: jest.fn().mockResolvedValue(undefined) } as unknown as EntityManager;
 
     await runWithEntityManager(manager, () => adapter.lockTenantDay('tenant-1', '2026-06-01'));
@@ -18,7 +18,7 @@ describe('TypeOrmTenantLockAdapter', () => {
       `SELECT pg_advisory_xact_lock(
          hashtextextended($1::text, 0::bigint)
        )`,
-      ['tenantday:tenant-1:2026-06-01'],
+      ['tenant-1:2026-06-01'],
     );
   });
 
