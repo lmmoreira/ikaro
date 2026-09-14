@@ -266,4 +266,36 @@ describe('useScheduleCoreData', () => {
       selectedResourceIds: ['res-1', 'res-2'],
     });
   });
+
+  it('never applies a persisted resource selection for STAFF, even one left over from a prior MANAGER session on the same device', () => {
+    window.localStorage.setItem(
+      'ikaro:schedule',
+      JSON.stringify({
+        'selectedResourceIds:tenant-x': { selectedResourceIds: ['res-1', 'res-2'] },
+      }),
+    );
+
+    const staffRole = 'STAFF' as const;
+    function staffWrapper({ children }: { readonly children: React.ReactNode }) {
+      return (
+        <TenantProvider tenantId="tenant-x" tenantSlug="tenant-x" role={staffRole}>
+          {wrapper({ children })}
+        </TenantProvider>
+      );
+    }
+
+    const { result } = renderHook(() => useScheduleCoreData(baseProps()), {
+      wrapper: staffWrapper,
+    });
+
+    // The effective selection used for querying/filtering must be empty for STAFF regardless of
+    // what's persisted — STAFF has no UI to view or clear this preference.
+    expect(result.current.selectedResourceIdSet).toEqual(new Set());
+    expect(scheduleHooks.useScheduleClosures).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      [],
+    );
+  });
 });

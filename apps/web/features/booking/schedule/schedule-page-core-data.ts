@@ -25,6 +25,8 @@ function reconcileResourceIds(
   return selectedResourceIds.filter((id) => activeResourceIds.has(id));
 }
 
+const EMPTY_RESOURCE_IDS: readonly string[] = [];
+
 interface ReconciledResourceIdsResult {
   readonly selectedResourceIds: readonly string[];
   // The same MANAGER-only fetch backing the reconciliation below, exposed so callers needing a
@@ -39,8 +41,8 @@ interface ReconciledResourceIdsResult {
 // active resources) while useSchedule.ts keeps silently querying it forever — a stale id the user
 // has no way to uncheck since its row no longer exists to uncheck. MANAGER-only: the endpoint
 // behind useSelectableResources is MANAGER-gated (apps/bff/src/features/booking/
-// resource.controller.ts), and STAFF's selectedResourceIds is always empty anyway (no UI to set
-// it), so skip the fetch entirely for STAFF rather than hit a 403 on every schedule page load.
+// resource.controller.ts), so skip the fetch entirely for STAFF rather than hit a 403 on every
+// schedule page load.
 function useReconciledSelectedResourceIds(
   selectedResourceIds: readonly string[],
   setSelectedResourceIds: (next: readonly string[]) => void,
@@ -53,12 +55,12 @@ function useReconciledSelectedResourceIds(
     () => new Map(resources.map((resource) => [resource.id, resource.name])),
     [resources],
   );
-  // Non-MANAGER, still loading, or the fetch errored: pass through untouched rather than
-  // reconciling against a deliberately-unfetched or transiently-empty active set. Without the
-  // isError guard, a network blip on page load would resolve `resources` to [] (same shape as a
-  // genuinely-empty tenant), reconcile every real selection down to [], and persist that
-  // deletion — silently reverting the user's filter to tenant-wide and destroying their
-  // selection over a transient failure, not an actual deactivation.
+  // Still loading or the fetch errored: pass through untouched rather than reconciling against a
+  // transiently-empty active set. Without the isError guard, a network blip on page load would
+  // resolve `resources` to [] (same shape as a genuinely-empty tenant), reconcile every real
+  // selection down to [], and persist that deletion — silently reverting the user's filter to
+  // tenant-wide and destroying their selection over a transient failure, not an actual
+  // deactivation.
   const canReconcile = isManager && !isLoading && !isError;
   const reconciled = useMemo(
     () =>
@@ -73,7 +75,14 @@ function useReconciledSelectedResourceIds(
     setSelectedResourceIds(reconciled);
   }, [canReconcile, reconciled, selectedResourceIds, setSelectedResourceIds]);
 
-  return { selectedResourceIds: reconciled, resourceNameById };
+  // Non-MANAGER must never have resourceIds affect query/filter behavior, no matter what's
+  // persisted — e.g. a value left over from when this browser last acted as MANAGER, or a
+  // different staff member's session on a shared device. STAFF has no UI to view or clear this
+  // preference, so the persisted value itself is left untouched here; only the *effective* value
+  // used downstream (query fan-out, filter set) is forced empty.
+  const effectiveSelectedResourceIds = isManager ? reconciled : EMPTY_RESOURCE_IDS;
+
+  return { selectedResourceIds: effectiveSelectedResourceIds, resourceNameById };
 }
 
 // Extracted from useScheduleVisibleData below — the status/resource Set derivation and the
