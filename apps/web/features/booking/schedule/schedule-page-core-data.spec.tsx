@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { renderHook } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
+  ResourceResponse,
   ScheduleClosureListResponse,
   ScheduleOpeningListResponse,
   StaffBookingListResponse,
@@ -9,6 +10,7 @@ import type {
 } from '@ikaro/types';
 import { BOOKING_STATUS } from '@ikaro/types';
 import { FormattingProvider } from '@/providers/formatting-provider';
+import { TenantProvider } from '@/providers/tenant-provider';
 import { useScheduleCoreData } from './schedule-page-core-data';
 import type { SchedulePageControllerInput } from './schedule-page-controller-types';
 
@@ -19,6 +21,26 @@ const scheduleHooks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/features/booking/schedule/useSchedule', () => scheduleHooks);
+
+const selectableResourcesHooks = vi.hoisted(() => ({
+  useSelectableResources: vi.fn(),
+}));
+
+vi.mock('@/features/booking/schedule/useSelectableResources', () => selectableResourcesHooks);
+
+function makeResource(overrides: Partial<ResourceResponse> = {}): ResourceResponse {
+  return {
+    id: 'res-active',
+    type: 'ROOM',
+    refId: null,
+    name: 'Sala',
+    workingHours: null,
+    turnoverMinutes: 0,
+    maxCapacity: null,
+    isActive: true,
+    ...overrides,
+  };
+}
 
 function emptyClosures(): ScheduleClosureListResponse {
   return { items: [] };
@@ -93,6 +115,12 @@ beforeEach(() => {
   scheduleHooks.useScheduleClosures.mockReturnValue({ data: emptyClosures() });
   scheduleHooks.useScheduleOpenings.mockReturnValue({ data: emptyOpenings() });
   scheduleHooks.useWeekBookings.mockReturnValue({ data: emptyBookings() });
+  selectableResourcesHooks.useSelectableResources.mockReturnValue({
+    resources: [],
+    isLoading: false,
+    isError: false,
+    error: null,
+  });
 });
 
 describe('useScheduleCoreData', () => {
@@ -148,5 +176,126 @@ describe('useScheduleCoreData', () => {
     expect(result.current.ui.selectedDateKey).toBe('2026-08-17');
     expect(result.current.selectedDayTimeline.selectedDayClosed).toBe(false);
     expect(result.current.timezone).toBe('America/Sao_Paulo');
+  });
+
+  it('surfaces a fetch error instead of silently reporting an empty schedule', () => {
+    scheduleHooks.useScheduleClosures.mockReturnValue({
+      isError: true,
+      error: new Error('boom'),
+    });
+    const { result } = renderHook(() => useScheduleCoreData(baseProps()), { wrapper });
+    expect(result.current.scheduleFetchError).toBeInstanceOf(Error);
+  });
+
+  it("drops a persisted resource id that's no longer in the active resource list (MANAGER only)", async () => {
+    window.localStorage.setItem(
+      'ikaro:schedule',
+      JSON.stringify({
+        'selectedResourceIds:tenant-x': { selectedResourceIds: ['res-active', 'res-stale'] },
+      }),
+    );
+    selectableResourcesHooks.useSelectableResources.mockReturnValue({
+      resources: [makeResource({ id: 'res-active' })],
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+
+    // Passed via a variable, not a literal — see tenant-provider.spec.tsx's own note on why
+    // jsx-a11y/aria-role would otherwise misfire on this unrelated, non-DOM `role` prop.
+    const managerRole = 'MANAGER' as const;
+    function managerWrapper({ children }: { readonly children: React.ReactNode }) {
+      return (
+        <TenantProvider tenantId="tenant-x" tenantSlug="tenant-x" role={managerRole}>
+          {wrapper({ children })}
+        </TenantProvider>
+      );
+    }
+
+    const { result } = renderHook(() => useScheduleCoreData(baseProps()), {
+      wrapper: managerWrapper,
+    });
+
+    expect(result.current.selectedResourceIdSet).toEqual(new Set(['res-active']));
+
+    await waitFor(() => {
+      const stored = JSON.parse(window.localStorage.getItem('ikaro:schedule') ?? '{}') as Record<
+        string,
+        unknown
+      >;
+      expect(stored['selectedResourceIds:tenant-x']).toEqual({
+        selectedResourceIds: ['res-active'],
+      });
+    });
+  });
+
+  it('preserves the persisted resource selection when the resource-list fetch errors, instead of reconciling it away', async () => {
+    window.localStorage.setItem(
+      'ikaro:schedule',
+      JSON.stringify({
+        'selectedResourceIds:tenant-x': { selectedResourceIds: ['res-1', 'res-2'] },
+      }),
+    );
+    selectableResourcesHooks.useSelectableResources.mockReturnValue({
+      resources: [],
+      isLoading: false,
+      isError: true,
+      error: new Error('network down'),
+    });
+
+    const managerRole = 'MANAGER' as const;
+    function managerWrapper({ children }: { readonly children: React.ReactNode }) {
+      return (
+        <TenantProvider tenantId="tenant-x" tenantSlug="tenant-x" role={managerRole}>
+          {wrapper({ children })}
+        </TenantProvider>
+      );
+    }
+
+    const { result } = renderHook(() => useScheduleCoreData(baseProps()), {
+      wrapper: managerWrapper,
+    });
+
+    expect(result.current.selectedResourceIdSet).toEqual(new Set(['res-1', 'res-2']));
+
+    const stored = JSON.parse(window.localStorage.getItem('ikaro:schedule') ?? '{}') as Record<
+      string,
+      unknown
+    >;
+    expect(stored['selectedResourceIds:tenant-x']).toEqual({
+      selectedResourceIds: ['res-1', 'res-2'],
+    });
+  });
+
+  it('never applies a persisted resource selection for STAFF, even one left over from a prior MANAGER session on the same device', () => {
+    window.localStorage.setItem(
+      'ikaro:schedule',
+      JSON.stringify({
+        'selectedResourceIds:tenant-x': { selectedResourceIds: ['res-1', 'res-2'] },
+      }),
+    );
+
+    const staffRole = 'STAFF' as const;
+    function staffWrapper({ children }: { readonly children: React.ReactNode }) {
+      return (
+        <TenantProvider tenantId="tenant-x" tenantSlug="tenant-x" role={staffRole}>
+          {wrapper({ children })}
+        </TenantProvider>
+      );
+    }
+
+    const { result } = renderHook(() => useScheduleCoreData(baseProps()), {
+      wrapper: staffWrapper,
+    });
+
+    // The effective selection used for querying/filtering must be empty for STAFF regardless of
+    // what's persisted — STAFF has no UI to view or clear this preference.
+    expect(result.current.selectedResourceIdSet).toEqual(new Set());
+    expect(scheduleHooks.useScheduleClosures).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      [],
+    );
   });
 });

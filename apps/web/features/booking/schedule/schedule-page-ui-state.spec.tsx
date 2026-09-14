@@ -34,9 +34,18 @@ describe('useScheduleUiState', () => {
     expect(result.current.closureWarning).toBe('Aviso');
   });
 
-  it('returns a statusFilterRef for the outside-click-close hook', () => {
+  it('initializes resourceFilterOpen as false and updates through its setter', () => {
+    const { result } = renderHook(() => useScheduleUiState('2026-08-20', '2026-08-17'));
+    expect(result.current.resourceFilterOpen).toBe(false);
+
+    act(() => result.current.setResourceFilterOpen(true));
+    expect(result.current.resourceFilterOpen).toBe(true);
+  });
+
+  it('returns a statusFilterRef and a resourceFilterRef for the outside-click-close hooks', () => {
     const { result } = renderHook(() => useScheduleUiState('2026-08-20', '2026-08-17'));
     expect(result.current.statusFilterRef).toHaveProperty('current');
+    expect(result.current.resourceFilterRef).toHaveProperty('current');
   });
 });
 
@@ -59,6 +68,9 @@ function makeUi(overrides: Partial<ScheduleUiState> = {}): ScheduleUiState {
     statusFilterOpen: true,
     setStatusFilterOpen: vi.fn(),
     statusFilterRef: { current: null },
+    resourceFilterOpen: true,
+    setResourceFilterOpen: vi.fn(),
+    resourceFilterRef: { current: null },
     ...overrides,
   };
 }
@@ -71,6 +83,7 @@ describe('resetInteractiveState', () => {
     expect(ui.setClosureSheetOpen).toHaveBeenCalledWith(false);
     expect(ui.setOpeningSheetOpen).toHaveBeenCalledWith(false);
     expect(ui.setStatusFilterOpen).toHaveBeenCalledWith(false);
+    expect(ui.setResourceFilterOpen).toHaveBeenCalledWith(false);
   });
 });
 

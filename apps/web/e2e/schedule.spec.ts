@@ -1,10 +1,13 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
+  createScheduleClosureAt,
+  createScheduleOpeningAt,
   createUniqueScheduleBooking,
   createUniqueScheduleClosure,
   createUniqueScheduleOpening,
   createScheduleBooking,
   loginAsScheduleStaff,
+  nextOpenDateKey,
   removeScheduleClosure,
   removeScheduleOpening,
   scheduleRoute,
@@ -12,6 +15,7 @@ import {
   weekDayIndex,
 } from '@/e2e/helpers/schedule';
 import { uniqueTestEmail } from '@/e2e/helpers/auth';
+import { createResource, deactivateResource } from '@/e2e/helpers/booking';
 
 function installHydrationGuard(page: Page): string[] {
   const hydrationErrors: string[] = [];
@@ -308,5 +312,252 @@ test.describe('schedule page coverage', () => {
     await expect(
       page.locator(`[data-testid="week-day"][data-date="${booking.dateKey}"]`),
     ).toBeVisible();
+  });
+
+  test('manager checks a resource in the filter menu — a resource-scoped closure is visible only then, not on the default tenant-wide view (M21-S05)', async ({
+    page,
+  }) => {
+    await loginAsScheduleStaff(page);
+
+    const resource = await createResource(page, {
+      type: 'ROOM',
+      name: uniqueLabel('E2E Sala'),
+    });
+
+    try {
+      const closure = await createUniqueScheduleClosure(
+        page,
+        { reason: 'MAINTENANCE', notes: 'E2E resource-scoped closure', resourceId: resource.id },
+        125,
+      );
+      const dateKey = closure.dateKey;
+
+      try {
+        await page.goto(scheduleRoute(dateKey));
+
+        // Locale-independent: matched by the closure's own id, not by any rendered text
+        // (docs/08-TESTING_STRATEGY.md § E2E Selector Strategy forbids matching translated copy —
+        // the block's title/subtitle are the translated reason label and time range).
+        const closureButton = page.getByTestId(`schedule-closure-block-${closure.id}`);
+
+        // No resource checked — the default tenant-wide view — the resource-scoped closure must
+        // not appear.
+        await expect(closureButton).toHaveCount(0);
+
+        await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+        await page.getByRole('checkbox', { name: resource.name }).check();
+        await page.getByRole('button', { name: 'Fechar' }).click();
+
+        await expect(closureButton).toBeVisible();
+
+        await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+        await page.getByRole('checkbox', { name: resource.name }).uncheck();
+        await page.getByRole('button', { name: 'Fechar' }).click();
+
+        await expect(closureButton).toHaveCount(0);
+      } finally {
+        await removeScheduleClosure(page, closure.id);
+      }
+    } finally {
+      await deactivateResource(page, resource.id);
+    }
+  });
+
+  test('a tenant-wide closure stays visible alongside a resource-scoped one when a resource is checked, each labeled and laid out side-by-side (M21-S05)', async ({
+    page,
+  }) => {
+    await loginAsScheduleStaff(page);
+
+    const resource = await createResource(page, {
+      type: 'ROOM',
+      name: uniqueLabel('E2E Estúdio'),
+    });
+
+    try {
+      const tenantWideClosure = await createUniqueScheduleClosure(
+        page,
+        {
+          reason: 'MAINTENANCE',
+          notes: 'E2E tenant-wide closure',
+          startTime: '10:00',
+          endTime: '11:00',
+        },
+        128,
+      );
+      const dateKey = tenantWideClosure.dateKey;
+      // Pinned to the exact same date as the tenant-wide closure above (not a second
+      // createUniqueScheduleClosure call, whose own date-retry loop could otherwise land it on a
+      // different date) — the two need to genuinely overlap for this test's own assertions.
+      const resourceClosure = await createScheduleClosureAt(page, dateKey, {
+        reason: 'MAINTENANCE',
+        notes: 'E2E resource-scoped closure',
+        resourceId: resource.id,
+        startTime: '10:00',
+        endTime: '11:00',
+      });
+
+      try {
+        await page.goto(scheduleRoute(dateKey));
+
+        await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+        await page.getByRole('checkbox', { name: resource.name }).check();
+        await page.getByRole('button', { name: 'Fechar' }).click();
+
+        const tenantWideBlock = page.getByTestId(`schedule-closure-block-${tenantWideClosure.id}`);
+        const resourceBlock = page.getByTestId(`schedule-closure-block-${resourceClosure.id}`);
+
+        // The tenant-wide closure must remain visible once a resource is checked — it applies to
+        // every resource regardless of what's checked in the filter, since the backend's
+        // resourceId filter is exact (never both tenant-wide and resource-scoped in one response).
+        await expect(tenantWideBlock).toBeVisible();
+        await expect(resourceBlock).toBeVisible();
+
+        // Resource-scoped block carries a resource-name label; the tenant-wide one doesn't (there's
+        // no single resource to name). Matched by testid, not by the rendered name text
+        // (docs/08-TESTING_STRATEGY.md § E2E Selector Strategy).
+        await expect(resourceBlock.getByTestId('timeline-block-resource-name')).toHaveText(
+          resource.name,
+        );
+        await expect(tenantWideBlock.getByTestId('timeline-block-resource-name')).toHaveCount(0);
+
+        // Same time window, two overlapping same-kind blocks — laid out side-by-side (non-equal
+        // left offsets), not stacked directly on top of each other.
+        const tenantWideLeft = await tenantWideBlock.evaluate((el) => el.style.left);
+        const resourceLeft = await resourceBlock.evaluate((el) => el.style.left);
+        expect(tenantWideLeft).not.toBe(resourceLeft);
+      } finally {
+        await removeScheduleClosure(page, tenantWideClosure.id);
+        await removeScheduleClosure(page, resourceClosure.id);
+      }
+    } finally {
+      await deactivateResource(page, resource.id);
+    }
+  });
+
+  test('both a tenant-wide opening and a resource-scoped opening on the same date render, once a resource is checked (M21-S05)', async ({
+    page,
+  }) => {
+    await loginAsScheduleStaff(page);
+
+    const resource = await createResource(page, {
+      type: 'ROOM',
+      name: uniqueLabel('E2E Sala Plantão'),
+    });
+
+    try {
+      const tenantWideOpening = await createUniqueScheduleOpening(
+        page,
+        { startTime: '09:00', endTime: '18:00', notes: 'E2E tenant-wide opening' },
+        129,
+      );
+      const dateKey = tenantWideOpening.dateKey;
+      // A resource-scoped opening requires the tenant-wide one to already exist for the same
+      // date (docs/02-DOMAIN_MODEL.md) — pinned to it directly, not via a second
+      // createUniqueScheduleOpening call (see createScheduleOpeningAt's own note).
+      const resourceOpening = await createScheduleOpeningAt(page, dateKey, {
+        startTime: '11:00',
+        endTime: '13:00',
+        resourceId: resource.id,
+      });
+
+      try {
+        await page.goto(scheduleRoute(dateKey));
+
+        const tenantWideBlock = page.getByTestId(`schedule-opening-block-${tenantWideOpening.id}`);
+        const resourceBlock = page.getByTestId(`schedule-opening-block-${resourceOpening.id}`);
+
+        // Default tenant-wide view: only the tenant-wide opening shows.
+        await expect(tenantWideBlock).toBeVisible();
+        await expect(resourceBlock).toHaveCount(0);
+
+        await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+        await page.getByRole('checkbox', { name: resource.name }).check();
+        await page.getByRole('button', { name: 'Fechar' }).click();
+
+        // Once the resource is checked, both openings must render — the timeline previously
+        // picked only the first opening returned for the date and silently dropped the rest.
+        await expect(tenantWideBlock).toBeVisible();
+        await expect(resourceBlock).toBeVisible();
+        await expect(resourceBlock.getByTestId('timeline-block-resource-name')).toHaveText(
+          resource.name,
+        );
+      } finally {
+        // The resource-scoped opening must go first — the backend rejects removing a tenant-wide
+        // opening while a resource-scoped dependent for the same date still exists
+        // (BOOKING_TENANT_OPENING_HAS_RESOURCE_DEPENDENTS).
+        await removeScheduleOpening(page, resourceOpening.id);
+        await removeScheduleOpening(page, tenantWideOpening.id);
+      }
+    } finally {
+      await deactivateResource(page, resource.id);
+    }
+  });
+
+  test('creating a closure via the form omits resourceId when the per-action resource field is left on "Todo o negócio" (M21-S05 regression guard)', async ({
+    page,
+  }) => {
+    await loginAsScheduleStaff(page);
+
+    const dateKey = nextOpenDateKey(126);
+    await page.goto(scheduleRoute(dateKey));
+
+    const requestPromise = page.waitForRequest(
+      (request) => request.url().includes('/schedule/closures') && request.method() === 'POST',
+    );
+    const responsePromise = page.waitForResponse(
+      (res) => res.url().includes('/schedule/closures') && res.request().method() === 'POST',
+    );
+
+    await page.getByRole('button', { name: 'Bloquear período' }).click();
+    // Scoped to the dialog — the page-level "Bloquear período" FAB also matches an unscoped
+    // getByRole('button', { name: 'Bloquear' }) via Playwright's default substring matching.
+    await page.getByRole('dialog').getByRole('button', { name: 'Bloquear' }).click();
+
+    const request = await requestPromise;
+    const requestBody = request.postDataJSON() as Record<string, unknown>;
+    expect(requestBody).not.toHaveProperty('resourceId');
+
+    const response = await responsePromise;
+    const created = (await response.json()) as { readonly id: string };
+    await removeScheduleClosure(page, created.id);
+  });
+
+  test('creating a closure via the per-action resource field scopes it to that resource, independent of the filter menu selection (M21-S05)', async ({
+    page,
+  }) => {
+    await loginAsScheduleStaff(page);
+
+    const resource = await createResource(page, {
+      type: 'ROOM',
+      name: uniqueLabel('E2E Sala Ação'),
+    });
+
+    try {
+      const dateKey = nextOpenDateKey(127);
+      await page.goto(scheduleRoute(dateKey));
+
+      const requestPromise = page.waitForRequest(
+        (request) => request.url().includes('/schedule/closures') && request.method() === 'POST',
+      );
+      const responsePromise = page.waitForResponse(
+        (res) => res.url().includes('/schedule/closures') && res.request().method() === 'POST',
+      );
+
+      await page.getByRole('button', { name: 'Bloquear período' }).click();
+      // The per-action field lives inside the sheet, decoupled from the page-level filter menu —
+      // it always starts fresh at "Todo o negócio" regardless of what's checked there.
+      await page.getByTestId('resource-select-field').selectOption(resource.id);
+      await page.getByRole('dialog').getByRole('button', { name: 'Bloquear' }).click();
+
+      const request = await requestPromise;
+      const requestBody = request.postDataJSON() as Record<string, unknown>;
+      expect(requestBody).toMatchObject({ resourceId: resource.id });
+
+      const response = await responsePromise;
+      const created = (await response.json()) as { readonly id: string };
+      await removeScheduleClosure(page, created.id);
+    } finally {
+      await deactivateResource(page, resource.id);
+    }
   });
 });

@@ -42,6 +42,7 @@ describe('useScheduleQueryData', () => {
         emptyClosures(),
         emptyOpenings(),
         emptyBookings(),
+        [],
       ),
     );
 
@@ -49,6 +50,7 @@ describe('useScheduleQueryData', () => {
       '2026-08-17',
       '2026-08-23',
       emptyClosures(),
+      [],
     );
     expect(scheduleHooks.useWeekBookings).toHaveBeenCalledWith(
       '2026-08-17',
@@ -65,6 +67,7 @@ describe('useScheduleQueryData', () => {
         emptyClosures(),
         emptyOpenings(),
         emptyBookings(),
+        [],
       ),
     );
 
@@ -72,17 +75,138 @@ describe('useScheduleQueryData', () => {
       '2026-08-24',
       '2026-08-30',
       undefined,
+      [],
     );
     expect(scheduleHooks.useScheduleOpenings).toHaveBeenCalledWith(
       '2026-08-24',
       '2026-08-30',
       undefined,
+      [],
     );
     expect(scheduleHooks.useWeekBookings).toHaveBeenCalledWith(
       '2026-08-24',
       '2026-08-30',
       undefined,
     );
+  });
+
+  it('does not use the server-fetched initial data as a placeholder when a resource is selected, even on the initial week', () => {
+    renderHook(() =>
+      useScheduleQueryData(
+        '2026-08-17',
+        '2026-08-17',
+        emptyClosures(),
+        emptyOpenings(),
+        emptyBookings(),
+        ['res-1'],
+      ),
+    );
+
+    expect(scheduleHooks.useScheduleClosures).toHaveBeenCalledWith(
+      '2026-08-17',
+      '2026-08-23',
+      undefined,
+      ['res-1'],
+    );
+    expect(scheduleHooks.useScheduleOpenings).toHaveBeenCalledWith(
+      '2026-08-17',
+      '2026-08-23',
+      undefined,
+      ['res-1'],
+    );
+  });
+
+  it('still uses the server-fetched initial bookings on the initial week even when a resource is selected (bookings are not resource-scoped)', () => {
+    renderHook(() =>
+      useScheduleQueryData(
+        '2026-08-17',
+        '2026-08-17',
+        emptyClosures(),
+        emptyOpenings(),
+        emptyBookings(),
+        ['res-1'],
+      ),
+    );
+
+    expect(scheduleHooks.useWeekBookings).toHaveBeenCalledWith(
+      '2026-08-17',
+      '2026-08-23',
+      emptyBookings(),
+    );
+  });
+
+  it("does not fall back to the stale tenant-wide initial data while a selected resource's query is still loading", () => {
+    const tenantWideClosure = {
+      id: 'closure-tenant-wide',
+      date: '2026-08-17',
+      startTime: null,
+      endTime: null,
+      reason: 'MAINTENANCE' as const,
+      notes: null,
+      resourceId: null,
+    };
+    const tenantWideOpening = {
+      id: 'opening-tenant-wide',
+      date: '2026-08-18',
+      startTime: '09:00',
+      endTime: '12:00',
+      notes: null,
+      resourceId: null,
+    };
+    // Simulates the resource-scoped query still in flight (React Query returns `data: undefined`
+    // until it resolves) — the fallback must not leak the tenant-wide fixture below into view.
+    scheduleHooks.useScheduleClosures.mockReturnValue({ data: undefined });
+    scheduleHooks.useScheduleOpenings.mockReturnValue({ data: undefined });
+
+    const { result } = renderHook(() =>
+      useScheduleQueryData(
+        '2026-08-17',
+        '2026-08-17',
+        { items: [tenantWideClosure] },
+        { items: [tenantWideOpening] },
+        emptyBookings(),
+        ['res-1'],
+      ),
+    );
+
+    expect(result.current.visibleClosures).toEqual([]);
+    expect(result.current.visibleOpenings).toEqual([]);
+  });
+
+  it('surfaces a fetch error and falls back to an empty list, instead of silently rendering stale/empty data as if it were valid', () => {
+    scheduleHooks.useScheduleClosures.mockReturnValue({
+      isError: true,
+      error: new Error('closures boom'),
+    });
+
+    const { result } = renderHook(() =>
+      useScheduleQueryData(
+        '2026-08-17',
+        '2026-08-17',
+        emptyClosures(),
+        emptyOpenings(),
+        emptyBookings(),
+        [],
+      ),
+    );
+
+    expect(result.current.scheduleFetchError).toBeInstanceOf(Error);
+    expect(result.current.visibleClosures).toEqual([]);
+  });
+
+  it('returns no fetch error when every query succeeds', () => {
+    const { result } = renderHook(() =>
+      useScheduleQueryData(
+        '2026-08-17',
+        '2026-08-17',
+        emptyClosures(),
+        emptyOpenings(),
+        emptyBookings(),
+        [],
+      ),
+    );
+
+    expect(result.current.scheduleFetchError).toBeNull();
   });
 
   it("unwraps each query's .items into the returned shape", () => {
@@ -93,6 +217,7 @@ describe('useScheduleQueryData', () => {
       endTime: null,
       reason: 'MAINTENANCE' as const,
       notes: null,
+      resourceId: null,
     };
     scheduleHooks.useScheduleClosures.mockReturnValue({ data: { items: [closure] } });
 
@@ -103,6 +228,7 @@ describe('useScheduleQueryData', () => {
         emptyClosures(),
         emptyOpenings(),
         emptyBookings(),
+        [],
       ),
     );
 

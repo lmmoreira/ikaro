@@ -17,9 +17,13 @@ export type {
   ScheduleOpeningListResponse,
 };
 
-export async function listClosures(from: string, to: string): Promise<ScheduleClosureListResponse> {
+export async function listClosures(
+  from: string,
+  to: string,
+  resourceId?: string,
+): Promise<ScheduleClosureListResponse> {
   const res = await bffClient.get<ScheduleClosureListResponse>('/schedule/closures', {
-    params: { from, to },
+    params: { from, to, ...(resourceId ? { resourceId } : {}) },
   });
   return res.data;
 }
@@ -33,9 +37,13 @@ export async function removeClosure(id: string): Promise<void> {
   await bffClient.delete(`/schedule/closures/${id}`);
 }
 
-export async function listOpenings(from: string, to: string): Promise<ScheduleOpeningListResponse> {
+export async function listOpenings(
+  from: string,
+  to: string,
+  resourceId?: string,
+): Promise<ScheduleOpeningListResponse> {
   const res = await bffClient.get<ScheduleOpeningListResponse>('/schedule/openings', {
-    params: { from, to },
+    params: { from, to, ...(resourceId ? { resourceId } : {}) },
   });
   return res.data;
 }

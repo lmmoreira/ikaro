@@ -77,4 +77,32 @@ describe('schedule preferences', () => {
       BOOKING_STATUS.COMPLETED,
     ]);
   });
+
+  it('scopes selected resource ids by tenant, so switching tenants never leaks a stale id across', () => {
+    const memory = new Map<string, unknown>();
+    const storage = {
+      get<T>(key: string): T | null {
+        return memory.has(key) ? (memory.get(key) as T) : null;
+      },
+      set<T>(key: string, value: T): void {
+        memory.set(key, value);
+      },
+      remove(key: string): void {
+        memory.delete(key);
+      },
+    } satisfies BrowserPreferenceStore;
+
+    const tenantAStore = createSchedulePreferencesStore(storage, 'tenant-a');
+    const tenantBStore = createSchedulePreferencesStore(storage, 'tenant-b');
+
+    tenantAStore.setSelectedResourceIds(['res-1', 'res-2']);
+
+    expect(tenantAStore.getSelectedResourceIds()).toEqual(['res-1', 'res-2']);
+    expect(tenantBStore.getSelectedResourceIds()).toEqual([]);
+
+    tenantBStore.setSelectedResourceIds(['res-9']);
+
+    expect(tenantAStore.getSelectedResourceIds()).toEqual(['res-1', 'res-2']);
+    expect(tenantBStore.getSelectedResourceIds()).toEqual(['res-9']);
+  });
 });

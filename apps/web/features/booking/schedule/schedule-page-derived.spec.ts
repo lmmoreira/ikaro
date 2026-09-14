@@ -52,6 +52,7 @@ describe('buildWeekDayInfo', () => {
       startTime: '10:00',
       endTime: '12:00',
       notes: null,
+      resourceId: null,
     };
     const info = buildWeekDayInfo(
       ['2026-08-17', '2026-08-18', '2026-08-19'],
@@ -69,6 +70,50 @@ describe('buildWeekDayInfo', () => {
       { dateKey: '2026-08-19', opening: null, hours: null, isClosed: true },
     ]);
   });
+
+  it('prefers the tenant-wide opening over a resource-scoped one for the same date, regardless of array order', () => {
+    const resourceScoped: ScheduleOpening = {
+      id: 'resource-opening',
+      date: '2026-08-18',
+      startTime: '10:00',
+      endTime: '12:00',
+      notes: null,
+      resourceId: 'res-1',
+    };
+    const tenantWide: ScheduleOpening = {
+      id: 'tenant-opening',
+      date: '2026-08-18',
+      startTime: '09:00',
+      endTime: '18:00',
+      notes: null,
+      resourceId: null,
+    };
+
+    const info = buildWeekDayInfo(
+      ['2026-08-18'],
+      [resourceScoped, tenantWide],
+      makeBusinessHours(),
+    );
+
+    expect(info[0].opening).toBe(tenantWide);
+    expect(info[0].isClosed).toBe(false);
+  });
+
+  it('falls back to a resource-scoped opening when no tenant-wide sibling exists, so isClosed stays correct', () => {
+    const resourceScoped: ScheduleOpening = {
+      id: 'resource-opening',
+      date: '2026-08-18',
+      startTime: '10:00',
+      endTime: '12:00',
+      notes: null,
+      resourceId: 'res-1',
+    };
+
+    const info = buildWeekDayInfo(['2026-08-18'], [resourceScoped], makeBusinessHours());
+
+    expect(info[0].opening).toBe(resourceScoped);
+    expect(info[0].isClosed).toBe(false);
+  });
 });
 
 describe('buildActiveDates', () => {
@@ -80,6 +125,7 @@ describe('buildActiveDates', () => {
       startTime: '10:00',
       endTime: '12:00',
       notes: null,
+      resourceId: null,
     };
     const closure: ScheduleClosure = {
       id: 'closure-1',
@@ -88,6 +134,7 @@ describe('buildActiveDates', () => {
       endTime: null,
       reason: 'MAINTENANCE',
       notes: null,
+      resourceId: null,
     };
     const dates = buildActiveDates([booking], [opening], [closure], 'America/Sao_Paulo');
     expect(dates).toEqual(new Set(['2026-08-17', '2026-08-18', '2026-08-19']));
@@ -132,6 +179,7 @@ describe('resolveTimelineTitle', () => {
     startTime: '10:00',
     endTime: '12:00',
     notes: null,
+    resourceId: null,
   };
 
   it('prioritizes the special-opening title over the closed title', () => {

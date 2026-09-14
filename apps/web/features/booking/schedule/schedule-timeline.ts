@@ -13,14 +13,18 @@ import {
   timeToMinutes,
 } from '@/features/booking/schedule/date-utils';
 import {
-  assignBookingLanes,
+  assignLanes,
   buildBookingTimelineEvent,
   buildClosureTimelineEvent,
-  buildOpeningTimelineEvent,
   getBookingDateKey,
-  type OpeningTimelineEvent,
   type TimelineEvent,
 } from '@/features/booking/schedule/schedule-timeline-events';
+import {
+  buildOpeningTimelineEvents,
+  findTenantWideOpening,
+  resolveActiveTimelineHours,
+  type ActiveTimelineHours,
+} from '@/features/booking/schedule/schedule-timeline-window';
 
 export type {
   BookingTimelineEvent,
@@ -53,6 +57,10 @@ export interface TimelineLayoutInput {
   readonly closures: readonly ScheduleClosure[];
   readonly openings: readonly ScheduleOpening[];
   readonly slotHeightScale?: number;
+  // Resolves a closure's/opening's resourceId to its display name (MANAGER-only — see
+  // schedule-page-core-data.ts). Omitted (STAFF, or the fetch hasn't resolved yet) means every
+  // event renders with resourceName: null, same as a tenant-wide item.
+  readonly resourceNameById?: ReadonlyMap<string, string>;
 }
 
 export function getSlotHeight(slotGranularityMinutes: number, scale = 1): number {
@@ -81,41 +89,16 @@ export function formatEventRange(startTime: string, endTime: string): string {
   return `${startTime}–${endTime}`;
 }
 
-interface ActiveTimelineHours {
-  readonly selectedOpening: ScheduleOpening | null;
-  readonly selectedDayClosures: ScheduleClosure[];
-  readonly activeStartTime: string;
-  readonly activeEndTime: string;
-}
-
-function resolveActiveTimelineHours(
-  selectedDateKey: string,
-  businessHours: TenantBusinessHours,
-  closures: readonly ScheduleClosure[],
-  openings: readonly ScheduleOpening[],
-): ActiveTimelineHours | null {
-  const selectedOpening = openings.find((opening) => opening.date === selectedDateKey) ?? null;
-  const regularHours = getDayHoursForDate(selectedDateKey, businessHours);
-  const activeHours = selectedOpening ?? regularHours;
-  const selectedDayClosures = closures.filter((closure) => closure.date === selectedDateKey);
-
-  if (!activeHours) return null;
-
-  const activeStartTime = 'startTime' in activeHours ? activeHours.startTime : activeHours.open;
-  const activeEndTime = 'endTime' in activeHours ? activeHours.endTime : activeHours.close;
-
-  return { selectedOpening, selectedDayClosures, activeStartTime, activeEndTime };
-}
-
 function buildAllTimelineEvents(
   selectedDateKey: string,
   timezone: string,
   bookings: readonly StaffBookingCardResponse[],
   active: ActiveTimelineHours,
+  resourceNameById: ReadonlyMap<string, string>,
 ): TimelineEvent[] {
-  const { selectedOpening, selectedDayClosures, activeStartTime, activeEndTime } = active;
+  const { dayOpenings, selectedDayClosures, activeStartTime, activeEndTime } = active;
 
-  const bookingEvents = assignBookingLanes(
+  const bookingEvents = assignLanes(
     bookings
       .filter((booking) => getBookingDateKey(booking, timezone) === selectedDateKey)
       .map((booking) =>
@@ -129,17 +112,22 @@ function buildAllTimelineEvents(
       ),
   );
 
-  const closureEvents = selectedDayClosures.map((closure) =>
-    buildClosureTimelineEvent(closure, activeStartTime, activeEndTime),
+  // Lane-split same-kind closures that overlap in time (e.g. two different resources each
+  // blocked over the same window) — mirrors bookings' own overlap handling above.
+  const closureEvents = assignLanes(
+    selectedDayClosures.map((closure) =>
+      buildClosureTimelineEvent(closure, activeStartTime, activeEndTime, resourceNameById),
+    ),
   );
 
-  const openingEvent = buildOpeningTimelineEvent(selectedOpening);
-  const openingEvents: OpeningTimelineEvent[] = openingEvent ? [openingEvent] : [];
+  const openingEvents = buildOpeningTimelineEvents(dayOpenings, resourceNameById);
 
   return [...closureEvents, ...openingEvents, ...bookingEvents].sort(
     (left, right) => left.startMinutes - right.startMinutes || right.endMinutes - left.endMinutes,
   );
 }
+
+const EMPTY_RESOURCE_NAME_BY_ID: ReadonlyMap<string, string> = new Map();
 
 export function buildTimelineEvents({
   selectedDateKey,
@@ -150,6 +138,7 @@ export function buildTimelineEvents({
   closures,
   openings,
   slotHeightScale = 1,
+  resourceNameById = EMPTY_RESOURCE_NAME_BY_ID,
 }: TimelineLayoutInput): {
   readonly timelineStartMinutes: number;
   readonly timelineEndMinutes: number;
@@ -170,14 +159,24 @@ export function buildTimelineEvents({
     1,
     Math.ceil((timelineEndMinutes - timelineStartMinutes) / slotGranularityMinutes),
   );
-  const events = buildAllTimelineEvents(selectedDateKey, timezone, bookings, active);
+  const events = buildAllTimelineEvents(
+    selectedDateKey,
+    timezone,
+    bookings,
+    active,
+    resourceNameById,
+  );
 
   return { timelineStartMinutes, timelineEndMinutes, slotCount, slotHeight, events };
 }
 
 export function buildTimelineDayData(layout: TimelineLayoutInput): TimelineDayData {
   const { selectedDateKey, openings, businessHours } = layout;
-  const selectedOpening = openings.find((opening) => opening.date === selectedDateKey) ?? null;
+  const dayOpenings = openings.filter((opening) => opening.date === selectedDateKey);
+  // Prefers the tenant-wide opening (see findTenantWideOpening's own note); falls back to any
+  // resource-scoped one so `selectedOpening`/`selectedDayClosed` stay correct even in the
+  // shouldn't-normally-happen case of one with no tenant-wide sibling.
+  const selectedOpening = findTenantWideOpening(dayOpenings) ?? dayOpenings[0] ?? null;
   const selectedDayHours = getDayHoursForDate(selectedDateKey, businessHours);
   const selectedDayClosed = !selectedDayHours && !selectedOpening;
   const timeline = buildTimelineEvents(layout);

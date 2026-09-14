@@ -12,11 +12,12 @@ import {
 } from '@/features/booking/api/resources';
 import { useTenant } from '@/providers/tenant-provider';
 
-export function useResources(query?: ListResourcesQuery) {
+export function useResources(query?: ListResourcesQuery, options?: { readonly enabled?: boolean }) {
   const { tenantId } = useTenant();
   return useQuery({
     queryKey: ['resources', tenantId, query],
     queryFn: () => listResources(query),
+    enabled: options?.enabled ?? true,
   });
 }
 

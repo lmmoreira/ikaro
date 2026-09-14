@@ -330,12 +330,8 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Snyk SCA
-        uses: snyk/actions/node@master
-        with:
-          args: --severity-threshold=high --file=apps/backend/package.json
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      # Snyk SCA moved off the per-PR gate 2026-09-14 (org quota exhaustion) — it now runs only
+      # as a weekly scheduled job (weekly-jobs.yml), not per-PR. See CLAUDE.md's CI gates section.
 
   sonarcloud:
     runs-on: ubuntu-latest
@@ -407,11 +403,8 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: snyk/actions/node@master
-        with:
-          args: --severity-threshold=high --file=apps/bff/package.json
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      # Snyk SCA moved off the per-PR gate 2026-09-14 (org quota exhaustion) — it now runs only
+      # as a weekly scheduled job (weekly-jobs.yml), not per-PR. See CLAUDE.md's CI gates section.
 ```
 
 ---
@@ -1426,8 +1419,8 @@ The Pub/Sub emulator **does not support** native dead-letter policies. Test DLQ 
 
 | Pipeline | Static | Tests | Security | Sonar | Gate |
 |---|---|---|---|---|---|
-| `ci-backend` | lint + tsc + arch isolation | unit (×6) + integration (×6) | Gitleaks + Snyk | ✅ diff coverage | Merge blocked if any fail |
-| `ci-bff` | lint + tsc | unit + integration | Gitleaks + Snyk | — | Merge blocked |
+| `ci-backend` | lint + tsc + arch isolation | unit (×6) + integration (×6) | Gitleaks | ✅ diff coverage | Merge blocked if any fail |
+| `ci-bff` | lint + tsc | unit + integration | Gitleaks | — | Merge blocked |
 | `ci-frontend` | lint + tsc | Vitest + Playwright | Gitleaks | — | Merge blocked |
 | `ci-infra` | tf fmt + validate | — | Checkov + Gitleaks | — | Merge blocked |
 | `build-push-scan` | — | — | Trivy image scan → GAR | — | Push to GAR blocked on HIGH/CRITICAL |

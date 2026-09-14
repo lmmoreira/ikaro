@@ -598,7 +598,7 @@ Extend the existing Step 1 ("Select Services") to branch on the selected service
 
 **Files to create/modify:**
 - `apps/web/features/booking/components/public/ServiceSelectionStep.tsx` (+ spec) (modify — branch per `bookingModel`/`resourceRequirements`)
-- `apps/web/features/booking/components/public/ResourcePicker.tsx` (+ spec) (new — staff/pool/bundle selection, distinct component from S05's dashboard-side `ResourcePicker` despite the similar name; hotsite-styled per `--ba-*` tokens, not dashboard Tailwind)
+- `apps/web/features/booking/components/public/ResourcePicker.tsx` (+ spec) (new — staff/pool/bundle selection; unrelated to S05's dashboard-side `ResourceFilterMenu`/`ResourceSelectField` despite the similar area — this is a public hotsite booking-flow component, hotsite-styled per `--ba-*` tokens, not dashboard Tailwind)
 - `apps/web/features/booking/components/public/LegItineraryStep.tsx` (+ spec) (new)
 - `apps/web/features/booking/components/public/VariableDurationStep.tsx` (+ spec) (new)
 - `apps/web/features/booking/components/public/IntakeAnswersStep.tsx` (+ spec) (new)

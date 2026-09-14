@@ -61,4 +61,35 @@ describe('TimelineBlockShell', () => {
     expect(screen.getByTestId('block-trailing')).toBeInTheDocument();
     expect(screen.getByTestId('block-footer')).toBeInTheDocument();
   });
+
+  it('renders the testId as data-testid on the link variant', () => {
+    render(
+      <TimelineBlockShell
+        compact={false}
+        className="test-class"
+        style={{}}
+        href="/dashboard/bookings/abc"
+        testId="schedule-booking-block-abc"
+        title="João Silva"
+        subtitle="Lavagem completa"
+      />,
+    );
+
+    expect(screen.getByTestId('schedule-booking-block-abc')).toBeInTheDocument();
+  });
+
+  it('renders the testId as data-testid on the button variant', () => {
+    render(
+      <TimelineBlockShell
+        compact={false}
+        className="test-class"
+        style={{}}
+        testId="schedule-closure-block-abc"
+        title="Fechado para manutenção"
+        subtitle="09:00–10:00"
+      />,
+    );
+
+    expect(screen.getByTestId('schedule-closure-block-abc')).toBeInTheDocument();
+  });
 });

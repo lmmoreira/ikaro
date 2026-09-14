@@ -86,7 +86,7 @@ Do **not** review, flag, or comment on any file matching these patterns — they
 **Dependency & Supply Chain**
 - New third-party dependencies introduced without explanation — flag and ask why
 - Pinned to an exact version vs. a range — consider lock-file drift risk
-- Dependencies with known CVEs (Snyk/Trivy will catch most; flag obvious ones)
+- Dependencies with known CVEs (Trivy catches most on the PR itself; Snyk only runs weekly, not per-PR — flag obvious ones a reviewer notices in the meantime)
 
 ---
 

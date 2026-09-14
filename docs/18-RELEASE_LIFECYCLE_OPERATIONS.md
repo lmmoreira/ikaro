@@ -21,7 +21,7 @@ This document provides a step-by-step operational guide for the entire lifecycle
 3. **CI Trigger:** GitHub Actions runs:
    - Linting & Type-checking.
    - All Unit & Integration tests (via Testcontainers).
-   - Security scans (Snyk, Gitleaks).
+   - Security scans (Gitleaks; Snyk SCA runs weekly instead, not per-PR — see `docs/CI_TRAPS.md`).
    - SonarCloud Quality Gate.
 4. **Review:** Peer review focusing on Architecture, Security, and UC compliance.
 

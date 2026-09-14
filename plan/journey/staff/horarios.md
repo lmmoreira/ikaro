@@ -2,8 +2,8 @@
 
 **Actor(s):** STAFF | MANAGER  
 **Goal:** View the calendar of approved bookings and manage schedule closures and openings  
-**UCs covered:** UC-010a, UC-010b, UC-010c, UC-010d (✅ Done) · UC-010e, UC-010f (❓ Gap — M21 Cluster 1, resource-scoped extension, MANAGER-only) · UC-057 (❓ Gap — M21 Cluster 2, manager multi-resource day grid)  
-**Status:** Done (base) — resource-scoped extension not yet built, see the ❓ GAP section in `dev-notes.md`
+**UCs covered:** UC-010a, UC-010b, UC-010c, UC-010d, UC-010e, UC-010f (✅ Done) · UC-057 (❓ Gap — M21 Cluster 2, manager multi-resource day grid)  
+**Status:** Done — resource-scoped extension shipped in `M21-S05`; only the Cluster 2 multi-resource day grid remains a gap, see `dev-notes.md`
 
 ## Flow
 
@@ -45,11 +45,16 @@ flowchart TD
 
     class Schedule,ClosureSheet,ClosureSuccess,RemoveClosureSheet,RemoveClosureSuccess,OpeningSheet,OpeningSuccess,RemoveOpeningSheet,RemoveOpeningSuccess existing
 
-    %% M21 Cluster 1 — resource-scoped extension (GAP, MANAGER-only)
-    Schedule --> ResourcePick(("MANAGER seleciona<br/>um Resource no picker"))
-    ResourcePick --> ScheduleScoped["❓ GAP: mesma tela, escopada a um Resource<br/>(07-horarios-recurso)"]
+    %% M21 Cluster 1 — resource-scoped extension (MANAGER-only, shipped M21-S05)
+    Schedule --> ResourceFilter(("MANAGER marca um ou mais<br/>Resources no filtro"))
+    ResourceFilter --> ScheduleScoped["mesma tela, calendário mesclado<br/>dos Resources marcados (UC-010e/f)"]
     ScheduleScoped --> ClickSlot
     ScheduleScoped --> ClickClosedDay
+    ScheduleScoped --> ResourceFieldPick(("no formulário, MANAGER escolhe<br/>1 Resource p/ este bloqueio/abertura"))
+    ResourceFieldPick --> ClosureSheet
+    ResourceFieldPick --> OpeningSheet
+
+    class ResourceFilter,ScheduleScoped,ResourceFieldPick existing
 ```
 
 ## Pages referenced
@@ -61,7 +66,8 @@ flowchart TD
 | Closure removal confirmation | `RemoveClosureDialog` within `SchedulePage` | M13-S21 | ✅ Done |
 | Opening creation bottom sheet | `OpeningFormSheet` within `SchedulePage` | M13-S21 | ✅ Done |
 | Opening removal confirmation | `RemoveOpeningDialog` within `SchedulePage` | M13-S21 | ✅ Done |
-| Resource picker + resource-scoped calendar | `ResourcePicker` (new) within `SchedulePage` | — | ❓ Gap (M21 Cluster 1, UC-010e/f) |
+| Resource filter (view) + resource-scoped calendar | `ResourceFilterMenu` within `SchedulePage` | M21-S05 | ✅ Done (M21 Cluster 1, UC-010e/f) |
+| Resource field (write, per action) | `ResourceSelectField` within `ClosureFormSheet`/`OpeningFormSheet` | M21-S05 | ✅ Done (M21 Cluster 1, UC-010e/f) |
 
 ## BFF calls (verified — all implemented)
 
@@ -74,8 +80,8 @@ flowchart TD
 | Create opening | `POST` | `/v1/schedule/openings` | STAFF \| MANAGER |
 | Remove opening | `DELETE` | `/v1/schedule/openings/:id` | STAFF \| MANAGER |
 | List approved bookings (for calendar display) | `GET` | `/v1/bookings?status=APPROVED` | STAFF \| MANAGER |
-| **M21 Cluster 1 (❓ Gap):** extend list/create with `resourceId` | `GET`/`POST` | `/v1/schedule/closures`, `/v1/schedule/openings` — `resourceId` optional field/query param | STAFF\|MANAGER unscoped; **MANAGER only** when `resourceId` is set |
-| **M21 Cluster 1 (❓ Gap):** list resources for the picker | `GET` | `/v1/resources?type=&isActive=` | MANAGER |
+| **M21 Cluster 1:** list/create with `resourceId` | `GET`/`POST` | `/v1/schedule/closures`, `/v1/schedule/openings` — `resourceId` optional field/query param | STAFF\|MANAGER unscoped; **MANAGER only** when `resourceId` is set |
+| **M21 Cluster 1:** list resources for the filter menu / resource field | `GET` | `/v1/resources?type=&isActive=` | MANAGER |
 
 ## ScheduleClosure form fields (UC-010a)
 
@@ -117,17 +123,20 @@ flowchart TD
 - [x] **BFF `.http` gap** — `apps/bff/http/schedule/` has `schedule-closures.http` but is missing `schedule-openings.http` and `availability.http`. — **Resolved/assigned.** `M13-S21` explicitly creates both files as part of its own scope (no longer a "should be created" — it's now a concrete deliverable).
 - **Story assignment** — confirmed: `M13-S21` ("Horários: schedule management page + closure/opening flows") is the assigned story. Scope: `ScheduleView`/`SchedulePage`, `ClosureFormSheet`, `RemoveClosureDialog`, `OpeningFormSheet`, `RemoveOpeningDialog`.
 
-## M21 — Multi-Vertical Scheduling, Cluster 1 extension (❓ Gap, not yet built)
+## M21 — Multi-Vertical Scheduling, Cluster 1 extension (✅ Done — `M21-S05`)
 
-> Promoted from `docs/discovery/multivertical-booking/`. Covers UC-010e (resource-scoped closure) and UC-010f (resource-scoped opening) — see `docs/02-DOMAIN_MODEL.md` § Booking Context (`Resource` aggregate), `docs/13-DATABASE_SCHEMA.md`, `docs/14-API_CONTRACTS.md`. Prototype: `07-horarios-recurso.html` (relocated from the discovery folder's `staff-05-horarios-recurso.html`). Full implementation-handoff detail lives in `dev-notes.md`'s own ❓ GAP section — not duplicated here.
+> Promoted from `docs/discovery/multivertical-booking/`. Covers UC-010e (resource-scoped closure) and UC-010f (resource-scoped opening) — see `docs/02-DOMAIN_MODEL.md` § Booking Context (`Resource` aggregate), `docs/13-DATABASE_SCHEMA.md`, `docs/14-API_CONTRACTS.md`. `07-horarios-recurso.html` (discovery-only illustrative material, not a validated `plan/journey/` prototype) informed the mechanism but not the final UI, which instead followed this file's own mermaid flow and `dev-notes.md`'s GAP section — see `M21-S05`'s story-discovery notes (`plan/M21-MULTIVERTICAL-FOUNDATION.md`) for the full resolution. Full implementation-handoff detail lives in `dev-notes.md`.
 
-- [ ] No story exists yet for this extension — needs `/story-discovery` once the M21 milestone file is drafted.
-- [ ] This extension is **MANAGER-only** when `resourceId` is set (a deliberate, self-consistent restriction the discovery applies to the whole Resource Management surface — no existing precedent to derive it from); the existing tenant-wide flow (UC-010a–d) stays open to STAFF|MANAGER, unchanged.
-- [ ] Pre-existing navigation gap found during this promotion, not fixed here: `07-horarios-recurso.html`'s sidebar/bottom-nav has 3 links pointing at Cluster 2/4 screens not yet promoted (`manager-05-visao-geral.html`, `manager-02-service-resource-config.html`, `staff-04-turmas-proximas.html`) — resolves once those clusters land.
+- [x] Shipped in `M21-S05` as **two separate controls**, not one picker (revised mid-implementation, after live testing showed a single-select picker couldn't answer "show me everyone's schedule at once" — a real manager need):
+  - **`ResourceFilterMenu`** — a floating, multi-select checkbox filter at the top of the existing `/dashboard/schedule` route (`SchedulePage`), mirroring the existing `ScheduleStatusFilterMenu`'s own trigger+popover shape. Controls what the *calendar view* shows: zero resources checked = today's exact tenant-wide behavior (unchanged default); one or more checked = that resource's own closures/openings merged into the same timeline, in addition to the tenant-wide ones (which always apply regardless).
+  - **`ResourceSelectField`** — a single-select field embedded inside `ClosureFormSheet`/`OpeningFormSheet`, deliberately decoupled from the filter menu's selection. It decides which *one* resource a new block/opening applies to (`resourceId` is a single nullable field on the aggregate, not a list), and always starts fresh at "Todo o negócio" each time a sheet opens — it does not inherit whatever is currently checked in the view filter.
+  - Both are MANAGER-only (rendered only for `role === 'MANAGER'`, sourced via the dashboard-wide `TenantProvider`) and both exclude the tenant's own `LOCATION` resource from their options — `resourceId = null` ("Todo o negócio") already represents that scope.
+- [x] This extension is **MANAGER-only** when `resourceId` is set (a deliberate, self-consistent restriction the discovery applies to the whole Resource Management surface — no existing precedent to derive it from); the existing tenant-wide flow (UC-010a–d) stays open to STAFF|MANAGER, unchanged.
+- [ ] Pre-existing navigation gap found during this promotion, not fixed here: `07-horarios-recurso.html`'s sidebar/bottom-nav has 3 links pointing at Cluster 2/4 screens not yet promoted (`manager-05-visao-geral.html`, `manager-02-service-resource-config.html`, `staff-04-turmas-proximas.html`) — resolves once those clusters land. Moot for the shipped design since it never navigates to that illustrative screen at all, but left unresolved for whenever that file is revisited.
 
 ## M21 Cluster 2 addition — UC-057 (Manager multi-resource day grid, ❓ Gap)
 
-> "Horários" is role-adaptive: a STAFF viewer gets the resource-scoped timeline above (UC-010e/f); a MANAGER viewer gets this combined day grid instead — no new nav item, same "Horários" entry. Prototype: `08-visao-geral-manager.html` (relocated from `manager-05-visao-geral.html`). BFF: `GET /v1/schedule/day-grid?date=` (`docs/14-API_CONTRACTS.md`), MANAGER only.
+> "Horários" is role-adaptive: a STAFF viewer keeps the tenant-wide timeline above, unchanged (UC-010a–d — resource scoping stays MANAGER-only per `M21-S05`, the picker itself is never rendered for STAFF); a MANAGER viewer gets this combined day grid instead — no new nav item, same "Horários" entry. Prototype: `08-visao-geral-manager.html` (relocated from `manager-05-visao-geral.html`). BFF: `GET /v1/schedule/day-grid?date=` (`docs/14-API_CONTRACTS.md`), MANAGER only.
 
 - [ ] No story exists yet — needs `/story-discovery` once the M21 milestone file is drafted.
 - [ ] Whether Cluster 1's `07-horarios-recurso.html` and this grid share a route-level toggle or are fully separate pages is a UI/routing decision for the implementing story.

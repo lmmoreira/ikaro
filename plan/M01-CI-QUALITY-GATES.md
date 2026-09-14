@@ -96,6 +96,8 @@ Add Gitleaks to the PR pipeline to scan the full git history and staged changes 
 
 ### M01-S04 — Snyk SCA vulnerability scanning ✅ Done
 
+> **Superseded 2026-09-14 (M21-S05):** the per-PR gate described below was removed after the org's Snyk free-tier quota (200 tests/month) was repeatedly exhausted by `/pr-land`'s own iterative bot-review rounds. Snyk now runs only as a weekly scheduled scan (`weekly-jobs.yml`), not as a required PR status check — see `docs/19-INFRASTRUCTURE_TOOLING_MAP.md` § 1.3 and `.copilot/context.md`'s CI gates section for the current, accurate state. The description/AC below are kept as the historical record of what this story originally shipped.
+
 **Agent:** `devops`  
 **Complexity:** S  
 **Docs to load:** `docs/09-CI_CD_PIPELINE.md` § security gates, `docs/19-INFRASTRUCTURE_TOOLING_MAP.md` § Snyk

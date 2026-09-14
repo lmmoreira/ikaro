@@ -868,9 +868,11 @@ describe('RescheduleBookingUseCase', () => {
 | All tests pass (100%) | Jest / Vitest | Block merge |
 | Coverage ≥ 80% on **changed code** | SonarCloud (differential) | Block merge |
 | OpenAPI spec valid | Spectral | Block merge |
-| Security scan clean | Snyk + Gitleaks | Block merge |
+| Security scan clean | Gitleaks | Block merge |
 
 > Coverage is **differential** (changed files only), not a global project threshold. SonarCloud computes this on the PR diff. The Jest/Vitest coverage report feeds into SonarCloud.
+>
+> Snyk SCA is not part of this per-PR gate — it runs weekly instead (`weekly-jobs.yml`), see `docs/CI_TRAPS.md` § Snyk SCA failures.
 >
 > **Playwright/E2E coverage does not feed this gate** — Playwright does run in CI (`.github/workflows/pr-e2e.yml`, on every PR — see the E2E layer section above), but there's no CI step instrumenting those runs into the lcov reports SonarCloud reads. A file with real E2E coverage but no Vitest/Jest test (e.g. an async Server Component page/layout that can't be unit-tested — see `apps/web/app/**/page.tsx`, `layout.tsx`, `not-found.tsx`) still needs a `sonar.coverage.exclusions` entry, or the gate fails on 0% regardless of how well the E2E suite actually exercises it. Don't "fix" the exclusion by trying to make the file unit-testable, and don't remove it just because an E2E test now exists for it.
 >

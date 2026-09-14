@@ -520,7 +520,7 @@ Full pipeline YAML is in `docs/09-CI_CD_PIPELINE.md`. Summary:
 
 | Stage | Workflow | What runs |
 |---|---|---|
-| PR gate | `ci-bff.yml` | ESLint, `tsc --noEmit`, unit + integration tests, Gitleaks, Snyk SCA |
+| PR gate | `ci-bff.yml` | ESLint, `tsc --noEmit`, unit + integration tests, Gitleaks |
 | Merge to `main` | `deploy-bff.yml` | Build → GAR, deploy staging (auto), deploy production (1 reviewer) |
 
 **Testing in CI:**

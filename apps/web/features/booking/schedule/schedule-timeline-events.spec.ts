@@ -2,16 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { BOOKING_STATUS } from '@ikaro/types';
 import type { ScheduleClosure, ScheduleOpening, StaffBookingCardResponse } from '@ikaro/types';
 import {
-  assignBookingLanes,
-  assignLanesToBookingGroup,
+  assignLanes,
+  assignLanesToEventGroup,
   buildBookingTimelineEvent,
   buildClosureTimelineEvent,
   buildOpeningTimelineEvent,
   getBookingDateKey,
   getBookingTimeKey,
-  groupOverlappingBookings,
+  groupOverlappingEvents,
   type BookingTimelineEvent,
 } from './schedule-timeline-events';
+
+const EMPTY_RESOURCE_NAME_BY_ID: ReadonlyMap<string, string> = new Map();
 
 function makeBooking(overrides: Partial<StaffBookingCardResponse> = {}): StaffBookingCardResponse {
   return {
@@ -35,6 +37,7 @@ function makeClosure(overrides: Partial<ScheduleClosure> = {}): ScheduleClosure 
     endTime: null,
     reason: 'MAINTENANCE',
     notes: null,
+    resourceId: null,
     ...overrides,
   };
 }
@@ -88,23 +91,52 @@ describe('buildClosureTimelineEvent', () => {
       makeClosure({ startTime: '10:00', endTime: '11:00', reason: 'HOLIDAY', notes: 'Feriado' }),
       '08:00',
       '18:00',
+      EMPTY_RESOURCE_NAME_BY_ID,
     );
     expect(event.startMinutes).toBe(600);
     expect(event.endMinutes).toBe(660);
     expect(event.title).toBe('HOLIDAY');
     expect(event.subtitle).toBe('Feriado');
+    expect(event.resourceName).toBeNull();
+    expect(event.laneIndex).toBe(0);
+    expect(event.laneCount).toBe(1);
   });
 
   it('falls back to the active hours when the closure has no explicit start/end', () => {
-    const event = buildClosureTimelineEvent(makeClosure(), '08:00', '18:00');
+    const event = buildClosureTimelineEvent(
+      makeClosure(),
+      '08:00',
+      '18:00',
+      EMPTY_RESOURCE_NAME_BY_ID,
+    );
     expect(event.startMinutes).toBe(480);
     expect(event.endMinutes).toBe(1080);
+  });
+
+  it('resolves resourceName from the resourceNameById map when the closure is resource-scoped', () => {
+    const event = buildClosureTimelineEvent(
+      makeClosure({ resourceId: 'res-1' }),
+      '08:00',
+      '18:00',
+      new Map([['res-1', 'Leonardo']]),
+    );
+    expect(event.resourceName).toBe('Leonardo');
+  });
+
+  it('resolves resourceName to null when resourceId is set but missing from the map', () => {
+    const event = buildClosureTimelineEvent(
+      makeClosure({ resourceId: 'res-unknown' }),
+      '08:00',
+      '18:00',
+      EMPTY_RESOURCE_NAME_BY_ID,
+    );
+    expect(event.resourceName).toBeNull();
   });
 });
 
 describe('buildOpeningTimelineEvent', () => {
   it('returns null when there is no selected opening', () => {
-    expect(buildOpeningTimelineEvent(null)).toBeNull();
+    expect(buildOpeningTimelineEvent(null, EMPTY_RESOURCE_NAME_BY_ID)).toBeNull();
   });
 
   it('builds an opening event from a special opening', () => {
@@ -114,8 +146,9 @@ describe('buildOpeningTimelineEvent', () => {
       startTime: '09:00',
       endTime: '13:00',
       notes: 'Plantão especial',
+      resourceId: null,
     };
-    const event = buildOpeningTimelineEvent(opening);
+    const event = buildOpeningTimelineEvent(opening, EMPTY_RESOURCE_NAME_BY_ID);
     expect(event).toEqual({
       kind: 'opening',
       id: 'opening-1',
@@ -124,7 +157,23 @@ describe('buildOpeningTimelineEvent', () => {
       title: 'Plantão especial',
       subtitle: '',
       opening,
+      resourceName: null,
+      laneIndex: 0,
+      laneCount: 1,
     });
+  });
+
+  it('resolves resourceName from the resourceNameById map when the opening is resource-scoped', () => {
+    const opening: ScheduleOpening = {
+      id: 'opening-1',
+      date: '2026-08-18',
+      startTime: '09:00',
+      endTime: '13:00',
+      notes: null,
+      resourceId: 'res-1',
+    };
+    const event = buildOpeningTimelineEvent(opening, new Map([['res-1', 'Walace']]));
+    expect(event?.resourceName).toBe('Walace');
   });
 });
 
@@ -143,55 +192,92 @@ function bookingEvent(id: string, startMinutes: number, endMinutes: number): Boo
   };
 }
 
-describe('groupOverlappingBookings', () => {
+describe('groupOverlappingEvents', () => {
   it('groups bookings that overlap in time and separates non-overlapping ones', () => {
     const a = bookingEvent('a', 0, 60);
     const b = bookingEvent('b', 30, 90);
     const c = bookingEvent('c', 120, 180);
-    const groups = groupOverlappingBookings([a, b, c]);
+    const groups = groupOverlappingEvents([a, b, c]);
     expect(groups).toHaveLength(2);
     expect(groups[0].map((e) => e.id)).toEqual(['a', 'b']);
     expect(groups[1].map((e) => e.id)).toEqual(['c']);
   });
 
-  it('returns an empty array for no bookings', () => {
-    expect(groupOverlappingBookings([])).toEqual([]);
+  it('returns an empty array for no events', () => {
+    expect(groupOverlappingEvents([])).toEqual([]);
   });
 });
 
-describe('assignLanesToBookingGroup', () => {
-  it('assigns the same lane to non-overlapping bookings within a group and separate lanes to overlapping ones', () => {
+describe('assignLanesToEventGroup', () => {
+  it('assigns the same lane to non-overlapping events within a group and separate lanes to overlapping ones', () => {
     const a = bookingEvent('a', 0, 60);
     const b = bookingEvent('b', 30, 90);
-    const assigned = assignLanesToBookingGroup([a, b]);
+    const assigned = assignLanesToEventGroup([a, b]);
     expect(assigned.find((e) => e.id === 'a')?.laneIndex).toBe(0);
     expect(assigned.find((e) => e.id === 'b')?.laneIndex).toBe(1);
     expect(assigned.every((e) => e.laneCount === 2)).toBe(true);
   });
 
-  it('reuses a freed lane once the earlier booking in it has ended', () => {
+  it('reuses a freed lane once the earlier event in it has ended', () => {
     const a = bookingEvent('a', 0, 30);
     const b = bookingEvent('b', 30, 60);
-    const assigned = assignLanesToBookingGroup([a, b]);
+    const assigned = assignLanesToEventGroup([a, b]);
     expect(assigned.find((e) => e.id === 'a')?.laneIndex).toBe(0);
     expect(assigned.find((e) => e.id === 'b')?.laneIndex).toBe(0);
     expect(assigned.every((e) => e.laneCount === 1)).toBe(true);
   });
 });
 
-describe('assignBookingLanes', () => {
+describe('assignLanes', () => {
   it('composes grouping + lane assignment across independent overlap groups', () => {
     const a = bookingEvent('a', 0, 60);
     const b = bookingEvent('b', 30, 90);
     const c = bookingEvent('c', 120, 180);
-    const assigned = assignBookingLanes([a, b, c]);
+    const assigned = assignLanes([a, b, c]);
     expect(assigned.find((e) => e.id === 'c')?.laneCount).toBe(1);
     expect(
       assigned.filter((e) => e.id === 'a' || e.id === 'b').every((e) => e.laneCount === 2),
     ).toBe(true);
   });
 
-  it('returns an empty array for no bookings', () => {
-    expect(assignBookingLanes([])).toEqual([]);
+  it('returns an empty array for no events', () => {
+    expect(assignLanes([])).toEqual([]);
+  });
+
+  it('splits two overlapping resource-scoped closures into separate lanes (M21-S05 live-testing follow-up)', () => {
+    const leonardo = buildClosureTimelineEvent(
+      makeClosure({
+        id: 'closure-leonardo',
+        startTime: '09:00',
+        endTime: '10:00',
+        resourceId: 'res-1',
+      }),
+      '08:00',
+      '18:00',
+      new Map([
+        ['res-1', 'Leonardo'],
+        ['res-2', 'Walace'],
+      ]),
+    );
+    const walace = buildClosureTimelineEvent(
+      makeClosure({
+        id: 'closure-walace',
+        startTime: '09:00',
+        endTime: '10:00',
+        resourceId: 'res-2',
+      }),
+      '08:00',
+      '18:00',
+      new Map([
+        ['res-1', 'Leonardo'],
+        ['res-2', 'Walace'],
+      ]),
+    );
+
+    const assigned = assignLanes([leonardo, walace]);
+
+    expect(assigned.every((e) => e.laneCount === 2)).toBe(true);
+    expect(new Set(assigned.map((e) => e.laneIndex))).toEqual(new Set([0, 1]));
+    expect(assigned.map((e) => e.resourceName).sort()).toEqual(['Leonardo', 'Walace']);
   });
 });

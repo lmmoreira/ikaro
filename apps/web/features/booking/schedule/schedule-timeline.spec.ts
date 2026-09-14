@@ -114,6 +114,7 @@ describe('buildTimelineEvents', () => {
       startTime: '10:00',
       endTime: '14:00',
       notes: null,
+      resourceId: null,
     };
     const result = buildTimelineEvents({
       selectedDateKey: '2026-08-18',
@@ -128,6 +129,45 @@ describe('buildTimelineEvents', () => {
     expect(result.timelineEndMinutes).toBe(840);
     expect(result.events).toHaveLength(1);
     expect(result.events[0].kind).toBe('opening');
+  });
+
+  it('renders every opening for the date, not just the tenant-wide one (M21-S05 multi-resource merge)', () => {
+    const tenantWideOpening: ScheduleOpening = {
+      id: 'opening-tenant',
+      date: '2026-08-18', // a Tuesday, closed in makeBusinessHours()
+      startTime: '09:00',
+      endTime: '18:00',
+      notes: null,
+      resourceId: null,
+    };
+    const resourceOpening: ScheduleOpening = {
+      id: 'opening-resource',
+      date: '2026-08-18',
+      startTime: '10:00',
+      endTime: '14:00',
+      notes: null,
+      resourceId: 'res-1',
+    };
+
+    const result = buildTimelineEvents({
+      selectedDateKey: '2026-08-18',
+      timezone: 'America/Sao_Paulo',
+      slotGranularityMinutes: 30,
+      businessHours: makeBusinessHours(),
+      bookings: [],
+      closures: [],
+      openings: [resourceOpening, tenantWideOpening],
+      resourceNameById: new Map([['res-1', 'Leonardo']]),
+    });
+
+    // The tenant-wide opening determines the visible window, even though it's listed second.
+    expect(result.timelineStartMinutes).toBe(540);
+    expect(result.timelineEndMinutes).toBe(1080);
+    const openingEvents = result.events.filter((event) => event.kind === 'opening');
+    expect(openingEvents.map((event) => event.id).sort()).toEqual([
+      'opening-resource',
+      'opening-tenant',
+    ]);
   });
 
   it('includes bookings only for the selected date, sorted with closures/openings first at the same start time', () => {
@@ -153,6 +193,7 @@ describe('buildTimelineEvents', () => {
       endTime: '09:30',
       reason: 'MAINTENANCE',
       notes: null,
+      resourceId: null,
     };
 
     const result = buildTimelineEvents({
@@ -167,6 +208,74 @@ describe('buildTimelineEvents', () => {
 
     expect(result.events).toHaveLength(2);
     expect(result.events.map((event) => event.kind)).toEqual(['closure', 'booking']);
+  });
+
+  it('resolves closure resourceName from resourceNameById and lane-splits overlapping resource-scoped closures', () => {
+    const closures: ScheduleClosure[] = [
+      {
+        id: 'closure-leonardo',
+        date: '2026-08-17',
+        startTime: '09:00',
+        endTime: '10:00',
+        reason: 'MAINTENANCE',
+        notes: null,
+        resourceId: 'res-1',
+      },
+      {
+        id: 'closure-walace',
+        date: '2026-08-17',
+        startTime: '09:00',
+        endTime: '10:00',
+        reason: 'MAINTENANCE',
+        notes: null,
+        resourceId: 'res-2',
+      },
+    ];
+
+    const result = buildTimelineEvents({
+      selectedDateKey: '2026-08-17',
+      timezone: 'America/Sao_Paulo',
+      slotGranularityMinutes: 30,
+      businessHours: makeBusinessHours(),
+      bookings: [],
+      closures,
+      openings: [],
+      resourceNameById: new Map([
+        ['res-1', 'Leonardo'],
+        ['res-2', 'Walace'],
+      ]),
+    });
+
+    expect(result.events).toHaveLength(2);
+    const closureEvents = result.events.filter((event) => event.kind === 'closure');
+    expect(closureEvents.map((event) => event.resourceName).sort()).toEqual(['Leonardo', 'Walace']);
+    expect(closureEvents.every((event) => event.laneCount === 2)).toBe(true);
+    expect(new Set(closureEvents.map((event) => event.laneIndex))).toEqual(new Set([0, 1]));
+  });
+
+  it('defaults resourceName to null when resourceNameById is omitted', () => {
+    const closure: ScheduleClosure = {
+      id: 'closure-1',
+      date: '2026-08-17',
+      startTime: '09:00',
+      endTime: '10:00',
+      reason: 'MAINTENANCE',
+      notes: null,
+      resourceId: 'res-1',
+    };
+
+    const result = buildTimelineEvents({
+      selectedDateKey: '2026-08-17',
+      timezone: 'America/Sao_Paulo',
+      slotGranularityMinutes: 30,
+      businessHours: makeBusinessHours(),
+      bookings: [],
+      closures: [closure],
+      openings: [],
+    });
+
+    expect(result.events[0].kind).toBe('closure');
+    expect(result.events[0].kind === 'closure' && result.events[0].resourceName).toBeNull();
   });
 });
 

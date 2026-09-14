@@ -28,6 +28,9 @@ function makeUi(overrides: Partial<ScheduleUiState> = {}): ScheduleUiState {
     statusFilterOpen: false,
     setStatusFilterOpen: vi.fn(),
     statusFilterRef: { current: null },
+    resourceFilterOpen: false,
+    setResourceFilterOpen: vi.fn(),
+    resourceFilterRef: { current: null },
     ...overrides,
   };
 }

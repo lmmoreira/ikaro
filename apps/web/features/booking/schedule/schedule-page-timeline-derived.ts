@@ -27,6 +27,7 @@ interface ScheduleTimelineDerivedInput {
   readonly timezone: string;
   readonly slotGranularityMinutes: number;
   readonly selectedDateKey: string;
+  readonly resourceNameById: ReadonlyMap<string, string>;
 }
 
 function useScheduleWeekDayDerived(input: ScheduleTimelineDerivedInput): {
@@ -59,6 +60,7 @@ function useSelectedDayTimeline(input: ScheduleTimelineDerivedInput): TimelineDa
     timezone,
     slotGranularityMinutes,
     selectedDateKey,
+    resourceNameById,
   } = input;
 
   return useMemo(
@@ -71,6 +73,7 @@ function useSelectedDayTimeline(input: ScheduleTimelineDerivedInput): TimelineDa
         bookings: visibleBookings,
         closures: visibleClosures,
         openings: visibleOpenings,
+        resourceNameById,
       }),
     [
       businessHours,
@@ -80,6 +83,7 @@ function useSelectedDayTimeline(input: ScheduleTimelineDerivedInput): TimelineDa
       visibleBookings,
       visibleClosures,
       visibleOpenings,
+      resourceNameById,
     ],
   );
 }
@@ -95,6 +99,7 @@ function useWeekTimelineCards(
     businessHours,
     timezone,
     slotGranularityMinutes,
+    resourceNameById,
   } = input;
 
   return useMemo(
@@ -109,6 +114,7 @@ function useWeekTimelineCards(
           closures: visibleClosures,
           openings: visibleOpenings,
           slotHeightScale: 0.45,
+          resourceNameById,
         }),
       ),
     [
@@ -119,6 +125,7 @@ function useWeekTimelineCards(
       visibleClosures,
       visibleOpenings,
       weekDayInfo,
+      resourceNameById,
     ],
   );
 }

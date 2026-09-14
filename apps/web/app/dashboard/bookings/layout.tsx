@@ -55,7 +55,7 @@ export default async function ProtectedLayout({
         dateFormat={resolveDashboardDateFormat(shell.formatting)}
         timeFormat={shell.formatting.timeFormat}
       >
-        <TenantProvider tenantId={shell.tenantId} tenantSlug={shell.tenantSlug}>
+        <TenantProvider tenantId={shell.tenantId} tenantSlug={shell.tenantSlug} role={shell.role}>
           <DashboardTopbarStatusProvider
             key={bookingRouteMatch?.bookingId ?? 'dashboard-shell'}
             initialBookingStatus={bookingStatus}
