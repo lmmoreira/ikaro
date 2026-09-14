@@ -113,18 +113,18 @@ sonar.cpd.exclusions=**/migrations/**
 3. Go to Account Settings (avatar bottom-left) → General → Auth Token → copy the token.
 4. In GitHub: repo → Settings → Secrets → Actions → New secret → name `SNYK_TOKEN`, paste the token.
 
-**Pipeline integration (key step — full YAML in `docs/09-CI_CD_PIPELINE.md`):**
+**Pipeline integration (`weekly-jobs.yml` — see CLAUDE.md's CI gates section for why this moved off the per-PR pipeline):**
 ```yaml
 - uses: snyk/actions/node@master
   with:
-    args: --severity-threshold=high --file=apps/backend/package.json
+    args: --severity-threshold=high --all-projects
   env:
     SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 ```
 
-Run once per `package.json` (backend, bff, web) in parallel jobs. `--severity-threshold=high` means LOW and MEDIUM vulnerabilities do not fail the build — only HIGH and CRITICAL do.
+Runs once per weekly trigger, across every workspace (`--all-projects`) in a single job. `--severity-threshold=high` means LOW and MEDIUM vulnerabilities are reported but don't fail the job — only HIGH and CRITICAL do.
 
-**What it gates:** Merge blocked if any HIGH or CRITICAL CVE is found in the dependency tree of any app.
+**What it gates:** Nothing directly — it's not a required PR status check. A HIGH/CRITICAL finding surfaces in the weekly job's own failure, to be triaged and fixed like any other CI failure, not blocked at merge time.
 
 ---
 
