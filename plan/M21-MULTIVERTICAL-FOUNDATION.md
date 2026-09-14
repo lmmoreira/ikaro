@@ -352,7 +352,7 @@ Working-hours edit (UC-046), deactivate confirmation (UC-047), and reactivate co
 
 ---
 
-### M21-S05 — Staff/Manager "Horários" resource-scoped extension frontend
+### M21-S05 — Staff/Manager "Horários" resource-scoped extension frontend ✅ Done
 
 **Agent:** `frontend-ts`
 **Complexity:** M
