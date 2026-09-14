@@ -430,11 +430,11 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
   Response shape: `{ "items": [ { ...above... }, ... ] }`. The frontend uses `requiresPickupAddress` to show/hide the address field as services are added to the basket.
 - `GET /services` -> List **all** services for the tenant, including `isActive: false` (STAFF|MANAGER). Returns `{ items: [...], total: number }` (`StaffServiceListResponse`) — each item uses `serviceId` (not `id`) and `price: { amount, currency }` (no `formatted`); see `StaffServiceResponse` in `service.dto.ts`. Lives on the bare `/services` path — see `docs/24-BFF_ARCHITECTURE.md` for why the public list moved to `/public/services` (`M13-S05`).
 - `GET /services/:id` -> Single service by id, active or inactive (STAFF|MANAGER). `StaffServiceResponse`. `404` if not found or wrong tenant.
-- `POST /services` -> Create service (STAFF|MANAGER). Body includes `requiresPickupAddress: boolean` (default `false`), and, from M21 Cluster 2, `bookingModel: 'APPOINTMENT'|'SESSION'` (UC-056, default `APPOINTMENT`).
-- `PATCH /services/:id` -> Update service details/price/duration/`requiresPickupAddress` (STAFF|MANAGER). From M21 Cluster 2, also accepts `bufferAfterMinutes` (UC-053).
+- `POST /services` -> Create service (STAFF|MANAGER). Body includes `requiresPickupAddress: boolean` (default `false`), and, from M22 Cluster 2, `bookingModel: 'APPOINTMENT'|'SESSION'` (UC-056, default `APPOINTMENT`).
+- `PATCH /services/:id` -> Update service details/price/duration/`requiresPickupAddress` (STAFF|MANAGER). From M22 Cluster 2, also accepts `bufferAfterMinutes` (UC-053).
 - `DELETE /services/:id` -> Deactivate service (STAFF|MANAGER). Returns `204 No Content`.
 
-### **Service Extensions — M21 Cluster 2 (UC-050–056)**
+### **Service Extensions — M22 Cluster 2 (UC-050–056)**
 
 > Auth: JWT + `MANAGER|STAFF` on every endpoint below (same as UC-012/013 — this stays a Service management surface, not the MANAGER-only Resource Management restriction M21 Cluster 1 introduced).
 
@@ -491,7 +491,7 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
   { "date": "2026-08-04", "columns": [{ "resourceId": "uuid", "name": "Camila Duarte", "type": "STAFF", "blocks": [{ "startsAt": "...", "endsAt": "...", "kind": "BOOKING"|"CLASS_SESSION", "refId": "uuid" }] }] }
   ```
 
-**`GET /schedule/availability` (UC-011) — extended by M21 Cluster 2 (UC-058, UC-059):** the existing endpoint's response is unchanged in shape; internally, once a queried service has non-default `resourceRequirements`/`legs`, the backend scopes the query to the relevant `resourceId(s)` via `IBookingAvailabilityPort` against `booking.resource_occupancy` instead of the whole tenant — see `docs/02-DOMAIN_MODEL.md`. No new query params for this cluster.
+**`GET /schedule/availability` (UC-011) — extended by M22 Cluster 2 (UC-058, UC-059):** the existing endpoint's response is unchanged in shape; internally, once a queried service has non-default `resourceRequirements`/`legs`, the backend scopes the query to the relevant `resourceId(s)` via `IBookingAvailabilityPort` against `booking.resource_occupancy` instead of the whole tenant — see `docs/02-DOMAIN_MODEL.md`. No new query params for this cluster.
 
 ---
 
@@ -724,15 +724,15 @@ Requires JWT with `role: CUSTOMER`. Tenant resolved from JWT `tenantId` — no `
 **Cancel** (JWT + `CUSTOMER|MANAGER|STAFF` role required):
 - `PATCH /bookings/:id/cancel` → (UC-007, UC-008) Cancel a booking. The BFF dispatches to a different backend route depending on the caller's role: `CUSTOMER` → `cancel-customer` (no body), `MANAGER`/`STAFF` → `cancel-admin` (body: `{ reason?: string }`). Returns `200 { bookingId, status: 'CANCELLED' }`.
 
-### **Reschedule (UC-008, extended by M21 Cluster 3 UC-069)**
+### **Reschedule (UC-008, extended by M23 Cluster 3 UC-069)**
 - `PATCH /bookings/:id/reschedule`
 - **Body (UC-008, staff-only):** `{ "scheduledAt": "ISO8601", "adminNotes": "..." }`
-- **Body (UC-069, customer-initiated, M21 Cluster 3):** `{ "scheduledAt": "ISO8601", "resourceSelections": {...}, "durationMinutes": number }` — `resourceSelections`/`durationMinutes` only relevant for a bundle/leg/variable-duration service; validated and locked atomically before the original resource(s) are released.
+- **Body (UC-069, customer-initiated, M23 Cluster 3):** `{ "scheduledAt": "ISO8601", "resourceSelections": {...}, "durationMinutes": number }` — `resourceSelections`/`durationMinutes` only relevant for a bundle/leg/variable-duration service; validated and locked atomically before the original resource(s) are released.
 - **Validation:** New window must be free for every required resource. Returns `409 slot-unavailable` if not (UC-069 A1). A bundle/journey revalidates every resource/leg as one atomic change (UC-069 A2).
-- **Response, M21 Cluster 3 addition:** if the reschedule changes the price (e.g. a variable-duration service), a `booking_quote_revisions` row is recorded and the response includes `{ "quoteRevision": { "revisionNo": number, "amount": {...} } }`.
+- **Response, M23 Cluster 3 addition:** if the reschedule changes the price (e.g. a variable-duration service), a `booking_quote_revisions` row is recorded and the response includes `{ "quoteRevision": { "revisionNo": number, "amount": {...} } }`.
 - **Event:** Publishes `BookingRescheduled` (extended scope, see `docs/03-DOMAIN_EVENTS.md`) → Notification sends customer email.
 
-### **No-Show (UC-074, M21 Cluster 3)**
+### **No-Show (UC-074, M23 Cluster 3)**
 - `POST /bookings/:id/no-show` -> Mark an appointment as a no-show (STAFF|MANAGER). `422` if the scheduled end time hasn't passed; `409` if already terminal.
 - `POST /bookings/:id/no-show/correct` -> Manager correction (append-only audit transition). Body: `{ "correctedStatus": "COMPLETED"|..., "reason": "..." }`. Loyalty is awarded only if `correctedStatus = COMPLETED`.
 
@@ -934,7 +934,7 @@ Auth: JWT + `MANAGER` only on every endpoint — a deliberate, self-consistent r
   - `404` if not found, belongs to another tenant, or (for a `type = STAFF` resource) the wrapped staff member is still inactive
   - `409` if already active
 
-### **Recurring Private Reservation Schedules — M21 Cluster 3 (UC-070, UC-071)**
+### **Recurring Private Reservation Schedules — M23 Cluster 3 (UC-070, UC-071)**
 
 Auth: JWT + Customer (create/manage own) or STAFF|MANAGER (approve/reject, or create on a customer's behalf).
 
@@ -947,7 +947,7 @@ Auth: JWT + Customer (create/manage own) or STAFF|MANAGER (approve/reject, or cr
 - `POST /recurring-booking-schedules/:id/approve` / `POST /recurring-booking-schedules/:id/reject` → UC-071. STAFF|MANAGER only.
   - `409` if already resolved (A1) or past `approvalHoldExpiresAt` (A2)
 
-### **Availability Alerts — M21 Cluster 3 (UC-072, UC-076)**
+### **Availability Alerts — M23 Cluster 3 (UC-072, UC-076)**
 
 Auth: JWT + Customer only — unauthenticated visitors are redirected to login (UC-072 A1).
 
@@ -956,7 +956,7 @@ Auth: JWT + Customer only — unauthenticated visitors are redirected to login (
 - `PATCH /availability-alerts/:id` → edit criteria/expiry (UC-076)
 - `DELETE /availability-alerts/:id` → cancel (UC-076)
 
-### **Future Commitment Exceptions — M21 Cluster 3 (UC-077)**
+### **Future Commitment Exceptions — M23 Cluster 3 (UC-077)**
 
 Auth: JWT + MANAGER only.
 
@@ -964,18 +964,18 @@ Auth: JWT + MANAGER only.
 - `POST /scheduling-exceptions/:id/resolve` → Body: `{ "resolutionType": "KEEP"|"REASSIGN"|"RESCHEDULE"|"CANCEL", "reason"? }`
 - `POST /scheduling-exceptions/:id/dismiss` → Body: `{ "reason" }`
 
-### **Tenant Onboarding Bootstrap — M21 Cluster 3 (UC-075)**
+### **Tenant Onboarding Bootstrap — M23 Cluster 3 (UC-075)**
 
 Auth: JWT + MANAGER only.
 
 - `POST /onboarding/bootstrap` → Body: `{ "presetId": "AUTO_ESTETICA"|"SALAO_BARBEARIA"|..., "answers": {...} }` (per-preset minimum-answer shape, see `docs/discovery/multivertical-booking/multivertical-booking_ONBOARDING_PRESETS.md`)
   - `201` — generated configuration as an editable review; whole bootstrap rolls back atomically on any failure (A3)
   - `422` on invalid minimum answers (A2)
-  - **M21 Cluster 4 completion:** for a SESSION preset (D/E/F), step 4 also creates the first `ClassScheduleTemplate`(s) — inert until this cluster ships (Cluster 3 alone only completes Presets A/B/C/G).
+  - **M24 Cluster 4 completion:** for a SESSION preset (D/E/F), step 4 also creates the first `ClassScheduleTemplate`(s) — inert until this cluster ships (Cluster 3 alone only completes Presets A/B/C/G).
 
 ---
 
-## 4b. Classes & Sessions — M21 Cluster 4
+## 4b. Classes & Sessions — M24 Cluster 4
 
 > Auth: STAFF|MANAGER on every staff-facing endpoint below unless noted; Customer/Guest on the booking endpoints, matching UC-085–107's own actor fields.
 

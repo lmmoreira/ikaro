@@ -3,7 +3,7 @@
 **Actor(s):** CUSTOMER  
 **Goal:** Authenticated customer with an active class-access contract (or a service-permitted pay-per-class path) browses the class catalog and enrolls in a new class — a one-off drop-in session or a standing recurring series  
 **UCs covered:** UC-085, UC-086, UC-087, UC-090, UC-093 (`docs/04-USE_CASES.md`)  
-**Status:** ❓ Gap — M21, Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions). No story assigned yet.
+**Status:** ❓ Gap — M24, Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions). No story assigned yet.
 
 > Promoted from `docs/discovery/multivertical-booking/reservar-aula-journey.md` via `/discovery-to-milestone` — that file already reached implementation-grade rigor (route tables, BFF contracts, GAP tags) during discovery UX work, so this promotion carries its content forward with canonical UC numbers substituted for `CAND-XX`, rather than redrafting from scratch. Complements `minha-conta.md`'s Turmas section, which covers managing an *existing* enrollment (skip a session, cancel, watch a waitlist, respond to a waitlist offer). This journey is the "before" — creating a new one.
 
@@ -73,12 +73,12 @@ Full request/response shapes: `docs/14-API_CONTRACTS.md` § Classes & Sessions.
 
 ## Open questions / gaps
 
-- [ ] **No story exists yet for any route in this journey** — needs `/story-discovery` once the M21 milestone file is drafted.
+- [ ] **No story exists yet for any route in this journey** — needs `/story-discovery` once the M24 milestone file is drafted.
 - [x] **`ClassSessionBooking.status` is canonicalized.** The BFF projection exposes `CONFIRMED | PENDING_APPROVAL | WAITLISTED | PROMOTION_PENDING | CANCELLED` occurrence state and separates recurring intent (`RecurringEnrollment`) from occurrence state.
 - [x] **`trialSlots`/`reservedNonMemberCount` are part of the availability/access contract** for authenticated pay-per-class customers (UC-087) as well as guests (UC-097).
 - [ ] Reposição/`classSkipWindowHours` (UC-102, UC-094) belong to `minha-conta.md`'s Turmas section (managing an *existing* enrollment), not here — this journey only covers creating a new one.
 - [x] **`ClassType` is explicitly a BFF read model, not an aggregate.** Mapped from `Service`, `ClassScheduleTemplate`, the next-session projection, and resolved resource display data; must not become a literal persistence endpoint or aggregate.
-- [x] **Catalog fields are documented in the schema companion.** `class_catalog_color`/`class_catalog_allows_drop_in`/`class_catalog_allows_series` belong to the SESSION service catalog contract (`docs/13-DATABASE_SCHEMA.md`, `services` table, M21 Cluster 2's `class_catalog_*` columns).
+- [x] **Catalog fields are documented in the schema companion.** `class_catalog_color`/`class_catalog_allows_drop_in`/`class_catalog_allows_series` belong to the SESSION service catalog contract (`docs/13-DATABASE_SCHEMA.md`, `services` table, M22 Cluster 2's `class_catalog_*` columns).
 - [x] **Contract-less authenticated customers use UC-087.** The BFF contract branches between contract-backed access and pay-per-class access; no payment is processed by Ikaro.
 - [x] **Series responses expose separate recurring intent and occurrence state.** The read model represents one `RecurringEnrollment` plus its generated `ClassSessionBooking` occurrences; it does not persist a generic `Enrollment` aggregate.
 

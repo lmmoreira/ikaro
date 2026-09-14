@@ -43,7 +43,7 @@ graph TD
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** L
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § Booking Context (`Service` aggregate extensions, `ResourceRequirement`/`ServiceLeg` VOs), `docs/13-DATABASE_SCHEMA.md` § `booking.services` (modified), `service_resource_requirements`/`service_resource_requirement_pool`, `service_legs`/`service_leg_resource_requirements`/`service_leg_resource_requirement_pool`, `service_class_resource_pool`, `docs/14-API_CONTRACTS.md` § Service Extensions — M21 Cluster 2, `docs/04-USE_CASES.md` UC-050, 051, 052, 053, 056
+**Docs to load:** `docs/02-DOMAIN_MODEL.md` § Booking Context (`Service` aggregate extensions, `ResourceRequirement`/`ServiceLeg` VOs), `docs/13-DATABASE_SCHEMA.md` § `booking.services` (modified), `service_resource_requirements`/`service_resource_requirement_pool`, `service_legs`/`service_leg_resource_requirements`/`service_leg_resource_requirement_pool`, `service_class_resource_pool`, `docs/14-API_CONTRACTS.md` § Service Extensions — M22 Cluster 2, `docs/04-USE_CASES.md` UC-050, 051, 052, 053, 056
 **Dependencies:** M21-S01 (`Resource` aggregate — `resourceRequirements`/pool entries reference `resources`), M21-S02 (LOCATION backfill — every existing service's degenerate default requirement references the backfilled `LOCATION` resource)
 **Pattern:** plain composition — extends the existing `Service` aggregate and its existing use cases (`update-service.use-case.ts`, `create-service.use-case.ts`); no new named pattern.
 
@@ -53,7 +53,7 @@ Extend the existing `Service` aggregate (`apps/backend/src/contexts/booking/doma
 **Aggregate invariants (enforced in `Service`'s own methods, not just the DB):**
 - `bookingModel` is immutable once the service has any booking history (UC-056 A1) — the same "compare against current value, skip validation when unchanged" discipline `CLAUDE.md` §8's anti-pattern table already documents for other never-changing-once-set fields.
 - `resourceRequirements`/`legs`/`classResourceSlots` are mutually exclusive: setting one clears the other two in the same save (UC-052 step 3's "system clears `resourceRequirements`/`bufferAfterMinutes`" applies symmetrically — setting `resourceRequirements` clears `legs`, setting `classResourceSlots` clears both).
-- A bundle (`resourceRequirements.length > 1`) requires every listed resource type to have at least one active `Resource` (UC-051's own precondition, generalizing UC-050 A1's single-type error mechanism to the bundle case) — validated via `IResourceRepository.findByTenant(tenantId, { type, isActive: true })` (M21-S01), not a new lookup path.
+- Every listed resource type in `resourceRequirements` — whether a single entry (UC-050 A1) or a bundle of ≥2 (UC-051's own precondition) — requires at least one active `Resource` of that type; this is one invariant covering both shapes, not a bundle-only rule, since `resourceRequirements` has no pre-M22 mechanism to generalize from — validated via `IResourceRepository.findByTenant(tenantId, { type, isActive: true })` (M21-S01), not a new lookup path.
 - Fewer than 2 legs on a `PUT .../legs` call is rejected (UC-052 A1) — a single leg is just the flat model.
 - `bufferAfterMinutes` is forced to `null` whenever `legs` is set (UC-053 A1) — legs use per-leg `transitionGapAfterMinutes` instead.
 
@@ -68,7 +68,7 @@ Extend the existing `Service` aggregate (`apps/backend/src/contexts/booking/doma
 
 **BFF endpoint spec:** extend `apps/bff/src/features/booking/services.controller.ts` + `services.schemas.ts` + `services.types.ts` with the two new actions and the two extended bodies, forwarding via `BackendHttpService`, same `STAFF|MANAGER` guard as every existing action in that controller. No new BFF module — `BookingServicesModule` (`apps/bff/src/features/booking/services.module.ts`) already hosts `ServicesController`.
 
-**New migration / i18n keys / env vars / feature flags:** new migration `apps/backend/src/contexts/booking/infrastructure/migrations/<next-timestamp>-AddServiceResourceRequirementsAndLegs.ts` creating `services`' new columns (`booking_model`, `buffer_after_minutes`, `duration_policy`/`pricing_policy`-family columns are S02's own migration, not this one — see S02), `service_resource_requirements`+pool, `service_legs`+`service_leg_resource_requirements`+pool, `service_class_resource_pool`, all per `docs/13-DATABASE_SCHEMA.md`. Includes the backfill step: insert `{ resource_type: 'LOCATION', selection_mode: 'NONE' }` into `service_resource_requirements` for every existing APPOINTMENT service, referencing the M21-S02-backfilled `LOCATION` resource (`docs/13-DATABASE_SCHEMA.md`'s Cluster 2 migration-ordering step 2 — this story owns that backfill since it's the story that creates the target table; S03 owns the *rest* of the 5-phase ordering, which concerns `resource_occupancy`/`booking_line_resource_assignments`, not this table). Migration timestamps are global — the ceiling verified at this milestone's drafting is `1748500000006` (per M21-S01's own migration note); re-verify at implementation time since M21 may have landed its own migrations by then.
+**New migration / i18n keys / env vars / feature flags:** new migration `apps/backend/src/contexts/booking/infrastructure/migrations/<next-timestamp>-AddServiceResourceRequirementsAndLegs.ts` creating `services`' new columns (`booking_model`, `buffer_after_minutes`, `duration_policy`/`pricing_policy`-family columns are S02's own migration, not this one — see S02), `service_resource_requirements`+pool, `service_legs`+`service_leg_resource_requirements`+pool, `service_class_resource_pool`, all per `docs/13-DATABASE_SCHEMA.md`. Includes the backfill step: insert `{ resource_type: 'LOCATION', selection_mode: 'NONE' }` into `service_resource_requirements` for every existing APPOINTMENT service, referencing the M21-S02-backfilled `LOCATION` resource (`docs/13-DATABASE_SCHEMA.md`'s Cluster 2 migration-ordering step 2 — this story owns that backfill since it's the story that creates the target table; S03 owns the *rest* of the 5-phase ordering, which concerns `resource_occupancy`/`booking_line_resource_assignments`, not this table). Migration timestamps are global — the ceiling verified during this milestone's `/docs-audit` pass (2026-09-14) is `1748500000009` (`AddResourceIdToScheduleClosuresAndOpenings.ts`, M21-S05); re-verify at implementation time in case a later story has landed its own migrations since.
 
 **Files to create/modify:**
 - `apps/backend/src/contexts/booking/domain/service.aggregate.ts` (modify — new fields + invariants)
@@ -94,11 +94,12 @@ Extend the existing `Service` aggregate (`apps/backend/src/contexts/booking/doma
 - `apps/bff/src/features/booking/services.controller.ts` (+ `.spec.ts`, `.component.spec.ts`) (modify)
 - `apps/bff/src/features/booking/services.schemas.ts` (modify — 2 new body schemas, 2 extended)
 - `apps/bff/src/features/booking/services.types.ts` (modify)
-- `apps/bff/http/booking/services.http` (modify, if it exists as a separate BFF-side file — verify at implementation time)
+- `apps/bff/http/services/services.http` (modify — add resource-requirements/legs examples; real path confirmed during `/docs-audit`, no `apps/bff/http/booking/` directory exists)
 
 **Acceptance criteria — product:**
 - [ ] Admin can set a flat resource requirement (single type + selection mode), a bundle (2+ types), or switch to legs — each replaces the others.
-- [ ] Admin cannot save a bundle referencing a resource type with zero active resources.
+- [ ] Admin cannot save a single resource requirement referencing a type with zero active resources (UC-050 A1).
+- [ ] Admin cannot save a bundle referencing a resource type with zero active resources (UC-051).
 - [ ] Admin cannot save fewer than 2 legs via the legs endpoint.
 - [ ] Admin can set/override the service's buffer minutes; the field is disabled/rejected once the service has legs.
 - [ ] Admin can create a service as `APPOINTMENT` (default, unchanged from today) or `SESSION`; cannot change `bookingModel` once the service has any booking.
@@ -106,7 +107,8 @@ Extend the existing `Service` aggregate (`apps/backend/src/contexts/booking/doma
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] `Service` rejects a bundle referencing a resource type with no active resources
+  - [ ] `Service` rejects a single resource requirement referencing a type with no active resources (UC-050 A1)
+  - [ ] `Service` rejects a bundle referencing a resource type with no active resources (UC-051)
   - [ ] `Service` clears `legs` when `resourceRequirements` is set and vice versa
   - [ ] `UpdateServiceLegsUseCase` rejects fewer than 2 legs
   - [ ] `UpdateServiceUseCase` rejects a `bufferAfterMinutes` update when the service has `legs`
@@ -128,7 +130,7 @@ Extend the existing `Service` aggregate (`apps/backend/src/contexts/booking/doma
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** M
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § Booking Context (`Service` policy fields, `durationPolicy`/`pricingPolicy`), `docs/13-DATABASE_SCHEMA.md` § `booking.services` (modified — policy columns), `service_booking_intake_schema`/`booking_attendees`, `docs/14-API_CONTRACTS.md` § Service Extensions — M21 Cluster 2, `docs/04-USE_CASES.md` UC-054, 055, `docs/21-TENANTS_SETTINGS_SCHEMA.md` (booking policy defaults this story's `null` fields inherit from)
+**Docs to load:** `docs/02-DOMAIN_MODEL.md` § Booking Context (`Service` policy fields, `durationPolicy`/`pricingPolicy`), `docs/13-DATABASE_SCHEMA.md` § `booking.services` (modified — policy columns), `service_booking_intake_schema`/`booking_attendees`, `docs/14-API_CONTRACTS.md` § Service Extensions — M22 Cluster 2, `docs/04-USE_CASES.md` UC-054, 055, `docs/21-TENANTS_SETTINGS_SCHEMA.md` (booking policy defaults this story's `null` fields inherit from)
 **Dependencies:** M21-S01 (`Resource` aggregate — not directly referenced by this story's fields, but the `Service` aggregate this story extends is the same one M22-S01 also extends, so both stories require M21 to have landed first)
 **Pattern:** plain composition — extends the existing `Service` aggregate and `update-service.use-case.ts`; new `service_booking_intake_schema` is append-only/versioned, matching the platform's existing versioned-config precedent (e.g. `HotsiteConfig` history), no new named pattern.
 
@@ -198,7 +200,7 @@ Extend `Service` with the booking-policy fields (`defaultApprovalMode`, `manualH
 
 **Agent:** `backend-ts`
 **Complexity:** L
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § `IBookingAvailabilityPort` (Changed by M21 Cluster 2), UC-058/059/060 algorithm notes, `docs/13-DATABASE_SCHEMA.md` § `booking.booking_line_resource_assignments` and `booking.resource_occupancy` (full GIST exclusion DDL + 5-phase migration ordering), `docs/04-USE_CASES.md` UC-058, 059, 060
+**Docs to load:** `docs/02-DOMAIN_MODEL.md` § `IBookingAvailabilityPort` (Changed by M22 Cluster 2), UC-058/059/060 algorithm notes, `docs/13-DATABASE_SCHEMA.md` § `booking.booking_line_resource_assignments` and `booking.resource_occupancy` (full GIST exclusion DDL + 5-phase migration ordering), `docs/04-USE_CASES.md` UC-058, 059, 060
 **Dependencies:** M22-S01 (needs `service_resource_requirements`/`service_legs` to exist — this story's backfill/dual-write logic reads them; also needs the `Service` aggregate's new fields to know which resources a booking's service requires)
 **Pattern:** Port + Adapter, extending the existing `IBookingAvailabilityPort`/`TypeOrmBookingAvailabilityAdapter` pair — no new named pattern, but this is the single largest schema change in the milestone (a shared GIST exclusion constraint plus a 5-phase expand/backfill/dual-write/validate/contract migration, per `docs/13-DATABASE_SCHEMA.md`).
 
@@ -219,7 +221,7 @@ Create `booking.booking_line_resource_assignments` (the immutable audit record f
 2. **`AvailabilityService`** (`domain/services/availability.service.ts`, extend): branch on whether the queried service has non-default `resourceRequirements`/`legs`; if so, compute per-resource occupancy via the new port method and apply UC-058's intersection/union algorithm and UC-059's `max(bufferAfterMinutes, turnoverMinutes)` / per-leg-transition-gap arithmetic; otherwise, unchanged behavior (today's whole-tenant path, now backed by the `LOCATION`-resource-scoped occupancy instead of raw `bookings`, but producing byte-identical results for the degenerate case).
 3. **Booking creation/approval path** (`create-booking.use-case.ts`/`approve-booking.use-case.ts` or equivalent — grep for the exact current use-case names before citing): extend to resolve the service's resource requirement(s) into concrete `resourceId`(s) (using `IResourceRepository.findByTenant` + the selection-mode algorithm), insert `booking_line_resource_assignments` + `resource_occupancy` (`HOLD` for a manual-approval booking pending approval, `COMMITTED` for `AUTO_CONFIRM` or on approval) in the same transaction as the booking write. **Per `CLAUDE.md` §7's transaction invariant, this stays entirely inside `txManager.run()` as ordinary DB writes — no cross-service network I/O is introduced here.**
 
-**Backend HTTP surface:** none new — `GET /schedule/availability` (UC-011) and `GET /schedule/availability-summary` are unchanged in request/response shape; only their internal implementation changes, per `docs/14-API_CONTRACTS.md`'s explicit note.
+**Backend HTTP surface:** none new — `GET /schedule/availability` (UC-011) and `GET /schedule/availability/summary` are unchanged in request/response shape; only their internal implementation changes, per `docs/14-API_CONTRACTS.md`'s explicit note.
 
 **BFF endpoint spec:** none — no BFF-visible contract change.
 
@@ -234,7 +236,7 @@ Create `booking.booking_line_resource_assignments` (the immutable audit record f
 - `apps/backend/src/contexts/booking/infrastructure/entities/resource-occupancy.entity.ts` (new)
 - `apps/backend/src/contexts/booking/infrastructure/entities/booking-line.entity.ts` (modify — `UNIQUE(tenant_id, line_id)`)
 - `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-resource-occupancy.repository.ts` (+ `.spec.ts`) (new)
-- `apps/backend/src/contexts/booking/application/use-cases/*booking*.use-case.ts` (modify — whichever create/approve booking use cases exist; verify exact filenames at implementation time)
+- `apps/backend/src/contexts/booking/application/use-cases/request-booking.use-case.ts`, `request-authenticated-booking.use-case.ts`, `submit-guest-booking-info.use-case.ts`, `approve-booking.use-case.ts` (modify — real filenames confirmed during `/docs-audit`; no `create-booking.use-case.ts` exists)
 - `apps/backend/src/contexts/booking/infrastructure/migrations/<timestamp>-01-CreateResourceOccupancy.ts` (new — expand phase)
 - `apps/backend/src/contexts/booking/infrastructure/migrations/<timestamp>-02-BackfillResourceOccupancy.ts` (new — backfill phase)
 - `apps/backend/src/contexts/booking/infrastructure/migrations/<timestamp>-03-DropTenantWideExclusion.ts` (new — contract phase; guarded, per the description above, by a manual re-verification step documented in the migration's own comment)
@@ -266,13 +268,13 @@ Create `booking.booking_line_resource_assignments` (the immutable audit record f
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § Service Extensions — M21 Cluster 2
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § Service Extensions — M22 Cluster 2
 **Dependencies:** M22-S01 (resource-requirements/legs/buffer endpoints), M22-S02 (intake-schema/booking-policy endpoints)
 **Pattern:** plain composition — extends the existing, shipped Servicos edit page (`ServiceEditPage.tsx`/`ServiceEditPanels.tsx`); no new pattern.
-**Prototype references:** `plan/journey/staff/servicos.md` (M21 Cluster 2 extension section), `plan/journey/staff/prototypes/servicos/04-service-resource-config.html`, `05-service-booking-policies.html`, `05b-service-booking-policies-erro.html`, `dev-notes.md`'s own ❓ GAP section (flags UC-054/intake-schema as having no dedicated prototype screen)
+**Prototype references:** `plan/journey/staff/servicos.md` (M22 Cluster 2 extension section), `plan/journey/staff/prototypes/servicos/04-service-resource-config.html`, `05-service-booking-policies.html`, `05b-service-booking-policies-erro.html`, `dev-notes.md`'s own ❓ GAP section (flags UC-054/intake-schema as having no dedicated prototype screen)
 
 **Description:**
-Extend the existing Servicos edit flow — `apps/web/features/booking/components/dashboard/services/ServiceEditPage.tsx` and its section components in `ServiceEditPanels.tsx` (which already exports discrete section components like `ServiceEditStatusSection`, not one monolithic panel) — with new sections for resource requirements/bundles/legs/buffer (from `04-service-resource-config.html`) and booking policy (from `05-service-booking-policies.html`/`05b-...-erro.html`). Data fetching in this feature is server-rendered-props-based, not client React Query hooks (`ServiceListPage`/`ServiceEditPage` receive services as props from their `page.tsx`, fetched via `apps/web/features/booking/api/services.ts`'s plain async functions) — follow that existing convention, don't introduce a new client-fetching pattern for this one feature.
+Extend the existing Servicos edit flow — `apps/web/features/booking/components/dashboard/services/ServiceEditPage.tsx` and its section components in `ServiceEditPanels.tsx` (which already exports discrete section components like `ServiceEditStatusSection`, not one monolithic panel) — with new sections for resource requirements/bundles/legs/buffer (from `04-service-resource-config.html`) and booking policy (from `05-service-booking-policies.html`/`05b-...-erro.html`). Data fetching in this feature is server-rendered-props-based, not client React Query hooks (`ServiceListPage`/`ServiceEditPage` receive services as props from their `page.tsx`, fetched via `apps/web/features/booking/api/services.server.ts`'s plain async functions — `fetchStaffServices`/`fetchStaffService`, `'server-only'`, using `bffServerFetch`; corrected during `/docs-audit`, `services.ts` is the sibling client-only `bffClient`-based file used by this feature's React Query mutation hooks) — follow that existing convention, don't introduce a new client-fetching pattern for this one feature.
 
 The booking-intake schema (UC-054) has no discovery-stage prototype (flagged in `dev-notes.md`) — design its editor from the resource-config panel's own question-list-builder interaction shape (`04-service-resource-config.html`'s pool-picker pattern generalizes reasonably to an ordered question list), not from scratch, and confirm the exact layout with the user/story-discovery before building it since it's genuinely new UI, not a straight prototype-to-code port like the other two panels.
 
@@ -323,19 +325,19 @@ Add `GET /schedule/day-grid?date=` (MANAGER only): for every active `Resource` (
 **Backend use case steps:**
 1. **`GetScheduleDayGridUseCase`** (UC-057): `findActiveResources(tenantId)` (M21-S01's `IResourceRepository`), then for each, query assigned bookings for the date via a new repository method on `IBookingLineResourceAssignmentRepository` (or extend the existing booking repository — verify the least-duplicative option at implementation time), assemble the grid response.
 
-**Backend HTTP surface:** new controller action `GET /schedule/day-grid` — `MANAGER`-only (`@Roles('MANAGER')`), matching UC-057's explicit manager-only restriction (same tier as Resource Management, distinct from the `STAFF|MANAGER` Service management surface). Register in the existing schedule controller (grep `apps/backend/src/contexts/booking/infrastructure/controllers/` for the current schedule-availability controller shape and add alongside it, or create a new `schedule-day-grid.controller.ts` matching that file's own one-action-per-file convention — verify the real convention at implementation time before choosing).
+**Backend HTTP surface:** new controller action `GET /schedule/day-grid` — `MANAGER`-only (`@Roles('MANAGER')`), matching UC-057's explicit manager-only restriction (same tier as Resource Management, distinct from the `STAFF|MANAGER` Service management surface). Convention confirmed during `/docs-audit`: `schedule-availability.controller.ts` and `schedule-availability-summary.controller.ts` are separate one-action-per-file controllers with no generic aggregator — create a new `schedule-day-grid.controller.ts` alongside them, don't extend either.
 
-**BFF endpoint spec:** new action on `apps/bff/src/features/booking/schedule.controller.ts` (or a new `schedule-day-grid.controller.ts` mirroring the BFF's existing `schedule-availability.controller.ts`/`schedule-availability-summary.controller.ts` one-action-per-file split — match whichever convention the backend side settles on), `MANAGER`-only guard, forwarding via `BackendHttpService`.
+**BFF endpoint spec:** new `schedule-day-grid.controller.ts` mirroring the BFF's existing `schedule-availability.controller.ts`/`schedule-availability-summary.controller.ts` one-action-per-file split — resolved during `/docs-audit`: `apps/bff/src/features/booking/schedule.controller.ts` is not a generic schedule controller (it's specifically `@Controller('schedule/closures')`), so extending it is not an option; register the new controller in `schedule.module.ts`. `MANAGER`-only guard, forwarding via `BackendHttpService`.
 
 **New migration / i18n keys / env vars / feature flags:** none — read-only, no schema change.
 
 **Files to create/modify:**
 - `apps/backend/src/contexts/booking/application/use-cases/get-schedule-day-grid.use-case.ts` (+ `.spec.ts`) (new)
 - `apps/backend/src/contexts/booking/application/dtos/get-schedule-day-grid.dto.ts` (new)
-- `apps/backend/src/contexts/booking/infrastructure/controllers/schedule-day-grid.controller.ts` (+ `.spec.ts`, `.integration.spec.ts`) (new — or extend an existing schedule controller; verify convention at implementation time)
-- `apps/bff/src/features/booking/schedule-day-grid.controller.ts` (+ `.spec.ts`, `.component.spec.ts`) (new — or extend `schedule.controller.ts`; verify convention at implementation time)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/schedule-day-grid.controller.ts` (+ `.spec.ts`, `.integration.spec.ts`) (new — matches the confirmed one-action-per-file convention, no generic schedule aggregator controller exists on the backend)
+- `apps/bff/src/features/booking/schedule-day-grid.controller.ts` (+ `.spec.ts`, `.component.spec.ts`) (new — registered in `schedule.module.ts`; `schedule.controller.ts` is `@Controller('schedule/closures')` specifically and is not extended)
 - `apps/bff/src/features/booking/schedule-day-grid.schemas.ts` (new)
-- `apps/bff/http/booking/schedule-day-grid.http` (new)
+- `apps/bff/http/schedule/schedule-day-grid.http` (new — real BFF `.http` convention confirmed during `/docs-audit`, no `apps/bff/http/booking/` directory exists)
 - `apps/backend/http/booking/schedule-day-grid.http` (new)
 
 **Acceptance criteria — product:**
@@ -362,8 +364,8 @@ Add `GET /schedule/day-grid?date=` (MANAGER only): for every active `Resource` (
 **Complexity:** M
 **Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/14-API_CONTRACTS.md` § `GET /schedule/day-grid`, `docs/08-TESTING_STRATEGY.md`
 **Dependencies:** M22-S05 (day-grid BFF endpoint)
-**Pattern:** plain composition — "Horários" is role-adaptive per `plan/journey/staff/horarios.md`'s own note (a STAFF viewer keeps the tenant-wide timeline unchanged — M21-S05's `ResourceFilterMenu`/`ResourceSelectField` resource-scoping controls are MANAGER-only and were never shown to STAFF; a MANAGER viewer gets this grid instead of M21-S05's resource-scoped timeline, same nav entry); no new pattern.
-**Prototype references:** `plan/journey/staff/horarios.md` (M21 Cluster 2 addition section), `plan/journey/staff/prototypes/horarios/08-visao-geral-manager.html`, `dev-notes.md`
+**Pattern:** plain composition — "Horários" is role-adaptive per `plan/journey/staff/horarios.md`'s own note (a STAFF viewer keeps the tenant-wide timeline unchanged — M21-S05's `ResourceFilterMenu`/`ResourceSelectField` resource-scoping controls are MANAGER-only and were never shown to STAFF; a MANAGER viewer gets this grid instead of M21-S05's resource-scoped timeline, same nav entry); no new pattern. (Precision note from `/docs-audit`: `ResourceFilterMenu` is imported directly into `SchedulePage.tsx`; `ResourceSelectField` lives in the sibling `ClosureFormSheet.tsx`/`OpeningFormSheet.tsx`, which `SchedulePage.tsx` composes — both are still part of the same page tree M21-S05 extended.)
+**Prototype references:** `plan/journey/staff/horarios.md` (M22 Cluster 2 addition section), `plan/journey/staff/prototypes/horarios/08-visao-geral-manager.html`, `dev-notes.md`
 
 **Description:**
 Add the manager-only day-grid view to the existing "Horários" page (`apps/web/features/booking/components/dashboard/schedule/SchedulePage.tsx`, extended by M21-S05 with `ResourceFilterMenu`/`ResourceSelectField`). A `MANAGER`-role viewer sees the combined grid (this story) instead of M21-S05's resource-scoped timeline; a `STAFF`-role viewer is unaffected. Per `plan/journey/staff/horarios.md`'s own open item, the implementing story decides whether the grid and the M21-S05 resource-scoped timeline share one route with a role-based internal toggle or are fully separate routes — resolve this with story-discovery, don't assume either silently.

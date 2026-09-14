@@ -3,7 +3,7 @@
 **Actor(s):** STAFF | MANAGER  
 **Goal:** View upcoming class sessions, manage a session's roster (capacity override, guest approval, close-out with attendance and optional manual charge record)  
 **UCs covered:** UC-082 (list), UC-083 (capacity override), UC-091 (waitlist promotion, staff-triggered entry point), UC-098 (guest approval), UC-101 (close-out), UC-107 (manual payment record at close-out)  
-**Status:** ❓ Gap — M21, Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions). No story assigned yet.
+**Status:** ❓ Gap — M24, Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions). No story assigned yet.
 
 > Promoted from `docs/discovery/multivertical-booking/multivertical-booking_USECASES.md` (CAND-13b, 14, 34, 37) via `/discovery-to-milestone`. Mirrors `staff/agenda.md`'s own shape for private appointments — a list first, then a detail/roster page per item. `manager-roster-dia.html` is the single canonical roster screen (superseding an earlier, independently-built `staff-02-session-roster.html` — see `docs/discovery/multivertical-booking/prototype/dev-notes.md` item 41 for the reconciliation rationale), despite its discovery-era "manager-" filename prefix; the actual actor is STAFF|MANAGER shared, so it lives here per this repo's staff-vs-manager folder convention (`plan/journey/README.md` § Why MANAGER, not ADMIN).
 
@@ -60,9 +60,9 @@ Folder: `staff/prototypes/turmas/` — relocated from `docs/discovery/multiverti
 
 **Superseded, kept for historical reference only (not relocated):** `staff-02-session-roster.html` — the original STAFF-only roster screen, merged into `02-roster-dia.html` as the single canonical STAFF|MANAGER-shared roster (see `docs/discovery/multivertical-booking/prototype/dev-notes.md` item 41).
 
-**Not relocated, no direct use case:** `manager-dashboard.html` and `manager-agenda-dia.html` — discovery-stage "daily operation" screens with no corresponding CAND in the promoted use-case catalogue. `manager-agenda-dia.html` in particular overlaps with UC-057's already-promoted combined day grid (`staff/prototypes/horarios/08-visao-geral-manager.html`, M21 Cluster 2). Left in the discovery folder as illustrative-only; not part of this milestone's scope.
+**Not relocated, no direct use case:** `manager-dashboard.html` and `manager-agenda-dia.html` — discovery-stage "daily operation" screens with no corresponding CAND in the promoted use-case catalogue. `manager-agenda-dia.html` in particular overlaps with UC-057's already-promoted combined day grid (`staff/prototypes/horarios/08-visao-geral-manager.html`, M22 Cluster 2). Left in the discovery folder as illustrative-only; not part of this milestone's scope.
 
 ## Open questions / gaps
 
-- [ ] No story exists yet — needs `/story-discovery` once the M21 milestone file is drafted.
+- [ ] No story exists yet — needs `/story-discovery` once the M24 milestone file is drafted.
 - [ ] Whether `02-roster-dia.html`'s live check-in toggle and "+ Drop-in" action correspond to a use case beyond UC-091/098, or are UI sugar over existing capacity-check flows, is worth confirming during `/story-discovery`.

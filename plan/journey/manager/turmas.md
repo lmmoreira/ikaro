@@ -3,7 +3,7 @@
 **Actor(s):** STAFF | MANAGER (Service/class configuration matches today's Service management, not manager-exclusive — see `docs/discovery/multivertical-booking/prototype/dev-notes.md` item 1)  
 **Goal:** Configure recurring class templates, manage customer class-access contracts, and view/manage enrollments for a class type  
 **UCs covered:** UC-079, UC-080, UC-096 (templates) · UC-099 (class-access contracts) · UC-103, UC-104 (enrollments)  
-**Status:** ❓ Gap — M21, Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions). No story assigned yet.
+**Status:** ❓ Gap — M24, Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions). No story assigned yet.
 
 > Promoted from `docs/discovery/multivertical-booking/multivertical-booking_USECASES.md` (CAND-11, 12, 32, 35, 39, 40) via `/discovery-to-milestone`. See `docs/02-DOMAIN_MODEL.md` § `ClassScheduleTemplate`/`ClassAccessContract`/`RecurringEnrollment`. Complements `staff/turmas.md`, which covers the daily operational side (roster, close-out, capacity override, guest approval) rather than configuration.
 
@@ -72,6 +72,6 @@ Folder: `manager/prototypes/turmas/` — relocated from `docs/discovery/multiver
 
 ## Open questions / gaps
 
-- [ ] No story exists yet — needs `/story-discovery` once the M21 milestone file is drafted.
+- [ ] No story exists yet — needs `/story-discovery` once the M24 milestone file is drafted.
 - [ ] `01-turmas-list.html`'s per-row "Editar"/"Staff"/"Ver sessões" actions and `07-nova-matricula.html`'s "Cadastrar novo cliente" link have no dedicated screens yet — scope for the implementing story to design or explicitly defer.
 - [ ] Whether the 3-step create wizard (`02`→`03`→`04`) is one multi-step route or three separate pages is a routing decision for the implementing story.

@@ -459,9 +459,9 @@ Generic bookable unit. Every existing tenant receives one active `LOCATION` reso
 
 ---
 
-### `booking.services` — modified (M21 Cluster 2)
+### `booking.services` — modified (M22 Cluster 2)
 
-> Introduced by M21 — Multi-Vertical Scheduling, Cluster 2 (Service extensions + availability/exclusivity engine). See `docs/02-DOMAIN_MODEL.md` § Booking Context (`Service` aggregate) for the domain rationale.
+> Introduced by M22 — Multi-Vertical Scheduling, Cluster 2 (Service extensions + availability/exclusivity engine). See `docs/02-DOMAIN_MODEL.md` § Booking Context (`Service` aggregate) for the domain rationale.
 
 | New column | Type | Constraints |
 |--------|------|-------------|
@@ -580,7 +580,7 @@ A versioned, service-owned definition of booking questions, consent text/version
 | is_minor | BOOLEAN | NOT NULL DEFAULT false — the booker/responsible customer is distinct from attendees, enabling a guardian to book for a minor without family-account management |
 | **INDEX** | (tenant_id, booking_id) | |
 
-**Rules for `bookings`, added M21 Cluster 2:**
+**Rules for `bookings`, added M22 Cluster 2:**
 - `+ intake_schema_version INT NULLABLE`, `+ intake_answers JSONB NULLABLE` — both null or both set together (`CHECK (intake_schema_version IS NULL) = (intake_answers IS NULL)`); immutable snapshot pair.
 - `+ participant_count INT NULLABLE CHECK > 0 when set`, `+ consent_accepted_at TIMESTAMPTZ NULLABLE`, `+ consent_version INT NULLABLE`.
 
@@ -630,9 +630,9 @@ A versioned, service-owned definition of booking questions, consent text/version
 - Every manual-approval appointment inserts `lock_state='HOLD'` with its snapshotted expiry (`Service.manualHoldMinutes`); approval atomically converts it to `COMMITTED`, while expiry cancels and releases it. An `AUTO_CONFIRM` appointment inserts `COMMITTED` directly.
 - Every template create/edit/deactivate, appointment approval, and session-resource override acquires transaction-scoped advisory locks for its resources in canonical `resource_id` order — this serializes the read-check/write boundary for a not-yet-materialized future pattern (a `ClassScheduleTemplate` or `RecurringBookingSchedule` recurrence rule, Clusters 3–4), while the exclusion constraint above protects already-materialized occurrences. Not exercised in Cluster 2 alone (no recurring-pattern aggregate exists yet), but the mechanism ships now since it's part of the same shared design.
 
-**`booking.booking_lines` — modified (M21 Cluster 2):** `+ UNIQUE(tenant_id, line_id)` — today only `PRIMARY KEY (line_id)` exists; required so `resource_occupancy`/`booking_line_resource_assignments`' composite FKs to it are expressible.
+**`booking.booking_lines` — modified (M22 Cluster 2):** `+ UNIQUE(tenant_id, line_id)` — today only `PRIMARY KEY (line_id)` exists; required so `resource_occupancy`/`booking_line_resource_assignments`' composite FKs to it are expressible.
 
-**Migration ordering (expand/contract), M21 Cluster 2:**
+**Migration ordering (expand/contract), M22 Cluster 2:**
 1. **Expand:** create every table above, `UNIQUE(tenant_id, line_id)` on `booking_lines`, and every new `services` column, all with default values that leave every existing service as the flat/`NONE`/`LOCATION` degenerate case. Do not drop the current tenant-wide `EX_booking_bookings_approved_slot` exclusion yet.
 2. **Backfill:** insert the default `{ resource_type: 'LOCATION', selection_mode: 'NONE' }` requirement row for every existing APPOINTMENT service, referencing the Cluster 1 backfilled `LOCATION` resource.
 3. **Dual-read/write:** new booking writes populate `resource_occupancy`; availability reads it, plus tenant/resource schedules. The old whole-tenant exclusion constraint stays live through this window.
@@ -641,7 +641,7 @@ A versioned, service-owned definition of booking questions, consent text/version
 
 ---
 
-### `booking.recurring_booking_schedules` / assignments / exceptions (M21 Cluster 3)
+### `booking.recurring_booking_schedules` / assignments / exceptions (M23 Cluster 3)
 
 > Private appointment/reservation recurrence — distinct from `recurring_enrollments` (session family, Cluster 4). See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`.
 
@@ -700,7 +700,7 @@ A versioned, service-owned definition of booking questions, consent text/version
 
 Generated ordinary bookings link through nullable `recurring_schedule_id` on `bookings`, unique `(tenant_id, recurring_schedule_id, occurrence_start)`.
 
-### `booking.availability_alerts` / `booking.availability_alert_notification_attempts` (M21 Cluster 3)
+### `booking.availability_alerts` / `booking.availability_alert_notification_attempts` (M23 Cluster 3)
 
 | Column | Type | Constraints |
 |---|---|---|
@@ -735,7 +735,7 @@ Generated ordinary bookings link through nullable `recurring_schedule_id` on `bo
 | outcome | VARCHAR(20) | NOT NULL |
 | **UNIQUE** | (tenant_id, alert_id, matching_window, channel) | One notification per alert per matching window per channel |
 
-### `booking.future_commitment_exceptions` (M21 Cluster 3)
+### `booking.future_commitment_exceptions` (M23 Cluster 3)
 
 | Column | Type | Constraints |
 |---|---|---|
@@ -756,7 +756,7 @@ Generated ordinary bookings link through nullable `recurring_schedule_id` on `bo
 | **INDEX** | (tenant_id, owner_staff_id, status) | |
 | **UNIQUE** | (tenant_id, source_type, source_id, affected_type, affected_id) WHERE status = 'OPEN' | A repeat trigger for the same unresolved impact updates the existing open row instead of duplicating it |
 
-### `booking.booking_quote_revisions` (M21 Cluster 3)
+### `booking.booking_quote_revisions` (M23 Cluster 3)
 
 Append-only, source-exclusive across the two booking families (appointment reschedule now; class attendee removal once Cluster 4 ships).
 
@@ -777,7 +777,7 @@ Append-only, source-exclusive across the two booking families (appointment resch
 | **UNIQUE** | (tenant_id, booking_id, revision_no) WHERE booking_id IS NOT NULL | Partial revision sequence per source |
 | **UNIQUE** | (tenant_id, class_session_booking_id, revision_no) WHERE class_session_booking_id IS NOT NULL | |
 
-### `booking.bookings` — modified (M21 Cluster 3)
+### `booking.bookings` — modified (M23 Cluster 3)
 
 | New column | Type | Constraints |
 |---|---|---|
@@ -785,13 +785,13 @@ Append-only, source-exclusive across the two booking families (appointment resch
 | status (existing column) | — | CHECK IN list gains `'NO_SHOW'` — new terminal state, `APPROVED → NO_SHOW` (UC-074); correction transitions handled via an append-only status-transition audit record, same pattern as `class_session_booking_transitions` (Cluster 4) |
 | **UNIQUE** | (tenant_id, recurring_schedule_id, occurrence_start) WHERE recurring_schedule_id IS NOT NULL | Generation idempotency key — requires a denormalized `occurrence_start` column alongside `scheduled_at` for this constraint's own purpose, or reuses `scheduled_at` directly if generation is always exactly-once per `(schedule, occurrence)` |
 
-**Migration ordering (expand/contract), M21 Cluster 3:** straightforward expand — every table above is wholly new, and `bookings`' two changes (`recurring_schedule_id`, `NO_SHOW` in the status CHECK) are additive with no existing-row backfill required (no booking is retroactively a no-show). No contract phase needed.
+**Migration ordering (expand/contract), M23 Cluster 3:** straightforward expand — every table above is wholly new, and `bookings`' two changes (`recurring_schedule_id`, `NO_SHOW` in the status CHECK) are additive with no existing-row backfill required (no booking is retroactively a no-show). No contract phase needed.
 
 ---
 
-### `booking.class_schedule_templates` / `booking.class_schedule_template_slots` (M21 Cluster 4)
+### `booking.class_schedule_templates` / `booking.class_schedule_template_slots` (M24 Cluster 4)
 
-> Introduced by M21 — Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions). See `docs/02-DOMAIN_MODEL.md` § `ClassScheduleTemplate`.
+> Introduced by M24 — Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions). See `docs/02-DOMAIN_MODEL.md` § `ClassScheduleTemplate`.
 
 `class_schedule_templates`:
 
@@ -823,7 +823,7 @@ Append-only, source-exclusive across the two booking families (appointment resch
 | resource_id | UUID | NOT NULL — FK (tenant_id, resource_id) → `resources` |
 | **UNIQUE** | (tenant_id, template_id, resource_type) | |
 
-### `booking.class_sessions` / `booking.class_session_resources` (M21 Cluster 4)
+### `booking.class_sessions` / `booking.class_session_resources` (M24 Cluster 4)
 
 `class_sessions`:
 
@@ -856,7 +856,7 @@ Append-only, source-exclusive across the two booking families (appointment resch
 | resource_id | UUID | NOT NULL — FK (tenant_id, resource_id) → `resources` |
 | **PK** | (tenant_id, class_session_id, resource_type) | |
 
-### `booking.class_session_bookings` / `booking.class_session_booking_attendees` (M21 Cluster 4)
+### `booking.class_session_bookings` / `booking.class_session_booking_attendees` (M24 Cluster 4)
 
 > See `docs/02-DOMAIN_MODEL.md` § `ClassSessionBooking` for the full property list — table below is the physical column mapping.
 
@@ -908,7 +908,7 @@ Append-only, source-exclusive across the two booking families (appointment resch
 
 **Invariant, enforced app-side in the same transaction:** active attendee count on `class_session_booking_attendees` must equal the parent `class_session_bookings.quantity` (UC-105).
 
-### `booking.recurring_enrollments` (M21 Cluster 4)
+### `booking.recurring_enrollments` (M24 Cluster 4)
 
 | Column | Type | Constraints |
 |---|---|---|
@@ -925,7 +925,7 @@ Append-only, source-exclusive across the two booking families (appointment resch
 | **INDEX** | (tenant_id, customer_id, status) | |
 | **INDEX** | (tenant_id, template_id, status) | |
 
-### `booking.class_access_contracts` (M21 Cluster 4)
+### `booking.class_access_contracts` (M24 Cluster 4)
 
 | Column | Type | Constraints |
 |---|---|---|
@@ -938,7 +938,7 @@ Append-only, source-exclusive across the two booking families (appointment resch
 | created_at / updated_at | TIMESTAMPTZ | DEFAULT now() |
 | **INDEX** | (tenant_id, customer_id, status) | Feeds the overlap check on create (UC-099 A2) — app-enforced, since array-overlap-across-rows isn't a simple DB constraint |
 
-### `booking.class_schedule_template_exceptions` (M21 Cluster 4)
+### `booking.class_schedule_template_exceptions` (M24 Cluster 4)
 
 | Column | Type | Constraints |
 |---|---|---|
@@ -951,7 +951,7 @@ Append-only, source-exclusive across the two booking families (appointment resch
 | created_at | TIMESTAMPTZ | DEFAULT now() |
 | **INDEX** | (tenant_id, template_id) | Consulted by the generation worker to skip excluded occurrences |
 
-### `booking.class_session_booking_transitions` / `booking.class_session_payments` (M21 Cluster 4)
+### `booking.class_session_booking_transitions` / `booking.class_session_payments` (M24 Cluster 4)
 
 `class_session_booking_transitions` — append-only audit source for approval, cancellation, offer, and close-out decisions:
 
@@ -985,7 +985,7 @@ Append-only, source-exclusive across the two booking families (appointment resch
 | correction_reason | TEXT | NULLABLE |
 | **INDEX** | (tenant_id, class_session_booking_id) | |
 
-### `booking.guest_class_booking_email_verifications` / `booking.guest_class_trial_redemptions` (M21 Cluster 4)
+### `booking.guest_class_booking_email_verifications` / `booking.guest_class_trial_redemptions` (M24 Cluster 4)
 
 | Column | Type | Constraints |
 |---|---|---|
@@ -1007,7 +1007,7 @@ Append-only, source-exclusive across the two booking families (appointment resch
 | redeemed_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
 | **UNIQUE** | (tenant_id, normalized_email) | One free trial per email per tenant, ever |
 
-**Migration ordering (expand/contract), M21 Cluster 4:** straightforward expand — every table above is wholly new, no existing table is modified except the additive FK targets already created in Cluster 2 (`resource_occupancy.class_session_id` becomes reachable once `class_sessions` exists) and Cluster 3 (`booking_quote_revisions.class_session_booking_id`). No contract phase, no backfill.
+**Migration ordering (expand/contract), M24 Cluster 4:** straightforward expand — every table above is wholly new, no existing table is modified except the additive FK targets already created in Cluster 2 (`resource_occupancy.class_session_id` becomes reachable once `class_sessions` exists) and Cluster 3 (`booking_quote_revisions.class_session_booking_id`). No contract phase, no backfill.
 
 **Retention (all tables in this section):** `class_session_bookings`/`class_session_booking_attendees`/`class_session_booking_transitions`/`class_session_payments`/`booking_quote_revisions` are the business/audit record — no deletion job, ever, matching this platform's own stated BI-layer direction (`CLAUDE.md` § Project Facts). If size ever becomes a real operational problem, the answer is time-based partitioning (by month, on `start_time`/`created_at`), not deletion — a decision for implementation time, not now.
 
@@ -1025,23 +1025,23 @@ One immutable row per `BookingLine` completed for an authenticated customer. App
 | id | UUID | PRIMARY KEY |
 | tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
 | customer_id | UUID | NOT NULL — no FK (cross-context ref to `customer.customers`) |
-| booking_id | UUID | NULLABLE (widened by M21 Cluster 4 — see below) — no FK (cross-context ref to `booking.bookings`) |
-| booking_line_id | UUID | NULLABLE (widened by M21 Cluster 4) — no FK (cross-context ref to `booking.booking_lines`) |
-| class_session_booking_id | UUID | NULLABLE, added by M21 Cluster 4 — no FK (cross-context ref to `booking.class_session_bookings`) |
+| booking_id | UUID | NULLABLE (widened by M24 Cluster 4 — see below) — no FK (cross-context ref to `booking.bookings`) |
+| booking_line_id | UUID | NULLABLE (widened by M24 Cluster 4) — no FK (cross-context ref to `booking.booking_lines`) |
+| class_session_booking_id | UUID | NULLABLE, added by M24 Cluster 4 — no FK (cross-context ref to `booking.class_session_bookings`) |
 | service_id | UUID | NOT NULL — no FK (cross-context ref to `booking.services`; denormalised for per-service queries) |
 | points | INT | NOT NULL, CHECK > 0 — = `booking_lines.points_value_at_booking` (appointment) or `class_session_bookings.points_value_at_booking` (class), at completion |
 | earned_at | TIMESTAMP WITH TIME ZONE | NOT NULL, DEFAULT now() |
 | expires_at | TIMESTAMP WITH TIME ZONE | NOT NULL — `earned_at + tenants.settings.loyalty.expiryDays` |
 | **UNIQUE** | (tenant_id, booking_line_id) | Idempotency — replaying `BookingCompleted` is a no-op. Postgres permits multiple NULLs under a plain UNIQUE, so this keeps enforcing uniqueness only among non-null values once the column is nullable. |
-| **UNIQUE** | (tenant_id, class_session_booking_id) WHERE class_session_booking_id IS NOT NULL | Added M21 Cluster 4 — idempotency for `ClassSessionBookingCompleted` |
-| **CHECK** | `CHK_loyalty_entries_source_exclusive`: `(booking_id IS NOT NULL AND booking_line_id IS NOT NULL AND class_session_booking_id IS NULL) OR (booking_id IS NULL AND booking_line_id IS NULL AND class_session_booking_id IS NOT NULL)` | Added M21 Cluster 4 — source-exclusive across the two booking families |
+| **UNIQUE** | (tenant_id, class_session_booking_id) WHERE class_session_booking_id IS NOT NULL | Added M24 Cluster 4 — idempotency for `ClassSessionBookingCompleted` |
+| **CHECK** | `CHK_loyalty_entries_source_exclusive`: `(booking_id IS NOT NULL AND booking_line_id IS NOT NULL AND class_session_booking_id IS NULL) OR (booking_id IS NULL AND booking_line_id IS NULL AND class_session_booking_id IS NOT NULL)` | Added M24 Cluster 4 — source-exclusive across the two booking families |
 | **INDEX** | (tenant_id, customer_id, expires_at) | Active balance query |
 | **INDEX** | (tenant_id, customer_id, service_id, expires_at) | Per-service breakdown |
 
 **Rules:**
 - INSERT only. No UPDATE, no DELETE.
 - `loyalty_balances.current_points` is the authoritative active balance — read from there, not from a SUM over entries.
-- **M21 Cluster 4 migration:** widen `booking_id` and `booking_line_id` to NULLABLE together (both, not just one — a migration touching only one would still block every class-session-completion insert), add `class_session_booking_id`, and add `CHK_loyalty_entries_source_exclusive` — only after the `ClassSessionBookingCompleted` event path is live. No cross-context DB FK is introduced.
+- **M24 Cluster 4 migration:** widen `booking_id` and `booking_line_id` to NULLABLE together (both, not just one — a migration touching only one would still block every class-session-completion insert), add `class_session_booking_id`, and add `CHK_loyalty_entries_source_exclusive` — only after the `ClassSessionBookingCompleted` event path is live. No cross-context DB FK is introduced.
 
 ---
 

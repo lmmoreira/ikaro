@@ -3,7 +3,7 @@
 **Actor(s):** GUEST  
 **Goal:** Anonymous visitor browses a tenant's class agenda, verifies email, and requests a trial/drop-in seat without creating an account  
 **UCs covered:** UC-085 (browse), UC-090 (waitlist boundary), UC-097 (email verification + request), UC-088 (verified guest books multiple named units in one action — a state within `02-class-access.html`'s existing verification flow, not a separate screen)  
-**Status:** ❓ Gap — M21, Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions). No story assigned yet.
+**Status:** ❓ Gap — M24, Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions). No story assigned yet.
 
 > Promoted from `docs/discovery/multivertical-booking/multivertical-booking_USECASES.md` (CAND-21, 24 A3, 33) via `/discovery-to-milestone`. Parallel to `guest/book-a-service.md` (appointment booking) — this is the SESSION-family equivalent for an anonymous visitor. See `docs/02-DOMAIN_MODEL.md` § `ClassSessionBooking`.
 
@@ -68,6 +68,6 @@ Folder: `guest/prototypes/book-a-class/` — relocated from `docs/discovery/mult
 
 ## Open questions / gaps
 
-- [ ] No story exists yet — needs `/story-discovery` once the M21 milestone file is drafted.
+- [ ] No story exists yet — needs `/story-discovery` once the M24 milestone file is drafted.
 - [ ] `02-class-access.html`'s "logado sem contrato" state is UC-087's actual UI home — confirm this single screen correctly branches all three auth states rather than needing a split.
 - [ ] `04-business-profile.html` has no corresponding CAND/UC — the implementing story should confirm whether it's in scope for this milestone or a separate, unrelated hotsite feature.

@@ -2,8 +2,8 @@
 
 **Actor(s):** CUSTOMER  
 **Goal:** Logged-in customer views their booking history, checks loyalty balance, and cancels eligible bookings — all scoped to the current tenant  
-**UCs covered:** UC-006, UC-007, UC-016 (balance summary + full breakdown), UC-023 (trigger), UC-005 A2 (authenticated customer path) — all ✅ Done · UC-070, UC-076 (❓ Gap — M21 Cluster 3, recurring private reservation management + availability alerts) · UC-089, UC-091, UC-094, UC-095, UC-102 (❓ Gap — M21 Cluster 4, class-session enrollment management)
-**Status:** Base flow implemented via `M13-S27`–`M13-S30` (all ✅ Done). M21 Cluster 3/4 extensions not yet built, see the ❓ GAP sections in `dev-notes.md`.
+**UCs covered:** UC-006, UC-007, UC-016 (balance summary + full breakdown), UC-023 (trigger), UC-005 A2 (authenticated customer path) — all ✅ Done · UC-070, UC-076 (❓ Gap — M23 Cluster 3, recurring private reservation management + availability alerts) · UC-089, UC-091, UC-094, UC-095, UC-102 (❓ Gap — M24 Cluster 4, class-session enrollment management)
+**Status:** Base flow implemented via `M13-S27`–`M13-S30` (all ✅ Done). M23 Cluster 3/4 extensions not yet built, see the ❓ GAP sections in `dev-notes.md`.
 
 ## Flow
 
@@ -113,25 +113,25 @@ Folder: `customer/prototypes/minha-conta/`
 | `04-fidelidade.html` | Minha Fidelidade — saldo + tabs ganhos/resgates | UC-016 | M13-S29 | ✅ Criado |
 | `04b-fidelidade-empty.html` | Fidelidade — estado vazio (0 pontos) | UC-016 | M13-S29 | ✅ Criado |
 | `05-trocar-empresa.html` | Trocar empresa — seleção de tenant (UC-023 trigger) | UC-023 | M13-S30 | ✅ Criado |
-| `06-reserva-recorrente.html` | Gerenciar reserva recorrente (skip/reagendar/pausar/encerrar) | UC-070 | — | ❓ Gap (M21 Cluster 3) |
-| `06b-reserva-recorrente-erro.html` | Erro — conflito de padrão futuro | UC-070 A1 | — | ❓ Gap (M21 Cluster 3) |
-| `06c-recorrente-em-analise.html` | Solicitação recorrente pendente de aprovação | UC-070 (MANUAL_APPROVAL branch) | — | ❓ Gap (M21 Cluster 3) |
-| `07-availability-alert.html` | Criar/gerenciar aviso de disponibilidade | UC-072, UC-076 | — | ❓ Gap (M21 Cluster 3) |
-| `08-turmas-lista.html` | Minhas Turmas — lista de matrículas | UC-089/091/094/095 | — | ❓ Gap (M21 Cluster 4) |
-| `09-turma-detail.html` | Detalhe da matrícula (turma fixa) | UC-094 | — | ❓ Gap (M21 Cluster 4) |
-| `09b-turma-detail-waitlist.html` | Detalhe — status `WAITLISTED`/`PROMOTION_PENDING` | UC-090/091 | — | ❓ Gap (M21 Cluster 4) |
-| `09c-turma-detail-serie.html` | Detalhe — variante série com fim | UC-094 | — | ❓ Gap (M21 Cluster 4) |
-| `09d-turma-detail-promovida.html` | Detalhe — banner pós-promoção (prazo da oferta) | UC-091 | — | ❓ Gap (M21 Cluster 4) |
-| `10-pular-sessao.html` | Pular sessão — formulário | UC-094 | — | ❓ Gap (M21 Cluster 4) |
-| `10b-pular-sessao-confirmado.html` | Pular sessão — sucesso | UC-094 | — | ❓ Gap (M21 Cluster 4) |
-| `10c-pular-sessao-erro.html` | Pular sessão — erro (janela/rede) | UC-094 A3 | — | ❓ Gap (M21 Cluster 4) |
-| `11-cancelar-matricula.html` | Cancelar matrícula — confirmação | UC-095 | — | ❓ Gap (M21 Cluster 4) |
-| `11b-cancelar-matricula-erro.html` | Cancelar matrícula — erro | UC-095 | — | ❓ Gap (M21 Cluster 4) |
-| `12-waitlist-offer.html` | Aceitar/recusar oferta de vaga | UC-091 | — | ❓ Gap (M21 Cluster 4) |
-| `12b-waitlist-confirmed.html` | Oferta aceita — confirmação | UC-091 | — | ❓ Gap (M21 Cluster 4) |
+| `06-reserva-recorrente.html` | Gerenciar reserva recorrente (skip/reagendar/pausar/encerrar) | UC-070 | — | ❓ Gap (M23 Cluster 3) |
+| `06b-reserva-recorrente-erro.html` | Erro — conflito de padrão futuro | UC-070 A1 | — | ❓ Gap (M23 Cluster 3) |
+| `06c-recorrente-em-analise.html` | Solicitação recorrente pendente de aprovação | UC-070 (MANUAL_APPROVAL branch) | — | ❓ Gap (M23 Cluster 3) |
+| `07-availability-alert.html` | Criar/gerenciar aviso de disponibilidade | UC-072, UC-076 | — | ❓ Gap (M23 Cluster 3) |
+| `08-turmas-lista.html` | Minhas Turmas — lista de matrículas | UC-089/091/094/095 | — | ❓ Gap (M24 Cluster 4) |
+| `09-turma-detail.html` | Detalhe da matrícula (turma fixa) | UC-094 | — | ❓ Gap (M24 Cluster 4) |
+| `09b-turma-detail-waitlist.html` | Detalhe — status `WAITLISTED`/`PROMOTION_PENDING` | UC-090/091 | — | ❓ Gap (M24 Cluster 4) |
+| `09c-turma-detail-serie.html` | Detalhe — variante série com fim | UC-094 | — | ❓ Gap (M24 Cluster 4) |
+| `09d-turma-detail-promovida.html` | Detalhe — banner pós-promoção (prazo da oferta) | UC-091 | — | ❓ Gap (M24 Cluster 4) |
+| `10-pular-sessao.html` | Pular sessão — formulário | UC-094 | — | ❓ Gap (M24 Cluster 4) |
+| `10b-pular-sessao-confirmado.html` | Pular sessão — sucesso | UC-094 | — | ❓ Gap (M24 Cluster 4) |
+| `10c-pular-sessao-erro.html` | Pular sessão — erro (janela/rede) | UC-094 A3 | — | ❓ Gap (M24 Cluster 4) |
+| `11-cancelar-matricula.html` | Cancelar matrícula — confirmação | UC-095 | — | ❓ Gap (M24 Cluster 4) |
+| `11b-cancelar-matricula-erro.html` | Cancelar matrícula — erro | UC-095 | — | ❓ Gap (M24 Cluster 4) |
+| `12-waitlist-offer.html` | Aceitar/recusar oferta de vaga | UC-091 | — | ❓ Gap (M24 Cluster 4) |
+| `12b-waitlist-confirmed.html` | Oferta aceita — confirmação | UC-091 | — | ❓ Gap (M24 Cluster 4) |
 | `dev-notes.md` | Implementation handoff | — | M13-S27–M13-S30 | ✅ Criado |
 
-## M21 — Multi-Vertical Scheduling, Cluster 4 extension (❓ Gap, not yet built)
+## M24 — Multi-Vertical Scheduling, Cluster 4 extension (❓ Gap, not yet built)
 
 > Promoted from `docs/discovery/multivertical-booking/minha-conta-turmas-journey.md` via `/discovery-to-milestone` — that file already reached implementation-grade rigor during discovery UX work, so this carries its content forward with canonical UC numbers substituted for `CAND-XX`. "Minha Conta" gains a third section — Turmas — alongside the existing Agendamentos and Fidelidade. Full implementation-handoff detail lives in `dev-notes.md`'s own ❓ GAP section — not duplicated here.
 
@@ -171,16 +171,16 @@ POST /v1/class-session-bookings/:id/waitlist-offer/accept|decline     -- UC-091'
 ```
 
 **Open questions / gaps:**
-- [ ] No story exists yet — needs `/story-discovery` once the M21 milestone file is drafted.
+- [ ] No story exists yet — needs `/story-discovery` once the M24 milestone file is drafted.
 - [x] **Waitlist promotion:** explicit `PROMOTION_PENDING` offer with accept/decline/expiry — resolved, see `docs/02-DOMAIN_MODEL.md` § `ClassSessionBooking`.
 - [x] **Skip-session minimum-notice window:** dedicated `classSkipWindowHours`, separate from `classCancellationWindowHours` — resolved, UC-094 A3, `docs/21-TENANTS_SETTINGS_SCHEMA.md`.
 - [ ] Reposição (UC-102) needs its own prototype pass beyond `10-pular-sessao.html`'s existing "reagendar" link — the discovery's own `customer-04d-reagendada.html` screen was discovery-stage only, not relocated at implementation-grade rigor; the implementing story should design this properly rather than treating that screen as a shortcut.
 - [x] **Promotion offer deadline:** returned by the backend as `offerExpiresAt`; the client does not derive offer state from a local 24-hour calculation.
 - [x] **The canonical persistence/domain names are `Service`, `ClassScheduleTemplate`, `ClassSessionBooking`, and `RecurringEnrollment`.** `ClassType`/`Enrollment` are BFF read-model labels only, never aggregates.
 
-## M21 — Multi-Vertical Scheduling, Cluster 3 extension (❓ Gap, not yet built)
+## M23 — Multi-Vertical Scheduling, Cluster 3 extension (❓ Gap, not yet built)
 
 > Promoted from `docs/discovery/multivertical-booking/`. "Minha Conta" gains two new sections: a standing recurring-reservation manager (UC-070) and an availability-alerts manager (UC-072/076). Full implementation-handoff detail lives in `dev-notes.md`'s own ❓ GAP section — not duplicated here.
 
-- [ ] No story exists yet — needs `/story-discovery` once the M21 milestone file is drafted.
+- [ ] No story exists yet — needs `/story-discovery` once the M23 milestone file is drafted.
 - [ ] Exact nav placement (a new top-level tab vs. folded into the existing Agendamentos list) is a UI decision for the implementing story — mirrors the same open question `plan/journey/staff/prototypes/multivertical-booking` extensions left for their own nav placement.

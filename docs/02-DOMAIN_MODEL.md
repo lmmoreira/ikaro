@@ -116,7 +116,7 @@ A single customer visit. A booking groups **one or more `BookingLine` entities**
 
 **Value Objects:**
 - `BookingId`, `BookingLineId` (UUIDs)
-- `BookingStatus` (PENDING, INFO_REQUESTED, APPROVED, REJECTED, COMPLETED, CANCELLED, NO_SHOW — the last added by M21 Cluster 3, not live until that milestone ships)
+- `BookingStatus` (PENDING, INFO_REQUESTED, APPROVED, REJECTED, COMPLETED, CANCELLED, NO_SHOW — the last added by M23 Cluster 3, not live until that milestone ships)
 - `BookingType` (GUEST, CUSTOMER)
 - `TimeSlot` (date, startTime, endTime)
 - `Money` (price, currency)
@@ -269,7 +269,7 @@ Service {
   createdAt:              DateTime
   updatedAt:              DateTime
 
-  -- Added M21 — Multi-Vertical Scheduling, Cluster 2 (Service extensions + availability engine).
+  -- Added M22 — Multi-Vertical Scheduling, Cluster 2 (Service extensions + availability engine).
   -- Today's car wash is the degenerate case: bookingModel='APPOINTMENT', resourceRequirements=[{type:LOCATION, selectionMode:NONE}] —
   -- no migration pain, existing services default straight into this (backfilled alongside the M21 Cluster 1 LOCATION resource).
   bookingModel:           'APPOINTMENT' | 'SESSION'   -- NOT NULL DEFAULT 'APPOINTMENT'; immutable once the service has bookings (UC-056 A1)
@@ -318,7 +318,7 @@ Service {
 }
 ```
 
-**New value objects (M21 Cluster 2):**
+**New value objects (M22 Cluster 2):**
 
 ```
 ResourceRequirement {
@@ -349,7 +349,7 @@ ClassResourceSlot {
 }
 ```
 
-**New invariants (M21 Cluster 2, enforced by the aggregate):**
+**New invariants (M22 Cluster 2, enforced by the aggregate):**
 - `bookingModel` is immutable once the service has any booking history (UC-056 A1).
 - `resourceRequirements`/`legs`/`classResourceSlots` are mutually exclusive: a flat APPOINTMENT service sets `resourceRequirements` (`legs = null`); a legged APPOINTMENT service sets `legs` (`resourceRequirements = []`, `bufferAfterMinutes = null`); a SESSION service sets `classResourceSlots` (`resourceRequirements = []`, `legs = null`).
 - A bundle (`resourceRequirements.length > 1`) requires every listed resource type to have at least one active `Resource` — UC-051's own precondition (generalizing UC-050 A1's single-type error mechanism to the bundle case), structurally the same check `Resource.create()` doesn't need to make but `Service`'s resource-requirement config does.
@@ -570,7 +570,7 @@ interface BookedSlot {
 
 The real adapter (`TypeOrmBookingAvailabilityAdapter`) is implemented in M07 when the Booking aggregate exists. A stub returning `[]` is used in M06 — availability shows all slots as open until bookings exist.
 
-**Changed by M21 — Multi-Vertical Scheduling, Cluster 2 (Service extensions + availability/exclusivity engine).** Once a `Service.resourceRequirements`/`legs` can reference something other than the implicit whole tenant, `IBookingAvailabilityPort`'s real adapter moves from querying `bookings` directly to querying `booking.resource_occupancy` — the per-resource, per-window projection availability needs, since one booking's `scheduledAt`/`totalDurationMins` can no longer answer "is resource X free" once a booking can span a bundle or leg chain with a different sub-window per resource. `BookedSlot` changes shape accordingly:
+**Changed by M22 — Multi-Vertical Scheduling, Cluster 2 (Service extensions + availability/exclusivity engine).** Once a `Service.resourceRequirements`/`legs` can reference something other than the implicit whole tenant, `IBookingAvailabilityPort`'s real adapter moves from querying `bookings` directly to querying `booking.resource_occupancy` — the per-resource, per-window projection availability needs, since one booking's `scheduledAt`/`totalDurationMins` can no longer answer "is resource X free" once a booking can span a bundle or leg chain with a different sub-window per resource. `BookedSlot` changes shape accordingly:
 
 ```typescript
 interface IBookingAvailabilityPort {
@@ -600,7 +600,7 @@ interface ResourceOccupiedSlot {
 
 #### **Aggregate: RecurringBookingSchedule** (Root Entity)
 
-> Introduced by M21 — Multi-Vertical Scheduling, Cluster 3 (Customer/guest appointment booking + extensions). Private-appointment recurrence, distinct from `RecurringEnrollment` (session family, Cluster 4).
+> Introduced by M23 — Multi-Vertical Scheduling, Cluster 3 (Customer/guest appointment booking + extensions). Private-appointment recurrence, distinct from `RecurringEnrollment` (session family, Cluster 4).
 
 Customer-only standing commitment: "every Tuesday 10:00–12:00, Sala Aurora." Blocks its future recurrence pattern beyond the materialization horizon and generates ordinary linked `Booking` rows through a rolling horizon (90-day service-configurable default).
 
@@ -647,7 +647,7 @@ RecurringBookingSchedule {
 
 #### **Aggregate: AvailabilityAlert** (Root Entity)
 
-> Introduced by M21 Cluster 3. An expiring intent only — creates no occupancy and never becomes a booking automatically. Authenticated-customer-only (waitlists/alerts are retention features, not anonymous lead capture).
+> Introduced by M23 Cluster 3. An expiring intent only — creates no occupancy and never becomes a booking automatically. Authenticated-customer-only (waitlists/alerts are retention features, not anonymous lead capture).
 
 **Entities within:**
 - `AvailabilityAlert` (root)
@@ -689,7 +689,7 @@ AvailabilityAlert {
 
 #### **Aggregate: FutureCommitmentException** (Root Entity)
 
-> Introduced by M21 Cluster 3. A manager-owned worklist entry — never changes the affected booking/session itself. Covers a change *nobody explicitly reviewed per-session*: a resource deactivation, an hours reduction, or a side effect of an otherwise-unrelated config edit. **Excludes** a template date-range/from-date cancellation the manager explicitly initiated (Cluster 4's session-cancellation flow) — that flow's own step is already the explicit, audited resolution.
+> Introduced by M23 Cluster 3. A manager-owned worklist entry — never changes the affected booking/session itself. Covers a change *nobody explicitly reviewed per-session*: a resource deactivation, an hours reduction, or a side effect of an otherwise-unrelated config edit. **Excludes** a template date-range/from-date cancellation the manager explicitly initiated (Cluster 4's session-cancellation flow) — that flow's own step is already the explicit, audited resolution.
 
 **Properties:**
 ```
@@ -723,7 +723,7 @@ FutureCommitmentException {
 
 #### **Aggregate: ClassScheduleTemplate** (Root Entity)
 
-> Introduced by M21 — Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions). Session-style recurring pattern — the SESSION-family counterpart to `RecurringBookingSchedule`. Depends on `Service.classResourceSlots` (Cluster 2 schema).
+> Introduced by M24 — Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions). Session-style recurring pattern — the SESSION-family counterpart to `RecurringBookingSchedule`. Depends on `Service.classResourceSlots` (Cluster 2 schema).
 
 **Properties:**
 ```
@@ -947,7 +947,7 @@ ClassScheduleTemplateException {
 
 ---
 
-**`Booking` — modified (M21 Cluster 3):**
+**`Booking` — modified (M23 Cluster 3):**
 - `+ recurringScheduleId: RecurringBookingScheduleId | null` — set when generated by an active `RecurringBookingSchedule`; unique `(tenantId, recurringScheduleId, occurrenceStart)`.
 - `+` terminal status `NO_SHOW` added to the state machine: `APPROVED → COMPLETED | CANCELLED | NO_SHOW` (UC-074). A manager may correct a mistaken no-show with an append-only audit transition; loyalty is awarded only if the corrected resulting state is `COMPLETED`. **This changes CLAUDE.md §5's booking state machine — see that file's own update alongside this promotion.**
 - Reschedule (UC-069) now supports bundles/legs atomically, recalculates the quote, and records an append-only `BookingQuoteRevision` (new child-adjacent table, `docs/13-DATABASE_SCHEMA.md`) linking to the prior arrangement — extends the existing `BookingRescheduled` event's scope rather than introducing a new one.
@@ -1273,7 +1273,7 @@ CANCELLED       -> (terminal)
 NO_SHOW         -> (terminal)
 ```
 
-> `NO_SHOW` is added by M21 — Multi-Vertical Scheduling, Cluster 3 (UC-074) — not live in the MVP until that milestone ships. See `docs/02-DOMAIN_MODEL.md` § Booking Context's own Cluster 3 modification note and `.copilot/context.md` §5 for the same state machine.
+> `NO_SHOW` is added by M23 — Multi-Vertical Scheduling, Cluster 3 (UC-074) — not live in the MVP until that milestone ships. See `docs/02-DOMAIN_MODEL.md` § Booking Context's own Cluster 3 modification note and `.copilot/context.md` §5 for the same state machine.
 
 ### **BookingType**
 Enum: `GUEST | CUSTOMER`

@@ -136,7 +136,7 @@ Notification Context subscribes:
 - Trigger workflow changes
 
 **Database:** `booking` schema
-- Tables: bookings, services, schedule_closures, schedule_openings, booking_audit_logs, resources (M21 Cluster 1); service_resource_requirements(_pool), service_legs, service_leg_resource_requirements(_pool), service_class_resource_pool, service_booking_intake_schema, booking_attendees, booking_line_resource_assignments, resource_occupancy (M21 Cluster 2); recurring_booking_schedules(_resource_assignments/_exceptions), availability_alerts(_notification_attempts), future_commitment_exceptions, booking_quote_revisions (M21 Cluster 3); class_schedule_templates(_slots/_exceptions), class_sessions(_resources), class_session_bookings(_attendees/_transitions), class_session_payments, recurring_enrollments, class_access_contracts, guest_class_booking_email_verifications, guest_class_trial_redemptions (M21 Cluster 4)
+- Tables: bookings, services, schedule_closures, schedule_openings, booking_audit_logs, resources (M21 Cluster 1); service_resource_requirements(_pool), service_legs, service_leg_resource_requirements(_pool), service_class_resource_pool, service_booking_intake_schema, booking_attendees, booking_line_resource_assignments, resource_occupancy (M22 Cluster 2); recurring_booking_schedules(_resource_assignments/_exceptions), availability_alerts(_notification_attempts), future_commitment_exceptions, booking_quote_revisions (M23 Cluster 3); class_schedule_templates(_slots/_exceptions), class_sessions(_resources), class_session_bookings(_attendees/_transitions), class_session_payments, recurring_enrollments, class_access_contracts, guest_class_booking_email_verifications, guest_class_trial_redemptions (M24 Cluster 4)
 - Every row has: `tenant_id` (required, indexed)
 - Queries: Always filtered by `WHERE tenant_id = ?`
 
@@ -150,18 +150,18 @@ Notification Context subscribes:
 - `BookingCancelled` → consumed by Notification
 - `BookingRescheduled` → consumed by Notification
 - Cron-emitted reminder events: `BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder` → all consumed by Notification
-- `RecurringBookingScheduleCreated`/`ApprovalRequested`/`Rejected`/`Paused`/`Ended` (M21 Cluster 3) → consumed by Notification
-- `AvailabilityAlertCreated`/`Updated`/`Cancelled`/`Expired`/`Matched` (M21 Cluster 3) → `Matched` consumed by Notification; rest have no consumers in MVP
-- `FutureCommitmentExceptionRaised`/`Resolved`/`Dismissed` (M21 Cluster 3) → `Raised`/`Resolved` consumed by Notification
-- `TenantSchedulingBootstrapped` (M21 Cluster 3) → no consumers in MVP
-- `BookingNoShow` (M21 Cluster 3) → consumed by Notification (customer email); explicitly **not** consumed by Loyalty (no points for a no-show)
-- `ClassSessionCancelled`, `ClassSessionBookingConfirmed`/`Waitlisted`/`Cancelled` (M21 Cluster 4) → consumed by Notification
-- `WaitlistPromoted` (M21 Cluster 4) → consumed by Notification
-- `ClassSessionBookingCompleted` (M21 Cluster 4) → consumed by **Loyalty** (inserts a `LoyaltyEntry` via `class_session_booking_id`) and Notification — the SESSION-family counterpart to `BookingCompleted`
-- `ClassSessionBookingNoShow` (M21 Cluster 4) → consumed by Notification; explicitly **not** consumed by Loyalty
-- `InPersonPaymentRecorded`/`Reversed` (M21 Cluster 4) → no consumers in MVP
+- `RecurringBookingScheduleCreated`/`ApprovalRequested`/`Rejected`/`Paused`/`Ended` (M23 Cluster 3) → consumed by Notification
+- `AvailabilityAlertCreated`/`Updated`/`Cancelled`/`Expired`/`Matched` (M23 Cluster 3) → `Matched` consumed by Notification; rest have no consumers in MVP
+- `FutureCommitmentExceptionRaised`/`Resolved`/`Dismissed` (M23 Cluster 3) → `Raised`/`Resolved` consumed by Notification
+- `TenantSchedulingBootstrapped` (M23 Cluster 3) → no consumers in MVP
+- `BookingNoShow` (M23 Cluster 3) → consumed by Notification (customer email); explicitly **not** consumed by Loyalty (no points for a no-show)
+- `ClassSessionCancelled`, `ClassSessionBookingConfirmed`/`Waitlisted`/`Cancelled` (M24 Cluster 4) → consumed by Notification
+- `WaitlistPromoted` (M24 Cluster 4) → consumed by Notification
+- `ClassSessionBookingCompleted` (M24 Cluster 4) → consumed by **Loyalty** (inserts a `LoyaltyEntry` via `class_session_booking_id`) and Notification — the SESSION-family counterpart to `BookingCompleted`
+- `ClassSessionBookingNoShow` (M24 Cluster 4) → consumed by Notification; explicitly **not** consumed by Loyalty
+- `InPersonPaymentRecorded`/`Reversed` (M24 Cluster 4) → no consumers in MVP
 
-> **Loyalty subscribes to `BookingCompleted` and, from M21 Cluster 4, `ClassSessionBookingCompleted`.** It does not consume any other Booking event.
+> **Loyalty subscribes to `BookingCompleted` and, from M24 Cluster 4, `ClassSessionBookingCompleted`.** It does not consume any other Booking event.
 
 **Consumed Events:**
 - `StaffDeactivated` (Staff Context) → UC-048, cascades to the wrapping `STAFF`-type `Resource` (M21 Cluster 1)
@@ -189,13 +189,13 @@ Notification Context subscribes:
 **Purpose:** Track points earned by customers for completed services, with per-tenant expiration, and allow admins to record point redemptions.
 
 **Owned Aggregates:**
-- `LoyaltyEntry` — one immutable row per booking line completion, **or, from M21 Cluster 4, per class-session-booking completion** (mutually exclusive source columns — `docs/13-DATABASE_SCHEMA.md`). Append-only. Never updated or deleted.
+- `LoyaltyEntry` — one immutable row per booking line completion, **or, from M24 Cluster 4, per class-session-booking completion** (mutually exclusive source columns — `docs/13-DATABASE_SCHEMA.md`). Append-only. Never updated or deleted.
 - `LoyaltyBalance` — running active point total per `(tenant_id, customer_id)`. O(1) reads. Updated atomically on earn, redeem, and expiry.
 - `LoyaltyRedemption` — append-only audit record of each admin-recorded redemption.
 
 **Responsibilities:**
 - Listen to `BookingCompleted` from Booking Context. When the booking has a `customerId`, insert a `LoyaltyEntry` and increment `LoyaltyBalance` in one transaction.
-- **M21 Cluster 4:** also listens to `ClassSessionBookingCompleted` — same insert-and-increment transaction, sourced from `class_session_booking_id` instead of `booking_line_id`. Not consumed for a guest attendee (no `customerId`) or a `NO_SHOW` outcome.
+- **M24 Cluster 4:** also listens to `ClassSessionBookingCompleted` — same insert-and-increment transaction, sourced from `class_session_booking_id` instead of `booking_line_id`. Not consumed for a guest attendee (no `customerId`) or a `NO_SHOW` outcome.
 - Allow admin to record a redemption via `POST /v1/loyalty/redeem` — insert `LoyaltyRedemption` and decrement `LoyaltyBalance` atomically.
 - Run a **daily expiry cron** at 02:00 UTC: compute points from `loyalty_entries` that expired that day and decrement `loyalty_balances.current_points` accordingly. Idempotent via `balance_expiry_log`.
 - Run a **weekly cron** (Mondays 06:00 tenant-local) to emit `PointsExpiringSoon` warnings for entries expiring within the next 7 days.

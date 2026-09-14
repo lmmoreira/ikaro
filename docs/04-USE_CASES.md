@@ -642,7 +642,7 @@ Returns:
 - **Alternative Flows:**
   - **A1: `STAFF` type, and that staff member is already wrapped by a `Resource`** → `409 Conflict` — one `Resource` per `Staff` row.
   - **A2: No working hours set and the tenant has no `businessHours` either** → `422 Unprocessable` — a resource must have some schedule.
-- **Postconditions:** `Resource` exists, available for a `Service`'s resource requirements to reference (M21 Cluster 2).
+- **Postconditions:** `Resource` exists, available for a `Service`'s resource requirements to reference (M22 Cluster 2).
 - **Events Triggered:** None (config-only, same as `ScheduleClosure`/`ScheduleOpening`).
 
 ---
@@ -778,9 +778,9 @@ Returns:
 
 ---
 
-## Service Extensions & Availability Engine Use Cases (M21 Cluster 2)
+## Service Extensions & Availability Engine Use Cases (M22 Cluster 2)
 
-> Introduced by M21 — Multi-Vertical Scheduling, Cluster 2 (Service extensions + availability/exclusivity engine). Depends on Cluster 1 (`Resource`). See `docs/02-DOMAIN_MODEL.md` § Booking Context (`Service` aggregate, `resource_occupancy`) and `docs/13-DATABASE_SCHEMA.md` for the full schema. UC-050–055 configure a `Service`; UC-056 chooses its booking model at creation; UC-057–060 are the availability/exclusivity engine both appointment and (eventually, Cluster 4) session bookings depend on.
+> Introduced by M22 — Multi-Vertical Scheduling, Cluster 2 (Service extensions + availability/exclusivity engine). Depends on Cluster 1 (`Resource`). See `docs/02-DOMAIN_MODEL.md` § Booking Context (`Service` aggregate, `resource_occupancy`) and `docs/13-DATABASE_SCHEMA.md` for the full schema. UC-050–055 configure a `Service`; UC-056 chooses its booking model at creation; UC-057–060 are the availability/exclusivity engine both appointment and (eventually, Cluster 4) session bookings depend on.
 
 ### **UC-050: STAFF | MANAGER Configures a Service's Resource Requirement**
 
@@ -973,9 +973,9 @@ Returns:
 
 ---
 
-## Customer/Guest Appointment Booking & Extensions Use Cases (M21 Cluster 3)
+## Customer/Guest Appointment Booking & Extensions Use Cases (M23 Cluster 3)
 
-> Introduced by M21 — Multi-Vertical Scheduling, Cluster 3 (Customer/guest appointment booking + extensions). Depends on Cluster 1 (`Resource`) and Cluster 2 (`Service` extensions, availability engine). See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`/`AvailabilityAlert`/`FutureCommitmentException` and `docs/13-DATABASE_SCHEMA.md`. Approval throughout: every CAND below uses the service's effective approval policy (UC-055) — `AUTO_CONFIRM` creates `APPROVED`, `MANUAL_APPROVAL` creates capacity-holding `PENDING` with the snapshotted hold duration.
+> Introduced by M23 — Multi-Vertical Scheduling, Cluster 3 (Customer/guest appointment booking + extensions). Depends on Cluster 1 (`Resource`) and Cluster 2 (`Service` extensions, availability engine). See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`/`AvailabilityAlert`/`FutureCommitmentException` and `docs/13-DATABASE_SCHEMA.md`. Approval throughout: every CAND below uses the service's effective approval policy (UC-055) — `AUTO_CONFIRM` creates `APPROVED`, `MANUAL_APPROVAL` creates capacity-holding `PENDING` with the snapshotted hold duration.
 
 ### **UC-061: Customer Books With a Specific Chosen Staff Member**
 
@@ -1290,9 +1290,9 @@ Returns:
 
 ---
 
-## Classes/Sessions Use Cases (M21 Cluster 4)
+## Classes/Sessions Use Cases (M24 Cluster 4)
 
-> Introduced by M21 — Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions), the final and largest cluster. Depends on Clusters 1–3. See `docs/02-DOMAIN_MODEL.md` § `ClassScheduleTemplate`/`ClassSession`/`ClassSessionBooking`/`RecurringEnrollment`/`ClassAccessContract` and `docs/13-DATABASE_SCHEMA.md`. This cluster also completes UC-056's SESSION branch (`Service.classResourceSlots` becomes actionable) and UC-058's forward-referenced class-template availability check, and delivers UC-075's Presets D/E/F.
+> Introduced by M24 — Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions), the final and largest cluster. Depends on Clusters 1–3. See `docs/02-DOMAIN_MODEL.md` § `ClassScheduleTemplate`/`ClassSession`/`ClassSessionBooking`/`RecurringEnrollment`/`ClassAccessContract` and `docs/13-DATABASE_SCHEMA.md`. This cluster also completes UC-056's SESSION branch (`Service.classResourceSlots` becomes actionable) and UC-058's forward-referenced class-template availability check, and delivers UC-075's Presets D/E/F.
 
 ### **UC-078: Staff/Manager Configures a Session Service's Guest Access Policy**
 

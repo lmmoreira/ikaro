@@ -2,7 +2,7 @@
 
 **Actor(s):** STAFF | MANAGER  
 **Goal:** View the calendar of approved bookings and manage schedule closures and openings  
-**UCs covered:** UC-010a, UC-010b, UC-010c, UC-010d, UC-010e, UC-010f (✅ Done) · UC-057 (❓ Gap — M21 Cluster 2, manager multi-resource day grid)  
+**UCs covered:** UC-010a, UC-010b, UC-010c, UC-010d, UC-010e, UC-010f (✅ Done) · UC-057 (❓ Gap — M22 Cluster 2, manager multi-resource day grid)  
 **Status:** Done — resource-scoped extension shipped in `M21-S05`; only the Cluster 2 multi-resource day grid remains a gap, see `dev-notes.md`
 
 ## Flow
@@ -134,9 +134,9 @@ flowchart TD
 - [x] This extension is **MANAGER-only** when `resourceId` is set (a deliberate, self-consistent restriction the discovery applies to the whole Resource Management surface — no existing precedent to derive it from); the existing tenant-wide flow (UC-010a–d) stays open to STAFF|MANAGER, unchanged.
 - [ ] Pre-existing navigation gap found during this promotion, not fixed here: `07-horarios-recurso.html`'s sidebar/bottom-nav has 3 links pointing at Cluster 2/4 screens not yet promoted (`manager-05-visao-geral.html`, `manager-02-service-resource-config.html`, `staff-04-turmas-proximas.html`) — resolves once those clusters land. Moot for the shipped design since it never navigates to that illustrative screen at all, but left unresolved for whenever that file is revisited.
 
-## M21 Cluster 2 addition — UC-057 (Manager multi-resource day grid, ❓ Gap)
+## M22 Cluster 2 addition — UC-057 (Manager multi-resource day grid, ❓ Gap)
 
 > "Horários" is role-adaptive: a STAFF viewer keeps the tenant-wide timeline above, unchanged (UC-010a–d — resource scoping stays MANAGER-only per `M21-S05`, the picker itself is never rendered for STAFF); a MANAGER viewer gets this combined day grid instead — no new nav item, same "Horários" entry. Prototype: `08-visao-geral-manager.html` (relocated from `manager-05-visao-geral.html`). BFF: `GET /v1/schedule/day-grid?date=` (`docs/14-API_CONTRACTS.md`), MANAGER only.
 
-- [ ] No story exists yet — needs `/story-discovery` once the M21 milestone file is drafted.
-- [ ] Whether Cluster 1's `07-horarios-recurso.html` and this grid share a route-level toggle or are fully separate pages is a UI/routing decision for the implementing story.
+- [x] Assigned to `M22-S06` — see `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md`.
+- [ ] Whether Cluster 1's `07-horarios-recurso.html` and this grid share a route-level toggle or are fully separate pages is a UI/routing decision for the implementing story (M22-S06).

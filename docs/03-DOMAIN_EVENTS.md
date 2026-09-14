@@ -276,7 +276,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 
 > Loyalty Context does NOT consume this event — loyalty is unaffected by rescheduling.
 
-> **Extended by M21 Cluster 3 (UC-069):** a customer-initiated reschedule (not just admin, UC-044) now goes through the same event — the trigger widens to include the customer's own "Reagendar" action, resource/bundle/leg re-validation is atomic before the original resource is released, and a `booking_quote_revisions` row is recorded when the reschedule changes the price (e.g. a variable-duration service). No new event type was introduced — this is a scope extension of the existing envelope, not a new candidate event.
+> **Extended by M23 Cluster 3 (UC-069):** a customer-initiated reschedule (not just admin, UC-044) now goes through the same event — the trigger widens to include the customer's own "Reagendar" action, resource/bundle/leg re-validation is atomic before the original resource is released, and a `booking_quote_revisions` row is recorded when the reschedule changes the price (e.g. a variable-duration service). No new event type was introduced — this is a scope extension of the existing envelope, not a new candidate event.
 
 ---
 
@@ -351,7 +351,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 
 ---
 
-> **M21 — Multi-Vertical Scheduling, Cluster 3 (Customer/guest appointment booking + extensions).** The events below are new Booking Context events for `RecurringBookingSchedule`, `AvailabilityAlert`, `FutureCommitmentException`, tenant-preset bootstrap, and appointment no-show.
+> **M23 — Multi-Vertical Scheduling, Cluster 3 (Customer/guest appointment booking + extensions).** The events below are new Booking Context events for `RecurringBookingSchedule`, `AvailabilityAlert`, `FutureCommitmentException`, tenant-preset bootstrap, and appointment no-show.
 
 #### **RecurringBookingScheduleCreated**
 - **Trigger:** UC-070 confirms a recurring pattern on an `AUTO_CONFIRM` service, or UC-071 approves a `PENDING_APPROVAL` request on a `MANUAL_APPROVAL` service.
@@ -444,7 +444,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 
 ---
 
-> **M21 — Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions).** `ClassSession` and `ClassSessionBooking` are full `AggregateRoot`s whose events are drained through the transactional outbox, matching the existing `Booking` pattern — delivery failure never rolls back the committed booking state.
+> **M24 — Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions).** `ClassSession` and `ClassSessionBooking` are full `AggregateRoot`s whose events are drained through the transactional outbox, matching the existing `Booking` pattern — delivery failure never rolls back the committed booking state.
 
 #### **ClassSessionCancelled**
 - **Trigger:** UC-084 (single session cancelled with existing bookings) or UC-096 (date-range/from-date template cancellation, once per affected session).
@@ -505,8 +505,8 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 ### **Loyalty Events** (Loyalty Context)
 
 #### **ServicePointsEarned**
-- **Trigger:** Loyalty Context inserted a `LoyaltyEntry` after consuming `BookingCompleted`. One event is published **per inserted entry** — a booking with 3 lines produces 3 `ServicePointsEarned` events. **Extended by M21 Cluster 4:** also fires after consuming `ClassSessionBookingCompleted` — exactly one event per class-session completion (no "lines" concept for that family; `loyalty_entries.class_session_booking_id` is set instead of `booking_id`/`booking_line_id`, per `CHK_loyalty_entries_source_exclusive`, `docs/13-DATABASE_SCHEMA.md`).
-- **State change:** new row in `loyalty_entries` + `loyalty_balances.current_points` incremented. Both writes are in one transaction. Idempotent against replay via `shared.inbox` (early-exit) + `UNIQUE(tenant_id, booking_line_id)` (appointment) or `UNIQUE(tenant_id, class_session_booking_id)` (class, M21 Cluster 4) as the hard guard on the entry insert.
+- **Trigger:** Loyalty Context inserted a `LoyaltyEntry` after consuming `BookingCompleted`. One event is published **per inserted entry** — a booking with 3 lines produces 3 `ServicePointsEarned` events. **Extended by M24 Cluster 4:** also fires after consuming `ClassSessionBookingCompleted` — exactly one event per class-session completion (no "lines" concept for that family; `loyalty_entries.class_session_booking_id` is set instead of `booking_id`/`booking_line_id`, per `CHK_loyalty_entries_source_exclusive`, `docs/13-DATABASE_SCHEMA.md`).
+- **State change:** new row in `loyalty_entries` + `loyalty_balances.current_points` incremented. Both writes are in one transaction. Idempotent against replay via `shared.inbox` (early-exit) + `UNIQUE(tenant_id, booking_line_id)` (appointment) or `UNIQUE(tenant_id, class_session_booking_id)` (class, M24 Cluster 4) as the hard guard on the entry insert.
 - **Data (booking-scoped — one event per booking, not per line):**
   ```
   {
