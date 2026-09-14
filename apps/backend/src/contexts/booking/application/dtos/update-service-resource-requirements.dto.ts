@@ -1,9 +1,7 @@
 import { z } from 'zod';
-import { ResourceRequirementSchema } from './resource-requirement.dto';
+import { UpdateServiceResourceRequirementsSchema } from '@ikaro/validation';
 
-export const UpdateServiceResourceRequirementsSchema = z.object({
-  resourceRequirements: z.array(ResourceRequirementSchema).min(1),
-});
+export { UpdateServiceResourceRequirementsSchema };
 
 export type UpdateServiceResourceRequirementsDto = z.infer<
   typeof UpdateServiceResourceRequirementsSchema

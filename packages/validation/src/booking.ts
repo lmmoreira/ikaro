@@ -69,3 +69,41 @@ export const UpdateResourceSchema = z
   })
   .strict()
   .default({});
+
+// M22-S01 — shared by the backend (resource-requirement.dto.ts, create-service.dto.ts,
+// update-service.dto.ts, update-service-resource-requirements.dto.ts,
+// update-service-legs.dto.ts) and BFF (services.schemas.ts) request schemas for the
+// Service resource-requirements/legs/booking-model endpoints; both need the identical
+// shape with no per-app deviation (same direct-reuse pattern as CreateResourceSchema above).
+export const BookingModelSchema = z.enum(['APPOINTMENT', 'SESSION']);
+
+export const ResourceRequirementSchema = z.object({
+  type: ResourceTypeSchema,
+  selectionMode: z.enum(['NONE', 'CUSTOMER_CHOICE', 'AUTO_ANY', 'AUTO_FUNGIBLE_POOL']),
+  resourcePoolIds: z.array(z.uuid()).nullable().optional(),
+  requiredQuantity: z.number().int().positive().optional(),
+});
+
+export const ServiceLegSchema = z.object({
+  legIndex: z.number().int().min(0),
+  name: z.string().min(1),
+  durationMinutes: z.number().int().positive(),
+  resourceRequirements: z.array(ResourceRequirementSchema).min(1),
+  transitionGapAfterMinutes: z.number().int().min(0).optional(),
+});
+
+export const ClassResourceSlotSchema = z.object({
+  type: ResourceTypeSchema,
+  eligibleResourceIds: z.array(z.uuid()),
+});
+
+// No .min(2) here on purpose — UC-052 A1's "fewer than 2 legs" rejection is a domain-level
+// 422 (BookingServiceLegsTooFewError), not a generic Zod 400; a Zod-level minimum would make
+// that error code unreachable.
+export const UpdateServiceResourceRequirementsSchema = z.object({
+  resourceRequirements: z.array(ResourceRequirementSchema).min(1),
+});
+
+export const UpdateServiceLegsSchema = z.object({
+  legs: z.array(ServiceLegSchema),
+});

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { BookingModelSchema } from '@ikaro/validation';
 
 export const UpdateServiceSchema = z
   .object({
@@ -11,7 +12,7 @@ export const UpdateServiceSchema = z
     // Disabled once the service has legs (UC-053 A1) — enforced by the aggregate, not here.
     bufferAfterMinutes: z.number().int().optional(),
     // Immutable once the service has booking history (UC-056 A1) — enforced by the aggregate.
-    bookingModel: z.enum(['APPOINTMENT', 'SESSION']).optional(),
+    bookingModel: BookingModelSchema.optional(),
   })
   .default({});
 

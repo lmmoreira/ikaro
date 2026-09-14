@@ -1,7 +1,11 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ServiceBuilder, ServiceEntityBuilder } from '../../../../test/builders/booking/index';
+import {
+  ServiceBuilder,
+  ServiceEntityBuilder,
+  ServiceResourceRequirementEntityBuilder,
+} from '../../../../test/builders/booking/index';
 import { InMemoryTenantSettingsPort } from '../../../../test/infrastructure/in-memory-tenant-settings.port';
 import { TENANT_SETTINGS_PORT } from '../../../../shared/ports/tenant-settings.port';
 import { Money } from '../../../../shared/value-objects/money';
@@ -173,13 +177,14 @@ describe('TypeOrmServiceRepository', () => {
   it('findById hydrates resourceRequirements from the child table rows', async () => {
     const entity = new ServiceEntityBuilder().withTenantId('tenant-1').build();
     ormRepo.findOne.mockResolvedValue(entity);
-    const requirementRow = new ServiceResourceRequirementEntity();
-    requirementRow.id = 'req-1';
-    requirementRow.tenantId = 'tenant-1';
-    requirementRow.serviceId = entity.id;
-    requirementRow.resourceType = ResourceType.STAFF;
-    requirementRow.selectionMode = 'AUTO_ANY';
-    requirementRow.requiredQuantity = 1;
+    const requirementRow = new ServiceResourceRequirementEntityBuilder()
+      .withId('req-1')
+      .withTenantId('tenant-1')
+      .withServiceId(entity.id)
+      .withResourceType(ResourceType.STAFF)
+      .withSelectionMode('AUTO_ANY')
+      .withRequiredQuantity(1)
+      .build();
     ormRepo.manager.find = jest
       .fn()
       .mockImplementation((EntityClass: unknown) =>

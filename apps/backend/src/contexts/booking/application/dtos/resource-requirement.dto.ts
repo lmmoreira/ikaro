@@ -1,30 +1,19 @@
 import { z } from 'zod';
+import {
+  ClassResourceSlotSchema,
+  ResourceRequirementSchema,
+  ServiceLegSchema,
+} from '@ikaro/validation';
 import { ClassResourceSlot } from '../../domain/class-resource-slot';
 import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
 import { ServiceLeg } from '../../domain/service-leg';
 
 // Shared by create-service/update-service (flat requirement), update-service-resource-requirements,
-// and update-service-legs (nested per-leg requirements) — one Zod shape, not four independent copies.
-export const ResourceRequirementSchema = z.object({
-  type: z.enum(['LOCATION', 'STAFF', 'ROOM', 'EQUIPMENT']),
-  selectionMode: z.enum(['NONE', 'CUSTOMER_CHOICE', 'AUTO_ANY', 'AUTO_FUNGIBLE_POOL']),
-  resourcePoolIds: z.array(z.uuid()).nullable().optional(),
-  requiredQuantity: z.number().int().positive().optional(),
-});
-
-export const ServiceLegSchema = z.object({
-  legIndex: z.number().int().min(0),
-  name: z.string().min(1),
-  durationMinutes: z.number().int().positive(),
-  resourceRequirements: z.array(ResourceRequirementSchema).min(1),
-  transitionGapAfterMinutes: z.number().int().min(0).optional(),
-});
-
-export const ClassResourceSlotSchema = z.object({
-  type: z.enum(['LOCATION', 'STAFF', 'ROOM', 'EQUIPMENT']),
-  eligibleResourceIds: z.array(z.uuid()),
-});
+// and update-service-legs (nested per-leg requirements) — one Zod shape, not four independent
+// copies, and shared with the BFF's identical services.schemas.ts shapes via @ikaro/validation
+// (no per-app deviation — mirrors CreateResourceSchema's own direct-reuse pattern).
+export { ClassResourceSlotSchema, ResourceRequirementSchema, ServiceLegSchema };
 
 export type ResourceRequirementDto = z.infer<typeof ResourceRequirementSchema>;
 export type ServiceLegDto = z.infer<typeof ServiceLegSchema>;
