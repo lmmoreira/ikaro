@@ -47,27 +47,31 @@ function useReconciledSelectedResourceIds(
 ): ReconciledResourceIdsResult {
   const { role } = useTenant();
   const isManager = role === 'MANAGER';
-  const { resources, isLoading } = useSelectableResources(isManager);
+  const { resources, isLoading, isError } = useSelectableResources(isManager);
   const activeResourceIds = useMemo(() => new Set(resources.map((r) => r.id)), [resources]);
   const resourceNameById = useMemo(
     () => new Map(resources.map((resource) => [resource.id, resource.name])),
     [resources],
   );
-  // Non-MANAGER: pass through untouched rather than reconciling against a deliberately-unfetched
-  // (always empty) active set — selectedResourceIds is always [] here anyway (no UI sets it for
-  // STAFF), and reconciling against an empty set would otherwise wipe any value out regardless.
+  // Non-MANAGER, still loading, or the fetch errored: pass through untouched rather than
+  // reconciling against a deliberately-unfetched or transiently-empty active set. Without the
+  // isError guard, a network blip on page load would resolve `resources` to [] (same shape as a
+  // genuinely-empty tenant), reconcile every real selection down to [], and persist that
+  // deletion — silently reverting the user's filter to tenant-wide and destroying their
+  // selection over a transient failure, not an actual deactivation.
+  const canReconcile = isManager && !isLoading && !isError;
   const reconciled = useMemo(
     () =>
-      !isManager || isLoading
-        ? selectedResourceIds
-        : reconcileResourceIds(selectedResourceIds, activeResourceIds),
-    [isManager, isLoading, selectedResourceIds, activeResourceIds],
+      canReconcile
+        ? reconcileResourceIds(selectedResourceIds, activeResourceIds)
+        : selectedResourceIds,
+    [canReconcile, selectedResourceIds, activeResourceIds],
   );
 
   useEffect(() => {
-    if (!isManager || isLoading || reconciled.length === selectedResourceIds.length) return;
+    if (!canReconcile || reconciled.length === selectedResourceIds.length) return;
     setSelectedResourceIds(reconciled);
-  }, [isManager, isLoading, reconciled, selectedResourceIds, setSelectedResourceIds]);
+  }, [canReconcile, reconciled, selectedResourceIds, setSelectedResourceIds]);
 
   return { selectedResourceIds: reconciled, resourceNameById };
 }

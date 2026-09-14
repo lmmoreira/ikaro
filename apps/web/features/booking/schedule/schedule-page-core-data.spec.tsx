@@ -228,4 +228,42 @@ describe('useScheduleCoreData', () => {
       });
     });
   });
+
+  it('preserves the persisted resource selection when the resource-list fetch errors, instead of reconciling it away', async () => {
+    window.localStorage.setItem(
+      'ikaro:schedule',
+      JSON.stringify({
+        'selectedResourceIds:tenant-x': { selectedResourceIds: ['res-1', 'res-2'] },
+      }),
+    );
+    selectableResourcesHooks.useSelectableResources.mockReturnValue({
+      resources: [],
+      isLoading: false,
+      isError: true,
+      error: new Error('network down'),
+    });
+
+    const managerRole = 'MANAGER' as const;
+    function managerWrapper({ children }: { readonly children: React.ReactNode }) {
+      return (
+        <TenantProvider tenantId="tenant-x" tenantSlug="tenant-x" role={managerRole}>
+          {wrapper({ children })}
+        </TenantProvider>
+      );
+    }
+
+    const { result } = renderHook(() => useScheduleCoreData(baseProps()), {
+      wrapper: managerWrapper,
+    });
+
+    expect(result.current.selectedResourceIdSet).toEqual(new Set(['res-1', 'res-2']));
+
+    const stored = JSON.parse(window.localStorage.getItem('ikaro:schedule') ?? '{}') as Record<
+      string,
+      unknown
+    >;
+    expect(stored['selectedResourceIds:tenant-x']).toEqual({
+      selectedResourceIds: ['res-1', 'res-2'],
+    });
+  });
 });

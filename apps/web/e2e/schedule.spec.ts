@@ -482,8 +482,11 @@ test.describe('schedule page coverage', () => {
           resource.name,
         );
       } finally {
-        await removeScheduleOpening(page, tenantWideOpening.id);
+        // The resource-scoped opening must go first — the backend rejects removing a tenant-wide
+        // opening while a resource-scoped dependent for the same date still exists
+        // (BOOKING_TENANT_OPENING_HAS_RESOURCE_DEPENDENTS).
         await removeScheduleOpening(page, resourceOpening.id);
+        await removeScheduleOpening(page, tenantWideOpening.id);
       }
     } finally {
       await deactivateResource(page, resource.id);
