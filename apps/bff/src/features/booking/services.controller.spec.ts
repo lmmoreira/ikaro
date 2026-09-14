@@ -19,6 +19,11 @@ const mockServiceDetail: ServiceDetail = {
   requiresPickupAddress: false,
   isActive: true,
   createdAt: '2026-01-01T00:00:00.000Z',
+  bookingModel: 'APPOINTMENT',
+  resourceRequirements: [],
+  bufferAfterMinutes: 60,
+  legs: null,
+  classResourceSlots: null,
 };
 
 const SERVICE_ID = '10000000-0000-4000-8000-000000000001';
@@ -131,6 +136,61 @@ describe('ServicesController', () => {
       const controller = new ServicesController(backendHttp);
 
       await expect(controller.update(SERVICE_ID, { name: 'X' })).rejects.toThrow('404');
+    });
+  });
+
+  describe('updateResourceRequirements()', () => {
+    it('calls PATCH /services/:id/resource-requirements with body', async () => {
+      const backendHttp = makeBackendHttp({
+        patch: jest.fn().mockResolvedValue({ id: SERVICE_ID, resourceRequirements: [] }),
+      });
+      const controller = new ServicesController(backendHttp);
+      const body = {
+        resourceRequirements: [
+          { type: 'STAFF' as const, selectionMode: 'CUSTOMER_CHOICE' as const },
+        ],
+      };
+
+      const result = await controller.updateResourceRequirements(SERVICE_ID, body);
+
+      expect(backendHttp.patch).toHaveBeenCalledWith(
+        `/services/${SERVICE_ID}/resource-requirements`,
+        body,
+      );
+      expect(result.id).toBe(SERVICE_ID);
+    });
+
+    it('propagates backend errors', async () => {
+      const backendHttp = makeBackendHttp({ patch: jest.fn().mockRejectedValue(new Error('422')) });
+      const controller = new ServicesController(backendHttp);
+
+      await expect(
+        controller.updateResourceRequirements(SERVICE_ID, {
+          resourceRequirements: [{ type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE' }],
+        }),
+      ).rejects.toThrow('422');
+    });
+  });
+
+  describe('updateLegs()', () => {
+    it('calls PUT /services/:id/legs with body', async () => {
+      const backendHttp = makeBackendHttp({
+        put: jest.fn().mockResolvedValue({ id: SERVICE_ID, legs: [], totalSpanMinutes: 0 }),
+      });
+      const controller = new ServicesController(backendHttp);
+      const body = { legs: [] };
+
+      const result = await controller.updateLegs(SERVICE_ID, body);
+
+      expect(backendHttp.put).toHaveBeenCalledWith(`/services/${SERVICE_ID}/legs`, body);
+      expect(result.id).toBe(SERVICE_ID);
+    });
+
+    it('propagates backend errors', async () => {
+      const backendHttp = makeBackendHttp({ put: jest.fn().mockRejectedValue(new Error('422')) });
+      const controller = new ServicesController(backendHttp);
+
+      await expect(controller.updateLegs(SERVICE_ID, { legs: [] })).rejects.toThrow('422');
     });
   });
 

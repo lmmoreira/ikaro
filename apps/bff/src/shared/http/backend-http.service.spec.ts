@@ -26,14 +26,15 @@ function makeService(
   correlationId = 'corr-xyz',
 ): {
   service: BackendHttpService;
-  http: jest.Mocked<Pick<HttpService, 'get' | 'post' | 'patch' | 'delete'>>;
+  http: jest.Mocked<Pick<HttpService, 'get' | 'post' | 'patch' | 'put' | 'delete'>>;
 } {
   const http = {
     get: jest.fn(),
     post: jest.fn(),
     patch: jest.fn(),
+    put: jest.fn(),
     delete: jest.fn(),
-  } as jest.Mocked<Pick<HttpService, 'get' | 'post' | 'patch' | 'delete'>>;
+  } as jest.Mocked<Pick<HttpService, 'get' | 'post' | 'patch' | 'put' | 'delete'>>;
 
   const user: CurrentUserPayload | undefined = userOverride
     ? {
@@ -127,6 +128,25 @@ describe('BackendHttpService', () => {
           headers: expect.objectContaining({ 'X-Correlation-ID': 'corr-patch' }),
         }),
       );
+    });
+  });
+
+  describe('put()', () => {
+    it('calls HttpService.put with body and correct headers', async () => {
+      const { service, http } = makeService({ tenantId: 'tenant-put' });
+      http.put.mockReturnValue(axiosOf({ updated: true }));
+
+      const result = await service.put('/services/s1/legs', { legs: [] });
+
+      expect(http.put).toHaveBeenCalledWith(
+        'http://backend:3001/services/s1/legs',
+        { legs: [] },
+        expect.objectContaining({
+          headers: expect.objectContaining({ 'X-Tenant-ID': 'tenant-put' }),
+          timeout: 10_000,
+        }),
+      );
+      expect(result).toEqual({ updated: true });
     });
   });
 

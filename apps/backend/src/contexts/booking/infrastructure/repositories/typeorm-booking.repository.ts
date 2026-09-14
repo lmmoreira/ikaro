@@ -93,6 +93,11 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     };
   }
 
+  async existsByServiceId(serviceId: string, tenantId: string): Promise<boolean> {
+    const count = await this.lineRepo.count({ where: { serviceId, tenantId }, take: 1 });
+    return count > 0;
+  }
+
   private buildWhere(tenantId: string, filters: BookingFilters): FindOptionsWhere<BookingEntity> {
     const where: FindOptionsWhere<BookingEntity> = { tenantId };
     if (filters.status?.length === 1) where.status = filters.status[0];

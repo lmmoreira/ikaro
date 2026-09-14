@@ -1,8 +1,10 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
+import { ServiceBookingModel } from '../../domain/service.aggregate';
 
 @Entity('services', { schema: 'booking' })
 @Index(['tenantId'])
 @Index(['tenantId', 'isActive'])
+@Index(['tenantId', 'bookingModel'])
 export class ServiceEntity {
   @PrimaryColumn({ type: 'uuid' })
   id!: string;
@@ -36,4 +38,10 @@ export class ServiceEntity {
 
   @Column({ name: 'updated_at', type: 'timestamptz' })
   updatedAt!: Date;
+
+  @Column({ name: 'booking_model', type: 'varchar', length: 20, default: 'APPOINTMENT' })
+  bookingModel!: ServiceBookingModel;
+
+  @Column({ name: 'buffer_after_minutes', type: 'int', nullable: true })
+  bufferAfterMinutes!: number | null;
 }

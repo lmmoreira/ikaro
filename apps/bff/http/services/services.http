@@ -133,6 +133,37 @@ Authorization: Bearer {{managerToken}}
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — resource requirements / legs (M22 Cluster 2)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Set a flat resource requirement (UC-050)
+PATCH {{bffUrl}}/v1/services/{{serviceId}}/resource-requirements
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "resourceRequirements": [
+    { "type": "STAFF", "selectionMode": "CUSTOMER_CHOICE" }
+  ]
+}
+
+###
+
+### Set sequential legs (UC-052)
+PUT {{bffUrl}}/v1/services/{{serviceId}}/legs
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "legs": [
+    { "legIndex": 0, "name": "Sauna", "durationMinutes": 20, "resourceRequirements": [{ "type": "ROOM", "selectionMode": "AUTO_ANY" }], "transitionGapAfterMinutes": 10 },
+    { "legIndex": 1, "name": "Massagem", "durationMinutes": 50, "resourceRequirements": [{ "type": "STAFF", "selectionMode": "CUSTOMER_CHOICE" }], "transitionGapAfterMinutes": 0 }
+  ]
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — deactivate service (UC-013)
 # ─────────────────────────────────────────────────────────────────────────────
 

@@ -26,13 +26,19 @@ import {
   BookingNotFoundError,
   BookingPhotoNotUploadedError,
   BookingRejectionReasonTooShortError,
+  BookingServiceBookingModelImmutableError,
+  BookingServiceHasLegsError,
+  BookingServiceLegsTooFewError,
+  BookingServiceResourceTypeUnavailableError,
   BookingSlotUnavailableError,
   ClosureDateInPastError,
   InvalidBookingTransitionError,
   ResourceNotActiveError,
+  ResourceRequirementInvalidError,
   ScheduleAlreadyClosedError,
   ScheduleClosureNotFoundError,
   ServiceDeactivatedError,
+  ServiceLegInvalidError,
   ServiceNotFoundError,
 } from '../../domain/errors/booking-domain.error';
 import { mapBookingError } from './booking-error.mapper';
@@ -138,6 +144,42 @@ describe('mapBookingError', () => {
     const err = call(new ResourceNotActiveError('resource-1'));
     expect(err).toBeInstanceOf(HttpException);
     expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+  });
+
+  it('maps BookingServiceHasLegsError to 409', () => {
+    const err = call(new BookingServiceHasLegsError('service-1'));
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+  });
+
+  it('maps BookingServiceBookingModelImmutableError to 409', () => {
+    const err = call(new BookingServiceBookingModelImmutableError('service-1'));
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+  });
+
+  it('maps BookingServiceLegsTooFewError to 422', () => {
+    const err = call(new BookingServiceLegsTooFewError());
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+  });
+
+  it('maps BookingServiceResourceTypeUnavailableError to 422', () => {
+    const err = call(new BookingServiceResourceTypeUnavailableError('EQUIPMENT'));
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+  });
+
+  it('maps ResourceRequirementInvalidError to 422', () => {
+    const err = call(new ResourceRequirementInvalidError('quantity-must-be-positive'));
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+  });
+
+  it('maps ServiceLegInvalidError to 422', () => {
+    const err = call(new ServiceLegInvalidError('duration-must-be-positive'));
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
   });
 
   it('maps ScheduleAlreadyClosedError to 409', () => {

@@ -1,19 +1,32 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ServiceEntityBuilder } from '../../../../test/builders/booking/index';
+import { ServiceBuilder, ServiceEntityBuilder } from '../../../../test/builders/booking/index';
 import { InMemoryTenantSettingsPort } from '../../../../test/infrastructure/in-memory-tenant-settings.port';
 import { TENANT_SETTINGS_PORT } from '../../../../shared/ports/tenant-settings.port';
 import { Money } from '../../../../shared/value-objects/money';
+import { ResourceRequirement } from '../../domain/resource-requirement';
+import { ResourceType } from '../../domain/resource.types';
 import { Service } from '../../domain/service.aggregate';
+import { ServiceResourceRequirementEntity } from '../entities/service-resource-requirement.entity';
 import { ServiceEntity } from '../entities/service.entity';
 import { TypeOrmServiceRepository } from './typeorm-service.repository';
 
 describe('TypeOrmServiceRepository', () => {
   let repo: TypeOrmServiceRepository;
   let ormRepo: jest.Mocked<Repository<ServiceEntity>>;
+  // Every child table read returns [] by default (a plain flat/non-legged service) — tests that
+  // need children override mockTx.find's implementation per-call. Mirrors
+  // typeorm-booking.repository.spec.ts's own manager.transaction/mockTx split.
+  let mockTx: { find: jest.Mock; save: jest.Mock; delete: jest.Mock };
 
   beforeEach(async () => {
+    mockTx = {
+      find: jest.fn().mockResolvedValue([]),
+      save: jest.fn(),
+      delete: jest.fn(),
+    };
+
     const moduleRef = await Test.createTestingModule({
       providers: [
         TypeOrmServiceRepository,
@@ -24,6 +37,12 @@ describe('TypeOrmServiceRepository', () => {
             find: jest.fn(),
             createQueryBuilder: jest.fn(),
             save: jest.fn(),
+            manager: {
+              find: jest.fn().mockResolvedValue([]),
+              transaction: jest
+                .fn()
+                .mockImplementation(async (cb: (tx: typeof mockTx) => Promise<void>) => cb(mockTx)),
+            },
           },
         },
         { provide: TENANT_SETTINGS_PORT, useClass: InMemoryTenantSettingsPort },
@@ -108,7 +127,6 @@ describe('TypeOrmServiceRepository', () => {
   });
 
   it('save maps domain to entity — price stored as fixed-point string', async () => {
-    ormRepo.save.mockResolvedValue(new ServiceEntityBuilder().build());
     const service = Service.create({
       tenantId: 'tenant-1',
       name: 'Lavagem',
@@ -119,15 +137,61 @@ describe('TypeOrmServiceRepository', () => {
 
     await repo.save(service);
 
-    expect(ormRepo.save).toHaveBeenCalledWith(
+    expect(mockTx.save).toHaveBeenCalledWith(
+      ServiceEntity,
       expect.objectContaining({
         tenantId: 'tenant-1',
         name: 'Lavagem',
         priceAmount: '150.00',
         durationMinutes: 60,
         loyaltyPointsValue: 10,
+        bookingModel: 'APPOINTMENT',
       }),
     );
+  });
+
+  it('save wholesale-replaces resourceRequirements: deletes existing rows, inserts current ones', async () => {
+    const service = new ServiceBuilder()
+      .withTenantId('tenant-1')
+      .withResourceRequirements([
+        ResourceRequirement.create({ type: ResourceType.STAFF, selectionMode: 'AUTO_ANY' }),
+      ])
+      .build();
+
+    await repo.save(service);
+
+    expect(mockTx.delete).toHaveBeenCalledWith(ServiceResourceRequirementEntity, {
+      tenantId: 'tenant-1',
+      serviceId: service.id,
+    });
+    expect(mockTx.save).toHaveBeenCalledWith(
+      ServiceResourceRequirementEntity,
+      expect.arrayContaining([expect.objectContaining({ resourceType: ResourceType.STAFF })]),
+    );
+  });
+
+  it('findById hydrates resourceRequirements from the child table rows', async () => {
+    const entity = new ServiceEntityBuilder().withTenantId('tenant-1').build();
+    ormRepo.findOne.mockResolvedValue(entity);
+    const requirementRow = new ServiceResourceRequirementEntity();
+    requirementRow.id = 'req-1';
+    requirementRow.tenantId = 'tenant-1';
+    requirementRow.serviceId = entity.id;
+    requirementRow.resourceType = ResourceType.STAFF;
+    requirementRow.selectionMode = 'AUTO_ANY';
+    requirementRow.requiredQuantity = 1;
+    ormRepo.manager.find = jest
+      .fn()
+      .mockImplementation((EntityClass: unknown) =>
+        EntityClass === ServiceResourceRequirementEntity
+          ? Promise.resolve([requirementRow])
+          : Promise.resolve([]),
+      );
+
+    const result = await repo.findById(entity.id, 'tenant-1');
+
+    expect(result!.resourceRequirements).toHaveLength(1);
+    expect(result!.resourceRequirements[0].type).toBe(ResourceType.STAFF);
   });
 
   it('price.format() returns pt-BR format after round-trip through entity mapper', async () => {

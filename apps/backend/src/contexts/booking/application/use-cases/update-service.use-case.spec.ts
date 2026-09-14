@@ -1,12 +1,22 @@
 import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
+import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
-import { ServiceBuilder } from '../../../../test/builders/booking/index';
+import {
+  BookingLineBuilder,
+  BookingBuilder,
+  ServiceBuilder,
+} from '../../../../test/builders/booking/index';
 import {
   BookingDomainError,
+  BookingServiceBookingModelImmutableError,
+  BookingServiceHasLegsError,
   ServiceDeactivatedError,
   ServiceNotFoundError,
 } from '../../domain/errors/booking-domain.error';
+import { ServiceLeg } from '../../domain/service-leg';
+import { ResourceRequirement } from '../../domain/resource-requirement';
+import { ResourceType } from '../../domain/resource.types';
 import { UpdateServiceUseCase } from './update-service.use-case';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000001';
@@ -14,13 +24,20 @@ const TENANT_B = '10000000-0000-4000-8000-000000000002';
 
 describe('UpdateServiceUseCase', () => {
   let repo: InMemoryServiceRepository;
+  let bookingRepo: InMemoryBookingRepository;
   let bookingPlatform: InMemoryBookingPlatformPort;
   let useCase: UpdateServiceUseCase;
 
   beforeEach(() => {
     repo = new InMemoryServiceRepository();
+    bookingRepo = new InMemoryBookingRepository();
     bookingPlatform = new InMemoryBookingPlatformPort();
-    useCase = new UpdateServiceUseCase(repo, bookingPlatform, new InMemoryTransactionManager());
+    useCase = new UpdateServiceUseCase(
+      repo,
+      bookingRepo,
+      bookingPlatform,
+      new InMemoryTransactionManager(),
+    );
   });
 
   it('revalidates the public pages for the service tenant', async () => {
@@ -165,5 +182,96 @@ describe('UpdateServiceUseCase', () => {
         priceAmount: 0,
       }),
     ).rejects.toThrow(BookingDomainError);
+  });
+
+  it('updates bufferAfterMinutes when provided', async () => {
+    const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+    await repo.save(service);
+
+    const result = await useCase.execute({
+      id: service.id,
+      tenantId: TENANT_A,
+      currency: 'BRL',
+      locale: 'pt-BR',
+      bufferAfterMinutes: 15,
+    });
+
+    expect(result.bufferAfterMinutes).toBe(15);
+  });
+
+  it('rejects a bufferAfterMinutes update when the service has legs', async () => {
+    const legs = [
+      ServiceLeg.create({
+        legIndex: 0,
+        name: 'A',
+        durationMinutes: 20,
+        resourceRequirements: [
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ],
+      }),
+      ServiceLeg.create({
+        legIndex: 1,
+        name: 'B',
+        durationMinutes: 20,
+        resourceRequirements: [
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ],
+      }),
+    ];
+    const service = new ServiceBuilder().withTenantId(TENANT_A).withLegs(legs).build();
+    await repo.save(service);
+
+    await expect(
+      useCase.execute({
+        id: service.id,
+        tenantId: TENANT_A,
+        currency: 'BRL',
+        locale: 'pt-BR',
+        bufferAfterMinutes: 15,
+      }),
+    ).rejects.toThrow(BookingServiceHasLegsError);
+  });
+
+  it('rejects a bookingModel change once the service has booking history', async () => {
+    const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+    await repo.save(service);
+    const booking = new BookingBuilder()
+      .withTenantId(TENANT_A)
+      .withLines([new BookingLineBuilder().withServiceId(service.id).build()])
+      .build();
+    await bookingRepo.save(booking);
+
+    await expect(
+      useCase.execute({
+        id: service.id,
+        tenantId: TENANT_A,
+        currency: 'BRL',
+        locale: 'pt-BR',
+        bookingModel: 'SESSION',
+      }),
+    ).rejects.toThrow(BookingServiceBookingModelImmutableError);
+  });
+
+  it('allows resubmitting the current bookingModel even with booking history (compare-before-validate)', async () => {
+    const service = new ServiceBuilder()
+      .withTenantId(TENANT_A)
+      .withBookingModel('APPOINTMENT')
+      .build();
+    await repo.save(service);
+    const booking = new BookingBuilder()
+      .withTenantId(TENANT_A)
+      .withLines([new BookingLineBuilder().withServiceId(service.id).build()])
+      .build();
+    await bookingRepo.save(booking);
+
+    const result = await useCase.execute({
+      id: service.id,
+      tenantId: TENANT_A,
+      currency: 'BRL',
+      locale: 'pt-BR',
+      bookingModel: 'APPOINTMENT',
+    });
+
+    expect(result.bookingModel).toBe('APPOINTMENT');
   });
 });

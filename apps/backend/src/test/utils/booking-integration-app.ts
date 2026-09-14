@@ -20,6 +20,16 @@ import { ResourceEntity } from '../../contexts/booking/infrastructure/entities/r
 import { ScheduleClosureEntity } from '../../contexts/booking/infrastructure/entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from '../../contexts/booking/infrastructure/entities/schedule-opening.entity';
 import { ServiceEntity } from '../../contexts/booking/infrastructure/entities/service.entity';
+import {
+  ServiceResourceRequirementEntity,
+  ServiceResourceRequirementPoolEntity,
+} from '../../contexts/booking/infrastructure/entities/service-resource-requirement.entity';
+import {
+  ServiceLegEntity,
+  ServiceLegResourceRequirementEntity,
+  ServiceLegResourceRequirementPoolEntity,
+} from '../../contexts/booking/infrastructure/entities/service-leg.entity';
+import { ServiceClassResourcePoolEntity } from '../../contexts/booking/infrastructure/entities/service-class-resource-pool.entity';
 import { BookingModule } from '../../contexts/booking/booking.module';
 import { CustomerEntity } from '../../contexts/customer/infrastructure/entities/customer.entity';
 import { FRONTEND_REVALIDATION_PORT } from '../../contexts/platform/application/ports/frontend-revalidation.port';
@@ -63,6 +73,12 @@ export async function createBookingIntegrationApp(
           HotsiteConfigEntity,
           CustomerEntity,
           ServiceEntity,
+          ServiceResourceRequirementEntity,
+          ServiceResourceRequirementPoolEntity,
+          ServiceLegEntity,
+          ServiceLegResourceRequirementEntity,
+          ServiceLegResourceRequirementPoolEntity,
+          ServiceClassResourcePoolEntity,
           ScheduleClosureEntity,
           ScheduleOpeningEntity,
           BookingEntity,

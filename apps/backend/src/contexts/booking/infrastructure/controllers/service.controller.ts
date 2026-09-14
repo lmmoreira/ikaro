@@ -8,12 +8,21 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   UseGuards,
 } from '@nestjs/common';
 import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { CreateServiceDto, CreateServiceSchema } from '../../application/dtos/create-service.dto';
 import { UpdateServiceDto, UpdateServiceSchema } from '../../application/dtos/update-service.dto';
+import {
+  UpdateServiceLegsDto,
+  UpdateServiceLegsSchema,
+} from '../../application/dtos/update-service-legs.dto';
+import {
+  UpdateServiceResourceRequirementsDto,
+  UpdateServiceResourceRequirementsSchema,
+} from '../../application/dtos/update-service-resource-requirements.dto';
 import {
   ActivateServiceUseCase,
   ActivateServiceUseCaseResult,
@@ -35,6 +44,14 @@ import {
   GetServicesUseCaseResult,
 } from '../../application/use-cases/get-services.use-case';
 import {
+  UpdateServiceLegsUseCase,
+  UpdateServiceLegsUseCaseResult,
+} from '../../application/use-cases/update-service-legs.use-case';
+import {
+  UpdateServiceResourceRequirementsUseCase,
+  UpdateServiceResourceRequirementsUseCaseResult,
+} from '../../application/use-cases/update-service-resource-requirements.use-case';
+import {
   UpdateServiceUseCase,
   UpdateServiceUseCaseResult,
 } from '../../application/use-cases/update-service.use-case';
@@ -51,6 +68,8 @@ export class ServiceController {
     private readonly activateService: ActivateServiceUseCase,
     private readonly updateService: UpdateServiceUseCase,
     private readonly deactivateService: DeactivateServiceUseCase,
+    private readonly updateServiceResourceRequirements: UpdateServiceResourceRequirementsUseCase,
+    private readonly updateServiceLegs: UpdateServiceLegsUseCase,
   ) {}
 
   @Get()
@@ -90,7 +109,33 @@ export class ServiceController {
         tenantId: this.tenantContext.tenantId,
         currency: this.tenantContext.settings.localization.currency,
         locale: this.tenantContext.settings.localization.language,
+        tenantServiceBufferMinutes: this.tenantContext.settings.booking.serviceBufferMinutes,
       })
+      .catch(mapBookingError);
+  }
+
+  @Patch(':id/resource-requirements')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(StaffOrManagerRoleGuard)
+  updateResourceRequirements(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateServiceResourceRequirementsSchema))
+    body: UpdateServiceResourceRequirementsDto,
+  ): Promise<UpdateServiceResourceRequirementsUseCaseResult> {
+    return this.updateServiceResourceRequirements
+      .execute({ ...body, id, tenantId: this.tenantContext.tenantId })
+      .catch(mapBookingError);
+  }
+
+  @Put(':id/legs')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(StaffOrManagerRoleGuard)
+  updateLegs(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateServiceLegsSchema)) body: UpdateServiceLegsDto,
+  ): Promise<UpdateServiceLegsUseCaseResult> {
+    return this.updateServiceLegs
+      .execute({ ...body, id, tenantId: this.tenantContext.tenantId })
       .catch(mapBookingError);
   }
 

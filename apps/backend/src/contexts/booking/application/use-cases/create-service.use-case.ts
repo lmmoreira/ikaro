@@ -7,25 +7,18 @@ import { Money } from '../../../../shared/value-objects/money';
 import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { CreateServiceDto } from '../dtos/create-service.dto';
+import { toClassResourceSlot } from '../dtos/resource-requirement.dto';
 import { Service } from '../../domain/service.aggregate';
+import { ServiceUseCaseResult, toServiceResult } from './service-result.mapper';
 
 export type CreateServiceUseCaseInput = CreateServiceDto & {
   tenantId: string;
   currency: string;
   locale: string;
+  tenantServiceBufferMinutes: number;
 };
 
-export interface CreateServiceUseCaseResult {
-  id: string;
-  name: string;
-  description: string | null;
-  price: { amount: number; currency: string; formatted: string };
-  durationMinutes: number;
-  loyaltyPointsValue: number;
-  requiresPickupAddress: boolean;
-  isActive: boolean;
-  createdAt: string;
-}
+export type CreateServiceUseCaseResult = ServiceUseCaseResult;
 
 @Injectable()
 export class CreateServiceUseCase {
@@ -38,6 +31,7 @@ export class CreateServiceUseCase {
   async execute(input: CreateServiceUseCaseInput): Promise<CreateServiceUseCaseResult> {
     const { tenantId, currency, locale } = input;
     const price = Money.from(input.priceAmount, currency);
+    const bookingModel = input.bookingModel ?? 'APPOINTMENT';
 
     const service = Service.create({
       tenantId,
@@ -48,6 +42,9 @@ export class CreateServiceUseCase {
       requiresPickupAddress: input.requiresPickupAddress ?? false,
       isActive: input.isActive ?? true,
       description: input.description,
+      bookingModel,
+      tenantServiceBufferMinutes: input.tenantServiceBufferMinutes,
+      classResourceSlots: (input.classResourceSlots ?? []).map(toClassResourceSlot),
     });
 
     await this.txManager.run(async () => {
@@ -56,24 +53,6 @@ export class CreateServiceUseCase {
 
     await this.bookingPlatform.revalidatePublicPages(tenantId);
 
-    return this.toResult(service, locale);
-  }
-
-  private toResult(service: Service, locale: string): CreateServiceUseCaseResult {
-    return {
-      id: service.id,
-      name: service.name,
-      description: service.description,
-      price: {
-        amount: service.price.amount.toNumber(),
-        currency: service.price.currency,
-        formatted: service.price.format(locale),
-      },
-      durationMinutes: service.durationMinutes,
-      loyaltyPointsValue: service.loyaltyPointsValue,
-      requiresPickupAddress: service.requiresPickupAddress,
-      isActive: service.isActive,
-      createdAt: service.createdAt.toISOString(),
-    };
+    return toServiceResult(service, locale);
   }
 }

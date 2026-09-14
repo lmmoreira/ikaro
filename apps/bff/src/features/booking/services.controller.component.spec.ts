@@ -24,6 +24,11 @@ const mockServiceDetail: ServiceDetail = {
   requiresPickupAddress: false,
   isActive: true,
   createdAt: '2026-01-01T00:00:00.000Z',
+  bookingModel: 'APPOINTMENT',
+  resourceRequirements: [],
+  bufferAfterMinutes: 60,
+  legs: null,
+  classResourceSlots: null,
 };
 
 const mockStaffServiceResponse = {
@@ -264,6 +269,119 @@ describe('ServicesController (component)', () => {
         .send({ name: 'X' });
 
       expect(res.status).toBe(409);
+    });
+  });
+
+  // ─── PATCH /v1/services/:id/resource-requirements ──────────────────────────
+
+  describe('PATCH /v1/services/:id/resource-requirements', () => {
+    it('returns 401 without a token', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/services/${SERVICE_ID}/resource-requirements`)
+        .send({ resourceRequirements: [{ type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE' }] });
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 403 for CUSTOMER role', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/services/${SERVICE_ID}/resource-requirements`)
+        .set('Authorization', `Bearer ${makeCustomerJwt(jwtService)}`)
+        .send({ resourceRequirements: [{ type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE' }] });
+      expect(res.status).toBe(403);
+    });
+
+    it('MANAGER JWT → 200, calls PATCH /services/:id/resource-requirements', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.patch.mockResolvedValueOnce({ id: SERVICE_ID, resourceRequirements: [] });
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/services/${SERVICE_ID}/resource-requirements`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send({ resourceRequirements: [{ type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE' }] });
+
+      expect(res.status).toBe(200);
+      expect(backendHttpService.patch).toHaveBeenCalledWith(
+        `/services/${SERVICE_ID}/resource-requirements`,
+        { resourceRequirements: [{ type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE' }] },
+      );
+    });
+
+    it('propagates 422 from backend', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.patch.mockRejectedValueOnce(
+        new HttpException({ title: 'Unprocessable Entity', status: 422 }, 422),
+      );
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/services/${SERVICE_ID}/resource-requirements`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send({ resourceRequirements: [{ type: 'EQUIPMENT', selectionMode: 'AUTO_ANY' }] });
+
+      expect(res.status).toBe(422);
+    });
+  });
+
+  // ─── PUT /v1/services/:id/legs ──────────────────────────────────────────────
+
+  describe('PUT /v1/services/:id/legs', () => {
+    it('returns 401 without a token', async () => {
+      const res = await request(app.getHttpServer())
+        .put(`/v1/services/${SERVICE_ID}/legs`)
+        .send({ legs: [] });
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 403 for CUSTOMER role', async () => {
+      const res = await request(app.getHttpServer())
+        .put(`/v1/services/${SERVICE_ID}/legs`)
+        .set('Authorization', `Bearer ${makeCustomerJwt(jwtService)}`)
+        .send({ legs: [] });
+      expect(res.status).toBe(403);
+    });
+
+    it('MANAGER JWT → 200, calls PUT /services/:id/legs', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.put.mockResolvedValueOnce({
+        id: SERVICE_ID,
+        legs: [],
+        totalSpanMinutes: 0,
+      });
+      const legs = [
+        {
+          legIndex: 0,
+          name: 'Sauna',
+          durationMinutes: 20,
+          resourceRequirements: [{ type: 'ROOM', selectionMode: 'AUTO_ANY' }],
+        },
+        {
+          legIndex: 1,
+          name: 'Massagem',
+          durationMinutes: 50,
+          resourceRequirements: [{ type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE' }],
+        },
+      ];
+
+      const res = await request(app.getHttpServer())
+        .put(`/v1/services/${SERVICE_ID}/legs`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send({ legs });
+
+      expect(res.status).toBe(200);
+      expect(backendHttpService.put).toHaveBeenCalledWith(`/services/${SERVICE_ID}/legs`, { legs });
+    });
+
+    it('propagates 422 from backend', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.put.mockRejectedValueOnce(
+        new HttpException({ title: 'Unprocessable Entity', status: 422 }, 422),
+      );
+
+      const res = await request(app.getHttpServer())
+        .put(`/v1/services/${SERVICE_ID}/legs`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send({ legs: [] });
+
+      expect(res.status).toBe(422);
     });
   });
 

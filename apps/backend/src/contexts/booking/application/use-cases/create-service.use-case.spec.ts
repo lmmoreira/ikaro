@@ -7,7 +7,12 @@ import { CreateServiceUseCase } from './create-service.use-case';
 const TENANT_A = '10000000-0000-4000-8000-000000000001';
 const TENANT_B = '10000000-0000-4000-8000-000000000002';
 
-const ctx = { tenantId: TENANT_A, currency: 'BRL', locale: 'pt-BR' };
+const ctx = {
+  tenantId: TENANT_A,
+  currency: 'BRL',
+  locale: 'pt-BR',
+  tenantServiceBufferMinutes: 60,
+};
 
 const baseDto = {
   name: 'Lavagem Completa',
@@ -103,5 +108,33 @@ describe('CreateServiceUseCase', () => {
     await expect(useCase.execute({ ...baseDto, loyaltyPointsValue: -1, ...ctx })).rejects.toThrow(
       BookingDomainError,
     );
+  });
+
+  it('defaults bookingModel to APPOINTMENT', async () => {
+    const result = await useCase.execute({ ...baseDto, ...ctx });
+    expect(result.bookingModel).toBe('APPOINTMENT');
+  });
+
+  it('snapshots bufferAfterMinutes from the tenant default at creation (UC-053 step 1)', async () => {
+    const result = await useCase.execute({ ...baseDto, ...ctx, tenantServiceBufferMinutes: 45 });
+    expect(result.bufferAfterMinutes).toBe(45);
+  });
+
+  it('creates a SESSION service with classResourceSlots and a null bufferAfterMinutes', async () => {
+    const result = await useCase.execute({
+      ...baseDto,
+      ...ctx,
+      bookingModel: 'SESSION',
+      classResourceSlots: [{ type: 'ROOM', eligibleResourceIds: ['r1'] }],
+    });
+    expect(result.bookingModel).toBe('SESSION');
+    expect(result.bufferAfterMinutes).toBeNull();
+    expect(result.classResourceSlots).toEqual([{ type: 'ROOM', eligibleResourceIds: ['r1'] }]);
+  });
+
+  it('starts with an empty resourceRequirements array and null legs', async () => {
+    const result = await useCase.execute({ ...baseDto, ...ctx });
+    expect(result.resourceRequirements).toEqual([]);
+    expect(result.legs).toBeNull();
   });
 });

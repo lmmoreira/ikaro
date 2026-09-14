@@ -237,6 +237,201 @@ describe('ServiceController (integration)', () => {
     });
   });
 
+  // ─── PATCH /services/:id/resource-requirements ──────────────────────────────
+
+  describe('PATCH /services/:id/resource-requirements', () => {
+    it('persists the requirement + pool rows and is retrievable via GET /services/:id', async () => {
+      const isolatedTenant = await provisionTenant();
+      const { body: resource } = await request(app.getHttpServer())
+        .post('/resources')
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send({ type: 'EQUIPMENT', name: 'Máquina 1' })
+        .expect(201);
+      const { body: created } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send(validBody)
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .patch(`/services/${created.id}/resource-requirements`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send({
+          resourceRequirements: [
+            { type: 'EQUIPMENT', selectionMode: 'CUSTOMER_CHOICE', resourcePoolIds: [resource.id] },
+          ],
+        })
+        .expect(200);
+
+      const { body: fetched } = await request(app.getHttpServer())
+        .get(`/services/${created.id}`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .expect(200);
+
+      expect(fetched.resourceRequirements).toHaveLength(1);
+      expect(fetched.resourceRequirements[0].type).toBe('EQUIPMENT');
+      expect(fetched.resourceRequirements[0].resourcePoolIds).toEqual([resource.id]);
+    });
+
+    it('returns 422 when the type has no active resources (UC-050 A1)', async () => {
+      const isolatedTenant = await provisionTenant();
+      const { body: created } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send(validBody)
+        .expect(201);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/services/${created.id}/resource-requirements`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send({ resourceRequirements: [{ type: 'EQUIPMENT', selectionMode: 'AUTO_ANY' }] })
+        .expect(422);
+      expect(body.status).toBe(422);
+    });
+
+    it('tenant isolation: a resourcePoolIds entry belonging to another tenant is rejected, never silently accepted', async () => {
+      const isolatedTenant = await provisionTenant();
+      const otherTenant = await provisionTenant();
+      // Only tenant B has an active EQUIPMENT resource — tenant A must not treat that type as available.
+      await request(app.getHttpServer())
+        .post('/resources')
+        .set(actorHeaders(otherTenant, MANAGER_ID))
+        .send({ type: 'EQUIPMENT', name: 'Máquina Outro Tenant' })
+        .expect(201);
+      const { body: created } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send(validBody)
+        .expect(201);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/services/${created.id}/resource-requirements`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send({ resourceRequirements: [{ type: 'EQUIPMENT', selectionMode: 'CUSTOMER_CHOICE' }] })
+        .expect(422);
+      expect(body.status).toBe(422);
+    });
+
+    it('returns 404 for a cross-tenant service id', async () => {
+      const entity = new ServiceEntityBuilder().withTenantId(tenantB).withIsActive(true).build();
+      await ds.getRepository(ServiceEntity).save(entity);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/services/${entity.id}/resource-requirements`)
+        .set(actorHeaders(tenantA, MANAGER_ID))
+        .send({ resourceRequirements: [{ type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE' }] })
+        .expect(404);
+      expect(body.status).toBe(404);
+    });
+  });
+
+  // ─── PUT /services/:id/legs ──────────────────────────────────────────────────
+
+  describe('PUT /services/:id/legs', () => {
+    it('persists ordered legs with their own nested resource requirements', async () => {
+      const isolatedTenant = await provisionTenant();
+      await request(app.getHttpServer())
+        .post('/resources')
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send({ type: 'ROOM', name: 'Sala 1' })
+        .expect(201);
+      await request(app.getHttpServer())
+        .post('/resources')
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send({ type: 'EQUIPMENT', name: 'Máquina 1' })
+        .expect(201);
+      const { body: created } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send(validBody)
+        .expect(201);
+
+      const { body } = await request(app.getHttpServer())
+        .put(`/services/${created.id}/legs`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send({
+          legs: [
+            {
+              legIndex: 0,
+              name: 'Sauna',
+              durationMinutes: 20,
+              resourceRequirements: [{ type: 'ROOM', selectionMode: 'AUTO_ANY' }],
+              transitionGapAfterMinutes: 10,
+            },
+            {
+              legIndex: 1,
+              name: 'Massagem',
+              durationMinutes: 50,
+              resourceRequirements: [{ type: 'EQUIPMENT', selectionMode: 'CUSTOMER_CHOICE' }],
+            },
+          ],
+        })
+        .expect(200);
+
+      expect(body.legs).toHaveLength(2);
+      expect(body.totalSpanMinutes).toBe(80);
+
+      const { body: fetched } = await request(app.getHttpServer())
+        .get(`/services/${created.id}`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .expect(200);
+      expect(fetched.legs).toHaveLength(2);
+      expect(fetched.resourceRequirements).toEqual([]);
+    });
+
+    it('returns 422 for fewer than 2 legs (UC-052 A1)', async () => {
+      const isolatedTenant = await provisionTenant();
+      const { body: created } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send(validBody)
+        .expect(201);
+
+      const { body } = await request(app.getHttpServer())
+        .put(`/services/${created.id}/legs`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send({
+          legs: [
+            {
+              legIndex: 0,
+              name: 'Única',
+              durationMinutes: 30,
+              resourceRequirements: [{ type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE' }],
+            },
+          ],
+        })
+        .expect(422);
+      expect(body.status).toBe(422);
+    });
+
+    it('returns 404 for a cross-tenant service id', async () => {
+      const entity = new ServiceEntityBuilder().withTenantId(tenantB).withIsActive(true).build();
+      await ds.getRepository(ServiceEntity).save(entity);
+
+      const { body } = await request(app.getHttpServer())
+        .put(`/services/${entity.id}/legs`)
+        .set(actorHeaders(tenantA, MANAGER_ID))
+        .send({
+          legs: [
+            {
+              legIndex: 0,
+              name: 'A',
+              durationMinutes: 20,
+              resourceRequirements: [{ type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE' }],
+            },
+            {
+              legIndex: 1,
+              name: 'B',
+              durationMinutes: 20,
+              resourceRequirements: [{ type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE' }],
+            },
+          ],
+        })
+        .expect(404);
+      expect(body.status).toBe(404);
+    });
+  });
+
   // ─── PATCH /services/:id/activate ───────────────────────────────────────────
 
   describe('PATCH /services/:id/activate', () => {

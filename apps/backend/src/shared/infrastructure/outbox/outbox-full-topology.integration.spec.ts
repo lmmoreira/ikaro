@@ -12,6 +12,16 @@ import { BookingLineEntity } from '../../../contexts/booking/infrastructure/enti
 import { ScheduleClosureEntity } from '../../../contexts/booking/infrastructure/entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from '../../../contexts/booking/infrastructure/entities/schedule-opening.entity';
 import { ServiceEntity } from '../../../contexts/booking/infrastructure/entities/service.entity';
+import {
+  ServiceResourceRequirementEntity,
+  ServiceResourceRequirementPoolEntity,
+} from '../../../contexts/booking/infrastructure/entities/service-resource-requirement.entity';
+import {
+  ServiceLegEntity,
+  ServiceLegResourceRequirementEntity,
+  ServiceLegResourceRequirementPoolEntity,
+} from '../../../contexts/booking/infrastructure/entities/service-leg.entity';
+import { ServiceClassResourcePoolEntity } from '../../../contexts/booking/infrastructure/entities/service-class-resource-pool.entity';
 import { ResourceEntity } from '../../../contexts/booking/infrastructure/entities/resource.entity';
 import { CustomerEntity } from '../../../contexts/customer/infrastructure/entities/customer.entity';
 import { NotificationLogEntity } from '../../../contexts/notification/infrastructure/entities/notification-log.entity';
@@ -28,6 +38,12 @@ const BOOKING_ENTITIES = [
   BookingEntity,
   BookingLineEntity,
   ServiceEntity,
+  ServiceResourceRequirementEntity,
+  ServiceResourceRequirementPoolEntity,
+  ServiceLegEntity,
+  ServiceLegResourceRequirementEntity,
+  ServiceLegResourceRequirementPoolEntity,
+  ServiceClassResourcePoolEntity,
   ScheduleClosureEntity,
   ScheduleOpeningEntity,
   CustomerEntity,

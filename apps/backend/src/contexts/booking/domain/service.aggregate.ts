@@ -2,7 +2,12 @@ import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { Money } from '../../../shared/value-objects/money';
 import { normalizeOptionalText, normalizeText } from '../../../shared/utils/text-normalization';
+import { ClassResourceSlot } from './class-resource-slot';
 import {
+  BookingServiceBookingModelImmutableError,
+  BookingServiceHasLegsError,
+  BookingServiceLegsTooFewError,
+  BookingServiceResourceTypeUnavailableError,
   ServiceDeactivatedError,
   ServiceDurationInvalidError,
   ServiceLoyaltyPointsInvalidError,
@@ -10,6 +15,12 @@ import {
   ServicePriceInvalidError,
   TenantIdRequiredError,
 } from './errors/booking-domain.error';
+import { ResourceRequirement } from './resource-requirement';
+import { ResourceType } from './resource.types';
+import { ServiceLeg } from './service-leg';
+import { computeLegsTotalSpanMinutes } from './service-leg-span';
+
+export type ServiceBookingModel = 'APPOINTMENT' | 'SESSION';
 
 export interface ServiceProps {
   id: string;
@@ -23,6 +34,11 @@ export interface ServiceProps {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+  bookingModel: ServiceBookingModel;
+  resourceRequirements: ResourceRequirement[];
+  bufferAfterMinutes: number | null;
+  legs: ServiceLeg[] | null;
+  classResourceSlots: ClassResourceSlot[] | null;
 }
 
 export interface CreateServiceProps {
@@ -34,6 +50,11 @@ export interface CreateServiceProps {
   requiresPickupAddress?: boolean;
   isActive?: boolean;
   description?: string;
+  bookingModel?: ServiceBookingModel;
+  // Tenant's current settings.serviceBufferMinutes, snapshotted by the caller at creation time
+  // (UC-053 step 1). Ignored for a SESSION service.
+  tenantServiceBufferMinutes?: number | null;
+  classResourceSlots?: ClassResourceSlot[];
 }
 
 export class Service extends AggregateRoot {
@@ -77,6 +98,21 @@ export class Service extends AggregateRoot {
   get updatedAt(): Date {
     return this.props.updatedAt;
   }
+  get bookingModel(): ServiceBookingModel {
+    return this.props.bookingModel;
+  }
+  get resourceRequirements(): ResourceRequirement[] {
+    return [...this.props.resourceRequirements];
+  }
+  get bufferAfterMinutes(): number | null {
+    return this.props.bufferAfterMinutes;
+  }
+  get legs(): ServiceLeg[] | null {
+    return this.props.legs ? [...this.props.legs] : null;
+  }
+  get classResourceSlots(): ClassResourceSlot[] | null {
+    return this.props.classResourceSlots ? [...this.props.classResourceSlots] : null;
+  }
 
   private static validateFields(
     name: string,
@@ -101,10 +137,14 @@ export class Service extends AggregateRoot {
     requiresPickupAddress = false,
     isActive = true,
     description,
+    bookingModel = 'APPOINTMENT',
+    tenantServiceBufferMinutes = null,
+    classResourceSlots = [],
   }: CreateServiceProps): Service {
     if (!tenantId) throw new TenantIdRequiredError();
     const normalizedName = Service.validateFields(name, price, durationMinutes, loyaltyPointsValue);
 
+    const isSession = bookingModel === 'SESSION';
     const now = new Date();
     return new Service({
       id: uuidv7(),
@@ -118,6 +158,11 @@ export class Service extends AggregateRoot {
       isActive,
       createdAt: now,
       updatedAt: now,
+      bookingModel,
+      resourceRequirements: [],
+      bufferAfterMinutes: isSession ? null : tenantServiceBufferMinutes,
+      legs: null,
+      classResourceSlots: isSession ? classResourceSlots : null,
     });
   }
 
@@ -142,6 +187,54 @@ export class Service extends AggregateRoot {
     this.props.durationMinutes = durationMinutes;
     this.props.loyaltyPointsValue = loyaltyPointsValue;
     this.props.requiresPickupAddress = requiresPickupAddress;
+    this.props.updatedAt = new Date();
+  }
+
+  // Rejects (409) rather than auto-clearing legs — legged→flat isn't a supported transition via
+  // this endpoint, asymmetric with setLegs() below (UC-050/051 A2 vs. UC-052 step 3).
+  // activeResourceTypes is resolved by the caller (IResourceRepository.findByTenant).
+  setResourceRequirements(
+    requirements: ResourceRequirement[],
+    activeResourceTypes: ReadonlySet<ResourceType>,
+  ): void {
+    if (this.props.legs !== null) throw new BookingServiceHasLegsError(this.props.id);
+    for (const requirement of requirements) {
+      if (!activeResourceTypes.has(requirement.type)) {
+        throw new BookingServiceResourceTypeUnavailableError(requirement.type);
+      }
+    }
+    this.props.resourceRequirements = [...requirements];
+    this.props.updatedAt = new Date();
+  }
+
+  setLegs(legs: ServiceLeg[], activeResourceTypes: ReadonlySet<ResourceType>): number {
+    if (legs.length < 2) throw new BookingServiceLegsTooFewError();
+    for (const leg of legs) {
+      for (const requirement of leg.resourceRequirements) {
+        if (!activeResourceTypes.has(requirement.type)) {
+          throw new BookingServiceResourceTypeUnavailableError(requirement.type);
+        }
+      }
+    }
+    this.props.legs = [...legs];
+    this.props.resourceRequirements = [];
+    this.props.bufferAfterMinutes = null;
+    this.props.updatedAt = new Date();
+    return computeLegsTotalSpanMinutes(legs);
+  }
+
+  setBufferAfterMinutes(bufferAfterMinutes: number): void {
+    if (this.props.legs !== null) throw new BookingServiceHasLegsError(this.props.id);
+    this.props.bufferAfterMinutes = bufferAfterMinutes;
+    this.props.updatedAt = new Date();
+  }
+
+  // Compare-before-validate (CLAUDE.md §8): resubmitting the current value is always a no-op,
+  // even with booking history. hasBookingHistory is resolved by the caller (existsByServiceId).
+  changeBookingModel(bookingModel: ServiceBookingModel, hasBookingHistory: boolean): void {
+    if (bookingModel === this.props.bookingModel) return;
+    if (hasBookingHistory) throw new BookingServiceBookingModelImmutableError(this.props.id);
+    this.props.bookingModel = bookingModel;
     this.props.updatedAt = new Date();
   }
 

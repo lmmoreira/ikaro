@@ -5,9 +5,11 @@ import {
 } from '../../../../shared/ports/transaction-manager.port';
 import { Money } from '../../../../shared/value-objects/money';
 import { ServiceNotFoundError } from '../../domain/errors/booking-domain.error';
+import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
 import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { UpdateServiceDto } from '../dtos/update-service.dto';
+import { ServiceUseCaseResult, toServiceResult } from './service-result.mapper';
 
 export type UpdateServiceUseCaseInput = UpdateServiceDto & {
   id: string;
@@ -16,22 +18,13 @@ export type UpdateServiceUseCaseInput = UpdateServiceDto & {
   locale: string;
 };
 
-export interface UpdateServiceUseCaseResult {
-  id: string;
-  name: string;
-  description: string | null;
-  price: { amount: number; currency: string; formatted: string };
-  durationMinutes: number;
-  loyaltyPointsValue: number;
-  requiresPickupAddress: boolean;
-  isActive: boolean;
-  createdAt: string;
-}
+export type UpdateServiceUseCaseResult = ServiceUseCaseResult;
 
 @Injectable()
 export class UpdateServiceUseCase {
   constructor(
     @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
+    @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(BOOKING_PLATFORM_PORT) private readonly bookingPlatform: IBookingPlatformPort,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
@@ -58,26 +51,20 @@ export class UpdateServiceUseCase {
       requiresPickupAddress,
     );
 
+    if (input.bufferAfterMinutes !== undefined) {
+      service.setBufferAfterMinutes(input.bufferAfterMinutes);
+    }
+    if (input.bookingModel !== undefined && input.bookingModel !== service.bookingModel) {
+      const hasBookingHistory = await this.bookingRepo.existsByServiceId(id, tenantId);
+      service.changeBookingModel(input.bookingModel, hasBookingHistory);
+    }
+
     await this.txManager.run(async () => {
       await this.serviceRepo.save(service);
     });
 
     await this.bookingPlatform.revalidatePublicPages(tenantId);
 
-    return {
-      id: service.id,
-      name: service.name,
-      description: service.description,
-      price: {
-        amount: service.price.amount.toNumber(),
-        currency: service.price.currency,
-        formatted: service.price.format(locale),
-      },
-      durationMinutes: service.durationMinutes,
-      loyaltyPointsValue: service.loyaltyPointsValue,
-      requiresPickupAddress: service.requiresPickupAddress,
-      isActive: service.isActive,
-      createdAt: service.createdAt.toISOString(),
-    };
+    return toServiceResult(service, locale);
   }
 }

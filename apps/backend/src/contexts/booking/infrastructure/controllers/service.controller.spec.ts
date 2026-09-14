@@ -1,14 +1,20 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
+import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
+import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
-import { ServiceBuilder } from '../../../../test/builders/booking/index';
+import { ResourceBuilder, ServiceBuilder } from '../../../../test/builders/booking/index';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
+import { uuidv7 } from '../../../../shared/domain/uuid-v7';
+import { ResourceType } from '../../domain/resource.types';
 import { ActivateServiceUseCase } from '../../application/use-cases/activate-service.use-case';
 import { CreateServiceUseCase } from '../../application/use-cases/create-service.use-case';
 import { DeactivateServiceUseCase } from '../../application/use-cases/deactivate-service.use-case';
 import { GetServiceByIdUseCase } from '../../application/use-cases/get-service-by-id.use-case';
 import { GetServicesUseCase } from '../../application/use-cases/get-services.use-case';
+import { UpdateServiceLegsUseCase } from '../../application/use-cases/update-service-legs.use-case';
+import { UpdateServiceResourceRequirementsUseCase } from '../../application/use-cases/update-service-resource-requirements.use-case';
 import { UpdateServiceUseCase } from '../../application/use-cases/update-service.use-case';
 import { ServiceController } from './service.controller';
 
@@ -25,9 +31,19 @@ const validBody = {
 describe('ServiceController', () => {
   let controller: ServiceController;
   let repo: InMemoryServiceRepository;
+  let resourceRepo: InMemoryResourceRepository;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     repo = new InMemoryServiceRepository();
+    resourceRepo = new InMemoryResourceRepository();
+    await resourceRepo.save(
+      new ResourceBuilder()
+        .withTenantId(TENANT_A)
+        .withType(ResourceType.STAFF)
+        .withRefId(uuidv7())
+        .build(),
+    );
+    const bookingRepo = new InMemoryBookingRepository();
     const ctx = new RequestContextBuilder()
       .withTenantId(TENANT_A)
       .withCorrelationId(CORRELATION_ID)
@@ -43,8 +59,10 @@ describe('ServiceController', () => {
       new GetServicesUseCase(repo),
       new GetServiceByIdUseCase(repo),
       new ActivateServiceUseCase(repo, bookingPlatform, txManager),
-      new UpdateServiceUseCase(repo, bookingPlatform, txManager),
+      new UpdateServiceUseCase(repo, bookingRepo, bookingPlatform, txManager),
       new DeactivateServiceUseCase(repo, bookingPlatform, txManager),
+      new UpdateServiceResourceRequirementsUseCase(repo, resourceRepo, bookingPlatform, txManager),
+      new UpdateServiceLegsUseCase(repo, resourceRepo, bookingPlatform, txManager),
     );
   });
 
@@ -147,6 +165,80 @@ describe('ServiceController', () => {
       const err = await controller.activate('non-existent-id').catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+  });
+
+  describe('updateResourceRequirements()', () => {
+    it('sets a flat resource requirement', async () => {
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await repo.save(service);
+
+      const result = await controller.updateResourceRequirements(service.id, {
+        resourceRequirements: [{ type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE' }],
+      });
+
+      expect(result.resourceRequirements).toHaveLength(1);
+    });
+
+    it('maps ServiceNotFoundError to 404', async () => {
+      const err = await controller
+        .updateResourceRequirements('non-existent-id', {
+          resourceRequirements: [{ type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE' }],
+        })
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+  });
+
+  describe('updateLegs()', () => {
+    it('sets sequential legs and returns the total span', async () => {
+      await resourceRepo.save(
+        new ResourceBuilder().withTenantId(TENANT_A).withType(ResourceType.ROOM).build(),
+      );
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await repo.save(service);
+
+      const result = await controller.updateLegs(service.id, {
+        legs: [
+          {
+            legIndex: 0,
+            name: 'Sauna',
+            durationMinutes: 20,
+            resourceRequirements: [{ type: 'ROOM', selectionMode: 'AUTO_ANY' }],
+            transitionGapAfterMinutes: 10,
+          },
+          {
+            legIndex: 1,
+            name: 'Massagem',
+            durationMinutes: 50,
+            resourceRequirements: [{ type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE' }],
+          },
+        ],
+      });
+
+      expect(result.legs).toHaveLength(2);
+      expect(result.totalSpanMinutes).toBe(80);
+    });
+
+    it('maps BookingServiceLegsTooFewError to 422', async () => {
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await repo.save(service);
+
+      const err = await controller
+        .updateLegs(service.id, {
+          legs: [
+            {
+              legIndex: 0,
+              name: 'Sauna',
+              durationMinutes: 20,
+              resourceRequirements: [{ type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE' }],
+            },
+          ],
+        })
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
     });
   });
 
