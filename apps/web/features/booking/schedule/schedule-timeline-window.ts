@@ -43,12 +43,17 @@ function resolveActiveWindow(
   if (tenantWideOpening) {
     return { start: tenantWideOpening.startTime, end: tenantWideOpening.endTime };
   }
-  if (dayOpenings.length > 0) {
-    const starts = dayOpenings.map((opening) => opening.startTime);
-    const ends = dayOpenings.map((opening) => opening.endTime);
+  const [firstOpening, ...restOpenings] = dayOpenings;
+  if (firstOpening) {
     return {
-      start: starts.reduce((earliest, time) => (time < earliest ? time : earliest)),
-      end: ends.reduce((latest, time) => (time > latest ? time : latest)),
+      start: restOpenings.reduce(
+        (earliest, opening) => (opening.startTime < earliest ? opening.startTime : earliest),
+        firstOpening.startTime,
+      ),
+      end: restOpenings.reduce(
+        (latest, opening) => (opening.endTime > latest ? opening.endTime : latest),
+        firstOpening.endTime,
+      ),
     };
   }
   if (regularHours) return { start: regularHours.open, end: regularHours.close };
