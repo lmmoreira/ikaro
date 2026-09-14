@@ -2,12 +2,63 @@
 
 import type { RefObject } from 'react';
 import { useTranslations } from 'next-intl';
+import type { ResourceResponse } from '@ikaro/types';
 import { ChevronDown, Filter } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { cn } from '@/shared/utils/cn';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { useSelectableResources } from '@/features/booking/schedule/useSelectableResources';
+
+interface ResourceOptionsListProps {
+  readonly isLoading: boolean;
+  readonly resources: readonly ResourceResponse[];
+  readonly selectedResourceIdSet: ReadonlySet<string>;
+  readonly onToggleResource: (resourceId: string) => void;
+  readonly loadingLabel: string;
+  readonly emptyLabel: string;
+}
+
+// Extracted from ResourceFilterMenu below to avoid a nested ternary (loading vs. empty vs.
+// populated) inside JSX — SonarCloud S3358.
+function ResourceOptionsList({
+  isLoading,
+  resources,
+  selectedResourceIdSet,
+  onToggleResource,
+  loadingLabel,
+  emptyLabel,
+}: ResourceOptionsListProps): React.JSX.Element {
+  if (isLoading) {
+    return <p className="px-2 py-2 text-sm text-gray-500">{loadingLabel}</p>;
+  }
+  if (resources.length === 0) {
+    return (
+      <p data-testid="resource-filter-empty" className="px-2 py-2 text-sm text-gray-500">
+        {emptyLabel}
+      </p>
+    );
+  }
+
+  return (
+    <>
+      {resources.map((resource) => (
+        <label
+          key={resource.id}
+          className="flex cursor-pointer items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-gray-50"
+        >
+          <input
+            type="checkbox"
+            checked={selectedResourceIdSet.has(resource.id)}
+            onChange={() => onToggleResource(resource.id)}
+            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          <span className="min-w-0 flex-1 text-sm font-medium text-gray-900">{resource.name}</span>
+        </label>
+      ))}
+    </>
+  );
+}
 
 interface ResourceFilterMenuProps {
   readonly containerRef: RefObject<HTMLDivElement | null>;
@@ -80,30 +131,14 @@ export function ResourceFilterMenu({
               data-testid="resource-filter-options"
               className="max-h-72 overflow-y-auto border-y border-gray-100 px-2 py-2"
             >
-              {isLoading ? (
-                <p className="px-2 py-2 text-sm text-gray-500">{commonT('loading')}</p>
-              ) : resources.length === 0 ? (
-                <p data-testid="resource-filter-empty" className="px-2 py-2 text-sm text-gray-500">
-                  {t('resourceFilterEmpty')}
-                </p>
-              ) : (
-                resources.map((resource) => (
-                  <label
-                    key={resource.id}
-                    className="flex cursor-pointer items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-gray-50"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedResourceIdSet.has(resource.id)}
-                      onChange={() => onToggleResource(resource.id)}
-                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="min-w-0 flex-1 text-sm font-medium text-gray-900">
-                      {resource.name}
-                    </span>
-                  </label>
-                ))
-              )}
+              <ResourceOptionsList
+                isLoading={isLoading}
+                resources={resources}
+                selectedResourceIdSet={selectedResourceIdSet}
+                onToggleResource={onToggleResource}
+                loadingLabel={commonT('loading')}
+                emptyLabel={t('resourceFilterEmpty')}
+              />
             </div>
           )}
           <div className="flex items-center justify-between gap-2 px-4 py-3">

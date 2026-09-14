@@ -22,10 +22,22 @@ interface ScopedFetchResult<T> {
   readonly error: unknown;
 }
 
+// Extracted from useScheduleQueryData below — picks whichever scoped fetch actually failed, if
+// any. A failed fetch must not read as "nothing to show" — the caller renders an error instead of
+// an apparently valid, silently-empty schedule. A plain if/else (not a nested ternary — SonarCloud
+// S3358) since there are 2 independent fetches to check in order.
+function resolveScheduleFetchError(
+  closuresResult: ScopedFetchResult<ScheduleClosureListResponse>,
+  openingsResult: ScopedFetchResult<ScheduleOpeningListResponse>,
+): unknown {
+  if (closuresResult.isError) return closuresResult.error;
+  if (openingsResult.isError) return openingsResult.error;
+  return null;
+}
+
 // Extracted from useScheduleQueryData below — resolving each fetch's own fallback (tenant-wide
 // initial data on the initial week, else empty) and surfacing the first real fetch error found is
-// a cohesive, self-contained computation. A failed fetch must not read as "nothing to show" — the
-// caller renders an error instead of an apparently valid, silently-empty schedule.
+// a cohesive, self-contained computation.
 function resolveScheduleFetchState(
   closuresResult: ScopedFetchResult<ScheduleClosureListResponse>,
   openingsResult: ScopedFetchResult<ScheduleOpeningListResponse>,
@@ -37,28 +49,37 @@ function resolveScheduleFetchState(
     closuresResult.data ?? (isInitialTenantWideView ? initialClosures : EMPTY_CLOSURES);
   const openings =
     openingsResult.data ?? (isInitialTenantWideView ? initialOpenings : EMPTY_OPENINGS);
-  const scheduleFetchError = closuresResult.isError
-    ? closuresResult.error
-    : openingsResult.isError
-      ? openingsResult.error
-      : null;
+  const scheduleFetchError = resolveScheduleFetchError(closuresResult, openingsResult);
 
   return { closures, openings, scheduleFetchError };
+}
+
+interface ScopedFetchesInput {
+  readonly weekStartKey: string;
+  readonly weekEndKey: string;
+  readonly isInitialWeek: boolean;
+  readonly isInitialTenantWideView: boolean;
+  readonly initialClosures: ScheduleClosureListResponse;
+  readonly initialOpenings: ScheduleOpeningListResponse;
+  readonly initialBookings: StaffBookingListResponse;
+  readonly resourceIds: readonly string[];
 }
 
 // Extracted from useScheduleQueryData below — issuing the 3 underlying fetches (with the
 // initial-week server-fetched fallback, only ever valid on the tenant-wide scope — see
 // isInitialTenantWideView's own comment at the call site) is a self-contained concern.
-function useScopedFetches(
-  weekStartKey: string,
-  weekEndKey: string,
-  isInitialWeek: boolean,
-  isInitialTenantWideView: boolean,
-  initialClosures: ScheduleClosureListResponse,
-  initialOpenings: ScheduleOpeningListResponse,
-  initialBookings: StaffBookingListResponse,
-  resourceIds: readonly string[],
-) {
+function useScopedFetches(input: ScopedFetchesInput) {
+  const {
+    weekStartKey,
+    weekEndKey,
+    isInitialWeek,
+    isInitialTenantWideView,
+    initialClosures,
+    initialOpenings,
+    initialBookings,
+    resourceIds,
+  } = input;
+
   const closuresResult = useScheduleClosures(
     weekStartKey,
     weekEndKey,
@@ -100,7 +121,7 @@ export function useScheduleQueryData(
   // scope), so they only need the week check.
   const isInitialTenantWideView = isInitialWeek && resourceIds.length === 0;
 
-  const { closuresResult, openingsResult, bookings } = useScopedFetches(
+  const { closuresResult, openingsResult, bookings } = useScopedFetches({
     weekStartKey,
     weekEndKey,
     isInitialWeek,
@@ -109,7 +130,7 @@ export function useScheduleQueryData(
     initialOpenings,
     initialBookings,
     resourceIds,
-  );
+  });
 
   const { closures, openings, scheduleFetchError } = resolveScheduleFetchState(
     closuresResult,
