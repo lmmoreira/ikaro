@@ -1,4 +1,10 @@
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+  type UseQueryResult,
+} from '@tanstack/react-query';
 import type {
   ScheduleClosureListResponse,
   ScheduleOpeningListResponse,
@@ -37,6 +43,21 @@ function resolveScopes(resourceIds: readonly string[]): readonly (string | undef
   return resourceIds.length === 0 ? [undefined] : [undefined, ...resourceIds];
 }
 
+// A failed scope must surface as an error, not silently resolve to "no items" — the caller
+// (schedule-page-query-data.ts) would otherwise render an apparently valid empty schedule on a
+// transient 401/403/5xx instead of an error state.
+function mergeScopedQueries<T extends { id: string }>(
+  queries: readonly UseQueryResult<{ items: readonly T[] }>[],
+): { data?: { items: T[] }; isError: boolean; error: unknown } {
+  const failed = queries.find((query) => query.isError);
+  if (failed) return { isError: true, error: failed.error };
+
+  const data = queries.every((query) => query.data !== undefined)
+    ? { items: dedupeById(queries.flatMap((query) => query.data?.items ?? [])) }
+    : undefined;
+  return { data, isError: false, error: null };
+}
+
 export function useScheduleClosures(
   from: string,
   to: string,
@@ -56,11 +77,7 @@ export function useScheduleClosures(
     })),
   });
 
-  const data = queries.every((query) => query.data !== undefined)
-    ? { items: dedupeById(queries.flatMap((query) => query.data?.items ?? [])) }
-    : undefined;
-
-  return { data };
+  return mergeScopedQueries(queries);
 }
 
 export function useCreateClosure() {
@@ -100,11 +117,7 @@ export function useScheduleOpenings(
     })),
   });
 
-  const data = queries.every((query) => query.data !== undefined)
-    ? { items: dedupeById(queries.flatMap((query) => query.data?.items ?? [])) }
-    : undefined;
-
-  return { data };
+  return mergeScopedQueries(queries);
 }
 
 export function useCreateOpening() {

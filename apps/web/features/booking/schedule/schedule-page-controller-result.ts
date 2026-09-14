@@ -34,6 +34,7 @@ export interface UseSchedulePageControllerResult {
   readonly statusLabels: Record<BookingStatus, string>;
   readonly scheduleViewMode: ScheduleViewMode;
   readonly setPersistedViewMode: (viewMode: ScheduleViewMode) => void;
+  readonly scheduleFetchError: unknown;
   readonly weekDayInfo: ScheduleWeekDayInfo[];
   readonly activeDates: Set<string>;
   readonly dimmedDates: Set<string>;
@@ -154,6 +155,7 @@ export function buildControllerResult(
     statusLabels,
     scheduleViewMode: core.scheduleViewMode,
     setPersistedViewMode: core.setPersistedViewMode,
+    scheduleFetchError: core.scheduleFetchError,
     weekDayInfo: core.weekDayInfo,
     activeDates: core.activeDates,
     dimmedDates: core.dimmedDates,

@@ -15,8 +15,8 @@ interface UseSelectableResourcesResult {
 // per-action picker inside ClosureFormSheet/OpeningFormSheet) — both need the same tenant's
 // active, non-LOCATION resources. Excludes LOCATION: the tenant-wide default already represents
 // that scope, so listing it separately would be a redundant, confusing duplicate option.
-export function useSelectableResources(): UseSelectableResourcesResult {
-  const { data, isLoading, isError, error } = useResources({ isActive: true });
+export function useSelectableResources(enabled = true): UseSelectableResourcesResult {
+  const { data, isLoading, isError, error } = useResources({ isActive: true }, { enabled });
   const resources = useMemo(
     () => (data?.items ?? []).filter((resource) => resource.type !== 'LOCATION'),
     [data],

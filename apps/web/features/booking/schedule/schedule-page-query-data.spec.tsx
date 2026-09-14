@@ -173,6 +173,42 @@ describe('useScheduleQueryData', () => {
     expect(result.current.visibleOpenings).toEqual([]);
   });
 
+  it('surfaces a fetch error and falls back to an empty list, instead of silently rendering stale/empty data as if it were valid', () => {
+    scheduleHooks.useScheduleClosures.mockReturnValue({
+      isError: true,
+      error: new Error('closures boom'),
+    });
+
+    const { result } = renderHook(() =>
+      useScheduleQueryData(
+        '2026-08-17',
+        '2026-08-17',
+        emptyClosures(),
+        emptyOpenings(),
+        emptyBookings(),
+        [],
+      ),
+    );
+
+    expect(result.current.scheduleFetchError).toBeInstanceOf(Error);
+    expect(result.current.visibleClosures).toEqual([]);
+  });
+
+  it('returns no fetch error when every query succeeds', () => {
+    const { result } = renderHook(() =>
+      useScheduleQueryData(
+        '2026-08-17',
+        '2026-08-17',
+        emptyClosures(),
+        emptyOpenings(),
+        emptyBookings(),
+        [],
+      ),
+    );
+
+    expect(result.current.scheduleFetchError).toBeNull();
+  });
+
   it("unwraps each query's .items into the returned shape", () => {
     const closure = {
       id: 'closure-1',

@@ -1370,6 +1370,8 @@
       "resourceFilterMenuDescription": "Marque os recursos que devem aparecer no calendário.",
       "resourceFilterReset": "Padrão",
       "resourceFilterDone": "Fechar",
+      "resourceFilterEmpty": "Nenhum recurso ainda",
+      "fetchError": "Não foi possível carregar a agenda",
       "errors": {
         "requiredDate": "Informe a data.",
         "pastDateClosure": "Escolha hoje ou uma data futura para bloquear.",

@@ -60,6 +60,7 @@ function makeCore(overrides: Partial<ScheduleCoreData> = {}): ScheduleCoreData {
     setSelectedResourceIds: vi.fn(),
     setPersistedViewMode: vi.fn(),
     scheduleViewMode: 'week',
+    scheduleFetchError: null,
     weekDayInfo: [],
     activeDates: new Set(),
     dimmedDates: new Set(),

@@ -82,6 +82,10 @@ export function ResourceFilterMenu({
             >
               {isLoading ? (
                 <p className="px-2 py-2 text-sm text-gray-500">{commonT('loading')}</p>
+              ) : resources.length === 0 ? (
+                <p data-testid="resource-filter-empty" className="px-2 py-2 text-sm text-gray-500">
+                  {t('resourceFilterEmpty')}
+                </p>
               ) : (
                 resources.map((resource) => (
                   <label

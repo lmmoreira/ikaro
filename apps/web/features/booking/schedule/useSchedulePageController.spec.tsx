@@ -26,6 +26,12 @@ const scheduleHooks = vi.hoisted(() => ({
 
 vi.mock('@/features/booking/schedule/useSchedule', () => scheduleHooks);
 
+const selectableResourcesHooks = vi.hoisted(() => ({
+  useSelectableResources: vi.fn(),
+}));
+
+vi.mock('@/features/booking/schedule/useSelectableResources', () => selectableResourcesHooks);
+
 function emptyClosures(): ScheduleClosureListResponse {
   return { items: [] };
 }
@@ -108,6 +114,12 @@ beforeEach(() => {
   });
   scheduleHooks.useRemoveOpening.mockReturnValue({
     mutateAsync: vi.fn().mockResolvedValue(undefined),
+  });
+  selectableResourcesHooks.useSelectableResources.mockReturnValue({
+    resources: [],
+    isLoading: false,
+    isError: false,
+    error: null,
   });
 });
 

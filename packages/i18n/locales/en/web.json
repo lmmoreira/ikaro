@@ -1370,6 +1370,8 @@
       "resourceFilterMenuDescription": "Check the resources that should appear on the calendar.",
       "resourceFilterReset": "Default",
       "resourceFilterDone": "Close",
+      "resourceFilterEmpty": "No resources yet",
+      "fetchError": "Couldn't load the schedule",
       "errors": {
         "requiredDate": "Enter the date.",
         "pastDateClosure": "Choose today or a future date for blocks.",

@@ -128,6 +128,25 @@ describe('useScheduleClosures', () => {
       'tenant-wide-1',
     ]);
   });
+
+  it('surfaces isError/error when any scoped fetch fails, instead of silently resolving to no data', async () => {
+    const fetchError = new Error('one resource request failed');
+    scheduleApi.listClosures.mockImplementation(
+      (_from: string, _to: string, resourceId?: string) =>
+        resourceId === 'res-1'
+          ? Promise.reject(fetchError)
+          : Promise.resolve({ items: [{ id: 'tenant-wide-1', resourceId: null }] }),
+    );
+
+    const { result } = renderHook(
+      () => useScheduleClosures('2026-07-01', '2026-07-31', undefined, ['res-1']),
+      { wrapper },
+    );
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.error).toBe(fetchError);
+    expect(result.current.data).toBeUndefined();
+  });
 });
 
 describe('useCreateClosure', () => {

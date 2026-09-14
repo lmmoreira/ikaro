@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { BookingStatus, StaffBookingCardResponse } from '@ikaro/types';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import {
@@ -8,6 +8,8 @@ import {
   useSchedulePreferences,
 } from '@/features/booking/schedule/schedule-preferences';
 import { useMediaQuery } from '@/features/booking/hooks/useMediaQuery';
+import { useSelectableResources } from '@/features/booking/schedule/useSelectableResources';
+import { useTenant } from '@/providers/tenant-provider';
 import {
   useScheduleUiState,
   type ScheduleUiState,
@@ -15,6 +17,48 @@ import {
 import { useScheduleQueryData } from '@/features/booking/schedule/schedule-page-query-data';
 import { useScheduleTimelineDerived } from '@/features/booking/schedule/schedule-page-timeline-derived';
 import type { SchedulePageControllerInput } from '@/features/booking/schedule/schedule-page-controller-types';
+
+function reconcileResourceIds(
+  selectedResourceIds: readonly string[],
+  activeResourceIds: ReadonlySet<string>,
+): readonly string[] {
+  return selectedResourceIds.filter((id) => activeResourceIds.has(id));
+}
+
+// Extracted from useScheduleVisibleData below — drops any persisted selected-resource id no
+// longer present in the tenant's active resource list (e.g. deactivated after being selected).
+// Without this, ResourceFilterMenu's checkbox list simply stops rendering that id (it only shows
+// active resources) while useSchedule.ts keeps silently querying it forever — a stale id the user
+// has no way to uncheck since its row no longer exists to uncheck. MANAGER-only: the endpoint
+// behind useSelectableResources is MANAGER-gated (apps/bff/src/features/booking/
+// resource.controller.ts), and STAFF's selectedResourceIds is always empty anyway (no UI to set
+// it), so skip the fetch entirely for STAFF rather than hit a 403 on every schedule page load.
+function useReconciledSelectedResourceIds(
+  selectedResourceIds: readonly string[],
+  setSelectedResourceIds: (next: readonly string[]) => void,
+): readonly string[] {
+  const { role } = useTenant();
+  const isManager = role === 'MANAGER';
+  const { resources, isLoading } = useSelectableResources(isManager);
+  const activeResourceIds = useMemo(() => new Set(resources.map((r) => r.id)), [resources]);
+  // Non-MANAGER: pass through untouched rather than reconciling against a deliberately-unfetched
+  // (always empty) active set — selectedResourceIds is always [] here anyway (no UI sets it for
+  // STAFF), and reconciling against an empty set would otherwise wipe any value out regardless.
+  const reconciled = useMemo(
+    () =>
+      !isManager || isLoading
+        ? selectedResourceIds
+        : reconcileResourceIds(selectedResourceIds, activeResourceIds),
+    [isManager, isLoading, selectedResourceIds, activeResourceIds],
+  );
+
+  useEffect(() => {
+    if (!isManager || isLoading || reconciled.length === selectedResourceIds.length) return;
+    setSelectedResourceIds(reconciled);
+  }, [isManager, isLoading, reconciled, selectedResourceIds, setSelectedResourceIds]);
+
+  return reconciled;
+}
 
 // Extracted from useScheduleVisibleData below — the status/resource Set derivation and the
 // status-filtered booking list are a cohesive, self-contained computation, independent of the
@@ -72,15 +116,16 @@ function useScheduleVisibleData(props: SchedulePageControllerInput, ui: Schedule
     setSelectedStatuses,
     viewMode,
     setViewMode,
-    selectedResourceIds,
+    selectedResourceIds: persistedSelectedResourceIds,
     setSelectedResourceIds,
   } = useSchedulePreferences();
-
-  const { weekDates, visibleClosures, visibleOpenings, bookingsItems } = useScheduleWeekData(
-    props,
-    ui,
-    selectedResourceIds,
+  const selectedResourceIds = useReconciledSelectedResourceIds(
+    persistedSelectedResourceIds,
+    setSelectedResourceIds,
   );
+
+  const { weekDates, visibleClosures, visibleOpenings, bookingsItems, scheduleFetchError } =
+    useScheduleWeekData(props, ui, selectedResourceIds);
   const { selectedStatusSet, selectedResourceIdSet, visibleBookings } = useScheduleFilterSets(
     selectedStatuses,
     selectedResourceIds,
@@ -99,6 +144,7 @@ function useScheduleVisibleData(props: SchedulePageControllerInput, ui: Schedule
     setSelectedResourceIds,
     setPersistedViewMode: setViewMode,
     scheduleViewMode,
+    scheduleFetchError,
   };
 }
 
@@ -140,6 +186,7 @@ export function useScheduleCoreData(props: SchedulePageControllerInput) {
     setSelectedResourceIds: visible.setSelectedResourceIds,
     setPersistedViewMode: visible.setPersistedViewMode,
     scheduleViewMode: visible.scheduleViewMode,
+    scheduleFetchError: visible.scheduleFetchError,
     ...timelineDerived,
   };
 }

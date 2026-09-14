@@ -435,6 +435,28 @@ describe('SchedulePage', () => {
     expect(mutateAsync).toHaveBeenCalledWith('opening-1');
   });
 
+  it('renders an error banner instead of silently showing an empty schedule when a fetch fails', () => {
+    scheduleHooks.useScheduleClosures.mockReturnValue({
+      isError: true,
+      error: new Error('network down'),
+    });
+
+    renderWithIntl(
+      <SchedulePage
+        initialClosures={emptyClosures()}
+        initialOpenings={emptyOpenings()}
+        initialBookings={emptyBookings()}
+        businessHours={makeBusinessHours(true)}
+        todayKey="2026-06-29"
+        weekStartKey="2026-06-29"
+        initialSelectedDateKey="2026-06-29"
+        slotGranularityMinutes={30}
+      />,
+    );
+
+    expect(screen.getByTestId('schedule-fetch-error')).toBeInTheDocument();
+  });
+
   it('closes the status filter when escape is pressed', async () => {
     const user = userEvent.setup();
 

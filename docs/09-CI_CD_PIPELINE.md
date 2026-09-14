@@ -403,11 +403,8 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: snyk/actions/node@master
-        with:
-          args: --severity-threshold=high --file=apps/bff/package.json
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      # Snyk SCA moved off the per-PR gate 2026-09-14 (org quota exhaustion) — it now runs only
+      # as a weekly scheduled job (weekly-jobs.yml), not per-PR. See CLAUDE.md's CI gates section.
 ```
 
 ---

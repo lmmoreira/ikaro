@@ -6,10 +6,13 @@ import type {
   StaffBookingListResponse,
   TenantBusinessHours,
 } from '@ikaro/types';
+import { useTranslations } from 'next-intl';
 import { Badge } from '@/shared/components/ui/badge';
 import { Card } from '@/shared/components/ui/card';
 import { cn } from '@/shared/utils/cn';
 import { WeekNav } from '@/shells/dashboard/components/WeekNav';
+import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
+import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { toLocalDate } from '@/features/booking/schedule/schedule-timeline';
 import { useSchedulePageController } from '@/features/booking/schedule/useSchedulePageController';
 import { useTenant } from '@/providers/tenant-provider';
@@ -59,13 +62,25 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
     mutationHandlers,
     statusFilter,
     resourceFilter,
+    scheduleFetchError,
   } = useSchedulePageController(props);
   const { role } = useTenant();
+  const t = useTranslations('dashboard.schedule');
+  const locale = useResolvedLocale();
 
   const isWeekView = scheduleViewMode === 'week';
 
   return (
     <div className="space-y-4 px-4 pb-8">
+      {scheduleFetchError ? (
+        <p
+          data-testid="schedule-fetch-error"
+          className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600"
+        >
+          {t('fetchError')}: {resolveErrorMessageFromApiError(scheduleFetchError, locale)}
+        </p>
+      ) : null}
+
       <WeekNav
         windowStart={toLocalDate(ui.weekStartKey)}
         windowDays={7}

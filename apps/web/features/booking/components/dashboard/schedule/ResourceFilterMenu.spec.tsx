@@ -122,6 +122,19 @@ describe('ResourceFilterMenu', () => {
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
   });
 
+  it('shows an empty-state message instead of a blank area when there are no selectable resources', () => {
+    useResourcesMock.mockReturnValue({
+      data: { items: [] },
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+    renderWithIntl(<ResourceFilterMenu {...baseProps()} open />);
+
+    expect(screen.getByTestId('resource-filter-empty')).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  });
+
   it('shows a translated error, not raw backend text, instead of checkboxes on fetch failure', () => {
     useResourcesMock.mockReturnValue({
       data: undefined,
