@@ -8,6 +8,7 @@ import {
   SCHEDULE_BOOKING_STATUS_DEFAULT,
   SCHEDULE_BOOKING_STATUS_OPTIONS,
 } from '@/features/booking/model/booking-status';
+import { useTenant } from '@/providers/tenant-provider';
 
 export type ScheduleViewMode = 'day' | 'week';
 
@@ -101,38 +102,41 @@ function createSelectedStatusesStore(storage: BrowserPreferenceStore) {
 
 // Extracted from createSchedulePreferencesStore below — the selected-resource-ids get/set/clear
 // trio, mirroring createSelectedStatusesStore's shape but with no fixed catalog to normalize
-// against (see normalizeSelectedResourceIds above).
-function createSelectedResourceIdsStore(storage: BrowserPreferenceStore) {
+// against (see normalizeSelectedResourceIds above). Unlike BookingStatus (a fixed, tenant-agnostic
+// enum), resource ids are tenant-specific — a multi-tenant staff user (CLAUDE.md §2 invariant 6)
+// switching tenants must not carry tenant A's resource ids into tenant B's query, so the storage
+// key itself is scoped by tenantId rather than shared across every tenant.
+function createSelectedResourceIdsStore(storage: BrowserPreferenceStore, tenantId: string) {
+  const key = `${SELECTED_RESOURCE_IDS_KEY}:${tenantId}`;
   return {
     getSelectedResourceIds(): readonly string[] {
       return normalizeSelectedResourceIds(
-        storage.get<SchedulePreferencesShape>(SELECTED_RESOURCE_IDS_KEY)?.selectedResourceIds,
+        storage.get<SchedulePreferencesShape>(key)?.selectedResourceIds,
       );
     },
     setSelectedResourceIds(selectedResourceIds: readonly string[]): void {
       const normalized = normalizeSelectedResourceIds(selectedResourceIds);
       if (normalized.length === 0) {
-        storage.remove(SELECTED_RESOURCE_IDS_KEY);
+        storage.remove(key);
         return;
       }
 
-      storage.set<SchedulePreferencesShape>(SELECTED_RESOURCE_IDS_KEY, {
-        selectedResourceIds: normalized,
-      });
+      storage.set<SchedulePreferencesShape>(key, { selectedResourceIds: normalized });
     },
     clearSelectedResourceIds(): void {
-      storage.remove(SELECTED_RESOURCE_IDS_KEY);
+      storage.remove(key);
     },
   };
 }
 
 export function createSchedulePreferencesStore(
   storage: BrowserPreferenceStore = createBrowserPreferenceStore(SCHEDULE_PREFERENCES_NAMESPACE),
+  tenantId = '',
 ) {
   return {
     ...createViewModeStore(storage),
     ...createSelectedStatusesStore(storage),
-    ...createSelectedResourceIdsStore(storage),
+    ...createSelectedResourceIdsStore(storage, tenantId),
   };
 }
 
@@ -231,7 +235,8 @@ function useSelectedResourceIdsPreference(store: SchedulePreferencesStore) {
 }
 
 export function useSchedulePreferences(): SchedulePreferencesState {
-  const store = useMemo(() => createSchedulePreferencesStore(), []);
+  const { tenantId } = useTenant();
+  const store = useMemo(() => createSchedulePreferencesStore(undefined, tenantId), [tenantId]);
   const { viewMode, setViewMode } = useViewModePreference(store);
   const { selectedStatuses, setSelectedStatuses } = useSelectedStatusesPreference(store);
   const { selectedResourceIds, setSelectedResourceIds } = useSelectedResourceIdsPreference(store);

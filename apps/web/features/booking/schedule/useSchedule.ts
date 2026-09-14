@@ -18,9 +18,11 @@ import { listBookings } from '@/features/booking/api/booking';
 import { SCHEDULE_BOOKING_STATUS_ALL } from '@/features/booking/model/booking-status';
 import { useTenant } from '@/providers/tenant-provider';
 
-// A checked resourceId's own GET already returns tenant-wide (resourceId=null) items combined
-// with that resource's own — so N parallel per-resource fetches all repeat the same tenant-wide
-// items. De-duplicate by id once merged, rather than reasoning about which fetch "owns" them.
+// The backend's resourceId filter is exact (WHERE resourceId = :id OR IS NULL for the tenant-wide
+// scope, never both at once — see typeorm-schedule-closure/opening.repository.ts), so a
+// resource-scoped GET never includes the tenant-wide rows. De-duplicate by id once every scope's
+// results are merged, since more than one selected resource can each still surface the same item
+// were the filter ever to change shape.
 function dedupeById<T extends { id: string }>(items: readonly T[]): T[] {
   const seen = new Map<string, T>();
   for (const item of items) seen.set(item.id, item);
@@ -28,10 +30,11 @@ function dedupeById<T extends { id: string }>(items: readonly T[]): T[] {
 }
 
 // Zero resourceIds selected = today's tenant-wide-only query (a single scope of `undefined`).
-// One or more selected = one parallel query per resource, each already including tenant-wide
-// items server-side; merged and de-duplicated below.
+// One or more selected = the tenant-wide scope plus one parallel query per resource — a
+// tenant-wide closure/opening always applies to every resource regardless of what's checked, so
+// it must be fetched explicitly rather than assumed to ride along on a resource-scoped response.
 function resolveScopes(resourceIds: readonly string[]): readonly (string | undefined)[] {
-  return resourceIds.length === 0 ? [undefined] : resourceIds;
+  return resourceIds.length === 0 ? [undefined] : [undefined, ...resourceIds];
 }
 
 export function useScheduleClosures(

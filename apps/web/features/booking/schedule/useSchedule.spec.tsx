@@ -100,20 +100,17 @@ describe('useScheduleClosures', () => {
     );
   });
 
-  it('fetches one request per selected resource and merges+de-duplicates the results', async () => {
-    scheduleApi.listClosures.mockImplementation((_from: string, _to: string, resourceId?: string) =>
-      Promise.resolve({
-        items:
-          resourceId === 'res-1'
-            ? [
-                { id: 'tenant-wide-1', resourceId: null },
-                { id: 'res-1-only', resourceId: 'res-1' },
-              ]
-            : [
-                { id: 'tenant-wide-1', resourceId: null },
-                { id: 'res-2-only', resourceId: 'res-2' },
-              ],
-      }),
+  it('always fetches the tenant-wide scope alongside each selected resource and merges+de-duplicates the results', async () => {
+    scheduleApi.listClosures.mockImplementation(
+      (_from: string, _to: string, resourceId?: string) => {
+        if (resourceId === 'res-1') {
+          return Promise.resolve({ items: [{ id: 'res-1-only', resourceId: 'res-1' }] });
+        }
+        if (resourceId === 'res-2') {
+          return Promise.resolve({ items: [{ id: 'res-2-only', resourceId: 'res-2' }] });
+        }
+        return Promise.resolve({ items: [{ id: 'tenant-wide-1', resourceId: null }] });
+      },
     );
 
     const { result } = renderHook(
@@ -122,6 +119,7 @@ describe('useScheduleClosures', () => {
     );
 
     await waitFor(() => expect(result.current.data).toBeDefined());
+    expect(scheduleApi.listClosures).toHaveBeenCalledWith('2026-07-01', '2026-07-31', undefined);
     expect(scheduleApi.listClosures).toHaveBeenCalledWith('2026-07-01', '2026-07-31', 'res-1');
     expect(scheduleApi.listClosures).toHaveBeenCalledWith('2026-07-01', '2026-07-31', 'res-2');
     expect(result.current.data?.items.map((item) => item.id).sort()).toEqual([
@@ -173,20 +171,17 @@ describe('useScheduleOpenings', () => {
     );
   });
 
-  it('fetches one request per selected resource and merges+de-duplicates the results', async () => {
-    scheduleApi.listOpenings.mockImplementation((_from: string, _to: string, resourceId?: string) =>
-      Promise.resolve({
-        items:
-          resourceId === 'res-1'
-            ? [
-                { id: 'tenant-wide-1', resourceId: null },
-                { id: 'res-1-only', resourceId: 'res-1' },
-              ]
-            : [
-                { id: 'tenant-wide-1', resourceId: null },
-                { id: 'res-2-only', resourceId: 'res-2' },
-              ],
-      }),
+  it('always fetches the tenant-wide scope alongside each selected resource and merges+de-duplicates the results', async () => {
+    scheduleApi.listOpenings.mockImplementation(
+      (_from: string, _to: string, resourceId?: string) => {
+        if (resourceId === 'res-1') {
+          return Promise.resolve({ items: [{ id: 'res-1-only', resourceId: 'res-1' }] });
+        }
+        if (resourceId === 'res-2') {
+          return Promise.resolve({ items: [{ id: 'res-2-only', resourceId: 'res-2' }] });
+        }
+        return Promise.resolve({ items: [{ id: 'tenant-wide-1', resourceId: null }] });
+      },
     );
 
     const { result } = renderHook(
@@ -195,6 +190,7 @@ describe('useScheduleOpenings', () => {
     );
 
     await waitFor(() => expect(result.current.data).toBeDefined());
+    expect(scheduleApi.listOpenings).toHaveBeenCalledWith('2026-07-01', '2026-07-31', undefined);
     expect(result.current.data?.items.map((item) => item.id).sort()).toEqual([
       'res-1-only',
       'res-2-only',
