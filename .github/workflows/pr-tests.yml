@@ -593,52 +593,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  snyk-sca:
-    name: Snyk SCA
-    needs: [test-suite-passed]
-    # Same transitive-skip fix as gitleaks above — see its comment. This
-    # job always starts (whenever tests passed); its own internal
-    # steps.filter.outputs.deps check (below) decides whether the real
-    # scan runs, same pattern as checkov's terraform filter.
-    if: always() && needs.test-suite-passed.result == 'success'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Detect dependency changes
-        id: filter
-        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
-        with:
-          filters: |
-            deps:
-              - '**/package.json'
-              - '**/pnpm-lock.yaml'
-              - 'pnpm-workspace.yaml'
-
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
-        if: steps.filter.outputs.deps == 'true'
-        with:
-          version: 11.1.1
-
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        if: steps.filter.outputs.deps == 'true'
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
-
-      - run: pnpm install --frozen-lockfile
-        if: steps.filter.outputs.deps == 'true'
-
-      - name: Snyk SCA — all workspaces
-        if: steps.filter.outputs.deps == 'true'
-        uses: snyk/actions/node@9adf32b1121593767fc3c057af55b55db032dc04 # v1.0.0
-        with:
-          args: --severity-threshold=high --all-projects
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
   trivy-scan:
     name: Trivy Image Scan (${{ matrix.service }})
     needs: [detect-changes, test-suite-passed]
@@ -859,7 +813,7 @@ jobs:
   # leg gets reported under.
   all-checks-passed:
     name: All Checks Passed
-    needs: [test-suite-passed, gitleaks, snyk-sca, trivy-scan, checkov, sonar]
+    needs: [test-suite-passed, gitleaks, trivy-scan, checkov, sonar]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -867,13 +821,12 @@ jobs:
         env:
           TEST_SUITE_RESULT: ${{ needs.test-suite-passed.result }}
           GITLEAKS_RESULT: ${{ needs.gitleaks.result }}
-          SNYK_SCA_RESULT: ${{ needs.snyk-sca.result }}
           TRIVY_SCAN_RESULT: ${{ needs.trivy-scan.result }}
           CHECKOV_RESULT: ${{ needs.checkov.result }}
           SONAR_RESULT: ${{ needs.sonar.result }}
         run: |
           failed=false
-          for result in "$TEST_SUITE_RESULT" "$GITLEAKS_RESULT" "$SNYK_SCA_RESULT" \
+          for result in "$TEST_SUITE_RESULT" "$GITLEAKS_RESULT" \
                         "$TRIVY_SCAN_RESULT" "$CHECKOV_RESULT" "$SONAR_RESULT"; do
             if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
               echo "Found a non-passing result: $result"

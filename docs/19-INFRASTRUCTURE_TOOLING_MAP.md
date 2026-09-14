@@ -103,8 +103,8 @@ sonar.cpd.exclusions=**/migrations/**
 | | |
 |---|---|
 | **Hosted by** | Snyk Ltd (snyk.io) |
-| **Purpose** | Software Composition Analysis (SCA) — scans `package.json` dependency trees for known CVEs. Blocks merge on HIGH or CRITICAL vulnerabilities. |
-| **Pricing** | **Free tier: unlimited open-source tests** (the action runs `snyk test`, which counts as an open-source test). For private repos with the free plan: 200 tests/month, which covers normal PR + nightly usage. Team plan ($25/user/month) adds licence compliance and container scanning — not needed for MVP. Expected cost: **$0/month** on the free tier. |
+| **Purpose** | Software Composition Analysis (SCA) — scans `package.json` dependency trees for known CVEs. Runs weekly only (`weekly-jobs.yml`), not per-PR — does not block merge. |
+| **Pricing** | **Free tier: unlimited open-source tests** (the action runs `snyk test`, which counts as an open-source test). For private repos with the free plan: 200 tests/month — this did **not** cover per-PR usage in practice: the `/pr-land` bot-review loop's own iterative rounds (each dependency-file-touching push re-running a full `--all-projects` scan) repeatedly exhausted the quota, so Snyk was moved off the PR gate to weekly-only 2026-09-14. Team plan ($25/user/month) would raise the cap and restore per-PR gating, but wasn't adopted. Expected cost: **$0/month** on the free tier. |
 | **Secret required** | `SNYK_TOKEN` — repository-scoped GitHub Secret |
 
 **Account setup (one-time, ~5 minutes):**
@@ -258,5 +258,5 @@ All infrastructure dependencies run locally via Docker Compose — PostgreSQL, G
 | **Image security** | Trivy scans every image before push. Images tagged by Git SHA — mutable `:latest` tag is also pushed for convenience but deployments always reference the SHA tag. |
 | **IaC security** | Checkov scans all Terraform on every PR targeting `main`. |
 | **Secret leak prevention** | Gitleaks scans full git history on every PR. |
-| **Dependency vulnerabilities** | Snyk SCA on every PR; blocks HIGH/CRITICAL. |
+| **Dependency vulnerabilities** | Snyk SCA weekly (not per-PR, see §1.3); Trivy image scan on every PR catches most of the same class for packages that ship in a built image. |
 | **Code quality** | SonarCloud Quality Gate on every PR; blocks on new bugs, vulnerabilities, and coverage drop below 80% on changed code. |

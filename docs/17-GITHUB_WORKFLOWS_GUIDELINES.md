@@ -57,8 +57,9 @@ Every PR must include:
 ### **The "Zero Failure" Rule**
 A PR cannot be merged if any check in the CI pipeline fails. This includes:
 - **SonarCloud:** No new "Code Smells" or "Security Hotspots".
-- **Snyk:** No new vulnerabilities in dependencies.
 - **Test Coverage:** Must stay above 80% for the changed modules.
+
+Snyk (dependency SCA) is **not** part of this per-PR gate — see §5 below.
 
 ---
 
@@ -77,10 +78,12 @@ Every push to a branch triggers:
 1. **Linting:** Prettier & ESLint check.
 2. **Static Analysis:** `tsc` (TypeScript) verification.
 3. **Tests:** Execution of the full Test Pyramid (Unit → Integration).
-4. **Security:** Snyk scan for vulnerabilities, Gitleaks scan for secrets, Trivy image scan, and Checkov IaC scan.
+4. **Security:** Gitleaks scan for secrets, Trivy image scan, and Checkov IaC scan.
 5. **Quality Gate:** SonarCloud analysis must be "GREEN".
 
 (See §7 below for the full job list — this is a summary, not exhaustive; several additional PR-gating jobs, e.g. `architecture-check`, `dependency-cruise`, `knip`, `actionlint`/`zizmor`, aren't itemized here.)
+
+**Snyk SCA is not part of the per-PR gate** — it runs only as a weekly scheduled scan (`weekly-jobs.yml`, every Monday, `--all-projects`), not as a required PR check. Removed from `pr-tests.yml` and from `main`'s required status checks 2026-09-14 after the org's 200-test/month quota was repeatedly exhausted by `/pr-land`'s iterative bot-review rounds (each dependency-file-touching push re-ran a full-workspace scan). Trivy Image Scan still runs per-PR and substantially overlaps Snyk's coverage for any CVE that ends up in a built image.
 
 ---
 

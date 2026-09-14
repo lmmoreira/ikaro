@@ -113,7 +113,7 @@ These appear as `Nest can't resolve dependencies of XxxUseCase (?, ...)` in test
 
 ## Snyk SCA failures (dependency vulnerabilities)
 
-Snyk scans the **whole** dependency tree on every PR — a freshly-disclosed CVE in an untouched transitive dependency can fail a PR that never touched that package.
+Snyk runs weekly (`weekly-jobs.yml`, every Monday), not per-PR — moved off the PR gate 2026-09-14 after the org's 200-test/month quota was repeatedly exhausted by `/pr-land`'s own iterative rounds. Snyk still scans the **whole** dependency tree in that weekly run, so a freshly-disclosed CVE in an untouched transitive dependency can surface there independent of any specific PR. The findings and their fixes below still apply whenever a weekly Snyk run (or a manual `pnpm --filter <pkg> ... run` against Snyk's CLI) flags something.
 
 | Symptom | Root cause | Fix |
 |---------|-----------|-----|

@@ -241,7 +241,9 @@ If a design keeps needing new safeguards or caveats as it's developed (e.g. "thi
 - Playwright specs are test cases only; reusable flows/helpers live in `apps/web/e2e/helpers/<feature>/**`. → Vitest config, mocks, axe testing, E2E helper/dev-login conventions: `docs/08-TESTING_STRATEGY.md`
 
 ### CI gates (block merge)
-ESLint + Prettier · `tsc --noEmit` · all tests · coverage ≥ 80% on changed code · SonarCloud GREEN · Snyk SCA · Gitleaks · Trivy · Checkov
+ESLint + Prettier · `tsc --noEmit` · all tests · coverage ≥ 80% on changed code · SonarCloud GREEN · Gitleaks · Trivy · Checkov
+
+**Snyk SCA moved off the per-PR gate to a weekly scheduled scan** (`weekly-jobs.yml`, every Monday, `--all-projects`) — no longer a required check on `main`. Removed 2026-09-14 after the org's 200-test/month quota was repeatedly exhausted by the `/pr-land` bot-review loop's own iterative pushes (each dependency-file-touching round re-ran a full `--all-projects` scan). Trivy Image Scan already provides substantial per-PR overlap for the same class of finding (it independently caught the nodemailer CVE that first surfaced this). A dependency CVE merged via a PR now surfaces at most ~6 days later instead of blocking that PR — a deliberate, budget-driven tradeoff, not an oversight.
 
 When SonarCloud is failing, treat the live issue list/quality gate as the only source of truth — never fix from stale logs or guess from the diff (see `docs/ANTI_PATTERNS.md`'s SonarCloud row for the exact discipline and how to verify a fix actually moved the metric).
 
