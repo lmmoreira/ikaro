@@ -170,6 +170,74 @@ describe('buildTimelineEvents', () => {
     expect(result.events).toHaveLength(2);
     expect(result.events.map((event) => event.kind)).toEqual(['closure', 'booking']);
   });
+
+  it('resolves closure resourceName from resourceNameById and lane-splits overlapping resource-scoped closures', () => {
+    const closures: ScheduleClosure[] = [
+      {
+        id: 'closure-leonardo',
+        date: '2026-08-17',
+        startTime: '09:00',
+        endTime: '10:00',
+        reason: 'MAINTENANCE',
+        notes: null,
+        resourceId: 'res-1',
+      },
+      {
+        id: 'closure-walace',
+        date: '2026-08-17',
+        startTime: '09:00',
+        endTime: '10:00',
+        reason: 'MAINTENANCE',
+        notes: null,
+        resourceId: 'res-2',
+      },
+    ];
+
+    const result = buildTimelineEvents({
+      selectedDateKey: '2026-08-17',
+      timezone: 'America/Sao_Paulo',
+      slotGranularityMinutes: 30,
+      businessHours: makeBusinessHours(),
+      bookings: [],
+      closures,
+      openings: [],
+      resourceNameById: new Map([
+        ['res-1', 'Leonardo'],
+        ['res-2', 'Walace'],
+      ]),
+    });
+
+    expect(result.events).toHaveLength(2);
+    const closureEvents = result.events.filter((event) => event.kind === 'closure');
+    expect(closureEvents.map((event) => event.resourceName).sort()).toEqual(['Leonardo', 'Walace']);
+    expect(closureEvents.every((event) => event.laneCount === 2)).toBe(true);
+    expect(new Set(closureEvents.map((event) => event.laneIndex))).toEqual(new Set([0, 1]));
+  });
+
+  it('defaults resourceName to null when resourceNameById is omitted', () => {
+    const closure: ScheduleClosure = {
+      id: 'closure-1',
+      date: '2026-08-17',
+      startTime: '09:00',
+      endTime: '10:00',
+      reason: 'MAINTENANCE',
+      notes: null,
+      resourceId: 'res-1',
+    };
+
+    const result = buildTimelineEvents({
+      selectedDateKey: '2026-08-17',
+      timezone: 'America/Sao_Paulo',
+      slotGranularityMinutes: 30,
+      businessHours: makeBusinessHours(),
+      bookings: [],
+      closures: [closure],
+      openings: [],
+    });
+
+    expect(result.events[0].kind).toBe('closure');
+    expect(result.events[0].kind === 'closure' && result.events[0].resourceName).toBeNull();
+  });
 });
 
 describe('buildTimelineDayData', () => {

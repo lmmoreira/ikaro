@@ -31,6 +31,7 @@ interface ScheduleRemovalDialogProps {
   readonly summaryTitle?: ReactNode;
   readonly rangeLabel: string;
   readonly notesLabel: string;
+  readonly resourceLabel?: string | null;
 }
 
 export function ScheduleRemovalDialog({
@@ -47,6 +48,7 @@ export function ScheduleRemovalDialog({
   summaryTitle,
   rangeLabel,
   notesLabel,
+  resourceLabel,
 }: ScheduleRemovalDialogProps): React.JSX.Element | null {
   const commonT = useTranslations('common');
   const locale = useResolvedLocale();
@@ -89,6 +91,7 @@ export function ScheduleRemovalDialog({
         rangeLabel={rangeLabel}
         notesLabel={notesLabel}
         notes={removalTarget.notes}
+        resourceLabel={resourceLabel}
       />
     </BookingActionSheetShell>
   );

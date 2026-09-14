@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
+  createScheduleClosureAt,
   createUniqueScheduleBooking,
   createUniqueScheduleClosure,
   createUniqueScheduleOpening,
@@ -355,6 +356,77 @@ test.describe('schedule page coverage', () => {
         await expect(closureButton).toHaveCount(0);
       } finally {
         await removeScheduleClosure(page, closure.id);
+      }
+    } finally {
+      await deactivateResource(page, resource.id);
+    }
+  });
+
+  test('a tenant-wide closure stays visible alongside a resource-scoped one when a resource is checked, each labeled and laid out side-by-side (M21-S05)', async ({
+    page,
+  }) => {
+    await loginAsScheduleStaff(page);
+
+    const resource = await createResource(page, {
+      type: 'ROOM',
+      name: uniqueLabel('E2E Estúdio'),
+    });
+
+    try {
+      const tenantWideClosure = await createUniqueScheduleClosure(
+        page,
+        {
+          reason: 'MAINTENANCE',
+          notes: 'E2E tenant-wide closure',
+          startTime: '10:00',
+          endTime: '11:00',
+        },
+        128,
+      );
+      const dateKey = tenantWideClosure.dateKey;
+      // Pinned to the exact same date as the tenant-wide closure above (not a second
+      // createUniqueScheduleClosure call, whose own date-retry loop could otherwise land it on a
+      // different date) — the two need to genuinely overlap for this test's own assertions.
+      const resourceClosure = await createScheduleClosureAt(page, dateKey, {
+        reason: 'MAINTENANCE',
+        notes: 'E2E resource-scoped closure',
+        resourceId: resource.id,
+        startTime: '10:00',
+        endTime: '11:00',
+      });
+
+      try {
+        await page.goto(scheduleRoute(dateKey));
+
+        await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+        await page.getByRole('checkbox', { name: resource.name }).check();
+        await page.getByRole('button', { name: 'Fechar' }).click();
+
+        const tenantWideBlock = page.getByTestId(`schedule-closure-block-${tenantWideClosure.id}`);
+        const resourceBlock = page.getByTestId(`schedule-closure-block-${resourceClosure.id}`);
+
+        // The tenant-wide closure must remain visible once a resource is checked — it applies to
+        // every resource regardless of what's checked in the filter, since the backend's
+        // resourceId filter is exact (never both tenant-wide and resource-scoped in one response).
+        await expect(tenantWideBlock).toBeVisible();
+        await expect(resourceBlock).toBeVisible();
+
+        // Resource-scoped block carries a resource-name label; the tenant-wide one doesn't (there's
+        // no single resource to name). Matched by testid, not by the rendered name text
+        // (docs/08-TESTING_STRATEGY.md § E2E Selector Strategy).
+        await expect(resourceBlock.getByTestId('timeline-block-resource-name')).toHaveText(
+          resource.name,
+        );
+        await expect(tenantWideBlock.getByTestId('timeline-block-resource-name')).toHaveCount(0);
+
+        // Same time window, two overlapping same-kind blocks — laid out side-by-side (non-equal
+        // left offsets), not stacked directly on top of each other.
+        const tenantWideLeft = await tenantWideBlock.evaluate((el) => el.style.left);
+        const resourceLeft = await resourceBlock.evaluate((el) => el.style.left);
+        expect(tenantWideLeft).not.toBe(resourceLeft);
+      } finally {
+        await removeScheduleClosure(page, tenantWideClosure.id);
+        await removeScheduleClosure(page, resourceClosure.id);
       }
     } finally {
       await deactivateResource(page, resource.id);

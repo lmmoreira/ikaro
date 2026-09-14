@@ -63,6 +63,7 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
     statusFilter,
     resourceFilter,
     scheduleFetchError,
+    resourceNameById,
   } = useSchedulePageController(props);
   const { role } = useTenant();
   const t = useTranslations('dashboard.schedule');
@@ -209,6 +210,7 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
         target={ui.removeClosureTarget}
         onClose={() => ui.setRemoveClosureTarget(null)}
         onSubmit={mutationHandlers.handleRemoveClosure}
+        resourceNameById={resourceNameById}
       />
 
       <RemoveOpeningDialog
@@ -216,6 +218,7 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
         target={ui.removeOpeningTarget}
         onClose={() => ui.setRemoveOpeningTarget(null)}
         onSubmit={mutationHandlers.handleRemoveOpening}
+        resourceNameById={resourceNameById}
       />
     </div>
   );

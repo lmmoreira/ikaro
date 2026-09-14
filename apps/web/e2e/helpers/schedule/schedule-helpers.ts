@@ -115,6 +115,33 @@ export async function createUniqueScheduleClosure(
   throw new Error('Unable to find a free date for schedule closure test');
 }
 
+// For tests needing two closures pinned to the exact same date (e.g. a tenant-wide one and a
+// resource-scoped one, to exercise the merged multi-resource view) — createUniqueScheduleClosure
+// can't be reused for the second call, since its own date-retry loop could land it on a
+// different date than the first call if an unrelated conflict happened to occur in between.
+export async function createScheduleClosureAt(
+  page: Page,
+  dateKey: string,
+  body: {
+    readonly reason?: 'STAFF_DAY_OFF' | 'MAINTENANCE' | 'HOLIDAY';
+    readonly startTime?: string;
+    readonly endTime?: string;
+    readonly notes?: string;
+    readonly resourceId?: string;
+  },
+): Promise<{ readonly id: string }> {
+  const response = await page.request.post(`${BFF_URL}/schedule/closures`, {
+    data: { date: dateKey, ...body },
+    headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
+  });
+  if (!response.ok()) {
+    throw new Error(
+      `createScheduleClosureAt failed: ${response.status()} ${await response.text()}`,
+    );
+  }
+  return (await response.json()) as { readonly id: string };
+}
+
 export async function removeScheduleClosure(page: Page, id: string): Promise<void> {
   const response = await page.request.delete(`${BFF_URL}/schedule/closures/${id}`, {
     headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },

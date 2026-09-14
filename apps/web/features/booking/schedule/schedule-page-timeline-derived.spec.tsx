@@ -42,6 +42,7 @@ function baseInput(overrides: Partial<Parameters<typeof useScheduleTimelineDeriv
     timezone: 'America/Sao_Paulo',
     slotGranularityMinutes: 30,
     selectedDateKey: '2026-08-17',
+    resourceNameById: new Map<string, string>(),
     ...overrides,
   };
 }

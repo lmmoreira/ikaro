@@ -25,6 +25,14 @@ function reconcileResourceIds(
   return selectedResourceIds.filter((id) => activeResourceIds.has(id));
 }
 
+interface ReconciledResourceIdsResult {
+  readonly selectedResourceIds: readonly string[];
+  // The same MANAGER-only fetch backing the reconciliation below, exposed so callers needing a
+  // resourceId -> name lookup (timeline block labels, removal dialogs) don't issue a second,
+  // redundant fetch for the same data.
+  readonly resourceNameById: ReadonlyMap<string, string>;
+}
+
 // Extracted from useScheduleVisibleData below — drops any persisted selected-resource id no
 // longer present in the tenant's active resource list (e.g. deactivated after being selected).
 // Without this, ResourceFilterMenu's checkbox list simply stops rendering that id (it only shows
@@ -36,11 +44,15 @@ function reconcileResourceIds(
 function useReconciledSelectedResourceIds(
   selectedResourceIds: readonly string[],
   setSelectedResourceIds: (next: readonly string[]) => void,
-): readonly string[] {
+): ReconciledResourceIdsResult {
   const { role } = useTenant();
   const isManager = role === 'MANAGER';
   const { resources, isLoading } = useSelectableResources(isManager);
   const activeResourceIds = useMemo(() => new Set(resources.map((r) => r.id)), [resources]);
+  const resourceNameById = useMemo(
+    () => new Map(resources.map((resource) => [resource.id, resource.name])),
+    [resources],
+  );
   // Non-MANAGER: pass through untouched rather than reconciling against a deliberately-unfetched
   // (always empty) active set — selectedResourceIds is always [] here anyway (no UI sets it for
   // STAFF), and reconciling against an empty set would otherwise wipe any value out regardless.
@@ -57,7 +69,7 @@ function useReconciledSelectedResourceIds(
     setSelectedResourceIds(reconciled);
   }, [isManager, isLoading, reconciled, selectedResourceIds, setSelectedResourceIds]);
 
-  return reconciled;
+  return { selectedResourceIds: reconciled, resourceNameById };
 }
 
 // Extracted from useScheduleVisibleData below — the status/resource Set derivation and the
@@ -119,7 +131,7 @@ function useScheduleVisibleData(props: SchedulePageControllerInput, ui: Schedule
     selectedResourceIds: persistedSelectedResourceIds,
     setSelectedResourceIds,
   } = useSchedulePreferences();
-  const selectedResourceIds = useReconciledSelectedResourceIds(
+  const { selectedResourceIds, resourceNameById } = useReconciledSelectedResourceIds(
     persistedSelectedResourceIds,
     setSelectedResourceIds,
   );
@@ -145,6 +157,7 @@ function useScheduleVisibleData(props: SchedulePageControllerInput, ui: Schedule
     setPersistedViewMode: setViewMode,
     scheduleViewMode,
     scheduleFetchError,
+    resourceNameById,
   };
 }
 
@@ -173,6 +186,7 @@ export function useScheduleCoreData(props: SchedulePageControllerInput) {
     timezone,
     slotGranularityMinutes,
     selectedDateKey: ui.selectedDateKey,
+    resourceNameById: visible.resourceNameById,
   });
 
   return {
@@ -187,6 +201,7 @@ export function useScheduleCoreData(props: SchedulePageControllerInput) {
     setPersistedViewMode: visible.setPersistedViewMode,
     scheduleViewMode: visible.scheduleViewMode,
     scheduleFetchError: visible.scheduleFetchError,
+    resourceNameById: visible.resourceNameById,
     ...timelineDerived,
   };
 }

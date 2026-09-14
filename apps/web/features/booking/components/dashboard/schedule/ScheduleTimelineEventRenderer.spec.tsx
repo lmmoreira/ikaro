@@ -95,6 +95,9 @@ describe('renderTimelineEvent', () => {
       title: '',
       subtitle: '',
       opening,
+      resourceName: null,
+      laneIndex: 0,
+      laneCount: 1,
     };
     const props = baseProps();
 
@@ -121,6 +124,9 @@ describe('renderTimelineEvent', () => {
       title: '',
       subtitle: '',
       closure,
+      resourceName: null,
+      laneIndex: 0,
+      laneCount: 1,
     };
     const props = baseProps();
 
@@ -129,5 +135,57 @@ describe('renderTimelineEvent', () => {
     await user.click(screen.getByRole('button', { name: /Manutenção/ }));
     expect(screen.getByText('Dia inteiro')).toBeInTheDocument();
     expect(props.onClosureClick).toHaveBeenCalledWith(closure);
+  });
+
+  it('shows the resource-name badge on a resource-scoped closure but not on a tenant-wide one', () => {
+    const closure = {
+      id: 'closure-1',
+      reason: 'MAINTENANCE',
+      notes: null,
+      startTime: null,
+      endTime: null,
+    } as never;
+    const event: TimelineEvent = {
+      kind: 'closure',
+      id: 'closure-1',
+      startMinutes: 540,
+      endMinutes: 600,
+      title: '',
+      subtitle: '',
+      closure,
+      resourceName: 'Leonardo',
+      laneIndex: 0,
+      laneCount: 1,
+    };
+
+    renderWithIntl(<Host event={event} props={baseProps()} />);
+    expect(screen.getByText('Leonardo')).toBeInTheDocument();
+  });
+
+  it("splits a closure's block width/position according to its lane assignment", () => {
+    const closure = {
+      id: 'closure-1',
+      reason: 'MAINTENANCE',
+      notes: null,
+      startTime: null,
+      endTime: null,
+    } as never;
+    const event: TimelineEvent = {
+      kind: 'closure',
+      id: 'closure-1',
+      startMinutes: 540,
+      endMinutes: 600,
+      title: '',
+      subtitle: '',
+      closure,
+      resourceName: 'Walace',
+      laneIndex: 1,
+      laneCount: 2,
+    };
+
+    renderWithIntl(<Host event={event} props={baseProps()} />);
+    const block = screen.getByTestId('schedule-closure-block-closure-1');
+    expect(block.style.left).toBe('50%');
+    expect(block.style.width).toBe('50%');
   });
 });

@@ -8,24 +8,31 @@ export interface TimelineEventBase {
   readonly endMinutes: number;
   readonly title: string;
   readonly subtitle: string;
+  // Column position among overlapping events of the same kind (see assignLanes below) — always
+  // 0/1 (full width) until lane assignment runs on a same-kind group.
+  readonly laneIndex: number;
+  readonly laneCount: number;
 }
 
 export interface BookingTimelineEvent extends TimelineEventBase {
   readonly kind: 'booking';
   readonly booking: StaffBookingCardResponse;
   readonly warning: boolean;
-  readonly laneIndex: number;
-  readonly laneCount: number;
 }
 
 export interface ClosureTimelineEvent extends TimelineEventBase {
   readonly kind: 'closure';
   readonly closure: ScheduleClosure;
+  // Resolved from closure.resourceId via the resourceNameById map passed into
+  // buildClosureTimelineEvent — null for a tenant-wide closure (resourceId unset) or when the
+  // resource's own name isn't in the (MANAGER-only) fetched list yet.
+  readonly resourceName: string | null;
 }
 
 export interface OpeningTimelineEvent extends TimelineEventBase {
   readonly kind: 'opening';
   readonly opening: ScheduleOpening;
+  readonly resourceName: string | null;
 }
 
 export type TimelineEvent = BookingTimelineEvent | ClosureTimelineEvent | OpeningTimelineEvent;
@@ -47,6 +54,15 @@ export function getBookingTimeKey(
 
 export function getBookingDateKey(booking: StaffBookingCardResponse, timezone: string): string {
   return toISODateInTimezone(new Date(booking.scheduledAt), timezone);
+}
+
+// Bookings aren't resource-scoped in this milestone (out of scope), so there's no equivalent
+// lookup for buildBookingTimelineEvent.
+function resolveResourceName(
+  resourceId: string | null,
+  resourceNameById: ReadonlyMap<string, string>,
+): string | null {
+  return resourceId ? (resourceNameById.get(resourceId) ?? null) : null;
 }
 
 export function buildBookingTimelineEvent(
@@ -88,6 +104,7 @@ export function buildClosureTimelineEvent(
   closure: ScheduleClosure,
   activeStartTime: string,
   activeEndTime: string,
+  resourceNameById: ReadonlyMap<string, string>,
 ): ClosureTimelineEvent {
   const startTime = closure.startTime ?? activeStartTime;
   const endTime = closure.endTime ?? activeEndTime;
@@ -100,11 +117,15 @@ export function buildClosureTimelineEvent(
     title: closure.reason,
     subtitle: closure.notes ?? '',
     closure,
+    resourceName: resolveResourceName(closure.resourceId, resourceNameById),
+    laneIndex: 0,
+    laneCount: 1,
   };
 }
 
 export function buildOpeningTimelineEvent(
   selectedOpening: ScheduleOpening | null,
+  resourceNameById: ReadonlyMap<string, string>,
 ): OpeningTimelineEvent | null {
   if (!selectedOpening) return null;
 
@@ -116,59 +137,61 @@ export function buildOpeningTimelineEvent(
     title: selectedOpening.notes ?? '',
     subtitle: '',
     opening: selectedOpening,
+    resourceName: resolveResourceName(selectedOpening.resourceId, resourceNameById),
+    laneIndex: 0,
+    laneCount: 1,
   };
 }
 
-export function groupOverlappingBookings(
-  bookings: readonly BookingTimelineEvent[],
-): BookingTimelineEvent[][] {
-  const grouped: BookingTimelineEvent[][] = [];
-  let currentGroup: BookingTimelineEvent[] = [];
+// Generic overlap/lane-splitting algorithm — originally booking-only, generalized (M21-S05
+// live-testing follow-up) to also split overlapping same-kind closures side-by-side, since
+// multiple resources' blocks landing on the same time window otherwise render fully stacked on
+// top of each other with no way to tell them apart. Openings never call this today (see
+// buildOpeningTimelineEvent's own note), but it works identically for any TimelineEventBase kind.
+export function groupOverlappingEvents<T extends TimelineEventBase>(events: readonly T[]): T[][] {
+  const grouped: T[][] = [];
+  let currentGroup: T[] = [];
   let currentGroupEnd = -Infinity;
 
-  for (const booking of [...bookings].sort(
+  for (const event of [...events].sort(
     (left, right) => left.startMinutes - right.startMinutes || left.endMinutes - right.endMinutes,
   )) {
-    const startsNewGroup = currentGroup.length === 0 || booking.startMinutes >= currentGroupEnd;
+    const startsNewGroup = currentGroup.length === 0 || event.startMinutes >= currentGroupEnd;
     if (startsNewGroup) {
       if (currentGroup.length > 0) grouped.push(currentGroup);
-      currentGroup = [booking];
-      currentGroupEnd = booking.endMinutes;
+      currentGroup = [event];
+      currentGroupEnd = event.endMinutes;
       continue;
     }
 
-    currentGroup.push(booking);
-    currentGroupEnd = Math.max(currentGroupEnd, booking.endMinutes);
+    currentGroup.push(event);
+    currentGroupEnd = Math.max(currentGroupEnd, event.endMinutes);
   }
 
   if (currentGroup.length > 0) grouped.push(currentGroup);
   return grouped;
 }
 
-export function assignLanesToBookingGroup(
-  group: readonly BookingTimelineEvent[],
-): BookingTimelineEvent[] {
+export function assignLanesToEventGroup<T extends TimelineEventBase>(group: readonly T[]): T[] {
   const laneEnds: number[] = [];
   const laneAssignments = new Map<string, number>();
 
-  for (const booking of group) {
-    const laneIndex = laneEnds.findIndex((endMinutes) => endMinutes <= booking.startMinutes);
+  for (const event of group) {
+    const laneIndex = laneEnds.findIndex((endMinutes) => endMinutes <= event.startMinutes);
     const resolvedLaneIndex = laneIndex === -1 ? laneEnds.length : laneIndex;
-    laneEnds[resolvedLaneIndex] = booking.endMinutes;
-    laneAssignments.set(booking.id, resolvedLaneIndex);
+    laneEnds[resolvedLaneIndex] = event.endMinutes;
+    laneAssignments.set(event.id, resolvedLaneIndex);
   }
 
   const laneCount = laneEnds.length;
-  return group.map((booking) => ({
-    ...booking,
-    laneIndex: laneAssignments.get(booking.id) ?? 0,
+  return group.map((event) => ({
+    ...event,
+    laneIndex: laneAssignments.get(event.id) ?? 0,
     laneCount,
   }));
 }
 
-export function assignBookingLanes(
-  bookings: readonly BookingTimelineEvent[],
-): BookingTimelineEvent[] {
-  if (bookings.length === 0) return [];
-  return groupOverlappingBookings(bookings).flatMap(assignLanesToBookingGroup);
+export function assignLanes<T extends TimelineEventBase>(events: readonly T[]): T[] {
+  if (events.length === 0) return [];
+  return groupOverlappingEvents(events).flatMap(assignLanesToEventGroup);
 }

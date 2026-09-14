@@ -95,6 +95,28 @@ function renderBookingTimelineEvent(
   );
 }
 
+// Extracted from renderOpeningTimelineEvent/renderClosureTimelineEvent below — a small pill
+// naming which resource a block belongs to, shown only when the block is resource-scoped (a
+// tenant-wide block has no single resource to name, so nothing renders). MANAGER-only in
+// practice: resourceName is only ever non-null when the resourceNameById lookup was populated,
+// which only happens for MANAGER (see schedule-page-core-data.ts).
+function ResourceNameBadge({
+  resourceName,
+}: {
+  readonly resourceName: string | null;
+}): React.JSX.Element | null {
+  if (!resourceName) return null;
+  return (
+    <Badge
+      variant="outline"
+      data-testid="timeline-block-resource-name"
+      className="shrink-0 border-0 bg-white/70 text-[0.625rem] font-medium"
+    >
+      {resourceName}
+    </Badge>
+  );
+}
+
 function renderOpeningTimelineEvent(
   event: OpeningTimelineEvent,
   compact: boolean,
@@ -110,13 +132,15 @@ function renderOpeningTimelineEvent(
     props.slotGranularityMinutes,
     timeline.slotHeight,
   );
+  const laneWidth = 100 / event.laneCount;
+  const laneLeft = laneWidth * event.laneIndex;
 
   return (
     <TimelineBlockShell
       key={event.id}
       compact={compact}
       className="z-10 border-emerald-200 bg-emerald-50 text-emerald-950 hover:bg-emerald-100"
-      style={blockStyle}
+      style={{ ...blockStyle, left: `${laneLeft}%`, width: `${laneWidth}%` }}
       testId={`schedule-opening-block-${event.opening.id}`}
       onClick={() => props.onOpeningClick(event.opening)}
       icon={<CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />}
@@ -124,6 +148,7 @@ function renderOpeningTimelineEvent(
       subtitle={
         event.opening.notes ?? formatEventRange(event.opening.startTime, event.opening.endTime)
       }
+      trailing={<ResourceNameBadge resourceName={event.resourceName} />}
     />
   );
 }
@@ -143,6 +168,8 @@ function renderClosureTimelineEvent(
     props.slotGranularityMinutes,
     timeline.slotHeight,
   );
+  const laneWidth = 100 / event.laneCount;
+  const laneLeft = laneWidth * event.laneIndex;
 
   return (
     <TimelineBlockShell
@@ -151,6 +178,8 @@ function renderClosureTimelineEvent(
       className="z-10 border-slate-200 text-slate-900 hover:bg-slate-100"
       style={{
         ...blockStyle,
+        left: `${laneLeft}%`,
+        width: `${laneWidth}%`,
         backgroundImage:
           'repeating-linear-gradient(135deg, rgba(148,163,184,0.18) 0, rgba(148,163,184,0.18) 8px, rgba(248,250,252,0.95) 8px, rgba(248,250,252,0.95) 16px)',
       }}
@@ -163,6 +192,7 @@ function renderClosureTimelineEvent(
           ? formatEventRange(event.closure.startTime, event.closure.endTime)
           : t('allDay')
       }
+      trailing={<ResourceNameBadge resourceName={event.resourceName} />}
     />
   );
 }

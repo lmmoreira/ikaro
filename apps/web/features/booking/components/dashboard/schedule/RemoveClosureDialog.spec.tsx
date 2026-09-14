@@ -55,15 +55,48 @@ describe('RemoveClosureDialog', () => {
     };
 
     renderWithIntl(
-      <RemoveClosureDialog open target={target} onClose={vi.fn()} onSubmit={onSubmit} />,
+      <RemoveClosureDialog
+        open
+        target={target}
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+        resourceNameById={new Map()}
+      />,
     );
 
     expect(screen.getByText('Manutenção')).toBeInTheDocument();
     expect(screen.getByText('09:00–12:00')).toBeInTheDocument();
     expect(screen.getByText('Preventive work')).toBeInTheDocument();
+    expect(screen.queryByTestId('schedule-removal-resource-label')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Remover bloqueio' }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith('closure-1'));
+  });
+
+  it('shows the resource label when the closure is resource-scoped', () => {
+    const target = {
+      id: 'closure-1',
+      date: '2026-07-04',
+      startTime: '09:00',
+      endTime: '12:00',
+      reason: 'MAINTENANCE' as const,
+      notes: null,
+      resourceId: 'res-1',
+    };
+
+    renderWithIntl(
+      <RemoveClosureDialog
+        open
+        target={target}
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+        resourceNameById={new Map([['res-1', 'Leonardo']])}
+      />,
+    );
+
+    expect(screen.getByTestId('schedule-removal-resource-label')).toHaveTextContent(
+      'Recurso: Leonardo',
+    );
   });
 });

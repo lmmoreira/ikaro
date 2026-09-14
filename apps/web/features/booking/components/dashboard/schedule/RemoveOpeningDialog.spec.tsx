@@ -54,15 +54,47 @@ describe('RemoveOpeningDialog', () => {
     };
 
     renderWithIntl(
-      <RemoveOpeningDialog open target={target} onClose={vi.fn()} onSubmit={onSubmit} />,
+      <RemoveOpeningDialog
+        open
+        target={target}
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+        resourceNameById={new Map()}
+      />,
     );
 
     expect(screen.getByText(/julho/i)).toBeInTheDocument();
     expect(screen.getByText('09:00–14:00')).toBeInTheDocument();
     expect(screen.getByText('Horário especial')).toBeInTheDocument();
+    expect(screen.queryByTestId('schedule-removal-resource-label')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Remover abertura' }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith('opening-1'));
+  });
+
+  it('shows the resource label when the opening is resource-scoped', () => {
+    const target = {
+      id: 'opening-1',
+      date: '2026-07-05',
+      startTime: '09:00',
+      endTime: '14:00',
+      notes: null,
+      resourceId: 'res-1',
+    };
+
+    renderWithIntl(
+      <RemoveOpeningDialog
+        open
+        target={target}
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+        resourceNameById={new Map([['res-1', 'Walace']])}
+      />,
+    );
+
+    expect(screen.getByTestId('schedule-removal-resource-label')).toHaveTextContent(
+      'Recurso: Walace',
+    );
   });
 });

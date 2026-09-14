@@ -3,6 +3,7 @@ export {
   SCHEDULE_STAFF_EMAIL,
   SCHEDULE_TENANT_SLUG,
   createUniqueScheduleBooking,
+  createScheduleClosureAt,
   createUniqueScheduleClosure,
   createUniqueScheduleOpening,
   loginAsScheduleStaff,

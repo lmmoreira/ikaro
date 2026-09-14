@@ -35,6 +35,7 @@ export interface UseSchedulePageControllerResult {
   readonly scheduleViewMode: ScheduleViewMode;
   readonly setPersistedViewMode: (viewMode: ScheduleViewMode) => void;
   readonly scheduleFetchError: unknown;
+  readonly resourceNameById: ReadonlyMap<string, string>;
   readonly weekDayInfo: ScheduleWeekDayInfo[];
   readonly activeDates: Set<string>;
   readonly dimmedDates: Set<string>;
@@ -131,6 +132,41 @@ function buildControllerHandlers(
   };
 }
 
+// Extracted from buildControllerResult below — the plain pass-through/derived fields sourced
+// directly from core data are a cohesive, self-contained slice of the final result object.
+function buildCoreDerivedFields(
+  core: ScheduleCoreData,
+  t: ReturnType<typeof useTranslations>,
+): Pick<
+  UseSchedulePageControllerResult,
+  | 'scheduleViewMode'
+  | 'setPersistedViewMode'
+  | 'scheduleFetchError'
+  | 'resourceNameById'
+  | 'weekDayInfo'
+  | 'activeDates'
+  | 'dimmedDates'
+  | 'weekTimelineCards'
+  | 'timelineTitle'
+> {
+  const { selectedDayTimeline } = core;
+  return {
+    scheduleViewMode: core.scheduleViewMode,
+    setPersistedViewMode: core.setPersistedViewMode,
+    scheduleFetchError: core.scheduleFetchError,
+    resourceNameById: core.resourceNameById,
+    weekDayInfo: core.weekDayInfo,
+    activeDates: core.activeDates,
+    dimmedDates: core.dimmedDates,
+    weekTimelineCards: core.weekTimelineCards,
+    timelineTitle: resolveTimelineTitle(
+      t,
+      selectedDayTimeline.selectedOpening,
+      selectedDayTimeline.selectedDayClosed,
+    ),
+  };
+}
+
 // Extracted from SchedulePage (TD37-S5A) — assembles the final flat object the page component
 // renders from, out of the core data, derived labels, and the interaction/mutation handlers.
 export function buildControllerResult(
@@ -145,6 +181,7 @@ export function buildControllerResult(
   const { ui, timezone, selectedDayTimeline } = core;
   const { selectedDayLabel, bookingEventCount, slotLabels } = labels;
   const handlers = buildControllerHandlers(props, core, t, mutations);
+  const coreDerived = buildCoreDerivedFields(core, t);
 
   return {
     ui,
@@ -153,24 +190,13 @@ export function buildControllerResult(
     slotGranularityMinutes,
     timezone,
     statusLabels,
-    scheduleViewMode: core.scheduleViewMode,
-    setPersistedViewMode: core.setPersistedViewMode,
-    scheduleFetchError: core.scheduleFetchError,
-    weekDayInfo: core.weekDayInfo,
-    activeDates: core.activeDates,
-    dimmedDates: core.dimmedDates,
     selectedDayTimeline,
-    weekTimelineCards: core.weekTimelineCards,
     selectedDayLabel,
-    timelineTitle: resolveTimelineTitle(
-      t,
-      selectedDayTimeline.selectedOpening,
-      selectedDayTimeline.selectedDayClosed,
-    ),
     bookingEventCount,
     hasBookingInSelectedDay: bookingEventCount > 0,
     slotLabels,
     scheduleReturnTo: buildScheduleReturnTo(ui.weekStartKey, ui.selectedDateKey),
+    ...coreDerived,
     ...handlers,
   };
 }
