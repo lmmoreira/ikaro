@@ -40,7 +40,7 @@ export function ClosureFormSheet({
   const commonT = useTranslations('common');
   const { role } = useTenant();
   const [reason, setReason] = useState<ClosureReason>('STAFF_DAY_OFF');
-  // Always starts fresh at "Todo o negócio" — deliberately doesn't carry over whatever
+  // Always starts fresh on the tenant-wide default — deliberately doesn't carry over whatever
   // ResourceFilterMenu currently has checked (a multi-select view filter isn't the same choice as
   // which single resource a new block applies to).
   const [resourceId, setResourceId] = useState<string | null>(null);

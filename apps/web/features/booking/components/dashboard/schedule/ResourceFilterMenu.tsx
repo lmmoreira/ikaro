@@ -21,9 +21,9 @@ interface ResourceFilterMenuProps {
 
 // MANAGER-only floating filter (M21 Cluster 1) — mirrors ScheduleStatusFilterMenu's own
 // trigger+popover shape exactly, stacked just above it so both can be open independently.
-// Checking zero resources means "Todo o negócio" (today's exact tenant-wide behavior,
-// unchanged); checking one or more shows those resources' own closures/openings in addition to
-// the tenant-wide ones, which always apply regardless of what's checked here.
+// Checking zero resources means the tenant-wide default (today's exact behavior, unchanged);
+// checking one or more shows those resources' own closures/openings in addition to the
+// tenant-wide ones, which always apply regardless of what's checked here.
 export function ResourceFilterMenu({
   containerRef,
   open,

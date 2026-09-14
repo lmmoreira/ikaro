@@ -17,7 +17,7 @@ interface ResourceSelectFieldProps {
 // ResourceFilterMenu's own multi-select view filter: viewing several resources' calendars at
 // once doesn't imply a new block should apply to several at once (resourceId is a single nullable
 // field on ScheduleClosure/ScheduleOpening, not a list), so this is a separate, always-single
-// choice, defaulting fresh to "Todo o negócio" every time the sheet opens.
+// choice, defaulting fresh to the tenant-wide option every time the sheet opens.
 export function ResourceSelectField({
   value,
   onValueChange,

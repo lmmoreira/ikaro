@@ -29,8 +29,8 @@ export function OpeningFormSheet({
   const t = useTranslations('dashboard.schedule');
   const commonT = useTranslations('common');
   const { role } = useTenant();
-  // Always starts fresh at "Todo o negócio" — see ClosureFormSheet's identical field for why
-  // this is deliberately decoupled from ResourceFilterMenu's own multi-select view filter.
+  // Always starts fresh on the tenant-wide default — see ClosureFormSheet's identical field for
+  // why this is deliberately decoupled from ResourceFilterMenu's own multi-select view filter.
   const [resourceId, setResourceId] = useState<string | null>(null);
 
   return (
