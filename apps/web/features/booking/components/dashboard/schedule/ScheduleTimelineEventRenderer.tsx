@@ -134,12 +134,19 @@ function renderOpeningTimelineEvent(
   );
   const laneWidth = 100 / event.laneCount;
   const laneLeft = laneWidth * event.laneIndex;
+  // A resource-scoped opening's window always sits inside the tenant-wide one (see
+  // findTenantWideOpening's note in schedule-timeline.ts) — a higher z-index keeps it readable
+  // on top of that full-width backdrop instead of blending into it.
+  const isResourceScoped = event.resourceName !== null;
 
   return (
     <TimelineBlockShell
       key={event.id}
       compact={compact}
-      className="z-10 border-emerald-200 bg-emerald-50 text-emerald-950 hover:bg-emerald-100"
+      className={cn(
+        'border-emerald-200 bg-emerald-50 text-emerald-950 hover:bg-emerald-100',
+        isResourceScoped ? 'z-[15] border-emerald-300 shadow-md' : 'z-10',
+      )}
       style={{ ...blockStyle, left: `${laneLeft}%`, width: `${laneWidth}%` }}
       testId={`schedule-opening-block-${event.opening.id}`}
       onClick={() => props.onOpeningClick(event.opening)}

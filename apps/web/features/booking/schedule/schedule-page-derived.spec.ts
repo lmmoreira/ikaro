@@ -70,6 +70,50 @@ describe('buildWeekDayInfo', () => {
       { dateKey: '2026-08-19', opening: null, hours: null, isClosed: true },
     ]);
   });
+
+  it('prefers the tenant-wide opening over a resource-scoped one for the same date, regardless of array order', () => {
+    const resourceScoped: ScheduleOpening = {
+      id: 'resource-opening',
+      date: '2026-08-18',
+      startTime: '10:00',
+      endTime: '12:00',
+      notes: null,
+      resourceId: 'res-1',
+    };
+    const tenantWide: ScheduleOpening = {
+      id: 'tenant-opening',
+      date: '2026-08-18',
+      startTime: '09:00',
+      endTime: '18:00',
+      notes: null,
+      resourceId: null,
+    };
+
+    const info = buildWeekDayInfo(
+      ['2026-08-18'],
+      [resourceScoped, tenantWide],
+      makeBusinessHours(),
+    );
+
+    expect(info[0].opening).toBe(tenantWide);
+    expect(info[0].isClosed).toBe(false);
+  });
+
+  it('falls back to a resource-scoped opening when no tenant-wide sibling exists, so isClosed stays correct', () => {
+    const resourceScoped: ScheduleOpening = {
+      id: 'resource-opening',
+      date: '2026-08-18',
+      startTime: '10:00',
+      endTime: '12:00',
+      notes: null,
+      resourceId: 'res-1',
+    };
+
+    const info = buildWeekDayInfo(['2026-08-18'], [resourceScoped], makeBusinessHours());
+
+    expect(info[0].opening).toBe(resourceScoped);
+    expect(info[0].isClosed).toBe(false);
+  });
 });
 
 describe('buildActiveDates', () => {

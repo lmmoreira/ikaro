@@ -30,7 +30,12 @@ export function buildWeekDayInfo(
   businessHours: TenantBusinessHours,
 ): ScheduleWeekDayInfo[] {
   return weekDates.map((dateKey) => {
-    const opening = visibleOpenings.find((item) => item.date === dateKey) ?? null;
+    const dayOpenings = visibleOpenings.filter((item) => item.date === dateKey);
+    // Prefers the tenant-wide opening — a resource-scoped opening for a date always requires
+    // one to already exist for that same date first (docs/02-DOMAIN_MODEL.md's Three-Layer
+    // Schedule Resolution) — falling back to any resource-scoped one so `isClosed` stays correct
+    // even in the shouldn't-normally-happen case of one with no tenant-wide sibling.
+    const opening = dayOpenings.find((item) => item.resourceId == null) ?? dayOpenings[0] ?? null;
     const hours = getDayHoursForDate(dateKey, businessHours);
     const isClosed = !hours && !opening;
     return { dateKey, opening, hours, isClosed };

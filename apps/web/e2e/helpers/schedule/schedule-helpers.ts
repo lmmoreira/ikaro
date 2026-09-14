@@ -186,6 +186,32 @@ export async function createUniqueScheduleOpening(
   throw new Error('Unable to find a free date for schedule opening test');
 }
 
+// For tests needing a resource-scoped opening pinned to an already-known date (e.g. alongside a
+// tenant-wide opening created via createUniqueScheduleOpening above) — mirrors
+// createScheduleClosureAt's own reasoning: createUniqueScheduleOpening's date-retry loop can't
+// be reused for a second call without risking a different date than the first.
+export async function createScheduleOpeningAt(
+  page: Page,
+  dateKey: string,
+  body: {
+    readonly startTime: string;
+    readonly endTime: string;
+    readonly notes?: string;
+    readonly resourceId?: string;
+  },
+): Promise<{ readonly id: string }> {
+  const response = await page.request.post(`${BFF_URL}/schedule/openings`, {
+    data: { date: dateKey, ...body },
+    headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
+  });
+  if (!response.ok()) {
+    throw new Error(
+      `createScheduleOpeningAt failed: ${response.status()} ${await response.text()}`,
+    );
+  }
+  return (await response.json()) as { readonly id: string };
+}
+
 export async function removeScheduleOpening(page: Page, id: string): Promise<void> {
   const response = await page.request.delete(`${BFF_URL}/schedule/openings/${id}`, {
     headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },

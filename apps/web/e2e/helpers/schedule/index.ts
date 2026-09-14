@@ -5,6 +5,7 @@ export {
   createUniqueScheduleBooking,
   createScheduleClosureAt,
   createUniqueScheduleClosure,
+  createScheduleOpeningAt,
   createUniqueScheduleOpening,
   loginAsScheduleStaff,
   removeScheduleClosure,

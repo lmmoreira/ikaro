@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
   createScheduleClosureAt,
+  createScheduleOpeningAt,
   createUniqueScheduleBooking,
   createUniqueScheduleClosure,
   createUniqueScheduleOpening,
@@ -427,6 +428,62 @@ test.describe('schedule page coverage', () => {
       } finally {
         await removeScheduleClosure(page, tenantWideClosure.id);
         await removeScheduleClosure(page, resourceClosure.id);
+      }
+    } finally {
+      await deactivateResource(page, resource.id);
+    }
+  });
+
+  test('both a tenant-wide opening and a resource-scoped opening on the same date render, once a resource is checked (M21-S05)', async ({
+    page,
+  }) => {
+    await loginAsScheduleStaff(page);
+
+    const resource = await createResource(page, {
+      type: 'ROOM',
+      name: uniqueLabel('E2E Sala Plantão'),
+    });
+
+    try {
+      const tenantWideOpening = await createUniqueScheduleOpening(
+        page,
+        { startTime: '09:00', endTime: '18:00', notes: 'E2E tenant-wide opening' },
+        129,
+      );
+      const dateKey = tenantWideOpening.dateKey;
+      // A resource-scoped opening requires the tenant-wide one to already exist for the same
+      // date (docs/02-DOMAIN_MODEL.md) — pinned to it directly, not via a second
+      // createUniqueScheduleOpening call (see createScheduleOpeningAt's own note).
+      const resourceOpening = await createScheduleOpeningAt(page, dateKey, {
+        startTime: '11:00',
+        endTime: '13:00',
+        resourceId: resource.id,
+      });
+
+      try {
+        await page.goto(scheduleRoute(dateKey));
+
+        const tenantWideBlock = page.getByTestId(`schedule-opening-block-${tenantWideOpening.id}`);
+        const resourceBlock = page.getByTestId(`schedule-opening-block-${resourceOpening.id}`);
+
+        // Default tenant-wide view: only the tenant-wide opening shows.
+        await expect(tenantWideBlock).toBeVisible();
+        await expect(resourceBlock).toHaveCount(0);
+
+        await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+        await page.getByRole('checkbox', { name: resource.name }).check();
+        await page.getByRole('button', { name: 'Fechar' }).click();
+
+        // Once the resource is checked, both openings must render — the timeline previously
+        // picked only the first opening returned for the date and silently dropped the rest.
+        await expect(tenantWideBlock).toBeVisible();
+        await expect(resourceBlock).toBeVisible();
+        await expect(resourceBlock.getByTestId('timeline-block-resource-name')).toHaveText(
+          resource.name,
+        );
+      } finally {
+        await removeScheduleOpening(page, tenantWideOpening.id);
+        await removeScheduleOpening(page, resourceOpening.id);
       }
     } finally {
       await deactivateResource(page, resource.id);
