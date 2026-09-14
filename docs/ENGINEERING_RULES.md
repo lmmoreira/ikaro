@@ -228,6 +228,20 @@ If the source genuinely has no reachable endpoint yet, the destination being a d
 
 ---
 
+## Migration-driven privilege grants to infrastructure-created roles
+
+Migrations that grant privileges to infrastructure-created database roles must enforce provisioning order or provide convergent reconciliation. A migration that silently skips a missing role is safe only when the deployment process guarantees Foundation creates the role first; otherwise it records a one-time no-op and leaves the role permanently under-privileged.
+
+---
+
+## LIKE/ILIKE pattern escaping for user-supplied search terms
+
+Any user-supplied search term wrapped in a `%...%` LIKE/ILIKE pattern must be escaped first — a caller-controlled `%` or `_` is itself a LIKE wildcard, not literal text, and can defeat a length-based guard that assumes the term is real search content. A minimum-length gate meant to guarantee a `pg_trgm` index has an extractable trigram (e.g. "reject search terms under 3 characters") does not protect against a wildcard-only term like `%%%` — 3 characters, passes the gate, matches every row with zero real selectivity, silently degrading the query to a full scan the index exists specifically to avoid.
+
+Use `escapeLikePattern()` (`apps/backend/src/shared/utils/escape-like-pattern.ts` — backslash-escapes `\`, `%`, `_`) on the raw term *before* wrapping it in `%...%`, not after (M20-S12 precedent, PR #434 round 3, 2026-08-27 — Codex review finding: `search`/`filters[].value` on the `lead_form_answers` trigram-search feature had no escaping, letting `%%%` bypass the 3-char guard entirely).
+
+---
+
 ## Aggregate domain events → outbox (repo auto-flush)
 
 The 4 event-emitting aggregates (`Booking`, `Staff`, `Tenant`, `LeadFormSubmission`) never have their events flushed by a use case. Instead, each aggregate's TypeORM repository drains `clearDomainEvents()` into the outbox as the last step of `save()`, inside the same ambient transaction as the business write (TD24-S02, D6):
@@ -928,6 +942,8 @@ Before adding a new "mock one input, render, assert one output" style test to a 
 Before trusting a lock to make a read authoritative, check what that read's normal method actually does: if it's backed by a `CachingXxxRepository` (or any read-through cache), the lock needs to pair with a **cache-bypassing** read method — not just correct ordering between callers. This codebase's existing pattern for that is `findByIdForUpdate()`: a real Postgres row lock (`pessimistic_write`) that deliberately skips the cache entirely, as opposed to the cached `findById()` used everywhere else.
 
 **M21-S03 precedent, PR #460 round 7, 2026-09-04:** `OpenScheduleUseCase`'s first attempt at closing a tenant-settings TOCTOU race (a concurrent `PATCH /tenants/settings` narrowing `businessHours` mid-request) added a second, tenant-scoped advisory lock (`lockTenantSettings`) around the window-bound check. The lock itself worked exactly as designed — it correctly serialized two concurrent callers relative to each other. But the "fresh" re-read taken after acquiring it still went through `CachingTenantRepository`'s up-to-60s-TTL `findById()`, so the lock provided zero actual freshness guarantee: whichever transaction won the lock could still validate against a stale cached `businessHours` value. Caught by Codex review, which correctly identified that the fix didn't close the race it claimed to. Fixed by discarding the advisory-lock design entirely and reusing `ITenantRepository.findByIdForUpdate()` instead — following `UpdateHotsiteContentUseCase`'s existing precedent for the identical class of cross-aggregate invariant (Tenant settings vs. another aggregate). The fix also *simplified* the design: it removed a whole custom lock mechanism (`ITenantLockPort`'s `lockTenantSettings` method, a `TenantLockModule` promotion to `shared/`) in favor of reusing infrastructure that already existed and was already proven — see `docs/13-DATABASE_SCHEMA.md` § `schedule_openings` Rules for the full before/after.
+
+**The identical failure mode also applies to a same-request in-memory read taken before the lock was acquired, not just a cache** — an aggregate loaded pre-lock and blindly `save()`d post-lock can silently clobber a concurrently-committed write even with zero cache involved; re-read fresh (e.g. `findById()`) *after* acquiring the lock whenever the use case's post-lock write depends on state that could have changed concurrently (M21-S06 precedent, PR #461 round 1, 2026-09-04 — `UpdateResourceUseCase`'s blind `save()` on a stale in-memory `isActive` could silently undo a concurrent cascade deactivation, caught by CodeRabbit review).
 
 ## Re-check a same-file documented invariant when extending an existing algorithm to a new dimension mid-PR
 

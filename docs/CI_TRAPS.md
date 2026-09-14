@@ -115,6 +115,8 @@ These appear as `Nest can't resolve dependencies of XxxUseCase (?, ...)` in test
 
 Snyk runs weekly (`weekly-jobs.yml`, every Monday), not per-PR — moved off the PR gate 2026-09-14 after the org's 200-test/month quota was repeatedly exhausted by `/pr-land`'s own iterative rounds. Snyk still scans the **whole** dependency tree in that weekly run, so a freshly-disclosed CVE in an untouched transitive dependency can surface there independent of any specific PR. The findings and their fixes below still apply whenever a weekly Snyk run (or a manual `pnpm --filter <pkg> ... run` against Snyk's CLI) flags something.
 
+**Security dependency overrides are temporary compatibility boundaries, not permanent pins.** When a fixed upstream release becomes available, update the override and lockfile together, then verify the resolved dependency graph with the repository scanners — never leave a stale vulnerable version pinned merely because the override once addressed an older advisory (see row 2 below for the check-before-bumping mechanics).
+
 | Symptom | Root cause | Fix |
 |---------|-----------|-----|
 | Snyk flags a transitive dependency as vulnerable, but `package.json`'s `pnpm.overrides` already pins a fixed version | pnpm 11 silently ignores `pnpm.overrides` / `pnpm.patchedDependencies` declared in `package.json` — no warning, no error. Overrides must live in `pnpm-workspace.yaml` since the v10→v11 migration. | Move the `overrides:` block to `pnpm-workspace.yaml` (same key/value syntax, root-level key). Verify with `pnpm why <package> -r` — more than one resolved version means the override isn't applying. |
@@ -159,6 +161,14 @@ curl -s -u "$SONAR_TOKEN:" "https://sonarcloud.io/api/duplications/show?key=<pro
 | `new_duplicated_lines_density` fails on a PR | The PR introduced a duplicate block that is still counted in the live analysis, even if the code looks cleaner locally | Find the exact duplicated files/lines with `duplications/show`, extract the shared logic into one reusable component/helper, or remove one side entirely. If the duplicate lives across two parallel implementations, the right fix is usually a shared abstraction plus both call sites updated to use it. |
 | `new_uncovered_lines` or `new_uncovered_conditions` fails on a PR | The touched code path or branch is not covered by tests | Add or update the smallest test that executes the exact line or branch the gate reports. |
 | Sonar still fails after a refactor and the metric is unchanged | The refactor moved code without eliminating the failing pattern | Re-query the live Sonar API and change strategy. The correct fix is the one that moves the metric, not the one that feels locally cleaner. |
+
+---
+
+## A green Codex/CI/SonarCloud-issues read is not sufficient proof a PR can merge
+
+Before asking the user to merge, confirm mergeability directly with `gh pr view <PR-number> --repo lmmoreira/ikaro --json mergeStateStatus,mergeable` and only proceed once `mergeStateStatus` is `CLEAN`. SonarCloud's aggregate Quality Gate conditions (e.g. `new_coverage`) can fail even with 0 open issues from the issues-search API (see the Sonar triage playbook above — the gate and the issues list are different checks), and GitHub's own branch-protection evaluation can diverge from what the individual check list shows.
+
+TD37-S23/PR #450 precedent, 2026-08-31: asked to merge with 0 Sonar issues and 0/0/0 Codex findings, but `mergeStateStatus` was `BLOCKED` on a `new_coverage` condition invisible to the issues-only check — caught only when the merge command itself failed.
 
 ---
 
@@ -310,6 +320,15 @@ Runs automatically on `git push`. Fix these before re-pushing.
 | `no-restricted-imports: cross-context import` | Context A importing from Context B's path | Route through `src/shared/` or a port+adapter |
 | Jest `Cannot find module` | Wrong relative path depth | Count the `../` levels from the spec file location |
 | Type error on `complement` field | VO expects `string \| undefined`, DTO has `string \| null \| undefined` | Normalise with `?? undefined` at the VO call site |
+
+---
+
+## Stale local state after a merge/pull — workspace package `dist/`, worktree `.env`
+
+Both are purely local-sandbox risks (never a real-CI one — a fresh GitHub Actions checkout always installs/builds/injects secrets from scratch) that produce a failure indistinguishable from a real regression in whatever was just merged in.
+
+- **After a `git merge`/pull brings in changes to a workspace package's own exports (`packages/types`, `packages/validation`, etc.), rebuild that package before trusting a local type-check or `ci:fast`'s pre-push hook.** These packages are consumed by others via their built `dist/` output, not live source — `ci:fast` never rebuilds dependencies itself, it assumes `dist/` is already current. A stale local `dist/` produces a `TS2339: Property 'X' does not exist` error that looks exactly like a real bug in the freshly-merged source (M20-S05 precedent, 2026-08-25: both `packages/types` and `packages/validation` had stale `dist/` in the same push attempt, back to back, each producing a different confusing type error before `pnpm --filter <pkg> run build` — or a full `pnpm build` — resolved it).
+- **A worktree's own copied `.env` file can go stale relative to sibling stories merged into `main` after the worktree was created.** A test/dev server reading `process.env` at runtime has no way to know a required var was added by a later story; the resulting failure looks exactly like a real regression from whatever was just merged (M20-S12 precedent, 2026-08-27: a worktree created before M20-S05/S09 landed `TURNSTILE_SECRET_KEY` was missing it from `apps/bff/.env`; every Turnstile-gated BFF test returned 400 instead of its expected 200/404/429/401, until `getOrThrow('TURNSTILE_SECRET_KEY')`'s fail-closed `catch` block was traced and `diff <(grep -oE '^[A-Z_]+=' .env.example) <(grep -oE '^[A-Z_]+=' .env)` found the gap). After merging sibling-story changes into a long-lived worktree, check each touched app's `.env.example` for vars its own `.env` is missing, the same way you'd rebuild a stale `dist/`.
 
 ---
 
