@@ -425,6 +425,7 @@ Mechanically: discovery for every story in the batch runs first, sequentially, i
 | TD34 foundation / IAM transfer | `td/TD34-TERRAFORM-DEPLOYER-PRIVILEGE-ESCALATION.md` + `infra/terraform/foundation/README.md` before editing Terraform or workflows |
 | Observability | `docs/10-OBSERVABILITY_STRATEGY.md` |
 | Implementing a milestone story | Load `plan/<M0X>-<NAME>_IMPLEMENTATION_DETAILS_IA.md` for that milestone (`ls plan/*_IMPLEMENTATION_DETAILS_IA.md` to list). Special cases: `plan/M115-PRODUCTION-READINESS_IMPLEMENTATION_DETAILS_IA.md`, `td/TD02-LOCALIZATION.md` |
+| `Resource` aggregate / resource-scoped scheduling (M21 and later) | `plan/M21-MULTIVERTICAL-FOUNDATION_IMPLEMENTATION_DETAILS_IA.md` |
 | New journey or prototype | `plan/journey/README.md` |
 | Starting a new discovery from an idea | `/create-discovery` — see `.claude/commands/create-discovery.md` |
 | Promoting a `docs/discovery/` doc into a milestone | `/discovery-to-milestone` — see `.claude/commands/discovery-to-milestone.md` |
