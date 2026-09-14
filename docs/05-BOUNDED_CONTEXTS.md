@@ -118,7 +118,7 @@ Notification Context subscribes:
 
 **Purpose:** The heart of Ikaro. Manages the complete booking lifecycle **for a specific tenant**.
 
-> ⚠️ **PLANNED, NOT YET BUILT:** every item tagged `(M21)` / `(M21 Cluster N)` below (the `Resource` aggregate, `ScheduleOpening`'s resource-scoping, and all Cluster 2–4 tables/events) belongs to the Multi-Vertical Scheduling epic and does not exist in code yet — see `plan/M21-MULTIVERTICAL-FOUNDATION.md` through `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`. Untagged content in this section is live MVP behavior.
+> ⚠️ **PLANNED, NOT YET BUILT:** every item tagged `(M21 Cluster N)` for `N ≥ 2` below belongs to the Multi-Vertical Scheduling epic and does not exist in code yet — see `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md` through `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`. **Exception: `(M21 Cluster 1)`/`(M21)`-tagged items are fully shipped** — the `Resource` aggregate (`M21-S01`/`S02`), `ScheduleClosure`/`ScheduleOpening`'s resource-scoping (`M21-S03`), and the `StaffDeactivated` cascade consumer (`M21-S01`/`S06`) are all live; see `plan/M21-MULTIVERTICAL-FOUNDATION.md` and `plan/M21-MULTIVERTICAL-FOUNDATION_IMPLEMENTATION_DETAILS_IA.md`. Untagged content in this section is live MVP behavior.
 
 **Owned Aggregates:**
 - `Booking` (root) — a customer visit; parent of 1..N `BookingLine` child entities (tenant-scoped). The Booking aggregate enforces ≥1 line, snapshots line fields at request time, and computes `totalPrice` / `totalDurationMins` from its lines.
