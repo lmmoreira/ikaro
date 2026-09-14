@@ -17,7 +17,7 @@ import { ClosureFormSheet } from './ClosureFormSheet';
 import { OpeningFormSheet } from './OpeningFormSheet';
 import { RemoveClosureDialog } from './RemoveClosureDialog';
 import { RemoveOpeningDialog } from './RemoveOpeningDialog';
-import { ResourcePicker } from './ResourcePicker';
+import { ResourceFilterMenu } from './ResourceFilterMenu';
 import { ScheduleDayHeader } from './ScheduleDayHeader';
 import { ScheduleStatusFilterMenu } from './ScheduleStatusFilterMenu';
 import { ScheduleTimelineBoard } from './ScheduleTimelineBoard';
@@ -58,6 +58,7 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
     weekNav,
     mutationHandlers,
     statusFilter,
+    resourceFilter,
   } = useSchedulePageController(props);
   const { role } = useTenant();
 
@@ -65,10 +66,6 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
 
   return (
     <div className="space-y-4 px-4 pb-8">
-      {role === 'MANAGER' && (
-        <ResourcePicker value={ui.selectedResourceId} onValueChange={ui.setSelectedResourceId} />
-      )}
-
       <WeekNav
         windowStart={toLocalDate(ui.weekStartKey)}
         windowDays={7}
@@ -158,6 +155,18 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
         onClose={statusFilter.handleCloseStatusFilter}
       />
 
+      {role === 'MANAGER' && (
+        <ResourceFilterMenu
+          containerRef={ui.resourceFilterRef}
+          open={ui.resourceFilterOpen}
+          onToggleOpen={resourceFilter.handleToggleResourceFilterOpen}
+          selectedResourceIdSet={resourceFilter.selectedResourceIdSet}
+          onToggleResource={resourceFilter.handleToggleResource}
+          onReset={resourceFilter.handleResetResourceFilter}
+          onClose={resourceFilter.handleCloseResourceFilter}
+        />
+      )}
+
       <ClosureFormSheet
         key={`closure-${ui.closureSheetOpen}-${ui.selectedDateKey}`}
         open={ui.closureSheetOpen}
@@ -165,7 +174,6 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
         todayKey={todayKey}
         timezone={businessHours.timezone}
         slotGranularityMinutes={slotGranularityMinutes}
-        resourceId={ui.selectedResourceId}
         onClose={() => ui.setClosureSheetOpen(false)}
         onSubmit={mutationHandlers.handleCreateClosure}
       />
@@ -177,7 +185,6 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
         todayKey={todayKey}
         timezone={businessHours.timezone}
         slotGranularityMinutes={slotGranularityMinutes}
-        resourceId={ui.selectedResourceId}
         onClose={() => ui.setOpeningSheetOpen(false)}
         onSubmit={mutationHandlers.handleCreateOpening}
       />

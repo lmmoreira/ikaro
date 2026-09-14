@@ -24,29 +24,34 @@ export function useScheduleQueryData(
   initialClosures: ScheduleClosureListResponse,
   initialOpenings: ScheduleOpeningListResponse,
   initialBookings: StaffBookingListResponse,
-  resourceId: string | null,
+  resourceIds: readonly string[],
 ) {
   const weekEndKey = useMemo(() => getWeekEndKey(weekStartKey), [weekStartKey]);
   const weekDates = useMemo(() => getWeekDates(weekStartKey), [weekStartKey]);
-  // The server always prefetches the tenant-wide (resourceId = null) scope, so its initial data
-  // is only a valid fallback for the initial week when no resource is selected. The `data =`
-  // destructuring default below must mirror this exact condition — falling back to the (possibly
-  // stale, always tenant-wide) `initialClosures`/`initialOpenings` while a *different* week or
-  // resource's query is still loading would flash the wrong scope's data on screen.
-  const isInitialWeek = weekStartKey === initialWeekStartKey && resourceId == null;
+  const isInitialWeek = weekStartKey === initialWeekStartKey;
+  // The server always prefetches the tenant-wide (no resources checked) scope, so its initial
+  // data is only a valid fallback for the initial week when no resource is checked either. The
+  // `data =` destructuring default below must mirror this exact condition — falling back to the
+  // (possibly stale, always tenant-wide) `initialClosures`/`initialOpenings` while a *different*
+  // week or resource scope's query is still loading would flash the wrong scope's data on screen.
+  // Bookings aren't resource-scoped at all (out of this milestone's scope), so they only need the
+  // week check.
+  const isInitialTenantWideView = isInitialWeek && resourceIds.length === 0;
 
-  const { data: closures = isInitialWeek ? initialClosures : EMPTY_CLOSURES } = useScheduleClosures(
-    weekStartKey,
-    weekEndKey,
-    isInitialWeek ? initialClosures : undefined,
-    resourceId ?? undefined,
-  );
-  const { data: openings = isInitialWeek ? initialOpenings : EMPTY_OPENINGS } = useScheduleOpenings(
-    weekStartKey,
-    weekEndKey,
-    isInitialWeek ? initialOpenings : undefined,
-    resourceId ?? undefined,
-  );
+  const { data: closures = isInitialTenantWideView ? initialClosures : EMPTY_CLOSURES } =
+    useScheduleClosures(
+      weekStartKey,
+      weekEndKey,
+      isInitialTenantWideView ? initialClosures : undefined,
+      resourceIds,
+    );
+  const { data: openings = isInitialTenantWideView ? initialOpenings : EMPTY_OPENINGS } =
+    useScheduleOpenings(
+      weekStartKey,
+      weekEndKey,
+      isInitialTenantWideView ? initialOpenings : undefined,
+      resourceIds,
+    );
   const { data: bookings = initialBookings } = useWeekBookings(
     weekStartKey,
     weekEndKey,

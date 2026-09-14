@@ -1,42 +1,42 @@
 'use client';
 
-import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { useResources } from '@/features/booking/hooks/useResources';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
+import { useSelectableResources } from '@/features/booking/schedule/useSelectableResources';
 
 const ALL_BUSINESS_VALUE = '';
 
-interface ResourcePickerProps {
+interface ResourceSelectFieldProps {
   readonly value: string | null;
   readonly onValueChange: (resourceId: string | null) => void;
 }
 
-// MANAGER-only selector at the top of SchedulePage (M21 Cluster 1) — lets a manager re-scope the
-// calendar and closure/opening actions to one resource instead of the whole tenant. Excludes the
-// tenant's own LOCATION resource: the tenant-wide default (resourceId = null) already represents
-// that scope, so listing LOCATION separately would be a redundant, confusing duplicate option.
-export function ResourcePicker({ value, onValueChange }: ResourcePickerProps): React.JSX.Element {
+// MANAGER-only field inside ClosureFormSheet/OpeningFormSheet (M21 Cluster 1) — decides which
+// single resource the closure/opening being created applies to. Decoupled from
+// ResourceFilterMenu's own multi-select view filter: viewing several resources' calendars at
+// once doesn't imply a new block should apply to several at once (resourceId is a single nullable
+// field on ScheduleClosure/ScheduleOpening, not a list), so this is a separate, always-single
+// choice, defaulting fresh to "Todo o negócio" every time the sheet opens.
+export function ResourceSelectField({
+  value,
+  onValueChange,
+}: ResourceSelectFieldProps): React.JSX.Element {
   const t = useTranslations('dashboard.schedule');
   const commonT = useTranslations('common');
   const locale = useResolvedLocale();
-  const { data, isLoading, isError, error } = useResources({ isActive: true });
-  const resources = useMemo(
-    () => (data?.items ?? []).filter((resource) => resource.type !== 'LOCATION'),
-    [data],
-  );
+  const { resources, isLoading, isError, error } = useSelectableResources();
 
   return (
     <div className="space-y-1">
-      <label className="block space-y-1">
+      <label className="block space-y-2">
         <span className="block text-sm font-medium text-gray-700">{t('resourcePickerLabel')}</span>
         <select
-          data-testid="resource-picker"
+          data-testid="resource-select-field"
           value={value ?? ALL_BUSINESS_VALUE}
           onChange={(event) => onValueChange(event.target.value || null)}
           disabled={isLoading || isError}
-          className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60 sm:w-64"
+          className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <option value={ALL_BUSINESS_VALUE}>
             {isLoading ? commonT('loading') : t('resourcePickerAllBusiness')}
@@ -49,7 +49,7 @@ export function ResourcePicker({ value, onValueChange }: ResourcePickerProps): R
         </select>
       </label>
       {isError && (
-        <p data-testid="resource-picker-error" className="text-sm text-red-600">
+        <p data-testid="resource-select-field-error" className="text-sm text-red-600">
           {resolveErrorMessageFromApiError(error, locale)}
         </p>
       )}

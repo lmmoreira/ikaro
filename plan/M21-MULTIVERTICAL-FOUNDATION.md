@@ -362,7 +362,13 @@ Working-hours edit (UC-046), deactivate confirmation (UC-047), and reactivate co
 **Prototype references:** `plan/journey/staff/horarios.md` (M21 Cluster 1 extension section), `plan/journey/staff/prototypes/horarios/07-horarios-recurso.html`, `dev-notes.md`'s own ❓ GAP section. **`07-horarios-recurso.html` is explicitly self-labeled "DISCOVERY PROTOTYPE — illustrative only, NOT a plan/journey/ prototype"** and depicts a separate drill-down page reached from the Resources list — this is *not* what this story builds. The canonical, promoted spec (`horarios.md`'s own mermaid flow and Pages table, `dev-notes.md`'s GAP section) is authoritative and consistently describes one in-page picker on the existing `/dashboard/schedule` route — confirmed with the user during discovery.
 
 **Description:**
-Extend the existing, shipped `SchedulePage` (`apps/web/features/booking/components/dashboard/schedule/SchedulePage.tsx`, `M13-S21`, since decomposed into ~15 files by `TD37-S5A`) with a new `ResourcePicker` at the top — selecting a resource re-scopes every BFF call (`GET`/`POST /schedule/closures`, `.../openings`) to include `resourceId`, and re-renders the same calendar UI (block, unblock, open a closed day, remove an opening — all of it, unchanged mechanics) against that resource's own occupied windows instead of the tenant-wide view. Leaving the picker on "Todo o negócio" (default) preserves today's exact behavior. This is an additive extension of an already-well-tested, already-decomposed component tree, not a rewrite — but the actual file surface is wider than a single-component change; see the corrected file list below (the original draft undercounted it against an older, pre-`TD37-S5A` mental model of `SchedulePage`).
+Extend the existing, shipped `SchedulePage` (`apps/web/features/booking/components/dashboard/schedule/SchedulePage.tsx`, `M13-S21`, since decomposed into ~15 files by `TD37-S5A`) with resource-scoping UI — re-scoping the calendar and closure/opening actions (block, unblock, open a closed day, remove an opening — all of it, unchanged mechanics) against one or more resources' own occupied windows instead of only the tenant-wide view. Leaving the resource selection empty preserves today's exact behavior. This is an additive extension of an already-well-tested, already-decomposed component tree, not a rewrite — but the actual file surface is wider than a single-component change; see the corrected file list below (the original draft undercounted it against an older, pre-`TD37-S5A` mental model of `SchedulePage`).
+
+**Revised mid-implementation (2026-09-14, live manual testing by the user):** the design originally locked in below (a single-select `ResourcePicker`, one dropdown driving both "what the calendar shows" and "which resource a new block applies to") was replaced with **two separate, decoupled controls** once live testing surfaced two real gaps a single picker couldn't cover:
+1. A manager needs to see *every* resource's schedule merged into one view, not just one resource at a time — impossible with a single-select dropdown.
+2. Creating a block/opening needs its own resource choice *at creation time*, independent of whatever the page-level view is currently scoped to — conflating the two meant the create-sheet had no way to target a resource at all once the view supported showing more than one.
+
+The shipped design: **`ResourceFilterMenu`** (a floating, multi-select checkbox filter mirroring `ScheduleStatusFilterMenu`'s existing trigger+popover shape — zero checked = tenant-wide default, one-or-more checked = those resources' closures/openings merged into the timeline, fetched one BFF request per checked resource via `useQueries` and de-duplicated client-side) for the *view*, and **`ResourceSelectField`** (a single-select `<select>` embedded directly inside `ClosureFormSheet`/`OpeningFormSheet`, always resetting to "Todo o negócio" fresh on open, never inheriting the filter menu's selection) for *which resource a new block/opening applies to*. Everything below this note that still describes a single `ResourcePicker` reflects the original, superseded design — see the corrected Files/Acceptance Criteria further down and `plan/journey/staff/prototypes/horarios/dev-notes.md`'s own "What shipped" section for the authoritative final shape.
 
 **Decisions locked in during story discovery (2026-09-04):**
 1. **In-page picker, same screen, confirmed** (not a separate route) — user: "we would reuse same screen, to block and unblock."
@@ -372,48 +378,58 @@ Extend the existing, shipped `SchedulePage` (`apps/web/features/booking/componen
 5. **Generic error-code mapping already covers every new 404/409/422** (`BOOKING_TENANT_OPENING_REQUIRED`, `BOOKING_OPENING_EXCEEDS_TENANT_WINDOW`, `BOOKING_RESOURCE_NOT_FOUND`, etc.) — already translated in `packages/i18n/locales/{pt-BR,en}/errors.json`; `ClosureFormSheet`/`OpeningFormSheet` already route through the generic `resolveErrorMessageFromApiError()` helper via the shared `ScheduleDateTimeRangeSheet`. No new error-handling code needed beyond passing `resourceId` through the request body.
 6. **Mutation hooks (`useCreateClosure`/`useCreateOpening`) need zero signature changes** — `resourceId` flows transparently through the typed `CreateClosureRequest`/`CreateOpeningRequest` body once it's added to `@ikaro/types`. Only the **list/query** side needs explicit `resourceId` threading (GET query param, not a body): `useScheduleClosures`/`useScheduleOpenings` (`useSchedule.ts`) and everything that calls them.
 
-**Files to create/modify:**
+**Files to create/modify (as shipped, post-revision):**
 - `apps/web/providers/tenant-provider.tsx` (modify — add `role: 'STAFF' | 'MANAGER'` to `TenantState`/`TenantProviderProps`, extend the `useMemo` value, update `useTenant()`'s return type)
 - `apps/web/providers/tenant-provider.spec.tsx` (modify)
 - `apps/web/app/dashboard/schedule/layout.tsx` (modify — pass `role={shell.role}` to `<TenantProvider>`)
 - `apps/web/app/dashboard/loyalty/layout.tsx` (modify — same; incidental fix, `shell.role` already computed there)
 - `apps/web/app/dashboard/bookings/layout.tsx` (modify — same)
 - `apps/web/shells/dashboard/components/DashboardLayoutShell.tsx` (modify — same; benefits `resources/`, `team/`, `settings/`, `hotsite/`, `services/` too)
-- `apps/web/features/booking/components/dashboard/schedule/SchedulePage.tsx` (modify — render `ResourcePicker` gated on `role === 'MANAGER'` from `useTenant()`, wire selected `resourceId` through the controller)
-- `apps/web/features/booking/components/dashboard/schedule/ResourcePicker.tsx` (+ `.spec.tsx`) (new)
-- `apps/web/features/booking/components/dashboard/schedule/ClosureFormSheet.tsx` (modify — accept `resourceId`, pass into `buildRequest`)
+- `apps/web/features/booking/schedule/useSelectableResources.ts` (+ `.spec.tsx`) (new — shared active/non-`LOCATION` resource-list hook behind both controls below)
+- `apps/web/features/booking/components/dashboard/schedule/ResourceFilterMenu.tsx` (+ `.spec.tsx`) (new — multi-select checkbox view filter, MANAGER-only, mirrors `ScheduleStatusFilterMenu`)
+- `apps/web/features/booking/components/dashboard/schedule/ResourceSelectField.tsx` (+ `.spec.tsx`) (new — single-select field embedded in the create sheets, MANAGER-only)
+- `apps/web/features/booking/components/dashboard/schedule/SchedulePage.tsx` (modify — render `ResourceFilterMenu` gated on `role === 'MANAGER'` from `useTenant()`, wire the checked-resource-id set through the controller)
+- `apps/web/features/booking/components/dashboard/schedule/ClosureFormSheet.tsx` (modify — render `ResourceSelectField`, pass its own local `resourceId` into `buildRequest`)
 - `apps/web/features/booking/components/dashboard/schedule/OpeningFormSheet.tsx` (modify — same)
-- `apps/web/features/booking/schedule/schedule-page-ui-state.ts` (modify — add `selectedResourceId`/`setSelectedResourceId` state, same home as the sheet-open/selected-date state already living here)
-- `apps/web/features/booking/schedule/schedule-page-query-data.ts` (modify — thread `resourceId` into the `useScheduleClosures`/`useScheduleOpenings` calls; gate the SSR `initialData` fallback on `resourceId` being unset — the server-fetched initial week data is always tenant-wide, so it must not be used as a stale fallback once a resource is selected)
-- `apps/web/features/booking/schedule/schedule-page-core-data.ts` (modify — pass `resourceId` through to `useScheduleQueryData`)
-- `apps/web/features/booking/schedule/useSchedulePageController.ts` (modify — thread `resourceId` state/setter into the controller result)
-- `apps/web/features/booking/schedule/useSchedule.ts` (modify — add optional `resourceId` param to `useScheduleClosures`/`useScheduleOpenings`, include in their query keys; no change to the mutation hooks)
+- `apps/web/features/booking/schedule/schedule-page-ui-state.ts` (modify — add `resourceFilterOpen`/`setResourceFilterOpen`/`resourceFilterRef` state, mirroring the existing `statusFilterOpen` popover state)
+- `apps/web/features/booking/schedule/schedule-page-interaction-handlers.ts` (modify — add `buildResourceFilterHandlers`, mirroring `buildStatusFilterHandlers`)
+- `apps/web/features/booking/schedule/schedule-page-controller-result.ts` (modify — wire `resourceFilter` handlers into the controller result, mirroring `statusFilter`)
+- `apps/web/features/booking/schedule/schedule-preferences.ts` (modify — add `selectedResourceIds`/`setSelectedResourceIds`, persisted the same `localStorage`-backed way as `selectedStatuses`)
+- `apps/web/features/booking/schedule/schedule-page-query-data.ts` (modify — thread `resourceIds: readonly string[]` into the `useScheduleClosures`/`useScheduleOpenings` calls; gate the SSR `initialData` fallback on the selection being empty — the server-fetched initial week data is always tenant-wide, so it must not be used as a stale fallback once any resource is checked)
+- `apps/web/features/booking/schedule/schedule-page-core-data.ts` (modify — pass `selectedResourceIds` through to `useScheduleQueryData`, derive `selectedResourceIdSet`)
+- `apps/web/features/booking/schedule/useSchedule.ts` (modify — `useScheduleClosures`/`useScheduleOpenings` now accept `resourceIds: readonly string[]`, fan out one query per id via `useQueries`, merge+de-duplicate by item id; mutation hooks unchanged)
 - `apps/web/features/booking/api/schedule.ts` (modify — add optional `resourceId` param to `listClosures`/`listOpenings`; no change to `createClosure`/`createOpening`)
 - `packages/types/src/schedule.dto.ts` (modify — add `resourceId: string | null` to `ScheduleClosure`/`ScheduleOpening`; `resourceId?: string` to `CreateClosureRequest`/`CreateOpeningRequest`. Found missing during discovery — the BFF-internal types already had it (M21-S03), the web-consumed `@ikaro/types` package didn't, per the "check `@ikaro/types` first" anti-pattern, CLAUDE.md §8)
-- `packages/i18n/locales/pt-BR/web.json` + `.../en/web.json` (modify — `ResourcePicker` copy under `dashboard.schedule`, same file as S04's `dashboard.nav`/`dashboard.resourcesPage` additions, not a separate `dashboard.json`)
+- `packages/i18n/locales/pt-BR/web.json` + `.../en/web.json` (modify — `resourceFilterTrigger`/`resourceFilterMenuTitle`/`resourceFilterMenuDescription`/`resourceFilterReset`/`resourceFilterDone` plus the pre-existing `resourcePickerLabel`/`resourcePickerAllBusiness` (reused by `ResourceSelectField`) under `dashboard.schedule`, same file as S04's `dashboard.nav`/`dashboard.resourcesPage` additions, not a separate `dashboard.json`)
+- `apps/web/e2e/schedule.spec.ts` (modify — resource-filter-menu view-scoping scenario, per-action resource-field scenario, default-omits-resourceId regression guard)
 - `plan/journey/staff/horarios.md` (modify — flip the ❓ GAP status once shipped: status line, mermaid, Pages table row, BFF-calls table rows, the "M21 Cluster 1 extension" section)
 - `plan/journey/staff/prototypes/horarios/dev-notes.md` (modify — flip the ❓ GAP section once shipped)
 
+**Superseded by the mid-implementation revision above — kept for history, not the shipped shape:** `apps/web/features/booking/components/dashboard/schedule/ResourcePicker.tsx` (built, then deleted), `useSchedulePageController.ts` (no change needed after all — `ui` already flows through wholesale).
+
 **Not needed (confirmed during discovery, no change):** `apps/web/app/dashboard/schedule/page.tsx` (SSR always prefetches tenant-wide only — `resourceId` is pure client-side selection, not URL/SSR-driven, matching the non-regression AC), `apps/web/features/booking/api/schedule.server.ts`, `apps/web/features/booking/schedule/schedule-page-mutation-handlers.ts` (resourceId flows via the typed body already), `apps/web/features/booking/schedule/schedule-page-controller-types.ts` (role now comes from `useTenant()`, not a prop), `apps/web/features/booking/components/dashboard/schedule/ScheduleDateTimeRangeSheet.tsx` (already generic over the caller's body type).
 
-**Acceptance criteria — product:**
-- [ ] Manager can pick a resource from a new selector on the Horários page; the calendar and closure/opening/removal actions then scope to that resource — same screen, same mechanics as the tenant-wide view.
-- [ ] The picker's resource list excludes the tenant's `LOCATION` resource — only `STAFF`/`ROOM`/`EQUIPMENT` active resources are selectable, alongside the "Todo o negócio" default.
-- [ ] Leaving the picker on the default ("Todo o negócio") produces byte-identical behavior to before this story — explicit non-regression AC, matching S03's own backend-side requirement.
-- [ ] STAFF users can still use the tenant-wide view unchanged; `ResourcePicker` and every `resourceId`-scoped write action are not rendered at all for STAFF (hidden, not disabled) — matches the backend's MANAGER-only-when-`resourceId`-is-set restriction, uniform across every resource type.
+**Acceptance criteria — product (as shipped, post-revision):**
+- [x] Manager can check one or more resources in a filter menu on the Horários page; the calendar merges those resources' own closures/openings into the timeline, in addition to the tenant-wide items that always apply.
+- [x] Manager can separately choose, from a per-action field inside the block/opening create sheet, which single resource that new item applies to — independent of whatever is checked in the filter menu.
+- [x] Both controls' resource lists exclude the tenant's `LOCATION` resource — only `STAFF`/`ROOM`/`EQUIPMENT` active resources are selectable, alongside the "Todo o negócio" default.
+- [x] Leaving the filter menu with nothing checked, and the per-action field on its "Todo o negócio" default, produces byte-identical behavior to before this story — explicit non-regression AC, matching S03's own backend-side requirement.
+- [x] STAFF users can still use the tenant-wide view unchanged; neither `ResourceFilterMenu` nor `ResourceSelectField` (nor any `resourceId`-scoped write action) render at all for STAFF (hidden, not disabled) — matches the backend's MANAGER-only-when-`resourceId`-is-set restriction, uniform across every resource type.
 
-**Acceptance criteria — technical:**
+**Acceptance criteria — technical (as shipped, post-revision):**
 - Unit:
-  - [ ] `ResourcePicker` renders the tenant's active `STAFF`/`ROOM`/`EQUIPMENT` resources plus a "Todo o negócio" default option; excludes `LOCATION`
-  - [ ] `ResourcePicker` is not rendered when `role !== 'MANAGER'`
-  - [ ] `SchedulePage` passes the selected `resourceId` through to closure/opening creation and list queries
-  - [ ] `useScheduleClosures`/`useScheduleOpenings` include `resourceId` in their query key and omit it from the outgoing request when unset (regression guard for the "byte-identical default behavior" AC)
-  - [ ] `useTenant()` returns the decoded `role`
+  - [x] `ResourceFilterMenu` renders the tenant's active `STAFF`/`ROOM`/`EQUIPMENT` resources as checkboxes; excludes `LOCATION`; not rendered when `role !== 'MANAGER'`
+  - [x] `ResourceSelectField` renders the same resource list as a single-select, defaulting to "Todo o negócio"; not rendered when `role !== 'MANAGER'`
+  - [x] `SchedulePage` passes the checked-resource-id set through to `useScheduleClosures`/`useScheduleOpenings`
+  - [x] `ClosureFormSheet`/`OpeningFormSheet` pass `ResourceSelectField`'s own local selection through to closure/opening creation, independent of the filter menu's state
+  - [x] `useScheduleClosures`/`useScheduleOpenings` accept `resourceIds: readonly string[]`, fan out one query per id, merge+de-duplicate by item id, and omit `resourceId` from each outgoing request when the array is empty (regression guard for the "byte-identical default behavior" AC)
+  - [x] `useTenant()` returns the decoded `role`
 - Integration: n/a — no `.integration.spec.ts` tier for `apps/web`
 - Tenant isolation: n/a — client-side; server-side isolation already covered by S03
 - E2E:
-  - [ ] Playwright: manager selects a resource, creates a resource-scoped closure, sees it reflected only on that resource's calendar, not the tenant-wide one
-  - [ ] Playwright: default "Todo o negócio" view still creates a tenant-wide closure exactly as before this story (regression guard)
+  - [x] Playwright: manager checks a resource in the filter menu, sees a pre-existing resource-scoped closure appear; unchecking it hides it again — never visible on the default tenant-wide view
+  - [x] Playwright: manager picks a resource in the per-action field while creating a closure; the request carries that `resourceId`, independent of the filter menu
+  - [x] Playwright: creating a closure with the per-action field left on "Todo o negócio" omits `resourceId` from the request entirely (regression guard)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 

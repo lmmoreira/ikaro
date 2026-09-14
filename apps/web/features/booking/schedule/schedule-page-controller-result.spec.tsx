@@ -14,8 +14,6 @@ function makeUi(overrides: Partial<ScheduleUiState> = {}): ScheduleUiState {
     setWeekStartKey: vi.fn(),
     selectedDateKey: '2026-08-17',
     setSelectedDateKey: vi.fn(),
-    selectedResourceId: null,
-    setSelectedResourceId: vi.fn(),
     closureSheetOpen: false,
     setClosureSheetOpen: vi.fn(),
     openingSheetOpen: false,
@@ -29,6 +27,9 @@ function makeUi(overrides: Partial<ScheduleUiState> = {}): ScheduleUiState {
     statusFilterOpen: false,
     setStatusFilterOpen: vi.fn(),
     statusFilterRef: { current: null },
+    resourceFilterOpen: false,
+    setResourceFilterOpen: vi.fn(),
+    resourceFilterRef: { current: null },
     ...overrides,
   };
 }
@@ -55,6 +56,8 @@ function makeCore(overrides: Partial<ScheduleCoreData> = {}): ScheduleCoreData {
     visibleBookings: [],
     selectedStatusSet: new Set<BookingStatus>([BOOKING_STATUS.APPROVED]),
     setSelectedStatuses: vi.fn(),
+    selectedResourceIdSet: new Set<string>(),
+    setSelectedResourceIds: vi.fn(),
     setPersistedViewMode: vi.fn(),
     scheduleViewMode: 'week',
     weekDayInfo: [],
@@ -173,5 +176,12 @@ describe('buildControllerResult', () => {
     const labels = { selectedDayLabel: '17 de agosto', bookingEventCount: 0, slotLabels: [] };
     const result = buildControllerResult(props, core, labels, t, mutations, statusLabels);
     expect(result.statusFilter.selectedStatusSet).toBe(core.selectedStatusSet);
+  });
+
+  it('wires the resource filter handlers to the core selectedResourceIdSet', () => {
+    const core = makeCore({ selectedResourceIdSet: new Set(['res-1']) });
+    const labels = { selectedDayLabel: '17 de agosto', bookingEventCount: 0, slotLabels: [] };
+    const result = buildControllerResult(props, core, labels, t, mutations, statusLabels);
+    expect(result.resourceFilter.selectedResourceIdSet).toBe(core.selectedResourceIdSet);
   });
 });

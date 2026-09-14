@@ -11,6 +11,16 @@ function getHiddenTimeSelects(container: HTMLElement): HTMLSelectElement[] {
   ) as HTMLSelectElement[];
 }
 
+const tenantProvider = vi.hoisted(() => ({ useTenant: vi.fn() }));
+
+vi.mock('@/providers/tenant-provider', () => tenantProvider);
+
+const useResourcesMock = vi.hoisted(() => vi.fn());
+
+vi.mock('@/features/booking/hooks/useResources', () => ({
+  useResources: () => useResourcesMock(),
+}));
+
 vi.mock('@/features/booking/components/dashboard/bookings/BookingActionSheetShell', () => ({
   BookingActionSheetShell: ({
     children,
@@ -44,7 +54,20 @@ vi.mock('@/features/booking/components/dashboard/bookings/BookingActionSheetShel
   ),
 }));
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  tenantProvider.useTenant.mockReturnValue({
+    tenantId: 't-1',
+    tenantSlug: 'lavacar-bh',
+    role: 'STAFF',
+  });
+  useResourcesMock.mockReturnValue({
+    data: { items: [] },
+    isLoading: false,
+    isError: false,
+    error: null,
+  });
+});
 
 describe('ClosureFormSheet', () => {
   it('submits the selected closure values', async () => {
@@ -59,7 +82,6 @@ describe('ClosureFormSheet', () => {
         todayKey="2026-07-01"
         timezone="America/Sao_Paulo"
         slotGranularityMinutes={30}
-        resourceId={null}
         onClose={onClose}
         onSubmit={onSubmit}
       />,
@@ -100,7 +122,6 @@ describe('ClosureFormSheet', () => {
         todayKey="2026-07-01"
         timezone="America/Sao_Paulo"
         slotGranularityMinutes={30}
-        resourceId={null}
         onClose={vi.fn()}
         onSubmit={vi.fn().mockResolvedValue({ id: 'closure-1' })}
       />,
@@ -121,7 +142,6 @@ describe('ClosureFormSheet', () => {
         todayKey="2026-07-01"
         timezone="America/Sao_Paulo"
         slotGranularityMinutes={30}
-        resourceId={null}
         onClose={vi.fn()}
         onSubmit={vi.fn().mockResolvedValue({ id: 'closure-1' })}
       />,
@@ -143,7 +163,6 @@ describe('ClosureFormSheet', () => {
         todayKey="2026-07-01"
         timezone="America/Sao_Paulo"
         slotGranularityMinutes={30}
-        resourceId={null}
         onClose={vi.fn()}
         onSubmit={vi.fn().mockResolvedValue({ id: 'closure-1' })}
       />,
@@ -170,7 +189,6 @@ describe('ClosureFormSheet', () => {
         todayKey="2026-07-01"
         timezone="America/Sao_Paulo"
         slotGranularityMinutes={30}
-        resourceId={null}
         onClose={vi.fn()}
         onSubmit={vi.fn().mockResolvedValue({ id: 'closure-1' })}
       />,
@@ -188,7 +206,6 @@ describe('ClosureFormSheet', () => {
         todayKey="2026-07-01"
         timezone="America/Sao_Paulo"
         slotGranularityMinutes={30}
-        resourceId={null}
         onClose={vi.fn()}
         onSubmit={vi.fn().mockResolvedValue({ id: 'closure-2' })}
       />,
@@ -197,7 +214,48 @@ describe('ClosureFormSheet', () => {
     expect(screen.getByRole('button', { name: 'Data' })).toHaveTextContent(/11 de julho/i);
   });
 
-  it('includes resourceId in the submitted body when set', async () => {
+  it('does not render the resource field for a non-MANAGER role', () => {
+    renderWithIntl(
+      <ClosureFormSheet
+        open
+        initialDate="2026-07-04"
+        todayKey="2026-07-01"
+        timezone="America/Sao_Paulo"
+        slotGranularityMinutes={30}
+        onClose={vi.fn()}
+        onSubmit={vi.fn().mockResolvedValue({ id: 'closure-1' })}
+      />,
+    );
+
+    expect(screen.queryByTestId('resource-select-field')).not.toBeInTheDocument();
+  });
+
+  it('includes resourceId in the submitted body when a MANAGER picks a resource', async () => {
+    tenantProvider.useTenant.mockReturnValue({
+      tenantId: 't-1',
+      tenantSlug: 'lavacar-bh',
+      role: 'MANAGER',
+    });
+    useResourcesMock.mockReturnValue({
+      data: {
+        items: [
+          {
+            id: 'res-1',
+            type: 'ROOM',
+            refId: null,
+            name: 'Estúdio 1',
+            workingHours: null,
+            turnoverMinutes: 0,
+            maxCapacity: null,
+            isActive: true,
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+
     const user = userEvent.setup();
     const onSubmit = vi.fn().mockResolvedValue({ id: 'closure-1' });
 
@@ -208,12 +266,12 @@ describe('ClosureFormSheet', () => {
         todayKey="2026-07-01"
         timezone="America/Sao_Paulo"
         slotGranularityMinutes={30}
-        resourceId="res-1"
         onClose={vi.fn()}
         onSubmit={onSubmit}
       />,
     );
 
+    await userEvent.selectOptions(screen.getByTestId('resource-select-field'), 'res-1');
     await user.click(screen.getByRole('button', { name: 'Bloquear' }));
 
     await waitFor(() =>

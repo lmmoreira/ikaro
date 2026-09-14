@@ -1,7 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { CreateOpeningRequest, ScheduleOpening } from '@ikaro/types';
+import { useTenant } from '@/providers/tenant-provider';
+import { ResourceSelectField } from './ResourceSelectField';
 import { ScheduleDateTimeRangeSheet } from './ScheduleDateTimeRangeSheet';
 
 interface OpeningFormSheetProps {
@@ -10,7 +13,6 @@ interface OpeningFormSheetProps {
   readonly todayKey: string;
   readonly timezone: string;
   readonly slotGranularityMinutes: 15 | 30 | 60;
-  readonly resourceId: string | null;
   readonly onClose: () => void;
   readonly onSubmit: (body: CreateOpeningRequest) => Promise<ScheduleOpening>;
 }
@@ -21,12 +23,15 @@ export function OpeningFormSheet({
   todayKey,
   timezone,
   slotGranularityMinutes,
-  resourceId,
   onClose,
   onSubmit,
 }: OpeningFormSheetProps): React.JSX.Element | null {
   const t = useTranslations('dashboard.schedule');
   const commonT = useTranslations('common');
+  const { role } = useTenant();
+  // Always starts fresh at "Todo o negócio" — see ClosureFormSheet's identical field for why
+  // this is deliberately decoupled from ResourceFilterMenu's own multi-select view filter.
+  const [resourceId, setResourceId] = useState<string | null>(null);
 
   return (
     <ScheduleDateTimeRangeSheet<CreateOpeningRequest, ScheduleOpening>
@@ -61,6 +66,10 @@ export function OpeningFormSheet({
         ...(notes.trim() ? { notes: notes.trim() } : {}),
         ...(resourceId ? { resourceId } : {}),
       })}
-    />
+    >
+      {role === 'MANAGER' && (
+        <ResourceSelectField value={resourceId} onValueChange={setResourceId} />
+      )}
+    </ScheduleDateTimeRangeSheet>
   );
 }

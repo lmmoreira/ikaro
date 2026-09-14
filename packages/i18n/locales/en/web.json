@@ -1365,6 +1365,11 @@
       "submitRemoveOpening": "Remove opening",
       "resourcePickerLabel": "Resource",
       "resourcePickerAllBusiness": "Whole business",
+      "resourceFilterTrigger": "Filter resource",
+      "resourceFilterMenuTitle": "Visible resources",
+      "resourceFilterMenuDescription": "Check the resources that should appear on the calendar.",
+      "resourceFilterReset": "Default",
+      "resourceFilterDone": "Close",
       "errors": {
         "requiredDate": "Enter the date.",
         "pastDateClosure": "Choose today or a future date for blocks.",

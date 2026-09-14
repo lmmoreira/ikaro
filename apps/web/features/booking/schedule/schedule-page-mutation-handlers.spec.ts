@@ -15,8 +15,6 @@ function makeUi(overrides: Partial<ScheduleUiState> = {}): ScheduleUiState {
     setWeekStartKey: vi.fn(),
     selectedDateKey: '2026-08-17',
     setSelectedDateKey: vi.fn(),
-    selectedResourceId: null,
-    setSelectedResourceId: vi.fn(),
     closureSheetOpen: true,
     setClosureSheetOpen: vi.fn(),
     openingSheetOpen: true,
@@ -30,6 +28,9 @@ function makeUi(overrides: Partial<ScheduleUiState> = {}): ScheduleUiState {
     statusFilterOpen: false,
     setStatusFilterOpen: vi.fn(),
     statusFilterRef: { current: null },
+    resourceFilterOpen: false,
+    setResourceFilterOpen: vi.fn(),
+    resourceFilterRef: { current: null },
     ...overrides,
   };
 }

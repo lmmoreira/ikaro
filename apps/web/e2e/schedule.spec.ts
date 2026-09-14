@@ -312,7 +312,7 @@ test.describe('schedule page coverage', () => {
     ).toBeVisible();
   });
 
-  test('manager scopes the calendar to a resource — a resource-scoped closure is visible only there, not on the tenant-wide view (M21-S05)', async ({
+  test('manager checks a resource in the filter menu — a resource-scoped closure is visible only then, not on the default tenant-wide view (M21-S05)', async ({
     page,
   }) => {
     await loginAsScheduleStaff(page);
@@ -338,15 +338,20 @@ test.describe('schedule page coverage', () => {
         // the block's title/subtitle are the translated reason label and time range).
         const closureButton = page.getByTestId(`schedule-closure-block-${closure.id}`);
 
-        // Tenant-wide ("Todo o negócio") is the default — the resource-scoped closure must not
-        // block or appear on it.
-        await expect(page.getByTestId('resource-picker')).toHaveValue('');
+        // No resource checked — the default tenant-wide view — the resource-scoped closure must
+        // not appear.
         await expect(closureButton).toHaveCount(0);
 
-        await page.getByTestId('resource-picker').selectOption(resource.id);
+        await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+        await page.getByRole('checkbox', { name: resource.name }).check();
+        await page.getByRole('button', { name: 'Fechar' }).click();
+
         await expect(closureButton).toBeVisible();
 
-        await page.getByTestId('resource-picker').selectOption('');
+        await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+        await page.getByRole('checkbox', { name: resource.name }).uncheck();
+        await page.getByRole('button', { name: 'Fechar' }).click();
+
         await expect(closureButton).toHaveCount(0);
       } finally {
         await removeScheduleClosure(page, closure.id);
@@ -356,15 +361,13 @@ test.describe('schedule page coverage', () => {
     }
   });
 
-  test('creating a closure via the form omits resourceId when the picker is left on "Todo o negócio" (M21-S05 regression guard)', async ({
+  test('creating a closure via the form omits resourceId when the per-action resource field is left on "Todo o negócio" (M21-S05 regression guard)', async ({
     page,
   }) => {
     await loginAsScheduleStaff(page);
 
     const dateKey = nextOpenDateKey(126);
     await page.goto(scheduleRoute(dateKey));
-
-    await expect(page.getByTestId('resource-picker')).toHaveValue('');
 
     const requestPromise = page.waitForRequest(
       (request) => request.url().includes('/schedule/closures') && request.method() === 'POST',
@@ -385,5 +388,44 @@ test.describe('schedule page coverage', () => {
     const response = await responsePromise;
     const created = (await response.json()) as { readonly id: string };
     await removeScheduleClosure(page, created.id);
+  });
+
+  test('creating a closure via the per-action resource field scopes it to that resource, independent of the filter menu selection (M21-S05)', async ({
+    page,
+  }) => {
+    await loginAsScheduleStaff(page);
+
+    const resource = await createResource(page, {
+      type: 'ROOM',
+      name: uniqueLabel('E2E Sala Ação'),
+    });
+
+    try {
+      const dateKey = nextOpenDateKey(127);
+      await page.goto(scheduleRoute(dateKey));
+
+      const requestPromise = page.waitForRequest(
+        (request) => request.url().includes('/schedule/closures') && request.method() === 'POST',
+      );
+      const responsePromise = page.waitForResponse(
+        (res) => res.url().includes('/schedule/closures') && res.request().method() === 'POST',
+      );
+
+      await page.getByRole('button', { name: 'Bloquear período' }).click();
+      // The per-action field lives inside the sheet, decoupled from the page-level filter menu —
+      // it always starts fresh at "Todo o negócio" regardless of what's checked there.
+      await page.getByTestId('resource-select-field').selectOption(resource.id);
+      await page.getByRole('dialog').getByRole('button', { name: 'Bloquear' }).click();
+
+      const request = await requestPromise;
+      const requestBody = request.postDataJSON() as Record<string, unknown>;
+      expect(requestBody).toMatchObject({ resourceId: resource.id });
+
+      const response = await responsePromise;
+      const created = (await response.json()) as { readonly id: string };
+      await removeScheduleClosure(page, created.id);
+    } finally {
+      await deactivateResource(page, resource.id);
+    }
   });
 });

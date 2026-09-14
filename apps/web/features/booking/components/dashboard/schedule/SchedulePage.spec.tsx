@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type {
   StaffBookingListResponse,
@@ -652,7 +652,7 @@ describe('SchedulePage', () => {
     expect(screen.getByRole('link', { name: 'Second' })).toHaveStyle({ left: '50%' });
   });
 
-  it('does not render the resource picker for STAFF', () => {
+  it('does not render the resource filter trigger for STAFF', () => {
     renderWithIntl(
       <SchedulePage
         initialClosures={emptyClosures()}
@@ -665,10 +665,10 @@ describe('SchedulePage', () => {
       />,
     );
 
-    expect(screen.queryByTestId('resource-picker')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Filtrar recurso' })).not.toBeInTheDocument();
   });
 
-  it('renders the resource picker for MANAGER', () => {
+  it('renders the resource filter trigger for MANAGER', () => {
     tenantProvider.useTenant.mockReturnValue({
       tenantId: 't-1',
       tenantSlug: 'lavacar-bh',
@@ -687,10 +687,10 @@ describe('SchedulePage', () => {
       />,
     );
 
-    expect(screen.getByTestId('resource-picker')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Filtrar recurso' })).toBeInTheDocument();
   });
 
-  it('passes the selected resourceId through to closure creation', async () => {
+  it('checking a resource in the filter menu re-scopes the visible calendar query', async () => {
     const user = userEvent.setup();
     tenantProvider.useTenant.mockReturnValue({
       tenantId: 't-1',
@@ -712,6 +712,64 @@ describe('SchedulePage', () => {
           },
         ],
       },
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+
+    renderWithIntl(
+      <SchedulePage
+        initialClosures={emptyClosures()}
+        initialOpenings={emptyOpenings()}
+        initialBookings={emptyBookings()}
+        businessHours={makeBusinessHours(true)}
+        todayKey="2026-06-29"
+        weekStartKey="2026-06-29"
+        slotGranularityMinutes={30}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Filtrar recurso' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Estúdio 1' }));
+
+    await waitFor(() =>
+      expect(scheduleHooks.useScheduleClosures).toHaveBeenLastCalledWith(
+        expect.anything(),
+        expect.anything(),
+        // Checking a resource means this is no longer the initial tenant-wide view, so the
+        // initialData fallback is correctly undefined here (see isInitialTenantWideView in
+        // schedule-page-query-data.ts).
+        undefined,
+        ['res-1'],
+      ),
+    );
+  });
+
+  it('passes the selected resourceId through to closure creation via the per-action resource field', async () => {
+    const user = userEvent.setup();
+    tenantProvider.useTenant.mockReturnValue({
+      tenantId: 't-1',
+      tenantSlug: 'lavacar-bh',
+      role: 'MANAGER',
+    });
+    resourcesHooks.useResources.mockReturnValue({
+      data: {
+        items: [
+          {
+            id: 'res-1',
+            type: 'ROOM',
+            refId: null,
+            name: 'Estúdio 1',
+            workingHours: null,
+            turnoverMinutes: 0,
+            maxCapacity: null,
+            isActive: true,
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
     });
     const mutateAsync = vi.fn().mockResolvedValue({ id: 'closure-1' });
     scheduleHooks.useCreateClosure.mockReturnValue({ mutateAsync });
@@ -728,8 +786,8 @@ describe('SchedulePage', () => {
       />,
     );
 
-    await user.selectOptions(screen.getByTestId('resource-picker'), 'res-1');
     await user.click(screen.getByRole('button', { name: 'Bloquear período' }));
+    await userEvent.selectOptions(screen.getByTestId('resource-select-field'), 'res-1');
     await user.selectOptions(screen.getByLabelText('Motivo'), 'MAINTENANCE');
     const hiddenTimeSelects = getHiddenSelects(container).slice(-2);
     fireEvent.change(hiddenTimeSelects[0], { target: { value: '09:00' } });

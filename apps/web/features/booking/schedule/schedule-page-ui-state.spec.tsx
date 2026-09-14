@@ -34,17 +34,18 @@ describe('useScheduleUiState', () => {
     expect(result.current.closureWarning).toBe('Aviso');
   });
 
-  it('initializes selectedResourceId as null and updates through its setter', () => {
+  it('initializes resourceFilterOpen as false and updates through its setter', () => {
     const { result } = renderHook(() => useScheduleUiState('2026-08-20', '2026-08-17'));
-    expect(result.current.selectedResourceId).toBeNull();
+    expect(result.current.resourceFilterOpen).toBe(false);
 
-    act(() => result.current.setSelectedResourceId('res-1'));
-    expect(result.current.selectedResourceId).toBe('res-1');
+    act(() => result.current.setResourceFilterOpen(true));
+    expect(result.current.resourceFilterOpen).toBe(true);
   });
 
-  it('returns a statusFilterRef for the outside-click-close hook', () => {
+  it('returns a statusFilterRef and a resourceFilterRef for the outside-click-close hooks', () => {
     const { result } = renderHook(() => useScheduleUiState('2026-08-20', '2026-08-17'));
     expect(result.current.statusFilterRef).toHaveProperty('current');
+    expect(result.current.resourceFilterRef).toHaveProperty('current');
   });
 });
 
@@ -54,8 +55,6 @@ function makeUi(overrides: Partial<ScheduleUiState> = {}): ScheduleUiState {
     setWeekStartKey: vi.fn(),
     selectedDateKey: '2026-08-17',
     setSelectedDateKey: vi.fn(),
-    selectedResourceId: null,
-    setSelectedResourceId: vi.fn(),
     closureSheetOpen: true,
     setClosureSheetOpen: vi.fn(),
     openingSheetOpen: true,
@@ -69,6 +68,9 @@ function makeUi(overrides: Partial<ScheduleUiState> = {}): ScheduleUiState {
     statusFilterOpen: true,
     setStatusFilterOpen: vi.fn(),
     statusFilterRef: { current: null },
+    resourceFilterOpen: true,
+    setResourceFilterOpen: vi.fn(),
+    resourceFilterRef: { current: null },
     ...overrides,
   };
 }
@@ -81,6 +83,7 @@ describe('resetInteractiveState', () => {
     expect(ui.setClosureSheetOpen).toHaveBeenCalledWith(false);
     expect(ui.setOpeningSheetOpen).toHaveBeenCalledWith(false);
     expect(ui.setStatusFilterOpen).toHaveBeenCalledWith(false);
+    expect(ui.setResourceFilterOpen).toHaveBeenCalledWith(false);
   });
 });
 

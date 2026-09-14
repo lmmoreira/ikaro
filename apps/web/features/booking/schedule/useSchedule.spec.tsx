@@ -50,14 +50,15 @@ beforeEach(() => vi.clearAllMocks());
 describe('useScheduleClosures', () => {
   it('is disabled when from/to are empty', () => {
     const { result } = renderHook(() => useScheduleClosures('', ''), { wrapper });
-    expect(result.current.fetchStatus).toBe('idle');
+    expect(result.current.data).toBeUndefined();
+    expect(scheduleApi.listClosures).not.toHaveBeenCalled();
   });
 
   it('fetches closures when dates are provided', async () => {
     const { result } = renderHook(() => useScheduleClosures('2026-07-01', '2026-07-31'), {
       wrapper,
     });
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    await waitFor(() => expect(result.current.data).toBeDefined());
     expect(result.current.data?.items).toHaveLength(0);
   });
 
@@ -75,28 +76,59 @@ describe('useScheduleClosures', () => {
     await waitFor(() => expect(scheduleApi.listClosures).toHaveBeenCalledTimes(2));
   });
 
-  it('omits resourceId from the request when unset', async () => {
+  it('omits resourceId from the request when no resources are selected', async () => {
     renderHook(() => useScheduleClosures('2026-07-01', '2026-07-31'), { wrapper });
     await waitFor(() =>
       expect(scheduleApi.listClosures).toHaveBeenCalledWith('2026-07-01', '2026-07-31', undefined),
     );
   });
 
-  it('passes resourceId through and refetches when it changes', async () => {
+  it('passes resourceId through and refetches when the selection changes', async () => {
     const { rerender } = renderHook(
-      ({ resourceId }) => useScheduleClosures('2026-07-01', '2026-07-31', undefined, resourceId),
-      { wrapper, initialProps: { resourceId: 'res-1' } },
+      ({ resourceIds }) => useScheduleClosures('2026-07-01', '2026-07-31', undefined, resourceIds),
+      { wrapper, initialProps: { resourceIds: ['res-1'] } },
     );
 
     await waitFor(() =>
       expect(scheduleApi.listClosures).toHaveBeenCalledWith('2026-07-01', '2026-07-31', 'res-1'),
     );
 
-    rerender({ resourceId: 'res-2' });
+    rerender({ resourceIds: ['res-2'] });
 
     await waitFor(() =>
       expect(scheduleApi.listClosures).toHaveBeenCalledWith('2026-07-01', '2026-07-31', 'res-2'),
     );
+  });
+
+  it('fetches one request per selected resource and merges+de-duplicates the results', async () => {
+    scheduleApi.listClosures.mockImplementation((_from: string, _to: string, resourceId?: string) =>
+      Promise.resolve({
+        items:
+          resourceId === 'res-1'
+            ? [
+                { id: 'tenant-wide-1', resourceId: null },
+                { id: 'res-1-only', resourceId: 'res-1' },
+              ]
+            : [
+                { id: 'tenant-wide-1', resourceId: null },
+                { id: 'res-2-only', resourceId: 'res-2' },
+              ],
+      }),
+    );
+
+    const { result } = renderHook(
+      () => useScheduleClosures('2026-07-01', '2026-07-31', undefined, ['res-1', 'res-2']),
+      { wrapper },
+    );
+
+    await waitFor(() => expect(result.current.data).toBeDefined());
+    expect(scheduleApi.listClosures).toHaveBeenCalledWith('2026-07-01', '2026-07-31', 'res-1');
+    expect(scheduleApi.listClosures).toHaveBeenCalledWith('2026-07-01', '2026-07-31', 'res-2');
+    expect(result.current.data?.items.map((item) => item.id).sort()).toEqual([
+      'res-1-only',
+      'res-2-only',
+      'tenant-wide-1',
+    ]);
   });
 });
 
@@ -121,11 +153,11 @@ describe('useScheduleOpenings', () => {
     const { result } = renderHook(() => useScheduleOpenings('2026-07-01', '2026-07-31'), {
       wrapper,
     });
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    await waitFor(() => expect(result.current.data).toBeDefined());
     expect(result.current.data?.items).toHaveLength(0);
   });
 
-  it('omits resourceId from the request when unset', async () => {
+  it('omits resourceId from the request when no resources are selected', async () => {
     renderHook(() => useScheduleOpenings('2026-07-01', '2026-07-31'), { wrapper });
     await waitFor(() =>
       expect(scheduleApi.listOpenings).toHaveBeenCalledWith('2026-07-01', '2026-07-31', undefined),
@@ -133,12 +165,41 @@ describe('useScheduleOpenings', () => {
   });
 
   it('passes resourceId through to the request', async () => {
-    renderHook(() => useScheduleOpenings('2026-07-01', '2026-07-31', undefined, 'res-1'), {
+    renderHook(() => useScheduleOpenings('2026-07-01', '2026-07-31', undefined, ['res-1']), {
       wrapper,
     });
     await waitFor(() =>
       expect(scheduleApi.listOpenings).toHaveBeenCalledWith('2026-07-01', '2026-07-31', 'res-1'),
     );
+  });
+
+  it('fetches one request per selected resource and merges+de-duplicates the results', async () => {
+    scheduleApi.listOpenings.mockImplementation((_from: string, _to: string, resourceId?: string) =>
+      Promise.resolve({
+        items:
+          resourceId === 'res-1'
+            ? [
+                { id: 'tenant-wide-1', resourceId: null },
+                { id: 'res-1-only', resourceId: 'res-1' },
+              ]
+            : [
+                { id: 'tenant-wide-1', resourceId: null },
+                { id: 'res-2-only', resourceId: 'res-2' },
+              ],
+      }),
+    );
+
+    const { result } = renderHook(
+      () => useScheduleOpenings('2026-07-01', '2026-07-31', undefined, ['res-1', 'res-2']),
+      { wrapper },
+    );
+
+    await waitFor(() => expect(result.current.data).toBeDefined());
+    expect(result.current.data?.items.map((item) => item.id).sort()).toEqual([
+      'res-1-only',
+      'res-2-only',
+      'tenant-wide-1',
+    ]);
   });
 });
 

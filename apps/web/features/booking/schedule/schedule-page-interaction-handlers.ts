@@ -73,3 +73,33 @@ export function buildStatusFilterHandlers(
     handleCloseStatusFilter: () => ui.setStatusFilterOpen(false),
   };
 }
+
+// Mirrors buildStatusFilterHandlers above — the resource-filter popover's toggle/reset/open/close
+// handlers are the identical shape, just over resource ids instead of booking statuses. No
+// "normalize against a known set" step here (unlike statuses): resources are a dynamic,
+// tenant-fetched list, not a fixed enum.
+export function buildResourceFilterHandlers(
+  ui: ScheduleUiState,
+  selectedResourceIdSet: ReadonlySet<string>,
+  setSelectedResourceIds: (selectedResourceIds: SetStateAction<readonly string[]>) => void,
+) {
+  function handleToggleResource(resourceId: string): void {
+    setSelectedResourceIds((current) => {
+      const next = new Set(current);
+      if (next.has(resourceId)) {
+        next.delete(resourceId);
+      } else {
+        next.add(resourceId);
+      }
+      return [...next];
+    });
+  }
+
+  return {
+    selectedResourceIdSet,
+    handleToggleResource,
+    handleResetResourceFilter: () => setSelectedResourceIds([]),
+    handleToggleResourceFilterOpen: () => ui.setResourceFilterOpen((current) => !current),
+    handleCloseResourceFilter: () => ui.setResourceFilterOpen(false),
+  };
+}

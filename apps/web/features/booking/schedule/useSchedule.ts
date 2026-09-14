@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   ScheduleClosureListResponse,
   ScheduleOpeningListResponse,
@@ -18,19 +18,46 @@ import { listBookings } from '@/features/booking/api/booking';
 import { SCHEDULE_BOOKING_STATUS_ALL } from '@/features/booking/model/booking-status';
 import { useTenant } from '@/providers/tenant-provider';
 
+// A checked resourceId's own GET already returns tenant-wide (resourceId=null) items combined
+// with that resource's own — so N parallel per-resource fetches all repeat the same tenant-wide
+// items. De-duplicate by id once merged, rather than reasoning about which fetch "owns" them.
+function dedupeById<T extends { id: string }>(items: readonly T[]): T[] {
+  const seen = new Map<string, T>();
+  for (const item of items) seen.set(item.id, item);
+  return [...seen.values()];
+}
+
+// Zero resourceIds selected = today's tenant-wide-only query (a single scope of `undefined`).
+// One or more selected = one parallel query per resource, each already including tenant-wide
+// items server-side; merged and de-duplicated below.
+function resolveScopes(resourceIds: readonly string[]): readonly (string | undefined)[] {
+  return resourceIds.length === 0 ? [undefined] : resourceIds;
+}
+
 export function useScheduleClosures(
   from: string,
   to: string,
   initialData?: ScheduleClosureListResponse,
-  resourceId?: string,
+  resourceIds: readonly string[] = [],
 ) {
   const { tenantId } = useTenant();
-  return useQuery({
-    queryKey: ['schedule', 'closures', tenantId, from, to, resourceId ?? null],
-    queryFn: () => listClosures(from, to, resourceId),
-    enabled: Boolean(from && to),
-    initialData,
+  const scopes = resolveScopes(resourceIds);
+  const queries = useQueries({
+    queries: scopes.map((resourceId) => ({
+      queryKey: ['schedule', 'closures', tenantId, from, to, resourceId ?? null],
+      queryFn: () => listClosures(from, to, resourceId),
+      enabled: Boolean(from && to),
+      // Only ever meaningfully set by the caller when resourceIds is empty (a single, tenant-wide
+      // scope) — see schedule-page-query-data.ts's own isInitialTenantWideView gate.
+      initialData,
+    })),
   });
+
+  const data = queries.every((query) => query.data !== undefined)
+    ? { items: dedupeById(queries.flatMap((query) => query.data?.items ?? [])) }
+    : undefined;
+
+  return { data };
 }
 
 export function useCreateClosure() {
@@ -57,15 +84,24 @@ export function useScheduleOpenings(
   from: string,
   to: string,
   initialData?: ScheduleOpeningListResponse,
-  resourceId?: string,
+  resourceIds: readonly string[] = [],
 ) {
   const { tenantId } = useTenant();
-  return useQuery({
-    queryKey: ['schedule', 'openings', tenantId, from, to, resourceId ?? null],
-    queryFn: () => listOpenings(from, to, resourceId),
-    enabled: Boolean(from && to),
-    initialData,
+  const scopes = resolveScopes(resourceIds);
+  const queries = useQueries({
+    queries: scopes.map((resourceId) => ({
+      queryKey: ['schedule', 'openings', tenantId, from, to, resourceId ?? null],
+      queryFn: () => listOpenings(from, to, resourceId),
+      enabled: Boolean(from && to),
+      initialData,
+    })),
   });
+
+  const data = queries.every((query) => query.data !== undefined)
+    ? { items: dedupeById(queries.flatMap((query) => query.data?.items ?? [])) }
+    : undefined;
+
+  return { data };
 }
 
 export function useCreateOpening() {
