@@ -46,11 +46,7 @@ export function toDomain(
   const resourceRequirements = legs
     ? []
     : toResourceRequirements(children.requirements, children.requirementPool);
-  const classResourceSlots = children.classResourcePool.length
-    ? toClassResourceSlots(children.classResourcePool)
-    : entity.bookingModel === 'SESSION'
-      ? []
-      : null;
+  const classResourceSlots = toClassResourceSlotsOrDefault(entity, children.classResourcePool);
 
   return Service.reconstitute({
     id: entity.id,
@@ -124,6 +120,17 @@ function toClassResourceSlots(rows: ServiceClassResourcePoolEntity[]): ClassReso
   return Array.from(byType.entries()).map(([type, eligibleResourceIds]) =>
     ClassResourceSlot.create({ type, eligibleResourceIds }),
   );
+}
+
+// A SESSION service always carries a (possibly empty) classResourceSlots array — an APPOINTMENT
+// service always carries null (mutual exclusivity, docs/02-DOMAIN_MODEL.md) — so the empty-rows
+// case still has to branch on entity.bookingModel to know which of those two it means.
+function toClassResourceSlotsOrDefault(
+  entity: ServiceEntity,
+  rows: ServiceClassResourcePoolEntity[],
+): ClassResourceSlot[] | null {
+  if (rows.length) return toClassResourceSlots(rows);
+  return entity.bookingModel === 'SESSION' ? [] : null;
 }
 
 export function toEntity(service: Service): ServiceEntity {

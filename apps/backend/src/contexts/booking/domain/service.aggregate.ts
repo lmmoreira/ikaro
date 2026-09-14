@@ -5,18 +5,22 @@ import { normalizeOptionalText, normalizeText } from '../../../shared/utils/text
 import { ClassResourceSlot } from './class-resource-slot';
 import {
   BookingServiceBookingModelImmutableError,
+  BookingServiceBookingModelMismatchError,
   BookingServiceHasLegsError,
   BookingServiceLegsTooFewError,
-  BookingServiceResourceTypeUnavailableError,
   ServiceDeactivatedError,
   ServiceDurationInvalidError,
+  ServiceLegInvalidError,
   ServiceLoyaltyPointsInvalidError,
   ServiceNameRequiredError,
   ServicePriceInvalidError,
   TenantIdRequiredError,
 } from './errors/booking-domain.error';
+import {
+  ActiveResourceIdsByType,
+  assertResourceRequirementsAvailable,
+} from './resource-requirement-availability';
 import { ResourceRequirement } from './resource-requirement';
-import { ResourceType } from './resource.types';
 import { ServiceLeg } from './service-leg';
 import { computeLegsTotalSpanMinutes } from './service-leg-span';
 
@@ -192,29 +196,31 @@ export class Service extends AggregateRoot {
 
   // Rejects (409) rather than auto-clearing legs — legged→flat isn't a supported transition via
   // this endpoint, asymmetric with setLegs() below (UC-050/051 A2 vs. UC-052 step 3).
-  // activeResourceTypes is resolved by the caller (IResourceRepository.findByTenant).
+  // activeResourceIdsByType is resolved by the caller (IResourceRepository.findByTenant).
   setResourceRequirements(
     requirements: ResourceRequirement[],
-    activeResourceTypes: ReadonlySet<ResourceType>,
+    activeResourceIdsByType: ActiveResourceIdsByType,
   ): void {
-    if (this.props.legs !== null) throw new BookingServiceHasLegsError(this.props.id);
-    for (const requirement of requirements) {
-      if (!activeResourceTypes.has(requirement.type)) {
-        throw new BookingServiceResourceTypeUnavailableError(requirement.type);
-      }
+    if (this.props.bookingModel !== 'APPOINTMENT') {
+      throw new BookingServiceBookingModelMismatchError(this.props.id);
     }
+    if (this.props.legs !== null) throw new BookingServiceHasLegsError(this.props.id);
+    assertResourceRequirementsAvailable(requirements, activeResourceIdsByType);
     this.props.resourceRequirements = [...requirements];
     this.props.updatedAt = new Date();
   }
 
-  setLegs(legs: ServiceLeg[], activeResourceTypes: ReadonlySet<ResourceType>): number {
+  setLegs(legs: ServiceLeg[], activeResourceIdsByType: ActiveResourceIdsByType): number {
+    if (this.props.bookingModel !== 'APPOINTMENT') {
+      throw new BookingServiceBookingModelMismatchError(this.props.id);
+    }
     if (legs.length < 2) throw new BookingServiceLegsTooFewError();
+    const legIndexes = legs.map((leg) => leg.legIndex);
+    if (new Set(legIndexes).size !== legIndexes.length) {
+      throw new ServiceLegInvalidError('duplicate-leg-index');
+    }
     for (const leg of legs) {
-      for (const requirement of leg.resourceRequirements) {
-        if (!activeResourceTypes.has(requirement.type)) {
-          throw new BookingServiceResourceTypeUnavailableError(requirement.type);
-        }
-      }
+      assertResourceRequirementsAvailable(leg.resourceRequirements, activeResourceIdsByType);
     }
     this.props.legs = [...legs];
     this.props.resourceRequirements = [];
@@ -224,6 +230,9 @@ export class Service extends AggregateRoot {
   }
 
   setBufferAfterMinutes(bufferAfterMinutes: number): void {
+    if (this.props.bookingModel !== 'APPOINTMENT') {
+      throw new BookingServiceBookingModelMismatchError(this.props.id);
+    }
     if (this.props.legs !== null) throw new BookingServiceHasLegsError(this.props.id);
     this.props.bufferAfterMinutes = bufferAfterMinutes;
     this.props.updatedAt = new Date();
@@ -231,10 +240,21 @@ export class Service extends AggregateRoot {
 
   // Compare-before-validate (CLAUDE.md §8): resubmitting the current value is always a no-op,
   // even with booking history. hasBookingHistory is resolved by the caller (existsByServiceId).
+  // Switching model normalizes the fields that only apply to the other model (mutual-exclusivity
+  // invariant, docs/02-DOMAIN_MODEL.md) — never leaves a stale resourceRequirements/legs/buffer
+  // behind on a SESSION service, nor a stale classResourceSlots behind on an APPOINTMENT one.
   changeBookingModel(bookingModel: ServiceBookingModel, hasBookingHistory: boolean): void {
     if (bookingModel === this.props.bookingModel) return;
     if (hasBookingHistory) throw new BookingServiceBookingModelImmutableError(this.props.id);
     this.props.bookingModel = bookingModel;
+    if (bookingModel === 'SESSION') {
+      this.props.resourceRequirements = [];
+      this.props.legs = null;
+      this.props.bufferAfterMinutes = null;
+      this.props.classResourceSlots = this.props.classResourceSlots ?? [];
+    } else {
+      this.props.classResourceSlots = null;
+    }
     this.props.updatedAt = new Date();
   }
 

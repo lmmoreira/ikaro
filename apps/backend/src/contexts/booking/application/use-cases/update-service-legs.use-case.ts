@@ -10,7 +10,7 @@ import { UpdateServiceLegsDto } from '../dtos/update-service-legs.dto';
 import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
-import { resolveActiveResourceTypes } from './active-resource-types.util';
+import { resolveActiveResourceIdsByType } from './active-resource-types.util';
 
 export type UpdateServiceLegsUseCaseInput = UpdateServiceLegsDto & {
   id: string;
@@ -39,13 +39,13 @@ export class UpdateServiceLegsUseCase {
 
     const legs = input.legs.map(toServiceLeg);
     const allRequirementTypes = legs.flatMap((leg) => leg.resourceRequirements.map((r) => r.type));
-    const activeResourceTypes = await resolveActiveResourceTypes(
+    const activeResourceIdsByType = await resolveActiveResourceIdsByType(
       this.resourceRepo,
       tenantId,
       allRequirementTypes,
     );
 
-    const totalSpanMinutes = service.setLegs(legs, activeResourceTypes);
+    const totalSpanMinutes = service.setLegs(legs, activeResourceIdsByType);
 
     await this.txManager.run(async () => {
       await this.serviceRepo.save(service);

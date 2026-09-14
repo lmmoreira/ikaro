@@ -3,11 +3,15 @@ import { ServiceBuilder } from '../../../test/builders/booking/index';
 import {
   BookingDomainError,
   BookingServiceBookingModelImmutableError,
+  BookingServiceBookingModelMismatchError,
   BookingServiceHasLegsError,
   BookingServiceLegsTooFewError,
   BookingServiceResourceTypeUnavailableError,
+  ResourceRequirementInvalidError,
   ServiceDeactivatedError,
+  ServiceLegInvalidError,
 } from './errors/booking-domain.error';
+import { ActiveResourceIdsByType } from './resource-requirement-availability';
 import { ResourceRequirement } from './resource-requirement';
 import { ResourceType } from './resource.types';
 import { Service } from './service.aggregate';
@@ -25,6 +29,12 @@ function leg(legIndex: number, type: ResourceType = ResourceType.ROOM): ServiceL
     resourceRequirements: [ResourceRequirement.create({ type, selectionMode: 'AUTO_ANY' })],
     transitionGapAfterMinutes: 5,
   });
+}
+
+// Builds the "every active resource id per type" map setResourceRequirements()/setLegs() expect.
+// None of these tests exercise resourcePoolIds, so a single placeholder id per type is enough.
+function activeIds(...types: ResourceType[]): ActiveResourceIdsByType {
+  return new Map(types.map((type) => [type, new Set(['resource-1'])]));
 }
 
 const TENANT = 'tenant-abc';
@@ -338,7 +348,7 @@ describe('Service', () => {
     it('sets a single flat resource requirement', () => {
       service.setResourceRequirements(
         [requirement(ResourceType.STAFF)],
-        new Set([ResourceType.STAFF]),
+        activeIds(ResourceType.STAFF),
       );
       expect(service.resourceRequirements).toHaveLength(1);
       expect(service.resourceRequirements[0].type).toBe(ResourceType.STAFF);
@@ -347,14 +357,14 @@ describe('Service', () => {
     it('sets a bundle of 2+ requirements', () => {
       service.setResourceRequirements(
         [requirement(ResourceType.STAFF), requirement(ResourceType.EQUIPMENT)],
-        new Set([ResourceType.STAFF, ResourceType.EQUIPMENT]),
+        activeIds(ResourceType.STAFF, ResourceType.EQUIPMENT),
       );
       expect(service.resourceRequirements).toHaveLength(2);
     });
 
     it('rejects a single resource requirement referencing a type with no active resources (UC-050 A1)', () => {
       expect(() =>
-        service.setResourceRequirements([requirement(ResourceType.EQUIPMENT)], new Set()),
+        service.setResourceRequirements([requirement(ResourceType.EQUIPMENT)], activeIds()),
       ).toThrow(BookingServiceResourceTypeUnavailableError);
     });
 
@@ -362,19 +372,55 @@ describe('Service', () => {
       expect(() =>
         service.setResourceRequirements(
           [requirement(ResourceType.STAFF), requirement(ResourceType.EQUIPMENT)],
-          new Set([ResourceType.STAFF]),
+          activeIds(ResourceType.STAFF),
         ),
       ).toThrow(BookingServiceResourceTypeUnavailableError);
     });
 
     it('rejects when the service currently has legs (UC-050 A2)', () => {
-      service.setLegs([leg(0), leg(1)], new Set([ResourceType.ROOM]));
+      service.setLegs([leg(0), leg(1)], activeIds(ResourceType.ROOM));
       expect(() =>
         service.setResourceRequirements(
           [requirement(ResourceType.STAFF)],
-          new Set([ResourceType.STAFF]),
+          activeIds(ResourceType.STAFF),
         ),
       ).toThrow(BookingServiceHasLegsError);
+    });
+
+    it('rejects when the service is a SESSION (mutual exclusivity with classResourceSlots)', () => {
+      const sessionService = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withBookingModel('SESSION')
+        .withResourceRequirements([])
+        .withBufferAfterMinutes(null)
+        .withClassResourceSlots([])
+        .build();
+      expect(() =>
+        sessionService.setResourceRequirements(
+          [requirement(ResourceType.STAFF)],
+          activeIds(ResourceType.STAFF),
+        ),
+      ).toThrow(BookingServiceBookingModelMismatchError);
+    });
+
+    it('rejects a duplicate resource type within the bundle', () => {
+      expect(() =>
+        service.setResourceRequirements(
+          [requirement(ResourceType.STAFF), requirement(ResourceType.STAFF)],
+          activeIds(ResourceType.STAFF),
+        ),
+      ).toThrow(ResourceRequirementInvalidError);
+    });
+
+    it('rejects a resourcePoolIds entry that is not an active resource of the matching type', () => {
+      const withPool = ResourceRequirement.create({
+        type: ResourceType.STAFF,
+        selectionMode: 'CUSTOMER_CHOICE',
+        resourcePoolIds: ['not-active-id'],
+      });
+      expect(() =>
+        service.setResourceRequirements([withPool], activeIds(ResourceType.STAFF)),
+      ).toThrow(ResourceRequirementInvalidError);
     });
   });
 
@@ -390,28 +436,50 @@ describe('Service', () => {
     });
 
     it('clears resourceRequirements and bufferAfterMinutes when legs is set (mutual exclusivity)', () => {
-      service.setLegs([leg(0), leg(1)], new Set([ResourceType.ROOM]));
+      service.setLegs([leg(0), leg(1)], activeIds(ResourceType.ROOM));
       expect(service.resourceRequirements).toEqual([]);
       expect(service.bufferAfterMinutes).toBeNull();
       expect(service.legs).toHaveLength(2);
     });
 
     it('rejects fewer than 2 legs (UC-052 A1)', () => {
-      expect(() => service.setLegs([leg(0)], new Set([ResourceType.ROOM]))).toThrow(
+      expect(() => service.setLegs([leg(0)], activeIds(ResourceType.ROOM))).toThrow(
         BookingServiceLegsTooFewError,
       );
     });
 
     it('rejects a leg referencing a resource type with no active resources', () => {
-      expect(() => service.setLegs([leg(0), leg(1)], new Set())).toThrow(
+      expect(() => service.setLegs([leg(0), leg(1)], activeIds())).toThrow(
         BookingServiceResourceTypeUnavailableError,
       );
     });
 
     it('returns the total span: sum(durations) + sum(gaps except the last leg)', () => {
-      const totalSpan = service.setLegs([leg(0), leg(1)], new Set([ResourceType.ROOM]));
+      const totalSpan = service.setLegs([leg(0), leg(1)], activeIds(ResourceType.ROOM));
       // 20 + 20 (durations) + 5 (leg 0's gap only — the last leg's gap never applies)
       expect(totalSpan).toBe(45);
+    });
+
+    it('rejects when the service is a SESSION (mutual exclusivity with classResourceSlots)', () => {
+      const sessionService = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withBookingModel('SESSION')
+        .withResourceRequirements([])
+        .withBufferAfterMinutes(null)
+        .withClassResourceSlots([])
+        .build();
+      expect(() => sessionService.setLegs([leg(0), leg(1)], activeIds(ResourceType.ROOM))).toThrow(
+        BookingServiceBookingModelMismatchError,
+      );
+    });
+
+    it('rejects legs repeating the same legIndex', () => {
+      expect(() =>
+        service.setLegs(
+          [leg(0), leg(0, ResourceType.STAFF)],
+          activeIds(ResourceType.ROOM, ResourceType.STAFF),
+        ),
+      ).toThrow(ServiceLegInvalidError);
     });
   });
 
@@ -424,8 +492,21 @@ describe('Service', () => {
 
     it('rejects when the service has legs (UC-053 A1, since legs use per-leg transition gaps)', () => {
       const service = new ServiceBuilder().withTenantId(TENANT).build();
-      service.setLegs([leg(0), leg(1)], new Set([ResourceType.ROOM]));
+      service.setLegs([leg(0), leg(1)], activeIds(ResourceType.ROOM));
       expect(() => service.setBufferAfterMinutes(15)).toThrow(BookingServiceHasLegsError);
+    });
+
+    it('rejects when the service is a SESSION (mutual exclusivity)', () => {
+      const sessionService = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withBookingModel('SESSION')
+        .withResourceRequirements([])
+        .withBufferAfterMinutes(null)
+        .withClassResourceSlots([])
+        .build();
+      expect(() => sessionService.setBufferAfterMinutes(15)).toThrow(
+        BookingServiceBookingModelMismatchError,
+      );
     });
   });
 
@@ -456,6 +537,32 @@ describe('Service', () => {
         .build();
       expect(() => service.changeBookingModel('APPOINTMENT', true)).not.toThrow();
       expect(service.bookingModel).toBe('APPOINTMENT');
+    });
+
+    it('clears resourceRequirements/legs/bufferAfterMinutes when switching to SESSION (mutual exclusivity)', () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withBookingModel('APPOINTMENT')
+        .withResourceRequirements([requirement(ResourceType.STAFF)])
+        .withBufferAfterMinutes(30)
+        .build();
+      service.changeBookingModel('SESSION', false);
+      expect(service.resourceRequirements).toEqual([]);
+      expect(service.legs).toBeNull();
+      expect(service.bufferAfterMinutes).toBeNull();
+      expect(service.classResourceSlots).toEqual([]);
+    });
+
+    it('clears classResourceSlots when switching to APPOINTMENT (mutual exclusivity)', () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withBookingModel('SESSION')
+        .withResourceRequirements([])
+        .withBufferAfterMinutes(null)
+        .withClassResourceSlots([])
+        .build();
+      service.changeBookingModel('APPOINTMENT', false);
+      expect(service.classResourceSlots).toBeNull();
     });
   });
 });

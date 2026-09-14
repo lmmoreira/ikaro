@@ -2,8 +2,6 @@ import { z } from 'zod';
 import {
   BookingModelSchema,
   ClassResourceSlotSchema as ClassResourceSlotBodySchema,
-  ResourceRequirementSchema as ResourceRequirementBodySchema,
-  ServiceLegSchema as ServiceLegBodySchema,
   UpdateServiceLegsSchema as UpdateServiceLegsBodySchema,
   UpdateServiceResourceRequirementsSchema as UpdateServiceResourceRequirementsBodySchema,
 } from '@ikaro/validation';
@@ -17,15 +15,20 @@ import {
 // are shared with the backend's identical resource-requirement.dto.ts /
 // update-service-resource-requirements.dto.ts / update-service-legs.dto.ts schemas via
 // @ikaro/validation (no per-app deviation — mirrors CreateResourceSchema's own direct-reuse
-// pattern in resource.schemas.ts).
+// pattern in resource.schemas.ts). BookingModelSchema/ClassResourceSlotBodySchema/
+// UpdateServiceLegsBodySchema/UpdateServiceResourceRequirementsBodySchema are also used locally
+// below, so they stay as regular imports re-exported here; ResourceRequirementBodySchema/
+// ServiceLegBodySchema are pure passthroughs with no local use, so they re-export directly.
 export {
   BookingModelSchema,
   ClassResourceSlotBodySchema,
-  ResourceRequirementBodySchema,
-  ServiceLegBodySchema,
   UpdateServiceLegsBodySchema,
   UpdateServiceResourceRequirementsBodySchema,
 };
+export {
+  ResourceRequirementSchema as ResourceRequirementBodySchema,
+  ServiceLegSchema as ServiceLegBodySchema,
+} from '@ikaro/validation';
 
 export const CreateServiceBodySchema = z.object({
   name: z.string().min(1),

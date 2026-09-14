@@ -59,6 +59,7 @@
   "BOOKING_RESOURCE_LOCATION_TYPE_IMMUTABLE": "O tipo de uma unidade não pode ser alterado, e nenhum outro recurso pode se tornar uma unidade.",
   "BOOKING_RESOURCE_LOCATION_WORKING_HOURS_IMMUTABLE": "Uma unidade sempre segue o horário do negócio e não pode ter um horário personalizado.",
   "BOOKING_SERVICE_HAS_LEGS": "Este serviço está configurado em etapas — remova as etapas antes de definir um requisito de recurso simples.",
+  "BOOKING_SERVICE_BOOKING_MODEL_MISMATCH": "Requisitos de recurso, etapas e tempo de intervalo só se aplicam a um serviço do tipo agendamento.",
   "BOOKING_SERVICE_LEGS_TOO_FEW": "Um serviço em etapas precisa de pelo menos duas etapas.",
   "BOOKING_SERVICE_BOOKING_MODEL_IMMUTABLE": "O tipo de agendamento não pode ser alterado depois que o serviço já possui agendamentos.",
   "BOOKING_SERVICE_RESOURCE_TYPE_UNAVAILABLE": "Não há recursos ativos do tipo selecionado.",

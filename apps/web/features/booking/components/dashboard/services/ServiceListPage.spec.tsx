@@ -41,6 +41,11 @@ function makeService(overrides?: Partial<StaffServiceResponse>): StaffServiceRes
     requiresPickupAddress: true,
     isActive: true,
     createdAt: '2026-06-01T00:00:00.000Z',
+    bookingModel: 'APPOINTMENT',
+    resourceRequirements: [],
+    bufferAfterMinutes: null,
+    legs: null,
+    classResourceSlots: null,
     ...overrides,
   };
 }

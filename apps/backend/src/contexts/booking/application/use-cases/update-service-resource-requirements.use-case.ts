@@ -10,7 +10,7 @@ import { UpdateServiceResourceRequirementsDto } from '../dtos/update-service-res
 import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
-import { resolveActiveResourceTypes } from './active-resource-types.util';
+import { resolveActiveResourceIdsByType } from './active-resource-types.util';
 
 export type UpdateServiceResourceRequirementsUseCaseInput = UpdateServiceResourceRequirementsDto & {
   id: string;
@@ -39,13 +39,13 @@ export class UpdateServiceResourceRequirementsUseCase {
     if (!service) throw new ServiceNotFoundError(id);
 
     const requirements = input.resourceRequirements.map(toResourceRequirement);
-    const activeResourceTypes = await resolveActiveResourceTypes(
+    const activeResourceIdsByType = await resolveActiveResourceIdsByType(
       this.resourceRepo,
       tenantId,
       requirements.map((r) => r.type),
     );
 
-    service.setResourceRequirements(requirements, activeResourceTypes);
+    service.setResourceRequirements(requirements, activeResourceIdsByType);
 
     await this.txManager.run(async () => {
       await this.serviceRepo.save(service);

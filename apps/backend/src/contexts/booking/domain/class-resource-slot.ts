@@ -20,11 +20,10 @@ export class ClassResourceSlot extends ValueObject<ClassResourceSlotProps> {
     });
   }
 
+  // No validation-vs-reconstitute divergence yet (inert until M24 — see the class comment above),
+  // so reconstitute() intentionally delegates to create() instead of duplicating its body.
   static reconstitute(props: ClassResourceSlotProps): ClassResourceSlot {
-    return new ClassResourceSlot({
-      type: props.type,
-      eligibleResourceIds: [...props.eligibleResourceIds],
-    });
+    return ClassResourceSlot.create(props);
   }
 
   get type(): ResourceType {

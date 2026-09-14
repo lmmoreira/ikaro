@@ -41,6 +41,11 @@ const mockStaffServiceResponse = {
   requiresPickupAddress: false,
   isActive: true,
   createdAt: '2026-01-01T00:00:00.000Z',
+  bookingModel: 'APPOINTMENT',
+  resourceRequirements: [],
+  bufferAfterMinutes: 60,
+  legs: null,
+  classResourceSlots: null,
 };
 
 const validCreateBody = {

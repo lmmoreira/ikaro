@@ -1,4 +1,29 @@
+import type { ResourceType } from './enums';
 import type { Money, MoneyAmount } from './money';
+
+export type ServiceBookingModel = 'APPOINTMENT' | 'SESSION';
+export type ResourceRequirementSelectionMode =
+  'NONE' | 'CUSTOMER_CHOICE' | 'AUTO_ANY' | 'AUTO_FUNGIBLE_POOL';
+
+export interface ResourceRequirementItem {
+  type: ResourceType;
+  selectionMode: ResourceRequirementSelectionMode;
+  resourcePoolIds: string[] | null;
+  requiredQuantity: number;
+}
+
+export interface ServiceLegItem {
+  legIndex: number;
+  name: string;
+  durationMinutes: number;
+  resourceRequirements: ResourceRequirementItem[];
+  transitionGapAfterMinutes: number;
+}
+
+export interface ClassResourceSlotItem {
+  type: ResourceType;
+  eligibleResourceIds: string[];
+}
 
 export interface CreateServiceRequest {
   name: string;
@@ -43,6 +68,11 @@ export interface StaffServiceResponse {
   requiresPickupAddress: boolean;
   isActive: boolean;
   createdAt: string;
+  bookingModel: ServiceBookingModel;
+  resourceRequirements: ResourceRequirementItem[];
+  bufferAfterMinutes: number | null;
+  legs: ServiceLegItem[] | null;
+  classResourceSlots: ClassResourceSlotItem[] | null;
 }
 
 export interface StaffServiceListResponse {

@@ -2,6 +2,7 @@
 import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { StaffServiceResponse } from '@ikaro/types';
 import { ApiError } from '@/shared/lib/api/errors';
 import { renderWithIntl } from '@/test-utils';
 import { ServiceEditPage } from './ServiceEditPage';
@@ -32,7 +33,7 @@ vi.mock('@/shells/dashboard/components/topbar-status-context', () => ({
   }),
 }));
 
-const service = {
+const service: StaffServiceResponse = {
   serviceId: 'svc-1',
   name: 'Lavagem Completa',
   description: 'Serviço completo',
@@ -42,7 +43,12 @@ const service = {
   requiresPickupAddress: true,
   isActive: true,
   createdAt: '2026-06-01T00:00:00.000Z',
-} as const;
+  bookingModel: 'APPOINTMENT',
+  resourceRequirements: [],
+  bufferAfterMinutes: null,
+  legs: null,
+  classResourceSlots: null,
+};
 
 describe('ServiceEditPage', () => {
   beforeEach(() => {

@@ -70,6 +70,17 @@ export class BookingServiceHasLegsError extends BookingDomainError {
   }
 }
 
+export class BookingServiceBookingModelMismatchError extends BookingDomainError {
+  constructor(id: string) {
+    super(
+      `Resource requirements/legs/buffer only apply to an APPOINTMENT service: ${id}`,
+      BookingErrorCode.SERVICE_BOOKING_MODEL_MISMATCH,
+      'bookingModel',
+    );
+    this.name = 'BookingServiceBookingModelMismatchError';
+  }
+}
+
 export class BookingServiceLegsTooFewError extends BookingDomainError {
   constructor() {
     super('legs must have at least 2 entries', BookingErrorCode.SERVICE_LEGS_TOO_FEW, 'legs');
@@ -99,24 +110,54 @@ export class BookingServiceResourceTypeUnavailableError extends BookingDomainErr
   }
 }
 
+type ResourceRequirementInvalidReason =
+  'quantity-must-be-positive' | 'duplicate-type' | 'pool-id-not-active';
+
+const RESOURCE_REQUIREMENT_INVALID_MESSAGES: Record<ResourceRequirementInvalidReason, string> = {
+  'quantity-must-be-positive': 'requiredQuantity must be greater than 0',
+  'duplicate-type': 'resourceRequirements cannot list the same type more than once',
+  'pool-id-not-active': 'resourcePoolIds must reference active resources of the matching type',
+};
+
+const RESOURCE_REQUIREMENT_INVALID_FIELDS: Record<ResourceRequirementInvalidReason, string> = {
+  'quantity-must-be-positive': 'requiredQuantity',
+  'duplicate-type': 'type',
+  'pool-id-not-active': 'resourcePoolIds',
+};
+
 export class ResourceRequirementInvalidError extends BookingDomainError {
-  constructor(reason: 'quantity-must-be-positive') {
-    const message =
-      reason === 'quantity-must-be-positive' ? 'requiredQuantity must be greater than 0' : reason;
-    super(message, BookingErrorCode.SERVICE_RESOURCE_REQUIREMENT_INVALID, 'requiredQuantity');
+  constructor(reason: ResourceRequirementInvalidReason) {
+    super(
+      RESOURCE_REQUIREMENT_INVALID_MESSAGES[reason],
+      BookingErrorCode.SERVICE_RESOURCE_REQUIREMENT_INVALID,
+      RESOURCE_REQUIREMENT_INVALID_FIELDS[reason],
+    );
     this.name = 'ResourceRequirementInvalidError';
   }
 }
 
+type ServiceLegInvalidReason =
+  'duration-must-be-positive' | 'requires-resource-requirement' | 'duplicate-leg-index';
+
+const SERVICE_LEG_INVALID_MESSAGES: Record<ServiceLegInvalidReason, string> = {
+  'duration-must-be-positive': 'durationMinutes must be greater than 0',
+  'requires-resource-requirement': 'a leg requires at least one resource requirement',
+  'duplicate-leg-index': 'legs cannot repeat the same legIndex',
+};
+
+const SERVICE_LEG_INVALID_FIELDS: Record<ServiceLegInvalidReason, string> = {
+  'duration-must-be-positive': 'durationMinutes',
+  'requires-resource-requirement': 'resourceRequirements',
+  'duplicate-leg-index': 'legIndex',
+};
+
 export class ServiceLegInvalidError extends BookingDomainError {
-  constructor(reason: 'duration-must-be-positive' | 'requires-resource-requirement') {
-    const message =
-      reason === 'duration-must-be-positive'
-        ? 'durationMinutes must be greater than 0'
-        : 'a leg requires at least one resource requirement';
-    const field =
-      reason === 'duration-must-be-positive' ? 'durationMinutes' : 'resourceRequirements';
-    super(message, BookingErrorCode.SERVICE_LEG_INVALID, field);
+  constructor(reason: ServiceLegInvalidReason) {
+    super(
+      SERVICE_LEG_INVALID_MESSAGES[reason],
+      BookingErrorCode.SERVICE_LEG_INVALID,
+      SERVICE_LEG_INVALID_FIELDS[reason],
+    );
     this.name = 'ServiceLegInvalidError';
   }
 }

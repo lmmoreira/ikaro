@@ -1,20 +1,23 @@
+import { ActiveResourceIdsByType } from '../../domain/resource-requirement-availability';
 import { ResourceType } from '../../domain/resource.types';
 import { IResourceRepository } from '../ports/resource-repository.port';
 
 // Shared by UpdateServiceResourceRequirementsUseCase and UpdateServiceLegsUseCase — both need
-// "which of these resource types currently have >= 1 active Resource" before calling the
-// aggregate's setResourceRequirements()/setLegs() (UC-050 A1 / UC-051's own precondition).
-export async function resolveActiveResourceTypes(
+// every active Resource id per requested type before calling the aggregate's
+// setResourceRequirements()/setLegs(), which validate both "does this type have >= 1 active
+// Resource" (UC-050 A1 / UC-051's own precondition) and "is this specific resourcePoolIds entry
+// itself an active resource of the matching type" (docs/02-DOMAIN_MODEL.md).
+export async function resolveActiveResourceIdsByType(
   resourceRepo: IResourceRepository,
   tenantId: string,
   types: ResourceType[],
-): Promise<Set<ResourceType>> {
+): Promise<ActiveResourceIdsByType> {
   const distinctTypes = [...new Set(types)];
-  const results = await Promise.all(
+  const entries = await Promise.all(
     distinctTypes.map(async (type) => {
       const resources = await resourceRepo.findByTenant(tenantId, { type, isActive: true });
-      return resources.length > 0 ? type : null;
+      return [type, new Set(resources.map((resource) => resource.id))] as const;
     }),
   );
-  return new Set(results.filter((type): type is ResourceType => type !== null));
+  return new Map(entries);
 }

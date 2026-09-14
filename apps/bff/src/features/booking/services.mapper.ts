@@ -1,5 +1,43 @@
-import { StaffServiceListResponse, StaffServiceResponse } from '@ikaro/types';
-import { ServiceDetail, ServiceListResponse } from './services.types';
+import {
+  ClassResourceSlotItem,
+  ResourceRequirementItem,
+  ServiceLegItem,
+  StaffServiceListResponse,
+  StaffServiceResponse,
+} from '@ikaro/types';
+import {
+  ClassResourceSlotDetail,
+  ResourceRequirementDetail,
+  ServiceDetail,
+  ServiceLegDetail,
+  ServiceListResponse,
+} from './services.types';
+
+function toResourceRequirementItem(item: ResourceRequirementDetail): ResourceRequirementItem {
+  return {
+    type: item.type as ResourceRequirementItem['type'],
+    selectionMode: item.selectionMode,
+    resourcePoolIds: item.resourcePoolIds,
+    requiredQuantity: item.requiredQuantity,
+  };
+}
+
+function toServiceLegItem(leg: ServiceLegDetail): ServiceLegItem {
+  return {
+    legIndex: leg.legIndex,
+    name: leg.name,
+    durationMinutes: leg.durationMinutes,
+    resourceRequirements: leg.resourceRequirements.map(toResourceRequirementItem),
+    transitionGapAfterMinutes: leg.transitionGapAfterMinutes,
+  };
+}
+
+function toClassResourceSlotItem(slot: ClassResourceSlotDetail): ClassResourceSlotItem {
+  return {
+    type: slot.type as ClassResourceSlotItem['type'],
+    eligibleResourceIds: slot.eligibleResourceIds,
+  };
+}
 
 export function toStaffServiceResponse(service: ServiceDetail): StaffServiceResponse {
   return {
@@ -12,6 +50,13 @@ export function toStaffServiceResponse(service: ServiceDetail): StaffServiceResp
     requiresPickupAddress: service.requiresPickupAddress,
     isActive: service.isActive,
     createdAt: service.createdAt,
+    bookingModel: service.bookingModel,
+    resourceRequirements: service.resourceRequirements.map(toResourceRequirementItem),
+    bufferAfterMinutes: service.bufferAfterMinutes,
+    legs: service.legs ? service.legs.map(toServiceLegItem) : null,
+    classResourceSlots: service.classResourceSlots
+      ? service.classResourceSlots.map(toClassResourceSlotItem)
+      : null,
   };
 }
 

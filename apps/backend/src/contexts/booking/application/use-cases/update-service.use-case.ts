@@ -54,12 +54,18 @@ export class UpdateServiceUseCase {
     if (input.bufferAfterMinutes !== undefined) {
       service.setBufferAfterMinutes(input.bufferAfterMinutes);
     }
-    if (input.bookingModel !== undefined && input.bookingModel !== service.bookingModel) {
-      const hasBookingHistory = await this.bookingRepo.existsByServiceId(id, tenantId);
-      service.changeBookingModel(input.bookingModel, hasBookingHistory);
-    }
 
     await this.txManager.run(async () => {
+      // Re-checked immediately before save() to narrow (not eliminate) the race against a
+      // concurrent booking-creation request: a booking for this service can still be created
+      // between this read and the commit below, since booking creation doesn't take a lock this
+      // use case could coordinate with. A full fix needs cross-use-case lock coordination, out of
+      // proportionate scope for this story — documented-limitation-acceptable narrow race, same
+      // class as M21-S01's TOCTOU precedent.
+      if (input.bookingModel !== undefined && input.bookingModel !== service.bookingModel) {
+        const hasBookingHistory = await this.bookingRepo.existsByServiceId(id, tenantId);
+        service.changeBookingModel(input.bookingModel, hasBookingHistory);
+      }
       await this.serviceRepo.save(service);
     });
 
