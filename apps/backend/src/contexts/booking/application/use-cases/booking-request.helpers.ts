@@ -4,6 +4,7 @@ import { Booking } from '../../domain/booking.aggregate';
 import { BookingLineInput } from '../../domain/booking-line.entity';
 import {
   BookingAddressValidationError,
+  BookingServiceConcurrentModificationError,
   BookingServiceNotInTenantError,
 } from '../../domain/errors/booking-domain.error';
 import { Service } from '../../domain/service.aggregate';
@@ -28,6 +29,9 @@ export interface PersistRequestedBookingParams {
   totalDurationMins: number;
   timezone: string;
   operations: PhotoPromotionOperation[];
+  // Snapshotted pre-transaction (resolveServices()) — compared against each service's own
+  // freshly-locked state below to detect (not just narrow) a concurrent bookingModel change.
+  serviceMap: Map<string, Service>;
 }
 
 export function createBookingAddress(
@@ -120,7 +124,8 @@ export async function persistRequestedBooking(
   serviceRepo: IServiceRepository,
   params: PersistRequestedBookingParams,
 ): Promise<void> {
-  const { booking, tenantId, scheduledAt, totalDurationMins, timezone, operations } = params;
+  const { booking, tenantId, scheduledAt, totalDurationMins, timezone, operations, serviceMap } =
+    params;
 
   await txManager.run(async () => {
     await assertRequestedSlotFreeInTransaction(
@@ -133,11 +138,19 @@ export async function persistRequestedBooking(
     // Locks every referenced Service row before this booking becomes its first booking history —
     // serializes against UpdateServiceUseCase's own findByIdForUpdate()-guarded bookingModel
     // change, closing the TOCTOU race where a service's model could change concurrently with its
-    // very first booking being created (UC-056's immutable-after-history invariant). The locked
-    // read itself is discarded — only its lock matters here, the service's current field values
-    // were already captured into the booking lines before this transaction started.
-    for (const serviceId of new Set(booking.lines.map((line) => line.serviceId))) {
-      await serviceRepo.findByIdForUpdate(serviceId, tenantId);
+    // very first booking being created (UC-056's immutable-after-history invariant). Sorted so
+    // every caller locks a multi-service booking's rows in the same order regardless of request
+    // line order — otherwise two concurrent bookings with reversed service order ([A, B] vs
+    // [B, A]) could each hold one lock and deadlock. Re-checks the lock's own fresh read against
+    // the pre-transaction snapshot (not just acquiring-and-discarding it) — a lock only orders
+    // callers who both acquire it, it doesn't make an already-captured in-memory read fresh.
+    const serviceIds = [...new Set(booking.lines.map((line) => line.serviceId))].sort();
+    for (const serviceId of serviceIds) {
+      const locked = await serviceRepo.findByIdForUpdate(serviceId, tenantId);
+      const snapshot = serviceMap.get(serviceId);
+      if (!locked || !snapshot || locked.bookingModel !== snapshot.bookingModel) {
+        throw new BookingServiceConcurrentModificationError(serviceId);
+      }
     }
     await bookingRepo.save(booking);
     await txManager.scheduleAfterCommit(() =>

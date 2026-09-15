@@ -36,11 +36,6 @@ export class UpdateServiceResourceRequirementsUseCase {
   ): Promise<UpdateServiceResourceRequirementsUseCaseResult> {
     const { id, tenantId } = input;
     const requirements = input.resourceRequirements.map(toResourceRequirement);
-    const activeResourceIdsByType = await resolveActiveResourceIdsByType(
-      this.resourceRepo,
-      tenantId,
-      requirements.map((r) => r.type),
-    );
 
     const service = await this.txManager.run(async () => {
       // findByIdForUpdate (not findById) — closes the lost-update race between two concurrent
@@ -48,6 +43,16 @@ export class UpdateServiceResourceRequirementsUseCase {
       const current = await this.serviceRepo.findByIdForUpdate(id, tenantId);
       if (!current) throw new ServiceNotFoundError(id);
 
+      // Read inside the transaction, immediately before the write it guards — narrows the
+      // window where a concurrent resource deactivation could commit between this validation
+      // and the save below to a single DB round-trip, the same accepted race shape already
+      // tolerated elsewhere in this codebase (docs/ENGINEERING_RULES.md's count-then-insert
+      // precedent), rather than the far wider window a pre-transaction read left open.
+      const activeResourceIdsByType = await resolveActiveResourceIdsByType(
+        this.resourceRepo,
+        tenantId,
+        requirements.map((r) => r.type),
+      );
       current.setResourceRequirements(requirements, activeResourceIdsByType);
       await this.serviceRepo.save(current);
       return current;

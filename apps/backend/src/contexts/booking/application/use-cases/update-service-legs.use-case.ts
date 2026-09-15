@@ -36,11 +36,6 @@ export class UpdateServiceLegsUseCase {
     const { id, tenantId } = input;
     const legs = input.legs.map(toServiceLeg);
     const allRequirementTypes = legs.flatMap((leg) => leg.resourceRequirements.map((r) => r.type));
-    const activeResourceIdsByType = await resolveActiveResourceIdsByType(
-      this.resourceRepo,
-      tenantId,
-      allRequirementTypes,
-    );
 
     const { service, totalSpanMinutes } = await this.txManager.run(async () => {
       // findByIdForUpdate (not findById) — closes the lost-update race between two concurrent
@@ -48,6 +43,14 @@ export class UpdateServiceLegsUseCase {
       const current = await this.serviceRepo.findByIdForUpdate(id, tenantId);
       if (!current) throw new ServiceNotFoundError(id);
 
+      // Read inside the transaction, immediately before the write it guards — see
+      // update-service-resource-requirements.use-case.ts's identical comment for why this
+      // narrows (rather than needing to fully close) the concurrent-deactivation race.
+      const activeResourceIdsByType = await resolveActiveResourceIdsByType(
+        this.resourceRepo,
+        tenantId,
+        allRequirementTypes,
+      );
       const span = current.setLegs(legs, activeResourceIdsByType);
       await this.serviceRepo.save(current);
       return { service: current, totalSpanMinutes: span };

@@ -69,7 +69,7 @@ export class RequestBookingUseCase {
       this.bookingRepo,
       this.photoExistenceService,
       this.serviceRepo,
-      { booking, tenantId, scheduledAt, totalDurationMins, timezone, operations },
+      { booking, tenantId, scheduledAt, totalDurationMins, timezone, operations, serviceMap },
     );
 
     this.logger.log('Booking requested', {

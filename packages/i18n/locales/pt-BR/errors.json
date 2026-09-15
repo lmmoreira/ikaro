@@ -66,6 +66,7 @@
   "BOOKING_SERVICE_RESOURCE_TYPE_UNAVAILABLE": "Não há recursos ativos do tipo selecionado.",
   "BOOKING_SERVICE_RESOURCE_REQUIREMENT_INVALID": "O requisito de recurso informado é inválido.",
   "BOOKING_SERVICE_LEG_INVALID": "A etapa informada é inválida.",
+  "BOOKING_SERVICE_CONCURRENT_MODIFICATION": "A configuração deste serviço foi alterada enquanto este agendamento estava sendo criado. Recarregue e tente novamente.",
   "ADDRESS_POSTAL_CODE_INVALID": "O CEP informado é inválido.",
   "ADDRESS_STATE_INVALID": "O estado informado é inválido.",
   "ADDRESS_NEIGHBORHOOD_REQUIRED": "O bairro é obrigatório.",

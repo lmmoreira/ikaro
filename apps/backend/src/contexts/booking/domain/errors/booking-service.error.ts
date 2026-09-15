@@ -110,6 +110,16 @@ export class BookingServiceBookingModelImmutableError extends BookingDomainError
   }
 }
 
+export class BookingServiceConcurrentModificationError extends BookingDomainError {
+  constructor(id: string) {
+    super(
+      `Service configuration changed while this booking was being created: ${id}`,
+      BookingErrorCode.SERVICE_CONCURRENT_MODIFICATION,
+    );
+    this.name = 'BookingServiceConcurrentModificationError';
+  }
+}
+
 export class BookingServiceResourceTypeUnavailableError extends BookingDomainError {
   constructor(type: string) {
     super(

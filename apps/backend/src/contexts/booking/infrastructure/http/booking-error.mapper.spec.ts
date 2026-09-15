@@ -27,6 +27,7 @@ import {
   BookingPhotoNotUploadedError,
   BookingRejectionReasonTooShortError,
   BookingServiceBookingModelImmutableError,
+  BookingServiceConcurrentModificationError,
   BookingServiceHasLegsError,
   BookingServiceLegsTooFewError,
   BookingServiceResourceTypeUnavailableError,
@@ -154,6 +155,12 @@ describe('mapBookingError', () => {
 
   it('maps BookingServiceBookingModelImmutableError to 409', () => {
     const err = call(new BookingServiceBookingModelImmutableError('service-1'));
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+  });
+
+  it('maps BookingServiceConcurrentModificationError to 409', () => {
+    const err = call(new BookingServiceConcurrentModificationError('service-1'));
     expect(err).toBeInstanceOf(HttpException);
     expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
   });

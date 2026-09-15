@@ -78,7 +78,7 @@ export class RequestAuthenticatedBookingUseCase {
       this.bookingRepo,
       this.photoExistenceService,
       this.serviceRepo,
-      { booking, tenantId, scheduledAt, totalDurationMins, timezone, operations },
+      { booking, tenantId, scheduledAt, totalDurationMins, timezone, operations, serviceMap },
     );
 
     return this.toResult(booking);

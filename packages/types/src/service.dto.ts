@@ -33,6 +33,8 @@ export interface CreateServiceRequest {
   loyaltyPointsValue: number;
   requiresPickupAddress?: boolean;
   isActive?: boolean;
+  bookingModel?: ServiceBookingModel;
+  classResourceSlots?: ClassResourceSlotItem[];
 }
 
 export interface UpdateServiceRequest {
@@ -42,6 +44,8 @@ export interface UpdateServiceRequest {
   durationMinutes?: number;
   loyaltyPointsValue?: number;
   requiresPickupAddress?: boolean;
+  bufferAfterMinutes?: number;
+  bookingModel?: ServiceBookingModel;
 }
 
 export interface ServiceResponse {

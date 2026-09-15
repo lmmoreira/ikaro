@@ -8,19 +8,21 @@ export class InMemoryServiceRepository implements IServiceRepository {
   private readonly store = new Map<string, Service>();
 
   async findById(id: string, tenantId: string): Promise<Service | null> {
-    const service = this.store.get(id);
-    if (service?.tenantId !== tenantId) return null;
-    return service;
+    return this.lookup(id, tenantId);
   }
 
   // No real locking in-memory — this double only needs to satisfy the port shape for use-case
-  // unit tests, none of which exercise concurrent access. Deliberately duplicates findById()'s
-  // body instead of delegating to it, so a spy on one method never observes a call to the other —
-  // callers asserting "findByIdForUpdate, not findById" stay meaningful against this double.
+  // unit tests, none of which exercise concurrent access. Routes through the same private
+  // lookup() as findById() (never calls findById() itself) so a spy on either public method never
+  // observes a call to the other — callers asserting "findByIdForUpdate, not findById" stay
+  // meaningful against this double.
   async findByIdForUpdate(id: string, tenantId: string): Promise<Service | null> {
+    return this.lookup(id, tenantId);
+  }
+
+  private lookup(id: string, tenantId: string): Service | null {
     const service = this.store.get(id);
-    if (service?.tenantId !== tenantId) return null;
-    return service;
+    return service?.tenantId === tenantId ? service : null;
   }
 
   async findByIds(ids: string[], tenantId: string): Promise<Service[]> {

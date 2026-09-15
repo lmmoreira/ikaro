@@ -15,6 +15,7 @@ import { AddressErrorCode } from '@ikaro/types';
 import {
   BookingAddressValidationError,
   BookingPhotoNotUploadedError,
+  BookingServiceConcurrentModificationError,
   BookingSlotUnavailableError,
 } from '../../domain/errors/booking-domain.error';
 import { BookingStatus } from '../../domain/booking.aggregate';
@@ -89,6 +90,18 @@ describe('RequestBookingUseCase', () => {
     await useCase.execute(baseInput());
 
     expect(findByIdForUpdateSpy).toHaveBeenCalledWith(serviceId, TENANT_A);
+  });
+
+  it('rejects the booking when the locked service state no longer matches the pre-transaction snapshot (concurrent modification)', async () => {
+    const changedService = new ServiceBuilder()
+      .withTenantId(TENANT_A)
+      .withBookingModel('SESSION')
+      .build();
+    jest.spyOn(serviceRepo, 'findByIdForUpdate').mockResolvedValueOnce(changedService);
+
+    await expect(useCase.execute(baseInput())).rejects.toThrow(
+      BookingServiceConcurrentModificationError,
+    );
   });
 
   it('publishes BookingRequested event after commit', async () => {
