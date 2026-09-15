@@ -5,7 +5,7 @@
 **Symlinked as:** `CLAUDE.md`, `gemini.md`, `AGENTS.md`
 **Audience:** Any AI coding agent
 **Rule:** Read this file first. Then use §10 to load only the docs you need.
-**Last updated:** 2026-09-14
+**Last updated:** 2026-09-15
 
 ---
 
@@ -189,6 +189,10 @@ If a design keeps needing new safeguards or caveats as it's developed (e.g. "thi
 - **A new event handler's class name must be unique across the whole codebase, not just its own context** — the Pub/Sub topic/subscription generator keys by bare class name with no file/module qualifier. → `docs/ENGINEERING_RULES.md` § Event Handlers (Pub/Sub consumers)
 - **When a bot review (or any mid-PR discovery) prompts extending an existing algorithm to a genuinely new dimension, re-derive the new code against every invariant already documented for that feature area in the same doc file** — not only the specific gap that triggered the change. → `docs/ENGINEERING_RULES.md` § Re-check a same-file documented invariant when extending an existing algorithm to a new dimension mid-PR
 - **`architecture-check`'s `transactional-save` detector requires `save()` to be textually inside the `txManager.run()` callback** — not merely reachable through a helper method the callback calls. **CI-enforced.** → `docs/ENGINEERING_RULES.md` § `architecture-check`'s `transactional-save` detector requires `save()` to be textually inside `txManager.run()`
+- **Locking several rows of the same kind together in one transaction needs a single batched query with an explicit deterministic order, not N sequential single-row locks** — an unordered `SELECT ... WHERE id IN (...) FOR UPDATE` gives Postgres no lock-acquisition-order guarantee, so concurrent callers referencing overlapping rows in different array orders can still deadlock. → `docs/ENGINEERING_RULES.md` § Choosing a race-condition primitive, and where its lock port should live
+- **A repository that wholesale-replaces a child collection on every `save()` needs a dirty flag on the aggregate** (set by the specific setters that touch those children, not by scalar-field setters) so a save that never touched them skips the expensive delete+reinsert. → `docs/ENGINEERING_RULES.md` § A wholesale-replaced child collection needs a dirty flag on the aggregate
+- **A child table keyed only by a composite PK (no surrogate `id`) cannot represent "declared but empty"** — that state is indistinguishable from "never declared" once persisted; reject an empty grouping at the aggregate boundary rather than relying on storage to round-trip it. → `docs/ENGINEERING_RULES.md` § A child table with only a composite PK cannot represent "declared but empty"
+- **A bot review's "doc update missing from this PR" claim only checked this PR's diff, not whether the doc is already correct on `main`** — a doc landed earlier (e.g. during story-discovery) shows zero diff in the implementation PR precisely because nothing is left to change. Verify with `gh api repos/<org>/<repo>/compare/main...<sha>` before accepting the finding. → `docs/CI_TRAPS.md` (bot doc-update-diff-scoping entry)
 - **CI-enforced by `architecture-check` detectors not otherwise mentioned in this file:** every TypeORM UUID-PK entity's builder must default to `uuidv7()` (`entity-builder-pk-default`); every TypeORM entity needs a matching builder in `src/test/builders/<context>/` (`test-builder-coverage`); a use case's `execute()` input/output types must be named exactly `{ClassName}Input`/`{ClassName}Result` (`use-case-naming`); BFF response interfaces/Zod schemas live in sibling `.types.ts`/`.schemas.ts`, never inline in the controller (`bff-controller-type-placement`); never construct a class with a `jest.fn()` stub for a port-typed constructor param — use an `InMemoryXxx` double (`jest-fn-port-mock`); VO normalization-reachability and closed-enum mirror consistency (`vo-construction-validation`, `closed-enum-registry`).
 
 ### BFF naming & transport
