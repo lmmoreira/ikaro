@@ -130,7 +130,7 @@ Extend the existing `Service` aggregate (`apps/backend/src/contexts/booking/doma
 
 ---
 
-### M22-S02 — `Service` booking-intake schema + booking policy
+### M22-S02 — `Service` booking-intake schema + booking policy ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** M
